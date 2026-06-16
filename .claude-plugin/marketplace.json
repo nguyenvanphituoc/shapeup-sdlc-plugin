@@ -1,0 +1,16 @@
+{
+  "name": "nvptuoc-marketplace",
+  "owner": {
+    "name": "Liberty Nguyen",
+    "email": "nguyenvanphituoc.developer@gmail.com"
+  },
+  "description": "ShapeUp SDLC plugins for Claude Code.",
+  "plugins": [
+    {
+      "name": "shapeup-sdlc-plugin",
+      "source": ".",
+      "description": "Shape Up SDLC harness: shaping → intake → orient → scope-mapping → build → evaluate → QA, orchestrated by a tech-lead.",
+      "license": "MIT"
+    }
+  ]
+}

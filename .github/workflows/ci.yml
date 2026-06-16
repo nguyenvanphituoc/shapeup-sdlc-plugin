@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Validate plugin & marketplace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Show CLI version
+        run: claude --version
+
+      - name: Validate plugin manifest
+        run: claude plugin validate . --strict
+
+      - name: Validate marketplace manifest
+        run: claude plugin validate ./.claude-plugin/marketplace.json --strict
+
+  json-lint:
+    name: Lint JSON
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check JSON files parse
+        run: |
+          set -e
+          find . -path ./.git -prune -o -name '*.json' -print | while read -r f; do
+            echo "Checking $f"
+            python3 -c "import json,sys; json.load(open('$f'))"
+          done

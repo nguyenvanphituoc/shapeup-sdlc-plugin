@@ -1,0 +1,18 @@
+{
+  "name": "shapeup-sdlc-plugin",
+  "displayName": "ShapeUp SDLC Plugin",
+  "version": "0.1.0",
+  "description": "Shape Up SDLC harness for Claude Code: shaping, intake, orient, scope-mapping, building, evaluation and QA skills orchestrated by a tech-lead.",
+  "author": {
+    "name": "Liberty Nguyen",
+    "email": "nguyenvanphituoc.developer@gmail.com"
+  },
+  "homepage": "https://github.com/nguyenvanphituoc/shapeup-sdlc-plugin",
+  "repository": "https://github.com/nguyenvanphituoc/shapeup-sdlc-plugin",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "plugin",
+    "tooling"
+  ]
+}

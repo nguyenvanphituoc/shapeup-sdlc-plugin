@@ -1,0 +1,8 @@
+# macOS
+.DS_Store
+
+# Claude Code local (per-user, not shared)
+.claude/settings.local.json
+
+# Navigator clone target (gap-scan)
+example/
