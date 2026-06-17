@@ -114,6 +114,7 @@ feature: [slug]
 entities: []
 usecases: []
 screens: []                      # list of screen/view names
+figma_link: [Figma Project URL]  # Optional: Link to the overall Figma file
 tags: [ux]
 depends_on: ["[[domain-model]]"]
 status: draft | ready
@@ -121,7 +122,11 @@ status: draft | ready
 ```
 
 Required sections: Screen Flow (ASCII diagram), one section per Screen with:
-- States table, Behavior Rules list, Error States table
+- **Figma Frame**: [Figma Frame Node ID / URL] (Mandatory if Figma mocks exist)
+- **Visual & Layout Specs**: Flex/Grid structure, spacing, alignment rules, and desktop/mobile responsiveness
+- **Design Tokens**: Specific CSS variables or Tailwind classes used for background, borders, fonts, and actions
+- **States table**, **Behavior Rules list**, **Error States table**
+
 
 ---
 

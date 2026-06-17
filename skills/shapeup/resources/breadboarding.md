@@ -322,3 +322,13 @@ Slicing groups affordances into **vertical implementation slices** — each demo
 | Every S | Something reads from it? | Investigate — may be unused |
 | Navigation mechanisms | Is N just "how" of getting somewhere? | Wire directly to Place |
 | N with side effects | Affects external state? | Add a store for external state |
+
+---
+
+## Handoff to High-Fidelity Design
+
+Once the breadboard is completed, verified, and sliced, it serves as the wireframe blueprint for the **Product Designer**:
+1. **Place to Figma Frame**: Each Place (e.g. `P1`, `P2`) maps to a distinct Figma frame/view.
+2. **Affordance to Element**: Every UI Affordance (e.g. `U1`, `U2`) must be represented as a visual component in the design.
+3. **Transition to Navigation**: The wires between Places define the interactive flows and navigation transitions in the Figma prototype.
+

@@ -223,3 +223,47 @@ interface CheckoutAPI {
 ```
 
 This stub is the handoff artifact to the API team if/when STANDARD upgrade happens.
+
+---
+
+## Visual Design Contracts & Figma Integration (Co-authored by Product Designer)
+
+To prevent discrepancies between Figma designs and final UI implementation, the Product Designer and BA co-author the visual section of each screen specification.
+
+### 1. Figma Reference Mapping
+For every screen, specify the exact Figma Frame link in the header:
+```markdown
+Figma Frame: https://www.figma.com/file/XYZ/AppName?node-id=123-456
+```
+
+### 2. Visual & Layout Spec Table
+Define the layout model, alignment, spacing, and responsive behavior:
+```markdown
+| Layout Property | Mobile View | Desktop View | Styling Implementation Details |
+|---|---|---|---|
+| **Structure** | Vertical block (`flex-col`) | Horizontal side-by-side (`flex-row`) | Flexbox with gap size 16px (`gap-4`) |
+| **Grid / Columns** | 1 Column | 2 Columns (sidebar/main) | Sidebar: 300px width fixed, Main: flexible |
+| **Spacing** | Padding 16px (`p-4`) | Padding 24px (`p-6`) | Keep alignment strictly centered |
+| **Typography** | Body: 14px (`text-sm`) | Body: 16px (`text-base`) | Use Outfit font family |
+```
+
+### 3. Design Tokens Checklist
+Every component must map to the project's standard CSS variables or Tailwind utility classes. Do not use ad-hoc hex codes or absolute layout offsets:
+```markdown
+| Element | Visual Style / Token | Class/Property | Figma Source |
+|---|---|---|---|
+| Card Container | Rounded border, light shadow | `bg-card rounded-2xl shadow-sm` | Card Component |
+| CTA Button | Brand primary background, bold text | `bg-primary text-white font-bold h-12` | Primary Button |
+| Error Message | Brand red text, small font | `text-danger text-xs font-semibold` | Input/Alert Error |
+| Border | Divider line | `border-gray-200` | Border line |
+```
+
+### 4. Interactive & State Design
+Specify the visual styling changes for all active, hover, focused, disabled, and loading states:
+```markdown
+- **Button Hover**: Darkens background by 10% (`hover:bg-primary-dark`)
+- **Input Focus**: Border changes to brand color with subtle outline ring (`focus:border-primary focus:ring-1 focus:ring-primary`)
+- **Disabled State**: Button opacity is reduced to 50% (`disabled:opacity-50 disabled:cursor-not-allowed`)
+- **Loading Overlay**: Full-screen semi-transparent backdrop (`bg-black/40`) with center spinner
+```
+

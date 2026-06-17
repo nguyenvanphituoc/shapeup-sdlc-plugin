@@ -158,3 +158,14 @@ try {
   throw new RepositoryError('OrderRepository.findById failed', { cause: err })
 }
 ```
+
+---
+
+## Visual & Styling Conformance Rule (Figma & Design Tokens)
+
+For any task that involves styling components, templates, or layouts:
+1. **Read Visual Spec**: Load `ux-behavior.md` and read the corresponding Screen's `Visual & Layout Specs` table and `Design Tokens` checklist.
+2. **Apply Design Tokens**: Use existing CSS variables, Tailwind classes, or design tokens defined in the project (e.g., `design-tokens.json`). Do **not** invent hardcoded style properties (e.g., hardcoded RGB hex codes or custom padding values) unless explicitly directed.
+3. **Respect Layout Models**: If the contract specifies `flex-col` on mobile and `flex-row` on desktop with a 16px gap, implement exactly that layout structure.
+4. **Interactive States**: Implement hover, focus, disabled, and loading states exactly as specified in the Interactive & State Design guidelines of the contract.
+
