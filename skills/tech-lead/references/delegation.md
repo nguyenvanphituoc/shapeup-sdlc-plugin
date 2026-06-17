@@ -49,6 +49,17 @@ Read back: tasks/_index.md (the board) and scope-summary.md (Done-when statement
 Pass-through rule: do not coach it to over-specify implementation — keep tech high-level.
 ```
 
+## 2b. RECONCILE SCOPES → ba-pitch-analyzer (discovered task reconciliation)
+```
+Invoke: /ba-pitch-analyzer --tasks-only --from-discovered .shapeup-sdlc/<slug>/discovery/ledger.md
+Effect: reconciles raw ledger discoveries into full board tasks, appends new invariants and
+        TS-INV-* rows to use cases, and updates tasks/_index.md + scope-summary.md.
+Owns:   Appetite Guard (Phase 7b).
+Writes: updates spec_folder/tasks/*, spec_folder/tasks/_index.md, spec_folder/scope-summary.md,
+        and spec_folder/usecases/*.md. Updates local run-state: discovered_rounds += 1.
+Read back: updated tasks/_index.md and scope-summary.md before routing back to GATE L1b.
+```
+
 ## 3. BUILD → task-executor
 ```
 r=1 loop:

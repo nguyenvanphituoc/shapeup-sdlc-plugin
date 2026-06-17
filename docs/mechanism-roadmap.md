@@ -1,9 +1,9 @@
 Shape Up Skills Roadmap — v2 (post QA-meeting, 2026-06-11)
 
 Reflects the implemented state: `ba-pitch-analyzer` **v2.9** (Test Surface + `--surface-only`),
-`spec-evaluator` **v0.5** (dimension `test-surface-conformance`), `tech-lead` **v0.8**
-(regression rule + QA wiring + SHIP S.0 triage + SHIP S.6 metrics harvest), `qa-edge-hunter`
-**v1.0** (new skill), `shapeup` **v2.1** (per-run context-compaction digest).
+`spec-evaluator` **v0.5** (dimension `test-surface-conformance`), `tech-lead` **v0.10**
+(automated discovered tasks + regression rule + QA wiring + SHIP S.0 triage + SHIP S.6 metrics harvest + Two-root workspace), `qa-edge-hunter`
+**v1.1** (new skill), `shapeup` **v2.2** (per-run context-compaction digest + Two-root workspace).
 
 ```mermaid
 graph TD
@@ -21,8 +21,8 @@ graph TD
         F -. "Skip" .-> A
     end
 
-    %% PHASE 3: BUILDING — orchestrated by /tech-lead v0.6
-    subgraph Phase3 ["PHASE 3: BUILDING — orchestrator: /tech-lead v0.6"]
+    %% PHASE 3: BUILDING — orchestrated by /tech-lead v0.10
+    subgraph Phase3 ["PHASE 3: BUILDING — orchestrator: /tech-lead v0.10"]
         F -- "Bet (kicked-off pitch)" --> G["(6) Kick-off<br>PO-personal<br>(/shapeup kickoff-doc assists)"]
         G --> L0[/"⏸ GATE L0 — Intake & Config<br>(/translator if non-English)"/]
         L0 --> H["(7) Orient<br>delegate → /orient (Scout)"]
@@ -42,14 +42,14 @@ graph TD
         L3 -- "FAIL → fix round r+1<br>regression rule ★: bugs<br>+ FULL Test Surface<br>of touched UC" --> K
     end
 
-    %% QA EDGE HUNT — /qa-edge-hunter v1.0
-    subgraph PhaseQA ["QA EDGE HUNT — /qa-edge-hunter v1.0 (pure worker · post-PASS · pre-ship · --no-qa to skip)"]
+    %% QA EDGE HUNT — /qa-edge-hunter v1.1
+    subgraph PhaseQA ["QA EDGE HUNT — /qa-edge-hunter v1.1 (pure worker · post-PASS · pre-ship · --no-qa to skip)"]
         L3 -- "first PASS" --> Q0[/"⏸ GATE Q0 — Preflight<br>hard: app · EVAL-PASS · ledger<br>soft: Test Surface?<br>missing → DEGRADED MODE<br>(suggests ba --surface-only)"/]
         Q0 --> QC["Phase Q1 — Charter Map<br>6 fixed lenses ①–⑥<br>− area EVAL already probed<br>(EVAL report = negative space)"]
         QC --> Q1[/"⏸ GATE Q1 — Charter Review<br>scope hammer on QA itself"/]
         Q1 --> QH["Phase Q2 — HUNT 🔍<br>session-based · repro required<br>on the running app"]
         QH -- "every finding defaults to ~<br>+ severity-hint + contradicts:" --> I2
-        QH --> QR["Phase Q3 — qa/hunt-report.md<br>NO verdict · NO score<br>+ shaping-quality signal per lens"]
+        QH --> QR["Phase Q3 — .shapeup-sdlc/&lt;slug&gt;/qa/hunt-report.md<br>NO verdict · NO score<br>+ shaping-quality signal per lens"]
     end
 
     %% SHIP + TRIAGE
@@ -98,16 +98,16 @@ graph TD
 | 1 | Step 8 | `ba-pitch-analyzer` v2.9 | UC gains a `## Test Surface` — mechanically derived from 4 sources (D1–D4), anti-invention hard rule |
 | 2 | `--tasks-only` branch | v2.9 | A new invariant appended to a UC → also carries a `TS-INV-NN` row |
 | 3 | EVAL | `spec-evaluator` v0.5 | Dimension `test-surface-conformance` auto-enables when a UC has a Test Surface; report lists every TS row probed (= negative space for QA) |
-| 4 | FAIL loop | `tech-lead` v0.6 | Regression rule: round r+1 grades bugs + the full Test Surface of any touched UC |
-| 5 | Pink zone | `qa-edge-hunter` v1.0 | New skill — Q0 preflight (degraded mode first-class) → Q1 charter (6 lenses − covered) → Hunt (repro required, findings `~` → ledger) → report with no verdict |
-| 6 | SHIP | `tech-lead` v0.6 | Step S.0 triage = "Decide When to Stop" — compare to baseline, PO/TL promotes; QA never self-promotes or blocks ship |
-| 7 | GATE L4 | v0.6 | Shows QA status; the recheck loop only re-probes promoted items |
+| 4 | FAIL loop | `tech-lead` v0.10 | Regression rule: round r+1 grades bugs + the full Test Surface of any touched UC |
+| 5 | Pink zone | `qa-edge-hunter` v1.1 | New skill — Q0 preflight (degraded mode first-class) → Q1 charter (6 lenses − covered) → Hunt (repro required, findings `~` → ledger) → report with no verdict |
+| 6 | SHIP | `tech-lead` v0.10 | Step S.0 triage = "Decide When to Stop" — compare to baseline, PO/TL promotes; QA never self-promotes or blocks ship |
+| 7 | GATE L4 | v0.10 | Shows QA status; the recheck loop only re-probes promoted items |
 | 8 | Retrofit | v2.9 | `--surface-only` upgrades a legacy spec — frozen zone untouched |
 
 ## Architectural invariants preserved
 
 - **A single judge** — the verdict still belongs to `spec-evaluator`; QA has no verdict and no score.
 - **EVAL exactly once per round** — QA is not a second evaluation pass; it sits after PASS, outside the loop.
-- **Ledger = single source of truth** — Orient, task-executor P3.7, and now QA all flow into `discovery/ledger.md`; QA only writes in its own section.
+- **Ledger = single source of truth** — Orient, task-executor P3.7, and now QA all flow into `.shapeup-sdlc/<slug>/discovery/ledger.md`; QA only writes in its own section.
 - **QA is a level-up, not a gate** — `--no-qa` can skip it; the circuit breaker outranks the Hunter; findings default to `~`.
 - **Judge/generator/hunter role separation** — the Evaluator grades, task-executor fixes, QA discovers; no one does another's job.

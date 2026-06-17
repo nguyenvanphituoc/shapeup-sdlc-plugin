@@ -29,6 +29,11 @@ loop:
 Re-opening tasks in r>1: set the affected task `status: in-progress`, fix, re-close via
 task-executor GATE E. The board reflects the churn so the next EVAL sees a green board again.
 
+Discovered Tasks:
+If task-executor logs raw discovered tasks during BUILD (P3.7) to the discovery ledger (`.shapeup-sdlc/<slug>/discovery/ledger.md`), the build loop pauses after the current tasks are done. Run:
+`/ba-pitch-analyzer --tasks-only --from-discovered .shapeup-sdlc/<slug>/discovery/ledger.md`
+This reconciles them into new tasks and invariants, updates tasks/_index.md, and increments `discovered_rounds`. The tech lead then routes back to GATE L1b (Board Review) for PO approval of the new tasks and estimates before resuming the BUILD loop.
+
 ## The EVAL timing rule (the core constraint)
 
 EVAL fires **once** per round and **only** when GATE L2 has confirmed the board is 100% done.

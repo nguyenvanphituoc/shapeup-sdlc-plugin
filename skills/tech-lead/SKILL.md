@@ -74,6 +74,8 @@ INTAKE: kicked-off pitch (shaped + bet, by the PO) + project context
           │
 ▶ BUILD r │  delegate → task-executor (loop --next until board all ✅) ──► code
   (9)     │  r=1: build ALL ready tasks.   r>1: build ONLY the bugs from last EVAL.
+          │  If new tasks discovered → /ba-pitch-analyzer --tasks-only --from-discovered
+          │  reconciles them, routes back to GATE L1b, and resumes BUILD.
           │
 ⏸ GATE L2 │  Build Round Complete ──► confirm EVERY task status=done (board green).
           │                          THIS is the precondition that unlocks evaluation.
@@ -248,6 +250,14 @@ r = 1 (first build):
          repeat until tasks/_index.md shows every task ✅ done (no ready/blocked left)
   task-executor keeps its GATE A–E per task; pass --auto-close under --auto/--unattended.
   SPIKE tasks resolve first (they block). Respect dependency/layer order — the board enforces it.
+
+  Discovered Tasks:
+  If task-executor logs raw discovered tasks during the build (P3.7), the build loop pauses
+  after the current tasks are done. Run:
+  /ba-pitch-analyzer --tasks-only --from-discovered .shapeup-sdlc/<slug>/discovery/ledger.md
+  This reconciles them into new tasks and invariants, updates tasks/_index.md, and increments
+  discovered_rounds. Route back to GATE L1b (Board Review) for PO approval, then loop back
+  to resume building the newly generated tasks.
 
 r > 1 (fix build, after a FAIL):
   Input = the bug list in evaluation/EVAL-FEATURE-<slug>.md from the previous EVAL.
@@ -447,6 +457,7 @@ On confirm → `✅ [slug] [shipped & deployed | built & verified, deploy pendin
 | Intake must be English before ORIENT; tech lead does NOT translate — it delegates to `translator` at GATE L0 | Translation is a separate single-purpose skill; orchestrator only detects + sequences |
 | Tech lead is the SOLE WRITER of run-state (`harness-run.md`); workers get run metadata as args | Stateless workers, one stateful orchestrator — don't fragment run-state across worker files; protects `--from` resume |
 | Progress is reported by Hill position, never by counting tasks | The roadmap forbids task-counting; a 90%-done slice can still be stuck uphill on the one unknown that matters |
+| Discovered tasks are reconciled and reviewed | If new tasks are discovered during BUILD, run /ba-pitch-analyzer --tasks-only --from-discovered and route back to GATE L1b; do not ignore them |
 | Evaluator runs once per round, only after GATE L2 (board 100% done) | The whole point: cheap end-of-round QA, never per task |
 | Evaluator never called inside the BUILD loop | Keeps the build coherent and the run cheap |
 | r>1 builds bugs only, never the whole board | Don't re-do passing work; minimize churn |
@@ -480,6 +491,7 @@ On confirm → `✅ [slug] [shipped & deployed | built & verified, deploy pendin
 ## Changelog
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.10 | 2026-06-18 | **Automated Discovered Tasks.** If new tasks are logged in `.shapeup-sdlc/<slug>/discovery/ledger.md` during the BUILD loop, automatically run `/ba-pitch-analyzer --tasks-only --from-discovered` at a build round boundary to reconcile them. Then, route back to GATE L1b for PO review before resuming the build loop. Added matching hard rule. |
 | 0.9 | 2026-06-18 | **Two-root workspace.** L0.2 now sets two roots off `<slug>` and threads them to workers: SHARED `docs/shapeup-sdlc/<slug>/` (shaping/ + spec/, committed) and LOCAL `.shapeup-sdlc/<slug>/` (run-trace: harness-run.md, run-state, orient/, evaluation/, qa/, discovery/ledger.md — hidden, gitignorable). `harness-run.md` moves to the LOCAL root; the harvest feed moves to `docs/shapeup-sdlc/metrics.jsonl` in the SHARED root (the one committed report surface; no gitignore carve-out needed). spec_folder = `docs/shapeup-sdlc/<slug>/spec/`. |
 | 0.8 | 2026-06-17 | SHIP gains S.6 harvest: append one fact-only signal row → `docs/shapeup-sdlc/metrics.jsonl` (committed in the SHARED root; the LOCAL `.shapeup-sdlc/` run-trace is gitignored). Fields copied from existing structured output (run-state, final EVAL report, discovery ledger, qa/hunt-report, breadboard B5) with `slice_count` as normalizer; `schema_version: 1` for forward-compat. Two hard rules: harvest only fields that already exist at ship; record facts, never compute a new verdict (no second judge behind spec-evaluator). Feeds tier-3 e2e benchmark only. Schema + row template in references/ledger-schema.md "Harvest row". |
 | 0.7 | 2026-06-16 | GATE L0: appetite read from pitch frontmatter; appetite surfaced in gate output; max_rounds appetite-informed (1-week→2, 2-week→3, 6-week→4); missing appetite flagged as scope risk. GATE L1b: scope cut framing references appetite + rabbit holes from pitch. |

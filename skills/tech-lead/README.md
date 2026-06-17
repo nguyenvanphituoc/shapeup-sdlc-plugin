@@ -55,17 +55,17 @@ The EVAL phase uses spec-evaluator's feature-level pass
 | Gate | When | Decision |
 |------|------|----------|
 | L0 | intake | language gate (`/translator --check`, translate if non-English) + run config: spec folder, lens, dims, max_rounds, auto level |
-| L1 | after PLAN | PO accepts the task board before any code |
+| L1a | after ORIENT | PO reviews the spiked area + 🗻 Hill unknowns before mapping scopes |
+| L1b | after MAP SCOPES | PO accepts the task board (appetite guard) before any code |
 | L2 | after BUILD round | board 100% done? → unlocks the single EVAL pass |
-| L3 | after EVAL | PASS → ship; FAIL → bug-only round r+1; max_rounds → escalate |
-| L4 | after SHIP | PO sign-off, close the ledger |
+| L3 | after EVAL | PASS → /qa-edge-hunter pass → ship; FAIL → bug-only round r+1; max_rounds → escalate |
+| L4 | after SHIP | PO sign-off, close the ledger, harvest metrics to metrics.jsonl |
 
 ## Auto levels
 - **interactive** (default): pause at every L-gate; sub-skills keep their own gates.
-- **--auto**: sub-skills run unattended; tech lead still pauses at L1 / L3 / L4.
+- **--auto**: sub-skills run unattended; tech lead still pauses at L1a / L1b / L3 / L4.
 - **--unattended**: auto-confirm all L-gates; stop only on PASS, max_rounds, or hard error.
   This is the headless mode for an Agent SDK / CI driver.
 
 ## Version
-0.1 — initial orchestrator. Round gates L0–L4. Single end-of-round evaluation. Bug-only
-re-build rounds. Max-rounds escalation. Resume + --no-eval.
+0.10 — Two-root workspace split (`docs/shapeup-sdlc/` vs `.shapeup-sdlc/`), automated discovered-task reconciliation (`/ba-pitch-analyzer --tasks-only --from-discovered`), regression rule (touched UCs re-run), QA edge-hunter wiring (exploratory findings, triage at SHIP S.0), metrics harvest, and split L1a/L1b gates.
