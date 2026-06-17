@@ -28,6 +28,33 @@ Pin to a released version:
 /plugin marketplace add nguyenvanphituoc/shapeup-sdlc-plugin@v0.1.0
 ```
 
+### Bundled dependency
+
+This plugin depends on the official **Playwright** plugin
+(`playwright@claude-plugins-official`) — the QA and evaluation skills drive the running
+app to verify `[ui]` criteria. On a normal `/plugin install`, Claude Code resolves the
+dependency automatically (adding the `claude-plugins-official` marketplace if needed).
+
+The evaluation/QA skills drive the browser through the Playwright **CLI** by default
+(token-efficient), so the dependency also expects a browser binary to be present:
+
+```bash
+npx playwright install chromium
+```
+
+**Troubleshooting — `Dependency "playwright@claude-plugins-official" is not installed`.**
+This means the Playwright plugin is missing *or installed-but-disabled*. Install and/or
+enable it, then reload:
+
+```bash
+claude plugin install playwright@claude-plugins-official   # if missing
+claude plugin enable  playwright@claude-plugins-official    # if disabled
+```
+
+In a session, `/reload-plugins` picks up the change. Note: the dependency gate is also
+checked when loading a working copy with `claude --plugin-dir .`, so enable Playwright
+before dev-loading this plugin.
+
 ### Install for the whole team
 
 Commit this to a project's `.claude/settings.json` so everyone who opens the repo gets
