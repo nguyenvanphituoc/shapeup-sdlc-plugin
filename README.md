@@ -76,7 +76,7 @@ the plugin enabled automatically:
 ## The workflow
 
 The harness walks a pitch from idea to ship. The full annotated pipeline (gates,
-discovered-task ledger, retrofit path) lives in [`docs/roadmap.md`](docs/roadmap.md);
+discovered-task ledger, retrofit path) lives in [`docs/mechanism-roadmap.md`](docs/mechanism-roadmap.md);
 a simplified view:
 
 ```mermaid
@@ -166,7 +166,7 @@ skills/<name>/SKILL.md # the 8 harness skills (+ references/ and assets/)
 commands/*.md         # slash commands (/ship)
 agents/*.md           # subagents (reviewer)
 hooks/hooks.json      # SessionStart hook
-docs/roadmap.md       # full annotated pipeline diagram
+docs/mechanism-roadmap.md       # full annotated pipeline diagram
 .github/workflows/    # CI + release
 ```
 
