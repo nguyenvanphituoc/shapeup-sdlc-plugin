@@ -1,0 +1,17 @@
+{
+  "name": "shapeup-sdlc-plugin",
+  "version": "0.1.0",
+  "description": "Shape Up SDLC harness for Claude Code: single-source compiled to Cursor extensions and Antigravity subagents.",
+  "scripts": {
+    "distribute": "node scripts/distribute.js"
+  },
+  "keywords": [
+    "shapeup",
+    "sdlc",
+    "cursor",
+    "antigravity",
+    "claude-code"
+  ],
+  "author": "Liberty Nguyen",
+  "license": "MIT"
+}

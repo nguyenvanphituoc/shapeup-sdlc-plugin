@@ -39,6 +39,15 @@ the table, and a recommendation. Resolve in a later pass; check items off as don
   wasn't configured at boot), and skills load at session start (relaunch after editing
   `description` triggers).
 
+## Self-improvement / evolution
+
+- [ ] **Make the harness self-improving** — measure every skill change against a committed
+  baseline so it ships only if it provably improves (seesaw constraint). Wires
+  `/skill-creator:skill-creator` as the measurement engine and adapts HarnessX/AEGIS as the
+  evolution loop. Full phased plan: [`evolution-roadmap.md`](./evolution-roadmap.md).
+  Builds tier-1/tier-2 of the eval design already named in
+  `skills/tech-lead/references/ledger-schema.md:139` (only tier-3 `metrics.jsonl` exists today).
+
 ## Notes
 
 - Add new items as `- [ ]` with Problem / Options / Decision-needed where a choice is open.

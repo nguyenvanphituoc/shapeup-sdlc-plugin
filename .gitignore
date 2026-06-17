@@ -12,3 +12,6 @@
 
 # Navigator clone target (gap-scan)
 example/
+
+# Compiled distribution artifacts (VS Code extension, Antigravity subagents, Cursor rules)
+dist/

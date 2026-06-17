@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   release:
-    name: Validate & publish release
+    name: Validate & Create Release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,13 +26,74 @@ jobs:
         run: claude plugin validate . --strict
 
       - name: Check tag matches plugin.json version
+        id: check-version
         run: |
           tag="${GITHUB_REF_NAME#v}"
           ver="$(python3 -c "import json;print(json.load(open('.claude-plugin/plugin.json'))['version'])")"
           echo "tag=$tag plugin.json=$ver"
           test "$tag" = "$ver" || { echo "::error::Tag $tag does not match plugin.json version $ver"; exit 1; }
 
+      - name: Compile distributions
+        run: npm run distribute
+
+      - name: Package extension (VSIX)
+        run: |
+          cd dist/cursor-extension
+          npx -y @vscode/vsce package --out ../../shapeup-sdlc-integration.vsix
+
+      - name: Archive Cursor rules & Antigravity configs
+        run: |
+          zip -r cursor-rules.zip dist/cursor-rules
+          zip -r antigravity-subagents.zip dist/antigravity
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
+          files: |
+            shapeup-sdlc-integration.vsix
+            cursor-rules.zip
+            antigravity-subagents.zip
           generate_release_notes: true
+
+  publish-vs-marketplace:
+    name: Publish to VS Code Marketplace
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Compile distributions
+        run: npm run distribute
+
+      - name: Publish to VS Code Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          cd dist/cursor-extension
+          npx -y @vscode/vsce publish -p $VSCE_PAT
+
+  publish-open-vsx:
+    name: Publish to Open VSX Registry
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Compile distributions
+        run: npm run distribute
+
+      - name: Publish to Open VSX Registry
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          cd dist/cursor-extension
+          npx -y ovsx publish -p $OVSX_PAT
+
