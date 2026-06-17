@@ -92,8 +92,8 @@ Estimated tokens: ~N tokens
 /ba-pitch-analyzer --lens standard docs/pitch-[context-a].md
 /ba-pitch-analyzer --lens standard docs/pitch-[context-b].md
 /ba-pitch-analyzer --cross-context FEATURE_SLUG \
-    .claude/specs/[context-a]/ \
-    .claude/specs/[context-b]/
+    docs/shapeup-sdlc/[context-a]/spec/ \
+    docs/shapeup-sdlc/[context-b]/spec/
 ```
 Estimated tokens: ~N total (reusable per context)
 

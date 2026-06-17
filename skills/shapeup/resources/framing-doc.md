@@ -40,7 +40,7 @@ If something is unclear: write "[unclear from transcript]" — never guess.
 
 ## Phase F2 — Write Framing Document
 
-Write `docs/shaping/[feature-slug]/frame.md`
+Write `docs/shapeup-sdlc/[feature-slug]/shaping/frame.md`
 
 ```markdown
 ---

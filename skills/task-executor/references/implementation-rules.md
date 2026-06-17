@@ -85,7 +85,7 @@ Never write `any` for contract-defined shapes.
 
 SPIKE tasks produce a decision document, not code.
 
-Output file: `spec_folder/spikes/SPIKE-[slug]-findings.md`
+Output file: `.shapeup-sdlc/<slug>/spikes/SPIKE-[slug]-findings.md` (LOCAL run-trace root)
 
 ```markdown
 ---

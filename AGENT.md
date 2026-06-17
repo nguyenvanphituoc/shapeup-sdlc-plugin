@@ -29,7 +29,7 @@ CI (`.github/workflows/ci.yml`) runs the two `validate --strict` calls + JSON li
 
 ## The harness — the core architecture
 
-The skills are not independent tools; they form a **planner → generator → judge** pipeline that walks a raw idea to shipped code. Understanding the role boundaries is the key to working here. Steps 1–11 map to Shape Up phases (full annotated pipeline: `docs/roadmap.md`).
+The skills are not independent tools; they form a **planner → generator → judge** pipeline that walks a raw idea to shipped code. Understanding the role boundaries is the key to working here. Steps 1–11 map to Shape Up phases (full annotated pipeline: `docs/mechanism-roadmap.md`).
 
 | Step | Skill | Role | Writes production code? |
 |------|-------|------|------|
@@ -67,8 +67,12 @@ When editing a skill, keep `SKILL.md` lean and push detail into `references/`, m
 
 The harness generates a linked markdown doc tree per feature (not committed here — produced in target projects). Shared frontmatter taxonomy lives in `skills/ba-pitch-analyzer/references/doc-schemas.md`: every doc carries `type`, `feature`, `lens` (`lite | standard | cross-context`), `bounded_context`, `status`, and `[[wikilink]]` cross-refs. The **lens** decides which docs are authoritative and which are skipped — `lite` centers on `ux-behavior.md`, `standard` on `contracts/`, `cross-context` on `_cross-context/`.
 
+**Two-root workspace (where runtime artifacts land in target projects), both keyed off the feature `<slug>`:**
+- **Shared** `docs/shapeup-sdlc/<slug>/` (committed, team-contributed): `shaping/` (frame · shaping · spike · breadboard · pitch · kickoff, from `shapeup`) + `spec/` (the DDD doc tree above, from `ba-pitch-analyzer`). The append-only harvest feed `docs/shapeup-sdlc/metrics.jsonl` (one row per ship, written by `tech-lead`) is the one committed report surface.
+- **Local** `.shapeup-sdlc/<slug>/` (hidden, gitignorable — one line `.shapeup-sdlc/`): per-run trace — `harness-run.md` (tech-lead's run ledger), `run-state.md`, `digest.md`, `orient/`, `evaluation/`, `qa/`, `discovery/ledger.md`, `spikes/`. `tech-lead` sets both roots at GATE L0 and threads them to workers. Full design: `skills/shapeup/resources/context-compaction.md`.
+
 ## Conventions
 
 - The repo is bilingual: skill descriptions and `commands/ship.md` mix English and Vietnamese. Preserve both when editing — they are intentional triggers, not noise.
-- Skill versions are tracked in prose (e.g. "v2.9") inside `description` and `docs/roadmap.md`, not in a manifest. Keep them in sync when bumping a skill.
+- Skill versions are tracked in prose (e.g. "v2.9") inside `description` and `docs/mechanism-roadmap.md`, not in a manifest. Keep them in sync when bumping a skill.
 - `agents/` and `commands/` ship with the plugin; anything under `.claude/` (e.g. a project-local `/gap-scan`) is for *this repo's own* use and is **not** distributed. `.claude/settings.local.json` and `example/` are gitignored.

@@ -64,7 +64,7 @@ Phase A   │  Probe ─────────────────► run 
 ⏸ GATE V2 │  Verdict ───────────────► grade each criterion vs hard threshold, evidence-only;
           │                          produce bug list with file:line. PASS / FAIL per dimension + overall.
           │
-Phase B   │  Report & Handoff ──────► write evaluation/EVAL-TASK-NNN.md; set task eval_verdict;
+Phase B   │  Report & Handoff ──────► write .shapeup-sdlc/<slug>/evaluation/EVAL-TASK-NNN.md; set task eval_verdict;
           │                          NEVER set status: done. Bug list is the generator's next input.
           │
 ⏸ GATE V3 │  Sign-Off ──────────────► user confirms report before close
@@ -94,13 +94,16 @@ active dimension set. Zero assumptions.
 
 ```
 Required inputs (explicit — never inferred):
-  1. spec_folder   — path to the ba-pitch-analyzer output dir
+  1. spec_folder   — path to the ba-pitch-analyzer output dir (SHARED spec deliverable,
+                     e.g. docs/shapeup-sdlc/<slug>/spec/). Run-trace (run-state.md, the
+                     evaluation/ report + .evidence/) lives in the LOCAL root
+                     .shapeup-sdlc/<slug>/, derived from the slug (parent of spec_folder).
   2. task_id       — TASK-NNN (or platform variant TASK-NNN.be / .web / .mobile / .e2e)
 
 Validation:
   V0.1  spec_folder exists                      → else HARD STOP
   V0.2  tasks/<task_id>*.md exists (glob)        → else list tasks/, ask user to pick
-  V0.3  run-state.md exists → read lens, feature → else warn (limited traceability)
+  V0.3  .shapeup-sdlc/<slug>/run-state.md exists → read lens, feature → else warn (limited traceability)
   V0.4  Read task file fully: id, type, package, status, depends_on, use_case_refs,
         linked_docs. If status ≠ in-progress/done → warn (evaluating unbuilt task?)
   V0.5  Resolve ACTIVE DIMENSION SET:
@@ -244,7 +247,7 @@ Do NOT write the report or annotate the task until the verdict is confirmed.
 > Read `references/report-schema.md`.
 
 ```
-B.1  Write evaluation/EVAL-<task_id>.md per report-schema.md
+B.1  Write .shapeup-sdlc/<slug>/evaluation/EVAL-<task_id>.md per report-schema.md
        (verdict, per-dimension criteria table, bug list, NEXT ACTION for the generator).
 B.2  Annotate the task file frontmatter — DO NOT change status to done:
        eval_verdict: pass | fail
@@ -273,7 +276,7 @@ B.4  If FAIL: the bug list is the generator's next input. Print the handoff line
 
 ```
 ⏸ GATE V3 — Sign-Off
-Report written : evaluation/EVAL-<task_id>.md
+Report written : .shapeup-sdlc/<slug>/evaluation/EVAL-<task_id>.md
 Verdict        : [PASS | FAIL]   ([N] bugs)
 Task annotated : eval_verdict set (status untouched)
 Next action    : [re-run generator | safe to close]
@@ -311,13 +314,13 @@ as worked examples of the contract. They are not run until flipped on.
 
 ```bash
 # Default — evaluate one task against spec-conformance only
-/spec-evaluator --spec .claude/specs/checkout-vnpay/ --task TASK-007
+/spec-evaluator --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --task TASK-007
 
 # Platform variant
-/spec-evaluator --spec .claude/specs/checkout-vnpay/ --task TASK-007.web
+/spec-evaluator --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --task TASK-007.web
 
 # Inject extra dimensions for this run (overrides registry)
-/spec-evaluator --spec .claude/specs/checkout-vnpay/ --task TASK-007 --dimensions spec-conformance,security
+/spec-evaluator --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --task TASK-007 --dimensions spec-conformance,security
 
 # Browser mode (cli is default and ~4x cheaper than mcp)
 /spec-evaluator --spec ... --task TASK-007 --browser cli

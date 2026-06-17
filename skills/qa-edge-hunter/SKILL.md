@@ -179,7 +179,7 @@ Per charter:
        a charter is a license to deviate INSIDE its ground, not a script.
   H.2  Suspected finding → reproduce it (≥1 clean repro) before recording. No repro →
        log in session notes as "unconfirmed observation", NOT a ledger finding.
-  H.3  Confirmed → append to discovery/ledger.md IMMEDIATELY (live, not batched):
+  H.3  Confirmed → append to .shapeup-sdlc/<feature>/discovery/ledger.md IMMEDIATELY (live, not batched):
 
        ## QA Edge Findings (round [r] — [date])          ← created on first finding
        ~ [QA-NNN] [lens:②concurrency] [UC-04] Double-click "Confirm" creates 2 orders
@@ -270,7 +270,7 @@ in ways a spec author wouldn't think to write down.
 
 ## Phase Q3 — Report
 
-Write `qa/hunt-report.md`:
+Write `.shapeup-sdlc/<feature>/qa/hunt-report.md` (LOCAL run-trace root):
 
 ```markdown
 # Hunt Report — [feature] (round [r], [date])
@@ -284,7 +284,7 @@ hammered out at GATE Q1 (not hunted): […]
 |---|---|---|---|
 | ① Boundary | C-01, C-05 | 2 | 0 |
 | … | | | |
-→ details live in discovery/ledger.md ## QA Edge Findings (round [r])
+→ details live in .shapeup-sdlc/<feature>/discovery/ledger.md ## QA Edge Findings (round [r])
 
 ## Shaping-quality signal (advisory, for the PO — next cycle's input)
 - lens ⑤ findings ≈ No-gos written loosely (breach routes left open)
@@ -309,7 +309,7 @@ Hunt : re-run EXACTLY the recorded repro of each promoted finding — nothing el
         fixed   → in the ledger, annotate the line: `~ [QA-NNN] … ✦ fixed r[N], verified`
                   (annotate, never delete — the ledger is history)
         not fixed → `✦ NOT fixed r[N]` + fresh evidence; back to triage.
-Report: append a `## Recheck (round [r])` section to qa/hunt-report.md.
+Report: append a `## Recheck (round [r])` section to .shapeup-sdlc/<feature>/qa/hunt-report.md.
 NEVER a second full hunt in the same cycle — new edges found while rechecking are
 recorded `~` like any finding and wait for triage; they don't restart the loop.
 ```
@@ -320,13 +320,13 @@ recorded `~` like any finding and wait for triage; they don't restart the loop.
 
 ```bash
 # Orchestrated (how tech-lead calls it after first PASS)
-/qa-edge-hunter --feature checkout-vnpay --spec .claude/specs/checkout-vnpay/ \
-    --eval .claude/specs/checkout-vnpay/EVAL-FEATURE-checkout-vnpay.md \
-    --ledger discovery/ledger.md --app http://localhost:3000
+/qa-edge-hunter --feature checkout-vnpay --spec docs/shapeup-sdlc/checkout-vnpay/spec/ \
+    --eval .shapeup-sdlc/checkout-vnpay/evaluation/EVAL-FEATURE-checkout-vnpay.md \
+    --ledger .shapeup-sdlc/checkout-vnpay/discovery/ledger.md --app http://localhost:3000
 
 # Standalone (same arguments, human-invoked)
-/qa-edge-hunter --feature checkout-vnpay --spec .claude/specs/checkout-vnpay/ --app http://localhost:3000
-# (--eval/--ledger default to the conventional paths under --spec)
+/qa-edge-hunter --feature checkout-vnpay --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --app http://localhost:3000
+# (--eval/--ledger default to the conventional paths under the LOCAL root .shapeup-sdlc/<feature>/)
 
 # Recheck after triage promoted + fixed findings
 /qa-edge-hunter --recheck QA-001,QA-004 --feature checkout-vnpay --spec ... --app ...

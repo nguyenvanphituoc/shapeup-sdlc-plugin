@@ -55,14 +55,14 @@ upgrade_adds: []
 
 ```bash
 # Check current upgrade options
-/ba-pitch-analyzer --status .claude/specs/FEATURE_SLUG/
+/ba-pitch-analyzer --status docs/shapeup-sdlc/FEATURE_SLUG/spec/
 
 # Upgrade to standard lens (adds contracts + integration + full synthesis)
-/ba-pitch-analyzer --upgrade standard .claude/specs/FEATURE_SLUG/
+/ba-pitch-analyzer --upgrade standard docs/shapeup-sdlc/FEATURE_SLUG/spec/
 
 # Upgrade specific module only
-/ba-pitch-analyzer --upgrade contracts .claude/specs/FEATURE_SLUG/
-/ba-pitch-analyzer --upgrade synthesis .claude/specs/FEATURE_SLUG/
+/ba-pitch-analyzer --upgrade contracts docs/shapeup-sdlc/FEATURE_SLUG/spec/
+/ba-pitch-analyzer --upgrade synthesis docs/shapeup-sdlc/FEATURE_SLUG/spec/
 ```
 
 ## Metrics

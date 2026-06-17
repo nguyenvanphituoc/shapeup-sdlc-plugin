@@ -138,14 +138,17 @@ Always runs unless `--skip-assess` passed. Read `assets/templates/assess-report.
     ⚠️ GO+FIX = L0 60–79 OR confidence 50–69 → print fix list
     🚫 NO-GO  = L0 < 60 OR confidence < 50 → block, require --skip-assess
 
-0f  Write assess-report.md + run-state.md (initial)
+0f  Write assess-report.md + run-state.md (initial) to the LOCAL root
+    `.shapeup-sdlc/<feature-slug>/` (run-trace, gitignorable)
     PAUSE: wait for user confirmation
 ```
 
-**Phase 1 cache rule:** If `assess-report.md` exists AND `run-state.pitch_hash` matches →
-Phase 1 fully skipped (~2–3k token savings).
+**Phase 1 cache rule:** If `.shapeup-sdlc/<slug>/assess-report.md` exists AND
+`run-state.pitch_hash` matches → Phase 1 fully skipped (~2–3k token savings).
 
-**Output:** `assess-report.md` + `run-state.md`
+**Output (LOCAL root `.shapeup-sdlc/<slug>/`):** `assess-report.md` + `run-state.md`.
+The durable spec tree (Phases 2–8) is written to the SHARED spec dir
+`docs/shapeup-sdlc/<slug>/spec/` (the output path confirmed at GATE-PRE-GEN).
 
 ---
 
@@ -419,16 +422,16 @@ Cross-context, Synthesis, AC Quality.
 
 # Cross-context (requires ≥2 STANDARD spec dirs)
 /ba-pitch-analyzer --cross-context checkout-feature \
-    .claude/specs/order-context/ .claude/specs/payment-context/
+    docs/shapeup-sdlc/order-context/spec/ docs/shapeup-sdlc/payment-context/spec/
 
 # Status + upgrade
-/ba-pitch-analyzer --status .claude/specs/checkout-vnpay/
-/ba-pitch-analyzer --upgrade standard .claude/specs/checkout-vnpay/
-/ba-pitch-analyzer --upgrade contracts .claude/specs/checkout-vnpay/
-/ba-pitch-analyzer --tasks-only .claude/specs/checkout-vnpay/
+/ba-pitch-analyzer --status docs/shapeup-sdlc/checkout-vnpay/spec/
+/ba-pitch-analyzer --upgrade standard docs/shapeup-sdlc/checkout-vnpay/spec/
+/ba-pitch-analyzer --upgrade contracts docs/shapeup-sdlc/checkout-vnpay/spec/
+/ba-pitch-analyzer --tasks-only docs/shapeup-sdlc/checkout-vnpay/spec/
 
 # Retrofit Test Surface onto a pre-v2.9 spec (incremental; frozen zone untouched)
-/ba-pitch-analyzer --surface-only .claude/specs/checkout-vnpay/
+/ba-pitch-analyzer --surface-only docs/shapeup-sdlc/checkout-vnpay/spec/
 ```
 
 ### Progress Markers

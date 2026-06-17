@@ -60,7 +60,7 @@ INTAKE: kicked-off pitch (shaped + bet, by the PO) + project context
 ⏸ GATE L0 │  Intake & Run Config ──► spec folder target, lens, stack, eval dimensions,
           │                          max_rounds, auto level   (no shaping/planning here)
           │
-▶ ORIENT  │  delegate → orient (Scout, step 7) ──► <spec>/orient/: code-surface map,
+▶ ORIENT  │  delegate → orient (Scout, step 7) ──► .shapeup-sdlc/<slug>/orient/: code-surface map,
   (7)     │  spike findings, discovered-task seed, hill signal. Runs BEFORE any board exists.
           │
 ⏸ GATE L1a│  Orient Review ─────────► 🗻 area-level Hill (what's uphill/unknown going in).
@@ -132,7 +132,13 @@ Collect (explicit — never inferred):
             - Anchor max_rounds suggestion: 1-week → 2 rounds, 2-week → 3, 6-week → 4.
           If appetite is missing or "TBD (uncapped)": flag as a risk and note it in the ledger;
           proceed, but the PO should set scope expectations manually at GATE L1b.
-  L0.2  spec_folder target: where orient/ and ba-pitch-analyzer write (e.g. .claude/specs/<slug>/)
+  L0.2  Workspace roots (both keyed off <slug>, set here and threaded to every worker as args):
+          - SHARED  docs/shapeup-sdlc/<slug>/  — durable source + deliverable (committed):
+              shaping/ (from /shapeup), spec/ (where ba-pitch-analyzer writes the spec tree)
+          - LOCAL   .shapeup-sdlc/<slug>/      — run-trace (hidden, gitignorable):
+              harness-run.md (this ledger), run-state.md, digest, orient/, evaluation/, qa/,
+              discovery/ledger.md
+          spec_folder = docs/shapeup-sdlc/<slug>/spec/ (the deliverable arg passed to ba/eval/exec)
   L0.3  lens: lite | standard | cross-context   (passed to planner at step 8)
   L0.4  stack hint (e.g. "pnpm, Next 16 web :3000") — aims orient's code-surface sweeps + run commands
   L0.5  eval dimensions: default [spec-conformance]; only add if user asks
@@ -167,7 +173,7 @@ and spikes the scary parts *before* any board exists, so the board comes out rea
 ```
 Invoke: /orient --pitch <intake> --spec <path> --stack "<hint>" [--auto]
 Owns:   its own GATE O-A/O-B; runs straight through under --auto.
-Writes: <spec>/orient/ → code-surface.md, spike-<area>.md, discovered-seed.md, hill-signal.md.
+Writes: .shapeup-sdlc/<slug>/orient/ → code-surface.md, spike-<area>.md, discovered-seed.md, hill-signal.md.
 Record in ledger: orient duration + the spiked area + spike result (resolved | SPIKE-UNRESOLVED).
 ```
 The four artifacts are the **orient → ba contract**: `ba` (step 8) consumes them instead of
@@ -181,7 +187,7 @@ re-scanning the codebase. Pass `--auto` only when the run level is `--auto`/`--u
 committing to a scope map. This is the first Hill read (area-level — slices don't exist yet).
 
 ```
-Read <spec>/orient/. Render the 🗻 Hill from hill-signal.md (see ledger-schema.md "Hill report"):
+Read .shapeup-sdlc/<slug>/orient/. Render the 🗻 Hill from hill-signal.md (see ledger-schema.md "Hill report"):
   - each suspected area → uphill (open unknowns) | crest (approach proven by the spike) | downhill
 Print: the code-surface headline (where it lands), the spiked area + result, the riskiest
        open unknowns going into mapping.
@@ -197,9 +203,9 @@ Do NOT enter MAP SCOPES until Orient is accepted.
 ```
 Invoke the planner with the pitch + lens + orient artifacts as input. Let it own its own
 gates (1–7); pass --auto only if the run auto level is --auto/--unattended.
-Hand it: <spec>/orient/code-surface.md (so Phase 1 ingest consumes the map, does not re-scan)
-         <spec>/orient/discovered-seed.md (so Phase 6 task gen starts from reality)
-         <spec>/orient/spike-<area>.md (feeds Phase 1b feasibility / contracts)
+Hand it: .shapeup-sdlc/<slug>/orient/code-surface.md (so Phase 1 ingest consumes the map, does not re-scan)
+         .shapeup-sdlc/<slug>/orient/discovered-seed.md (so Phase 6 task gen starts from reality)
+         .shapeup-sdlc/<slug>/orient/spike-<area>.md (feeds Phase 1b feasibility / contracts)
 Output expected: spec_folder populated with _index, domain-model, usecases/, contracts/,
 tasks/TASK-NNN*.md, tasks/_index.md (board), scope-summary.md.
 Record in ledger: planner duration + task count.
@@ -309,8 +315,8 @@ PASS:
   → first PASS of the run AND not --no-qa:
       delegate ▶ QA EDGE HUNT → /qa-edge-hunter (pure worker; see round-protocol
       "QA edge hunt"). Args: spec folder, EVAL report path, ledger path, app URL.
-      Its GATE Q0/Q1 pauses surface here. Output: `~` findings → discovery/ledger.md
-      + qa/hunt-report.md. No verdict — the run's verdict stays this EVAL's PASS.
+      Its GATE Q0/Q1 pauses surface here. Output: `~` findings → .shapeup-sdlc/<slug>/discovery/ledger.md
+      + .shapeup-sdlc/<slug>/qa/hunt-report.md. No verdict — the run's verdict stays this EVAL's PASS.
       → then proceed to SHIP (triage of QA findings happens at SHIP S.0/GATE L4).
   → subsequent PASS (a promoted-findings fix round): /qa-edge-hunter --recheck on the
     promoted items only, then SHIP.
@@ -370,6 +376,14 @@ S.5  Deploy truth — "done means deployed", honestly. Building stops at "built 
      NEVER auto-deploy; "shipped" must never silently mean "deployed".
      (Baseline-anchored scope-hammering at ship time is redesign-doc D5 — deferred; for now,
       `ba`'s Appetite Guard covers overflow and cuts go to synthesis "Hammered Out".)
+S.6  Harvest one signal row → append to `docs/shapeup-sdlc/metrics.jsonl` (committed, SHARED root).
+     Copy fields that ALREADY exist as structured output (run-state, final EVAL report,
+     discovery ledger, qa/hunt-report, breadboard B5). Two hard rules:
+       1. Harvest only fields that already exist at ship time — never evaluate something new.
+       2. Record facts, never compute a new verdict (no `run_quality_score` — that would be
+          a second judge behind spec-evaluator). The eval suite interprets; harvest records.
+     `final_audit_score` is COPIED from the EVAL report, never re-graded.
+     → full field list + row template: references/ledger-schema.md "Harvest row".
 ```
 
 ---
@@ -393,7 +407,7 @@ On confirm → `✅ [slug] [shipped & deployed | built & verified, deploy pendin
 
 ```bash
 # Full build run from a kicked-off pitch, interactive (pause at every L-gate)
-/tech-lead --pitch docs/shaping/checkout-vnpay/shaping.md --spec .claude/specs/checkout-vnpay/ --lens standard
+/tech-lead --pitch docs/shapeup-sdlc/checkout-vnpay/shaping/shaping.md --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --lens standard
 
 # Sub-skills unattended, tech lead pauses only at orient / plan / verdict / ship
 /tech-lead --pitch ... --spec ... --auto
@@ -402,7 +416,7 @@ On confirm → `✅ [slug] [shipped & deployed | built & verified, deploy pendin
 /tech-lead --pitch ... --spec ... --unattended --max-rounds 3
 
 # Resume an existing run — start from a build-phase step
-/tech-lead --spec .claude/specs/checkout-vnpay/ --from build
+/tech-lead --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --from build
 
 # Skip evaluation for a trivial feature (tech-lead judgment / PO override)
 /tech-lead --pitch ... --spec ... --no-eval
@@ -445,6 +459,7 @@ On confirm → `✅ [slug] [shipped & deployed | built & verified, deploy pendin
 | In interactive/--auto: emit the gate block, then stop and wait for PO confirmation | Never auto-proceed past a gate; the PO must cross each threshold explicitly |
 | At GATE L3 FAIL: name scope (task + failed criterion), never prescribe fix options | Root cause analysis and fix paths belong to the implementer, not the orchestrator |
 | Max questions per gate: L0/L1a/L1b = 2; L3/L4 = 1 | Gates are pauses, not interrogations; excess questions shift authority to the wrong role |
+| SHIP harvest records facts only — copies existing structured output, never computes a new verdict/score | A self-computed score = a second judge behind spec-evaluator (breaks single-judge, invites Goodhart); the eval suite interprets, harvest records |
 
 ---
 
@@ -465,6 +480,8 @@ On confirm → `✅ [slug] [shipped & deployed | built & verified, deploy pendin
 ## Changelog
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.9 | 2026-06-18 | **Two-root workspace.** L0.2 now sets two roots off `<slug>` and threads them to workers: SHARED `docs/shapeup-sdlc/<slug>/` (shaping/ + spec/, committed) and LOCAL `.shapeup-sdlc/<slug>/` (run-trace: harness-run.md, run-state, orient/, evaluation/, qa/, discovery/ledger.md — hidden, gitignorable). `harness-run.md` moves to the LOCAL root; the harvest feed moves to `docs/shapeup-sdlc/metrics.jsonl` in the SHARED root (the one committed report surface; no gitignore carve-out needed). spec_folder = `docs/shapeup-sdlc/<slug>/spec/`. |
+| 0.8 | 2026-06-17 | SHIP gains S.6 harvest: append one fact-only signal row → `docs/shapeup-sdlc/metrics.jsonl` (committed in the SHARED root; the LOCAL `.shapeup-sdlc/` run-trace is gitignored). Fields copied from existing structured output (run-state, final EVAL report, discovery ledger, qa/hunt-report, breadboard B5) with `slice_count` as normalizer; `schema_version: 1` for forward-compat. Two hard rules: harvest only fields that already exist at ship; record facts, never compute a new verdict (no second judge behind spec-evaluator). Feeds tier-3 e2e benchmark only. Schema + row template in references/ledger-schema.md "Harvest row". |
 | 0.7 | 2026-06-16 | GATE L0: appetite read from pitch frontmatter; appetite surfaced in gate output; max_rounds appetite-informed (1-week→2, 2-week→3, 6-week→4); missing appetite flagged as scope risk. GATE L1b: scope cut framing references appetite + rabbit holes from pitch. |
 | 0.6 | 2026-06-11 | QA-meeting Bước 1c + QA wiring. Regression rule (round-protocol): EVAL(r>1) scope = fixed bugs + FULL Test Surface re-run of every touched UC (untouched UCs not re-probed; pre-surface specs degrade honestly to bug-criteria-only with a coverage note). New ▶ QA EDGE HUNT step: first PASS → delegate /qa-edge-hunter (pure worker, no verdict, `~` findings → ledger + qa/hunt-report.md); triage at new SHIP S.0 = Shape Up "Decide When to Stop" (baseline-anchored scope hammer; promotion is a human call, never the tech lead's); promoted findings → fix round → eval --single-pass → qa --recheck (promoted items only). `--no-qa` flag; GATE L4 reports QA status. QA never runs on a FAIL round. |
 | 0.5 | 2026-06-11 | SHIP gains S.1b checklist-hygiene assert: zero unchecked AC boxes on a shipping board (`grep -c "^- \[ \]" tasks/TASK-*.md`); non-zero → route to the owning skill (executor ticks at GATE D per its v1.2, judge un-ticks/flags per evaluator v0.4) — the tech lead never ticks boxes itself. Closes the canvas-usability close-out gap (51 boxes unchecked on a shipped board). |

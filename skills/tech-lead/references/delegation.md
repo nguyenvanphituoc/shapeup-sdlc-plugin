@@ -27,7 +27,7 @@ lead never translates itself; it only detects and sequences this step before ORI
 ```
 Invoke: /orient --pitch "<kicked-off pitch path>" --spec <path> --stack "<hint>" [--auto]
 Owns:   its own GATE O-A/O-B (or runs straight through under --auto)
-Writes: <spec>/orient/ → code-surface.md, spike-<area>.md, discovered-seed.md, hill-signal.md
+Writes: .shapeup-sdlc/<slug>/orient/ → code-surface.md, spike-<area>.md, discovered-seed.md, hill-signal.md (LOCAL run-trace)
 Read back: hill-signal.md (render the area-level Hill at GATE L1a) + the spiked area/result.
 Why first: at Orient time NO board exists; the Scout's map + discovered seed make the planner's
         board reality-born instead of imagined. The four artifacts are the orient→ba contract.
@@ -37,14 +37,14 @@ Authority: pure worker — no code, no board, no run-state, no reporting.
 ## 2. MAP SCOPES → ba-pitch-analyzer (step 8, orient-informed)
 ```
 Invoke: /ba-pitch-analyzer "<pitch text or path>" --lens <lens> [--auto]
-Hand it: <spec>/orient/ artifacts as input — code-surface.md (Phase 1 ingest consumes it,
+Hand it: .shapeup-sdlc/<slug>/orient/ artifacts as input — code-surface.md (Phase 1 ingest consumes it,
         does not re-scan), discovered-seed.md (Phase 6 task gen), spike-<area>.md (Phase 1b).
 Owns:   its own GATE 1–7 (or runs straight through under --auto)
-Writes: spec_folder/ → _index.md, domain-model.md, ux-behavior.md, usecases/*,
+Writes: spec_folder (= docs/shapeup-sdlc/<slug>/spec/) → _index.md, domain-model.md, ux-behavior.md, usecases/*,
         contracts/*.contract.md, tasks/TASK-NNN*.md, tasks/_index.md,
-        scope-summary.md, (api-feasibility.md + spikes/ if third-party APIs detected)
-        (run-state.md still written until ba's D6 cleanup lands — the tech lead's
-         harness-run.md is the authoritative run record either way)
+        scope-summary.md, (api-feasibility.md if third-party APIs detected)
+        (run-trace — run-state.md, spikes/ — goes to the LOCAL root .shapeup-sdlc/<slug>/;
+         the tech lead's .shapeup-sdlc/<slug>/harness-run.md is the authoritative run record)
 Read back: tasks/_index.md (the board) and scope-summary.md (Done-when statements).
 Pass-through rule: do not coach it to over-specify implementation — keep tech high-level.
 ```

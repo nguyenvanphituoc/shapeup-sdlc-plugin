@@ -131,7 +131,7 @@ If any R is ⚠️ partially:
 
 ## Output File: shaping.md
 
-Write `docs/shaping/[feature-slug]/shaping.md`
+Write `docs/shapeup-sdlc/[feature-slug]/shaping/shaping.md`
 
 ```markdown
 ---

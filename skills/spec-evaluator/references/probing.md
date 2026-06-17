@@ -113,6 +113,6 @@ If the run command does not produce a reachable app, that is not "untestable" â€
 "app does not start with the stated run command." A build you cannot run does not pass.
 
 ## Evidence storage
-Write raw evidence under `evaluation/.evidence/` and reference it by path in the report.
+Write raw evidence under `.shapeup-sdlc/<slug>/evaluation/.evidence/` and reference it by path in the report.
 Keep the report itself readable; the evidence files are the audit trail the generator and
 the user can open.

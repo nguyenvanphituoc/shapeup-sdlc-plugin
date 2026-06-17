@@ -68,16 +68,22 @@ Phase 3  │  Doc Update ───────────────► update
 ```
 Required inputs (must be explicit — never inferred):
   1. spec_folder   — absolute or relative path to the ba-pitch-analyzer output dir
-                     e.g. ".claude/specs/checkout-vnpay/"
+                     (SHARED spec deliverable) e.g. "docs/shapeup-sdlc/checkout-vnpay/spec/"
   2. task_id       — TASK-NNN identifier
                      e.g. "TASK-003"
+
+  Run-trace (run-state.md, spikes/, discovery/ledger.md) lives in the LOCAL root
+  ".shapeup-sdlc/<slug>/", derived from the slug (parent of spec_folder). The
+  durable spec docs (tasks/, usecases/, contracts/, scope-summary.md,
+  api-feasibility.md) live under spec_folder. Bare run-state.md / spikes/ /
+  ledger references below resolve from the LOCAL root.
 
 Validation steps:
   A1. Verify spec_folder exists on disk
       → If not: HARD STOP — print path, ask user to correct it
   A2. Verify spec_folder/tasks/<task_id>*.md exists (glob match)
       → If not: list files in tasks/ dir, ask user to pick
-  A3. Verify spec_folder/run-state.md exists
+  A3. Verify .shapeup-sdlc/<slug>/run-state.md exists
       → If not: warn — limited traceability, ask user to confirm proceed
   A4. Read run-state.md:
       - Extract lens, feature, phases_completed, files_generated
@@ -260,7 +266,7 @@ Implementation rules:
   P2.4  Layer ordering: never implement Layer N before Layer N-1 is written
         (verify deps are written in THIS session or already in codebase)
   P2.5  SPIKE tasks: produce a decision document, not code
-        → file: spec_folder/spikes/SPIKE-[slug]-findings.md
+        → file: .shapeup-sdlc/<slug>/spikes/SPIKE-[slug]-findings.md
         → format: see references/implementation-rules.md#SPIKE-output
   P2.6  Contract reference: every repository implementation MUST reference
         the contract file — do not redefine types inline
@@ -383,7 +389,7 @@ P3.7  Discovered tasks (Shape Up — capture, do NOT self-plan):
       If implementing this task surfaced work that isn't in the spec (a new edge case,
       a regression risk, a required-but-unwritten piece), APPEND it as a raw discovered
       line under the matching scope's "Discovered" section in the discovery ledger
-      (discovery/ledger.md or the feature's *discovered-tasks*.md):
+      (.shapeup-sdlc/<slug>/discovery/ledger.md or the feature's *discovered-tasks*.md):
         - marker `[+]` for a Keep candidate, `~` for a likely Cut
         - one line, plain — do NOT create a TASK file, do NOT touch UC/domain-model/contracts
       The executor is the single writer for these raw `[+]` lines; reconciliation
@@ -435,22 +441,22 @@ Once user confirms → print `✅ [TASK-NNN] closed.`
 
 ```bash
 # Standard — provide spec folder and task ID
-/task-executor --spec .claude/specs/checkout-vnpay/ --task TASK-003
+/task-executor --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --task TASK-003
 
 # Without flags — skill will ask for both at GATE A
 /task-executor
 
 # Skip GATE E sign-off (auto-confirm doc updates)
-/task-executor --spec .claude/specs/checkout-vnpay/ --task TASK-003 --auto-close
+/task-executor --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --task TASK-003 --auto-close
 
 # Re-execute a done task (e.g. after refactor)
-/task-executor --spec .claude/specs/checkout-vnpay/ --task TASK-003 --force
+/task-executor --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --task TASK-003 --force
 
 # Execute next ready task automatically (picks lowest priority number with status=ready)
-/task-executor --spec .claude/specs/checkout-vnpay/ --next
+/task-executor --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --next
 
 # SPIKE execution mode
-/task-executor --spec .claude/specs/checkout-vnpay/ --task TASK-001 --spike
+/task-executor --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --task TASK-001 --spike
 ```
 
 ### Progress Markers

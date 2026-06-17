@@ -1,8 +1,9 @@
 Shape Up Skills Roadmap — v2 (post QA-meeting, 2026-06-11)
 
 Reflects the implemented state: `ba-pitch-analyzer` **v2.9** (Test Surface + `--surface-only`),
-`spec-evaluator` **v0.5** (dimension `test-surface-conformance`), `tech-lead` **v0.6**
-(regression rule + QA wiring + SHIP S.0 triage), `qa-edge-hunter` **v1.0** (new skill).
+`spec-evaluator` **v0.5** (dimension `test-surface-conformance`), `tech-lead` **v0.8**
+(regression rule + QA wiring + SHIP S.0 triage + SHIP S.6 metrics harvest), `qa-edge-hunter`
+**v1.0** (new skill), `shapeup` **v2.1** (per-run context-compaction digest).
 
 ```mermaid
 graph TD
@@ -28,7 +29,7 @@ graph TD
         H --> L1a[/"⏸ GATE L1a — Orient Review 🗻"/]
         L1a --> J["(8) Map the Scopes<br>delegate → /ba-pitch-analyzer v2.9<br>UC + Invariants + ## Test Surface ★<br>(D1 Inv · D2 Err · D3 Contract · D4 No-go)"]
 
-        H -. "discovered-task seed" .-> I2(("DISCOVERED TASKS<br>discovery/ledger.md"))
+        H -. "discovered-task seed" .-> I2(("DISCOVERED TASKS<br>.shapeup-sdlc/&lt;slug&gt;/discovery/ledger.md"))
         J --> L1b[/"⏸ GATE L1b — Board Review"/]
         L1b --> K["(9) Build Vertically<br>delegate → /task-executor loop"]
 

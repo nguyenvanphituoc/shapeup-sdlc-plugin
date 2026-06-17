@@ -54,9 +54,11 @@ Skipped when `--skip-gate-pregen` passed OR `--skip-assess` used with `--output-
 ```
 ⏸ GATE-PRE-GEN — Ready to generate. Two questions before I start:
 
-1. Output path:
-   Default: .claude/specs/[feature-slug]/
+1. Output path (the SHARED spec deliverable dir):
+   Default: docs/shapeup-sdlc/[feature-slug]/spec/
    Override with a different path? (press Enter to accept default)
+   (run-trace — run-state.md, assess-report.md — always goes to the LOCAL
+    root .shapeup-sdlc/[feature-slug]/, not here)
 
 2. Missing inputs (printed only when gaps detected):
    □ [gap description] — needed for [phase that depends on it]

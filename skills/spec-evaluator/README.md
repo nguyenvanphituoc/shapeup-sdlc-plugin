@@ -58,7 +58,7 @@ Restart the session (or re-open the skills interface) so the new skill is discov
 ## Invoke
 
 ```bash
-/spec-evaluator --spec .claude/specs/checkout-vnpay/ --task TASK-007          # default: spec-conformance
+/spec-evaluator --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --task TASK-007  # default: spec-conformance
 /spec-evaluator --spec ... --task TASK-007.web                                # platform variant
 /spec-evaluator --spec ... --task TASK-007.be --browser none                  # backend-only, no browser
 /spec-evaluator --spec ... --task TASK-007 --dimensions spec-conformance,security   # inject a dimension
@@ -72,7 +72,7 @@ ba-pitch-analyzer (planner) ─► task-executor (generator) ─► spec-evaluat
                                       ▲                                │
                                       └──── bug list (EVAL-TASK-NNN) ◄─┘  on FAIL
 ```
-The evaluator writes `evaluation/EVAL-<task_id>.md` and sets `eval_verdict` on the task.
+The evaluator writes `.shapeup-sdlc/<slug>/evaluation/EVAL-<task_id>.md` (LOCAL run-trace root) and sets `eval_verdict` on the task.
 `task-executor` owns `status: done`. Judge and doer stay separate by design.
 
 ## Inject a new dimension (zero core edits)

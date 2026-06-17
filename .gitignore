@@ -4,5 +4,11 @@
 # Claude Code local (per-user, not shared)
 .claude/settings.local.json
 
+# ShapeUp SDLC local workspace: per-slug run-trace (run-state · digest · orient/ ·
+# evaluation/ · qa/ · ledger · harness-run.md) is derived/ephemeral and hidden.
+# The shared deliverable (docs/shapeup-sdlc/) and the committed harvest feed
+# (docs/shapeup-sdlc/metrics.jsonl) stay tracked — only the hidden local root is ignored.
+.shapeup-sdlc/
+
 # Navigator clone target (gap-scan)
 example/

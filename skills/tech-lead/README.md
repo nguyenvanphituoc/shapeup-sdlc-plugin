@@ -44,10 +44,10 @@ The EVAL phase uses spec-evaluator's feature-level pass
 
 ## Invoke
 ```bash
-/tech-lead --pitch .claude/pitches/checkout.md --spec .claude/specs/checkout/ --lens standard
+/tech-lead --pitch docs/shapeup-sdlc/checkout/shaping/shaping.md --spec docs/shapeup-sdlc/checkout/spec/ --lens standard
 /tech-lead --pitch ... --spec ... --auto                 # sub-skills unattended; pause at L1/L3/L4
 /tech-lead --pitch ... --spec ... --unattended --max-rounds 3   # headless / CI (Agent SDK)
-/tech-lead --spec .claude/specs/checkout/ --from build   # resume an existing run
+/tech-lead --spec docs/shapeup-sdlc/checkout/spec/ --from build   # resume an existing run
 /tech-lead --pitch ... --spec ... --no-eval              # skip eval for a trivial feature
 ```
 

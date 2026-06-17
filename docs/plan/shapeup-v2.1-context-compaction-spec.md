@@ -61,7 +61,7 @@ back"*) is legitimate, but:
 - it is a separate infrastructure bet (embedding model, store, re-index trigger).
 
 Mark `~`. Revive as its own bet at a future betting table. When it lands, its
-home is `.claude/shapeup/pitch-archive/` + index — a level-up, never a gate
+home is `.shapeup-sdlc/pitch-archive/` + index — a level-up, never a gate
 dependency.
 
 ---
@@ -130,19 +130,26 @@ B-phases + pitch first if staging the work.
 
 ---
 
-## Decision 4 — Three roots (by artifact *nature*, not by producer)
+## Decision 4 — Two roots (by artifact *nature*, not by producer)
+
+> **Updated 2026-06-18 (shapeup v2.2).** The original three-roots-under-`.claude/`
+> model was replaced by two clearly-named roots split by **collaboration need**.
+> Both key off the feature `<slug>`.
 
 | Root | Contents | Nature | Git |
 |---|---|---|---|
-| `docs/shaping/[slug]/` | shaping · breadboard · spike · pitch · kickoff | **durable source** | commit, shared |
-| `.claude/specs/[slug]/` | domain model · UC · tasks | **durable deliverable** | commit, shared |
-| `.claude/shapeup/runs/[slug]/` | run-state · round ledger · gate log · **digest.md** | **ephemeral / derived** | **gitignore** |
+| `docs/shapeup-sdlc/[slug]/shaping/` | shaping · breadboard · spike · pitch · kickoff | **durable source** | commit, shared |
+| `docs/shapeup-sdlc/[slug]/spec/` | domain model · UC · contracts · tasks | **durable deliverable** | commit, shared |
+| `.shapeup-sdlc/[slug]/` | run-state · round ledger · gate log · **digest.md** · orient/ · evaluation/ · qa/ · discovery/ledger.md · harness-run.md | **ephemeral / derived** | **gitignore (hidden)** |
 
-- One anchor `.claude/` (existing Claude Code convention) — **no third top-level
-  root.** Tracked `specs/` and ignored `shapeup/runs/` coexist under it.
-- `.gitignore`: one line — `.claude/shapeup/runs/`.
-- `digest.md` lives in `.claude/shapeup/runs/[slug]/` (it is derived/ephemeral, not
-  a source — keep it out of git history and out of team context).
+- The **shared** root `docs/shapeup-sdlc/[slug]/` is what the team contributes to and
+  reviews (source + deliverable). The **local** root `.shapeup-sdlc/[slug]/` is per-run
+  scratch + reports — hidden, fully gitignorable, dies with the run.
+- `.gitignore`: one line — `.shapeup-sdlc/`. No carve-out needed: the one committed
+  report surface, the harvest feed `docs/shapeup-sdlc/metrics.jsonl`, lives in the
+  **shared** root (see Decision 5).
+- `digest.md` lives in `.shapeup-sdlc/[slug]/` (it is derived/ephemeral, not a source —
+  keep it out of git history and out of team context).
 
 ### Private ≠ hidden report
 
@@ -160,7 +167,7 @@ mandates *"status without asking"*: hill position, verdict, ship sign-off, and
 Raw ledger / EVAL prose = ephemeral-in-run (needed live for `--from-discovered`
 reconcile and the FAIL-loop; worthless after ship). Harvested **signals** =
 durable-mineable. At SHIP, tech-lead harvests one append-only row →
-`.claude/shapeup/runs/metrics.jsonl` (**committed**).
+`docs/shapeup-sdlc/metrics.jsonl` (**committed**, in the shared root).
 
 Two hard rules (same discipline as Test Surface: *derived, never invented*):
 1. Harvest **only fields that already exist as structured output at ship time**.
@@ -212,7 +219,7 @@ no new judge, no new trust axis.
 
 **`ba-pitch-analyzer` does NOT read the digest. It reads `pitch.md`.**
 
-The digest lives in `.claude/shapeup/runs/` — ephemeral, gitignored, run-scoped;
+The digest lives in `.shapeup-sdlc/` — ephemeral, gitignored, run-scoped;
 it dies when the shaping run ends. `pitch.md` is durable source, committed. Each
 skill is a stateless reducer reading durable files — no reducer may depend on
 another reducer's ephemeral scratch.
@@ -233,7 +240,7 @@ another reducer's ephemeral scratch.
    field is cheap.
 3. **Digest is a sink, not a node — it carries NO `shaping: true`.** It is outside
    the ripple graph (working-head regeneration absorbs upstream changes on the next
-   phase). The ripple-check hook **must glob-exclude `.claude/shapeup/runs/`**, or it
+   phase). The ripple-check hook **must glob-exclude `.shapeup-sdlc/`**, or it
    will scan the digest as a source and ripple incorrectly. This exclude line is
    mandatory config.
 
@@ -252,7 +259,7 @@ another reducer's ephemeral scratch.
 - [ ] Writer ops: `overwrite-head` and `promote-head` only; frozen zone append-only,
       never rewritten.
 - [ ] Path audit: replace any `/mnt/...` assumption with project-relative resolution.
-- [ ] Hook config: glob-exclude `.claude/shapeup/runs/`.
+- [ ] Hook config: glob-exclude `.shapeup-sdlc/`.
 - [ ] `schema_version: 1` in digest + metrics templates.
 - [ ] (tech-lead side, separate edit) SHIP step: harvest one row → `metrics.jsonl`,
       fields per Decision 5, fact-only.
@@ -262,4 +269,5 @@ another reducer's ephemeral scratch.
 ## Deferred (`~`)
 
 - Cross-run pitch RAG / vector archive — own bet at a future betting table.
-- Top-level `.shapeup-workspace/` root — only if/when cross-run discovery lands.
+- Cross-run pitch archive under `.shapeup-sdlc/pitch-archive/` — only if/when
+  cross-run discovery lands. (The two-root workspace itself shipped in v2.2.)
