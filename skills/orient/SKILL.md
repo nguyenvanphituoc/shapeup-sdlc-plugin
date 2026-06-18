@@ -4,8 +4,7 @@ description: >
   Use this skill for Shape Up step 7 (Orient) — the builder-led reconnaissance pass that runs
   AFTER kick-off and BEFORE any task board exists. Triggers on: "orient on this feature",
   "scout the codebase for this pitch", "where does this pitch touch the code", "do an orient
-  pass", "recon before we plan", "spike the riskiest part before mapping scopes", and Vietnamese
-  "làm quen codebase", "khảo sát trước khi chia task", "dò rủi ro trước khi plan". The tech-lead
+  pass", "recon before we plan", "spike the riskiest part before mapping scopes". The tech-lead
   orchestrator invokes it at step 7 before delegating to ba-pitch-analyzer (Map Scopes, step 8).
   Use it even when the user describes "read the code first and surface the unknowns" without
   naming Orient. The Scout is a PURE worker: it reads code, spikes the single riskiest area, and

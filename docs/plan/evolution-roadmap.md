@@ -1,7 +1,22 @@
 # Evolution Roadmap — making the harness self-improving
 
-> Status: **plan** (2026-06-18). No eval files authored yet; this doc is the agreed plan.
+> Status: **Phases 0, 1, 4 landed** (2026-06-18). Phase 2/3/5 remain.
 > Build phases land in separate, individually-reviewed PRs.
+>
+> **Landed in this increment** (see `evals/README.md`):
+> - **Phase 0** — `evals/` convention + `evals/baselines/<name>.json` snapshots for all 8 skills
+>   (unmeasured; metrics `null` until `make eval` populates them) + the version-bump rule, now an
+>   invariant in `AGENT.md`.
+> - **Phase 1** — tier-1 `skills/<name>/evals/trigger-evals.json` for all 8 skills: 20 cases each,
+>   English-only triggers for downstream skills (Vietnamese triggers only for `translator` as the L0 gate), cross-skill hard
+>   negatives. Live measurement wired via `evals/run-trigger-eval.sh` / `make eval` (validated
+>   end-to-end against skill-creator's `run_eval.py`). **Running the full 3×-run measurement +
+>   `run_loop` description optimization is the deliberate local step** that fills the baselines.
+> - **Phase 4** — deterministic seesaw gate `evals/check-gate.py` (`make eval-gate`) + the
+>   `eval-gate` CI job. Reads committed baselines + git only, **never calls Claude**. Freshness +
+>   seesaw enforced progressively (unmeasured baseline → warn-only until measured).
+>
+> **Next:** Phase 2 (tier-2 functional fixtures) then Phase 3 (the `skill-evolver` AEGIS pass).
 
 ## Why this exists
 
@@ -9,8 +24,8 @@ The eight skills under `skills/` are hand-tuned prose. When we edit one — bump
 `ba-pitch-analyzer` v2.9→v3.0, tighten a `spec-evaluator` dimension, reword a `description:`
 trigger — we have **no way to prove the change is actually better**. Versions live in prose
 (`docs/mechanism-roadmap.md` + each `SKILL.md`); CI only validates manifests + lints JSON;
-there are zero functional tests. Every skill edit is a leap of faith, and the bilingual
-trigger descriptions (EN + VN) are especially easy to regress silently.
+there are zero functional tests. Every skill edit is a leap of faith, and trigger
+descriptions are especially easy to regress silently.
 
 **Goal:** an *evolution loop* in which each skill change is measured against a committed
 baseline and ships only if it provably improves — or at minimum does not regress.
@@ -86,7 +101,7 @@ tier-2 and wraps them in an AEGIS-shaped loop.
 
 ## Phases
 
-### Phase 0 — Foundations & baseline (no behavior change)
+### Phase 0 — Foundations & baseline (no behavior change) — ✅ LANDED
 - Establish the `evals/` convention per skill: `skills/<name>/evals/` holds `trigger-evals.json`
   (tier-1), later `evals.json` + `fixtures/` (tier-2).
 - Add `evals/baselines/<name>.json` — committed score snapshots (trigger accuracy + functional
@@ -95,12 +110,42 @@ tier-2 and wraps them in an AEGIS-shaped loop.
 - **Rule:** a skill version bump (the prose `vX.Y` in its `description` / `mechanism-roadmap.md`)
   now *requires* a refreshed baseline + a non-regression report in the PR.
 
-### Phase 1 — Tier-1 trigger-evals  *(FIRST — cheapest, highest ROI)*
-- Per skill, author ~20 queries `{ "query": "...", "should_trigger": true|false }`,
-  **bilingual EN + VN** — the descriptions are intentionally bilingual triggers (`AGENT.md`),
-  so the eval set must exercise both languages. Include **hard negatives** that disambiguate
-  overlapping skills (e.g. a query that must hit `ba-pitch-analyzer` not `task-executor`;
-  `qa-edge-hunter` vs `spec-evaluator`; `orient` vs `ba`).
+### Phase 1 — Tier-1 trigger-evals  *(FIRST — cheapest, highest ROI)* — ✅ LANDED + MEASURED (opus, 3 runs/query, 2026-06-18)
+
+> **First measured baseline** (`evals/baselines/*.json`, model `claude-opus-4-8`):
+>
+> | skill | accuracy | TPR | TNR |
+> |---|---|---|---|
+> | ba-pitch-analyzer | 0.45 | 0.00 | 1.00 |
+> | orient | 0.50 | 0.00 | 1.00 |
+> | qa-edge-hunter | 0.55 | 0.10 | 1.00 |
+> | shapeup | 0.40 | 0.00 | 1.00 |
+> | spec-evaluator | 0.50 | 0.09 | 1.00 |
+> | task-executor | 0.50 | 0.00 | 1.00 |
+> | tech-lead | 0.50 | 0.00 | 1.00 |
+> | translator | 0.50 | 0.00 | 1.00 |
+>
+> **Read this correctly — TNR is perfect, TPR is a proxy artifact.** skill-creator's
+> `run_eval.py` registers the skill under test as a *slash command* and counts a trigger ONLY
+> when `claude -p` invokes that command via the `Skill`/`Read` tool as its **first** action
+> (`run_eval.py:137-154`); a plain text answer counts as no-trigger. Real installed skills
+> auto-trigger through the system prompt — injected *commands* rarely self-invoke from an NL
+> prompt, even on opus. So the near-zero **TPR understates real auto-trigger** (it measures
+> command self-invocation, not skill auto-activation). The perfect **TNR=1.0 across all 8 skills
+> is the trustworthy signal**: the descriptions do **not** over-trigger, and every cross-skill
+> hard negative (ba↔task-executor, evaluator↔qa, orient↔ba, tech-lead↔sub-skills,
+> translator↔all) is correctly rejected — the disambiguation this phase set out to prove holds.
+>
+> **Two gotchas hit & fixed during the run:** (1) the wrapper must pass `--model` the *session*
+> model — the `claude -p` default model never self-invoked the command (uniform TPR=0); (2) a
+> bash-3.2 empty-array under `set -u` (`evals/run-trigger-eval.sh`) silently swallowed the run.
+>
+> **Before driving description rewrites off TPR** (the `run_loop` optimization step), validate
+> proxy fidelity — ideally measure with the skills *installed* (`claude --plugin-dir .`) and
+> detect `Skill`-tool activation of the real skill name, rather than command self-invocation.
+> Until then the committed baselines serve the **seesaw** (relative regression protection — the
+> freshness + per-case checks are live and proven), not absolute trigger scoring.
+- Per skill, author ~20 queries `{ "query": "...", "should_trigger": true|false }` in English (except for the `translator` skill which evaluates both English and Vietnamese triggers). Include **hard negatives** that disambiguate overlapping skills (e.g. a query that must hit `ba-pitch-analyzer` not `task-executor`; `qa-edge-hunter` vs `spec-evaluator`; `orient` vs `ba`).
 - Run, from the skill-creator skill dir, with the **session model id**:
   ```bash
   python -m scripts.run_loop \
@@ -136,7 +181,7 @@ tier-2 and wraps them in an AEGIS-shaped loop.
   re-run scores to a human (the Critic). It **proposes, never auto-commits.**
 - This is the only genuinely new artifact; everything else is config + fixtures.
 
-### Phase 4 — CI seesaw gate (the "provably better" guarantee)
+### Phase 4 — CI seesaw gate (the "provably better" guarantee) — ✅ LANDED
 - `make eval SKILL=<name>` — runs that skill's tier-1 + tier-2 evals locally, writes a
   regression report vs the committed baseline.
 - New CI job **`eval-gate`** on PRs touching `skills/<name>/**` — **does not call Claude.** It

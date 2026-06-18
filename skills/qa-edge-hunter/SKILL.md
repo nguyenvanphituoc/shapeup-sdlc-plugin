@@ -4,8 +4,7 @@ description: >
   Use this skill for the post-PASS exploratory QA pass — Shape Up's "QA is for the edges",
   made explicit for the harness. Triggers on: "hunt edge cases", "QA pass on this feature",
   "exploratory test the running app", "edge hunt before ship", "run qa-edge-hunter",
-  "the evaluator passed — what did it miss?", and Vietnamese "săn edge case", "kiểm thử
-  thăm dò", "QA trước khi ship", "tìm lỗi ngoài spec". tech-lead invokes it after the
+  "the evaluator passed — what did it miss?". tech-lead invokes it after the
   run's FIRST PASS at GATE L3, before SHIP; it also runs standalone given a spec folder,
   a PASS EVAL report, and a running app. The Hunter is a PURE worker: it charters edges
   OUTSIDE what the evaluator probed (EVAL-*.md = negative-space input), hunts them on the

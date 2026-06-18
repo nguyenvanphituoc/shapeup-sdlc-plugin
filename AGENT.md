@@ -57,7 +57,7 @@ These are the reason the harness stays predictable. Each is enforced by skill pr
 
 Each skill is a directory under `skills/<name>/` with:
 
-- **`SKILL.md`** — frontmatter (`name` + a long, trigger-phrase-rich `description` that controls when the skill auto-activates) followed by the body. The `description` is load-bearing: it lists explicit English **and Vietnamese** trigger phrases. When changing what a skill does, update its triggers too.
+- **`SKILL.md`** — frontmatter (`name` + a long, trigger-phrase-rich `description` that controls when the skill auto-activates) followed by the body. The `description` is load-bearing: it lists explicit English trigger phrases (except `translator` which acts as the L0 gate and also supports Vietnamese triggers). When changing what a skill does, update its triggers too.
 - **`references/`** — detailed protocol files the body loads on demand (e.g. `spec-evaluator/references/anti-leniency.md`, `dimensions/*.md`). The body links them with `> reference → path` lines and instructs when to read them. This keeps `SKILL.md` short and lazy-loads depth.
 - **`assets/templates/`** (planner) / **`resources/`** (shapeup) — output templates the skill fills in.
 
@@ -73,6 +73,7 @@ The harness generates a linked markdown doc tree per feature (not committed here
 
 ## Conventions
 
-- The repo is bilingual: skill descriptions and `commands/ship.md` mix English and Vietnamese. Preserve both when editing — they are intentional triggers, not noise.
+- The repo is English-only for downstream skills, while the `translator` skill acts as the bilingual (English and Vietnamese) gate at L0. Preserve the `translator` Vietnamese triggers when editing.
 - Skill versions are tracked in prose (e.g. "v2.9") inside `description` and `docs/mechanism-roadmap.md`, not in a manifest. Keep them in sync when bumping a skill.
+- **Editing a skill requires refreshing its eval baseline.** Each skill carries tier-1 trigger-evals (`skills/<name>/evals/trigger-evals.json`) measured against a committed snapshot (`evals/baselines/<name>.json`). Changing a skill's `description:`/behaviour (and any version bump) means re-running `make eval SKILL=<name>` and committing the refreshed baseline + a non-regression note. The `eval-gate` CI job enforces this (seesaw: a change must not regress any previously-passing case). When you edit trigger phrases, update the eval set too. Full design: `evals/README.md` + `docs/plan/evolution-roadmap.md`.
 - `agents/` and `commands/` ship with the plugin; anything under `.claude/` (e.g. a project-local `/gap-scan`) is for *this repo's own* use and is **not** distributed. `.claude/settings.local.json` and `example/` are gitignored.

@@ -3,7 +3,7 @@ name: task-executor
 description: >
   Use this skill whenever a user wants to execute, implement, or run a specific task generated
   by the ba-pitch-analyzer skill. Triggers on: "execute task TASK-NNN", "implement TASK-NNN",
-  "run this task", "thi hành task", "thực hiện task", "start working on TASK-NNN",
+  "run this task", "start working on TASK-NNN",
   "implement the task in [folder]", "run task from spec folder", or when user points to a
   tasks/ directory and asks to implement one or more items. Also triggers when user says
   "pick up the next task", "what should I work on next", or "continue from where we left off"

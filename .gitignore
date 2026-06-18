@@ -15,3 +15,7 @@ example/
 
 # Compiled distribution artifacts (VS Code extension, Antigravity subagents, Cursor rules)
 dist/
+
+ # Python cache                                                                                                   
+__pycache__/                                                                                                     
+*.pyc 
