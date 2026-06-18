@@ -5,6 +5,17 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-19
+
+### Added
+- **Local scaffolding installer** (`scripts/install-harness.sh` and `install-harness.ps1`): installs
+  the harness as local files into any target repository, configuring Claude Code (`.claude/skills/`),
+  Antigravity (`.agents/skills/`, `.agents/subagents/`), and Codex (`.codex/skills/`) in one command.
+- Remote install downloads the source tarball and `antigravity-subagents.zip` directly from the
+  latest GitHub Release asset — no `git clone` of the repo required.
+- Release workflow now archives and publishes `antigravity-subagents.zip` and `cursor-rules.zip`
+  as GitHub Release assets, making them available for the remote installer.
+
 ### Changed
 - **Two-root workspace.** Collapsed the three runtime artifact roots into two, keyed off
   the feature `<slug>` and split by collaboration need (`shapeup` v2.2, `tech-lead` v0.9):
