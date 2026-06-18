@@ -53,7 +53,15 @@ fi
 
 # Confirm with user if not in --yes mode
 if [ "$YES_MODE" = false ]; then
-  read -p "Proceed with installation in $TARGET_DIR? [y/N] " -n 1 -r
+  if [ -t 0 ]; then
+    read -p "Proceed with installation in $TARGET_DIR? [y/N] " -n 1 -r
+  elif [ -c /dev/tty ]; then
+    read -p "Proceed with installation in $TARGET_DIR? [y/N] " -n 1 -r < /dev/tty
+  else
+    echo "Warning: Non-interactive environment detected and no --yes option provided."
+    echo "Please run with --yes (-y) to install in non-interactive environments."
+    exit 1
+  fi
   echo
   if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     echo "Installation cancelled."
