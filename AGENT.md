@@ -77,3 +77,22 @@ The harness generates a linked markdown doc tree per feature (not committed here
 - Skill versions are tracked in prose (e.g. "v2.9") inside `description` and `docs/mechanism-roadmap.md`, not in a manifest. Keep them in sync when bumping a skill.
 - **Editing a skill requires refreshing its eval baseline.** Each skill carries tier-1 trigger-evals (`skills/<name>/evals/trigger-evals.json`) measured against a committed snapshot (`evals/baselines/<name>.json`). Changing a skill's `description:`/behaviour (and any version bump) means re-running `make eval SKILL=<name>` and committing the refreshed baseline + a non-regression note. The `eval-gate` CI job enforces this (seesaw: a change must not regress any previously-passing case). When you edit trigger phrases, update the eval set too. Full design: `evals/README.md` + `docs/plan/evolution-roadmap.md`.
 - `agents/` and `commands/` ship with the plugin; anything under `.claude/` (e.g. a project-local `/gap-scan`) is for *this repo's own* use and is **not** distributed. `.claude/settings.local.json` and `example/` are gitignored.
+
+## Local Scaffolding Installation
+
+To install these skills directly into a target repository as a local, customizable scaffolding (Local Scaffolding Architecture), run the installer script. This allows the harness skills to self-improve and adapt to project-specific requirements directly in the target codebase.
+
+```bash
+# Run script directly from your local clone of this repo
+./scripts/install-harness.sh --directory /path/to/target-project
+
+# Or install remotely via curl
+curl -fsSL "https://raw.githubusercontent.com/nguyenvanphituoc/shapeup-sdlc-plugin/main/scripts/install-harness.sh" | bash -s -- --directory /path/to/target-project
+```
+
+The installer script automatically creates and configures:
+- **Claude Code**: Copies skills to `.claude/skills/` and creates/appends to `CLAUDE.md`.
+- **Antigravity**: Copies skills to `.agents/skills/`, subagent definitions to `.agents/subagents/`, and creates/appends to `.agents/AGENTS.md`.
+- **Codex**: Copies skills to `.codex/skills/` and creates/appends to `.codex/AGENTS.md`.
+
+Once installed, the local skills can evolve and be updated by the local `/evolve` command. Any modifications, evaluations, and optimizations are logged in the project's own copy of [docs/repair-memory.md](file:///Users/teo/workspace/proj-harness-plugin/docs/repair-memory.md).

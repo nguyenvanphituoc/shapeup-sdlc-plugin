@@ -73,6 +73,31 @@ the plugin enabled automatically:
 }
 ```
 
+### Local Scaffolding Architecture (Recommended)
+
+Instead of installing the plugin globally, you can scaffold the Shape Up SDLC harness directly into a target repository. This allows the AI skills, configurations, and evaluation fixtures to live as local files inside the project codebase, enabling **local skill evolution and custom project tuning**.
+
+To install the scaffolding, run the following command from the root of your target project:
+
+```bash
+# Via remote script
+curl -fsSL "https://raw.githubusercontent.com/nguyenvanphituoc/shapeup-sdlc-plugin/main/scripts/install-harness.sh" | bash -s -- --directory .
+
+# Or if you have cloned this repository locally
+/path/to/shapeup-sdlc-plugin/scripts/install-harness.sh --directory .
+```
+
+On Windows PowerShell:
+```powershell
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/nguyenvanphituoc/shapeup-sdlc-plugin/main/scripts/install-harness.ps1"))) -Directory .
+```
+
+This installer automatically configures:
+- **Claude Code**: Copies skills to `.claude/skills/` and appends/creates `CLAUDE.md`.
+- **Antigravity**: Copies skills to `.agents/skills/`, subagent configs to `.agents/subagents/`, and creates `.agents/AGENTS.md`.
+- **Codex**: Copies skills to `.codex/skills/` and creates `.codex/AGENTS.md`.
+- **Local Git Boundaries & Telemetry**: Adds the `.shapeup-sdlc/` ignore rule to `.gitignore`, initializes `docs/shapeup-sdlc/metrics.jsonl`, and creates a local `docs/repair-memory.md` memory log.
+
 ## The workflow
 
 The harness walks a pitch from idea to ship. The full annotated pipeline (gates,
