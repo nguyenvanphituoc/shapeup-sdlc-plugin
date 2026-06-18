@@ -116,23 +116,20 @@ if [ "$YES_MODE" = false ]; then
   fi
 fi
 
-# -- Helper: append harness block idempotently ---------------------------------
-# Existing files are never clobbered -- the harness block is removed then re-appended.
-append_harness_block() {
+# -- Helper: auto-append @AGENT.md import tag if not already present ----------
+ensure_agent_import() {
   local file="$1"
-  local content="$2"
-  local label="$3"
+  local label="$2"
 
-  if [ -f "$file" ]; then
-    if grep -q "<!-- HARNESS_START -->" "$file"; then
-      perl -0777 -pe 's/<!-- HARNESS_START -->.*?<!-- HARNESS_END -->\n?//sg' "$file" > "${file}.tmp"
-      mv "${file}.tmp" "$file"
-    fi
-    echo -e "\n$content" >> "$file"
-    echo "Updated existing $label"
+  # Create the file (and parent dirs) if it does not exist yet
+  mkdir -p "$(dirname "$file")"
+  touch "$file"
+
+  if ! grep -qF '@AGENT.md' "$file" 2>/dev/null; then
+    echo -e "\n@AGENT.md" >> "$file"
+    echo "Appended @AGENT.md import tag to $label"
   else
-    echo -e "$content" > "$file"
-    echo "Created $label"
+    echo "@AGENT.md import tag already present in $label"
   fi
 }
 
@@ -145,24 +142,8 @@ echo "Claude Code skills installed to $CLAUDE_SKILLS_DIR"
 
 CLAUDE_MD_FILE="$TARGET_DIR/CLAUDE.md"
 
-# -- Dynamically read AGENT.md from source, stripping HARNESS comment markers --
-AGENT_MD_SOURCE="$SOURCE_DIR/AGENT.md"
-if [ -f "$AGENT_MD_SOURCE" ]; then
-  AGENT_INSTRUCTIONS=$(sed '/^<!-- HARNESS_START -->$/d; /^<!-- HARNESS_END -->$/d' "$AGENT_MD_SOURCE")
-else
-  echo "Warning: AGENT.md not found in source directory. CLAUDE.md will be created empty."
-  AGENT_INSTRUCTIONS=""
-fi
-
-append_harness_block "$CLAUDE_MD_FILE" "$AGENT_INSTRUCTIONS" "CLAUDE.md"
-
 # -- Auto-append @AGENT.md memory import tag if not already present ------------
-if ! grep -qF '@AGENT.md' "$CLAUDE_MD_FILE" 2>/dev/null; then
-  echo -e "\n@AGENT.md" >> "$CLAUDE_MD_FILE"
-  echo "Appended @AGENT.md import tag to CLAUDE.md"
-else
-  echo "@AGENT.md import tag already present in CLAUDE.md"
-fi
+ensure_agent_import "$CLAUDE_MD_FILE" "CLAUDE.md"
 
 # -- 2. Configure Antigravity local scaffolding --------------------------------
 echo "Configuring Antigravity local scaffolding..."
@@ -188,22 +169,9 @@ fi
 echo "Antigravity skills and subagent configurations installed to $TARGET_DIR/.agents/"
 
 AGENTS_MD_FILE="$TARGET_DIR/.agents/AGENTS.md"
-AGENTS_INSTRUCTIONS="<!-- HARNESS_START -->
-# Antigravity Agent Configuration
 
-This directory houses workspace customizations for Antigravity.
-
-## Local Skills:
-Located under \`.agents/skills/\`. These are automatically loaded and prioritized over global tools.
-
-## Subagent Definitions:
-Located under \`.agents/subagents/\`. Registered in \`.agents/subagents.json\`.
-
-## Local Evolution:
-To optimize prompts for this specific repository, use the evolved subagents and log outputs in \`docs/repair-memory.md\`.
-<!-- HARNESS_END -->"
-
-append_harness_block "$AGENTS_MD_FILE" "$AGENTS_INSTRUCTIONS" ".agents/AGENTS.md"
+# -- Auto-append @AGENT.md memory import tag if not already present ------------
+ensure_agent_import "$AGENTS_MD_FILE" ".agents/AGENTS.md"
 
 # -- 3. Configure Codex local scaffolding --------------------------------------
 echo "Configuring Codex local scaffolding..."
@@ -212,17 +180,9 @@ mkdir -p "$CODEX_SKILLS_DIR"
 cp -R "$SOURCE_DIR/skills/"* "$CODEX_SKILLS_DIR/"
 
 CODEX_MD_FILE="$TARGET_DIR/.codex/AGENTS.md"
-CODEX_INSTRUCTIONS="<!-- HARNESS_START -->
-# Codex Agent Configuration
 
-This directory contains workspace-specific skills for Codex.
-
-## Local Skills:
-- Located under \`.codex/skills/\`.
-- These prompt definitions and workflow rules can be edited directly to tailor the Codex agent for this project's code quality and style guidelines.
-<!-- HARNESS_END -->"
-
-append_harness_block "$CODEX_MD_FILE" "$CODEX_INSTRUCTIONS" ".codex/AGENTS.md"
+# -- Auto-append @AGENT.md memory import tag if not already present ------------
+ensure_agent_import "$CODEX_MD_FILE" ".codex/AGENTS.md"
 
 # -- 4. Gitignore Setup --------------------------------------------------------
 GITIGNORE_FILE="$TARGET_DIR/.gitignore"
@@ -250,30 +210,5 @@ if [ ! -f "$METRICS_FILE" ]; then
   echo "Initialized metrics.jsonl"
 fi
 
-MEMORY_FILE="$TARGET_DIR/docs/repair-memory.md"
-if [ ! -f "$MEMORY_FILE" ]; then
-  cat << 'EOF' > "$MEMORY_FILE"
-# Shape Up SDLC Repair Memory
-
-This repository tracks historical evaluation failures, prompt modifications, and repair actions taken during local skill evolution runs. It serves as the memory store for HarnessFix diagnosis-driven skill optimization.
-
----
-
-## Evolution Memory Log
-
-| Date | Target Skill | Symptom / Failure Case | Scoped Repair Operator | Outcome / Delta |
-| :--- | :--- | :--- | :--- | :--- |
-
----
-
-## Repair Operator Guidelines
-
-When fixing a skill's instructions or trigger descriptions:
-1. **Trigger Adjustments**: Refine the trigger phrases in frontmatter `description` only. Do not overfit to specific queries.
-2. **Instruction Refinements**: If a skill fails functional checks (e.g., evaluator leniency or executor code-bloat), add explicit counter-examples to the `references/` files.
-3. **Seesaw Constraint Verification**: Ensure `make eval-gate` is run before committing modifications. Evolved skills must never regress previously passing baseline tests.
-EOF
-  echo "Initialized docs/repair-memory.md"
-fi
 
 echo "Harness installation and scaffolding successfully completed!"

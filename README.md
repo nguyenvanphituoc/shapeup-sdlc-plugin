@@ -105,7 +105,7 @@ This installer automatically configures:
 - **Claude Code**: Copies skills to `.claude/skills/` and appends/creates `CLAUDE.md`.
 - **Antigravity**: Copies skills to `.agents/skills/`, subagent configs to `.agents/subagents/`, and creates `.agents/AGENTS.md`.
 - **Codex**: Copies skills to `.codex/skills/` and creates `.codex/AGENTS.md`.
-- **Local Git Boundaries & Telemetry**: Adds the `.shapeup-sdlc/` ignore rule to `.gitignore`, initializes `docs/shapeup-sdlc/metrics.jsonl`, and creates a local `docs/repair-memory.md` memory log.
+- **Local Git Boundaries & Telemetry**: Adds the `.shapeup-sdlc/` ignore rule to `.gitignore` and initializes `docs/shapeup-sdlc/metrics.jsonl`.
 
 ## The workflow
 

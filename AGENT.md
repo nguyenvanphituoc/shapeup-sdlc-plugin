@@ -60,5 +60,4 @@ All discovered tasks are funnelled into `.shapeup-sdlc/<slug>/discovery/ledger.m
 
 - Telemetry facts for shipped features are saved to: \`docs/shapeup-sdlc/metrics.jsonl\`
 - Ephemeral logs and states are stored in: \`.shapeup-sdlc/\` (Gitignored)
-- Local skill evolution history is tracked in: \`docs/repair-memory.md\`
 <!-- HARNESS_END -->

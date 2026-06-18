@@ -104,9 +104,6 @@ Located under \`.agents/skills/\`. These are automatically loaded and prioritize
 
 ## Subagent Definitions:
 Located under \`.agents/subagents/\`. Registered in \`.agents/subagents.json\`.
-
-## Local Evolution:
-To optimize prompts for this specific repository, use the evolved subagents and log outputs in \`docs/repair-memory.md\`.
 <!-- HARNESS_END -->
 "@
 
@@ -187,32 +184,6 @@ if (-not (Test-Path $MetricsFile)) {
     Write-Host "Initialized metrics.jsonl"
 }
 
-$MemoryFile = Join-Path $TargetDir "docs/repair-memory.md"
-if (-not (Test-Path $MemoryFile)) {
-    $MemoryTemplate = @"
-# Shape Up SDLC Repair Memory
-
-This repository tracks historical evaluation failures, prompt modifications, and repair actions taken during local skill evolution runs. It serves as the memory store for HarnessFix diagnosis-driven skill optimization.
-
----
-
-## Evolution Memory Log
-
-| Date | Target Skill | Symptom / Failure Case | Scoped Repair Operator | Outcome / Delta |
-| :--- | :--- | :--- | :--- | :--- |
-
----
-
-## Repair Operator Guidelines
-
-When fixing a skill's instructions or trigger descriptions:
-1. **Trigger Adjustments**: Refine the trigger phrases in frontmatter \`description\` only. Do not overfit to specific queries.
-2. **Instruction Refinements**: If a skill fails functional checks (e.g., evaluator leniency or executor code-bloat), add explicit counter-examples to the \`references/\` files.
-3. **Seesaw Constraint Verification**: Ensure \`make eval-gate\` is run before committing modifications. Evolved skills must never regress previously passing baseline tests.
-"@
-    Set-Content -Path $MemoryFile -Value $MemoryTemplate
-    Write-Host "Initialized docs/repair-memory.md"
-}
 
 # Cleanup temp dir if it was created
 if (Get-Variable -Name TempDir -ErrorAction SilentlyContinue) {
