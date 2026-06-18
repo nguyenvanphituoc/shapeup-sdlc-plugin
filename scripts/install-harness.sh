@@ -116,21 +116,79 @@ if [ "$YES_MODE" = false ]; then
   fi
 fi
 
-# -- Helper: auto-append @AGENT.md import tag if not already present ----------
+# -- 0. Install root AGENTS.md (harness instructions) -------------------------
+# Clone AGENTS.md to the target project root, or append the harness block if the
+# file already exists.
+HARNESS_AGENTS_SRC="$SOURCE_DIR/AGENTS.md"
+ROOT_AGENTS_MD="$TARGET_DIR/AGENTS.md"
+
+if [ ! -f "$HARNESS_AGENTS_SRC" ]; then
+  echo "Warning: AGENTS.md not found in source ($HARNESS_AGENTS_SRC). Skipping root AGENTS.md setup."
+else
+  if [ ! -f "$ROOT_AGENTS_MD" ]; then
+    # File does not exist — clone the whole thing
+    cp "$HARNESS_AGENTS_SRC" "$ROOT_AGENTS_MD"
+    echo "Created $ROOT_AGENTS_MD from harness template"
+  elif grep -qF '<!-- HARNESS_START -->' "$ROOT_AGENTS_MD" 2>/dev/null; then
+    # Harness block already present — replace it in-place
+    # Use sed to delete the old block and insert the new one
+    HARNESS_CONTENT=$(cat "$HARNESS_AGENTS_SRC")
+    # Create a temp file with the replaced content
+    TEMP_AGENTS=$(mktemp)
+    awk '
+      /<!-- HARNESS_START -->/ { skip=1; next }
+      /<!-- HARNESS_END -->/   { skip=0; next }
+      !skip { print }
+    ' "$ROOT_AGENTS_MD" > "$TEMP_AGENTS"
+    # Prepend the new harness block (harness goes at the top)
+    cat "$HARNESS_AGENTS_SRC" "$TEMP_AGENTS" > "$ROOT_AGENTS_MD"
+    rm -f "$TEMP_AGENTS"
+    if [ "$OVERRIDE" = true ]; then
+      echo "Updated harness block in $ROOT_AGENTS_MD (override mode)"
+    else
+      echo "Updated harness block in $ROOT_AGENTS_MD"
+    fi
+  else
+    # File exists but has no harness block — append
+    echo "" >> "$ROOT_AGENTS_MD"
+    cat "$HARNESS_AGENTS_SRC" >> "$ROOT_AGENTS_MD"
+    echo "Appended harness block to existing $ROOT_AGENTS_MD"
+  fi
+fi
+
+# -- Helper: ensure CLI-specific config files link to root AGENTS.md -----------
+# Each CLI has a different mechanism:
+#   claude  — supports @AGENTS.md import syntax in CLAUDE.md
+#   antigravity — auto-discovers root AGENTS.md; no import tag needed
+#   codex   — auto-discovers root AGENTS.md; no import tag needed
 ensure_agent_import() {
   local file="$1"
   local label="$2"
+  local cli_type="$3"  # "claude" | "antigravity" | "codex"
 
   # Create the file (and parent dirs) if it does not exist yet
   mkdir -p "$(dirname "$file")"
   touch "$file"
 
-  if ! grep -qF '@AGENT.md' "$file" 2>/dev/null; then
-    echo -e "\n@AGENT.md" >> "$file"
-    echo "Appended @AGENT.md import tag to $label"
-  else
-    echo "@AGENT.md import tag already present in $label"
-  fi
+  case "$cli_type" in
+    claude)
+      # Claude Code supports @-import syntax to include root AGENTS.md
+      if ! grep -qF '@AGENTS.md' "$file" 2>/dev/null; then
+        echo -e "\n@AGENTS.md" >> "$file"
+        echo "Appended @AGENTS.md import tag to $label"
+      else
+        echo "@AGENTS.md import tag already present in $label"
+      fi
+      ;;
+    antigravity|codex)
+      # These CLIs auto-discover the root AGENTS.md; no import tag needed.
+      # Just ensure the file exists (already handled above).
+      echo "$label ready (root AGENTS.md auto-discovered by $cli_type)"
+      ;;
+    *)
+      echo "Warning: Unknown CLI type '$cli_type' for $label, skipping import setup."
+      ;;
+  esac
 }
 
 # -- 1. Configure Claude Code local scaffolding --------------------------------
@@ -142,8 +200,8 @@ echo "Claude Code skills installed to $CLAUDE_SKILLS_DIR"
 
 CLAUDE_MD_FILE="$TARGET_DIR/CLAUDE.md"
 
-# -- Auto-append @AGENT.md memory import tag if not already present ------------
-ensure_agent_import "$CLAUDE_MD_FILE" "CLAUDE.md"
+# -- Auto-append @AGENTS.md import tag (Claude Code supports this) -------------
+ensure_agent_import "$CLAUDE_MD_FILE" "CLAUDE.md" "claude"
 
 # -- 2. Configure Antigravity local scaffolding --------------------------------
 echo "Configuring Antigravity local scaffolding..."
@@ -170,8 +228,8 @@ echo "Antigravity skills and subagent configurations installed to $TARGET_DIR/.a
 
 AGENTS_MD_FILE="$TARGET_DIR/.agents/AGENTS.md"
 
-# -- Auto-append @AGENT.md memory import tag if not already present ------------
-ensure_agent_import "$AGENTS_MD_FILE" ".agents/AGENTS.md"
+# -- Antigravity auto-discovers root AGENTS.md; no import tag needed -----------
+ensure_agent_import "$AGENTS_MD_FILE" ".agents/AGENTS.md" "antigravity"
 
 # -- 3. Configure Codex local scaffolding --------------------------------------
 echo "Configuring Codex local scaffolding..."
@@ -181,8 +239,8 @@ cp -R "$SOURCE_DIR/skills/"* "$CODEX_SKILLS_DIR/"
 
 CODEX_MD_FILE="$TARGET_DIR/.codex/AGENTS.md"
 
-# -- Auto-append @AGENT.md memory import tag if not already present ------------
-ensure_agent_import "$CODEX_MD_FILE" ".codex/AGENTS.md"
+# -- Codex auto-discovers root AGENTS.md; no import tag needed -----------------
+ensure_agent_import "$CODEX_MD_FILE" ".codex/AGENTS.md" "codex"
 
 # -- 4. Gitignore Setup --------------------------------------------------------
 GITIGNORE_FILE="$TARGET_DIR/.gitignore"
