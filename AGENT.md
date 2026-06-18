@@ -1,98 +1,64 @@
-# AGENT
+<!-- HARNESS_START -->
+# Shape Up SDLC Local Harness
 
-## What this repo is
+This project is scaffolded with the Shape Up SDLC Harness for coding agents.
 
-This is a **Claude Code plugin** (no application code — it is content for the agent). It packages a Shape Up SDLC harness: a set of skills, one command, hook config, and manifests. The repo is **both the plugin and its own marketplace** (`.claude-plugin/marketplace.json` has `source: "."`), so it is installed directly from GitHub.
+## mechanism instruction
 
-There is no build step, no runtime, and no test framework. "Development" means editing markdown skills/manifests and validating them with the Claude Code CLI.
+The harness follows a **three-phase Shape Up SDLC loop** orchestrated by `/tech-lead`:
 
-## Commands
+### Phase 1 — Shaping (`/shapeup`)
+1. Set Boundaries → `/shapeup shaping`
+2. Find the Elements → `/shapeup breadboarding`
+3. Risks & Rabbit Holes → `/shapeup spike`
+4. Write the Pitch → `/generate-pitch` → `pitch.md`
 
-```bash
-# Validate plugin + marketplace manifests (same check CI runs — must pass before commit)
-claude plugin validate . --strict
-claude plugin validate ./.claude-plugin/marketplace.json --strict
+### Phase 2 — Betting (PO governance, no skill)
+- PO decides at the Betting Table; rejected pitches loop back to raw idea.
 
-# Load this working copy into a live session without installing it (for testing skills)
-claude --plugin-dir .
+### Phase 3 — Building (orchestrated by `/tech-lead`)
+| Step | Gate | Action |
+|------|------|--------|
+| Kick-off | ⏸ **L0** — Intake & Config | `/translator` if non-English |
+| Orient (Scout) | ⏸ **L1a** — Orient Review | delegate → `/orient` |
+| Map Scopes | ⏸ **L1b** — Board Review | delegate → `/ba-pitch-analyzer` (UC + Invariants + Test Surface ★) |
+| Build Vertically | ⏸ **L2** — Board 100% ✅ | delegate → `/task-executor` loop |
+| EVAL (once per round) | ⏸ **L3** — Verdict | delegate → `/spec-evaluator` (spec-conformance + test-surface-conformance ★) |
+| FAIL → fix round r+1 | — | regression rule ★: bugs + full Test Surface of touched UC |
 
-# Lint JSON the way CI does (every *.json must parse)
-find . -path ./.git -prune -o -name '*.json' -print | while read -r f; do python3 -c "import json; json.load(open('$f'))"; done
-```
+### QA Edge Hunt (`/qa-edge-hunter`, post-PASS, pre-ship)
+- **Q0** Preflight → **Q1** Charter (6 lenses − EVAL-covered) → **Hunt** (repro required, findings `~` → ledger) → report (no verdict, no score).
+- Skip with `--no-qa`.
 
-CI (`.github/workflows/ci.yml`) runs the two `validate --strict` calls + JSON lint on every push/PR. Release (`.github/workflows/release.yml`) fires on `v*` tags and **hard-fails if the tag doesn't match `version` in `.claude-plugin/plugin.json`**.
+### Ship & Triage
+- **SHIP S.0** — TL/PO triages findings vs baseline; promotes only selected items.
+- ⏸ **L4** Gate — Ship Sign-off (shows QA status ★).
+- Post-fix: `eval --single-pass` → `qa --recheck` (only re-probes promoted items ✦).
+- Remaining `~` findings + new feedback → new raw idea (debt-free).
 
-### Releasing
-1. Bump `version` in `.claude-plugin/plugin.json`.
-2. Update `CHANGELOG.md`.
-3. `git tag vX.Y.Z && git push origin vX.Y.Z` — tag must equal the manifest version exactly.
+### Discovered Tasks
+All discovered tasks are funnelled into `.shapeup-sdlc/<slug>/discovery/ledger.md` (Orient, task-executor P3.7, QA). A new invariant triggers `ba --tasks-only --from-discovered` which appends a `TS-INV-NN` row to the Test Surface ★.
 
-## The harness — the core architecture
+### Architectural Invariants
+- **Single judge** — verdict belongs to `spec-evaluator`; QA has no verdict and no score.
+- **EVAL exactly once per round** — QA sits after PASS, outside the loop.
+- **Ledger = single source of truth** — all discovery flows write only to their own section.
+- **QA is a level-up, not a gate** — `--no-qa` can skip it; circuit breaker outranks the Hunter.
+- **Role separation** — Evaluator grades, task-executor fixes, QA discovers; no cross-role work.
 
-The skills are not independent tools; they form a **planner → generator → judge** pipeline that walks a raw idea to shipped code. Understanding the role boundaries is the key to working here. Steps 1–11 map to Shape Up phases (full annotated pipeline: `docs/mechanism-roadmap.md`).
+## Installed Skills
 
-| Step | Skill | Role | Writes production code? |
-|------|-------|------|------|
-| 1–4 Shaping | `shapeup` | Frame / breadboard / spike / write pitch | no |
-| GATE L0 Intake | `translator` | Normalize non-English intake to English (harness is English-only downstream, HARD-FAILs otherwise) | no |
-| 7 Orient | `orient` | Scout: read code, spike riskiest area, emit code-surface map + discovered-task seed | **no** |
-| 8 Map Scopes | `ba-pitch-analyzer` | **Planner**: pitch → linked DDD doc tree (domain-model → usecases → tasks) with Test Surface | no |
-| 9 Build | `task-executor` | **Generator**: implement one `TASK-NNN.md` spec | **yes** |
-| GATE L3 Evaluate | `spec-evaluator` | **Judge**: grade build vs spec on the running app | no (files bugs only) |
-| post-PASS QA | `qa-edge-hunter` | Hunter: exploratory edge hunt outside what the judge probed | no |
-| Orchestrator | `tech-lead` | Sequences the above; owns the run ledger | no (delegates) |
+- **shapeup**: Run Shape Up workflows before writing code (S1-S4, B1-B5).
+- **ba-pitch-analyzer**: Analyze pitches and generate DDD spec-tree docs and tasks.
+- **task-executor**: Implement specific tasks from the spec folder.
+- **spec-evaluator**: Evaluate task execution against specifications.
+- **qa-edge-hunter**: Exploratory QA hunt.
+- **translator**: Bilingual Vietnamese/English gate at intake.
+- **tech-lead**: Orchestrate runs.
 
-### Architecture invariants — do not violate when editing skills
+## Setup & Execution
 
-These are the reason the harness stays predictable. Each is enforced by skill prose; preserve them in any edit:
-
-- **One judge only.** The verdict belongs to `spec-evaluator`. QA has no verdict and no score; orient/tech-lead don't grade.
-- **EVAL runs exactly once per build round** — never per task. QA runs after the first PASS, *outside* the loop.
-- **The ledger (`discovery/ledger.md`) is the single source of truth** for discovered tasks. `orient`, `task-executor`, and `qa-edge-hunter` all append to it; QA findings always default to `~` (untriaged).
-- **`harness-run.md` has a single writer: `tech-lead`.** Workers never write run-state; tech-lead passes them what they need as args.
-- **Role separation is absolute** — evaluator grades, task-executor fixes, QA discovers, ba plans. No skill does another's job.
-- **`tech-lead` stays thin** — it delegates and sequences; it never reimplements a sub-skill.
-
-## Skill anatomy
-
-Each skill is a directory under `skills/<name>/` with:
-
-- **`SKILL.md`** — frontmatter (`name` + a long, trigger-phrase-rich `description` that controls when the skill auto-activates) followed by the body. The `description` is load-bearing: it lists explicit English trigger phrases (except `translator` which acts as the L0 gate and also supports Vietnamese triggers). When changing what a skill does, update its triggers too.
-- **`references/`** — detailed protocol files the body loads on demand (e.g. `spec-evaluator/references/anti-leniency.md`, `dimensions/*.md`). The body links them with `> reference → path` lines and instructs when to read them. This keeps `SKILL.md` short and lazy-loads depth.
-- **`assets/templates/`** (planner) / **`resources/`** (shapeup) — output templates the skill fills in.
-
-When editing a skill, keep `SKILL.md` lean and push detail into `references/`, matching the existing pattern.
-
-## Spec-tree artifacts (what the harness produces at runtime)
-
-The harness generates a linked markdown doc tree per feature (not committed here — produced in target projects). Shared frontmatter taxonomy lives in `skills/ba-pitch-analyzer/references/doc-schemas.md`: every doc carries `type`, `feature`, `lens` (`lite | standard | cross-context`), `bounded_context`, `status`, and `[[wikilink]]` cross-refs. The **lens** decides which docs are authoritative and which are skipped — `lite` centers on `ux-behavior.md`, `standard` on `contracts/`, `cross-context` on `_cross-context/`.
-
-**Two-root workspace (where runtime artifacts land in target projects), both keyed off the feature `<slug>`:**
-- **Shared** `docs/shapeup-sdlc/<slug>/` (committed, team-contributed): `shaping/` (frame · shaping · spike · breadboard · pitch · kickoff, from `shapeup`) + `spec/` (the DDD doc tree above, from `ba-pitch-analyzer`). The append-only harvest feed `docs/shapeup-sdlc/metrics.jsonl` (one row per ship, written by `tech-lead`) is the one committed report surface.
-- **Local** `.shapeup-sdlc/<slug>/` (hidden, gitignorable — one line `.shapeup-sdlc/`): per-run trace — `harness-run.md` (tech-lead's run ledger), `run-state.md`, `digest.md`, `orient/`, `evaluation/`, `qa/`, `discovery/ledger.md`, `spikes/`. `tech-lead` sets both roots at GATE L0 and threads them to workers. Full design: `skills/shapeup/resources/context-compaction.md`.
-
-## Conventions
-
-- The repo is English-only for downstream skills, while the `translator` skill acts as the bilingual (English and Vietnamese) gate at L0. Preserve the `translator` Vietnamese triggers when editing.
-- Skill versions are tracked in prose (e.g. "v2.9") inside `description` and `docs/mechanism-roadmap.md`, not in a manifest. Keep them in sync when bumping a skill.
-- **Editing a skill requires refreshing its eval baseline.** Each skill carries tier-1 trigger-evals (`skills/<name>/evals/trigger-evals.json`) measured against a committed snapshot (`evals/baselines/<name>.json`). Changing a skill's `description:`/behaviour (and any version bump) means re-running `make eval SKILL=<name>` and committing the refreshed baseline + a non-regression note. The `eval-gate` CI job enforces this (seesaw: a change must not regress any previously-passing case). When you edit trigger phrases, update the eval set too. Full design: `evals/README.md` + `docs/plan/evolution-roadmap.md`.
-- `agents/` and `commands/` ship with the plugin; anything under `.claude/` (e.g. a project-local `/gap-scan`) is for *this repo's own* use and is **not** distributed. `.claude/settings.local.json` and `example/` are gitignored.
-
-## Local Scaffolding Installation
-
-To install these skills directly into a target repository as a local, customizable scaffolding (Local Scaffolding Architecture), run the installer script. This allows the harness skills to self-improve and adapt to project-specific requirements directly in the target codebase.
-
-```bash
-# Run script directly from your local clone of this repo
-./scripts/install-harness.sh --directory /path/to/target-project
-
-# Or install remotely via curl
-curl -fsSL "https://raw.githubusercontent.com/nguyenvanphituoc/shapeup-sdlc-plugin/main/scripts/install-harness.sh" | bash -s -- --directory /path/to/target-project
-```
-
-The installer script automatically creates and configures:
-- **Claude Code**: Copies skills to `.claude/skills/` and creates/appends to `CLAUDE.md`.
-- **Antigravity**: Copies skills to `.agents/skills/`, subagent definitions to `.agents/subagents/`, and creates/appends to `.agents/AGENTS.md`.
-- **Codex**: Copies skills to `.codex/skills/` and creates/appends to `.codex/AGENTS.md`.
-
-Once installed, the local skills can evolve and be updated by the local `/evolve` command. Any modifications, evaluations, and optimizations are logged in the project's own copy of [docs/repair-memory.md](file:///Users/teo/workspace/proj-harness-plugin/docs/repair-memory.md).
+- Telemetry facts for shipped features are saved to: \`docs/shapeup-sdlc/metrics.jsonl\`
+- Ephemeral logs and states are stored in: \`.shapeup-sdlc/\` (Gitignored)
+- Local skill evolution history is tracked in: \`docs/repair-memory.md\`
+<!-- HARNESS_END -->

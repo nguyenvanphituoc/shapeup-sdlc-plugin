@@ -10,12 +10,12 @@ set -e
 
 REPO="nguyenvanphituoc/shapeup-sdlc-plugin"
 
-# ── Defaults ──────────────────────────────────────────────────────────────────
+# -- Defaults ------------------------------------------------------------------
 TARGET_DIR="."
 OVERRIDE=false
 YES_MODE=false
 
-# ── Help ──────────────────────────────────────────────────────────────────────
+# -- Help ----------------------------------------------------------------------
 print_usage() {
   echo "Usage: $0 [options]"
   echo "Options:"
@@ -25,7 +25,7 @@ print_usage() {
   echo "  -h, --help              Print this help message"
 }
 
-# ── Arg parsing ───────────────────────────────────────────────────────────────
+# -- Arg parsing ---------------------------------------------------------------
 while [[ "$#" -gt 0 ]]; do
   case $1 in
     -d|--directory) TARGET_DIR="$2"; shift ;;
@@ -37,11 +37,11 @@ while [[ "$#" -gt 0 ]]; do
   shift
 done
 
-# ── Resolve paths ─────────────────────────────────────────────────────────────
+# -- Resolve paths -------------------------------------------------------------
 TARGET_DIR="$(cd "$TARGET_DIR" && pwd)"
 echo "Installing Shape Up SDLC Harness into target directory: $TARGET_DIR"
 
-# ── Source resolution ─────────────────────────────────────────────────────────
+# -- Source resolution ---------------------------------------------------------
 # When run from within the cloned repo, use local files directly.
 # When run as a standalone script (curl | bash), download release assets from GitHub.
 
@@ -49,12 +49,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMP_DIR=""
 
 if [ -d "$SCRIPT_DIR/../skills" ]; then
-  # ── Local: running from within the cloned repository ──────────────────────
+  # -- Local: running from within the cloned repository ----------------------
   SOURCE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
   echo "Using local source directory: $SOURCE_DIR"
   ANTIGRAVITY_DIST_DIR="$SOURCE_DIR/dist/antigravity"
 else
-  # ── Remote: download skills + antigravity-subagents.zip from latest release ─
+  # -- Remote: download skills + antigravity-subagents.zip from latest release
   echo "Local source not found. Downloading from latest GitHub Release..."
   TEMP_DIR=$(mktemp -d)
   trap 'rm -rf "$TEMP_DIR"' EXIT
@@ -86,7 +86,7 @@ else
     echo "Downloading antigravity-subagents.zip from release..."
     mkdir -p "$ANTIGRAVITY_DIST_DIR"
     curl -fsSL "$SUBAGENTS_URL" -o "$TEMP_DIR/antigravity-subagents.zip"
-    # The zip contains dist/antigravity/... — extract and flatten
+    # The zip contains dist/antigravity/... -- extract and flatten
     unzip -q "$TEMP_DIR/antigravity-subagents.zip" -d "$TEMP_DIR/antigravity-extract"
     # Copy contents of dist/antigravity/ from zip into our ANTIGRAVITY_DIST_DIR
     EXTRACTED=$(find "$TEMP_DIR/antigravity-extract" -type d -name "antigravity" | head -1)
@@ -98,7 +98,7 @@ else
   fi
 fi
 
-# ── Confirmation ──────────────────────────────────────────────────────────────
+# -- Confirmation --------------------------------------------------------------
 if [ "$YES_MODE" = false ]; then
   if [ -t 0 ]; then
     read -p "Proceed with installation in $TARGET_DIR? [y/N] " -n 1 -r
@@ -116,8 +116,8 @@ if [ "$YES_MODE" = false ]; then
   fi
 fi
 
-# ── Helper: append harness block idempotently ─────────────────────────────────
-# Existing files are never clobbered — the harness block is removed then re-appended.
+# -- Helper: append harness block idempotently ---------------------------------
+# Existing files are never clobbered -- the harness block is removed then re-appended.
 append_harness_block() {
   local file="$1"
   local content="$2"
@@ -136,7 +136,7 @@ append_harness_block() {
   fi
 }
 
-# ── 1. Configure Claude Code local scaffolding ────────────────────────────────
+# -- 1. Configure Claude Code local scaffolding --------------------------------
 echo "Configuring Claude Code local scaffolding..."
 CLAUDE_SKILLS_DIR="$TARGET_DIR/.claude/skills"
 mkdir -p "$CLAUDE_SKILLS_DIR"
@@ -144,29 +144,27 @@ cp -R "$SOURCE_DIR/skills/"* "$CLAUDE_SKILLS_DIR/"
 echo "Claude Code skills installed to $CLAUDE_SKILLS_DIR"
 
 CLAUDE_MD_FILE="$TARGET_DIR/CLAUDE.md"
-CLAUDE_INSTRUCTIONS="<!-- HARNESS_START -->
-# Shape Up SDLC Local Harness
 
-This project is scaffolded with the Shape Up SDLC Harness for coding agents.
+# -- Dynamically read AGENT.md from source, stripping HARNESS comment markers --
+AGENT_MD_SOURCE="$SOURCE_DIR/AGENT.md"
+if [ -f "$AGENT_MD_SOURCE" ]; then
+  AGENT_INSTRUCTIONS=$(sed '/^<!-- HARNESS_START -->$/d; /^<!-- HARNESS_END -->$/d' "$AGENT_MD_SOURCE")
+else
+  echo "Warning: AGENT.md not found in source directory. CLAUDE.md will be created empty."
+  AGENT_INSTRUCTIONS=""
+fi
 
-## Installed Skills:
-- **shapeup**: Run Shape Up workflows before writing code (S1-S4, B1-B5).
-- **ba-pitch-analyzer**: Analyze pitches and generate DDD spec-tree docs and tasks.
-- **task-executor**: Implement specific tasks from the spec folder.
-- **spec-evaluator**: Evaluate task execution against specifications.
-- **qa-edge-hunter**: Exploratory QA hunt.
-- **translator**: Bilingual Vietnamese/English gate at intake.
-- **tech-lead**: Orchestrate runs.
+append_harness_block "$CLAUDE_MD_FILE" "$AGENT_INSTRUCTIONS" "CLAUDE.md"
 
-## Setup & Execution:
-- Telemetry facts for shipped features are saved to: \`docs/shapeup-sdlc/metrics.jsonl\`
-- Ephemeral logs and states are stored in: \`.shapeup-sdlc/\` (Gitignored)
-- Local skill evolution history is tracked in: \`docs/repair-memory.md\`
-<!-- HARNESS_END -->"
+# -- Auto-append @AGENT.md memory import tag if not already present ------------
+if ! grep -qF '@AGENT.md' "$CLAUDE_MD_FILE" 2>/dev/null; then
+  echo -e "\n@AGENT.md" >> "$CLAUDE_MD_FILE"
+  echo "Appended @AGENT.md import tag to CLAUDE.md"
+else
+  echo "@AGENT.md import tag already present in CLAUDE.md"
+fi
 
-append_harness_block "$CLAUDE_MD_FILE" "$CLAUDE_INSTRUCTIONS" "CLAUDE.md"
-
-# ── 2. Configure Antigravity local scaffolding ────────────────────────────────
+# -- 2. Configure Antigravity local scaffolding --------------------------------
 echo "Configuring Antigravity local scaffolding..."
 AGENT_SKILLS_DIR="$TARGET_DIR/.agents/skills"
 mkdir -p "$AGENT_SKILLS_DIR"
@@ -207,7 +205,7 @@ To optimize prompts for this specific repository, use the evolved subagents and 
 
 append_harness_block "$AGENTS_MD_FILE" "$AGENTS_INSTRUCTIONS" ".agents/AGENTS.md"
 
-# ── 3. Configure Codex local scaffolding ──────────────────────────────────────
+# -- 3. Configure Codex local scaffolding --------------------------------------
 echo "Configuring Codex local scaffolding..."
 CODEX_SKILLS_DIR="$TARGET_DIR/.codex/skills"
 mkdir -p "$CODEX_SKILLS_DIR"
@@ -226,7 +224,7 @@ This directory contains workspace-specific skills for Codex.
 
 append_harness_block "$CODEX_MD_FILE" "$CODEX_INSTRUCTIONS" ".codex/AGENTS.md"
 
-# ── 4. Gitignore Setup ────────────────────────────────────────────────────────
+# -- 4. Gitignore Setup --------------------------------------------------------
 GITIGNORE_FILE="$TARGET_DIR/.gitignore"
 GITIGNORE_RULE="# Shape Up SDLC run workspace
 .shapeup-sdlc/"
@@ -243,7 +241,7 @@ else
   echo "Created .gitignore and added ignore rule"
 fi
 
-# ── 5. Initialize telemetry and memory files ──────────────────────────────────
+# -- 5. Initialize telemetry and memory files ----------------------------------
 mkdir -p "$TARGET_DIR/docs/shapeup-sdlc"
 
 METRICS_FILE="$TARGET_DIR/docs/shapeup-sdlc/metrics.jsonl"

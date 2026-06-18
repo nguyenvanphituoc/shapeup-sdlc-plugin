@@ -51,27 +51,16 @@ Write-Host "Configuring Claude Code local scaffolding..."
 $ClaudeSkillsDir = Join-Path $TargetDir ".claude/skills"
 Copy-HarnessDirectory (Join-Path $SourceDir "skills") $ClaudeSkillsDir
 
-$ClaudeInstructions = @"
-<!-- HARNESS_START -->
-# Shape Up SDLC Local Harness
-
-This project is scaffolded with the Shape Up SDLC Harness for coding agents.
-
-## Installed Skills:
-- **shapeup**: Run Shape Up workflows before writing code (S1-S4, B1-B5).
-- **ba-pitch-analyzer**: Analyze pitches and generate DDD spec-tree docs and tasks.
-- **task-executor**: Implement specific tasks from the spec folder.
-- **spec-evaluator**: Evaluate task execution against specifications.
-- **qa-edge-hunter**: Exploratory QA hunt.
-- **translator**: Bilingual Vietnamese/English gate at intake.
-- **tech-lead**: Orchestrate runs.
-
-## Setup & Execution:
-- Telemetry facts for shipped features are saved to: \`docs/shapeup-sdlc/metrics.jsonl\`
-- Ephemeral logs and states are stored in: \`.shapeup-sdlc/\` (Gitignored)
-- Local skill evolution history is tracked in: \`docs/repair-memory.md\`
-<!-- HARNESS_END -->
-"@
+# -- Dynamically read AGENT.md from source, stripping HARNESS comment markers --
+$AgentMdSource = Join-Path $SourceDir "AGENT.md"
+if (Test-Path $AgentMdSource) {
+    $AgentInstructions = (Get-Content $AgentMdSource -Raw) `
+        -replace '(?m)^<!-- HARNESS_START -->\r?\n?', '' `
+        -replace '(?m)^<!-- HARNESS_END -->\r?\n?', ''
+} else {
+    Write-Host "Warning: AGENT.md not found in source directory. CLAUDE.md will be created empty."
+    $AgentInstructions = ""
+}
 
 $ClaudeMdFile = Join-Path $TargetDir "CLAUDE.md"
 if (Test-Path $ClaudeMdFile) {
@@ -79,11 +68,20 @@ if (Test-Path $ClaudeMdFile) {
     if ($Content -match "<!-- HARNESS_START -->[\s\S]*<!-- HARNESS_END -->") {
         $Content = $Content -replace "<!-- HARNESS_START -->[\s\S]*<!-- HARNESS_END -->\r?\n?", ""
     }
-    Set-Content -Path $ClaudeMdFile -Value ($Content.Trim() + "`r`n`r`n" + $ClaudeInstructions)
+    Set-Content -Path $ClaudeMdFile -Value ($Content.Trim() + "`r`n`r`n" + $AgentInstructions)
     Write-Host "Updated existing CLAUDE.md"
 } else {
-    Set-Content -Path $ClaudeMdFile -Value $ClaudeInstructions
+    Set-Content -Path $ClaudeMdFile -Value $AgentInstructions
     Write-Host "Created new CLAUDE.md"
+}
+
+# -- Auto-append @AGENT.md memory import tag if not already present ------------
+$ClaudeContent = Get-Content $ClaudeMdFile -Raw -ErrorAction SilentlyContinue
+if ($ClaudeContent -notmatch '@AGENT\.md') {
+    Add-Content -Path $ClaudeMdFile -Value "`r`n@AGENT.md"
+    Write-Host "Appended @AGENT.md import tag to CLAUDE.md"
+} else {
+    Write-Host "@AGENT.md import tag already present in CLAUDE.md"
 }
 
 # 2. Antigravity

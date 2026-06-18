@@ -1,4 +1,4 @@
-Shape Up Skills Roadmap — v2 (post QA-meeting, 2026-06-11)
+# Shape Up Skills Roadmap — v2 (post QA-meeting, 2026-06-11)
 
 Reflects the implemented state: `ba-pitch-analyzer` **v2.9** (Test Surface + `--surface-only`),
 `spec-evaluator` **v0.5** (dimension `test-surface-conformance`), `tech-lead` **v0.10**
