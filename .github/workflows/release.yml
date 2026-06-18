@@ -55,45 +55,45 @@ jobs:
             antigravity-subagents.zip
           generate_release_notes: true
 
-  publish-vs-marketplace:
-    name: Publish to VS Code Marketplace
-    needs: release
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+  # publish-vs-marketplace:
+  #   name: Publish to VS Code Marketplace
+  #   needs: release
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: "22"
 
-      - name: Compile distributions
-        run: npm run distribute
+  #     - name: Compile distributions
+  #       run: npm run distribute
 
-      - name: Publish to VS Code Marketplace
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: |
-          cd dist/cursor-extension
-          npx -y @vscode/vsce publish -p $VSCE_PAT
+  #     - name: Publish to VS Code Marketplace
+  #       env:
+  #         VSCE_PAT: ${{ secrets.VSCE_PAT }}
+  #       run: |
+  #         cd dist/cursor-extension
+  #         npx -y @vscode/vsce publish -p $VSCE_PAT
 
-  publish-open-vsx:
-    name: Publish to Open VSX Registry
-    needs: release
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+  # publish-open-vsx:
+  #   name: Publish to Open VSX Registry
+  #   needs: release
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: "22"
 
-      - name: Compile distributions
-        run: npm run distribute
+  #     - name: Compile distributions
+  #       run: npm run distribute
 
-      - name: Publish to Open VSX Registry
-        env:
-          OVSX_PAT: ${{ secrets.OVSX_PAT }}
-        run: |
-          cd dist/cursor-extension
-          npx -y ovsx publish -p $OVSX_PAT
+  #     - name: Publish to Open VSX Registry
+  #       env:
+  #         OVSX_PAT: ${{ secrets.OVSX_PAT }}
+  #       run: |
+  #         cd dist/cursor-extension
+  #         npx -y ovsx publish -p $OVSX_PAT
 
