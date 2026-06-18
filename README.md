@@ -77,22 +77,26 @@ the plugin enabled automatically:
 
 Instead of installing the plugin globally, you can scaffold the Shape Up SDLC harness directly into a target repository. This allows the AI skills, configurations, and evaluation fixtures to live as local files inside the project codebase, enabling **local skill evolution and custom project tuning**.
 
-To install the scaffolding, run the following command from the root of your target project:
+Run **one** of the following from the root of your target project:
+
+**Option A — Remote (curl, no clone needed):**
 
 ```bash
-# Via remote script — downloads skills and subagent configs from the latest GitHub Release
 curl -fsSL "https://raw.githubusercontent.com/nguyenvanphituoc/shapeup-sdlc-plugin/main/scripts/install-harness.sh" | bash -s -- --directory . --yes
+```
 
-# Or if you have cloned this repository locally
+> **Note — `--yes` flag**: When piped via `curl | bash`, stdin is consumed by the pipe so the
+> interactive prompt receives no input and cancels. Always pass `--yes` (or `-y`) with the remote
+> one-liner. Omit it when running the script directly to get an explicit confirmation.
+
+**Option B — Local clone:**
+
+```bash
 /path/to/shapeup-sdlc-plugin/scripts/install-harness.sh --directory .
 ```
 
-> **Note — `--yes` flag**: When the script is piped through `bash` via `curl | bash`, stdin is
-> consumed by the pipe so the interactive confirmation prompt receives no input and cancels.
-> Always pass `--yes` (or `-y`) with the remote one-liner. Omit it when running the script
-> directly so you get an explicit confirmation before any files are written.
+**Option C — Windows PowerShell (remote):**
 
-On Windows PowerShell:
 ```powershell
 & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/nguyenvanphituoc/shapeup-sdlc-plugin/main/scripts/install-harness.ps1"))) -Directory . -Yes
 ```
