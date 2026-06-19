@@ -33,6 +33,7 @@ The harness follows a **three-phase Shape Up SDLC loop** orchestrated by `/tech-
 ### Ship & Triage
 - **SHIP S.0** — TL/PO triages findings vs baseline; promotes only selected items.
 - ⏸ **L4** Gate — Ship Sign-off (shows QA status ★).
+- **RLHF (Coach Retro)** — Post-sprint feedback from L4 Gate is processed by `/coach` to intelligently update `.shapeup-sdlc/knowledge-base.md`. The `/tech-lead` will automatically invoke `/coach` when it receives human feedback during the Ship Gate. This knowledge base acts as guidelines for `/task-executor` and `/ba-pitch-analyzer` in future cycles.
 - Post-fix: `eval --single-pass` → `qa --recheck` (only re-probes promoted items ✦).
 - Remaining `~` findings + new feedback → new raw idea (debt-free).
 
@@ -55,6 +56,7 @@ All discovered tasks are funnelled into `.shapeup-sdlc/<slug>/discovery/ledger.m
 - **qa-edge-hunter**: Exploratory QA hunt.
 - **translator**: Bilingual Vietnamese/English gate at intake.
 - **tech-lead**: Orchestrate runs.
+- **coach**: Ingests L4 feedback to update `.shapeup-sdlc/knowledge-base.md` for continuous learning (RLHF).
 
 ## Setup & Execution
 

@@ -408,8 +408,10 @@ Verdict   : PASS (dims: [spec-conformance]; not evaluated: [security, performanc
 QA        : [hunt done — N findings, M promoted+fixed, rest ~ | skipped (--no-qa) | n/a (pre-QA spec)]
 Ledger    : harness-run.md
 ```
-Question (max 1): "Anything to record before I close the run? (y/n)"
-On confirm → `✅ [slug] [shipped & deployed | built & verified, deploy pending] — [r] rounds, verdict PASS.`
+Question (max 1): "Anything to record before I close the run? (y/n) or provide feedback for the next sprint."
+On confirm:
+- If the PO provides substantive feedback (not just 'y' or empty) → automatically invoke `/coach` with the provided feedback to update `.shapeup-sdlc/knowledge-base.md` for RLHF.
+- Then output → `✅ [slug] [shipped & deployed | built & verified, deploy pending] — [r] rounds, verdict PASS.`
 
 ---
 
@@ -491,6 +493,7 @@ On confirm → `✅ [slug] [shipped & deployed | built & verified, deploy pendin
 ## Changelog
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.11 | 2026-06-19 | **RLHF Coach Integration.** At GATE L4 (Ship Sign-Off), if the PO provides feedback instead of just a simple confirmation, automatically invoke `/coach` to compile and deduplicate that feedback into `.shapeup-sdlc/knowledge-base.md` to act as guidelines for future cycles. |
 | 0.10 | 2026-06-18 | **Automated Discovered Tasks.** If new tasks are logged in `.shapeup-sdlc/<slug>/discovery/ledger.md` during the BUILD loop, automatically run `/ba-pitch-analyzer --tasks-only --from-discovered` at a build round boundary to reconcile them. Then, route back to GATE L1b for PO review before resuming the build loop. Added matching hard rule. |
 | 0.9 | 2026-06-18 | **Two-root workspace.** L0.2 now sets two roots off `<slug>` and threads them to workers: SHARED `docs/shapeup-sdlc/<slug>/` (shaping/ + spec/, committed) and LOCAL `.shapeup-sdlc/<slug>/` (run-trace: harness-run.md, run-state, orient/, evaluation/, qa/, discovery/ledger.md — hidden, gitignorable). `harness-run.md` moves to the LOCAL root; the harvest feed moves to `docs/shapeup-sdlc/metrics.jsonl` in the SHARED root (the one committed report surface; no gitignore carve-out needed). spec_folder = `docs/shapeup-sdlc/<slug>/spec/`. |
 | 0.8 | 2026-06-17 | SHIP gains S.6 harvest: append one fact-only signal row → `docs/shapeup-sdlc/metrics.jsonl` (committed in the SHARED root; the LOCAL `.shapeup-sdlc/` run-trace is gitignored). Fields copied from existing structured output (run-state, final EVAL report, discovery ledger, qa/hunt-report, breadboard B5) with `slice_count` as normalizer; `schema_version: 1` for forward-compat. Two hard rules: harvest only fields that already exist at ship; record facts, never compute a new verdict (no second judge behind spec-evaluator). Feeds tier-3 e2e benchmark only. Schema + row template in references/ledger-schema.md "Harvest row". |

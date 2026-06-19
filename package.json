@@ -1,6 +1,6 @@
 {
   "name": "shapeup-sdlc-plugin",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Shape Up SDLC harness for Claude Code: single-source compiled to Cursor extensions and Antigravity subagents.",
   "scripts": {
     "distribute": "node scripts/distribute.js"
