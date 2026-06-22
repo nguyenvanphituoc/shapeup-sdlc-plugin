@@ -115,14 +115,29 @@ files each rule **by skill** under committed `docs/shapeup-sdlc/knowledge-base/<
 `task-executor` / `ba-pitch-analyzer` / `qa-edge-hunter` each read their own file at the top of
 their next run. One migration script does the whole upgrade — it **asks which AI CLI(s) you use**
 (Claude Code / Antigravity / Codex), replaces the installed skills for each, then moves the old
-knowledge base into the new committed location:
+knowledge base into the new committed location.
+
+**Option A — Remote one-liner** (no clone needed; auto-detects installed CLIs):
+
+```bash
+curl -fsSL "https://raw.githubusercontent.com/nguyenvanphituoc/shapeup-sdlc-plugin/main/scripts/migrate-knowledge-base.sh" | bash -s -- --directory . --yes
+```
+
+```powershell
+# Windows PowerShell
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/nguyenvanphituoc/shapeup-sdlc-plugin/main/scripts/migrate-knowledge-base.ps1"))) -Directory . -Yes
+```
+
+> As with the installer, the piped form consumes stdin, so pass `--yes`/`-Yes` (it auto-detects
+> installed CLIs). Omit it when running from a clone to get the interactive CLI prompt.
+
+**Option B — Local clone:**
 
 ```bash
 /path/to/shapeup-sdlc-plugin/scripts/migrate-knowledge-base.sh --directory .
 ```
 
 ```powershell
-# Windows PowerShell
 /path/to/shapeup-sdlc-plugin/scripts/migrate-knowledge-base.ps1 -Directory .
 ```
 

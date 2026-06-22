@@ -5,6 +5,19 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-06-23
+
+### Fixed
+- **`curl | bash` / `irm | iex` install was broken in 0.2.5.** The shared lib refactor made the
+  installer source a sibling `lib/lib-harness.{sh,ps1}` that does not exist when the script is
+  piped, failing with `lib/lib-harness.sh: No such file or directory`. Both installers and the
+  migration scripts now bootstrap the lib: source the sibling file when run from a clone, or
+  download it from the repo when piped.
+
+### Added
+- **Remote update one-liner.** Existing installs can upgrade with a piped
+  `migrate-knowledge-base.sh` (auto-detects installed CLIs under `--yes`); documented in the README.
+
 ## [0.2.5] - 2026-06-23
 
 ### Added

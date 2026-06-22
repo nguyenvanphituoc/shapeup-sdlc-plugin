@@ -13,9 +13,19 @@ $ErrorActionPreference = "Stop"
 $TargetDir = Resolve-Path $Directory
 Write-Host "Installing Shape Up SDLC Harness into target directory: $TargetDir"
 
-# Determine source directory via the shared lib (local clone or GitHub clone).
+# Load the shared lib: local clone → sibling file; piped (irm | iex) → download it first.
+$RepoSlug = "nguyenvanphituoc/shapeup-sdlc-plugin"
+$LibRef = if ($env:LIB_REF) { $env:LIB_REF } else { "main" }
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-. (Join-Path $ScriptDir "lib/lib-harness.ps1")
+$LibLocal = if ($ScriptDir) { Join-Path $ScriptDir "lib/lib-harness.ps1" } else { $null }
+if ($LibLocal -and (Test-Path $LibLocal)) {
+    . $LibLocal
+} else {
+    $LibTmp = Join-Path $env:TEMP ("lib-harness-" + [Guid]::NewGuid().ToString() + ".ps1")
+    Invoke-RestMethod -Uri "https://raw.githubusercontent.com/$RepoSlug/$LibRef/scripts/lib/lib-harness.ps1" -OutFile $LibTmp
+    . $LibTmp
+    Remove-Item $LibTmp -ErrorAction SilentlyContinue
+}
 
 $Source = Resolve-HarnessSource
 $SourceDir = $Source.SourceDir

@@ -22,9 +22,20 @@
 set -e
 
 # -- Shared lib ----------------------------------------------------------------
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/lib-harness.sh
-. "$SCRIPT_DIR/lib/lib-harness.sh"
+# Local clone → source the sibling file. Piped (curl | bash) → download it first.
+REPO="${REPO:-nguyenvanphituoc/shapeup-sdlc-plugin}"
+LIB_REF="${LIB_REF:-main}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || true)"
+if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/lib/lib-harness.sh" ]; then
+  # shellcheck source=lib/lib-harness.sh
+  . "$SCRIPT_DIR/lib/lib-harness.sh"
+else
+  LIB_TMP="$(mktemp)"
+  curl -fsSL "https://raw.githubusercontent.com/${REPO}/${LIB_REF}/scripts/lib/lib-harness.sh" -o "$LIB_TMP" \
+    || { echo "Error: could not download lib-harness.sh from ${REPO}@${LIB_REF}"; exit 1; }
+  . "$LIB_TMP"
+  rm -f "$LIB_TMP"
+fi
 
 # -- Defaults ------------------------------------------------------------------
 TARGET_DIR="."

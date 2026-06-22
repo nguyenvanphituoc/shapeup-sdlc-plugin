@@ -41,13 +41,22 @@ done
 TARGET_DIR="$(cd "$TARGET_DIR" && pwd)"
 echo "Installing Shape Up SDLC Harness into target directory: $TARGET_DIR"
 
-# -- Source resolution (shared lib) --------------------------------------------
-# harness_resolve_source handles both paths: local clone, or download the latest
-# release tarball + antigravity-subagents.zip. Same logic the migrate script uses.
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/lib-harness.sh
-. "$SCRIPT_DIR/lib/lib-harness.sh"
+# -- Load the shared lib -------------------------------------------------------
+# Local clone → source the sibling file. Piped (curl | bash) → no files on disk,
+# so download the lib first. harness_resolve_source then handles the skill source
+# (local clone, or download the latest release). Same lib the migrate script uses.
+LIB_REF="${LIB_REF:-main}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || true)"
+if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/lib/lib-harness.sh" ]; then
+  # shellcheck source=lib/lib-harness.sh
+  . "$SCRIPT_DIR/lib/lib-harness.sh"
+else
+  LIB_TMP="$(mktemp)"
+  curl -fsSL "https://raw.githubusercontent.com/${REPO}/${LIB_REF}/scripts/lib/lib-harness.sh" -o "$LIB_TMP" \
+    || { echo "Error: could not download lib-harness.sh from ${REPO}@${LIB_REF}"; exit 1; }
+  . "$LIB_TMP"
+  rm -f "$LIB_TMP"
+fi
 
 harness_resolve_source
 SOURCE_DIR="$HARNESS_SOURCE_DIR"
