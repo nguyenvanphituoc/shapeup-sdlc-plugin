@@ -9,6 +9,7 @@ Rules for loading spec documents before implementation. Read before Phase 1.
 Always read in this order — earlier docs establish vocabulary for later ones:
 
 ```
+0. docs/shapeup-sdlc/knowledge-base/task-executor.md  ← team guidelines (if present)
 1. task file (full)                          ← primary spec
 2. run-state.md                              ← lens + feature context
 3. domain-model.md                           ← entity + aggregate definitions
@@ -18,6 +19,17 @@ Always read in this order — earlier docs establish vocabulary for later ones:
 7. integration.md (STANDARD, if task touches cross-system boundary)
 8. Existing code files referenced in task.context
 ```
+
+---
+
+## Knowledge-base guidelines (step 0)
+
+Before reading the task, load `docs/shapeup-sdlc/knowledge-base/task-executor.md` if it exists.
+It holds team-shared guidelines distilled by `/coach` from past Ship-Gate feedback (e.g.
+"prefer the minimum DTO that satisfies the AC"). Treat them as **steering, not spec** — they
+shape *how* you implement, never *what* the AC requires. If a guideline conflicts with the task
+spec, the spec wins; surface the conflict at GATE C rather than silently following either.
+If the file is absent, proceed normally — it simply means no guidelines have been recorded yet.
 
 ---
 
@@ -83,6 +95,7 @@ Do not load domain-model or use cases — SPIKE output is a findings document, n
 ## Missing Context Checklist
 
 After Phase 1, verify these are loaded:
+- [ ] Knowledge-base guidelines checked (`docs/shapeup-sdlc/knowledge-base/task-executor.md`, or confirmed absent)
 - [ ] Task AC section read completely
 - [ ] All `[[wikilinks]]` in task body resolved or flagged
 - [ ] Layer context confirmed (lite vs standard)

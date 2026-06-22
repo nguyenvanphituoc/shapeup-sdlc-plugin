@@ -107,6 +107,32 @@ This installer automatically configures:
 - **Codex**: Copies skills to `.codex/skills/` and creates `.codex/AGENTS.md`.
 - **Local Git Boundaries & Telemetry**: Adds the `.shapeup-sdlc/` ignore rule to `.gitignore` and initializes `docs/shapeup-sdlc/metrics.jsonl`.
 
+### Upgrading an existing install (knowledge base → team-shared)
+
+As of plugin 0.2.5 / tech-lead 0.12, `/coach` no longer writes one flat, gitignored
+`.shapeup-sdlc/knowledge-base.md` (which never reached teammates and was never read back). It now
+files each rule **by skill** under committed `docs/shapeup-sdlc/knowledge-base/<skill>.md`, and
+`task-executor` / `ba-pitch-analyzer` / `qa-edge-hunter` each read their own file at the top of
+their next run. One migration script does the whole upgrade — it **asks which AI CLI(s) you use**
+(Claude Code / Antigravity / Codex), replaces the installed skills for each, then moves the old
+knowledge base into the new committed location:
+
+```bash
+/path/to/shapeup-sdlc-plugin/scripts/migrate-knowledge-base.sh --directory .
+```
+
+```powershell
+# Windows PowerShell
+/path/to/shapeup-sdlc-plugin/scripts/migrate-knowledge-base.ps1 -Directory .
+```
+
+It auto-detects installed CLIs under `--yes`/`-Yes`, and prompts otherwise. Old rules are preserved
+verbatim into `docs/shapeup-sdlc/knowledge-base/_INBOX.md` — **never auto-categorized**. Afterward,
+run `/coach` on `_INBOX.md` to assign each rule to a skill (its GATE COACH-1 asks — it never
+assumes), and commit `docs/shapeup-sdlc/knowledge-base/` so the team inherits it on `git pull`.
+(Source resolution, CLI selection, and skill replacement are factored into a shared
+`scripts/lib/lib-harness.{sh,ps1}` that both the installer and the migration script reuse.)
+
 ## The workflow
 
 The harness walks a pitch from idea to ship. The full annotated pipeline (gates,

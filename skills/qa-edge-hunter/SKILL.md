@@ -130,6 +130,10 @@ cutting charters at GATE Q1, not by configuring lenses.
 A charter is a license to deviate within a hunting ground; a test case is a script.
 
 ```
+Q1.0  Read team guidelines: docs/shapeup-sdlc/knowledge-base/qa-edge-hunter.md (if present).
+      `/coach`-distilled edge classes that kept biting past features (e.g. "session-expiry
+      mid-form keeps surfacing"). Use them to PRIORITIZE charters within the six fixed lenses —
+      never to add a seventh lens or skip covered-territory subtraction. Absent = none recorded.
 Q1.1  Parse EVAL-*.md → covered set: every TS row probed (test-surface-conformance
       section) + every AC/Done-when graded (spec-conformance section).
 Q1.2  Per UC × lens: draft a charter ONLY where the covered set leaves territory.

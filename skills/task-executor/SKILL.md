@@ -171,6 +171,11 @@ Do NOT proceed to Phase 1 until user confirms all items.
 **Rule:** Do NOT infer content from memory. Read every linked doc from disk.
 
 ```
+0. Read team guidelines: docs/shapeup-sdlc/knowledge-base/task-executor.md (if present).
+   These are `/coach`-distilled habits from past Ship-Gate feedback — steering, not spec.
+   They shape HOW you implement; the AC always defines WHAT. Conflict → spec wins, flag at GATE C.
+   Absent file = no guidelines recorded yet; proceed normally. (full rule: references/context-loading.md)
+
 1. Read task file in full (already done in GATE A — re-read if > 200 lines ago)
 
 2. For each wikilink in task.linked_docs and task body [[...]]:

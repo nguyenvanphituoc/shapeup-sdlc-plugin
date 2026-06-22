@@ -157,6 +157,10 @@ The durable spec tree (Phases 2–8) is written to the SHARED spec dir
 **Goal:** Fully understand the pitch and codebase before writing anything.
 
 ```
+0. Read team guidelines: docs/shapeup-sdlc/knowledge-base/ba-pitch-analyzer.md (if present).
+   `/coach`-distilled scoping/decomposition habits from past Ship-Gate feedback (e.g. "the BA
+   under-scopes mobile"). Steering, not spec — they shape how you scope and split tasks; they
+   never override the pitch. Absent file = none recorded yet; proceed normally.
 1. Extract: feature-slug (kebab-case), appetite, in/out boundaries,
             breadboarding elements, rabbit holes
 2. Scan monorepo:

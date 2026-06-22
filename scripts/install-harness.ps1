@@ -13,20 +13,12 @@ $ErrorActionPreference = "Stop"
 $TargetDir = Resolve-Path $Directory
 Write-Host "Installing Shape Up SDLC Harness into target directory: $TargetDir"
 
-# Determine source directory
+# Determine source directory via the shared lib (local clone or GitHub clone).
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$LocalSkills = Join-Path $ScriptDir "../skills"
+. (Join-Path $ScriptDir "lib/lib-harness.ps1")
 
-if (Test-Path $LocalSkills) {
-    $SourceDir = Resolve-Path (Join-Path $ScriptDir "..")
-    Write-Host "Using local source directory: $SourceDir"
-} else {
-    Write-Host "Local source not found. Cloning source repository from GitHub..."
-    $TempDir = Join-Path $env:TEMP ([Guid]::NewGuid().ToString())
-    New-Item -ItemType Directory -Path $TempDir | Out-Null
-    git clone --depth 1 https://github.com/nguyenvanphituoc/shapeup-sdlc-plugin.git $TempDir
-    $SourceDir = $TempDir
-}
+$Source = Resolve-HarnessSource
+$SourceDir = $Source.SourceDir
 
 # Confirmation
 if (-not $Yes) {
@@ -37,19 +29,11 @@ if (-not $Yes) {
     }
 }
 
-# Helper to copy directory contents
-function Copy-HarnessDirectory {
-    param ($Src, $Dest)
-    if (-not (Test-Path $Dest)) {
-        New-Item -ItemType Directory -Path $Dest | Out-Null
-    }
-    Copy-Item -Path (Join-Path $Src "*") -Destination $Dest -Recurse -Force
-}
+# Install/replace skills for all CLIs via the shared lib (per-skill replace + antigravity subagents).
+Invoke-HarnessReplaceSkills -Target $TargetDir -Clis @('claude', 'antigravity', 'codex') -Source $Source
 
 # 1. Claude Code
 Write-Host "Configuring Claude Code local scaffolding..."
-$ClaudeSkillsDir = Join-Path $TargetDir ".claude/skills"
-Copy-HarnessDirectory (Join-Path $SourceDir "skills") $ClaudeSkillsDir
 
 # -- Dynamically read AGENT.md from source, stripping HARNESS comment markers --
 $AgentMdSource = Join-Path $SourceDir "AGENT.md"
@@ -86,12 +70,6 @@ if ($ClaudeContent -notmatch '@AGENT\.md') {
 
 # 2. Antigravity
 Write-Host "Configuring Antigravity local scaffolding..."
-$AgentSkillsDir = Join-Path $TargetDir ".agents/skills"
-Copy-HarnessDirectory (Join-Path $SourceDir "skills") $AgentSkillsDir
-
-$AgentSubagentsDir = Join-Path $TargetDir ".agents/subagents"
-Copy-HarnessDirectory (Join-Path $SourceDir "dist/antigravity/subagents") $AgentSubagentsDir
-Copy-Item -Path (Join-Path $SourceDir "dist/antigravity/subagents.json") -Destination (Join-Path $TargetDir ".agents/subagents.json") -Force
 
 $AgentsInstructions = @"
 <!-- HARNESS_START -->
@@ -125,8 +103,6 @@ if (Test-Path $AgentsMdFile) {
 
 # 3. Codex
 Write-Host "Configuring Codex local scaffolding..."
-$CodexSkillsDir = Join-Path $TargetDir ".codex/skills"
-Copy-HarnessDirectory (Join-Path $SourceDir "skills") $CodexSkillsDir
 
 $CodexInstructions = @"
 <!-- HARNESS_START -->

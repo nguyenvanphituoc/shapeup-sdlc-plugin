@@ -5,6 +5,32 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-06-23
+
+### Added
+- **Team-shared, read-back knowledge base.** `/coach` now files each guideline by skill under
+  committed `docs/shapeup-sdlc/knowledge-base/<skill>.md` (shared on `git pull`) instead of one
+  flat, gitignored `.shapeup-sdlc/knowledge-base.md` that was never read back. New **GATE COACH-1**
+  asks the PO which skill each rule belongs to (`task-executor`, `ba-pitch-analyzer`,
+  `qa-edge-hunter`) — never assumes. `spec-evaluator` is deliberately not coachable (single-judge
+  rule: the KB is guidance, not an invariant).
+- **Read-side hooks**: `task-executor` (Phase 1), `ba-pitch-analyzer` (Phase 1), and
+  `qa-edge-hunter` (Phase Q1) each load their own knowledge-base file at the top of their run.
+- **Migration scripts** (`scripts/migrate-knowledge-base.sh` and `.ps1`): one-time, idempotent,
+  non-destructive upgrade for existing installs. Prompts for which AI CLI(s) are in use (Claude
+  Code / Antigravity / Codex) — auto-detecting under `--yes`/`-Yes` — and **replaces the installed
+  skills** for each, then moves an old flat knowledge base into the new committed location,
+  preserving rules into `_INBOX.md` for `/coach` to categorize (never auto-assigned), and retires
+  the old file.
+- **Shared installer library** (`scripts/lib/lib-harness.sh` and `.ps1`): factors out source
+  resolution, CLI detection/selection, and per-skill replacement. **Both `install-harness` and
+  `migrate-knowledge-base` now reuse it** — the installer no longer duplicates source-download or
+  skill-copy logic.
+
+### Changed
+- `tech-lead` 0.12: GATE L4 hands raw feedback to `/coach`, which now owns categorization; the
+  tech lead no longer points at the local knowledge-base path.
+
 ## [0.2.0] - 2026-06-19
 
 ### Added

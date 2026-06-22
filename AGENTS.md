@@ -33,7 +33,7 @@ The harness follows a **three-phase Shape Up SDLC loop** orchestrated by `/tech-
 ### Ship & Triage
 - **SHIP S.0** — TL/PO triages findings vs baseline; promotes only selected items.
 - ⏸ **L4** Gate — Ship Sign-off (shows QA status ★).
-- **RLHF (Coach Retro)** — Post-sprint feedback from L4 Gate is processed by `/coach` to intelligently update `.shapeup-sdlc/knowledge-base.md`. The `/tech-lead` will automatically invoke `/coach` when it receives human feedback during the Ship Gate. This knowledge base acts as guidelines for `/task-executor` and `/ba-pitch-analyzer` in future cycles.
+- **RLHF (Coach Retro)** — Post-sprint feedback from L4 Gate is processed by `/coach`, which runs a categorization gate (GATE COACH-1 — asks the PO which skill each rule belongs to, never assumes) and files each rule under the responsible skill in `docs/shapeup-sdlc/knowledge-base/<skill>.md`. These files are **committed** (not the gitignored `.shapeup-sdlc/` run-trace), so the whole team inherits them on `git pull`. The `/tech-lead` automatically invokes `/coach` when it receives human feedback during the Ship Gate. Coachable skills — each reads its own file at the top of its next run — are `/task-executor` (Phase 1), `/ba-pitch-analyzer` (Phase 1), and `/qa-edge-hunter` (Phase Q1). `/spec-evaluator` is deliberately not coachable (single-judge rule: the KB is guidance, never an invariant).
 - Post-fix: `eval --single-pass` → `qa --recheck` (only re-probes promoted items ✦).
 - Remaining `~` findings + new feedback → new raw idea (debt-free).
 
@@ -56,7 +56,7 @@ All discovered tasks are funnelled into `.shapeup-sdlc/<slug>/discovery/ledger.m
 - **qa-edge-hunter**: Exploratory QA hunt.
 - **translator**: Bilingual Vietnamese/English gate at intake.
 - **tech-lead**: Orchestrate runs.
-- **coach**: Ingests L4 feedback to update `.shapeup-sdlc/knowledge-base.md` for continuous learning (RLHF).
+- **coach**: Ingests L4 feedback, asks the PO to categorize each rule (GATE COACH-1), and files it under the responsible skill in committed `docs/shapeup-sdlc/knowledge-base/<skill>.md` for team-shared, read-back continuous learning (RLHF).
 
 ## Setup & Execution
 
