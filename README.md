@@ -57,8 +57,8 @@ before dev-loading this plugin.
 
 ### Install for the whole team
 
-Commit this to a project's `.claude/settings.json` so everyone who opens the repo gets
-the plugin enabled automatically:
+The **Local Scaffolding installer** (see below) does this automatically. If you prefer to
+wire it by hand, commit this to a project's `.claude/settings.json`:
 
 ```json
 {
@@ -102,7 +102,7 @@ curl -fsSL "https://raw.githubusercontent.com/nguyenvanphituoc/shapeup-sdlc-plug
 ```
 
 This installer automatically configures:
-- **Claude Code**: Adds the marketplace to `.claude/settings.json` and enables the plugin (`shapeup-sdlc-plugin@nvptuoc-marketplace`), then appends/creates `CLAUDE.md`.
+- **Claude Code**: Runs `claude plugin marketplace add --scope project` + `claude plugin install --scope project` to register the marketplace and enable the plugin in one shot (writes `.claude/settings.json`), then appends/creates `CLAUDE.md`. Falls back to writing `settings.json` directly if the `claude` CLI is not in PATH.
 - **Antigravity**: Copies skills to `.agents/skills/`, subagent configs to `.agents/subagents/`, and creates `.agents/AGENTS.md`.
 - **Codex**: Copies skills to `.codex/skills/` and creates `.codex/AGENTS.md`.
 - **Local Git Boundaries & Telemetry**: Adds the `.shapeup-sdlc/` ignore rule to `.gitignore` and initializes `docs/shapeup-sdlc/metrics.jsonl`.
