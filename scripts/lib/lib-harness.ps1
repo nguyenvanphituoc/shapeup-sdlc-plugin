@@ -93,7 +93,9 @@ function Select-HarnessClis {
     return @(ConvertTo-HarnessClis -Reply $reply -Fallback $fallback)
 }
 
-# Install Claude Code plugin via marketplace (writes .claude/settings.json).
+# Install Claude Code plugin via marketplace.
+# Primary path  : use the claude CLI (marketplace add + plugin install --scope project).
+# Fallback path : write settings.json directly when claude is not in PATH.
 function Install-ClaudePlugin {
     param([string]$Target)
     $settingsFile = Join-Path $Target ".claude/settings.json"
@@ -103,6 +105,23 @@ function Install-ClaudePlugin {
     $settingsDir = Split-Path -Parent $settingsFile
     if (-not (Test-Path $settingsDir)) { New-Item -ItemType Directory -Path $settingsDir -Force | Out-Null }
 
+    $claudeCmd = Get-Command claude -ErrorAction SilentlyContinue
+    if ($claudeCmd) {
+        Write-Host "  [claude] registering marketplace + installing plugin via claude CLI..."
+        Push-Location $Target
+        try {
+            & claude plugin marketplace add --scope project "nguyenvanphituoc/shapeup-sdlc-plugin"
+            & claude plugin install --scope project "shapeup-sdlc-plugin@nvptuoc-marketplace"
+            Write-Host "  [claude] plugin installed at project scope — run /reload-plugins to activate in a live session"
+            return
+        } catch {
+            Write-Host "  [claude] Warning: claude CLI failed — falling back to writing settings.json directly"
+        } finally {
+            Pop-Location
+        }
+    }
+
+    # Fallback: write settings.json manually (claude CLI absent or failed).
     if (Test-Path $settingsFile) {
         $data = Get-Content $settingsFile -Raw | ConvertFrom-Json
         if (-not $data.extraKnownMarketplaces) {
@@ -127,6 +146,8 @@ function Install-ClaudePlugin {
             enabledPlugins = [ordered]@{ $pluginKey = $true }
         } | ConvertTo-Json -Depth 10 | Set-Content -Path $settingsFile -Encoding UTF8
         Write-Host "  [claude] created $settingsFile with marketplace + plugin"
+        Write-Host "  [claude] Note: run /plugin marketplace add nguyenvanphituoc/shapeup-sdlc-plugin"
+        Write-Host "           then /plugin install shapeup-sdlc-plugin@nvptuoc-marketplace in your session"
     }
 }
 

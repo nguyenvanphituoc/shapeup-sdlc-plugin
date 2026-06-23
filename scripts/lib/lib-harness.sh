@@ -166,7 +166,13 @@ harness_select_clis() {
   echo "Selected: ${HARNESS_CLIS[*]}"
 }
 
-# -- Install Claude Code plugin via marketplace (writes .claude/settings.json) -
+# -- Install Claude Code plugin via marketplace --------------------------------
+# Primary path  : use the claude CLI (marketplace add + plugin install --scope project).
+#   This registers the marketplace in the live Claude Code session AND writes the
+#   project-scoped settings.json, so /plugin install works immediately.
+# Fallback path : write settings.json directly when the claude CLI is not in PATH.
+#   The plugin auto-enables on the next session that opens this directory, but the
+#   user must run /plugin marketplace add first if they want /plugin install manually.
 harness_install_claude_plugin() {
   local target="$1"
   local settings_file="$target/.claude/settings.json"
@@ -175,6 +181,19 @@ harness_install_claude_plugin() {
 
   mkdir -p "$target/.claude"
 
+  if command -v claude >/dev/null 2>&1; then
+    echo "  [claude] registering marketplace + installing plugin via claude CLI..."
+    if (cd "$target" && \
+        claude plugin marketplace add --scope project "nguyenvanphituoc/shapeup-sdlc-plugin" && \
+        claude plugin install --scope project "shapeup-sdlc-plugin@nvptuoc-marketplace"); then
+      echo "  [claude] plugin installed at project scope — run /reload-plugins to activate in a live session"
+      return
+    else
+      echo "  [claude] Warning: claude CLI failed — falling back to writing settings.json directly"
+    fi
+  fi
+
+  # Fallback: write settings.json manually (claude CLI absent or failed).
   if [ -f "$settings_file" ]; then
     if command -v jq >/dev/null 2>&1; then
       local tmp
@@ -218,6 +237,8 @@ PYEOF
 }
 EOF
     echo "  [claude] created $settings_file with marketplace + plugin"
+    echo "  [claude] Note: run /plugin marketplace add nguyenvanphituoc/shapeup-sdlc-plugin"
+    echo "           then /plugin install shapeup-sdlc-plugin@nvptuoc-marketplace in your session"
   fi
 }
 
