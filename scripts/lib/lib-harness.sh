@@ -141,7 +141,7 @@ harness_select_clis() {
 
   echo ""
   echo "Which AI CLI(s) are you using? Skills will be replaced for the ones you pick."
-  echo "  1) Claude Code   (.claude/skills/)"
+  echo "  1) Claude Code   (.claude/settings.json — marketplace plugin)"
   echo "  2) Antigravity   (.agents/skills/ + subagents)"
   echo "  3) Codex         (.codex/skills/)"
   echo "  4) All of them"
@@ -166,11 +166,73 @@ harness_select_clis() {
   echo "Selected: ${HARNESS_CLIS[*]}"
 }
 
+# -- Install Claude Code plugin via marketplace (writes .claude/settings.json) -
+harness_install_claude_plugin() {
+  local target="$1"
+  local settings_file="$target/.claude/settings.json"
+  local marketplace_key="nvptuoc-marketplace"
+  local plugin_key="shapeup-sdlc-plugin@nvptuoc-marketplace"
+
+  mkdir -p "$target/.claude"
+
+  if [ -f "$settings_file" ]; then
+    if command -v jq >/dev/null 2>&1; then
+      local tmp
+      tmp="$(mktemp)"
+      jq --arg mk "$marketplace_key" \
+         --argjson mv '{"source":{"source":"github","repo":"nguyenvanphituoc/shapeup-sdlc-plugin"}}' \
+         --arg pk "$plugin_key" \
+         '.extraKnownMarketplaces[$mk] = $mv | .enabledPlugins[$pk] = true' \
+         "$settings_file" > "$tmp" && mv "$tmp" "$settings_file"
+      echo "  [claude] merged marketplace + plugin into $settings_file"
+    elif command -v python3 >/dev/null 2>&1; then
+      python3 - "$settings_file" "$marketplace_key" "$plugin_key" <<'PYEOF'
+import json, sys
+path, mk, pk = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(path) as f:
+    data = json.load(f)
+data.setdefault('extraKnownMarketplaces', {})[mk] = {
+    "source": {"source": "github", "repo": "nguyenvanphituoc/shapeup-sdlc-plugin"}
+}
+data.setdefault('enabledPlugins', {})[pk] = True
+with open(path, 'w') as f:
+    json.dump(data, f, indent=2)
+    f.write('\n')
+PYEOF
+      echo "  [claude] merged marketplace + plugin into $settings_file"
+    else
+      echo "  [claude] Warning: neither jq nor python3 found — cannot merge $settings_file"
+      echo "           Add manually: extraKnownMarketplaces.$marketplace_key + enabledPlugins.$plugin_key"
+    fi
+  else
+    cat > "$settings_file" <<'EOF'
+{
+  "extraKnownMarketplaces": {
+    "nvptuoc-marketplace": {
+      "source": { "source": "github", "repo": "nguyenvanphituoc/shapeup-sdlc-plugin" }
+    }
+  },
+  "enabledPlugins": {
+    "shapeup-sdlc-plugin@nvptuoc-marketplace": true
+  }
+}
+EOF
+    echo "  [claude] created $settings_file with marketplace + plugin"
+  fi
+}
+
 # -- Replace harness skills for one CLI ----------------------------------------
-# Per-skill replacement: each harness skill dir is removed then re-copied, so files deleted
-# upstream don't linger — but unrelated skills the user added are left untouched.
+# Claude Code: configures the marketplace plugin in .claude/settings.json.
+# Antigravity / Codex: per-skill replacement — each harness skill dir is removed
+# then re-copied so upstream deletions don't linger while unrelated user skills stay.
 harness_replace_skills_for_cli() {
   local target="$1" cli="$2"
+
+  if [ "$cli" = "claude" ]; then
+    harness_install_claude_plugin "$target"
+    return
+  fi
+
   local src="$HARNESS_SOURCE_DIR/skills"
   local dest
   dest="$(harness_skills_dir "$target" "$cli")"

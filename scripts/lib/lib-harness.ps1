@@ -84,7 +84,7 @@ function Select-HarnessClis {
 
     Write-Host ""
     Write-Host "Which AI CLI(s) are you using? Skills will be replaced for the ones you pick."
-    Write-Host "  1) Claude Code   (.claude/skills/)"
+    Write-Host "  1) Claude Code   (.claude/settings.json — marketplace plugin)"
     Write-Host "  2) Antigravity   (.agents/skills/ + subagents)"
     Write-Host "  3) Codex         (.codex/skills/)"
     Write-Host "  4) All of them"
@@ -93,13 +93,56 @@ function Select-HarnessClis {
     return @(ConvertTo-HarnessClis -Reply $reply -Fallback $fallback)
 }
 
-# Per-skill replacement: remove then re-copy each harness skill so upstream deletions don't
-# linger, while unrelated user skills in the same dir are untouched.
+# Install Claude Code plugin via marketplace (writes .claude/settings.json).
+function Install-ClaudePlugin {
+    param([string]$Target)
+    $settingsFile = Join-Path $Target ".claude/settings.json"
+    $marketplaceKey = "nvptuoc-marketplace"
+    $pluginKey = "shapeup-sdlc-plugin@nvptuoc-marketplace"
+
+    $settingsDir = Split-Path -Parent $settingsFile
+    if (-not (Test-Path $settingsDir)) { New-Item -ItemType Directory -Path $settingsDir -Force | Out-Null }
+
+    if (Test-Path $settingsFile) {
+        $data = Get-Content $settingsFile -Raw | ConvertFrom-Json
+        if (-not $data.extraKnownMarketplaces) {
+            $data | Add-Member -NotePropertyName 'extraKnownMarketplaces' -NotePropertyValue ([PSCustomObject]@{}) -Force
+        }
+        $data.extraKnownMarketplaces | Add-Member -NotePropertyName $marketplaceKey -NotePropertyValue (
+            [PSCustomObject]@{ source = [PSCustomObject]@{ source = "github"; repo = "nguyenvanphituoc/shapeup-sdlc-plugin" } }
+        ) -Force
+        if (-not $data.enabledPlugins) {
+            $data | Add-Member -NotePropertyName 'enabledPlugins' -NotePropertyValue ([PSCustomObject]@{}) -Force
+        }
+        $data.enabledPlugins | Add-Member -NotePropertyName $pluginKey -NotePropertyValue $true -Force
+        $data | ConvertTo-Json -Depth 10 | Set-Content -Path $settingsFile -Encoding UTF8
+        Write-Host "  [claude] merged marketplace + plugin into $settingsFile"
+    } else {
+        [ordered]@{
+            extraKnownMarketplaces = [ordered]@{
+                $marketplaceKey = [ordered]@{
+                    source = [ordered]@{ source = "github"; repo = "nguyenvanphituoc/shapeup-sdlc-plugin" }
+                }
+            }
+            enabledPlugins = [ordered]@{ $pluginKey = $true }
+        } | ConvertTo-Json -Depth 10 | Set-Content -Path $settingsFile -Encoding UTF8
+        Write-Host "  [claude] created $settingsFile with marketplace + plugin"
+    }
+}
+
+# Claude Code: configures the marketplace plugin in .claude/settings.json.
+# Antigravity / Codex: per-skill replacement — remove then re-copy each harness skill so
+# upstream deletions don't linger, while unrelated user skills in the same dir are untouched.
 function Invoke-HarnessReplaceSkills {
     param([string]$Target, [string[]]$Clis, [hashtable]$Source)
     $src = Join-Path $Source.SourceDir "skills"
     Write-Host "Replacing skills for: $($Clis -join ' ')"
     foreach ($cli in $Clis) {
+        if ($cli -eq 'claude') {
+            Install-ClaudePlugin -Target $Target
+            continue
+        }
+
         $dest = Get-HarnessSkillsDir -Target $Target -Cli $cli
         New-Item -ItemType Directory -Path $dest -Force | Out-Null
         foreach ($skill in (Get-ChildItem -Path $src -Directory)) {

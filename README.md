@@ -75,7 +75,7 @@ the plugin enabled automatically:
 
 ### Local Scaffolding Architecture (Recommended)
 
-Instead of installing the plugin globally, you can scaffold the Shape Up SDLC harness directly into a target repository. This allows the AI skills, configurations, and evaluation fixtures to live as local files inside the project codebase, enabling **local skill evolution and custom project tuning**.
+Instead of installing the plugin globally, you can scaffold the Shape Up SDLC harness directly into a target repository. For Claude Code this wires the plugin via `.claude/settings.json` (marketplace + enable). For Antigravity and Codex it copies skill files into the project, enabling **local skill evolution and custom project tuning**.
 
 Run **one** of the following from the root of your target project:
 
@@ -102,7 +102,7 @@ curl -fsSL "https://raw.githubusercontent.com/nguyenvanphituoc/shapeup-sdlc-plug
 ```
 
 This installer automatically configures:
-- **Claude Code**: Copies skills to `.claude/skills/` and appends/creates `CLAUDE.md`.
+- **Claude Code**: Adds the marketplace to `.claude/settings.json` and enables the plugin (`shapeup-sdlc-plugin@nvptuoc-marketplace`), then appends/creates `CLAUDE.md`.
 - **Antigravity**: Copies skills to `.agents/skills/`, subagent configs to `.agents/subagents/`, and creates `.agents/AGENTS.md`.
 - **Codex**: Copies skills to `.codex/skills/` and creates `.codex/AGENTS.md`.
 - **Local Git Boundaries & Telemetry**: Adds the `.shapeup-sdlc/` ignore rule to `.gitignore` and initializes `docs/shapeup-sdlc/metrics.jsonl`.
