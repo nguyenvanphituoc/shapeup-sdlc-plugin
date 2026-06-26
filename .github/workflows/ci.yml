@@ -41,3 +41,28 @@ jobs:
             echo "Checking $f"
             python3 -c "import json,sys; json.load(open('$f'))"
           done
+
+  structural-tests:
+    name: Structural tests (frontmatter, refs, versions, example oracle)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      # Zero-dependency, no network, no Claude calls — see tests/README.md (Tier 0).
+      - name: Run structural test suite
+        run: node tests/structural.mjs
+
+  eval-gate:
+    name: Eval gate (NOT YET ACTIVE — placeholder, see docs/audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: State honestly that behavioral evals are not built yet
+        run: |
+          echo "Tier-1 trigger-evals and Tier-2 functional fixtures are NOT committed yet."
+          echo "This job is a deliberate, honest placeholder (Stage C in the evolution plan)."
+          echo "It will become a real seesaw gate once skills/<name>/evals/ + baselines exist."
+          echo "Running behavioral evals requires Claude auth — see docs/audit/ci-cd-and-distribution.md."
+          # Exits 0: a placeholder must not give a false sense of coverage by failing either.

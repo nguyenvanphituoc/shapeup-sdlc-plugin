@@ -95,11 +95,7 @@ curl -fsSL "https://raw.githubusercontent.com/nguyenvanphituoc/shapeup-sdlc-plug
 /path/to/shapeup-sdlc-plugin/scripts/install-harness.sh --directory .
 ```
 
-**Option C — Windows PowerShell (remote):**
-
-```powershell
-& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/nguyenvanphituoc/shapeup-sdlc-plugin/main/scripts/install-harness.ps1"))) -Directory . -Yes
-```
+> The installer scripts are bash (macOS / Linux). On Windows, run them under WSL or Git Bash.
 
 This installer automatically configures:
 - **Claude Code**: Runs `claude plugin marketplace add --scope project` + `claude plugin install --scope project` to register the marketplace and enable the plugin in one shot (writes `.claude/settings.json`), then appends/creates `CLAUDE.md`. Falls back to writing `settings.json` directly if the `claude` CLI is not in PATH.
@@ -109,44 +105,40 @@ This installer automatically configures:
 
 ### Upgrading an existing install (knowledge base → team-shared)
 
-As of plugin 0.2.5 / tech-lead 0.12, `/coach` no longer writes one flat, gitignored
-`.shapeup-sdlc/knowledge-base.md` (which never reached teammates and was never read back). It now
-files each rule **by skill** under committed `docs/shapeup-sdlc/knowledge-base/<skill>.md`, and
-`task-executor` / `ba-pitch-analyzer` / `qa-edge-hunter` each read their own file at the top of
-their next run. One migration script does the whole upgrade — it **asks which AI CLI(s) you use**
-(Claude Code / Antigravity / Codex), replaces the installed skills for each, then moves the old
-knowledge base into the new committed location.
+Updating an install is a **versioned migration**, modeled on database migration tools (Flyway /
+Rails): `migrate.sh` first **updates code** (replaces the installed skills for each CLI), then
+**migrates data** by applying any pending `scripts/migrations/NNNN__*.sh` in order and recording
+each in a committed `docs/shapeup-sdlc/.harness-migrations` ledger. It is idempotent — applied
+migrations are skipped on re-run — so it is always safe to run again, and every future version adds
+its own migration rather than another one-off script. See
+[`docs/audit/migration-system.md`](docs/audit/migration-system.md).
 
 **Option A — Remote one-liner** (no clone needed; auto-detects installed CLIs):
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/nguyenvanphituoc/shapeup-sdlc-plugin/main/scripts/migrate-knowledge-base.sh" | bash -s -- --directory . --yes
+curl -fsSL "https://raw.githubusercontent.com/nguyenvanphituoc/shapeup-sdlc-plugin/main/scripts/migrate.sh" | bash -s -- --directory . --yes
 ```
 
-```powershell
-# Windows PowerShell
-& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/nguyenvanphituoc/shapeup-sdlc-plugin/main/scripts/migrate-knowledge-base.ps1"))) -Directory . -Yes
-```
-
-> As with the installer, the piped form consumes stdin, so pass `--yes`/`-Yes` (it auto-detects
-> installed CLIs). Omit it when running from a clone to get the interactive CLI prompt.
+> As with the installer, the piped form consumes stdin, so pass `--yes` (it auto-detects installed
+> CLIs). Omit it when running from a clone to get the interactive CLI prompt.
 
 **Option B — Local clone:**
 
 ```bash
-/path/to/shapeup-sdlc-plugin/scripts/migrate-knowledge-base.sh --directory .
+/path/to/shapeup-sdlc-plugin/scripts/migrate.sh --directory .        # update code + migrate data
+/path/to/shapeup-sdlc-plugin/scripts/migrate.sh --directory . --dry-run   # list pending migrations
 ```
 
-```powershell
-/path/to/shapeup-sdlc-plugin/scripts/migrate-knowledge-base.ps1 -Directory .
-```
-
-It auto-detects installed CLIs under `--yes`/`-Yes`, and prompts otherwise. Old rules are preserved
-verbatim into `docs/shapeup-sdlc/knowledge-base/_INBOX.md` — **never auto-categorized**. Afterward,
-run `/coach` on `_INBOX.md` to assign each rule to a skill (its GATE COACH-1 asks — it never
-assumes), and commit `docs/shapeup-sdlc/knowledge-base/` so the team inherits it on `git pull`.
+The first migration (`0001`) performs the knowledge-base upgrade: as of plugin 0.2.5 / tech-lead
+0.12, `/coach` no longer writes one flat, gitignored `.shapeup-sdlc/knowledge-base.md` (which never
+reached teammates and was never read back). It now files each rule **by skill** under committed
+`docs/shapeup-sdlc/knowledge-base/<skill>.md`, read back by `task-executor` / `ba-pitch-analyzer` /
+`qa-edge-hunter` at the top of their next run. Old rules are preserved verbatim into
+`docs/shapeup-sdlc/knowledge-base/_INBOX.md` — **never auto-categorized**. Afterward, run `/coach`
+on `_INBOX.md` to assign each rule to a skill (its GATE COACH-1 asks — it never assumes), and commit
+`docs/shapeup-sdlc/` so the team inherits the knowledge base + migration ledger on `git pull`.
 (Source resolution, CLI selection, and skill replacement are factored into a shared
-`scripts/lib/lib-harness.{sh,ps1}` that both the installer and the migration script reuse.)
+`scripts/lib/lib-harness.sh`; the migration runner lives in `scripts/lib/lib-migrate.sh`.)
 
 ## The workflow
 

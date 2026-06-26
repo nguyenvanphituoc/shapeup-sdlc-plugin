@@ -5,6 +5,21 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Versioned migration system.** Updating an install is now a Flyway/Rails-style migration:
+  `scripts/migrate.sh` updates code (replaces skills) then applies pending
+  `scripts/migrations/NNNN__*.sh` in order, tracked in a committed
+  `docs/shapeup-sdlc/.harness-migrations` ledger + `.harness-version` stamp. Idempotent; every
+  future version adds its own migration. The old flat-KB transform is now migration `0001`.
+  Runner lives in `scripts/lib/lib-migrate.sh`. See `docs/audit/migration-system.md`.
+
+### Removed
+- **PowerShell scripts** (`install-harness.ps1`, `lib/lib-harness.ps1`, `migrate-knowledge-base.ps1`)
+  — the harness is bash-only now (macOS / Linux; Windows via WSL or Git Bash), keeping a single,
+  well-tested code path.
+- **`scripts/migrate-knowledge-base.sh`** — superseded by `scripts/migrate.sh` (its transform is
+  migration `0001`). Update existing installs with `migrate.sh` instead.
+
 ## [0.2.6] - 2026-06-23
 
 ### Fixed

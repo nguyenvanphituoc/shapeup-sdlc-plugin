@@ -6,7 +6,7 @@
 > **Landed in this increment** (see `evals/README.md`):
 > - **Phase 0** — `evals/` convention + `evals/baselines/<name>.json` snapshots for all 8 skills
 >   (unmeasured; metrics `null` until `make eval` populates them) + the version-bump rule, now an
->   invariant in `AGENT.md`.
+>   invariant in `AGENTS.md`.
 > - **Phase 1** — tier-1 `skills/<name>/evals/trigger-evals.json` for all 8 skills: 20 cases each,
 >   English-only triggers for downstream skills (Vietnamese triggers only for `translator` as the L0 gate), cross-skill hard
 >   negatives. Live measurement wired via `evals/run-trigger-eval.sh` / `make eval` (validated
@@ -214,7 +214,7 @@ Phase 0 (convention + baselines)
 ## References
 - `skills/tech-lead/references/ledger-schema.md:139` — the existing tier-1/2/3 definition + the
   facts-only / no-second-judge rules this roadmap must honor.
-- `AGENT.md` — architecture invariants (one judge, role separation, thin tech-lead).
+- `AGENTS.md` — architecture invariants (one judge, role separation, thin tech-lead).
 - HarnessX — arXiv 2606.14249 (AEGIS four-stage loop; seesaw constraint).
 - HarnessFix — arXiv 2606.06324 (diagnosis-driven repair; ETCLOVG; `Δ≥δmin ∧ R≤rmax`).
 - M. Fowler, *Harness engineering for coding agent users* — feedforward/feedback controls;
