@@ -1,0 +1,413 @@
+<title>ShapeUp SDLC Plugin &mdash; Delivery Pipeline</title>
+<meta name="description" content="How the ShapeUp SDLC plugin flows from development through testing to publish &mdash; current repo state, 2026-06-26.">
+<style>
+  :root {
+    --ground: #f4f6f8;
+    --surface: #ffffff;
+    --surface-2: #eef1f4;
+    --ink: #161b22;
+    --muted: #6a747e;
+    --line: #d7dde3;
+    --accent: #0e8f86;
+    --accent-soft: #d6ecea;
+    --good: #2f8f4e;
+    --good-soft: #e2f1e7;
+    --warn: #c5881d;
+    --warn-soft: #f7ecd6;
+    --dim: #9aa3ac;
+    --radius: 10px;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 56px 24px 80px; }
+
+  /* ---- header ---- */
+  .eyebrow {
+    font-size: 11.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 12px;
+  }
+  h1 {
+    font-size: clamp(28px, 4vw, 42px); line-height: 1.08; letter-spacing: -0.02em;
+    font-weight: 680; margin: 0 0 14px; text-wrap: balance;
+  }
+  .lede { font-size: 17px; color: var(--muted); max-width: 64ch; margin: 0; }
+  .meta { margin-top: 18px; font-size: 12.5px; color: var(--muted); font-family: var(--mono); }
+
+  /* ---- legend ---- */
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 30px 0 8px;
+    padding: 16px 20px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); align-items: center;
+  }
+  .legend h2 {
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+    margin: 0 8px 0 0; font-weight: 600;
+  }
+  .key { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink); }
+  .dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+  .dot.good { background: var(--good); }
+  .dot.warn { background: var(--warn); }
+  .dot.dim  { background: transparent; border: 1.5px dashed var(--dim); }
+  .key.auth::before {
+    content: "\01F511"; font-size: 12px;
+  }
+  .key.auth { color: var(--muted); }
+
+  /* ---- stage band ---- */
+  .stage { position: relative; margin-top: 30px; }
+  .stage-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 16px; }
+  .stage-num {
+    font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--accent);
+    background: var(--accent-soft); border-radius: 6px; padding: 3px 9px; flex: none;
+  }
+  .stage-title { font-size: 19px; font-weight: 640; letter-spacing: -0.01em; margin: 0; }
+  .stage-sub { font-size: 13.5px; color: var(--muted); margin: 0; }
+
+  .band {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px; overflow-x: auto;
+  }
+  .flow { display: flex; align-items: stretch; gap: 0; min-width: min-content; }
+
+  /* node group (a vertical sub-stack inside a flow step) */
+  .col { display: flex; flex-direction: column; gap: 12px; min-width: 210px; justify-content: center; }
+
+  .node {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 13px 15px; min-width: 200px; position: relative;
+  }
+  .node.good { border-left: 3px solid var(--good); }
+  .node.warn { border-left: 3px solid var(--warn); }
+  .node.dim  { border-left: 3px dashed var(--dim); background: var(--surface-2); }
+  .node-title { font-size: 14px; font-weight: 620; margin: 0 0 3px; display: flex; align-items: center; gap: 7px; }
+  .node-title .dot { width: 9px; height: 9px; }
+  .node code, code.tok {
+    font-family: var(--mono); font-size: 12px; background: var(--surface-2);
+    border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; color: #2a3138;
+    white-space: nowrap;
+  }
+  .node.dim code { background: #e6e9ec; }
+  .node-desc { font-size: 12.5px; color: var(--muted); margin: 6px 0 0; line-height: 1.5; }
+  .node-desc code { white-space: normal; }
+  .tag {
+    display: inline-block; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em;
+    text-transform: uppercase; padding: 2px 7px; border-radius: 20px; margin-top: 8px;
+  }
+  .tag.good { background: var(--good-soft); color: var(--good); }
+  .tag.warn { background: var(--warn-soft); color: #9a6a12; }
+  .tag.dim  { background: #e6e9ec; color: #5f6973; }
+
+  /* connector */
+  .arrow {
+    display: flex; align-items: center; justify-content: center; flex: none;
+    padding: 0 6px; color: var(--accent);
+  }
+  .arrow svg { display: block; }
+  .arrow.dim { color: var(--dim); }
+
+  .band-label {
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+    font-weight: 600; margin: 0 0 10px;
+  }
+  .gate-note {
+    margin-top: 12px; font-size: 12.5px; color: var(--muted);
+    border-top: 1px dashed var(--line); padding-top: 11px;
+  }
+  .gate-note strong { color: var(--ink); font-weight: 600; }
+
+  /* big vertical connectors between stages */
+  .seam { display: flex; justify-content: center; padding: 8px 0; color: var(--line); }
+  .seam svg { color: var(--accent); opacity: .55; }
+
+  /* footnote / consumption */
+  .consume {
+    margin-top: 34px; background: linear-gradient(180deg, var(--surface), var(--surface));
+    border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px;
+  }
+  .consume h3 { margin: 0 0 4px; font-size: 16px; font-weight: 640; }
+  .consume p.sub { margin: 0 0 16px; color: var(--muted); font-size: 13.5px; }
+  .consume-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .consume-card { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; background: var(--ground); }
+  .consume-card h4 { margin: 0 0 6px; font-size: 13.5px; font-weight: 620; }
+  .consume-card p { margin: 0; font-size: 12.5px; color: var(--muted); }
+
+  .truth {
+    margin-top: 30px; font-size: 13px; color: var(--muted); border-left: 3px solid var(--warn);
+    background: var(--warn-soft); padding: 14px 18px; border-radius: 0 var(--radius) var(--radius) 0;
+  }
+  .truth strong { color: #8a5e0f; }
+
+  footer { margin-top: 40px; font-size: 12px; color: var(--muted); font-family: var(--mono); }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 36px 16px 60px; }
+    .band { padding: 14px; }
+  }
+</style>
+
+<div class="wrap">
+
+  <p class="eyebrow">ShapeUp SDLC Plugin &middot; Claude Code</p>
+  <h1>Delivery pipeline &mdash; development to publish</h1>
+  <p class="lede">How a change to the harness travels from a hand-edited skill, through validation
+  and tests, to a tagged GitHub release teammates install. Drawn from the repository as it actually
+  stands &mdash; built steps, honest placeholders, and the parts not yet wired.</p>
+  <p class="meta">repo state &middot; 2026-06-26 &middot; plugin v0.2.6</p>
+
+  <div class="legend">
+    <h2>State</h2>
+    <span class="key"><span class="dot good"></span>Built &amp; running</span>
+    <span class="key"><span class="dot warn"></span>Placeholder / honor-system</span>
+    <span class="key"><span class="dot dim"></span>Not built yet</span>
+    <span class="key auth">needs Claude auth (fresh login)</span>
+  </div>
+
+  <!-- ============ STAGE 1 -- DEVELOP ============ -->
+  <section class="stage">
+    <div class="stage-head">
+      <span class="stage-num">01</span>
+      <div>
+        <h2 class="stage-title">Develop &mdash; single source, compiled out</h2>
+        <p class="stage-sub">Author prose skills once; one script fans them out to every target CLI.</p>
+      </div>
+    </div>
+    <div class="band">
+      <div class="flow">
+        <div class="col">
+          <div class="node good">
+            <p class="node-title"><span class="dot good"></span>Edit the source</p>
+            <p class="node-desc"><code>skills/&lt;name&gt;/SKILL.md</code> + <code>references/</code>,
+            <code>commands/*.md</code>, and the manifests <code>plugin.json</code> / <code>marketplace.json</code>.</p>
+            <span class="tag good">source of truth</span>
+          </div>
+          <div class="node good">
+            <p class="node-title"><span class="dot good"></span>Session hook</p>
+            <p class="node-desc"><code>hooks/hooks.json</code> &mdash; a single <code>SessionStart</code> echo today.
+            No gate enforcement yet.</p>
+          </div>
+        </div>
+
+        <div class="arrow" aria-hidden="true">
+          <svg width="30" height="20" viewBox="0 0 30 20"><path d="M0 10h24m0 0l-6-6m6 6l-6 6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        </div>
+
+        <div class="col">
+          <div class="node good">
+            <p class="node-title"><span class="dot good"></span><code>npm run distribute</code></p>
+            <p class="node-desc"><code>scripts/distribute.js</code> compiles the prose skills into per-target configs.</p>
+            <span class="tag good">deterministic compile</span>
+          </div>
+        </div>
+
+        <div class="arrow" aria-hidden="true">
+          <svg width="30" height="20" viewBox="0 0 30 20"><path d="M0 10h24m0 0l-6-6m6 6l-6 6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        </div>
+
+        <div class="col">
+          <div class="node good">
+            <p class="node-title"><span class="dot good"></span><code>dist/</code> artifacts</p>
+            <p class="node-desc">Cursor <code>.mdc</code> rules + <code>.vsix</code> extension &middot; Antigravity subagent
+            JSON &middot; Codex skills (copied verbatim).</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="seam" aria-hidden="true">
+    <svg width="22" height="34" viewBox="0 0 22 34"><path d="M11 0v26m0 0l-7-7m7 7l7-7" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+  </div>
+
+  <!-- ============ STAGE 2 -- TEST ============ -->
+  <section class="stage">
+    <div class="stage-head">
+      <span class="stage-num">02</span>
+      <div>
+        <h2 class="stage-title">Test &mdash; gate every push &amp; pull request</h2>
+        <p class="stage-sub">Static checks run free on every push; behavioral evals are designed but not yet built.</p>
+      </div>
+    </div>
+    <div class="band">
+
+      <p class="band-label">Local &mdash; before pushing</p>
+      <div class="flow" style="margin-bottom:18px;">
+        <div class="col">
+          <div class="node good">
+            <p class="node-title"><span class="dot good"></span><code>npm test</code></p>
+            <p class="node-desc"><code>tests/structural.mjs</code> &mdash; 58 checks: frontmatter, reference
+            links resolve, version sync, manifests, example oracle. Zero deps.</p>
+            <span class="tag good">green</span>
+          </div>
+        </div>
+        <div class="arrow" aria-hidden="true">
+          <svg width="30" height="20" viewBox="0 0 30 20"><path d="M0 10h24m0 0l-6-6m6 6l-6 6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        </div>
+        <div class="col">
+          <div class="node good">
+            <p class="node-title"><span class="dot good"></span>Example eval oracle</p>
+            <p class="node-desc"><code>examples/todo-cli/</code> &mdash; process-level oracle emits evidence-cited
+            PASS/FAIL for a non-UI deliverable (edge cases E1&ndash;E6).</p>
+            <span class="tag good">reference impl</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="band-label">CI &middot; <code class="tok">ci.yml</code> on push / PR / dispatch</p>
+      <div class="flow">
+        <div class="col">
+          <div class="node good">
+            <p class="node-title"><span class="dot good"></span>validate</p>
+            <p class="node-desc"><code>claude plugin validate --strict</code> &mdash; plugin + marketplace manifests. No auth.</p>
+          </div>
+          <div class="node good">
+            <p class="node-title"><span class="dot good"></span>json-lint</p>
+            <p class="node-desc">Every <code>*.json</code> parses.</p>
+          </div>
+        </div>
+
+        <div class="arrow" aria-hidden="true">
+          <svg width="30" height="20" viewBox="0 0 30 20"><path d="M0 10h24m0 0l-6-6m6 6l-6 6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        </div>
+
+        <div class="col">
+          <div class="node good">
+            <p class="node-title"><span class="dot good"></span>structural-tests</p>
+            <p class="node-desc">Runs <code>tests/structural.mjs</code> in CI. Caught a real broken reference on
+            its first run.</p>
+            <span class="tag good">new</span>
+          </div>
+          <div class="node warn">
+            <p class="node-title"><span class="dot warn"></span>eval-gate</p>
+            <p class="node-desc">Honest placeholder &mdash; exits 0 and states that behavioral evals are not built.
+            Becomes the real seesaw gate later.</p>
+            <span class="tag warn">placeholder</span>
+          </div>
+        </div>
+
+        <div class="arrow dim" aria-hidden="true">
+          <svg width="30" height="20" viewBox="0 0 30 20"><path d="M0 10h24m0 0l-6-6m6 6l-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="3 3"/></svg>
+        </div>
+
+        <div class="col">
+          <div class="node dim">
+            <p class="node-title"><span class="dot dim"></span>Tier-1 trigger evals &#128273;</p>
+            <p class="node-desc">Per-skill <code>trigger-evals.json</code>, measured with skills installed.
+            <strong>Not committed</strong> &mdash; was claimed "landed" but never existed.</p>
+            <span class="tag dim">Stage C &middot; needs auth</span>
+          </div>
+          <div class="node dim">
+            <p class="node-title"><span class="dot dim"></span>Tier-2 functional fixtures &#128273;</p>
+            <p class="node-desc">With-skill vs without-skill deltas; judge-first planted-bug fixture.
+            <strong>Not built.</strong></p>
+            <span class="tag dim">Stage C &middot; needs auth</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="gate-note"><strong>Gates inside a harness run are an honor system today.</strong>
+      <code>--unattended</code> is now demoted to a warned opt-in; <code>commands/ship.md</code> defaults to
+      interactive with human sign-off at the Ship gate (L4).</p>
+    </div>
+  </section>
+
+  <div class="seam" aria-hidden="true">
+    <svg width="22" height="34" viewBox="0 0 22 34"><path d="M11 0v26m0 0l-7-7m7 7l7-7" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+  </div>
+
+  <!-- ============ STAGE 3 -- PUBLISH ============ -->
+  <section class="stage">
+    <div class="stage-head">
+      <span class="stage-num">03</span>
+      <div>
+        <h2 class="stage-title">Publish &mdash; tag triggers the release</h2>
+        <p class="stage-sub">A version tag runs <code class="tok">release.yml</code>; assets land on a GitHub Release.</p>
+      </div>
+    </div>
+    <div class="band">
+      <div class="flow">
+        <div class="col">
+          <div class="node good">
+            <p class="node-title"><span class="dot good"></span>Tag <code>vX.Y.Z</code></p>
+            <p class="node-desc">Pushing a <code>v*</code> tag triggers the Release workflow.</p>
+          </div>
+        </div>
+
+        <div class="arrow" aria-hidden="true">
+          <svg width="30" height="20" viewBox="0 0 30 20"><path d="M0 10h24m0 0l-6-6m6 6l-6 6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        </div>
+
+        <div class="col">
+          <div class="node good">
+            <p class="node-title"><span class="dot good"></span>Guard checks</p>
+            <p class="node-desc"><code>validate --strict</code>, then assert the tag equals
+            <code>plugin.json</code> version &mdash; mismatch fails the release.</p>
+          </div>
+          <div class="node good">
+            <p class="node-title"><span class="dot good"></span>Compile + package</p>
+            <p class="node-desc"><code>npm run distribute</code> &rarr; <code>vsce package</code> (VSIX) &rarr; zip
+            cursor-rules + antigravity-subagents.</p>
+          </div>
+        </div>
+
+        <div class="arrow" aria-hidden="true">
+          <svg width="30" height="20" viewBox="0 0 30 20"><path d="M0 10h24m0 0l-6-6m6 6l-6 6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        </div>
+
+        <div class="col">
+          <div class="node good">
+            <p class="node-title"><span class="dot good"></span>GitHub Release</p>
+            <p class="node-desc"><code>action-gh-release</code> attaches the VSIX + two zips with
+            auto-generated notes.</p>
+            <span class="tag good">consumed by installer</span>
+          </div>
+          <div class="node dim">
+            <p class="node-title"><span class="dot dim"></span>Marketplace publish</p>
+            <p class="node-desc">VS Code Marketplace + Open VSX steps exist but are
+            <strong>commented out</strong> (need <code>VSCE_PAT</code> / <code>OVSX_PAT</code>).</p>
+            <span class="tag dim">disabled</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CONSUMPTION ============ -->
+  <div class="consume">
+    <h3>Install &amp; update &mdash; how teammates consume it</h3>
+    <p class="sub">The repo <em>is</em> its own marketplace &mdash; no npm publish. One shared library backs both fresh install and migration across three CLIs.</p>
+    <div class="consume-grid">
+      <div class="consume-card">
+        <h4>Claude Code</h4>
+        <p><code class="tok">/plugin marketplace add</code> then <code class="tok">/plugin install</code> &mdash; repo-as-marketplace, Playwright resolved as a dependency.</p>
+      </div>
+      <div class="consume-card">
+        <h4>Local scaffolding</h4>
+        <p><code class="tok">install-harness.sh</code> wires Claude / Antigravity / Codex to a shared <code>AGENTS.md</code> and seeds telemetry.</p>
+      </div>
+      <div class="consume-card">
+        <h4>Migration / update</h4>
+        <p><code class="tok">migrate.sh</code> &mdash; versioned runner (Flyway/Rails-style):
+        <strong>updates code</strong> (replace skills) then <strong>migrates data</strong> by applying
+        pending <code>scripts/migrations/NNNN__*.sh</code> in order, tracked in a committed
+        <code>.harness-migrations</code> ledger. Idempotent; each future version adds its own migration.</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="truth"><strong>Read the map honestly.</strong> Everything green runs today. The eval-gate is a
+  deliberate placeholder, and the behavioral evals it will one day enforce (Tier-1/Tier-2) were
+  documented as "landed" but were never committed &mdash; they are the next real work, and the only part of
+  the pipeline that needs a Claude fresh-login.</p>
+
+  <footer>Source: ci.yml &middot; release.yml &middot; scripts/distribute.js &middot; scripts/lib/lib-harness.sh &middot; tests/structural.mjs</footer>
+
+</div>
