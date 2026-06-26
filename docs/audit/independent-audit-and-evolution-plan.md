@@ -189,6 +189,12 @@ is unreliable, before the fixtures that produce a real signal). Corrected order:
 - **G1.** Define an **evaluation-contract abstraction** so a non-UI deliverable (CLI, library,
   pipeline) has a declared oracle (exit code + stdout assertion, test-suite green, snapshot diff),
   with Playwright/`[ui]` as one implementation among several.
+  - **Status (2026-06-26): steps 1–3 LANDED** — `oracle` tag + registry in the ba Test Surface
+    schema (default `ui`); `spec-evaluator/references/probing.md` dispatches on it; the shared
+    `process` runner `scripts/oracles/process-oracle.mjs` (declarative contract; reference
+    `examples/todo-cli/todo.contract.json`) is wired and tested (structural #6, with a negative
+    control). **Remaining: `test` + `snapshot` oracles (step 4), then `http` (step 5).** See
+    `evaluation-contract-spec.md`.
 
 **Dependency order:** A → B → C → (D, E in parallel) → F → G.
 

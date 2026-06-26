@@ -1,0 +1,36 @@
+{
+  "deliverable": "todo CLI",
+  "oracle": "process",
+  "criteria": [
+    {
+      "id": "E1",
+      "desc": "empty list prints a friendly message, exit 0",
+      "probe": { "argv": ["list"], "store": "[]" },
+      "expect": { "exit": "==0", "stdout": "/no todos|empty|nothing/i" }
+    },
+    {
+      "id": "E2",
+      "desc": "bad index fails gracefully, non-zero, no stack trace",
+      "probe": { "argv": ["done", "99"], "store": "[]" },
+      "expect": { "exit": "!=0", "no_crash": true }
+    },
+    {
+      "id": "E3",
+      "desc": "non-numeric index fails gracefully",
+      "probe": { "argv": ["done", "abc"], "store": "[]" },
+      "expect": { "exit": "!=0", "no_crash": true }
+    },
+    {
+      "id": "E4",
+      "desc": "corrupted store fails without destroying data",
+      "probe": { "argv": ["list"], "store": "{garbage" },
+      "expect": { "exit": "!=0", "no_crash": true }
+    },
+    {
+      "id": "E5",
+      "desc": "missing store is created on first run, exit 0",
+      "probe": { "argv": ["list"], "store": null },
+      "expect": { "exit": "==0", "no_crash": true }
+    }
+  ]
+}

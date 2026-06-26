@@ -31,10 +31,11 @@ A `spec-evaluator` run on the built CLI must emit a report that:
       `$ todo done 99  → exit 1, stderr "no item 99"  ⇒ PASS (graceful, non-zero, no stack trace)`
 - [ ] FAILs any criterion where evidence is absent (absence of evidence = FAIL)
 
-> Note: the current evaluator probes a **running app via Playwright** for `[ui]` criteria. A CLI
-> has no browser. The expected evaluation oracle here is **process-level** (spawn, exit code,
-> captured stdout). Until Stage G lands the general evaluation contract, this example documents
-> the gap rather than hiding it.
+> Note: a CLI has no browser, so the evaluator does not drive Playwright here. Stage G (the
+> evaluation contract) has landed steps 1–3: each criterion carries an `oracle` tag and the
+> evaluator dispatches on it. For this CLI the oracle is **`process`** — the shared runner
+> `scripts/oracles/process-oracle.mjs` spawns the deliverable and grades exit code + stdout.
+> Run it directly: `node scripts/oracles/process-oracle.mjs examples/todo-cli/todo.contract.json "node ./reference/todo.js"`.
 
 ## C. Edge cases were hunted and handled (the "edge cases handled")
 

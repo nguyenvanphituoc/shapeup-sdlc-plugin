@@ -27,11 +27,44 @@ The probe loop per [ui] criterion:
      the source file:line where the handler/wiring fails
 ```
 
+## Oracle dispatch (evaluation contract — Stage G)
+
+Each criterion / Test-Surface row carries an `oracle` tag (the evaluation-contract dispatch key;
+see `docs/audit/evaluation-contract-spec.md`). **Dispatch on it to choose the probe mechanism;
+default to `ui` when the tag is absent** (web pitches are unchanged). The single-judge invariant
+is untouched — one verdict per criterion, evidence-or-FAIL — the oracle only changes *how*
+evidence is gathered.
+
+| `oracle` | Probe mechanism | Evidence cited |
+|---|---|---|
+| `ui` *(default)* | Playwright CLI loop (below) | accessibility-tree node, state before/after, console |
+| `process` | **shared runner `scripts/oracles/process-oracle.mjs`** — spawn the deliverable with controlled argv + a sandboxed `$TODO_STORE`, grade observed exit/stdout | exit code + stdout/stderr + crash check |
+| `test` | run the project's own suite (`cmd`, below) | suite exit + failing-test names |
+| `snapshot` | diff actual output vs a golden file | unified diff (empty = PASS) |
+| `http` | request the endpoint (`cmd` + `curl`/fetch), assert status + body | status code + response body |
+
+**`process` oracle (CLI / script deliverables).** Express the criterion as a declarative contract
+(`{ id, desc, probe: { argv, store }, expect: { exit, stdout, no_crash } }`) and run it through the
+shared runner — do **not** hand-roll a spawn per criterion:
+
+```
+node scripts/oracles/process-oracle.mjs <contract.json> "<command to run the deliverable>"
+# exit 0 = all PASS, 1 = ≥1 FAIL. Prints an evidence-cited PASS/FAIL line per criterion.
+```
+
+`examples/todo-cli/todo.contract.json` is the worked reference contract; the runner spawns in a
+temp dir, never the real cwd, so probes (corrupted store, missing store) cannot destroy user data.
+A probe that throws or cannot spawn is a **FAIL** (absence of evidence), never a silent pass.
+
+The `ba` Test Surface emits the `oracle` per row; for a non-UI deliverable the rows are already
+tagged `process`/`test`/`http`, so the evaluator must not fall back to driving a browser.
+
 ## By probe type
 - `cmd` — run the command the AC implies (`pnpm --filter <pkg> test`, `pnpm typecheck`,
   `curl` against a running endpoint, `migration up && migration down`). Capture stdout,
-  stderr, exit code. Non-zero exit or failing assertion = evidence of FAIL.
-- `ui` — Playwright CLI loop above.
+  stderr, exit code. Non-zero exit or failing assertion = evidence of FAIL. (Backs the `test`,
+  `snapshot`, and `http` oracles.)
+- `ui` — Playwright CLI loop above. (Backs the `ui` oracle.)
 - `data` — query the DB / inspect storage after the action; capture the actual row/state
   and compare to what the criterion expects.
 - `static` — read the diff / changed files (for `SC-NONGO`, `SC-LAYER`, secret scans,

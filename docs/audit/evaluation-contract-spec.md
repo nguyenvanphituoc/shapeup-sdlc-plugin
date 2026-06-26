@@ -51,17 +51,23 @@ loads pluggable *dimensions*. The contract interface is fixed; implementations g
   declared probe — exactly the "edge cases handled" half of the goal.
 
 ## How this lands (incremental, doesn't break today's runs)
-1. **Define the `oracle:` tag** in `ba-pitch-analyzer`'s Test Surface schema (default `ui` so
-   existing pitches are unchanged).
-2. **Generalize `spec-evaluator`/`references/probing.md`** to dispatch on `oracle:` — `ui` keeps
-   the current Playwright path; `process` adopts the todo-cli oracle's spawn-and-grade logic.
-3. **Promote `eval-cli-contract.mjs`** from example to a shared probe runner the evaluator can call.
-4. **Add `test` + `snapshot` oracles** next (cover libraries and refactors — the two most common
-   non-UI deliverables).
-5. `http` last (services), reusing the `process` sandbox pattern.
+1. ✅ **DONE — Define the `oracle:` tag** in `ba-pitch-analyzer`'s Test Surface schema (default
+   `ui` so existing pitches are unchanged). See the `Oracle` column + registry in
+   `skills/ba-pitch-analyzer/references/test-surface.md`.
+2. ✅ **DONE — Generalize `spec-evaluator`/`references/probing.md`** to dispatch on `oracle:` —
+   `ui` keeps the current Playwright path; `process` runs the shared spawn-and-grade runner. See
+   the "Oracle dispatch" section in `skills/spec-evaluator/references/probing.md`.
+3. ✅ **DONE — Promote `eval-cli-contract.mjs`** to a shared probe runner the evaluator can call:
+   `scripts/oracles/process-oracle.mjs` (declarative-contract driven; reference contract
+   `examples/todo-cli/todo.contract.json`). The example now delegates to it; structural test #6
+   exercises it (incl. a do-nothing negative control proving it discriminates).
+4. **TODO — Add `test` + `snapshot` oracles** next (cover libraries and refactors — the two most
+   common non-UI deliverables). Reuse the dispatch + runner pattern from steps 1–3.
+5. **TODO — `http` last** (services), reusing the `process` sandbox pattern.
 
-Steps 1–3 make "build a CLI" a first-class, evaluable deliverable. Steps 4–5 close most of
-"anything." Each step is independently shippable and adds an oracle row to the table above.
+Steps 1–3 (landed 2026-06-26) make "build a CLI" a first-class, evaluable deliverable. Steps 4–5
+close most of "anything." Each step is independently shippable and adds an oracle row to the table
+above.
 
 ## Why up front (the PO's call)
 Generalizing the contract *now* avoids baking a UI-only assumption deeper into the Test Surface and

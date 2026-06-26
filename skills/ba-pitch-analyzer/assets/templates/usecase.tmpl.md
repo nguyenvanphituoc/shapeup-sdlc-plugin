@@ -91,13 +91,15 @@ interface [UseCaseName]Output {
   a new invariant lands. Exploratory/edge tests do NOT live here (qa-edge-hunter owns those).
   If all four sources are empty, replace the table with:
   _No derivable surface — sources empty. Exploratory coverage only (see qa-edge-hunter)._
+  Oracle = how the evaluator verifies the row (ui|process|test|snapshot|http); default ui.
+  Non-ui when this UC's deliverable has no browser (CLI/library/service). See references/test-surface.md.
 -->
-| ID | Probe | Expect | Source |
-|---|---|---|---|
-| TS-INV-01 | [action that would violate INV-01] | [rejection + state unchanged] | D1: INV-01 |
-| TS-ERR-[CODE] | [trigger the Condition] | [error code + HTTP status] | D2 |
-| TS-REQ-[field]-missing | [omit required field] | [400 validation, no side effect] | D3 |
-| TS-NOGO-[NN] | [attempt the excluded behavior] | [blocked/absent] | D4 |
+| ID | Oracle | Probe | Expect | Source |
+|---|---|---|---|---|
+| TS-INV-01 | ui | [action that would violate INV-01] | [rejection + state unchanged] | D1: INV-01 |
+| TS-ERR-[CODE] | http | [trigger the Condition] | [error code + HTTP status] | D2 |
+| TS-REQ-[field]-missing | http | [omit required field] | [400 validation, no side effect] | D3 |
+| TS-NOGO-[NN] | ui | [attempt the excluded behavior] | [blocked/absent] | D4 |
 
 ## Integration Points
 - → [[integration#[service-section]]] — [what flows out]

@@ -164,8 +164,29 @@ if (existsSync(oracle) && existsSync(refImpl)) {
   const r = spawnSync("node", [oracle, `node ${refImpl}`], { encoding: "utf8" });
   if (r.status === 0) ok("todo-cli oracle PASSes against reference impl");
   else fail(`todo-cli oracle did not pass against reference impl (exit ${r.status})\n${r.stdout || ""}${r.stderr || ""}`);
+
+  // Negative control: a deliverable that does nothing must FAIL — proves the oracle discriminates
+  // (a grader that always PASSes is worthless). `node -e ...` exits 0 with empty stdout, so E1's
+  // "prints a friendly message" check must FAIL it.
+  const neg = spawnSync("node", [oracle, `node -e ""`], { encoding: "utf8" });
+  if (neg.status === 1) ok("todo-cli oracle FAILs a do-nothing impl (discriminates)");
+  else fail(`todo-cli oracle did not FAIL a do-nothing impl (exit ${neg.status}) — grader may be a rubber stamp`);
 } else {
   console.log("  (example oracle/reference not found — skipping)");
+}
+
+// The shared process oracle (Stage G) and its reference contract must be present & well-formed.
+const sharedOracle = join(ROOT, "scripts/oracles/process-oracle.mjs");
+const contract = join(ROOT, "examples/todo-cli/todo.contract.json");
+if (existsSync(sharedOracle)) ok("shared process oracle present (scripts/oracles/process-oracle.mjs)");
+else fail("shared process oracle missing: scripts/oracles/process-oracle.mjs");
+if (existsSync(contract)) {
+  try {
+    const c = readJSON(contract);
+    if (Array.isArray(c.criteria) && c.criteria.length > 0 && c.criteria.every((x) => x.id && x.probe && x.expect))
+      ok(`todo.contract.json well-formed (${c.criteria.length} criteria)`);
+    else fail("todo.contract.json criteria[] malformed (need id/probe/expect each)");
+  } catch (e) { fail(`todo.contract.json does not parse: ${e.message}`); }
 }
 
 // =============================================================================

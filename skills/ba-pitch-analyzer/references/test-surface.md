@@ -37,17 +37,44 @@ gap → surface it at GATE 4 as a question (max 2 rule applies), do not silently
 ## Test Surface
 <!-- DERIVED — regenerate via `--surface-only`; do not hand-author rows here.
      Source must cite D1–D4. Exploratory/edge tests live in QA's charters, not here. -->
-| ID | Probe | Expect | Source |
-|---|---|---|---|
-| TS-INV-01 | Attempt withdrawal exceeding balance via UC input | Rejected `INSUFFICIENT_FUNDS`, balance unchanged | D1: INV-01 |
-| TS-ERR-NOT_FOUND | Submit with non-existent aggregate id | 404 `NOT_FOUND` per Error Cases | D2 |
-| TS-REQ-amount-missing | Omit `amount` from request | 400 validation error, no side effect | D3 + D2 (dedup) |
-| TS-REQ-amount-boundary | `amount` = 0 / 0.01 / max / max+0.01 | Per contract bounds: edges accepted, outside rejected | D3 |
-| TS-NOGO-02 | Attempt export via direct URL (pitch no-go: "no export") | Blocked/absent — no file served | D4 |
+| ID | Oracle | Probe | Expect | Source |
+|---|---|---|---|---|
+| TS-INV-01 | ui | Attempt withdrawal exceeding balance via UC input | Rejected `INSUFFICIENT_FUNDS`, balance unchanged | D1: INV-01 |
+| TS-ERR-NOT_FOUND | http | Submit with non-existent aggregate id | 404 `NOT_FOUND` per Error Cases | D2 |
+| TS-REQ-amount-missing | http | Omit `amount` from request | 400 validation error, no side effect | D3 + D2 (dedup) |
+| TS-REQ-amount-boundary | http | `amount` = 0 / 0.01 / max / max+0.01 | Per contract bounds: edges accepted, outside rejected | D3 |
+| TS-NOGO-02 | ui | Attempt export via direct URL (pitch no-go: "no export") | Blocked/absent — no file served | D4 |
 ```
 
-`Probe` must be executable against the running app or API (the evaluator's `cmd`/`ui`/`data`
-handlers) — no "verify code does X" static phrasing.
+`Probe` must be executable against the running deliverable — no "verify code does X" static
+phrasing.
+
+### The `Oracle` column (evaluation-contract tag)
+
+`Oracle` declares **how the evaluator verifies the row** — it is the dispatch key of the
+evaluation contract (see `docs/audit/evaluation-contract-spec.md`). One verdict per row, single
+judge; the oracle changes only *how* evidence is gathered, never *who* decides.
+
+| `oracle` | When the deliverable is… | Evidence the evaluator cites |
+|---|---|---|
+| `ui` *(default)* | a running web app | accessibility-tree node, state before/after, console |
+| `process` | a CLI / script | spawned exit code + stdout/stderr + crash check |
+| `test` | a library / module | the project's own test suite (exit + failing-test names) |
+| `snapshot` | a generator / pure refactor | unified diff vs a golden file (empty = PASS) |
+| `http` | a service / API | response status + body assertion |
+
+**Rules:**
+- **Default is `ui`.** A row (or AC) that omits `Oracle` is treated as `ui` — pre-v2.9 specs and
+  existing web pitches are unchanged.
+- **Pick the oracle from the deliverable type, not the test idea.** A `todo` CLI's `TS-*` rows are
+  `process`; a shared library's are `test`; an HTTP endpoint's are `http`. When a UC's deliverable
+  is non-UI, set the oracle on every derived row so the evaluator does not fall back to driving a
+  browser that does not exist.
+- **The expectation must be observable by that oracle.** A `process` row's Expect is phrased in
+  exit code + stdout (e.g. *"exit ≠ 0, message names the file, no stack trace"*); a `test` row's is
+  *"suite green, the named case passes"*. Never phrase a row so its only check is reading source.
+- This is the half of the goal that makes **"build anything"** real: the same Test Surface
+  discipline now derives evaluable rows for a CLI or a library, not only a browser app.
 
 ---
 
@@ -71,4 +98,5 @@ handlers) — no "verify code does X" static phrasing.
 - L2: every UC (v2.9 spec or `test_surface: true`) has `## Test Surface` with ≥1 row or the
   explicit empty-sources line.
 - L3: every `[INV-NN]` has a matching `TS-INV-NN` row; every Error Case code has a `TS-ERR-*`
-  row; every TS row cites D1–D4 in Source.
+  row; every TS row cites D1–D4 in Source; the `Oracle` is one of the registry values (or omitted
+  ⇒ `ui`), and is non-`ui` when the UC's deliverable has no browser (CLI/library/service).
