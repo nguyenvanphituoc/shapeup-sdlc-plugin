@@ -93,10 +93,18 @@ These map cleanly onto the stated goal: **shaping** (shapeup/ba) → **build** (
 
 ## 3. Findings, by severity
 
-### 🔴 F1 — The evidence layer is fiction (NEW, systemic)
-The roadmap's "Phases 0/1/4 LANDED" and the design audit's inherited claims are unbacked by any
+### 🔴 F1 — The evidence layer is fiction (NEW, systemic — fiction REMOVED 2026-06-27; measurement pending)
+The roadmap's "Phases 0/1/4 LANDED" and the design audit's inherited claims were unbacked by any
 committed artifact. **Risk:** every downstream decision (Phase 2/3/5 sequencing, "well-grounded",
-the seesaw gate) rests on infrastructure that does not exist. **This is the headline correction.**
+the seesaw gate) rested on infrastructure that did not exist. **This was the headline correction.**
+**Fix (C1):** the real evidence layer now exists — `skills/<name>/evals/trigger-evals.json` (103
+cases, cross-skill hard negatives), a measurement harness (`scripts/trigger-eval.mjs`) that detects
+real Skill-tool activation, and an *honest* baseline that ships `unmeasured` with `results: null`.
+Two guards make a repeat impossible: numbers are never fabricated (structural #16 fails an
+`unmeasured` baseline that carries results), and a broken/unauthed run aborts instead of recording
+zeros (the exact conflation that produced the prior TPR≈0). **Still open:** an auth'd `--measure`
+run to populate real TPR/FPR, and the `eval-gate` CI job. The dishonesty is resolved; the residual
+work is measurement, which is now truthfully labelled as not-yet-done rather than claimed as done.
 
 ### 🔴 F2 — Gates are unenforced; `--unattended` + `ship.md` remove the human (CLOSED, 2026-06-27)
 The design aspired to feedforward control but implemented it as politeness. The one command that
@@ -192,6 +200,13 @@ is unreliable, before the fixtures that produce a real signal). Corrected order:
   commit *honest* baselines — measured with skills **installed** (`claude --plugin-dir .`),
   detecting real `Skill`-tool activation, not command self-invocation (the prior measurement's
   TPR≈0 was a proxy artifact and must not be repeated).
+  - **Status (2026-06-27): SCAFFOLDED, honestly unmeasured.** All 9 datasets authored (103 cases,
+    positives + cross-skill hard negatives + out-of-harness controls). `scripts/trigger-eval.mjs`
+    measures real Skill-tool activation (`--plugin-dir .`), with two F1 guards: the baseline ships
+    `unmeasured`/`results: null` (no fabricated numbers) and a run that produces no model events
+    aborts without writing. Structural #16 enforces dataset shape + the no-fabrication invariant.
+    **Remaining (needs Claude auth):** run `--measure` to populate TPR/FPR, then wire the
+    `eval-gate` CI job. The *fiction* is gone; the *measurement* is the open task.
 - **C2.** Author **tier-2 functional fixtures, starting with the `spec-evaluator` planted-bug
   fixture** — the anti-leniency regression test. Until that passes reproducibly, no other skill's
   correctness is trustworthy, because the judge asserts it. Then `ba` (no-invented-ACs),

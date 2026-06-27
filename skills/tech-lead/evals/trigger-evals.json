@@ -1,0 +1,17 @@
+{
+  "skill": "tech-lead",
+  "purpose": "Tier-1 trigger eval: does a query activate `tech-lead` (orchestrate the whole feature end-to-end)? Hardest negatives are requests for a SINGLE harness step, which should route to that one sub-skill, not the orchestrator.",
+  "cases": [
+    { "query": "run the full harness on this pitch", "should_trigger": true },
+    { "query": "act as tech lead and ship this feature end to end", "should_trigger": true },
+    { "query": "orchestrate the build from pitch to ship", "should_trigger": true },
+    { "query": "plan, build, and evaluate this feature for me", "should_trigger": true },
+    { "query": "drive this feature through the whole SDLC loop, pausing at the gates", "should_trigger": true },
+    { "query": "just implement TASK-004", "should_trigger": false, "expected_other": "task-executor" },
+    { "query": "only evaluate TASK-004 against the spec", "should_trigger": false, "expected_other": "spec-evaluator" },
+    { "query": "break this pitch into tasks", "should_trigger": false, "expected_other": "ba-pitch-analyzer" },
+    { "query": "shape this idea before anything else", "should_trigger": false, "expected_other": "shapeup" },
+    { "query": "hunt edge cases on the running app", "should_trigger": false, "expected_other": "qa-edge-hunter" },
+    { "query": "what is the capital of Australia", "should_trigger": false, "expected_other": "none" }
+  ]
+}

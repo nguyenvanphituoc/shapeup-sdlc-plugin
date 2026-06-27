@@ -1,0 +1,18 @@
+{
+  "skill": "task-executor",
+  "purpose": "Tier-1 trigger eval: does a query activate `task-executor` (implement a specific TASK-NNN)? Hardest negatives share the TASK-NNN surface but want the judge (`spec-evaluator`) or the planner (`ba-pitch-analyzer`).",
+  "cases": [
+    { "query": "execute task TASK-007", "should_trigger": true },
+    { "query": "implement TASK-012 from the spec folder", "should_trigger": true },
+    { "query": "pick up the next task on the board", "should_trigger": true },
+    { "query": "start working on TASK-005", "should_trigger": true },
+    { "query": "continue from where we left off on the task board", "should_trigger": true },
+    { "query": "implement the task in docs/shapeup-sdlc/checkout/spec/tasks", "should_trigger": true },
+    { "query": "evaluate TASK-007 against its acceptance criteria", "should_trigger": false, "expected_other": "spec-evaluator" },
+    { "query": "QA TASK-007 and tell me if it matches the spec", "should_trigger": false, "expected_other": "spec-evaluator" },
+    { "query": "break this pitch into tasks first", "should_trigger": false, "expected_other": "ba-pitch-analyzer" },
+    { "query": "run the whole feature end to end", "should_trigger": false, "expected_other": "tech-lead" },
+    { "query": "hunt edge cases on the running app", "should_trigger": false, "expected_other": "qa-edge-hunter" },
+    { "query": "fix the typo in the README heading", "should_trigger": false, "expected_other": "none" }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "skill": "coach",
+  "purpose": "Tier-1 trigger eval: does a query activate `coach` (turn L4 Ship-gate feedback into team-shared knowledge-base rules)? Negatives are other harness steps and an out-of-harness control.",
+  "cases": [
+    { "query": "coach this feedback into the knowledge base", "should_trigger": true },
+    { "query": "record this lesson for next sprint", "should_trigger": true },
+    { "query": "RLHF the harness with this retro feedback", "should_trigger": true },
+    { "query": "update the knowledge base with what we learned this run", "should_trigger": true },
+    { "query": "ghi lại cho sprint sau", "should_trigger": true },
+    { "query": "evaluate TASK-007 against the spec", "should_trigger": false, "expected_other": "spec-evaluator" },
+    { "query": "break this pitch into tasks", "should_trigger": false, "expected_other": "ba-pitch-analyzer" },
+    { "query": "implement the next task on the board", "should_trigger": false, "expected_other": "task-executor" },
+    { "query": "shape this feature first", "should_trigger": false, "expected_other": "shapeup" },
+    { "query": "run the harness from pitch to ship", "should_trigger": false, "expected_other": "tech-lead" },
+    { "query": "summarize this PDF report for me", "should_trigger": false, "expected_other": "none" }
+  ]
+}

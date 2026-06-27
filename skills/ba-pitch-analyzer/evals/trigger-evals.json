@@ -1,0 +1,18 @@
+{
+  "skill": "ba-pitch-analyzer",
+  "purpose": "Tier-1 trigger eval: does a query activate `ba-pitch-analyzer` (decompose a pitch into a DDD spec tree + tasks)? Hardest negatives are `shapeup` (pre-decomposition framing) and `orient` (recon).",
+  "cases": [
+    { "query": "analyze this pitch and break it into executable tasks", "should_trigger": true },
+    { "query": "generate dev tasks from this PRD", "should_trigger": true },
+    { "query": "act as the BA and create a spec from this requirement", "should_trigger": true },
+    { "query": "turn this feature into DDD use cases and a task board", "should_trigger": true },
+    { "query": "decompose this requirement into implementation tasks for Claude Code", "should_trigger": true },
+    { "query": "create the domain model and use cases for this pitch", "should_trigger": true },
+    { "query": "shape this feature before we build it", "should_trigger": false, "expected_other": "shapeup" },
+    { "query": "is this idea shaped enough yet?", "should_trigger": false, "expected_other": "shapeup" },
+    { "query": "scout the code before we plan the scopes", "should_trigger": false, "expected_other": "orient" },
+    { "query": "evaluate TASK-003 against the spec", "should_trigger": false, "expected_other": "spec-evaluator" },
+    { "query": "dịch pitch này sang tiếng Anh", "should_trigger": false, "expected_other": "translator" },
+    { "query": "summarize this news article in three bullets", "should_trigger": false, "expected_other": "none" }
+  ]
+}

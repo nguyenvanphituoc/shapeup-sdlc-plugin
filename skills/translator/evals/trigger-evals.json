@@ -1,0 +1,17 @@
+{
+  "skill": "translator",
+  "purpose": "Tier-1 trigger eval: does a query activate `translator` (normalize non-English harness intake to English)? Hardest negatives are English harness requests (which should go straight to their skill) and a non-intake / not-to-English translation.",
+  "cases": [
+    { "query": "translate this pitch to English for the harness", "should_trigger": true },
+    { "query": "this requirement is in Vietnamese, normalize it to English before we plan", "should_trigger": true },
+    { "query": "dịch pitch này sang tiếng Anh", "should_trigger": true },
+    { "query": "chuẩn hoá tiếng Anh cho yêu cầu này", "should_trigger": true },
+    { "query": "prepare this non-English intake for the harness", "should_trigger": true },
+    { "query": "check if this spec input is English", "should_trigger": true },
+    { "query": "analyze this English pitch into tasks", "should_trigger": false, "expected_other": "ba-pitch-analyzer" },
+    { "query": "evaluate TASK-002 against the spec", "should_trigger": false, "expected_other": "spec-evaluator" },
+    { "query": "translate this blog post into French", "should_trigger": false, "expected_other": "none" },
+    { "query": "shape this feature before we build it", "should_trigger": false, "expected_other": "shapeup" },
+    { "query": "run the full harness on this pitch", "should_trigger": false, "expected_other": "tech-lead" }
+  ]
+}

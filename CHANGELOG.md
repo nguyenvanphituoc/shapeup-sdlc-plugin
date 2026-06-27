@@ -6,6 +6,18 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Trigger-eval evidence layer (Stage C1, dismantles the F1 fiction).** The real version of the
+  evidence layer the prior roadmap claimed "LANDED" but never committed. Each skill now has
+  `skills/<name>/evals/trigger-evals.json` — 103 `{query, should_trigger}` cases across 9 skills,
+  every dataset pairing positives with **cross-skill hard negatives** (a sibling's queries, tagged
+  `expected_other`) plus an out-of-harness control. `scripts/trigger-eval.mjs` (repo-only) measures
+  **real Skill-tool activation** with the plugin installed (`--plugin-dir .`), explicitly *not* the
+  slash-command self-invocation that made the prior TPR≈0 a proxy artifact. Two honesty guards: the
+  baseline (`evals/baselines/trigger-evals.baseline.json`) ships `status: "unmeasured"` /
+  `results: null` and **no number is fabricated** until an auth'd run produces it; and a measurement
+  run that produces no parseable model events **aborts without writing** rather than recording every
+  case as a non-trigger. Structural **#16** enforces dataset shape + the honesty invariant (an
+  `unmeasured` baseline carrying results fails CI). Coverage grew 137 → **159 checks**.
 - **Judge calibration — verdict ledger (Stage D1, closes F3).** `spec-evaluator` (v0.7) gains
   `references/verdict-ledger.md`: (1) **re-probe on FAIL** — re-run a failing probe once before
   finalizing; if the two disagree the FAIL stands but is marked flaky/confidence-low; (2)

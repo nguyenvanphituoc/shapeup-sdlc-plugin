@@ -44,18 +44,28 @@ Zero dependencies, no network, no Claude calls. Proves the plugin is **well-form
    across runs, forces that criterion's confidence to `low`, leaves stable criteria untouched, and
    exits non-zero on a flipping ledger / zero on a stable one. Proves the judge-calibration grammar
    (`spec-evaluator/references/verdict-ledger.md`) discriminates an unstable judge from a stable one.
+16. **Trigger-eval evidence layer (Stage C1):** every skill has a well-formed
+   `evals/trigger-evals.json` (own-skill name, ≥4 positives + ≥3 cross-skill negatives, every
+   `expected_other` a real skill or `none`), and the baseline obeys the **honesty invariant** — an
+   `unmeasured` baseline may carry no results, a `measured` one must carry method + `measured_at`.
+   This is the F1 lesson encoded as a test: numbers can never be fabricated.
 
-Exit 0 = pass, 1 = fail (currently **137 checks**). This is the cheapest, highest-ROI guard and the
+Exit 0 = pass, 1 = fail (currently **159 checks**). This is the cheapest, highest-ROI guard and the
 one the project lacked. Sections #8–#11 prove the oracle grammar is runnable; #12 proves the shipped
-skills are self-contained; #13–#15 prove the anti-leniency fixture, the L2 gate, and the verdict
-ledger actually do their jobs (discriminate / enforce / detect flips), not merely that they exist.
+skills are self-contained; #13–#16 prove the anti-leniency fixture, the L2 gate, the verdict ledger,
+and the trigger-eval layer do their jobs (discriminate / enforce / detect flips / stay honest), not
+merely that they exist.
 
-## Tier 1 — Trigger evals (NOT built — Stage C1)
+## Tier 1 — Trigger evals (Stage C1 — datasets + harness LANDED, measurement pending)
 
-Per skill: `skills/<name>/evals/trigger-evals.json` — ~20 `{query, should_trigger}` cases with
-cross-skill hard negatives. Measured with skills **installed** (`claude --plugin-dir .`) detecting
-real `Skill`-tool activation. Prior measurement's TPR≈0 was a proxy artifact (it measured slash-
-command self-invocation) — do not repeat that method.
+Per skill: `skills/<name>/evals/trigger-evals.json` — `{query, should_trigger}` cases with
+cross-skill hard negatives (103 cases across 9 skills today). Measured with skills **installed**
+(`claude --plugin-dir .`) detecting real `Skill`-tool activation via `scripts/trigger-eval.mjs`.
+The prior measurement's TPR≈0 was a proxy artifact (it measured slash-command self-invocation) —
+the harness avoids that and **aborts rather than write zeros** if a run produces no model events.
+The baseline (`evals/baselines/trigger-evals.baseline.json`) ships `unmeasured` / `results: null`;
+no number is written until an auth'd `--measure` run produces it. Structural **#16** validates the
+datasets and enforces that honesty invariant. See `evals/README.md`.
 
 ## Tier 2 — Functional fixtures (Stage C2, judge-first — first fixture LANDED)
 

@@ -535,6 +535,63 @@ if (existsSync(vlPath)) {
 }
 
 // =============================================================================
+section("16. Tier-1 trigger-eval datasets are well-formed and the baseline is honest (Stage C1)");
+// =============================================================================
+// The evidence layer F1 found missing. We can't measure trigger activation without Claude auth,
+// but we CAN guarantee the datasets are sound and — critically — that the baseline never fabricates
+// numbers (the prior roadmap's sin). Each dataset: names its own skill, has positives AND
+// cross-skill hard negatives, every `expected_other` names a real skill (or "none"). Baseline: if
+// `unmeasured`, results MUST be null; if `measured`, it MUST carry method + measured_at.
+const VALID_SKILLS = new Set(skillDirs);
+let datasetCount = 0, caseCount = 0;
+for (const dir of skillDirs) {
+  const f = join(skillsDir, dir, "evals", "trigger-evals.json");
+  if (!existsSync(f)) continue;
+  datasetCount++;
+  let ds;
+  try { ds = readJSON(f); } catch (e) { fail(`${dir}/evals/trigger-evals.json does not parse: ${e.message}`); continue; }
+  if (ds.skill !== dir) fail(`${dir} trigger-evals "skill" is "${ds.skill}", must match its directory`);
+  if (!Array.isArray(ds.cases) || ds.cases.length < 6) { fail(`${dir} trigger-evals needs >=6 cases`); continue; }
+  caseCount += ds.cases.length;
+  const pos = ds.cases.filter((c) => c.should_trigger === true);
+  const neg = ds.cases.filter((c) => c.should_trigger === false);
+  if (pos.length >= 4 && neg.length >= 3) ok(`${dir} trigger-evals: ${pos.length}+ / ${neg.length}− cases`);
+  else fail(`${dir} trigger-evals needs >=4 positives and >=3 negatives (got ${pos.length}/${neg.length})`);
+  for (const c of ds.cases) {
+    if (typeof c.query !== "string" || !c.query.trim()) { fail(`${dir} trigger-evals has a case with no query`); break; }
+    if (typeof c.should_trigger !== "boolean") { fail(`${dir} trigger-evals case "${c.query}" missing boolean should_trigger`); break; }
+  }
+  // Every hard negative must say where it SHOULD go — a real sibling skill, or "none".
+  const badOther = neg.filter((c) => !c.expected_other || (c.expected_other !== "none" && !VALID_SKILLS.has(c.expected_other)));
+  if (badOther.length) fail(`${dir} trigger-evals negatives with invalid expected_other: ${badOther.map((c) => c.expected_other).join(", ")}`);
+  else ok(`${dir} trigger-evals negatives all route to a real skill or "none"`);
+  // A self-negative (a sibling pointing its negative back at this skill) would be incoherent.
+  if (neg.some((c) => c.expected_other === dir)) fail(`${dir} trigger-evals has a negative whose expected_other is itself`);
+}
+if (datasetCount === skillDirs.length) ok(`every skill (${datasetCount}) has a trigger-eval dataset`);
+else fail(`only ${datasetCount}/${skillDirs.length} skills have trigger-eval datasets`);
+
+// Baseline honesty invariant — the mechanical encoding of the F1 lesson.
+const baselinePath = join(ROOT, "evals/baselines/trigger-evals.baseline.json");
+if (existsSync(baselinePath)) {
+  const b = readJSON(baselinePath);
+  if (b.status === "unmeasured") {
+    if (b.results === null || b.results === undefined) ok("trigger-eval baseline is honestly unmeasured (results: null)");
+    else fail("trigger-eval baseline says 'unmeasured' but carries results — fabricated numbers (the F1 sin)");
+  } else if (b.status === "measured") {
+    if (b.results && b.method && b.measured_at) ok("trigger-eval baseline is measured with method + measured_at");
+    else fail("trigger-eval baseline says 'measured' but lacks results/method/measured_at");
+  } else fail(`trigger-eval baseline has unknown status "${b.status}" (expected unmeasured|measured)`);
+  // The recorded dataset inventory must match what's on disk (no stale counts).
+  if (b.datasets && Object.keys(b.datasets).length === datasetCount) ok("baseline dataset inventory matches the datasets on disk");
+  else fail(`baseline inventory lists ${b.datasets ? Object.keys(b.datasets).length : 0} skills, disk has ${datasetCount}`);
+} else {
+  fail("evals/baselines/trigger-evals.baseline.json missing — run `node scripts/trigger-eval.mjs`");
+}
+if (existsSync(join(ROOT, "scripts/trigger-eval.mjs"))) ok("trigger-eval harness present");
+else fail("scripts/trigger-eval.mjs missing");
+
+// =============================================================================
 console.log(`\n${"=".repeat(60)}`);
 if (failures === 0) {
   console.log(`✅ structural tests passed (${checks} checks)`);

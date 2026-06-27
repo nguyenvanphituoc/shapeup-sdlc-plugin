@@ -1,0 +1,18 @@
+{
+  "skill": "spec-evaluator",
+  "purpose": "Tier-1 trigger eval: does a query activate `spec-evaluator` (judge a built task vs its spec)? Hardest negatives are `task-executor` (implement, same TASK-NNN surface) and `qa-edge-hunter` (the other 'QA').",
+  "cases": [
+    { "query": "evaluate task TASK-007 against the spec", "should_trigger": true },
+    { "query": "verify TASK-009 matches its acceptance criteria", "should_trigger": true },
+    { "query": "grade this build and give me a verdict", "should_trigger": true },
+    { "query": "does this implementation actually match the spec?", "should_trigger": true },
+    { "query": "run the evaluator on TASK-003", "should_trigger": true },
+    { "query": "check the test coverage and acceptance criteria for this task", "should_trigger": true },
+    { "query": "implement TASK-007", "should_trigger": false, "expected_other": "task-executor" },
+    { "query": "the evaluator passed — now hunt the edge cases it missed", "should_trigger": false, "expected_other": "qa-edge-hunter" },
+    { "query": "break this pitch into tasks", "should_trigger": false, "expected_other": "ba-pitch-analyzer" },
+    { "query": "run the full harness from pitch to ship", "should_trigger": false, "expected_other": "tech-lead" },
+    { "query": "translate this Vietnamese requirement to English first", "should_trigger": false, "expected_other": "translator" },
+    { "query": "what time is it in Tokyo right now", "should_trigger": false, "expected_other": "none" }
+  ]
+}
