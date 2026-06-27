@@ -6,6 +6,17 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **GATE L2 is now runtime-enforced (Stage E1, closes half of F2).** A `PreToolUse` hook
+  (`hooks/gate-l2.mjs`, matcher `Skill`) hard-blocks the once-per-round EVAL delegation
+  (`spec-evaluator --single-pass`/`--feature`, no `--task`) whenever `tasks/_index.md` is not fully
+  green — the deny message names the unfinished tasks and routes back to BUILD. It reads two
+  independent sources (per-task frontmatter `status:` + the board table) and **fails closed** on a
+  partial board, **open** when there's nothing to verify (no `--spec`, no board, per-task eval,
+  other skill) so it can't break legitimate or standalone runs. This is the audit's "one real gate
+  beats ten honor-system ones" — every other ⏸ GATE remains a prompt-level instruction. Structural
+  test **#14** exercises deny/allow against temp board fixtures; **#4** was hardened to reject the
+  invalid-event bug class (the dead `ShapeupSessionStart` → real `SessionStart`) and to assert every
+  hook-referenced script exists. Structural coverage grew 119 → **127 checks**.
 - **Anti-leniency regression fixture (Stage C2, judge-first).** The first Tier-2 functional fixture
   — `examples/eval-planted-bug/` — plants a FizzBuzz AC4 bug (`15` → `Fizz`) in a build dressed to
   look done: every AC box ticked, its own test suite green-but-blind. The skeptical

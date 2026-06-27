@@ -98,11 +98,16 @@ The roadmap's "Phases 0/1/4 LANDED" and the design audit's inherited claims are 
 committed artifact. **Risk:** every downstream decision (Phase 2/3/5 sequencing, "well-grounded",
 the seesaw gate) rests on infrastructure that does not exist. **This is the headline correction.**
 
-### 🔴 F2 — Gates are unenforced; `--unattended` + `ship.md` remove the human
-The design aspires to feedforward control but implements it as politeness. The one command that
-ships is Vietnamese and runs the *entire* harness unattended for 3 rounds — the exact opposite of
+### 🔴 F2 — Gates are unenforced; `--unattended` + `ship.md` remove the human (CLOSED, 2026-06-27)
+The design aspired to feedforward control but implemented it as politeness. The one command that
+shipped was Vietnamese and ran the *entire* harness unattended for 3 rounds — the exact opposite of
 "direct human input where it is most important." **Risk:** a false-PASS ships with nobody in the
-loop.
+loop. **Fix:** (A3) `ship.md` rewritten English + interactive-default, `--unattended` demoted to a
+warned explicit opt-in; (E1) GATE L2 — the gate that unlocks the evaluator — is now hard-enforced
+by a `PreToolUse` hook (`hooks/gate-l2.mjs`), and the dead `ShapeupSessionStart` event that made the
+manifest a no-op was corrected to `SessionStart`. The remaining ⏸ gates stay honor-system by
+design (L2 is the one whose violation is unrecoverable); a false-PASS now also requires a green
+board, which the hook verifies independently of the model.
 
 ### 🔴 F3 — The keystone judge is the least verifiable
 `spec-evaluator` PASS closes the task; FAIL drives the loop. It is non-deterministic
@@ -205,6 +210,15 @@ is unreliable, before the fixtures that produce a real signal). Corrected order:
 ### Stage E — Enforce the one gate that matters
 - **E1.** Use `hooks/hooks.json` (`PreToolUse`) to make GATE L2 a hard precondition: block EVAL
   delegation unless the board file is provably green. One real gate beats ten honor-system ones.
+  - **Status (2026-06-27): LANDED.** `hooks/gate-l2.mjs` (matcher `Skill`) denies the once-per-round
+    EVAL (`spec-evaluator --single-pass`/`--feature`, no `--task`) when `<spec>/tasks/_index.md` is
+    not fully green, reading per-task frontmatter + the board table and naming the offending tasks.
+    Fails **closed** on a partial board, **open** when there's nothing to verify (no spec / no board
+    / per-task eval / other skill) so it never breaks legitimate runs. Also fixed the F2 dead-hook
+    bug: the manifest used the invalid event `ShapeupSessionStart` (silently ignored) → real
+    `SessionStart`. Structural #14 proves deny/allow on temp board fixtures; #4 now rejects invalid
+    hook events and dangling hook scripts. The `--unattended`/`ship.md` half of F2 was already closed
+    in Stage A3 (interactive default).
 
 ### Stage F — Then, and only then, the AEGIS loop & repair
 - **F1.** The `skill-evolver` (Phase 3) + seesaw CI gate (real Phase 4) + HarnessFix-style repair

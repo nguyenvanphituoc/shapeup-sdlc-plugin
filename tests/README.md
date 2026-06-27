@@ -14,7 +14,9 @@ Zero dependencies, no network, no Claude calls. Proves the plugin is **well-form
 2. Every skill directory has a `SKILL.md` with valid frontmatter, `name` matching the directory,
    and a non-trivial `description`.
 3. Every `references/<file>.md` mentioned in a `SKILL.md` resolves on disk (broken-link guard).
-4. `hooks/hooks.json` parses.
+4. `hooks/hooks.json` parses, every event key is a **real** Claude Code event (guards the F2
+   dead-`ShapeupSessionStart` bug class — an invalid event is silently ignored), and every
+   `${CLAUDE_PLUGIN_ROOT}` script a hook invokes exists.
 5. Regression guard for the `AGENT.md` vs `AGENTS.md` bug the audit found.
 6. The `process` worked example (`examples/todo-cli/`) PASSes its reference impl and FAILs a
    do-nothing one.
@@ -30,10 +32,19 @@ Zero dependencies, no network, no Claude calls. Proves the plugin is **well-form
    `skills/**/references/*.md`) references a repo-only path (`scripts/`, `examples/`,
    `docs/audit|plan|research/`, `tests/`) that would be absent at install. Runtime project paths
    the harness creates (`docs/shapeup-sdlc/`, `.shapeup-sdlc/`) are allowed.
+13. **Anti-leniency fixture (Stage C2):** the `spec-evaluator` planted-bug fixture
+   (`examples/eval-planted-bug/`) discriminates — the `process` oracle PASSes the correct control
+   and FAILs the buggy build on TS-04 — and its `evals.json` / gold files are well-formed with the
+   leniency trap armed (AC4 ships ticked).
+14. **GATE L2 enforcement (Stage E1):** the `PreToolUse` hook (`hooks/gate-l2.mjs`) DENIES the
+   once-per-round EVAL on a partial board (naming the unfinished task) and ALLOWS it on a green
+   board, while never gating per-task evals, other skills, or non-`Skill` tools. Driven against
+   temp board fixtures — proves the gate actually enforces, not just that it parses.
 
-Exit 0 = pass, 1 = fail (currently **107 checks**). This is the cheapest, highest-ROI guard and the
+Exit 0 = pass, 1 = fail (currently **127 checks**). This is the cheapest, highest-ROI guard and the
 one the project lacked. Sections #8–#11 prove the oracle grammar is runnable; #12 proves the shipped
-skills are self-contained (they describe the procedure, never call the dev-only runners).
+skills are self-contained; #13–#14 prove the anti-leniency fixture and the L2 gate actually do their
+jobs (discriminate / enforce), not merely that they exist.
 
 ## Tier 1 — Trigger evals (NOT built — Stage C1)
 

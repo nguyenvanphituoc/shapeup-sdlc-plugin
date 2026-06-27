@@ -116,12 +116,37 @@ for (const dir of skillDirs) {
 }
 
 // =============================================================================
-section("4. Hooks manifest (if present) is valid JSON");
+section("4. Hooks manifest (if present) is valid JSON, uses real events, and resolves its scripts");
 // =============================================================================
+// Beyond parsing, guard the F2-class bug the audit found: a hook keyed on a NON-EXISTENT event
+// (the old `ShapeupSessionStart`) is silently ignored — it looks wired but enforces nothing. So we
+// also assert every event key is a real Claude Code hook event, and every `${CLAUDE_PLUGIN_ROOT}`
+// script a command invokes actually exists in a shipped dir (or it would dangle at install).
+const VALID_HOOK_EVENTS = new Set([
+  "SessionStart", "SessionEnd", "UserPromptSubmit", "PreToolUse", "PostToolUse",
+  "Notification", "Stop", "SubagentStop", "PreCompact", "Setup",
+]);
 const hooksPath = join(ROOT, "hooks/hooks.json");
 if (existsSync(hooksPath)) {
-  try { readJSON(hooksPath); ok("hooks.json parses"); }
+  let hooksManifest;
+  try { hooksManifest = readJSON(hooksPath); ok("hooks.json parses"); }
   catch (e) { fail(`hooks.json does not parse: ${e.message}`); }
+  if (hooksManifest?.hooks) {
+    for (const [event, groups] of Object.entries(hooksManifest.hooks)) {
+      if (VALID_HOOK_EVENTS.has(event)) ok(`hook event "${event}" is a real Claude Code event`);
+      else fail(`hook event "${event}" is not a valid event — it will be silently ignored (the F2 bug class)`);
+      for (const g of groups || []) {
+        for (const h of g.hooks || []) {
+          // A command that runs a plugin-bundled script must point at a file that exists.
+          const sm = (h.command || "").match(/\$\{CLAUDE_PLUGIN_ROOT\}\/(\S+?\.(?:mjs|js|sh|cjs))/);
+          if (sm) {
+            if (existsSync(join(ROOT, sm[1]))) ok(`hook script ${sm[1]} exists`);
+            else fail(`hook command references ${sm[1]} which does not exist (would dangle at install)`);
+          }
+        }
+      }
+    }
+  }
 }
 
 // =============================================================================
@@ -372,6 +397,69 @@ if (existsSync(pbContract)) {
   else fail("planted-bug task does not ship AC4 ticked — the anti-leniency trap is not armed");
 } else {
   console.log("  (planted-bug fixture not found — skipping)");
+}
+
+// =============================================================================
+section("14. GATE L2 PreToolUse hook denies a red board and allows a green one (Stage E1)");
+// =============================================================================
+// The one gate the runtime actually enforces (audit E1 / F2). We feed the hook crafted PreToolUse
+// payloads against temp board fixtures and assert its decisions: deny the once-per-round EVAL on a
+// partial board, allow it on a green one, and never gate per-task evals / other skills / boardless
+// runs (fail-open so it can't break legitimate flows).
+const gatePath = join(ROOT, "hooks/gate-l2.mjs");
+if (existsSync(gatePath)) {
+  const { mkdtempSync, writeFileSync, mkdirSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  // Build a board fixture; `done` flips TASK-002 between done and in-progress.
+  const makeSpec = (secondDone) => {
+    const dir = mkdtempSync(join(tmpdir(), "gate-l2-"));
+    const tasks = join(dir, "spec", "tasks");
+    mkdirSync(tasks, { recursive: true });
+    const mark = secondDone ? "✅ done" : "🔄 in-progress";
+    writeFileSync(join(tasks, "_index.md"),
+      `---\ntype: task-board\n---\n| ID | Title | Status |\n|---|---|---|\n| TASK-001 | A | ✅ done |\n| TASK-002 | B | ${mark} |\n`);
+    writeFileSync(join(tasks, "TASK-001-a.md"), `---\nid: TASK-001\nstatus: done\n---\n`);
+    writeFileSync(join(tasks, "TASK-002-b.md"), `---\nid: TASK-002\nstatus: ${secondDone ? "done" : "in-progress"}\n---\n`);
+    return dir;
+  };
+  const ask = (cwd, skillArgs, skillName = "spec-evaluator", toolName = "Skill") => {
+    const payload = JSON.stringify({ tool_name: toolName, cwd, tool_input: { skill_name: skillName, skill_args: skillArgs } });
+    const r = spawnSync("node", [gatePath], { encoding: "utf8", input: payload });
+    const denied = (r.stdout || "").includes('"permissionDecision":"deny"');
+    return { denied, out: r.stdout || "" };
+  };
+  const green = makeSpec(true), red = makeSpec(false);
+  try {
+    // 1. Red board + round mode → DENY, naming the unfinished task.
+    const a = ask(red, "--spec spec --feature demo --single-pass");
+    if (a.denied && a.out.includes("TASK-002")) ok("gate DENIES round EVAL on a partial board (names TASK-002)");
+    else fail(`gate did not deny a red-board round EVAL — the gate is not enforcing\n${a.out}`);
+
+    // 2. Green board + round mode → ALLOW (defer, no deny).
+    const b = ask(green, "--spec spec --feature demo --single-pass");
+    if (!b.denied) ok("gate ALLOWS round EVAL on a fully-green board");
+    else fail(`gate denied a green board — false block\n${b.out}`);
+
+    // 3. Red board but per-task eval (--task) → defer (not gated).
+    const c = ask(red, "--spec spec --task TASK-001");
+    if (!c.denied) ok("gate does NOT gate a per-task eval (--task)");
+    else fail("gate wrongly blocked a per-task eval — board-green rule must be round-only");
+
+    // 4. Other skill → defer.
+    const d = ask(red, "--spec spec --single-pass", "task-executor");
+    if (!d.denied) ok("gate ignores non-spec-evaluator skills");
+    else fail("gate blocked a non-spec-evaluator skill");
+
+    // 5. Non-Skill tool → defer.
+    const e = ask(red, "--spec spec --single-pass", "spec-evaluator", "Bash");
+    if (!e.denied) ok("gate ignores non-Skill tool calls");
+    else fail("gate blocked a non-Skill tool call");
+  } finally {
+    rmSync(green, { recursive: true, force: true });
+    rmSync(red, { recursive: true, force: true });
+  }
+} else {
+  console.log("  (gate-l2 hook not found — skipping)");
 }
 
 // =============================================================================

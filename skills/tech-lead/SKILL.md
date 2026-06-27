@@ -274,10 +274,17 @@ Record per task in the ledger: task id, status, files touched.
 **Purpose:** The single most important gate — it is the **only** thing that unlocks the
 evaluator. No evaluation runs while any task is unbuilt.
 
+> **Runtime-enforced (not honor-system).** A `PreToolUse` hook (`hooks/gate-l2.mjs`) hard-blocks
+> the once-per-round EVAL delegation (`spec-evaluator --single-pass`/`--feature`, no `--task`) when
+> `tasks/_index.md` is not fully green — the deny message names the unfinished tasks. You still emit
+> the gate block below for the PO; the hook is the backstop that makes "never EVAL on a partial
+> board" a precondition the model cannot talk past. Per-task evals (`--task`) are intentionally not
+> gated.
+
 ```
 L2.1  Read tasks/_index.md. Assert: every task status = done (board fully green).
       → If any task is ready/in-progress/blocked: BUILD is not complete. Return to BUILD.
-        Never proceed to EVAL on a partial board.
+        Never proceed to EVAL on a partial board. (The L2 hook enforces this.)
 L2.2  Tech-lead judgment call (surface, default = run eval):
       Is this feature within what the model builds reliably solo (trivial CRUD, tiny scope)?
       If clearly yes, offer to SKIP evaluation this run (--no-eval) — the evaluator is not a

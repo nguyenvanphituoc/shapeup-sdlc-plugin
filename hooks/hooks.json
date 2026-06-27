@@ -1,11 +1,23 @@
 {
   "hooks": {
-    "ShapeupSessionStart": [
+    "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
             "command": "echo \"shapeup-sdlc-plugin loaded from ${CLAUDE_PLUGIN_ROOT}\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/gate-l2.mjs\"",
+            "timeout": 10
           }
         ]
       }
