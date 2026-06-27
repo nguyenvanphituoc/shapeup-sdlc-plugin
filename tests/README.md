@@ -16,8 +16,24 @@ Zero dependencies, no network, no Claude calls. Proves the plugin is **well-form
 3. Every `references/<file>.md` mentioned in a `SKILL.md` resolves on disk (broken-link guard).
 4. `hooks/hooks.json` parses.
 5. Regression guard for the `AGENT.md` vs `AGENTS.md` bug the audit found.
+6. The `process` worked example (`examples/todo-cli/`) PASSes its reference impl and FAILs a
+   do-nothing one.
+7. Migrations are well-formed (`NNNN__slug.sh`, unique ids, `migration_up` + `MIGRATION_DESC`).
+8. The evaluation-contract **oracle registry** (`scripts/oracles/index.mjs`) is complete and
+   consistent with the docs — every registered oracle has a runner file and is documented.
+9–11. Each non-UI oracle PASSes its worked fixture **and** FAILs a negative control (so a
+   rubber-stamp grader cannot pass): `test` (`examples/lib-mathx/`, green vs red suite),
+   `snapshot` (`examples/refactor-greet/`, golden vs do-nothing), `http` (`examples/http-ping/`,
+   working vs reachable-but-broken server). These runners + fixtures are **repo-only dev/CI assets**
+   (not shipped) — executable proof that the `probing.md` grammar discriminates.
+12. **Install-safety guard (F9):** no shipped skill file (`skills/**/SKILL.md`,
+   `skills/**/references/*.md`) references a repo-only path (`scripts/`, `examples/`,
+   `docs/audit|plan|research/`, `tests/`) that would be absent at install. Runtime project paths
+   the harness creates (`docs/shapeup-sdlc/`, `.shapeup-sdlc/`) are allowed.
 
-Exit 0 = pass, 1 = fail. This is the cheapest, highest-ROI guard and the one the project lacked.
+Exit 0 = pass, 1 = fail (currently **107 checks**). This is the cheapest, highest-ROI guard and the
+one the project lacked. Sections #8–#11 prove the oracle grammar is runnable; #12 proves the shipped
+skills are self-contained (they describe the procedure, never call the dev-only runners).
 
 ## Tier 1 — Trigger evals (NOT built — Stage C1)
 

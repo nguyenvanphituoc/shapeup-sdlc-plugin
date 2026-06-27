@@ -52,8 +52,8 @@ phrasing.
 ### The `Oracle` column (evaluation-contract tag)
 
 `Oracle` declares **how the evaluator verifies the row** — it is the dispatch key of the
-evaluation contract (see `docs/audit/evaluation-contract-spec.md`). One verdict per row, single
-judge; the oracle changes only *how* evidence is gathered, never *who* decides.
+evaluation contract. One verdict per row, single judge; the oracle changes only *how* evidence is
+gathered, never *who* decides.
 
 | `oracle` | When the deliverable is… | Evidence the evaluator cites |
 |---|---|---|

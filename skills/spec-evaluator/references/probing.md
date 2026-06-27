@@ -29,35 +29,45 @@ The probe loop per [ui] criterion:
 
 ## Oracle dispatch (evaluation contract — Stage G)
 
-Each criterion / Test-Surface row carries an `oracle` tag (the evaluation-contract dispatch key;
-see `docs/audit/evaluation-contract-spec.md`). **Dispatch on it to choose the probe mechanism;
-default to `ui` when the tag is absent** (web pitches are unchanged). The single-judge invariant
-is untouched — one verdict per criterion, evidence-or-FAIL — the oracle only changes *how*
-evidence is gathered.
+Each criterion / Test-Surface row carries an `oracle` tag — the dispatch key that declares *how*
+this criterion is verified. **Dispatch on it to choose the probe mechanism; default to `ui` when
+the tag is absent** (web pitches are unchanged). The single-judge invariant is untouched — one
+verdict per criterion, evidence-or-FAIL — the oracle changes only *how* evidence is gathered, never
+*who* decides.
 
-| `oracle` | Probe mechanism | Evidence cited |
-|---|---|---|
-| `ui` *(default)* | Playwright CLI loop (below) | accessibility-tree node, state before/after, console |
-| `process` | **shared runner `scripts/oracles/process-oracle.mjs`** — spawn the deliverable with controlled argv + a sandboxed `$TODO_STORE`, grade observed exit/stdout | exit code + stdout/stderr + crash check |
-| `test` | run the project's own suite (`cmd`, below) | suite exit + failing-test names |
-| `snapshot` | diff actual output vs a golden file | unified diff (empty = PASS) |
-| `http` | request the endpoint (`cmd` + `curl`/fetch), assert status + body | status code + response body |
+For every non-`ui` oracle you gather evidence by **running the deliverable yourself** (the Bash
+tool) and grading its *observed* output against the criterion's `expect`. Treat each criterion as a
+small declarative `{ id, desc, probe, expect }` row and grade it directly; never grep source in
+place of running it. A probe that throws, cannot spawn, or cannot reach the deliverable is a
+**FAIL** (absence of evidence), never a silent pass.
 
-**`process` oracle (CLI / script deliverables).** Express the criterion as a declarative contract
-(`{ id, desc, probe: { argv, store }, expect: { exit, stdout, no_crash } }`) and run it through the
-shared runner — do **not** hand-roll a spawn per criterion:
+| `oracle` | Deliverable | Probe procedure — run it, cite the observed output | Evidence to record |
+|---|---|---|---|
+| `ui` *(default)* | running web app | Playwright CLI loop (above) | a11y-tree node, state before/after, console |
+| `process` | CLI / script | spawn the binary with the criterion's `argv` in a **throwaway temp dir** (never the real cwd), seeded with any required store/fixture via env; read exit + stdout/stderr | exit code + stdout/stderr + crash check |
+| `test` | library / module | run the project's own test command; parse the summary line | suite exit + executed-test count + failing-test names |
+| `snapshot` | generator / pure refactor | run the deliverable, capture stdout, diff it against the agreed golden output | unified diff (empty = PASS) |
+| `http` | service / API | start the server on a free port, wait until it answers, send the request, assert; tear it down | status code + response body/JSON |
 
-```
-node scripts/oracles/process-oracle.mjs <contract.json> "<command to run the deliverable>"
-# exit 0 = all PASS, 1 = ≥1 FAIL. Prints an evidence-cited PASS/FAIL line per criterion.
-```
+**Per-oracle `probe`/`expect` shape (author it inline, one row per criterion):**
+- `process` — `probe: { argv, store }`, `expect: { exit, stdout, no_crash }`. Sandbox in a temp
+  dir + controlled env + a timeout so corrupted-input / missing-file probes cannot touch user data.
+- `test` — `probe: { cmd }`, `expect: { exit, min_tests, no_failures }`. **A suite that runs zero
+  tests is a FAIL** (matches TDD-1 below): a suite that runs nothing is not green.
+- `snapshot` — `probe: { argv }` + an agreed `golden` (normalize trailing whitespace + the final
+  newline so a benign EOL diff is not a false FAIL).
+- `http` — `server: { cmd, ready_path }` + `probe: { method, path, json }`, `expect: { status,
+  body, json }`. An unreachable server FAILs **every** criterion (a service you cannot reach does
+  not pass).
 
-`examples/todo-cli/todo.contract.json` is the worked reference contract; the runner spawns in a
-temp dir, never the real cwd, so probes (corrupted store, missing store) cannot destroy user data.
-A probe that throws or cannot spawn is a **FAIL** (absence of evidence), never a silent pass.
+**Shared `expect` grammar:** `exit`/`status` accept a number or a comparison string (`==0`, `!=0`,
+`>=200`, `<500`, or `*` = any); `stdout`/`stderr`/`body` accept `/regex/flags` matched against the
+observed output; `no_crash: true` requires no stack-trace/panic signature; `json` is a subset match
+on the parsed response body.
 
 The `ba` Test Surface emits the `oracle` per row; for a non-UI deliverable the rows are already
-tagged `process`/`test`/`http`, so the evaluator must not fall back to driving a browser.
+tagged `process`/`test`/`snapshot`/`http`, so do not fall back to driving a browser that does not
+exist.
 
 ## By probe type
 - `cmd` — run the command the AC implies (`pnpm --filter <pkg> test`, `pnpm typecheck`,

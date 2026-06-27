@@ -1,5 +1,5 @@
 <title>ShapeUp SDLC Plugin &mdash; Delivery Pipeline</title>
-<meta name="description" content="How the ShapeUp SDLC plugin flows from development through testing to publish &mdash; current repo state, 2026-06-26.">
+<meta name="description" content="How the ShapeUp SDLC plugin flows from development through testing to publish &mdash; plus the Stage-G eval-contract oracles and the F9 install-safety fix. Repo state 2026-06-27.">
 <style>
   :root {
     --ground: #f4f6f8;
@@ -14,6 +14,8 @@
     --good-soft: #e2f1e7;
     --warn: #c5881d;
     --warn-soft: #f7ecd6;
+    --new: #3b6fd6;
+    --new-soft: #e3ebfa;
     --dim: #9aa3ac;
     --radius: 10px;
     --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
@@ -56,6 +58,7 @@
   .dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
   .dot.good { background: var(--good); }
   .dot.warn { background: var(--warn); }
+  .dot.new  { background: var(--new); }
   .dot.dim  { background: transparent; border: 1.5px dashed var(--dim); }
   .key.auth::before {
     content: "\01F511"; font-size: 12px;
@@ -87,7 +90,9 @@
   }
   .node.good { border-left: 3px solid var(--good); }
   .node.warn { border-left: 3px solid var(--warn); }
+  .node.new  { border-left: 3px solid var(--new); background: linear-gradient(180deg, var(--new-soft) 0%, var(--surface) 42%); }
   .node.dim  { border-left: 3px dashed var(--dim); background: var(--surface-2); }
+  .node.struck .node-title { text-decoration: line-through; text-decoration-color: var(--dim); text-decoration-thickness: 1.5px; }
   .node-title { font-size: 14px; font-weight: 620; margin: 0 0 3px; display: flex; align-items: center; gap: 7px; }
   .node-title .dot { width: 9px; height: 9px; }
   .node code, code.tok {
@@ -104,6 +109,7 @@
   }
   .tag.good { background: var(--good-soft); color: var(--good); }
   .tag.warn { background: var(--warn-soft); color: #9a6a12; }
+  .tag.new  { background: var(--new-soft); color: #2f57ad; }
   .tag.dim  { background: #e6e9ec; color: #5f6973; }
 
   /* connector */
@@ -146,6 +152,23 @@
   }
   .truth strong { color: #8a5e0f; }
 
+  /* ---- ship matrix (what installs vs what's dev-only) ---- */
+  .matrix { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 540px; }
+  .matrix th, .matrix td { border: 1px solid var(--line); padding: 9px 11px; text-align: center; }
+  .matrix th { background: var(--surface-2); font-weight: 620; }
+  .matrix th.row, .matrix td.row { text-align: left; white-space: nowrap; font-weight: 600; }
+  .matrix td.row code { font-size: 11.5px; }
+  .matrix .yes { color: var(--good); font-weight: 700; }
+  .matrix .no  { color: #b23b3b; font-weight: 700; }
+  .matrix tr.ship td { background: var(--good-soft); }
+  .matrix tr.drop td.row { color: var(--muted); }
+  .matrix-wrap { overflow-x: auto; }
+  .note-good {
+    margin-top: 18px; font-size: 13px; color: var(--muted); border-left: 3px solid var(--new);
+    background: var(--new-soft); padding: 14px 18px; border-radius: 0 var(--radius) var(--radius) 0;
+  }
+  .note-good strong { color: #2f57ad; }
+
   footer { margin-top: 40px; font-size: 12px; color: var(--muted); font-family: var(--mono); }
 
   @media (max-width: 640px) {
@@ -160,12 +183,16 @@
   <h1>Delivery pipeline &mdash; development to publish</h1>
   <p class="lede">How a change to the harness travels from a hand-edited skill, through validation
   and tests, to a tagged GitHub release teammates install. Drawn from the repository as it actually
-  stands &mdash; built steps, honest placeholders, and the parts not yet wired.</p>
-  <p class="meta">repo state &middot; 2026-06-26 &middot; plugin v0.2.6</p>
+  stands &mdash; built steps, honest placeholders, and the parts not yet wired. Two stages were
+  added this round: the <strong>Stage&nbsp;G evaluation contract</strong> (judge any deliverable,
+  not just web UIs) and the <strong>F9 install-safety fix</strong> (shipped skills must be
+  self-contained).</p>
+  <p class="meta">repo state &middot; 2026-06-27 &middot; plugin v0.2.6 &middot; structural suite: 107 checks</p>
 
   <div class="legend">
     <h2>State</h2>
     <span class="key"><span class="dot good"></span>Built &amp; running</span>
+    <span class="key"><span class="dot new"></span>Added / fixed this round</span>
     <span class="key"><span class="dot warn"></span>Placeholder / honor-system</span>
     <span class="key"><span class="dot dim"></span>Not built yet</span>
     <span class="key auth">needs Claude auth (fresh login)</span>
@@ -243,20 +270,22 @@
         <div class="col">
           <div class="node good">
             <p class="node-title"><span class="dot good"></span><code>npm test</code></p>
-            <p class="node-desc"><code>tests/structural.mjs</code> &mdash; 58 checks: frontmatter, reference
-            links resolve, version sync, manifests, example oracle. Zero deps.</p>
-            <span class="tag good">green</span>
+            <p class="node-desc"><code>tests/structural.mjs</code> &mdash; <strong>107 checks</strong> (was 58):
+            frontmatter, reference links resolve, version sync, manifests, oracle reference impls,
+            migrations, and the new install-safety guard. Zero deps.</p>
+            <span class="tag new">62 &rarr; 107</span>
           </div>
         </div>
         <div class="arrow" aria-hidden="true">
           <svg width="30" height="20" viewBox="0 0 30 20"><path d="M0 10h24m0 0l-6-6m6 6l-6 6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
         </div>
         <div class="col">
-          <div class="node good">
-            <p class="node-title"><span class="dot good"></span>Example eval oracle</p>
-            <p class="node-desc"><code>examples/todo-cli/</code> &mdash; process-level oracle emits evidence-cited
-            PASS/FAIL for a non-UI deliverable (edge cases E1&ndash;E6).</p>
-            <span class="tag good">reference impl</span>
+          <div class="node new">
+            <p class="node-title"><span class="dot new"></span>Oracle reference impls + controls</p>
+            <p class="node-desc"><code>scripts/oracles/*</code> + <code>examples/*</code> &mdash; each oracle PASSes its
+            fixture <em>and</em> FAILs a negative control, so a rubber-stamp grader can't pass
+            (#6, #9&ndash;#11). Dev/CI only &mdash; not shipped.</p>
+            <span class="tag new">discriminates</span>
           </div>
         </div>
       </div>
@@ -281,9 +310,9 @@
         <div class="col">
           <div class="node good">
             <p class="node-title"><span class="dot good"></span>structural-tests</p>
-            <p class="node-desc">Runs <code>tests/structural.mjs</code> in CI. Caught a real broken reference on
-            its first run.</p>
-            <span class="tag good">new</span>
+            <p class="node-desc">Runs <code>tests/structural.mjs</code> in CI (node&nbsp;22). 107 checks incl. guard
+            <strong>#12</strong> &mdash; no shipped skill may cite a repo-only path (F9).</p>
+            <span class="tag good">green</span>
           </div>
           <div class="node warn">
             <p class="node-title"><span class="dot warn"></span>eval-gate</p>
@@ -316,6 +345,160 @@
       <p class="gate-note"><strong>Gates inside a harness run are an honor system today.</strong>
       <code>--unattended</code> is now demoted to a warned opt-in; <code>commands/ship.md</code> defaults to
       interactive with human sign-off at the Ship gate (L4).</p>
+    </div>
+  </section>
+
+  <div class="seam" aria-hidden="true">
+    <svg width="22" height="34" viewBox="0 0 22 34"><path d="M11 0v26m0 0l-7-7m7 7l7-7" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+  </div>
+
+  <!-- ============ STAGE G -- EVALUATION CONTRACT (NEW) ============ -->
+  <section class="stage">
+    <div class="stage-head">
+      <span class="stage-num">G</span>
+      <div>
+        <h2 class="stage-title">Evaluate &mdash; the oracle contract <span class="tag new" style="vertical-align:middle;">new this round</span></h2>
+        <p class="stage-sub">Judge <em>any</em> deliverable with cited evidence &mdash; not just web UIs. One verdict per criterion, evidence-or-FAIL, single judge untouched.</p>
+      </div>
+    </div>
+    <div class="band">
+      <p class="band-label">Dispatch &mdash; <code class="tok">ba</code> tags each row, the evaluator picks the probe</p>
+      <div class="flow">
+        <div class="col">
+          <div class="node good">
+            <p class="node-title"><span class="dot good"></span>Test Surface row</p>
+            <p class="node-desc"><code>ba-pitch-analyzer</code> emits an <code>oracle:</code> tag per derived row
+            (default <code>ui</code>, so existing web pitches are unchanged).</p>
+            <span class="tag good">mechanically derived</span>
+          </div>
+        </div>
+
+        <div class="arrow" aria-hidden="true">
+          <svg width="30" height="20" viewBox="0 0 30 20"><path d="M0 10h24m0 0l-6-6m6 6l-6 6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        </div>
+
+        <div class="col">
+          <div class="node good">
+            <p class="node-title"><span class="dot good"></span><code>spec-evaluator</code> dispatch</p>
+            <p class="node-desc">Reads <code>oracle:</code> and runs the matching probe via Bash.
+            <strong>Absence of evidence = FAIL</strong>; never greps source in place of running it.</p>
+            <span class="tag good">single judge</span>
+          </div>
+        </div>
+
+        <div class="arrow" aria-hidden="true">
+          <svg width="30" height="20" viewBox="0 0 30 20"><path d="M0 10h24m0 0l-6-6m6 6l-6 6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        </div>
+
+        <div class="col">
+          <div class="node good">
+            <p class="node-title"><span class="dot good"></span><code>ui</code> &middot; default</p>
+            <p class="node-desc">Web app &mdash; Playwright a11y-tree loop (in-skill). Evidence: node, state before/after, console.</p>
+          </div>
+          <div class="node new">
+            <p class="node-title"><span class="dot new"></span><code>process</code></p>
+            <p class="node-desc">CLI / script &mdash; spawn with argv in a temp dir; grade exit + stdout/stderr + crash check.</p>
+          </div>
+          <div class="node new">
+            <p class="node-title"><span class="dot new"></span><code>test</code></p>
+            <p class="node-desc">Library / module &mdash; run its own suite; exit + failing names. <strong>Zero tests run = FAIL.</strong></p>
+          </div>
+          <div class="node new">
+            <p class="node-title"><span class="dot new"></span><code>snapshot</code></p>
+            <p class="node-desc">Generator / pure refactor &mdash; diff observed stdout vs a golden (empty = PASS).</p>
+          </div>
+          <div class="node new">
+            <p class="node-title"><span class="dot new"></span><code>http</code></p>
+            <p class="node-desc">Service / API &mdash; start on a free port, poll ready, assert status + body/JSON, tear down. Unreachable = FAIL all.</p>
+          </div>
+        </div>
+      </div>
+
+      <p class="gate-note"><strong>The contract changes <em>how</em> evidence is gathered, never <em>who</em> decides.</strong>
+      Each non-<code>ui</code> oracle is a self-contained spawn-and-grade procedure documented in
+      <code>spec-evaluator/references/probing.md</code> (with a shared <code>expect</code> grammar) <em>and</em> backed by
+      an executable dev/CI reference impl in <code>scripts/oracles/</code> with a negative control proving it discriminates.</p>
+    </div>
+  </section>
+
+  <div class="seam" aria-hidden="true">
+    <svg width="22" height="34" viewBox="0 0 22 34"><path d="M11 0v26m0 0l-7-7m7 7l7-7" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+  </div>
+
+  <!-- ============ F9 -- INSTALL-SAFETY (NEW) ============ -->
+  <section class="stage">
+    <div class="stage-head">
+      <span class="stage-num">F9</span>
+      <div>
+        <h2 class="stage-title">Ship-safe skills &mdash; what installs vs. what's dev-only <span class="tag new" style="vertical-align:middle;">fixed this round</span></h2>
+        <p class="stage-sub">The grill that caught it: shipped guidance pointed at files that vanish on install. A skill must be self-contained.</p>
+      </div>
+    </div>
+    <div class="band">
+
+      <p class="band-label">Before &rarr; after</p>
+      <div class="flow" style="margin-bottom:20px;">
+        <div class="col">
+          <div class="node warn struck">
+            <p class="node-title"><span class="dot warn"></span>Before &mdash; dangling refs</p>
+            <p class="node-desc"><code>probing.md</code> told the agent to run <code>node scripts/oracles/*.mjs</code> and read
+            <code>examples/*.json</code> / <code>docs/audit/*</code> &mdash; none of which ship. Bare relative paths also resolve
+            against the <em>user's</em> cwd, not the plugin root.</p>
+            <span class="tag warn">F9</span>
+          </div>
+        </div>
+        <div class="arrow" aria-hidden="true">
+          <svg width="30" height="20" viewBox="0 0 30 20"><path d="M0 10h24m0 0l-6-6m6 6l-6 6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        </div>
+        <div class="col">
+          <div class="node new">
+            <p class="node-title"><span class="dot new"></span>After &mdash; self-contained</p>
+            <p class="node-desc"><code>probing.md</code> describes each oracle as an inline procedure + <code>expect</code> grammar &mdash;
+            zero script / example / doc paths. The runners + fixtures are demoted to <strong>dev/CI only</strong>.</p>
+            <span class="tag new">procedure-only</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="band-label">What each install channel actually carries</p>
+      <div class="matrix-wrap">
+        <table class="matrix">
+          <thead>
+            <tr>
+              <th class="row">Repo path</th>
+              <th>Claude plugin<br><span style="font-weight:400;color:var(--muted)">marketplace cache</span></th>
+              <th>Scaffolding<br><span style="font-weight:400;color:var(--muted)">install-harness.sh</span></th>
+              <th>Cursor / Antigravity<br><span style="font-weight:400;color:var(--muted)">distribute.js</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="ship">
+              <td class="row"><code>skills/**</code> (SKILL.md + references)</td>
+              <td class="yes">&#10003;</td>
+              <td class="yes">&#10003;</td>
+              <td class="yes">&#10003; inlined</td>
+            </tr>
+            <tr class="drop">
+              <td class="row"><code>scripts/oracles/*</code></td>
+              <td class="no">&#10007;</td><td class="no">&#10007;</td><td class="no">&#10007;</td>
+            </tr>
+            <tr class="drop">
+              <td class="row"><code>examples/*</code></td>
+              <td class="no">&#10007;</td><td class="no">&#10007;</td><td class="no">&#10007;</td>
+            </tr>
+            <tr class="drop">
+              <td class="row"><code>docs/</code> (audit &middot; plan &middot; research)</td>
+              <td class="no">&#10007;</td><td class="no">&#10007;</td><td class="no">&#10007;</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="note-good"><strong>Guard #12 makes it permanent.</strong> A new structural check fails any shipped skill
+      file that cites a repo-only path (<code>scripts/</code>, <code>examples/</code>, <code>docs/audit&middot;plan&middot;research/</code>,
+      <code>tests/</code>); runtime paths the harness itself creates (<code>docs/shapeup-sdlc/</code>, <code>.shapeup-sdlc/</code>)
+      stay allowed. A mutation test &mdash; inject a dangling ref &rarr; suite goes red, revert &rarr; green &mdash; confirms the guard
+      catches the class, closing the false confidence that the cwd-dependent oracle checks had given.</p>
     </div>
   </section>
 
@@ -408,6 +591,6 @@
   documented as "landed" but were never committed &mdash; they are the next real work, and the only part of
   the pipeline that needs a Claude fresh-login.</p>
 
-  <footer>Source: ci.yml &middot; release.yml &middot; scripts/distribute.js &middot; scripts/lib/lib-harness.sh &middot; tests/structural.mjs</footer>
+  <footer>Source: ci.yml &middot; release.yml &middot; scripts/distribute.js &middot; scripts/lib/lib-harness.sh &middot; scripts/oracles/* &middot; skills/spec-evaluator/references/probing.md &middot; tests/structural.mjs (#12)</footer>
 
 </div>

@@ -213,6 +213,121 @@ if (existsSync(migDir)) {
 }
 
 // =============================================================================
+section("8. Evaluation-contract oracle registry (Stage G) is complete & consistent");
+// =============================================================================
+// The registry is the source of truth for "which oracles exist". Every oracle it names must
+// have a runner file; every oracle the docs claim must be in the registry. Catches a doc/code
+// drift in the eval-contract the same way #3 catches broken SKILL references.
+const { ORACLES, ORACLE_NAMES } = await import(join(ROOT, "scripts/oracles/index.mjs"));
+const EXPECTED_RUNNERS = {
+  process: "scripts/oracles/process-oracle.mjs",
+  test: "scripts/oracles/test-oracle.mjs",
+  snapshot: "scripts/oracles/snapshot-oracle.mjs",
+  http: "scripts/oracles/http-oracle.mjs",
+};
+for (const [name, rel] of Object.entries(EXPECTED_RUNNERS)) {
+  if (!ORACLES[name]) fail(`oracle "${name}" not registered in scripts/oracles/index.mjs`);
+  else if (!existsSync(join(ROOT, rel))) fail(`oracle "${name}" runner missing: ${rel}`);
+  else ok(`oracle "${name}" registered with runner ${rel}`);
+}
+// The eval-contract spec table and the ba/test-surface registry must name exactly these oracles.
+const specPath = join(ROOT, "docs/audit/evaluation-contract-spec.md");
+if (existsSync(specPath)) {
+  const spec = read(specPath);
+  for (const name of ORACLE_NAMES) {
+    if (spec.includes("`" + name + "`")) ok(`spec documents oracle "${name}"`);
+    else fail(`evaluation-contract-spec.md does not document registered oracle "${name}"`);
+  }
+}
+
+// =============================================================================
+section("9. `test` oracle PASSes its green fixture and FAILs a red suite (discriminates)");
+// =============================================================================
+const testOraclePath = join(ROOT, "scripts/oracles/test-oracle.mjs");
+const mathxContract = join(ROOT, "examples/lib-mathx/mathx.contract.json");
+if (existsSync(testOraclePath) && existsSync(mathxContract)) {
+  const pass = spawnSync("node", [testOraclePath, mathxContract], { encoding: "utf8", cwd: ROOT });
+  if (pass.status === 0) ok("test oracle PASSes the green mathx suite");
+  else fail(`test oracle did not PASS its green fixture (exit ${pass.status})\n${pass.stdout || ""}${pass.stderr || ""}`);
+
+  // Negative control: a deliberately failing suite must FAIL (a grader that always passes is useless).
+  const { runContract: runTest } = await import(testOraclePath);
+  const red = runTest({ criteria: [{ id: "T1", desc: "red", probe: { cmd: "node --test --test-reporter=tap mathx.redtest.mjs", cwd: join(ROOT, "examples/lib-mathx") }, expect: { exit: "==0", min_tests: 1, no_failures: true } }] });
+  if (red.fails === 1) ok("test oracle FAILs a red suite (discriminates)");
+  else fail("test oracle did not FAIL a red suite — grader may be a rubber stamp");
+} else {
+  console.log("  (test oracle/fixture not found — skipping)");
+}
+
+// =============================================================================
+section("10. `snapshot` oracle PASSes its golden and FAILs a do-nothing impl (discriminates)");
+// =============================================================================
+const snapOraclePath = join(ROOT, "scripts/oracles/snapshot-oracle.mjs");
+const greetContract = join(ROOT, "examples/refactor-greet/greet.contract.json");
+if (existsSync(snapOraclePath) && existsSync(greetContract)) {
+  const pass = spawnSync("node", [snapOraclePath, greetContract, "node examples/refactor-greet/greet.mjs"], { encoding: "utf8", cwd: ROOT });
+  if (pass.status === 0) ok("snapshot oracle PASSes output identical to its golden");
+  else fail(`snapshot oracle did not PASS its golden (exit ${pass.status})\n${pass.stdout || ""}${pass.stderr || ""}`);
+
+  // Negative control: a do-nothing impl emits nothing → diff non-empty → FAIL.
+  const neg = spawnSync("node", [snapOraclePath, greetContract, "node -e undefined"], { encoding: "utf8", cwd: ROOT });
+  if (neg.status === 1) ok("snapshot oracle FAILs a do-nothing impl (discriminates)");
+  else fail(`snapshot oracle did not FAIL a do-nothing impl (exit ${neg.status}) — grader may be a rubber stamp`);
+} else {
+  console.log("  (snapshot oracle/fixture not found — skipping)");
+}
+
+// =============================================================================
+section("11. `http` oracle PASSes its working server and FAILs a broken one (discriminates)");
+// =============================================================================
+const httpOraclePath = join(ROOT, "scripts/oracles/http-oracle.mjs");
+const pingContract = join(ROOT, "examples/http-ping/ping.contract.json");
+if (existsSync(httpOraclePath) && existsSync(pingContract)) {
+  const { runContract: runHttp } = await import(httpOraclePath);
+  const c = readJSON(pingContract);
+  const good = await runHttp({ server: { ...c.server, cwd: ROOT }, criteria: c.criteria });
+  if (good.fails === 0) ok(`http oracle PASSes the working server (${good.results.length} criteria)`);
+  else fail(`http oracle did not PASS the working server (${good.fails} fail)\n${good.results.map((r) => r.evidence).join("\n")}`);
+
+  // Negative control: a server that is reachable but returns 500/wrong body must FAIL every criterion.
+  const bad = await runHttp({ server: { ...c.server, cmd: "node examples/http-ping/broken-server.mjs", cwd: ROOT }, criteria: c.criteria });
+  if (bad.fails === bad.results.length && bad.results.length > 0) ok("http oracle FAILs a broken server (discriminates)");
+  else fail(`http oracle did not FAIL a broken server (${bad.fails}/${bad.results.length}) — grader may be a rubber stamp`);
+} else {
+  console.log("  (http oracle/fixture not found — skipping)");
+}
+
+// =============================================================================
+section("12. No SHIPPED skill file points at a repo-only path (would dangle on install)");
+// =============================================================================
+// Only recognized component dirs ship: a Claude plugin install copies `skills/` (etc.) to the
+// plugin cache and BLOCKS path traversal outside it; the scaffolding installer copies only
+// `skills/`; distribute.js inlines SKILL.md + references/*.md into one prompt. So `scripts/`,
+// `examples/`, `docs/audit|plan|research/`, and `tests/` are ABSENT at runtime. A shipped skill
+// file that tells the agent to run/read one of them dangles. (Runtime project paths the harness
+// itself creates — `docs/shapeup-sdlc/`, `.shapeup-sdlc/` — are fine.) This guard is the fix for
+// the false confidence the cwd-dependent oracle CLI checks (#6, #9–#11) gave: those run from the
+// repo root; a real install does not.
+const REPO_ONLY = /(?:^|[\s`(])(?:scripts\/|examples\/|docs\/audit|docs\/plan|docs\/research|tests\/)/;
+const shippedSkillDocs = [];
+for (const dir of skillDirs) {
+  const sf = join(skillsDir, dir, "SKILL.md");
+  if (existsSync(sf)) shippedSkillDocs.push(sf);
+  const refDir = join(skillsDir, dir, "references");
+  if (existsSync(refDir)) {
+    for (const f of readdirSync(refDir).filter((x) => x.endsWith(".md"))) shippedSkillDocs.push(join(refDir, f));
+  }
+}
+for (const f of shippedSkillDocs) {
+  const rel = f.replace(ROOT + "/", "");
+  const bad = read(f).split(/\r?\n/)
+    .map((line, i) => ({ line, n: i + 1 }))
+    .filter(({ line }) => REPO_ONLY.test(line) && !/docs\/shapeup-sdlc|\.shapeup-sdlc/.test(line));
+  if (bad.length) fail(`${rel} references repo-only path(s) that will not exist in an install: line ${bad.map((b) => b.n).join(", ")}`);
+  else ok(`${rel} has no dangling repo-only path`);
+}
+
+// =============================================================================
 console.log(`\n${"=".repeat(60)}`);
 if (failures === 0) {
   console.log(`✅ structural tests passed (${checks} checks)`);

@@ -12,8 +12,10 @@
  PR / push to main ──► CI (ci.yml)
                          ├─ validate        : claude plugin validate --strict (plugin + marketplace)
                          ├─ json-lint       : every *.json parses
-                         ├─ structural-tests: node tests/structural.mjs   ← NEW (Tier 0)
-                         └─ eval-gate        : honest placeholder          ← NEW (Stage C target)
+                         ├─ structural-tests: node tests/structural.mjs   ← Tier 0 (107 checks)
+                         │                     incl. each oracle's reference impl + negative control
+                         │                     (#6, #8–#11) and the install-safety guard (#12, F9)
+                         └─ eval-gate        : honest placeholder          ← Stage C target
 
  git tag vX.Y.Z ──────► Release (release.yml)
                          ├─ validate --strict

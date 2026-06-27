@@ -43,7 +43,7 @@ jobs:
           done
 
   structural-tests:
-    name: Structural tests (frontmatter, refs, versions, example oracle)
+    name: Structural tests (frontmatter, refs, versions, eval-contract oracles)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

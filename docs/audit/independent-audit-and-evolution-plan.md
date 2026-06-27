@@ -122,6 +122,23 @@ and no test. The skill *boundaries* are clean; the *glue* is implicit.
 sync mechanism; 🟡 F7 — `translator` "faithful" check is Vietnamese-hardcoded despite "any
 language"; 🟡 F8 — broken doc cross-reference (`AGENT.md`).
 
+### 🟠 F9 — Shipped skills referenced repo-only paths that vanish on install (NEW, 2026-06-27 — CLOSED)
+`spec-evaluator/references/probing.md` (and `ba/test-surface.md`, `tech-lead/SKILL.md`) instructed
+the agent to run/read `scripts/oracles/*.mjs`, `examples/*`, and `docs/{audit,research}/*`. But a
+Claude plugin install copies only recognized component dirs to the cache and **blocks path
+traversal outside the plugin**; the scaffolding installer copies only `skills/`; `distribute.js`
+inlines only SKILL.md + `references/*.md`. So those targets are **absent at every real install**,
+and the bare relative paths would resolve against the *user's* cwd anyway (the docs mandate
+`${CLAUDE_SKILL_DIR}`/`${CLAUDE_PLUGIN_ROOT}` for bundled assets — not used). The defect predated
+Stage G; the new oracles widened it. **Risk:** the evaluator follows authoritative-looking guidance
+that points at nothing. **Fix (PO decision: procedure-only):** `probing.md` now describes each
+oracle as a self-contained spawn-and-grade procedure with an inline `expect` grammar — no script,
+example, or doc paths; the `scripts/oracles/*` runners + `examples/*` are demoted to repo-only
+dev/CI reference implementations. **Regression guard:** structural test **#12** fails any shipped
+skill file that references a repo-only path; a mutation test confirms it catches the class. This
+also exposed that the cwd-dependent oracle CLI checks (#6, #9–#11) gave false confidence — they run
+from the repo root, which no install reproduces.
+
 ---
 
 ## 4. The core tension with the goal
@@ -189,11 +206,17 @@ is unreliable, before the fixtures that produce a real signal). Corrected order:
 - **G1.** Define an **evaluation-contract abstraction** so a non-UI deliverable (CLI, library,
   pipeline) has a declared oracle (exit code + stdout assertion, test-suite green, snapshot diff),
   with Playwright/`[ui]` as one implementation among several.
-  - **Status (2026-06-26): steps 1–3 LANDED** — `oracle` tag + registry in the ba Test Surface
-    schema (default `ui`); `spec-evaluator/references/probing.md` dispatches on it; the shared
-    `process` runner `scripts/oracles/process-oracle.mjs` (declarative contract; reference
-    `examples/todo-cli/todo.contract.json`) is wired and tested (structural #6, with a negative
-    control). **Remaining: `test` + `snapshot` oracles (step 4), then `http` (step 5).** See
+  - **Status (2026-06-27): ALL STEPS LANDED** — `oracle` tag + registry in the ba Test Surface
+    schema (default `ui`); `spec-evaluator/references/probing.md` dispatches on it as a
+    self-contained spawn-and-grade procedure (no bundled-script dependency — see F9). The four Node
+    oracle runners behind one registry `scripts/oracles/index.mjs`
+    (`process`/`test`/`snapshot`/`http`) are **repo-only dev/CI reference implementations**, each
+    with a worked fixture and a negative-control test that proves the grammar discriminates:
+    structural #6 (`process`), #9 (`test`,
+    `examples/lib-mathx/`), #10 (`snapshot`, `examples/refactor-greet/`), #11 (`http`,
+    `examples/http-ping/`), plus #8 (registry/doc consistency). The single-judge invariant is
+    untouched — the oracle changes only *how* evidence is gathered. "Build anything" is now real
+    for CLI, library, refactor/generator, and service deliverables, not only web UIs. See
     `evaluation-contract-spec.md`.
 
 **Dependency order:** A → B → C → (D, E in parallel) → F → G.

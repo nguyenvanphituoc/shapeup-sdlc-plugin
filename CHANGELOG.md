@@ -5,6 +5,23 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Evaluation contract complete (Stage G).** `spec-evaluator` can now judge non-UI deliverables
+  with evidence-cited verdicts. `references/probing.md` describes each oracle as a **self-contained
+  spawn-and-grade procedure** (with an inline `expect` grammar) the evaluator runs via Bash —
+  `process` (CLI/scripts), `test` (libraries; zero-test suite FAILs), `snapshot` (generators/pure
+  refactors; diff vs golden), `http` (services; unreachable = FAIL every criterion), plus `ui`
+  (Playwright). The single-judge invariant is untouched — the oracle changes only *how* evidence is
+  gathered. See `docs/audit/evaluation-contract-spec.md`.
+- **Executable reference implementations (dev/CI only).** `scripts/oracles/*.mjs` + `examples/*`
+  implement that exact grammar with negative-control tests, so the documented procedure is proven to
+  discriminate. They are **not shipped** (and not called by the installed skill) — see "Runtime
+  model" in the spec.
+- **Install-safety guard.** Structural test **#12** fails any shipped skill file that references a
+  repo-only path (`scripts/`, `examples/`, `docs/audit|plan|research/`, `tests/`) that would not
+  exist in an install. Fixes finding **F9** (shipped skills had dangling refs to the oracle runners,
+  example contracts, and `docs/` cross-refs). Structural coverage grew 62 → **107 checks**.
+
 ### Changed
 - **Versioned migration system.** Updating an install is now a Flyway/Rails-style migration:
   `scripts/migrate.sh` updates code (replaces skills) then applies pending

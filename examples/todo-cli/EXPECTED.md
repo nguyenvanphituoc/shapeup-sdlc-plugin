@@ -32,8 +32,9 @@ A `spec-evaluator` run on the built CLI must emit a report that:
 - [ ] FAILs any criterion where evidence is absent (absence of evidence = FAIL)
 
 > Note: a CLI has no browser, so the evaluator does not drive Playwright here. Stage G (the
-> evaluation contract) has landed steps 1–3: each criterion carries an `oracle` tag and the
-> evaluator dispatches on it. For this CLI the oracle is **`process`** — the shared runner
+> evaluation contract) is fully landed: each criterion carries an `oracle` tag and the evaluator
+> dispatches on it via the registry `scripts/oracles/index.mjs` (`process`/`test`/`snapshot`/`http`,
+> with `ui` handled in-skill). For this CLI the oracle is **`process`** — the shared runner
 > `scripts/oracles/process-oracle.mjs` spawns the deliverable and grades exit code + stdout.
 > Run it directly: `node scripts/oracles/process-oracle.mjs examples/todo-cli/todo.contract.json "node ./reference/todo.js"`.
 

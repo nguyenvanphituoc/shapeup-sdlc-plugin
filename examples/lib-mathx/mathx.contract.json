@@ -1,0 +1,12 @@
+{
+  "deliverable": "mathx library",
+  "oracle": "test",
+  "criteria": [
+    {
+      "id": "T1",
+      "desc": "the module's own suite is green (≥3 tests, no failures)",
+      "probe": { "cmd": "node --test --test-reporter=tap mathx.test.mjs", "cwd": "examples/lib-mathx" },
+      "expect": { "exit": "==0", "min_tests": 3, "no_failures": true }
+    }
+  ]
+}

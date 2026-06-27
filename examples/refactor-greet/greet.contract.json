@@ -1,0 +1,12 @@
+{
+  "deliverable": "greet generator",
+  "oracle": "snapshot",
+  "criteria": [
+    {
+      "id": "S1",
+      "desc": "two names produce the exact golden greeting block",
+      "probe": { "argv": ["Ada", "Lin"] },
+      "golden": "greet.golden.txt"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "deliverable": "ping service",
+  "oracle": "http",
+  "server": { "cmd": "node examples/http-ping/server.mjs", "ready_path": "/health", "ready_timeout_ms": 4000 },
+  "criteria": [
+    {
+      "id": "H1",
+      "desc": "GET /health returns 200 ok",
+      "probe": { "method": "GET", "path": "/health" },
+      "expect": { "status": 200, "body": "/ok/i" }
+    },
+    {
+      "id": "H2",
+      "desc": "POST /echo echoes the message as json",
+      "probe": { "method": "POST", "path": "/echo", "json": { "msg": "hi" } },
+      "expect": { "status": 200, "json": { "msg": "hi" } }
+    },
+    {
+      "id": "H3",
+      "desc": "unknown route fails gracefully with 404",
+      "probe": { "method": "GET", "path": "/nope" },
+      "expect": { "status": 404, "json": { "error": "not found" } }
+    }
+  ]
+}
