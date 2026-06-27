@@ -6,6 +6,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Anti-leniency regression fixture (Stage C2, judge-first).** The first Tier-2 functional fixture
+  — `examples/eval-planted-bug/` — plants a FizzBuzz AC4 bug (`15` → `Fizz`) in a build dressed to
+  look done: every AC box ticked, its own test suite green-but-blind. The skeptical
+  `spec-evaluator` must FAIL it by probing the running CLI (TS-04), not trusting the green suite; a
+  known-correct control build must PASS. The bug's reality is proven **deterministically** by
+  structural test **#13** via the `process` oracle (PASS on correct, FAIL on buggy) — no Claude
+  auth needed; the LLM behavioral assertion (`evals.json` + `EXPECTED-VERDICT.md`) is documented for
+  the auth-gated `eval-gate` run. Repo-only dev/CI asset (not shipped, per F9). Structural coverage
+  grew 107 → **119 checks**. See `examples/eval-planted-bug/README.md`.
 - **Evaluation contract complete (Stage G).** `spec-evaluator` can now judge non-UI deliverables
   with evidence-cited verdicts. `references/probing.md` describes each oracle as a **self-contained
   spawn-and-grade procedure** (with an inline `expect` grammar) the evaluator runs via Bash —

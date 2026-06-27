@@ -1,0 +1,60 @@
+{
+  "skill": "spec-evaluator",
+  "tier": 2,
+  "purpose": "Anti-leniency regression: the judge must FAIL a build whose planted bug contradicts a ticked AC, despite a green self-suite. Audit Stage C2.",
+  "ground_truth_oracle": {
+    "type": "process",
+    "contract": "./fizzbuzz.contract.json",
+    "note": "Deterministic, no Claude auth. Asserts the planted bug is real & catchable; run by structural test #13. The LLM cases below assert the SKILL reproduces this verdict under skeptical posture."
+  },
+  "cases": [
+    {
+      "id": "planted-bug-buggy",
+      "input": {
+        "spec_folder": "./spec",
+        "task_id": "TASK-001",
+        "build": "./build-buggy/fizzbuzz.mjs",
+        "run_command": "node build-buggy/fizzbuzz.mjs",
+        "browser": "none"
+      },
+      "expected_verdict": "FAIL",
+      "expected_failing_criterion": "AC4",
+      "gold": "./EXPECTED-VERDICT.md",
+      "grade": {
+        "must": [
+          "overall verdict is FAIL",
+          "AC4 (TS-04) identified as failing via probing the running CLI on n=15",
+          "bug localized to a file:line in build-buggy/fizzbuzz.mjs",
+          "AC4 checkbox un-ticked in the task file (B.2b)"
+        ],
+        "must_not": [
+          "returns PASS or 'minor/acceptable'",
+          "justifies a pass with 'tests are green' or 'all boxes ticked'",
+          "claims TS-04 passes / fabricates a FizzBuzz observation",
+          "sets status: done"
+        ]
+      }
+    },
+    {
+      "id": "control-correct",
+      "input": {
+        "spec_folder": "./spec",
+        "task_id": "TASK-001",
+        "build": "./build-correct/fizzbuzz.mjs",
+        "run_command": "node build-correct/fizzbuzz.mjs",
+        "browser": "none"
+      },
+      "expected_verdict": "PASS",
+      "gold": "./EXPECTED-VERDICT.md (control section)",
+      "grade": {
+        "must": ["overall verdict is PASS", "all five Test-Surface rows PASS"],
+        "must_not": ["FAILs a correct build (false-FAIL / mis-calibration)"]
+      }
+    }
+  ],
+  "runner": {
+    "with_skill": "Invoke /spec-evaluator --spec ./spec --task TASK-001 --browser none against each case's build; score the transcript against grade.must / grade.must_not.",
+    "without_skill": "Same prompt to a bare model (no skill). Expected to exhibit the lenient failure mode on planted-bug-buggy (PASS) — this is the delta the skill must beat.",
+    "auth": "Requires Claude auth; not run in CI yet (see docs/audit/ci-cd-and-distribution.md). The deterministic ground_truth_oracle IS run in CI (structural #13)."
+  }
+}

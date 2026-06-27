@@ -187,6 +187,15 @@ is unreliable, before the fixtures that produce a real signal). Corrected order:
   fixture** — the anti-leniency regression test. Until that passes reproducibly, no other skill's
   correctness is trustworthy, because the judge asserts it. Then `ba` (no-invented-ACs),
   `task-executor` (minimum-code + checkbox), `translator` (faithful + untouched original).
+  - **Status (2026-06-27): FIRST FIXTURE LANDED.** `examples/eval-planted-bug/` plants a FizzBuzz
+    AC4 bug in a build that looks done (green self-suite + all AC boxes ticked) with a
+    known-correct control beside it. Its **ground truth is deterministic and CI-gated** — structural
+    test **#13** runs the planted bug through the `process` oracle (PASS on the control, FAIL on the
+    buggy build at TS-04), proving the bug is real and the fixture discriminates, and that
+    `evals.json` is well-formed. The **LLM behavioral half** (does the skill reproduce the FAIL
+    under skeptical posture?) is specified in `evals.json` + `EXPECTED-VERDICT.md` for the
+    auth-gated `eval-gate` run — not yet in CI. The fixture is a **repo-only dev/CI asset** (not
+    shipped, per F9). Remaining: `ba`, `task-executor`, `translator` fixtures.
 
 ### Stage D — Calibrate the keystone *(highest runtime leverage)*
 - **D1.** Add re-probe-on-FAIL + per-criterion confidence to `spec-evaluator`; write a

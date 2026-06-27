@@ -328,6 +328,53 @@ for (const f of shippedSkillDocs) {
 }
 
 // =============================================================================
+section("13. `spec-evaluator` planted-bug fixture is well-formed and discriminates (anti-leniency)");
+// =============================================================================
+// The judge-first Tier-2 fixture (audit Stage C2). We cannot run the LLM judge in CI, but we CAN
+// assert its GROUND TRUTH deterministically: the planted bug is real and catchable by the
+// evaluation contract. The process oracle must PASS the correct control build and FAIL the buggy
+// one (on TS-04). If it stops discriminating, the anti-leniency eval is testing nothing.
+const pbDir = join(ROOT, "examples/eval-planted-bug");
+const pbContract = join(pbDir, "fizzbuzz.contract.json");
+if (existsSync(pbContract)) {
+  const goodPB = spawnSync("node", [sharedOracle, pbContract, "node examples/eval-planted-bug/build-correct/fizzbuzz.mjs"], { encoding: "utf8", cwd: ROOT });
+  if (goodPB.status === 0) ok("planted-bug oracle PASSes the correct control build");
+  else fail(`planted-bug oracle did not PASS the correct build (exit ${goodPB.status})\n${goodPB.stdout || ""}${goodPB.stderr || ""}`);
+
+  const buggyPB = spawnSync("node", [sharedOracle, pbContract, "node examples/eval-planted-bug/build-buggy/fizzbuzz.mjs"], { encoding: "utf8", cwd: ROOT });
+  if (buggyPB.status === 1 && /FAIL\s+TS-04/.test(buggyPB.stdout || "")) ok("planted-bug oracle FAILs the buggy build on TS-04 (discriminates)");
+  else fail(`planted-bug oracle did not FAIL the buggy build on TS-04 (exit ${buggyPB.status}) — bug not catchable, fixture is inert\n${buggyPB.stdout || ""}`);
+
+  // Fixture completeness: the materials a Tier-2 run + its gold key depend on must all be present.
+  for (const rel of ["spec/usecases/UC-01-fizzbuzz.md", "spec/tasks/TASK-001.md", "spec/scope-summary.md",
+                     "build-buggy/fizzbuzz.mjs", "build-correct/fizzbuzz.mjs",
+                     "PLANTED-BUG.md", "EXPECTED-VERDICT.md", "README.md"]) {
+    if (existsSync(join(pbDir, rel))) ok(`planted-bug fixture has ${rel}`);
+    else fail(`planted-bug fixture missing ${rel}`);
+  }
+
+  // evals.json must parse and declare the FAIL verdict the skill is graded against.
+  const evalsPath = join(pbDir, "evals.json");
+  if (existsSync(evalsPath)) {
+    try {
+      const e = readJSON(evalsPath);
+      const buggy = (e.cases || []).find((c) => c.id === "planted-bug-buggy");
+      if (buggy && buggy.expected_verdict === "FAIL" && buggy.expected_failing_criterion === "AC4")
+        ok("evals.json declares the buggy case → FAIL on AC4");
+      else fail("evals.json missing a planted-bug-buggy case with expected_verdict FAIL on AC4");
+    } catch (err) { fail(`evals.json does not parse: ${err.message}`); }
+  } else fail("planted-bug fixture missing evals.json");
+
+  // The trap precondition: AC4's box must be TICKED in the task file (the build claims done).
+  // If it were already unchecked, the fixture wouldn't test leniency — there'd be nothing to revoke.
+  const taskBody = read(join(pbDir, "spec/tasks/TASK-001.md"));
+  if (/- \[x\] AC4/.test(taskBody)) ok("planted-bug task ships AC4 ticked (the leniency trap is armed)");
+  else fail("planted-bug task does not ship AC4 ticked — the anti-leniency trap is not armed");
+} else {
+  console.log("  (planted-bug fixture not found — skipping)");
+}
+
+// =============================================================================
 console.log(`\n${"=".repeat(60)}`);
 if (failures === 0) {
   console.log(`✅ structural tests passed (${checks} checks)`);

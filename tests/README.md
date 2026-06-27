@@ -42,11 +42,23 @@ cross-skill hard negatives. Measured with skills **installed** (`claude --plugin
 real `Skill`-tool activation. Prior measurement's TPR≈0 was a proxy artifact (it measured slash-
 command self-invocation) — do not repeat that method.
 
-## Tier 2 — Functional fixtures (NOT built — Stage C2, judge-first)
+## Tier 2 — Functional fixtures (Stage C2, judge-first — first fixture LANDED)
 
-Per skill: `skills/<name>/evals/evals.json` + fixtures, run with-skill vs without-skill to prove
-the delta. **Start with the `spec-evaluator` planted-bug fixture** (the anti-leniency regression
-test) — until it passes reproducibly, no other skill's correctness is trustworthy.
+Run a skill with-skill vs without-skill to prove the delta. **The first fixture — the
+`spec-evaluator` planted-bug / anti-leniency regression — is built**, at
+`examples/eval-planted-bug/` (repo-only dev/CI asset, not shipped — same F9 reasoning that keeps
+the oracle runners out of installs). It plants a FizzBuzz AC4 bug in a build dressed to look done
+(green self-suite, all AC boxes ticked) and asserts a skeptical judge FAILs it.
 
-> Tiers 1 and 2 were claimed "LANDED" in `docs/plan/evolution-roadmap.md` but were never committed.
-> They are genuine future work, not shipped infrastructure.
+- **Deterministic half (runs in CI today):** structural test **#13** drives the planted bug
+  through the `process` oracle — PASS on the correct control, FAIL on the buggy build (TS-04) —
+  proving the bug is real and catchable, plus that the fixture + `evals.json` are well-formed.
+- **LLM half (needs Claude auth, not yet in CI):** `evals.json` + `EXPECTED-VERDICT.md` score the
+  actual `/spec-evaluator` transcript against must / must-not assertions. Wiring this into a real
+  `eval-gate` job is Stage C/D follow-up.
+
+Remaining Tier-2 work: the same pattern for `ba` (no-invented-ACs), `task-executor`
+(minimum-code + checkbox), `translator` (faithful + untouched original).
+
+> Tier 1 and the rest of Tier 2 were claimed "LANDED" in `docs/plan/evolution-roadmap.md` but were
+> never committed. They are genuine future work, not shipped infrastructure.

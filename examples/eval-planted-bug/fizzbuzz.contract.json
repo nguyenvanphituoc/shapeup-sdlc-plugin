@@ -1,0 +1,37 @@
+{
+  "deliverable": "fizzbuzz CLI",
+  "oracle": "process",
+  "note": "Ground-truth oracle for the planted-bug fixture. Run against build-correct/ → all PASS; against build-buggy/ → TS-04 FAILs. The discriminating row (TS-04) is what a skeptical spec-evaluator must reproduce; the others establish the build otherwise looks done.",
+  "criteria": [
+    {
+      "id": "TS-01",
+      "desc": "AC1 — numbers not divisible by 3 or 5 print themselves",
+      "probe": { "argv": ["2"] },
+      "expect": { "exit": "==0", "stdout": "/^1\\n2\\n?$/" }
+    },
+    {
+      "id": "TS-02",
+      "desc": "AC2 — a multiple of 3 (not 5) prints Fizz",
+      "probe": { "argv": ["3"] },
+      "expect": { "exit": "==0", "stdout": "/Fizz/" }
+    },
+    {
+      "id": "TS-03",
+      "desc": "AC3 — a multiple of 5 (not 3) prints Buzz",
+      "probe": { "argv": ["5"] },
+      "expect": { "exit": "==0", "stdout": "/Buzz/" }
+    },
+    {
+      "id": "TS-04",
+      "desc": "AC4 — a multiple of BOTH 3 and 5 prints FizzBuzz (the planted-bug discriminator)",
+      "probe": { "argv": ["15"] },
+      "expect": { "exit": "==0", "stdout": "/FizzBuzz/" }
+    },
+    {
+      "id": "TS-05",
+      "desc": "robustness — a non-numeric argument fails gracefully, no stack trace",
+      "probe": { "argv": ["abc"] },
+      "expect": { "exit": "!=0", "no_crash": true }
+    }
+  ]
+}
