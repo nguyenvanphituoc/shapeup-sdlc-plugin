@@ -40,11 +40,15 @@ Zero dependencies, no network, no Claude calls. Proves the plugin is **well-form
    once-per-round EVAL on a partial board (naming the unfinished task) and ALLOWS it on a green
    board, while never gating per-task evals, other skills, or non-`Skill` tools. Driven against
    temp board fixtures — proves the gate actually enforces, not just that it parses.
+15. **Verdict-ledger calibration (Stage D1):** `scripts/verdict-ledger.mjs` flags a PASS→FAIL flip
+   across runs, forces that criterion's confidence to `low`, leaves stable criteria untouched, and
+   exits non-zero on a flipping ledger / zero on a stable one. Proves the judge-calibration grammar
+   (`spec-evaluator/references/verdict-ledger.md`) discriminates an unstable judge from a stable one.
 
-Exit 0 = pass, 1 = fail (currently **127 checks**). This is the cheapest, highest-ROI guard and the
+Exit 0 = pass, 1 = fail (currently **137 checks**). This is the cheapest, highest-ROI guard and the
 one the project lacked. Sections #8–#11 prove the oracle grammar is runnable; #12 proves the shipped
-skills are self-contained; #13–#14 prove the anti-leniency fixture and the L2 gate actually do their
-jobs (discriminate / enforce), not merely that they exist.
+skills are self-contained; #13–#15 prove the anti-leniency fixture, the L2 gate, and the verdict
+ledger actually do their jobs (discriminate / enforce / detect flips), not merely that they exist.
 
 ## Tier 1 — Trigger evals (NOT built — Stage C1)
 

@@ -43,6 +43,18 @@ One block per dimension run. N/A criteria shown as N/A, never PASS.
 | SC-LAYER | no layer leak | ✅ PASS | — |
 ```
 
+### 2b. Verdict stability (verdict-ledger.md)
+After the dimension tables. Reports re-probe/confidence outcomes and any cross-run flips read from
+`.verdicts-<task_id>.jsonl`. On the first run, state there is no history yet (the ledger is still
+written, as the baseline).
+```
+## Verdict stability (run 3)
+- ⚠ AC4 — FLIP PASS→FAIL vs run 2, no code change to checkout → judge non-deterministic here; confidence low. Re-run before trusting.
+- AC2 — stable FAIL across runs 1–3 (confidence high).
+- Stability: 6/7 criteria stable this round.
+```
+The per-dimension tables (§2) carry a `confidence` column when this is active.
+
 ### 3. Bug list
 One entry per FAIL, using the failing dimension's bug template. This is the generator's
 worklist.

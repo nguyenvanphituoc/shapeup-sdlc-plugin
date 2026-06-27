@@ -109,10 +109,14 @@ manifest a no-op was corrected to `SessionStart`. The remaining ⏸ gates stay h
 design (L2 is the one whose violation is unrecoverable); a false-PASS now also requires a green
 board, which the hook verifies independently of the model.
 
-### 🔴 F3 — The keystone judge is the least verifiable
-`spec-evaluator` PASS closes the task; FAIL drives the loop. It is non-deterministic
-(single Playwright snapshot per criterion), has no re-run consistency ledger, no second opinion,
-and is excluded from any calibration. **Risk:** flaky false-PASS/false-FAIL with no detection.
+### 🔴 F3 — The keystone judge is the least verifiable (CLOSED, 2026-06-27)
+`spec-evaluator` PASS closes the task; FAIL drives the loop. It was non-deterministic
+(single Playwright snapshot per criterion), with no re-run consistency ledger and no calibration.
+**Risk:** flaky false-PASS/false-FAIL with no detection. **Fix (D1):** v0.7 adds re-probe-on-FAIL,
+per-criterion confidence, and an append-only `.verdicts-<task>.jsonl` ledger that flags verdict
+flips across runs (forcing confidence low and a report stability block) — the consistency ledger
+this finding asked for. This stops short of a *second opinion* (still single-judge by invariant);
+it makes the one judge's reliability measurable rather than adding a second grader.
 
 ### 🟠 F4 — `coach` RLHF loop has no safeguards
 Committed, team-shared knowledge-base files with no provenance schema, no decay/pruning, no
@@ -206,6 +210,14 @@ is unreliable, before the fixtures that produce a real signal). Corrected order:
 - **D1.** Add re-probe-on-FAIL + per-criterion confidence to `spec-evaluator`; write a
   `.verdicts-<task>.jsonl` ledger that flags verdict flips across re-runs. Converts a
   non-deterministic oracle into a measurable one.
+  - **Status (2026-06-27): LANDED.** `spec-evaluator` v0.7 — `references/verdict-ledger.md` adds
+    re-probe-on-FAIL (disagreement keeps the FAIL but marks it flaky/confidence-low), per-criterion
+    confidence by a fixed rule (reported, never overriding the verdict), and an append-only
+    `.verdicts-<task_id>.jsonl` ledger whose flip detection forces confidence low and emits a report
+    stability block. Wired at GATE V2.1b + Phase B.0 with two new hard rules. Self-contained
+    procedure (no script dep, F9-safe); a repo-only `scripts/verdict-ledger.mjs` + structural #15
+    prove the flip/confidence grammar discriminates a flipping judge from a stable one. The
+    single-judge invariant is preserved — same judge, same probe, bookkeeping only.
 
 ### Stage E — Enforce the one gate that matters
 - **E1.** Use `hooks/hooks.json` (`PreToolUse`) to make GATE L2 a hard precondition: block EVAL

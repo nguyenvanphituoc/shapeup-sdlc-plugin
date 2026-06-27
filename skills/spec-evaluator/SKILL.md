@@ -16,6 +16,7 @@ posture. Assume broken until proven working. A criterion with no collected evide
 **FAIL**, never a pass-by-assumption.
 
 > **Anti-leniency protocol** → `references/anti-leniency.md` — read before printing any verdict.
+> **Verdict ledger (re-probe + confidence + flip detection)** → `references/verdict-ledger.md` — read at GATE V2, act on at Phase B.
 > **Dimension contract (injection interface)** → `references/dimension-contract.md` — read before loading dimensions.
 
 ---
@@ -82,6 +83,7 @@ Phase B   │  Report & Handoff ──────► write .shapeup-sdlc/<slug>
 | GATE V0 (loading dimensions) | `references/dimension-contract.md` — the interface; how dimensions are loaded |
 | GATE V0 | `references/dimensions/_registry.md` — which dimensions are active, load order |
 | Phase A | `references/probing.md` — Playwright CLI (token-efficient) for web, probe strategy for be/mobile/e2e |
+| GATE V2 + Phase B | `references/verdict-ledger.md` — re-probe on FAIL, per-criterion confidence, `.verdicts-<task>.jsonl` flip detection |
 | Phase B | `references/report-schema.md` — the EVAL-TASK-NNN.md handoff format |
 | Per dimension | `references/dimensions/<id>.md` — criteria, probes, thresholds, bug template |
 
@@ -210,13 +212,17 @@ Progress markers:
 **Purpose:** Grade each criterion against its dimension's hard threshold, using **evidence
 only**, with the skeptical posture enforced.
 
-> Read `references/anti-leniency.md` immediately before this gate.
+> Read `references/anti-leniency.md` and `references/verdict-ledger.md` immediately before this gate.
 
 ```
 V2.1  For each active dimension, for each of its criteria:
         verdict = PASS  → only if evidence collected in Phase A directly confirms it
         verdict = FAIL  → if evidence shows a defect, OR if there is NO EVIDENCE
       Every PASS cites the confirming probe. Every FAIL cites concrete evidence (file:line / output).
+V2.1b Re-probe + confidence (verdict-ledger.md): before finalizing any FAIL, run its probe ONCE
+      MORE. Probes agree → confidence high. Probes disagree → keep FAIL (no stable pass = FAIL) but
+      confidence low + note "flaky" in evidence. Assign every criterion a confidence (high/medium/
+      low) per the rule in verdict-ledger.md. Confidence is reported; it never overrides the verdict.
 V2.2  Apply the dimension hard threshold (from its file). spec-conformance threshold:
         100% of [cmd]/[ui]/[data] criteria PASS  AND  contract triplet matches  AND  Non-go respected.
         Any single FAIL → dimension FAILS.
@@ -247,8 +253,14 @@ Do NOT write the report or annotate the task until the verdict is confirmed.
 > Read `references/report-schema.md`.
 
 ```
+B.0  Verdict ledger (verdict-ledger.md): read .shapeup-sdlc/<slug>/evaluation/.verdicts-<task_id>.jsonl
+       if present; this run = max prior run + 1 (else 1). For each graded criterion, compare to its
+       most recent prior line — if the verdict changed, set flip:true and force confidence:low.
+       Append one JSONL line per criterion (run, criterion, verdict, confidence, reprobed, flip,
+       evidence, at). Never rewrite prior lines. Surface every flip in the report's stability block.
 B.1  Write .shapeup-sdlc/<slug>/evaluation/EVAL-<task_id>.md per report-schema.md
-       (verdict, per-dimension criteria table, bug list, NEXT ACTION for the generator).
+       (verdict, per-dimension criteria table incl. confidence, verdict-stability block, bug list,
+       NEXT ACTION for the generator).
 B.2  Annotate the task file frontmatter — DO NOT change status to done:
        eval_verdict: pass | fail
        eval_report: "[[evaluation/EVAL-<task_id>]]"
@@ -359,12 +371,15 @@ as worked examples of the contract. They are not run until flipped on.
 | Evaluator never sets `status: done` | Judge ≠ doer; the generator owns closure |
 | Untestable AC blocks a clean PASS | Forces the spec to be verifiable, not vibes |
 | Probe the RUNNING app, not the source alone | Apps that look right still break when used |
+| Re-probe every FAIL before finalizing; flip ⇒ confidence low | A single non-deterministic snapshot lies; the ledger makes that visible |
+| Append the verdict ledger every run, never rewrite it | Verdict history is how a single-snapshot judge becomes measurable |
 
 ---
 
 ## Changelog
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.7 | 2026-06-27 | Verdict calibration (audit D1, closes F3): `references/verdict-ledger.md` adds (1) re-probe-on-FAIL — re-run a failing probe once before finalizing; disagreement keeps the FAIL but marks it flaky/confidence-low; (2) per-criterion confidence (high/medium/low) by a fixed rule, reported never overriding the verdict; (3) an append-only `.verdicts-<task_id>.jsonl` ledger that flags verdict flips across runs (a flip forces confidence low and a stability line in the report). New GATE V2.1b + Phase B.0 steps, two hard rules, report stability block. Single-judge invariant untouched — same judge, same probe, bookkeeping over its own outputs. The flip/stability grammar has a repo-only dev/CI reference impl proving it discriminates. |
 | 0.6 | 2026-06-16 | Added two always-on dimensions: `tdd-surface` (TDD-1 suite green + TDD-2 companion test files, both critical; TDD-3 AC-scenario alignment, advisory) and `integration` (INT-1 full-stack test with real DB, INT-2 auth boundary, INT-3 RLS-JWT transaction pattern + port 6543; scoped to `.be` and `.e2e` variants). Updated registry, probing guide (TDD and integration probe sections), dimension table, description, and Definition of Done. |
 | 0.5 | 2026-06-11 | QA-meeting Bước 1b: new auto-enable dimension `test-surface-conformance` (ON only when a UC carries `## Test Surface`, v2.9+/`--surface-only` specs; non-regression on older specs). TSC-1 probes every derived TS row on the running app (all-pass; side-effect clauses need data probes; unrunnable probe = FAIL); TSC-2 checks the surface against its own sources (gap → `next: ba --surface-only` — judge never authors rows). Report MUST list every TS row probed: it is `/qa-edge-hunter`'s negative-space input (QA subtracts covered territory at its Phase Q1). |
 | 0.4 | 2026-06-11 | B.2b AC checkbox correction: on FAIL the judge un-ticks the specific boxes its evidence refutes (failure visible in the task file, not only the EVAL report); never ticks (ticking = generator's GATE D act, task-executor v1.2); confirmed-but-unticked boxes on a done task are flagged as a doc-hygiene finding, not fixed silently. Judge/doer separation preserved. |

@@ -6,6 +6,17 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Judge calibration — verdict ledger (Stage D1, closes F3).** `spec-evaluator` (v0.7) gains
+  `references/verdict-ledger.md`: (1) **re-probe on FAIL** — re-run a failing probe once before
+  finalizing; if the two disagree the FAIL stands but is marked flaky/confidence-low; (2)
+  **per-criterion confidence** (high/medium/low) by a fixed rule, reported but never overriding the
+  verdict; (3) an append-only **`.verdicts-<task>.jsonl` ledger** that flags verdict **flips**
+  across runs (a flip forces confidence low and a stability line in the report). New GATE V2.1b +
+  Phase B.0 steps, two hard rules, and a report stability block. The single-judge invariant is
+  untouched — same judge, same probe, bookkeeping over its own outputs (no second grader). A
+  repo-only `scripts/verdict-ledger.mjs` implements the flip/confidence grammar with structural test
+  **#15** proving it discriminates an unstable judge from a stable one; **not shipped** (F9).
+  Structural coverage grew 127 → **137 checks**.
 - **GATE L2 is now runtime-enforced (Stage E1, closes half of F2).** A `PreToolUse` hook
   (`hooks/gate-l2.mjs`, matcher `Skill`) hard-blocks the once-per-round EVAL delegation
   (`spec-evaluator --single-pass`/`--feature`, no `--task`) whenever `tasks/_index.md` is not fully
