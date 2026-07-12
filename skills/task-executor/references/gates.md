@@ -18,14 +18,20 @@ Rules for all ⏸ GATE prompts in the task-executor skill.
 
 **HARD STOP conditions:**
 - `spec_folder` not found on disk → must correct before proceeding
-- `tasks/` directory not found in spec_folder → must correct before proceeding
+- `tasks/` directory not found in the LOCAL root (`.shapeup-sdlc/<slug>/tasks/`, NOT
+  spec_folder — v3.2) AND `docs/shapeup-sdlc/<slug>/spec/usecases/` is also missing → a
+  genuinely absent spec, must correct before proceeding
 
 **Soft conditions (ask, then proceed on y):**
 - run-state.md missing → proceed with limited traceability
 - task status already = done → confirm re-execution
+- `tasks/` directory missing from the LOCAL root BUT spec_folder/usecases/ exists → the local
+  board was never generated on this machine; suggest
+  `ba-pitch-analyzer --tasks-only <spec_folder>` (or defer to the orchestrator's own bootstrap
+  step when running under tech-lead) rather than treating it as a hard failure
 
 **Resolution logic:**
-- If task_id not provided: list all tasks in tasks/ dir with their status
+- If task_id not provided: list all tasks in the LOCAL `tasks/` dir with their status
 - If multiple matches (e.g. TASK-003-a.md and TASK-003-b.md): list them, ask which
 
 **run-state.md reading:**

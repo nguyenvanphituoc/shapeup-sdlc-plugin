@@ -57,8 +57,8 @@ Skipped when `--skip-gate-pregen` passed OR `--skip-assess` used with `--output-
 1. Output path (the SHARED spec deliverable dir):
    Default: docs/shapeup-sdlc/[feature-slug]/spec/
    Override with a different path? (press Enter to accept default)
-   (run-trace — run-state.md, assess-report.md — always goes to the LOCAL
-    root .shapeup-sdlc/[feature-slug]/, not here)
+   (run-trace — run-state.md, assess-report.md — AND the task board (tasks/, Phase 6) —
+    always go to the LOCAL root .shapeup-sdlc/[feature-slug]/, not here)
 
 2. Missing inputs (printed only when gaps detected):
    □ [gap description] — needed for [phase that depends on it]
@@ -249,6 +249,8 @@ Questions (only when integration impact is ambiguous):
 
 Always print layer breakdown and ordering issues.
 Surface tasks with empty use_case_refs — they fail L3 audit.
+Tasks were just written to the LOCAL root (`.shapeup-sdlc/<slug>/tasks/`, not spec_folder) —
+see SKILL.md Phase 6 "Locality" note.
 
 ```
 ⏸ GATE 6 — Tasks generated. Review task graph before audit.

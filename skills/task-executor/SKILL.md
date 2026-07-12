@@ -73,17 +73,24 @@ Required inputs (must be explicit — never inferred):
   2. task_id       — TASK-NNN identifier
                      e.g. "TASK-003"
 
-  Run-trace (run-state.md, spikes/, discovery/ledger.md) lives in the LOCAL root
+  Run-trace (run-state.md, spikes/, discovery/ledger.md) AND the task board
+  (tasks/, v3.2) live in the LOCAL root
   ".shapeup-sdlc/<slug>/", derived from the slug (parent of spec_folder). The
-  durable spec docs (tasks/, usecases/, contracts/, scope-summary.md,
-  api-feasibility.md) live under spec_folder. Bare run-state.md / spikes/ /
-  ledger references below resolve from the LOCAL root.
+  durable SHARED spec docs (usecases/, domain-model.md, contracts/,
+  scope-summary.md, api-feasibility.md) live under spec_folder. Bare
+  run-state.md / spikes/ / ledger / tasks/ references below resolve from the
+  LOCAL root, not spec_folder.
 
 Validation steps:
   A1. Verify spec_folder exists on disk
       → If not: HARD STOP — print path, ask user to correct it
-  A2. Verify spec_folder/tasks/<task_id>*.md exists (glob match)
-      → If not: list files in tasks/ dir, ask user to pick
+  A2. Verify .shapeup-sdlc/<slug>/tasks/<task_id>*.md exists (glob match)
+      → If not found AND docs/shapeup-sdlc/<slug>/spec/usecases/ exists: the LOCAL board was
+        never generated on this machine — suggest
+        `ba-pitch-analyzer --tasks-only <spec_folder>` to regenerate it (or let the orchestrator
+        bootstrap it, in isolated-brief mode). This is not the same failure as a genuinely
+        missing spec.
+      → Otherwise: list files in tasks/ dir, ask user to pick
   A3. Verify .shapeup-sdlc/<slug>/run-state.md exists
       → If not: warn — limited traceability, ask user to confirm proceed
   A4. Read run-state.md:
@@ -565,6 +572,7 @@ Once user confirms → print `✅ [TASK-NNN] closed.`
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.5 | 2026-07-12 | **Local Tasks Architecture** (v3.2): the task board (`tasks/`) moves from `spec_folder` to the LOCAL gitignored root (`.shapeup-sdlc/<slug>/tasks/`) — GATE A now resolves `tasks/<task_id>*.md` there, not under spec_folder. A missing local board alongside a present SHARED `usecases/` is a soft condition (suggest/await `ba-pitch-analyzer --tasks-only` bootstrap), not the same hard failure as a genuinely missing spec. `[[tasks/...]]` wikilink resolution (context-loading.md) and all Phase 3 doc-update paths (doc-update-rules.md) updated to the LOCAL root. No change to gate logic, AC verification, or doc-update semantics — only the filesystem location moved. |
 | 1.4 | 2026-07-12 | **Isolated-brief mode** (design spec v1.1 §3.6): `--brief <path>` invocation carries a zero-memory-handoff context (scope contract + substrate contents + digested errors + this scope's ledger decisions), no prior-attempt chat history. **Substrate discipline**: new GATE B0 checks task files against the active scope's `allowed_file_substrate`/`shared_substrate` before Phase 2; a needed out-of-substrate file routes to an `ESCALATE (substrate-expansion)` instead of a write the sandbox hook would reject anyway. **ESCALATE routing**: design-decision/spec-ambiguity gaps become `advisor-protocol` ESCALATEs (not ad hoc GATE C questions) when running under tech-lead's attempt loop; standalone/interactive mode is unchanged. **UI Layer 1/2/3 discipline** (P2.9–P2.11): bind only to affordance-manifest `test_id`/`role`/`data-state`, ban hardcoded data arrays (Layer 2, T0 DB-probe countermeasure), freeze pixel-perfect styling out of this cycle (Layer 3). Five new hard rules. |
 | 1.3 | 2026-06-16 | Andrej Karpathy Code Guidelines embedded (from AGENTS.md). Phase 1 step 5: assumption scan surfaces every non-obvious decision before GATE C. GATE C output: two new sections — "Explicit assumptions" (Principle A, none silent) + "Verifiable success criteria" (Principle D, observable outcomes before coding). Phase 2: P2.7 minimum-code statement per AC (Principle B, senior-engineer test) + P2.8 surgical discipline — explicitly note adjacent code NOT touched, remove newly-unused symbols, capture dead code via P3.7 (Principle C). GATE D: cross-checks the GATE C verifiable criteria, not just command exit codes (Principle D). 4 new hard rules. |
 | 1.2 | 2026-06-11 | P3.1 now ticks the AC checkboxes at doc-update time (`- [ ]` → `- [x]` for every GATE-D-verified criterion, incl. inverse/empty-state/boundary sub-lists; failing/skipped stay unchecked; bug-only re-runs re-tick what the fix re-satisfied). Closes the canvas-usability gap where all 51 boxes stayed unchecked on a shipped board because no skill owned the tick. Doer ticks; evaluator un-ticks on refutation (its v0.4). |

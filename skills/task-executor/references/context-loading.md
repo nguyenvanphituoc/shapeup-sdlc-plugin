@@ -40,9 +40,12 @@ Pattern: `[[doc-name]]` or `[[doc-name#Section]]`
 Resolution algorithm:
 ```
 1. Strip [[ and ]] and optional #Section anchor
-2. Search for: spec_folder/[doc-name].md
-3. Search for: spec_folder/[subfolder]/[doc-name].md
-   (e.g. [[usecases/UC-CreateOrder]] → spec_folder/usecases/UC-CreateOrder.md)
+2. [[tasks/...]] links (v3.2) resolve against the
+   LOCAL root instead: .shapeup-sdlc/<slug>/tasks/[doc-name].md
+3. Every other link:
+   a. Search for: spec_folder/[doc-name].md
+   b. Search for: spec_folder/[subfolder]/[doc-name].md
+      (e.g. [[usecases/UC-CreateOrder]] → spec_folder/usecases/UC-CreateOrder.md)
 4. If not found: note as unresolved — surface at GATE C
 ```
 

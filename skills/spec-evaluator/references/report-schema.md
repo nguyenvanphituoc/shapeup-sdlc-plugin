@@ -17,7 +17,7 @@ bug_count: [N]
 browser_mode: cli | mcp | none
 evaluator: spec-evaluator v0.1
 eval_at: [ISO date]
-linked_docs: ["[[tasks/TASK-NNN-slug]]", "[[scope-summary]]"]
+linked_docs: ["[[usecases/UC-Name]]", "[[scope-summary]]"]  # + "[[tasks/TASK-NNN-slug]]" only when a local task file exists this run (V0.2b)
 t0_citation: ~ | { scope_id: cart-creation, artifact: t0/verdicts/r2-a3.json, sha256: 1a2b3c… }
 ---
 ```
@@ -38,7 +38,7 @@ One block per dimension run. N/A criteria shown as N/A, never PASS.
 ## spec-conformance — FAIL  (threshold: all-pass)
 | id | criterion | verdict | evidence |
 |----|-----------|---------|----------|
-| SC-AC | every AC passes | ❌ FAIL | AC2 Pay click throws — apps/web/checkout/Pay.tsx:84 |
+| SC-AC | every UC Step/Error Case passes | ❌ FAIL | UC-Checkout Step 4 "Pay" click throws — apps/web/checkout/Pay.tsx:84 |
 | SC-DONE-WHEN | "User pays successfully" | ❌ FAIL | redirect to /success never fires (see AC2) |
 | SC-REQ | request matches contract | ✅ PASS | curl 200, fields match #Request |
 | SC-RES | response mapping | ✅ PASS | field-by-field match to #Response |

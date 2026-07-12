@@ -11,7 +11,10 @@ description: >
   tasks → scope contracts) with BDD scenarios, a UC System Flow, a derived Test Surface, and
   per-phase gates (max 2 questions, never assumes). v3.1 adds committed, vertically-sliced
   scope contracts (write-whitelist substrate, affordance manifest, PA1/PA2 lints) with
-  --remap to reconcile discovered tasks or split a stuck scope.
+  --remap to reconcile discovered tasks or split a stuck scope. v3.2 moves the task board
+  (tasks/) to the LOCAL, gitignored root — the shared repo only carries usecases/,
+  domain-model.md, and scope contracts; `--tasks-only` (no `--from-discovered`) regenerates
+  a missing local board from the committed spec on any machine.
 ---
 
 # BA Pitch Analyzer
@@ -21,6 +24,14 @@ Converts a Shape Up Pitch (or any product requirement) into a fully linked docum
 
 Each document uses Obsidian-style wikilinks and shared frontmatter taxonomy so the entire
 spec is navigable and traceable from pitch to atomic task.
+
+**Locality (v3.2):** `tasks/` is the only branch of this tree written to the LOCAL,
+gitignored root (`.shapeup-sdlc/<slug>/tasks/`) instead of the SHARED spec dir
+(`docs/shapeup-sdlc/<slug>/spec/`). Everything else — `_index`, `domain-model`,
+`ux-behavior`, `usecases/`, `integration`, `contracts/`, `scopes/` — is committed. The task
+board is an execution-planning artifact derived from the committed spec, not the spec
+itself; it can always be regenerated from `usecases/` + `domain-model.md` via `--tasks-only`
+on any machine, so nothing is lost by keeping it out of git.
 
 > **Gate definitions** (formats, question rules, resolution logic) → `references/gates.md`
 > Read it before printing any ⏸ GATE prompt.
@@ -81,9 +92,12 @@ Phase 8  │  Index + Feedback ──────────► master document
 
 | Lens | Output |
 |------|--------|
-| `--lens lite` | `_index`, `assess-report`, `run-state`, `scope-summary`, `synthesis` (minimal), `domain-model`, `ux-behavior` ← PRIMARY, `usecases/`, `tasks/`, `feedback` |
+| `--lens lite` | `_index`, `assess-report`, `run-state`, `scope-summary`, `synthesis` (minimal), `domain-model`, `ux-behavior` ← PRIMARY, `usecases/`, `tasks/` (LOCAL), `feedback` |
 | `--lens standard` | All lite files + `api-feasibility` (if 1b), `contracts/` ← PRIMARY, `integration`, `synthesis` (full S-01+S-02+S-03) |
 | `--cross-context` | `_cross-context/`: `context-map`, `event-choreography`, `migration-plan` (if schema change), `team-handoff` |
+
+`tasks/` (LOCAL) is written to `.shapeup-sdlc/<slug>/tasks/`, not the SHARED spec dir listed
+above — see "Locality" note above and Phase 6.
 
 **Autonomous Execution Gate:** Requires BOTH:
 1. Audit score ≥ 90 (Phase 7a)
@@ -153,9 +167,11 @@ Always runs unless `--skip-assess` passed. Read `assets/templates/assess-report.
 **Phase 1 cache rule:** If `.shapeup-sdlc/<slug>/assess-report.md` exists AND
 `run-state.pitch_hash` matches → Phase 1 fully skipped (~2–3k token savings).
 
-**Output (LOCAL root `.shapeup-sdlc/<slug>/`):** `assess-report.md` + `run-state.md`.
-The durable spec tree (Phases 2–8) is written to the SHARED spec dir
-`docs/shapeup-sdlc/<slug>/spec/` (the output path confirmed at GATE-PRE-GEN).
+**Output (LOCAL root `.shapeup-sdlc/<slug>/`):** `assess-report.md` + `run-state.md` +
+`tasks/` (Phase 6, written under this same LOCAL root).
+The durable spec tree (Phases 2–5, 6b–8) is written to the SHARED spec dir
+`docs/shapeup-sdlc/<slug>/spec/` (the output path confirmed at GATE-PRE-GEN). `tasks/` is
+the one exception inside that range — see "Locality" above.
 
 ---
 
@@ -329,7 +345,9 @@ TASK-006 [FEAT]   [feature]-ui                 ← depends_on: TASK-005
 dedicated integration-test task (layer: integration) covering DB round-trip, auth rejection,
 and cross-service BDD scenarios. See `references/task-generation.md#Pattern:-Integration-Test`.
 
-**Write:** `tasks/TASK-[NNN]-[slug].md` + `tasks/_index.md`
+**Write (LOCAL root, NOT spec_folder):** `.shapeup-sdlc/<slug>/tasks/TASK-[NNN]-[slug].md` +
+`.shapeup-sdlc/<slug>/tasks/_index.md`. Derive `<slug>` from `spec_folder`'s parent (same
+convention `task-executor` and `spec-evaluator` already use to locate the LOCAL root).
 Use `assets/templates/task.tmpl.md` (FEAT/FIX/CHORE) or `task-spike.tmpl.md` (SPIKE)
 → Read `references/gates.md#GATE-6` and print GATE 6.
 
@@ -420,7 +438,8 @@ Score < 70 → fix all L3 failures before proceeding. Score 70–89 → flag for
 
 ## Phase 7b — Scope Summary
 
-Parse all TASK files: total count, estimated_hours, package, depends_on graph.
+Parse all TASK files (LOCAL root `.shapeup-sdlc/<slug>/tasks/`): total count,
+estimated_hours, package, depends_on graph.
 Compute: total hours, package distribution, critical path (BFS longest chain), parallel opportunities, external blockers from integration.md.
 
 **Appetite Guard (forcing function, runs here and on every `--tasks-only` round):**
@@ -511,7 +530,7 @@ Cross-context, Synthesis, AC Quality.
 /ba-pitch-analyzer --status docs/shapeup-sdlc/checkout-vnpay/spec/
 /ba-pitch-analyzer --upgrade standard docs/shapeup-sdlc/checkout-vnpay/spec/
 /ba-pitch-analyzer --upgrade contracts docs/shapeup-sdlc/checkout-vnpay/spec/
-/ba-pitch-analyzer --tasks-only docs/shapeup-sdlc/checkout-vnpay/spec/
+/ba-pitch-analyzer --tasks-only docs/shapeup-sdlc/checkout-vnpay/spec/  # bootstrap/regenerate LOCAL tasks/ from usecases/
 
 # Retrofit Test Surface onto a pre-v2.9 spec (incremental; frozen zone untouched)
 /ba-pitch-analyzer --surface-only docs/shapeup-sdlc/checkout-vnpay/spec/
@@ -559,6 +578,27 @@ Cross-context, Synthesis, AC Quality.
   → Any lite: block + suggest upgrade
   → Any missing: offer --ignore-missing [context]
 
+--tasks-only [spec_folder]  (bare — bootstrap / regenerate the LOCAL board):
+  Regenerates `.shapeup-sdlc/<slug>/tasks/` from the committed spec alone — no discovered
+  ledger, no chat history assumed. This is the mode `tech-lead` invokes automatically when a
+  teammate has `docs/shapeup-sdlc/<slug>/spec/usecases/` (pulled via git) but no local
+  `.shapeup-sdlc/<slug>/tasks/_index.md` (never generated on this machine — the LOCAL root is
+  gitignored and travels with no branch). Same generation logic as Phase 6 (task-generation.md),
+  re-run fresh:
+  1. READ-ONLY frozen zone: domain-model, usecases/, ux-behavior, contracts/, scopes/*.json
+     (all committed — nothing to reconcile, just re-derive).
+  2. Generate the full TASK-NNN set from usecases/ (Contract-first rule + AC Trigger Matrix
+     apply exactly as in Phase 6) and scopes/*.json (if present — tasks respect each scope's
+     `allowed_file_substrate`, never invent a task outside every scope's substrate).
+  3. Write `.shapeup-sdlc/<slug>/tasks/TASK-[NNN]-[slug].md` + `tasks/_index.md` to the LOCAL
+     root (Phase 6's write target — see "Locality" above).
+  4. Regenerate `scope-summary.md` (Phase 7b, incl. Appetite Guard) since it derives from the
+     task set. Does NOT touch `synthesis.md` or `_index.md` — those are audit artifacts of a
+     full run, not implied by a board rebuild.
+  Idempotent: numbering restarts from TASK-001 each time (no prior local board to preserve
+  numbering against) — safe because nothing outside this machine's now-empty LOCAL root could
+  have referenced the old IDs.
+
 --tasks-only --from-discovered [ledger]:
   Incremental reducer at a build round boundary. The pitch + DDD layer are FROZEN.
   Never re-runs Phase 1–5. Full rules → references/task-generation.md#Discovered-Task-Reconciliation.
@@ -590,6 +630,7 @@ Cross-context, Synthesis, AC Quality.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 3.2 | 2026-07-12 | **Local Tasks Architecture** (v3.2): Phase 6 now writes `tasks/TASK-NNN*.md` + `tasks/_index.md` to the LOCAL gitignored root (`.shapeup-sdlc/<slug>/tasks/`) instead of the SHARED spec dir — the committed repo carries only `usecases/`, `domain-model.md`, `contracts/`, and `scopes/*.json`. `tasks/` is now the sole exception to "Phases 2–8 write to spec_folder." New bare `--tasks-only [spec_folder]` bootstrap mode regenerates a missing local board from the committed spec alone (no ledger) — `tech-lead` invokes it automatically for a teammate who pulled the shared spec but never ran MAP SCOPES locally. `--tasks-only --from-discovered` unchanged except its write target. `spec-evaluator` correspondingly stops grading against task-file ACs (see its v0.9) — `usecases/` + `domain-model.md` are now the sole committed grading truth, which this move makes structurally necessary (a task file may not even exist on the grading machine). Migration `0003__local-tasks-architecture.sh` moves any pre-v3.2 committed `tasks/` out of git for existing specs. |
 | 3.1 | 2026-07-12 | **Scope-architect role** (design spec v1.1 §4.5/§5.2, DD-11, addendum Δ1): new Phase 6b writes committed `scopes/<scope-id>.json` contracts (`docs/shapeup-sdlc/<slug>/scopes/`, `ba` sole writer) — import/business-flow slicing (never by directory, PA1 lint), `allowed_file_substrate` write-whitelist for the sandbox hook, `shared_substrate` (seesaw-guarded), `affordance_manifest` derived from ux-behavior state tables, `e2e_verification_fixtures` authored at contract time, PA2 size lint (~15-file soft cap). New GATE 6b (scope board review). New `--remap` mode: reconcile discovered tasks into existing/new scopes, or split a stuck scope by re-slicing its file set (old contract marked `superseded_by`, never deleted). `hill_phase` always written `UPHILL_UNKNOWN` — never declared otherwise (DD-10, phase is derived, not authored). |
 | 3.0 | 2026-06-16 | BDD Scenarios (`### 🧪`) required for FEAT tasks with user-actor or cross-layer boundary; Integration Flow (`### 🔗`) required for tasks crossing ≥1 service boundary; UC `## System Flow` section traces UI→API→UC→DB call path; Integration Test task pattern added to task-generation.md; AC Trigger Matrix extended with two new triggers; SKILL.md Phase 4 + Phase 6 updated to reflect new sections. |
 | 2.9 | 2026-06-11 | QA-meeting Bước 1a: UC `## Test Surface` — DERIVED rows from D1 Invariants + D2 Error Cases + D3 Contract/Input shape + D4 No-gos (rules: references/test-surface.md; anti-invention hard rule — sourceless test idea = GATE 4 question, never a row). Generated in Phase 4; `--surface-only` retrofits pre-v2.9 specs (frozen zone untouched, append-only, `run-state.test_surface`, same discipline as `--tasks-only`); `--tasks-only` invariant-append now also appends TS-INV row. New audit block; skill_version 2.9. Consumed by spec-evaluator `test-surface-conformance` (auto-enable). Division of labor: derivable = BA+Evaluator; exploratory edges = /qa-edge-hunter post-PASS. Slim-down: Output Checklist → references/audit-rules.md#Output-Checklist, --surface-only detail → references/test-surface.md (pointers retained; SKILL.md back under 500 lines). |

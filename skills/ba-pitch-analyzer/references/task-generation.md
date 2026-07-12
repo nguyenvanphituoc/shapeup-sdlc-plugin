@@ -360,6 +360,9 @@ Slug rules:
 
 ## Task Board (`tasks/_index.md`) Format
 
+> Written to the LOCAL gitignored root `.shapeup-sdlc/<slug>/tasks/_index.md`, not
+> `spec_folder` — see SKILL.md Phase 6 "Locality" note (v3.2).
+
 ```markdown
 # Task Board: [Feature Name]
 

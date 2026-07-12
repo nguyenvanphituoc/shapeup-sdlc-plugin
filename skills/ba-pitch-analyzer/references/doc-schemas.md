@@ -191,6 +191,10 @@ Data Flow, Trigger, Risk, Mitigation
 
 ### `tasks/TASK-NNN-slug.md` — Task
 
+> **Locality (v3.2):** written under the LOCAL gitignored root
+> (`.shapeup-sdlc/<slug>/tasks/`), not `spec_folder`. Every other schema on this page is a
+> SHARED, committed document. `[[tasks/...]]` wikilinks below resolve against the LOCAL root.
+
 ```yaml
 ---
 type: task
@@ -243,8 +247,11 @@ Sorted by priority ascending. Status uses emoji: ⬜ ready | 🔄 in-progress | 
 [[usecases/UC-CreateOrder]]          # specific use case
 [[usecases/_index]]                  # use case index
 [[integration]]                      # integration map
-[[tasks/TASK-001-domain-schema]]     # specific task
-[[tasks/_index]]                     # task board
+[[tasks/TASK-001-domain-schema]]     # specific task (LOCAL root — see Locality note above)
+[[tasks/_index]]                     # task board (LOCAL root)
 ```
 
 Always use wikilinks (double brackets), never relative paths like `../domain-model.md`.
+`tasks/...` wikilinks are the one case that resolves against the LOCAL root
+(`.shapeup-sdlc/<slug>/`) instead of `spec_folder` — every other wikilink on this page stays
+`spec_folder`-relative.

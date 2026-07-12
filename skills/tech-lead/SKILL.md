@@ -47,8 +47,9 @@ writer of run-state**. The tech lead owns `harness-run.md` — rounds, gate deci
 positions, verdicts, `discovered_rounds`, config, language record — and passes what a worker
 needs (e.g. `feature`, `discovered_rounds`) **down as args**. Workers keep only their own
 product-idempotency key (e.g. `ba`'s `pitch_hash` in its `_index.md`) and emit domain
-artifacts; they do not own the run. The board (`tasks/_index.md`) stays with the
-planner/generator as **execution truth** (the tech lead reads it). See D6 in the redesign doc.
+artifacts; they do not own the run. The board (`tasks/_index.md`, LOCAL root — v3.2) stays
+with the planner/generator as **execution truth** (the tech lead reads it). See D6 in the
+redesign doc.
 
 **Two ledgers, split by promotion timing (addendum §F.3, only when scope contracts exist).**
 `harness-run.md` stays the LOCAL (`.shapeup-sdlc/<slug>/`, gitignored) full run trace — it can
@@ -115,11 +116,13 @@ separate single-purpose concern owned by the **`translator`** skill. The orchest
 *detects* the gap and *sequences* the translator before PLAN; it never does the translation
 itself.
 
-At GATE L0 the tech lead runs `/translator --check <intake>`:
+At GATE L0 the tech lead dispatches an Agent (model: exec — see references/delegation.md
+"Invocation mechanism") that calls `Skill(shapeup-sdlc-plugin:translator) --check <intake>`:
 - **English** → proceed straight to ORIENT against the original.
-- **non-English** → run a full `/translator <intake>` pass first (pass `--auto` under
-  `--auto`/`--unattended`), then orchestrate against the produced `<name>.en.md` copies.
-  Record the translator pass in the ledger.
+- **non-English** → dispatch a second Agent (model: exec) that calls
+  `Skill(shapeup-sdlc-plugin:translator) <intake>` (pass `--auto` under `--auto`/`--unattended`),
+  then orchestrate against the produced `<name>.en.md` copies. Record the translator pass in
+  the ledger.
 
 The tech lead's job stays orchestration faithful to Shape Up: kicked-off pitch → ORIENT →
 MAP SCOPES → BUILD rounds → single end-of-round EVAL → SHIP. Language normalization is
@@ -135,10 +138,11 @@ upstream and out of scope here.
 Collect (explicit — never inferred):
   L0.1  Kicked-off pitch source: path to a shaping.md / pitch.md (already shaped + bet by PO).
           Not a raw idea — shaping (1-4) / betting (5) / kick-off (6) are PO-personal, upstream.
-  L0.1a Language gate: run /translator --check <intake>.
+  L0.1a Language gate: Agent (model: exec) → Skill(shapeup-sdlc-plugin:translator) --check <intake>.
           English      → use intake as-is.
-          non-English  → run /translator <intake> (--auto under auto/unattended), then
-                         use the produced <name>.en.md as the ORIENT/MAP-SCOPES input. Log in ledger.
+          non-English  → Agent (model: exec) → Skill(shapeup-sdlc-plugin:translator) <intake>
+                         (--auto under auto/unattended), then use the produced <name>.en.md as
+                         the ORIENT/MAP-SCOPES input. Log in ledger.
   L0.1b Appetite: read the `appetite` field from the pitch's YAML frontmatter (set by /shapeup).
           Surface it in the gate output. Use it to:
             - Contextualise the scope at L1b (right-size cuts to the budget).
@@ -147,10 +151,12 @@ Collect (explicit — never inferred):
           proceed, but the PO should set scope expectations manually at GATE L1b.
   L0.2  Workspace roots (both keyed off <slug>, set here and threaded to every worker as args):
           - SHARED  docs/shapeup-sdlc/<slug>/  — durable source + deliverable (committed):
-              shaping/ (from /shapeup), spec/ (where ba-pitch-analyzer writes the spec tree)
+              shaping/ (from /shapeup), spec/ (where ba-pitch-analyzer writes the spec tree:
+              _index, domain-model, usecases/, contracts/, scopes/, scope-summary.md — NOT tasks/)
           - LOCAL   .shapeup-sdlc/<slug>/      — run-trace (hidden, gitignorable):
               harness-run.md (this ledger), run-state.md, digest, orient/, evaluation/, qa/,
-              discovery/ledger.md
+              discovery/ledger.md, tasks/ (the task board, v3.2 — regenerable via
+              `ba-pitch-analyzer --tasks-only` on any machine, v3.2)
           spec_folder = docs/shapeup-sdlc/<slug>/spec/ (the deliverable arg passed to ba/eval/exec)
   L0.3  lens: lite | standard | cross-context   (passed to planner at step 8)
   L0.4  stack hint (e.g. "pnpm, Next 16 web :3000") — aims orient's code-surface sweeps + run commands
@@ -203,7 +209,8 @@ The Shape Up Building phase opens with **Orient, not planning**: the team reads 
 and spikes the scary parts *before* any board exists, so the board comes out reality-born.
 
 ```
-Invoke: /orient --pitch <intake> --spec <path> --stack "<hint>" [--auto]
+Invoke via Agent (model: exec — see references/delegation.md "Invocation mechanism"):
+        Skill(shapeup-sdlc-plugin:orient) --pitch <intake> --spec <path> --stack "<hint>" [--auto]
 Owns:   its own GATE O-A/O-B; runs straight through under --auto.
 Writes: .shapeup-sdlc/<slug>/orient/ → code-surface.md, spike-<area>.md, discovered-seed.md, hill-signal.md.
 Record in ledger: orient duration + the spiked area + spike result (resolved | SPIKE-UNRESOLVED).
@@ -233,13 +240,16 @@ Do NOT enter MAP SCOPES until Orient is accepted.
 ## MAP SCOPES (step 8) — delegate to ba-pitch-analyzer (orient-informed)
 
 ```
-Invoke the planner with the pitch + lens + orient artifacts as input. Let it own its own
-gates (1–7); pass --auto only if the run auto level is --auto/--unattended.
+Invoke via Agent (model: exec — see references/delegation.md "Invocation mechanism"): a
+subagent that calls Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) with the pitch + lens +
+orient artifacts as input. Let it own its own gates (1–7); pass --auto only if the run auto
+level is --auto/--unattended.
 Hand it: .shapeup-sdlc/<slug>/orient/code-surface.md (so Phase 1 ingest consumes the map, does not re-scan)
          .shapeup-sdlc/<slug>/orient/discovered-seed.md (so Phase 6 task gen starts from reality)
          .shapeup-sdlc/<slug>/orient/spike-<area>.md (feeds Phase 1b feasibility / contracts)
 Output expected: spec_folder populated with _index, domain-model, usecases/, contracts/,
-tasks/TASK-NNN*.md, tasks/_index.md (board), scope-summary.md.
+scope-summary.md (all SHARED/committed) + tasks/TASK-NNN*.md, tasks/_index.md (board) written
+to the LOCAL root .shapeup-sdlc/<slug>/tasks/ (v3.2).
 Record in ledger: planner duration + task count.
 ```
 Faithful note: keep the planner ambitious on scope but high-level on tech — do not push it
@@ -255,12 +265,39 @@ upfront spec-traceability is a deliberate trade for an LLM builder (redesign doc
 **Purpose:** PO sees the shape of the work before a single line of code. This is where scope
 is cut or confirmed — cheap here, expensive later.
 
+**v3.2 (local-tasks-architecture):** on a spec with
+scope contracts, the PO reviews the SHARED, committed plan — `usecases/_index.md` +
+`scopes/*.json` + `scope-summary.md`'s Done-when headlines — never the LOCAL task board
+(`tasks/_index.md`, gitignored, per-machine run-trace). Implementation-level task detail stays
+hidden at this gate by design; the PO signs off on the UCs covered and how they're cut into
+scopes, not a line-by-line task list. A pre-v0.3.0 spec (no scope contracts) has no scope
+board to substitute for — this gate still reads `tasks/_index.md` directly, unchanged from
+v0.2.6 (non-regression).
+
+**Bootstrap check (local tasks board) — run BEFORE the read below, always:**
 ```
-Read tasks/_index.md. Print:
-  - task count by package/variant (.shared / .be / .web / .mobile / .e2e)
-  - layer distribution (Layer 1→6) and the critical dependency path
-  - any SPIKE tasks (third-party feasibility) that block others
-  - scope-summary "Done when" headline statements
+`.shapeup-sdlc/<slug>/tasks/_index.md` missing AND `docs/shapeup-sdlc/<slug>/spec/usecases/`
+exists → a teammate (or a `--from build` resumed run) has the SHARED spec via git but no LOCAL
+task board on this machine — `.shapeup-sdlc/` is gitignored and never travels with a branch.
+Agent (model: exec): Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) --tasks-only <spec_folder>
+regenerates the board from the committed usecases/domain-model/scopes. Record the bootstrap in
+the ledger. No-op on a fresh r=1 run (MAP SCOPES just wrote the board on this same machine) or
+any machine that already has one — this only fires for the second-developer / resumed-run case.
+```
+
+```
+Scope contracts present:
+  Read usecases/_index.md + scopes/*.json (scope-board.md) + scope-summary.md. Print:
+    - UC count + actors (usecases/_index.md)
+    - scope board: scope_id, topology_type, substrate file count (scopes/*.json / scope-board.md)
+    - any SPIKE blockers (scope-summary.md)
+    - scope-summary "Done when" headline statements
+No scope contracts (pre-v0.3.0, unchanged from v0.2.6):
+  Read tasks/_index.md (LOCAL root). Print:
+    - task count by package/variant (.shared / .be / .web / .mobile / .e2e)
+    - layer distribution (Layer 1→6) and the critical dependency path
+    - any SPIKE tasks (third-party feasibility) that block others
+    - scope-summary "Done when" headline statements
 
 Substrate-disjointness assertion (design spec §5.1 Blueprint A, only when
 docs/shapeup-sdlc/<slug>/scopes/*.json exist — `ba`'s Phase 6b/GATE 6b already ran these
@@ -291,15 +328,18 @@ Do NOT enter BUILD until the board is accepted.
 **No scope contracts (pre-v0.3.0 spec, or a scope-less run) — unchanged from v0.2.6:**
 ```
 r = 1 (first build):
-  Loop:  /task-executor --spec <path> --next   (executes lowest-priority ready task)
+  Loop:  Agent (model: exec, see references/delegation.md "Invocation mechanism") — one fresh
+         subagent per task: Skill(shapeup-sdlc-plugin:task-executor) --spec <path> --next
+         (executes lowest-priority ready task)
          repeat until tasks/_index.md shows every task ✅ done (no ready/blocked left)
   task-executor keeps its GATE A–E per task; pass --auto-close under --auto/--unattended.
   SPIKE tasks resolve first (they block). Respect dependency/layer order — the board enforces it.
 
   Discovered Tasks:
   If task-executor logs raw discovered tasks during the build (P3.7), the build loop pauses
-  after the current tasks are done. Run:
-  /ba-pitch-analyzer --tasks-only --from-discovered .shapeup-sdlc/<slug>/discovery/ledger.md
+  after the current tasks are done. Dispatch:
+  Agent (model: exec): Skill(shapeup-sdlc-plugin:ba-pitch-analyzer)
+    --tasks-only --from-discovered .shapeup-sdlc/<slug>/discovery/ledger.md
   This reconciles them into new tasks and invariants, updates tasks/_index.md, and increments
   discovered_rounds. Route back to GATE L1b (Board Review) for PO approval, then loop back
   to resume building the newly generated tasks.
@@ -307,7 +347,8 @@ r = 1 (first build):
 r > 1 (fix build, after a FAIL):
   Input = the bug list in evaluation/EVAL-FEATURE-<slug>.md from the previous EVAL.
   Build ONLY those bugs. For each bug: re-open the affected task (status → in-progress),
-  run task-executor --task <id> --force scoped to the bug's fix, re-close.
+  dispatch Agent (model: exec): Skill(shapeup-sdlc-plugin:task-executor)
+    --task <id> --force scoped to the bug's fix, re-close.
   Do NOT re-run the whole board. Do NOT touch passing areas.
 ```
 Record per task in the ledger: task id, status, files touched.
@@ -324,8 +365,11 @@ For each scope in the L1b sequence (riskiest-first), not yet FINISHED:
        scope contract + current substrate file contents + this scope's ledger decisions
        (round-ledger.md, promoted answers) + last attempt's digested errors (if any).
        NO prior-attempt chat history goes in (zero-memory handoff, PA6).
-    b. dispatch task-executor --brief <path> [--auto-close under --auto/--unattended]
-    c. handle any ESCALATE return: dispatch /advisor-protocol --ledger round-ledger.md
+    b. dispatch Agent (model: exec) — a fresh subagent, this IS the zero-memory-handoff
+       boundary: Skill(shapeup-sdlc-plugin:task-executor) --brief <path>
+       [--auto-close under --auto/--unattended]
+    c. handle any ESCALATE return: dispatch Agent (model: exec):
+       Skill(shapeup-sdlc-plugin:advisor-protocol) --ledger round-ledger.md
        --escalate <block> [--unattended]; persist the answer immediately (it must survive
        the next attempt's fresh context). Cap: 3/scope/round (advisor-protocol's own budget).
     d. t0 = run `node scripts/shapeup-sdlc/t0-verify.mjs <scope-contract> --round <N> --attempt <M>
@@ -346,10 +390,10 @@ For each scope in the L1b sequence (riskiest-first), not yet FINISHED:
       (scope_id + last t0 artifact + reason) for GATE H. Move to the next scope in sequence.
 
 Discovered Tasks (unchanged mechanism, now scope-aware):
-  If a scope's discovered_tasks_pool doesn't fit its own substrate, dispatch
-  /ba-pitch-analyzer --remap --from-discovered .shapeup-sdlc/<slug>/discovery/ledger.md — it
-  may extend the scope, or propose a new one; it never silently widens a substrate itself.
-  Route back to GATE L1b for the delta before resuming.
+  If a scope's discovered_tasks_pool doesn't fit its own substrate, dispatch Agent (model: exec):
+  Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) --remap --from-discovered
+  .shapeup-sdlc/<slug>/discovery/ledger.md — it may extend the scope, or propose a new one;
+  it never silently widens a substrate itself. Route back to GATE L1b for the delta before resuming.
 ```
 Record per attempt in `harness-run.md` (LOCAL): scope_id, attempt, t0 overall, files touched.
 Record per scope in the committed `round-ledger.md` (SHARED, Tier A) the moment it settles:
@@ -411,8 +455,9 @@ Emit this block, then **stop and wait for PO confirmation** (interactive/--auto)
 ## EVAL round r — delegate to spec-evaluator (ONCE)
 
 ```
-Invoke ONE feature-level pass over the whole running app:
-  /spec-evaluator --spec <path> --feature <slug> --single-pass --dimensions <active>
+Invoke via Agent (model: eval — see references/delegation.md "Invocation mechanism") ONE
+feature-level pass over the whole running app:
+  Skill(shapeup-sdlc-plugin:spec-evaluator) --spec <path> --feature <slug> --single-pass --dimensions <active>
 The evaluator exercises the running feature against ALL acceptance criteria + Done-when
 across every task, and writes ONE evaluation/EVAL-FEATURE-<slug>.md (verdict + bug list).
 It never sets status: done — that authority stays with task-executor / the tech lead.
@@ -436,13 +481,14 @@ Read EVAL-FEATURE-<slug>.md verdict.
 
 PASS:
   → first PASS of the run AND not --no-qa:
-      delegate ▶ QA EDGE HUNT → /qa-edge-hunter (pure worker; see round-protocol
-      "QA edge hunt"). Args: spec folder, EVAL report path, ledger path, app URL.
+      delegate ▶ QA EDGE HUNT → Agent (model: qa — see references/delegation.md
+      "Invocation mechanism"): Skill(shapeup-sdlc-plugin:qa-edge-hunter) (pure worker; see
+      round-protocol "QA edge hunt"). Args: spec folder, EVAL report path, ledger path, app URL.
       Its GATE Q0/Q1 pauses surface here. Output: `~` findings → .shapeup-sdlc/<slug>/discovery/ledger.md
       + .shapeup-sdlc/<slug>/qa/hunt-report.md. No verdict — the run's verdict stays this EVAL's PASS.
       → then proceed to SHIP (triage of QA findings happens at SHIP S.0/GATE L4).
-  → subsequent PASS (a promoted-findings fix round): /qa-edge-hunter --recheck on the
-    promoted items only, then SHIP.
+  → subsequent PASS (a promoted-findings fix round): Agent (model: qa):
+    Skill(shapeup-sdlc-plugin:qa-edge-hunter) --recheck on the promoted items only, then SHIP.
   → --no-qa or skill absent: proceed straight to SHIP; ledger records `qa: skipped`.
 
 FAIL:
@@ -472,7 +518,8 @@ yet (D3 deferred), report at task-group level and note the fallback in the ledge
 
 ```
 S.0  GATE H — delegate to scope-hammer (this IS Shape Up's "Decide When to Stop", step 11):
-     Invoke: /scope-hammer --slug <slug> --baseline <shaping/baseline.md if present>
+     Invoke via Agent (model: exec — see references/delegation.md "Invocation mechanism"):
+       Skill(shapeup-sdlc-plugin:scope-hammer) --slug <slug> --baseline <shaping/baseline.md if present>
              [--breaker outer]   when round_budget hit 0 with scopes still open
              [--breaker inner --scope <id>]   once per queued hammer proposal (attempt_budget
                                               exhausted scopes accumulated during BUILD)
@@ -535,7 +582,7 @@ Ledger    : harness-run.md
 ```
 Question (max 1): "Anything to record before I close the run? (y/n) or provide feedback for the next sprint."
 On confirm:
-- If the PO provides substantive feedback (not just 'y' or empty) → automatically invoke `/coach` with the provided feedback for RLHF. The coach runs its own GATE COACH-1 to have the PO categorize each rule, then files it under the responsible skill in `docs/shapeup-sdlc/knowledge-base/<skill>.md` (committed → team-shared). Coachable skills: `task-executor`, `ba-pitch-analyzer`, `qa-edge-hunter`; each reads its own file at the top of its next run. The tech lead does not categorize the feedback itself — that is the coach's gate, by design (no assumptions).
+- If the PO provides substantive feedback (not just 'y' or empty) → automatically delegate via Agent (model: exec — see references/delegation.md "Invocation mechanism"): Skill(shapeup-sdlc-plugin:coach) with the provided feedback for RLHF. The coach runs its own GATE COACH-1 to have the PO categorize each rule, then files it under the responsible skill in `docs/shapeup-sdlc/knowledge-base/<skill>.md` (committed → team-shared). Coachable skills: `task-executor`, `ba-pitch-analyzer`, `qa-edge-hunter`; each reads its own file at the top of its next run. The tech lead does not categorize the feedback itself — that is the coach's gate, by design (no assumptions).
 - Then output → `✅ [slug] [shipped & deployed | built & verified, deploy pending] — [r] rounds, verdict PASS.`
 
 ---
@@ -592,6 +639,7 @@ On confirm:
 | r>1 builds bugs only, never the whole board | Don't re-do passing work; minimize churn |
 | Stop at max_rounds; escalate honestly | No infinite fix loops; the PO decides next |
 | Tech lead delegates, never reimplements a sub-skill | Stays thin; each skill keeps its own gates and authority |
+| Every delegation to a sub-skill (except the mechanical `t0-verify.mjs`) goes through the `Agent` tool on the L0.8-resolved model, never a direct `Skill` call from the tech lead's own turn | A direct `Skill` call runs inline on the orchestrator's own model — it silently drops the model matrix (nothing left to route) and the zero-memory-handoff isolation task-executor's isolated attempt loop already assumes; see references/delegation.md "Invocation mechanism" |
 | Planner stays high-level on tech | Spec errors cascade into every build round |
 | Never auto-deploy; "shipped" never silently means "deployed" | Deploy is outward-facing, PO-gated; record "deploy pending (PO)" otherwise |
 | "Shipped" names the dims NOT evaluated | Prevents reading a spec-only PASS as fully verified |
@@ -606,6 +654,7 @@ On confirm:
 | Hill phase is read from mechanical facts (T0/T1/seesaw), never declared by a worker | DD-10 — closes the self-reported-confidence risk (R3) outright |
 | ESCALATE answers promote to the committed round-ledger the instant they're given | Zero-memory handoff means a decision kept only in a session vanishes with the next attempt's fresh context |
 | GATE H is delegated to scope-hammer, never adjudicated inline by the tech lead | Keeps the orchestrator thin; census/baseline-comparison/cut-list logic has one owner |
+| GATE L1b reviews the SHARED plan (usecases/scopes), never the LOCAL task board; a missing local board is bootstrapped via `ba-pitch-analyzer --tasks-only`, never treated as a blocker | `tasks/` is a LOCAL, gitignored, regenerable execution-planning artifact (v3.2) — the PO gate and grading both moved to the committed spec it was derived from |
 
 ---
 
@@ -626,6 +675,8 @@ On confirm:
 ## Changelog
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.15 | 2026-07-12 | **Local Tasks Architecture** (v3.2): `tasks/` moves to the LOCAL gitignored root (`ba-pitch-analyzer` v3.2) — the SHARED spec dir now carries only `usecases/`, `domain-model.md`, `contracts/`, `scopes/`, `scope-summary.md`. GATE L1b (Board Review) now reviews the SHARED plan — `usecases/_index.md` + `scopes/*.json` + `scope-summary.md` Done-when headlines — instead of the LOCAL `tasks/_index.md`, on any spec with scope contracts; a pre-v0.3.0 spec (no scope contracts) is unchanged. New bootstrap check at the top of GATE L1b: a missing LOCAL `tasks/_index.md` alongside a present SHARED `usecases/` (a teammate pulled the branch, or a `--from build` resume, without ever running MAP SCOPES on this machine) auto-invokes `ba-pitch-analyzer --tasks-only <spec_folder>` to regenerate the board — never a blocker. L0.2 workspace-roots table updated. One new hard rule. |
+| 0.14 | 2026-07-12 | **Fix: delegation now actually delegates.** Every "Invoke:" in `references/delegation.md` and the matching call sites in this file were phrased as `/skill-name ...` — the `Skill` tool's own calling convention, which always executes inline in the tech lead's own turn on the tech lead's own model. That silently made GATE L0.8's model matrix cosmetic (printed, never applied) and collapsed the isolated-brief / zero-memory-handoff design's isolation guarantee, since everything ran in one shared session. New `references/delegation.md` "Invocation mechanism" section + a role→model table (`orch`/`exec`/`eval`/`qa`) makes every delegation an explicit `Agent` call carrying the L0.8-resolved model, with the subagent calling `Skill(shapeup-sdlc-plugin:<name>)` internally; `t0-verify.mjs` is exempted (mechanical tooling, DD-7, run via Bash directly). One new hard rule. No new flags — reuses the existing model-matrix keys. |
 | 0.13 | 2026-07-12 | **v0.3.0 harness upgrade** (design spec v1.1 + file-org addendum), active only when the spec folder has scope contracts (`docs/shapeup-sdlc/<slug>/scopes/*.json`) — non-regression on older specs. New GATE L0.8 (model/budget resolution matrix, four-layer precedence incl. `.claude/settings.local.json`) + L0.9 (`attempt_budget`, the inner breaker, default 5, nested inside the existing `max_rounds` outer breaker — DD-9). GATE L1b gains a substrate-disjointness + PA1/PA2 re-assertion before BUILD. BUILD round r gains the **isolated attempt loop**: branch-per-scope checkout + `.shapeup-sdlc/active-scope` pointer (sandbox hook enforcement), zero-memory-handoff briefs, `t0-verify.mjs` (fixtures + DB probe + seesaw) every attempt, `git stash` rollback on a seesaw regression, AEGIS-digested errors feeding the next attempt, ESCALATE routed through `advisor-protocol` and persisted immediately to a new committed `round-ledger.md` (Tier A — model matrix + decisions, split from the LOCAL `harness-run.md` per addendum §F.3). GATE L2 gains a T0-completeness pre-check + mechanical hill derivation (`hill/<scope-id>.yml` shards, DD-10 phase enum, never self-reported). SHIP's GATE H is now delegated to the new `scope-hammer` skill (census → baseline comparison → cut list, all three trigger paths: normal stop / outer breaker / inner breaker). Metrics harvest shards to `docs/shapeup-sdlc/metrics/<machine-id>.jsonl` (addendum Δ3). New flags `--attempts`, `--orch-model`/`--exec-model`/`--eval-model`/`--qa-model`. Six new hard rules. |
 | 0.12 | 2026-06-23 | **Team-shared, categorized, read-back knowledge base.** `/coach` no longer writes a single local `.shapeup-sdlc/knowledge-base.md` (gitignored, never reached teammates and was never read back). It now runs a categorization gate (GATE COACH-1 — asks the PO which skill each rule belongs to, never assumes) and files each rule under the responsible skill in `docs/shapeup-sdlc/knowledge-base/<skill>.md` (committed → shared on `git pull`). Coachable skills: `task-executor`, `ba-pitch-analyzer`, `qa-edge-hunter` — each now reads its own file at the top of its run (task-executor Phase 1, ba Phase 1, qa Phase Q1). `spec-evaluator` is deliberately not coachable (single-judge rule: KB is guidance, not an invariant). |
 | 0.11 | 2026-06-19 | **RLHF Coach Integration.** At GATE L4 (Ship Sign-Off), if the PO provides feedback instead of just a simple confirmation, automatically invoke `/coach` to compile and deduplicate that feedback into the knowledge base to act as guidelines for future cycles. |

@@ -24,14 +24,19 @@ dimensions, off by default.
 
 ```yaml
 - id: SC-AC
-  statement: "Every '- [ ]' acceptance-criterion checkbox in the task verifies PASS."
+  statement: "Every UC Step, Error Case, and (when present) Invariant/Test-Surface row for the
+    use case(s) this task/feature implements is satisfied."
   probe: cmd          # most are cmd; [ui]/[data] criteria use those probes per GATE V1.2 classification
   evidence_required: true
   pass_rule: >
-    Each AC is run via its classified probe and PASSES. Zero failing AC.
-    A stubbed/display-only implementation that satisfies the literal checkbox text but not
-    its observable intent FAILS (probe the behavior, not the existence of code).
-  source: task
+    Each criterion is drawn from usecases/UC-*.md (numbered ## Steps, ## Error Cases rows,
+    ## Invariants [INV-NN] entries, ## Test Surface derived rows when present) for every UC
+    named in this task's use_case_refs (or confirmed with the user at V1.1 when no local task
+    file exists). Run each via its classified probe and PASS. Zero failing criterion.
+    A stubbed/display-only implementation that satisfies a local task file's own AC wording but
+    not the UC's actual behavior FAILS — the task's AC (if present) is a paraphrase read only
+    for traceability (GATE V0.2b), never the grading text itself.
+  source: usecases
 
 - id: SC-DONE-WHEN
   statement: "Each 'Done when:' statement for this task (scope-summary) is satisfied."
@@ -64,13 +69,17 @@ dimensions, off by default.
   source: contract
 
 - id: SC-NONGO
-  statement: "The implementation respects the task '## Non-go' boundary."
+  statement: "The implementation respects the feature's '## Non-Go' boundary (_index.md) and
+    each touched UC's own scope."
   probe: static
   evidence_required: true
   pass_rule: >
-    Inspect the diff / changed files. No file outside the task's package/scope is modified,
-    and no Non-go item is touched. Any out-of-scope change FAILS with file:line.
-  source: task
+    Inspect the diff / changed files. No file outside the feature's declared package/scope is
+    modified, and no item in _index.md's ## Non-Go list is touched. Any out-of-scope change
+    FAILS with file:line. (A local task file's own Non-Go section, when present, is consistent
+    with _index.md by construction — ba-pitch-analyzer derives it from the pitch — but the
+    committed _index.md is the grading source since the task file may not exist locally.)
+  source: index
 
 - id: SC-LAYER
   statement: "No upward layer leak — the task does not reach above its declared layer."

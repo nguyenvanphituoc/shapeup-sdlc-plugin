@@ -40,11 +40,22 @@ The evaluator never silently widens scope to a disabled dimension. If a dimensio
 the active set, its findings are not graded.
 
 **Definition of Done (harness-level):** a task is done only when it passes ALL active
-dimensions. At minimum this means: **spec-conformance** (AC correct) + **tdd-surface**
-(tests exist and pass). For `.be`/`.e2e` tasks, **integration** is also required (full-stack
-test + auth boundary). When completeness is active, every UC invariant must be backed by a
-task. Conformance grades the tasks that exist; completeness catches missing ones; TDD and
-integration ensure the build is actually tested, not just manually observed.
+dimensions. At minimum this means: **spec-conformance** (behavior matches the committed
+`usecases/` + `domain-model.md`) + **tdd-surface** (tests exist and pass). For `.be`/`.e2e`
+tasks, **integration** is also required (full-stack test + auth boundary). When completeness
+is active, every UC invariant must be backed by a task. Conformance grades the behavior that
+exists against the spec; completeness catches missing tasks; TDD and integration ensure the
+build is actually tested, not just manually observed.
+
+**Grading source of truth (v0.9).** `spec-conformance` grades against the SHARED, committed
+`usecases/UC-*.md` (Steps, Error Cases, Invariants, Test Surface) and `domain-model.md` —
+never against a task file's own `## Acceptance Criteria` text. The task board (`tasks/`) moved
+to a LOCAL, gitignored, regenerable root (v0.9); grading
+against it would mean (a) grading a paraphrase the generator wrote instead of the actual spec,
+and (b) having no grading source at all on a machine that never ran the local board. A local
+task file, when present, still supplies traceability (which UC a task claims to implement) and
+is where the judge un-ticks refuted AC boxes (B.2b) — it is a bookkeeping surface, not a
+grading source.
 
 ---
 
@@ -97,17 +108,31 @@ active dimension set. Zero assumptions.
 ```
 Required inputs (explicit — never inferred):
   1. spec_folder   — path to the ba-pitch-analyzer output dir (SHARED spec deliverable,
-                     e.g. docs/shapeup-sdlc/<slug>/spec/). Run-trace (run-state.md, the
-                     evaluation/ report + .evidence/) lives in the LOCAL root
-                     .shapeup-sdlc/<slug>/, derived from the slug (parent of spec_folder).
+                     e.g. docs/shapeup-sdlc/<slug>/spec/). GRADING SOURCE OF TRUTH lives here:
+                     usecases/ + domain-model.md (+ contracts/, scope-summary.md, _index.md).
+                     Run-trace (run-state.md, the evaluation/ report + .evidence/) lives in the
+                     LOCAL root .shapeup-sdlc/<slug>/, derived from the slug (parent of
+                     spec_folder).
   2. task_id       — TASK-NNN (or platform variant TASK-NNN.be / .web / .mobile / .e2e)
 
 Validation:
   V0.1  spec_folder exists                      → else HARD STOP
-  V0.2  tasks/<task_id>*.md exists (glob)        → else list tasks/, ask user to pick
+  V0.2  usecases/ contains ≥1 UC file            → else HARD STOP (nothing to grade against —
+        see "Definition of Done" below; a task file alone is never sufficient)
+  V0.2b Task file (LOCAL, optional — traceability only, never grading source):
+        .shapeup-sdlc/<slug>/tasks/<task_id>*.md (glob), if it exists on this machine.
+        MISSING is NOT a hard stop (v0.9) — a teammate may be evaluating on a machine that
+        never ran the local board (v0.9). When present,
+        read it for package/status/depends_on/use_case_refs/linked_docs (V0.4) and for the
+        B.2b AC-checkbox bookkeeping. When absent: skip V0.4/B.2b, note "no local task file —
+        traceability limited to usecases/", and grade entirely from usecases/ + domain-model.md
+        + contracts/ + scope-summary.md, using --task's TASK-NNN id only to scope the probe
+        (which UCs/screens this task/feature covers must then be confirmed with the user at
+        GATE V1, since there is no use_case_refs to read).
   V0.3  .shapeup-sdlc/<slug>/run-state.md exists → read lens, feature → else warn (limited traceability)
-  V0.4  Read task file fully: id, type, package, status, depends_on, use_case_refs,
-        linked_docs. If status ≠ in-progress/done → warn (evaluating unbuilt task?)
+  V0.4  If a task file was found at V0.2b: read it fully — id, type, package, status,
+        depends_on, use_case_refs, linked_docs. If status ≠ in-progress/done → warn (evaluating
+        unbuilt task?). If no task file: skip this step (see V0.2b).
   V0.5  Resolve ACTIVE DIMENSION SET:
           precedence: --dimensions flag  >  auto-enable rules  >  _registry.md enabled:true rows
           base default: [spec-conformance]
@@ -138,7 +163,8 @@ Validation:
 ⏸ GATE V0 — Locate & Load
 Spec folder   : [path]
 Task          : [TASK-NNN(.variant)] — [title]   (package: [pkg], lens: [lite|standard])
-Build status  : [in-progress | done]
+Local task file: [.shapeup-sdlc/<slug>/tasks/TASK-NNN*.md | 🔶 not found — grading from usecases/ only, traceability limited]
+Build status  : [in-progress | done | unknown — no local task file]
 Active dims   : [spec-conformance] (+ any flipped on)   |  ignored: [security, performance, ...]
 Run command   : [confirmed by user]
 Browser mode  : [cli | mcp | none]
@@ -157,11 +183,21 @@ before judging. A criterion that cannot be objectively verified is a defect in t
 not a pass.
 
 ```
-V1.1  Extract acceptance criteria:
-        - all "- [ ]" checkboxes from task's ## Acceptance Criteria
+V1.1  Extract acceptance criteria FROM THE SHARED SPEC (source of truth — never the local
+      task file's own AC checkbox text):
+        - usecases/UC-*.md for every UC this task/feature covers (from use_case_refs when a
+          local task file is present at V0.2b; otherwise confirm the covered UC(s) with the
+          user here, since there is no use_case_refs to read): numbered ## Steps, ## Error
+          Cases table rows, ## Invariants [INV-NN] entries (if present), ## Test Surface
+          derived rows (if present)
+        - domain-model.md invariants/business rules for any aggregate this task/feature touches
         - the contract triplet if task touches a repository:
             Request shape / Response mapping / Error cases (from contracts/<repo>.contract.md)
         - "Done when:" statements from scope-summary.md for this task
+        - _index.md's feature-level ## Non-Go list (SC-NONGO)
+      If a local task file exists (V0.2b), its "## Acceptance Criteria" checkboxes are read
+      only to cross-check traceability (does the generator's own checklist agree with what the
+      UC actually requires?) — a mismatch is itself a finding, never a criterion substitution.
 V1.2  For EACH criterion, classify the probe:
         [cmd]    verifiable by command (pnpm test / typecheck / curl / migration up+down)
         [ui]     verifiable by driving the running app (Playwright CLI step)
@@ -290,11 +326,14 @@ B.1  Write .shapeup-sdlc/<slug>/evaluation/EVAL-<task_id>.md per report-schema.m
        NEXT ACTION for the generator, and — scoped specs only — the T0 artifact citation from
        V0.7/V2.5: path + sha256 per scope graded this round. A scoped report with no citation
        field is malformed; do not write it).
-B.2  Annotate the task file frontmatter — DO NOT change status to done:
+B.2  If a local task file was found at V0.2b, annotate its frontmatter — DO NOT change status
+     to done:
        eval_verdict: pass | fail
        eval_report: "[[evaluation/EVAL-<task_id>]]"
        eval_at: [ISO date]
-B.2b AC checkbox correction (evidence-based, asymmetric):
+     No local task file → skip; the verdict still lives in the EVAL report (B.1), which is the
+     authoritative record regardless of whether a local task file exists on this machine.
+B.2b AC checkbox correction (evidence-based, asymmetric; only when a local task file exists):
        - For each criterion the verdict REFUTES: un-tick its box `- [x]` → `- [ ]` in the
          task body, so the failure is visible in the task file itself, not only in the
          EVAL report. Cite the bug id next to nothing — the box just goes unchecked.
@@ -302,6 +341,8 @@ B.2b AC checkbox correction (evidence-based, asymmetric):
          own checklist); the judge only revokes ticks its evidence disproves.
        - If a `done` task still has unchecked boxes the evidence DOES confirm, flag it in
          the report as a doc-hygiene finding (generator forgot P3.1) — do not fix silently.
+       - No local task file → nothing to un-tick; the bug list in the EVAL report (B.1) is
+         the only record of the failure. This is expected, not a gap to fill.
 B.3  Update run-state.md: append eval_<task_id> entry (verdict, dims run, bug count).
 B.4  If FAIL: the bug list is the generator's next input. Print the handoff line:
        "→ Generator: re-run task-executor on [task_id] to fix [N] bugs in EVAL-<task_id>.md, then re-evaluate."
@@ -410,6 +451,7 @@ as worked examples of the contract. They are not run until flipped on.
 ## Changelog
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.9 | 2026-07-12 | **Local Tasks Architecture** (v3.2): grading source of truth moves off the task file's own `## Acceptance Criteria` onto the SHARED, committed `usecases/UC-*.md` (Steps, Error Cases, Invariants, Test Surface) + `domain-model.md`. New GATE V0.2 (usecases/ must exist — HARD STOP otherwise) and V0.2b (local task file is now OPTIONAL traceability, never a grading source — its absence is not a hard stop, since `tasks/` is a LOCAL, gitignored, regenerable root a teammate's machine may never have populated). V1.1 rewritten to extract criteria from usecases/domain-model first; a present task file's own AC is cross-checked for traceability, never substituted as the criterion text. B.2/B.2b (task-file annotation + AC un-ticking) now conditional on a local task file existing. Non-regression: on a machine where the local task file IS present, probing and evidence rules are unchanged — only the criterion *source* moved from the paraphrase to the spec it was paraphrasing. |
 | 0.8 | 2026-07-12 | **T0-citation requirement** (design spec v1.1 §3.5, DD-7, PA4 countermeasure): new GATE V0.7 locates + hashes each touched scope's latest `t0/verdicts/r<N>-a<M>.json` mechanical artifact; missing artifact on a scoped spec HARD STOPS before V1 (round not gradeable yet). New V2.5 + Phase B.1: a verdict on a scoped spec without a T0 citation (path+sha256) is structurally invalid — generator prose alone was never sufficient, T0 makes it a hard precondition. **Affordance-only assertions**: Phase A.3 UI probing (and grading) targets only `affordance_manifest` `test_id`/`role`/`data-state` — never color/font/pixel properties (Layer-3 styling freeze, design spec §4.6). Non-regression on pre-v0.3.0 specs with no scope contracts. Two new hard rules. |
 | 0.7 | 2026-06-27 | Verdict calibration (audit D1, closes F3): `references/verdict-ledger.md` adds (1) re-probe-on-FAIL — re-run a failing probe once before finalizing; disagreement keeps the FAIL but marks it flaky/confidence-low; (2) per-criterion confidence (high/medium/low) by a fixed rule, reported never overriding the verdict; (3) an append-only `.verdicts-<task_id>.jsonl` ledger that flags verdict flips across runs (a flip forces confidence low and a stability line in the report). New GATE V2.1b + Phase B.0 steps, two hard rules, report stability block. Single-judge invariant untouched — same judge, same probe, bookkeeping over its own outputs. The flip/stability grammar has a repo-only dev/CI reference impl proving it discriminates. |
 | 0.6 | 2026-06-16 | Added two always-on dimensions: `tdd-surface` (TDD-1 suite green + TDD-2 companion test files, both critical; TDD-3 AC-scenario alignment, advisory) and `integration` (INT-1 full-stack test with real DB, INT-2 auth boundary, INT-3 RLS-JWT transaction pattern + port 6543; scoped to `.be` and `.e2e` variants). Updated registry, probing guide (TDD and integration probe sections), dimension table, description, and Definition of Done. |

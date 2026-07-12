@@ -59,7 +59,7 @@ Check that all expected files exist and have valid frontmatter.
 | L1-04 | `usecases/_index.md` exists | 5 |
 | L1-05 | At least one `usecases/UC-*.md` exists | 5 |
 | L1-06 | `integration.md` exists | 5 |
-| L1-07 | `tasks/_index.md` exists | 5 |
+| L1-07 | `tasks/_index.md` exists (LOCAL root `.shapeup-sdlc/<slug>/tasks/`, not spec_folder) | 5 |
 
 ### Frontmatter Completeness (30 points)
 
@@ -81,7 +81,9 @@ For each document, check these fields are present and non-empty:
 | L1-14 | All `[[wikilinks]]` in all docs resolve to existing files | 20 |
 
 For L1-14: scan every `[[...]]` pattern across all generated files.
-A link resolves if the target file exists relative to the specs folder.
+A link resolves if the target file exists relative to the specs folder — EXCEPT `[[tasks/...]]`
+links, which resolve relative to the LOCAL root (`.shapeup-sdlc/<slug>/`, see doc-schemas.md
+Locality note).
 Score is proportional: `(resolved / total) × 20`
 
 **Total L1: 100 points**
@@ -122,7 +124,7 @@ Check semantic completeness of each document type.
 | L2-14 | Output has TypeScript interface block | 5 |
 | L2-15 | Error Cases table present with ≥ 1 row | 5 |
 
-### tasks/TASK-*.md (25 points, averaged across all tasks)
+### tasks/TASK-*.md (25 points, averaged across all tasks; LOCAL root)
 
 | Check | Rule | Points |
 |-------|------|--------|
@@ -260,7 +262,7 @@ Maintained at `.claude/metrics.md` in project root. Append one row per feature r
 **Traceability**
 - [ ] Every task has `use_case_refs` → ≥1 UC, OR gap listed in synthesis S-01
 - [ ] Every UC links back to ≥1 domain event
-- [ ] `tasks/_index.md` lists all tasks with current status
+- [ ] `tasks/_index.md` (LOCAL root) lists all tasks with current status
 
 **LITE specific**
 - [ ] `ux-behavior.md` has Navigation Stack, Offline Behavior Rules, Platform Differences, API Stub Contracts

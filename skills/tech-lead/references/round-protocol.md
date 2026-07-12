@@ -3,6 +3,11 @@
 The orchestration loop in detail. A "round" is one BUILD phase followed by exactly one
 EVAL phase. The feature is done when an EVAL round returns PASS.
 
+> `tasks/_index.md` referenced throughout this file lives in the LOCAL gitignored root
+> (`.shapeup-sdlc/<slug>/tasks/`, v3.2), not the
+> SHARED spec dir. See tech-lead SKILL.md GATE L1b for the bootstrap step that regenerates it
+> when missing.
+
 ```
 round r = 1
 loop:

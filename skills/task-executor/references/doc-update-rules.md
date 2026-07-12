@@ -3,11 +3,15 @@
 Defines exactly which files change and what fields update after task completion.
 Read before Phase 3.
 
+> **Locality (v3.2):** every `tasks/*` path below is the LOCAL gitignored root
+> (`.shapeup-sdlc/<slug>/tasks/`), not `spec_folder` — see GATE A's locality note
+> (v3.2).
+
 ---
 
 ## Files That ALWAYS Update
 
-### 1. Task file (`tasks/TASK-NNN-slug.md`)
+### 1. Task file (`tasks/TASK-NNN-slug.md`, LOCAL root)
 
 **Frontmatter changes:**
 ```yaml
@@ -46,7 +50,7 @@ they must never disagree.
 - **actual_hours:** [rough estimate based on session time]
 ```
 
-### 2. `tasks/_index.md`
+### 2. `tasks/_index.md` (LOCAL root)
 
 Update the task row:
 - Status emoji: `⬜ ready` or `🔄 in-progress` → `✅ done`
@@ -84,7 +88,7 @@ AND that task's `status: blocked`
 
 **Check:**
 ```bash
-grep -rl "TASK-[NNN]" spec_folder/tasks/ | xargs grep -l "status: blocked"
+grep -rl "TASK-[NNN]" .shapeup-sdlc/<slug>/tasks/ | xargs grep -l "status: blocked"
 ```
 
 **Update:** For each matching task, if this was its ONLY blocker:

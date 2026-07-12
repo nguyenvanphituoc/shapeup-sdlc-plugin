@@ -41,7 +41,9 @@ A list. Each criterion is the atomic unit the evaluator grades. Schema per crite
   evidence_required: true       # if true, NO EVIDENCE → automatic FAIL
   pass_rule: >                  # the objective condition for PASS, evidence-based
     All "- [ ]" items verified PASS via their probe; zero failures.
-  source: task | contract | scope-summary | code   # where the criterion is read from
+  source: usecases | index | task | contract | scope-summary | code   # where the criterion is read from
+                                   # (usecases/domain-model.md are the grading source of truth
+                                   #  since v0.9 — task is traceability-only, never substituted)
 ```
 
 `probe` values map directly to Phase A handlers:

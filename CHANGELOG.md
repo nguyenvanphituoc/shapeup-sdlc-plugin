@@ -5,6 +5,35 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-12
+
+### Changed
+- **Local Tasks Architecture** (`docs/plan/local-tasks-architecture.md`). The task board
+  (`tasks/TASK-NNN*.md` + `tasks/_index.md`) moves out of the committed SHARED spec dir
+  (`docs/shapeup-sdlc/<slug>/spec/`) into the LOCAL, gitignored run-trace root
+  (`.shapeup-sdlc/<slug>/tasks/`). The shared repo now carries only high-level requirements —
+  `usecases/`, `domain-model.md`, `contracts/`, `scopes/`, `scope-summary.md` — never
+  implementation-planning detail.
+  - **`ba-pitch-analyzer` v3.2**: Phase 6 writes `tasks/` to the LOCAL root. New bare
+    `--tasks-only [spec_folder]` bootstrap mode regenerates a missing local board from the
+    committed spec alone (no discovered-ledger reconciliation).
+  - **`spec-evaluator` v0.9**: grading source of truth moves from a task file's own
+    `## Acceptance Criteria` onto the committed `usecases/UC-*.md` (Steps, Error Cases,
+    Invariants, Test Surface) + `domain-model.md`. A local task file, when present, is
+    read only for traceability and AC-checkbox bookkeeping — its absence is no longer a
+    hard stop (new GATE V0.2b).
+  - **`tech-lead` v0.15**: GATE L1b (Board Review) now reviews the SHARED plan —
+    `usecases/_index.md` + `scopes/*.json` + `scope-summary.md` — instead of the LOCAL task
+    board, keeping implementation detail out of the PO gate on any spec with scope contracts.
+    New bootstrap check auto-invokes `ba-pitch-analyzer --tasks-only` when a teammate (or a
+    resumed run) has the shared spec but no local board yet.
+  - **`task-executor` v1.5**: GATE A resolves `tasks/<task_id>*.md` from the LOCAL root; a
+    missing local board next to a present shared `usecases/` is a soft, bootstrappable
+    condition, not a hard failure.
+  - **Migration `0003__local-tasks-architecture.sh`**: moves any pre-v0.4.0 committed
+    `docs/shapeup-sdlc/<slug>/spec/tasks/` to `.shapeup-sdlc/<slug>/tasks/` for every existing
+    feature slug, idempotently.
+
 ## [0.3.0] - 2026-07-12
 
 ### Added
