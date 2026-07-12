@@ -17,7 +17,7 @@ has been removed.)
 
 | Database concept | Harness realization |
 |---|---|
-| Migration file `V2__add_users.sql` | `scripts/migrations/NNNN__slug.sh` (4-digit id, kebab slug) |
+| Migration file `V2__add_users.sql` | `scripts/shapeup-sdlc/migrations/NNNN__slug.sh` (4-digit id, kebab slug) |
 | `schema_migrations` table | `docs/shapeup-sdlc/.harness-migrations` — committed ledger of applied ids |
 | Current schema version | `docs/shapeup-sdlc/.harness-version` — last plugin version applied |
 | `flyway migrate` / `rails db:migrate` | `scripts/migrate.sh` → `harness_run_migrations` (lib-migrate.sh) |
@@ -46,9 +46,9 @@ applying.
 5. **Fail-closed.** A failing migration aborts *before* being recorded, so the fix-and-rerun path
    re-attempts only the failed one.
 
-## Adding a migration (the recipe for 0002, 0003, …)
+## Adding a migration (the recipe for 0003, 0004, …)
 
-1. Create `scripts/migrations/0002__<slug>.sh`:
+1. Create `scripts/shapeup-sdlc/migrations/0003__<slug>.sh`:
    ```bash
    MIGRATION_DESC="One line: what stateful change this makes"
    migration_up() {
@@ -56,7 +56,7 @@ applying.
      # idempotent transform of files under "$target" (guard every write)
    }
    ```
-2. That's it — the runner discovers it by filename, orders it after 0001, applies it once, records it.
+2. That's it — the runner discovers it by filename, orders it after 0002, applies it once, records it.
 3. `node tests/structural.mjs` enforces the naming + that `migration_up` and `MIGRATION_DESC` exist
    and ids are unique. CI fails a malformed migration.
 
@@ -68,8 +68,10 @@ applying.
 - Never renumber or edit an applied migration's behavior — add a new one (same as DB migrations).
 
 ## Files
-- `scripts/lib/lib-migrate.sh` — the runner (discover → skip-applied → apply → record → stamp version).
-- `scripts/migrations/0001__per-skill-knowledge-base.sh` — the first migration (the old KB transform).
+- `scripts/shapeup-sdlc/lib/lib-migrate.sh` — the runner (discover → skip-applied → apply → record → stamp version).
+- `scripts/shapeup-sdlc/migrations/0001__per-skill-knowledge-base.sh` — the first migration (the old KB transform).
+- `scripts/shapeup-sdlc/migrations/0002__v030-file-organization.sh` — v0.3.0: shards a pre-0.3.0
+  flat `metrics.jsonl` per machine, adds Tier C `.gitignore` rules + example templates.
 - `scripts/migrate.sh` — entrypoint (update code + migrate data; `--data-only`, `--dry-run`).
 
 ## Platform

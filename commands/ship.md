@@ -12,3 +12,11 @@ Only run headless/auto if the user explicitly asks for it in their message:
 - `--unattended` → fully headless, `max_rounds 3`. **Warn the user first** that no human will
   review the verdict before ship, and proceed only on explicit confirmation. Intended for CI, not
   day-to-day local runs.
+
+Additional flags, pass through to `tech-lead` only when the user names them:
+- `--rounds N` → override the outer circuit breaker (build+eval cycles, default 3).
+- `--attempts N` → override the inner circuit breaker (per-scope T0 attempts, default 5;
+  no-op on specs without scope contracts).
+- `--orch-model / --exec-model / --eval-model / --qa-model <name>` → override GATE L0.8's
+  resolved model matrix for this run only (highest precedence over `.claude/settings.local.json`
+  / `.claude/settings.json` / skill defaults).

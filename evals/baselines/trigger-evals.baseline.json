@@ -1,10 +1,15 @@
 {
   "status": "unmeasured",
-  "note": "Datasets authored; baselines NOT yet measured. Run `node scripts/trigger-eval.mjs --measure` with Claude auth and the plugin installed. Per audit F1, no TPR/FPR is written until a real run produces it.",
+  "note": "Datasets authored; baselines NOT yet measured. Run `node scripts/shapeup-sdlc/trigger-eval.mjs --measure` with Claude auth and the plugin installed. Per audit F1, no TPR/FPR is written until a real run produces it.",
   "method": "claude headless (--plugin-dir .) detecting real Skill-tool activation; NOT slash-command self-invocation (the prior TPR≈0 proxy artifact, audit F1).",
   "model": null,
   "measured_at": null,
   "datasets": {
+    "advisor-protocol": {
+      "positives": 6,
+      "negatives": 6,
+      "total": 12
+    },
     "ba-pitch-analyzer": {
       "positives": 6,
       "negatives": 6,
@@ -24,6 +29,11 @@
       "positives": 5,
       "negatives": 6,
       "total": 11
+    },
+    "scope-hammer": {
+      "positives": 6,
+      "negatives": 6,
+      "total": 12
     },
     "shapeup": {
       "positives": 7,

@@ -3,7 +3,7 @@
 # tools (Flyway / Rails / Alembic).
 #
 # Concepts mapped from DB migrations:
-#   migration file      = scripts/migrations/NNNN__slug.sh   (ordered by zero-padded id)
+#   migration file      = scripts/shapeup-sdlc/migrations/NNNN__slug.sh   (ordered by zero-padded id)
 #   schema_migrations   = docs/shapeup-sdlc/.harness-migrations  (committed ledger of applied ids)
 #   schema version      = docs/shapeup-sdlc/.harness-version      (last plugin version applied)
 #
@@ -72,7 +72,7 @@ harness_record_migration() {
 # to list pending migrations without applying them.
 harness_run_migrations() {
   local target="$1"
-  local mig_dir="$HARNESS_SOURCE_DIR/scripts/migrations"
+  local mig_dir="$HARNESS_SOURCE_DIR/scripts/shapeup-sdlc/migrations"
   local version applied=0 pending=0
   version="$(harness_plugin_version)"
 

@@ -101,13 +101,13 @@ This installer automatically configures:
 - **Claude Code**: Runs `claude plugin marketplace add --scope project` + `claude plugin install --scope project` to register the marketplace and enable the plugin in one shot (writes `.claude/settings.json`), then appends/creates `CLAUDE.md`. Falls back to writing `settings.json` directly if the `claude` CLI is not in PATH.
 - **Antigravity**: Copies skills to `.agents/skills/`, subagent configs to `.agents/subagents/`, and creates `.agents/AGENTS.md`.
 - **Codex**: Copies skills to `.codex/skills/` and creates `.codex/AGENTS.md`.
-- **Local Git Boundaries & Telemetry**: Adds the `.shapeup-sdlc/` ignore rule to `.gitignore` and initializes `docs/shapeup-sdlc/metrics.jsonl`.
+- **Local Git Boundaries & Telemetry**: Adds the `.shapeup-sdlc/` + Tier C ignore rules to `.gitignore`, initializes the per-machine `docs/shapeup-sdlc/metrics/` shard directory, and drops the Tier C example templates (`.claude/settings.local.example.json`, `.env.shapeup.example`).
 
 ### Upgrading an existing install (knowledge base → team-shared)
 
 Updating an install is a **versioned migration**, modeled on database migration tools (Flyway /
 Rails): `migrate.sh` first **updates code** (replaces the installed skills for each CLI), then
-**migrates data** by applying any pending `scripts/migrations/NNNN__*.sh` in order and recording
+**migrates data** by applying any pending `scripts/shapeup-sdlc/migrations/NNNN__*.sh` in order and recording
 each in a committed `docs/shapeup-sdlc/.harness-migrations` ledger. It is idempotent — applied
 migrations are skipped on re-run — so it is always safe to run again, and every future version adds
 its own migration rather than another one-off script. See
@@ -129,7 +129,7 @@ curl -fsSL "https://raw.githubusercontent.com/nguyenvanphituoc/shapeup-sdlc-plug
 /path/to/shapeup-sdlc-plugin/scripts/migrate.sh --directory . --dry-run   # list pending migrations
 ```
 
-The first migration (`0001`) performs the knowledge-base upgrade: as of plugin 0.2.5 / tech-lead
+Migration `0001` performs the knowledge-base upgrade: as of plugin 0.2.5 / tech-lead
 0.12, `/coach` no longer writes one flat, gitignored `.shapeup-sdlc/knowledge-base.md` (which never
 reached teammates and was never read back). It now files each rule **by skill** under committed
 `docs/shapeup-sdlc/knowledge-base/<skill>.md`, read back by `task-executor` / `ba-pitch-analyzer` /
@@ -137,8 +137,17 @@ reached teammates and was never read back). It now files each rule **by skill** 
 `docs/shapeup-sdlc/knowledge-base/_INBOX.md` — **never auto-categorized**. Afterward, run `/coach`
 on `_INBOX.md` to assign each rule to a skill (its GATE COACH-1 asks — it never assumes), and commit
 `docs/shapeup-sdlc/` so the team inherits the knowledge base + migration ledger on `git pull`.
+
+Migration `0002` brings a pre-0.3.0 install up to the file-organization addendum: it shards a flat
+`docs/shapeup-sdlc/metrics.jsonl` into `docs/shapeup-sdlc/metrics/<machine-id>.jsonl` (retiring the
+old file to `metrics.jsonl.migrated`), adds the Tier C `.gitignore` rules, and drops the Tier C
+example templates — the same three steps a fresh `install-harness.sh` run already does.
+
 (Source resolution, CLI selection, and skill replacement are factored into a shared
-`scripts/lib/lib-harness.sh`; the migration runner lives in `scripts/lib/lib-migrate.sh`.)
+`scripts/shapeup-sdlc/lib/lib-harness.sh`; the migration runner lives in
+`scripts/shapeup-sdlc/lib/lib-migrate.sh`. The `install-harness.sh` / `migrate.sh` entrypoints stay
+at a stable `scripts/` path on purpose — an update mechanism that broke its own bookmarked URL on
+every refactor would defeat the point of having one.)
 
 ## The workflow
 
@@ -177,11 +186,13 @@ graph LR
 | Shaping (1–4) | `shapeup` | — | Frame the problem, breadboard affordances, spike risks, write the pitch. Sub-commands: `full`, `shaping`, `spike`, `breadboarding`, `framing-doc`, `kickoff-doc`, `breadboard-reflection`. |
 | Intake (GATE L0) | `translator` | — | Normalizes non-English intake (pitch/PRD/transcript) to faithful English before planning. The harness is English-only downstream. |
 | Orient (7) | `orient` | — | Builder-led recon: reads the code, spikes the single riskiest area, emits a code-surface map, spike findings, discovered-task seed, and a hill signal. Writes no production code. |
-| Map Scopes (8) | `ba-pitch-analyzer` | v2.9 | Decomposes a pitch into a linked DDD document tree (domain model → use cases → tasks) with BDD scenarios, a UC system flow, and a derived `## Test Surface`. |
-| Build (9) | `task-executor` | v1.3 | Implements a `TASK-NNN.md` spec: assumption scan, minimum-code/surgical-change discipline, AC checkbox ticking, discovered-task ledger. |
-| Evaluate (GATE L3) | `spec-evaluator` | v0.5 | The single judge. Verifies spec-conformance, TDD surface, and integration against the running app — skeptical, files `file:line` bugs, runs exactly once per build round. |
+| Map Scopes (8) | `ba-pitch-analyzer` | v3.1 | Decomposes a pitch into a linked DDD document tree (domain model → use cases → tasks) with BDD scenarios, a UC system flow, and a derived `## Test Surface`. Scope-architect role writes committed, write-whitelisted scope contracts (`--remap` to reconcile/split). |
+| Build (9) | `task-executor` | v1.4 | Implements a `TASK-NNN.md` spec: assumption scan, minimum-code/surgical-change discipline, AC checkbox ticking, discovered-task ledger. Isolated-brief (zero-memory) mode + substrate discipline + Layer 1/2/3 UI rules when scope contracts exist. |
+| Evaluate (GATE L3) | `spec-evaluator` | v0.8 | The single judge. Verifies spec-conformance, TDD surface, and integration against the running app — skeptical, files `file:line` bugs, runs exactly once per build round. Requires a T0 artifact citation and grades UI affordance-only on scoped specs. |
 | QA (post-PASS) | `qa-edge-hunter` | v1.0 | Exploratory edge hunt on the running app through six fixed lenses, charting edges *outside* what the evaluator probed. Findings go to the ledger as `~`; never blocks ship. |
-| Orchestrator | `tech-lead` | v0.6 | Owns the run end-to-end: PLAN once → BUILD all tasks → EVAL once per round, looping on FAIL. Delegates to the sub-skills, keeps the round ledger, supports interactive / `--auto` / `--unattended`. |
+| Advisor (mid-build) | `advisor-protocol` | v0.1 | Adjudicates a worker's structured `ESCALATE` (design decision / spec ambiguity / substrate expansion) within a per-scope-per-round budget; persists answers to the committed round ledger so they survive a zero-memory reset. |
+| Stop (11) | `scope-hammer` | v0.1 | GATE H: must-have census → baseline comparison (never vs. the ideal) → cut list + ship verdict. Handles the normal stop and both circuit-breaker triggers. |
+| Orchestrator | `tech-lead` | v0.13 | Owns the run end-to-end: PLAN once → BUILD all tasks → EVAL once per round, looping on FAIL. Two-level circuit breaker, T0/seesaw-verified build rounds, mechanical hill derivation. Delegates to the sub-skills, keeps the round ledger, supports interactive / `--auto` / `--unattended`. |
 
 ### Commands
 
@@ -198,6 +209,10 @@ graph LR
 ### Hooks
 
 - `SessionStart` — prints a load confirmation so you know the plugin is active.
+- `PreToolUse` (matcher `Skill`) — `hooks/gate-l2.mjs` hard-blocks the once-per-round EVAL
+  delegation while the task board isn't fully green.
+- `PreToolUse` (matcher `Edit|Write|MultiEdit`) — `scripts/shapeup-sdlc/sandbox-guard.mjs` blocks writes
+  outside the active scope's substrate whitelist (v0.3.0, no-op unless scope contracts exist).
 
 > A project-local `/gap-scan` command (navigator→driver gap tracking) lives under
 > `.claude/commands/` for this repo's own use. It is **not** bundled in the distributed
@@ -212,6 +227,11 @@ These hold across the harness and are the reason it stays predictable:
 - **Ledger is the single source of truth** — orient, task-executor, and QA all write to `discovery/ledger.md`.
 - **QA is a level-up, not a gate** — `--no-qa` skips it; the circuit breaker outranks the hunter; findings default to `~`.
 - **Role separation** — evaluator grades, task-executor fixes, QA discovers; no one does another's job.
+- **Two-level circuit breaker** — an outer `round_budget` (build+eval cycles) nests an inner
+  per-scope `attempt_budget` (T0 attempts); an exhausted scope queues a GATE H proposal instead
+  of blocking the round (v0.3.0, scope contracts only).
+- **Hill phase is mechanical, never self-reported** — derived only from T0/T1/seesaw facts, closing
+  the self-reported-confidence risk outright (v0.3.0).
 
 ## Develop
 
@@ -229,10 +249,13 @@ claude --plugin-dir .
 .claude-plugin/
   plugin.json         # plugin manifest
   marketplace.json    # marketplace listing (points at this repo)
-skills/<name>/SKILL.md # the 8 harness skills (+ references/ and assets/)
+skills/<name>/SKILL.md # the 10 harness skills (+ references/ and assets/)
 commands/*.md         # slash commands (/ship)
 agents/*.md           # subagents (reviewer)
-hooks/hooks.json      # SessionStart hook
+hooks/hooks.json      # SessionStart + PreToolUse hooks (GATE L2, sandbox guard)
+scripts/install-harness.sh, migrate.sh   # stable public entrypoints (fresh install / update)
+scripts/shapeup-sdlc/                    # implementation: lib/, migrations/, oracles/,
+  t0-verify.mjs, aegis-digest.mjs, sandbox-guard.mjs   # T0 mechanical layer (v0.3.0)
 docs/mechanism-roadmap.md       # full annotated pipeline diagram
 .github/workflows/    # CI + release
 ```

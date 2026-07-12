@@ -1,13 +1,21 @@
 # macOS
 .DS_Store
 
-# Claude Code local (per-user, not shared)
+# Tier C — project-local, per-member config (design spec addendum §F.7). Templates (*.example)
+# ARE committed; the real files are gitignored and never travel with the repo. The env file is
+# SHAPEUP_-namespaced (filename + keys) so it never collides with, or gets confused with, the
+# target project's own .env / .env.local.
 .claude/settings.local.json
+.env.shapeup.local
+!.env.shapeup.example
+!.claude/settings.local.example.json
 
-# ShapeUp SDLC local workspace: per-slug run-trace (run-state · digest · orient/ ·
-# evaluation/ · qa/ · ledger · harness-run.md) is derived/ephemeral and hidden.
-# The shared deliverable (docs/shapeup-sdlc/) and the committed harvest feed
-# (docs/shapeup-sdlc/metrics.jsonl) stay tracked — only the hidden local root is ignored.
+# ShapeUp SDLC local workspace (Tier B — rebuildable runtime, design spec addendum §F.2):
+# per-slug run-trace (run-state · digest · orient/ · evaluation/ · qa/ · ledger ·
+# harness-run.md · briefs/ · t0/ · digests/ · seesaw/) plus the checkout-wide run.lock /
+# active-scope pointer. The shared deliverable (docs/shapeup-sdlc/, incl. scope contracts,
+# hill shards, round-ledger.md, and the committed metrics/ harvest) stays tracked — only the
+# hidden local root is ignored.
 .shapeup-sdlc/
 
 # Navigator clone target (gap-scan)

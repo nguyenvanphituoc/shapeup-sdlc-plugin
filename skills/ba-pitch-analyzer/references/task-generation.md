@@ -544,3 +544,48 @@ IF keep_hours > appetite_hours:
        cut TASK-NNN | shrink the new task's scope | expand appetite (needs PO re-bet)
 ```
 This is scope hammering at the gate boundary — the overflow is surfaced, never silently absorbed.
+
+---
+
+## Scope Contracts
+
+**Naming note:** the discovery ledger's "scope" sections (above) predate the formal Scope
+Contract artifact below and name the same thing — a `discovery/ledger.md` scope heading MUST
+match an existing `scope_id` from a `scopes/<scope-id>.json` contract, or (a Keep item
+introducing new flow) become the seed for a new one via `--remap`. One concept, two touch points.
+
+**Import/flow slicing (PA1 countermeasure).** Build a lightweight import graph over the task
+board's touched files: for each file a task writes, note what it imports and what imports it
+(grep for `import .* from ['"](\.\.?/[^'"]+)`-class patterns is sufficient — a full AST parser
+is an optimization, not a prerequisite, per design spec R6). Two files are in the same flow if
+they sit on one call chain: a UI component → the API route it calls → the use case that route
+invokes → the repository that use case depends on. Group tasks by flow, not by which top-level
+directory their file lives in. A scope whose `allowed_file_substrate` is entirely `apps/web/**`
+or entirely `apps/api/**` with no cross-layer flow is the PA1 failure mode — re-slice it.
+
+**Scope contract schema** (written to `scopes/<scope-id>.json`, one file per scope):
+```json
+{
+  "scope_id": "cart-creation",
+  "topology_type": "ICEBERG",
+  "business_goal": "Shopper can create a cart and see it persist",
+  "allowed_file_substrate": ["apps/web/cart/*.tsx", "apps/api/cart/*.ts", "packages/domain/cart/*.ts"],
+  "shared_substrate": ["packages/shared/http.ts"],
+  "discovered_tasks_pool": [],
+  "e2e_verification_fixtures": ["fixtures/cart-create.spec.ts"],
+  "affordance_manifest": {
+    "interactive_elements": [{ "test_id": "add-to-cart-btn", "role": "button" }],
+    "required_states": ["idle", "loading", "success", "error", "empty"]
+  },
+  "hill_phase": "UPHILL_UNKNOWN",
+  "superseded_by": null
+}
+```
+`hill_phase` is always written `UPHILL_UNKNOWN` at generation time — it is derived later from
+mechanical T0/T1/seesaw facts, never declared by `ba` (design spec DD-10). `superseded_by` stays
+`null` until a `--remap --split` retires this contract in favor of its replacements.
+
+**PA2 size lint:** a scope whose `allowed_file_substrate` glob set resolves to more than ~15
+files gets a ⚠️ at GATE 6b (hard-cap configurable via pitch frontmatter `scope_size_cap`, default
+15). A CHOWDER scope is exempt by design (it is the deliberate strays bucket) but still gets
+flagged if it grows past 2x the cap — that usually means real flows are hiding in it unsliced.

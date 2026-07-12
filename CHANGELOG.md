@@ -5,12 +5,83 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-12
+
 ### Added
+- **v0.3.0 harness upgrade (design spec v1.1 + file-organization addendum).** Design paper:
+  `docs/v3/`. Six agent pathologies (PA1–PA6) now each have a mechanical countermeasure, active
+  only when a spec folder has scope contracts (`docs/shapeup-sdlc/<slug>/scopes/*.json`) —
+  fully non-regression on pre-v0.3.0 specs.
+  - **T0 mechanical layer** (`scripts/shapeup-sdlc/t0-verify.mjs`, `scripts/shapeup-sdlc/aegis-digest.mjs`): every build
+    attempt runs the scope's Playwright fixtures + an optional DB probe, then — on green — a
+    **seesaw regression check** against every already-FINISHED scope's fixtures. Writes a citable
+    JSON verdict artifact (sha256'd) that `spec-evaluator`'s new GATE V0.7 requires — a verdict
+    is now structurally invalid on a scoped spec without citing it (closes the "hospitality
+    trap", PA4). Zero LLM tokens; deterministic tooling, not a second judge (DD-7). A seesaw
+    regression triggers a safe `git stash` (never a hard discard) + retry, not a silent merge
+    (PA5). Failures are distilled by the AEGIS digester into `{file, line, core_message}` triples
+    fed into the next attempt's brief — no raw log dumps (PA6).
+  - **Sandbox guard** (`scripts/shapeup-sdlc/sandbox-guard.mjs`, new `PreToolUse` hook on `Edit|Write|MultiEdit`):
+    blocks any write outside the active scope's `allowed_file_substrate` (+ declared
+    `shared_substrate`), reading a `.shapeup-sdlc/active-scope` pointer written by `tech-lead` at
+    scope checkout. Fail-open when no harness round is in progress; every denial is logged as a
+    `PA3` pathology event to `docs/shapeup-sdlc/metrics/<machine-id>.jsonl`.
+  - **Scope contracts** (`ba-pitch-analyzer` v3.1, new Phase 6b/GATE 6b): groups the task board
+    into vertically-sliced, committed scope contracts — import/business-flow slicing (never by
+    directory, PA1 lint), a size lint (PA2), an `affordance_manifest` (Layer 1 of the UI
+    anatomy), and `e2e_verification_fixtures` authored at contract time. New `--remap` mode
+    reconciles discovered tasks into scopes or splits a stuck one.
+  - **`advisor-protocol`** (new skill): the `ESCALATE` grammar (design-decision / spec-ambiguity /
+    substrate-expansion) workers use instead of guessing or asking ad hoc, capped at 3/scope/round,
+    answers persisted immediately to a new committed `round-ledger.md` so they survive
+    `task-executor`'s **zero-memory handoff** (isolated per-attempt briefs, no prior-attempt chat
+    history — flat per-attempt token cost, PA6).
+  - **`scope-hammer`** (new skill): GATE H's census → baseline comparison (never vs. a perfect
+    ideal) → cut list + ship verdict, handling all three stop triggers (normal stop, outer
+    round-budget breaker, inner per-scope attempt-budget breaker) — `tech-lead` SHIP now
+    delegates here instead of hammering inline.
+  - **Two-level circuit breaker** (`tech-lead` v0.13, DD-9): the existing `--max-rounds` becomes
+    the OUTER breaker; a new per-scope `--attempts` (default 5) is the INNER breaker — an
+    exhausted scope queues a GATE H hammer *proposal* instead of blocking the round. New GATE
+    L0.8 (four-layer model/budget resolution, incl. `.claude/settings.local.json`) and mechanical
+    **hill-phase derivation** (`UPHILL_UNKNOWN`/`UPHILL_SOLVED`/`DOWNHILL_EXECUTION`/`FINISHED`,
+    committed `hill/<scope-id>.yml` shards) — never self-reported by a worker (DD-10, closes the
+    confidence-score risk outright).
+  - **Task-executor UI discipline** (v1.4): Layer 1/2/3 anatomy embedded in Phase 2 — bind only to
+    the affordance manifest's `test_id`/`role`/`data-state`, hardcoded data arrays banned (the T0
+    DB probe exists precisely to catch a pretty frontend over a hollow backend), pixel-perfect
+    styling frozen out of this cycle. `spec-evaluator` (v0.8) grades UI **affordance-only** —
+    never pixels/colors/fonts — so the freeze can't leak back in through the judge.
+  - **File organization** (design spec addendum, Tiers A/B/C): scope contracts and hill shards
+    move to the committed `docs/shapeup-sdlc/<slug>/` tree (never a gitignored runtime file — a
+    teammate needs scope A's substrate to respect disjointness, and the sandbox hook enforces
+    committed truth); the metrics harvest shards to `docs/shapeup-sdlc/metrics/<machine-id>.jsonl`
+    so concurrent runs never merge-conflict on one file; new committed Tier C templates
+    (`.claude/settings.local.example.json`, `.env.shapeup.example`) with matching `.gitignore`
+    rules for the real per-member files. The env file/keys are `SHAPEUP_`-namespaced
+    (`.env.shapeup.local`, `SHAPEUP_T0_DATABASE_URL`) so they can never collide with, or be
+    mistaken for, the target project's own `.env`/`.env.local`.
+  - **Scripts consolidated under `scripts/shapeup-sdlc/`** (mirrors the `docs/shapeup-sdlc/` /
+    `.shapeup-sdlc/` naming): `lib/`, `migrations/`, `oracles/`, `distribute.js`, and every
+    runtime script (`t0-verify.mjs`, `aegis-digest.mjs`, `sandbox-guard.mjs`, `trigger-eval.mjs`,
+    `verdict-ledger.mjs`) moved out of the flat `scripts/` root. `install-harness.sh` and
+    `migrate.sh` stay at the stable top-level `scripts/` path on purpose — they are the update
+    mechanism's own bookmarked entrypoints, so they are the one thing this reorg must not move.
+    `hooks/hooks.json`, `package.json`, `tests/structural.mjs`, and every skill/doc reference
+    were repointed at the new paths; test #12's shipped-skill-path guard now matches
+    `scripts/shapeup-sdlc/(t0-verify|aegis-digest|sandbox-guard)\.mjs`.
+  - **Migration `0002`** brings a pre-0.3.0 install up to the file-organization addendum via
+    `migrate.sh`: shards a flat `docs/shapeup-sdlc/metrics.jsonl` into
+    `metrics/<machine-id>.jsonl` (old file retired to `metrics.jsonl.migrated`, never deleted),
+    adds the Tier C `.gitignore` rules, and drops the Tier C example templates — the same three
+    steps a fresh `install-harness.sh` run already did, now available to existing installs too.
+  - Structural coverage grew 195 checks (3 new sections: sandbox guard allow/deny + pathology
+    telemetry, T0 verdict/artifact/seesaw discrimination, AEGIS digest extraction/dedup).
 - **Trigger-eval evidence layer (Stage C1, dismantles the F1 fiction).** The real version of the
   evidence layer the prior roadmap claimed "LANDED" but never committed. Each skill now has
   `skills/<name>/evals/trigger-evals.json` — 103 `{query, should_trigger}` cases across 9 skills,
   every dataset pairing positives with **cross-skill hard negatives** (a sibling's queries, tagged
-  `expected_other`) plus an out-of-harness control. `scripts/trigger-eval.mjs` (repo-only) measures
+  `expected_other`) plus an out-of-harness control. `scripts/shapeup-sdlc/trigger-eval.mjs` (repo-only) measures
   **real Skill-tool activation** with the plugin installed (`--plugin-dir .`), explicitly *not* the
   slash-command self-invocation that made the prior TPR≈0 a proxy artifact. Two honesty guards: the
   baseline (`evals/baselines/trigger-evals.baseline.json`) ships `status: "unmeasured"` /
@@ -26,7 +97,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   across runs (a flip forces confidence low and a stability line in the report). New GATE V2.1b +
   Phase B.0 steps, two hard rules, and a report stability block. The single-judge invariant is
   untouched — same judge, same probe, bookkeeping over its own outputs (no second grader). A
-  repo-only `scripts/verdict-ledger.mjs` implements the flip/confidence grammar with structural test
+  repo-only `scripts/shapeup-sdlc/verdict-ledger.mjs` implements the flip/confidence grammar with structural test
   **#15** proving it discriminates an unstable judge from a stable one; **not shipped** (F9).
   Structural coverage grew 127 → **137 checks**.
 - **GATE L2 is now runtime-enforced (Stage E1, closes half of F2).** A `PreToolUse` hook
@@ -56,7 +127,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   refactors; diff vs golden), `http` (services; unreachable = FAIL every criterion), plus `ui`
   (Playwright). The single-judge invariant is untouched — the oracle changes only *how* evidence is
   gathered. See `docs/audit/evaluation-contract-spec.md`.
-- **Executable reference implementations (dev/CI only).** `scripts/oracles/*.mjs` + `examples/*`
+- **Executable reference implementations (dev/CI only).** `scripts/shapeup-sdlc/oracles/*.mjs` + `examples/*`
   implement that exact grammar with negative-control tests, so the documented procedure is proven to
   discriminate. They are **not shipped** (and not called by the installed skill) — see "Runtime
   model" in the spec.
@@ -68,10 +139,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 - **Versioned migration system.** Updating an install is now a Flyway/Rails-style migration:
   `scripts/migrate.sh` updates code (replaces skills) then applies pending
-  `scripts/migrations/NNNN__*.sh` in order, tracked in a committed
+  `scripts/shapeup-sdlc/migrations/NNNN__*.sh` in order, tracked in a committed
   `docs/shapeup-sdlc/.harness-migrations` ledger + `.harness-version` stamp. Idempotent; every
   future version adds its own migration. The old flat-KB transform is now migration `0001`.
-  Runner lives in `scripts/lib/lib-migrate.sh`. See `docs/audit/migration-system.md`.
+  Runner lives in `scripts/shapeup-sdlc/lib/lib-migrate.sh`. See `docs/audit/migration-system.md`.
 
 ### Removed
 - **PowerShell scripts** (`install-harness.ps1`, `lib/lib-harness.ps1`, `migrate-knowledge-base.ps1`)

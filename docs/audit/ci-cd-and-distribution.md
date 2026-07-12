@@ -76,7 +76,7 @@ Claude subscription rather than the API.
 
 ---
 
-## 3. Distribution targets (from `scripts/distribute.js`)
+## 3. Distribution targets (from `scripts/shapeup-sdlc/distribute.js`)
 `npm run distribute` compiles the single-source `skills/` + `commands/` into:
 - **Claude Code** — installed directly from this repo-as-marketplace (no compile needed).
 - **Cursor** — `dist/cursor-rules/*.mdc` (one per skill/command) + a packaged `.vsix` extension.
@@ -90,7 +90,7 @@ path downloads `antigravity-subagents.zip` from the latest release.
 
 ## 4. Install (fresh) & migration (update)
 
-Both flows share `scripts/lib/lib-harness.{sh,ps1}` so local-clone and `curl | bash` behave
+Both flows share `scripts/shapeup-sdlc/lib/lib-harness.sh` so local-clone and `curl | bash` behave
 identically, and both target all three CLIs (Claude / Antigravity / Codex).
 
 ### Fresh install
@@ -113,7 +113,7 @@ bash scripts/migrate.sh -d <project> -y        # update code + migrate data
 bash scripts/migrate.sh -d <project> --dry-run  # list pending migrations only
 ```
 Modeled on database migration tools. It (1) **updates code** — re-installs current skills for the
-chosen CLIs — then (2) **migrates data** — applies every pending `scripts/migrations/NNNN__*.sh` in
+chosen CLIs — then (2) **migrates data** — applies every pending `scripts/shapeup-sdlc/migrations/NNNN__*.sh` in
 id order, recording each in the committed `docs/shapeup-sdlc/.harness-migrations` ledger and stamping
 `docs/shapeup-sdlc/.harness-version`. Idempotent: applied migrations are skipped on re-run. The
 pre-0.12 flat-KB transform is now migration `0001` (non-destructive — old file retired to

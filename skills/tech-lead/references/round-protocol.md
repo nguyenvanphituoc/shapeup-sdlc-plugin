@@ -84,13 +84,56 @@ coherent to evaluate yet.
 
 ## Stop conditions
 1. **PASS** — EVAL(r) verdict is PASS → SHIP.
-2. **max_rounds** — r would exceed `--max-rounds` (default 3) without PASS → ESCALATE:
-   print the residual bug list, the rounds used, and hand the decision to the PO. Do not
-   start another build round automatically.
-3. **Hard error** — a sub-skill fails irrecoverably (e.g. spec folder gone, app won't
+2. **max_rounds (OUTER breaker)** — r would exceed `--max-rounds` (default 3) without PASS →
+   ESCALATE: print the residual bug list, the rounds used, and hand the decision to the PO
+   (scope contracts present: also `/scope-hammer --breaker outer`). Do not start another
+   build round automatically.
+3. **attempt_budget (INNER breaker, scope contracts only)** — a single scope's T0 attempt
+   loop exhausts `--attempts` (default 5) without a green result → does NOT stop the round;
+   queues a hammer PROPOSAL for GATE H and moves to the next scope in sequence. See
+   "Two-level circuit breaker" below.
+4. **Hard error** — a sub-skill fails irrecoverably (e.g. spec folder gone, app won't
    build at all) → stop and report; do not retry blindly.
-4. **User halt** — at any L-gate the user can stop the run; the ledger preserves state for
+5. **User halt** — at any L-gate the user can stop the run; the ledger preserves state for
    `--from` resume.
+
+## Two-level circuit breaker (scope contracts only)
+
+```
+OUTER  round_budget (max_rounds)   — the six-week-timebox analog. Decremented once per
+                                      round at GATE L2, regardless of how many scopes it
+                                      covered. Hitting 0 → GATE H immediately (§ above).
+INNER  attempt_budget (per scope)  — decremented once per T0 attempt inside BUILD round r.
+                                      Hitting its cap WITHOUT a T0-green result trips the
+                                      inner breaker for that scope only: the scope is queued
+                                      as a hammer PROPOSAL (not a hard stop) and the round
+                                      moves on to the next scope in the L1b sequence.
+```
+Nesting rationale (DD-9): a struggling scope should not freeze every other scope's progress
+in the same round — only running out of *rounds* (the real six-week analog) stops the whole
+run. A scope that trips its inner breaker still gets judged fairly at GATE H: scope-hammer
+compares "ship without this scope" against the baseline, same as any other cut candidate — it
+is never silently dropped, and it is never allowed to block scopes that ARE working.
+
+## Isolated attempt loop — one T0 attempt, in detail (scope contracts only)
+
+```
+isolated_brief(scope)              → zero-memory handoff file (scope contract + current
+                                      substrate contents + digested errors + ledger decisions)
+dispatch task-executor --brief …   → code within substrate; may return ESCALATE
+handle_escalations(≤3/scope/round) → /advisor-protocol; answer promoted to round-ledger.md
+                                      immediately (must survive the NEXT attempt's fresh
+                                      context — this is what "zero-memory" is compatible with
+                                      escalation memory means, DD-8)
+t0-verify.mjs                      → fixtures + DB probe + (on green) seesaw
+  green            → attempt loop breaks; scope reaches DOWNHILL_EXECUTION
+  red, regression  → git stash (never a hard discard) + retry; a FINISHED scope's fixture
+                      broke (PA5) — the whole point of running seesaw before declaring green
+  red, own fixture  → AEGIS-digest the failure into {file, line, core_message} triples,
+                      feed them into the NEXT attempt's brief; loop
+```
+This replaces the old flat `task-executor --next` loop for any scope that has a contract;
+scopes/specs without one keep the v0.2.6 behavior verbatim (see BUILD(r) table above).
 
 ## --no-eval (skip evaluation)
 A tech-lead judgment, surfaced at GATE L2: if the feature is clearly within what the model

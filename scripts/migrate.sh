@@ -4,9 +4,9 @@
 # Two distinct operations, by analogy to a database-backed app deploy:
 #   1. UPDATE CODE  — replace the installed skill files for each chosen CLI (stateless; always
 #                     overwrite to the source version). Like shipping new application code.
-#   2. MIGRATE DATA — run every pending versioned migration in scripts/migrations/ against the
-#                     project's stateful harness artifacts, recording each in a committed ledger.
-#                     Like running pending DB schema migrations after the deploy.
+#   2. MIGRATE DATA — run every pending versioned migration in scripts/shapeup-sdlc/migrations/
+#                     against the project's stateful harness artifacts, recording each in a
+#                     committed ledger. Like running pending DB schema migrations after the deploy.
 #
 # Idempotent: re-running replaces code again (cheap) and applies only migrations not yet in the
 # ledger. Use --data-only to run migrations without touching skill files.
@@ -22,11 +22,11 @@ LIB_REF="${LIB_REF:-main}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || true)"
 load_lib() {
   local name="$1"
-  if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/lib/$name" ]; then
-    . "$SCRIPT_DIR/lib/$name"
+  if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/shapeup-sdlc/lib/$name" ]; then
+    . "$SCRIPT_DIR/shapeup-sdlc/lib/$name"
   else
     local tmp; tmp="$(mktemp)"
-    curl -fsSL "https://raw.githubusercontent.com/${REPO}/${LIB_REF}/scripts/lib/$name" -o "$tmp" \
+    curl -fsSL "https://raw.githubusercontent.com/${REPO}/${LIB_REF}/scripts/shapeup-sdlc/lib/$name" -o "$tmp" \
       || { echo "Error: could not download $name from ${REPO}@${LIB_REF}"; exit 1; }
     . "$tmp"; rm -f "$tmp"
   fi

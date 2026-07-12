@@ -13,15 +13,15 @@ activate the skill) with **cross-skill hard negatives** (a sibling skill's queri
 are the point: a description that triggers on its own examples but *also* steals its siblings' is
 not actually discriminating.
 
-**Harness:** `scripts/trigger-eval.mjs`.
+**Harness:** `scripts/shapeup-sdlc/trigger-eval.mjs`.
 
 ```bash
 # Inventory only — no auth, safe in CI: refresh the baseline's dataset counts.
-node scripts/trigger-eval.mjs
+node scripts/shapeup-sdlc/trigger-eval.mjs
 
 # Measure — needs Claude auth + the plugin installed. Runs every case, detects REAL Skill-tool
 # activation, writes a measured baseline with method + timestamp.
-node scripts/trigger-eval.mjs --measure
+node scripts/shapeup-sdlc/trigger-eval.mjs --measure
 ```
 
 **Baseline:** `evals/baselines/trigger-evals.baseline.json`. Ships as `status: "unmeasured"` with

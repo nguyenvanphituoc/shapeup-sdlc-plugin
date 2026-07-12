@@ -4,12 +4,14 @@ description: >
   Use this skill whenever a user provides a product requirement, pitch, or feature description
   and wants it broken down into structured, executable development tasks. Triggers on: "analyze
   this pitch", "break this into tasks", "generate tasks from requirement", "act as BA",
-  "create spec from PRD", "turn this into dev tasks", or any request to decompose a feature
-  into DDD-structured documents and implementation tasks for Claude Code CLI execution.
-  Also triggers when user mentions Shape Up, bounded context, domain model, or use cases.
-  Output is a linked document tree (pitch → domain model → use cases → tasks).
-  Emits BDD scenarios + integration flow in task AC, a UC System Flow tracing UI→API→UC→DB,
-  a derived UC Test Surface, and per-phase gates (summary + max 2 questions, never assumes).
+  "create spec from PRD", "turn this into dev tasks", "map the scopes", "scope contract",
+  "remap this scope", or any request to decompose a feature into DDD-structured documents and
+  tasks for Claude Code CLI execution. Also triggers on Shape Up, bounded context, domain
+  model, or use cases. Output is a linked document tree (pitch → domain model → use cases →
+  tasks → scope contracts) with BDD scenarios, a UC System Flow, a derived Test Surface, and
+  per-phase gates (max 2 questions, never assumes). v3.1 adds committed, vertically-sliced
+  scope contracts (write-whitelist substrate, affordance manifest, PA1/PA2 lints) with
+  --remap to reconcile discovered tasks or split a stuck scope.
 ---
 
 # BA Pitch Analyzer
@@ -63,6 +65,10 @@ Phase 5  │  Integration Map ───────────► cross-system 
 Phase 6  │  Task Generation ───────────► atomic, ordered, executable
 ⏸ GATE 6 │  Task Graph Review
          │
+Phase 6b │  Scope Contracts (Map Scopes, step 8) ─► group tasks into vertical scopes,
+         │  write .../scopes/<scope-id>.json, PA1/PA2 lints, affordance manifest
+⏸ GATE 6b│  Scope Board Review
+         │
 Phase 7a │  Self-Audit ────────────────► Layer 0-3 checks, weighted score
 Phase 7b │  Scope Summary ─────────────► critical path, estimates, blockers
 Phase 7c │  Synthesis ─────────────────► Health Dashboard + traceability + risk + dependency
@@ -97,6 +103,7 @@ Phase 8  │  Index + Feedback ──────────► master document
 | Phase 3 | `references/ux-behavior-patterns.md` |
 | Phase 5 | `references/integration-analysis.md` (standard only) |
 | Phase 6 | `references/task-generation.md` |
+| Phase 6b | `references/task-generation.md#Scope-Contracts` — import-graph slicing, PA1/PA2 lints |
 | Phase 7a | `references/audit-rules.md` |
 | Phase 7c | `assets/templates/synthesis.tmpl.md` |
 | Cross-context | `assets/templates/cross-context/` |
@@ -328,6 +335,78 @@ Use `assets/templates/task.tmpl.md` (FEAT/FIX/CHORE) or `task-spike.tmpl.md` (SP
 
 ---
 
+## Phase 6b — Scope Contracts (the scope-architect role, Map Scopes / step 8)
+
+**Goal:** Group the tasks just generated into independent, vertically-sliced **scopes** — Shape
+Up's "map the scopes" — and write each as a committed contract the rest of the harness can
+mechanically enforce (design spec v1.1 Blueprint B1, addendum Δ1: contracts are committed,
+`docs/shapeup-sdlc/<slug>/scopes/`, not a gitignored runtime file — the PO approves them at
+GATE 6b, a teammate picking up scope B needs scope A's substrate to respect disjointness, and
+the sandbox hook enforces committed truth). `ba` is the **sole writer** of scope contracts.
+
+```
+1. Slice by import/business flow, never by directory (PA1 countermeasure):
+   Start from an import graph over the task board's touched files (grep-heuristic is fine —
+   full AST parsing is an optimization, not a prerequisite). Group tasks whose files share a
+   call chain (a UI screen + the API route + the use case + the repository it drives) into one
+   scope. A board whose scopes align 1:1 with top-level directories (all-frontend scope,
+   all-backend scope) FAILS this step — split by flow, not by layer.
+2. Classify topology_type per scope: LAYER_CAKE (thin balanced UI+backend) | ICEBERG (simple
+   UI, complex backend, or vice versa) | CHOWDER (misc tasks with no shared flow — the one
+   deliberate exception to rule 1).
+3. Write allowed_file_substrate: the exact glob list of files this scope's tasks touch. This
+   becomes the write-whitelist the PreToolUse sandbox hook enforces during Build Vertically —
+   get it right here or task-executor will legitimately need a substrate-expansion ESCALATE later.
+4. shared_substrate: files two-or-more scopes legitimately both touch (e.g. src/lib/http.ts).
+   Declaring it here is what lets task-executor write it without tripping the sandbox hook —
+   every write to it forces a full seesaw regression run at that scope's next GATE L2.
+5. affordance_manifest: derive from ux-behavior.md's state tables for this scope's screens —
+   every interactive element as {test_id, role} plus required_states
+   [idle, loading, success, error, empty]. Layer 1 of the UI anatomy (design spec §4.6) —
+   task-executor binds to these test_ids; the evaluator asserts only against them, never pixels.
+6. e2e_verification_fixtures: name the Playwright spec file(s) that will drive this scope
+   end-to-end (T0 mechanical layer). `ba` authors fixtures at contract time — judge-independent
+   by design (spec Q3); if a scope is too speculative (iceberg, unproven backend) to fixture
+   yet, mark fixtures TBD and flag it — do not invent a fixture for unbuilt behavior.
+7. PA2 size lint: warn if a scope's substrate exceeds ~15 files (configurable); hard-cap blocks
+   GATE 6b. Chowder absorbs true strays; a warning on a non-chowder scope means split it, not
+   silence the lint.
+8. hill_phase: always UPHILL_UNKNOWN at first write — never set anything else here. Hill phase
+   is derived later from T0/T1/seesaw facts (never declared by `ba` or any worker, DD-10).
+```
+
+**Write:** `scopes/<scope-id>.json` per scope (schema: design spec Blueprint B1) +
+`scope-board.md` (index: scope_id, topology_type, task count, substrate file count, PA1/PA2
+lint result) → Read `references/gates.md#GATE-6b` and print GATE 6b.
+
+**GATE 6b Output:**
+```
+⏸ GATE 6b — Scope Board Review
+Scopes        : [N]  ([k] layer-cake, [j] iceberg, [m] chowder)
+PA1 lint      : ✅ no directory-aligned scope | 🔴 [scope-id] aligns 1:1 with [dir/] — re-slice
+PA2 lint      : ✅ all scopes ≤15 files | ⚠️ [scope-id] has [N] files — consider splitting
+Substrate     : ✅ disjoint (except declared shared_substrate) | 🔴 overlap: [file] in [A] and [B]
+```
+Do NOT proceed to Phase 7a until the PO accepts the scope board (or the tech lead's own GATE
+L1 substrate-disjointness assertion, when `ba` runs under orchestration, re-confirms it).
+
+### `--remap` mode (mid-cycle scope reconciliation)
+
+Two triggers, same mechanism as `--tasks-only --from-discovered` (below) but scoped to
+contracts, not just tasks:
+```
+a. Discovered tasks don't fit any existing scope's substrate → add to the nearest scope if the
+   flow matches, else propose a new scope (never silently widen an existing substrate).
+b. A scope is stuck (hill `rounds_at_position >= 3`, or the advisor-protocol approved a
+   substrate-expansion ESCALATE) → split it: re-run step 1's import-graph slicing on just that
+   scope's task+file set, write N new scope contracts, mark the old one `superseded_by: [ids]`
+   (never delete — the git branch and T0 history stay attributable).
+```
+`--remap` is READ-ONLY on every other frozen-zone doc (domain-model, usecases Steps,
+ux-behavior, contracts/) — it only ever writes `scopes/*.json` (+ regenerates `scope-board.md`).
+
+---
+
 ## Phase 7a — Self-Audit
 
 Read `references/audit-rules.md` first.
@@ -436,6 +515,12 @@ Cross-context, Synthesis, AC Quality.
 
 # Retrofit Test Surface onto a pre-v2.9 spec (incremental; frozen zone untouched)
 /ba-pitch-analyzer --surface-only docs/shapeup-sdlc/checkout-vnpay/spec/
+
+# Reconcile discovered tasks into scope contracts (fits existing scopes or proposes new ones)
+/ba-pitch-analyzer --remap --from-discovered .shapeup-sdlc/checkout-vnpay/discovery/ledger.md docs/shapeup-sdlc/checkout-vnpay/
+
+# Split a stuck scope (rounds_at_position >= 3, or an approved substrate-expansion ESCALATE)
+/ba-pitch-analyzer --remap --split cart-creation docs/shapeup-sdlc/checkout-vnpay/
 ```
 
 ### Progress Markers
@@ -505,6 +590,7 @@ Cross-context, Synthesis, AC Quality.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 3.1 | 2026-07-12 | **Scope-architect role** (design spec v1.1 §4.5/§5.2, DD-11, addendum Δ1): new Phase 6b writes committed `scopes/<scope-id>.json` contracts (`docs/shapeup-sdlc/<slug>/scopes/`, `ba` sole writer) — import/business-flow slicing (never by directory, PA1 lint), `allowed_file_substrate` write-whitelist for the sandbox hook, `shared_substrate` (seesaw-guarded), `affordance_manifest` derived from ux-behavior state tables, `e2e_verification_fixtures` authored at contract time, PA2 size lint (~15-file soft cap). New GATE 6b (scope board review). New `--remap` mode: reconcile discovered tasks into existing/new scopes, or split a stuck scope by re-slicing its file set (old contract marked `superseded_by`, never deleted). `hill_phase` always written `UPHILL_UNKNOWN` — never declared otherwise (DD-10, phase is derived, not authored). |
 | 3.0 | 2026-06-16 | BDD Scenarios (`### 🧪`) required for FEAT tasks with user-actor or cross-layer boundary; Integration Flow (`### 🔗`) required for tasks crossing ≥1 service boundary; UC `## System Flow` section traces UI→API→UC→DB call path; Integration Test task pattern added to task-generation.md; AC Trigger Matrix extended with two new triggers; SKILL.md Phase 4 + Phase 6 updated to reflect new sections. |
 | 2.9 | 2026-06-11 | QA-meeting Bước 1a: UC `## Test Surface` — DERIVED rows from D1 Invariants + D2 Error Cases + D3 Contract/Input shape + D4 No-gos (rules: references/test-surface.md; anti-invention hard rule — sourceless test idea = GATE 4 question, never a row). Generated in Phase 4; `--surface-only` retrofits pre-v2.9 specs (frozen zone untouched, append-only, `run-state.test_surface`, same discipline as `--tasks-only`); `--tasks-only` invariant-append now also appends TS-INV row. New audit block; skill_version 2.9. Consumed by spec-evaluator `test-surface-conformance` (auto-enable). Division of labor: derivable = BA+Evaluator; exploratory edges = /qa-edge-hunter post-PASS. Slim-down: Output Checklist → references/audit-rules.md#Output-Checklist, --surface-only detail → references/test-surface.md (pointers retained; SKILL.md back under 500 lines). |
 | 2.8 | 2026-06-10 | `--tasks-only --from-discovered [ledger]` incremental reducer (feature-slug verify, frozen DDD zone read-only, tasks continue-numbering no-renumber, regenerate only tasks/_index+scope-summary+synthesis). UC `## Invariants` (append-only, logged in human_edited_files) absorbs Basecamp scope + invariant into single UC trust — Coverage stays one-anchor. Appetite Guard at Phase 7b = forcing function (HAMMER on overflow, never auto-resolve). Cut tasks → synthesis "Hammered Out", no file. New-actor/action scope → STOP+escalate. Open decision locked: ledger scope → use-case. |

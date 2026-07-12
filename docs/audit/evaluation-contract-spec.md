@@ -32,12 +32,12 @@ criterion:
 | `oracle` | Deliverable | Probe = | Evidence cited | Implementation |
 |----------|-------------|---------|----------------|----------------|
 | `ui`      | running web app | Playwright action | DOM snapshot / screenshot / network | in-skill (Playwright CLI) |
-| `process` | CLI / script    | spawn with argv + sandboxed env | exit code + stdout/stderr + crash check | `scripts/oracles/process-oracle.mjs` ✅ |
-| `test`    | library / module| run the project's own test suite | suite exit + failing-test names | `scripts/oracles/test-oracle.mjs` ✅ |
-| `snapshot`| pure refactor / generator output | diff actual vs golden | unified diff (empty = PASS) | `scripts/oracles/snapshot-oracle.mjs` ✅ |
-| `http`    | service / API   | start server + request | status + response body assertion | `scripts/oracles/http-oracle.mjs` ✅ |
+| `process` | CLI / script    | spawn with argv + sandboxed env | exit code + stdout/stderr + crash check | `scripts/shapeup-sdlc/oracles/process-oracle.mjs` ✅ |
+| `test`    | library / module| run the project's own test suite | suite exit + failing-test names | `scripts/shapeup-sdlc/oracles/test-oracle.mjs` ✅ |
+| `snapshot`| pure refactor / generator output | diff actual vs golden | unified diff (empty = PASS) | `scripts/shapeup-sdlc/oracles/snapshot-oracle.mjs` ✅ |
+| `http`    | service / API   | start server + request | status + response body assertion | `scripts/shapeup-sdlc/oracles/http-oracle.mjs` ✅ |
 
-New oracle types are added by registering a probe runner in `scripts/oracles/index.mjs` — mirroring
+New oracle types are added by registering a probe runner in `scripts/shapeup-sdlc/oracles/index.mjs` — mirroring
 how `spec-evaluator` already loads pluggable *dimensions*. The contract interface is fixed
 (`{ fails, results }`, each result `{ id, desc, pass, evidence }`); implementations grow.
 
@@ -59,21 +59,21 @@ how `spec-evaluator` already loads pluggable *dimensions*. The contract interfac
    `ui` keeps the current Playwright path; every non-`ui` oracle is a **self-contained
    spawn-and-grade procedure** the evaluator performs with the Bash tool. See the "Oracle dispatch"
    section in `skills/spec-evaluator/references/probing.md`.
-3. ✅ **DONE — Reference probe runner** `scripts/oracles/process-oracle.mjs` (declarative-contract
+3. ✅ **DONE — Reference probe runner** `scripts/shapeup-sdlc/oracles/process-oracle.mjs` (declarative-contract
    driven; reference contract `examples/todo-cli/todo.contract.json`), exercised by structural test
    #6 (incl. a do-nothing negative control proving it discriminates). **NB (see Runtime model
    below):** this runner — and `examples/` — are repo-only **dev/CI reference implementations**,
    not shipped plugin assets and not invoked by the installed skill; they keep the documented
    `probing.md` grammar honest.
 4. ✅ **DONE — Add `test` + `snapshot` oracles** (cover libraries and refactors — the two most
-   common non-UI deliverables). `scripts/oracles/test-oracle.mjs` runs the deliverable's own suite
+   common non-UI deliverables). `scripts/shapeup-sdlc/oracles/test-oracle.mjs` runs the deliverable's own suite
    and grades exit + parsed failing-test names (a suite that runs zero tests FAILs, per probing.md
-   TDD-1); `scripts/oracles/snapshot-oracle.mjs` diffs observed stdout against a committed golden
+   TDD-1); `scripts/shapeup-sdlc/oracles/snapshot-oracle.mjs` diffs observed stdout against a committed golden
    (empty diff = PASS). Worked fixtures: `examples/lib-mathx/` (green suite + a red-suite negative
    control) and `examples/refactor-greet/` (golden + a do-nothing negative control). Both are
    exercised by structural tests #9 and #10, each with a negative control proving the grader
    discriminates.
-5. ✅ **DONE — `http` oracle** (services). `scripts/oracles/http-oracle.mjs` picks a free port,
+5. ✅ **DONE — `http` oracle** (services). `scripts/shapeup-sdlc/oracles/http-oracle.mjs` picks a free port,
    spawns the server with `$PORT`, polls until reachable (an unreachable service FAILs every
    criterion — absence of evidence), then asserts status + body/JSON per request and tears the
    server down. Worked fixture `examples/http-ping/` (working server + a reachable-but-broken 500
@@ -93,7 +93,7 @@ the plugin**; the scaffolding installer copies only `skills/`; `distribute.js` i
 `docs/` are **absent at runtime**. The evaluator (an LLM with Bash) therefore executes each oracle
 as the self-contained procedure documented in `probing.md` — it does **not** call a bundled script.
 
-`scripts/oracles/*.mjs` + `examples/*` are deliberately **repo-only dev/CI assets**: executable
+`scripts/shapeup-sdlc/oracles/*.mjs` + `examples/*` are deliberately **repo-only dev/CI assets**: executable
 reference implementations of the exact `probing.md` grammar, with negative-control tests
 (structural #6, #8–#11) that keep the documented procedure honest and discriminating. They never
 need to ship. Structural test **#12** enforces install-safety: a shipped skill file may not

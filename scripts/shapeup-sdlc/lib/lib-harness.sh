@@ -27,9 +27,9 @@ harness_resolve_source() {
   local lib_dir
   lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-  # lib lives at <repo>/scripts/lib/ — the repo root is two levels up.
-  if [ -d "$lib_dir/../../skills" ]; then
-    HARNESS_SOURCE_DIR="$(cd "$lib_dir/../.." && pwd)"
+  # lib lives at <repo>/scripts/shapeup-sdlc/lib/ — the repo root is three levels up.
+  if [ -d "$lib_dir/../../../skills" ]; then
+    HARNESS_SOURCE_DIR="$(cd "$lib_dir/../../.." && pwd)"
     HARNESS_ANTIGRAVITY_DIST="$HARNESS_SOURCE_DIR/dist/antigravity"
     echo "Using local source directory: $HARNESS_SOURCE_DIR"
     return 0

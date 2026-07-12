@@ -72,9 +72,41 @@ r>1 (fix) per bug:
   Invoke: /task-executor --spec <path> --task <id> --force [--auto-close]
   Effect: re-executes a specific task to fix the bug; scope the change to the bug only.
 
+Scope contracts present (isolated attempt loop, per scope, per attempt):
+  Invoke: /task-executor --brief .shapeup-sdlc/<slug>/briefs/r<N>-a<M>.md [--auto-close]
+  Effect: zero-memory-handoff execution within the scope's substrate; may return an ESCALATE
+          instead of (or alongside) code. Read back the ESCALATE (if any) → dispatch 3b below.
+
 Read back: tasks/_index.md status column after each call to know when the board is green.
 SPIKE tasks: task-executor handles them as decision docs; they must close before the tasks
 they block can build.
+```
+
+## 3b. ESCALATE adjudication → advisor-protocol (scope contracts present, mid-attempt)
+```
+Invoke: /advisor-protocol --ledger docs/shapeup-sdlc/<slug>/round-ledger.md --escalate <block>
+        [--unattended]
+Effect: adjudicates via precedent / substrate-expansion (→ ba --remap) / PO ask / conservative
+        default; appends one row to round-ledger.md "Decisions" the instant it resolves.
+Read back: the answer, to fold into the SAME attempt if still in progress, or the next
+        attempt's isolated brief otherwise.
+Authority: advises; never designs, builds, or judges. Budget ≤3/scope/round — the 4th+
+        ESCALATE this scope/round auto-resolves conservatively and flags a GATE H proposal.
+```
+
+## 3c. T0 verify → scripts/shapeup-sdlc/t0-verify.mjs (scope contracts present, every attempt)
+```
+Invoke: node scripts/shapeup-sdlc/t0-verify.mjs docs/shapeup-sdlc/<slug>/scopes/<scope-id>.json
+        --round <N> --attempt <M> --seesaw-registry .shapeup-sdlc/<slug>/seesaw/registry.json
+Effect: runs the scope's e2e fixtures + DB probe, then (on green) the seesaw regression check
+        over every FINISHED scope's fixtures. Writes the verdict artifact spec-evaluator's
+        GATE V0.7 will require a citation to. Zero LLM tokens — deterministic tooling, not a
+        judge (this is what keeps "T1 once per round" true even though verification runs
+        every attempt, DD-7).
+Read back: overall (green|red) + regression (bool) — drives the attempt-loop branch in
+        round-protocol.md "Isolated attempt loop". On red, its `discovered_tasks` field is
+        the AEGIS digest to fold into the next brief — no separate digester dispatch needed
+        (t0-verify.mjs calls scripts/shapeup-sdlc/aegis-digest.mjs internally on failure).
 ```
 
 ## 4. EVAL → spec-evaluator (once per round)
@@ -94,6 +126,16 @@ Read back: EVAL-FEATURE-<slug>.md → verdict (pass|fail) + the bug list (each b
 > patch: iterate the board's AC/Done-when in one probe+grade session, emit one
 > EVAL-FEATURE report) before wiring the tech lead to it. The per-task invocation still
 > works for ad-hoc checks, but the round loop expects one feature pass.
+
+## 5. SHIP / GATE H → scope-hammer
+```
+Invoke: /scope-hammer --slug <slug> [--baseline <path>] [--breaker outer|inner --scope <id>]
+Effect: GATE H0 census (scopes + QA findings + discovered ledger + advisor-overflow flags) →
+        H1 baseline comparison (never vs. a perfect ideal) → H2 cut list + verdict.
+Read back: the proposed cut list + verdict (SHIP now | SHIP after fixing ship-blocking items |
+        CANNOT SHIP). The tech lead records the PO's decision in round-ledger.md and performs
+        the actual close (SHIP S.1 onward) — scope-hammer proposes, it never ships.
+```
 
 ## Authority boundaries (do not cross)
 - The Scout orients; it never plans, builds, or judges — it hands raw material to the planner.
@@ -117,6 +159,11 @@ Read back: EVAL-FEATURE-<slug>.md → verdict (pass|fail) + the bug list (each b
 | `scope-summary.md` | planner | tech lead (Done-when), evaluator (Done-when criteria) |
 | `evaluation/EVAL-FEATURE-<slug>.md` | evaluator | tech lead (verdict), generator (bug list) |
 | `harness-run.md` | **tech lead (sole writer)** | tech lead (round ledger + Hill + run-state), PO (audit) |
+| `scopes/<scope-id>.json` | `ba` (sole writer, incl. `--remap`) | tech lead (substrate/sequence), sandbox hook (write-whitelist), task-executor (brief) |
+| `briefs/r<N>-a<M>.md` | **tech lead (sole writer)** | task-executor (isolated brief — zero-memory) |
+| `t0/verdicts/r<N>-a<M>.json` | `scripts/shapeup-sdlc/t0-verify.mjs` (mechanical, not a worker) | spec-evaluator (required citation), tech lead (hill derivation) |
+| `round-ledger.md` | **tech lead (sole writer)** | task-executor (decisions in every brief), advisor-protocol (appends), PO (audit) |
+| `hill/<scope-id>.yml` + `hill-chart.md` | **tech lead (sole writer)** | PO ("status without asking"), scope-hammer (H0 census) |
 
 > `run-state.md`: still written by planner/generator/evaluator until their D6 cleanup lands,
 > but it is no longer the authoritative run record — `harness-run.md` is, and the tech lead is

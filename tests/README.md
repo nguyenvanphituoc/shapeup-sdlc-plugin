@@ -21,7 +21,7 @@ Zero dependencies, no network, no Claude calls. Proves the plugin is **well-form
 6. The `process` worked example (`examples/todo-cli/`) PASSes its reference impl and FAILs a
    do-nothing one.
 7. Migrations are well-formed (`NNNN__slug.sh`, unique ids, `migration_up` + `MIGRATION_DESC`).
-8. The evaluation-contract **oracle registry** (`scripts/oracles/index.mjs`) is complete and
+8. The evaluation-contract **oracle registry** (`scripts/shapeup-sdlc/oracles/index.mjs`) is complete and
    consistent with the docs — every registered oracle has a runner file and is documented.
 9–11. Each non-UI oracle PASSes its worked fixture **and** FAILs a negative control (so a
    rubber-stamp grader cannot pass): `test` (`examples/lib-mathx/`, green vs red suite),
@@ -40,7 +40,7 @@ Zero dependencies, no network, no Claude calls. Proves the plugin is **well-form
    once-per-round EVAL on a partial board (naming the unfinished task) and ALLOWS it on a green
    board, while never gating per-task evals, other skills, or non-`Skill` tools. Driven against
    temp board fixtures — proves the gate actually enforces, not just that it parses.
-15. **Verdict-ledger calibration (Stage D1):** `scripts/verdict-ledger.mjs` flags a PASS→FAIL flip
+15. **Verdict-ledger calibration (Stage D1):** `scripts/shapeup-sdlc/verdict-ledger.mjs` flags a PASS→FAIL flip
    across runs, forces that criterion's confidence to `low`, leaves stable criteria untouched, and
    exits non-zero on a flipping ledger / zero on a stable one. Proves the judge-calibration grammar
    (`spec-evaluator/references/verdict-ledger.md`) discriminates an unstable judge from a stable one.
@@ -60,7 +60,7 @@ merely that they exist.
 
 Per skill: `skills/<name>/evals/trigger-evals.json` — `{query, should_trigger}` cases with
 cross-skill hard negatives (103 cases across 9 skills today). Measured with skills **installed**
-(`claude --plugin-dir .`) detecting real `Skill`-tool activation via `scripts/trigger-eval.mjs`.
+(`claude --plugin-dir .`) detecting real `Skill`-tool activation via `scripts/shapeup-sdlc/trigger-eval.mjs`.
 The prior measurement's TPR≈0 was a proxy artifact (it measured slash-command self-invocation) —
 the harness avoids that and **aborts rather than write zeros** if a run produces no model events.
 The baseline (`evals/baselines/trigger-evals.baseline.json`) ships `unmeasured` / `results: null`;

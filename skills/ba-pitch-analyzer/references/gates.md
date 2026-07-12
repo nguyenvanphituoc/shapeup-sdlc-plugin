@@ -272,6 +272,31 @@ Questions (only when decomposition required assumptions):
 
 ---
 
+## GATE 6b — Scope Board Review
+
+Always print the PA1/PA2 lint results and any substrate overlap. A 🔴 on either lint blocks
+"proceed" — re-slice or split before moving on, same discipline as a failing GATE 6 audit item.
+
+```
+⏸ GATE 6b — Scope contracts written. Review the scope board before audit.
+
+Scopes: [N]  (layer-cake: [k]  iceberg: [j]  chowder: [m])
+  [scope-id]  [topology_type]  [N] files  [N] tasks
+
+PA1 (folder-grouping) : ✅ pass | 🔴 [scope-id] aligns 1:1 with [dir/] — re-slice by flow, not layer
+PA2 (scope size)       : ✅ all ≤15 files | ⚠️ [scope-id]: [N] files — consider splitting
+Substrate disjointness : ✅ disjoint (except declared shared_substrate) | 🔴 [file] claimed by [A] and [B]
+Affordance manifests    : [N]/[N] scopes have one | [scope-id] missing — no ux-behavior screens mapped yet
+
+Questions (only when slicing required a judgment call):
+  1. [e.g. "[TaskX] touches both [ScopeA] and [ScopeB]'s flow — which owns it, or is this shared_substrate?"]
+  2. [e.g. "[ScopeC] has no fixture-able behavior yet (iceberg, backend unproven) — mark fixtures TBD?"]
+
+→ Confirm, correct, or answer. Type "proceed" to run audit.
+```
+
+---
+
 ## GATE 7 — Synthesis & Execution Decision
 
 If audit score < 70: do NOT offer "proceed" — list required fixes first.

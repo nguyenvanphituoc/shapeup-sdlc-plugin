@@ -1,6 +1,6 @@
 ---
 name: spec-evaluator
-description: "Use this skill whenever the user wants to evaluate, QA, or verify that an implemented task actually matches its spec and acceptance criteria — the judge in a planner→generator→evaluator harness, pairing with task-executor. Trigger on: \"evaluate task TASK-NNN\", \"QA TASK-NNN\", \"verify against spec\", \"check acceptance criteria\", \"does this match the spec\", \"grade this build\", \"run evaluator\", \"verify TDD\", \"run integration tests\", \"check test coverage\". Use it even when the user just points at a built task plus a spec folder and asks if it is correct. Three always-on dimensions: spec-conformance (AC + Done-when + contract shapes + non-go), tdd-surface (test suite green + companion test files), and integration (full-stack integration test + auth boundary + RLS-JWT pattern). Security and performance ship as disabled, injectable stubs. Skeptical by default — absence of evidence is a FAIL, probes the running app and test suite, files file:line bugs, never marks a task done."
+description: "Use this skill whenever the user wants to evaluate, QA, or verify that an implemented task actually matches its spec and acceptance criteria — the judge in a planner→generator→evaluator harness, pairing with task-executor. Trigger on: \"evaluate task TASK-NNN\", \"QA TASK-NNN\", \"verify against spec\", \"check acceptance criteria\", \"does this match the spec\", \"grade this build\", \"run evaluator\", \"verify TDD\", \"run integration tests\", \"check test coverage\". Use it even when the user just points at a built task plus a spec folder and asks if it is correct. Always-on: spec-conformance, tdd-surface, and integration dimensions (security/performance ship disabled). Skeptical by default — absence of evidence is a FAIL, probes the running app, files file:line bugs, never marks a task done. v0.8: on scoped specs, a verdict must cite that round's T0 mechanical artifact (fixture+DB-probe+seesaw); UI assertions are affordance-only, never pixels/colors/fonts."
 ---
 
 # Spec Evaluator
@@ -120,6 +120,17 @@ Validation:
   V0.6  Determine run command + browser mode (ASK, do not assume):
           - "How do I start the running app for this task? (e.g. pnpm --filter web dev)"
           - browser mode: cli (default, token-efficient) | mcp | none (be-only task)
+  V0.7  T0 artifact resolution (design spec v1.1 §3.5, DD-7 — only when the spec folder has
+        scope contracts, docs/shapeup-sdlc/<slug>/scopes/*.json):
+          - For each scope this task/feature touches, locate its latest T0 verdict artifact:
+            .shapeup-sdlc/<slug>/t0/verdicts/r<N>-a<M>.json for the current round N.
+          - Record path + sha256 (recompute and compare — do not trust a hash string handed to
+            you). Missing artifact for a scoped task/feature → the round is NOT gradeable yet;
+            HARD STOP and route back to BUILD ("no T0 artifact for scope [id] this round —
+            run t0-verify before requesting EVAL"). This is a structural precondition, not a
+            criterion — it fails before V1 even starts.
+          - No scope contracts in this spec (pre-v0.3.0 spec, or a scope-less task) → V0.7 is
+            a no-op; grading proceeds exactly as before (non-regression on older specs).
 ```
 
 **GATE V0 Output:**
@@ -131,8 +142,10 @@ Build status  : [in-progress | done]
 Active dims   : [spec-conformance] (+ any flipped on)   |  ignored: [security, performance, ...]
 Run command   : [confirmed by user]
 Browser mode  : [cli | mcp | none]
+T0 artifact   : [n/a — no scope contracts | [scope-id]: t0/verdicts/r2-a3.json sha256:1a2b3c… | 🔴 MISSING for [scope-id]]
 ```
-Do NOT proceed until user confirms.
+Do NOT proceed until user confirms. A 🔴 missing T0 artifact HARD STOPS here (V0.7) — do not
+proceed to GATE V1 on a gradeable-looking but structurally incomplete round.
 
 ---
 
@@ -189,6 +202,13 @@ A.1  Start the app with the confirmed run command. Confirm it is reachable befor
 A.2  For each [cmd] criterion: run the command, capture stdout/stderr + exit code.
 A.3  For each [ui] criterion (browser mode = cli): drive Playwright CLI — navigate, act,
      snapshot the accessibility tree, save evidence. Prefer CLI over MCP (≈4x fewer tokens).
+     Affordance-only assertions (design spec §4.6, Layer 3 freeze): when the scope has an
+     `affordance_manifest`, every UI assertion targets its `test_id`/`role` and the element's
+     `data-state` attribute — presence, correct state transitions, correct behavior on
+     interaction. NEVER assert on color, font, spacing, pixel position, or any other visual
+     property; that is Layer-3 work explicitly frozen out of this cycle, and grading it would
+     resurrect the freeze through the judge. A visually ugly but behaviorally correct element
+     PASSes; a pretty element with the wrong `data-state` or a missing `test_id` FAILs.
 A.4  For each [data] criterion: query the DB / inspect storage, capture the actual state.
 A.5  For repo tasks: send real requests matching the contract Request table; capture the
      actual Response and compare field-by-field to the Response/Error tables.
@@ -230,6 +250,12 @@ V2.3  Overall verdict = PASS only if ALL active dimensions PASS. Otherwise FAIL.
       (Halo effect banned: a strong dimension never lifts a failing one.)
 V2.4  Assemble the bug list — one entry per FAIL, in the report-schema bug format,
       each with severity, criterion id, file:line, repro, expected vs actual.
+V2.5  T0 citation (DD-7 — scoped specs only, from V0.7): the overall verdict for any scoped
+      task/feature MUST cite the T0 artifact path + sha256 in the report. The generator's own
+      claims ("tests pass", "verified locally") are never admissible evidence on their own —
+      they were never admissible under this skill's existing evidence rule either, but T0
+      makes the point structural: a PASS with no T0 citation on a scoped spec is not a valid
+      verdict, full stop, regardless of how convincing Phase A's own probing looked.
 ```
 
 **GATE V2 Output:**
@@ -241,6 +267,7 @@ Dimension: spec-conformance  →  [PASS | FAIL]   (threshold: 100% AC + contract
   ✅ AC3  [evidence: row inserted, status='pending' in DB]
   ⚠️ Non-go: touched packages/shared/auth (out of scope) — apps/.../auth.ts:12
 OVERALL: FAIL — 1 AC failing, 1 non-go breach. 2 bugs filed.
+T0 citation: [n/a | t0/verdicts/r2-a3.json sha256:1a2b3c… (scope: cart-creation)]
 ```
 Do NOT write the report or annotate the task until the verdict is confirmed.
 
@@ -260,7 +287,9 @@ B.0  Verdict ledger (verdict-ledger.md): read .shapeup-sdlc/<slug>/evaluation/.v
        evidence, at). Never rewrite prior lines. Surface every flip in the report's stability block.
 B.1  Write .shapeup-sdlc/<slug>/evaluation/EVAL-<task_id>.md per report-schema.md
        (verdict, per-dimension criteria table incl. confidence, verdict-stability block, bug list,
-       NEXT ACTION for the generator).
+       NEXT ACTION for the generator, and — scoped specs only — the T0 artifact citation from
+       V0.7/V2.5: path + sha256 per scope graded this round. A scoped report with no citation
+       field is malformed; do not write it).
 B.2  Annotate the task file frontmatter — DO NOT change status to done:
        eval_verdict: pass | fail
        eval_report: "[[evaluation/EVAL-<task_id>]]"
@@ -373,12 +402,15 @@ as worked examples of the contract. They are not run until flipped on.
 | Probe the RUNNING app, not the source alone | Apps that look right still break when used |
 | Re-probe every FAIL before finalizing; flip ⇒ confidence low | A single non-deterministic snapshot lies; the ledger makes that visible |
 | Append the verdict ledger every run, never rewrite it | Verdict history is how a single-snapshot judge becomes measurable |
+| A verdict on a scoped spec without a T0 artifact citation is structurally invalid | Generator prose is never sufficient evidence on its own; T0 is a machine-produced fact the generator cannot fabricate (DD-7, PA4) |
+| UI assertions target affordances only (test_id/role/data-state) — never pixels, colors, fonts | Layer-3 styling is frozen for this cycle; grading it would resurrect the freeze through the judge |
 
 ---
 
 ## Changelog
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.8 | 2026-07-12 | **T0-citation requirement** (design spec v1.1 §3.5, DD-7, PA4 countermeasure): new GATE V0.7 locates + hashes each touched scope's latest `t0/verdicts/r<N>-a<M>.json` mechanical artifact; missing artifact on a scoped spec HARD STOPS before V1 (round not gradeable yet). New V2.5 + Phase B.1: a verdict on a scoped spec without a T0 citation (path+sha256) is structurally invalid — generator prose alone was never sufficient, T0 makes it a hard precondition. **Affordance-only assertions**: Phase A.3 UI probing (and grading) targets only `affordance_manifest` `test_id`/`role`/`data-state` — never color/font/pixel properties (Layer-3 styling freeze, design spec §4.6). Non-regression on pre-v0.3.0 specs with no scope contracts. Two new hard rules. |
 | 0.7 | 2026-06-27 | Verdict calibration (audit D1, closes F3): `references/verdict-ledger.md` adds (1) re-probe-on-FAIL — re-run a failing probe once before finalizing; disagreement keeps the FAIL but marks it flaky/confidence-low; (2) per-criterion confidence (high/medium/low) by a fixed rule, reported never overriding the verdict; (3) an append-only `.verdicts-<task_id>.jsonl` ledger that flags verdict flips across runs (a flip forces confidence low and a stability line in the report). New GATE V2.1b + Phase B.0 steps, two hard rules, report stability block. Single-judge invariant untouched — same judge, same probe, bookkeeping over its own outputs. The flip/stability grammar has a repo-only dev/CI reference impl proving it discriminates. |
 | 0.6 | 2026-06-16 | Added two always-on dimensions: `tdd-surface` (TDD-1 suite green + TDD-2 companion test files, both critical; TDD-3 AC-scenario alignment, advisory) and `integration` (INT-1 full-stack test with real DB, INT-2 auth boundary, INT-3 RLS-JWT transaction pattern + port 6543; scoped to `.be` and `.e2e` variants). Updated registry, probing guide (TDD and integration probe sections), dimension table, description, and Definition of Done. |
 | 0.5 | 2026-06-11 | QA-meeting Bước 1b: new auto-enable dimension `test-surface-conformance` (ON only when a UC carries `## Test Surface`, v2.9+/`--surface-only` specs; non-regression on older specs). TSC-1 probes every derived TS row on the running app (all-pass; side-effect clauses need data probes; unrunnable probe = FAIL); TSC-2 checks the surface against its own sources (gap → `next: ba --surface-only` — judge never authors rows). Report MUST list every TS row probed: it is `/qa-edge-hunter`'s negative-space input (QA subtracts covered territory at its Phase Q1). |

@@ -112,21 +112,60 @@ Decision owner: PO.
 
 ---
 
-## Harvest row — `metrics.jsonl` (written at SHIP)
+## `round-ledger.md` (committed, Tier A — scope contracts only)
+
+Lives at `docs/shapeup-sdlc/<slug>/round-ledger.md` (SHARED root, tracked). Not a replacement
+for `harness-run.md` — a small, committed **subset** of it: the two things that must survive
+a `.shapeup-sdlc/` wipe or a crash (design spec addendum §F.3). Absent on specs with no scope
+contracts; `harness-run.md`'s existing Decisions log stays the only ledger there.
+
+```yaml
+---
+type: round-ledger
+feature: [slug]
+models:                          # L0.8 resolved matrix, recorded once, source noted
+  orch: [model] (source: flags|settings.local|settings.json|default)
+  exec: [model] (source: ...)
+  eval: [model] (source: ...)
+  qa:   [model] (source: ...)
+  digester: script | haiku
+budgets:
+  round_budget: [N]              # outer breaker
+  attempt_budget: [N]            # inner breaker, per scope
+---
+```
+
+```
+## Decisions
+| Round | Scope | Kind | Question | Answer | Resolved by |
+|-------|-------|------|----------|--------|-------------|
+| 2 | cart-creation | design-decision | cart-total rounding | round half-up | PO (interactive) |
+| 2 | cart-creation | substrate-expansion | needs packages/shared/http.ts | approved → shared_substrate | PO (interactive) |
+```
+**Promotion timing:** a row is appended the INSTANT `advisor-protocol` resolves an ESCALATE —
+never batched to round close. This is the file `task-executor`'s isolated briefs read back
+(zero-memory handoff, DD-8): an answer given once in round 2 must still be known in round 5's
+fresh-context attempt without replaying any chat history.
+
+---
+
+## Harvest row — `metrics/<machine-id>.jsonl` (written at SHIP)
 
 `harness-run.md` is ephemeral run-state — needed live for `--from` resume, the
 FAIL-loop, and QA reconcile; worthless after ship. At SHIP the tech-lead **harvests**
 the durable-mineable *signals* out of it into one append-only row:
 
 ```
-docs/shapeup-sdlc/metrics.jsonl        # one row = one e2e run; COMMITTED (tracked)
+docs/shapeup-sdlc/metrics/<machine-id>.jsonl   # one row = one e2e run; COMMITTED (tracked)
 ```
 
 Path note: the per-slug local run dirs `.shapeup-sdlc/[slug]/` are gitignored wholesale
-(`.shapeup-sdlc/`), but `metrics.jsonl` lives at the root of the **shared** workspace
-`docs/shapeup-sdlc/` and stays **tracked** — it is the one committed report surface, the
-durable signal feed that survives the gitignored run-trace. `schema_version` makes a
-v2.1 row readable by later skill versions.
+(`.shapeup-sdlc/`), but `metrics/` lives under the **shared** workspace
+`docs/shapeup-sdlc/` and stays **tracked** — it is the committed report surface, the
+durable signal feed that survives the gitignored run-trace. Sharded per machine (addendum
+Δ3) so concurrent runs append without merge-conflicting on one file; an aggregate view is
+`cat docs/shapeup-sdlc/metrics/*.jsonl`. `schema_version` makes a v2.1 row readable by later
+skill versions.
 
 ### Two hard rules (same discipline as the Test Surface: *derived, never invented*)
 1. **Harvest only fields that already exist as structured output at ship time.** If a

@@ -33,10 +33,10 @@ A `spec-evaluator` run on the built CLI must emit a report that:
 
 > Note: a CLI has no browser, so the evaluator does not drive Playwright here. Stage G (the
 > evaluation contract) is fully landed: each criterion carries an `oracle` tag and the evaluator
-> dispatches on it via the registry `scripts/oracles/index.mjs` (`process`/`test`/`snapshot`/`http`,
+> dispatches on it via the registry `scripts/shapeup-sdlc/oracles/index.mjs` (`process`/`test`/`snapshot`/`http`,
 > with `ui` handled in-skill). For this CLI the oracle is **`process`** — the shared runner
-> `scripts/oracles/process-oracle.mjs` spawns the deliverable and grades exit code + stdout.
-> Run it directly: `node scripts/oracles/process-oracle.mjs examples/todo-cli/todo.contract.json "node ./reference/todo.js"`.
+> `scripts/shapeup-sdlc/oracles/process-oracle.mjs` spawns the deliverable and grades exit code + stdout.
+> Run it directly: `node scripts/shapeup-sdlc/oracles/process-oracle.mjs examples/todo-cli/todo.contract.json "node ./reference/todo.js"`.
 
 ## C. Edge cases were hunted and handled (the "edge cases handled")
 

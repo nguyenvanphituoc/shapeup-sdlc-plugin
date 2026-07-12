@@ -47,12 +47,12 @@ echo "Installing Shape Up SDLC Harness into target directory: $TARGET_DIR"
 # (local clone, or download the latest release). Same lib the migrate script uses.
 LIB_REF="${LIB_REF:-main}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || true)"
-if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/lib/lib-harness.sh" ]; then
-  # shellcheck source=lib/lib-harness.sh
-  . "$SCRIPT_DIR/lib/lib-harness.sh"
+if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/shapeup-sdlc/lib/lib-harness.sh" ]; then
+  # shellcheck source=shapeup-sdlc/lib/lib-harness.sh
+  . "$SCRIPT_DIR/shapeup-sdlc/lib/lib-harness.sh"
 else
   LIB_TMP="$(mktemp)"
-  curl -fsSL "https://raw.githubusercontent.com/${REPO}/${LIB_REF}/scripts/lib/lib-harness.sh" -o "$LIB_TMP" \
+  curl -fsSL "https://raw.githubusercontent.com/${REPO}/${LIB_REF}/scripts/shapeup-sdlc/lib/lib-harness.sh" -o "$LIB_TMP" \
     || { echo "Error: could not download lib-harness.sh from ${REPO}@${LIB_REF}"; exit 1; }
   . "$LIB_TMP"
   rm -f "$LIB_TMP"
@@ -175,28 +175,50 @@ ensure_agent_import "$TARGET_DIR/.codex/AGENTS.md" ".codex/AGENTS.md" "codex"
 # -- 4. Gitignore Setup --------------------------------------------------------
 GITIGNORE_FILE="$TARGET_DIR/.gitignore"
 GITIGNORE_RULE="# Shape Up SDLC run workspace
-.shapeup-sdlc/"
+.shapeup-sdlc/
+
+# Shape Up SDLC Tier C — per-member local config (templates *.example stay committed).
+# The env file is SHAPEUP_-namespaced (filename + keys) so it never collides with, or gets
+# confused with, this project's own .env / .env.local.
+.claude/settings.local.json
+.env.shapeup.local
+!.env.shapeup.example
+!.claude/settings.local.example.json"
 
 if [ -f "$GITIGNORE_FILE" ]; then
   if ! grep -q ".shapeup-sdlc/" "$GITIGNORE_FILE"; then
     echo -e "\n$GITIGNORE_RULE" >> "$GITIGNORE_FILE"
-    echo "Added .shapeup-sdlc/ to .gitignore"
+    echo "Added Shape Up SDLC ignore rules to .gitignore"
   else
     echo ".shapeup-sdlc/ already ignored in .gitignore"
   fi
 else
   echo -e "$GITIGNORE_RULE" > "$GITIGNORE_FILE"
-  echo "Created .gitignore and added ignore rule"
+  echo "Created .gitignore and added ignore rules"
 fi
 
 # -- 5. Initialize telemetry and memory files ----------------------------------
-mkdir -p "$TARGET_DIR/docs/shapeup-sdlc"
+mkdir -p "$TARGET_DIR/docs/shapeup-sdlc/metrics"
 
 METRICS_FILE="$TARGET_DIR/docs/shapeup-sdlc/metrics.jsonl"
-if [ ! -f "$METRICS_FILE" ]; then
-  touch "$METRICS_FILE"
-  echo "Initialized metrics.jsonl"
+if [ ! -f "$METRICS_FILE" ] && [ -z "$(ls -A "$TARGET_DIR/docs/shapeup-sdlc/metrics" 2>/dev/null)" ]; then
+  echo "Initialized docs/shapeup-sdlc/metrics/ (sharded harvest — one file per machine, addendum §F.4-Δ3)"
 fi
 
+# -- 6. Tier C templates (design spec addendum §F.2) ---------------------------
+# Committed templates so a fresh clone knows exactly what per-member config to fill in;
+# GATE L0 validates the merged config against these key sets. Never overwrite a member's
+# real .env.shapeup.local / settings.local.json — only drop the *.example templates. The env
+# template is SHAPEUP_-namespaced (filename + keys) so it can never collide with, or be
+# mistaken for, this project's own .env / .env.local.
+if [ -f "$SOURCE_DIR/.claude/settings.local.example.json" ]; then
+  mkdir -p "$TARGET_DIR/.claude"
+  cp "$SOURCE_DIR/.claude/settings.local.example.json" "$TARGET_DIR/.claude/settings.local.example.json"
+  echo "Installed .claude/settings.local.example.json (copy to settings.local.json and edit)"
+fi
+if [ -f "$SOURCE_DIR/.env.shapeup.example" ]; then
+  cp "$SOURCE_DIR/.env.shapeup.example" "$TARGET_DIR/.env.shapeup.example"
+  echo "Installed .env.shapeup.example (copy to .env.shapeup.local and edit)"
+fi
 
 echo "Harness installation and scaffolding successfully completed!"

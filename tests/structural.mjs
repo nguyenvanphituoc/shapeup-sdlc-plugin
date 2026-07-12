@@ -201,10 +201,10 @@ if (existsSync(oracle) && existsSync(refImpl)) {
 }
 
 // The shared process oracle (Stage G) and its reference contract must be present & well-formed.
-const sharedOracle = join(ROOT, "scripts/oracles/process-oracle.mjs");
+const sharedOracle = join(ROOT, "scripts/shapeup-sdlc/oracles/process-oracle.mjs");
 const contract = join(ROOT, "examples/todo-cli/todo.contract.json");
-if (existsSync(sharedOracle)) ok("shared process oracle present (scripts/oracles/process-oracle.mjs)");
-else fail("shared process oracle missing: scripts/oracles/process-oracle.mjs");
+if (existsSync(sharedOracle)) ok("shared process oracle present (scripts/shapeup-sdlc/oracles/process-oracle.mjs)");
+else fail("shared process oracle missing: scripts/shapeup-sdlc/oracles/process-oracle.mjs");
 if (existsSync(contract)) {
   try {
     const c = readJSON(contract);
@@ -219,7 +219,7 @@ section("7. Migrations are well-formed (DB-migration discipline)");
 // =============================================================================
 // Ordered NNNN__slug.sh, unique ids, each defines MIGRATION_DESC + migration_up — so the runner
 // in lib-migrate.sh can discover, order, and apply them deterministically.
-const migDir = join(ROOT, "scripts/migrations");
+const migDir = join(ROOT, "scripts/shapeup-sdlc/migrations");
 if (existsSync(migDir)) {
   const seen = new Map();
   for (const name of readdirSync(migDir).filter((f) => f.endsWith(".sh"))) {
@@ -234,7 +234,7 @@ if (existsSync(migDir)) {
     if (!/MIGRATION_DESC=/.test(body)) fail(`migration ${name} missing MIGRATION_DESC`);
   }
 } else {
-  console.log("  (no scripts/migrations dir — skipping)");
+  console.log("  (no scripts/shapeup-sdlc/migrations dir — skipping)");
 }
 
 // =============================================================================
@@ -243,15 +243,15 @@ section("8. Evaluation-contract oracle registry (Stage G) is complete & consiste
 // The registry is the source of truth for "which oracles exist". Every oracle it names must
 // have a runner file; every oracle the docs claim must be in the registry. Catches a doc/code
 // drift in the eval-contract the same way #3 catches broken SKILL references.
-const { ORACLES, ORACLE_NAMES } = await import(join(ROOT, "scripts/oracles/index.mjs"));
+const { ORACLES, ORACLE_NAMES } = await import(join(ROOT, "scripts/shapeup-sdlc/oracles/index.mjs"));
 const EXPECTED_RUNNERS = {
-  process: "scripts/oracles/process-oracle.mjs",
-  test: "scripts/oracles/test-oracle.mjs",
-  snapshot: "scripts/oracles/snapshot-oracle.mjs",
-  http: "scripts/oracles/http-oracle.mjs",
+  process: "scripts/shapeup-sdlc/oracles/process-oracle.mjs",
+  test: "scripts/shapeup-sdlc/oracles/test-oracle.mjs",
+  snapshot: "scripts/shapeup-sdlc/oracles/snapshot-oracle.mjs",
+  http: "scripts/shapeup-sdlc/oracles/http-oracle.mjs",
 };
 for (const [name, rel] of Object.entries(EXPECTED_RUNNERS)) {
-  if (!ORACLES[name]) fail(`oracle "${name}" not registered in scripts/oracles/index.mjs`);
+  if (!ORACLES[name]) fail(`oracle "${name}" not registered in scripts/shapeup-sdlc/oracles/index.mjs`);
   else if (!existsSync(join(ROOT, rel))) fail(`oracle "${name}" runner missing: ${rel}`);
   else ok(`oracle "${name}" registered with runner ${rel}`);
 }
@@ -268,7 +268,7 @@ if (existsSync(specPath)) {
 // =============================================================================
 section("9. `test` oracle PASSes its green fixture and FAILs a red suite (discriminates)");
 // =============================================================================
-const testOraclePath = join(ROOT, "scripts/oracles/test-oracle.mjs");
+const testOraclePath = join(ROOT, "scripts/shapeup-sdlc/oracles/test-oracle.mjs");
 const mathxContract = join(ROOT, "examples/lib-mathx/mathx.contract.json");
 if (existsSync(testOraclePath) && existsSync(mathxContract)) {
   const pass = spawnSync("node", [testOraclePath, mathxContract], { encoding: "utf8", cwd: ROOT });
@@ -287,7 +287,7 @@ if (existsSync(testOraclePath) && existsSync(mathxContract)) {
 // =============================================================================
 section("10. `snapshot` oracle PASSes its golden and FAILs a do-nothing impl (discriminates)");
 // =============================================================================
-const snapOraclePath = join(ROOT, "scripts/oracles/snapshot-oracle.mjs");
+const snapOraclePath = join(ROOT, "scripts/shapeup-sdlc/oracles/snapshot-oracle.mjs");
 const greetContract = join(ROOT, "examples/refactor-greet/greet.contract.json");
 if (existsSync(snapOraclePath) && existsSync(greetContract)) {
   const pass = spawnSync("node", [snapOraclePath, greetContract, "node examples/refactor-greet/greet.mjs"], { encoding: "utf8", cwd: ROOT });
@@ -305,7 +305,7 @@ if (existsSync(snapOraclePath) && existsSync(greetContract)) {
 // =============================================================================
 section("11. `http` oracle PASSes its working server and FAILs a broken one (discriminates)");
 // =============================================================================
-const httpOraclePath = join(ROOT, "scripts/oracles/http-oracle.mjs");
+const httpOraclePath = join(ROOT, "scripts/shapeup-sdlc/oracles/http-oracle.mjs");
 const pingContract = join(ROOT, "examples/http-ping/ping.contract.json");
 if (existsSync(httpOraclePath) && existsSync(pingContract)) {
   const { runContract: runHttp } = await import(httpOraclePath);
@@ -325,15 +325,22 @@ if (existsSync(httpOraclePath) && existsSync(pingContract)) {
 // =============================================================================
 section("12. No SHIPPED skill file points at a repo-only path (would dangle on install)");
 // =============================================================================
-// Only recognized component dirs ship: a Claude plugin install copies `skills/` (etc.) to the
-// plugin cache and BLOCKS path traversal outside it; the scaffolding installer copies only
-// `skills/`; distribute.js inlines SKILL.md + references/*.md into one prompt. So `scripts/`,
-// `examples/`, `docs/audit|plan|research/`, and `tests/` are ABSENT at runtime. A shipped skill
-// file that tells the agent to run/read one of them dangles. (Runtime project paths the harness
-// itself creates — `docs/shapeup-sdlc/`, `.shapeup-sdlc/` — are fine.) This guard is the fix for
-// the false confidence the cwd-dependent oracle CLI checks (#6, #9–#11) gave: those run from the
-// repo root; a real install does not.
+// Only recognized component dirs ship: a Claude plugin install copies the WHOLE repo (incl.
+// `hooks/` and `scripts/`) to the plugin cache; the Antigravity/Codex scaffolding paths and
+// distribute.js's Cursor-rules channel copy/inline only `skills/` (SKILL.md + references/*.md)
+// — no hooks, no scripts. So a SKILL.md that assumes `scripts/`, `examples/`,
+// `docs/audit|plan|research/`, or `tests/` exists dangles on those lower-fidelity channels. A
+// shipped skill file that tells the agent to run/read one of them (as agent-followed prose)
+// dangles there. (Runtime project paths the harness itself creates — `docs/shapeup-sdlc/`,
+// `.shapeup-sdlc/` — are fine; the v0.3.0 T0-layer scripts `t0-verify.mjs`/`aegis-digest.mjs`/
+// `sandbox-guard.mjs` are also fine — they ship with `hooks/` on every channel that has a
+// PreToolUse mechanism at all, i.e. exactly the channels where they'd ever be invoked; on
+// Antigravity/Codex/Cursor the T0/sandbox mechanisms are documented as degrading to a no-op,
+// same as those channels already lacking GATE L2's hook enforcement.) This guard is the fix
+// for the false confidence the cwd-dependent oracle CLI checks (#6, #9–#11) gave: those run
+// from the repo root; a real install does not.
 const REPO_ONLY = /(?:^|[\s`(])(?:scripts\/|examples\/|docs\/audit|docs\/plan|docs\/research|tests\/)/;
+const RUNTIME_SCRIPT_EXCEPTION = /scripts\/shapeup-sdlc\/(t0-verify|aegis-digest|sandbox-guard)\.mjs/;
 const shippedSkillDocs = [];
 for (const dir of skillDirs) {
   const sf = join(skillsDir, dir, "SKILL.md");
@@ -347,7 +354,7 @@ for (const f of shippedSkillDocs) {
   const rel = f.replace(ROOT + "/", "");
   const bad = read(f).split(/\r?\n/)
     .map((line, i) => ({ line, n: i + 1 }))
-    .filter(({ line }) => REPO_ONLY.test(line) && !/docs\/shapeup-sdlc|\.shapeup-sdlc/.test(line));
+    .filter(({ line }) => REPO_ONLY.test(line) && !/docs\/shapeup-sdlc|\.shapeup-sdlc/.test(line) && !RUNTIME_SCRIPT_EXCEPTION.test(line));
   if (bad.length) fail(`${rel} references repo-only path(s) that will not exist in an install: line ${bad.map((b) => b.n).join(", ")}`);
   else ok(`${rel} has no dangling repo-only path`);
 }
@@ -469,7 +476,7 @@ section("15. Verdict-ledger grammar flags flips and forces low confidence (Stage
 // grammar discriminates an unstable judge (verdict changed across runs) from a stable one — and
 // that a flip FORCES confidence low regardless of what the judge proposed. The skill performs this
 // procedure itself (verdict-ledger.md, no script dep); this is the executable proof, like the oracles.
-const vlPath = join(ROOT, "scripts/verdict-ledger.mjs");
+const vlPath = join(ROOT, "scripts/shapeup-sdlc/verdict-ledger.mjs");
 if (existsSync(vlPath)) {
   const { reconcile, detectFlips, stability, parseLedger } = await import(vlPath);
 
@@ -586,10 +593,187 @@ if (existsSync(baselinePath)) {
   if (b.datasets && Object.keys(b.datasets).length === datasetCount) ok("baseline dataset inventory matches the datasets on disk");
   else fail(`baseline inventory lists ${b.datasets ? Object.keys(b.datasets).length : 0} skills, disk has ${datasetCount}`);
 } else {
-  fail("evals/baselines/trigger-evals.baseline.json missing — run `node scripts/trigger-eval.mjs`");
+  fail("evals/baselines/trigger-evals.baseline.json missing — run `node scripts/shapeup-sdlc/trigger-eval.mjs`");
 }
-if (existsSync(join(ROOT, "scripts/trigger-eval.mjs"))) ok("trigger-eval harness present");
-else fail("scripts/trigger-eval.mjs missing");
+if (existsSync(join(ROOT, "scripts/shapeup-sdlc/trigger-eval.mjs"))) ok("trigger-eval harness present");
+else fail("scripts/shapeup-sdlc/trigger-eval.mjs missing");
+
+// =============================================================================
+section("17. Sandbox guard (PA3) denies an out-of-substrate write and allows an in-substrate one");
+// =============================================================================
+// The v0.3.0 write-whitelist hook (design spec §4.5/Blueprint E). Same fixture style as #14:
+// craft PreToolUse payloads against a temp checkout with a scope contract + active-scope
+// pointer, and assert the hook's allow/deny decisions.
+const sandboxGuardPath = join(ROOT, "scripts/shapeup-sdlc/sandbox-guard.mjs");
+if (existsSync(sandboxGuardPath)) {
+  const { mkdtempSync, writeFileSync, mkdirSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const makeCheckout = (withScope) => {
+    const dir = mkdtempSync(join(tmpdir(), "sandbox-guard-"));
+    if (withScope) {
+      mkdirSync(join(dir, ".shapeup-sdlc"), { recursive: true });
+      writeFileSync(join(dir, ".shapeup-sdlc", "active-scope"), JSON.stringify({ slug: "demo", scope_id: "cart-creation" }));
+      const scopesDir = join(dir, "docs", "shapeup-sdlc", "demo", "scopes");
+      mkdirSync(scopesDir, { recursive: true });
+      writeFileSync(join(scopesDir, "cart-creation.json"), JSON.stringify({
+        scope_id: "cart-creation",
+        allowed_file_substrate: ["apps/web/cart/*.tsx", "apps/api/cart/*.ts"],
+        shared_substrate: ["packages/shared/http.ts"],
+      }));
+    }
+    return dir;
+  };
+  const ask = (cwd, filePath, toolName = "Edit") => {
+    const payload = JSON.stringify({ tool_name: toolName, cwd, tool_input: { file_path: filePath } });
+    const r = spawnSync("node", [sandboxGuardPath], { encoding: "utf8", input: payload });
+    const denied = (r.stdout || "").includes('"permissionDecision":"deny"');
+    return { denied, out: r.stdout || "" };
+  };
+  const scoped = makeCheckout(true), unscoped = makeCheckout(false);
+  try {
+    // 1. In-substrate write → allow (defer).
+    const a = ask(scoped, join(scoped, "apps/web/cart/Cart.tsx"));
+    if (!a.denied) ok("sandbox guard ALLOWS a write inside the scope's substrate");
+    else fail(`sandbox guard wrongly denied an in-substrate write\n${a.out}`);
+
+    // 2. Declared shared_substrate write → allow.
+    const b = ask(scoped, join(scoped, "packages/shared/http.ts"));
+    if (!b.denied) ok("sandbox guard ALLOWS a write to declared shared_substrate");
+    else fail(`sandbox guard wrongly denied a shared_substrate write\n${b.out}`);
+
+    // 3. Out-of-substrate write → deny, naming the offending path.
+    const c = ask(scoped, join(scoped, "apps/api/payments/handler.ts"));
+    if (c.denied && c.out.includes("apps/api/payments/handler.ts")) ok("sandbox guard DENIES an out-of-substrate write (names the path)");
+    else fail(`sandbox guard did not deny an out-of-substrate write — the guard is not enforcing\n${c.out}`);
+
+    // 4. Pathology telemetry: the deny above must have appended a PA3 event to metrics/.
+    const metricsDir = join(scoped, "docs", "shapeup-sdlc", "metrics");
+    const shard = existsSync(metricsDir) ? readdirSync(metricsDir).find((f) => f.endsWith(".jsonl")) : null;
+    if (shard && read(join(metricsDir, shard)).includes('"PA3"')) ok("sandbox guard logs a PA3 pathology event to metrics/*.jsonl on deny");
+    else fail("sandbox guard did not log a PA3 pathology event on deny");
+
+    // 5. No active-scope pointer (no harness round in progress) → defer, never break a plain edit.
+    const d = ask(unscoped, join(unscoped, "anything.ts"));
+    if (!d.denied) ok("sandbox guard defers (fail-open) when no active-scope pointer exists");
+    else fail("sandbox guard wrongly denied a write with no harness round in progress");
+
+    // 6. Non Edit/Write/MultiEdit tool → defer.
+    const e = ask(scoped, join(scoped, "apps/api/payments/handler.ts"), "Bash");
+    if (!e.denied) ok("sandbox guard ignores non-Edit/Write/MultiEdit tool calls");
+    else fail("sandbox guard wrongly gated a non-write tool call");
+  } finally {
+    rmSync(scoped, { recursive: true, force: true });
+    rmSync(unscoped, { recursive: true, force: true });
+  }
+
+  // Unit-level glob matcher check (no process spawn needed).
+  const { globToRegExp, matchesAny } = await import(sandboxGuardPath);
+  if (globToRegExp("apps/web/cart/*.tsx").test("apps/web/cart/Cart.tsx")) ok("globToRegExp matches a single-star glob");
+  else fail("globToRegExp failed to match a single-star glob");
+  if (!globToRegExp("apps/web/cart/*.tsx").test("apps/web/cart/sub/Cart.tsx")) ok("globToRegExp single-star does not cross a path segment");
+  else fail("globToRegExp single-star wrongly crossed a path segment");
+  if (matchesAny("apps/api/cart/route.ts", ["apps/web/cart/*.tsx", "apps/api/cart/*.ts"])) ok("matchesAny finds a match across multiple globs");
+  else fail("matchesAny failed to find a match across multiple globs");
+} else {
+  console.log("  (sandbox-guard.mjs not found — skipping)");
+}
+
+// =============================================================================
+section("18. T0 mechanical layer (t0-verify.mjs) computes a discriminating verdict + writes a citable artifact");
+// =============================================================================
+const t0Path = join(ROOT, "scripts/shapeup-sdlc/t0-verify.mjs");
+if (existsSync(t0Path)) {
+  const { runFixtures, runDbProbe, seesawCheck, computeVerdict, writeArtifact } = await import(t0Path);
+
+  const green = runFixtures(["node -e \"process.exit(0)\""], ROOT);
+  if (green.pass) ok("t0-verify runFixtures reports green for a passing fixture command");
+  else fail("t0-verify runFixtures did not report green for an exit-0 command");
+
+  const red = runFixtures(["node -e \"process.exit(1)\""], ROOT);
+  if (!red.pass) ok("t0-verify runFixtures reports red for a failing fixture command (discriminates)");
+  else fail("t0-verify runFixtures did not report red for an exit-1 command — grader may be a rubber stamp");
+
+  if (runDbProbe(null, ROOT) === null) ok("t0-verify runDbProbe is a no-op (null) when no db_probe is declared — never a false failure");
+  else fail("t0-verify runDbProbe should return null when no db_probe command is given");
+
+  const verdictGreen = computeVerdict({ fixtures: green, dbProbe: null, seesaw: { ran: false, pass: true } });
+  if (verdictGreen.overall === "green" && !verdictGreen.regression) ok("t0-verify computeVerdict is green + non-regression when fixtures pass and seesaw didn't run");
+  else fail(`t0-verify computeVerdict wrong on an all-green input: ${JSON.stringify(verdictGreen)}`);
+
+  const verdictRegression = computeVerdict({ fixtures: green, dbProbe: null, seesaw: { ran: true, pass: false } });
+  if (verdictRegression.overall === "red" && verdictRegression.regression) ok("t0-verify computeVerdict flags a seesaw failure as a regression (own fixtures green, seesaw red)");
+  else fail(`t0-verify computeVerdict did not flag the seesaw-red case as a regression: ${JSON.stringify(verdictRegression)}`);
+
+  const verdictOwnFail = computeVerdict({ fixtures: red, dbProbe: null, seesaw: { ran: false, pass: true } });
+  if (verdictOwnFail.overall === "red" && !verdictOwnFail.regression) ok("t0-verify computeVerdict distinguishes an own-fixture failure from a regression");
+  else fail(`t0-verify computeVerdict wrongly classified an own-fixture failure: ${JSON.stringify(verdictOwnFail)}`);
+
+  // Artifact write + citation hash — what spec-evaluator's GATE V0.7 will read and re-verify.
+  const { mkdtempSync, rmSync, readFileSync: rf, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const outDir = mkdtempSync(join(tmpdir(), "t0-artifact-"));
+  try {
+    const { path, sha256 } = writeArtifact(outDir, 2, 3, { scope_id: "cart-creation", ...verdictGreen });
+    if (existsSync(path) && /r2-a3\.json$/.test(path)) ok("t0-verify writeArtifact writes to the r<N>-a<M>.json path convention");
+    else fail(`t0-verify writeArtifact wrote to an unexpected path: ${path}`);
+    const body = JSON.parse(rf(path, "utf8"));
+    if (body.round === 2 && body.attempt === 3 && body.overall === "green") ok("t0-verify artifact body carries round/attempt/overall");
+    else fail(`t0-verify artifact body malformed: ${JSON.stringify(body)}`);
+    const { createHash } = await import("node:crypto");
+    const recomputed = createHash("sha256").update(rf(path, "utf8")).digest("hex");
+    if (recomputed === sha256) ok("t0-verify artifact sha256 citation is reproducible from the file on disk");
+    else fail("t0-verify artifact sha256 does not match the file's actual contents — citation would be unverifiable");
+  } finally {
+    rmSync(outDir, { recursive: true, force: true });
+  }
+
+  // Seesaw over a registry with one always-failing scope.
+  const regDir = mkdtempSync(join(tmpdir(), "t0-seesaw-"));
+  try {
+    const regPath = join(regDir, "registry.json");
+    writeFileSync(regPath, JSON.stringify({ scopes: [{ scope_id: "checkout", fixtures: ["node -e \"process.exit(1)\""] }] }));
+    const s = seesawCheck(regPath, ROOT);
+    if (s.ran && !s.pass && s.failing.includes("checkout")) ok("t0-verify seesawCheck detects a regressed FINISHED scope");
+    else fail(`t0-verify seesawCheck did not detect the seeded regression: ${JSON.stringify(s)}`);
+    const none = seesawCheck(join(regDir, "does-not-exist.json"), ROOT);
+    if (none.ran === false && none.pass === true) ok("t0-verify seesawCheck is a no-op-green when the registry doesn't exist yet (first FINISHED scope)");
+    else fail("t0-verify seesawCheck should default to ran:false, pass:true with no registry");
+  } finally {
+    rmSync(regDir, { recursive: true, force: true });
+  }
+} else {
+  console.log("  (t0-verify.mjs not found — skipping)");
+}
+
+// =============================================================================
+section("19. AEGIS digester distills raw logs into {file, line, core_message} triples");
+// =============================================================================
+const digestPath = join(ROOT, "scripts/shapeup-sdlc/aegis-digest.mjs");
+if (existsSync(digestPath)) {
+  const { digest } = await import(digestPath);
+
+  const stackLog = "TypeError: Cannot read properties of undefined (reading 'total')\n    at calculateCartTotal (apps/web/cart/Cart.tsx:84:12)\n    at process (apps/web/cart/Cart.tsx:40:5)\n";
+  const triples = digest(stackLog);
+  const first = triples.find((t) => t.file === "apps/web/cart/Cart.tsx" && t.line === 84);
+  if (first && /Cannot read properties/.test(first.core_message)) ok("aegis-digest extracts {file, line, core_message} from a Node stack trace");
+  else fail(`aegis-digest did not extract the expected triple from a stack trace: ${JSON.stringify(triples)}`);
+
+  const dupLog = stackLog + stackLog; // identical failure logged twice (retry noise)
+  const deduped = digest(dupLog);
+  const count = deduped.filter((t) => t.file === "apps/web/cart/Cart.tsx" && t.line === 84).length;
+  if (count === 1) ok("aegis-digest de-duplicates identical (file, line, message) triples");
+  else fail(`aegis-digest did not de-duplicate a repeated triple (found ${count})`);
+
+  const unmatched = digest("some unrelated line of prose with no file:line signal\n");
+  if (Array.isArray(unmatched)) ok("aegis-digest never throws on unrecognized log content (script-first, no invented file:line)");
+  else fail("aegis-digest should return an array even when nothing matches");
+
+  const empty = digest("");
+  if (Array.isArray(empty) && empty.length === 0) ok("aegis-digest returns an empty array for empty input");
+  else fail("aegis-digest should return [] for empty input");
+} else {
+  console.log("  (aegis-digest.mjs not found — skipping)");
+}
 
 // =============================================================================
 console.log(`\n${"=".repeat(60)}`);

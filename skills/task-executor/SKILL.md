@@ -3,13 +3,14 @@ name: task-executor
 description: >
   Use this skill whenever a user wants to execute, implement, or run a specific task generated
   by the ba-pitch-analyzer skill. Triggers on: "execute task TASK-NNN", "implement TASK-NNN",
-  "run this task", "start working on TASK-NNN",
-  "implement the task in [folder]", "run task from spec folder", or when user points to a
-  tasks/ directory and asks to implement one or more items. Also triggers when user says
-  "pick up the next task", "what should I work on next", or "continue from where we left off"
-  with a spec folder in context. Always use this skill when the deliverable is code/files
-  produced by reading a TASK-NNN.md spec and updating the task status afterward.
-  v1.3: Karpathy principles embedded — assumption scan (Phase 1), explicit assumptions + verifiable success criteria (GATE C), minimum-code + surgical-changes discipline (Phase 2 P2.7/P2.8), goal-driven verification (GATE D). v1.2: AC checkbox ticking. v1.1: discovered-task ledger. v1.0: GATE A–E pipeline.
+  "run this task", "start working on TASK-NNN", "implement the task in [folder]", "run task
+  from spec folder", or when user points to a tasks/ directory and asks to implement one or
+  more items. Also triggers on "pick up the next task", "what should I work on next", or
+  "continue from where we left off" with a spec folder in context. Always use this skill when
+  the deliverable is code/files produced by reading a TASK-NNN.md spec and updating its status.
+  v1.4 adds isolated-brief (zero-memory) mode for tech-lead's per-attempt loop, substrate
+  discipline against a scope contract's write-whitelist, and Layer 1/2 UI discipline (real
+  API/DB data only, no hardcoded arrays or pixel polish).
 ---
 
 # Task Executor
@@ -94,6 +95,22 @@ Validation steps:
       - Extract: all linked_docs wikilinks
 ```
 
+### Isolated-brief mode (zero-memory handoff, orchestrated attempts)
+
+When `tech-lead` dispatches this skill from inside its per-scope **attempt loop** (design spec
+v1.1 §3.6, Blueprint A), invocation carries `--brief <path>` instead of (or in addition to)
+`--task`. The brief (`.shapeup-sdlc/<slug>/briefs/r<N>-a<M>.md`) is a **fresh, generated**
+context containing exactly four things: the scope contract, the current contents of its
+`allowed_file_substrate` files, the AEGIS-digested error triples from the previous attempt (if
+any), and the ledger decisions table for this `scope_id` (advisor-protocol answers — see
+below). It carries **no chat history from prior attempts or other scopes** — that is the point:
+per-attempt token cost stays flat instead of growing with a replayed transcript (PA6
+countermeasure). Never ask the user to fill in what a prior attempt "already established" —
+if it mattered, it is in the brief; if it isn't in the brief, treat it as unknown and either
+proceed on the spec alone or ESCALATE (never invent a memory of a session that no longer exists).
+GATE A/B still run against the brief's contents; A3/A4 (run-state) are skipped when no
+run-state.md is threaded into the brief — the brief IS the run's context for this attempt.
+
 **GATE A Output (printed before asking questions):**
 ```
 ⏸ GATE A — Locate & Validate
@@ -123,6 +140,19 @@ Do NOT proceed to GATE B until user confirms.
 **Fires:** Always, after GATE A confirm.
 
 ```
+B0. Substrate discipline (when a scope contract is in play — isolated-brief mode, or
+    --spec resolves to a slug with docs/shapeup-sdlc/<slug>/scopes/*.json):
+    - Read the task's package/files against the active scope's `allowed_file_substrate` +
+      `shared_substrate` glob lists (from the brief, or the scope contract named by
+      .shapeup-sdlc/active-scope).
+    - Every file this task expects to write MUST match one of those globs. A PreToolUse
+      sandbox hook enforces this at write time regardless (design spec PA3) — but catching it
+      here, before Phase 2 starts, avoids a wasted implementation attempt that a hook will
+      just reject file-by-file.
+    - A file outside the substrate that the task genuinely needs → do NOT write it and do NOT
+      silently skip the AC. Emit an ESCALATE (kind: substrate-expansion) per advisor-protocol
+      and pause that AC; continue other ACs that stay within substrate.
+
 B1. Dependency check:
     - Read all tasks listed in task.depends_on
     - For each: read its frontmatter status field
@@ -155,6 +185,7 @@ B5. Non-Go boundary confirmation:
 ```
 ⏸ GATE B — Pre-Flight Check
 
+Substrate     : [✅ n/a (no scope contract) | ✅ all task files within substrate | ⚠️ [file] needs ESCALATE]
 Dependencies  : [✅ all done | ⚠️ [TASK-XXX] unconfirmed]
 Blockers      : [✅ none | ⚠️ [N] items — listed above]
 Test command  : [command confirmed by user]
@@ -254,7 +285,17 @@ Unresolved gaps (if any):
 - "Wikilink [[contracts/X.contract.md]] not found — should I create a stub or skip contract verification?"
 - "Package path for [package] unclear — is it [A] or [B]?"
 
-Do NOT write any code until user confirms the plan.
+**Routing under orchestration (isolated-brief mode):** a design-decision or spec-ambiguity gap
+that would normally become a GATE C question instead becomes an `ESCALATE` return per
+`advisor-protocol` — do not open an ad hoc question when running inside tech-lead's attempt
+loop; there is no PO session to answer it live, and a question asked here would vanish with
+this attempt's context anyway. Emit the ESCALATE block, stop work on the blocked AC only, and
+continue implementing every AC that doesn't depend on the answer. When run standalone
+(interactive, no `--brief`), GATE C questions work as documented above — asking the user
+directly is correct there because the session persists.
+
+Do NOT write any code until user confirms the plan (standalone) or until ESCALATEs blocking an
+AC are answered / that AC is explicitly deferred (orchestrated).
 
 ---
 
@@ -289,6 +330,23 @@ Karpathy discipline (Principles B + C — applied per AC):
         - If your change leaves imports / variables / functions unused → remove them now
         - If you notice unrelated dead code → mention it; capture via P3.7 as a discovery;
           do NOT delete it
+
+UI discipline — the 3-layer anatomy (design spec §4.6), applies to any AC touching UI:
+  P2.9  LAYER 1 — affordance contract: every interactive element you build binds to the
+        `test_id`/`role` pairs in the scope contract's `affordance_manifest` (semantic HTML,
+        `data-testid` attributes) and expresses its `idle | loading | success | error | empty`
+        state via a `data-state` attribute. Do not invent a new element the manifest doesn't
+        list — if the AC needs one the manifest lacks, that is a substrate/spec gap: ESCALATE
+        (kind: spec-ambiguity), do not silently extend the manifest yourself (`ba` owns it).
+  P2.10 LAYER 2 — raw scaffolding, real data only: bind every element to the actual API/DB
+        call this task implements. **Hardcoded data arrays are banned** — a `const items = [...]`
+        standing in for a real fetch is exactly what the T0 DB probe exists to catch, and
+        shipping it is a Layer-2 violation even if the AC "looks done" in a screenshot.
+  P2.11 LAYER 3 — pixel-perfect polish is **out of scope for this cycle**: no CSS/Tailwind
+        aesthetic tuning, no color/spacing/font decisions beyond what semantic HTML gives you
+        for free. If an AC explicitly asks for visual polish, that AC itself is out of policy
+        for v0.3.0 — flag it at GATE C rather than implementing it; styling produces no hill
+        movement and is deliberately deferred to a later cycle.
 ```
 
 **Progress markers during Phase 2:**
@@ -462,6 +520,9 @@ Once user confirms → print `✅ [TASK-NNN] closed.`
 
 # SPIKE execution mode
 /task-executor --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --task TASK-001 --spike
+
+# Isolated-brief mode — dispatched by tech-lead's per-scope attempt loop (zero-memory handoff)
+/task-executor --brief .shapeup-sdlc/checkout-vnpay/briefs/r2-a3.md --auto-close
 ```
 
 ### Progress Markers
@@ -493,6 +554,10 @@ Once user confirms → print `✅ [TASK-NNN] closed.`
 | Define verifiable criterion before coding each AC | Vague ACs produce vague implementations; observable outcomes don't (Principle D) |
 | Write minimum code that satisfies the AC | Speculative abstractions + "nice to haves" are scope creep (Principle B) |
 | Touch only files the AC requires; remove newly-unused symbols | Adjacent cleanup is a Non-Go unless the task explicitly includes it (Principle C) |
+| Never write outside the active scope's substrate; ESCALATE instead | A sandbox hook blocks it anyway (PA3) — catching it at GATE B saves a wasted attempt |
+| Design decisions/spec ambiguity route through ESCALATE in isolated-brief mode, not an ad hoc question | No PO session persists across a zero-memory attempt reset — the answer must be adjudicated and persisted, not asked into the void |
+| No hardcoded data arrays standing in for a real API/DB call | Layer-2 UI discipline — the whole point of the T0 DB probe is catching a pretty frontend over a hollow backend |
+| No pixel/CSS polish beyond semantic HTML defaults | Layer-3 styling is frozen for v0.3.0 — it produces no hill movement and is the largest observed token sink |
 
 ---
 
@@ -500,6 +565,7 @@ Once user confirms → print `✅ [TASK-NNN] closed.`
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.4 | 2026-07-12 | **Isolated-brief mode** (design spec v1.1 §3.6): `--brief <path>` invocation carries a zero-memory-handoff context (scope contract + substrate contents + digested errors + this scope's ledger decisions), no prior-attempt chat history. **Substrate discipline**: new GATE B0 checks task files against the active scope's `allowed_file_substrate`/`shared_substrate` before Phase 2; a needed out-of-substrate file routes to an `ESCALATE (substrate-expansion)` instead of a write the sandbox hook would reject anyway. **ESCALATE routing**: design-decision/spec-ambiguity gaps become `advisor-protocol` ESCALATEs (not ad hoc GATE C questions) when running under tech-lead's attempt loop; standalone/interactive mode is unchanged. **UI Layer 1/2/3 discipline** (P2.9–P2.11): bind only to affordance-manifest `test_id`/`role`/`data-state`, ban hardcoded data arrays (Layer 2, T0 DB-probe countermeasure), freeze pixel-perfect styling out of this cycle (Layer 3). Five new hard rules. |
 | 1.3 | 2026-06-16 | Andrej Karpathy Code Guidelines embedded (from AGENTS.md). Phase 1 step 5: assumption scan surfaces every non-obvious decision before GATE C. GATE C output: two new sections — "Explicit assumptions" (Principle A, none silent) + "Verifiable success criteria" (Principle D, observable outcomes before coding). Phase 2: P2.7 minimum-code statement per AC (Principle B, senior-engineer test) + P2.8 surgical discipline — explicitly note adjacent code NOT touched, remove newly-unused symbols, capture dead code via P3.7 (Principle C). GATE D: cross-checks the GATE C verifiable criteria, not just command exit codes (Principle D). 4 new hard rules. |
 | 1.2 | 2026-06-11 | P3.1 now ticks the AC checkboxes at doc-update time (`- [ ]` → `- [x]` for every GATE-D-verified criterion, incl. inverse/empty-state/boundary sub-lists; failing/skipped stay unchecked; bug-only re-runs re-tick what the fix re-satisfied). Closes the canvas-usability gap where all 51 boxes stayed unchecked on a shipped board because no skill owned the tick. Doer ticks; evaluator un-ticks on refutation (its v0.4). |
 | 1.1 | 2026-06-10 | P3.7 discovered-task capture: executor appends raw `[+]`/`~` lines to the discovery ledger when build surfaces unplanned work, as the single writer for raw discovered lines. Reconciliation (Keep/Cut, UC anchoring, TASK generation, appetite hammering) stays owned by `ba-pitch-analyzer --tasks-only` — doer reports, planner decides. No gate-logic changes. |

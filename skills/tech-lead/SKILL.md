@@ -1,6 +1,6 @@
 ---
 name: tech-lead
-description: "Use this skill whenever the user wants to orchestrate a whole feature end-to-end across the harness skills — ba-pitch-analyzer (planner), task-executor (generator), spec-evaluator (judge) — acting as the tech lead that owns the run and reports to the PO at round boundaries. Trigger on: \"run the full harness\", \"act as tech lead\", \"ship this feature end to end\", \"from pitch to ship\", \"orchestrate the build\", \"plan build evaluate\". Use it even when the user describes a multi-step build flow without naming the skills. Faithful to the long-running harness pattern: PLAN once, BUILD all tasks, then run the evaluator EXACTLY ONCE per build round (never per task), looping on FAIL until PASS or max-rounds. Keeps a round ledger, stays thin (delegates, never reimplements the sub-skills), and supports interactive / --auto / --unattended levels for local vs headless CI runs."
+description: "Use this skill whenever the user wants to orchestrate a whole feature end-to-end across the harness skills — ba-pitch-analyzer (planner), task-executor (generator), spec-evaluator (judge) — acting as the tech lead that owns the run and reports to the PO at round boundaries. Trigger on: \"run the full harness\", \"act as tech lead\", \"ship this feature end to end\", \"from pitch to ship\", \"orchestrate the build\", \"plan build evaluate\". Use it even when the user describes a multi-step build flow without naming the skills. PLAN once, BUILD all tasks, run the evaluator EXACTLY ONCE per round (never per task), loop on FAIL until PASS or max-rounds; stays thin (delegates, never reimplements sub-skills); supports interactive / --auto / --unattended. v0.13: on scoped specs, adds a two-level circuit breaker (outer round_budget, inner per-scope attempt_budget), per-attempt T0 verification, and GATE H delegated to scope-hammer."
 ---
 
 # Tech Lead (harness orchestrator)
@@ -49,6 +49,17 @@ needs (e.g. `feature`, `discovered_rounds`) **down as args**. Workers keep only 
 product-idempotency key (e.g. `ba`'s `pitch_hash` in its `_index.md`) and emit domain
 artifacts; they do not own the run. The board (`tasks/_index.md`) stays with the
 planner/generator as **execution truth** (the tech lead reads it). See D6 in the redesign doc.
+
+**Two ledgers, split by promotion timing (addendum §F.3, only when scope contracts exist).**
+`harness-run.md` stays the LOCAL (`.shapeup-sdlc/<slug>/`, gitignored) full run trace — it can
+be rebuilt or lost without consequence. A second, committed `round-ledger.md`
+(`docs/shapeup-sdlc/<slug>/round-ledger.md`, SHARED, Tier A) holds only what must survive a
+crash or a `.shapeup-sdlc/` wipe: the resolved model/budget matrix (L0.8/L0.9) and the
+**Decisions** table — every advisor-protocol ESCALATE answer, promoted the instant it's given,
+never batched to round close. The tech lead is still the sole writer of both; `round-ledger.md`
+is simply the subset that must never live only in a session or a gitignored file. No scope
+contracts → `round-ledger.md` is not written; `harness-run.md`'s existing "Decisions log" is
+the only ledger, exactly as in v0.2.6.
 
 ---
 
@@ -151,6 +162,23 @@ Collect (explicit — never inferred):
                                    at L1a/L1b (orient+plan), L3 (verdict), L4 (ship)
           --unattended           — auto-confirm all L-gates too; stop only on PASS,
                                    max_rounds, or hard error (for headless / Agent SDK / CI)
+  L0.8  Model & budget resolution (addendum Blueprint F, four layers, highest precedence
+        first) — resolve ONCE here, record the resulting matrix in the ledger header:
+          /ship flags  →  .claude/settings.local.json (per-member, Tier C)  →
+          .claude/settings.json (team defaults, committed)  →  skill-shipped defaults
+        Env knobs read at this layer: SHAPEUP_ORCH_MODEL, SHAPEUP_EXEC_MODEL,
+        SHAPEUP_EVAL_MODEL, SHAPEUP_QA_MODEL, SHAPEUP_ATTEMPT_BUDGET (default 5),
+        SHAPEUP_DIGESTER_MODEL (default "script" — aegis-digest.mjs's regex pass; falls
+        back to a Haiku dispatch only when the digester reports unrecognized log formats).
+        A requested model unavailable on the member's plan → degrade to the next tier down,
+        record the degrade in the ledger (R2 — invariants are code paths, so adherence
+        survives even when the model tier doesn't).
+  L0.9  attempt_budget: the INNER circuit breaker (design spec DD-9), nested inside
+        max_rounds (the OUTER breaker, unchanged, L0.6). Default 5 — the number of T0 verify
+        attempts a single scope gets inside one round before its attempt loop trips and
+        queues a hammer PROPOSAL for GATE H rather than blocking the round. Only meaningful
+        when the spec folder has scope contracts; a spec with none skips the attempt loop
+        entirely and BUILD behaves exactly as in v0.2.6 (task-executor --next, no T0/seesaw).
 ```
 
 **GATE L0 Output:**
@@ -162,6 +190,8 @@ Appetite     : [~1 week | ~2 weeks | ~6 weeks | ⚠️ missing — scope uncappe
 Spec folder  : [path]   (lens: [lite|standard])
 Eval dims    : [spec-conformance]   max_rounds: [N, appetite-informed]   auto: [interactive|auto|unattended]
 Run commands : [web: ... | api: ... | mobile: ...]
+Model matrix : orch=[model] exec=[model] eval=[model] qa=[model] digester=[script|haiku]  (source: [flags|settings.local|settings.json|default])
+Budgets      : round_budget=[N] (outer)   attempt_budget=[N] (inner, per scope)
 ```
 Do NOT start ORIENT until confirmed (interactive/auto). Under --unattended, proceed.
 
@@ -231,6 +261,20 @@ Read tasks/_index.md. Print:
   - layer distribution (Layer 1→6) and the critical dependency path
   - any SPIKE tasks (third-party feasibility) that block others
   - scope-summary "Done when" headline statements
+
+Substrate-disjointness assertion (design spec §5.1 Blueprint A, only when
+docs/shapeup-sdlc/<slug>/scopes/*.json exist — `ba`'s Phase 6b/GATE 6b already ran these
+lints; this is the orchestrator's own re-confirmation before committing to a build sequence):
+  - Read every scope contract. Assert no file appears in two scopes' `allowed_file_substrate`
+    except where BOTH declare it in `shared_substrate` — a silent overlap is PA3 waiting to
+    happen. Violation → HARD STOP, route back to `ba --remap` before BUILD.
+  - Assert no scope's substrate aligns 1:1 with a single top-level directory (PA1) and no
+    scope exceeds the size cap (PA2) — `ba` already gates this at 6b; re-check here because a
+    human may have hand-approved past a 🔴 there.
+  - Lock the build SEQUENCE riskiest-first: order scopes by open-unknowns count (from
+    hill/<scope-id>.yml if present, else the orient hill signal), not by file count or
+    alphabetical — Shape Up's "solve in the right sequence" (step 10).
+
 Ask (max 2): scope cuts? lens correct? any SPIKE to resolve before build?
   Scope-hammer framing: reference the appetite from the pitch
   (e.g. "Given a ~1-week appetite, which of these scopes feels right-sized?").
@@ -244,6 +288,7 @@ Do NOT enter BUILD until the board is accepted.
 
 ## BUILD round r — delegate to task-executor
 
+**No scope contracts (pre-v0.3.0 spec, or a scope-less run) — unchanged from v0.2.6:**
 ```
 r = 1 (first build):
   Loop:  /task-executor --spec <path> --next   (executes lowest-priority ready task)
@@ -266,6 +311,50 @@ r > 1 (fix build, after a FAIL):
   Do NOT re-run the whole board. Do NOT touch passing areas.
 ```
 Record per task in the ledger: task id, status, files touched.
+
+**Scope contracts present — the isolated attempt loop (design spec §3.5/§5.1, Blueprint A):**
+```
+For each scope in the L1b sequence (riskiest-first), not yet FINISHED:
+  0. checkout(branch-of-scope)  — branch-per-scope isolation (PA3/PA5). Write the pointer
+     .shapeup-sdlc/active-scope = {slug, scope_id} — this is what the PreToolUse sandbox
+     hook reads to enforce the scope's allowed_file_substrate on every Edit/Write this round.
+
+  for attempt in 1..attempt_budget (L0.9, default 5):
+    a. brief = isolated_brief(scope)   — write .shapeup-sdlc/<slug>/briefs/r<N>-a<M>.md:
+       scope contract + current substrate file contents + this scope's ledger decisions
+       (round-ledger.md, promoted answers) + last attempt's digested errors (if any).
+       NO prior-attempt chat history goes in (zero-memory handoff, PA6).
+    b. dispatch task-executor --brief <path> [--auto-close under --auto/--unattended]
+    c. handle any ESCALATE return: dispatch /advisor-protocol --ledger round-ledger.md
+       --escalate <block> [--unattended]; persist the answer immediately (it must survive
+       the next attempt's fresh context). Cap: 3/scope/round (advisor-protocol's own budget).
+    d. t0 = run `node scripts/shapeup-sdlc/t0-verify.mjs <scope-contract> --round <N> --attempt <M>
+       --seesaw-registry .shapeup-sdlc/<slug>/seesaw/registry.json`
+       → writes .shapeup-sdlc/<slug>/t0/verdicts/r<N>-a<M>.json (the artifact spec-evaluator
+         will require a citation to at GATE L2/EVAL).
+    e. t0 overall=green            → break the attempt loop; this scope reaches
+                                      DOWNHILL_EXECUTION (hill derivation, see GATE L2 below).
+       t0 overall=red, regression  → a FINISHED scope's fixture broke (seesaw caught it, PA5).
+                                      `git stash push -u -m "t0-rollback-r<N>-a<M>"` (never a
+                                      hard discard — the stash preserves the diff for review),
+                                      then retry this attempt.
+       t0 overall=red, own fixture → append t0's `discovered_tasks` (AEGIS triples) to this
+                                      scope's discovered_tasks_pool; loop to the next attempt
+                                      with those triples in the next brief.
+  if the loop exhausted attempt_budget without green:
+    → inner circuit breaker tripped. Do NOT block the round. Queue a hammer PROPOSAL
+      (scope_id + last t0 artifact + reason) for GATE H. Move to the next scope in sequence.
+
+Discovered Tasks (unchanged mechanism, now scope-aware):
+  If a scope's discovered_tasks_pool doesn't fit its own substrate, dispatch
+  /ba-pitch-analyzer --remap --from-discovered .shapeup-sdlc/<slug>/discovery/ledger.md — it
+  may extend the scope, or propose a new one; it never silently widens a substrate itself.
+  Route back to GATE L1b for the delta before resuming.
+```
+Record per attempt in `harness-run.md` (LOCAL): scope_id, attempt, t0 overall, files touched.
+Record per scope in the committed `round-ledger.md` (SHARED, Tier A) the moment it settles:
+final hill phase this round + any ESCALATE decisions (design spec addendum F.3 — a decision
+made must survive a crash, so it is promoted immediately, not batched to round close).
 
 ---
 
@@ -290,12 +379,28 @@ L2.2  Tech-lead judgment call (surface, default = run eval):
       If clearly yes, offer to SKIP evaluation this run (--no-eval) — the evaluator is not a
       fixed yes/no; it earns its cost when work sits beyond easy solo capability.
       Default: run the single eval pass.
+L2.3  T0 completeness pre-check (scope contracts only — avoids a wasted EVAL dispatch that
+      spec-evaluator's own GATE V0.7 would hard-stop anyway): every scope reaching this round
+      boundary as DOWNHILL_EXECUTION or FINISHED must have a t0/verdicts/r<N>-*.json with
+      overall=green. A scope only present as a hammer PROPOSAL (attempt_budget exhausted) is
+      fine — it's not claiming done, it's queued for GATE H.
+L2.4  Hill derivation (mechanical facts only, DD-10 — scope contracts only; falls back to the
+      open-unknowns heuristic in references/ledger-schema.md "Hill report" when no contracts
+      exist). Per scope, from this round's t0 artifact + the latest spec-evaluator verdict +
+      seesaw result — never self-reported by any worker:
+        UPHILL_UNKNOWN     open_unknowns > 0 in the ledger for this scope
+        UPHILL_SOLVED       unknowns = 0, no T0-green attempt recorded yet this run
+        DOWNHILL_EXECUTION  ≥1 T0-green attempt; T1 PASS or seesaw still pending
+        FINISHED            T1 PASS AND seesaw green AND merged to main
+      Write/update hill/<scope-id>.yml (committed shard, single-writer = whoever holds that
+      scope's branch — addendum Δ2) and regenerate hill-chart.md from all shards.
 ```
 
 **GATE L2 Output:**
 ```
 ⏸ GATE L2 — Build Round [r] Complete
 Board        : [N]/[N] tasks ✅
+T0           : [n/a | [k]/[k] touched scopes T0-green]
 Ready to EVAL: yes
 Eval plan    : spec-evaluator --feature [slug] --single-pass   (dims: [spec-conformance])
 ```
@@ -321,10 +426,11 @@ not called inside the BUILD loop, not called before GATE L2.
 ## GATE L3 — Verdict & Loop
 
 ```
-Render the 🗻 Hill report (slice-level) from the board + open unknowns — NOT a task count.
-  Per slice → uphill (unknowns open) | crest (approach proven, spine renders) | downhill
-  (only known work left) | done (clickable-done). See references/ledger-schema.md "Hill report".
-  Roadmap rule: progress is reported by hill position, never by "N/M tasks done".
+Render the 🗻 Hill report (slice-level) — NOT a task count. Scope contracts present → read
+  committed hill/<scope-id>.yml shards (mechanical phases from GATE L2.4, DD-10). No contracts →
+  fall back to the board + open-unknowns heuristic (uphill/crest/downhill/done). See
+  references/ledger-schema.md "Hill report". Roadmap rule unchanged either way: progress is
+  reported by hill position, never by "N/M tasks done".
 
 Read EVAL-FEATURE-<slug>.md verdict.
 
@@ -365,14 +471,24 @@ yet (D3 deferred), report at task-group level and note the fallback in the ledge
 ## SHIP (step 11) — close out
 
 ```
-S.0  QA triage (when qa/hunt-report.md exists — this IS Shape Up's "Decide When to Stop"):
-     print findings grouped by lens, each `~` by default with severity-hint. Ask (max 1):
-     "Promote any to must-have? (ids / none)". Scope-hammer framing: compare to BASELINE
-     (what customers live with today), not to the ideal.
-       - none → all stay `~` in the ledger; ship debt-free, findings = raw ideas for a
-         future cycle.
-       - ids → fix round r+1 for those items only (round-protocol "QA edge hunt" loop).
-       - The tech lead never promotes on its own; promotion is a PO/TL human call.
+S.0  GATE H — delegate to scope-hammer (this IS Shape Up's "Decide When to Stop", step 11):
+     Invoke: /scope-hammer --slug <slug> --baseline <shaping/baseline.md if present>
+             [--breaker outer]   when round_budget hit 0 with scopes still open
+             [--breaker inner --scope <id>]   once per queued hammer proposal (attempt_budget
+                                              exhausted scopes accumulated during BUILD)
+             (no --breaker flag)              normal stop — all scopes FINISHED, post-QA-hunt
+     Feeds it: qa/hunt-report.md findings (when present), discovery/ledger.md open items,
+               advisor-protocol budget-overflow flags, the hammer-proposal queue from BUILD.
+     Reads back: its GATE H0/H1/H2 output — census, baseline comparison, cut list + verdict.
+     Authority: scope-hammer proposes; the tech lead records the PO's decision in
+       round-ledger.md and performs the actual close (S.1 onward). It never ships on its own.
+       - Cut list confirmed → all cuts carried to discovery/ledger.md as raw ideas (debt-free).
+       - Verdict = CANNOT SHIP (a must-have item failed H1.2) → do NOT proceed to S.1; escalate
+         to PO honestly with scope-hammer's ship-blocking list, same spirit as a max-rounds
+         escalation.
+     Pre-v0.3.0 spec (no scope contracts) → scope-hammer still runs; H0's only census sources
+       are QA + discovery ledger (no scope/attempt-budget inputs), equivalent to the old inline
+       triage this step used to do.
 S.1  Confirm board green + latest eval verdict = PASS.
 S.1b Checklist-hygiene assert: `grep -c "^- \[ \]" <spec>/tasks/TASK-*.md` → every count
      must be 0 on a shipping board. An unchecked AC box on a done task means either an
@@ -393,7 +509,9 @@ S.5  Deploy truth — "done means deployed", honestly. Building stops at "built 
      NEVER auto-deploy; "shipped" must never silently mean "deployed".
      (Baseline-anchored scope-hammering at ship time is redesign-doc D5 — deferred; for now,
       `ba`'s Appetite Guard covers overflow and cuts go to synthesis "Hammered Out".)
-S.6  Harvest one signal row → append to `docs/shapeup-sdlc/metrics.jsonl` (committed, SHARED root).
+S.6  Harvest one signal row → append to `docs/shapeup-sdlc/metrics/<machine-id>.jsonl`
+     (committed, SHARED root; sharded per machine so concurrent runs never merge-conflict on
+     one file — addendum Δ3; an aggregate view is `cat docs/shapeup-sdlc/metrics/*.jsonl`).
      Copy fields that ALREADY exist as structured output (run-state, final EVAL report,
      discovery ledger, qa/hunt-report, breadboard B5). Two hard rules:
        1. Harvest only fields that already exist at ship time — never evaluate something new.
@@ -449,7 +567,9 @@ On confirm:
 | `--lens lite\|standard\|cross-context` | Passed to ba-pitch-analyzer at step 8 |
 | `--auto` | Sub-skills run unattended; tech lead pauses at L1a/L1b/L3/L4 |
 | `--unattended` | Auto-confirm all L-gates (headless / CI) |
-| `--max-rounds N` | BUILD→EVAL cycles before escalating (default 3) |
+| `--max-rounds N` | BUILD→EVAL cycles before escalating (default 3) — the OUTER breaker |
+| `--attempts N` | Per-scope T0 attempts before queuing a GATE H hammer proposal (default 5) — the INNER breaker; no-op on specs without scope contracts |
+| `--orch-model / --exec-model / --eval-model / --qa-model <name>` | Override L0.8's resolved model matrix for this run only (highest precedence) |
 | `--from orient\|plan\|build\|eval` | Resume an in-progress run at a build-phase step |
 | `--no-eval` | Skip the evaluation pass this run (trivial feature) |
 | `--no-qa` | Skip the post-PASS /qa-edge-hunter pass (ledger records `qa: skipped`) |
@@ -480,6 +600,12 @@ On confirm:
 | At GATE L3 FAIL: name scope (task + failed criterion), never prescribe fix options | Root cause analysis and fix paths belong to the implementer, not the orchestrator |
 | Max questions per gate: L0/L1a/L1b = 2; L3/L4 = 1 | Gates are pauses, not interrogations; excess questions shift authority to the wrong role |
 | SHIP harvest records facts only — copies existing structured output, never computes a new verdict/score | A self-computed score = a second judge behind spec-evaluator (breaks single-judge, invites Goodhart); the eval suite interprets, harvest records |
+| Two-level circuit breaker: attempt_budget (inner, per scope) nests inside round_budget (outer) | An exhausted scope queues a GATE H hammer proposal, it never blocks the round — only round_budget hitting 0 stops the whole run |
+| The tech lead never hand-edits a scope contract | `ba` is its sole writer (single-writer-per-file, addendum C4); a substrate-expansion is routed through advisor-protocol → `ba --remap` |
+| Substrate-disjointness + PA1/PA2 lints are re-asserted at GATE L1b even when `ba` already checked them | A human may have hand-approved past a 🔴 at GATE 6b; the orchestrator's own gate is the last line before BUILD starts writing |
+| Hill phase is read from mechanical facts (T0/T1/seesaw), never declared by a worker | DD-10 — closes the self-reported-confidence risk (R3) outright |
+| ESCALATE answers promote to the committed round-ledger the instant they're given | Zero-memory handoff means a decision kept only in a session vanishes with the next attempt's fresh context |
+| GATE H is delegated to scope-hammer, never adjudicated inline by the tech lead | Keeps the orchestrator thin; census/baseline-comparison/cut-list logic has one owner |
 
 ---
 
@@ -500,6 +626,7 @@ On confirm:
 ## Changelog
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.13 | 2026-07-12 | **v0.3.0 harness upgrade** (design spec v1.1 + file-org addendum), active only when the spec folder has scope contracts (`docs/shapeup-sdlc/<slug>/scopes/*.json`) — non-regression on older specs. New GATE L0.8 (model/budget resolution matrix, four-layer precedence incl. `.claude/settings.local.json`) + L0.9 (`attempt_budget`, the inner breaker, default 5, nested inside the existing `max_rounds` outer breaker — DD-9). GATE L1b gains a substrate-disjointness + PA1/PA2 re-assertion before BUILD. BUILD round r gains the **isolated attempt loop**: branch-per-scope checkout + `.shapeup-sdlc/active-scope` pointer (sandbox hook enforcement), zero-memory-handoff briefs, `t0-verify.mjs` (fixtures + DB probe + seesaw) every attempt, `git stash` rollback on a seesaw regression, AEGIS-digested errors feeding the next attempt, ESCALATE routed through `advisor-protocol` and persisted immediately to a new committed `round-ledger.md` (Tier A — model matrix + decisions, split from the LOCAL `harness-run.md` per addendum §F.3). GATE L2 gains a T0-completeness pre-check + mechanical hill derivation (`hill/<scope-id>.yml` shards, DD-10 phase enum, never self-reported). SHIP's GATE H is now delegated to the new `scope-hammer` skill (census → baseline comparison → cut list, all three trigger paths: normal stop / outer breaker / inner breaker). Metrics harvest shards to `docs/shapeup-sdlc/metrics/<machine-id>.jsonl` (addendum Δ3). New flags `--attempts`, `--orch-model`/`--exec-model`/`--eval-model`/`--qa-model`. Six new hard rules. |
 | 0.12 | 2026-06-23 | **Team-shared, categorized, read-back knowledge base.** `/coach` no longer writes a single local `.shapeup-sdlc/knowledge-base.md` (gitignored, never reached teammates and was never read back). It now runs a categorization gate (GATE COACH-1 — asks the PO which skill each rule belongs to, never assumes) and files each rule under the responsible skill in `docs/shapeup-sdlc/knowledge-base/<skill>.md` (committed → shared on `git pull`). Coachable skills: `task-executor`, `ba-pitch-analyzer`, `qa-edge-hunter` — each now reads its own file at the top of its run (task-executor Phase 1, ba Phase 1, qa Phase Q1). `spec-evaluator` is deliberately not coachable (single-judge rule: KB is guidance, not an invariant). |
 | 0.11 | 2026-06-19 | **RLHF Coach Integration.** At GATE L4 (Ship Sign-Off), if the PO provides feedback instead of just a simple confirmation, automatically invoke `/coach` to compile and deduplicate that feedback into the knowledge base to act as guidelines for future cycles. |
 | 0.10 | 2026-06-18 | **Automated Discovered Tasks.** If new tasks are logged in `.shapeup-sdlc/<slug>/discovery/ledger.md` during the BUILD loop, automatically run `/ba-pitch-analyzer --tasks-only --from-discovered` at a build round boundary to reconcile them. Then, route back to GATE L1b for PO review before resuming the build loop. Added matching hard rule. |

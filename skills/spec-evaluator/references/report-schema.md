@@ -18,8 +18,12 @@ browser_mode: cli | mcp | none
 evaluator: spec-evaluator v0.1
 eval_at: [ISO date]
 linked_docs: ["[[tasks/TASK-NNN-slug]]", "[[scope-summary]]"]
+t0_citation: ~ | { scope_id: cart-creation, artifact: t0/verdicts/r2-a3.json, sha256: 1a2b3c… }
 ---
 ```
+`t0_citation` is `~` (not applicable) only when the spec folder has no scope contracts
+(pre-v0.3.0 spec). On any scoped spec it is required — GATE V0.7/V2.5 in SKILL.md — an absent
+citation there means the report should not have been written yet.
 
 ## Body sections (in order)
 
