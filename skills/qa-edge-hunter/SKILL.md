@@ -6,10 +6,12 @@ description: >
   "exploratory test the running app", "edge hunt before ship", "run qa-edge-hunter",
   "the evaluator passed — what did it miss?". tech-lead invokes it after the
   run's FIRST PASS at GATE L3, before SHIP; it also runs standalone given a spec folder,
-  a PASS EVAL report, and a running app. The Hunter is a PURE worker: it charters edges
-  OUTSIDE what the evaluator probed (EVAL-*.md = negative-space input), hunts them on the
-  running app through six fixed lenses; findings → discovery/ledger.md, always `~`.
-  NO verdict, NO score, NO gate; never fixes code, never promotes its own
+  a PASS EVAL report, and a running app; accepts a WorkOrder dispatch (--order). The Hunter
+  is a PURE worker: it charters edges OUTSIDE what the evaluator probed (EVAL-*.md =
+  negative-space input), hunts them on the running app through six fixed lenses; every
+  confirmed finding returns as a `~` entry in its WorkResult's discoveries[] — the
+  orchestrator's ingest script appends the ledger; the Hunter writes only its own
+  qa/hunt-report.md. NO verdict, NO score, NO gate; never fixes code, never promotes its own
   findings, never blocks ship — triage is PO/TL's at SHIP S.0/GATE L4. NOT for checking AC
   (spec-evaluator), deriving test cases (ba), or fixing bugs (task-executor).
 ---
@@ -43,16 +45,18 @@ tech-lead: ... GATE L2 → EVAL → GATE L3 PASS ──► QA EDGE HUNT (you) �
 | Does | Does NOT |
 |------|----------|
 | Read EVAL-*.md to map covered territory — then hunt OUTSIDE it | Re-probe anything the evaluator already graded |
-| Charter edges via six fixed lenses, minus covered territory | Author or extend `## Test Surface` (that is `ba --surface-only`) |
+| Charter edges via six fixed lenses, minus covered territory | Author or extend `## Test Surface` (that is the planner's retrofit-surface operation) |
 | Execute charters on the **running app** (session-based exploratory) | Read-only speculate from code ("this looks racy") — every finding needs a live repro |
-| Write each finding to `discovery/ledger.md`, **always `~`** | Promote `~` → must-have (PO/TL at SHIP S.0; severity-hint is advice, not a decision) |
+| Return each finding in the WorkResult's `discoveries[]`, **always `~`** | Promote `~` → must-have (PO/TL at SHIP S.0; severity-hint is advice, not a decision) |
 | Emit `qa/hunt-report.md` — charters run/cut, findings by lens | Render a verdict, score, or PASS/FAIL of any kind |
 | `--recheck`: re-probe ONLY items promoted+fixed after triage | Run a second full hunt in the same cycle; fix code; touch task files; keep run-state |
 
-Pure worker (harness rule: stateless workers, one stateful orchestrator). Receives
-`feature`, `spec` folder, EVAL report path, ledger path, app URL as **arguments** from
-`tech-lead`; never reads/writes `harness-run.md`. Single-writer discipline on the ledger:
-the Hunter appends only inside its own `## QA Edge Findings (round N)` section.
+Pure worker (harness rule: stateless workers, one stateful orchestrator). Its WorkOrder
+carries `payload.feature`, `payload.spec_folder`, `payload.eval_report`, `payload.app_url`
+(+ read-only ledger path for covered-territory context); its write surface is
+`.shapeup-sdlc/<feature>/qa/**` only. The Hunter never touches the discovery ledger itself —
+ingest appends its `discoveries[]` under a `## Discovered` section, preserving single-writer
+mechanically.
 
 ---
 
@@ -75,14 +79,15 @@ Phase Q3  │ Report ───────► qa/hunt-report.md — no score, no
 HARD (any miss → STOP, report which):
   ✅ app reachable at the given URL (one real request, not a ping)
   ✅ EVAL-FEATURE-<slug>.md exists with verdict: PASS
-  ✅ discovery/ledger.md exists and ledger.feature == <feature> arg
+  ✅ if discovery/ledger.md exists: ledger.feature == <feature> (read-only context check —
+     a missing ledger is fine; ingest creates it when your findings land)
 SOFT:
   ⚠️ any usecases/UC-*.md has `## Test Surface`?
      NO → DEGRADED MODE:
        "Test Surface absent — derivable cases (boundaries, error codes, no-go breaches)
         were never systematically probed. Lenses ① and ⑤ will widen to compensate
         (charters tagged [derivable-fallback]). Better: run
-        `ba-pitch-analyzer --surface-only <spec>` + one evaluator pass first, then hunt
+        a ba-pitch-analyzer retrofit-surface order + one evaluator pass first, then hunt
         with a narrower charter. Continue degraded? [y/n]"
      Degraded is first-class, not an error — for old specs, a degraded hunt beats no hunt.
 Questions: max 2. The standing one: "Any areas OUT OF BOUNDS for exploratory testing?
@@ -95,7 +100,7 @@ from charters and listed in the report, never silently skipped.
 ⏸ GATE Q0 — Preflight
 App       : [url] ✅ reachable
 EVAL      : EVAL-FEATURE-[slug].md — PASS (dims: [...])
-Ledger    : discovery/ledger.md ✅ feature match
+Ledger    : [✅ feature match | absent — ingest will create it]
 Surface   : [present | ABSENT → degraded mode]
 Out-of-bounds? (max 2 questions) …
 ```
@@ -181,26 +186,26 @@ Per charter:
   H.1  Execute the mission within its time box. Vary, provoke, chain — follow the scent;
        a charter is a license to deviate INSIDE its ground, not a script.
   H.2  Suspected finding → reproduce it (≥1 clean repro) before recording. No repro →
-       log in session notes as "unconfirmed observation", NOT a ledger finding.
-  H.3  Confirmed → append to .shapeup-sdlc/<feature>/discovery/ledger.md IMMEDIATELY (live, not batched):
+       log in session notes as "unconfirmed observation", NOT a finding.
+  H.3  Confirmed → record it IMMEDIATELY (in the growing WorkResult, not batched to the end
+       of the hunt — a crashed session must not lose confirmed findings):
 
-       ## QA Edge Findings (round [r] — [date])          ← created on first finding
-       ~ [QA-NNN] [lens:②concurrency] [UC-04] Double-click "Confirm" creates 2 orders
-           repro: <numbered steps, shortest path>
-           severity-hint: data-integrity | boundary-breach | ux-degradation | cosmetic
-           evidence: <response/state/screenshot ref — what was observed, factually>
-           test-gap: unit | integration | exploratory-only
-                     (unit = a targeted unit test would have caught this;
-                      integration = a cross-layer integration test would catch this;
-                      exploratory-only = only discoverable through live session dynamics)
+       { "marker": "~",
+         "lens": "②concurrency",
+         "line": "[QA-NNN] [UC-04] Double-click \"Confirm\" creates 2 orders",
+         "repro": "<numbered steps, shortest path>",
+         "severity_hint": "data-integrity | boundary-breach | ux-degradation | cosmetic",
+         "test_gap": "unit | integration | exploratory-only" }
 
-       Always `~`. severity-hint is the Hunter's advice to triage — the promotion
+       Always `~` — ingest appends these to the discovery ledger verbatim; you never open
+       the ledger file. severity_hint is the Hunter's advice to triage — the promotion
        decision is PO/TL's at SHIP S.0, never made here.
-       test-gap is advisory for ba-pitch-analyzer reconciliation: it signals whether
-       to generate a test-writing task alongside the fix task.
+       test_gap is advisory for reconciliation: unit = a targeted unit test would have
+       caught this; integration = a cross-layer test would; exploratory-only = only
+       discoverable through live session dynamics.
   H.4  A finding that contradicts a PASSED criterion (the evaluator graded it PASS, the
-       hunt shows otherwise) → record with `contradicts: <EVAL criterion id>`. Do NOT
-       edit EVAL-*.md or un-tick anything — the judge's record is the judge's; the
+       hunt shows otherwise) → set `"contradicts": "<EVAL criterion id>"` on the entry.
+       Do NOT edit EVAL-*.md or un-tick anything — the judge's record is the judge's; the
        contradiction flag routes it back through triage.
   H.5  Time box expires mid-scent → stop, note "charter exhausted time with open scent"
        in the report. The circuit breaker applies to hunting too.
@@ -271,9 +276,12 @@ in ways a spec author wouldn't think to write down.
 
 ---
 
-## Phase Q3 — Report
+## Phase Q3 — Report + WorkResult
 
-Write `.shapeup-sdlc/<feature>/qa/hunt-report.md` (LOCAL run-trace root):
+Write `.shapeup-sdlc/<feature>/qa/hunt-report.md` (your substrate) and, when dispatched with
+an order, the WorkResult envelope `.shapeup-sdlc/<feature>/results/<order-suffix>.json`:
+`status: done`, `discoveries[]` (every confirmed finding from H.3), `artifacts:
+["qa/hunt-report.md"]`. The report:
 
 ```markdown
 # Hunt Report — [feature] (round [r], [date])
@@ -309,9 +317,10 @@ No verdict line exists in this file by design. The Hunter's last words:
 Input: the promoted finding ids (from tech-lead) + the fix round's PASS EVAL report.
 Q0   : hard checks only (app up, new EVAL PASS); no soft check, no charter map.
 Hunt : re-run EXACTLY the recorded repro of each promoted finding — nothing else.
-        fixed   → in the ledger, annotate the line: `~ [QA-NNN] … ✦ fixed r[N], verified`
-                  (annotate, never delete — the ledger is history)
-        not fixed → `✦ NOT fixed r[N]` + fresh evidence; back to triage.
+        fixed   → discoveries[] entry `{ "marker": "~", "line": "[QA-NNN] ✦ fixed r[N], verified" }`
+                  (ingest annotates the ledger — annotate, never delete; the ledger is history)
+        not fixed → `{ "marker": "~", "line": "[QA-NNN] ✦ NOT fixed r[N]", "repro": "<fresh evidence>" }`
+                  back to triage.
 Report: append a `## Recheck (round [r])` section to .shapeup-sdlc/<feature>/qa/hunt-report.md.
 NEVER a second full hunt in the same cycle — new edges found while rechecking are
 recorded `~` like any finding and wait for triage; they don't restart the loop.
@@ -322,7 +331,12 @@ recorded `~` like any finding and wait for triage; they don't restart the loop.
 ## Invocation
 
 ```bash
-# Orchestrated (how tech-lead calls it after first PASS)
+# Orchestrated (how tech-lead calls it after first PASS) — the canonical form:
+#   compile-order --operation hunt --slug checkout-vnpay --worker qa-edge-hunter \
+#     --payload '{"eval_report": "…/EVAL-FEATURE-checkout-vnpay.md", "app_url": "http://localhost:3000"}'
+/qa-edge-hunter --order .shapeup-sdlc/checkout-vnpay/orders/hunt.json
+
+# Standalone flags (the preamble shim compiles the same envelope)
 /qa-edge-hunter --feature checkout-vnpay --spec docs/shapeup-sdlc/checkout-vnpay/spec/ \
     --eval .shapeup-sdlc/checkout-vnpay/evaluation/EVAL-FEATURE-checkout-vnpay.md \
     --ledger .shapeup-sdlc/checkout-vnpay/discovery/ledger.md --app http://localhost:3000
@@ -356,8 +370,8 @@ recorded `~` like any finding and wait for triage; they don't restart the loop.
 
 1. **Never a verdict.** The run's verdict is the evaluator's PASS. One judge.
 2. **Never promote.** Every finding is born `~`. severity-hint advises; PO/TL decide.
-3. **Never fix.** Read-only on code; execute-only on the app; write-only to its ledger
-   section + qa/hunt-report.md.
+3. **Never fix.** Read-only on code; execute-only on the app; write-only to
+   qa/hunt-report.md + its own WorkResult (findings return as data; ingest owns the ledger).
 4. **Never block ship.** A hunt with 40 findings and a hunt with 0 both end the same way:
    report, then triage at L4. The circuit breaker outranks the Hunter.
 5. **Never re-probe covered territory.** EVAL-*.md territory is subtracted at Q1; an
@@ -373,5 +387,6 @@ recorded `~` like any finding and wait for triage; they don't restart the loop.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.0 | 2026-07-13 | **Pure-skill alignment** (plan P3): input formalized as a WorkOrder (`--order` carrying feature, spec folder, EVAL report path, app URL); ledger-append mechanics removed — every confirmed finding returns as a `~` entry in the WorkResult's `discoveries[]` (recorded live as confirmed, never batched) and `ingest-result.mjs` performs the ledger append. Write surface narrows to `qa/**` + the result envelope. Craft unchanged: 6 fixed lenses, charter altitude guide, repro-required rule, contradicts-flag, `--recheck` semantics, the 8-rule never-list. |
 | 1.1 | 2026-06-16 | Phase Q2: added "Lens-specific hunting techniques" — concrete toolbox (DevTools tricks, paste-bomb recipes, cookie manipulation, API replay, DOM enable) per all 6 lenses; replaces abstract "vary, provoke, chain". Findings format: added `test-gap: unit \| integration \| exploratory-only` field to advise ba-pitch-analyzer reconciliation on whether to generate a test-writing task. Phase Q1: charter quality guide (altitude definition — "one specific risk + concrete mission", with good/too-broad/too-narrow examples). |
 | 1.0 | 2026-06-11 | Initial — QA-meeting Bước 2 ("QA-as-edge-hunter", Phương án 3). Pure worker, post-first-PASS, pre-ship. GATE Q0 preflight (hard: app/EVAL-PASS/ledger · soft: Test Surface → first-class degraded mode + `--surface-only` upgrade path). Phase Q1 charters = 6 fixed lenses × UC tree − EVAL-covered territory ([derivable-fallback] tagging in degraded mode). GATE Q1 charter review = scope hammer on QA itself. Phase Q2 session-based hunt, repro-required, findings stream live to discovery/ledger.md always `~` + severity-hint + `contradicts:` flag. Phase Q3 hunt-report (no verdict) + shaping-quality signal by lens. `--recheck` re-probes promoted items only (annotate, never delete). 8-rule never-list; triage owned by tech-lead SHIP S.0 / GATE L4. |

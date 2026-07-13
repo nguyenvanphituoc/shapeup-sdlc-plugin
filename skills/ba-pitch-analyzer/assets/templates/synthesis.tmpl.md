@@ -157,7 +157,7 @@ Derived from: `_index.md` rabbit holes + `api-feasibility.md` SPIKE blocks + `in
 <!--
   The SINGLE source of truth for tasks that were scope-hammered out of the cycle.
   A Cut produces NO task file (no bet yet, so no spec). Only record a trace line here.
-  Mostly populated/appended by `--tasks-only` when reconciling the discovered ledger.
+  Mostly populated/appended by the reconcile operation over the discovered ledger.
   Each line: what was cut — Cut @ GATE-N · reason · (if hammer-traded) which task it was traded for.
 -->
 

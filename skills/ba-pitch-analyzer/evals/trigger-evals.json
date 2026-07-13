@@ -11,6 +11,7 @@
     { "query": "shape this feature before we build it", "should_trigger": false, "expected_other": "shapeup" },
     { "query": "is this idea shaped enough yet?", "should_trigger": false, "expected_other": "shapeup" },
     { "query": "scout the code before we plan the scopes", "should_trigger": false, "expected_other": "orient" },
+    { "query": "remap the checkout scope's substrate whitelist", "should_trigger": false, "expected_other": "scope-architect" },
     { "query": "evaluate TASK-003 against the spec", "should_trigger": false, "expected_other": "spec-evaluator" },
     { "query": "dịch pitch này sang tiếng Anh", "should_trigger": false, "expected_other": "translator" },
     { "query": "summarize this news article in three bullets", "should_trigger": false, "expected_other": "none" }

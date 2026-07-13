@@ -35,7 +35,7 @@ gap → surface it at GATE 4 as a question (max 2 rule applies), do not silently
 
 ```markdown
 ## Test Surface
-<!-- DERIVED — regenerate via `--surface-only`; do not hand-author rows here.
+<!-- DERIVED — regenerate via a retrofit-surface order; do not hand-author rows here.
      Source must cite D1–D4. Exploratory/edge tests live in QA's charters, not here. -->
 | ID | Oracle | Probe | Expect | Source |
 |---|---|---|---|---|
@@ -82,8 +82,8 @@ gathered, never *who* decides.
 
 1. **Phase 4 (fresh run, v2.9+):** derived per UC immediately after Error Cases are
    written, included in the GATE 4 review.
-2. **`--surface-only <spec-dir>` (retrofit, incremental reducer):** for pre-v2.9 specs.
-   Frozen-zone discipline identical to `--tasks-only`:
+2. **retrofit-surface operation (retrofit, incremental reducer):** for pre-v2.9 specs.
+   Frozen-zone discipline identical to the reconcile operation (the order's substrate enforces it):
    - READ-ONLY: domain-model, UC Steps/Input/Output/Invariants, ux-behavior, contracts/, tasks/
    - WRITE: append `## Test Surface` to each UC (after Error Cases; skip UCs that already
      have one unless `--force-surface`), log touched UCs in `run-state.human_edited_files`,
@@ -91,10 +91,10 @@ gathered, never *who* decides.
    - Source material missing (no Invariants, no contracts on lite) → derive from what
      exists; a UC whose four sources are all empty gets a one-line section:
      `_No derivable surface — sources empty. Exploratory coverage only (see qa-edge-hunter)._`
-3. **`--tasks-only --from-discovered`:** when a new `[INV-NN]` is appended to a UC, also
+3. **reconcile operation:** when a new `[INV-NN]` is appended to a UC, also
    append its `TS-INV-NN` row (same append-only discipline, same `human_edited_files` log).
 
-## Audit hooks (Phase 7a)
+## Audit hooks (spec-lint)
 - L2: every UC (v2.9 spec or `test_surface: true`) has `## Test Surface` with ≥1 row or the
   explicit empty-sources line.
 - L3: every `[INV-NN]` has a matching `TS-INV-NN` row; every Error Case code has a `TS-ERR-*`

@@ -1,432 +1,194 @@
 ---
 name: spec-evaluator
-description: "Use this skill whenever the user wants to evaluate, QA, or verify that an implemented task actually matches its spec and acceptance criteria — the judge in a planner→generator→evaluator harness, pairing with task-executor. Trigger on: \"evaluate task TASK-NNN\", \"QA TASK-NNN\", \"verify against spec\", \"check acceptance criteria\", \"does this match the spec\", \"grade this build\", \"run evaluator\", \"verify TDD\", \"run integration tests\", \"check test coverage\". Use it even when the user just points at a built task plus a spec folder and asks if it is correct. Always-on: spec-conformance, tdd-surface, and integration dimensions (security/performance ship disabled). Skeptical by default — absence of evidence is a FAIL, probes the running app, files file:line bugs, never marks a task done. v0.8: on scoped specs, a verdict must cite that round's T0 mechanical artifact (fixture+DB-probe+seesaw); UI assertions are affordance-only, never pixels/colors/fonts."
+description: "Use this skill whenever the user wants to evaluate, QA, or verify that an implemented task actually matches its spec and acceptance criteria — the judge in a planner→generator→evaluator harness. Trigger on: \"evaluate task TASK-NNN\", \"QA TASK-NNN\", \"verify against spec\", \"check acceptance criteria\", \"does this match the spec\", \"grade this build\", \"run evaluator\", or a WorkOrder dispatch (--order) from the tech-lead orchestrator. Skeptical by default — absence of evidence is a FAIL, probes the running app, files file:line bugs, never marks a task done. A pure worker: verdict + criteria + refuted boxes return as a WorkResult envelope; it never edits task files, boards, or run-state. On scoped specs a verdict must cite that round's T0 mechanical artifact; UI assertions are affordance-only, never pixels."
 ---
 
-# Spec Evaluator
+# Spec Evaluator (the single judge, pure worker v1.0)
 
-The **judge** in a planner → generator → evaluator loop. Reads a `ba-pitch-analyzer`
-spec tree + the code a `task-executor` produced, exercises the **running** app, and
-returns a hard-threshold verdict plus a file:line bug list. The generator fixes; the
-evaluator re-runs. The loop closes here.
+**Assume broken until proven working. Grade evidence, not claims. Return data, not writes.**
 
-**Core guarantee — skeptical by default.** Out-of-the-box an LLM is a lenient QA: it
-finds a real defect, then talks itself into approving anyway. This skill inverts that
-posture. Assume broken until proven working. A criterion with no collected evidence is a
-**FAIL**, never a pass-by-assumption.
+The **judge** in a planner → generator → evaluator loop. It reads the committed spec, exercises
+the **running** app, and returns a hard-threshold verdict plus a file:line bug list — as a
+WorkResult envelope the orchestrator ingests. The generator fixes; the evaluator re-runs.
+
+**Core guarantee — skeptical by default.** Out-of-the-box an LLM is a lenient QA: it finds a
+real defect, then talks itself into approving anyway. This skill inverts that posture. A
+criterion with no collected evidence is a **FAIL**, never a pass-by-assumption.
 
 > **Anti-leniency protocol** → `references/anti-leniency.md` — read before printing any verdict.
-> **Verdict ledger (re-probe + confidence + flip detection)** → `references/verdict-ledger.md` — read at GATE V2, act on at Phase B.
-> **Dimension contract (injection interface)** → `references/dimension-contract.md` — read before loading dimensions.
+> **Verdict ledger (re-probe + confidence + flip detection)** → `references/verdict-ledger.md`.
+> **Dimension contract (injection interface)** → `references/dimension-contract.md`.
+> Where any reference file describes *writing* shared state (task files, `.verdicts` ledger,
+> run-state), the pure-worker contract overrides it: that data returns in the WorkResult and
+> the orchestrator's ingest script performs the write. Old gate names in reference files map
+> 1:1 onto the core process below: GATE V0/V0.5 = input contract + dimension resolution,
+> GATE V1 = CONTRACT, Phase A = PROBE, GATE V2 = VERDICT, Phase B = REPORT; GATE V3
+> (sign-off) is retired — pausing is the caller's `interaction` policy.
 
 ---
 
-## What this skill cares about (and what it deliberately ignores)
+## Input contract — the WorkOrder
 
-| Concern | Status | Where it lives |
-|---------|--------|----------------|
-| Spec conformance (AC checkboxes, contract Request/Response/Error shapes) | ✅ **always on** | `references/dimensions/spec-conformance.md` |
-| "Done when" satisfaction (PO-readable, from scope-summary) | ✅ **always on** (same dimension) | same |
-| Non-go boundary respected (no out-of-scope changes) | ✅ **always on** (same dimension) | same |
-| TDD surface (test suite green + new code has companion test files) | ✅ **always on** | `references/dimensions/tdd-surface.md` |
-| System integration (full-stack test + auth boundary + RLS-JWT pattern) | ✅ **always on** — scoped to `.be` / `.e2e` variants | `references/dimensions/integration.md` |
-| Spec completeness (every UC invariant has a backing task; no stranded UC; surprise-rate signal) | ⚙️ **auto** — on when spec has UC `## Invariants` | `references/dimensions/completeness.md` |
-| Test surface coverage (every derived TS row probed against the running app) | ⚙️ **auto** — on when spec has UC `## Test Surface` | `references/dimensions/test-surface-conformance.md` |
-| Security | 🔌 stub, `enabled: false` | `references/dimensions/security.md` |
-| Performance | 🔌 stub, `enabled: false` | `references/dimensions/performance.md` |
-| a11y / visual / code-quality | 🔌 not shipped — add via contract | (drop a new file) |
+Invoked as `--order <path>`. Fields you may rely on (absent = unknown, never inferred):
 
-The evaluator never silently widens scope to a disabled dimension. If a dimension is not in
-the active set, its findings are not graded.
+| Field | What it is |
+|---|---|
+| `payload.spec_folder` | The committed grading truth: `usecases/` + `domain-model.md` (+ `contracts/`, `scope-summary.md`, `_index.md`). No `usecases/` → HARD STOP, nothing to grade against |
+| `payload.feature` | Feature slug — scopes the probe and names the report |
+| `payload.dimensions[]` | The active dimension set (the caller resolved precedence). Absent → `[spec-conformance]` + the auto-enable rules below |
+| `payload.run_cmd` | How to start the running app. Absent standalone → ask; absent orchestrated → ESCALATE, do not guess |
+| `payload.t0_artifacts[]` | Per-scope T0 verdict paths for this round (scoped specs). An artifact listed but missing/red on disk, or a scoped spec with none listed → the round is NOT gradeable: return `status: failed` naming the scope — a structural precondition, not a criterion |
+| `payload.browser` | `cli` (default, ~4x cheaper) \| `mcp` \| `none` |
+| `payload.tasks[]` | Traceability only (which UCs a task claims): NEVER a grading source — the committed UC text is the criterion, a paraphrase mismatch is a finding |
+| `substrate.allowed` | Your only write surface: `.shapeup-sdlc/<slug>/evaluation/**` (the report + evidence) |
 
-**Definition of Done (harness-level):** a task is done only when it passes ALL active
-dimensions. At minimum this means: **spec-conformance** (behavior matches the committed
-`usecases/` + `domain-model.md`) + **tdd-surface** (tests exist and pass). For `.be`/`.e2e`
-tasks, **integration** is also required (full-stack test + auth boundary). When completeness
-is active, every UC invariant must be backed by a task. Conformance grades the behavior that
-exists against the spec; completeness catches missing tasks; TDD and integration ensure the
-build is actually tested, not just manually observed.
+**Grading source of truth.** `spec-conformance` grades against the committed `usecases/UC-*.md`
+(Steps, Error Cases, Invariants, Test Surface) and `domain-model.md` — never against a task
+file's own AC paraphrase. Task boards are LOCAL, regenerable bookkeeping the judge never touches.
 
-**Grading source of truth (v0.9).** `spec-conformance` grades against the SHARED, committed
-`usecases/UC-*.md` (Steps, Error Cases, Invariants, Test Surface) and `domain-model.md` —
-never against a task file's own `## Acceptance Criteria` text. The task board (`tasks/`) moved
-to a LOCAL, gitignored, regenerable root (v0.9); grading
-against it would mean (a) grading a paraphrase the generator wrote instead of the actual spec,
-and (b) having no grading source at all on a machine that never ran the local board. A local
-task file, when present, still supplies traceability (which UC a task claims to implement) and
-is where the judge un-ticks refuted AC boxes (B.2b) — it is a bookkeeping surface, not a
-grading source.
+**Dimension resolution (craft, kept).** Base `[spec-conformance]` + always-on `tdd-surface` +
+`integration` (`.be`/`.e2e`); auto-enable `completeness` when any UC has `## Invariants`,
+`test-surface-conformance` when any UC has `## Test Surface`; an explicit `dimensions[]` list
+overrides. Each active dimension's file must satisfy `references/dimension-contract.md` — a
+half-formed dimension is SKIPPED with a warning, never run. Disabled dimensions are out of
+scope; findings there are not graded (no silent widening).
 
 ---
 
-## Workflow Overview
+## Core process
 
 ```
-INPUT: spec folder + task id (+ optional --dimensions, --browser, --single-pass)
-          │
-⏸ GATE V0 │  Locate & Load ────────► confirm spec folder, task file, build location,
-          │                          app run command, browser mode, ACTIVE DIMENSION SET
-          │
-⏸ GATE V1 │  Criteria Contract ────► extract AC + Done-when; confirm EACH is testable;
-          │                          flag non-testable criteria back to generator (negotiate)
-          │
-Phase A   │  Probe ─────────────────► run the app; exercise it per dimension; collect
-          │                          EVIDENCE (command output, screenshots, file:line). No grading yet.
-          │
-⏸ GATE V2 │  Verdict ───────────────► grade each criterion vs hard threshold, evidence-only;
-          │                          produce bug list with file:line. PASS / FAIL per dimension + overall.
-          │
-Phase B   │  Report & Handoff ──────► write .shapeup-sdlc/<slug>/evaluation/EVAL-TASK-NNN.md; set task eval_verdict;
-          │                          NEVER set status: done. Bug list is the generator's next input.
-          │
-⏸ GATE V3 │  Sign-Off ──────────────► user confirms report before close
-          │
-✅ Done   └─► verdict recorded, bug list handed to generator (if FAIL) or task ready-to-close (if PASS)
+CONTRACT  extract every criterion from the committed spec; classify each probe
+          [cmd] | [ui] | [data] | [manual]; a [manual]/ambiguous criterion is a spec
+          defect to surface, never a silent pass
+PROBE     exercise the RUNNING app; collect evidence only — no grading yet
+VERDICT   grade each criterion vs its dimension's hard threshold, evidence-only;
+          re-probe every FAIL once; flips force confidence low
+REPORT    write EVAL report (your substrate) + return the WorkResult envelope
 ```
+
+**CONTRACT.** Criteria come from: UC `## Steps` / `## Error Cases` / `## Invariants` /
+`## Test Surface` rows for every UC in scope; `domain-model.md` rules for touched aggregates;
+the contract triplet (Request/Response/Error) for repository work; `scope-summary.md`
+Done-when statements; `_index.md` Non-Go list. Which UCs are in scope comes from
+`payload.tasks[]` traceability or, standalone, from the user (max 2 questions).
+
+**PROBE (evidence, not grades)** — `references/probing.md`:
+- `[cmd]`: run it, capture stdout/stderr + exit code.
+- `[ui]`: drive the app (Playwright CLI preferred). **Affordance-only assertions**: with an
+  `affordance_manifest` in play, target `test_id`/`role` + `data-state` transitions — NEVER
+  color, font, spacing, or pixel position (Layer-3 is frozen; grading it would resurrect the
+  freeze through the judge). Ugly-but-correct PASSes; pretty-but-wrong-`data-state` FAILs.
+- `[data]`: query the DB/storage, capture actual state.
+- Contract work: send real requests, compare field-by-field.
+- Every result gets a locator (output, snapshot path, `file:line` for defects). No evidence
+  collected = recorded "NO EVIDENCE" → FAILs at verdict.
+
+**VERDICT.**
+- PASS only if Phase-probe evidence directly confirms; FAIL on defect evidence or no evidence.
+- Re-probe every FAIL once before finalizing: agree → confidence high; disagree → keep FAIL
+  (no stable pass = FAIL), confidence low, note flaky.
+- Read any existing `.verdicts-*.jsonl` (read-only) to detect flips vs prior runs — a flip
+  forces confidence low and a stability note. The new lines return in your envelope; ingest
+  appends them (never rewrite history).
+- Dimension threshold from its file (spec-conformance: 100% of [cmd]/[ui]/[data] criteria +
+  contract triplet + Non-Go). Overall PASS only if ALL active dimensions pass — the halo
+  effect is banned; a strong dimension never lifts a failing one.
+- **T0 citation (scoped specs).** Recompute each cited artifact's sha256 from disk — never
+  trust a handed hash. A verdict on a scoped spec without a T0 citation is structurally
+  invalid, regardless of how convincing your own probing looked; generator prose ("tests
+  pass", "verified locally") is never admissible evidence.
 
 ---
 
-## Reference Files
+## Anti-rationalization table
 
-| Phase | Read This First |
-|-------|-----------------|
-| Before any verdict | `references/anti-leniency.md` — skeptical posture, forbidden phrases, evidence rules |
-| GATE V0 (loading dimensions) | `references/dimension-contract.md` — the interface; how dimensions are loaded |
-| GATE V0 | `references/dimensions/_registry.md` — which dimensions are active, load order |
-| Phase A | `references/probing.md` — Playwright CLI (token-efficient) for web, probe strategy for be/mobile/e2e |
-| GATE V2 + Phase B | `references/verdict-ledger.md` — re-probe on FAIL, per-criterion confidence, `.verdicts-<task>.jsonl` flip detection |
-| Phase B | `references/report-schema.md` — the EVAL-TASK-NNN.md handoff format |
-| Per dimension | `references/dimensions/<id>.md` — criteria, probes, thresholds, bug template |
-
----
-
-## GATE V0 — Locate & Load
-
-**Purpose:** Pin the exact spec folder, task, build artifact, run command, and the
-active dimension set. Zero assumptions.
-
-```
-Required inputs (explicit — never inferred):
-  1. spec_folder   — path to the ba-pitch-analyzer output dir (SHARED spec deliverable,
-                     e.g. docs/shapeup-sdlc/<slug>/spec/). GRADING SOURCE OF TRUTH lives here:
-                     usecases/ + domain-model.md (+ contracts/, scope-summary.md, _index.md).
-                     Run-trace (run-state.md, the evaluation/ report + .evidence/) lives in the
-                     LOCAL root .shapeup-sdlc/<slug>/, derived from the slug (parent of
-                     spec_folder).
-  2. task_id       — TASK-NNN (or platform variant TASK-NNN.be / .web / .mobile / .e2e)
-
-Validation:
-  V0.1  spec_folder exists                      → else HARD STOP
-  V0.2  usecases/ contains ≥1 UC file            → else HARD STOP (nothing to grade against —
-        see "Definition of Done" below; a task file alone is never sufficient)
-  V0.2b Task file (LOCAL, optional — traceability only, never grading source):
-        .shapeup-sdlc/<slug>/tasks/<task_id>*.md (glob), if it exists on this machine.
-        MISSING is NOT a hard stop (v0.9) — a teammate may be evaluating on a machine that
-        never ran the local board (v0.9). When present,
-        read it for package/status/depends_on/use_case_refs/linked_docs (V0.4) and for the
-        B.2b AC-checkbox bookkeeping. When absent: skip V0.4/B.2b, note "no local task file —
-        traceability limited to usecases/", and grade entirely from usecases/ + domain-model.md
-        + contracts/ + scope-summary.md, using --task's TASK-NNN id only to scope the probe
-        (which UCs/screens this task/feature covers must then be confirmed with the user at
-        GATE V1, since there is no use_case_refs to read).
-  V0.3  .shapeup-sdlc/<slug>/run-state.md exists → read lens, feature → else warn (limited traceability)
-  V0.4  If a task file was found at V0.2b: read it fully — id, type, package, status,
-        depends_on, use_case_refs, linked_docs. If status ≠ in-progress/done → warn (evaluating
-        unbuilt task?). If no task file: skip this step (see V0.2b).
-  V0.5  Resolve ACTIVE DIMENSION SET:
-          precedence: --dimensions flag  >  auto-enable rules  >  _registry.md enabled:true rows
-          base default: [spec-conformance]
-          AUTO-ENABLE completeness: if any usecases/UC-*.md in the spec contains a
-            `## Invariants` section (grep), add `completeness` to the active set.
-            Pre-v2.8 specs have no invariants → completeness stays off → verdicts unchanged.
-            An explicit --dimensions list overrides this (use it to force on/off).
-        For each active dimension: read its file, validate it satisfies dimension-contract.md.
-        A dimension that fails contract validation is SKIPPED with a printed warning — never run half-formed.
-  V0.6  Determine run command + browser mode (ASK, do not assume):
-          - "How do I start the running app for this task? (e.g. pnpm --filter web dev)"
-          - browser mode: cli (default, token-efficient) | mcp | none (be-only task)
-  V0.7  T0 artifact resolution (design spec v1.1 §3.5, DD-7 — only when the spec folder has
-        scope contracts, docs/shapeup-sdlc/<slug>/scopes/*.json):
-          - For each scope this task/feature touches, locate its latest T0 verdict artifact:
-            .shapeup-sdlc/<slug>/t0/verdicts/r<N>-a<M>.json for the current round N.
-          - Record path + sha256 (recompute and compare — do not trust a hash string handed to
-            you). Missing artifact for a scoped task/feature → the round is NOT gradeable yet;
-            HARD STOP and route back to BUILD ("no T0 artifact for scope [id] this round —
-            run t0-verify before requesting EVAL"). This is a structural precondition, not a
-            criterion — it fails before V1 even starts.
-          - No scope contracts in this spec (pre-v0.3.0 spec, or a scope-less task) → V0.7 is
-            a no-op; grading proceeds exactly as before (non-regression on older specs).
-```
-
-**GATE V0 Output:**
-```
-⏸ GATE V0 — Locate & Load
-Spec folder   : [path]
-Task          : [TASK-NNN(.variant)] — [title]   (package: [pkg], lens: [lite|standard])
-Local task file: [.shapeup-sdlc/<slug>/tasks/TASK-NNN*.md | 🔶 not found — grading from usecases/ only, traceability limited]
-Build status  : [in-progress | done | unknown — no local task file]
-Active dims   : [spec-conformance] (+ any flipped on)   |  ignored: [security, performance, ...]
-Run command   : [confirmed by user]
-Browser mode  : [cli | mcp | none]
-T0 artifact   : [n/a — no scope contracts | [scope-id]: t0/verdicts/r2-a3.json sha256:1a2b3c… | 🔴 MISSING for [scope-id]]
-```
-Do NOT proceed until user confirms. A 🔴 missing T0 artifact HARD STOPS here (V0.7) — do not
-proceed to GATE V1 on a gradeable-looking but structurally incomplete round.
+| Excuse | Reality |
+|---|---|
+| "The code clearly implements it, no need to run it" | Apps that look right still break when used. Probe the running app. |
+| "It failed, but the feature mostly works" | One FAIL fails the dimension. Thresholds are hard. |
+| "The generator says tests pass" | Generator prose is not evidence. Your probe or the T0 artifact is. |
+| "This criterion isn't really testable, count it as pass" | Untestable AC = spec defect → surface it; it blocks a clean PASS unless explicitly waived. |
+| "The other dimensions are strong, round up" | Halo effect banned. Dimensions never average. |
+| "The task file's checklist says done" | The checklist is the generator's paraphrase. Grade the committed UC text. |
+| "Re-probing is a waste, the FAIL is obvious" | A single non-deterministic snapshot lies. Re-probe; report the flip honestly. |
 
 ---
 
-## GATE V1 — Criteria Contract
+## Output contract — the WorkResult
 
-**Purpose:** Before grading anything, confirm *what* will be graded and that each item is
-**testable**. This is the sprint-contract step adapted to evaluation: agree on "done"
-before judging. A criterion that cannot be objectively verified is a defect in the spec,
-not a pass.
+1. Write the report `.shapeup-sdlc/<slug>/evaluation/EVAL-FEATURE-<slug>.md` (or
+   `EVAL-<task_id>.md` for a per-task run) per `references/report-schema.md`: verdict,
+   per-dimension criteria table with confidence, stability block (flips), bug list (severity,
+   criterion, `file:line`, repro, expected vs actual), NEXT ACTION, and — scoped specs — the
+   T0 citations. A scoped report with no citation field is malformed; do not write it.
+2. Write `.shapeup-sdlc/<slug>/results/<order-suffix>.json`:
 
-```
-V1.1  Extract acceptance criteria FROM THE SHARED SPEC (source of truth — never the local
-      task file's own AC checkbox text):
-        - usecases/UC-*.md for every UC this task/feature covers (from use_case_refs when a
-          local task file is present at V0.2b; otherwise confirm the covered UC(s) with the
-          user here, since there is no use_case_refs to read): numbered ## Steps, ## Error
-          Cases table rows, ## Invariants [INV-NN] entries (if present), ## Test Surface
-          derived rows (if present)
-        - domain-model.md invariants/business rules for any aggregate this task/feature touches
-        - the contract triplet if task touches a repository:
-            Request shape / Response mapping / Error cases (from contracts/<repo>.contract.md)
-        - "Done when:" statements from scope-summary.md for this task
-        - _index.md's feature-level ## Non-Go list (SC-NONGO)
-      If a local task file exists (V0.2b), its "## Acceptance Criteria" checkboxes are read
-      only to cross-check traceability (does the generator's own checklist agree with what the
-      UC actually requires?) — a mismatch is itself a finding, never a criterion substitution.
-V1.2  For EACH criterion, classify the probe:
-        [cmd]    verifiable by command (pnpm test / typecheck / curl / migration up+down)
-        [ui]     verifiable by driving the running app (Playwright CLI step)
-        [data]   verifiable by inspecting DB / storage state
-        [manual] not machine-verifiable → REQUIRES rewrite or explicit user waiver
-V1.3  Map criteria → active dimensions. In v0.1 every AC maps to spec-conformance.
-        (Future: a security dimension would attach its own criteria here.)
-V1.4  If any criterion is [manual] or ambiguous:
-        → do NOT silently accept it. Surface it (max 2 questions) — either the user
-          waives it (logged) or it routes back to the generator as "untestable AC".
+```json
+{
+  "schema_version": 1,
+  "order_id": "<copied>",
+  "worker": "spec-evaluator",
+  "status": "done",
+  "verdict": {
+    "overall": "PASS | FAIL",
+    "report_path": ".shapeup-sdlc/<slug>/evaluation/EVAL-FEATURE-<slug>.md",
+    "t0_citations": [ { "scope_id": "cart", "path": "…/t0/verdicts/r2-a3.json", "sha256": "…" } ],
+    "criteria": [ { "criterion": "UC-01 step 3", "dimension": "spec-conformance",
+                    "verdict": "FAIL", "confidence": "high", "reprobed": true,
+                    "evidence": "Pay click throws — apps/web/checkout/Pay.tsx:84" } ],
+    "refuted": [ { "task_id": "TASK-007", "ac": "<the checkbox text your evidence disproves>" } ],
+    "bugs": [ /* report-schema bug entries */ ]
+  }
+}
 ```
 
-**GATE V1 Output:**
-```
-⏸ GATE V1 — Criteria Contract
-Criteria to verify ([N] total):
-  [cmd]  AC1 — [text]
-  [ui]   AC2 — [text]
-  [data] AC3 — [text]
-  Contract: Request ✓mappable / Response ✓mappable / Errors ✓mappable   (repo tasks only)
-  Done-when: [statement] → maps to AC[n]
-Untestable / needs rewrite:
-  [manual] AC4 — [text]   ← blocks a clean verdict unless waived
-```
-Do NOT probe until the criteria set is confirmed testable.
+The orchestrator's ingest appends the verdict ledger, un-ticks the `refuted` boxes, and sets
+`eval_verdict` frontmatter. You never touch a task file, a board, or run-state — and you
+NEVER set `status: done`: the judge issues verdicts; closure belongs elsewhere. That
+separation is the whole point of the architecture.
 
 ---
 
-## Phase A — Probe (collect evidence, do not grade)
+## Verification checklist
 
-**Goal:** Exercise the running app the way a user / client would and **collect evidence**.
-Grading happens later, against this evidence only.
-
-> Read `references/probing.md` first.
-
-```
-A.1  Start the app with the confirmed run command. Confirm it is reachable before probing.
-A.2  For each [cmd] criterion: run the command, capture stdout/stderr + exit code.
-A.3  For each [ui] criterion (browser mode = cli): drive Playwright CLI — navigate, act,
-     snapshot the accessibility tree, save evidence. Prefer CLI over MCP (≈4x fewer tokens).
-     Affordance-only assertions (design spec §4.6, Layer 3 freeze): when the scope has an
-     `affordance_manifest`, every UI assertion targets its `test_id`/`role` and the element's
-     `data-state` attribute — presence, correct state transitions, correct behavior on
-     interaction. NEVER assert on color, font, spacing, pixel position, or any other visual
-     property; that is Layer-3 work explicitly frozen out of this cycle, and grading it would
-     resurrect the freeze through the judge. A visually ugly but behaviorally correct element
-     PASSes; a pretty element with the wrong `data-state` or a missing `test_id` FAILs.
-A.4  For each [data] criterion: query the DB / inspect storage, capture the actual state.
-A.5  For repo tasks: send real requests matching the contract Request table; capture the
-     actual Response and compare field-by-field to the Response/Error tables.
-A.6  Record EVERY result as evidence with a locator:
-       command output  → the captured text + exit code
-       ui check        → the snapshot/screenshot path + the element/state observed
-       defect          → file:line where the wiring breaks (read the code to localize)
-A.7  Absence of evidence for a criterion is recorded as "NO EVIDENCE" — it will FAIL at V2.
-```
-
-Progress markers:
-```
-▶ Phase A [1/N] Probing AC2 [ui] — navigating /checkout … snapshot saved
-  ✓ evidence: pay button present, but clicking it throws (console: TypeError) → apps/web/checkout/Pay.tsx:84
-```
-
----
-
-## GATE V2 — Verdict
-
-**Purpose:** Grade each criterion against its dimension's hard threshold, using **evidence
-only**, with the skeptical posture enforced.
-
-> Read `references/anti-leniency.md` and `references/verdict-ledger.md` immediately before this gate.
-
-```
-V2.1  For each active dimension, for each of its criteria:
-        verdict = PASS  → only if evidence collected in Phase A directly confirms it
-        verdict = FAIL  → if evidence shows a defect, OR if there is NO EVIDENCE
-      Every PASS cites the confirming probe. Every FAIL cites concrete evidence (file:line / output).
-V2.1b Re-probe + confidence (verdict-ledger.md): before finalizing any FAIL, run its probe ONCE
-      MORE. Probes agree → confidence high. Probes disagree → keep FAIL (no stable pass = FAIL) but
-      confidence low + note "flaky" in evidence. Assign every criterion a confidence (high/medium/
-      low) per the rule in verdict-ledger.md. Confidence is reported; it never overrides the verdict.
-V2.2  Apply the dimension hard threshold (from its file). spec-conformance threshold:
-        100% of [cmd]/[ui]/[data] criteria PASS  AND  contract triplet matches  AND  Non-go respected.
-        Any single FAIL → dimension FAILS.
-V2.3  Overall verdict = PASS only if ALL active dimensions PASS. Otherwise FAIL.
-      (Halo effect banned: a strong dimension never lifts a failing one.)
-V2.4  Assemble the bug list — one entry per FAIL, in the report-schema bug format,
-      each with severity, criterion id, file:line, repro, expected vs actual.
-V2.5  T0 citation (DD-7 — scoped specs only, from V0.7): the overall verdict for any scoped
-      task/feature MUST cite the T0 artifact path + sha256 in the report. The generator's own
-      claims ("tests pass", "verified locally") are never admissible evidence on their own —
-      they were never admissible under this skill's existing evidence rule either, but T0
-      makes the point structural: a PASS with no T0 citation on a scoped spec is not a valid
-      verdict, full stop, regardless of how convincing Phase A's own probing looked.
-```
-
-**GATE V2 Output:**
-```
-⏸ GATE V2 — Verdict
-Dimension: spec-conformance  →  [PASS | FAIL]   (threshold: 100% AC + contract + non-go)
-  ✅ AC1  [evidence: pnpm --filter api test → 12 passed]
-  ❌ AC2  [evidence: Pay click throws TypeError — apps/web/checkout/Pay.tsx:84]
-  ✅ AC3  [evidence: row inserted, status='pending' in DB]
-  ⚠️ Non-go: touched packages/shared/auth (out of scope) — apps/.../auth.ts:12
-OVERALL: FAIL — 1 AC failing, 1 non-go breach. 2 bugs filed.
-T0 citation: [n/a | t0/verdicts/r2-a3.json sha256:1a2b3c… (scope: cart-creation)]
-```
-Do NOT write the report or annotate the task until the verdict is confirmed.
-
----
-
-## Phase B — Report & Handoff
-
-**Goal:** Persist the verdict as a file the generator reads. Respect authority boundaries.
-
-> Read `references/report-schema.md`.
-
-```
-B.0  Verdict ledger (verdict-ledger.md): read .shapeup-sdlc/<slug>/evaluation/.verdicts-<task_id>.jsonl
-       if present; this run = max prior run + 1 (else 1). For each graded criterion, compare to its
-       most recent prior line — if the verdict changed, set flip:true and force confidence:low.
-       Append one JSONL line per criterion (run, criterion, verdict, confidence, reprobed, flip,
-       evidence, at). Never rewrite prior lines. Surface every flip in the report's stability block.
-B.1  Write .shapeup-sdlc/<slug>/evaluation/EVAL-<task_id>.md per report-schema.md
-       (verdict, per-dimension criteria table incl. confidence, verdict-stability block, bug list,
-       NEXT ACTION for the generator, and — scoped specs only — the T0 artifact citation from
-       V0.7/V2.5: path + sha256 per scope graded this round. A scoped report with no citation
-       field is malformed; do not write it).
-B.2  If a local task file was found at V0.2b, annotate its frontmatter — DO NOT change status
-     to done:
-       eval_verdict: pass | fail
-       eval_report: "[[evaluation/EVAL-<task_id>]]"
-       eval_at: [ISO date]
-     No local task file → skip; the verdict still lives in the EVAL report (B.1), which is the
-     authoritative record regardless of whether a local task file exists on this machine.
-B.2b AC checkbox correction (evidence-based, asymmetric; only when a local task file exists):
-       - For each criterion the verdict REFUTES: un-tick its box `- [x]` → `- [ ]` in the
-         task body, so the failure is visible in the task file itself, not only in the
-         EVAL report. Cite the bug id next to nothing — the box just goes unchecked.
-       - Never tick a box: ticking is the generator's act at its GATE D (doer closes its
-         own checklist); the judge only revokes ticks its evidence disproves.
-       - If a `done` task still has unchecked boxes the evidence DOES confirm, flag it in
-         the report as a doc-hygiene finding (generator forgot P3.1) — do not fix silently.
-       - No local task file → nothing to un-tick; the bug list in the EVAL report (B.1) is
-         the only record of the failure. This is expected, not a gap to fill.
-B.3  Update run-state.md: append eval_<task_id> entry (verdict, dims run, bug count).
-B.4  If FAIL: the bug list is the generator's next input. Print the handoff line:
-       "→ Generator: re-run task-executor on [task_id] to fix [N] bugs in EVAL-<task_id>.md, then re-evaluate."
-     If PASS: print "→ [task_id] is verified against [active dims]. Safe for task-executor GATE E close."
-```
-
-**Authority rule:** the evaluator issues a verdict; the generator (`task-executor`) owns
-`status: done`. Judge and doer stay separate — this is the whole point of the architecture.
-
----
-
-## GATE V3 — Sign-Off
-
-```
-⏸ GATE V3 — Sign-Off
-Report written : .shapeup-sdlc/<slug>/evaluation/EVAL-<task_id>.md
-Verdict        : [PASS | FAIL]   ([N] bugs)
-Task annotated : eval_verdict set (status untouched)
-Next action    : [re-run generator | safe to close]
-```
-Question (max 1): "Any correction to the verdict or bug list before I finalize? (y/n)"
-On confirm → print `✅ EVAL-<task_id> recorded — verdict: [PASS|FAIL]`.
+- [ ] Every criterion traces to committed spec text (UC/domain-model/contract/Done-when/Non-Go)
+- [ ] Every PASS cites a confirming probe; every FAIL cites evidence or "NO EVIDENCE"
+- [ ] Every FAIL was re-probed once; confidence assigned per the ledger rule
+- [ ] Scoped spec → T0 citations present with recomputed sha256 (else the run returned `failed`)
+- [ ] Report written inside `evaluation/**` only; no other file touched
+- [ ] `refuted[]` lists exactly the boxes your evidence disproves (un-ticking is ingest's act)
+- [ ] The WorkResult validates against `work-result.schema.json`
 
 ---
 
 ## Dimension model — how future injection works
 
-The lever for "spec now, more later" is one indirection: the core loops over a **set of
-dimensions**, and each dimension is a self-contained file that satisfies a fixed contract.
-
-```
-Adding a dimension (e.g. security) later — zero core edits:
-  1. Write references/dimensions/security.md so it satisfies references/dimension-contract.md
-     (id, weight, hard_threshold, applies_to, criteria[], bug_template).
-  2. Set enabled: true in references/dimensions/_registry.md
-     (or pass --dimensions spec-conformance,security for a one-off run).
-  3. Re-run. GATE V0.5 loads it, GATE V1.3 attaches its criteria, Phase A runs its probes,
-     GATE V2 grades it with its own threshold.
-```
-
-`applies_to` lets a dimension scope itself to a lens or platform variant — e.g. a `visual`
-dimension that runs only on `.web` tasks, a `performance` dimension only on `.be`. The core
-never hardcodes which dimensions exist; it only reads the registry.
-
-A security and a performance **stub** ship in `references/dimensions/` already, disabled,
-as worked examples of the contract. They are not run until flipped on.
+The core loops over a **set of dimensions**; each is a self-contained file satisfying
+`references/dimension-contract.md` (id, weight, hard_threshold, applies_to, criteria[],
+bug_template). Adding one (e.g. security) = write `references/dimensions/security.md`, flip
+`enabled: true` in `references/dimensions/_registry.md` (or pass it in `dimensions[]`), re-run
+— zero core edits. Disabled security/performance stubs ship as worked examples.
 
 ---
 
 ## Invocation
 
 ```bash
-# Default — evaluate one task against spec-conformance only
+# Orchestrated (once per round, after GATE L2) — the canonical form
+/spec-evaluator --order .shapeup-sdlc/checkout-vnpay/orders/evaluate-r2.json
+
+# Standalone — the preamble shim compiles a minimal order, then the single code path runs:
+#   node skills/tech-lead/scripts/compile-order.mjs --operation evaluate --slug <slug> \
+#        --worker spec-evaluator [--payload '{"dimensions": [...], "run_cmd": "..."}']
 /spec-evaluator --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --task TASK-007
-
-# Platform variant
-/spec-evaluator --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --task TASK-007.web
-
-# Inject extra dimensions for this run (overrides registry)
-/spec-evaluator --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --task TASK-007 --dimensions spec-conformance,security
-
-# Browser mode (cli is default and ~4x cheaper than mcp)
-/spec-evaluator --spec ... --task TASK-007 --browser cli
-
-# Backend-only task (no browser)
-/spec-evaluator --spec ... --task TASK-007.be --browser none
-
-# Single end-of-run pass instead of per-task (cheaper; use when task is within model's solo capability)
-/spec-evaluator --spec ... --task TASK-007 --single-pass
-
-# Skip GATE V3 sign-off (auto-finalize report)
-/spec-evaluator --spec ... --task TASK-007 --auto
+/spec-evaluator --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --feature checkout-vnpay --single-pass
 ```
 
-### Flags
-| Flag | Effect |
-|------|--------|
-| `--spec <path>` | Spec folder (required) |
-| `--task <id>` | TASK-NNN or TASK-NNN.variant (required) |
-| `--dimensions <list>` | Override active dimension set for this run |
-| `--browser cli\|mcp\|none` | Probe transport. `cli` default (token-efficient) |
-| `--single-pass` | Evaluate once at the end rather than per task |
-| `--strict` | Treat every `[manual]` criterion as FAIL (no waivers) |
-| `--auto` | Skip GATE V3 sign-off |
+Standalone keeps `--task` (per-task check, not round-gated) and `--single-pass` (feature-level)
+— the shim maps them onto the order's payload; missing run command → ask. After writing the
+WorkResult, run `node skills/tech-lead/scripts/ingest-result.mjs <result path>` and show its
+summary — standalone has no orchestrator to ingest for you.
 
 ---
 
@@ -437,26 +199,19 @@ as worked examples of the contract. They are not run until flipped on.
 | Absence of evidence = FAIL | Kills pass-by-assumption, the core QA failure mode |
 | Every FAIL cites file:line / output | Findings must be actionable without re-investigation |
 | Halo effect banned | A strong dimension never lifts a failing one |
-| Disabled dimensions are out of scope | No silent scope creep into security/perf when only spec is active |
-| Evaluator never sets `status: done` | Judge ≠ doer; the generator owns closure |
+| Disabled dimensions are out of scope | No silent scope creep |
+| Evaluator never sets `status: done`, never edits task files/boards | Judge ≠ doer; refuted boxes return as data, ingest writes |
 | Untestable AC blocks a clean PASS | Forces the spec to be verifiable, not vibes |
 | Probe the RUNNING app, not the source alone | Apps that look right still break when used |
-| Re-probe every FAIL before finalizing; flip ⇒ confidence low | A single non-deterministic snapshot lies; the ledger makes that visible |
-| Append the verdict ledger every run, never rewrite it | Verdict history is how a single-snapshot judge becomes measurable |
-| A verdict on a scoped spec without a T0 artifact citation is structurally invalid | Generator prose is never sufficient evidence on its own; T0 is a machine-produced fact the generator cannot fabricate (DD-7, PA4) |
-| UI assertions target affordances only (test_id/role/data-state) — never pixels, colors, fonts | Layer-3 styling is frozen for this cycle; grading it would resurrect the freeze through the judge |
+| Re-probe every FAIL; flip ⇒ confidence low | A single snapshot lies; the ledger makes it visible |
+| Verdict-ledger lines are returned, appended by ingest, never rewritten | Verdict history is how a single-snapshot judge becomes measurable |
+| A verdict on a scoped spec without a T0 citation is structurally invalid | T0 is a machine fact the generator cannot fabricate (DD-7, PA4) |
+| UI assertions target affordances only (test_id/role/data-state) | Layer-3 styling is frozen; grading it resurrects the freeze through the judge |
 
 ---
 
 ## Changelog
 | Version | Date | Changes |
 |---------|------|---------|
-| 0.9 | 2026-07-12 | **Local Tasks Architecture** (v3.2): grading source of truth moves off the task file's own `## Acceptance Criteria` onto the SHARED, committed `usecases/UC-*.md` (Steps, Error Cases, Invariants, Test Surface) + `domain-model.md`. New GATE V0.2 (usecases/ must exist — HARD STOP otherwise) and V0.2b (local task file is now OPTIONAL traceability, never a grading source — its absence is not a hard stop, since `tasks/` is a LOCAL, gitignored, regenerable root a teammate's machine may never have populated). V1.1 rewritten to extract criteria from usecases/domain-model first; a present task file's own AC is cross-checked for traceability, never substituted as the criterion text. B.2/B.2b (task-file annotation + AC un-ticking) now conditional on a local task file existing. Non-regression: on a machine where the local task file IS present, probing and evidence rules are unchanged — only the criterion *source* moved from the paraphrase to the spec it was paraphrasing. |
-| 0.8 | 2026-07-12 | **T0-citation requirement** (design spec v1.1 §3.5, DD-7, PA4 countermeasure): new GATE V0.7 locates + hashes each touched scope's latest `t0/verdicts/r<N>-a<M>.json` mechanical artifact; missing artifact on a scoped spec HARD STOPS before V1 (round not gradeable yet). New V2.5 + Phase B.1: a verdict on a scoped spec without a T0 citation (path+sha256) is structurally invalid — generator prose alone was never sufficient, T0 makes it a hard precondition. **Affordance-only assertions**: Phase A.3 UI probing (and grading) targets only `affordance_manifest` `test_id`/`role`/`data-state` — never color/font/pixel properties (Layer-3 styling freeze, design spec §4.6). Non-regression on pre-v0.3.0 specs with no scope contracts. Two new hard rules. |
-| 0.7 | 2026-06-27 | Verdict calibration (audit D1, closes F3): `references/verdict-ledger.md` adds (1) re-probe-on-FAIL — re-run a failing probe once before finalizing; disagreement keeps the FAIL but marks it flaky/confidence-low; (2) per-criterion confidence (high/medium/low) by a fixed rule, reported never overriding the verdict; (3) an append-only `.verdicts-<task_id>.jsonl` ledger that flags verdict flips across runs (a flip forces confidence low and a stability line in the report). New GATE V2.1b + Phase B.0 steps, two hard rules, report stability block. Single-judge invariant untouched — same judge, same probe, bookkeeping over its own outputs. The flip/stability grammar has a repo-only dev/CI reference impl proving it discriminates. |
-| 0.6 | 2026-06-16 | Added two always-on dimensions: `tdd-surface` (TDD-1 suite green + TDD-2 companion test files, both critical; TDD-3 AC-scenario alignment, advisory) and `integration` (INT-1 full-stack test with real DB, INT-2 auth boundary, INT-3 RLS-JWT transaction pattern + port 6543; scoped to `.be` and `.e2e` variants). Updated registry, probing guide (TDD and integration probe sections), dimension table, description, and Definition of Done. |
-| 0.5 | 2026-06-11 | QA-meeting Bước 1b: new auto-enable dimension `test-surface-conformance` (ON only when a UC carries `## Test Surface`, v2.9+/`--surface-only` specs; non-regression on older specs). TSC-1 probes every derived TS row on the running app (all-pass; side-effect clauses need data probes; unrunnable probe = FAIL); TSC-2 checks the surface against its own sources (gap → `next: ba --surface-only` — judge never authors rows). Report MUST list every TS row probed: it is `/qa-edge-hunter`'s negative-space input (QA subtracts covered territory at its Phase Q1). |
-| 0.4 | 2026-06-11 | B.2b AC checkbox correction: on FAIL the judge un-ticks the specific boxes its evidence refutes (failure visible in the task file, not only the EVAL report); never ticks (ticking = generator's GATE D act, task-executor v1.2); confirmed-but-unticked boxes on a done task are flagged as a doc-hygiene finding, not fixed silently. Judge/doer separation preserved. |
-| 0.3 | 2026-06-10 | Removed the English-assertion coupling from SC-DONE-WHEN and the V1.1 criteria extraction — the judge no longer claims intake is English "because `translator` normalizes upstream." Language normalization is the orchestrator's (`tech-lead` GATE L0) concern; asserting it inside the judge was a false guarantee when the skill runs standalone (single prompt). The judge now evaluates Done-when statements verbatim, language-neutral. |
-| 0.2 | 2026-06-10 | Added `completeness` dimension (auto-enabled when spec has UC `## Invariants`; no-op + non-regression on pre-v2.8 specs). CMP-1 every UC invariant backed by ≥1 task (critical), CMP-2 no stranded UC (critical), CMP-3 ledger surprise-rate signal (minor, advisory). Threshold `no-critical`. Definition of Done = conformance PASS + completeness no-critical. Judge surfaces the missing-task gap; generator (`ba-pitch-analyzer --tasks-only`) fills it — judge/doer separation preserved. |
-| 0.1 | 2026-06-08 | Initial template. Skeptical-by-default. GATE V0–V3. Single enabled dimension (spec-conformance). Pluggable dimension contract + disabled security/performance stubs. Playwright CLI probing. File:line bug handoff. Judge/doer separation (never marks done). |
+| 1.0 | 2026-07-13 | **Pure-skill rewrite** (plan P3): input is a WorkOrder (`--order`) carrying spec folder, feature, dimensions, run command, and T0 artifact paths — GATE V0's locate/load plumbing (path resolution, local-task-file glob, run-state read) is deleted; the caller pins context. All shared-state writes removed (D6): the `.verdicts` JSONL append (old B.0), task-file annotation (B.2), AC un-ticking (B.2b), and run-state update (B.3) now return as `verdict.criteria[]` / `verdict.refuted[]` in the WorkResult for `ingest-result.mjs` to apply. Kept as craft: skeptical posture + anti-leniency, criteria-from-committed-spec rule (v0.9), probe design, re-probe/confidence/flip grammar, hard thresholds + halo ban, T0-citation requirement with recomputed sha256 (v0.8), affordance-only UI grading, the pluggable dimension model, single-judge authority. New: anti-rationalization table + verification checklist. 462 → ~230 lines. |
+| 0.x | 2026-06/07 | Gate-pipeline versions (GATE V0–V3, dimensions, verdict ledger, T0 citation, local-tasks grading move). Superseded by the pure-worker contract; see git history. |

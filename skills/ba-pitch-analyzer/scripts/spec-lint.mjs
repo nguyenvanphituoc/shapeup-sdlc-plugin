@@ -1,0 +1,159 @@
+#!/usr/bin/env node
+// Spec lint (pure-skill architecture v1.0, plan §8.2).
+//
+// The mechanical half of the old ba-pitch-analyzer Phase 7a self-audit + Phase 7c parse steps
+// + Phase 6b PA1/PA2 lints — checkbox walking and glob checks a model should never grade on
+// its own output (a worker grading itself was always a judge-purity smell):
+//
+//   PA1  a scope substrate aligned 1:1 with a single top-level directory (directory-thinking)
+//   PA2  a scope substrate resolving to more than the size cap (~15 files)
+//   DISJOINT  a path matched by two scopes' allowed_file_substrate without BOTH declaring it
+//             in shared_substrate
+//   STRUCTURE spec tree completeness (usecases/ ≥1 UC, domain-model, UC ## Steps),
+//             unresolved wikilinks, task frontmatter completeness, unlocks edge-symmetry,
+//             depends_on referencing unknown tasks
+//
+// Zero dependencies (glob matcher inlined from hooks/sandbox-guard.mjs). Judgment stays in the skill
+// (gap severity, lens choice); this script only reports facts.
+//
+// Usage:  node skills/ba-pitch-analyzer/scripts/spec-lint.mjs --slug <slug> [--cwd <dir>]
+// Prints a JSON report. Exit 0 = no red findings, 1 = at least one red.
+
+import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
+import { resolve, join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
+import { parseBoard, deriveUnlocks } from "./board-derive.mjs";
+
+// Inlined from hooks/sandbox-guard.mjs so this skill ships self-contained (a skill's scripts
+// must not reach outside its own folder — channels that copy only skills/ would dangle).
+export function globToRegExp(glob) {
+  let re = "";
+  for (let i = 0; i < glob.length; i++) {
+    const c = glob[i];
+    if (c === "*") {
+      if (glob[i + 1] === "*") {
+        re += glob[i + 2] === "/" ? "(?:[^/]+/)*" : ".*";
+        i += glob[i + 2] === "/" ? 2 : 1;
+      } else re += "[^/]*";
+    } else if ("\\^$.|?+()[]{}".includes(c)) re += "\\" + c;
+    else re += c;
+  }
+  return new RegExp(`^${re}$`);
+}
+
+const SIZE_CAP = 15;
+
+function walkFiles(root, dir = root, acc = []) {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    if (e.name === ".git" || e.name === "node_modules" || e.name === ".shapeup-sdlc") continue;
+    const p = join(dir, e.name);
+    if (e.isDirectory()) walkFiles(root, p, acc);
+    else acc.push(relative(root, p));
+  }
+  return acc;
+}
+
+export function lintScopes(scopes, repoFiles) {
+  const findings = [];
+  const resolveGlobs = (globs) => {
+    const res = (globs || []).map((g) => globToRegExp(g));
+    return repoFiles.filter((f) => res.some((r) => r.test(f)));
+  };
+  for (const s of scopes) {
+    const allowed = s.allowed_file_substrate || [];
+    // PA1 — directory-thinking: every glob confined to ONE layer directory (e.g. all of it
+    // under apps/web/). A flow slice crosses layers (apps/web/cart + apps/api/cart passes).
+    const layers = new Set(allowed.map((g) => g.split("/").slice(0, 2).join("/")));
+    if (allowed.length && layers.size === 1 && s.topology_type !== "CHOWDER") {
+      findings.push({ rule: "PA1", level: "red", scope: s.scope_id, detail: `substrate aligns 1:1 with '${[...layers][0]}/' — slice by flow, not by directory` });
+    }
+    // PA2 — resolved file count over the cap (chowder absorbs true strays).
+    const files = resolveGlobs(allowed);
+    if (files.length > SIZE_CAP && s.topology_type !== "CHOWDER") {
+      findings.push({ rule: "PA2", level: "warn", scope: s.scope_id, detail: `substrate resolves to ${files.length} files (cap ~${SIZE_CAP}) — consider splitting` });
+    }
+  }
+  // DISJOINT — pairwise overlap not covered by BOTH scopes' shared_substrate.
+  for (let i = 0; i < scopes.length; i++) {
+    for (let j = i + 1; j < scopes.length; j++) {
+      const a = scopes[i], b = scopes[j];
+      const filesA = new Set(resolveGlobs(a.allowed_file_substrate));
+      const overlap = resolveGlobs(b.allowed_file_substrate).filter((f) => filesA.has(f));
+      const sharedA = (a.shared_substrate || []).map(globToRegExp);
+      const sharedB = (b.shared_substrate || []).map(globToRegExp);
+      for (const f of overlap) {
+        const declared = sharedA.some((r) => r.test(f)) && sharedB.some((r) => r.test(f));
+        if (!declared) findings.push({ rule: "DISJOINT", level: "red", scope: `${a.scope_id}+${b.scope_id}`, detail: `${f} is in both substrates but not in both shared_substrate lists — PA3 waiting to happen` });
+      }
+    }
+  }
+  return findings;
+}
+
+export function lintStructure({ specDir, tasks }) {
+  const findings = [];
+  const ucDir = join(specDir, "usecases");
+  if (!existsSync(join(specDir, "domain-model.md"))) findings.push({ rule: "STRUCTURE", level: "red", detail: "domain-model.md missing" });
+  const ucs = existsSync(ucDir) ? readdirSync(ucDir).filter((f) => /^UC-.*\.md$/.test(f)) : [];
+  if (!ucs.length) findings.push({ rule: "STRUCTURE", level: "red", detail: "usecases/ has no UC-*.md — nothing to build or grade against" });
+  for (const f of ucs) {
+    const body = readFileSync(join(ucDir, f), "utf8");
+    if (!/^##\s+Steps/m.test(body)) findings.push({ rule: "STRUCTURE", level: "warn", detail: `${f} has no ## Steps section` });
+  }
+  // Wikilinks in spec docs must resolve within the spec dir.
+  const specFiles = existsSync(specDir) ? walkFiles(specDir) : [];
+  const names = new Set(specFiles.map((f) => f.replace(/\.md$/, "")));
+  for (const f of specFiles.filter((x) => x.endsWith(".md"))) {
+    const body = readFileSync(join(specDir, f), "utf8");
+    for (const m of body.matchAll(/\[\[([^\]#|]+)/g)) {
+      const target = m[1].trim().replace(/\.md$/, "");
+      if (target.startsWith("tasks/")) continue; // LOCAL board, machine-specific by design
+      if (!names.has(target) && ![...names].some((n) => n.endsWith(`/${target}`) || n === target)) {
+        findings.push({ rule: "WIKILINK", level: "warn", detail: `${f} → [[${m[1].trim()}]] unresolved in spec dir` });
+      }
+    }
+  }
+  // Task frontmatter + graph integrity (edge symmetry = the mechanized KB-BA-001 check).
+  const ids = new Set(tasks.map((t) => t.id));
+  const derived = deriveUnlocks(tasks);
+  for (const t of tasks) {
+    for (const k of ["id", "status"]) if (!t[k] || t[k] === "unknown") findings.push({ rule: "TASK", level: "red", detail: `${t.file} missing frontmatter ${k}` });
+    for (const d of t.depends_on) if (!ids.has(d)) findings.push({ rule: "TASK", level: "red", detail: `${t.id} depends_on ${d} which does not exist` });
+    if (JSON.stringify([...t.unlocks].sort()) !== JSON.stringify(derived[t.id] || [])) {
+      findings.push({ rule: "EDGE-SYMMETRY", level: "red", detail: `${t.id} unlocks ${JSON.stringify(t.unlocks)} ≠ derived inverse ${JSON.stringify(derived[t.id])} — run board-derive.mjs --write` });
+    }
+  }
+  return findings;
+}
+
+export function lint({ cwd, slug }) {
+  const specDir = join(cwd, "docs", "shapeup-sdlc", slug, "spec");
+  const scopesDir = join(cwd, "docs", "shapeup-sdlc", slug, "scopes");
+  const scopes = existsSync(scopesDir)
+    ? readdirSync(scopesDir).filter((f) => f.endsWith(".json")).map((f) => {
+        try { return JSON.parse(readFileSync(join(scopesDir, f), "utf8")); } catch { return null; }
+      }).filter(Boolean)
+    : [];
+  const tasks = parseBoard(join(cwd, ".shapeup-sdlc", slug, "tasks"));
+  const repoFiles = walkFiles(cwd);
+  const findings = [...lintScopes(scopes, repoFiles), ...lintStructure({ specDir, tasks })];
+  return {
+    slug,
+    scopes: scopes.length,
+    tasks: tasks.length,
+    red: findings.filter((f) => f.level === "red").length,
+    warn: findings.filter((f) => f.level === "warn").length,
+    findings,
+  };
+}
+
+const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) {
+  const args = process.argv.slice(2);
+  const flag = (n) => { const i = args.indexOf(`--${n}`); return i !== -1 ? args[i + 1] : null; };
+  const slug = flag("slug");
+  if (!slug) { console.error("usage: spec-lint.mjs --slug <slug> [--cwd <dir>]"); process.exit(2); }
+  const report = lint({ cwd: resolve(flag("cwd") || process.cwd()), slug });
+  console.log(JSON.stringify(report, null, 2));
+  process.exit(report.red > 0 ? 1 : 0);
+}

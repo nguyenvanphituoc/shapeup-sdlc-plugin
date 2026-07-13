@@ -124,7 +124,7 @@ Every contracts folder must have an `_index.md` registry:
 | [[UserSessionRepository]] | be-service | apps/api /auth | ✅ confirmed | — |
 ```
 
-This registry is the entry point for Phase 7a audit check L2-21.
+This registry is the entry point for the spec-lint structure checks.
 
 ---
 

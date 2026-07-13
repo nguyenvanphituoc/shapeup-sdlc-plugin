@@ -94,7 +94,7 @@ Carried from [[_index#Rabbit-Holes]]:
 
 ## Execution Recommendation
 
-<!-- Filled by Phase 7a audit result -->
+<!-- Filled from spec-lint.mjs output -->
 
 **Audit Score: N/100**
 

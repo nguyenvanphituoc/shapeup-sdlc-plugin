@@ -327,36 +327,50 @@ section("12. No SHIPPED skill file points at a repo-only path (would dangle on i
 // =============================================================================
 // Only recognized component dirs ship: a Claude plugin install copies the WHOLE repo (incl.
 // `hooks/` and `scripts/`) to the plugin cache; the Antigravity/Codex scaffolding paths and
-// distribute.js's Cursor-rules channel copy/inline only `skills/` (SKILL.md + references/*.md)
-// — no hooks, no scripts. So a SKILL.md that assumes `scripts/`, `examples/`,
-// `docs/audit|plan|research/`, or `tests/` exists dangles on those lower-fidelity channels. A
-// shipped skill file that tells the agent to run/read one of them (as agent-followed prose)
-// dangles there. (Runtime project paths the harness itself creates — `docs/shapeup-sdlc/`,
-// `.shapeup-sdlc/` — are fine; the v0.3.0 T0-layer scripts `t0-verify.mjs`/`aegis-digest.mjs`/
-// `sandbox-guard.mjs` are also fine — they ship with `hooks/` on every channel that has a
-// PreToolUse mechanism at all, i.e. exactly the channels where they'd ever be invoked; on
-// Antigravity/Codex/Cursor the T0/sandbox mechanisms are documented as degrading to a no-op,
-// same as those channels already lacking GATE L2's hook enforcement.) This guard is the fix
-// for the false confidence the cwd-dependent oracle CLI checks (#6, #9–#11) gave: those run
-// from the repo root; a real install does not.
+// distribute.js's Cursor-rules channel copy/inline only `skills/` — so a SKILL.md that assumes
+// repo-root `scripts/`, `examples/`, `docs/audit|plan|research/`, or `tests/` exists dangles
+// on those lower-fidelity channels. Since v1.0 the runtime scripts live INSIDE their owning
+// skill (per the custom-skills doc: scripts ship beside SKILL.md), so two reference forms are
+// legitimate and checked by EXISTENCE, not pattern:
+//   • skill-local  `scripts/<file>` — must exist under THIS skill's directory
+//   • cross-skill  `skills/<name>/(scripts|schemas)/<file>` — must exist under skills/
+// Runtime project paths the harness itself creates (`docs/shapeup-sdlc/`, `.shapeup-sdlc/`)
+// stay fine. This guard is the fix for the false confidence the cwd-dependent oracle CLI
+// checks (#6, #9–#11) gave: those run from the repo root; a real install does not.
 const REPO_ONLY = /(?:^|[\s`(])(?:scripts\/|examples\/|docs\/audit|docs\/plan|docs\/research|tests\/)/;
-const RUNTIME_SCRIPT_EXCEPTION = /scripts\/shapeup-sdlc\/(t0-verify|aegis-digest|sandbox-guard)\.mjs/;
+const LOCAL_SCRIPT_RE = /(?:^|[\s`("'])(scripts\/[A-Za-z0-9._/-]+\.[a-z]+)/g;
+const CROSS_SKILL_RE = /skills\/[A-Za-z0-9-]+\/(?:scripts|schemas)\/[A-Za-z0-9._-]+\.[a-z]+/g;
 const shippedSkillDocs = [];
 for (const dir of skillDirs) {
   const sf = join(skillsDir, dir, "SKILL.md");
-  if (existsSync(sf)) shippedSkillDocs.push(sf);
+  if (existsSync(sf)) shippedSkillDocs.push({ path: sf, dir });
   const refDir = join(skillsDir, dir, "references");
   if (existsSync(refDir)) {
-    for (const f of readdirSync(refDir).filter((x) => x.endsWith(".md"))) shippedSkillDocs.push(join(refDir, f));
+    for (const f of readdirSync(refDir).filter((x) => x.endsWith(".md"))) shippedSkillDocs.push({ path: join(refDir, f), dir });
   }
 }
-for (const f of shippedSkillDocs) {
+for (const { path: f, dir } of shippedSkillDocs) {
   const rel = f.replace(ROOT + "/", "");
-  const bad = read(f).split(/\r?\n/)
+  const skillRoot = join(skillsDir, dir);
+  const body = read(f);
+  const bad = body.split(/\r?\n/)
     .map((line, i) => ({ line, n: i + 1 }))
-    .filter(({ line }) => REPO_ONLY.test(line) && !/docs\/shapeup-sdlc|\.shapeup-sdlc/.test(line) && !RUNTIME_SCRIPT_EXCEPTION.test(line));
+    .filter(({ line }) => {
+      if (!REPO_ONLY.test(line)) return false;
+      if (/docs\/shapeup-sdlc|\.shapeup-sdlc/.test(line)) return false;
+      // Skill-local scripts ship with the skill: allow when every scripts/ token resolves
+      // inside this skill's own directory.
+      const locals = [...line.matchAll(LOCAL_SCRIPT_RE)].map((m) => m[1]);
+      if (locals.length && locals.every((t) => existsSync(join(skillRoot, t)))) return false;
+      return true;
+    });
   if (bad.length) fail(`${rel} references repo-only path(s) that will not exist in an install: line ${bad.map((b) => b.n).join(", ")}`);
   else ok(`${rel} has no dangling repo-only path`);
+  // Cross-skill script/schema references must point at files that actually ship.
+  const dangling = [...new Set([...body.matchAll(CROSS_SKILL_RE)].map((m) => m[0]))]
+    .filter((p) => !existsSync(join(ROOT, p)));
+  if (dangling.length) fail(`${rel} references missing cross-skill file(s): ${dangling.join(", ")}`);
+  else ok(`${rel} cross-skill script refs all exist`);
 }
 
 // =============================================================================
@@ -502,6 +516,27 @@ if (existsSync(gatePath)) {
     const i = ask(lBoardless, "--spec docs/shapeup-sdlc/demo/spec --feature demo --single-pass");
     if (!i.denied) ok("gate fail-opens when no board exists on this machine (boardless grading is legitimate)");
     else fail("gate blocked a boardless machine — breaks v0.4.0 remote-grading flow");
+
+    // 10. Pure-skill envelope shape (v1.0): the round EVAL now dispatches as
+    //     `spec-evaluator --order <WorkOrder operation:evaluate>` — the gate must read the
+    //     order and deny on a red board just like the legacy flag shape, and stay quiet for
+    //     a non-evaluate order (some other worker's dispatch).
+    const mkOrder = (dir, operation, worker = "spec-evaluator") => {
+      const op = join(dir, ".shapeup-sdlc", "demo", "orders");
+      mkdirSync(op, { recursive: true });
+      const pth = join(op, `${operation}-r1.json`);
+      writeFileSync(pth, JSON.stringify({
+        schema_version: 1, order_id: `demo/${operation}-r1`, worker, mode: "orchestrated",
+        operation, payload: { feature: "demo", spec_folder: "docs/shapeup-sdlc/demo/spec" },
+      }));
+      return pth;
+    };
+    const jr = ask(lRed, `--order ${mkOrder(lRed, "evaluate")}`);
+    if (jr.denied && jr.out.includes("TASK-002")) ok("gate DENIES an --order round EVAL on a red board (envelope shape gated)");
+    else fail(`gate fail-opened on an --order eval dispatch — the pure-skill port bypasses GATE L2\n${jr.out}`);
+    const jg = ask(lGreen, `--order ${mkOrder(lGreen, "evaluate")}`);
+    if (!jg.denied) ok("gate ALLOWS an --order round EVAL on a green board");
+    else fail(`gate denied a green-board --order eval — false block\n${jg.out}`);
   } finally {
     rmSync(green, { recursive: true, force: true });
     rmSync(red, { recursive: true, force: true });
@@ -648,7 +683,7 @@ section("17. Sandbox guard (PA3) denies an out-of-substrate write and allows an 
 // The v0.3.0 write-whitelist hook (design spec §4.5/Blueprint E). Same fixture style as #14:
 // craft PreToolUse payloads against a temp checkout with a scope contract + active-scope
 // pointer, and assert the hook's allow/deny decisions.
-const sandboxGuardPath = join(ROOT, "scripts/shapeup-sdlc/sandbox-guard.mjs");
+const sandboxGuardPath = join(ROOT, "hooks/sandbox-guard.mjs");
 if (existsSync(sandboxGuardPath)) {
   const { mkdtempSync, writeFileSync, mkdirSync, rmSync } = await import("node:fs");
   const { tmpdir } = await import("node:os");
@@ -745,7 +780,7 @@ if (existsSync(sandboxGuardPath)) {
 // =============================================================================
 section("18. T0 mechanical layer (t0-verify.mjs) computes a discriminating verdict + writes a citable artifact");
 // =============================================================================
-const t0Path = join(ROOT, "scripts/shapeup-sdlc/t0-verify.mjs");
+const t0Path = join(ROOT, "skills/tech-lead/scripts/t0-verify.mjs");
 if (existsSync(t0Path)) {
   const { runFixtures, runDbProbe, seesawCheck, computeVerdict, writeArtifact } = await import(t0Path);
 
@@ -812,7 +847,7 @@ if (existsSync(t0Path)) {
 // =============================================================================
 section("19. AEGIS digester distills raw logs into {file, line, core_message} triples");
 // =============================================================================
-const digestPath = join(ROOT, "scripts/shapeup-sdlc/aegis-digest.mjs");
+const digestPath = join(ROOT, "skills/tech-lead/scripts/aegis-digest.mjs");
 if (existsSync(digestPath)) {
   const { digest } = await import(digestPath);
 
@@ -837,6 +872,214 @@ if (existsSync(digestPath)) {
   else fail("aegis-digest should return [] for empty input");
 } else {
   console.log("  (aegis-digest.mjs not found — skipping)");
+}
+
+// =============================================================================
+section("20. Envelope schemas + validate-envelope.mjs discriminate (pure-skill P0)");
+// =============================================================================
+// The WorkOrder/WorkResult port is the harness's canonical contract (plan §4.1). The validator
+// must PASS a well-formed order, FAIL a malformed one, and as a PreToolUse hook DENY a dispatch
+// whose --order file is invalid while deferring on everything else (fail-open for standalone).
+const vePath = join(ROOT, "skills/tech-lead/scripts/validate-envelope.mjs");
+const orderSchemaPath = join(ROOT, "skills/tech-lead/schemas/work-order.schema.json");
+const resultSchemaPath = join(ROOT, "skills/tech-lead/schemas/work-result.schema.json");
+if (existsSync(vePath) && existsSync(orderSchemaPath)) {
+  const { validate: veValidate } = await import(vePath);
+  const orderSchema = readJSON(orderSchemaPath);
+  const resultSchema = readJSON(resultSchemaPath);
+  const goodOrder = {
+    schema_version: 1, order_id: "demo/r1-a1", worker: "task-executor", mode: "orchestrated",
+    operation: "execute", substrate: { allowed: ["apps/api/**"] },
+    payload: { tasks: [{ id: "TASK-001", acceptance_criteria: ["x"] }] },
+  };
+  if (veValidate(goodOrder, orderSchema).valid) ok("validate-envelope PASSes a well-formed WorkOrder");
+  else fail(`validate-envelope rejected a well-formed WorkOrder: ${veValidate(goodOrder, orderSchema).errors}`);
+  const badOrder = { schema_version: 2, order_id: "Bad Slug", worker: "nobody", mode: "yolo" };
+  const badRes = veValidate(badOrder, orderSchema);
+  if (!badRes.valid && badRes.errors.length >= 4) ok("validate-envelope FAILs a malformed WorkOrder with per-field errors (discriminates)");
+  else fail(`validate-envelope did not discriminate a malformed order: ${JSON.stringify(badRes)}`);
+  const goodResult = {
+    schema_version: 1, order_id: "demo/r1-a1", status: "done",
+    task_results: [{ task_id: "TASK-001", status: "done", ac_results: [{ ac: "x", result: "pass" }] }],
+  };
+  if (veValidate(goodResult, resultSchema).valid) ok("validate-envelope PASSes a well-formed WorkResult");
+  else fail("validate-envelope rejected a well-formed WorkResult");
+  if (!veValidate({ schema_version: 1, order_id: "d/x", status: "nope" }, resultSchema).valid)
+    ok("validate-envelope FAILs an invalid WorkResult status");
+  else fail("validate-envelope accepted an invalid WorkResult status — rubber stamp");
+
+  // Hook mode.
+  {
+    const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const d = mkdtempSync(join(tmpdir(), "ve-hook-"));
+    try {
+      writeFileSync(join(d, "bad.json"), JSON.stringify(badOrder));
+      writeFileSync(join(d, "good.json"), JSON.stringify(goodOrder));
+      const askVe = (prompt, tool = "Agent") => {
+        const r = spawnSync("node", [vePath], { encoding: "utf8", input: JSON.stringify({ tool_name: tool, cwd: d, tool_input: { prompt } }) });
+        return (r.stdout || "").includes('"permissionDecision":"deny"');
+      };
+      if (askVe("run task-executor --order bad.json")) ok("hook DENIES a dispatch whose --order fails the schema");
+      else fail("hook did not deny a malformed --order dispatch — the envelope gate is not enforcing");
+      if (askVe("run task-executor --order missing.json")) ok("hook DENIES a dispatch whose --order file is missing");
+      else fail("hook did not deny a dangling --order path");
+      if (!askVe("run task-executor --order good.json")) ok("hook ALLOWS a valid --order dispatch");
+      else fail("hook denied a valid order — false block");
+      if (!askVe("just run the tests")) ok("hook defers when no --order is present (standalone stays free)");
+      else fail("hook blocked a dispatch with no --order — fail-open broken");
+    } finally { rmSync(d, { recursive: true, force: true }); }
+  }
+  // hooks.json must wire the envelope gate.
+  const hooksManifest2 = readJSON(join(ROOT, "hooks/hooks.json"));
+  const wired = JSON.stringify(hooksManifest2).includes("validate-envelope.mjs");
+  if (wired) ok("hooks.json wires validate-envelope.mjs as a PreToolUse hook");
+  else fail("hooks.json does not wire validate-envelope.mjs — malformed orders would reach workers");
+} else {
+  fail("validate-envelope.mjs or schemas/ missing — the P0 envelope layer is absent");
+}
+
+// =============================================================================
+section("21. compile-order.mjs assembles a schema-valid, fact-only WorkOrder (pure-skill P1)");
+// =============================================================================
+const coPath = join(ROOT, "skills/tech-lead/scripts/compile-order.mjs");
+const irPath = join(ROOT, "skills/tech-lead/scripts/ingest-result.mjs");
+if (existsSync(coPath) && existsSync(irPath)) {
+  const { mkdtempSync, writeFileSync, mkdirSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const d = mkdtempSync(join(tmpdir(), "pipe-"));
+  const w = (rel, body) => { mkdirSync(dirname(join(d, rel)), { recursive: true }); writeFileSync(join(d, rel), body); };
+  try {
+    w(".shapeup-sdlc/demo/tasks/TASK-001-a.md", `---\nid: TASK-001\ntitle: "A"\nstatus: ready\npriority: 1\ndepends_on: []\n---\n## Acceptance Criteria\n- [ ] first criterion\n- [ ] second criterion\n`);
+    w(".shapeup-sdlc/demo/tasks/TASK-002-b.md", `---\nid: TASK-002\ntitle: "B"\nstatus: blocked\npriority: 2\ndepends_on: [TASK-001]\n---\n## Acceptance Criteria\n- [ ] third criterion\n`);
+    w(".shapeup-sdlc/demo/tasks/_index.md", `| ID | Title | Status |\n|---|---|---|\n| TASK-001 | A | ⬜ ready |\n| TASK-002 | B | 🚫 blocked |\n`);
+    w("docs/shapeup-sdlc/demo/scopes/cart.json", JSON.stringify({ scope_id: "cart", topology_type: "LAYER_CAKE", allowed_file_substrate: ["apps/web/cart/*.tsx", "apps/api/cart/*.ts"], shared_substrate: [] }));
+    w("docs/shapeup-sdlc/demo/round-ledger.md", `## Decisions\n| ID | Scope | Q | A |\n|---|---|---|---|\n| ESC-1 | cart | q | use idempotency key |\n| ESC-2 | other | q | not mine |\n`);
+    w(".shapeup-sdlc/demo/t0/verdicts/r1-a1.json", JSON.stringify({ overall: "red", discovered_tasks: [{ file: "apps/api/cart/x.ts", line: 4, core_message: "boom" }] }));
+
+    const r = spawnSync("node", [coPath, "--scope", "docs/shapeup-sdlc/demo/scopes/cart.json", "--round", "1", "--attempt", "2", "--cwd", d], { encoding: "utf8" });
+    const orderPath = (r.stdout || "").trim();
+    if (r.status === 0 && existsSync(orderPath)) ok("compile-order writes the order to orders/r<N>-a<M>.json");
+    else fail(`compile-order failed (exit ${r.status})\n${r.stdout}${r.stderr}`);
+    if (existsSync(orderPath)) {
+      const order = readJSON(orderPath);
+      const { validate: veValidate2 } = await import(vePath);
+      if (veValidate2(order, readJSON(orderSchemaPath)).valid) ok("compiled order validates against work-order.schema.json");
+      else fail("compiled order fails its own schema");
+      if (order.payload.decisions?.length === 1 && order.payload.decisions[0].answer === "use idempotency key")
+        ok("compile-order threads ONLY this scope's ledger decisions into the order");
+      else fail(`compile-order decisions wrong: ${JSON.stringify(order.payload.decisions)}`);
+      if (order.payload.digested_errors?.[0]?.core_message === "boom")
+        ok("compile-order folds the previous attempt's AEGIS triples into digested_errors");
+      else fail("compile-order did not pick up the previous T0 artifact's discovered_tasks");
+      if (order.payload.tasks?.some((t) => t.acceptance_criteria.includes("first criterion")))
+        ok("compile-order parses AC checkbox text into the task entries");
+      else fail("compile-order did not parse acceptance criteria");
+      if (order.substrate.allowed.includes("apps/web/cart/*.tsx")) ok("compile-order carries the scope substrate as the write contract");
+      else fail("compile-order lost the substrate");
+    }
+    // --next respects dependency order: only TASK-001 is dispatchable.
+    const rn = spawnSync("node", [coPath, "--next", "--slug", "demo", "--cwd", d], { encoding: "utf8" });
+    const nextOrder = rn.status === 0 ? readJSON((rn.stdout || "").trim()) : null;
+    if (nextOrder && nextOrder.payload.tasks.length === 1 && nextOrder.payload.tasks[0].id === "TASK-001")
+      ok("compile-order --next picks the ready task with satisfied dependencies");
+    else fail(`compile-order --next wrong: ${rn.stdout}${rn.stderr}`);
+
+    // =============================================================================
+    section("22. ingest-result.mjs is the single writer: ticks, flips, unblocks, appends — and rejects malformed results");
+    // =============================================================================
+    const result = {
+      schema_version: 1, order_id: "demo/r1-a2", worker: "task-executor", status: "done",
+      task_results: [{ task_id: "TASK-001", status: "done", ac_results: [
+        { ac: "first criterion", result: "pass", evidence: "ran it" },
+        { ac: "second criterion", result: "pass", evidence: "ran it too" },
+      ] }],
+      discoveries: [{ marker: "+", line: "edge case found" }],
+      escalates: [{ kind: "spec-ambiguity", question: "which default?" }],
+    };
+    w(".shapeup-sdlc/demo/results/r1-a2.json", JSON.stringify(result));
+    const ri = spawnSync("node", [irPath, join(d, ".shapeup-sdlc/demo/results/r1-a2.json"), "--cwd", d], { encoding: "utf8" });
+    if (ri.status === 0) ok("ingest-result ingests a valid WorkResult");
+    else fail(`ingest-result failed (exit ${ri.status})\n${ri.stdout}${ri.stderr}`);
+    const t1 = read(join(d, ".shapeup-sdlc/demo/tasks/TASK-001-a.md"));
+    if (/- \[x\] first criterion/.test(t1) && /- \[x\] second criterion/.test(t1)) ok("ingest ticks the verified AC boxes");
+    else fail("ingest did not tick AC boxes");
+    if (/^status: done$/m.test(t1) && /## Execution Log/.test(t1)) ok("ingest flips status: done + appends the Execution Log");
+    else fail("ingest did not flip status / append the log");
+    const t2 = read(join(d, ".shapeup-sdlc/demo/tasks/TASK-002-b.md"));
+    if (/^status: ready$/m.test(t2)) ok("ingest propagates unblocks (blocked → ready when deps done)");
+    else fail("ingest did not unblock the dependent task");
+    if (read(join(d, ".shapeup-sdlc/demo/tasks/_index.md")).includes("✅")) ok("ingest updates the board row");
+    else fail("ingest did not update the board index");
+    if (read(join(d, ".shapeup-sdlc/demo/discovery/ledger.md")).includes("edge case found")) ok("ingest appends discoveries to the ledger");
+    else fail("ingest did not append the discovery");
+    if (existsSync(join(d, ".shapeup-sdlc/demo/escalates/r1-a2.json"))) ok("ingest queues escalates for the orchestrator");
+    else fail("ingest did not queue the escalate");
+    // Verdict path: refuted box un-ticked + verdict JSONL appended.
+    const evalResult = {
+      schema_version: 1, order_id: "demo/evaluate-r1", worker: "spec-evaluator", status: "done",
+      verdict: { overall: "FAIL",
+        criteria: [{ criterion: "first criterion", verdict: "FAIL", confidence: "high", evidence: "broke" }],
+        refuted: [{ task_id: "TASK-001", ac: "first criterion" }] },
+    };
+    w(".shapeup-sdlc/demo/results/evaluate-r1.json", JSON.stringify(evalResult));
+    const rv = spawnSync("node", [irPath, join(d, ".shapeup-sdlc/demo/results/evaluate-r1.json"), "--cwd", d], { encoding: "utf8" });
+    const t1b = read(join(d, ".shapeup-sdlc/demo/tasks/TASK-001-a.md"));
+    if (rv.status === 0 && /- \[ \] first criterion/.test(t1b) && /eval_verdict: fail/.test(t1b))
+      ok("ingest un-ticks refuted AC boxes + sets eval_verdict from the judge's data");
+    else fail("ingest did not apply the judge's refuted list");
+    if (existsSync(join(d, ".shapeup-sdlc/demo/evaluation/.verdicts-evaluate-r1.jsonl")))
+      ok("ingest appends the verdict-ledger JSONL");
+    else fail("ingest did not write the verdict ledger");
+    // Negative control: malformed result must be rejected without mutating anything.
+    w(".shapeup-sdlc/demo/results/bad.json", JSON.stringify({ schema_version: 1, order_id: "demo/x", status: "nope" }));
+    const rb = spawnSync("node", [irPath, join(d, ".shapeup-sdlc/demo/results/bad.json"), "--cwd", d], { encoding: "utf8" });
+    if (rb.status === 1) ok("ingest-result REJECTS a malformed WorkResult (a bad envelope never mutates the board)");
+    else fail("ingest-result accepted a malformed result — the board can be corrupted");
+  } finally { rmSync(d, { recursive: true, force: true }); }
+} else {
+  fail("compile-order.mjs / ingest-result.mjs missing — the P1 pipeline layer is absent");
+}
+
+// =============================================================================
+section("23. board-derive + spec-lint mechanize the planner's graph math and lints (pure-skill P3)");
+// =============================================================================
+const bdPath = join(ROOT, "skills/ba-pitch-analyzer/scripts/board-derive.mjs");
+const slPath = join(ROOT, "skills/ba-pitch-analyzer/scripts/spec-lint.mjs");
+if (existsSync(bdPath) && existsSync(slPath)) {
+  const { deriveUnlocks, criticalPath } = await import(bdPath);
+  const { lintScopes } = await import(slPath);
+  const tasks = [
+    { id: "T1", depends_on: [], unlocks: [], hours: 2 },
+    { id: "T2", depends_on: ["T1"], unlocks: [], hours: 3 },
+    { id: "T3", depends_on: ["T2"], unlocks: [], hours: 1 },
+  ];
+  const un = deriveUnlocks(tasks);
+  if (un.T1.includes("T2") && un.T2.includes("T3") && un.T3.length === 0) ok("deriveUnlocks computes the depends_on inverse (KB-BA-001 mechanized)");
+  else fail(`deriveUnlocks wrong: ${JSON.stringify(un)}`);
+  const cp = criticalPath(tasks);
+  if (cp.hours === 6 && cp.chain.join(">") === "T1>T2>T3") ok("criticalPath finds the longest chain by hours");
+  else fail(`criticalPath wrong: ${JSON.stringify(cp)}`);
+  // PA1 discriminates: single-layer substrate red, cross-layer substrate clean.
+  const repoFiles = ["apps/web/cart/Cart.tsx", "apps/api/cart/route.ts"];
+  const layerScope = [{ scope_id: "web-only", topology_type: "LAYER_CAKE", allowed_file_substrate: ["apps/web/cart/*.tsx"] }];
+  const flowScope = [{ scope_id: "cart", topology_type: "LAYER_CAKE", allowed_file_substrate: ["apps/web/cart/*.tsx", "apps/api/cart/*.ts"] }];
+  if (lintScopes(layerScope, repoFiles).some((f) => f.rule === "PA1" && f.level === "red")) ok("spec-lint PA1 flags a directory-aligned scope");
+  else fail("spec-lint PA1 missed a single-layer scope");
+  if (!lintScopes(flowScope, repoFiles).some((f) => f.rule === "PA1")) ok("spec-lint PA1 passes a cross-layer flow slice (discriminates)");
+  else fail("spec-lint PA1 wrongly flagged a flow slice");
+  // DISJOINT: undeclared overlap red; declared-in-both shared clean.
+  const overlapping = [
+    { scope_id: "a", allowed_file_substrate: ["apps/web/cart/*.tsx", "apps/api/cart/*.ts"], shared_substrate: [] },
+    { scope_id: "b", allowed_file_substrate: ["apps/api/cart/*.ts", "apps/web/cart/*.tsx"], shared_substrate: [] },
+  ];
+  if (lintScopes(overlapping, repoFiles).some((f) => f.rule === "DISJOINT" && f.level === "red")) ok("spec-lint flags an undeclared substrate overlap");
+  else fail("spec-lint missed a substrate overlap");
+  const declared = overlapping.map((s) => ({ ...s, shared_substrate: ["apps/api/cart/*.ts", "apps/web/cart/*.tsx"] }));
+  if (!lintScopes(declared, repoFiles).some((f) => f.rule === "DISJOINT")) ok("spec-lint accepts overlap declared in BOTH shared_substrate lists");
+  else fail("spec-lint wrongly flagged a declared shared substrate");
+} else {
+  fail("board-derive.mjs / spec-lint.mjs missing — the planner's mechanical layer is absent");
 }
 
 // =============================================================================

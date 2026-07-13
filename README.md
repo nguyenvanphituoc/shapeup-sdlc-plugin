@@ -186,13 +186,14 @@ graph LR
 | Shaping (1–4) | `shapeup` | — | Frame the problem, breadboard affordances, spike risks, write the pitch. Sub-commands: `full`, `shaping`, `spike`, `breadboarding`, `framing-doc`, `kickoff-doc`, `breadboard-reflection`. |
 | Intake (GATE L0) | `translator` | — | Normalizes non-English intake (pitch/PRD/transcript) to faithful English before planning. The harness is English-only downstream. |
 | Orient (7) | `orient` | — | Builder-led recon: reads the code, spikes the single riskiest area, emits a code-surface map, spike findings, discovered-task seed, and a hill signal. Writes no production code. |
-| Map Scopes (8) | `ba-pitch-analyzer` | v3.1 | Decomposes a pitch into a linked DDD document tree (domain model → use cases → tasks) with BDD scenarios, a UC system flow, and a derived `## Test Surface`. Scope-architect role writes committed, write-whitelisted scope contracts (`--remap` to reconcile/split). |
-| Build (9) | `task-executor` | v1.4 | Implements a `TASK-NNN.md` spec: assumption scan, minimum-code/surgical-change discipline, AC checkbox ticking, discovered-task ledger. Isolated-brief (zero-memory) mode + substrate discipline + Layer 1/2/3 UI rules when scope contracts exist. |
-| Evaluate (GATE L3) | `spec-evaluator` | v0.8 | The single judge. Verifies spec-conformance, TDD surface, and integration against the running app — skeptical, files `file:line` bugs, runs exactly once per build round. Requires a T0 artifact citation and grades UI affordance-only on scoped specs. |
+| Map Scopes (8) | `ba-pitch-analyzer` | v4.0 | The spec-analyzer (pure worker). Decomposes a pitch into a linked DDD document tree (domain model → use cases → tasks) with BDD scenarios, a UC system flow, and a derived `## Test Surface`. One craft, four order-selected operations (analyze / generate-board / reconcile / retrofit-surface); graph math + audits delegated to `board-derive.mjs`/`spec-lint.mjs`. |
+| Map Scopes (8) | `scope-architect` | v1.0 | Sole writer of committed, write-whitelisted scope contracts (`scopes/*.json`): import-graph slicing by flow, substrates, affordance manifests, fixtures. Operations: map-scopes / remap / split-scope. |
+| Build (9) | `task-executor` | v2.0 | Pure worker: WorkOrder in → code + WorkResult out. Assumption scan, minimum-code/surgical-change discipline, Layer 1/2/3 UI rules, substrate-sandboxed, zero-memory. Never writes boards/ledgers/run-state — `ingest-result.mjs` applies its envelope. |
+| Evaluate (GATE L3) | `spec-evaluator` | v1.0 | The single judge (pure worker). Verifies spec-conformance, TDD surface, and integration against the running app — skeptical, files `file:line` bugs, runs exactly once per build round. Requires a T0 artifact citation, grades UI affordance-only; verdict + refuted boxes return as data. |
 | QA (post-PASS) | `qa-edge-hunter` | v1.0 | Exploratory edge hunt on the running app through six fixed lenses, charting edges *outside* what the evaluator probed. Findings go to the ledger as `~`; never blocks ship. |
 | Advisor (mid-build) | `advisor-protocol` | v0.1 | Adjudicates a worker's structured `ESCALATE` (design decision / spec ambiguity / substrate expansion) within a per-scope-per-round budget; persists answers to the committed round ledger so they survive a zero-memory reset. |
 | Stop (11) | `scope-hammer` | v0.1 | GATE H: must-have census → baseline comparison (never vs. the ideal) → cut list + ship verdict. Handles the normal stop and both circuit-breaker triggers. |
-| Orchestrator | `tech-lead` | v0.13 | Owns the run end-to-end: PLAN once → BUILD all tasks → EVAL once per round, looping on FAIL. Two-level circuit breaker, T0/seesaw-verified build rounds, mechanical hill derivation. Delegates to the sub-skills, keeps the round ledger, supports interactive / `--auto` / `--unattended`. |
+| Orchestrator | `tech-lead` | v1.0 | Owns the run end-to-end: PLAN once → BUILD all tasks → EVAL once per round, looping on FAIL. Every dispatch goes through the envelope port (compile-order → `--order` → ingest-result). Two-level circuit breaker, T0/seesaw-verified build rounds, mechanical hill derivation. Sole writer of run-state (D6 closed mechanically). |
 
 ### Commands
 
@@ -211,7 +212,7 @@ graph LR
 - `SessionStart` — prints a load confirmation so you know the plugin is active.
 - `PreToolUse` (matcher `Skill`) — `hooks/gate-l2.mjs` hard-blocks the once-per-round EVAL
   delegation while the task board isn't fully green.
-- `PreToolUse` (matcher `Edit|Write|MultiEdit`) — `scripts/shapeup-sdlc/sandbox-guard.mjs` blocks writes
+- `PreToolUse` (matcher `Edit|Write|MultiEdit`) — `hooks/sandbox-guard.mjs` blocks writes
   outside the active scope's substrate whitelist (v0.3.0, no-op unless scope contracts exist).
 
 > A project-local `/gap-scan` command (navigator→driver gap tracking) lives under
@@ -249,13 +250,16 @@ claude --plugin-dir .
 .claude-plugin/
   plugin.json         # plugin manifest
   marketplace.json    # marketplace listing (points at this repo)
-skills/<name>/SKILL.md # the 10 harness skills (+ references/ and assets/)
+skills/<name>/SKILL.md # the 11 harness skills (+ references/ and assets/)
+skills/tech-lead/scripts|schemas/        # orchestrator pipeline: compile-order, ingest-result,
+                                         #   validate-envelope, t0-verify, aegis-digest + envelope schemas
+skills/ba-pitch-analyzer/scripts/        # planner mechanics: board-derive, spec-lint
 commands/*.md         # slash commands (/ship)
 agents/*.md           # subagents (reviewer)
-hooks/hooks.json      # SessionStart + PreToolUse hooks (GATE L2, sandbox guard)
+hooks/                # hooks.json + gate-l2.mjs + sandbox-guard.mjs (SessionStart + PreToolUse)
 scripts/install-harness.sh, migrate.sh   # stable public entrypoints (fresh install / update)
-scripts/shapeup-sdlc/                    # implementation: lib/, migrations/, oracles/,
-  t0-verify.mjs, aegis-digest.mjs, sandbox-guard.mjs   # T0 mechanical layer (v0.3.0)
+scripts/shapeup-sdlc/                    # dev/CI tooling: lib/, migrations/, oracles/,
+                                         #   trigger-eval.mjs, verdict-ledger.mjs, distribute.js
 docs/mechanism-roadmap.md       # full annotated pipeline diagram
 .github/workflows/    # CI + release
 ```

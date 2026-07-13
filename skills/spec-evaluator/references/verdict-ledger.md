@@ -7,8 +7,10 @@ that blind oracle into a **measurable** one — without adding a second judge (t
 invariant is untouched). Three mechanisms: **re-probe on FAIL**, **per-criterion confidence**, and
 an append-only **verdict ledger** that flags when a criterion's verdict flips across runs.
 
-This is a self-contained procedure: you append and read a JSONL file with your normal file tools
-and reason over it. It calls no external script.
+Pure-worker note (v1.0): you READ the JSONL ledger with your normal file tools to detect flips,
+but you never append it yourself — the new lines return in your WorkResult's
+`verdict.criteria[]` and the orchestrator's ingest script performs the append. Wherever this
+file says "write/append the ledger" or "annotate the task file", read it as "return the data".
 
 ---
 

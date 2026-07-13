@@ -27,17 +27,21 @@ loop:
 |--|----------------------|-------------------|
 | Input | the whole task board | the bug list from EVAL(r-1) |
 | Scope | every ready task, dependency/layer order, until board all ✅ | only the tasks/areas named by bugs |
-| Command | `task-executor --next` looped to completion | `task-executor --task <id> --force` per bug |
+| Command | compile-order `--next` → task-executor `--order` → ingest, looped | compile-order `--task <id> --operation fix` → dispatch → ingest, per bug |
 | Passing areas | n/a | never touched |
 | SPIKEs | resolved first (they block) | only if a bug is a SPIKE finding |
 
-Re-opening tasks in r>1: set the affected task `status: in-progress`, fix, re-close via
-task-executor GATE E. The board reflects the churn so the next EVAL sees a green board again.
+Re-opening tasks in r>1: the fix order's WorkResult reports the task `partial` while failing
+and `done` when re-verified; ingest-result flips the board accordingly. The board reflects the
+churn so the next EVAL sees a green board again.
 
 Discovered Tasks:
-If task-executor logs raw discovered tasks during BUILD (P3.7) to the discovery ledger (`.shapeup-sdlc/<slug>/discovery/ledger.md`), the build loop pauses after the current tasks are done. Run:
-`/ba-pitch-analyzer --tasks-only --from-discovered .shapeup-sdlc/<slug>/discovery/ledger.md`
-This reconciles them into new tasks and invariants, updates tasks/_index.md, and increments `discovered_rounds`. The tech lead then routes back to GATE L1b (Board Review) for PO approval of the new tasks and estimates before resuming the BUILD loop.
+If WorkResults carry `discoveries[]` during BUILD, ingest-result appends them to the discovery
+ledger (`.shapeup-sdlc/<slug>/discovery/ledger.md`) and the build loop pauses after the current
+tasks are done. Compile + dispatch a reconcile order (ba-pitch-analyzer, operation: reconcile).
+This reconciles them into new tasks and invariants and updates the board; the tech lead bumps
+`discovered_rounds` in harness-run.md, then routes back to GATE L1b (Board Review) for PO
+approval of the new tasks and estimates before resuming the BUILD loop.
 
 ## The EVAL timing rule (the core constraint)
 
@@ -123,9 +127,12 @@ is never silently dropped, and it is never allowed to block scopes that ARE work
 ## Isolated attempt loop — one T0 attempt, in detail (scope contracts only)
 
 ```
-isolated_brief(scope)              → zero-memory handoff file (scope contract + current
-                                      substrate contents + digested errors + ledger decisions)
-dispatch task-executor --brief …   → code within substrate; may return ESCALATE
+compile-order --scope … --round N --attempt M
+                                   → zero-memory WorkOrder (scope contract + this scope's
+                                      tasks + digested errors + ledger decisions — compiled
+                                      facts, no chat history by construction)
+dispatch task-executor --order …   → code within substrate; WorkResult in results/
+ingest-result <result>             → board/ledger writes; escalates[] queued
 handle_escalations(≤3/scope/round) → /advisor-protocol; answer promoted to round-ledger.md
                                       immediately (must survive the NEXT attempt's fresh
                                       context — this is what "zero-memory" is compatible with
@@ -137,7 +144,7 @@ t0-verify.mjs                      → fixtures + DB probe + (on green) seesaw
   red, own fixture  → AEGIS-digest the failure into {file, line, core_message} triples,
                       feed them into the NEXT attempt's brief; loop
 ```
-This replaces the old flat `task-executor --next` loop for any scope that has a contract;
+This replaces the old flat per-task loop for any scope that has a contract;
 scopes/specs without one keep the v0.2.6 behavior verbatim (see BUILD(r) table above).
 
 ## --no-eval (skip evaluation)

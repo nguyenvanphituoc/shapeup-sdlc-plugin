@@ -1,0 +1,111 @@
+{
+  "$id": "work-order.schema.json",
+  "title": "WorkOrder",
+  "description": "The orchestrator → worker envelope (pure-skill architecture v1.0). Compiled by skills/tech-lead/scripts/compile-order.mjs, validated by validate-envelope.mjs before any worker dispatch. A worker depends only on this envelope — never on filesystem topology, run-state format, board schema, or another worker. Path: .shapeup-sdlc/<slug>/orders/r<N>-a<M>.json (or <slug>/orders/<operation>.json for non-attempt work).",
+  "type": "object",
+  "required": ["schema_version", "order_id", "worker", "mode", "payload"],
+  "properties": {
+    "schema_version": { "type": "integer", "enum": [1] },
+    "order_id": {
+      "type": "string",
+      "description": "\"<slug>/r<N>-a<M>\" for build attempts, \"<slug>/<operation>[-r<N>]\" otherwise",
+      "pattern": "^[a-z0-9][a-z0-9-]*/[a-z0-9][A-Za-z0-9.-]*$"
+    },
+    "worker": {
+      "type": "string",
+      "enum": [
+        "task-executor",
+        "spec-evaluator",
+        "ba-pitch-analyzer",
+        "scope-architect",
+        "orient",
+        "qa-edge-hunter",
+        "translator",
+        "scope-hammer",
+        "coach",
+        "advisor-protocol"
+      ]
+    },
+    "mode": { "type": "string", "enum": ["orchestrated", "standalone"] },
+    "operation": {
+      "type": "string",
+      "description": "Replaces lifecycle flags (--tasks-only, --from-discovered, --remap …). The caller knows the pipeline position; the worker never re-derives it.",
+      "enum": [
+        "execute",
+        "fix",
+        "spike",
+        "analyze",
+        "generate-board",
+        "reconcile",
+        "retrofit-surface",
+        "map-scopes",
+        "remap",
+        "split-scope",
+        "evaluate",
+        "orient",
+        "hunt",
+        "recheck",
+        "translate",
+        "hammer",
+        "coach",
+        "adjudicate"
+      ]
+    },
+    "interaction": {
+      "type": "object",
+      "description": "Caller policy. Pausing is the CALLER's decision — a pure worker only surfaces questions/assumptions, it never decides whether the pipeline stops.",
+      "properties": {
+        "pause_gates": { "type": "boolean" },
+        "max_questions": { "type": "integer" }
+      }
+    },
+    "substrate": {
+      "type": "object",
+      "description": "Write contract for this order — the sandbox hook enforces it mechanically (mode prose → whitelist data, plan §8.3).",
+      "properties": {
+        "allowed": { "type": "array", "items": { "type": "string" } },
+        "shared": { "type": "array", "items": { "type": "string" } },
+        "append_only": { "type": "array", "items": { "type": "string" } },
+        "frozen": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "payload": {
+      "type": "object",
+      "description": "Worker-specific inputs. task-executor: scope_contract, tasks[], decisions[], digested_errors[], kb_rules_path, verify{test_cmd,env[]}, constraints. spec-evaluator: spec_folder, feature, dimensions[], t0_artifacts[], run_cmd. ba: pitch/spec paths, lens, orient_dir, discovered[]. qa: eval_report, ledger_path, app_url.",
+      "properties": {
+        "scope_contract": { "type": "object" },
+        "tasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id"],
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "body_path": { "type": "string" },
+              "acceptance_criteria": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "answer"],
+            "properties": { "id": { "type": "string" }, "answer": { "type": "string" } }
+          }
+        },
+        "digested_errors": { "type": "array" },
+        "kb_rules_path": { "type": "string" },
+        "verify": {
+          "type": "object",
+          "properties": {
+            "test_cmd": { "type": "string" },
+            "env": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "constraints": { "type": "object" }
+      }
+    }
+  }
+}

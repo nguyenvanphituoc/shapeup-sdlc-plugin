@@ -5,6 +5,95 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-07-13
+
+**Pure-skill architecture** (`docs/plan/pure-skill-architecture.md`, phases P0–P4 landed in
+one pass). The orchestrator layer now owns ALL pipeline management and feeds each executor a
+structured envelope; worker skills contain only craft. The high-level SDLC design is
+unchanged: same three-phase loop, same gates L0–L4, and every architectural invariant intact
+(single judge, EVAL exactly once per round, two-level circuit breaker, mechanical hill,
+ledger single-source-of-truth, role separation) — they are application-layer policy and live
+in tech-lead, exactly where clean architecture puts policy.
+
+### Added
+- **P0 — the two-envelope port.** `skills/tech-lead/schemas/work-order.schema.json` +
+  `work-result.schema.json` (the harness's canonical ports) and
+  `skills/tech-lead/scripts/validate-envelope.mjs` — a zero-dep validator that doubles as a
+  PreToolUse hook (wired in `hooks/hooks.json` on Skill|Agent): a dispatch whose `--order`
+  file is missing or schema-invalid is DENIED; no `--order` → defer (standalone stays free).
+- **P1 — the pipeline sub-layer (scripts, not LLM skills — DD-7).**
+  `compile-order.mjs` assembles a WorkOrder from facts only (scope contract, this scope's
+  tasks + parsed ACs, promoted round-ledger decisions, the previous attempt's AEGIS triples,
+  per-operation substrate whitelists) — replacing tech-lead's hand-assembled `isolated_brief()`
+  and every worker's GATE A/B plumbing. `ingest-result.mjs` is the single writer of shared
+  state: ticks AC boxes, flips task/board status, appends the Execution Log, propagates
+  unblocks, appends discoveries to the ledger, applies the judge's refuted list + verdict
+  JSONL, queues escalates — schema-validated, so a malformed result never mutates the board.
+- **P3 — the planner's mechanical layer.** `board-derive.mjs` (unlocks = depends_on inverse
+  with `--write`, Σ hours, critical path, Appetite-Guard arithmetic, board-vs-T0 drift flag —
+  KB-BA-001's asymmetric edges become structurally impossible) and `spec-lint.mjs` (PA1
+  directory-thinking, PA2 size cap, substrate DISJOINT check, spec-structure/wikilink/
+  edge-symmetry walk — the worker no longer grades its own output).
+- **New skill: `scope-architect`** — Phase 6b + `--remap`/`--split` extracted from
+  ba-pitch-analyzer as its own pure worker (distinct authority: sole writer of
+  `scopes/*.json`; distinct failure mode: PA1), with trigger-eval dataset.
+- Structural test sections #20–#23 (envelope discrimination + hook deny/defer, compile-order
+  fact-threading, ingest single-writer round-trip incl. refute/unblock/reject, board-derive +
+  spec-lint discrimination): 223 checks total.
+
+### Changed
+- **P2 — task-executor rewritten pure** (580 → ~210 lines): WorkOrder in → code + WorkResult
+  out. Deleted GATE A/B/E, Phase 3 doc fan-out, all standalone-vs-brief branching; kept the
+  craft verbatim (PLAN assumptions + observable criteria, Karpathy minimum-code/surgical, UI
+  Layer 1/2/3, contract-reference, Non-Go stop, ESCALATE, zero-memory rule). New
+  anti-rationalization table + verification checklist (agent-skills anatomy).
+- **P3 — spec-evaluator rewritten pure** (462 → ~230 lines): criteria/verdict/refuted-boxes
+  return as data; `.verdicts` append, task-file annotation, box un-ticking and run-state
+  writes moved to ingest. Skeptical posture, T0-citation (sha256 recomputed), affordance-only
+  UI grading, dimension model — unchanged.
+- **P3 — ba-pitch-analyzer rewritten pure** (670 lines/15 flags/12 prose modes → ~190 lines,
+  4 operations): mode write-rules are now per-operation substrate whitelists in
+  compile-order, enforced by the sandbox hook instead of trusted to prose. Stateless: no
+  run-state.md, no pitch_hash, no counters. Standalone keeps two flags (input, `--lens`).
+- **P3 — orient / qa-edge-hunter aligned**: output-path conventions moved into the order;
+  QA findings return in `discoveries[]` (ingest appends the ledger; single-writer preserved
+  mechanically).
+- **tech-lead 1.0**: BUILD is four calls — compile order → dispatch (`--order`) → ingest
+  result → t0-verify; MAP SCOPES dispatches ba-pitch-analyzer then scope-architect;
+  delegation/round-protocol references rewritten to the envelope port; GATE L1b disjointness
+  re-assertion now runs `spec-lint.mjs`.
+- **Scripts live inside their owning skill** (per the custom-skills packaging model — a
+  skill's scripts ship beside its SKILL.md, so they exist on every channel that ships
+  `skills/`): the orchestrator pipeline (`compile-order`, `ingest-result`,
+  `validate-envelope`, `t0-verify`, `aegis-digest` + the two envelope schemas) moved to
+  `skills/tech-lead/scripts|schemas/`; the planner mechanics (`board-derive`, `spec-lint`)
+  to `skills/ba-pitch-analyzer/scripts/`; `sandbox-guard.mjs` to `hooks/` beside
+  `gate-l2.mjs` (it is a PreToolUse hook, not skill tooling). Skill prose references its own
+  scripts skill-relatively and sibling skills' scripts as `skills/<name>/scripts/…`
+  (plugin-root relative). `scripts/shapeup-sdlc/` retains only dev/CI tooling (oracles,
+  trigger-eval, verdict-ledger, distribute, migrations).
+- Structural test #12 reworked from a pattern whitelist to existence checks: skill-local
+  `scripts/` references must resolve inside that skill's directory; cross-skill
+  `skills/<name>/scripts|schemas/` references must exist. Spec-lint's glob matcher inlined
+  from sandbox-guard so the ba skill stays self-contained.
+- **Migration `0004__pure-skill-architecture.sh`** for existing installs (skill code itself
+  is replaced by `migrate.sh` step 1, which now also carries the bundled scripts/schemas +
+  the new scope-architect skill): (1) refreshes the target's AGENTS.md
+  `<!-- HARNESS_START/END -->` block — the old block documents retired flags an agent would
+  still try to use, and `migrate.sh` never touched AGENTS.md before; byte-stable on re-run,
+  user content outside the block preserved; (2) runs `board-derive.mjs --write` per local
+  board so pre-v1.0 hand-authored `unlocks` don't trip spec-lint's EDGE-SYMMETRY red;
+  (3) flags (never deletes) retired `briefs/` dirs and worker-written `run-state.md`.
+
+### Removed
+- **P4 — the legacy brief format** (`briefs/r<N>-a<M>.md`) and `--brief` mode; all
+  standalone-vs-orchestrated dual-mode branching inside workers; ba's 15-flag surface
+  (`--tasks-only`, `--from-discovered`, `--remap`, `--surface-only`, `--status`, `--assess`,
+  gate-skip flags — each now caller context: an operation, a whitelist, or a script);
+  task-executor's plumbing reference files (gates/context-loading/doc-update-rules/
+  implementation-rules); ba's gates.md + audit-rules.md; worker-held state everywhere
+  (**D6 closed — mechanically**, not aspirationally: the delegation.md caveat is gone).
+
 ## [0.5.0] - 2026-07-13
 
 Root-caused and fixed the `island-escape` Ship-Gate findings (KB-BA-001/KB-BA-002): both KB

@@ -40,9 +40,23 @@ const skill = p.tool_input?.skill_name || "";
 const args = p.tool_input?.skill_args || "";
 if (skill !== "spec-evaluator") defer();
 
-// 3. Round mode only. Per-task eval (--task) is explicitly not gated.
+// 3. Round mode only. Two shapes qualify:
+//    (a) legacy flags: --single-pass / --feature, without --task (per-task eval is not gated);
+//    (b) pure-skill envelope (v1.0): --order <WorkOrder> whose operation is "evaluate" — the
+//        round dispatch tech-lead compiles. Slug/spec come from the order itself.
+let orderSlug = null, orderSpec = null;
+const om = args.match(/--order(?:\s+|=)(?:"([^"]+)"|'([^']+)'|(\S+))/);
+if (om) {
+  try {
+    const order = JSON.parse(readFileSync(resolve(p.cwd || process.cwd(), om[1] || om[2] || om[3]), "utf8"));
+    if (order.worker === "spec-evaluator" && (order.operation || "evaluate") === "evaluate") {
+      orderSlug = String(order.order_id || "").split("/")[0] || order.payload?.feature || null;
+      orderSpec = order.payload?.spec_folder || null;
+    } else defer(); // an order for some other job — not the round EVAL
+  } catch { /* unreadable order → validate-envelope denies it; nothing to gate here */ defer(); }
+}
 const hasTask = /--task(?:\s|=)/.test(args);
-const roundMode = !hasTask && (/--single-pass\b/.test(args) || /--feature(?:\s|=)/.test(args));
+const roundMode = orderSlug !== null || (!hasTask && (/--single-pass\b/.test(args) || /--feature(?:\s|=)/.test(args)));
 if (!roundMode) defer();
 
 // 4. Locate the board. Since v0.4.0 (Local Tasks Architecture) it lives under the LOCAL
@@ -56,14 +70,14 @@ if (!roundMode) defer();
 //    legitimate state — spec-evaluator v0.9 grades from the committed spec on machines that
 //    never generated a local board — so it stays fail-open.
 const m = args.match(/--spec(?:\s+|=)(?:"([^"]+)"|'([^']+)'|(\S+))/);
-const specPath = m ? (m[1] || m[2] || m[3]) : null;
-if (!specPath) defer();
+const specPath = orderSpec || (m ? (m[1] || m[2] || m[3]) : null);
+if (!specPath && !orderSlug) defer();
 const cwd = p.cwd || process.cwd();
-const specDir = resolve(cwd, specPath);
+const specDir = specPath ? resolve(cwd, specPath) : null;
 const fm = args.match(/--feature(?:\s+|=)(?:"([^"]+)"|'([^']+)'|(\S+))/);
-const slug = (fm && (fm[1] || fm[2] || fm[3])) ||
+const slug = orderSlug || (fm && (fm[1] || fm[2] || fm[3])) ||
   (basename(specDir) === "spec" ? basename(dirname(specDir)) : basename(specDir));
-const tasksDir = [join(cwd, ".shapeup-sdlc", slug, "tasks"), join(specDir, "tasks")]
+const tasksDir = [join(cwd, ".shapeup-sdlc", slug, "tasks"), ...(specDir ? [join(specDir, "tasks")] : [])]
   .find((d) => existsSync(join(d, "_index.md")));
 if (!tasksDir) defer(); // no board on this machine → nothing to verify, don't break the run
 const board = join(tasksDir, "_index.md");

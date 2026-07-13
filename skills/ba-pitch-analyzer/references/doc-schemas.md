@@ -59,7 +59,7 @@ When upgrading `lite → standard`:
 - `ux-behavior.md` stays authoritative for screen specs
 - Use cases are **reconciled** (API boundary sub-section added, not overwritten)
 - `contracts/` generated from reconciled UC API sub-sections
-- Reconciled files flagged in `run-state.md`
+- Reconciled files reported in the WorkResult's `deviations[]`
 
 ---
 
@@ -152,7 +152,7 @@ status: draft | ready
 > tasks carry `use_case_refs` (LOCAL, per-machine board); reverse lookup is always computed
 > live (synthesis S-01, audit coverage) — never stored on the committed UC. Rule: **never
 > declare a bidirectional field across the committed/local boundary** — task IDs renumber
-> per machine (`--tasks-only` bootstrap), so a stored back-link is wrong on every machine
+> per machine (generate-board bootstrap), so a stored back-link is wrong on every machine
 > but one. Tolerate (ignore) the field on pre-v3.3 specs; do not emit or update it.
 
 Required sections: Summary (1 sentence), Preconditions, Input (TS interface), Steps

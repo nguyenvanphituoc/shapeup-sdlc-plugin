@@ -42,14 +42,17 @@ enforces this timing — the sub-skills can't, because none of them sees the who
 > **How each sub-skill is invoked + handoff files** → `references/delegation.md`
 > **Run ledger format + Hill report** → `references/ledger-schema.md`
 
-**State ownership (the harness rule).** Workers are stateless; the orchestrator is the **sole
-writer of run-state**. The tech lead owns `harness-run.md` — rounds, gate decisions, Hill
-positions, verdicts, `discovered_rounds`, config, language record — and passes what a worker
-needs (e.g. `feature`, `discovered_rounds`) **down as args**. Workers keep only their own
-product-idempotency key (e.g. `ba`'s `pitch_hash` in its `_index.md`) and emit domain
-artifacts; they do not own the run. The board (`tasks/_index.md`, LOCAL root — v3.2) stays
-with the planner/generator as **execution truth** (the tech lead reads it). See D6 in the
-redesign doc.
+**State ownership (the harness rule — D6, mechanically closed in v1.0).** Workers are
+stateless; the orchestrator layer is the **sole writer of ALL run-state**. Every worker
+receives a structured **WorkOrder** envelope (`.shapeup-sdlc/<slug>/orders/`, compiled by
+`compile-order.mjs`) and returns a **WorkResult** envelope (`results/`); the deterministic
+`ingest-result.mjs` performs every shared-state write — board status, AC ticks, unblock
+propagation, discovery-ledger appends, verdict bookkeeping. No worker writes `run-state.md`,
+`tasks/_index.md`, or the ledger anymore — everything a worker used to write into shared
+files, it now returns as data. The tech lead owns `harness-run.md` — rounds, gate decisions,
+Hill positions, verdicts, `discovered_rounds`, config, language record. The board
+(`tasks/_index.md`, LOCAL root — v3.2) is **execution truth** maintained exclusively through
+ingest.
 
 **Two ledgers, split by promotion timing (addendum §F.3, only when scope contracts exist).**
 `harness-run.md` stays the LOCAL (`.shapeup-sdlc/<slug>/`, gitignored) full run trace — it can
@@ -84,10 +87,10 @@ INTAKE: kicked-off pitch (shaped + bet, by the PO) + project context
 ⏸ GATE L1b│  Board Review ──────────► review board: slices, spine, ~ nice-to-haves, deps,
           │                          scope. PO sign-off BEFORE any code is written.
           │
-▶ BUILD r │  delegate → task-executor (loop --next until board all ✅) ──► code
+▶ BUILD r │  per dispatch: compile-order → task-executor(--order) → ingest-result ──► code
   (9)     │  r=1: build ALL ready tasks.   r>1: build ONLY the bugs from last EVAL.
-          │  If new tasks discovered → /ba-pitch-analyzer --tasks-only --from-discovered
-          │  reconciles them, routes back to GATE L1b, and resumes BUILD.
+          │  Discoveries return in each WorkResult; ingest appends them to the ledger →
+          │  a reconcile order (ba-pitch-analyzer) routes back to GATE L1b, then BUILD resumes.
           │
 ⏸ GATE L2 │  Build Round Complete ──► confirm EVERY task status=done (board green).
           │                          THIS is the precondition that unlocks evaluation.
@@ -154,9 +157,9 @@ Collect (explicit — never inferred):
               shaping/ (from /shapeup), spec/ (where ba-pitch-analyzer writes the spec tree:
               _index, domain-model, usecases/, contracts/, scopes/, scope-summary.md — NOT tasks/)
           - LOCAL   .shapeup-sdlc/<slug>/      — run-trace (hidden, gitignorable):
-              harness-run.md (this ledger), run-state.md, digest, orient/, evaluation/, qa/,
-              discovery/ledger.md, tasks/ (the task board, v3.2 — regenerable via
-              `ba-pitch-analyzer --tasks-only` on any machine, v3.2)
+              harness-run.md (this ledger), digest, orient/, evaluation/, qa/,
+              discovery/ledger.md, orders/ + results/ (the envelope port), tasks/ (the task
+              board, v3.2 — regenerable via a generate-board order on any machine)
           spec_folder = docs/shapeup-sdlc/<slug>/spec/ (the deliverable arg passed to ba/eval/exec)
   L0.3  lens: lite | standard | cross-context   (passed to planner at step 8)
   L0.4  stack hint (e.g. "pnpm, Next 16 web :3000") — aims orient's code-surface sweeps + run commands
@@ -240,17 +243,20 @@ Do NOT enter MAP SCOPES until Orient is accepted.
 ## MAP SCOPES (step 8) — delegate to ba-pitch-analyzer (orient-informed)
 
 ```
-Invoke via Agent (model: exec — see references/delegation.md "Invocation mechanism"): a
-subagent that calls Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) with the pitch + lens +
-orient artifacts as input. Let it own its own gates (1–7); pass --auto only if the run auto
-level is --auto/--unattended.
-Hand it: .shapeup-sdlc/<slug>/orient/code-surface.md (so Phase 1 ingest consumes the map, does not re-scan)
-         .shapeup-sdlc/<slug>/orient/discovered-seed.md (so Phase 6 task gen starts from reality)
-         .shapeup-sdlc/<slug>/orient/spike-<area>.md (feeds Phase 1b feasibility / contracts)
-Output expected: spec_folder populated with _index, domain-model, usecases/, contracts/,
-scope-summary.md (all SHARED/committed) + tasks/TASK-NNN*.md, tasks/_index.md (board) written
-to the LOCAL root .shapeup-sdlc/<slug>/tasks/ (v3.2).
-Record in ledger: planner duration + task count.
+Two orders, two workers, one step (both model: exec — see references/delegation.md):
+1. ANALYZE + BOARD — compile-order --operation analyze --slug <slug> --worker ba-pitch-analyzer
+     --payload '{"pitch": "<path>", "lens": "<lens>", "orient_dir": ".shapeup-sdlc/<slug>/orient/"}'
+   dispatch: Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) --order <path>. The order hands it
+   code-surface.md (Phase-1 ingest consumes the map, does not re-scan), discovered-seed.md
+   (task gen starts from reality), spike-<area>.md (feasibility/contracts).
+   Output expected: spec_folder populated with _index, domain-model, usecases/, contracts/,
+   scope-summary.md (all SHARED/committed) + tasks/TASK-NNN*.md, tasks/_index.md (board)
+   written to the LOCAL root .shapeup-sdlc/<slug>/tasks/ (v3.2) + a WorkResult → ingest.
+2. MAP SCOPES — compile-order --operation map-scopes --slug <slug> --worker scope-architect
+   dispatch: Skill(shapeup-sdlc-plugin:scope-architect) --order <path>. Sole writer of the
+   committed scopes/<scope-id>.json contracts (import-graph slicing, substrate whitelists,
+   affordance manifest, fixtures, PA1/PA2 — mechanically linted by spec-lint.mjs).
+Record in ledger: planner duration + task count + scope count.
 ```
 Faithful note: keep the planner ambitious on scope but high-level on tech — do not push it
 to over-specify implementation. Errors baked into the spec cascade into every build round.
@@ -279,7 +285,8 @@ v0.2.6 (non-regression).
 `.shapeup-sdlc/<slug>/tasks/_index.md` missing AND `docs/shapeup-sdlc/<slug>/spec/usecases/`
 exists → a teammate (or a `--from build` resumed run) has the SHARED spec via git but no LOCAL
 task board on this machine — `.shapeup-sdlc/` is gitignored and never travels with a branch.
-Agent (model: exec): Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) --tasks-only <spec_folder>
+compile-order --operation generate-board --slug <slug> --worker ba-pitch-analyzer, then
+Agent (model: exec): Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) --order <path> + ingest —
 regenerates the board from the committed usecases/domain-model/scopes. Record the bootstrap in
 the ledger. No-op on a fresh r=1 run (MAP SCOPES just wrote the board on this same machine) or
 any machine that already has one — this only fires for the second-developer / resumed-run case.
@@ -300,14 +307,13 @@ No scope contracts (pre-v0.3.0, unchanged from v0.2.6):
     - scope-summary "Done when" headline statements
 
 Substrate-disjointness assertion (design spec §5.1 Blueprint A, only when
-docs/shapeup-sdlc/<slug>/scopes/*.json exist — `ba`'s Phase 6b/GATE 6b already ran these
-lints; this is the orchestrator's own re-confirmation before committing to a build sequence):
-  - Read every scope contract. Assert no file appears in two scopes' `allowed_file_substrate`
-    except where BOTH declare it in `shared_substrate` — a silent overlap is PA3 waiting to
-    happen. Violation → HARD STOP, route back to `ba --remap` before BUILD.
-  - Assert no scope's substrate aligns 1:1 with a single top-level directory (PA1) and no
-    scope exceeds the size cap (PA2) — `ba` already gates this at 6b; re-check here because a
-    human may have hand-approved past a 🔴 there.
+docs/shapeup-sdlc/<slug>/scopes/*.json exist — scope-architect's lint pass already ran;
+this is the orchestrator's own re-confirmation before committing to a build sequence):
+  - Run `node skills/ba-pitch-analyzer/scripts/spec-lint.mjs --slug <slug>`: DISJOINT (a file in two
+    scopes' `allowed_file_substrate` without BOTH declaring it `shared_substrate` — PA3
+    waiting to happen), PA1 (directory-aligned scope), PA2 (size cap). Any red → HARD STOP,
+    route a remap order to scope-architect before BUILD — a human may have hand-approved
+    past a 🔴 at the architect's own checkpoint.
   - Lock the build SEQUENCE riskiest-first: order scopes by open-unknowns count (from
     hill/<scope-id>.yml if present, else the orient hill signal), not by file count or
     alphabetical — Shape Up's "solve in the right sequence" (step 10).
@@ -323,35 +329,58 @@ Do NOT enter BUILD until the board is accepted.
 
 ---
 
-## BUILD round r — delegate to task-executor
+## BUILD round r — compile order → dispatch → ingest result → verify
 
-**No scope contracts (pre-v0.3.0 spec, or a scope-less run) — unchanged from v0.2.6:**
+**The pipeline sub-layer (pure-skill architecture v1.0).** Every dispatch to a worker is four
+mechanical calls — the WorkOrder/WorkResult envelopes are the harness's canonical port, and
+the two pipeline scripts (not the workers) own all shared-state reads/writes. Path note: bare
+`scripts/compile-order.mjs`-style paths live in THIS skill's directory (resolve them against
+this SKILL.md's location — in a plugin install, `${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/`);
+`skills/<name>/`-prefixed paths resolve from the plugin root. Both ship with the skills tree
+on every distribution channel.
+
+```
+a. COMPILE  node scripts/compile-order.mjs …        → .shapeup-sdlc/<slug>/orders/<id>.json
+b. DISPATCH Agent (model: exec) — fresh subagent, the zero-memory-handoff boundary:
+            Skill(shapeup-sdlc-plugin:task-executor) --order <order path>
+            The worker implements, then writes its WorkResult envelope to
+            .shapeup-sdlc/<slug>/results/<same id>.json (its output contract). It writes NO
+            board/ledger/run-state files itself.
+c. INGEST   node scripts/ingest-result.mjs <result path>
+            → ticks AC boxes, flips task/board status, appends the Execution Log, propagates
+              unblocks, appends discoveries to the ledger, queues any ESCALATEs — schema-
+              validated, deterministic, the single writer of shared state (D6, closed).
+d. VERIFY   (scope contracts only) node scripts/t0-verify.mjs …
+```
+
+A `validate-envelope.mjs` PreToolUse hook denies any dispatch whose `--order` file is missing
+or schema-invalid — a malformed order never reaches a worker.
+
+**No scope contracts (pre-v0.3.0 spec, or a scope-less run):**
 ```
 r = 1 (first build):
-  Loop:  Agent (model: exec, see references/delegation.md "Invocation mechanism") — one fresh
-         subagent per task: Skill(shapeup-sdlc-plugin:task-executor) --spec <path> --next
-         (executes lowest-priority ready task)
-         repeat until tasks/_index.md shows every task ✅ done (no ready/blocked left)
-  task-executor keeps its GATE A–E per task; pass --auto-close under --auto/--unattended.
-  SPIKE tasks resolve first (they block). Respect dependency/layer order — the board enforces it.
+  Loop until compile-order --next reports no ready task (board all ✅):
+    a. node scripts/compile-order.mjs --next --slug <slug> [--test-cmd "<cmd>"]
+    b. dispatch (fresh Agent, model: exec): Skill(shapeup-sdlc-plugin:task-executor) --order <path>
+    c. node scripts/ingest-result.mjs .shapeup-sdlc/<slug>/results/<id>.json
+  SPIKE tasks resolve first (they block; compile-order's dependency check enforces the order).
 
   Discovered Tasks:
-  If task-executor logs raw discovered tasks during the build (P3.7), the build loop pauses
-  after the current tasks are done. Dispatch:
-  Agent (model: exec): Skill(shapeup-sdlc-plugin:ba-pitch-analyzer)
-    --tasks-only --from-discovered .shapeup-sdlc/<slug>/discovery/ledger.md
-  This reconciles them into new tasks and invariants, updates tasks/_index.md, and increments
-  discovered_rounds. Route back to GATE L1b (Board Review) for PO approval, then loop back
-  to resume building the newly generated tasks.
+  ingest-result appends any discoveries[] to the ledger. When the board finishes with new
+  ledger entries, compile a reconcile order for the planner:
+    node scripts/compile-order.mjs --operation reconcile --slug <slug>
+      --worker ba-pitch-analyzer --payload '{"discovered_ledger": ".shapeup-sdlc/<slug>/discovery/ledger.md"}'
+  dispatch it, ingest its result, then route back to GATE L1b (Board Review) for PO approval
+  before resuming BUILD on the newly generated tasks.
 
 r > 1 (fix build, after a FAIL):
   Input = the bug list in evaluation/EVAL-FEATURE-<slug>.md from the previous EVAL.
-  Build ONLY those bugs. For each bug: re-open the affected task (status → in-progress),
-  dispatch Agent (model: exec): Skill(shapeup-sdlc-plugin:task-executor)
-    --task <id> --force scoped to the bug's fix, re-close.
-  Do NOT re-run the whole board. Do NOT touch passing areas.
+  Build ONLY those bugs: per bug,
+    node scripts/compile-order.mjs --task <id> --slug <slug> --operation fix
+      --payload '{"bugs": [<the bug entries for this task>]}'
+  then dispatch + ingest as above. Do NOT re-run the whole board. Do NOT touch passing areas.
 ```
-Record per task in the ledger: task id, status, files touched.
+Record per task in the ledger: task id, status, files touched (all read from the WorkResult).
 
 **Scope contracts present — the isolated attempt loop (design spec §3.5/§5.1, Blueprint A):**
 ```
@@ -361,18 +390,21 @@ For each scope in the L1b sequence (riskiest-first), not yet FINISHED:
      hook reads to enforce the scope's allowed_file_substrate on every Edit/Write this round.
 
   for attempt in 1..attempt_budget (L0.9, default 5):
-    a. brief = isolated_brief(scope)   — write .shapeup-sdlc/<slug>/briefs/r<N>-a<M>.md:
-       scope contract + current substrate file contents + this scope's ledger decisions
-       (round-ledger.md, promoted answers) + last attempt's digested errors (if any).
-       NO prior-attempt chat history goes in (zero-memory handoff, PA6).
+    a. node scripts/compile-order.mjs --scope docs/shapeup-sdlc/<slug>/scopes/<id>.json
+         --round <N> --attempt <M> [--test-cmd "<cmd>"]
+       → orders/r<N>-a<M>.json: scope contract + this scope's tasks + ledger decisions
+         (round-ledger.md, promoted answers) + last attempt's digested errors (AEGIS triples,
+         read from the previous T0 artifact). NO prior-attempt chat history goes in
+         (zero-memory handoff, PA6) — the script can only compile facts, which is the point.
     b. dispatch Agent (model: exec) — a fresh subagent, this IS the zero-memory-handoff
-       boundary: Skill(shapeup-sdlc-plugin:task-executor) --brief <path>
-       [--auto-close under --auto/--unattended]
-    c. handle any ESCALATE return: dispatch Agent (model: exec):
+       boundary: Skill(shapeup-sdlc-plugin:task-executor) --order <path>
+    c. node scripts/ingest-result.mjs .shapeup-sdlc/<slug>/results/r<N>-a<M>.json
+       Escalates queued by ingest → dispatch Agent (model: exec):
        Skill(shapeup-sdlc-plugin:advisor-protocol) --ledger round-ledger.md
        --escalate <block> [--unattended]; persist the answer immediately (it must survive
-       the next attempt's fresh context). Cap: 3/scope/round (advisor-protocol's own budget).
-    d. t0 = run `node scripts/shapeup-sdlc/t0-verify.mjs <scope-contract> --round <N> --attempt <M>
+       the next attempt's fresh context — compile-order reads it back from the ledger).
+       Cap: 3/scope/round (advisor-protocol's own budget).
+    d. t0 = run `node scripts/t0-verify.mjs <scope-contract> --round <N> --attempt <M>
        --seesaw-registry .shapeup-sdlc/<slug>/seesaw/registry.json`
        → writes .shapeup-sdlc/<slug>/t0/verdicts/r<N>-a<M>.json (the artifact spec-evaluator
          will require a citation to at GATE L2/EVAL).
@@ -382,18 +414,20 @@ For each scope in the L1b sequence (riskiest-first), not yet FINISHED:
                                       `git stash push -u -m "t0-rollback-r<N>-a<M>"` (never a
                                       hard discard — the stash preserves the diff for review),
                                       then retry this attempt.
-       t0 overall=red, own fixture → append t0's `discovered_tasks` (AEGIS triples) to this
-                                      scope's discovered_tasks_pool; loop to the next attempt
-                                      with those triples in the next brief.
+       t0 overall=red, own fixture → loop to the next attempt; compile-order picks the
+                                      `discovered_tasks` triples out of this T0 artifact and
+                                      folds them into the next order's digested_errors.
   if the loop exhausted attempt_budget without green:
     → inner circuit breaker tripped. Do NOT block the round. Queue a hammer PROPOSAL
       (scope_id + last t0 artifact + reason) for GATE H. Move to the next scope in sequence.
 
 Discovered Tasks (unchanged mechanism, now scope-aware):
-  If a scope's discovered_tasks_pool doesn't fit its own substrate, dispatch Agent (model: exec):
-  Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) --remap --from-discovered
-  .shapeup-sdlc/<slug>/discovery/ledger.md — it may extend the scope, or propose a new one;
-  it never silently widens a substrate itself. Route back to GATE L1b for the delta before resuming.
+  If a scope's discoveries don't fit its own substrate, compile a remap order for the
+  scope-architect (sole writer of scope contracts):
+    node scripts/compile-order.mjs --operation remap --slug <slug>
+      --worker scope-architect --payload '{"discovered_ledger": ".shapeup-sdlc/<slug>/discovery/ledger.md"}'
+  dispatch + ingest — it may extend a scope or propose a new one; it never silently widens a
+  substrate. Route back to GATE L1b for the delta before resuming.
 ```
 Record per attempt in `harness-run.md` (LOCAL): scope_id, attempt, t0 overall, files touched.
 Record per scope in the committed `round-ledger.md` (SHARED, Tier A) the moment it settles:
@@ -455,12 +489,21 @@ Emit this block, then **stop and wait for PO confirmation** (interactive/--auto)
 ## EVAL round r — delegate to spec-evaluator (ONCE)
 
 ```
+Compile the eval order (pins spec folder, feature, dimensions, run command, T0 artifacts):
+  node scripts/compile-order.mjs --operation evaluate --slug <slug>
+    --worker spec-evaluator --round <r>
+    --payload '{"dimensions": ["spec-conformance"], "run_cmd": "<cmd>",
+                "t0_artifacts": [<per-scope t0/verdicts paths from GATE L2.3>]}'
 Invoke via Agent (model: eval — see references/delegation.md "Invocation mechanism") ONE
 feature-level pass over the whole running app:
-  Skill(shapeup-sdlc-plugin:spec-evaluator) --spec <path> --feature <slug> --single-pass --dimensions <active>
-The evaluator exercises the running feature against ALL acceptance criteria + Done-when
-across every task, and writes ONE evaluation/EVAL-FEATURE-<slug>.md (verdict + bug list).
-It never sets status: done — that authority stays with task-executor / the tech lead.
+  Skill(shapeup-sdlc-plugin:spec-evaluator) --order <path>
+  (the legacy `--spec <path> --feature <slug> --single-pass` form still works standalone;
+   the GATE L2 hook gates both shapes)
+The evaluator exercises the running feature against ALL acceptance criteria + Done-when,
+writes ONE evaluation/EVAL-FEATURE-<slug>.md (verdict + bug list) + its WorkResult. Then
+ingest: node scripts/ingest-result.mjs .shapeup-sdlc/<slug>/results/evaluate-r<r>.json
+— ingest appends the verdict ledger lines and un-ticks refuted AC boxes; the judge itself
+never touches the board and never sets status: done.
 Record in ledger: eval duration, verdict, bug count.
 ```
 This is the single point where the evaluator runs in a round. It is not called per task,
@@ -537,12 +580,12 @@ S.0  GATE H — delegate to scope-hammer (this IS Shape Up's "Decide When to Sto
        are QA + discovery ledger (no scope/attempt-budget inputs), equivalent to the old inline
        triage this step used to do.
 S.1  Confirm board green + latest eval verdict = PASS.
-S.1b Checklist-hygiene assert: `grep -c "^- \[ \]" <spec>/tasks/TASK-*.md` → every count
-     must be 0 on a shipping board. An unchecked AC box on a done task means either an
-     unverified criterion (real gap — back to BUILD/EVAL) or a doc-update miss
-     (task-executor P3.1 / spec-evaluator B.2b skipped — route back to the owning skill
-     to tick/flag; the tech lead does not tick boxes itself). Do not SHIP past a non-zero
-     count without logging the reason in the ledger.
+S.1b Checklist-hygiene assert: `grep -c "^- \[ \]" .shapeup-sdlc/<slug>/tasks/TASK-*.md` →
+     every count must be 0 on a shipping board. An unchecked AC box on a done task means
+     either an unverified criterion (real gap — back to BUILD/EVAL) or an ingest miss (the
+     WorkResult's ac_results never covered it — re-run ingest-result on that result, or route
+     back to the owning worker for a corrected result; the tech lead does not tick boxes
+     itself). Do not SHIP past a non-zero count without logging the reason in the ledger.
 S.2  Print a feature summary: tasks shipped, rounds used, final verdict, dims evaluated
      (and explicitly: dims NOT evaluated, so "shipped" is never read as "verified for all").
 S.3  Point to the traceability: tasks/_index.md (all ✅) + EVAL-FEATURE-<slug>.md (PASS) +
@@ -632,8 +675,9 @@ On confirm:
 | ORIENT (step 7) runs before MAP SCOPES (step 8) | Roadmap: no pre-divided tasks at kick-off; the team orients first so the board is reality-born |
 | Intake must be English before ORIENT; tech lead does NOT translate — it delegates to `translator` at GATE L0 | Translation is a separate single-purpose skill; orchestrator only detects + sequences |
 | Tech lead is the SOLE WRITER of run-state (`harness-run.md`); workers get run metadata as args | Stateless workers, one stateful orchestrator — don't fragment run-state across worker files; protects `--from` resume |
+| Every worker dispatch goes through the envelope port: compile-order → `--order` → ingest-result; shared state is written ONLY by ingest | The single-writer rule is mechanically true (D6 closed): a worker that writes boards/ledgers/run-state is a defect, and a malformed envelope is denied by the validate-envelope hook before it can corrupt run truth |
 | Progress is reported by Hill position, never by counting tasks | The roadmap forbids task-counting; a 90%-done slice can still be stuck uphill on the one unknown that matters |
-| Discovered tasks are reconciled and reviewed | If new tasks are discovered during BUILD, run /ba-pitch-analyzer --tasks-only --from-discovered and route back to GATE L1b; do not ignore them |
+| Discovered tasks are reconciled and reviewed | Discoveries land in the ledger via ingest; dispatch a reconcile order (ba-pitch-analyzer) and route back to GATE L1b; do not ignore them |
 | Evaluator runs once per round, only after GATE L2 (board 100% done) | The whole point: cheap end-of-round QA, never per task |
 | Evaluator never called inside the BUILD loop | Keeps the build coherent and the run cheap |
 | r>1 builds bugs only, never the whole board | Don't re-do passing work; minimize churn |
@@ -649,12 +693,12 @@ On confirm:
 | Max questions per gate: L0/L1a/L1b = 2; L3/L4 = 1 | Gates are pauses, not interrogations; excess questions shift authority to the wrong role |
 | SHIP harvest records facts only — copies existing structured output, never computes a new verdict/score | A self-computed score = a second judge behind spec-evaluator (breaks single-judge, invites Goodhart); the eval suite interprets, harvest records |
 | Two-level circuit breaker: attempt_budget (inner, per scope) nests inside round_budget (outer) | An exhausted scope queues a GATE H hammer proposal, it never blocks the round — only round_budget hitting 0 stops the whole run |
-| The tech lead never hand-edits a scope contract | `ba` is its sole writer (single-writer-per-file, addendum C4); a substrate-expansion is routed through advisor-protocol → `ba --remap` |
-| Substrate-disjointness + PA1/PA2 lints are re-asserted at GATE L1b even when `ba` already checked them | A human may have hand-approved past a 🔴 at GATE 6b; the orchestrator's own gate is the last line before BUILD starts writing |
+| The tech lead never hand-edits a scope contract | scope-architect is its sole writer (single-writer-per-file, addendum C4); a substrate-expansion is routed through advisor-protocol → a scope-architect remap order |
+| Substrate-disjointness + PA1/PA2 lints are re-asserted at GATE L1b (spec-lint.mjs) even when scope-architect already checked them | A human may have hand-approved past a 🔴 at the architect's checkpoint; the orchestrator's own gate is the last line before BUILD starts writing |
 | Hill phase is read from mechanical facts (T0/T1/seesaw), never declared by a worker | DD-10 — closes the self-reported-confidence risk (R3) outright |
 | ESCALATE answers promote to the committed round-ledger the instant they're given | Zero-memory handoff means a decision kept only in a session vanishes with the next attempt's fresh context |
 | GATE H is delegated to scope-hammer, never adjudicated inline by the tech lead | Keeps the orchestrator thin; census/baseline-comparison/cut-list logic has one owner |
-| GATE L1b reviews the SHARED plan (usecases/scopes), never the LOCAL task board; a missing local board is bootstrapped via `ba-pitch-analyzer --tasks-only`, never treated as a blocker | `tasks/` is a LOCAL, gitignored, regenerable execution-planning artifact (v3.2) — the PO gate and grading both moved to the committed spec it was derived from |
+| GATE L1b reviews the SHARED plan (usecases/scopes), never the LOCAL task board; a missing local board is bootstrapped via a generate-board order, never treated as a blocker | `tasks/` is a LOCAL, gitignored, regenerable execution-planning artifact (v3.2) — the PO gate and grading both moved to the committed spec it was derived from |
 
 ---
 
@@ -675,6 +719,7 @@ On confirm:
 ## Changelog
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.0 | 2026-07-13 | **Pure-skill architecture** (the pure-skill architecture plan): every worker dispatch is now `compile-order.mjs → Skill(<worker>) --order <WorkOrder json> → ingest-result.mjs`, with `validate-envelope.mjs` (script + PreToolUse hook) denying any dispatch on a missing/malformed order. The BUILD section shrank to compile → dispatch → ingest → t0-verify; `isolated_brief()` prose is retired in favor of the compiled envelope (same zero-memory-handoff guarantee — the script can only compile facts). D6 is mechanically closed: workers return WorkResult data, `ingest-result.mjs` is the single writer of board status, AC ticks, unblocks, discovery-ledger appends, and verdict bookkeeping. MAP SCOPES now dispatches two workers: `ba-pitch-analyzer` (spec tree + board) then the new `scope-architect` (sole writer of scope contracts); `--remap` routes to scope-architect. Architectural invariants unchanged: single judge, EVAL once per round, two-level breaker, mechanical hill, GATE L0–L4 flow. |
 | 0.15 | 2026-07-12 | **Local Tasks Architecture** (v3.2): `tasks/` moves to the LOCAL gitignored root (`ba-pitch-analyzer` v3.2) — the SHARED spec dir now carries only `usecases/`, `domain-model.md`, `contracts/`, `scopes/`, `scope-summary.md`. GATE L1b (Board Review) now reviews the SHARED plan — `usecases/_index.md` + `scopes/*.json` + `scope-summary.md` Done-when headlines — instead of the LOCAL `tasks/_index.md`, on any spec with scope contracts; a pre-v0.3.0 spec (no scope contracts) is unchanged. New bootstrap check at the top of GATE L1b: a missing LOCAL `tasks/_index.md` alongside a present SHARED `usecases/` (a teammate pulled the branch, or a `--from build` resume, without ever running MAP SCOPES on this machine) auto-invokes `ba-pitch-analyzer --tasks-only <spec_folder>` to regenerate the board — never a blocker. L0.2 workspace-roots table updated. One new hard rule. |
 | 0.14 | 2026-07-12 | **Fix: delegation now actually delegates.** Every "Invoke:" in `references/delegation.md` and the matching call sites in this file were phrased as `/skill-name ...` — the `Skill` tool's own calling convention, which always executes inline in the tech lead's own turn on the tech lead's own model. That silently made GATE L0.8's model matrix cosmetic (printed, never applied) and collapsed the isolated-brief / zero-memory-handoff design's isolation guarantee, since everything ran in one shared session. New `references/delegation.md` "Invocation mechanism" section + a role→model table (`orch`/`exec`/`eval`/`qa`) makes every delegation an explicit `Agent` call carrying the L0.8-resolved model, with the subagent calling `Skill(shapeup-sdlc-plugin:<name>)` internally; `t0-verify.mjs` is exempted (mechanical tooling, DD-7, run via Bash directly). One new hard rule. No new flags — reuses the existing model-matrix keys. |
 | 0.13 | 2026-07-12 | **v0.3.0 harness upgrade** (design spec v1.1 + file-org addendum), active only when the spec folder has scope contracts (`docs/shapeup-sdlc/<slug>/scopes/*.json`) — non-regression on older specs. New GATE L0.8 (model/budget resolution matrix, four-layer precedence incl. `.claude/settings.local.json`) + L0.9 (`attempt_budget`, the inner breaker, default 5, nested inside the existing `max_rounds` outer breaker — DD-9). GATE L1b gains a substrate-disjointness + PA1/PA2 re-assertion before BUILD. BUILD round r gains the **isolated attempt loop**: branch-per-scope checkout + `.shapeup-sdlc/active-scope` pointer (sandbox hook enforcement), zero-memory-handoff briefs, `t0-verify.mjs` (fixtures + DB probe + seesaw) every attempt, `git stash` rollback on a seesaw regression, AEGIS-digested errors feeding the next attempt, ESCALATE routed through `advisor-protocol` and persisted immediately to a new committed `round-ledger.md` (Tier A — model matrix + decisions, split from the LOCAL `harness-run.md` per addendum §F.3). GATE L2 gains a T0-completeness pre-check + mechanical hill derivation (`hill/<scope-id>.yml` shards, DD-10 phase enum, never self-reported). SHIP's GATE H is now delegated to the new `scope-hammer` skill (census → baseline comparison → cut list, all three trigger paths: normal stop / outer breaker / inner breaker). Metrics harvest shards to `docs/shapeup-sdlc/metrics/<machine-id>.jsonl` (addendum Δ3). New flags `--attempts`, `--orch-model`/`--exec-model`/`--eval-model`/`--qa-model`. Six new hard rules. |

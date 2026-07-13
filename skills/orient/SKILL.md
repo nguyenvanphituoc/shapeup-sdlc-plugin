@@ -7,10 +7,11 @@ description: >
   pass", "recon before we plan", "spike the riskiest part before mapping scopes". The tech-lead
   orchestrator invokes it at step 7 before delegating to ba-pitch-analyzer (Map Scopes, step 8).
   Use it even when the user describes "read the code first and surface the unknowns" without
-  naming Orient. The Scout is a PURE worker: it reads code, spikes the single riskiest area, and
-  emits four artifacts (code-surface map, spike findings, discovered-task seed, hill signal). It
-  writes NO production code, builds NO scope board, keeps NO run-state, and renders NO progress
-  report — those belong to ba (planner) and tech-lead (orchestrator) respectively.
+  naming Orient. Accepts a WorkOrder dispatch (--order) from the tech-lead orchestrator. The
+  Scout is a PURE worker: it reads code, spikes the single riskiest area, and emits four
+  artifacts (code-surface map, spike findings, discovered-task seed, hill signal) plus a
+  WorkResult envelope. It writes NO production code, builds NO scope board, keeps NO run-state,
+  and renders NO progress report — those belong to ba (planner) and tech-lead (orchestrator).
 ---
 
 # Orient — the Scout (Shape Up step 7)
@@ -49,11 +50,23 @@ from `tech-lead`; it never reads or writes a shared run-state file.
 
 ---
 
-## Output — the four artifacts (the `orient → ba` contract)
+## Input contract (pure worker)
 
-All four land in the LOCAL run-trace root `.shapeup-sdlc/<feat>/orient/`. These ARE the contract `ba` Phase 1 consumes, so `ba` does
+Orchestrated, you are invoked as `--order <path>` (a WorkOrder): `payload.pitch` (the
+kicked-off pitch path), `payload.stack` (sweep hint), and `substrate.allowed` naming your one
+write surface — the orient output dir. Anything absent = unknown: confirm at GATE O-A
+(standalone) or report it in the result's `deviations`, never guess. Standalone, the
+`--pitch/--spec/--stack` flags below carry the same fields; the output dir derives from the
+spec path (`.shapeup-sdlc/<feat>/orient/`).
+
+## Output — the four artifacts (the `orient → ba` contract) + a WorkResult
+
+All four land in the orient output dir (orchestrated: the order's substrate; standalone:
+`.shapeup-sdlc/<feat>/orient/`). These ARE the contract `ba` Phase 1 consumes, so `ba` does
 not re-scan the codebase. Keep them factual and link real `file:line` so the planner can trust
-them.
+them. When dispatched with an order, also write the WorkResult envelope
+(`.shapeup-sdlc/<feat>/results/<order-suffix>.json`, `work-result.schema.json`): `status`,
+`artifacts[]` (the four paths), and any pitch-level gaps as `deviations[]`.
 
 | File | Purpose | Consumed by |
 |------|---------|-------------|
@@ -184,7 +197,8 @@ Group by **suspected scope** so `ba` can map scopes naturally. Do **not** assign
 or dependencies — that is the planner's job. You are handing over raw material, not a plan.
 
 > This is the seed for the planner's first board. The *in-build* discovered-task loop
-> (`task-executor` P3.7 appending to the live ledger, reconciled by `ba --from-discovered`) is
+> (build WorkResults' discoveries[] ingested into the live ledger, reconciled by a planner
+reconcile order) is
 > a separate, later mechanism — don't conflate the two.
 
 ## Phase 6 — Emit hill signal → `hill-signal.md`
@@ -237,7 +251,10 @@ Tech-lead uses this to render the GATE L1a Hill and confirm the spike before han
 ## Invocation
 
 ```bash
-# Invoked by tech-lead at step 7 (typical)
+# Invoked by tech-lead at step 7 (canonical) — compile-order --operation orient --slug <feat> …
+/orient --order .shapeup-sdlc/<feat>/orders/orient.json
+
+# Standalone flags (the preamble shim compiles the same envelope)
 /orient --pitch docs/shapeup-sdlc/<feat>/shaping/shaping.md --spec docs/shapeup-sdlc/<feat>/spec/ --stack "pnpm, Next 16 web :3000"
 
 # Standalone recon (no orchestrator) — still writes only the four artifacts
@@ -260,5 +277,6 @@ Tech-lead uses this to render the GATE L1a Hill and confirm the spike before han
 ## Changelog
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.0 | 2026-07-13 | **Pure-skill alignment** (plan P3): input formalized as a WorkOrder (`--order`) — the output-path convention moves into the order's substrate; the Scout no longer derives pipeline paths itself. Emits a WorkResult envelope (artifacts + deviations) alongside the four domain artifacts. Craft unchanged: code-surface sweep method, single time-boxed spike discipline, discovered-vs-imagined citation rule, hill-signal heuristics. |
 | 0.2 | 2026-06-16 | GATE O-A: explicit shaped-pitch signals (frontmatter check). Phase 1: no-breadboard fallback. GATE O-B: SPIKE-NOT-NEEDED path for all-prior-art pitches. Phase 5: Discovered tasks require `file:line` citation. New "Done — completion output" section with ba handoff note (`--orient-dir`). Hard rules updated. |
 | 0.1 | 2026-06-10 | Initial Scout. Shape Up step 7 as a pure worker: code-surface map, single time-boxed spike, discovered-task seed, hill signal. Defines the `orient → ba` handoff contract. No code / no board / no run-state / no reporting. |

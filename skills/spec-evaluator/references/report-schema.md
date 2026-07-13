@@ -90,7 +90,7 @@ A single explicit handoff line the orchestrator/generator acts on.
 For a PASS:
 ```
 ## Next action
-→ TASK-NNN is verified against [spec-conformance]. Safe for task-executor GATE E close.
+→ TASK-NNN is verified against [spec-conformance]. Safe for the orchestrator to close.
   (Note: security, performance were NOT evaluated this run.)
 ```
 

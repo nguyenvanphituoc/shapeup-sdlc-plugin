@@ -68,7 +68,7 @@ interface [UseCaseName]Output {
   An invariant must STILL hold after this UC is built.
   Each invariant is a source of regression tasks — that task anchors use_case_refs back to THIS UC
   (do NOT create a new anchor axis; an invariant is a property of the UC, not a UC of its own).
-  This section MAY be APPENDED by `--tasks-only` when a build discovers a new constraint
+  This section MAY be APPENDED by the reconcile operation when a build discovers a new constraint
   (append-only — never edit the locked Steps/Input/Output).
   Drop this section if the UC produces no invariants.
 -->
@@ -86,7 +86,7 @@ interface [UseCaseName]Output {
   DERIVED section — generated mechanically from Invariants (D1) + Error Cases (D2) +
   Contract/Input shape (D3) + pitch No-gos touching this UC (D4).
   Rules → references/test-surface.md. Never hand-author rows; never invent behaviors.
-  Regenerable via `--surface-only`. Appended-to (TS-INV rows) by `--tasks-only` when
+  Regenerable via a retrofit-surface order. Appended-to (TS-INV rows) by the reconcile operation when
   a new invariant lands. Exploratory/edge tests do NOT live here (qa-edge-hunter owns those).
   If all four sources are empty, replace the table with:
   _No derivable surface — sources empty. Exploratory coverage only (see qa-edge-hunter)._

@@ -1,6 +1,6 @@
 ---
 name: advisor-protocol
-description: "Use this skill whenever a harness worker (task-executor, ba-pitch-analyzer --remap) hits a decision it cannot make alone during Build Vertically — a design decision, a spec ambiguity, or a request to write outside its scope's substrate — and needs it adjudicated under a budget instead of guessed or asked ad hoc. Trigger on: \"escalate this decision\", \"ESCALATE\", \"adjudicate this ambiguity\", \"ask the advisor\", \"substrate expansion request\", \"resolve this design decision within budget\", \"how many escalations does this scope have left\". Also triggers when tech-lead needs to answer a worker's structured ESCALATE return during a build round. Defines the ESCALATE grammar (kind/question/options), the per-scope-per-round budget (default 3), precedent reuse so the same question is never asked twice in a run, and persistence of every answer to the committed round-ledger so it survives a zero-memory context reset. Does not design, build, or judge — it is the advisor, not a fifth worker."
+description: "Use this skill whenever a harness worker (task-executor, scope-architect) hits a decision it cannot make alone during Build Vertically — a design decision, a spec ambiguity, or a request to write outside its scope's substrate — and needs it adjudicated under a budget instead of guessed or asked ad hoc. Trigger on: \"escalate this decision\", \"ESCALATE\", \"adjudicate this ambiguity\", \"ask the advisor\", \"substrate expansion request\", \"resolve this design decision within budget\", \"how many escalations does this scope have left\". Also triggers when tech-lead needs to answer a worker's structured ESCALATE return during a build round. Defines the ESCALATE grammar (kind/question/options), the per-scope-per-round budget (default 3), precedent reuse so the same question is never asked twice in a run, and persistence of every answer to the committed round-ledger so it survives a zero-memory context reset. Does not design, build, or judge — it is the advisor, not a fifth worker."
 ---
 
 # Advisor Protocol (ESCALATE grammar + budgets)
@@ -48,7 +48,7 @@ accept it.
 
 **≤3 ESCALATEs per scope per round** (design spec §3.3). Counted per `scope_id` + `round`, reset
 each new round. The budget exists so a struggling scope surfaces as *stuck* (routed to the
-hill's stuck-split rule, ≥3 rounds at the same position → forced `ba --remap` split) rather than
+hill's stuck-split rule, ≥3 rounds at the same position → forced scope-architect split order) rather than
 draining PO attention one question at a time.
 
 ```
@@ -76,7 +76,7 @@ this scope needs GATE H's attention, not a excuse to freeze the round.
 
 2. kind: substrate-expansion:
    Never silently approved. Present the requested path(s) + why the worker says it needs them.
-   PO/TL approves → dispatch `ba-pitch-analyzer --remap` to add the path to the scope contract's
+   PO/TL approves → dispatch a scope-architect remap order to add the path to the scope contract's
    `shared_substrate` (never hand-edit the contract — `ba` is its sole writer, F.5). PO/TL
    declines → worker re-plans within its existing substrate; log the decline as a decision too
    (prevents re-asking).

@@ -10,7 +10,7 @@
 // Zero dependencies, zero network — same discipline as scripts/oracles/* and gate-l2.mjs.
 //
 // Usage:
-//   node scripts/t0-verify.mjs <scope-contract.json> --round N --attempt M
+//   node skills/tech-lead/scripts/t0-verify.mjs <scope-contract.json> --round N --attempt M
 //        [--cwd <dir>] [--out <dir>] [--seesaw-registry <path>] [--no-seesaw]
 //
 // Exit code: 0 = overall green, 1 = overall red (mirrors the oracle convention).

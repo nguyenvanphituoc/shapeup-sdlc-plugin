@@ -5,7 +5,14 @@ This project is scaffolded with the Shape Up SDLC Harness for coding agents.
 
 ## mechanism instruction
 
-The harness follows a **three-phase Shape Up SDLC loop** orchestrated by `/tech-lead`:
+The harness follows a **three-phase Shape Up SDLC loop** orchestrated by `/tech-lead`,
+built on the **pure-skill architecture** (v1.0): the orchestrator layer owns ALL pipeline
+management and talks to every worker through two JSON envelopes — a **WorkOrder** in
+(`compile-order.mjs`, schema-validated by a `validate-envelope.mjs` PreToolUse hook) and a
+**WorkResult** out (`ingest-result.mjs` performs every shared-state write: board status, AC
+ticks, unblocks, discovery-ledger appends, verdict bookkeeping). Worker skills contain craft
+only — zero pipeline knowledge; everything they used to write into shared files they now
+return as data (D6 closed: single-writer is mechanically true).
 
 ### Phase 1 — Shaping (`/shapeup`)
 1. Set Boundaries → `/shapeup shaping`
@@ -21,9 +28,9 @@ The harness follows a **three-phase Shape Up SDLC loop** orchestrated by `/tech-
 |------|------|--------|
 | Kick-off | ⏸ **L0** — Intake & Config (L0.8 model/budget matrix) | `/translator` if non-English |
 | Orient (Scout) | ⏸ **L1a** — Orient Review | delegate → `/orient` |
-| Map Scopes | ⏸ **L1b** — Board Review (+ substrate disjointness) | delegate → `/ba-pitch-analyzer` (scope contracts ✦ + UC + Invariants + Test Surface ★) |
-| Build Vertically | ⏸ **L2** — Board 100% ✅ + T0-green ✦ | delegate → `/task-executor` loop, T0-verified per attempt (fixtures + DB probe + seesaw ✦), sandboxed to each scope's substrate ✦ |
-| EVAL (once per round) | ⏸ **L3** — Verdict | delegate → `/spec-evaluator` (spec-conformance + test-surface-conformance ★; requires a T0 artifact citation on scoped specs ✦) |
+| Map Scopes | ⏸ **L1b** — Board Review (+ substrate disjointness via `spec-lint.mjs`) | delegate → `/ba-pitch-analyzer` (spec tree + board: UC + Invariants + Test Surface ★) then `/scope-architect` (scope contracts ✦ — sole writer) |
+| Build Vertically | ⏸ **L2** — Board 100% ✅ + T0-green ✦ | per dispatch: compile-order → `/task-executor` (--order) → ingest-result, T0-verified per attempt (fixtures + DB probe + seesaw ✦), sandboxed to each scope's substrate ✦ |
+| EVAL (once per round) | ⏸ **L3** — Verdict | delegate → `/spec-evaluator` (--order; spec-conformance + test-surface-conformance ★; requires a T0 artifact citation on scoped specs ✦); refuted boxes/verdict ledger applied by ingest |
 | FAIL → fix round r+1 | — | regression rule ★: bugs + full Test Surface of touched UC |
 
 ✦ = v0.3.0 mechanisms, active only when the spec folder has scope contracts
@@ -55,22 +62,27 @@ All discovered tasks are funnelled into `.shapeup-sdlc/<slug>/discovery/ledger.m
   per-scope `attempt_budget` (T0 attempts); an exhausted scope queues a GATE H proposal, it
   never blocks the round.
 - **Hill phase is mechanical, never self-reported ✦** — derived only from T0/T1/seesaw facts.
+- **Envelope port (v1.0)** — every worker dispatch is WorkOrder in / WorkResult out; shared
+  state is written only by `ingest-result.mjs`; a malformed envelope is denied by hook before
+  it reaches a worker. Workers are stateless and pipeline-blind by construction.
 
 ## Installed Skills
 
 - **shapeup**: Run Shape Up workflows before writing code (S1-S4, B1-B5).
-- **ba-pitch-analyzer**: Analyze pitches and generate DDD spec-tree docs and tasks; scope-architect role writes committed scope contracts (Phase 6b) with a write-whitelist substrate, PA1/PA2 lints, and an affordance manifest.
-- **task-executor**: Implement specific tasks from the spec folder; isolated-brief (zero-memory) mode + substrate discipline + Layer 1/2/3 UI rules when scope contracts exist.
-- **spec-evaluator**: Evaluate task execution against specifications; requires a T0 artifact citation and grades UI affordance-only on scoped specs.
+- **ba-pitch-analyzer**: The spec-analyzer — pitch → DDD spec tree + board, one craft with four order-selected operations (analyze | generate-board | reconcile | retrofit-surface); graph math and audits delegated to `board-derive.mjs`/`spec-lint.mjs`; stateless pure worker.
+- **scope-architect**: Sole writer of committed scope contracts (`scopes/*.json`) — import-graph slicing by flow, write-whitelist substrates, affordance manifests, fixtures; map-scopes | remap | split-scope operations.
+- **task-executor**: Implement a work order's acceptance criteria exactly — WorkOrder in, code + WorkResult out; zero-memory, substrate-sandboxed, Layer 1/2/3 UI rules; never writes boards/ledgers/run-state.
+- **spec-evaluator**: The single judge — evaluates the running app against the committed spec; verdict + refuted boxes return as data; requires a T0 artifact citation and grades UI affordance-only on scoped specs.
 - **qa-edge-hunter**: Exploratory QA hunt.
 - **translator**: Bilingual Vietnamese/English gate at intake.
-- **tech-lead**: Orchestrate runs — two-level circuit breaker, T0/seesaw-verified build rounds, mechanical hill derivation.
+- **tech-lead**: Orchestrate runs — envelope port (compile-order → dispatch → ingest-result), two-level circuit breaker, T0/seesaw-verified build rounds, mechanical hill derivation.
 - **coach**: Ingests L4 feedback, asks the PO to categorize each rule (GATE COACH-1), and files it under the responsible skill in committed `docs/shapeup-sdlc/knowledge-base/<skill>.md` for team-shared, read-back continuous learning (RLHF).
 - **advisor-protocol**: Adjudicates a worker's structured `ESCALATE` (design decision / spec ambiguity / substrate expansion) within a per-scope-per-round budget; persists answers to the committed round ledger.
 - **scope-hammer**: GATE H — must-have census, baseline comparison, cut list + ship verdict; handles the normal stop and both circuit-breaker triggers.
 
 ## Setup & Execution
 
+- Envelope schemas ship inside the orchestrator skill: \`skills/tech-lead/schemas/\`; the pipeline scripts live beside their owning skill (\`skills/tech-lead/scripts/\`, \`skills/ba-pitch-analyzer/scripts/\`); orders/results live in \`.shapeup-sdlc/<slug>/orders|results/\`
 - Telemetry facts for shipped features are saved to: \`docs/shapeup-sdlc/metrics/<machine-id>.jsonl\` (sharded per machine)
 - Ephemeral logs and states are stored in: \`.shapeup-sdlc/\` (Gitignored)
 - Scope contracts, hill shards, and the round ledger are stored in: \`docs/shapeup-sdlc/<slug>/\` (committed — v0.3.0, when scope contracts are in use)
