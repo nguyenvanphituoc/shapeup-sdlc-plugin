@@ -144,10 +144,16 @@ repositories: []
 domain_events_emitted: []
 tags: []
 depends_on: ["[[domain-model]]", "[[ux-behavior]]"]
-related_tasks: []                # [[tasks/TASK-NNN-slug]] links
 status: draft | ready
 ---
 ```
+
+> **No `related_tasks` (retired in v3.3).** UC→task linkage is one-directional by design:
+> tasks carry `use_case_refs` (LOCAL, per-machine board); reverse lookup is always computed
+> live (synthesis S-01, audit coverage) — never stored on the committed UC. Rule: **never
+> declare a bidirectional field across the committed/local boundary** — task IDs renumber
+> per machine (`--tasks-only` bootstrap), so a stored back-link is wrong on every machine
+> but one. Tolerate (ignore) the field on pre-v3.3 specs; do not emit or update it.
 
 Required sections: Summary (1 sentence), Preconditions, Input (TS interface), Steps
 (numbered application layer), Output (TS interface), Error Cases table, Integration Points
@@ -205,8 +211,9 @@ lens: lite | standard            # inherited from run-state
 package: apps/api | apps/web | packages/shared | apps/mobile
 status: ready | in-progress | blocked | done
 priority: [integer]              # 1 = highest
-depends_on: []                   # other TASK IDs: [TASK-001, TASK-002]
-unlocks: []                      # tasks that become unblocked when this is done
+depends_on: []                   # other TASK IDs: [TASK-001, TASK-002] — the AUTHORITATIVE edge
+unlocks: []                      # DERIVED — inverse of the board's depends_on graph, recomputed
+                                 # on every board write; never hand-authored (v3.3)
 use_case_refs: []                # UC IDs this task implements: [UC-CreateOrder]
 entities: []
 repositories: []

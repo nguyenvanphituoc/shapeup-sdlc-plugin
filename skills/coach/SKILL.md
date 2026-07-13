@@ -8,8 +8,10 @@ description: >
   it automatically at GATE L4 when the PO gives substantive feedback instead of a bare 'y'.
   The coach NEVER guesses which skill a rule belongs to — it runs a categorization GATE that asks
   the PO to assign each rule to one of the coachable skills (task-executor, ba-pitch-analyzer,
-  qa-edge-hunter), then writes each rule into that skill's committed knowledge-base file so the
-  whole team and every future run picks it up. NOT for grading work (spec-evaluator), fixing bugs
+  qa-edge-hunter) or to flag it as a harness defect (broken gate/hook/skill contract → filed to
+  the committed defect register as a raw idea for the Betting Table, never as worker steering),
+  then writes each rule into that skill's committed knowledge-base file so the whole team and
+  every future run picks it up. NOT for grading work (spec-evaluator), fixing bugs
   (task-executor), or filing discovered tasks (the ledger).
 ---
 
@@ -34,9 +36,12 @@ Two properties make this useful and were missing before:
 ```
 PO feedback at L4 ─► /coach ─► [parse into candidate rules] ─► ⏸ GATE COACH-1 (categorize, ask — never assume)
                                                                           │
-                          docs/shapeup-sdlc/knowledge-base/<skill>.md ◄───┘  (one file per coachable skill, committed)
+                          docs/shapeup-sdlc/knowledge-base/<skill>.md ◄───┤  (one file per coachable skill, committed)
                                                                           │
                   next run: task-executor / ba-pitch-analyzer / qa-edge-hunter reads its own file
+                                                                          │
+              docs/shapeup-sdlc/knowledge-base/harness-defects.md ◄───────┘  (mechanism at fault →
+                  drafted raw idea for the Betting Table — read by no worker, committed)
 ```
 
 ---
@@ -56,7 +61,16 @@ they are the **complete** set of categories the gate may offer:
 rule and the knowledge base is guidance, never an invariant; routing rules into the evaluator would
 turn advice into a second grader. `orient`, `shapeup`, `tech-lead`, and `translator` have no
 read-side hook, so a rule filed there would never be read. If feedback truly targets one of these,
-say so plainly and stop — do **not** force-fit it into a coachable category.
+say so plainly — do **not** force-fit it into a coachable category.
+
+**Harness defect ≠ worker steering.** When the feedback's root cause is the *mechanism itself* —
+a hook that fail-opens, a gate that reads the wrong file, two skill contracts that contradict
+each other — no amount of steering a worker fixes it, and filing it as a KB rule misdiagnoses a
+defect as a habit (island-escape's KB-BA-002 filed an orchestration/hook defect as BA guidance,
+on a premise the skill contracts contradict). That is what the `harness-defect` category below is
+for: the coach records it in the committed defect register as a drafted **raw idea** for the
+Betting Table — the debt-free path ("remaining findings + new feedback → new raw idea") — and it
+never lands in any worker's KB.
 
 ---
 
@@ -76,13 +90,14 @@ candidate rule and ask the PO to assign each one. Emit this block, then stop and
 ```
 ⏸ GATE COACH-1 — Categorize feedback
 For each candidate rule, which skill should act on it?
-Valid: [task-executor] [ba-pitch-analyzer] [qa-edge-hunter] [skip — not coachable]
+Valid: [task-executor] [ba-pitch-analyzer] [qa-edge-hunter]
+       [harness-defect — mechanism at fault, file as raw idea] [skip — not coachable]
 
   R1. "<generalized rule>"   (why: <reason>)        → ?
   R2. "<generalized rule>"   (why: <reason>)        → ?
   ...
 
-Reply with an assignment per rule, e.g. "R1→task-executor, R2→qa-edge-hunter, R3→skip".
+Reply with an assignment per rule, e.g. "R1→task-executor, R2→harness-defect, R3→skip".
 A rule may map to more than one skill if it genuinely applies to both (e.g. "R1→task-executor, ba-pitch-analyzer").
 ```
 
@@ -94,6 +109,11 @@ Rules to honor at this gate:
 - **Respect the single-judge rule.** If the PO tries to assign a rule to `spec-evaluator`,
   surface that it isn't coachable (guidance ≠ invariant) and offer the nearest real target
   (usually `ba-pitch-analyzer`, which owns the spec/test-surface) or `skip`.
+- **Recommend `harness-defect` when the mechanism is at fault.** If a candidate rule's "why"
+  blames a gate, hook, script, or a contradiction between skill contracts (rather than a
+  worker's judgment), say so and recommend `harness-defect` — but the PO still decides. The
+  telltale: the rule asks a worker to compensate for something the harness was supposed to
+  enforce ("cross-check X because the bookkeeping step gets skipped").
 
 ### Step 3 — Merge each assigned rule into its skill's knowledge-base file
 For each `<skill>` that received at least one rule:
@@ -108,11 +128,37 @@ For each `<skill>` that received at least one rule:
    `KB-QA-002`) and stamp it with the originating feature slug + date so a future reader can trace
    it back.
 4. Rewrite the file. Keep it tight — the consumer loads it every run, so prune stale or
-   contradicted rules rather than letting it grow unboundedly.
+   contradicted rules rather than letting it grow unboundedly. A rule whose premise the current
+   skill contracts contradict is a `harness-defect` in disguise — move it to the register
+   (Step 3b) and note the reclassification, don't keep re-teaching a misdiagnosis.
+
+### Step 3b — File `harness-defect` rules to the defect register (raw ideas, not steering)
+
+For each rule the PO assigned `harness-defect`, append an entry to
+`docs/shapeup-sdlc/knowledge-base/harness-defects.md` (create from the template below if
+missing). This file is **committed but read by no worker** — it is the PO's backlog of drafted
+raw ideas for the Betting Table, not guidance. Each entry gets a stable id `HD-NNN`, the
+observed symptom, the suspected mechanism at fault, and a one-paragraph raw-idea draft the PO
+can carry straight into Shaping. A report-only mention would evaporate (the write-only failure
+this skill exists to prevent); a worker-KB entry would steer the wrong actor — the register is
+the one spot that is both durable and inert.
+
+```markdown
+# Harness Defect Register
+
+> Filed by `/coach` from Ship-Gate (L4) feedback the PO categorized as `harness-defect` at
+> GATE COACH-1. **Read by no worker** — these are drafted raw ideas for the Betting Table
+> (the debt-free path), not guidelines. Remove an entry when its fix ships or its pitch is bet.
+
+## Defects
+- **HD-001** — <symptom observed at ship>. Suspected mechanism: <gate/hook/skill contract>.
+  Raw idea: <one-paragraph pitch seed>. · from `<feature-slug>` (<date>)
+```
 
 ### Step 4 — Report back
 Summarize: which rules went to which file (with ids), which were consolidated into existing rules,
-and which were skipped (and why). Remind the PO that these are **guidelines** the named workers read
+which were filed as harness defects (HD ids — remind the PO these await a Betting Table decision,
+nothing acts on them automatically), and which were skipped (and why). Remind the PO that these are **guidelines** the named workers read
 on their next run — they steer `task-executor`, `ba-pitch-analyzer`, and `qa-edge-hunter`, but they
 are **not invariants** and the `spec-evaluator` verdict is unaffected (single-judge rule). Note that
 the files are committed, so a teammate inherits them on `git pull`.
@@ -142,7 +188,8 @@ When creating `docs/shapeup-sdlc/knowledge-base/<skill>.md` for the first time:
 | Rule | Rationale |
 |------|-----------|
 | Never assume a category — GATE COACH-1 asks the PO for every rule | A miscategorized rule reaches the wrong reader or none; the PO's intent is authoritative |
-| Only `task-executor`, `ba-pitch-analyzer`, `qa-edge-hunter` are valid categories | They are the only workers with a read-side hook; a rule elsewhere is never read |
+| Only `task-executor`, `ba-pitch-analyzer`, `qa-edge-hunter` are valid worker categories | They are the only workers with a read-side hook; a rule elsewhere is never read |
+| A mechanism-at-fault rule goes to the defect register (`harness-defect`), never a worker KB | Steering a worker to compensate for a broken gate/hook misdiagnoses a defect as a habit and hides it from the Betting Table |
 | `spec-evaluator` is never a category | Single-judge rule: the KB is guidance, not an invariant — routing rules into the judge creates a second grader |
 | Write only under `docs/shapeup-sdlc/knowledge-base/` (committed) | The `.shapeup-sdlc/` run-trace is gitignored; guidelines there never reach the team |
 | Guidelines, not invariants | The consumer weighs them; they don't gate, score, or override the spec |

@@ -164,7 +164,7 @@ Run this checklist for EVERY task file. Score = average across all tasks.
 | L3-03 | ≥ 3 acceptance criteria | Count `- [ ]` lines in AC section | 5 |
 | L3-04 | Every AC is verifiable by command or observable outcome | AC lines contain: `pnpm` OR `npm` OR `curl` OR `returns` OR `exists` OR `exported` OR `passes` OR `exits 0` OR `does NOT` OR `renders` OR `rejects` | 15 |
 | L3-05 | Non-Go section has ≥ 1 item | Section exists and is non-empty | 5 |
-| L3-06 | `unlocks` field is present | Field exists in frontmatter | 5 |
+| L3-06 | `unlocks` is the exact inverse of the board's `depends_on` graph | For every `depends_on: X` edge, `X.unlocks` names this task AND every `unlocks` entry is backed by the inverse `depends_on` — any asymmetric edge fails (v3.3: `unlocks` is derived, see task-generation.md#Link-Field-Integrity) | 5 |
 | L3-10 | Required AC sub-sections present and filled (per AC Trigger Matrix) | For each triggered sub-section: present+filled = full credit · present+empty = −3pts · absent = −5pts · INFRA/CONFIG/MIGRATION/DOCS exempt | 15 |
 | L3-11 | Dependency-blocked ACs are annotated, not silently omitted | Blocked AC slots use `⏳ BLOCKED:` prefix and reference a `TASK-NNN` | 5 |
 

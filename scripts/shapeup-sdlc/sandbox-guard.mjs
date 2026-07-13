@@ -13,13 +13,21 @@
 //     legitimate non-harness edits would just get disabled.
 //   • Fail-CLOSED the moment an active scope IS declared and the target path matches none of
 //     its globs — deny, naming the substrate so the model can self-correct.
+//   • Run-trace carve-out — writes under the ACTIVE feature's LOCAL gitignored root
+//     (`.shapeup-sdlc/<slug>/`) are always allowed: that root is harness bookkeeping the doer
+//     is REQUIRED to write (task-executor P3 status/AC ticks + tasks/_index.md, run-state,
+//     execution logs, the P3.7 discovery ledger). Substrate globs whitelist product code and
+//     never list the run-trace, so without the carve-out every scoped round strands its own
+//     board (island-escape shipped 16/20 task files stale this way). Deliberately narrow:
+//     only the active slug's root — `.shapeup-sdlc/active-scope` (this guard's own pointer)
+//     and other features' roots remain subject to the substrate whitelist.
 //   • Every denial is also appended to the metrics pathology log (telemetry, not just defense).
 //
 // Contract: PreToolUse stdin JSON { tool_name, tool_input:{file_path | edits[].file_path}, cwd }.
 // Deny via { hookSpecificOutput: { hookEventName, permissionDecision:"deny", permissionDecisionReason } }.
 
 import { readFileSync, existsSync, appendFileSync, mkdirSync } from "node:fs";
-import { resolve, join, relative, dirname } from "node:path";
+import { resolve, join, relative, dirname, sep } from "node:path";
 
 const defer = () => process.exit(0);
 
@@ -103,10 +111,15 @@ async function main() {
   if (targetPaths.length === 0) defer();
 
   const metricsPath = join(cwd, "docs", "shapeup-sdlc", "metrics", `${process.env.HOSTNAME || "local"}.jsonl`);
+  // Run-trace carve-out (see header): the active feature's LOCAL root only. The prefix ends
+  // with a separator so `.shapeup-sdlc/<slug>-other/` can't ride along, and the active-scope
+  // pointer (`.shapeup-sdlc/active-scope`) sits outside it by construction.
+  const runTracePrefix = join(".shapeup-sdlc", active.slug) + sep;
   const violations = [];
   for (const raw of targetPaths) {
     const abs = resolve(cwd, raw);
     const rel = relative(cwd, abs);
+    if (rel.startsWith(runTracePrefix)) continue;
     if (!matchesAny(rel, allowed)) violations.push(rel);
   }
 

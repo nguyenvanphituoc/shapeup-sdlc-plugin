@@ -48,7 +48,8 @@ SYNTHESIS_GATE
 
 > Open this section when **Coverage** is 🟡 or 🔴.
 
-Derived from: `use_case_refs` in each task frontmatter + `related_tasks` in each UC frontmatter.
+Derived from: `use_case_refs` in each task frontmatter — the single link source (v3.3: UC
+frontmatter carries no back-link; reverse lookup is always computed live from the task board).
 
 ### UC × Task Coverage
 
@@ -56,8 +57,7 @@ Derived from: `use_case_refs` in each task frontmatter + `related_tasks` in each
   For each use case row: list every task that references it.
   Status key:
     ✅ covered   = ≥ 1 task with this UC in use_case_refs
-    ⚠️ partial   = UC exists in related_tasks but no task has use_case_refs pointing back
-    ❌ missing   = UC has related_tasks: [] AND no task references it
+    ❌ missing   = no task references this UC
 -->
 
 | Use Case | Actor | Tasks | Status |

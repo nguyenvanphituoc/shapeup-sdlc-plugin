@@ -435,7 +435,26 @@ if (existsSync(gatePath)) {
     const denied = (r.stdout || "").includes('"permissionDecision":"deny"');
     return { denied, out: r.stdout || "" };
   };
+  // v0.4.0 Local Tasks Architecture fixture: committed spec dir is boardless; the board lives
+  // under the LOCAL gitignored root .shapeup-sdlc/<slug>/tasks/. `withBoard: false` models a
+  // teammate's machine that pulled the spec but never generated a local board (must fail-open —
+  // spec-evaluator v0.9 grades from the committed spec there).
+  const makeLocalSpec = (secondDone, withBoard = true) => {
+    const dir = mkdtempSync(join(tmpdir(), "gate-l2-local-"));
+    mkdirSync(join(dir, "docs", "shapeup-sdlc", "demo", "spec", "usecases"), { recursive: true });
+    if (withBoard) {
+      const tasks = join(dir, ".shapeup-sdlc", "demo", "tasks");
+      mkdirSync(tasks, { recursive: true });
+      const mark = secondDone ? "✅ done" : "🔄 in-progress";
+      writeFileSync(join(tasks, "_index.md"),
+        `---\ntype: task-board\n---\n| ID | Title | Status |\n|---|---|---|\n| TASK-001 | A | ✅ done |\n| TASK-002 | B | ${mark} |\n`);
+      writeFileSync(join(tasks, "TASK-001-a.md"), `---\nid: TASK-001\nstatus: done\n---\n`);
+      writeFileSync(join(tasks, "TASK-002-b.md"), `---\nid: TASK-002\nstatus: ${secondDone ? "done" : "in-progress"}\n---\n`);
+    }
+    return dir;
+  };
   const green = makeSpec(true), red = makeSpec(false);
+  const lGreen = makeLocalSpec(true), lRed = makeLocalSpec(false), lBoardless = makeLocalSpec(true, false);
   try {
     // 1. Red board + round mode → DENY, naming the unfinished task.
     const a = ask(red, "--spec spec --feature demo --single-pass");
@@ -461,9 +480,34 @@ if (existsSync(gatePath)) {
     const e = ask(red, "--spec spec --single-pass", "spec-evaluator", "Bash");
     if (!e.denied) ok("gate ignores non-Skill tool calls");
     else fail("gate blocked a non-Skill tool call");
+
+    // 6. v0.4.0 layout, red LOCAL board → DENY. This is the island-escape regression: the board
+    //    is not in <spec>/tasks/, and a hook that only looks there fail-opens on a stale board.
+    const f = ask(lRed, "--spec docs/shapeup-sdlc/demo/spec --feature demo --single-pass");
+    if (f.denied && f.out.includes("TASK-002")) ok("gate DENIES a red LOCAL board (.shapeup-sdlc/<slug>/tasks/, v0.4.0 layout)");
+    else fail(`gate fail-opened on a red LOCAL board — v0.4.0 island-escape hole is back\n${f.out}`);
+
+    // 7. v0.4.0 layout, green LOCAL board → ALLOW.
+    const g = ask(lGreen, "--spec docs/shapeup-sdlc/demo/spec --feature demo --single-pass");
+    if (!g.denied) ok("gate ALLOWS a green LOCAL board");
+    else fail(`gate denied a green LOCAL board — false block\n${g.out}`);
+
+    // 8. No --feature → slug derived from the spec path convention (docs/shapeup-sdlc/<slug>/spec).
+    const h = ask(lRed, "--spec docs/shapeup-sdlc/demo/spec --single-pass");
+    if (h.denied && h.out.includes("TASK-002")) ok("gate derives <slug> from the spec path when --feature is absent");
+    else fail(`gate did not find the LOCAL board without --feature — slug derivation broken\n${h.out}`);
+
+    // 9. Committed spec present but NO local board anywhere → defer (fail-open). A grading
+    //    machine that never generated a board is legitimate (spec-evaluator v0.9).
+    const i = ask(lBoardless, "--spec docs/shapeup-sdlc/demo/spec --feature demo --single-pass");
+    if (!i.denied) ok("gate fail-opens when no board exists on this machine (boardless grading is legitimate)");
+    else fail("gate blocked a boardless machine — breaks v0.4.0 remote-grading flow");
   } finally {
     rmSync(green, { recursive: true, force: true });
     rmSync(red, { recursive: true, force: true });
+    rmSync(lGreen, { recursive: true, force: true });
+    rmSync(lRed, { recursive: true, force: true });
+    rmSync(lBoardless, { recursive: true, force: true });
   }
 } else {
   console.log("  (gate-l2 hook not found — skipping)");
@@ -652,12 +696,32 @@ if (existsSync(sandboxGuardPath)) {
     if (shard && read(join(metricsDir, shard)).includes('"PA3"')) ok("sandbox guard logs a PA3 pathology event to metrics/*.jsonl on deny");
     else fail("sandbox guard did not log a PA3 pathology event on deny");
 
-    // 5. No active-scope pointer (no harness round in progress) → defer, never break a plain edit.
+    // 5. Run-trace carve-out: the doer MUST be able to write the active feature's LOCAL root —
+    //    task board status/AC ticks (task-executor P3) and the discovery ledger (P3.7). Blocking
+    //    these strands the board (island-escape: 16/20 task files stale on a shipped feature).
+    const rt1 = ask(scoped, join(scoped, ".shapeup-sdlc/demo/tasks/TASK-001-a.md"));
+    if (!rt1.denied) ok("sandbox guard ALLOWS a task-board write under the active run-trace root");
+    else fail(`sandbox guard denied the doer's own board bookkeeping (P3 doc update would strand)\n${rt1.out}`);
+    const rt2 = ask(scoped, join(scoped, ".shapeup-sdlc/demo/discovery/ledger.md"));
+    if (!rt2.denied) ok("sandbox guard ALLOWS a discovery-ledger write under the active run-trace root");
+    else fail(`sandbox guard denied the P3.7 discovery-ledger write\n${rt2.out}`);
+
+    // 6. The guard's own pointer is NOT carved out — a worker must never rewrite its sandbox.
+    const rt3 = ask(scoped, join(scoped, ".shapeup-sdlc/active-scope"));
+    if (rt3.denied) ok("sandbox guard still DENIES writing .shapeup-sdlc/active-scope (pointer stays guard-only)");
+    else fail("sandbox guard allowed a write to .shapeup-sdlc/active-scope — a worker could widen its own sandbox");
+
+    // 7. Another feature's run-trace root is NOT carved out (carve-out is active-slug only).
+    const rt4 = ask(scoped, join(scoped, ".shapeup-sdlc/other-feature/tasks/_index.md"));
+    if (rt4.denied) ok("sandbox guard still DENIES a different feature's run-trace root");
+    else fail("sandbox guard allowed a write to another feature's run-trace — carve-out too wide");
+
+    // 8. No active-scope pointer (no harness round in progress) → defer, never break a plain edit.
     const d = ask(unscoped, join(unscoped, "anything.ts"));
     if (!d.denied) ok("sandbox guard defers (fail-open) when no active-scope pointer exists");
     else fail("sandbox guard wrongly denied a write with no harness round in progress");
 
-    // 6. Non Edit/Write/MultiEdit tool → defer.
+    // 9. Non Edit/Write/MultiEdit tool → defer.
     const e = ask(scoped, join(scoped, "apps/api/payments/handler.ts"), "Bash");
     if (!e.denied) ok("sandbox guard ignores non-Edit/Write/MultiEdit tool calls");
     else fail("sandbox guard wrongly gated a non-write tool call");

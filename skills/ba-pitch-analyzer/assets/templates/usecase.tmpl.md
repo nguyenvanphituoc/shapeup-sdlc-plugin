@@ -9,7 +9,6 @@ repositories: []
 domain_events_emitted: []
 tags: []
 depends_on: ["[[domain-model]]", "[[ux-behavior]]"]
-related_tasks: []
 status: draft
 ---
 

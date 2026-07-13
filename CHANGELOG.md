@@ -5,6 +5,58 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-13
+
+Root-caused and fixed the `island-escape` Ship-Gate findings (KB-BA-001/KB-BA-002): both KB
+entries were symptoms of structural defects, now mechanized into the harness instead of left
+as worker steering.
+
+### Fixed
+- **GATE L2 hook fail-open since v0.4.0** (`hooks/gate-l2.mjs`). The hook resolved the task
+  board at `<spec>/tasks/_index.md`, which the Local Tasks Architecture emptied — so the
+  round-EVAL gate silently stopped enforcing (island-escape reached EVAL with 16/20 task files
+  `status: ready`). It now resolves `.shapeup-sdlc/<slug>/tasks/` (slug from `--feature`, spec
+  path convention as fallback, `<spec>/tasks/` kept for pre-v0.4.0 layouts) and stays fail-open
+  only when no board exists on the machine (legitimate boardless grading, spec-evaluator v0.9).
+  4 new structural tests (#14).
+- **Sandbox guard (PA3) blocked the doer's own bookkeeping**
+  (`scripts/shapeup-sdlc/sandbox-guard.mjs`). On scoped runs the guard denied every write
+  outside the substrate — including task-executor P3's required doc updates (status, AC ticks,
+  `tasks/_index.md`, run-state, the P3.7 discovery ledger), which is the mechanism behind the
+  stale board. New run-trace carve-out: writes under the ACTIVE feature's
+  `.shapeup-sdlc/<slug>/` root are always allowed; `.shapeup-sdlc/active-scope` (the guard's
+  own pointer) and other features' roots remain guarded. 4 new structural tests (#17).
+
+### Changed
+- **`ba-pitch-analyzer` v3.3 — Link-Field Integrity + drift handling.**
+  - `unlocks` is now a DERIVED field: recomputed as the full board's `depends_on` inverse on
+    every board write (Phase 6, `--tasks-only`, `--from-discovered`). The reconcile mode's
+    regenerate-whitelist now explicitly includes existing tasks' `unlocks` frontmatter —
+    the old "Regenerate ONLY" list prohibited the back-patch, which is what produced
+    island-escape's 10 asymmetric edges. Audit L3-06 upgraded from "field present" to an
+    edge-symmetry check.
+  - UC `related_tasks` RETIRED (schema, template, synthesis S-01 single-source, spec-evaluator
+    CMP-2 rephrased with identical semantics). Rule: never declare a bidirectional field
+    across the committed/local boundary — task ids renumber per machine, so reverse lookup is
+    always computed live. Pre-v3.3 specs keep the field ignored (non-regression).
+  - Bare `--tasks-only` bootstrap initializes task `status` from committed mechanical truth at
+    SCOPE granularity (hill shard FINISHED → done; join on scope, never task id). Companion to
+    the GATE L2 fix — without it the repaired hook would hard-block re-EVAL on every freshly
+    bootstrapped machine for a finished feature.
+  - `--from-discovered` gains a drift check that FLAGS (never fixes) board-vs-T0 status
+    disagreement as ⚠️ markers in `tasks/_index.md`; `--remap` reports drift in its gate block
+    only (its write contract stays `scopes/*.json` + `scope-board.md`). Status authority stays
+    with task-executor / the tech lead.
+- **`coach` — new `harness-defect` category at GATE COACH-1.** Feedback whose root cause is
+  the mechanism itself (a fail-open hook, a gate reading the wrong file, contradicting skill
+  contracts) is no longer force-fit into a worker KB: the PO can now categorize it
+  `harness-defect`, and the coach files it to the committed defect register
+  (`docs/shapeup-sdlc/knowledge-base/harness-defects.md`) as a drafted raw idea for the
+  Betting Table — durable and PO-visible, but read by no worker. Step 3's merge pass also
+  reclassifies wrong-premise KB rules into the register instead of re-teaching them
+  (KB-BA-002 was exactly this class: it filed a PA3/gate defect as BA steering, on a premise
+  task-executor v1.2 and tech-lead v0.5 contradict).
+
 ## [0.4.0] - 2026-07-12
 
 ### Changed

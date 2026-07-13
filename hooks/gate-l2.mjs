@@ -20,7 +20,7 @@
 // Deny via { hookSpecificOutput: { hookEventName, permissionDecision:"deny", permissionDecisionReason } }.
 
 import { readFileSync, existsSync, readdirSync } from "node:fs";
-import { resolve, join } from "node:path";
+import { resolve, join, basename, dirname } from "node:path";
 
 const defer = () => process.exit(0); // allow normal permission flow
 
@@ -45,15 +45,28 @@ const hasTask = /--task(?:\s|=)/.test(args);
 const roundMode = !hasTask && (/--single-pass\b/.test(args) || /--feature(?:\s|=)/.test(args));
 if (!roundMode) defer();
 
-// 4. Locate the board from --spec <path> → <spec>/tasks/_index.md.
+// 4. Locate the board. Since v0.4.0 (Local Tasks Architecture) it lives under the LOCAL
+//    gitignored root `.shapeup-sdlc/<slug>/tasks/`, NOT the committed spec dir — resolving only
+//    `<spec>/tasks/` made this hook silently fail-open on every v0.4.0+ run (the island-escape
+//    hole: EVAL proceeded with 16/20 task files still `status: ready`).
+//    <slug> comes from --feature (the round invocation always carries it: tech-lead's eval plan
+//    is `--spec <path> --feature <slug> --single-pass`), falling back to the spec-path
+//    convention docs/shapeup-sdlc/<slug>/spec → parent dir name. `<spec>/tasks/` is kept as the
+//    legacy fallback so pre-v0.4.0 boards stay gated. A missing board on every candidate is a
+//    legitimate state — spec-evaluator v0.9 grades from the committed spec on machines that
+//    never generated a local board — so it stays fail-open.
 const m = args.match(/--spec(?:\s+|=)(?:"([^"]+)"|'([^']+)'|(\S+))/);
 const specPath = m ? (m[1] || m[2] || m[3]) : null;
 if (!specPath) defer();
 const cwd = p.cwd || process.cwd();
 const specDir = resolve(cwd, specPath);
-const tasksDir = join(specDir, "tasks");
+const fm = args.match(/--feature(?:\s+|=)(?:"([^"]+)"|'([^']+)'|(\S+))/);
+const slug = (fm && (fm[1] || fm[2] || fm[3])) ||
+  (basename(specDir) === "spec" ? basename(dirname(specDir)) : basename(specDir));
+const tasksDir = [join(cwd, ".shapeup-sdlc", slug, "tasks"), join(specDir, "tasks")]
+  .find((d) => existsSync(join(d, "_index.md")));
+if (!tasksDir) defer(); // no board on this machine → nothing to verify, don't break the run
 const board = join(tasksDir, "_index.md");
-if (!existsSync(board)) defer(); // nothing to verify → don't break the run
 
 // 5. Assert the board is green, from two independent reads; fail-closed if EITHER shows unfinished
 //    work. (a) per-task frontmatter `status:` (the authoritative field); (b) the board table's

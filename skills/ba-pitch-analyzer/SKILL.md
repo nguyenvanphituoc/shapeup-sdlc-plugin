@@ -14,7 +14,10 @@ description: >
   --remap to reconcile discovered tasks or split a stuck scope. v3.2 moves the task board
   (tasks/) to the LOCAL, gitignored root — the shared repo only carries usecases/,
   domain-model.md, and scope contracts; `--tasks-only` (no `--from-discovered`) regenerates
-  a missing local board from the committed spec on any machine.
+  a missing local board from the committed spec on any machine. v3.3 makes `unlocks` a
+  derived field (recomputed from depends_on on every board write), retires UC
+  `related_tasks`, initializes bootstrap status from committed T0/hill facts, and flags
+  board-vs-T0 status drift instead of trusting stale frontmatter.
 ---
 
 # BA Pitch Analyzer
@@ -302,6 +305,9 @@ Read `references/task-generation.md` first.
 **Core rules:**
 - One task = one verifiable change (one package, one concern)
 - `depends_on` explicit — no implicit ordering
+- `unlocks` is DERIVED — recompute every task's `unlocks` as the inverse of the full board's
+  `depends_on` graph on every board write; never hand-author it
+  (v3.3, `references/task-generation.md#Link-Field-Integrity`)
 - `packages/shared` tasks first; never bundle schema + implementation
 - AC checkable by running commands
 
@@ -422,6 +428,10 @@ b. A scope is stuck (hill `rounds_at_position >= 3`, or the advisor-protocol app
 ```
 `--remap` is READ-ONLY on every other frozen-zone doc (domain-model, usecases Steps,
 ux-behavior, contracts/) — it only ever writes `scopes/*.json` (+ regenerates `scope-board.md`).
+That write contract includes the LOCAL board: `--remap` never touches task files or
+`tasks/_index.md`. If its census spots board-vs-T0 status drift (a FINISHED scope whose tasks
+read `ready`), it reports the drift in its gate block ONLY — the persisted ⚠️ markers belong
+to the modes that regenerate `_index.md` (`--tasks-only`, `--from-discovered`).
 
 ---
 
@@ -590,14 +600,23 @@ Cross-context, Synthesis, AC Quality.
   2. Generate the full TASK-NNN set from usecases/ (Contract-first rule + AC Trigger Matrix
      apply exactly as in Phase 6) and scopes/*.json (if present — tasks respect each scope's
      `allowed_file_substrate`, never invent a task outside every scope's substrate).
-  3. Write `.shapeup-sdlc/<slug>/tasks/TASK-[NNN]-[slug].md` + `tasks/_index.md` to the LOCAL
-     root (Phase 6's write target — see "Locality" above).
-  4. Regenerate `scope-summary.md` (Phase 7b, incl. Appetite Guard) since it derives from the
+  3. Initialize each task's `status` from committed mechanical truth, at SCOPE granularity
+     (v3.3): a task whose files fall in a scope with hill shard FINISHED (or a committed
+     T0-green + T1 PASS record in the round ledger) starts `status: done`; everything else
+     starts `ready`. Never join on task id — ids are per-machine and renumber on bootstrap;
+     the scope is the stable key. Without this, bootstrapping a shipped feature regenerates
+     an all-`ready` board that (a) recreates the exact status drift KB-BA-002 documented and
+     (b) makes the GATE L2 hook hard-block legitimate re-EVAL on this machine.
+  4. Write `.shapeup-sdlc/<slug>/tasks/TASK-[NNN]-[slug].md` + `tasks/_index.md` to the LOCAL
+     root (Phase 6's write target — see "Locality" above), `unlocks` recomputed from the
+     board's `depends_on` inverse (v3.3 Link-Field Integrity).
+  5. Regenerate `scope-summary.md` (Phase 7b, incl. Appetite Guard) since it derives from the
      task set. Does NOT touch `synthesis.md` or `_index.md` — those are audit artifacts of a
      full run, not implied by a board rebuild.
   Idempotent: numbering restarts from TASK-001 each time (no prior local board to preserve
   numbering against) — safe because nothing outside this machine's now-empty LOCAL root could
-  have referenced the old IDs.
+  have referenced the old IDs (committed records — round ledger, hill shards — key on scope,
+  not task id, which is also why step 3 joins on scope).
 
 --tasks-only --from-discovered [ledger]:
   Incremental reducer at a build round boundary. The pitch + DDD layer are FROZEN.
@@ -612,8 +631,14 @@ Cross-context, Synthesis, AC Quality.
   5. Keep item asserting a new invariant → APPEND [INV-NN] to that UC's ## Invariants
      (append-only, never touch Steps); log UC in run-state.human_edited_files;
      generate regression task with command-verifiable AC
-  6. Regenerate ONLY: tasks/_index.md, scope-summary.md, synthesis.md
-  7. Phase 7b Appetite Guard; run-state.discovered_rounds += 1
+  6. Recompute `unlocks` across the whole board (depends_on inverse — the one write to
+     existing task files this mode makes, that frontmatter field only; v3.3). A new task's
+     depends_on MUST patch its dependencies' unlocks in this same pass.
+  7. Drift check (flag, never fix — v3.3): compare each scope's T0 verdict / hill state
+     against its tasks' local status + AC boxes; disagreement → ⚠️ drift marker on those
+     _index.md rows + one gate-output line. Join on scope, never task id.
+  8. Regenerate ONLY: tasks/_index.md, scope-summary.md, synthesis.md (+ step 6's unlocks)
+  9. Phase 7b Appetite Guard; run-state.discovered_rounds += 1
 
 --surface-only [spec-dir]:
   Incremental reducer — retrofit `## Test Surface` onto a pre-v2.9 spec.
@@ -630,6 +655,7 @@ Cross-context, Synthesis, AC Quality.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 3.3 | 2026-07-13 | **Link-Field Integrity + drift handling** (from island-escape Ship-Gate feedback, KB-BA-001/KB-BA-002 mechanized): `unlocks` is now DERIVED — recomputed as the full board's `depends_on` inverse on every board write (Phase 6, `--tasks-only`, `--from-discovered`; the reconcile mode's regenerate-whitelist now explicitly includes the unlocks frontmatter of existing tasks, closing the loophole that produced 10 asymmetric edges); audit L3-06 upgraded from "field present" to an edge-symmetry check. UC `related_tasks` RETIRED (schema + template + synthesis S-01 + evaluator CMP-2 rephrase): never declare a bidirectional field across the committed/local boundary — task ids renumber per machine, so reverse lookup is always computed live; pre-v3.3 specs keep the field ignored (non-regression). Bare `--tasks-only` bootstrap initializes task `status` from committed mechanical truth at SCOPE granularity (hill FINISHED → done) — required so the fixed GATE L2 hook doesn't hard-block re-EVAL on freshly bootstrapped machines. `--from-discovered` gains a drift check that FLAGS (never fixes) board-vs-T0 status disagreement in `_index.md`; `--remap` reports drift in its gate block only (its write contract stays scopes/*.json + scope-board.md). |
 | 3.2 | 2026-07-12 | **Local Tasks Architecture** (v3.2): Phase 6 now writes `tasks/TASK-NNN*.md` + `tasks/_index.md` to the LOCAL gitignored root (`.shapeup-sdlc/<slug>/tasks/`) instead of the SHARED spec dir — the committed repo carries only `usecases/`, `domain-model.md`, `contracts/`, and `scopes/*.json`. `tasks/` is now the sole exception to "Phases 2–8 write to spec_folder." New bare `--tasks-only [spec_folder]` bootstrap mode regenerates a missing local board from the committed spec alone (no ledger) — `tech-lead` invokes it automatically for a teammate who pulled the shared spec but never ran MAP SCOPES locally. `--tasks-only --from-discovered` unchanged except its write target. `spec-evaluator` correspondingly stops grading against task-file ACs (see its v0.9) — `usecases/` + `domain-model.md` are now the sole committed grading truth, which this move makes structurally necessary (a task file may not even exist on the grading machine). Migration `0003__local-tasks-architecture.sh` moves any pre-v3.2 committed `tasks/` out of git for existing specs. |
 | 3.1 | 2026-07-12 | **Scope-architect role** (design spec v1.1 §4.5/§5.2, DD-11, addendum Δ1): new Phase 6b writes committed `scopes/<scope-id>.json` contracts (`docs/shapeup-sdlc/<slug>/scopes/`, `ba` sole writer) — import/business-flow slicing (never by directory, PA1 lint), `allowed_file_substrate` write-whitelist for the sandbox hook, `shared_substrate` (seesaw-guarded), `affordance_manifest` derived from ux-behavior state tables, `e2e_verification_fixtures` authored at contract time, PA2 size lint (~15-file soft cap). New GATE 6b (scope board review). New `--remap` mode: reconcile discovered tasks into existing/new scopes, or split a stuck scope by re-slicing its file set (old contract marked `superseded_by`, never deleted). `hill_phase` always written `UPHILL_UNKNOWN` — never declared otherwise (DD-10, phase is derived, not authored). |
 | 3.0 | 2026-06-16 | BDD Scenarios (`### 🧪`) required for FEAT tasks with user-actor or cross-layer boundary; Integration Flow (`### 🔗`) required for tasks crossing ≥1 service boundary; UC `## System Flow` section traces UI→API→UC→DB call path; Integration Test task pattern added to task-generation.md; AC Trigger Matrix extended with two new triggers; SKILL.md Phase 4 + Phase 6 updated to reflect new sections. |

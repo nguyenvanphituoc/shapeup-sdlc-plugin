@@ -358,6 +358,23 @@ Slug rules:
 
 ---
 
+## Link-Field Integrity (v3.3)
+
+**`depends_on` is the single authoritative edge; `unlocks` is derived, never hand-authored.**
+On EVERY board write — Phase 6, bare `--tasks-only`, `--tasks-only --from-discovered`,
+`--remap` task additions — recompute the `unlocks` field of every task on the board as the
+exact inverse of the full board's `depends_on` graph, then write it. Adding one task that
+declares `depends_on: [TASK-007]` therefore rewrites `TASK-007.unlocks` in the same pass.
+"Write both sides when you remember" allows drift; a derived field cannot drift
+(island-escape shipped 10 asymmetric edges under the old rule). Audit L3-06 fails the board
+on any asymmetric edge.
+
+The same discipline has a boundary: it applies only when both sides live in the SAME root
+(both task files are LOCAL). Never store a link from a committed doc back to a LOCAL task —
+that is why UC `related_tasks` was retired (see doc-schemas.md, Use Case).
+
+---
+
 ## Task Board (`tasks/_index.md`) Format
 
 > Written to the LOCAL gitignored root `.shapeup-sdlc/<slug>/tasks/_index.md`, not
@@ -533,8 +550,20 @@ tasks). Scope (Basecamp sense) maps onto a UC; an invariant lives *inside* the U
 6. Number new tasks by reading max id in tasks/_index.md and incrementing.
    NEVER renumber existing tasks — that would break every depends_on wikilink the
    executor has already resolved.
-7. Regenerate ONLY the derived files: tasks/_index.md, scope-summary.md, synthesis.md.
-8. Run Phase 7b Appetite Guard (below). Update run-state: discovered_rounds += 1.
+7. Recompute `unlocks` across the WHOLE board from the depends_on inverse (Link-Field
+   Integrity above). This is the one write this mode makes to existing task files, and it
+   touches only that frontmatter field — a new task's depends_on MUST patch its
+   dependencies' unlocks in this same pass, or the edge ships asymmetric.
+8. Drift check (flag, never fix): for each scope with a T0 verdict artifact
+   (t0/<scope>/t0/verdicts/*.json, round-ledger Hill table), compare the scope's mechanical
+   state against its tasks' local status/AC checkboxes. A FINISHED/T0-green scope whose
+   tasks still read `status: ready` (or vice versa) gets a ⚠️ drift marker on those rows in
+   the regenerated tasks/_index.md + one line in the gate output. Join on SCOPE, never on
+   task id — ids are per-machine and renumber on bootstrap. Status authority stays with
+   task-executor / the tech lead; this mode only surfaces the disagreement.
+9. Regenerate ONLY the derived files: tasks/_index.md, scope-summary.md, synthesis.md
+   (+ the unlocks frontmatter recompute from step 7).
+10. Run Phase 7b Appetite Guard (below). Update run-state: discovered_rounds += 1.
 ```
 
 **Appetite Guard (forcing function, not a report):**

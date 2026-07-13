@@ -52,7 +52,7 @@ Definition of Done for the harness = conformance PASS **and** completeness no-cr
   source: code
 
 - id: CMP-2
-  statement: "Every use case has ≥1 task referencing it (no UC stranded with related_tasks but zero tasks pointing back)."
+  statement: "Every use case has ≥1 task referencing it via use_case_refs (no stranded UC with zero tasks pointing at it)."
   probe: static
   evidence_required: true
   pass_rule: >
