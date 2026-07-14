@@ -74,6 +74,24 @@ never lands in any worker's KB.
 
 ---
 
+## Envelope contract — the domain layer
+
+Orchestrated, this skill is dispatched like every worker: a **WorkOrder** in (`--order <path>`,
+operation `coach`), a **WorkResult** out. Standalone, the raw feedback is passed directly; it
+maps onto the one payload field registered for this worker in the central domain registry
+(`skills/tech-lead/schemas/domain.schema.json`, `x-payload-by-worker`):
+
+| Payload field | Standalone form | Meaning |
+|---|---|---|
+| `payload.feedback` | positional text | The PO's raw L4 feedback to distill and categorize at GATE COACH-1 |
+
+The WorkResult may carry only `files_touched`, `artifacts`, `assumptions`, `deviations`
+(`x-result-by-worker`): the knowledge-base files written under
+`docs/shapeup-sdlc/knowledge-base/` return as `files_touched`/`artifacts` — the coach itself is
+not coachable and never returns discoveries, verdicts, or task results.
+
+---
+
 ## Instructions
 
 ### Step 1 — Parse the raw feedback into discrete candidate rules

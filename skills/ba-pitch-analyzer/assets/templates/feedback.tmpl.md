@@ -46,16 +46,17 @@ Estimated: N weeks/days | Actual: N weeks/days
 
 ## Dev Notes
 
-*Fill during retro — be specific about which tasks caused friction.*
+*Fill during retro — be specific about which parts of the spec caused friction.*
 
-**Tasks that needed clarification mid-sprint:**
+**Specs that needed clarification mid-sprint:**
 
-| Task | What was unclear | What was needed |
+| Spec | What was unclear | What was needed |
 |------|-----------------|-----------------|
-| [[tasks/TASK-NNN]] | [description] | [what would have helped] |
+| [[usecases/UC-Name]] | [description] | [what would have helped] |
+| [[domain-model#Section]] | [description] | [what would have helped] |
 
-**Tasks that were well-specified:**
-- [[tasks/TASK-NNN]] — [why it worked well]
+**Specs that were well-written:**
+- [[usecases/UC-Name]] — [why it worked well]
 
 **Domain model accuracy:**
 - [ ] Aggregate design matched reality

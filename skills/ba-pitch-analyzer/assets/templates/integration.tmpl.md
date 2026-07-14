@@ -39,8 +39,9 @@ status: draft
 ### Mitigation
 [How to prevent]
 
-### Related Tasks
-- [[tasks/TASK-NNN-slug]]
+### Related Use Cases
+- [[usecases/UC-Name]] — the UC whose tasks implement this integration point
+  (find the tasks via their `use_case_refs` on the LOCAL board — never link them here)
 
 ---
 

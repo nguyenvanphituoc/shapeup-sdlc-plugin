@@ -86,9 +86,9 @@ Items that must be resolved BEFORE sprint starts:
 
 Carried from [[_index#Rabbit-Holes]]:
 
-| Risk | Impact | Mitigation | Related Task |
-|------|--------|------------|-------------|
-| [risk] | high/med/low | [mitigation] | [[tasks/TASK-NNN]] |
+| Risk | Impact | Mitigation | Related UC |
+|------|--------|------------|-----------|
+| [risk] | high/med/low | [mitigation] | [[usecases/UC-Name]] |
 
 ---
 

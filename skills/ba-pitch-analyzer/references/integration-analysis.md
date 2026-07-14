@@ -81,8 +81,10 @@ Use in integration.md to prioritize:
 ### Mitigation
 [How to prevent or detect the issue]
 
-### Related Tasks
-- [[tasks/TASK-NNN]] — implements this integration point
+### Related Use Cases
+- [[usecases/UC-Name]] — the UC whose tasks implement this integration point
+  (tasks are found via `use_case_refs` on the LOCAL board — a committed doc never
+  links `[[tasks/...]]`; ids are machine-local and the board is gitignored)
 ```
 
 ---

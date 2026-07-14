@@ -1,0 +1,117 @@
+# 03 — System Design
+
+[← Back to index](README.md)
+
+## Components and their contracts
+
+The tech-lead is the only stateful component. Every other skill is a **pure worker**: it
+receives a structured order, does its craft, and returns a structured result — it never reads
+or writes the run's shared files directly.
+
+## 3.1 — The envelope port
+
+Every worker dispatch is two JSON documents and three scripts, all living beside the
+orchestrator skill (`skills/tech-lead/scripts/`, schemas in `skills/tech-lead/schemas/`):
+
+```mermaid
+sequenceDiagram
+    participant TL as tech-lead (orchestrator)
+    participant CO as compile-order.mjs
+    participant VE as validate-envelope.mjs (hook)
+    participant W as worker skill (fresh Agent)
+    participant IR as ingest-result.mjs
+    participant FS as shared state<br/>(board · ledger · run trace)
+
+    TL->>CO: compile order (scope, round, attempt, decisions, digested errors)
+    CO->>FS: write orders/<id>.json
+    TL->>W: Agent → Skill(worker) --order <path>
+    W-->>VE: PreToolUse fires before the Skill call
+    VE->>FS: read + schema-validate the order
+    alt malformed or missing order
+        VE--xTL: deny — never reaches the worker
+    else valid
+        VE-->>W: allow
+        W->>FS: write results/<id>.json (WorkResult only)
+        TL->>IR: node ingest-result.mjs <result path>;
+        IR->>FS: tick AC boxes, flip board status,<br/>append ledger, propagate unblocks
+    end
+```
+
+Workers never write boards, ledgers, or run-state. Everything a worker used to write into
+shared files directly, it now **returns as data** in its `WorkResult`; `ingest-result.mjs` is
+the single, deterministic writer. This closes what the project calls **D6** — "single-writer"
+stops being a convention and becomes mechanically true, because no worker holds a path to
+write to even if it wanted to.
+
+### WorkOrder (in) — key fields
+
+| Field | Purpose |
+|---|---|
+| `worker` | One of 10 enumerated skills — the order names its own destination |
+| `operation` | Replaces ad-hoc flags (`--tasks-only`, `--remap` …) — the caller knows the pipeline position, the worker never re-derives it |
+| `substrate` | The write contract for this order — data the sandbox hook enforces, not prose asking the worker to behave |
+| `payload` | Worker-specific inputs: scope contract, tasks, prior decisions, digested errors, KB rules path |
+
+### WorkResult (out) — key fields
+
+| Field | Purpose |
+|---|---|
+| `task_results[]` | Per-task status + AC pass/fail + evidence — `ingest-result` flips the board row from this alone |
+| `escalates[]` | The worker's one outward port for a decision it can't make alone — routed to `advisor-protocol` |
+| `discoveries[]` | Raw discovered lines — appended to the discovery ledger by ingest, never by the worker |
+| `verdict` | `spec-evaluator` only — overall PASS/FAIL, per-criterion results, refuted AC boxes, T0 citation hashes |
+
+## 3.2 — Runtime-enforced guardrails (hooks)
+
+Three `PreToolUse` hooks turn the harness's load-bearing rules from things the model is asked
+to respect into things it cannot get past:
+
+| Hook | Fires on | Enforces |
+|---|---|---|
+| `gate-l2.mjs` | `Skill → spec-evaluator` (round mode) | Denies the once-per-round EVAL unless every task on the board reads `done` — reading both task frontmatter and the board table independently, and naming the unfinished tasks in the denial. |
+| `validate-envelope.mjs` | `Skill` / `Agent` | Denies any worker dispatch whose `--order` file is missing or fails the WorkOrder schema — a malformed envelope never reaches a worker. |
+| `sandbox-guard.mjs` | `Edit` / `Write` / `MultiEdit` | Denies a write outside the active scope's `allowed_file_substrate`, with a carve-out for the scope's own local run-trace root so it can still update its own board. |
+
+All three are deliberately **fail-open** when there's nothing to verify (no active scope, no
+board, unparseable input) and **fail-closed** the instant they can prove a violation — a guard
+that broke legitimate standalone runs would just get disabled, defeating the point of having it.
+
+## 3.3 — Two storage roots
+
+Every artifact the harness produces lives in one of two roots, split by a single question: does
+this need to survive a `git pull` by a teammate, or can it be rebuilt from what's committed?
+
+| Root | Scope | Contents |
+|---|---|---|
+| **SHARED** — `docs/shapeup-sdlc/<slug>/` | Committed — the durable deliverable | `shaping/`, `spec/` (domain model, use cases, contracts, `scopes/*.json`), `round-ledger.md`, `hill/*.yml`, `knowledge-base/<skill>.md`, `metrics/<machine-id>.jsonl` |
+| **LOCAL** — `.shapeup-sdlc/<slug>/` | Gitignored — regenerable run trace | `harness-run.md`, `orient/`, `tasks/` (the board, regenerable on any machine), `orders/` + `results/` (the envelope port), `t0/verdicts/`, `discovery/ledger.md`, `active-scope` (the sandbox hook's pointer) |
+
+The split matters operationally: a second developer who pulls a branch mid-run has the SHARED
+spec but no LOCAL board — the harness detects that at GATE L1b and regenerates the board from
+the committed spec, rather than treating a missing file as a broken run.
+
+## 3.4 — Distribution: one source, four runtimes
+
+```mermaid
+graph TD
+    SRC["Single source of truth\nskills/ · commands/ · hooks/"]
+    SRC --> CC["Claude Code plugin\n(native — .claude-plugin/plugin.json)"]
+    SRC --> DIST["scripts/shapeup-sdlc/distribute.js"]
+    DIST --> CUR1["dist/cursor-rules/*.mdc"]
+    DIST --> CUR2["dist/cursor-extension/"]
+    DIST --> ANT["dist/antigravity/subagents/"]
+    CC -.->|install-harness.sh| PROJ1["Target repo\n.claude/settings.json"]
+    ANT -.->|install-harness.sh| PROJ2["Target repo\n.agents/skills/"]
+    SRC -.->|install-harness.sh| PROJ3["Target repo\n.codex/skills/"]
+```
+
+`distribute.js` parses each `SKILL.md`'s frontmatter and inlines its `references/*.md`, so every
+compiled target carries the full behavior contract, not a stub. `install-harness.sh` scaffolds
+a target project per detected CLI — wiring the plugin via settings for Claude Code, or copying
+skill files for Antigravity/Codex, which deliberately enables **local skill evolution**: a team
+can tune its copy without forking the plugin. `migrate.sh` upgrades an existing install the
+same way a database migration tool does — update code, then apply any pending, idempotent
+`NNNN__*.sh` data migration exactly once, recorded in a committed ledger.
+
+---
+[← High-Level Design](02-high-level-design.md) · [Back to index](README.md) · [Next: Functional Design →](04-functional-design.md)

@@ -12,6 +12,13 @@
 //   STRUCTURE spec tree completeness (usecases/ ≥1 UC, domain-model, UC ## Steps),
 //             unresolved wikilinks, task frontmatter completeness, unlocks edge-symmetry,
 //             depends_on referencing unknown tasks
+//   TIER-DIRECTION  a committed (SHARED) spec doc wikilinking the LOCAL board ([[tasks/...]]).
+//             Persisted links flow LOCAL→SHARED only: task ids are machine-local (boards
+//             regenerate and renumber) and .shapeup-sdlc/ is gitignored — a committed task
+//             link dangles on every fresh clone. Cite the UC or scope_id instead.
+//   UC-ANCHOR a task whose use_case_refs is empty or names a UC with no usecases/UC-*.md —
+//             the LOCAL→SHARED anchor must be complete (single-anchor rule; SPIKE/CHORE/
+//             DOCS/MIGRATION tasks anchor elsewhere and are exempt)
 //
 // Zero dependencies (glob matcher inlined from hooks/sandbox-guard.mjs). Judgment stays in the skill
 // (gap severity, lens choice); this script only reports facts.
@@ -100,14 +107,18 @@ export function lintStructure({ specDir, tasks }) {
     const body = readFileSync(join(ucDir, f), "utf8");
     if (!/^##\s+Steps/m.test(body)) findings.push({ rule: "STRUCTURE", level: "warn", detail: `${f} has no ## Steps section` });
   }
-  // Wikilinks in spec docs must resolve within the spec dir.
+  // Wikilinks in spec docs must resolve within the spec dir — and never cross the tier
+  // boundary: a SHARED doc linking the LOCAL board is the wrong direction by construction.
   const specFiles = existsSync(specDir) ? walkFiles(specDir) : [];
   const names = new Set(specFiles.map((f) => f.replace(/\.md$/, "")));
   for (const f of specFiles.filter((x) => x.endsWith(".md"))) {
     const body = readFileSync(join(specDir, f), "utf8");
     for (const m of body.matchAll(/\[\[([^\]#|]+)/g)) {
       const target = m[1].trim().replace(/\.md$/, "");
-      if (target.startsWith("tasks/")) continue; // LOCAL board, machine-specific by design
+      if (target.startsWith("tasks/")) {
+        findings.push({ rule: "TIER-DIRECTION", level: "red", detail: `${f} → [[${m[1].trim()}]] links the LOCAL board from a committed doc — links flow LOCAL→SHARED only; cite the UC or scope_id instead (task ids renumber per machine)` });
+        continue;
+      }
       if (!names.has(target) && ![...names].some((n) => n.endsWith(`/${target}`) || n === target)) {
         findings.push({ rule: "WIKILINK", level: "warn", detail: `${f} → [[${m[1].trim()}]] unresolved in spec dir` });
       }
@@ -121,6 +132,23 @@ export function lintStructure({ specDir, tasks }) {
     for (const d of t.depends_on) if (!ids.has(d)) findings.push({ rule: "TASK", level: "red", detail: `${t.id} depends_on ${d} which does not exist` });
     if (JSON.stringify([...t.unlocks].sort()) !== JSON.stringify(derived[t.id] || [])) {
       findings.push({ rule: "EDGE-SYMMETRY", level: "red", detail: `${t.id} unlocks ${JSON.stringify(t.unlocks)} ≠ derived inverse ${JSON.stringify(derived[t.id])} — run board-derive.mjs --write` });
+    }
+  }
+  // UC-ANCHOR — the LOCAL→SHARED anchor must be complete: every implementation task names
+  // ≥1 UC (single-anchor rule, task-generation.md) and each named UC exists on disk.
+  // SPIKE/CHORE/DOCS/MIGRATION tasks anchor elsewhere (api_ref / linked_docs) — exempt.
+  const ucIds = new Set(ucs.map((f) => f.replace(/\.md$/, "")));
+  const anchorExempt = new Set(["spike", "chore", "docs", "migration"]);
+  for (const t of tasks) {
+    if (anchorExempt.has((t.type || "").toLowerCase())) continue;
+    const refs = t.use_case_refs || [];
+    if (!refs.length) {
+      findings.push({ rule: "UC-ANCHOR", level: "red", detail: `${t.id} has empty use_case_refs — every task must anchor into the committed spec (LOCAL→SHARED, single-anchor rule)` });
+      continue;
+    }
+    for (const r of refs) {
+      const ucId = r.replace(/^\[\[|\]\]$/g, "").replace(/^usecases\//, "");
+      if (!ucIds.has(ucId)) findings.push({ rule: "UC-ANCHOR", level: "red", detail: `${t.id} use_case_refs "${r}" does not resolve to usecases/${ucId}.md` });
     }
   }
   return findings;

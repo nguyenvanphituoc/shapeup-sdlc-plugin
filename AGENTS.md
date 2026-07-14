@@ -83,6 +83,7 @@ All discovered tasks are funnelled into `.shapeup-sdlc/<slug>/discovery/ledger.m
 ## Setup & Execution
 
 - Envelope schemas ship inside the orchestrator skill: \`skills/tech-lead/schemas/\`; the pipeline scripts live beside their owning skill (\`skills/tech-lead/scripts/\`, \`skills/ba-pitch-analyzer/scripts/\`); orders/results live in \`.shapeup-sdlc/<slug>/orders|results/\`
+- **Central domain registry** — \`skills/tech-lead/schemas/domain.schema.json\` defines every cross-boundary record type and payload field ONCE (annotated with tier/location/writer/readers, the \`x-erd\` relationship map, and the \`x-payload-by-worker\` table); the envelope schemas \`$ref\` it and no skill defines its own cross-boundary field
 - Telemetry facts for shipped features are saved to: \`docs/shapeup-sdlc/metrics/<machine-id>.jsonl\` (sharded per machine)
 - Ephemeral logs and states are stored in: \`.shapeup-sdlc/\` (Gitignored)
 - Scope contracts, hill shards, and the round ledger are stored in: \`docs/shapeup-sdlc/<slug>/\` (committed — v0.3.0, when scope contracts are in use)

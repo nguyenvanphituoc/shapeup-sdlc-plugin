@@ -36,11 +36,13 @@ export function parseBoard(tasksDir) {
       return {
         file: join(tasksDir, f),
         id: (fm.match(/^id:\s*(TASK-[\w.-]+)/im) || [])[1] || f.replace(/\.md$/, ""),
+        type: (fm.match(/^type:\s*(\S+)/im) || [, ""])[1],
         status: (fm.match(/^status:\s*(\S+)/im) || [, "unknown"])[1],
         hours: Number((fm.match(/^estimated_hours:\s*([\d.]+)/im) || [])[1]) || 0,
         pkg: (fm.match(/^package:\s*(.+)$/im) || [, ""])[1].trim(),
         depends_on: listField(fm, "depends_on"),
         unlocks: listField(fm, "unlocks"),
+        use_case_refs: listField(fm, "use_case_refs"),
         body,
       };
     });

@@ -5,6 +5,45 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-14
+
+**Central domain registry + tier-direction discipline.** Every cross-boundary record type and
+payload field is now defined exactly once, and persisted links are linted to flow
+LOCAL→SHARED only. No behavior change to the SDLC loop; all architectural invariants intact.
+
+### Added
+- **`skills/tech-lead/schemas/domain.schema.json`** — the central domain registry: every
+  cross-boundary record type (`$defs`) annotated with tier/location/writer/readers, the
+  `x-erd` relationship map, and the `x-payload-by-worker` / `x-result-by-worker` tables. The
+  envelope schemas `$ref` it; no skill defines its own cross-boundary field.
+- **`$ref` resolution in `validate-envelope.mjs`** — same-document (`#/$defs/Name`) and
+  sibling-file (`domain.schema.json#/$defs/Name`) pointers, with a file cache and a
+  cycle guard; still zero-dep.
+- **Two new spec-lint rules** (`spec-lint.mjs`):
+  - `TIER-DIRECTION` (red) — a committed (SHARED) spec doc wikilinking the LOCAL board
+    (`[[tasks/...]]`): task ids are machine-local and `.shapeup-sdlc/` is gitignored, so a
+    committed task link dangles on every fresh clone; cite the UC or scope_id instead.
+  - `UC-ANCHOR` (red) — an implementation task with empty `use_case_refs` or a ref that
+    resolves to no `usecases/UC-*.md` (single-anchor rule; SPIKE/CHORE/DOCS/MIGRATION exempt).
+- **"Envelope contract — the domain layer" section in every worker SKILL.md** that lacked one
+  (advisor-protocol, coach, scope-hammer, translator, tech-lead): documents the WorkOrder
+  in / WorkResult out dispatch and maps standalone flags 1:1 onto the registry's
+  per-worker payload/result fields.
+- **`docs/design/` suite** (README + 01–07): objective & product value, high-level design,
+  system design, functional design, verification & quality strategy, appendix, and the
+  domain ERD that `domain.schema.json` mechanizes.
+- **`examples/simulate-task-executor-flow.sh`** — end-to-end walkthrough of the
+  compile-order → task-executor → ingest-result dispatch cycle.
+- Structural test section #24 (domain registry: every `$ref` resolves, the payload map is
+  consistent, validation discriminates through the ref chain): 223 → 265 checks.
+
+### Changed
+- `work-order.schema.json` / `work-result.schema.json` slimmed to `$ref` the domain registry
+  instead of inlining shared record definitions (−200 lines of duplication).
+- ba-pitch-analyzer templates and references aligned to tier direction: SHARED templates no
+  longer link `[[tasks/...]]` or `[[run-state]]`; risk tables cite the UC instead of a task.
+- `board-derive.mjs` / `compile-order.mjs` — header pointers to the domain registry.
+
 ## [1.0.0] - 2026-07-13
 
 **Pure-skill architecture** (`docs/plan/pure-skill-architecture.md`, phases P0–P4 landed in

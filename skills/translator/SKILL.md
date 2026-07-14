@@ -183,6 +183,24 @@ shared vocabulary → write it to `docs/shapeup-sdlc/<slug>/shaping/glossary.md`
 
 ---
 
+## Envelope contract — the domain layer
+
+Orchestrated, this skill is dispatched like every worker: a **WorkOrder** in (`--order <path>`,
+operation `translate`), a **WorkResult** out. The standalone arguments below map 1:1 onto the
+payload fields registered for this worker in the central domain registry
+(`skills/tech-lead/schemas/domain.schema.json`, `x-payload-by-worker`):
+
+| Payload field | Standalone form | Meaning |
+|---|---|---|
+| `payload.intake[]` | positional path(s) | Source docs to normalize to English — originals never overwritten |
+| `payload.glossary` | `--glossary` | An existing `glossary.md` to reuse as the base term map |
+
+The WorkResult may carry only `files_touched`, `artifacts`, `assumptions`, `deviations`
+(`x-result-by-worker`): the `.en.md` copies, glossary, and verification report return as
+`artifacts`; ambiguous-term resolutions made without a PO land in `assumptions`.
+
+---
+
 ## Invocation
 
 ```bash
@@ -244,4 +262,5 @@ TRANSLATOR (this skill)  →  ba-pitch-analyzer (PLAN)  →  task-executor (BUIL
 ## Changelog
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.2 | 2026-07-14 | **Domain-layer alignment.** Documented the envelope contract: orchestrated dispatch is WorkOrder in (`--order`) / WorkResult out like every worker; standalone flags map 1:1 onto the payload fields registered in the central domain registry (`domain.schema.json` `x-payload-by-worker`), and output fields follow `x-result-by-worker`. No behavior change. |
 | 0.1 | 2026-06-10 | Initial language gate split out of tech-lead. Input-normalization only: detect (T0) → glossary (T1) → translate (T2 prep) → verify → sign-off. Strict English-only policy for the whole harness; faithful 1:1 with structure/frontmatter/wikilink/code/number preservation; persisted reusable glossary; idempotent already-English no-op; `--check` mode for tech-lead's GATE L0; residual-non-English scan blocks sign-off even under --auto. |

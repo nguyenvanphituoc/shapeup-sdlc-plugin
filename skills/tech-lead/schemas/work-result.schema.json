@@ -1,126 +1,34 @@
 {
   "$id": "work-result.schema.json",
   "title": "WorkResult",
-  "description": "The worker → orchestrator envelope (pure-skill architecture v1.0). Everything a worker used to write into shared files it now RETURNS as data; skills/tech-lead/scripts/ingest-result.mjs performs the writes (tick AC boxes, flip board status, append execution log, propagate unblocks, append discoveries) deterministically, in one place. Path: .shapeup-sdlc/<slug>/results/r<N>-a<M>.json.",
+  "description": "The worker → orchestrator envelope (pure-skill architecture v1.0). Everything a worker used to write into shared files it now RETURNS as data; skills/tech-lead/scripts/ingest-result.mjs performs the writes (tick AC boxes, flip board status, append execution log, propagate unblocks, append discoveries) deterministically, in one place. Path: .shapeup-sdlc/<slug>/results/r<N>-a<M>.json. Every record type is DEFINED CENTRALLY in domain.schema.json — this file only shapes the envelope.",
   "type": "object",
   "required": ["schema_version", "order_id", "status"],
   "properties": {
     "schema_version": { "type": "integer", "enum": [1] },
-    "order_id": { "type": "string" },
+    "order_id": { "type": "string", "description": "Copied verbatim from the answered WorkOrder — the 1:1 join key." },
     "worker": { "type": "string" },
     "status": { "type": "string", "enum": ["done", "partial", "escalated", "failed"] },
     "task_results": {
       "type": "array",
       "description": "Per-task outcome. ingest-result flips the board row, ticks GATE-verified AC boxes, and appends the Execution Log from these entries.",
-      "items": {
-        "type": "object",
-        "required": ["task_id", "status"],
-        "properties": {
-          "task_id": { "type": "string" },
-          "status": { "type": "string", "enum": ["done", "partial", "failed", "skipped"] },
-          "ac_results": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": ["ac", "result"],
-              "properties": {
-                "ac": { "type": "string" },
-                "result": { "type": "string", "enum": ["pass", "fail", "skipped"] },
-                "evidence": { "type": "string" }
-              }
-            }
-          },
-          "notes": { "type": "string" }
-        }
-      }
+      "items": { "$ref": "domain.schema.json#/$defs/TaskResult" }
     },
     "files_touched": {
       "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["path", "change"],
-        "properties": {
-          "path": { "type": "string" },
-          "change": { "type": "string", "enum": ["created", "modified", "deleted"] },
-          "lines": { "type": "integer" }
-        }
-      }
+      "items": { "$ref": "domain.schema.json#/$defs/FileTouched" }
     },
     "escalates": {
       "type": "array",
       "description": "advisor-protocol ESCALATE blocks — the worker's one outward port.",
-      "items": {
-        "type": "object",
-        "required": ["kind", "question"],
-        "properties": {
-          "kind": { "type": "string", "enum": ["design-decision", "spec-ambiguity", "substrate-expansion"] },
-          "question": { "type": "string" },
-          "blocked_ac": { "type": "string" },
-          "context": { "type": "string" }
-        }
-      }
+      "items": { "$ref": "domain.schema.json#/$defs/Escalate" }
     },
     "discoveries": {
       "type": "array",
       "description": "Raw discovered lines. ingest-result appends them to the discovery ledger — the worker never touches the ledger itself.",
-      "items": {
-        "type": "object",
-        "required": ["marker", "line"],
-        "properties": {
-          "marker": { "type": "string", "enum": ["+", "~"] },
-          "line": { "type": "string" },
-          "lens": { "type": "string" },
-          "repro": { "type": "string" },
-          "severity_hint": { "type": "string" },
-          "test_gap": { "type": "string" },
-          "contradicts": { "type": "string" }
-        }
-      }
+      "items": { "$ref": "domain.schema.json#/$defs/Discovery" }
     },
-    "verdict": {
-      "type": "object",
-      "description": "spec-evaluator only. ingest-result appends the verdict ledger lines and un-ticks refuted AC boxes from `refuted`.",
-      "properties": {
-        "overall": { "type": "string", "enum": ["PASS", "FAIL"] },
-        "report_path": { "type": "string" },
-        "t0_citations": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["scope_id", "path", "sha256"],
-            "properties": {
-              "scope_id": { "type": "string" },
-              "path": { "type": "string" },
-              "sha256": { "type": "string" }
-            }
-          }
-        },
-        "criteria": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["criterion", "verdict"],
-            "properties": {
-              "criterion": { "type": "string" },
-              "dimension": { "type": "string" },
-              "verdict": { "type": "string", "enum": ["PASS", "FAIL"] },
-              "confidence": { "type": "string", "enum": ["high", "medium", "low"] },
-              "reprobed": { "type": "boolean" },
-              "evidence": { "type": "string" }
-            }
-          }
-        },
-        "refuted": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["task_id", "ac"],
-            "properties": { "task_id": { "type": "string" }, "ac": { "type": "string" } }
-          }
-        },
-        "bugs": { "type": "array" }
-      }
-    },
+    "verdict": { "$ref": "domain.schema.json#/$defs/Verdict" },
     "artifacts": {
       "type": "array",
       "description": "Domain artifacts the worker wrote inside its substrate (spec docs, orient/ files, reports).",

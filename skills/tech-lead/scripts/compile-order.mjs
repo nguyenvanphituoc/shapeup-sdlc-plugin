@@ -65,6 +65,7 @@ export function parseTaskFile(path) {
     status: fm.status || "unknown",
     priority: Number(fm.priority) || 999,
     depends_on: Array.isArray(fm.depends_on) ? fm.depends_on : [],
+    use_case_refs: Array.isArray(fm.use_case_refs) ? fm.use_case_refs : [],
     body_path: path,
     acceptance_criteria,
   };

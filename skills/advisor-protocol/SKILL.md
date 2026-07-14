@@ -115,6 +115,26 @@ history.
 
 ---
 
+## Envelope contract — the domain layer
+
+Orchestrated, this skill is dispatched like every worker: a **WorkOrder** in (`--order <path>`,
+operation `adjudicate`), a **WorkResult** out. The standalone flags below map 1:1 onto the
+payload fields registered for this worker in the central domain registry
+(`skills/tech-lead/schemas/domain.schema.json`, `x-payload-by-worker`):
+
+| Payload field | Standalone flag | Meaning |
+|---|---|---|
+| `payload.ledger` | `--ledger` | The run's committed `round-ledger.md` — every answer persists here |
+| `payload.escalate` | `--escalate` | The worker's ESCALATE block to adjudicate (the `EscalateBlock` grammar above) |
+| `payload.scope_id` | `--scope` | The scope the budget is counted against |
+| `payload.round` | `--round` | The round the budget/decision is counted against |
+
+The WorkResult may carry only `files_touched`, `artifacts`, `assumptions`, `deviations`
+(`x-result-by-worker`): the adjudicated Decision itself persists to the committed round-ledger,
+never to the envelope, so it survives every zero-memory reset.
+
+---
+
 ## Invocation
 
 ```bash
@@ -155,4 +175,5 @@ history.
 ## Changelog
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.2 | 2026-07-14 | **Domain-layer alignment.** Documented the envelope contract: orchestrated dispatch is WorkOrder in (`--order`) / WorkResult out like every worker; standalone flags map 1:1 onto the payload fields registered in the central domain registry (`domain.schema.json` `x-payload-by-worker`), and output fields follow `x-result-by-worker`. No behavior change. |
 | 0.1 | 2026-07-12 | Initial release (design spec v1.1 §3.3/§4.5, DD-1/DD-8). ESCALATE grammar (kind/question/options/default_if_silent); ≤3/scope/round budget with GATE-H overflow flagging; four-path adjudication (precedent → substrate-expansion via `ba --remap` → interactive ask → unattended default/conservative); persistence to the committed round-ledger so decisions survive zero-memory resets. |

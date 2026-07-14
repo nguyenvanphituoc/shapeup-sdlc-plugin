@@ -10,7 +10,6 @@ depends_on:
   - "[[domain-model]]"
   - "[[ux-behavior]]"
   - "[[usecases/_index]]"
-  - "[[tasks/_index]]"
   - "[[scope-summary]]"
 ---
 
@@ -54,16 +53,20 @@ frontmatter carries no back-link; reverse lookup is always computed live from th
 ### UC × Task Coverage
 
 <!-- 
-  For each use case row: list every task that references it.
+  Coverage is DERIVED by inverting each task's use_case_refs over the LOCAL board
+  (.shapeup-sdlc/<slug>/tasks/) at generation time. Record only the count + status —
+  never task ids or [[tasks/...]] links: ids are machine-local (boards regenerate and
+  renumber) and this doc is committed. Tier rule: links flow LOCAL → SHARED only;
+  spec-lint flags [[tasks/...]] here as a red TIER-DIRECTION finding.
   Status key:
     ✅ covered   = ≥ 1 task with this UC in use_case_refs
     ❌ missing   = no task references this UC
 -->
 
-| Use Case | Actor | Tasks | Status |
-|----------|-------|-------|--------|
-| [[usecases/UC-Name]] | Actor | [[tasks/TASK-NNN]], [[tasks/TASK-NNN]] | ✅ covered |
-| [[usecases/UC-Name]] | Actor | — | ❌ missing |
+| Use Case | Actor | Covering Tasks | Status |
+|----------|-------|----------------|--------|
+| [[usecases/UC-Name]] | Actor | 3 | ✅ covered |
+| [[usecases/UC-Name]] | Actor | 0 | ❌ missing |
 
 **Coverage gaps (❌ items above — must resolve before execution):**
 - [ ] UC-[Name]: no tasks found — create task or mark UC as deferred in Non-Go
@@ -129,9 +132,9 @@ Derived from: `_index.md` rabbit holes + `api-feasibility.md` SPIKE blocks + `in
 
 <!-- Only present if api-feasibility.md exists -->
 
-| Ref | Third-Party | Capability Claimed | SPIKE Task | Time Box | Status |
-|-----|------------|-------------------|------------|----------|--------|
-| API-01 | ServiceName | what pitch assumes | [[tasks/TASK-001-spike]] | Nh | ⏳ open |
+| Ref | Third-Party | Capability Claimed | Investigation | Time Box | Status |
+|-----|------------|-------------------|---------------|----------|--------|
+| API-01 | ServiceName | what pitch assumes | [[api-feasibility#API-01]] | Nh | ⏳ open |
 
 **Risk formula:** SPIKE risk is 🔴 when any SPIKE `time_box_hours` × (number of blocked tasks) > 20% of appetite hours.
 

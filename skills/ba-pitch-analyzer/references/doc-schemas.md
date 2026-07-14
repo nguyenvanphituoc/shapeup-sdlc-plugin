@@ -199,7 +199,9 @@ Data Flow, Trigger, Risk, Mitigation
 
 > **Locality (v3.2):** written under the LOCAL gitignored root
 > (`.shapeup-sdlc/<slug>/tasks/`), not `spec_folder`. Every other schema on this page is a
-> SHARED, committed document. `[[tasks/...]]` wikilinks below resolve against the LOCAL root.
+> SHARED, committed document. Tier direction: the task file must fully anchor INTO the
+> committed spec (`use_case_refs`, `linked_docs`, the Context wikilink — LOCAL→SHARED);
+> no SHARED doc ever wikilinks `[[tasks/...]]` back (spec-lint TIER-DIRECTION red).
 
 ```yaml
 ---
@@ -254,11 +256,20 @@ Sorted by priority ascending. Status uses emoji: ⬜ ready | 🔄 in-progress | 
 [[usecases/UC-CreateOrder]]          # specific use case
 [[usecases/_index]]                  # use case index
 [[integration]]                      # integration map
-[[tasks/TASK-001-domain-schema]]     # specific task (LOCAL root — see Locality note above)
-[[tasks/_index]]                     # task board (LOCAL root)
 ```
 
 Always use wikilinks (double brackets), never relative paths like `../domain-model.md`.
-`tasks/...` wikilinks are the one case that resolves against the LOCAL root
-(`.shapeup-sdlc/<slug>/`) instead of `spec_folder` — every other wikilink on this page stays
-`spec_folder`-relative.
+
+**Tier-direction rule.** Persisted links flow **LOCAL → SHARED only**:
+
+- A LOCAL task file must **fully anchor** into the committed spec — `use_case_refs`
+  (single-anchor rule), `linked_docs`, and the Context wikilink. spec-lint flags a task
+  with an empty or unresolvable anchor as a red `UC-ANCHOR` finding.
+- A SHARED spec doc links only its committed siblings (the list above) and **never**
+  `[[tasks/...]]`: task ids are machine-local (boards regenerate and renumber) and
+  `.shapeup-sdlc/` is gitignored, so a committed task link dangles on every fresh clone.
+  spec-lint flags it as a red `TIER-DIRECTION` finding. Coverage views (synthesis
+  traceability) record derived counts/status, not task ids.
+- `[[tasks/...]]` wikilinks are valid only inside LOCAL documents (task files, the board,
+  EVAL reports), where they resolve against the LOCAL root (`.shapeup-sdlc/<slug>/`);
+  every wikilink in a SHARED doc stays `spec_folder`-relative.

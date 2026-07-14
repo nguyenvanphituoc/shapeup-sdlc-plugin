@@ -1,0 +1,508 @@
+{
+  "$id": "domain.schema.json",
+  "title": "HarnessDomain",
+  "description": "The CENTRAL domain registry of the pure-skill architecture. Every shared field that crosses a skill boundary is defined here exactly once, with its meaning, owner, and storage tier annotated — work-order.schema.json and work-result.schema.json $ref into $defs below instead of re-defining records inline, and no skill may introduce a cross-boundary field that is not registered here first. Annotation keys: x-tier = SHARED (committed under docs/shapeup-sdlc/, survives clone+crash) | LOCAL (gitignored under .shapeup-sdlc/, regenerable run-trace) | EMBEDDED (a record type that only lives inside another entity); x-location = the canonical path; x-writer = the single component allowed to write it; x-readers = who consumes it. The x-erd block is the machine-readable entity-relationship map; x-payload-by-worker is the authoritative table of which WorkOrder payload fields each worker may rely on.",
+  "x-erd": {
+    "description": "Relationship map. Cardinality reads left-to-right (WorkOrder 1:1 WorkResult = every order has exactly one result). Join keys: <slug> (the feature) is the aggregate root every path is keyed off; scope_id is the STABLE cross-machine key (boards regenerate; hill shards, T0 history and branches join on it); TASK-NNN ids are machine-local and must never be joined across machines (generate-board joins on scope, not task id).",
+    "relationships": [
+      { "from": "WorkOrder", "to": "WorkResult", "cardinality": "1:1", "via": "order_id", "note": "the envelope port — compile-order.mjs emits, worker answers, ingest-result.mjs applies" },
+      { "from": "WorkOrder", "to": "ScopeContract", "cardinality": "N:0..1", "via": "payload.scope_contract", "note": "build attempts carry the active scope verbatim" },
+      { "from": "WorkOrder", "to": "TaskRef", "cardinality": "1:N", "via": "payload.tasks[]", "note": "parsed from the LOCAL board by compile-order, never by the worker" },
+      { "from": "TaskRef", "to": "UseCase (SHARED spec doc)", "cardinality": "N:1..N", "via": "use_case_refs[]", "note": "the LOCAL→SHARED traceability anchor (single-anchor rule on reconcile) — spec-evaluator's traceability source. Tier direction: persisted links flow LOCAL→SHARED only; a committed spec doc never references a machine-local task id back (spec-lint TIER-DIRECTION/UC-ANCHOR)" },
+      { "from": "WorkOrder", "to": "Decision", "cardinality": "1:N", "via": "payload.decisions[]", "note": "this scope's adjudicated answers, read back from round-ledger.md — the only entity that flows BACKWARD into orders" },
+      { "from": "WorkOrder", "to": "AegisTriple", "cardinality": "1:N", "via": "payload.digested_errors[]", "note": "previous attempt's T0 failures, digested" },
+      { "from": "WorkResult", "to": "TaskResult", "cardinality": "1:N", "via": "task_results[]" },
+      { "from": "TaskResult", "to": "AcResult", "cardinality": "1:N", "via": "ac_results[]" },
+      { "from": "TaskResult", "to": "Task (LOCAL board file)", "cardinality": "N:1", "via": "task_id", "note": "ingest ticks AC boxes, flips frontmatter status, appends the Execution Log" },
+      { "from": "WorkResult", "to": "Discovery", "cardinality": "1:N", "via": "discoveries[]", "note": "ingest appends to discovery/ledger.md — three producers (executor +, QA ~, planner overflow), zero direct writers" },
+      { "from": "WorkResult", "to": "Escalate", "cardinality": "1:N", "via": "escalates[]", "note": "ingest queues to escalates/<order>.json; advisor-protocol adjudicates into a Decision" },
+      { "from": "Escalate", "to": "Decision", "cardinality": "1:0..1", "via": "advisor-protocol adjudication", "note": "persisted to the committed round-ledger the instant it is answered (zero-memory handoff)" },
+      { "from": "WorkResult", "to": "Verdict", "cardinality": "1:0..1", "via": "verdict", "note": "spec-evaluator only — the single judge" },
+      { "from": "Verdict", "to": "CriterionVerdict", "cardinality": "1:N", "via": "criteria[]", "note": "ingest appends to evaluation/.verdicts-<target>.jsonl (append-only; flips force confidence low)" },
+      { "from": "Verdict", "to": "RefutedAc", "cardinality": "1:N", "via": "refuted[]", "note": "ingest un-ticks the AC box and stamps eval_verdict: fail" },
+      { "from": "Verdict", "to": "T0Citation", "cardinality": "1:N", "via": "t0_citations[]", "note": "sha256 recomputed from disk — a scoped verdict without one is structurally invalid" },
+      { "from": "T0Citation", "to": "T0Artifact", "cardinality": "N:1", "via": "path + sha256", "note": "content-addressed evidence the generator cannot fabricate" },
+      { "from": "ScopeContract", "to": "TaskRef", "cardinality": "1:N", "via": "tasks[] (scope_id is the stable key)" },
+      { "from": "ScopeContract", "to": "AffordanceEntry", "cardinality": "1:N", "via": "affordance_manifest", "note": "the evaluator asserts UI affordance-only against this" },
+      { "from": "ScopeContract", "to": "T0Artifact", "cardinality": "1:N", "via": "scope_id, one per attempt" },
+      { "from": "ScopeContract", "to": "HillShard", "cardinality": "1:0..1", "via": "scope_id", "note": "phase derived from T0/T1/seesaw facts, never authored" },
+      { "from": "ScopeContract", "to": "ScopeContract", "cardinality": "1:N", "via": "superseded_by[]", "note": "set by split-scope — supersede-never-delete keeps branch and T0 history attributable" },
+      { "from": "T0Artifact", "to": "CommandResult", "cardinality": "1:N", "via": "fixtures[] + db_probe", "note": "produced by actually running the commands — no agent can fabricate them" },
+      { "from": "T0Artifact", "to": "SeesawCheck", "cardinality": "1:1", "via": "seesaw", "note": "the regression half of T0 — every FINISHED scope's fixtures re-run" },
+      { "from": "T0Artifact", "to": "AegisTriple", "cardinality": "1:N", "via": "discovered_tasks[]", "note": "red attempts feed the next order's digested_errors" },
+      { "from": "SeesawRegistry", "to": "ScopeContract", "cardinality": "1:N", "via": "scopes[].scope_id", "note": "every FINISHED scope's fixtures re-run on each later attempt" }
+    ]
+  },
+  "x-payload-by-worker": {
+    "description": "Which WorkOrderPayload fields each worker may rely on, per its SKILL.md input contract. Every name listed here MUST exist in $defs/WorkOrderPayload/properties (structural test enforced). A worker treats any field absent from its order as unknown — never inferred.",
+    "task-executor": ["tasks", "scope_contract", "decisions", "digested_errors", "verify", "kb_rules_path", "constraints", "bugs"],
+    "ba-pitch-analyzer": ["pitch", "lens", "orient_dir", "spec_folder", "feature", "discovered_ledger", "kb_rules_path"],
+    "scope-architect": ["feature", "spec_folder", "tasks", "discovered_ledger", "scope_id"],
+    "spec-evaluator": ["spec_folder", "feature", "dimensions", "run_cmd", "t0_artifacts", "browser", "tasks"],
+    "orient": ["pitch", "stack", "spec_folder", "feature"],
+    "qa-edge-hunter": ["feature", "spec_folder", "eval_report", "app_url", "ledger", "kb_rules_path"],
+    "translator": ["intake", "glossary"],
+    "scope-hammer": ["feature", "baseline", "breaker", "scope_id"],
+    "coach": ["feedback"],
+    "advisor-protocol": ["ledger", "escalate", "scope_id", "round"]
+  },
+  "x-result-by-worker": {
+    "description": "Which WorkResult fields each worker is allowed to output. A worker must only return fields explicitly mapped here (e.g., spec-evaluator is the sole judge and only it may return a verdict; task-executor is the only one to return task_results).",
+    "task-executor": ["task_results", "files_touched", "escalates", "discoveries", "artifacts", "assumptions", "deviations"],
+    "spec-evaluator": ["verdict", "files_touched", "artifacts", "assumptions", "deviations"],
+    "ba-pitch-analyzer": ["discoveries", "escalates", "files_touched", "artifacts", "assumptions", "deviations"],
+    "scope-architect": ["escalates", "files_touched", "artifacts", "assumptions", "deviations"],
+    "orient": ["files_touched", "artifacts", "assumptions", "deviations"],
+    "qa-edge-hunter": ["discoveries", "files_touched", "artifacts", "assumptions", "deviations"],
+    "translator": ["files_touched", "artifacts", "assumptions", "deviations"],
+    "scope-hammer": ["files_touched", "artifacts", "assumptions", "deviations"],
+    "coach": ["files_touched", "artifacts", "assumptions", "deviations"],
+    "advisor-protocol": ["files_touched", "artifacts", "assumptions", "deviations"]
+  },
+  "$defs": {
+    "WorkerName": {
+      "description": "The complete worker roster — the only skills a WorkOrder may be addressed to. tech-lead and shapeup are deliberately absent (orchestrator and PO-personal shaping are not workers).",
+      "type": "string",
+      "enum": [
+        "task-executor",
+        "spec-evaluator",
+        "ba-pitch-analyzer",
+        "scope-architect",
+        "orient",
+        "qa-edge-hunter",
+        "translator",
+        "scope-hammer",
+        "coach",
+        "advisor-protocol"
+      ]
+    },
+    "Operation": {
+      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --remap …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix/spike = task-executor · analyze/generate-board/reconcile/retrofit-surface = ba-pitch-analyzer · map-scopes/remap/split-scope = scope-architect · evaluate = spec-evaluator · orient = orient · hunt/recheck = qa-edge-hunter · translate = translator · hammer = scope-hammer · coach = coach · adjudicate = advisor-protocol.",
+      "type": "string",
+      "enum": [
+        "execute", "fix", "spike",
+        "analyze", "generate-board", "reconcile", "retrofit-surface",
+        "map-scopes", "remap", "split-scope",
+        "evaluate",
+        "orient",
+        "hunt", "recheck",
+        "translate",
+        "hammer",
+        "coach",
+        "adjudicate"
+      ]
+    },
+    "Substrate": {
+      "description": "The write contract of one order — mode/flag differences ARE write-contract differences (one whitelist template per operation, compile-order substrateFor()). Enforced mechanically by the sandbox hook; a worker needing a file outside it must ESCALATE (substrate-expansion), never write.",
+      "x-tier": "EMBEDDED",
+      "x-writer": "compile-order.mjs (templates) / scope-architect (per-scope globs)",
+      "type": "object",
+      "properties": {
+        "allowed": { "type": "array", "items": { "type": "string" }, "description": "Globs the worker MAY write. For build attempts: the scope's allowed_file_substrate + the spike dir." },
+        "shared": { "type": "array", "items": { "type": "string" }, "description": "Globs ≥2 scopes both touch — every write here forces a full seesaw run at the next gate." },
+        "append_only": { "type": "array", "items": { "type": "string" }, "description": "Sections that may only grow (e.g. usecases/*.md#Invariants, #Test Surface during reconcile)." },
+        "frozen": { "type": "array", "items": { "type": "string" }, "description": "Explicitly untouchable paths (spec core: domain-model, UC Steps, contracts, ux-behavior)." }
+      }
+    },
+    "Interaction": {
+      "description": "Caller policy. Pausing is the CALLER's decision — a pure worker only surfaces questions/assumptions; it never decides whether the pipeline stops.",
+      "x-tier": "EMBEDDED",
+      "type": "object",
+      "properties": {
+        "pause_gates": { "type": "boolean", "description": "true (standalone default): pause at the worker's phase checkpoints. false: run straight through, surfacing questions as assumptions[]/escalates[]." },
+        "max_questions": { "type": "integer", "description": "Question budget per checkpoint (worker convention: 2)." }
+      }
+    },
+    "TaskRef": {
+      "description": "One task as carried inside a WorkOrder — parsed from the LOCAL board file (.shapeup-sdlc/<slug>/tasks/TASK-*.md frontmatter + AC checkboxes) by compile-order parseTaskFile(). NOTE: task ids are machine-local (boards regenerate and renumber); never join on id across machines — the scope is the stable key.",
+      "x-tier": "EMBEDDED",
+      "x-writer": "compile-order.mjs (from the board ba-pitch-analyzer generated)",
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "description": "TASK-NNN (machine-local)." },
+        "title": { "type": "string" },
+        "body_path": { "type": "string", "description": "Path to the full task file — the worker must read it fully, never rely on this summary alone." },
+        "acceptance_criteria": { "type": "array", "items": { "type": "string" }, "description": "The AC checkbox texts, verbatim — ingest ticks boxes by matching this text back." },
+        "status": { "type": "string", "description": "ready | in-progress | blocked | done | cut (board frontmatter; informational inside an order)." },
+        "priority": { "type": "integer", "description": "Board ordering (lower = earlier)." },
+        "depends_on": { "type": "array", "items": { "type": "string" }, "description": "Explicit dependencies. The inverse (unlocks) is ALWAYS derived by board-derive.mjs, never hand-authored (KB-BA-001)." },
+        "use_case_refs": { "type": "array", "items": { "type": "string" }, "description": "UC ids this task implements (e.g. UC-CreateOrder) — the task's LOCAL→SHARED anchor into the committed spec and spec-evaluator's traceability source. Links flow one direction: the LOCAL task cites the SHARED UC; a committed doc never links a task id back (ids are machine-local)." }
+      }
+    },
+    "Decision": {
+      "description": "One adjudicated ESCALATE answer as carried inside a WorkOrder — binding precedent the worker must apply. Compiled from the committed round-ledger.md Decisions table (columns: Round | Scope | Kind | Question | Answer | Resolved by) filtered to this scope. The full row lives in the ledger; the envelope carries the minimal {id, answer} projection.",
+      "x-tier": "EMBEDDED (projection of the SHARED round-ledger.md Decisions row)",
+      "x-location": "docs/shapeup-sdlc/<slug>/round-ledger.md",
+      "x-writer": "advisor-protocol (via tech-lead) — promoted the instant an answer is given",
+      "type": "object",
+      "required": ["id", "answer"],
+      "properties": {
+        "id": { "type": "string", "description": "ESC-NN — stable across the run." },
+        "answer": { "type": "string", "description": "The adjudicated answer, applied verbatim." }
+      }
+    },
+    "AegisTriple": {
+      "description": "One digested failure — aegis-digest.mjs distills raw build/test/Playwright logs into these so the next attempt gets a few lines of signal instead of a stack-trace dump. Appears as T0Artifact.discovered_tasks[] (red attempts) and as WorkOrder payload.digested_errors[] (the next attempt's starting bug list).",
+      "x-tier": "EMBEDDED",
+      "x-writer": "aegis-digest.mjs (regex pass; Haiku fallback only on unrecognized formats)",
+      "type": "object",
+      "properties": {
+        "file": { "type": "string", "description": "Source file of the failure; null/absent when the log line carried no location (raw triple — never invented)." },
+        "line": { "type": "integer" },
+        "core_message": { "type": "string", "description": "The failure message, normalized, ≤200 chars." },
+        "kind": { "type": "string", "description": "Log-format tag (stack | tap | tsc | error | raw)." }
+      }
+    },
+    "VerifySpec": {
+      "description": "How the doer proves its work: the verification command the caller pins (task-executor never chooses its own test command in orchestrated mode).",
+      "x-tier": "EMBEDDED",
+      "type": "object",
+      "properties": {
+        "test_cmd": { "type": "string" },
+        "env": { "type": "array", "items": { "type": "string" }, "description": "Env var names the command needs." }
+      }
+    },
+    "Constraints": {
+      "description": "Non-Go items and freezes for a build order. The moment an implementation starts touching a non_go item the worker stops that path and reports — scope expansion is the caller's decision.",
+      "x-tier": "EMBEDDED",
+      "type": "object",
+      "properties": {
+        "non_go": { "type": "array", "items": { "type": "string" }, "description": "Excluded paths/features from the pitch boundaries." },
+        "ui_layers": { "type": "object", "description": "e.g. {layer3_frozen: true} — no pixel/CSS polish beyond semantic HTML defaults." }
+      }
+    },
+    "AffordanceEntry": {
+      "description": "One interactive element of a scope's UI, derived from ux-behavior.md state tables. Layer-1 contract: every element the doer builds binds to a manifest test_id/role and expresses its state via data-state; the judge asserts UI affordance-only against this (never pixels — Layer 3 is frozen). An element the manifest lacks is a spec gap → ESCALATE, never a silent extension.",
+      "x-tier": "EMBEDDED (inside ScopeContract.affordance_manifest)",
+      "type": "object",
+      "properties": {
+        "test_id": { "type": "string", "description": "The data-testid the element binds to." },
+        "role": { "type": "string", "description": "Semantic/ARIA role." },
+        "required_states": { "type": "array", "items": { "type": "string" }, "description": "Subset of [idle, loading, success, error, empty] the element must express via data-state." }
+      }
+    },
+    "ScopeContract": {
+      "description": "A vertical scope as a committed, mechanically enforceable contract — Shape Up's 'map the scopes' as data. Sliced by business flow (one call chain: UI screen + API route + use case + repository), NEVER by directory (PA1). The sandbox hook enforces the substrate, t0-verify runs the fixtures, the evaluator asserts against the manifest. Superseded contracts are kept, never deleted (branch and T0 history stay attributable).",
+      "x-tier": "SHARED",
+      "x-location": "docs/shapeup-sdlc/<slug>/scopes/<scope-id>.json",
+      "x-writer": "scope-architect (SOLE writer — a hand-edit anywhere else is a defect)",
+      "x-readers": "compile-order.mjs, sandbox-guard hook, t0-verify.mjs, spec-lint.mjs, spec-evaluator, scope-hammer, tech-lead",
+      "type": "object",
+      "required": ["scope_id"],
+      "properties": {
+        "scope_id": { "type": "string", "description": "The STABLE cross-machine join key: hill shards, T0 verdicts, branches, and decisions all key on it (task ids renumber per machine; this never does)." },
+        "topology_type": { "type": "string", "enum": ["LAYER_CAKE", "ICEBERG", "CHOWDER"], "description": "LAYER_CAKE = thin balanced UI+backend · ICEBERG = complexity on one side · CHOWDER = true strays with no shared flow (the one deliberate exception to cross-layer slicing)." },
+        "tasks": { "type": "array", "items": { "type": "string" }, "description": "Task ids this scope names (machine-local ids; the scope↔task grouping is re-derived on regeneration)." },
+        "allowed_file_substrate": { "type": "array", "items": { "type": "string" }, "description": "Exact write-whitelist globs — the sandbox hook's deny list boundary. Wrong here = a legitimate ESCALATE later." },
+        "shared_substrate": { "type": "array", "items": { "type": "string" }, "description": "Files ≥2 scopes both touch — must be declared in BOTH scopes' lists (spec-lint DISJOINT) and every write forces a full seesaw run." },
+        "affordance_manifest": { "type": "array", "items": { "$ref": "#/$defs/AffordanceEntry" }, "description": "Every interactive element of this scope's screens — appears in exactly ONE scope's manifest." },
+        "e2e_verification_fixtures": { "type": "array", "items": { "type": "string" }, "description": "Command(s) that drive this scope end-to-end (the T0 layer). Too speculative to fixture → an explicit TBD flag, never an invented fixture." },
+        "db_probe": { "type": "string", "description": "Optional command asserting real persisted state (catches the hardcoded-array Layer-2 violation). Absent = not applicable, never a failure." },
+        "hill_phase": { "type": "string", "enum": ["UPHILL_UNKNOWN", "UPHILL_SOLVED", "DOWNHILL_EXECUTION", "FINISHED"], "description": "ALWAYS authored as UPHILL_UNKNOWN (DD-10). The live phase is DERIVED from T0/T1/seesaw facts into hill/<scope-id>.yml — facts move dots, not authors." },
+        "superseded_by": { "type": "array", "items": { "type": "string" }, "description": "Set by split-scope: the replacing scope ids. Supersede-never-delete." },
+        "business_goal": { "type": "string", "description": "What a user can do when this scope ships — the must-have trace scope-hammer's census checks against." }
+      }
+    },
+    "AcResult": {
+      "description": "One acceptance criterion's outcome with evidence. 'ac' carries the checkbox text VERBATIM — ingest ticks boxes by substring-matching it. No recorded evidence = the worker reports fail by its own hand.",
+      "x-tier": "EMBEDDED",
+      "type": "object",
+      "required": ["ac", "result"],
+      "properties": {
+        "ac": { "type": "string", "description": "The AC checkbox text, verbatim from the task file." },
+        "result": { "type": "string", "enum": ["pass", "fail", "skipped"] },
+        "evidence": { "type": "string", "description": "Concrete observable proof (command output, response, snapshot path)." }
+      }
+    },
+    "TaskResult": {
+      "description": "Per-task outcome inside a WorkResult. ingest-result flips the board row, ticks pass ACs, sets frontmatter status/completed_at, and appends the Execution Log from these entries — the worker itself writes none of that.",
+      "x-tier": "EMBEDDED",
+      "type": "object",
+      "required": ["task_id", "status"],
+      "properties": {
+        "task_id": { "type": "string" },
+        "status": { "type": "string", "enum": ["done", "partial", "failed", "skipped"] },
+        "ac_results": { "type": "array", "items": { "$ref": "#/$defs/AcResult" } },
+        "notes": { "type": "string" }
+      }
+    },
+    "FileTouched": {
+      "description": "One file the worker created/modified/deleted — audit data for the run ledger; also how the orchestrator sees substrate usage.",
+      "x-tier": "EMBEDDED",
+      "type": "object",
+      "required": ["path", "change"],
+      "properties": {
+        "path": { "type": "string" },
+        "change": { "type": "string", "enum": ["created", "modified", "deleted"] },
+        "lines": { "type": "integer" }
+      }
+    },
+    "Escalate": {
+      "description": "The worker's ONE outward port: a decision it cannot make alone. Ingest queues these to escalates/<order>.json; advisor-protocol adjudicates (budget ≤3/scope/round) and the answer returns as a Decision in the next order. The advisor-side grammar adds scope_id/round/attempt/options/default_if_silent (see EscalateBlock).",
+      "x-tier": "EMBEDDED",
+      "type": "object",
+      "required": ["kind", "question"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["design-decision", "spec-ambiguity", "substrate-expansion"], "description": "Three kinds, three resolution paths: design/spec go to the PO (or default_if_silent unattended); substrate-expansion is NEVER silently approved — it routes to a scope-architect remap order." },
+        "question": { "type": "string", "description": "One checkable question." },
+        "blocked_ac": { "type": "string", "description": "Which AC waits on this — work on unrelated ACs continues." },
+        "context": { "type": "string", "description": "The two interpretations / the file and why it's needed." }
+      }
+    },
+    "EscalateBlock": {
+      "description": "The advisor-protocol adjudication grammar — an Escalate enriched with run coordinates and options, as passed to /advisor-protocol --escalate. The answer is persisted to the committed round-ledger.md Decisions table the instant it's given (zero-memory handoff: escalation memory lives in files, not chat).",
+      "x-tier": "EMBEDDED",
+      "x-readers": "advisor-protocol",
+      "type": "object",
+      "required": ["kind", "question"],
+      "properties": {
+        "scope_id": { "type": "string" },
+        "round": { "type": "integer" },
+        "attempt": { "type": "integer" },
+        "kind": { "type": "string", "enum": ["design-decision", "spec-ambiguity", "substrate-expansion"] },
+        "question": { "type": "string" },
+        "options": { "type": "array", "items": { "type": "string" }, "description": "Proposed answers, each with its rationale." },
+        "default_if_silent": { "type": "string", "description": "Optional low-risk fallback — applied under --unattended (logged + flagged for GATE H); the advisor is never forced to accept it." }
+      }
+    },
+    "Discovery": {
+      "description": "The universal currency of surprise: one raw discovered line. Producers: task-executor (marker +, P3.7), qa-edge-hunter (always ~, repro required), ba-pitch-analyzer (overflow reports). NO producer writes the ledger — ingest-result appends every entry to discovery/ledger.md (single-writer, mechanically). Promotion ~ → must-have is always a human act at SHIP S.0/GATE H.",
+      "x-tier": "EMBEDDED (projection into the LOCAL discovery ledger)",
+      "x-location": ".shapeup-sdlc/<slug>/discovery/ledger.md",
+      "x-writer": "ingest-result.mjs",
+      "x-readers": "ba-pitch-analyzer (reconcile), scope-architect (remap), scope-hammer (census), qa-edge-hunter (covered-territory context)",
+      "type": "object",
+      "required": ["marker", "line"],
+      "properties": {
+        "marker": { "type": "string", "enum": ["+", "~"], "description": "+ = candidate work (build discoveries) · ~ = nice-to-have (all QA findings are born ~)." },
+        "line": { "type": "string", "description": "One raw line, e.g. \"[QA-003] [UC-04] Double-click Confirm creates 2 orders\"." },
+        "lens": { "type": "string", "description": "QA lens tag (①boundary ②concurrency ③interruption ④cross-UC ⑤no-go ⑥residue)." },
+        "repro": { "type": "string", "description": "Numbered repro steps — mandatory for QA findings (no repro = unconfirmed observation, not a finding)." },
+        "severity_hint": { "type": "string", "description": "data-integrity | boundary-breach | ux-degradation | cosmetic — the Hunter's ADVICE to triage, never a decision." },
+        "test_gap": { "type": "string", "description": "unit | integration | exploratory-only — advises reconciliation whether to generate a test-writing task." },
+        "contradicts": { "type": "string", "description": "EVAL criterion id this finding disproves — routes back through triage; the judge's record itself is never edited." }
+      }
+    },
+    "T0Citation": {
+      "description": "The judge's pointer to a mechanical T0 artifact. The evaluator RECOMPUTES sha256 from disk — a handed hash is never trusted; a verdict on a scoped spec without a citation is structurally invalid (PA4/DD-7: T0 is a machine fact the generator cannot fabricate).",
+      "x-tier": "EMBEDDED",
+      "type": "object",
+      "required": ["scope_id", "path", "sha256"],
+      "properties": {
+        "scope_id": { "type": "string" },
+        "path": { "type": "string", "description": ".shapeup-sdlc/<slug>/t0/verdicts/r<N>-a<M>.json" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "CriterionVerdict": {
+      "description": "One graded criterion. Ingest appends these as VerdictLedgerLine rows to evaluation/.verdicts-<target>.jsonl (append-only — history is how a single-snapshot judge becomes measurable; a flip vs a prior run forces confidence low).",
+      "x-tier": "EMBEDDED",
+      "type": "object",
+      "required": ["criterion", "verdict"],
+      "properties": {
+        "criterion": { "type": "string", "description": "Traces to committed spec text (UC step/error/invariant/TS row, domain rule, contract field, Done-when, Non-Go) — never a task file's paraphrase." },
+        "dimension": { "type": "string", "description": "spec-conformance (default) | tdd-surface | integration | completeness | test-surface-conformance | security | performance." },
+        "verdict": { "type": "string", "enum": ["PASS", "FAIL"] },
+        "confidence": { "type": "string", "enum": ["high", "medium", "low"] },
+        "reprobed": { "type": "boolean", "description": "Every FAIL is re-probed once before finalizing." },
+        "evidence": { "type": "string", "description": "Probe output / file:line — 'NO EVIDENCE' fails the criterion." }
+      }
+    },
+    "RefutedAc": {
+      "description": "An AC box the judge's evidence disproves. Un-ticking is INGEST's act (the judge never touches a task file): ingest un-ticks the box and stamps eval_verdict: fail + eval_at on the task frontmatter.",
+      "x-tier": "EMBEDDED",
+      "type": "object",
+      "required": ["task_id", "ac"],
+      "properties": {
+        "task_id": { "type": "string" },
+        "ac": { "type": "string", "description": "The checkbox text the evidence disproves, verbatim." }
+      }
+    },
+    "Verdict": {
+      "description": "The single judge's return — spec-evaluator only. Overall PASS requires ALL active dimensions to pass (halo effect banned); the judge NEVER sets a task done — closure belongs to the orchestrator.",
+      "x-tier": "EMBEDDED",
+      "type": "object",
+      "properties": {
+        "overall": { "type": "string", "enum": ["PASS", "FAIL"] },
+        "report_path": { "type": "string", "description": ".shapeup-sdlc/<slug>/evaluation/EVAL-FEATURE-<slug>.md (or EVAL-<task_id>.md per-task)." },
+        "t0_citations": { "type": "array", "items": { "$ref": "#/$defs/T0Citation" } },
+        "criteria": { "type": "array", "items": { "$ref": "#/$defs/CriterionVerdict" } },
+        "refuted": { "type": "array", "items": { "$ref": "#/$defs/RefutedAc" } },
+        "bugs": { "type": "array", "description": "report-schema bug entries: severity, criterion, file:line, repro, expected vs actual." }
+      }
+    },
+    "CommandResult": {
+      "description": "One executed command's outcome inside a T0 artifact — produced by actually running the command; no agent can fabricate it.",
+      "x-tier": "EMBEDDED",
+      "type": "object",
+      "properties": {
+        "cmd": { "type": "string" },
+        "exit": { "type": "integer" },
+        "pass": { "type": "boolean" }
+      }
+    },
+    "SeesawCheck": {
+      "description": "The regression half of T0: every FINISHED scope's fixtures re-run from the SeesawRegistry. fixtures/db green + seesaw red = a REGRESSION (the new scope broke a finished one) → git stash rollback + retry, not 'fix the new scope's bug'.",
+      "x-tier": "EMBEDDED",
+      "type": "object",
+      "properties": {
+        "ran": { "type": "boolean", "description": "false when no registry was passed or the attempt was already red (don't seesaw a red attempt)." },
+        "pass": { "type": "boolean" },
+        "scopes_checked": { "type": "array", "items": { "type": "string" } },
+        "failing": { "type": "array", "items": { "type": "string" }, "description": "scope_ids whose fixtures broke." }
+      }
+    },
+    "T0Artifact": {
+      "description": "The mechanical verification verdict for one build attempt — the evidence layer under the LLM judge. Written by t0-verify.mjs from actually running the scope's fixtures + DB probe + seesaw; zero LLM tokens. spec-evaluator must cite it (sha256) on scoped specs. Red artifacts carry AEGIS triples that become the next attempt's digested_errors.",
+      "x-tier": "LOCAL",
+      "x-location": ".shapeup-sdlc/<slug>/t0/verdicts/r<N>-a<M>.json",
+      "x-writer": "t0-verify.mjs",
+      "x-readers": "compile-order.mjs (next attempt), spec-evaluator (citation), tech-lead (hill derivation, GATE L2.3), scope-hammer (stall census)",
+      "type": "object",
+      "properties": {
+        "schema_version": { "type": "integer", "enum": [1] },
+        "round": { "type": "integer" },
+        "attempt": { "type": "integer" },
+        "at": { "type": "string", "description": "ISO timestamp." },
+        "scope_id": { "type": "string" },
+        "fixtures": { "type": "array", "items": { "$ref": "#/$defs/CommandResult" } },
+        "db_probe": { "$ref": "#/$defs/CommandResult" },
+        "seesaw": { "$ref": "#/$defs/SeesawCheck" },
+        "fixtures_green": { "type": "boolean" },
+        "db_probe_green": { "type": "boolean", "description": "true when no probe declared (null probe never counts as failure)." },
+        "seesaw_green": { "type": "boolean" },
+        "overall": { "type": "string", "enum": ["green", "red"] },
+        "regression": { "type": "boolean", "description": "fixtures+db green but seesaw red — the rollback+retry case." },
+        "discovered_tasks": { "type": "array", "items": { "$ref": "#/$defs/AegisTriple" }, "description": "Populated only on red; feeds the next order." }
+      }
+    },
+    "SeesawRegistry": {
+      "description": "The fixture registry of every FINISHED scope — what seesawCheck re-runs on each later attempt so a new scope cannot silently break a shipped one (PA5).",
+      "x-tier": "LOCAL",
+      "x-location": ".shapeup-sdlc/<slug>/seesaw/registry.json",
+      "x-writer": "tech-lead (when a scope reaches FINISHED)",
+      "x-readers": "t0-verify.mjs",
+      "type": "object",
+      "properties": {
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "scope_id": { "type": "string" },
+              "fixtures": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    },
+    "VerdictLedgerLine": {
+      "description": "One appended line of judge history (JSONL). Never rewritten — flips across runs are detected here and force confidence low. run auto-increments per append batch.",
+      "x-tier": "LOCAL",
+      "x-location": ".shapeup-sdlc/<slug>/evaluation/.verdicts-<target>.jsonl",
+      "x-writer": "ingest-result.mjs (from Verdict.criteria[])",
+      "x-readers": "spec-evaluator (read-only flip detection), verdict-ledger.mjs",
+      "type": "object",
+      "properties": {
+        "run": { "type": "integer" },
+        "dimension": { "type": "string" },
+        "criterion": { "type": "string" },
+        "verdict": { "type": "string", "enum": ["PASS", "FAIL"] },
+        "confidence": { "type": "string", "enum": ["high", "medium", "low"] },
+        "reprobed": { "type": "boolean" },
+        "evidence": { "type": "string" },
+        "at": { "type": "string" }
+      }
+    },
+    "HillShard": {
+      "description": "One scope's hill position — DERIVED, never self-reported (DD-10): UPHILL_UNKNOWN (open unknowns > 0) → UPHILL_SOLVED (unknowns 0, no T0-green yet) → DOWNHILL_EXECUTION (≥1 T0-green; T1/seesaw pending) → FINISHED (T1 PASS ∧ seesaw green ∧ merged). Single-writer = whoever holds that scope's branch. Progress is reported by hill position, never task counts.",
+      "x-tier": "SHARED",
+      "x-location": "docs/shapeup-sdlc/<slug>/hill/<scope-id>.yml",
+      "x-writer": "tech-lead (GATE L2.4 derivation)",
+      "x-readers": "tech-lead (GATE L3 hill report), scope-hammer (census), GATE L1b sequencing",
+      "type": "object",
+      "properties": {
+        "scope_id": { "type": "string" },
+        "phase": { "type": "string", "enum": ["UPHILL_UNKNOWN", "UPHILL_SOLVED", "DOWNHILL_EXECUTION", "FINISHED"] }
+      }
+    },
+    "MetricsRow": {
+      "description": "One SHIP-time harvest row (facts only — copied from structured output that already exists; never a newly computed verdict/score, which would be a second judge behind spec-evaluator). Sharded per machine so concurrent runs never merge-conflict.",
+      "x-tier": "SHARED",
+      "x-location": "docs/shapeup-sdlc/metrics/<machine-id>.jsonl",
+      "x-writer": "tech-lead (SHIP S.6)",
+      "x-readers": "tier-3 e2e benchmark tooling only",
+      "type": "object",
+      "properties": {
+        "schema_version": { "type": "integer", "enum": [1] },
+        "feature_slug": { "type": "string" },
+        "terminal_state": { "type": "string", "description": "shipped | built-verified-deploy-pending | escalated | …" },
+        "round_count": { "type": "integer" },
+        "final_audit_score": { "type": "string", "description": "COPIED from the final EVAL report, never re-graded." },
+        "surprise_count": { "type": "integer", "description": "Discovery-ledger entries — shaping-quality / scope-drift signal." },
+        "spike_unresolved_count": { "type": "integer" },
+        "scope_cut_count": { "type": "integer" },
+        "qa_findings": {
+          "type": "object",
+          "properties": {
+            "total": { "type": "integer" },
+            "promoted": { "type": "integer" },
+            "held": { "type": "integer" }
+          }
+        },
+        "slice_count": { "type": "integer", "description": "From breadboard B5 — the normalizer/denominator (round_count=4 on a 2-slice feature is alarming; on a 9-slice one it isn't)." },
+        "sources": { "type": "array", "items": { "type": "string" }, "description": "Paths of the SHARED source artifacts harvested from — SHARED tier ONLY. LOCAL .shapeup-sdlc/ paths are read at harvest time but never recorded: this row is committed and the run-trace is gitignored/wiped, so a LOCAL path would dangle on every clone (tier-direction rule)." }
+      }
+    },
+    "ActiveScopePointer": {
+      "description": "What the sandbox hook reads to enforce the active scope's substrate on every Edit/Write this round. Written at branch checkout; NOT writable by any worker (a worker must never widen its own sandbox).",
+      "x-tier": "LOCAL",
+      "x-location": ".shapeup-sdlc/active-scope",
+      "x-writer": "tech-lead (BUILD step 0)",
+      "x-readers": "sandbox-guard hook",
+      "type": "object",
+      "properties": {
+        "slug": { "type": "string" },
+        "scope_id": { "type": "string" }
+      }
+    },
+    "WorkOrderPayload": {
+      "description": "The union of every worker-specific input field a WorkOrder payload may carry. Which fields a given worker relies on is registered in x-payload-by-worker at the schema root — a worker treats anything absent from its order as unknown, and a NEW cross-boundary field must be added HERE first (with an x-payload-by-worker entry), never invented ad hoc in a skill.",
+      "x-tier": "EMBEDDED",
+      "type": "object",
+      "properties": {
+        "scope_contract": { "$ref": "#/$defs/ScopeContract", "description": "task-executor: the active scope, verbatim from scopes/<id>.json." },
+        "tasks": { "type": "array", "items": { "$ref": "#/$defs/TaskRef" }, "description": "task-executor: what to implement · scope-architect: the slicing input · spec-evaluator: traceability ONLY (never a grading source)." },
+        "decisions": { "type": "array", "items": { "$ref": "#/$defs/Decision" }, "description": "task-executor: binding precedent from prior escalations." },
+        "digested_errors": { "type": "array", "items": { "$ref": "#/$defs/AegisTriple" }, "description": "task-executor: the previous attempt's failures — the starting bug list." },
+        "kb_rules_path": { "type": "string", "description": "Coachable workers (task-executor, ba-pitch-analyzer, qa-edge-hunter): docs/shapeup-sdlc/knowledge-base/<skill>.md — steering, never spec; conflict → the AC wins, noted in deviations." },
+        "verify": { "$ref": "#/$defs/VerifySpec", "description": "task-executor: the verification command." },
+        "constraints": { "$ref": "#/$defs/Constraints", "description": "task-executor: Non-Go items and freezes." },
+        "bugs": { "type": "array", "description": "task-executor (operation: fix): the EVAL report's bug entries for this task — touch nothing else." },
+        "spec_folder": { "type": "string", "description": "Planner/judge/QA/architect/orient: the committed spec tree (docs/shapeup-sdlc/<slug>/spec/). The judge's grading truth." },
+        "feature": { "type": "string", "description": "The feature slug — the aggregate-root key of every path." },
+        "pitch": { "type": "string", "description": "ba-pitch-analyzer (analyze) / orient: the kicked-off pitch path (shaped + bet; frontmatter appetite/status/bet)." },
+        "lens": { "type": "string", "enum": ["lite", "standard", "cross-context"], "description": "ba-pitch-analyzer: analysis depth. Absent → the planner judges it and records the choice in assumptions[]." },
+        "orient_dir": { "type": "string", "description": "ba-pitch-analyzer: the Scout's artifact dir — code-surface.md IS the codebase map (do not re-scan)." },
+        "stack": { "type": "string", "description": "orient: stack hint aiming the code-surface sweeps (e.g. \"pnpm, Next 16 web :3000\")." },
+        "discovered_ledger": { "type": "string", "description": "ba-pitch-analyzer (reconcile) / scope-architect (remap): the discovery ledger path whose raw [+]/~ lines get folded in." },
+        "scope_id": { "type": "string", "description": "scope-architect (split-scope): the stuck scope · scope-hammer (--breaker inner): the exhausted scope · advisor-protocol: budget scope." },
+        "dimensions": { "type": "array", "items": { "type": "string" }, "description": "spec-evaluator: the active dimension set (caller-resolved precedence). Absent → [spec-conformance] + auto-enable rules." },
+        "run_cmd": { "type": "string", "description": "spec-evaluator: how to start the running app. Absent orchestrated → ESCALATE, never guess." },
+        "t0_artifacts": { "type": "array", "items": { "type": "string" }, "description": "spec-evaluator: per-scope T0 verdict paths for this round. Listed-but-missing/red, or a scoped spec with none → status: failed (structural precondition, not a criterion)." },
+        "browser": { "type": "string", "enum": ["cli", "mcp", "none"], "description": "spec-evaluator: probe driver (cli default, ~4x cheaper)." },
+        "eval_report": { "type": "string", "description": "qa-edge-hunter: the PASS EVAL report — negative-space input; its covered territory is subtracted from charters." },
+        "app_url": { "type": "string", "description": "qa-edge-hunter: the running app to hunt (one real request at Q0, not a ping)." },
+        "ledger": { "type": "string", "description": "qa-edge-hunter: discovery ledger path (READ-ONLY context) · advisor-protocol: the committed round-ledger.md decisions persist to." },
+        "escalate": { "$ref": "#/$defs/EscalateBlock", "description": "advisor-protocol: the worker's ESCALATE block to adjudicate." },
+        "round": { "type": "integer", "description": "advisor-protocol: the round the budget/decision is counted against." },
+        "baseline": { "type": "string", "description": "scope-hammer: shaping/baseline.md — comparison anchor (absent → the pitch's problem statement, flagged approximate)." },
+        "breaker": { "type": "string", "enum": ["outer", "inner"], "description": "scope-hammer: which circuit breaker fired (absent = normal stop, all scopes FINISHED)." },
+        "feedback": { "type": "string", "description": "coach: the PO's raw L4 feedback to distill and categorize at GATE COACH-1." },
+        "intake": { "type": "array", "items": { "type": "string" }, "description": "translator: source docs to normalize to English (originals never overwritten)." },
+        "glossary": { "type": "string", "description": "translator: existing glossary.md to reuse as the base term map." }
+      }
+    }
+  }
+}

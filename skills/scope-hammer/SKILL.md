@@ -128,6 +128,26 @@ the harness (this is neither the generator nor the evaluator).
 
 ---
 
+## Envelope contract — the domain layer
+
+Orchestrated, this skill is dispatched like every worker: a **WorkOrder** in (`--order <path>`,
+operation `hammer`), a **WorkResult** out. The standalone flags below map 1:1 onto the payload
+fields registered for this worker in the central domain registry
+(`skills/tech-lead/schemas/domain.schema.json`, `x-payload-by-worker`):
+
+| Payload field | Standalone flag | Meaning |
+|---|---|---|
+| `payload.feature` | `--slug` | The feature slug (resolves scopes/, hill/, ledger paths) |
+| `payload.baseline` | `--baseline` | `shaping/baseline.md` — comparison anchor (absent → the pitch's problem statement, flagged approximate) |
+| `payload.breaker` | `--breaker` | `outer` \| `inner` — which circuit breaker fired (absent = normal stop) |
+| `payload.scope_id` | `--scope` | With `--breaker inner`, the scope whose attempt budget was exhausted |
+
+The WorkResult may carry only `files_touched`, `artifacts`, `assumptions`, `deviations`
+(`x-result-by-worker`): the census, cut list, and ship verdict live in the report artifact as a
+**proposal** — promotion and shipping stay a human call, never envelope data ingest acts on.
+
+---
+
 ## Invocation
 
 ```bash
@@ -170,4 +190,5 @@ the harness (this is neither the generator nor the evaluator).
 ## Changelog
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.2 | 2026-07-14 | **Domain-layer alignment.** Documented the envelope contract: orchestrated dispatch is WorkOrder in (`--order`) / WorkResult out like every worker; standalone flags map 1:1 onto the payload fields registered in the central domain registry (`domain.schema.json` `x-payload-by-worker`), and output fields follow `x-result-by-worker`. No behavior change. |
 | 0.1 | 2026-07-12 | Initial release (design spec v1.1 step 11 / DD-9 / Blueprint A `hammer_proposals`). GATE H0 census (scopes + QA + discovered + advisor-overflow) → GATE H1 baseline comparison (never vs. a perfect ideal) → GATE H2 cut list + verdict, PO-confirmed. Handles all three triggers: normal stop, outer breaker, inner (per-scope) breaker. |

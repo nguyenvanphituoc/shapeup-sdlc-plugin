@@ -192,7 +192,7 @@ fixtures and do not consume it.
 | `scope_cut_count` | `~` items cut at SHIP S.0 | appetite pressure / scope hammer |
 | `qa_findings` | `.shapeup-sdlc/<slug>/qa/hunt-report.md` + triage → `{total, promoted, held}` | edge quality |
 | `slice_count` | breadboard B5 (≤9) | **normalizer / denominator** |
-| `sources` | path/wikilink to each source artifact | auditability |
+| `sources` | path to each **SHARED** source artifact — never a LOCAL `.shapeup-sdlc/` path (this row is committed; the run-trace is gitignored/wiped, so a LOCAL path dangles on every clone — tier-direction rule) | auditability |
 
 - `slice_count` is the **denominator**: `round_count=4` on a 2-slice feature is alarming,
   on a 9-slice feature is normal. Without it, e2e comparisons are apples-to-oranges.
@@ -205,5 +205,10 @@ fixtures and do not consume it.
 
 ### Row template
 ```json
-{"schema_version":1,"feature_slug":"checkout-vnpay","terminal_state":"shipped","round_count":2,"final_audit_score":"PASS","surprise_count":3,"spike_unresolved_count":0,"scope_cut_count":1,"qa_findings":{"total":5,"promoted":1,"held":4},"slice_count":4,"sources":["docs/shapeup-sdlc/checkout-vnpay/shaping/shaping.md","docs/shapeup-sdlc/checkout-vnpay/shaping/breadboard.md",".shapeup-sdlc/checkout-vnpay/evaluation/EVAL-FEATURE-checkout-vnpay.md"]}
+{"schema_version":1,"feature_slug":"checkout-vnpay","terminal_state":"shipped","round_count":2,"final_audit_score":"PASS","surprise_count":3,"spike_unresolved_count":0,"scope_cut_count":1,"qa_findings":{"total":5,"promoted":1,"held":4},"slice_count":4,"sources":["docs/shapeup-sdlc/checkout-vnpay/shaping/shaping.md","docs/shapeup-sdlc/checkout-vnpay/shaping/breadboard.md"]}
 ```
+
+LOCAL artifacts (the EVAL report, discovery ledger, QA hunt report) are *harvest-time reads*:
+their **values** are copied into the row's fields (`final_audit_score`, `surprise_count`,
+`qa_findings`) but their paths are never recorded in `sources` — they are gitignored and
+wiped, so a committed pointer to them is dead on arrival.

@@ -52,14 +52,12 @@ audit_rules_version: "2.5"
 | Document | Type | Status |
 |----------|------|--------|
 | [[assess-report]] | Assess Report | ⬜ draft |
-| [[run-state]] | Run State | ⬜ auto |
 | [[domain-model]] | DDD Model | ⬜ draft |
 | [[ux-behavior]] | UX Spec | ⬜ draft |
 | [[usecases/_index]] | Use Cases | ⬜ draft |
 | [[integration]] | Integration Map | ⬜ draft |
 | [[scope-summary]] | Scope Summary | ⬜ draft |
 | [[synthesis]] | Health Dashboard + Traceability + Risk + Dependency | ⬜ draft |
-| [[tasks/_index]] | Task Board | ⬜ pending |
 | [[feedback]] | Post-Sprint Feedback | ⬜ pending |
 
 ---

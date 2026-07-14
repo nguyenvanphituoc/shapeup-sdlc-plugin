@@ -8,8 +8,9 @@
 //
 // Usage:  node tests/structural.mjs        (exit 0 = pass, 1 = fail)
 
-import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, statSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -1078,8 +1079,170 @@ if (existsSync(bdPath) && existsSync(slPath)) {
   const declared = overlapping.map((s) => ({ ...s, shared_substrate: ["apps/api/cart/*.ts", "apps/web/cart/*.tsx"] }));
   if (!lintScopes(declared, repoFiles).some((f) => f.rule === "DISJOINT")) ok("spec-lint accepts overlap declared in BOTH shared_substrate lists");
   else fail("spec-lint wrongly flagged a declared shared substrate");
+  // TIER-DIRECTION + UC-ANCHOR — the tier rule is mechanical: a SHARED spec doc never links
+  // the LOCAL board; a LOCAL task must fully anchor into the committed spec.
+  const { lintStructure } = await import(slPath);
+  const tierTmp = mkdtempSync(join(tmpdir(), "spec-lint-tier-"));
+  try {
+    const specDir = join(tierTmp, "spec");
+    mkdirSync(join(specDir, "usecases"), { recursive: true });
+    writeFileSync(join(specDir, "domain-model.md"), "# dm\n");
+    writeFileSync(join(specDir, "usecases", "UC-Checkout.md"), "## Steps\n");
+    writeFileSync(join(specDir, "synthesis.md"), "covered by [[tasks/TASK-001]]\n");
+    const tierTasks = [
+      { id: "TASK-001", file: "TASK-001.md", type: "task", status: "ready", depends_on: [], unlocks: [], use_case_refs: ["UC-Checkout"] },
+      { id: "TASK-002", file: "TASK-002.md", type: "task", status: "ready", depends_on: [], unlocks: [], use_case_refs: [] },
+      { id: "TASK-003", file: "TASK-003.md", type: "task", status: "ready", depends_on: [], unlocks: [], use_case_refs: ["UC-Ghost"] },
+      { id: "TASK-004", file: "TASK-004.md", type: "SPIKE", status: "ready", depends_on: [], unlocks: [], use_case_refs: [] },
+    ];
+    const tierFindings = lintStructure({ specDir, tasks: tierTasks });
+    if (tierFindings.some((f) => f.rule === "TIER-DIRECTION" && f.level === "red" && f.detail.includes("synthesis.md")))
+      ok("spec-lint TIER-DIRECTION flags a [[tasks/...]] link in a SHARED spec doc");
+    else fail("spec-lint TIER-DIRECTION missed a SHARED→LOCAL task link");
+    if (tierFindings.some((f) => f.rule === "UC-ANCHOR" && f.level === "red" && f.detail.includes("TASK-002")))
+      ok("spec-lint UC-ANCHOR flags a task with empty use_case_refs");
+    else fail("spec-lint UC-ANCHOR missed an unanchored task");
+    if (tierFindings.some((f) => f.rule === "UC-ANCHOR" && f.detail.includes("TASK-003") && f.detail.includes("UC-Ghost")))
+      ok("spec-lint UC-ANCHOR flags an anchor naming a nonexistent UC");
+    else fail("spec-lint UC-ANCHOR missed an unresolvable use_case_refs entry");
+    if (!tierFindings.some((f) => f.rule === "UC-ANCHOR" && f.detail.includes("TASK-001")))
+      ok("spec-lint UC-ANCHOR passes a fully anchored task (discriminates)");
+    else fail("spec-lint UC-ANCHOR wrongly flagged an anchored task");
+    if (!tierFindings.some((f) => f.rule === "UC-ANCHOR" && f.detail.includes("TASK-004")))
+      ok("spec-lint UC-ANCHOR exempts a SPIKE task (anchors via api_ref)");
+    else fail("spec-lint UC-ANCHOR wrongly flagged a SPIKE task");
+  } finally {
+    rmSync(tierTmp, { recursive: true, force: true });
+  }
 } else {
   fail("board-derive.mjs / spec-lint.mjs missing — the planner's mechanical layer is absent");
+}
+
+// =============================================================================
+section("24. domain.schema.json is the central registry: every $ref resolves, the payload map is consistent, and validation discriminates through the ref chain");
+// =============================================================================
+// The definition layer (central-domain-registry): every record type and payload field the
+// envelopes carry is defined ONCE in skills/tech-lead/schemas/domain.schema.json; the two
+// envelope schemas only $ref it. This section guards the registry the way #3 guards SKILL
+// references: a dangling $ref, a payload field named in x-payload-by-worker but not defined,
+// or a worker listed that isn't in the WorkerName enum is drift between the registry and
+// reality — exactly the "each skill defines its own fields" failure the registry exists to end.
+const domainSchemaPath = join(ROOT, "skills/tech-lead/schemas/domain.schema.json");
+if (existsSync(domainSchemaPath) && existsSync(vePath)) {
+  let domain;
+  try { domain = readJSON(domainSchemaPath); ok("domain.schema.json parses"); }
+  catch (e) { fail(`domain.schema.json does not parse: ${e.message}`); }
+  if (domain) {
+    // Every $ref anywhere in the three schema files must resolve to a real definition.
+    const schemasDir = join(ROOT, "skills/tech-lead/schemas");
+    const docs = {};
+    for (const f of readdirSync(schemasDir).filter((x) => x.endsWith(".json"))) docs[f] = readJSON(join(schemasDir, f));
+    const collectRefs = (node, acc) => {
+      if (Array.isArray(node)) node.forEach((n) => collectRefs(n, acc));
+      else if (node && typeof node === "object") {
+        if (typeof node.$ref === "string") acc.push(node.$ref);
+        for (const v of Object.values(node)) collectRefs(v, acc);
+      }
+      return acc;
+    };
+    let dangling = 0;
+    for (const [file, doc] of Object.entries(docs)) {
+      for (const ref of collectRefs(doc, [])) {
+        const [refFile, pointer = ""] = ref.split("#");
+        const target = refFile ? docs[refFile] : doc;
+        let nodeAt = target;
+        for (const seg of pointer.split("/").filter(Boolean)) nodeAt = nodeAt?.[seg];
+        if (!nodeAt) { dangling++; fail(`${file}: dangling $ref "${ref}"`); }
+      }
+    }
+    if (dangling === 0) ok("every $ref across the schemas resolves to a real definition");
+
+    // x-payload-by-worker: every field must exist in WorkOrderPayload.properties, every
+    // worker key must be in the WorkerName enum — the registry may not drift from itself.
+    const payloadProps = domain.$defs?.WorkOrderPayload?.properties || {};
+    const workerEnum = new Set(domain.$defs?.WorkerName?.enum || []);
+    const byWorker = domain["x-payload-by-worker"] || {};
+    let mapDrift = 0;
+    for (const [worker, fields] of Object.entries(byWorker)) {
+      if (worker === "description") continue;
+      if (!workerEnum.has(worker)) { mapDrift++; fail(`x-payload-by-worker names unknown worker "${worker}"`); }
+      for (const f of fields) {
+        if (!payloadProps[f]) { mapDrift++; fail(`x-payload-by-worker: ${worker} relies on undefined payload field "${f}"`); }
+      }
+    }
+    const mappedWorkers = Object.keys(byWorker).filter((k) => k !== "description");
+    if (mappedWorkers.length === workerEnum.size) ok(`x-payload-by-worker covers all ${workerEnum.size} workers`);
+    else fail(`x-payload-by-worker covers ${mappedWorkers.length}/${workerEnum.size} workers`);
+    if (mapDrift === 0) ok("x-payload-by-worker is consistent with WorkOrderPayload + WorkerName");
+
+    // x-result-by-worker: the result half of the registry gets the same guard — every field
+    // must exist in work-result.schema.json properties, every worker key must be in the
+    // WorkerName enum, all workers must be mapped, and the two authority boundaries hold
+    // (only spec-evaluator returns a verdict; only task-executor returns task_results).
+    const resultProps = docs["work-result.schema.json"]?.properties || {};
+    const byWorkerResult = domain["x-result-by-worker"] || {};
+    let resultDrift = 0;
+    for (const [worker, fields] of Object.entries(byWorkerResult)) {
+      if (worker === "description") continue;
+      if (!workerEnum.has(worker)) { resultDrift++; fail(`x-result-by-worker names unknown worker "${worker}"`); }
+      for (const f of fields) {
+        if (!resultProps[f]) { resultDrift++; fail(`x-result-by-worker: ${worker} may output undefined result field "${f}"`); }
+      }
+    }
+    const mappedResultWorkers = Object.keys(byWorkerResult).filter((k) => k !== "description");
+    if (mappedResultWorkers.length === workerEnum.size) ok(`x-result-by-worker covers all ${workerEnum.size} workers`);
+    else fail(`x-result-by-worker covers ${mappedResultWorkers.length}/${workerEnum.size} workers`);
+    if (resultDrift === 0) ok("x-result-by-worker is consistent with work-result.schema.json + WorkerName");
+    const verdictHolders = mappedResultWorkers.filter((w) => (byWorkerResult[w] || []).includes("verdict"));
+    const taskResultHolders = mappedResultWorkers.filter((w) => (byWorkerResult[w] || []).includes("task_results"));
+    if (verdictHolders.length === 1 && verdictHolders[0] === "spec-evaluator" &&
+        taskResultHolders.length === 1 && taskResultHolders[0] === "task-executor")
+      ok("result authority boundaries hold: verdict = spec-evaluator only, task_results = task-executor only");
+    else fail(`result authority drift: verdict → [${verdictHolders}], task_results → [${taskResultHolders}]`);
+
+    // The x-erd relationship map must exist and reference only registered entity names
+    // (loose check: 'from' side, minus the two envelope roots and prose-annotated targets).
+    const rels = domain["x-erd"]?.relationships || [];
+    if (rels.length >= 10 && rels.every((r) => r.from && r.to && r.cardinality && r.via))
+      ok(`x-erd carries ${rels.length} annotated relationships (from/to/cardinality/via)`);
+    else fail("x-erd relationships missing or malformed (need from/to/cardinality/via each)");
+
+    // Validation must DISCRIMINATE through the $ref chain — deep fields, not just top level.
+    const { validate: veValidate3 } = await import(vePath);
+    const orderSchema3 = readJSON(orderSchemaPath);
+    const resultSchema3 = readJSON(resultSchemaPath);
+    const badDeepOrder = {
+      schema_version: 1, order_id: "demo/r1-a1", worker: "task-executor", mode: "orchestrated",
+      operation: "execute",
+      payload: { lens: "extreme", scope_contract: { scope_id: "cart", topology_type: "SPAGHETTI" } },
+    };
+    const bo = veValidate3(badDeepOrder, orderSchema3);
+    if (!bo.valid && bo.errors.some((e) => e.includes("lens")) && bo.errors.some((e) => e.includes("topology_type")))
+      ok("order validation rejects a bad lens + topology_type THROUGH the $ref chain");
+    else fail(`order validation did not discriminate deep $ref'd fields: ${JSON.stringify(bo.errors)}`);
+    const badDeepResult = {
+      schema_version: 1, order_id: "demo/r1-a1", status: "done",
+      discoveries: [{ marker: "!", line: "x" }],
+      verdict: { overall: "PASS", t0_citations: [{ scope_id: "cart", path: "p", sha256: "not-a-hash" }] },
+    };
+    const br = veValidate3(badDeepResult, resultSchema3);
+    if (!br.valid && br.errors.some((e) => e.includes("marker")) && br.errors.some((e) => e.includes("sha256")))
+      ok("result validation rejects a bad discovery marker + T0 sha256 THROUGH the $ref chain");
+    else fail(`result validation did not discriminate deep $ref'd fields: ${JSON.stringify(br.errors)}`);
+    // Positive control: a fully-loaded valid envelope pair still passes.
+    const richOrder = {
+      schema_version: 1, order_id: "demo/r2-a1", worker: "spec-evaluator", mode: "orchestrated",
+      operation: "evaluate", interaction: { pause_gates: false },
+      substrate: { allowed: [".shapeup-sdlc/demo/evaluation/**"], frozen: ["docs/**"] },
+      payload: { spec_folder: "docs/shapeup-sdlc/demo/spec", feature: "demo",
+        dimensions: ["spec-conformance"], run_cmd: "pnpm dev", browser: "cli",
+        t0_artifacts: [".shapeup-sdlc/demo/t0/verdicts/r2-a1.json"] },
+    };
+    if (veValidate3(richOrder, orderSchema3).valid) ok("a fully-loaded valid order still PASSes (no false blocks from the registry)");
+    else fail(`registry wrongly rejects a valid order: ${JSON.stringify(veValidate3(richOrder, orderSchema3).errors)}`);
+  }
+} else {
+  fail("domain.schema.json missing — the central domain registry is absent");
 }
 
 // =============================================================================
