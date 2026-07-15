@@ -1,0 +1,6 @@
+# Changelog for task-executor
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 2.0 | 2026-07-13 | **Pure-skill rewrite** (pure-skill architecture plan, P2): the skill is now craft-only — WorkOrder in, code + WorkResult out. Deleted: GATE A (locate/validate), GATE B1–B4 (dependency/env plumbing — sequencing is the orchestrator's job, the test command arrives in the order), Phase 3 doc-update fan-out (P3.1–P3.6 → `ingest-result.mjs`), GATE E sign-off (the orchestrator's gate), all standalone-vs-brief mode branching, and the `--brief` format itself. Kept verbatim as craft: the PLAN assumptions/observable-criteria step (old GATE C), Karpathy minimum-code/surgical rules (P2.7/P2.8), UI Layer 1/2/3 discipline, contract-reference rule, Non-Go stop, SPIKE decision-doc mode, the ESCALATE protocol, and the zero-memory rule. New: anti-rationalization table + closing verification checklist (agent-skills anatomy); AC evidence now returns as `ac_results[]` data with verbatim checkbox text. Standalone `--spec/--task/--next` preserved via a 10-line preamble shim over `compile-order.mjs`. 580 → ~250 lines. |
+| 1.x | 2026-06/07 | Gate-pipeline versions (GATE A–E, isolated-brief mode, substrate discipline, UI layers). Superseded by the pure-worker contract; see git history for details. |

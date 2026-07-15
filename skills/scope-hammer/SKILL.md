@@ -184,11 +184,3 @@ The WorkResult may carry only `files_touched`, `artifacts`, `assumptions`, `devi
 | Cut items are carried to the discovery ledger, never silently dropped | Cool-down must stay debt-free — an idea deferred is still recorded |
 | Never sets status: done, never deploys, never ships unilaterally | Judge/doer/advisor separation holds even at the very last gate |
 | An overridden ship-blocking item is logged explicitly in the ship report | "Shipped" must never quietly mean "shipped with a known must-have gap" |
-
----
-
-## Changelog
-| Version | Date | Changes |
-|---------|------|---------|
-| 0.2 | 2026-07-14 | **Domain-layer alignment.** Documented the envelope contract: orchestrated dispatch is WorkOrder in (`--order`) / WorkResult out like every worker; standalone flags map 1:1 onto the payload fields registered in the central domain registry (`domain.schema.json` `x-payload-by-worker`), and output fields follow `x-result-by-worker`. No behavior change. |
-| 0.1 | 2026-07-12 | Initial release (design spec v1.1 step 11 / DD-9 / Blueprint A `hammer_proposals`). GATE H0 census (scopes + QA + discovered + advisor-overflow) → GATE H1 baseline comparison (never vs. a perfect ideal) → GATE H2 cut list + verdict, PO-confirmed. Handles all three triggers: normal stop, outer breaker, inner (per-scope) breaker. |

@@ -1,0 +1,6 @@
+# Changelog for spec-evaluator
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0 | 2026-07-13 | **Pure-skill rewrite** (plan P3): input is a WorkOrder (`--order`) carrying spec folder, feature, dimensions, run command, and T0 artifact paths — GATE V0's locate/load plumbing (path resolution, local-task-file glob, run-state read) is deleted; the caller pins context. All shared-state writes removed (D6): the `.verdicts` JSONL append (old B.0), task-file annotation (B.2), AC un-ticking (B.2b), and run-state update (B.3) now return as `verdict.criteria[]` / `verdict.refuted[]` in the WorkResult for `ingest-result.mjs` to apply. Kept as craft: skeptical posture + anti-leniency, criteria-from-committed-spec rule (v0.9), probe design, re-probe/confidence/flip grammar, hard thresholds + halo ban, T0-citation requirement with recomputed sha256 (v0.8), affordance-only UI grading, the pluggable dimension model, single-judge authority. New: anti-rationalization table + verification checklist. 462 → ~230 lines. |
+| 0.x | 2026-06/07 | Gate-pipeline versions (GATE V0–V3, dimensions, verdict ledger, T0 citation, local-tasks grading move). Superseded by the pure-worker contract; see git history. |

@@ -401,17 +401,3 @@ docs/shapeup-sdlc/[feature-slug]/spec/  (domain model, contracts, use cases, tas
 
 Reference affordance IDs (U[N], N[N]) in task descriptions and commit messages
 to maintain traceability: breadboard → task → commit.
-
----
-
-## Changelog
-
-| Version | Date | Changes |
-|---|---|---|
-| 2.2 | 2026-06-18 | **Two-root workspace.** Collapsed the three artifact roots into two keyed off `<slug>`: **shared** `docs/shapeup-sdlc/[slug]/` (subfolders `shaping/` + `spec/`, committed) and **local** `.shapeup-sdlc/[slug]/` (run-state · digest · orient/ · evaluation/ · qa/ · ledger, hidden + gitignorable). `.gitignore` simplifies to one line `.shapeup-sdlc/` — no carve-out, since the committed harvest feed `docs/shapeup-sdlc/metrics.jsonl` now lives in the shared root. Ripple-check glob-exclude updated to `.shapeup-sdlc/`. Digest path → `.shapeup-sdlc/[slug]/digest.md`. |
-| 2.1 | 2026-06-17 | **Context compaction** (`resources/context-compaction.md`): per-run derived decision digest at `.shapeup-sdlc/[slug]/digest.md` — 4 fields (appetite/confirmed/open/links), two-zone (append-only frozen zone + mutable working head), two writer ops (overwrite-head on phase entry, promote-head on gate confirm); each gate reads its minimal consumer slice instead of full prose; roots split by artifact nature (durable source / durable deliverable / ephemeral run); `.gitignore` line `.shapeup-sdlc/` (the committed `docs/shapeup-sdlc/metrics.jsonl` harvest feed stays tracked in the shared root); ripple-check must glob-exclude the run workspace (digest is a sink, no `shaping: true`); `schema_version: 1` for forward-compat; digest never crosses the ba-pitch-analyzer boundary. Plus (2026-06-16): appetite as mandatory gate-0 input (fires when appetite missing, not just when vague); Phase S2.5 Rabbit Holes + No-goes; KICKOFF-READY assertion block at pipeline end; output is now explicitly a "kicked-off pitch" consumable by /tech-lead; shaping.md template updated in resources/shaping.md |
-| 2.0 | 2026-06-03 | Extracted workflow detail into `resources/` files (shaping.md, breadboarding.md, spike.md, framing-doc.md, kickoff-doc.md, breadboard-reflection.md); SKILL.md now acts as router with lazy-load directives; breadboarding resource upgraded from upstream rjs/shaping-skills (full concept catalog: Place IDs, navigation wiring, Chunking, Subplaces, Place References, Modes as Places, whiteboard breadboard reading, full Mermaid color conventions, side-effect stores, containing-box pattern) |
-| 1.3 | 2026-06-02 | full pipeline is now DEFAULT; 3 standing rules; 5 mandatory gate pauses (GATE 0–4) |
-| 1.2 | 2026-06-02 | Added WORKFLOW 0 /shapeup full — autonomous pipeline S1→S4→Spike→B0→B5; progress markers; SPIKE-UNRESOLVED fallback |
-| 1.1 | 2026-05-28 | Workflow order corrected: Slicing moved from shaping into breadboarding; Spike added; fat marker sketch as B0 |
-| 1.0 | 2026-05-28 | Initial: shaping, breadboarding, framing-doc, kickoff-doc, breadboard-reflection |
