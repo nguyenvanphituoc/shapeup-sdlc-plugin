@@ -432,10 +432,11 @@
       "x-tier": "SHARED",
       "x-location": "docs/shapeup-sdlc/metrics/<machine-id>.jsonl",
       "x-writer": "tech-lead (SHIP S.6)",
-      "x-readers": "tier-3 e2e benchmark tooling only",
+      "x-readers": "tier-3 e2e benchmark tooling, stats.mjs (read-only projection)",
       "type": "object",
       "properties": {
         "schema_version": { "type": "integer", "enum": [1] },
+        "at": { "type": "string", "description": "OPTIONAL (v1.2) — ISO harvest timestamp; enables real trend-over-time in stats.mjs. Older rows lack it and fall back to shard append order." },
         "feature_slug": { "type": "string" },
         "terminal_state": { "type": "string", "description": "shipped | built-verified-deploy-pending | escalated | …" },
         "round_count": { "type": "integer" },
@@ -443,6 +444,7 @@
         "surprise_count": { "type": "integer", "description": "Discovery-ledger entries — shaping-quality / scope-drift signal." },
         "spike_unresolved_count": { "type": "integer" },
         "scope_cut_count": { "type": "integer" },
+        "attempt_exhaustions": { "type": "integer", "description": "OPTIONAL (v1.2) — scopes whose inner attempt_budget tripped this run, COPIED at SHIP S.6 from the queued GATE H hammer proposals (a fact registered at the source; stats.mjs must never re-derive it)." },
         "qa_findings": {
           "type": "object",
           "properties": {
@@ -466,6 +468,147 @@
         "slug": { "type": "string" },
         "scope_id": { "type": "string" }
       }
+    },
+    "SafetyOverrides": {
+      "description": "Escape hatch for the safety-spine hook — a command or secret path matching an entry is exempted from denial (the exemption itself is logged as a SAFETY-OVERRIDE pathology row: overrides stay visible, propose-never-dispose). Malformed file = treated as ABSENT: the override channel fails closed so a parse error can never disable the spine.",
+      "x-tier": "LOCAL",
+      "x-location": ".shapeup-sdlc/safety-overrides.json",
+      "x-writer": "human PO only — hand-authored. Deliberately placed at the .shapeup-sdlc/ root, OUTSIDE the active slug's run-trace carve-out, so sandbox-guard denies any worker write to it during a scoped round; safety-spine additionally self-protects the file in every mode.",
+      "x-readers": "safety-spine hook",
+      "type": "object",
+      "required": ["schema_version"],
+      "properties": {
+        "schema_version": { "type": "integer", "enum": [1] },
+        "allow_commands": { "type": "array", "items": { "type": "string" }, "description": "Regex sources; a Bash command matching any is exempted from the spine's deny rules." },
+        "allow_secret_paths": { "type": "array", "items": { "type": "string" }, "description": "Globs; a path matching any is exempted from the secret-read deny (Bash readers and the Read tool alike)." },
+        "note": { "type": "string", "description": "Why the override exists — the audit trail a bare env var could never carry." }
+      }
+    },
+    "RunSnapshot": {
+      "description": "Mechanical mid-run state digest, derived ONLY from files (active-scope pointer, harness-run.md frontmatter, board frontmatter, t0/verdicts filenames, orders/ vs results/) — never from conversation memory. The compaction-resilience reflex: persisted by the PreCompact hook as an audit anchor, re-derived fresh and injected as additionalContext by the SessionStart(compact|resume) hook so the orchestrator re-reads the files instead of trusting a lossy summary.",
+      "x-tier": "LOCAL",
+      "x-location": ".shapeup-sdlc/<slug>/run-snapshot.json (persisted by the compact-snapshot hook; also emitted ephemerally on stdout by run-snapshot.mjs)",
+      "x-writer": "run-snapshot.mjs --write (invoked by the PreCompact hook — never a worker; this is LOCAL derived cache, ingest-result.mjs remains the sole writer of SHARED state)",
+      "x-readers": "session-rehydrate hook, tech-lead (--from resume aid), human",
+      "type": "object",
+      "required": ["schema_version", "at", "slug"],
+      "properties": {
+        "schema_version": { "type": "integer", "enum": [1] },
+        "at": { "type": "string", "description": "ISO timestamp of derivation." },
+        "slug": { "type": "string" },
+        "scope_id": { "type": "string", "description": "Present only while a scope is checked out (active-scope pointer exists)." },
+        "status": { "type": "string", "enum": ["orienting", "mapping", "building", "evaluating", "shipped", "escalated"], "description": "Mirrors harness-run.md frontmatter status." },
+        "round": { "type": "integer", "description": "From the latest t0/verdicts/r<N>-a<M>.json filename; falls back to rounds_used." },
+        "attempt": { "type": "integer", "description": "From the latest t0/verdicts/r<N>-a<M>.json filename." },
+        "rounds_used": { "type": "integer" },
+        "max_rounds": { "type": "integer" },
+        "auto_level": { "type": "string" },
+        "latest_t0": {
+          "type": "object",
+          "properties": {
+            "path": { "type": "string" },
+            "overall": { "type": "string", "enum": ["green", "red"] },
+            "round": { "type": "integer" },
+            "attempt": { "type": "integer" }
+          }
+        },
+        "board": {
+          "type": "object",
+          "properties": {
+            "total": { "type": "integer" },
+            "done": { "type": "integer" },
+            "unfinished": { "type": "array", "items": { "type": "string" }, "description": "Task ids not yet done — capped at 10." }
+          }
+        },
+        "open_escalates": { "type": "integer" },
+        "pending_orders": { "type": "array", "items": { "type": "string" }, "description": "orders/ files with no same-name file in results/ — dispatched but not ingested; re-dispatching one of these is the exact post-compaction mistake this record exists to prevent." },
+        "spec_folder": { "type": "string" },
+        "rehydrate_hint": { "type": "string", "description": "The composed one-paragraph instruction injected after compaction: re-read run-state, trust the files, not the summary." }
+      }
+    },
+    "StatsReport": {
+      "description": "The telemetry read-plane's output — an aggregate projection over the MetricsRow shards. Aggregates COPIED facts only (counts, rates, trends over already-recorded fields); it never grades, so it can never become a second judge. Malformed rows are skipped fail-open and counted; pathology rows (sandbox-guard/safety-spine denials share the shards) are partitioned, not errors.",
+      "x-tier": "EMBEDDED (ephemeral projection — printed to stdout, never persisted; the metrics JSONL stays the only source of truth)",
+      "x-writer": "stats.mjs (read-only over metrics/ — writes nothing)",
+      "x-readers": "human / CLI / CI",
+      "type": "object",
+      "required": ["schema_version", "generated_at", "rows_total", "per_slug"],
+      "properties": {
+        "schema_version": { "type": "integer", "enum": [1] },
+        "generated_at": { "type": "string" },
+        "metrics_dir": { "type": "string" },
+        "sources": { "type": "array", "items": { "type": "string" }, "description": "Shard filenames read." },
+        "rows_total": { "type": "integer", "description": "Valid harvest rows aggregated." },
+        "rows_malformed": { "type": "integer", "description": "Lines skipped fail-open (unparseable, or missing feature_slug/terminal_state)." },
+        "rows_pathology": { "type": "integer", "description": "kind:\"pathology\" rows (hook denials) — partitioned into the histogram, not aggregated as runs." },
+        "pathologies": { "type": "object", "description": "Histogram keyed by pathology code, e.g. {\"PA3\": 2, \"SAFETY\": 1}." },
+        "per_slug": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["feature_slug", "runs"],
+            "properties": {
+              "feature_slug": { "type": "string" },
+              "runs": { "type": "integer" },
+              "rounds": {
+                "type": "object",
+                "properties": {
+                  "min": { "type": "integer" },
+                  "max": { "type": "integer" },
+                  "avg": { "type": "number" }
+                }
+              },
+              "terminal_states": { "type": "object", "description": "Histogram of terminal_state values." },
+              "hammer_cut_rate": { "type": "number", "description": "Share of runs with scope_cut_count > 0." },
+              "scope_cuts_total": { "type": "integer" },
+              "attempt_exhaustions": { "type": "integer", "description": "Summed only where the optional MetricsRow field exists — never re-derived." },
+              "qa": {
+                "type": "object",
+                "properties": {
+                  "total": { "type": "integer" },
+                  "promoted": { "type": "integer" },
+                  "held": { "type": "integer" },
+                  "promotion_rate": { "type": "number" }
+                }
+              },
+              "surprise_avg": { "type": "number" },
+              "rounds_per_slice_avg": { "type": "number", "description": "round_count/slice_count averaged over rows where slice_count > 0 — the normalized effort signal." }
+            }
+          }
+        },
+        "trend": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["feature_slug", "seq", "round_count"],
+            "properties": {
+              "feature_slug": { "type": "string" },
+              "seq": { "type": "integer", "description": "Append order within the shard — the fallback ordering for rows without `at`." },
+              "at": { "type": "string" },
+              "round_count": { "type": "integer" }
+            }
+          },
+          "description": "round_count over time — the 'is the KB flywheel working' chart."
+        }
+      }
+    },
+    "Lane": {
+      "description": "v1.2 DESIGN DRAFT — reserves the name and makes the policy reviewable; no envelope references it yet and no runtime reads it. See docs/design/04-functional-design.md §4.7. When implemented, the lane is pipeline knowledge: the orchestrator compiles it away into existing registered knobs (payload.lens, payload.dimensions, interaction gate policy) — it NEVER rides in WorkOrderPayload, so workers stay pipeline-blind.",
+      "x-tier": "EMBEDDED (when implemented: recorded in harness-run.md frontmatter `lane:` — never a WorkOrderPayload field)",
+      "x-writer": "tech-lead (GATE L0 lane selection)",
+      "x-readers": "tech-lead only",
+      "x-lane-policy": {
+        "tiny": {
+          "selection": "one-scope pitch AND appetite <= 2 weeks AND no third-party integration AND <= 3 user-facing actions — the same predicate ba-pitch-analyzer uses to judge lens: lite",
+          "skips": ["orient", "gate-l1a", "full board ceremony at L1b (auto-generated lens:lite board, one merged confirmation gate)"],
+          "defaults": { "qa": "--no-qa", "round_budget": 2 },
+          "never_skips": ["EVAL (single judge)", "T0", "hooks"]
+        },
+        "normal": { "selection": "everything else — today's behavior, unchanged", "skips": [], "defaults": { "round_budget": 3 } },
+        "full": { "selection": "cross-context lens OR appetite >= 6 weeks", "skips": [], "defaults": { "lens": "cross-context", "qa": "mandatory", "round_budget": 4 } }
+      },
+      "type": "string",
+      "enum": ["tiny", "normal", "full"]
     },
     "WorkOrderPayload": {
       "description": "The union of every worker-specific input field a WorkOrder payload may carry. Which fields a given worker relies on is registered in x-payload-by-worker at the schema root — a worker treats anything absent from its order as unknown, and a NEW cross-boundary field must be added HERE first (with an x-payload-by-worker entry), never invented ad hoc in a skill.",

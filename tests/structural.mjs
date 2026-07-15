@@ -1246,6 +1246,353 @@ if (existsSync(domainSchemaPath) && existsSync(vePath)) {
 }
 
 // =============================================================================
+section("25. Prompt line-count ratchet — orchestrator prose must not silently regrow");
+// =============================================================================
+// The absorb-audit found prompt-mass growth is a failure mode discipline alone doesn't stop
+// (dwarves-kit: 31 commands × 25 agents of prose). 24995ba cut tech-lead to 724 lines; this
+// ratchet turns that cut into a regression. New logic goes into scripts, not SKILL.md prose.
+const LINE_RATCHETS = { "skills/tech-lead/SKILL.md": 750 };
+for (const [rel, limit] of Object.entries(LINE_RATCHETS)) {
+  const p = join(ROOT, rel);
+  if (!existsSync(p)) { fail(`ratcheted file missing: ${rel}`); continue; }
+  const lines = read(p).split("\n").length;
+  if (lines > limit) fail(`${rel} is ${lines} lines — over the ${limit}-line ratchet; move logic into scripts, not prose`);
+  else ok(`${rel} within ratchet (${lines}/${limit} lines)`);
+}
+
+// =============================================================================
+section("26. Doc-drift — documented counts, hook inventory, and cited paths match the filesystem");
+// =============================================================================
+// The dwarves-kit failure mode observed locally: the comparison report went stale twice in
+// 24 hours. Docs that assert counts or cite paths are now checked against the tree.
+let checksFloor = null;
+{
+  // (a) skill counts: every "the N (harness) skills" claim equals the actual skill dir count.
+  for (const rel of ["README.md", "docs/design/README.md", "docs/design/06-appendix.md"]) {
+    const p = join(ROOT, rel);
+    if (!existsSync(p)) continue;
+    for (const m of read(p).matchAll(/the (\d+) (?:harness )?skills/g)) {
+      if (Number(m[1]) !== skillDirs.length) fail(`${rel} claims "${m[0]}" but skills/ holds ${skillDirs.length}`);
+      else ok(`${rel} skill count matches (${m[1]})`);
+    }
+  }
+
+  // (b) hook inventory, both directions.
+  const manifest = readJSON(join(ROOT, "hooks/hooks.json"));
+  const registeredScripts = new Set();
+  for (const groups of Object.values(manifest.hooks || {})) {
+    for (const g of groups) for (const h of g.hooks || []) {
+      const m = (h.command || "").match(/\$\{CLAUDE_PLUGIN_ROOT\}\/(\S+?\.mjs)/);
+      if (m) registeredScripts.add(m[1]);
+    }
+  }
+  const readme = read(join(ROOT, "README.md"));
+  const design03 = read(join(ROOT, "docs/design/03-system-design.md"));
+  for (const script of registeredScripts) {
+    const base = script.split("/").pop();
+    if (!readme.includes(base)) fail(`hooks.json registers ${base} but README.md never mentions it (undocumented hook)`);
+    else ok(`README documents hook ${base}`);
+    if (!design03.includes(base)) fail(`hooks.json registers ${base} but docs/design/03-system-design.md never mentions it`);
+    else ok(`design/03 documents hook ${base}`);
+  }
+  for (const f of readdirSync(join(ROOT, "hooks")).filter((f) => f.endsWith(".mjs"))) {
+    if (![...registeredScripts].some((s) => s.endsWith(`/${f}`) || s === `hooks/${f}`)) {
+      fail(`hooks/${f} exists on disk but hooks.json never registers it (orphan hook — it enforces nothing)`);
+    } else ok(`hooks/${f} is registered`);
+  }
+
+  // (c) cited concrete paths exist (placeholders/globs are excluded by the char class).
+  const pathRe = /(?:^|[\s`("'])((?:hooks|skills|scripts|tests|commands)\/[A-Za-z0-9._/-]+\.(?:mjs|json|js|md|sh))(?![A-Za-z0-9])/g;
+  const docFiles = ["README.md", ...readdirSync(join(ROOT, "docs/design")).map((f) => `docs/design/${f}`)];
+  const cited = new Map();
+  for (const rel of docFiles) {
+    for (const m of read(join(ROOT, rel)).matchAll(pathRe)) {
+      if (!cited.has(m[1])) cited.set(m[1], rel);
+    }
+  }
+  for (const [p, from] of cited) {
+    if (!existsSync(join(ROOT, p))) fail(`${from} cites ${p} — not on disk (doc drift)`);
+    else ok(`cited path exists: ${p}`);
+  }
+
+  // (d) checks-floor: docs state a floor ("N+ checks"), never an exact count that drifts.
+  const floorM = read(join(ROOT, "docs/design/06-appendix.md")).match(/(\d+)\+ checks/);
+  if (!floorM) fail(`docs/design/06-appendix.md states no "N+ checks" floor`);
+  else { checksFloor = Number(floorM[1]); ok(`docs state a checks floor (${checksFloor}+)`); }
+}
+
+// =============================================================================
+section("27. safety-spine hook denies destructive/secret operations, honors overrides, fails open");
+// =============================================================================
+{
+  const spinePath = join(ROOT, "hooks/safety-spine.mjs");
+  const d = mkdtempSync(join(tmpdir(), "spine-"));
+  const ask = (payload) => {
+    const r = spawnSync("node", [spinePath], { encoding: "utf8", input: JSON.stringify(payload) });
+    let out = null;
+    try { out = JSON.parse(r.stdout); } catch { /* silent = allow */ }
+    return { status: r.status, out };
+  };
+  const bash = (command) => ({ tool_name: "Bash", cwd: d, tool_input: { command } });
+  const denies = (payload, category, label) => {
+    const { status, out } = ask(payload);
+    const decision = out?.hookSpecificOutput?.permissionDecision;
+    const reason = out?.hookSpecificOutput?.permissionDecisionReason || "";
+    if (status === 0 && decision === "deny" && reason.includes(category)) ok(`denies ${label} (${category})`);
+    else fail(`should deny ${label} as ${category}, got decision=${decision} reason=${reason.slice(0, 80)}`);
+  };
+  const allows = (payload, label) => {
+    const { status, out } = ask(payload);
+    if (status === 0 && !out) ok(`allows ${label}`);
+    else fail(`should allow ${label}, got ${JSON.stringify(out)}`);
+  };
+
+  denies(bash("rm -rf /"), "destructive-fs", "rm -rf /");
+  denies(bash("rm -rf ~/"), "destructive-fs", "rm -rf ~/");
+  denies(bash("cd /tmp && rm -rf .."), "destructive-fs", "rm -rf .. behind &&");
+  denies(bash("git push --force origin main"), "git-destructive", "force push");
+  denies(bash("git push origin main"), "git-destructive", "push to main");
+  denies(bash("git reset --hard HEAD~3"), "git-destructive", "hard reset");
+  denies(bash('psql -c "DROP TABLE users;"'), "sql-destructive", "DROP TABLE");
+  denies(bash("cat .env"), "secret-read", "cat .env");
+  denies(bash("grep KEY ~/.ssh/id_rsa"), "secret-read", "grep ssh private key");
+  denies(bash("echo '{}' > .shapeup-sdlc/safety-overrides.json"), "self-protect", "redirect into overrides file");
+  denies({ tool_name: "Read", cwd: d, tool_input: { file_path: join(d, ".env") } }, "secret-read", "Read(.env)");
+  denies({ tool_name: "Write", cwd: d, tool_input: { file_path: ".shapeup-sdlc/safety-overrides.json", content: "{}" } }, "self-protect", "Write(overrides)");
+
+  allows(bash("rm -rf ./build"), "rm -rf ./build (relative multi-segment)");
+  allows(bash("git push"), "plain git push");
+  allows(bash("git push --force-with-lease origin feat-x"), "--force-with-lease");
+  allows(bash("git reset --soft HEAD~1"), "git reset --soft");
+  allows(bash("cat .env.example"), ".env.example");
+  allows(bash("npm test"), "npm test");
+  allows({ tool_name: "Read", cwd: d, tool_input: { file_path: join(d, "README.md") } }, "Read(README.md)");
+
+  // Denies are telemetry, not just defense: a SAFETY pathology row must have been logged.
+  const spineMetricsDir = join(d, "docs/shapeup-sdlc/metrics");
+  const spineRows = existsSync(spineMetricsDir)
+    ? readdirSync(spineMetricsDir).flatMap((f) => read(join(spineMetricsDir, f)).trim().split("\n")).map((l) => JSON.parse(l))
+    : [];
+  if (spineRows.some((r) => r.pathology === "SAFETY" && r.category === "destructive-fs")) ok("denies append SAFETY pathology rows to the metrics shard");
+  else fail("no SAFETY pathology row was logged for a deny");
+
+  // Override file: exempts the matching command, is itself logged, and fails CLOSED when corrupt.
+  mkdirSync(join(d, ".shapeup-sdlc"), { recursive: true });
+  writeFileSync(join(d, ".shapeup-sdlc/safety-overrides.json"),
+    JSON.stringify({ schema_version: 1, allow_commands: ["^git push origin main$"], note: "CI deploy branch" }));
+  allows(bash("git push origin main"), "push to main WITH override");
+  const overrideRows = readdirSync(spineMetricsDir).flatMap((f) => read(join(spineMetricsDir, f)).trim().split("\n")).map((l) => JSON.parse(l));
+  if (overrideRows.some((r) => r.pathology === "SAFETY-OVERRIDE")) ok("an exercised override is logged as SAFETY-OVERRIDE (visible, never silent)");
+  else fail("override was exercised but no SAFETY-OVERRIDE row was logged");
+  writeFileSync(join(d, ".shapeup-sdlc/safety-overrides.json"), "broken{");
+  denies(bash("git push origin main"), "git-destructive", "push to main with CORRUPT override (override channel fails closed)");
+
+  // Fail-open on garbage stdin.
+  const garbage = spawnSync("node", [spinePath], { encoding: "utf8", input: "not json" });
+  if (garbage.status === 0 && !garbage.stdout.trim()) ok("garbage stdin → silent exit 0 (fail-open)");
+  else fail(`garbage stdin should fail open, got status=${garbage.status} stdout=${garbage.stdout}`);
+  rmSync(d, { recursive: true, force: true });
+}
+
+// =============================================================================
+section("28. Advisory Stop hooks inform but can never block (QA is a level-up, not a gate)");
+// =============================================================================
+{
+  const arPath = join(ROOT, "hooks/anti-rationalization.mjs");
+  const scPath = join(ROOT, "hooks/slop-cleaner.mjs");
+  const d = mkdtempSync(join(tmpdir(), "stop-"));
+  const w = (rel, body) => { mkdirSync(dirname(join(d, rel)), { recursive: true }); writeFileSync(join(d, rel), body); };
+  w(".shapeup-sdlc/active-scope", JSON.stringify({ slug: "demo", scope_id: "cart" }));
+  w(".shapeup-sdlc/demo/tasks/TASK-001.md", `---\nid: TASK-001\nstatus: done\n---\n`);
+  w(".shapeup-sdlc/demo/tasks/TASK-002.md", `---\nid: TASK-002\nstatus: in-progress\n---\n`);
+  w(".shapeup-sdlc/demo/t0/verdicts/r1-a1.json", JSON.stringify({ overall: "red" }));
+
+  const stop = (path, payload) => {
+    const r = spawnSync("node", [path], { encoding: "utf8", input: JSON.stringify(payload) });
+    let out = null;
+    try { out = JSON.parse(r.stdout); } catch { /* silent */ }
+    return { status: r.status, out, raw: r.stdout };
+  };
+
+  const claim = { cwd: d, stop_hook_active: false, last_assistant_message: "All done — feature complete, all tests pass." };
+  const red = stop(arPath, claim);
+  if (red.status === 0 && red.out?.systemMessage) ok("claim + contradicting facts → advisory systemMessage");
+  else fail(`expected systemMessage on red fixture, got: ${red.raw}`);
+  if (red.out?.systemMessage?.includes("TASK-002") && red.out?.systemMessage?.includes("red")) ok("message names the specific facts (task + red T0)");
+  else fail(`message doesn't name the facts: ${red.out?.systemMessage}`);
+  if (red.out && !("decision" in red.out)) ok("output carries NO decision key — advisory can never block");
+  else fail("advisory hook emitted a decision key — that's a gate, not a level-up");
+
+  const claimless = stop(arPath, { ...claim, last_assistant_message: "Still investigating the parser." });
+  if (claimless.status === 0 && !claimless.out) ok("no completion claim → silent");
+  else fail(`claimless message should be silent, got: ${claimless.raw}`);
+
+  const looping = stop(arPath, { ...claim, stop_hook_active: true });
+  if (looping.status === 0 && !looping.out) ok("stop_hook_active → silent (no stop-hook loops)");
+  else fail("hook fired while stop_hook_active");
+
+  w(".shapeup-sdlc/demo/tasks/TASK-002.md", `---\nid: TASK-002\nstatus: done\n---\n`);
+  w(".shapeup-sdlc/demo/t0/verdicts/r1-a2.json", JSON.stringify({ overall: "green" }));
+  const green = stop(arPath, claim);
+  if (green.status === 0 && !green.out) ok("green board + green T0 → claim stands, silent");
+  else fail(`green fixture should be silent, got: ${green.raw}`);
+
+  const noRun = mkdtempSync(join(tmpdir(), "norun-"));
+  const idle = stop(arPath, { cwd: noRun, stop_hook_active: false, last_assistant_message: "All done." });
+  if (idle.status === 0 && !idle.out) ok("no harness run → silent (harness-scoped, not an always-on nag)");
+  else fail(`no-run case should be silent, got: ${idle.raw}`);
+
+  // slop-cleaner: pure scanner unit + fail-open CLI.
+  const { scanDiff, summarize } = await import(scPath);
+  const dirtyDiff = [
+    "+++ b/src/x.ts", "+console.log(1)", "+// TODO fix this later", "+const a = 1;",
+    "+++ b/src/clean.ts", "+const b = 2;",
+  ].join("\n");
+  const findings = scanDiff(dirtyDiff);
+  if (findings.length === 1 && findings[0].file === "src/x.ts" && findings[0].markers["console.log"] === 1 && findings[0].markers["TODO/FIXME"] === 1)
+    ok("scanDiff flags console.log + TODO in added lines only");
+  else fail(`scanDiff wrong: ${JSON.stringify(findings)}`);
+  if (scanDiff(["+++ b/src/clean.ts", "+const b = 2;"].join("\n")).length === 0) ok("scanDiff stays quiet on a clean diff");
+  else fail("scanDiff flagged a clean diff");
+  const bigDiff = ["+++ b/src/gen.ts", ...Array.from({ length: 500 }, (_, i) => `+line ${i}`)].join("\n");
+  if (scanDiff(bigDiff)[0]?.big && summarize(scanDiff(bigDiff))[0].includes("+500 lines")) ok("scanDiff flags a 500-line single-file add");
+  else fail("scanDiff missed the big-file signal");
+  const scIdle = stop(scPath, { cwd: noRun, stop_hook_active: false });
+  if (scIdle.status === 0 && !scIdle.out) ok("slop-cleaner: no run → silent exit 0 (fail-open)");
+  else fail(`slop-cleaner no-run case not silent: ${scIdle.raw}`);
+  rmSync(d, { recursive: true, force: true });
+  rmSync(noRun, { recursive: true, force: true });
+}
+
+// =============================================================================
+section("29. run-snapshot derives mid-run state from files only; compact/rehydrate hooks carry it");
+// =============================================================================
+{
+  const rsPath = join(ROOT, "skills/tech-lead/scripts/run-snapshot.mjs");
+  const csPath = join(ROOT, "hooks/compact-snapshot.mjs");
+  const srPath = join(ROOT, "hooks/session-rehydrate.mjs");
+  const d = mkdtempSync(join(tmpdir(), "snap-"));
+  const w = (rel, body) => { mkdirSync(dirname(join(d, rel)), { recursive: true }); writeFileSync(join(d, rel), body); };
+  w(".shapeup-sdlc/active-scope", JSON.stringify({ slug: "demo", scope_id: "cart" }));
+  w(".shapeup-sdlc/demo/harness-run.md", `---\nfeature: demo\nstatus: building\nrounds_used: 1\nmax_rounds: 3\nauto_level: interactive\n---\n# run\n`);
+  w(".shapeup-sdlc/demo/tasks/TASK-001.md", `---\nid: TASK-001\nstatus: done\n---\n`);
+  w(".shapeup-sdlc/demo/tasks/TASK-002.md", `---\nid: TASK-002\nstatus: ready\n---\n`);
+  w(".shapeup-sdlc/demo/t0/verdicts/r1-a1.json", JSON.stringify({ overall: "green" }));
+  w(".shapeup-sdlc/demo/t0/verdicts/r1-a2.json", JSON.stringify({ overall: "red" }));
+  w(".shapeup-sdlc/demo/orders/r1-a2.json", "{}");
+
+  const { deriveSnapshot } = await import(rsPath);
+  const snap = deriveSnapshot(d);
+  if (snap && snap.slug === "demo" && snap.scope_id === "cart" && snap.round === 1 && snap.attempt === 2)
+    ok("deriveSnapshot reads slug/scope from the pointer and round/attempt from the latest T0 filename");
+  else fail(`deriveSnapshot wrong: ${JSON.stringify(snap)}`);
+  if (snap?.board?.total === 2 && snap.board.done === 1 && snap.board.unfinished.includes("TASK-002"))
+    ok("board totals derived from task frontmatter");
+  else fail(`board wrong: ${JSON.stringify(snap?.board)}`);
+  if (snap?.latest_t0?.overall === "red") ok("latest_t0 is the max (round, attempt) verdict");
+  else fail(`latest_t0 wrong: ${JSON.stringify(snap?.latest_t0)}`);
+  if (snap?.pending_orders?.length === 1 && snap.pending_orders[0] === "r1-a2.json")
+    ok("pending_orders = dispatched-but-not-ingested (orders/ minus results/)");
+  else fail(`pending_orders wrong: ${JSON.stringify(snap?.pending_orders)}`);
+
+  const { validate: veValidateSnap } = await import(join(ROOT, "skills/tech-lead/scripts/validate-envelope.mjs"));
+  const snapCheck = veValidateSnap(snap, { $ref: "domain.schema.json#/$defs/RunSnapshot" });
+  if (snapCheck.valid) ok("derived snapshot validates against domain.schema.json#/$defs/RunSnapshot");
+  else fail(`snapshot fails its own registry def: ${snapCheck.errors.join("; ")}`);
+
+  const rWrite = spawnSync("node", [rsPath, "--cwd", d, "--write"], { encoding: "utf8" });
+  if (rWrite.status === 0 && existsSync(join(d, ".shapeup-sdlc/demo/run-snapshot.json"))) ok("--write persists run-snapshot.json");
+  else fail(`--write failed: ${rWrite.stderr}`);
+
+  const empty = mkdtempSync(join(tmpdir(), "snapempty-"));
+  const rEmpty = spawnSync("node", [rsPath, "--cwd", empty], { encoding: "utf8" });
+  if (rEmpty.status === 0 && !rEmpty.stdout.trim()) ok("no active run → exit 0, empty stdout (fail-open)");
+  else fail(`empty dir should be silent, got status=${rEmpty.status} stdout=${rEmpty.stdout}`);
+
+  rmSync(join(d, ".shapeup-sdlc/demo/run-snapshot.json"));
+  const rCompact = spawnSync("node", [csPath], { encoding: "utf8", input: JSON.stringify({ cwd: d, trigger: "auto" }) });
+  if (rCompact.status === 0 && existsSync(join(d, ".shapeup-sdlc/demo/run-snapshot.json"))) ok("PreCompact hook persists the snapshot mid-run");
+  else fail(`compact-snapshot failed: status=${rCompact.status} ${rCompact.stderr}`);
+  const rCompactIdle = spawnSync("node", [csPath], { encoding: "utf8", input: JSON.stringify({ cwd: empty, trigger: "auto" }) });
+  if (rCompactIdle.status === 0) ok("PreCompact hook exits 0 with no run (never blocks compaction)");
+  else fail("compact-snapshot blocked on an empty dir");
+
+  const rRehy = spawnSync("node", [srPath], { encoding: "utf8", input: JSON.stringify({ cwd: d, source: "compact" }) });
+  let rehyOut = null;
+  try { rehyOut = JSON.parse(rRehy.stdout); } catch { /* silent */ }
+  const ctx = rehyOut?.hookSpecificOutput?.additionalContext || "";
+  if (rehyOut?.hookSpecificOutput?.hookEventName === "SessionStart" && ctx.includes("mid-run") && ctx.includes("demo") && ctx.includes("round 1"))
+    ok("SessionStart(compact) injects the rehydrate hint as additionalContext");
+  else fail(`rehydrate output wrong: ${rRehy.stdout.slice(0, 120)}`);
+  const rRehyIdle = spawnSync("node", [srPath], { encoding: "utf8", input: JSON.stringify({ cwd: empty, source: "compact" }) });
+  if (rRehyIdle.status === 0 && !rRehyIdle.stdout.trim()) ok("rehydrate is silent with no active run");
+  else fail("rehydrate spoke with no run active");
+  rmSync(d, { recursive: true, force: true });
+  rmSync(empty, { recursive: true, force: true });
+}
+
+// =============================================================================
+section("30. stats.mjs is a read-only, schema-valid projection over the metrics shards");
+// =============================================================================
+{
+  const statsPath = join(ROOT, "skills/tech-lead/scripts/stats.mjs");
+  const d = mkdtempSync(join(tmpdir(), "stats-"));
+  const mdir = join(d, "docs/shapeup-sdlc/metrics");
+  mkdirSync(mdir, { recursive: true });
+  writeFileSync(join(mdir, "a.jsonl"), [
+    JSON.stringify({ schema_version: 1, feature_slug: "demo", terminal_state: "shipped", round_count: 2, scope_cut_count: 0, qa_findings: { total: 3, promoted: 1, held: 2 }, slice_count: 4, sources: [] }),
+    JSON.stringify({ schema_version: 1, at: "2026-07-10T00:00:00Z", feature_slug: "demo", terminal_state: "shipped", round_count: 3, scope_cut_count: 1, attempt_exhaustions: 1, qa_findings: { total: 2, promoted: 2, held: 0 }, slice_count: 4, sources: [] }),
+    JSON.stringify({ schema_version: 1, kind: "pathology", pathology: "PA3", slug: "demo" }),
+    "not json at all",
+    "{}",
+  ].join("\n") + "\n");
+  writeFileSync(join(mdir, "b.jsonl"), JSON.stringify({ schema_version: 1, feature_slug: "other", terminal_state: "escalated", round_count: 4, sources: [] }) + "\n");
+
+  const before = readdirSync(mdir).map((f) => `${f}:${statSync(join(mdir, f)).size}`).join(",");
+  const r = spawnSync("node", [statsPath, "--cwd", d], { encoding: "utf8" });
+  let report = null;
+  try { report = JSON.parse(r.stdout); } catch { /* handled below */ }
+  if (r.status === 0 && report) ok("stats exits 0 and emits parseable JSON");
+  else fail(`stats failed: status=${r.status} ${r.stderr}`);
+
+  const { validate: veValidateStats } = await import(join(ROOT, "skills/tech-lead/scripts/validate-envelope.mjs"));
+  const repCheck = report ? veValidateStats(report, { $ref: "domain.schema.json#/$defs/StatsReport" }) : { valid: false, errors: ["no report"] };
+  if (repCheck.valid) ok("report validates against domain.schema.json#/$defs/StatsReport");
+  else fail(`report fails its own registry def: ${repCheck.errors.join("; ")}`);
+
+  const demo = report?.per_slug?.find((s) => s.feature_slug === "demo");
+  if (demo?.runs === 2 && demo.rounds.avg === 2.5 && demo.hammer_cut_rate === 0.5 && demo.attempt_exhaustions === 1)
+    ok("aggregates are right (runs 2, rounds.avg 2.5, cut-rate 0.5, exhaustions 1)");
+  else fail(`demo aggregate wrong: ${JSON.stringify(demo)}`);
+  if (report?.rows_malformed === 2 && report?.rows_pathology === 1 && report?.pathologies?.PA3 === 1)
+    ok("malformed rows skipped+counted; pathology rows partitioned, not errors");
+  else fail(`row accounting wrong: malformed=${report?.rows_malformed} pathology=${report?.rows_pathology}`);
+
+  const rTable = spawnSync("node", [statsPath, "--cwd", d, "--format", "table"], { encoding: "utf8" });
+  if (rTable.status === 0 && rTable.stdout.includes("demo")) ok("--format table renders and names the slug");
+  else fail(`table render failed: ${rTable.stderr}`);
+
+  const after = readdirSync(mdir).map((f) => `${f}:${statSync(join(mdir, f)).size}`).join(",");
+  if (before === after) ok("metrics dir is byte-identical after both runs (read-only proof)");
+  else fail(`stats WROTE to the metrics dir: before=${before} after=${after}`);
+
+  const emptyDir = mkdtempSync(join(tmpdir(), "statsempty-"));
+  const rEmpty = spawnSync("node", [statsPath, "--cwd", emptyDir], { encoding: "utf8" });
+  let emptyReport = null;
+  try { emptyReport = JSON.parse(rEmpty.stdout); } catch { /* handled below */ }
+  if (rEmpty.status === 0 && emptyReport?.rows_total === 0) ok("missing metrics dir → valid empty report, exit 0");
+  else fail(`empty-dir case wrong: status=${rEmpty.status}`);
+  rmSync(d, { recursive: true, force: true });
+  rmSync(emptyDir, { recursive: true, force: true });
+}
+
+// The floor parsed in section 26(d) is asserted here, where the final total exists.
+if (checksFloor !== null) {
+  if (checks >= checksFloor) ok(`total checks (${checks}) meet the documented floor (${checksFloor}+)`);
+  else fail(`docs promise ${checksFloor}+ checks but only ${checks} ran — lower the floor only if checks were deliberately removed`);
+}
+
+// =============================================================================
 console.log(`\n${"=".repeat(60)}`);
 if (failures === 0) {
   console.log(`✅ structural tests passed (${checks} checks)`);

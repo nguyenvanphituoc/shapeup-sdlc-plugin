@@ -63,18 +63,53 @@ write to even if it wanted to.
 
 ## 3.2 — Runtime-enforced guardrails (hooks)
 
-Three `PreToolUse` hooks turn the harness's load-bearing rules from things the model is asked
+Four `PreToolUse` hooks turn the harness's load-bearing rules from things the model is asked
 to respect into things it cannot get past:
 
 | Hook | Fires on | Enforces |
 |---|---|---|
+| `safety-spine.mjs` | `Bash` / `Read` / `Edit` / `Write` / `MultiEdit` | Denies the provably destructive operations no session ever legitimately needs: `rm -rf` on unrecoverable targets, force-push and push-to-main, `git reset --hard`, `DROP TABLE`/`TRUNCATE`, and secret-file reads (`.env`, `*.pem`, ssh keys, cloud credentials) via shell readers or the `Read` tool. Unlike the other three, it guards the **machine**, not the pipeline. The only escape hatch is the human-authored `.shapeup-sdlc/safety-overrides.json` (schema: `SafetyOverrides`) — mechanically self-protected, and every exercised override is logged to the metrics shard as a `SAFETY-OVERRIDE` pathology row. |
 | `gate-l2.mjs` | `Skill → spec-evaluator` (round mode) | Denies the once-per-round EVAL unless every task on the board reads `done` — reading both task frontmatter and the board table independently, and naming the unfinished tasks in the denial. |
 | `validate-envelope.mjs` | `Skill` / `Agent` | Denies any worker dispatch whose `--order` file is missing or fails the WorkOrder schema — a malformed envelope never reaches a worker. |
 | `sandbox-guard.mjs` | `Edit` / `Write` / `MultiEdit` | Denies a write outside the active scope's `allowed_file_substrate`, with a carve-out for the scope's own local run-trace root so it can still update its own board. |
 
-All three are deliberately **fail-open** when there's nothing to verify (no active scope, no
+All four are deliberately **fail-open** when there's nothing to verify (no active scope, no
 board, unparseable input) and **fail-closed** the instant they can prove a violation — a guard
 that broke legitimate standalone runs would just get disabled, defeating the point of having it.
+(The safety spine adds one asymmetry: a *malformed overrides file* fails **closed** — treated
+as absent — because a parse error must never disable the spine.)
+
+## 3.2b — Advisory hooks (Stop)
+
+Two `Stop`-event hooks review the session as it ends — and, by architectural invariant, may
+only **inform**, never block. "QA is a level-up, not a gate": a blocking Stop hook would be a
+second gate behind the single judge, so both hooks exit 0 always and emit at most a
+`systemMessage`, never a `decision`. Both are harness-scoped — silent unless a run is active.
+
+| Hook | Checks | Says |
+|---|---|---|
+| `anti-rationalization.mjs` | The final message claims completion ("done", "all tests pass", "ready to ship") while the run's mechanical facts disagree: unfinished board tasks, a red T0 verdict, unanswered escalates, `final_verdict: fail`. | Names the specific contradicting facts, out loud, to the user. |
+| `slop-cleaner.mjs` | The session's diff (git working tree; fallback: the newest WorkResult's `files_touched`) carries leftovers in **added lines**: TODO/FIXME, `console.log`/`debugger`, commented-out code blocks, one file swallowing 400+ added lines. | Lists the files and markers, suggests a cleanup pass. |
+
+## 3.2c — Compaction resilience (PreCompact + SessionStart)
+
+Nothing on disk is ever lost to a context compaction — the two-root storage design (§3.3)
+already guarantees that. The residual risk is the orchestrator *continuing on a degraded
+summary without noticing*: re-dispatching an already-ingested order, miscounting attempts
+(breaking the inner circuit breaker), or "remembering" a hill phase instead of re-deriving it.
+The resilience pair makes re-reading the files a reflex:
+
+- **`run-snapshot.mjs`** (in `skills/tech-lead/scripts/`) derives a `RunSnapshot`
+  (registered in the domain registry) from **files only** — the active-scope pointer,
+  `harness-run.md` frontmatter, board frontmatter, `t0/verdicts/` filenames, and the
+  `orders/` vs `results/` diff — and self-validates it against the registry before emitting.
+- **`compact-snapshot.mjs`** (PreCompact) persists that snapshot to
+  `.shapeup-sdlc/<slug>/run-snapshot.json` before compaction. PreCompact provably cannot
+  inject context, so this hook is a pure side effect: the audit anchor and fallback.
+- **`session-rehydrate.mjs`** (SessionStart, matcher `compact|resume`) re-derives the snapshot
+  **fresh** and injects its `rehydrate_hint` as `additionalContext`: *"re-read
+  `.shapeup-sdlc/<slug>/harness-run.md` and the board before continuing — trust the files, not
+  the conversation summary."*
 
 ## 3.3 — Two storage roots
 
@@ -84,7 +119,7 @@ this need to survive a `git pull` by a teammate, or can it be rebuilt from what'
 | Root | Scope | Contents |
 |---|---|---|
 | **SHARED** — `docs/shapeup-sdlc/<slug>/` | Committed — the durable deliverable | `shaping/`, `spec/` (domain model, use cases, contracts, `scopes/*.json`), `round-ledger.md`, `hill/*.yml`, `knowledge-base/<skill>.md`, `metrics/<machine-id>.jsonl` |
-| **LOCAL** — `.shapeup-sdlc/<slug>/` | Gitignored — regenerable run trace | `harness-run.md`, `orient/`, `tasks/` (the board, regenerable on any machine), `orders/` + `results/` (the envelope port), `t0/verdicts/`, `discovery/ledger.md`, `active-scope` (the sandbox hook's pointer) |
+| **LOCAL** — `.shapeup-sdlc/<slug>/` | Gitignored — regenerable run trace | `harness-run.md`, `orient/`, `tasks/` (the board, regenerable on any machine), `orders/` + `results/` (the envelope port), `t0/verdicts/`, `discovery/ledger.md`, `run-snapshot.json` (compaction anchor), `active-scope` (the sandbox hook's pointer), and — at the `.shapeup-sdlc/` root, outside any slug — `safety-overrides.json` (human-authored safety escape hatch) |
 
 The split matters operationally: a second developer who pulls a branch mid-run has the SHARED
 spec but no LOCAL board — the harness detects that at GATE L1b and regenerates the board from

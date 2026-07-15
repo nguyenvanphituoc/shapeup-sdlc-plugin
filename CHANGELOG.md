@@ -5,6 +5,65 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-15
+
+**Absorb & Audit (dwarves-kit × shapeup-sdlc) — P1–P4 landed, P5 shaped.** The machine gets a
+safety spine, the session gets advisory honesty checks, the metrics shards get a reader, and a
+context compaction gets a mechanical "re-read the files" reflex. **No behavior change to
+worker skills — all machinery is orchestrator-layer** (hooks/, tech-lead scripts/schemas,
+tests, docs); every new data flow is a schema-governed JSON record registered once in the
+domain registry.
+
+### Added
+- **P1 — `hooks/safety-spine.mjs`** (PreToolUse `Bash|Read|Write|Edit|MultiEdit`): denies
+  destructive-fs (`rm -rf` on unrecoverable targets, wide `git clean`), git-destructive
+  (force-push, push-to-main, `git reset --hard`), sql-destructive (`DROP`/`TRUNCATE`),
+  secret reads (`.env`, `*.pem`, `*.key`, ssh/cloud credentials — shell readers and the
+  `Read` tool alike), and self-protects its own override file. Escape hatch:
+  human-authored `.shapeup-sdlc/safety-overrides.json` (`$defs/SafetyOverrides`) — a corrupt
+  overrides file is treated as absent (override channel fails closed), and every exercised
+  override is logged as a `SAFETY-OVERRIDE` pathology row. Denies log `SAFETY` rows.
+- **P2 — advisory Stop hooks**, both harness-scoped and mechanically incapable of blocking
+  (exit 0 always, at most a `systemMessage` — "QA is a level-up, not a gate"):
+  `hooks/anti-rationalization.mjs` (a completion claim in the final message is checked
+  against board frontmatter, the latest T0 verdict, and open escalates — contradictions are
+  named out loud) and `hooks/slop-cleaner.mjs` (TODO/FIXME, `console.log`/`debugger`,
+  commented-out-code blocks, 400+-line single-file adds — in added lines of the session's
+  diff only).
+- **P3 — `skills/tech-lead/scripts/stats.mjs`**: the telemetry read-plane over
+  `docs/shapeup-sdlc/metrics/*.jsonl` — rounds per pitch, hammer-cut rate,
+  attempt-budget exhaustions, QA promotion rate, round-count trend. Emits a self-validated
+  `$defs/StatsReport` (`--format table` for humans); read-only by construction (only read
+  APIs imported; a structural test asserts the metrics dir is byte-identical after a run).
+  `MetricsRow` gains optional `at` + `attempt_exhaustions` fields so exhaustions are
+  harvested facts, never re-derived (single-judge rule).
+- **P4 — compaction resilience**: `skills/tech-lead/scripts/run-snapshot.mjs` derives a
+  `$defs/RunSnapshot` from files only (pointer, `harness-run.md`, board, `t0/verdicts/`
+  filenames, `orders/`−`results/` diff); `hooks/compact-snapshot.mjs` (PreCompact) persists
+  it before compaction (PreCompact cannot inject context — verified); and
+  `hooks/session-rehydrate.mjs` (SessionStart, matcher `compact|resume`) injects the
+  fresh-derived `rehydrate_hint` as `additionalContext`: *trust the files, not the summary*.
+- **P5 — risk lanes, design only**: `docs/design/04-functional-design.md` §4.7 (tiny/normal/
+  full lanes, selection reusing ba's `lens: lite` predicate, per-lane `--auto` gate sets) and
+  a draft `$defs/Lane` with a machine-readable `x-lane-policy`. New (design-marked)
+  invariant: **lanes thin ceremony, never verification** — no lane skips EVAL, T0, or hooks.
+  No runtime reads any of it yet.
+- **Structural tests #25–#30** (265 → 369 checks): the tech-lead prompt line-count ratchet
+  (≤750), the doc-drift check (skill counts, two-way hook inventory, cited-path existence,
+  self-asserted checks floor), and fixture suites for every new hook and script.
+
+### Changed
+- `hooks/hooks.json` — registers the safety spine (PreToolUse), both advisory hooks (Stop),
+  the compaction pair (PreCompact + SessionStart `compact|resume`).
+- Docs synced and now drift-checked: README hook inventory completed (including the
+  previously undocumented `validate-envelope.mjs` PreToolUse entry — pre-existing drift),
+  design/03 gains §3.2b (advisory hooks) + §3.2c (compaction resilience), design/04 resolves
+  the `--auto` gate-set inconsistency (the GATE L0.7/Flags table is authoritative:
+  L1a/L1b/L3/L4), design/06 adds the three new invariants, design/07 adds the v1.2 entities
+  and the read-plane ERD, and exact test-count literals became ratcheting floors
+  ("330+ checks").
+- `skills/tech-lead/SKILL.md` — **untouched** (724 lines; the ratchet now enforces it).
+
 ## [1.1.0] - 2026-07-14
 
 **Central domain registry + tier-direction discipline.** Every cross-boundary record type and

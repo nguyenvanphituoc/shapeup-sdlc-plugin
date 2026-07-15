@@ -137,13 +137,16 @@ no matter what the auto level is.
 | 7 | Deploy authorization (standing invariant) | Even after a PASS ship, S.5 never auto-deploys. "PO says yes → deploy … otherwise → record deploy pending (PO)." Never becomes closed-loop, in any mode. |
 | 8 | User halt | In any mode where gates are live, the PO may stop at any L-gate; state is preserved for `--from` resume. |
 
-> ⚠️ **A documented inconsistency, not resolved here.** GATE L0's own text says *"Do NOT start
-> ORIENT until confirmed **(interactive/auto)**"*, and GATE L2's own text says *"stop and wait
-> for PO confirmation **(interactive/--auto)**"* — both explicitly claim they also pause under
-> `--auto`. That contradicts the GATE L0.7 auto-level definition and the Flags table, which list
-> only **L1a/L1b/L3/L4** for `--auto` and omit L0 and L2. A run built strictly from the L0.7/Flags
-> summary would skip L0/L2 confirmation under `--auto`; a run built from each gate's own inline
-> text would not. Worth resolving in the skill source before relying on `--auto`'s exact gate set.
+> **Resolved (v1.2): the GATE L0.7 / Flags table is authoritative** — `--auto` pauses at
+> **L1a, L1b, L3, L4** only. The two gate-inline phrasings that appeared to also claim L0 and
+> L2 ("confirmed (interactive/auto)", "wait for PO confirmation (interactive/--auto)") are
+> harmless in practice and now read against this ruling: **L0** is where the auto level is
+> *set*, so the run is necessarily interactive there — the inline text is trivially satisfied;
+> **L2**'s real protection is `hooks/gate-l2.mjs`, which is mode-independent (closed-loop row 4
+> below) — no PO pause is needed on top of a mechanical denial. Follow-up: align the two inline
+> phrasings in `skills/tech-lead/SKILL.md` at the next prose-touching change (deliberately not
+> done in v1.2 — zero orchestrator prose growth). Lane gate sets (§4.7) are defined against
+> this authoritative table.
 
 ### Conditions that allow closed loop (fully autonomous)
 
@@ -162,6 +165,46 @@ orthogonal. Turning a run fully unattended removes the PO from every *decision* 
 three unattended stop conditions — it does not, and cannot, remove the hook-enforced
 preconditions (GATE L2's board-green check, `validate-envelope.mjs`, `sandbox-guard.mjs`), which
 hold in every mode because they are scripts, not prompts.
+
+## 4.7 — Risk lanes (design — not yet implemented)
+
+> **Status: v1.2 design draft.** The `Lane` type is registered in the domain registry
+> (`domain.schema.json#/$defs/Lane`, with its machine-readable `x-lane-policy` table) to
+> reserve the name and make this policy reviewable — but no envelope references it and no
+> runtime reads it yet. Absorbed from dwarves-kit's tiny/normal/full/bug lanes; this section is
+> the shaped pitch-input for the implementation bet.
+
+**The problem.** Today the harness has two ceremony dials — `--no-qa` and the scope-contract
+activation switch — so a one-scope bug-fix pays the same Orient → board → gates ceremony as a
+six-week feature. Teams route small work *around* a harness that can't right-size, and a
+bypassed harness stops accumulating KB entries, ledger history, and metrics: value pillar II
+(team inheritance) decays by disuse, not by failure.
+
+**Lane vocabulary** — `tiny | normal | full`, selected at **GATE L0** and recorded in
+`harness-run.md` frontmatter (`lane:`); the PO can always pin one with `--lane`.
+
+| Lane | Selection (auto, PO-overridable) | Ceremony delta | Defaults |
+|---|---|---|---|
+| **tiny** | one-scope pitch **and** appetite ≤ 2 weeks **and** no third-party integration **and** ≤ 3 user-facing actions — deliberately the *same predicate* `ba-pitch-analyzer` already uses to judge `lens: lite`, so lane selection reuses that knob instead of inventing a parallel one | Skips Orient + GATE L1a (no Scout dispatch); board auto-generated `lens: lite`; L1a+L1b collapse into **one merged confirmation gate** | QA `--no-qa`, `round_budget` 2 |
+| **normal** | everything else | none — today's behavior, unchanged | `round_budget` 3 |
+| **full** | cross-context lens **or** appetite ≥ 6 weeks | adds mandatory QA and GATE H review | `lens: cross-context`, `round_budget` 4 |
+
+**The invariant that makes lanes safe** (also listed in the appendix): **lanes thin
+*ceremony*, never *verification*.** No lane ever skips EVAL (single judge), T0, or any hook.
+A tiny lane with a skipped judge would just be "prompt harder" with extra steps.
+
+**How the lane travels — and deliberately does not.** The lane is pipeline knowledge, so it
+**never rides in `WorkOrderPayload`**: payload fields are worker inputs (registered per worker
+in `x-payload-by-worker`), and a worker that reads its lane has learned the pipeline —
+breaking the layer separation that makes workers pure. Instead the orchestrator **compiles the
+lane away** into knobs that already exist and are already registered: `payload.lens`,
+`payload.dimensions`, its own gate policy, and the budget defaults above. For audit only, the
+draft reserves an optional top-level informational `lane` field on the WorkOrder *envelope*
+(never readable by workers), wired only when lanes are implemented.
+
+**Per-lane `--auto` gate sets**, defined against the authoritative L0.7 table (§4.6):
+tiny×`--auto` pauses only at the merged board gate + L4; normal×`--auto` = L1a/L1b/L3/L4;
+full×`--auto` = normal + GATE H review.
 
 ---
 [← System Design](03-system-design.md) · [Back to index](README.md) · [Next: Verification & Quality Strategy →](05-verification-and-quality-strategy.md)

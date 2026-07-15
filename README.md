@@ -209,11 +209,26 @@ graph LR
 
 ### Hooks
 
-- `SessionStart` — prints a load confirmation so you know the plugin is active.
+- `SessionStart` — prints a load confirmation so you know the plugin is active; on
+  `compact|resume`, `hooks/session-rehydrate.mjs` additionally injects the mid-run
+  `RunSnapshot` hint ("trust the files, not the summary") when a harness run is in flight.
+- `PreToolUse` (matcher `Bash|Read|Write|Edit|MultiEdit`) — `hooks/safety-spine.mjs` denies
+  destructive commands (`rm -rf` on unrecoverable targets, force-push/push-to-main,
+  `git reset --hard`, `DROP TABLE`) and secret-file reads. Machine guard, not pipeline guard;
+  escape hatch is the human-authored `.shapeup-sdlc/safety-overrides.json`.
 - `PreToolUse` (matcher `Skill`) — `hooks/gate-l2.mjs` hard-blocks the once-per-round EVAL
   delegation while the task board isn't fully green.
+- `PreToolUse` (matcher `Skill|Agent`) — `skills/tech-lead/scripts/validate-envelope.mjs`
+  denies any worker dispatch whose `--order` file is missing or schema-invalid (the envelope
+  port's gate).
 - `PreToolUse` (matcher `Edit|Write|MultiEdit`) — `hooks/sandbox-guard.mjs` blocks writes
   outside the active scope's substrate whitelist (v0.3.0, no-op unless scope contracts exist).
+- `Stop` — two **advisory, never-blocking** hooks (`hooks/anti-rationalization.mjs` flags
+  completion claims the board/T0 facts contradict; `hooks/slop-cleaner.mjs` flags TODO/
+  console.log/commented-out-code leftovers in the session's diff). They emit at most a
+  `systemMessage` — "QA is a level-up, not a gate."
+- `PreCompact` — `hooks/compact-snapshot.mjs` persists the mid-run `RunSnapshot` to
+  `.shapeup-sdlc/<slug>/run-snapshot.json` before the conversation is compacted.
 
 > A project-local `/gap-scan` command (navigator→driver gap tracking) lives under
 > `.claude/commands/` for this repo's own use. It is **not** bundled in the distributed
@@ -250,13 +265,16 @@ claude --plugin-dir .
 .claude-plugin/
   plugin.json         # plugin manifest
   marketplace.json    # marketplace listing (points at this repo)
-skills/<name>/SKILL.md # the 11 harness skills (+ references/ and assets/)
+skills/<name>/SKILL.md # the 12 harness skills (+ references/ and assets/)
 skills/tech-lead/scripts|schemas/        # orchestrator pipeline: compile-order, ingest-result,
-                                         #   validate-envelope, t0-verify, aegis-digest + envelope schemas
+                                         #   validate-envelope, t0-verify, aegis-digest,
+                                         #   run-snapshot, stats + envelope schemas
 skills/ba-pitch-analyzer/scripts/        # planner mechanics: board-derive, spec-lint
 commands/*.md         # slash commands (/ship)
 agents/*.md           # subagents (reviewer)
-hooks/                # hooks.json + gate-l2.mjs + sandbox-guard.mjs (SessionStart + PreToolUse)
+hooks/                # hooks.json + safety-spine, gate-l2, sandbox-guard (PreToolUse),
+                      #   anti-rationalization, slop-cleaner (Stop, advisory),
+                      #   compact-snapshot (PreCompact), session-rehydrate (SessionStart)
 scripts/install-harness.sh, migrate.sh   # stable public entrypoints (fresh install / update)
 scripts/shapeup-sdlc/                    # dev/CI tooling: lib/, migrations/, oracles/,
                                          #   trigger-eval.mjs, verdict-ledger.mjs, distribute.js

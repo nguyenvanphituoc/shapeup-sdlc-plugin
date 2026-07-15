@@ -236,9 +236,27 @@ erDiagram
 |---|---|---|---|---|
 | `VerdictLedgerLine` | LOCAL | `evaluation/.verdicts-<target>.jsonl` | ingest-result.mjs | spec-evaluator (flip detection), verdict-ledger.mjs |
 | `SeesawRegistry` | LOCAL | `seesaw/registry.json` | tech-lead (scope FINISHED) | t0-verify.mjs |
-| `MetricsRow` | SHARED | `metrics/<machine-id>.jsonl` | tech-lead (SHIP S.6) | tier-3 benchmark tooling only |
+| `MetricsRow` | SHARED | `metrics/<machine-id>.jsonl` | tech-lead (SHIP S.6) | tier-3 benchmark tooling, stats.mjs (v1.2: optional `at` + `attempt_exhaustions` fields) |
 | `ActiveScopePointer` | LOCAL | `.shapeup-sdlc/active-scope` | tech-lead (BUILD step 0) | sandbox-guard hook — not writable by any worker |
 | `EscalateBlock` | EMBEDDED | advisor input | worker (via WorkResult) | advisor-protocol — answer persists to round-ledger instantly |
+| `SafetyOverrides` (v1.2) | LOCAL | `.shapeup-sdlc/safety-overrides.json` | **human PO only** — outside the run-trace carve-out, so no worker can write it | safety-spine hook |
+| `RunSnapshot` (v1.2) | LOCAL | `<slug>/run-snapshot.json` | run-snapshot.mjs `--write` (via the PreCompact hook — never a worker) | session-rehydrate hook, tech-lead, human |
+| `StatsReport` (v1.2) | EMBEDDED | stdout only — never persisted | stats.mjs (read-only projection) | human / CLI / CI |
+| `Lane` (v1.2 · design draft) | EMBEDDED | (when implemented) `harness-run.md` frontmatter `lane:` — never a payload field | tech-lead (GATE L0) | tech-lead only — see design §4.7 |
+
+## 7.4b — Telemetry & resilience read-plane (v1.2)
+
+The absorb-audit additions are all *derived* records: they read the run's files and project
+them — none of them is a new write surface for workers, and `ingest-result.mjs` remains the
+sole SHARED-state writer.
+
+```mermaid
+erDiagram
+    MetricsRow ||--o{ StatsReport : "aggregated by stats.mjs (read-only)"
+    HarnessRun ||--o| RunSnapshot : "derived from files by run-snapshot.mjs"
+    T0Artifact ||--o| RunSnapshot : "round/attempt from latest verdict filename"
+    SafetyOverrides ||--o| MetricsRow : "exercised override → SAFETY-OVERRIDE pathology row"
+```
 
 ## 7.5 — Vocabulary enums
 

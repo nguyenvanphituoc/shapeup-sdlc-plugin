@@ -50,11 +50,40 @@ Zero dependencies, no network, no Claude calls. Proves the plugin is **well-form
    `unmeasured` baseline may carry no results, a `measured` one must carry method + `measured_at`.
    This is the F1 lesson encoded as a test: numbers can never be fabricated.
 
-Exit 0 = pass, 1 = fail (currently **159 checks**). This is the cheapest, highest-ROI guard and the
-one the project lacked. Sections #8–#11 prove the oracle grammar is runnable; #12 proves the shipped
-skills are self-contained; #13–#16 prove the anti-leniency fixture, the L2 gate, the verdict ledger,
-and the trigger-eval layer do their jobs (discriminate / enforce / detect flips / stay honest), not
-merely that they exist.
+17–24. Pure-skill architecture mechanics (v0.3–v1.1): sandbox-guard substrate enforcement,
+   t0-verify verdict artifacts, aegis-digest triples, envelope schema discrimination,
+   compile-order fact-only assembly, ingest-result single-writer behavior, board-derive +
+   spec-lint planner math, and the central domain-registry consistency check.
+25. **Prompt line-count ratchet (v1.2):** `skills/tech-lead/SKILL.md` may not exceed 750 lines —
+   the 24995ba changelog-extraction win encoded as a regression; new logic goes into scripts.
+26. **Doc-drift (v1.2):** documented skill counts match `skills/`, every hook registered in
+   `hooks.json` is documented in README + design/03 (and no orphan hook files exist), every
+   concrete `hooks|skills|scripts|tests|commands/...` path cited in README/docs/design exists on
+   disk, and the docs state a checks **floor** (`N+ checks`) that the suite asserts against its
+   own final count.
+27. **Safety spine (v1.2):** `hooks/safety-spine.mjs` denies destructive-fs / git-destructive /
+   sql-destructive / secret-read / self-protect cases (naming the category), allows the precise
+   look-alikes (`rm -rf ./build`, `--force-with-lease`, `.env.example`…), honors — and logs — the
+   overrides file, treats a corrupt overrides file as absent, logs SAFETY pathology rows, and
+   fails open on garbage stdin.
+28. **Advisory Stop hooks (v1.2):** anti-rationalization emits a `systemMessage` naming the
+   contradicting facts on a red fixture + completion claim, stays silent on green/claimless/
+   no-run/`stop_hook_active` cases, and never emits a `decision` key; slop-cleaner's `scanDiff`
+   flags console.log/TODO/big-add slop in added lines only and its CLI fails open.
+29. **Compaction resilience (v1.2):** `run-snapshot.mjs` derives slug/scope/round/attempt/board/
+   pending-orders from files alone and the result validates against `RunSnapshot`; the PreCompact
+   hook persists it mid-run and never blocks; the SessionStart(compact) hook injects the
+   rehydrate hint as `additionalContext` and stays silent with no active run.
+30. **Telemetry read-plane (v1.2):** `stats.mjs` emits a schema-valid `StatsReport`, aggregates
+   correctly, skips-and-counts malformed rows, partitions pathology rows, renders `--format
+   table`, leaves the metrics dir byte-identical (read-only proof), and returns a valid empty
+   report on a missing dir.
+
+Exit 0 = pass, 1 = fail (330+ checks — the docs state the floor, section #26 asserts it). This is
+the cheapest, highest-ROI guard and the one the project lacked. Sections #8–#11 prove the oracle
+grammar is runnable; #12 proves the shipped skills are self-contained; #13–#16 prove the
+anti-leniency fixture, the L2 gate, the verdict ledger, and the trigger-eval layer do their jobs
+(discriminate / enforce / detect flips / stay honest), not merely that they exist.
 
 ## Tier 1 — Trigger evals (Stage C1 — datasets + harness LANDED, measurement pending)
 
