@@ -91,6 +91,18 @@ function walk(data, schema, path, errors, ctx, refDepth) {
     if (resolved) walk(data, resolved.schema, path, errors, resolved.ctx, refDepth + 1);
     return; // $ref replaces the subschema (draft 2020-12 sibling keywords not used here)
   }
+  if (Array.isArray(schema.anyOf)) {
+    // Additive-union support (spine v1.3: acceptance_criteria = string | {text, covers?}).
+    // Valid iff ≥1 branch validates with zero errors; each branch is tried against a throwaway
+    // error collection so a failing branch never leaks into the report.
+    const matched = schema.anyOf.some((sub) => {
+      const branchErrors = [];
+      walk(data, sub, path, branchErrors, ctx, refDepth);
+      return branchErrors.length === 0;
+    });
+    if (!matched) errors.push(`${path}: ${JSON.stringify(data)} matches none of the ${schema.anyOf.length} allowed shapes (anyOf)`);
+    return; // anyOf is terminal here (no sibling keywords combined with it in the shipped schemas)
+  }
   if (schema.type) {
     const t = typeOf(data);
     const okType = schema.type === "number" ? t === "number" || t === "integer" : t === schema.type;

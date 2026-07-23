@@ -1586,6 +1586,129 @@ section("30. stats.mjs is a read-only, schema-valid projection over the metrics 
   rmSync(emptyDir, { recursive: true, force: true });
 }
 
+// =============================================================================
+section("31. trace-lint.mjs is the covers-closure + reachability oracle (spine v1.3)");
+// =============================================================================
+// The plan's governing rule: if a script can't check it, it's decoration. This section proves
+// the oracle actually goes RED on the two audit findings it exists to catch — a dropped clause
+// and an orphaned engine — is ADVISORY by default (exit 0) yet BLOCKS under --gate, and is a
+// true non-regression on legacy specs (no spine artifacts → green). It also guards the schema
+// registration surface the plan requires (worker/operation/$def/payload) against drift.
+{
+  const tlPath = join(ROOT, "skills/tech-lead/scripts/trace-lint.mjs");
+  if (!existsSync(tlPath)) fail("skills/tech-lead/scripts/trace-lint.mjs missing — the traceability oracle is absent");
+  else {
+    const run = (slug, cwd, extra = []) => {
+      const r = spawnSync("node", [tlPath, "--slug", slug, "--cwd", cwd, "--quiet", ...extra], { encoding: "utf8" });
+      let report = null;
+      try { report = readJSON(join(cwd, ".shapeup-sdlc", slug, "trace", "report.json")); } catch { /* handled by caller */ }
+      return { status: r.status, report };
+    };
+
+    // Fixture A: a dropped clause (REQ covered-status, no AC), a dangling covers, an orphan engine.
+    const A = mkdtempSync(join(tmpdir(), "tracelint-red-"));
+    mkdirSync(join(A, "docs/shapeup-sdlc/demo"), { recursive: true });
+    mkdirSync(join(A, ".shapeup-sdlc/demo/tasks"), { recursive: true });
+    mkdirSync(join(A, "src"), { recursive: true });
+    writeFileSync(join(A, "docs/shapeup-sdlc/demo/requirements.md"),
+      "| REQ-id | clause | source | status | note |\n|--|--|--|--|--|\n" +
+      "| REQ-1 | lure enemies into traps | p §2.1 | covered | |\n" +
+      "| REQ-2 | side-step enemies | p §2.2 | covered | |\n" +
+      "| REQ-3 | low-res textures | p §2.3 | CUT (PO-approved) | absorbed |\n");
+    writeFileSync(join(A, ".shapeup-sdlc/demo/tasks/TASK-001.md"),
+      "---\nid: TASK-001\nstatus: ready\npriority: 1\n---\n- [ ] enemy lured into a trap (covers: REQ-1)\n- [ ] trap resets (covers: REQ-9)\n");
+    writeFileSync(join(A, "docs/shapeup-sdlc/demo/project-profile.json"),
+      JSON.stringify({ schema_version: 1, archetype: "client-only-game", entry_point: "main.js" }));
+    writeFileSync(join(A, "docs/shapeup-sdlc/demo/wiring-map.json"),
+      JSON.stringify({ schema_version: 1, feature: "demo", entries: [
+        { use_case: "UC-01", engine: "src/trap.js", affordance: "trap fires" },
+        { use_case: "UC-02", engine: "src/asset-pipeline.js", affordance: "textures" }] }));
+    writeFileSync(join(A, "main.js"), 'import { fire } from "./src/trap.js";\nfire();\n');
+    writeFileSync(join(A, "src/trap.js"), "export function fire(){ return 1; }\n");
+    writeFileSync(join(A, "src/asset-pipeline.js"), "export function load(){ return 631; }\n");
+
+    const advisory = run("demo", A);
+    if (advisory.status === 0) ok("trace-lint is advisory by default (exit 0 even when red)");
+    else fail(`advisory run should exit 0, got ${advisory.status}`);
+    const cc = advisory.report?.covers_closure, rc = advisory.report?.reachability;
+    if (advisory.report?.overall === "red") ok("trace-lint reports overall red on dropped clause + orphan");
+    else fail(`expected overall red, got ${advisory.report?.overall}`);
+    if (cc?.uncovered?.includes("REQ-2")) ok("covers-closure flags the dropped clause REQ-2 (no AC covers it)");
+    else fail(`REQ-2 not flagged uncovered: ${JSON.stringify(cc?.uncovered)}`);
+    if (cc?.dangling_covers?.includes("REQ-9")) ok("covers-closure flags the dangling covers: REQ-9 (not in the registry)");
+    else fail(`REQ-9 not flagged dangling: ${JSON.stringify(cc?.dangling_covers)}`);
+    if (!cc?.uncovered?.includes("REQ-3")) ok("a CUT (PO-approved) clause is NOT counted uncovered (governance, not a gap)");
+    else fail("REQ-3 (CUT) wrongly flagged uncovered");
+    if (rc?.unreachable?.some((u) => u.use_case === "UC-02")) ok("reachability flags the orphaned engine (UC-02, 0 import sites)");
+    else fail(`UC-02 orphan not flagged: ${JSON.stringify(rc?.unreachable)}`);
+    if (!rc?.unreachable?.some((u) => u.use_case === "UC-01")) ok("reachability does NOT flag the wired engine (UC-01 reaches entry_point)");
+    else fail("UC-01 wrongly flagged unreachable");
+
+    const gated = run("demo", A, ["--gate"]);
+    if (gated.status === 1) ok("--gate turns the same red report into a blocking failure (exit 1)");
+    else fail(`--gate should exit 1 on red, got ${gated.status}`);
+
+    // Fixture B: a legacy spec with no spine artifacts must be green even under --gate.
+    const B = mkdtempSync(join(tmpdir(), "tracelint-legacy-"));
+    mkdirSync(join(B, ".shapeup-sdlc/legacy/tasks"), { recursive: true });
+    writeFileSync(join(B, ".shapeup-sdlc/legacy/tasks/TASK-001.md"),
+      "---\nid: TASK-001\nstatus: ready\npriority: 1\n---\n- [ ] something works\n");
+    const legacy = run("legacy", B, ["--gate"]);
+    if (legacy.status === 0 && legacy.report?.overall === "green") ok("legacy spec (no requirements/wiring/profile) is green even under --gate (non-regression)");
+    else fail(`legacy run should be green/exit0, got status=${legacy.status} overall=${legacy.report?.overall}`);
+    if (legacy.report?.covers_closure?.checked === false && legacy.report?.reachability?.checked === false) ok("both spine arms self-skip when their artifacts are absent");
+    else fail("legacy run did not self-skip the spine arms");
+
+    rmSync(A, { recursive: true, force: true });
+    rmSync(B, { recursive: true, force: true });
+  }
+
+  // Schema registration surface the plan mandates (§2, §5) — guard against half-wired drift.
+  const domain = readJSON(join(ROOT, "skills/tech-lead/schemas/domain.schema.json"));
+  const wn = new Set(domain.$defs?.WorkerName?.enum || []);
+  const ops = new Set(domain.$defs?.Operation?.enum || []);
+  if (wn.has("solution-architect")) ok("WorkerName enum registers solution-architect");
+  else fail("solution-architect missing from WorkerName enum");
+  for (const op of ["wire", "coverage"]) {
+    if (ops.has(op)) ok(`Operation enum registers ${op}`);
+    else fail(`Operation enum missing ${op}`);
+  }
+  for (const def of ["RequirementClause", "WiringMap", "WiringEntry", "ProjectProfile"]) {
+    if (domain.$defs?.[def]) ok(`$defs registers ${def}`);
+    else fail(`$defs missing ${def}`);
+  }
+  // The new $defs must carry the writer/tier annotations the registry discipline requires.
+  const writers = { RequirementClause: "ba-pitch-analyzer", WiringMap: "solution-architect", ProjectProfile: "tech-lead" };
+  for (const [def, who] of Object.entries(writers)) {
+    if ((domain.$defs?.[def]?.["x-writer"] || "").includes(who)) ok(`${def} x-writer is ${who}`);
+    else fail(`${def} x-writer must name ${who}`);
+  }
+  // ProjectProfile.archetype must be a closed enum (a typo must fail, not silently disable reachability).
+  if (Array.isArray(domain.$defs?.ProjectProfile?.properties?.archetype?.enum)) ok("ProjectProfile.archetype is a closed enum");
+  else fail("ProjectProfile.archetype must be an enum");
+  // acceptance_criteria must be the additive union (string | {text, covers?}).
+  const acItems = domain.$defs?.TaskRef?.properties?.acceptance_criteria?.items;
+  if (Array.isArray(acItems?.anyOf) && acItems.anyOf.some((s) => s.type === "string") && acItems.anyOf.some((s) => s.type === "object"))
+    ok("TaskRef.acceptance_criteria accepts the additive string | {text, covers?} union");
+  else fail("acceptance_criteria is not the additive union the plan requires");
+
+  // parseTaskFile must extract covers[] while keeping .text byte-identical (ingest tick-back safe).
+  const cwd2 = mkdtempSync(join(tmpdir(), "covers-parse-"));
+  mkdirSync(join(cwd2, ".shapeup-sdlc/px/tasks"), { recursive: true });
+  writeFileSync(join(cwd2, ".shapeup-sdlc/px/tasks/TASK-001.md"),
+    "---\nid: TASK-001\nstatus: ready\npriority: 1\n---\n- [ ] does A (covers: REQ-3, REQ-7)\n- [ ] plain B\n");
+  const { readBoard } = await import(join(ROOT, "skills/tech-lead/scripts/compile-order.mjs"));
+  const board = readBoard(cwd2, "px");
+  const acs = board[0]?.acceptance_criteria || [];
+  const withCovers = acs.find((a) => typeof a === "object");
+  if (withCovers && withCovers.text === "does A (covers: REQ-3, REQ-7)" && withCovers.covers.join(",") === "REQ-3,REQ-7")
+    ok("parseTaskFile extracts covers[] and keeps .text byte-identical to the checkbox");
+  else fail(`covers parse wrong: ${JSON.stringify(withCovers)}`);
+  if (acs.some((a) => a === "plain B")) ok("an AC with no covers: stays a plain string (non-regression)");
+  else fail("plain AC was not left as a string");
+  rmSync(cwd2, { recursive: true, force: true });
+}
+
 // The floor parsed in section 26(d) is asserted here, where the final total exists.
 if (checksFloor !== null) {
   if (checks >= checksFloor) ok(`total checks (${checks}) meet the documented floor (${checksFloor}+)`);

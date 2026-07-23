@@ -6,7 +6,7 @@
 
 ```
 .claude-plugin/          plugin.json · marketplace.json
-skills/<name>/SKILL.md   the 12 harness skills (+ references/, evals/)
+skills/<name>/SKILL.md   the 13 harness skills (+ references/, evals/)
 skills/tech-lead/        schemas/ (WorkOrder · WorkResult · domain registry) + scripts/
                          (compile-order · ingest-result · validate-envelope ·
                           t0-verify · aegis-digest · run-snapshot · stats)

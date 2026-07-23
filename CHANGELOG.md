@@ -5,6 +5,51 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+**Traceability spine + wiring reachability.** Two mechanically-checkable oracles that close the
+two silent-failure modes the conformance audit named: a customer requirement that vanishes in
+translation, and an engine that ships built-and-green but orphaned from the running app. Governing
+rule (from the redesign): *if a script can't check it, it's decoration* — every artifact here is a
+checkable oracle or a durable anchor an oracle reads. Staged so nothing breaks legacy runs: every
+arm self-skips when its SHARED artifact is absent (non-regression), and `trace-lint` ships
+**advisory** (warn-only), promotable to a blocking `--gate` only once `covers:` is populated.
+
+### Added
+- **`skills/tech-lead/scripts/trace-lint.mjs`** — the ONE oracle, TWO assertions. *Covers-closure*:
+  every requirement with status `covered` must be named by ≥1 acceptance criterion's
+  `(covers: REQ-…)` clause; a REQ neither covered nor `CUT (PO-approved)` is red (catches the
+  *dropped clause*, not a contradiction). *Reachability*: a use-case whose engine does not reach the
+  project profile's `entry_point` via the import graph is red (catches the *dead module* — 0 import
+  sites — not a dead data-path). Emits the LOCAL `.shapeup-sdlc/<slug>/trace/report.json` + a Mermaid
+  view of the checked graph. Advisory (exit 0) by default; `--gate` blocks (exit 1) on red.
+- **`solution-architect` skill** — the new pure worker at gate **L1a.5** (`wire` operation); sole,
+  direct writer of the committed `docs/shapeup-sdlc/<slug>/wiring-map.json` (per-UC engine → seam →
+  entry-point call site → player-visible affordance). Front-loads the integration seam the slicer was
+  missing behind the round-1 `main.js` substrate-expansion escalations.
+- **`ba-pitch-analyzer coverage` operation** — extracts atomic customer-requirement clauses into the
+  SHARED `requirements.md` registry (`$defs/RequirementClause`), stable frozen REQ-ids
+  (supersede-never-delete; a dropped clause is marked CUT, never deleted). Open Decision A resolved:
+  the REQ source defaults to the pitch and is overridable via `payload.requirements`.
+- **`project-profile.json`** (`$defs/ProjectProfile`) — archetype + `entry_point`, written by
+  `tech-lead` at L0; the archetype-specific seam reachability resolves against (a game's `main.js`
+  is not a service's `src/server.ts`). `archetype` is a closed enum — a typo fails, never silently
+  disables the check.
+
+### Changed
+- **`domain.schema.json`** (central registry, per the one-place discipline): `WorkerName` +=
+  `solution-architect`; `Operation` += `coverage`, `wire`; new `$defs` `RequirementClause`,
+  `WiringMap`/`WiringEntry`, `ProjectProfile`; `TaskRef.acceptance_criteria` becomes the **additive**
+  union `string | {text, covers?}` (legacy `string[]` boards keep parsing — the ✦ non-regression
+  invariant); `CriterionVerdict.traces_to?` + `Discovery.traces_to?` (finding→REQ back-links);
+  `WorkOrderPayload` += `requirements`, `project_profile`; `x-payload/result-by-worker` +
+  `x-erd` extended for the new REQ↔AC, REQ↔finding, and UC↔WiringMap edges.
+- **`validate-envelope.mjs`** gains `anyOf` support (validates the additive `acceptance_criteria`
+  union without a validator dependency).
+- **`compile-order.mjs`**: `parseTaskFile` extracts `covers[]` while keeping `.text` byte-identical to
+  the checkbox (ingest's substring tick-back is untouched); `substrateFor` gains `coverage` (writes
+  `requirements.md` only) and `wire` (writes `wiring-map.json` only) whitelists; an operation→owner
+  map lets a non-build dispatch resolve its worker from the operation alone.
+- **`ingest-result.mjs`** surfaces a discovery's `traces_to` REQ-ids in the ledger line.
+
 ## [1.2.0] - 2026-07-15
 
 **Absorb & Audit (dwarves-kit × shapeup-sdlc) — P1–P4 landed, P5 shaped.** The machine gets a

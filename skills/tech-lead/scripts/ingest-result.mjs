@@ -143,7 +143,7 @@ export function applyResult(result, { cwd }) {
     const ledger = join(ledgerDir, "ledger.md");
     if (!existsSync(ledger)) writeFileSync(ledger, `---\nfeature: ${slug}\n---\n# Discovery Ledger — ${slug}\n`);
     const lines = result.discoveries.map((d) => {
-      const tags = [d.lens ? `[lens:${d.lens}]` : "", d.severity_hint ? `severity-hint: ${d.severity_hint}` : "", d.test_gap ? `test-gap: ${d.test_gap}` : "", d.contradicts ? `contradicts: ${d.contradicts}` : ""].filter(Boolean);
+      const tags = [d.lens ? `[lens:${d.lens}]` : "", d.severity_hint ? `severity-hint: ${d.severity_hint}` : "", d.test_gap ? `test-gap: ${d.test_gap}` : "", d.contradicts ? `contradicts: ${d.contradicts}` : "", d.traces_to?.length ? `traces_to: ${d.traces_to.join(", ")}` : ""].filter(Boolean);
       return `${d.marker} ${d.lens ? tags[0] + " " : ""}${d.line}${d.repro ? `\n    repro: ${d.repro}` : ""}${tags.slice(d.lens ? 1 : 0).map((t) => `\n    ${t}`).join("")}`;
     }).join("\n");
     appendFileSync(ledger, `\n## Discovered — ${result.order_id} (${today()})\n${lines}\n`);

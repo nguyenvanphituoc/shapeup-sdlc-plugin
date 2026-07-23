@@ -265,7 +265,7 @@ claude --plugin-dir .
 .claude-plugin/
   plugin.json         # plugin manifest
   marketplace.json    # marketplace listing (points at this repo)
-skills/<name>/SKILL.md # the 12 harness skills (+ references/ and assets/)
+skills/<name>/SKILL.md # the 13 harness skills (+ references/ and assets/)
 skills/tech-lead/scripts|schemas/        # orchestrator pipeline: compile-order, ingest-result,
                                          #   validate-envelope, t0-verify, aegis-digest,
                                          #   run-snapshot, stats + envelope schemas

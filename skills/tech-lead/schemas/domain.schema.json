@@ -9,6 +9,10 @@
       { "from": "WorkOrder", "to": "ScopeContract", "cardinality": "N:0..1", "via": "payload.scope_contract", "note": "build attempts carry the active scope verbatim" },
       { "from": "WorkOrder", "to": "TaskRef", "cardinality": "1:N", "via": "payload.tasks[]", "note": "parsed from the LOCAL board by compile-order, never by the worker" },
       { "from": "TaskRef", "to": "UseCase (SHARED spec doc)", "cardinality": "N:1..N", "via": "use_case_refs[]", "note": "the LOCAL→SHARED traceability anchor (single-anchor rule on reconcile) — spec-evaluator's traceability source. Tier direction: persisted links flow LOCAL→SHARED only; a committed spec doc never references a machine-local task id back (spec-lint TIER-DIRECTION/UC-ANCHOR)" },
+      { "from": "AcResult (LOCAL board AC)", "to": "RequirementClause (SHARED registry)", "cardinality": "N:0..N", "via": "acceptance_criteria[].covers[]", "note": "the covers-closure anchor — same sanctioned LOCAL→SHARED direction as use_case_refs. trace-lint asserts every status:covered REQ-id is named by ≥1 AC's covers[]; a REQ neither covered nor CUT is red. REQ-ids are stable cross-machine keys (supersede-never-delete), never renumbered like TASK-NNN" },
+      { "from": "CriterionVerdict / Discovery", "to": "RequirementClause (SHARED registry)", "cardinality": "N:0..N", "via": "traces_to[]", "note": "optional finding→REQ back-link (LOCAL→SHARED) so an edge case maps to a business requirement by id, not by grepping the ledger; the lint only checks the id resolves in the registry — purely a navigation anchor" },
+      { "from": "WiringMap", "to": "UseCase (SHARED spec doc)", "cardinality": "1:N", "via": "entries[].use_case", "note": "reachability map: per UC engine → wiring seam → entry-point call site → player-visible affordance. trace-lint asserts each UC's engine reaches ProjectProfile.entry_point via the import graph; an unreachable engine (0 import sites) is red" },
+      { "from": "WiringMap", "to": "ProjectProfile", "cardinality": "N:1", "via": "entry_point resolution", "note": "reachability resolves entry_point from the profile (archetype-specific: main.js for a game is not the seam for a web-service) — never hardcoded" },
       { "from": "WorkOrder", "to": "Decision", "cardinality": "1:N", "via": "payload.decisions[]", "note": "this scope's adjudicated answers, read back from round-ledger.md — the only entity that flows BACKWARD into orders" },
       { "from": "WorkOrder", "to": "AegisTriple", "cardinality": "1:N", "via": "payload.digested_errors[]", "note": "previous attempt's T0 failures, digested" },
       { "from": "WorkResult", "to": "TaskResult", "cardinality": "1:N", "via": "task_results[]" },
@@ -36,8 +40,9 @@
   "x-payload-by-worker": {
     "description": "Which WorkOrderPayload fields each worker may rely on, per its SKILL.md input contract. Every name listed here MUST exist in $defs/WorkOrderPayload/properties (structural test enforced). A worker treats any field absent from its order as unknown — never inferred.",
     "task-executor": ["tasks", "scope_contract", "decisions", "digested_errors", "verify", "kb_rules_path", "constraints", "bugs"],
-    "ba-pitch-analyzer": ["pitch", "lens", "orient_dir", "spec_folder", "feature", "discovered_ledger", "kb_rules_path"],
+    "ba-pitch-analyzer": ["pitch", "lens", "orient_dir", "spec_folder", "feature", "discovered_ledger", "kb_rules_path", "requirements"],
     "scope-architect": ["feature", "spec_folder", "tasks", "discovered_ledger", "scope_id"],
+    "solution-architect": ["feature", "spec_folder", "project_profile"],
     "spec-evaluator": ["spec_folder", "feature", "dimensions", "run_cmd", "t0_artifacts", "browser", "tasks"],
     "orient": ["pitch", "stack", "spec_folder", "feature"],
     "qa-edge-hunter": ["feature", "spec_folder", "eval_report", "app_url", "ledger", "kb_rules_path"],
@@ -52,6 +57,7 @@
     "spec-evaluator": ["verdict", "files_touched", "artifacts", "assumptions", "deviations"],
     "ba-pitch-analyzer": ["discoveries", "escalates", "files_touched", "artifacts", "assumptions", "deviations"],
     "scope-architect": ["escalates", "files_touched", "artifacts", "assumptions", "deviations"],
+    "solution-architect": ["escalates", "files_touched", "artifacts", "assumptions", "deviations"],
     "orient": ["files_touched", "artifacts", "assumptions", "deviations"],
     "qa-edge-hunter": ["discoveries", "files_touched", "artifacts", "assumptions", "deviations"],
     "translator": ["files_touched", "artifacts", "assumptions", "deviations"],
@@ -68,6 +74,7 @@
         "spec-evaluator",
         "ba-pitch-analyzer",
         "scope-architect",
+        "solution-architect",
         "orient",
         "qa-edge-hunter",
         "translator",
@@ -77,12 +84,13 @@
       ]
     },
     "Operation": {
-      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --remap …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix/spike = task-executor · analyze/generate-board/reconcile/retrofit-surface = ba-pitch-analyzer · map-scopes/remap/split-scope = scope-architect · evaluate = spec-evaluator · orient = orient · hunt/recheck = qa-edge-hunter · translate = translator · hammer = scope-hammer · coach = coach · adjudicate = advisor-protocol.",
+      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --remap …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix/spike = task-executor · analyze/generate-board/reconcile/retrofit-surface/coverage = ba-pitch-analyzer · map-scopes/remap/split-scope = scope-architect · wire = solution-architect · evaluate = spec-evaluator · orient = orient · hunt/recheck = qa-edge-hunter · translate = translator · hammer = scope-hammer · coach = coach · adjudicate = advisor-protocol.",
       "type": "string",
       "enum": [
         "execute", "fix", "spike",
-        "analyze", "generate-board", "reconcile", "retrofit-surface",
+        "analyze", "generate-board", "reconcile", "retrofit-surface", "coverage",
         "map-scopes", "remap", "split-scope",
+        "wire",
         "evaluate",
         "orient",
         "hunt", "recheck",
@@ -123,7 +131,23 @@
         "id": { "type": "string", "description": "TASK-NNN (machine-local)." },
         "title": { "type": "string" },
         "body_path": { "type": "string", "description": "Path to the full task file — the worker must read it fully, never rely on this summary alone." },
-        "acceptance_criteria": { "type": "array", "items": { "type": "string" }, "description": "The AC checkbox texts, verbatim — ingest ticks boxes by matching this text back." },
+        "acceptance_criteria": {
+          "type": "array",
+          "description": "The AC checkbox texts, verbatim — ingest ticks boxes by matching this text back. ADDITIVE union (spine v1.3): a plain `string` (legacy boards, unchanged) OR `{text, covers?}` when the board line carries a `(covers: REQ-…)` clause. `.text` stays BYTE-IDENTICAL to the checkbox so ingest-result's substring tick-back (AcResult.ac) is untouched; `covers[]` is the LOCAL→SHARED anchor trace-lint reads for covers-closure. A pre-covers board keeps parsing as string[] (the ✦ non-regression invariant).",
+          "items": {
+            "anyOf": [
+              { "type": "string" },
+              {
+                "type": "object",
+                "required": ["text"],
+                "properties": {
+                  "text": { "type": "string", "description": "The checkbox text, verbatim (byte-identical to the board line — includes any trailing (covers: …) clause)." },
+                  "covers": { "type": "array", "items": { "type": "string", "pattern": "^REQ-[0-9]+$" }, "description": "REQ-ids this AC covers — resolved against the SHARED requirements registry by trace-lint." }
+                }
+              }
+            ]
+          }
+        },
         "status": { "type": "string", "description": "ready | in-progress | blocked | done | cut (board frontmatter; informational inside an order)." },
         "priority": { "type": "integer", "description": "Board ordering (lower = earlier)." },
         "depends_on": { "type": "array", "items": { "type": "string" }, "description": "Explicit dependencies. The inverse (unlocks) is ALWAYS derived by board-derive.mjs, never hand-authored (KB-BA-001)." },
@@ -281,7 +305,8 @@
         "repro": { "type": "string", "description": "Numbered repro steps — mandatory for QA findings (no repro = unconfirmed observation, not a finding)." },
         "severity_hint": { "type": "string", "description": "data-integrity | boundary-breach | ux-degradation | cosmetic — the Hunter's ADVICE to triage, never a decision." },
         "test_gap": { "type": "string", "description": "unit | integration | exploratory-only — advises reconciliation whether to generate a test-writing task." },
-        "contradicts": { "type": "string", "description": "EVAL criterion id this finding disproves — routes back through triage; the judge's record itself is never edited." }
+        "contradicts": { "type": "string", "description": "EVAL criterion id this finding disproves — routes back through triage; the judge's record itself is never edited." },
+        "traces_to": { "type": "array", "items": { "type": "string", "pattern": "^REQ-[0-9]+$" }, "description": "OPTIONAL (spine v1.3) — REQ-ids this finding maps back to. The checkable back-link (LOCAL→SHARED) so an edge case maps to a business requirement by id instead of grepping ledger.md; trace-lint only checks the id resolves in the registry." }
       }
     },
     "T0Citation": {
@@ -306,7 +331,8 @@
         "verdict": { "type": "string", "enum": ["PASS", "FAIL"] },
         "confidence": { "type": "string", "enum": ["high", "medium", "low"] },
         "reprobed": { "type": "boolean", "description": "Every FAIL is re-probed once before finalizing." },
-        "evidence": { "type": "string", "description": "Probe output / file:line — 'NO EVIDENCE' fails the criterion." }
+        "evidence": { "type": "string", "description": "Probe output / file:line — 'NO EVIDENCE' fails the criterion." },
+        "traces_to": { "type": "array", "items": { "type": "string", "pattern": "^REQ-[0-9]+$" }, "description": "OPTIONAL (spine v1.3) — REQ-ids this criterion maps back to. A checkable finding→requirement anchor (LOCAL→SHARED) so the judge's record maps to a business requirement by id; trace-lint only checks each id resolves in the registry. Navigation aid, never a grading input." }
       }
     },
     "RefutedAc": {
@@ -610,6 +636,65 @@
       "type": "string",
       "enum": ["tiny", "normal", "full"]
     },
+    "RequirementClause": {
+      "description": "One atomic customer requirement, frozen with a STABLE id — the covers-closure input truth (spine v1.3). Extracted from the REQ source (Open Decision A: pitch / customer-requirements doc / use-case bodies) by ba-pitch-analyzer's `coverage` operation; extraction is judgment (LLM), but ids are assigned ONCE and never renumber (they behave like scope_id, not TASK-NNN — every covers: link would rot otherwise). Supersede-never-delete: a dropped clause is marked CUT (PO-approved), never removed, so the registry stays auditable on a fresh clone. The original REQ source is never edited — the registry is a separate derived, committed file.",
+      "x-tier": "SHARED",
+      "x-location": "docs/shapeup-sdlc/<slug>/requirements.md",
+      "x-writer": "ba-pitch-analyzer (operation: coverage) — extraction only; CUT status is a PO governance edit (same class as a round-ledger Decision)",
+      "x-readers": "trace-lint.mjs (covers-closure oracle), tech-lead, human (coverage/cut audit)",
+      "type": "object",
+      "required": ["id", "clause", "status"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^REQ-[0-9]+$", "description": "REQ-N — assigned once, frozen; the stable cross-machine key every covers[] / traces_to[] link resolves against." },
+        "clause": { "type": "string", "description": "The requirement text, VERBATIM from the source — the deletion this closure catches is a clause that no AC covers." },
+        "source": { "type": "string", "description": "Where the clause came from (e.g. \"pitch §2.2\", \"req-doc.md#L14\", \"UC-04 body\") — the provenance an auditor traces back." },
+        "status": { "type": "string", "enum": ["covered", "CUT (PO-approved)"], "description": "covered = must be named by ≥1 AC's covers[] or trace-lint goes red; CUT (PO-approved) = a Betting-Table decision to drop it, kept for audit (never deleted)." },
+        "note": { "type": "string", "description": "Optional rationale — required in spirit for a CUT (why the clause was dropped)." }
+      }
+    },
+    "WiringEntry": {
+      "description": "One use-case's reachability chain inside a WiringMap: engine → wiring seam → entry-point call site → player-visible affordance. The declaration front-loads the integration seam scope-architect needs at slicing time (the missing input behind the round-1 main.js substrate-expansion escalations).",
+      "x-tier": "EMBEDDED (inside WiringMap.entries)",
+      "type": "object",
+      "required": ["use_case", "engine"],
+      "properties": {
+        "use_case": { "type": "string", "description": "UC id this chain realizes (e.g. UC-04) — resolves against the committed usecases/ tree." },
+        "engine": { "type": "string", "description": "Repo-relative path of the module implementing the UC's core logic — the file reachability BFS must reach from the entry point (a dead module with 0 import sites is red)." },
+        "wiring_seam": { "type": "string", "description": "How the engine is meant to attach (event handler, route registration, init hook) — prose the slicer reads." },
+        "entry_call_site": { "type": "string", "description": "file:line where the entry point invokes the engine (the seam declared up front at L1a.5)." },
+        "affordance": { "type": "string", "description": "The player-visible affordance this UC exposes when wired — the human-facing end of the chain." }
+      }
+    },
+    "WiringMap": {
+      "description": "The reachability map — per UC, the chain from engine to a player-visible affordance (spine v1.3). Written DIRECTLY by solution-architect at gate L1a.5 (precedent: ScopeContract is written directly by scope-architect, bypassing ingest-result). Its purpose: no engine ships orphaned from the running application. trace-lint folds reachability into its covers-closure pass — a UC whose engine does not reach ProjectProfile.entry_point via the import graph is red. A Mermaid view is auto-rendered from this map (a view of a checked graph, so it cannot drift).",
+      "x-tier": "SHARED",
+      "x-location": "docs/shapeup-sdlc/<slug>/wiring-map.json",
+      "x-writer": "solution-architect (SOLE writer, direct — like scope-architect writes scopes/*.json)",
+      "x-readers": "trace-lint.mjs (reachability oracle), scope-architect (integration seam at slicing time), tech-lead",
+      "type": "object",
+      "required": ["schema_version", "feature", "entries"],
+      "properties": {
+        "schema_version": { "type": "integer", "enum": [1] },
+        "feature": { "type": "string", "description": "The feature slug." },
+        "entry_point": { "type": "string", "description": "OPTIONAL echo of ProjectProfile.entry_point at authoring time (informational — the profile stays the source of truth reachability resolves against)." },
+        "entries": { "type": "array", "items": { "$ref": "#/$defs/WiringEntry" } }
+      }
+    },
+    "ProjectProfile": {
+      "description": "The archetype + entry-point declaration reachability depends on (spine v1.3). Exists for ONE load-bearing reason: reachability must know the entry point, and that is archetype-specific (main.js for a client-only game is not the seam for a web-service). SHARED — a declaration that must survive `rm -rf .shapeup-sdlc/` + clone cannot live in the gitignored run-trace. Role-gating (skip SysRS/Auth/CI-CD) is explicitly OUT of scope — those roles are not workers; the profile is introduced only as the entry-point/archetype declaration.",
+      "x-tier": "SHARED",
+      "x-location": "docs/shapeup-sdlc/<slug>/project-profile.json",
+      "x-writer": "tech-lead (GATE L0 — not compile-order.mjs, which stays pipeline-blind)",
+      "x-readers": "trace-lint.mjs (reachability entry_point), solution-architect (wire), tech-lead",
+      "type": "object",
+      "required": ["schema_version", "archetype", "entry_point"],
+      "properties": {
+        "schema_version": { "type": "integer", "enum": [1] },
+        "archetype": { "type": "string", "enum": ["client-only-game", "web-service", "mobile", "library", "data-pipeline"], "description": "Validated against the enum — a typo must FAIL, never silently disable reachability." },
+        "entry_point": { "type": "string", "description": "The repo-relative seam trace-lint reachability resolves engines against (e.g. main.js, src/server.ts). Not hardcoded — archetype-specific." },
+        "note": { "type": "string", "description": "Optional context on the archetype/entry-point choice." }
+      }
+    },
     "WorkOrderPayload": {
       "description": "The union of every worker-specific input field a WorkOrder payload may carry. Which fields a given worker relies on is registered in x-payload-by-worker at the schema root — a worker treats anything absent from its order as unknown, and a NEW cross-boundary field must be added HERE first (with an x-payload-by-worker entry), never invented ad hoc in a skill.",
       "x-tier": "EMBEDDED",
@@ -630,6 +715,8 @@
         "orient_dir": { "type": "string", "description": "ba-pitch-analyzer: the Scout's artifact dir — code-surface.md IS the codebase map (do not re-scan)." },
         "stack": { "type": "string", "description": "orient: stack hint aiming the code-surface sweeps (e.g. \"pnpm, Next 16 web :3000\")." },
         "discovered_ledger": { "type": "string", "description": "ba-pitch-analyzer (reconcile) / scope-architect (remap): the discovery ledger path whose raw [+]/~ lines get folded in." },
+        "requirements": { "type": "string", "description": "ba-pitch-analyzer (operation: coverage): the REQ source to extract atomic clauses from (Open Decision A — pitch / customer-requirements doc / use-case bodies). Absent → the planner defaults to the pitch and records the choice in assumptions[]. The written registry lands at docs/shapeup-sdlc/<slug>/requirements.md (RequirementClause rows)." },
+        "project_profile": { "type": "string", "description": "solution-architect (operation: wire): path to the SHARED project-profile.json (archetype + entry_point) — the reachability seam the wiring map is authored against. Absent orchestrated → ESCALATE, never guess the entry point." },
         "scope_id": { "type": "string", "description": "scope-architect (split-scope): the stuck scope · scope-hammer (--breaker inner): the exhausted scope · advisor-protocol: budget scope." },
         "dimensions": { "type": "array", "items": { "type": "string" }, "description": "spec-evaluator: the active dimension set (caller-resolved precedence). Absent → [spec-conformance] + auto-enable rules." },
         "run_cmd": { "type": "string", "description": "spec-evaluator: how to start the running app. Absent orchestrated → ESCALATE, never guess." },

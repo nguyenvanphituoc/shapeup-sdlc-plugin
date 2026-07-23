@@ -57,7 +57,13 @@ export function parseTaskFile(path) {
   const acceptance_criteria = [];
   for (const line of body.split(/\r?\n/)) {
     const m = line.match(/^\s*- \[[ x]\]\s+(.*)$/);
-    if (m) acceptance_criteria.push(m[1].trim());
+    if (!m) continue;
+    const text = m[1].trim(); // byte-identical to the checkbox — ingest ticks by matching it back
+    // Additive covers-closure anchor (spine v1.3): a trailing `(covers: REQ-3, REQ-7)` clause on
+    // the AC line yields {text, covers}; a plain line stays a string (non-regression on legacy boards).
+    const cov = text.match(/\(covers:\s*([^)]*)\)/i);
+    const covers = cov ? cov[1].split(",").map((s) => s.trim()).filter((s) => /^REQ-\d+$/.test(s)) : [];
+    acceptance_criteria.push(covers.length ? { text, covers } : text);
   }
   return {
     id: fm.id || basename(path).match(/TASK-[\w.-]+?(?=-|\.md)/)?.[0] || basename(path, ".md"),
@@ -127,10 +133,24 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
       };
     case "retrofit-surface":
       return { allowed: [], append_only: [`${spec}/usecases/*.md#Test Surface`], frozen: FROZEN_SPEC_CORE };
+    case "coverage":
+      // ba-pitch-analyzer writes the SHARED requirement registry only — the REQ source and the
+      // spec core stay frozen (the registry is a separate derived file, never an edit of the source).
+      return {
+        allowed: [`docs/shapeup-sdlc/${slug}/requirements.md`],
+        frozen: [...FROZEN_SPEC_CORE, `${scopesDir}/**`, `${local}/tasks/**`],
+      };
     case "map-scopes": case "remap": case "split-scope":
       return {
         allowed: [`${scopesDir}/*.json`, `docs/shapeup-sdlc/${slug}/scope-board.md`],
         frozen: [...FROZEN_SPEC_CORE, `${local}/tasks/**`],
+      };
+    case "wire":
+      // solution-architect writes the SHARED wiring map DIRECTLY (precedent: scope-architect
+      // writes scopes/*.json). The spec core, the scopes, and the profile stay frozen.
+      return {
+        allowed: [`docs/shapeup-sdlc/${slug}/wiring-map.json`],
+        frozen: [...FROZEN_SPEC_CORE, `${scopesDir}/**`, `docs/shapeup-sdlc/${slug}/project-profile.json`],
       };
     case "evaluate":
       return { allowed: [`${local}/evaluation/**`], frozen: [`${spec}/**`, `${local}/tasks/**`] };
@@ -199,8 +219,20 @@ if (isMain) {
 
   const round = Number(flag("round")) || null;
   const attempt = Number(flag("attempt")) || null;
-  const worker = flag("worker") || (scopePath || flag("task") || has("next") ? "task-executor" : null);
+  // Operation → owning worker (mirrors domain.schema.json $defs/Operation ownership). Lets a
+  // non-build dispatch resolve its worker from the operation alone, without a redundant --worker.
+  const OP_OWNER = {
+    analyze: "ba-pitch-analyzer", "generate-board": "ba-pitch-analyzer", reconcile: "ba-pitch-analyzer",
+    "retrofit-surface": "ba-pitch-analyzer", coverage: "ba-pitch-analyzer",
+    "map-scopes": "scope-architect", remap: "scope-architect", "split-scope": "scope-architect",
+    wire: "solution-architect", evaluate: "spec-evaluator", orient: "orient",
+    hunt: "qa-edge-hunter", recheck: "qa-edge-hunter", translate: "translator",
+    hammer: "scope-hammer", coach: "coach", adjudicate: "advisor-protocol",
+  };
   let operation = flag("operation") || (scopePath || flag("task") || has("next") ? "execute" : null);
+  const worker = flag("worker")
+    || (scopePath || flag("task") || has("next") ? "task-executor" : null)
+    || (operation ? OP_OWNER[operation] : null);
   if (!worker || !operation) { console.error("compile-order: could not resolve --worker/--operation"); process.exit(2); }
 
   // Task selection.

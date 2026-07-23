@@ -9,10 +9,11 @@ description: >
   use cases — and on a WorkOrder dispatch (--order) from the tech-lead orchestrator. Output is
   a linked document tree (pitch → domain model → use cases → tasks) with BDD scenarios, a UC
   System Flow, and a derived Test Surface. The spec-analyzer role of the pure-skill
-  architecture: one craft, four operations (analyze | generate-board | reconcile |
-  retrofit-surface) selected by the order, write zones enforced as substrate whitelists, all
-  graph/audit arithmetic delegated to board-derive.mjs and spec-lint.mjs. Scope contracts
-  belong to the separate scope-architect skill.
+  architecture: one craft, five operations (analyze | generate-board | reconcile |
+  retrofit-surface | coverage) selected by the order, write zones enforced as substrate
+  whitelists, all graph/audit arithmetic delegated to board-derive.mjs and spec-lint.mjs. The
+  coverage op extracts atomic customer requirements into the committed requirements.md registry
+  (covers-closure). Scope contracts belong to the separate scope-architect skill.
 ---
 
 # BA Pitch Analyzer (spec-analyzer, pure worker v4.0)
@@ -36,8 +37,9 @@ Invoked as `--order <path>`. Fields you may rely on (absent = unknown; surface i
 
 | Field | What it is |
 |---|---|
-| `operation` | `analyze` (pitch → full spec tree + board) · `generate-board` (regenerate the LOCAL board from the committed spec) · `reconcile` (fold discovered-ledger items into the board + UC invariants) · `retrofit-surface` (append `## Test Surface` to a pre-surface spec) |
+| `operation` | `analyze` (pitch → full spec tree + board) · `generate-board` (regenerate the LOCAL board from the committed spec) · `reconcile` (fold discovered-ledger items into the board + UC invariants) · `retrofit-surface` (append `## Test Surface` to a pre-surface spec) · `coverage` (extract atomic requirement clauses → the SHARED `requirements.md` registry) |
 | `payload.pitch` | The pitch/PRD path (analyze) |
+| `payload.requirements` | (coverage) the REQ source to extract atomic clauses from — pitch / a customer-requirements doc / the use-case bodies. Absent → default to the pitch and record the choice in `assumptions[]` |
 | `payload.lens` | `lite` \| `standard` \| `cross-context`. Absent → judge it: LITE for ≤2-week appetite, no third-party, ≤3 user-facing actions; STANDARD for multi-team, third-party, or bigger appetite; genuinely unclear → one binary question / one `escalates[]` entry |
 | `payload.orient_dir` | The Scout's artifacts — `code-surface.md` IS your codebase map (do not re-scan), `discovered-seed.md` seeds task gen, `spike-*.md` feeds feasibility |
 | `payload.spec_folder` / `payload.feature` | Where the committed tree lives / the slug |
@@ -105,13 +107,14 @@ second path to green.
 
 ---
 
-## The other three operations — same craft, different payload + whitelist
+## The other four operations — same craft, different payload + whitelist
 
 | Operation | Essence | Never |
 |---|---|---|
 | `generate-board` | Re-derive the full task set fresh from the committed `usecases/` + `domain-model.md` (+ scope contracts if present — tasks respect their substrates). Numbering restarts at TASK-001. Initialize `status` from committed mechanical truth at SCOPE granularity (a scope with hill shard FINISHED → its tasks start `done`) — never join on task id; ids renumber per machine, the scope is the stable key. Then board-derive `--write` + regenerate scope-summary.md | touch the committed spec docs (frozen in your substrate) |
 | `reconcile` | Verify `ledger.feature == payload.feature` (mismatch → STOP). Map each `[+]` Keep item → its owning UC; new task continues numbering (never renumber); `~`/Cut → synthesis "Hammered Out" row, no file. A Keep item asserting a new invariant → APPEND `[INV-NN]` + TS-INV row to that UC (append-only sections in your substrate). A new actor/action with no UC → `escalates[]` (spec-ambiguity): spawning a UC mid-cycle is silent re-shaping, the PO decides. Finish with board-derive (appetite overflow → report) + spec-lint | re-run phases 1–5; edit UC Steps; resolve the appetite HAMMER yourself |
 | `retrofit-surface` | Append `## Test Surface` (derived rows only, after Error Cases) to each UC of a pre-surface spec; an all-sources-empty UC gets the explicit empty-sources line | touch anything else — append-only substrate |
+| `coverage` | Extract **atomic** customer requirement clauses from `payload.requirements` (default: the pitch) and write the SHARED `docs/shapeup-sdlc/<slug>/requirements.md` registry: one `\| REQ-id \| clause (verbatim) \| source \| status \| note \|` row per clause. Split compound sentences into one testable clause each — the audit's dropped clauses ("side-step OR lure enemies into traps", "low-res world textures") were *lost inside* a bigger sentence. **Assign REQ-ids ONCE and freeze them** (they behave like scope_id, never TASK-NNN — every `covers:` link rots otherwise): re-running, append new clauses with fresh ids, mark a removed clause `CUT (PO-approved)`, never renumber or delete. Status starts `covered` (a live requirement); only the PO sets `CUT`. The REQ source itself is frozen — the registry is a separate derived file | edit the REQ source; renumber existing REQ-ids; delete a dropped clause instead of marking it CUT; invent a requirement not in the source |
 
 ---
 

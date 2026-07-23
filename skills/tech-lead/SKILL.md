@@ -90,6 +90,10 @@ INTAKE: kicked-off pitch (shaped + bet, by the PO) + project context
 ⏸ GATE L1a│  Orient Review ─────────► 🗻 area-level Hill (what's uphill/unknown going in).
           │                          Confirm the riskiest area + spike result before mapping.
           │
+▶ WIRE ✚  │  delegate → solution-architect (`wire`, step 7.5) ──► wiring-map.json: per-UC engine
+  (7.5)   │  → seam → entry-point call site → affordance (vs project-profile entry_point).
+⏸ L1a.5 ✚ │  Wiring Review ─────────► each UC has a declared seam (no engine orphaned). Spine-only.
+          │
 ▶ MAP     │  delegate → ba-pitch-analyzer (step 8), orient-informed ──► spec tree +
   SCOPES  │  tasks/_index.md (the board). `ba` consumes orient/ artifacts, does not re-scan.
   (8)     │
@@ -246,6 +250,27 @@ Ask (max 2): is the riskiest area the right one to have spiked? any unknown that
              resolved (another spike) before we map scopes?
 ```
 Do NOT enter MAP SCOPES until Orient is accepted.
+
+---
+
+## WIRE (step 7.5) + traceability spine ✚ — delegate to solution-architect
+
+**Active only when the spine is in use** — on a legacy spec skip it; `trace-lint` self-skips every arm whose artifact is absent (non-regression).
+
+```
+1. PROFILE (you write it at L0 — compile-order stays pipeline-blind): SHARED project-profile.json
+   = {schema_version:1, archetype, entry_point}. archetype ∈ {client-only-game|web-service|
+   mobile|library|data-pipeline}; entry_point is the reachability seam (a game's main.js is NOT a
+   service's src/server.ts). Validate the enum — a typo must fail, not silently disable the check.
+2. WIRE — compile-order --operation wire --slug <slug> (worker→solution-architect), payload
+   {project_profile}. Sole writer of committed wiring-map.json (per-UC engine → seam → entry-point
+   call site → affordance). ⏸ GATE L1a.5: confirm each UC has a declared seam before slicing.
+3. COVERAGE (folds into MAP SCOPES) — compile-order --operation coverage → ba writes the SHARED
+   requirements.md registry (atomic REQ clauses, frozen ids).
+4. trace-lint — node skills/tech-lead/scripts/trace-lint.mjs --slug <slug>. ADVISORY at L1b:
+   covers-closure (every covered REQ named by ≥1 AC's covers:) + reachability (every UC engine
+   reaches entry_point). Promote to --gate only once covers: is populated.
+```
 
 ---
 

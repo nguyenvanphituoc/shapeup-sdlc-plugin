@@ -28,13 +28,18 @@ return as data (D6 closed: single-writer is mechanically true).
 |------|------|--------|
 | Kick-off | ⏸ **L0** — Intake & Config (L0.8 model/budget matrix) | `/translator` if non-English |
 | Orient (Scout) | ⏸ **L1a** — Orient Review | delegate → `/orient` |
-| Map Scopes | ⏸ **L1b** — Board Review (+ substrate disjointness via `spec-lint.mjs`) | delegate → `/ba-pitch-analyzer` (spec tree + board: UC + Invariants + Test Surface ★) then `/scope-architect` (scope contracts ✦ — sole writer) |
+| Wire (Reachability) | ⏸ **L1a.5** — Wiring Review ✚ | delegate → `/solution-architect` (`wire`): committed `wiring-map.json` — per-UC engine → seam → entry-point call site → affordance, against `project-profile.json` entry_point; front-loads the integration seam |
+| Map Scopes | ⏸ **L1b** — Board Review (+ substrate disjointness via `spec-lint.mjs`) | delegate → `/ba-pitch-analyzer` (spec tree + board: UC + Invariants + Test Surface ★; `coverage` op writes the `requirements.md` registry ✚) then `/scope-architect` (scope contracts ✦ — sole writer). Traceability oracle `trace-lint.mjs` runs advisory ✚ |
 | Build Vertically | ⏸ **L2** — Board 100% ✅ + T0-green ✦ | per dispatch: compile-order → `/task-executor` (--order) → ingest-result, T0-verified per attempt (fixtures + DB probe + seesaw ✦), sandboxed to each scope's substrate ✦ |
 | EVAL (once per round) | ⏸ **L3** — Verdict | delegate → `/spec-evaluator` (--order; spec-conformance + test-surface-conformance ★; requires a T0 artifact citation on scoped specs ✦); refuted boxes/verdict ledger applied by ingest |
 | FAIL → fix round r+1 | — | regression rule ★: bugs + full Test Surface of touched UC |
 
 ✦ = v0.3.0 mechanisms, active only when the spec folder has scope contracts
 (`docs/shapeup-sdlc/<slug>/scopes/*.json`); non-regression on older specs.
+✚ = spine v1.3 traceability mechanisms (covers-closure + reachability), active only when the
+spine artifacts exist (`requirements.md`, `wiring-map.json`, `project-profile.json`); `trace-lint`
+ships advisory (warn-only) and is promoted to a blocking gate only once `covers:` is populated.
+Non-regression on older specs — every arm is skipped when its artifact is absent.
 
 ### QA Edge Hunt (`/qa-edge-hunter`, post-PASS, pre-ship)
 - **Q0** Preflight → **Q1** Charter (6 lenses − EVAL-covered) → **Hunt** (repro required, findings `~` → ledger) → report (no verdict, no score).
@@ -69,8 +74,9 @@ All discovered tasks are funnelled into `.shapeup-sdlc/<slug>/discovery/ledger.m
 ## Installed Skills
 
 - **shapeup**: Run Shape Up workflows before writing code (S1-S4, B1-B5).
-- **ba-pitch-analyzer**: The spec-analyzer — pitch → DDD spec tree + board, one craft with four order-selected operations (analyze | generate-board | reconcile | retrofit-surface); graph math and audits delegated to `board-derive.mjs`/`spec-lint.mjs`; stateless pure worker.
+- **ba-pitch-analyzer**: The spec-analyzer — pitch → DDD spec tree + board, one craft with five order-selected operations (analyze | generate-board | reconcile | retrofit-surface | coverage); graph math and audits delegated to `board-derive.mjs`/`spec-lint.mjs`; the `coverage` op writes the SHARED requirement registry (`requirements.md`) for covers-closure; stateless pure worker.
 - **scope-architect**: Sole writer of committed scope contracts (`scopes/*.json`) — import-graph slicing by flow, write-whitelist substrates, affordance manifests, fixtures; map-scopes | remap | split-scope operations.
+- **solution-architect**: Sole writer of the committed wiring map (`wiring-map.json`) at gate L1a.5 — per-UC engine → seam → entry-point call site → player-visible affordance, resolved against `project-profile.json`; the reachability input `trace-lint.mjs` checks so no engine ships orphaned; `wire` operation; stateless pure worker.
 - **task-executor**: Implement a work order's acceptance criteria exactly — WorkOrder in, code + WorkResult out; zero-memory, substrate-sandboxed, Layer 1/2/3 UI rules; never writes boards/ledgers/run-state.
 - **spec-evaluator**: The single judge — evaluates the running app against the committed spec; verdict + refuted boxes return as data; requires a T0 artifact citation and grades UI affordance-only on scoped specs.
 - **qa-edge-hunter**: Exploratory QA hunt.
@@ -87,4 +93,5 @@ All discovered tasks are funnelled into `.shapeup-sdlc/<slug>/discovery/ledger.m
 - Telemetry facts for shipped features are saved to: \`docs/shapeup-sdlc/metrics/<machine-id>.jsonl\` (sharded per machine)
 - Ephemeral logs and states are stored in: \`.shapeup-sdlc/\` (Gitignored)
 - Scope contracts, hill shards, and the round ledger are stored in: \`docs/shapeup-sdlc/<slug>/\` (committed — v0.3.0, when scope contracts are in use)
+- **Traceability spine (v1.3)** — the covers-closure + reachability oracle \`skills/tech-lead/scripts/trace-lint.mjs\` reads three committed SHARED artifacts: the requirement registry \`docs/shapeup-sdlc/<slug>/requirements.md\` (RequirementClause rows, written by \`ba-pitch-analyzer coverage\`), the wiring map \`docs/shapeup-sdlc/<slug>/wiring-map.json\` (written by \`solution-architect wire\`), and \`docs/shapeup-sdlc/<slug>/project-profile.json\` (archetype + entry_point, written by \`tech-lead\` at L0). It emits the LOCAL run-trace \`.shapeup-sdlc/<slug>/trace/report.json\`; ships advisory, promoted to a gate only once \`covers:\` is populated
 <!-- HARNESS_END -->
