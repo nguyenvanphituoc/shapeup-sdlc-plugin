@@ -26,9 +26,19 @@ import { validate } from "./validate-envelope.mjs";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RESULT_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../schemas/work-result.schema.json"), "utf8"));
 
+/**
+ * @returns {string} Today's date as an ISO `YYYY-MM-DD` string (UTC), for log/frontmatter stamps.
+ */
 const today = () => new Date().toISOString().slice(0, 10);
 
-/** Locate a task file on the LOCAL board by id. */
+/**
+ * Locate a task file on the LOCAL board by id.
+ * @param {string} cwd - Working-directory root.
+ * @param {string} slug - Feature slug.
+ * @param {string} taskId - Task id prefix to match (e.g. "TASK-001").
+ * @returns {string|null} Absolute path of the first `<taskId>*.md` file, or null when the tasks
+ *   directory or a matching file does not exist.
+ */
 export function findTaskFile(cwd, slug, taskId) {
   const dir = join(cwd, ".shapeup-sdlc", slug, "tasks");
   if (!existsSync(dir)) return null;
@@ -36,7 +46,14 @@ export function findTaskFile(cwd, slug, taskId) {
   return f ? join(dir, f) : null;
 }
 
-/** Set a scalar frontmatter field in a task file body (adds it if absent). */
+/**
+ * Set a scalar frontmatter field in a task-file body, adding it when absent.
+ * @param {string} body - Full task-file text.
+ * @param {string} key - Frontmatter key to set.
+ * @param {(string|number)} value - Value to write (stringified inline).
+ * @returns {string} The body with `key: value` set; returned unchanged when the body has no
+ *   frontmatter block.
+ */
 export function setFrontmatter(body, key, value) {
   const m = body.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!m) return body;
@@ -45,7 +62,14 @@ export function setFrontmatter(body, key, value) {
   return body.replace(m[1], fm);
 }
 
-/** Tick (or un-tick) the checkbox whose text matches `ac` (substring, normalized). */
+/**
+ * Tick or un-tick the first acceptance-criterion checkbox whose text matches `ac`.
+ * @param {string} body - Full task-file text.
+ * @param {string} ac - Criterion text to match (case/space-insensitive substring, either direction).
+ * @param {boolean} checked - true to write `[x]`, false to write `[ ]`.
+ * @returns {{body:string, hit:boolean}} The updated body and whether a checkbox matched (only the
+ *   first match is changed).
+ */
 export function setCheckbox(body, ac, checked) {
   const needle = ac.toLowerCase().replace(/\s+/g, " ").trim();
   const lines = body.split(/\r?\n/);
@@ -63,7 +87,13 @@ export function setCheckbox(body, ac, checked) {
   return { body: out.join("\n"), hit };
 }
 
-/** Flip a task's row in tasks/_index.md to the given emoji/status word. */
+/**
+ * Flip a task's row in `tasks/_index.md` to a done state.
+ * @param {string} indexBody - Full board-index text.
+ * @param {string} taskId - Task id whose row to update.
+ * @param {boolean} done - When true, rewrite the row's status emoji/word to done; false is a no-op.
+ * @returns {string} The board text with the matching row updated (unchanged when no row matches).
+ */
 export function updateBoardRow(indexBody, taskId, done) {
   return indexBody.split(/\r?\n/).map((line) => {
     if (!line.includes(taskId) || !line.includes("|")) return line;
@@ -72,7 +102,20 @@ export function updateBoardRow(indexBody, taskId, done) {
   }).join("\n");
 }
 
-/** Apply one WorkResult to the working tree. Returns a summary of writes performed. */
+/**
+ * Apply one validated WorkResult to the working tree — the single-writer step (D6): ticks AC
+ * boxes, flips task status, appends the Execution Log, propagates unblocks, appends discoveries,
+ * writes the verdict ledger + un-ticks refuted boxes, and queues escalates.
+ * @param {object} result - A schema-valid WorkResult (order_id, task_results[], discoveries[],
+ *   verdict{criteria[],refuted[]}, escalates[]).
+ * @param {{cwd:string}} opts - cwd: working-directory root every LOCAL path resolves against.
+ * @returns {{slug:string, tasks_updated:string[], acs_ticked:number, unblocked:string[],
+ *   discoveries_appended:number, refuted_unticked:number, verdict_lines:number,
+ *   escalates_queued:number}} A summary of every write performed.
+ * @throws {Error} If a task/board/ledger file it must write is not writable (fs error propagates).
+ *   Side effects: writes task files, `tasks/_index.md`, `discovery/ledger.md`,
+ *   `evaluation/.verdicts-*.jsonl`, and `escalates/*.json` under `.shapeup-sdlc/<slug>/`.
+ */
 export function applyResult(result, { cwd }) {
   const slug = result.order_id.split("/")[0];
   const local = join(cwd, ".shapeup-sdlc", slug);

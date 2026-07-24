@@ -44,6 +44,14 @@ import { readBoard } from "./compile-order.mjs";
 // A committed markdown table: | REQ-id | clause (verbatim) | source | status | note |
 // The first two columns are load-bearing; source/note are optional. Status is normalized so
 // "CUT (PO-approved)", "cut", "CUT" all read as cut and anything else non-covered stays covered.
+/**
+ * Parse the committed `requirements.md` table into RequirementClause rows.
+ * @param {string} md - The registry Markdown ("" / null → []). Table columns:
+ *   | REQ-id | clause | source | status | note |.
+ * @returns {Array<{id:string, clause:string, source:string, status:("covered"|"CUT (PO-approved)"),
+ *   note:string}>} One row per `REQ-\d+`; any status containing "cut" normalizes to CUT, all else
+ *   to covered. Header/separator/prose rows are skipped.
+ */
 export function parseRequirements(md) {
   const clauses = [];
   if (!md) return clauses;
@@ -67,7 +75,11 @@ export function parseRequirements(md) {
   return clauses;
 }
 
-/** Every REQ-id named by a `covers:` clause across the board's acceptance criteria. */
+/**
+ * Collect every REQ-id named by a `covers:` clause across the board's acceptance criteria.
+ * @param {Array<object>} board - Task entries (see compile-order's parseTaskFile).
+ * @returns {Set<string>} The set of `REQ-\d+` ids referenced by any AC's covers[].
+ */
 export function coveredReqIds(board) {
   const covered = new Set();
   for (const task of board) {
@@ -83,7 +95,14 @@ export function coveredReqIds(board) {
 const SOURCE_EXTS = [".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx"];
 const IMPORT_RE = /(?:\bimport\b[^'"]*?from\s*|\bimport\s*|\bexport\b[^'"]*?from\s*|\brequire\s*\(\s*|\bimport\s*\()\s*['"]([^'"]+)['"]/g;
 
-/** Resolve a relative import specifier to a repo-relative source file, or null (bare/unresolved). */
+/**
+ * Resolve a relative import specifier to a repo-relative source file.
+ * @param {string} fromFileAbs - Absolute path of the importing file.
+ * @param {string} spec - The import specifier string.
+ * @param {string} cwd - Repo root the result is made relative to.
+ * @returns {(string|null)} The repo-relative source path (trying source extensions and `/index`),
+ *   or null for a bare specifier (node_modules) or an unresolved path.
+ */
 function resolveSpecifier(fromFileAbs, spec, cwd) {
   if (!spec.startsWith(".")) return null; // bare specifier → node_modules, out of the app graph
   const baseAbs = resolve(dirname(fromFileAbs), spec);
@@ -94,7 +113,13 @@ function resolveSpecifier(fromFileAbs, spec, cwd) {
   return null;
 }
 
-/** Normalize a declared path (entry_point / engine) to an existing repo-relative source file. */
+/**
+ * Normalize a declared path (entry_point / engine) to an existing repo-relative source file.
+ * @param {string} p - The declared path (absolute or cwd-relative).
+ * @param {string} cwd - Repo root the result is made relative to.
+ * @returns {(string|null)} The repo-relative source path (trying source extensions and `/index`),
+ *   or null when nothing on disk matches.
+ */
 function resolveFile(p, cwd) {
   const abs = isAbsolute(p) ? p : resolve(cwd, p);
   const candidates = [abs, ...SOURCE_EXTS.map((e) => abs + e), ...SOURCE_EXTS.map((e) => join(abs, "index" + e))];
@@ -104,6 +129,11 @@ function resolveFile(p, cwd) {
   return null;
 }
 
+/**
+ * Extract every import/require/dynamic-import specifier string from a file.
+ * @param {string} fileAbs - Absolute path of the source file.
+ * @returns {string[]} The raw specifier strings; [] when the file is unreadable.
+ */
 function importsOf(fileAbs) {
   let src;
   try { src = readFileSync(fileAbs, "utf8"); } catch { return []; }
@@ -112,7 +142,14 @@ function importsOf(fileAbs) {
   return out;
 }
 
-/** BFS the import graph from the entry point; returns the set of reachable repo-relative files. */
+/**
+ * BFS the import graph from an entry point.
+ * @param {string} entryRel - The entry-point path (declared form; resolved on disk).
+ * @param {string} cwd - Repo root.
+ * @returns {{reachable:Set<string>, entryResolved:(string|null)}} The set of repo-relative files
+ *   reachable from the entry, and the resolved entry path (null when the entry is not on disk, in
+ *   which case `reachable` is empty).
+ */
 export function reachableFrom(entryRel, cwd) {
   const reachable = new Set();
   const start = resolveFile(entryRel, cwd);
@@ -131,8 +168,20 @@ export function reachableFrom(entryRel, cwd) {
 }
 
 // --- Mermaid view (a view of the checked graph, so it cannot drift — §2) ------
+/**
+ * Render a Mermaid flowchart of the wiring map, marking orphaned engines (a view of the checked
+ * graph, so it cannot drift from the reachability result).
+ * @param {(object|null)} wiringMap - The WiringMap ({entries:[{use_case,engine,affordance}]}).
+ * @param {Set<string>} unreachableSet - Use-case ids found unreachable (rendered as dashed/dead).
+ * @returns {string} The Mermaid `flowchart LR` source.
+ */
 export function wiringMermaid(wiringMap, unreachableSet) {
   const lines = ["flowchart LR", "  entry([entry point])"];
+  /**
+   * Make a Mermaid-safe node id from an arbitrary string.
+   * @param {*} s - Any value (engine path / use-case id); coerced to string.
+   * @returns {string} A `n_`-prefixed id with every non-alphanumeric char replaced by `_`.
+   */
   const id = (s) => "n_" + String(s).replace(/[^A-Za-z0-9]/g, "_");
   for (const e of wiringMap?.entries || []) {
     const dead = unreachableSet.has(e.use_case);
@@ -146,6 +195,15 @@ export function wiringMermaid(wiringMap, unreachableSet) {
 }
 
 // --- the oracle --------------------------------------------------------------
+/**
+ * Run the covers-closure + reachability oracle for a slug.
+ * @param {string} slug - Feature slug.
+ * @param {{cwd:string, gate?:boolean}} opts - cwd (root the SHARED/LOCAL paths resolve against),
+ *   gate (records mode; the CLI, not this function, turns gate+red into a non-zero exit).
+ * @returns {{report:object, mermaid:(string|null)}} The trace report (covers_closure, reachability,
+ *   findings[], overall "green"|"red") and a Mermaid view when a wiring map exists. Each arm
+ *   self-skips (checked=false) when its artifact is absent — non-regression on pre-spine specs.
+ */
 export function traceLint(slug, { cwd, gate = false }) {
   const shared = join(cwd, "docs", "shapeup-sdlc", slug);
   const findings = [];
@@ -255,7 +313,18 @@ export function traceLint(slug, { cwd, gate = false }) {
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const args = process.argv.slice(2);
+  /**
+   * Read a `--<n> <value>` CLI flag's value, ignoring a following token that is itself a flag.
+   * @param {string} n - Flag name without leading dashes.
+   * @returns {(string|null)} The next argument, or null when the flag is absent or immediately
+   *   followed by another `--flag`.
+   */
   const flag = (n) => { const i = args.indexOf(`--${n}`); return i !== -1 && args[i + 1] && !args[i + 1].startsWith("--") ? args[i + 1] : null; };
+  /**
+   * Test whether a boolean `--<n>` flag is present.
+   * @param {string} n - Flag name without leading dashes.
+   * @returns {boolean} True when `--<n>` appears in argv.
+   */
   const has = (n) => args.includes(`--${n}`);
   const cwd = resolve(flag("cwd") || process.cwd());
   const slug = flag("slug");

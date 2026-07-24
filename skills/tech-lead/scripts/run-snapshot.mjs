@@ -24,10 +24,20 @@ import { resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validate } from "./validate-envelope.mjs";
 
+/**
+ * Read a JSON file, tolerating absence/parse errors.
+ * @param {string} p - Path to the JSON file.
+ * @returns {(*|null)} The parsed value, or null when the file is missing or not valid JSON.
+ */
 function readJSON(p) {
   try { return JSON.parse(readFileSync(p, "utf8")); } catch { return null; }
 }
 
+/**
+ * Parse a Markdown frontmatter block into a flat scalar map.
+ * @param {string} text - Full document text ("" / null tolerated).
+ * @returns {Object<string,string>} Top-level `key: value` pairs (quotes stripped); {} when absent.
+ */
 function frontmatter(text) {
   const m = /^---\n([\s\S]*?)\n---/.exec(text || "");
   if (!m) return {};
@@ -41,6 +51,12 @@ function frontmatter(text) {
 
 const MID_RUN = new Set(["orienting", "mapping", "building", "evaluating"]);
 
+/**
+ * Find the active run from files alone — the active-scope pointer, else a mid-run harness-run.md.
+ * @param {string} cwd - Working-directory root.
+ * @returns {({slug:string, scope_id?:string}|null)} The active run's slug (and scope when pointed
+ *   at one), or null when no run is in progress.
+ */
 function findRun(cwd) {
   const pointer = readJSON(join(cwd, ".shapeup-sdlc", "active-scope"));
   if (pointer?.slug) return { slug: pointer.slug, scope_id: pointer.scope_id };
@@ -57,7 +73,13 @@ function findRun(cwd) {
   return null;
 }
 
-/** Derive the RunSnapshot for the active run, or null when no run is in progress. */
+/**
+ * Derive a RunSnapshot for the active run from FILES ONLY (never conversation memory).
+ * @param {string} cwd - Working-directory root.
+ * @returns {(object|null)} A RunSnapshot (domain.schema.json#/$defs/RunSnapshot): slug, optional
+ *   scope_id/status/rounds, latest T0 verdict, board done/total + unfinished, open escalates,
+ *   dispatched-not-ingested `pending_orders`, and a human `rehydrate_hint`. null when no run is active.
+ */
 export function deriveSnapshot(cwd) {
   const run = findRun(cwd);
   if (!run) return null;
@@ -152,16 +174,33 @@ export function deriveSnapshot(cwd) {
   return snapshot;
 }
 
+/**
+ * @param {string} cwd - Working-directory root.
+ * @param {string} slug - Feature slug.
+ * @returns {string} The LOCAL run-trace path `.shapeup-sdlc/<slug>/run-snapshot.json`.
+ */
 export function snapshotPath(cwd, slug) {
   return join(cwd, ".shapeup-sdlc", slug, "run-snapshot.json");
 }
 
-/** Validate + persist a snapshot to its LOCAL run-trace home. Throws on schema drift. */
+/**
+ * Validate then persist a snapshot to its LOCAL run-trace home.
+ * @param {string} cwd - Working-directory root.
+ * @param {object} snapshot - The RunSnapshot to persist (its `slug` names the path).
+ * @returns {void} Side effect: writes the snapshot JSON.
+ * @throws {Error} If the snapshot drifts from domain.schema.json#/$defs/RunSnapshot.
+ */
 export function writeSnapshot(cwd, snapshot) {
   assertValid(snapshot);
   writeFileSync(snapshotPath(cwd, snapshot.slug), JSON.stringify(snapshot, null, 2) + "\n");
 }
 
+/**
+ * Assert a snapshot conforms to its registry definition.
+ * @param {object} snapshot - The RunSnapshot to check.
+ * @returns {void}
+ * @throws {Error} If it fails domain.schema.json#/$defs/RunSnapshot (message lists each error).
+ */
 function assertValid(snapshot) {
   const { valid, errors } = validate(snapshot, { $ref: "domain.schema.json#/$defs/RunSnapshot" });
   if (!valid) {
@@ -174,6 +213,11 @@ function assertValid(snapshot) {
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const args = process.argv.slice(2);
+  /**
+   * Read a CLI flag's value.
+   * @param {string} name - Full flag token including leading dashes (e.g. "--cwd").
+   * @returns {(string|null)} The argument after the flag, or null when it is absent.
+   */
   const flag = (name) => {
     const i = args.indexOf(name);
     return i !== -1 && args[i + 1] ? args[i + 1] : null;

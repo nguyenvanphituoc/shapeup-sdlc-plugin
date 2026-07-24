@@ -7,7 +7,30 @@ for why this layering exists.
 
 `node tests/structural.mjs`
 
-Zero dependencies, no network, no Claude calls. Proves the plugin is **well-formed**:
+Zero dependencies, no network, no Claude calls. Proves the plugin is **well-formed**.
+
+**Layout (Track C split).** `structural.mjs` is a thin runner: it threads one shared context
+(`lib/harness.mjs` — the `ok`/`fail`/`section` counters plus `read`/`readJSON`/`frontmatter`/`walk`)
+through the per-domain modules under `structural/`, isolating a thrown module as a single failure
+so the suite never aborts, then asserts the §26d checks-floor against the grand total. The name is
+kept because docs cite `tests/structural.mjs` (§26c would fail otherwise). Modules run in file
+order and the docs module (`08-docs.mjs`) is last so the floor sees every check:
+
+| Module | Owns sections |
+|---|---|
+| `structural/01-manifests.mjs` | §1 plugin/marketplace/package agreement |
+| `structural/02-skills.mjs` | §2, 3, 12, 16 per-skill wellformedness, install-safety, trigger-evals |
+| `structural/03-hooks.mjs` | §4, 14, 17, 27, 28, 29 hook manifest + behavioral hook suites |
+| `structural/04-oracles.mjs` | §6, 8, 9, 10, 11, 13 oracle registry + discriminating fixtures |
+| `structural/05-tech-lead.mjs` | §18–22, 24, 30, 31 orchestrator-owned scripts, domain registry, spine |
+| `structural/06-ba-pitch-analyzer.mjs` | §23 board-derive + spec-lint |
+| `structural/07-spec-evaluator.mjs` | §15 verdict-ledger |
+| `structural/08-docs.mjs` | §5, 7, 25, 26 AGENT.md guard, migrations, ratchets, doc-drift |
+
+A **new check lands in the module matching its owner** (a tech-lead script check → `05-tech-lead.mjs`,
+a doc ratchet → `08-docs.mjs`, etc.), which keeps a skill change touching one small file.
+
+The numbered sections below are the checks themselves, in section order:
 
 1. `plugin.json` / `marketplace.json` / `package.json` parse; required fields present; plugin and
    package versions agree; the marketplace lists the plugin.
@@ -40,7 +63,7 @@ Zero dependencies, no network, no Claude calls. Proves the plugin is **well-form
    once-per-round EVAL on a partial board (naming the unfinished task) and ALLOWS it on a green
    board, while never gating per-task evals, other skills, or non-`Skill` tools. Driven against
    temp board fixtures — proves the gate actually enforces, not just that it parses.
-15. **Verdict-ledger calibration (Stage D1):** `scripts/shapeup-sdlc/verdict-ledger.mjs` flags a PASS→FAIL flip
+15. **Verdict-ledger calibration (Stage D1):** `skills/spec-evaluator/scripts/verdict-ledger.mjs` flags a PASS→FAIL flip
    across runs, forces that criterion's confidence to `low`, leaves stable criteria untouched, and
    exits non-zero on a flipping ledger / zero on a stable one. Proves the judge-calibration grammar
    (`spec-evaluator/references/verdict-ledger.md`) discriminates an unstable judge from a stable one.
@@ -54,8 +77,9 @@ Zero dependencies, no network, no Claude calls. Proves the plugin is **well-form
    t0-verify verdict artifacts, aegis-digest triples, envelope schema discrimination,
    compile-order fact-only assembly, ingest-result single-writer behavior, board-derive +
    spec-lint planner math, and the central domain-registry consistency check.
-25. **Prompt line-count ratchet (v1.2):** `skills/tech-lead/SKILL.md` may not exceed 750 lines —
-   the 24995ba changelog-extraction win encoded as a regression; new logic goes into scripts.
+25. **Prompt line-count ratchet (v1.2; lowered to 450 by the skills-optimization plan A3):** `skills/tech-lead/SKILL.md` may not exceed 450 lines —
+   the 24995ba changelog-extraction + A3 gate-playbook extraction (→ `references/gates.md`,
+   `references/invocation.md`) encoded as a regression; new logic goes into scripts or references/.
 26. **Doc-drift (v1.2):** documented skill counts match `skills/`, every hook registered in
    `hooks.json` is documented in README + design/03 (and no orphan hook files exist), every
    concrete `hooks|skills|scripts|tests|commands/...` path cited in README/docs/design exists on

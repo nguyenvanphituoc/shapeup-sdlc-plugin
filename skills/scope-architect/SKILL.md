@@ -1,16 +1,6 @@
 ---
 name: scope-architect
-description: >
-  Use this skill to map, remap, or split the vertical scopes of a feature — Shape Up's "map
-  the scopes" (step 8) as committed, mechanically enforceable contracts. Triggers on: "map the
-  scopes", "write the scope contracts", "scope contract", "remap this scope", "split this
-  stuck scope", "the discovered tasks don't fit any scope", "re-slice the substrate", or a
-  WorkOrder dispatch (--order, operations map-scopes | remap | split-scope) from the tech-lead
-  orchestrator. The SOLE writer of docs/shapeup-sdlc/<slug>/scopes/*.json: import-graph
-  slicing by business flow (never by directory), write-whitelist substrates for the sandbox
-  hook, affordance manifests, e2e verification fixtures. A pure worker — returns a WorkResult;
-  never touches tasks, spec docs, boards, or run-state. NOT for decomposing a pitch into
-  tasks (ba-pitch-analyzer) or cutting scope at ship time (scope-hammer).
+description: "Use this skill to map, remap, or split the vertical scopes of a feature — Shape Up's \"map the scopes\" (step 8) as committed, mechanically enforceable contracts. Triggers on: \"map the scopes\", \"write the scope contracts\", \"scope contract\", \"remap this scope\", \"split this stuck scope\", \"the discovered tasks don't fit any scope\", \"re-slice the substrate\", or a tech-lead --order dispatch (operations map-scopes | remap | split-scope). Writes the committed scopes/*.json contracts by import-graph slicing along business flow, with write-whitelist substrates and e2e fixtures. NOT for decomposing a pitch into tasks (ba-pitch-analyzer) or cutting scope at ship time (scope-hammer)."
 ---
 
 # Scope Architect (pure worker v1.0)

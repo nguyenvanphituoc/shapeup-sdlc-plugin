@@ -1,17 +1,6 @@
 ---
 name: orient
-description: >
-  Use this skill for Shape Up step 7 (Orient) — the builder-led reconnaissance pass that runs
-  AFTER kick-off and BEFORE any task board exists. Triggers on: "orient on this feature",
-  "scout the codebase for this pitch", "where does this pitch touch the code", "do an orient
-  pass", "recon before we plan", "spike the riskiest part before mapping scopes". The tech-lead
-  orchestrator invokes it at step 7 before delegating to ba-pitch-analyzer (Map Scopes, step 8).
-  Use it even when the user describes "read the code first and surface the unknowns" without
-  naming Orient. Accepts a WorkOrder dispatch (--order) from the tech-lead orchestrator. The
-  Scout is a PURE worker: it reads code, spikes the single riskiest area, and emits four
-  artifacts (code-surface map, spike findings, discovered-task seed, hill signal) plus a
-  WorkResult envelope. It writes NO production code, builds NO scope board, keeps NO run-state,
-  and renders NO progress report — those belong to ba (planner) and tech-lead (orchestrator).
+description: "Use this skill for Shape Up step 7 (Orient) — the builder-led reconnaissance pass that runs AFTER kick-off and BEFORE any task board exists. Triggers on: \"orient on this feature\", \"scout the codebase for this pitch\", \"where does this pitch touch the code\", \"do an orient pass\", \"recon before we plan\", \"spike the riskiest part before mapping scopes\". The tech-lead orchestrator invokes it at step 7 before delegating to ba-pitch-analyzer (Map Scopes, step 8). Use it even when the user describes \"read the code first and surface the unknowns\" without naming Orient. Also accepts a tech-lead --order dispatch."
 ---
 
 # Orient — the Scout (Shape Up step 7)

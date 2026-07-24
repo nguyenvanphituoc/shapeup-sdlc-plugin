@@ -1,19 +1,6 @@
 ---
 name: qa-edge-hunter
-description: >
-  Use this skill for the post-PASS exploratory QA pass — Shape Up's "QA is for the edges",
-  made explicit for the harness. Triggers on: "hunt edge cases", "QA pass on this feature",
-  "exploratory test the running app", "edge hunt before ship", "run qa-edge-hunter",
-  "the evaluator passed — what did it miss?". tech-lead invokes it after the
-  run's FIRST PASS at GATE L3, before SHIP; it also runs standalone given a spec folder,
-  a PASS EVAL report, and a running app; accepts a WorkOrder dispatch (--order). The Hunter
-  is a PURE worker: it charters edges OUTSIDE what the evaluator probed (EVAL-*.md =
-  negative-space input), hunts them on the running app through six fixed lenses; every
-  confirmed finding returns as a `~` entry in its WorkResult's discoveries[] — the
-  orchestrator's ingest script appends the ledger; the Hunter writes only its own
-  qa/hunt-report.md. NO verdict, NO score, NO gate; never fixes code, never promotes its own
-  findings, never blocks ship — triage is PO/TL's at SHIP S.0/GATE L4. NOT for checking AC
-  (spec-evaluator), deriving test cases (ba), or fixing bugs (task-executor).
+description: "Use this skill for the post-PASS exploratory QA pass — Shape Up's \"QA is for the edges\", made explicit for the harness. Triggers on: \"hunt edge cases\", \"QA pass on this feature\", \"exploratory test the running app\", \"edge hunt before ship\", \"run qa-edge-hunter\", \"the evaluator passed — what did it miss?\". tech-lead invokes it after the run's first PASS at GATE L3, before SHIP; it also runs standalone given a spec folder, a PASS EVAL report, and a running app, or on a tech-lead --order dispatch. It charters edges OUTSIDE what the evaluator probed and hunts them through six fixed lenses. NOT for checking AC (spec-evaluator), deriving test cases (ba), or fixing bugs (task-executor)."
 ---
 
 # QA Edge Hunter — the post-PASS edge pass (v1.1)

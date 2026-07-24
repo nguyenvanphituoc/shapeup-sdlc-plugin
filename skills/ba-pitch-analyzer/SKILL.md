@@ -1,19 +1,6 @@
 ---
 name: ba-pitch-analyzer
-description: >
-  Use this skill whenever a user provides a product requirement, pitch, or feature description
-  and wants it broken down into structured, executable development tasks. Triggers on: "analyze
-  this pitch", "break this into tasks", "generate tasks from requirement", "act as BA",
-  "create spec from PRD", "turn this into dev tasks", or any request to decompose a feature
-  into DDD-structured documents and tasks; also on Shape Up, bounded context, domain model, or
-  use cases — and on a WorkOrder dispatch (--order) from the tech-lead orchestrator. Output is
-  a linked document tree (pitch → domain model → use cases → tasks) with BDD scenarios, a UC
-  System Flow, and a derived Test Surface. The spec-analyzer role of the pure-skill
-  architecture: one craft, five operations (analyze | generate-board | reconcile |
-  retrofit-surface | coverage) selected by the order, write zones enforced as substrate
-  whitelists, all graph/audit arithmetic delegated to board-derive.mjs and spec-lint.mjs. The
-  coverage op extracts atomic customer requirements into the committed requirements.md registry
-  (covers-closure). Scope contracts belong to the separate scope-architect skill.
+description: "Use this skill whenever a user provides a product requirement, pitch, or feature description and wants it broken down into structured, executable development tasks. Triggers on: \"analyze this pitch\", \"break this into tasks\", \"generate tasks from requirement\", \"act as BA\", \"create spec from PRD\", \"turn this into dev tasks\", or any request to decompose a feature into DDD-structured documents and tasks; also on Shape Up, bounded context, domain model, or use cases, and on a tech-lead --order dispatch. Produces a linked pitch → domain model → use cases → tasks document tree with BDD scenarios and a derived Test Surface."
 ---
 
 # BA Pitch Analyzer (spec-analyzer, pure worker v4.0)

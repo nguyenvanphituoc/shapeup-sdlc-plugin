@@ -1,37 +1,34 @@
 ---
 name: solution-architect
-description: >
-  Use this skill to declare how each use-case's engine reaches the running application — the
-  wiring map that guarantees no engine ships orphaned. Triggers on: "write the wiring map",
-  "declare the entry-point call sites", "how does each use case get wired in", "map engines to
-  the entry point", "which use cases are reachable from main", "the asset pipeline has zero call
-  sites", "front-load the integration seam before we slice scopes", or a WorkOrder dispatch
-  (--order, operation wire) from the tech-lead orchestrator at gate L1a.5. The SOLE writer of
-  docs/shapeup-sdlc/<slug>/wiring-map.json: per use-case, engine → wiring seam → entry-point
-  call site → player-visible affordance, resolved against the project profile's archetype-specific
-  entry_point. A pure worker — returns a WorkResult; never touches spec docs, scopes, boards, the
-  profile, or run-state. NOT for slicing scopes (scope-architect) or decomposing a pitch into
-  tasks (ba-pitch-analyzer).
+description: "Use this skill to design how each use-case's engine integrates into the running application — the wiring map that guarantees no engine ships orphaned. Triggers on: \"write the wiring map\", \"declare the integration seam for each use case\", \"how does each use case get wired in\", \"map engines to the entry point\", \"which use cases are reachable from the composition root\", \"the asset pipeline has zero call sites\", \"front-load the integration seam before we slice scopes\", or a tech-lead --order dispatch (operation wire) at gate L1a.5. Writes the per-use-case wiring map: engine → integration seam → composition-root attachment → player-visible affordance, resolved against the project profile's entry_point. NOT for slicing scopes (scope-architect) or decomposing a pitch into tasks (ba-pitch-analyzer)."
 ---
 
-# Solution Architect (pure worker v1.0)
+# Solution Architect (pure worker v1.1)
 
-**Declare the seam, or the engine ships orphaned.**
+**Design the seam, or the engine ships orphaned.**
 
 The audit that motivated this skill found a 631-line asset pipeline with 26 passing tests and
-**zero call sites** in `main.js` — built, green, and unreachable from the running app. Five more
-scopes had engines never wired to a player. This skill closes that hole at the front: before the
-scopes are sliced, it writes a committed **wiring map**
+**zero call sites** in the app's composition root — built, green, and unreachable from the
+running application. Five more scopes had engines never wired to a player. This skill closes that
+hole at the front: before the scopes are sliced, it designs a committed **wiring map**
 (`docs/shapeup-sdlc/<slug>/wiring-map.json`) that names, for every use case, the chain from the
-engine module to a player-visible affordance — including the exact **entry-point call site** the
-engine attaches through.
+engine module to a player-visible affordance — including **how** and **where** the engine attaches
+to the application's entry point.
+
+You work at **design time (gate L1a.5), before any code exists.** Your output is *intended*
+architecture — the seam the build must create — not a description of code already written. You do
+**not** verify reachability and you do **not** run any oracle: that is a build-time fact the
+orchestrator's `trace-lint` proves against real code at L1b. Your job is to make the seam
+*explicit and buildable*.
 
 Two payoffs, one artifact:
-- **Reachability becomes checkable.** `trace-lint.mjs` folds this map into its oracle: a UC whose
-  engine does not reach the profile's `entry_point` via the import graph goes red. The map is
-  what makes "unreachable" a machine fact instead of a code-review hope.
-- **The slicer gets its integration seam up front.** Declaring each entry-point call site *before*
-  `scope-architect` runs supplies the missing input behind the round-1 `main.js` substrate-expansion
+- **Reachability becomes checkable later.** Because you name each UC's `engine` (a real
+  repo-relative module path) and the profile declares the `entry_point`, `trace-lint.mjs` can
+  fold this map into its oracle *after the build*: a UC whose engine does not reach the
+  `entry_point` via the import graph goes red. You supply the two anchors; the oracle does the
+  proving.
+- **The slicer gets its integration seam up front.** Declaring each attachment *before*
+  `scope-architect` runs supplies the missing input behind the round-1 substrate-expansion
   escalations — the four identical "declined by precedent" stalls. (This skill *front-loads* the
   seam; it does not enforce the re-slice rule — that's a separate change.)
 
@@ -45,12 +42,12 @@ return as a WorkResult.
 |---|---|
 | `operation` | `wire` (author/refresh the wiring map after `analyze`, before `map-scopes`) |
 | `payload.feature` / `payload.spec_folder` | Slug + committed spec — read `usecases/` for the UCs and the engine each one needs, `domain-model.md`/`synthesis.md` for the module surface |
-| `payload.project_profile` | Path to the SHARED `project-profile.json`. Its `entry_point` is the seam every engine must reach — **archetype-specific** (`main.js` for a client-only game is not the seam for a web-service). Read it; never guess the entry point |
+| `payload.project_profile` | Path to the SHARED `project-profile.json`. Its `entry_point` is the composition root every engine must attach to — **archetype-specific** (a client-only game's `main.js` is not a web-service's `src/server.ts`). Read it; never guess the entry point |
 | `substrate.allowed` | `wiring-map.json` — your ONLY write surface (the spec core, scopes, and the profile are frozen) |
 
 **If the profile is absent in an orchestrated run, ESCALATE (spec-ambiguity) — do not invent an
-entry point.** The whole point is that reachability resolves against a *declared* seam; a guessed
-`main.js` would make the oracle certify nothing.
+entry point.** The whole point is that the seam resolves against a *declared* composition root; a
+guessed `main.js` would make the later oracle certify nothing.
 
 ## Core process
 
@@ -58,40 +55,44 @@ entry point.** The whole point is that reachability resolves against a *declared
 1 READ     the project profile → entry_point + archetype. Read every use case in usecases/.
            For each UC, identify the engine module that carries its core logic (the file that
            WILL exist, named from the domain model / synthesis surface — not a guess at a folder).
-2 TRACE    for each UC, walk the intended integration path from the entry_point inward:
-             engine            the module implementing the UC (repo-relative path)
-             wiring_seam       HOW it attaches — an event handler, a route registration, an
-                               init hook, a subscription (prose the slicer reads)
-             entry_call_site   file:line where the entry point invokes the engine (the seam
-                               declared up front; "main.js:42" — approximate line is fine, the
-                               file is what matters). Unknown yet → say so in the seam, don't
-                               fabricate a line
+2 DESIGN   for each UC, design the integration path from the entry_point inward:
+             engine            the module implementing the UC (repo-relative path — the ONE
+                               field the later reachability oracle resolves; name the real path)
+             wiring_seam       HOW it attaches — the mechanism: an event handler, a route
+                               registration, an init hook, a subscription, a DI registration, a
+                               CLI command, a cron trigger (prose the slicer reads)
+             entry_call_site   WHERE it attaches — the composition root it registers into, named
+                               from the profile's entry_point as design intent, e.g.
+                               "src/server.ts — POST /checkout route" or "main.js — game-loop
+                               init hook". This is the seam the build will CREATE, symbolic, not
+                               an existing coordinate. Never invent a line number; the concrete
+                               file:line is a build-time fact (the oracle proves reachability by
+                               the import graph, it does not parse this field)
              affordance        the player-visible thing this UC exposes once wired (the human
                                end of the chain — what a user can DO, not an internal call)
 3 WRITE    docs/shapeup-sdlc/<slug>/wiring-map.json (WiringMap): {schema_version:1, feature,
-           entry_point (echo of the profile), entries[]}. One entry per use case. A UC with no
-           reachable engine is exactly the gap this artifact exists to surface — write the entry
-           with the seam you INTEND, so trace-lint can prove whether the code delivers it.
-4 CHECK    node skills/tech-lead/scripts/trace-lint.mjs --slug <slug>
-           → reads your map + the profile, reports reachability. Advisory here (code may not
-           exist yet); the red entries are the wiring TODOs the build must close, not your bug.
+           entry_point (echo of the profile), entries[]}. One entry per use case. A UC whose
+           engine has no attachment path is exactly the gap this artifact exists to surface —
+           write the entry with the seam you INTEND and raise it in deviations[]/escalates[], so
+           the build knows the wiring it must close. Your craft ends here: WRITE, then return the
+           WorkResult. You do not run trace-lint — the orchestrator runs it advisory at L1b.
 ```
 
 **No use case is exempt.** If a UC's engine genuinely has no player-facing seam (a pure
-background job), say so in `wiring_seam` and give the entry_call_site that starts it — a cron
-registration, a boot hook. "It's internal" is how the asset pipeline stayed orphaned; there is
-always an entry point, or the code never runs.
+background job), say so in `wiring_seam` and name the boot/cron/init attachment that starts it — a
+cron registration, a boot hook. "It's internal" is how the asset pipeline stayed orphaned; there
+is always an attachment to the entry point, or the code never runs.
 
 ## Anti-rationalization table
 
 | Excuse | Reality |
 |---|---|
-| "The engine is imported somewhere, that's enough" | Reachability is from the *entry_point*, transitively. Imported by a sibling that nothing runs is still orphaned. Name the call site. |
+| "The engine is imported somewhere, that's enough" | Reachability (proven later) is from the *entry_point*, transitively. Imported by a sibling that nothing runs is still orphaned. Design the attachment to the composition root. |
 | "I'll guess the entry point is main.js" | The profile declares it. A game's `main.js` is not a service's `src/server.ts`. Read the profile or ESCALATE. |
-| "This UC has no visible affordance, skip it" | Then name its boot/cron/init seam. A UC with no entry point is a UC that never runs. |
-| "The call-site line doesn't exist yet, invent one" | Declare the seam in prose; leave the line honest. trace-lint checks the module reaches the entry, not that a fabricated line resolves. |
-| "Reachability is red, I must have wired it wrong" | Pre-build, red = a wiring TODO for the doer. Your job is to declare the intended seam, not to make code that doesn't exist yet turn green. |
-| "I'll also slice the scopes while I'm here" | Not your authority. You declare seams; scope-architect slices. Cross-role work is a defect. |
+| "I'll write the call site as main.js:42" | You design at L1a.5 — that code does not exist yet, so a line number is a fabrication no oracle reads. Name the composition root + mechanism as intent; leave the concrete line to the build. |
+| "This UC has no visible affordance, skip it" | Then name its boot/cron/init attachment. A UC with no entry point is a UC that never runs. |
+| "I'll run trace-lint to check my map" | Not your step. You design the seam; the orchestrator runs the reachability oracle against real code at L1b. Pre-build there is no code to trace — running it here proves nothing. |
+| "I'll also slice the scopes while I'm here" | Not your authority. You design seams; scope-architect slices. Cross-role work is a defect. |
 
 ## Output contract — the WorkResult
 
@@ -99,16 +100,17 @@ always an entry point, or the code never runs.
 `status`, `artifacts[]` (the wiring map written), `escalates[]` (e.g. a missing profile, or a UC
 whose engine the spec never names — the planner's territory), `assumptions[]` (engine paths
 inferred from the domain model where the spec was silent), `deviations[]` (any UC left with an
-uncertain seam and why). You never touch spec docs, `scopes/*.json`, `project-profile.json`,
-task files, or run-state.
+uncertain seam, or an engine with no attachment path, and why). You never touch spec docs,
+`scopes/*.json`, `project-profile.json`, task files, or run-state.
 
 ## Verification checklist
 
 - [ ] Every use case in `usecases/` has exactly one wiring-map entry
-- [ ] Every entry names an `engine` (repo-relative) and a `wiring_seam`; a player-facing UC also names an `affordance`
+- [ ] Every entry names a real repo-relative `engine` and a `wiring_seam` (attachment mechanism); a player-facing UC also names an `affordance`
+- [ ] `entry_call_site` is a symbolic composition-root attachment resolved against the profile's `entry_point` — no invented line number, no guessed entry point
 - [ ] `entry_point` echoes the profile — no independently-chosen seam
 - [ ] The profile was READ, not guessed; a missing profile in orchestrated mode → ESCALATE, not an invented entry point
-- [ ] `trace-lint --slug <slug>` ran; red entries are recorded as the build's wiring TODOs (not silently dropped)
+- [ ] Any UC whose engine has no attachment path is raised in `deviations[]`/`escalates[]` (the wiring the build must close), never silently dropped
 - [ ] The WorkResult validates against `work-result.schema.json`
 
 ## Invocation
@@ -119,4 +121,9 @@ task files, or run-state.
 
 # Standalone shim (compiles the same envelope)
 /solution-architect --wire docs/shapeup-sdlc/checkout-vnpay/
+
+# The reachability oracle is the ORCHESTRATOR's, run advisory at L1b — not part of your craft.
+# Standalone, you MAY preview it after writing the map (it self-skips arms whose artifacts are
+# absent, and is near-vacuous pre-build since the engine code does not exist yet):
+#   node skills/tech-lead/scripts/trace-lint.mjs --slug checkout-vnpay
 ```

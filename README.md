@@ -270,6 +270,7 @@ skills/tech-lead/scripts|schemas/        # orchestrator pipeline: compile-order,
                                          #   validate-envelope, t0-verify, aegis-digest,
                                          #   run-snapshot, stats + envelope schemas
 skills/ba-pitch-analyzer/scripts/        # planner mechanics: board-derive, spec-lint
+skills/spec-evaluator/scripts/           # verdict-ledger (reference impl of the flip/confidence grammar)
 commands/*.md         # slash commands (/ship)
 agents/*.md           # subagents (reviewer)
 hooks/                # hooks.json + safety-spine, gate-l2, sandbox-guard (PreToolUse),
@@ -277,7 +278,7 @@ hooks/                # hooks.json + safety-spine, gate-l2, sandbox-guard (PreTo
                       #   compact-snapshot (PreCompact), session-rehydrate (SessionStart)
 scripts/install-harness.sh, migrate.sh   # stable public entrypoints (fresh install / update)
 scripts/shapeup-sdlc/                    # dev/CI tooling: lib/, migrations/, oracles/,
-                                         #   trigger-eval.mjs, verdict-ledger.mjs, distribute.js
+                                         #   trigger-eval.mjs, distribute.js
 docs/mechanism-roadmap.md       # full annotated pipeline diagram
 .github/workflows/    # CI + release
 ```

@@ -11,6 +11,8 @@ skills/tech-lead/        schemas/ (WorkOrder · WorkResult · domain registry) +
                          (compile-order · ingest-result · validate-envelope ·
                           t0-verify · aegis-digest · run-snapshot · stats)
 skills/ba-pitch-analyzer/scripts/   board-derive.mjs · spec-lint.mjs
+skills/spec-evaluator/scripts/      verdict-ledger.mjs (flip/confidence grammar, co-located
+                                    with its owning skill)
 commands/*.md            slash commands (/ship)
 hooks/                   hooks.json + safety-spine.mjs · gate-l2.mjs · sandbox-guard.mjs
                          (PreToolUse) + anti-rationalization.mjs · slop-cleaner.mjs
@@ -18,8 +20,9 @@ hooks/                   hooks.json + safety-spine.mjs · gate-l2.mjs · sandbox
                          session-rehydrate.mjs (SessionStart)
 scripts/install-harness.sh, migrate.sh    stable public entrypoints
 scripts/shapeup-sdlc/    dev/CI tooling — lib/, migrations/, oracles/, distribute.js
-tests/structural.mjs     Tier 0 — 330+ checks, zero LLM calls (the floor is asserted by
-                         the suite itself; the exact count may only grow)
+tests/structural.mjs     Tier 0 runner — threads tests/lib/ helpers through the per-domain
+tests/{lib,structural}/  suites in tests/structural/*.mjs; 450+ checks, zero LLM calls (the
+                         floor is asserted by the suite itself; the exact count may only grow)
 examples/                fixtures for oracle + planted-bug discrimination tests
 dist/                    compiled Cursor rules/extension + Antigravity subagents
 ```

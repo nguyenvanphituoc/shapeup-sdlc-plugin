@@ -661,7 +661,7 @@
         "use_case": { "type": "string", "description": "UC id this chain realizes (e.g. UC-04) — resolves against the committed usecases/ tree." },
         "engine": { "type": "string", "description": "Repo-relative path of the module implementing the UC's core logic — the file reachability BFS must reach from the entry point (a dead module with 0 import sites is red)." },
         "wiring_seam": { "type": "string", "description": "How the engine is meant to attach (event handler, route registration, init hook) — prose the slicer reads." },
-        "entry_call_site": { "type": "string", "description": "file:line where the entry point invokes the engine (the seam declared up front at L1a.5)." },
+        "entry_call_site": { "type": "string", "description": "DESIGN INTENT (spine v1.3): the composition-root attachment this engine registers into, named from ProjectProfile.entry_point + the mechanism — e.g. 'src/server.ts — POST /checkout route', 'main.js — game-loop init hook'. Symbolic, authored at L1a.5 before the code exists; NEVER an invented file:line. The concrete coordinate is a build-time fact; the reachability oracle proves the seam via the import graph (engine reached from entry_point) and does not parse this field." },
         "affordance": { "type": "string", "description": "The player-visible affordance this UC exposes when wired — the human-facing end of the chain." }
       }
     },

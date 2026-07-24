@@ -9,7 +9,8 @@
 | `shapeup` | Shaper | Set boundaries, breadboard, spike risk, write the pitch (Shape Up steps 1–4). |
 | `translator` | Intake gate | Normalizes non-English intake to faithful English before anything downstream runs; every other skill HARD-FAILs on non-English input. |
 | `orient` | Scout | Builder-led recon (step 7): reads the real code, spikes the single riskiest area, emits a code-surface map *before any board exists*, so the board is reality-born. |
-| `ba-pitch-analyzer` | Spec-analyzer | Decomposes an oriented pitch into a linked DDD tree — domain model → use cases → tasks — with BDD scenarios and a derived Test Surface. One craft, four operations: analyze / generate-board / reconcile / retrofit-surface. |
+| `ba-pitch-analyzer` | Spec-analyzer | Decomposes an oriented pitch into a linked DDD tree — domain model → use cases → tasks — with BDD scenarios and a derived Test Surface. One craft, five operations: analyze / generate-board / reconcile / retrofit-surface / coverage (the last writes the shared `requirements.md` registry that anchors covers-closure). |
+| `solution-architect` | Wirer | Sole writer of the committed wiring map (`wiring-map.json`) at GATE L1a.5: per use case, the reachability chain engine → seam → entry-point call site → player-visible affordance, resolved against `project-profile.json` — front-loads the integration seam so no engine ships orphaned. |
 | `scope-architect` | Slicer | Sole writer of committed scope contracts: import-graph slicing by flow, write-whitelisted substrates, affordance manifests, fixtures. |
 | `task-executor` | Generator | Implements a WorkOrder's acceptance criteria exactly. Zero-memory (each attempt is a fresh subagent), substrate-sandboxed, never writes boards or ledgers. |
 | `spec-evaluator` | Single judge | Verifies the running app against the committed spec. Skeptical by default; requires a T0 artifact citation on scoped specs; verdict returns as data, never edits anything. |
@@ -69,8 +70,9 @@ disk, per scope, at each round boundary:
 
 ## 4.5 — Gate walkthrough
 
-Five numbered gates pause an interactive or `--auto` run; `--unattended` auto-confirms all of
-them and stops only on PASS, max-rounds, or a hard error.
+The numbered gates pause an interactive or `--auto` run; `--unattended` auto-confirms all of
+them and stops only on PASS, max-rounds, or a hard error. (GATE L1a.5 is a traceability-spine
+gate ✚ — present only when the spine artifacts exist.)
 
 ```
 ⏸ GATE L0 — Intake & Run Config
@@ -86,6 +88,12 @@ Budgets      : round_budget=[N] (outer)   attempt_budget=[N] (inner, per scope)
 ⏸ GATE L1a — Orient Review
 🗻 area-level Hill: what's uphill / crest / downhill going into mapping
 Spiked area + result — confirm before a single scope is cut
+```
+
+```
+⏸ GATE L1a.5 — Wiring Review ✚
+Per-UC reachability chain: engine → seam → entry-point call site → player-visible affordance
+Committed wiring-map.json checked against project-profile.json entry_point — no orphaned engine
 ```
 
 ```

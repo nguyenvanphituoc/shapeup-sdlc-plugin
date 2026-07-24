@@ -14,7 +14,8 @@ graph LR
     S --> P["Pitch"]
     P --> BET{"Betting\n(PO, no skill)"}
     BET --> KO["Kick-off + Orient\n/orient"]
-    KO --> MAP["Map Scopes\n/ba-pitch-analyzer\n+ /scope-architect"]
+    KO --> WIRE["Wire ✚\n/solution-architect"]
+    WIRE --> MAP["Map Scopes\n/ba-pitch-analyzer\n+ /scope-architect"]
     MAP --> BUILD["Build Vertically\n/task-executor"]
     BUILD --> EVAL["Evaluate\n/spec-evaluator"]
     EVAL -- FAIL --> BUILD
@@ -25,7 +26,7 @@ graph LR
     classDef plan fill:#f4e2cd,stroke:#c4711f,color:#14202b;
     classDef build fill:#dcefe9,stroke:#1a6d60,color:#14202b;
     classDef qa fill:#f6dfdb,stroke:#a8382c,color:#14202b;
-    class S,MAP plan;
+    class S,WIRE,MAP plan;
     class KO,BUILD build;
     class QA,EVAL qa;
 ```
@@ -48,11 +49,15 @@ time is worth, not something a skill should touch.
 |---|---|---|
 | Kick-off | **L0** Intake & Config | Language check (`/translator`), workspace roots, model/budget matrix |
 | Orient | **L1a** Orient Review | delegate → `/orient` (Scout reads real code before any board exists) |
-| Map Scopes | **L1b** Board Review | delegate → `/ba-pitch-analyzer` (spec tree + board) then `/scope-architect` (scope contracts) |
+| Wire ✚ | **L1a.5** Wiring Review | delegate → `/solution-architect` — commits `wiring-map.json` (per-UC engine → seam → entry-point call site → affordance against `project-profile.json`), front-loading the integration seam so no engine ships orphaned |
+| Map Scopes | **L1b** Board Review | delegate → `/ba-pitch-analyzer` (spec tree + board; the `coverage` op writes the `requirements.md` registry ✚) then `/scope-architect` (scope contracts) |
 | Build Vertically | **L2** Board 100% + T0-green | per dispatch: compile-order → `/task-executor` → ingest-result, sandboxed per scope |
 | Eval (once/round) | **L3** Verdict | delegate → `/spec-evaluator`; refuted boxes applied by ingest |
 | Fix round r+1 | — | bugs + full Test Surface of the touched use case, never the whole board |
 | Ship | **L4** Ship Sign-off | delegate → `/scope-hammer` (census, cut list, ship verdict) |
+
+✚ = traceability-spine steps (v1.3) — active only when the spine artifacts exist
+(`wiring-map.json`, `requirements.md`, `project-profile.json`); non-regression on older specs.
 
 > **Load-bearing rule.** The evaluator runs exactly once per build round, only after every task
 > is done — never per task. This one timing rule is the entire reason the orchestrator

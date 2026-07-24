@@ -33,6 +33,12 @@ import { parseBoard, deriveUnlocks } from "./board-derive.mjs";
 
 // Inlined from hooks/sandbox-guard.mjs so this skill ships self-contained (a skill's scripts
 // must not reach outside its own folder — channels that copy only skills/ would dangle).
+/**
+ * Compile a substrate glob into an anchored RegExp (inlined from sandbox-guard so the skill ships
+ * self-contained). Supports single-star, double-star, and double-star-slash segment wildcards.
+ * @param {string} glob - The glob pattern.
+ * @returns {RegExp} A full-string (`^…$`) matcher for repo-relative paths.
+ */
 export function globToRegExp(glob) {
   let re = "";
   for (let i = 0; i < glob.length; i++) {
@@ -50,6 +56,13 @@ export function globToRegExp(glob) {
 
 const SIZE_CAP = 15;
 
+/**
+ * Recursively list repo-relative file paths under a root, skipping .git/node_modules/.shapeup-sdlc.
+ * @param {string} root - The base the results are made relative to.
+ * @param {string} [dir=root] - Current directory being walked (callers omit it).
+ * @param {string[]} [acc=[]] - Accumulator (callers omit it).
+ * @returns {string[]} Repo-relative paths of every file found.
+ */
 function walkFiles(root, dir = root, acc = []) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     if (e.name === ".git" || e.name === "node_modules" || e.name === ".shapeup-sdlc") continue;
@@ -60,8 +73,20 @@ function walkFiles(root, dir = root, acc = []) {
   return acc;
 }
 
+/**
+ * Lint scope contracts for PA1 (directory-thinking), PA2 (size cap), and DISJOINT substrate overlap.
+ * @param {Array<{scope_id:string, topology_type?:string, allowed_file_substrate?:string[],
+ *   shared_substrate?:string[]}>} scopes - The scope contracts.
+ * @param {string[]} repoFiles - Repo-relative file list the substrate globs resolve against.
+ * @returns {Array<{rule:string, level:("red"|"warn"), scope:string, detail:string}>} Findings; [] when clean.
+ */
 export function lintScopes(scopes, repoFiles) {
   const findings = [];
+  /**
+   * Resolve a list of substrate globs to the repo files they match.
+   * @param {(string[]|undefined)} globs - Glob patterns (undefined → none).
+   * @returns {string[]} The repo-relative files matched by any glob (deduplication is the caller's).
+   */
   const resolveGlobs = (globs) => {
     const res = (globs || []).map((g) => globToRegExp(g));
     return repoFiles.filter((f) => res.some((r) => r.test(f)));
@@ -97,6 +122,12 @@ export function lintScopes(scopes, repoFiles) {
   return findings;
 }
 
+/**
+ * Lint spec-tree completeness, wikilink resolution, tier-direction, task frontmatter/graph
+ * integrity (edge symmetry, dependency existence), and UC-anchor completeness.
+ * @param {{specDir:string, tasks:Array<object>}} input - The SHARED spec dir and the parsed board.
+ * @returns {Array<{rule:string, level:("red"|"warn"), detail:string}>} Findings; [] when clean.
+ */
 export function lintStructure({ specDir, tasks }) {
   const findings = [];
   const ucDir = join(specDir, "usecases");
@@ -154,6 +185,13 @@ export function lintStructure({ specDir, tasks }) {
   return findings;
 }
 
+/**
+ * Run the full spec lint (scopes + structure) for a slug.
+ * @param {{cwd:string, slug:string}} opts - Working root and feature slug.
+ * @returns {{slug:string, scopes:number, tasks:number, red:number, warn:number,
+ *   findings:Array<object>}} Counts and the combined findings from {@link lintScopes} and
+ *   {@link lintStructure}.
+ */
 export function lint({ cwd, slug }) {
   const specDir = join(cwd, "docs", "shapeup-sdlc", slug, "spec");
   const scopesDir = join(cwd, "docs", "shapeup-sdlc", slug, "scopes");
@@ -178,6 +216,11 @@ export function lint({ cwd, slug }) {
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const args = process.argv.slice(2);
+  /**
+   * Read a `--<n> <value>` CLI flag's value.
+   * @param {string} n - Flag name without leading dashes.
+   * @returns {(string|null)} The argument after `--<n>`, or null when the flag is absent.
+   */
   const flag = (n) => { const i = args.indexOf(`--${n}`); return i !== -1 ? args[i + 1] : null; };
   const slug = flag("slug");
   if (!slug) { console.error("usage: spec-lint.mjs --slug <slug> [--cwd <dir>]"); process.exit(2); }

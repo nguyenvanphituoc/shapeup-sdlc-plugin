@@ -46,8 +46,20 @@ session's metadata.
   Also trim **solution-architect** (born in v1.3 with a long, example-heavy description — the
   audit-loop verb list + "the asset pipeline has zero call sites" narrative belongs in the body,
   not the always-in-context metadata); shrink it before it counts as legacy prose.
-- Guard the win: add a **description-length ratchet** to the structural tests
-  (mirror of #25), so descriptions don't silently regrow.
+- Guard the win — **two guards, not a length cap.** Length is a symptom; the defect is
+  *misplaced content*, so lint the content, not the character count (skill-creator selects
+  `best_description` by held-out trigger score, never by length — a hard char ratchet would
+  fight its own methodology and could deny the model legitimate pushy trigger context):
+  1. *Effectiveness (hard gate):* Tier-1 trigger-evals — see the Safety bullet below. This is
+     the arbiter of whether a description triggers correctly.
+  2. *Anti-bloat (hard gate):* add a **description-composition lint** to the structural tests —
+     fail if a description contains changelog/version markers (`v0.N:` — tech-lead's ends with a
+     literal `v0.13: …`) or behavioral-contract prose (`NO verdict, NO score`, envelope
+     semantics). These are provably neither what-it-does nor when-to-trigger, yet sit in context
+     every session; trigger-evals are blind to them because they measure trigger *accuracy*, not
+     token *cost*. This mechanizes "move contracts into the body" without a char cap.
+  - Keep **~500 chars as a rewrite target**, not a blocking ratchet — direction for the manual
+    rewrite, validated by trigger-evals, not a gate that fails CI.
 - Safety: trigger accuracy is already measurable — every skill ships
   `evals/trigger-evals.json`. Re-run Tier-1 (`scripts/shapeup-sdlc/trigger-eval.mjs`)
   before/after; a measured regression on any positive case reverts that skill's edit.
@@ -120,9 +132,23 @@ inside the owning skill; repo-root `scripts/` is dev/CI/install-time only.**
 
 ## Track C — Split `tests/structural.mjs`
 
-Goal: same **31 sections**, same bespoke zero-dep micro-framework (it feeds the #26d
-checks-floor — `node:test` would break floor semantics for no gain), but one module
+Goal: same **31 sections**, same zero-dep counter (`ok/fail/section`), but one module
 per ownership domain so a skill change touches one small file.
+
+**Why not migrate to `node:test`?** The `#26d` floor counts **assertions dynamically** —
+the 399 runtime count comes from ~195 `ok()` call-sites firing inside loops over
+discovered files (every skill, hook, oracle fixture), so the count is data-driven and
+rises on its own when the repo grows. `node:test`'s reporter model is **test-block-granular
+and static**: it observes declared `test()`/`it()` pass/fail events, not the `assert` calls
+inside them. A reporter therefore *changes* the ratchet's granularity rather than preserving
+it — assertions could be gutted inside a surviving block undetected — and to keep
+assertion-count semantics you would rebuild `ok()` as a counting assert-shim anyway (the
+custom bit doesn't go away, it just gains a dependency). The `ok/fail/section` "framework"
+is three lines, not a reimplemented runner, so the "don't maintain a custom runner" red flag
+mostly misfires here. A `node:test`-for-structure + `ok()`-for-counting **hybrid was
+considered and deferred**: it buys per-test isolation at the cost of a dependency plus
+cross-process counter-aggregation (if parallel) — and item 3 below delivers that isolation
+in three lines instead.
 
 ```
 tests/
@@ -147,13 +173,65 @@ tests/
 Mechanics:
 - Each module exports `run(ctx)`; the runner threads a shared `{checks, failures}`
   context so the final count (and the checks-floor) is byte-for-byte comparable.
+- **Isolate each module in the runner** — wrap every `mod.run(ctx)` in try/catch so a
+  thrown section reports as one failure (`ctx.fail(\`${mod.name} threw: ${e.message}\`)`)
+  and the run continues to the next module, instead of aborting the whole suite as the
+  single-script form does today. This is the one thing `node:test` would have bought that
+  matters here — bought in three lines, no dependency, no granularity change:
+  `for (const mod of modules) { try { mod.run(ctx); } catch (e) { ctx.fail(...) } }`.
 - Pure refactor first, **zero check additions/removals**: assert the post-split check
   count equals the pre-split count (record it in Phase 0).
 - `08-docs.mjs` keeps §26d last, as today, so the floor sees the full count.
 - Update `tests/README.md`'s section list once, and note new checks land in the module
   matching their owner.
 - New checks from Tracks A/B land here afterwards: description-length ratchet → `02-skills.mjs`;
-  lowered tech-lead ratchet → `08-docs.mjs`; verdict-ledger path → `07-spec-evaluator.mjs`.
+  lowered tech-lead ratchet → `08-docs.mjs`; verdict-ledger path → `07-spec-evaluator.mjs`;
+  JSDoc-coverage check (Track D) → the module owning each documented script.
+
+## Track D — JSDoc every function (input/output contracts)
+
+Documentation mandate that rides along with the script work in Tracks B and C:
+**every separate function — every `export`ed function, every top-level helper, and
+every non-trivial inner function in every `.mjs` script — carries a JSDoc block that
+describes its input and output in detail.** The scripts are the harness's executable
+contracts (single-writer `ingest-result`, hook-validated `compile-order`, the
+`trace-lint` oracle); their signatures are the seams other skills depend on, so the
+input/output shape must be legible without reading the body.
+
+Each JSDoc block states, in detail:
+- **`@param`** for every parameter — its type (or the precise object shape: which keys,
+  which are optional, what each means), units/enums where they exist, and what an
+  out-of-range or missing value does (throws? defaults? skips?).
+- **`@returns`** — the exact return shape (object keys and their meaning, not just
+  `Object`), including the shape on the empty/no-op path.
+- **`@throws`** wherever the function can throw (schema-validation failures, malformed
+  envelopes, missing artifacts), naming the trigger condition.
+- A one-line summary of the side effect for any function that writes shared state
+  (which file/section it writes, since single-writer is an invariant, not a convention).
+
+Scope & ownership:
+- **In scope:** tech-lead's 8 scripts (`compile-order`, `ingest-result`,
+  `validate-envelope`, `t0-verify`, `run-snapshot`, `stats`, `aegis-digest`,
+  `trace-lint`), ba-pitch-analyzer's 2 (`board-derive`, `spec-lint`),
+  spec-evaluator's `verdict-ledger` (after the Track B.1 move), and the Track C test
+  modules + `tests/lib/` helpers (`harness.mjs`, `fixtures.mjs`) — document each
+  exported `run(ctx)`, `ok/fail/section`, and every fixture factory as it is created.
+- **Repo-root dev/CI scripts** (oracles, `trigger-eval.mjs`, migrations, `distribute.js`,
+  shell libs): same mandate, lower priority — do them opportunistically when a Track
+  touches the file.
+- **Not a rewrite pass:** this is documentation only — **zero behavior change**. A
+  function's body is never edited to satisfy its JSDoc; if the body contradicts a
+  drafted `@returns`, the JSDoc is describing reality wrong and gets corrected, or a
+  genuine bug is surfaced and filed separately (not silently fixed under a docs commit).
+
+Guard the win:
+- Add a **JSDoc-coverage check** to the structural tests (lands in the module owning
+  each script per Track C: tech-lead scripts → `05-tech-lead.mjs`, ba → `06-…`,
+  verdict-ledger → `07-…`, test helpers → wherever `tests/lib/` is asserted). The check
+  parses each in-scope `.mjs`, enumerates its function declarations/exports, and fails
+  if any lacks a preceding JSDoc block with at least one `@param` (when it takes args)
+  and a `@returns` (when it returns a value). Count it into the check total so it feeds
+  the #26d checks-floor and can't silently regress.
 
 ---
 
@@ -166,12 +244,17 @@ Mechanics:
 | 2 | Track B.1 move + `scripts/README.md`; update §15 + doc citations | `npm test` green (§12, §26c prove no dangle) |
 | 3 | Track A1 description rewrites + description ratchet; A3 tech-lead extraction + ratchet lowered | `npm test` green; Tier-1 re-run, no positive-case regression |
 | 4 | Track A4 reference additions (evidence-gated) | §3 link checks green |
+| 4.5 | Track D JSDoc pass over in-scope `.mjs` + JSDoc-coverage check | `npm test` green; new check counted into floor; diff is comments-only (no logic hunks) |
 | 5 | Track A5 eval loop on task-executor + ba (skill-creator workspace/viewer flow); A2 only if A1 regressed | human review via `generate_review.py`; KB feedback addressed |
 
 **Risks & guards**
 - *Silently dropping a check during the split* → Phase 1's count-equality assertion.
 - *Description rewrite hurts triggering* → Tier-1 measurement before/after (honesty
   invariant forbids guessing); per-skill revert.
+- *A "docs-only" JSDoc pass sneaks in a behavior change* → Track D's commit must be
+  comments-only; `git diff` shows no hunk touching a statement line, and `npm test`
+  stays green with the pre-existing check count plus exactly the new JSDoc-coverage
+  checks (no other count drift).
 - *tech-lead extraction changes behavior* → extraction moves prose verbatim into
   `references/` with explicit "read when you reach GATE X" pointers (skill-creator's
   progressive-disclosure pattern); §3 verifies the links, the L2/L4 gates stay

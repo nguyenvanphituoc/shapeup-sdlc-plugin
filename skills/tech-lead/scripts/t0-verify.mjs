@@ -21,6 +21,13 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { digest } from "./aegis-digest.mjs";
 
+/**
+ * Run one shell command and capture its outcome (10-minute timeout).
+ * @param {string} cmd - The command line to run in a shell.
+ * @param {string} cwd - Working directory to run it in.
+ * @returns {{cmd:string, exit:number, pass:boolean, stdout:string, stderr:string}} The command,
+ *   its exit code (1 when null), whether it exited 0, and captured output.
+ */
 function runCommand(cmd, cwd) {
   const r = spawnSync(cmd, { shell: true, cwd, encoding: "utf8", timeout: 10 * 60 * 1000 });
   const stdout = r.stdout || "";
@@ -28,19 +35,38 @@ function runCommand(cmd, cwd) {
   return { cmd, exit: r.status ?? 1, pass: r.status === 0, stdout, stderr };
 }
 
-/** Run every fixture command for a scope. Returns {pass, results[]}. */
+/**
+ * Run every e2e fixture command for a scope.
+ * @param {string[]} fixtures - Fixture command lines (null/empty → no commands).
+ * @param {string} cwd - Working directory.
+ * @returns {{pass:boolean, results:Array<{cmd:string,exit:number,pass:boolean,stdout:string,
+ *   stderr:string}>}} pass=true iff every fixture passed, plus each command's result.
+ */
 export function runFixtures(fixtures, cwd) {
   const results = (fixtures || []).map((cmd) => runCommand(cmd, cwd));
   return { pass: results.every((r) => r.pass), results };
 }
 
-/** Run the scope's DB probe, if declared. null = not applicable (never counts as a failure). */
+/**
+ * Run the scope's DB probe, if one is declared.
+ * @param {(string|null|undefined)} dbProbeCmd - The probe command, or falsy when none applies.
+ * @param {string} cwd - Working directory.
+ * @returns {({cmd:string,exit:number,pass:boolean,stdout:string,stderr:string}|null)} The command
+ *   result, or null when no probe is declared (null never counts as a failure).
+ */
 export function runDbProbe(dbProbeCmd, cwd) {
   if (!dbProbeCmd) return null;
   return runCommand(dbProbeCmd, cwd);
 }
 
-/** Re-run every FINISHED scope's fixtures from the seesaw registry. */
+/**
+ * Re-run every FINISHED scope's fixtures from the seesaw registry (regression guard).
+ * @param {(string|null)} registryPath - Path to the seesaw registry JSON (absent/unreadable → skipped).
+ * @param {string} cwd - Working directory.
+ * @returns {{ran:boolean, pass:boolean, scopes_checked:string[], failing:string[], error?:string}}
+ *   ran=false/pass=true when skipped; otherwise pass=true iff no prior scope regressed, with the
+ *   scope ids checked and those now failing.
+ */
 export function seesawCheck(registryPath, cwd) {
   if (!registryPath || !existsSync(registryPath)) {
     return { ran: false, pass: true, scopes_checked: [], failing: [] };
@@ -60,7 +86,14 @@ export function seesawCheck(registryPath, cwd) {
   return { ran: true, pass: failing.length === 0, scopes_checked: scopes.map((s) => s.scope_id), failing };
 }
 
-/** Compute the overall T0 verdict from fixtures + db probe + seesaw. */
+/**
+ * Combine fixtures + DB probe + seesaw into the overall T0 verdict.
+ * @param {{fixtures:{pass:boolean}, dbProbe:({pass:boolean}|null),
+ *   seesaw:{ran:boolean,pass:boolean}}} parts - The three sub-results.
+ * @returns {{fixtures_green:boolean, db_probe_green:boolean, seesaw_green:boolean,
+ *   overall:("green"|"red"), regression:boolean}} Per-arm greens, the overall verdict (green iff
+ *   all three), and `regression` = fixtures+db green but seesaw red (the rollback-and-retry case).
+ */
 export function computeVerdict({ fixtures, dbProbe, seesaw }) {
   const fixturesGreen = fixtures.pass;
   const dbGreen = dbProbe === null || dbProbe.pass;
@@ -76,7 +109,13 @@ export function computeVerdict({ fixtures, dbProbe, seesaw }) {
   };
 }
 
-/** Distill every failing command's stdout+stderr into AEGIS triples. */
+/**
+ * Distill every failing command's output into AEGIS {file,line,core_message} triples.
+ * @param {{fixtures:{results:Array<{pass:boolean,stdout:string,stderr:string}>},
+ *   dbProbe:({pass:boolean,stdout:string,stderr:string}|null)}} parts - The T0 sub-results.
+ * @returns {Array<{file:(string|null), line:(number|null), core_message:string, kind:string}>}
+ *   Deduped triples across all failing logs; [] when nothing failed.
+ */
 export function digestFailures({ fixtures, dbProbe }) {
   const failingLogs = [];
   for (const r of fixtures.results) if (!r.pass) failingLogs.push(r.stdout + "\n" + r.stderr);
@@ -84,13 +123,22 @@ export function digestFailures({ fixtures, dbProbe }) {
   return failingLogs.flatMap((log) => digest(log));
 }
 
+/**
+ * @param {string} text - Bytes to hash.
+ * @returns {string} The lowercase hex SHA-256 digest of `text`.
+ */
 function sha256(text) {
   return createHash("sha256").update(text).digest("hex");
 }
 
 /**
- * Write the T0 verdict artifact. Path: <outDir>/t0/verdicts/r<round>-a<attempt>.json
- * Returns {path, sha256} — the citation spec-evaluator (T1) must include in its report.
+ * Write the T0 verdict artifact spec-evaluator (T1) must cite.
+ * @param {string} outDir - Base output dir; the file lands at `<outDir>/t0/verdicts/r<round>-a<attempt>.json`.
+ * @param {number} round - Round number.
+ * @param {number} attempt - Attempt number within the round.
+ * @param {object} verdictBody - Verdict fields to persist (scope_id, per-arm results, discovered_tasks…).
+ * @returns {{path:string, sha256:string}} The artifact path and the sha-256 of its exact bytes —
+ *   the citation the evaluator's report must include. Side effect: writes the JSON file.
  */
 export function writeArtifact(outDir, round, attempt, verdictBody) {
   const dir = join(outDir, "t0", "verdicts");
@@ -102,6 +150,12 @@ export function writeArtifact(outDir, round, attempt, verdictBody) {
   return { path, sha256: sha256(text) };
 }
 
+/**
+ * Parse the t0-verify CLI argv.
+ * @param {string[]} argv - Arguments after `node t0-verify.mjs`.
+ * @returns {{_:string[], round?:number, attempt?:number, cwd?:string, out?:string,
+ *   seesawRegistry?:string, noSeesaw?:boolean}} Flag values, with positional args under `_`.
+ */
 function parseArgs(argv) {
   const out = { _: [] };
   for (let i = 0; i < argv.length; i++) {
@@ -117,6 +171,11 @@ function parseArgs(argv) {
   return out;
 }
 
+/**
+ * CLI entry: run a scope's fixtures + probe + seesaw, write the verdict artifact, print it, and
+ * exit 0 (green) / 1 (red) / 2 (usage).
+ * @returns {Promise<void>} Resolves after writing the artifact; the process exit code carries the verdict.
+ */
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const contractPath = args._[0];

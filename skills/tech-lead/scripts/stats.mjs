@@ -24,7 +24,13 @@ import { resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validate } from "./validate-envelope.mjs";
 
-/** Read every shard: { rows, pathologies:[…], sources, rows_malformed }. */
+/**
+ * Read every metrics shard, partitioning valid rows, pathology rows, and malformed lines.
+ * @param {string} metricsDir - Directory of `*.jsonl` metric shards (absent → empty result).
+ * @returns {{rows:Array<object>, pathologies:Array<object>, sources:string[], rows_malformed:number}}
+ *   Harvest rows (each tagged with a per-shard `_seq`), pathology rows, the shard filenames read,
+ *   and the count of unparseable/incomplete lines skipped.
+ */
 export function readShards(metricsDir) {
   const out = { rows: [], pathologies: [], sources: [], rows_malformed: 0 };
   if (!existsSync(metricsDir)) return out;
@@ -44,9 +50,22 @@ export function readShards(metricsDir) {
   return out;
 }
 
+/**
+ * @param {number} n - A number.
+ * @returns {number} `n` rounded to two decimal places.
+ */
 const round2 = (n) => Math.round(n * 100) / 100;
 
-/** Aggregate harvest rows into the StatsReport body (pure — no I/O). */
+/**
+ * Aggregate harvest rows into the StatsReport body (pure — no I/O, no grading).
+ * @param {{rows:Array<object>, pathologies:Array<object>, sources:string[], rows_malformed:number}}
+ *   shards - Output of {@link readShards}.
+ * @param {{metricsDir?:string, slugFilter?:(string|null)}} [opts] - metricsDir echoed into the
+ *   report; slugFilter restricts to one feature slug.
+ * @returns {object} A StatsReport (domain.schema.json#/$defs/StatsReport): per-slug run counts,
+ *   terminal-state histograms, hammer-cut rate, attempt exhaustions, QA promotion rates, a
+ *   pathology histogram, and the round_count trend.
+ */
 export function aggregate({ rows, pathologies, sources, rows_malformed }, { metricsDir = "", slugFilter = null } = {}) {
   const filtered = slugFilter ? rows.filter((r) => r.feature_slug === slugFilter) : rows;
 
@@ -122,6 +141,11 @@ export function aggregate({ rows, pathologies, sources, rows_malformed }, { metr
   };
 }
 
+/**
+ * Render a StatsReport as a human-readable fixed-width table.
+ * @param {object} report - A validated StatsReport (see {@link aggregate}).
+ * @returns {string} The multi-line table text (header + one row per slug + optional trend line).
+ */
 function renderTable(report) {
   const lines = [];
   lines.push(`metrics: ${report.metrics_dir || "(none)"} — ${report.rows_total} run row(s), ` +
@@ -155,6 +179,11 @@ function renderTable(report) {
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const args = process.argv.slice(2);
+  /**
+   * Read a CLI flag's value.
+   * @param {string} name - Full flag token including leading dashes (e.g. "--metrics-dir").
+   * @returns {(string|null)} The argument after the flag, or null when it is absent.
+   */
   const flag = (name) => {
     const i = args.indexOf(name);
     return i !== -1 && args[i + 1] ? args[i + 1] : null;

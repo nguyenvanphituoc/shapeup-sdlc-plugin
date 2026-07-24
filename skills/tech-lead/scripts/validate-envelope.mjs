@@ -28,10 +28,17 @@ import { fileURLToPath } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const SCHEMAS_DIR = resolve(HERE, "../schemas");
 
-/** Validate `data` against the JSON-Schema subset used by the envelope schemas.
- *  `schemaDir` is where cross-file $refs (e.g. "domain.schema.json#/$defs/X") resolve from;
- *  defaults to the shipped schemas dir so in-memory schemas keep working.
- *  Returns { valid, errors: ["<path>: <message>", ...] }. */
+/**
+ * Validate a value against the JSON-Schema subset the envelope schemas use (type, required,
+ * properties, items, enum, pattern, anyOf, $ref).
+ * @param {*} data - The value to validate.
+ * @param {object} schema - The (sub)schema to validate against; may itself be a bare `{$ref}`.
+ * @param {string} [schemaDir=SCHEMAS_DIR] - Directory cross-file $refs (e.g.
+ *   "domain.schema.json#/$defs/X") resolve from; defaults to the shipped schemas dir so in-memory
+ *   schemas keep working.
+ * @returns {{valid:boolean, errors:string[]}} valid=true with [] when data conforms; otherwise
+ *   valid=false and one "`<path>: <message>`" string per violation.
+ */
 export function validate(data, schema, schemaDir = SCHEMAS_DIR) {
   const errors = [];
   walk(data, schema, "$", errors, { doc: schema, dir: schemaDir }, 0);
@@ -42,6 +49,15 @@ export function validate(data, schema, schemaDir = SCHEMAS_DIR) {
 // ctx = { doc, dir }: the schema DOCUMENT the current subschema belongs to (same-doc
 // `#/...` pointers resolve inside it) and the directory sibling files load from.
 const REF_DOC_CACHE = new Map();
+/**
+ * Load and cache a sibling schema document for a cross-file $ref.
+ * @param {string} file - Schema filename referenced by the $ref (e.g. "domain.schema.json").
+ * @param {string} dir - Primary directory to look in (falls back to the shipped schemas dir).
+ * @param {string} path - Current data path, for error messages.
+ * @param {string[]} errors - Error accumulator, appended to on a missing/unparseable file.
+ * @returns {{doc:object, dir:string}|null} The parsed document and its directory (cached), or null
+ *   when the file is absent or not readable JSON (an error is pushed in that case).
+ */
 function loadRefDoc(file, dir, path, errors) {
   for (const base of [dir, SCHEMAS_DIR]) {
     const abs = resolve(base, file);
@@ -61,6 +77,15 @@ function loadRefDoc(file, dir, path, errors) {
   return null;
 }
 
+/**
+ * Resolve a `$ref` (same-doc `#/…` or `file#/…`) to its target subschema.
+ * @param {string} ref - The $ref string.
+ * @param {{doc:object, dir:string}} ctx - The document the ref belongs to and the dir siblings load from.
+ * @param {string} path - Current data path, for error messages.
+ * @param {string[]} errors - Error accumulator, appended to when the ref resolves to nothing.
+ * @returns {{schema:object, ctx:{doc:object,dir:string}}|null} The target subschema and the context
+ *   it lives in (so nested refs resolve correctly), or null on an unresolved ref.
+ */
 function resolveRef(ref, ctx, path, errors) {
   const [file, pointer = ""] = ref.split("#");
   const target = file ? loadRefDoc(file, ctx.dir, path, errors) : ctx;
@@ -76,6 +101,12 @@ function resolveRef(ref, ctx, path, errors) {
   return { schema: node, ctx: target };
 }
 
+/**
+ * Classify a value using JSON-Schema type names.
+ * @param {*} v - Any value.
+ * @returns {("array"|"null"|"integer"|"number"|"object"|"string"|"boolean"|"undefined"|"function")}
+ *   The schema-type name; integral numbers report "integer", non-integral "number".
+ */
 function typeOf(v) {
   if (Array.isArray(v)) return "array";
   if (v === null) return "null";
@@ -83,6 +114,16 @@ function typeOf(v) {
   return typeof v;
 }
 
+/**
+ * Recursively check `data` against `schema`, pushing one message per violation (the validation core).
+ * @param {*} data - The value (sub)tree being checked.
+ * @param {object} schema - The (sub)schema to apply.
+ * @param {string} path - JSON-path label for messages (e.g. "$.payload.tasks[0]").
+ * @param {string[]} errors - Error accumulator, appended to in place.
+ * @param {{doc:object, dir:string}} ctx - Schema document + directory for $ref resolution.
+ * @param {number} refDepth - Current $ref chain depth; a chain deeper than 16 is reported as a cycle.
+ * @returns {void} Nothing; violations are recorded on `errors`.
+ */
 function walk(data, schema, path, errors, ctx, refDepth) {
   if (!schema || typeof schema !== "object") return;
   if (schema.$ref) {
@@ -130,8 +171,14 @@ function walk(data, schema, path, errors, ctx, refDepth) {
   }
 }
 
-/** Load + validate an envelope file against a schema file. Throws on unreadable JSON.
- *  Cross-file $refs resolve relative to the schema file's own directory. */
+/**
+ * Load an envelope file and a schema file from disk and validate one against the other.
+ * @param {string} envelopePath - Path to the JSON envelope.
+ * @param {string} schemaPath - Path to the JSON schema; cross-file $refs resolve from its own dir.
+ * @returns {{valid:boolean, errors:string[]}} Same shape as {@link validate}.
+ * @throws {SyntaxError} If either file is not valid JSON.
+ * @throws {Error} If either file is not readable.
+ */
 export function validateFile(envelopePath, schemaPath) {
   const data = JSON.parse(readFileSync(envelopePath, "utf8"));
   const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
@@ -164,6 +211,10 @@ if (isMain) {
     }
   } else {
     // Hook mode (PreToolUse). Deny contract identical to gate-l2.mjs.
+    /**
+     * Fail-open: exit 0 with no output so the tool call proceeds (the hook defers, gating nothing).
+     * @returns {never} Does not return — terminates the process with code 0.
+     */
     const defer = () => process.exit(0);
     const raw = await new Promise((res) => {
       let d = "";
@@ -179,6 +230,11 @@ if (isMain) {
     const m = haystack.match(/--order(?:\s+|=)(?:"([^"]+)"|'([^']+)'|(\S+))/);
     if (!m) defer(); // no order threaded → not an orchestrated dispatch, nothing to gate
     const orderPath = resolve(p.cwd || process.cwd(), m[1] || m[2] || m[3]);
+    /**
+     * Emit a PreToolUse deny decision for the dispatch and exit.
+     * @param {string} reason - Human-readable explanation surfaced to the caller.
+     * @returns {never} Does not return — prints the deny JSON and terminates the process with code 0.
+     */
     const deny = (reason) => {
       console.log(JSON.stringify({
         hookSpecificOutput: {

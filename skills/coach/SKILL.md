@@ -1,18 +1,6 @@
 ---
 name: coach
-description: >
-  Use this skill to turn raw Product Owner / Tech Lead feedback at the Ship Sign-off (L4 Gate)
-  into structured, team-shared guidelines that future harness runs read back. Triggers on:
-  "coach this feedback", "record this for next sprint", "update the knowledge base", "RLHF the
-  harness", and Vietnamese "ghi lại cho sprint sau", "cập nhật knowledge base". tech-lead invokes
-  it automatically at GATE L4 when the PO gives substantive feedback instead of a bare 'y'.
-  The coach NEVER guesses which skill a rule belongs to — it runs a categorization GATE that asks
-  the PO to assign each rule to one of the coachable skills (task-executor, ba-pitch-analyzer,
-  qa-edge-hunter) or to flag it as a harness defect (broken gate/hook/skill contract → filed to
-  the committed defect register as a raw idea for the Betting Table, never as worker steering),
-  then writes each rule into that skill's committed knowledge-base file so the whole team and
-  every future run picks it up. NOT for grading work (spec-evaluator), fixing bugs
-  (task-executor), or filing discovered tasks (the ledger).
+description: "Use this skill to turn raw Product Owner / Tech Lead feedback at the Ship Sign-off (L4 Gate) into structured, team-shared guidelines that future harness runs read back. Triggers on: \"coach this feedback\", \"record this for next sprint\", \"update the knowledge base\", \"RLHF the harness\", and Vietnamese \"ghi lại cho sprint sau\", \"cập nhật knowledge base\". tech-lead invokes it automatically at GATE L4 when the PO gives substantive feedback instead of a bare 'y'. NOT for grading work (spec-evaluator), fixing bugs (task-executor), or filing discovered tasks (the ledger)."
 ---
 
 # Coach Skill — RLHF for the harness

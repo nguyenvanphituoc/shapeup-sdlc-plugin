@@ -47,7 +47,7 @@ write to even if it wanted to.
 
 | Field | Purpose |
 |---|---|
-| `worker` | One of 10 enumerated skills — the order names its own destination |
+| `worker` | One of 11 enumerated skills — the order names its own destination |
 | `operation` | Replaces ad-hoc flags (`--tasks-only`, `--remap` …) — the caller knows the pipeline position, the worker never re-derives it |
 | `substrate` | The write contract for this order — data the sandbox hook enforces, not prose asking the worker to behave |
 | `payload` | Worker-specific inputs: scope contract, tasks, prior decisions, digested errors, KB rules path |
@@ -60,6 +60,68 @@ write to even if it wanted to.
 | `escalates[]` | The worker's one outward port for a decision it can't make alone — routed to `advisor-protocol` |
 | `discoveries[]` | Raw discovered lines — appended to the discovery ledger by ingest, never by the worker |
 | `verdict` | `spec-evaluator` only — overall PASS/FAIL, per-criterion results, refuted AC boxes, T0 citation hashes |
+
+## 3.1b — Operation routing: one compiler, the whole skill set
+
+The envelope port above is drawn once, generically — but there is a *single* compiler
+(`compile-order.mjs`) behind every worker in the harness. The order's **`operation` is the
+routing key**: `compile-order` resolves the owning worker from the operation alone (its
+`OP_OWNER` map, mirroring `domain.schema.json`'s `$defs/Operation` ownership), so a dispatch
+never carries a redundant `--worker`, and each operation stamps a fixed `substrate` write
+contract (from `substrateFor`) that the sandbox hook then enforces. One compiled order therefore
+*is* the dataflow across the skill set — the 20 operations fan out to the 11 worker skills by
+pipeline stage:
+
+```mermaid
+graph LR
+    CO["compile-order.mjs<br/>operation → worker + substrate"]
+    CO --> ORI["orient<br/>(orient)"]
+    CO --> SA["solution-architect<br/>(wire)"]
+    CO --> BA["ba-pitch-analyzer<br/>(analyze · generate-board ·<br/>reconcile · retrofit-surface · coverage)"]
+    CO --> SC["scope-architect<br/>(map-scopes · remap · split-scope)"]
+    CO --> TE["task-executor<br/>(execute · fix · spike)"]
+    CO --> SE["spec-evaluator<br/>(evaluate)"]
+    CO --> QA["qa-edge-hunter<br/>(hunt · recheck)"]
+    CO --> SH["scope-hammer<br/>(hammer)"]
+    CO --> AD["advisor-protocol<br/>(adjudicate)"]
+    CO --> TR["translator<br/>(translate)"]
+    CO --> CH["coach<br/>(coach)"]
+    ORI --> IR["ingest-result.mjs<br/>(single writer)"]
+    SA --> IR
+    BA --> IR
+    SC --> IR
+    TE --> IR
+    SE --> IR
+    QA --> IR
+    SH --> IR
+    AD --> IR
+    TR --> IR
+    CH --> IR
+```
+
+| Pipeline stage | Operation(s) | Worker skill | Order's `substrate.allowed` (write target) |
+|---|---|---|---|
+| Orient | `orient` | `orient` | `<local>/orient/**` |
+| Wire (spine ✚) | `wire` | `solution-architect` | `docs/…/<slug>/wiring-map.json` |
+| Map scopes | `analyze` | `ba-pitch-analyzer` | `<spec>/**` + `<local>/**` |
+| | `map-scopes`, `remap`, `split-scope` | `scope-architect` | `<slug>/scopes/*.json` + `scope-board.md` |
+| Coverage (spine ✚) | `coverage` | `ba-pitch-analyzer` | `docs/…/<slug>/requirements.md` |
+| Board upkeep | `generate-board`, `reconcile`, `retrofit-surface` | `ba-pitch-analyzer` | `<local>/tasks/**` (+ append-only UC Invariants / Test Surface) |
+| Build | `execute`, `fix`, `spike` | `task-executor` | the scope's own `allowed_file_substrate` + `<local>/spikes/**` |
+| Evaluate | `evaluate` | `spec-evaluator` | `<local>/evaluation/**` |
+| QA hunt | `hunt`, `recheck` | `qa-edge-hunter` | `<local>/qa/**` |
+| Ship / triage | `hammer` | `scope-hammer` | `<local>/**` (run-trace default) |
+| Escalation | `adjudicate` | `advisor-protocol` | `<local>/**` (its answer lands in the committed round-ledger via ingest) |
+| Intake | `translate` | `translator` | `<local>/**` (writes the faithful `.en.md` copies) |
+| Retro | `coach` | `coach` | `<local>/**` (its rules land in the committed knowledge-base via ingest) |
+
+Two consequences fall out of routing *in the order* rather than in each skill: **(1)** adding a
+worker is adding an operation, its `OP_OWNER` entry, and its `substrateFor` case — the
+orchestrator owns the vocabulary and workers never re-derive their own pipeline position; and
+**(2)** because the write contract travels inside the order, one `sandbox-guard.mjs` hook fences
+every skill's writes with zero per-skill code. The return leg is uniform too: whatever any of the
+11 workers produces comes back as a `WorkResult`, and `ingest-result.mjs` is the sole writer that
+lands it into shared state (§3.1).
 
 ## 3.2 — Runtime-enforced guardrails (hooks)
 

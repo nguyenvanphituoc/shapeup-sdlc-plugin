@@ -22,10 +22,23 @@ import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+/**
+ * Read an inline `[a, b]` list field from a frontmatter string.
+ * @param {string} fm - The frontmatter text.
+ * @param {string} key - The list key to read.
+ * @returns {string[]} The trimmed, unquoted, non-empty members; [] when the key is absent.
+ */
 const listField = (fm, key) =>
   (fm.match(new RegExp(`^${key}:\\s*\\[([^\\]]*)\\]`, "im")) || [, ""])[1]
     .split(",").map((s) => s.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
 
+/**
+ * Parse every TASK-*.md in a board directory into structured task records.
+ * @param {string} tasksDir - Absolute path to the LOCAL tasks directory.
+ * @returns {Array<{file:string, id:string, type:string, status:string, hours:number, pkg:string,
+ *   depends_on:string[], unlocks:string[], use_case_refs:string[], body:string}>} One record per
+ *   task file; [] when the directory does not exist.
+ */
 export function parseBoard(tasksDir) {
   if (!existsSync(tasksDir)) return [];
   return readdirSync(tasksDir)
@@ -48,7 +61,11 @@ export function parseBoard(tasksDir) {
     });
 }
 
-/** unlocks = inverse of depends_on, over the whole board. Never hand-authored (v3.3). */
+/**
+ * Compute `unlocks` as the inverse of `depends_on` over the whole board (never hand-authored).
+ * @param {Array<{id:string, depends_on:string[]}>} tasks - The parsed board.
+ * @returns {Object<string,string[]>} Map of task id → sorted ids it unlocks.
+ */
 export function deriveUnlocks(tasks) {
   const unlocks = Object.fromEntries(tasks.map((t) => [t.id, []]));
   for (const t of tasks) for (const dep of t.depends_on) if (unlocks[dep]) unlocks[dep].push(t.id);
@@ -56,10 +73,22 @@ export function deriveUnlocks(tasks) {
   return unlocks;
 }
 
-/** Longest depends_on chain by summed hours (the critical path). */
+/**
+ * Find the critical path: the depends_on chain with the greatest summed hours.
+ * @param {Array<{id:string, depends_on:string[], hours:number}>} tasks - The parsed board.
+ * @returns {{hours:number, chain:string[]}} The longest chain's total hours and its task ids in
+ *   dependency order (cycles are guarded and contribute nothing).
+ */
 export function criticalPath(tasks) {
   const byId = Object.fromEntries(tasks.map((t) => [t.id, t]));
   const memo = {};
+  /**
+   * Longest depends_on chain rooted at a task, by summed hours (memoized, cycle-guarded).
+   * @param {string} id - Task id to start from.
+   * @param {Set<string>} [seen=new Set()] - Ids on the current DFS path (cycle guard); callers omit it.
+   * @returns {{hours:number, chain:string[]}} The heaviest chain's total hours and its task ids in
+   *   dependency order; {hours:0, chain:[]} for an unknown id or a detected cycle.
+   */
   const longest = (id, seen = new Set()) => {
     if (memo[id]) return memo[id];
     if (seen.has(id)) return { hours: 0, chain: [] }; // cycle guard — lint reports it separately
@@ -81,7 +110,12 @@ export function criticalPath(tasks) {
   return best;
 }
 
-/** Board-vs-T0 drift: FINISHED/T0-green scopes whose named tasks are not done. Flag only. */
+/**
+ * Flag board-vs-T0 drift: FINISHED scopes whose named tasks are not yet done (flag only, never fix).
+ * @param {Array<{id:string, status:string}>} tasks - The parsed board.
+ * @param {Array<{scope_id:string, tasks?:string[], finished?:boolean}>} scopes - Scope facts.
+ * @returns {Array<{scope_id:string, task_id:string, status:string}>} One entry per drifting task; [] when none.
+ */
 export function driftCheck(tasks, scopes) {
   const byId = Object.fromEntries(tasks.map((t) => [t.id, t]));
   const drift = [];
@@ -95,6 +129,14 @@ export function driftCheck(tasks, scopes) {
   return drift;
 }
 
+/**
+ * Derive the full board report (unlocks, hours, packages, critical path, appetite overflow, drift).
+ * @param {{cwd:string, slug:string, appetiteHours?:(number|null)}} opts - Working root, feature
+ *   slug, and optional appetite budget (in hours) that drives the overflow flag.
+ * @returns {object} The report: task_count, by_status, packages, total/keep hours, appetite
+ *   overflow (or null), critical_path, unlocks + unlocks_stale, drift[], and `_tasks` (the parsed
+ *   board, deleted before CLI output).
+ */
 export function derive({ cwd, slug, appetiteHours = null }) {
   const tasksDir = join(cwd, ".shapeup-sdlc", slug, "tasks");
   const tasks = parseBoard(tasksDir);
@@ -136,7 +178,12 @@ export function derive({ cwd, slug, appetiteHours = null }) {
   };
 }
 
-/** Persist the derived unlocks into task frontmatter (the ONE write this script makes). */
+/**
+ * Persist derived `unlocks` into task frontmatter — the ONE write this script makes.
+ * @param {{_tasks:Array<object>, unlocks:Object<string,string[]>}} report - A {@link derive} report.
+ * @returns {string[]} The ids of task files actually rewritten (unchanged files are skipped).
+ *   Side effect: writes those task files.
+ */
 export function writeUnlocks(report) {
   const written = [];
   for (const t of report._tasks) {
@@ -156,6 +203,11 @@ export function writeUnlocks(report) {
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const args = process.argv.slice(2);
+  /**
+   * Read a `--<n> <value>` CLI flag's value.
+   * @param {string} n - Flag name without leading dashes.
+   * @returns {(string|null)} The argument after `--<n>`, or null when the flag is absent.
+   */
   const flag = (n) => { const i = args.indexOf(`--${n}`); return i !== -1 ? args[i + 1] : null; };
   const slug = flag("slug");
   if (!slug) { console.error("usage: board-derive.mjs --slug <slug> [--cwd <dir>] [--write] [--appetite-hours N]"); process.exit(2); }

@@ -21,11 +21,23 @@ const PATTERNS = [
   { re: /^\s*(?:Error|TypeError|ReferenceError|AssertionError)\s*:\s*(.+)$/, kind: "error-message" },
 ];
 
+/**
+ * Normalize a log line into a compact core message.
+ * @param {string} line - A raw log line.
+ * @returns {string} The line trimmed, whitespace-collapsed, and capped at 200 chars.
+ */
 function coreMessage(line) {
   return line.trim().replace(/\s+/g, " ").slice(0, 200);
 }
 
-/** Distill raw log text into {file, line, core_message, kind} triples. */
+/**
+ * Distill raw build/test/Playwright log text into deduped {file,line,core_message,kind} triples —
+ * never inventing a file:line it did not find in the text.
+ * @param {string} rawText - The raw log output ("" / null tolerated).
+ * @returns {Array<{file:(string|null), line:(number|null), core_message:string, kind:string}>}
+ *   One triple per recognized failure/diagnostic (kind ∈ stack-frame|test-failure|
+ *   compiler-diagnostic|error-message); unmatched error messages become file-less triples.
+ */
 export function digest(rawText) {
   const lines = (rawText || "").split(/\r?\n/);
   const triples = [];
@@ -75,6 +87,10 @@ export function digest(rawText) {
 }
 
 // --- CLI ---------------------------------------------------------------------
+/**
+ * CLI entry: read a log from a file arg or stdin, print the digested triples as JSON, exit 0.
+ * @returns {Promise<void>} Resolves after printing.
+ */
 async function main() {
   const arg = process.argv[2];
   let raw;

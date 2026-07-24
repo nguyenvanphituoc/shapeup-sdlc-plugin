@@ -34,6 +34,13 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ORDER_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../schemas/work-order.schema.json"), "utf8"));
 
 // --- tiny frontmatter reader (scalar keys + [a, b] inline lists) --------------------------
+/**
+ * Parse a task/spec Markdown frontmatter block into scalar keys and inline `[a, b]` lists.
+ * @param {string} md - Full Markdown document text.
+ * @returns {Object<string,(string|string[])>} A flat map of top-level frontmatter keys; a value
+ *   written as `[x, y]` becomes a trimmed string[], every other value stays a string. Returns
+ *   {} when the document has no leading `---`-delimited block.
+ */
 export function frontmatter(md) {
   const m = md.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!m) return {};
@@ -50,7 +57,16 @@ export function frontmatter(md) {
   return meta;
 }
 
-/** Parse one TASK-NNN.md file → the task entry a WorkOrder carries. */
+/**
+ * Parse one TASK-NNN.md file into the task entry a WorkOrder carries.
+ * @param {string} path - Absolute path to the task Markdown file.
+ * @returns {{id:string, title:string, status:string, priority:number, depends_on:string[],
+ *   use_case_refs:string[], body_path:string, acceptance_criteria:Array<string|{text:string,
+ *   covers:string[]}>}} The task entry. Each acceptance criterion is the checkbox text
+ *   byte-identical (so ingest can tick it back); a trailing `(covers: REQ-…)` clause yields
+ *   {text, covers} instead of a plain string. `priority` defaults to 999 when unset.
+ * @throws {Error} If `path` is not readable.
+ */
 export function parseTaskFile(path) {
   const body = readFileSync(path, "utf8");
   const fm = frontmatter(body);
@@ -77,7 +93,13 @@ export function parseTaskFile(path) {
   };
 }
 
-/** All task entries on the LOCAL board for a slug. */
+/**
+ * Read every task entry on the LOCAL board for a slug, sorted by ascending priority.
+ * @param {string} cwd - Working-directory root the `.shapeup-sdlc/<slug>/tasks` path resolves against.
+ * @param {string} slug - Feature slug naming the run.
+ * @returns {Array<object>} The parsed task entries (see {@link parseTaskFile}); [] when the tasks
+ *   directory does not exist.
+ */
 export function readBoard(cwd, slug) {
   const dir = join(cwd, ".shapeup-sdlc", slug, "tasks");
   if (!existsSync(dir)) return [];
@@ -87,7 +109,13 @@ export function readBoard(cwd, slug) {
     .sort((a, b) => a.priority - b.priority);
 }
 
-/** Extract this scope's Decisions rows from the committed round ledger (advisor answers). */
+/**
+ * Extract a scope's advisor-answer rows from the committed round ledger's Decisions table.
+ * @param {string} ledgerText - Full `round-ledger.md` text ("" / null → no decisions).
+ * @param {string} [scopeId] - When given, keep only rows whose cells name this scope; omit to keep all.
+ * @returns {Array<{id:string, answer:string}>} One entry per `ESC-N` row (id = the ESC id, answer =
+ *   the row's last cell); [] when the Decisions section is absent or empty.
+ */
 export function ledgerDecisions(ledgerText, scopeId) {
   const decisions = [];
   let inDecisions = false;
@@ -105,8 +133,17 @@ export function ledgerDecisions(ledgerText, scopeId) {
   return decisions;
 }
 
-/** The §8.3 move: mode/flag differences ARE write-contract differences. One whitelist
- *  template per operation, enforced by the sandbox hook instead of trusted to prose. */
+/**
+ * Resolve the write-contract (sandbox substrate) for an operation — one whitelist template per
+ * operation, so mode/flag differences are enforced by the sandbox hook, not trusted to prose.
+ * @param {string} operation - The order's operation (execute|analyze|generate-board|reconcile|
+ *   retrofit-surface|coverage|map-scopes|remap|split-scope|wire|evaluate|hunt|recheck|orient|…).
+ * @param {{slug?:string, specDir?:string, scope?:object}} [ctx] - slug (names LOCAL/SHARED roots),
+ *   specDir (overrides the default spec path), scope (contract supplying allowed/shared substrates).
+ * @returns {{allowed:string[], shared?:string[], frozen?:string[], append_only?:string[]}} The
+ *   substrate contract: globs the worker may write (`allowed`), shared-write globs, read-only
+ *   `frozen` globs, and `append_only` globs. An unknown operation returns a LOCAL-only default.
+ */
 export function substrateFor(operation, { slug, specDir, scope } = {}) {
   const local = `.shapeup-sdlc/${slug}`;
   const spec = specDir || `docs/shapeup-sdlc/${slug}/spec`;
@@ -163,7 +200,27 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
   }
 }
 
-/** Assemble a WorkOrder. Pure given its inputs; the CLI wrapper does the disk reads. */
+/**
+ * Assemble a WorkOrder envelope. Pure given its inputs — the CLI wrapper does the disk reads.
+ * @param {object} opts - The order inputs (destructured):
+ * @param {string} opts.slug - Feature slug (names the order_id and substrate roots).
+ * @param {string} opts.worker - Target worker skill (e.g. "task-executor").
+ * @param {string} [opts.mode="orchestrated"] - Dispatch mode written onto the order.
+ * @param {string} [opts.operation] - Operation the worker runs (drives the substrate template).
+ * @param {number} [opts.round] - Round number (for the order_id suffix + attempt pairing).
+ * @param {number} [opts.attempt] - Attempt number within the round.
+ * @param {object} [opts.scope] - Scope contract, carried as payload.scope_contract + substrate source.
+ * @param {Array<object>} [opts.tasks] - Task entries to include in the payload.
+ * @param {Array<{id:string,answer:string}>} [opts.decisions] - This scope's advisor answers.
+ * @param {Array<object>} [opts.digestedErrors] - Prior-attempt AEGIS triples (payload.digested_errors).
+ * @param {string} [opts.testCmd] - Verify command, recorded under payload.verify.test_cmd.
+ * @param {object} [opts.payloadExtra] - Extra payload fields merged last (spec_folder, feature, …).
+ * @param {string} [opts.specDir] - Spec directory, threaded into the substrate template.
+ * @param {object} [opts.interaction] - Interaction flags (e.g. {pause_gates}).
+ * @returns {object} A WorkOrder: {schema_version, order_id ("<slug>/<suffix>"), worker, mode,
+ *   operation?, interaction?, substrate (from {@link substrateFor}), payload{…}}. A coachable
+ *   worker also gets payload.kb_rules_path. Not validated here — the CLI validates before writing.
+ */
 export function compileOrder({
   slug, worker, mode = "orchestrated", operation, round, attempt,
   scope, tasks, decisions, digestedErrors, testCmd, payloadExtra, specDir, interaction,
@@ -195,10 +252,21 @@ export function compileOrder({
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const args = process.argv.slice(2);
+  /**
+   * Read a `--<name> <value>` CLI flag's value, ignoring a following token that is itself a flag.
+   * @param {string} name - Flag name without leading dashes.
+   * @returns {(string|null)} The next argument, or null when the flag is absent or immediately
+   *   followed by another `--flag`.
+   */
   const flag = (name) => {
     const i = args.indexOf(`--${name}`);
     return i !== -1 && args[i + 1] && !args[i + 1].startsWith("--") ? args[i + 1] : null;
   };
+  /**
+   * Test whether a boolean `--<name>` flag is present.
+   * @param {string} name - Flag name without leading dashes.
+   * @returns {boolean} True when `--<name>` appears in argv.
+   */
   const has = (name) => args.includes(`--${name}`);
   const cwd = resolve(flag("cwd") || process.cwd());
 

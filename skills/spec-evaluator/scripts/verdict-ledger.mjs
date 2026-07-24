@@ -1,20 +1,27 @@
 #!/usr/bin/env node
-// Verdict-ledger reference implementation (audit Stage D1) — REPO-ONLY dev/CI asset.
+// Verdict-ledger reference implementation (audit Stage D1) — spec-evaluator's own skill-local
+// reference impl (ships beside SKILL.md; not invoked at runtime).
 //
 // The `spec-evaluator` skill performs verdict re-probe / confidence / flip-detection as a
 // self-contained procedure (`references/verdict-ledger.md`) using its own file tools — it does NOT
 // call this file. This is the executable proof that the documented grammar is well-defined and
-// actually discriminates an unstable judge from a stable one, the same way scripts/oracles/* prove
-// the probing grammar. Structural test #15 exercises it.
+// actually discriminates an unstable judge from a stable one, the same way scripts/shapeup-sdlc/oracles/*
+// prove the probing grammar. Structural test #15 exercises it.
 //
 // Ledger line shape (one per criterion per run), see verdict-ledger.md:
 //   { run, task, dimension, criterion, verdict:"PASS"|"FAIL", confidence, reprobed, flip, evidence, at }
 //
 // Library use:
-//   import { reconcile, detectFlips, stability } from ".../scripts/verdict-ledger.mjs";
+//   import { reconcile, detectFlips, stability } from "skills/spec-evaluator/scripts/verdict-ledger.mjs";
 //   const { records, summary } = reconcile(priorLines, currentRecords);
 
 // Most recent prior line for a (dimension, criterion), by highest run number.
+/**
+ * Find the most recent prior ledger line for a record's (dimension, criterion), by highest run.
+ * @param {Array<{dimension:string, criterion:string, run:number, verdict:string}>} priorLines - Prior lines.
+ * @param {{dimension:string, criterion:string}} rec - The record to match.
+ * @returns {(object|null)} The highest-run matching prior line, or null when none exists.
+ */
 function priorFor(priorLines, rec) {
   let best = null;
   for (const p of priorLines) {
@@ -28,6 +35,16 @@ function priorFor(priorLines, rec) {
 // line for the same criterion sets flip=true and FORCES confidence="low" (a flip means the oracle
 // is unstable on that row, regardless of what confidence the judge proposed). Returns augmented
 // records + a summary. Pure: no I/O, no clock (caller stamps `at`).
+/**
+ * Reconcile this run's records against the prior ledger — a verdict change vs the most recent
+ * prior line for the same criterion sets flip=true and FORCES confidence="low". Pure: no I/O, no clock.
+ * @param {Array<object>} priorLines - Previously recorded ledger lines.
+ * @param {Array<{criterion:string, dimension:string, verdict:string, confidence:string}>}
+ *   currentRecords - This run's per-criterion records.
+ * @returns {{records:Array<object>, summary:{total:number, flipped:number, stable:number,
+ *   flips:Array<{criterion:string, dimension:string, to:string}>}}} The records augmented with
+ *   `flip` (+ forced-low confidence) and a run summary.
+ */
 export function reconcile(priorLines, currentRecords) {
   const records = currentRecords.map((rec) => {
     const prior = priorFor(priorLines, rec);
@@ -48,6 +65,12 @@ export function reconcile(priorLines, currentRecords) {
 
 // Walk the full ledger in run order; return every criterion whose verdict changed at any step,
 // with the run pair and direction. Used for the report's stability block / audit of a whole task.
+/**
+ * Walk the full ledger in run order and report every verdict change.
+ * @param {Array<{dimension:string, criterion:string, run:number, verdict:string}>} allLines - Every ledger line.
+ * @returns {Array<{criterion:string, dimension:string, from:string, to:string, runs:[number,number]}>}
+ *   One entry per step where a criterion's verdict changed.
+ */
 export function detectFlips(allLines) {
   const byKey = new Map();
   for (const l of [...allLines].sort((a, b) => a.run - b.run)) {
@@ -75,6 +98,13 @@ export function detectFlips(allLines) {
 
 // Stability of the latest run vs the run before it: fraction of the latest run's criteria whose
 // verdict matches their immediately-prior line. 1.0 when there is only one run (nothing to contradict).
+/**
+ * Measure stability of the latest run vs the run before it.
+ * @param {Array<{run:number, dimension:string, criterion:string, verdict:string}>} allLines - Every ledger line.
+ * @returns {{runs:number, stable:number, total:number, ratio:number}} The max run number, how many
+ *   of the latest run's criteria match their prior verdict (new criteria count as stable), the
+ *   latest run's criterion count, and their ratio (1.0 when there is only one run).
+ */
 export function stability(allLines) {
   if (allLines.length === 0) return { runs: 0, stable: 0, total: 0, ratio: 1 };
   const maxRun = Math.max(...allLines.map((l) => l.run));
@@ -91,6 +121,12 @@ export function stability(allLines) {
 }
 
 // Parse a .jsonl ledger string into records (blank lines ignored).
+/**
+ * Parse a `.jsonl` verdict ledger into records.
+ * @param {string} text - The ledger file contents ("" / null → []).
+ * @returns {Array<object>} One parsed object per non-blank line.
+ * @throws {SyntaxError} If a non-blank line is not valid JSON.
+ */
 export function parseLedger(text) {
   return (text || "")
     .split(/\r?\n/)
