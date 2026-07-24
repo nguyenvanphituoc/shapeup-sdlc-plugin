@@ -3,7 +3,7 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.3.0] - 2026-07-24
 
 **Traceability spine + wiring reachability.** Two mechanically-checkable oracles that close the
 two silent-failure modes the conformance audit named: a customer requirement that vanishes in
@@ -21,10 +21,12 @@ arm self-skips when its SHARED artifact is absent (non-regression), and `trace-l
   project profile's `entry_point` via the import graph is red (catches the *dead module* — 0 import
   sites — not a dead data-path). Emits the LOCAL `.shapeup-sdlc/<slug>/trace/report.json` + a Mermaid
   view of the checked graph. Advisory (exit 0) by default; `--gate` blocks (exit 1) on red.
-- **`solution-architect` skill** — the new pure worker at gate **L1a.5** (`wire` operation); sole,
-  direct writer of the committed `docs/shapeup-sdlc/<slug>/wiring-map.json` (per-UC engine → seam →
-  entry-point call site → player-visible affordance). Front-loads the integration seam the slicer was
-  missing behind the round-1 `main.js` substrate-expansion escalations.
+- **`solution-architect` skill** (v1.1) — the new pure worker at gate **L1a.5** (`wire` operation);
+  sole, direct writer of the committed `docs/shapeup-sdlc/<slug>/wiring-map.json` (per-UC engine →
+  integration seam → composition-root attachment → player-visible affordance). Front-loads the
+  integration seam the slicer was missing behind the round-1 substrate-expansion escalations. It
+  designs the seam at design time; it does **not** verify reachability — that is the orchestrator's
+  `trace-lint` against real code at L1b.
 - **`ba-pitch-analyzer coverage` operation** — extracts atomic customer-requirement clauses into the
   SHARED `requirements.md` registry (`$defs/RequirementClause`), stable frozen REQ-ids
   (supersede-never-delete; a dropped clause is marked CUT, never deleted). Open Decision A resolved:
@@ -49,6 +51,34 @@ arm self-skips when its SHARED artifact is absent (non-regression), and `trace-l
   `requirements.md` only) and `wire` (writes `wiring-map.json` only) whitelists; an operation→owner
   map lets a non-build dispatch resolve its worker from the operation alone.
 - **`ingest-result.mjs`** surfaces a discovery's `traces_to` REQ-ids in the ledger line.
+- **`solution-architect` design-intent correction (v1.1)** — the skill runs at design time (L1a.5,
+  before any code exists) but was written as a build-time *verifier*, which forced two defects.
+  It taught the worker to emit `entry_call_site: "main.js:42"` — a file:line for code that does not
+  exist yet, and one parsed by **no** consumer (reachability is an import-graph BFS from
+  `entry_point` to `engine`; the Mermaid view reads `use_case`/`engine`/`affordance`; the slicer
+  reads `wiring_seam`). `entry_call_site` is now **design intent**: the symbolic composition-root
+  attachment named from the profile's `entry_point` + mechanism, never an invented line
+  (`domain.schema.json` description updated to match). Separately, Core-process step 4 made a
+  pipeline-blind worker run the orchestrator-owned `trace-lint.mjs` as mandatory craft — removed;
+  the oracle stays the orchestrator's, the same rule that keeps `t0-verify.mjs` out of
+  `task-executor`. No schema-*required* field changed (`WiringEntry` still requires only
+  `use_case` + `engine`), so trace-lint and the spine fixtures are untouched.
+- **Orchestrator prose extraction** — `skills/tech-lead/SKILL.md` sheds its gate playbook and
+  invocation matrix into `references/gates.md` + `references/invocation.md` (loaded on demand); the
+  §25 line ratchet drops **750 → 450** so the win is held as a regression guard.
+- **Structural suite split (Track C)** — `tests/structural.mjs` becomes a thin runner threading one
+  shared context (`tests/lib/harness.mjs`) through per-domain modules in `tests/structural/*.mjs`,
+  isolating a thrown module as a single failure so the suite never aborts. The filename is kept
+  (docs cite it — §26c). A new check lands in the module matching its owner, so a skill change
+  touches one small file. Adds `tests/lib/jsdoc.mjs` for contract coverage. **506 checks** green.
+- **Script co-location** — `verdict-ledger.mjs` moves `scripts/shapeup-sdlc/` →
+  `skills/spec-evaluator/scripts/`, matching the v1.0 rule that runtime scripts live inside their
+  owning skill. Adds `scripts/README.md` drawing the public-entrypoint vs dev-tooling line.
+- **Design docs reconciled to the schema** — `design/02` + `design/04` gain the **Wire / L1a.5**
+  step and `solution-architect`, which existed in the routing tables but never in the workflow
+  narrative; `design/07` corrected to 11 workers / 20 operations with the `solution-architect`
+  payload+result rows and the three SHARED spine records; `design/05` + `design/06` updated for the
+  test split and the relocated script. Adds `docs/skills/changelog-solution-architect.md`.
 
 ## [1.2.0] - 2026-07-15
 
