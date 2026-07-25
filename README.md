@@ -60,6 +60,24 @@ criteria — `npx playwright install chromium`. Team installs, the local scaffol
 (Claude Code / Antigravity / Codex), and troubleshooting are in **[docs/install.md](docs/install.md)**;
 upgrading an existing install is **[docs/upgrading.md](docs/upgrading.md)**.</sub>
 
+## Agent support
+
+The harness is written once and compiled to other agent CLIs (`npm run distribute` emits
+`dist/`; the [scaffolding installer](docs/install.md#local-scaffolding) wires targets in one
+run). The matrix is honest — the row that matters most does not travel:
+
+| | Claude Code | Cursor | Antigravity | Codex |
+|---|:---:|:---:|:---:|:---:|
+| The 13 skills | ✅ plugin | ✅ `.mdc` rules (references inlined) | ✅ subagent defs + skill files | ✅ skill files |
+| Slash commands | ✅ all 10 | ✅ VS Code/Cursor extension + rules | — | — |
+| Pipeline scripts (`t0-verify`, `trace-lint`, oracles) | ✅ | ✅ plain Node, run from any CLI | ✅ | ✅ |
+| **Hook-enforced gates** (deny on premature EVAL, substrate sandbox, safety spine) | ✅ | ❌ | ❌ | ❌ |
+| Advisory Stop hooks | ✅ | ❌ | ❌ | ❌ |
+
+Hooks are a per-CLI mechanism, so outside Claude Code the gates degrade from **enforced** to
+**instructed** — the same honor system every other framework runs on everywhere. If the deny
+hook is why you're here, that currently means Claude Code.
+
 ## Glossary
 
 This harness has its own vocabulary. Here is all of it, in plain English — you can read the
@@ -143,9 +161,21 @@ every arm is skipped when its artifact is absent, so older specs are unaffected.
 
 ### Commands
 
-| Command | Description |
-|---------|-------------|
-| `/ship` | Run the full harness unattended (pitch → ship). |
+`/ship` runs the whole lifecycle; the phase commands run one step each, so the pipeline is
+learnable from `/`-completion alone.
+
+| Command | Phase | Description |
+|---------|-------|-------------|
+| `/ship` | all | Run the full harness on a pitch (interactive gates by default; `--auto`, `--unattended`). |
+| `/shape` | 1 | Shape a raw idea into a pitch: boundaries → breadboard → spike → `pitch.md`. |
+| `/orient` | 7 | Builder-led recon; spikes the riskiest area, writes no production code. |
+| `/wire` | L1a.5 | Write the wiring map — engine → seam → entry-point call site, per use case. |
+| `/scopes` | 8 | Spec tree + board (`ba-pitch-analyzer`), then scope contracts (`scope-architect`). |
+| `/build` | 9 | Implement one task's acceptance criteria exactly. |
+| `/eval` | L3 | The single judge. Round mode is hook-gated — see the demo above. |
+| `/qa` | post-PASS | Exploratory edge hunt; findings never block ship. |
+| `/hammer` | H | Must-have census, baseline comparison, cut list + ship verdict. |
+| `/retro` | post-L4 | File ship-gate feedback into the per-skill knowledge base. |
 
 ### Agents
 
@@ -177,8 +207,9 @@ Seven Node hooks. What each one reads and what it can deny:
 - `PreCompact` — `hooks/compact-snapshot.mjs` persists the mid-run `RunSnapshot` to
   `.shapeup-sdlc/<slug>/run-snapshot.json` before the conversation is compacted.
 
-No hook makes a network request. All seven are plain, readable `.mjs` files in
-[`hooks/`](hooks/).
+No hook makes a network request, none has dependencies, and all are plain, readable `.mjs`
+files. **[SECURITY.md](SECURITY.md)** states what each hook reads, what it can deny, and what
+it never does — as claims written to be falsified, with the grep to check them.
 
 > A project-local `/gap-scan` command (navigator→driver gap tracking) lives under
 > `.claude/commands/` for this repo's own use. It is **not** bundled in the distributed
@@ -212,7 +243,6 @@ Stated plainly, because you will hit them:
   run for a one-line typo fix is not defensible, and a `--tiny` lane is the top open item.
 - **Playwright is an install-time prerequisite**, not a lazy one, even for runs that never
   evaluate a `[ui]` criterion.
-- **One slash command.** The thirteen skills are reachable, but `/ship` is the only front door.
 - **The trigger-eval numbers are unmeasured.** The harness ships `status: "unmeasured"` and a
   CI test that *fails* if fabricated results appear. There is no benchmark claim here yet
   because there is not yet an honest one.
@@ -240,7 +270,7 @@ skills/tech-lead/scripts|schemas/        # orchestrator pipeline: compile-order,
                                          #   aegis-digest, run-snapshot, stats + envelope schemas
 skills/ba-pitch-analyzer/scripts/        # planner mechanics: board-derive, spec-lint
 skills/spec-evaluator/scripts/           # verdict-ledger (reference impl of the flip/confidence grammar)
-commands/*.md         # slash commands (/ship)
+commands/*.md         # slash commands (/ship + the 9 phase commands)
 agents/*.md           # subagents (reviewer)
 hooks/                # hooks.json + safety-spine, gate-l2, sandbox-guard (PreToolUse),
                       #   anti-rationalization, slop-cleaner (Stop, advisory),
