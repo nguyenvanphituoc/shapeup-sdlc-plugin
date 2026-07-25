@@ -1,0 +1,43 @@
+name: Onboarding friction
+description: Something was confusing, undocumented, or harder than it should have been.
+labels: ["docs", "friction"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This is the most useful issue you can file.** The harness has invented vocabulary and
+        eight gates, and the author cannot see it with fresh eyes any more. "I did not
+        understand X" is a real, actionable report — no repro needed.
+
+  - type: textarea
+    id: where
+    attributes:
+      label: Where did you get stuck?
+      placeholder: |
+        I got to the part about substrates and could not tell whether I had to write one myself.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: How far did you get?
+      options:
+        - Reading the README — did not install
+        - Installing — did not finish
+        - Installed, but did not know what to run
+        - Ran /ship, got stuck partway
+        - Completed a run, but did not understand what happened
+    validations:
+      required: true
+
+  - type: textarea
+    id: expectation
+    attributes:
+      label: What did you expect to find or happen?
+
+  - type: textarea
+    id: fix
+    attributes:
+      label: What would have unblocked you?
+      description: Optional, and guesses are welcome.

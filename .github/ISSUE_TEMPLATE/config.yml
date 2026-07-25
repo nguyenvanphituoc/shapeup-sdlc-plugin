@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question, idea, or "is it meant to do this?"
+    url: https://github.com/nguyenvanphituoc/shapeup-sdlc-plugin/discussions
+    about: Anything open-ended. Discussions are a better home for it than an issue.
+  - name: Read the glossary first
+    url: https://github.com/nguyenvanphituoc/shapeup-sdlc-plugin/blob/main/docs/glossary.md
+    about: substrate, T0, seesaw, hill phase — every invented term in one table.

@@ -1,0 +1,71 @@
+name: Bug report
+description: Something in the harness behaved incorrectly.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing. If a **gate denied something you thought was reasonable**, that
+        counts as a bug — please use this form and say what you expected to be allowed.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you run, and what did the harness do?
+      placeholder: |
+        I ran `/ship "..."`. At GATE L1b the run stopped with ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: A minimal path to the failure, if you have one.
+      placeholder: |
+        1. Fresh repo, `npx playwright install chromium`
+        2. Install the plugin
+        3. `/ship "add a health endpoint"`
+        4. At GATE L2 ...
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where did it happen?
+      options:
+        - A hook denied something (gate-l2, sandbox-guard, safety-spine, validate-envelope)
+        - A skill produced a wrong or malformed result
+        - The orchestrator (tech-lead) — dispatch, rounds, circuit breaker
+        - Install / upgrade / scaffolding scripts
+        - Somewhere else / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Relevant output
+      description: >
+        Hook denials print a reason — paste it verbatim if you have it. Run-state lives in
+        the gitignored `.shapeup-sdlc/<slug>/`, which is often the fastest thing to look at.
+      render: text
+
+  - type: input
+    id: version
+    attributes:
+      label: Plugin version
+      placeholder: "v1.3.0 (see .claude-plugin/plugin.json)"
+
+  - type: input
+    id: env
+    attributes:
+      label: OS and agent CLI
+      placeholder: "macOS 15, Claude Code"
