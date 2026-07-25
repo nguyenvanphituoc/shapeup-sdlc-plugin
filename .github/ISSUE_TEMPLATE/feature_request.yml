@@ -1,0 +1,47 @@
+name: Feature request
+description: Propose a change to the harness.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: the [known rough edges](https://github.com/nguyenvanphituoc/shapeup-sdlc-plugin#known-rough-edges)
+        are already acknowledged, and a few
+        [invariants](https://github.com/nguyenvanphituoc/shapeup-sdlc-plugin/blob/main/CONTRIBUTING.md#rules-that-are-not-negotiable)
+        are deliberately not up for negotiation.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: >
+        Describe the failure or friction, not the solution. The harness is built around
+        "what does this prevent?" — a proposal that names its failure is much easier to accept.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of the harness?
+      options:
+        - A skill (shaping, orient, build, evaluate, QA, ...)
+        - A hook / gate
+        - The orchestrator (tech-lead)
+        - Install, upgrade, or multi-CLI distribution
+        - Docs
+        - Something new
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: willing
+    attributes:
+      label: Would you like to build it?
+      options:
+        - label: I would be willing to open a PR for this

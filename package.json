@@ -4,6 +4,7 @@
   "description": "Shape Up SDLC harness for Claude Code: single-source compiled to Cursor extensions and Antigravity subagents.",
   "scripts": {
     "test": "node tests/structural.mjs",
+    "demo": "node scripts/demo/record-demo.mjs",
     "distribute": "node scripts/shapeup-sdlc/distribute.js"
   },
   "keywords": [

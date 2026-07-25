@@ -5,14 +5,28 @@ This project is scaffolded with the Shape Up SDLC Harness for coding agents.
 
 ## mechanism instruction
 
-The harness follows a **three-phase Shape Up SDLC loop** orchestrated by `/tech-lead`,
-built on the **pure-skill architecture** (v1.0): the orchestrator layer owns ALL pipeline
-management and talks to every worker through two JSON envelopes — a **WorkOrder** in
-(`compile-order.mjs`, schema-validated by a `validate-envelope.mjs` PreToolUse hook) and a
-**WorkResult** out (`ingest-result.mjs` performs every shared-state write: board status, AC
-ticks, unblocks, discovery-ledger appends, verdict bookkeeping). Worker skills contain craft
-only — zero pipeline knowledge; everything they used to write into shared files they now
-return as data (D6 closed: single-writer is mechanically true).
+The harness follows a **three-phase Shape Up SDLC loop** orchestrated by `/tech-lead`.
+
+**The organising idea: every invariant that matters lives in the runtime, not in a prompt.**
+Three consequences, in the order a reader should meet them:
+
+1. **Gates are enforced, not requested.** A `PreToolUse` hook (`hooks/gate-l2.mjs`) hard-denies
+   the once-per-round EVAL delegation while the board is not green — the tool call never reaches
+   the evaluator. *Prevents: EVAL run on a half-green board, reported as PASS.*
+2. **Progress is derived, never claimed.** Hill phase comes only from T0/T1/seesaw artifacts on
+   disk, and the evaluator must cite a T0 artifact it re-hashes itself. *Prevents: a worker
+   asserting "done" with nothing behind it.*
+3. **Parallel work cannot corrupt shared state.** Per-scope substrate write-whitelists are hook-
+   enforced, and exactly one script (`ingest-result.mjs`) performs every board/ledger/verdict
+   write. *Prevents: two executors rewriting the board, one's completions vanishing.*
+
+Those three rest on one piece of plumbing — the **pure-skill architecture** (v1.0). The
+orchestrator owns ALL pipeline management and talks to workers through two JSON envelopes: a
+WorkOrder in (`compile-order.mjs`, schema-validated by a `validate-envelope.mjs` PreToolUse
+hook) and a WorkResult out (applied by `ingest-result.mjs`). Worker skills contain craft only —
+zero pipeline knowledge; everything they used to write into shared files they now return as data
+(D6 closed: single-writer is mechanically true). Treat the envelope as an implementation detail:
+it is what makes 1–3 mechanically true, and it should never be the first thing a user learns.
 
 ### Phase 1 — Shaping (`/shapeup`)
 1. Set Boundaries → `/shapeup shaping`
