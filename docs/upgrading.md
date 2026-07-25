@@ -8,7 +8,6 @@ each detected CLI — then **migrates data** by applying any pending
 
 It is idempotent: applied migrations are skipped on re-run, so it is always safe to run
 again, and every future version adds its own migration rather than another one-off script.
-Design notes: [`audit/migration-system.md`](audit/migration-system.md).
 
 ## Running it
 

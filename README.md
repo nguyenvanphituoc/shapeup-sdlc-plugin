@@ -84,9 +84,10 @@ A longer version, including the internals, is in [docs/glossary.md](docs/glossar
 
 ## The workflow
 
-The harness walks a pitch from idea to ship. The full annotated pipeline (gates,
-discovered-task ledger, retrofit path) lives in
-[`docs/mechanism-roadmap.md`](docs/mechanism-roadmap.md); a simplified view:
+The harness walks a pitch from idea to ship. The full annotated pipeline — the build round,
+the gate walkthrough, the circuit breaker — is
+[`docs/design/04-functional-design.md`](docs/design/04-functional-design.md), and the design
+document as a whole starts at [`docs/design/`](docs/design/README.md). A simplified view:
 
 ```mermaid
 graph LR
@@ -249,7 +250,8 @@ scripts/demo/record-demo.mjs             # regenerates docs/assets/demo-gate.svg
 scripts/shapeup-sdlc/                    # dev/CI tooling: lib/, migrations/, oracles/,
                                          #   trigger-eval.mjs, distribute.js
 docs/install.md, upgrading.md, glossary.md
-docs/mechanism-roadmap.md       # full annotated pipeline diagram
+docs/design/          # the design document (pipeline, gates, circuit breaker, ERD)
+docs/launch/          # directory-submission copy
 .github/workflows/    # CI + release
 ```
 
