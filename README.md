@@ -2,9 +2,9 @@
 
 A [Claude Code](https://code.claude.com) plugin that turns a raw idea into shipped
 code through an opinionated **Shape Up** software-development lifecycle. It packages
-a `planner → generator → judge` skill harness — shaping, intake, orient, scope
-mapping, vertical building, evaluation, and exploratory QA — orchestrated end-to-end
-by a thin tech-lead.
+a `planner → generator → judge` skill harness — shaping, intake, orient, wiring, scope
+mapping, vertical building, evaluation, exploratory QA, and a coach retro — orchestrated
+end-to-end by a thin tech-lead.
 
 This repository is **both the plugin and its marketplace**, so colleagues install it
 directly from GitHub.
@@ -25,7 +25,7 @@ In any Claude Code session:
 Pin to a released version:
 
 ```
-/plugin marketplace add nguyenvanphituoc/shapeup-sdlc-plugin@v0.1.0
+/plugin marketplace add nguyenvanphituoc/shapeup-sdlc-plugin@v1.3.0
 ```
 
 ### Bundled dependency
@@ -161,21 +161,31 @@ graph LR
     S --> P["Pitch"]
     P --> BET{"Betting<br>(PO)"}
     BET --> KO["Kick-off + Orient<br>/orient"]
-    KO --> MAP["Map Scopes<br>/ba-pitch-analyzer"]
+    KO --> WIRE["Wire<br>/solution-architect"]
+    WIRE --> MAP["Map Scopes<br>/ba-pitch-analyzer<br>+ /scope-architect"]
     MAP --> BUILD["Build Vertically<br>/task-executor"]
     BUILD --> EVAL["Evaluate<br>/spec-evaluator"]
     EVAL -- FAIL --> BUILD
     EVAL -- PASS --> QA["Edge Hunt<br>/qa-edge-hunter"]
-    QA --> SHIP["Triage + Ship"]
-    TL["/tech-lead orchestrates steps 6-11"] -.-> KO
+    QA --> SHIP["Triage + Ship<br>/scope-hammer"]
+    SHIP --> RETRO["Coach Retro<br>/coach"]
+    TL["/tech-lead orchestrates Orient → Ship"] -.-> KO
 
     classDef plan fill:#e3f2fd,stroke:#1e88e5;
     classDef build fill:#e8f5e9,stroke:#43a047;
     classDef qa fill:#fce4ec,stroke:#c2185b;
-    class S,MAP plan;
+    class S,WIRE,MAP plan;
     class KO,BUILD build;
     class QA,EVAL qa;
 ```
+
+Since v1.3 the pipeline carries a **traceability spine**: `ba-pitch-analyzer`'s `coverage`
+operation writes a requirement registry (`requirements.md`), `solution-architect` commits a
+per-use-case wiring map (`wiring-map.json`, gate L1a.5) resolved against the L0
+`project-profile.json`, and the covers-closure + reachability oracle
+`skills/tech-lead/scripts/trace-lint.mjs` checks that no engine ships orphaned. It runs
+advisory (warn-only) and is promoted to a blocking gate only once `covers:` is populated;
+every arm is skipped when its artifact is absent, so older specs are unaffected.
 
 ## What's included
 
@@ -186,13 +196,15 @@ graph LR
 | Shaping (1–4) | `shapeup` | — | Frame the problem, breadboard affordances, spike risks, write the pitch. Sub-commands: `full`, `shaping`, `spike`, `breadboarding`, `framing-doc`, `kickoff-doc`, `breadboard-reflection`. |
 | Intake (GATE L0) | `translator` | — | Normalizes non-English intake (pitch/PRD/transcript) to faithful English before planning. The harness is English-only downstream. |
 | Orient (7) | `orient` | — | Builder-led recon: reads the code, spikes the single riskiest area, emits a code-surface map, spike findings, discovered-task seed, and a hill signal. Writes no production code. |
-| Map Scopes (8) | `ba-pitch-analyzer` | v4.0 | The spec-analyzer (pure worker). Decomposes a pitch into a linked DDD document tree (domain model → use cases → tasks) with BDD scenarios, a UC system flow, and a derived `## Test Surface`. One craft, four order-selected operations (analyze / generate-board / reconcile / retrofit-surface); graph math + audits delegated to `board-derive.mjs`/`spec-lint.mjs`. |
+| Wire (GATE L1a.5) | `solution-architect` | v1.1 | Sole writer of the committed wiring map (`wiring-map.json`): per-UC engine → integration seam → entry-point call site → player-visible affordance, resolved against `project-profile.json`. Front-loads the integration seam so no engine ships orphaned; the reachability input `trace-lint.mjs` checks. Operation: wire. |
+| Map Scopes (8) | `ba-pitch-analyzer` | v4.0 | The spec-analyzer (pure worker). Decomposes a pitch into a linked DDD document tree (domain model → use cases → tasks) with BDD scenarios, a UC system flow, and a derived `## Test Surface`. One craft, five order-selected operations (analyze / generate-board / reconcile / retrofit-surface / coverage — the last writes the shared `requirements.md` registry for covers-closure); graph math + audits delegated to `board-derive.mjs`/`spec-lint.mjs`. |
 | Map Scopes (8) | `scope-architect` | v1.0 | Sole writer of committed, write-whitelisted scope contracts (`scopes/*.json`): import-graph slicing by flow, substrates, affordance manifests, fixtures. Operations: map-scopes / remap / split-scope. |
 | Build (9) | `task-executor` | v2.0 | Pure worker: WorkOrder in → code + WorkResult out. Assumption scan, minimum-code/surgical-change discipline, Layer 1/2/3 UI rules, substrate-sandboxed, zero-memory. Never writes boards/ledgers/run-state — `ingest-result.mjs` applies its envelope. |
 | Evaluate (GATE L3) | `spec-evaluator` | v1.0 | The single judge (pure worker). Verifies spec-conformance, TDD surface, and integration against the running app — skeptical, files `file:line` bugs, runs exactly once per build round. Requires a T0 artifact citation, grades UI affordance-only; verdict + refuted boxes return as data. |
-| QA (post-PASS) | `qa-edge-hunter` | v1.0 | Exploratory edge hunt on the running app through six fixed lenses, charting edges *outside* what the evaluator probed. Findings go to the ledger as `~`; never blocks ship. |
+| QA (post-PASS) | `qa-edge-hunter` | v1.1 | Exploratory edge hunt on the running app through six fixed lenses, charting edges *outside* what the evaluator probed. Findings go to the ledger as `~`; never blocks ship. |
 | Advisor (mid-build) | `advisor-protocol` | v0.1 | Adjudicates a worker's structured `ESCALATE` (design decision / spec ambiguity / substrate expansion) within a per-scope-per-round budget; persists answers to the committed round ledger so they survive a zero-memory reset. |
 | Stop (11) | `scope-hammer` | v0.1 | GATE H: must-have census → baseline comparison (never vs. the ideal) → cut list + ship verdict. Handles the normal stop and both circuit-breaker triggers. |
+| Retro (post-L4) | `coach` | — | RLHF for the harness: turns raw PO/TL feedback at Ship Sign-off into per-skill guidelines under committed `docs/shapeup-sdlc/knowledge-base/<skill>.md`, read back by `task-executor` / `ba-pitch-analyzer` / `qa-edge-hunter` on their next run. GATE COACH-1 asks the PO which skill owns each rule — never assumes; mechanism defects are filed to the harness-defect register instead. |
 | Orchestrator | `tech-lead` | v1.0 | Owns the run end-to-end: PLAN once → BUILD all tasks → EVAL once per round, looping on FAIL. Every dispatch goes through the envelope port (compile-order → `--order` → ingest-result). Two-level circuit breaker, T0/seesaw-verified build rounds, mechanical hill derivation. Sole writer of run-state (D6 closed mechanically). |
 
 ### Commands
@@ -248,6 +260,12 @@ These hold across the harness and are the reason it stays predictable:
   of blocking the round (v0.3.0, scope contracts only).
 - **Hill phase is mechanical, never self-reported** — derived only from T0/T1/seesaw facts, closing
   the self-reported-confidence risk outright (v0.3.0).
+- **Envelope port (v1.0)** — every worker dispatch is a WorkOrder in / WorkResult out; shared
+  state is written only by `ingest-result.mjs`, and a malformed envelope is denied by hook before
+  it reaches a worker. Workers are stateless and pipeline-blind by construction.
+- **Traceability is oracle-checked, opt-in (v1.3)** — `trace-lint.mjs` verifies covers-closure and
+  wiring reachability from the committed spine artifacts; it ships advisory (warn-only) and every
+  arm is skipped when its artifact is absent, so older specs are non-regressed.
 
 ## Develop
 
@@ -267,8 +285,8 @@ claude --plugin-dir .
   marketplace.json    # marketplace listing (points at this repo)
 skills/<name>/SKILL.md # the 13 harness skills (+ references/ and assets/)
 skills/tech-lead/scripts|schemas/        # orchestrator pipeline: compile-order, ingest-result,
-                                         #   validate-envelope, t0-verify, aegis-digest,
-                                         #   run-snapshot, stats + envelope schemas
+                                         #   validate-envelope, t0-verify, trace-lint,
+                                         #   aegis-digest, run-snapshot, stats + envelope schemas
 skills/ba-pitch-analyzer/scripts/        # planner mechanics: board-derive, spec-lint
 skills/spec-evaluator/scripts/           # verdict-ledger (reference impl of the flip/confidence grammar)
 commands/*.md         # slash commands (/ship)
