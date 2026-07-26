@@ -32,6 +32,14 @@ const BASELINE = join(ROOT, "evals", "baselines", "trigger-evals.baseline.json")
 const mtIdx = process.argv.indexOf("--max-turns");
 const MAX_TURNS = mtIdx > -1 ? Math.max(1, parseInt(process.argv[mtIdx + 1], 10) || 8) : 8;
 
+// Probe model. A full run is 149 headless sessions × up to MAX_TURNS turns, so this is a
+// genuinely expensive job — pass a cheap model explicitly (`--model claude-haiku-4-5-20251001`)
+// rather than letting probes inherit whatever the caller's default is. Trigger rates are
+// MODEL-DEPENDENT, so whatever is used here is recorded in the baseline: an unlabeled
+// activation number is not a measurement of anything.
+const mIdx = process.argv.indexOf("--model");
+const MODEL = mIdx > -1 ? process.argv[mIdx + 1] : (process.env.TRIGGER_EVAL_MODEL || null);
+
 // ---- load datasets ----------------------------------------------------------
 function loadDatasets() {
   const out = [];
@@ -123,7 +131,9 @@ function runQuery(query) {
     [bin, ...args] = parts.map((p) => p.replace(/^"|"$/g, ""));
   } else {
     bin = "claude";
-    args = ["--plugin-dir", ROOT, "-p", query, "--max-turns", String(MAX_TURNS), "--output-format", "stream-json", "--verbose"];
+    args = ["--plugin-dir", ROOT, "-p", query, "--max-turns", String(MAX_TURNS),
+            ...(MODEL ? ["--model", MODEL] : []),
+            "--output-format", "stream-json", "--verbose"];
   }
   const r = spawnSync(bin, args, { encoding: "utf8", timeout: 180_000, maxBuffer: 64 * 1024 * 1024 });
   if (r.error) throw new Error(`adapter failed to spawn "${bin}": ${r.error.message}`);
@@ -199,7 +209,9 @@ function runQueryAsync(query) {
     [bin, ...args] = parts.map((p) => p.replace(/^"|"$/g, ""));
   } else {
     bin = "claude";
-    args = ["--plugin-dir", ROOT, "-p", query, "--max-turns", String(MAX_TURNS), "--output-format", "stream-json", "--verbose"];
+    args = ["--plugin-dir", ROOT, "-p", query, "--max-turns", String(MAX_TURNS),
+            ...(MODEL ? ["--model", MODEL] : []),
+            "--output-format", "stream-json", "--verbose"];
   }
   return new Promise((resolvePromise, reject) => {
     const child = spawn(bin, args, { stdio: ["ignore", "pipe", "pipe"] });
@@ -227,7 +239,7 @@ function writeBaseline(obj) {
 const datasets = loadDatasets();
 const inv = inventory(datasets);
 const totalCases = Object.values(inv).reduce((a, b) => a + b.total, 0);
-const method = `claude headless (--plugin-dir . -p <query> --max-turns ${MAX_TURNS}) detecting real Skill-tool activation within the first ${MAX_TURNS} turns; NOT slash-command self-invocation (the prior TPR≈0 proxy artifact, audit F1). Activation names are namespace-stripped, and a phase-command wrapper firing counts for the skill(s) it delegates to (COMMAND_ALIASES) — a wrapper firing on the wrong query stays a false positive. Probes run in parallel (independent sessions; concurrency affects wall-clock only). KNOWN LIMITATION: probes run in this repo's own working tree, where the artifacts some queries presuppose (a pitch, a spec folder, TASK-NNN) do not exist; 17 of 74 positive cases name such an artifact and the model may correctly decline to activate and ask for it instead. Those cases understate TPR and are tracked separately — see evals/README.md.`;
+const method = `claude headless (--plugin-dir . -p <query> --max-turns ${MAX_TURNS}${MODEL ? ` --model ${MODEL}` : ""}) detecting real Skill-tool activation within the first ${MAX_TURNS} turns; trigger rates are MODEL-DEPENDENT — this baseline describes the model named in the "model" field and no other; NOT slash-command self-invocation (the prior TPR≈0 proxy artifact, audit F1). Activation names are namespace-stripped, and a phase-command wrapper firing counts for the skill(s) it delegates to (COMMAND_ALIASES) — a wrapper firing on the wrong query stays a false positive. Probes run in parallel (independent sessions; concurrency affects wall-clock only). KNOWN LIMITATION: probes run in this repo's own working tree, where the artifacts some queries presuppose (a pitch, a spec folder, TASK-NNN) do not exist; 17 of 74 positive cases name such an artifact and the model may correctly decline to activate and ask for it instead. Those cases understate TPR and are tracked separately — see evals/README.md.`;
 
 if (process.argv.includes("--measure")) {
   const ci = process.argv.indexOf("--concurrency");
@@ -243,7 +255,7 @@ if (process.argv.includes("--measure")) {
   }
   // measured_at is supplied by the environment, not invented here (scripts can't trust the clock).
   const measuredAt = process.env.TRIGGER_EVAL_AT || new Date().toISOString();
-  writeBaseline({ status: "measured", method, model: process.env.TRIGGER_EVAL_MODEL || "unknown", measured_at: measuredAt, datasets: inv, results });
+  writeBaseline({ status: "measured", method, model: MODEL || "unknown (inherited caller default)", measured_at: measuredAt, datasets: inv, results });
   console.log(`✓ Wrote measured baseline → ${BASELINE.replace(ROOT + "/", "")}`);
   for (const [s, r] of Object.entries(results)) console.log(`  ${s}: TPR ${r.tpr} / FPR ${r.fpr} / precision ${r.precision}`);
 } else {

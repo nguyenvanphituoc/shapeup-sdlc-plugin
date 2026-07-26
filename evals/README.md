@@ -21,8 +21,16 @@ node scripts/shapeup-sdlc/trigger-eval.mjs
 
 # Measure — needs Claude auth + the plugin installed. Runs every case, detects REAL Skill-tool
 # activation, writes a measured baseline with method + timestamp.
-node scripts/shapeup-sdlc/trigger-eval.mjs --measure [--concurrency N] [--max-turns N]
+node scripts/shapeup-sdlc/trigger-eval.mjs --measure \
+  --model claude-haiku-4-5-20251001 [--concurrency N] [--max-turns N]
 ```
+
+> **Always pass `--model` explicitly.** A full run is 149 headless sessions of up to 8 turns
+> each — roughly $6 on Haiku 4.5 and several times that on a frontier model, spent in the
+> background where it is easy not to notice. Haiku activates skills correctly (verified: it
+> reaches `Skill` in 3 turns on `breadboard the checkout flow`), so it is the right default for
+> a regression baseline. Trigger rates are **model-dependent**, so the model is recorded in the
+> baseline and a number is only meaningful next to it.
 
 ### What "activation" means here, exactly
 
