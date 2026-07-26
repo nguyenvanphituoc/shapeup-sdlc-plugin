@@ -76,20 +76,69 @@ the first two baselines it produced. Both had fabricated a low TPR from a measur
 `measured_at` / `model` are taken from the environment (`TRIGGER_EVAL_AT`, `TRIGGER_EVAL_MODEL`),
 not invented by the script.
 
-### Known limitation — artifact-presupposing queries
+## Measured baseline — 2026-07-26, Haiku 4.5
 
-Probes run against **this repository's own working tree**, which contains no pitch, no spec
-folder, and no `TASK-NNN`. **17 of the 74 positive cases** name such an artifact (`evaluate task
-TASK-007 against the spec`, `translate this pitch to English`). On those, the model often does
-the correct thing — searches, finds nothing, and asks for the artifact instead of activating.
-That is a sensible refusal being scored as a miss, so the measured TPR **understates** true
-activation for `spec-evaluator` (4/6 positives affected) and `task-executor` (4/6) in
-particular.
+149 cases (74 positives / 75 cross-skill hard negatives), `--max-turns 8`, `--concurrency 4`,
+`--model claude-haiku-4-5-20251001`. Full data:
+[`baselines/trigger-evals.baseline.json`](baselines/trigger-evals.baseline.json).
 
-Fixing this means running probes inside a fixture workspace that contains the presupposed
-artifacts. Until that exists, read per-skill TPR with this caveat rather than as a clean
-number — and do not quote a single headline TPR across all skills, because the confound is
-distributed unevenly across them.
+**The clean result: FPR = 0. Zero false activations across all 75 hard negatives.** That is the
+number this dataset was built to produce — every negative is a *sibling skill's* query, so the
+question it answers is "do these thirteen descriptions steal each other's work?" and the answer
+is no. Precision is 1.0 wherever it is defined.
+
+**TPR is not yet a clean measure and should not be quoted as one.**
+
+| Skill | TPR | deictic positives |
+|---|---|---|
+| spec-evaluator | 0.833 | 6/6 |
+| qa-edge-hunter | 0.600 | 1/5 |
+| scope-hammer | 0.500 | 1/6 |
+| shapeup | 0.429 | 2/7 |
+| orient | 0.400 | 2/5 |
+| tech-lead | 0.400 | 5/5 |
+| scope-architect | 0.200 | 3/5 |
+| advisor-protocol | 0.167 | 2/6 |
+| ba-pitch-analyzer · coach · solution-architect · task-executor · translator | 0.000 | 6/6 · 2/5 · 0/6 · 5/6 · 3/6 |
+
+Why it is not clean: **38 of 74 positives are deictic** — they point at a referent ("coach *this
+feedback*", "analyze *this pitch*", "evaluate *TASK-007*") that the probe never supplies. Faced
+with that, a model can reasonably either activate the skill and go looking, or ask for the
+missing input. Only the first scores. Verbatim from a real `coach` probe:
+
+> I'm ready to coach feedback into the knowledge base using the `/coach` skill, but I don't see
+> any feedback in your message. Please provide the feedback you'd like me to coach…
+
+That is the description working perfectly — the model named the right skill — and it counts as
+a miss. Note also that deixis does **not** explain everything: `spec-evaluator` is 6/6 deictic
+and scores 0.833, while `solution-architect` is 0/6 deictic and scores 0.0. So the TPR column is
+a mix of description quality, the model's activate-versus-ask disposition, and dataset phrasing.
+Fixing it is [#7](https://github.com/nguyenvanphituoc/shapeup-sdlc-plugin/issues/7).
+
+Read the zeros as **"needs investigation"**, not as "broken" — and read them only against Haiku
+4.5. Trigger rates are model-dependent; a spot-check on a frontier model activated
+`spec-evaluator` and `shapeup` on queries Haiku declined.
+
+### Known limitation — queries whose referent is never supplied
+
+Probes run against **this repository's own working tree** with no conversational context, so
+neither the on-disk artifacts (a pitch, a spec folder, `TASK-NNN`) nor the inline content ("this
+feedback", "this PRD") that **38 of the 74 positive cases** refer to actually exists. The model
+frequently does the right thing — names the correct skill and asks for the missing input — and
+that scores as a miss.
+
+Fixing it has two halves:
+
+1. **A fixture workspace** the probes run inside, containing the artifacts the queries
+   presuppose (a pitch, a small spec tree, `TASK-007`, a ledger with an open item).
+2. **Supplying the referent inline** for content-deictic queries, so "coach this feedback:
+   <actual feedback>" is a fair test of the description rather than of the model's willingness
+   to guess.
+
+Both risk *inflating* the number if done carelessly, so whoever does it should measure before
+and after and report the delta rather than silently banking it. Until then, treat FPR as the
+result and TPR as diagnostic. Tracked in
+[#7](https://github.com/nguyenvanphituoc/shapeup-sdlc-plugin/issues/7).
 
 ## Tier 2 — Functional fixtures
 

@@ -249,9 +249,14 @@ Stated plainly, because you will hit them:
 
 - **The `--tiny` lane is young.** It right-sizes the ceremony (two gates instead of eight) but
   keeps the T0 verification floor; its fit-check heuristics will need tuning against real use.
-- **The trigger-eval numbers are unmeasured.** The harness ships `status: "unmeasured"` and a
-  CI test that *fails* if fabricated results appear. There is no benchmark claim here yet
-  because there is not yet an honest one.
+- **Only half the trigger-eval story is measured.** Skill *discrimination* is:
+  **0 false activations across 75 cross-skill hard negatives** (Haiku 4.5, 2026-07-26 — the
+  thirteen descriptions do not steal each other's work). *Activation* rate is measured but
+  confounded and deliberately not quoted as a headline: 38 of 74 positive cases point at a
+  referent ("coach **this feedback**") the probe never supplies, so a model that names the right
+  skill and asks for the missing input scores as a miss. Method, per-skill numbers, and the fix
+  are in [evals/README.md](evals/README.md) — the harness ships a CI test that *fails* if
+  fabricated results appear, and three earlier baselines were discarded rather than published.
 
 Contributions to any of these are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 

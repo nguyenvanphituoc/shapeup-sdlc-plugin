@@ -39,6 +39,17 @@ small changes. This release is that fix — almost no mechanism changes, a lot o
 - `AGENTS.md` opens on the enforcement idea (gates enforced → progress derived → parallel-safe)
   instead of the envelope; the envelope is framed as the plumbing that makes those true.
 
+### Measured
+- **First real trigger-eval baseline** (`evals/baselines/trigger-evals.baseline.json`) — 149
+  cases, Haiku 4.5, `--max-turns 8`. The publishable half: **zero false activations across all
+  75 cross-skill hard negatives** (precision 1.0 wherever defined) — the thirteen skill
+  descriptions do not steal each other's work. The activation (TPR) half is measured but
+  **confounded and deliberately not quoted as a headline**: 38 of 74 positives point at a
+  referent the probe never supplies, so a model that names the correct skill and asks for the
+  missing input scores as a miss. Per-skill numbers, the method, and the fix are in
+  `evals/README.md`; the confound is tracked as #7. Three earlier baselines were discarded
+  rather than published.
+
 ### Fixed
 - `trigger-eval.mjs`: ROOT path broken since the v1.3 script move; Skill-tool detection updated
   to the CLI's current `input.skill` + namespaced names (verified against a live stream), with
