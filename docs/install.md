@@ -3,6 +3,11 @@
 Three ways in, depending on whether you want the harness for yourself, for a repo, or for
 a whole team. If you just want to try it, use **Plugin install** and stop there.
 
+> **One-command scaffolding:** `npx shapeup-sdlc init` — pure Node, no bash, no jq, works on
+> Windows, and configures all three CLI targets in one run (same layout as the shell
+> installer below). *Requires the package to be published to npm; until then, run it from a
+> clone: `node bin/init.mjs -d <target> -y`.*
+
 - [Plugin install (Claude Code)](#plugin-install-claude-code)
 - [The Playwright dependency](#the-playwright-dependency)
 - [Install for the whole team](#install-for-the-whole-team)
@@ -37,15 +42,19 @@ to verify `[ui]` acceptance criteria. On a normal `/plugin install`, Claude Code
 the dependency automatically (adding the `claude-plugins-official` marketplace if needed).
 
 Those skills drive the browser through the Playwright **CLI** by default (it is far more
-token-efficient than the MCP server), so a browser binary must be present:
+token-efficient than the MCP server).
+
+**The browser is a lazy dependency.** A run whose spec contains no `[ui]` acceptance criterion
+completes on a machine with no browser installed. The eval skill checks for the browser at the
+moment it reaches the first `[ui]` criterion, and if it is missing, fails *that probe* with the
+fix spelled out:
 
 ```bash
 npx playwright install chromium
 ```
 
-> **Note.** Today this is an *install-time* prerequisite even for runs that never evaluate a
-> `[ui]` criterion. Making it lazy is tracked as a known rough edge — see the
-> [contribution guide](../CONTRIBUTING.md).
+For MCP mode (sandboxed environments only), additionally
+`claude plugin install playwright@claude-plugins-official`.
 
 ## Install for the whole team
 

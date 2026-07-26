@@ -10,6 +10,10 @@ Your agent says it's done. It isn't. This is a [Claude Code](https://code.claude
 that runs a full Shape Up lifecycle — idea → pitch → build → evaluate → ship — where the
 important rules are enforced by the runtime instead of asked for in a prompt.
 
+The ceremony is right-sized: `/ship` runs the full gated pipeline for real features, and
+`/ship --tiny` runs a two-gate lane (orient → build → smoke-test → done) for the one-file
+fixes where the gates would have nothing to say.
+
 <p align="center">
   <img src="docs/assets/demo-gate.svg" alt="Terminal recording: the agent tries to run EVAL with two tasks unfinished, and a PreToolUse hook denies the tool call outright." width="700">
 </p>
@@ -55,10 +59,32 @@ they are documented for [contributors](CONTRIBUTING.md), not for users.
 
 `/ship` walks the whole lifecycle and pauses at each gate for you. That's the whole quickstart.
 
-<sub>One prerequisite: the bundled Playwright plugin needs a browser to verify `[ui]`
-criteria — `npx playwright install chromium`. Team installs, the local scaffolding installer
-(Claude Code / Antigravity / Codex), and troubleshooting are in **[docs/install.md](docs/install.md)**;
-upgrading an existing install is **[docs/upgrading.md](docs/upgrading.md)**.</sub>
+Want to see a full run before installing anything? **[docs/quickstart.md](docs/quickstart.md)**
+walks one small feature end to end — including the hook denying a premature eval, a FAIL round
+with real evaluator output, and the fix that turns it green.
+
+<sub>No prerequisites for non-UI work — a browser (`npx playwright install chromium`) is needed
+only when a run actually reaches a `[ui]` acceptance criterion. Team installs, the scaffolding
+installer (Claude Code / Antigravity / Codex), and troubleshooting are in
+**[docs/install.md](docs/install.md)**; upgrading is **[docs/upgrading.md](docs/upgrading.md)**.</sub>
+
+## Agent support
+
+The harness is written once and compiled to other agent CLIs (`npm run distribute` emits
+`dist/`; the [scaffolding installer](docs/install.md#local-scaffolding) wires targets in one
+run). The matrix is honest — the row that matters most does not travel:
+
+| | Claude Code | Cursor | Antigravity | Codex |
+|---|:---:|:---:|:---:|:---:|
+| The 13 skills | ✅ plugin | ✅ `.mdc` rules (references inlined) | ✅ subagent defs + skill files | ✅ skill files |
+| Slash commands | ✅ all 10 | ✅ VS Code/Cursor extension + rules | — | — |
+| Pipeline scripts (`t0-verify`, `trace-lint`, oracles) | ✅ | ✅ plain Node, run from any CLI | ✅ | ✅ |
+| **Hook-enforced gates** (deny on premature EVAL, substrate sandbox, safety spine) | ✅ | ❌ | ❌ | ❌ |
+| Advisory Stop hooks | ✅ | ❌ | ❌ | ❌ |
+
+Hooks are a per-CLI mechanism, so outside Claude Code the gates degrade from **enforced** to
+**instructed** — the same honor system every other framework runs on everywhere. If the deny
+hook is why you're here, that currently means Claude Code.
 
 ## Glossary
 
@@ -143,9 +169,21 @@ every arm is skipped when its artifact is absent, so older specs are unaffected.
 
 ### Commands
 
-| Command | Description |
-|---------|-------------|
-| `/ship` | Run the full harness unattended (pitch → ship). |
+`/ship` runs the whole lifecycle; the phase commands run one step each, so the pipeline is
+learnable from `/`-completion alone.
+
+| Command | Phase | Description |
+|---------|-------|-------------|
+| `/ship` | all | Run the full harness on a pitch (interactive gates by default; `--auto`, `--unattended`). |
+| `/shape` | 1 | Shape a raw idea into a pitch: boundaries → breadboard → spike → `pitch.md`. |
+| `/orient` | 7 | Builder-led recon; spikes the riskiest area, writes no production code. |
+| `/wire` | L1a.5 | Write the wiring map — engine → seam → entry-point call site, per use case. |
+| `/scopes` | 8 | Spec tree + board (`ba-pitch-analyzer`), then scope contracts (`scope-architect`). |
+| `/build` | 9 | Implement one task's acceptance criteria exactly. |
+| `/eval` | L3 | The single judge. Round mode is hook-gated — see the demo above. |
+| `/qa` | post-PASS | Exploratory edge hunt; findings never block ship. |
+| `/hammer` | H | Must-have census, baseline comparison, cut list + ship verdict. |
+| `/retro` | post-L4 | File ship-gate feedback into the per-skill knowledge base. |
 
 ### Agents
 
@@ -177,8 +215,9 @@ Seven Node hooks. What each one reads and what it can deny:
 - `PreCompact` — `hooks/compact-snapshot.mjs` persists the mid-run `RunSnapshot` to
   `.shapeup-sdlc/<slug>/run-snapshot.json` before the conversation is compacted.
 
-No hook makes a network request. All seven are plain, readable `.mjs` files in
-[`hooks/`](hooks/).
+No hook makes a network request, none has dependencies, and all are plain, readable `.mjs`
+files. **[SECURITY.md](SECURITY.md)** states what each hook reads, what it can deny, and what
+it never does — as claims written to be falsified, with the grep to check them.
 
 > A project-local `/gap-scan` command (navigator→driver gap tracking) lives under
 > `.claude/commands/` for this repo's own use. It is **not** bundled in the distributed
@@ -208,14 +247,16 @@ These hold across the harness and are the reason it stays predictable:
 
 Stated plainly, because you will hit them:
 
-- **There is no lightweight lane yet.** Every change goes through the full pipeline. An 8-gate
-  run for a one-line typo fix is not defensible, and a `--tiny` lane is the top open item.
-- **Playwright is an install-time prerequisite**, not a lazy one, even for runs that never
-  evaluate a `[ui]` criterion.
-- **One slash command.** The thirteen skills are reachable, but `/ship` is the only front door.
-- **The trigger-eval numbers are unmeasured.** The harness ships `status: "unmeasured"` and a
-  CI test that *fails* if fabricated results appear. There is no benchmark claim here yet
-  because there is not yet an honest one.
+- **The `--tiny` lane is young.** It right-sizes the ceremony (two gates instead of eight) but
+  keeps the T0 verification floor; its fit-check heuristics will need tuning against real use.
+- **Only half the trigger-eval story is measured.** Skill *discrimination* is:
+  **0 false activations across 75 cross-skill hard negatives** (Haiku 4.5, 2026-07-26 — the
+  thirteen descriptions do not steal each other's work). *Activation* rate is measured but
+  confounded and deliberately not quoted as a headline: 38 of 74 positive cases point at a
+  referent ("coach **this feedback**") the probe never supplies, so a model that names the right
+  skill and asks for the missing input scores as a miss. Method, per-skill numbers, and the fix
+  are in [evals/README.md](evals/README.md) — the harness ships a CI test that *fails* if
+  fabricated results appear, and three earlier baselines were discarded rather than published.
 
 Contributions to any of these are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -240,7 +281,7 @@ skills/tech-lead/scripts|schemas/        # orchestrator pipeline: compile-order,
                                          #   aegis-digest, run-snapshot, stats + envelope schemas
 skills/ba-pitch-analyzer/scripts/        # planner mechanics: board-derive, spec-lint
 skills/spec-evaluator/scripts/           # verdict-ledger (reference impl of the flip/confidence grammar)
-commands/*.md         # slash commands (/ship)
+commands/*.md         # slash commands (/ship + the 9 phase commands)
 agents/*.md           # subagents (reviewer)
 hooks/                # hooks.json + safety-spine, gate-l2, sandbox-guard (PreToolUse),
                       #   anti-rationalization, slop-cleaner (Stop, advisory),

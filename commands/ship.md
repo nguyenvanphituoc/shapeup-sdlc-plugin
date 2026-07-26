@@ -13,6 +13,11 @@ Only run headless/auto if the user explicitly asks for it in their message:
   review the verdict before ship, and proceed only on explicit confirmation. Intended for CI, not
   day-to-day local runs.
 
+- `--tiny` → the small-change lane: orient (light) → single-task board → build → T0 → done.
+  Skips wiring, scope contracts, EVAL, and QA; only gates L0 and L4 pause. The tech-lead's L0
+  fit-check applies (≤ ~2 files, no new domain concept/dependency/flow) — if the change isn't
+  tiny, it will say so and recommend the full lane.
+
 Additional flags, pass through to `tech-lead` only when the user names them:
 - `--rounds N` → override the outer circuit breaker (build+eval cycles, default 3).
 - `--attempts N` → override the inner circuit breaker (per-scope T0 attempts, default 5;

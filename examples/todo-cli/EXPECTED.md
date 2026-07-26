@@ -36,7 +36,9 @@ A `spec-evaluator` run on the built CLI must emit a report that:
 > dispatches on it via the registry `scripts/shapeup-sdlc/oracles/index.mjs` (`process`/`test`/`snapshot`/`http`,
 > with `ui` handled in-skill). For this CLI the oracle is **`process`** — the shared runner
 > `scripts/shapeup-sdlc/oracles/process-oracle.mjs` spawns the deliverable and grades exit code + stdout.
-> Run it directly: `node scripts/shapeup-sdlc/oracles/process-oracle.mjs examples/todo-cli/todo.contract.json "node ./reference/todo.js"`.
+> Run it directly (the deliverable path must be **absolute** — the oracle spawns it inside a
+> throwaway temp dir, so a relative path resolves against the sandbox, not the repo):
+> `node scripts/shapeup-sdlc/oracles/process-oracle.mjs examples/todo-cli/todo.contract.json "node $PWD/examples/todo-cli/reference/todo.js"`.
 
 ## C. Edge cases were hunted and handled (the "edge cases handled")
 
