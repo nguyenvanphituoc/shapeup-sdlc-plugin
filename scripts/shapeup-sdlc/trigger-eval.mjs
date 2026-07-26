@@ -23,9 +23,9 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawnSync } from "node:child_process";
+import { spawnSync, spawn } from "node:child_process";
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const SKILLS = join(ROOT, "skills");
 const BASELINE = join(ROOT, "evals", "baselines", "trigger-evals.baseline.json");
 
@@ -53,6 +53,59 @@ function inventory(datasets) {
 // ---- measurement adapter ----------------------------------------------------
 // Returns { activated: Set<string>, raw } for one query, or throws if the run produced NO parseable
 // model/tool events at all (→ harness misconfigured; caller aborts rather than scoring it as a miss).
+//
+// The default adapter caps the session at --max-turns 2: a trigger-eval measures ACTIVATION
+// (does the model reach for the skill on this query?), not task completion — without the cap
+// each probe runs the full agentic session it triggered, which is ~10-50× the cost for zero
+// extra signal. The cap is part of the recorded method: "activation within the first 2 turns".
+
+// Activation-name normalization (verified against a live stream 2026-07: the Skill tool's
+// input field is `skill`, and plugin skills arrive namespaced, e.g. "shapeup-sdlc-plugin:qa").
+//   1. The marketplace prefix is stripped.
+//   2. The plugin's slash COMMANDS also surface through the Skill tool. A wrapper firing IS
+//      the query routing to the right craft, so each command aliases to the skill(s) it
+//      delegates to — and a wrapper firing on the WRONG query stays a false positive for the
+//      skill it delegates to, so aliasing never launders misfires.
+const COMMAND_ALIASES = {
+  ship: ["tech-lead"], shape: ["shapeup"], orient: ["orient"],
+  wire: ["solution-architect"], scopes: ["ba-pitch-analyzer", "scope-architect"],
+  build: ["task-executor"], eval: ["spec-evaluator"], qa: ["qa-edge-hunter"],
+  hammer: ["scope-hammer"], retro: ["coach"],
+};
+export function parseActivations(raw) {
+  const activated = new Set();
+  let sawAnyEvent = false;
+  // A probe that ERRORED (rate-limit, overload, api failure) and shows no activation is NOT
+  // a measured miss — it is an unmeasured probe, and scoring it as a miss fabricates a low
+  // TPR. The one expected "error" is error_max_turns: that is our own cap ending the session,
+  // by which point any activation is already in the stream. (First measured run shipped 9
+  // skills at a flat TPR 0 this way under concurrency 6; solo re-runs activated fine.)
+  let apiError = false;
+  for (const line of raw.split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t.startsWith("{")) continue;
+    let ev; try { ev = JSON.parse(t); } catch { continue; }
+    sawAnyEvent = true;
+    if (ev.type === "result" && ev.is_error && ev.subtype !== "error_max_turns") apiError = true;
+    if (ev.type === "error" || /"(overloaded_error|rate_limit_error|api_error)"/.test(t)) apiError = true;
+    const stack = [ev];
+    while (stack.length) {
+      const node = stack.pop();
+      if (node && typeof node === "object") {
+        if ((node.type === "tool_use" || node.name) && /^skill$/i.test(node.name || "")) {
+          const sn = node.input?.skill || node.input?.skill_name || node.input?.name;
+          if (sn) {
+            const bare = String(sn).replace(/^[^:]+:/, "");
+            activated.add(bare);
+            for (const target of COMMAND_ALIASES[bare] || []) activated.add(target);
+          }
+        }
+        for (const v of Object.values(node)) if (v && typeof v === "object") stack.push(v);
+      }
+    }
+  }
+  return { activated, sawAnyEvent, apiError };
+}
 function runQuery(query) {
   const tmpl = process.env.TRIGGER_EVAL_CMD;
   let bin, args;
@@ -61,46 +114,61 @@ function runQuery(query) {
     [bin, ...args] = parts.map((p) => p.replace(/^"|"$/g, ""));
   } else {
     bin = "claude";
-    args = ["--plugin-dir", ROOT, "-p", query, "--output-format", "stream-json", "--verbose"];
+    args = ["--plugin-dir", ROOT, "-p", query, "--max-turns", "2", "--output-format", "stream-json", "--verbose"];
   }
-  const r = spawnSync(bin, args, { encoding: "utf8", timeout: 120_000, maxBuffer: 64 * 1024 * 1024 });
+  const r = spawnSync(bin, args, { encoding: "utf8", timeout: 180_000, maxBuffer: 64 * 1024 * 1024 });
   if (r.error) throw new Error(`adapter failed to spawn "${bin}": ${r.error.message}`);
   const raw = (r.stdout || "") + (r.stderr || "");
-  const activated = new Set();
-  let sawAnyEvent = false;
-  for (const line of raw.split(/\r?\n/)) {
-    const t = line.trim();
-    if (!t.startsWith("{")) continue;
-    let ev; try { ev = JSON.parse(t); } catch { continue; }
-    sawAnyEvent = true;
-    // Walk the event for any tool_use named "Skill" and pull its skill_name.
-    const stack = [ev];
-    while (stack.length) {
-      const node = stack.pop();
-      if (node && typeof node === "object") {
-        if ((node.type === "tool_use" || node.name) && /^skill$/i.test(node.name || "")) {
-          const sn = node.input?.skill_name || node.input?.name;
-          if (sn) activated.add(String(sn));
-        }
-        for (const v of Object.values(node)) if (v && typeof v === "object") stack.push(v);
-      }
-    }
-  }
+  const { activated, sawAnyEvent } = parseActivations(raw);
   if (!sawAnyEvent) throw new Error("adapter produced no parseable JSON events — is `claude` installed, authed, and the plugin loadable? Refusing to score this as a non-trigger.");
   return { activated, raw };
 }
 
-function measure(datasets) {
+// Parallel pool over ALL cases (flattened across skills): each probe is an independent
+// headless session, so concurrency changes wall-clock only, never the measurement. Scoring
+// stays per-skill. Any adapter throw aborts the WHOLE run — a partial result is never
+// scored (audit F1: a broken harness must look broken).
+async function measure(datasets, concurrency) {
+  const jobs = datasets.flatMap((d) => d.cases.map((c) => ({ d, c })));
+  let next = 0, done = 0, aborted = null;
+  const outcomes = new Array(jobs.length);
+  async function worker() {
+    for (;;) {
+      const i = next++;
+      if (i >= jobs.length || aborted) return;
+      const { d, c } = jobs[i];
+      try {
+        let probe = await runQueryAsync(c.query);
+        if (probe.apiError && !probe.activated.has(d.skill)) {
+          // Errored with no activation → unmeasured, not a miss. One retry after a breather.
+          console.log(`  ↻ retrying (api error, no activation): "${c.query.slice(0, 60)}"`);
+          await new Promise((r) => setTimeout(r, 20_000));
+          probe = await runQueryAsync(c.query);
+          if (probe.apiError && !probe.activated.has(d.skill)) {
+            throw new Error(`probe errored twice with no activation ("${c.query}") — refusing to score an unmeasured probe as a miss. Lower --concurrency or wait out the rate limit.`);
+          }
+        }
+        outcomes[i] = { fired: probe.activated.has(d.skill) };
+      } catch (e) {
+        aborted = e; return;
+      }
+      done++;
+      if (done % 10 === 0 || done === jobs.length) console.log(`  … ${done}/${jobs.length} probes done`);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.max(1, concurrency) }, worker));
+  if (aborted) throw aborted;
+
   const results = {};
   for (const d of datasets) {
     let tp = 0, fn = 0, fp = 0, tn = 0;
     const misses = [], falsePos = [];
-    for (const c of d.cases) {
-      const { activated } = runQuery(c.query); // throws → abort whole run (honest failure)
-      const fired = activated.has(d.skill);
+    jobs.forEach(({ d: jd, c }, i) => {
+      if (jd !== d) return;
+      const { fired } = outcomes[i];
       if (c.should_trigger) { fired ? tp++ : (fn++, misses.push(c.query)); }
       else { fired ? (fp++, falsePos.push(c.query)) : tn++; }
-    }
+    });
     const pos = tp + fn, neg = fp + tn;
     results[d.skill] = {
       positives: pos, negatives: neg,
@@ -113,6 +181,33 @@ function measure(datasets) {
   return results;
 }
 
+// Async twin of runQuery: spawn (not spawnSync) so the pool actually overlaps subprocesses.
+function runQueryAsync(query) {
+  const tmpl = process.env.TRIGGER_EVAL_CMD;
+  let bin, args;
+  if (tmpl) {
+    const parts = tmpl.replace(/\{\{query\}\}/g, query).replace(/\{\{root\}\}/g, ROOT).match(/(?:[^\s"]+|"[^"]*")+/g) || [];
+    [bin, ...args] = parts.map((p) => p.replace(/^"|"$/g, ""));
+  } else {
+    bin = "claude";
+    args = ["--plugin-dir", ROOT, "-p", query, "--max-turns", "2", "--output-format", "stream-json", "--verbose"];
+  }
+  return new Promise((resolvePromise, reject) => {
+    const child = spawn(bin, args, { stdio: ["ignore", "pipe", "pipe"] });
+    let raw = "";
+    const timer = setTimeout(() => { child.kill("SIGKILL"); }, 180_000);
+    child.stdout.on("data", (d) => (raw += d));
+    child.stderr.on("data", (d) => (raw += d));
+    child.on("error", (e) => { clearTimeout(timer); reject(new Error(`adapter failed to spawn "${bin}": ${e.message}`)); });
+    child.on("close", () => {
+      clearTimeout(timer);
+      const { activated, sawAnyEvent } = parseActivations(raw);
+      if (!sawAnyEvent) return reject(new Error("adapter produced no parseable JSON events — is `claude` installed, authed, and the plugin loadable? Refusing to score this as a non-trigger."));
+      resolvePromise({ activated, raw });
+    });
+  });
+}
+
 // ---- baseline I/O -----------------------------------------------------------
 function writeBaseline(obj) {
   mkdirSync(dirname(BASELINE), { recursive: true });
@@ -123,12 +218,15 @@ function writeBaseline(obj) {
 const datasets = loadDatasets();
 const inv = inventory(datasets);
 const totalCases = Object.values(inv).reduce((a, b) => a + b.total, 0);
-const method = "claude headless (--plugin-dir .) detecting real Skill-tool activation; NOT slash-command self-invocation (the prior TPR≈0 proxy artifact, audit F1).";
+const method = "claude headless (--plugin-dir . -p <query> --max-turns 2) detecting real Skill-tool activation within the first 2 turns; NOT slash-command self-invocation (the prior TPR≈0 proxy artifact, audit F1). Activation names are namespace-stripped, and a phase-command wrapper firing counts for the skill(s) it delegates to (COMMAND_ALIASES) — a wrapper firing on the wrong query stays a false positive. Probes run in parallel (independent sessions; concurrency affects wall-clock only).";
 
 if (process.argv.includes("--measure")) {
-  console.log(`Measuring ${totalCases} cases across ${datasets.length} skills (needs Claude auth)…`);
+  const ci = process.argv.indexOf("--concurrency");
+  // Default 2: the first run at 6 rate-limited itself into a fake flat-zero TPR for 9 skills.
+  const concurrency = ci > -1 ? Math.max(1, parseInt(process.argv[ci + 1], 10) || 1) : 2;
+  console.log(`Measuring ${totalCases} cases across ${datasets.length} skills (needs Claude auth, concurrency ${concurrency})…`);
   let results;
-  try { results = measure(datasets); }
+  try { results = await measure(datasets, concurrency); }
   catch (e) {
     console.error(`\n✗ Measurement aborted: ${e.message}`);
     console.error("  No baseline written — an unmeasurable run must NOT be recorded as a result (audit F1).");

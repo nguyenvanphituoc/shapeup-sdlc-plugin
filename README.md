@@ -55,10 +55,10 @@ they are documented for [contributors](CONTRIBUTING.md), not for users.
 
 `/ship` walks the whole lifecycle and pauses at each gate for you. That's the whole quickstart.
 
-<sub>One prerequisite: the bundled Playwright plugin needs a browser to verify `[ui]`
-criteria — `npx playwright install chromium`. Team installs, the local scaffolding installer
-(Claude Code / Antigravity / Codex), and troubleshooting are in **[docs/install.md](docs/install.md)**;
-upgrading an existing install is **[docs/upgrading.md](docs/upgrading.md)**.</sub>
+<sub>No prerequisites for non-UI work — a browser (`npx playwright install chromium`) is needed
+only when a run actually reaches a `[ui]` acceptance criterion. Team installs, the scaffolding
+installer (Claude Code / Antigravity / Codex), and troubleshooting are in
+**[docs/install.md](docs/install.md)**; upgrading is **[docs/upgrading.md](docs/upgrading.md)**.</sub>
 
 ## Agent support
 
@@ -241,8 +241,6 @@ Stated plainly, because you will hit them:
 
 - **There is no lightweight lane yet.** Every change goes through the full pipeline. An 8-gate
   run for a one-line typo fix is not defensible, and a `--tiny` lane is the top open item.
-- **Playwright is an install-time prerequisite**, not a lazy one, even for runs that never
-  evaluate a `[ui]` criterion.
 - **The trigger-eval numbers are unmeasured.** The harness ships `status: "unmeasured"` and a
   CI test that *fails* if fabricated results appear. There is no benchmark claim here yet
   because there is not yet an honest one.

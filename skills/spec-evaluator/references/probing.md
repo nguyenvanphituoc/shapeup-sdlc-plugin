@@ -16,8 +16,24 @@ role/label/state per element, no vision model needed. That is what makes the ver
 localizable: a missing or dead element shows up as a tree node, then read the source to
 pin file:line.
 
+**Lazy preflight — run this check only when the spec actually contains a `[ui]` criterion,
+at the moment you reach the first one.** Playwright is NOT an install-time prerequisite of the
+harness; a run with no `[ui]` criteria must complete on a machine with no browser installed.
+
 ```
-Setup (once): npx playwright install chromium
+npx --no-install playwright --version || <missing>
+```
+
+If the CLI or the chromium binary is missing, FAIL the probe (not the whole run) with an
+actionable message that names the criterion that needed it and the fix:
+
+> `[ui]` criterion <UC/AC id> requires a browser to verify. Run `npx playwright install chromium`,
+> then re-run the eval. (For MCP mode, also `claude plugin install playwright@claude-plugins-official`.)
+
+Never auto-install a browser mid-eval, and never silently skip the criterion — a `[ui]` AC
+without a probe is a FAIL with reason "unverifiable: no browser", not a PASS.
+
+```
 The probe loop per [ui] criterion:
   1. navigate to the screen under test
   2. snapshot the accessibility tree → save to evaluation/.evidence/<task>-<crit>.txt
