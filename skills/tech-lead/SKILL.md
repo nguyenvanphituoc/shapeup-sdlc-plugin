@@ -394,6 +394,8 @@ Emit the `⏸ GATE L4` sign-off block (feature state, rounds, verdict + dims not
 ## Invocation
 
 `/tech-lead --pitch <shaping.md> --spec <spec/> --lens standard` for an interactive run; `--auto` (pause only at L1a/L1b/L3/L4), `--unattended` (headless/CI), `--from build` (resume), `--no-eval`/`--no-qa` to skip passes.
+
+**`--tiny`** — small-change lane: `⏸ L0 fit-check → orient (light) → build → T0 → ⏸ L4`. Ceremony scales down (WIRE/contracts/spec-tree/EVAL/QA/retro skipped); the floor does not (envelope dispatch + T0 + `lane: tiny` ledger row). Fit-check mandatory; outgrown mid-build ⇒ STOP, escalate. → `references/tiny-lane.md`.
 → **Full invocation examples + the complete flag table:** `references/invocation.md`.
 
 ---

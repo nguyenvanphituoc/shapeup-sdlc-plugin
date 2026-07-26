@@ -38,6 +38,7 @@ disclosure). Read this when you need the exact CLI shape or a flag's effect.
 | `--from orient\|plan\|build\|eval` | Resume an in-progress run at a build-phase step |
 | `--no-eval` | Skip the evaluation pass this run (trivial feature) |
 | `--no-qa` | Skip the post-PASS /qa-edge-hunter pass (ledger records `qa: skipped`) |
+| `--tiny` | The small-change lane: orient (light) → single-task board → build → T0 → done. Implies `--no-eval --no-qa`, skips WIRE and scope contracts, collapses the gates to L0 + L4. See "The tiny lane" in SKILL.md — the L0 fit-check is mandatory and the ledger records `lane: tiny` |
 | `--dimensions <list>` | Eval dimensions (default spec-conformance) |
 
 ---

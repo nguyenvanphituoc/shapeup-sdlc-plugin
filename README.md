@@ -10,6 +10,10 @@ Your agent says it's done. It isn't. This is a [Claude Code](https://code.claude
 that runs a full Shape Up lifecycle — idea → pitch → build → evaluate → ship — where the
 important rules are enforced by the runtime instead of asked for in a prompt.
 
+The ceremony is right-sized: `/ship` runs the full gated pipeline for real features, and
+`/ship --tiny` runs a two-gate lane (orient → build → smoke-test → done) for the one-file
+fixes where the gates would have nothing to say.
+
 <p align="center">
   <img src="docs/assets/demo-gate.svg" alt="Terminal recording: the agent tries to run EVAL with two tasks unfinished, and a PreToolUse hook denies the tool call outright." width="700">
 </p>
@@ -239,8 +243,8 @@ These hold across the harness and are the reason it stays predictable:
 
 Stated plainly, because you will hit them:
 
-- **There is no lightweight lane yet.** Every change goes through the full pipeline. An 8-gate
-  run for a one-line typo fix is not defensible, and a `--tiny` lane is the top open item.
+- **The `--tiny` lane is young.** It right-sizes the ceremony (two gates instead of eight) but
+  keeps the T0 verification floor; its fit-check heuristics will need tuning against real use.
 - **The trigger-eval numbers are unmeasured.** The harness ships `status: "unmeasured"` and a
   CI test that *fails* if fabricated results appear. There is no benchmark claim here yet
   because there is not yet an honest one.
