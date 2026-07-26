@@ -11,6 +11,17 @@ slash command, a Playwright prerequisite for runs that never touch a browser, an
 small changes. This release is that fix — almost no mechanism changes, a lot of front door.
 
 ### Added
+- **`anti-lying-kit` — the enforcement layer as a standalone plugin** (P2-2). Three hooks, no
+  methodology, installable *alongside* spec-kit / OpenSpec / any markdown checklist rather than
+  instead of them: `gate-done` (PreToolUse, **denies** the review/eval/ship call while the
+  project's own board has unfinished tasks), `no-fake-done` and `slop-check` (Stop, advisory).
+  Portability comes from one board adapter (`lib/board.mjs`) — presets for `spec-kit`,
+  `openspec`, `markdown-checklist`, `shapeup-sdlc`, plus a glob/regex escape hatch — so the
+  hooks themselves are workflow-agnostic. Fails open on every path where it cannot prove a task
+  is unfinished, and is fully inert until a project writes `.antilying.json`. Listed as a second
+  plugin in the marketplace. `t0-verify` and mechanical hill derivation deliberately did **not**
+  extract: they depend on per-scope contracts, and shipping something weaker under the same name
+  would have been dishonest.
 - **Nine phase commands** — `/shape /orient /wire /scopes /build /eval /qa /hammer /retro`,
   thin wrappers over the existing skills so the pipeline is learnable from `/`-completion
   alone. `/eval` documents the GATE L2 denial as expected behavior, not an error.
