@@ -173,13 +173,15 @@ function installClaude() {
   mkdirSync(join(target, ".claude"), { recursive: true });
 
   // Primary path: the claude CLI registers the marketplace in the live session AND writes
-  // project-scoped settings. shell:true so Windows resolves claude.cmd.
-  const have = spawnSync("claude", ["--version"], { shell: true, stdio: "ignore" });
+  // project-scoped settings. Single command strings + shell so Windows resolves claude.cmd;
+  // every argument is a static constant, nothing user-controlled is interpolated.
+  const sh = (cmd, opts = {}) => spawnSync(cmd, { shell: true, ...opts });
+  const have = sh("claude --version", { stdio: "ignore" });
   if (have.status === 0) {
     console.log("  [claude] registering marketplace + installing plugin via claude CLI…");
-    const add = spawnSync("claude", ["plugin", "marketplace", "add", "--scope", "project", REPO], { cwd: target, shell: true, stdio: "inherit" });
+    const add = sh(`claude plugin marketplace add --scope project ${REPO}`, { cwd: target, stdio: "inherit" });
     const ins = add.status === 0
-      ? spawnSync("claude", ["plugin", "install", "--scope", "project", PLUGIN_KEY], { cwd: target, shell: true, stdio: "inherit" })
+      ? sh(`claude plugin install --scope project ${PLUGIN_KEY}`, { cwd: target, stdio: "inherit" })
       : add;
     if (ins.status === 0) {
       console.log("  [claude] plugin installed at project scope — run /reload-plugins to activate in a live session");

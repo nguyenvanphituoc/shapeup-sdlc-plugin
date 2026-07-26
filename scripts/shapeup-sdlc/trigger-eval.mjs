@@ -28,6 +28,9 @@ import { spawnSync, spawn } from "node:child_process";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const SKILLS = join(ROOT, "skills");
 const BASELINE = join(ROOT, "evals", "baselines", "trigger-evals.baseline.json");
+// Turn budget per probe — see the adapter note below. Override with --max-turns N.
+const mtIdx = process.argv.indexOf("--max-turns");
+const MAX_TURNS = mtIdx > -1 ? Math.max(1, parseInt(process.argv[mtIdx + 1], 10) || 8) : 8;
 
 // ---- load datasets ----------------------------------------------------------
 function loadDatasets() {
@@ -54,10 +57,16 @@ function inventory(datasets) {
 // Returns { activated: Set<string>, raw } for one query, or throws if the run produced NO parseable
 // model/tool events at all (→ harness misconfigured; caller aborts rather than scoring it as a miss).
 //
-// The default adapter caps the session at --max-turns 2: a trigger-eval measures ACTIVATION
-// (does the model reach for the skill on this query?), not task completion — without the cap
-// each probe runs the full agentic session it triggered, which is ~10-50× the cost for zero
-// extra signal. The cap is part of the recorded method: "activation within the first 2 turns".
+// The default adapter caps the session at --max-turns 8: a trigger-eval measures ACTIVATION
+// (does the model reach for the skill on this query?), not task completion — without a cap
+// each probe runs the full agentic session it triggered, which is far more cost for no extra
+// signal. The cap is part of the recorded method: "activation within the first 8 turns".
+//
+// 8, not 2. A cap of 2 was measured and REJECTED: the model routinely announces "I'll run the
+// breadboarding step", spends a turn or two orienting, and calls Skill at turn ~5. At cap 2
+// that scores as a miss and fabricates a low TPR — "breadboard the checkout flow" measured
+// TPR 0 at cap 2 and activates cleanly at cap 6. Do not lower this to save tokens; it changes
+// what is being measured.
 
 // Activation-name normalization (verified against a live stream 2026-07: the Skill tool's
 // input field is `skill`, and plugin skills arrive namespaced, e.g. "shapeup-sdlc-plugin:qa").
@@ -114,7 +123,7 @@ function runQuery(query) {
     [bin, ...args] = parts.map((p) => p.replace(/^"|"$/g, ""));
   } else {
     bin = "claude";
-    args = ["--plugin-dir", ROOT, "-p", query, "--max-turns", "2", "--output-format", "stream-json", "--verbose"];
+    args = ["--plugin-dir", ROOT, "-p", query, "--max-turns", String(MAX_TURNS), "--output-format", "stream-json", "--verbose"];
   }
   const r = spawnSync(bin, args, { encoding: "utf8", timeout: 180_000, maxBuffer: 64 * 1024 * 1024 });
   if (r.error) throw new Error(`adapter failed to spawn "${bin}": ${r.error.message}`);
@@ -190,7 +199,7 @@ function runQueryAsync(query) {
     [bin, ...args] = parts.map((p) => p.replace(/^"|"$/g, ""));
   } else {
     bin = "claude";
-    args = ["--plugin-dir", ROOT, "-p", query, "--max-turns", "2", "--output-format", "stream-json", "--verbose"];
+    args = ["--plugin-dir", ROOT, "-p", query, "--max-turns", String(MAX_TURNS), "--output-format", "stream-json", "--verbose"];
   }
   return new Promise((resolvePromise, reject) => {
     const child = spawn(bin, args, { stdio: ["ignore", "pipe", "pipe"] });
@@ -218,7 +227,7 @@ function writeBaseline(obj) {
 const datasets = loadDatasets();
 const inv = inventory(datasets);
 const totalCases = Object.values(inv).reduce((a, b) => a + b.total, 0);
-const method = "claude headless (--plugin-dir . -p <query> --max-turns 2) detecting real Skill-tool activation within the first 2 turns; NOT slash-command self-invocation (the prior TPR≈0 proxy artifact, audit F1). Activation names are namespace-stripped, and a phase-command wrapper firing counts for the skill(s) it delegates to (COMMAND_ALIASES) — a wrapper firing on the wrong query stays a false positive. Probes run in parallel (independent sessions; concurrency affects wall-clock only).";
+const method = `claude headless (--plugin-dir . -p <query> --max-turns ${MAX_TURNS}) detecting real Skill-tool activation within the first ${MAX_TURNS} turns; NOT slash-command self-invocation (the prior TPR≈0 proxy artifact, audit F1). Activation names are namespace-stripped, and a phase-command wrapper firing counts for the skill(s) it delegates to (COMMAND_ALIASES) — a wrapper firing on the wrong query stays a false positive. Probes run in parallel (independent sessions; concurrency affects wall-clock only). KNOWN LIMITATION: probes run in this repo's own working tree, where the artifacts some queries presuppose (a pitch, a spec folder, TASK-NNN) do not exist; 17 of 74 positive cases name such an artifact and the model may correctly decline to activate and ask for it instead. Those cases understate TPR and are tracked separately — see evals/README.md.`;
 
 if (process.argv.includes("--measure")) {
   const ci = process.argv.indexOf("--concurrency");

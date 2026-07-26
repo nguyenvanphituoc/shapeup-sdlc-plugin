@@ -59,6 +59,10 @@ they are documented for [contributors](CONTRIBUTING.md), not for users.
 
 `/ship` walks the whole lifecycle and pauses at each gate for you. That's the whole quickstart.
 
+Want to see a full run before installing anything? **[docs/quickstart.md](docs/quickstart.md)**
+walks one small feature end to end — including the hook denying a premature eval, a FAIL round
+with real evaluator output, and the fix that turns it green.
+
 <sub>No prerequisites for non-UI work — a browser (`npx playwright install chromium`) is needed
 only when a run actually reaches a `[ui]` acceptance criterion. Team installs, the scaffolding
 installer (Claude Code / Antigravity / Codex), and troubleshooting are in
