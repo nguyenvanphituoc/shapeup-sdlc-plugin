@@ -3,6 +3,51 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+**Discovery + friction release (P0/P1 of the market-position report).** The repo had rigor and
+no funnel: null description, no topics, a README that opened on install troubleshooting, one
+slash command, a Playwright prerequisite for runs that never touch a browser, and no lane for
+small changes. This release is that fix — almost no mechanism changes, a lot of front door.
+
+### Added
+- **Nine phase commands** — `/shape /orient /wire /scopes /build /eval /qa /hammer /retro`,
+  thin wrappers over the existing skills so the pipeline is learnable from `/`-completion
+  alone. `/eval` documents the GATE L2 denial as expected behavior, not an error.
+- **`--tiny` lane** (`/ship --tiny`) — ⏸ L0 fit-check → orient (light) → build → T0 → ⏸ L4.
+  Ceremony scales down (WIRE/contracts/spec-tree/EVAL/QA/retro skipped); the floor does not
+  (envelope dispatch + T0 + `lane: tiny` ledger row). Contract:
+  `skills/tech-lead/references/tiny-lane.md`.
+- **`npx shapeup-sdlc init`** (`bin/init.mjs`) — cross-platform Node scaffolding installer: no
+  bash, no jq/python3 fallback chain, works on Windows; same layout as `install-harness.sh`.
+  `package.json` gains `bin`/`files`/`engines` (npm publish is a separate step).
+- **`SECURITY.md`** — falsifiable claims (no network, no deps, fail-open, the model cannot
+  widen its own safety envelope, Stop hooks never block) + a per-hook reads/denies/never table.
+- **Demo asset** — `npm run demo` (`scripts/demo/record-demo.mjs`) renders the README's GATE L2
+  demo by running the real `gate-l2.mjs` against a real partial board and embedding its
+  verbatim denial; it throws rather than render a demo that lies.
+- **Docs**: rewritten README (value prop → demo → glossary above the fold; enforcement
+  mechanisms carry the failure each prevents; envelope demoted to plumbing), `docs/install.md`,
+  `docs/upgrading.md`, `docs/glossary.md`, `docs/launch/submissions.md`, `CONTRIBUTING.md`,
+  issue templates, agent-support matrix (honest row: hooks don't travel).
+
+### Changed
+- **Playwright is now a lazy dependency.** The plugin-level dependency is removed from
+  `plugin.json`; the eval skill preflights the browser at the FIRST `[ui]` criterion and fails
+  that probe with the fix named (never auto-installs, never silently skips — an unverifiable
+  `[ui]` AC is a FAIL, not a PASS). Non-UI runs complete with no browser installed.
+- `AGENTS.md` opens on the enforcement idea (gates enforced → progress derived → parallel-safe)
+  instead of the envelope; the envelope is framed as the plumbing that makes those true.
+
+### Fixed
+- `trigger-eval.mjs`: ROOT path broken since the v1.3 script move; Skill-tool detection updated
+  to the CLI's current `input.skill` + namespaced names (verified against a live stream), with
+  phase-command wrappers aliased to the skills they delegate to; probes that hit a
+  rate-limit/api error with no activation are now UNMEASURED (retry once, then abort) instead
+  of being scored as misses — the first measured run fabricated a flat TPR 0 for 9 skills that
+  way and was reverted, not published. Adds `--concurrency` (default 2) and a `--max-turns 2`
+  activation cap, both recorded in the baseline's method string.
+
 ## [1.3.0] - 2026-07-24
 
 **Traceability spine + wiring reachability.** Two mechanically-checkable oracles that close the
