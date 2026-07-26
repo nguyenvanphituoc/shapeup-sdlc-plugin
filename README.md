@@ -49,6 +49,16 @@ Under the hood this rests on a typed worker envelope and a single-writer state l
 are load-bearing plumbing, and you should not have to think about them to use the harness —
 they are documented for [contributors](CONTRIBUTING.md), not for users.
 
+> ### Just want the gate?
+>
+> The enforcement layer ships separately as the **[Anti-Lying Kit](plugins/anti-lying-kit/)** —
+> three hooks, no methodology, installable *alongside* spec-kit, OpenSpec, or your own
+> `tasks.md`. You should not have to adopt Shape Up to stop your agent claiming done.
+>
+> ```
+> /plugin install anti-lying-kit@nvptuoc-marketplace
+> ```
+
 ## Quickstart
 
 ```

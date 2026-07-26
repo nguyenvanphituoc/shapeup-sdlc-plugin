@@ -1,0 +1,20 @@
+{
+  "name": "anti-lying-kit",
+  "displayName": "Anti-Lying Kit",
+  "version": "0.1.0",
+  "description": "Hooks that stop your coding agent claiming 'done'. A PreToolUse gate that denies the review/eval call while your task board has unfinished work, plus two advisory Stop checks. Workflow-agnostic: presets for spec-kit, OpenSpec, and any markdown checklist.",
+  "author": {
+    "name": "Liberty Nguyen",
+    "email": "nguyenvanphituoc.developer@gmail.com"
+  },
+  "homepage": "https://github.com/nguyenvanphituoc/shapeup-sdlc-plugin/tree/main/plugins/anti-lying-kit",
+  "repository": "https://github.com/nguyenvanphituoc/shapeup-sdlc-plugin",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "hooks",
+    "verification",
+    "spec-driven-development",
+    "agent-safety"
+  ]
+}
