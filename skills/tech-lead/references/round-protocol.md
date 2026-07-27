@@ -100,24 +100,49 @@ coherent to evaluate yet.
 3. **attempt_budget (INNER breaker, scope contracts only)** — a single scope's T0 attempt
    loop exhausts `--attempts` (default 5) without a green result → does NOT stop the round;
    queues a hammer PROPOSAL for GATE H and moves to the next scope in sequence. See
-   "Two-level circuit breaker" below.
-4. **Hard error** — a sub-skill fails irrecoverably (e.g. spec folder gone, app won't
+   "Three-level circuit breaker" below.
+4. **wall_clock_budget (DEADLINE breaker, opt-in)** — elapsed seconds since the run receipt
+   exceed `--wall-clock-budget` → do NOT start another build round or another scope; go
+   straight to GATE H (`/scope-hammer --breaker deadline`). Checked with
+   `scripts/budget-check.mjs` at every round boundary and enforced by `hooks/gate-deadline.mjs`,
+   which denies a `task-executor` dispatch past the deadline while leaving `spec-evaluator`,
+   `scope-hammer`, `qa-edge-hunter` and `advisor-protocol` reachable — a run past its deadline
+   must still be able to judge, hammer, and close. Off unless configured.
+5. **Hard error** — a sub-skill fails irrecoverably (e.g. spec folder gone, app won't
    build at all) → stop and report; do not retry blindly.
-5. **User halt** — at any L-gate the user can stop the run; the ledger preserves state for
+6. **User halt** — at any L-gate the user can stop the run; the ledger preserves state for
    `--from` resume.
 
-## Two-level circuit breaker (scope contracts only)
+## Three-level circuit breaker
 
 ```
-OUTER  round_budget (max_rounds)   — the six-week-timebox analog. Decremented once per
-                                      round at GATE L2, regardless of how many scopes it
-                                      covered. Hitting 0 → GATE H immediately (§ above).
-INNER  attempt_budget (per scope)  — decremented once per T0 attempt inside BUILD round r.
-                                      Hitting its cap WITHOUT a T0-green result trips the
-                                      inner breaker for that scope only: the scope is queued
-                                      as a hammer PROPOSAL (not a hard stop) and the round
-                                      moves on to the next scope in the L1b sequence.
+OUTER    round_budget (max_rounds)  — the six-week-timebox analog. Decremented once per
+                                       round at GATE L2, regardless of how many scopes it
+                                       covered. Hitting 0 → GATE H immediately (§ above).
+INNER    attempt_budget (per scope) — decremented once per T0 attempt inside BUILD round r.
+                                       Hitting its cap WITHOUT a T0-green result trips the
+                                       inner breaker for that scope only: the scope is queued
+                                       as a hammer PROPOSAL (not a hard stop) and the round
+                                       moves on to the next scope in the L1b sequence.
+DEADLINE wall_clock_budget_s        — elapsed seconds since the run receipt. Opt-in; off
+                                       unless set at L0. Tripping routes to GATE H with
+                                       --breaker deadline. Enforced by hooks/gate-deadline.mjs.
 ```
+
+**Why the third one exists — it was measured, and it corrected an earlier diagnosis.** On the
+SDD harness benchmark (F3, Sonnet 5) this harness was killed at the declared 1800 s cap and
+published as a DNF. The natural reading was that it had stalled at a gate. Re-reading the
+retained transcript says otherwise: **327 turns, 262 tool calls, 37 file writes, 19 gate markers,
+last gate L3, and zero stall signals** — the least talkative shapeup run in the whole matrix. It
+was working when the clock ran out.
+
+Both existing breakers count *events*, not time: `round_budget` moves once per round,
+`attempt_budget` once per T0 attempt. Neither can observe that round 1 has been running for
+twenty-nine minutes, so a run can burn its entire wall clock with both breakers untouched. The
+cost is not the DNF row — it is that a run killed from *outside* ships nothing, not even the
+scopes that were already green. A breaker that trips from the inside routes to GATE H, where
+scope-hammer compares the shippable subset against the baseline and ships what works. Same clock,
+different ending.
 Nesting rationale (DD-9): a struggling scope should not freeze every other scope's progress
 in the same round — only running out of *rounds* (the real six-week analog) stops the whole
 run. A scope that trips its inner breaker still gets judged fairly at GATE H: scope-hammer

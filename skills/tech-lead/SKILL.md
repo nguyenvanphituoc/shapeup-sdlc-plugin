@@ -5,124 +5,134 @@ description: "Use this skill whenever the user wants to orchestrate a whole feat
 
 # Tech Lead (harness orchestrator)
 
+## ▶ RUN THIS FIRST — do not summarise this file
+
+**Your first output must be a tool call, not a plan.** Everything you emit before the first tool
+call is narration, and a narrated run is a failed run: on the SDD harness benchmark a session that
+described this pipeline instead of executing it scored 29% with 10 escaped defects while reading
+like a clean success (Haiku 4.5, n=5, zero variance). A `Stop` hook (`hooks/gate-zerowork.mjs`)
+now blocks any session that dispatches this skill and leaves no run receipt, so a description is
+not an ending you can reach. Loading these instructions is not running them.
+
+**Step 1 — open the run.** Right now, before any prose. **Write the requirement to a file first,
+then pass the path** — a multi-line requirement inlined into a shell argument is where this step
+goes wrong, and it is the difference between a run that starts and a run that fights its own
+quoting for six turns (measured):
+
+```bash
+# 1a. put the requirement somewhere (Write tool, or it is already on disk as a pitch/spec)
+# 1b. open the run against it
+node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/init-run.mjs" \
+  --slug <slug-from-the-request> \
+  --intake-file <path/to/the/requirement.md> \
+  --auto-level <interactive|auto|unattended> \
+  [--gate-answers <ci|guarded|path.json>] [--wall-clock-budget <seconds>] [--max-rounds 3] [--tiny]
+```
+
+`--intake-text "<text>"` also works and is fine for a one-line request. Piping works too:
+`cat spec.md | node .../init-run.mjs --slug x --intake-stdin …`.
+
+This writes `.shapeup-sdlc/<slug>/{receipt.json,intake.md,harness-run.md}` and `active-scope`.
+It is the mechanical fact that the run started — every downstream guard reads it.
+
+**If this command comes back "requires approval", stop and say so.** The harness's scripts ship
+with the plugin, so they live outside your project and need a one-time permission grant
+(`npx shapeup-sdlc init` writes it; it is `permissions.allow` in `.claude/settings.json`). Do not
+route around it with wrapper scripts or sub-agents, and do not silently hand-build the feature
+instead — an unrunnable harness is a real answer, and a feature built outside the harness with no
+board, no T0 and no verdict is exactly the un-evidenced "done" this whole project exists to stop.
+
+**Step 1b — honour the lane the receipt gives you.** `init-run.mjs` computes it (GATE L0.3,
+`fit-check.mjs`) and prints it as `config.fit.lane`. `tiny` → orient (light) → single-task board →
+build → T0 → ⏸ L4; skip WIRE, scope contracts, spec tree, EVAL and QA. **Do not talk yourself into
+the full lane on a change the fit-check called tiny** — that is the measured cause of a benchmark
+feature that never once finished across four attempts: a three-file change run through eleven
+gates. The check is advisory (fitted on three features) and the PO may override with `--lane`, but
+*you* do not override it.
+
+**Step 2 — resolve the gate, don't reason about permission.** At every ⏸ gate, emit the gate
+block, then run:
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/gate-answers.mjs" \
+  --resolve <L0|L1a|L1a.5|L1b|L2|L3|QA|H|L4|COACH-1> [--preset ci|--file <path>] [--slug <slug>]
+```
+
+Exit `0` → cross the gate and append the returned `ledger_row` to the Decisions log.
+Exit `4` → **stop and put the block to the PO.** Exit `5` → abort, quoting the reason.
+Never infer sign-off from prose in the prompt — under `--unattended`/`--auto`, sign-off comes
+from the answer set, and if there is no answer set, `--preset ci` / `--preset guarded` is the lane.
+
+**Step 3 — walk the pipeline**, in this order, delegating each step:
+`ORIENT → WIRE → MAP SCOPES → BUILD (compile-order → task-executor → ingest-result) → EVAL → QA → SHIP`.
+Each step is a delegation with an envelope, not a paragraph about a delegation.
+
+**Never do:** print the gate list and stop · promise what the harness "will" do · report a phase
+complete without the artifact it produces · cross a gate on your own authority.
+
+> The rest of this file is reference for those steps. Read the section you need when you reach it.
+
+---
+
 The conductor over the build-phase skills. It does not orient, plan, build, or judge itself —
-it **sequences** the skills that do, decides what happens at each round boundary, and surfaces
-decisions to you (the PO) at gates. Think of it as the senior engineer running the board, not
-a fifth worker.
+it **sequences** the skills that do and puts decisions to the PO at gates.
 
 ```
 orient (scout)  →  ba-pitch-analyzer (planner)  →  task-executor (generator)  →  spec-evaluator (judge)
    ORIENT (7)         MAP SCOPES (8)                    BUILD (9, loop)               EVALUATE (once)
 ```
 
-**Building only — the scope boundary.** This orchestrator owns the Shape Up **Building phase
-(steps 7–11)**: Orient → Map Scopes → Build Vertically → Report → Stop & Ship. **Shaping (1–4),
-Betting (5), and Kick-off (6) are PO-personal and upstream** — you hand over an already-shaped,
-already-bet pitch with full authority. The tech lead does **zero** shaping or planning-authority
-work; its intake is a *kicked-off pitch*, not a raw idea. (Per the Shape Up redesign decision record, D0/D1.)
+**Scope boundary.** Owns the Shape Up **Building phase (steps 7–11)** only. Shaping (1–4),
+Betting (5) and Kick-off (6) are PO-personal and upstream: intake is a *kicked-off pitch*, never
+a raw idea (D0/D1). **Orient runs before Map Scopes**, so `ba`'s board is reality-born from the
+Scout's code-surface map rather than imagined at kick-off.
 
-**Orient before Map-Scopes — why `ba` runs second.** Faithful to the roadmap, the team gets
-**no pre-divided tasks at kick-off**; it **Orients first (7), then Maps the Scopes (8)**. So the
-`orient` Scout runs before `ba-pitch-analyzer`, and `ba`'s board is **reality-born** from the
-Scout's code-surface map + discovered-task seed rather than imagined up front.
+**The load-bearing rule — why this skill exists.** The evaluator runs **exactly once per build
+round, only after the board is 100% done.** Never per task. The tech lead is the only component
+that can enforce this timing, because no sub-skill sees the whole board.
 
-**The load-bearing rule — why this skill exists.** The evaluator runs **exactly once per
-build round, only after the task board is 100% done.** Never per task. This is the V2
-harness lesson: a single end-of-round QA pass is far cheaper than grading every sprint, and
-just as effective once the generator is capable. The tech lead is the component that
-enforces this timing — the sub-skills can't, because none of them sees the whole board.
+**Three invariants at every gate:**
 
-**Orchestrator discipline — three invariants that must hold at every gate:**
-
-1. **Gate block first.** Every gate emits the canonical `⏸ GATE LN — Title` block (exactly as shown in each gate section) before any narrative. Conversational output without the block is not a gate — it's a note.
-2. **Confirmation before crossing.** In interactive/--auto mode, the tech lead does not proceed past a gate until the PO explicitly confirms. Emit the block, state what comes next, then stop and wait. Never auto-proceed.
-3. **Thin at L3 FAIL.** When listing bugs, name the scope (task ID + failed Done-when criterion). Do NOT prescribe fix options or root cause hypotheses — that belongs to the implementer. The tech lead routes, it does not diagnose.
+1. **Gate block first.** Every gate emits the canonical `⏸ GATE LN — Title` block before any narrative. Conversational output without the block is not a gate — it's a note.
+2. **Resolve, then cross.** Every crossing comes from `gate-answers.mjs` (see RUN THIS FIRST, step 2): exit 0 crosses and yields the ledger row, exit 4 stops for the PO, exit 5 aborts. Never cross on your own authority, and never read sign-off out of prose in the prompt.
+3. **Thin at L3 FAIL.** When listing bugs, name the scope (task ID + failed Done-when criterion). Do NOT prescribe fixes or root-cause hypotheses — that belongs to the implementer. The tech lead routes, it does not diagnose.
 
 > **Round loop, stop conditions, r=1 vs r>1 semantics** → `references/round-protocol.md`
 > **How each sub-skill is invoked + handoff files** → `references/delegation.md`
 > **Run ledger format + Hill report** → `references/ledger-schema.md`
-
-**State ownership (the harness rule — D6, mechanically closed in v1.0).** Workers are
-stateless; the orchestrator layer is the **sole writer of ALL run-state**. Every worker
-receives a structured **WorkOrder** envelope (`.shapeup-sdlc/<slug>/orders/`, compiled by
-`compile-order.mjs`) and returns a **WorkResult** envelope (`results/`); the deterministic
-`ingest-result.mjs` performs every shared-state write — board status, AC ticks, unblock
-propagation, discovery-ledger appends, verdict bookkeeping. No worker writes `run-state.md`,
-`tasks/_index.md`, or the ledger anymore — everything a worker used to write into shared
-files, it now returns as data. The tech lead owns `harness-run.md` — rounds, gate decisions,
-Hill positions, verdicts, `discovered_rounds`, config, language record. The board
-(`tasks/_index.md`, LOCAL root — v3.2) is **execution truth** maintained exclusively through
-ingest.
-
-**Central domain registry.** Every record type and payload field that crosses a skill
-boundary is defined exactly once in `skills/tech-lead/schemas/domain.schema.json` — the
-envelope schemas (`work-order.schema.json`, `work-result.schema.json`) only `$ref` it. The
-registry annotates each entity's tier (SHARED/LOCAL), location, sole writer, and readers,
-carries the machine-readable ERD (`x-erd`), and maps which payload fields each worker may
-rely on (`x-payload-by-worker`). A new cross-boundary field is added THERE first (structural
-test #24 enforces the map's consistency); a skill inventing its own undeclared field is a
-defect — the orchestrator, not the worker, owns the vocabulary.
-
-**Two ledgers, split by promotion timing (addendum §F.3, only when scope contracts exist).**
-`harness-run.md` stays the LOCAL (`.shapeup-sdlc/<slug>/`, gitignored) full run trace — it can
-be rebuilt or lost without consequence. A second, committed `round-ledger.md`
-(`docs/shapeup-sdlc/<slug>/round-ledger.md`, SHARED, Tier A) holds only what must survive a
-crash or a `.shapeup-sdlc/` wipe: the resolved model/budget matrix (L0.8/L0.9) and the
-**Decisions** table — every advisor-protocol ESCALATE answer, promoted the instant it's given,
-never batched to round close. The tech lead is still the sole writer of both; `round-ledger.md`
-is simply the subset that must never live only in a session or a gitignored file. No scope
-contracts → `round-ledger.md` is not written; `harness-run.md`'s existing "Decisions log" is
-the only ledger, exactly as in v0.2.6.
+> **State ownership, run receipt, domain registry, two-ledger split** → `references/state-model.md`
 
 ---
 
 ## Workflow Overview
 
 ```
-INTAKE: kicked-off pitch (shaped + bet, by the PO) + project context
-          │
-⏸ GATE L0 │  Intake & Run Config ──► spec folder target, lens, stack, eval dimensions,
-          │                          max_rounds, auto level   (no shaping/planning here)
-          │
-▶ ORIENT  │  delegate → orient (Scout, step 7) ──► .shapeup-sdlc/<slug>/orient/: code-surface map,
-  (7)     │  spike findings, discovered-task seed, hill signal. Runs BEFORE any board exists.
-          │
-⏸ GATE L1a│  Orient Review ─────────► 🗻 area-level Hill (what's uphill/unknown going in).
-          │                          Confirm the riskiest area + spike result before mapping.
-          │
-▶ WIRE ✚  │  delegate → solution-architect (`wire`, step 7.5) ──► wiring-map.json: per-UC engine
-  (7.5)   │  → seam → entry-point call site → affordance (vs project-profile entry_point).
-⏸ L1a.5 ✚ │  Wiring Review ─────────► each UC has a declared seam (no engine orphaned). Spine-only.
-          │
-▶ MAP     │  delegate → ba-pitch-analyzer (step 8), orient-informed ──► spec tree +
-  SCOPES  │  tasks/_index.md (the board). `ba` consumes orient/ artifacts, does not re-scan.
-  (8)     │
-⏸ GATE L1b│  Board Review ──────────► review board: slices, spine, ~ nice-to-haves, deps,
-          │                          scope. PO sign-off BEFORE any code is written.
-          │
-▶ BUILD r │  per dispatch: compile-order → task-executor(--order) → ingest-result ──► code
-  (9)     │  r=1: build ALL ready tasks.   r>1: build ONLY the bugs from last EVAL.
-          │  Discoveries return in each WorkResult; ingest appends them to the ledger →
-          │  a reconcile order (ba-pitch-analyzer) routes back to GATE L1b, then BUILD resumes.
-          │
-⏸ GATE L2 │  Build Round Complete ──► confirm EVERY task status=done (board green).
-          │                          THIS is the precondition that unlocks evaluation.
-          │
-▶ EVAL r  │  delegate → spec-evaluator --feature <slug> --single-pass ──► ONE verdict + bugs
-          │  Runs once over the whole running feature. Never invoked inside BUILD.
-          │
-⏸ GATE L3 │  Verdict & Loop ────────► 🗻 Hill report (slice-level) + verdict.
-          │                          PASS → SHIP.  FAIL → show bugs, approve fix → BUILD r+1
-          │                          (stop if max_rounds hit → escalate to PO)
-          │
-▶ SHIP    │  scope-hammer vs baseline + deploy truth; final summary, traceability
-  (11)    │
-⏸ GATE L4 │  Ship Sign-Off ─────────► PO confirms before close
-          │
-✅ Done   └─► feature shipped, ledger closed, verdict: PASS
+INTAKE  kicked-off pitch (shaped + bet by the PO) + project context
+⏸ L0    Intake & Run Config ....... receipt (L0.1), lane + answer set (L0.2), spec folder, lens,
+                                    stack, eval dims, max_rounds, budgets. No shaping here.
+▶ 7     ORIENT ................... delegate orient (Scout) → orient/: code-surface map, spike
+                                    findings, discovered-task seed, hill signal. Before any board.
+⏸ L1a   Orient Review ............ 🗻 area-level Hill; riskiest area + spike result.
+▶ 7.5 ✚ WIRE ..................... delegate solution-architect → wiring-map.json (UC → engine →
+                                    seam → entry-point call site → affordance).
+⏸ L1a.5 Wiring Review ............ every UC has a declared seam; no engine orphaned. Spine-only.
+▶ 8     MAP SCOPES ............... delegate ba-pitch-analyzer (orient-informed) → spec tree +
+                                    tasks/_index.md; then scope-architect → scopes/*.json.
+⏸ L1b   Board Review ............. slices, spine, ~ nice-to-haves, deps, scope. PO signs off
+                                    BEFORE any code is written.
+▶ 9     BUILD r .................. per dispatch: compile-order → task-executor(--order) →
+                                    ingest-result. r=1 all ready tasks; r>1 ONLY last EVAL's bugs.
+                                    Discoveries → ledger → reconcile order → back to L1b.
+⏸ L2    Build Round Complete ..... EVERY task status=done. Hook-enforced; unlocks evaluation.
+▶       EVAL r ................... delegate spec-evaluator --single-pass → ONE verdict + bugs.
+                                    Once over the whole feature. Never inside BUILD.
+⏸ L3    Verdict & Loop ........... 🗻 slice-level Hill + verdict. PASS → SHIP. FAIL → bugs →
+                                    BUILD r+1. Out of rounds/clock → GATE H.
+▶ 10    QA ....................... qa-edge-hunter, post-PASS, pre-ship. Discovers; never blocks.
+▶ 11    SHIP / GATE H ............ scope-hammer: census, baseline comparison, cut list.
+⏸ L4    Ship Sign-Off ............ PO confirms before close.
+✅      shipped, ledger closed, verdict recorded
 ```
-
----
 
 ## Precondition — English-only intake (delegated to `translator`)
 
@@ -148,7 +158,10 @@ upstream and out of scope here.
 
 ## GATE L0 — Intake & Run Config
 
-Pin the run config once, up front (pitch source, language gate, appetite, workspace roots, lens, stack, eval dims, max_rounds, auto level, the L0.8 model/budget matrix, L0.9 attempt_budget); emit the `⏸ GATE L0` block, wait for PO confirm (proceed under `--unattended`), don't start ORIENT until confirmed.
+**L0.0 — INTAKE PRECONDITION** (`hooks/gate-intake.mjs`, rationale in `references/gates.md`): no pitch/spec/requirement text → **ABORT**, never narrate the pipeline.
+**L0.1 — OPEN THE RUN** (`scripts/init-run.mjs`): the first tool call of the run, before any prose. Writes `receipt.json` + `intake.md` + `harness-run.md` + `active-scope`. A session that reaches `Stop` having dispatched this skill with no receipt is blocked by `hooks/gate-zerowork.mjs` — narration is not a reachable ending.
+**L0.2 — RESOLVE THE LANE** (`scripts/gate-answers.mjs`): under `--auto`/`--unattended`, verify the answer set covers every gate this lane will hit (`--verify --auto-level <level>`) BEFORE ORIENT. A missing or `ask` answer in a headless lane is a stall that spends the whole wall-clock budget and reports as a slow harness — catch it in the first ten seconds instead. `--unattended` defaults to `--preset ci`, `--auto` to `--preset guarded`.
+Then pin the run config once, up front (pitch source, language gate, appetite, workspace roots, lens, stack, eval dims, max_rounds, auto level, the L0.8 model/budget matrix, L0.9 attempt_budget); emit the `⏸ GATE L0` block, wait for PO confirm (proceed under `--unattended`), don't start ORIENT until confirmed.
 → **Playbook (collect list L0.1–L0.9 + gate-output block):** `references/gates.md` — GATE L0.
 
 ---
@@ -425,7 +438,7 @@ Emit the `⏸ GATE L4` sign-off block (feature state, rounds, verdict + dims not
 | At GATE L3 FAIL: name scope (task + failed criterion), never prescribe fix options | Root cause analysis and fix paths belong to the implementer, not the orchestrator |
 | Max questions per gate: L0/L1a/L1b = 2; L3/L4 = 1 | Gates are pauses, not interrogations; excess questions shift authority to the wrong role |
 | SHIP harvest records facts only — copies existing structured output, never computes a new verdict/score | A self-computed score = a second judge behind spec-evaluator (breaks single-judge, invites Goodhart); the eval suite interprets, harvest records |
-| Two-level circuit breaker: attempt_budget (inner, per scope) nests inside round_budget (outer) | An exhausted scope queues a GATE H hammer proposal, it never blocks the round — only round_budget hitting 0 stops the whole run |
+| Three-level circuit breaker: attempt_budget (inner, per scope) nests inside round_budget (outer), with an opt-in wall_clock_budget_s deadline | An exhausted scope queues a GATE H hammer proposal, it never blocks the round; only round_budget hitting 0 stops the whole run; the deadline breaker routes to GATE H so a run out of clock still ships what is green instead of being killed from outside |
 | The tech lead never hand-edits a scope contract | scope-architect is its sole writer (single-writer-per-file, addendum C4); a substrate-expansion is routed through advisor-protocol → a scope-architect remap order |
 | Substrate-disjointness + PA1/PA2 lints are re-asserted at GATE L1b (spec-lint.mjs) even when scope-architect already checked them | A human may have hand-approved past a 🔴 at the architect's checkpoint; the orchestrator's own gate is the last line before BUILD starts writing |
 | Hill phase is read from mechanical facts (T0/T1/seesaw), never declared by a worker | DD-10 — closes the self-reported-confidence risk (R3) outright |
@@ -433,16 +446,3 @@ Emit the `⏸ GATE L4` sign-off block (feature state, rounds, verdict + dims not
 | GATE H is delegated to scope-hammer, never adjudicated inline by the tech lead | Keeps the orchestrator thin; census/baseline-comparison/cut-list logic has one owner |
 | GATE L1b reviews the SHARED plan (usecases/scopes), never the LOCAL task board; a missing local board is bootstrapped via a generate-board order, never treated as a blocker | `tasks/` is a LOCAL, gitignored, regenerable execution-planning artifact (v3.2) — the PO gate and grading both moved to the committed spec it was derived from |
 
----
-
-## Faithful-to-harness checklist (what this encodes from the long-running harness design)
-- Building-phase only (7–11); shaping/betting/kick-off upstream with the PO.
-- Orient before planning → `orient` Scout (step 7) feeds a reality-born board.
-- Planner once, ambitious scope, high-level tech → delegated to ba-pitch-analyzer (step 8).
-- Generator works through tasks; build round is one coherent pass → task-executor loop.
-- Evaluator is a single end-of-round pass, not per sprint → enforced at GATE L2/EVAL.
-- Rounds: BUILD r → EVAL r → BUILD r+1 (bugs) → EVAL r+1 … → PASS.
-- Judge ≠ doer: evaluator issues verdict; generator/lead own closure.
-- Files as handoff: spec tree + EVAL-FEATURE report + harness-run ledger.
-- Simplicity: the orchestrator is thin; the evaluator is skippable for trivial work
-  (the component earns its cost when the task is beyond easy solo capability).

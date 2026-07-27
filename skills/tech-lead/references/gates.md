@@ -68,6 +68,20 @@ Collect (explicit — never inferred):
         entirely and BUILD behaves exactly as in v0.2.6 (task-executor --next, no T0/seesaw).
 ```
 
+**L0.0 — intake precondition (before any other L0 collection):**
+```
+resolve intake from, in order:
+  1. --pitch <path>            (a shaping/pitch file on disk)
+  2. --spec <folder>           (an existing spec tree)
+  3. <intake> requirement text passed to the skill
+none resolvable  ->  ABORT. Print the ✋ NO INTAKE block from SKILL.md and stop.
+                     Do NOT emit the GATE L0 block. Do NOT list downstream gates.
+                     Do NOT describe the pipeline that "will" run.
+```
+An orchestrator with no spec has nothing to orchestrate. Narrating the gate list in that state
+produces output that reads exactly like a successful run and contains no work — measured at 29%
+acceptance, n=3, on the benchmark. Fail loudly instead.
+
 **GATE L0 Output:**
 ```
 ⏸ GATE L0 — Intake & Run Config

@@ -31,6 +31,7 @@ const MODULE_FILES = [
   "06-ba-pitch-analyzer.mjs",
   "07-spec-evaluator.mjs",
   "09-anti-lying-kit.mjs",
+  "10-run-receipt.mjs",
   "08-docs.mjs",
 ];
 

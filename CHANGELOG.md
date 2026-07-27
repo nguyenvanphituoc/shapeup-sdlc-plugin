@@ -3,10 +3,74 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.4.0] — 2026-07-27
 
-**Discovery + friction release (P0/P1 of the market-position report).** The repo had rigor and
-no funnel: null description, no topics, a README that opened on install troubleshooting, one
+### Added — the benchmark-correction release
+
+Four mechanisms, each a direct response to a failure measured on `sdd-harness-bench` — the
+harness's own benchmark, in which it was the only arm that failed to finish a feature and the only
+arm to score below 100%. Every one of these moves an invariant out of a prompt and into the
+runtime, which is the project's organising rule; each was living in a prompt precisely because
+prompts are what get dropped, paraphrased, or summarised.
+
+- **`scripts/init-run.mjs` — the run receipt (GATE L0.1).** The orchestrator's first tool call,
+  before any prose. Writes `receipt.json`, `intake.md` (the requirement verbatim + SHA-256),
+  `harness-run.md`, and `active-scope`. It supplies the one fact the system was missing: *a run
+  started*. Every prior guard could only observe what a run **did**, so a run that did nothing was
+  invisible to all of them.
+- **`hooks/gate-zerowork.mjs` — the zero-work block (Stop, blocking).** Blocks a session that
+  dispatched `tech-lead` and left no receipt. Measured cause: given a *valid* spec, the
+  orchestrator loaded a 450-line instruction file describing eleven gates and returned a
+  description of eleven gates — "The tech-lead skill is orchestrating the full Shape Up harness.
+  It will: 1. …" — then ended. 29% acceptance, 10 escaped defects, 5/5 with zero variance, and
+  prose that read like a clean run. Both existing guards structurally could not see it: one is
+  scoped to an active run (a run that never started leaves no files), and the other matched
+  past-tense completion claims while narration is *future*-tense. This one blocks on a mechanical
+  absence, so no phrasing can change its verdict. It does not violate "QA is a level-up, not a
+  gate": it makes no quality judgment, it reports that no work exists to judge.
+- **`scripts/gate-answers.mjs` + `schemas/gate-answers.schema.json` — pre-recorded gate
+  decisions.** Sign-off was the last load-bearing invariant still carried in prose, and prose
+  consent is consent that can be paraphrased — Sonnet 5 acted on it, Haiku 4.5 re-summarised it.
+  Presets `ci` / `guarded` / `interactive`; the orchestrator resolves each gate through the script
+  and branches on the exit code (`0` cross, `4` stop for the PO, `5` abort). **Not "gates off":**
+  every gate still emits its block and still records a decision — what changes is the decision's
+  *source*, which the ledger names along with the set's `authorized_by`. `--verify` catches a set
+  that would stall a headless lane in ten seconds instead of at the wall-clock cap.
+- **The third circuit breaker — `scripts/budget-check.mjs` + `hooks/gate-deadline.mjs`.** Both
+  existing breakers count *events* (`round_budget` per round, `attempt_budget` per T0 attempt), so
+  neither can observe that a single round has been running for half an hour. Re-reading the
+  benchmark's F3 timeout showed 327 turns, 262 tool calls, 37 writes, last gate L3 and **zero**
+  stall signals — it was working, not waiting, and was killed from outside having shipped nothing,
+  including the scopes that had already passed T0. Past the deadline the hook denies new
+  `task-executor` work and routes to GATE H; `spec-evaluator`, `scope-hammer`, `qa-edge-hunter`
+  and `advisor-protocol` stay reachable, because a run past its deadline must still be able to
+  judge, hammer and close. Opt-in (`--wall-clock-budget`); off by default, no regression.
+
+- **`scripts/fit-check.mjs` — the lane, computed rather than judged (GATE L0.3).** The harness
+  already knew F1 was small ("squarely inside the --tiny lane", pilot transcript) and ran the full
+  pipeline anyway, because the lane was a judgment a model can talk itself out of. Measured cost:
+  a three-file feature never once completed the eleven-gate pipeline across four benchmark
+  attempts, and every fix that treated it as a breaker problem improved the *failure* without
+  shortening the *run*. The lane is now computed at run-open from the intake and the tree, recorded
+  in the receipt with its evidence, and `--lane` overrides are recorded AS overrides. Conservative
+  by construction: `full` is the default and `tiny` must be earned on every axis, because a wrong
+  `tiny` skips gates on a change that needed them while a wrong `full` only costs money. Thresholds
+  are fitted on three features and the tool says so on every invocation. (The first version asked
+  "is there evidence this is big?" and defaulted to tiny — it classified all three benchmark
+  features as tiny, including the five-seam one. Discarded rather than tuned.)
+
+### Changed
+- **`skills/tech-lead/SKILL.md` opens with a runbook, not an architecture.** The first screen is
+  now four imperative steps beginning with a tool call; the state model moved to
+  `references/state-model.md`. Everything before the first tool call is narration surface, and a
+  450-line description of a pipeline is what a cheap model returns a description of.
+- **`hooks/anti-rationalization.mjs` also detects a future-tense promise** left as the session's
+  last word. A promise at the *end* of a session is a completion claim wearing different grammar.
+- The circuit breaker is documented as **three-level** throughout.
+
+### Also in 1.4.0 — discovery + friction (P0/P1 of the market-position report)
+
+The repo had rigor and no funnel: null description, no topics, a README that opened on install troubleshooting, one
 slash command, a Playwright prerequisite for runs that never touch a browser, and no lane for
 small changes. This release is that fix — almost no mechanism changes, a lot of front door.
 

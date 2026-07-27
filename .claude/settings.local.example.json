@@ -8,5 +8,13 @@
     "SHAPEUP_ROUND_BUDGET": "3",
     "SHAPEUP_ATTEMPT_BUDGET": "5",
     "SHAPEUP_DIGESTER_MODEL": "script"
+  },
+  "_permissions_readme": "The harness's pipeline scripts ship with the plugin and therefore live OUTSIDE your project. Under any permission mode short of bypassPermissions, running a script from outside the working directory needs approval — once per session interactively, and never in a headless run, where nobody is there to grant it. `npx shapeup-sdlc init` writes this block for you; it is reproduced here so you can see exactly what is being pre-approved. Scope is the harness's own deterministic, dependency-free, network-free scripts and nothing else — not a general Bash(node:*).",
+  "permissions": {
+    "allow": [
+      "Bash(node ${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/:*)",
+      "Bash(node ${CLAUDE_PLUGIN_ROOT}/skills/ba-pitch-analyzer/scripts/:*)",
+      "Bash(node ${CLAUDE_PLUGIN_ROOT}/skills/spec-evaluator/scripts/:*)"
+    ]
   }
 }

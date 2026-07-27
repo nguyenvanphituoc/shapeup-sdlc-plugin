@@ -39,7 +39,7 @@ dist/                    compiled Cursor rules/extension + Antigravity subagents
   the hunter.
 - **Role separation.** Evaluator grades, task-executor fixes, QA discovers — no one does
   another's job.
-- **Two-level circuit breaker.** An exhausted scope queues a proposal; only the outer round
+- **Three-level circuit breaker.** An exhausted scope queues a proposal; only the outer round
   budget hitting zero stops the whole run.
 - **Hill phase is mechanical.** Derived only from T0 / T1 / seesaw facts — never self-reported
   by a worker.

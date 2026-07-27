@@ -54,11 +54,26 @@ export function activeSlug(cwd) {
   return null;
 }
 
-/** Does the text claim the work is finished? */
+/**
+ * Does the text claim the work is finished — or promise that it is about to be?
+ *
+ * The past-tense half is the original detector. The future-tense half was added after the SDD
+ * harness benchmark produced a transcript this hook should have caught and structurally could
+ * not: the session ended on "The tech-lead skill is orchestrating the full harness. It will: 1…".
+ * A promise at the END of a session is a completion claim wearing different grammar — the run is
+ * over, and the thing it says it will do is never going to happen. Matching only past tense meant
+ * the emptiest failures were the least detectable, which is backwards.
+ *
+ * (The zero-work case — dispatched and never started — belongs to `gate-zerowork.mjs`, which
+ * blocks on a mechanical absence rather than on phrasing. This one covers narration INSIDE a run
+ * that did start.)
+ */
 export function detectClaim(text) {
   if (!text || typeof text !== "string") return null;
-  const m = /\b(done|complete(?:d)?|finished|shipped|ready to ship|all (?:tests|tasks) pass(?:ing|ed)?|everything works)\b/i.exec(text);
-  return m ? m[1] : null;
+  const past = /\b(done|complete(?:d)?|finished|shipped|ready to ship|all (?:tests|tasks) pass(?:ing|ed)?|everything works)\b/i.exec(text);
+  if (past) return past[1];
+  const future = /\b(will (?:now )?(?:run|orchestrate|execute|proceed|begin|start)|is orchestrating|I'?ll (?:now )?(?:run|start|begin|orchestrate)|going to (?:run|orchestrate|execute))\b/i.exec(text);
+  return future ? future[0] : null;
 }
 
 /** Read-only mechanical facts about the run — the evidence the claim is checked against. */

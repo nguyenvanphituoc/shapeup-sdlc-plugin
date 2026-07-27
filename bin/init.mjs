@@ -191,6 +191,8 @@ function installClaude() {
   }
 
   // Fallback: merge settings.json natively (the whole reason this file is Node).
+  //
+  // (See mergePipelinePermissions below — it runs on both paths.)
   let settings = {};
   if (existsSync(settingsFile)) {
     try { settings = JSON.parse(readFileSync(settingsFile, "utf8")); }
@@ -204,9 +206,46 @@ function installClaude() {
   settings.extraKnownMarketplaces[MARKETPLACE_KEY] = { source: { source: "github", repo: REPO } };
   settings.enabledPlugins = settings.enabledPlugins || {};
   settings.enabledPlugins[PLUGIN_KEY] = true;
+  mergePipelinePermissions(settings);
   writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + "\n");
-  console.log(`  [claude] merged marketplace + plugin into ${rel(settingsFile)}`);
+  console.log(`  [claude] merged marketplace + plugin + pipeline permissions into ${rel(settingsFile)}`);
   console.log("  [claude] the plugin auto-enables on the next session opened in this directory");
+}
+
+/**
+ * Pre-approve the harness's OWN pipeline scripts, and nothing else.
+ *
+ * WHY THIS EXISTS (measured, on this project's own benchmark).
+ *
+ * Every load-bearing step of a run is a Node script that ships with the plugin and therefore
+ * lives OUTSIDE the project — `${CLAUDE_PLUGIN_ROOT}/skills/**\/scripts/*.mjs`. Under any
+ * permission mode short of `bypassPermissions`, executing a script from outside the working
+ * directory needs approval. In an interactive session you click once and forget it. In a headless
+ * one there is nobody to click, and the run cannot take its first step.
+ *
+ * That is not hypothetical. On `sdd-harness-bench`, the run receipt step (`init-run.mjs`) was
+ * attempted six different ways in a single session — direct, via a heredoc, via two hand-written
+ * wrapper scripts, via a sub-agent — and every one came back "This command requires approval".
+ * The agent eventually gave up on the harness and built the feature by hand. It is the failure the
+ * receipt was designed to make visible, arriving through the door the receipt itself opened.
+ *
+ * Scope is deliberately narrow: `node <plugin>/skills/.../scripts/*.mjs`, by prefix. This grants
+ * the harness the right to run its own deterministic, dependency-free, network-free scripts. It
+ * grants no general `Bash(node:*)`, which would be a much larger ask for a much smaller reason.
+ *
+ * @param {object} settings - Parsed settings.json, mutated in place.
+ * @returns {void}
+ */
+function mergePipelinePermissions(settings) {
+  const PREFIXES = [
+    "node ${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/",
+    "node ${CLAUDE_PLUGIN_ROOT}/skills/ba-pitch-analyzer/scripts/",
+    "node ${CLAUDE_PLUGIN_ROOT}/skills/spec-evaluator/scripts/",
+  ];
+  settings.permissions = settings.permissions || {};
+  const allow = new Set(settings.permissions.allow || []);
+  for (const p of PREFIXES) allow.add(`Bash(${p}:*)`);
+  settings.permissions.allow = [...allow];
 }
 
 function replaceSkills(cli) {

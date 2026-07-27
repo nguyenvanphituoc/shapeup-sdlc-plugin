@@ -13,9 +13,19 @@ Three consequences, in the order a reader should meet them:
 1. **Gates are enforced, not requested.** A `PreToolUse` hook (`hooks/gate-l2.mjs`) hard-denies
    the once-per-round EVAL delegation while the board is not green — the tool call never reaches
    the evaluator. *Prevents: EVAL run on a half-green board, reported as PASS.*
+   Sign-off itself is a file, not prose: `scripts/gate-answers.mjs` resolves each gate from a
+   schema-validated answer set (`ci` / `guarded` / `interactive`) and the orchestrator branches on
+   its exit code — 0 cross, 4 stop for the PO, 5 abort. Gates still emit their blocks and still
+   record a decision; what changes is that the decision's **source** is named in the ledger.
+   *Prevents: consent carried in a prompt paragraph, which gets paraphrased instead of acted on.*
 2. **Progress is derived, never claimed.** Hill phase comes only from T0/T1/seesaw artifacts on
    disk, and the evaluator must cite a T0 artifact it re-hashes itself. *Prevents: a worker
    asserting "done" with nothing behind it.*
+   And **starting** is itself a fact on disk: `scripts/init-run.mjs` writes
+   `.shapeup-sdlc/<slug>/receipt.json` as the run's first tool call, so a session that dispatched
+   the orchestrator and left no receipt is blocked at `Stop` by `hooks/gate-zerowork.mjs`.
+   *Prevents: the orchestrator describing its own pipeline in future tense and stopping — measured
+   at 29% acceptance with 10 escaped defects while reading like a clean run.*
 3. **Parallel work cannot corrupt shared state.** Per-scope substrate write-whitelists are hook-
    enforced, and exactly one script (`ingest-result.mjs`) performs every board/ledger/verdict
    write. *Prevents: two executors rewriting the board, one's completions vanishing.*
@@ -77,9 +87,13 @@ All discovered tasks are funnelled into `.shapeup-sdlc/<slug>/discovery/ledger.m
 - **Ledger = single source of truth** — all discovery flows write only to their own section.
 - **QA is a level-up, not a gate** — `--no-qa` can skip it; circuit breaker outranks the Hunter.
 - **Role separation** — Evaluator grades, task-executor fixes, QA discovers; no cross-role work.
-- **Two-level circuit breaker ✦** — outer `round_budget` (build+eval cycles) nests an inner
+- **Three-level circuit breaker ✦** — outer `round_budget` (build+eval cycles) nests an inner
   per-scope `attempt_budget` (T0 attempts); an exhausted scope queues a GATE H proposal, it
-  never blocks the round.
+  never blocks the round. A third, opt-in `wall_clock_budget_s` breaker (`budget-check.mjs`,
+  enforced by `hooks/gate-deadline.mjs`) covers the axis the other two cannot see — both count
+  events, so neither notices a single round running for half an hour. Tripping it routes to
+  GATE H rather than killing the run: a run killed from outside ships nothing, a run that trips
+  its own breaker ships what is green.
 - **Hill phase is mechanical, never self-reported ✦** — derived only from T0/T1/seesaw facts.
 - **Envelope port (v1.0)** — every worker dispatch is WorkOrder in / WorkResult out; shared
   state is written only by `ingest-result.mjs`; a malformed envelope is denied by hook before
@@ -103,6 +117,7 @@ All discovered tasks are funnelled into `.shapeup-sdlc/<slug>/discovery/ledger.m
 ## Setup & Execution
 
 - Envelope schemas ship inside the orchestrator skill: \`skills/tech-lead/schemas/\`; the pipeline scripts live beside their owning skill (\`skills/tech-lead/scripts/\`, \`skills/ba-pitch-analyzer/scripts/\`); orders/results live in \`.shapeup-sdlc/<slug>/orders|results/\`
+- **Run entry points** — \`init-run.mjs\` (GATE L0.1, opens the run and writes the receipt), \`gate-answers.mjs\` (resolves a gate from the answer set), \`budget-check.mjs\` (the deadline breaker). Because these ship WITH the plugin they live outside your project, so they need a one-time permission grant; \`npx shapeup-sdlc init\` writes it into \`.claude/settings.json\` (\`permissions.allow\`). Without it a headless run cannot take its first step — measured, 26 approval denials in one session.
 - **Central domain registry** — \`skills/tech-lead/schemas/domain.schema.json\` defines every cross-boundary record type and payload field ONCE (annotated with tier/location/writer/readers, the \`x-erd\` relationship map, and the \`x-payload-by-worker\` table); the envelope schemas \`$ref\` it and no skill defines its own cross-boundary field
 - Telemetry facts for shipped features are saved to: \`docs/shapeup-sdlc/metrics/<machine-id>.jsonl\` (sharded per machine)
 - Ephemeral logs and states are stored in: \`.shapeup-sdlc/\` (Gitignored)
