@@ -7,7 +7,7 @@
 
 Four spec-driven-development harnesses, three no-harness controls, and an acceptance suite none of them ever saw. Run by the author of one of the four — who lost, found that half of what he'd concluded about losing was wrong, then built the one experiment his own tool was expected to win and watched a single sentence of prompt match it for a seventh of the price.
 
-**Scored runs:** 78 · **Features:** 4 · **Arms:** 7 · **Models:** 2 · **Transcripts:** 104 · **Corrections:** 15 · **Discarded:** 12 · **Rows unscored:** 20
+**Scored runs:** 95 · **Features:** 4 · **Arms:** 7 + 3 writer controls · **Models:** 2 · **Transcripts:** 144 · **Corrections:** 17 · **Discarded:** 12 · **Rows unscored:** 20
 
 ---
 
@@ -548,7 +548,7 @@ applies is much wider than §09's prose suggests, and the map above is the hones
 
 ---
 
-## 11 — P4, in progress: what auditing our own headline has already turned up
+## 11 — P4: auditing our own headline, and retracting part of it
 
 P4 exists to attack §09's result on two specific counts — a headline resting on **one arbitrary cut
 point**, and a p-value quoted at **the wrong unit of analysis**. The sweep that settles the first is
@@ -637,29 +637,81 @@ Two of the five were introduced *during* P4, by the same hand that had just docu
 one. Both were caught by writing the rule down as a check rather than by being more careful, which is
 the same argument the plugin fix rests on and the reason it is stated here rather than quietly fixed.
 
-### The sweep itself: running, gate unresolved
+### The sweep reported: BRANCH B, and the retraction is narrower than the name
 
-The six pre-declared cut points are frozen in `PROTOCOL.md` and in code — `sweep.mjs --caps` can
-select from the list and cannot extend it — and they run outermost-first (30, 120, 60, 90, 45, 75) so
-a truncated sweep still spans the range instead of clustering at one end. **No branch is called
-here.** What can be said before the remaining points land is that the emerging shape is not the one
-predicted: at the lowest cut the writer arm did not write at all, so there is nothing to inherit and
-no separation, while at the highest cut both arms finish the feature inside the cut. That is a
-*band* with two edges — one set by how long the mechanism takes to fire, one by the control writing
-working code — rather than the single crossing the registered prediction described. Whether those
-edges are where the interval-disjointness test puts them is what the outstanding points decide.
+The six cut points were frozen in `PROTOCOL.md` and in code — `sweep.mjs --caps` selects from the
+list and cannot extend it. The gate rule, `runner/gate-s1.mjs`, was **committed before the data it
+decides on existed**, and `runner/p4-pipeline.sh` branches on its *exit status* rather than on
+anyone's reading of the curve. There was no threshold left to move at the moment of decision.
 
-One number from the sweep is worth recording now as a caution about n=3: two independent sets of
-three `bare` runs at the *same* 30 s cut produced gap-closed medians of 13% [0–19] and 0% [0–0]. The
-first set was retracted for the transcript defect and re-run, which is the only reason both exist —
-and the spread between them is a reminder that a three-run cell locates a range, not a point.
+It returned branch B. The run stopped at **$13.41**, with roughly **$95 of the authorised envelope
+unspent**.
+
+| cut | `bare` gap closed | `bare-intake` gap closed | **write rate** | separates? |
+|---|---|---|--:|---|
+| 30 s | 0, 0, 0 | 19, 0, 19 | **0/3** | no |
+| 60 s | 19, 19, 19 | 100, 19, 19, 0, 19, 19, 19, 100 | **3/8** | no |
+| 90 s | 0, 44, 67 | 100, 100, 19 | **2/3** | no |
+
+**On Sonnet 5 there is no cut at which the two arms can be ordered.**
+
+### The arm is not the mechanism
+
+`handover_bytes` records per row whether the file was *actually written*. It is published beside the
+recovery only because invariant Q4 demanded it, and that is the sole reason the next table exists.
+Conditioning within `bare-intake`, on Sonnet:
+
+| Sonnet, `bare-intake`, 60 s + 90 s | gap closed |
+|---|---|
+| **wrote the file** (n=5) | 100, 100, 100, 100, **0** |
+| **did not write** (n=6) | 19, 19, 19, 19, 19, 19 |
+
+**p = 0.015** (Fisher exact, one-tailed, success = gap closed ≥ 94%) — **within one arm and one
+model**, so neither K1's arm-clustering nor §6's model-pooling applies. The six rows that did not
+write closed *exactly* 19%, six times out of six: the figure `bare` posts at that cut. When the
+sentence does not fire, `bare-intake` **is** `bare`.
+
+`bare-intake` is not a mechanism. It is a one-sentence **trigger** for one, and it fires
+probabilistically — **3/3 on Haiku, 3/8 on Sonnet**. An arm-level comparison therefore measures the
+effect *multiplied by the trigger's reliability*. At 3/3 that dilution is invisible and the arms
+separate cleanly, which is what §09 saw. At 3/8 it destroys any orderable separation while leaving
+the underlying effect untouched.
+
+**Retracted:** any reading of §09 in which *choosing the `bare-intake` arm* buys recovery on Sonnet,
+and P4's own curve-per-arm framing, which could only ever see the product of the two.
+**Not retracted:** §09's actual published sentence, which was always about files and never about
+arms — and which this data supports more strongly than §09's own did.
+
+Branch H fired alongside it: at 60 s Haiku's arms **are** disjoint ([17–67] against [94–100]) and
+Sonnet's are not. Both are published, neither pooled. That split is exactly what the deleted **S4**
+stage existed to buy for $25; moving the sweep to Sonnet produced it for nothing.
+
+### A prediction of the author's died here, on the first cell that could kill it
+
+Hours before these cells were bought, a **turn-threshold hypothesis** was registered: every first
+write in the record landed at turn ≥ 19, so the cut in *seconds* might really be buying a *turn*
+budget. A 90 s row then wrote at **turn 16**. Prediction 1 is refuted and recorded as refuted.
+Prediction 3 — that the instruction buys no *promptness*, only different content — survived. The
+third named cells that branch B means are never bought, and is recorded unresolved rather than
+quietly dropped.
+
+**What was deliberately not bought.** `n` was **not** raised at 90 s to resolve the overlap. Raising
+reps after seeing which way an overlap fell is the exact move pre-registration exists to prevent.
+
+One number is worth keeping as a caution about n=3: two independent sets of three `bare` runs at the
+*same* 30 s cut produced gap-closed medians of 13% [0–19] and 0% [0–0]. The first was retracted for
+the transcript defect and re-run, which is the only reason both exist — and the spread is a reminder
+that a three-run cell locates a range, not a point.
 
 ---
 
-*§11 is mid-stage.* The P4 cut-point sweep is still running, so its totals move and **no P4 branch is
-called yet**. Every §01–§10 figure is final and unaffected. Twelve P4 rows are retracted to
-`transcript_collided` and excluded from scoring — the reason is above and in `DISCARDED-RUNS.md`.
+*§11's sweep is complete and its branch is called: **B**.* Every §01–§10 figure is final and
+unaffected. One P4 stage remains in flight — the `shapeup-sdlc` v1.4.1 re-measure, which sits
+outside the S1 gate on its own registration — so the arm-level v1.4.1 figures are not yet in.
+Twelve P4 rows are retracted to `transcript_collided` and excluded from scoring; the reason is above
+and in `DISCARDED-RUNS.md`.
 
-At the time of writing: 81 scored runs · 4 features · 7 arms + 3 writer controls · 185 rows ·
-114 transcripts retained · `claude-sonnet-5` and `claude-haiku-4-5-20251001`, every number labelled
-with its model · $5 of P4's fresh $150 envelope spent.
+At the time of writing: 95 scored runs · 4 features · 7 arms + 3 writer controls · 213 rows ·
+144 transcripts retained · `claude-sonnet-5` and `claude-haiku-4-5-20251001`, every number labelled
+with its model · F4 alone was 108 sessions and ~$56 · **$14.61 of P4's fresh $150 envelope spent**,
+of which the sweep was $13.41 — the kill gate stopped it, not the budget.
