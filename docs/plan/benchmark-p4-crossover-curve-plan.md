@@ -349,17 +349,23 @@ results table itself**, not in a footnote.
 
 Every stage is **Sonnet 5**. One model end to end, so no comparison in this plan straddles two.
 
-| Stage | Sessions | Projected | Cumulative | Gate that can stop here |
+| Stage | Sessions | Projected | **Actual** | Gate that can stop here |
 |---|--:|--:|--:|---|
-| S0 instrument | 0 | $0 | $0 | tests green; **arm-level fix ships here regardless** |
-| S1 gate cuts (30s, 90s) | 24 | ~$10 | $10 | **no separation ⇒ retract F4's headline, publish, stop** |
-| S1 resolution (120s, 45s, 75s) | 36 | ~$14 | $24 | — |
-| S2 arm power | 18 | ~$9 | $33 | — |
-| R v1.4.1 re-measure | 6 | ~$20 | $53 | **`turns_to_first_write` still 82–120 ⇒ the fix did not reach the measured path** |
-| S3.0 compaction spike | 1 | ~$10 | $63 | **cannot trigger ⇒ publish the limit, stop** |
-| S3.1 compaction cell | 18 | ~$45 | **~$108** | — |
+| S0 instrument | 0 | $0 | **$0** ✅ | tests green; **arm-level fix ships here regardless** |
+| S1 gate cuts (30s, 90s) | 24 | ~$10 | **$14.61** ✅ | **no separation ⇒ retract, publish, stop — THIS GATE FIRED** |
+| S1 resolution (120s, 45s, 75s) | 36 | ~$14 | **$0 — not bought** 🛑 | killed by branch B |
+| S2 arm power | 18 | ~$9 | **$0 — not bought** 🛑 | killed by branch B |
+| R v1.4.1 re-measure | 6 | ~$20 | **$28.01** ✅ | `turns_to_first_write` left the band, so the stage was read |
+| S3.0 compaction spike | 1+ | ~$10 | **in flight** | **cannot trigger ⇒ publish the limit, stop** |
+| S3.1 compaction cell | 18 | ~$45 | gated on S3.0 | — |
 | ~~S4 Sonnet crossing~~ | ~~6~~ | **absorbed into S1** | — | — |
-| S5 publication | 0 | $0 | ~$108 | — |
+| S5 publication | 0 | $0 | **$0** ✅ | — |
+
+**Actual to date: $42.62 of $150.** The two stages that were never bought were stopped by a gate,
+not by the budget — the envelope had ~$95 spare at the moment branch B fired. S1 came in $4.61 over
+its projection because the 90 s cell ran to n=5 (see the 2026-07-29 disclosure), and stage R came in
+$8 over because all three of its runs consumed the full 1800 s window instead of the mixed profile
+v1.4.0 showed.
 
 **Stage R is the re-measure of the author's own arm after the F-16 fix**, registered in
 `PROTOCOL.md §9` on 2026-07-28 but never costed in this plan — an omission corrected here *before*
