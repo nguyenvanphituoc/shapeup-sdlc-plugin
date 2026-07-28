@@ -160,7 +160,7 @@ point, a single-arm comparison, and a statistic computed at the wrong level.
 
 ### Appetite
 
-**Two weeks, ~$88 of a fresh $150** — and the first **$9.60** of it decides whether the remaining
+**Two weeks, ~$108 of a fresh $150** — and the first **$9.60** of it decides whether the remaining
 $78 is spent at all. If a stage does not fit, the *sweep resolution* gets cut — never the
 repetitions, never the arm-level power fix, never the honesty corrections.
 
@@ -350,21 +350,31 @@ Every stage is **Sonnet 5**. One model end to end, so no comparison in this plan
 | S1 gate cuts (30s, 90s) | 24 | ~$10 | $10 | **no separation ⇒ retract F4's headline, publish, stop** |
 | S1 resolution (120s, 45s, 75s) | 36 | ~$14 | $24 | — |
 | S2 arm power | 18 | ~$9 | $33 | — |
-| S3.0 compaction spike | 1 | ~$10 | $43 | **cannot trigger ⇒ publish the limit, stop** |
-| S3.1 compaction cell | 18 | ~$45 | **~$88** | — |
+| R v1.4.1 re-measure | 6 | ~$20 | $53 | **`turns_to_first_write` still 82–120 ⇒ the fix did not reach the measured path** |
+| S3.0 compaction spike | 1 | ~$10 | $63 | **cannot trigger ⇒ publish the limit, stop** |
+| S3.1 compaction cell | 18 | ~$45 | **~$108** | — |
 | ~~S4 Sonnet crossing~~ | ~~6~~ | **absorbed into S1** | — | — |
-| S5 publication | 0 | $0 | ~$88 | — |
+| S5 publication | 0 | $0 | ~$108 | — |
 
-**Fresh envelope $150. Worst case ~$88, leaving ~$62 of headroom** — deliberately wide, because P3
+**Stage R is the re-measure of the author's own arm after the F-16 fix**, registered in
+`PROTOCOL.md §9` on 2026-07-28 but never costed in this plan — an omission corrected here *before*
+the spend, not after it. It is expensive for its size because `shapeup-sdlc` on Sonnet costs
+**$6.58/pair** measured, against $0.79 for `bare`: 3 pairs at 60s ≈ $20. That ratio is itself a
+published finding (§6 Q8 clause 5), and it is the reason this stage cannot be waved through as
+bookkeeping.
+
+**Fresh envelope $150. Worst case ~$108, leaving ~$42 of headroom** — deliberately wide, because P3
 derived its cap from the wrong quantity **twice** and each correction cost a re-run. Slack is not
 unspent budget; it is the price of the instrument being wrong again, which it will be.
 
 **The all-Sonnet move left the envelope untouched and the worst case $9 lower.** The Sonnet premium
 on S1 (+$13) and S2 (+$3) is more than paid for by deleting S4 (−$25) and by inheriting the already-
 measured 60s cell (−$0, but it removes 6 pairs of work). The budget was not raised to afford the
-better model; the plan stopped buying the same measurement twice.
+better model; the plan stopped buying the same measurement twice. Stage R then adds $20 that the
+plan had simply never counted — the honest total is $108, not the $88 the model change alone
+implies.
 
-**Most likely case is far less than $88.** Two gates stop under $45, the first of them at ~$10, and
+**Most likely case is far less than $108.** Two gates stop under $65, the first of them at ~$10, and
 both outcomes are publishable — one of them a retraction of this project's own headline.
 
 ---
@@ -428,7 +438,7 @@ has ever had, and it needs to be registered in advance to count as one.
 | The sweep confirms F4 and looks like self-justification | Branch B is pre-declared as a retraction and costs $11 to reach. The prediction is registered, including branch D. |
 | n=3 is too thin for six points | The claim is interval-overlap between two arms at each cut, not a fitted curve. Where intervals overlap, the aggregator already refuses to order them. |
 | Variance swamps the signal (F4 saw 17–67% within one cell) | Six cut points at n=3 is 18 rows per arm — more data on this axis than F4 had in total. If variance still swamps it, that is branch B. |
-| Budget overruns as in F4 | ~$62 of deliberate headroom, and the cap-enforcement check now fails loudly instead of silently granting extra time. |
+| Budget overruns as in F4 | ~$42 of deliberate headroom, and the cap-enforcement check now fails loudly instead of silently granting extra time. |
 | **The reset budget dissolves the discipline that made P3 work** | The reset section, binding: gate order unchanged, kill gates still kill, cheapest stage still decides. Every stage opens with a probe. The **$9.60** of S1's gate cuts gates the $78 above it, exactly as $3.54 gated $35 in P3. |
 | **The move to Sonnet is the reset budget dissolving the discipline, wearing a §6 costume** | The test is whether the move *raised* the bill. It did not: worst case fell from ~$97 to ~$88 because S4 was deleted and the 60s cell was already bought. A model change that makes the plan cheaper is not budget indiscipline. If it had cost more, no-go #6 should have stood. |
 | **The reversal of a same-day no-go is the author editing a pre-registration to suit himself** | The reversal is dated, reasoned, struck through rather than deleted (Q9), and recorded in `PROTOCOL.md §9` beside the rule it overturns — **before the first Sonnet sweep run**. Its stated reason is falsifiable and was checked: no-go #6 claimed 3–5×, the measured figure is 2.8× (n=11 vs n=12 pairs, already on disk). Critically, **the Haiku sweep was incomplete when it was reversed**, so there was no result on the table to dislike. |
@@ -532,7 +542,7 @@ has ever had, and it needs to be registered in advance to count as one.
 - **Whether to buy back the cross-model comparison S4 used to provide.** The Haiku curve is partial
   and mostly unscored; completing it at the two gate cuts would cost roughly **$7** on Haiku's
   measured $0.29/pair and would turn branch H from residue into a designed result. It is the
-  cheapest unclaimed finding on the table and there is ~$62 of headroom. I am not proposing it
+  cheapest unclaimed finding on the table and there is ~$42 of headroom. I am not proposing it
   before S1's gate, because a comparison between two curves is worthless until the first one has a
   shape.
 - **Whether F5's seed is worth building at all** is decided by a $10 spike, not by this document.
