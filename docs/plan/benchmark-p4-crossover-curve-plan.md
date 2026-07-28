@@ -161,14 +161,14 @@ point, a single-arm comparison, and a statistic computed at the wrong level.
 ### Appetite
 
 **Two weeks, ~$108 of a fresh $150** — and the first **$9.60** of it decides whether the remaining
-$78 is spent at all. If a stage does not fit, the *sweep resolution* gets cut — never the
+$98 is spent at all. If a stage does not fit, the *sweep resolution* gets cut — never the
 repetitions, never the arm-level power fix, never the honesty corrections.
 
 The shape is deliberately the same as P3's: **the cheapest stage is the one that gates the
 expensive ones.** Moving to Sonnet does not weaken that — the decision is callable after **12 pairs
 (~$9.60)**, which is *cheaper* than the $17 the old Haiku plan needed to reach its first gate,
 because the 60s cut is already bought. Two of the branches below stop the spend early — one at
-**~$10**, the other at ~$43 — and both are publishable.
+**~$10**, the other at ~$63 — and both are publishable.
 
 ### Solution — one curve, three new writer arms, one statistics fix
 
@@ -439,7 +439,7 @@ has ever had, and it needs to be registered in advance to count as one.
 | n=3 is too thin for six points | The claim is interval-overlap between two arms at each cut, not a fitted curve. Where intervals overlap, the aggregator already refuses to order them. |
 | Variance swamps the signal (F4 saw 17–67% within one cell) | Six cut points at n=3 is 18 rows per arm — more data on this axis than F4 had in total. If variance still swamps it, that is branch B. |
 | Budget overruns as in F4 | ~$42 of deliberate headroom, and the cap-enforcement check now fails loudly instead of silently granting extra time. |
-| **The reset budget dissolves the discipline that made P3 work** | The reset section, binding: gate order unchanged, kill gates still kill, cheapest stage still decides. Every stage opens with a probe. The **$9.60** of S1's gate cuts gates the $78 above it, exactly as $3.54 gated $35 in P3. |
+| **The reset budget dissolves the discipline that made P3 work** | The reset section, binding: gate order unchanged, kill gates still kill, cheapest stage still decides. Every stage opens with a probe. The **$9.60** of S1's gate cuts gates the $98 above it, exactly as $3.54 gated $35 in P3. |
 | **The move to Sonnet is the reset budget dissolving the discipline, wearing a §6 costume** | The test is whether the move *raised* the bill. It did not: worst case fell from ~$97 to ~$88 because S4 was deleted and the 60s cell was already bought. A model change that makes the plan cheaper is not budget indiscipline. If it had cost more, no-go #6 should have stood. |
 | **The reversal of a same-day no-go is the author editing a pre-registration to suit himself** | The reversal is dated, reasoned, struck through rather than deleted (Q9), and recorded in `PROTOCOL.md §9` beside the rule it overturns — **before the first Sonnet sweep run**. Its stated reason is falsifiable and was checked: no-go #6 claimed 3–5×, the measured figure is 2.8× (n=11 vs n=12 pairs, already on disk). Critically, **the Haiku sweep was incomplete when it was reversed**, so there was no result on the table to dislike. |
 | **The rate-limit window is the real schedule constraint, and Sonnet consumes it 2.8× faster** | Accepted, not mitigated — see "The model move". The plan does not claim Sonnet is faster; it claims deleting a serialized stage shortens the critical path. Elapsed time per window gets worse. The sweep is resumable and spend-capped, so windows cost time and never re-runs. |
