@@ -794,5 +794,6 @@ and in `DISCARDED-RUNS.md`.
 
 At the time of writing: 98 scored runs · 4 features · 7 arms + 3 writer controls · 219 rows ·
 148 transcripts retained · `claude-sonnet-5` and `claude-haiku-4-5-20251001`, every number labelled
-with its model · F4 alone was 108 sessions and ~$56 · **$42.62 of P4's fresh $150 envelope spent** —
-the sweep $14.61, stage R $28.01. The kill gate stopped the sweep, not the budget.
+with its model · F4 alone was 108 sessions and ~$56 · **$57.36 of P4's fresh $150 envelope spent** —
+the sweep $14.61, stage R $28.01, the compaction spike $14.74. Both kill gates stopped their
+stages; the budget stopped nothing.
