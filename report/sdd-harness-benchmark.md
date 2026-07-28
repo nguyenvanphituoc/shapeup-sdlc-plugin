@@ -751,6 +751,39 @@ where it was.** The finding about the inert enforcement layer was right about ev
 was not what stood between this tool and a recovered feature — and the only reason that sentence
 carries any weight is that it was registered before the $28 that confirmed it.
 
+### And the other half of the continuity story could not be reached at all
+
+Every interruption on this page is a **wall-clock cut chosen by me**. The interruption these tools
+are *designed* for is context compaction, which fires when the window fills. A pre-registered spike
+went looking for it, with a hard gate at ~$15.
+
+| attempt | seed | content available | read in full | **peak context** | `PreCompact` fired | cost |
+|---|---|--:|--:|--:|--:|--:|
+| 1 | 30 files × 800 lines | ~540k tok | 30/30 | 266,266 | **0** | $2.12 |
+| 2 | 60 files × 900 lines | ~1,215k tok | 60/60 | 211,654 | **0** | $12.62 |
+
+Attempt 1 was my defect and is published as one: it asked for a greppable constant, so the agent
+grepped and never loaded a file. Attempt 2 forbade text extraction and required full reads.
+
+**Attempt 2 pulled 1.2 million tokens through the window and peaked *lower* than attempt 1, which
+read a third as much.** Context plateaus somewhere around 210–270k no matter how much material
+passes through, and no `PreCompact` event fires at any point. A $0.01 probe confirmed the null is
+real rather than an instrument artifact — a workspace hook fires with *and* without an explicit
+`--settings` flag, so the spike's hook was genuinely registered.
+
+`shapeup-sdlc`'s `compact-snapshot.mjs` **is** a `PreCompact` hook. It never fired. So both halves
+of this tool's continuity machinery are now measured, and neither pays:
+
+| mechanism | fires? | changes the outcome? |
+|---|---|---|
+| `session-rehydrate` (SessionStart) | **yes — 3/3 after the fix** | **no — recovery 0/3** |
+| `compact-snapshot` (PreCompact) | **never observed** | unmeasurable here |
+
+**Branch E, as pre-registered.** The compaction cell was not bought, no F5 seed was built, and
+~$107 of the envelope went unspent. That is a real limit on what this benchmark can say, published
+as a limit rather than dressed up as a finding about the tools — and bought for $14.74 instead of
+discovered halfway through a $45 matrix.
+
 ---
 
 *§11's sweep is complete and its branch is called: **B**.* Every §01–§10 figure is final and

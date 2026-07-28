@@ -1206,6 +1206,26 @@ qa/hunt-report.md · GATE-H-ship-decision.md</code></pre>
       <p>The gate column is the part worth reading twice. <strong>All three fixed runs consumed the entire 1800&thinsp;s window and reached only the orient and wiring gates</strong>, while the broken build reached L4 and H — because it was broken, and the row that got furthest did less, finishing in 921&thinsp;s. <em class="term">Fixing the bootstrap made the tool run its pipeline properly, and running it properly is what does not fit in the window.</em></p>
       <p><strong>Why no further fix is attempted.</strong> The plugin already owns a <code>--tiny</code> lane and a <code>fit-check</code> that computes which lane a change belongs in. On this exact intake it returns <code>lane: "full", confidence: "clear"</code> — 11 source files, a 3499-character intake. It is not misrouting; it is correctly classifying a 12-file service with eight seams as full-lane work. Moving that threshold so this feature lands in the tiny lane would make the number go up and would be <strong>tuning the tool to the test</strong>. The limitation is the design, and it is published as one.</p>
       <p><strong>A real defect, correctly diagnosed and correctly fixed, can leave the measured outcome exactly where it was.</strong> The finding about the inert enforcement layer was right about everything. It simply was not what stood between this tool and a recovered feature — and the only reason that sentence carries any weight is that it was registered before the $28 that confirmed it.</p>
+      <p class="h">And the other half of the continuity story could not be reached at all</p>
+      <p>Every interruption on this page is a <strong>wall-clock cut chosen by me</strong>. The interruption these tools are <em class="term">designed</em> for is context compaction, which fires when the window fills. A pre-registered spike went looking for it, with a hard gate at ~$15.</p>
+      <table>
+        <thead><tr><th>attempt</th><th>seed</th><th>content available</th><th>read in full</th><th>peak context</th><th><code>PreCompact</code> fired</th><th>cost</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>30 files × 800 lines</td><td>~540k tok</td><td>30/30</td><td>266,266</td><td><strong>0</strong></td><td>$2.12</td></tr>
+          <tr><td>2</td><td>60 files × 900 lines</td><td>~1,215k tok</td><td>60/60</td><td>211,654</td><td><strong>0</strong></td><td>$12.62</td></tr>
+        </tbody>
+      </table>
+      <p>Attempt 1 was my defect and is published as one: it asked for a greppable constant, so the agent grepped and never loaded a file. Attempt 2 forbade text extraction and required full reads.</p>
+      <p><strong>Attempt 2 pulled 1.2 million tokens through the window and peaked <em class="term">lower</em> than attempt 1, which read a third as much.</strong> Context plateaus somewhere around 210–270k no matter how much material passes through, and no <code>PreCompact</code> event fires at any point. A $0.01 probe confirmed the null is real rather than an instrument artifact — a workspace hook fires with <em class="term">and</em> without an explicit <code>--settings</code> flag, so the spike's hook was genuinely registered.</p>
+      <p><code>shapeup-sdlc</code>'s <code>compact-snapshot.mjs</code> <strong>is</strong> a <code>PreCompact</code> hook. It never fired. So both halves of this tool's continuity machinery are now measured, and neither pays:</p>
+      <table>
+        <thead><tr><th>mechanism</th><th>fires?</th><th>changes the outcome?</th></tr></thead>
+        <tbody>
+          <tr><td><code>session-rehydrate</code> (SessionStart)</td><td><strong>yes — 3/3 after the fix</strong></td><td><strong>no — recovery 0/3</strong></td></tr>
+          <tr><td><code>compact-snapshot</code> (PreCompact)</td><td><strong>never observed</strong></td><td>unmeasurable here</td></tr>
+        </tbody>
+      </table>
+      <p><strong>Branch E, as pre-registered.</strong> The compaction cell was not bought, no F5 seed was built, and ~$107 of the envelope went unspent. That is a real limit on what this benchmark can say, published as a limit rather than dressed up as a finding about the tools — and bought for $14.74 instead of discovered halfway through a $45 matrix.</p>
     </div>
   </section>
 

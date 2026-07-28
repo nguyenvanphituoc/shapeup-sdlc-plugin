@@ -10,7 +10,12 @@
 - **Model: Sonnet 5, every stage.** Reversed from the original Haiku sweep on 2026-07-28, before the
   first Sonnet sweep run, and pre-registered in `PROTOCOL.md §9`. See "The model move" below — it
   *removes* a stage rather than adding cost, and it is not sold as an efficiency.
-- **Status: S1 COMPLETE — Gate S1 returned BRANCH B.** On Sonnet 5 no cut orders `bare` against
+- **Status: PLAN COMPLETE. Both kill gates fired — branch B and branch E — for $57.36 of $150.**
+  Published as F-17 (the retraction), F-18 (the plugin fix that bought nothing), and F-19 (the
+  compaction limit). Detail below; the short version is that S1 returned branch B, stage R confirmed
+  two of three registered predictions and refuted one, and S3.0 returned branch E, so neither S1's
+  resolution cuts, nor S2, nor S3.1 was ever bought.
+- **Status of S1 — Gate S1 returned BRANCH B.** On Sonnet 5 no cut orders `bare` against
   `bare-intake`; the kill gate stopped the sweep at **$13.41** and the resolution cuts and S2 were
   never bought. The retraction is narrower than the branch name: the ARM-level reading of F4 is
   dead, while the FILE-level claim is *stronger* (p = 0.015 within one arm and one model), because
@@ -356,16 +361,20 @@ Every stage is **Sonnet 5**. One model end to end, so no comparison in this plan
 | S1 resolution (120s, 45s, 75s) | 36 | ~$14 | **$0 — not bought** 🛑 | killed by branch B |
 | S2 arm power | 18 | ~$9 | **$0 — not bought** 🛑 | killed by branch B |
 | R v1.4.1 re-measure | 6 | ~$20 | **$28.01** ✅ | `turns_to_first_write` left the band, so the stage was read |
-| S3.0 compaction spike | 1+ | ~$10 | **in flight** | **cannot trigger ⇒ publish the limit, stop** |
-| S3.1 compaction cell | 18 | ~$45 | gated on S3.0 | — |
+| S3.0 compaction spike | 2 | ~$10 | **$14.74** 🛑 | **cannot trigger ⇒ publish the limit, stop — THIS GATE FIRED** |
+| S3.1 compaction cell | 18 | ~$45 | **$0 — not bought** 🛑 | killed by branch E |
 | ~~S4 Sonnet crossing~~ | ~~6~~ | **absorbed into S1** | — | — |
 | S5 publication | 0 | $0 | **$0** ✅ | — |
 
-**Actual to date: $42.62 of $150.** The two stages that were never bought were stopped by a gate,
-not by the budget — the envelope had ~$95 spare at the moment branch B fired. S1 came in $4.61 over
-its projection because the 90 s cell ran to n=5 (see the 2026-07-29 disclosure), and stage R came in
-$8 over because all three of its runs consumed the full 1800 s window instead of the mixed profile
-v1.4.0 showed.
+**Final: $57.36 of $150.** Every stage that was never bought was stopped by a **gate**, not by the
+budget — there was ~$95 spare when branch B fired and ~$107 when branch E fired. Three variances,
+recorded rather than smoothed: S1 came in $4.61 over because the 90 s cell ran to n=5 (the
+2026-07-29 disclosure), stage R $8 over because all three runs consumed the full 1800 s window, and
+S3.0 $4.74 over because its first attempt was an instrument defect that had to be re-run.
+
+**Both kill gates fired, which is the outcome the plan was shaped to make cheap.** Branch B retracted
+this project's own headline for $14.61; branch E established an honest limit on what the benchmark
+can measure for $14.74. Neither was reached by running out of money.
 
 **Stage R is the re-measure of the author's own arm after the F-16 fix**, registered in
 `PROTOCOL.md §9` on 2026-07-28 but never costed in this plan — an omission corrected here *before*
