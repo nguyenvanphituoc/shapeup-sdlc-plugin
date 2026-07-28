@@ -657,6 +657,8 @@ unspent**.
 
 **On Sonnet 5 there is no cut at which the two arms can be ordered.**
 
+> **Each dot is one scored run; the vertical line is that cell's range.** No cut separates the arms. At 30 s the writer arm never fired at all, at 60 s it fired three times in eight, and at 90 s the ranges still overlap. This is the picture branch B is a verdict about.
+
 > **Disclosure.** The 90 s `bare-intake` cell gained two rows *after* the gate was called, from a
 > second sweep process left running from an earlier session and killed four minutes later. The rows
 > are valid — same runner, same frozen cut, same build, same oracle — and are kept under Q3.
@@ -679,6 +681,8 @@ Conditioning within `bare-intake`, on Sonnet:
 one model**, so neither K1's arm-clustering nor §6's model-pooling applies. The six rows that did not
 write closed *exactly* 19%, six times out of six: the figure `bare` posts at that cut. When the
 sentence does not fire, `bare-intake` **is** `bare`.
+
+> **The same rows, split by whether the file actually reached disk.** Six of seven that wrote closed the whole gap; all six that did not closed exactly 19%, the figure `bare` posts at that cut. The arm is a trigger — this is the mechanism.
 
 `bare-intake` is not a mechanism. It is a one-sentence **trigger** for one, and it fires
 probabilistically — **3/3 on Haiku, 3/8 on Sonnet**. An arm-level comparison therefore measures the
@@ -724,6 +728,8 @@ same 60 s handoff.
 | **gap closed** | 0, 0, 0 | **0, 0, 0** |
 | session B cost | $8.77, $10.36, $4.57 | $7.99, $9.20, $8.42 |
 | last gate reached | L4, L1a, H | L1a, L1a, L1a.5 |
+
+> **Turns before the first write, before and after the F-16 fix.** The ranges are disjoint, which is the mechanical proof the fix reached the measured path rather than only the test suite. Recovery was 0/3 on both sides of it.
 
 Two of three registered predictions confirmed, one refuted, all scored as written:
 

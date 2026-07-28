@@ -45,8 +45,16 @@ function decodeEntities(s) {
 /** Figures present in a document, normalised so "n&nbsp;=&nbsp;7" and "n=7" are the same claim. */
 export function figuresIn(text, { isHtml = false } = {}) {
   let t = text;
-  // Chart furniture cannot exist in markdown. Drop <svg> wholesale rather than allow-listing ticks.
-  if (isHtml) t = t.replace(/<svg[\s\S]*?<\/svg>/gi, " ");
+  if (isHtml) {
+    // Chart furniture cannot exist in markdown. Drop <svg> wholesale rather than allow-listing ticks.
+    t = t.replace(/<svg[\s\S]*?<\/svg>/gi, " ");
+    // NOR CAN STYLESHEETS OR SCRIPTS. Their bodies survive tag-stripping because the content sits
+    // BETWEEN the tags, so every hex colour, viewBox and CSS comment was being read as prose. That
+    // is not hypothetical: adding a validated chart palette put the comment "CVD ΔE 10.8/11.0" in
+    // :root, whose "8/11" matched the ratio pattern and failed this check against a markdown file
+    // that has no stylesheet and never could. A number in a stylesheet is not a published claim.
+    t = t.replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<script[\s\S]*?<\/script>/gi, " ");
+  }
   t = decodeEntities(t).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
   return new Set((t.match(FIGURE) || []).map((x) => x.replace(/\s+/g, "")));
 }
