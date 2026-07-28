@@ -393,11 +393,11 @@
   </header>
 
   <dl class="meta">
-    <div><dt>Scored runs</dt><dd>95</dd></div>
+    <div><dt>Scored runs</dt><dd>98</dd></div>
     <div><dt>Features</dt><dd>4</dd></div>
     <div><dt>Arms</dt><dd>7 + 3 writer controls</dd></div>
     <div><dt>Models</dt><dd>2</dd></div>
-    <div><dt>Transcripts</dt><dd>144</dd></div>
+    <div><dt>Transcripts</dt><dd>148</dd></div>
     <div><dt>Corrections</dt><dd>17</dd></div>
     <div><dt>Discarded</dt><dd>12</dd></div><div><dt>Rows unscored</dt><dd>20</dd></div>
   </dl>
@@ -1169,20 +1169,21 @@ qa/hunt-report.md · GATE-H-ship-decision.md</code></pre>
         <tbody>
           <tr><td>30&thinsp;s</td><td>0, 0, 0</td><td>19, 0, 19</td><td><strong>0/3</strong></td><td>no</td></tr>
           <tr><td>60&thinsp;s</td><td>19, 19, 19</td><td>100, 19, 19, 0, 19, 19, 19, 100</td><td><strong>3/8</strong></td><td>no</td></tr>
-          <tr><td>90&thinsp;s</td><td>0, 44, 67</td><td>100, 100, 19</td><td><strong>2/3</strong></td><td>no</td></tr>
+          <tr><td>90&thinsp;s</td><td>0, 44, 67</td><td>100, 100, 19, 100, 100</td><td><strong>4/5</strong></td><td>no</td></tr>
         </tbody>
       </table>
       <p><strong>On Sonnet 5 there is no cut at which the two arms can be ordered.</strong></p>
+      <p><strong>Disclosure.</strong> The 90&thinsp;s <code>bare-intake</code> cell gained two rows <em class="term">after</em> the gate was called, from a second sweep process left running from an earlier session and killed four minutes later. The rows are valid — same runner, same frozen cut, same build, same oracle — and are kept under Q3. Re-run against the complete cell the gate <strong>still returns branch B</strong>. The statistic below moved <em class="term">in the author's favour</em> as a result, which is why this is a dated entry in <code>PROTOCOL.md</code> (2026-07-29) rather than a silent restatement.</p>
       <p class="h">The arm is not the mechanism</p>
       <p><code>handover_bytes</code> records per row whether the file was <em class="term">actually written</em>. It is published beside the recovery only because invariant Q4 demanded it, and that is the sole reason the next table exists. Conditioning within <code>bare-intake</code>, on Sonnet:</p>
       <table>
         <thead><tr><th>Sonnet, <code>bare-intake</code>, 60&thinsp;s + 90&thinsp;s</th><th>gap closed</th></tr></thead>
         <tbody>
-          <tr><td><strong>wrote the file</strong> (n&nbsp;=&nbsp;5)</td><td>100, 100, 100, 100, <strong>0</strong></td></tr>
+          <tr><td><strong>wrote the file</strong> (n&nbsp;=&nbsp;7)</td><td>100, 100, 100, 100, 100, 100, <strong>0</strong></td></tr>
           <tr><td><strong>did not write</strong> (n&nbsp;=&nbsp;6)</td><td>19, 19, 19, 19, 19, 19</td></tr>
         </tbody>
       </table>
-      <p><strong>p = 0.015</strong> (Fisher exact, one-tailed, success = gap closed ≥ 94%) — <strong>within one arm and one model</strong>, so neither K1's arm-clustering nor §6's model-pooling applies. The six rows that did not write closed <em class="term">exactly</em> 19%, six times out of six: the figure <code>bare</code> posts at that cut. When the sentence does not fire, <code>bare-intake</code> <strong>is</strong> <code>bare</code>.</p>
+      <p><strong>p = 0.004</strong> (n&nbsp;=&nbsp;13; Fisher exact, one-tailed, success = gap closed ≥ 94%) — <strong>within one arm and one model</strong>, so neither K1's arm-clustering nor §6's model-pooling applies. The six rows that did not write closed <em class="term">exactly</em> 19%, six times out of six: the figure <code>bare</code> posts at that cut. When the sentence does not fire, <code>bare-intake</code> <strong>is</strong> <code>bare</code>.</p>
       <p><code>bare-intake</code> is not a mechanism. It is a one-sentence <strong>trigger</strong> for one, and it fires probabilistically — <strong>3/3 on Haiku, 3/8 on Sonnet</strong>. An arm-level comparison therefore measures the effect <em class="term">multiplied by the trigger's reliability</em>. At 3/3 that dilution is invisible and the arms separate cleanly, which is what §09 saw. At 3/8 it destroys any orderable separation while leaving the underlying effect untouched.</p>
       <p><strong>Retracted:</strong> any reading of §09 in which <em class="term">choosing the <code>bare-intake</code> arm</em> buys recovery on Sonnet, and P4's own curve-per-arm framing, which could only ever see the product of the two. <strong>Not retracted:</strong> §09's actual published sentence, which was always about files and never about arms — and which this data supports more strongly than §09's own did.</p>
       <p>Branch H fired alongside it: at 60&thinsp;s Haiku's arms <strong>are</strong> disjoint ([17–67] against [94–100]) and Sonnet's are not. Both are published, neither pooled. That split is exactly what the deleted <strong>S4</strong> stage existed to buy for $25; moving the sweep to Sonnet produced it for nothing.</p>
@@ -1190,11 +1191,26 @@ qa/hunt-report.md · GATE-H-ship-decision.md</code></pre>
       <p>Hours before these cells were bought, a <strong>turn-threshold hypothesis</strong> was registered: every first write in the record landed at turn ≥ 19, so the cut in <em class="term">seconds</em> might really be buying a <em class="term">turn</em> budget. A 90&thinsp;s row then wrote at <strong>turn 16</strong>. Prediction 1 is refuted and recorded as refuted. Prediction 3 — that the instruction buys no <em class="term">promptness</em>, only different content — survived. The third named cells that branch B means are never bought, and is recorded unresolved rather than quietly dropped.</p>
       <p><strong>What was deliberately not bought.</strong> <code>n</code> was <strong>not</strong> raised at 90&thinsp;s to resolve the overlap. Raising reps after seeing which way an overlap fell is the exact move pre-registration exists to prevent.</p>
       <p>One number is worth keeping as a caution about n&nbsp;=&nbsp;3: two independent sets of three <code>bare</code> runs at the <em class="term">same</em> 30&thinsp;s cut produced gap-closed medians of 13% [0–19] and 0% [0–0]. Both exist only because the first set was retracted for the transcript defect and re-run — and the spread between them is a reminder that a three-run cell locates a range, not a point.</p>
+      <p class="h">The fix to my own harness works exactly as predicted, and buys nothing</p>
+      <p>The defect above was fixed, the fix was verified, and the re-measure was <strong>registered before it ran</strong> — including the prediction that recovery would not move. Stage R, n&nbsp;=&nbsp;3, $28.01, Sonnet 5, the same 60&thinsp;s handoff.</p>
+      <table>
+        <thead><tr><th>Sonnet 5, 60&thinsp;s handoff, session B</th><th>v1.4.0 (n&nbsp;=&nbsp;3)</th><th>v1.4.1 (n&nbsp;=&nbsp;3)</th></tr></thead>
+        <tbody>
+          <tr><td><code>turns_to_first_write</code></td><td>94, 82, 120</td><td><strong>25, 58, 20</strong></td></tr>
+          <tr><td><strong>gap closed</strong></td><td>0, 0, 0</td><td><strong>0, 0, 0</strong></td></tr>
+          <tr><td>session B cost</td><td>$8.77, $10.36, $4.57</td><td>$7.99, $9.20, $8.42</td></tr>
+          <tr><td>last gate reached</td><td>L4, L1a, H</td><td>L1a, L1a, L1a.5</td></tr>
+        </tbody>
+      </table>
+      <p>Two of three registered predictions confirmed, one refuted, all scored as written. <strong>(1)</strong> <code>turns_to_first_write</code> leaves the 82–120 band — <strong>confirmed</strong>, disjoint ranges; roughly sixty turns of bootstrap forensics per run are gone, which is the mechanical proof the fix reached the <em class="term">measured</em> path and not merely the test suite. <strong>(2)</strong> Session-B cost falls — <strong>refuted</strong>; medians $8.77 → $8.42, ranges overlapping. Forensics is billed, so removing it should have shown in the bill; instead the freed turns went straight into pipeline work. The money moved, it did not leave. <strong>(3)</strong> Gap closed stays 0/3 — <strong>confirmed</strong>.</p>
+      <p>The gate column is the part worth reading twice. <strong>All three fixed runs consumed the entire 1800&thinsp;s window and reached only the orient and wiring gates</strong>, while the broken build reached L4 and H — because it was broken, and the row that got furthest did less, finishing in 921&thinsp;s. <em class="term">Fixing the bootstrap made the tool run its pipeline properly, and running it properly is what does not fit in the window.</em></p>
+      <p><strong>Why no further fix is attempted.</strong> The plugin already owns a <code>--tiny</code> lane and a <code>fit-check</code> that computes which lane a change belongs in. On this exact intake it returns <code>lane: "full", confidence: "clear"</code> — 11 source files, a 3499-character intake. It is not misrouting; it is correctly classifying a 12-file service with eight seams as full-lane work. Moving that threshold so this feature lands in the tiny lane would make the number go up and would be <strong>tuning the tool to the test</strong>. The limitation is the design, and it is published as one.</p>
+      <p><strong>A real defect, correctly diagnosed and correctly fixed, can leave the measured outcome exactly where it was.</strong> The finding about the inert enforcement layer was right about everything. It simply was not what stood between this tool and a recovered feature — and the only reason that sentence carries any weight is that it was registered before the $28 that confirmed it.</p>
     </div>
   </section>
 
   <footer>
-    <p>95 scored runs · 4 features · 7 arms + 3 writer controls · 213 rows · 144 transcripts retained · <code>claude-sonnet-5</code> and <code>claude-haiku-4-5-20251001</code> — every number labelled with its model · F4 alone was 108 sessions and ~$56 · <strong>$14.61 of P4's fresh $150 envelope spent</strong>, of which the sweep was $13.41 — the kill gate stopped it, not the budget.<br>
+    <p>98 scored runs · 4 features · 7 arms + 3 writer controls · 219 rows · 148 transcripts retained · <code>claude-sonnet-5</code> and <code>claude-haiku-4-5-20251001</code> — every number labelled with its model · F4 alone was 108 sessions and ~$56 · <strong>$42.62 of P4's fresh $150 envelope spent</strong> — the sweep $14.61, stage R $28.01. The kill gate stopped the sweep, not the budget.<br>
     <strong>§11's sweep is complete and its branch is called: B.</strong> Every §01–§10 figure is final and unaffected. One P4 stage remains in flight — the <code>shapeup-sdlc</code> v1.4.1 re-measure, which sits outside the S1 gate on its own registration — so the arm-level v1.4.1 figures are not yet in. Twelve P4 rows are retracted to <code>transcript_collided</code> and excluded from scoring; the reason is in §11 and in <code>DISCARDED-RUNS.md</code>.<br>
     Protocol committed before run 1; every amendment appended and timestamped, including each F4 stage before the runs it governs. Every raw transcript retained, which is why the corrections in §05 and §09 were possible at all. Harnesses under test: spec-kit, OpenSpec, cc-sdd, shapeup-sdlc — against three no-harness controls.<br>
     F1–F3 are pilot stage, n=1 on most cells, and claim no ordering between harnesses. F4's 60&thinsp;s cell is n=3 per arm; where ranges overlap the ordering is reported as indistinguishable and the binary outcome is used instead.</p>

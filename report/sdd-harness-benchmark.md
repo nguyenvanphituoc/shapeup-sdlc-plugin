@@ -7,7 +7,7 @@
 
 Four spec-driven-development harnesses, three no-harness controls, and an acceptance suite none of them ever saw. Run by the author of one of the four — who lost, found that half of what he'd concluded about losing was wrong, then built the one experiment his own tool was expected to win and watched a single sentence of prompt match it for a seventh of the price.
 
-**Scored runs:** 95 · **Features:** 4 · **Arms:** 7 + 3 writer controls · **Models:** 2 · **Transcripts:** 144 · **Corrections:** 17 · **Discarded:** 12 · **Rows unscored:** 20
+**Scored runs:** 98 · **Features:** 4 · **Arms:** 7 + 3 writer controls · **Models:** 2 · **Transcripts:** 148 · **Corrections:** 17 · **Discarded:** 12 · **Rows unscored:** 20
 
 ---
 
@@ -651,9 +651,16 @@ unspent**.
 |---|---|---|--:|---|
 | 30 s | 0, 0, 0 | 19, 0, 19 | **0/3** | no |
 | 60 s | 19, 19, 19 | 100, 19, 19, 0, 19, 19, 19, 100 | **3/8** | no |
-| 90 s | 0, 44, 67 | 100, 100, 19 | **2/3** | no |
+| 90 s | 0, 44, 67 | 100, 100, 19, 100, 100 | **4/5** | no |
 
 **On Sonnet 5 there is no cut at which the two arms can be ordered.**
+
+> **Disclosure.** The 90 s `bare-intake` cell gained two rows *after* the gate was called, from a
+> second sweep process left running from an earlier session and killed four minutes later. The rows
+> are valid — same runner, same frozen cut, same build, same oracle — and are kept under Q3.
+> Re-run against the complete cell the gate **still returns branch B**. The statistic below moved
+> *in the author's favour* as a result, which is why this is a dated entry in `PROTOCOL.md`
+> (2026-07-29) rather than a silent restatement.
 
 ### The arm is not the mechanism
 
@@ -663,11 +670,11 @@ Conditioning within `bare-intake`, on Sonnet:
 
 | Sonnet, `bare-intake`, 60 s + 90 s | gap closed |
 |---|---|
-| **wrote the file** (n=5) | 100, 100, 100, 100, **0** |
+| **wrote the file** (n=7) | 100, 100, 100, 100, 100, 100, **0** |
 | **did not write** (n=6) | 19, 19, 19, 19, 19, 19 |
 
-**p = 0.015** (Fisher exact, one-tailed, success = gap closed ≥ 94%) — **within one arm and one
-model**, so neither K1's arm-clustering nor §6's model-pooling applies. The six rows that did not
+**p = 0.004** (n=13; Fisher exact, one-tailed, success = gap closed ≥ 94%) — **within one arm and
+one model**, so neither K1's arm-clustering nor §6's model-pooling applies. The six rows that did not
 write closed *exactly* 19%, six times out of six: the figure `bare` posts at that cut. When the
 sentence does not fire, `bare-intake` **is** `bare`.
 
@@ -703,6 +710,47 @@ One number is worth keeping as a caution about n=3: two independent sets of thre
 the transcript defect and re-run, which is the only reason both exist — and the spread is a reminder
 that a three-run cell locates a range, not a point.
 
+### The fix to my own harness works exactly as predicted, and buys nothing
+
+The defect above was fixed, the fix was verified, and the re-measure was **registered before it
+ran** — including the prediction that recovery would not move. Stage R, n=3, $28.01, Sonnet 5, the
+same 60 s handoff.
+
+| Sonnet 5, 60 s handoff, session B | **v1.4.0** (n=3) | **v1.4.1** (n=3) |
+|---|---|---|
+| `turns_to_first_write` | 94, 82, 120 | **25, 58, 20** |
+| **gap closed** | 0, 0, 0 | **0, 0, 0** |
+| session B cost | $8.77, $10.36, $4.57 | $7.99, $9.20, $8.42 |
+| last gate reached | L4, L1a, H | L1a, L1a, L1a.5 |
+
+Two of three registered predictions confirmed, one refuted, all scored as written:
+
+1. **`turns_to_first_write` leaves the 82–120 band — confirmed**, disjoint ranges. Roughly sixty
+   turns of bootstrap forensics per run are gone. This is the mechanical proof the fix reached the
+   *measured* path and not merely the test suite.
+2. **Session-B cost falls — refuted.** Medians $8.77 → $8.42, ranges overlapping. Forensics is
+   billed, so removing it should have shown in the bill; instead the freed turns went straight into
+   pipeline work. The money moved, it did not leave.
+3. **Gap closed stays 0/3 — confirmed.**
+
+The gate column is the part worth reading twice. **All three fixed runs consumed the entire 1800 s
+window and reached only the orient and wiring gates**, while the broken build reached L4 and H —
+because it was broken, and the row that got furthest did less, finishing in 921 s. *Fixing the
+bootstrap made the tool run its pipeline properly, and running it properly is what does not fit in
+the window.*
+
+**Why no further fix is attempted.** The plugin already owns a `--tiny` lane and a `fit-check` that
+computes which lane a change belongs in. On this exact intake it returns `lane: "full", confidence:
+"clear"` — 11 source files, a 3499-character intake. It is not misrouting; it is correctly
+classifying a 12-file service with eight seams as full-lane work. Moving that threshold so this
+feature lands in the tiny lane would make the number go up and would be **tuning the tool to the
+test**. The limitation is the design, and it is published as one.
+
+**A real defect, correctly diagnosed and correctly fixed, can leave the measured outcome exactly
+where it was.** The finding about the inert enforcement layer was right about everything. It simply
+was not what stood between this tool and a recovered feature — and the only reason that sentence
+carries any weight is that it was registered before the $28 that confirmed it.
+
 ---
 
 *§11's sweep is complete and its branch is called: **B**.* Every §01–§10 figure is final and
@@ -711,7 +759,7 @@ outside the S1 gate on its own registration — so the arm-level v1.4.1 figures 
 Twelve P4 rows are retracted to `transcript_collided` and excluded from scoring; the reason is above
 and in `DISCARDED-RUNS.md`.
 
-At the time of writing: 95 scored runs · 4 features · 7 arms + 3 writer controls · 213 rows ·
-144 transcripts retained · `claude-sonnet-5` and `claude-haiku-4-5-20251001`, every number labelled
-with its model · F4 alone was 108 sessions and ~$56 · **$14.61 of P4's fresh $150 envelope spent**,
-of which the sweep was $13.41 — the kill gate stopped it, not the budget.
+At the time of writing: 98 scored runs · 4 features · 7 arms + 3 writer controls · 219 rows ·
+148 transcripts retained · `claude-sonnet-5` and `claude-haiku-4-5-20251001`, every number labelled
+with its model · F4 alone was 108 sessions and ~$56 · **$42.62 of P4's fresh $150 envelope spent** —
+the sweep $14.61, stage R $28.01. The kill gate stopped the sweep, not the budget.
