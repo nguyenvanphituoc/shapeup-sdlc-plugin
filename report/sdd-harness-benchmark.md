@@ -367,9 +367,9 @@ and the half that was wrong is the more useful finding.
 **Bigger did nothing.** F4 is a 12-file service with eight seams, two of them cross-cutting
 invariants, run as a three-rung ladder up to ~4× F2. The no-harness control scored **100% at every
 rung on both models** — 10/10, 18/18, 26/26, twice each on Haiku, and 26/26 twice on Sonnet. Eight
-runs, eight perfect scores, zero escaped defects. Under a pre-declared kill gate that closed the
-question: **no crossover up to 4× F2 on single-session features**, and the remaining single-session
-volume was not bought.
+runs, eight perfect scores, zero escaped defects. A pre-declared kill gate closed the question for
+**$3.54** — **no crossover up to 4× F2 on single-session features** — and the remaining
+single-session volume was never bought.
 
 **Discontinuity did everything.** Cut a session at a uniform 60 seconds, then hand the workspace to
 a *fresh* agent — never a resume — with a one-sentence continuation prompt containing no requirement
@@ -426,6 +426,12 @@ transcription did.
 A seventh arm was added to test exactly that. `bare-intake` is the control plus one sentence —
 *"Before you write any code, copy the requirement above into a file"* — and on Haiku it matched the
 harness on every outcome axis, more stably (94–100 against 0–100), for **$0.35 against $1.60**.
+
+**The cost of the win leads, because "the mechanism is real" and "this tool is worth paying for" are
+different claims.** The author's arm did win the Haiku cell. It won at **4.6×** the price of a
+one-sentence control that matched it, with a wider spread (0–100 against 94–100), and on the
+stronger model it turned a reliably-written artifact into zero recovery three times out of three.
+The mechanism SDD sells is real; the pipeline sold alongside it is not what delivers it.
 
 The two control arms differ by one clause. `bare-notes` says *"before you stop, leave notes"* and
 wrote **0 bytes in all five of its rows**, because a cut session never reaches "before you stop".
