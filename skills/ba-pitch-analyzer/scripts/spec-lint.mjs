@@ -28,8 +28,8 @@
 
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { resolve, join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
 import { parseBoard, deriveUnlocks } from "./board-derive.mjs";
+import { isMain } from "../../tech-lead/scripts/lib/is-main.mjs";
 
 // Inlined from hooks/sandbox-guard.mjs so this skill ships self-contained (a skill's scripts
 // must not reach outside its own folder — channels that copy only skills/ would dangle).
@@ -213,8 +213,8 @@ export function lint({ cwd, slug }) {
   };
 }
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (isMain) {
+const isMainModule = isMain(import.meta.url);
+if (isMainModule) {
   const args = process.argv.slice(2);
   /**
    * Read a `--<n> <value>` CLI flag's value.

@@ -24,6 +24,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isMain } from "./lib/is-main.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const SCHEMAS_DIR = resolve(HERE, "../schemas");
@@ -188,8 +189,8 @@ export function validateFile(envelopePath, schemaPath) {
 // ---------------------------------------------------------------------------
 // Entry point: CLI when args are given, PreToolUse hook when fed stdin JSON.
 // ---------------------------------------------------------------------------
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (isMain) {
+const isMainModule = isMain(import.meta.url);
+if (isMainModule) {
   if (process.argv[2]) {
     // CLI mode
     const [envelopePath, schemaPath] = process.argv.slice(2);

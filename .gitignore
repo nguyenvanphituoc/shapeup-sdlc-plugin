@@ -27,3 +27,6 @@ dist/
  # Python cache                                                                                                   
 __pycache__/                                                                                                     
 *.pyc 
+
+
+.playwright-mcp

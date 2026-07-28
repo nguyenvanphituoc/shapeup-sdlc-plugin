@@ -22,6 +22,7 @@ import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync, rea
 import { resolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validate } from "./validate-envelope.mjs";
+import { isMain } from "./lib/is-main.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RESULT_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../schemas/work-result.schema.json"), "utf8"));
@@ -238,8 +239,8 @@ export function applyResult(result, { cwd }) {
 }
 
 // ---------------------------------------------------------------------------
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (isMain) {
+const isMainModule = isMain(import.meta.url);
+if (isMainModule) {
   const args = process.argv.slice(2);
   const file = args.find((a) => !a.startsWith("--"));
   const ci = args.indexOf("--cwd");

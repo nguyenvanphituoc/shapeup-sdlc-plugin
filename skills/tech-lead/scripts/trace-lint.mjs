@@ -37,8 +37,8 @@
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from "node:fs";
 import { resolve, join, dirname, relative, isAbsolute } from "node:path";
-import { fileURLToPath } from "node:url";
 import { readBoard } from "./compile-order.mjs";
+import { isMain } from "./lib/is-main.mjs";
 
 // --- requirements.md registry parser -----------------------------------------
 // A committed markdown table: | REQ-id | clause (verbatim) | source | status | note |
@@ -310,8 +310,8 @@ export function traceLint(slug, { cwd, gate = false }) {
 }
 
 // ---------------------------------------------------------------------------
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (isMain) {
+const isMainModule = isMain(import.meta.url);
+if (isMainModule) {
   const args = process.argv.slice(2);
   /**
    * Read a `--<n> <value>` CLI flag's value, ignoring a following token that is itself a flag.

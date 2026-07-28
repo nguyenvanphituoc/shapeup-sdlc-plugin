@@ -1,0 +1,1444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ShapeUp SDLC Plugin — Market Position &amp; Path to 500 Stars</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  color-scheme: light;
+  --page:           #f9f9f7;
+  --surface-1:      #fcfcfb;
+  --text-primary:   #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted:     #898781;
+  --grid:           #e1e0d9;
+  --baseline:       #c3c2b7;
+  --border:         rgba(11,11,11,0.10);
+  --accent:         #2a78d6;   /* series slot 1 — blue */
+  --accent-2:       #eb6834;   /* series slot 2 — orange */
+  --accent-soft:    #cde2fb;   /* blue 100 */
+  --deemph:         #898781;   /* emphasis-form de-emphasis gray */
+  --good:           #0ca30c;
+  --warning:        #fab219;
+  --serious:        #ec835a;
+  --critical:       #d03b3b;
+  --success-text:   #006300;
+  --shadow:         0 1px 2px rgba(11,11,11,0.04), 0 8px 24px rgba(11,11,11,0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page:           #0d0d0d;
+    --surface-1:      #1a1a19;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --grid:           #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --accent:         #3987e5;
+    --accent-2:       #d95926;
+    --accent-soft:    #184f95;
+    --deemph:         #898781;
+    --good:           #0ca30c;
+    --warning:        #fab219;
+    --serious:        #ec835a;
+    --critical:       #d03b3b;
+    --success-text:   #0ca30c;
+    --shadow:         0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page:           #0d0d0d;
+  --surface-1:      #1a1a19;
+  --text-primary:   #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted:     #898781;
+  --grid:           #2c2c2a;
+  --baseline:       #383835;
+  --border:         rgba(255,255,255,0.10);
+  --accent:         #3987e5;
+  --accent-2:       #d95926;
+  --accent-soft:    #184f95;
+  --deemph:         #898781;
+  --good:           #0ca30c;
+  --warning:        #fab219;
+  --serious:        #ec835a;
+  --critical:       #d03b3b;
+  --success-text:   #0ca30c;
+  --shadow:         0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3);
+}
+
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+}
+.wrap { max-width: 1080px; margin: 0 auto; padding: 40px 20px 96px; }
+
+/* ---------- typography ---------- */
+h1 { font-size: clamp(26px, 4.4vw, 40px); line-height: 1.15; letter-spacing: -0.02em; margin: 0 0 12px; font-weight: 640; }
+h2 { font-size: clamp(19px, 2.6vw, 24px); line-height: 1.25; letter-spacing: -0.01em; margin: 0 0 6px; font-weight: 620; }
+h3 { font-size: 15px; margin: 0 0 4px; font-weight: 620; }
+p  { margin: 0 0 14px; color: var(--text-secondary); max-width: 76ch; }
+a  { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+strong { color: var(--text-primary); font-weight: 620; }
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.88em; background: var(--surface-1);
+  border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px;
+}
+.lede { font-size: 17px; color: var(--text-secondary); max-width: 66ch; }
+.eyebrow {
+  font-size: 11.5px; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--text-muted); font-weight: 620; margin: 0 0 10px;
+}
+.note { font-size: 13px; color: var(--text-muted); max-width: 76ch; }
+
+/* ---------- layout ---------- */
+header.page { border-bottom: 1px solid var(--border); padding-bottom: 28px; margin-bottom: 40px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 13px; color: var(--text-muted); margin-top: 18px; }
+section { margin: 0 0 56px; scroll-margin-top: 20px; }
+.sec-head { margin-bottom: 22px; }
+.card {
+  background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: 12px; padding: 22px 22px 20px; box-shadow: var(--shadow);
+}
+.grid { display: grid; gap: 14px; }
+@media (min-width: 720px) { .grid.c2 { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 900px) { .grid.c4 { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 560px) and (max-width: 899px) { .grid.c4 { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- hero + stat tiles ---------- */
+.hero { display: grid; gap: 24px; align-items: center; }
+@media (min-width: 760px) { .hero { grid-template-columns: minmax(0,1fr) minmax(0,1.15fr); } }
+.hero-fig { font-size: 84px; line-height: 0.95; font-weight: 660; letter-spacing: -0.04em; }
+.hero-fig .unit { font-size: 22px; font-weight: 560; color: var(--text-secondary); letter-spacing: 0; }
+.hero-sub { font-size: 14px; color: var(--text-secondary); margin-top: 6px; }
+.gap-to { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 14px; color: var(--text-secondary); }
+.gap-to b { color: var(--accent-2); font-size: 20px; }
+
+.tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 14px 15px; }
+.tile .label { font-size: 12.5px; color: var(--text-muted); }
+.tile .value { font-size: 26px; font-weight: 640; letter-spacing: -0.02em; margin-top: 2px; }
+.tile .value.bad { color: var(--critical); }
+.tile .delta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* ---------- callout ---------- */
+.callout {
+  border-left: 3px solid var(--accent-2); background: var(--surface-1);
+  border-radius: 0 10px 10px 0; padding: 16px 20px; margin: 0 0 22px;
+}
+.callout p:last-child { margin-bottom: 0; }
+.callout.quiet { border-left-color: var(--accent); }
+
+/* ---------- charts (CSS bars) ---------- */
+.chart { position: relative; margin-top: 6px; }
+.chart-title { font-size: 15px; font-weight: 620; margin: 0 0 2px; }
+.chart-sub { font-size: 13px; color: var(--text-muted); margin: 0 0 18px; max-width: 72ch; }
+
+.plot { position: relative; }
+.gridlines { position: absolute; inset: 0; pointer-events: none; }
+.gridlines .gl { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--grid); }
+.gridlines .gl.zero { background: var(--baseline); }
+.gridlines .ref { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--accent-2); opacity: 0.9; }
+.axis .ref-tick {
+  display: inline-flex; align-items: center; gap: 5px;
+  transform: translateX(-50%); white-space: nowrap;
+  font-size: 11.5px; color: var(--text-secondary); font-weight: 620;
+}
+.axis .ref-tick::before {
+  content: ""; width: 9px; height: 2px; background: var(--accent-2); flex: none;
+}
+
+.row { position: relative; display: grid; align-items: center; gap: 10px; padding: 3px 0; }
+.row .name {
+  font-size: 13px; color: var(--text-secondary); text-align: right;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.row .name.hi { color: var(--text-primary); font-weight: 620; }
+.row .track { position: relative; height: 22px; }
+.bar {
+  position: absolute; top: 0; height: 100%;
+  background: var(--accent); border-radius: 0 4px 4px 0;
+  min-width: 4px; transition: filter .12s ease;
+}
+.bar.deemph { background: var(--deemph); }
+.bar.alt    { background: var(--accent-2); }
+.bar.range  { border-radius: 4px; }
+.row:hover .bar { filter: brightness(1.08) saturate(1.05); }
+.val {
+  position: absolute; top: 0; height: 22px; display: flex; align-items: center;
+  font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--text-secondary);
+  white-space: nowrap; padding-left: 8px;
+}
+.val.strong { color: var(--text-primary); font-weight: 620; }
+.val.neg { padding-left: 0; padding-right: 8px; justify-content: flex-end; }
+/* diverging score bars grow from a mid-plot zero baseline, so no rounded data-end side is
+   privileged; the 2px surface gap still does the separating */
+.bar.diverge { border-radius: 4px; }
+.chart.asym .row { grid-template-columns: 132px minmax(0,1fr); }
+.chart.asym .gridlines { left: 142px; }
+.chart.asym .axis-wrap { padding-left: 142px; }
+@media (max-width: 620px) {
+  .chart.asym .row { grid-template-columns: 104px minmax(0,1fr); }
+  .chart.asym .gridlines { left: 114px; }
+  .chart.asym .axis-wrap { padding-left: 114px; }
+}
+/* threshold hairline inside a bare track (the plan rows) */
+.tref { position: absolute; top: -3px; bottom: -3px; width: 1px; z-index: 1; background: var(--accent-2); opacity: 0.9; }
+.axis {
+  position: relative; height: 20px; margin-top: 8px;
+  border-top: 1px solid var(--baseline);
+}
+.axis span {
+  position: absolute; top: 4px; transform: translateX(-50%);
+  font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+}
+.axis-title { font-size: 11.5px; color: var(--text-muted); margin-top: 4px; }
+
+/* name column widths */
+.chart.names-wide .row { grid-template-columns: 172px minmax(0,1fr); }
+.chart.names-mid  .row { grid-template-columns: 150px minmax(0,1fr); }
+@media (max-width: 620px) {
+  .chart.names-wide .row, .chart.names-mid .row { grid-template-columns: 108px minmax(0,1fr); }
+  .row .name { font-size: 12px; }
+}
+.chart.names-wide .gridlines { left: 182px; }
+.chart.names-mid  .gridlines { left: 160px; }
+.chart.names-wide .axis-wrap { padding-left: 182px; }
+.chart.names-mid  .axis-wrap { padding-left: 160px; }
+@media (max-width: 620px) {
+  .chart.names-wide .gridlines, .chart.names-mid .gridlines { left: 118px; }
+  .chart.names-wide .axis-wrap, .chart.names-mid .axis-wrap { padding-left: 118px; }
+  .val { font-size: 11px; padding-left: 6px; }
+  .axis span { font-size: 10.5px; }
+  /* the threshold line stays; its tick label would collide with an axis tick at
+     this width, and the legend already names it */
+  .axis .ref-tick { display: none; }
+}
+
+/* legend */
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 16px; font-size: 12.5px; color: var(--text-secondary); }
+.legend .key { display: inline-flex; align-items: center; gap: 7px; }
+.legend .sw { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+
+/* tooltip */
+#tip {
+  position: fixed; z-index: 50; pointer-events: none; opacity: 0;
+  transition: opacity .1s ease; background: var(--surface-1);
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 11px;
+  box-shadow: var(--shadow); font-size: 12.5px; color: var(--text-primary);
+  max-width: 260px; line-height: 1.45;
+}
+#tip .t-name { font-weight: 620; }
+#tip .t-val  { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+/* ---------- tables ---------- */
+.scroller { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-1); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 9px 13px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+thead th {
+  position: sticky; top: 0; background: var(--surface-1);
+  font-size: 11.5px; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-muted); font-weight: 620; white-space: nowrap;
+  border-bottom: 1px solid var(--baseline);
+}
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.mine { font-weight: 620; color: var(--text-primary); }
+tr.mine td { background: color-mix(in srgb, var(--accent-2) 8%, transparent); }
+tr.mine:hover td { background: color-mix(in srgb, var(--accent-2) 12%, transparent); }
+.rowhead { font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+
+details.tableview { margin-top: 14px; }
+details.tableview summary {
+  cursor: pointer; font-size: 12.5px; color: var(--text-secondary);
+  padding: 5px 0; width: fit-content;
+}
+details.tableview summary:hover { color: var(--text-primary); }
+details.tableview[open] summary { margin-bottom: 10px; }
+
+/* ---------- chips ---------- */
+.chip {
+  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+  font-size: 11.5px; font-weight: 620; padding: 2px 8px 2px 6px;
+  border-radius: 999px; border: 1px solid var(--border); background: var(--surface-1);
+  color: var(--text-primary);
+}
+.chip .dot { width: 8px; height: 8px; border-radius: 999px; flex: none; }
+.chip.critical .dot { background: var(--critical); }
+.chip.serious  .dot { background: var(--serious); }
+.chip.warning  .dot { background: var(--warning); }
+.chip.good     .dot { background: var(--good); }
+.chip.p0 { border-color: var(--critical); }
+.chip.p1 { border-color: var(--serious); }
+.chip.p2 { border-color: var(--warning); }
+.chip.p3 { border-color: var(--baseline); }
+
+/* ---------- status chips ---------- */
+.st {
+  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+  font-size: 11.5px; font-weight: 620; padding: 2px 8px 2px 6px;
+  border-radius: 999px; border: 1px solid var(--border); background: var(--surface-1);
+}
+.st::before { content: ""; width: 8px; height: 8px; border-radius: 999px; flex: none; }
+.st.done    { color: var(--success-text); border-color: var(--good); }
+.st.done::before    { background: var(--good); }
+.st.partial { color: var(--text-primary); border-color: var(--warning); }
+.st.partial::before { background: var(--warning); }
+.st.staged  { color: var(--text-primary); border-color: var(--serious); }
+.st.staged::before  { background: var(--serious); }
+.st.todo    { color: var(--text-muted); border-color: var(--baseline); }
+.st.todo::before    { background: var(--baseline); }
+tr.shipped td { opacity: 0.72; }
+tr.shipped:hover td { opacity: 1; }
+.scoreboard { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+
+.yes { color: var(--success-text); font-weight: 620; }
+.no  { color: var(--text-muted); }
+
+/* ---------- edge cards ---------- */
+.edges { display: grid; gap: 12px; }
+@media (min-width: 700px) { .edges { grid-template-columns: 1fr 1fr; } }
+.edge { background: var(--surface-1); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 0 10px 10px 0; padding: 13px 16px; }
+.edge h3 { font-size: 14px; }
+.edge p { font-size: 13px; margin: 0; }
+
+/* ---------- plan ---------- */
+.weeks { display: grid; gap: 8px; }
+.week { display: grid; gap: 10px; align-items: center; grid-template-columns: 58px minmax(0,1.6fr) minmax(0,1fr); }
+@media (max-width: 700px) { .week { grid-template-columns: 48px minmax(0,1fr); } .week .wbar { display: none; } }
+.week .wk { font-size: 12px; font-weight: 620; color: var(--text-muted); }
+.week .what { font-size: 13px; color: var(--text-secondary); }
+.week .what b { color: var(--text-primary); }
+
+/* ---------- footer ---------- */
+footer.page { border-top: 1px solid var(--border); padding-top: 24px; margin-top: 8px; font-size: 13px; color: var(--text-muted); }
+footer.page ul { padding-left: 18px; margin: 8px 0 0; columns: 2; column-gap: 32px; }
+@media (max-width: 640px) { footer.page ul { columns: 1; } }
+footer.page li { margin-bottom: 3px; break-inside: avoid; }
+ul.tight { padding-left: 20px; margin: 0 0 14px; color: var(--text-secondary); max-width: 76ch; }
+ul.tight li { margin-bottom: 6px; }
+
+@media print {
+  body { background: #fff; }
+  .card, .tile, .scroller { box-shadow: none; }
+  #tip { display: none; }
+}
+</style>
+</head>
+<body>
+<div id="tip" role="status" aria-live="polite"></div>
+
+<div class="wrap">
+
+<header class="page">
+  <p class="eyebrow">Insight report · solution architecture &amp; growth</p>
+  <h1>ShapeUp SDLC Plugin — market position and the path to 500 stars</h1>
+  <p class="lede">
+    The harness is architecturally top-decile in its category. The repository is invisible.
+    Those are two different problems, and only one of them has been worked on.
+  </p>
+  <div class="meta">
+    <span>2026-07-25 · status updated 2026-07-26</span>
+    <span>Subject: <code>nguyenvanphituoc/shapeup-sdlc-plugin</code> v1.3.0 + unreleased <code>main</code></span>
+    <span>26 repos measured via GitHub REST API</span>
+  </div>
+  <div class="callout" style="margin-top:22px">
+    <p style="margin-bottom:8px"><strong>Status, 2026-07-26.</strong> The analysis is unchanged
+    from 2026-07-25; only <a href="#priorities">§9 (the fix list)</a>,
+    <a href="#plan">§10 (the plan)</a> and the diagnosis tiles below carry live status.</p>
+    <p style="margin:0">Of the 19 numbered P0–P2 items, <strong>12 are shipped</strong> — five of
+    seven P0s, six of seven P1s, and P2-2 — with two partial, one staged-but-unsent and four
+    untouched. What has not happened is any outward-facing act: nothing submitted, nothing
+    launched. The binding constraint has moved from P0-1 (ten minutes of repo settings) to
+    <strong>P0-6</strong> and <strong>P2-3</strong>.</p>
+  </div>
+</header>
+
+<!-- ============================= DIAGNOSIS ============================= -->
+<section id="diagnosis">
+  <div class="sec-head">
+    <p class="eyebrow">1 · Diagnosis</p>
+    <h2>The finding that reframes the goal</h2>
+  </div>
+
+  <div class="card hero">
+    <div>
+      <div class="label" style="font-size:12.5px;color:var(--text-muted)">Stars today</div>
+      <div class="hero-fig">1<span class="unit"> ★</span></div>
+      <div class="hero-sub">39 days after first commit · 44 commits · 15 releases</div>
+      <div class="gap-to">Gap to target: <b>499 stars</b></div>
+    </div>
+    <div>
+      <p style="margin-bottom:14px">
+        This is <strong>not a capability problem</strong>. It is a discovery problem. At analysis
+        time the repository had no description, no topics, no homepage, and no listing on any
+        directory — so it appeared in not a single search path a potential user would take.
+      </p>
+      <p style="margin:0">
+        <strong>Nobody has been given the chance to not-star it.</strong> Every hour spent on
+        mechanism v1.4 before fixing the top of the funnel is spent at 0× leverage.
+      </p>
+    </div>
+  </div>
+
+  <div class="grid c4" style="margin-top:14px">
+    <div class="tile"><div class="label">GitHub description</div><div class="value" style="color:var(--success-text)">set</div><div class="delta">was null · fixed 2026-07-26</div></div>
+    <div class="tile"><div class="label">Topics</div><div class="value" style="color:var(--success-text)">20</div><div class="delta">was 0 · includes the uncontested <code>shapeup</code></div></div>
+    <div class="tile"><div class="label">Watchers</div><div class="value bad">0</div><div class="delta">unchanged — no return audience yet</div></div>
+    <div class="tile"><div class="label">Unique visitors / 14 d</div><div class="value bad">4</div><div class="delta">was 5 · still no inbound channel</div></div>
+  </div>
+  <p class="note" style="margin-top:12px">
+    Clones read 21 unique / 14 d — almost certainly the author plus CI, not adoption.
+    Discussions, <code>CONTRIBUTING.md</code> and issue templates all shipped on 2026-07-26.
+  </p>
+  <div class="callout quiet" style="margin-top:14px">
+    <p style="margin:0"><strong>What the flat numbers mean.</strong> The <em>search surface</em>
+    half of the diagnosis is fixed: description, twenty topics, homepage, Discussions, a rewritten
+    README, a glossary and a demo asset all landed in one day. The <em>distribution</em> half has
+    not moved — zero listings, zero launch — and traffic is correspondingly flat. That is the
+    expected shape, not a refutation: a fixed funnel with nothing poured into it looks identical
+    to a broken one. The diagnosis stands; the next act is outward-facing, not more building.</p>
+  </div>
+</section>
+
+<!-- ============================= LANDSCAPE ============================= -->
+<section id="landscape">
+  <div class="sec-head">
+    <p class="eyebrow">2 · Landscape</p>
+    <h2>The field, measured</h2>
+    <p>
+      Star counts retrieved from the GitHub API on 2026-07-25. The range spans five orders of
+      magnitude, so it is plotted as two charts on two scales rather than one chart that hides
+      everything below the leaders.
+    </p>
+  </div>
+
+  <div class="card">
+    <p class="chart-title">Category leaders — agent skills frameworks, SDD tools and marketplaces</p>
+    <p class="chart-sub">
+      Stars. One series, one colour. These are the projects that define the category's
+      expectations; they are context, not competition (see §3).
+    </p>
+    <div class="chart names-wide" id="chart-leaders"></div>
+    <details class="tableview">
+      <summary>▸ Table view</summary>
+      <div class="scroller" id="table-leaders"></div>
+    </details>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <p class="chart-title">The peer group — and the Shape&nbsp;Up niche</p>
+    <p class="chart-sub">
+      Same measure, a 0–6,000 scale. This is where the fight actually is. The niche's current
+      ceiling is <strong>rjs/shaping-skills</strong> at 1,404 — the very repo this plugin credits
+      as its inspiration, and a project that stops at the pitch.
+    </p>
+    <div class="legend">
+      <span class="key"><span class="sw" style="background:var(--accent-2)"></span> this repo</span>
+      <span class="key"><span class="sw" style="background:var(--accent)"></span> Shape&nbsp;Up niche ceiling</span>
+      <span class="key"><span class="sw" style="background:var(--deemph)"></span> other peers (context)</span>
+      <span class="key"><span class="sw" style="background:var(--accent-2);height:2px;border-radius:0"></span> 500-star target</span>
+    </div>
+    <div class="chart names-wide" id="chart-peers"></div>
+    <details class="tableview">
+      <summary>▸ Table view</summary>
+      <div class="scroller" id="table-peers"></div>
+    </details>
+  </div>
+
+  <div class="callout" style="margin-top:22px">
+    <p><strong>The <code>shapeup</code> GitHub topic is empty land.</strong>
+    Its largest occupant has <strong>6 stars</strong>
+    (<code>fenbox/shapeup</code>, <code>RickCogley/aichaku</code>), followed by
+    <code>shapeitapp</code> 3 ★, <code>onliminal/shapeup-skills</code> 3 ★,
+    <code>searchspring/shapeup-scheduler</code> 1 ★. A repo that claims and holds this topic
+    starts from near-zero competition.</p>
+  </div>
+</section>
+
+<!-- ============================= POSITIONING ============================= -->
+<section id="positioning">
+  <div class="sec-head">
+    <p class="eyebrow">3 · Strategy</p>
+    <h2>Which fight to pick</h2>
+  </div>
+
+  <div class="grid c2">
+    <div class="card" style="border-left:3px solid var(--critical)">
+      <h3 style="margin-bottom:8px">✕ Compete as “another SDD framework”</h3>
+      <p style="font-size:13.5px;margin:0">
+        Head-on against spec-kit (124k, Microsoft-backed, 35 integrations, 138 extensions),
+        OpenSpec (62k) and BMAD (51k). Saturated at the top, and the differentiator you would be
+        selling — rigor — is what <em>every</em> entrant claims. New entrants in this lane land
+        around 3k after twelve months of work (cc-sdd).
+      </p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--good)">
+      <h3 style="margin-bottom:8px">✓ Own two uncontested positions</h3>
+      <p style="font-size:13.5px;margin:0 0 8px">
+        <strong>1. The Shape Up harness for coding agents.</strong> Ceiling 1,404 ★, and that
+        project is shaping-only. This is the only harness carrying Shape Up's <em>building</em>
+        apparatus — appetite, betting table, hill charts, scope hammer, “QA is for the edges”,
+        baseline-not-ideal — into a mechanized loop.
+      </p>
+      <p style="font-size:13.5px;margin:0">
+        <strong>2. The verification layer that stops agents lying about done.</strong> Everyone
+        else's answer to this is prose; Superpowers' actual technique is rhetorical persuasion.
+        Yours is a hook that <em>denies</em> the dispatch.
+      </p>
+    </div>
+  </div>
+
+  <div class="callout quiet" style="margin-top:18px">
+    <p style="margin:0;font-size:16px;color:var(--text-primary)">
+      <strong>Shape Up for coding agents — with gates the agent can't talk its way past.</strong>
+    </p>
+    <p style="margin:6px 0 0;font-size:13px">
+      One line, used identically in the repo description, the README H1 and the Show HN title.
+    </p>
+  </div>
+</section>
+
+<!-- ============================= COMPARISON ============================= -->
+<section id="comparison">
+  <div class="sec-head">
+    <p class="eyebrow">4 · Comparison</p>
+    <h2>Head-to-head</h2>
+    <p>
+      Fifteen axes against the five most relevant projects. The pattern is consistent: this
+      harness wins every <em>enforcement</em> axis and loses every <em>adoption</em> axis.
+    </p>
+  </div>
+  <div class="scroller">
+    <table>
+      <thead>
+        <tr>
+          <th>Axis</th>
+          <th style="color:var(--accent-2)">this repo</th>
+          <th>spec-kit</th>
+          <th>OpenSpec</th>
+          <th>BMAD</th>
+          <th>cc-sdd</th>
+          <th>Superpowers</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="rowhead">Methodology</td><td class="mine">Shape Up (appetite / betting / hill / hammer)</td><td>generic spec→plan→tasks</td><td>delta-specs</td><td>full agile org</td><td>Kiro SDD</td><td>brainstorm→TDD→review</td></tr>
+        <tr><td class="rowhead">Install</td><td class="mine">marketplace + bash + Playwright plugin + chromium</td><td><code>uv tool install</code></td><td>npx</td><td>npx installer</td><td><code>npx cc-sdd@latest</code></td><td>plugin install</td></tr>
+        <tr><td class="rowhead">Time-to-first-value</td><td class="mine">unknown / high</td><td>minutes</td><td>~12 min to result</td><td>5.5 h to result</td><td>minutes</td><td>minutes</td></tr>
+        <tr><td class="rowhead">Slash commands exposed</td><td class="mine">1 (<code>/ship</code>)</td><td>~10 named phases</td><td>few</td><td>many</td><td>~7 <code>kiro-*</code></td><td>many</td></tr>
+        <tr><td class="rowhead">Agent CLIs supported</td><td class="mine">Claude Code (+3 unmarketed)</td><td>35</td><td>many</td><td>many</td><td>8</td><td>Claude-first</td></tr>
+        <tr><td class="rowhead">Worker interface</td><td class="mine"><span class="yes">typed JSON envelope, schema-validated, hook-denied</span></td><td>markdown</td><td>markdown</td><td>markdown</td><td>markdown</td><td>markdown</td></tr>
+        <tr><td class="rowhead">Shared-state writes</td><td class="mine"><span class="yes">single writer</span></td><td>agent writes</td><td>agent writes</td><td>agent writes</td><td>agent writes</td><td>agent writes</td></tr>
+        <tr><td class="rowhead">Progress honesty</td><td class="mine"><span class="yes">derived from T0 artifacts</span></td><td>self-reported</td><td>self-reported</td><td>self-reported</td><td>reviewer subagent</td><td>persuasion prompts</td></tr>
+        <tr><td class="rowhead">Gate enforcement</td><td class="mine"><span class="yes">PreToolUse hooks that deny</span></td><td>prompt + checklists</td><td>prompt</td><td>prompt</td><td>prompt</td><td>prompt</td></tr>
+        <tr><td class="rowhead">Parallel-write safety</td><td class="mine"><span class="yes">write-whitelist hook + disjointness lint</span></td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td><code>_Boundary:_</code> annotations</td><td>worktrees</td></tr>
+        <tr><td class="rowhead">Retry bounding</td><td class="mine"><span class="yes">two-level circuit breaker</span></td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td>auto-debug</td><td class="no">—</td></tr>
+        <tr><td class="rowhead">Traceability</td><td class="mine"><span class="yes">covers-closure + wiring reachability oracle</span></td><td>cross-artifact <code>analyze</code></td><td class="no">—</td><td class="no">—</td><td>boundary / depends</td><td class="no">—</td></tr>
+        <tr><td class="rowhead">Learning loop</td><td class="mine"><span class="yes">committed per-skill KB, human gate</span></td><td class="no">—</td><td class="no">—</td><td>retro</td><td>Implementation Notes</td><td class="no">—</td></tr>
+        <tr><td class="rowhead">Brownfield</td><td class="mine">orient / spike (unmarketed)</td><td>weak (greenfield-tilted)</td><td><span class="yes">strongest</span></td><td>medium</td><td>strong</td><td>medium</td></tr>
+        <tr><td class="rowhead">Lightweight lane</td><td class="mine" style="color:var(--critical)">none ⚠</td><td><code>--minimal</code> presets</td><td>native</td><td>risk lanes</td><td>direct-impl route</td><td>skill-scoped</td></tr>
+        <tr><td class="rowhead">Proof / benchmarks</td><td class="mine">eval harness, honestly <em>unmeasured</em></td><td>community benchmarks</td><td>blog benchmarks</td><td>case studies</td><td class="no">—</td><td>787k installs</td></tr>
+        <tr class="mine"><td class="rowhead">Stars</td><td class="num mine">1</td><td class="num">123,692</td><td class="num">62,486</td><td class="num">51,097</td><td class="num">3,581</td><td class="num">260,682</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout" style="margin-top:18px">
+    <p style="margin:0">
+      <strong>Reading the three enforcement rows.</strong> <em>Worker interface</em>,
+      <em>shared-state writes</em> and <em>gate enforcement</em> are the cells where this project
+      looks <em>alien</em> rather than <em>better</em>. They are not three features — they are one
+      idea, and one of them is a product while two are plumbing.
+      <a href="#enforcement">Section 5 unpacks this</a>, including the honest caveat that
+      single-writer is partly a solution to a problem this project chose to have: the others get
+      write-safety free by being single-threaded.
+    </p>
+  </div>
+</section>
+
+<!-- ============================= ENFORCEMENT AXIS ============================= -->
+<section id="enforcement">
+  <div class="sec-head">
+    <p class="eyebrow">5 · Architecture read</p>
+    <h2>The enforcement axis — why three cells look alien</h2>
+    <p>
+      How these three are framed decides whether a first-time reader thinks “obviously right” or
+      “over-engineered”. Today it reads as the second.
+    </p>
+  </div>
+
+  <h3 style="margin:0 0 10px;font-size:15px">5.1 · One idea, not three features</h3>
+  <p>All three are the same move: <strong>take an invariant out of the prompt and put it in the runtime.</strong></p>
+  <div class="scroller" style="margin-bottom:18px">
+    <table>
+      <thead><tr><th>Invariant</th><th>Where the field keeps it</th><th>Where this repo keeps it</th></tr></thead>
+      <tbody>
+        <tr><td class="rowhead">A worker receives well-formed context</td><td>prose in a markdown file</td><td class="mine">JSON Schema + a hook that denies</td></tr>
+        <tr><td class="rowhead">Shared state does not get corrupted</td><td>agent discipline / convention</td><td class="mine">one writer function</td></tr>
+        <tr><td class="rowhead">Phases happen in order</td><td>“please don't skip EVAL”</td><td class="mine"><code>deny</code> on the tool call</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    None of this is novel computing — it is ports-and-adapters, a single-writer log and a
+    reference monitor. It is novel <em>in this category</em>, where the state of the art is a
+    firmer instruction: Superpowers' actual anti-skip technique is Cialdini persuasion
+    principles. The framing that follows:
+  </p>
+  <div class="callout quiet">
+    <p style="margin:0;font-size:16px;color:var(--text-primary)">
+      <strong>Everyone else shipped a prompt pack. This project shipped a control plane.</strong>
+    </p>
+    <p style="margin:6px 0 0;font-size:13px">
+      The column looks alien because it is not a better answer to their question — it answers a
+      different question.
+    </p>
+  </div>
+
+  <h3 style="margin:26px 0 10px;font-size:15px">5.2 · Why nobody else does it — and why that is good news</h3>
+  <div class="grid c2">
+    <div class="card" style="border-left:3px solid var(--deemph)">
+      <h3 style="margin-bottom:6px">The field's bet: intent capture</h3>
+      <p style="font-size:13.5px;margin:0">spec-kit, OpenSpec, BMAD — get the spec right and the agent will mostly comply.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--accent)">
+      <h3 style="margin-bottom:6px">This project's bet: compliance</h3>
+      <p style="font-size:13.5px;margin:0">The spec is fine; the agent lies about what it did.</p>
+    </div>
+  </div>
+  <p style="margin-top:14px">
+    The published evidence supports both — <em>“the spec improved the hit rate, but it did not
+    guarantee compliance.”</em> Spec-first raises the floor; enforcement raises the ceiling. They
+    are complements, not substitutes. Which is the strategic payoff:
+    <strong>this project sits on an orthogonal axis, so composition beats competition.</strong>
+    A spec-kit user does not have to abandon spec-kit to want a hook that denies a premature EVAL.
+    Competing with a 124k-star project is a fight; being the layer underneath it is a distribution
+    channel. That is the justification for <strong>P2-2</strong>, re-ranked in
+    <a href="#priorities">§9</a> as the highest-ceiling item in the list.
+  </p>
+
+  <h3 style="margin:26px 0 10px;font-size:15px">5.3 · The asymmetry — one is a product, two are plumbing</h3>
+  <p>
+    The comparison table presents all three as wins. They are not the same kind of thing. Bars
+    show each mechanism scored 0–5 on two independent jobs; the legend carries identity and every
+    value is directly labelled.
+  </p>
+  <div class="card">
+    <div class="grid c2">
+      <div>
+        <p class="chart-title" style="font-size:13.5px">Value to the user <span style="color:var(--text-muted);font-weight:400">— marketing, demoability</span></p>
+        <div class="chart names-mid asym" id="chart-asym-user"></div>
+      </div>
+      <div>
+        <p class="chart-title" style="font-size:13.5px">Value to the system <span style="color:var(--text-muted);font-weight:400">— engineering</span></p>
+        <div class="chart names-mid asym" id="chart-asym-sys"></div>
+      </div>
+    </div>
+    <p class="note" style="margin-top:14px">
+      Small multiples on a shared −3…+5 scale, diverging from a zero baseline. Scores are a
+      considered judgement, not a measurement. <strong>Negative user value</strong> means the
+      mechanism currently <em>costs</em> adoption: users meet the envelope as vocabulary before
+      they meet a benefit.
+    </p>
+    <details class="tableview">
+      <summary>▸ Table view</summary>
+      <div class="scroller" id="table-asym"></div>
+    </details>
+  </div>
+  <p style="margin-top:16px">
+    Users experience the deny hook. They never experience single-writer state — they experience
+    the <em>absence</em> of corruption bugs they never knew were coming. And they experience the
+    envelope as vocabulary they must learn before they are permitted to understand the README.
+    <strong>Consequence: lead with enforcement</strong>, and let the other two be the reason
+    enforcement is trustworthy — mentioned once, not as three co-equal headline features. Today
+    <code>AGENTS.md</code> opens on the envelope. That is leading with the plumbing.
+  </p>
+
+  <h3 style="margin:26px 0 10px;font-size:15px">5.4 · The costs, stated plainly</h3>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Choice</th><th>Cost</th></tr></thead>
+      <tbody>
+        <tr><td class="rowhead">Typed envelope</td><td><strong>An extensibility tax.</strong> Adding a skill to Superpowers is dropping a markdown file; adding a worker here means learning a schema. spec-kit has 138 community extensions; this project's extension cost is “read <code>domain.schema.json</code>”. Compounds with bus-factor 1 (G10).</td></tr>
+        <tr><td class="rowhead">Single writer</td><td><strong>A contribution bottleneck.</strong> Every new class of shared fact routes through <code>ingest-result.mjs</code> — i.e. through one person. It also resists piecemeal use: you cannot run just the evaluator, because state application lives in the orchestrator. dwarves-kit's <code>bash lib/board/board.sh --help</code> working with zero install is a real advantage traded away.</td></tr>
+        <tr><td class="rowhead">Deny hooks</td><td><strong>The least portable of the three.</strong> Hooks are per-CLI, so the strongest differentiator does not travel to the Cursor / Codex / Antigravity targets (G7). Every false-deny is a rage-quit, and 7 <code>PreToolUse</code> hooks is a security-review surface — which is why <code>SECURITY.md</code> (P1-6) protects the headline feature rather than being hygiene.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout" style="margin-top:18px">
+    <p style="margin:0">
+      <strong>One correction to §4's framing.</strong> Single-writer is <em>partly a solution to a
+      problem this project chose to have.</em> The others get write-safety free by being
+      single-threaded; this harness needs it because it parallelises scopes. It remains a genuine
+      win against compaction/resume corruption — which is universal — but stated as a bare axis it
+      flatters this repo, and a sharp reader will notice.
+    </p>
+  </div>
+
+  <h3 style="margin:26px 0 10px;font-size:15px">5.5 · Where “alien” turns into a liability</h3>
+  <p>
+    Differentiation without a named failure reads as over-engineering. When one column says
+    <em>“typed JSON envelope, schema-validated, hook-denied”</em> and the rest say
+    <em>“markdown,”</em> the skeptic's first thought is not “impressive” — it is
+    <strong>“why would that need all that?”</strong> Each cell needs its failure welded on:
+  </p>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Mechanism</th><th>The failure it prevents</th></tr></thead>
+      <tbody>
+        <tr><td class="rowhead">Typed envelope</td><td>a worker got a truncated task list after a compaction and silently built half the feature</td></tr>
+        <tr><td class="rowhead">Single writer</td><td>two parallel executors both rewrote the board; one's completions vanished</td></tr>
+        <tr><td class="rowhead">Deny hook</td><td>the agent ran EVAL on a half-green board and reported PASS</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="margin-top:14px">
+    With the story attached, “alien” becomes “obvious in hindsight”. This is a README-and-table
+    fix, not an architecture fix — filed as <strong>P0-7</strong>.
+  </p>
+
+  <h3 style="margin:26px 0 10px;font-size:15px">5.6 · Verdict, and which mechanism ages well</h3>
+  <p>
+    Gate enforcement and single-writer: <strong>right, keep, defend.</strong> The typed envelope:
+    right in principle, <strong>priced wrong</strong> — it should be an invisible implementation
+    detail, not a concept a user must learn. The acceptance test:
+    <em>can someone use this harness productively without ever hearing the word “WorkOrder”?</em>
+    Today, no. That should be yes.
+  </p>
+  <div class="grid c2">
+    <div class="card" style="border-left:3px solid var(--critical)">
+      <h3 style="margin-bottom:6px">The envelope erodes</h3>
+      <p style="font-size:13.5px;margin:0">
+        It encodes the assumption <em>“workers are unreliable at reconstructing context.”</em>
+        Models keep getting better at exactly that, so the assumption weakens over time.
+      </p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--good)">
+      <h3 style="margin-bottom:6px">The deny hook does not</h3>
+      <p style="font-size:13.5px;margin:0">
+        It encodes <em>“a model asked to report on its own work is motivated to claim success.”</em>
+        That is about incentives, not capability — it does not erode at all.
+      </p>
+    </div>
+  </div>
+  <div class="callout" style="margin-top:18px">
+    <p style="margin:0;font-size:16px;color:var(--text-primary)">
+      <strong>The moat is the enforcement layer. The envelope is plumbing that makes it
+      trustworthy. Market accordingly.</strong>
+    </p>
+  </div>
+</section>
+
+<!-- ============================= EDGES ============================= -->
+<section id="edges">
+  <div class="sec-head">
+    <p class="eyebrow">6 · Assets</p>
+    <h2>Eight real edges over the 100k-star field</h2>
+    <p>
+      Each is a mechanism the leaders do not have, not a claim about quality — and each is stated
+      with <strong>the failure it prevents</strong>. An edge without a named failure reads as
+      over-engineering, which is exactly how the first three currently land (§5.5).
+    </p>
+  </div>
+  <div class="edges">
+    <div class="edge" style="border-left-color:var(--accent-2)"><h3>Non-self-reported progress · the headline</h3><p>Hill phase derived only from T0/T1/seesaw facts, and a hook that denies the EVAL dispatch on a non-green board.<br><em style="color:var(--text-muted)">Prevents: the agent running EVAL on a half-green board and reporting PASS.</em></p></div>
+    <div class="edge"><h3>Mechanically-enforced worker contract</h3><p>WorkOrder in / WorkResult out, JSON-Schema validated, with a hook that denies a malformed dispatch <em>before</em> a worker runs.<br><em style="color:var(--text-muted)">Prevents: a worker getting a truncated task list after a compaction and silently building half the feature.</em></p></div>
+    <div class="edge"><h3>Single-writer shared state</h3><p>One script performs every board / ledger / verdict write, structurally eliminating the state-corruption class that plagues multi-agent SDD tools.<br><em style="color:var(--text-muted)">Prevents: two parallel executors both rewriting the board, and one's completions vanishing.</em></p></div>
+    <div class="edge"><h3>Substrate sandbox</h3><p>Per-scope write whitelist enforced by hook plus a disjointness lint — real parallel safety, not an annotation convention.</p></div>
+    <div class="edge"><h3>Two-level circuit breaker</h3><p>Round budget nests an attempt budget, and an exhausted scope <em>queues a cut proposal</em> rather than blocking the round. Nobody else bounds retries at two granularities.</p></div>
+    <div class="edge"><h3>Traceability spine</h3><p>Covers-closure and wiring reachability catch “feature built but never wired to the entry point”. A real, frequent pain with no competing solution in the top ten.</p></div>
+    <div class="edge"><h3>Single judge, EVAL once per round</h3><p>A token-cost discipline that answers the “BMAD costs $2,000/mo/dev” objection head-on — if it were ever marketed.</p></div>
+    <div class="edge"><h3>Honest evals</h3><p>Trigger evals with cross-skill hard negatives that ship <code>status: "unmeasured"</code>, and a CI test that <em>fails</em> if fabricated results appear. Rare, and marketable in itself.</p></div>
+  </div>
+</section>
+
+<!-- ============================= GAPS ============================= -->
+<section id="gaps">
+  <div class="sec-head">
+    <p class="eyebrow">7 · Liabilities</p>
+    <h2>Eleven gaps, by severity</h2>
+    <p>Severity is stated as an explicit label beside a coloured dot — never colour alone.</p>
+  </div>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>ID</th><th>Severity</th><th>Gap</th><th>Evidence / consequence</th></tr></thead>
+      <tbody>
+        <tr><td class="rowhead">G1</td><td><span class="chip critical"><span class="dot"></span>Critical</span></td><td class="rowhead">No discovery surface at all</td><td>null description, no topics, no homepage, no listings, 5 unique visitors / 14 d</td></tr>
+        <tr><td class="rowhead">G2</td><td><span class="chip critical"><span class="dot"></span>Critical</span></td><td class="rowhead">Time-to-first-value unknown and probably high</td><td>8 gates, 13 skills, bash installer, Playwright plugin + chromium prerequisite; competitors are one <code>npx</code> from a result</td></tr>
+        <tr><td class="rowhead">G6</td><td><span class="chip critical"><span class="dot"></span>Critical</span></td><td class="rowhead">No lightweight lane</td><td>the most-quoted line in every comparison article is “12 min OpenSpec vs 5.5 h BMAD”; a typo fix through 8 gates is indefensible, and readers will assume it is the only mode</td></tr>
+        <tr><td class="rowhead">G3</td><td><span class="chip serious"><span class="dot"></span>Serious</span></td><td class="rowhead">One slash command</td><td>slash-completion is how users learn a plugin; <code>/ship</code> alone hides 13 skills. spec-kit's phase commands <em>are</em> its onboarding</td></tr>
+        <tr><td class="rowhead">G5</td><td><span class="chip serious"><span class="dot"></span>Serious</span></td><td class="rowhead">No proof artifact</td><td>no demo GIF, no video, no benchmark, no case study. Every competitor claims rigor; nobody is believed without evidence</td></tr>
+        <tr><td class="rowhead">G8</td><td><span class="chip serious"><span class="dot"></span>Serious</span></td><td class="rowhead">README is 322 lines, opens with install troubleshooting</td><td>lines 45–150 are dependency errors and migration mechanics; an HN visitor gives ~30 s</td></tr>
+        <tr><td class="rowhead">G4</td><td><span class="chip warning"><span class="dot"></span>Warning</span></td><td class="rowhead">Invented vocabulary, no glossary above the fold</td><td>substrate, T0, seesaw, covers-closure, GATE L1a.5, hill shard, envelope port — the README leads with mechanism, not outcome</td></tr>
+        <tr><td class="rowhead">G7</td><td><span class="chip warning"><span class="dot"></span>Warning</span></td><td class="rowhead">Multi-CLI support built but unmarketed</td><td><code>dist/</code> already emits Cursor rules, Antigravity subagents and Codex skills; portability is a top install-decision axis and you get no credit for it</td></tr>
+        <tr><td class="rowhead">G9</td><td><span class="chip warning"><span class="dot"></span>Warning</span></td><td class="rowhead">No trust signals</td><td>7 node hooks in a PreToolUse position, no <code>SECURITY.md</code>; the ecosystem is shifting hard to trust — 36% of audited marketplace skills contain prompt injection, avg 6.3 issues per skill</td></tr>
+        <tr><td class="rowhead">G10</td><td><span class="chip warning"><span class="dot"></span>Warning</span></td><td class="rowhead">Bus factor 1, no contribution path</td><td>44 commits / 1 author, no <code>CONTRIBUTING.md</code>, Discussions off, no issue templates</td></tr>
+        <tr><td class="rowhead">G11</td><td><span class="chip good"><span class="dot"></span>Minor</span></td><td class="rowhead">Docs are internal-facing</td><td>2,045 lines of design docs written for the author, and ~0 lines of user narrative</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================= GROWTH MODEL ============================= -->
+<section id="growth">
+  <div class="sec-head">
+    <p class="eyebrow">8 · Analytics</p>
+    <h2>What actually moves stars here</h2>
+    <p>
+      From published research on OSS launch dynamics: <strong>87%</strong> of repos that reached
+      10k stars launched on Hacker News first. HN exposure averages <strong>+121 stars in 24 h,
+      +189 in 48 h, +289 in a week</strong>; the optimal <em>Show HN</em> window is US Tue–Thu,
+      08:00–10:00 ET. With active promotion, 0 → 1,000 in one to three months is realistic.
+    </p>
+  </div>
+
+  <div class="card">
+    <p class="chart-title">Star-source model — realistic contribution to the first 500</p>
+    <p class="chart-sub">
+      Each bar is a plausible range, not a forecast. <strong>Any two of these channels clear
+      500.</strong> None of them can fire while the repo description is null.
+    </p>
+    <div class="chart names-wide" id="chart-sources"></div>
+    <details class="tableview">
+      <summary>▸ Table view</summary>
+      <div class="scroller" id="table-sources"></div>
+    </details>
+  </div>
+
+  <div class="grid c4" style="margin-top:14px">
+    <div class="tile"><div class="label">Avg. stars in week 1 after HN</div><div class="value">289</div><div class="delta">front page delivers hundreds in a day</div></div>
+    <div class="tile"><div class="label">Repos ≥10k that launched on HN</div><div class="value">87%</div><div class="delta">then cross-posted to Reddit / X</div></div>
+    <div class="tile"><div class="label">Avg. public skill quality score</div><div class="value">6.2<span style="font-size:15px;color:var(--text-muted)">/12</span></div><div class="delta">a credible quality claim is the market's scarcest asset</div></div>
+    <div class="tile"><div class="label">Pass-rate lift from curated skills</div><div class="value" style="color:var(--success-text)">+16.2<span style="font-size:15px">pp</span></div><div class="delta">focused sets beat monoliths by 18.6 pp</div></div>
+  </div>
+</section>
+
+<!-- ============================= PRIORITIES ============================= -->
+<section id="priorities">
+  <div class="sec-head">
+    <p class="eyebrow">9 · Fix list</p>
+    <h2>Priorities, ranked by impact ÷ effort</h2>
+    <p>
+      P0 is gating — nothing downstream works until it ships. Do it before any further code.
+      Two items are re-ranked by §5: <strong>P0-7</strong> is new (framing), and
+      <strong>P2-2</strong> is now the highest-ceiling item in the list rather than a week-5
+      nice-to-have.
+    </p>
+    <p>
+      <strong>Status verified against <code>main</code> and the GitHub API on 2026-07-26.</strong>
+      Everything a solo author can do alone, inside a repository, is done. Every remaining item
+      needs either an outward-facing send (P0-6, P2-3, P2-4, P2-5) or measurement against other
+      people's tools (P1-4, P2-1).
+    </p>
+    <div class="scoreboard">
+      <span class="st done">12 shipped</span>
+      <span class="st partial">2 partial</span>
+      <span class="st staged">1 staged, not sent</span>
+      <span class="st todo">4 not started</span>
+      <span class="note" style="margin:0;align-self:center">of 19 P0–P2 items · P3 ongoing, scored in its own row</span>
+    </div>
+  </div>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>#</th><th>Priority</th><th>Status</th><th>Action</th><th>Why</th><th class="num">Effort</th></tr></thead>
+      <tbody>
+        <tr class="shipped"><td class="rowhead">P0-1</td><td><span class="chip p0"><span class="dot" style="background:var(--critical)"></span>P0</span></td><td><span class="st done">shipped</span></td><td class="rowhead">Set description + 20 topics + homepage</td><td>Zero search surface today. Topics are the primary in-GitHub discovery path, and <code>shapeup</code> is uncontested (top competitor 6 ★)</td><td class="num">10 min</td></tr>
+        <tr class="shipped"><td class="rowhead">P0-2</td><td><span class="chip p0"><span class="dot" style="background:var(--critical)"></span>P0</span></td><td><span class="st done">shipped</span></td><td class="rowhead">Discussions on, CONTRIBUTING, issue templates, 5 good-first-issues</td><td>Bus-factor-1 with no contribution path reads as abandoned-in-waiting</td><td class="num">1 h</td></tr>
+        <tr class="shipped"><td class="rowhead">P0-3</td><td><span class="chip p0"><span class="dot" style="background:var(--critical)"></span>P0</span></td><td><span class="st done">shipped</span></td><td class="rowhead">Rewrite the README's top 40 lines</td><td>Value prop → what it does to your agent → 3-command quickstart → demo. Move install troubleshooting, migration and layout into <code>docs/</code></td><td class="num">2 h</td></tr>
+        <tr><td class="rowhead">P0-4</td><td><span class="chip p0"><span class="dot" style="background:var(--critical)"></span>P0</span></td><td><span class="st partial">partial</span></td><td class="rowhead">60-second demo asset</td><td>Idea → gate → build → FAIL verdict → fix → PASS. Show the hook <em>denying</em> a premature EVAL — that single frame is the product</td><td class="num">3 h</td></tr>
+        <tr class="shipped"><td class="rowhead">P0-5</td><td><span class="chip p0"><span class="dot" style="background:var(--critical)"></span>P0</span></td><td><span class="st done">shipped</span></td><td class="rowhead">Glossary above the fold</td><td>12 rows mapping invented terms to plain English (substrate → “files this scope may write”). Vocabulary is the biggest comprehension tax</td><td class="num">1 h</td></tr>
+        <tr><td class="rowhead">P0-6</td><td><span class="chip p0"><span class="dot" style="background:var(--critical)"></span>P0</span></td><td><span class="st staged">staged</span></td><td class="rowhead">Submit to 5 directories</td><td>awesome-claude-code, Anthropic community marketplace, VoltAgent, claudemarketplaces, claudepluginhub — free, compounding, days of latency</td><td class="num">2 h</td></tr>
+        <tr class="shipped"><td class="rowhead">P0-7</td><td><span class="chip p0"><span class="dot" style="background:var(--critical)"></span>P0</span></td><td><span class="st done">shipped</span></td><td class="rowhead">Reframe the three enforcement mechanisms</td><td>Weld the failure story onto each, lead with the deny hook, demote the envelope to an implementation detail — including in <code>AGENTS.md</code>, which currently opens on it. Per §5.3/5.5: the strongest asset is buried under the most costly one</td><td class="num">2 h</td></tr>
+
+        <tr class="shipped"><td class="rowhead">P1-1</td><td><span class="chip p1"><span class="dot" style="background:var(--serious)"></span>P1</span></td><td><span class="st done">shipped</span></td><td class="rowhead"><code>npx shapeup-sdlc init</code></td><td>One command, no bash, Windows-safe, Playwright lazy until a <code>[ui]</code> criterion is actually evaluated. This is cc-sdd's single biggest advantage over you</td><td class="num">2–3 d</td></tr>
+        <tr class="shipped"><td class="rowhead">P1-2</td><td><span class="chip p1"><span class="dot" style="background:var(--serious)"></span>P1</span></td><td><span class="st done">shipped</span></td><td class="rowhead">Add a <code>--tiny</code> lane</td><td>Orient → build → T0 → done. Answers the category's #1 objection and converts the harness's biggest perceived liability into “right-size the ceremony”</td><td class="num">2–3 d</td></tr>
+        <tr class="shipped"><td class="rowhead">P1-3</td><td><span class="chip p1"><span class="dot" style="background:var(--serious)"></span>P1</span></td><td><span class="st done">shipped</span></td><td class="rowhead">Expose 9 named slash commands</td><td><code>/shape /orient /wire /scopes /build /eval /qa /hammer /retro</code> as thin wrappers. One line per file, outsized legibility payoff</td><td class="num">4 h</td></tr>
+        <tr><td class="rowhead">P1-4</td><td><span class="chip p1"><span class="dot" style="background:var(--serious)"></span>P1</span></td><td><span class="st partial">partial</span></td><td class="rowhead">Run the trigger-evals for real; publish TPR/FPR + method</td><td>The harness exists and refuses to fabricate. A measured skill-activation number is something no competitor has</td><td class="num">1 d</td></tr>
+        <tr class="shipped"><td class="rowhead">P1-5</td><td><span class="chip p1"><span class="dot" style="background:var(--serious)"></span>P1</span></td><td><span class="st done">shipped</span></td><td class="rowhead">Finish the <code>examples/todo-cli</code> walkthrough</td><td>Every gate output verbatim, the FAIL round, the ledger, the ship summary. Converts “impressive architecture” into “I can picture using this”</td><td class="num">1 d</td></tr>
+        <tr class="shipped"><td class="rowhead">P1-6</td><td><span class="chip p1"><span class="dot" style="background:var(--serious)"></span>P1</span></td><td><span class="st done">shipped</span></td><td class="rowhead">SECURITY.md + “what the hooks do” table</td><td>Each of the 7 hooks: what it reads, what it can deny, what it never does. Pre-empt a legitimate reviewer concern</td><td class="num">3 h</td></tr>
+        <tr class="shipped"><td class="rowhead">P1-7</td><td><span class="chip p1"><span class="dot" style="background:var(--serious)"></span>P1</span></td><td><span class="st done">shipped</span></td><td class="rowhead">Market the multi-CLI story</td><td>An agent-support matrix in the README. You already paid for this feature and get no credit</td><td class="num">2 h</td></tr>
+
+        <tr class="mine shipped"><td class="rowhead">P2-2 ⭐</td><td><span class="chip p2"><span class="dot" style="background:var(--warning)"></span>P2</span></td><td><span class="st done">shipped</span></td><td class="rowhead">Extract the “anti-lying kit” standalone</td><td><strong>Highest-ceiling item in the list</strong> (re-ranked by §5.2). gate-l2, anti-rationalization, slop-cleaner, t0-verify, mechanical hill — installable <em>into</em> spec-kit / OpenSpec / Superpowers. The enforcement axis is orthogonal to the spec axis, so composition beats competition — and it is the one mechanism that does not erode as models improve (§5.6). <code>claude-code-hooks-mastery</code> reached 3.8 k on one legible idea</td><td class="num">3–4 d</td></tr>
+        <tr><td class="rowhead">P2-1</td><td><span class="chip p2"><span class="dot" style="background:var(--warning)"></span>P2</span></td><td><span class="st todo">not started</span></td><td class="rowhead">Publish a 4-harness benchmark</td><td>Same 3 features through this / spec-kit / OpenSpec / cc-sdd: wall-clock, tokens, first-pass verdict rate, escaped defects. <code>spec-compare</code> got 92 ★ as pure research</td><td class="num">1 wk</td></tr>
+        <tr><td class="rowhead">P2-3</td><td><span class="chip p2"><span class="dot" style="background:var(--warning)"></span>P2</span></td><td><span class="st todo">not started</span></td><td class="rowhead">Show HN launch</td><td>Tue–Thu 08:00–10:00 ET, title framing the problem not the framework. Expect +150–350 in week 1</td><td class="num">1 d</td></tr>
+        <tr><td class="rowhead">P2-4</td><td><span class="chip p2"><span class="dot" style="background:var(--warning)"></span>P2</span></td><td><span class="st todo">not started</span></td><td class="rowhead">Shape Up community outreach</td><td>The 37signals orbit, plus a courteous note to Ryan Singer framed as “I built the building half of your shaping skills”. Highest-intent audience that exists</td><td class="num">4 h</td></tr>
+        <tr><td class="rowhead">P2-5</td><td><span class="chip p2"><span class="dot" style="background:var(--warning)"></span>P2</span></td><td><span class="st todo">not started</span></td><td class="rowhead">Submit to the official Anthropic directory</td><td>Curated, discretionary, days-long review. Official listing took Superpowers from 57k → 224k</td><td class="num">2 h</td></tr>
+
+        <tr><td class="rowhead">P3</td><td><span class="chip p3"><span class="dot" style="background:var(--baseline)"></span>P3</span></td><td><span class="st partial">partial</span></td><td class="rowhead">Sustain</td><td>Weekly releases with a visible roadmap · one external blog post per internal design doc · answer every issue inside 24 h for 90 days · track referrers weekly and double down on what converts</td><td class="num">ongoing</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="margin:26px 0 10px;font-size:15px">Where the four non-shipped items actually stand</h3>
+  <div class="grid c2">
+    <div class="edge" style="border-left-color:var(--serious)">
+      <h3>P0-6 · staged, not sent — the binding constraint</h3>
+      <p><code>docs/launch/submissions.md</code> holds channel-verified copy for all five, and the
+      sent log is empty. It stayed unsent deliberately: awesome-claude-code requires a
+      human-authored recommendation, and this report says not to point reviewers at an unfinished
+      README. Both preconditions are now met.<br>
+      <em style="color:var(--text-muted)">Clear one thing first: the work sits on <code>main</code>
+      and the newest tag is still v1.3.0 (2026-07-24). Cut a release, then send.</em></p>
+    </div>
+    <div class="edge" style="border-left-color:var(--warning)">
+      <h3>P0-4 · partial — the frame shipped, the film did not</h3>
+      <p><code>docs/assets/demo-gate.svg</code> is regenerated by a recorder that runs the real
+      <code>hooks/gate-l2.mjs</code> and fails rather than draw a picture — better than a GIF on
+      the honesty axis, and it is the frame this report called “the product”. Missing: the full
+      idea → gate → build → FAIL → fix → PASS narrative.<br>
+      <em style="color:var(--text-muted)">Close before P2-3; a Show HN thread wants motion.</em></p>
+    </div>
+    <div class="edge" style="border-left-color:var(--warning)">
+      <h3>P1-4 · partial — and behaving correctly</h3>
+      <p>The FPR half is real and quotable: <strong>0 false activations across 75 cross-skill hard
+      negatives</strong> (Haiku 4.5, 2026-07-26). The TPR half is measured but confounded and
+      deliberately not quoted — probes run in this repo's own tree, so 38 of 74 positive cases name
+      a referent the probe never supplies, and a model that correctly asks for the missing input
+      scores as a miss. Issues #7 and #12 track the fix.<br>
+      <em style="color:var(--text-muted)">Risk 4 honored: three earlier baselines were discarded
+      rather than published.</em></p>
+    </div>
+    <div class="edge" style="border-left-color:var(--accent-2)">
+      <h3>P2-2 ⭐ · built, not yet launched</h3>
+      <p>The kit ships at <code>plugins/anti-lying-kit/</code> — three hooks, no methodology,
+      installable alongside spec-kit, OpenSpec or a plain <code>tasks.md</code> — with a “Just want
+      the gate?” callout in the main README and two open <code>good first issue</code>s against it.<br>
+      <em style="color:var(--text-muted)">Its strategic value is entirely unrealized until P2-3
+      fires: §5.2's whole argument is that this is the thing to lead the launch with.</em></p>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top:18px">
+    <p style="margin-bottom:8px"><strong>What to do next, in order.</strong></p>
+    <p style="margin:0">
+      <strong>1.</strong> Cut a release off <code>main</code> so a directory reviewer lands on a
+      tagged version containing the anti-lying kit (unblocks P0-6 and P2-5). &nbsp;·&nbsp;
+      <strong>2.</strong> P0-6 — send the five submissions by hand; every day unsent is a day the
+      compounding does not start. &nbsp;·&nbsp;
+      <strong>3.</strong> P0-4 (narrative demo) and P1-4 (de-confound the TPR probes) — the two
+      assets the launch post will be judged on. &nbsp;·&nbsp;
+      <strong>4.</strong> P2-3 — Show HN, led by the anti-lying kit rather than the SDLC harness.
+      Not before step 3: HN traffic does not come back.
+    </p>
+  </div>
+</section>
+
+<!-- ============================= PLAN ============================= -->
+<section id="plan">
+  <div class="sec-head">
+    <p class="eyebrow">10 · Plan</p>
+    <h2>Six weeks, with expected trajectory</h2>
+    <p>
+      Bars show a plausible cumulative star range at each week's exit. The step change in week 6
+      is the launch; everything before it exists to make that launch survivable.
+    </p>
+  </div>
+  <div class="card">
+    <div class="weeks" id="plan-weeks"></div>
+    <div class="axis-wrap" style="padding-left:0;margin-top:12px">
+      <p class="note" style="margin:0">
+        Range scale 0–800 stars; the orange hairline is the 500-star target. Do not fire week 6
+        until a stranger has completed the quickstart — HN traffic does not come back.
+      </p>
+      <p class="note" style="margin:10px 0 0">
+        <strong style="color:var(--text-primary)">Status 2026-07-26 — six weeks of plan executed
+        in roughly two days.</strong> Weeks 1–4 are substantially done and week 5 is half done.
+        The compression is real, but it is entirely on the <em>building</em> axis — the axis this
+        report opened by saying was never the constraint. The one week that matters most, week 6,
+        is untouched, and the star bars above are projections that have not started earning:
+        actual stars are still 1.
+      </p>
+    </div>
+    <details class="tableview">
+      <summary>▸ Table view</summary>
+      <div class="scroller" id="table-plan"></div>
+    </details>
+  </div>
+</section>
+
+<!-- ============================= RISKS ============================= -->
+<section id="risks">
+  <div class="sec-head">
+    <p class="eyebrow">11 · Risks</p>
+    <h2>Five honest ones</h2>
+  </div>
+  <ul class="tight">
+    <li><strong>Complexity is the real product risk, not marketing.</strong> 13 skills, 8 gates, 3,112 lines of SKILL.md, 7 hooks. The market's stated preference in 2026 is lighter — OpenSpec at 62k on minimalism versus BMAD at 51k on maximalism. P1-2 is not a nice-to-have; without it the harness is legible only to the person who built it.</li>
+    <li><strong>Attribution risk.</strong> The Shape Up wedge depends on 37signals goodwill. The existing credit to <code>rjs/shaping-skills</code> and Basecamp is correct and prominent — keep it that way, and reach out <em>before</em> launching.</li>
+    <li><strong>A launch on an unfinished quickstart burns the one shot.</strong> Do not fire P2-3 until P0 and P1-1/2/5 are shipped and verified by someone who did not build it.</li>
+    <li><strong>The trigger-eval integrity is an asset — do not spend it.</strong> Publishing a mediocre-but-real activation number will do more for credibility than a great fake one.</li>
+    <li><strong>The envelope's extensibility tax is the quietest risk of the five (§5.4).</strong> A control plane that only its author can extend cannot accumulate contributors, and contributors are how every Tier A/B project in §2 got there. If the envelope stays a documented, user-facing concept rather than an internal detail, the ceiling is however much one person can build.</li>
+  </ul>
+  <div class="callout" style="margin-top:8px">
+    <p style="margin:0">
+      <strong>Bottom line.</strong> 500 stars is achievable inside a quarter. The binding
+      constraint <em>was</em> P0-1, which took ten minutes and is done; as of 2026-07-26 it is
+      <strong>P0-6 → P2-3</strong> — five submissions and one launch post, none of which a build
+      round can substitute for. Stars are still 1, and will stay 1 until something is sent.
+    </p>
+  </div>
+</section>
+
+<footer class="page">
+  <p style="color:var(--text-secondary);margin-bottom:2px"><strong>Sources</strong> — repository metrics from the GitHub REST API (<code>/repos/*</code>, <code>/traffic/*</code>), retrieved 2026-07-25; landscape and growth research from:</p>
+  <ul>
+    <li><a href="https://github.com/github/spec-kit">github/spec-kit</a> · <a href="https://github.github.com/spec-kit/">Spec Kit docs</a></li>
+    <li><a href="https://github.com/obra/superpowers">obra/superpowers</a></li>
+    <li><a href="https://github.com/bmad-code-org/BMAD-METHOD">bmad-code-org/BMAD-METHOD</a></li>
+    <li><a href="https://github.com/Fission-AI/OpenSpec">Fission-AI/OpenSpec</a></li>
+    <li><a href="https://github.com/gotalab/cc-sdd">gotalab/cc-sdd</a></li>
+    <li><a href="https://github.com/rjs/shaping-skills">rjs/shaping-skills</a></li>
+    <li><a href="https://github.com/cameronsjo/spec-compare">cameronsjo/spec-compare</a></li>
+    <li><a href="https://rywalker.com/research/agentic-skills-frameworks">Agentic Skills Frameworks Compared — Ry Walker</a></li>
+    <li><a href="https://agentman.ai/blog/agent-skills-ecosystem-report-2026">The Agent Skills Ecosystem in 2026 — Agentman</a></li>
+    <li><a href="https://medium.com/@reenbit/bmad-vs-spec-kit-vs-openspec-choosing-your-spec-driven-ai-framework-in-2026-a6996b3ebb8d">BMAD vs Spec Kit vs OpenSpec — Reenbit</a></li>
+    <li><a href="https://www.nosam.com/spec-driven-development-openspec-vs-spec-kit-vs-bmad-which-ones-actually-worth-your-time/">Which one's actually worth your time — nosam</a></li>
+    <li><a href="https://dev.to/krlz/spec-driven-development-in-2026-what-it-is-the-tooling-and-how-teams-actually-use-it-2fk2">Spec-Driven Development in 2026 — DEV</a></li>
+    <li><a href="https://medium.com/@tojosphine/spec-driven-development-what-i-wish-i-knew-before-i-started-1213d485a244">What I wish I knew before I started — Medium</a></li>
+    <li><a href="https://code.claude.com/docs/en/discover-plugins">Discover and install prebuilt plugins — Claude Code Docs</a></li>
+    <li><a href="https://github.com/anthropics/claude-plugins-official">claude-plugins-official</a> · <a href="https://github.com/anthropics/claude-plugins-community">claude-plugins-community</a></li>
+    <li><a href="https://github.com/hesreallyhim/awesome-claude-code/blob/main/CONTRIBUTING.md">awesome-claude-code CONTRIBUTING</a></li>
+    <li><a href="https://arxiv.org/html/2511.04453v1">Launch-Day Diffusion: HN impact on GitHub stars — arXiv 2511.04453</a></li>
+    <li><a href="https://dev.to/0012303/i-analyzed-50-github-repos-that-went-from-0-to-10k-stars-here-are-the-7-patterns-54o1">50 repos that went 0→10K stars — DEV</a></li>
+    <li><a href="https://dev.to/iris1031/how-to-get-your-first-1000-github-stars-the-complete-open-source-growth-guide-4367">Your first 1,000 GitHub stars — DEV</a></li>
+    <li><a href="https://www.firecrawl.dev/blog/best-claude-code-skills">Best Claude Code Skills — Firecrawl</a></li>
+  </ul>
+  <p style="margin-top:16px">Companion markdown report: <code>docs/research/market-position-and-growth-2026.md</code></p>
+</footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var tip = document.getElementById("tip");
+
+  function fmt(n) { return n.toLocaleString("en-US"); }
+  function compact(n) {
+    if (n >= 1000) {
+      var k = n / 1000;
+      return (k >= 100 ? Math.round(k) : k.toFixed(1).replace(/\.0$/, "")) + "K";
+    }
+    return String(n);
+  }
+
+  function showTip(e, name, val) {
+    tip.innerHTML = '<div class="t-name"></div><div class="t-val"></div>';
+    tip.querySelector(".t-name").textContent = name;
+    tip.querySelector(".t-val").textContent = val;
+    tip.style.opacity = "1";
+    moveTip(e);
+  }
+  function moveTip(e) {
+    var pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+    var x = e.clientX + pad, y = e.clientY + pad;
+    if (x + w > window.innerWidth - 8) x = e.clientX - w - pad;
+    if (y + h > window.innerHeight - 8) y = e.clientY - h - pad;
+    tip.style.left = Math.max(8, x) + "px";
+    tip.style.top = Math.max(8, y) + "px";
+  }
+  function hideTip() { tip.style.opacity = "0"; }
+
+  function attachTip(el, name, val) {
+    el.setAttribute("tabindex", "0");
+    el.setAttribute("role", "img");
+    el.setAttribute("aria-label", name + ": " + val);
+    el.addEventListener("mouseenter", function (e) { showTip(e, name, val); });
+    el.addEventListener("mousemove", moveTip);
+    el.addEventListener("mouseleave", hideTip);
+    el.addEventListener("focus", function () {
+      var r = el.getBoundingClientRect();
+      showTip({ clientX: r.left + r.width / 2, clientY: r.top }, name, val);
+    });
+    el.addEventListener("blur", hideTip);
+  }
+
+  /* ---------- generic horizontal bar chart ---------- */
+  function barChart(mountId, opts) {
+    var mount = document.getElementById(mountId);
+    if (!mount) return;
+    var data = opts.data, max = opts.max, ticks = opts.ticks;
+    /* Reserve a right-hand gutter so the largest bar's tip label always fits
+       inside the plot — including at mobile widths. Ticks scale with it, so the
+       axis stays aligned to the bars. */
+    var gut = opts.gutter != null ? opts.gutter : 15;
+    function pos(v) { return v / max * (100 - gut); }
+
+    var plot = document.createElement("div");
+    plot.className = "plot";
+
+    var gl = document.createElement("div");
+    gl.className = "gridlines";
+    ticks.forEach(function (t) {
+      var l = document.createElement("div");
+      l.className = "gl" + (t === 0 ? " zero" : "");
+      l.style.left = pos(t) + "%";
+      gl.appendChild(l);
+    });
+    if (opts.ref != null) {
+      var r = document.createElement("div");
+      r.className = "ref";
+      r.style.left = pos(opts.ref) + "%";
+      gl.appendChild(r);
+    }
+    plot.appendChild(gl);
+
+    data.forEach(function (d) {
+      var row = document.createElement("div");
+      row.className = "row";
+
+      var name = document.createElement("div");
+      name.className = "name" + (d.hi ? " hi" : "");
+      name.textContent = d.name;
+      name.title = d.name;
+      row.appendChild(name);
+
+      var track = document.createElement("div");
+      track.className = "track";
+
+      var lo = d.lo != null ? d.lo : 0;
+      var hiV = d.hi_ != null ? d.hi_ : d.value;
+      var bar = document.createElement("div");
+      bar.className = "bar" + (d.tone ? " " + d.tone : "") + (d.lo != null ? " range" : "");
+      bar.style.left = pos(lo) + "%";
+      bar.style.width = Math.max(0.25, pos(hiV) - pos(lo)) + "%";
+      track.appendChild(bar);
+
+      var val = document.createElement("div");
+      val.className = "val" + (d.hi ? " strong" : "");
+      val.style.left = pos(hiV) + "%";
+      val.textContent = d.label != null ? d.label : compact(d.value);
+      track.appendChild(val);
+
+      attachTip(bar, d.name, d.tipText || (d.label != null ? d.label : fmt(d.value) + " stars"));
+      row.appendChild(track);
+      plot.appendChild(row);
+    });
+
+    mount.appendChild(plot);
+
+    var wrap = document.createElement("div");
+    wrap.className = "axis-wrap";
+    var axis = document.createElement("div");
+    axis.className = "axis";
+    ticks.forEach(function (t, i) {
+      var s = document.createElement("span");
+      s.style.left = pos(t) + "%";
+      /* keep the first tick inside the plot instead of centring it off the edge */
+      if (i === 0) s.style.transform = "translateX(0)";
+      s.textContent = compact(t);
+      axis.appendChild(s);
+    });
+    if (opts.ref != null) {
+      var rt = document.createElement("span");
+      rt.className = "ref-tick";
+      rt.style.left = pos(opts.ref) + "%";
+      rt.textContent = opts.refLabel || "";
+      axis.appendChild(rt);
+    }
+    wrap.appendChild(axis);
+    var at = document.createElement("div");
+    at.className = "axis-title";
+    at.textContent = opts.axisTitle || "";
+    wrap.appendChild(at);
+    mount.appendChild(wrap);
+  }
+
+  /* ---------- diverging score chart (small multiple) ---------- */
+  function scoreChart(mountId, items, tone) {
+    var mount = document.getElementById(mountId);
+    if (!mount) return;
+    var MIN = -3, MAX = 5, SPAN = MAX - MIN, GUT = 14;
+    function sc(v) { return (v - MIN) / SPAN * (100 - GUT); }
+    var zero = sc(0);
+    var ticks = [-3, 0, 5];
+
+    var plot = document.createElement("div");
+    plot.className = "plot";
+    var gl = document.createElement("div");
+    gl.className = "gridlines";
+    ticks.forEach(function (t) {
+      var l = document.createElement("div");
+      l.className = "gl" + (t === 0 ? " zero" : "");
+      l.style.left = sc(t) + "%";
+      gl.appendChild(l);
+    });
+    plot.appendChild(gl);
+
+    items.forEach(function (d) {
+      var v = d[tone];
+      var row = document.createElement("div");
+      row.className = "row";
+
+      var name = document.createElement("div");
+      name.className = "name" + (d.lead ? " hi" : "");
+      name.textContent = d.name;
+      name.title = d.name;
+      row.appendChild(name);
+
+      var track = document.createElement("div");
+      track.className = "track";
+
+      var bar = document.createElement("div");
+      bar.className = "bar diverge" + (tone === "sys" ? " alt" : "");
+      if (v >= 0) {
+        bar.style.left = zero + "%";
+        bar.style.width = Math.max(0.4, sc(v) - zero) + "%";
+      } else {
+        bar.style.left = sc(v) + "%";
+        bar.style.width = Math.max(0.4, zero - sc(v)) + "%";
+      }
+      track.appendChild(bar);
+
+      var val = document.createElement("div");
+      val.className = "val" + (v < 0 ? " neg" : "");
+      if (v < 0) { val.style.right = (100 - sc(v)) + "%"; }
+      else { val.style.left = sc(v) + "%"; }
+      val.textContent = (v > 0 ? "+" : "") + v;
+      track.appendChild(val);
+
+      attachTip(bar, d.name, (tone === "sys" ? "System value " : "User value ") +
+        ((v > 0 ? "+" : "") + v) + " of 5 — " + d.why[tone]);
+      row.appendChild(track);
+      plot.appendChild(row);
+    });
+    mount.appendChild(plot);
+
+    var wrap = document.createElement("div");
+    wrap.className = "axis-wrap";
+    var axis = document.createElement("div");
+    axis.className = "axis";
+    ticks.forEach(function (t, i) {
+      var s = document.createElement("span");
+      s.style.left = sc(t) + "%";
+      if (i === 0) s.style.transform = "translateX(0)";
+      s.textContent = (t > 0 ? "+" : "") + t;
+      axis.appendChild(s);
+    });
+    wrap.appendChild(axis);
+    mount.appendChild(wrap);
+  }
+
+  /* ---------- generic table view ---------- */
+  function tableView(mountId, cols, rows) {
+    var mount = document.getElementById(mountId);
+    if (!mount) return;
+    var t = document.createElement("table");
+    var thead = document.createElement("thead");
+    var tr = document.createElement("tr");
+    cols.forEach(function (c) {
+      var th = document.createElement("th");
+      th.textContent = c.label;
+      if (c.num) th.className = "num";
+      tr.appendChild(th);
+    });
+    thead.appendChild(tr);
+    t.appendChild(thead);
+    var tb = document.createElement("tbody");
+    rows.forEach(function (r) {
+      var trr = document.createElement("tr");
+      if (r._mine) trr.className = "mine";
+      cols.forEach(function (c) {
+        var td = document.createElement("td");
+        td.textContent = r[c.key];
+        if (c.num) td.className = "num";
+        if (c.head) td.className = "rowhead";
+        trr.appendChild(td);
+      });
+      tb.appendChild(trr);
+    });
+    t.appendChild(tb);
+    mount.appendChild(t);
+  }
+
+  /* ================= DATA ================= */
+
+  var leaders = [
+    { name: "obra/superpowers",        value: 260682, note: "skills framework + methodology" },
+    { name: "anthropics/skills",       value: 164009, note: "official SKILL.md catalog" },
+    { name: "github/spec-kit",         value: 123692, note: "specify CLI, 35 integrations" },
+    { name: "addyosmani/agent-skills", value: 80251,  note: "celebrity distribution" },
+    { name: "ruvnet/ruflo",            value: 65860,  note: "agent meta-harness, swarms" },
+    { name: "Fission-AI/OpenSpec",     value: 62486,  note: "minimalist delta-specs" },
+    { name: "bmad-code-org/BMAD",      value: 51097,  note: "21 agents, 50+ workflows" },
+    { name: "awesome-claude-code",     value: 50878,  note: "the discovery list" },
+    { name: "wshobson/agents",         value: 38207,  note: "multi-harness marketplace" },
+    { name: "claude-plugins-official", value: 32627,  note: "official plugin directory" },
+    { name: "awesome-agent-skills",    value: 28874,  note: "1000+ curated skills" },
+    { name: "claude-task-master",      value: 27896,  note: "stale since 2026-04" },
+    { name: "SuperClaude_Framework",   value: 23592,  note: "commands + personas" }
+  ];
+  leaders.forEach(function (d) { d.tipText = fmt(d.value) + " stars — " + d.note; });
+
+  barChart("chart-leaders", {
+    data: leaders, max: 300000,
+    ticks: [0, 75000, 150000, 225000, 300000],
+    axisTitle: "GitHub stars · 2026-07-25"
+  });
+  tableView("table-leaders",
+    [{ key: "name", label: "Repository", head: true }, { key: "stars", label: "Stars", num: true }, { key: "note", label: "What it is" }],
+    leaders.map(function (d) { return { name: d.name, stars: fmt(d.value), note: d.note }; }));
+
+  var peers = [
+    { name: "buildermethods/agent-os",   value: 5117, tone: "deemph", note: "standards injection; stale since 2026-05" },
+    { name: "claude-code-hooks-mastery", value: 3847, tone: "deemph", note: "one legible idea → 3.8k" },
+    { name: "gotalab/cc-sdd",            value: 3581, tone: "deemph", note: "closest structural analogue" },
+    { name: "rjs/shaping-skills",        value: 1404, tone: "",       hi: true, note: "the Shape Up ceiling — shaping only, stops at the pitch" },
+    { name: "claude-plugins-community",  value: 312,  tone: "deemph", note: "submission target" },
+    { name: "cameronsjo/spec-compare",   value: 92,   tone: "deemph", note: "benchmark-as-content, pure research" },
+    { name: "basecamp/skills",           value: 54,   tone: "deemph", note: "official Basecamp agent skills" },
+    { name: "shape-up-ai-native",        value: 30,   tone: "deemph", note: "direct positional competitor, thin" },
+    { name: "dwarvesf/dwarves-kit",      value: 7,    tone: "deemph", note: "convergent-architecture peer" },
+    { name: "onliminal/shapeup-skills",  value: 3,    tone: "deemph", note: "abandoned-looking" },
+    { name: "→ this repo",               value: 1,    tone: "alt",    hi: true, note: "v1.3.0, 15 releases, 39 days old" }
+  ];
+  peers.forEach(function (d) { d.tipText = fmt(d.value) + " stars — " + d.note; });
+
+  barChart("chart-peers", {
+    data: peers, max: 6000,
+    ticks: [0, 1500, 3000, 4500, 6000],
+    ref: 500, refLabel: "500 ★ target",
+    axisTitle: "GitHub stars · 2026-07-25"
+  });
+  tableView("table-peers",
+    [{ key: "name", label: "Repository", head: true }, { key: "stars", label: "Stars", num: true }, { key: "note", label: "Note" }],
+    peers.map(function (d) { return { name: d.name.replace("→ ", ""), stars: fmt(d.value), note: d.note, _mine: d.tone === "alt" }; }));
+
+  var sources = [
+    { name: "Show HN (front page)",     lo: 150, hi_: 350, note: "87% of 10k-star repos launch here first" },
+    { name: "Benchmark content",        lo: 50,  hi_: 200, note: "highest-ROI content in this category" },
+    { name: "awesome-list listings",    lo: 40,  hi_: 120, note: "awesome-claude-code + VoltAgent" },
+    { name: "Reddit posts",             lo: 40,  hi_: 120, note: "r/ClaudeAI, r/ClaudeCode, r/programming" },
+    { name: "Shape Up community",       lo: 30,  hi_: 100, note: "37signals orbit — highest-intent audience" },
+    { name: "Plugin marketplaces",      lo: 30,  hi_: 100, note: "Anthropic community + plugin hubs" },
+    { name: "Topics + description SEO", lo: 20,  hi_: 60,  note: "long tail; also the precondition for everything else" }
+  ];
+  sources.forEach(function (d) {
+    d.value = d.hi_;
+    d.label = d.lo + "–" + d.hi_;
+    d.tipText = d.lo + "–" + d.hi_ + " stars — " + d.note;
+  });
+
+  barChart("chart-sources", {
+    data: sources, max: 400,
+    ticks: [0, 100, 200, 300, 400],
+    axisTitle: "Plausible stars contributed · any two channels clear 500"
+  });
+  tableView("table-sources",
+    [{ key: "name", label: "Channel", head: true }, { key: "range", label: "Stars (low–high)", num: true }, { key: "note", label: "Note" }],
+    sources.map(function (d) { return { name: d.name, range: d.lo + "–" + d.hi_, note: d.note }; }));
+
+  /* ---------- the asymmetry (§5.3) ---------- */
+  var asym = [
+    {
+      name: "Gate enforcement", lead: true, user: 5, sys: 5,
+      why: {
+        user: "visible inside 10 seconds, demoable, emotional — one frame of video",
+        sys: "the invariant that phases happen in order, enforced rather than requested"
+      }
+    },
+    {
+      name: "Single-writer state", user: 0, sys: 5,
+      why: {
+        user: "invisible — users experience the absence of corruption bugs they never knew were coming",
+        sys: "structurally eliminates the state-corruption class in parallel scopes"
+      }
+    },
+    {
+      name: "Typed envelope", user: -2, sys: 4,
+      why: {
+        user: "met as vocabulary before it is met as a benefit; also an extensibility tax",
+        sys: "well-formed worker context, but the assumption behind it erodes as models improve"
+      }
+    }
+  ];
+  scoreChart("chart-asym-user", asym, "user");
+  scoreChart("chart-asym-sys", asym, "sys");
+  tableView("table-asym",
+    [{ key: "name", label: "Mechanism", head: true }, { key: "u", label: "User value", num: true },
+     { key: "s", label: "System value", num: true }, { key: "note", label: "Why" }],
+    asym.map(function (d) {
+      return {
+        name: d.name,
+        u: (d.user > 0 ? "+" : "") + d.user,
+        s: (d.sys > 0 ? "+" : "") + d.sys,
+        note: "User: " + d.why.user + " · System: " + d.why.sys,
+        _mine: d.lead
+      };
+    }));
+
+  /* ---------- 6-week plan ---------- */
+  var weeks = [
+    { wk: "Week 1", what: "<span class=\"st partial\" style=\"margin-right:6px;vertical-align:1px\">all but the demo narrative + the sends</span><b>P0, all seven.</b> Description, 20 topics, homepage, Discussions, README top-40 rewrite, demo GIF, glossary, the three enforcement mechanisms reframed with their failure stories, 5 directory submissions.", lo: 5,  hi: 20 },
+    { wk: "Week 2", what: "<span class=\"st done\" style=\"margin-right:6px;vertical-align:1px\">shipped</span><b>P1-1, P1-3.</b> <code>npx shapeup-sdlc init</code> working on a clean machine including Windows; 9 named slash commands.", lo: 15, hi: 40 },
+    { wk: "Week 3", what: "<span class=\"st done\" style=\"margin-right:6px;vertical-align:1px\">shipped</span><b>P2-2 ⭐, P1-2.</b> The anti-lying kit installable standalone into spec-kit / OpenSpec / Superpowers — pulled forward from week 5 per §5.2; <code>--tiny</code> lane.", lo: 30, hi: 80 },
+    { wk: "Week 4", what: "<span class=\"st done\" style=\"margin-right:6px;vertical-align:1px\">shipped</span><b>P1-5, P1-6, P1-7.</b> A quickstart a stranger can finish; SECURITY.md; agent-support matrix.", lo: 45, hi: 95 },
+    { wk: "Week 5", what: "<span class=\"st partial\" style=\"margin-right:6px;vertical-align:1px\">FPR published, TPR confounded; benchmark not started</span><b>P1-4, P2-1.</b> Measured trigger-eval numbers published; 4-harness benchmark repo live.", lo: 60, hi: 120 },
+    { wk: "Week 6", what: "<span class=\"st todo\" style=\"margin-right:6px;vertical-align:1px\">not started</span><b>P2-3, P2-4, P2-5.</b> Show HN — led by the anti-lying kit, not the SDLC harness — plus Reddit, Shape Up outreach and the official directory submission.", lo: 400, hi: 700 }
+  ];
+  var planMount = document.getElementById("plan-weeks");
+  var PMAX = 800, PGUT = 15;
+  function ppos(v) { return v / PMAX * (100 - PGUT); }
+  weeks.forEach(function (w) {
+    var row = document.createElement("div");
+    row.className = "week";
+
+    var wk = document.createElement("div");
+    wk.className = "wk";
+    wk.textContent = w.wk;
+    row.appendChild(wk);
+
+    var what = document.createElement("div");
+    what.className = "what";
+    what.innerHTML = w.what;
+    row.appendChild(what);
+
+    var wbar = document.createElement("div");
+    wbar.className = "wbar";
+    var track = document.createElement("div");
+    track.className = "track";
+    track.style.position = "relative";
+    track.style.height = "22px";
+    var tref = document.createElement("div");
+    tref.className = "tref";
+    tref.style.left = ppos(500) + "%";
+    track.appendChild(tref);
+    var bar = document.createElement("div");
+    bar.className = "bar range" + (w.lo >= 400 ? " alt" : "");
+    bar.style.left = ppos(w.lo) + "%";
+    bar.style.width = Math.max(1.2, ppos(w.hi) - ppos(w.lo)) + "%";
+    track.appendChild(bar);
+    var val = document.createElement("div");
+    val.className = "val";
+    val.style.left = ppos(w.hi) + "%";
+    val.textContent = w.lo + "–" + w.hi;
+    track.appendChild(val);
+    attachTip(bar, w.wk, w.lo + "–" + w.hi + " cumulative stars at week exit");
+    wbar.appendChild(track);
+    row.appendChild(wbar);
+
+    planMount.appendChild(row);
+  });
+  tableView("table-plan",
+    [{ key: "wk", label: "Week", head: true }, { key: "range", label: "Cumulative stars", num: true }, { key: "focus", label: "Focus" }],
+    weeks.map(function (w) {
+      return { wk: w.wk, range: w.lo + "–" + w.hi, focus: w.what.replace(/<[^>]+>/g, "") };
+    }));
+})();
+</script>
+</body>
+</html>

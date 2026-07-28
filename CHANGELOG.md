@@ -11,11 +11,11 @@ v1.4.0's release note above claims that every mechanism it added "moves an invar
 prompt and into the runtime, which is the project's organising rule". That claim was true of the
 code and false of the installed product, for a reason no test in this repo could see.
 
-- **`skills/tech-lead/scripts/lib/is-main.mjs` — the entry-point guard, fixed in 18 files.**
-  Eighteen scripts and hooks gated their whole body on `import.meta.url` compared against a
-  template literal of `"file://"` and `process.argv[1]`. That comparison is **false** — body
-  skipped, **exit 0, no output** — whenever the invoked path is not byte-identical to the resolved
-  module URL, and two ordinary situations make it false:
+- **`skills/tech-lead/scripts/lib/is-main.mjs` — the entry-point guard, fixed in 26 files across
+  TWO different broken spellings.** Eighteen scripts and hooks gated their whole body on
+  `import.meta.url` compared against a template literal of `"file://"` and `process.argv[1]`. That
+  comparison is **false** — body skipped, **exit 0, no output** — whenever the invoked path is not
+  byte-identical to the resolved module URL, and two ordinary situations make it false:
 
   1. **Any symlinked directory in the path.** Node resolves `import.meta.url` through symlinks;
      `process.argv[1]` is the string as typed. On macOS `/var` is a symlink to `/private/var`, so
@@ -44,6 +44,36 @@ code and false of the installed product, for a reason no test in this repo could
 
   `isMain()` compares resolved URL to resolved URL (`pathToFileURL` for encoding, `realpathSync`
   for symlinks).
+
+  **A SECOND SPELLING, in eight more files, found only because the check was made structural.** The
+  first version of the new test grepped for the exact template literal. That was a blocklist, and it
+  missed:
+
+  ```js
+  const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  ```
+
+  `resolve()` normalises a path; it does **not** resolve symlinks — that is `realpathSync`. So this
+  form breaks under a symlinked directory exactly like the other one. It handles *encoding* correctly,
+  which is presumably why it reads as the careful version, and it carried the same silent-exit-0
+  failure. The eight: `validate-envelope`, `compile-order`, `ingest-result`, `run-snapshot`,
+  `trace-lint`, `board-derive`, `spec-lint`, `stats`.
+
+  **`validate-envelope.mjs` is the sharpest case in the whole release.** It is a registered
+  `PreToolUse` hook on `Skill|Agent`, and AGENTS.md describes it as the mechanism by which *"a
+  malformed envelope is denied by hook before it reaches a worker"*. Fed a dispatch against a
+  dangling order file:
+
+  | invoked via | behaviour |
+  |---|---|
+  | its real path | emits `permissionDecision: "deny"` — the worker is not dispatched |
+  | a symlinked path | **emits nothing** — which the CLI reads as allow |
+
+  `board-derive.mjs` and `spec-lint.mjs` are the graph-math and audit delegates AGENTS.md names for
+  `ba-pitch-analyzer`; both were inert the same way. The check is now structural rather than a
+  blocklist: in `bin/`, `hooks/`, `skills/` and `scripts/`, `import.meta.url` may not appear on the
+  same line as `process.argv[1]` at all. Any hand-rolled comparison fails whether or not its
+  particular spelling has been seen before — which is exactly how the second spelling surfaced.
 
 - **`skills/tech-lead/scripts/init-run.mjs` — the already-open-run refusal is a resume path now,
   not a dead end.** Third defect in the same family: a runtime naming a mechanism that does not
@@ -88,7 +118,8 @@ code and false of the installed product, for a reason no test in this repo could
   *silently*. The mechanical half stayed in scripts and hooks where the rule wants it; these ten
   lines are the part that has to live in the orchestrator's own instructions, because they say which
   phase to resume from.
-- Documented checks floor raised 450 → 640 (actual: 648).
+- Documented checks floor raised 450 → 640 (actual: 660). 22 guarded entry points are probed by
+  three invocation paths each.
 
 ## [1.4.0] — 2026-07-27
 

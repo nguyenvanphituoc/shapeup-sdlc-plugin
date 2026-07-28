@@ -3,9 +3,41 @@
 - **Item:** the two things a serious reviewer will attack in F4's result — a headline resting on
   **one arbitrary cut point**, and a p-value quoted at the wrong unit of analysis.
 - **Predecessor:** `docs/plan/benchmark-p3-f4-plan.md` (complete; branches A and C published).
-- **Instrument:** `../sdd-harness-bench` — 151 rows, 78 scored, 104 transcripts, **$114.52 spent**
-  of the $60–150 envelope. Remaining: **~$35.**
+- **Instrument:** `../sdd-harness-bench` — 151 rows, 78 scored, 104 transcripts. **$114.52 spent to
+  date** across P1–P3.
+- **Envelope: RESET.** A fresh **$150** is authorised for P4; the $114.52 already spent no longer
+  constrains this plan. See "The reset" below for what that does and — more importantly — what it does not.
 - **Status:** shaped, not started. Every number below labelled measured or projected.
+
+---
+
+## The reset — and what it must not change
+
+A larger envelope is the most dangerous input this project has received. Every discipline that made
+P3 work was a *response to scarcity*: the kill gates, the cheapest-arm-decides rule, the refusal to
+buy precision about a tie. Money removes the forcing function, not the reason for it.
+
+**Unchanged, and non-negotiable:**
+
+1. **The gate order.** S1 still runs before S2, S2 before S3. The cheapest stage still decides
+   whether the expensive one happens. In P3 that rule turned a $90 plan into a $56 one and produced
+   a *better* result, because branch A closed a question for $3.54 instead of $35.
+2. **Kill gates still kill.** A branch that says "stop and publish" still stops, even though the
+   money to continue now exists. Having budget is not a reason to buy a result.
+3. **Reps are never traded for features**, and features are never traded for reps in the other
+   direction either. n=3 minimum, raised only where an *interval overlap* actually blocks a claim.
+4. **No new harnesses.** The matrix is closed regardless of budget.
+
+**What the reset genuinely buys — two things that were cut for cost, not for merit:**
+
+- **Real compaction (S3).** The experiment that measures what these tools actually claim. It was
+  deferred when only ~$35 remained, and named as a deferral rather than an omission. It is now reachable.
+- **Sonnet confirmation of the crossing point (S4).** PROTOCOL §6 forbids a headline on Haiku
+  alone, and P4's headline is a headline.
+
+**The failure mode to watch:** P3's cap was derived from the wrong quantity **twice**, and each
+error was caught by a cheap probe rather than by thinking harder. More budget makes it tempting to
+skip the probe and run the matrix. Every stage below still opens with one.
 
 ---
 
@@ -73,8 +105,12 @@ point, a single-arm comparison, and a statistic computed at the wrong level.
 
 ### Appetite
 
-**~$20 of the ~$35 left.** If it does not fit, the *sweep resolution* gets cut — never the
-repetitions, never the arm-level power fix, never the honesty corrections.
+**Two weeks, ~$95 of a fresh $150** — and the first $17 of it decides whether the remaining $78 is
+spent at all. If a stage does not fit, the *sweep resolution* and the *confirmation breadth* get
+cut — never the repetitions, never the arm-level power fix, never the honesty corrections.
+
+The shape is deliberately the same as P3's: **the cheapest stage is the one that gates the
+expensive ones.** Two of the four branches below stop the spend under $20, and both are publishable.
 
 ### Solution — one curve, three new writer arms, one statistics fix
 
@@ -173,33 +209,77 @@ Three new writer arms × n=3 × Haiku, **at the single cut nearest the crossing 
 Takes the "wrote a file" group from **2 arms to 5** and the arm-level p from 0.048 to ≤0.01 if the
 effect holds. **This is the stage that makes the F4 claim defensible**, and it is the cheapest one.
 
-### S3 — publication ($0)
+### S3 — real compaction (≈$55, and it opens with a $10 spike)
+
+**This is the experiment that measures what these tools actually claim**, and the reason the
+envelope was worth resetting. Every cut so far — 60s, 90s, 120s — is a wall-clock number chosen by
+me. No real interruption looks like that. The interruption these tools are *designed* for is
+**context compaction**, which fires when the window fills, far later and at a point nobody chooses.
+
+It is also the axis where `shapeup-sdlc`'s two continuity hooks can finally fire. P3 established
+mechanically that they **cannot** fire across a fresh-session handoff (`SessionStart:startup` vs a
+`compact|resume` matcher). Under real compaction they are in scope for the first time.
+
+**S3.0 — the spike, $10, one session, before anything else.** F4/R3 peaked at ~42k context tokens.
+Compaction on Sonnet needs roughly 4–5× that. The spike answers three questions and nothing else:
+
+1. Can a session be driven to real compaction at all, on a seed we can afford to build?
+2. What does it cost per session when it happens?
+3. **Does the event stream expose the boundary?** P3's spike found no compaction event in 30
+   transcripts — only `/compact` in the init slash-command list. If there is still no boundary
+   event, `PreCompact` firing is observable via `hooks_fired`, which is enough.
+
+**Gate S3.0 — hard.** If a session cannot be driven to compaction for under ~$15, **stop and
+publish the negative**: *"real compaction could not be triggered within budget; the handoff proxy
+is what this benchmark can measure."* That is an honest limit, and it costs $10 to establish
+instead of $55 to discover halfway through a matrix.
+
+**S3.1 — the cell**, only if the spike lands: F5 seed sized from the spike's measured token
+pressure, `{bare, bare-intake, shapeup-sdlc}` × n=3, oracle before and after the compaction
+boundary. ~$45.
+
+The `shapeup-sdlc` arm carries a specific pre-registered question here: **do
+`compact-snapshot.mjs` and `session-rehydrate.mjs` fire, and does firing change the outcome?**
+`hooks_fired` already records the first half on every row. This is the first design in which that
+arm's continuity machinery is actually under test — and per §6 Q8, if it wins, the cost leads.
+
+### S4 — Sonnet confirmation of the crossing point (≈$25)
+
+PROTOCOL §6: no headline on Haiku alone, and P4's headline is a headline. The **single** cut nearest
+the crossing found in S1, `{bare, bare-intake}` × n=3, Sonnet 5. Not the whole sweep — the sweep is
+a shape-finding instrument and its shape is not the claim; the crossing is.
+
+**Gate S4:** if the crossing does not reproduce, the published claim becomes *"the trade-off is
+located on Haiku and does not reproduce on Sonnet"* — which is a finding about where the boundary
+sits relative to model capability, published as one. P3 already produced exactly this shape of
+split result and it was more informative than a clean win would have been.
+
+### S5 — publication ($0)
 
 Amend `report/` (both formats), `FINDINGS.md` gains F-16, `PROTOCOL.md` gains the sweep amendment,
 README's headline is restated at the strength the data supports. **The arm-level p goes in the
 results table itself**, not in a footnote.
 
-### Explicitly deferred to a later envelope
-
-**Real compaction.** The 60s cut resembles no real interruption; compaction fires when context
-fills, far later. Testing it needs a feature large enough to actually trigger it — a new seed, a new
-contract, and probably $40+. It is the right next experiment and it does not fit in $35. Naming it
-here so it is a decision rather than an omission.
-
 ---
 
 ## 4. Cost model
 
-| Stage | Sessions | Projected | Cumulative | Gate that can stop here |
-|---|--:|--:|--:|---|
-| S0 instrument | 0 | $0 | $0 | tests green |
-| S1 curve | 72 | ~$11 | $11 | **no separation ⇒ retract and publish** |
-| S2 arm power | 18 | ~$6 | $17 | — |
-| S3 publication | 0 | $0 | **~$17** | — |
+| Stage | Sessions | Model | Projected | Cumulative | Gate that can stop here |
+|---|--:|---|--:|--:|---|
+| S0 instrument | 0 | — | $0 | $0 | tests green; **arm-level fix ships here regardless** |
+| S1 curve | 72 | Haiku | ~$11 | $11 | **no separation ⇒ retract F4's headline, publish, stop** |
+| S2 arm power | 18 | Haiku | ~$6 | $17 | — |
+| S3.0 compaction spike | 1 | Sonnet | ~$10 | $27 | **cannot trigger ⇒ publish the limit, stop** |
+| S3.1 compaction cell | 18 | Sonnet | ~$45 | $72 | — |
+| S4 Sonnet crossing | 6 | Sonnet | ~$25 | **~$97** | no reproduction ⇒ publish as such |
+| S5 publication | 0 | — | $0 | ~$97 | — |
 
-**~$35 remaining. Worst case ~$17, leaving ~$18 of headroom** — deliberately, because F4 overran
-its own cap-calibration twice and the honest lesson is to leave slack for the instrument being
-wrong again.
+**Fresh envelope $150. Worst case ~$97, leaving ~$53 of headroom** — deliberately wide, because P3
+derived its cap from the wrong quantity **twice** and each correction cost a re-run. Slack is not
+unspent budget; it is the price of the instrument being wrong again, which it will be.
+
+**Most likely case is far less than $97.** Two gates stop under $27, and both outcomes are
+publishable — one of them a retraction of this project's own headline.
 
 ---
 
@@ -225,12 +305,23 @@ wrong again.
 | **B — no separation** | curves overlap at every cut | *"F4's headline does not survive a cut-point sweep."* A retraction of this project's own result, costing $11. The most credible thing it could publish. |
 | **C — content matters** | the four writer arms differ from each other | *"It is not enough to write something — writing X beats writing Y."* Strictly more useful than F4. |
 | **D — content is irrelevant** | all four writer arms behave identically | *"Any artifact works. The specific discipline SDD sells is not the active ingredient."* Most damaging to every tool under test, including the author's. |
+| **E — compaction untriggerable** | S3.0 spike fails under ~$15 | *"Real compaction could not be reached within budget; every interruption in this benchmark is a proxy, and here is the proxy's shape."* An honest limit, bought for $10. |
+| **F — the hooks finally fire** | S3.1 runs and `hooks_fired` shows `PreCompact` / rehydrate | The first measurement of `shapeup-sdlc`'s continuity machinery doing anything. **If it wins, the cost leads in the same paragraph** (§6 Q8 clause 5). |
+| **G — the hooks fire and change nothing** | S3.1 runs, hooks fire, recovery unchanged vs `bare-intake` | *"The rehydrate reflex is real, fires correctly, and is worth nothing against one sentence."* The most specific negative result this project could produce about its own tool. |
 
 ### Registered prediction, before run 1
 
 **The curves cross between 60s and 90s.** `bare-intake` is flat and high from roughly 30s onward;
-`bare` rises steeply between 60s and 90s and matches it thereafter. **The four writer arms will not
-differ from each other** — I expect branch D, which is the outcome least flattering to my own tool.
+`bare` rises steeply between 60s and 90s and matches it thereafter.
+
+**The four writer arms will not differ from each other** — branch D, the outcome least flattering to
+my own tool.
+
+**Under real compaction I predict branch G**: the hooks fire, and recovery is indistinguishable from
+`bare-intake`'s. My reasoning is that P3 already showed the active ingredient is *an artifact on
+disk*, and the rehydrate hook injects a pointer to artifacts that a competent agent finds anyway.
+If that is wrong — if the pointer measurably beats the file — it is the strongest result this tool
+has ever had, and it needs to be registered in advance to count as one.
 
 ---
 
@@ -241,7 +332,11 @@ differ from each other** — I expect branch D, which is the outcome least flatt
 | The sweep confirms F4 and looks like self-justification | Branch B is pre-declared as a retraction and costs $11 to reach. The prediction is registered, including branch D. |
 | n=3 is too thin for six points | The claim is interval-overlap between two arms at each cut, not a fitted curve. Where intervals overlap, the aggregator already refuses to order them. |
 | Variance swamps the signal (F4 saw 17–67% within one cell) | Six cut points at n=3 is 18 rows per arm — more data on this axis than F4 had in total. If variance still swamps it, that is branch B. |
-| Budget overruns as in F4 | $18 of deliberate headroom, and the cap-enforcement check now fails loudly instead of silently granting extra time. |
+| Budget overruns as in F4 | ~$53 of deliberate headroom, and the cap-enforcement check now fails loudly instead of silently granting extra time. |
+| **The reset budget dissolves the discipline that made P3 work** | The reset section, binding: gate order unchanged, kill gates still kill, cheapest stage still decides. Every stage opens with a probe. The $17 of S1+S2 gates the $78 above it, exactly as $3.54 gated $35 in P3. |
+| **F5 becomes a project** | The seed is sized *from the spike's measured token pressure*, not from a guess. Hard caps: one feature, one rung, three arms, n=3. If the spike says compaction needs a seed we cannot build, that is branch E and it costs $10. |
+| Compaction fires at a different point for each arm, so "the cut" is not uniform | That is the honest nature of the axis and the reason it is worth measuring: unlike a wall-clock cap, **nobody chooses it**. The oracle runs at the boundary each arm actually hits, and the boundary position is published per row as a covariate. |
+| The author's own hooks are finally in scope, on an axis that favours them | Prediction G registered above, before any run. `hooks_fired` is recorded mechanically. Q8's five clauses apply unchanged. |
 
 ---
 
@@ -260,20 +355,34 @@ differ from each other** — I expect branch D, which is the outcome least flatt
 >    group from two arms to five and to test whether content matters at all.
 > 3. **The aggregator reports arm-level n beside every pooled claim.** A row-level p on clustered
 >    rows overstates power, and this project has already published one figure with no referent.
-> 4. **Registered prediction:** the curves cross between 60s and 90s; the four writer arms do not
->    differ from each other.
-> 5. **A null result retracts F4's headline** and is published as such.
+> 4. **A real-compaction stage (F5) is added**, gated behind a $10 spike that must first show
+>    compaction can be triggered at all and at what price. Every interruption measured so far is a
+>    wall-clock number chosen by the author; compaction is the interruption these tools are designed
+>    for, and it is the first axis on which `shapeup-sdlc`'s `PreCompact` and `SessionStart`
+>    continuity hooks can fire. P3 established mechanically that they cannot fire across a
+>    fresh-session handoff.
+> 5. **The envelope is reset to a fresh $150.** The gate order, the kill gates and the
+>    cheapest-stage-decides rule are unchanged and explicitly binding — a larger budget changes what
+>    is reachable *after* a gate, never whether the gate is honoured.
+> 6. **Registered predictions:** the curves cross between 60s and 90s; the four writer arms do not
+>    differ from each other; and under real compaction the hooks fire and recovery is
+>    indistinguishable from a one-sentence control.
+> 7. **A null result retracts F4's headline** and is published as such.
 > *Prior results invalidated:* none. The 60s and 90s cells stand as measured and are added to.
 
 ---
 
 ## 8. Open calls
 
-- **Whether to spend $17 confirming a result already published, or $0 and publish the caveat.**
-  Adding "arm-level p = 0.048, two arms" to the results table is free and honest, and it may be
-  enough. The sweep buys a *better finding*, not a correction — the correction is free.
-- **Whether real compaction jumps the queue.** It is the experiment that would make this benchmark
-  measure what these tools actually claim. It does not fit in $35, and pretending otherwise is how
-  the F4 cap got set from the wrong quantity twice.
-- **Whether the envelope reopens.** $114.52 of $150 is spent. Everything above fits; nothing beyond
-  it does.
+- **Whether the arm-level correction ships on its own, immediately.** Adding "arm-level p = 0.048,
+  two arms" to the results table costs **$0** and is the one thing here that is strictly a
+  *correction* rather than an improvement. It should arguably ship today, independent of whether
+  any of S1–S4 runs. Everything after it buys a *better finding*, not a fix.
+- **~~Whether the envelope reopens.~~ Resolved: reset to $150.** The open question that replaces it
+  is sharper — **does S3 (real compaction) run before or after S4 (Sonnet confirmation)?** As
+  ordered above, S3 comes first because it is the more interesting experiment; but S4 is what makes
+  the *existing* headline quotable, and it is half the price. Running S4 first is the conservative
+  choice and I would not argue against it.
+- **Whether F5's seed is worth building at all** is decided by a $10 spike, not by this document.
+  That is the one thing P3 taught that most needs carrying forward: both of its cap errors came from
+  reasoning about a quantity instead of measuring it.

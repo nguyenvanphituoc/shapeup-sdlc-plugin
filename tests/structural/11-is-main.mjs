@@ -66,6 +66,22 @@ const ENTRY_POINTS = [
   { file: "skills/tech-lead/scripts/fit-check.mjs", args: [], expect: "stdout" },
   { file: "skills/tech-lead/scripts/aegis-digest.mjs", args: [], expect: "stdout" },
   { file: "skills/spec-evaluator/scripts/verdict-ledger.mjs", args: [], expect: "stdout" },
+  // The five that carried the second spelling of the guard. `validate-envelope` is a registered
+  // PreToolUse hook, so its probe is the sharpest one here: fed a dispatch against a dangling order
+  // it must emit a `deny` decision. Under the broken guard it emitted nothing, which reads as allow.
+  { file: "skills/tech-lead/scripts/validate-envelope.mjs",
+    stdin: JSON.stringify({ tool_name: "Skill",
+      tool_input: { skill: "shapeup-sdlc-plugin:task-executor", args: "--order /nonexistent.json" } }),
+    expect: "stdout" },
+  { file: "skills/tech-lead/scripts/compile-order.mjs", args: [], expect: "stdout" },
+  { file: "skills/tech-lead/scripts/ingest-result.mjs", args: [], expect: "stdout" },
+  { file: "skills/tech-lead/scripts/trace-lint.mjs", args: [], expect: "stdout" },
+  // Dev tooling rather than shipped surface (`scripts/` is not in package.json `files`), but the
+  // oracles are what a contributor runs by hand, and a silent no-op there reads as "contract passed".
+  { file: "scripts/shapeup-sdlc/oracles/process-oracle.mjs", args: [], expect: "stdout" },
+  { file: "scripts/shapeup-sdlc/oracles/test-oracle.mjs", args: [], expect: "stdout" },
+  { file: "scripts/shapeup-sdlc/oracles/http-oracle.mjs", args: [], expect: "stdout" },
+  { file: "scripts/shapeup-sdlc/oracles/snapshot-oracle.mjs", args: [], expect: "stdout" },
 ];
 
 // Assembled from pieces on purpose: a literal here would make this file its own offender.
@@ -97,18 +113,52 @@ export async function run(ctx) {
   if (existsSync(helperPath)) ok(`the shared guard exists (${HELPER})`);
   else fail(`missing ${HELPER} — the shared, symlink-safe main guard`);
 
+  // THE RULE IS "ONE WAY TO ASK", not "avoid one broken spelling".
+  //
+  // The first version of this check grepped for the exact template-literal form, and that was too
+  // narrow — it missed FIVE more files carrying a second, different, also-broken spelling:
+  //
+  //     const isMain = argv1 && resolve(argv1) === fileURLToPath(<this module's url>);
+  //
+  // (the originals name `process.argv[1]` and `import.meta.url` directly, on one line; paraphrased
+  //  here so this comment is not itself flagged by the check below)
+  //
+  // `resolve()` normalises a path; it does NOT resolve symlinks (that is `realpathSync`). So this
+  // form breaks under a symlinked directory exactly like the other one. It handles ENCODING
+  // correctly, which is presumably why it reads as the careful version — and one of the five is
+  // `validate-envelope.mjs`, a registered PreToolUse hook. Proven inert via a symlinked path while
+  // AGENTS.md describes it as the mechanism by which "a malformed envelope is denied by hook before
+  // it reaches a worker": by its real path it emits a `deny` decision, by the symlink it emits
+  // nothing at all, which the CLI reads as allow.
+  //
+  // So the check is now structural rather than a blocklist: `import.meta.url` may not appear on the
+  // same line as `process.argv[1]` anywhere except inside the shared helper. Any hand-rolled
+  // comparison is an offender whether or not its particular spelling has been seen before.
+  // SCANNED: the trees that actually run. `bin/`, `hooks/`, `skills/`, `scripts/` — everything a
+  // user installs plus the dev tooling a contributor invokes. Deliberately NOT the whole repo: this
+  // file and the design docs have to be able to NAME the broken pattern in order to explain it, and
+  // a checker that flags its own explanation is a checker people delete. Scoping to the shipped
+  // trees is also strictly tighter than walking everything, because it says out loud which code the
+  // rule governs.
+  const SCANNED = ["bin", "hooks", "skills", "scripts"];
   const offenders = [];
-  for (const abs of walkMjs(ROOT)) {
+  for (const dir of SCANNED) {
+    if (!existsSync(join(ROOT, dir))) continue;
+    for (const abs of walkMjs(join(ROOT, dir))) {
     const rel = relative(ROOT, abs);
     if (rel.startsWith("node_modules") || rel === HELPER) continue;
     let src; try { src = read(abs); } catch { continue; }
-    if (src.includes(FRAGILE)) offenders.push(rel);
+    if (src.includes(FRAGILE)) { offenders.push(`${rel} (template-literal form)`); continue; }
+    const line = src.split("\n").find((l) => l.includes("import.meta.url") && l.includes("process.argv[1]"));
+    if (line) offenders.push(`${rel} (hand-rolled: ${line.trim().slice(0, 72)})`);
+    }
   }
   if (offenders.length === 0) {
-    ok(`no file compares import.meta.url against the unresolved ${FRAGILE}`);
+    ok(`no hand-rolled main guard in ${SCANNED.join("/, ")}/ — the shared helper is the only way to ask`);
   } else {
-    fail(`${offenders.length} file(s) use the fragile main guard — it silently no-ops under a\n` +
-         `    symlinked path or a path containing a space. Use isMain() from ${HELPER}:\n` +
+    fail(`${offenders.length} file(s) hand-roll a main guard. Every hand-rolled form so far has been\n` +
+         `    broken under a symlinked path — neither a template literal nor resolve() resolves\n` +
+         `    symlinks — and the failure is a SILENT no-op with exit 0. Use isMain() from ${HELPER}:\n` +
          offenders.map((f) => `      ${f}`).join("\n"));
   }
 
