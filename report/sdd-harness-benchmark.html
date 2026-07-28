@@ -1,0 +1,946 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Exported 2026-07-27 from claude.ai artifact 8450e8f0-8afc-46ea-8176-bc776792069e -->
+</head>
+<body>
+<title>SDD Harness Benchmark — Do they ship what they say they shipped?</title>
+
+<style>
+  :root {
+    --paper:   #F2F5F2;
+    --card:    #FAFBF9;
+    --ink:     #151A17;
+    --muted:   #5A665F;
+    --faint:   #7C877F;
+    --rule:    #D6DDD7;
+    --rule-soft:#E4EAE4;
+    --accent:  #00806A;
+    --accent-soft: #9BC4B9;
+    --accent-wash: #E2EDE9;
+    --crit:    #B33418;
+    --crit-wash:#F6E3DD;
+    --warn:    #8A6A12;
+    --warn-wash:#F5EEDC;
+
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+    --measure: 68ch;
+    --step: clamp(1rem, 0.4rem + 1.2vw, 1.35rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #0E1211; --card: #151A18; --ink: #E3E9E4; --muted: #8E9B94;
+      --faint: #6F7C75; --rule: #232C27; --rule-soft: #1C2320;
+      --accent: #2E9E88; --accent-soft: #2A5C52; --accent-wash: #14231F;
+      --crit: #D96A45; --crit-wash: #2A1A15;
+      --warn: #C4A050; --warn-wash: #241E12;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0E1211; --card: #151A18; --ink: #E3E9E4; --muted: #8E9B94;
+    --faint: #6F7C75; --rule: #232C27; --rule-soft: #1C2320;
+    --accent: #2E9E88; --accent-soft: #2A5C52; --accent-wash: #14231F;
+    --crit: #D96A45; --crit-wash: #2A1A15;
+    --warn: #C4A050; --warn-wash: #241E12;
+  }
+  :root[data-theme="light"] {
+    --paper: #F2F5F2; --card: #FAFBF9; --ink: #151A17; --muted: #5A665F;
+    --faint: #7C877F; --rule: #D6DDD7; --rule-soft: #E4EAE4;
+    --accent: #00806A; --accent-soft: #9BC4B9; --accent-wash: #E2EDE9;
+    --crit: #B33418; --crit-wash: #F6E3DD;
+    --warn: #8A6A12; --warn-wash: #F5EEDC;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: var(--step);
+    line-height: 1.62;
+    margin: 0;
+    padding: 0 1.25rem 6rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 78rem; margin: 0 auto; }
+  .col  { max-width: var(--measure); }
+
+  /* ---------- masthead ---------- */
+  .masthead {
+    border-bottom: 2px solid var(--ink);
+    padding: 3.5rem 0 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 1.1rem;
+    font-weight: 600;
+  }
+  h1 {
+    font-family: var(--sans);
+    font-weight: 800;
+    letter-spacing: -0.032em;
+    line-height: 1.02;
+    font-size: clamp(2.1rem, 1rem + 4.4vw, 4rem);
+    margin: 0 0 1rem;
+    text-wrap: balance;
+    max-width: 20ch;
+  }
+  .standfirst {
+    font-size: clamp(1.05rem, 0.9rem + 0.6vw, 1.3rem);
+    color: var(--muted);
+    max-width: 58ch;
+    margin: 0;
+  }
+
+  /* ---------- meta strip ---------- */
+  .meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+    gap: 0;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    margin: 2.25rem 0 3.5rem;
+    background: var(--card);
+    overflow: hidden;
+  }
+  .meta div {
+    padding: 0.85rem 1rem;
+    border-right: 1px solid var(--rule);
+  }
+  .meta div:last-child { border-right: 0; }
+  .meta dt {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 0 0 0.3rem;
+  }
+  .meta dd {
+    font-family: var(--mono);
+    font-size: 1.02rem;
+    font-variant-numeric: tabular-nums;
+    margin: 0;
+    font-weight: 600;
+  }
+
+  /* ---------- structure ---------- */
+  section { margin: 0 0 4rem; }
+  h2 {
+    font-family: var(--sans);
+    font-weight: 750;
+    letter-spacing: -0.021em;
+    font-size: clamp(1.4rem, 1rem + 1.5vw, 2rem);
+    line-height: 1.15;
+    margin: 0 0 0.4rem;
+    text-wrap: balance;
+    max-width: 26ch;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-weight: 700;
+    letter-spacing: -0.012em;
+    font-size: 1.06rem;
+    margin: 2.2rem 0 0.5rem;
+    text-wrap: balance;
+  }
+  .sec-id {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--faint);
+    display: block;
+    margin-bottom: 0.7rem;
+    padding-top: 1.6rem;
+    border-top: 1px solid var(--rule);
+  }
+  p { margin: 0 0 1.05rem; }
+  .lede { font-size: 1.06em; color: var(--muted); margin-bottom: 1.8rem; }
+  strong { font-weight: 700; }
+  em.term { font-style: normal; font-family: var(--mono); font-size: 0.88em; }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--rule-soft);
+    padding: 0.1em 0.36em;
+    border-radius: 2px;
+  }
+
+  /* ---------- headline stats ---------- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    margin: 0 0 2rem;
+  }
+  .stat { background: var(--card); padding: 1.5rem 1.35rem; }
+  .stat .k {
+    font-family: var(--mono);
+    font-size: 0.67rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 0 0 0.6rem;
+  }
+  .stat .v {
+    font-family: var(--sans);
+    font-size: clamp(1.9rem, 1.2rem + 2vw, 2.7rem);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    margin: 0 0 0.45rem;
+  }
+  .stat .v.crit { color: var(--crit); }
+  .stat .v.acc { color: var(--accent); }
+  .stat .n { font-size: 0.86rem; color: var(--muted); margin: 0; line-height: 1.45; }
+
+  /* ---------- chart ---------- */
+  figure { margin: 0 0 1.5rem; }
+  figcaption {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    color: var(--faint);
+    margin-top: 0.9rem;
+    line-height: 1.5;
+  }
+  .facets {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+    gap: 1.9rem 2.4rem;
+  }
+  .facet-t {
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink);
+    padding-bottom: 0.55rem;
+    margin-bottom: 0.85rem;
+    border-bottom: 1px solid var(--rule);
+    font-weight: 600;
+  }
+  .bars { display: flex; flex-direction: column; gap: 0.5rem; }
+  .bar-row { display: grid; grid-template-columns: 7.4rem 1fr; align-items: center; gap: 0.7rem; }
+  .bar-lab {
+    font-family: var(--mono);
+    font-size: 0.73rem;
+    color: var(--muted);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .bar-row.is-control .bar-lab { color: var(--ink); font-weight: 600; }
+  .bar-track { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+  .bar {
+    height: 13px;
+    background: var(--accent-soft);
+    border-radius: 0 3px 3px 0;
+    transition: filter 0.14s ease;
+    min-width: 2px;
+  }
+  .bar-row.is-control .bar { background: var(--accent); }
+  .bar-row:hover .bar { filter: saturate(1.5) brightness(0.94); }
+  .bar-val {
+    font-family: var(--mono);
+    font-size: 0.73rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .bar-row.is-control .bar-val { color: var(--ink); font-weight: 600; }
+  .bar-row.is-dnf .bar { background: repeating-linear-gradient(135deg, var(--crit) 0 3px, transparent 3px 6px); border: 1px solid var(--crit); border-radius: 3px; }
+  .bar-row.is-dnf .bar-val { color: var(--crit); font-weight: 600; }
+
+  /* ---------- tables ---------- */
+  .scroll { overflow-x: auto; margin: 0 0 1rem; border: 1px solid var(--rule); background: var(--card); }
+  table { border-collapse: collapse; width: 100%; font-family: var(--mono); font-size: 0.79rem; min-width: 40rem; }
+  caption {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+    padding: 0.9rem 1rem 0.7rem;
+  }
+  th, td { padding: 0.55rem 0.85rem; text-align: right; border-bottom: 1px solid var(--rule-soft); font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th {
+    font-size: 0.66rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--faint);
+    font-weight: 600;
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper);
+    position: sticky;
+    top: 0;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr.control td { background: var(--accent-wash); }
+  tbody tr.fail td { background: var(--crit-wash); }
+  tbody tr.void td { background: var(--warn-wash); }
+  .pill {
+    display: inline-block;
+    font-size: 0.66rem;
+    letter-spacing: 0.06em;
+    padding: 0.13em 0.5em;
+    border-radius: 2px;
+    font-weight: 600;
+    border: 1px solid currentColor;
+  }
+  .pill.ok { color: var(--accent); }
+  .pill.no { color: var(--crit); }
+  .pill.mid { color: var(--warn); }
+
+  /* ---------- callouts ---------- */
+  .note {
+    border-left: 3px solid var(--accent);
+    background: var(--card);
+    padding: 1.1rem 1.3rem;
+    margin: 1.6rem 0;
+  }
+  .note.warn { border-left-color: var(--crit); }
+  .note.mid { border-left-color: var(--warn); }
+  .note p:last-child { margin-bottom: 0; }
+  .note .h {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 0 0 0.6rem;
+  }
+
+  pre {
+    font-family: var(--mono);
+    font-size: 0.76rem;
+    line-height: 1.6;
+    background: var(--card);
+    border: 1px solid var(--rule);
+    padding: 1rem 1.1rem;
+    overflow-x: auto;
+    margin: 1.2rem 0;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+
+  ul { margin: 0 0 1.05rem; padding-left: 1.15rem; }
+  li { margin-bottom: 0.45rem; }
+
+  .verdict-list { list-style: none; padding: 0; }
+  .verdict-list li {
+    display: grid;
+    grid-template-columns: 4.4rem 1fr;
+    gap: 0.85rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--rule-soft);
+    align-items: start;
+  }
+  .verdict-list .mark {
+    font-family: var(--mono);
+    font-size: 0.67rem;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+    padding-top: 0.28em;
+  }
+  .verdict-list .mark.y { color: var(--accent); }
+  .verdict-list .mark.n { color: var(--crit); }
+
+  footer {
+    border-top: 2px solid var(--ink);
+    margin-top: 4.5rem;
+    padding-top: 1.4rem;
+    font-family: var(--mono);
+    font-size: 0.73rem;
+    color: var(--faint);
+    line-height: 1.7;
+  }
+
+  a { color: var(--accent); text-underline-offset: 3px; }
+  a:focus-visible, .bar-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Pre-registered benchmark · pilot, correction pass, and the handoff experiment · 2026-07-28</p>
+    <h1>Do SDD harnesses ship what they say they shipped?</h1>
+    <p class="standfirst">Four spec-driven-development harnesses, three no-harness controls, and an acceptance suite none of them ever saw. Run by the author of one of the four — who lost, found that half of what he'd concluded about losing was wrong, then built the one experiment his own tool was expected to win and watched a single sentence of prompt match it for a seventh of the price.</p>
+  </header>
+
+  <dl class="meta">
+    <div><dt>Scored runs</dt><dd>78</dd></div>
+    <div><dt>Features</dt><dd>4</dd></div>
+    <div><dt>Arms</dt><dd>7</dd></div>
+    <div><dt>Models</dt><dd>2</dd></div>
+    <div><dt>Transcripts</dt><dd>104</dd></div>
+    <div><dt>Corrections</dt><dd>15</dd></div>
+    <div><dt>Discarded</dt><dd>12</dd></div><div><dt>Rows unscored</dt><dd>20</dd></div>
+  </dl>
+
+  <section>
+    <span class="sec-id">01 — The result</span>
+    <h2>Every arm scored 100%. Running no harness was cheapest and fastest every time.</h2>
+    <div class="col">
+      <p class="lede">Across three features and every completed run on Sonnet 5, each arm passed every criterion of a hidden acceptance suite, with zero escaped defects anywhere. The control — the same prompt, same model, no methodology at all — did it for a third to a tenth of the cost.</p>
+      <p>That headline has not moved. What follows it has. A second pass re-read all 28 retained transcripts with instrumentation the pilot did not have, and overturned <strong>two published characterisations, one aggregation figure, and one fix that was never verified</strong>. Those corrections are §05, and they are the reason this page is longer than a results table.</p>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <p class="k">Acceptance, all arms</p>
+        <p class="v acc">100%</p>
+        <p class="n">Every completed run, all three features, both models — except one cell (§04).</p>
+      </div>
+      <div class="stat">
+        <p class="k">Escaped defects found</p>
+        <p class="v acc">0</p>
+        <p class="n">The metric the benchmark was built to measure. Nothing escaped, anywhere.</p>
+      </div>
+      <div class="stat">
+        <p class="k">Ceremony cost vs control</p>
+        <p class="v">2.9–5.4&times;</p>
+        <p class="n">Cheapest harness against no harness, same model. Wall-clock tracks it: 3.0–6.0&times;.</p>
+      </div>
+      <div class="stat">
+        <p class="k">Arms that failed to finish</p>
+        <p class="v crit">1 &rarr; 0</p>
+        <p class="n"><code>shapeup-sdlc</code> on F3 — killed at the 1800&thinsp;s cap, and not for the reason first reported. Fixed: 9/9 in 997&thinsp;s (§06).</p>
+      </div>
+    </div>
+
+    <figure>
+      <div class="facets">
+        <div>
+          <p class="facet-t">F1 · todo CLI · 13 criteria</p>
+          <div class="bars">
+            <div class="bar-row is-control"><span class="bar-lab">bare</span><span class="bar-track"><span class="bar" style="width:5.9%"></span><span class="bar-val">$0.245</span></span></div>
+            <div class="bar-row"><span class="bar-lab">cc-sdd</span><span class="bar-track"><span class="bar" style="width:32.5%"></span><span class="bar-val">$1.333</span></span></div>
+            <div class="bar-row"><span class="bar-lab">openspec</span><span class="bar-track"><span class="bar" style="width:44.0%"></span><span class="bar-val">$1.807</span></span></div>
+            <div class="bar-row"><span class="bar-lab">shapeup-sdlc</span><span class="bar-track"><span class="bar" style="width:57.0%"></span><span class="bar-val">$2.341</span></span></div>
+            <div class="bar-row"><span class="bar-lab">spec-kit</span><span class="bar-track"><span class="bar" style="width:63.5%"></span><span class="bar-val">$2.607</span></span></div>
+          </div>
+        </div>
+        <div>
+          <p class="facet-t">F2 · budgets · 14 criteria</p>
+          <div class="bars">
+            <div class="bar-row is-control"><span class="bar-lab">bare</span><span class="bar-track"><span class="bar" style="width:16.0%"></span><span class="bar-val">$0.656</span></span></div>
+            <div class="bar-row"><span class="bar-lab">shapeup-sdlc</span><span class="bar-track"><span class="bar" style="width:46.8%"></span><span class="bar-val">$1.922</span></span></div>
+            <div class="bar-row"><span class="bar-lab">openspec</span><span class="bar-track"><span class="bar" style="width:63.1%"></span><span class="bar-val">$2.591</span></span></div>
+            <div class="bar-row"><span class="bar-lab">shapeup-auto</span><span class="bar-track"><span class="bar" style="width:66.1%"></span><span class="bar-val">$2.713</span></span></div>
+            <div class="bar-row"><span class="bar-lab">spec-kit</span><span class="bar-track"><span class="bar" style="width:82.8%"></span><span class="bar-val">$3.402</span></span></div>
+            <div class="bar-row"><span class="bar-lab">cc-sdd</span><span class="bar-track"><span class="bar" style="width:100%"></span><span class="bar-val">$4.107</span></span></div>
+          </div>
+        </div>
+        <div>
+          <p class="facet-t">F3 · wiring trap · 9 criteria</p>
+          <div class="bars">
+            <div class="bar-row is-control"><span class="bar-lab">bare</span><span class="bar-track"><span class="bar" style="width:6.9%"></span><span class="bar-val">$0.285</span></span></div>
+            <div class="bar-row"><span class="bar-lab">openspec</span><span class="bar-track"><span class="bar" style="width:30.9%"></span><span class="bar-val">$1.269</span></span></div>
+            <div class="bar-row"><span class="bar-lab">cc-sdd</span><span class="bar-track"><span class="bar" style="width:58.6%"></span><span class="bar-val">$2.407</span></span></div>
+            <div class="bar-row"><span class="bar-lab">spec-kit</span><span class="bar-track"><span class="bar" style="width:65.4%"></span><span class="bar-val">$2.685</span></span></div>
+            <div class="bar-row is-dnf"><span class="bar-lab">shapeup-sdlc</span><span class="bar-track"><span class="bar" style="width:44%"></span><span class="bar-val">did not finish</span></span></div>
+          </div>
+        </div>
+      </div>
+      <figcaption>Cost per run, USD, <code>claude-sonnet-5</code>, n=1 per bar. Shared scale across all three panels (0&ndash;$4.11). Solid bar = no-harness control. Hatched bar = killed at the declared 1800&thinsp;s budget, so no cost is comparable. All bars scored 100% acceptance.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <span class="sec-id">02 — Full results</span>
+    <h2>Every cell, including the ones that make my tool look bad</h2>
+
+    <div class="scroll">
+      <table>
+        <caption>Sonnet 5 · all three features</caption>
+        <thead>
+          <tr><th>Feature</th><th>Arm</th><th>n</th><th>Acceptance</th><th>Escaped</th><th>Wall&thinsp;s</th><th>USD</th><th>Turns</th></tr>
+        </thead>
+        <tbody>
+          <tr class="control"><td>F1 todo</td><td>bare</td><td>1</td><td><span class="pill ok">100%</span></td><td>0</td><td>51.0</td><td>0.245</td><td>8</td></tr>
+          <tr><td>F1 todo</td><td>cc-sdd</td><td>1</td><td><span class="pill ok">100%</span></td><td>0</td><td>304.5</td><td>1.333</td><td>40</td></tr>
+          <tr><td>F1 todo</td><td>openspec</td><td>1</td><td><span class="pill ok">100%</span></td><td>0</td><td>431.6</td><td>1.807</td><td>61</td></tr>
+          <tr><td>F1 todo</td><td>shapeup-sdlc</td><td>1</td><td><span class="pill ok">100%</span></td><td>0</td><td>489.4</td><td>2.341</td><td>57</td></tr>
+          <tr><td>F1 todo</td><td>spec-kit</td><td>1</td><td><span class="pill ok">100%</span></td><td>0</td><td>523.9</td><td>2.607</td><td>70</td></tr>
+          <tr class="control"><td>F2 budgets</td><td>bare</td><td>1</td><td><span class="pill ok">100%</span></td><td>0</td><td>133.6</td><td>0.656</td><td>26</td></tr>
+          <tr><td>F2 budgets</td><td>shapeup-sdlc</td><td>1</td><td><span class="pill ok">100%</span></td><td>0</td><td>395.7</td><td>1.922</td><td>48</td></tr>
+          <tr><td>F2 budgets</td><td>shapeup-auto</td><td>1</td><td><span class="pill ok">100%</span></td><td>0</td><td>563.0</td><td>2.713</td><td>63</td></tr>
+          <tr><td>F2 budgets</td><td>openspec</td><td>1</td><td><span class="pill ok">100%</span></td><td>0</td><td>774.1</td><td>2.591</td><td>66</td></tr>
+          <tr><td>F2 budgets</td><td>spec-kit</td><td>1</td><td><span class="pill ok">100%</span></td><td>0</td><td>646.5</td><td>3.402</td><td>97</td></tr>
+          <tr><td>F2 budgets</td><td>cc-sdd</td><td>1</td><td><span class="pill ok">100%</span></td><td>0</td><td>644.2</td><td>4.107</td><td>108</td></tr>
+          <tr class="control"><td>F3 wiring</td><td>bare</td><td>1</td><td><span class="pill ok">100%</span></td><td>0</td><td>51.0</td><td>0.285</td><td>16</td></tr>
+          <tr><td>F3 wiring</td><td>openspec</td><td>1</td><td><span class="pill ok">100%</span></td><td>0</td><td>245.5</td><td>1.269</td><td>53</td></tr>
+          <tr><td>F3 wiring</td><td>cc-sdd</td><td>1</td><td><span class="pill ok">100%</span></td><td>0</td><td>487.5</td><td>2.407</td><td>81</td></tr>
+          <tr><td>F3 wiring</td><td>spec-kit</td><td>1</td><td><span class="pill ok">100%</span></td><td>0</td><td>526.7</td><td>2.685</td><td>82</td></tr>
+          <tr class="fail"><td>F3 wiring</td><td>shapeup-sdlc</td><td>1</td><td><span class="pill no">DNF</span></td><td>&mdash;</td><td>&gt;1800</td><td>&mdash;</td><td>327</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <caption>Haiku 4.5 · F2 budgets</caption>
+        <thead>
+          <tr><th>Arm</th><th>n</th><th>Acceptance</th><th>Escaped</th><th>Wall&thinsp;s</th><th>USD</th></tr>
+        </thead>
+        <tbody>
+          <tr class="control"><td>bare</td><td>1</td><td><span class="pill ok">100%</span></td><td>0</td><td>162.6</td><td>0.195</td></tr>
+          <tr><td>openspec</td><td>1</td><td><span class="pill ok">100%</span></td><td>0</td><td>146.8</td><td>0.221</td></tr>
+          <tr><td>cc-sdd</td><td>1</td><td><span class="pill ok">100%</span></td><td>0</td><td>193.3</td><td>0.268</td></tr>
+          <tr><td>spec-kit</td><td>1</td><td><span class="pill ok">100%</span></td><td>0</td><td>394.8</td><td>0.624</td></tr>
+          <tr><td>shapeup-auto</td><td>3</td><td><span class="pill ok">100%</span></td><td>0</td><td>205.9</td><td>0.307</td></tr>
+          <tr class="fail"><td>shapeup-sdlc</td><td>5</td><td><span class="pill no">29%</span></td><td>10</td><td>37.5</td><td>0.064</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="col" style="font-family:var(--mono);font-size:0.76rem;color:var(--faint);">Medians shown; every multi-run cell had zero variance. The aggregator refuses to claim an ordering between arms below n=3 — these are pilot numbers, and the ranking between harnesses is not established.</p>
+  </section>
+
+  <section>
+    <span class="sec-id">03 — The instrument</span>
+    <h2>What makes a number here worth anything</h2>
+    <div class="col">
+      <p>The scoring is a <strong>deterministic, dependency-free oracle</strong>. It spawns the produced artifact with controlled argv, stdin and environment, and grades the observed exit code and output. It never reads source, and it never asks a model anything — a model judge would be the single biggest credibility hole in an author-run benchmark.</p>
+      <p>The acceptance contract for each feature is written <em class="term">before</em> any run of that feature, is never copied into a workspace, and is applied afterward from outside. <code>shapeup-sdlc</code>'s own evaluator and QA skills are explicitly barred from the scoring path.</p>
+
+      <h3>The rules that stop a broken measurement becoming a result</h3>
+      <p>Each was learned by throwing a measurement away rather than publishing it.</p>
+      <ul>
+        <li><strong>A session with no parseable model events writes nothing.</strong> Conflating "the measurement broke" with "the harness scored 0" is the one error that fabricates benchmark results.</li>
+        <li><strong>A zero-work session aborts.</strong> A run can end <code>subtype:"success"</code> having done nothing — "Unknown command", zero turns, clean exit. Scored naively that is indistinguishable from a harness that tried everything and failed.</li>
+        <li><strong>A failed harness <code>init</code> cancels the paid session.</strong> Otherwise you buy a bare-agent run and label it with a harness's name.</li>
+        <li><strong>A timeout is a completion failure, not a measurement failure.</strong> An API error means the run didn't happen; a timeout means the harness didn't finish. Folding them together quietly excuses slow arms.</li>
+        <li><strong>The oracle self-tests before every run.</strong> It must pass a correct reference and catch every planted defect in a deliberately defective one, or the benchmark refuses to start.</li>
+      </ul>
+
+      <div class="note">
+        <p class="h">The control arm</p>
+        <p>A fifth arm runs the same prompt with no harness at all. Without it, a benchmark cannot separate "this harness helps" from "the model is good at todo CLIs" — the most common flaw in published SDD comparisons, and the one that most flatters whoever ran it. It turned out to be the most important decision in the design.</p>
+      </div>
+
+      <h3>What the pilot's instrument could not do</h3>
+      <p>Four numbers per run — acceptance, escaped defects, cost, wall-clock — are enough to <em class="term">rank</em> arms and not enough to <em class="term">correct</em> one. The pilot proved it twice: a did-not-finish row carried a dash in every column, and a run that never started looked identical to a run that built the wrong thing. Those two need opposite fixes.</p>
+      <p>Both are failures of the instrument, not of the harness under test. Every transcript had been retained, so the information existed the whole time and was never read. A second pass now derives, for <strong>every</strong> run including timeouts, and for <strong>every arm equally</strong>:</p>
+
+      <div class="scroll">
+        <table>
+          <caption>Diagnostic metrics — outside the score, by design</caption>
+          <thead><tr><th>Metric</th><th style="text-align:left">What it isolates</th></tr></thead>
+          <tbody>
+            <tr><td>narration_ratio</td><td style="text-align:left">prose chars ÷ (prose + tool-input chars) — describing the work instead of doing it</td></tr>
+            <tr><td>writes / work_calls</td><td style="text-align:left">whether anything happened, independent of whether it was right</td></tr>
+            <tr><td>turns_to_first_write</td><td style="text-align:left">time-to-first-artifact; <code>null</code> means it never wrote a line</td></tr>
+            <tr><td>last_gate_reached</td><td style="text-align:left"><strong>where</strong> a run died — the attribution a DNF row lacked</td></tr>
+            <tr><td>stall_signals</td><td style="text-align:left">turns that end asking for a confirmation nobody is there to give</td></tr>
+            <tr><td>ended_on_promise</td><td style="text-align:left">a future-tense plan as the session's last word</td></tr>
+            <tr><td>failure_mode</td><td style="text-align:left">narrated / stalled / never_started / built_and_failed / ok</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>None of it enters a score — acceptance stays the oracle's alone. Its only job is to say <em class="term">which</em> failure a row is, so a bad cell becomes a bug report instead of a lament. It has its own self-test, on the same rule as the oracle: it must classify a known-narrated transcript, a known-busy one, and a known-stalled one correctly, or it does not ship. That test exists because the first version of the classifier read a file path where the metrics belonged and labelled every narrated run <code>unknown</code> — plausible, and completely inert.</p>
+    </div>
+  </section>
+
+  <section>
+    <span class="sec-id">04 — The one cell that failed</span>
+    <h2>On a cheap model, one harness collapsed — and it wasn't a competitor's</h2>
+    <div class="col">
+      <p class="lede">The Haiku row was run to test a specific hypothesis: that methodology compensates for a weaker model, so ceremony buys you the ability to run something cheap. It does not.</p>
+      <p>The control scored <strong>14/14 on Haiku for 20 cents</strong>. Every competitor degraded gracefully at 14/14. One arm broke, reproducibly, five times out of five with zero variance: <code>shapeup-sdlc</code>, at <strong>29% acceptance and 10 escaped defects</strong>.</p>
+      <p>Same harness, same model, same feature, one sentence of prompt apart, the self-routed variant scored 14/14 three times out of three. So this is not "Haiku is too weak for methodology" — it is something narrower and more specific.</p>
+    </div>
+
+    <pre><code>TOOL   Skill(shapeup-sdlc-plugin:tech-lead, "--unattended --rounds 3\n\n# F2 — category budgets…")
+RESULT "Launching skill: shapeup-sdlc-plugin:tech-lead"
+TEXT   "⚠️ No human review before ship. Running --unattended end-to-end.
+        All gates (L0, L1a, L1b, L2, L3, L4) are pre-approved…
+        The tech-lead skill is orchestrating the full Shape Up harness. It will: 1. …"
+FINAL  (same text — session ends)</code></pre>
+
+    <div class="col">
+      <p><strong>The model treats invoking the skill as having done the work.</strong> It loads a 450-line instruction file with eleven gates, writes a confident future-tense summary of what the harness "will" do, and stops. No code, no board, no gate artifacts — and prose that reads exactly like a successful run.</p>
+
+      <p>Re-read with the diagnostic metrics, that transcript has a signature no other row in the matrix has:</p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <caption>F2 · Haiku 4.5 · what each arm's transcript looks like</caption>
+        <thead><tr><th>Arm</th><th>Turns</th><th>Writes</th><th>narration_ratio</th><th>Stalls</th><th>Ends on</th></tr></thead>
+        <tbody>
+          <tr class="fail"><td>shapeup-sdlc <span style="color:var(--faint)">(5 runs)</span></td><td>4</td><td>0</td><td>0.31–0.38</td><td>0</td><td>promise</td></tr>
+          <tr><td>shapeup-auto</td><td>82–278</td><td>8–10</td><td>0.25–0.41</td><td>0</td><td>claim</td></tr>
+          <tr class="control"><td>bare</td><td>55</td><td>8</td><td>0.16</td><td>0</td><td>claim</td></tr>
+          <tr><td>spec-kit</td><td>137</td><td>26</td><td>0.06</td><td>0</td><td>claim</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col">
+      <p>Four turns, zero writes, ending on a future-tense promise — five times out of five. Note the row directly beneath it: <code>shapeup-auto</code> has the <em class="term">highest</em> narration ratio in the table and still scores 14/14. <strong>Narration ratio alone diagnoses nothing.</strong> The signature is narration <em class="term">with zero writes</em>, which is why the classifier keys on writes first.</p>
+
+      <div class="note warn">
+        <p class="h">Why this one stings</p>
+        <p>That is the "agent claims done" pathology this harness exists to prevent, reproduced by the harness, on its own front door, five times out of five. Its guard for exactly this case — an advisory hook that fires when a completion claim contradicts the run's mechanical facts — never triggered, and it missed for <strong>two independent structural reasons</strong>: it is scoped to active runs, and <strong>a run that never started produces none of the files it looks for</strong>; and its detector matches past-tense completion, while narration is future-tense. It catches "claimed done on a half-green board" and misses "claimed done with no board at all". The emptier the failure, the less of it there is to detect.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <span class="sec-id">05 — The corrections</span>
+    <h2>Five things this benchmark published or believed that turned out to be wrong</h2>
+    <div class="col">
+      <p class="lede">Kept in order, with the correction under each. A benchmark that quietly rewrites its own conclusions is worth less than one that shows where it was wrong and what the re-run said.</p>
+
+      <h3>1. The cause of the Haiku collapse</h3>
+      <p>The first diagnosis was that the requirement text was being dropped on the hand-off — the orchestrator reached as <code>args:"--unattended"</code> with no spec attached. That was observed, and it was wrong as a cause. A deny-hook was built to block a dispatch with no resolvable intake, verified on ten cases, packaged, and the failing cell re-run. <strong>Still 4/14, n=2.</strong> The hook never fired — correctly, because on the re-run the full requirement text <em class="term">was</em> passed. The dropped text co-occurred with the failure; it did not cause it.</p>
+
+      <h3>2. The F3 timeout was not a stall</h3>
+      <p>The DNF was reported as a run killed at the cap, inside an argument about gate ceremony. The transcript says something else entirely:</p>
+      <pre><code>327 assistant turns · 262 tool calls · 130 work calls · 37 file writes · 92 reads
+19 gate markers · last gate reached L3 · narration_ratio 0.047 · stall_signals 0</code></pre>
+      <p>It has the <strong>lowest narration ratio of any <code>shapeup-sdlc</code> run in the matrix</strong> and one of the highest work-call counts in the dataset. It was not waiting for a human. It was building, and it was still building when the clock ran out, mid-loop at GATE L3.</p>
+      <p>The DNF stands exactly as recorded. What changes is what it is evidence <em class="term">of</em>: not ceremony overhead, but a harness whose circuit breakers count <strong>events</strong> — one per round, one per verification attempt — and therefore cannot notice that a single round has been running for twenty-nine minutes. The real cost is not the dash in the table; it is that a run killed from outside ships nothing, including the scopes that had already passed their smoke tests.</p>
+
+      <h3>3. An aggregation figure with no referent</h3>
+      <p>The aggregator grouped cells by feature × harness. The model was not in the key. That merged five failed Haiku runs with one full-price Sonnet run into <code>n=6, acc 29% [29–100]</code>, and a ceremony ratio of <strong>0.17× the control</strong> — a number that means nothing. The protocol states "the model is never implicit"; that rule was enforced at the runner, where every row carries its model, and not at the aggregator, where rows are pooled. A rule that holds for the raw data and not for the summary only protects the inputs.</p>
+
+      <h3>4. A fix that could not run</h3>
+      <p>Four mechanisms were built against §04 and §05.2 — a run receipt, a blocking zero-work check, a pre-recorded gate answer set, a wall-clock breaker. The re-run showed they never executed. Every load-bearing step is a script that ships <em class="term">with the plugin</em>, so it lives outside the working directory, and executing it needs an approval no headless run can give. <strong>26 denials in one session, six invocation shapes attempted</strong>, then the agent abandoned the harness and built the feature by hand.</p>
+
+      <h3>5. And a fix for <em class="term">that</em> which also did nothing</h3>
+      <p>The obvious accommodation — a prefix allow-rule for the plugin's script directory — changed nothing, because the agent's commands are variously quoted, compound, heredoc-fed or wrapped in scripts it writes itself, and a prefix rule matches none of those. Same 26 denials. <strong>The runs still scored 14/14 and 9/9</strong>, with the harness demonstrably never reachable. Had the workspace not been inspected for harness artifacts, that would have been published as the harness succeeding.</p>
+
+      <h3>6. A metric that was wrong for the whole pilot</h3>
+      <p>A session emits one <code>result</code> event per segment. <code>total_cost_usd</code> is <strong>cumulative</strong> across them; <code>num_turns</code> and <code>output_tokens</code> are <strong>per-segment</strong>. The runner kept only the last event — so cost came out right, and turns and tokens came out as whatever the final fragment happened to be: <code>turns: 1, out: 848</code> for a run that took 80 turns and 26,735 output tokens.</p>
+      <p>Because the cost was correct, nothing looked broken, and it survived the entire pilot. It under-reports in one direction only, and <em class="term">only for arms that fan out to sub-agents</em> — which is precisely the arms whose ceremony this benchmark exists to price. Two published rows are affected; no acceptance, escaped-defect or cost figure changes.</p>
+
+      <div class="note warn">
+        <p class="h">The lesson those last two share</p>
+        <p>Both were plausible mechanisms verified by reasoning rather than by measurement — the same shape as correction 1. And both produced <em class="term">passing scores</em> while the thing under test was inert. <strong>A passing score is not evidence that the thing under test ran.</strong> That is this benchmark's own founding error, arriving from the measurement side instead of the agent side.</p>
+      </div>
+
+      <ul class="verdict-list">
+        <li><span class="mark y">HOLDS</span><span>The collapse is real and reproducible — n=5 across two prompt variants, 29% every time.</span></li>
+        <li><span class="mark y">HOLDS</span><span>The control holds on Haiku at 14/14 for $0.195.</span></li>
+        <li><span class="mark n">WRONG</span><span>Cause was dropped intake. Corrected — intake was valid on re-run.</span></li>
+        <li><span class="mark y">HOLDS</span><span>Cause is the model narrating instead of executing, shown in transcript with a valid spec.</span></li>
+        <li><span class="mark n">WRONG</span><span>The intake gate fixes it. Measured: it does not.</span></li>
+        <li><span class="mark y">HOLDS</span><span>The existing completion-claim guard structurally cannot see total failures.</span></li>
+        <li><span class="mark n">WRONG</span><span>The F3 DNF was a gate stall. Measured: 327 turns, 37 writes, zero stall signals.</span></li>
+        <li><span class="mark n">WRONG</span><span>The F2 shapeup cell was <code>n=6, 29–100%</code>. That pooled two models; it is two cells.</span></li>
+        <li><span class="mark n">WRONG</span><span>Per-run <code>turns</code> and <code>tokens_out</code> for sub-agent arms. Read from one result segment instead of all of them.</span></li>
+        <li><span class="mark y">HOLDS</span><span>Every <code>cost_usd</code>, every acceptance figure, every escaped-defect count. None of them touch that path.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <span class="sec-id">06 — What was built, and what it measured</span>
+    <h2>The collapse is fixed. The ceremony is not thereby justified.</h2>
+    <div class="col">
+      <p class="lede">Four mechanisms, each aimed at a failure measured here. The harness's organising rule is that every invariant that matters lives in the runtime rather than in a prompt — and each of these was living in a prompt, which is precisely why each got dropped, paraphrased or summarised.</p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <caption>F2 · Haiku 4.5 · <code>shapeup-sdlc</code> — the cell that was 29%</caption>
+        <thead><tr><th>Build</th><th>Acceptance</th><th>Escaped</th><th>Writes</th><th>Receipt</th><th>Last gate</th><th>Wall&thinsp;s</th><th>USD</th></tr></thead>
+        <tbody>
+          <tr class="fail"><td>before &mdash; n=5</td><td><span class="pill no">29%</span></td><td>10</td><td>0</td><td>&mdash;</td><td>L4</td><td>37.5</td><td>0.064</td></tr>
+          <tr><td>after &mdash; rep 1</td><td><span class="pill ok">100%</span></td><td>0</td><td>48</td><td>&#10003;</td><td>L4</td><td>2258</td><td>3.286</td></tr>
+          <tr><td>after &mdash; rep 2</td><td><span class="pill ok">100%</span></td><td>0</td><td>67</td><td>&#10003;</td><td>H</td><td>1741</td><td>2.305</td></tr>
+          <tr><td>after &mdash; rep 3</td><td><span class="pill ok">100%</span></td><td>0</td><td>48</td><td>&#10003;</td><td>L4</td><td>1456</td><td>2.101</td></tr>
+          <tr class="control"><td>control (no harness)</td><td><span class="pill ok">100%</span></td><td>0</td><td>8</td><td>n/a</td><td>&mdash;</td><td>162.6</td><td>0.195</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col">
+      <p>Zero variance on both sides: 29% five times, then 100% three times. And the harness <em class="term">demonstrably ran</em> — which §05.5 is the reason to check rather than assume. Every rep left a full artifact tree, not just a passing binary:</p>
+    </div>
+
+    <pre><code>receipt.json · intake.md · harness-run.md · active-scope
+orient/{code-surface-map, spike-findings, hill-signal, discovered-task-seed}.md
+spec/{_index, domain-model, requirements, integration}.md + 4 use cases
+orders/r1-a1.json, r1-a2.json  →  results/r1-a1.json, r2-bugfix.json     (envelope dispatch)
+evaluation/EVAL-FEATURE-…-r1.md, …-r2.md                                 (round 1 FAILED, looped)
+qa/hunt-report.md · GATE-H-ship-decision.md</code></pre>
+
+    <div class="col">
+      <p>Two evaluation reports is worth noticing on its own: <strong>round 1 failed and the harness looped to a fix round.</strong> That is the loop working, not a lucky first pass.</p>
+
+      <div class="note warn">
+        <p class="h">What this does not establish</p>
+        <p>The failing runs cost <strong>$0.064 because they did nothing.</strong> Fixing the collapse converted a fake cheap loss into a real expensive pass: <strong>11.8&times; the control's cost and 10.7&times; its wall clock, for an identical 14/14.</strong> "The collapse is fixed" and "the ceremony is worth paying" are different claims, and only the first is supported here. The v1.4 work removed a <em class="term">defect</em>; it was never designed to change the pilot's central result, and it does not.</p>
+      </div>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <caption>The four mechanisms, and the honest scoreboard on each</caption>
+        <thead><tr><th>Mechanism</th><th style="text-align:left">The failure it answers</th><th style="text-align:left">Measured</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>run receipt</td>
+            <td style="text-align:left">Whether a run had started was not a fact on disk — every guard could only observe what a run <em class="term">did</em>, so a run that did nothing was invisible to all of them.</td>
+            <td style="text-align:left"><span class="pill ok">works</span> present in 3/3 reps</td>
+          </tr>
+          <tr>
+            <td>zero-work block</td>
+            <td style="text-align:left">§04. Blocks a session that dispatched the orchestrator and left no receipt. Predicate is a mechanical absence, so no phrasing changes it.</td>
+            <td style="text-align:left"><span class="pill mid">untested live</span> nothing narrated after the fix, so it never had to fire</td>
+          </tr>
+          <tr>
+            <td>gate answer set</td>
+            <td style="text-align:left">Headless sign-off was carried in prose, and prose consent gets paraphrased — Sonnet acted on it, Haiku re-summarised it.</td>
+            <td style="text-align:left"><span class="pill mid">works</span> fixes a real stall — but <em class="term">not</em> the F3 DNF (§05.2)</td>
+          </tr>
+          <tr>
+            <td>wall-clock breaker</td>
+            <td style="text-align:left">§05.2. The two existing breakers count events, so neither sees a long round. Tripping routes to ship-triage instead of an external kill.</td>
+            <td style="text-align:left"><span class="pill mid">fired, mistuned</span> see below</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>F3 — fixed, and I credited the wrong fix</h3>
+    <div class="col">
+      <p>Four fixes were aimed at this timeout. The first three improved the <em class="term">failure</em> and left the <em class="term">run</em> exactly as long. When F3 finally passed, I credited the fourth — the lane fix — and published it.</p>
+      <p><strong>That was wrong, and it was one directory listing away from being caught.</strong> The passing run's build predates the fit-check: its receipt records no lane, and its workspace holds <code>wire.json</code>, <code>analyze.json</code>, <code>evaluate-r1.json</code> and a QA hunt report — the full eleven-gate pipeline. It also tripped the deadline breaker and finished anyway.</p>
+      <p>This is the ninth correction on this page and the fourth of one shape: <em class="term">attributing a result to the mechanism most recently built, without checking that the mechanism was in the build.</em> It is precisely the failure the run receipt exists to make impossible, committed by the person who built the receipt.</p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <caption>F3 · self-routed · sonnet-5 — the lane fix, measured properly</caption>
+        <thead><tr><th>Build</th><th>Lane</th><th>Wall&thinsp;s</th><th>USD</th><th>Turns</th><th>Oracle</th></tr></thead>
+        <tbody>
+          <tr><td>without fit-check</td><td>full (11 gates)</td><td>997.0</td><td>5.850</td><td>101</td><td><span class="pill ok">9/9</span></td></tr>
+          <tr><td><strong>with fit-check</strong></td><td><strong>tiny</strong></td><td><strong>820.8</strong></td><td><strong>4.826</strong></td><td>84</td><td><span class="pill ok">9/9</span></td></tr>
+          <tr class="control"><td>control (no harness)</td><td>&mdash;</td><td>51.0</td><td>0.285</td><td>16</td><td><span class="pill ok">9/9</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col">
+      <p>The mechanism does what it claims: the receipt records <code>lane: tiny</code> with all four checks passing, and the workspace contains no wiring, analysis, evaluation or QA artifacts — the pipeline genuinely shortened rather than merely being labelled shorter.</p>
+      <p><strong>And it is worth 18%. Not 80%.</strong> A three-file change routed to the light lane still costs $4.83 and fourteen minutes against a control that does it for $0.285 in fifty-one seconds. Seventeen times the money for an identical 9/9 — and that is the light lane <em class="term">working</em>.</p>
+      <p><strong>Settled:</strong> the did-not-finish is gone, robustly — two independent passes, two different lanes, 997&thinsp;s and 821&thinsp;s against an 1800&thinsp;s cap. <strong>Not settled:</strong> which fix earns the credit, at n=1 per configuration. <strong>Unchanged:</strong> the pilot's central result. Every fix here removed a defect; none made the ceremony pay for itself, and the lane designed for exactly this case closes about a fifth of a seventeen-fold gap.</p>
+    </div>
+
+    <div class="col">
+      <p>The first three treated the timeout as a <em class="term">budget</em> problem. It was a <em class="term">sizing</em> problem: a three-file change — one new module plus one dispatcher wiring — was being run through an eleven-gate pipeline, and no amount of budget management makes that finish. <strong>The harness's own fit-check had said so from the start.</strong> The pilot transcripts have it calling the smallest feature "squarely inside the light lane" and then running the full pipeline anyway, because the lane was a judgment a model can talk itself out of. Same defect as narration, same defect as consent-by-prose, same remedy: move it into the runtime.</p>
+
+      <div class="note warn">
+        <p class="h">And it cost more than ever</p>
+        <p><strong>$5.85 — the most expensive run of this harness in the entire dataset, against a $0.285 control on the same feature. Twenty times.</strong> The did-not-finish is gone and the ceremony tax is worse than it has ever looked. Those are two findings and they must not be quoted as one.</p>
+      </div>
+
+      <h3>Eight rows unscored, retroactively</h3>
+      <p>Applying §05.5's lesson to the data rather than only to the prose: a row that produced <strong>no run receipt</strong> did not measure the harness. The scripts could not execute, the agent built the feature by hand, and the oracle scored the agent. Seven such rows existed — <em class="term">two of them scoring 100%</em>, which is exactly why the rule has to be mechanical rather than a matter of noticing. An eighth was the truncated session. All are now recorded as unmeasured.</p>
+      <p>The discrimination is exact, and both sides of the before/after survive it: the three runs that left receipts stay scored at 100%, and the five that pre-date the receipt stay scored at 29%.</p>
+
+      <h3>A third pooling bug, same shape as the first two</h3>
+      <p>With the fix in, the summary read <code>n=8, acceptance 29% [29–100]</code> — pooling the pilot build with the fixed one. The grouping key had gained the model (§05.3) and still lacked the <strong>build</strong>, because both reported the same version string: <code>git describe</code> cannot see uncommitted work. Two different tools under one label is how a summary pools them. The version now derives from the packaged manifest, and the record separates cleanly:</p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <caption>The same cell, once the key is complete</caption>
+        <thead><tr><th>Feature</th><th>Build</th><th>n</th><th>Acceptance</th><th>Escaped</th><th>Wall&thinsp;s</th><th>USD</th></tr></thead>
+        <tbody>
+          <tr class="fail"><td>F2 budgets · Haiku</td><td>v1.3.0</td><td>5</td><td><span class="pill no">29%</span></td><td>10</td><td>37.5</td><td>0.064</td></tr>
+          <tr><td>F2 budgets · Haiku</td><td>v1.4.0</td><td>3</td><td><span class="pill ok">100%</span></td><td>0</td><td>1740.8</td><td>2.305</td></tr>
+          <tr><td>F3 wiring · Sonnet</td><td>v1.4.0</td><td>1</td><td><span class="pill ok">100%</span></td><td>0</td><td>997.0</td><td>5.850</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col">
+      <div class="note mid">
+        <p class="h">A fourth fairness problem, found the hard way</p>
+        <p>The three other harnesses install their machinery <em class="term">into</em> the workspace, where a session runs it freely. This one ships its scripts with the plugin, outside the working directory, where executing them needs a permission grant. Read access had been equalised across arms long ago; nobody noticed <strong>execute</strong> had not been, because until now this arm's critical path did not depend on running anything — it depended on the model following prose, which is the failure these mechanisms exist to fix. Moving an invariant out of a prompt and into a script exposed a permission gap the prose version could not reach. The accommodation is what a real install produces, so running with it is the more faithful measurement, not the more generous one — but the asymmetry is real, and no competitor here pays it.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <span class="sec-id">07 — What was thrown away</span>
+    <h2>Seven measurements discarded before any number was published</h2>
+    <div class="col">
+      <p>Roughly half the spend went on runs that were deleted. On a benchmark, debugging the measurement is not overhead — it is most of the work.</p>
+
+      <h3>Four of five adapters were wrong on the first attempt</h3>
+      <p>The entry points came from real <code>init</code> trees only after documentation-derived guesses failed. <code>spec-kit</code> ships skills, not <code>/specify</code> commands. OpenSpec namespaces its commands <code>opsx</code>, and the bare <code>openspec</code> package on npm is an unrelated 0.0.0 placeholder. Each would have run a paid session against a harness that was never installed, and scored it as though it had been.</p>
+
+      <h3>A fairness fix that was nearly a contamination vector</h3>
+      <p>One arm could not read its own instructions under the shared permission mode. The obvious fix — grant it read access to its development checkout — would have handed it <code>examples/todo-cli</code>, a complete working implementation of F1's exact deliverable, that no competitor had. It now runs against the packaged distributable, verified to contain no example implementations.</p>
+
+      <h3>A transcript-naming collision that overwrote the evidence</h3>
+      <p>The transcript filename carried no harness version, so re-running the same cell at a new build silently overwrote the pilot's raw transcripts — the evidence behind published findings, recoverable only because the results directory happens to be under git. Every correction on this page came from re-reading retained runs. <strong>The archive is the instrument</strong>, and a naming scheme that can quietly overwrite it is not a cosmetic defect. Discarded and re-run under a version-tagged name.</p>
+
+      <h3>Three re-runs where the harness could not execute</h3>
+      <p>§05.4 and §05.5. Three accommodations were tried and two failed silently; all three produced runs with no harness artifacts at all. They are kept in the discard log rather than deleted, because they are the evidence for the permission finding — and because two of them scored full marks while measuring nothing.</p>
+
+      <div class="note warn">
+        <p class="h">The asymmetry worth naming</p>
+        <p>Every one of these bugs happened to make the <em class="term">author's own</em> harness look catastrophic, which is why each got investigated. That is not evidence of even-handedness — it is the danger. A bad result gets diagnosed; a flattering one gets published. The two v1.4 attempts that scored 14/14 and 9/9 while the harness sat inert are the proof: those would have been published as wins. Had the same bugs landed only on the competitors, nothing in the process would have caught them. The verification steps exist so the direction of the accident stops mattering.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <span class="sec-id">08 — Limits</span>
+    <h2>What this does not show</h2>
+    <div class="col">
+      <p>Everything measured here fits in <strong>one session and one context window</strong>. The claims these tools actually make — surviving compaction, multi-session continuity, onboarding someone new, holding a large codebase coherent over weeks — are outside what this design can see. That is a real limitation of the benchmark, not a hedge, and not evidence against the tools.</p>
+      <p>What it does establish is narrow and, as far as I can tell, unpublished elsewhere: <strong>for single-session features up to six files and five seams, on these two models, SDD ceremony cost 3–10× and produced no measurable quality difference against an acceptance suite the tools never saw.</strong></p>
+      <p>One number points at where to look next. The ceremony ratio narrows as features get harder — 5.4× on the simplest feature, 2.9× on the hardest. At n=1 that trend is not established, but it is the most interesting quantity in the dataset, and it says the next feature should be bigger rather than the next matrix deeper.</p>
+      <div class="note mid">
+        <p class="h">That last sentence was half wrong — §09 is what happened when it was tested</p>
+        <p>Bigger bought nothing: a 12-file feature at ~4× F2 saturated exactly as the others did. What discriminated was <em class="term">discontinuity</em> — cutting the session and handing the workspace to a fresh agent.</p>
+      </div>
+      <p>The features were also revised mid-flight: F2 was replaced with a harder five-seam version <em class="term">after</em> F1 and F3 saturated, under an appended, timestamped amendment carrying the pilot data that motivated it. That is a deviation from the pre-registration, and it is recorded as one.</p>
+      <p>Finally, the v1.4 arm is <strong>not the same arm as the pilot's</strong>. It has different mechanisms and different flags, and every row carries its harness version so the two are never silently compared. The pilot's <code>shapeup-sdlc</code> numbers remain valid measurements <em class="term">of the pilot's version</em>, and must be labelled with it wherever they are quoted.</p>
+    </div>
+  </section>
+
+  <section>
+    <span class="sec-id">09 — F4: the crossover</span>
+    <h2>Ceremony finally bought something. It was worth one sentence.</h2>
+    <div class="col">
+      <p class="lede">§08 said the next feature should be bigger rather than the next matrix deeper. Bigger did nothing. What worked was cutting the session in half and handing the workspace to an agent that had never seen the conversation.</p>
+      <p><strong>The bigger feature saturated too.</strong> F4 is a 12-file service with eight seams — two of them cross-cutting invariants that must hold in three places at once — run as a three-rung ladder up to ~4× F2. The no-harness control scored <strong>100% at every rung on both models</strong>: 10/10, 18/18, 26/26, twice each on Haiku, and 26/26 twice on Sonnet. Eight runs, eight perfect scores, zero escaped defects. A pre-declared kill gate closed the question for $3.54 — <strong>no crossover up to 4× F2 on single-session features</strong> — and the rest of the single-session budget was never spent.</p>
+      <p><strong>Then the session was cut.</strong> Session A runs to a uniform 60-second wall clock. The acceptance oracle runs. A <em class="term">fresh</em> agent — never <code>--resume</code>, asserted in the runner — starts in the same workspace with a one-sentence continuation prompt containing no requirement text. The oracle runs again. The difference is <code>recovery</code>.</p>
+      <p>Cut at 90 seconds the control recovers everything, because by then it has written 21 of 26 criteria worth of code and <strong>code is externalised memory</strong>. Cut at 60, before the code exists, it recovers a quarter. That is the first time in this project's history that memory has actually failed.</p>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <p class="k">Rows that wrote nothing and finished</p>
+        <p class="v crit">0 / 20</p>
+        <p class="n">Across seven arms, two models, and every ceremony level from none to eleven gates.</p>
+      </div>
+      <div class="stat">
+        <p class="k">Rows that wrote a file and finished</p>
+        <p class="v acc">6 / 12</p>
+        <p class="n">Necessary, not sufficient — the second session must also spend its window building.</p>
+      </div>
+      <div class="stat">
+        <p class="k">What the winning artifact is</p>
+        <p class="v">3.4&thinsp;KB</p>
+        <p class="n">A near-verbatim copy of the prompt, written before any code.</p>
+      </div>
+      <div class="stat">
+        <p class="k">Price of reproducing it</p>
+        <p class="v acc">1 sentence</p>
+        <p class="n">$0.35 against the harness's $1.60 on Haiku; $0.75 against $9.25 on Sonnet.</p>
+      </div>
+    </div>
+
+    <div class="col">
+      <h3>What predicts recovery is bytes on disk, not which tool ran</h3>
+      <p>Every scored handoff row at the 60-second cut, both models, all seven arms, split on one thing only: did the requirement reach a file before the interruption.</p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <caption>All scored handoff rows · 60&thinsp;s cut · both models</caption>
+        <thead>
+          <tr><th>At the cut</th><th>n</th><th>Finished the feature</th><th>Gap closed (median)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>wrote a file (&gt;0&thinsp;B)</td><td>12</td><td><span class="pill ok">6 / 12</span></td><td>97%</td></tr>
+          <tr class="fail"><td>wrote nothing (0&thinsp;B)</td><td>20</td><td><span class="pill no">0 / 20</span></td><td>19%</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col">
+      <p><strong>Zero of twenty.</strong> Writing the requirement down before the interruption is <em class="term">necessary</em> — and it is not <em class="term">sufficient</em>: only half the rows that wrote it finished, because the second agent must also spend its window building rather than on ceremony.</p>
+      <p>Three of the four SDD harnesses land in the zero-byte group. Their pipelines had not reached disk when the cut landed, so they recovered no better than no harness at all — at 1.5–3.9× the control's price.</p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <caption>Haiku 4.5 · F4/R3 · 60&thinsp;s cut · n=3 per arm</caption>
+        <thead>
+          <tr><th>Arm</th><th>Gap closed</th><th>Finished</th><th>Wrote</th><th>USD A+B</th></tr>
+        </thead>
+        <tbody>
+          <tr class="control"><td>bare-intake <span style="color:var(--faint)">“write it down first”</span></td><td><span class="pill ok">100%</span> [94–100]</td><td>2/3</td><td>3.4&thinsp;KB</td><td>0.346</td></tr>
+          <tr><td>shapeup-sdlc</td><td><span class="pill ok">100%</span> [0–100]</td><td>2/3</td><td>3.2&thinsp;KB</td><td>1.598</td></tr>
+          <tr class="control"><td>bare-notes <span style="color:var(--faint)">“leave notes before you stop”</span></td><td><span class="pill no">25%</span> [9–33]</td><td>0/3</td><td>0&thinsp;B</td><td>0.247</td></tr>
+          <tr class="control"><td>bare</td><td><span class="pill no">25%</span> [17–67]</td><td>0/3</td><td>0&thinsp;B</td><td>0.230</td></tr>
+          <tr><td>spec-kit</td><td><span class="pill no">22%</span> [19–25]</td><td>0/2</td><td>0&thinsp;B</td><td>0.566</td></tr>
+          <tr><td>cc-sdd</td><td><span class="pill no">19%</span></td><td>0/3</td><td>0&thinsp;B</td><td>0.351</td></tr>
+          <tr><td>openspec</td><td><span class="pill no">14%</span></td><td>0/1</td><td>0&thinsp;B</td><td>0.887</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col">
+      <h3>The winning artifact is a copy of the prompt</h3>
+      <p>The conflict clause requires a harness that <em class="term">wins</em> to show its artifacts, by the same rule as the one that lost. Read out of the winning workspace, <code>shapeup-sdlc</code>'s 3.3&thinsp;KB is <code>intake.md</code> — a near-verbatim copy of <code>PROMPT.md</code>, written as step one. At the cut that arm had <strong>one write and no run receipt</strong>: the pipeline had not started. The eleven gates did not recover those runs. The transcription did.</p>
+      <p>So a seventh arm was added to test exactly that. <code>bare-intake</code> is the control plus one sentence — <em class="term">“Before you write any code, copy the requirement above into a file.”</em> It matched the harness on every outcome axis, more stably, for a seventh of the cost. Its entire workspace is a README, a <code>REQUIREMENTS.md</code>, and the code. The harness's also carried <code>.shapeup-sdlc/</code>, <code>docs/</code>, <code>evaluation/</code>, <code>tasks/</code>, a duplicate intake file, and 42&thinsp;KB of throwaway QA-explorer scripts — for an identical 26/26.</p>
+
+      <div class="note warn">
+        <p class="h">The steelman I built was rigged in my own favour, and I only found out by reading it</p>
+        <p><code>bare-notes</code> says <em class="term">“before you stop, leave notes”</em>. It wrote <strong>0 bytes in all five of its rows</strong>, because a cut session never reaches “before you stop”. It never tested whether externalised memory is worth one sentence — it tested whether a promise to write something later is worth anything, and that was always going to be no. Publishing the harness's win against that arm would have been publishing against a strawman I had built myself. <code>bare-intake</code> is the same sentence with one clause moved to the front, and it erases the advantage entirely.</p>
+      </div>
+
+      <h3>What does not reproduce on Sonnet</h3>
+      <p>The pre-declared gate said that if the effect fails to reproduce on the stronger model, the published claim becomes “discriminates on Haiku, does not reproduce on Sonnet”. The answer is genuinely split, so both halves are published.</p>
+      <p><strong>Reproduces:</strong> the necessity is model-independent — 0/20 without a file on either model — and Sonnet rows that did write reached 26/26 against a control sitting flat at 19% across eight rows.</p>
+      <p><strong>Does not:</strong> the one-sentence trigger wrote the file on 3/3 Haiku runs but only <strong>3/8</strong> Sonnet runs. A mechanism that costs nothing also cannot be depended on — and reliably producing the artifact is a real thing a harness could sell. But <code>shapeup-sdlc</code> did not convert it: on Sonnet it wrote the file <strong>3/3</strong> and recovered <strong>0/3</strong>, its second session spending the entire 1800&thinsp;s window on gates, at <strong>$9.25 per handoff against the control's $0.75</strong>.</p>
+      <p>So the harness's measured edge is the <em class="term">reliability of writing</em> — and on this evidence it converts that reliability into nothing, at twelve times the price.</p>
+
+      <h3>Three guards that fired, all pointing the same way</h3>
+      <p>F4-handoff is the first design in this project that the author's own tool was expected to <em class="term">win</em>, so the fairness machinery had to exist before the runs rather than after them. It caught three things:</p>
+      <p><strong>1. The pre-declared decision metric would have inverted the gate.</strong> Raw recovery points are bounded by how much an arm had left to do. The control reached 21/26 inside the cut and could gain at most 5 criteria; the harness sat at the floor with 16 available. Measured that way the harness “won” 62 points to 19 — while both had closed 100% of their own gap. The cut-invariant form was substituted before the rows landed.</p>
+      <p><strong>2. The wall-clock cap did not bind on the one arm that loads plugin hooks</strong> — mine. <code>SIGTERM</code> reached only the direct child while hook subprocesses held the pipe open, and a session capped at 60&thinsp;s ran for <strong>950</strong>. Two fixes failed, one of them passing its first live check before failing. The cap is now enforced on the runner's own clock, with a check that refuses to score any row exceeding it. Five rows retracted.</p>
+      <p><strong>3. The aggregator was reading a stale sidecar instead of the measured record</strong>, and had silently hidden all eight calibration rows behind a confident, complete-looking table.</p>
+
+      <div class="note warn">
+        <p class="h">The cost of the win leads, because “the mechanism is real” and “this tool is worth paying for” are different claims</p>
+        <p>The author's arm did win the Haiku cell. It won at <strong>4.6× the price of a one-sentence control that matched it</strong>, with a wider spread (0–100 against 94–100), and on the stronger model it turned a reliably-written artifact into zero recovery three times out of three. The mechanism SDD sells is real, and this is the first measurement of it firing anywhere in this project. What is not supported is the price: nothing measured here distinguishes the pipeline from the transcription.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>78 scored runs · 4 features · 7 arms · 151 rows · 104 transcripts retained · <code>claude-sonnet-5</code> and <code>claude-haiku-4-5-20251001</code> — every number labelled with its model.<br>
+    Protocol committed before run 1; every amendment appended and timestamped, including each F4 stage before the runs it governs. Every raw transcript retained, which is why the corrections in §05 and §09 were possible at all. Harnesses under test: spec-kit, OpenSpec, cc-sdd, shapeup-sdlc — against three no-harness controls.<br>
+    F1–F3 are pilot stage, n=1 on most cells, and claim no ordering between harnesses. F4's 60&thinsp;s cell is n=3 per arm; where ranges overlap the ordering is reported as indistinguishable and the binary outcome is used instead.</p>
+  </footer>
+
+</div>
+</body>
+</html>
