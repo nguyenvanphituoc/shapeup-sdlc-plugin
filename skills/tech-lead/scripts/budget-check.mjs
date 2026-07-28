@@ -48,6 +48,7 @@
 
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import { isMain } from "./lib/is-main.mjs";
 
 /** Fraction of the budget at which the run should stop STARTING work it cannot finish. */
 export const WARN_AT = 0.75;
@@ -145,6 +146,6 @@ export function main() {
   process.exit(flag("strict") && result.status === "trip" ? 6 : 0);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   main();
 }

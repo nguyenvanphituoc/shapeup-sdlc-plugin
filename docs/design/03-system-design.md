@@ -238,10 +238,24 @@ The resilience pair makes re-reading the files a reflex:
 - **`compact-snapshot.mjs`** (PreCompact) persists that snapshot to
   `.shapeup-sdlc/<slug>/run-snapshot.json` before compaction. PreCompact provably cannot
   inject context, so this hook is a pure side effect: the audit anchor and fallback.
-- **`session-rehydrate.mjs`** (SessionStart, matcher `compact|resume`) re-derives the snapshot
-  **fresh** and injects its `rehydrate_hint` as `additionalContext`: *"re-read
+- **`session-rehydrate.mjs`** (SessionStart, matcher `startup|compact|resume|clear`) re-derives the
+  snapshot **fresh** and injects its `rehydrate_hint` as `additionalContext`: *"re-read
   `.shapeup-sdlc/<slug>/harness-run.md` and the board before continuing — trust the files, not
   the conversation summary."*
+
+  The matcher was `compact|resume` until v1.4.1, and that was a real gap rather than a scoping
+  choice. Both of those sources continue a conversation that still exists; the commonest continuity
+  event in practice has none — you close the terminal and come back tomorrow, or a teammate picks
+  the work up in a fresh checkout, and the CLI calls that `startup`. A reflex whose whole purpose is
+  *trust the files, not your memory* did not fire in the one case where there is no memory at all.
+
+  The SDD harness benchmark priced it. Its handoff design is exactly that scenario, and across three
+  Sonnet rows the orchestrator re-entered at phase 1 with no pointer to the open run: **82–120 turns
+  before the first write, $4.57–$10.36 per session, and 0/3 of the gap closed** while the receipt and
+  board sat on disk. One row reached GATE L4 having advanced the deliverable by zero criteria. On a
+  cold start the injection therefore leads with the failure that actually happens — *a run is already
+  open, resume it, do not re-open it* — rather than with a generic pointer to the files, which a
+  competent agent finds anyway.
 
 ## 3.3 — Two storage roots
 

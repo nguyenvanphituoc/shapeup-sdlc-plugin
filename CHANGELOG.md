@@ -3,6 +3,71 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.4.1] — 2026-07-28
+
+### Fixed — the enforcement layer was inert under an ordinary install, and said nothing
+
+v1.4.0's release note above claims that every mechanism it added "moves an invariant out of a
+prompt and into the runtime, which is the project's organising rule". That claim was true of the
+code and false of the installed product, for a reason no test in this repo could see.
+
+- **`skills/tech-lead/scripts/lib/is-main.mjs` — the entry-point guard, fixed in 18 files.**
+  Eighteen scripts and hooks gated their whole body on `import.meta.url` compared against a
+  template literal of `"file://"` and `process.argv[1]`. That comparison is **false** — body
+  skipped, **exit 0, no output** — whenever the invoked path is not byte-identical to the resolved
+  module URL, and two ordinary situations make it false:
+
+  1. **Any symlinked directory in the path.** Node resolves `import.meta.url` through symlinks;
+     `process.argv[1]` is the string as typed. On macOS `/var` is a symlink to `/private/var`, so
+     **every path under the system temp directory mismatches**. nvm, pnpm's content store, Homebrew
+     and any symlinked checkout do the same on every platform.
+  2. **Any space or URL-reserved character in the path.** `import.meta.url` is percent-encoded
+     (`My%20Plugins`); the template literal is not (`My Plugins`). A plugin under
+     `~/Library/Application Support/…` mismatches too.
+
+  The affected files include **all seven** hooks that carry a guard — `gate-zerowork`,
+  `safety-spine`, `sandbox-guard`, `anti-rationalization`, `slop-cleaner`, `session-rehydrate`,
+  `compact-snapshot` — plus `init-run`, `gate-answers`, `budget-check`, `t0-verify`, `fit-check`,
+  `aegis-digest`, `verdict-ledger` and the four oracles. Under a symlinked install the runtime half
+  of "gates are enforced, not requested" did nothing, **while every gate still reported success**.
+  A silent no-op is the worst failure an enforcement layer can have, because it is indistinguishable
+  from working.
+
+  Priced on `sdd-harness-bench`, which installs this plugin from a packed tarball under
+  `/var/folders/…` — i.e. into the failing shape. `init-run.mjs` is GATE L0.1, the mandatory first
+  call that writes the receipt everything else derives from; it exited 0 with empty stdout and wrote
+  nothing. The orchestrator could not tell "the run opened" from "nothing happened", and in the F4
+  handoff rows it spent **82–120 turns before its first write** doing forensics on its own
+  bootstrap — retrying the script six ways, hitting five separate permission refusals trying to
+  capture an exit code, and finally running `find /` to look for its own skill. Session B cost
+  **$4.57–$10.36** and closed **0/3** of the gap while the artifact it needed sat on disk.
+
+  `isMain()` compares resolved URL to resolved URL (`pathToFileURL` for encoding, `realpathSync`
+  for symlinks).
+
+- **`hooks/session-rehydrate.mjs` — the continuity reflex now covers a cold start.** The matcher
+  was `compact|resume`. Both continue a conversation that still exists; the commonest continuity
+  event in practice has none — you close the terminal and come back tomorrow, or a teammate picks
+  the work up in a fresh checkout — and the CLI calls that `startup`. A reflex whose entire purpose
+  is *trust the files, not your memory* did not fire in the one case where there is no memory at
+  all. Matcher is now `startup|compact|resume|clear`, and on a cold start the injection leads with
+  the failure a fresh session actually makes: **a run is already open; resume it, do not re-open
+  it.** It stays silent when no run is in flight (`findRun` requires an `active-scope` pointer or a
+  mid-run `harness-run.md`), so ordinary sessions are unaffected.
+
+### Added — tests that could have caught it
+
+- **`tests/structural/11-is-main.mjs`.** Two layers, and the second is the mechanism. A grep floor
+  forbids reintroducing the fragile comparison; then **every guarded entry point is actually
+  executed through a symlinked directory and through a directory whose name contains a space**, and
+  must behave as it does by its real path. The entire pre-existing suite invoked scripts by their
+  real, space-free repo path — the one shape where the bug is invisible — which is why 610 passing
+  checks coexisted with an inert enforcement layer. Testing the *shape* of the code would have
+  caught nothing: the broken line looked exactly like the idiomatic one it was copied from.
+- The `session-rehydrate` matcher and its cold-start wording are pinned, so the reflex cannot
+  narrow back to `compact|resume` silently.
+- Documented checks floor raised 450 → 640 (actual: 643).
+
 ## [1.4.0] — 2026-07-27
 
 ### Added — the benchmark-correction release

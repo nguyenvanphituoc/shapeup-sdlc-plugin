@@ -65,6 +65,7 @@ import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { createHash } from "node:crypto";
 import { decideLane, treeSize } from "./fit-check.mjs";
+import { isMain } from "./lib/is-main.mjs";
 
 export const RECEIPT_VERSION = 1;
 
@@ -259,6 +260,6 @@ export function main() {
   }, null, 2));
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   main();
 }

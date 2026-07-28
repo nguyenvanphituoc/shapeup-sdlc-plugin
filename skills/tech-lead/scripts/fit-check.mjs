@@ -42,6 +42,7 @@
 
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { isMain } from "./lib/is-main.mjs";
 
 /** Directories that are never part of "the tree being changed". */
 const IGNORE_DIRS = new Set([".git", "node_modules", ".shapeup-sdlc", "dist", "build", ".next", "coverage", ".claude"]);
@@ -185,6 +186,6 @@ export function main() {
   }, null, 2));
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   main();
 }

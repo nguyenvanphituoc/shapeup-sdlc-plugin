@@ -10,7 +10,7 @@
         ]
       },
       {
-        "matcher": "compact|resume",
+        "matcher": "startup|compact|resume|clear",
         "hooks": [
           {
             "type": "command",

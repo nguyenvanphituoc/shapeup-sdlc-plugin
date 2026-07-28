@@ -32,6 +32,7 @@ const MODULE_FILES = [
   "07-spec-evaluator.mjs",
   "09-anti-lying-kit.mjs",
   "10-run-receipt.mjs",
+  "11-is-main.mjs",
   "08-docs.mjs",
 ];
 

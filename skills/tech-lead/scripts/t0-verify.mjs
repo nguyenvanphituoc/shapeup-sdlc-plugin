@@ -20,6 +20,7 @@ import { join, dirname } from "node:path";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { digest } from "./aegis-digest.mjs";
+import { isMain } from "./lib/is-main.mjs";
 
 /**
  * Run one shell command and capture its outcome (10-minute timeout).
@@ -214,6 +215,6 @@ async function main() {
   process.exit(verdict.overall === "green" ? 0 : 1);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   main();
 }

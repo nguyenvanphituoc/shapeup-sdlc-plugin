@@ -28,6 +28,7 @@
 
 import { readFileSync, existsSync, appendFileSync, mkdirSync } from "node:fs";
 import { resolve, join, relative, dirname, sep } from "node:path";
+import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
 
 const defer = () => process.exit(0);
 
@@ -148,6 +149,6 @@ async function main() {
   process.exit(0);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   main();
 }

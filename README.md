@@ -206,8 +206,11 @@ learnable from `/`-completion alone.
 Nine Node hooks. What each one reads and what it can deny:
 
 - `SessionStart` — prints a load confirmation so you know the plugin is active; on
-  `compact|resume`, `hooks/session-rehydrate.mjs` additionally injects the mid-run
-  `RunSnapshot` hint ("trust the files, not the summary") when a harness run is in flight.
+  `startup|compact|resume|clear`, `hooks/session-rehydrate.mjs` additionally injects the mid-run
+  `RunSnapshot` hint ("trust the files, not the summary") when a harness run is in flight. On a
+  cold `startup` it leads with the stronger sentence — *a run is already open; resume it, do not
+  re-open it* — because that is the failure a fresh session actually makes. Silent when no run is
+  in flight, which is the ordinary case.
 - `PreToolUse` (matcher `Skill`) — **`hooks/gate-l2.mjs` hard-blocks the once-per-round EVAL
   delegation while the task board isn't fully green.** This is the gate in the demo above.
 - `PreToolUse` (matcher `Skill`) — **`hooks/gate-intake.mjs` denies a `tech-lead` dispatch that

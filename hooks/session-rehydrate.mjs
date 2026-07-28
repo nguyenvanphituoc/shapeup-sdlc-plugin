@@ -1,12 +1,35 @@
 #!/usr/bin/env node
-// Session rehydrate — SessionStart hook, matcher "compact|resume" (v1.2, absorb-audit P4).
+// Session rehydrate — SessionStart hook, matcher "startup|compact|resume|clear".
 //
-// Fires immediately after a context compaction (or session resume). When a harness run is
-// mid-flight, injects the RunSnapshot's rehydrate_hint as additionalContext: "re-read
-// .shapeup-sdlc/<slug>/harness-run.md and the board before continuing — trust the files, not
-// the conversation summary." This is the reflex that makes the file-first run-state
-// load-bearing at the exact moment the in-context copy degrades: without it the orchestrator
-// can re-dispatch an already-ingested order or miscount attempts off a lossy summary.
+// Fires when a session begins with a harness run already in flight, and injects the RunSnapshot's
+// rehydrate_hint as additionalContext: re-derive round/attempt/hill from the files, never from
+// memory. This is the reflex that makes the file-first run-state load-bearing at the exact moment
+// the in-context copy is absent or degraded: without it the orchestrator can re-dispatch an
+// already-ingested order, miscount attempts off a lossy summary, or — measured, below — re-open a
+// run that is already open and rebuild the whole pipeline from phase 1.
+//
+// v1.4.1 — `startup` ADDED TO THE MATCHER, and this is a measured correction, not a widening.
+//
+// The matcher was `compact|resume`. Both of those are continuations of a conversation that still
+// exists. The commonest continuity event in real use has neither: you close the terminal and come
+// back tomorrow, or a teammate picks the work up in a fresh checkout. The CLI reports that as
+// `SessionStart:startup`, and the reflex whose entire purpose is "trust the files, not your
+// memory" did not fire in the one case where there IS no memory to distrust.
+//
+// The SDD harness benchmark measured the cost. Its F4 handoff design is exactly this scenario — a
+// fresh `claude -p` in a workspace where a prior session was cut mid-build — and across three
+// Sonnet rows every one recorded `hooks_fired: ["SessionStart:startup"]` (the plugin's load echo,
+// not this hook). With no pointer to the run in flight, the orchestrator re-entered at phase 1:
+// 82–120 turns before its first write, $4.57–$10.36 for the session, and **0/3 of the gap closed**
+// while the run receipt and board sat on disk the whole time. One row reached GATE L4 — ship
+// sign-off — having advanced the deliverable by zero criteria.
+//
+// Firing on `startup` is free when there is nothing to say: `findRun` returns a run only for an
+// `active-scope` pointer or a `harness-run.md` whose status is mid-run, so an ordinary session in a
+// repo with no run — or with a shipped one — gets silence and exit 0, exactly as before.
+//
+// `clear` is included for the same reason: it discards the conversation and keeps the workspace,
+// which is the same problem wearing a different name.
 //
 // Derivation is always FRESH (files beat any persisted copy); the run-snapshot.json written
 // by hooks/compact-snapshot.mjs is only the fallback if live derivation throws. Fail-open:
@@ -17,6 +40,27 @@
 
 import { readFileSync } from "node:fs";
 import { deriveSnapshot, snapshotPath } from "../skills/tech-lead/scripts/run-snapshot.mjs";
+import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
+
+// The snapshot's own hint says "trust the files, not the conversation summary" — correct after a
+// compaction, and slightly wrong on a cold start, where there is no summary and no conversation
+// either. The two sources also fail in DIFFERENT directions, so they need different first sentences:
+//
+//   compact / resume — the risk is acting on a lossy summary of work you remember doing.
+//   startup / clear  — the risk is not knowing the run exists, and OPENING IT AGAIN. That is the
+//                      failure the benchmark measured: a fresh session re-entered at phase 1 and
+//                      spent 82–120 turns rebuilding a pipeline that was already on disk.
+//
+// Naming the right failure is the whole value of the injection. A generic pointer to the files is
+// what a competent agent finds anyway; "there is a run open, do not re-open it" is not.
+function lead(source) {
+  if (source === "startup" || source === "clear") {
+    return "A shapeup-sdlc run is ALREADY OPEN in this workspace and you have no memory of it. " +
+      "Do NOT open a new run, re-run intake, or restart the pipeline from phase 1 — the receipt, " +
+      "the board and the ledger already exist. RESUME from the phase the files say the run is in. ";
+  }
+  return "";
+}
 
 async function main() {
   const raw = await new Promise((res) => {
@@ -44,13 +88,13 @@ async function main() {
     console.log(JSON.stringify({
       hookSpecificOutput: {
         hookEventName: "SessionStart",
-        additionalContext: `${snapshot.rehydrate_hint}\n${JSON.stringify(snapshot)}`,
+        additionalContext: `${lead(p.source)}${snapshot.rehydrate_hint}\n${JSON.stringify(snapshot)}`,
       },
     }));
   } catch { /* fail-open */ }
   process.exit(0);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   main();
 }
