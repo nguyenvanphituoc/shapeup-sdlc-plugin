@@ -382,10 +382,18 @@ written 21/26 criteria worth of code, and **code is externalised memory**.
 Every scored handoff row at the 60s cut, both models, all seven arms, split only on whether the
 requirement reached a file before the interruption:
 
-| | n | **finished the feature** | gap closed (median) |
-|---|--:|--:|--:|
-| wrote a file (>0 B) | 12 | **6 / 12** | 97% |
-| wrote nothing (0 B) | 20 | **0 / 20** | 19% |
+| | rows | **finished the feature** | gap closed (median) | **arms** |
+|---|--:|--:|--:|--:|
+| wrote a file (>0 B) | 12 | **6 / 12** | 97% | **2** |
+| wrote nothing (0 B) | 20 | **0 / 20** | 19% | **5** |
+
+**p = 0.048**, Fisher exact one-tailed, **at the arm level (n=7) — which is the defensible unit and
+is right on the 0.05 boundary.** By row it is 0.001, and the row-level figure is what this report
+originally implied. The 32 rows are not 32 independent draws: they cluster into seven arms, and only
+*two* arms ever wrote a file, so the effective comparison is 2-that-wrote against 5-that-did-not.
+Quoting the row figure overstated the effect by roughly 47×. This is pseudoreplication, it is the
+single most likely thing to be caught in review, and it is corrected here in the table rather than in
+a footnote.
 
 **Zero of twenty.** Writing the requirement down before the interruption is *necessary*, across
 seven arms, two models, and every ceremony level from none to eleven gates. It is *not sufficient* —

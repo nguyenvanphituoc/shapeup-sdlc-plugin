@@ -846,12 +846,15 @@ qa/hunt-report.md · GATE-H-ship-decision.md</code></pre>
       <div class="stat">
         <p class="k">Rows that wrote nothing and finished</p>
         <p class="v crit">0 / 20</p>
-        <p class="n">Across seven arms, two models, and every ceremony level from none to eleven gates.</p>
+        <p class="n">20 rows, but <strong>5 arms</strong> — arms are the independent unit. Two models,
+        every ceremony level from none to eleven gates.</p>
       </div>
       <div class="stat">
         <p class="k">Rows that wrote a file and finished</p>
         <p class="v acc">6 / 12</p>
-        <p class="n">Necessary, not sufficient — the second session must also spend its window building.</p>
+        <p class="n">12 rows, but only <strong>2 arms</strong>. Necessary, not sufficient — the second
+        session must also spend its window building. <strong>p&nbsp;=&nbsp;0.048 by arm</strong>, not
+        the 0.001 the row counts suggest.</p>
       </div>
       <div class="stat">
         <p class="k">What the winning artifact is</p>
@@ -874,13 +877,19 @@ qa/hunt-report.md · GATE-H-ship-decision.md</code></pre>
       <table>
         <caption>All scored handoff rows · 60&thinsp;s cut · both models</caption>
         <thead>
-          <tr><th>At the cut</th><th>n</th><th>Finished the feature</th><th>Gap closed (median)</th></tr>
+          <tr><th>At the cut</th><th>Rows</th><th>Finished the feature</th><th>Gap closed (median)</th><th>Arms</th></tr>
         </thead>
         <tbody>
-          <tr><td>wrote a file (&gt;0&thinsp;B)</td><td>12</td><td><span class="pill ok">6 / 12</span></td><td>97%</td></tr>
-          <tr class="fail"><td>wrote nothing (0&thinsp;B)</td><td>20</td><td><span class="pill no">0 / 20</span></td><td>19%</td></tr>
+          <tr><td>wrote a file (&gt;0&thinsp;B)</td><td>12</td><td><span class="pill ok">6 / 12</span></td><td>97%</td><td><strong>2</strong></td></tr>
+          <tr class="fail"><td>wrote nothing (0&thinsp;B)</td><td>20</td><td><span class="pill no">0 / 20</span></td><td>19%</td><td><strong>5</strong></td></tr>
         </tbody>
       </table>
+      <p><strong>p&nbsp;=&nbsp;0.048</strong>, Fisher exact one-tailed, <strong>at the arm level
+      (n&nbsp;=&nbsp;7) — the defensible unit, and right on the 0.05 boundary.</strong> By row it is
+      0.001, which is what this report originally implied. The 32 rows are not 32 independent draws:
+      they cluster into seven arms and only <em>two</em> arms ever wrote a file, so the effective
+      comparison is 2-that-wrote against 5-that-did-not. Quoting the row figure overstated the effect
+      by roughly 47&times;. Corrected in the table rather than in a footnote.</p>
     </div>
 
     <div class="col">
