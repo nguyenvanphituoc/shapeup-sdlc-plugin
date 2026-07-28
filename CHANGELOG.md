@@ -80,6 +80,14 @@ code and false of the installed product, for a reason no test in this repo could
   narrow back to `compact|resume` silently.
 - The `init-run` resume path is pinned by running it against a workspace with an open run: exit 3,
   no `--from <slug>`, and the resume state present. The previous wording was equally plausible.
+- **`skills/tech-lead/SKILL.md` gains Step 1c** — which phase to re-enter at when exit 3 says a run
+  is already open (`orienting` → L1a, `mapping` → L1b, `building` → L2, `evaluating` → L3). The
+  branch previously had no procedure anywhere: `--from build` appeared once in a flags line and
+  nowhere else in 449 lines. The orchestrator prose ratchet is raised 450 → 460 to pay for it,
+  deliberately and with the reason recorded in the test — the rule is that prose must not regrow
+  *silently*. The mechanical half stayed in scripts and hooks where the rule wants it; these ten
+  lines are the part that has to live in the orchestrator's own instructions, because they say which
+  phase to resume from.
 - Documented checks floor raised 450 → 640 (actual: 648).
 
 ## [1.4.0] — 2026-07-27

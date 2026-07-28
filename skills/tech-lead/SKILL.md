@@ -35,6 +35,16 @@ node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/init-run.mjs" \
 This writes `.shapeup-sdlc/<slug>/{receipt.json,intake.md,harness-run.md}` and `active-scope`.
 It is the mechanical fact that the run started — every downstream guard reads it.
 
+**Step 1c — EXIT 3 MEANS A RUN IS ALREADY OPEN. Resume it; do not re-open it and do not restart
+the pipeline.** The refusal prints the run's real state (`RESUME STATE`: slug, status, round,
+attempt, board counts, dispatched-not-ingested orders), derived from files. Read `status` and
+continue from that phase — `orienting` → L1a, `mapping` → L1b, `building` → L2, `evaluating` → L3 —
+re-reading `harness-run.md` and the board first, and never re-dispatching an order that already has
+a result. **You will most often meet this in a fresh session with no memory of the run**, which is
+also when re-running intake and rebuilding the spec tree looks like the obvious thing to do; it is
+the measured cause of a handoff that spent 82–120 turns before its first write and recovered
+nothing. `--force` re-opens deliberately and discards the round history the breaker counts.
+
 **If this command comes back "requires approval", stop and say so.** The harness's scripts ship
 with the plugin, so they live outside your project and need a one-time permission grant
 (`npx shapeup-sdlc init` writes it; it is `permissions.allow` in `.claude/settings.json`). Do not
