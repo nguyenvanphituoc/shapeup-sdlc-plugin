@@ -1094,8 +1094,83 @@ qa/hunt-report.md · GATE-H-ship-decision.md</code></pre>
     </div>
   </section>
 
+  <section>
+    <span class="sec-id">11 — P4, in progress</span>
+    <h2>Auditing our own headline found two things worse than the headline</h2>
+    <div class="col">
+      <p class="lede">P4 attacks §09 on two counts: a result resting on <strong>one arbitrary cut point</strong>, and a p-value quoted at <strong>the wrong unit of analysis</strong>. The sweep that settles the first is still running. Three things are already settled, and two of them are worse than the thing being audited.</p>
+    </div>
+
+    <div class="note mid">
+      <p class="h">The statistic is corrected, and it cost nothing</p>
+      <p>Fixed in §01 and in the results table, before any new run: <strong>p&nbsp;=&nbsp;0.048 by arm (n&nbsp;=&nbsp;7)</strong>, not the 0.001 a row-level count implies. The 32 rows cluster into seven arms and only <em class="term">two</em> arms ever wrote a file, so the effective comparison is 2-that-wrote against 5-that-did-not — right on the 0.05 boundary. Quoting the row figure overstated the effect by roughly 47&times;. This was the one item in P4 that is strictly a <em class="term">fix</em> rather than an improvement, so it shipped independently of whether anything else ran.</p>
+    </div>
+
+    <div class="col">
+      <h3>The author's own harness was shipping an inert enforcement layer</h3>
+      <p>Found by reading the transcripts of this benchmark's <em class="term">worst</em> result for that arm — the three Sonnet rows that wrote the artifact 3/3 and closed 0/3 of the gap — and asking what they spent 82–120 turns on before writing anything. The answer was forensics against their own bootstrap: <code>init-run.mjs</code> retried six ways, five permission refusals while trying to capture an exit code, and finally <code>find /</code> searching for their own skill.</p>
+      <p>Twenty-six of the plugin's scripts and hooks gated their entire body on a comparison between <code>import.meta.url</code> and a path built from <code>process.argv[1]</code>, in two different spellings. Both are false under any symlinked directory — and on macOS <code>/var</code> is a symlink to <code>/private/var</code>, which makes every path under the system temp directory a failing path. <strong>That is exactly where this benchmark installs the packed plugin.</strong></p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <caption><code>init-run.mjs</code> (GATE L0.1) — same file, same arguments, same working directory</caption>
+        <thead><tr><th>Invoked via</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td>its real path</td><td>writes the run receipt, prints it, exit&nbsp;0</td></tr>
+          <tr class="fail"><td>a symlinked directory</td><td><strong>writes nothing, prints nothing, exit&nbsp;0</strong></td></tr>
+          <tr class="fail"><td>a path containing a space</td><td><strong>writes nothing, prints nothing, exit&nbsp;0</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col">
+      <p>The sharpest case is <code>validate-envelope.mjs</code>, a <code>PreToolUse</code> hook the plugin's own documentation calls the mechanism by which <em class="term">"a malformed envelope is denied by hook before it reaches a worker"</em>. Given a dispatch against a dangling order file, by its real path it emits <code>deny</code>; by a symlinked path it emits <strong>nothing</strong>, which the CLI reads as allow.</p>
+      <p>There is a control case in the same repository. The plugin's <em class="term">extracted</em> enforcement kit carries <strong>no main guard at all</strong>, and all three of its hooks execute correctly by every path tested. The guard existed so a test could <code>import</code> a script without running <code>main()</code> as a side effect — a real need, satisfied in a way that introduced a failure mode the need never had. A testability affordance became the thing that stopped the code from running.</p>
+    </div>
+
+    <div class="note mid">
+      <p class="h">Three things this finding deliberately does not do</p>
+      <p><strong>It does not retract anything.</strong> Every published v1.4.0 figure stands as measured — those rows are honest measurements of the tool as installed, and identifying a cause is not a correction.</p>
+      <p><strong>It does not explain the recovery failure.</strong> The defect accounts for ~25 wasted tool calls of bootstrap forensics. It does not account for eleven gates. A re-measure is pending, and the prediction registered <em class="term">before</em> that run says gap closed on Sonnet stays at 0/3.</p>
+      <p><strong>It sharpens §09 rather than softening it.</strong> The competitor arms carry no such defect, and <code>bare-intake</code> — one sentence, nothing installed, nothing to mis-resolve — closed 100% of the gap at the 60&thinsp;s cut for $0.26. A tool whose advantage over one sentence depends on eleven gates executing has more ways to fail than a tool that has no gates.</p>
+    </div>
+
+    <div class="col">
+      <h3>Five more instrument defects, all of one family</h3>
+      <p>Every correction this project has published has had the same shape: <strong>a figure whose referent is not the thing it appears to describe</strong>, caused by one missing term in an identity key. P4 found five more, bringing the count to nine. Four were caught before they touched a published number; one had already destroyed evidence.</p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <caption>The same bug, five more times</caption>
+        <thead><tr><th>#</th><th>The missing term</th><th>What it would have produced</th></tr></thead>
+        <tbody>
+          <tr><td>5</td><td>the pack cache was never invalidated</td><td>a re-measure of the <em class="term">old</em> build, convincingly labelled as the new one</td></tr>
+          <tr><td>6</td><td>the gap figure's denominator is not the cell's n</td><td><code>n=3 · gap 0%</code> where one row of three had a gap to close</td></tr>
+          <tr><td>7</td><td><code>harness_build</code> was in the grouping key and nothing ever wrote it</td><td>v1.4.1 rows pooling into the published v1.4.0 cell — a fix averaged with the defect it fixed</td></tr>
+          <tr><td>8</td><td>the write rate pooled a calibration probe with experiment rows</td><td>one denominator spanning two different questions</td></tr>
+          <tr class="fail"><td>9</td><td>the transcript stamp had no <strong>cap</strong></td><td>20 transcript paths overwritten; one published file found at 98&thinsp;KB where git held 370&thinsp;KB</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col">
+      <p>Defect 9 predates P4 — F4 already ran a 60&thinsp;s and a 90&thinsp;s cut against that stamp — and the sweep merely widened it from two colliding cuts to six. No published <em class="term">number</em> was affected, because the runner computes diagnostics inline and stores them on the row; nothing here was ever read out of a transcript file. What was destroyed is the ability to read a run back, which is precisely how the finding above was found. Twelve rows were retracted and re-run, and the overwritten files were restored from git — recoverable only because <code>results/</code> happens to be tracked, which is luck, not a design. Retention no longer depends on the stamp being right: a colliding write now lands beside the earlier file instead of on top of it.</p>
+      <p>Two of the five were introduced <em class="term">during</em> P4, by the same hand that had just documented the previous one. Both were caught by writing the rule down as a check rather than by being more careful — which is the same argument the plugin fix rests on, and the reason it is stated here rather than quietly fixed.</p>
+    </div>
+
+    <div class="note mid">
+      <p class="h">The sweep itself: running, gate unresolved</p>
+      <p>The six cut points are frozen in <code>PROTOCOL.md</code> and in code — the runner can select from the list and cannot extend it — and they run outermost-first (30, 120, 60, 90, 45, 75) so a truncated sweep still spans the range instead of clustering at one end. <strong>No branch is called here.</strong></p>
+      <p>What can be said before the remaining points land is that the emerging shape is not the one predicted: at the lowest cut the writer arm did not write at all, so there is nothing to inherit and no separation, while at the highest cut both arms finish the feature inside the cut. That is a <em class="term">band</em> with two edges — one set by how long the mechanism takes to fire, one by the control writing working code — rather than the single crossing the registered prediction described.</p>
+      <p>One number is worth recording now as a caution about n&nbsp;=&nbsp;3: two independent sets of three <code>bare</code> runs at the <em class="term">same</em> 30&thinsp;s cut produced gap-closed medians of 13% [0–19] and 0% [0–0]. Both exist only because the first set was retracted for the transcript defect and re-run — and the spread between them is a reminder that a three-run cell locates a range, not a point.</p>
+    </div>
+  </section>
+
   <footer>
-    <p>78 scored runs · 4 features · 7 arms · 151 rows · 104 transcripts retained · <code>claude-sonnet-5</code> and <code>claude-haiku-4-5-20251001</code> — every number labelled with its model.<br>
+    <p>81 scored runs · 4 features · 7 arms + 3 writer controls · 185 rows · 114 transcripts retained · <code>claude-sonnet-5</code> and <code>claude-haiku-4-5-20251001</code> — every number labelled with its model.<br>
+    <strong>§11 is mid-stage:</strong> the P4 cut-point sweep is still running, so these totals move and no P4 branch is called yet. Every §01–§10 figure is final and unaffected. Twelve P4 rows are retracted to <code>transcript_collided</code> and excluded from scoring; the reason is in §11 and in <code>DISCARDED-RUNS.md</code>.<br>
     Protocol committed before run 1; every amendment appended and timestamped, including each F4 stage before the runs it governs. Every raw transcript retained, which is why the corrections in §05 and §09 were possible at all. Harnesses under test: spec-kit, OpenSpec, cc-sdd, shapeup-sdlc — against three no-harness controls.<br>
     F1–F3 are pilot stage, n=1 on most cells, and claim no ordering between harnesses. F4's 60&thinsp;s cell is n=3 per arm; where ranges overlap the ordering is reported as indistinguishable and the binary outcome is used instead.</p>
   </footer>

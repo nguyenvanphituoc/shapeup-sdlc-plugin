@@ -539,3 +539,121 @@ claim, and an effect whose supporting statistic is **p≈0.048 at the arm level*
 p≈0.001 a row-level count implies. The mechanism is real, and this is the first time this project
 has been able to support any mechanism claim at all. The confidence interval around *where* it
 applies is much wider than §09's prose suggests, and the map above is the honest picture of that.
+
+---
+
+## 11 — P4, in progress: what auditing our own headline has already turned up
+
+P4 exists to attack §09's result on two specific counts — a headline resting on **one arbitrary cut
+point**, and a p-value quoted at **the wrong unit of analysis**. The sweep that settles the first is
+still running. Three things are already settled, and two of them are worse than the thing being
+audited.
+
+### The statistic is corrected, and it cost nothing
+
+Fixed in §01 and in the results table above, before any new run: **p = 0.048 by arm (n=7)**, not the
+0.001 a row-level count implies. The 32 rows cluster into seven arms and only *two* arms ever wrote a
+file, so the effective comparison is 2-that-wrote against 5-that-did-not — right on the 0.05
+boundary. Quoting the row figure overstated the effect by roughly 47×.
+
+This was the one item in P4 that is strictly a *fix* rather than an improvement, so it shipped
+independently of whether anything else ran. `runner/stats.mjs` now computes both units exactly, from
+the rows on disk, and prints the arm count beside every pooled claim in both output formats.
+
+### The author's own harness was shipping an inert enforcement layer
+
+Found by reading the transcripts of this benchmark's *worst* result for that arm — the three Sonnet
+rows that wrote the artifact 3/3 and closed 0/3 of the gap — and asking what they spent 82–120 turns
+on before writing anything. The answer was forensics against their own bootstrap: `init-run.mjs`
+retried six ways, five permission refusals while trying to capture an exit code, and finally
+`find /` searching for their own skill.
+
+Twenty-six of the plugin's scripts and hooks gated their entire body on a comparison between
+`import.meta.url` and a path built from `process.argv[1]`, in two different spellings. Both are false
+under any symlinked directory — and on macOS `/var` is a symlink to `/private/var`, which makes every
+path under the system temp directory a failing path. **That is exactly where this benchmark installs
+the packed plugin.**
+
+| `init-run.mjs` (GATE L0.1) invoked via | result |
+|---|---|
+| its real path | writes the run receipt, prints it, exit 0 |
+| a symlinked directory | **writes nothing, prints nothing, exit 0** |
+| a path containing a space | **writes nothing, prints nothing, exit 0** |
+
+The sharpest case is `validate-envelope.mjs`, a `PreToolUse` hook the plugin's own documentation calls
+the mechanism by which *"a malformed envelope is denied by hook before it reaches a worker"*. Given a
+dispatch against a dangling order file, by its real path it emits `deny`; by a symlinked path it
+emits **nothing**, which the CLI reads as allow.
+
+The full finding is F-16. Three things it deliberately does not do:
+
+1. **It does not retract anything.** Every published v1.4.0 figure stands as measured — those rows are
+   honest measurements of the tool as installed, and identifying a cause is not a correction.
+2. **It does not explain the recovery failure.** The defect accounts for ~25 wasted tool calls of
+   bootstrap forensics. It does not account for eleven gates. A re-measure is pending, and the
+   prediction registered *before* that run says gap closed on Sonnet stays at 0/3.
+3. **It sharpens §09 rather than softening it.** The competitor arms carry no such defect, and
+   `bare-intake` — one sentence, nothing installed, nothing to mis-resolve — closed 100% of the gap
+   at the 60 s cut for $0.26. A tool whose advantage over one sentence depends on eleven gates
+   executing has more ways to fail than a tool that has no gates.
+
+There is a control case in the same repository: the plugin's *extracted* enforcement kit
+(`anti-lying-kit`, three hooks) carries **no main guard at all**, and all three of its hooks execute
+correctly by every path tested. The guard existed so a test could `import` a script without running
+`main()` as a side effect — a real need, satisfied in a way that introduced a failure mode the need
+never had. A testability affordance became the thing that stopped the code from running.
+
+### Five more instrument defects, all of one family
+
+Every correction this project has published has had the same shape: **a figure whose referent is not
+the thing it appears to describe**, caused by one missing term in an identity key. P4 found five more,
+bringing the count to nine. Four were caught before they touched a published number; one had already
+destroyed evidence.
+
+| # | The missing term | What it would have produced |
+|---|---|---|
+| 5 | the pack cache was never invalidated | a re-measure of the *old* build, convincingly labelled as the new one |
+| 6 | the `gap` figure's denominator is not the cell's `n` | `n=3 · gap 0%` where one row of three had a gap to close |
+| 7 | `harness_build` was in the grouping key and **nothing ever wrote it** | v1.4.1 rows pooling into the published v1.4.0 cell — a fix averaged with the defect it fixed |
+| 8 | the write rate pooled a calibration probe with experiment rows | one denominator spanning two different questions |
+| 9 | the transcript stamp had no **cap** | 20 transcript paths overwritten; one published file found at 98 KB where git held 370 KB |
+
+Defect 9 predates P4 — F4 already ran a 60 s and a 90 s cut against that stamp — and the sweep merely
+widened it from two colliding cuts to six. No published *number* was affected, because the runner
+computes diagnostics inline and stores them on the row; nothing here was ever read out of a
+transcript file. What was destroyed is the ability to read a run back, which is precisely how F-16 was
+found. Twelve rows were retracted to `transcript_collided` and re-run, and the overwritten files were
+restored from git — recoverable only because `results/` happens to be tracked, which is luck, not a
+design. Retention no longer depends on the stamp being right: a colliding write now lands beside the
+earlier file instead of on top of it.
+
+Two of the five were introduced *during* P4, by the same hand that had just documented the previous
+one. Both were caught by writing the rule down as a check rather than by being more careful, which is
+the same argument the plugin fix rests on and the reason it is stated here rather than quietly fixed.
+
+### The sweep itself: running, gate unresolved
+
+The six pre-declared cut points are frozen in `PROTOCOL.md` and in code — `sweep.mjs --caps` can
+select from the list and cannot extend it — and they run outermost-first (30, 120, 60, 90, 45, 75) so
+a truncated sweep still spans the range instead of clustering at one end. **No branch is called
+here.** What can be said before the remaining points land is that the emerging shape is not the one
+predicted: at the lowest cut the writer arm did not write at all, so there is nothing to inherit and
+no separation, while at the highest cut both arms finish the feature inside the cut. That is a
+*band* with two edges — one set by how long the mechanism takes to fire, one by the control writing
+working code — rather than the single crossing the registered prediction described. Whether those
+edges are where the interval-disjointness test puts them is what the outstanding points decide.
+
+One number from the sweep is worth recording now as a caution about n=3: two independent sets of
+three `bare` runs at the *same* 30 s cut produced gap-closed medians of 13% [0–19] and 0% [0–0]. The
+first set was retracted for the transcript defect and re-run, which is the only reason both exist —
+and the spread between them is a reminder that a three-run cell locates a range, not a point.
+
+---
+
+*§11 is mid-stage.* The P4 cut-point sweep is still running, so its totals move and **no P4 branch is
+called yet**. Every §01–§10 figure is final and unaffected. Twelve P4 rows are retracted to
+`transcript_collided` and excluded from scoring — the reason is above and in `DISCARDED-RUNS.md`.
+
+At the time of writing: 81 scored runs · 4 features · 7 arms + 3 writer controls · 185 rows ·
+114 transcripts retained · `claude-sonnet-5` and `claude-haiku-4-5-20251001`, every number labelled
+with its model · $5 of P4's fresh $150 envelope spent.
