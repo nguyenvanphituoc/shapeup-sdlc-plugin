@@ -1,11 +1,11 @@
 <!-- Exported 2026-07-27 from claude.ai artifact 8450e8f0-8afc-46ea-8176-bc776792069e -->
 <!-- Canonical rendered version: report/sdd-harness-benchmark.html -->
 
-#### Pre-registered benchmark · pilot, correction pass, and the handoff experiment · 2026-07-28
+#### Pre-registered benchmark · pilot, correction pass, the handoff experiment, and the audit that retracted part of it · 2026-07-29
 
 # Do SDD harnesses ship what they say they shipped?
 
-Four spec-driven-development harnesses, three no-harness controls, and an acceptance suite none of them ever saw. Run by the author of one of the four — who lost, found that half of what he'd concluded about losing was wrong, then built the one experiment his own tool was expected to win and watched a single sentence of prompt match it for a seventh of the price.
+Four spec-driven-development harnesses, three no-harness controls, and an acceptance suite none of them ever saw. Run by the author of one of the four — who lost, found that half of what he'd concluded about losing was wrong, built the one experiment his own tool was expected to win and watched a single sentence of prompt match it for a seventh of the price, then built a second experiment to attack that result and retracted part of it too.
 
 **Scored runs:** 98 · **Features:** 4 · **Arms:** 7 + 3 writer controls · **Models:** 2 · **Transcripts:** 148 · **Corrections:** 17 · **Discarded:** 12 · **Rows unscored:** 20
 
@@ -18,6 +18,8 @@ Four spec-driven-development harnesses, three no-harness controls, and an accept
 Across three features and every completed run on Sonnet 5, each arm passed every criterion of a hidden acceptance suite, with zero escaped defects anywhere. The control — the same prompt, same model, no methodology at all — did it for a third to a tenth of the cost.
 
 That headline has not moved. What follows it has. A second pass re-read all 28 retained transcripts with instrumentation the pilot did not have, and overturned **two published characterisations, one aggregation figure, and one fix that was never verified**. Those corrections are §05, and they are the reason this page is longer than a results table.
+
+**And then the same treatment was applied to this project's own best result.** §09 found the one condition where externalised memory pays; §11 is the pre-registered audit built to attack it. It succeeded: the **arm-level** reading of §09 does not survive on Sonnet 5, and it is retracted here. What survives is the *file-level* claim §09 actually made, now supported more strongly than it was. Two kill gates fired for **$57.36 of a $150 envelope** — one retracting the headline, one establishing that real context compaction could not be reached at all — and ~$95 was still unspent when the first of them stopped the run. Nothing here was stopped by running out of money.
 
 - **Acceptance, all arms** — `100%` — Every completed run, all three features, both models — except one cell (§04).
 
@@ -551,9 +553,9 @@ applies is much wider than §09's prose suggests, and the map above is the hones
 ## 11 — P4: auditing our own headline, and retracting part of it
 
 P4 exists to attack §09's result on two specific counts — a headline resting on **one arbitrary cut
-point**, and a p-value quoted at **the wrong unit of analysis**. The sweep that settles the first is
-still running. Three things are already settled, and two of them are worse than the thing being
-audited.
+point**, and a p-value quoted at **the wrong unit of analysis**. Both are now settled, and the
+answer to the first is a **retraction**. What the audit turned up along the way is, on balance,
+worse for this project than the overstatement it set out to correct.
 
 ### The statistic is corrected, and it cost nothing
 
@@ -596,8 +598,8 @@ The full finding is F-16. Three things it deliberately does not do:
 1. **It does not retract anything.** Every published v1.4.0 figure stands as measured — those rows are
    honest measurements of the tool as installed, and identifying a cause is not a correction.
 2. **It does not explain the recovery failure.** The defect accounts for ~25 wasted tool calls of
-   bootstrap forensics. It does not account for eleven gates. A re-measure is pending, and the
-   prediction registered *before* that run says gap closed on Sonnet stays at 0/3.
+   bootstrap forensics. It does not account for eleven gates. The re-measure has since run, and the
+   prediction registered *before* it — gap closed on Sonnet stays at 0/3 — held exactly.
 3. **It sharpens §09 rather than softening it.** The competitor arms carry no such defect, and
    `bare-intake` — one sentence, nothing installed, nothing to mis-resolve — closed 100% of the gap
    at the 60 s cut for $0.26. A tool whose advantage over one sentence depends on eleven gates
@@ -786,11 +788,9 @@ discovered halfway through a $45 matrix.
 
 ---
 
-*§11's sweep is complete and its branch is called: **B**.* Every §01–§10 figure is final and
-unaffected. One P4 stage remains in flight — the `shapeup-sdlc` v1.4.1 re-measure, which sits
-outside the S1 gate on its own registration — so the arm-level v1.4.1 figures are not yet in.
-Twelve P4 rows are retracted to `transcript_collided` and excluded from scoring; the reason is above
-and in `DISCARDED-RUNS.md`.
+*§11 is complete. Both of P4's kill gates fired: **branch B** on the sweep and **branch E** on the
+compaction spike.* Every §01–§10 figure is final and unaffected. Twelve P4 rows are retracted to
+`transcript_collided` and excluded from scoring; the reason is above and in `DISCARDED-RUNS.md`.
 
 At the time of writing: 98 scored runs · 4 features · 7 arms + 3 writer controls · 219 rows ·
 148 transcripts retained · `claude-sonnet-5` and `claude-haiku-4-5-20251001`, every number labelled

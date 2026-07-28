@@ -387,9 +387,9 @@
 <div class="wrap">
 
   <header class="masthead">
-    <p class="eyebrow">Pre-registered benchmark · pilot, correction pass, and the handoff experiment · 2026-07-28</p>
+    <p class="eyebrow">Pre-registered benchmark · pilot, correction pass, the handoff experiment, and the audit that retracted part of it · 2026-07-29</p>
     <h1>Do SDD harnesses ship what they say they shipped?</h1>
-    <p class="standfirst">Four spec-driven-development harnesses, three no-harness controls, and an acceptance suite none of them ever saw. Run by the author of one of the four — who lost, found that half of what he'd concluded about losing was wrong, then built the one experiment his own tool was expected to win and watched a single sentence of prompt match it for a seventh of the price.</p>
+    <p class="standfirst">Four spec-driven-development harnesses, three no-harness controls, and an acceptance suite none of them ever saw. Run by the author of one of the four — who lost, found that half of what he'd concluded about losing was wrong, built the one experiment his own tool was expected to win and watched a single sentence of prompt match it for a seventh of the price, then built a second experiment to attack that result and retracted part of it too.</p>
   </header>
 
   <dl class="meta">
@@ -408,6 +408,7 @@
     <div class="col">
       <p class="lede">Across three features and every completed run on Sonnet 5, each arm passed every criterion of a hidden acceptance suite, with zero escaped defects anywhere. The control — the same prompt, same model, no methodology at all — did it for a third to a tenth of the cost.</p>
       <p>That headline has not moved. What follows it has. A second pass re-read all 28 retained transcripts with instrumentation the pilot did not have, and overturned <strong>two published characterisations, one aggregation figure, and one fix that was never verified</strong>. Those corrections are §05, and they are the reason this page is longer than a results table.</p>
+      <p><strong>And then the same treatment was applied to this project's own best result.</strong> §09 found the one condition where externalised memory pays; §11 is the pre-registered audit built to attack it. It succeeded: the <strong>arm-level</strong> reading of §09 does not survive on Sonnet 5, and it is retracted here. What survives is the <em class="term">file-level</em> claim §09 actually made, now supported more strongly than it was. Two kill gates fired for <strong>$57.36 of a $150 envelope</strong> — one retracting the headline, one establishing that real context compaction could not be reached at all — and ~$95 was still unspent when the first of them stopped the run. Nothing here was stopped by running out of money.</p>
     </div>
 
     <div class="stats">
@@ -1098,7 +1099,7 @@ qa/hunt-report.md · GATE-H-ship-decision.md</code></pre>
     <span class="sec-id">11 — P4: branch B</span>
     <h2>Auditing our own headline found two things worse than the headline</h2>
     <div class="col">
-      <p class="lede">P4 attacks §09 on two counts: a result resting on <strong>one arbitrary cut point</strong>, and a p-value quoted at <strong>the wrong unit of analysis</strong>. The sweep that settles the first is still running. Three things are already settled, and two of them are worse than the thing being audited.</p>
+      <p class="lede">P4 attacks §09 on two counts: a result resting on <strong>one arbitrary cut point</strong>, and a p-value quoted at <strong>the wrong unit of analysis</strong>. Both are now settled, and the answer to the first is a <strong>retraction</strong>. What the audit turned up along the way is, on balance, worse for this project than the overstatement it set out to correct.</p>
     </div>
 
     <div class="note mid">
@@ -1132,7 +1133,7 @@ qa/hunt-report.md · GATE-H-ship-decision.md</code></pre>
     <div class="note mid">
       <p class="h">Three things this finding deliberately does not do</p>
       <p><strong>It does not retract anything.</strong> Every published v1.4.0 figure stands as measured — those rows are honest measurements of the tool as installed, and identifying a cause is not a correction.</p>
-      <p><strong>It does not explain the recovery failure.</strong> The defect accounts for ~25 wasted tool calls of bootstrap forensics. It does not account for eleven gates. A re-measure is pending, and the prediction registered <em class="term">before</em> that run says gap closed on Sonnet stays at 0/3.</p>
+      <p><strong>It does not explain the recovery failure.</strong> The defect accounts for ~25 wasted tool calls of bootstrap forensics. It does not account for eleven gates. The re-measure has since run, and the prediction registered <em class="term">before</em> it — gap closed on Sonnet stays at 0/3 — held exactly.</p>
       <p><strong>It sharpens §09 rather than softening it.</strong> The competitor arms carry no such defect, and <code>bare-intake</code> — one sentence, nothing installed, nothing to mis-resolve — closed 100% of the gap at the 60&thinsp;s cut for $0.26. A tool whose advantage over one sentence depends on eleven gates executing has more ways to fail than a tool that has no gates.</p>
     </div>
 
@@ -1231,7 +1232,7 @@ qa/hunt-report.md · GATE-H-ship-decision.md</code></pre>
 
   <footer>
     <p>98 scored runs · 4 features · 7 arms + 3 writer controls · 219 rows · 148 transcripts retained · <code>claude-sonnet-5</code> and <code>claude-haiku-4-5-20251001</code> — every number labelled with its model · F4 alone was 108 sessions and ~$56 · <strong>$57.36 of P4's fresh $150 envelope spent</strong> — the sweep $14.61, stage R $28.01, the compaction spike $14.74. Both kill gates stopped their stages; the budget stopped nothing.<br>
-    <strong>§11's sweep is complete and its branch is called: B.</strong> Every §01–§10 figure is final and unaffected. One P4 stage remains in flight — the <code>shapeup-sdlc</code> v1.4.1 re-measure, which sits outside the S1 gate on its own registration — so the arm-level v1.4.1 figures are not yet in. Twelve P4 rows are retracted to <code>transcript_collided</code> and excluded from scoring; the reason is in §11 and in <code>DISCARDED-RUNS.md</code>.<br>
+    <strong>§11 is complete. Both of P4's kill gates fired: branch B on the sweep and branch E on the compaction spike.</strong> Every §01–§10 figure is final and unaffected. Twelve P4 rows are retracted to <code>transcript_collided</code> and excluded from scoring; the reason is in §11 and in <code>DISCARDED-RUNS.md</code>.<br>
     Protocol committed before run 1; every amendment appended and timestamped, including each F4 stage before the runs it governs. Every raw transcript retained, which is why the corrections in §05 and §09 were possible at all. Harnesses under test: spec-kit, OpenSpec, cc-sdd, shapeup-sdlc — against three no-harness controls.<br>
     F1–F3 are pilot stage, n=1 on most cells, and claim no ordering between harnesses. F4's 60&thinsp;s cell is n=3 per arm; where ranges overlap the ordering is reported as indistinguishable and the binary outcome is used instead.</p>
   </footer>
