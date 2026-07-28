@@ -1,13 +1,13 @@
 <!-- Exported 2026-07-27 from claude.ai artifact 8450e8f0-8afc-46ea-8176-bc776792069e -->
 <!-- Canonical rendered version: report/sdd-harness-benchmark.html -->
 
-#### Pre-registered benchmark · pilot + correction pass · 2026-07-27
+#### Pre-registered benchmark · pilot, correction pass, and the handoff experiment · 2026-07-28
 
 # Do SDD harnesses ship what they say they shipped?
 
-Four spec-driven-development harnesses, one no-harness control, and an acceptance suite none of them ever saw. Run by the author of one of the four — who lost, then found that half of what he'd concluded about losing was wrong.
+Four spec-driven-development harnesses, three no-harness controls, and an acceptance suite none of them ever saw. Run by the author of one of the four — who lost, found that half of what he'd concluded about losing was wrong, then built the one experiment his own tool was expected to win and watched a single sentence of prompt match it for a seventh of the price.
 
-**Scored runs:** 30 · **Features:** 3 · **Arms:** 6 · **Models:** 2 · **Transcripts re-read:** 28 · **Corrections:** 9 · **Discarded:** 7 · **Rows unscored:** 8
+**Scored runs:** 78 · **Features:** 4 · **Arms:** 7 · **Models:** 2 · **Transcripts:** 104 · **Corrections:** 15 · **Discarded:** 12 · **Rows unscored:** 20
 
 ---
 
@@ -349,6 +349,8 @@ Everything measured here fits in **one session and one context window**. The cla
 What it does establish is narrow and, as far as I can tell, unpublished elsewhere: **for single-session features up to six files and five seams, on these two models, SDD ceremony cost 3–10× and produced no measurable quality difference against an acceptance suite the tools never saw.**
 One number points at where to look next. The ceremony ratio narrows as features get harder — 5.4× on the simplest feature, 2.9× on the hardest. At n=1 that trend is not established, but it is the most interesting quantity in the dataset, and it says the next feature should be bigger rather than the next matrix deeper.
 
+> **That last sentence was half wrong — §09 is what happened when it was tested.** Bigger bought nothing: a 12-file feature at ~4× F2 saturated exactly as the others did. What discriminated was *discontinuity* — cutting the session and handing the workspace to a fresh agent.
+
 The features were also revised mid-flight: F2 was replaced with a harder five-seam version *after* F1 and F3 saturated, under an appended, timestamped amendment carrying the pilot data that motivated it. That is a deviation from the pre-registration, and it is recorded as one.
 
 Finally, the v1.4 arm is **not the same arm as the pilot's**. It has different mechanisms and different flags, and every row carries its harness version so the two are never silently compared. The pilot's `shapeup-sdlc` numbers remain valid measurements *of the pilot's version*, and must be labelled with it wherever they are quoted.
@@ -458,3 +460,74 @@ on the author's.
 108 sessions · ~$56 · `claude-haiku-4-5-20251001` and `claude-sonnet-5`, every number labelled with
 its model · five rows retracted and documented · protocol amended before each stage, appended and
 timestamped.
+
+---
+
+## 10 — Where this is
+
+Four features and 151 rows have mapped a very small region of the space these tools operate in.
+Here is what has actually been visited, what was found there, and the one direction that matters
+and has never been travelled.
+
+The axes are not arbitrary. They are the two conditions under which **externalised memory can
+possibly pay**. If the agent still holds the requirement in its own context, writing it down is
+transcription and pure cost — that is the horizontal axis, and F1 through F4-solo walked it by
+making features bigger. If nothing ever interrupts the agent, the question never arises at all —
+that is the vertical axis, and everything before F4 sat at zero on it.
+
+```
+  who chose          │                            ┌─ memory can fail here ──┐
+  the interruption   │                            │                         │
+        ↑            │                            │      ◌ F5 — the target  │
+   the system        │ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│─ ─ ─ ↑ never measured ─ │
+   (compaction)      │                            │      ╎                  │
+                     │                            │      ╎                  │
+   the author        │ ─ ─ ─ ─ ─ ─ ─ ─ ─ ○────────┼──────●  cut @60s        │
+   (wall-clock)      │              cut @90s   P4 sweeps this line          │
+                     │                            │                         │
+   nobody            │  ○ F1–F3   ○ F4 solo       │                         │
+                     └────────────────────────────┴─────────────────────────┘
+                       all of it  ── how much of the requirement survives ──▶  none of it
+                                     in the agent's own context
+
+   ● an effect was found     ○ searched, nothing there     ◌ not yet visited
+```
+
+Everything below the middle line is a benchmark with **no interruption in it**, which is where this
+project spent its first three features and $58. The boxed region is the only place externalised
+memory can pay, and the single point inside it that has been measured is the one §09's headline
+rests on.
+
+### Why the vertical axis is the one that matters now
+
+Every interruption measured so far is a wall-clock number **I chose** — 60 seconds, 90 seconds.
+That is why the result is fragile: at 90s the control recovers everything and the finding vanishes.
+The interruption these tools are built for is **context compaction**, which fires when the window
+fills, far later, and at a moment nobody selects. It is also the only condition under which
+`shapeup-sdlc`'s two continuity hooks can fire at all — §09 established mechanically that they
+cannot fire across a fresh-session handoff.
+
+### Where the horizontal axis actually is — and how thin the evidence is
+
+Two measured points, 30 seconds apart, with opposite results. The curve between them is the
+finding; right now it is an assumption.
+
+| Cut | Arm | n | Gap closed | Finished | Status |
+|---|---|--:|---|--:|---|
+| 60 s | `bare` | 3 | 25% [17–67] | 0/3 | **measured** |
+| 60 s | `bare-intake` | 3 | 100% [94–100] | 2/3 | **measured** |
+| 90 s | `bare` | 2 | 100% [100–100] | 2/2 | **measured** |
+| 30 / 45 / 75 / 120 s | both | — | *unmeasured — this is what P4 buys* | — | planned |
+
+Three solid points is the entire empirical basis for §09's headline, and the two `bare` points
+thirty seconds apart **disagree completely** — 25% against 100%. P4 measures the four missing cuts
+on both arms, which turns an assumed shape into a located crossing. If the two lines never
+separate, §09's headline is retracted for about $11.
+
+### What "where we are" honestly amounts to
+
+One feature, one rung, one model for most of it, three measured points on the axis that carries the
+claim, and an effect whose supporting statistic is **p≈0.048 at the arm level** rather than the
+p≈0.001 a row-level count implies. The mechanism is real, and this is the first time this project
+has been able to support any mechanism claim at all. The confidence interval around *where* it
+applies is much wider than §09's prose suggests, and the map above is the honest picture of that.

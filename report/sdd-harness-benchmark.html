@@ -935,6 +935,156 @@ qa/hunt-report.md · GATE-H-ship-decision.md</code></pre>
     </div>
   </section>
 
+  <section>
+    <span class="sec-id">10 — Where this is</span>
+    <h2>Two axes were searched. Only one of them was the right one.</h2>
+    <div class="col">
+      <p class="lede">Four features and 151 rows have mapped a very small region of the space these tools operate in. The map below is what has actually been visited, what was found there, and the one direction that matters and has never been travelled.</p>
+      <p>The axes are not arbitrary. They are the two conditions under which <em class="term">externalised memory can possibly pay</em>. If the agent still holds the requirement in its own context, writing it down is transcription and pure cost — that is the horizontal axis, and F1 through F4-solo walked it by making features bigger. If nothing ever interrupts the agent, the question never arises at all — that is the vertical axis, and everything before F4 sat at zero on it.</p>
+    </div>
+
+    <figure>
+      <svg viewBox="0 0 780 400" width="100%" role="img" aria-labelledby="mapt mapd" style="max-width:100%;height:auto">
+        <title id="mapt">Map of the benchmark's explored space</title>
+        <desc id="mapd">Horizontal axis: how much of the requirement survives in the agent's own context, from all of it to none. Vertical axis: who chooses the moment of interruption, from nobody to the author to the system. F1 to F4-solo sit at the bottom and found nothing. F4-handoff at a 90-second cut found nothing; at a 60-second cut it found the effect. Real compaction, at the top, is unexplored.</desc>
+
+        <defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ink)"></path></marker></defs>
+
+        <!-- the region where externalised memory can pay -->
+        <rect x="520" y="48" width="220" height="282" fill="var(--accent-wash)"></rect>
+        <text x="530" y="66" font-size="11" font-family="var(--mono)" fill="var(--accent)">memory can fail here</text>
+
+        <!-- grid -->
+        <line x1="150" y1="330" x2="740" y2="330" stroke="var(--rule)" stroke-width="1"></line>
+        <line x1="150" y1="48" x2="150" y2="330" stroke="var(--rule)" stroke-width="1"></line>
+        <line x1="150" y1="195" x2="740" y2="195" stroke="var(--rule-soft)" stroke-width="1" stroke-dasharray="2 4"></line>
+        <line x1="150" y1="100" x2="740" y2="100" stroke="var(--rule-soft)" stroke-width="1" stroke-dasharray="2 4"></line>
+
+        <!-- y labels -->
+        <g text-anchor="end" font-family="var(--mono)">
+          <text x="140" y="97" font-size="11" fill="var(--muted)">the system</text>
+          <text x="140" y="111" font-size="10" fill="var(--faint)">compaction</text>
+          <text x="140" y="192" font-size="11" fill="var(--muted)">the author</text>
+          <text x="140" y="206" font-size="10" fill="var(--faint)">wall-clock</text>
+          <text x="140" y="334" font-size="11" fill="var(--muted)">nobody</text>
+        </g>
+
+        <!-- axis titles -->
+        <text x="152" y="352" font-size="11" font-family="var(--mono)" fill="var(--faint)">all of it</text>
+        <text x="738" y="352" text-anchor="end" font-size="11" font-family="var(--mono)" fill="var(--faint)">none of it</text>
+        <text x="445" y="378" text-anchor="middle" font-size="11.5" font-family="var(--sans)" fill="var(--ink)">How much of the requirement survives in the agent's own context &rarr;</text>
+        <text x="-189" y="18" transform="rotate(-90)" text-anchor="middle" font-size="11.5" font-family="var(--sans)" fill="var(--ink)">Who chose the interruption &rarr;</text>
+
+        <!-- P4: the sweep fills this row -->
+        <line x1="450" y1="195" x2="650" y2="195" stroke="var(--accent)" stroke-width="2" stroke-dasharray="5 4"></line>
+        <text x="550" y="224" text-anchor="middle" font-size="10.5" font-family="var(--mono)" fill="var(--muted)">P4 sweeps this line</text>
+
+        <!-- explored, null -->
+        <g fill="none" stroke="var(--faint)" stroke-width="2">
+          <circle cx="205" cy="330" r="8"><title>F1–F3 · one session, no interruption · every arm 100%, zero escaped defects</title></circle>
+          <circle cx="330" cy="330" r="8"><title>F4 solo, ~4× bigger · every arm 100% at every rung, both models</title></circle>
+          <circle cx="450" cy="195" r="8"><title>F4 handoff, 90s cut · control closed 100% — the code it had already written carried the requirement</title></circle>
+        </g>
+        <g text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--faint)">
+          <text x="205" y="312">F1–F3</text>
+          <text x="330" y="312">F4 solo</text>
+          <text x="450" y="177">cut @90s</text>
+        </g>
+
+        <!-- explored, signal -->
+        <circle cx="650" cy="195" r="9" fill="var(--accent)"><title>F4 handoff, 60s cut · 0 of 20 rows that wrote nothing finished; 6 of 12 that wrote a file did</title></circle>
+        <text x="650" y="177" text-anchor="middle" font-size="11.5" font-family="var(--mono)" font-weight="600" fill="var(--accent)">cut @60s</text>
+
+        <!-- target -->
+        <path d="M 650 182 L 650 117" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="3 3" marker-end="url(#ar)"></path>
+        <circle cx="650" cy="100" r="10" fill="none" stroke="var(--ink)" stroke-width="2" stroke-dasharray="4 3"><title>F5 · real compaction — the interruption these tools are actually designed for. Never measured.</title></circle>
+        <text x="650" y="80" text-anchor="middle" font-size="11.5" font-family="var(--mono)" font-weight="600" fill="var(--ink)">F5 — the target</text>
+      </svg>
+      <figcaption><strong>Filled dot = an effect was found. Hollow dot = searched, nothing there. Dashed ring = not yet visited.</strong> Everything below the middle line is a benchmark with no interruption in it, which is where this project spent its first three features and $58. The shaded region is the only place externalised memory can pay, and the single point inside it that has been measured is the one the current headline rests on.</figcaption>
+    </figure>
+
+    <div class="col">
+      <h3>Why the vertical axis is the one that matters now</h3>
+      <p>Every interruption measured so far is a wall-clock number <em class="term">I chose</em> — 60 seconds, 90 seconds. That is why the result is fragile: at 90s the control recovers everything and the finding vanishes. The interruption these tools are built for is <strong>context compaction</strong>, which fires when the window fills, far later, and at a moment nobody selects. It is also the only condition under which <code>shapeup-sdlc</code>'s two continuity hooks can fire at all — §09 established mechanically that they cannot fire across a fresh-session handoff.</p>
+
+      <h3>Where the horizontal axis actually is — and how thin the evidence is</h3>
+      <p>Two measured points, 30 seconds apart, with opposite results. The curve between them is the finding; right now it is an assumption.</p>
+    </div>
+
+    <figure>
+      <svg viewBox="0 0 760 330" width="100%" role="img" aria-labelledby="curt curd" style="max-width:100%;height:auto">
+        <title id="curt">Recovery against interruption time — measured versus planned</title>
+        <desc id="curd">Two measured points for the no-harness control: 25 percent gap closed at a 60 second cut, 100 percent at 90 seconds. One measured point for the write-it-down control: 100 percent at 60 seconds. Four further cut points at 30, 45, 75 and 120 seconds are planned but unmeasured.</desc>
+
+        <!-- grid -->
+        <g stroke="var(--rule-soft)" stroke-width="1">
+          <line x1="90" y1="50" x2="720" y2="50"></line>
+          <line x1="90" y1="120" x2="720" y2="120"></line>
+          <line x1="90" y1="190" x2="720" y2="190"></line>
+        </g>
+        <line x1="90" y1="260" x2="720" y2="260" stroke="var(--rule)" stroke-width="1"></line>
+        <line x1="90" y1="50" x2="90" y2="260" stroke="var(--rule)" stroke-width="1"></line>
+        <g font-size="10.5" font-family="var(--mono)" fill="var(--faint)" text-anchor="end">
+          <text x="82" y="54">100%</text><text x="82" y="124">67%</text><text x="82" y="194">33%</text><text x="82" y="264">0%</text>
+        </g>
+        <g font-size="10.5" font-family="var(--mono)" fill="var(--faint)" text-anchor="middle">
+          <text x="150" y="280">30s</text><text x="255" y="280">45s</text><text x="360" y="280">60s</text>
+          <text x="465" y="280">75s</text><text x="570" y="280">90s</text><text x="675" y="280">120s</text>
+        </g>
+        <text x="405" y="304" text-anchor="middle" font-size="11.5" font-family="var(--sans)" fill="var(--ink)">Where the session was interrupted &rarr;</text>
+        <text x="-155" y="20" transform="rotate(-90)" text-anchor="middle" font-size="11.5" font-family="var(--sans)" fill="var(--ink)">Gap closed &rarr;</text>
+
+        <!-- the unknown band -->
+        <rect x="360" y="50" width="210" height="210" fill="var(--warn-wash)"></rect>
+        <text x="465" y="100" text-anchor="middle" font-size="10.5" font-family="var(--mono)" fill="var(--warn)">the crossing is somewhere in here</text>
+
+        <!-- bare: measured 60s=25%, 90s=100% -->
+        <line x1="360" y1="207" x2="570" y2="50" stroke="var(--crit)" stroke-width="2" stroke-dasharray="5 4"></line>
+        <circle cx="360" cy="207" r="8" fill="var(--crit)"><title>bare · 60s cut · gap closed 25% [17–67], n=3 · 0 of 3 finished</title></circle>
+        <circle cx="570" cy="50" r="8" fill="var(--crit)" stroke="var(--card)" stroke-width="2.5"><title>bare · 90s cut · gap closed 100%, n=2 · by then it had written 21 of 26 criteria worth of code</title></circle>
+        <g fill="none" stroke="var(--crit)" stroke-width="2" stroke-dasharray="2 3">
+          <circle cx="150" cy="240" r="7"></circle><circle cx="255" cy="225" r="7"></circle>
+          <circle cx="465" cy="130" r="7"></circle><circle cx="675" cy="50" r="7"></circle>
+        </g>
+        <text x="618" y="42" font-size="11.5" font-family="var(--mono)" font-weight="600" fill="var(--crit)">bare</text>
+
+        <!-- bare-intake: measured 60s=100% -->
+        <line x1="150" y1="60" x2="675" y2="50" stroke="var(--accent)" stroke-width="2" stroke-dasharray="5 4"></line>
+        <circle cx="360" cy="50" r="8" fill="var(--accent)"><title>bare-intake · 60s cut · gap closed 100% [94–100], n=3 · 3.4 KB written before the cut</title></circle>
+        <g fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="2 3">
+          <circle cx="150" cy="60" r="7"></circle><circle cx="255" cy="54" r="7"></circle>
+          <circle cx="465" cy="50" r="7"></circle><circle cx="570" cy="50" r="7"></circle><circle cx="675" cy="50" r="7"></circle>
+        </g>
+        <text x="150" y="86" font-size="11.5" font-family="var(--mono)" font-weight="600" fill="var(--accent)">bare-intake</text>
+
+        <!-- legend -->
+        <g font-size="10.5" font-family="var(--mono)" fill="var(--muted)">
+          <circle cx="100" cy="318" r="6" fill="var(--ink)"></circle><text x="112" y="322">measured (3 points)</text>
+          <circle cx="270" cy="318" r="6" fill="none" stroke="var(--ink)" stroke-width="2" stroke-dasharray="2 3"></circle><text x="282" y="322">planned by P4 (9 points)</text>
+        </g>
+      </svg>
+      <figcaption>Dashed segments are <strong>assumed, not measured</strong>. Three solid points is the entire empirical basis for §09's headline, and the two <code>bare</code> points 30 seconds apart disagree completely — 25% against 100%. P4 measures the four missing cuts on both arms, which turns an assumed shape into a located crossing. If the two lines never separate, §09's headline is retracted for about $11.</figcaption>
+    </figure>
+
+    <div class="scroll">
+      <table>
+        <caption>The same three points, as numbers</caption>
+        <thead><tr><th>Cut</th><th>Arm</th><th>n</th><th>Gap closed</th><th>Finished</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr class="fail"><td>60&thinsp;s</td><td>bare</td><td>3</td><td>25% [17–67]</td><td>0/3</td><td>measured</td></tr>
+          <tr class="control"><td>60&thinsp;s</td><td>bare-intake</td><td>3</td><td>100% [94–100]</td><td>2/3</td><td>measured</td></tr>
+          <tr><td>90&thinsp;s</td><td>bare</td><td>2</td><td>100% [100–100]</td><td>2/2</td><td>measured</td></tr>
+          <tr><td>30 / 45 / 75 / 120&thinsp;s</td><td>both</td><td>&mdash;</td><td colspan="2">unmeasured — this is what P4 buys</td><td>planned</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note mid">
+      <p class="h">What "where we are" honestly amounts to</p>
+      <p>One feature, one rung, one model for most of it, three measured points on the axis that carries the claim, and an effect whose supporting statistic is <strong>p≈0.048 at the arm level</strong> rather than the p≈0.001 a row-level count implies. The mechanism is real and this is the first time this project has been able to support any mechanism claim at all. The confidence interval around <em class="term">where</em> it applies is much wider than §09's prose suggests, and the two figures above are the honest picture of that.</p>
+    </div>
+  </section>
+
   <footer>
     <p>78 scored runs · 4 features · 7 arms · 151 rows · 104 transcripts retained · <code>claude-sonnet-5</code> and <code>claude-haiku-4-5-20251001</code> — every number labelled with its model.<br>
     Protocol committed before run 1; every amendment appended and timestamped, including each F4 stage before the runs it governs. Every raw transcript retained, which is why the corrections in §05 and §09 were possible at all. Harnesses under test: spec-kit, OpenSpec, cc-sdd, shapeup-sdlc — against three no-harness controls.<br>
