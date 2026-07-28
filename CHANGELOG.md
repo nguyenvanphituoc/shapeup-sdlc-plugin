@@ -45,6 +45,18 @@ code and false of the installed product, for a reason no test in this repo could
   `isMain()` compares resolved URL to resolved URL (`pathToFileURL` for encoding, `realpathSync`
   for symlinks).
 
+- **`skills/tech-lead/scripts/init-run.mjs` — the already-open-run refusal is a resume path now,
+  not a dead end.** Third defect in the same family: a runtime naming a mechanism that does not
+  exist, at the moment the agent most needs a next step. The refusal itself is right — re-opening a
+  live run would discard the round history the circuit breaker counts against — but it said *"Resume
+  it (`--from <slug>`)"*, and `--from` is not an init-run flag at all. It belongs to `/tech-lead` and
+  it takes a **phase** (`--from build`), not a slug. So on a cold start into an open run — exactly
+  the benchmark's F4 handoff — the only guidance on offer did not parse.
+
+  Exit 3 now emits the file-derived `RunSnapshot` in the same tool call (slug, status, round,
+  attempt, board counts, pending orders) and says plainly not to restart the pipeline from phase 1.
+  It hands over state instead of a suggestion. `--force` still documents the deliberate re-open.
+
 - **`hooks/session-rehydrate.mjs` — the continuity reflex now covers a cold start.** The matcher
   was `compact|resume`. Both continue a conversation that still exists; the commonest continuity
   event in practice has none — you close the terminal and come back tomorrow, or a teammate picks
@@ -66,7 +78,9 @@ code and false of the installed product, for a reason no test in this repo could
   caught nothing: the broken line looked exactly like the idiomatic one it was copied from.
 - The `session-rehydrate` matcher and its cold-start wording are pinned, so the reflex cannot
   narrow back to `compact|resume` silently.
-- Documented checks floor raised 450 → 640 (actual: 643).
+- The `init-run` resume path is pinned by running it against a workspace with an open run: exit 3,
+  no `--from <slug>`, and the resume state present. The previous wording was equally plausible.
+- Documented checks floor raised 450 → 640 (actual: 648).
 
 ## [1.4.0] — 2026-07-27
 

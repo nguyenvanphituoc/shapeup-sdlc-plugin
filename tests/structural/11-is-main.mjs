@@ -155,6 +155,63 @@ export async function run(ctx) {
   }
 
   // =============================================================================
+  section("11a3. The already-open-run refusal is a resume path, not a dead end");
+  // =============================================================================
+  // Third defect in the same family as the two above: a runtime that tells the agent to use a
+  // mechanism which does not exist, at the moment the agent most needs a next step.
+  //
+  // `init-run.mjs` correctly refuses to re-initialise over a live receipt — re-opening would discard
+  // the round history the circuit breaker counts against. But it said "Resume it (`--from <slug>`)",
+  // and `--from` is not an init-run flag at all: it belongs to `/tech-lead` and it takes a PHASE
+  // (`--from build`), not a slug. So on a cold start into an open run — exactly the SDD benchmark's
+  // F4 handoff — the only guidance available named a flag that does not parse.
+  //
+  // The refusal now emits the file-derived resume snapshot in the same tool call, so it hands over
+  // state rather than a suggestion. Asserted by RUNNING it against a workspace with an open run,
+  // because the previous version's wording was also perfectly plausible.
+  {
+    const tmp2 = mkdtempSync(join(tmpdir(), "sudd-resume-"));
+    try {
+      spawnSync("git", ["init", "-q"], { cwd: tmp2 });
+      const slug = "already-open";
+      const runRoot = join(tmp2, ".shapeup-sdlc", slug);
+      mkdirSync(runRoot, { recursive: true });
+      writeFileSync(join(tmp2, ".shapeup-sdlc", "active-scope"), JSON.stringify({ slug }));
+      writeFileSync(join(runRoot, "receipt.json"), JSON.stringify({ started: true, slug }));
+      writeFileSync(join(runRoot, "harness-run.md"),
+        "---\nstatus: building\nrounds_used: 2\nmax_rounds: 3\n---\n\n# run\n");
+      writeFileSync(join(tmp2, "intake.md"), "# demo\n\nadd a flag\n");
+
+      const r = spawnSync("node", [
+        join(ROOT, "skills/tech-lead/scripts/init-run.mjs"),
+        "--slug", slug, "--intake-file", "intake.md", "--auto-level", "unattended",
+      ], { cwd: tmp2, encoding: "utf8" });
+      const out = `${r.stdout || ""}${r.stderr || ""}`;
+
+      if (r.status === 3) ok("init-run still refuses to re-open a live run (exit 3)");
+      else fail(`init-run exited ${r.status} over a live receipt — it must refuse with 3, not re-initialise`);
+
+      if (!/--from\s+<slug>/.test(out)) ok("the refusal no longer points at the non-existent `--from <slug>`");
+      else fail("the refusal still tells the orchestrator to use `--from <slug>`, which init-run does not accept");
+
+      if (/RESUME STATE/.test(out) && /"status":\s*"building"/.test(out)) {
+        ok("the refusal carries the file-derived resume state (status, round) in the same call");
+      } else {
+        fail(`the refusal does not hand over resume state — the orchestrator has to go and find it:\n    ${out.slice(0, 300)}`);
+      }
+      if (/do NOT restart the pipeline from phase 1/i.test(out)) {
+        ok("the refusal names the actual failure: restarting the pipeline from phase 1");
+      } else {
+        fail("the refusal does not warn against restarting from phase 1, which is what a fresh session does");
+      }
+      if (/--force/.test(out)) ok("the refusal still documents the deliberate re-open escape hatch");
+      else fail("the refusal no longer mentions --force, so a deliberate re-open has no stated path");
+    } finally {
+      try { rmSync(tmp2, { recursive: true, force: true }); } catch { /* best effort */ }
+    }
+  }
+
+  // =============================================================================
   section("11b. Every entry point runs identically via a symlink and via a path with a space");
   // =============================================================================
   // A real install shape, twice over. `/var/folders` on macOS is already behind a symlink, so the

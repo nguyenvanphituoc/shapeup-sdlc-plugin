@@ -60,12 +60,20 @@
 //
 // Prints a JSON receipt on stdout. Exit 0 on success, 2 on a usage error, 3 when a live run
 // already exists and --force was not given.
+//
+// EXIT 3 IS THE RESUME PATH, not a dead end. It prints the file-derived RunSnapshot for the run that
+// is already open — slug, status, round, attempt, board counts, pending orders — so the orchestrator
+// continues from the phase the files report instead of re-opening the run or restarting the pipeline
+// from phase 1. It previously said "Resume it (`--from <slug>`)", and `--from` is a /tech-lead flag
+// that takes a phase, not an init-run flag that takes a slug: the one instruction available at the
+// one moment it mattered named a mechanism that does not parse.
 
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { createHash } from "node:crypto";
 import { decideLane, treeSize } from "./fit-check.mjs";
 import { isMain } from "./lib/is-main.mjs";
+import { deriveSnapshot } from "./run-snapshot.mjs";
 
 export const RECEIPT_VERSION = 1;
 
@@ -222,11 +230,45 @@ export function main() {
 
   const runRoot = join(cwd, ".shapeup-sdlc", slug);
   const receiptPath = join(runRoot, "receipt.json");
+  // A RUN IS ALREADY OPEN. This is the resume path, and it used to be a dead end.
+  //
+  // The refusal is right: silently re-initialising would discard the round history the circuit
+  // breaker counts against. What was wrong was the instruction it gave — "Resume it (`--from
+  // <slug>`)". `--from` is not an init-run flag at all; it is a `/tech-lead` flag, and it takes a
+  // PHASE (`--from build`), not a slug. So at the one moment the orchestrator most needs a next
+  // step, the runtime named a mechanism that does not exist, on a script whose failure mode was
+  // already invisible (see lib/is-main.mjs — under a symlinked install this whole body did not run).
+  //
+  // Measured consequence, on the SDD harness benchmark's F4 handoff: a fresh session in a workspace
+  // with an open run spent 82–120 turns before its first write, largely on forensics against this
+  // step, and closed 0/3 of the gap.
+  //
+  // So the refusal now DOES the resume work instead of describing it. It emits the derived snapshot
+  // — the same file-only derivation `hooks/session-rehydrate.mjs` injects — so the orchestrator gets
+  // slug, status, round, attempt, board counts and pending orders in THIS tool call rather than
+  // needing to discover that it needs another one. Exit 3 still means "do not proceed as if you
+  // opened a run"; it now also means "here is the run you are actually in".
   if (existsSync(receiptPath) && !flag("force")) {
+    let resume = null;
+    try { resume = deriveSnapshot(cwd); } catch { /* a broken run must still produce the refusal */ }
     fail(3, [
-      `✋ init-run: a run receipt already exists at ${receiptPath}.`,
-      "Resume it (`--from <slug>`) or re-open deliberately with --force. Silently re-initialising",
-      "would discard the round history the circuit breaker counts against.",
+      `✋ init-run: a run is ALREADY OPEN — receipt exists at ${receiptPath}.`,
+      "",
+      "Do NOT re-initialise and do NOT restart the pipeline from phase 1. Re-opening would discard",
+      "the round history the circuit breaker counts against, and the board, ledger and receipt below",
+      "already hold the run's real state. RESUME from the phase these files report.",
+      "",
+      resume
+        ? `RESUME STATE (derived from files, never from memory):\n${JSON.stringify(resume, null, 2)}`
+        : [
+            "The receipt exists but no run state could be derived, which means the run root is",
+            "incomplete. Inspect it before deciding:",
+            `  ls -R ${runRoot}`,
+          ].join("\n"),
+      "",
+      "To re-derive this at any time:",
+      "  node <plugin>/skills/tech-lead/scripts/run-snapshot.mjs --cwd <dir>",
+      "To abandon the open run and start over, deliberately: --force",
     ].join("\n"));
   }
 
