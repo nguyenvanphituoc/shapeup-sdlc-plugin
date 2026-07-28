@@ -360,4 +360,72 @@ export async function run(ctx) {
   } finally {
     try { rmSync(tmp, { recursive: true, force: true }); } catch { /* best effort */ }
   }
+
+  // =============================================================================
+  section("11d. The PACKED distributable — the shape a user and the benchmark actually install");
+  // =============================================================================
+  // 11b proves the guard holds across three path spellings OF THE REPO TREE. Nobody installs the
+  // repo tree. The benchmark builds the real tarball with `npm pack` and loads that, which is also
+  // what `npm i` gives a user — and a file absent from package.json's `files` list would pass every
+  // assertion above and simply not exist at runtime. That is a DIFFERENT silent no-op with the same
+  // symptom as F-16, and 610 passing checks did not see the first one either.
+  //
+  // So this section asserts two things the repo tree cannot: every guarded entry point SHIPS, and
+  // it behaves identically once unpacked under a symlinked temp dir (the benchmark's install shape).
+  const packTmp = mkdtempSync(join(tmpdir(), "sudd-packed-"));
+  try {
+    const packed = spawnSync("npm", ["pack", "--pack-destination", packTmp], {
+      cwd: ROOT, encoding: "utf8", timeout: 300_000,
+    });
+    const tarball = (packed.stdout || "").trim().split("\n").filter(Boolean).pop();
+    if (packed.status !== 0 || !tarball || !existsSync(join(packTmp, tarball))) {
+      fail(`npm pack failed, so the shipped surface could not be checked at all: ` +
+           `${(packed.stderr || packed.stdout || "no output").slice(0, 300)}`);
+    } else {
+      const untar = spawnSync("tar", ["-xzf", join(packTmp, tarball), "-C", packTmp], { encoding: "utf8" });
+      const pkg = join(packTmp, "package");
+      if (untar.status !== 0 || !existsSync(pkg)) {
+        fail(`the packed tarball did not extract: ${(untar.stderr || "no output").slice(0, 200)}`);
+      } else {
+        const wsPacked = join(packTmp, "ws");
+        mkdirSync(wsPacked, { recursive: true });
+        spawnSync("git", ["init", "-q"], { cwd: wsPacked });
+
+        // `scripts/` is dev tooling and deliberately NOT in package.json `files` — excluded here
+        // rather than asserted, so this check never argues with a shipping decision.
+        const shipped = ENTRY_POINTS.filter((s) => !s.file.startsWith("scripts/"));
+        let missing = 0, diverged = 0;
+        for (const spec of shipped) {
+          const inPack = join(pkg, spec.file);
+          if (!existsSync(inPack)) {
+            fail(`${spec.file} is a guarded entry point that DOES NOT SHIP — it is absent from the ` +
+                 `packed tarball, so at runtime it is missing rather than merely inert. Add its ` +
+                 `directory to package.json "files".`);
+            missing++;
+            continue;
+          }
+          const fromRepo = invoke(join(ROOT, spec.file), spec, wsPacked);
+          const fromPack = invoke(inPack, spec, wsPacked);
+          // Same rule as 11b: for a printing refusal the body must speak; for a fail-open hook the
+          // exit status must match. The packed tree sits under /var/folders, i.e. behind a symlink.
+          const same = spec.expect === "stdout"
+            ? spoke(fromPack)
+            : fromPack.status === fromRepo.status;
+          if (same) ok(`${spec.file} ships and behaves identically from the packed distributable`);
+          else {
+            fail(`${spec.file} ships but DIVERGES when run from the packed tarball ` +
+                 `(repo exit ${fromRepo.status}, packed exit ${fromPack.status}, ` +
+                 `packed said ${fromPack.out.trim().length} bytes) — this is the install shape the ` +
+                 `benchmark measured F-16 in.`);
+            diverged++;
+          }
+        }
+        if (!missing && !diverged) {
+          ok(`all ${shipped.length} shipped entry points survive npm pack → extract → run under a symlinked root`);
+        }
+      }
+    }
+  } finally {
+    try { rmSync(packTmp, { recursive: true, force: true }); } catch { /* best effort */ }
+  }
 }

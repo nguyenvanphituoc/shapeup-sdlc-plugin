@@ -3,11 +3,16 @@
 - **Item:** the two things a serious reviewer will attack in F4's result — a headline resting on
   **one arbitrary cut point**, and a p-value quoted at the wrong unit of analysis.
 - **Predecessor:** `docs/plan/benchmark-p3-f4-plan.md` (complete; branches A and C published).
-- **Instrument:** `../sdd-harness-bench` — 151 rows, 78 scored, 104 transcripts. **$114.52 spent to
-  date** across P1–P3.
-- **Envelope: RESET.** A fresh **$150** is authorised for P4; the $114.52 already spent no longer
+- **Instrument:** `../sdd-harness-bench` — 185 rows, 81 scored, 114 transcripts. **$127.11 spent to
+  date** ($114.52 through P3; the balance is P4's oracle probe and its first, partial sweep points).
+- **Envelope: RESET.** A fresh **$150** is authorised for P4; the spend to date no longer
   constrains this plan. See "The reset" below for what that does and — more importantly — what it does not.
-- **Status:** shaped, not started. Every number below labelled measured or projected.
+- **Model: Sonnet 5, every stage.** Reversed from the original Haiku sweep on 2026-07-28, before the
+  first Sonnet sweep run, and pre-registered in `PROTOCOL.md §9`. See "The model move" below — it
+  *removes* a stage rather than adding cost, and it is not sold as an efficiency.
+- **Status:** started. S0 is done and the oracle self-test passes; S1 has ~$3.47 of Haiku sweep
+  points on disk (30s/90s/120s, mostly unscored) which now stand as a free second-model curve.
+  Every number below labelled measured or projected.
 
 ---
 
@@ -32,12 +37,57 @@ buy precision about a tie. Money removes the forcing function, not the reason fo
 
 - **Real compaction (S3).** The experiment that measures what these tools actually claim. It was
   deferred when only ~$35 remained, and named as a deferral rather than an omission. It is now reachable.
-- **Sonnet confirmation of the crossing point (S4).** PROTOCOL §6 forbids a headline on Haiku
-  alone, and P4's headline is a headline.
+- **The whole sweep on Sonnet 5, not a confirmation stage bolted on the end.** PROTOCOL §6 forbids a
+  headline on Haiku alone, and P4's headline is a headline. The original plan discharged that with a
+  separate $25 confirmation stage; the reset makes it affordable to simply measure on the right model
+  the first time. See below.
 
 **The failure mode to watch:** P3's cap was derived from the wrong quantity **twice**, and each
 error was caught by a cheap probe rather than by thinking harder. More budget makes it tempting to
 skip the probe and run the matrix. Every stage below still opens with one.
+
+---
+
+## The model move — all Sonnet, and what it actually buys
+
+**Committed 2026-07-28, before the first Sonnet sweep run, in `PROTOCOL.md §9`.** It reverses this
+plan's own no-go #6 ("No Sonnet in the sweep"), and a pre-registration that gets quietly reversed is
+worth nothing — so the reversal is dated, reasoned, and recorded beside the rule it overturns.
+
+**The cost premise of no-go #6 was simply wrong, and the data was already on disk.** Sonnet is
+**2.8×** Haiku per handoff pair at F4/R3 — **$0.80 median against $0.29** (n=11 Sonnet pairs, n=12
+Haiku pairs) — not the 3–5× the no-go asserted. And the **60s Sonnet cell is already measured**
+(`bare` n=3, `bare-intake` n=8, both scored, $10.10 of P3 spend the sweep now inherits for free).
+
+That changes the arithmetic completely:
+
+| | old plan | this plan |
+|---|--:|--:|
+| S1 sweep | $11 (Haiku, 6 cuts) | **$24** (Sonnet, 5 remaining cuts) |
+| S4 Sonnet confirmation | $25 | **$0 — absorbed** |
+| **the two together** | **$36** | **$24** |
+
+**Running the sweep on Sonnet is cheaper than running it on Haiku and then buying the headline
+back.** Every point lands on the model the claim needs, and the project stops paying twice for the
+same measurement.
+
+**Where the schedule gain comes from — and it is not the model.** Sonnet does not run faster: at the
+60s cut its session-B wall clock is 145s on `bare` and 177s on `bare-intake`, against Haiku's 105s
+and 205s. Comparable, arm-dependent, no win. The calendar saving is **structural**: S4 was a
+serialized stage — sweep on Haiku, aggregate, locate the crossing, *then* commission a second
+model's runs, aggregate again, and branch on whether it reproduced. Deleting it removes an entire
+analyse-decide-rerun cycle and one model's worth of queueing from the critical path.
+
+**A cost this plan accepts openly, carried over verbatim from the amendment:** Sonnet consumes the
+rate-limit window **~2.8× faster per pair**, so elapsed time *per window* gets worse, not better.
+The instrument is already rate-limit-bound — the Haiku sweep is currently parked waiting on a reset,
+and the run log shows single waits of 3,509s and 17,574s. This is a trade of elapsed time for a
+headline on the right model. **It is not sold as an efficiency.**
+
+**Unchanged by the move:** the six cut points stay frozen; n=3 stays the floor (reps are never
+traded for the model change); the Haiku rows stand as measured under Q3 and are not retracted — they
+become a second model's partial curve at 30s/60s/90s that this plan never budgeted for and gets for
+nothing. Where the two models disagree, **both are published**, exactly as F4's split result was.
 
 ---
 
@@ -51,8 +101,13 @@ Facts from `results/runs.jsonl`, not from the writeup:
 | Scored F4 handoff rows at the 60s cut | 32 (7 arms, 2 models) |
 | Rows that wrote nothing and finished | **0 / 20** |
 | Rows that wrote a file and finished | **6 / 12** |
-| Cut points actually measured | **two** — 60s and 90s |
+| Cut points actually measured **at F4** | **two** — 60s and 90s |
 | Arms that ever wrote a file before the cut | **two** — `bare-intake`, `shapeup-sdlc` |
+
+Since then P4 has put Haiku rows on disk at 30s, 90s and 120s (17 rows, $3.47, only the 30s `bare`
+cell scored) before the sweep parked on a rate-limit reset. Those rows are **not** the instrument
+this plan now reads — they are the free second-model curve described above. The Sonnet numbers below
+are what the headline rests on.
 
 The instrument is now genuinely good: the oracle discriminates at three rungs, the cap is enforced
 on the runner's own clock, run-evidence is mechanical and fires on competitors and on the author's
@@ -105,16 +160,19 @@ point, a single-arm comparison, and a statistic computed at the wrong level.
 
 ### Appetite
 
-**Two weeks, ~$95 of a fresh $150** — and the first $17 of it decides whether the remaining $78 is
-spent at all. If a stage does not fit, the *sweep resolution* and the *confirmation breadth* get
-cut — never the repetitions, never the arm-level power fix, never the honesty corrections.
+**Two weeks, ~$88 of a fresh $150** — and the first **$9.60** of it decides whether the remaining
+$78 is spent at all. If a stage does not fit, the *sweep resolution* gets cut — never the
+repetitions, never the arm-level power fix, never the honesty corrections.
 
 The shape is deliberately the same as P3's: **the cheapest stage is the one that gates the
-expensive ones.** Two of the four branches below stop the spend under $20, and both are publishable.
+expensive ones.** Moving to Sonnet does not weaken that — the decision is callable after **12 pairs
+(~$9.60)**, which is *cheaper* than the $17 the old Haiku plan needed to reach its first gate,
+because the 60s cut is already bought. Two of the branches below stop the spend early — one at
+**~$10**, the other at ~$43 — and both are publishable.
 
 ### Solution — one curve, three new writer arms, one statistics fix
 
-**Sweep the cut.** Six cut points × two arms × n=3, on Haiku, at F4/R3. This produces two
+**Sweep the cut.** Six cut points × two arms × n=3, on **Sonnet 5**, at F4/R3. This produces two
 recovery-vs-cut curves whose **crossing point** is the finding:
 
 ```
@@ -157,9 +215,13 @@ anything F4 produced.
 3. **No re-running F1–F3.** Documented ties.
 4. **No new feature.** F4/R3 and its committed contract are reused unchanged.
 5. **No touching the 60s and 90s rows.** They are published; the sweep adds points, it does not
-   replace them.
-6. **No Sonnet in the sweep.** The sweep is a shape-finding instrument and Sonnet costs 3–5×.
-   Confirmation of the *crossing point only* is a separate, later decision.
+   replace them. This now extends to the Haiku sweep rows already on disk.
+6. **~~No Sonnet in the sweep.~~ REVERSED 2026-07-28** (PROTOCOL §9, before the first Sonnet sweep
+   run). Its cost premise was wrong by measurement — 2.8×, not 3–5× — and the 60s Sonnet cell was
+   already paid for. **The sweep runs on Sonnet 5 and S4 is absorbed into it.** The rule is struck
+   through rather than deleted: a pre-registration that quietly changes is worth nothing.
+7. **No mixed models within a comparison.** Every arm in a comparison is held to the same model
+   (§6). The Haiku rows are published as a *separate* curve, never pooled with the Sonnet ones.
 
 ### Rabbit holes, and the pin in each
 
@@ -169,17 +231,18 @@ anything F4 produced.
 | `bare-intake` has its own threshold below which it writes nothing, confounding the low end | That is a **finding, not a confound** — it is the cost of the mechanism, and `handover_bytes` already measures it per row. Report the write-rate per cut point beside the recovery. |
 | "Area between curves" invites a fabricated summary statistic | Report the curves and the **crossing interval** only. No integral, no fitted model. n=3 does not support a fit. |
 | The new arms are four flavours of prompt engineering | Each is one sentence, committed before run 1, and differs only in *what* is written. If all four behave identically, that is the result: the content does not matter, only that something exists. |
-| Budget runs out mid-sweep | Cut points are run **outermost-first** (30, 120, 60, 90, 45, 75), so a truncated sweep still spans the range instead of clustering. |
+| Budget runs out mid-sweep | 60s is already bought on Sonnet, so the remaining five run **30, 90, then 120, 45, 75**. The first two are the gate cuts (they are also the cuts Haiku already has, making the two models directly comparable); after them the sweep already spans 30–90 with 60 in the middle, and 120 leads the resolution points. A truncated sweep still spans the range instead of clustering. |
+| Sonnet burns the rate-limit window 2.8× faster, and the instrument is already rate-limit-bound | Accepted openly, not mitigated away — see "The model move". The sweep is resumable (`--resume`) and capped (`--max-spend`), so a reset window costs elapsed time and never a re-run. The gate at 12 pairs means the decision does not wait on the full sweep clearing its windows. |
 
 ---
 
 ## 3. The staged plan — gated, cheapest-first
 
-### S0 — instrument (≈$0, half a day)
+### S0 — instrument (≈$0, half a day) — **done**
 
 | # | Work |
 |---|---|
-| 0.1 | PROTOCOL amendment + registered prediction, committed **before run 1** |
+| 0.1 | PROTOCOL amendments + registered prediction, committed **before run 1** — two of them: the sweep design, and the same-day reversal to Sonnet 5 (Appendix A2), committed before the first Sonnet sweep run |
 | 0.2 | Three new control adapters (~30 lines each), declared `stateRoots: []` |
 | 0.3 | **Aggregator reports both row-level and arm-level n**, and prints the arm-level count beside every pooled claim. This is the K1 fix and it ships whether or not any run happens |
 | 0.4 | Sweep runner: a thin loop over pre-declared caps; no new session logic |
@@ -187,24 +250,35 @@ anything F4 produced.
 
 **Gate S0:** tests green, dry-run clean. No paid run before this.
 
-### S1 — the curve (≈$11)
+### S1 — the curve (≈$24)
 
-Six cuts {30, 45, 60, 75, 90, 120} × {`bare`, `bare-intake`} × n=3 × Haiku × F4/R3.
-36 handoff pairs = 72 sessions. Measured per-pair cost at 60s: `bare` $0.230, `bare-intake` $0.346.
-Higher cuts cost more in session A and less in B; projected **$11 ± 3**.
+Six cuts {30, 45, 60, 75, 90, 120} × {`bare`, `bare-intake`} × n=3 × **Sonnet 5** × F4/R3.
+**The 60s cut is already measured and scored** (`bare` n=3, `bare-intake` n=8), so only five cuts are
+bought: 30 handoff pairs = 60 sessions. Measured Sonnet per-pair cost at 60s: `bare` **$0.786**,
+`bare-intake` **$0.968**; projected **$24 ± 6**.
 
-**Gate S1 — the shape decides everything:**
+Run order **30, 90 → 120, 45, 75.** The first two are the decision cuts and are also the cuts Haiku
+already has, so the gate is callable after **12 pairs (~$9.60)** *and* yields a same-points
+cross-model comparison. The remaining 18 pairs are resolution, not the decision, and must not consume
+the budget ahead of them.
+
+**Gate S1 — the shape decides everything, and it is callable at ~$9.60:**
 
 | Observation | Decision |
 |---|---|
-| Curves cross in a well-separated interval | **Proceed to S2.** The trade-off is real and located; this is the publishable finding. |
-| Curves never separate at any cut | **Stop.** Publish *"the 60s result does not survive a cut-point sweep"* — a retraction of this project's own headline, which is the most valuable thing it could publish. ~$11 total. |
+| Curves cross in a well-separated interval | **Proceed to S2.** The trade-off is real and located; this is the publishable finding. Buy the resolution cuts. |
+| Curves never separate at 30s or 90s | **Stop.** Publish *"the 60s result does not survive a cut-point sweep"* — a retraction of this project's own headline, which is the most valuable thing it could publish. ~$10 total, and on the model the claim needs. |
+| Separation at one gate cut only | Buy 120s next, then decide. Do not buy the interior resolution points to rescue an ambiguous extreme. |
 | `bare-intake` never writes below some cut | Report its write-rate curve as the cost of the mechanism, and continue. |
 
-### S2 — arm-level power (≈$6)
+### S2 — arm-level power (≈$9)
 
-Three new writer arms × n=3 × Haiku, **at the single cut nearest the crossing point** found in S1.
-9 handoff pairs = 18 sessions at ~$0.35 → **$6**.
+Three new writer arms × n=3 × **Sonnet 5**, **at the single cut nearest the crossing point** found in
+S1. 9 handoff pairs = 18 sessions at the measured writer-arm rate of $0.968/pair → **$9**.
+
+Sonnet here is not optional: a comparison across arms must hold the model fixed (§6), and after the
+move the arm-level claim *is* a Sonnet claim. Costing it on Haiku would have made the statistics fix
+unpoolable with the curve it corrects.
 
 Takes the "wrote a file" group from **2 arms to 5** and the arm-level p from 0.048 to ≤0.01 if the
 effect holds. **This is the stage that makes the F4 claim defensible**, and it is the cheapest one.
@@ -243,16 +317,20 @@ The `shapeup-sdlc` arm carries a specific pre-registered question here: **do
 `hooks_fired` already records the first half on every row. This is the first design in which that
 arm's continuity machinery is actually under test — and per §6 Q8, if it wins, the cost leads.
 
-### S4 — Sonnet confirmation of the crossing point (≈$25)
+### ~~S4 — Sonnet confirmation of the crossing point (≈$25)~~ — REMOVED, absorbed into S1
 
-PROTOCOL §6: no headline on Haiku alone, and P4's headline is a headline. The **single** cut nearest
-the crossing found in S1, `{bare, bare-intake}` × n=3, Sonnet 5. Not the whole sweep — the sweep is
-a shape-finding instrument and its shape is not the claim; the crossing is.
+Its entire purpose was PROTOCOL §6: no headline on Haiku alone. With the sweep itself on Sonnet,
+**every point in the curve is already on the model the claim needs** and there is nothing left to
+confirm. Paying $25 to re-measure on Sonnet what S1 could have measured on Sonnet in the first place
+was the plan paying twice for one measurement.
 
-**Gate S4:** if the crossing does not reproduce, the published claim becomes *"the trade-off is
-located on Haiku and does not reproduce on Sonnet"* — which is a finding about where the boundary
-sits relative to model capability, published as one. P3 already produced exactly this shape of
-split result and it was more informative than a clean win would have been.
+**What is genuinely lost, stated rather than buried:** the old S4 could have produced a *split*
+result — *"the trade-off is located on Haiku and does not reproduce on Sonnet"* — a finding about
+where the boundary sits relative to model capability. That branch is gone as a designed experiment.
+It survives, unbudgeted and partial, in the Haiku rows already on disk: 30s/60s/90s on `bare` and 60s
+on `bare-intake`. Where those disagree with the Sonnet curve at the same cut, **both are published**
+and the disagreement is the finding (branch H). What this plan no longer does is *buy* that
+comparison at n=3 across the full range.
 
 ### S5 — publication ($0)
 
@@ -264,22 +342,30 @@ results table itself**, not in a footnote.
 
 ## 4. Cost model
 
-| Stage | Sessions | Model | Projected | Cumulative | Gate that can stop here |
-|---|--:|---|--:|--:|---|
-| S0 instrument | 0 | — | $0 | $0 | tests green; **arm-level fix ships here regardless** |
-| S1 curve | 72 | Haiku | ~$11 | $11 | **no separation ⇒ retract F4's headline, publish, stop** |
-| S2 arm power | 18 | Haiku | ~$6 | $17 | — |
-| S3.0 compaction spike | 1 | Sonnet | ~$10 | $27 | **cannot trigger ⇒ publish the limit, stop** |
-| S3.1 compaction cell | 18 | Sonnet | ~$45 | $72 | — |
-| S4 Sonnet crossing | 6 | Sonnet | ~$25 | **~$97** | no reproduction ⇒ publish as such |
-| S5 publication | 0 | — | $0 | ~$97 | — |
+Every stage is **Sonnet 5**. One model end to end, so no comparison in this plan straddles two.
 
-**Fresh envelope $150. Worst case ~$97, leaving ~$53 of headroom** — deliberately wide, because P3
+| Stage | Sessions | Projected | Cumulative | Gate that can stop here |
+|---|--:|--:|--:|---|
+| S0 instrument | 0 | $0 | $0 | tests green; **arm-level fix ships here regardless** |
+| S1 gate cuts (30s, 90s) | 24 | ~$10 | $10 | **no separation ⇒ retract F4's headline, publish, stop** |
+| S1 resolution (120s, 45s, 75s) | 36 | ~$14 | $24 | — |
+| S2 arm power | 18 | ~$9 | $33 | — |
+| S3.0 compaction spike | 1 | ~$10 | $43 | **cannot trigger ⇒ publish the limit, stop** |
+| S3.1 compaction cell | 18 | ~$45 | **~$88** | — |
+| ~~S4 Sonnet crossing~~ | ~~6~~ | **absorbed into S1** | — | — |
+| S5 publication | 0 | $0 | ~$88 | — |
+
+**Fresh envelope $150. Worst case ~$88, leaving ~$62 of headroom** — deliberately wide, because P3
 derived its cap from the wrong quantity **twice** and each correction cost a re-run. Slack is not
 unspent budget; it is the price of the instrument being wrong again, which it will be.
 
-**Most likely case is far less than $97.** Two gates stop under $27, and both outcomes are
-publishable — one of them a retraction of this project's own headline.
+**The all-Sonnet move left the envelope untouched and the worst case $9 lower.** The Sonnet premium
+on S1 (+$13) and S2 (+$3) is more than paid for by deleting S4 (−$25) and by inheriting the already-
+measured 60s cell (−$0, but it removes 6 pairs of work). The budget was not raised to afford the
+better model; the plan stopped buying the same measurement twice.
+
+**Most likely case is far less than $88.** Two gates stop under $45, the first of them at ~$10, and
+both outcomes are publishable — one of them a retraction of this project's own headline.
 
 ---
 
@@ -294,6 +380,8 @@ publishable — one of them a retraction of this project's own headline.
 | Q5 | No fitted curve, no integral, no interpolated crossing point | n=3 supports "these two intervals do not overlap", nothing more |
 | Q6 | Every row still carries model + build + phase + rung + **cap** | four pooling bugs, each one missing term in that key |
 | Q7 | **A null result here retracts a published headline, and that is the expected outcome to plan for** | the sunk-cost pull is toward defending F4, and F4 is this author's own result |
+| Q8 | **No comparison pools two models.** Haiku and Sonnet rows are published as separate curves, never merged | the pooling bug that merged five failed Haiku runs with one Sonnet run into `n=6, acc 29% [29-100]` — §6's "the model is never implicit" |
+| Q9 | **A reversed no-go is struck through and dated, never deleted** | no-go #6 was reversed the same day it was written; a pre-registration that can be silently edited is not one |
 
 ---
 
@@ -302,14 +390,22 @@ publishable — one of them a retraction of this project's own headline.
 | Branch | Fires when | Headline |
 |---|---|---|
 | **A — trade-off located** | curves separate below a cut and converge above it | *"Writing the requirement down first buys recovery only when you are interrupted before the code exists. Here is where that boundary is."* The finding F4 should have made. |
-| **B — no separation** | curves overlap at every cut | *"F4's headline does not survive a cut-point sweep."* A retraction of this project's own result, costing $11. The most credible thing it could publish. |
+| **B — no separation** | curves overlap at both gate cuts | *"F4's headline does not survive a cut-point sweep."* A retraction of this project's own result, costing **~$10** and landing on Sonnet, so it cannot be dismissed as a weak-model artifact. The most credible thing it could publish. |
 | **C — content matters** | the four writer arms differ from each other | *"It is not enough to write something — writing X beats writing Y."* Strictly more useful than F4. |
 | **D — content is irrelevant** | all four writer arms behave identically | *"Any artifact works. The specific discipline SDD sells is not the active ingredient."* Most damaging to every tool under test, including the author's. |
 | **E — compaction untriggerable** | S3.0 spike fails under ~$15 | *"Real compaction could not be reached within budget; every interruption in this benchmark is a proxy, and here is the proxy's shape."* An honest limit, bought for $10. |
 | **F — the hooks finally fire** | S3.1 runs and `hooks_fired` shows `PreCompact` / rehydrate | The first measurement of `shapeup-sdlc`'s continuity machinery doing anything. **If it wins, the cost leads in the same paragraph** (§6 Q8 clause 5). |
 | **G — the hooks fire and change nothing** | S3.1 runs, hooks fire, recovery unchanged vs `bare-intake` | *"The rehydrate reflex is real, fires correctly, and is worth nothing against one sentence."* The most specific negative result this project could produce about its own tool. |
+| **H — the models disagree** | the Haiku rows already on disk (30s/60s/90s `bare`, 60s `bare-intake`) put the crossing somewhere the Sonnet curve does not | *"Where you should spend a fixed wall-clock depends on which model is spending it."* Both curves published side by side, neither pooled, and the Haiku one labelled for what it is: partial, unbudgeted, and n<3 at most points. Not a designed experiment — the residue of one. |
 
 ### Registered prediction, before run 1
+
+These were registered before the model move and are **not restated to fit it**. They now apply to
+the Sonnet curve, which is a harder test: the crossing was predicted from Haiku's 60s/90s cells, and
+F4 already found the two models behave differently at 60s (the one-sentence trigger wrote the file on
+3/3 Haiku runs but only **3/8** Sonnet runs). If a prediction derived from Haiku holds on Sonnet, it
+survived a model change it was not tuned for; if it fails, that is branch H and not a licence to
+re-register.
 
 **The curves cross between 60s and 90s.** `bare-intake` is flat and high from roughly 30s onward;
 `bare` rises steeply between 60s and 90s and matches it thereafter.
@@ -332,8 +428,11 @@ has ever had, and it needs to be registered in advance to count as one.
 | The sweep confirms F4 and looks like self-justification | Branch B is pre-declared as a retraction and costs $11 to reach. The prediction is registered, including branch D. |
 | n=3 is too thin for six points | The claim is interval-overlap between two arms at each cut, not a fitted curve. Where intervals overlap, the aggregator already refuses to order them. |
 | Variance swamps the signal (F4 saw 17–67% within one cell) | Six cut points at n=3 is 18 rows per arm — more data on this axis than F4 had in total. If variance still swamps it, that is branch B. |
-| Budget overruns as in F4 | ~$53 of deliberate headroom, and the cap-enforcement check now fails loudly instead of silently granting extra time. |
-| **The reset budget dissolves the discipline that made P3 work** | The reset section, binding: gate order unchanged, kill gates still kill, cheapest stage still decides. Every stage opens with a probe. The $17 of S1+S2 gates the $78 above it, exactly as $3.54 gated $35 in P3. |
+| Budget overruns as in F4 | ~$62 of deliberate headroom, and the cap-enforcement check now fails loudly instead of silently granting extra time. |
+| **The reset budget dissolves the discipline that made P3 work** | The reset section, binding: gate order unchanged, kill gates still kill, cheapest stage still decides. Every stage opens with a probe. The **$9.60** of S1's gate cuts gates the $78 above it, exactly as $3.54 gated $35 in P3. |
+| **The move to Sonnet is the reset budget dissolving the discipline, wearing a §6 costume** | The test is whether the move *raised* the bill. It did not: worst case fell from ~$97 to ~$88 because S4 was deleted and the 60s cell was already bought. A model change that makes the plan cheaper is not budget indiscipline. If it had cost more, no-go #6 should have stood. |
+| **The reversal of a same-day no-go is the author editing a pre-registration to suit himself** | The reversal is dated, reasoned, struck through rather than deleted (Q9), and recorded in `PROTOCOL.md §9` beside the rule it overturns — **before the first Sonnet sweep run**. Its stated reason is falsifiable and was checked: no-go #6 claimed 3–5×, the measured figure is 2.8× (n=11 vs n=12 pairs, already on disk). Critically, **the Haiku sweep was incomplete when it was reversed**, so there was no result on the table to dislike. |
+| **The rate-limit window is the real schedule constraint, and Sonnet consumes it 2.8× faster** | Accepted, not mitigated — see "The model move". The plan does not claim Sonnet is faster; it claims deleting a serialized stage shortens the critical path. Elapsed time per window gets worse. The sweep is resumable and spend-capped, so windows cost time and never re-runs. |
 | **F5 becomes a project** | The seed is sized *from the spike's measured token pressure*, not from a guess. Hard caps: one feature, one rung, three arms, n=3. If the spike says compaction needs a seed we cannot build, that is branch E and it costs $10. |
 | Compaction fires at a different point for each arm, so "the cut" is not uniform | That is the honest nature of the axis and the reason it is worth measuring: unlike a wall-clock cap, **nobody chooses it**. The oracle runs at the boundary each arm actually hits, and the boundary position is published per row as a covariate. |
 | The author's own hooks are finally in scope, on an axis that favours them | Prediction G registered above, before any run. `hooks_fired` is recorded mechanically. Q8's five clauses apply unchanged. |
@@ -349,7 +448,8 @@ has ever had, and it needs to be registered in advance to count as one.
 > it is **p≈0.048**. Separately, `bare` closes 25% of its gap at a 60s cut and **100%** at a 90s
 > cut, so the headline is a property of the cut point as much as of the mechanism.
 > 1. **A cut-point sweep** is added: {30, 45, 60, 75, 90, 120}s × {`bare`, `bare-intake`} × n=3,
->    Haiku, F4/R3 unchanged. Points are pre-declared; none may be added after the curve is seen.
+>    ~~Haiku~~ **Sonnet 5** (see the second amendment below), F4/R3 unchanged. Points are
+>    pre-declared; none may be added after the curve is seen.
 > 2. **Three writer controls** are added — `bare-intake-brief`, `bare-intake-criteria`,
 >    `bare-plan` — differing only in *what* is externalised. They exist to take the "wrote a file"
 >    group from two arms to five and to test whether content matters at all.
@@ -370,6 +470,53 @@ has ever had, and it needs to be registered in advance to count as one.
 > 7. **A null result retracts F4's headline** and is published as such.
 > *Prior results invalidated:* none. The 60s and 90s cells stand as measured and are added to.
 
+## Appendix A2 — the model reversal, committed the same day (already in `PROTOCOL.md §9`)
+
+> **2026-07-28 — the sweep moves to Sonnet 5, reversing no-go #6. Committed before the first Sonnet
+> sweep run.** This amendment exists because the earlier amendment today said the opposite, and a
+> pre-registration that gets quietly reversed is worth nothing.
+>
+> *What no-go #6 said, this morning:* "No Sonnet in the sweep. The sweep is a shape-finding
+> instrument and Sonnet costs 3–5×. Confirmation of the crossing point only is a separate, later
+> decision."
+>
+> *Why it is reversed, and the reason is NOT the one to be suspicious of.* The Haiku sweep is
+> incomplete, so no Haiku result is being avoided here — there is no branch on the table to dislike.
+> Two facts drive it:
+> 1. **§6 forbids a headline on Haiku alone, and P4's headline is a headline.** The plan handled
+>    that with a separate $25 Sonnet confirmation stage (S4). Running the sweep itself on Sonnet
+>    absorbs S4 completely rather than paying for the same model twice.
+> 2. **The cost premise of no-go #6 was wrong, measured.** Sonnet is **2.8×** Haiku per handoff pair
+>    at F4/R3, not 3–5× — **$0.80 median against $0.29** (n=11 Sonnet pairs, n=12 Haiku pairs,
+>    already on disk). And the 60s Sonnet cell is **already measured**: `bare` n=3, `bare-intake`
+>    n=8, both scored. So a five-cut Sonnet sweep costs **~$24** against the **~$36** that
+>    S1-on-Haiku plus S4 was going to cost. It is cheaper AND it puts every point on the model the
+>    claim needs.
+>
+> *What this changes:*
+> - The sweep is {30, 45, 60, 75, 90, 120}s × {`bare`, `bare-intake`} × n=3 on **Sonnet 5**. The six
+>   cut points are unchanged and still frozen; only the model moves.
+> - **S4 is removed as a separate stage.** Its purpose is now discharged by S1 itself.
+> - S2's writer controls move to Sonnet for the same reason: a comparison across arms must hold the
+>   model fixed (§6), and the arm-level claim is now a Sonnet claim.
+>
+> *What this does NOT change:*
+> - **The Haiku rows stand as measured (Q3) and are not retracted.** They become a second model's
+>   partial curve — 30s/60s/90s on `bare`, 60s on `bare-intake` — a cross-model comparison the plan
+>   never budgeted for and gets for free. Where the two models disagree, both are published, exactly
+>   as F4's split Haiku/Sonnet result was.
+> - n=3 remains the floor. Reps are not traded for the model change.
+> - The cheapest-stage-decides rule: the gate becomes callable after **12 pairs (~$9.60)** — 30s and
+>   90s on both arms, chosen because those are the cuts Haiku already has, making the two models
+>   directly comparable at the same points. The remaining 18 pairs are resolution, not the decision,
+>   and must not consume the budget ahead of them.
+>
+> *A cost this amendment accepts openly:* Sonnet consumes the rate-limit window ~2.8× faster per
+> pair, so wall-clock time per window gets worse, not better. This is a trade of elapsed time for a
+> headline on the right model, and it is not sold as an efficiency.
+>
+> *Prior results invalidated:* none.
+
 ---
 
 ## 8. Open calls
@@ -377,12 +524,17 @@ has ever had, and it needs to be registered in advance to count as one.
 - **Whether the arm-level correction ships on its own, immediately.** Adding "arm-level p = 0.048,
   two arms" to the results table costs **$0** and is the one thing here that is strictly a
   *correction* rather than an improvement. It should arguably ship today, independent of whether
-  any of S1–S4 runs. Everything after it buys a *better finding*, not a fix.
-- **~~Whether the envelope reopens.~~ Resolved: reset to $150.** The open question that replaces it
-  is sharper — **does S3 (real compaction) run before or after S4 (Sonnet confirmation)?** As
-  ordered above, S3 comes first because it is the more interesting experiment; but S4 is what makes
-  the *existing* headline quotable, and it is half the price. Running S4 first is the conservative
-  choice and I would not argue against it.
+  any of S1–S3 runs. Everything after it buys a *better finding*, not a fix.
+- **~~Whether the envelope reopens.~~ Resolved: reset to $150.**
+- **~~Does S3 run before or after S4?~~ Dissolved by the model move.** S4 no longer exists, so the
+  ordering question it created is gone. S3 is now simply the last stage, and the only thing ahead of
+  it is S1's own gate.
+- **Whether to buy back the cross-model comparison S4 used to provide.** The Haiku curve is partial
+  and mostly unscored; completing it at the two gate cuts would cost roughly **$7** on Haiku's
+  measured $0.29/pair and would turn branch H from residue into a designed result. It is the
+  cheapest unclaimed finding on the table and there is ~$62 of headroom. I am not proposing it
+  before S1's gate, because a comparison between two curves is worthless until the first one has a
+  shape.
 - **Whether F5's seed is worth building at all** is decided by a $10 spike, not by this document.
   That is the one thing P3 taught that most needs carrying forward: both of its cap errors came from
   reasoning about a quantity instead of measuring it.
