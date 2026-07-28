@@ -10,9 +10,14 @@
 - **Model: Sonnet 5, every stage.** Reversed from the original Haiku sweep on 2026-07-28, before the
   first Sonnet sweep run, and pre-registered in `PROTOCOL.md §9`. See "The model move" below — it
   *removes* a stage rather than adding cost, and it is not sold as an efficiency.
-- **Status:** started. S0 is done and the oracle self-test passes; S1 has ~$3.47 of Haiku sweep
-  points on disk (30s/90s/120s, mostly unscored) which now stand as a free second-model curve.
-  Every number below labelled measured or projected.
+- **Status: S1 COMPLETE — Gate S1 returned BRANCH B.** On Sonnet 5 no cut orders `bare` against
+  `bare-intake`; the kill gate stopped the sweep at **$13.41** and the resolution cuts and S2 were
+  never bought. The retraction is narrower than the branch name: the ARM-level reading of F4 is
+  dead, while the FILE-level claim is *stronger* (p = 0.015 within one arm and one model), because
+  `bare-intake` turned out to be a probabilistic **trigger** firing 3/3 on Haiku and **3/8** on
+  Sonnet. Branch H fired alongside it. Published as F-17. Stage R (the v1.4.1 re-measure) sits
+  outside the S1 gate on its own registration and is in flight. Every number below labelled measured
+  or projected.
 
 ---
 
