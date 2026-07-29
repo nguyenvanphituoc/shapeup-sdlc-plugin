@@ -1,4 +1,0 @@
-{"schema_version":1,"at":"2026-07-25T06:25:36.708Z","kind":"pathology","pathology":"SAFETY","category":"destructive-fs","tool":"Bash","command":"rm -rf /"}
-{"schema_version":1,"at":"2026-07-25T06:25:36.738Z","kind":"pathology","pathology":"SAFETY","category":"git-destructive","tool":"Bash","command":"git push --force origin main"}
-{"schema_version":1,"at":"2026-07-25T17:40:18.369Z","kind":"pathology","pathology":"SAFETY","category":"destructive-fs","tool":"Bash","command":"git clean -fdx"}
-{"schema_version":1,"at":"2026-07-25T17:40:31.874Z","kind":"pathology","pathology":"SAFETY","category":"self-protect","tool":"Write","path":"/Users/teo/workspace/proj-harness-plugin/.shapeup-sdlc/safety-overrides.json"}
