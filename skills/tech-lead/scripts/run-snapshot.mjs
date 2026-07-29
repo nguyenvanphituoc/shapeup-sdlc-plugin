@@ -52,23 +52,51 @@ function frontmatter(text) {
 const MID_RUN = new Set(["orienting", "mapping", "building", "evaluating"]);
 
 /**
+ * Is this run still open, per its own ledger? Fails CLOSED — a missing or unreadable
+ * `harness-run.md` cannot be evidence that a run is in progress.
+ * @param {string} root - The `.shapeup-sdlc` directory.
+ * @param {string} slug - Run slug (a child directory of root).
+ * @returns {boolean} True when the run's frontmatter status is one of MID_RUN.
+ */
+function isMidRun(root, slug) {
+  const runPath = join(root, slug, "harness-run.md");
+  if (!existsSync(runPath)) return false;
+  try {
+    return MID_RUN.has(frontmatter(readFileSync(runPath, "utf8")).status);
+  } catch {
+    return false; // unreadable ledger → cannot claim the run is open
+  }
+}
+
+/**
  * Find the active run from files alone — the active-scope pointer, else a mid-run harness-run.md.
+ * Either way the run must be OPEN per its own ledger; a pointer alone is not enough.
  * @param {string} cwd - Working-directory root.
  * @returns {({slug:string, scope_id?:string}|null)} The active run's slug (and scope when pointed
  *   at one), or null when no run is in progress.
  */
 function findRun(cwd) {
-  const pointer = readJSON(join(cwd, ".shapeup-sdlc", "active-scope"));
-  if (pointer?.slug) return { slug: pointer.slug, scope_id: pointer.scope_id };
   const root = join(cwd, ".shapeup-sdlc");
   if (!existsSync(root)) return null;
+
+  // The pointer names the run the sandbox guard is scoping, NOT necessarily a run still open.
+  // `.shapeup-sdlc/active-scope` has existed since v0.3 and nothing has ever cleared it, because
+  // its original reader (sandbox-guard) fails OPEN on a stale one — a pointer at a finished run
+  // simply stops matching any substrate. session-rehydrate is the opposite kind of reader: it
+  // turns a pointer into "a run is ALREADY OPEN in this workspace … do NOT open a new run", and
+  // it now fires on `startup`/`clear`. Following the pointer without checking the run's status
+  // therefore made every cold session in every repo that had EVER run the harness open with a
+  // false claim about its own workspace — including sessions with nothing to do with the harness,
+  // and including the case where the user's next act is to open the run the injection forbids.
+  // This function's own contract (and session-rehydrate's header) always said "a run only for an
+  // active-scope pointer or a mid-run harness-run.md"; the status check is what makes that true.
+  const pointer = readJSON(join(root, "active-scope"));
+  if (pointer?.slug && isMidRun(root, pointer.slug)) {
+    return { slug: pointer.slug, scope_id: pointer.scope_id };
+  }
+
   for (const entry of readdirSync(root)) {
-    const runPath = join(root, entry, "harness-run.md");
-    if (!existsSync(runPath)) continue;
-    try {
-      const fm = frontmatter(readFileSync(runPath, "utf8"));
-      if (MID_RUN.has(fm.status)) return { slug: entry };
-    } catch { /* unreadable → not this one */ }
+    if (isMidRun(root, entry)) return { slug: entry };
   }
   return null;
 }

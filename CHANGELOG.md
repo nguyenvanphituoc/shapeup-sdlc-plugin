@@ -121,6 +121,38 @@ code and false of the installed product, for a reason no test in this repo could
 - Documented checks floor raised 450 → 640 (actual: 660). 22 guarded entry points are probed by
   three invocation paths each.
 
+### Fixed before release — three reflexes that fired on ordinary work
+
+Caught in review of this branch. Each was a mechanism 1.4.1 added or widened that was louder than
+the failure it detects, and each was a **regression against 1.4.0** rather than a gap: a user who
+upgraded would have been worse off than one who did not. A gate with that false-positive rate does
+not get tuned, it gets disabled — and it takes the true positives with it.
+
+- **A pointer at a closed run is not an open run** (`run-snapshot.mjs` `findRun`). Widening the
+  `session-rehydrate` matcher to `startup|clear` gave `.shapeup-sdlc/active-scope` a second reader
+  with the opposite disposition to its first. The pointer predates this version by four minor
+  releases and nothing has ever cleared it, because sandbox-guard fails *open* on a stale one. So
+  every cold session in every repo that had **ever** run the harness — including sessions with
+  nothing to do with it — opened with "a run is ALREADY OPEN in this workspace … do NOT open a new
+  run". Following the pointer now requires the run's own ledger to say it is mid-run; the function's
+  documented contract always claimed this, and the check is what makes it true. Fails closed.
+- **Talking about `/ship` is not dispatching it** (`gate-zerowork.mjs`). The detector matched
+  `/ship` anywhere in a user message, so "how does /ship decide the lane?" counted as an
+  orchestrator dispatch — and in a repo with no run, the answer to that question was a Stop block
+  instructing the model to bootstrap a feature nobody asked for. Anchored to the start of the
+  message, which is the only place the CLI dispatches a slash command from.
+- **A promise is not a completion claim** (`anti-rationalization.mjs`). An unfinished board
+  contradicts "it is done"; it is the *premise* of "I'll now run the evaluator". Checking the
+  future-tense half against the same facts as the past-tense half meant every healthy build round
+  ended with the hook reporting that the turn's own plan disagreed with the facts, citing as
+  evidence the very work the plan existed to do. Contradictions are now tense-aware: a promise is
+  contradicted only by a run that is already closed. The zero-work case that motivated future-tense
+  detection stays with `gate-zerowork.mjs`, which blocks on a mechanical absence rather than on
+  phrasing — as this file's own header already said it should.
+
+`tests/structural/10-run-receipt.mjs` §41 pins all three as **pairs** — the failure is still caught
+*and* the ordinary case is still silent — because a one-sided test is how each of these shipped.
+
 ### Migration — `scripts/shapeup-sdlc/migrations/0005__v141-enforcement-layer.sh`
 
 Almost all of 1.4.1 is code and arrives with `harness_replace_skills`. Two things are state in the

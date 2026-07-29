@@ -69,12 +69,24 @@ export function activeSlug(cwd) {
  * blocks on a mechanical absence rather than on phrasing. This one covers narration INSIDE a run
  * that did start.)
  */
+const FUTURE_CLAIM = /\b(will (?:now )?(?:run|orchestrate|execute|proceed|begin|start)|is orchestrating|I'?ll (?:now )?(?:run|start|begin|orchestrate)|going to (?:run|orchestrate|execute))\b/i;
+
 export function detectClaim(text) {
   if (!text || typeof text !== "string") return null;
   const past = /\b(done|complete(?:d)?|finished|shipped|ready to ship|all (?:tests|tasks) pass(?:ing|ed)?|everything works)\b/i.exec(text);
   if (past) return past[1];
-  const future = /\b(will (?:now )?(?:run|orchestrate|execute|proceed|begin|start)|is orchestrating|I'?ll (?:now )?(?:run|start|begin|orchestrate)|going to (?:run|orchestrate|execute))\b/i.exec(text);
+  const future = FUTURE_CLAIM.exec(text);
   return future ? future[0] : null;
+}
+
+/**
+ * Is this claim a promise about work still to come, rather than an assertion that work is done?
+ * The two are checked against DIFFERENT facts — see contradictions().
+ * @param {string} claim - The matched claim fragment from detectClaim().
+ * @returns {boolean} True for a future-tense promise.
+ */
+export function isFutureClaim(claim) {
+  return typeof claim === "string" && FUTURE_CLAIM.test(claim);
 }
 
 /** Read-only mechanical facts about the run — the evidence the claim is checked against. */
@@ -126,9 +138,37 @@ export function gatherFacts(cwd, slug) {
   return facts;
 }
 
-/** The facts that contradict a completion claim, as human-readable fragments. */
+/**
+ * The facts that contradict a claim, as human-readable fragments.
+ *
+ * TENSE DECIDES WHICH FACTS COUNT, and getting this wrong is what makes a hook get disabled.
+ * An unfinished board, a red T0 and unanswered escalates all contradict "it is done". NONE of
+ * them contradict "I am about to run the evaluator" — they are that sentence's PREMISE. Checking
+ * a promise against them meant every healthy build round ended with the hook announcing that the
+ * turn's own plan "disagrees with the facts", naming as evidence the very work the plan exists to
+ * do. This file's header calls an always-on nag "exactly the annoyance that gets hooks disabled",
+ * and the sibling future-tense detector in gate-zerowork.mjs is marked advisory for the same
+ * reason. So a promise is contradicted by one thing only: a run that is already CLOSED, where the
+ * promised work is never going to happen.
+ *
+ * The zero-work case that motivated future-tense detection — a session that dispatches, narrates
+ * "it will: 1…", and stops having written nothing — is gate-zerowork.mjs's, which blocks on a
+ * mechanical absence rather than on phrasing. It is not this hook's to double-report.
+ *
+ * @param {string} claim - The matched claim fragment from detectClaim().
+ * @param {object} facts - Mechanical facts from gatherFacts().
+ * @returns {string[]} Human-readable contradiction fragments; empty means the claim stands.
+ */
 export function contradictions(claim, facts) {
   const out = [];
+
+  if (isFutureClaim(claim)) {
+    if (facts.run_status === "shipped" || facts.run_status === "escalated") {
+      out.push(`run status is already "${facts.run_status}" — the run is closed, so the promised work cannot happen in it`);
+    }
+    return out;
+  }
+
   if (facts.unfinished.length > 0) {
     const named = facts.unfinished.slice(0, 5).join(", ");
     out.push(`${facts.unfinished.length} board task(s) not done (${named}${facts.unfinished.length > 5 ? ", …" : ""})`);

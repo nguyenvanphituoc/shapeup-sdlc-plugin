@@ -428,4 +428,119 @@ export async function run(ctx) {
       else fail("the fit-check does not state that it is advisory");
     }
   }
+
+
+  // =============================================================================
+  section("41. The v1.4.1 reflexes fire on the failure, and stay silent on ordinary work");
+  // =============================================================================
+  // Three mechanisms this version added or widened were, as shipped, louder than the failures they
+  // detect. Each fired on a session that was doing nothing wrong. A gate with a false-positive rate
+  // that high does not get tuned — it gets disabled, and it takes the true positives with it. So
+  // each check here is a PAIR: the failure is still caught, AND the ordinary case is still silent.
+  {
+    // -- (a) A pointer at a CLOSED run is not an open run ---------------------------------------
+    // `.shapeup-sdlc/active-scope` predates v1.4.1 by four minor versions and nothing has ever
+    // cleared it; its original reader (sandbox-guard) fails OPEN on a stale one, so nothing ever
+    // had to. session-rehydrate reads the same file with the opposite disposition — "a run is
+    // ALREADY OPEN … do NOT open a new run" — and now fires on `startup`/`clear`. Following the
+    // pointer without checking status made every cold session in every repo that had ever run the
+    // harness open with a false claim about its own workspace.
+    const RS = "skills/tech-lead/scripts/run-snapshot.mjs";
+    if (!existsSync(join(ROOT, RS))) {
+      fail(`${RS} is missing — nothing derives the run state`);
+    } else {
+      const { deriveSnapshot } = await import(`file://${join(ROOT, RS)}`);
+      const mk = (status) => {
+        const d = mkdtempSync(join(tmpdir(), "struct-stale-"));
+        mkdirSync(join(d, ".shapeup-sdlc", "demo"), { recursive: true });
+        writeFileSync(join(d, ".shapeup-sdlc", "active-scope"), JSON.stringify({ slug: "demo" }));
+        writeFileSync(join(d, ".shapeup-sdlc", "demo", "harness-run.md"),
+          `---\nfeature: demo\nstatus: ${status}\n---\n# run\n`);
+        return d;
+      };
+
+      if (deriveSnapshot(mk("shipped")) === null) {
+        ok("a pointer at a SHIPPED run derives no snapshot — a cold session is told nothing");
+      } else {
+        fail("a shipped run still derives a snapshot — every cold session in the repo would be " +
+             "told 'a run is ALREADY OPEN … do NOT open a new run' forever");
+      }
+
+      if (deriveSnapshot(mk("escalated")) === null) ok("an ESCALATED run likewise derives nothing");
+      else fail("an escalated run still derives a snapshot");
+
+      const live = deriveSnapshot(mk("building"));
+      if (live?.slug === "demo" && live.rehydrate_hint) {
+        ok("a pointer at a run still BUILDING derives the hint — the F4 handoff still works");
+      } else {
+        fail("a mid-run pointer stopped deriving — the fix broke the reflex it was protecting");
+      }
+
+      // A pointer with no ledger at all cannot be evidence of an open run.
+      const noLedger = mkdtempSync(join(tmpdir(), "struct-noledger-"));
+      mkdirSync(join(noLedger, ".shapeup-sdlc"), { recursive: true });
+      writeFileSync(join(noLedger, ".shapeup-sdlc", "active-scope"), JSON.stringify({ slug: "ghost" }));
+      if (deriveSnapshot(noLedger) === null) ok("a pointer at a run with no harness-run.md fails closed");
+      else fail("a pointer with no ledger behind it still claimed an open run");
+    }
+
+    // -- (b) Talking about /ship is not dispatching it -------------------------------------------
+    // A slash command IS the message — the CLI only dispatches one when it leads. Matching /ship
+    // anywhere in the text meant a session that merely ANSWERED A QUESTION about the harness was
+    // blocked at Stop and told to bootstrap a feature nobody asked for.
+    const ZW2 = "hooks/gate-zerowork.mjs";
+    if (existsSync(join(ROOT, ZW2))) {
+      const { dispatchedOrchestrator } = await import(`file://${join(ROOT, ZW2)}`);
+      const userMsg = (text) => [{ type: "user", message: { content: text } }];
+
+      if (!dispatchedOrchestrator(userMsg("how does /ship decide the lane?"))) {
+        ok("a QUESTION mentioning /ship is not a dispatch — the session may end in peace");
+      } else {
+        fail("a prose mention of /ship still counts as a dispatch — asking about the harness " +
+             "blocks Stop and orders an unasked-for build");
+      }
+      if (!dispatchedOrchestrator(userMsg("compare /ship and /shapeup for me"))) {
+        ok("a mid-sentence /ship is not a dispatch");
+      } else fail("a mid-sentence /ship still counts as a dispatch");
+
+      if (dispatchedOrchestrator(userMsg("/ship add category budgets"))) {
+        ok("a LEADING /ship is still a dispatch — the real front door still detected");
+      } else fail("the leading slash command stopped being detected — the gate is now blind");
+      if (dispatchedOrchestrator(userMsg("  /shapeup-sdlc-plugin:ship add budgets"))) {
+        ok("the namespaced spelling, with leading whitespace, is still a dispatch");
+      } else fail("the namespaced /…:ship spelling stopped being detected");
+    }
+
+    // -- (c) A promise is not a completion claim -------------------------------------------------
+    // An unfinished board contradicts "it is done". It is the PREMISE of "I'll now run the
+    // evaluator". Checking a promise against it made every healthy build round end with the hook
+    // announcing that the turn's own plan disagreed with the facts, citing as evidence the very
+    // work the plan existed to do.
+    const AR = "hooks/anti-rationalization.mjs";
+    if (existsSync(join(ROOT, AR))) {
+      const { contradictions, detectClaim, isFutureClaim } = await import(`file://${join(ROOT, AR)}`);
+      const midRun = { unfinished: ["TASK-002", "TASK-003"], red_t0: null, open_escalates: 1, run_status: "building", final_verdict: null };
+
+      const promise = detectClaim("I'll now run the evaluator for round 2.");
+      if (promise && isFutureClaim(promise)) ok("a future-tense promise is still recognised as a claim");
+      else fail("future-tense detection was lost entirely");
+
+      if (contradictions(promise, midRun).length === 0) {
+        ok("a promise on a healthy mid-run board raises NO contradiction — no nag on ordinary work");
+      } else {
+        fail("a promise mid-run is still contradicted by its own premise — the advisory fires on " +
+             `every normal round: ${contradictions(promise, midRun).join("; ")}`);
+      }
+
+      const closed = { ...midRun, unfinished: [], open_escalates: 0, run_status: "shipped" };
+      if (contradictions(promise, closed).length > 0) {
+        ok("a promise made on a CLOSED run is still contradicted — the real failure survives");
+      } else fail("a promise of work on a shipped run raises nothing");
+
+      const done = detectClaim("All tasks pass and the feature is complete.");
+      if (done && contradictions(done, midRun).length > 0) {
+        ok("a past-tense completion claim is still checked against the board");
+      } else fail("past-tense claims stopped being contradicted — the original detector is gone");
+    }
+  }
 }

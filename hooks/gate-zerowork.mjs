@@ -68,10 +68,17 @@ export function dispatchedOrchestrator(events) {
     }
     // The slash command is the other front door: `/shapeup-sdlc-plugin:ship …` arrives as user
     // text, and reaches tech-lead through commands/ship.md.
+    //
+    // ANCHORED TO THE START OF THE MESSAGE, deliberately. A slash command IS the message — the CLI
+    // only dispatches one when it leads. Matching `/ship` anywhere in the text meant "how does
+    // /ship decide the lane?" counted as a dispatch, and in a repo with no run that answer is a
+    // Stop block: the session refuses to end and the model is told to bootstrap a feature nobody
+    // asked for. A gate that fires on a session merely TALKING about the harness is a gate users
+    // turn off, and it takes the real zero-work block down with it.
     if (ev?.type === "user") {
       const c = ev?.message?.content ?? ev?.content;
       const text = typeof c === "string" ? c : Array.isArray(c) ? c.map((b) => b?.text || "").join("\n") : "";
-      if (/(^|\s)\/(?:[\w-]+:)?ship\b/.test(text)) return true;
+      if (/^\s*\/(?:[\w-]+:)?ship\b/.test(text)) return true;
     }
   }
   return false;
