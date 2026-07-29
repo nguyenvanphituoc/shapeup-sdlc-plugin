@@ -121,6 +121,33 @@ code and false of the installed product, for a reason no test in this repo could
 - Documented checks floor raised 450 → 640 (actual: 660). 22 guarded entry points are probed by
   three invocation paths each.
 
+### Migration — `scripts/shapeup-sdlc/migrations/0005__v141-enforcement-layer.sh`
+
+Almost all of 1.4.1 is code and arrives with `harness_replace_skills`. Two things are state in the
+target project and do not:
+
+- **The pipeline permission grant.** `npx shapeup-sdlc init` writes it for a *fresh* install; an
+  *upgrading* project runs `migrate.sh` and never touches `bin/init.mjs`, so without this step it
+  upgrades to a 1.4.1 that cannot take its own first step — `init-run.mjs` is GATE L0.1 and needs
+  approval no one is present to give in a headless run. The migration merges the same three narrow
+  prefixes by set-union, preserving every existing key and entry, and **refuses to rewrite a
+  `settings.json` it cannot parse** rather than clobbering a user file.
+- **A pre-1.4.1 `active-scope` pointer.** The pointer is not new — it has been the sandbox guard's
+  since v0.3, and nothing ever cleared it, because sandbox-guard fails *open* on a stale one. 1.4.1
+  gives the same file a second reader with the opposite disposition: `session-rehydrate` now runs at
+  `startup`/`clear` and reads a pointer as "a run is ALREADY OPEN … do NOT open a new run". A
+  pointer left by a run that ended months ago would hijack every new session in the project. The
+  migration parks one whose run has no `receipt.json` (therefore pre-1.4.1, therefore not resumable)
+  as `active-scope.pre-1.4.1`, and **leaves a pointer with a receipt alone** — that run may be
+  genuinely mid-flight, and stealing it would break the resume this version exists to enable.
+
+Scope stated plainly: this reconciles legacy state once. It is **not** a fix for the ongoing case —
+a 1.4.1 run that ships today still leaves its pointer behind. That belongs in the hook.
+
+Receipt-less legacy runs are flagged, never deleted. Verified against six target shapes: fresh
+project, populated `settings.json`, live-run pointer, unparsable `settings.json`, absent `node`, and
+a second application for idempotency.
+
 ## [1.4.0] — 2026-07-27
 
 ### Added — the benchmark-correction release
