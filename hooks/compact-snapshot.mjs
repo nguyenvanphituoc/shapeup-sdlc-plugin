@@ -12,6 +12,7 @@
 // Contract: PreCompact stdin JSON { cwd, trigger: "manual"|"auto" }.
 
 import { deriveSnapshot, writeSnapshot } from "../skills/tech-lead/scripts/run-snapshot.mjs";
+import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
 
 async function main() {
   const raw = await new Promise((res) => {
@@ -29,6 +30,6 @@ async function main() {
   process.exit(0);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   main();
 }

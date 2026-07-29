@@ -511,7 +511,7 @@
       }
     },
     "RunSnapshot": {
-      "description": "Mechanical mid-run state digest, derived ONLY from files (active-scope pointer, harness-run.md frontmatter, board frontmatter, t0/verdicts filenames, orders/ vs results/) — never from conversation memory. The compaction-resilience reflex: persisted by the PreCompact hook as an audit anchor, re-derived fresh and injected as additionalContext by the SessionStart(compact|resume) hook so the orchestrator re-reads the files instead of trusting a lossy summary.",
+      "description": "Mechanical mid-run state digest, derived ONLY from files (active-scope pointer, harness-run.md frontmatter, board frontmatter, t0/verdicts filenames, orders/ vs results/) — never from conversation memory. The compaction-resilience reflex: persisted by the PreCompact hook as an audit anchor, re-derived fresh and injected as additionalContext by the SessionStart(startup|compact|resume|clear) hook so the orchestrator re-reads the files instead of trusting a lossy summary — or, on a cold startup, instead of re-opening a run that is already open.",
       "x-tier": "LOCAL",
       "x-location": ".shapeup-sdlc/<slug>/run-snapshot.json (persisted by the compact-snapshot hook; also emitted ephemerally on stdout by run-snapshot.mjs)",
       "x-writer": "run-snapshot.mjs --write (invoked by the PreCompact hook — never a worker; this is LOCAL derived cache, ingest-result.mjs remains the sole writer of SHARED state)",

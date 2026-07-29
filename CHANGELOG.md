@@ -3,10 +3,251 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.4.1] — 2026-07-28
 
-**Discovery + friction release (P0/P1 of the market-position report).** The repo had rigor and
-no funnel: null description, no topics, a README that opened on install troubleshooting, one
+### Fixed — the enforcement layer was inert under an ordinary install, and said nothing
+
+v1.4.0's release note above claims that every mechanism it added "moves an invariant out of a
+prompt and into the runtime, which is the project's organising rule". That claim was true of the
+code and false of the installed product, for a reason no test in this repo could see.
+
+- **`skills/tech-lead/scripts/lib/is-main.mjs` — the entry-point guard, fixed in 26 files across
+  TWO different broken spellings.** Eighteen scripts and hooks gated their whole body on
+  `import.meta.url` compared against a template literal of `"file://"` and `process.argv[1]`. That
+  comparison is **false** — body skipped, **exit 0, no output** — whenever the invoked path is not
+  byte-identical to the resolved module URL, and two ordinary situations make it false:
+
+  1. **Any symlinked directory in the path.** Node resolves `import.meta.url` through symlinks;
+     `process.argv[1]` is the string as typed. On macOS `/var` is a symlink to `/private/var`, so
+     **every path under the system temp directory mismatches**. nvm, pnpm's content store, Homebrew
+     and any symlinked checkout do the same on every platform.
+  2. **Any space or URL-reserved character in the path.** `import.meta.url` is percent-encoded
+     (`My%20Plugins`); the template literal is not (`My Plugins`). A plugin under
+     `~/Library/Application Support/…` mismatches too.
+
+  The affected files include **all seven** hooks that carry a guard — `gate-zerowork`,
+  `safety-spine`, `sandbox-guard`, `anti-rationalization`, `slop-cleaner`, `session-rehydrate`,
+  `compact-snapshot` — plus `init-run`, `gate-answers`, `budget-check`, `t0-verify`, `fit-check`,
+  `aegis-digest`, `verdict-ledger` and the four oracles. Under a symlinked install the runtime half
+  of "gates are enforced, not requested" did nothing, **while every gate still reported success**.
+  A silent no-op is the worst failure an enforcement layer can have, because it is indistinguishable
+  from working.
+
+  Priced on `sdd-harness-bench`, which installs this plugin from a packed tarball under
+  `/var/folders/…` — i.e. into the failing shape. `init-run.mjs` is GATE L0.1, the mandatory first
+  call that writes the receipt everything else derives from; it exited 0 with empty stdout and wrote
+  nothing. The orchestrator could not tell "the run opened" from "nothing happened", and in the F4
+  handoff rows it spent **82–120 turns before its first write** doing forensics on its own
+  bootstrap — retrying the script six ways, hitting five separate permission refusals trying to
+  capture an exit code, and finally running `find /` to look for its own skill. Session B cost
+  **$4.57–$10.36** and closed **0/3** of the gap while the artifact it needed sat on disk.
+
+  `isMain()` compares resolved URL to resolved URL (`pathToFileURL` for encoding, `realpathSync`
+  for symlinks).
+
+  **A SECOND SPELLING, in eight more files, found only because the check was made structural.** The
+  first version of the new test grepped for the exact template literal. That was a blocklist, and it
+  missed:
+
+  ```js
+  const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  ```
+
+  `resolve()` normalises a path; it does **not** resolve symlinks — that is `realpathSync`. So this
+  form breaks under a symlinked directory exactly like the other one. It handles *encoding* correctly,
+  which is presumably why it reads as the careful version, and it carried the same silent-exit-0
+  failure. The eight: `validate-envelope`, `compile-order`, `ingest-result`, `run-snapshot`,
+  `trace-lint`, `board-derive`, `spec-lint`, `stats`.
+
+  **`validate-envelope.mjs` is the sharpest case in the whole release.** It is a registered
+  `PreToolUse` hook on `Skill|Agent`, and AGENTS.md describes it as the mechanism by which *"a
+  malformed envelope is denied by hook before it reaches a worker"*. Fed a dispatch against a
+  dangling order file:
+
+  | invoked via | behaviour |
+  |---|---|
+  | its real path | emits `permissionDecision: "deny"` — the worker is not dispatched |
+  | a symlinked path | **emits nothing** — which the CLI reads as allow |
+
+  `board-derive.mjs` and `spec-lint.mjs` are the graph-math and audit delegates AGENTS.md names for
+  `ba-pitch-analyzer`; both were inert the same way. The check is now structural rather than a
+  blocklist: in `bin/`, `hooks/`, `skills/` and `scripts/`, `import.meta.url` may not appear on the
+  same line as `process.argv[1]` at all. Any hand-rolled comparison fails whether or not its
+  particular spelling has been seen before — which is exactly how the second spelling surfaced.
+
+- **`skills/tech-lead/scripts/init-run.mjs` — the already-open-run refusal is a resume path now,
+  not a dead end.** Third defect in the same family: a runtime naming a mechanism that does not
+  exist, at the moment the agent most needs a next step. The refusal itself is right — re-opening a
+  live run would discard the round history the circuit breaker counts against — but it said *"Resume
+  it (`--from <slug>`)"*, and `--from` is not an init-run flag at all. It belongs to `/tech-lead` and
+  it takes a **phase** (`--from build`), not a slug. So on a cold start into an open run — exactly
+  the benchmark's F4 handoff — the only guidance on offer did not parse.
+
+  Exit 3 now emits the file-derived `RunSnapshot` in the same tool call (slug, status, round,
+  attempt, board counts, pending orders) and says plainly not to restart the pipeline from phase 1.
+  It hands over state instead of a suggestion. `--force` still documents the deliberate re-open.
+
+- **`hooks/session-rehydrate.mjs` — the continuity reflex now covers a cold start.** The matcher
+  was `compact|resume`. Both continue a conversation that still exists; the commonest continuity
+  event in practice has none — you close the terminal and come back tomorrow, or a teammate picks
+  the work up in a fresh checkout — and the CLI calls that `startup`. A reflex whose entire purpose
+  is *trust the files, not your memory* did not fire in the one case where there is no memory at
+  all. Matcher is now `startup|compact|resume|clear`, and on a cold start the injection leads with
+  the failure a fresh session actually makes: **a run is already open; resume it, do not re-open
+  it.** It stays silent when no run is in flight (`findRun` requires an `active-scope` pointer or a
+  mid-run `harness-run.md`), so ordinary sessions are unaffected.
+
+### Added — tests that could have caught it
+
+- **`tests/structural/11-is-main.mjs`.** Two layers, and the second is the mechanism. A grep floor
+  forbids reintroducing the fragile comparison; then **every guarded entry point is actually
+  executed through a symlinked directory and through a directory whose name contains a space**, and
+  must behave as it does by its real path. The entire pre-existing suite invoked scripts by their
+  real, space-free repo path — the one shape where the bug is invisible — which is why 610 passing
+  checks coexisted with an inert enforcement layer. Testing the *shape* of the code would have
+  caught nothing: the broken line looked exactly like the idiomatic one it was copied from.
+- The `session-rehydrate` matcher and its cold-start wording are pinned, so the reflex cannot
+  narrow back to `compact|resume` silently.
+- The `init-run` resume path is pinned by running it against a workspace with an open run: exit 3,
+  no `--from <slug>`, and the resume state present. The previous wording was equally plausible.
+- **`skills/tech-lead/SKILL.md` gains Step 1c** — which phase to re-enter at when exit 3 says a run
+  is already open (`orienting` → L1a, `mapping` → L1b, `building` → L2, `evaluating` → L3). The
+  branch previously had no procedure anywhere: `--from build` appeared once in a flags line and
+  nowhere else in 449 lines. The orchestrator prose ratchet is raised 450 → 460 to pay for it,
+  deliberately and with the reason recorded in the test — the rule is that prose must not regrow
+  *silently*. The mechanical half stayed in scripts and hooks where the rule wants it; these ten
+  lines are the part that has to live in the orchestrator's own instructions, because they say which
+  phase to resume from.
+- Documented checks floor raised 450 → 640 (actual: 660). 22 guarded entry points are probed by
+  three invocation paths each.
+
+### Fixed before release — three reflexes that fired on ordinary work
+
+Caught in review of this branch. Each was a mechanism 1.4.1 added or widened that was louder than
+the failure it detects, and each was a **regression against 1.4.0** rather than a gap: a user who
+upgraded would have been worse off than one who did not. A gate with that false-positive rate does
+not get tuned, it gets disabled — and it takes the true positives with it.
+
+- **A pointer at a closed run is not an open run** (`run-snapshot.mjs` `findRun`). Widening the
+  `session-rehydrate` matcher to `startup|clear` gave `.shapeup-sdlc/active-scope` a second reader
+  with the opposite disposition to its first. The pointer predates this version by four minor
+  releases and nothing has ever cleared it, because sandbox-guard fails *open* on a stale one. So
+  every cold session in every repo that had **ever** run the harness — including sessions with
+  nothing to do with it — opened with "a run is ALREADY OPEN in this workspace … do NOT open a new
+  run". Following the pointer now requires the run's own ledger to say it is mid-run; the function's
+  documented contract always claimed this, and the check is what makes it true. Fails closed.
+- **Talking about `/ship` is not dispatching it** (`gate-zerowork.mjs`). The detector matched
+  `/ship` anywhere in a user message, so "how does /ship decide the lane?" counted as an
+  orchestrator dispatch — and in a repo with no run, the answer to that question was a Stop block
+  instructing the model to bootstrap a feature nobody asked for. Anchored to the start of the
+  message, which is the only place the CLI dispatches a slash command from.
+- **A promise is not a completion claim** (`anti-rationalization.mjs`). An unfinished board
+  contradicts "it is done"; it is the *premise* of "I'll now run the evaluator". Checking the
+  future-tense half against the same facts as the past-tense half meant every healthy build round
+  ended with the hook reporting that the turn's own plan disagreed with the facts, citing as
+  evidence the very work the plan existed to do. Contradictions are now tense-aware: a promise is
+  contradicted only by a run that is already closed. The zero-work case that motivated future-tense
+  detection stays with `gate-zerowork.mjs`, which blocks on a mechanical absence rather than on
+  phrasing — as this file's own header already said it should.
+
+`tests/structural/10-run-receipt.mjs` §41 pins all three as **pairs** — the failure is still caught
+*and* the ordinary case is still silent — because a one-sided test is how each of these shipped.
+
+### Migration — `scripts/shapeup-sdlc/migrations/0005__v141-enforcement-layer.sh`
+
+Almost all of 1.4.1 is code and arrives with `harness_replace_skills`. Two things are state in the
+target project and do not:
+
+- **The pipeline permission grant.** `npx shapeup-sdlc init` writes it for a *fresh* install; an
+  *upgrading* project runs `migrate.sh` and never touches `bin/init.mjs`, so without this step it
+  upgrades to a 1.4.1 that cannot take its own first step — `init-run.mjs` is GATE L0.1 and needs
+  approval no one is present to give in a headless run. The migration merges the same three narrow
+  prefixes by set-union, preserving every existing key and entry, and **refuses to rewrite a
+  `settings.json` it cannot parse** rather than clobbering a user file.
+- **A pre-1.4.1 `active-scope` pointer.** The pointer is not new — it has been the sandbox guard's
+  since v0.3, and nothing ever cleared it, because sandbox-guard fails *open* on a stale one. 1.4.1
+  gives the same file a second reader with the opposite disposition: `session-rehydrate` now runs at
+  `startup`/`clear` and reads a pointer as "a run is ALREADY OPEN … do NOT open a new run". A
+  pointer left by a run that ended months ago would hijack every new session in the project. The
+  migration parks one whose run has no `receipt.json` (therefore pre-1.4.1, therefore not resumable)
+  as `active-scope.pre-1.4.1`, and **leaves a pointer with a receipt alone** — that run may be
+  genuinely mid-flight, and stealing it would break the resume this version exists to enable.
+
+Scope stated plainly: this reconciles legacy state once. It is **not** a fix for the ongoing case —
+a 1.4.1 run that ships today still leaves its pointer behind. That belongs in the hook.
+
+Receipt-less legacy runs are flagged, never deleted. Verified against six target shapes: fresh
+project, populated `settings.json`, live-run pointer, unparsable `settings.json`, absent `node`, and
+a second application for idempotency.
+
+## [1.4.0] — 2026-07-27
+
+### Added — the benchmark-correction release
+
+Four mechanisms, each a direct response to a failure measured on `sdd-harness-bench` — the
+harness's own benchmark, in which it was the only arm that failed to finish a feature and the only
+arm to score below 100%. Every one of these moves an invariant out of a prompt and into the
+runtime, which is the project's organising rule; each was living in a prompt precisely because
+prompts are what get dropped, paraphrased, or summarised.
+
+- **`scripts/init-run.mjs` — the run receipt (GATE L0.1).** The orchestrator's first tool call,
+  before any prose. Writes `receipt.json`, `intake.md` (the requirement verbatim + SHA-256),
+  `harness-run.md`, and `active-scope`. It supplies the one fact the system was missing: *a run
+  started*. Every prior guard could only observe what a run **did**, so a run that did nothing was
+  invisible to all of them.
+- **`hooks/gate-zerowork.mjs` — the zero-work block (Stop, blocking).** Blocks a session that
+  dispatched `tech-lead` and left no receipt. Measured cause: given a *valid* spec, the
+  orchestrator loaded a 450-line instruction file describing eleven gates and returned a
+  description of eleven gates — "The tech-lead skill is orchestrating the full Shape Up harness.
+  It will: 1. …" — then ended. 29% acceptance, 10 escaped defects, 5/5 with zero variance, and
+  prose that read like a clean run. Both existing guards structurally could not see it: one is
+  scoped to an active run (a run that never started leaves no files), and the other matched
+  past-tense completion claims while narration is *future*-tense. This one blocks on a mechanical
+  absence, so no phrasing can change its verdict. It does not violate "QA is a level-up, not a
+  gate": it makes no quality judgment, it reports that no work exists to judge.
+- **`scripts/gate-answers.mjs` + `schemas/gate-answers.schema.json` — pre-recorded gate
+  decisions.** Sign-off was the last load-bearing invariant still carried in prose, and prose
+  consent is consent that can be paraphrased — Sonnet 5 acted on it, Haiku 4.5 re-summarised it.
+  Presets `ci` / `guarded` / `interactive`; the orchestrator resolves each gate through the script
+  and branches on the exit code (`0` cross, `4` stop for the PO, `5` abort). **Not "gates off":**
+  every gate still emits its block and still records a decision — what changes is the decision's
+  *source*, which the ledger names along with the set's `authorized_by`. `--verify` catches a set
+  that would stall a headless lane in ten seconds instead of at the wall-clock cap.
+- **The third circuit breaker — `scripts/budget-check.mjs` + `hooks/gate-deadline.mjs`.** Both
+  existing breakers count *events* (`round_budget` per round, `attempt_budget` per T0 attempt), so
+  neither can observe that a single round has been running for half an hour. Re-reading the
+  benchmark's F3 timeout showed 327 turns, 262 tool calls, 37 writes, last gate L3 and **zero**
+  stall signals — it was working, not waiting, and was killed from outside having shipped nothing,
+  including the scopes that had already passed T0. Past the deadline the hook denies new
+  `task-executor` work and routes to GATE H; `spec-evaluator`, `scope-hammer`, `qa-edge-hunter`
+  and `advisor-protocol` stay reachable, because a run past its deadline must still be able to
+  judge, hammer and close. Opt-in (`--wall-clock-budget`); off by default, no regression.
+
+- **`scripts/fit-check.mjs` — the lane, computed rather than judged (GATE L0.3).** The harness
+  already knew F1 was small ("squarely inside the --tiny lane", pilot transcript) and ran the full
+  pipeline anyway, because the lane was a judgment a model can talk itself out of. Measured cost:
+  a three-file feature never once completed the eleven-gate pipeline across four benchmark
+  attempts, and every fix that treated it as a breaker problem improved the *failure* without
+  shortening the *run*. The lane is now computed at run-open from the intake and the tree, recorded
+  in the receipt with its evidence, and `--lane` overrides are recorded AS overrides. Conservative
+  by construction: `full` is the default and `tiny` must be earned on every axis, because a wrong
+  `tiny` skips gates on a change that needed them while a wrong `full` only costs money. Thresholds
+  are fitted on three features and the tool says so on every invocation. (The first version asked
+  "is there evidence this is big?" and defaulted to tiny — it classified all three benchmark
+  features as tiny, including the five-seam one. Discarded rather than tuned.)
+
+### Changed
+- **`skills/tech-lead/SKILL.md` opens with a runbook, not an architecture.** The first screen is
+  now four imperative steps beginning with a tool call; the state model moved to
+  `references/state-model.md`. Everything before the first tool call is narration surface, and a
+  450-line description of a pipeline is what a cheap model returns a description of.
+- **`hooks/anti-rationalization.mjs` also detects a future-tense promise** left as the session's
+  last word. A promise at the *end* of a session is a completion claim wearing different grammar.
+- The circuit breaker is documented as **three-level** throughout.
+
+### Also in 1.4.0 — discovery + friction (P0/P1 of the market-position report)
+
+The repo had rigor and no funnel: null description, no topics, a README that opened on install troubleshooting, one
 slash command, a Playwright prerequisite for runs that never touch a browser, and no lane for
 small changes. This release is that fix — almost no mechanism changes, a lot of front door.
 

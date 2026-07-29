@@ -21,8 +21,8 @@
 
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { validate } from "./validate-envelope.mjs";
+import { isMain } from "./lib/is-main.mjs";
 
 /**
  * Read every metrics shard, partitioning valid rows, pathology rows, and malformed lines.
@@ -176,8 +176,8 @@ function renderTable(report) {
 
 // --- CLI -----------------------------------------------------------------------
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (isMain) {
+const isMainModule = isMain(import.meta.url);
+if (isMainModule) {
   const args = process.argv.slice(2);
   /**
    * Read a CLI flag's value.

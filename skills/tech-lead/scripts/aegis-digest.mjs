@@ -10,6 +10,8 @@
 //
 // Zero dependencies, zero network — same discipline as scripts/oracles/*.
 
+import { isMain } from "./lib/is-main.mjs";
+
 const PATTERNS = [
   // Node stack frame:  "    at fn (path/to/file.js:12:34)"  or  "    at path/to/file.js:12:34"
   { re: /^\s*at\s+(?:[\w.$<>\[\] ]+\s+\()?(.+?):(\d+):\d+\)?\s*$/, kind: "stack-frame" },
@@ -110,6 +112,6 @@ async function main() {
   process.exit(0);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   main();
 }

@@ -29,6 +29,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 
 import { resolve, join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validate } from "./validate-envelope.mjs";
+import { isMain } from "./lib/is-main.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ORDER_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../schemas/work-order.schema.json"), "utf8"));
@@ -249,8 +250,8 @@ export function compileOrder({
 }
 
 // ---------------------------------------------------------------------------
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (isMain) {
+const isMainModule = isMain(import.meta.url);
+if (isMainModule) {
   const args = process.argv.slice(2);
   /**
    * Read a `--<name> <value>` CLI flag's value, ignoring a following token that is itself a flag.

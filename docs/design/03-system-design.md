@@ -125,35 +125,105 @@ lands it into shared state (§3.1).
 
 ## 3.2 — Runtime-enforced guardrails (hooks)
 
-Four `PreToolUse` hooks turn the harness's load-bearing rules from things the model is asked
+Five `PreToolUse` hooks turn the harness's load-bearing rules from things the model is asked
 to respect into things it cannot get past:
 
 | Hook | Fires on | Enforces |
 |---|---|---|
 | `safety-spine.mjs` | `Bash` / `Read` / `Edit` / `Write` / `MultiEdit` | Denies the provably destructive operations no session ever legitimately needs: `rm -rf` on unrecoverable targets, force-push and push-to-main, `git reset --hard`, `DROP TABLE`/`TRUNCATE`, and secret-file reads (`.env`, `*.pem`, ssh keys, cloud credentials) via shell readers or the `Read` tool. Unlike the other three, it guards the **machine**, not the pipeline. The only escape hatch is the human-authored `.shapeup-sdlc/safety-overrides.json` (schema: `SafetyOverrides`) — mechanically self-protected, and every exercised override is logged to the metrics shard as a `SAFETY-OVERRIDE` pathology row. |
 | `gate-l2.mjs` | `Skill → spec-evaluator` (round mode) | Denies the once-per-round EVAL unless every task on the board reads `done` — reading both task frontmatter and the board table independently, and naming the unfinished tasks in the denial. |
+| `gate-intake.mjs` | `Skill → tech-lead` | Denies an orchestrator dispatch with no resolvable intake — no `--pitch`, no `--spec`, no `--from` resume, and no free requirement text. Closes the harness's own front door: measured on `sdd-harness-bench` (F2 / Haiku 4.5, n=3, zero variance), a `tech-lead` reached as `args:"--unattended"` lost the requirement text on the hand-off, printed eleven gate names and a plan, wrote no code, and scored 29% while reading as a successful run — the same "claims done" pathology the harness exists to prevent, at its own entry point. Fails open on `--order` (the envelope port owns that path) and on any ambiguous arg shape. |
+| `gate-deadline.mjs` | `Skill → task-executor` | Denies a dispatch that would start new build work once the run's opt-in `wall_clock_budget_s` is spent, routing to GATE H instead. **Deliberately does not deny `spec-evaluator`, `scope-hammer`, `qa-edge-hunter` or `advisor-protocol`** — a run past its deadline must still be able to judge, hammer and close, and a breaker that blocked the exit would strand green scopes it could not ship. It exists because the benchmark's F3 DNF turned out not to be a stall at all: the retained transcript shows 327 turns, 262 tool calls, 37 writes, last gate L3 and **zero** stall signals. The harness was working when the clock ran out, and both existing breakers count *events* (rounds, T0 attempts) so neither could see it. Off unless a budget is configured. |
 | `validate-envelope.mjs` | `Skill` / `Agent` | Denies any worker dispatch whose `--order` file is missing or fails the WorkOrder schema — a malformed envelope never reaches a worker. |
 | `sandbox-guard.mjs` | `Edit` / `Write` / `MultiEdit` | Denies a write outside the active scope's `allowed_file_substrate`, with a carve-out for the scope's own local run-trace root so it can still update its own board. |
 
-All four are deliberately **fail-open** when there's nothing to verify (no active scope, no
-board, unparseable input) and **fail-closed** the instant they can prove a violation — a guard
+All five are deliberately **fail-open** when there's nothing to verify (no active scope, no
+board, no configured budget, unparseable input) and **fail-closed** the instant they can prove a violation — a guard
 that broke legitimate standalone runs would just get disabled, defeating the point of having it.
 (The safety spine adds one asymmetry: a *malformed overrides file* fails **closed** — treated
 as absent — because a parse error must never disable the spine.)
 
-## 3.2b — Advisory hooks (Stop)
+## 3.2b — The zero-work block (Stop, blocking)
+
+One `Stop`-event hook may block, and its predicate is why the invariant survives intact.
+
+| Hook | Fires on | Enforces |
+|---|---|---|
+| `gate-zerowork.mjs` | Session end | Blocks a session that **dispatched the orchestrator and left no run receipt** — no `.shapeup-sdlc/<slug>/receipt.json`, which `init-run.mjs` writes as the run's first act (§3.2d). |
+
+**Why it exists.** Measured on `sdd-harness-bench` (F2 / Haiku 4.5, n=5, zero variance): given a
+*valid* spec, the orchestrator loaded a 450-line instruction file describing eleven gates and
+returned a description of eleven gates — "The tech-lead skill is orchestrating the full Shape Up
+harness. It will: 1. …" — then ended. No code, no board, no gate artifacts, and prose that reads
+like a successful run. 29% acceptance, 10 escaped defects.
+
+**Why nothing already caught it.** Two guards existed and both missed it for independent
+structural reasons, which is the finding worth keeping:
+
+1. `gate-intake.mjs` fires on an *empty* intake. Intake was valid. Correct no-op.
+2. `anti-rationalization.mjs` is scoped to an *active* run, and a run that never started
+   produces none of the files it reads — it catches "claimed done on a half-green board" and
+   misses "claimed done with no board at all". Its claim detector also matched only past-tense
+   completion, while narration is future-tense. **The emptier the failure, the less of it there
+   was to detect.**
+
+**Why blocking here does not violate "QA is a level-up, not a gate."** That invariant forbids a
+second *judge* behind `spec-evaluator`. This hook makes no judgment about quality — it reports
+that no work exists to judge, from a mechanical absence that no phrasing can change. Blocking is
+also uniquely safe in this state: a session with zero artifacts has nothing to lose by
+continuing, and an *advisory* note at the end of a narrated run simply gets narrated too.
+Everything ambiguous fails open, and `stop_hook_active` caps it at one block per stop chain.
+
+## 3.2c — Advisory hooks (Stop)
 
 Two `Stop`-event hooks review the session as it ends — and, by architectural invariant, may
-only **inform**, never block. "QA is a level-up, not a gate": a blocking Stop hook would be a
-second gate behind the single judge, so both hooks exit 0 always and emit at most a
-`systemMessage`, never a `decision`. Both are harness-scoped — silent unless a run is active.
+only **inform**, never block. "QA is a level-up, not a gate": an advisory hook here cannot be a
+second gate behind the single judge, so both exit 0 always and emit at most a `systemMessage`,
+never a `decision`. Both are harness-scoped — silent unless a run is active.
 
 | Hook | Checks | Says |
 |---|---|---|
-| `anti-rationalization.mjs` | The final message claims completion ("done", "all tests pass", "ready to ship") while the run's mechanical facts disagree: unfinished board tasks, a red T0 verdict, unanswered escalates, `final_verdict: fail`. | Names the specific contradicting facts, out loud, to the user. |
+| `anti-rationalization.mjs` | The final message claims completion ("done", "all tests pass", "ready to ship") — **or promises it in future tense** ("will now run", "is orchestrating") as the session's last word — while the run's mechanical facts disagree: unfinished board tasks, a red T0 verdict, unanswered escalates, `final_verdict: fail`. | Names the specific contradicting facts, out loud, to the user. |
 | `slop-cleaner.mjs` | The session's diff (git working tree; fallback: the newest WorkResult's `files_touched`) carries leftovers in **added lines**: TODO/FIXME, `console.log`/`debugger`, commented-out code blocks, one file swallowing 400+ added lines. | Lists the files and markers, suggests a cleanup pass. |
 
-## 3.2c — Compaction resilience (PreCompact + SessionStart)
+## 3.2d — The run receipt and the gate answer set
+
+Two small scripts in `skills/tech-lead/scripts/` close the two failures the benchmark surfaced.
+Both follow the same rule as the hooks: move the invariant out of the prompt and into the runtime.
+
+**`init-run.mjs` — the run receipt (GATE L0.1).** The orchestrator's first tool call, before any
+prose. It writes `receipt.json`, `intake.md` (the requirement verbatim, plus its SHA-256),
+`harness-run.md`, and `active-scope`. It supplies the fact that was missing from the system: *a
+run started*. Every prior guard could only observe what a run **did**, so a run that did nothing
+was invisible to all of them; the receipt makes starting observable independently of progress.
+Recording the intake digest also makes "the spec was dropped on the hand-off" a checkable claim
+rather than an arguable one — the benchmark's first diagnosis was exactly that, and nothing on
+disk could settle it either way.
+
+**`gate-answers.mjs` — pre-recorded gate decisions.** Sign-off was the last load-bearing
+invariant still living in a prompt, and it failed in both directions:
+
+- *Stall.* An unattended run with no human waits at the first ⏸ until the wall-clock budget
+  expires. On benchmark F3 that produced a DNF at 1800 s on a feature the no-harness control
+  finished in 51 s. A wait is indistinguishable from work until the budget runs out.
+- *Consent-by-prose.* The workaround was a paragraph in the prompt ("treat this as advance
+  sign-off for every gate"). It worked on Sonnet 5 and was re-summarised instead of acted on by
+  Haiku 4.5. Consent carried in prose is consent that can be paraphrased.
+
+The answer set is a schema-validated file (`schemas/gate-answers.schema.json`) mapping each gate
+id to a decision, with presets `ci` / `guarded` / `interactive`. The orchestrator **resolves**
+each gate through the script and branches on its exit code — `0` cross, `4` stop and put the
+block to the PO, `5` abort — so a crossing is produced by a tool, not by the model's reading of a
+paragraph.
+
+This is **not "gates off."** Every gate still emits its block and still records a decision; what
+changes is the decision's *source*, which the ledger names (`preset:ci`, plus the set's
+`authorized_by`). An audited bypass and a rubber stamp differ by exactly that record. And
+`on_missing: "abort"` — the default for headless presets — converts the stall into a fast,
+attributable failure: "GATE L4 has no pre-recorded answer" in ten seconds beats a silent
+half-hour that gets reported as a slow harness.
+
+## 3.2e — Compaction resilience (PreCompact + SessionStart)
 
 Nothing on disk is ever lost to a context compaction — the two-root storage design (§3.3)
 already guarantees that. The residual risk is the orchestrator *continuing on a degraded
@@ -168,10 +238,24 @@ The resilience pair makes re-reading the files a reflex:
 - **`compact-snapshot.mjs`** (PreCompact) persists that snapshot to
   `.shapeup-sdlc/<slug>/run-snapshot.json` before compaction. PreCompact provably cannot
   inject context, so this hook is a pure side effect: the audit anchor and fallback.
-- **`session-rehydrate.mjs`** (SessionStart, matcher `compact|resume`) re-derives the snapshot
-  **fresh** and injects its `rehydrate_hint` as `additionalContext`: *"re-read
+- **`session-rehydrate.mjs`** (SessionStart, matcher `startup|compact|resume|clear`) re-derives the
+  snapshot **fresh** and injects its `rehydrate_hint` as `additionalContext`: *"re-read
   `.shapeup-sdlc/<slug>/harness-run.md` and the board before continuing — trust the files, not
   the conversation summary."*
+
+  The matcher was `compact|resume` until v1.4.1, and that was a real gap rather than a scoping
+  choice. Both of those sources continue a conversation that still exists; the commonest continuity
+  event in practice has none — you close the terminal and come back tomorrow, or a teammate picks
+  the work up in a fresh checkout, and the CLI calls that `startup`. A reflex whose whole purpose is
+  *trust the files, not your memory* did not fire in the one case where there is no memory at all.
+
+  The SDD harness benchmark priced it. Its handoff design is exactly that scenario, and across three
+  Sonnet rows the orchestrator re-entered at phase 1 with no pointer to the open run: **82–120 turns
+  before the first write, $4.57–$10.36 per session, and 0/3 of the gap closed** while the receipt and
+  board sat on disk. One row reached GATE L4 having advanced the deliverable by zero criteria. On a
+  cold start the injection therefore leads with the failure that actually happens — *a run is already
+  open, resume it, do not re-open it* — rather than with a generic pointer to the files, which a
+  competent agent finds anyway.
 
 ## 3.3 — Two storage roots
 

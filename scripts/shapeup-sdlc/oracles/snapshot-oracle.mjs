@@ -28,6 +28,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 import { CRASH_RE, formatReport } from "./_shared.mjs";
+import { isMain } from "../../../skills/tech-lead/scripts/lib/is-main.mjs";
 
 // Normalize so trailing spaces and final-newline differences never cause a spurious FAIL.
 function normalize(s) {
@@ -99,7 +100,7 @@ export function runContract({ cmd, criteria, baseDir = "." }) {
 export { formatReport };
 
 // --- CLI entry ---------------------------------------------------------------
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   const contractPath = process.argv[2];
   const cmd = process.argv[3];
   if (!contractPath || !cmd) {

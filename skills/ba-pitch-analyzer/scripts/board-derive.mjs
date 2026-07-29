@@ -20,7 +20,7 @@
 
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { isMain } from "../../tech-lead/scripts/lib/is-main.mjs";
 
 /**
  * Read an inline `[a, b]` list field from a frontmatter string.
@@ -200,8 +200,8 @@ export function writeUnlocks(report) {
   return written;
 }
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (isMain) {
+const isMainModule = isMain(import.meta.url);
+if (isMainModule) {
   const args = process.argv.slice(2);
   /**
    * Read a `--<n> <value>` CLI flag's value.

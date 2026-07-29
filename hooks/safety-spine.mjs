@@ -33,6 +33,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, join, basename } from "node:path";
 import { globToRegExp, logPathology } from "./sandbox-guard.mjs";
+import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
 
 const defer = () => process.exit(0);
 
@@ -284,6 +285,6 @@ async function main() {
   defer();
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   main();
 }

@@ -175,7 +175,7 @@ every arm is skipped when its artifact is absent, so older specs are unaffected.
 | Advisor (mid-build) | `advisor-protocol` | v0.1 | Adjudicates a worker's structured `ESCALATE` (design decision / spec ambiguity / substrate expansion) within a per-scope-per-round budget; persists answers to the committed round ledger so they survive a zero-memory reset. |
 | Stop (11) | `scope-hammer` | v0.1 | GATE H: must-have census → baseline comparison (never vs. the ideal) → cut list + ship verdict. Handles the normal stop and both circuit-breaker triggers. |
 | Retro (post-L4) | `coach` | — | RLHF for the harness: turns raw PO/TL feedback at Ship Sign-off into per-skill guidelines under committed `docs/shapeup-sdlc/knowledge-base/<skill>.md`, read back by `task-executor` / `ba-pitch-analyzer` / `qa-edge-hunter` on their next run. GATE COACH-1 asks the PO which skill owns each rule — never assumes; mechanism defects are filed to the harness-defect register instead. |
-| Orchestrator | `tech-lead` | v1.0 | Owns the run end-to-end: PLAN once → BUILD all tasks → EVAL once per round, looping on FAIL. Two-level circuit breaker, T0/seesaw-verified build rounds, mechanical hill derivation. Sole writer of run-state. |
+| Orchestrator | `tech-lead` | v1.0 | Owns the run end-to-end: PLAN once → BUILD all tasks → EVAL once per round, looping on FAIL. Three-level circuit breaker (rounds / T0 attempts / wall clock), T0/seesaw-verified build rounds, mechanical hill derivation. Sole writer of run-state. |
 
 ### Commands
 
@@ -203,13 +203,26 @@ learnable from `/`-completion alone.
 
 ### Hooks
 
-Seven Node hooks. What each one reads and what it can deny:
+Nine Node hooks. What each one reads and what it can deny:
 
 - `SessionStart` — prints a load confirmation so you know the plugin is active; on
-  `compact|resume`, `hooks/session-rehydrate.mjs` additionally injects the mid-run
-  `RunSnapshot` hint ("trust the files, not the summary") when a harness run is in flight.
+  `startup|compact|resume|clear`, `hooks/session-rehydrate.mjs` additionally injects the mid-run
+  `RunSnapshot` hint ("trust the files, not the summary") when a harness run is in flight. On a
+  cold `startup` it leads with the stronger sentence — *a run is already open; resume it, do not
+  re-open it* — because that is the failure a fresh session actually makes. Silent when no run is
+  in flight, which is the ordinary case.
 - `PreToolUse` (matcher `Skill`) — **`hooks/gate-l2.mjs` hard-blocks the once-per-round EVAL
   delegation while the task board isn't fully green.** This is the gate in the demo above.
+- `PreToolUse` (matcher `Skill`) — **`hooks/gate-intake.mjs` denies a `tech-lead` dispatch that
+  carries no pitch, no spec folder, and no requirement text.** Measured on the SDD harness
+  benchmark: when the requirement text was dropped on the hand-off and only a flag survived, the
+  run printed the gate list, built nothing, and scored 29% against a hidden acceptance suite while
+  looking like a success (n=3, zero variance). An orchestrator with no spec now fails loudly
+  instead of narrating.
+- `PreToolUse` (matcher `Skill`) — **`hooks/gate-deadline.mjs` denies a `task-executor` dispatch
+  once the run's opt-in wall-clock budget is spent**, routing to GATE H instead. `spec-evaluator`,
+  `scope-hammer`, `qa-edge-hunter` and `advisor-protocol` stay reachable — a run past its deadline
+  must still be able to judge, hammer and close. Off unless a budget is configured.
 - `PreToolUse` (matcher `Bash|Read|Write|Edit|MultiEdit`) — `hooks/safety-spine.mjs` denies
   destructive commands (`rm -rf` on unrecoverable targets, force-push/push-to-main,
   `git reset --hard`, `DROP TABLE`) and secret-file reads. Machine guard, not pipeline guard;
@@ -218,10 +231,20 @@ Seven Node hooks. What each one reads and what it can deny:
   outside the active scope's substrate whitelist (no-op unless scope contracts exist).
 - `PreToolUse` (matcher `Skill|Agent`) — `skills/tech-lead/scripts/validate-envelope.mjs`
   denies any worker dispatch whose order file is missing or schema-invalid.
+- `Stop` — **`hooks/gate-zerowork.mjs` blocks a session that dispatched the orchestrator and
+  left no run receipt.** The one blocking `Stop` hook, and the narrowest: its predicate is
+  mechanical — orchestrator dispatched AND no `.shapeup-sdlc/<slug>/receipt.json` — so it never
+  judges quality, it reports that no work exists to judge. It exists because the benchmark caught
+  this harness describing its own pipeline instead of running it (Haiku 4.5, n=5, zero variance,
+  29% acceptance) while both existing guards structurally could not see it: one is scoped to an
+  active run, and a run that never started leaves no files; the other matches past-tense
+  completion claims, and narration is future-tense. Fails open on everything ambiguous, and
+  `stop_hook_active` caps it at one block per stop chain.
 - `Stop` — two **advisory, never-blocking** hooks (`hooks/anti-rationalization.mjs` flags
-  completion claims the board/T0 facts contradict; `hooks/slop-cleaner.mjs` flags TODO/
-  `console.log`/commented-out-code leftovers in the session's diff). They emit at most a
-  `systemMessage` — "QA is a level-up, not a gate."
+  completion claims the board/T0 facts contradict — including a future-tense promise left as the
+  session's last word; `hooks/slop-cleaner.mjs` flags TODO/`console.log`/commented-out-code
+  leftovers in the session's diff). They emit at most a `systemMessage` — "QA is a level-up, not
+  a gate."
 - `PreCompact` — `hooks/compact-snapshot.mjs` persists the mid-run `RunSnapshot` to
   `.shapeup-sdlc/<slug>/run-snapshot.json` before the conversation is compacted.
 
@@ -242,9 +265,11 @@ These hold across the harness and are the reason it stays predictable:
 - **Ledger is the single source of truth** — orient, task-executor, and QA all write to `discovery/ledger.md`.
 - **QA is a level-up, not a gate** — `--no-qa` skips it; the circuit breaker outranks the hunter; findings default to `~`.
 - **Role separation** — evaluator grades, task-executor fixes, QA discovers; no one does another's job.
-- **Two-level circuit breaker** — an outer `round_budget` (build+eval cycles) nests an inner
+- **Three-level circuit breaker** — an outer `round_budget` (build+eval cycles) nests an inner
   per-scope `attempt_budget` (T0 attempts); an exhausted scope queues a GATE H proposal instead
-  of blocking the round.
+  of blocking the round. An opt-in third breaker bounds the **wall clock**, because the other two
+  count events and neither can notice a single round running for half an hour — tripping it routes
+  to GATE H, so a run out of time ships what is green instead of being killed and shipping nothing.
 - **Hill phase is mechanical, never self-reported** — derived only from T0/T1/seesaw facts, closing
   the self-reported-confidence risk outright.
 - **One writer per shared file** — every board/ledger/verdict write goes through
@@ -286,15 +311,17 @@ claude --plugin-dir .                # load this working copy without installing
   plugin.json         # plugin manifest
   marketplace.json    # marketplace listing (points at this repo)
 skills/<name>/SKILL.md # the 13 harness skills (+ references/ and assets/)
-skills/tech-lead/scripts|schemas/        # orchestrator pipeline: compile-order, ingest-result,
-                                         #   validate-envelope, t0-verify, trace-lint,
-                                         #   aegis-digest, run-snapshot, stats + envelope schemas
+skills/tech-lead/scripts|schemas/        # orchestrator pipeline: init-run, gate-answers,
+                                         #   budget-check, compile-order, ingest-result, validate-envelope,
+                                         #   t0-verify, trace-lint, aegis-digest, run-snapshot,
+                                         #   stats + envelope and gate-answer schemas
 skills/ba-pitch-analyzer/scripts/        # planner mechanics: board-derive, spec-lint
 skills/spec-evaluator/scripts/           # verdict-ledger (reference impl of the flip/confidence grammar)
 commands/*.md         # slash commands (/ship + the 9 phase commands)
 agents/*.md           # subagents (reviewer)
-hooks/                # hooks.json + safety-spine, gate-l2, sandbox-guard (PreToolUse),
-                      #   anti-rationalization, slop-cleaner (Stop, advisory),
+hooks/                # hooks.json + safety-spine, gate-l2, gate-intake, gate-deadline,
+                      #   sandbox-guard (PreToolUse),
+                      #   gate-zerowork (Stop, blocking), anti-rationalization, slop-cleaner (Stop, advisory),
                       #   compact-snapshot (PreCompact), session-rehydrate (SessionStart)
 scripts/install-harness.sh, migrate.sh   # stable public entrypoints (fresh install / update)
 scripts/demo/record-demo.mjs             # regenerates docs/assets/demo-gate.svg

@@ -16,6 +16,8 @@
 //   const { records, summary } = reconcile(priorLines, currentRecords);
 
 // Most recent prior line for a (dimension, criterion), by highest run number.
+import { isMain } from "../../tech-lead/scripts/lib/is-main.mjs";
+
 /**
  * Find the most recent prior ledger line for a record's (dimension, criterion), by highest run.
  * @param {Array<{dimension:string, criterion:string, run:number, verdict:string}>} priorLines - Prior lines.
@@ -136,7 +138,7 @@ export function parseLedger(text) {
 }
 
 // --- CLI entry: summarize a ledger file -------------------------------------
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   const { readFileSync } = await import("node:fs");
   const path = process.argv[2];
   if (!path) { console.error("usage: node verdict-ledger.mjs <.verdicts-TASK.jsonl>"); process.exit(2); }

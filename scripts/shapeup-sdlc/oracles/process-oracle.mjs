@@ -25,6 +25,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { isMain } from "../../../skills/tech-lead/scripts/lib/is-main.mjs";
 
 const CRASH_RE = /at\s+.*:\d+:\d+|Traceback|panic:|unhandled|Segmentation fault/i;
 
@@ -126,7 +127,7 @@ export function formatReport(cmd, { fails, results }) {
 }
 
 // --- CLI entry (only when run directly, not when imported) -------------------
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   const contractPath = process.argv[2];
   const cmd = process.argv[3];
   if (!contractPath || !cmd) {

@@ -21,7 +21,7 @@ hooks/                   hooks.json + safety-spine.mjs · gate-l2.mjs · sandbox
 scripts/install-harness.sh, migrate.sh    stable public entrypoints
 scripts/shapeup-sdlc/    dev/CI tooling — lib/, migrations/, oracles/, distribute.js
 tests/structural.mjs     Tier 0 runner — threads tests/lib/ helpers through the per-domain
-tests/{lib,structural}/  suites in tests/structural/*.mjs; 450+ checks, zero LLM calls (the
+tests/{lib,structural}/  suites in tests/structural/*.mjs; 640+ checks, zero LLM calls (the
                          floor is asserted by the suite itself; the exact count may only grow)
 examples/                fixtures for oracle + planted-bug discrimination tests
 dist/                    compiled Cursor rules/extension + Antigravity subagents
@@ -39,7 +39,7 @@ dist/                    compiled Cursor rules/extension + Antigravity subagents
   the hunter.
 - **Role separation.** Evaluator grades, task-executor fixes, QA discovers — no one does
   another's job.
-- **Two-level circuit breaker.** An exhausted scope queues a proposal; only the outer round
+- **Three-level circuit breaker.** An exhausted scope queues a proposal; only the outer round
   budget hitting zero stops the whole run.
 - **Hill phase is mechanical.** Derived only from T0 / T1 / seesaw facts — never self-reported
   by a worker.

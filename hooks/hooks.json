@@ -10,7 +10,7 @@
         ]
       },
       {
-        "matcher": "compact|resume",
+        "matcher": "startup|compact|resume|clear",
         "hooks": [
           {
             "type": "command",
@@ -53,6 +53,26 @@
         ]
       },
       {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/gate-intake.mjs\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/gate-deadline.mjs\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
         "matcher": "Skill|Agent",
         "hooks": [
           {
@@ -76,6 +96,11 @@
     "Stop": [
       {
         "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/gate-zerowork.mjs\"",
+            "timeout": 10
+          },
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/anti-rationalization.mjs\"",

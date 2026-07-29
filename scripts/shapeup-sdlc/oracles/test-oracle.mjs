@@ -31,6 +31,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { matchNum, toRegExp, formatReport } from "./_shared.mjs";
+import { isMain } from "../../../skills/tech-lead/scripts/lib/is-main.mjs";
 
 // Parse common test-runner output into { total, pass, fail, failing[] }.
 function parseSuite(out) {
@@ -118,7 +119,7 @@ export function runContract({ cmd, criteria }) {
 export { formatReport };
 
 // --- CLI entry ---------------------------------------------------------------
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   const contractPath = process.argv[2];
   const defaultCmd = process.argv[3];
   if (!contractPath) {
