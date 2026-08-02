@@ -102,9 +102,9 @@ graph LR
 | Pipeline stage | Operation(s) | Worker skill | Order's `substrate.allowed` (write target) |
 |---|---|---|---|
 | Orient | `orient` | `orient` | `<local>/orient/**` |
-| Wire (spine ✚) | `wire` | `solution-architect` | `docs/…/<slug>/wiring-map.json` |
+| Wire (spine ✚) | `wire` | `solution-architect` | `docs/…/<slug>/wiring-map.md` |
 | Map scopes | `analyze` | `ba-pitch-analyzer` | `<spec>/**` + `<local>/**` |
-| | `map-scopes`, `remap`, `split-scope` | `scope-architect` | `<slug>/scopes/*.json` + `scope-board.md` |
+| | `map-scopes`, `remap`, `split-scope` | `scope-architect` | `<slug>/scopes/*.md` + `scope-board.md` |
 | Coverage (spine ✚) | `coverage` | `ba-pitch-analyzer` | `docs/…/<slug>/requirements.md` |
 | Board upkeep | `generate-board`, `reconcile`, `retrofit-surface` | `ba-pitch-analyzer` | `<local>/tasks/**` (+ append-only UC Invariants / Test Surface) |
 | Build | `execute`, `fix`, `spike` | `task-executor` | the scope's own `allowed_file_substrate` + `<local>/spikes/**` |
@@ -130,7 +130,7 @@ to respect into things it cannot get past:
 
 | Hook | Fires on | Enforces |
 |---|---|---|
-| `safety-spine.mjs` | `Bash` / `Read` / `Edit` / `Write` / `MultiEdit` | Denies the provably destructive operations no session ever legitimately needs: `rm -rf` on unrecoverable targets, force-push and push-to-main, `git reset --hard`, `DROP TABLE`/`TRUNCATE`, and secret-file reads (`.env`, `*.pem`, ssh keys, cloud credentials) via shell readers or the `Read` tool. Unlike the other three, it guards the **machine**, not the pipeline. The only escape hatch is the human-authored `.shapeup-sdlc/safety-overrides.json` (schema: `SafetyOverrides`) — mechanically self-protected, and every exercised override is logged to the metrics shard as a `SAFETY-OVERRIDE` pathology row. |
+| `safety-spine.mjs` | `Bash` / `Read` / `Edit` / `Write` / `MultiEdit` | Denies the provably destructive operations no session ever legitimately needs: `rm -rf` on unrecoverable targets, force-push and push-to-main, `git reset --hard`, `DROP TABLE`/`TRUNCATE`, and secret-file reads (`.env`, `*.pem`, ssh keys, cloud credentials) via shell readers or the `Read` tool. Unlike the other three, it guards the **machine**, not the pipeline. The only escape hatch is the human-authored `.shapeup/safety-overrides.json` (schema: `SafetyOverrides`) — mechanically self-protected, and every exercised override is logged to the metrics shard as a `SAFETY-OVERRIDE` pathology row. |
 | `gate-l2.mjs` | `Skill → spec-evaluator` (round mode) | Denies the once-per-round EVAL unless every task on the board reads `done` — reading both task frontmatter and the board table independently, and naming the unfinished tasks in the denial. |
 | `gate-intake.mjs` | `Skill → tech-lead` | Denies an orchestrator dispatch with no resolvable intake — no `--pitch`, no `--spec`, no `--from` resume, and no free requirement text. Closes the harness's own front door: measured on `sdd-harness-bench` (F2 / Haiku 4.5, n=3, zero variance), a `tech-lead` reached as `args:"--unattended"` lost the requirement text on the hand-off, printed eleven gate names and a plan, wrote no code, and scored 29% while reading as a successful run — the same "claims done" pathology the harness exists to prevent, at its own entry point. Fails open on `--order` (the envelope port owns that path) and on any ambiguous arg shape. |
 | `gate-deadline.mjs` | `Skill → task-executor` | Denies a dispatch that would start new build work once the run's opt-in `wall_clock_budget_s` is spent, routing to GATE H instead. **Deliberately does not deny `spec-evaluator`, `scope-hammer`, `qa-edge-hunter` or `advisor-protocol`** — a run past its deadline must still be able to judge, hammer and close, and a breaker that blocked the exit would strand green scopes it could not ship. It exists because the benchmark's F3 DNF turned out not to be a stall at all: the retained transcript shows 327 turns, 262 tool calls, 37 writes, last gate L3 and **zero** stall signals. The harness was working when the clock ran out, and both existing breakers count *events* (rounds, T0 attempts) so neither could see it. Off unless a budget is configured. |
@@ -149,7 +149,7 @@ One `Stop`-event hook may block, and its predicate is why the invariant survives
 
 | Hook | Fires on | Enforces |
 |---|---|---|
-| `gate-zerowork.mjs` | Session end | Blocks a session that **dispatched the orchestrator and left no run receipt** — no `.shapeup-sdlc/<slug>/receipt.json`, which `init-run.mjs` writes as the run's first act (§3.2d). |
+| `gate-zerowork.mjs` | Session end | Blocks a session that **dispatched the orchestrator and left no run receipt** — no `.shapeup/<slug>/receipt.json`, which `init-run.mjs` writes as the run's first act (§3.2d). |
 
 **Why it exists.** Measured on `sdd-harness-bench` (F2 / Haiku 4.5, n=5, zero variance): given a
 *valid* spec, the orchestrator loaded a 450-line instruction file describing eleven gates and
@@ -223,6 +223,50 @@ changes is the decision's *source*, which the ledger names (`preset:ci`, plus th
 attributable failure: "GATE L4 has no pre-recorded answer" in ten seconds beats a silent
 half-hour that gets reported as a slow harness.
 
+## 3.2f — The ratchet, and the receipt (v1.5)
+
+Two shared libraries and one hook library, added because the harness had built a ratchet,
+enforced it beautifully, and never fitted the pawl.
+
+**`skills/tech-lead/scripts/lib/argv.mjs` — the typed argv boundary.** The envelope boundary is
+rigorously typed and hook-validated in both directions; that discipline stopped dead at
+`process.argv`, which is where the pipeline actually executes. `t0-verify` parsed `--round` with
+`Number(argv[++i])` and then `?? 1`, which does not catch `NaN`: a flag passed without a value
+wrote a real verdict to `rNaN-a1.json` and **exited 0**, leaving the evaluator's mandatory T0
+citation unresolvable. `parseArgs` takes a declarative spec, rejects before any I/O, exits 2, and
+puts a machine-readable reason on stderr — the same contract `validate-envelope` applies to a
+malformed order. Every entry point exports its `ARGV_SPEC`, which is what makes the contract
+inspectable by `tests/structural/13-argv-contract.mjs` rather than guessable.
+
+**`skills/tech-lead/scripts/lib/ratchet-tree.mjs` — `keep` and `revert`.** The attempt loop
+branched a red T0 two ways and only one of them reverted anything: a seesaw regression got
+`git stash push -u`, while a red on the scope's *own* fixtures got "loop to the next attempt" and
+no revert at all — so attempt N+1's fresh, zero-memory subagent began from code it did not write
+and could not see the history of. `snapshot()` publishes the working tree as a `git stash create`
+object under a **shadow ref** (`refs/shapeup/<scope_id>/kept`), invisible to `git log`/`git status`
+and to every branch operation, preserving the standing convention that the harness never writes
+commits to the branch under test; `restore()` rewrites the tree from it. Both are best-effort:
+outside a work tree, or with no snapshot yet, they report `{ok:false, reason}` and the caller
+proceeds exactly as before.
+
+Together with `score()`, `better()` and `trials.jsonl` in `t0-verify.mjs`, these collapse the two
+red branches into one rule — *keep what is strictly better, restore what is not* — whose important
+consequence is that an attempt moving 2/5 → 4/5 fixtures is **red but better**, and is therefore
+**kept**. The ratchet retains improvements, not just greens.
+
+**`hooks/lib/decision.mjs` — `allow` gets a receipt.** Every enforcement tool's failure signature
+was identical to its success signature: fed malformed input, all eleven answered `exit=0,
+stdout_len=0` — which is also what "inspected and permitted" looks like, what "no rule matched"
+looks like, what a thrown exception looks like, and what an inert script looks like. Four states,
+one signature, which is how 26 enforcement points sat inert behind 610 green checks. Fail-open is
+**retained** (a gate that breaks legitimate runs just gets disabled); what changes is that a
+permitting decision now carries evidence. `runHook(name, fn)` is the only exit path a hook has, so
+no route out of one can skip the record. Two things fall out at no extra cost: `gate-zerowork`
+gains a second `Stop` condition — orchestrator dispatched, zero decision rows ⇒ the enforcement
+layer itself never ran, so the detector for "the gates didn't run" stops depending on the gates
+running — and `stats.mjs --hooks` can report evaluations, denials and errors per hook, which makes
+"never had to fire" and "never ran" separable facts for the first time.
+
 ## 3.2e — Compaction resilience (PreCompact + SessionStart)
 
 Nothing on disk is ever lost to a context compaction — the two-root storage design (§3.3)
@@ -236,11 +280,11 @@ The resilience pair makes re-reading the files a reflex:
   `harness-run.md` frontmatter, board frontmatter, `t0/verdicts/` filenames, and the
   `orders/` vs `results/` diff — and self-validates it against the registry before emitting.
 - **`compact-snapshot.mjs`** (PreCompact) persists that snapshot to
-  `.shapeup-sdlc/<slug>/run-snapshot.json` before compaction. PreCompact provably cannot
+  `.shapeup/<slug>/run-snapshot.json` before compaction. PreCompact provably cannot
   inject context, so this hook is a pure side effect: the audit anchor and fallback.
 - **`session-rehydrate.mjs`** (SessionStart, matcher `startup|compact|resume|clear`) re-derives the
   snapshot **fresh** and injects its `rehydrate_hint` as `additionalContext`: *"re-read
-  `.shapeup-sdlc/<slug>/harness-run.md` and the board before continuing — trust the files, not
+  `.shapeup/<slug>/harness-run.md` and the board before continuing — trust the files, not
   the conversation summary."*
 
   The matcher was `compact|resume` until v1.4.1, and that was a real gap rather than a scoping
@@ -264,12 +308,22 @@ this need to survive a `git pull` by a teammate, or can it be rebuilt from what'
 
 | Root | Scope | Contents |
 |---|---|---|
-| **SHARED** — `docs/shapeup-sdlc/<slug>/` | Committed — the durable deliverable | `shaping/`, `spec/` (domain model, use cases, contracts, `scopes/*.json`), `round-ledger.md`, `hill/*.yml`, `knowledge-base/<skill>.md`, `metrics/<machine-id>.jsonl` |
-| **LOCAL** — `.shapeup-sdlc/<slug>/` | Gitignored — regenerable run trace | `harness-run.md`, `orient/`, `tasks/` (the board, regenerable on any machine), `orders/` + `results/` (the envelope port), `t0/verdicts/`, `discovery/ledger.md`, `run-snapshot.json` (compaction anchor), `active-scope` (the sandbox hook's pointer), and — at the `.shapeup-sdlc/` root, outside any slug — `safety-overrides.json` (human-authored safety escape hatch) |
+| **SHARED** — `shapeup/<slug>/` | Committed — the durable deliverable | `shaping/` (pitch, framing, breadboard, baseline, glossary), `spec/` (domain model, use cases, contracts, ux-behavior, scope-summary), `scopes/*.md`, `wiring-map.md`, `project-profile.md`, `requirements.md`, `hill/*.yml`, `REPORT.md` (frozen at GATE L4), and — at the `shapeup/` root — `knowledge-base/<skill>.md` |
+| **LOCAL** — `.shapeup/<slug>/` | Gitignored — run trace and machine state | `receipt.json`, `harness-run.md`, `orient/`, `tasks/` (the board), `working/` (spec analysis that is not contract), `orders/` + `results/` (the envelope port), `t0/verdicts/` + `trials.jsonl`, `evaluation/`, `qa/`, `trace/`, `discovery/ledger.md`, `round-ledger.md`, `run-snapshot.json` (compaction anchor), and — at the `.shapeup/` root, outside any slug — `active-scope`, `decisions.jsonl`, `metrics/*.jsonl`, `gate-answers.json`, `safety-overrides.json` |
+
+The rule (ADR-0001): **prose is the team's, structured data is the machine's.** The three
+contracts are the named exception — they are structured, but they are also low-level design a
+reviewer must read, so they are converted to markdown rather than hidden. The knowledge base is
+the second: it is policy, but coaching rules describe how an agent should work *in this codebase*,
+which is a team property. `.harness-version`/`.harness-migrations` are the third — machine state
+that must be committed, or every teammate re-runs the migrations.
 
 The split matters operationally: a second developer who pulls a branch mid-run has the SHARED
 spec but no LOCAL board — the harness detects that at GATE L1b and regenerates the board from
-the committed spec, rather than treating a missing file as a broken run.
+the committed spec, rather than treating a missing file as a broken run. They also see no run
+evidence until the run ends: `REPORT.md` is written once at GATE L4 and carries the verdict, QA
+findings, T0 summary and adjudicated decisions, so the deliverable tier gets the conclusions
+without the per-attempt churn.
 
 ## 3.4 — Distribution: one source, four runtimes
 
@@ -277,7 +331,7 @@ the committed spec, rather than treating a missing file as a broken run.
 graph TD
     SRC["Single source of truth\nskills/ · commands/ · hooks/"]
     SRC --> CC["Claude Code plugin\n(native — .claude-plugin/plugin.json)"]
-    SRC --> DIST["scripts/shapeup-sdlc/distribute.js"]
+    SRC --> DIST["tools/distribute.js"]
     DIST --> CUR1["dist/cursor-rules/*.mdc"]
     DIST --> CUR2["dist/cursor-extension/"]
     DIST --> ANT["dist/antigravity/subagents/"]

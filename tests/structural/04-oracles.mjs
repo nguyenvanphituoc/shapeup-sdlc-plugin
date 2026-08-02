@@ -39,10 +39,10 @@ export async function run(ctx) {
   }
 
   // The shared process oracle (Stage G) and its reference contract must be present & well-formed.
-  const sharedOracle = join(ROOT, "scripts/shapeup-sdlc/oracles/process-oracle.mjs");
+  const sharedOracle = join(ROOT, "oracles/process-oracle.mjs");
   const contract = join(ROOT, "examples/todo-cli/todo.contract.json");
-  if (existsSync(sharedOracle)) ok("shared process oracle present (scripts/shapeup-sdlc/oracles/process-oracle.mjs)");
-  else fail("shared process oracle missing: scripts/shapeup-sdlc/oracles/process-oracle.mjs");
+  if (existsSync(sharedOracle)) ok("shared process oracle present (oracles/process-oracle.mjs)");
+  else fail("shared process oracle missing: oracles/process-oracle.mjs");
   if (existsSync(contract)) {
     try {
       const c = readJSON(contract);
@@ -59,15 +59,15 @@ export async function run(ctx) {
   // The registry is the source of truth for "which oracles exist". Every oracle it names must
   // have a runner file; every oracle the docs claim must be in the registry. Catches a doc/code
   // drift in the eval-contract the same way #3 catches broken SKILL references.
-  const { ORACLES, ORACLE_NAMES } = await import(join(ROOT, "scripts/shapeup-sdlc/oracles/index.mjs"));
+  const { ORACLES, ORACLE_NAMES } = await import(join(ROOT, "oracles/index.mjs"));
   const EXPECTED_RUNNERS = {
-    process: "scripts/shapeup-sdlc/oracles/process-oracle.mjs",
-    test: "scripts/shapeup-sdlc/oracles/test-oracle.mjs",
-    snapshot: "scripts/shapeup-sdlc/oracles/snapshot-oracle.mjs",
-    http: "scripts/shapeup-sdlc/oracles/http-oracle.mjs",
+    process: "oracles/process-oracle.mjs",
+    test: "oracles/test-oracle.mjs",
+    snapshot: "oracles/snapshot-oracle.mjs",
+    http: "oracles/http-oracle.mjs",
   };
   for (const [name, rel] of Object.entries(EXPECTED_RUNNERS)) {
-    if (!ORACLES[name]) fail(`oracle "${name}" not registered in scripts/shapeup-sdlc/oracles/index.mjs`);
+    if (!ORACLES[name]) fail(`oracle "${name}" not registered in oracles/index.mjs`);
     else if (!existsSync(join(ROOT, rel))) fail(`oracle "${name}" runner missing: ${rel}`);
     else ok(`oracle "${name}" registered with runner ${rel}`);
   }
@@ -85,7 +85,7 @@ export async function run(ctx) {
   // =============================================================================
   section("9. `test` oracle PASSes its green fixture and FAILs a red suite (discriminates)");
   // =============================================================================
-  const testOraclePath = join(ROOT, "scripts/shapeup-sdlc/oracles/test-oracle.mjs");
+  const testOraclePath = join(ROOT, "oracles/test-oracle.mjs");
   const mathxContract = join(ROOT, "examples/lib-mathx/mathx.contract.json");
   if (existsSync(testOraclePath) && existsSync(mathxContract)) {
     const pass = spawnSync("node", [testOraclePath, mathxContract], { encoding: "utf8", cwd: ROOT });
@@ -105,7 +105,7 @@ export async function run(ctx) {
   // =============================================================================
   section("10. `snapshot` oracle PASSes its golden and FAILs a do-nothing impl (discriminates)");
   // =============================================================================
-  const snapOraclePath = join(ROOT, "scripts/shapeup-sdlc/oracles/snapshot-oracle.mjs");
+  const snapOraclePath = join(ROOT, "oracles/snapshot-oracle.mjs");
   const greetContract = join(ROOT, "examples/refactor-greet/greet.contract.json");
   if (existsSync(snapOraclePath) && existsSync(greetContract)) {
     const pass = spawnSync("node", [snapOraclePath, greetContract, "node examples/refactor-greet/greet.mjs"], { encoding: "utf8", cwd: ROOT });
@@ -124,7 +124,7 @@ export async function run(ctx) {
   // =============================================================================
   section("11. `http` oracle PASSes its working server and FAILs a broken one (discriminates)");
   // =============================================================================
-  const httpOraclePath = join(ROOT, "scripts/shapeup-sdlc/oracles/http-oracle.mjs");
+  const httpOraclePath = join(ROOT, "oracles/http-oracle.mjs");
   const pingContract = join(ROOT, "examples/http-ping/ping.contract.json");
   if (existsSync(httpOraclePath) && existsSync(pingContract)) {
     const { runContract: runHttp } = await import(httpOraclePath);

@@ -3,6 +3,182 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.5.0] — 2026-08-03
+
+**Two organizing decisions and one missing mechanism.** [ADR-0001](docs/design/adr/0001-consumer-file-organization.md)
+answers a question this project had never answered explicitly — *what does a teammate get on
+`git pull`, and what stays on the machine that ran the harness?* — and [ADR-0002](docs/design/adr/0002-plugin-repo-organization.md)
+asks the same question of the plugin's own repository. Between them sits the mechanism both were
+blocking: the build loop finally has a **pawl**, and every enforcement hook finally has a
+**receipt**.
+
+### Changed — the consumer's two roots (ADR-0001) ⚠️ migration required
+
+**Prose is the team's; structured data is the machine's.** Markdown is shared; JSON, JSONL and
+parsed run state are local. The harness runs only on the machine that invoked it — a teammate
+reads the design, they do not resume someone else's run.
+
+- **`docs/shapeup-sdlc/` → `shapeup/`** (committed: `shaping/`, `spec/`, `scopes/`, `wiring-map`,
+  `project-profile`, `requirements.md`, `REPORT.md`, `knowledge-base/`) and **`.shapeup-sdlc/` →
+  `.shapeup/`** (gitignored run state). `docs/` was dropped because it is a namespace many projects
+  publish through a static-site generator — the spec tree either got published by accident or broke
+  the build.
+- **`skills/tech-lead/scripts/lib/paths.mjs` is the single source of truth for every generated
+  path**, and `tests/structural/45-paths.mjs` fails if any file builds one otherwise. That is what
+  made a rename across ~90 files checkable rather than hopeful: 568 string literals *plus* 48 sites
+  that assembled paths from `join()` segments, invisible to any grep. The test caught 7 sites the
+  grep missed. Renaming a root — or making it configurable later — is now a two-line change.
+- **The three contracts become markdown.** `scopes/*.json`, `wiring-map.json` and
+  `project-profile.json` are structured, but they are also low-level design a reviewer should read
+  in a PR, and they were the one thing in the committed tree that a reviewer could not.
+  Frontmatter for scalars and `[a, b]` lists, a markdown table for the single array-of-objects
+  field, reusing the two table parsers the codebase already had rather than taking a YAML
+  dependency against the zero-dependency rule. **Markdown is the on-disk format; JSON remains the
+  wire format** — `compile-order` parses the file and embeds the same object in the envelope, so
+  `work-order.schema.json` and `validate-envelope` are untouched.
+- **Three artifacts change tier**: `round-ledger.md` and `metrics/*.jsonl` move LOCAL (both mutate
+  mid-run, and a committed shard keyed on `$HOSTNAME` only grows), and the **committed
+  `gate-answers.json` lane is removed** — a committed set with `preset: ci` pre-approved GATE L4
+  ship sign-off for everyone who pulled it. Consent and safety envelope stay per-machine, so no
+  committed file can widen another person's.
+- **`shapeup/<slug>/REPORT.md`, frozen once at GATE L4** by the new `ship-report.mjs`: verdict and
+  refuted criteria, QA findings by lens, T0 summary per scope, adjudicated decisions, cut list,
+  rounds used. Derived from the artifacts the run wrote — the trial ledger, the verdict artifacts,
+  the board — never from a summary of the run. With the run trace gitignored, this is the only
+  evidence a reviewer sees; a pull request used to show the spec and the code and none of the
+  proof that the one matched the other.
+- **Migrations `0006` (roots), `0007` (contracts to markdown), `0008` (tier corrections)**, applied
+  in order and each independently skippable — the readers accept both forms, so a project that
+  stops halfway keeps working. `.gitignore` lists **both** local roots, because a run trace
+  committed during the rename window is exactly what the tier split exists to prevent.
+
+### Added — the pawl (the ratchet)
+
+`better` appeared nowhere in the codebase except one comment. `computeVerdict` returned four
+booleans collapsed through a single AND, and the verdict artifact was written with a bare
+`writeFileSync` under a protocol that retries the same attempt number — so the loop was a budgeted
+retry, not a ratchet, and its own history destroyed itself.
+
+- **`score()` and `better()` in `t0-verify.mjs`.** Score is a vector, not a float — regressions,
+  fixtures passed/total, db probe — because the three arms are not fungible. `better()` is
+  lexicographic and **strict**: regressions dominate (breaking a finished scope is never an
+  improvement), a tie is *not* better (a tie that counts as improvement makes a sawtooth look like
+  a ratchet), and a changed `fixtures_total` returns `null` — a split or remap moved the
+  denominator, and comparing across it is a category error, so the ratchet treats it as a baseline
+  reset rather than a false verdict. No new measurement is taken: the per-fixture data this reduces
+  over was already on disk and was simply never counted.
+- **Immutable verdict addressing — invariant I4.** `t0/verdicts/r<R>-a<A>-t<T>.json` written with
+  exclusive create (`wx`), not an `existsSync` guard: check-then-write is still racy, and still a
+  policy in code rather than a property of the store. A retry of the same attempt lands *beside*
+  its predecessor. `t0/trials.jsonl` accumulates one row per T0 run.
+- **BUILD branches on `status`, not on red/green**: `kept` (strictly better — including
+  RED-BUT-IMPROVED, 2/5 → 4/5 fixtures, which is the entire point) · `reverted` (not better; tree
+  restored from the last kept snapshot — this subsumes the old seesaw `git stash` branch) ·
+  `rebased` (incomparable; baseline reset, not a failure) · `crash`. Attempt N+1 now builds **on**
+  attempt N's kept tree. Orders carry `payload.trial_history` — the last 8 trials, **crossing the
+  round boundary**, with score, status and top-3 digest — where the zero-memory handoff previously
+  carried one attempt's error digest. Facts only; still no chat history (PA6).
+- **A stagnation term on the inner breaker** (`no_progress_k`, default 2, GATE L0.9):
+  `attempt_budget` counts attempts and cannot see that the last two produced nothing. On a flailing
+  scope this saves three attempts of five, and queues the same GATE H proposal rather than blocking
+  the round.
+
+### Added — the receipt (`allow` stops being invisible)
+
+Every enforcement tool's failure signature was identical to its success signature: fed malformed
+input, a gate returns `exit 0`, empty stdout — which is also what *inspected and permitted* looks
+like, what *no rule matched* looks like, and what an **inert script** looks like. That
+indistinguishability is how 26 enforcement points sat inert behind 610 green checks in 1.4.0.
+
+- **`hooks/lib/decision.mjs`** — `runHook` becomes every hook's only exit path, appending each
+  decision (`allow` / `warn` / `deny` / `block` / `error`) to `.shapeup/decisions.jsonl`.
+  **Fail-open is retained** — a gate that breaks legitimate runs just gets disabled, and takes the
+  true positives with it — but `allow` now carries evidence. `stats --hooks` reads it.
+- **`stats --ratchet`** reports the Day-1 exit criterion from `trials.jsonl` (improvement rate,
+  monotone rate, sawtooth count, mean trials to green). Both measurements are harvested into the
+  metrics shard at SHIP, at zero model tokens.
+- **The argv boundary is typed** (`scripts/lib/argv.mjs`, adopted by all 15 entry points).
+  `--round` with no value used to write a verdict to `rNaN-a1.json` and **exit 0**; the
+  orchestrator then looked for `r1-a1.json`, found nothing, and the evaluator's mandatory citation
+  could not resolve. Malformed flags are now rejected before anything runs — exit 2, machine-readable
+  reason — mirroring `validate-envelope`'s contract.
+- **The permission grant matches the prose.** All 31 documented script call sites are the literal
+  `node "${CLAUDE_PLUGIN_ROOT}/skills/<owner>/scripts/…"` form that `npx shapeup-sdlc init` actually
+  writes into `permissions.allow`, and the note asking the model to perform the substitution is
+  **deleted** — it was a prompt-carried invariant sitting directly underneath the mechanism built to
+  forbid prompt-carried invariants, and its failure mode was already measured at 26 approval denials
+  in one session.
+
+### Changed — GATE L2 becomes advisory (an accepted loss, stated plainly)
+
+`hooks/gate-l2.mjs` still reads the board from two independent sources and still names the
+unfinished tasks; it emits a `systemMessage` instead of denying the dispatch. The board is
+per-machine and the operator asked for the evaluation.
+
+**The cost is real and is not being hidden**: nothing now mechanically prevents EVAL on a
+half-green board — a defect measured in the island-escape run, where EVAL proceeded with 16/20 task
+files still `status: ready`. The signal survives as a warning; the enforcement does not. README's
+headline claim changes accordingly — `validate-envelope` becomes the flagship enforced gate (a
+malformed order structurally cannot reach a worker), and `gate-zerowork`, `sandbox-guard`,
+`safety-spine` and `gate-deadline` still deny. The `warn` verdict exists so that an advisory permit
+is not byte-identical in `decisions.jsonl` to "the board was green" — the exact indistinguishability
+that file was added to eliminate.
+
+### Changed — the plugin's own repository (ADR-0002)
+
+Every top-level directory now answers one question: **when does this run?** Ships (`skills/`,
+`hooks/`, `commands/`, `oracles/`, `.claude-plugin/`) · installs (`bin/`, `scripts/` — **frozen**,
+they are published `curl` URLs) · builds (`tools/`, output `dist/`, gitignored) · proves (`tests/`,
+`evals/`, `examples/`) · explains (`docs/`, with `docs/internal/`).
+
+- **`oracles/` promoted to the repo root and added to `files[]`.** They are the probing grammar a
+  user's `e2e_verification_fixtures` legitimately invoke, and `docs/quickstart.md` tells users to
+  run one — but they lived under `scripts/` and were not published, so the quickstart referenced a
+  file no install contained.
+- **`tools/`** takes `distribute.js`, `trigger-eval.mjs` and `demo/`, leaving `scripts/` holding
+  only the frozen URL contract. **`scripts/FROZEN.md`** states that guarantee in the directory it
+  protects, not only in `docs/upgrading.md` where the person tidying up will not look.
+- **`files[]` corrected**: `agents/` (does not exist) and `dist/antigravity/` (gitignored, zero
+  tracked files — the tarball's contents depended on whether the publisher had run `distribute.js`
+  locally) dropped; `oracles/` added; `!skills/**/evals/**` excludes 13 trigger-eval datasets that
+  `evals/README.md` calls "repo-only, not shipped". The tarball is now derivable from the tree
+  rather than from the publisher's local state.
+- **`anti-lying-kit` retired** and removed from `marketplace.json`. It vendored three enforcement
+  hooks with no code sharing and no sync check against the originals — a divergence waiting to
+  happen. Git history retains it.
+
+### Fixed
+
+- **`tools/distribute.js` resolved its root one level too high** after the ADR-0002 move
+  (`__dirname/../..` → `/workspace/skills`), so `npm run distribute` threw `ENOENT`. The release
+  workflow runs exactly that step, which means this release could not have been built. Same class
+  as the two path defects 1.4.1 fixed, and the same remedy applies in principle — one place that
+  knows where things are.
+- Two defects found by the new tests rather than in review: `renderTable` escaped `|` with no
+  matching unescape (silently truncating any value containing a pipe), and `readAllContracts`
+  counted a `.md`/`.json` pair as two scopes.
+
+### Documentation
+
+- **`docs/skills/*.md` brought current** — twelve per-skill changelogs were stale by one to five
+  releases, and `coach` had none at all (now reconstructed from git). Four drifts are recorded there
+  rather than smoothed over: the `round-ledger.md` and `metrics/` **tier moves are implemented in
+  `paths.mjs` but the prose in `tech-lead`, `advisor-protocol`, `shapeup` and `domain.schema.json`
+  still calls both committed**; ADR-0001's stated mitigation for hand-editable contracts (*"`spec-lint`
+  re-validates every parsed contract against `domain.schema.json`"*, also asserted in
+  `contract-md.mjs`'s header) is **not implemented**; and `payload.trial_history` is compiled into
+  `task-executor`'s orders while its `SKILL.md` payload table documents only `digested_errors`.
+  None blocks a run; all four are prose-vs-mechanism gaps of the kind this project treats as defects.
+- ADR-0001 and ADR-0002 added under `docs/design/adr/`; `docs/internal/` takes `research/`, `plan/`
+  and `launch/`. `docs/design/` stays public — this project's pitch is "measured, not theorized", so
+  the design record is product value.
+
+### Measured
+
+**803 structural checks green.** The count fell from 826 because test #30 covered the retired
+`anti-lying-kit` and went with it; #42–#47 (argv contract, invocation paths, hook receipts, paths,
+contract round-trip, ship report) are new.
+
 ## [1.4.1] — 2026-07-28
 
 ### Fixed — the enforcement layer was inert under an ordinary install, and said nothing

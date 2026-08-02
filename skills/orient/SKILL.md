@@ -46,15 +46,15 @@ kicked-off pitch path), `payload.stack` (sweep hint), and `substrate.allowed` na
 write surface — the orient output dir. Anything absent = unknown: confirm at GATE O-A
 (standalone) or report it in the result's `deviations`, never guess. Standalone, the
 `--pitch/--spec/--stack` flags below carry the same fields; the output dir derives from the
-spec path (`.shapeup-sdlc/<feat>/orient/`).
+spec path (`.shapeup/<feat>/orient/`).
 
 ## Output — the four artifacts (the `orient → ba` contract) + a WorkResult
 
 All four land in the orient output dir (orchestrated: the order's substrate; standalone:
-`.shapeup-sdlc/<feat>/orient/`). These ARE the contract `ba` Phase 1 consumes, so `ba` does
+`.shapeup/<feat>/orient/`). These ARE the contract `ba` Phase 1 consumes, so `ba` does
 not re-scan the codebase. Keep them factual and link real `file:line` so the planner can trust
 them. When dispatched with an order, also write the WorkResult envelope
-(`.shapeup-sdlc/<feat>/results/<order-suffix>.json`, `work-result.schema.json`): `status`,
+(`.shapeup/<feat>/results/<order-suffix>.json`, `work-result.schema.json`): `status`,
 `artifacts[]` (the four paths), and any pitch-level gaps as `deviations[]`.
 
 | File | Purpose | Consumed by |
@@ -87,7 +87,7 @@ Phase 5   │  Seed discovered tasks ► imagined + discovered, grouped by suspe
           │                         → write orient/discovered-seed.md
 Phase 6   │  Emit hill signal ────► per-area open-unknown inventory
           │                         → write orient/hill-signal.md
-✅ Done    └─► 4 artifacts in .shapeup-sdlc/<feat>/orient/ — hand back to tech-lead for GATE L1a
+✅ Done    └─► 4 artifacts in .shapeup/<feat>/orient/ — hand back to tech-lead for GATE L1a
 ```
 
 Under `--auto` (passed by `tech-lead` when its run level is `--auto`/`--unattended`), run
@@ -139,9 +139,9 @@ existing home"), the seam it extends, and whether it's new vs. existing. Flag ev
 map is uncertain — uncertainty is signal for Phase 3, not something to hide.
 
 > **Output location.** All four orient artifacts are run-trace (recon scratch), so they
-> go to the **LOCAL** root `.shapeup-sdlc/<feat>/orient/` (hidden, gitignorable) — *not*
+> go to the **LOCAL** root `.shapeup/<feat>/orient/` (hidden, gitignorable) — *not*
 > into the shared `--spec` dir. `<feat>` is the feature slug (parent of the `--spec`
-> deliverable dir). The bare filenames below are all relative to `.shapeup-sdlc/<feat>/orient/`.
+> deliverable dir). The bare filenames below are all relative to `.shapeup/<feat>/orient/`.
 
 ## Phase 3 — Risk triage
 
@@ -206,7 +206,7 @@ When all four artifacts are written, emit this summary (to tech-lead or directly
 in standalone mode):
 
 ```
-✅ Orient complete — .shapeup-sdlc/<feat>/orient/
+✅ Orient complete — .shapeup/<feat>/orient/
 
   Artifacts:
     code-surface.md   — <N> pitch elements mapped; <M> NEW / <K> EXISTING seams
@@ -215,7 +215,7 @@ in standalone mode):
     hill-signal.md    — <summary line from hill, e.g. "No uphill areas; spike at crest.">
 
   Ready for ba (step 8):
-    Pass --orient-dir .shapeup-sdlc/<feat>/orient/ to ba-pitch-analyzer.
+    Pass --orient-dir .shapeup/<feat>/orient/ to ba-pitch-analyzer.
     ba Phase 1 skips its own codebase scan and reads code-surface.md as its authoritative map.
 ```
 
@@ -241,13 +241,13 @@ Tech-lead uses this to render the GATE L1a Hill and confirm the spike before han
 
 ```bash
 # Invoked by tech-lead at step 7 (canonical) — compile-order --operation orient --slug <feat> …
-/orient --order .shapeup-sdlc/<feat>/orders/orient.json
+/orient --order .shapeup/<feat>/orders/orient.json
 
 # Standalone flags (the preamble shim compiles the same envelope)
-/orient --pitch docs/shapeup-sdlc/<feat>/shaping/shaping.md --spec docs/shapeup-sdlc/<feat>/spec/ --stack "pnpm, Next 16 web :3000"
+/orient --pitch shapeup/<feat>/shaping/shaping.md --spec shapeup/<feat>/spec/ --stack "pnpm, Next 16 web :3000"
 
 # Standalone recon (no orchestrator) — still writes only the four artifacts
-/orient --pitch docs/shapeup-sdlc/<feat>/shaping/shaping.md --spec docs/shapeup-sdlc/<feat>/spec/
+/orient --pitch shapeup/<feat>/shaping/shaping.md --spec shapeup/<feat>/spec/
 
 # Auto (tech-lead passes this under --auto/--unattended): run straight through
 /orient --pitch ... --spec ... --auto
@@ -257,6 +257,6 @@ Tech-lead uses this to render the GATE L1a Hill and confirm the spike before han
 | Flag | Effect |
 |------|--------|
 | `--pitch <path>` | The kicked-off pitch (+ sibling `breadboard.md` if present) |
-| `--spec <path>` | SHARED spec deliverable dir (docs/shapeup-sdlc/<feat>/spec/); orient *artifacts* are written to the LOCAL root `.shapeup-sdlc/<feat>/orient/` |
+| `--spec <path>` | SHARED spec deliverable dir (shapeup/<feat>/spec/); orient *artifacts* are written to the LOCAL root `.shapeup/<feat>/orient/` |
 | `--stack <hint>` | Stack hint to aim the code-surface sweeps |
 | `--auto` | Auto-confirm O-A and O-B; run straight through |

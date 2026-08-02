@@ -133,7 +133,12 @@ export async function run(ctx) {
 
     // (c) cited concrete paths exist (placeholders/globs are excluded by the char class).
     const pathRe = /(?:^|[\s`("'])((?:hooks|skills|scripts|tests|commands)\/[A-Za-z0-9._/-]+\.(?:mjs|json|js|md|sh))(?![A-Za-z0-9])/g;
-    const docFiles = ["README.md", ...readdirSync(join(ROOT, "docs/design")).map((f) => `docs/design/${f}`)];
+    // Recurse: `docs/design/` gained `adr/` (ADR-0001), and a flat readdir both skipped the
+    // decision records and handed a directory to readFileSync. Decision records cite more concrete
+    // paths than any other doc, so they are exactly what this drift check wants to cover.
+    const mdUnder = (rel) => readdirSync(join(ROOT, rel)).flatMap((f) =>
+      statSync(join(ROOT, rel, f)).isDirectory() ? mdUnder(`${rel}/${f}`) : (f.endsWith(".md") ? [`${rel}/${f}`] : []));
+    const docFiles = ["README.md", ...mdUnder("docs/design")];
     const cited = new Map();
     for (const rel of docFiles) {
       for (const m of read(join(ROOT, rel)).matchAll(pathRe)) {

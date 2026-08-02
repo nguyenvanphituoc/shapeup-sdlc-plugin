@@ -9,7 +9,7 @@ disclosure). Read this when you need the exact CLI shape or a flag's effect.
 
 ```bash
 # Full build run from a kicked-off pitch, interactive (pause at every L-gate)
-/tech-lead --pitch docs/shapeup-sdlc/checkout-vnpay/shaping/shaping.md --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --lens standard
+/tech-lead --pitch shapeup/checkout-vnpay/shaping/shaping.md --spec shapeup/checkout-vnpay/spec/ --lens standard
 
 # Sub-skills unattended, tech lead pauses only at orient / plan / verdict / ship
 /tech-lead --pitch ... --spec ... --auto
@@ -18,7 +18,7 @@ disclosure). Read this when you need the exact CLI shape or a flag's effect.
 /tech-lead --pitch ... --spec ... --unattended --max-rounds 3
 
 # Resume an existing run — start from a build-phase step
-/tech-lead --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --from build
+/tech-lead --spec shapeup/checkout-vnpay/spec/ --from build
 
 # Skip evaluation for a trivial feature (tech-lead judgment / PO override)
 /tech-lead --pitch ... --spec ... --no-eval

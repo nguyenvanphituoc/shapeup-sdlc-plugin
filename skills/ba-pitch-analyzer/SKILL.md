@@ -64,10 +64,10 @@ its phase; templates live in `assets/templates/`.
 6  TASKS       atomic, ordered, executable → tasks/ (LOCAL root; the one uncommitted branch
                of the tree — regenerable, machine-local)        [references/task-generation.md]
 7  DERIVE+LINT mechanical, not yours to grade:
-               node scripts/board-derive.mjs --slug <slug> --write   (this skill's scripts/ dir)
+               node "${CLAUDE_PLUGIN_ROOT}/skills/ba-pitch-analyzer/scripts/board-derive.mjs" --slug <slug> --write
                  (unlocks = depends_on inverse; Σ hours; critical path; appetite arithmetic —
                   overflow is a fact you REPORT for the caller's HAMMER gate, never resolve)
-               node scripts/spec-lint.mjs --slug <slug>
+               node "${CLAUDE_PLUGIN_ROOT}/skills/ba-pitch-analyzer/scripts/spec-lint.mjs" --slug <slug>
                  (structure, wikilinks, edge symmetry — fix reds, then re-run; you never
                   self-grade with a hand-walked checklist)
                → scope-summary.md + synthesis.md (traceability matrix, risk register,
@@ -101,7 +101,7 @@ second path to green.
 | `generate-board` | Re-derive the full task set fresh from the committed `usecases/` + `domain-model.md` (+ scope contracts if present — tasks respect their substrates). Numbering restarts at TASK-001. Initialize `status` from committed mechanical truth at SCOPE granularity (a scope with hill shard FINISHED → its tasks start `done`) — never join on task id; ids renumber per machine, the scope is the stable key. Then board-derive `--write` + regenerate scope-summary.md | touch the committed spec docs (frozen in your substrate) |
 | `reconcile` | Verify `ledger.feature == payload.feature` (mismatch → STOP). Map each `[+]` Keep item → its owning UC; new task continues numbering (never renumber); `~`/Cut → synthesis "Hammered Out" row, no file. A Keep item asserting a new invariant → APPEND `[INV-NN]` + TS-INV row to that UC (append-only sections in your substrate). A new actor/action with no UC → `escalates[]` (spec-ambiguity): spawning a UC mid-cycle is silent re-shaping, the PO decides. Finish with board-derive (appetite overflow → report) + spec-lint | re-run phases 1–5; edit UC Steps; resolve the appetite HAMMER yourself |
 | `retrofit-surface` | Append `## Test Surface` (derived rows only, after Error Cases) to each UC of a pre-surface spec; an all-sources-empty UC gets the explicit empty-sources line | touch anything else — append-only substrate |
-| `coverage` | Extract **atomic** customer requirement clauses from `payload.requirements` (default: the pitch) and write the SHARED `docs/shapeup-sdlc/<slug>/requirements.md` registry: one `\| REQ-id \| clause (verbatim) \| source \| status \| note \|` row per clause. Split compound sentences into one testable clause each — the audit's dropped clauses ("side-step OR lure enemies into traps", "low-res world textures") were *lost inside* a bigger sentence. **Assign REQ-ids ONCE and freeze them** (they behave like scope_id, never TASK-NNN — every `covers:` link rots otherwise): re-running, append new clauses with fresh ids, mark a removed clause `CUT (PO-approved)`, never renumber or delete. Status starts `covered` (a live requirement); only the PO sets `CUT`. The REQ source itself is frozen — the registry is a separate derived file | edit the REQ source; renumber existing REQ-ids; delete a dropped clause instead of marking it CUT; invent a requirement not in the source |
+| `coverage` | Extract **atomic** customer requirement clauses from `payload.requirements` (default: the pitch) and write the SHARED `shapeup/<slug>/requirements.md` registry: one `\| REQ-id \| clause (verbatim) \| source \| status \| note \|` row per clause. Split compound sentences into one testable clause each — the audit's dropped clauses ("side-step OR lure enemies into traps", "low-res world textures") were *lost inside* a bigger sentence. **Assign REQ-ids ONCE and freeze them** (they behave like scope_id, never TASK-NNN — every `covers:` link rots otherwise): re-running, append new clauses with fresh ids, mark a removed clause `CUT (PO-approved)`, never renumber or delete. Status starts `covered` (a live requirement); only the PO sets `CUT`. The REQ source itself is frozen — the registry is a separate derived file | edit the REQ source; renumber existing REQ-ids; delete a dropped clause instead of marking it CUT; invent a requirement not in the source |
 
 ---
 
@@ -122,13 +122,13 @@ second path to green.
 ## Output contract — the WorkResult
 
 Domain artifacts land inside your substrate (the committed spec tree + the LOCAL board). Then
-write `.shapeup-sdlc/<slug>/results/<order-suffix>.json`:
+write `.shapeup/<slug>/results/<order-suffix>.json`:
 
 ```json
 {
   "schema_version": 1, "order_id": "<copied>", "worker": "ba-pitch-analyzer",
   "status": "done | partial | escalated",
-  "artifacts": ["docs/shapeup-sdlc/<slug>/spec/domain-model.md", "…"],
+  "artifacts": ["shapeup/<slug>/spec/domain-model.md", "…"],
   "escalates": [ { "kind": "spec-ambiguity", "question": "New actor 'auditor' has no UC — add UC-07 or cut?" } ],
   "assumptions": ["lens=standard — third-party PSP present"],
   "deviations": [],
@@ -158,10 +158,10 @@ status flips for built work (ingest's job), scope contracts (scope-architect's),
 
 ```bash
 # Orchestrated (tech-lead MAP SCOPES / round boundaries) — the canonical form
-/ba-pitch-analyzer --order .shapeup-sdlc/checkout-vnpay/orders/analyze.json
+/ba-pitch-analyzer --order .shapeup/checkout-vnpay/orders/analyze.json
 
 # Standalone — the preamble shim compiles the order (mode: standalone, pause_gates: true):
-#   node skills/tech-lead/scripts/compile-order.mjs --operation analyze --slug <slug> \
+#   node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/compile-order.mjs" --operation analyze --slug <slug> \
 #        --worker ba-pitch-analyzer --payload '{"pitch": "docs/pitch.md", "lens": "standard"}'
 /ba-pitch-analyzer docs/pitch.md                      # operation: analyze, lens judged
 /ba-pitch-analyzer --lens standard docs/pitch.md      # lens pinned

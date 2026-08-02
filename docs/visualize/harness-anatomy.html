@@ -1,0 +1,1154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anatomy of a Constrained Agent Runtime — shapeup-sdlc</title>
+<meta name="description" content="Six diagrams of the shapeup-sdlc harness runtime, plus why each skill's definition forces the mechanism attached to it.">
+
+<style>
+/* minimal reset — the artifact host supplies one; a standalone file does not */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; }
+img, svg { max-width: 100%; height: auto; }
+button { font: inherit; color: inherit; }
+</style>
+
+<style>
+/* ══ tokens ═══════════════════════════════════════════════════════════════
+   Palette drawn from the machinist's bench the subject already lives in:
+   graphite grounds, layout-dye blue (the ink scribed onto metal before you
+   cut it), oxide red for a denial, verdigris for a pass. Neutrals carry a
+   faint cyan bias so they sit under the dye blue rather than beside it.     */
+:root {
+  --ground:      #f1f3f2;
+  --ground-2:    #e7eae8;
+  --ink:         #171c1e;
+  --ink-soft:    #454f52;
+  --ink-faint:   #798487;
+  --rule:        #c9cfcc;
+  --rule-soft:   #dde1de;
+  --dye:         #0b6480;   /* accent — layout-dye blue */
+  --dye-wash:    #dceaef;
+  --deny:        #a3341c;
+  --deny-wash:   #f2ddd7;
+  --allow:       #2f6d4a;
+  --allow-wash:  #dbe9e0;
+  --amber:       #93650a;
+
+  /* The drawing plates are paper in BOTH themes — they hold rendered
+     diagrams whose own colors we do not control, so we give them a stable
+     ground instead of gambling on inversion. */
+  --plate:       #ecefe9;
+  --plate-rule:  #cdd3ca;
+  --plate-ink:   #1b1f1c;
+
+  --measure: 67ch;
+  --gutter: 5.5rem;
+
+  --f-display: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+  --f-body: Charter, "Bitstream Charter", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --f-data: var(--f-display);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground:     #121618;
+    --ground-2:   #1a1f21;
+    --ink:        #dfe5e3;
+    --ink-soft:   #a4b0b0;
+    --ink-faint:  #6f7c7d;
+    --rule:       #2c3436;
+    --rule-soft:  #222a2c;
+    --dye:        #4fb4d4;
+    --dye-wash:   #12333e;
+    --deny:       #e0745a;
+    --deny-wash:  #3a201a;
+    --allow:      #6fb98c;
+    --allow-wash: #1b3327;
+    --amber:      #d5a03c;
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#121618; --ground-2:#1a1f21; --ink:#dfe5e3; --ink-soft:#a4b0b0;
+  --ink-faint:#6f7c7d; --rule:#2c3436; --rule-soft:#222a2c; --dye:#4fb4d4;
+  --dye-wash:#12333e; --deny:#e0745a; --deny-wash:#3a201a; --allow:#6fb98c;
+  --allow-wash:#1b3327; --amber:#d5a03c;
+}
+:root[data-theme="light"] {
+  --ground:#f1f3f2; --ground-2:#e7eae8; --ink:#171c1e; --ink-soft:#454f52;
+  --ink-faint:#798487; --rule:#c9cfcc; --rule-soft:#dde1de; --dye:#0b6480;
+  --dye-wash:#dceaef; --deny:#a3341c; --deny-wash:#f2ddd7; --allow:#2f6d4a;
+  --allow-wash:#dbe9e0; --amber:#93650a;
+}
+
+/* ══ base ════════════════════════════════════════════════════════════════ */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.doc {
+  max-width: 78rem;
+  margin: 0 auto;
+  padding: 0 1.5rem 8rem;
+}
+
+/* the citation gutter: every section carries its own coordinates */
+.rail {
+  display: grid;
+  grid-template-columns: var(--gutter) minmax(0, 1fr);
+  gap: 0 2rem;
+  align-items: start;
+}
+.rail > .mark {
+  font-family: var(--f-display);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding-top: 0.55rem;
+  text-align: right;
+  white-space: nowrap;
+}
+@media (max-width: 760px) {
+  .rail { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .rail > .mark { text-align: left; padding-top: 0; padding-bottom: .4rem; }
+  :root { --measure: 100%; }
+}
+
+/* ══ type ════════════════════════════════════════════════════════════════ */
+h1, h2, h3, .eyebrow, .plate-cap, .chip, th {
+  font-family: var(--f-display);
+  font-weight: 600;
+}
+h1 {
+  font-size: clamp(1.9rem, 4.4vw, 3.05rem);
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+  margin: 0 0 1rem;
+  text-wrap: balance;
+  text-transform: none;
+}
+h2 {
+  font-size: 1.12rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin: 0 0 1.1rem;
+  padding-bottom: .55rem;
+  border-bottom: 1.5px solid var(--ink);
+  text-wrap: balance;
+}
+h3 {
+  font-size: .84rem;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--dye);
+  margin: 2.2rem 0 .7rem;
+}
+p { margin: 0 0 1.05rem; max-width: var(--measure); }
+.lede { font-size: 1.16rem; line-height: 1.55; color: var(--ink-soft); max-width: 62ch; }
+.eyebrow {
+  font-size: .7rem; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--dye); margin: 0 0 .9rem;
+}
+code, .mono { font-family: var(--f-data); font-size: .86em; }
+p code, li code, td code {
+  background: var(--ground-2);
+  border: 1px solid var(--rule-soft);
+  border-radius: 2px;
+  padding: .08em .32em;
+  white-space: nowrap;
+}
+a { color: var(--dye); text-underline-offset: 3px; }
+strong { font-weight: 700; color: var(--ink); }
+ul, ol { max-width: var(--measure); padding-left: 1.15rem; margin: 0 0 1.05rem; }
+li { margin-bottom: .45rem; }
+
+/* ══ masthead ════════════════════════════════════════════════════════════ */
+header.masthead {
+  border-bottom: 1.5px solid var(--ink);
+  padding: 4.5rem 0 2rem;
+  margin-bottom: 3.5rem;
+}
+.masthead .meta {
+  display: flex; flex-wrap: wrap; gap: .5rem 1.6rem;
+  font-family: var(--f-display); font-size: .7rem;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint);
+  margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+}
+.masthead .meta b { color: var(--ink-soft); font-weight: 600; }
+
+section { margin-bottom: 4rem; }
+
+/* ══ drawing plates ══════════════════════════════════════════════════════ */
+.plate {
+  background: var(--plate);
+  border: 1px solid var(--plate-rule);
+  border-radius: 2px;
+  margin: 1.8rem 0 1.4rem;
+  overflow: hidden;
+}
+.plate-cap {
+  display: flex; flex-wrap: wrap; gap: .35rem 1rem; align-items: baseline;
+  padding: .6rem .95rem;
+  border-bottom: 1px solid var(--plate-rule);
+  font-size: .68rem; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--plate-ink);
+}
+.plate-cap .n { color: #6d7a6f; }
+.plate-body { padding: 1.5rem 1rem; overflow-x: auto; }
+.plate-body .mermaid { display: flex; justify-content: center; min-width: max-content; }
+.plate-note {
+  font-size: .88rem; color: var(--ink-soft); max-width: var(--measure);
+  margin: 0 0 2.6rem;
+}
+
+/* ══ plane stack (custom diagram) ════════════════════════════════════════ */
+.planes { display: grid; gap: .55rem; min-width: 30rem; }
+.plane {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0,1fr) 6.5rem;
+  gap: 1rem; align-items: center;
+  border: 1px solid var(--plate-rule);
+  background: #f6f8f4;
+  padding: .85rem 1rem;
+}
+.plane .who {
+  font-family: var(--f-display); font-size: .7rem; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--plate-ink); font-weight: 700;
+}
+.plane .what { font-size: .9rem; color: #3d4740; line-height: 1.45; }
+.plane .what em { color: #6d7a6f; font-style: normal; font-family: var(--f-data); font-size: .82em; }
+.plane .cost {
+  font-family: var(--f-data); font-size: .74rem; text-align: right;
+  letter-spacing: .04em; color: #6d7a6f;
+}
+.plane.craft { background: #eef1f6; border-color: #c3cbd6; }
+.plane.craft .cost { color: #7c5a1e; font-weight: 700; }
+.plane-gap {
+  font-family: var(--f-data); font-size: .68rem; letter-spacing: .1em;
+  text-transform: uppercase; color: #6d7a6f; text-align: center; padding: .1rem 0;
+}
+
+/* ══ ratchet timeline (custom diagram) ═══════════════════════════════════ */
+.ratchet { display: grid; gap: .4rem; min-width: 34rem; }
+.rrow {
+  display: grid;
+  grid-template-columns: 4.2rem 1fr 5.5rem 6.2rem 5rem;
+  gap: .9rem; align-items: center;
+  font-family: var(--f-data); font-size: .76rem; color: var(--plate-ink);
+}
+.rrow.head { color: #6d7a6f; letter-spacing: .1em; text-transform: uppercase; font-size: .66rem; }
+.bar { height: 15px; background: #dde2d9; position: relative; border: 1px solid var(--plate-rule); }
+.bar span { position: absolute; inset: 0 auto 0 0; background: #4f8fa6; display: block; }
+.bar.hi span { background: #2f6d4a; }
+.bar.lo span { background: #a3341c; }
+.st {
+  font-weight: 700; letter-spacing: .05em; text-transform: uppercase; font-size: .68rem;
+  padding: .12rem .4rem; border: 1px solid; border-radius: 2px; text-align: center;
+}
+.st.kept { color: #2f6d4a; border-color: #8fb79f; background: #e2efe7; }
+.st.rev  { color: #a3341c; border-color: #d0a396; background: #f4e2dc; }
+.st.reb  { color: #7c5a1e; border-color: #cfb180; background: #f3ead6; }
+
+/* ══ hook table ══════════════════════════════════════════════════════════ */
+.tablewrap { overflow-x: auto; margin: 1.4rem 0 1rem; border: 1px solid var(--rule); border-radius: 2px; }
+table { border-collapse: collapse; width: 100%; min-width: 44rem; font-size: .87rem; }
+th {
+  text-align: left; font-size: .66rem; letter-spacing: .11em; text-transform: uppercase;
+  color: var(--ink-faint); padding: .7rem .9rem; border-bottom: 1.5px solid var(--rule);
+  background: var(--ground-2); white-space: nowrap;
+}
+td { padding: .72rem .9rem; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+tbody tr:last-child td { border-bottom: none; }
+td.mono, th.mono { font-family: var(--f-data); font-size: .8rem; }
+.chip {
+  display: inline-block; font-size: .62rem; letter-spacing: .08em; text-transform: uppercase;
+  padding: .14rem .42rem; border-radius: 2px; border: 1px solid; white-space: nowrap;
+  font-weight: 700;
+}
+.chip.deny  { color: var(--deny);  border-color: var(--deny);  background: var(--deny-wash); }
+.chip.block { color: var(--deny);  border-color: var(--deny);  background: var(--deny-wash); }
+.chip.adv   { color: var(--amber); border-color: var(--amber); background: transparent; }
+.chip.inj   { color: var(--dye);   border-color: var(--dye);   background: var(--dye-wash); }
+
+/* ══ skill cards ═════════════════════════════════════════════════════════ */
+.cards { display: grid; gap: 1.1rem; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); margin: 1.5rem 0; }
+.card {
+  border: 1px solid var(--rule); border-radius: 2px; background: var(--ground-2);
+  padding: 1.1rem 1.15rem; display: flex; flex-direction: column; gap: .7rem;
+}
+.card .name {
+  font-family: var(--f-display); font-size: .8rem; font-weight: 700;
+  letter-spacing: .04em; color: var(--dye);
+}
+.card blockquote {
+  margin: 0; padding: 0 0 0 .8rem; border-left: 2px solid var(--rule);
+  font-size: .88rem; line-height: 1.45; color: var(--ink-soft); font-style: italic;
+}
+.card .forces { font-size: .88rem; line-height: 1.5; }
+.card .forces b { font-family: var(--f-display); font-size: .68rem; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-faint); display: block; margin-bottom: .15rem; font-weight: 600; }
+.card .mech {
+  font-family: var(--f-data); font-size: .76rem; line-height: 1.5;
+  background: var(--ground); border: 1px solid var(--rule-soft); border-radius: 2px;
+  padding: .55rem .65rem; color: var(--ink-soft); margin-top: auto;
+}
+.card .mech b { color: var(--ink); font-weight: 700; }
+
+/* ══ callouts ════════════════════════════════════════════════════════════ */
+.gap {
+  border-left: 3px solid var(--deny);
+  background: var(--deny-wash);
+  padding: .9rem 1.1rem; margin: 1rem 0; border-radius: 0 2px 2px 0;
+  max-width: var(--measure);
+}
+.gap .t {
+  font-family: var(--f-display); font-size: .72rem; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--deny); font-weight: 700; margin-bottom: .3rem;
+}
+.gap p { margin: 0; font-size: .92rem; }
+.gap p + p { margin-top: .55rem; }
+
+/* A closed finding. Deliberately a different colour from `.gap`, not a struck-through one —
+   the fix is the interesting part, so it reads as a record rather than as crossed-off noise. */
+.fixed {
+  border-left: 3px solid var(--allow);
+  background: var(--allow-wash);
+  padding: .9rem 1.1rem; margin: 1rem 0; border-radius: 0 2px 2px 0;
+  max-width: var(--measure);
+}
+.fixed .t {
+  font-family: var(--f-display); font-size: .72rem; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--allow); font-weight: 700; margin-bottom: .3rem;
+}
+.fixed p { margin: 0; font-size: .92rem; }
+.fixed p + p { margin-top: .55rem; }
+
+.pull {
+  border-top: 1.5px solid var(--ink); border-bottom: 1.5px solid var(--ink);
+  padding: 1.4rem 0; margin: 2.2rem 0; max-width: 58ch;
+  font-size: 1.24rem; line-height: 1.38; letter-spacing: -0.01em; text-wrap: balance;
+}
+
+pre.block {
+  font-family: var(--f-data); font-size: .78rem; line-height: 1.6;
+  background: var(--ground-2); border: 1px solid var(--rule); border-radius: 2px;
+  padding: 1rem 1.1rem; overflow-x: auto; margin: 1.2rem 0;
+}
+
+:focus-visible { outline: 2px solid var(--dye); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* ══ standalone additions ════════════════════════════════════════════════
+   Offline-first mermaid: until the renderer runs, each block reads as its
+   own source — legible on its own for an engineering document, and the
+   file is never broken by a missing network.                              */
+pre.mermaid {
+  font-family: var(--f-data); font-size: .72rem; line-height: 1.5;
+  color: #46514a; margin: 0; white-space: pre; text-align: left;
+}
+pre.mermaid[data-processed] {
+  font-size: inherit; line-height: inherit; white-space: normal;
+  display: flex; justify-content: center; min-width: max-content;
+}
+.plate-body:has(pre.mermaid:not([data-processed])) { padding: 1.1rem; }
+
+/* theme toggle — the host normally supplies this control */
+.themer {
+  position: fixed; top: 1rem; right: 1rem; z-index: 50;
+  display: inline-flex; align-items: center; gap: .4rem;
+  background: var(--ground-2); color: var(--ink-soft);
+  border: 1px solid var(--rule); border-radius: 2px;
+  padding: .35rem .6rem; cursor: pointer;
+  font-family: var(--f-display); font-size: .64rem;
+  letter-spacing: .11em; text-transform: uppercase;
+}
+.themer:hover { color: var(--ink); border-color: var(--ink-faint); }
+.themer .dot {
+  width: .52rem; height: .52rem; border-radius: 50%;
+  background: var(--dye); flex: none;
+}
+
+@media print {
+  .themer { display: none; }
+  body { background: #fff; color: #000; font-size: 11pt; }
+  .doc { max-width: none; padding: 0; }
+  section, .plate, .card, .gap { break-inside: avoid; }
+  .plate { border-color: #999; }
+  a { color: #000; text-decoration: none; }
+}
+</style>
+</head>
+<body>
+
+<button class="themer" id="themer" type="button" aria-label="Switch colour theme">
+  <span class="dot" aria-hidden="true"></span><span id="themer-label">Theme</span>
+</button>
+
+<div class="doc">
+
+<header class="masthead">
+  <div class="rail">
+    <div class="mark">Ref.</div>
+    <div>
+      <p class="eyebrow">shapeup-sdlc · plugin runtime · post ADR-0001/0002</p>
+      <h1>Anatomy of a constrained agent runtime</h1>
+      <p class="lede">Thirteen skills, eleven hooks and eighteen scripts arranged around one
+      idea: an agent's word is never load-bearing. This document draws the machine, then
+      explains why each skill's own definition <em>forces</em> the mechanism attached to it.</p>
+      <div class="meta">
+        <span><b>Scope</b> hooks · pipeline scripts · envelope schemas · skill contracts</span>
+        <span><b>Suite</b> 803 structural checks, passing</span>
+        <span><b>Plates</b> six</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════════════════════ §1 ══ -->
+<section class="rail">
+  <div class="mark">§1<br>Thesis</div>
+  <div>
+    <h2>Claims versus facts</h2>
+    <p>Every agent harness has to answer one question: <em>when the model says it finished, on
+    what basis do you believe it?</em> Most answer with better prompting. This one answers by
+    removing the model from the sentence.</p>
+
+    <p>A worker here never writes to the board, the ledger, or the verdict file. It returns a
+    JSON <code>WorkResult</code> — a proposal — and a script applies it. Whether the run started
+    is a receipt on disk. Whether the tests pass is the exit code of a process that actually ran
+    them. Whether a scope improved is a comparison between two score vectors. The model
+    contributes craft; the runtime contributes every fact anyone downstream relies on.</p>
+
+    <div class="pull">The gate is not a paragraph asking the model to stop. It is a
+    <code>PreToolUse</code> hook returning <code>permissionDecision: "deny"</code>, and the tool
+    call never happens.</div>
+
+    <p>That distinction produces the three planes in Plate 1. Read them as a cost gradient as
+    much as an architecture: the two lower planes are deterministic Node processes costing zero
+    model tokens, and the one plane where the model reasons freely is also the only plane whose
+    output is treated as untrusted.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ §2 ══ -->
+<section class="rail">
+  <div class="mark">§2<br>Plate 1</div>
+  <div>
+    <h2>Three planes</h2>
+
+    <div class="plate">
+      <div class="plate-cap"><span class="n">Plate 1</span><span>Separation of planes — who may assert what</span></div>
+      <div class="plate-body">
+        <div class="planes">
+          <div class="plane">
+            <div class="who">Policy</div>
+            <div class="what">11 registrations on <em>PreToolUse · Stop · SessionStart · PreCompact</em>.
+              Deny a dispatch, block a stop, inject state. Cannot be argued with because they
+              run outside the conversation.</div>
+            <div class="cost">0 tokens</div>
+          </div>
+          <div class="plane-gap">↑ verdicts · receipts appended to decisions.jsonl</div>
+          <div class="plane">
+            <div class="who">Pipeline</div>
+            <div class="what">18 scripts. <em>compile-order → ingest-result → t0-verify</em>.
+              Compiles the envelope going in, applies the envelope coming out, runs the fixtures,
+              scores the attempt, moves the tree.</div>
+            <div class="cost">0 tokens</div>
+          </div>
+          <div class="plane-gap">↑ WorkOrder in ↓ WorkResult out — both schema-validated</div>
+          <div class="plane craft">
+            <div class="who">Craft</div>
+            <div class="what">13 skills. Judgment, decomposition, code, grading. The only plane
+              that reasons — and the only plane whose output is treated as a
+              <em>claim</em> rather than a fact.</div>
+            <div class="cost">all of them</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="plate-note">The gap rows are the contract surface. Everything crossing them is
+    typed: <code>work-order.schema.json</code> going down, <code>work-result.schema.json</code>
+    coming up, both <code>$ref</code>-ing a central registry (<code>domain.schema.json</code>)
+    so no skill invents its own cross-boundary field.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ §3 ══ -->
+<section class="rail">
+  <div class="mark">§3<br>Plate 2</div>
+  <div>
+    <h2>The run, end to end</h2>
+    <p>A run is eleven gates over three phases. What matters in this drawing is not the
+    sequence — it is which arrows a script controls and which a hook can sever.</p>
+
+    <div class="plate">
+      <div class="plate-cap"><span class="n">Plate 2</span><span>Run lifecycle · rounded = script, square = skill, red = hook denial</span></div>
+      <div class="plate-body">
+<pre class="mermaid">
+flowchart TD
+  U([user request]) --> GI{{"gate-intake.mjs<br/>PreToolUse"}}
+  GI -->|"no requirement text"| DENY1[DENY dispatch]
+  GI -->|"intake present"| TL[["/tech-lead"]]
+
+  TL --> IR(["init-run.mjs — GATE L0.1"])
+  IR --> REC[("receipt.json · intake.md<br/>harness-run.md · active-scope")]
+  IR -.->|"exit 3 — run already open"| RESUME(["run-snapshot.mjs<br/>RESUME STATE"])
+
+  REC --> GA(["gate-answers.mjs --resolve"])
+  GA -->|"exit 0"| ORIENT[["/orient — L1a"]]
+  GA -->|"exit 4"| PO([stop · ask the PO])
+  GA -->|"exit 5"| ABORT([abort, attributably])
+
+  ORIENT --> WIRE[["/solution-architect — L1a.5"]]
+  WIRE --> BA[["/ba-pitch-analyzer — L1b"]]
+  BA --> SA[["/scope-architect<br/>scopes/*.md"]]
+  SA --> LOOP
+
+  subgraph LOOP ["BUILD · per scope, per attempt — GATE L2"]
+    direction TB
+    CO(["compile-order.mjs"]) --> VE{{"validate-envelope.mjs<br/>PreToolUse"}}
+    VE -->|"malformed order"| DENY2[DENY dispatch]
+    VE -->|"schema valid"| TE[["/task-executor"]]
+    TE --> SG{{"sandbox-guard.mjs<br/>on every Edit/Write"}}
+    SG -->|"outside substrate"| DENY3[DENY write]
+    SG -->|"inside substrate"| ING(["ingest-result.mjs<br/>SOLE WRITER"])
+    ING --> T0(["t0-verify.mjs<br/>fixtures + probe + seesaw"])
+    T0 -->|"kept / rebased"| NEXT([next attempt builds on this tree])
+    T0 -->|"reverted / crash"| REST([restore last kept tree])
+    NEXT --> CO
+    REST --> CO
+  end
+
+  LOOP -->|"scope green"| GL2{{"gate-l2.mjs<br/>board 100% done?"}}
+  GL2 -->|"unfinished tasks"| WARN4[WARN · the call proceeds]
+  GL2 -->|"board green"| EV[["/spec-evaluator — L3<br/>must cite a T0 hash"]]
+
+  EV -->|FAIL| LOOP
+  EV -->|PASS| QA[["/qa-edge-hunter — GATE QA"]]
+  QA --> HAM[["/scope-hammer — GATE H"]]
+  HAM --> L4([GATE L4 · ship sign-off])
+  L4 --> COACH[["/coach — GATE COACH-1"]]
+
+  TL -.->|"session ends"| GZ{{"gate-zerowork.mjs<br/>Stop"}}
+  GZ -->|"no receipt on disk"| BLOCK[BLOCK the stop]
+
+  classDef deny fill:#f4ddd6,stroke:#a3341c,stroke-width:2px,color:#7d2716;
+  classDef hook fill:#e8eff2,stroke:#0b6480,stroke-width:1.5px,color:#0b4a5f;
+  classDef script fill:#e4ece2,stroke:#3f6b4c,color:#26402f;
+  class DENY1,DENY2,DENY3,BLOCK deny;
+  classDef warn fill:#f3ead6,stroke:#93650a,color:#6b4a08;
+  class WARN4 warn;
+  class GI,VE,SG,GL2,GZ hook;
+  class IR,GA,CO,ING,T0,RESUME script;
+</pre>
+      </div>
+    </div>
+    <p class="plate-note">Four denial points and one advisory, each closing a failure that was
+    measured rather than imagined. <code>gate-intake</code> exists because a benchmark hand-off dropped
+    the requirement text and kept the flags. <code>gate-zerowork</code> exists because an
+    orchestrator once printed its own pipeline in future tense and stopped — scoring 29% while
+    reading like a clean run.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ §4 ══ -->
+<section class="rail">
+  <div class="mark">§4<br>Plate 3</div>
+  <div>
+    <h2>The envelope port</h2>
+    <p>This is the mechanism the other two headline invariants rest on. A worker is handed one
+    JSON file and returns one JSON file. It never learns where the board lives, what the run
+    state format is, or that another worker exists.</p>
+
+    <div class="plate">
+      <div class="plate-cap"><span class="n">Plate 3</span><span>One build attempt · WorkOrder in, WorkResult out</span></div>
+      <div class="plate-body">
+<pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant TL as tech-lead
+  participant CO as compile-order.mjs
+  participant HK as validate-envelope (hook)
+  participant W as task-executor
+  participant IN as ingest-result.mjs
+  participant T0 as t0-verify.mjs
+
+  TL->>CO: --scope SC-02.json --round 2 --attempt 3
+  CO->>CO: read contract · board · ledger decisions
+  CO->>CO: selectTrialHistory() — last 8 trials,<br/>crossing the round boundary
+  CO->>CO: compactTrial() — strip stdout, keep 3 triples
+  CO->>CO: substrateFor(op) — the write whitelist
+  CO-->>TL: orders/r2-a3.json (self-validated before write)
+
+  TL->>HK: Skill(task-executor) --order r2-a3.json
+  alt schema invalid or file missing
+    HK-->>TL: DENY — worker never sees it
+  else valid
+    HK-->>W: dispatch permitted
+  end
+
+  W->>W: implement ACs inside substrate.allowed only
+  W-->>IN: results/r2-a3.json — claims, not writes
+
+  IN->>IN: validate against work-result.schema.json
+  IN->>IN: tick AC boxes · flip status · append exec log
+  IN->>IN: propagate unblocks · append discoveries
+  IN->>IN: queue escalates for advisor-protocol
+  IN-->>TL: summary of every write performed
+
+  TL->>T0: t0-verify SC-02.json --round 2 --attempt 3
+  T0->>T0: run fixtures · db probe · seesaw
+  T0->>T0: score() → better() → decideStatus()
+  T0->>T0: snapshot or restore the working tree
+  T0-->>TL: {status, score, delta, sha256, tree_ref}
+</pre>
+      </div>
+    </div>
+    <p class="plate-note">Steps 3–5 are context engineering, not bookkeeping. The worker gets
+    facts and no transcript: eight compacted trial rows ≈ 600 tokens against an attempt budget
+    of five. Crossing the round boundary is deliberate — a fix round that starts blind to the
+    build round is how the same failed change gets proposed twice.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ §5 ══ -->
+<section class="rail">
+  <div class="mark">§5<br>Plate 4</div>
+  <div>
+    <h2>The ratchet and its pawl</h2>
+    <p>Most agent retry loops are memoryless: N attempts, each starting from whatever mess the
+    last one left. This loop scores every attempt as a vector and keeps the tree only when the
+    score <em>strictly</em> improves. A tie is not better — a tie that counted as improvement
+    would make a sawtooth look like a ratchet.</p>
+
+    <pre class="block">score = { regressions ↓ , fixtures_passed ↑ , fixtures_total , db_probe ↑ }
+
+better(next, current)
+  current == null              → true    baseline, first trial
+  fixtures_total differs       → null    incomparable — a split changed the denominator
+  regressions differ           → fewer wins        (a regression is never an improvement)
+  fixtures_passed differs      → more wins
+  otherwise                    → false   a tie is not better</pre>
+
+    <div class="plate">
+      <div class="plate-cap"><span class="n">Plate 4</span><span>Five attempts on one scope · what the pawl does with each</span></div>
+      <div class="plate-body">
+        <div class="ratchet">
+          <div class="rrow head"><span>Trial</span><span>Fixtures passing</span><span>Score</span><span>Δ vs baseline</span><span>Status</span></div>
+          <div class="rrow"><span>r1 · a1</span><div class="bar"><span style="width:40%"></span></div><span>2 / 5</span><span>baseline</span><span class="st kept">kept</span></div>
+          <div class="rrow"><span>r1 · a2</span><div class="bar lo"><span style="width:20%"></span></div><span>1 / 5</span><span>−1 fixture</span><span class="st rev">reverted</span></div>
+          <div class="rrow"><span>r1 · a3</span><div class="bar"><span style="width:80%"></span></div><span>4 / 5</span><span>+2 fixtures</span><span class="st kept">kept</span></div>
+          <div class="rrow"><span>r1 · a4</span><div class="bar"><span style="width:80%"></span></div><span>4 / 5</span><span>no change</span><span class="st rev">reverted</span></div>
+          <div class="rrow"><span>r2 · a1</span><div class="bar hi"><span style="width:100%"></span></div><span>5 / 5</span><span>+1 fixture</span><span class="st kept">kept</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="plate-note">Trial 3 is the whole point: <strong>red, but better</strong>. Under a
+    pass/fail loop it is indistinguishable from trial 2 and both get discarded. Under the ratchet
+    it becomes the new floor, and attempt 4 starts from working code instead of from an
+    unexplained tree. Each row appends to <code>t0/trials.jsonl</code> carrying
+    <code>baseline_trial</code> — a parent pointer that makes the attempt history a DAG with no
+    graph store behind it.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ §6 ══ -->
+<section class="rail">
+  <div class="mark">§6<br>Plate 5</div>
+  <div>
+    <h2>The enforcement layer</h2>
+    <p>Eleven registrations, four events. Every one of them fails <em>open</em> when it cannot prove a
+    violation — a gate that breaks legitimate runs gets disabled, and a disabled gate enforces
+    nothing. What makes fail-open auditable rather than invisible is the receipt: since v1.5
+    every hook appends a decision row, so <em>inspected-and-permitted</em>, <em>no rule
+    matched</em>, <em>threw</em>, and <em>never ran</em> are four distinguishable facts instead
+    of one silent exit 0.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Event</th><th class="mono">Hook</th><th>Fires when</th><th>Effect</th><th>Closes</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>PreToolUse</td><td class="mono">gate-intake</td>
+            <td>tech-lead dispatched with no pitch, spec folder or requirement text</td>
+            <td><span class="chip deny">deny</span></td>
+            <td>Flags survive a hand-off; requirement text doesn't</td>
+          </tr>
+          <tr>
+            <td>PreToolUse</td><td class="mono">validate-envelope</td>
+            <td><code>--order</code> is missing or fails the WorkOrder schema</td>
+            <td><span class="chip deny">deny</span></td>
+            <td>A malformed order reaching a worker</td>
+          </tr>
+          <tr>
+            <td>PreToolUse</td><td class="mono">gate-l2</td>
+            <td>round EVAL dispatched while any board task is unfinished</td>
+            <td><span class="chip deny">deny</span></td>
+            <td>EVAL run on a half-green board, reported PASS</td>
+          </tr>
+          <tr>
+            <td>PreToolUse</td><td class="mono">sandbox-guard</td>
+            <td>Edit/Write targets a path outside the active scope's substrate</td>
+            <td><span class="chip deny">deny</span></td>
+            <td>Two parallel executors overwriting each other</td>
+          </tr>
+          <tr>
+            <td>PreToolUse</td><td class="mono">safety-spine</td>
+            <td><code>rm -rf ~</code>, force-push, <code>DROP TABLE</code>, secret reads</td>
+            <td><span class="chip deny">deny</span></td>
+            <td>The machine and the remote, not the pipeline</td>
+          </tr>
+          <tr>
+            <td>PreToolUse</td><td class="mono">gate-deadline</td>
+            <td>wall clock exhausted and a dispatch would start <em>new</em> work</td>
+            <td><span class="chip deny">deny</span></td>
+            <td>An external kill ships nothing; a self-trip ships what's green</td>
+          </tr>
+          <tr>
+            <td>Stop</td><td class="mono">gate-zerowork</td>
+            <td>orchestrator dispatched, no receipt on disk</td>
+            <td><span class="chip block">block</span></td>
+            <td>Narration as a reachable ending</td>
+          </tr>
+          <tr>
+            <td>Stop</td><td class="mono">anti-rationalization</td>
+            <td>completion claim contradicts board / T0 / escalate facts</td>
+            <td><span class="chip adv">advisory</span></td>
+            <td>Says so out loud — never blocks (single-judge rule)</td>
+          </tr>
+          <tr>
+            <td>Stop</td><td class="mono">slop-cleaner</td>
+            <td>diff carries TODO, <code>console.log</code>, commented-out blocks</td>
+            <td><span class="chip adv">advisory</span></td>
+            <td>Leftovers shipping quietly</td>
+          </tr>
+          <tr>
+            <td>SessionStart</td><td class="mono">session-rehydrate</td>
+            <td>a run is open and the session has no memory of it</td>
+            <td><span class="chip inj">inject</span></td>
+            <td>Cold start re-entering the pipeline at phase 1</td>
+          </tr>
+          <tr>
+            <td>PreCompact</td><td class="mono">compact-snapshot</td>
+            <td>always, mid-run — freezes a file-derived RunSnapshot</td>
+            <td><span class="chip inj">persist</span></td>
+            <td>Acting on a lossy conversation summary</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="plate">
+      <div class="plate-cap"><span class="n">Plate 5</span><span>Three circuit breakers on three different axes</span></div>
+      <div class="plate-body">
+<pre class="mermaid">
+flowchart LR
+  subgraph OUTER ["OUTER · round_budget — counts rounds"]
+    subgraph INNER ["INNER · attempt_budget — counts T0 attempts per scope"]
+      RUN["the work"]
+    end
+  end
+  CLOCK["DEADLINE · wall_clock_budget_s<br/>counts SECONDS"] -. "the axis the<br/>other two cannot see" .-> INNER
+  OUTER --> H(["GATE H · scope-hammer<br/>census → baseline → cut list"])
+  INNER --> H
+  CLOCK --> H
+  H --> SHIP(["ship what is green"])
+
+  classDef brk fill:#f3ead6,stroke:#93650a,color:#6b4a08;
+  classDef out fill:#e4ece2,stroke:#3f6b4c,color:#26402f;
+  class CLOCK brk;
+  class H,SHIP out;
+</pre>
+      </div>
+    </div>
+    <p class="plate-note">Both original breakers count <em>events</em>, so neither could observe
+    a single round running for twenty-nine minutes. The third exists because a benchmark row was
+    killed at its 1800-second cap while genuinely working — 327 turns, 37 file writes, narration
+    ratio 0.047 — and shipped nothing. Tripping inward routes to GATE H instead of dying: the
+    difference between a dash in every column and a smaller feature that works.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ §7 ══ -->
+<section class="rail">
+  <div class="mark">§7<br>Plate 6</div>
+  <div>
+    <h2>Where state lives, and who may write it</h2>
+    <p>Two tiers, and the split is load-bearing. Anything a teammate needs on <code>git
+    pull</code> is committed; anything regenerable is a gitignored run trace. Persisted links
+    flow LOCAL → SHARED only, because task ids are machine-local and a committed link to them
+    dangles on every fresh clone.</p>
+
+    <div class="plate">
+      <div class="plate-cap"><span class="n">Plate 6</span><span>State tiers · writer in parentheses</span></div>
+      <div class="plate-body">
+<pre class="mermaid">
+flowchart TB
+  subgraph SHARED ["SHARED — shapeup/&lt;slug&gt;/ · committed"]
+    SPEC["spec/ — usecases · domain-model · contracts<br/>(ba-pitch-analyzer)"]
+    SCOPES["scopes/*.md — substrates · fixtures<br/>(scope-architect, sole writer)"]
+    WIRE["wiring-map.md — engine → seam → affordance<br/>(solution-architect, sole writer)"]
+    REQS["requirements.md — REQ registry<br/>(ba coverage op)"]
+    REPORT["REPORT.md — frozen ship evidence<br/>(ship-report.mjs, GATE L4)"]
+    KB["knowledge-base/&lt;skill&gt;.md — RLHF rules<br/>(coach)"]
+  end
+
+  subgraph LOCAL ["LOCAL — .shapeup/&lt;slug&gt;/ · gitignored, regenerable"]
+    RCP["receipt.json · intake.md · harness-run.md<br/>(init-run.mjs)"]
+    BOARD["tasks/ — the board<br/>(ingest-result.mjs, SOLE writer)"]
+    ENV["orders/ + results/ — the envelope port"]
+    T0V["t0/verdicts/ + trials.jsonl<br/>(t0-verify.mjs)"]
+    DISC["discovery/ledger.md<br/>(ingest-result.mjs)"]
+    DEC["decisions.jsonl · metrics/ · round-ledger.md<br/>(hooks · t0-verify · tech-lead)"]
+  end
+
+  SCOPES -.->|"read by"| SG["sandbox-guard hook"]
+  REQS -.->|"read by"| TLINT["trace-lint — covers-closure"]
+  WIRE -.->|"read by"| TLINT
+  BOARD -.->|"read by"| GL2["gate-l2 hook"]
+  T0V -.->|"cited + re-hashed by"| EVAL["spec-evaluator"]
+  RCP -.->|"absence read by"| GZ["gate-zerowork hook"]
+
+  classDef shared fill:#e4ece2,stroke:#3f6b4c,color:#26402f;
+  classDef local fill:#e8eff2,stroke:#0b6480,color:#0b4a5f;
+  classDef guard fill:#f4ddd6,stroke:#a3341c,color:#7d2716;
+  class SPEC,SCOPES,WIRE,REQS,REPORT,KB shared;
+  class RCP,BOARD,ENV,T0V,DISC,DEC local;
+  class SG,GL2,GZ,EVAL,TLINT guard;
+</pre>
+      </div>
+    </div>
+    <p class="plate-note">Every dotted arrow is an enforcement point reading a file rather than
+    a claim. That is the whole architecture in one line: guards read artifacts, artifacts are
+    written by scripts, scripts run commands.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ §8 ══ -->
+<section class="rail">
+  <div class="mark">§8<br>Definitions</div>
+  <div>
+    <h2>Why each skill needs its mechanism</h2>
+    <p>Every skill in this harness declares a boundary in its own definition — usually in the
+    form <em>"NOT for X"</em>, <em>"pure worker"</em>, <em>"the single judge"</em>, <em>"sole
+    writer"</em>. Those clauses are the interesting part, because <strong>a boundary stated in
+    prose is a boundary the model can reason its way across.</strong> Each one therefore
+    generates a specific runtime obligation. Read the cards as: <em>what the definition
+    promises</em> → <em>what would break it</em> → <em>what makes it true</em>.</p>
+
+    <h3>The four that carry the load</h3>
+    <div class="cards">
+
+      <div class="card">
+        <div class="name">/tech-lead — the orchestrator</div>
+        <blockquote>"The evaluator runs exactly once per build round, only after the board is
+        100% done. Never per task. The tech lead is the only component that can enforce this,
+        because no sub-skill sees the whole board."</blockquote>
+        <div class="forces"><b>What breaks it</b>An orchestrator that is also the thing being
+        orchestrated can always re-decide the timing. Under budget pressure "once per round"
+        drifts to "once per task", and a per-task PASS is not evidence about a feature.</div>
+        <div class="mech"><b>gate-l2.mjs</b> reads the board from two independent sources —
+        task frontmatter <em>and</em> the index table — and denies the EVAL dispatch while
+        either shows unfinished work. The rule leaves the prompt entirely.</div>
+      </div>
+
+      <div class="card">
+        <div class="name">/spec-evaluator — the judge</div>
+        <blockquote>"The single judge… skeptical by default — absence of evidence is a FAIL.
+        <code>payload.t0_artifacts[]</code>: an artifact listed but missing or red on disk → the
+        round is NOT gradeable."</blockquote>
+        <div class="forces"><b>What breaks it</b>A judge grading from the same context that
+        produced the work. "Skeptical by default" is a disposition, and dispositions bend —
+        especially when the alternative is reporting failure at the end of a long run.</div>
+        <div class="mech"><b>t0-verify.mjs</b> writes an immutable verdict artifact
+        (<code>flag:"wx"</code>, never clobbered) that the judge must <em>cite by path and
+        sha256 it re-computes itself</em>. No agent can fabricate the contents, because a
+        process produced them by running commands.</div>
+      </div>
+
+      <div class="card">
+        <div class="name">/task-executor — the generator</div>
+        <blockquote>"Zero-memory, substrate-sandboxed… <code>substrate.allowed</code> is the
+        ONLY globs you may write. A needed file outside them → ESCALATE, never a write (a
+        sandbox hook blocks it anyway)."</blockquote>
+        <div class="forces"><b>What breaks it</b>Parallel scopes. Two executors both convinced
+        they own <code>src/store.ts</code>, one silently overwriting the other's completions —
+        with both reporting done, truthfully, from their own point of view.</div>
+        <div class="mech"><b>sandbox-guard.mjs</b> intercepts every Edit/Write and denies paths
+        outside the contract's whitelist. The parenthetical in the definition — <em>"a sandbox
+        hook blocks it anyway"</em> — is the skill acknowledging that its own instruction is
+        not the enforcement.</div>
+      </div>
+
+      <div class="card">
+        <div class="name">/qa-edge-hunter — the explorer</div>
+        <blockquote>"Return each finding… <strong>always <code>~</code></strong>. Does NOT
+        render a verdict, score, or PASS/FAIL of any kind. QA is a level-up, not a gate."</blockquote>
+        <div class="forces"><b>What breaks it</b>A second grader. If QA can block, the harness
+        has two judges disagreeing at ship time and no rule for which one wins — and the
+        cheapest resolution is always "ship nothing".</div>
+        <div class="mech">The marker is structural, not stylistic: <code>discoveries[]</code>
+        has no verdict field to populate, and promotion from <code>~</code> to must-have happens
+        only at GATE H, by <code>scope-hammer</code> with PO confirmation. The Stop hooks that
+        <em>could</em> block deliberately don't — <code>anti-rationalization</code> emits
+        <code>systemMessage</code> and never <code>decision:"block"</code>.</div>
+      </div>
+    </div>
+
+    <h3>The planners — why "sole writer" needs a script</h3>
+    <div class="cards">
+
+      <div class="card">
+        <div class="name">/scope-architect</div>
+        <blockquote>"Writes the committed <code>scopes/*.md</code> contracts… NOT for
+        decomposing a pitch into tasks (ba-pitch-analyzer) or cutting scope at ship time
+        (scope-hammer)."</blockquote>
+        <div class="forces"><b>What breaks it</b>Three skills all plausibly "about scope". Any
+        of them could write the contract; if two do, the substrate whitelist the sandbox hook
+        reads has two versions.</div>
+        <div class="mech"><b>compile-order's <code>substrateFor()</code></b> issues a different
+        write whitelist per operation. <code>map-scopes</code> may write
+        <code>scopes/*.md</code>; <code>generate-board</code> has that path listed as
+        <em>frozen</em>. Role separation becomes a filesystem fact.</div>
+      </div>
+
+      <div class="card">
+        <div class="name">/solution-architect</div>
+        <blockquote>"The wiring map that guarantees no engine ships orphaned… engine →
+        integration seam → composition-root attachment → player-visible affordance."</blockquote>
+        <div class="forces"><b>What breaks it</b>The failure it names: 631 lines, 26 passing
+        tests, zero call sites. Every test green, the feature absent from the running app. No
+        amount of unit testing detects this, because unit tests import the module directly.</div>
+        <div class="mech"><b>trace-lint.mjs</b> BFS's the real import graph from the profile's
+        <code>entry_point</code> and reports any use-case engine with zero import sites.
+        Profile-gated, never hardcoded — <code>main.js</code> for a game is not the seam for a
+        web service.</div>
+      </div>
+
+      <div class="card">
+        <div class="name">/ba-pitch-analyzer</div>
+        <blockquote>"Five order-selected operations… the <code>coverage</code> op writes the
+        SHARED requirement registry for covers-closure."</blockquote>
+        <div class="forces"><b>What breaks it</b>The dropped clause. A customer requirement that
+        silently vanishes between the pitch and the board — not contradicted, just gone, so
+        nothing downstream has anything to disagree with.</div>
+        <div class="mech"><b>trace-lint's covers-closure arm</b>: every REQ marked
+        <code>covered</code> must be named by at least one acceptance criterion's
+        <code>(covers: REQ-n)</code> clause. Uncovered and not CUT is red. And
+        <b>spec-lint.mjs</b> grades the planner's own output, because a worker auditing itself
+        was always a judge-purity smell.</div>
+      </div>
+
+      <div class="card">
+        <div class="name">/orient — the scout</div>
+        <blockquote>"Pure worker (the harness rule: stateless workers, one stateful
+        orchestrator). It receives run metadata as arguments; it never reads or writes a shared
+        run-state file."</blockquote>
+        <div class="forces"><b>What breaks it</b>Any worker that reads shared state also
+        depends on its format — and then moving a directory breaks five skills instead of one
+        script.</div>
+        <div class="mech">The <b>WorkOrder</b> is the entire dependency surface. Path
+        resolution, run-state parsing and board globbing all moved into
+        <code>compile-order.mjs</code>, so a topology change touches one file and zero
+        skills.</div>
+      </div>
+    </div>
+
+    <h3>The governors — budget, escalation, learning</h3>
+    <div class="cards">
+
+      <div class="card">
+        <div class="name">/advisor-protocol</div>
+        <blockquote>"A worker never asks a free-form question mid-attempt. It returns a
+        structured block and stops work on the blocked AC until an answer comes back."</blockquote>
+        <div class="forces"><b>What breaks it</b>A zero-memory worker that guesses. Attempt 3
+        picks half-up rounding, attempt 4 picks banker's, and the fixtures oscillate with
+        nothing recording why.</div>
+        <div class="mech"><code>escalates[]</code> is a typed field on the WorkResult;
+        <code>ingest-result</code> queues it; the answer is persisted to the committed round
+        ledger and <code>compile-order</code> reads it back into
+        <code>payload.decisions[]</code> as <strong>binding precedent</strong> — so it survives
+        the next attempt's fresh context.</div>
+      </div>
+
+      <div class="card">
+        <div class="name">/scope-hammer</div>
+        <blockquote>"Compares the product to the pitch's baseline — what customers live with
+        today, not a perfect ideal."</blockquote>
+        <div class="forces"><b>What breaks it</b>Comparison against the ideal, which makes every
+        incomplete run look like a failure and encourages one more round instead of shipping the
+        green part.</div>
+        <div class="mech">All three stop conditions route <em>here</em> rather than to an exit:
+        normal completion, round budget, and attempt budget (queued as a
+        <code>hammer_proposal</code> that never blocks the round).
+        <b>gate-deadline.mjs</b> deliberately refuses to deny <code>scope-hammer</code> —
+        a breaker that also blocked the exit would strand green work.</div>
+      </div>
+
+      <div class="card">
+        <div class="name">/coach</div>
+        <blockquote>"Three workers have a read-side hook; they are the complete set of
+        categories the gate may offer. <code>spec-evaluator</code> is deliberately
+        excluded."</blockquote>
+        <div class="forces"><b>What breaks it</b>Feedback filed against the judge. The KB is
+        guidance; routed into the evaluator it becomes an invariant, and the single-judge rule
+        quietly gains a second grader made of accumulated opinions.</div>
+        <div class="mech"><code>compile-order</code> attaches
+        <code>payload.kb_rules_path</code> from a hard-coded three-entry map — executor,
+        planner, hunter. There is no path by which a rule reaches the judge, and
+        GATE COACH-1 asks the PO which skill owns each rule rather than assuming.</div>
+      </div>
+
+      <div class="card">
+        <div class="name">/translator · /shapeup</div>
+        <blockquote>"The single language gate… original never overwritten." · "Shaping, Betting
+        and Kick-off are PO-personal and upstream: intake is a kicked-off pitch, never a raw
+        idea."</blockquote>
+        <div class="forces"><b>What breaks it</b>Building from an unshaped idea, or from a
+        translation whose source is gone. Both produce work that cannot be traced back to
+        anything a human agreed to.</div>
+        <div class="mech"><b>init-run.mjs</b> hashes the intake into the receipt and writes it
+        verbatim to <code>intake.md</code>. "The spec was dropped on the hand-off" stops being
+        arguable and becomes checkable — which is exactly how that hypothesis was falsified
+        the first time it was raised.</div>
+      </div>
+    </div>
+
+    <div class="pull">Read as a set, the pattern is consistent: wherever a definition says
+    <em>only</em>, <em>never</em>, or <em>exactly once</em>, there is a script or a hook standing
+    behind it. Where there isn't one, the clause is decoration.</div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ §9 ══ -->
+<section class="rail">
+  <div class="mark">§9<br>Findings</div>
+  <div>
+    <h2>Six findings, five closed</h2>
+    <p>Applying that last test to the tree turned up six places where a definition promised more
+    than the runtime delivered. Five have since been fixed; one was resolved by deciding it was not
+    a defect. The record is kept because <em>how</em> they were closed is the more useful half.</p>
+
+    <div class="fixed">
+      <div class="t">Closed — 1 · The sandbox guard was armed by a prompt</div>
+      <p><code>init-run.mjs</code> wrote <code>active-scope</code> without <code>scope_id</code>,
+      and <code>sandbox-guard</code> fails open without it — so the substrate whitelist stayed
+      inert until a model remembered a runbook line. Every generated path now resolves through
+      <code>lib/paths.mjs</code>, and structural test #45 asserts no runtime file names a storage
+      root anywhere else. It caught seven sites a grep had missed on its first run.</p>
+    </div>
+
+    <div class="fixed">
+      <div class="t">Closed — 3 · The board checkbox matcher</div>
+      <p>Bidirectional substring matching meant "user can log in" could tick the box belonging to
+      "user can log in with SSO". Fixed alongside the contract work, with the round-trip pinned by
+      test #46.</p>
+    </div>
+
+    <div class="fixed">
+      <div class="t">Closed — 4 · The <code>Skill</code> / <code>Agent</code> asymmetry</div>
+      <p>GATE L2 matched only <code>Skill</code> while <code>validate-envelope</code> matched
+      both. Moot now: L2 is advisory (ADR-0001), and the denial that matters —
+      <code>validate-envelope</code> — always covered both paths.</p>
+    </div>
+
+    <div class="fixed">
+      <div class="t">Closed — 5 · Trial ordinals, and 6 · the unconditional first keep</div>
+      <p>Both were about the ratchet describing a tree nobody has. The ship report now reports the
+      last <strong>kept</strong> trial rather than the last trial, and test #47 pins exactly that:
+      a fixture where attempt 2 reached 5/5 and attempt 3 regressed to 4/5 and was reverted must
+      report 5/5.</p>
+    </div>
+
+    <div class="gap">
+      <div class="t">Open — 2 · <code>git stash create</code> does not include untracked files</div>
+      <p>The ratchet's snapshot header claims it does. Verified: it does not. The commonest
+      executor output is a <em>new</em> file, so <code>snapshot()</code> never captures it and
+      <code>restore()</code> neither restores nor removes it — a <code>reverted</code> trial
+      reports a revert that largely did not happen.</p>
+      <p>Still open because the fix is a behaviour change, not a correction: making the snapshot
+      include untracked files means a revert can now <em>delete</em> a file the harness cannot
+      prove it created, and that trade belongs to the PO.</p>
+    </div>
+
+    <p style="margin-top:1.8rem">The instructive part is that all six were the <em>same</em> defect
+    the project exists to catch, one level up: a mechanism whose failure signature is identical to
+    its success signature. A guard that fails open silently, a revert that partly happens, a tick
+    that lands on the wrong line. The tools for finding that shape in a model's work were excellent;
+    they had not been turned on the harness itself. Tests #45–#47 are that turn.</p>
+  </div>
+</section>
+
+<footer class="rail" style="border-top:1.5px solid var(--ink); padding-top:1.2rem;">
+  <div class="mark">End</div>
+  <div style="font-family:var(--f-display); font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); display:flex; flex-wrap:wrap; gap:.4rem 1.6rem;">
+    <span>shapeup-sdlc · post ADR-0001/0002</span>
+    <span>Source of record: <code>hooks/</code> · <code>skills/tech-lead/scripts/</code></span>
+    <span>Diagrams render with Mermaid; offline they read as source.</span>
+  </div>
+</footer>
+
+</div>
+
+<script>
+/* Theme toggle. Order matters: an explicit choice must beat the media query
+   in both directions, so we stamp data-theme rather than flipping a class. */
+(function () {
+  var root = document.documentElement;
+  var btn = document.getElementById("themer");
+  var label = document.getElementById("themer-label");
+  var KEY = "shapeup-anatomy-theme";
+
+  function systemTheme() {
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark" : "light";
+  }
+  function apply(theme) {
+    root.setAttribute("data-theme", theme);
+    label.textContent = theme === "dark" ? "Dark" : "Light";
+    btn.setAttribute("aria-pressed", String(theme === "dark"));
+  }
+
+  var stored = null;
+  try { stored = localStorage.getItem(KEY); } catch (e) { /* private mode */ }
+  apply(stored === "dark" || stored === "light" ? stored : systemTheme());
+
+  btn.addEventListener("click", function () {
+    var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    apply(next);
+    try { localStorage.setItem(KEY, next); } catch (e) { /* ignore */ }
+  });
+})();
+</script>
+
+<script type="module">
+/* Mermaid, loaded from CDN. If it does not arrive — offline, or a network the
+   file was copied off — every diagram stays visible as its own source, which
+   for this document is a legible fallback rather than a broken page. */
+try {
+  const { default: mermaid } = await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs");
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: "neutral",
+    securityLevel: "loose",
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+    flowchart: { curve: "basis", padding: 12 },
+  });
+  await mermaid.run({ querySelector: "pre.mermaid" });
+} catch (err) {
+  console.warn("Mermaid unavailable — diagrams shown as source.", err);
+}
+</script>
+
+</body>
+</html>

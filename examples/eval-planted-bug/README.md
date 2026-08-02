@@ -5,7 +5,7 @@ skill keeps its skeptical posture — that it **FAILs a build whose planted bug 
 acceptance criterion**, instead of talking itself into a pass. Until this regresses reproducibly,
 no other skill's correctness is trustworthy, because the judge is what asserts it.
 
-> Repo-only dev/CI asset — like `scripts/shapeup-sdlc/oracles/*` and the other `examples/*`, this fixture is
+> Repo-only dev/CI asset — like `oracles/*` and the other `examples/*`, this fixture is
 > **not shipped** to installs (F9). The scaffolding installer copies only `skills/`; nothing here
 > is read by the running skill.
 
@@ -45,9 +45,9 @@ skill is meant to reproduce by hand:
 
 ```bash
 # from repo root
-node scripts/shapeup-sdlc/oracles/process-oracle.mjs examples/eval-planted-bug/fizzbuzz.contract.json \
+node oracles/process-oracle.mjs examples/eval-planted-bug/fizzbuzz.contract.json \
   "node examples/eval-planted-bug/build-correct/fizzbuzz.mjs"   # → all 5 PASS, exit 0
-node scripts/shapeup-sdlc/oracles/process-oracle.mjs examples/eval-planted-bug/fizzbuzz.contract.json \
+node oracles/process-oracle.mjs examples/eval-planted-bug/fizzbuzz.contract.json \
   "node examples/eval-planted-bug/build-buggy/fizzbuzz.mjs"     # → TS-04 FAIL, exit 1
 ```
 

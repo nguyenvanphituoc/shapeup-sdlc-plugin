@@ -222,7 +222,7 @@
         "pick up the next task on the board",
         "start working on TASK-005",
         "continue from where we left off on the task board",
-        "implement the task in docs/shapeup-sdlc/checkout/spec/tasks"
+        "implement the task in shapeup/checkout/spec/tasks"
       ],
       "false_positives": []
     },

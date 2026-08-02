@@ -5,7 +5,7 @@
 // "new oracle types are added by registering a probe runner"). The contract interface is fixed —
 // `{ fails, results }` where each result is `{ id, desc, pass, evidence }` — implementations grow.
 //
-//   import { runOracle, ORACLES } from ".../scripts/oracles/index.mjs";
+//   import { runOracle, ORACLES } from ".../oracles/index.mjs";
 //   const { fails, results } = await runOracle("process", { cmd, criteria });
 //
 // `runOracle` is async so a sync runner (process/test/snapshot) and an async one (http) share one

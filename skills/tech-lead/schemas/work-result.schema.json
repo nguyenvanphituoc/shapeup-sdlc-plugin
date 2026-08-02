@@ -1,7 +1,7 @@
 {
   "$id": "work-result.schema.json",
   "title": "WorkResult",
-  "description": "The worker → orchestrator envelope (pure-skill architecture v1.0). Everything a worker used to write into shared files it now RETURNS as data; skills/tech-lead/scripts/ingest-result.mjs performs the writes (tick AC boxes, flip board status, append execution log, propagate unblocks, append discoveries) deterministically, in one place. Path: .shapeup-sdlc/<slug>/results/r<N>-a<M>.json. Every record type is DEFINED CENTRALLY in domain.schema.json — this file only shapes the envelope.",
+  "description": "The worker → orchestrator envelope (pure-skill architecture v1.0). Everything a worker used to write into shared files it now RETURNS as data; skills/tech-lead/scripts/ingest-result.mjs performs the writes (tick AC boxes, flip board status, append execution log, propagate unblocks, append discoveries) deterministically, in one place. Path: .shapeup/<slug>/results/r<N>-a<M>.json. Every record type is DEFINED CENTRALLY in domain.schema.json — this file only shapes the envelope.",
   "type": "object",
   "required": ["schema_version", "order_id", "status"],
   "properties": {

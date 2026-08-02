@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>File Organization — shapeup-sdlc</title>
+<meta name="description" content="Two trees: the plugin repository arranged by lifecycle, and the workspace it generates in a consumer's project.">
+
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; }
+img, svg { max-width: 100%; height: auto; }
+button { font: inherit; color: inherit; }
+</style>
+
+<style>
+/* ══ tokens — same machinist's bench as the anatomy page, so the two read as one set ══ */
+:root {
+  --ground:#f1f3f2; --ground-2:#e7eae8; --ink:#171c1e; --ink-soft:#454f52;
+  --ink-faint:#798487; --rule:#c9cfcc; --rule-soft:#dde1de;
+  --dye:#0b6480; --dye-wash:#dceaef;
+  --deny:#a3341c; --deny-wash:#f2ddd7;
+  --allow:#2f6d4a; --allow-wash:#dbe9e0;
+  --amber:#93650a; --amber-wash:#f4ead4;
+  --plate:#ecefe9; --plate-rule:#cdd3ca; --plate-ink:#1b1f1c;
+  --measure:67ch; --gutter:5.5rem;
+  --f-display: ui-monospace,"SF Mono",SFMono-Regular,"Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
+  --f-body: Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --f-data: var(--f-display);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground:#121618; --ground-2:#1a1f21; --ink:#dfe5e3; --ink-soft:#a4b0b0;
+    --ink-faint:#6f7c7d; --rule:#2c3436; --rule-soft:#222a2c;
+    --dye:#4fb4d4; --dye-wash:#12333e;
+    --deny:#e0745a; --deny-wash:#3a201a;
+    --allow:#6fb98c; --allow-wash:#1b3327;
+    --amber:#d5a03c; --amber-wash:#33280f;
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#121618; --ground-2:#1a1f21; --ink:#dfe5e3; --ink-soft:#a4b0b0;
+  --ink-faint:#6f7c7d; --rule:#2c3436; --rule-soft:#222a2c; --dye:#4fb4d4;
+  --dye-wash:#12333e; --deny:#e0745a; --deny-wash:#3a201a; --allow:#6fb98c;
+  --allow-wash:#1b3327; --amber:#d5a03c; --amber-wash:#33280f;
+}
+:root[data-theme="light"] {
+  --ground:#f1f3f2; --ground-2:#e7eae8; --ink:#171c1e; --ink-soft:#454f52;
+  --ink-faint:#798487; --rule:#c9cfcc; --rule-soft:#dde1de; --dye:#0b6480;
+  --dye-wash:#dceaef; --deny:#a3341c; --deny-wash:#f2ddd7; --allow:#2f6d4a;
+  --allow-wash:#dbe9e0; --amber:#93650a; --amber-wash:#f4ead4;
+}
+
+body { background:var(--ground); color:var(--ink); font-family:var(--f-body);
+  font-size:17px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+.doc { max-width:78rem; margin:0 auto; padding:0 1.5rem 8rem; }
+
+.rail { display:grid; grid-template-columns:var(--gutter) minmax(0,1fr); gap:0 2rem; align-items:start; }
+.rail > .mark { font-family:var(--f-display); font-size:.68rem; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-faint); padding-top:.55rem; text-align:right; white-space:nowrap; }
+@media (max-width:820px){ .rail{grid-template-columns:minmax(0,1fr);gap:0;} .rail>.mark{text-align:left;padding:0 0 .4rem;} :root{--measure:100%;} }
+
+h1,h2,h3,.eyebrow,.plate-cap,.chip,th { font-family:var(--f-display); font-weight:600; }
+h1 { font-size:clamp(1.9rem,4.4vw,3.05rem); line-height:1.06; letter-spacing:-.035em; margin:0 0 1rem; text-wrap:balance; }
+h2 { font-size:1.12rem; letter-spacing:.02em; text-transform:uppercase; margin:0 0 1.1rem;
+  padding-bottom:.55rem; border-bottom:1.5px solid var(--ink); text-wrap:balance; }
+h3 { font-size:.84rem; letter-spacing:.09em; text-transform:uppercase; color:var(--dye); margin:2.2rem 0 .7rem; }
+p { margin:0 0 1.05rem; max-width:var(--measure); }
+.lede { font-size:1.16rem; line-height:1.55; color:var(--ink-soft); max-width:62ch; }
+.eyebrow { font-size:.7rem; letter-spacing:.18em; text-transform:uppercase; color:var(--dye); margin:0 0 .9rem; }
+code { font-family:var(--f-data); font-size:.86em; }
+p code, li code, td code { background:var(--ground-2); border:1px solid var(--rule-soft);
+  border-radius:2px; padding:.08em .32em; white-space:nowrap; }
+a { color:var(--dye); text-underline-offset:3px; }
+strong { font-weight:700; color:var(--ink); }
+ul { max-width:var(--measure); padding-left:1.15rem; margin:0 0 1.05rem; }
+li { margin-bottom:.45rem; }
+
+header.masthead { border-bottom:1.5px solid var(--ink); padding:4.5rem 0 2rem; margin-bottom:3.5rem; }
+.masthead .meta { display:flex; flex-wrap:wrap; gap:.5rem 1.6rem; font-family:var(--f-display);
+  font-size:.7rem; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-faint);
+  margin-top:2rem; padding-top:1rem; border-top:1px solid var(--rule); }
+.masthead .meta b { color:var(--ink-soft); font-weight:600; }
+section { margin-bottom:4rem; }
+
+/* ══ drawing plates ══ */
+.plate { background:var(--plate); border:1px solid var(--plate-rule); border-radius:2px; margin:1.8rem 0 1.4rem; overflow:hidden; }
+.plate-cap { display:flex; flex-wrap:wrap; gap:.35rem 1rem; align-items:baseline; padding:.6rem .95rem;
+  border-bottom:1px solid var(--plate-rule); font-size:.68rem; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--plate-ink); }
+.plate-cap .n { color:#6d7a6f; }
+.plate-body { padding:1.4rem 1rem; overflow-x:auto; }
+.plate-note { font-size:.88rem; color:var(--ink-soft); max-width:var(--measure); margin:0 0 2.6rem; }
+
+/* ══ the tree ══ */
+.tree { font-family:var(--f-data); font-size:.78rem; line-height:1.75; min-width:44rem; color:var(--plate-ink); }
+.tree .row { display:grid; grid-template-columns:22rem 1fr; gap:1.2rem; }
+.tree .row:hover { background:#e3e8de; }
+.tree .path { white-space:pre; }
+.tree .note { color:#5c6a5f; font-family:var(--f-body); font-size:.86rem; align-self:center; }
+.tree .band { display:grid; grid-template-columns:22rem 1fr; gap:1.2rem;
+  margin:1rem 0 .3rem; padding:.3rem .5rem; border-radius:2px;
+  font-size:.66rem; letter-spacing:.14em; text-transform:uppercase; font-weight:700; }
+.tree .band:first-child { margin-top:0; }
+.tree .band .when { font-family:var(--f-body); font-weight:400; letter-spacing:0; text-transform:none; font-size:.82rem; }
+.b-ships   { background:#dce9df; color:#1f4b30; }
+.b-install { background:#f4e0d9; color:#7d2716; }
+.b-build   { background:#f1e8d2; color:#6b4a08; }
+.b-prove   { background:#dbe6ec; color:#0b4a5f; }
+.b-explain { background:#e6e3ec; color:#443a5c; }
+.tree .dim { color:#8d9a90; }
+.tree .new { color:#1f4b30; font-weight:700; }
+.tree .gone { color:#a3341c; text-decoration:line-through; }
+
+/* ══ tier cards ══ */
+.tiers { display:grid; gap:1.2rem; grid-template-columns:repeat(auto-fit,minmax(21rem,1fr)); margin:1.5rem 0; }
+.tier { border:1px solid var(--rule); border-radius:2px; overflow:hidden; }
+.tier > .head { padding:.7rem .9rem; font-family:var(--f-display); font-size:.72rem;
+  letter-spacing:.1em; text-transform:uppercase; font-weight:700; display:flex; justify-content:space-between; gap:1rem; }
+.tier.shared > .head { background:var(--allow-wash); color:var(--allow); }
+.tier.local  > .head { background:var(--dye-wash);   color:var(--dye); }
+.tier > .body { padding:.9rem; font-family:var(--f-data); font-size:.76rem; line-height:1.7; background:var(--ground-2); }
+.tier > .body em { color:var(--ink-faint); font-style:normal; font-family:var(--f-body); font-size:.84rem; }
+.tier > .foot { padding:.7rem .9rem; border-top:1px solid var(--rule-soft); font-size:.84rem; color:var(--ink-soft); }
+
+/* ══ tables ══ */
+.tablewrap { overflow-x:auto; margin:1.4rem 0 1rem; border:1px solid var(--rule); border-radius:2px; }
+table { border-collapse:collapse; width:100%; min-width:42rem; font-size:.87rem; }
+th { text-align:left; font-size:.66rem; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--ink-faint); padding:.7rem .9rem; border-bottom:1.5px solid var(--rule);
+  background:var(--ground-2); white-space:nowrap; }
+td { padding:.72rem .9rem; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+tbody tr:last-child td { border-bottom:none; }
+td.mono { font-family:var(--f-data); font-size:.8rem; }
+.chip { display:inline-block; font-size:.62rem; letter-spacing:.08em; text-transform:uppercase;
+  padding:.14rem .42rem; border-radius:2px; border:1px solid; white-space:nowrap; font-weight:700; }
+.chip.keep { color:var(--allow); border-color:var(--allow); background:var(--allow-wash); }
+.chip.hide { color:var(--dye);   border-color:var(--dye);   background:var(--dye-wash); }
+.chip.exc  { color:var(--amber); border-color:var(--amber); background:var(--amber-wash); }
+
+.pull { border-top:1.5px solid var(--ink); border-bottom:1.5px solid var(--ink); padding:1.4rem 0;
+  margin:2.2rem 0; max-width:58ch; font-size:1.24rem; line-height:1.38; letter-spacing:-.01em; text-wrap:balance; }
+.gap { border-left:3px solid var(--deny); background:var(--deny-wash); padding:.9rem 1.1rem;
+  margin:1rem 0; border-radius:0 2px 2px 0; max-width:var(--measure); }
+.gap .t { font-family:var(--f-display); font-size:.72rem; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--deny); font-weight:700; margin-bottom:.3rem; }
+.gap p { margin:0; font-size:.92rem; }
+pre.block { font-family:var(--f-data); font-size:.78rem; line-height:1.6; background:var(--ground-2);
+  border:1px solid var(--rule); border-radius:2px; padding:1rem 1.1rem; overflow-x:auto; margin:1.2rem 0; }
+
+/* mermaid: readable as source until the renderer arrives */
+pre.mermaid { font-family:var(--f-data); font-size:.72rem; line-height:1.5; color:#46514a;
+  margin:0; white-space:pre; text-align:left; }
+pre.mermaid[data-processed] { font-size:inherit; line-height:inherit; white-space:normal;
+  display:flex; justify-content:center; min-width:max-content; }
+
+.themer { position:fixed; top:1rem; right:1rem; z-index:50; display:inline-flex; align-items:center;
+  gap:.4rem; background:var(--ground-2); color:var(--ink-soft); border:1px solid var(--rule);
+  border-radius:2px; padding:.35rem .6rem; cursor:pointer; font-family:var(--f-display);
+  font-size:.64rem; letter-spacing:.11em; text-transform:uppercase; }
+.themer:hover { color:var(--ink); border-color:var(--ink-faint); }
+.themer .dot { width:.52rem; height:.52rem; border-radius:50%; background:var(--dye); flex:none; }
+
+:focus-visible { outline:2px solid var(--dye); outline-offset:2px; }
+@media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important;} }
+@media print {
+  .themer { display:none; }
+  body { background:#fff; color:#000; font-size:11pt; }
+  .doc { max-width:none; padding:0; }
+  section,.plate,.tier,.gap { break-inside:avoid; }
+  a { color:#000; text-decoration:none; }
+}
+</style>
+</head>
+<body>
+
+<button class="themer" id="themer" type="button" aria-label="Switch colour theme">
+  <span class="dot" aria-hidden="true"></span><span id="themer-label">Theme</span>
+</button>
+
+<div class="doc">
+
+<header class="masthead">
+  <div class="rail">
+    <div class="mark">Ref.</div>
+    <div>
+      <p class="eyebrow">shapeup-sdlc · ADR-0001 + ADR-0002</p>
+      <h1>Two trees</h1>
+      <p class="lede">A harness has two file layouts, and they answer different questions. The
+      plugin's own repository asks <em>when does this run?</em> The workspace it generates in your
+      project asks <em>who is this for?</em> Getting either wrong is silent.</p>
+      <div class="meta">
+        <span><b>Plugin</b> 13 skills · 11 hook registrations · 6 oracles · 18 scripts</span>
+        <span><b>Suite</b> 803 checks</span>
+        <span><b>Tarball</b> 135 files</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════ §1 ═══ -->
+<section class="rail">
+  <div class="mark">§1<br>Principle</div>
+  <div>
+    <h2>One axis per tree</h2>
+    <p>Both layouts used to sort by <em>kind of file</em> — scripts here, docs there, tests over
+    there. That is the arrangement that hides things, because "script" describes a file's syntax
+    and nothing about its obligations. A shell script published as a <code>curl</code> URL and a
+    shell script a maintainer runs once are the same kind of file and opposite kinds of commitment.</p>
+
+    <div class="pull">Sort the plugin by <strong>when it runs</strong>. Sort the workspace by
+    <strong>who reads it</strong>. Neither tree needs a comment to be legible after that.</div>
+
+    <p>The two questions produce two different vocabularies, which is the point — you can tell at a
+    glance which tree you are looking at.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ §2 ═══ -->
+<section class="rail">
+  <div class="mark">§2<br>Plate 1</div>
+  <div>
+    <h2>The plugin repository</h2>
+    <p>Five lifecycles. The band colour is the obligation: green ships to a user's machine, red is
+    a frozen public URL, amber never leaves the maintainer's laptop.</p>
+
+    <div class="plate">
+      <div class="plate-cap"><span class="n">Plate 1</span><span>The plugin, by lifecycle · green = new or moved</span></div>
+      <div class="plate-body">
+        <div class="tree">
+
+          <div class="band b-ships"><span>Ships</span><span class="when">loaded in the user's Claude Code session, via <code>${CLAUDE_PLUGIN_ROOT}</code></span></div>
+          <div class="row"><span class="path">.claude-plugin/</span><span class="note">plugin.json · marketplace.json</span></div>
+          <div class="row"><span class="path">skills/            <span class="dim">13</span></span><span class="note">SKILL.md + references/ scripts/ schemas/ assets/</span></div>
+          <div class="row"><span class="path">hooks/             <span class="dim">10</span></span><span class="note">the enforcement layer + lib/decision.mjs</span></div>
+          <div class="row"><span class="path">commands/          <span class="dim">10</span></span><span class="note">slash-command front doors</span></div>
+          <div class="row"><span class="path new">oracles/           6  ← moved</span><span class="note">the probing grammar a user's fixtures invoke</span></div>
+          <div class="row"><span class="path">AGENTS.md</span><span class="note">the harness block merged into the user's file</span></div>
+
+          <div class="band b-install"><span>Installs</span><span class="when">runs once, on a user's machine — <strong>paths are frozen</strong></span></div>
+          <div class="row"><span class="path">bin/init.mjs</span><span class="note"><code>npx shapeup-sdlc init</code></span></div>
+          <div class="row"><span class="path">scripts/install-harness.sh</span><span class="note">published <code>curl | bash</code> entry point</span></div>
+          <div class="row"><span class="path">scripts/migrate.sh</span><span class="note">published <code>curl | bash</code> entry point</span></div>
+          <div class="row"><span class="path">scripts/shapeup-sdlc/lib/</span><span class="note">sourced by both entry points</span></div>
+          <div class="row"><span class="path">scripts/shapeup-sdlc/migrations/  <span class="dim">8</span></span><span class="note">applied by ordinal, recorded in the target project</span></div>
+          <div class="row"><span class="path new">scripts/FROZEN.md  ← new</span><span class="note">why nothing here may be renamed</span></div>
+
+          <div class="band b-build"><span>Builds</span><span class="when">release time only — never ships</span></div>
+          <div class="row"><span class="path new">tools/distribute.js       ← moved</span><span class="note">compiles Cursor / Antigravity / Codex output</span></div>
+          <div class="row"><span class="path new">tools/trigger-eval.mjs    ← moved</span><span class="note">measures the trigger-eval baseline</span></div>
+          <div class="row"><span class="path new">tools/demo/               ← moved</span><span class="note">records the README demo</span></div>
+          <div class="row"><span class="path dim">dist/</span><span class="note">output of the above · gitignored · not in the tarball</span></div>
+
+          <div class="band b-prove"><span>Proves</span><span class="when">CI only</span></div>
+          <div class="row"><span class="path">tests/structural/  <span class="dim">17</span></span><span class="note">803 checks behind one runner</span></div>
+          <div class="row"><span class="path">evals/</span><span class="note">trigger-eval harness + baseline</span></div>
+          <div class="row"><span class="path">examples/</span><span class="note">dual role: fixtures AND quickstart tutorial</span></div>
+
+          <div class="band b-explain"><span>Explains</span><span class="when">read by humans</span></div>
+          <div class="row"><span class="path">docs/design/       <span class="dim">+ adr/</span></span><span class="note">the design record — public, it is the pitch</span></div>
+          <div class="row"><span class="path">docs/quickstart · install · upgrading · glossary</span><span class="note">user surface</span></div>
+          <div class="row"><span class="path">docs/visualize/</span><span class="note">these pages</span></div>
+          <div class="row"><span class="path new">docs/internal/     ← moved</span><span class="note">research/ · plan/ · launch/ — working record</span></div>
+          <div class="row"><span class="path gone">plugins/anti-lying-kit/</span><span class="note">retired — superseded by the main hooks</span></div>
+
+        </div>
+      </div>
+    </div>
+    <p class="plate-note">Four directories moved and one was deleted. Every move answers a question
+    the old tree could not: <code>oracles/</code> is product (a user's fixtures call it), so it
+    ships; <code>tools/</code> is not, so it does not; <code>scripts/</code> holds only things with
+    a published URL, so it carries a note saying so.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ §3 ═══ -->
+<section class="rail">
+  <div class="mark">§3<br>Boundary</div>
+  <div>
+    <h2>The publish boundary was wrong three ways</h2>
+    <p>A <code>files[]</code> array maintained by hand is the same class of thing this project
+    refuses everywhere else: an invariant living somewhere nobody checks. It was wrong in both
+    directions simultaneously.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Entry</th><th>Was</th><th>Now</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">agents/</td><td>declared, and does not exist</td><td>removed</td></tr>
+          <tr><td class="mono">dist/antigravity/</td><td>declared, gitignored, <strong>0 tracked files</strong> — the tarball depended on whether the publisher had run <code>distribute.js</code> locally</td><td>removed; <code>dist/</code> is build output, not product</td></tr>
+          <tr><td class="mono">skills/**/evals/**</td><td>13 datasets shipped, while <code>evals/README.md</code> calls them "repo-only, not shipped"</td><td>excluded — intent and mechanism now agree</td></tr>
+          <tr><td class="mono">oracles/</td><td>absent — the quickstart told users to run a file no install contained</td><td>ships</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="gap">
+      <div class="t">The frozen directory</div>
+      <p><code>docs/upgrading.md</code> publishes
+      <code>curl .../main/scripts/migrate.sh | bash</code>. A <code>curl | bash</code> URL is a
+      public API with no deprecation channel — rename the file and every published upgrade command
+      404s, silently for the reader and permanently for the search result that sent them there.
+      That guarantee now lives in <code>scripts/FROZEN.md</code>, inside the directory it protects,
+      rather than only in a doc the person tidying will not open.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ §4 ═══ -->
+<section class="rail">
+  <div class="mark">§4<br>Plate 2</div>
+  <div>
+    <h2>The workspace it generates</h2>
+    <p>Different question entirely. Nothing here is about lifecycle — it is about
+    <strong>who reads the file</strong>. The rule is one line:</p>
+
+    <pre class="block">prose is the team's        →  shapeup/     committed
+structured data is the machine's  →  .shapeup/    gitignored</pre>
+
+    <p>The harness runs only on the machine that invoked it. A teammate reads the design; they
+    never resume someone else's run. That single fact decides every row below.</p>
+
+    <div class="tiers">
+      <div class="tier shared">
+        <div class="head"><span>shapeup/</span><span>committed</span></div>
+        <div class="body">
+          &lt;slug&gt;/<br>
+          &nbsp;&nbsp;shaping/ <em>— pitch · framing · breadboard · baseline · glossary</em><br>
+          &nbsp;&nbsp;spec/ <em>— use cases · domain model · contracts · ux-behavior</em><br>
+          &nbsp;&nbsp;scopes/SC-*.md <em>— substrate + fixtures</em><br>
+          &nbsp;&nbsp;wiring-map.md<br>
+          &nbsp;&nbsp;project-profile.md<br>
+          &nbsp;&nbsp;requirements.md <em>— the REQ registry</em><br>
+          &nbsp;&nbsp;hill/*.yml<br>
+          &nbsp;&nbsp;<strong>REPORT.md</strong> <em>— frozen once at GATE L4</em><br>
+          knowledge-base/*.md<br>
+          .harness-version · .harness-migrations
+        </div>
+        <div class="foot">Business requirement, use cases, high- and low-level design — plus the
+        one piece of run evidence, frozen when the run ends.</div>
+      </div>
+
+      <div class="tier local">
+        <div class="head"><span>.shapeup/</span><span>gitignored</span></div>
+        <div class="body">
+          &lt;slug&gt;/<br>
+          &nbsp;&nbsp;receipt.json · intake.md · harness-run.md<br>
+          &nbsp;&nbsp;tasks/ <em>— the board</em><br>
+          &nbsp;&nbsp;working/ <em>— synthesis · assess-report · feedback</em><br>
+          &nbsp;&nbsp;orders/ + results/ <em>— the envelope port</em><br>
+          &nbsp;&nbsp;t0/verdicts/ + trials.jsonl<br>
+          &nbsp;&nbsp;evaluation/ · qa/ · trace/ · orient/<br>
+          &nbsp;&nbsp;discovery/ledger.md · round-ledger.md<br>
+          active-scope · decisions.jsonl<br>
+          metrics/*.jsonl · gate-answers.json · safety-overrides.json
+        </div>
+        <div class="foot">Run state and machine policy. Regenerable, per-machine, and none of it
+        is another developer's business.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ §5 ═══ -->
+<section class="rail">
+  <div class="mark">§5<br>Plate 3</div>
+  <div>
+    <h2>Three exceptions, named</h2>
+    <p>A rule with unnamed exceptions is a rule nobody can apply. These are the complete set — each
+    breaks the prose/structured line, and each has a reason that is not "it was convenient".</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Artifact</th><th>Rule says</th><th>Actually</th><th>Because</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono">scopes/*.md<br>wiring-map.md<br>project-profile.md</td>
+            <td><span class="chip hide">hide</span> structured</td>
+            <td><span class="chip exc">converted</span></td>
+            <td>They <em>are</em> low-level design — which files a slice may touch, which seam each
+            use case attaches to. Converted to markdown rather than hidden, so a reviewer reads
+            them in the PR.</td>
+          </tr>
+          <tr>
+            <td class="mono">knowledge-base/*.md</td>
+            <td><span class="chip hide">hide</span> it is policy</td>
+            <td><span class="chip keep">shared</span></td>
+            <td>Coaching rules describe how an agent should work <em>in this codebase</em>, which
+            is a team property even when every run is individual.</td>
+          </tr>
+          <tr>
+            <td class="mono">.harness-version<br>.harness-migrations</td>
+            <td><span class="chip hide">hide</span> machine state</td>
+            <td><span class="chip keep">shared</span></td>
+            <td>The Flyway-style record of which migrations <em>this repository</em> has had
+            applied. Local, and every teammate re-runs them.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>The contract format</h3>
+    <p>The first exception needed a format that is readable <em>and</em> parseable with no
+    dependency. Frontmatter carries the scalars and lists; a markdown table carries the one
+    array-of-objects field; prose carries the rationale.</p>
+
+    <div class="plate">
+      <div class="plate-cap"><span class="n">Plate 3</span><span>A scope contract · markdown on disk, JSON on the wire</span></div>
+      <div class="plate-body">
+<pre class="mermaid">
+flowchart LR
+  MD["shapeup/&lt;slug&gt;/scopes/SC-02.md<br/>─────────────<br/>frontmatter: scope_id, substrate[], fixtures[]<br/>## Why this slice — prose<br/>## Affordances — markdown table"]
+  LIB(["lib/contract-md.mjs<br/>the only reader/writer of the file form"])
+  OBJ["{ scope_id, allowed_file_substrate[],<br/>affordance_manifest[{…}] }"]
+  ORD["WorkOrder.payload.scope_contract<br/><i>envelope + schema unchanged</i>"]
+  SG{{"sandbox-guard<br/>enforces the substrate"}}
+
+  MD --> LIB --> OBJ --> ORD
+  OBJ --> SG
+
+  classDef file fill:#e4ece2,stroke:#3f6b4c,color:#26402f;
+  classDef wire fill:#e8eff2,stroke:#0b6480,color:#0b4a5f;
+  classDef hook fill:#f4ddd6,stroke:#a3341c,color:#7d2716;
+  class MD file; class OBJ,ORD wire; class SG hook; class LIB file;
+</pre>
+      </div>
+    </div>
+    <p class="plate-note">Nothing downstream of the parse knows the file was markdown. That is what
+    made the change safe: the envelope, its schema and <code>validate-envelope</code> are untouched.
+    <code>readContract()</code> still accepts the legacy <code>.json</code>, so a project that
+    upgrades its plugin and its data at different moments is never caught between them.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ §6 ═══ -->
+<section class="rail">
+  <div class="mark">§6<br>Plate 4</div>
+  <div>
+    <h2>What a teammate actually sees</h2>
+    <p>The split is by <em>time</em>, not by artifact. Everything a reviewer wants mutates
+    throughout a run, so committing it live would churn the deliverable on every attempt. It stays
+    local while it changes; its conclusions are frozen once.</p>
+
+    <div class="plate">
+      <div class="plate-cap"><span class="n">Plate 4</span><span>Run evidence · local while it mutates, frozen at GATE L4</span></div>
+      <div class="plate-body">
+<pre class="mermaid">
+flowchart TB
+  subgraph RUN [".shapeup/&lt;slug&gt; — churns every attempt"]
+    direction LR
+    B["tasks/<br/>board"]
+    T["t0/trials.jsonl<br/>+ verdicts/"]
+    E["evaluation/<br/>EVAL report"]
+    Q["qa/<br/>hunt report"]
+    L["round-ledger.md<br/>decisions"]
+  end
+  SR(["ship-report.mjs<br/>GATE L4"])
+  R["shapeup/&lt;slug&gt;/REPORT.md<br/>written ONCE, never mutated"]
+  B --> SR
+  T --> SR
+  E --> SR
+  Q --> SR
+  L --> SR
+  SR --> R
+  R --> PR([the pull request a teammate reads])
+
+  classDef local fill:#e8eff2,stroke:#0b6480,color:#0b4a5f;
+  classDef out fill:#e4ece2,stroke:#3f6b4c,color:#26402f;
+  class B,T,E,Q,L local;
+  class SR,R,PR out;
+</pre>
+      </div>
+    </div>
+    <p class="plate-note">Every figure in the report is <em>derived</em> — a reduce over artifacts
+    the harness already wrote. Nothing in it is a claim the orchestrator makes about its own run,
+    which would be the "agent reports done" pathology wearing a deliverable's clothes. One detail
+    carries most of the honesty: the T0 table reports the last <strong>kept</strong> trial, not the
+    last trial, because a reverted trial's tree was thrown away and reporting its score would
+    describe code nobody can see.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ §7 ═══ -->
+<section class="rail">
+  <div class="mark">§7<br>Guard</div>
+  <div>
+    <h2>Why the rename was survivable</h2>
+    <p>Both roots were hard-coded in about ninety files, in two syntaxes — 568 string literals and
+    48 sites that built the path from <code>join()</code> segments. A find-and-replace catches the
+    first set and silently misses the second, and the result throws no error: the script reads a
+    directory that is not there and takes its fail-open branch.</p>
+
+    <p>So the roots got one home before anything moved.</p>
+
+    <pre class="block">skills/tech-lead/scripts/lib/paths.mjs
+
+  export const SHARED = "shapeup";    ← renaming a root is this line
+  export const LOCAL  = ".shapeup";   ← and this one
+
+tests/structural/45-paths.mjs
+  asserts no runtime file names a storage root outside paths.mjs,
+  in EITHER syntax — mirroring test #11a's guard on the main-guard bug</pre>
+
+    <p>The test earned its place immediately: it caught <strong>seven sites the grep had
+    missed</strong>, all user-facing message strings with the root name baked in. Extracting first
+    and renaming second also meant every failure after the flip was provably a fixture, not a
+    refactor bug.</p>
+
+    <div class="pull">This is the third time this repo has fixed the same shape — a duplicated
+    fragile thing, given one home, with a test that no file may bypass. <code>is-main.mjs</code>,
+    then <code>argv.mjs</code>, now <code>paths.mjs</code>.</div>
+  </div>
+</section>
+
+<footer class="rail" style="border-top:1.5px solid var(--ink); padding-top:1.2rem;">
+  <div class="mark">End</div>
+  <div style="font-family:var(--f-display); font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); display:flex; flex-wrap:wrap; gap:.4rem 1.6rem;">
+    <span>Decisions: <code>docs/design/adr/0001</code> · <code>0002</code></span>
+    <span>Companion: <code>harness-anatomy.html</code></span>
+    <span>Diagrams render with Mermaid; offline they read as source.</span>
+  </div>
+</footer>
+
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var btn = document.getElementById("themer");
+  var label = document.getElementById("themer-label");
+  var KEY = "shapeup-fileorg-theme";
+  function systemTheme() {
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  function apply(theme) {
+    root.setAttribute("data-theme", theme);
+    label.textContent = theme === "dark" ? "Dark" : "Light";
+    btn.setAttribute("aria-pressed", String(theme === "dark"));
+  }
+  var stored = null;
+  try { stored = localStorage.getItem(KEY); } catch (e) { /* private mode */ }
+  apply(stored === "dark" || stored === "light" ? stored : systemTheme());
+  btn.addEventListener("click", function () {
+    var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    apply(next);
+    try { localStorage.setItem(KEY, next); } catch (e) { /* ignore */ }
+  });
+})();
+</script>
+
+<script type="module">
+try {
+  const { default: mermaid } = await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs");
+  mermaid.initialize({
+    startOnLoad: false, theme: "neutral", securityLevel: "loose",
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+    flowchart: { curve: "basis", padding: 12 },
+  });
+  await mermaid.run({ querySelector: "pre.mermaid" });
+} catch (err) {
+  console.warn("Mermaid unavailable — diagrams shown as source.", err);
+}
+</script>
+
+</body>
+</html>

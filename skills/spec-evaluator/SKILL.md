@@ -40,7 +40,7 @@ Invoked as `--order <path>`. Fields you may rely on (absent = unknown, never inf
 | `payload.t0_artifacts[]` | Per-scope T0 verdict paths for this round (scoped specs). An artifact listed but missing/red on disk, or a scoped spec with none listed → the round is NOT gradeable: return `status: failed` naming the scope — a structural precondition, not a criterion |
 | `payload.browser` | `cli` (default, ~4x cheaper) \| `mcp` \| `none` |
 | `payload.tasks[]` | Traceability only (which UCs a task claims): NEVER a grading source — the committed UC text is the criterion, a paraphrase mismatch is a finding |
-| `substrate.allowed` | Your only write surface: `.shapeup-sdlc/<slug>/evaluation/**` (the report + evidence) |
+| `substrate.allowed` | Your only write surface: `.shapeup/<slug>/evaluation/**` (the report + evidence) |
 
 **Grading source of truth.** `spec-conformance` grades against the committed `usecases/UC-*.md`
 (Steps, Error Cases, Invariants, Test Surface) and `domain-model.md` — never against a task
@@ -117,12 +117,12 @@ Done-when statements; `_index.md` Non-Go list. Which UCs are in scope comes from
 
 ## Output contract — the WorkResult
 
-1. Write the report `.shapeup-sdlc/<slug>/evaluation/EVAL-FEATURE-<slug>.md` (or
+1. Write the report `.shapeup/<slug>/evaluation/EVAL-FEATURE-<slug>.md` (or
    `EVAL-<task_id>.md` for a per-task run) per `references/report-schema.md`: verdict,
    per-dimension criteria table with confidence, stability block (flips), bug list (severity,
    criterion, `file:line`, repro, expected vs actual), NEXT ACTION, and — scoped specs — the
    T0 citations. A scoped report with no citation field is malformed; do not write it.
-2. Write `.shapeup-sdlc/<slug>/results/<order-suffix>.json`:
+2. Write `.shapeup/<slug>/results/<order-suffix>.json`:
 
 ```json
 {
@@ -132,7 +132,7 @@ Done-when statements; `_index.md` Non-Go list. Which UCs are in scope comes from
   "status": "done",
   "verdict": {
     "overall": "PASS | FAIL",
-    "report_path": ".shapeup-sdlc/<slug>/evaluation/EVAL-FEATURE-<slug>.md",
+    "report_path": ".shapeup/<slug>/evaluation/EVAL-FEATURE-<slug>.md",
     "t0_citations": [ { "scope_id": "cart", "path": "…/t0/verdicts/r2-a3.json", "sha256": "…" } ],
     "criteria": [ { "criterion": "UC-01 step 3", "dimension": "spec-conformance",
                     "verdict": "FAIL", "confidence": "high", "reprobed": true,
@@ -176,18 +176,18 @@ bug_template). Adding one (e.g. security) = write `references/dimensions/securit
 
 ```bash
 # Orchestrated (once per round, after GATE L2) — the canonical form
-/spec-evaluator --order .shapeup-sdlc/checkout-vnpay/orders/evaluate-r2.json
+/spec-evaluator --order .shapeup/checkout-vnpay/orders/evaluate-r2.json
 
 # Standalone — the preamble shim compiles a minimal order, then the single code path runs:
-#   node skills/tech-lead/scripts/compile-order.mjs --operation evaluate --slug <slug> \
+#   node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/compile-order.mjs" --operation evaluate --slug <slug> \
 #        --worker spec-evaluator [--payload '{"dimensions": [...], "run_cmd": "..."}']
-/spec-evaluator --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --task TASK-007
-/spec-evaluator --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --feature checkout-vnpay --single-pass
+/spec-evaluator --spec shapeup/checkout-vnpay/spec/ --task TASK-007
+/spec-evaluator --spec shapeup/checkout-vnpay/spec/ --feature checkout-vnpay --single-pass
 ```
 
 Standalone keeps `--task` (per-task check, not round-gated) and `--single-pass` (feature-level)
 — the shim maps them onto the order's payload; missing run command → ask. After writing the
-WorkResult, run `node skills/tech-lead/scripts/ingest-result.mjs <result path>` and show its
+WorkResult, run `node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/ingest-result.mjs" <result path>` and show its
 summary — standalone has no orchestrator to ingest for you.
 
 ---

@@ -1,7 +1,7 @@
 {
   "$id": "work-order.schema.json",
   "title": "WorkOrder",
-  "description": "The orchestrator → worker envelope (pure-skill architecture v1.0). Compiled by skills/tech-lead/scripts/compile-order.mjs, validated by validate-envelope.mjs before any worker dispatch. A worker depends only on this envelope — never on filesystem topology, run-state format, board schema, or another worker. Path: .shapeup-sdlc/<slug>/orders/r<N>-a<M>.json (or <slug>/orders/<operation>.json for non-attempt work). Every record type and payload field is DEFINED CENTRALLY in domain.schema.json ($defs + x-payload-by-worker) — this file only shapes the envelope; it never re-defines a domain entity.",
+  "description": "The orchestrator → worker envelope (pure-skill architecture v1.0). Compiled by skills/tech-lead/scripts/compile-order.mjs, validated by validate-envelope.mjs before any worker dispatch. A worker depends only on this envelope — never on filesystem topology, run-state format, board schema, or another worker. Path: .shapeup/<slug>/orders/r<N>-a<M>.json (or <slug>/orders/<operation>.json for non-attempt work). Every record type and payload field is DEFINED CENTRALLY in domain.schema.json ($defs + x-payload-by-worker) — this file only shapes the envelope; it never re-defines a domain entity.",
   "type": "object",
   "required": ["schema_version", "order_id", "worker", "mode", "payload"],
   "properties": {

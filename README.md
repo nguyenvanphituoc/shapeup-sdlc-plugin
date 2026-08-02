@@ -20,7 +20,7 @@ fixes where the gates would have nothing to say.
 
 <p align="center"><sub>
 The denial text above is <b>verbatim stdout</b> from <code>hooks/gate-l2.mjs</code> —
-<a href="scripts/demo/record-demo.mjs">the recorder runs the real hook</a> and fails rather than
+<a href="tools/demo/record-demo.mjs">the recorder runs the real hook</a> and fails rather than
 draw a picture. <a href="docs/assets/demo-gate.txt">Plain-text transcript.</a>
 </sub></p>
 
@@ -30,10 +30,15 @@ Every framework in this category answers *"the agent ignored the spec"* with bet
 This one answers it with a runtime. Three things are true of a run here that are not true of a
 prompt-based harness:
 
-**1. The agent cannot evaluate its own half-finished work.** A `PreToolUse` hook hard-denies
-the once-per-round evaluation while any task is unfinished, naming the offenders. It is not a
-reminder the model can rationalize past — the tool call never reaches the evaluator.
-→ *Prevents: the agent running EVAL on a half-green board and reporting PASS.*
+**1. A worker cannot act on an order nobody compiled.** Every dispatch carries a schema-validated
+WorkOrder, and a `PreToolUse` hook hard-denies the call when that order is missing or malformed —
+the tool call never reaches the worker. The same layer denies any write outside the active scope's
+file substrate, and blocks a session that dispatched the orchestrator and left no run receipt.
+→ *Prevents: an agent inventing its own brief, then reporting against it.*
+
+(GATE L2, the board-green check before evaluation, is advisory: it warns when a round's evaluation
+runs over unfinished tasks rather than denying it. The board is local to the machine running the
+harness — see [ADR-0001](docs/design/adr/0001-consumer-file-organization.md).)
 
 **2. Progress is measured, not claimed.** A scope counts as built only when `t0-verify` runs
 its fixtures, a DB probe, and the seesaw, and writes an artifact to disk. The evaluator must
@@ -151,8 +156,8 @@ graph LR
 
 Since v1.3 the pipeline carries a **traceability spine**: `ba-pitch-analyzer`'s `coverage`
 operation writes a requirement registry (`requirements.md`), `solution-architect` commits a
-per-use-case wiring map (`wiring-map.json`, gate L1a.5) resolved against the L0
-`project-profile.json`, and the covers-closure + reachability oracle
+per-use-case wiring map (`wiring-map.md`, gate L1a.5) resolved against the L0
+`project-profile.md`, and the covers-closure + reachability oracle
 `skills/tech-lead/scripts/trace-lint.mjs` checks that no engine ships orphaned. It runs
 advisory (warn-only) and is promoted to a blocking gate only once `covers:` is populated;
 every arm is skipped when its artifact is absent, so older specs are unaffected.
@@ -166,15 +171,15 @@ every arm is skipped when its artifact is absent, so older specs are unaffected.
 | Shaping (1–4) | `shapeup` | — | Frame the problem, breadboard affordances, spike risks, write the pitch. Sub-commands: `full`, `shaping`, `spike`, `breadboarding`, `framing-doc`, `kickoff-doc`, `breadboard-reflection`. |
 | Intake (GATE L0) | `translator` | — | Normalizes non-English intake (pitch/PRD/transcript) to faithful English before planning. The harness is English-only downstream. |
 | Orient (7) | `orient` | — | Builder-led recon: reads the code, spikes the single riskiest area, emits a code-surface map, spike findings, discovered-task seed, and a hill signal. Writes no production code. |
-| Wire (GATE L1a.5) | `solution-architect` | v1.1 | Sole writer of the committed wiring map (`wiring-map.json`): per-UC engine → integration seam → entry-point call site → player-visible affordance, resolved against `project-profile.json`. Front-loads the integration seam so no engine ships orphaned; the reachability input `trace-lint.mjs` checks. Operation: wire. |
+| Wire (GATE L1a.5) | `solution-architect` | v1.1 | Sole writer of the committed wiring map (`wiring-map.md`): per-UC engine → integration seam → entry-point call site → player-visible affordance, resolved against `project-profile.md`. Front-loads the integration seam so no engine ships orphaned; the reachability input `trace-lint.mjs` checks. Operation: wire. |
 | Map Scopes (8) | `ba-pitch-analyzer` | v4.0 | The spec-analyzer (pure worker). Decomposes a pitch into a linked DDD document tree (domain model → use cases → tasks) with BDD scenarios, a UC system flow, and a derived `## Test Surface`. One craft, five order-selected operations (analyze / generate-board / reconcile / retrofit-surface / coverage — the last writes the shared `requirements.md` registry for covers-closure); graph math + audits delegated to `board-derive.mjs`/`spec-lint.mjs`. |
-| Map Scopes (8) | `scope-architect` | v1.0 | Sole writer of committed, write-whitelisted scope contracts (`scopes/*.json`): import-graph slicing by flow, substrates, affordance manifests, fixtures. Operations: map-scopes / remap / split-scope. |
+| Map Scopes (8) | `scope-architect` | v1.0 | Sole writer of committed, write-whitelisted scope contracts (`scopes/*.md`): import-graph slicing by flow, substrates, affordance manifests, fixtures. Operations: map-scopes / remap / split-scope. |
 | Build (9) | `task-executor` | v2.0 | Pure worker: work order in → code out. Assumption scan, minimum-code/surgical-change discipline, Layer 1/2/3 UI rules, substrate-sandboxed, zero-memory. Never writes boards/ledgers/run-state. |
 | Evaluate (GATE L3) | `spec-evaluator` | v1.0 | The single judge (pure worker). Verifies spec-conformance, TDD surface, and integration against the running app — skeptical, files `file:line` bugs, runs exactly once per build round. Requires a T0 artifact citation, grades UI affordance-only; verdict + refuted boxes return as data. |
 | QA (post-PASS) | `qa-edge-hunter` | v1.1 | Exploratory edge hunt on the running app through six fixed lenses, charting edges *outside* what the evaluator probed. Findings go to the ledger as `~`; never blocks ship. |
 | Advisor (mid-build) | `advisor-protocol` | v0.1 | Adjudicates a worker's structured `ESCALATE` (design decision / spec ambiguity / substrate expansion) within a per-scope-per-round budget; persists answers to the committed round ledger so they survive a zero-memory reset. |
 | Stop (11) | `scope-hammer` | v0.1 | GATE H: must-have census → baseline comparison (never vs. the ideal) → cut list + ship verdict. Handles the normal stop and both circuit-breaker triggers. |
-| Retro (post-L4) | `coach` | — | RLHF for the harness: turns raw PO/TL feedback at Ship Sign-off into per-skill guidelines under committed `docs/shapeup-sdlc/knowledge-base/<skill>.md`, read back by `task-executor` / `ba-pitch-analyzer` / `qa-edge-hunter` on their next run. GATE COACH-1 asks the PO which skill owns each rule — never assumes; mechanism defects are filed to the harness-defect register instead. |
+| Retro (post-L4) | `coach` | — | RLHF for the harness: turns raw PO/TL feedback at Ship Sign-off into per-skill guidelines under committed `shapeup/knowledge-base/<skill>.md`, read back by `task-executor` / `ba-pitch-analyzer` / `qa-edge-hunter` on their next run. GATE COACH-1 asks the PO which skill owns each rule — never assumes; mechanism defects are filed to the harness-defect register instead. |
 | Orchestrator | `tech-lead` | v1.0 | Owns the run end-to-end: PLAN once → BUILD all tasks → EVAL once per round, looping on FAIL. Three-level circuit breaker (rounds / T0 attempts / wall clock), T0/seesaw-verified build rounds, mechanical hill derivation. Sole writer of run-state. |
 
 ### Commands
@@ -226,14 +231,14 @@ Nine Node hooks. What each one reads and what it can deny:
 - `PreToolUse` (matcher `Bash|Read|Write|Edit|MultiEdit`) — `hooks/safety-spine.mjs` denies
   destructive commands (`rm -rf` on unrecoverable targets, force-push/push-to-main,
   `git reset --hard`, `DROP TABLE`) and secret-file reads. Machine guard, not pipeline guard;
-  escape hatch is the human-authored `.shapeup-sdlc/safety-overrides.json`.
+  escape hatch is the human-authored `.shapeup/safety-overrides.json`.
 - `PreToolUse` (matcher `Edit|Write|MultiEdit`) — `hooks/sandbox-guard.mjs` blocks writes
   outside the active scope's substrate whitelist (no-op unless scope contracts exist).
 - `PreToolUse` (matcher `Skill|Agent`) — `skills/tech-lead/scripts/validate-envelope.mjs`
   denies any worker dispatch whose order file is missing or schema-invalid.
 - `Stop` — **`hooks/gate-zerowork.mjs` blocks a session that dispatched the orchestrator and
   left no run receipt.** The one blocking `Stop` hook, and the narrowest: its predicate is
-  mechanical — orchestrator dispatched AND no `.shapeup-sdlc/<slug>/receipt.json` — so it never
+  mechanical — orchestrator dispatched AND no `.shapeup/<slug>/receipt.json` — so it never
   judges quality, it reports that no work exists to judge. It exists because the benchmark caught
   this harness describing its own pipeline instead of running it (Haiku 4.5, n=5, zero variance,
   29% acceptance) while both existing guards structurally could not see it: one is scoped to an
@@ -246,7 +251,7 @@ Nine Node hooks. What each one reads and what it can deny:
   leftovers in the session's diff). They emit at most a `systemMessage` — "QA is a level-up, not
   a gate."
 - `PreCompact` — `hooks/compact-snapshot.mjs` persists the mid-run `RunSnapshot` to
-  `.shapeup-sdlc/<slug>/run-snapshot.json` before the conversation is compacted.
+  `.shapeup/<slug>/run-snapshot.json` before the conversation is compacted.
 
 No hook makes a network request, none has dependencies, and all are plain, readable `.mjs`
 files. **[SECURITY.md](SECURITY.md)** states what each hook reads, what it can deny, and what
@@ -324,12 +329,12 @@ hooks/                # hooks.json + safety-spine, gate-l2, gate-intake, gate-de
                       #   gate-zerowork (Stop, blocking), anti-rationalization, slop-cleaner (Stop, advisory),
                       #   compact-snapshot (PreCompact), session-rehydrate (SessionStart)
 scripts/install-harness.sh, migrate.sh   # stable public entrypoints (fresh install / update)
-scripts/demo/record-demo.mjs             # regenerates docs/assets/demo-gate.svg
+tools/demo/record-demo.mjs             # regenerates docs/assets/demo-gate.svg
 scripts/shapeup-sdlc/                    # dev/CI tooling: lib/, migrations/, oracles/,
                                          #   trigger-eval.mjs, distribute.js
 docs/install.md, upgrading.md, glossary.md
 docs/design/          # the design document (pipeline, gates, circuit breaker, ERD)
-docs/launch/          # directory-submission copy
+docs/internal/launch/          # directory-submission copy
 .github/workflows/    # CI + release
 ```
 

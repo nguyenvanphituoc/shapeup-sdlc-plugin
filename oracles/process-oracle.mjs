@@ -13,7 +13,7 @@
 //   • One verdict per criterion.
 //
 // Library use (what the evaluator calls):
-//   import { runContract } from ".../scripts/oracles/process-oracle.mjs";
+//   import { runContract } from ".../oracles/process-oracle.mjs";
 //   const { fails, results } = runContract({ cmd: "node ./todo.js", criteria });
 //
 // CLI use (smoke / CI):
@@ -25,7 +25,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { isMain } from "../../../skills/tech-lead/scripts/lib/is-main.mjs";
+import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
 
 const CRASH_RE = /at\s+.*:\d+:\d+|Traceback|panic:|unhandled|Segmentation fault/i;
 

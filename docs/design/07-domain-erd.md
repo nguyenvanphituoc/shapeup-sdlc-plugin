@@ -11,8 +11,8 @@
 
 | Tier | Meaning | Root |
 |---|---|---|
-| **SHARED** | Committed, survives clone + crash | `docs/shapeup-sdlc/` |
-| **LOCAL** | Gitignored, regenerable run-trace | `.shapeup-sdlc/` |
+| **SHARED** | Committed, survives clone + crash | `shapeup/` |
+| **LOCAL** | Gitignored, regenerable run-trace | `.shapeup/` |
 | **EMBEDDED** | Record type that only lives inside another entity | — |
 
 **Join keys.** `<slug>` (the feature) is the aggregate root every path is keyed off.
@@ -125,7 +125,7 @@ erDiagram
         string contradicts "EVAL criterion id this disproves"
     }
     TaskBoardFile {
-        string id PK "LOCAL .shapeup-sdlc/slug/tasks/TASK-*.md"
+        string id PK "LOCAL .shapeup/slug/tasks/TASK-*.md"
     }
 ```
 
@@ -237,14 +237,14 @@ erDiagram
 | `VerdictLedgerLine` | LOCAL | `evaluation/.verdicts-<target>.jsonl` | ingest-result.mjs | spec-evaluator (flip detection), verdict-ledger.mjs |
 | `SeesawRegistry` | LOCAL | `seesaw/registry.json` | tech-lead (scope FINISHED) | t0-verify.mjs |
 | `MetricsRow` | SHARED | `metrics/<machine-id>.jsonl` | tech-lead (SHIP S.6) | tier-3 benchmark tooling, stats.mjs (v1.2: optional `at` + `attempt_exhaustions` fields) |
-| `ActiveScopePointer` | LOCAL | `.shapeup-sdlc/active-scope` | tech-lead (BUILD step 0) | sandbox-guard hook — not writable by any worker |
+| `ActiveScopePointer` | LOCAL | `.shapeup/active-scope` | tech-lead (BUILD step 0) | sandbox-guard hook — not writable by any worker |
 | `EscalateBlock` | EMBEDDED | advisor input | worker (via WorkResult) | advisor-protocol — answer persists to round-ledger instantly |
-| `SafetyOverrides` (v1.2) | LOCAL | `.shapeup-sdlc/safety-overrides.json` | **human PO only** — outside the run-trace carve-out, so no worker can write it | safety-spine hook |
+| `SafetyOverrides` (v1.2) | LOCAL | `.shapeup/safety-overrides.json` | **human PO only** — outside the run-trace carve-out, so no worker can write it | safety-spine hook |
 | `RunSnapshot` (v1.2) | LOCAL | `<slug>/run-snapshot.json` | run-snapshot.mjs `--write` (via the PreCompact hook — never a worker) | session-rehydrate hook, tech-lead, human |
 | `StatsReport` (v1.2) | EMBEDDED | stdout only — never persisted | stats.mjs (read-only projection) | human / CLI / CI |
 | `RequirementClause` (spine v1.3) | SHARED | `<slug>/requirements.md` | ba-pitch-analyzer (`coverage` — extraction only; a `CUT` is a PO governance edit) | trace-lint.mjs (covers-closure), tech-lead, human |
-| `WiringMap` (spine v1.3) | SHARED | `<slug>/wiring-map.json` | solution-architect (SOLE writer, direct — like `scopes/*.json`); `entries[]` are `WiringEntry` | trace-lint.mjs (reachability), scope-architect (seam), tech-lead |
-| `ProjectProfile` (spine v1.3) | SHARED | `<slug>/project-profile.json` | tech-lead (GATE L0 — not compile-order.mjs, which stays pipeline-blind) | trace-lint.mjs (entry_point), solution-architect (`wire`), tech-lead |
+| `WiringMap` (spine v1.3) | SHARED | `<slug>/wiring-map.md` | solution-architect (SOLE writer, direct — like `scopes/*.md`); `entries[]` are `WiringEntry` | trace-lint.mjs (reachability), scope-architect (seam), tech-lead |
+| `ProjectProfile` (spine v1.3) | SHARED | `<slug>/project-profile.md` | tech-lead (GATE L0 — not compile-order.mjs, which stays pipeline-blind) | trace-lint.mjs (entry_point), solution-architect (`wire`), tech-lead |
 | `Lane` (v1.2 · design draft) | EMBEDDED | (when implemented) `harness-run.md` frontmatter `lane:` — never a payload field | tech-lead (GATE L0) | tech-lead only — see design §4.7 |
 
 ## 7.4b — Telemetry & resilience read-plane (v1.2)

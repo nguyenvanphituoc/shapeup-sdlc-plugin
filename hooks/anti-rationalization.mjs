@@ -9,8 +9,8 @@
 // 0 always and emits at most { systemMessage } — never { decision: "block" }, never exit 2.
 // A blocking Stop hook would be a second gate behind the single judge (spec-evaluator).
 //
-// Harness-scoped: fires only when a run is actually active (.shapeup-sdlc/active-scope
-// exists, or some .shapeup-sdlc/*/harness-run.md is mid-build). An always-on nag on
+// Harness-scoped: fires only when a run is actually active (.shapeup/active-scope
+// exists, or some .shapeup/*/harness-run.md is mid-build). An always-on nag on
 // non-harness work is exactly the annoyance that gets hooks disabled.
 //
 // Contract: Stop stdin JSON { cwd, stop_hook_active, last_assistant_message, transcript_path }.
@@ -18,8 +18,9 @@
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
+import { localDir, localRoot, activeScope } from "../skills/tech-lead/scripts/lib/paths.mjs";
 
-const defer = () => process.exit(0);
+import { runHook, readStdin, settle } from "./lib/decision.mjs";
 
 function readJSON(p) {
   try { return JSON.parse(readFileSync(p, "utf8")); } catch { return null; }
@@ -40,9 +41,9 @@ const MID_RUN = new Set(["orienting", "mapping", "building", "evaluating"]);
 
 /** The active harness slug, or null when no run is in progress. */
 export function activeSlug(cwd) {
-  const pointer = readJSON(join(cwd, ".shapeup-sdlc", "active-scope"));
+  const pointer = readJSON(activeScope(cwd));
   if (pointer?.slug) return pointer.slug;
-  const root = join(cwd, ".shapeup-sdlc");
+  const root = localDir(cwd);
   if (!existsSync(root)) return null;
   for (const entry of readdirSync(root)) {
     const runPath = join(root, entry, "harness-run.md");
@@ -91,7 +92,7 @@ export function isFutureClaim(claim) {
 
 /** Read-only mechanical facts about the run — the evidence the claim is checked against. */
 export function gatherFacts(cwd, slug) {
-  const root = join(cwd, ".shapeup-sdlc", slug);
+  const root = localRoot(cwd, slug);
   const facts = { unfinished: [], red_t0: null, open_escalates: 0, run_status: null, final_verdict: null };
 
   const tasksDir = join(root, "tasks");
@@ -202,37 +203,40 @@ function lastAssistantFromTranscript(transcriptPath) {
 }
 
 async function main() {
-  const raw = await new Promise((res) => {
-    let d = "";
-    process.stdin.on("data", (c) => (d += c));
-    process.stdin.on("end", () => res(d));
-    process.stdin.on("error", () => res(""));
-  });
+  await runHook("anti-rationalization", async () => {
+  const raw = await readStdin();
   let p;
-  try { p = JSON.parse(raw || "{}"); } catch { defer(); return; }
+  /** Stay silent — with the reason on the record (hooks/lib/decision.mjs). */
+  const defer = (reason, rule) => settle({ verdict: "allow", event: "Stop", cwd: p?.cwd, reason, rule });
+  try { p = JSON.parse(raw || "{}"); }
+  catch (e) { settle({ verdict: "error", event: "Stop", reason: `unparseable payload: ${e.message}` }); }
 
-  if (p.stop_hook_active) defer(); // never participate in a stop-hook loop
+  if (p.stop_hook_active) defer("stop_hook_active — never participate in a stop-hook loop", "loop-guard");
 
   const cwd = p.cwd || process.cwd();
   const slug = activeSlug(cwd);
-  if (!slug) defer(); // no harness run → nothing to check against
+  if (!slug) defer("no active run — nothing to check the claim against", "no-run");
 
   const message = typeof p.last_assistant_message === "string" && p.last_assistant_message
     ? p.last_assistant_message
     : lastAssistantFromTranscript(p.transcript_path);
   const claim = detectClaim(message);
-  if (!claim) defer();
+  if (!claim) defer("the final message makes no completion claim", "no-claim");
 
   const facts = gatherFacts(cwd, slug);
   const contra = contradictions(claim, facts);
-  if (contra.length === 0) defer();
+  if (contra.length === 0) defer(`claim "${claim}" agrees with the run facts — inspected and permitted`, "claim-supported");
 
-  console.log(JSON.stringify({
-    systemMessage:
-      `anti-rationalization (advisory): the last message claims "${claim}" but run "${slug}" facts disagree — ` +
-      `${contra.join("; ")}. Not blocking (QA is a level-up, not a gate) — verify against the board and T0 before shipping.`,
-  }));
-  process.exit(0);
+  return {
+    verdict: "allow", event: "Stop", cwd, subject: slug, rule: "claim-contradicted", emit: true,
+    reason: `claim "${claim}" contradicted by ${contra.length} fact(s) — advisory note emitted, not a block`,
+    payload: {
+      systemMessage:
+        `anti-rationalization (advisory): the last message claims "${claim}" but run "${slug}" facts disagree — ` +
+        `${contra.join("; ")}. Not blocking (QA is a level-up, not a gate) — verify against the board and T0 before shipping.`,
+    },
+  };
+  });
 }
 
 if (isMain(import.meta.url)) {

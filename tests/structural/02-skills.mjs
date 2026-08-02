@@ -89,7 +89,7 @@ export async function run(ctx) {
   // legitimate and checked by EXISTENCE, not pattern:
   //   • skill-local  `scripts/<file>` — must exist under THIS skill's directory
   //   • cross-skill  `skills/<name>/(scripts|schemas)/<file>` — must exist under skills/
-  // Runtime project paths the harness itself creates (`docs/shapeup-sdlc/`, `.shapeup-sdlc/`)
+  // Runtime project paths the harness itself creates (`shapeup/`, `.shapeup/`)
   // stay fine. This guard is the fix for the false confidence the cwd-dependent oracle CLI
   // checks (#6, #9–#11) gave: those run from the repo root; a real install does not.
   const REPO_ONLY = /(?:^|[\s`(])(?:scripts\/|examples\/|docs\/audit|docs\/plan|docs\/research|tests\/)/;
@@ -112,7 +112,7 @@ export async function run(ctx) {
       .map((line, i) => ({ line, n: i + 1 }))
       .filter(({ line }) => {
         if (!REPO_ONLY.test(line)) return false;
-        if (/docs\/shapeup-sdlc|\.shapeup-sdlc/.test(line)) return false;
+        if (/docs\/shapeup-sdlc|\.shapeup/.test(line)) return false;
         // Skill-local scripts ship with the skill: allow when every scripts/ token resolves
         // inside this skill's own directory.
         const locals = [...line.matchAll(LOCAL_SCRIPT_RE)].map((m) => m[1]);
@@ -181,9 +181,9 @@ export async function run(ctx) {
     if (b.datasets && Object.keys(b.datasets).length === datasetCount) ok("baseline dataset inventory matches the datasets on disk");
     else fail(`baseline inventory lists ${b.datasets ? Object.keys(b.datasets).length : 0} skills, disk has ${datasetCount}`);
   } else {
-    fail("evals/baselines/trigger-evals.baseline.json missing — run `node scripts/shapeup-sdlc/trigger-eval.mjs`");
+    fail("evals/baselines/trigger-evals.baseline.json missing — run `node tools/trigger-eval.mjs`");
   }
-  if (existsSync(join(ROOT, "scripts/shapeup-sdlc/trigger-eval.mjs"))) ok("trigger-eval harness present");
-  else fail("scripts/shapeup-sdlc/trigger-eval.mjs missing");
+  if (existsSync(join(ROOT, "tools/trigger-eval.mjs"))) ok("trigger-eval harness present");
+  else fail("tools/trigger-eval.mjs missing");
 
 }

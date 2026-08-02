@@ -19,13 +19,17 @@
 // What it configures (identical to install-harness.sh):
 //   AGENTS.md harness block · Claude Code plugin (CLI or settings.json merge) ·
 //   Antigravity .agents/skills + subagents · Codex .codex/skills · CLAUDE.md @AGENTS.md
-//   import · .gitignore rules · docs/shapeup-sdlc/metrics/ · Tier C templates
+//   import · .gitignore rules · shapeup/metrics/ · Tier C templates
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, cpSync, readdirSync, appendFileSync } from "node:fs";
 import { resolve, join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline";
+import { LOCAL, LEGACY, metricsDir } from "../skills/tech-lead/scripts/lib/paths.mjs";
+
+/** The root a project migrating off the pre-ADR-0001 layout may still be carrying. */
+const LEGACY_LOCAL = LEGACY.local;
 
 const PKG_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const REPO = "nguyenvanphituoc/shapeup-sdlc-plugin";
@@ -124,8 +128,12 @@ if (clis.includes("antigravity")) ensureAgentImport(join(target, ".agents", "AGE
 if (clis.includes("codex")) ensureAgentImport(join(target, ".codex", "AGENTS.md"), ".codex/AGENTS.md", "auto");
 
 // ---- 3. .gitignore ----------------------------------------------------------
+// Both roots are listed, deliberately. A project may be mid-migration (0006 moves `.shapeup/`
+// to `.shapeup/`), and a run trace committed by accident during that window is exactly the mistake
+// the tier split exists to prevent. Ignoring a directory that does not exist costs nothing.
 const GITIGNORE_RULE = `# Shape Up SDLC run workspace
-.shapeup-sdlc/
+${LOCAL}/
+${LEGACY_LOCAL}/
 
 # Shape Up SDLC Tier C — per-member local config (templates *.example stay committed).
 # The env file is SHAPEUP_-namespaced (filename + keys) so it never collides with, or gets
@@ -136,17 +144,17 @@ const GITIGNORE_RULE = `# Shape Up SDLC run workspace
 !.claude/settings.local.example.json`;
 const gitignore = join(target, ".gitignore");
 if (existsSync(gitignore)) {
-  if (!readFileSync(gitignore, "utf8").includes(".shapeup-sdlc/")) {
+  if (!readFileSync(gitignore, "utf8").includes(`${LOCAL}/`)) {
     appendFileSync(gitignore, "\n" + GITIGNORE_RULE + "\n");
     console.log("Added Shape Up SDLC ignore rules to .gitignore");
-  } else console.log(".shapeup-sdlc/ already ignored in .gitignore");
+  } else console.log(`${LOCAL}/ already ignored in .gitignore`);
 } else {
   writeFileSync(gitignore, GITIGNORE_RULE + "\n");
   console.log("Created .gitignore and added ignore rules");
 }
 
 // ---- 4. telemetry shard dir + Tier C templates ------------------------------
-mkdirSync(join(target, "docs", "shapeup-sdlc", "metrics"), { recursive: true });
+mkdirSync(metricsDir(target), { recursive: true });
 for (const [srcRel, note] of [
   [".claude/settings.local.example.json", "copy to settings.local.json and edit"],
   [".env.shapeup.example", "copy to .env.shapeup.local and edit"],
@@ -233,15 +241,26 @@ function installClaude() {
  * the harness the right to run its own deterministic, dependency-free, network-free scripts. It
  * grants no general `Bash(node:*)`, which would be a much larger ask for a much smaller reason.
  *
+ * BOTH SPELLINGS ARE GRANTED, and that is the point of v1.5's leg-2 fix. The skills now write
+ * every invocation in the QUOTED literal form — `node "${CLAUDE_PLUGIN_ROOT}/skills/…"` — because
+ * the unquoted form breaks the moment the plugin is installed under a path with a space in it
+ * (`~/Library/Application Support/…`), which `lib/is-main.mjs` documents as a measured case, not a
+ * hypothetical. A prefix rule is a literal string match, so the quote character would otherwise
+ * put every call site back outside the grant — the exact mismatch this fix exists to remove. The
+ * unquoted prefix stays for older prose and for anything a user has already typed.
+ *
+ * `tests/structural/14-invocation-paths.mjs` asserts that every documented call site is in a form
+ * one of these prefixes actually matches, so the two can never drift apart again.
+ *
  * @param {object} settings - Parsed settings.json, mutated in place.
  * @returns {void}
  */
 function mergePipelinePermissions(settings) {
-  const PREFIXES = [
-    "node ${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/",
-    "node ${CLAUDE_PLUGIN_ROOT}/skills/ba-pitch-analyzer/scripts/",
-    "node ${CLAUDE_PLUGIN_ROOT}/skills/spec-evaluator/scripts/",
-  ];
+  const OWNERS = ["tech-lead", "ba-pitch-analyzer", "spec-evaluator"];
+  const PREFIXES = OWNERS.flatMap((o) => [
+    `node \${CLAUDE_PLUGIN_ROOT}/skills/${o}/scripts/`,
+    `node "\${CLAUDE_PLUGIN_ROOT}/skills/${o}/scripts/`,
+  ]);
   settings.permissions = settings.permissions || {};
   const allow = new Set(settings.permissions.allow || []);
   for (const p of PREFIXES) allow.add(`Bash(${p}:*)`);

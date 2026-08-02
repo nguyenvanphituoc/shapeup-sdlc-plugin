@@ -14,12 +14,12 @@
 //   • Fail-CLOSED the moment an active scope IS declared and the target path matches none of
 //     its globs — deny, naming the substrate so the model can self-correct.
 //   • Run-trace carve-out — writes under the ACTIVE feature's LOCAL gitignored root
-//     (`.shapeup-sdlc/<slug>/`) are always allowed: that root is harness bookkeeping the doer
+//     (`.shapeup/<slug>/`) are always allowed: that root is harness bookkeeping the doer
 //     is REQUIRED to write (task-executor P3 status/AC ticks + tasks/_index.md, run-state,
 //     execution logs, the P3.7 discovery ledger). Substrate globs whitelist product code and
 //     never list the run-trace, so without the carve-out every scoped round strands its own
 //     board (island-escape shipped 16/20 task files stale this way). Deliberately narrow:
-//     only the active slug's root — `.shapeup-sdlc/active-scope` (this guard's own pointer)
+//     only the active slug's root — `.shapeup/active-scope` (this guard's own pointer)
 //     and other features' roots remain subject to the substrate whitelist.
 //   • Every denial is also appended to the metrics pathology log (telemetry, not just defense).
 //
@@ -29,8 +29,9 @@
 import { readFileSync, existsSync, appendFileSync, mkdirSync } from "node:fs";
 import { resolve, join, relative, dirname, sep } from "node:path";
 import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
-
-const defer = () => process.exit(0);
+import { LOCAL, activeScope, scopeContract, metricsShard } from "../skills/tech-lead/scripts/lib/paths.mjs";
+import { readContract, SCOPE_CONTRACT } from "../skills/tech-lead/scripts/lib/contract-md.mjs";
+import { runHook, readStdin, settle } from "./lib/decision.mjs";
 
 // --- tiny glob matcher: supports *, **, ? — enough for substrate globs, zero dependencies ---
 export function globToRegExp(glob) {
@@ -81,41 +82,49 @@ export function logPathology(metricsPath, event) {
 }
 
 async function main() {
-  const raw = await new Promise((res) => {
-    let d = "";
-    process.stdin.on("data", (c) => (d += c));
-    process.stdin.on("end", () => res(d));
-    process.stdin.on("error", () => res(""));
-  });
+  await runHook("sandbox-guard", async () => {
+  const raw = await readStdin();
   let p;
-  try { p = JSON.parse(raw || "{}"); } catch { defer(); return; }
+  /** Fail-open, with the reason on the record (hooks/lib/decision.mjs). */
+  const defer = (reason, rule) => settle({
+    verdict: "allow", event: "PreToolUse", tool: p?.tool_name ?? null, cwd: p?.cwd, reason, rule,
+  });
+  try { p = JSON.parse(raw || "{}"); }
+  catch (e) { settle({ verdict: "error", event: "PreToolUse", reason: `unparseable payload: ${e.message}` }); }
 
-  if (!["Edit", "Write", "MultiEdit"].includes(p.tool_name)) defer();
+  if (!["Edit", "Write", "MultiEdit"].includes(p.tool_name)) {
+    defer(`${p.tool_name ?? "no tool_name"} is not a write tool — out of scope`);
+  }
 
   const cwd = p.cwd || process.cwd();
-  const activeScopePath = join(cwd, ".shapeup-sdlc", "active-scope");
-  if (!existsSync(activeScopePath)) defer(); // no harness round in progress → don't enforce
+  const activeScopePath = activeScope(cwd);
+  // no harness round in progress → don't enforce
+  if (!existsSync(activeScopePath)) defer("no active-scope pointer — no harness round in progress", "no-round");
 
   const active = readJSON(activeScopePath);
-  if (!active?.slug || !active?.scope_id) defer();
+  if (!active?.slug || !active?.scope_id) defer("active-scope pointer is unreadable or incomplete", "bad-pointer");
 
-  const contractPath = join(cwd, "docs", "shapeup-sdlc", active.slug, "scopes", `${active.scope_id}.json`);
-  if (!existsSync(contractPath)) defer(); // pointer stale / contract not committed yet → don't break the run
-
-  const contract = readJSON(contractPath);
-  if (!contract) defer();
+  // Markdown first, legacy JSON second (ADR-0001) — a project mid-migration must stay sandboxed.
+  let found = null;
+  try { found = readContract(scopeContract(cwd, active.slug, active.scope_id), SCOPE_CONTRACT); }
+  catch (e) { defer(`scope contract is unparseable (${e.message})`, "bad-contract"); }
+  // pointer stale / contract not committed yet → don't break the run
+  if (!found) defer(`no contract for ${active.scope_id} — pointer stale or not committed yet`, "no-contract");
+  const contract = found.contract;
+  if (!contract) defer("scope contract is unparseable", "bad-contract");
 
   const allowed = [...(contract.allowed_file_substrate || []), ...(contract.shared_substrate || [])];
-  if (allowed.length === 0) defer(); // no whitelist declared → nothing to enforce
+  // no whitelist declared → nothing to enforce
+  if (allowed.length === 0) defer(`scope ${active.scope_id} declares no write whitelist`, "no-whitelist");
 
   const targetPaths = extractPaths(p.tool_input);
-  if (targetPaths.length === 0) defer();
+  if (targetPaths.length === 0) defer("no writable path in the tool input", "no-target");
 
-  const metricsPath = join(cwd, "docs", "shapeup-sdlc", "metrics", `${process.env.HOSTNAME || "local"}.jsonl`);
+  const metricsPath = metricsShard(cwd);
   // Run-trace carve-out (see header): the active feature's LOCAL root only. The prefix ends
-  // with a separator so `.shapeup-sdlc/<slug>-other/` can't ride along, and the active-scope
-  // pointer (`.shapeup-sdlc/active-scope`) sits outside it by construction.
-  const runTracePrefix = join(".shapeup-sdlc", active.slug) + sep;
+  // with a separator so a sibling `<local>/<slug>-other/` can't ride along, and the active-scope
+  // pointer sits outside it by construction.
+  const runTracePrefix = join(LOCAL, active.slug) + sep;
   const violations = [];
   for (const raw of targetPaths) {
     const abs = resolve(cwd, raw);
@@ -124,7 +133,11 @@ async function main() {
     if (!matchesAny(rel, allowed)) violations.push(rel);
   }
 
-  if (violations.length === 0) defer();
+  // Inside the substrate — the "inspected and permitted" row. Previously byte-identical to
+  // "this hook never ran", which is how 26 enforcement points sat inert behind 610 green checks.
+  if (violations.length === 0) {
+    defer(`${targetPaths.length} path(s) inside scope ${active.scope_id} substrate — permitted`, "in-substrate");
+  }
 
   logPathology(metricsPath, {
     schema_version: 1,
@@ -136,17 +149,22 @@ async function main() {
     blocked_paths: violations,
   });
 
-  console.log(JSON.stringify({
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      permissionDecision: "deny",
-      permissionDecisionReason:
-        `Sandbox guard (PA3) — scope "${active.scope_id}" may only write ${JSON.stringify(allowed)}. ` +
-        `Blocked: ${violations.join(", ")}. If this write legitimately crosses scopes, add the path to ` +
-        `the contract's shared_substrate (via ba --remap) rather than editing outside the substrate.`,
+  return {
+    verdict: "deny", event: "PreToolUse", tool: p.tool_name, subject: active.scope_id, cwd,
+    rule: "outside-substrate",
+    reason: `${violations.length} write(s) outside the scope substrate: ${violations.join(", ")}`,
+    payload: {
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        permissionDecision: "deny",
+        permissionDecisionReason:
+          `Sandbox guard (PA3) — scope "${active.scope_id}" may only write ${JSON.stringify(allowed)}. ` +
+          `Blocked: ${violations.join(", ")}. If this write legitimately crosses scopes, add the path to ` +
+          `the contract's shared_substrate (via ba --remap) rather than editing outside the substrate.`,
+      },
     },
-  }));
-  process.exit(0);
+  };
+  });
 }
 
 if (isMain(import.meta.url)) {

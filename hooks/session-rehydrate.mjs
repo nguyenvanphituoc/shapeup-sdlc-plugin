@@ -41,6 +41,8 @@
 import { readFileSync } from "node:fs";
 import { deriveSnapshot, snapshotPath } from "../skills/tech-lead/scripts/run-snapshot.mjs";
 import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
+import { runHook, readStdin } from "./lib/decision.mjs";
+import { activeScope } from "../skills/tech-lead/scripts/lib/paths.mjs";
 
 // The snapshot's own hint says "trust the files, not the conversation summary" — correct after a
 // compaction, and slightly wrong on a cold start, where there is no summary and no conversation
@@ -63,36 +65,43 @@ function lead(source) {
 }
 
 async function main() {
-  const raw = await new Promise((res) => {
-    let d = "";
-    process.stdin.on("data", (c) => (d += c));
-    process.stdin.on("end", () => res(d));
-    process.stdin.on("error", () => res(""));
-  });
-  try {
-    const p = JSON.parse(raw || "{}");
+  await runHook("session-rehydrate", async () => {
+    const raw = await readStdin();
+    let p;
+    try { p = JSON.parse(raw || "{}"); }
+    catch (e) { return { verdict: "error", event: "SessionStart", reason: `unparseable payload: ${e.message}` }; }
     const cwd = p.cwd || process.cwd();
 
     let snapshot = null;
+    let source = "live";
     try {
       snapshot = deriveSnapshot(cwd);
     } catch {
       // Live derivation failed → fall back to the pre-compaction anchor, best effort.
+      source = "anchor";
       try {
-        const pointer = JSON.parse(readFileSync(`${cwd}/.shapeup-sdlc/active-scope`, "utf8"));
+        const pointer = JSON.parse(readFileSync(activeScope(cwd), "utf8"));
         if (pointer?.slug) snapshot = JSON.parse(readFileSync(snapshotPath(cwd, pointer.slug), "utf8"));
       } catch { /* no anchor either → stay silent */ }
     }
-    if (!snapshot?.rehydrate_hint) process.exit(0);
+    if (!snapshot?.rehydrate_hint) {
+      return { verdict: "allow", event: "SessionStart", cwd, subject: p.source ?? null, reason: "no active run — nothing to rehydrate" };
+    }
 
-    console.log(JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: "SessionStart",
-        additionalContext: `${lead(p.source)}${snapshot.rehydrate_hint}\n${JSON.stringify(snapshot)}`,
+    return {
+      verdict: "allow", event: "SessionStart", cwd, rule: `injected:${source}`,
+      subject: snapshot.slug ?? p.source ?? null,
+      reason: `rehydrate_hint injected on SessionStart:${p.source ?? "?"}`,
+      // additionalContext is not a deny, but it IS output, so it rides the same channel.
+      payload: {
+        hookSpecificOutput: {
+          hookEventName: "SessionStart",
+          additionalContext: `${lead(p.source)}${snapshot.rehydrate_hint}\n${JSON.stringify(snapshot)}`,
+        },
       },
-    }));
-  } catch { /* fail-open */ }
-  process.exit(0);
+      emit: true,
+    };
+  });
 }
 
 if (isMain(import.meta.url)) {

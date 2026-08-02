@@ -110,8 +110,8 @@ The installer configures:
 - **Antigravity** — copies skills to `.agents/skills/`, subagent configs to
   `.agents/subagents/`, and creates `.agents/AGENTS.md`.
 - **Codex** — copies skills to `.codex/skills/` and creates `.codex/AGENTS.md`.
-- **Git boundaries & telemetry** — adds the `.shapeup-sdlc/` + Tier C ignore rules to
-  `.gitignore`, initializes the per-machine `docs/shapeup-sdlc/metrics/` shard directory, and
+- **Git boundaries & telemetry** — adds the `.shapeup/` + Tier C ignore rules to
+  `.gitignore`, initializes the per-machine `shapeup/metrics/` shard directory, and
   drops the Tier C example templates (`.claude/settings.local.example.json`,
   `.env.shapeup.example`).
 

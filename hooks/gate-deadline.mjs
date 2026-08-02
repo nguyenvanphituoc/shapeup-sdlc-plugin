@@ -36,34 +36,34 @@
 import { readFileSync, readdirSync, existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { evaluateBudget } from "../skills/tech-lead/scripts/budget-check.mjs";
+import { runHook, readStdin, settle } from "./lib/decision.mjs";
+import { localDir, localRoot } from "../skills/tech-lead/scripts/lib/paths.mjs";
 
-const defer = () => process.exit(0);
+await runHook("gate-deadline", async () => {
+/** Fail-open, with the reason on the record (hooks/lib/decision.mjs). */
+const defer = (reason, rule) => settle({ verdict: "allow", event: "PreToolUse", tool: p?.tool_name ?? null, reason, rule });
 
 // Only these start new build work. Everything else in the harness is how a run ENDS, and must
 // stay reachable after the deadline.
 const STARTS_NEW_WORK = new Set(["task-executor"]);
 
-const raw = await new Promise((res) => {
-  let d = "";
-  process.stdin.on("data", (c) => (d += c));
-  process.stdin.on("end", () => res(d));
-  process.stdin.on("error", () => res(""));
-});
+const raw = await readStdin();
 
 let p;
-try { p = JSON.parse(raw || "{}"); } catch { defer(); }
+try { p = JSON.parse(raw || "{}"); }
+catch (e) { settle({ verdict: "error", event: "PreToolUse", reason: `unparseable payload: ${e.message}` }); }
 
-if (p.tool_name !== "Skill") defer();
+if (p.tool_name !== "Skill") defer(`not a Skill call (${p.tool_name ?? "no tool_name"}) — out of scope`);
 
 const skillRaw = p.tool_input?.skill_name ?? p.tool_input?.skill ?? "";
 const skill = String(skillRaw).split(":").pop();
-if (!STARTS_NEW_WORK.has(skill)) defer();
+if (!STARTS_NEW_WORK.has(skill)) defer(`Skill(${skill || "?"}) does not start new build work — a run past its deadline must still be able to close`, "not-new-work");
 
 const cwd = p.cwd || process.cwd();
 
 /** The active run's receipt, or null. Mirrors budget-check.mjs's discovery. */
 function findRun() {
-  const root = join(cwd, ".shapeup-sdlc");
+  const root = localDir(cwd);
   if (!existsSync(root)) return null;
   let slug = null;
   try { slug = JSON.parse(readFileSync(join(root, "active-scope"), "utf8"))?.slug || null; } catch { /* scan instead */ }
@@ -77,16 +77,16 @@ function findRun() {
 }
 
 const run = findRun();
-if (!run) defer();                                    // no run → nothing to time
+if (!run) defer("no run receipt — nothing to time", "no-run");
 
 const budget = Number(run.receipt.config?.wall_clock_budget_s || 0) || null;
-if (!budget) defer();                                 // breaker off → non-regression
+if (!budget) defer("no wall_clock_budget_s in the receipt — breaker off (the default)", "breaker-off");
 
 const startedAt = Date.parse(run.receipt.started_at || "");
-if (Number.isNaN(startedAt)) defer();                 // no clock → no claim
+if (Number.isNaN(startedAt)) defer("receipt has no parseable started_at — no clock, no claim", "no-clock");
 
 const state = evaluateBudget((Date.now() - startedAt) / 1000, budget);
-if (state.status !== "trip") defer();
+if (state.status !== "trip") defer(`within budget (${state.status}) — inspected and permitted`, "within-budget");
 
 // STICKY TRIP. The first version of this hook denied and said what to do instead; the orchestrator
 // then re-dispatched task-executor and was denied again, THIRTEEN times in one measured run. Each
@@ -96,7 +96,7 @@ if (state.status !== "trip") defer();
 // The fix is to make the trip a FACT rather than an event: record it once, count the retries, and
 // escalate the language so the second denial cannot read like the first. A model that ignored
 // "route to GATE H" phrased gently is not helped by receiving the identical text again.
-const tripPath = join(cwd, ".shapeup-sdlc", run.slug, "deadline-tripped.json");
+const tripPath = join(localRoot(cwd, run.slug), "deadline-tripped.json");
 let denials = 0;
 try { denials = JSON.parse(readFileSync(tripPath, "utf8"))?.denials || 0; } catch { /* first trip */ }
 denials += 1;
@@ -137,11 +137,15 @@ const reason = [
   ...repeat,
 ].join("\n");
 
-console.log(JSON.stringify({
-  hookSpecificOutput: {
-    hookEventName: "PreToolUse",
-    permissionDecision: "deny",
-    permissionDecisionReason: reason,
+return {
+  verdict: "deny", event: "PreToolUse", tool: "Skill", subject: skill, rule: "deadline-tripped",
+  reason: `wall-clock budget of ${budget}s exhausted — routing to GATE H`,
+  payload: {
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "deny",
+      permissionDecisionReason: reason,
+    },
   },
-}));
-process.exit(0);
+};
+});

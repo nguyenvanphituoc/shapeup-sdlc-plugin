@@ -14,7 +14,7 @@
 //             depends_on referencing unknown tasks
 //   TIER-DIRECTION  a committed (SHARED) spec doc wikilinking the LOCAL board ([[tasks/...]]).
 //             Persisted links flow LOCAL→SHARED only: task ids are machine-local (boards
-//             regenerate and renumber) and .shapeup-sdlc/ is gitignored — a committed task
+//             regenerate and renumber) and .shapeup/ is gitignored — a committed task
 //             link dangles on every fresh clone. Cite the UC or scope_id instead.
 //   UC-ANCHOR a task whose use_case_refs is empty or names a UC with no usecases/UC-*.md —
 //             the LOCAL→SHARED anchor must be complete (single-anchor rule; SPIKE/CHORE/
@@ -30,6 +30,10 @@ import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { resolve, join, relative } from "node:path";
 import { parseBoard, deriveUnlocks } from "./board-derive.mjs";
 import { isMain } from "../../tech-lead/scripts/lib/is-main.mjs";
+import { runArgs } from "../../tech-lead/scripts/lib/argv.mjs";
+import { LOCAL } from "../../tech-lead/scripts/lib/paths.mjs";
+import { specDir, scopesDir, tasksDir } from "../../tech-lead/scripts/lib/paths.mjs";
+import { readAllContracts, SCOPE_CONTRACT } from "../../tech-lead/scripts/lib/contract-md.mjs";
 
 // Inlined from hooks/sandbox-guard.mjs so this skill ships self-contained (a skill's scripts
 // must not reach outside its own folder — channels that copy only skills/ would dangle).
@@ -57,7 +61,7 @@ export function globToRegExp(glob) {
 const SIZE_CAP = 15;
 
 /**
- * Recursively list repo-relative file paths under a root, skipping .git/node_modules/.shapeup-sdlc.
+ * Recursively list repo-relative file paths under a root, skipping .git/node_modules/.shapeup.
  * @param {string} root - The base the results are made relative to.
  * @param {string} [dir=root] - Current directory being walked (callers omit it).
  * @param {string[]} [acc=[]] - Accumulator (callers omit it).
@@ -65,7 +69,7 @@ const SIZE_CAP = 15;
  */
 function walkFiles(root, dir = root, acc = []) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
-    if (e.name === ".git" || e.name === "node_modules" || e.name === ".shapeup-sdlc") continue;
+    if (e.name === ".git" || e.name === "node_modules" || e.name === LOCAL) continue;
     const p = join(dir, e.name);
     if (e.isDirectory()) walkFiles(root, p, acc);
     else acc.push(relative(root, p));
@@ -193,16 +197,14 @@ export function lintStructure({ specDir, tasks }) {
  *   {@link lintStructure}.
  */
 export function lint({ cwd, slug }) {
-  const specDir = join(cwd, "docs", "shapeup-sdlc", slug, "spec");
-  const scopesDir = join(cwd, "docs", "shapeup-sdlc", slug, "scopes");
-  const scopes = existsSync(scopesDir)
-    ? readdirSync(scopesDir).filter((f) => f.endsWith(".json")).map((f) => {
-        try { return JSON.parse(readFileSync(join(scopesDir, f), "utf8")); } catch { return null; }
-      }).filter(Boolean)
-    : [];
-  const tasks = parseBoard(join(cwd, ".shapeup-sdlc", slug, "tasks"));
+  const specRoot = specDir(cwd, slug);
+  const scopes = readAllContracts(scopesDir(cwd, slug), SCOPE_CONTRACT).map((c) => c.contract);
+  const tasks = parseBoard(tasksDir(cwd, slug));
   const repoFiles = walkFiles(cwd);
-  const findings = [...lintScopes(scopes, repoFiles), ...lintStructure({ specDir, tasks })];
+  const findings = [
+    ...lintScopes(scopes, repoFiles),
+    ...lintStructure({ specDir: specRoot, tasks }),
+  ];
   return {
     slug,
     scopes: scopes.length,
@@ -213,18 +215,18 @@ export function lint({ cwd, slug }) {
   };
 }
 
+/** The typed argv contract (see `skills/tech-lead/scripts/lib/argv.mjs`). */
+export const ARGV_SPEC = {
+  usage: "spec-lint.mjs --slug <slug> [--cwd <dir>]",
+  _: { arity: 0, max: 0, name: "(no positional operands)" },
+  slug: { type: "str", required: true },
+  cwd: { type: "path" },
+};
+
 const isMainModule = isMain(import.meta.url);
 if (isMainModule) {
-  const args = process.argv.slice(2);
-  /**
-   * Read a `--<n> <value>` CLI flag's value.
-   * @param {string} n - Flag name without leading dashes.
-   * @returns {(string|null)} The argument after `--<n>`, or null when the flag is absent.
-   */
-  const flag = (n) => { const i = args.indexOf(`--${n}`); return i !== -1 ? args[i + 1] : null; };
-  const slug = flag("slug");
-  if (!slug) { console.error("usage: spec-lint.mjs --slug <slug> [--cwd <dir>]"); process.exit(2); }
-  const report = lint({ cwd: resolve(flag("cwd") || process.cwd()), slug });
+  const args = runArgs(ARGV_SPEC);
+  const report = lint({ cwd: resolve(args.cwd || process.cwd()), slug: args.slug });
   console.log(JSON.stringify(report, null, 2));
   process.exit(report.red > 0 ? 1 : 0);
 }

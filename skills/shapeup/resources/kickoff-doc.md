@@ -38,7 +38,7 @@ Read entire transcript before writing. Extract:
 
 ## Phase K2 — Write Kickoff Document
 
-Write `docs/shapeup-sdlc/[feature-slug]/shaping/kickoff.md`
+Write `shapeup/[feature-slug]/shaping/kickoff.md`
 
 ```markdown
 ---

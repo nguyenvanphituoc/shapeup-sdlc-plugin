@@ -13,7 +13,7 @@
 //   • sql-destructive  — DROP TABLE/DATABASE/SCHEMA, TRUNCATE
 //   • secret-read      — reader commands (and the Read tool) on .env/*.pem/*.key/ssh keys/
 //                        cloud credentials
-//   • self-protect     — any write/move/delete touching .shapeup-sdlc/safety-overrides.json:
+//   • self-protect     — any write/move/delete touching .shapeup/safety-overrides.json:
 //                        the model must never widen its own safety envelope (same principle
 //                        as sandbox-guard's active-scope pointer rule)
 //
@@ -21,7 +21,7 @@
 // or an unmatched command (precision over reach — a spine that broke `rm -rf ./build` would
 // just get disabled), fail-CLOSED the moment a rule provably matches.
 //
-// Escape hatch: .shapeup-sdlc/safety-overrides.json (schema: domain.schema.json#/$defs/
+// Escape hatch: .shapeup/safety-overrides.json (schema: domain.schema.json#/$defs/
 // SafetyOverrides) — human-authored, per-project, auditable. A malformed overrides file is
 // treated as ABSENT: the override channel fails closed so a parse error can never disable
 // the spine. Every exercised override is logged as a SAFETY-OVERRIDE pathology row —
@@ -34,13 +34,14 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve, join, basename } from "node:path";
 import { globToRegExp, logPathology } from "./sandbox-guard.mjs";
 import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
+import { LOCAL, safetyOverrides, metricsShard } from "../skills/tech-lead/scripts/lib/paths.mjs";
 
-const defer = () => process.exit(0);
+import { runHook, readStdin, settle } from "./lib/decision.mjs";
 
 // --- overrides ---------------------------------------------------------------
 
 export function loadOverrides(cwd) {
-  const p = join(cwd, ".shapeup-sdlc", "safety-overrides.json");
+  const p = safetyOverrides(cwd);
   if (!existsSync(p)) return null;
   try {
     const o = JSON.parse(readFileSync(p, "utf8"));
@@ -168,7 +169,7 @@ function classifySegment(segment, overrides) {
   if (READER_CMDS.has(cmd)) {
     const secret = ts.slice(1).filter((t) => !t.startsWith("-")).find((t) => isSecretPath(t, overrides));
     if (secret) {
-      return { category: "secret-read", reason: `\`${cmd} ${secret}\` reads a secret file. Secrets must not enter the conversation; if this is a false positive, add the path to .shapeup-sdlc/safety-overrides.json (allow_secret_paths).` };
+      return { category: "secret-read", reason: `\`${cmd} ${secret}\` reads a secret file. Secrets must not enter the conversation; if this is a false positive, add the path to ${LOCAL}/safety-overrides.json (allow_secret_paths).` };
     }
   }
 
@@ -180,7 +181,7 @@ function classifySegment(segment, overrides) {
       /\bsed\s+-[a-zA-Z]*i/.test(segment) ||
       ["rm", "mv", "cp", "truncate"].includes(cmd);
     if (writer) {
-      return { category: "self-protect", reason: "The safety-overrides file is human-authored only — the session must never widen (or remove) its own safety envelope. Ask the PO to edit .shapeup-sdlc/safety-overrides.json." };
+      return { category: "self-protect", reason: `The safety-overrides file is human-authored only — the session must never widen (or remove) its own safety envelope. Ask the PO to edit ${LOCAL}/safety-overrides.json.` };
     }
   }
 
@@ -212,20 +213,21 @@ function extractPaths(toolInput) {
 }
 
 async function main() {
-  const raw = await new Promise((res) => {
-    let d = "";
-    process.stdin.on("data", (c) => (d += c));
-    process.stdin.on("end", () => res(d));
-    process.stdin.on("error", () => res(""));
-  });
+  await runHook("safety-spine", async () => {
+  const raw = await readStdin();
   let p;
-  try { p = JSON.parse(raw || "{}"); } catch { defer(); return; }
+  /** Fail-open, with the reason on the record (hooks/lib/decision.mjs). */
+  const defer = (reason, rule) => settle({
+    verdict: "allow", event: "PreToolUse", tool: p?.tool_name ?? null, cwd: p?.cwd, reason, rule,
+  });
+  try { p = JSON.parse(raw || "{}"); }
+  catch (e) { settle({ verdict: "error", event: "PreToolUse", reason: `unparseable payload: ${e.message}` }); }
 
-  if (!HOOK_TOOLS.has(p.tool_name)) defer();
+  if (!HOOK_TOOLS.has(p.tool_name)) defer(`${p.tool_name ?? "no tool_name"} is not a guarded tool — out of scope`);
 
   const cwd = p.cwd || process.cwd();
   const overrides = loadOverrides(cwd);
-  const metricsPath = join(cwd, "docs", "shapeup-sdlc", "metrics", `${process.env.HOSTNAME || "local"}.jsonl`);
+  const metricsPath = metricsShard(cwd);
 
   const deny = (category, reason, detail) => {
     logPathology(metricsPath, {
@@ -237,20 +239,23 @@ async function main() {
       tool: p.tool_name,
       ...detail,
     });
-    console.log(JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: "PreToolUse",
-        permissionDecision: "deny",
-        permissionDecisionReason: `Safety spine (${category}) — ${reason}`,
+    settle({
+      verdict: "deny", event: "PreToolUse", tool: p.tool_name, cwd, rule: category,
+      subject: detail?.path ?? detail?.command ?? null, reason,
+      payload: {
+        hookSpecificOutput: {
+          hookEventName: "PreToolUse",
+          permissionDecision: "deny",
+          permissionDecisionReason: `Safety spine (${category}) — ${reason}`,
+        },
       },
-    }));
-    process.exit(0);
+    });
   };
 
   if (p.tool_name === "Bash") {
     const command = p.tool_input?.command || "";
     const verdict = classifyCommand(command, overrides);
-    if (!verdict.deny) defer();
+    if (!verdict.deny) defer("command matched no destructive rule — inspected and permitted", "bash-clean");
     if (commandOverridden(command, overrides)) {
       // Exercised override: allowed, but never invisible.
       logPathology(metricsPath, {
@@ -263,7 +268,7 @@ async function main() {
         command: command.slice(0, 200),
         note: overrides?.note || "",
       });
-      defer();
+      defer(`${verdict.category} allowed by a human-authored override — permitted, never invisible`, "override");
     }
     deny(verdict.category, verdict.reason, { command: command.slice(0, 200) });
   }
@@ -271,18 +276,19 @@ async function main() {
   if (p.tool_name === "Read") {
     const path = p.tool_input?.file_path || "";
     if (isSecretPath(path, overrides)) {
-      deny("secret-read", `Read(${path}) targets a secret file. Secrets must not enter the conversation; if this is a false positive, add the path to .shapeup-sdlc/safety-overrides.json (allow_secret_paths).`, { path });
+      deny("secret-read", `Read(${path}) targets a secret file. Secrets must not enter the conversation; if this is a false positive, add the path to ${LOCAL}/safety-overrides.json (allow_secret_paths).`, { path });
     }
-    defer();
+    defer("read target is not a secret path — inspected and permitted", "read-clean");
   }
 
   // Write | Edit | MultiEdit — only the self-protect rule; substrates stay sandbox-guard's job.
-  const overridesAbs = resolve(cwd, ".shapeup-sdlc", "safety-overrides.json");
+  const overridesAbs = resolve(safetyOverrides(cwd));
   const hit = extractPaths(p.tool_input).find((raw) => resolve(cwd, raw) === overridesAbs);
   if (hit) {
-    deny("self-protect", "The safety-overrides file is human-authored only — the session must never widen (or remove) its own safety envelope. Ask the PO to edit .shapeup-sdlc/safety-overrides.json.", { path: hit });
+    deny("self-protect", `The safety-overrides file is human-authored only — the session must never widen (or remove) its own safety envelope. Ask the PO to edit ${LOCAL}/safety-overrides.json.`, { path: hit });
   }
-  defer();
+  defer("write does not touch the safety envelope — inspected and permitted", "write-clean");
+  });
 }
 
 if (isMain(import.meta.url)) {

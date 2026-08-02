@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Target Directories
-const ROOT_DIR = path.resolve(__dirname, '..', '..');
+const ROOT_DIR = path.resolve(__dirname, '..');
 const SKILLS_DIR = path.join(ROOT_DIR, 'skills');
 const COMMANDS_DIR = path.join(ROOT_DIR, 'commands');
 const DIST_DIR = path.join(ROOT_DIR, 'dist');
@@ -114,9 +114,9 @@ function compileReferences(skillPath, baseBody) {
 function getGlobsForSkill(skillName) {
     switch (skillName) {
         case 'ba-pitch-analyzer':
-            return 'docs/shapeup-sdlc/**/*.md';
+            return 'shapeup/**/*.md';
         case 'shapeup':
-            return 'docs/shapeup-sdlc/**/*.md';
+            return 'shapeup/**/*.md';
         case 'task-executor':
             return 'TASK-*.md';
         case 'spec-evaluator':

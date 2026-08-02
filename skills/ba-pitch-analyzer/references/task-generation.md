@@ -377,7 +377,7 @@ that is why UC `related_tasks` was retired (see doc-schemas.md, Use Case).
 
 ## Task Board (`tasks/_index.md`) Format
 
-> Written to the LOCAL gitignored root `.shapeup-sdlc/<slug>/tasks/_index.md`, not
+> Written to the LOCAL gitignored root `.shapeup/<slug>/tasks/_index.md`, not
 > `spec_folder` — see SKILL.md Phase 6 "Locality" note (v3.2).
 
 ```markdown
@@ -583,7 +583,7 @@ This is scope hammering at the gate boundary — the overflow is surfaced, never
 
 **Naming note:** the discovery ledger's "scope" sections (above) predate the formal Scope
 Contract artifact below and name the same thing — a `discovery/ledger.md` scope heading MUST
-match an existing `scope_id` from a `scopes/<scope-id>.json` contract, or (a Keep item
+match an existing `scope_id` from a `scopes/<scope-id>.md` contract, or (a Keep item
 introducing new flow) become the seed for a new one via a scope-architect remap order. One concept, two touch points.
 
 **Import/flow slicing (PA1 countermeasure).** Build a lightweight import graph over the task
@@ -595,7 +595,7 @@ invokes → the repository that use case depends on. Group tasks by flow, not by
 directory their file lives in. A scope whose `allowed_file_substrate` is entirely `apps/web/**`
 or entirely `apps/api/**` with no cross-layer flow is the PA1 failure mode — re-slice it.
 
-**Scope contract schema** (written to `scopes/<scope-id>.json`, one file per scope):
+**Scope contract schema** (written to `scopes/<scope-id>.md`, one file per scope):
 ```json
 {
   "scope_id": "cart-creation",

@@ -1,6 +1,6 @@
 {
   "name": "shapeup-sdlc",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "Shape Up for coding agents — with gates the agent can't talk its way past. Harness for Claude Code, compiled to Cursor, Antigravity and Codex.",
   "bin": {
     "shapeup-sdlc": "bin/init.mjs"
@@ -8,10 +8,10 @@
   "files": [
     "bin/",
     "skills/",
+    "!skills/**/evals/**",
     "hooks/",
     "commands/",
-    "agents/",
-    "dist/antigravity/",
+    "oracles/",
     ".claude-plugin/",
     "AGENTS.md",
     ".env.shapeup.example",
@@ -23,8 +23,8 @@
   },
   "scripts": {
     "test": "node tests/structural.mjs",
-    "demo": "node scripts/demo/record-demo.mjs",
-    "distribute": "node scripts/shapeup-sdlc/distribute.js"
+    "demo": "node tools/demo/record-demo.mjs",
+    "distribute": "node tools/distribute.js"
   },
   "keywords": [
     "shapeup",

@@ -13,8 +13,8 @@ by the whole team forever, not re-explained every sprint.
 
 Two properties make this useful and were missing before:
 
-1. **Team-shared, not local.** Guidelines are written under `docs/shapeup-sdlc/knowledge-base/`,
-   which is **committed** (the `.shapeup-sdlc/` run-trace root is gitignored — guidelines written
+1. **Team-shared, not local.** Guidelines are written under `shapeup/knowledge-base/`,
+   which is **committed** (the `.shapeup/` run-trace root is gitignored — guidelines written
    there would never reach a teammate). A `git pull` is all a team member needs to inherit the
    harness's accumulated judgment.
 2. **Read back, not write-only.** Each guideline is filed under the **one skill that will act on
@@ -24,11 +24,11 @@ Two properties make this useful and were missing before:
 ```
 PO feedback at L4 ─► /coach ─► [parse into candidate rules] ─► ⏸ GATE COACH-1 (categorize, ask — never assume)
                                                                           │
-                          docs/shapeup-sdlc/knowledge-base/<skill>.md ◄───┤  (one file per coachable skill, committed)
+                          shapeup/knowledge-base/<skill>.md ◄───┤  (one file per coachable skill, committed)
                                                                           │
                   next run: task-executor / ba-pitch-analyzer / qa-edge-hunter reads its own file
                                                                           │
-              docs/shapeup-sdlc/knowledge-base/harness-defects.md ◄───────┘  (mechanism at fault →
+              shapeup/knowledge-base/harness-defects.md ◄───────┘  (mechanism at fault →
                   drafted raw idea for the Betting Table — read by no worker, committed)
 ```
 
@@ -41,9 +41,9 @@ they are the **complete** set of categories the gate may offer:
 
 | Category | File | The worker reads it at | Good for |
 |----------|------|------------------------|----------|
-| `task-executor`     | `docs/shapeup-sdlc/knowledge-base/task-executor.md`     | Phase 1 (Context Load) | implementation discipline, code style, surgical-change habits, recurring over/under-engineering |
-| `ba-pitch-analyzer` | `docs/shapeup-sdlc/knowledge-base/ba-pitch-analyzer.md` | Phase 1 (Ingest & Scan) | scoping, task decomposition, DDD/spec habits, missed test-surface patterns |
-| `qa-edge-hunter`    | `docs/shapeup-sdlc/knowledge-base/qa-edge-hunter.md`    | Phase Q1 (Charter Map) | recurring edge classes, lenses that keep finding bugs, areas worth probing |
+| `task-executor`     | `shapeup/knowledge-base/task-executor.md`     | Phase 1 (Context Load) | implementation discipline, code style, surgical-change habits, recurring over/under-engineering |
+| `ba-pitch-analyzer` | `shapeup/knowledge-base/ba-pitch-analyzer.md` | Phase 1 (Ingest & Scan) | scoping, task decomposition, DDD/spec habits, missed test-surface patterns |
+| `qa-edge-hunter`    | `shapeup/knowledge-base/qa-edge-hunter.md`    | Phase Q1 (Charter Map) | recurring edge classes, lenses that keep finding bugs, areas worth probing |
 
 **Not coachable.** `spec-evaluator` is deliberately excluded — the harness has a **single-judge**
 rule and the knowledge base is guidance, never an invariant; routing rules into the evaluator would
@@ -75,7 +75,7 @@ maps onto the one payload field registered for this worker in the central domain
 
 The WorkResult may carry only `files_touched`, `artifacts`, `assumptions`, `deviations`
 (`x-result-by-worker`): the knowledge-base files written under
-`docs/shapeup-sdlc/knowledge-base/` return as `files_touched`/`artifacts` — the coach itself is
+`shapeup/knowledge-base/` return as `files_touched`/`artifacts` — the coach itself is
 not coachable and never returns discoveries, verdicts, or task results.
 
 ---
@@ -123,7 +123,7 @@ Rules to honor at this gate:
 
 ### Step 3 — Merge each assigned rule into its skill's knowledge-base file
 For each `<skill>` that received at least one rule:
-1. Ensure `docs/shapeup-sdlc/knowledge-base/<skill>.md` exists (create from the template below if
+1. Ensure `shapeup/knowledge-base/<skill>.md` exists (create from the template below if
    not — the directory is committed, so the file ships to the team on the next commit).
 2. Read the existing file. Merge the new rule(s):
    - **Consolidate** overlapping rules into one stronger statement.
@@ -141,7 +141,7 @@ For each `<skill>` that received at least one rule:
 ### Step 3b — File `harness-defect` rules to the defect register (raw ideas, not steering)
 
 For each rule the PO assigned `harness-defect`, append an entry to
-`docs/shapeup-sdlc/knowledge-base/harness-defects.md` (create from the template below if
+`shapeup/knowledge-base/harness-defects.md` (create from the template below if
 missing). This file is **committed but read by no worker** — it is the PO's backlog of drafted
 raw ideas for the Betting Table, not guidance. Each entry gets a stable id `HD-NNN`, the
 observed symptom, the suspected mechanism at fault, and a one-paragraph raw-idea draft the PO
@@ -173,7 +173,7 @@ the files are committed, so a teammate inherits them on `git pull`.
 
 ## Knowledge-base file template
 
-When creating `docs/shapeup-sdlc/knowledge-base/<skill>.md` for the first time:
+When creating `shapeup/knowledge-base/<skill>.md` for the first time:
 
 ```markdown
 # Knowledge Base — <skill>
@@ -197,6 +197,6 @@ When creating `docs/shapeup-sdlc/knowledge-base/<skill>.md` for the first time:
 | Only `task-executor`, `ba-pitch-analyzer`, `qa-edge-hunter` are valid worker categories | They are the only workers with a read-side hook; a rule elsewhere is never read |
 | A mechanism-at-fault rule goes to the defect register (`harness-defect`), never a worker KB | Steering a worker to compensate for a broken gate/hook misdiagnoses a defect as a habit and hides it from the Betting Table |
 | `spec-evaluator` is never a category | Single-judge rule: the KB is guidance, not an invariant — routing rules into the judge creates a second grader |
-| Write only under `docs/shapeup-sdlc/knowledge-base/` (committed) | The `.shapeup-sdlc/` run-trace is gitignored; guidelines there never reach the team |
+| Write only under `shapeup/knowledge-base/` (committed) | The `.shapeup/` run-trace is gitignored; guidelines there never reach the team |
 | Guidelines, not invariants | The consumer weighs them; they don't gate, score, or override the spec |
 | Keep each file tight — prune as you merge | Consumers load it every run; unbounded growth becomes token cost and noise |

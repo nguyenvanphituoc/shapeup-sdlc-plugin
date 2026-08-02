@@ -28,7 +28,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 import { CRASH_RE, formatReport } from "./_shared.mjs";
-import { isMain } from "../../../skills/tech-lead/scripts/lib/is-main.mjs";
+import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
 
 // Normalize so trailing spaces and final-newline differences never cause a spurious FAIL.
 function normalize(s) {

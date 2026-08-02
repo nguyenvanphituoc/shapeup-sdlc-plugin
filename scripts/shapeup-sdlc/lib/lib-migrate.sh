@@ -4,8 +4,8 @@
 #
 # Concepts mapped from DB migrations:
 #   migration file      = scripts/shapeup-sdlc/migrations/NNNN__slug.sh   (ordered by zero-padded id)
-#   schema_migrations   = docs/shapeup-sdlc/.harness-migrations  (committed ledger of applied ids)
-#   schema version      = docs/shapeup-sdlc/.harness-version      (last plugin version applied)
+#   schema_migrations   = shapeup/.harness-migrations  (committed ledger of applied ids)
+#   schema version      = shapeup/.harness-version      (last plugin version applied)
 #
 # Each migration file defines:
 #   MIGRATION_DESC="..."           # one-line human description
@@ -19,8 +19,8 @@
 #
 # Sourceable. Requires HARNESS_SOURCE_DIR (set by harness_resolve_source in lib-harness.sh).
 
-HARNESS_LEDGER_REL="docs/shapeup-sdlc/.harness-migrations"
-HARNESS_VERSION_REL="docs/shapeup-sdlc/.harness-version"
+HARNESS_LEDGER_REL="shapeup/.harness-migrations"
+HARNESS_VERSION_REL="shapeup/.harness-version"
 
 # -- Read the plugin version from the resolved source manifest (no jq dependency) -------------
 harness_plugin_version() {

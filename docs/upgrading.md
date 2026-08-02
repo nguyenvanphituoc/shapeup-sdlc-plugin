@@ -4,7 +4,7 @@ Updating an install is a **versioned migration**, modeled on database migration 
 (Flyway / Rails). `migrate.sh` first **updates code** — replacing the installed skills for
 each detected CLI — then **migrates data** by applying any pending
 `scripts/shapeup-sdlc/migrations/NNNN__*.sh` in order and recording each in a committed
-`docs/shapeup-sdlc/.harness-migrations` ledger.
+`shapeup/.harness-migrations` ledger.
 
 It is idempotent: applied migrations are skipped on re-run, so it is always safe to run
 again, and every future version adds its own migration rather than another one-off script.
@@ -32,20 +32,20 @@ curl -fsSL "https://raw.githubusercontent.com/nguyenvanphituoc/shapeup-sdlc-plug
 ### `0001` — knowledge base becomes team-shared
 
 As of plugin 0.2.5 / tech-lead 0.12, `/coach` no longer writes one flat, gitignored
-`.shapeup-sdlc/knowledge-base.md` — which never reached teammates and was never read back. It
-now files each rule **by skill** under committed `docs/shapeup-sdlc/knowledge-base/<skill>.md`,
+`.shapeup/knowledge-base.md` — which never reached teammates and was never read back. It
+now files each rule **by skill** under committed `shapeup/knowledge-base/<skill>.md`,
 read back by `task-executor` / `ba-pitch-analyzer` / `qa-edge-hunter` at the top of their next
 run.
 
-Old rules are preserved verbatim into `docs/shapeup-sdlc/knowledge-base/_INBOX.md` and are
+Old rules are preserved verbatim into `shapeup/knowledge-base/_INBOX.md` and are
 **never auto-categorized**. Afterward, run `/coach` on `_INBOX.md` to assign each rule to a
-skill — its GATE COACH-1 asks, it never assumes — then commit `docs/shapeup-sdlc/` so the team
+skill — its GATE COACH-1 asks, it never assumes — then commit `shapeup/` so the team
 inherits the knowledge base and the migration ledger on `git pull`.
 
 ### `0002` — file-organization addendum
 
-Brings a pre-0.3.0 install up to date: shards a flat `docs/shapeup-sdlc/metrics.jsonl` into
-`docs/shapeup-sdlc/metrics/<machine-id>.jsonl` (retiring the old file to
+Brings a pre-0.3.0 install up to date: shards a flat `shapeup/metrics.jsonl` into
+`shapeup/metrics/<machine-id>.jsonl` (retiring the old file to
 `metrics.jsonl.migrated`), adds the Tier C `.gitignore` rules, and drops the Tier C example
 templates — the same three steps a fresh `install-harness.sh` run already does.
 

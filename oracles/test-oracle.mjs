@@ -31,7 +31,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { matchNum, toRegExp, formatReport } from "./_shared.mjs";
-import { isMain } from "../../../skills/tech-lead/scripts/lib/is-main.mjs";
+import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
 
 // Parse common test-runner output into { total, pass, fail, failing[] }.
 function parseSuite(out) {

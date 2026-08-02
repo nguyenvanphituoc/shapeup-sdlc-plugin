@@ -34,7 +34,7 @@ import { spawn } from "node:child_process";
 import { createServer } from "node:net";
 import { readFileSync } from "node:fs";
 import { matchNum, toRegExp, formatReport } from "./_shared.mjs";
-import { isMain } from "../../../skills/tech-lead/scripts/lib/is-main.mjs";
+import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

@@ -41,7 +41,7 @@ tech-lead: ... GATE L2 → EVAL → GATE L3 PASS ──► QA EDGE HUNT (you) �
 Pure worker (harness rule: stateless workers, one stateful orchestrator). Its WorkOrder
 carries `payload.feature`, `payload.spec_folder`, `payload.eval_report`, `payload.app_url`
 (+ read-only ledger path for covered-territory context); its write surface is
-`.shapeup-sdlc/<feature>/qa/**` only. The Hunter never touches the discovery ledger itself —
+`.shapeup/<feature>/qa/**` only. The Hunter never touches the discovery ledger itself —
 ingest appends its `discoveries[]` under a `## Discovered` section, preserving single-writer
 mechanically.
 
@@ -122,7 +122,7 @@ cutting charters at GATE Q1, not by configuring lenses.
 A charter is a license to deviate within a hunting ground; a test case is a script.
 
 ```
-Q1.0  Read team guidelines: docs/shapeup-sdlc/knowledge-base/qa-edge-hunter.md (if present).
+Q1.0  Read team guidelines: shapeup/knowledge-base/qa-edge-hunter.md (if present).
       `/coach`-distilled edge classes that kept biting past features (e.g. "session-expiry
       mid-form keeps surfacing"). Use them to PRIORITIZE charters within the six fixed lenses —
       never to add a seventh lens or skip covered-territory subtraction. Absent = none recorded.
@@ -265,8 +265,8 @@ in ways a spec author wouldn't think to write down.
 
 ## Phase Q3 — Report + WorkResult
 
-Write `.shapeup-sdlc/<feature>/qa/hunt-report.md` (your substrate) and, when dispatched with
-an order, the WorkResult envelope `.shapeup-sdlc/<feature>/results/<order-suffix>.json`:
+Write `.shapeup/<feature>/qa/hunt-report.md` (your substrate) and, when dispatched with
+an order, the WorkResult envelope `.shapeup/<feature>/results/<order-suffix>.json`:
 `status: done`, `discoveries[]` (every confirmed finding from H.3), `artifacts:
 ["qa/hunt-report.md"]`. The report:
 
@@ -282,7 +282,7 @@ hammered out at GATE Q1 (not hunted): […]
 |---|---|---|---|
 | ① Boundary | C-01, C-05 | 2 | 0 |
 | … | | | |
-→ details live in .shapeup-sdlc/<feature>/discovery/ledger.md ## QA Edge Findings (round [r])
+→ details live in .shapeup/<feature>/discovery/ledger.md ## QA Edge Findings (round [r])
 
 ## Shaping-quality signal (advisory, for the PO — next cycle's input)
 - lens ⑤ findings ≈ No-gos written loosely (breach routes left open)
@@ -308,7 +308,7 @@ Hunt : re-run EXACTLY the recorded repro of each promoted finding — nothing el
                   (ingest annotates the ledger — annotate, never delete; the ledger is history)
         not fixed → `{ "marker": "~", "line": "[QA-NNN] ✦ NOT fixed r[N]", "repro": "<fresh evidence>" }`
                   back to triage.
-Report: append a `## Recheck (round [r])` section to .shapeup-sdlc/<feature>/qa/hunt-report.md.
+Report: append a `## Recheck (round [r])` section to .shapeup/<feature>/qa/hunt-report.md.
 NEVER a second full hunt in the same cycle — new edges found while rechecking are
 recorded `~` like any finding and wait for triage; they don't restart the loop.
 ```
@@ -321,16 +321,16 @@ recorded `~` like any finding and wait for triage; they don't restart the loop.
 # Orchestrated (how tech-lead calls it after first PASS) — the canonical form:
 #   compile-order --operation hunt --slug checkout-vnpay --worker qa-edge-hunter \
 #     --payload '{"eval_report": "…/EVAL-FEATURE-checkout-vnpay.md", "app_url": "http://localhost:3000"}'
-/qa-edge-hunter --order .shapeup-sdlc/checkout-vnpay/orders/hunt.json
+/qa-edge-hunter --order .shapeup/checkout-vnpay/orders/hunt.json
 
 # Standalone flags (the preamble shim compiles the same envelope)
-/qa-edge-hunter --feature checkout-vnpay --spec docs/shapeup-sdlc/checkout-vnpay/spec/ \
-    --eval .shapeup-sdlc/checkout-vnpay/evaluation/EVAL-FEATURE-checkout-vnpay.md \
-    --ledger .shapeup-sdlc/checkout-vnpay/discovery/ledger.md --app http://localhost:3000
+/qa-edge-hunter --feature checkout-vnpay --spec shapeup/checkout-vnpay/spec/ \
+    --eval .shapeup/checkout-vnpay/evaluation/EVAL-FEATURE-checkout-vnpay.md \
+    --ledger .shapeup/checkout-vnpay/discovery/ledger.md --app http://localhost:3000
 
 # Standalone (same arguments, human-invoked)
-/qa-edge-hunter --feature checkout-vnpay --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --app http://localhost:3000
-# (--eval/--ledger default to the conventional paths under the LOCAL root .shapeup-sdlc/<feature>/)
+/qa-edge-hunter --feature checkout-vnpay --spec shapeup/checkout-vnpay/spec/ --app http://localhost:3000
+# (--eval/--ledger default to the conventional paths under the LOCAL root .shapeup/<feature>/)
 
 # Recheck after triage promoted + fixed findings
 /qa-edge-hunter --recheck QA-001,QA-004 --feature checkout-vnpay --spec ... --app ...

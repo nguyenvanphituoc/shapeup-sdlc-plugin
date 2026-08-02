@@ -11,7 +11,7 @@ The audit that motivated this skill found a 631-line asset pipeline with 26 pass
 **zero call sites** in the app's composition root — built, green, and unreachable from the
 running application. Five more scopes had engines never wired to a player. This skill closes that
 hole at the front: before the scopes are sliced, it designs a committed **wiring map**
-(`docs/shapeup-sdlc/<slug>/wiring-map.json`) that names, for every use case, the chain from the
+(`shapeup/<slug>/wiring-map.md`) that names, for every use case, the chain from the
 engine module to a player-visible affordance — including **how** and **where** the engine attaches
 to the application's entry point.
 
@@ -33,7 +33,7 @@ Two payoffs, one artifact:
   seam; it does not enforce the re-slice rule — that's a separate change.)
 
 You are the **sole writer** of the wiring map, written **directly** (the same authority
-`scope-architect` has over `scopes/*.json` — you bypass `ingest-result`). Everything else you
+`scope-architect` has over `scopes/*.md` — you bypass `ingest-result`). Everything else you
 return as a WorkResult.
 
 ## Input contract — the WorkOrder
@@ -42,8 +42,8 @@ return as a WorkResult.
 |---|---|
 | `operation` | `wire` (author/refresh the wiring map after `analyze`, before `map-scopes`) |
 | `payload.feature` / `payload.spec_folder` | Slug + committed spec — read `usecases/` for the UCs and the engine each one needs, `domain-model.md`/`synthesis.md` for the module surface |
-| `payload.project_profile` | Path to the SHARED `project-profile.json`. Its `entry_point` is the composition root every engine must attach to — **archetype-specific** (a client-only game's `main.js` is not a web-service's `src/server.ts`). Read it; never guess the entry point |
-| `substrate.allowed` | `wiring-map.json` — your ONLY write surface (the spec core, scopes, and the profile are frozen) |
+| `payload.project_profile` | Path to the SHARED `project-profile.md`. Its `entry_point` is the composition root every engine must attach to — **archetype-specific** (a client-only game's `main.js` is not a web-service's `src/server.ts`). Read it; never guess the entry point |
+| `substrate.allowed` | `wiring-map.md` — your ONLY write surface (the spec core, scopes, and the profile are frozen) |
 
 **If the profile is absent in an orchestrated run, ESCALATE (spec-ambiguity) — do not invent an
 entry point.** The whole point is that the seam resolves against a *declared* composition root; a
@@ -70,7 +70,7 @@ guessed `main.js` would make the later oracle certify nothing.
                                the import graph, it does not parse this field)
              affordance        the player-visible thing this UC exposes once wired (the human
                                end of the chain — what a user can DO, not an internal call)
-3 WRITE    docs/shapeup-sdlc/<slug>/wiring-map.json (WiringMap): {schema_version:1, feature,
+3 WRITE    shapeup/<slug>/wiring-map.md (WiringMap): {schema_version:1, feature,
            entry_point (echo of the profile), entries[]}. One entry per use case. A UC whose
            engine has no attachment path is exactly the gap this artifact exists to surface —
            write the entry with the seam you INTEND and raise it in deviations[]/escalates[], so
@@ -96,12 +96,12 @@ is always an attachment to the entry point, or the code never runs.
 
 ## Output contract — the WorkResult
 
-`wiring-map.json` in your substrate, then `.shapeup-sdlc/<slug>/results/<order-suffix>.json`:
+`wiring-map.md` in your substrate, then `.shapeup/<slug>/results/<order-suffix>.json`:
 `status`, `artifacts[]` (the wiring map written), `escalates[]` (e.g. a missing profile, or a UC
 whose engine the spec never names — the planner's territory), `assumptions[]` (engine paths
 inferred from the domain model where the spec was silent), `deviations[]` (any UC left with an
 uncertain seam, or an engine with no attachment path, and why). You never touch spec docs,
-`scopes/*.json`, `project-profile.json`, task files, or run-state.
+`scopes/*.md`, `project-profile.md`, task files, or run-state.
 
 ## Verification checklist
 
@@ -117,13 +117,13 @@ uncertain seam, or an engine with no attachment path, and why). You never touch 
 
 ```bash
 # Orchestrated — compile-order --operation wire --worker solution-architect (or resolved by op) …
-/solution-architect --order .shapeup-sdlc/checkout-vnpay/orders/wire.json
+/solution-architect --order .shapeup/checkout-vnpay/orders/wire.json
 
 # Standalone shim (compiles the same envelope)
-/solution-architect --wire docs/shapeup-sdlc/checkout-vnpay/
+/solution-architect --wire shapeup/checkout-vnpay/
 
 # The reachability oracle is the ORCHESTRATOR's, run advisory at L1b — not part of your craft.
 # Standalone, you MAY preview it after writing the map (it self-skips arms whose artifacts are
 # absent, and is near-vacuous pre-build since the engine code does not exist yet):
-#   node skills/tech-lead/scripts/trace-lint.mjs --slug checkout-vnpay
+#   node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/trace-lint.mjs" --slug checkout-vnpay
 ```

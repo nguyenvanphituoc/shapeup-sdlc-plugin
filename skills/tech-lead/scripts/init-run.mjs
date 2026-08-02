@@ -52,7 +52,7 @@
 //   --lens          lite | standard | cross-context   (default: standard)
 //   --max-rounds N  outer circuit breaker             (default: 3)
 //   --attempts N    inner per-scope T0 budget         (default: 5)
-//   --spec-folder   SHARED spec deliverable path      (default: docs/shapeup-sdlc/<slug>/spec/)
+//   --spec-folder   SHARED spec deliverable path      (default: shapeup/<slug>/spec/)
 //   --gate-answers  path | preset name                (see gate-answers.mjs; recorded, not read)
 //   --wall-clock-budget N  deadline breaker, seconds  (off by default; see budget-check.mjs)
 //   --cwd           project root                      (default: process.cwd())
@@ -73,7 +73,9 @@ import { join, dirname } from "node:path";
 import { createHash } from "node:crypto";
 import { decideLane, treeSize } from "./fit-check.mjs";
 import { isMain } from "./lib/is-main.mjs";
+import { runArgs } from "./lib/argv.mjs";
 import { deriveSnapshot } from "./run-snapshot.mjs";
+import { localRoot, activeScope, globLocal, globShared } from "./lib/paths.mjs";
 
 export const RECEIPT_VERSION = 1;
 
@@ -158,13 +160,29 @@ export function runFrontmatter({ slug, config, startedAt }) {
 
 // ---- CLI -------------------------------------------------------------------
 
-function arg(name, fallback = null) {
-  const i = process.argv.indexOf(`--${name}`);
-  if (i === -1) return fallback;
-  const v = process.argv[i + 1];
-  return v && !v.startsWith("--") ? v : fallback;
-}
-const flag = (n) => process.argv.includes(`--${n}`);
+/** The typed argv contract (see `./lib/argv.mjs`). */
+export const ARGV_SPEC = {
+  usage: 'init-run.mjs (--intake-file <path> | --intake-text "<req>" | --intake-stdin) ' +
+         "[--slug <slug>] [--auto-level interactive|auto|unattended] [--lens <lens>] " +
+         "[--max-rounds N] [--attempts N] [--spec-folder <dir>] [--gate-answers <preset|path>] " +
+         "[--lane full|tiny] [--tiny] [--wall-clock-budget <seconds>] [--cwd <dir>] [--force]",
+  _: { arity: 0, max: 0, name: "(no positional operands)" },
+  cwd: { type: "path" },
+  "intake-text": { type: "str" },
+  "intake-file": { type: "str" }, // "-" is a legitimate value here (stdin), so not type "path"
+  "intake-stdin": { type: "flag" },
+  slug: { type: "str" },
+  "auto-level": { type: "str" },
+  lens: { type: "str" },
+  "max-rounds": { type: "int", min: 1 },
+  attempts: { type: "int", min: 1 },
+  "spec-folder": { type: "path" },
+  "gate-answers": { type: "str" },
+  lane: { type: "str" },
+  tiny: { type: "flag" },
+  "wall-clock-budget": { type: "int", min: 1 },
+  force: { type: "flag" },
+};
 
 function fail(code, msg) {
   console.error(msg);
@@ -172,13 +190,14 @@ function fail(code, msg) {
 }
 
 export function main() {
-  const cwd = arg("cwd", process.cwd());
+  const args = runArgs(ARGV_SPEC);
+  const cwd = args.cwd || process.cwd();
 
-  let intake = arg("intake-text", null);
-  const intakeFile = arg("intake-file", null);
+  let intake = args.intakeText ?? null;
+  const intakeFile = args.intakeFile ?? null;
   // `--intake-file -` is the shape everyone reaches for; accept it rather than erroring on a
   // file literally named "-". (Measured: an agent tried exactly this on its second attempt.)
-  if (flag("intake-stdin") || intakeFile === "-") {
+  if (args.intakeStdin || intakeFile === "-") {
     try { intake = readFileSync(0, "utf8"); } catch { fail(2, "--intake-stdin: nothing on stdin"); }
   } else if (intakeFile) {
     const p = intakeFile.startsWith("/") ? intakeFile : join(cwd, intakeFile);
@@ -195,40 +214,40 @@ export function main() {
     ].join("\n"));
   }
 
-  const slug = arg("slug", null) || slugify(intake.split("\n").find((l) => l.trim()) || "run");
+  const slug = (args.slug ?? null) || slugify(intake.split("\n").find((l) => l.trim()) || "run");
 
-  const auto_level = arg("auto-level", "interactive");
+  const auto_level = args.autoLevel ?? "interactive";
   if (!AUTO_LEVELS.has(auto_level)) fail(2, `--auto-level must be one of: ${[...AUTO_LEVELS].join(", ")}`);
-  const lens = arg("lens", "standard");
+  const lens = args.lens ?? "standard";
   if (!LENSES.has(lens)) fail(2, `--lens must be one of: ${[...LENSES].join(", ")}`);
 
   const config = {
     auto_level,
     lens,
-    max_rounds: Number(arg("max-rounds", "3")),
-    attempt_budget: Number(arg("attempts", "5")),
-    spec_folder: arg("spec-folder", `docs/shapeup-sdlc/${slug}/spec/`),
-    gate_answers: arg("gate-answers", null),
-    tiny_lane: flag("tiny"),
+    max_rounds: args.maxRounds ?? 3,
+    attempt_budget: args.attempts ?? 5,
+    spec_folder: args.specFolder ?? `${globShared(slug, "spec")}/`,
+    gate_answers: args.gateAnswers ?? null,
+    tiny_lane: !!args.tiny,
     // GATE L0.3 — the lane, computed rather than judged (see fit-check.mjs). Recorded with its
     // evidence so a heavy lane on a small change is visible instead of accidental. An explicit
     // --lane or --tiny is honoured and marked as an override, because a measured recommendation
     // fitted on three features must not outrank a human who knows the codebase.
     fit: (() => {
       const auto = decideLane({ intake, files: treeSize(cwd) });
-      const forced = arg("lane", null) || (flag("tiny") ? "tiny" : null);
+      const forced = (args.lane ?? null) || (args.tiny ? "tiny" : null);
       return forced && forced !== auto.lane
-        ? { ...auto, lane: forced, overridden_from: auto.lane, override_source: flag("tiny") ? "--tiny" : "--lane" }
+        ? { ...auto, lane: forced, overridden_from: auto.lane, override_source: args.tiny ? "--tiny" : "--lane" }
         : auto;
     })(),
     // The third breaker (see scripts/budget-check.mjs). Null = off, which is the default and
     // keeps every existing run behaving exactly as before. Set it in any lane with a hard clock
     // — CI, a benchmark, an overnight run — so the harness trips its own breaker and ships what
     // is green, instead of being killed from outside and shipping nothing.
-    wall_clock_budget_s: arg("wall-clock-budget", null) ? Number(arg("wall-clock-budget")) : null,
+    wall_clock_budget_s: args.wallClockBudget ?? null,
   };
 
-  const runRoot = join(cwd, ".shapeup-sdlc", slug);
+  const runRoot = localRoot(cwd, slug);
   const receiptPath = join(runRoot, "receipt.json");
   // A RUN IS ALREADY OPEN. This is the resume path, and it used to be a dead end.
   //
@@ -248,7 +267,7 @@ export function main() {
   // slug, status, round, attempt, board counts and pending orders in THIS tool call rather than
   // needing to discover that it needs another one. Exit 3 still means "do not proceed as if you
   // opened a run"; it now also means "here is the run you are actually in".
-  if (existsSync(receiptPath) && !flag("force")) {
+  if (existsSync(receiptPath) && !args.force) {
     let resume = null;
     try { resume = deriveSnapshot(cwd); } catch { /* a broken run must still produce the refusal */ }
     fail(3, [
@@ -286,15 +305,15 @@ export function main() {
   writeFileSync(join(runRoot, "harness-run.md"), runFrontmatter({ slug, config, startedAt }), "utf8");
 
   // The pointer every downstream guard reads to answer "is a run active?".
-  const pointer = join(cwd, ".shapeup-sdlc", "active-scope");
+  const pointer = activeScope(cwd);
   mkdirSync(dirname(pointer), { recursive: true });
   writeFileSync(pointer, JSON.stringify({ slug, started_at: startedAt }, null, 2) + "\n", "utf8");
 
   console.log(JSON.stringify({
     ok: true,
     slug,
-    run_root: `.shapeup-sdlc/${slug}`,
-    receipt: `.shapeup-sdlc/${slug}/receipt.json`,
+    run_root: globLocal(slug),
+    receipt: globLocal(slug, "receipt.json"),
     intake_sha256: receipt.intake_sha256,
     intake_chars: receipt.intake_chars,
     config,

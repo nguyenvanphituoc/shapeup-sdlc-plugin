@@ -43,20 +43,20 @@ export async function run(ctx) {
       if (r.status === 0) ok("init-run exits 0 on a valid intake");
       else fail(`init-run failed on a valid intake: ${r.stderr || r.stdout}`);
 
-      const receiptPath = join(ws, ".shapeup-sdlc", "budgets", "receipt.json");
+      const receiptPath = join(ws, ".shapeup", "budgets", "receipt.json");
       if (existsSync(receiptPath)) ok("init-run writes receipt.json");
       else fail("init-run did not write receipt.json — gate-zerowork has nothing to read");
 
-      if (existsSync(join(ws, ".shapeup-sdlc", "active-scope"))) ok("init-run writes active-scope");
+      if (existsSync(join(ws, ".shapeup", "active-scope"))) ok("init-run writes active-scope");
       else fail("init-run did not write active-scope — anti-rationalization stays scoped out");
 
-      if (existsSync(join(ws, ".shapeup-sdlc", "budgets", "harness-run.md"))) ok("init-run writes harness-run.md");
+      if (existsSync(join(ws, ".shapeup", "budgets", "harness-run.md"))) ok("init-run writes harness-run.md");
       else fail("init-run did not write harness-run.md");
 
       // The intake, verbatim + digested. This is what makes "the spec was dropped on the
       // hand-off" a checkable claim — the benchmark's first (wrong) diagnosis was exactly that,
       // and nothing on disk could settle it either way.
-      const intakePath = join(ws, ".shapeup-sdlc", "budgets", "intake.md");
+      const intakePath = join(ws, ".shapeup", "budgets", "intake.md");
       if (existsSync(intakePath) && readFileSync(intakePath, "utf8").includes(intake)) {
         ok("init-run records the intake verbatim");
       } else fail("init-run did not record the intake verbatim");
@@ -83,7 +83,7 @@ export async function run(ctx) {
       for (const [label, extraArgs] of [["--intake-stdin", ["--intake-stdin"]], ["--intake-file -", ["--intake-file", "-"]]]) {
         const slug = `stdin-${label.replace(/[^a-z]/g, "")}`;
         const r2 = node(INIT, ["--slug", slug, ...extraArgs, "--cwd", ws], { input: intake });
-        const wrote = existsSync(join(ws, ".shapeup-sdlc", slug, "receipt.json"));
+        const wrote = existsSync(join(ws, ".shapeup", slug, "receipt.json"));
         if (r2.status === 0 && wrote) ok(`init-run accepts intake on stdin via ${label}`);
         else fail(`${label} did not open a run (exit ${r2.status}): ${r2.stderr}`);
       }
@@ -186,7 +186,7 @@ export async function run(ctx) {
       const unrelated = jsonl([{ type: "assistant", message: { content: [{ type: "text", text: "hello" }] } }], "unrelated.jsonl");
 
       const empty = join(ws, "empty"); mkdirSync(empty, { recursive: true });
-      const started = join(ws, "started", ".shapeup-sdlc", "budgets");
+      const started = join(ws, "started", ".shapeup", "budgets");
       mkdirSync(started, { recursive: true });
       writeFileSync(join(started, "receipt.json"), JSON.stringify({ started: true, slug: "budgets" }));
 
@@ -269,7 +269,7 @@ export async function run(ctx) {
       if (r.status === 0) ok("init-run accepts --wall-clock-budget");
       else fail(`init-run rejected --wall-clock-budget: ${r.stderr}`);
 
-      const receiptPath = join(ws, ".shapeup-sdlc", "f3", "receipt.json");
+      const receiptPath = join(ws, ".shapeup", "f3", "receipt.json");
       const rec = JSON.parse(readFileSync(receiptPath, "utf8"));
       if (rec.config.wall_clock_budget_s === 1800) ok("the budget is recorded in the receipt, where the hook reads it");
       else fail("wall_clock_budget_s did not reach the receipt");
@@ -309,8 +309,8 @@ export async function run(ctx) {
       else fail("the second denial is identical to the first — the retry loop is not addressed");
       if (/STOP TRYING TO BUILD/.test(reason2)) ok("the repeat denial is unambiguous about stopping");
       else fail("the repeat denial does not tell the orchestrator to stop retrying");
-      if (existsSync(join(ws, ".shapeup-sdlc", "f3", "deadline-tripped.json"))) {
-        const trip = JSON.parse(readFileSync(join(ws, ".shapeup-sdlc", "f3", "deadline-tripped.json"), "utf8"));
+      if (existsSync(join(ws, ".shapeup", "f3", "deadline-tripped.json"))) {
+        const trip = JSON.parse(readFileSync(join(ws, ".shapeup", "f3", "deadline-tripped.json"), "utf8"));
         if (trip.denials >= 2) ok(`the trip is a fact on disk, with a retry count (${trip.denials})`);
         else fail("deadline-tripped.json does not count retries");
       } else fail("the trip was not recorded on disk");
@@ -439,7 +439,7 @@ export async function run(ctx) {
   // each check here is a PAIR: the failure is still caught, AND the ordinary case is still silent.
   {
     // -- (a) A pointer at a CLOSED run is not an open run ---------------------------------------
-    // `.shapeup-sdlc/active-scope` predates v1.4.1 by four minor versions and nothing has ever
+    // `.shapeup/active-scope` predates v1.4.1 by four minor versions and nothing has ever
     // cleared it; its original reader (sandbox-guard) fails OPEN on a stale one, so nothing ever
     // had to. session-rehydrate reads the same file with the opposite disposition — "a run is
     // ALREADY OPEN … do NOT open a new run" — and now fires on `startup`/`clear`. Following the
@@ -452,9 +452,9 @@ export async function run(ctx) {
       const { deriveSnapshot } = await import(`file://${join(ROOT, RS)}`);
       const mk = (status) => {
         const d = mkdtempSync(join(tmpdir(), "struct-stale-"));
-        mkdirSync(join(d, ".shapeup-sdlc", "demo"), { recursive: true });
-        writeFileSync(join(d, ".shapeup-sdlc", "active-scope"), JSON.stringify({ slug: "demo" }));
-        writeFileSync(join(d, ".shapeup-sdlc", "demo", "harness-run.md"),
+        mkdirSync(join(d, ".shapeup", "demo"), { recursive: true });
+        writeFileSync(join(d, ".shapeup", "active-scope"), JSON.stringify({ slug: "demo" }));
+        writeFileSync(join(d, ".shapeup", "demo", "harness-run.md"),
           `---\nfeature: demo\nstatus: ${status}\n---\n# run\n`);
         return d;
       };
@@ -478,8 +478,8 @@ export async function run(ctx) {
 
       // A pointer with no ledger at all cannot be evidence of an open run.
       const noLedger = mkdtempSync(join(tmpdir(), "struct-noledger-"));
-      mkdirSync(join(noLedger, ".shapeup-sdlc"), { recursive: true });
-      writeFileSync(join(noLedger, ".shapeup-sdlc", "active-scope"), JSON.stringify({ slug: "ghost" }));
+      mkdirSync(join(noLedger, ".shapeup"), { recursive: true });
+      writeFileSync(join(noLedger, ".shapeup", "active-scope"), JSON.stringify({ slug: "ghost" }));
       if (deriveSnapshot(noLedger) === null) ok("a pointer at a run with no harness-run.md fails closed");
       else fail("a pointer with no ledger behind it still claimed an open run");
     }

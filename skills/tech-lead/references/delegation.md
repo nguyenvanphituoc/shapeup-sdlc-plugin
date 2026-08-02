@@ -17,15 +17,15 @@ WorkOrder in `orders/r<N>-a<M>.json`) already assumes every worker below has.
 
 Standard shape (pure-skill architecture v1.0 — the envelope port):
 ```
-1. node scripts/compile-order.mjs <mode flags>      # → orders/<id>.json
+1. node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/compile-order.mjs" <mode flags>      # → orders/<id>.json
 2. Agent({
      description: "<short task description>",
      subagent_type: "general-purpose",
      model: "<role model resolved at GATE L0.8>",
      prompt: "Call Skill(shapeup-sdlc-plugin:<skill>) --order <orders/<id>.json>.
-              Report back: the WorkResult path (.shapeup-sdlc/<slug>/results/<id>.json)."
+              Report back: the WorkResult path (.shapeup/<slug>/results/<id>.json)."
    })
-3. node scripts/ingest-result.mjs .shapeup-sdlc/<slug>/results/<id>.json
+3. node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/ingest-result.mjs" .shapeup/<slug>/results/<id>.json
 ```
 The WorkOrder carries everything the worker may rely on (payload, decisions, digested errors,
 substrate write-contract); the WorkResult carries everything the worker used to write into
@@ -42,7 +42,7 @@ tokens):
 | translator | exec | one-shot text transform — builder tier |
 | orient (Scout) | exec | reads/spikes code — builder tier, not judgment |
 | ba-pitch-analyzer | exec | planner — builder tier, not judgment |
-| scope-architect | exec | scope-contract author (sole writer of scopes/*.json) — builder tier |
+| scope-architect | exec | scope-contract author (sole writer of scopes/*.md) — builder tier |
 | task-executor | exec | the builder itself |
 | advisor-protocol | exec | adjudicates ESCALATE by precedent/default, budget-capped — not the single judge |
 | spec-evaluator | eval | the single judge (judge ≠ doer) — keep its own matrix key even if a PO points it at the same model as `exec`, so it can be split later without a harness change |
@@ -78,7 +78,7 @@ lead never translates itself; it only detects and sequences this step before ORI
 Invoke via Agent (model: exec): Skill(shapeup-sdlc-plugin:orient)
         --pitch "<kicked-off pitch path>" --spec <path> --stack "<hint>" [--auto]
 Owns:   its own GATE O-A/O-B (or runs straight through under --auto)
-Writes: .shapeup-sdlc/<slug>/orient/ → code-surface.md, spike-<area>.md, discovered-seed.md, hill-signal.md (LOCAL run-trace)
+Writes: .shapeup/<slug>/orient/ → code-surface.md, spike-<area>.md, discovered-seed.md, hill-signal.md (LOCAL run-trace)
 Read back: hill-signal.md (render the area-level Hill at GATE L1a) + the spiked area/result.
 Why first: at Orient time NO board exists; the Scout's map + discovered seed make the planner's
         board reality-born instead of imagined. The four artifacts are the orient→ba contract.
@@ -89,21 +89,21 @@ Authority: pure worker — no code, no board, no run-state, no reporting.
 ```
 Order A (the spec tree + board):
   compile-order --operation analyze --slug <slug> --worker ba-pitch-analyzer
-    --payload '{"pitch": "<path>", "lens": "<lens>", "orient_dir": ".shapeup-sdlc/<slug>/orient/"}'
+    --payload '{"pitch": "<path>", "lens": "<lens>", "orient_dir": ".shapeup/<slug>/orient/"}'
   Agent (model: exec): Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) --order <path>
   The order hands it code-surface.md (Phase-1 ingest, no re-scan), discovered-seed.md (task
   gen from reality), spike-<area>.md (feasibility/contracts).
   Writes (its substrate): spec_folder → _index.md, domain-model.md, ux-behavior.md, usecases/*,
     contracts/*.contract.md, scope-summary.md (+ api-feasibility.md if third-party) and the
-    LOCAL board .shapeup-sdlc/<slug>/tasks/ (v3.2; regenerable via a generate-board order).
+    LOCAL board .shapeup/<slug>/tasks/ (v3.2; regenerable via a generate-board order).
   Returns: WorkResult (artifacts list + discoveries) → ingest-result.
 Order B (the scope contracts):
   compile-order --operation map-scopes --slug <slug> --worker scope-architect
   Agent (model: exec): Skill(shapeup-sdlc-plugin:scope-architect) --order <path>
-  Writes (its substrate): docs/shapeup-sdlc/<slug>/scopes/*.json + scope-board.md — sole
-    writer. Lint mechanically: node skills/ba-pitch-analyzer/scripts/spec-lint.mjs <slug> (PA1/PA2 +
+  Writes (its substrate): shapeup/<slug>/scopes/*.md + scope-board.md — sole
+    writer. Lint mechanically: node "${CLAUDE_PLUGIN_ROOT}/skills/ba-pitch-analyzer/scripts/spec-lint.mjs" <slug> (PA1/PA2 +
     substrate disjointness) before GATE L1b.
-Read back: .shapeup-sdlc/<slug>/tasks/_index.md (the board) + scope-summary.md (Done-when)
+Read back: .shapeup/<slug>/tasks/_index.md (the board) + scope-summary.md (Done-when)
   + the spec-lint verdict.
 Pass-through rule: do not coach the planner to over-specify implementation — keep tech high-level.
 ```
@@ -111,11 +111,11 @@ Pass-through rule: do not coach the planner to over-specify implementation — k
 ## 2b. RECONCILE → ba-pitch-analyzer (discovered task reconciliation, operation: reconcile)
 ```
 compile-order --operation reconcile --slug <slug> --worker ba-pitch-analyzer
-  --payload '{"discovered_ledger": ".shapeup-sdlc/<slug>/discovery/ledger.md"}'
+  --payload '{"discovered_ledger": ".shapeup/<slug>/discovery/ledger.md"}'
 Agent (model: exec): Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) --order <path>
 Effect: reconciles raw ledger discoveries into board tasks + appended UC invariants/TS rows,
         inside the reconcile write-contract (frozen zone enforced by the sandbox hook, not
-        prose). Appetite Guard runs mechanically: node skills/ba-pitch-analyzer/scripts/board-derive.mjs.
+        prose). Appetite Guard runs mechanically: node "${CLAUDE_PLUGIN_ROOT}/skills/ba-pitch-analyzer/scripts/board-derive.mjs".
 Returns: WorkResult → ingest-result (which updates the board and bumps discovered_rounds in
         harness-run.md — the worker holds no counter).
 Read back: updated tasks/_index.md + scope-summary.md before routing back to GATE L1b.
@@ -123,13 +123,13 @@ Read back: updated tasks/_index.md + scope-summary.md before routing back to GAT
 
 ## 2c. BOOTSTRAP LOCAL BOARD → ba-pitch-analyzer (operation: generate-board, v3.2)
 ```
-Only when GATE L1b's bootstrap check fires (LOCAL .shapeup-sdlc/<slug>/tasks/_index.md missing
-AND SHARED docs/shapeup-sdlc/<slug>/spec/usecases/ present):
+Only when GATE L1b's bootstrap check fires (LOCAL .shapeup/<slug>/tasks/_index.md missing
+AND SHARED shapeup/<slug>/spec/usecases/ present):
   compile-order --operation generate-board --slug <slug> --worker ba-pitch-analyzer
   Agent (model: exec): Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) --order <path>
 Effect: regenerates the LOCAL task board fresh from the committed usecases/domain-model/scopes
         — no ledger, no reconciliation. Status bootstraps from committed T0/hill facts at
-        SCOPE granularity; unlocks recomputed by node skills/ba-pitch-analyzer/scripts/board-derive.mjs --write.
+        SCOPE granularity; unlocks recomputed by node "${CLAUDE_PLUGIN_ROOT}/skills/ba-pitch-analyzer/scripts/board-derive.mjs" --write.
 Read back: the freshly regenerated tasks/_index.md before entering BUILD.
 ```
 
@@ -147,7 +147,7 @@ r>1 (fix) per bug:
   → dispatch + ingest as above. Scope the change to the bug only.
 
 Scope contracts present (isolated attempt loop, per scope, per attempt):
-  compile-order --scope docs/shapeup-sdlc/<slug>/scopes/<id>.json --round <N> --attempt <M>
+  compile-order --scope shapeup/<slug>/scopes/<id>.md --round <N> --attempt <M>
   → orders/r<N>-a<M>.json inlines the scope contract, this scope's tasks, promoted ledger
     decisions, and the previous attempt's AEGIS triples — the zero-memory handoff, compiled
     from facts only. Dispatch a fresh Agent per attempt (this IS the isolation boundary):
@@ -162,7 +162,7 @@ dependency order).
 ## 3b. ESCALATE adjudication → advisor-protocol (scope contracts present, mid-attempt)
 ```
 Invoke via Agent (model: exec): Skill(shapeup-sdlc-plugin:advisor-protocol)
-        --ledger docs/shapeup-sdlc/<slug>/round-ledger.md --escalate <block> [--unattended]
+        --ledger shapeup/<slug>/round-ledger.md --escalate <block> [--unattended]
 Effect: adjudicates via precedent / substrate-expansion (→ a scope-architect remap order) / PO ask / conservative
         default; appends one row to round-ledger.md "Decisions" the instant it resolves.
 Read back: the answer, to fold into the SAME attempt if still in progress, or the next
@@ -174,8 +174,8 @@ Authority: advises; never designs, builds, or judges. Budget ≤3/scope/round �
 ## 3c. T0 verify → scripts/t0-verify.mjs (skill-local; scope contracts present, every attempt)
 ```
 Invoke via Bash directly — NOT an Agent, this is deterministic tooling, not a worker (DD-7):
-  node scripts/t0-verify.mjs docs/shapeup-sdlc/<slug>/scopes/<scope-id>.json
-        --round <N> --attempt <M> --seesaw-registry .shapeup-sdlc/<slug>/seesaw/registry.json
+  node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/t0-verify.mjs" shapeup/<slug>/scopes/<scope-id>.md
+        --round <N> --attempt <M> --seesaw-registry .shapeup/<slug>/seesaw/registry.json
 Effect: runs the scope's e2e fixtures + DB probe, then (on green) the seesaw regression check
         over every FINISHED scope's fixtures. Writes the verdict artifact spec-evaluator's
         GATE V0.7 will require a citation to. Zero LLM tokens — deterministic tooling, not a
@@ -240,12 +240,12 @@ Read back: the proposed cut list + verdict (SHIP now | SHIP after fixing ship-bl
 | `orient/hill-signal.md` | Scout (step 7) | tech lead (renders L1a Hill) |
 | `orders/<id>.json` (WorkOrder) | **compile-order.mjs (mechanical)** | every worker (its ONLY pipeline input), validate-envelope hook |
 | `results/<id>.json` (WorkResult) | the dispatched worker (its ONLY pipeline output) | ingest-result.mjs (the single writer of everything below it) |
-| `.shapeup-sdlc/<slug>/tasks/*` (LOCAL board, v3.2) | **ingest-result.mjs** (status, AC ticks, unblocks) + planner orders (task bodies) | tech lead (board status), compile-order (next task, ACs) |
+| `.shapeup/<slug>/tasks/*` (LOCAL board, v3.2) | **ingest-result.mjs** (status, AC ticks, unblocks) + planner orders (task bodies) | tech lead (board status), compile-order (next task, ACs) |
 | `discovery/ledger.md` | **ingest-result.mjs** (from workers' `discoveries[]`) | reconcile orders (ba), scope-hammer (H0 census) |
 | `scope-summary.md` | planner (analyze/reconcile orders) | tech lead (Done-when), evaluator (Done-when criteria) |
 | `evaluation/EVAL-FEATURE-<slug>.md` + `.verdicts-*.jsonl` | evaluator (report) / **ingest-result.mjs** (verdict ledger, un-ticks) | tech lead (verdict), next fix order (bug list) |
 | `harness-run.md` | **tech lead (sole writer)** | tech lead (round ledger + Hill + run-state), PO (audit) |
-| `scopes/<scope-id>.json` | `scope-architect` (sole writer, incl. remap/split orders) | tech lead (substrate/sequence), sandbox hook (write-whitelist), compile-order (inlined into orders) |
+| `scopes/<scope-id>.md` | `scope-architect` (sole writer, incl. remap/split orders) | tech lead (substrate/sequence), sandbox hook (write-whitelist), compile-order (inlined into orders) |
 | `t0/verdicts/r<N>-a<M>.json` | `scripts/t0-verify.mjs` (skill-local, mechanical — not a worker) | spec-evaluator (required citation), tech lead (hill derivation), compile-order (digested errors) |
 | `round-ledger.md` | **tech lead (sole writer)** | compile-order (decisions into every order), advisor-protocol (appends), PO (audit) |
 | `hill/<scope-id>.yml` + `hill-chart.md` | **tech lead (sole writer)** | PO ("status without asking"), scope-hammer (H0 census) |

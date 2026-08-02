@@ -25,6 +25,8 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isMain } from "./lib/is-main.mjs";
+import { runArgs } from "./lib/argv.mjs";
+import { runHook, readStdin, settle } from "../../../hooks/lib/decision.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const SCHEMAS_DIR = resolve(HERE, "../schemas");
@@ -147,9 +149,14 @@ function walk(data, schema, path, errors, ctx, refDepth) {
   }
   if (schema.type) {
     const t = typeOf(data);
-    const okType = schema.type === "number" ? t === "number" || t === "integer" : t === schema.type;
+    // `type` may be a single name or a JSON-Schema union (`["integer", "null"]`). A nullable
+    // field is a real thing in this registry — `T0Score.db_probe` is null when no probe is
+    // DECLARED, which is an absence and never a failure — and a validator that cannot express it
+    // would force every such field to be written in a shape it can only pretend to check.
+    const accepted = Array.isArray(schema.type) ? schema.type : [schema.type];
+    const okType = accepted.some((want) => (want === "number" ? t === "number" || t === "integer" : t === want));
     if (!okType) {
-      errors.push(`${path}: expected ${schema.type}, got ${t}`);
+      errors.push(`${path}: expected ${accepted.join("|")}, got ${t}`);
       return; // deeper checks are meaningless on the wrong type
     }
   }
@@ -189,15 +196,20 @@ export function validateFile(envelopePath, schemaPath) {
 // ---------------------------------------------------------------------------
 // Entry point: CLI when args are given, PreToolUse hook when fed stdin JSON.
 // ---------------------------------------------------------------------------
+/**
+ * The typed argv contract (see `./lib/argv.mjs`) — CLI mode only. In hook mode argv is empty and
+ * the envelope arrives on stdin, so nothing here is consulted.
+ */
+export const ARGV_SPEC = {
+  usage: "validate-envelope.mjs <envelope.json> <schema.json>   (no args → PreToolUse hook mode)",
+  _: { arity: 2, max: 2, name: "<envelope.json> <schema.json>" },
+};
+
 const isMainModule = isMain(import.meta.url);
 if (isMainModule) {
   if (process.argv[2]) {
     // CLI mode
-    const [envelopePath, schemaPath] = process.argv.slice(2);
-    if (!schemaPath) {
-      console.error("usage: validate-envelope.mjs <envelope.json> <schema.json>");
-      process.exit(2);
-    }
+    const [envelopePath, schemaPath] = runArgs(ARGV_SPEC)._;
     try {
       const { valid, errors } = validateFile(resolve(envelopePath), resolve(schemaPath));
       if (valid) {
@@ -211,52 +223,61 @@ if (isMainModule) {
       process.exit(1);
     }
   } else {
-    // Hook mode (PreToolUse). Deny contract identical to gate-l2.mjs.
-    /**
-     * Fail-open: exit 0 with no output so the tool call proceeds (the hook defers, gating nothing).
-     * @returns {never} Does not return — terminates the process with code 0.
-     */
-    const defer = () => process.exit(0);
-    const raw = await new Promise((res) => {
-      let d = "";
-      process.stdin.on("data", (c) => (d += c));
-      process.stdin.on("end", () => res(d));
-      process.stdin.on("error", () => res(""));
-    });
-    let p;
-    try { p = JSON.parse(raw || "{}"); } catch { defer(); }
-    if (p.tool_name !== "Skill" && p.tool_name !== "Agent") defer();
-    const haystack = [p.tool_input?.skill_args, p.tool_input?.args, p.tool_input?.prompt]
-      .filter(Boolean).join(" ");
-    const m = haystack.match(/--order(?:\s+|=)(?:"([^"]+)"|'([^']+)'|(\S+))/);
-    if (!m) defer(); // no order threaded → not an orchestrated dispatch, nothing to gate
-    const orderPath = resolve(p.cwd || process.cwd(), m[1] || m[2] || m[3]);
-    /**
-     * Emit a PreToolUse deny decision for the dispatch and exit.
-     * @param {string} reason - Human-readable explanation surfaced to the caller.
-     * @returns {never} Does not return — prints the deny JSON and terminates the process with code 0.
-     */
-    const deny = (reason) => {
-      console.log(JSON.stringify({
-        hookSpecificOutput: {
-          hookEventName: "PreToolUse",
-          permissionDecision: "deny",
-          permissionDecisionReason: reason,
-        },
-      }));
-      process.exit(0);
-    };
-    if (!existsSync(orderPath)) {
-      deny(`WorkOrder gate — order file not found: ${orderPath}. Compile it first (compile-order.mjs) — a worker must never be dispatched against a dangling order.`);
-    }
-    try {
-      const { valid, errors } = validateFile(orderPath, join(SCHEMAS_DIR, "work-order.schema.json"));
-      if (!valid) {
-        deny(`WorkOrder gate — ${orderPath} fails schema validation: ${errors.slice(0, 5).join("; ")}. A malformed order never reaches a worker; fix the order (or compile-order.mjs) and re-dispatch.`);
+    // Hook mode (PreToolUse). Deny contract identical to gate-l2.mjs, and — since v1.5 — the same
+    // receipt: `allow` carries evidence, so "validated the order and permitted it" is no longer
+    // byte-identical to "this hook never ran" (hooks/lib/decision.mjs).
+    await runHook("validate-envelope", async () => {
+      /**
+       * Fail-open with the reason on the record: the tool call proceeds, gating nothing.
+       * @param {string} reason - Why this dispatch was not gated.
+       * @param {string} [rule] - Which fail-open condition matched.
+       * @returns {never} Does not return — settles the hook.
+       */
+      const defer = (reason, rule) => settle({
+        verdict: "allow", event: "PreToolUse", tool: p?.tool_name ?? null, cwd: p?.cwd, reason, rule,
+      });
+      const raw = await readStdin();
+      let p;
+      try { p = JSON.parse(raw || "{}"); }
+      catch (e) { settle({ verdict: "error", event: "PreToolUse", reason: `unparseable payload: ${e.message}` }); }
+      if (p.tool_name !== "Skill" && p.tool_name !== "Agent") {
+        defer(`${p.tool_name ?? "no tool_name"} is not a dispatch tool — out of scope`);
       }
-    } catch (e) {
-      deny(`WorkOrder gate — ${orderPath} is not readable JSON (${e.message}).`);
-    }
-    defer();
+      const haystack = [p.tool_input?.skill_args, p.tool_input?.args, p.tool_input?.prompt]
+        .filter(Boolean).join(" ");
+      const m = haystack.match(/--order(?:\s+|=)(?:"([^"]+)"|'([^']+)'|(\S+))/);
+      // no order threaded → not an orchestrated dispatch, nothing to gate
+      if (!m) defer("no --order threaded — not an orchestrated dispatch", "no-order");
+      const orderPath = resolve(p.cwd || process.cwd(), m[1] || m[2] || m[3]);
+      /**
+       * Emit a PreToolUse deny decision for the dispatch.
+       * @param {string} reason - Human-readable explanation surfaced to the caller.
+       * @param {string} rule - Which denial rule fired.
+       * @returns {never} Does not return — settles the hook with the deny payload.
+       */
+      const deny = (reason, rule) => settle({
+        verdict: "deny", event: "PreToolUse", tool: p.tool_name, cwd: p.cwd, subject: orderPath, rule, reason,
+        payload: {
+          hookSpecificOutput: {
+            hookEventName: "PreToolUse",
+            permissionDecision: "deny",
+            permissionDecisionReason: reason,
+          },
+        },
+      });
+      if (!existsSync(orderPath)) {
+        deny(`WorkOrder gate — order file not found: ${orderPath}. Compile it first (compile-order.mjs) — a worker must never be dispatched against a dangling order.`, "order-missing");
+      }
+      try {
+        const { valid, errors } = validateFile(orderPath, join(SCHEMAS_DIR, "work-order.schema.json"));
+        if (!valid) {
+          deny(`WorkOrder gate — ${orderPath} fails schema validation: ${errors.slice(0, 5).join("; ")}. A malformed order never reaches a worker; fix the order (or compile-order.mjs) and re-dispatch.`, "schema-invalid");
+        }
+      } catch (e) {
+        if (e?.name === "HookDecision") throw e;
+        deny(`WorkOrder gate — ${orderPath} is not readable JSON (${e.message}).`, "order-unreadable");
+      }
+      defer(`order validated against work-order.schema.json — permitted`, "order-valid");
+    });
   }
 }

@@ -86,6 +86,6 @@ echo ""
 echo "Done. Migration ledger: $TARGET_DIR/$HARNESS_LEDGER_REL"
 if [ "$DRY_RUN" != true ]; then
   echo "Next steps:"
-  echo "  1. If docs/shapeup-sdlc/knowledge-base/_INBOX.md was created, run /coach to categorize its rules."
-  echo "  2. Commit docs/shapeup-sdlc/ (knowledge base + .harness-migrations + .harness-version)."
+  echo "  1. If shapeup/knowledge-base/_INBOX.md was created, run /coach to categorize its rules."
+  echo "  2. Commit shapeup/ (knowledge base + .harness-migrations + .harness-version)."
 fi

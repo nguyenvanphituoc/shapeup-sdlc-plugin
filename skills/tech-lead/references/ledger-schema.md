@@ -1,7 +1,7 @@
 # Ledger Schema — `harness-run.md`
 
 The tech lead's run record. One per feature, lives in the LOCAL run-trace root
-`.shapeup-sdlc/<slug>/harness-run.md` (hidden, gitignorable — it is ephemeral run-state,
+`.shapeup/<slug>/harness-run.md` (hidden, gitignorable — it is ephemeral run-state,
 not a shared deliverable). It is the structured
 artifact that carries state across rounds and across sessions (so `--from` can resume), and
 the PO's audit of how the feature was built.
@@ -17,7 +17,7 @@ them what they need (`feature`, `spec`, `stack`, `discovered_rounds`) as args. T
 ---
 type: harness-run
 feature: [slug]
-spec_folder: [path to SHARED spec deliverable, e.g. docs/shapeup-sdlc/<slug>/spec/]
+spec_folder: [path to SHARED spec deliverable, e.g. shapeup/<slug>/spec/]
 lens: lite | standard | cross-context
 eval_dimensions: [spec-conformance]
 max_rounds: 3
@@ -114,9 +114,9 @@ Decision owner: PO.
 
 ## `round-ledger.md` (committed, Tier A — scope contracts only)
 
-Lives at `docs/shapeup-sdlc/<slug>/round-ledger.md` (SHARED root, tracked). Not a replacement
+Lives at `shapeup/<slug>/round-ledger.md` (SHARED root, tracked). Not a replacement
 for `harness-run.md` — a small, committed **subset** of it: the two things that must survive
-a `.shapeup-sdlc/` wipe or a crash (design spec addendum §F.3). Absent on specs with no scope
+a `.shapeup/` wipe or a crash (design spec addendum §F.3). Absent on specs with no scope
 contracts; `harness-run.md`'s existing Decisions log stays the only ledger there.
 
 ```yaml
@@ -156,15 +156,15 @@ FAIL-loop, and QA reconcile; worthless after ship. At SHIP the tech-lead **harve
 the durable-mineable *signals* out of it into one append-only row:
 
 ```
-docs/shapeup-sdlc/metrics/<machine-id>.jsonl   # one row = one e2e run; COMMITTED (tracked)
+shapeup/metrics/<machine-id>.jsonl   # one row = one e2e run; COMMITTED (tracked)
 ```
 
-Path note: the per-slug local run dirs `.shapeup-sdlc/[slug]/` are gitignored wholesale
-(`.shapeup-sdlc/`), but `metrics/` lives under the **shared** workspace
-`docs/shapeup-sdlc/` and stays **tracked** — it is the committed report surface, the
+Path note: the per-slug local run dirs `.shapeup/[slug]/` are gitignored wholesale
+(`.shapeup/`), but `metrics/` lives under the **shared** workspace
+`shapeup/` and stays **tracked** — it is the committed report surface, the
 durable signal feed that survives the gitignored run-trace. Sharded per machine (addendum
 Δ3) so concurrent runs append without merge-conflicting on one file; an aggregate view is
-`cat docs/shapeup-sdlc/metrics/*.jsonl`. `schema_version` makes a v2.1 row readable by later
+`cat shapeup/metrics/*.jsonl`. `schema_version` makes a v2.1 row readable by later
 skill versions.
 
 ### Two hard rules (same discipline as the Test Surface: *derived, never invented*)
@@ -187,12 +187,12 @@ fixtures and do not consume it.
 | `terminal_state` | run-state final: `shipped` / `circuit_broken` / `abandoned` | circuit-breaker outcome |
 | `round_count` | round table | effort-to-PASS |
 | `final_audit_score` | final EVAL report (copied, not re-graded) | conformance |
-| `surprise_count` | `.shapeup-sdlc/<slug>/discovery/ledger.md` | shaping quality — scope drift |
+| `surprise_count` | `.shapeup/<slug>/discovery/ledger.md` | shaping quality — scope drift |
 | `spike_unresolved_count` | `SPIKE-UNRESOLVED` markers at bet | shaping quality — open risk into bet |
 | `scope_cut_count` | `~` items cut at SHIP S.0 | appetite pressure / scope hammer |
-| `qa_findings` | `.shapeup-sdlc/<slug>/qa/hunt-report.md` + triage → `{total, promoted, held}` | edge quality |
+| `qa_findings` | `.shapeup/<slug>/qa/hunt-report.md` + triage → `{total, promoted, held}` | edge quality |
 | `slice_count` | breadboard B5 (≤9) | **normalizer / denominator** |
-| `sources` | path to each **SHARED** source artifact — never a LOCAL `.shapeup-sdlc/` path (this row is committed; the run-trace is gitignored/wiped, so a LOCAL path dangles on every clone — tier-direction rule) | auditability |
+| `sources` | path to each **SHARED** source artifact — never a LOCAL `.shapeup/` path (this row is committed; the run-trace is gitignored/wiped, so a LOCAL path dangles on every clone — tier-direction rule) | auditability |
 
 - `slice_count` is the **denominator**: `round_count=4` on a 2-slice feature is alarming,
   on a 9-slice feature is normal. Without it, e2e comparisons are apples-to-oranges.
@@ -205,7 +205,7 @@ fixtures and do not consume it.
 
 ### Row template
 ```json
-{"schema_version":1,"feature_slug":"checkout-vnpay","terminal_state":"shipped","round_count":2,"final_audit_score":"PASS","surprise_count":3,"spike_unresolved_count":0,"scope_cut_count":1,"qa_findings":{"total":5,"promoted":1,"held":4},"slice_count":4,"sources":["docs/shapeup-sdlc/checkout-vnpay/shaping/shaping.md","docs/shapeup-sdlc/checkout-vnpay/shaping/breadboard.md"]}
+{"schema_version":1,"feature_slug":"checkout-vnpay","terminal_state":"shipped","round_count":2,"final_audit_score":"PASS","surprise_count":3,"spike_unresolved_count":0,"scope_cut_count":1,"qa_findings":{"total":5,"promoted":1,"held":4},"slice_count":4,"sources":["shapeup/checkout-vnpay/shaping/shaping.md","shapeup/checkout-vnpay/shaping/breadboard.md"]}
 ```
 
 LOCAL artifacts (the EVAL report, discovery ledger, QA hunt report) are *harvest-time reads*:

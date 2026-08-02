@@ -43,9 +43,11 @@
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { isMain } from "./lib/is-main.mjs";
+import { LOCAL } from "./lib/paths.mjs";
+import { runArgs } from "./lib/argv.mjs";
 
 /** Directories that are never part of "the tree being changed". */
-const IGNORE_DIRS = new Set([".git", "node_modules", ".shapeup-sdlc", "dist", "build", ".next", "coverage", ".claude"]);
+const IGNORE_DIRS = new Set([".git", "node_modules", LOCAL, "dist", "build", ".next", "coverage", ".claude"]);
 
 /** Source extensions that count toward tree size. */
 const SOURCE_EXT = /\.(m?[jt]sx?|py|rb|go|rs|java|kt|swift|php|cs)$/i;
@@ -156,17 +158,20 @@ export function decideLane({ intake, files }) {
 
 // ---- CLI -------------------------------------------------------------------
 
-function arg(name, fallback = null) {
-  const i = process.argv.indexOf(`--${name}`);
-  if (i === -1) return fallback;
-  const v = process.argv[i + 1];
-  return v && !v.startsWith("--") ? v : fallback;
-}
+/** The typed argv contract (see `./lib/argv.mjs`). */
+export const ARGV_SPEC = {
+  usage: 'fit-check.mjs (--intake-file <path> | --intake-text "<requirement>") [--cwd <dir>]',
+  _: { arity: 0, max: 0, name: "(no positional operands)" },
+  cwd: { type: "path" },
+  "intake-text": { type: "str" },
+  "intake-file": { type: "path" },
+};
 
 export function main() {
-  const cwd = arg("cwd", process.cwd());
-  let intake = arg("intake-text", null);
-  const f = arg("intake-file", null);
+  const args = runArgs(ARGV_SPEC);
+  const cwd = args.cwd || process.cwd();
+  let intake = args.intakeText ?? null;
+  const f = args.intakeFile ?? null;
   if (f) {
     const p = f.startsWith("/") ? f : join(cwd, f);
     if (!existsSync(p)) { console.error(`--intake-file not found: ${p}`); process.exit(2); }

@@ -21,5 +21,16 @@ cannot talk past, rather than conventions it is asked to remember.
 6. [Appendix — File Layout & Invariants](06-appendix.md)
 7. [Domain ERD](07-domain-erd.md) — the entity-relationship map generated from `skills/tech-lead/schemas/domain.schema.json`
 
+## Decision records
+
+Architectural decisions that change a contract are recorded in [`adr/`](adr/):
+
+- [ADR-0001 — Consumer-side file organization](adr/0001-consumer-file-organization.md) — what a
+  teammate gets on `git pull` vs what stays on the machine that ran the harness; the `shapeup/` +
+  `.shapeup/` roots, contracts as markdown, and GATE L2 becoming advisory
+- [ADR-0002 — Plugin repository organization](adr/0002-plugin-repo-organization.md) — the plugin's
+  own tree, arranged by lifecycle (ships / installs / builds / proves / explains); the corrected
+  publish boundary, the frozen `scripts/` URL contract, and the retired `anti-lying-kit`
+
 > Compiled from a full-repository walkthrough of this plugin at v1.0.0. A rendered, styled
 > version of this document is also published as a Claude Artifact for viewing outside the repo.
