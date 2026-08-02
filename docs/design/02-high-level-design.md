@@ -49,7 +49,7 @@ time is worth, not something a skill should touch.
 |---|---|---|
 | Kick-off | **L0** Intake & Config | Language check (`/translator`), workspace roots, model/budget matrix |
 | Orient | **L1a** Orient Review | delegate → `/orient` (Scout reads real code before any board exists) |
-| Wire ✚ | **L1a.5** Wiring Review | delegate → `/solution-architect` — commits `wiring-map.json` (per-UC engine → seam → entry-point call site → affordance against `project-profile.json`), front-loading the integration seam so no engine ships orphaned |
+| Wire ✚ | **L1a.5** Wiring Review | delegate → `/solution-architect` — commits `wiring-map.md` (per-UC engine → seam → entry-point call site → affordance against `project-profile.md`), front-loading the integration seam so no engine ships orphaned |
 | Map Scopes | **L1b** Board Review | delegate → `/ba-pitch-analyzer` (spec tree + board; the `coverage` op writes the `requirements.md` registry ✚) then `/scope-architect` (scope contracts) |
 | Build Vertically | **L2** Board 100% + T0-green | per dispatch: compile-order → `/task-executor` → ingest-result, sandboxed per scope |
 | Eval (once/round) | **L3** Verdict | delegate → `/spec-evaluator`; refuted boxes applied by ingest |
@@ -57,7 +57,7 @@ time is worth, not something a skill should touch.
 | Ship | **L4** Ship Sign-off | delegate → `/scope-hammer` (census, cut list, ship verdict) |
 
 ✚ = traceability-spine steps (v1.3) — active only when the spine artifacts exist
-(`wiring-map.json`, `requirements.md`, `project-profile.json`); non-regression on older specs.
+(`wiring-map.md`, `requirements.md`, `project-profile.md`); non-regression on older specs.
 
 > **Load-bearing rule.** The evaluator runs exactly once per build round, only after every task
 > is done — never per task. This one timing rule is the entire reason the orchestrator

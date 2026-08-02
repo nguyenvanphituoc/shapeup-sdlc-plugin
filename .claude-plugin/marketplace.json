@@ -11,12 +11,6 @@
       "source": ".",
       "description": "Shape Up SDLC harness: shaping → intake → orient → scope-mapping → build → evaluate → QA, orchestrated by a tech-lead.",
       "license": "MIT"
-    },
-    {
-      "name": "anti-lying-kit",
-      "source": "./plugins/anti-lying-kit",
-      "description": "Hooks that stop your coding agent claiming 'done'. A PreToolUse gate that denies the review/eval call while your task board has unfinished work, plus two advisory Stop checks. Works alongside spec-kit, OpenSpec, or any markdown checklist — no methodology required.",
-      "license": "MIT"
     }
   ]
 }

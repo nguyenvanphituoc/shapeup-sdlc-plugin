@@ -86,7 +86,7 @@ Carry candidates        : [scopes still uphill/downhill, or exhausted attempt bu
 customer suffers through today), never to a perfect ideal.
 
 ```
-H1.1  Resolve the baseline: docs/shapeup-sdlc/<slug>/shaping/baseline.md if present (written at
+H1.1  Resolve the baseline: shapeup/<slug>/shaping/baseline.md if present (written at
       shaping time, design spec Blueprint F — first-class, not a pitch footnote). Absent →
       degrade honestly: read the pitch's problem statement as the implicit baseline and flag
       "baseline not first-class — comparison is approximate" in the report. Do not invent one.
@@ -108,7 +108,7 @@ unilaterally.
 
 ```
 ⏸ GATE H2 — Cut List & Verdict
-Baseline      : [docs/shapeup-sdlc/<slug>/shaping/baseline.md | approximate — pitch problem statement]
+Baseline      : [shapeup/<slug>/shaping/baseline.md | approximate — pitch problem statement]
 Ship-blocking : [none | list of MUST-HAVE items that fail H1.2 — these are NOT cuttable]
 Proposed cuts : [N nice-to-have + N cuttable must-have, each: item — source — one-line why safe]
 Carry-forward : [scopes/items proposed for the next cycle's raw-idea list, debt-free]
@@ -152,7 +152,7 @@ The WorkResult may carry only `files_touched`, `artifacts`, `assumptions`, `devi
 
 ```bash
 # Normal stop — all scopes FINISHED, after QA hunt
-/scope-hammer --slug checkout-vnpay --baseline docs/shapeup-sdlc/checkout-vnpay/shaping/baseline.md
+/scope-hammer --slug checkout-vnpay --baseline shapeup/checkout-vnpay/shaping/baseline.md
 
 # Circuit breaker tripped — some scopes still open
 /scope-hammer --slug checkout-vnpay --breaker outer   # round_budget exhausted

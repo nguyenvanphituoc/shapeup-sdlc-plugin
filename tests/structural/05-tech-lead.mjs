@@ -22,7 +22,10 @@ export async function run(ctx) {
   // =============================================================================
   const t0Path = join(ROOT, "skills/tech-lead/scripts/t0-verify.mjs");
   if (existsSync(t0Path)) {
-    const { runFixtures, runDbProbe, seesawCheck, computeVerdict, writeArtifact } = await import(t0Path);
+    const {
+      runFixtures, runDbProbe, seesawCheck, computeVerdict, writeArtifact,
+      score, better, decideStatus, readTrials, appendTrial, nextTrialNo,
+    } = await import(t0Path);
 
     const green = runFixtures(["node -e \"process.exit(0)\""], ROOT);
     if (green.pass) ok("t0-verify runFixtures reports green for a passing fixture command");
@@ -53,7 +56,7 @@ export async function run(ctx) {
     const outDir = mkdtempSync(join(tmpdir(), "t0-artifact-"));
     try {
       const { path, sha256 } = writeArtifact(outDir, 2, 3, { scope_id: "cart-creation", ...verdictGreen });
-      if (existsSync(path) && /r2-a3\.json$/.test(path)) ok("t0-verify writeArtifact writes to the r<N>-a<M>.json path convention");
+      if (existsSync(path) && /r2-a3-t1\.json$/.test(path)) ok("t0-verify writeArtifact writes to the r<N>-a<M>-t<T>.json path convention");
       else fail(`t0-verify writeArtifact wrote to an unexpected path: ${path}`);
       const body = JSON.parse(rf(path, "utf8"));
       if (body.round === 2 && body.attempt === 3 && body.overall === "green") ok("t0-verify artifact body carries round/attempt/overall");
@@ -62,8 +65,75 @@ export async function run(ctx) {
       const recomputed = createHash("sha256").update(rf(path, "utf8")).digest("hex");
       if (recomputed === sha256) ok("t0-verify artifact sha256 citation is reproducible from the file on disk");
       else fail("t0-verify artifact sha256 does not match the file's actual contents — citation would be unverifiable");
+
+      // I4 — the RETRY case, which used to destroy its own evidence. The protocol says "stash,
+      // then retry THIS attempt", so (round, attempt) repeats; the old address had no term for it
+      // and the red verdict was silently replaced by the green one at the same path.
+      const second = writeArtifact(outDir, 2, 3, { scope_id: "cart-creation", ...verdictOwnFail });
+      const verdicts = readdirSync(join(outDir, "t0", "verdicts")).filter((f) => /^r2-a3-t\d+\.json$/.test(f));
+      if (verdicts.length === 2 && second.path !== path) ok("t0-verify writeArtifact called twice with the SAME (round, attempt) produces TWO files (I4 — never clobbers)");
+      else fail(`t0-verify writeArtifact clobbered the prior verdict: ${verdicts.length} file(s) for r2-a3`);
+      if (JSON.parse(rf(path, "utf8")).overall === "green") ok("t0-verify the superseded verdict is still addressable and unchanged after the retry");
+      else fail("t0-verify the first verdict's bytes changed when the attempt was retried");
+      if (second.trial === 2 && nextTrialNo(join(outDir, "t0", "verdicts"), 2, 3) === 3) ok("t0-verify nextTrialNo advances the retry ordinal past every artifact on disk");
+      else fail(`t0-verify nextTrialNo did not advance: trial=${second.trial}`);
     } finally {
       rmSync(outDir, { recursive: true, force: true });
+    }
+
+    // ---- the pawl: score() / better() / decideStatus() -----------------------------------
+    const sc = score({ fixtures: { results: [{ pass: true }, { pass: true }, { pass: false }] }, dbProbe: { pass: true }, seesaw: { ran: true, failing: ["checkout"] } });
+    if (sc.fixtures_passed === 2 && sc.fixtures_total === 3 && sc.db_probe === 1 && sc.regressions === 1) ok("t0-verify score() reduces the already-persisted fixture results into a comparable vector");
+    else fail(`t0-verify score() wrong: ${JSON.stringify(sc)}`);
+    if (score({ fixtures: { results: [] }, dbProbe: null, seesaw: { ran: false, failing: [] } }).db_probe === null) ok("t0-verify score() reports db_probe null (an absence) when no probe is declared — never a 0");
+    else fail("t0-verify score() turned an undeclared db_probe into a failure");
+
+    const S = (r, p, t, d) => ({ regressions: r, fixtures_passed: p, fixtures_total: t, db_probe: d });
+    const truth = [
+      ["baseline (no incumbent) is always better", better(S(0, 0, 5, null), null), true],
+      // The whole ratchet: RED BUT IMPROVED is kept. 2/5 → 4/5 is progress, and the loop must
+      // build on it instead of restarting from unexplained code.
+      ["red-but-improved 2/5 → 4/5 is strictly better", better(S(0, 4, 5, null), S(0, 2, 5, null)), true],
+      ["fewer fixtures passing is not better", better(S(0, 1, 5, null), S(0, 2, 5, null)), false],
+      ["a tie is NOT better (a sawtooth must not read as a ratchet)", better(S(0, 2, 5, 1), S(0, 2, 5, 1)), false],
+      ["a new regression dominates a fixture gain", better(S(1, 5, 5, null), S(0, 2, 5, null)), false],
+      ["clearing a regression is better even with fewer fixtures", better(S(0, 1, 5, null), S(1, 4, 5, null)), true],
+      ["a db_probe recovery is better when all else ties", better(S(0, 2, 5, 1), S(0, 2, 5, 0)), true],
+      ["a changed denominator is incomparable (null), not worse", better(S(0, 4, 6, null), S(0, 2, 5, null)), null],
+      ["a changed denominator is null even when it looks like a win", better(S(0, 9, 9, null), S(0, 1, 5, null)), null],
+    ];
+    for (const [label, got, want] of truth) {
+      if (got === want) ok(`t0-verify better(): ${label}`);
+      else fail(`t0-verify better() ${label} — expected ${want}, got ${got}`);
+    }
+
+    const statuses = [
+      ["true → kept, tree keeps", decideStatus(true, false), { status: "kept", action: "keep" }],
+      ["false → reverted, tree restores", decideStatus(false, false), { status: "reverted", action: "restore" }],
+      ["null → rebased, tree keeps", decideStatus(null, false), { status: "rebased", action: "keep" }],
+      ["a crash restores regardless of the comparison", decideStatus(true, true), { status: "crash", action: "restore" }],
+    ];
+    for (const [label, got, want] of statuses) {
+      if (got.status === want.status && got.action === want.action) ok(`t0-verify decideStatus(): ${label}`);
+      else fail(`t0-verify decideStatus() ${label} — expected ${JSON.stringify(want)}, got ${JSON.stringify(got)}`);
+    }
+
+    // ---- the trial ledger is append-only, and absent means "fall back", never "crash" -------
+    const ledgerDir = mkdtempSync(join(tmpdir(), "t0-trials-"));
+    try {
+      const lp = join(ledgerDir, "t0", "trials.jsonl");
+      if (readTrials(lp).length === 0) ok("t0-verify readTrials on a missing ledger returns [] (the non-regression path)");
+      else fail("t0-verify readTrials should return [] when trials.jsonl does not exist");
+      appendTrial(lp, { schema_version: 1, trial: 1, scope_id: "SC-01", score: S(0, 2, 5, null), status: "kept" });
+      appendTrial(lp, { schema_version: 1, trial: 2, scope_id: "SC-01", score: S(0, 4, 5, null), status: "kept", baseline_trial: 1 });
+      const rows = readTrials(lp);
+      if (rows.length === 2 && rows[0].trial === 1 && rows[1].baseline_trial === 1) ok("t0-verify the trial ledger is append-only and carries the baseline_trial parent link");
+      else fail(`t0-verify trial ledger did not append in order: ${JSON.stringify(rows)}`);
+      writeFileSync(lp, readFileSync(lp, "utf8") + "{ not json\n");
+      if (readTrials(lp).length === 2) ok("t0-verify readTrials skips an unparseable row rather than losing the ledger");
+      else fail("t0-verify readTrials should tolerate a torn final row");
+    } finally {
+      rmSync(ledgerDir, { recursive: true, force: true });
     }
 
     // Seesaw over a registry with one always-failing scope.
@@ -193,14 +263,33 @@ export async function run(ctx) {
     const d = mkdtempSync(join(tmpdir(), "pipe-"));
     const w = (rel, body) => { mkdirSync(dirname(join(d, rel)), { recursive: true }); writeFileSync(join(d, rel), body); };
     try {
-      w(".shapeup-sdlc/demo/tasks/TASK-001-a.md", `---\nid: TASK-001\ntitle: "A"\nstatus: ready\npriority: 1\ndepends_on: []\n---\n## Acceptance Criteria\n- [ ] first criterion\n- [ ] second criterion\n`);
-      w(".shapeup-sdlc/demo/tasks/TASK-002-b.md", `---\nid: TASK-002\ntitle: "B"\nstatus: blocked\npriority: 2\ndepends_on: [TASK-001]\n---\n## Acceptance Criteria\n- [ ] third criterion\n`);
-      w(".shapeup-sdlc/demo/tasks/_index.md", `| ID | Title | Status |\n|---|---|---|\n| TASK-001 | A | ⬜ ready |\n| TASK-002 | B | 🚫 blocked |\n`);
-      w("docs/shapeup-sdlc/demo/scopes/cart.json", JSON.stringify({ scope_id: "cart", topology_type: "LAYER_CAKE", allowed_file_substrate: ["apps/web/cart/*.tsx", "apps/api/cart/*.ts"], shared_substrate: [] }));
-      w("docs/shapeup-sdlc/demo/round-ledger.md", `## Decisions\n| ID | Scope | Q | A |\n|---|---|---|---|\n| ESC-1 | cart | q | use idempotency key |\n| ESC-2 | other | q | not mine |\n`);
-      w(".shapeup-sdlc/demo/t0/verdicts/r1-a1.json", JSON.stringify({ overall: "red", discovered_tasks: [{ file: "apps/api/cart/x.ts", line: 4, core_message: "boom" }] }));
+      w(".shapeup/demo/tasks/TASK-001-a.md", `---\nid: TASK-001\ntitle: "A"\nstatus: ready\npriority: 1\ndepends_on: []\n---\n## Acceptance Criteria\n- [ ] first criterion\n- [ ] second criterion\n`);
+      w(".shapeup/demo/tasks/TASK-002-b.md", `---\nid: TASK-002\ntitle: "B"\nstatus: blocked\npriority: 2\ndepends_on: [TASK-001]\n---\n## Acceptance Criteria\n- [ ] third criterion\n`);
+      w(".shapeup/demo/tasks/_index.md", `| ID | Title | Status |\n|---|---|---|\n| TASK-001 | A | ⬜ ready |\n| TASK-002 | B | 🚫 blocked |\n`);
+      // MARKDOWN contract (ADR-0001). Written in the real on-disk format so this path exercises
+      // the frontmatter + table parser end-to-end, not just the legacy-JSON fallback.
+      w("shapeup/demo/scopes/cart.md", [
+        "---",
+        "scope_id: cart",
+        "topology_type: LAYER_CAKE",
+        "allowed_file_substrate: [apps/web/cart/*.tsx, apps/api/cart/*.ts]",
+        "shared_substrate: []",
+        "---",
+        "## Why this slice",
+        "Cart is the riskiest flow.",
+        "",
+        "## Affordances",
+        "| test_id | role | required_states |",
+        "|---|---|---|",
+        "| add-to-cart | button | [empty, one-item] |",
+        "",
+      ].join("\n"));
+      // LOCAL since ADR-0001 — the ledger is appended to mid-round, so it never belonged in the
+      // committed tier; its conclusions reach the team through REPORT.md at GATE L4 instead.
+      w(".shapeup/demo/round-ledger.md", `## Decisions\n| ID | Scope | Q | A |\n|---|---|---|---|\n| ESC-1 | cart | q | use idempotency key |\n| ESC-2 | other | q | not mine |\n`);
+      w(".shapeup/demo/t0/verdicts/r1-a1.json", JSON.stringify({ overall: "red", discovered_tasks: [{ file: "apps/api/cart/x.ts", line: 4, core_message: "boom" }] }));
 
-      const r = spawnSync("node", [coPath, "--scope", "docs/shapeup-sdlc/demo/scopes/cart.json", "--round", "1", "--attempt", "2", "--cwd", d], { encoding: "utf8" });
+      const r = spawnSync("node", [coPath, "--scope", "shapeup/demo/scopes/cart.md", "--round", "1", "--attempt", "2", "--cwd", d], { encoding: "utf8" });
       const orderPath = (r.stdout || "").trim();
       if (r.status === 0 && existsSync(orderPath)) ok("compile-order writes the order to orders/r<N>-a<M>.json");
       else fail(`compile-order failed (exit ${r.status})\n${r.stdout}${r.stderr}`);
@@ -221,6 +310,76 @@ export async function run(ctx) {
         if (order.substrate.allowed.includes("apps/web/cart/*.tsx")) ok("compile-order carries the scope substrate as the write contract");
         else fail("compile-order lost the substrate");
       }
+      // ---- inspect(): trial_history ------------------------------------------------------
+      // The block ABOVE is the non-regression proof: with no trials.jsonl on disk, compile-order
+      // read the previous attempt's verdict artifact and produced today's `digested_errors`
+      // exactly as it always has. Now seed the ledger and assert the widened read.
+      if (existsSync(orderPath)) {
+        const legacy = readJSON(orderPath);
+        if (legacy.payload.trial_history === undefined) ok("compile-order omits trial_history entirely when no trials.jsonl exists (non-regression)");
+        else fail("compile-order emitted trial_history with no ledger on disk — the fallback path is not byte-identical");
+      }
+
+      // 12 rows: 10 for this scope spread over rounds 1–2, plus 2 for another scope.
+      const trialRows = [];
+      for (let i = 1; i <= 10; i++) {
+        trialRows.push({
+          schema_version: 1, trial: i, round: i <= 5 ? 1 : 2, attempt: i, scope_id: "cart",
+          score: { regressions: 0, fixtures_passed: i, fixtures_total: 12, db_probe: null },
+          status: i % 3 === 0 ? "reverted" : "kept", baseline_trial: i > 1 ? i - 1 : null,
+          delta: `+1 fixture`,
+          digest: [1, 2, 3, 4, 5].map((n) => ({ file: `f${n}.ts`, line: n, core_message: `m${i}-${n}`, kind: "type" })),
+        });
+      }
+      trialRows.push({ schema_version: 1, trial: 11, round: 2, attempt: 11, scope_id: "other", score: { regressions: 0, fixtures_passed: 1, fixtures_total: 1, db_probe: null }, status: "kept", digest: [] });
+      trialRows.push({ schema_version: 1, trial: 12, round: 9, attempt: 1, scope_id: "cart", score: { regressions: 0, fixtures_passed: 1, fixtures_total: 12, db_probe: null }, status: "kept", digest: [] });
+      w(".shapeup/demo/t0/trials.jsonl", trialRows.map((r) => JSON.stringify(r)).join("\n") + "\n");
+
+      const rh = spawnSync("node", [coPath, "--scope", "shapeup/demo/scopes/cart.md", "--round", "2", "--attempt", "3", "--cwd", d], { encoding: "utf8" });
+      const hOrder = rh.status === 0 ? readJSON((rh.stdout || "").trim()) : null;
+      if (!hOrder) fail(`compile-order failed with a trial ledger present: ${rh.stdout}${rh.stderr}`);
+      else {
+        const th = hOrder.payload.trial_history;
+        if (Array.isArray(th) && th.length === 8) ok("compile-order emits exactly 8 trial rows from a 12-row ledger (token-bounded)");
+        else fail(`compile-order emitted ${th?.length} trial rows, expected 8`);
+        if (th && th.every((t, i) => i === 0 || t.trial > th[i - 1].trial)) ok("trial_history is ordered oldest-first");
+        else fail(`trial_history is not ordered: ${JSON.stringify(th?.map((t) => t.trial))}`);
+        // Scope filter + round window: only "cart", only rounds 2 and 1 (never round 9).
+        if (th && th.every((t) => t.trial <= 10)) ok("trial_history excludes other scopes and out-of-window rounds");
+        else fail(`trial_history leaked a foreign scope or round: ${JSON.stringify(th?.map((t) => t.trial))}`);
+        // Crossing the round boundary is the point: round 1's trials must be visible in round 2.
+        if (th && th.some((t) => t.round === 1) && th.some((t) => t.round === 2)) ok("trial_history CROSSES the round boundary — round 2 is not blind to round 1");
+        else fail(`trial_history did not cross the round boundary: ${JSON.stringify(th?.map((t) => t.round))}`);
+        if (th && th.every((t) => t.digest.length <= 3)) ok("trial_history truncates each digest to 3 triples (token discipline)");
+        else fail(`trial_history digest not truncated: ${JSON.stringify(th?.map((t) => t.digest.length))}`);
+        if (th && th.every((t) => t.score && t.status && !("stdout" in t) && !("stderr" in t))) ok("trial_history carries score + status and strips stdout/stderr");
+        else fail("trial_history rows are missing score/status or carry raw output");
+        const { valid } = (await import(vePath)).validate(hOrder, readJSON(orderSchemaPath));
+        if (valid) ok("an order carrying trial_history still validates against work-order.schema.json (the history is a typed contract, not a convention)");
+        else fail("an order with trial_history fails the WorkOrder schema");
+        // The stagnation breaker reports on stderr, never on stdout (stdout IS the order path).
+        if ((rh.stdout || "").trim().endsWith(".json")) ok("compile-order keeps stdout to the order path — the breaker never corrupts the pipeline's own output");
+        else fail(`compile-order polluted stdout: ${rh.stdout}`);
+      }
+
+      // The stagnation breaker fires on consecutive non-kept trials and only advises.
+      w(".shapeup/demo/t0/trials.jsonl", [
+        { schema_version: 1, trial: 1, round: 2, attempt: 1, scope_id: "cart", score: { regressions: 0, fixtures_passed: 2, fixtures_total: 5, db_probe: null }, status: "kept", digest: [] },
+        { schema_version: 1, trial: 2, round: 2, attempt: 2, scope_id: "cart", score: { regressions: 0, fixtures_passed: 2, fixtures_total: 5, db_probe: null }, status: "reverted", digest: [] },
+        { schema_version: 1, trial: 3, round: 2, attempt: 3, scope_id: "cart", score: { regressions: 0, fixtures_passed: 2, fixtures_total: 5, db_probe: null }, status: "reverted", digest: [] },
+      ].map((r) => JSON.stringify(r)).join("\n") + "\n");
+      const rs = spawnSync("node", [coPath, "--scope", "shapeup/demo/scopes/cart.md", "--round", "2", "--attempt", "4", "--cwd", d], { encoding: "utf8" });
+      if (rs.status === 0 && /"breaker":"stagnation"/.test(rs.stderr || "")) ok("the stagnation breaker fires after no_progress_k consecutive non-kept trials");
+      else fail(`stagnation breaker did not fire: exit ${rs.status}, stderr ${(rs.stderr || "").slice(0, 120)}`);
+      if (rs.status === 0) ok("the stagnation breaker ADVISES (exit 0) — an exhausted scope queues a GATE H proposal, it never blocks the round");
+      else fail(`stagnation breaker blocked the round (exit ${rs.status}) — it must only advise`);
+
+      const { stagnation } = await import(coPath);
+      const st = (statuses) => stagnation(statuses.map((s) => ({ status: s })), 2);
+      if (st(["kept", "reverted", "reverted"]).stagnant && !st(["reverted", "kept"]).stagnant && !st(["reverted"]).stagnant) {
+        ok("stagnation() counts only the TRAILING non-kept streak — one keep resets it");
+      } else fail("stagnation() mis-counts the trailing streak");
+
       // --next respects dependency order: only TASK-001 is dispatchable.
       const rn = spawnSync("node", [coPath, "--next", "--slug", "demo", "--cwd", d], { encoding: "utf8" });
       const nextOrder = rn.status === 0 ? readJSON((rn.stdout || "").trim()) : null;
@@ -240,23 +399,23 @@ export async function run(ctx) {
         discoveries: [{ marker: "+", line: "edge case found" }],
         escalates: [{ kind: "spec-ambiguity", question: "which default?" }],
       };
-      w(".shapeup-sdlc/demo/results/r1-a2.json", JSON.stringify(result));
-      const ri = spawnSync("node", [irPath, join(d, ".shapeup-sdlc/demo/results/r1-a2.json"), "--cwd", d], { encoding: "utf8" });
+      w(".shapeup/demo/results/r1-a2.json", JSON.stringify(result));
+      const ri = spawnSync("node", [irPath, join(d, ".shapeup/demo/results/r1-a2.json"), "--cwd", d], { encoding: "utf8" });
       if (ri.status === 0) ok("ingest-result ingests a valid WorkResult");
       else fail(`ingest-result failed (exit ${ri.status})\n${ri.stdout}${ri.stderr}`);
-      const t1 = read(join(d, ".shapeup-sdlc/demo/tasks/TASK-001-a.md"));
+      const t1 = read(join(d, ".shapeup/demo/tasks/TASK-001-a.md"));
       if (/- \[x\] first criterion/.test(t1) && /- \[x\] second criterion/.test(t1)) ok("ingest ticks the verified AC boxes");
       else fail("ingest did not tick AC boxes");
       if (/^status: done$/m.test(t1) && /## Execution Log/.test(t1)) ok("ingest flips status: done + appends the Execution Log");
       else fail("ingest did not flip status / append the log");
-      const t2 = read(join(d, ".shapeup-sdlc/demo/tasks/TASK-002-b.md"));
+      const t2 = read(join(d, ".shapeup/demo/tasks/TASK-002-b.md"));
       if (/^status: ready$/m.test(t2)) ok("ingest propagates unblocks (blocked → ready when deps done)");
       else fail("ingest did not unblock the dependent task");
-      if (read(join(d, ".shapeup-sdlc/demo/tasks/_index.md")).includes("✅")) ok("ingest updates the board row");
+      if (read(join(d, ".shapeup/demo/tasks/_index.md")).includes("✅")) ok("ingest updates the board row");
       else fail("ingest did not update the board index");
-      if (read(join(d, ".shapeup-sdlc/demo/discovery/ledger.md")).includes("edge case found")) ok("ingest appends discoveries to the ledger");
+      if (read(join(d, ".shapeup/demo/discovery/ledger.md")).includes("edge case found")) ok("ingest appends discoveries to the ledger");
       else fail("ingest did not append the discovery");
-      if (existsSync(join(d, ".shapeup-sdlc/demo/escalates/r1-a2.json"))) ok("ingest queues escalates for the orchestrator");
+      if (existsSync(join(d, ".shapeup/demo/escalates/r1-a2.json"))) ok("ingest queues escalates for the orchestrator");
       else fail("ingest did not queue the escalate");
       // Verdict path: refuted box un-ticked + verdict JSONL appended.
       const evalResult = {
@@ -265,18 +424,18 @@ export async function run(ctx) {
           criteria: [{ criterion: "first criterion", verdict: "FAIL", confidence: "high", evidence: "broke" }],
           refuted: [{ task_id: "TASK-001", ac: "first criterion" }] },
       };
-      w(".shapeup-sdlc/demo/results/evaluate-r1.json", JSON.stringify(evalResult));
-      const rv = spawnSync("node", [irPath, join(d, ".shapeup-sdlc/demo/results/evaluate-r1.json"), "--cwd", d], { encoding: "utf8" });
-      const t1b = read(join(d, ".shapeup-sdlc/demo/tasks/TASK-001-a.md"));
+      w(".shapeup/demo/results/evaluate-r1.json", JSON.stringify(evalResult));
+      const rv = spawnSync("node", [irPath, join(d, ".shapeup/demo/results/evaluate-r1.json"), "--cwd", d], { encoding: "utf8" });
+      const t1b = read(join(d, ".shapeup/demo/tasks/TASK-001-a.md"));
       if (rv.status === 0 && /- \[ \] first criterion/.test(t1b) && /eval_verdict: fail/.test(t1b))
         ok("ingest un-ticks refuted AC boxes + sets eval_verdict from the judge's data");
       else fail("ingest did not apply the judge's refuted list");
-      if (existsSync(join(d, ".shapeup-sdlc/demo/evaluation/.verdicts-evaluate-r1.jsonl")))
+      if (existsSync(join(d, ".shapeup/demo/evaluation/.verdicts-evaluate-r1.jsonl")))
         ok("ingest appends the verdict-ledger JSONL");
       else fail("ingest did not write the verdict ledger");
       // Negative control: malformed result must be rejected without mutating anything.
-      w(".shapeup-sdlc/demo/results/bad.json", JSON.stringify({ schema_version: 1, order_id: "demo/x", status: "nope" }));
-      const rb = spawnSync("node", [irPath, join(d, ".shapeup-sdlc/demo/results/bad.json"), "--cwd", d], { encoding: "utf8" });
+      w(".shapeup/demo/results/bad.json", JSON.stringify({ schema_version: 1, order_id: "demo/x", status: "nope" }));
+      const rb = spawnSync("node", [irPath, join(d, ".shapeup/demo/results/bad.json"), "--cwd", d], { encoding: "utf8" });
       if (rb.status === 1) ok("ingest-result REJECTS a malformed WorkResult (a bad envelope never mutates the board)");
       else fail("ingest-result accepted a malformed result — the board can be corrupted");
     } finally { rmSync(d, { recursive: true, force: true }); }
@@ -400,10 +559,10 @@ export async function run(ctx) {
       const richOrder = {
         schema_version: 1, order_id: "demo/r2-a1", worker: "spec-evaluator", mode: "orchestrated",
         operation: "evaluate", interaction: { pause_gates: false },
-        substrate: { allowed: [".shapeup-sdlc/demo/evaluation/**"], frozen: ["docs/**"] },
-        payload: { spec_folder: "docs/shapeup-sdlc/demo/spec", feature: "demo",
+        substrate: { allowed: [".shapeup/demo/evaluation/**"], frozen: ["docs/**"] },
+        payload: { spec_folder: "shapeup/demo/spec", feature: "demo",
           dimensions: ["spec-conformance"], run_cmd: "pnpm dev", browser: "cli",
-          t0_artifacts: [".shapeup-sdlc/demo/t0/verdicts/r2-a1.json"] },
+          t0_artifacts: [".shapeup/demo/t0/verdicts/r2-a1.json"] },
       };
       if (veValidate3(richOrder, orderSchema3).valid) ok("a fully-loaded valid order still PASSes (no false blocks from the registry)");
       else fail(`registry wrongly rejects a valid order: ${JSON.stringify(veValidate3(richOrder, orderSchema3).errors)}`);
@@ -419,7 +578,7 @@ export async function run(ctx) {
   {
     const statsPath = join(ROOT, "skills/tech-lead/scripts/stats.mjs");
     const d = mkdtempSync(join(tmpdir(), "stats-"));
-    const mdir = join(d, "docs/shapeup-sdlc/metrics");
+    const mdir = join(d, ".shapeup/metrics");
     mkdirSync(mdir, { recursive: true });
     writeFileSync(join(mdir, "a.jsonl"), [
       JSON.stringify({ schema_version: 1, feature_slug: "demo", terminal_state: "shipped", round_count: 2, scope_cut_count: 0, qa_findings: { total: 3, promoted: 1, held: 2 }, slice_count: 4, sources: [] }),
@@ -484,28 +643,35 @@ export async function run(ctx) {
       const run = (slug, cwd, extra = []) => {
         const r = spawnSync("node", [tlPath, "--slug", slug, "--cwd", cwd, "--quiet", ...extra], { encoding: "utf8" });
         let report = null;
-        try { report = readJSON(join(cwd, ".shapeup-sdlc", slug, "trace", "report.json")); } catch { /* handled by caller */ }
+        try { report = readJSON(join(cwd, ".shapeup", slug, "trace", "report.json")); } catch { /* handled by caller */ }
         return { status: r.status, report };
       };
 
       // Fixture A: a dropped clause (REQ covered-status, no AC), a dangling covers, an orphan engine.
       const A = mkdtempSync(join(tmpdir(), "tracelint-red-"));
-      mkdirSync(join(A, "docs/shapeup-sdlc/demo"), { recursive: true });
-      mkdirSync(join(A, ".shapeup-sdlc/demo/tasks"), { recursive: true });
+      mkdirSync(join(A, "shapeup/demo"), { recursive: true });
+      mkdirSync(join(A, ".shapeup/demo/tasks"), { recursive: true });
       mkdirSync(join(A, "src"), { recursive: true });
-      writeFileSync(join(A, "docs/shapeup-sdlc/demo/requirements.md"),
+      writeFileSync(join(A, "shapeup/demo/requirements.md"),
         "| REQ-id | clause | source | status | note |\n|--|--|--|--|--|\n" +
         "| REQ-1 | lure enemies into traps | p §2.1 | covered | |\n" +
         "| REQ-2 | side-step enemies | p §2.2 | covered | |\n" +
         "| REQ-3 | low-res textures | p §2.3 | CUT (PO-approved) | absorbed |\n");
-      writeFileSync(join(A, ".shapeup-sdlc/demo/tasks/TASK-001.md"),
+      writeFileSync(join(A, ".shapeup/demo/tasks/TASK-001.md"),
         "---\nid: TASK-001\nstatus: ready\npriority: 1\n---\n- [ ] enemy lured into a trap (covers: REQ-1)\n- [ ] trap resets (covers: REQ-9)\n");
-      writeFileSync(join(A, "docs/shapeup-sdlc/demo/project-profile.json"),
-        JSON.stringify({ schema_version: 1, archetype: "client-only-game", entry_point: "main.js" }));
-      writeFileSync(join(A, "docs/shapeup-sdlc/demo/wiring-map.json"),
-        JSON.stringify({ schema_version: 1, feature: "demo", entries: [
-          { use_case: "UC-01", engine: "src/trap.js", affordance: "trap fires" },
-          { use_case: "UC-02", engine: "src/asset-pipeline.js", affordance: "textures" }] }));
+      // MARKDOWN contracts (ADR-0001): frontmatter for the scalars, a table for `entries`.
+      // Written in the real on-disk form so trace-lint is exercised through the actual parser.
+      writeFileSync(join(A, "shapeup/demo/project-profile.md"),
+        "---\nschema_version: 1\narchetype: client-only-game\nentry_point: main.js\n---\n");
+      writeFileSync(join(A, "shapeup/demo/wiring-map.md"), [
+        "---", "schema_version: 1", "feature: demo", "---",
+        "## Wiring",
+        "| use_case | engine | affordance |",
+        "|---|---|---|",
+        "| UC-01 | src/trap.js | trap fires |",
+        "| UC-02 | src/asset-pipeline.js | textures |",
+        "",
+      ].join("\n"));
       writeFileSync(join(A, "main.js"), 'import { fire } from "./src/trap.js";\nfire();\n');
       writeFileSync(join(A, "src/trap.js"), "export function fire(){ return 1; }\n");
       writeFileSync(join(A, "src/asset-pipeline.js"), "export function load(){ return 631; }\n");
@@ -533,8 +699,8 @@ export async function run(ctx) {
 
       // Fixture B: a legacy spec with no spine artifacts must be green even under --gate.
       const B = mkdtempSync(join(tmpdir(), "tracelint-legacy-"));
-      mkdirSync(join(B, ".shapeup-sdlc/legacy/tasks"), { recursive: true });
-      writeFileSync(join(B, ".shapeup-sdlc/legacy/tasks/TASK-001.md"),
+      mkdirSync(join(B, ".shapeup/legacy/tasks"), { recursive: true });
+      writeFileSync(join(B, ".shapeup/legacy/tasks/TASK-001.md"),
         "---\nid: TASK-001\nstatus: ready\npriority: 1\n---\n- [ ] something works\n");
       const legacy = run("legacy", B, ["--gate"]);
       if (legacy.status === 0 && legacy.report?.overall === "green") ok("legacy spec (no requirements/wiring/profile) is green even under --gate (non-regression)");
@@ -577,8 +743,8 @@ export async function run(ctx) {
 
     // parseTaskFile must extract covers[] while keeping .text byte-identical (ingest tick-back safe).
     const cwd2 = mkdtempSync(join(tmpdir(), "covers-parse-"));
-    mkdirSync(join(cwd2, ".shapeup-sdlc/px/tasks"), { recursive: true });
-    writeFileSync(join(cwd2, ".shapeup-sdlc/px/tasks/TASK-001.md"),
+    mkdirSync(join(cwd2, ".shapeup/px/tasks"), { recursive: true });
+    writeFileSync(join(cwd2, ".shapeup/px/tasks/TASK-001.md"),
       "---\nid: TASK-001\nstatus: ready\npriority: 1\n---\n- [ ] does A (covers: REQ-3, REQ-7)\n- [ ] plain B\n");
     const { readBoard } = await import(join(ROOT, "skills/tech-lead/scripts/compile-order.mjs"));
     const board = readBoard(cwd2, "px");

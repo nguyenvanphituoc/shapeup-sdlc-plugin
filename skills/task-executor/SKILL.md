@@ -126,7 +126,7 @@ questions) instead of escalating.
 
 ## Output contract — the WorkResult
 
-Write `.shapeup-sdlc/<slug>/results/<order-suffix>.json` (mirror of the order path; slug and
+Write `.shapeup/<slug>/results/<order-suffix>.json` (mirror of the order path; slug and
 suffix come from `order_id`) matching `work-result.schema.json`, and print its path:
 
 ```json
@@ -176,19 +176,19 @@ orchestrator's `ingest-result.mjs` does all of that from your envelope.
 
 ```bash
 # Orchestrated (tech-lead's build loop) — the canonical form
-/task-executor --order .shapeup-sdlc/checkout-vnpay/orders/r2-a3.json
+/task-executor --order .shapeup/checkout-vnpay/orders/r2-a3.json
 
 # Standalone — the preamble shim compiles a minimal WorkOrder from the flags, then the
 # single code path above runs. Requires the harness scripts (plugin install):
-#   node skills/tech-lead/scripts/compile-order.mjs --task TASK-003 --slug checkout-vnpay
-#   node skills/tech-lead/scripts/compile-order.mjs --next --slug checkout-vnpay
-/task-executor --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --task TASK-003
-/task-executor --spec docs/shapeup-sdlc/checkout-vnpay/spec/ --next
+#   node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/compile-order.mjs" --task TASK-003 --slug checkout-vnpay
+#   node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/compile-order.mjs" --next --slug checkout-vnpay
+/task-executor --spec shapeup/checkout-vnpay/spec/ --task TASK-003
+/task-executor --spec shapeup/checkout-vnpay/spec/ --next
 ```
 
-Standalone shim: derive `<slug>` from the `--spec` path (`docs/shapeup-sdlc/<slug>/spec`),
+Standalone shim: derive `<slug>` from the `--spec` path (`shapeup/<slug>/spec`),
 run `compile-order.mjs` with the matching flags (mode becomes `standalone`), then proceed
 against the compiled order exactly as if dispatched. After writing the WorkResult, run
-`node skills/tech-lead/scripts/ingest-result.mjs <result path>` yourself and show the user its
+`node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/ingest-result.mjs" <result path>` yourself and show the user its
 summary — standalone has no orchestrator to ingest for you. One code path inside; two entry
 points outside.

@@ -70,7 +70,7 @@ this scope needs GATE H's attention, not a excuse to freeze the round.
 ```
 1. Precedent check (free, no PO time):
    Search this run's round-ledger.md "Decisions" section (this scope AND sibling scopes) and
-   docs/shapeup-sdlc/knowledge-base/*.md for an already-answered question that is the same or a
+   shapeup/knowledge-base/*.md for an already-answered question that is the same or a
    clear superset of this one. Found → reuse verbatim, log "resolved by precedent: [ref]",
    do NOT count against budget (a repeat question is a zero-memory artifact, not a new decision).
 
@@ -139,10 +139,10 @@ never to the envelope, so it survives every zero-memory reset.
 
 ```bash
 # Adjudicate one ESCALATE return from a worker (typical: tech-lead calls this mid-round)
-/advisor-protocol --ledger docs/shapeup-sdlc/checkout-vnpay/round-ledger.md --escalate '<ESCALATE yaml>'
+/advisor-protocol --ledger shapeup/checkout-vnpay/round-ledger.md --escalate '<ESCALATE yaml>'
 
 # Check remaining budget for a scope this round (worker or tech-lead, before emitting ESCALATE)
-/advisor-protocol --budget --scope cart-creation --round 2 --ledger docs/shapeup-sdlc/checkout-vnpay/round-ledger.md
+/advisor-protocol --budget --scope cart-creation --round 2 --ledger shapeup/checkout-vnpay/round-ledger.md
 
 # Headless run — no PO available; apply defaults / conservative fallback, flag the rest for GATE H
 /advisor-protocol --unattended --ledger ... --escalate '<ESCALATE yaml>'

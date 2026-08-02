@@ -17,7 +17,7 @@
 // THE TWO STRUCTURAL MISSES IT EXPOSED. `anti-rationalization.mjs` is the guard for exactly
 // this class of failure, and it could not see this one for two independent reasons:
 //
-//   1. SCOPE. It defers unless a run is active (`activeSlug()` → `.shapeup-sdlc/<slug>/`).
+//   1. SCOPE. It defers unless a run is active (`activeSlug()` → `.shapeup/<slug>/`).
 //      A run that never started produces none of the files it reads. It catches "claimed done
 //      on a half-green board" and misses "claimed done with no board at all". The emptier the
 //      failure, the less of it there is to detect.
@@ -47,11 +47,18 @@
 // Contract: Stop stdin JSON { cwd, stop_hook_active, last_assistant_message, transcript_path }.
 // Blocks via { decision: "block", reason }. Always exits 0.
 
+// SECOND CONDITION (v1.5). Since `hooks/lib/decision.mjs` gives every hook a receipt, this gate
+// gains a second, independent fact it can assert at `Stop`: the orchestrator was dispatched, and
+// `decisions.jsonl` holds ZERO rows for this pid — meaning the enforcement layer itself never ran.
+// That is F-16's class, not its instance: under a symlinked install every gate was inert while
+// every gate reported success. The detector for "the gates didn't run" now stops depending on the
+// gates running.
+
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
-
-const defer = () => process.exit(0);
+import { localDir, globLocal } from "../skills/tech-lead/scripts/lib/paths.mjs";
+import { runHook, readStdin, settle, decisionsPath } from "./lib/decision.mjs";
 
 const MAX_TRANSCRIPT_BYTES = 20 * 1024 * 1024;
 
@@ -105,7 +112,7 @@ export function workCensus(events) {
 
 /** Any run receipt on disk, from any run. Written by init-run.mjs as the run's first act. */
 export function findReceipts(cwd) {
-  const root = join(cwd, ".shapeup-sdlc");
+  const root = localDir(cwd);
   if (!existsSync(root)) return [];
   const out = [];
   let entries;
@@ -144,13 +151,37 @@ function readEvents(transcriptPath) {
   } catch { return null; }
 }
 
-export function buildReason({ narration, census }) {
+/**
+ * Did the enforcement layer leave any evidence of itself in this checkout?
+ *
+ * A hook that never runs and a hook that inspected-and-permitted used to produce identical
+ * evidence (exit 0, empty stdout). With `hooks/lib/decision.mjs` every evaluation appends a row,
+ * so ZERO rows across the whole file is now a positive fact about the layer rather than an absence
+ * of information about it.
+ *
+ * @param {string} cwd - Project root.
+ * @returns {{rows:number, readable:boolean}} How many decision rows exist and whether the ledger
+ *   could be read at all (an unreadable ledger proves nothing and must not sharpen the message).
+ */
+export function enforcementCensus(cwd) {
+  const p = decisionsPath(cwd);
+  if (!existsSync(p)) return { rows: 0, readable: false };
+  try {
+    return { rows: readFileSync(p, "utf8").split("\n").filter((l) => l.trim()).length, readable: true };
+  } catch { return { rows: 0, readable: false }; }
+}
+
+export function buildReason({ narration, census, enforcement }) {
   return [
     "✋ GATE Z — ZERO WORK. This session dispatched the tech-lead orchestrator and produced no run receipt.",
     "",
     `Mechanical facts: ${census.tool_calls} tool call(s), ${census.work_calls} of them work calls, ` +
-    `${census.writes} file write(s), and no \`.shapeup-sdlc/<slug>/receipt.json\`.`,
+    `${census.writes} file write(s), and no \`${globLocal("<slug>", "receipt.json")}\`.`,
     narration ? `The final message reads as a plan, not a result (matched: "${narration}").` : null,
+    enforcement && enforcement.readable && enforcement.rows === 0
+      ? "AND the enforcement layer left zero decision rows — the gates did not merely permit this run, they never ran. " +
+        "Check the plugin install (a symlinked or spaced path was the measured cause; see lib/is-main.mjs)."
+      : null,
     "",
     "A run that describes its own pipeline and stops is the exact failure this harness exists to",
     "prevent — measured at 29% acceptance with 10 escaped defects while looking like a clean run.",
@@ -160,13 +191,13 @@ export function buildReason({ narration, census }) {
     "",
     "  # write the requirement to a file first — inlining multi-line text into a shell",
     "  # argument is where this step goes wrong",
-    "  node ${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/init-run.mjs \\",
+    "  node \"${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/init-run.mjs\" \\",
     "       --slug <slug> --intake-file <path/to/requirement.md> \\",
     "       --auto-level <interactive|auto|unattended> [--gate-answers <preset|path>]",
     "",
     "Then proceed through the gates, resolving each one with:",
     "",
-    "  node ${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/gate-answers.mjs --resolve <gate-id> …",
+    "  node \"${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/gate-answers.mjs\" --resolve <gate-id> …",
     "",
     "If the command comes back \"requires approval\", say so and stop — the harness's scripts ship with",
     "the plugin and need a one-time permission grant (`npx shapeup-sdlc init` writes it). Do NOT route",
@@ -179,45 +210,53 @@ export function buildReason({ narration, census }) {
 }
 
 async function main() {
-  const raw = await new Promise((res) => {
-    let d = "";
-    process.stdin.on("data", (c) => (d += c));
-    process.stdin.on("end", () => res(d));
-    process.stdin.on("error", () => res(""));
-  });
+  await runHook("gate-zerowork", async () => {
+  const raw = await readStdin();
 
   let p;
-  try { p = JSON.parse(raw || "{}"); } catch { defer(); return; }
+  /** Fail-open, with the reason on the record (hooks/lib/decision.mjs). */
+  const defer = (reason, rule) => settle({ verdict: "allow", event: "Stop", cwd: p?.cwd, reason, rule });
+  try { p = JSON.parse(raw || "{}"); }
+  catch (e) { settle({ verdict: "error", event: "Stop", reason: `unparseable payload: ${e.message}` }); }
 
   // At most one block per stop chain. Without this a session that cannot run the script at all
   // (read-only cwd, missing node) would be held open forever.
-  if (p.stop_hook_active) defer();
+  if (p.stop_hook_active) defer("stop_hook_active — at most one block per stop chain", "loop-guard");
 
   const cwd = p.cwd || process.cwd();
   const events = readEvents(p.transcript_path);
-  if (!events || events.length === 0) defer(); // no transcript → no facts → fail open
+  // no transcript → no facts → fail open
+  if (!events || events.length === 0) defer("no readable transcript — no facts to assert", "no-transcript");
 
-  if (!dispatchedOrchestrator(events)) defer(); // not a harness session → not our business
+  // not a harness session → not our business
+  if (!dispatchedOrchestrator(events)) defer("session never dispatched the orchestrator — not a harness run", "no-dispatch");
 
   // A receipt means the run started. What happens after that is anti-rationalization's job and
   // the evaluator's; this hook only asks whether anything started at all.
-  if (findReceipts(cwd).length > 0) defer();
+  const receipts = findReceipts(cwd);
+  if (receipts.length > 0) defer(`${receipts.length} run receipt(s) on disk — the run started`, "receipt-present");
 
   const census = workCensus(events);
 
   // Fail open when the session clearly did work by other means. A user may have run the harness
   // steps by hand, or be on a pre-receipt version of the plugin. Real narration has ~zero work
   // calls; this threshold keeps the hook off everything else.
-  if (census.work_calls > 2) defer();
+  if (census.work_calls > 2) defer(`${census.work_calls} work calls — the session did work by other means`, "work-done");
 
   const message = typeof p.last_assistant_message === "string" ? p.last_assistant_message : "";
   const narration = detectNarration(message);
+  const enforcement = enforcementCensus(cwd);
 
-  console.log(JSON.stringify({
-    decision: "block",
-    reason: buildReason({ narration, census }),
-  }));
-  process.exit(0);
+  return {
+    verdict: "block", event: "Stop", cwd, rule: "no-receipt",
+    reason: `orchestrator dispatched, ${census.work_calls} work call(s), no run receipt` +
+      (enforcement.readable && enforcement.rows === 0 ? "; enforcement layer left zero decision rows" : ""),
+    payload: {
+      decision: "block",
+      reason: buildReason({ narration, census, enforcement }),
+    },
+  };
+  });
 }
 
 if (isMain(import.meta.url)) {

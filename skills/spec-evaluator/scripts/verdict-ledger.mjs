@@ -5,7 +5,7 @@
 // The `spec-evaluator` skill performs verdict re-probe / confidence / flip-detection as a
 // self-contained procedure (`references/verdict-ledger.md`) using its own file tools — it does NOT
 // call this file. This is the executable proof that the documented grammar is well-defined and
-// actually discriminates an unstable judge from a stable one, the same way scripts/shapeup-sdlc/oracles/*
+// actually discriminates an unstable judge from a stable one, the same way oracles/*
 // prove the probing grammar. Structural test #15 exercises it.
 //
 // Ledger line shape (one per criterion per run), see verdict-ledger.md:
@@ -17,6 +17,7 @@
 
 // Most recent prior line for a (dimension, criterion), by highest run number.
 import { isMain } from "../../tech-lead/scripts/lib/is-main.mjs";
+import { runArgs } from "../../tech-lead/scripts/lib/argv.mjs";
 
 /**
  * Find the most recent prior ledger line for a record's (dimension, criterion), by highest run.
@@ -138,10 +139,15 @@ export function parseLedger(text) {
 }
 
 // --- CLI entry: summarize a ledger file -------------------------------------
+/** The typed argv contract (see `skills/tech-lead/scripts/lib/argv.mjs`). */
+export const ARGV_SPEC = {
+  usage: "verdict-ledger.mjs <.verdicts-TASK.jsonl>",
+  _: { arity: 1, max: 1, name: ".verdicts-TASK.jsonl" },
+};
+
 if (isMain(import.meta.url)) {
   const { readFileSync } = await import("node:fs");
-  const path = process.argv[2];
-  if (!path) { console.error("usage: node verdict-ledger.mjs <.verdicts-TASK.jsonl>"); process.exit(2); }
+  const path = runArgs(ARGV_SPEC)._[0];
   let lines;
   try { lines = parseLedger(readFileSync(path, "utf8")); }
   catch (e) { console.error(`cannot read ledger ${path}: ${e.message}`); process.exit(2); }

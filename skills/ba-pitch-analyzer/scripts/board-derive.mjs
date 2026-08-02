@@ -21,6 +21,9 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { isMain } from "../../tech-lead/scripts/lib/is-main.mjs";
+import { runArgs } from "../../tech-lead/scripts/lib/argv.mjs";
+import { tasksDir, scopesDir, hillDir } from "../../tech-lead/scripts/lib/paths.mjs";
+import { readAllContracts, SCOPE_CONTRACT } from "../../tech-lead/scripts/lib/contract-md.mjs";
 
 /**
  * Read an inline `[a, b]` list field from a frontmatter string.
@@ -138,7 +141,7 @@ export function driftCheck(tasks, scopes) {
  *   board, deleted before CLI output).
  */
 export function derive({ cwd, slug, appetiteHours = null }) {
-  const tasksDir = join(cwd, ".shapeup-sdlc", slug, "tasks");
+  const tasksDir = tasksDir(cwd, slug);
   const tasks = parseBoard(tasksDir);
   const unlocks = deriveUnlocks(tasks);
   const keepHours = tasks.filter((t) => t.status !== "cut").reduce((a, t) => a + t.hours, 0);
@@ -146,17 +149,12 @@ export function derive({ cwd, slug, appetiteHours = null }) {
   for (const t of tasks) packages[t.pkg || "(none)"] = (packages[t.pkg || "(none)"] || 0) + 1;
 
   // Scope facts for the drift check: contract `tasks` list + committed hill shard phase.
-  const scopesDir = join(cwd, "docs", "shapeup-sdlc", slug, "scopes");
-  const hillDir = join(cwd, "docs", "shapeup-sdlc", slug, "hill");
-  const scopes = existsSync(scopesDir)
-    ? readdirSync(scopesDir).filter((f) => f.endsWith(".json")).map((f) => {
-        let c = {};
-        try { c = JSON.parse(readFileSync(join(scopesDir, f), "utf8")); } catch { /* skip */ }
-        const shard = join(hillDir, `${c.scope_id}.yml`);
-        const finished = existsSync(shard) && /phase:\s*FINISHED/.test(readFileSync(shard, "utf8"));
-        return { ...c, finished };
-      })
-    : [];
+  const hillRoot = hillDir(cwd, slug);
+  const scopes = readAllContracts(scopesDir(cwd, slug), SCOPE_CONTRACT).map(({ contract }) => {
+    const shard = join(hillRoot, `${contract.scope_id}.yml`);
+    const finished = existsSync(shard) && /phase:\s*FINISHED/.test(readFileSync(shard, "utf8"));
+    return { ...contract, finished };
+  });
 
   return {
     slug,
@@ -200,20 +198,22 @@ export function writeUnlocks(report) {
   return written;
 }
 
+/** The typed argv contract (see `skills/tech-lead/scripts/lib/argv.mjs`). */
+export const ARGV_SPEC = {
+  usage: "board-derive.mjs --slug <slug> [--cwd <dir>] [--write] [--appetite-hours N]",
+  _: { arity: 0, max: 0, name: "(no positional operands)" },
+  slug: { type: "str", required: true },
+  cwd: { type: "path" },
+  write: { type: "flag" },
+  "appetite-hours": { type: "num", min: 0 },
+};
+
 const isMainModule = isMain(import.meta.url);
 if (isMainModule) {
-  const args = process.argv.slice(2);
-  /**
-   * Read a `--<n> <value>` CLI flag's value.
-   * @param {string} n - Flag name without leading dashes.
-   * @returns {(string|null)} The argument after `--<n>`, or null when the flag is absent.
-   */
-  const flag = (n) => { const i = args.indexOf(`--${n}`); return i !== -1 ? args[i + 1] : null; };
-  const slug = flag("slug");
-  if (!slug) { console.error("usage: board-derive.mjs --slug <slug> [--cwd <dir>] [--write] [--appetite-hours N]"); process.exit(2); }
-  const cwd = resolve(flag("cwd") || process.cwd());
-  const report = derive({ cwd, slug, appetiteHours: flag("appetite-hours") ? Number(flag("appetite-hours")) : null });
-  if (args.includes("--write")) report.unlocks_written = writeUnlocks(report);
+  const args = runArgs(ARGV_SPEC);
+  const cwd = resolve(args.cwd || process.cwd());
+  const report = derive({ cwd, slug: args.slug, appetiteHours: args.appetiteHours ?? null });
+  if (args.write) report.unlocks_written = writeUnlocks(report);
   delete report._tasks;
   console.log(JSON.stringify(report, null, 2));
 }

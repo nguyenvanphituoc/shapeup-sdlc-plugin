@@ -78,10 +78,10 @@ const ENTRY_POINTS = [
   { file: "skills/tech-lead/scripts/trace-lint.mjs", args: [], expect: "stdout" },
   // Dev tooling rather than shipped surface (`scripts/` is not in package.json `files`), but the
   // oracles are what a contributor runs by hand, and a silent no-op there reads as "contract passed".
-  { file: "scripts/shapeup-sdlc/oracles/process-oracle.mjs", args: [], expect: "stdout" },
-  { file: "scripts/shapeup-sdlc/oracles/test-oracle.mjs", args: [], expect: "stdout" },
-  { file: "scripts/shapeup-sdlc/oracles/http-oracle.mjs", args: [], expect: "stdout" },
-  { file: "scripts/shapeup-sdlc/oracles/snapshot-oracle.mjs", args: [], expect: "stdout" },
+  { file: "oracles/process-oracle.mjs", args: [], expect: "stdout" },
+  { file: "oracles/test-oracle.mjs", args: [], expect: "stdout" },
+  { file: "oracles/http-oracle.mjs", args: [], expect: "stdout" },
+  { file: "oracles/snapshot-oracle.mjs", args: [], expect: "stdout" },
 ];
 
 // Assembled from pieces on purpose: a literal here would make this file its own offender.
@@ -224,9 +224,9 @@ export async function run(ctx) {
     try {
       spawnSync("git", ["init", "-q"], { cwd: tmp2 });
       const slug = "already-open";
-      const runRoot = join(tmp2, ".shapeup-sdlc", slug);
+      const runRoot = join(tmp2, ".shapeup", slug);
       mkdirSync(runRoot, { recursive: true });
-      writeFileSync(join(tmp2, ".shapeup-sdlc", "active-scope"), JSON.stringify({ slug }));
+      writeFileSync(join(tmp2, ".shapeup", "active-scope"), JSON.stringify({ slug }));
       writeFileSync(join(runRoot, "receipt.json"), JSON.stringify({ started: true, slug }));
       writeFileSync(join(runRoot, "harness-run.md"),
         "---\nstatus: building\nrounds_used: 2\nmax_rounds: 3\n---\n\n# run\n");

@@ -7,10 +7,10 @@
 //
 //   task_results[]      → tick AC boxes, flip task frontmatter status, append Execution Log,
 //                         update tasks/_index.md row, propagate unblocks (old P3.1–P3.6)
-//   discoveries[]       → append to .shapeup-sdlc/<slug>/discovery/ledger.md (old P3.7 / QA H.3)
+//   discoveries[]       → append to .shapeup/<slug>/discovery/ledger.md (old P3.7 / QA H.3)
 //   verdict.criteria[]  → append evaluation/.verdicts-<target>.jsonl (old evaluator B.0)
 //   verdict.refuted[]   → un-tick refuted AC boxes + set eval_verdict frontmatter (old B.2/B.2b)
-//   escalates[]         → queue .shapeup-sdlc/<slug>/escalates/<order>.json for the orchestrator
+//   escalates[]         → queue .shapeup/<slug>/escalates/<order>.json for the orchestrator
 //
 // Zero dependencies, zero network, schema-validated input (a malformed result never mutates
 // the board). Single-writer becomes mechanically true, not aspirational.
@@ -23,6 +23,8 @@ import { resolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validate } from "./validate-envelope.mjs";
 import { isMain } from "./lib/is-main.mjs";
+import { runArgs } from "./lib/argv.mjs";
+import { tasksDir, localRoot } from "./lib/paths.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RESULT_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../schemas/work-result.schema.json"), "utf8"));
@@ -41,7 +43,7 @@ const today = () => new Date().toISOString().slice(0, 10);
  *   directory or a matching file does not exist.
  */
 export function findTaskFile(cwd, slug, taskId) {
-  const dir = join(cwd, ".shapeup-sdlc", slug, "tasks");
+  const dir = tasksDir(cwd, slug);
   if (!existsSync(dir)) return null;
   const f = readdirSync(dir).find((n) => n.startsWith(taskId) && n.endsWith(".md"));
   return f ? join(dir, f) : null;
@@ -115,11 +117,11 @@ export function updateBoardRow(indexBody, taskId, done) {
  *   escalates_queued:number}} A summary of every write performed.
  * @throws {Error} If a task/board/ledger file it must write is not writable (fs error propagates).
  *   Side effects: writes task files, `tasks/_index.md`, `discovery/ledger.md`,
- *   `evaluation/.verdicts-*.jsonl`, and `escalates/*.json` under `.shapeup-sdlc/<slug>/`.
+ *   `evaluation/.verdicts-*.jsonl`, and `escalates/*.json` under `.shapeup/<slug>/`.
  */
 export function applyResult(result, { cwd }) {
   const slug = result.order_id.split("/")[0];
-  const local = join(cwd, ".shapeup-sdlc", slug);
+  const local = localRoot(cwd, slug);
   const summary = { slug, tasks_updated: [], acs_ticked: 0, unblocked: [], discoveries_appended: 0, refuted_unticked: 0, verdict_lines: 0, escalates_queued: 0 };
 
   // 1. Task results → task files + board (old task-executor P3.1/P3.2/P3.6).
@@ -239,13 +241,18 @@ export function applyResult(result, { cwd }) {
 }
 
 // ---------------------------------------------------------------------------
+/** The typed argv contract (see `./lib/argv.mjs`). */
+export const ARGV_SPEC = {
+  usage: "ingest-result.mjs <result.json> [--cwd <dir>]",
+  _: { arity: 1, max: 1, name: "result.json" },
+  cwd: { type: "path" },
+};
+
 const isMainModule = isMain(import.meta.url);
 if (isMainModule) {
-  const args = process.argv.slice(2);
-  const file = args.find((a) => !a.startsWith("--"));
-  const ci = args.indexOf("--cwd");
-  const cwd = resolve(ci !== -1 ? args[ci + 1] : process.cwd());
-  if (!file) { console.error("usage: ingest-result.mjs <result.json> [--cwd <dir>]"); process.exit(2); }
+  const args = runArgs(ARGV_SPEC);
+  const file = args._[0];
+  const cwd = resolve(args.cwd || process.cwd());
 
   let result;
   try { result = JSON.parse(readFileSync(resolve(file), "utf8")); }

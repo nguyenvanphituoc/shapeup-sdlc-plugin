@@ -2,7 +2,7 @@
 // Worked example of the `process` evaluation oracle (Stage G of the audit), now landed.
 //
 // This used to hard-code its criteria inline. It has been *promoted* to consume the shared probe
-// runner at `scripts/shapeup-sdlc/oracles/process-oracle.mjs` and a declarative contract (`todo.contract.json`)
+// runner at `oracles/process-oracle.mjs` and a declarative contract (`todo.contract.json`)
 // — the same mechanism `spec-evaluator` dispatches to for any `oracle: process` criterion. The
 // example therefore demonstrates the real runner instead of duplicating its logic.
 //
@@ -14,7 +14,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runContract, formatReport } from "../../scripts/shapeup-sdlc/oracles/process-oracle.mjs";
+import { runContract, formatReport } from "../../oracles/process-oracle.mjs";
 
 const cmd = process.argv[2];
 if (!cmd) {

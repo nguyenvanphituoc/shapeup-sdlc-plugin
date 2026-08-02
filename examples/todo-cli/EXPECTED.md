@@ -12,7 +12,7 @@ is exactly the "build *anything*" gap flagged in `docs/audit/independent-audit-a
 
 ## A. Shape Up shaping produced a linked doc tree with a Test Surface
 
-A `ba-pitch-analyzer` run on this pitch must emit a doc tree under `docs/shapeup-sdlc/<slug>/`
+A `ba-pitch-analyzer` run on this pitch must emit a doc tree under `shapeup/<slug>/`
 containing:
 
 - [ ] a domain model (entities: `Todo`, `Store`)
@@ -33,12 +33,12 @@ A `spec-evaluator` run on the built CLI must emit a report that:
 
 > Note: a CLI has no browser, so the evaluator does not drive Playwright here. Stage G (the
 > evaluation contract) is fully landed: each criterion carries an `oracle` tag and the evaluator
-> dispatches on it via the registry `scripts/shapeup-sdlc/oracles/index.mjs` (`process`/`test`/`snapshot`/`http`,
+> dispatches on it via the registry `oracles/index.mjs` (`process`/`test`/`snapshot`/`http`,
 > with `ui` handled in-skill). For this CLI the oracle is **`process`** — the shared runner
-> `scripts/shapeup-sdlc/oracles/process-oracle.mjs` spawns the deliverable and grades exit code + stdout.
+> `oracles/process-oracle.mjs` spawns the deliverable and grades exit code + stdout.
 > Run it directly (the deliverable path must be **absolute** — the oracle spawns it inside a
 > throwaway temp dir, so a relative path resolves against the sandbox, not the repo):
-> `node scripts/shapeup-sdlc/oracles/process-oracle.mjs examples/todo-cli/todo.contract.json "node $PWD/examples/todo-cli/reference/todo.js"`.
+> `node oracles/process-oracle.mjs examples/todo-cli/todo.contract.json "node $PWD/examples/todo-cli/reference/todo.js"`.
 
 ## C. Edge cases were hunted and handled (the "edge cases handled")
 

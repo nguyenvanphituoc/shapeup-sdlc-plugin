@@ -5,7 +5,7 @@
 # Sourced by lib-migrate.sh's runner. Must define MIGRATION_DESC + migration_up(); must be
 # idempotent (the runner only calls it once per project, but re-running by hand must be safe).
 #
-# Background (docs/plan/local-tasks-architecture.md):
+# Background (docs/internal/plan/local-tasks-architecture.md):
 #   OLD: ba-pitch-analyzer Phase 6 wrote docs/shapeup-sdlc/<slug>/spec/tasks/
 #        {TASK-NNN*.md,_index.md} — committed alongside usecases/, domain-model.md, etc.
 #        spec-evaluator graded against a task file's own AC checkboxes; tech-lead's GATE L1b

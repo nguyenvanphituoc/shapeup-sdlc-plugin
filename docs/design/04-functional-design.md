@@ -10,7 +10,7 @@
 | `translator` | Intake gate | Normalizes non-English intake to faithful English before anything downstream runs; every other skill HARD-FAILs on non-English input. |
 | `orient` | Scout | Builder-led recon (step 7): reads the real code, spikes the single riskiest area, emits a code-surface map *before any board exists*, so the board is reality-born. |
 | `ba-pitch-analyzer` | Spec-analyzer | Decomposes an oriented pitch into a linked DDD tree — domain model → use cases → tasks — with BDD scenarios and a derived Test Surface. One craft, five operations: analyze / generate-board / reconcile / retrofit-surface / coverage (the last writes the shared `requirements.md` registry that anchors covers-closure). |
-| `solution-architect` | Wirer | Sole writer of the committed wiring map (`wiring-map.json`) at GATE L1a.5: per use case, the reachability chain engine → seam → entry-point call site → player-visible affordance, resolved against `project-profile.json` — front-loads the integration seam so no engine ships orphaned. |
+| `solution-architect` | Wirer | Sole writer of the committed wiring map (`wiring-map.md`) at GATE L1a.5: per use case, the reachability chain engine → seam → entry-point call site → player-visible affordance, resolved against `project-profile.md` — front-loads the integration seam so no engine ships orphaned. |
 | `scope-architect` | Slicer | Sole writer of committed scope contracts: import-graph slicing by flow, write-whitelisted substrates, affordance manifests, fixtures. |
 | `task-executor` | Generator | Implements a WorkOrder's acceptance criteria exactly. Zero-memory (each attempt is a fresh subagent), substrate-sandboxed, never writes boards or ledgers. |
 | `spec-evaluator` | Single judge | Verifies the running app against the committed spec. Skeptical by default; requires a T0 artifact citation on scoped specs; verdict returns as data, never edits anything. |
@@ -27,7 +27,7 @@ first:
 
 ```mermaid
 flowchart TD
-    S0["Checkout scope branch\nwrite .shapeup-sdlc/active-scope pointer"] --> A1
+    S0["Checkout scope branch\nwrite .shapeup/active-scope pointer"] --> A1
     subgraph LOOP["attempt 1 .. attempt_budget (default 5)"]
       A1["compile-order.mjs\n(scope contract + tasks + prior decisions\n+ last attempt's digested errors)"] --> A2["task-executor\n(fresh Agent — zero prior chat history)"]
       A2 --> A3["ingest-result.mjs\n(board + ledger writes)"]
@@ -93,7 +93,7 @@ Spiked area + result — confirm before a single scope is cut
 ```
 ⏸ GATE L1a.5 — Wiring Review ✚
 Per-UC reachability chain: engine → seam → entry-point call site → player-visible affordance
-Committed wiring-map.json checked against project-profile.json entry_point — no orphaned engine
+Committed wiring-map.md checked against project-profile.md entry_point — no orphaned engine
 ```
 
 ```
@@ -150,8 +150,10 @@ no matter what the auto level is.
 > L2 ("confirmed (interactive/auto)", "wait for PO confirmation (interactive/--auto)") are
 > harmless in practice and now read against this ruling: **L0** is where the auto level is
 > *set*, so the run is necessarily interactive there — the inline text is trivially satisfied;
-> **L2**'s real protection is `hooks/gate-l2.mjs`, which is mode-independent (closed-loop row 4
-> below) — no PO pause is needed on top of a mechanical denial. Follow-up: align the two inline
+> **L2**'s check is `hooks/gate-l2.mjs`, which is mode-independent (closed-loop row 4 below).
+> Since ADR-0001 it advises rather than denies, so the inline "wait for PO confirmation" phrasing
+> is no longer redundant with a mechanical block — it is the only thing standing there.
+> Follow-up: align the two inline
 > phrasings in `skills/tech-lead/SKILL.md` at the next prose-touching change (deliberately not
 > done in v1.2 — zero orchestrator prose growth). Lane gate sets (§4.7) are defined against
 > this authoritative table.
@@ -163,7 +165,7 @@ no matter what the auto level is.
 | 1 | Run mode = `--unattended` | Auto-confirms all L-gates. Proceeds without a human until PASS, max-rounds, or a hard error — the only three stop conditions in this mode. |
 | 2 | Inner breaker (`attempt_budget`) exhausted for one scope | Does **not** stop anything — queues a hammer proposal and moves to the next scope in sequence (DD-9: a struggling scope must not freeze the others). |
 | 3 | ESCALATE resolution under `--unattended` | `advisor-protocol` accepts `--unattended` and resolves via precedent / conservative default instead of asking the PO; the 4th+ escalate in a scope/round auto-resolves and only flags a GATE H proposal for later. |
-| 4 | GATE L2's board-green check (`hooks/gate-l2.mjs`) | A different axis entirely — runtime-vs-model, not PO-vs-model. Never asks a human; mechanically denies the EVAL dispatch on a partial board in *every* mode, underneath whichever PO-gate policy is active. |
+| 4 | GATE L2's board-green check (`hooks/gate-l2.mjs`) | A different axis entirely — runtime-vs-model, not PO-vs-model. Never asks a human; reads the board in *every* mode and **warns** when the EVAL dispatch runs over unfinished tasks (advisory since ADR-0001 — the board is per-machine and the operator asked for the call). Recorded as a `warn` row in `decisions.jsonl`, so a non-green evaluation stays countable. |
 | 5 | `--no-eval` | Tech-lead judgment call (or PO instruction) for trivial features — skips the evaluator, goes straight to SHIP with verdict `not-evaluated` recorded. |
 | 6 | `--no-qa` | Skips the post-PASS edge hunt; ledger records `qa: skipped`. |
 | 7 | BUILD-loop internals (r=1 tasks, r>1 bugs) | Neither requires a human step-by-step — only the round *boundaries* (L2, L3) are gated per whichever mode is active. |
@@ -171,8 +173,10 @@ no matter what the auto level is.
 The practical takeaway: **PO-confirmation policy** and **mechanical preconditions** are
 orthogonal. Turning a run fully unattended removes the PO from every *decision* point except the
 three unattended stop conditions — it does not, and cannot, remove the hook-enforced
-preconditions (GATE L2's board-green check, `validate-envelope.mjs`, `sandbox-guard.mjs`), which
-hold in every mode because they are scripts, not prompts.
+preconditions (`validate-envelope.mjs`, `sandbox-guard.mjs`, `safety-spine.mjs`,
+`gate-zerowork.mjs`), which hold in every mode because they are scripts, not prompts. GATE L2's
+board-green check is the one that deliberately does *not* hold that way: it observes in every mode
+but decides in none.
 
 ## 4.7 — Risk lanes (design — not yet implemented)
 

@@ -13,15 +13,15 @@ activate the skill) with **cross-skill hard negatives** (a sibling skill's queri
 positives / 75 negatives). The negatives are the point: a description that triggers on its own
 examples but *also* steals its siblings' is not actually discriminating.
 
-**Harness:** `scripts/shapeup-sdlc/trigger-eval.mjs`.
+**Harness:** `tools/trigger-eval.mjs`.
 
 ```bash
 # Inventory only — no auth, safe in CI: refresh the baseline's dataset counts.
-node scripts/shapeup-sdlc/trigger-eval.mjs
+node tools/trigger-eval.mjs
 
 # Measure — needs Claude auth + the plugin installed. Runs every case, detects REAL Skill-tool
 # activation, writes a measured baseline with method + timestamp.
-node scripts/shapeup-sdlc/trigger-eval.mjs --measure \
+node tools/trigger-eval.mjs --measure \
   --model claude-haiku-4-5-20251001 [--concurrency N] [--max-turns N]
 ```
 

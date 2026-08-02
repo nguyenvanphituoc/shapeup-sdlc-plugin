@@ -4,7 +4,7 @@
 # Sourced by lib-migrate.sh's runner. Must define MIGRATION_DESC + migration_up(); must be
 # idempotent (the runner only calls it once per project, but re-running by hand must be safe).
 #
-# Background (docs/plan/pure-skill-architecture.md, CHANGELOG 1.0.0):
+# Background (docs/internal/plan/pure-skill-architecture.md, CHANGELOG 1.0.0):
 #   OLD: workers carried pipeline plumbing — tech-lead hand-assembled markdown briefs
 #        (.shapeup-sdlc/<slug>/briefs/), workers wrote shared state themselves (run-state.md,
 #        tasks/_index.md, the discovery ledger), ba-pitch-analyzer selected behavior via 15

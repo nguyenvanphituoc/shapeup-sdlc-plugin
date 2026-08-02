@@ -175,10 +175,10 @@ scan always stops (never ship half-translated intake to the harness).
 
 **Destinations (two-root workspace).** `<name>.en.md` is always written as a sibling
 of its source — when the source already lives under the SHARED root
-`docs/shapeup-sdlc/<slug>/shaping/`, the copy lands there too. `glossary.md` is durable
-shared vocabulary → write it to `docs/shapeup-sdlc/<slug>/shaping/glossary.md`.
+`shapeup/<slug>/shaping/`, the copy lands there too. `glossary.md` is durable
+shared vocabulary → write it to `shapeup/<slug>/shaping/glossary.md`.
 `translation-report.md` is run-trace (audit) → write it to the LOCAL root
-`.shapeup-sdlc/<slug>/translation-report.md`. When run standalone on loose intake files
+`.shapeup/<slug>/translation-report.md`. When run standalone on loose intake files
 (no slug yet), all three default to siblings of the source.
 
 ---

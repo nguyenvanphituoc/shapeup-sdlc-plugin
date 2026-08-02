@@ -9,7 +9,7 @@ ROOT_DIR=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT_DIR"
 
 SLUG="dummy-flow"
-LOCAL_DIR=".shapeup-sdlc/$SLUG"
+LOCAL_DIR=".shapeup/$SLUG"
 
 echo "==> 1. Setting up dummy environment in $LOCAL_DIR..."
 mkdir -p "$LOCAL_DIR/tasks"

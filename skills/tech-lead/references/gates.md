@@ -31,14 +31,14 @@ Collect (explicit — never inferred):
           If appetite is missing or "TBD (uncapped)": flag as a risk and note it in the ledger;
           proceed, but the PO should set scope expectations manually at GATE L1b.
   L0.2  Workspace roots (both keyed off <slug>, set here and threaded to every worker as args):
-          - SHARED  docs/shapeup-sdlc/<slug>/  — durable source + deliverable (committed):
+          - SHARED  shapeup/<slug>/  — durable source + deliverable (committed):
               shaping/ (from /shapeup), spec/ (where ba-pitch-analyzer writes the spec tree:
               _index, domain-model, usecases/, contracts/, scopes/, scope-summary.md — NOT tasks/)
-          - LOCAL   .shapeup-sdlc/<slug>/      — run-trace (hidden, gitignorable):
+          - LOCAL   .shapeup/<slug>/      — run-trace (hidden, gitignorable):
               harness-run.md (this ledger), digest, orient/, evaluation/, qa/,
               discovery/ledger.md, orders/ + results/ (the envelope port), tasks/ (the task
               board, v3.2 — regenerable via a generate-board order on any machine)
-          spec_folder = docs/shapeup-sdlc/<slug>/spec/ (the deliverable arg passed to ba/eval/exec)
+          spec_folder = shapeup/<slug>/spec/ (the deliverable arg passed to ba/eval/exec)
   L0.3  lens: lite | standard | cross-context   (passed to planner at step 8)
   L0.4  stack hint (e.g. "pnpm, Next 16 web :3000") — aims orient's code-surface sweeps + run commands
   L0.5  eval dimensions: default [spec-conformance]; only add if user asks
@@ -66,6 +66,11 @@ Collect (explicit — never inferred):
         queues a hammer PROPOSAL for GATE H rather than blocking the round. Only meaningful
         when the spec folder has scope contracts; a spec with none skips the attempt loop
         entirely and BUILD behaves exactly as in v0.2.6 (task-executor --next, no T0/seesaw).
+        no_progress_k (v1.5): the STAGNATION term of the same inner breaker. Default 2 — the
+        number of consecutive non-`kept` trials after which a scope ends early and queues the
+        same GATE H proposal. attempt_budget counts ATTEMPTS and cannot see that the last two
+        produced nothing; this term can, and on a flailing scope it saves three of five
+        attempts. Set per scope (`no_progress_k` on the contract) or per run in the payload.
 ```
 
 **L0.0 — intake precondition (before any other L0 collection):**
@@ -107,7 +112,7 @@ and spikes the scary parts *before* any board exists, so the board comes out rea
 Invoke via Agent (model: exec — see references/delegation.md "Invocation mechanism"):
         Skill(shapeup-sdlc-plugin:orient) --pitch <intake> --spec <path> --stack "<hint>" [--auto]
 Owns:   its own GATE O-A/O-B; runs straight through under --auto.
-Writes: .shapeup-sdlc/<slug>/orient/ → code-surface.md, spike-<area>.md, discovered-seed.md, hill-signal.md.
+Writes: .shapeup/<slug>/orient/ → code-surface.md, spike-<area>.md, discovered-seed.md, hill-signal.md.
 Record in ledger: orient duration + the spiked area + spike result (resolved | SPIKE-UNRESOLVED).
 ```
 The four artifacts are the **orient → ba contract**: `ba` (step 8) consumes them instead of
@@ -121,7 +126,7 @@ re-scanning the codebase. Pass `--auto` only when the run level is `--auto`/`--u
 committing to a scope map. This is the first Hill read (area-level — slices don't exist yet).
 
 ```
-Read .shapeup-sdlc/<slug>/orient/. Render the 🗻 Hill from hill-signal.md (see ledger-schema.md "Hill report"):
+Read .shapeup/<slug>/orient/. Render the 🗻 Hill from hill-signal.md (see ledger-schema.md "Hill report"):
   - each suspected area → uphill (open unknowns) | crest (approach proven by the spike) | downhill
 Print: the code-surface headline (where it lands), the spiked area + result, the riskiest
        open unknowns going into mapping.
@@ -137,16 +142,16 @@ Do NOT enter MAP SCOPES until Orient is accepted.
 **Active only when the spine is in use** — on a legacy spec skip it; `trace-lint` self-skips every arm whose artifact is absent (non-regression).
 
 ```
-1. PROFILE (you write it at L0 — compile-order stays pipeline-blind): SHARED project-profile.json
+1. PROFILE (you write it at L0 — compile-order stays pipeline-blind): SHARED project-profile.md
    = {schema_version:1, archetype, entry_point}. archetype ∈ {client-only-game|web-service|
    mobile|library|data-pipeline}; entry_point is the reachability seam (a game's main.js is NOT a
    service's src/server.ts). Validate the enum — a typo must fail, not silently disable the check.
 2. WIRE — compile-order --operation wire --slug <slug> (worker→solution-architect), payload
-   {project_profile}. Sole writer of committed wiring-map.json (per-UC engine → seam → entry-point
+   {project_profile}. Sole writer of committed wiring-map.md (per-UC engine → seam → entry-point
    call site → affordance). ⏸ GATE L1a.5: confirm each UC has a declared seam before slicing.
 3. COVERAGE (folds into MAP SCOPES) — compile-order --operation coverage → ba writes the SHARED
    requirements.md registry (atomic REQ clauses, frozen ids).
-4. trace-lint — node skills/tech-lead/scripts/trace-lint.mjs --slug <slug>. ADVISORY at L1b:
+4. trace-lint — node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/trace-lint.mjs" --slug <slug>. ADVISORY at L1b:
    covers-closure (every covered REQ named by ≥1 AC's covers:) + reachability (every UC engine
    reaches entry_point). Promote to --gate only once covers: is populated.
 ```
@@ -158,16 +163,16 @@ Do NOT enter MAP SCOPES until Orient is accepted.
 ```
 Two orders, two workers, one step (both model: exec — see references/delegation.md):
 1. ANALYZE + BOARD — compile-order --operation analyze --slug <slug> --worker ba-pitch-analyzer
-     --payload '{"pitch": "<path>", "lens": "<lens>", "orient_dir": ".shapeup-sdlc/<slug>/orient/"}'
+     --payload '{"pitch": "<path>", "lens": "<lens>", "orient_dir": ".shapeup/<slug>/orient/"}'
    dispatch: Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) --order <path>. The order hands it
    code-surface.md (Phase-1 ingest consumes the map, does not re-scan), discovered-seed.md
    (task gen starts from reality), spike-<area>.md (feasibility/contracts).
    Output expected: spec_folder populated with _index, domain-model, usecases/, contracts/,
    scope-summary.md (all SHARED/committed) + tasks/TASK-NNN*.md, tasks/_index.md (board)
-   written to the LOCAL root .shapeup-sdlc/<slug>/tasks/ (v3.2) + a WorkResult → ingest.
+   written to the LOCAL root .shapeup/<slug>/tasks/ (v3.2) + a WorkResult → ingest.
 2. MAP SCOPES — compile-order --operation map-scopes --slug <slug> --worker scope-architect
    dispatch: Skill(shapeup-sdlc-plugin:scope-architect) --order <path>. Sole writer of the
-   committed scopes/<scope-id>.json contracts (import-graph slicing, substrate whitelists,
+   committed scopes/<scope-id>.md contracts (import-graph slicing, substrate whitelists,
    affordance manifest, fixtures, PA1/PA2 — mechanically linted by spec-lint.mjs).
 Record in ledger: planner duration + task count + scope count.
 ```
@@ -186,7 +191,7 @@ is cut or confirmed — cheap here, expensive later.
 
 **v3.2 (local-tasks-architecture):** on a spec with
 scope contracts, the PO reviews the SHARED, committed plan — `usecases/_index.md` +
-`scopes/*.json` + `scope-summary.md`'s Done-when headlines — never the LOCAL task board
+`scopes/*.md` + `scope-summary.md`'s Done-when headlines — never the LOCAL task board
 (`tasks/_index.md`, gitignored, per-machine run-trace). Implementation-level task detail stays
 hidden at this gate by design; the PO signs off on the UCs covered and how they're cut into
 scopes, not a line-by-line task list. A pre-v0.3.0 spec (no scope contracts) has no scope
@@ -195,9 +200,9 @@ v0.2.6 (non-regression).
 
 **Bootstrap check (local tasks board) — run BEFORE the read below, always:**
 ```
-`.shapeup-sdlc/<slug>/tasks/_index.md` missing AND `docs/shapeup-sdlc/<slug>/spec/usecases/`
+`.shapeup/<slug>/tasks/_index.md` missing AND `shapeup/<slug>/spec/usecases/`
 exists → a teammate (or a `--from build` resumed run) has the SHARED spec via git but no LOCAL
-task board on this machine — `.shapeup-sdlc/` is gitignored and never travels with a branch.
+task board on this machine — `.shapeup/` is gitignored and never travels with a branch.
 compile-order --operation generate-board --slug <slug> --worker ba-pitch-analyzer, then
 Agent (model: exec): Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) --order <path> + ingest —
 regenerates the board from the committed usecases/domain-model/scopes. Record the bootstrap in
@@ -207,9 +212,9 @@ any machine that already has one — this only fires for the second-developer / 
 
 ```
 Scope contracts present:
-  Read usecases/_index.md + scopes/*.json (scope-board.md) + scope-summary.md. Print:
+  Read usecases/_index.md + scopes/*.md (scope-board.md) + scope-summary.md. Print:
     - UC count + actors (usecases/_index.md)
-    - scope board: scope_id, topology_type, substrate file count (scopes/*.json / scope-board.md)
+    - scope board: scope_id, topology_type, substrate file count (scopes/*.md / scope-board.md)
     - any SPIKE blockers (scope-summary.md)
     - scope-summary "Done when" headline statements
 No scope contracts (pre-v0.3.0, unchanged from v0.2.6):
@@ -220,9 +225,9 @@ No scope contracts (pre-v0.3.0, unchanged from v0.2.6):
     - scope-summary "Done when" headline statements
 
 Substrate-disjointness assertion (design spec §5.1 Blueprint A, only when
-docs/shapeup-sdlc/<slug>/scopes/*.json exist — scope-architect's lint pass already ran;
+shapeup/<slug>/scopes/*.md exist — scope-architect's lint pass already ran;
 this is the orchestrator's own re-confirmation before committing to a build sequence):
-  - Run `node skills/ba-pitch-analyzer/scripts/spec-lint.mjs --slug <slug>`: DISJOINT (a file in two
+  - Run `node "${CLAUDE_PLUGIN_ROOT}/skills/ba-pitch-analyzer/scripts/spec-lint.mjs" --slug <slug>`: DISJOINT (a file in two
     scopes' `allowed_file_substrate` without BOTH declaring it `shared_substrate` — PA3
     waiting to happen), PA1 (directory-aligned scope), PA2 (size cap). Any red → HARD STOP,
     route a remap order to scope-architect before BUILD — a human may have hand-approved
@@ -258,8 +263,8 @@ PASS:
       delegate ▶ QA EDGE HUNT → Agent (model: qa — see references/delegation.md
       "Invocation mechanism"): Skill(shapeup-sdlc-plugin:qa-edge-hunter) (pure worker; see
       round-protocol "QA edge hunt"). Args: spec folder, EVAL report path, ledger path, app URL.
-      Its GATE Q0/Q1 pauses surface here. Output: `~` findings → .shapeup-sdlc/<slug>/discovery/ledger.md
-      + .shapeup-sdlc/<slug>/qa/hunt-report.md. No verdict — the run's verdict stays this EVAL's PASS.
+      Its GATE Q0/Q1 pauses surface here. Output: `~` findings → .shapeup/<slug>/discovery/ledger.md
+      + .shapeup/<slug>/qa/hunt-report.md. No verdict — the run's verdict stays this EVAL's PASS.
       → then proceed to SHIP (triage of QA findings happens at SHIP S.0/GATE L4).
   → subsequent PASS (a promoted-findings fix round): Agent (model: qa):
     Skill(shapeup-sdlc-plugin:qa-edge-hunter) --recheck on the promoted items only, then SHIP.
@@ -311,7 +316,7 @@ S.0  GATE H — delegate to scope-hammer (this IS Shape Up's "Decide When to Sto
        are QA + discovery ledger (no scope/attempt-budget inputs), equivalent to the old inline
        triage this step used to do.
 S.1  Confirm board green + latest eval verdict = PASS.
-S.1b Checklist-hygiene assert: `grep -c "^- \[ \]" .shapeup-sdlc/<slug>/tasks/TASK-*.md` →
+S.1b Checklist-hygiene assert: `grep -c "^- \[ \]" .shapeup/<slug>/tasks/TASK-*.md` →
      every count must be 0 on a shipping board. An unchecked AC box on a done task means
      either an unverified criterion (real gap — back to BUILD/EVAL) or an ingest miss (the
      WorkResult's ac_results never covered it — re-run ingest-result on that result, or route
@@ -330,15 +335,26 @@ S.5  Deploy truth — "done means deployed", honestly. Building stops at "built 
      NEVER auto-deploy; "shipped" must never silently mean "deployed".
      (Baseline-anchored scope-hammering at ship time is redesign-doc D5 — deferred; for now,
       `ba`'s Appetite Guard covers overflow and cuts go to synthesis "Hammered Out".)
-S.6  Harvest one signal row → append to `docs/shapeup-sdlc/metrics/<machine-id>.jsonl`
+S.6  Harvest one signal row → append to `shapeup/metrics/<machine-id>.jsonl`
      (committed, SHARED root; sharded per machine so concurrent runs never merge-conflict on
-     one file — addendum Δ3; an aggregate view is `cat docs/shapeup-sdlc/metrics/*.jsonl`).
+     one file — addendum Δ3; an aggregate view is `cat shapeup/metrics/*.jsonl`).
      Copy fields that ALREADY exist as structured output (run-state, final EVAL report,
      discovery ledger, qa/hunt-report, breadboard B5). Two hard rules:
        1. Harvest only fields that already exist at ship time — never evaluate something new.
        2. Record facts, never compute a new verdict (no `run_quality_score` — that would be
           a second judge behind spec-evaluator). The eval suite interprets; harvest records.
      `final_audit_score` is COPIED from the EVAL report, never re-graded.
+     ALSO copy the two v1.5 exit measurements, both produced by scripts at zero model tokens:
+       node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/stats.mjs" --ratchet --slug <slug>
+         → `ratchet`: {trials, scopes_multi_trial, improvement_rate, monotone_rate,
+                       sawtooth_count, mean_trials_to_green}
+       node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/stats.mjs" --hooks
+         → `hooks`: {evaluations, denials, errors, per_hook}
+     Harvest them HERE or lose them: both read LOCAL ledgers (t0/trials.jsonl,
+     decisions.jsonl) under the gitignored `.shapeup/` root, so a number left there
+     answers its question exactly once and is then wiped. The committed shard is the only
+     record that accumulates across runs and across machines — which is what both exit
+     criteria require, since neither is meaningful from a single run.
      → full field list + row template: references/ledger-schema.md "Harvest row".
 ```
 
@@ -356,7 +372,7 @@ Ledger    : harness-run.md
 ```
 Question (max 1): "Anything to record before I close the run? (y/n) or provide feedback for the next sprint."
 On confirm:
-- If the PO provides substantive feedback (not just 'y' or empty) → automatically delegate via Agent (model: exec — see references/delegation.md "Invocation mechanism"): Skill(shapeup-sdlc-plugin:coach) with the provided feedback for RLHF. The coach runs its own GATE COACH-1 to have the PO categorize each rule, then files it under the responsible skill in `docs/shapeup-sdlc/knowledge-base/<skill>.md` (committed → team-shared). Coachable skills: `task-executor`, `ba-pitch-analyzer`, `qa-edge-hunter`; each reads its own file at the top of its next run. The tech lead does not categorize the feedback itself — that is the coach's gate, by design (no assumptions).
+- If the PO provides substantive feedback (not just 'y' or empty) → automatically delegate via Agent (model: exec — see references/delegation.md "Invocation mechanism"): Skill(shapeup-sdlc-plugin:coach) with the provided feedback for RLHF. The coach runs its own GATE COACH-1 to have the PO categorize each rule, then files it under the responsible skill in `shapeup/knowledge-base/<skill>.md` (committed → team-shared). Coachable skills: `task-executor`, `ba-pitch-analyzer`, `qa-edge-hunter`; each reads its own file at the top of its next run. The tech lead does not categorize the feedback itself — that is the coach's gate, by design (no assumptions).
 - Then output → `✅ [slug] [shipped & deployed | built & verified, deploy pending] — [r] rounds, verdict PASS.`
 
 ---

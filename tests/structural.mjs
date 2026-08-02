@@ -15,7 +15,19 @@
 
 import { dirname, resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { makeCtx } from "./lib/harness.mjs";
+
+// The suite EXECUTES the real hooks, and since v1.5 every hook evaluation appends a decision row.
+// Without this redirect each `npm test` wrote ~21 rows into the developer's live
+// `.shapeup/decisions.jsonl`, where `stats --hooks` would later read them back as if they
+// were evaluations from a real run. Tests must not contaminate the instrument they test.
+// (15-hook-receipts.mjs deliberately UNSETS this for its own spawns — it needs the real
+// per-workspace path resolution to be what is under test.)
+const DECISIONS_TMP = mkdtempSync(join(tmpdir(), "structural-decisions-"));
+process.env.SHAPEUP_DECISIONS_PATH = join(DECISIONS_TMP, "decisions.jsonl");
+process.on("exit", () => { try { rmSync(DECISIONS_TMP, { recursive: true, force: true }); } catch { /* best effort */ } });
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -30,10 +42,15 @@ const MODULE_FILES = [
   "05-tech-lead.mjs",
   "06-ba-pitch-analyzer.mjs",
   "07-spec-evaluator.mjs",
-  "09-anti-lying-kit.mjs",
   "10-run-receipt.mjs",
   "11-is-main.mjs",
   "12-report-parity.mjs",
+  "13-argv-contract.mjs",
+  "14-invocation-paths.mjs",
+  "15-hook-receipts.mjs",
+  "45-paths.mjs",
+  "46-contract-md.mjs",
+  "47-ship-report.mjs",
   "08-docs.mjs",
 ];
 

@@ -29,8 +29,8 @@ Reuse these so the project reads consistently everywhere.
 **Longer description** (for directories that allow a paragraph):
 
 > Shape Up for coding agents, with the important rules enforced by the runtime rather than
-> requested in a prompt. A PreToolUse hook hard-denies the once-per-round evaluation while any
-> task is unfinished; build progress is derived from test artifacts on disk instead of
+> requested in a prompt. A PreToolUse hook hard-denies any worker dispatch whose work order is
+> missing or malformed; build progress is derived from test artifacts on disk instead of
 > self-reported; and each parallel scope gets a hook-enforced write-whitelist so concurrent
 > work cannot corrupt shared state. Thirteen skills cover shaping, orientation, wiring, scope
 > mapping, vertical building, evaluation, exploratory QA, and a retro that files feedback back

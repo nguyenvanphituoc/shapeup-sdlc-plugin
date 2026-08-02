@@ -46,7 +46,7 @@ tells the PO and the generator *how much to trust this row* and where re-running
 
 ## 3. The verdict ledger (across runs)
 
-**File:** `.shapeup-sdlc/<slug>/evaluation/.verdicts-<task_id>.jsonl` — append-only, one JSON
+**File:** `.shapeup/<slug>/evaluation/.verdicts-<task_id>.jsonl` — append-only, one JSON
 object per criterion per run. Never rewrite prior lines; the history is the point.
 
 ```json

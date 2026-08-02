@@ -13,7 +13,7 @@
 //
 // Usage:
 //   Scope attempt (isolated attempt loop):
-//     node skills/tech-lead/scripts/compile-order.mjs --scope docs/shapeup-sdlc/<slug>/scopes/<id>.json \
+//     node skills/tech-lead/scripts/compile-order.mjs --scope shapeup/<slug>/scopes/<id>.md \
 //          --round N --attempt M [--cwd <dir>] [--test-cmd "<cmd>"]
 //   Single task (no scope contracts — pre-v0.3.0 boards):
 //     node skills/tech-lead/scripts/compile-order.mjs --task TASK-003 --slug <slug> [--worker task-executor]
@@ -22,14 +22,23 @@
 //     node skills/tech-lead/scripts/compile-order.mjs --operation reconcile --slug <slug> [--round N]
 //          [--worker ba-pitch-analyzer] [--payload '<json>']
 //
-// Output: .shapeup-sdlc/<slug>/orders/<order-file>.json (schema-validated before write; a
+// Output: .shapeup/<slug>/orders/<order-file>.json (schema-validated before write; a
 // pretty-printed envelope, colocated so audits can read it). Prints the path on stdout.
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
 import { resolve, join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validate } from "./validate-envelope.mjs";
+import { readTrials } from "./t0-verify.mjs";
 import { isMain } from "./lib/is-main.mjs";
+import { runArgs } from "./lib/argv.mjs";
+// `specDir` is aliased: this module has a local `let specDir` holding the resolved, possibly
+// --spec-overridden directory, and the import is the convention-derived default.
+import {
+  tasksDir, specDir as defaultSpecDir, roundLedger, trials, verdictsDir, ordersDir,
+  relShared, globLocal, globShared, relKnowledgeBase,
+} from "./lib/paths.mjs";
+import { readContract, SCOPE_CONTRACT } from "./lib/contract-md.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ORDER_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../schemas/work-order.schema.json"), "utf8"));
@@ -96,13 +105,13 @@ export function parseTaskFile(path) {
 
 /**
  * Read every task entry on the LOCAL board for a slug, sorted by ascending priority.
- * @param {string} cwd - Working-directory root the `.shapeup-sdlc/<slug>/tasks` path resolves against.
+ * @param {string} cwd - Working-directory root the `.shapeup/<slug>/tasks` path resolves against.
  * @param {string} slug - Feature slug naming the run.
  * @returns {Array<object>} The parsed task entries (see {@link parseTaskFile}); [] when the tasks
  *   directory does not exist.
  */
 export function readBoard(cwd, slug) {
-  const dir = join(cwd, ".shapeup-sdlc", slug, "tasks");
+  const dir = tasksDir(cwd, slug);
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
     .filter((f) => /^TASK-[\w.-]+\.md$/i.test(f))
@@ -146,9 +155,13 @@ export function ledgerDecisions(ledgerText, scopeId) {
  *   `frozen` globs, and `append_only` globs. An unknown operation returns a LOCAL-only default.
  */
 export function substrateFor(operation, { slug, specDir, scope } = {}) {
-  const local = `.shapeup-sdlc/${slug}`;
-  const spec = specDir || `docs/shapeup-sdlc/${slug}/spec`;
-  const scopesDir = `docs/shapeup-sdlc/${slug}/scopes`;
+  const local = globLocal(slug);
+  const spec = specDir || globShared(slug, "spec");
+  const scopesDir = globShared(slug, "scopes");
+  // Working notes live in the LOCAL tier since ADR-0001: the committed `spec/` keeps only what the
+  // evaluator grades against and a reviewer needs. `synthesis.md`, `assess-report.md`,
+  // `feedback.md`, `api-feasibility.md` and `integration.md` are analysis, not contract.
+  const working = `${local}/working`;
   const FROZEN_SPEC_CORE = [`${spec}/domain-model.md`, `${spec}/usecases/*.md#Steps`, `${spec}/contracts/**`, `${spec}/ux-behavior.md`];
   switch (operation) {
     case "execute": case "fix": case "spike":
@@ -160,12 +173,12 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
       return { allowed: [`${spec}/**`, `${local}/**`], frozen: [] };
     case "generate-board":
       return {
-        allowed: [`${local}/tasks/**`, `${spec}/scope-summary.md`],
+        allowed: [`${local}/tasks/**`, `${spec}/scope-summary.md`, `${working}/**`],
         frozen: [...FROZEN_SPEC_CORE, `${scopesDir}/**`],
       };
     case "reconcile":
       return {
-        allowed: [`${local}/tasks/**`, `${spec}/scope-summary.md`, `${spec}/synthesis.md`],
+        allowed: [`${local}/tasks/**`, `${spec}/scope-summary.md`, `${working}/**`],
         append_only: [`${spec}/usecases/*.md#Invariants`, `${spec}/usecases/*.md#Test Surface`],
         frozen: FROZEN_SPEC_CORE,
       };
@@ -175,20 +188,20 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
       // ba-pitch-analyzer writes the SHARED requirement registry only — the REQ source and the
       // spec core stay frozen (the registry is a separate derived file, never an edit of the source).
       return {
-        allowed: [`docs/shapeup-sdlc/${slug}/requirements.md`],
+        allowed: [globShared(slug, "requirements.md")],
         frozen: [...FROZEN_SPEC_CORE, `${scopesDir}/**`, `${local}/tasks/**`],
       };
     case "map-scopes": case "remap": case "split-scope":
       return {
-        allowed: [`${scopesDir}/*.json`, `docs/shapeup-sdlc/${slug}/scope-board.md`],
+        allowed: [`${scopesDir}/*.md`, globShared(slug, "scope-board.md")],
         frozen: [...FROZEN_SPEC_CORE, `${local}/tasks/**`],
       };
     case "wire":
       // solution-architect writes the SHARED wiring map DIRECTLY (precedent: scope-architect
-      // writes scopes/*.json). The spec core, the scopes, and the profile stay frozen.
+      // writes scopes/*.md). The spec core, the scopes, and the profile stay frozen.
       return {
-        allowed: [`docs/shapeup-sdlc/${slug}/wiring-map.json`],
-        frozen: [...FROZEN_SPEC_CORE, `${scopesDir}/**`, `docs/shapeup-sdlc/${slug}/project-profile.json`],
+        allowed: [globShared(slug, "wiring-map.md")],
+        frozen: [...FROZEN_SPEC_CORE, `${scopesDir}/**`, globShared(slug, "project-profile.md")],
       };
     case "evaluate":
       return { allowed: [`${local}/evaluation/**`], frozen: [`${spec}/**`, `${local}/tasks/**`] };
@@ -199,6 +212,91 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
     default:
       return { allowed: [`${local}/**`] };
   }
+}
+
+// --- inspect(): the attempt loop's history ------------------------------------------------
+//
+// WHAT THIS REPLACED. The entire history mechanism used to be one read of one file:
+//
+//     const prev = join(cwd, ".shapeup", slug, "t0", "verdicts", `r${round}-a${attempt-1}.json`);
+//     digestedErrors = JSON.parse(readFileSync(prev)).discovered_tasks || [];
+//
+// Three bounds followed, and each is a way the loop can repeat itself. It read ONE ATTEMPT BACK,
+// not attempts 1…N−1 — so with the default `attempt_budget: 5`, attempt 4 could re-propose a change
+// that already failed at attempt 1. It read ONLY WITHIN THE CURRENT ROUND — round 2 attempt 1 began
+// blind to everything round 1 learned. And it carried ONLY AEGIS error triples: what was tried,
+// whether it helped, and whether the tree was kept were not in the envelope because no field held
+// them. Excluding the prior TRANSCRIPT is right and deliberate (zero-memory handoff). Excluding the
+// structured TRIAL RECORD is the opposite thing, and the two were dropped together.
+//
+// TOKEN DISCIPLINE. `compactTrial` strips stdout/stderr and truncates the digest to three triples.
+// Eight rows ≈ 600 tokens against an `attempt_budget` of 5 — cheaper than one re-proposed failed
+// change.
+
+/** How many trial rows an order carries. Matches `WorkOrderPayload.trial_history.maxItems`. */
+export const TRIAL_HISTORY_MAX = 8;
+
+/**
+ * Reduce a trial ledger row to what a worker can act on.
+ *
+ * Drops the fields a worker cannot use — `artifact`, `sha256`, `at`, `tree_ref`, `baseline_trial`
+ * — and truncates the digest. Keeps `schema_version` and `scope_id` so the row stays a valid
+ * `TrialRow`: the registry defines each cross-boundary record ONCE, and a payload carrying a
+ * near-TrialRow that needs its own definition would be exactly the ad-hoc field the registry
+ * exists to prevent.
+ *
+ * @param {object} t - A row from `t0/trials.jsonl`.
+ * @returns {{schema_version:number, trial:number, round:number, attempt:number, scope_id:string,
+ *   score:object, status:string, delta:string, digest:Array<object>}} The compacted row.
+ */
+export function compactTrial(t) {
+  return {
+    schema_version: t.schema_version ?? 1,
+    trial: t.trial, round: t.round, attempt: t.attempt, scope_id: t.scope_id,
+    score: t.score, status: t.status, delta: t.delta ?? "",
+    digest: (t.digest || []).slice(0, 3),
+  };
+}
+
+/**
+ * Select the trial rows an order should carry: this scope, this round or the one before it,
+ * most recent {@link TRIAL_HISTORY_MAX} in write order.
+ *
+ * Crossing the round boundary is the point — a fix round that starts blind to the build round is
+ * how the same failed change gets proposed twice.
+ *
+ * @param {Array<object>} trials - All rows read from `t0/trials.jsonl`.
+ * @param {{scopeId?:string, round?:number}} sel - Scope id and current round to select against.
+ * @returns {Array<object>} The compacted rows, oldest first; [] when nothing matches.
+ */
+export function selectTrialHistory(trials, { scopeId, round } = {}) {
+  return (trials || [])
+    .filter((t) => !scopeId || t.scope_id === scopeId)
+    .filter((t) => !round || t.round === round || t.round === round - 1)
+    .slice(-TRIAL_HISTORY_MAX)
+    .map(compactTrial);
+}
+
+/**
+ * The stagnation term of the inner circuit breaker (plan §2.6).
+ *
+ * `attempt_budget` counts attempts; it cannot see that the last two produced nothing. One term
+ * joins it: `no_progress_k` consecutive non-`kept` trials ends the scope early and queues the
+ * EXISTING GATE H proposal rather than blocking the round — composing with the three-level breaker
+ * instead of adding a fourth. On a flailing scope this saves three of five attempts.
+ *
+ * @param {Array<object>} trials - This scope's trial rows, oldest first.
+ * @param {number} [k=2] - Consecutive non-`kept` trials that trip the breaker.
+ * @returns {{stagnant:boolean, streak:number, k:number}} The streak of trailing non-`kept` trials
+ *   and whether it has reached `k`.
+ */
+export function stagnation(trials, k = 2) {
+  let streak = 0;
+  for (let i = (trials || []).length - 1; i >= 0; i--) {
+    if (trials[i].status === "kept") break;
+    streak++;
+  }
+  return { stagnant: streak >= k && k > 0, streak, k };
 }
 
 /**
@@ -214,6 +312,7 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
  * @param {Array<object>} [opts.tasks] - Task entries to include in the payload.
  * @param {Array<{id:string,answer:string}>} [opts.decisions] - This scope's advisor answers.
  * @param {Array<object>} [opts.digestedErrors] - Prior-attempt AEGIS triples (payload.digested_errors).
+ * @param {Array<object>} [opts.trialHistory] - Compacted trial rows (payload.trial_history).
  * @param {string} [opts.testCmd] - Verify command, recorded under payload.verify.test_cmd.
  * @param {object} [opts.payloadExtra] - Extra payload fields merged last (spec_folder, feature, …).
  * @param {string} [opts.specDir] - Spec directory, threaded into the substrate template.
@@ -224,7 +323,7 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
  */
 export function compileOrder({
   slug, worker, mode = "orchestrated", operation, round, attempt,
-  scope, tasks, decisions, digestedErrors, testCmd, payloadExtra, specDir, interaction,
+  scope, tasks, decisions, digestedErrors, trialHistory, testCmd, payloadExtra, specDir, interaction,
 }) {
   const suffix = round && attempt ? `r${round}-a${attempt}` : round ? `${operation}-r${round}` : operation;
   const order = {
@@ -240,35 +339,53 @@ export function compileOrder({
       ...(tasks?.length ? { tasks } : {}),
       ...(decisions?.length ? { decisions } : {}),
       ...(digestedErrors?.length ? { digested_errors: digestedErrors } : {}),
+      ...(trialHistory?.length ? { trial_history: trialHistory } : {}),
       ...(testCmd ? { verify: { test_cmd: testCmd, env: [] } } : {}),
       ...(payloadExtra || {}),
     },
   };
   const kbByWorker = { "task-executor": "task-executor", "ba-pitch-analyzer": "ba-pitch-analyzer", "qa-edge-hunter": "qa-edge-hunter" };
-  if (kbByWorker[worker]) order.payload.kb_rules_path = `docs/shapeup-sdlc/knowledge-base/${kbByWorker[worker]}.md`;
+  if (kbByWorker[worker]) order.payload.kb_rules_path = relKnowledgeBase(kbByWorker[worker]);
   return order;
 }
 
 // ---------------------------------------------------------------------------
+/** The typed argv contract (see `./lib/argv.mjs`). */
+export const ARGV_SPEC = {
+  usage: "compile-order.mjs (--scope <contract.json> --round N --attempt M | --task TASK-NNN --slug <slug> " +
+         "| --next --slug <slug> | --operation <op> --slug <slug>) [--worker <skill>] [--payload '<json>'] " +
+         "[--spec <dir>] [--test-cmd \"<cmd>\"] [--cwd <dir>] [--pause-gates]",
+  _: { arity: 0, max: 0, name: "(no positional operands)" },
+  cwd: { type: "path" },
+  slug: { type: "str" },
+  spec: { type: "path" },
+  scope: { type: "path" },
+  round: { type: "int", min: 1 },
+  attempt: { type: "int", min: 1 },
+  operation: { type: "str" },
+  worker: { type: "str" },
+  task: { type: "str" },
+  next: { type: "flag" },
+  payload: { type: "json" },
+  "test-cmd": { type: "str" },
+  "pause-gates": { type: "flag" },
+};
+
 const isMainModule = isMain(import.meta.url);
 if (isMainModule) {
-  const args = process.argv.slice(2);
+  const argv = runArgs(ARGV_SPEC);
   /**
-   * Read a `--<name> <value>` CLI flag's value, ignoring a following token that is itself a flag.
+   * Read a parsed flag's value, normalising "absent" to null (the shape the body below expects).
    * @param {string} name - Flag name without leading dashes.
-   * @returns {(string|null)} The next argument, or null when the flag is absent or immediately
-   *   followed by another `--flag`.
+   * @returns {*} The parsed value, or null when the flag was not given.
    */
-  const flag = (name) => {
-    const i = args.indexOf(`--${name}`);
-    return i !== -1 && args[i + 1] && !args[i + 1].startsWith("--") ? args[i + 1] : null;
-  };
+  const flag = (name) => argv[name.replace(/-([a-z])/g, (_, c) => c.toUpperCase())] ?? null;
   /**
-   * Test whether a boolean `--<name>` flag is present.
+   * Test whether a boolean flag was given.
    * @param {string} name - Flag name without leading dashes.
    * @returns {boolean} True when `--<name>` appears in argv.
    */
-  const has = (name) => args.includes(`--${name}`);
+  const has = (name) => !!flag(name);
   const cwd = resolve(flag("cwd") || process.cwd());
 
   let slug = flag("slug");
@@ -276,18 +393,22 @@ if (isMainModule) {
   let specDir = flag("spec") || null;
   const scopePath = flag("scope");
   if (scopePath) {
+    // Markdown on disk, JSON on the wire (ADR-0001): the contract is parsed here and the resulting
+    // OBJECT is embedded in payload.scope_contract, so the envelope and its schema are unchanged.
     const abs = resolve(cwd, scopePath);
-    scope = JSON.parse(readFileSync(abs, "utf8"));
-    // docs/shapeup-sdlc/<slug>/scopes/<id>.json → slug
+    const found = readContract(abs, SCOPE_CONTRACT);
+    if (!found) { console.error(`compile-order: no scope contract at ${abs} (.md or .json)`); process.exit(2); }
+    scope = found.contract;
+    // shapeup/<slug>/scopes/<id>.md → slug
     if (!slug) slug = basename(dirname(dirname(abs)));
   }
   if (!slug) { console.error("compile-order: --slug (or a --scope path it derives from) is required"); process.exit(2); }
-  if (!specDir && existsSync(join(cwd, "docs", "shapeup-sdlc", slug, "spec"))) {
-    specDir = `docs/shapeup-sdlc/${slug}/spec`;
+  if (!specDir && existsSync(defaultSpecDir(cwd, slug))) {
+    specDir = relShared(slug, "spec");
   }
 
-  const round = Number(flag("round")) || null;
-  const attempt = Number(flag("attempt")) || null;
+  const round = flag("round");
+  const attempt = flag("attempt");
   // Operation → owning worker (mirrors domain.schema.json $defs/Operation ownership). Lets a
   // non-build dispatch resolve its worker from the operation alone, without a redundant --worker.
   const OP_OWNER = {
@@ -322,29 +443,48 @@ if (isMainModule) {
   }
 
   // Ledger decisions for this scope.
-  const ledgerPath = join(cwd, "docs", "shapeup-sdlc", slug, "round-ledger.md");
+  const ledgerPath = roundLedger(cwd, slug);
   const decisions = existsSync(ledgerPath)
     ? ledgerDecisions(readFileSync(ledgerPath, "utf8"), scope?.scope_id)
     : [];
 
-  // Digested errors from the previous attempt's T0 artifact (AEGIS triples).
+  // inspect() — the attempt loop's history (see selectTrialHistory above).
+  //
+  // NON-REGRESSION (plan §7). With no `trials.jsonl` on disk this falls back to exactly today's
+  // read — the previous attempt's verdict artifact, AEGIS triples only, byte-for-byte the same
+  // order. Every new arm is skipped when its artifact is absent, per the ✦/✚ convention.
   let digestedErrors = [];
-  if (round && attempt && attempt > 1) {
-    const prev = join(cwd, ".shapeup-sdlc", slug, "t0", "verdicts", `r${round}-a${attempt - 1}.json`);
-    if (existsSync(prev)) {
+  let trialHistory = [];
+  const trialsPath = trials(cwd, slug);
+  const allTrials = readTrials(trialsPath);
+  if (allTrials.length) {
+    trialHistory = selectTrialHistory(allTrials, { scopeId: scope?.scope_id, round });
+    const lastRed = [...trialHistory].reverse().find((t) => t.digest?.length);
+    digestedErrors = lastRed?.digest ?? [];
+  } else if (round && attempt && attempt > 1) {
+    const dir = verdictsDir(cwd, slug);
+    // Immutable addressing (v1.5) writes `r<R>-a<A>-t<T>.json`; the pre-v1.5 unsuffixed name is
+    // still read so artifacts already on disk keep working.
+    const suffixed = existsSync(dir)
+      ? readdirSync(dir)
+          .filter((f) => new RegExp(`^r${round}-a${attempt - 1}-t\\d+\\.json$`).test(f))
+          .sort((a, b) => Number(b.match(/-t(\d+)\./)[1]) - Number(a.match(/-t(\d+)\./)[1])) // newest first
+          .map((f) => join(dir, f))
+      : [];
+    const prev = [...suffixed, join(dir, `r${round}-a${attempt - 1}.json`)].find((p) => existsSync(p));
+    if (prev) {
       try { digestedErrors = JSON.parse(readFileSync(prev, "utf8")).discovered_tasks || []; } catch { /* stale artifact → none */ }
     }
   }
 
-  let payloadExtra = {};
-  if (flag("payload")) {
-    try { payloadExtra = JSON.parse(flag("payload")); } catch (e) { console.error(`compile-order: --payload is not valid JSON (${e.message})`); process.exit(2); }
-  }
+  // `--payload` is coerced and rejected at the argv boundary now (type "json"), so a malformed
+  // payload never reaches this point — the same discipline validate-envelope applies to an order.
+  let payloadExtra = flag("payload") || {};
   if (specDir && !payloadExtra.spec_folder) payloadExtra.spec_folder = specDir;
   if (!payloadExtra.feature) payloadExtra.feature = slug;
 
   const order = compileOrder({
-    slug, worker, operation, round, attempt, scope, tasks, decisions, digestedErrors,
+    slug, worker, operation, round, attempt, scope, tasks, decisions, digestedErrors, trialHistory,
     testCmd: flag("test-cmd"), payloadExtra, specDir,
     interaction: has("pause-gates") ? { pause_gates: true } : { pause_gates: false },
   });
@@ -355,9 +495,24 @@ if (isMainModule) {
     for (const e of errors) console.error(`  ✗ ${e}`);
     process.exit(1);
   }
-  const outDir = join(cwd, ".shapeup-sdlc", slug, "orders");
+  const outDir = ordersDir(cwd, slug);
   mkdirSync(outDir, { recursive: true });
   const outPath = join(outDir, `${order.order_id.split("/")[1]}.json`);
   writeFileSync(outPath, JSON.stringify(order, null, 2) + "\n");
   console.log(outPath);
+
+  // The stagnation breaker reports on stderr, never on stdout: stdout is the order path the
+  // orchestrator consumes, and a breaker that corrupts the pipeline's own output would be worse
+  // than the flailing it detects. It advises; the orchestrator queues the GATE H proposal.
+  if (scope?.scope_id) {
+    const k = Number(scope.no_progress_k ?? payloadExtra.no_progress_k ?? 2);
+    const st = stagnation(allTrials.filter((t) => t.scope_id === scope.scope_id), k);
+    if (st.stagnant) {
+      console.error(JSON.stringify({
+        breaker: "stagnation", scope_id: scope.scope_id, streak: st.streak, no_progress_k: st.k,
+        action: "queue a GATE H proposal for this scope and move on — do NOT block the round",
+        reason: `${st.streak} consecutive non-kept trials: the loop is not ratcheting on this scope.`,
+      }));
+    }
+  }
 }

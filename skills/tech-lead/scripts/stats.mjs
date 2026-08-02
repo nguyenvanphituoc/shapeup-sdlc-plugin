@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Stats — the telemetry read-plane (v1.2, absorb-audit P3).
 //
-// SHIP S.6 has been writing fact rows to docs/shapeup-sdlc/metrics/<machine-id>.jsonl since
+// SHIP S.6 has been writing fact rows to shapeup/metrics/<machine-id>.jsonl since
 // v0.x with exactly one documented reader: `cat *.jsonl`. This script is the missing
 // projection: rounds per pitch, hammer-cut rate, attempt-budget exhaustions, QA promotion
 // rate, and the round_count trend — the "is the KB flywheel actually working?" chart.
@@ -23,6 +23,8 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { validate } from "./validate-envelope.mjs";
 import { isMain } from "./lib/is-main.mjs";
+import { runArgs } from "./lib/argv.mjs";
+import { localDir, decisions as decisionsPath, metricsDir as metricsDirPath, SHARED } from "./lib/paths.mjs";
 
 /**
  * Read every metrics shard, partitioning valid rows, pathology rows, and malformed lines.
@@ -141,6 +143,148 @@ export function aggregate({ rows, pathologies, sources, rows_malformed }, { metr
   };
 }
 
+// --- the two exit measurements (v1.5) ------------------------------------------------------
+//
+// Both answer questions this project has never been able to ask, and both cost ZERO model tokens:
+// they reduce over artifacts the harness already writes while doing its ordinary work.
+
+/**
+ * `--ratchet` — DAY 1's exit criterion, measured.
+ *
+ * Every measurement in this project's record so far has been HARNESS VERSUS BARE AGENT — a
+ * question already answered. This one is THE LOOP VERSUS ITS OWN FIRST ATTEMPT, and it cannot be
+ * won by a one-sentence control, because a one-sentence control has no second attempt to compare.
+ *
+ * A monotone series is a ratchet working. A flat or sawtooth series says the loop is still a
+ * budgeted retry loop, and that widening `inspect()` is load-bearing rather than tidy.
+ *
+ * @param {Array<object>} trials - TrialRow records (from one run's `trials.jsonl`, or many).
+ * @returns {{trials:number, scopes:number, scopes_multi_trial:number, improvement_rate:number,
+ *   monotone_rate:number, sawtooth_count:number, mean_trials_to_green:(number|null),
+ *   status_histogram:Object<string,number>, per_scope:Array<object>}} The ratchet report.
+ */
+export function ratchetReport(trials) {
+  const byScope = new Map();
+  const status_histogram = {};
+  for (const t of trials || []) {
+    status_histogram[t.status] = (status_histogram[t.status] || 0) + 1;
+    if (!byScope.has(t.scope_id)) byScope.set(t.scope_id, []);
+    byScope.get(t.scope_id).push(t);
+  }
+
+  let afterFirst = 0, kept = 0, sawtooth_count = 0, monotone = 0, multi = 0;
+  const toGreen = [];
+  const per_scope = [];
+
+  for (const [scope_id, rows] of [...byScope.entries()].sort(([a], [b]) => String(a).localeCompare(String(b)))) {
+    const seq = rows.slice().sort((a, b) => a.trial - b.trial);
+    // "Improvement rate" is measured over trials AFTER the first: the first trial is the baseline
+    // by construction and counting it as an improvement would inflate every run to ≥ 1/1.
+    const later = seq.slice(1);
+    afterFirst += later.length;
+    kept += later.filter((t) => t.status === "kept").length;
+    for (let i = 1; i < seq.length; i++) {
+      if (seq[i].status === "reverted" && seq[i - 1].status === "kept") sawtooth_count++;
+    }
+    let scopeMonotone = true;
+    if (seq.length >= 2) {
+      multi++;
+      for (let i = 1; i < seq.length; i++) {
+        // A `rebased` step changed the denominator, so it is not a decrease — it is a new series.
+        if (seq[i].status === "reverted" || seq[i].status === "crash") { scopeMonotone = false; break; }
+      }
+      if (scopeMonotone) monotone++;
+    }
+    const greenAt = seq.findIndex((t) => t.score && t.score.fixtures_total > 0 && t.score.fixtures_passed === t.score.fixtures_total && t.score.regressions === 0);
+    if (greenAt !== -1) toGreen.push(greenAt + 1);
+    per_scope.push({
+      scope_id, trials: seq.length,
+      first_score: seq[0]?.score ?? null,
+      last_score: seq[seq.length - 1]?.score ?? null,
+      monotone: seq.length >= 2 ? scopeMonotone : null,
+      reached_green_at_trial: greenAt === -1 ? null : greenAt + 1,
+    });
+  }
+
+  return {
+    trials: (trials || []).length,
+    scopes: byScope.size,
+    scopes_multi_trial: multi,
+    improvement_rate: afterFirst > 0 ? round2(kept / afterFirst) : 0,
+    monotone_rate: multi > 0 ? round2(monotone / multi) : 0,
+    sawtooth_count,
+    mean_trials_to_green: toGreen.length ? round2(toGreen.reduce((s, n) => s + n, 0) / toGreen.length) : null,
+    status_histogram,
+    per_scope,
+  };
+}
+
+/**
+ * `--hooks` — DAY 2's instrument.
+ *
+ * Of the eight tools built against a MEASURED failure, several scores were previously unobtainable
+ * because "never had to fire" and "never ran" produced the same evidence. With a decision row per
+ * evaluation, `compact-snapshot` (0 PreCompact events across 1.2M tokens) and `gate-zerowork`
+ * ("never had to fire after the fix") become SEPARABLE FACTS rather than the same blank.
+ *
+ * @param {Array<object>} decisions - Rows from `.shapeup/decisions.jsonl`.
+ * @returns {{evaluations:number, hooks:number, per_hook:Array<object>}} Per-hook fire, allow, deny,
+ *   block and error counts, plus the rules that fired.
+ */
+export function hooksReport(decisions) {
+  const byHook = new Map();
+  for (const d of decisions || []) {
+    const name = d.hook || "unknown";
+    if (!byHook.has(name)) byHook.set(name, { hook: name, evaluations: 0, allow: 0, deny: 0, block: 0, error: 0, rules: {} });
+    const h = byHook.get(name);
+    h.evaluations++;
+    if (h[d.verdict] !== undefined) h[d.verdict]++;
+    if (d.rule) h.rules[d.rule] = (h.rules[d.rule] || 0) + 1;
+  }
+  const per_hook = [...byHook.values()].sort((a, b) => a.hook.localeCompare(b.hook));
+  return { evaluations: (decisions || []).length, hooks: per_hook.length, per_hook };
+}
+
+/**
+ * Read every trial ledger under a run root (or all runs).
+ * @param {string} cwd - Project root.
+ * @param {(string|null)} [slug] - Restrict to one run; null reads every run's ledger.
+ * @returns {Array<object>} TrialRow records, in file order per run.
+ */
+export function readAllTrials(cwd, slug = null) {
+  const root = localDir(cwd);
+  if (!existsSync(root)) return [];
+  let slugs;
+  try { slugs = slug ? [slug] : readdirSync(root); } catch { return []; }
+  const out = [];
+  for (const s of slugs) {
+    const p = join(root, s, "t0", "trials.jsonl");
+    if (!existsSync(p)) continue;
+    try {
+      for (const line of readFileSync(p, "utf8").split("\n")) {
+        if (!line.trim()) continue;
+        try { out.push(JSON.parse(line)); } catch { /* a torn row is not a trial */ }
+      }
+    } catch { /* unreadable ledger → skip */ }
+  }
+  return out;
+}
+
+/**
+ * Read the checkout-wide decision ledger.
+ * @param {string} cwd - Project root.
+ * @returns {Array<object>} Decision rows; [] when no hook has ever recorded one.
+ */
+export function readDecisions(cwd) {
+  const p = decisionsPath(cwd);
+  if (!existsSync(p)) return [];
+  try {
+    return readFileSync(p, "utf8").split("\n").filter((l) => l.trim())
+      .map((l) => { try { return JSON.parse(l); } catch { return null; } })
+      .filter(Boolean);
+  } catch { return []; }
+}
+
 /**
  * Render a StatsReport as a human-readable fixed-width table.
  * @param {object} report - A validated StatsReport (see {@link aggregate}).
@@ -176,23 +320,98 @@ function renderTable(report) {
 
 // --- CLI -----------------------------------------------------------------------
 
+/** The typed argv contract (see `./lib/argv.mjs`). */
+export const ARGV_SPEC = {
+  usage: "stats.mjs [--cwd <dir>] [--metrics-dir <dir>] [--slug <slug>] [--format json|table] " +
+         "[--ratchet] [--hooks]",
+  _: { arity: 0, max: 0, name: "(no positional operands)" },
+  cwd: { type: "path" },
+  "metrics-dir": { type: "path" },
+  slug: { type: "str" },
+  format: { type: "enum", values: ["json", "table"], default: "json" },
+  ratchet: { type: "flag" },
+  hooks: { type: "flag" },
+};
+
+/**
+ * Format one score vector for the ratchet table.
+ * @param {(object|null)} x - A T0Score, or null.
+ * @returns {string} e.g. "4/5" or "2/5 +1reg", or "—" when absent.
+ */
+function fmtScore(x) {
+  return x ? `${x.fixtures_passed}/${x.fixtures_total}${x.regressions ? ` +${x.regressions}reg` : ""}` : "—";
+}
+
+/**
+ * Render the ratchet report as text.
+ * @param {object} r - Output of {@link ratchetReport}.
+ * @returns {string} The multi-line report.
+ */
+function renderRatchet(r) {
+  const lines = [
+    `ratchet: ${r.trials} trial(s) across ${r.scopes} scope(s); ${r.scopes_multi_trial} with ≥2 trials`,
+    `  improvement_rate     ${r.improvement_rate}   (kept ÷ trials after the first)`,
+    `  monotone_rate        ${r.monotone_rate}   (scopes whose score never decreased)`,
+    `  sawtooth_count       ${r.sawtooth_count}   (a revert immediately after a keep)`,
+    `  mean_trials_to_green ${r.mean_trials_to_green ?? "—"}`,
+  ];
+  const hist = Object.entries(r.status_histogram);
+  if (hist.length) lines.push(`  status: ${hist.map(([k, n]) => `${k}=${n}`).join("  ")}`);
+  if (r.scopes_multi_trial === 0) {
+    lines.push("", "(no scope has a second trial yet — the Day-1 question needs at least one retry to answer)");
+  }
+  for (const s of r.per_scope) {
+    lines.push(`  ${String(s.scope_id).padEnd(16)} ${String(s.trials).padStart(2)} trial(s)  ` +
+      `${fmtScore(s.first_score)} → ${fmtScore(s.last_score)}  ` +
+      `${s.monotone === null ? "" : s.monotone ? "monotone" : "sawtooth"}${s.reached_green_at_trial ? `  green@t${s.reached_green_at_trial}` : ""}`);
+  }
+  return lines.join("\n");
+}
+
+/**
+ * Render the hook report as text.
+ * @param {object} r - Output of {@link hooksReport}.
+ * @returns {string} The multi-line report.
+ */
+function renderHooks(r) {
+  const lines = [`hooks: ${r.evaluations} evaluation(s) across ${r.hooks} hook(s)`, ""];
+  lines.push("hook                      evals  allow  deny  block  error");
+  for (const h of r.per_hook) {
+    lines.push(`${h.hook.padEnd(26)}${String(h.evaluations).padEnd(7)}${String(h.allow).padEnd(7)}` +
+      `${String(h.deny).padEnd(6)}${String(h.block).padEnd(7)}${h.error}`);
+  }
+  if (r.evaluations === 0) {
+    lines.push("", "(zero rows: either no hook has run in this checkout, or the enforcement layer is inert —");
+    lines.push(" and that distinction is exactly what this ledger exists to make.)");
+  }
+  return lines.join("\n");
+}
+
 const isMainModule = isMain(import.meta.url);
 if (isMainModule) {
-  const args = process.argv.slice(2);
-  /**
-   * Read a CLI flag's value.
-   * @param {string} name - Full flag token including leading dashes (e.g. "--metrics-dir").
-   * @returns {(string|null)} The argument after the flag, or null when it is absent.
-   */
-  const flag = (name) => {
-    const i = args.indexOf(name);
-    return i !== -1 && args[i + 1] ? args[i + 1] : null;
-  };
-  const cwd = resolve(flag("--cwd") || process.cwd());
-  const metricsDir = resolve(cwd, flag("--metrics-dir") || join("docs", "shapeup-sdlc", "metrics"));
-  const format = flag("--format") || "json";
+  const args = runArgs(ARGV_SPEC);
+  const cwd = resolve(args.cwd || process.cwd());
+  const metricsDir = args.metricsDir ? resolve(cwd, args.metricsDir) : metricsDirPath(cwd);
+  const format = args.format;
 
-  const report = aggregate(readShards(metricsDir), { metricsDir, slugFilter: flag("--slug") });
+  // The two exit measurements are separate modes: each reads a different ledger, and neither is a
+  // StatsReport (which is schema-locked to the harvest shards).
+  if (args.ratchet || args.hooks) {
+    const out = {};
+    if (args.ratchet) out.ratchet = ratchetReport(readAllTrials(cwd, args.slug ?? null));
+    if (args.hooks) out.hooks = hooksReport(readDecisions(cwd));
+    if (format === "table") {
+      const parts = [];
+      if (out.ratchet) parts.push(renderRatchet(out.ratchet));
+      if (out.hooks) parts.push(renderHooks(out.hooks));
+      console.log(parts.join("\n\n"));
+    } else {
+      console.log(JSON.stringify(out, null, 2));
+    }
+    process.exit(0);
+  }
+
+  const report = aggregate(readShards(metricsDir), { metricsDir, slugFilter: args.slug ?? null });
 
   const { valid, errors } = validate(report, { $ref: "domain.schema.json#/$defs/StatsReport" });
   if (!valid) {

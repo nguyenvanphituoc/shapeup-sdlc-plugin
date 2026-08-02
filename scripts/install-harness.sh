@@ -175,7 +175,7 @@ ensure_agent_import "$TARGET_DIR/.codex/AGENTS.md" ".codex/AGENTS.md" "codex"
 # -- 4. Gitignore Setup --------------------------------------------------------
 GITIGNORE_FILE="$TARGET_DIR/.gitignore"
 GITIGNORE_RULE="# Shape Up SDLC run workspace
-.shapeup-sdlc/
+.shapeup/
 
 # Shape Up SDLC Tier C — per-member local config (templates *.example stay committed).
 # The env file is SHAPEUP_-namespaced (filename + keys) so it never collides with, or gets
@@ -186,11 +186,11 @@ GITIGNORE_RULE="# Shape Up SDLC run workspace
 !.claude/settings.local.example.json"
 
 if [ -f "$GITIGNORE_FILE" ]; then
-  if ! grep -q ".shapeup-sdlc/" "$GITIGNORE_FILE"; then
+  if ! grep -q ".shapeup/" "$GITIGNORE_FILE"; then
     echo -e "\n$GITIGNORE_RULE" >> "$GITIGNORE_FILE"
     echo "Added Shape Up SDLC ignore rules to .gitignore"
   else
-    echo ".shapeup-sdlc/ already ignored in .gitignore"
+    echo ".shapeup/ already ignored in .gitignore"
   fi
 else
   echo -e "$GITIGNORE_RULE" > "$GITIGNORE_FILE"
@@ -198,11 +198,11 @@ else
 fi
 
 # -- 5. Initialize telemetry and memory files ----------------------------------
-mkdir -p "$TARGET_DIR/docs/shapeup-sdlc/metrics"
+mkdir -p "$TARGET_DIR/shapeup/metrics"
 
-METRICS_FILE="$TARGET_DIR/docs/shapeup-sdlc/metrics.jsonl"
-if [ ! -f "$METRICS_FILE" ] && [ -z "$(ls -A "$TARGET_DIR/docs/shapeup-sdlc/metrics" 2>/dev/null)" ]; then
-  echo "Initialized docs/shapeup-sdlc/metrics/ (sharded harvest — one file per machine, addendum §F.4-Δ3)"
+METRICS_FILE="$TARGET_DIR/shapeup/metrics.jsonl"
+if [ ! -f "$METRICS_FILE" ] && [ -z "$(ls -A "$TARGET_DIR/shapeup/metrics" 2>/dev/null)" ]; then
+  echo "Initialized shapeup/metrics/ (sharded harvest — one file per machine, addendum §F.4-Δ3)"
 fi
 
 # -- 6. Tier C templates (design spec addendum §F.2) ---------------------------

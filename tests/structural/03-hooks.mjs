@@ -52,12 +52,20 @@ export async function run(ctx) {
 
 
   // =============================================================================
-  section("14. GATE L2 PreToolUse hook denies a red board and allows a green one (Stage E1)");
+  section("14. GATE L2 PreToolUse hook WARNS on a red board and stays quiet on a green one");
   // =============================================================================
-  // The one gate the runtime actually enforces (audit E1 / F2). We feed the hook crafted PreToolUse
-  // payloads against temp board fixtures and assert its decisions: deny the once-per-round EVAL on a
-  // partial board, allow it on a green one, and never gate per-task evals / other skills / boardless
-  // runs (fail-open so it can't break legitimate flows).
+  // ADVISORY SINCE ADR-0001. This hook used to hard-deny the once-per-round EVAL on a partial
+  // board; it now permits the dispatch and emits a systemMessage naming the unfinished tasks.
+  //
+  // WHAT THESE CASES STILL PROVE, and why they are worth as much as they were when the verdict was
+  // a denial: every one of them exercises the DETECTION, which is unchanged. The island-escape
+  // regression (case 6 — a board under the LOCAL root that a spec-dir-only hook cannot see) and the
+  // envelope-shape regression (case 10 — the pure-skill `--order` dispatch bypassing the read) are
+  // both defects of *finding the board*, not of *what to do about it*. Downgrading the verdict does
+  // not retire either guard.
+  //
+  // Case 0 is new and pins the downgrade itself: the hook must never emit a denial again, or the
+  // ADR silently reverts the moment someone restores the old return block.
   const gatePath = join(ROOT, "hooks/gate-l2.mjs");
   if (existsSync(gatePath)) {
     const { mkdtempSync, writeFileSync, mkdirSync, rmSync } = await import("node:fs");
@@ -77,18 +85,21 @@ export async function run(ctx) {
     const ask = (cwd, skillArgs, skillName = "spec-evaluator", toolName = "Skill") => {
       const payload = JSON.stringify({ tool_name: toolName, cwd, tool_input: { skill_name: skillName, skill_args: skillArgs } });
       const r = spawnSync("node", [gatePath], { encoding: "utf8", input: payload });
-      const denied = (r.stdout || "").includes('"permissionDecision":"deny"');
-      return { denied, out: r.stdout || "" };
+      const out = r.stdout || "";
+      // `warned` is the advisory verdict; `denied` must now be false everywhere (case 0).
+      const denied = out.includes('"permissionDecision":"deny"');
+      const warned = out.includes("systemMessage") && out.includes("GATE L2");
+      return { denied, warned, out };
     };
     // v0.4.0 Local Tasks Architecture fixture: committed spec dir is boardless; the board lives
-    // under the LOCAL gitignored root .shapeup-sdlc/<slug>/tasks/. `withBoard: false` models a
+    // under the LOCAL gitignored root .shapeup/<slug>/tasks/. `withBoard: false` models a
     // teammate's machine that pulled the spec but never generated a local board (must fail-open —
     // spec-evaluator v0.9 grades from the committed spec there).
     const makeLocalSpec = (secondDone, withBoard = true) => {
       const dir = mkdtempSync(join(tmpdir(), "gate-l2-local-"));
-      mkdirSync(join(dir, "docs", "shapeup-sdlc", "demo", "spec", "usecases"), { recursive: true });
+      mkdirSync(join(dir, "shapeup", "demo", "spec", "usecases"), { recursive: true });
       if (withBoard) {
-        const tasks = join(dir, ".shapeup-sdlc", "demo", "tasks");
+        const tasks = join(dir, ".shapeup", "demo", "tasks");
         mkdirSync(tasks, { recursive: true });
         const mark = secondDone ? "✅ done" : "🔄 in-progress";
         writeFileSync(join(tasks, "_index.md"),
@@ -101,73 +112,83 @@ export async function run(ctx) {
     const green = makeSpec(true), red = makeSpec(false);
     const lGreen = makeLocalSpec(true), lRed = makeLocalSpec(false), lBoardless = makeLocalSpec(true, false);
     try {
-      // 1. Red board + round mode → DENY, naming the unfinished task.
+      // 0. THE DOWNGRADE ITSELF (ADR-0001). Not one of these payloads may produce a denial —
+      //    including the reddest board we can build. Restoring the old return block fails here.
+      const everyShape = [
+        ask(red, "--spec spec --feature demo --single-pass"),
+        ask(lRed, "--spec shapeup/demo/spec --feature demo --single-pass"),
+        ask(red, "--spec spec --task TASK-001"),
+      ];
+      if (everyShape.every((r) => !r.denied)) ok("gate NEVER denies — the L2 downgrade to advisory holds (ADR-0001)");
+      else fail("gate emitted permissionDecision:deny — GATE L2 is meant to be advisory since ADR-0001");
+
+      // 1. Red board + round mode → WARN, naming the unfinished task.
       const a = ask(red, "--spec spec --feature demo --single-pass");
-      if (a.denied && a.out.includes("TASK-002")) ok("gate DENIES round EVAL on a partial board (names TASK-002)");
-      else fail(`gate did not deny a red-board round EVAL — the gate is not enforcing\n${a.out}`);
+      if (a.warned && a.out.includes("TASK-002")) ok("gate WARNS on a partial board (names TASK-002)");
+      else fail(`gate said nothing about a red-board round EVAL — the board read is broken\n${a.out}`);
 
-      // 2. Green board + round mode → ALLOW (defer, no deny).
+      // 2. Green board + round mode → silent (defer, no message).
       const b = ask(green, "--spec spec --feature demo --single-pass");
-      if (!b.denied) ok("gate ALLOWS round EVAL on a fully-green board");
-      else fail(`gate denied a green board — false block\n${b.out}`);
+      if (!b.warned) ok("gate is SILENT on a fully-green board");
+      else fail(`gate warned about a green board — false positive\n${b.out}`);
 
-      // 3. Red board but per-task eval (--task) → defer (not gated).
+      // 3. Red board but per-task eval (--task) → silent (not in scope).
       const c = ask(red, "--spec spec --task TASK-001");
-      if (!c.denied) ok("gate does NOT gate a per-task eval (--task)");
-      else fail("gate wrongly blocked a per-task eval — board-green rule must be round-only");
+      if (!c.warned) ok("gate does NOT warn on a per-task eval (--task)");
+      else fail("gate warned on a per-task eval — the board rule is round-only");
 
-      // 4. Other skill → defer.
+      // 4. Other skill → silent.
       const d = ask(red, "--spec spec --single-pass", "task-executor");
-      if (!d.denied) ok("gate ignores non-spec-evaluator skills");
-      else fail("gate blocked a non-spec-evaluator skill");
+      if (!d.warned) ok("gate ignores non-spec-evaluator skills");
+      else fail("gate spoke about a non-spec-evaluator skill");
 
-      // 5. Non-Skill tool → defer.
+      // 5. Non-Skill tool → silent.
       const e = ask(red, "--spec spec --single-pass", "spec-evaluator", "Bash");
-      if (!e.denied) ok("gate ignores non-Skill tool calls");
-      else fail("gate blocked a non-Skill tool call");
+      if (!e.warned) ok("gate ignores non-Skill tool calls");
+      else fail("gate spoke about a non-Skill tool call");
 
-      // 6. v0.4.0 layout, red LOCAL board → DENY. This is the island-escape regression: the board
-      //    is not in <spec>/tasks/, and a hook that only looks there fail-opens on a stale board.
-      const f = ask(lRed, "--spec docs/shapeup-sdlc/demo/spec --feature demo --single-pass");
-      if (f.denied && f.out.includes("TASK-002")) ok("gate DENIES a red LOCAL board (.shapeup-sdlc/<slug>/tasks/, v0.4.0 layout)");
-      else fail(`gate fail-opened on a red LOCAL board — v0.4.0 island-escape hole is back\n${f.out}`);
+      // 6. v0.4.0 layout, red LOCAL board → WARN. The island-escape regression: the board is not
+      //    in <spec>/tasks/, and a hook that only looks there sees a green board that isn't.
+      const f = ask(lRed, "--spec shapeup/demo/spec --feature demo --single-pass");
+      if (f.warned && f.out.includes("TASK-002")) ok("gate WARNS on a red LOCAL board (LOCAL <slug>/tasks/ layout)");
+      else fail(`gate missed a red LOCAL board — the island-escape hole is back\n${f.out}`);
 
-      // 7. v0.4.0 layout, green LOCAL board → ALLOW.
-      const g = ask(lGreen, "--spec docs/shapeup-sdlc/demo/spec --feature demo --single-pass");
-      if (!g.denied) ok("gate ALLOWS a green LOCAL board");
-      else fail(`gate denied a green LOCAL board — false block\n${g.out}`);
+      // 7. v0.4.0 layout, green LOCAL board → silent.
+      const g = ask(lGreen, "--spec shapeup/demo/spec --feature demo --single-pass");
+      if (!g.warned) ok("gate is SILENT on a green LOCAL board");
+      else fail(`gate warned about a green LOCAL board — false positive\n${g.out}`);
 
-      // 8. No --feature → slug derived from the spec path convention (docs/shapeup-sdlc/<slug>/spec).
-      const h = ask(lRed, "--spec docs/shapeup-sdlc/demo/spec --single-pass");
-      if (h.denied && h.out.includes("TASK-002")) ok("gate derives <slug> from the spec path when --feature is absent");
+      // 8. No --feature → slug derived from the spec path convention (<shared>/<slug>/spec).
+      const h = ask(lRed, "--spec shapeup/demo/spec --single-pass");
+      if (h.warned && h.out.includes("TASK-002")) ok("gate derives <slug> from the spec path when --feature is absent");
       else fail(`gate did not find the LOCAL board without --feature — slug derivation broken\n${h.out}`);
 
-      // 9. Committed spec present but NO local board anywhere → defer (fail-open). A grading
+      // 9. Committed spec present but NO local board anywhere → silent (fail-open). A grading
       //    machine that never generated a board is legitimate (spec-evaluator v0.9).
-      const i = ask(lBoardless, "--spec docs/shapeup-sdlc/demo/spec --feature demo --single-pass");
-      if (!i.denied) ok("gate fail-opens when no board exists on this machine (boardless grading is legitimate)");
-      else fail("gate blocked a boardless machine — breaks v0.4.0 remote-grading flow");
+      const i = ask(lBoardless, "--spec shapeup/demo/spec --feature demo --single-pass");
+      if (!i.warned) ok("gate is silent when no board exists on this machine (boardless grading is legitimate)");
+      else fail("gate warned on a boardless machine — breaks the remote-grading flow");
 
-      // 10. Pure-skill envelope shape (v1.0): the round EVAL now dispatches as
+      // 10. Pure-skill envelope shape (v1.0): the round EVAL dispatches as
       //     `spec-evaluator --order <WorkOrder operation:evaluate>` — the gate must read the
-      //     order and deny on a red board just like the legacy flag shape, and stay quiet for
+      //     order and warn on a red board just like the legacy flag shape, and stay quiet for
       //     a non-evaluate order (some other worker's dispatch).
       const mkOrder = (dir, operation, worker = "spec-evaluator") => {
-        const op = join(dir, ".shapeup-sdlc", "demo", "orders");
+        const op = join(dir, ".shapeup", "demo", "orders");
         mkdirSync(op, { recursive: true });
         const pth = join(op, `${operation}-r1.json`);
         writeFileSync(pth, JSON.stringify({
           schema_version: 1, order_id: `demo/${operation}-r1`, worker, mode: "orchestrated",
-          operation, payload: { feature: "demo", spec_folder: "docs/shapeup-sdlc/demo/spec" },
+          operation, payload: { feature: "demo", spec_folder: "shapeup/demo/spec" },
         }));
         return pth;
       };
       const jr = ask(lRed, `--order ${mkOrder(lRed, "evaluate")}`);
-      if (jr.denied && jr.out.includes("TASK-002")) ok("gate DENIES an --order round EVAL on a red board (envelope shape gated)");
-      else fail(`gate fail-opened on an --order eval dispatch — the pure-skill port bypasses GATE L2\n${jr.out}`);
+      if (jr.warned && jr.out.includes("TASK-002")) ok("gate WARNS on an --order round EVAL over a red board (envelope shape read)");
+      else fail(`gate missed an --order eval dispatch — the pure-skill port bypasses the board read\n${jr.out}`);
       const jg = ask(lGreen, `--order ${mkOrder(lGreen, "evaluate")}`);
-      if (!jg.denied) ok("gate ALLOWS an --order round EVAL on a green board");
-      else fail(`gate denied a green-board --order eval — false block\n${jg.out}`);
+      if (!jg.warned) ok("gate is SILENT on an --order round EVAL over a green board");
+      else fail(`gate warned on a green-board --order eval — false positive\n${jg.out}`);
     } finally {
       rmSync(green, { recursive: true, force: true });
       rmSync(red, { recursive: true, force: true });
@@ -193,9 +214,9 @@ export async function run(ctx) {
     const makeCheckout = (withScope) => {
       const dir = mkdtempSync(join(tmpdir(), "sandbox-guard-"));
       if (withScope) {
-        mkdirSync(join(dir, ".shapeup-sdlc"), { recursive: true });
-        writeFileSync(join(dir, ".shapeup-sdlc", "active-scope"), JSON.stringify({ slug: "demo", scope_id: "cart-creation" }));
-        const scopesDir = join(dir, "docs", "shapeup-sdlc", "demo", "scopes");
+        mkdirSync(join(dir, ".shapeup"), { recursive: true });
+        writeFileSync(join(dir, ".shapeup", "active-scope"), JSON.stringify({ slug: "demo", scope_id: "cart-creation" }));
+        const scopesDir = join(dir, "shapeup", "demo", "scopes");
         mkdirSync(scopesDir, { recursive: true });
         writeFileSync(join(scopesDir, "cart-creation.json"), JSON.stringify({
           scope_id: "cart-creation",
@@ -229,7 +250,7 @@ export async function run(ctx) {
       else fail(`sandbox guard did not deny an out-of-substrate write — the guard is not enforcing\n${c.out}`);
 
       // 4. Pathology telemetry: the deny above must have appended a PA3 event to metrics/.
-      const metricsDir = join(scoped, "docs", "shapeup-sdlc", "metrics");
+      const metricsDir = join(scoped, ".shapeup", "metrics");
       const shard = existsSync(metricsDir) ? readdirSync(metricsDir).find((f) => f.endsWith(".jsonl")) : null;
       if (shard && read(join(metricsDir, shard)).includes('"PA3"')) ok("sandbox guard logs a PA3 pathology event to metrics/*.jsonl on deny");
       else fail("sandbox guard did not log a PA3 pathology event on deny");
@@ -237,20 +258,20 @@ export async function run(ctx) {
       // 5. Run-trace carve-out: the doer MUST be able to write the active feature's LOCAL root —
       //    task board status/AC ticks (task-executor P3) and the discovery ledger (P3.7). Blocking
       //    these strands the board (island-escape: 16/20 task files stale on a shipped feature).
-      const rt1 = ask(scoped, join(scoped, ".shapeup-sdlc/demo/tasks/TASK-001-a.md"));
+      const rt1 = ask(scoped, join(scoped, ".shapeup/demo/tasks/TASK-001-a.md"));
       if (!rt1.denied) ok("sandbox guard ALLOWS a task-board write under the active run-trace root");
       else fail(`sandbox guard denied the doer's own board bookkeeping (P3 doc update would strand)\n${rt1.out}`);
-      const rt2 = ask(scoped, join(scoped, ".shapeup-sdlc/demo/discovery/ledger.md"));
+      const rt2 = ask(scoped, join(scoped, ".shapeup/demo/discovery/ledger.md"));
       if (!rt2.denied) ok("sandbox guard ALLOWS a discovery-ledger write under the active run-trace root");
       else fail(`sandbox guard denied the P3.7 discovery-ledger write\n${rt2.out}`);
 
       // 6. The guard's own pointer is NOT carved out — a worker must never rewrite its sandbox.
-      const rt3 = ask(scoped, join(scoped, ".shapeup-sdlc/active-scope"));
-      if (rt3.denied) ok("sandbox guard still DENIES writing .shapeup-sdlc/active-scope (pointer stays guard-only)");
-      else fail("sandbox guard allowed a write to .shapeup-sdlc/active-scope — a worker could widen its own sandbox");
+      const rt3 = ask(scoped, join(scoped, ".shapeup/active-scope"));
+      if (rt3.denied) ok("sandbox guard still DENIES writing .shapeup/active-scope (pointer stays guard-only)");
+      else fail("sandbox guard allowed a write to .shapeup/active-scope — a worker could widen its own sandbox");
 
       // 7. Another feature's run-trace root is NOT carved out (carve-out is active-slug only).
-      const rt4 = ask(scoped, join(scoped, ".shapeup-sdlc/other-feature/tasks/_index.md"));
+      const rt4 = ask(scoped, join(scoped, ".shapeup/other-feature/tasks/_index.md"));
       if (rt4.denied) ok("sandbox guard still DENIES a different feature's run-trace root");
       else fail("sandbox guard allowed a write to another feature's run-trace — carve-out too wide");
 
@@ -316,9 +337,9 @@ export async function run(ctx) {
     denies(bash('psql -c "DROP TABLE users;"'), "sql-destructive", "DROP TABLE");
     denies(bash("cat .env"), "secret-read", "cat .env");
     denies(bash("grep KEY ~/.ssh/id_rsa"), "secret-read", "grep ssh private key");
-    denies(bash("echo '{}' > .shapeup-sdlc/safety-overrides.json"), "self-protect", "redirect into overrides file");
+    denies(bash("echo '{}' > .shapeup/safety-overrides.json"), "self-protect", "redirect into overrides file");
     denies({ tool_name: "Read", cwd: d, tool_input: { file_path: join(d, ".env") } }, "secret-read", "Read(.env)");
-    denies({ tool_name: "Write", cwd: d, tool_input: { file_path: ".shapeup-sdlc/safety-overrides.json", content: "{}" } }, "self-protect", "Write(overrides)");
+    denies({ tool_name: "Write", cwd: d, tool_input: { file_path: ".shapeup/safety-overrides.json", content: "{}" } }, "self-protect", "Write(overrides)");
 
     allows(bash("rm -rf ./build"), "rm -rf ./build (relative multi-segment)");
     allows(bash("git push"), "plain git push");
@@ -329,7 +350,7 @@ export async function run(ctx) {
     allows({ tool_name: "Read", cwd: d, tool_input: { file_path: join(d, "README.md") } }, "Read(README.md)");
 
     // Denies are telemetry, not just defense: a SAFETY pathology row must have been logged.
-    const spineMetricsDir = join(d, "docs/shapeup-sdlc/metrics");
+    const spineMetricsDir = join(d, ".shapeup/metrics");
     const spineRows = existsSync(spineMetricsDir)
       ? readdirSync(spineMetricsDir).flatMap((f) => read(join(spineMetricsDir, f)).trim().split("\n")).map((l) => JSON.parse(l))
       : [];
@@ -337,14 +358,14 @@ export async function run(ctx) {
     else fail("no SAFETY pathology row was logged for a deny");
 
     // Override file: exempts the matching command, is itself logged, and fails CLOSED when corrupt.
-    mkdirSync(join(d, ".shapeup-sdlc"), { recursive: true });
-    writeFileSync(join(d, ".shapeup-sdlc/safety-overrides.json"),
+    mkdirSync(join(d, ".shapeup"), { recursive: true });
+    writeFileSync(join(d, ".shapeup/safety-overrides.json"),
       JSON.stringify({ schema_version: 1, allow_commands: ["^git push origin main$"], note: "CI deploy branch" }));
     allows(bash("git push origin main"), "push to main WITH override");
     const overrideRows = readdirSync(spineMetricsDir).flatMap((f) => read(join(spineMetricsDir, f)).trim().split("\n")).map((l) => JSON.parse(l));
     if (overrideRows.some((r) => r.pathology === "SAFETY-OVERRIDE")) ok("an exercised override is logged as SAFETY-OVERRIDE (visible, never silent)");
     else fail("override was exercised but no SAFETY-OVERRIDE row was logged");
-    writeFileSync(join(d, ".shapeup-sdlc/safety-overrides.json"), "broken{");
+    writeFileSync(join(d, ".shapeup/safety-overrides.json"), "broken{");
     denies(bash("git push origin main"), "git-destructive", "push to main with CORRUPT override (override channel fails closed)");
 
     // Fail-open on garbage stdin.
@@ -363,10 +384,10 @@ export async function run(ctx) {
     const scPath = join(ROOT, "hooks/slop-cleaner.mjs");
     const d = mkdtempSync(join(tmpdir(), "stop-"));
     const w = (rel, body) => { mkdirSync(dirname(join(d, rel)), { recursive: true }); writeFileSync(join(d, rel), body); };
-    w(".shapeup-sdlc/active-scope", JSON.stringify({ slug: "demo", scope_id: "cart" }));
-    w(".shapeup-sdlc/demo/tasks/TASK-001.md", `---\nid: TASK-001\nstatus: done\n---\n`);
-    w(".shapeup-sdlc/demo/tasks/TASK-002.md", `---\nid: TASK-002\nstatus: in-progress\n---\n`);
-    w(".shapeup-sdlc/demo/t0/verdicts/r1-a1.json", JSON.stringify({ overall: "red" }));
+    w(".shapeup/active-scope", JSON.stringify({ slug: "demo", scope_id: "cart" }));
+    w(".shapeup/demo/tasks/TASK-001.md", `---\nid: TASK-001\nstatus: done\n---\n`);
+    w(".shapeup/demo/tasks/TASK-002.md", `---\nid: TASK-002\nstatus: in-progress\n---\n`);
+    w(".shapeup/demo/t0/verdicts/r1-a1.json", JSON.stringify({ overall: "red" }));
 
     const stop = (path, payload) => {
       const r = spawnSync("node", [path], { encoding: "utf8", input: JSON.stringify(payload) });
@@ -392,8 +413,8 @@ export async function run(ctx) {
     if (looping.status === 0 && !looping.out) ok("stop_hook_active → silent (no stop-hook loops)");
     else fail("hook fired while stop_hook_active");
 
-    w(".shapeup-sdlc/demo/tasks/TASK-002.md", `---\nid: TASK-002\nstatus: done\n---\n`);
-    w(".shapeup-sdlc/demo/t0/verdicts/r1-a2.json", JSON.stringify({ overall: "green" }));
+    w(".shapeup/demo/tasks/TASK-002.md", `---\nid: TASK-002\nstatus: done\n---\n`);
+    w(".shapeup/demo/t0/verdicts/r1-a2.json", JSON.stringify({ overall: "green" }));
     const green = stop(arPath, claim);
     if (green.status === 0 && !green.out) ok("green board + green T0 → claim stands, silent");
     else fail(`green fixture should be silent, got: ${green.raw}`);
@@ -435,13 +456,13 @@ export async function run(ctx) {
     const srPath = join(ROOT, "hooks/session-rehydrate.mjs");
     const d = mkdtempSync(join(tmpdir(), "snap-"));
     const w = (rel, body) => { mkdirSync(dirname(join(d, rel)), { recursive: true }); writeFileSync(join(d, rel), body); };
-    w(".shapeup-sdlc/active-scope", JSON.stringify({ slug: "demo", scope_id: "cart" }));
-    w(".shapeup-sdlc/demo/harness-run.md", `---\nfeature: demo\nstatus: building\nrounds_used: 1\nmax_rounds: 3\nauto_level: interactive\n---\n# run\n`);
-    w(".shapeup-sdlc/demo/tasks/TASK-001.md", `---\nid: TASK-001\nstatus: done\n---\n`);
-    w(".shapeup-sdlc/demo/tasks/TASK-002.md", `---\nid: TASK-002\nstatus: ready\n---\n`);
-    w(".shapeup-sdlc/demo/t0/verdicts/r1-a1.json", JSON.stringify({ overall: "green" }));
-    w(".shapeup-sdlc/demo/t0/verdicts/r1-a2.json", JSON.stringify({ overall: "red" }));
-    w(".shapeup-sdlc/demo/orders/r1-a2.json", "{}");
+    w(".shapeup/active-scope", JSON.stringify({ slug: "demo", scope_id: "cart" }));
+    w(".shapeup/demo/harness-run.md", `---\nfeature: demo\nstatus: building\nrounds_used: 1\nmax_rounds: 3\nauto_level: interactive\n---\n# run\n`);
+    w(".shapeup/demo/tasks/TASK-001.md", `---\nid: TASK-001\nstatus: done\n---\n`);
+    w(".shapeup/demo/tasks/TASK-002.md", `---\nid: TASK-002\nstatus: ready\n---\n`);
+    w(".shapeup/demo/t0/verdicts/r1-a1.json", JSON.stringify({ overall: "green" }));
+    w(".shapeup/demo/t0/verdicts/r1-a2.json", JSON.stringify({ overall: "red" }));
+    w(".shapeup/demo/orders/r1-a2.json", "{}");
 
     const { deriveSnapshot } = await import(rsPath);
     const snap = deriveSnapshot(d);
@@ -463,7 +484,7 @@ export async function run(ctx) {
     else fail(`snapshot fails its own registry def: ${snapCheck.errors.join("; ")}`);
 
     const rWrite = spawnSync("node", [rsPath, "--cwd", d, "--write"], { encoding: "utf8" });
-    if (rWrite.status === 0 && existsSync(join(d, ".shapeup-sdlc/demo/run-snapshot.json"))) ok("--write persists run-snapshot.json");
+    if (rWrite.status === 0 && existsSync(join(d, ".shapeup/demo/run-snapshot.json"))) ok("--write persists run-snapshot.json");
     else fail(`--write failed: ${rWrite.stderr}`);
 
     const empty = mkdtempSync(join(tmpdir(), "snapempty-"));
@@ -471,9 +492,9 @@ export async function run(ctx) {
     if (rEmpty.status === 0 && !rEmpty.stdout.trim()) ok("no active run → exit 0, empty stdout (fail-open)");
     else fail(`empty dir should be silent, got status=${rEmpty.status} stdout=${rEmpty.stdout}`);
 
-    rmSync(join(d, ".shapeup-sdlc/demo/run-snapshot.json"));
+    rmSync(join(d, ".shapeup/demo/run-snapshot.json"));
     const rCompact = spawnSync("node", [csPath], { encoding: "utf8", input: JSON.stringify({ cwd: d, trigger: "auto" }) });
-    if (rCompact.status === 0 && existsSync(join(d, ".shapeup-sdlc/demo/run-snapshot.json"))) ok("PreCompact hook persists the snapshot mid-run");
+    if (rCompact.status === 0 && existsSync(join(d, ".shapeup/demo/run-snapshot.json"))) ok("PreCompact hook persists the snapshot mid-run");
     else fail(`compact-snapshot failed: status=${rCompact.status} ${rCompact.stderr}`);
     const rCompactIdle = spawnSync("node", [csPath], { encoding: "utf8", input: JSON.stringify({ cwd: empty, trigger: "auto" }) });
     if (rCompactIdle.status === 0) ok("PreCompact hook exits 0 with no run (never blocks compaction)");

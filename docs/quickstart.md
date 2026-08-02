@@ -123,7 +123,7 @@ spawns the binary in a throwaway temp dir, feeds it a store fixture, and grades 
 output. You can run exactly what it runs:
 
 ```bash
-node scripts/shapeup-sdlc/oracles/process-oracle.mjs \
+node oracles/process-oracle.mjs \
   examples/todo-cli/todo.contract.json \
   "node $PWD/examples/todo-cli/reference/todo.js"
 ```
@@ -203,7 +203,7 @@ a store that is a JSON array of the wrong shape, a 10,000-item list).
 not against an ideal todo app. That is what makes it possible to stop.
 
 ⏸ **GATE L4.** You sign off. Feedback you give here is not lost: `/retro` files it under the
-responsible skill in `docs/shapeup-sdlc/knowledge-base/<skill>.md`, committed, and the coachable
+responsible skill in `shapeup/knowledge-base/<skill>.md`, committed, and the coachable
 skills read it back on their next run.
 
 ## What just happened

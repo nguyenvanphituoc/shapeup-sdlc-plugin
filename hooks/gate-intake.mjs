@@ -29,19 +29,24 @@
 // Contract: PreToolUse stdin JSON { tool_name, tool_input:{skill_name|skill, skill_args|args}, ... }
 // Deny via { hookSpecificOutput: { hookEventName, permissionDecision:"deny", permissionDecisionReason } }.
 
-const defer = () => process.exit(0);
+// RECEIPTS (v1.5). This gate was scored `No effect` — built, verified on 10 cases, and the
+// benchmark re-run still 4/14 — because the hook CORRECTLY never fired and the cause was elsewhere.
+// That distinction was unprovable from a hook that answers "inspected and permitted" and "never
+// ran" with the same silence. Every decision below is now recorded (hooks/lib/decision.mjs).
 
-const raw = await new Promise((res) => {
-  let d = "";
-  process.stdin.on("data", (c) => (d += c));
-  process.stdin.on("end", () => res(d));
-  process.stdin.on("error", () => res(""));
-});
+import { runHook, readStdin, settle } from "./lib/decision.mjs";
+
+await runHook("gate-intake", async () => {
+/** Fail-open, with the reason on the record. */
+const defer = (reason, rule) => settle({ verdict: "allow", event: "PreToolUse", tool: p?.tool_name ?? null, reason, rule });
+
+const raw = await readStdin();
 
 let p;
-try { p = JSON.parse(raw || "{}"); } catch { defer(); }
+try { p = JSON.parse(raw || "{}"); }
+catch (e) { settle({ verdict: "error", event: "PreToolUse", reason: `unparseable payload: ${e.message}` }); }
 
-if (p.tool_name !== "Skill") defer();
+if (p.tool_name !== "Skill") defer(`not a Skill call (${p.tool_name ?? "no tool_name"}) — out of scope`);
 
 // The Skill tool's field names differ by surface: `skill_name`/`skill_args` in the hook payload,
 // `skill`/`args` in the model-facing stream. Accept both — assuming one was already wrong once.
@@ -50,10 +55,10 @@ const args = String(p.tool_input?.skill_args ?? p.tool_input?.args ?? "");
 
 // Plugin skills arrive namespaced, e.g. "shapeup-sdlc-plugin:tech-lead".
 const skill = String(skillRaw).split(":").pop();
-if (skill !== "tech-lead") defer();
+if (skill !== "tech-lead") defer(`Skill(${skill}) is not the orchestrator — out of scope`);
 
 // The envelope port supplies its own intake; validate-envelope.mjs owns that path.
-if (/--order\b/.test(args)) defer();
+if (/--order\b/.test(args)) defer("envelope dispatch — validate-envelope owns this path", "--order");
 
 // Intake is satisfied by ANY of: a pitch path, a spec folder, or free requirement text.
 const hasPitch = /--pitch\s+\S/.test(args);
@@ -73,7 +78,10 @@ const VALUED_FLAGS = /--(pitch|spec|from|lens|rounds|attempts|orch-model|exec-mo
 const BARE_FLAGS = /--[a-z0-9-]+/g;
 const freeText = args.replace(VALUED_FLAGS, " ").replace(BARE_FLAGS, " ").trim();
 
-if (hasPitch || hasSpec || hasResume || freeText.length > 0) defer();
+if (hasPitch || hasSpec || hasResume || freeText.length > 0) {
+  const via = hasPitch ? "--pitch" : hasSpec ? "--spec" : hasResume ? "--from" : "free requirement text";
+  defer(`intake resolvable via ${via} — inspected and permitted`, via);
+}
 
 // Provably empty intake → deny, and say exactly how to fix it.
 const reason = [
@@ -88,11 +96,15 @@ const reason = [
   "  Skill(tech-lead, \"--pitch <shaping.md> --spec <spec/>\")",
 ].join("\n");
 
-process.stdout.write(JSON.stringify({
-  hookSpecificOutput: {
-    hookEventName: "PreToolUse",
-    permissionDecision: "deny",
-    permissionDecisionReason: reason,
+return {
+  verdict: "deny", event: "PreToolUse", tool: "Skill", subject: "tech-lead", rule: "empty-intake",
+  reason: "no pitch, no spec folder, and no requirement text survived the hand-off",
+  payload: {
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "deny",
+      permissionDecisionReason: reason,
+    },
   },
-}));
-process.exit(0);
+};
+});

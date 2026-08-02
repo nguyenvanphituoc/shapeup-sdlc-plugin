@@ -198,7 +198,7 @@ Data Flow, Trigger, Risk, Mitigation
 ### `tasks/TASK-NNN-slug.md` — Task
 
 > **Locality (v3.2):** written under the LOCAL gitignored root
-> (`.shapeup-sdlc/<slug>/tasks/`), not `spec_folder`. Every other schema on this page is a
+> (`.shapeup/<slug>/tasks/`), not `spec_folder`. Every other schema on this page is a
 > SHARED, committed document. Tier direction: the task file must fully anchor INTO the
 > committed spec (`use_case_refs`, `linked_docs`, the Context wikilink — LOCAL→SHARED);
 > no SHARED doc ever wikilinks `[[tasks/...]]` back (spec-lint TIER-DIRECTION red).
@@ -267,9 +267,9 @@ Always use wikilinks (double brackets), never relative paths like `../domain-mod
   with an empty or unresolvable anchor as a red `UC-ANCHOR` finding.
 - A SHARED spec doc links only its committed siblings (the list above) and **never**
   `[[tasks/...]]`: task ids are machine-local (boards regenerate and renumber) and
-  `.shapeup-sdlc/` is gitignored, so a committed task link dangles on every fresh clone.
+  `.shapeup/` is gitignored, so a committed task link dangles on every fresh clone.
   spec-lint flags it as a red `TIER-DIRECTION` finding. Coverage views (synthesis
   traceability) record derived counts/status, not task ids.
 - `[[tasks/...]]` wikilinks are valid only inside LOCAL documents (task files, the board,
-  EVAL reports), where they resolve against the LOCAL root (`.shapeup-sdlc/<slug>/`);
+  EVAL reports), where they resolve against the LOCAL root (`.shapeup/<slug>/`);
   every wikilink in a SHARED doc stays `spec_folder`-relative.

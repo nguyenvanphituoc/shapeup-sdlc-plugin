@@ -44,10 +44,10 @@ The EVAL phase uses spec-evaluator's feature-level pass
 
 ## Invoke
 ```bash
-/tech-lead --pitch docs/shapeup-sdlc/checkout/shaping/shaping.md --spec docs/shapeup-sdlc/checkout/spec/ --lens standard
+/tech-lead --pitch shapeup/checkout/shaping/shaping.md --spec shapeup/checkout/spec/ --lens standard
 /tech-lead --pitch ... --spec ... --auto                 # sub-skills unattended; pause at L1/L3/L4
 /tech-lead --pitch ... --spec ... --unattended --max-rounds 3   # headless / CI (Agent SDK)
-/tech-lead --spec docs/shapeup-sdlc/checkout/spec/ --from build   # resume an existing run
+/tech-lead --spec shapeup/checkout/spec/ --from build   # resume an existing run
 /tech-lead --pitch ... --spec ... --no-eval              # skip eval for a trivial feature
 ```
 
@@ -57,7 +57,7 @@ The EVAL phase uses spec-evaluator's feature-level pass
 | L0 | intake | language gate (`/translator --check`, translate if non-English) + run config: spec folder, lens, dims, max_rounds, auto level |
 | L1a | after ORIENT | PO reviews the spiked area + 🗻 Hill unknowns before mapping scopes |
 | L1b | after MAP SCOPES | PO accepts the task board (appetite guard) before any code |
-| L2 | after BUILD round | board 100% done? → unlocks the single EVAL pass |
+| L2 | after BUILD round | board 100% done? → the single EVAL pass (hook warns if not; advisory) |
 | L3 | after EVAL | PASS → /qa-edge-hunter pass → ship; FAIL → bug-only round r+1; max_rounds → escalate |
 | L4 | after SHIP | PO sign-off, close the ledger, harvest metrics to metrics.jsonl |
 
@@ -68,4 +68,4 @@ The EVAL phase uses spec-evaluator's feature-level pass
   This is the headless mode for an Agent SDK / CI driver.
 
 ## Version
-0.10 — Two-root workspace split (`docs/shapeup-sdlc/` vs `.shapeup-sdlc/`), automated discovered-task reconciliation (`/ba-pitch-analyzer --tasks-only --from-discovered`), regression rule (touched UCs re-run), QA edge-hunter wiring (exploratory findings, triage at SHIP S.0), metrics harvest, and split L1a/L1b gates.
+0.10 — Two-root workspace split (`shapeup/` vs `.shapeup/`), automated discovered-task reconciliation (`/ba-pitch-analyzer --tasks-only --from-discovered`), regression rule (touched UCs re-run), QA edge-hunter wiring (exploratory findings, triage at SHIP S.0), metrics harvest, and split L1a/L1b gates.

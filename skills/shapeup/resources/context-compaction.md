@@ -16,7 +16,7 @@ using the **source of truth** as the **decision context**.
 
 Two layers, never collapsed into one:
 
-- **Source** = the full artifacts on disk (`docs/shapeup-sdlc/[slug]/shaping/...`). Immutable
+- **Source** = the full artifacts on disk (`shapeup/[slug]/shaping/...`). Immutable
   once confirmed. The traceability + RULE 3 non-regression record.
 - **Decision context (the digest)** = a cheap, regenerable **derived read
   model**. Never a write surface. The moment a gate's decision mutates the
@@ -38,7 +38,7 @@ One digest per shaping run. It lives in the **ephemeral, gitignored** run
 workspace, not next to the source artifacts:
 
 ```
-.shapeup-sdlc/[feature-slug]/digest.md
+.shapeup/[feature-slug]/digest.md
 ```
 
 The LLM reads the digest at each gate; it follows a wikilink down to a full
@@ -97,7 +97,7 @@ appetite: [~1 week | ~2 weeks | ~6 weeks | TBD (uncapped)]
 # [Feature] — Shaping Digest (derived read model — DO NOT hand-edit)
 
 > Regenerated from source on each phase. Source of truth is the artifacts under
-> `docs/shapeup-sdlc/[feature-slug]/shaping/`. This file is ephemeral + gitignored.
+> `shapeup/[feature-slug]/shaping/`. This file is ephemeral + gitignored.
 
 ## Appetite
 [~N weeks — anchors scope for every gate below]
@@ -120,9 +120,9 @@ appetite: [~1 week | ~2 weeks | ~6 weeks | TBD (uncapped)]
 - [ ] [unresolved spike / open question] → [[spike-xxx]]
 
 ## Links
-- shaping → [[../../docs/shapeup-sdlc/[feature-slug]/shaping/shaping.md]]
-- breadboard → [[../../docs/shapeup-sdlc/[feature-slug]/shaping/breadboard.md]]
-- spikes → [[../../docs/shapeup-sdlc/[feature-slug]/shaping/spike-*.md]]
+- shaping → [[../../shapeup/[feature-slug]/shaping/shaping.md]]
+- breadboard → [[../../shapeup/[feature-slug]/shaping/breadboard.md]]
+- spikes → [[../../shapeup/[feature-slug]/shaping/spike-*.md]]
 ```
 
 ---
@@ -172,18 +172,18 @@ Everything keys off the feature `<slug>`. Two roots, split by **who needs it**:
 
 | Root | Contents | Nature | Git |
 |---|---|---|---|
-| `docs/shapeup-sdlc/[slug]/shaping/` | shaping · breadboard · spike · pitch · kickoff | **durable source** | commit, shared |
-| `docs/shapeup-sdlc/[slug]/spec/` | domain model · UC · contracts · tasks | **durable deliverable** | commit, shared |
-| `.shapeup-sdlc/[slug]/` | run-state · round ledger · gate log · **digest.md** · orient/ · evaluation/ · qa/ · discovery/ledger.md · harness-run.md | **ephemeral / derived** | **gitignore (hidden)** |
+| `shapeup/[slug]/shaping/` | shaping · breadboard · spike · pitch · kickoff | **durable source** | commit, shared |
+| `shapeup/[slug]/spec/` | domain model · UC · contracts · tasks | **durable deliverable** | commit, shared |
+| `.shapeup/[slug]/` | run-state · round ledger · gate log · **digest.md** · orient/ · evaluation/ · qa/ · discovery/ledger.md · harness-run.md | **ephemeral / derived** | **gitignore (hidden)** |
 
-- The **shared** root `docs/shapeup-sdlc/[slug]/` holds what the team contributes
+- The **shared** root `shapeup/[slug]/` holds what the team contributes
   to and reviews — source (shaping) + deliverable (spec). One feature folder, two
   subfolders.
-- The **local** root `.shapeup-sdlc/[slug]/` is per-run scratch + reports — hidden,
+- The **local** root `.shapeup/[slug]/` is per-run scratch + reports — hidden,
   fully gitignorable, dies with the run. It is derived from the same `<slug>`.
-- `.gitignore`: one line — `.shapeup-sdlc/`. The whole local root is ignored; no
+- `.gitignore`: one line — `.shapeup/`. The whole local root is ignored; no
   carve-out is needed because the one committed report surface, the harvested
-  signal feed `docs/shapeup-sdlc/metrics.jsonl` (written by the tech-lead at SHIP,
+  signal feed `shapeup/metrics.jsonl` (written by the tech-lead at SHIP,
   fact-only; see the tech-lead skill's SHIP step), lives in the **shared** root.
 - All paths are **project-relative, resolved from the project root / cwd.** Never
   `/mnt/...` — that is the claude.ai authoring sandbox and dies in a user repo.
@@ -203,7 +203,7 @@ surprise count are signals, not noise. Split inside the workspace:
 
 **`ba-pitch-analyzer` does NOT read the digest. It reads `pitch.md` / `shaping.md`.**
 
-The digest lives in `.shapeup-sdlc/` — ephemeral, gitignored, run-scoped;
+The digest lives in `.shapeup/` — ephemeral, gitignored, run-scoped;
 it dies when the shaping run ends. `pitch.md`/`shaping.md` are durable source,
 committed. Each skill is a stateless reducer reading durable files — no reducer
 may depend on another reducer's ephemeral scratch.
@@ -221,7 +221,7 @@ ripple graph: working-head regeneration absorbs any upstream change on the next
 phase, so the digest never needs to be rippled into.
 
 **Mandatory config:** the ripple-check must **glob-exclude
-`.shapeup-sdlc/`**. Without the exclude, the check scans the digest as a
+`.shapeup/`**. Without the exclude, the check scans the digest as a
 source artifact and ripples incorrectly (the digest links *down* to sources; a
 naive scanner reads those wikilinks as upstream edges and inverts the graph).
 
@@ -234,7 +234,7 @@ naive scanner reads those wikilinks as upstream edges and inverts the graph).
   serves a **human at the betting table**, not an automated gate, so probabilistic
   recall is harmless there. It is a separate infrastructure bet (embedding model,
   store, re-index trigger). Revive as its own bet at a future betting table; its
-  home would be `.shapeup-sdlc/pitch-archive/` + index — a level-up, never a
+  home would be `.shapeup/pitch-archive/` + index — a level-up, never a
   gate dependency.
-- **Cross-run pitch archive** under `.shapeup-sdlc/pitch-archive/` — only if/when
+- **Cross-run pitch archive** under `.shapeup/pitch-archive/` — only if/when
   cross-run discovery lands. (The two-root workspace itself shipped in v2.2.)

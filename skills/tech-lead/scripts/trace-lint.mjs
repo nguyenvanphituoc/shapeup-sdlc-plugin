@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Traceability oracle (spine v1.3, plan docs/plan/traceability-spine-plan.md §1.4 + §2).
+// Traceability oracle (spine v1.3, plan docs/internal/plan/traceability-spine-plan.md §1.4 + §2).
 //
 // ONE oracle, TWO mechanically-checkable assertions — nothing that merely *asserts* quality:
 //
@@ -23,12 +23,12 @@
 // board with no covers: yet, and that's the intended demonstration, not a gate. Promote to a
 // blocking gate with --gate only once covers: is populated, or it breaks every legacy run.
 //
-// Reads   SHARED docs/shapeup-sdlc/<slug>/requirements.md   (RequirementClause registry)
-//         SHARED docs/shapeup-sdlc/<slug>/wiring-map.json    (WiringMap — optional)
-//         SHARED docs/shapeup-sdlc/<slug>/project-profile.json (ProjectProfile — optional)
-//         LOCAL  .shapeup-sdlc/<slug>/tasks/TASK-*.md         (board AC covers[])
-// Writes  LOCAL  .shapeup-sdlc/<slug>/trace/report.json       (regenerated each run)
-//         LOCAL  .shapeup-sdlc/<slug>/trace/wiring.mmd         (Mermaid view of the checked graph)
+// Reads   SHARED shapeup/<slug>/requirements.md   (RequirementClause registry)
+//         SHARED shapeup/<slug>/wiring-map.md    (WiringMap — optional)
+//         SHARED shapeup/<slug>/project-profile.md (ProjectProfile — optional)
+//         LOCAL  .shapeup/<slug>/tasks/TASK-*.md         (board AC covers[])
+// Writes  LOCAL  .shapeup/<slug>/trace/report.json       (regenerated each run)
+//         LOCAL  .shapeup/<slug>/trace/wiring.mmd         (Mermaid view of the checked graph)
 //
 // Zero dependencies, zero network — same discipline as t0-verify.mjs / compile-order.mjs.
 //
@@ -39,6 +39,9 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSy
 import { resolve, join, dirname, relative, isAbsolute } from "node:path";
 import { readBoard } from "./compile-order.mjs";
 import { isMain } from "./lib/is-main.mjs";
+import { runArgs } from "./lib/argv.mjs";
+import { sharedRoot, traceDir, relLocal } from "./lib/paths.mjs";
+import { readContract, WIRING_MAP, PROJECT_PROFILE } from "./lib/contract-md.mjs";
 
 // --- requirements.md registry parser -----------------------------------------
 // A committed markdown table: | REQ-id | clause (verbatim) | source | status | note |
@@ -205,7 +208,7 @@ export function wiringMermaid(wiringMap, unreachableSet) {
  *   self-skips (checked=false) when its artifact is absent — non-regression on pre-spine specs.
  */
 export function traceLint(slug, { cwd, gate = false }) {
-  const shared = join(cwd, "docs", "shapeup-sdlc", slug);
+  const shared = sharedRoot(cwd, slug);
   const findings = [];
 
   // 1. Covers-closure.
@@ -243,38 +246,39 @@ export function traceLint(slug, { cwd, gate = false }) {
     skipped_reason: closureChecked ? null : "no requirements.md registry — covers-closure not applicable (non-regression on pre-spine specs).",
   };
 
-  // 2. Reachability (profile-gated).
-  const wiringPath = join(shared, "wiring-map.json");
-  const profilePath = join(shared, "project-profile.json");
-  let reachability = { checked: false, pass: true, unreachable: [], skipped_reason: "no wiring-map.json — reachability not applicable." };
+  // 2. Reachability (profile-gated). Both artifacts are markdown since ADR-0001; `readContract`
+  // still accepts the legacy `.json` so a project mid-migration is checked rather than skipped.
+  const wiringPath = join(shared, "wiring-map.md");
+  const profilePath = join(shared, "project-profile.md");
+  let reachability = { checked: false, pass: true, unreachable: [], skipped_reason: "no wiring-map — reachability not applicable." };
   let wiringMap = null;
 
-  if (existsSync(wiringPath)) {
-    try { wiringMap = JSON.parse(readFileSync(wiringPath, "utf8")); }
-    catch (e) {
-      findings.push({ severity: "red", code: "WIRING-UNREADABLE", message: `wiring-map.json is not readable JSON (${e.message}).` });
-      wiringMap = null;
-    }
+  let wiringFound = null;
+  try { wiringFound = readContract(wiringPath, WIRING_MAP); }
+  catch (e) {
+    findings.push({ severity: "red", code: "WIRING-UNREADABLE", message: `wiring-map is not readable (${e.message}).` });
   }
+  if (wiringFound) wiringMap = wiringFound.contract;
 
   if (wiringMap) {
-    if (!existsSync(profilePath)) {
+    let profileFound = null;
+    try { profileFound = readContract(profilePath, PROJECT_PROFILE); }
+    catch (e) { findings.push({ severity: "red", code: "PROFILE-UNREADABLE", message: `project-profile is not readable (${e.message}).` }); }
+    if (!profileFound) {
       reachability = { checked: false, pass: true, unreachable: [],
-        skipped_reason: "wiring-map.json present but no project-profile.json — reachability needs an entry_point; declare the profile at L0." };
-      findings.push({ severity: "warn", code: "PROFILE-MISSING", message: "wiring-map.json exists but project-profile.json does not — reachability is skipped until the entry point is declared." });
+        skipped_reason: "wiring-map present but no project-profile — reachability needs an entry_point; declare the profile at L0." };
+      findings.push({ severity: "warn", code: "PROFILE-MISSING", message: "wiring-map exists but project-profile does not — reachability is skipped until the entry point is declared." });
     } else {
-      let profile;
-      try { profile = JSON.parse(readFileSync(profilePath, "utf8")); }
-      catch (e) { profile = null; findings.push({ severity: "red", code: "PROFILE-UNREADABLE", message: `project-profile.json is not readable JSON (${e.message}).` }); }
+      const profile = profileFound.contract;
       const entryPoint = profile?.entry_point;
       if (!entryPoint) {
-        reachability = { checked: false, pass: true, unreachable: [], skipped_reason: "project-profile.json has no entry_point." };
+        reachability = { checked: false, pass: true, unreachable: [], skipped_reason: "project-profile has no entry_point." };
       } else {
         const { reachable, entryResolved } = reachableFrom(entryPoint, cwd);
         if (!entryResolved) {
           reachability = { checked: false, pass: true, unreachable: [], entry_point: entryPoint,
             skipped_reason: `entry_point "${entryPoint}" does not resolve to a source file on disk — reachability skipped.` };
-          findings.push({ severity: "warn", code: "ENTRY-MISSING", message: `project-profile.json entry_point "${entryPoint}" is not on disk — reachability cannot run.` });
+          findings.push({ severity: "warn", code: "ENTRY-MISSING", message: `project-profile.md entry_point "${entryPoint}" is not on disk — reachability cannot run.` });
         } else {
           const unreachable = [];
           for (const e of wiringMap.entries || []) {
@@ -310,35 +314,31 @@ export function traceLint(slug, { cwd, gate = false }) {
 }
 
 // ---------------------------------------------------------------------------
+/** The typed argv contract (see `./lib/argv.mjs`). */
+export const ARGV_SPEC = {
+  usage: "trace-lint.mjs --slug <slug> [--cwd <dir>] [--gate] [--quiet]",
+  _: { arity: 0, max: 0, name: "(no positional operands)" },
+  slug: { type: "str", required: true },
+  cwd: { type: "path" },
+  gate: { type: "flag" },
+  quiet: { type: "flag" },
+};
+
 const isMainModule = isMain(import.meta.url);
 if (isMainModule) {
-  const args = process.argv.slice(2);
-  /**
-   * Read a `--<n> <value>` CLI flag's value, ignoring a following token that is itself a flag.
-   * @param {string} n - Flag name without leading dashes.
-   * @returns {(string|null)} The next argument, or null when the flag is absent or immediately
-   *   followed by another `--flag`.
-   */
-  const flag = (n) => { const i = args.indexOf(`--${n}`); return i !== -1 && args[i + 1] && !args[i + 1].startsWith("--") ? args[i + 1] : null; };
-  /**
-   * Test whether a boolean `--<n>` flag is present.
-   * @param {string} n - Flag name without leading dashes.
-   * @returns {boolean} True when `--<n>` appears in argv.
-   */
-  const has = (n) => args.includes(`--${n}`);
-  const cwd = resolve(flag("cwd") || process.cwd());
-  const slug = flag("slug");
-  if (!slug) { console.error("trace-lint: --slug <slug> is required"); process.exit(2); }
-  const gate = has("gate");
+  const args = runArgs(ARGV_SPEC);
+  const cwd = resolve(args.cwd || process.cwd());
+  const slug = args.slug;
+  const gate = !!args.gate;
 
   const { report, mermaid } = traceLint(slug, { cwd, gate });
 
-  const outDir = join(cwd, ".shapeup-sdlc", slug, "trace");
+  const outDir = traceDir(cwd, slug);
   mkdirSync(outDir, { recursive: true });
   writeFileSync(join(outDir, "report.json"), JSON.stringify(report, null, 2) + "\n");
   if (mermaid) writeFileSync(join(outDir, "wiring.mmd"), mermaid + "\n");
 
-  if (!has("quiet")) {
+  if (!args.quiet) {
     const cc = report.covers_closure, rc = report.reachability;
     const badge = report.overall === "green" ? "🟢 green" : (gate ? "🔴 red" : "🟠 red (advisory)");
     console.log(`trace-lint ${slug} — ${badge} [${report.mode}]`);
@@ -347,7 +347,7 @@ if (isMainModule) {
     if (rc.checked) console.log(`  reachability: ${rc.engines_total - rc.unreachable.length}/${rc.engines_total} engines reach ${rc.entry_point} · unreachable [${rc.unreachable.map((u) => u.use_case).join(", ")}]`);
     else console.log(`  reachability: skipped — ${rc.skipped_reason}`);
     for (const f of report.findings) console.log(`  ${f.severity === "red" ? "✗" : "⚠"} [${f.code}] ${f.message}`);
-    console.log(`  → ${join(".shapeup-sdlc", slug, "trace", "report.json")}`);
+    console.log(`  → ${relLocal(slug, "trace", "report.json")}`);
   }
 
   process.exit(gate && report.overall === "red" ? 1 : 0);

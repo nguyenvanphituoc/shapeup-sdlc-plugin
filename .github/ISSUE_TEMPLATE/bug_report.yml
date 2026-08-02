@@ -55,7 +55,7 @@ body:
       label: Relevant output
       description: >
         Hook denials print a reason — paste it verbatim if you have it. Run-state lives in
-        the gitignored `.shapeup-sdlc/<slug>/`, which is often the fastest thing to look at.
+        the gitignored `.shapeup/<slug>/`, which is often the fastest thing to look at.
       render: text
 
   - type: input

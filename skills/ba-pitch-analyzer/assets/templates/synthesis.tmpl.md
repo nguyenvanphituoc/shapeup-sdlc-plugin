@@ -54,7 +54,7 @@ frontmatter carries no back-link; reverse lookup is always computed live from th
 
 <!-- 
   Coverage is DERIVED by inverting each task's use_case_refs over the LOCAL board
-  (.shapeup-sdlc/<slug>/tasks/) at generation time. Record only the count + status —
+  (.shapeup/<slug>/tasks/) at generation time. Record only the count + status —
   never task ids or [[tasks/...]] links: ids are machine-local (boards regenerate and
   renumber) and this doc is committed. Tier rule: links flow LOCAL → SHARED only;
   spec-lint flags [[tasks/...]] here as a red TIER-DIRECTION finding.

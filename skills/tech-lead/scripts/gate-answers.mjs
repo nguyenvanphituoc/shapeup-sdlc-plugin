@@ -41,9 +41,9 @@
 // RESOLUTION ORDER for --resolve / --list / --verify, first hit wins:
 //   1. --file <path>
 //   2. --preset <name>            (built-in, below)
-//   3. .shapeup-sdlc/<slug>/gate-answers.json
-//   4. .shapeup-sdlc/gate-answers.json
-//   5. docs/shapeup-sdlc/gate-answers.json   (committed, team-shared)
+//   3. .shapeup/<slug>/gate-answers.json
+//   4. .shapeup/gate-answers.json
+//   5. shapeup/gate-answers.json   (committed, team-shared)
 //
 // EXIT CODES (they are the contract — the orchestrator branches on them, not on the prose):
 //   0  answer resolved; JSON on stdout with { gate, decision, source, note }
@@ -54,6 +54,8 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { isMain } from "./lib/is-main.mjs";
+import { runArgs } from "./lib/argv.mjs";
+import { gateAnswerCandidates, LOCAL } from "./lib/paths.mjs";
 
 export const GATE_IDS = ["L0", "L1a", "L1a.5", "L1b", "L2", "L3", "QA", "H", "L4", "COACH-1"];
 
@@ -225,28 +227,37 @@ export function discover({ cwd = process.cwd(), file = null, preset = null, slug
     if (!PRESETS[preset]) return { set: null, source: null, error: `unknown preset "${preset}" — known: ${Object.keys(PRESETS).join(", ")}` };
     return { set: PRESETS[preset], source: `preset:${preset}` };
   }
-  const candidates = [
-    slug ? join(cwd, ".shapeup-sdlc", slug, "gate-answers.json") : null,
-    join(cwd, ".shapeup-sdlc", "gate-answers.json"),
-    join(cwd, "docs", "shapeup-sdlc", "gate-answers.json"),
-  ].filter(Boolean);
+  const candidates = gateAnswerCandidates(cwd, slug);
   for (const p of candidates) {
     if (!existsSync(p)) continue;
     try { return { set: JSON.parse(readFileSync(p, "utf8")), source: `file:${p.replace(cwd + "/", "")}` }; }
     catch (e) { return { set: null, source: null, error: `answer set is not valid JSON: ${p} (${e.message})` }; }
   }
-  return { set: null, source: null, error: "no gate answer set found (looked for --file, --preset, .shapeup-sdlc/[<slug>/]gate-answers.json, docs/shapeup-sdlc/gate-answers.json)" };
+  return { set: null, source: null, error: `no gate answer set found (looked for --file, --preset, ${gateAnswerCandidates(cwd, slug).map((p) => p.replace(cwd + "/", "")).join(", ")})` };
 }
 
 // ---- CLI -------------------------------------------------------------------
 
-function arg(name, fallback = null) {
-  const i = process.argv.indexOf(`--${name}`);
-  if (i === -1) return fallback;
-  const v = process.argv[i + 1];
-  return v && !v.startsWith("--") ? v : fallback;
-}
-const flag = (n) => process.argv.includes(`--${n}`);
+/** The typed argv contract (see `./lib/argv.mjs`). */
+export const ARGV_SPEC = {
+  usage: "gate-answers.mjs (--init | --list | --verify | --resolve <gate-id>) [--preset <name>] " +
+         "[--file <path>] [--slug <slug>] [--cwd <dir>] [--out <path>] [--by <who>] " +
+         "[--auto-level <level>] [--tiny] [--no-qa]",
+  _: { arity: 0, max: 0, name: "(no positional operands)" },
+  cwd: { type: "path" },
+  init: { type: "flag" },
+  list: { type: "flag" },
+  verify: { type: "flag" },
+  resolve: { type: "str" },
+  preset: { type: "str" },
+  file: { type: "path" },
+  slug: { type: "str" },
+  out: { type: "path" },
+  by: { type: "str" },
+  "auto-level": { type: "str" },
+  tiny: { type: "flag" },
+  "no-qa": { type: "flag" },
+};
 
 function out(obj, code = 0) {
   console.log(JSON.stringify(obj, null, 2));
@@ -258,29 +269,30 @@ function die(msg, code = 2) {
 }
 
 export function main() {
-  const cwd = arg("cwd", process.cwd());
+  const args = runArgs(ARGV_SPEC);
+  const cwd = args.cwd || process.cwd();
 
-  if (flag("init")) {
-    const presetName = arg("preset", "ci");
+  if (args.init) {
+    const presetName = args.preset ?? "ci";
     const base = PRESETS[presetName];
     if (!base) die(`unknown preset "${presetName}" — known: ${Object.keys(PRESETS).join(", ")}`);
     const set = JSON.parse(JSON.stringify(base));
     set.preset = presetName === "interactive" ? "interactive" : presetName;
-    const by = arg("by", null);
+    const by = args.by ?? null;
     if (by) set.authorized_by = by;
-    const dest = arg("out", ".shapeup-sdlc/gate-answers.json");
+    const dest = args.out ?? `${LOCAL}/gate-answers.json`;
     const p = dest.startsWith("/") ? dest : join(cwd, dest);
     mkdirSync(dirname(p), { recursive: true });
     writeFileSync(p, JSON.stringify(set, null, 2) + "\n", "utf8");
     out({ ok: true, wrote: dest, preset: presetName, authorized_by: set.authorized_by, gates: Object.keys(set.answers).length });
   }
 
-  const found = discover({ cwd, file: arg("file"), preset: arg("preset"), slug: arg("slug") });
+  const found = discover({ cwd, file: args.file ?? null, preset: args.preset ?? null, slug: args.slug ?? null });
   if (found.error) die(found.error);
   const errs = validate(found.set);
   if (errs.length) die(`invalid gate answer set (${found.source}):\n  - ${errs.join("\n  - ")}`);
 
-  if (flag("list")) {
+  if (args.list) {
     out({
       ok: true, source: found.source, preset: found.set.preset,
       authorized_by: found.set.authorized_by ?? null,
@@ -290,15 +302,12 @@ export function main() {
     });
   }
 
-  if (flag("verify")) {
-    const need = requiredGates({
-      autoLevel: arg("auto-level", "unattended"),
-      tiny: flag("tiny"),
-      qa: !flag("no-qa"),
-    });
+  if (args.verify) {
+    const autoLevel = args.autoLevel ?? "unattended";
+    const need = requiredGates({ autoLevel, tiny: !!args.tiny, qa: !args.noQa });
     const missing = need.filter((g) => !found.set.answers?.[g]);
     const willAsk = need.filter((g) => found.set.answers?.[g]?.decision === "ask");
-    const headless = arg("auto-level", "unattended") === "unattended";
+    const headless = autoLevel === "unattended";
     // In a headless lane an "ask" is a stall, and a stall is the failure mode this whole file
     // exists to remove. Report it as a hard problem there and as information elsewhere.
     const ok = missing.length === 0 && (!headless || willAsk.length === 0);
@@ -314,7 +323,7 @@ export function main() {
     }, ok ? 0 : 2);
   }
 
-  const gate = arg("resolve", null);
+  const gate = args.resolve ?? null;
   if (!gate) die("nothing to do — pass --init, --list, --verify, or --resolve <gate-id>");
 
   const r = resolve(found.set, gate, found.source);

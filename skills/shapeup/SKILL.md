@@ -132,7 +132,7 @@ RULE 3 — NON-REGRESSION
 At each gate below, Claude MUST pause and ask before continuing.
 
 **Digest discipline (see `resources/context-compaction.md`).** On a multi-gate run,
-maintain a derived decision digest at `.shapeup-sdlc/[slug]/digest.md`:
+maintain a derived decision digest at `.shapeup/[slug]/digest.md`:
 - **On entry to each phase** → `overwrite-head`: rebuild the digest's *working
   head* from the live source artifact.
 - **At each gate, to make the decision** → read the gate's **minimal slice** (the
@@ -342,10 +342,10 @@ For full smell catalog (naming / wiring / causality / scope) and review process 
 
 ## Document Structure
 
-All shaping **source** documents go in: `docs/shapeup-sdlc/[feature-slug]/shaping/`
+All shaping **source** documents go in: `shapeup/[feature-slug]/shaping/`
 
 ```
-docs/shapeup-sdlc/[feature-slug]/shaping/
+shapeup/[feature-slug]/shaping/
 ├── frame.md          ← /shapeup framing-doc (team context only)
 ├── shaping.md        ← /shapeup shaping  (problem + R + A + fit check)
 ├── spike-[part].md   ← /shapeup spike    (one file per unknown)
@@ -367,22 +367,22 @@ Two roots, separated by artifact **nature** (full design →
 
 | Root | Contents | Nature | Git |
 |---|---|---|---|
-| `docs/shapeup-sdlc/[slug]/shaping/` | shaping · breadboard · spike · pitch · kickoff | **durable source** | commit, shared |
-| `docs/shapeup-sdlc/[slug]/spec/` | domain model · UC · contracts · tasks (ba-pitch-analyzer output) | **durable deliverable** | commit, shared |
-| `.shapeup-sdlc/[slug]/` | run-state · gate log · **digest.md** · orient/ · evaluation/ · qa/ · ledger | **ephemeral / derived** | **gitignore (hidden)** |
+| `shapeup/[slug]/shaping/` | shaping · breadboard · spike · pitch · kickoff | **durable source** | commit, shared |
+| `shapeup/[slug]/spec/` | domain model · UC · contracts · tasks (ba-pitch-analyzer output) | **durable deliverable** | commit, shared |
+| `.shapeup/[slug]/` | run-state · gate log · **digest.md** · orient/ · evaluation/ · qa/ · ledger | **ephemeral / derived** | **gitignore (hidden)** |
 
-- **Shared** root `docs/shapeup-sdlc/[slug]/` = what the team contributes to
-  (source + deliverable). **Local** root `.shapeup-sdlc/[slug]/` = per-run scratch,
-  hidden and fully gitignorable. Add **one** line to `.gitignore`: `.shapeup-sdlc/`.
+- **Shared** root `shapeup/[slug]/` = what the team contributes to
+  (source + deliverable). **Local** root `.shapeup/[slug]/` = per-run scratch,
+  hidden and fully gitignorable. Add **one** line to `.gitignore`: `.shapeup/`.
   No carve-out needed — the one committed report surface, the harvest feed
-  `docs/shapeup-sdlc/metrics.jsonl`, lives in the shared root.
+  `shapeup/metrics.jsonl`, lives in the shared root.
 - `digest.md` is the run's derived decision context (the 4-field, two-zone read
   model the gates consume). It is **never** the source of truth and never crosses
   a skill boundary — `ba-pitch-analyzer` reads `pitch.md`/`shaping.md`, never the
   digest.
 - **Ripple-check rule (mandatory):** the digest carries **no `shaping: true`** —
   it is a sink, not a node. The ripple-check **must glob-exclude
-  `.shapeup-sdlc/`**, or it will scan the digest as a source and ripple
+  `.shapeup/`**, or it will scan the digest as a source and ripple
   incorrectly.
 
 ---
@@ -394,9 +394,9 @@ Two roots, separated by artifact **nature** (full design →
 /shapeup spike            → spike-[part].md  (as needed)
 /shapeup breadboarding    → breadboard.md (with slices)
          ↓
-/ba-pitch-analyzer docs/shapeup-sdlc/[feature-slug]/shaping/shaping.md
+/ba-pitch-analyzer shapeup/[feature-slug]/shaping/shaping.md
          ↓
-docs/shapeup-sdlc/[feature-slug]/spec/  (domain model, contracts, use cases, tasks)
+shapeup/[feature-slug]/spec/  (domain model, contracts, use cases, tasks)
 ```
 
 Reference affordance IDs (U[N], N[N]) in task descriptions and commit messages

@@ -4,7 +4,7 @@ The orchestration loop in detail. A "round" is one BUILD phase followed by exact
 EVAL phase. The feature is done when an EVAL round returns PASS.
 
 > `tasks/_index.md` referenced throughout this file lives in the LOCAL gitignored root
-> (`.shapeup-sdlc/<slug>/tasks/`, v3.2), not the
+> (`.shapeup/<slug>/tasks/`, v3.2), not the
 > SHARED spec dir. See tech-lead SKILL.md GATE L1b for the bootstrap step that regenerates it
 > when missing.
 
@@ -12,7 +12,7 @@ EVAL phase. The feature is done when an EVAL round returns PASS.
 round r = 1
 loop:
     BUILD(r)                          # see r=1 vs r>1 below
-    assert board 100% done            # GATE L2 — hard precondition for EVAL
+    assert board 100% done            # GATE L2 — advisory: the hook warns, you decide
     verdict, bugs = EVAL(r)           # ONE spec-evaluator --feature pass
     if verdict == PASS:
         SHIP; break
@@ -37,7 +37,7 @@ churn so the next EVAL sees a green board again.
 
 Discovered Tasks:
 If WorkResults carry `discoveries[]` during BUILD, ingest-result appends them to the discovery
-ledger (`.shapeup-sdlc/<slug>/discovery/ledger.md`) and the build loop pauses after the current
+ledger (`.shapeup/<slug>/discovery/ledger.md`) and the build loop pauses after the current
 tasks are done. Compile + dispatch a reconcile order (ba-pitch-analyzer, operation: reconcile).
 This reconciles them into new tasks and invariants and updates the board; the tech lead bumps
 `discovered_rounds` in harness-run.md, then routes back to GATE L1b (Board Review) for PO

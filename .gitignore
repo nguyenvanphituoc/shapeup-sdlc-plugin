@@ -10,12 +10,15 @@
 !.env.shapeup.example
 !.claude/settings.local.example.json
 
-# ShapeUp SDLC local workspace (Tier B — rebuildable runtime, design spec addendum §F.2):
-# per-slug run-trace (run-state · digest · orient/ · evaluation/ · qa/ · ledger ·
-# harness-run.md · briefs/ · t0/ · digests/ · seesaw/) plus the checkout-wide run.lock /
-# active-scope pointer. The shared deliverable (docs/shapeup-sdlc/, incl. scope contracts,
-# hill shards, round-ledger.md, and the committed metrics/ harvest) stays tracked — only the
-# hidden local root is ignored.
+# ShapeUp SDLC local workspace (ADR-0001 LOCAL tier): per-slug run trace — board, orders/,
+# results/, t0/, evaluation/, qa/, orient/, trace/, discovery/, working/, receipt.json — plus
+# the checkout-wide active-scope pointer, decisions.jsonl, safety-overrides.json and metrics/.
+# The deliverable (shapeup/ — shaping, spec, contracts, requirements, REPORT.md,
+# knowledge-base/) stays tracked; only the hidden local root is ignored.
+#
+# BOTH roots are listed: migration 0006 renames `.shapeup-sdlc/` → `.shapeup/`, and a run trace
+# committed during that window is exactly what the tier split exists to prevent.
+.shapeup/
 .shapeup-sdlc/
 
 # Navigator clone target (gap-scan)

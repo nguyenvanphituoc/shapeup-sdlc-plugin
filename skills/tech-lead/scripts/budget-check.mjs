@@ -49,6 +49,8 @@
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { isMain } from "./lib/is-main.mjs";
+import { runArgs } from "./lib/argv.mjs";
+import { localDir } from "./lib/paths.mjs";
 
 /** Fraction of the budget at which the run should stop STARTING work it cannot finish. */
 export const WARN_AT = 0.75;
@@ -100,7 +102,7 @@ export function evaluateBudget(elapsedS, budgetS) {
 
 /** Locate the active run's receipt — the only place `started_at` is recorded. */
 export function findRun(cwd, slug = null) {
-  const root = join(cwd, ".shapeup-sdlc");
+  const root = localDir(cwd);
   if (!existsSync(root)) return null;
   if (!slug) {
     try {
@@ -118,17 +120,20 @@ export function findRun(cwd, slug = null) {
   return null;
 }
 
-function arg(name, fallback = null) {
-  const i = process.argv.indexOf(`--${name}`);
-  if (i === -1) return fallback;
-  const v = process.argv[i + 1];
-  return v && !v.startsWith("--") ? v : fallback;
-}
-const flag = (n) => process.argv.includes(`--${n}`);
+/** The typed argv contract (see `./lib/argv.mjs`). */
+export const ARGV_SPEC = {
+  usage: "budget-check.mjs [--slug <slug>] [--cwd <dir>] [--at <iso8601>] [--strict]",
+  _: { arity: 0, max: 0, name: "(no positional operands)" },
+  slug: { type: "str" },
+  cwd: { type: "path" },
+  at: { type: "str" },
+  strict: { type: "flag" },
+};
 
 export function main() {
-  const cwd = arg("cwd", process.cwd());
-  const run = findRun(cwd, arg("slug"));
+  const args = runArgs(ARGV_SPEC);
+  const cwd = args.cwd || process.cwd();
+  const run = findRun(cwd, args.slug ?? null);
   if (!run) {
     console.error("no run receipt found — open the run with init-run.mjs first (GATE L0.1).");
     process.exit(2);
@@ -138,12 +143,12 @@ export function main() {
     console.error(`receipt for "${run.slug}" has no parseable started_at — cannot derive elapsed time.`);
     process.exit(2);
   }
-  const now = arg("at") ? Date.parse(arg("at")) : Date.now();
+  const now = args.at ? Date.parse(args.at) : Date.now();
   const budget = Number(run.receipt.config?.wall_clock_budget_s || 0) || null;
   const result = evaluateBudget((now - startedAt) / 1000, budget);
 
   console.log(JSON.stringify({ slug: run.slug, started_at: run.receipt.started_at, ...result }, null, 2));
-  process.exit(flag("strict") && result.status === "trip" ? 6 : 0);
+  process.exit(args.strict && result.status === "trip" ? 6 : 0);
 }
 
 if (isMain(import.meta.url)) {

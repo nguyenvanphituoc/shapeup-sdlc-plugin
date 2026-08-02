@@ -8,9 +8,10 @@
 // dropped, so a Haiku fallback (or a human) still has something to look at — this module never
 // invents a file:line it didn't find in the text.
 //
-// Zero dependencies, zero network — same discipline as scripts/oracles/*.
+// Zero dependencies, zero network — same discipline as oracles/*.
 
 import { isMain } from "./lib/is-main.mjs";
+import { runArgs } from "./lib/argv.mjs";
 
 const PATTERNS = [
   // Node stack frame:  "    at fn (path/to/file.js:12:34)"  or  "    at path/to/file.js:12:34"
@@ -89,12 +90,18 @@ export function digest(rawText) {
 }
 
 // --- CLI ---------------------------------------------------------------------
+/** The typed argv contract (see `./lib/argv.mjs`). A bare `-`, or nothing, means stdin. */
+export const ARGV_SPEC = {
+  usage: "aegis-digest.mjs [<log-file>|-]   (no file → stdin)",
+  _: { arity: 0, max: 1, name: "log-file" },
+};
+
 /**
  * CLI entry: read a log from a file arg or stdin, print the digested triples as JSON, exit 0.
  * @returns {Promise<void>} Resolves after printing.
  */
 async function main() {
-  const arg = process.argv[2];
+  const arg = runArgs(ARGV_SPEC)._[0];
   let raw;
   if (arg && arg !== "-") {
     const { readFileSync } = await import("node:fs");

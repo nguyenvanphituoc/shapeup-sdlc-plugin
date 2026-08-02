@@ -17,10 +17,12 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { activeSlug } from "./anti-rationalization.mjs";
 import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
+import { LOCAL, SHARED, resultsDir } from "../skills/tech-lead/scripts/lib/paths.mjs";
 
-const defer = () => process.exit(0);
+import { runHook, readStdin, settle } from "./lib/decision.mjs";
 
-const SKIP_PATH = /^(\.shapeup-sdlc\/|docs\/shapeup-sdlc\/)/;
+// Harness bookkeeping is never "slop" — skip both storage roots, whichever names they carry.
+const SKIP_PATH = new RegExp(`^(${[LOCAL, SHARED].map((r) => r.replace(/[.\\]/g, "\\$&")).join("|")})/`);
 const MAX_FILES = 30;
 const MAX_ADDED_LINES_PER_FILE = 400;
 
@@ -112,10 +114,10 @@ function collectDiff(cwd, slug) {
     return tracked + extra;
   }
   // Not a git repo → fall back to the newest WorkResult's files_touched.
-  const resultsDir = join(cwd, ".shapeup-sdlc", slug, "results");
-  if (!existsSync(resultsDir)) return null;
-  const newest = readdirSync(resultsDir).filter((f) => f.endsWith(".json"))
-    .map((f) => join(resultsDir, f))
+  const resultsPath = resultsDir(cwd, slug);
+  if (!existsSync(resultsPath)) return null;
+  const newest = readdirSync(resultsPath).filter((f) => f.endsWith(".json"))
+    .map((f) => join(resultsPath, f))
     .sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs)[0];
   if (!newest) return null;
   let diff = "";
@@ -137,33 +139,36 @@ function collectDiff(cwd, slug) {
 }
 
 async function main() {
-  const raw = await new Promise((res) => {
-    let d = "";
-    process.stdin.on("data", (c) => (d += c));
-    process.stdin.on("end", () => res(d));
-    process.stdin.on("error", () => res(""));
-  });
+  await runHook("slop-cleaner", async () => {
+  const raw = await readStdin();
   let p;
-  try { p = JSON.parse(raw || "{}"); } catch { defer(); return; }
+  /** Stay silent — with the reason on the record (hooks/lib/decision.mjs). */
+  const defer = (reason, rule) => settle({ verdict: "allow", event: "Stop", cwd: p?.cwd, reason, rule });
+  try { p = JSON.parse(raw || "{}"); }
+  catch (e) { settle({ verdict: "error", event: "Stop", reason: `unparseable payload: ${e.message}` }); }
 
-  if (p.stop_hook_active) defer();
+  if (p.stop_hook_active) defer("stop_hook_active — never participate in a stop-hook loop", "loop-guard");
 
   const cwd = p.cwd || process.cwd();
   const slug = activeSlug(cwd);
-  if (!slug) defer(); // no harness run → stay silent
+  if (!slug) defer("no active run — stay silent", "no-run");
 
   const diff = collectDiff(cwd, slug);
-  if (!diff) defer();
+  if (!diff) defer("no diff to scan", "no-diff");
 
   const findings = scanDiff(diff);
-  if (findings.length === 0) defer();
+  if (findings.length === 0) defer("diff scanned, no leftovers found — inspected and permitted", "diff-clean");
 
-  console.log(JSON.stringify({
-    systemMessage:
-      `slop-cleaner (advisory): recent edits carry leftovers — ${summarize(findings).join("; ")}. ` +
-      `Not blocking — consider a cleanup pass.`,
-  }));
-  process.exit(0);
+  return {
+    verdict: "allow", event: "Stop", cwd, subject: slug, rule: "slop-found", emit: true,
+    reason: `${findings.length} leftover(s) in the recent diff — advisory note emitted, not a block`,
+    payload: {
+      systemMessage:
+        `slop-cleaner (advisory): recent edits carry leftovers — ${summarize(findings).join("; ")}. ` +
+        `Not blocking — consider a cleanup pass.`,
+    },
+  };
+  });
 }
 
 if (isMain(import.meta.url)) {

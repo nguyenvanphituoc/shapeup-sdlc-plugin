@@ -23,6 +23,8 @@ import { readFileSync, readdirSync, existsSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { validate } from "./validate-envelope.mjs";
 import { isMain } from "./lib/is-main.mjs";
+import { runArgs } from "./lib/argv.mjs";
+import { localDir, localRoot, relLocal, globLocal, runSnapshot as runSnapshotPath } from "./lib/paths.mjs";
 
 /**
  * Read a JSON file, tolerating absence/parse errors.
@@ -54,7 +56,7 @@ const MID_RUN = new Set(["orienting", "mapping", "building", "evaluating"]);
 /**
  * Is this run still open, per its own ledger? Fails CLOSED — a missing or unreadable
  * `harness-run.md` cannot be evidence that a run is in progress.
- * @param {string} root - The `.shapeup-sdlc` directory.
+ * @param {string} root - The `.shapeup` directory.
  * @param {string} slug - Run slug (a child directory of root).
  * @returns {boolean} True when the run's frontmatter status is one of MID_RUN.
  */
@@ -76,11 +78,11 @@ function isMidRun(root, slug) {
  *   at one), or null when no run is in progress.
  */
 function findRun(cwd) {
-  const root = join(cwd, ".shapeup-sdlc");
+  const root = localDir(cwd);
   if (!existsSync(root)) return null;
 
   // The pointer names the run the sandbox guard is scoping, NOT necessarily a run still open.
-  // `.shapeup-sdlc/active-scope` has existed since v0.3 and nothing has ever cleared it, because
+  // `.shapeup/active-scope` has existed since v0.3 and nothing has ever cleared it, because
   // its original reader (sandbox-guard) fails OPEN on a stale one — a pointer at a finished run
   // simply stops matching any substrate. session-rehydrate is the opposite kind of reader: it
   // turns a pointer into "a run is ALREADY OPEN in this workspace … do NOT open a new run", and
@@ -111,7 +113,7 @@ function findRun(cwd) {
 export function deriveSnapshot(cwd) {
   const run = findRun(cwd);
   if (!run) return null;
-  const root = join(cwd, ".shapeup-sdlc", run.slug);
+  const root = localRoot(cwd, run.slug);
 
   const snapshot = {
     schema_version: 1,
@@ -149,7 +151,7 @@ export function deriveSnapshot(cwd) {
       const verdict = readJSON(join(verdictsDir, latest.file));
       if (verdict?.overall === "green" || verdict?.overall === "red") {
         snapshot.latest_t0 = {
-          path: join(".shapeup-sdlc", run.slug, "t0", "verdicts", latest.file),
+          path: relLocal(run.slug, "t0", "verdicts", latest.file),
           overall: verdict.overall,
           round: latest.round,
           attempt: latest.attempt,
@@ -195,7 +197,7 @@ export function deriveSnapshot(cwd) {
     (snapshot.board ? `, board ${snapshot.board.done}/${snapshot.board.total} done` : "") +
     (snapshot.latest_t0 ? `, latest T0 ${snapshot.latest_t0.overall}` : "") +
     (snapshot.pending_orders.length ? `, ${snapshot.pending_orders.length} dispatched-not-ingested order(s): ${snapshot.pending_orders.join(", ")}` : "") +
-    `. Re-read .shapeup-sdlc/${snapshot.slug}/harness-run.md and the board before continuing — ` +
+    `. Re-read ${globLocal(snapshot.slug, "harness-run.md")} and the board before continuing — ` +
     `trust the files, not the conversation summary. Never re-dispatch an order that already has a result; ` +
     `re-derive round/attempt/hill from the files, never from memory.`;
 
@@ -205,10 +207,10 @@ export function deriveSnapshot(cwd) {
 /**
  * @param {string} cwd - Working-directory root.
  * @param {string} slug - Feature slug.
- * @returns {string} The LOCAL run-trace path `.shapeup-sdlc/<slug>/run-snapshot.json`.
+ * @returns {string} The LOCAL run-trace path `.shapeup/<slug>/run-snapshot.json`.
  */
 export function snapshotPath(cwd, slug) {
-  return join(cwd, ".shapeup-sdlc", slug, "run-snapshot.json");
+  return runSnapshotPath(cwd, slug);
 }
 
 /**
@@ -238,27 +240,27 @@ function assertValid(snapshot) {
 
 // --- CLI -----------------------------------------------------------------------
 
+/** The typed argv contract (see `./lib/argv.mjs`). */
+export const ARGV_SPEC = {
+  usage: "run-snapshot.mjs [--cwd <dir>] [--format json|text] [--write]",
+  _: { arity: 0, max: 0, name: "(no positional operands)" },
+  cwd: { type: "path" },
+  format: { type: "enum", values: ["json", "text"], default: "json" },
+  write: { type: "flag" },
+};
+
 const isMainModule = isMain(import.meta.url);
 if (isMainModule) {
-  const args = process.argv.slice(2);
-  /**
-   * Read a CLI flag's value.
-   * @param {string} name - Full flag token including leading dashes (e.g. "--cwd").
-   * @returns {(string|null)} The argument after the flag, or null when it is absent.
-   */
-  const flag = (name) => {
-    const i = args.indexOf(name);
-    return i !== -1 && args[i + 1] ? args[i + 1] : null;
-  };
-  const cwd = resolve(flag("--cwd") || process.cwd());
-  const format = flag("--format") || "json";
+  const args = runArgs(ARGV_SPEC);
+  const cwd = resolve(args.cwd || process.cwd());
+  const format = args.format;
 
   const snapshot = deriveSnapshot(cwd);
   if (!snapshot) process.exit(0); // no active run → nothing to say (fail-open)
 
   try {
     assertValid(snapshot);
-    if (args.includes("--write")) writeSnapshot(cwd, snapshot);
+    if (args.write) writeSnapshot(cwd, snapshot);
   } catch (e) {
     console.error(`  ✗ ${e.message}`);
     process.exit(1);
