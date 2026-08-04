@@ -120,13 +120,17 @@ round that replies only `ok` measured **$0.098**, which is roughly a third of wh
 
 ## Retired measurements
 
-These were measured **correctly**. What changed was the instrument or the publishing
-policy, not the finding — so they are kept beside the current numbers rather than replaced
-by them. Two causes, and they mean different things:
+These were measured **correctly**. What changed was the instrument, the sample, or the
+publishing policy — not the finding — so they are kept beside the current numbers rather
+than replaced by them. Three causes, and they mean different things:
 
 - **fixture-change** — the prompt, seeded spec or oracle contract moved underneath a valid
   measurement. The successor fingerprint is named. The two numbers are **not** a
   before/after of the skill and must not be subtracted.
+- **re-sample** — the SAME fixture was measured again. Nothing moved but the draw, so this
+  is the one kind of pair here that **is** directly comparable, and the difference between
+  the two is this instrument's own variance rather than anything about the skill. Read
+  these first: they are the only rows that say what a published `n=3` figure is worth.
 - **model-policy** — the number was right and is simply no longer the model this repo
   publishes. No fixture changed, so no successor fingerprint exists to name.
 
@@ -134,8 +138,6 @@ by them. Two causes, and they mean different things:
   <br/>Retired 2026-08-04T05:26:39.549Z (**fixture-change**, superseded by fixture `e40d5edd3b9d76b4`): the fixture changed between runs (fingerprint unrecorded -> e40d5edd3b9d76b4), so this number and the current one measure different instruments and must not be read as a before/after of the SKILL alone
 - **`task-executor` / claude-sonnet-5** (2026-08-04T05:26:39.549Z, fixture `e40d5edd3b9d76b4`) — n=3, v1 1 → final 1, delta 0, approve 3/3.
   <br/>Retired 2026-08-04T08:02:04.997Z (**fixture-change**, superseded by fixture `440d7c6f6a49ff8d`): the fixture changed between runs (fingerprint e40d5edd3b9d76b4 -> 440d7c6f6a49ff8d), so this number and the current one measure different instruments and must not be read as a before/after of the SKILL alone
-- **`spec-evaluator` / claude-haiku-4-5-20251001** (2026-08-03T10:31:14.187Z, fixture `unrecorded`) — n=3, v1 1 → final 1, delta 0, approve 3/3.
-  <br/>Retired 2026-08-04T15:40:00.000Z (**model-policy**): RETIRED BY MODEL POLICY, not by a fixture change and not because the number was wrong. The repo standardised every eval layer on claude-sonnet-5 so one model explains every published figure. This measurement was correct for the model and date it names, and spec-evaluator already carries a claude-sonnet-5 row that reproduces it (v1 1.0, 3/3 approve, ceilinged), so no coverage is lost by retiring it. It is recorded here rather than deleted: a number that was published and then withdrawn is evidence about the instrument, and removing it silently is how a fabricated baseline survives.
 - **`solution-architect` / claude-sonnet-5** (2026-08-04T09:18:08.206Z, fixture `48943f1ee789b6e9`) — n=3, v1 0.611 → final 0.667, delta 0.056, approve 2/3.
   <br/>Retired 2026-08-04T09:36:57.734Z (**fixture-change**, superseded by fixture `8bfbe80b203aeecd`): the fixture changed between runs (fingerprint 48943f1ee789b6e9 -> 8bfbe80b203aeecd), so this number and the current one measure different instruments and must not be read as a before/after of the SKILL alone
 - **`spec-evaluator` / claude-sonnet-5** (2026-08-03T11:42:50.402Z, fixture `unrecorded`) — n=3, v1 1 → final 1, delta 0, approve 3/3.
@@ -154,12 +156,16 @@ by them. Two causes, and they mean different things:
   <br/>Retired 2026-08-04T15:14:23.406Z (**fixture-change**, superseded by fixture `2e2006d5b8dd55ef`): the fixture changed between runs (fingerprint 241c376eef098dc9 -> 2e2006d5b8dd55ef), so this number and the current one measure different instruments and must not be read as a before/after of the SKILL alone
 - **`task-executor` / claude-sonnet-5** (2026-08-04T08:02:04.997Z, fixture `440d7c6f6a49ff8d`) — n=3, v1 1 → final 1, delta 0, approve 3/3.
   <br/>Retired 2026-08-04T15:20:03.742Z (**fixture-change**, superseded by fixture `a864ec2ab81943f6`): the fixture changed between runs (fingerprint 440d7c6f6a49ff8d -> a864ec2ab81943f6), so this number and the current one measure different instruments and must not be read as a before/after of the SKILL alone
+- **`spec-evaluator` / claude-haiku-4-5-20251001** (2026-08-03T10:31:14.187Z, fixture `unrecorded`) — n=3, v1 1 → final 1, delta 0, approve 3/3.
+  <br/>Retired 2026-08-04T15:40:00.000Z (**model-policy**): RETIRED BY MODEL POLICY, not by a fixture change and not because the number was wrong. The repo standardised every eval layer on claude-sonnet-5 so one model explains every published figure. This measurement was correct for the model and date it names, and spec-evaluator already carries a claude-sonnet-5 row that reproduces it (v1 1.0, 3/3 approve, ceilinged), so no coverage is lost by retiring it. It is recorded here rather than deleted: a number that was published and then withdrawn is evidence about the instrument, and removing it silently is how a fabricated baseline survives.
 - **`task-executor` / claude-sonnet-5** (2026-08-04T15:20:03.742Z, fixture `a864ec2ab81943f6`) — n=3, v1 1 → final 1, delta 0, approve 3/3.
   <br/>Retired 2026-08-04T16:30:58.696Z (**fixture-change**, superseded by fixture `762497bb33bf6763`): the fixture changed between runs (fingerprint a864ec2ab81943f6 -> 762497bb33bf6763), so this number and the current one measure different instruments and must not be read as a before/after of the SKILL alone
 - **`spec-evaluator` / claude-sonnet-5** (2026-08-04T14:56:16.117Z, fixture `748827ec3dddd3a7`) — n=3, v1 1 → final 1, delta 0, approve 3/3.
   <br/>Retired 2026-08-04T16:44:10.718Z (**fixture-change**, superseded by fixture `8a4eba4e1c735acd`): the fixture changed between runs (fingerprint 748827ec3dddd3a7 -> 8a4eba4e1c735acd), so this number and the current one measure different instruments and must not be read as a before/after of the SKILL alone
 - **`solution-architect` / claude-sonnet-5** (2026-08-04T11:06:20.353Z, fixture `552554ed2fc9d53e`) — n=3, v1 0.667 → final 1, delta 0.333, approve 3/3.
   <br/>Retired 2026-08-04T16:49:54.706Z (**fixture-change**, superseded by fixture `b5cd095f515c9531`): the fixture changed between runs (fingerprint 552554ed2fc9d53e -> b5cd095f515c9531), so this number and the current one measure different instruments and must not be read as a before/after of the SKILL alone
+- **`ba-pitch-analyzer` / claude-sonnet-5** (2026-08-04T15:29:28.435Z, fixture `e275807eff45902b`) — n=3, v1 0.967 → final 1, delta 0.033, approve 3/3.
+  <br/>Retired 2026-08-04T16:55:55.696Z (**re-sample**): re-measured on the SAME fixture (fingerprint e275807eff45902b unchanged), so nothing moved but the sample — unlike every fixture-change pair in this list these two numbers ARE directly comparable, and any difference between them is this instrument's own variance at n=3. THIS ROW IS THE REASON THE RULE CHANGED: it read improved 1/3 and its report row said MET; the re-draw read 0/3 and says "exit criterion only". Nothing about the instrument moved. The old rule discarded a retired number unless the FIXTURE changed, so this pair — the only directly comparable one in the file — was the single pair it did not keep, and it survives only because the baseline happened to be committed before the re-run
 - **`scope-architect` / claude-sonnet-5** (2026-08-04T14:27:55.797Z, fixture `9b664b53b5896f58`) — n=3, v1 0.944 → final 1, delta 0.056, approve 3/3.
   <br/>Retired 2026-08-04T17:11:24.751Z (**fixture-change**, superseded by fixture `d5725a654df6f936`): the fixture changed between runs (fingerprint 9b664b53b5896f58 -> d5725a654df6f936), so this number and the current one measure different instruments and must not be read as a before/after of the SKILL alone
 - **`solution-architect` / claude-sonnet-5** (2026-08-04T16:49:54.706Z, fixture `b5cd095f515c9531`) — n=3, v1 0.333 → final 0.889, delta 0.556, approve 2/3.

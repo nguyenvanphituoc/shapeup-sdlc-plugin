@@ -621,36 +621,6 @@
       }
     },
     {
-      "skill": "spec-evaluator",
-      "model": "claude-haiku-4-5-20251001",
-      "measured_at": "2026-08-03T10:31:14.187Z",
-      "fixture_sha": null,
-      "superseded_at": "2026-08-04T15:40:00.000Z",
-      "cause": "model-policy",
-      "reason": "RETIRED BY MODEL POLICY, not by a fixture change and not because the number was wrong. The repo standardised every eval layer on claude-sonnet-5 so one model explains every published figure. This measurement was correct for the model and date it names, and spec-evaluator already carries a claude-sonnet-5 row that reproduces it (v1 1.0, 3/3 approve, ceilinged), so no coverage is lost by retiring it. It is recorded here rather than deleted: a number that was published and then withdrawn is evidence about the instrument, and removing it silently is how a fabricated baseline survives.",
-      "summary": {
-        "n": 3,
-        "v1_score": {
-          "mean": 1,
-          "min": 1,
-          "max": 1
-        },
-        "final_score": {
-          "mean": 1,
-          "min": 1,
-          "max": 1
-        },
-        "delta": {
-          "mean": 0,
-          "min": 0,
-          "max": 0
-        },
-        "improved_runs": 0,
-        "approved_runs": 3,
-        "cost": null
-      }
-    },
-    {
       "skill": "solution-architect",
       "model": "claude-sonnet-5",
       "measured_at": "2026-08-04T09:18:08.206Z",
@@ -1018,6 +988,36 @@
       }
     },
     {
+      "skill": "spec-evaluator",
+      "model": "claude-haiku-4-5-20251001",
+      "measured_at": "2026-08-03T10:31:14.187Z",
+      "fixture_sha": null,
+      "superseded_at": "2026-08-04T15:40:00.000Z",
+      "cause": "model-policy",
+      "reason": "RETIRED BY MODEL POLICY, not by a fixture change and not because the number was wrong. The repo standardised every eval layer on claude-sonnet-5 so one model explains every published figure. This measurement was correct for the model and date it names, and spec-evaluator already carries a claude-sonnet-5 row that reproduces it (v1 1.0, 3/3 approve, ceilinged), so no coverage is lost by retiring it. It is recorded here rather than deleted: a number that was published and then withdrawn is evidence about the instrument, and removing it silently is how a fabricated baseline survives.",
+      "summary": {
+        "n": 3,
+        "v1_score": {
+          "mean": 1,
+          "min": 1,
+          "max": 1
+        },
+        "final_score": {
+          "mean": 1,
+          "min": 1,
+          "max": 1
+        },
+        "delta": {
+          "mean": 0,
+          "min": 0,
+          "max": 0
+        },
+        "improved_runs": 0,
+        "approved_runs": 3,
+        "cost": null
+      }
+    },
+    {
       "skill": "task-executor",
       "model": "claude-sonnet-5",
       "measured_at": "2026-08-04T15:20:03.742Z",
@@ -1137,6 +1137,48 @@
           "cache_read_tokens": 1609593,
           "cache_creation_tokens": 98526,
           "wall_clock_s_total": 259.994,
+          "runs_reported": 3,
+          "runs": 3,
+          "source": "cli-json"
+        }
+      }
+    },
+    {
+      "skill": "ba-pitch-analyzer",
+      "model": "claude-sonnet-5",
+      "measured_at": "2026-08-04T15:29:28.435Z",
+      "fixture_sha": "e275807eff45902b",
+      "superseded_at": "2026-08-04T16:55:55.696Z",
+      "cause": "re-sample",
+      "superseded_by_fixture_sha": "e275807eff45902b",
+      "reason": "re-measured on the SAME fixture (fingerprint e275807eff45902b unchanged), so nothing moved but the sample — unlike every fixture-change pair in this list these two numbers ARE directly comparable, and any difference between them is this instrument's own variance at n=3. THIS ROW IS THE REASON THE RULE CHANGED: it read improved 1/3 and its report row said MET; the re-draw read 0/3 and says \"exit criterion only\". Nothing about the instrument moved. The old rule discarded a retired number unless the FIXTURE changed, so this pair — the only directly comparable one in the file — was the single pair it did not keep, and it survives only because the baseline happened to be committed before the re-run",
+      "summary": {
+        "n": 3,
+        "v1_score": {
+          "mean": 0.967,
+          "min": 0.9,
+          "max": 1
+        },
+        "final_score": {
+          "mean": 1,
+          "min": 1,
+          "max": 1
+        },
+        "delta": {
+          "mean": 0.033,
+          "min": 0,
+          "max": 0.1
+        },
+        "improved_runs": 1,
+        "approved_runs": 3,
+        "cost": {
+          "usd_total": 2.4189,
+          "usd_per_run_mean": 0.8063,
+          "tokens_in": 87,
+          "tokens_out": 43524,
+          "cache_read_tokens": 2182790,
+          "cache_creation_tokens": 185158,
+          "wall_clock_s_total": 539.457,
           "runs_reported": 3,
           "runs": 3,
           "source": "cli-json"

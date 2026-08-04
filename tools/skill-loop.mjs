@@ -1043,6 +1043,52 @@ export function fixtureSha(rubric, root = ROOT) {
 }
 
 /**
+ * Decide how a previous measurement for one skill+model is retired by a new one.
+ *
+ * RETIRE, NEVER OVERWRITE. An existing number is not a stale value to be replaced — it is a valid
+ * measurement, and the comparison between it and its successor is the entire deliverable of a
+ * phase like P1.
+ *
+ * THIS USED TO RETIRE ONLY ON A FIXTURE CHANGE, and a same-fixture re-run overwrote in place
+ * "which is what re-sampling should do". That was backwards, and one measurement pass proved it: a
+ * `ba-pitch-analyzer` re-run against a BYTE-IDENTICAL fixture moved improved 1/3 -> 0/3 and took a
+ * MET verdict with it. Every other retired pair in the baseline is confounded by an instrument
+ * change and carries a warning not to subtract the two — the same-fixture pair is the ONLY
+ * legitimately comparable one there is, because nothing moved but the sample. The old rule was
+ * discarding precisely the evidence that shows what this instrument's noise floor is, and that
+ * number survived only because the baseline happened to be committed before the re-run.
+ *
+ * EXPORTED so the rule itself is testable, not merely the shape of the records it writes. A guard
+ * that only inspects existing records cannot see the rule being switched off — measured: reverting
+ * the retirement branch left the whole structural suite green.
+ *
+ * @param {{prior:(object|undefined), fxSha:string, skill:string, model:string, measuredAt:string, fallbackMeasuredAt?:(string|null)}} o - The prior entry and the new run's identity.
+ * @returns {(object|null)} The record to append to `superseded`, or null when there is nothing to retire.
+ */
+export function retireEntry({ prior, fxSha, skill, model, measuredAt, fallbackMeasuredAt = null }) {
+  if (!prior) return null;
+  const sameFixture = prior.fixture_sha === fxSha;
+  return {
+    skill, model,
+    measured_at: prior.measured_at || fallbackMeasuredAt || null,
+    fixture_sha: prior.fixture_sha || null,
+    superseded_at: measuredAt,
+    // The cause is load-bearing: these read identically once the row is gone and they mean
+    // different things. `fixture-change` — the instrument moved under a still-valid measurement,
+    // and a successor fingerprint exists to point at. `re-sample` — nothing moved but the draw, so
+    // the successor fingerprint EQUALS this one and the pair is the only comparable one in the
+    // file. (`model-policy` is written by hand: the number was correct and simply is not the model
+    // this repo publishes, so there is no successor fixture to name at all.)
+    cause: sameFixture ? "re-sample" : "fixture-change",
+    superseded_by_fixture_sha: fxSha,
+    reason: sameFixture
+      ? `re-measured on the SAME fixture (fingerprint ${fxSha} unchanged), so nothing moved but the sample — unlike every fixture-change pair in this list these two numbers ARE directly comparable, and any difference between them is this instrument's own variance at n=${prior.n ?? "?"}`
+      : `the fixture changed between runs (fingerprint ${prior.fixture_sha || "unrecorded"} -> ${fxSha}), so this number and the current one measure different instruments and must not be read as a before/after of the SKILL alone`,
+    summary: { n: prior.n, v1_score: prior.v1_score, final_score: prior.final_score, delta: prior.delta, improved_runs: prior.improved_runs, approved_runs: prior.approved_runs, cost: prior.cost ?? null },
+  };
+}
+
+/**
  * Remove a previous run's stored drafts for one skill+model, before a new run writes its own.
  *
  * Drafts are named `<skill>.<model-slug>.r<run>.v<round>.*`, so a shorter run does not overwrite a
@@ -1252,13 +1298,17 @@ export function renderReport(baseline) {
   if (b.superseded?.length) {
     L.push("## Retired measurements");
     L.push("");
-    L.push("These were measured **correctly**. What changed was the instrument or the publishing");
-    L.push("policy, not the finding — so they are kept beside the current numbers rather than replaced");
-    L.push("by them. Two causes, and they mean different things:");
+    L.push("These were measured **correctly**. What changed was the instrument, the sample, or the");
+    L.push("publishing policy — not the finding — so they are kept beside the current numbers rather");
+    L.push("than replaced by them. Three causes, and they mean different things:");
     L.push("");
     L.push("- **fixture-change** — the prompt, seeded spec or oracle contract moved underneath a valid");
     L.push("  measurement. The successor fingerprint is named. The two numbers are **not** a");
     L.push("  before/after of the skill and must not be subtracted.");
+    L.push("- **re-sample** — the SAME fixture was measured again. Nothing moved but the draw, so this");
+    L.push("  is the one kind of pair here that **is** directly comparable, and the difference between");
+    L.push("  the two is this instrument's own variance rather than anything about the skill. Read");
+    L.push("  these first: they are the only rows that say what a published `n=3` figure is worth.");
     L.push("- **model-policy** — the number was right and is simply no longer the model this repo");
     L.push("  publishes. No fixture changed, so no successor fingerprint exists to name.");
     L.push("");
@@ -1584,30 +1634,13 @@ if (isMain) {
     const prevResults = prev.results || {};
     const fxSha = fixtureSha(rubric);
 
-    // RETIRE, don't overwrite. An existing number for this skill+model that was measured against a
-    // DIFFERENT fixture is not a stale value to be replaced — it is a valid measurement of a
-    // different instrument, and the comparison between the two is the entire deliverable of a
-    // phase like P1. It moves to `superseded` with its fingerprint and reason; only a re-run on
-    // the SAME fixture overwrites in place, which is what re-sampling should do.
     const superseded = [...(prev.superseded || [])];
-    const priorEntry = prevResults[skill]?.[model];
-    if (priorEntry && priorEntry.fixture_sha !== fxSha) {
-      superseded.push({
-        skill, model,
-        measured_at: priorEntry.measured_at || prev.measured_at || null,
-        fixture_sha: priorEntry.fixture_sha || null,
-        superseded_at: measuredAt,
-        // Why the number was retired, because the two causes read identically once the row is gone
-        // and they mean opposite things. `fixture-change`: the instrument moved under a still-valid
-        // measurement, and a successor fingerprint exists to point at. `model-policy`: the number
-        // was correct and is simply no longer the model this repo publishes, so there is no
-        // successor fixture at all — demanding a fingerprint there would mean inventing one.
-        cause: "fixture-change",
-        superseded_by_fixture_sha: fxSha,
-        reason: `the fixture changed between runs (fingerprint ${priorEntry.fixture_sha || "unrecorded"} -> ${fxSha}), so this number and the current one measure different instruments and must not be read as a before/after of the SKILL alone`,
-        summary: { n: priorEntry.n, v1_score: priorEntry.v1_score, final_score: priorEntry.final_score, delta: priorEntry.delta, improved_runs: priorEntry.improved_runs, approved_runs: priorEntry.approved_runs, cost: priorEntry.cost ?? null },
-      });
-      console.log(`\nsuperseded: the previous ${skill}/${model} result was measured on fixture ${priorEntry.fixture_sha || "(unrecorded)"}, this run is ${fxSha} — the old number is retained under \`superseded\`, not overwritten.`);
+    const retired = retireEntry({ prior: prevResults[skill]?.[model], fxSha, skill, model, measuredAt, fallbackMeasuredAt: prev.measured_at });
+    if (retired) {
+      superseded.push(retired);
+      console.log(retired.cause === "re-sample"
+        ? `\nre-sampled: the previous ${skill}/${model} result was measured on the SAME fixture ${fxSha} — it is retained under \`superseded\` as cause \`re-sample\`, because the pair measures this instrument's variance.`
+        : `\nsuperseded: the previous ${skill}/${model} result was measured on fixture ${retired.fixture_sha || "(unrecorded)"}, this run is ${fxSha} — the old number is retained under \`superseded\`, not overwritten.`);
     }
 
     const written = writeBaseline({
