@@ -22,9 +22,21 @@
 .shapeup-sdlc/
 
 # Day-1 loop records and evaluation artifacts.
-# The user opted to keep all evaluation data local, including skill-specific
-# test cases and global baselines.
-evals/
+# The user opted to keep evaluation DATA local — fixtures, raw run records and per-round
+# drafts are run-trace, the same LOCAL/COMMITTED split as `.shapeup/` vs `shapeup/` (ADR-0001).
+#
+# TWO exceptions, and they are the whole point of the split: with `evals/runs/` ignored, a paid
+# run leaves NOTHING a teammate can see except the baseline and the report derived from it. Those
+# are not documentation, they are the surviving EVIDENCE — structural §48(d7) fails if either is
+# swept up by the rule above.
+#
+# `evals/*` rather than `evals/` is load-bearing: git does not descend into an excluded
+# DIRECTORY, so a `!` negation under `evals/` can never be reached.
+evals/*
+!evals/baselines/
+evals/baselines/*
+!evals/baselines/skill-loop.baseline.json
+!evals/DAY1-REPORT.md
 skills/*/evals/
 
 # Navigator clone target (gap-scan)
