@@ -21,6 +21,12 @@
 .shapeup/
 .shapeup-sdlc/
 
+# Day-1 loop records and evaluation artifacts.
+# The user opted to keep all evaluation data local, including skill-specific
+# test cases and global baselines.
+evals/
+skills/*/evals/
+
 # Navigator clone target (gap-scan)
 example/
 
