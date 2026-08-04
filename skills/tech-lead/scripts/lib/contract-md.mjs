@@ -36,16 +36,43 @@ import { join } from "node:path";
 
 // ---------------------------------------------------------------------------
 // Per-type layout: which array-of-objects field lives under which heading.
+//
+// `signatures` names the columns that identify a table as THAT field's, and it exists because of
+// HD-001: the heading match is exact, so a table written under `# Wiring map — <slug>` instead of
+// `## Wiring` parsed as ABSENT, and every reader downstream treats absent as "none declared". The
+// observed consequence was `trace-lint` reporting `🟢 green · 0/0 engines reach src/cli/main.js`
+// for a committed map holding six correct rows — the gate whose whole purpose is that no engine
+// ships orphaned, failing OPEN.
+//
+// A signature makes the difference detectable without loosening the format: a table carrying
+// `use_case` AND `engine` columns is the wiring table wherever it was put, so finding one under a
+// heading this spec does not claim is a PARSE FAILURE, not an empty field. Prose tables are
+// unaffected — a comparison table under "Why this slice" does not carry these columns.
 // ---------------------------------------------------------------------------
 
 /** `ScopeContract` — the substrate whitelist and fixtures for one vertical slice. */
-export const SCOPE_CONTRACT = { tables: { affordance_manifest: "Affordances" } };
+export const SCOPE_CONTRACT = {
+  tables: { affordance_manifest: "Affordances" },
+  signatures: { affordance_manifest: ["test_id", "role"] },
+};
 
 /** `WiringMap` — per use case: engine → seam → entry-point call site → affordance. */
-export const WIRING_MAP = { tables: { entries: "Wiring" } };
+export const WIRING_MAP = {
+  tables: { entries: "Wiring" },
+  signatures: { entries: ["use_case", "engine"] },
+};
 
 /** `ProjectProfile` — archetype + entry point. All scalars; no tables. */
 export const PROJECT_PROFILE = { tables: {} };
+
+/**
+ * The key an unreadable-table diagnostic is attached under.
+ *
+ * Non-enumerable would be tidier, but the object is JSON-serialised into the WorkOrder envelope and
+ * a non-enumerable property would vanish there — silently, which is the failure mode being fixed.
+ * The `$` prefix keeps it out of collision with any schema field; readers strip it before validating.
+ */
+export const UNREADABLE = "$unreadable_tables";
 
 // ---------------------------------------------------------------------------
 // Scalars
@@ -63,10 +90,27 @@ export const PROJECT_PROFILE = { tables: {} };
  * @returns {(string|number|boolean|string[])} The coerced value.
  */
 export function coerce(raw) {
-  const v = String(raw ?? "").trim().replace(/^["']|["']$/g, "");
-  if (/^\[.*\]$/.test(v)) {
-    return v.slice(1, -1).split(",").map((s) => s.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
-  }
+  let trimmed = String(raw ?? "").trim();
+  // HD-005 — A MARKDOWN CODE SPAN IS FORMATTING, NOT PART OF THE VALUE.
+  //
+  // These contracts are MARKDOWN on disk, and a code span is the idiomatic way to write a path or
+  // an identifier in one; this repo's own prose backticks every path it names. Read literally,
+  // `` `src/capture/add.js` `` is a filename with two backticks in it, which is on no disk
+  // anywhere — so `trace-lint` reported "engine file not on disk" and then "reachability is not
+  // demonstrated" for a wiring map whose engines all resolve AND all reach the entry point. The
+  // gate that exists so no engine ships orphaned failing CLOSED, on a correct map, is the same
+  // silent-format family as HD-001..HD-004 arriving from the other direction.
+  //
+  // Stripped ONLY when the whole value is a single span: a cell like
+  // "Registered as the `add` entry in `TABLE`" is prose that happens to contain spans, and its
+  // value is the prose. The inner text may not itself contain a backtick, so `` `a` and `b` ``
+  // is left alone rather than being spliced into one nonsense token.
+  const span = trimmed.match(/^(`{1,3})([\s\S]+)\1$/);
+  if (span && !span[2].includes("`")) trimmed = span[2].trim();
+  // A LIST IS TESTED BEFORE THE QUOTES ARE STRIPPED. `"[a, b]"` is a quoted STRING; stripping first
+  // would turn it into a list and change its type on a round-trip.
+  if (/^\[.*\]$/.test(trimmed)) return splitList(trimmed.slice(1, -1));
+  const v = trimmed.replace(/^["']|["']$/g, "");
   if (v === "true") return true;
   if (v === "false") return false;
   if (v === "~" || v === "null" || v === "") return null;
@@ -81,8 +125,46 @@ export function coerce(raw) {
  */
 export function uncoerce(v) {
   if (v === null || v === undefined) return "~";
-  if (Array.isArray(v)) return `[${v.join(", ")}]`;
+  // HD-002's other half. A member containing the delimiter must go back out QUOTED, or the round
+  // trip that wrote it re-reads as several members — the same shredding, arriving from the writer's
+  // side instead of the reader's.
+  if (Array.isArray(v)) return `[${v.map((x) => (/[,"]/.test(String(x)) ? JSON.stringify(String(x)) : String(x))).join(", ")}]`;
   return String(v);
+}
+
+/**
+ * Split a `[a, b]` list body on commas that are NOT inside quotes.
+ *
+ * HD-002. The old implementation was `body.split(",")`, and it shredded any member carrying a
+ * comma — even a correctly quoted one. Measured: a `scope-architect` run probed the running CLI,
+ * confirmed `tag` was unimplemented, and wrote the honest entry its own SKILL.md asks for —
+ *   ["TBD — `tag` is not in dispatch.js's TABLE (exits 1, confirmed against the running CLI). A
+ *     fixture asserting the spec'd behaviour (attach/remove a tag, idempotent double-tag) can only
+ *     be written once the command exists."]
+ * — and the parser turned that one string into FOUR list members. Three of them are prose, and
+ * `t0-verify` executes this field, so the run would have tried to spawn `idempotent double-tag)`.
+ * A worker doing exactly what its contract asks, mangled on the way in.
+ *
+ * @param {string} body - The text between the brackets.
+ * @returns {string[]} Members, unquoted and trimmed; empty members are dropped.
+ */
+function splitList(body) {
+  const out = [];
+  let cur = "", q = null;
+  for (let i = 0; i < body.length; i++) {
+    const c = body[i];
+    if (q) {
+      if (c === "\\" && body[i + 1] === q) { cur += body[++i]; continue; }
+      if (c === q) { q = null; continue; }
+      cur += c;
+    } else if (c === '"' || c === "'") {
+      q = c;
+    } else if (c === ",") {
+      out.push(cur.trim()); cur = "";
+    } else cur += c;
+  }
+  out.push(cur.trim());
+  return out.filter(Boolean);
 }
 
 // ---------------------------------------------------------------------------
@@ -99,13 +181,49 @@ export function splitFrontmatter(md) {
   const m = String(md ?? "").match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!m) return { meta: {}, body: String(md ?? "") };
   const meta = {};
-  for (const line of m[1].split(/\r?\n/)) {
+  const unreadable = [];
+  const lines = m[1].split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^\s/.test(line) || !line.trim()) continue;   // continuation lines are consumed below
     const c = line.indexOf(":");
-    // A leading space means a continuation/nested line, which this dialect does not support —
-    // skipping it is what keeps the parser honest about its own limits.
-    if (c === -1 || /^\s/.test(line)) continue;
-    meta[line.slice(0, c).trim()] = coerce(line.slice(c + 1));
+    if (c === -1) continue;
+    const key = line.slice(0, c).trim();
+    const inline = line.slice(c + 1).trim();
+
+    // HD-003. An indented run beneath a key is a YAML BLOCK SEQUENCE, and it used to be skipped
+    // entirely — so `e2e_verification_fixtures:` followed by two `- "node …"` lines parsed to
+    // null, the members vanished, and no reader could tell "declared nothing" from "declared
+    // something I discarded". Measured: a scope-architect run wrote three scopes of researched
+    // fixtures in this form and every one evaporated. It is ACCEPTED now, because it is the form a
+    // model reaches for by default and the one that carries prose members without HD-002's quoting
+    // problem — and anything indented that is NOT a block sequence is reported rather than dropped.
+    const block = [];
+    let stray = 0;
+    let j = i + 1;
+    for (; j < lines.length && (/^\s/.test(lines[j]) || !lines[j].trim()); j++) {
+      const t = lines[j].trim();
+      if (!t) continue;
+      if (t.startsWith("- ") || t === "-") block.push(t.replace(/^-\s*/, ""));
+      else stray++;
+    }
+    i = j - 1;
+
+    if (inline) {
+      meta[key] = coerce(inline);
+      if (block.length || stray) unreadable.push({ field: key, expected_heading: "an inline value OR an indented block, not both", found_under: "both", rows: block.length + stray });
+      continue;
+    }
+    if (block.length) {
+      meta[key] = block.map((v) => String(coerce(v)));
+    } else if (stray) {
+      meta[key] = null;
+      unreadable.push({ field: key, expected_heading: `${key}: [a, b]  (or an indented \`- item\` list)`, found_under: "an indented block this dialect cannot read", rows: stray });
+    } else {
+      meta[key] = coerce(inline);
+    }
   }
+  if (unreadable.length) meta[UNREADABLE] = unreadable;
   return { meta, body: m[2] };
 }
 
@@ -204,10 +322,47 @@ export function parseContract(md, spec = SCOPE_CONTRACT) {
   const { meta, body } = splitFrontmatter(md);
   const tables = parseTables(body);
   const out = { ...meta };
+  // Frontmatter-level diagnostics (HD-003) and table-level ones (HD-001) share one channel, so a
+  // reader asks `unreadableReason()` once and cannot check for one while missing the other.
+  const unreadable = [...(meta[UNREADABLE] || [])];
+  delete out[UNREADABLE];
   for (const [field, heading] of Object.entries(spec.tables || {})) {
-    if (tables[heading]) out[field] = tables[heading];
+    if (tables[heading]) { out[field] = tables[heading]; continue; }
+    // HD-001. The field is absent — but is it absent because nobody declared it, or because the
+    // author declared it somewhere this parser does not look? Those are opposite facts and the
+    // old code returned the same thing for both. A table carrying this field's signature columns,
+    // under a heading the spec does not claim, is the second case.
+    const sig = (spec.signatures || {})[field];
+    if (!sig) continue;
+    for (const [seen, rows] of Object.entries(tables)) {
+      if (seen === heading || !rows.length) continue;
+      const cols = new Set(Object.keys(rows[0]));
+      if (sig.every((c) => cols.has(c))) {
+        unreadable.push({ field, expected_heading: heading, found_under: seen, rows: rows.length });
+        break;
+      }
+    }
   }
+  if (unreadable.length) out[UNREADABLE] = unreadable;
   return out;
+}
+
+/**
+ * The one-line reason a contract could not be read, or null when it read cleanly.
+ *
+ * Exported so every consumer asks the same question the same way. A reader that skips this is
+ * back to treating "I could not see your table" as "you declared no table", which is HD-001.
+ * @param {Object|null} contract - A parsed contract (or a `readContract()` result's `.contract`).
+ * @returns {string|null} A human-readable failure, or null if the contract parsed cleanly.
+ */
+export function unreadableReason(contract) {
+  const u = contract && contract[UNREADABLE];
+  if (!u || !u.length) return null;
+  return u
+    .map((x) => (x.found_under === "an indented block this dialect cannot read" || x.found_under === "both"
+      ? `\`${x.field}\` was written as \`${x.expected_heading}\` but ${x.rows} indented line(s) beneath it could not be read, so the value parsed as ABSENT`
+      : `\`${x.field}\` must be a table under a \`## ${x.expected_heading}\` heading; found ${x.rows} matching row(s) under "${x.found_under}" instead, so the field parsed as ABSENT`))
+    .join("; ");
 }
 
 /**

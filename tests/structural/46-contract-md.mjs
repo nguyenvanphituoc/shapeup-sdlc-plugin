@@ -132,4 +132,155 @@ export async function run(ctx) {
   if (profile.archetype === "web-service" && profile.entry_point === "src/server.ts" && profile.schema_version === 1) {
     ok("project profile parses (all scalars, schema_version stays a number)");
   } else fail(`project profile did not parse: ${JSON.stringify(profile)}`);
+
+  // --- (f) HD-001: an UNREADABLE contract must be loud, never empty ------------
+  // The heading match is exact, so a table under `# Wiring map — <slug>` used to parse as ABSENT —
+  // and every reader downstream treats absent as "none declared". Measured consequence, reproduced
+  // with no model in the loop: `trace-lint` printing `🟢 green · reachability: 0/0 engines reach
+  // src/cli/main.js` for a committed map holding six correct rows. The gate whose entire purpose is
+  // that no engine ships orphaned, failing OPEN on a file that looks right to every human reviewer.
+  //
+  // Discovered by the Day-1 measurement loop (P3): two of three first drafts wrote exactly this.
+  // Asserted on all three legs — the diagnosis, the oracle's verdict, and the gate's exit code —
+  // because fixing any one alone leaves the hole open through the others.
+  const wrongHeading = [
+    "---", "schema_version: 1", "feature: demo", "entry_point: src/main.js", "---",
+    "# Wiring map — demo",
+    "| use_case | engine | wiring_seam | affordance |",
+    "|---|---|---|---|",
+    "| UC-01 | src/cart/engine.js | src/main.js:init | Add to cart |",
+    "",
+  ].join("\n");
+  const misfiled = C.parseContract(wrongHeading, C.WIRING_MAP);
+  const why = C.unreadableReason(misfiled);
+  if (misfiled.entries === undefined && why && /Wiring/.test(why)) {
+    ok("HD-001: a table under an unrecognised heading is reported UNREADABLE, not silently absent");
+  } else {
+    fail(`HD-001 regression: a wiring table under "# Wiring map — demo" parsed as ${JSON.stringify(misfiled.entries)} with reason ${JSON.stringify(why)} — a contract this parser cannot see must not read as a contract that declared nothing`);
+  }
+  // The clean case must stay quiet, or every correct contract becomes a false alarm.
+  if (C.unreadableReason(wiring) === null) ok("HD-001 guard is silent on a correctly-headed contract (no false alarm)");
+  else fail(`HD-001 guard fired on a VALID wiring map: ${C.unreadableReason(wiring)}`);
+  // Prose tables must not trip it either — the signature columns are what identify the field.
+  const withProse = C.parseContract([
+    "---", "schema_version: 1", "feature: demo", "entry_point: src/main.js", "---",
+    "## Why this map", "| option | verdict |", "|---|---|", "| inline the engine | rejected |", "",
+    "## Wiring", "| use_case | engine |", "|---|---|", "| UC-01 | src/cart/engine.js |", "",
+  ].join("\n"), C.WIRING_MAP);
+  if (withProse.entries?.length === 1 && C.unreadableReason(withProse) === null) {
+    ok("HD-001 guard ignores a prose table that lacks the field's signature columns");
+  } else fail(`HD-001 guard misread a prose comparison table: entries=${JSON.stringify(withProse.entries)}, reason=${JSON.stringify(C.unreadableReason(withProse))}`);
+
+  // --- (g) HD-002: a QUOTED list member survives the comma delimiter ----------
+  // `coerce` used to split `[a, b]` on every comma, quoted or not. Measured consequence, from a
+  // paid scope-architect run: the worker probed the running CLI, confirmed `tag` was unimplemented,
+  // and wrote the honest single entry its own SKILL.md asks for —
+  //   ["TBD — `tag` is not in dispatch.js's TABLE (exits 1, confirmed…). A fixture asserting the
+  //     spec'd behaviour (attach/remove a tag, idempotent double-tag) needs the command first."]
+  // — and the parser turned that ONE string into FOUR members, three of them prose. `t0-verify`
+  // EXECUTES this field, so the run would have tried to spawn `idempotent double-tag)`. A worker
+  // doing exactly what its contract asks, mangled on the way in.
+  {
+    const one = C.coerce('["TBD — not built (exits 1, confirmed). A fixture (attach a tag, remove it) needs the command first."]');
+    if (one.length === 1) ok("HD-002: a quoted list member carrying commas parses as ONE member");
+    else fail(`HD-002 regression: a quoted member split into ${one.length} members (${JSON.stringify(one)}) — a worker's honest TBD note becomes several bogus commands, and t0-verify runs this field`);
+    // The writer's half: re-rendering must quote it back, or the round trip re-shreds it.
+    if (JSON.stringify(C.coerce(C.uncoerce(one))) === JSON.stringify(one)) ok("HD-002: a member carrying commas survives render → parse unchanged");
+    else fail(`HD-002 regression: round trip changed ${JSON.stringify(one)} into ${JSON.stringify(C.coerce(C.uncoerce(one)))}`);
+    // Non-regression: the ordinary forms this field actually carries must be untouched.
+    if (JSON.stringify(C.coerce("[TASK-001, TASK-002]")) === '["TASK-001","TASK-002"]') ok("HD-002 fix leaves plain id lists unchanged");
+    else fail(`HD-002 fix broke a plain id list: ${JSON.stringify(C.coerce("[TASK-001, TASK-002]"))}`);
+    if (JSON.stringify(C.coerce("[src/**, src/cli/dispatch.js]")) === '["src/**","src/cli/dispatch.js"]') ok("HD-002 fix leaves substrate globs unchanged");
+    else fail(`HD-002 fix broke a substrate glob list: ${JSON.stringify(C.coerce("[src/**, src/cli/dispatch.js]"))}`);
+    // A QUOTED STRING that looks like a list must stay a string — the list test runs before the
+    // quotes come off, and inverting that order silently changes the field's type.
+    if (C.coerce('"[a, b]"') === "[a, b]") ok("HD-002: a quoted string that looks like a list stays a string");
+    else fail(`HD-002: '"[a, b]"' coerced to ${JSON.stringify(C.coerce('"[a, b]"'))} — quoting was stripped before the list test`);
+  }
+
+  // --- (h) HD-003: a YAML block sequence is read, and an unreadable shape is reported ----------
+  // The third instance of the same family. `key:` followed by indented `- item` lines used to be
+  // skipped wholesale, so the value read as null and no reader could tell "declared nothing" from
+  // "declared something I discarded". Measured: a scope-architect run wrote three scopes of
+  // researched fixtures in this form — expected exit codes, evidence from probing the CLI, a TBD
+  // with a reason — and every member evaporated. `t0-verify` consumes this field.
+  {
+    const blockForm = [
+      "---", "scope_id: SC-demo", "tasks: [TASK-001, TASK-002]",
+      "e2e_verification_fixtures:",
+      '  - "node src/cli/main.js archive"',
+      '  - "TBD — not built (exits 1, confirmed). Needs the command first."',
+      "business_goal: demo", "---", "",
+    ].join("\n");
+    const c = C.parseContract(blockForm, C.SCOPE_CONTRACT);
+    const fx = c.e2e_verification_fixtures;
+    if (Array.isArray(fx) && fx.length === 2 && fx[0] === "node src/cli/main.js archive") {
+      ok("HD-003: a YAML block sequence parses as a list (was: silently null)");
+    } else fail(`HD-003 regression: a block sequence parsed as ${JSON.stringify(fx)} — the members are discarded and the field reads as undeclared`);
+    // The block form is also how a prose member with commas travels without HD-002's quoting rule.
+    if (Array.isArray(fx) && /Needs the command first\.$/.test(fx[1] || "")) ok("HD-003: a block member carrying commas survives whole");
+    else fail(`HD-003 regression: block member came back as ${JSON.stringify(fx && fx[1])}`);
+    // Non-regression: inline lists and scalars beside a block key are untouched.
+    if (JSON.stringify(c.tasks) === '["TASK-001","TASK-002"]' && c.business_goal === "demo" && C.unreadableReason(c) === null) {
+      ok("HD-003 fix leaves inline lists and scalars alone, and reports the contract as clean");
+    } else fail(`HD-003 fix disturbed its neighbours: tasks=${JSON.stringify(c.tasks)} goal=${JSON.stringify(c.business_goal)} reason=${JSON.stringify(C.unreadableReason(c))}`);
+    // And the half that matters most: an indented shape that is NOT a block sequence is REPORTED.
+    const junk = C.parseContract(["---", "scope_id: SC-junk", "e2e_verification_fixtures:",
+      "    node src/cli/main.js archive", "    node src/cli/main.js list", "---", ""].join("\n"), C.SCOPE_CONTRACT);
+    if (C.unreadableReason(junk)) ok("HD-003: an indented shape this dialect cannot read is REPORTED, not dropped");
+    else fail("HD-003 regression: an unreadable indented block was silently discarded — the next unreadable shape is invisible again");
+  }
+
+  // --- (i) HD-005: a markdown code span is FORMATTING, not part of the value ------------------
+  // The fifth instance of the family, and the first that fails CLOSED rather than open. These
+  // contracts are markdown, and a code span is how anyone writes a path in one — this repo's own
+  // prose backticks every path it names. Read literally, `` `src/capture/add.js` `` is a filename
+  // containing two backticks, so trace-lint reported "engine file not on disk" and then
+  // "reachability is not demonstrated" for a wiring map whose six engines ALL resolve and ALL
+  // reach the entry point. Measured: a paid solution-architect round scored 0.667 on a correct
+  // map, and stripping the backticks with nothing else changed took it to 1.0.
+  {
+    const cell = "`src/capture/add.js`";
+    if (C.coerce(cell) === "src/capture/add.js") ok("HD-005: a whole-value code span is stripped — the value is the path, not the formatting");
+    else fail(`HD-005 regression: ${cell} coerced to ${JSON.stringify(C.coerce(cell))} — trace-lint then reports a resolvable engine as missing, and the reachability gate fails CLOSED on a correct map`);
+
+    // The other half, and the reason the rule is "whole value only": a cell that is PROSE
+    // containing spans keeps them. Every wiring map's seam and call-site columns look like this.
+    const prose = "Registered as the `add` entry in the command table `TABLE`";
+    if (C.coerce(prose) === prose) ok("HD-005: prose containing code spans is left exactly as written");
+    else fail(`HD-005 fix over-reached: prose was rewritten to ${JSON.stringify(C.coerce(prose))}`);
+
+    // Two spans with text between them start AND end with a backtick, so a naive strip splices
+    // them into one nonsense token. The inner text may not contain a backtick, which rules it out.
+    if (C.coerce("`a` and `b`") === "`a` and `b`") ok("HD-005: two adjacent spans are not spliced into one token");
+    else fail(`HD-005 fix spliced two spans: ${JSON.stringify(C.coerce("`a` and `b`"))}`);
+
+    // Non-regression across the other coercions, since this runs before all of them.
+    const untouched = [["src/x.js", "src/x.js"], ["[a, b]", ["a", "b"]], ['"[a, b]"', "[a, b]"], ["~", null], ["true", true], ["42", 42]];
+    const broke = untouched.filter(([i, w]) => JSON.stringify(C.coerce(i)) !== JSON.stringify(w));
+    if (!broke.length) ok("HD-005 fix leaves bare paths, lists, quoted lists, null, booleans and numbers unchanged");
+    else fail(`HD-005 fix disturbed ${broke.length} existing coercion(s): ${JSON.stringify(broke.map(([i]) => [i, C.coerce(i)]))}`);
+  }
+
+  // The oracle leg: trace-lint must go RED and must NOT claim reachability it never checked.
+  {
+    const { traceLint } = await import("../../skills/tech-lead/scripts/trace-lint.mjs");
+    const dir = mkdtempSync(join(tmpdir(), "hd001-"));
+    try {
+      mkdirSync(join(dir, "shapeup", "demo"), { recursive: true });
+      mkdirSync(join(dir, "src"), { recursive: true });
+      writeFileSync(join(dir, "src", "main.js"), "export const main = () => {};\n");
+      writeFileSync(join(dir, "shapeup", "demo", "project-profile.md"), "---\nschema_version: 1\narchetype: cli\nentry_point: src/main.js\n---\n");
+      writeFileSync(join(dir, "shapeup", "demo", "wiring-map.md"), wrongHeading);
+      const { report } = traceLint("demo", { cwd: dir });
+      const red = report.findings.some((f) => f.code === "WIRING-UNREADABLE" && f.severity === "red");
+      if (report.overall === "red" && red) ok("HD-001: trace-lint reports RED on an unreadable wiring map (was: green, 0/0 engines)");
+      else fail(`HD-001 regression: trace-lint returned overall=${report.overall} for an unreadable wiring map — the reachability gate fails OPEN`);
+      if (report.reachability.checked === false && report.reachability.pass === false) {
+        ok("HD-001: trace-lint does not claim reachability it could not check");
+      } else fail(`HD-001 regression: reachability reported checked=${report.reachability.checked} pass=${report.reachability.pass} having walked nothing`);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
 }
