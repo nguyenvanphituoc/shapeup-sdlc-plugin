@@ -54,16 +54,6 @@ Under the hood this rests on a typed worker envelope and a single-writer state l
 are load-bearing plumbing, and you should not have to think about them to use the harness —
 they are documented for [contributors](CONTRIBUTING.md), not for users.
 
-> ### Just want the gate?
->
-> The enforcement layer ships separately as the **[Anti-Lying Kit](plugins/anti-lying-kit/)** —
-> three hooks, no methodology, installable *alongside* spec-kit, OpenSpec, or your own
-> `tasks.md`. You should not have to adopt Shape Up to stop your agent claiming done.
->
-> ```
-> /plugin install anti-lying-kit@nvptuoc-marketplace
-> ```
-
 ## Quickstart
 
 ```
@@ -73,6 +63,15 @@ they are documented for [contributors](CONTRIBUTING.md), not for users.
 ```
 
 `/ship` walks the whole lifecycle and pauses at each gate for you. That's the whole quickstart.
+
+> **Running unattended?** The plugin install grants no permissions — every pipeline step is a Node
+> script that ships *with* the plugin and therefore lives outside your project, so it needs
+> approval. You click once interactively; headless there is nobody to click. Scaffold instead, which
+> writes the grant along with configs for Antigravity and Codex:
+>
+> ```bash
+> npx shapeup-sdlc init -d . -y
+> ```
 
 Want to see a full run before installing anything? **[docs/quickstart.md](docs/quickstart.md)**
 walks one small feature end to end — including the hook denying a premature eval, a FAIL round
@@ -200,15 +199,10 @@ learnable from `/`-completion alone.
 | `/hammer` | H | Must-have census, baseline comparison, cut list + ship verdict. |
 | `/retro` | post-L4 | File ship-gate feedback into the per-skill knowledge base. |
 
-### Agents
-
-| Agent | Description |
-|-------|-------------|
-| `reviewer` | Independent correctness/security code reviewer (returns findings, never edits). |
-
 ### Hooks
 
-Nine Node hooks. What each one reads and what it can deny:
+Ten Node hooks in `hooks/`, plus `validate-envelope.mjs` which ships with the orchestrator skill.
+What each one reads and what it can deny:
 
 - `SessionStart` — prints a load confirmation so you know the plugin is active; on
   `startup|compact|resume|clear`, `hooks/session-rehydrate.mjs` additionally injects the mid-run
@@ -289,6 +283,17 @@ Stated plainly, because you will hit them:
 
 - **The `--tiny` lane is young.** It right-sizes the ceremony (two gates instead of eight) but
   keeps the T0 verification floor; its fit-check heuristics will need tuning against real use.
+- **Skill quality is measured for 5 of the 13 skills, and the honest ceiling is 6.** The five that
+  a deterministic script already grades — `ba-pitch-analyzer`, `scope-architect`,
+  `solution-architect`, `spec-evaluator`, `task-executor` — clear *Graph Engineering* §VI.A's Day-1
+  bar on `claude-sonnet-5`: approve in every run, revision rates of 10% / 33% / 6.3% and two
+  bounded at ≤21%. The other seven document their own lack of ground truth (`qa-edge-hunter` issues
+  no verdict; `scope-hammer` never compares against an ideal), and inventing one for them would be
+  worse than the gap. **Read the rates, not the verdicts** — and note the bar's condition 4 was
+  amended after results were known, which is disclosed rather than buried:
+  [evals/DAY1-REPORT.md](evals/DAY1-REPORT.md) carries both readings, 5 of 5 and 3 of 5. The most
+  valuable thing that measurement produced was not a score but five production defects, all one
+  family — the committed contract format failing silent.
 - **Only half the trigger-eval story is measured.** Skill *discrimination* is:
   **0 false activations across 75 cross-skill hard negatives** (Haiku 4.5, 2026-07-26 — the
   thirteen descriptions do not steal each other's work). *Activation* rate is measured but
@@ -323,29 +328,36 @@ skills/tech-lead/scripts|schemas/        # orchestrator pipeline: init-run, gate
 skills/ba-pitch-analyzer/scripts/        # planner mechanics: board-derive, spec-lint
 skills/spec-evaluator/scripts/           # verdict-ledger (reference impl of the flip/confidence grammar)
 commands/*.md         # slash commands (/ship + the 9 phase commands)
-agents/*.md           # subagents (reviewer)
 hooks/                # hooks.json + safety-spine, gate-l2, gate-intake, gate-deadline,
                       #   sandbox-guard (PreToolUse),
                       #   gate-zerowork (Stop, blocking), anti-rationalization, slop-cleaner (Stop, advisory),
                       #   compact-snapshot (PreCompact), session-rehydrate (SessionStart)
+                      #   + lib/decision.mjs (every hook records allow / deny / error)
+oracles/              # the evaluation-contract oracle registry (test · snapshot · http · process)
+bin/init.mjs          # `npx shapeup-sdlc init` — scaffolds all three CLI targets
 scripts/install-harness.sh, migrate.sh   # stable public entrypoints (fresh install / update)
-tools/demo/record-demo.mjs             # regenerates docs/assets/demo-gate.svg
-scripts/shapeup-sdlc/                    # dev/CI tooling: lib/, migrations/, oracles/,
-                                         #   trigger-eval.mjs, distribute.js
+scripts/shapeup-sdlc/                    # dev/CI tooling: lib/, migrations/
+tools/                # repo-only: trigger-eval.mjs, skill-loop.mjs, distribute.js,
+                      #   demo/record-demo.mjs (regenerates docs/assets/demo-gate.svg)
+evals/                # the evidence layer: rubrics, fixtures, oracles, schemas, baselines,
+                      #   DAY1-REPORT.md, failure-classes.json (runs/ stays local)
+tests/structural.mjs, tests/structural/*.mjs   # Tier 0 — 1250+ checks, zero LLM calls
 docs/install.md, upgrading.md, glossary.md
 docs/design/          # the design document (pipeline, gates, circuit breaker, ERD)
-docs/internal/launch/          # directory-submission copy
-.github/workflows/    # CI + release
+docs/internal/        # plan/ (the Day-1/Day-2 plan), research/, launch/
+.github/workflows/    # CI + release (release publishes to npm via OIDC)
 ```
 
 ## Release
 
-1. Bump `version` in `.claude-plugin/plugin.json`.
+1. Bump `version` in **both** `.claude-plugin/plugin.json` and `package.json` — the release
+   workflow fails if either disagrees with the tag.
 2. Update `CHANGELOG.md`.
-3. Tag and push: `git tag v1.3.1 && git push origin v1.3.1`.
+3. Tag and push: `git tag v1.6.3 && git push origin main --follow-tags`.
 
-The release workflow validates the plugin, checks the tag matches the manifest version,
-and publishes a GitHub release.
+The workflow validates the plugin, checks the tag against both manifests, publishes a GitHub
+release, and publishes to npm through **trusted publishing (OIDC)** — no `NPM_TOKEN`, no OTP, with
+a SLSA provenance attestation attached automatically.
 
 ## Credits
 
