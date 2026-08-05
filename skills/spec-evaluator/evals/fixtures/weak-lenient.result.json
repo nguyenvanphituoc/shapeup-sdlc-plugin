@@ -1,0 +1,17 @@
+{
+  "_comment": "SYNTHETIC reference envelope — the lenient failure mode. Trusts the green in-repo suite and the ticked boxes, grades no failing row, refutes nothing, and closes the task. NOT measured skill output.",
+  "schema_version": 1,
+  "order_id": "eval-planted-bug-r1-a1",
+  "worker": "spec-evaluator",
+  "status": "done",
+  "task_results": [ { "task_id": "TASK-001", "status": "done" } ],
+  "verdict": {
+    "overall": "PASS",
+    "report_path": ".shapeup/fizzbuzz/evaluation/EVAL-TASK-001.md",
+    "criteria": [
+      { "criterion": "AC1-AC5 reviewed", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "build's own test suite is green and all acceptance boxes are ticked" }
+    ],
+    "refuted": [],
+    "bugs": []
+  }
+}

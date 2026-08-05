@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.1",
+  "skill": "task-executor",
+  "grades": "workspace",
+  "note": "P1''' (SECOND EXTERNAL-FACT ESCALATION). DECLARED BEFORE THE RUN, with a written prediction, per plan §7.1 and §5's demand for a held-out confirmatory test. WHY THE PREVIOUS FIXTURE CEILINGED, and the diagnosis is about the fixture rather than the skill. Its own note claimed the store's shape 'is in a file the model must choose to open' — while its PROMPT said 'READ IT before you write anything that touches the store'. Structural §48 requires that pointer: a brownfield prompt must say where the authoritative format lives, or the convention is not derivable. So the arm was never SKIPPABLE, and dial three's stated precondition — checking the external fact is OPTIONAL to producing a plausible artifact AND the model actually skips it — was never satisfied. The report's reading, that task-executor 'did the checking anyway', is not the only explanation available: it was TOLD to. WHAT CHANGED, and it is one variable. The store-envelope arm is untouched, pointer and all. ONE ROW IS ADDED — R7 — whose fact has NO pointer anywhere in the prompt. src/store/compact.js writes the store file directly rather than through json-store.write(), names every field it keeps, and src/archive/archive-engine.js uses it. A `tag` command written entirely correctly against read()/write() passes T1-T4 and R1-R6 and still loses every tag the first time anything is archived. Nothing `tag` touches imports compact.js. PRE-REGISTERED PREDICTION: at least one of three runs scores 10/11 on its first draft and needs a second round. The failure mode is specific and it is what the committed PARTIAL reference is: a correct tag command with compact.js untouched, 0.909. DERIVABILITY (plan §0), checked row by row before the run. R7's requirement is STATED in the prompt — 'a tag, once attached, stays attached; no other command may lose it'. The mechanism is documented in compact.js's own comment ('anything not listed here does not survive a compaction'). The prompt deliberately does NOT say that more than one module writes the store: naming the mechanism is what made the last arm unskippable, and the requirement alone is the spec line the row traces to. The `tags` field name IS stated, because that is an interface convention of the apparatus in P1's sense, not craft — the probe seeds it. THE SEEDED RENDERER already displays tags, which serves the measurement twice: it makes R7 observable in ONE invocation regardless of where the skill chooses to render (archive prints what is left as it now stands on disk), and it keeps the field name derivable from code as well as prompt. THE LADDER, all four measured against the same contract before any paid run: WEAK 0.364 (rewrites the shared json-store.js to the shape its new command wanted, the classic, taking four regressions with it) < SEEDED BASELINE 0.636 (the handout: no tag command, and R7 already red) < PARTIAL 0.909 (the near-miss this fixture exists to create) < STRONG 1.0. THIS FIXTURE REPRODUCES THE HARNESS'S OWN DEFECT FAMILY. HD-003/HD-004 were two hand-rolled parsers for one documented format, where fixing the first left the second silently returning empty. compact.js is the same shape: a second writer for one store, which drops what it does not know about.",
+  "fixture": {
+    "id": "todo-cli-add-tag-that-survives-compaction",
+    "prompt": "There is a working `todo` CLI in `src/`, run as `node src/cli/main.js <command> [args]`. It implements add / list / search / done / rm / archive today.\n\nADD ONE COMMAND: `todo tag <n> <tag>` attaches a free-form tag to item `<n>`.\n- `tag 1 work` attaches `work` to item 1 and confirms it on stdout.\n- Tagging an item twice with the same tag is a no-op, not an error.\n- An out-of-range selector is refused non-zero, with `no item <n>` in the message.\n- `tag` with no tag argument is refused non-zero, with a `usage:` message.\n- An item carries its tags under `tags`, an array of strings. `list` already renders them.\n\nTHE PART THAT IS GRADED HARDEST: **every command that works today must still work when you are done.** Your change is checked by re-running the existing behaviour — `list` and `search` and `done` and `add` and `archive` — against stores written before your change, including a pre-v1 store the CLI still has to lift. If your new command works and an old one stops, that is a worse result than not shipping the command.\n\n**AND A TAG, ONCE ATTACHED, STAYS ATTACHED.** No other command may lose it. Adding, listing, searching, completing, removing and archiving all have to leave an item's tags exactly where they were — a tag that survives until the next `archive` and then vanishes is not attached, it is temporary.\n\nThe store's ON-DISK shape is not the shape the modules pass around. `src/store/json-store.js` is the only module that knows the file format; everything above it works in plain item arrays. READ IT before you write anything that touches the store — do not infer the file's shape from what `list.js` or `add.js` hand each other.\n\nEdit `src/` in place. Add files if you need them. Write nothing outside `src/`.",
+    "workspace": null,
+    "deliverable": "src",
+    "seed": [
+      {
+        "from": "evals/fixtures/spine/project-v2/src",
+        "to": "src"
+      }
+    ],
+    "contract_files": [
+      "skills/task-executor/evals/fixtures/tags-v2.contract.json",
+      "oracles/process-oracle.mjs"
+    ],
+    "reference_drafts": {
+      "weak": "fixtures/tags-v2-weak",
+      "partial": "fixtures/tags-v2-partial",
+      "strong": "fixtures/tags-v2-strong"
+    }
+  },
+  "discrimination": {
+    "max_weak_score": 0.45,
+    "min_strong_score": 1
+  },
+  "stopping_rule": {
+    "approve_at": 1,
+    "max_rounds": 5
+  },
+  "criteria": [
+    {
+      "id": "contract-green",
+      "kind": "must",
+      "dimension": "verification",
+      "weight": 1,
+      "assertion": "Every row of the declared evaluation contract passes against the running deliverable: the NEW `tag` command behaves as specified (T1-T4), every command that worked before the change still works (R1-R6) including lifting a pre-v1 bare-array store, and an attached tag survives archiving (R7).",
+      "detector": {
+        "kind": "oracle",
+        "cmd": "node {{root}}/oracles/process-oracle.mjs {{root}}/skills/task-executor/evals/fixtures/tags-v2.contract.json \"node {{workspace}}/src/cli/main.js\"",
+        "rows": {
+          "pattern": "^(?<status>PASS|FAIL)\\s+(?<id>[A-Z]+\\d+)\\s+(?<label>.*)$",
+          "flags": "gm",
+          "pass": "PASS"
+        }
+      },
+      "traces_to": "skills/task-executor/evals/fixtures/tags-v2.contract.json; R1-R6 are the behaviour src/ already had before the change, and R7 is the prompt's 'a tag, once attached, stays attached' — the mechanism that breaks it is documented in src/store/compact.js"
+    }
+  ]
+}

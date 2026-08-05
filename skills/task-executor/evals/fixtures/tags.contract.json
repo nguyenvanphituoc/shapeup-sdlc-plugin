@@ -1,0 +1,156 @@
+{
+  "deliverable": "todo CLI with a `tag` command added",
+  "oracle": "process",
+  "note": "P1'' — the EXTERNAL-FACT fixture for task-executor. T1–T4 are the NEW command; R1–R6 are REGRESSION rows over commands that already worked before the change. The store on disk is an envelope {v:1,items:[…]} and ONLY src/store/json-store.js says so; every module above it works in plain arrays. A build that assumes the on-disk shape instead of reading json-store.js passes its own new rows and breaks every existing one — which is why the regression rows are the measurement and the new rows are the setup.",
+  "criteria": [
+    {
+      "id": "T1",
+      "desc": "NEW — `tag 1 work` attaches a tag and confirms it",
+      "probe": {
+        "argv": [
+          "tag",
+          "1",
+          "work"
+        ],
+        "store": "{\"v\":1,\"items\":[{\"text\":\"a\",\"done\":false},{\"text\":\"b\",\"done\":true}]}"
+      },
+      "expect": {
+        "exit": "==0",
+        "stdout": "/work/"
+      }
+    },
+    {
+      "id": "T2",
+      "desc": "NEW — an out-of-range selector is refused non-zero",
+      "probe": {
+        "argv": [
+          "tag",
+          "99",
+          "work"
+        ],
+        "store": "{\"v\":1,\"items\":[{\"text\":\"a\",\"done\":false}]}"
+      },
+      "expect": {
+        "exit": "!=0",
+        "stdout": "/no item 99/",
+        "no_crash": true
+      }
+    },
+    {
+      "id": "T3",
+      "desc": "NEW — `tag` with no tag argument is refused non-zero",
+      "probe": {
+        "argv": [
+          "tag",
+          "1"
+        ],
+        "store": "{\"v\":1,\"items\":[{\"text\":\"a\",\"done\":false}]}"
+      },
+      "expect": {
+        "exit": "!=0",
+        "stdout": "/usage|missing tag|no tag given/i",
+        "no_crash": true
+      }
+    },
+    {
+      "id": "T4",
+      "desc": "NEW — `list` shows an attached tag",
+      "probe": {
+        "argv": [
+          "list"
+        ],
+        "store": "{\"v\":1,\"items\":[{\"text\":\"a\",\"done\":false,\"tags\":[\"work\"]}]}"
+      },
+      "expect": {
+        "exit": "==0",
+        "stdout": "/work/"
+      }
+    },
+    {
+      "id": "R1",
+      "desc": "REGRESSION — `list` still reads the v1 envelope",
+      "probe": {
+        "argv": [
+          "list"
+        ],
+        "store": "{\"v\":1,\"items\":[{\"text\":\"alpha\",\"done\":false},{\"text\":\"beta\",\"done\":true}]}"
+      },
+      "expect": {
+        "exit": "==0",
+        "stdout": "/1\\. \\[ \\] alpha[\\s\\S]*2\\. \\[x\\] beta/"
+      }
+    },
+    {
+      "id": "R2",
+      "desc": "REGRESSION — `list` still lifts a pre-v1 bare array",
+      "probe": {
+        "argv": [
+          "list"
+        ],
+        "store": "[{\"text\":\"legacy\",\"done\":false}]"
+      },
+      "expect": {
+        "exit": "==0",
+        "stdout": "/1\\. \\[ \\] legacy/"
+      }
+    },
+    {
+      "id": "R3",
+      "desc": "REGRESSION — `add` still appends and confirms",
+      "probe": {
+        "argv": [
+          "add",
+          "gamma"
+        ],
+        "store": "{\"v\":1,\"items\":[{\"text\":\"alpha\",\"done\":false}]}"
+      },
+      "expect": {
+        "exit": "==0",
+        "stdout": "/added: gamma/"
+      }
+    },
+    {
+      "id": "R4",
+      "desc": "REGRESSION — `done 2-3` still resolves against the original list",
+      "probe": {
+        "argv": [
+          "done",
+          "2-3"
+        ],
+        "store": "{\"v\":1,\"items\":[{\"text\":\"a\",\"done\":false},{\"text\":\"b\",\"done\":false},{\"text\":\"c\",\"done\":false}]}"
+      },
+      "expect": {
+        "exit": "==0"
+      }
+    },
+    {
+      "id": "R5",
+      "desc": "REGRESSION — `search` still filters without writing",
+      "probe": {
+        "argv": [
+          "search",
+          "alp"
+        ],
+        "store": "{\"v\":1,\"items\":[{\"text\":\"alpha\",\"done\":false},{\"text\":\"beta\",\"done\":false}]}"
+      },
+      "expect": {
+        "exit": "==0",
+        "stdout": "/alpha/"
+      }
+    },
+    {
+      "id": "R6",
+      "desc": "REGRESSION — `archive` still drops done items and reports the count",
+      "probe": {
+        "argv": [
+          "archive"
+        ],
+        "store": "{\"v\":1,\"items\":[{\"text\":\"a\",\"done\":true},{\"text\":\"b\",\"done\":false}]}"
+      },
+      "expect": {
+        "exit": "==0",
+        "stdout": "/archived 1/"
+      }
+    }
+  ]
+}

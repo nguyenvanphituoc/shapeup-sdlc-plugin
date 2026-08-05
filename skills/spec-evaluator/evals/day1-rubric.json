@@ -1,0 +1,65 @@
+{
+  "schema_version": "1.1",
+  "skill": "spec-evaluator",
+  "grades": "workspace",
+  "note": "v4 — THE AMENDMENT ARM (TS-08). DECLARED BEFORE THE RUN, with a written prediction, per plan §7.1. WHY v3 CEILINGED, and the diagnosis is the same one task-executor got. The report reads its 1.0/3-of-3 as a result about the skill — 'verification IS its craft, so it does not skip the check dial three exists to catch'. That is one explanation and it was formed after the fact. There is a simpler one: both of v3's external-fact arms were POINTED AT. The prompt says 'Probe each Test-Surface row THE WAY THE ROW IS WRITTEN. A row that names a seeded store is not exercised by running the command against a store file that does not exist', and UC-01 carries a blockquote saying the same thing about TS-05 and TS-06. A check the fixture instructs you to perform is not a check you can skip. WHAT CHANGED, and it is ONE VARIABLE — the same intervention task-executor's fixture gets, so the two results are comparable. Both hint sentences STAY, exactly where they were. One row is added whose fact is not pointed at: TS-08 grades `add` against INV-06, and INV-06 is not in UC-01. It lives in spec/invariants.md, an amendment file the use case defers to by reference. The build stores and echoes untrimmed text, so the row's ground truth is FAIL. WHY THIS ARM IS SKIPPABLE FOR A SKILL WHOSE CRAFT IS VERIFICATION. Probing the build is what this skill will not skip, and v3 proved that — its repros seed their own stores with heredocs. Reading the WHOLE SPEC is a different act. TS-08's probe runs, exits 0, and prints the text it was given; a judge that grades from the probe alone writes an evidence line that reads perfectly well and is wrong. The defect is visible IN THE EVIDENCE IT MUST RECORD — `added:   write the pitch  ` — and still passes unnoticed unless the judge went and read what the row cites. That is dial three's precondition met on the axis this skill actually has: optional to producing a plausible artifact. PRE-REGISTERED PREDICTION: at least one of three runs grades TS-08 PASS on its first draft and needs a second round. The specific failure mode is what the committed PARTIAL reference now is — both build-reachable defects caught, including the seeded-store one, and TS-08 graded from the probe alone. It scores 0.846. DERIVABILITY (plan §0). TS-08 is a declared Test-Surface row; its Expect column cites INV-06 and its Source column names the file INV-06 is in. UC-01's Invariants section lists INV-06 and says where it is defined. The row is passable by reading the spec the judge was handed. It is NOT passable by inferring how the harness probes — which is the rule that matters. THE LADDER: WEAK 0.231 (the lenient judge — four rows graded, all PASS, nothing refuted, nothing escalated, and it closes the task) < PARTIAL 0.846 (the near-miss this arm exists to create) < STRONG 1.0. EVERYTHING ELSE IS AS v3 DESCRIBED IT and is repeated here because it still governs: nine authored criteria down to four of thirteen (JV-REFUTED, JV-ESCALATED, JV-NO-CLOSURE, JV-REPRO), with every JV-TS-* row delegated to the process oracle for ground truth so a false-FAIL costs exactly what a false-PASS costs; ground truth taken from the FROZEN repo build rather than the workspace copy the session could edit; and todo.contract.json deliberately not seeded, because it is the probes and handing them over would remove the headroom.",
+  "fixture": {
+    "id": "planted-bug-3-defect-in-an-amendment",
+    "prompt": "You are dispatched as a worker. Read `workorder.json` in this directory and carry out the evaluation it specifies.\n\nThe order points at `spec/` (the use case, its Test Surface, and the task with its acceptance criteria) and at `build/todo.mjs` (the build as it stands). Evaluate the RUNNING BUILD against the committed spec.\n\nWrite your complete WorkResult envelope as JSON to `verdict.json` in this directory — the file is the deliverable, and it must validate against the WorkResult contract. Write no other files.\n\nWhat the envelope must carry:\n- `verdict.overall` — PASS or FAIL for the build as a whole.\n- `verdict.criteria[]` — one entry per row of the Test Surface declared in the use case, each with `criterion`, `verdict` (PASS or FAIL), and `evidence`. Evidence is what you OBSERVED running the build: the command, its exit code, and its output. Absence of evidence is a FAIL, never a pass.\n- `verdict.refuted[]` — the ticked acceptance-criteria boxes your evidence disproves. You return them as data; un-ticking is the orchestrator's act, not yours.\n- `verdict.bugs[]` — for each defect you found: `criterion`, a `locator` (file:line), and a `repro` — **the command you actually ran to see it**, exactly as you ran it, so someone else can paste it and watch the same thing happen. It is executed against this build; a repro that is a description rather than a runnable command, or that names a command the build does not have, is not evidence.\n- `escalates[]` — anything the spec leaves genuinely undecided, as `{kind, question}` with kind `spec-ambiguity`. Raise it; do not settle it by choosing an answer and grading against your choice.\n- You never set a task's status to `done`. Verdicts are your job; closure belongs to the orchestrator.\n\nProbe each Test-Surface row THE WAY THE ROW IS WRITTEN. A row that names a seeded store is not exercised by running the command against a store file that does not exist.",
+    "workspace": null,
+    "deliverable": "verdict.json",
+    "seed": [
+      {
+        "from": "examples/eval-planted-bug-2/spec",
+        "to": "spec"
+      },
+      {
+        "from": "examples/eval-planted-bug-2/build",
+        "to": "build"
+      },
+      {
+        "from": "examples/eval-planted-bug-2/workorder.json",
+        "to": "workorder.json"
+      }
+    ],
+    "contract_files": [
+      "evals/oracles/verdict-rows.mjs",
+      "oracles/process-oracle.mjs",
+      "examples/eval-planted-bug-2/todo.contract.json",
+      "examples/eval-planted-bug-2/build/todo.mjs",
+      "skills/tech-lead/scripts/t0-verify.mjs"
+    ],
+    "reference_drafts": {
+      "weak": "fixtures/verdict-weak.json",
+      "partial": "fixtures/verdict-partial.json",
+      "strong": "fixtures/verdict-strong.json"
+    }
+  },
+  "discrimination": {
+    "max_weak_score": 0.35,
+    "min_strong_score": 1
+  },
+  "stopping_rule": {
+    "approve_at": 1,
+    "max_rounds": 5
+  },
+  "criteria": [
+    {
+      "id": "verdict-matches-the-build",
+      "kind": "must",
+      "dimension": "judgement",
+      "weight": 1,
+      "assertion": "Every row of the judge contract passes: each declared Test-Surface row is graded, and graded the way the running build actually behaves (JV-TS-*), including the row whose invariant is defined in the spec's amendment file rather than in the use case; the overall verdict follows those rows rather than the green suite or the ticked boxes (JV-OVERALL); every refuted box the evidence disproves is returned as data (JV-REFUTED); the spec question the spec does not answer is escalated rather than decided (JV-ESCALATED); no task is closed by the judge (JV-NO-CLOSURE); and every bugs[].repro is a command that actually runs against the build (JV-REPRO).",
+      "detector": {
+        "kind": "oracle",
+        "cmd": "node {{root}}/evals/oracles/verdict-rows.mjs --contract {{root}}/examples/eval-planted-bug-2/todo.contract.json --cmd \"node {{root}}/examples/eval-planted-bug-2/build/todo.mjs\" --result {{workspace}}/verdict.json --require-escalate",
+        "rows": {
+          "pattern": "^(?<status>PASS|FAIL)\\s+(?<id>JV-[A-Z0-9-]+)\\s+(?<label>.*)$",
+          "flags": "gm",
+          "pass": "PASS"
+        }
+      },
+      "traces_to": "examples/eval-planted-bug-2/todo.contract.json (JV-TS-*, JV-OVERALL — delegated to the process oracle); examples/eval-planted-bug-2/spec/invariants.md → INV-06, which UC-01's Test Surface cites for TS-08; skills/spec-evaluator/SKILL.md → 'refuted[] lists exactly the boxes your evidence disproves' (JV-REFUTED), the ESCALATE port (JV-ESCALATED), and 'you NEVER set status: done' (JV-NO-CLOSURE)"
+    }
+  ]
+}

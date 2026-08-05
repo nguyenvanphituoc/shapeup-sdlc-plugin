@@ -1,0 +1,18 @@
+{
+  "skill": "shapeup",
+  "purpose": "Tier-1 trigger eval: does a user query activate `shapeup` (pre-code framing/shaping/breadboarding) via the Skill tool? Negatives are confusable sibling-skill requests + one out-of-harness control.",
+  "cases": [
+    { "query": "shape this feature before we build it", "should_trigger": true },
+    { "query": "breadboard the checkout flow", "should_trigger": true },
+    { "query": "write a framing doc for this idea", "should_trigger": true },
+    { "query": "is this shaped enough to build?", "should_trigger": true },
+    { "query": "let's think through this problem before we write any code", "should_trigger": true },
+    { "query": "turn this transcript into a kickoff document", "should_trigger": true },
+    { "query": "map the affordances and wiring for this screen", "should_trigger": true },
+    { "query": "break this pitch into DDD dev tasks", "should_trigger": false, "expected_other": "ba-pitch-analyzer" },
+    { "query": "scout the codebase for where this pitch touches the code", "should_trigger": false, "expected_other": "orient" },
+    { "query": "implement TASK-014 from the spec folder", "should_trigger": false, "expected_other": "task-executor" },
+    { "query": "run the full harness on this pitch from pitch to ship", "should_trigger": false, "expected_other": "tech-lead" },
+    { "query": "what's the best topping for a margherita pizza", "should_trigger": false, "expected_other": "none" }
+  ]
+}

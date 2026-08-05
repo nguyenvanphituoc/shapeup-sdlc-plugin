@@ -1,0 +1,17 @@
+{
+  "skill": "orient",
+  "purpose": "Tier-1 trigger eval: does a query activate `orient` (builder-led recon of the codebase before any task board exists)? Hardest negatives are `ba-pitch-analyzer` (decompose, the step after) and `shapeup` (frame, the step before).",
+  "cases": [
+    { "query": "orient on this feature", "should_trigger": true },
+    { "query": "scout the codebase for where this pitch touches the code", "should_trigger": true },
+    { "query": "do an orient pass before we map scopes", "should_trigger": true },
+    { "query": "read the code first and surface the unknowns before we plan", "should_trigger": true },
+    { "query": "spike the riskiest part of this before mapping scopes", "should_trigger": true },
+    { "query": "break this pitch into a task board", "should_trigger": false, "expected_other": "ba-pitch-analyzer" },
+    { "query": "shape this feature before we build it", "should_trigger": false, "expected_other": "shapeup" },
+    { "query": "implement TASK-008", "should_trigger": false, "expected_other": "task-executor" },
+    { "query": "evaluate the build against the spec", "should_trigger": false, "expected_other": "spec-evaluator" },
+    { "query": "run the whole harness end to end", "should_trigger": false, "expected_other": "tech-lead" },
+    { "query": "rename this variable across the whole repo", "should_trigger": false, "expected_other": "none" }
+  ]
+}

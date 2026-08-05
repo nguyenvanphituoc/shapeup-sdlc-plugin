@@ -1,0 +1,17 @@
+{
+  "skill": "qa-edge-hunter",
+  "purpose": "Tier-1 trigger eval: does a query activate `qa-edge-hunter` (post-PASS exploratory edge hunting)? Hardest negatives are `spec-evaluator` (the verdict-giving 'QA') and plain unit-test requests.",
+  "cases": [
+    { "query": "hunt edge cases on this feature", "should_trigger": true },
+    { "query": "do an exploratory QA pass on the running app", "should_trigger": true },
+    { "query": "the evaluator passed — what did it miss?", "should_trigger": true },
+    { "query": "edge hunt before we ship this", "should_trigger": true },
+    { "query": "run qa-edge-hunter on the checkout spec and the running app", "should_trigger": true },
+    { "query": "evaluate TASK-007 against the spec and give a verdict", "should_trigger": false, "expected_other": "spec-evaluator" },
+    { "query": "grade this build, does it pass?", "should_trigger": false, "expected_other": "spec-evaluator" },
+    { "query": "implement the next task on the board", "should_trigger": false, "expected_other": "task-executor" },
+    { "query": "shape this feature before we build", "should_trigger": false, "expected_other": "shapeup" },
+    { "query": "orchestrate the whole build for me", "should_trigger": false, "expected_other": "tech-lead" },
+    { "query": "write unit tests for this date-format utility", "should_trigger": false, "expected_other": "none" }
+  ]
+}

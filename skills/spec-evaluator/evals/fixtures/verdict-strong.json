@@ -1,0 +1,119 @@
+{
+  "_comment": "SYNTHETIC reference envelope — hand-authored, NOT measured skill output. Never quote a score derived from this file as a measurement of /spec-evaluator.",
+  "schema_version": 1,
+  "order_id": "planted-bug-2/r1-a1",
+  "worker": "spec-evaluator",
+  "status": "done",
+  "verdict": {
+    "overall": "FAIL",
+    "report_path": ".shapeup/todo/evaluation/EVAL-TASK-001.md",
+    "criteria": [
+      {
+        "criterion": "TS-01 / AC1 — list with no store file",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "$ TODO_STORE=/tmp/none.json node build/todo.mjs list → exit 0, stdout `no todos`"
+      },
+      {
+        "criterion": "TS-02 / AC2 — add appends and confirms",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "$ node build/todo.mjs add \"write the pitch\" → exit 0, stdout `added: write the pitch`"
+      },
+      {
+        "criterion": "TS-03 / AC3 — add refuses empty text",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "$ node build/todo.mjs add → exit 1, stderr `refusing to add an empty todo`, no stack trace"
+      },
+      {
+        "criterion": "TS-04 / AC5 — out-of-range selector refuses the batch",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "$ node build/todo.mjs done 99 → exit 0, no output. INV-04 requires a non-zero refusal — build/todo.mjs:55 drops out-of-range indexes instead of refusing"
+      },
+      {
+        "criterion": "TS-05 / AC4 — list numbers items from 1",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "seeded store [a,b,c,d] → stdout `1. [ ] a` … `4. [ ] d`, exit 0"
+      },
+      {
+        "criterion": "TS-06 / AC6 — rm 2-3 resolves against the ORIGINAL list",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "seeded store [a,b,c,d], $ node build/todo.mjs rm 2-3 → remaining `1. [ ] a` `2. [ ] c`, expected `a` then `d`. INV-03 violated: build/todo.mjs:61 splices in ascending order so the second removal shifts. Not reachable against an absent store, which is why the build's own suite is green"
+      },
+      {
+        "criterion": "TS-07 / AC7 — archive drops done items",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "seeded store with one done item → exit 0, stdout `archived 1`"
+      },
+      {
+        "criterion": "TS-08 / AC8 — add stores and echoes the TRIMMED text (INV-06)",
+        "verdict": "FAIL",
+        "evidence": "spec/invariants.md INV-06: `add` stores the text with leading and trailing whitespace removed and echoes the STORED text. Observed: `$ node build/todo.mjs add \"  write the pitch  \"` -> exit 0, stdout `added:   write the pitch  ` (two leading spaces, two trailing). build/todo.mjs:38 pushes `rest.join(\" \")` unmodified after using `text.trim()` only as an emptiness TEST, so the trim result is never what gets stored. UC-01 does not restate INV-06; the row cites it and the invariant lives in the amendment file."
+      }
+    ],
+    "refuted": [
+      {
+        "task_id": "TASK-001",
+        "ac": "AC5 — An out-of-range selector refuses the batch non-zero."
+      },
+      {
+        "task_id": "TASK-001",
+        "ac": "AC6 — A batch removal resolves selectors against the ORIGINAL list."
+      },
+      {
+        "task_id": "TASK-001",
+        "ac": "AC8 — `add` stores and echoes the item text as INV-06 defines it."
+      }
+    ],
+    "bugs": [
+      {
+        "severity": "major",
+        "criterion": "AC5",
+        "locator": "examples/eval-planted-bug-2/build/todo.mjs:55",
+        "repro": "node build/todo.mjs done 99",
+        "expected": "exit != 0",
+        "actual": "exit 0, silent"
+      },
+      {
+        "severity": "major",
+        "criterion": "AC6",
+        "locator": "examples/eval-planted-bug-2/build/todo.mjs:61",
+        "repro": "node build/todo.mjs rm 2-3",
+        "expected": "a, d",
+        "actual": "a, c"
+      },
+      {
+        "criterion": "AC8",
+        "locator": "build/todo.mjs:38",
+        "repro": "node build/todo.mjs add \"  write the pitch  \"",
+        "summary": "text is stored and echoed untrimmed; `text.trim()` is used only to test for emptiness, never to produce the stored value (INV-06, spec/invariants.md)"
+      }
+    ]
+  },
+  "escalates": [
+    {
+      "kind": "spec-ambiguity",
+      "question": "`archive` with ZERO done items: exit 0 printing `archived 0`, or refuse non-zero and leave the store untouched? UC-01 supports both readings and the Test Surface has no row for it, so grading it either way would be inventing the acceptance criterion rather than applying one.",
+      "blocked_ac": "AC7"
+    }
+  ]
+}

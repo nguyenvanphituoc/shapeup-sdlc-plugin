@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "day2-failure-class.schema.json",
+  "title": "Day-2 failure-class register — every tool tied to the error class it measurably reduces",
+  "description": "Graph Engineering §VI.B: 'Add one tool that addresses a measured failure… Each tool requires typed schema, permissions, and result confirmation.' Table II's exit criterion is 'tool reduces known error class'. This harness already has many tools; what it lacked was the LINK — a named error class, the measurement that found it, and evidence the tool still fires. That last clause is not decoration here: audit F-16 found 26 enforcement points silently inert past 610 green structural checks, which is precisely the failure of 'result confirmation' the paper asks for.",
+  "type": "object",
+  "required": ["schema_version", "classes"],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^1\\.[0-9]+$" },
+    "note": { "type": "string" },
+    "classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/FailureClass" }
+    }
+  },
+  "$defs": {
+    "FailureClass": {
+      "type": "object",
+      "required": ["id", "error_class", "description", "discovered_by", "tool", "baseline", "current"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^FC-[0-9]{2}$" },
+        "error_class": {
+          "type": "string",
+          "description": "A short name for the KIND of error, not one instance of it. 'Judge passes a build whose planted bug contradicts a ticked AC' is a class; 'AC4 was wrong in run 12' is not."
+        },
+        "description": { "type": "string" },
+        "skills": {
+          "type": "array",
+          "description": "Which skills exhibit this class. Empty means harness-wide.",
+          "items": { "type": "string" }
+        },
+        "discovered_by": {
+          "type": "object",
+          "description": "How the failure became KNOWN. The paper's Day 2 says 'a measured failure' — a class with no discovery record is a guess, and is marked as one.",
+          "required": ["kind", "source"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": ["measured", "observed", "audit-finding", "hypothesized"],
+              "description": "measured = a number exists. observed = seen in a real run, not quantified. audit-finding = named in a committed audit. hypothesized = reasoned, never seen — MUST NOT claim a reduction."
+            },
+            "source": { "type": "string", "description": "Repo-relative path or committed reference where the discovery is written down." },
+            "quote": { "type": ["string", "null"] }
+          }
+        },
+        "tool": {
+          "type": "object",
+          "description": "The Day-2 tool. All three of the paper's requirements are separate fields because all three are separately checkable, and a tool missing any one of them is not a Day-2 tool.",
+          "required": ["name", "path", "kind", "typed_schema", "permissions", "result_confirmation"],
+          "properties": {
+            "name": { "type": "string" },
+            "path": { "type": "string", "description": "Repo-relative path to the implementation. Structural §48 asserts it exists." },
+            "kind": { "type": "string", "enum": ["hook", "script", "oracle", "gate", "test", "harness"] },
+            "typed_schema": {
+              "type": ["string", "null"],
+              "description": "Repo-relative path to the schema typing this tool's input/output, or null when the tool takes no structured input. Structural §48 asserts a non-null path exists."
+            },
+            "permissions": {
+              "type": "string",
+              "description": "What the tool is allowed to do, and what grants it — e.g. a PreToolUse deny, a substrate whitelist, a permissions.allow entry written by `npx shapeup-sdlc init`."
+            },
+            "result_confirmation": {
+              "type": "object",
+              "description": "Proof the tool FIRES — the direct countermeasure to F-16.",
+              "required": ["kind", "ref"],
+              "properties": {
+                "kind": { "type": "string", "enum": ["structural-check", "selftest", "fixture", "none"] },
+                "ref": { "type": "string", "description": "The section or file that proves firing, e.g. 'structural §14' or a fixture path." }
+              }
+            }
+          }
+        },
+        "baseline": { "$ref": "#/$defs/Rate" },
+        "current": { "$ref": "#/$defs/Rate" },
+        "reduces": {
+          "type": ["boolean", "null"],
+          "description": "Day-2's exit criterion for this class. MUST be null unless BOTH baseline and current are status=measured — a reduction claimed from two unmeasured rates is the exact fabrication F1 was raised about."
+        },
+        "reduction_basis": {
+          "type": ["string", "null"],
+          "enum": ["sampled", "structural", null],
+          "description": "Required whenever `reduces` is non-null. 'sampled' = the two rates come from runs over a population. 'structural' = the error is now impossible by construction (a mechanically enforced invariant), so the after-rate is derived rather than observed. §IX.B warns that a ratchet improves the metric it can see; naming the basis stops a structural argument from being read as a sampled result."
+        }
+      }
+    },
+    "Rate": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string", "enum": ["measured", "unmeasured"] },
+        "unit": {
+          "type": ["string", "null"],
+          "enum": ["rate", "count", null],
+          "description": "What `value` is. 'rate' = a fraction in [0,1] over `n` trials. 'count' = an absolute number of occurrences, which is what several of this repo's findings actually are (26 inert enforcement points is not a rate and must not be rendered as one). Required when status is measured."
+        },
+        "value": {
+          "type": ["number", "null"],
+          "description": "The measurement, interpreted per `unit`. MUST be null when status is unmeasured."
+        },
+        "n": { "type": ["integer", "null"] },
+        "method": { "type": ["string", "null"] },
+        "measured_at": { "type": ["string", "null"] },
+        "model": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "_comment": "SYNTHETIC reference envelope — hand-authored, NOT measured skill output. Proves the rubric accepts a correct WorkResult. Never quote a score derived from this file as a measurement of /spec-evaluator.",
+  "schema_version": 1,
+  "order_id": "eval-planted-bug-r1-a1",
+  "worker": "spec-evaluator",
+  "status": "done",
+  "verdict": {
+    "overall": "FAIL",
+    "report_path": ".shapeup/fizzbuzz/evaluation/EVAL-TASK-001.md",
+    "criteria": [
+      { "criterion": "TS-01 fizzbuzz 2", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "stdout `1\\n2`, exit 0" },
+      { "criterion": "TS-02 fizzbuzz 3", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "line 3 = Fizz, exit 0" },
+      { "criterion": "TS-03 fizzbuzz 5", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "line 5 = Buzz, exit 0" },
+      { "criterion": "TS-04 fizzbuzz 15 (AC4 / INV-03)", "dimension": "spec-conformance", "verdict": "FAIL", "confidence": "high", "reprobed": true, "evidence": "line 15 printed `Fizz`, expected `FizzBuzz` — examples/eval-planted-bug/build-buggy/fizzbuzz.mjs:18" },
+      { "criterion": "TS-05 fizzbuzz abc", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "exit 1, no stack trace" }
+    ],
+    "refuted": [ { "task_id": "TASK-001", "ac": "AC4 — multiples of both 3 and 5 print FizzBuzz" } ],
+    "bugs": [ { "severity": "major", "criterion": "AC4", "locator": "examples/eval-planted-bug/build-buggy/fizzbuzz.mjs:18", "repro": "node examples/eval-planted-bug/build-buggy/fizzbuzz.mjs 15", "expected": "FizzBuzz", "actual": "Fizz" } ]
+  }
+}

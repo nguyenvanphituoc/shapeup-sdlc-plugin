@@ -1,0 +1,194 @@
+{
+  "deliverable": "todo CLI with batch selectors",
+  "oracle": "process",
+  "note": "Day-1 MEASUREMENT contract for task-executor. Deliberately separate from examples/todo-cli/todo.contract.json, which is the tutorial's and is kept simple on purpose. Every row is single-invocation because the process oracle spawns once per probe, and every row traces to a line of fixtures/idea-hard.md — the selector rules it grades are stated there, not inferred from this file.",
+  "criteria": [
+    {
+      "id": "H1",
+      "desc": "empty list prints a friendly message, exit 0",
+      "probe": {
+        "argv": [
+          "list"
+        ],
+        "store": "[]"
+      },
+      "expect": {
+        "exit": "==0",
+        "stdout": "/no todos|empty|nothing/i"
+      }
+    },
+    {
+      "id": "H2",
+      "desc": "non-numeric selector fails gracefully",
+      "probe": {
+        "argv": [
+          "done",
+          "abc"
+        ],
+        "store": "[{\"text\": \"alpha\", \"done\": false}, {\"text\": \"bravo\", \"done\": false}, {\"text\": \"charlie\", \"done\": false}, {\"text\": \"delta\", \"done\": false}, {\"text\": \"echo\", \"done\": false}]"
+      },
+      "expect": {
+        "exit": "!=0",
+        "no_crash": true
+      }
+    },
+    {
+      "id": "H3",
+      "desc": "corrupted store fails without destroying data",
+      "probe": {
+        "argv": [
+          "list"
+        ],
+        "store": "{garbage"
+      },
+      "expect": {
+        "exit": "!=0",
+        "no_crash": true
+      }
+    },
+    {
+      "id": "H4",
+      "desc": "missing store is treated as empty, exit 0",
+      "probe": {
+        "argv": [
+          "list"
+        ],
+        "store": null
+      },
+      "expect": {
+        "exit": "==0",
+        "no_crash": true
+      }
+    },
+    {
+      "id": "H5",
+      "desc": "a seeded store is actually read — every item is listed",
+      "probe": {
+        "argv": [
+          "list"
+        ],
+        "store": "[{\"text\": \"alpha\", \"done\": false}, {\"text\": \"bravo\", \"done\": false}, {\"text\": \"charlie\", \"done\": false}, {\"text\": \"delta\", \"done\": false}, {\"text\": \"echo\", \"done\": false}]"
+      },
+      "expect": {
+        "exit": "==0",
+        "no_crash": true,
+        "stdout": "/^(?=[\\s\\S]*alpha)(?=[\\s\\S]*bravo)(?=[\\s\\S]*charlie)(?=[\\s\\S]*delta)(?=[\\s\\S]*echo)[\\s\\S]*$/i"
+      }
+    },
+    {
+      "id": "H6",
+      "desc": "selector 0 is out of range (numbering is 1-based)",
+      "probe": {
+        "argv": [
+          "done",
+          "0"
+        ],
+        "store": "[{\"text\": \"alpha\", \"done\": false}, {\"text\": \"bravo\", \"done\": false}, {\"text\": \"charlie\", \"done\": false}, {\"text\": \"delta\", \"done\": false}, {\"text\": \"echo\", \"done\": false}]"
+      },
+      "expect": {
+        "exit": "!=0",
+        "no_crash": true
+      }
+    },
+    {
+      "id": "H7",
+      "desc": "selector past the end is out of range",
+      "probe": {
+        "argv": [
+          "rm",
+          "9"
+        ],
+        "store": "[{\"text\": \"alpha\", \"done\": false}, {\"text\": \"bravo\", \"done\": false}, {\"text\": \"charlie\", \"done\": false}, {\"text\": \"delta\", \"done\": false}, {\"text\": \"echo\", \"done\": false}]"
+      },
+      "expect": {
+        "exit": "!=0",
+        "no_crash": true
+      }
+    },
+    {
+      "id": "H8",
+      "desc": "rm 1 3 5 removes the 1st, 3rd and 5th of the ORIGINAL list (no index shifting)",
+      "probe": {
+        "argv": [
+          "rm",
+          "1",
+          "3",
+          "5"
+        ],
+        "store": "[{\"text\": \"alpha\", \"done\": false}, {\"text\": \"bravo\", \"done\": false}, {\"text\": \"charlie\", \"done\": false}, {\"text\": \"delta\", \"done\": false}, {\"text\": \"echo\", \"done\": false}]"
+      },
+      "expect": {
+        "exit": "==0",
+        "no_crash": true,
+        "stdout": "/^(?=[\\s\\S]*alpha)(?=[\\s\\S]*charlie)(?=[\\s\\S]*echo)(?![\\s\\S]*bravo)(?![\\s\\S]*delta)[\\s\\S]*$/i"
+      }
+    },
+    {
+      "id": "H9",
+      "desc": "rm 5 1 — selectors may arrive in any order",
+      "probe": {
+        "argv": [
+          "rm",
+          "5",
+          "1"
+        ],
+        "store": "[{\"text\": \"alpha\", \"done\": false}, {\"text\": \"bravo\", \"done\": false}, {\"text\": \"charlie\", \"done\": false}, {\"text\": \"delta\", \"done\": false}, {\"text\": \"echo\", \"done\": false}]"
+      },
+      "expect": {
+        "exit": "==0",
+        "no_crash": true,
+        "stdout": "/^(?=[\\s\\S]*alpha)(?=[\\s\\S]*echo)(?![\\s\\S]*bravo)(?![\\s\\S]*charlie)(?![\\s\\S]*delta)[\\s\\S]*$/i"
+      }
+    },
+    {
+      "id": "H10",
+      "desc": "done 2-4 marks an inclusive range",
+      "probe": {
+        "argv": [
+          "done",
+          "2-4"
+        ],
+        "store": "[{\"text\": \"alpha\", \"done\": false}, {\"text\": \"bravo\", \"done\": false}, {\"text\": \"charlie\", \"done\": false}, {\"text\": \"delta\", \"done\": false}, {\"text\": \"echo\", \"done\": false}]"
+      },
+      "expect": {
+        "exit": "==0",
+        "no_crash": true,
+        "stdout": "/^(?=[\\s\\S]*bravo)(?=[\\s\\S]*charlie)(?=[\\s\\S]*delta)(?![\\s\\S]*alpha)(?![\\s\\S]*echo)[\\s\\S]*$/i"
+      }
+    },
+    {
+      "id": "H11",
+      "desc": "rm 2-3 5 mixes a range with a single selector",
+      "probe": {
+        "argv": [
+          "rm",
+          "2-3",
+          "5"
+        ],
+        "store": "[{\"text\": \"alpha\", \"done\": false}, {\"text\": \"bravo\", \"done\": false}, {\"text\": \"charlie\", \"done\": false}, {\"text\": \"delta\", \"done\": false}, {\"text\": \"echo\", \"done\": false}]"
+      },
+      "expect": {
+        "exit": "==0",
+        "no_crash": true,
+        "stdout": "/^(?=[\\s\\S]*bravo)(?=[\\s\\S]*charlie)(?=[\\s\\S]*echo)(?![\\s\\S]*alpha)(?![\\s\\S]*delta)[\\s\\S]*$/i"
+      }
+    },
+    {
+      "id": "H12",
+      "desc": "one bad selector refuses the WHOLE batch — nothing is reported as affected",
+      "probe": {
+        "argv": [
+          "rm",
+          "1",
+          "99"
+        ],
+        "store": "[{\"text\": \"alpha\", \"done\": false}, {\"text\": \"bravo\", \"done\": false}, {\"text\": \"charlie\", \"done\": false}, {\"text\": \"delta\", \"done\": false}, {\"text\": \"echo\", \"done\": false}]"
+      },
+      "expect": {
+        "exit": "!=0",
+        "no_crash": true,
+        "stdout": "/^(?![\\s\\S]*alpha)[\\s\\S]*$/i"
+      }
+    }
+  ]
+}

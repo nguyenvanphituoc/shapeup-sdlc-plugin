@@ -1,0 +1,17 @@
+{
+  "skill": "solution-architect",
+  "purpose": "Tier-1 trigger eval: does a query activate `solution-architect` (write the committed wiring map — per-UC engine → seam → entry-point call site → affordance, reachability against the profile's entry_point)? Hardest negatives are `scope-architect` (slices scopes, the step AFTER) and `ba-pitch-analyzer` (decomposes the pitch, the step before).",
+  "cases": [
+    { "query": "write the wiring map — declare the entry-point call site for each use case", "should_trigger": true },
+    { "query": "how does each use case's engine get wired into main.js? map it out before we slice scopes", "should_trigger": true },
+    { "query": "the asset pipeline has 26 passing tests but zero call sites — declare where it should attach", "should_trigger": true },
+    { "query": "map every engine module to the entry point so nothing ships unreachable", "should_trigger": true },
+    { "query": "front-load the integration seam for these use cases against the project profile's entry_point", "should_trigger": true },
+    { "query": "which use cases are reachable from the game's main loop and which are orphaned?", "should_trigger": true },
+    { "query": "map the scopes and write the allowed_file_substrate whitelists", "should_trigger": false, "expected_other": "scope-architect" },
+    { "query": "break this pitch into a DDD spec tree and a task board", "should_trigger": false, "expected_other": "ba-pitch-analyzer" },
+    { "query": "implement TASK-007 and wire the button click to the handler", "should_trigger": false, "expected_other": "task-executor" },
+    { "query": "evaluate whether the running app matches the spec", "should_trigger": false, "expected_other": "spec-evaluator" },
+    { "query": "hunt for edge cases in the checkout flow before we ship", "should_trigger": false, "expected_other": "qa-edge-hunter" }
+  ]
+}
