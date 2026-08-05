@@ -726,6 +726,38 @@ export async function run(ctx) {
           }
         }
         if (checked) ok(`condition 4 (a run needed >1 round) is rendered for all ${checked} measured skill+model row(s)`);
+
+        // A BARE `no` IS A CLAIM THE DATA DOES NOT SUPPORT, and this repo published three verdicts
+        // on the strength of one. Condition 4 is a threshold on a COUNT of runs, so at n=3 a skill
+        // whose true revision rate is 1/3 shows nothing 30% of the time — which is exactly what
+        // happened: two MET rows rested on a single revision in three runs, and re-drawing them
+        // held one and dropped the other. The cell must therefore carry the bound its own `n`
+        // earns, never the bare word.
+        const { revisionRate } = await import("../../tools/skill-loop.mjs");
+        const z = revisionRate([{ rounds: 1 }, { rounds: 1 }, { rounds: 1 }]);
+        if (z && z.k === 0 && Math.abs(z.upper95 - (1 - Math.pow(0.05, 1 / 3))) < 1e-9) ok(`revisionRate bounds a zero-revision n=3 sample at ${(z.upper95 * 100).toFixed(0)}% — a "no" at n=3 rules out almost nothing`);
+        else fail(`revisionRate returned ${JSON.stringify(z)} for 0 revisions in 3 runs — expected the exact one-sided 95% bound 1-0.05^(1/3)`);
+
+        const z10 = revisionRate(Array.from({ length: 10 }, () => ({ rounds: 1 })));
+        if (z10 && z10.upper95 < z.upper95) ok(`the bound TIGHTENS with n (${(z.upper95 * 100).toFixed(0)}% at n=3 → ${(z10.upper95 * 100).toFixed(0)}% at n=10) — the whole point of raising it`);
+        else fail(`revisionRate did not tighten with n: n=3 gave ${z?.upper95}, n=10 gave ${z10?.upper95}`);
+
+        const nz = revisionRate([{ rounds: 4 }, { rounds: 1 }]);
+        if (nz && nz.k === 1 && nz.upper95 === null) ok("revisionRate reports the observed count once a revision exists, and no zero-observation bound");
+        else fail(`revisionRate returned ${JSON.stringify(nz)} with a revision present — a zero-observation bound must not be quoted when k > 0`);
+
+        // And the rendered cell, because a helper nothing calls is not a guard.
+        for (const [skill, byModel] of Object.entries(b.results || {})) {
+          for (const [model, r] of Object.entries(byModel)) {
+            const rr = revisionRate(r.per_run || []);
+            if (!rr) continue;
+            const row = md.split("\n").find((l) => l.startsWith(`| \`${skill}\` | ${model} |`));
+            if (!row) continue;
+            const want = rr.k === 0 ? `rate ≤ ${Math.round(rr.upper95 * 100)}%` : `(${rr.k}/${rr.n})`;
+            if (row.includes(want)) ok(`${skill}/${model} report row carries its condition-4 arithmetic (${want})`);
+            else fail(`${skill}/${model} report row states condition 4 without the count or bound its n earns — expected "${want}" in: ${row.slice(0, 150)}`);
+          }
+        }
       }
     }
 

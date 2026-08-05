@@ -1043,6 +1043,26 @@ export function fixtureSha(rubric, root = ROOT) {
 }
 
 /**
+ * Summarise how often a loop needed more than one round, with what that count can support.
+ *
+ * Condition 4 ("at least one run needed more than one round") is a threshold on a COUNT, so it is
+ * as much a statement about `n` as about the skill. Reporting it as a bare yes/no is what let three
+ * verdicts be published on a single revision in three runs. With zero observed revisions the exact
+ * one-sided 95% upper bound is `1 - 0.05^(1/n)` — 63% at n=3, 26% at n=10 — which is the honest
+ * ceiling claim: the rate is BELOW this, not zero.
+ *
+ * @param {Array<{rounds:number}>} perRun - Per-run records from a measurement.
+ * @returns {({n:number, k:number, upper95:(number|null)}|null)} Counts and the bound, or null when
+ *   there are no runs. `upper95` is null once k > 0, where the observed rate is the better figure.
+ */
+export function revisionRate(perRun) {
+  const n = (perRun || []).length;
+  if (!n) return null;
+  const k = perRun.filter((x) => (x.rounds ?? 0) > 1).length;
+  return { n, k, upper95: k === 0 ? 1 - Math.pow(0.05, 1 / n) : null };
+}
+
+/**
  * Decide how a previous measurement for one skill+model is retired by a new one.
  *
  * RETIRE, NEVER OVERWRITE. An existing number is not a stale value to be replaced — it is a valid
@@ -1207,12 +1227,22 @@ export function renderReport(baseline) {
         const rounds = (r.per_run || []).map((x) => x.rounds);
         const maxRounds = rounds.length ? Math.max(...rounds) : 0;
         const revised = maxRounds > 1;
+        // A BARE "no" IS THE FLAW THAT PRODUCED THREE RETRACTED VERDICTS. Condition 4 is a
+        // threshold on a COUNT OF RUNS, so its answer depends on `n` as much as on the skill, and
+        // at n=3 an event with a true rate of 1/3 is missed 30% of the time. Two skills read MET on
+        // a single revision in three runs; re-drawn, one held and one did not, and nothing in this
+        // column said either verdict was a coin toss. So a `no` now carries what it is actually
+        // entitled to claim — a one-sided 95% upper bound on the rate (exact binomial with zero
+        // observations, 1 - 0.05^(1/n)) — and a `yes` carries the observed count rather than a
+        // bare word. Neither is a new measurement; both are the arithmetic the old cell suppressed.
+        const rate = revisionRate(r.per_run || []);
         L.push(
           `| \`${skill}\` | ${model} | ${r.n} | ${r.v1_score?.mean}${spread(r.v1_score)} | ` +
           `${r.final_score?.mean}${spread(r.final_score)} | ${r.delta?.mean >= 0 ? "+" : ""}${r.delta?.mean} | ` +
           `${r.improved_runs}/${r.n} | ${approved ?? "—"}/${r.n} | ` +
           `${rounds.length ? (Math.min(...rounds) === maxRounds ? String(maxRounds) : `${Math.min(...rounds)}–${maxRounds}`) : "—"} | ` +
-          `${revised ? "**yes**" : "no"} | ${met ? (revised ? "**MET**" : "exit criterion only") : "not met"} |`
+          `${revised ? `**yes** (${rate.k}/${rate.n})` : rate && rate.upper95 !== null ? `no — 0/${rate.n}, rate ≤ ${Math.round(rate.upper95 * 100)}%` : "no"} | ` +
+          `${met ? (revised ? "**MET**" : "exit criterion only") : "not met"} |`
         );
       }
     }
@@ -1221,6 +1251,14 @@ export function renderReport(baseline) {
     L.push("than one round*. A `no` there means the loop approved the first draft every time — the exit");
     L.push("criterion is cleared but no quality **improvement** was measured, which is what Table II");
     L.push("actually asks for. Those rows say `exit criterion only`, never `MET`.");
+    L.push("");
+    L.push("**The percentage beside a `no` is what that `no` is entitled to claim.** Condition 4 is a");
+    L.push("threshold on a count of runs, so its answer depends on `n` as much as on the skill: at");
+    L.push("`n=3` a skill whose true revision rate is 1/3 shows no revision **30%** of the time. Three");
+    L.push("`MET` verdicts in this file were once carried by a single revision in three runs, and");
+    L.push("re-drawing them held one and dropped two. The figure is a one-sided 95% upper bound from");
+    L.push("the exact binomial with zero observations — `rate ≤ 26%` at n=10 means the data rule out a");
+    L.push("rate above 26%, **not** that the skill never revises. Only a larger `n` narrows it.");
   }
   L.push("");
 

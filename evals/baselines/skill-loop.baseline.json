@@ -1,13 +1,13 @@
 {
   "status": "measured",
   "note": "Day-1 reflective-loop baseline (Graph Engineering §VI.A; exit criterion = measured quality improvement). Ships UNMEASURED on purpose, under the same honesty invariant as trigger-evals.baseline.json: no quality number is written here until an authenticated `--measure` run produces one. The `coverage` block below is NOT a measurement — it is an inventory of which skills carry a rubric, refreshed by `node tools/skill-loop.mjs` with no model calls. The selftest scores in evals/runs/*.selftest.json are also NOT measurements: they are scores of hand-authored reference drafts and exist only to prove the rubrics discriminate.",
-  "method": "tools/skill-loop.mjs --measure (reflective_task per Graph Engineering §VI.A): round 1 is the skill's first draft, each later round re-prompts with the criterion-level failures from the rubric's DETERMINISTIC head; stopping rule = score >= 0.9 or 5 rounds. Each round is one headless session at --max-turns 50, granted Read/Write/Edit/Glob/Grep/Bash — the shell is part of the measured configuration because task-executor uses one to run its own T0 probes in production, and a session denied it aborts rather than producing a number. n=3 independent loops per skill. The graded artifact is the DELIVERABLE FILE, not the transcript, and each revision round starts from the previous round's deliverable in a fresh directory — so a round edits one artifact rather than re-drawing it. Runs before 2026-08-04 did NOT carry it forward and are re-sampling, not revision; they are not comparable on delta. Oracle criteria are scored per ROW (fraction of contract rows passing), not all-or-nothing; `satisfied` still requires every row, so approve_at is unchanged in meaning. Runs before 2026-08-04 scored these criteria binary and recorded 0.0 for any artifact short of perfect. Quality rates are MODEL-DEPENDENT — this baseline describes the model named below and no other. Scored by regex detectors, NOT by a model judge: anchor-shaped criteria generalize, phrase-shaped ones are brittle against paraphrase (see docs/plan/day1-day2-measurement.md §5).",
+  "method": "tools/skill-loop.mjs --measure (reflective_task per Graph Engineering §VI.A): round 1 is the skill's first draft, each later round re-prompts with the criterion-level failures from the rubric's DETERMINISTIC head; stopping rule = score >= 1 or 5 rounds. Each round is one headless session at --max-turns 50, granted Read/Write/Edit/Glob/Grep/Bash — the shell is part of the measured configuration because task-executor uses one to run its own T0 probes in production, and a session denied it aborts rather than producing a number. n=10 independent loops per skill. The graded artifact is the DELIVERABLE FILE, not the transcript, and each revision round starts from the previous round's deliverable in a fresh directory — so a round edits one artifact rather than re-drawing it. Runs before 2026-08-04 did NOT carry it forward and are re-sampling, not revision; they are not comparable on delta. Oracle criteria are scored per ROW (fraction of contract rows passing), not all-or-nothing; `satisfied` still requires every row, so approve_at is unchanged in meaning. Runs before 2026-08-04 scored these criteria binary and recorded 0.0 for any artifact short of perfect. Quality rates are MODEL-DEPENDENT — this baseline describes the model named below and no other. Scored by regex detectors, NOT by a model judge: anchor-shaped criteria generalize, phrase-shaped ones are brittle against paraphrase (see docs/plan/day1-day2-measurement.md §5).",
   "model": "claude-sonnet-5",
-  "measured_at": "2026-08-04T17:27:09.626Z",
+  "measured_at": "2026-08-05T05:28:28.823Z",
   "results": {
     "spec-evaluator": {
       "claude-sonnet-5": {
-        "n": 3,
+        "n": 10,
         "v1_score": {
           "mean": 1,
           "min": 1,
@@ -24,20 +24,20 @@
           "max": 0
         },
         "improved_runs": 0,
-        "approved_runs": 3,
+        "approved_runs": 10,
         "stopped": {
-          "approve": 3
+          "approve": 10
         },
         "cost": {
-          "usd_total": 2.584,
-          "usd_per_run_mean": 0.8613,
-          "tokens_in": 146,
-          "tokens_out": 39685,
-          "cache_read_tokens": 3908702,
-          "cache_creation_tokens": 135940,
-          "wall_clock_s_total": 753.587,
-          "runs_reported": 3,
-          "runs": 3,
+          "usd_total": 12.5559,
+          "usd_per_run_mean": 1.2556,
+          "tokens_in": 605,
+          "tokens_out": 202493,
+          "cache_read_tokens": 18140894,
+          "cache_creation_tokens": 679057,
+          "wall_clock_s_total": 3439.475,
+          "runs_reported": 10,
+          "runs": 10,
           "source": "cli-json"
         },
         "per_run": [
@@ -48,8 +48,8 @@
             "delta": 0,
             "rounds": 1,
             "stopped": "approve",
-            "usd": 0.7315,
-            "wall_clock_s": 141.367
+            "usd": 1.5456,
+            "wall_clock_s": 417.718
           },
           {
             "run": 2,
@@ -58,8 +58,8 @@
             "delta": 0,
             "rounds": 1,
             "stopped": "approve",
-            "usd": 1.0262,
-            "wall_clock_s": 317.448
+            "usd": 1.3751,
+            "wall_clock_s": 431.033
           },
           {
             "run": 3,
@@ -68,18 +68,88 @@
             "delta": 0,
             "rounds": 1,
             "stopped": "approve",
-            "usd": 0.8263,
-            "wall_clock_s": 294.772
+            "usd": 1.1768,
+            "wall_clock_s": 333.154
+          },
+          {
+            "run": 4,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 1.0239,
+            "wall_clock_s": 218.779
+          },
+          {
+            "run": 5,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 1.3171,
+            "wall_clock_s": 402.409
+          },
+          {
+            "run": 6,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 1.2417,
+            "wall_clock_s": 336.987
+          },
+          {
+            "run": 7,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 1.1349,
+            "wall_clock_s": 204.616
+          },
+          {
+            "run": 8,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 1.1869,
+            "wall_clock_s": 342.664
+          },
+          {
+            "run": 9,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 1.1293,
+            "wall_clock_s": 353.202
+          },
+          {
+            "run": 10,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 1.4246,
+            "wall_clock_s": 398.913
           }
         ],
         "model": "claude-sonnet-5",
-        "measured_at": "2026-08-04T16:44:10.718Z",
+        "measured_at": "2026-08-05T04:08:15.998Z",
         "fixture_sha": "8a4eba4e1c735acd"
       }
     },
     "task-executor": {
       "claude-sonnet-5": {
-        "n": 3,
+        "n": 10,
         "v1_score": {
           "mean": 1,
           "min": 1,
@@ -96,20 +166,20 @@
           "max": 0
         },
         "improved_runs": 0,
-        "approved_runs": 3,
+        "approved_runs": 10,
         "stopped": {
-          "approve": 3
+          "approve": 10
         },
         "cost": {
-          "usd_total": 1.8779,
-          "usd_per_run_mean": 0.626,
-          "tokens_in": 134,
-          "tokens_out": 23101,
-          "cache_read_tokens": 3080798,
-          "cache_creation_tokens": 101135,
-          "wall_clock_s_total": 352.023,
-          "runs_reported": 3,
-          "runs": 3,
+          "usd_total": 6.6958,
+          "usd_per_run_mean": 0.6696,
+          "tokens_in": 1697,
+          "tokens_out": 86237,
+          "cache_read_tokens": 11028640,
+          "cache_creation_tokens": 348089,
+          "wall_clock_s_total": 1196.336,
+          "runs_reported": 10,
+          "runs": 10,
           "source": "cli-json"
         },
         "per_run": [
@@ -120,8 +190,8 @@
             "delta": 0,
             "rounds": 1,
             "stopped": "approve",
-            "usd": 0.5226,
-            "wall_clock_s": 92.472
+            "usd": 0.5058,
+            "wall_clock_s": 90.935
           },
           {
             "run": 2,
@@ -130,8 +200,8 @@
             "delta": 0,
             "rounds": 1,
             "stopped": "approve",
-            "usd": 0.6724,
-            "wall_clock_s": 114.898
+            "usd": 0.6285,
+            "wall_clock_s": 105.079
           },
           {
             "run": 3,
@@ -140,21 +210,91 @@
             "delta": 0,
             "rounds": 1,
             "stopped": "approve",
-            "usd": 0.6829,
-            "wall_clock_s": 144.653
+            "usd": 0.6956,
+            "wall_clock_s": 119.813
+          },
+          {
+            "run": 4,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 0.693,
+            "wall_clock_s": 116.968
+          },
+          {
+            "run": 5,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 0.6061,
+            "wall_clock_s": 94.605
+          },
+          {
+            "run": 6,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 0.7297,
+            "wall_clock_s": 122.539
+          },
+          {
+            "run": 7,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 0.859,
+            "wall_clock_s": 169.242
+          },
+          {
+            "run": 8,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 0.5954,
+            "wall_clock_s": 124.206
+          },
+          {
+            "run": 9,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 0.7591,
+            "wall_clock_s": 148.706
+          },
+          {
+            "run": 10,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 0.6236,
+            "wall_clock_s": 104.243
           }
         ],
         "model": "claude-sonnet-5",
-        "measured_at": "2026-08-04T16:30:58.696Z",
+        "measured_at": "2026-08-05T02:39:39.170Z",
         "fixture_sha": "762497bb33bf6763"
       }
     },
     "scope-architect": {
       "claude-sonnet-5": {
-        "n": 3,
+        "n": 10,
         "v1_score": {
-          "mean": 1,
-          "min": 1,
+          "mean": 0.983,
+          "min": 0.833,
           "max": 1
         },
         "final_score": {
@@ -163,25 +303,25 @@
           "max": 1
         },
         "delta": {
-          "mean": 0,
+          "mean": 0.017,
           "min": 0,
-          "max": 0
+          "max": 0.167
         },
-        "improved_runs": 0,
-        "approved_runs": 3,
+        "improved_runs": 1,
+        "approved_runs": 10,
         "stopped": {
-          "approve": 3
+          "approve": 10
         },
         "cost": {
-          "usd_total": 3.8714,
-          "usd_per_run_mean": 1.2905,
-          "tokens_in": 120,
-          "tokens_out": 78512,
-          "cache_read_tokens": 3635751,
-          "cache_creation_tokens": 267122,
-          "wall_clock_s_total": 928.995,
-          "runs_reported": 3,
-          "runs": 3,
+          "usd_total": 20.6953,
+          "usd_per_run_mean": 2.0695,
+          "tokens_in": 594,
+          "tokens_out": 444721,
+          "cache_read_tokens": 20802253,
+          "cache_creation_tokens": 1297001,
+          "wall_clock_s_total": 4812.768,
+          "runs_reported": 10,
+          "runs": 10,
           "source": "cli-json"
         },
         "per_run": [
@@ -192,8 +332,8 @@
             "delta": 0,
             "rounds": 1,
             "stopped": "approve",
-            "usd": 1.185,
-            "wall_clock_s": 273.262
+            "usd": 2.4062,
+            "wall_clock_s": 566.231
           },
           {
             "run": 2,
@@ -202,8 +342,8 @@
             "delta": 0,
             "rounds": 1,
             "stopped": "approve",
-            "usd": 1.4289,
-            "wall_clock_s": 352.443
+            "usd": 2.1274,
+            "wall_clock_s": 455.173
           },
           {
             "run": 3,
@@ -212,13 +352,83 @@
             "delta": 0,
             "rounds": 1,
             "stopped": "approve",
-            "usd": 1.2575,
-            "wall_clock_s": 303.29
+            "usd": 1.9998,
+            "wall_clock_s": 435.301
+          },
+          {
+            "run": 4,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 1.6845,
+            "wall_clock_s": 455.584
+          },
+          {
+            "run": 5,
+            "v1": 0.833,
+            "final": 1,
+            "delta": 0.167,
+            "rounds": 4,
+            "stopped": "approve",
+            "usd": 4.4791,
+            "wall_clock_s": 1039.063
+          },
+          {
+            "run": 6,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 1.4127,
+            "wall_clock_s": 343.541
+          },
+          {
+            "run": 7,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 2.1582,
+            "wall_clock_s": 520.013
+          },
+          {
+            "run": 8,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 1.6133,
+            "wall_clock_s": 383.826
+          },
+          {
+            "run": 9,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 1.6215,
+            "wall_clock_s": 323.709
+          },
+          {
+            "run": 10,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 1.1926,
+            "wall_clock_s": 290.327
           }
         ],
         "model": "claude-sonnet-5",
-        "measured_at": "2026-08-04T17:11:24.751Z",
-        "fixture_sha": "d5725a654df6f936"
+        "measured_at": "2026-08-05T05:28:28.823Z",
+        "fixture_sha": "c613665dbb8e9202"
       }
     },
     "solution-architect": {
@@ -295,7 +505,7 @@
     },
     "ba-pitch-analyzer": {
       "claude-sonnet-5": {
-        "n": 3,
+        "n": 10,
         "v1_score": {
           "mean": 1,
           "min": 1,
@@ -312,20 +522,20 @@
           "max": 0
         },
         "improved_runs": 0,
-        "approved_runs": 3,
+        "approved_runs": 10,
         "stopped": {
-          "approve": 3
+          "approve": 10
         },
         "cost": {
-          "usd_total": 1.5944,
-          "usd_per_run_mean": 0.5315,
-          "tokens_in": 48,
-          "tokens_out": 32331,
-          "cache_read_tokens": 1041612,
-          "cache_creation_tokens": 132787,
-          "wall_clock_s_total": 360.925,
-          "runs_reported": 3,
-          "runs": 3,
+          "usd_total": 7.9758,
+          "usd_per_run_mean": 0.7976,
+          "tokens_in": 1524,
+          "tokens_out": 176116,
+          "cache_read_tokens": 6644971,
+          "cache_creation_tokens": 556012,
+          "wall_clock_s_total": 1877.248,
+          "runs_reported": 10,
+          "runs": 10,
           "source": "cli-json"
         },
         "per_run": [
@@ -336,8 +546,8 @@
             "delta": 0,
             "rounds": 1,
             "stopped": "approve",
-            "usd": 0.5916,
-            "wall_clock_s": 132.861
+            "usd": 0.9486,
+            "wall_clock_s": 232.338
           },
           {
             "run": 2,
@@ -346,8 +556,8 @@
             "delta": 0,
             "rounds": 1,
             "stopped": "approve",
-            "usd": 0.4924,
-            "wall_clock_s": 114.723
+            "usd": 0.7246,
+            "wall_clock_s": 168.558
           },
           {
             "run": 3,
@@ -356,12 +566,82 @@
             "delta": 0,
             "rounds": 1,
             "stopped": "approve",
-            "usd": 0.5104,
-            "wall_clock_s": 113.341
+            "usd": 0.7226,
+            "wall_clock_s": 183.588
+          },
+          {
+            "run": 4,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 0.7804,
+            "wall_clock_s": 201.809
+          },
+          {
+            "run": 5,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 0.8943,
+            "wall_clock_s": 206.802
+          },
+          {
+            "run": 6,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 0.7056,
+            "wall_clock_s": 155.827
+          },
+          {
+            "run": 7,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 0.6865,
+            "wall_clock_s": 157.762
+          },
+          {
+            "run": 8,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 0.9831,
+            "wall_clock_s": 228.185
+          },
+          {
+            "run": 9,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 0.7398,
+            "wall_clock_s": 169.971
+          },
+          {
+            "run": 10,
+            "v1": 1,
+            "final": 1,
+            "delta": 0,
+            "rounds": 1,
+            "stopped": "approve",
+            "usd": 0.7903,
+            "wall_clock_s": 172.408
           }
         ],
         "model": "claude-sonnet-5",
-        "measured_at": "2026-08-04T16:55:55.696Z",
+        "measured_at": "2026-08-05T03:10:56.467Z",
         "fixture_sha": "e275807eff45902b"
       }
     }
@@ -487,46 +767,45 @@
   ],
   "adapter": "default: claude --plugin-dir <root> -p <prompt>",
   "limitations": [
-    "THE HEADLINE OF THIS REVISION IS A NEGATIVE RESULT: RE-SAMPLING COLLAPSED CONDITION 4 FROM THREE SKILLS TO ONE. On 2026-08-04 ba-pitch-analyzer, scope-architect and solution-architect all read MET. Re-run the same day against corrected oracles, only solution-architect still revises. ba-pitch-analyzer's case is the one that cannot be argued with: ITS FIXTURE FINGERPRINT IS BYTE-IDENTICAL across the two runs, so nothing changed but the sample, and improved 1/3 became 0/3. scope-architect's fingerprint moved, so its pair is confounded and only the weaker claim survives — condition 4 was seen once and has not been seen again. n=3 CANNOT DISTINGUISH 1/3 FROM 0/3: that difference is a single Bernoulli trial at an unknown rate, and this file previously published three MET verdicts each resting on exactly one such trial. The correct reading is not that the skills got worse; it is that the earlier verdicts were within the instrument's noise and were reported as findings.",
-    "WHAT SURVIVES THAT, AND WHY IT IS DIFFERENT IN KIND. solution-architect's revision step has now executed in FIVE independent measurements across five instrument versions (48943f1ee789b6e9, 8bfbe80b203aeecd, 552554ed2fc9d53e, b5cd095f515c9531, 6fada177c6343ebc). A property that reproduces across five instruments is a property of the task; one that appears once is a sample. It is also the only one of the three whose approve_at (0.9) was never touched, so its verdict depends on no bar that moved.",
+    "THE HEADLINE IS THAT CONDITION 4 WAS NEVER A PROPERTY OF THE SKILLS ALONE — IT WAS A PROPERTY OF n. Measured at n=3 it read three skills, then one, then two. Nothing about any skill changed across those readings. Condition 4 is a threshold on a COUNT OF RUNS ('at least one run needed more than one round'), so at n=3 a skill whose true revision rate is 1/3 shows nothing 30% of the time and one whose rate is 6% shows something 18% of the time. Both errors happened here, in both directions, and were published as findings before being caught: ba-pitch-analyzer's MET was a one-in-five event on a rate now measured at 6.3%, and scope-architect's retraction was a miss on a skill that does revise. AT n=10 THE PICTURE IS STABLE: scope-architect 1/10 (four rounds in that run), ba-pitch-analyzer 0/10, spec-evaluator 0/10, task-executor 0/10.",
+    "WHAT CONDITION 4 NOW SAYS, SKILL BY SKILL, WITH THE ARITHMETIC ITS SAMPLE EARNS. scope-architect: 1 revision in 10, on the current fixture — MET, and the revision is a FOUR-ROUND chain, the longest ever recorded here. solution-architect: 1 in 3, MET, and uniquely it has revised in five independent measurements across five instrument versions, so its verdict rests on reproduction rather than on one draw — but it is the ONLY skill still measured at n=3, and its own bound is correspondingly wide. task-executor and spec-evaluator: 0 in 13 pooled runs each, one-sided 95% upper bound 20.6% — A BOUND, NOT A PROOF; the honest claim is 'below roughly 21%', never 'never'. ba-pitch-analyzer: 1 in 16 pooled on a byte-identical fixture, rate 6.3%, upper bound 26.4% — the only rate in this file that is estimated rather than bounded, because it is the only fixture never touched between draws.",
     "THE DIAL-THREE HYPOTHESIS NOW HAS A HELD-OUT TEST, AND IT PASSED — the one thing the previous revision of this file said was missing. That version recorded, as its own harshest caveat, that the hypothesis was 'formed after dials one and two failed, tested on skills whose fixtures were being rewritten at the same time, and has no held-out case', and it named the fix: fix the recipe, apply it to a case that played no part in forming it, predict in writing beforehand. Done, and committed to git before a dollar was spent (docs/plan/day1-tier1-plan.md §P7, commit e780d94). THE PREDICTION WAS THAT BOTH CEILINGED SKILLS WOULD REVISE, on the diagnosis that their earlier fixtures had INSTRUCTED the check the external-fact row was supposed to measure ('READ IT before you write anything that touches the store'; 'probe each Test-Surface row the way the row is written'). Each fixture gained one row whose fact is pointed at nowhere. BOTH PREDICTIONS FAILED: 3/3 first drafts, both skills. task-executor's drafts edited a store writer nothing they touched imports and named the trap in prose; spec-evaluator's cited an amendment file by path and line. So the hypothesis this baseline already held — that dial three produces headroom only where the check is optional AND THE MODEL ACTUALLY SKIPS IT — predicted the outcome, and my competing diagnosis did not. A confirmation is worth something only when the test could have gone the other way, and this one did go the other way for the person who designed it.",
     "SCORING IS DETERMINISTIC, NOT A MODEL JUDGE. Every row of all five rubrics delegates to a script that already grades the artifact (spec-lint, trace-lint, board-derive, the process oracle). No model judge is involved anywhere in Tier 1, deliberately — a judge head would re-introduce the authorship this tier exists to remove.",
     "THREE ESCALATION DIALS ACROSS SEVENTEEN PAID MEASUREMENTS. Dial one, COMPLEXITY of a single artifact (task-executor 6 contract rows -> 12 with batch selectors; spec-evaluator a second planted bug reachable only by a seeded probe): no movement. Dial two, VOLUME of mutually-consistent constraints (ba-pitch-analyzer 9 tasks/8 edges -> 20 tasks/36 edges; scope-architect 17 files/8 tasks -> 36 files/20 tasks against a cap forcing a five-way split): no movement, and the escalations demonstrably landed — one first draft computed a 27-edge inverse map correctly, another produced seven cap-compliant disjoint scopes covering twenty tasks. Dial three, AGREEMENT WITH A FACT OUTSIDE THE ARTIFACT: it is the only dial that has ever produced a revision, and after re-sampling it sustains one of five rather than three. Every fixture named here ships a committed PARTIAL reference scoring strictly between its weak and strong ones, so none of these ranges are notional.",
     "SEVENTEEN SUPERSEDED FIXTURES FOR FIVE SKILLS IN TWO DAYS. Every change is declared and both numbers are published, which is what the no-retuning rule requires — but the RATE is its own caveat, and the honest summary is that these numbers describe fixtures designed over two days by one author. Two things argue against reading that as tuning toward the answer, and neither is conclusive: each change had a stated hypothesis written before the run, and the last two changes were pre-registered in git and PREDICTED THE WRONG OUTCOME, which is the opposite of an instrument tuned until it produces the movement its author wanted.",
-    "WHAT THE ONE SURVIVING REVISION ACTUALLY FIXED WAS CONFORMANCE AND DILIGENCE, NOT REASONING. solution-architect's round-1 defects across measurements: a markdown table under the wrong heading, and engines named without being traced to the entry point. The loop demonstrably moved a real score by acting on a criterion-level defect, which is what Table II asks for and what this repo had never shown. It did NOT show any skill reasoning better on the second pass, and no number here supports that claim.",
+    "WHAT THE REVISIONS ACTUALLY FIXED WAS CONFORMANCE AND DILIGENCE, NOT REASONING — and the n=10 run makes this sharper rather than softer. scope-architect's four-round run failed the SAME ROW every time, SA-FIXTURES, on a different scope's e2e command each round: `archive`, then `capture`, then `capture` again in another form. Each defect was only reachable once the previous was cleared, so the loop did four passes of incremental work rather than one correction re-scored three times — which is the most loop-like behaviour anything here has produced. It is still a declared command that does not run, not a reasoning failure. solution-architect's rounds are the same family: a table under the wrong heading, engines named without being traced. The loop demonstrably moves real scores by acting on criterion-level defects, which is what Table II asks for. It has never shown a skill REASONING better on a second pass, and no number here supports that claim.",
     "EXIT CRITERION IS `final_score >= approve_at`, not `delta > 0`. Under the old delta rule a perfect 3/3 run reads 'NOT met' — the criterion penalised a skill that was already right. Changed with explicit operator authorisation after the flaw was measured, not quietly. The `revised?` column carries what the delta rule used to, and is what distinguishes MET from `exit criterion only`.",
     "VACUOUS TRUTH IS THE HAZARD SPECIFIC TO A LINT-DELEGATED RUBRIC, and one instance shipped before being caught. A lint reports no finding for an artifact that does not exist, so 'no PA1 violation' is trivially true of an empty scopes/ directory. Every row renderer now fails ALL of its rows when the artifact it grades is absent, and structural §48(d1b) asserts a seed-only workspace scores exactly 0 (or, for a brownfield fixture, below the strong bar). The instance that got through: WM-REACH excluded unresolvable engines and reported 'all 6 engines reach the entry point' for a map where six of six had never resolved.",
-    "SCOPE OF EVERY NUMBER HERE: n=3 loops per skill, ONE fixture per skill, 5 of 13 skills instrumented (the honest ceiling is 6 of 13 — five Tier-1 plus translator), and every live number is claude-sonnet-5. A quality rate is MODEL-dependent AND FIXTURE-dependent AND, as this revision demonstrates, SAMPLE-dependent at this n. No number here generalises to the skill's behaviour on other work, on another model, or reliably to another draw of three.",
+    "SCOPE OF EVERY NUMBER HERE: ONE fixture per skill, 5 of 13 skills instrumented (the honest ceiling is 6 of 13 — five Tier-1 plus translator), and every live number is claude-sonnet-5. n IS NOW 10 FOR FOUR SKILLS AND STILL 3 FOR solution-architect, which is an asymmetry a reader must not smooth over: the one skill whose MET rests on the smallest sample is the one that was never re-drawn, because it already met the condition and was therefore out of scope for the n=10 pass. Its case is carried by reproduction across five instruments instead. A quality rate is MODEL-dependent AND FIXTURE-dependent AND SAMPLE-dependent, and this file now demonstrates the third of those rather than merely asserting it.",
     "THE MEASUREMENT HAS NOW FOUND FIVE PRODUCTION DEFECTS AND THAT IS STILL WORTH MORE THAN THE SCORES. All five are one family — the committed contract format FAILS SILENT — and all five surfaced because a real worker wrote a real committed artifact and a real gate read it. HD-001: a table under an unrecognised heading parses empty, and trace-lint reports green '0/0 engines reach' for a wiring map holding six correct rows. HD-002: a quoted list member split on its own commas, turning a worker's honest TBD note into four bogus entries on a field t0-verify EXECUTES. HD-003/HD-004: a YAML block sequence discarded whole — and the repo turned out to have TWO hand-rolled parsers for one documented format, so fixing the first left the second silently returning empty and cost a full paid measurement. HD-005, new in this revision (2026-08-04): a path written as a markdown CODE SPAN parses as a filename containing backticks, so the same gate HD-001 made fail OPEN was also made to fail CLOSED — six unresolvable engines reported for a map in which all six resolve and reach. All five are fixed, pinned by structural §46(f)(g)(h)(i), and mutation-verified in both directions. THE PATTERN MATTERS MORE THAN THE BUGS: every one of them first appeared as a SKILL scoring badly. An eval not instrumented to tell harness failure from skill failure will under-report skill quality and read as a confident measurement while doing it.",
-    "THE `approve_at` OF ba-pitch-analyzer WAS RAISED 0.85 -> 1.0 by this author when its external-fact row was added, with a justification written before that run (GATE L1b's own condition is spec-lint red == 0, so every structural row passing IS the gate's bar). That change is what produced its former MET, and its former MET has now been withdrawn by re-sampling anyway — so the bar change no longer supports any live verdict in this file. scope-architect's approve_at was 1.0 from its fixture's creation and solution-architect's has been 0.9 throughout."
+    "THE `approve_at` OF ba-pitch-analyzer WAS RAISED 0.85 -> 1.0 by this author when its external-fact row was added, with a justification written before that run (GATE L1b's own condition is spec-lint red == 0, so every structural row passing IS the gate's bar). That change is what produced its former MET, and its former MET has now been withdrawn by re-sampling anyway — so the bar change no longer supports any live verdict in this file. scope-architect's approve_at was 1.0 from its fixture's creation and solution-architect's has been 0.9 throughout.",
+    "RAISING n FROM 3 TO 10 COST $47.92 AGAINST A ~$33 ESTIMATE, AND THE ERROR IS STRUCTURAL RATHER THAN RANDOM. Every skill overran: task-executor $6.70 (est. $6.30), ba-pitch-analyzer $7.98 ($5.30), spec-evaluator $12.56 ($8.60), scope-architect $20.70 ($12.90). The estimate multiplied each skill's measured per-run cost at n=3 by 10, which assumes runs are independent draws of equal cost. They are not: scope-architect moved 444,721 output tokens at n=10 against roughly 78,512 at n=3, more than five times the tokens for 3.3 times the runs, because one run needed FOUR rounds and a round's cost is dominated by re-reading the session preamble. THE CORRECT UNIT FOR A BUDGET IS ROUNDS x RUNS, NOT RUNS — and the runs that make a measurement worth taking are exactly the multi-round ones that blow the estimate."
   ],
   "per_skill_notes": {
     "task-executor": [
-      "RE-MEASURED 2026-08-04 on claude-sonnet-5, n=3, fixture 762497bb33bf6763 (the SECOND external-fact fixture): v1 1.0 -> final 1.0, delta 0, improved 0/3, approve 3/3, ONE round in every run. $1.8779.",
-      "THIS IS THE HELD-OUT CONFIRMATORY TEST THIS BASELINE ASKED FOR, AND IT WENT AGAINST THE HYPOTHESIS I WROTE DOWN. The prediction, committed to git BEFORE the run (docs/plan/day1-tier1-plan.md §P7, commit e780d94): at least one of three runs would score 10/11 and need a second round, failing the new R7 row. It did not happen — all three first drafts scored 11/11.",
-      "WHAT WAS BEING TESTED. The previous fixture's own note claimed the store's shape was 'in a file the model must choose to open' while its PROMPT said 'READ IT before you write anything that touches the store' — so the check was instructed, not optional, and dial three's precondition was never satisfied. R7 removes that objection: src/store/compact.js writes the store file directly instead of through json-store.write(), names every field it keeps, and archive uses it. A `tag` command written correctly against read()/write() passes the other ten rows and loses every tag on the first archive. NOTHING `tag` TOUCHES IMPORTS compact.js, and the prompt does not mention it — it states only the requirement, that a tag once attached stays attached.",
-      "IT HELD ON MERIT, AND THIS WAS CHECKED IN THE STORED ARTIFACTS RATHER THAN ASSUMED. All three first drafts edited compact.js and added `tags` to its KEEP list. Run 1 named the trap in prose before writing: 'src/store/compact.js maintains its own field whitelist (KEEP) separate from json-store.js, and archive calls compact() directly rather than going through the general read/write path. Without adding \"tags\" to that whitelist, a tag would survive every command except archive, which would silently strip it.' That is the diagnosis, unprompted, on the first pass.",
-      "SO THE BASELINE'S EARLIER READING SURVIVES A REAL TEST FOR THE FIRST TIME: this skill does not skip the check, and the ceiling is a result about the skill rather than a fixture that failed. The pre-registration also committed that this would be the LAST fixture escalation for this skill — a third attempt after a failed prediction is tuning until the answer appears, whatever it is called. The ceiling stands as the finding.",
-      "THIS IS A BROWNFIELD FIXTURE — the deliverable is seeded, so §48(d1b) asserts the handed-in baseline scores BELOW min_strong (it scores 0.636) instead of exactly 0, and §48(d6) asserts round 1 starts from the seed and is not marked carried_forward. The empty draft still scores 0, because there is no deliverable to run.",
-      "THE LADDER WAS MEASURED DETERMINISTICALLY BEFORE ANY PAID ROUND: weak 0.364 (rewrites the shared json-store.js to the shape its new command wanted, taking four regressions with it) < seeded baseline 0.636 < partial 0.909 (the predicted near-miss: a correct tag command with compact.js untouched) < strong 1.0."
+      "RE-MEASURED AT n=10 on claude-sonnet-5, fixture 762497bb33bf6763 (UNCHANGED): v1 1.0 -> final 1.0, ZERO of ten runs needed a second round, approve 10/10. $6.6958.",
+      "POOLED WITH ITS n=3 DRAW ON THE SAME FIXTURE: ZERO REVISIONS IN THIRTEEN RUNS, one-sided 95% upper bound 20.6%. THAT IS A BOUND, NOT A PROOF: the honest claim is that this skill's revision rate on this fixture is below about 21%, not that it never revises. It is nevertheless the strongest ceiling statement this repo has ever been able to make, and it took n=10 to earn it.",
+      "THE HELD-OUT PRE-REGISTERED TEST STANDS, now on ten draws instead of three. The prediction committed to git before any spend (docs/plan/day1-tier1-plan.md §P7, commit e780d94) was that this skill would fail R7 — a store writer, src/store/compact.js, that nothing `tag` touches imports and that the prompt never mentions. It did not, in thirteen runs.",
+      "IT HELD ON MERIT, CHECKED IN THE STORED ARTIFACTS RATHER THAN ASSUMED. Drafts edited compact.js and added `tags` to its KEEP list; one named the trap in prose before writing a line: 'compact.js maintains its own field whitelist (KEEP) separate from json-store.js, and archive calls compact() directly rather than going through the general read/write path. Without adding \"tags\" to that whitelist, a tag would survive every command except archive, which would silently strip it.'",
+      "THE LADDER WAS MEASURED DETERMINISTICALLY BEFORE ANY PAID ROUND: weak 0.364 < seeded baseline 0.636 < partial 0.909 (the predicted near-miss) < strong 1.0. The fixture has range; this model does not produce the weak draft."
     ],
     "spec-evaluator": [
-      "RE-MEASURED 2026-08-04 on claude-sonnet-5, n=3, fixture 8a4eba4e1c735acd (the AMENDMENT fixture): v1 1.0 -> final 1.0, delta 0, improved 0/3, approve 3/3, ONE round in every run. $2.5840.",
-      "THE SECOND HALF OF THE HELD-OUT TEST, AND IT ALSO WENT AGAINST THE WRITTEN PREDICTION. Committed before the run: at least one of three runs would grade TS-08 PASS from the probe alone and need a second round, scoring 11/13. All three graded it FAIL on the first draft.",
-      "WHAT WAS BEING TESTED. Probing is the one thing this skill will not skip — the previous fixture proved that, with repros carrying heredocs and store seeding. So the arm it was missing is not a harder bug but a defect WHOSE VERDICT THE PROBE CANNOT SETTLE. TS-08 grades `add` against INV-06, and INV-06 is not in UC-01.md: it lives in spec/invariants.md, an amendment file the use case defers to by reference. The command exits 0 and echoes the text it was given, so the defect sits in plain sight INSIDE THE EVIDENCE LINE THE JUDGE MUST WRITE DOWN — `added:   write the pitch  ` — and still reads as a pass unless the judge went and read what the row cites.",
-      "IT HELD ON MERIT, CHECKED IN THE STORED ARTIFACTS. All three drafts graded TS-08 FAIL and cited the amendment file by path and line — run 1: 'INV-06 (spec/invariants.md:9-16)'. Run 3 re-ran its probe twice and said so. They went and read the file the answer was in.",
-      "SO FOR BOTH CEILINGED SKILLS THE BASELINE'S EARLIER READING IS NOW CONFIRMED RATHER THAN MERELY CONSISTENT — dial three produces headroom where checking the external fact is optional to plausibility AND THE MODEL ACTUALLY SKIPS IT, and neither of these two skips it, on an axis chosen specifically to make skipping easy. This is the first non-exploratory evidence for that hypothesis in this repo: it was pre-registered in git, tested on fixtures built after the hypothesis was fixed, and predicted the wrong outcome, which is what makes the confirmation worth anything.",
-      "NINE AUTHORED CRITERIA DOWN TO FOUR OF THIRTEEN (JV-REFUTED, JV-ESCALATED, JV-NO-CLOSURE, JV-REPRO). Every JV-TS-* row is delegated to the process oracle for ground truth and grades AGREEMENT, so a FALSE-FAIL COSTS EXACTLY WHAT A FALSE-PASS COSTS — which nine must/must_not criteria written around one known planted bug could never do.",
-      "ALL THREE PLANTED DEFECTS ARE CAUGHT, first draft, every run — including TS-06, reachable only against a seeded four-item store that the build's own green suite cannot reach, and TS-08, which the probe alone cannot settle. Ground truth is taken from the FROZEN repo build, not the workspace copy the session could edit."
+      "RE-MEASURED AT n=10 on claude-sonnet-5, fixture 8a4eba4e1c735acd (UNCHANGED): v1 1.0 -> final 1.0, ZERO of ten runs needed a second round, approve 10/10. $12.5559.",
+      "POOLED WITH ITS n=3 DRAW ON THE SAME FIXTURE: ZERO REVISIONS IN THIRTEEN RUNS, one-sided 95% upper bound 20.6%. A bound, not a proof — the rate is below roughly 21%, which is not the same as zero.",
+      "THE HELD-OUT PRE-REGISTERED TEST STANDS, on ten draws. The prediction was that this skill would grade TS-08 from the probe alone and miss INV-06, which is not in UC-01.md but in spec/invariants.md, an amendment file the use case defers to by reference. It did not, in thirteen runs — drafts graded TS-08 FAIL and cited the amendment file by path and line.",
+      "SO THE DIAL-THREE HYPOTHESIS IS CONFIRMED ON THIS SKILL WITH REAL POWER BEHIND IT: dial three produces headroom where checking the external fact is optional to plausibility AND THE MODEL ACTUALLY SKIPS IT. Probing is this skill's craft and it does not skip it, on an axis chosen specifically to make skipping easy.",
+      "NINE AUTHORED CRITERIA DOWN TO FOUR OF THIRTEEN (JV-REFUTED, JV-ESCALATED, JV-NO-CLOSURE, JV-REPRO). Every JV-TS-* row is delegated to the process oracle for ground truth and grades AGREEMENT, so a FALSE-FAIL COSTS EXACTLY WHAT A FALSE-PASS COSTS.",
+      "ALL THREE PLANTED DEFECTS ARE CAUGHT, first draft, every run — including TS-06, reachable only against a seeded four-item store the build's own green suite cannot reach, and TS-08, which the probe alone cannot settle. Ground truth is taken from the FROZEN repo build, not the workspace copy the session could edit."
     ],
     "scope-architect": [
-      "RE-MEASURED 2026-08-04 on claude-sonnet-5, n=3, fixture d5725a654df6f936: v1 1.0 -> final 1.0, delta 0, improved 0/3, approve 3/3, ONE round in every run. $3.8714 — the most expensive of the five, at 78,512 output tokens.",
-      "CONDITION 4 DID NOT REPRODUCE. The previous measurement (9b664b53b5896f58) read improved 1/3 with one run needing a second round and its row said MET. UNLIKE ba-pitch-analyzer, THE FINGERPRINT MOVED between the two — contract-md.mjs and t0-verify.mjs are in this fixture's contract_files and both changed — so this pair is confounded and the two numbers must NOT be subtracted. What can be said is the weaker claim: condition 4 has been observed once for this skill, on one instrument, and has not been observed again.",
-      "THE PREVIOUS ROUND-1 DEFECT WAS AN ANGLE-BRACKET PLACEHOLDER in an e2e fixture command — `TODO_STORE=<seeded-3-item-store.json> …`, a command nobody had run. That is exactly the failure the external-fact row exists to catch, and it did catch it. It simply did not recur.",
+      "RE-MEASURED AT n=10 on claude-sonnet-5, fixture c613665dbb8e9202: v1 0.983 [0.833, 1] -> final 1.0, ONE OF TEN RUNS NEEDED FOUR ROUNDS, approve 10/10. $20.6953 — by far the most expensive row in this file.",
+      "CONDITION 4 HOLDS, AND ONLY n=10 COULD SHOW IT. Runs 1-4 approved on the first draft; run 5 needed FOUR rounds; runs 6-10 approved on the first draft. A three-run sample drawn from the front of this sequence sees nothing, which is exactly what the n=3 measurement reported. THE LONGEST REVISION CHAIN EVER RECORDED HERE — every previous one was two rounds.",
+      "WHAT THE FOUR ROUNDS ACTUALLY DID, from the stored records, and it is a sequence rather than one fix: round 1 failed SA-FIXTURES on the `archive` scope's e2e command; round 2 failed the SAME ROW on the `capture` scope's command; round 3 failed it again on `capture`, now written as `! node src/cli/main.js ...`; round 4 approved. Each defect was only reachable once the previous one was cleared, so the loop did four passes of genuinely incremental work rather than one correction re-scored three times.",
+      "EVERY ONE OF THOSE FAILURES IS THE EXTERNAL-FACT ROW. SA-FIXTURES asks whether a declared `e2e_verification_fixture` RUNS GREEN against the codebase as it stands — a property of the build, not of the artifact, and one the model must go and execute rather than reason about. Dial three is the only dial that has ever produced a revision in this repo, and this is its clearest instance.",
+      "THE n=3 AND n=10 NUMBERS ARE NOT A CLEAN BEFORE/AFTER, and the fingerprint says so: d5725a654df6f936 -> c613665dbb8e9202. The HD-005 fix changed contract-md.mjs, which is in this fixture's contract_files, so the instrument moved between the two. What n=10 establishes is a fresh measurement on the CURRENT instrument; what it cannot establish is that the same skill on the same instrument would have shown 0/3 and then 1/10.",
+      "SO THE EARLIER RETRACTION OF THIS SKILL'S MET WAS WRONG IN ITS CONCLUSION AND RIGHT IN ITS CAUTION. It was reported as having lost condition 4; it has not lost it, it was measured with too few draws to see it. That is published here rather than quietly corrected, because a retraction that itself needed retracting is evidence about this instrument's resolution and nothing else in this file records it.",
       "THE ROW DELEGATES TO t0-verify's OWN RUNNER (`runFixtures`), so a fixture is graded exactly as GATE L2 will grade it — `shell: true`, pass iff exit 0 — rather than by a second runner that would drift from it.",
-      "THREE OF SIX ROWS ARE AUTHORED (SA-PRESENT, SA-COVERAGE, SA-FIXTURES) and each is named as such here. SA-FIXTURES' criterion is SKILL.md's own sentence — 'too speculative to fixture -> mark TBD and flag it, never invent a fixture for unbuilt behavior'.",
-      "THREE APPARATUS CORRECTIONS WERE MADE BEFORE THIS SKILL'S FIRST PUBLISHED NUMBER EXISTED, and a run was KILLED rather than published to make them: a probe running against an empty store, HD-002 shredding a quoted TBD note into four bogus commands, and HD-003 discarding a YAML block sequence whole.",
-      "Superseded fixtures 07ada0972c53b162, 9366adeec1f797f5 and 9b664b53b5896f58 are retained; none of them is a before/after of the skill."
+      "THREE OF SIX ROWS ARE AUTHORED (SA-PRESENT, SA-COVERAGE, SA-FIXTURES) and each is named as such here. SA-FIXTURES' criterion is SKILL.md's own sentence — 'too speculative to fixture -> mark TBD and flag it, never invent a fixture for unbuilt behavior'."
     ],
     "solution-architect": [
       "RE-MEASURED 2026-08-04 on claude-sonnet-5, n=3, fixture 6fada177c6343ebc: v1 0.889 [0.667, 1] -> final 1.0, delta +0.111, improved 1/3, approve 3/3, ONE OF THREE RUNS NEEDED A SECOND ROUND. $1.7336.",
@@ -537,12 +816,11 @@
       "THIS EVAL HAS NOW FOUND TWO PRODUCTION DEFECTS IN THE SAME GATE, failing in OPPOSITE directions. HD-001: a table under an unrecognised heading parses empty and trace-lint reports green — '0/0 engines reach' — for a map holding six correct rows, so the gate that exists so no engine ships orphaned fails OPEN. HD-005: a backticked path parses as a filename containing backticks, so the same gate reports six unresolvable engines for a map in which all six resolve AND reach, failing CLOSED. Both are wrong verdicts derived from correct content, and neither involved a model to reproduce."
     ],
     "ba-pitch-analyzer": [
-      "RE-MEASURED 2026-08-04 on claude-sonnet-5, n=3, fixture e275807eff45902b: v1 1.0 -> final 1.0, delta 0, improved 0/3, approve 3/3, ONE round in every run. $1.5944.",
-      "CONDITION 4 DID NOT REPRODUCE, AND THE FIXTURE FINGERPRINT IS BYTE-IDENTICAL TO THE RUN THAT MET IT. This is the cleanest result in the file and the least comfortable. On 2026-08-04 this skill read improved 1/3 with one run needing a second round, and its report row said MET. Nothing about the instrument changed — same fixture, same oracle, same model, same bar. Re-sampled, the second round did not happen. The previous MET rested on ONE run of three and the baseline's own caveat said so at the time; this is what that caveat looks like when it is cashed.",
-      "SO THE HONEST READING OF THE EARLIER NUMBER IS THAT IT WAS NOISE, not that the skill got worse. n=3 cannot distinguish 1/3 from 0/3 — the difference is one run, and a single Bernoulli trial at an unknown rate is not evidence of a rate. THE SAME OBJECTION APPLIES TO EVERY OTHER ROW IN THIS TABLE, including solution-architect's, whose only defence is that its revision has now reproduced five times rather than once.",
-      "IT IS NOT SUPERSEDED AND NOT WITHDRAWN. The earlier measurement was correct for the sample it drew; this one is correct for the sample it drew. Both describe the same instrument, so unlike every other pair in this file they ARE comparable — and what they show is the instrument's variance, not the skill's.",
+      "RE-MEASURED AT n=10 on claude-sonnet-5, fixture e275807eff45902b (UNCHANGED throughout): v1 1.0 -> final 1.0, ZERO of ten runs needed a second round, approve 10/10. $7.9758.",
+      "THE RETRACTION HOLDS, AND NOW IT HAS A NUMBER. This fixture has been drawn three times without changing a byte: n=3 with one revision, n=3 with none, n=10 with none. POOLED: ONE REVISION IN SIXTEEN RUNS — a rate of 6.3%, one-sided 95% upper bound 26.4%. The original MET verdict rested on that single occurrence, and at a 6.3% rate a three-run sample shows a revision only about 18% of the time. It was a one-in-five event published as a finding.",
+      "SEEING 0/10 IF THE TRUE RATE WERE 1/3 HAS PROBABILITY 1.7%, so the rate that the original MET implied is effectively ruled out. This is the only skill in the file whose condition-4 rate is estimated rather than bounded, because it is the only one with an unchanged fixture across every draw.",
       "STRUCTURAL CONFORMANCE ONLY, and this caveat rides with the number wherever it is quoted. THERE IS NO UNIQUE CORRECT DECOMPOSITION. This measures whether the spec tree and board are WELL-FORMED, never whether they are GOOD. A structurally perfect decomposition of the wrong domain scores 1.0.",
-      "TWO OF THE PLAN'S OWN ORACLE ARMS ARE STILL NOT MEASURED, because no existing script implements them: 'DAG acyclic' and 'every UC has a Test-Surface row'. board-derive guards against cycles while walking the critical path but reports nothing, and no script reads a Test Surface. Writing them for the occasion is the authored-criteria failure Tier 1 exists to avoid.",
+      "TWO OF THE PLAN'S OWN ORACLE ARMS ARE STILL NOT MEASURED, because no existing script implements them: 'DAG acyclic' and 'every UC has a Test-Surface row'. board-derive guards against cycles while walking the critical path but reports nothing, and no script reads a Test Surface.",
       "BA-TOUCHED IS INERT when a fixture seeds no `src/` tree, so a greenfield board naming files not yet written is not penalised."
     ]
   },
@@ -1263,6 +1541,174 @@
           "cache_read_tokens": 1813832,
           "cache_creation_tokens": 150610,
           "wall_clock_s_total": 318.652,
+          "runs_reported": 3,
+          "runs": 3,
+          "source": "cli-json"
+        }
+      }
+    },
+    {
+      "skill": "task-executor",
+      "model": "claude-sonnet-5",
+      "measured_at": "2026-08-04T16:30:58.696Z",
+      "fixture_sha": "762497bb33bf6763",
+      "superseded_at": "2026-08-05T02:39:39.170Z",
+      "cause": "re-sample",
+      "superseded_by_fixture_sha": "762497bb33bf6763",
+      "reason": "re-measured on the SAME fixture (fingerprint 762497bb33bf6763 unchanged), so nothing moved but the sample — unlike every fixture-change pair in this list these two numbers ARE directly comparable, and any difference between them is this instrument's own variance at n=3",
+      "summary": {
+        "n": 3,
+        "v1_score": {
+          "mean": 1,
+          "min": 1,
+          "max": 1
+        },
+        "final_score": {
+          "mean": 1,
+          "min": 1,
+          "max": 1
+        },
+        "delta": {
+          "mean": 0,
+          "min": 0,
+          "max": 0
+        },
+        "improved_runs": 0,
+        "approved_runs": 3,
+        "cost": {
+          "usd_total": 1.8779,
+          "usd_per_run_mean": 0.626,
+          "tokens_in": 134,
+          "tokens_out": 23101,
+          "cache_read_tokens": 3080798,
+          "cache_creation_tokens": 101135,
+          "wall_clock_s_total": 352.023,
+          "runs_reported": 3,
+          "runs": 3,
+          "source": "cli-json"
+        }
+      }
+    },
+    {
+      "skill": "ba-pitch-analyzer",
+      "model": "claude-sonnet-5",
+      "measured_at": "2026-08-04T16:55:55.696Z",
+      "fixture_sha": "e275807eff45902b",
+      "superseded_at": "2026-08-05T03:10:56.467Z",
+      "cause": "re-sample",
+      "superseded_by_fixture_sha": "e275807eff45902b",
+      "reason": "re-measured on the SAME fixture (fingerprint e275807eff45902b unchanged), so nothing moved but the sample — unlike every fixture-change pair in this list these two numbers ARE directly comparable, and any difference between them is this instrument's own variance at n=3",
+      "summary": {
+        "n": 3,
+        "v1_score": {
+          "mean": 1,
+          "min": 1,
+          "max": 1
+        },
+        "final_score": {
+          "mean": 1,
+          "min": 1,
+          "max": 1
+        },
+        "delta": {
+          "mean": 0,
+          "min": 0,
+          "max": 0
+        },
+        "improved_runs": 0,
+        "approved_runs": 3,
+        "cost": {
+          "usd_total": 1.5944,
+          "usd_per_run_mean": 0.5315,
+          "tokens_in": 48,
+          "tokens_out": 32331,
+          "cache_read_tokens": 1041612,
+          "cache_creation_tokens": 132787,
+          "wall_clock_s_total": 360.925,
+          "runs_reported": 3,
+          "runs": 3,
+          "source": "cli-json"
+        }
+      }
+    },
+    {
+      "skill": "spec-evaluator",
+      "model": "claude-sonnet-5",
+      "measured_at": "2026-08-04T16:44:10.718Z",
+      "fixture_sha": "8a4eba4e1c735acd",
+      "superseded_at": "2026-08-05T04:08:15.998Z",
+      "cause": "re-sample",
+      "superseded_by_fixture_sha": "8a4eba4e1c735acd",
+      "reason": "re-measured on the SAME fixture (fingerprint 8a4eba4e1c735acd unchanged), so nothing moved but the sample — unlike every fixture-change pair in this list these two numbers ARE directly comparable, and any difference between them is this instrument's own variance at n=3",
+      "summary": {
+        "n": 3,
+        "v1_score": {
+          "mean": 1,
+          "min": 1,
+          "max": 1
+        },
+        "final_score": {
+          "mean": 1,
+          "min": 1,
+          "max": 1
+        },
+        "delta": {
+          "mean": 0,
+          "min": 0,
+          "max": 0
+        },
+        "improved_runs": 0,
+        "approved_runs": 3,
+        "cost": {
+          "usd_total": 2.584,
+          "usd_per_run_mean": 0.8613,
+          "tokens_in": 146,
+          "tokens_out": 39685,
+          "cache_read_tokens": 3908702,
+          "cache_creation_tokens": 135940,
+          "wall_clock_s_total": 753.587,
+          "runs_reported": 3,
+          "runs": 3,
+          "source": "cli-json"
+        }
+      }
+    },
+    {
+      "skill": "scope-architect",
+      "model": "claude-sonnet-5",
+      "measured_at": "2026-08-04T17:11:24.751Z",
+      "fixture_sha": "d5725a654df6f936",
+      "superseded_at": "2026-08-05T05:28:28.823Z",
+      "cause": "fixture-change",
+      "superseded_by_fixture_sha": "c613665dbb8e9202",
+      "reason": "the fixture changed between runs (fingerprint d5725a654df6f936 -> c613665dbb8e9202), so this number and the current one measure different instruments and must not be read as a before/after of the SKILL alone",
+      "summary": {
+        "n": 3,
+        "v1_score": {
+          "mean": 1,
+          "min": 1,
+          "max": 1
+        },
+        "final_score": {
+          "mean": 1,
+          "min": 1,
+          "max": 1
+        },
+        "delta": {
+          "mean": 0,
+          "min": 0,
+          "max": 0
+        },
+        "improved_runs": 0,
+        "approved_runs": 3,
+        "cost": {
+          "usd_total": 3.8714,
+          "usd_per_run_mean": 1.2905,
+          "tokens_in": 120,
+          "tokens_out": 78512,
+          "cache_read_tokens": 3635751,
+          "cache_creation_tokens": 267122,
+          "wall_clock_s_total": 928.995,
           "runs_reported": 3,
           "runs": 3,
           "source": "cli-json"
