@@ -3,6 +3,29 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.6.1] — 2026-08-05
+
+**The permission grant was not being written on the path most people take.** Found by installing
+1.6.0 into a fresh project and reading the result, not by reading the code.
+
+`installClaude()` prefers the `claude` CLI when that binary exists — the common case — and returned
+as soon as the plugin installed, before reaching `mergePipelinePermissions`. The comment beside it
+said *"it runs on both paths"*. It did not. A fresh `npx shapeup-sdlc init` printed success and left
+`permissions.allow: []`, so the grant that exists because a headless run without it was denied
+approval **26 times in one session** was silently absent on every machine with the CLI installed.
+
+That is FC-02 — a silently inert enforcement point — inside the installer whose job is to prevent
+it, and it is the third time this project has met the shape: the mechanism exists, the check that
+would notice it does not run on the path taken.
+
+- **Fixed:** the CLI path now re-reads what the CLI wrote, merges the six pipeline prefixes, and
+  writes back. Merged, never overwritten — `enabledPlugins` and the marketplace registration
+  survive, or installing the plugin would un-install it.
+- **Pinned:** structural §43 gained three checks that **execute** `bin/init.mjs` twice against a
+  temp project — once with a fake `claude` on PATH, once with PATH stripped of it — and assert the
+  grant lands on both. Mutation-verified: reverting the fix fires exactly one check, on the CLI
+  path, while the fallback stays green.
+
 ## [1.6.0] — 2026-08-05
 
 **Five silent-failure defects in the committed contract format, and the measurement programme that

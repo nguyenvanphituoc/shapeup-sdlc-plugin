@@ -192,7 +192,28 @@ function installClaude() {
       ? sh(`claude plugin install --scope project ${PLUGIN_KEY}`, { cwd: target, stdio: "inherit" })
       : add;
     if (ins.status === 0) {
-      console.log("  [claude] plugin installed at project scope — run /reload-plugins to activate in a live session");
+      // The CLI registers the marketplace and enables the plugin. It does NOT know about the
+      // pipeline permission grant, so this path has to add it — and until v1.6.1 it did not,
+      // while the comment below claimed both paths merged it. Measured on a fresh `npx
+      // shapeup-sdlc init`: `permissions.allow` came out EMPTY on every machine with the claude
+      // CLI installed, which is the common case and the one that prints success. That is FC-02
+      // exactly — an enforcement point inert on the path people actually take — and the grant it
+      // skipped is the one that exists because a headless run without it was denied approval 26
+      // times in a single session.
+      //
+      // Merged, never overwritten: re-read what the CLI just wrote and add only the allow list.
+      let written = {};
+      if (existsSync(settingsFile)) {
+        try { written = JSON.parse(readFileSync(settingsFile, "utf8")); }
+        catch (e) {
+          console.error(`  [claude] plugin installed, but ${rel(settingsFile)} is not valid JSON (${e.message}) —`);
+          console.error("           the pipeline permission grant was NOT added. Copy it from .claude/settings.local.example.json.");
+          return;
+        }
+      }
+      mergePipelinePermissions(written);
+      writeFileSync(settingsFile, JSON.stringify(written, null, 2) + "\n");
+      console.log("  [claude] plugin installed at project scope + pipeline permissions granted — run /reload-plugins to activate in a live session");
       return;
     }
     console.log("  [claude] Warning: claude CLI failed — falling back to writing settings.json directly");

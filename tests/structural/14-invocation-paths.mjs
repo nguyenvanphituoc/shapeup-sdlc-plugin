@@ -130,6 +130,88 @@ export async function run(ctx) {
     }
   }
 
+  // (5) The grant is actually WRITTEN — on BOTH install paths, executed rather than read.
+  //
+  // Checks (1)–(3) prove the grant MATCHES the call sites. They cannot see whether it is ever
+  // written, and for one release it was not: `installClaude()` takes the `claude` CLI path whenever
+  // that binary exists — the common case — and returned before reaching `mergePipelinePermissions`,
+  // while the comment beside it claimed both paths merged. A fresh `npx shapeup-sdlc init` printed
+  // success and produced `permissions.allow: []`. That is FC-02 in the install script itself: the
+  // enforcement point inert on the path people actually take, and its measured cost is the 26
+  // approval denials this whole module exists because of.
+  //
+  // So this runs the installer twice against a temp project — once with a fake `claude` on PATH
+  // (CLI path), once with PATH stripped of it (fallback) — and asserts the grant lands both times.
+  {
+    const { mkdtempSync, mkdirSync, writeFileSync, chmodSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { spawnSync } = await import("node:child_process");
+
+    // Re-derived here rather than shared with (3): that block is scoped to the case where the
+    // OWNERS list parses, and this check must still run — and still fail — if it does not.
+    const initFile = join(ROOT, "bin/init.mjs");
+    const owners = existsSync(initFile)
+      ? [...readFileSync(initFile, "utf8").matchAll(/const OWNERS = \[([^\]]+)\]/g)]
+          .flatMap((m) => [...m[1].matchAll(/"([a-z-]+)"/g)].map((x) => x[1]))
+      : [];
+    const prefixes = owners.flatMap((o) => [
+      `node \${CLAUDE_PLUGIN_ROOT}/skills/${o}/scripts/`,
+      `node "\${CLAUDE_PLUGIN_ROOT}/skills/${o}/scripts/`,
+    ]);
+
+    const grantsIn = (file) => {
+      if (!existsSync(file)) return null;
+      try { return new Set(JSON.parse(readFileSync(file, "utf8"))?.permissions?.allow || []); }
+      catch { return null; }
+    };
+    const runInstaller = (label, withFakeCli) => {
+      const box = mkdtempSync(join(tmpdir(), "init-grant-"));
+      try {
+        const proj = join(box, "proj");
+        mkdirSync(proj, { recursive: true });
+        const binDir = join(box, "bin");
+        mkdirSync(binDir, { recursive: true });
+        if (withFakeCli) {
+          // Stands in for the real CLI: succeeds, and writes the marketplace/plugin keys the way
+          // the real one does, so the merge is tested against a NON-EMPTY settings.json.
+          writeFileSync(join(binDir, "claude"), [
+            "#!/usr/bin/env bash",
+            'if [ "$1" = "--version" ]; then echo "fake 1.0"; exit 0; fi',
+            'mkdir -p .claude',
+            `printf '%s' '{"extraKnownMarketplaces":{"nvptuoc-marketplace":{}},"enabledPlugins":{"shapeup-sdlc-plugin@nvptuoc-marketplace":true}}' > .claude/settings.json`,
+            "exit 0",
+          ].join("\n"));
+          chmodSync(join(binDir, "claude"), 0o755);
+        }
+        const PATH = withFakeCli
+          ? `${binDir}:${process.env.PATH}`
+          : (process.env.PATH || "").split(":").filter((d) => !existsSync(join(d, "claude"))).join(":");
+        const r = spawnSync(process.execPath, [join(ROOT, "bin/init.mjs"), "-d", proj, "-y"],
+          { cwd: proj, env: { ...process.env, PATH }, encoding: "utf8" });
+        if (r.status !== 0) { fail(`bin/init.mjs exited ${r.status} on the ${label} path: ${(r.stderr || "").slice(0, 200)}`); return; }
+
+        const allow = grantsIn(join(proj, ".claude", "settings.json"));
+        if (allow === null) { fail(`bin/init.mjs (${label} path) left no readable .claude/settings.json — the pipeline grant cannot be there`); return; }
+        const missing = prefixes.filter((p) => !allow.has(`Bash(${p}:*)`));
+        if (missing.length === 0) ok(`bin/init.mjs writes all ${prefixes.length} pipeline grants on the ${label} path`);
+        else fail(`bin/init.mjs (${label} path) wrote ${allow.size} grant(s), missing ${missing.length}: ${missing[0]} — a headless run cannot take its first step without these`);
+
+        if (withFakeCli) {
+          // The merge must not clobber what the CLI wrote, or installing the plugin un-installs it.
+          let s = {};
+          try { s = JSON.parse(readFileSync(join(proj, ".claude", "settings.json"), "utf8")); } catch { /* handled above */ }
+          if (s.enabledPlugins && Object.keys(s.enabledPlugins).length) ok("the grant is MERGED into what the claude CLI wrote — enabledPlugins survives");
+          else fail("bin/init.mjs overwrote the claude CLI's settings.json — the plugin registration is gone, so the grant arrived and the plugin left");
+        }
+      } finally { rmSync(box, { recursive: true, force: true }); }
+    };
+
+    if (existsSync(join(ROOT, "bin/init.mjs")) && prefixes.length) {
+      runInstaller("claude-CLI", true);
+      runInstaller("fallback", false);
+    }
+  }
+
   // (4) The substitution note is gone.
   const techLead = join(ROOT, "skills/tech-lead/SKILL.md");
   if (existsSync(techLead)) {
