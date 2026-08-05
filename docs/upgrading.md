@@ -49,6 +49,31 @@ Brings a pre-0.3.0 install up to date: shards a flat `shapeup/metrics.jsonl` int
 `metrics.jsonl.migrated`), adds the Tier C `.gitignore` rules, and drops the Tier C example
 templates — the same three steps a fresh `install-harness.sh` run already does.
 
+### `0009` — the contract parsers were repaired; find what they now reject
+
+v1.6.0 fixes five defects in one family — *the committed contract format fails silent* — plus a
+schema tightening. Every one is a change to a **reader**, so the code arrives with the upgrade and
+the knowledge of which of *your* files those readers now treat differently does not. In two cases
+the change is from green to red, and you should meet that here rather than at a gate:
+
+- **a committed contract the parser could not see** used to read as one that declared *nothing*, so
+  every rule over it passed — `trace-lint` printing a green `0/0 engines reach` for a wiring map
+  holding six correct rows. It is RED from v1.6.0.
+- **list members split on their own commas** (HD-002) — already split in any contract written
+  through the old round trip. The data is gone and cannot be restored by guessing, so candidates are
+  named for a human to read.
+- **a stored `FAIL` with no `file:line` locator** is rejected before ingest from v1.6.0; that round
+  must be re-evaluated rather than resumed.
+
+**It writes nothing.** Two of the three are unrecoverable by machine and the third is a rewrite of a
+committed design document that a person should make and review — the same call `0008` made about a
+teammate's committed analysis. It also notes, once, if your gitignored
+`.claude/settings.local.json` still names `haiku` in the model matrix; the shipped default moved to
+`sonnet`, and your machine's choice is not the upgrade's business.
+
+> Migrations `0003`–`0008` are documented in [`CHANGELOG.md`](../CHANGELOG.md) under the release
+> that shipped each one.
+
 ## Why the entrypoints live where they do
 
 Source resolution, CLI selection, and skill replacement are factored into a shared

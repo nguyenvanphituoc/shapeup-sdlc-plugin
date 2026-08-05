@@ -3,6 +3,67 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.6.0] — 2026-08-05
+
+**Five silent-failure defects in the committed contract format, and the measurement programme that
+found them.** Every one surfaced the same way: a real worker wrote a real committed artifact, a real
+gate read it, and the gate was wrong about a file that looked correct to every human who reviewed
+it. Two of the five were in the same gate pointing in opposite directions.
+
+### Fixed — the committed contract format failing silent ⚠️ migration required
+
+- **HD-001** — a table under a heading the parser did not claim read as a contract that declared
+  NOTHING, so `trace-lint` reported a green `0/0 engines reach <entry>` for a wiring map holding six
+  correct rows. The gate whose entire purpose is that no engine ships orphaned, failing **open**. An
+  unreadable contract is now RED and reachability is not claimed, because none was checked. Fixed at
+  both call sites — `trace-lint.mjs` and `spec-lint.mjs` (`CONTRACT-UNREADABLE`).
+- **HD-002** — a quoted list member split on its own commas, turning one honest `TBD` note into four
+  bogus entries on a field `t0-verify` **executes**.
+- **HD-003 / HD-004** — a YAML block sequence discarded whole, and the repo turned out to hold **two
+  hand-rolled parsers for one documented format**, so fixing the first left the second silently
+  returning empty and cost a full paid measurement. The second parser is deleted rather than
+  patched: `board-derive.mjs` now delegates to `splitFrontmatter`, because a second implementation
+  of a format is a second format and these two had drifted.
+- **HD-005** — a path written as a markdown code span parsed as a filename containing backticks, so
+  the same gate HD-001 made fail *open* was also made to fail **closed**: six unreachable engines
+  reported for a map in which all six reach.
+
+All five are mutation-verified in both directions and pinned — structural §46(f)(g)(h)(i) for the
+parser, §23 for the two call sites §46 does not reach.
+
+### Changed — a FAIL must name a file:line ⚠️ migration required
+
+`CriterionVerdict` becomes an `anyOf`: a PASS may cite plain probe output, a **FAIL requires an
+evidence locator**, so `validate-envelope` rejects the whole WorkResult before ingest sees it. The
+rule already existed — stated five times across the `spec-evaluator` prompt and enforced nowhere,
+and a measured run returned a correct FAIL with no locator anywhere in the envelope: right verdict,
+unactionable. It is now stated once and carried by the schema. **A stored result with an un-located
+FAIL can no longer be ingested; migration 0009 finds them.**
+
+### Changed — the model matrix moves off Haiku
+
+The QA lane default, the `aegis-digest` fallback for unrecognised log formats, and the trigger-eval
+probe's guidance. Your own `.claude/settings.local.json` is per-machine and gitignored, so no
+upgrade touches it; 0009 says so rather than changing it for you.
+
+### Added — the measurement instrument is committed, and its enforcement runs
+
+The Day-1 rubrics, reference drafts, fixture spine, row renderers, schemas and the Day-2 register
+were gitignored alongside the run records they belong beside. A clone ran **790 of 1244** structural
+checks, failed 4, and could not reproduce a single measurement. It now runs **1107 green**, and
+structural §48 — 1022 lines, tracked, and absent from the runner's module list — is loaded, so the
+Day-1 report is pinned byte-for-byte against its baseline. `evals/runs/` stays local by design.
+
+**Day 1 (Graph Engineering §VI.A) is met for all five Tier-1 skills** under condition 4 as amended
+by the operator on 2026-08-04, and for **three of five** under the original text; both readings are
+preserved. Coverage is 5 of 13 skills, honest ceiling 6. See `evals/DAY1-REPORT.md`.
+
+### Changed — documentation
+
+Nine plan documents become one (`docs/internal/plan/ratchet-and-receipt-plan.md`), `docs/design/05`
+gains the measurement table with each metric's common misreading, and the harness defect register
+goes back to being a queue rather than an archive.
+
 ## [1.5.0] — 2026-08-03
 
 **Two organizing decisions and one missing mechanism.** [ADR-0001](docs/design/adr/0001-consumer-file-organization.md)
