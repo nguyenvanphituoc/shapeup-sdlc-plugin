@@ -1,0 +1,56 @@
+{
+  "skill_name": "architecture-research-report",
+  "evals": [
+    {
+      "id": 0,
+      "name": "codebase-architecture-review",
+      "prompt": "Take a look at this repo and write me an architecture review. I want to know where the real structural weaknesses are, not a tour of the directory layout. Diagrams please.",
+      "expected_output": "Report with a lead finding paragraph naming a specific structural defect, an as-built diagram derived from actual files, claims cited to file:line, a negative-space section, and staged recommendations.",
+      "files": [],
+      "assertions": [
+        "Leads with a finding paragraph that names a specific defect, not a description of the repo's purpose",
+        "At least 5 claims cite a concrete file path (and ideally line number) that actually exists in the repo",
+        "Contains at least one Mermaid diagram of the as-built architecture",
+        "All Mermaid blocks pass validate_report.py with zero errors",
+        "Contains a section saying what NOT to build or change, with a stated reason",
+        "Recommendations are staged and sequenced, with the cheapest evidence-producing step first",
+        "Contains a 'what would change this answer' or equivalent falsifiers section",
+        "Does not contain manufactured balance ('both approaches have pros and cons') or unhedged filler"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "vendor-evaluation-with-constraints",
+      "prompt": "We're on pgvector inside our main Postgres and it's fine today at about 8M chunks, but product is forecasting ~50M by Q1. Do we need to move to a dedicated vector DB? Platform team is two people and we have no real on-call rotation. Give me something I can take to my director.",
+      "expected_output": "Weighted criteria matrix including a 'stay on pgvector' row, a decision that engages the two-person team constraint, staged migration with a benchmark gate first, and explicit falsifiers.",
+      "files": [],
+      "assertions": [
+        "Comparison table publishes weights per criterion AND justifies each weight",
+        "Includes 'stay on pgvector' / do-nothing as an explicitly scored option",
+        "The two-person team with no on-call is treated as a decision-driving constraint, not a footnote",
+        "Recommendation is staged with a measurement gate before any migration commitment",
+        "Gives a concrete first step that produces evidence cheaply (e.g. shadow index benchmark) with an exit criterion",
+        "States what would change the answer, including at least one falsifier tied to a number",
+        "All Mermaid blocks pass validate_report.py with zero errors",
+        "Cost figures are given in units the reader controls (dollars/month or engineer-weeks), not low/medium/high"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "agent-system-review-graph-lens",
+      "prompt": "I'm building a multi-agent code review system. Orchestrator spawns 8 reviewer subagents in parallel, each returns findings as JSON, a synthesizer merges them into one report. Everything lives in the conversation context and the run directory gets wiped when the job ends. Is this architecture sound? What am I going to regret?",
+      "expected_output": "Review that applies the six selection questions, identifies the wiped-run-directory as answering 'must facts survive the run' by accident, flags correlated errors under fan-out, and recommends persistence before any graph.",
+      "files": [],
+      "assertions": [
+        "Applies the six selection questions from graph-engineering.md as an explicit lens",
+        "Identifies that the wiped run directory silently answers 'must facts survive the run' as no",
+        "Flags correlated errors across parallel workers sharing one prompt, and that verification only helps with a different prompt/evidence/role",
+        "Names which of the five planes (control/execution/artifact/graph/evaluation) lack an owner or are collapsed",
+        "Recommends durable artifacts before recommending a knowledge graph, or explicitly argues a graph is not yet warranted",
+        "Cites the source paper by section (e.g. §VIII.A, §IX.D) rather than paraphrasing it anonymously",
+        "Contains at least one Mermaid diagram showing the current flow or its failure path",
+        "All Mermaid blocks pass validate_report.py with zero errors"
+      ]
+    }
+  ]
+}
