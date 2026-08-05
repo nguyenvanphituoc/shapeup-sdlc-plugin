@@ -25,6 +25,7 @@ order and the docs module (`08-docs.mjs`) is last so the floor sees every check:
 | `structural/05-tech-lead.mjs` | §18–22, 24, 30, 31 orchestrator-owned scripts, domain registry, spine |
 | `structural/06-ba-pitch-analyzer.mjs` | §23 board-derive + spec-lint |
 | `structural/07-spec-evaluator.mjs` | §15 verdict-ledger |
+| `structural/48-day1-day2.mjs` | §48 Day-1 loop instrument + Day-2 failure register |
 | `structural/08-docs.mjs` | §5, 7, 25, 26 AGENT.md guard, migrations, ratchets, doc-drift |
 
 A **new check lands in the module matching its owner** (a tech-lead script check → `05-tech-lead.mjs`,
@@ -102,6 +103,22 @@ The numbered sections below are the checks themselves, in section order:
    correctly, skips-and-counts malformed rows, partitions pathology rows, renders `--format
    table`, leaves the metrics dir byte-identical (read-only proof), and returns a valid empty
    report on a missing dir.
+
+48. **Day-1 / Day-2 measurement instrument (Graph Engineering §VI.A–B):** the two rungs whose exit
+   criteria are numbers — "measured quality improvement" and "tool reduces known error class" — so
+   this section refuses to check that the instrument merely exists. It runs the scorer and asserts
+   the rubric **separates** its known-weak reference draft from its known-strong one; **tampers**
+   with the strong draft (verdict line deleted) and asserts the score falls; asserts an **empty**
+   draft scores at or below the weak floor (the check that caught a real defect — scoring
+   `must_not` as positive credit gave a blank file 0.417); validates every rubric and loop record
+   against `evals/schemas/day1-*.schema.json`; holds `skill-loop.baseline.json` to the same honesty
+   invariant as §16 and asserts its coverage block is not stale; and for each of the 8 entries in
+   `evals/failure-classes.json` checks the paper's three tool requirements **separately** (typed
+   schema resolves, permissions stated, result confirmation names evidence the tool fires — the
+   F-16 countermeasure), that the discovery source exists on disk, and that `reduces` is null unless
+   both rates are measured **and** a `reduction_basis` is stated. Selftest records are marked
+   `mode: "selftest"` with `source: "reference-*"` on every version, and §48 asserts it: a synthetic
+   score may never be laundered into a measured one. See `docs/plan/day1-day2-measurement.md`.
 
 Exit 0 = pass, 1 = fail (330+ checks — the docs state the floor, section #26 asserts it). This is
 the cheapest, highest-ROI guard and the one the project lacked. Sections #8–#11 prove the oracle

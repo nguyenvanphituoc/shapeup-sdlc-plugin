@@ -41,7 +41,7 @@ import { readBoard } from "./compile-order.mjs";
 import { isMain } from "./lib/is-main.mjs";
 import { runArgs } from "./lib/argv.mjs";
 import { sharedRoot, traceDir, relLocal } from "./lib/paths.mjs";
-import { readContract, WIRING_MAP, PROJECT_PROFILE } from "./lib/contract-md.mjs";
+import { readContract, unreadableReason, WIRING_MAP, PROJECT_PROFILE } from "./lib/contract-md.mjs";
 
 // --- requirements.md registry parser -----------------------------------------
 // A committed markdown table: | REQ-id | clause (verbatim) | source | status | note |
@@ -259,6 +259,19 @@ export function traceLint(slug, { cwd, gate = false }) {
     findings.push({ severity: "red", code: "WIRING-UNREADABLE", message: `wiring-map is not readable (${e.message}).` });
   }
   if (wiringFound) wiringMap = wiringFound.contract;
+
+  // HD-001. A map whose `## Wiring` table is under a heading the parser does not claim reads as
+  // zero entries, and the loop below then walks nothing and reports `0/0 engines reach <entry>` —
+  // GREEN, for a committed file holding six correct rows. The gate whose entire purpose is that no
+  // engine ships orphaned failing open, on a file that looks right to every human who reviews it.
+  // An unreadable contract is now RED and reachability is not claimed, because none was checked.
+  const wiringUnreadable = unreadableReason(wiringMap);
+  if (wiringUnreadable) {
+    findings.push({ severity: "red", code: "WIRING-UNREADABLE", message: `wiring-map.md could not be read as a WiringMap: ${wiringUnreadable}. Reachability was NOT checked — a map this parser cannot see is not a map with nothing in it.` });
+    wiringMap = null;
+    reachability = { checked: false, pass: false, unreachable: [],
+      skipped_reason: `wiring-map.md is present but unreadable (${wiringUnreadable}) — reachability cannot be claimed.` };
+  }
 
   if (wiringMap) {
     let profileFound = null;
