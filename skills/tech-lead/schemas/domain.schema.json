@@ -584,7 +584,7 @@
     "AegisTriple": {
       "description": "One digested failure — aegis-digest.mjs distills raw build/test/Playwright logs into these so the next attempt gets a few lines of signal instead of a stack-trace dump. Appears as T0Artifact.discovered_tasks[] (red attempts) and as WorkOrder payload.digested_errors[] (the next attempt's starting bug list).",
       "x-tier": "EMBEDDED",
-      "x-writer": "aegis-digest.mjs (regex pass; Haiku fallback only on unrecognized formats)",
+      "x-writer": "aegis-digest.mjs (regex pass; Sonnet fallback only on unrecognized formats)",
       "type": "object",
       "properties": {
         "file": {
@@ -984,54 +984,106 @@
       }
     },
     "CriterionVerdict": {
-      "description": "One graded criterion. Ingest appends these as VerdictLedgerLine rows to evaluation/.verdicts-<target>.jsonl (append-only — history is how a single-snapshot judge becomes measurable; a flip vs a prior run forces confidence low).",
+      "description": "One graded criterion. Ingest appends these as VerdictLedgerLine rows to evaluation/.verdicts-<target>.jsonl (append-only — history is how a single-snapshot judge becomes measurable; a flip vs a prior run forces confidence low). A FAIL additionally REQUIRES an evidence locator (file:line) — findings must be actionable without re-investigation.",
       "x-tier": "EMBEDDED",
-      "type": "object",
-      "required": [
-        "criterion",
-        "verdict"
-      ],
-      "properties": {
-        "criterion": {
-          "type": "string",
-          "description": "Traces to committed spec text (UC step/error/invariant/TS row, domain rule, contract field, Done-when, Non-Go) — never a task file's paraphrase."
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "criterion",
+            "verdict"
+          ],
+          "properties": {
+            "criterion": {
+              "type": "string",
+              "description": "Traces to committed spec text (UC step/error/invariant/TS row, domain rule, contract field, Done-when, Non-Go) — never a task file's paraphrase."
+            },
+            "dimension": {
+              "type": "string",
+              "description": "spec-conformance (default) | tdd-surface | integration | completeness | test-surface-conformance | security | performance."
+            },
+            "verdict": {
+              "type": "string",
+              "enum": [
+                "PASS"
+              ]
+            },
+            "confidence": {
+              "type": "string",
+              "enum": [
+                "high",
+                "medium",
+                "low"
+              ]
+            },
+            "reprobed": {
+              "type": "boolean",
+              "description": "Every FAIL is re-probed once before finalizing."
+            },
+            "evidence": {
+              "type": "string",
+              "description": "Probe output / file:line — 'NO EVIDENCE' fails the criterion."
+            },
+            "traces_to": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^REQ-[0-9]+$"
+              },
+              "description": "OPTIONAL (spine v1.3) — REQ-ids this criterion maps back to. A checkable finding→requirement anchor (LOCAL→SHARED) so the judge's record maps to a business requirement by id; trace-lint only checks each id resolves in the registry. Navigation aid, never a grading input."
+            }
+          }
         },
-        "dimension": {
-          "type": "string",
-          "description": "spec-conformance (default) | tdd-surface | integration | completeness | test-surface-conformance | security | performance."
-        },
-        "verdict": {
-          "type": "string",
-          "enum": [
-            "PASS",
-            "FAIL"
-          ]
-        },
-        "confidence": {
-          "type": "string",
-          "enum": [
-            "high",
-            "medium",
-            "low"
-          ]
-        },
-        "reprobed": {
-          "type": "boolean",
-          "description": "Every FAIL is re-probed once before finalizing."
-        },
-        "evidence": {
-          "type": "string",
-          "description": "Probe output / file:line — 'NO EVIDENCE' fails the criterion."
-        },
-        "traces_to": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "pattern": "^REQ-[0-9]+$"
-          },
-          "description": "OPTIONAL (spine v1.3) — REQ-ids this criterion maps back to. A checkable finding→requirement anchor (LOCAL→SHARED) so the judge's record maps to a business requirement by id; trace-lint only checks each id resolves in the registry. Navigation aid, never a grading input."
+        {
+          "type": "object",
+          "required": [
+            "criterion",
+            "verdict",
+            "evidence"
+          ],
+          "properties": {
+            "criterion": {
+              "type": "string",
+              "description": "Traces to committed spec text (UC step/error/invariant/TS row, domain rule, contract field, Done-when, Non-Go) — never a task file's paraphrase."
+            },
+            "dimension": {
+              "type": "string",
+              "description": "spec-conformance (default) | tdd-surface | integration | completeness | test-surface-conformance | security | performance."
+            },
+            "verdict": {
+              "type": "string",
+              "enum": [
+                "FAIL"
+              ]
+            },
+            "confidence": {
+              "type": "string",
+              "enum": [
+                "high",
+                "medium",
+                "low"
+              ]
+            },
+            "reprobed": {
+              "type": "boolean",
+              "description": "Every FAIL is re-probed once before finalizing."
+            },
+            "evidence": {
+              "type": "string",
+              "pattern": "[\\w./\\-]+:[0-9]+",
+              "description": "A FAIL must carry a file:line locator. Was stated 5x in spec-evaluator/SKILL.md prose and enforced 0x; a measured run returned a correct FAIL verdict with bugs[] null and no locator anywhere, so the finding could not be acted on without re-investigating. Now mechanical: validate-envelope rejects it before ingest."
+            },
+            "traces_to": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^REQ-[0-9]+$"
+              },
+              "description": "OPTIONAL (spine v1.3) — REQ-ids this criterion maps back to. A checkable finding→requirement anchor (LOCAL→SHARED) so the judge's record maps to a business requirement by id; trace-lint only checks each id resolves in the registry. Navigation aid, never a grading input."
+            }
+          }
         }
-      }
+      ]
     },
     "RefutedAc": {
       "description": "An AC box the judge's evidence disproves. Un-ticking is INGEST's act (the judge never touches a task file): ingest un-ticks the box and stamps eval_verdict: fail + eval_at on the task frontmatter.",

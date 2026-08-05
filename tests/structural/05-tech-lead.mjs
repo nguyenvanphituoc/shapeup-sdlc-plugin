@@ -421,7 +421,10 @@ export async function run(ctx) {
       const evalResult = {
         schema_version: 1, order_id: "demo/evaluate-r1", worker: "spec-evaluator", status: "done",
         verdict: { overall: "FAIL",
-          criteria: [{ criterion: "first criterion", verdict: "FAIL", confidence: "high", evidence: "broke" }],
+          // A FAIL now REQUIRES a file:line locator (domain.schema.json CriterionVerdict). The
+          // placeholder this used to carry ("broke") is precisely the unactionable finding the
+          // constraint exists to reject, so the fixture states a real one.
+          criteria: [{ criterion: "first criterion", verdict: "FAIL", confidence: "high", evidence: "throws on click — src/app/Pay.tsx:84" }],
           refuted: [{ task_id: "TASK-001", ac: "first criterion" }] },
       };
       w(".shapeup/demo/results/evaluate-r1.json", JSON.stringify(evalResult));

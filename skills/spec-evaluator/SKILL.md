@@ -81,8 +81,7 @@ Done-when statements; `_index.md` Non-Go list. Which UCs are in scope comes from
   freeze through the judge). Ugly-but-correct PASSes; pretty-but-wrong-`data-state` FAILs.
 - `[data]`: query the DB/storage, capture actual state.
 - Contract work: send real requests, compare field-by-field.
-- Every result gets a locator (output, snapshot path, `file:line` for defects). No evidence
-  collected = recorded "NO EVIDENCE" → FAILs at verdict.
+- No evidence collected = recorded "NO EVIDENCE" → FAILs at verdict.
 
 **VERDICT.**
 - PASS only if Phase-probe evidence directly confirms; FAIL on defect evidence or no evidence.
@@ -143,6 +142,12 @@ Done-when statements; `_index.md` Non-Go list. Which UCs are in scope comes from
 }
 ```
 
+**Every FAIL criterion's `evidence` MUST carry a `file:line` locator** — schema-enforced, not
+advice: `validate-envelope` rejects the whole result before ingest sees it. A PASS may cite plain
+output. (Measured: a run returned a correct FAIL with `bugs: null` and no locator anywhere, which
+is unactionable without re-investigating. The rule used to be repeated five times in this prompt
+and enforced nowhere; it is now stated once and enforced by `domain.schema.json`.)
+
 The orchestrator's ingest appends the verdict ledger, un-ticks the `refuted` boxes, and sets
 `eval_verdict` frontmatter. You never touch a task file, a board, or run-state — and you
 NEVER set `status: done`: the judge issues verdicts; closure belongs elsewhere. That
@@ -197,7 +202,6 @@ summary — standalone has no orchestrator to ingest for you.
 | Rule | Rationale |
 |------|-----------|
 | Absence of evidence = FAIL | Kills pass-by-assumption, the core QA failure mode |
-| Every FAIL cites file:line / output | Findings must be actionable without re-investigation |
 | Halo effect banned | A strong dimension never lifts a failing one |
 | Disabled dimensions are out of scope | No silent scope creep |
 | Evaluator never sets `status: done`, never edits task files/boards | Judge ≠ doer; refuted boxes return as data, ingest writes |
