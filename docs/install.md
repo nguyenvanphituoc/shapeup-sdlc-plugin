@@ -34,6 +34,26 @@ Pin to a released version:
 /plugin marketplace add nguyenvanphituoc/shapeup-sdlc-plugin@v1.3.0
 ```
 
+> **This path installs the plugin and nothing else — in particular, no permission grant.**
+> Measured on a fresh project: `/plugin install` leaves `permissions.allow` empty, because it
+> registers the plugin and knows nothing about what the plugin needs to run.
+>
+> Every load-bearing step of a run is a Node script that ships *with* the plugin and therefore lives
+> outside your project, so executing it needs approval. **Interactively that is fine** — you approve
+> once and forget it, which is why this is still the right way to try the harness.
+>
+> **Unattended, it is fatal.** There is nobody to approve, and the run cannot take its first step:
+> measured at **26 approval denials in a single session**, after which the agent gave up on the
+> harness and built the feature by hand. Before any headless or `--unattended` run, get the grant by
+> either running the scaffolding installer —
+>
+> ```bash
+> npx shapeup-sdlc init -d . -y
+> ```
+>
+> — or copying the `permissions.allow` block out of `.claude/settings.local.example.json` into your
+> own settings. Both write the same six prefixes.
+
 ## The Playwright dependency
 
 The plugin depends on the official **Playwright** plugin

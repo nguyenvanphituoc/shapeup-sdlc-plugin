@@ -3,6 +3,22 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.6.3] — 2026-08-05
+
+**The plugin-only install path does not carry the permission grant, and the docs now say so.**
+Measured on a fresh project rather than reasoned about: `/plugin marketplace add` +
+`/plugin install` register the plugin and leave `permissions.allow` **empty**, because the CLI
+knows nothing about what the plugin needs in order to run. `install.md` presented that path as the
+try-it route with no caveat.
+
+Interactively it is still the right route — you approve once and forget it. Unattended it is fatal,
+and the cost is on record: **26 approval denials in a single session**, after which the agent
+abandoned the harness and built the feature by hand. `install.md` now states the distinction and
+gives both ways to get the grant before a headless run.
+
+Also the first release published through **trusted publishing (OIDC)** — no token, provenance
+attached automatically.
+
 ## [1.6.2] — 2026-08-05
 
 **Publishing moves to trusted publishing (OIDC), because the token route has a known expiry.**
