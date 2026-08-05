@@ -33,7 +33,7 @@ import { isMain } from "../../tech-lead/scripts/lib/is-main.mjs";
 import { runArgs } from "../../tech-lead/scripts/lib/argv.mjs";
 import { LOCAL } from "../../tech-lead/scripts/lib/paths.mjs";
 import { specDir, scopesDir, tasksDir } from "../../tech-lead/scripts/lib/paths.mjs";
-import { readAllContracts, SCOPE_CONTRACT } from "../../tech-lead/scripts/lib/contract-md.mjs";
+import { readAllContracts, unreadableReason, SCOPE_CONTRACT } from "../../tech-lead/scripts/lib/contract-md.mjs";
 
 // Inlined from hooks/sandbox-guard.mjs so this skill ships self-contained (a skill's scripts
 // must not reach outside its own folder — channels that copy only skills/ would dangle).
@@ -198,10 +198,17 @@ export function lintStructure({ specDir, tasks }) {
  */
 export function lint({ cwd, slug }) {
   const specRoot = specDir(cwd, slug);
-  const scopes = readAllContracts(scopesDir(cwd, slug), SCOPE_CONTRACT).map((c) => c.contract);
+  const contracts = readAllContracts(scopesDir(cwd, slug), SCOPE_CONTRACT);
+  const scopes = contracts.map((c) => c.contract);
   const tasks = parseBoard(tasksDir(cwd, slug));
   const repoFiles = walkFiles(cwd);
   const findings = [
+    // HD-001. A contract whose table this parser cannot see reads as a contract that declared no
+    // table, and every rule below then passes for the part it could not read. Loud, not empty.
+    ...contracts
+      .map(({ contract, path }) => ({ reason: unreadableReason(contract), scope: contract.scope_id || path }))
+      .filter((x) => x.reason)
+      .map((x) => ({ rule: "CONTRACT-UNREADABLE", level: "red", scope: x.scope, detail: `${x.reason} — the rules below could not check what they could not read` })),
     ...lintScopes(scopes, repoFiles),
     ...lintStructure({ specDir: specRoot, tasks }),
   ];

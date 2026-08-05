@@ -89,6 +89,78 @@ export async function run(ctx) {
     } finally {
       rmSync(tierTmp, { recursive: true, force: true });
     }
+
+    // HD-004 — the board parser reads BOTH frontmatter list forms.
+    //
+    // §46(f)(g)(h)(i) pin the same family in `contract-md.mjs`, and that is the whole of the
+    // coverage: this repo shipped TWO hand-rolled frontmatter readers for one documented format,
+    // so fixing the first left the second silently returning empty and cost a full paid
+    // `ba-pitch-analyzer` measurement — every list field on all twenty tasks came back empty,
+    // `depends_on`/`unlocks` in BOTH directions so edge-symmetry passed VACUOUSLY, and the run was
+    // published as `NOT met` before the cause was found. A guard on one parser is not a guard on
+    // the format. This is the second parser's.
+    const { parseBoard } = await import(bdPath);
+    const hdTmp = mkdtempSync(join(tmpdir(), "board-hd004-"));
+    try {
+      writeFileSync(join(hdTmp, "TASK-001.md"), [
+        "---", "id: TASK-001", "type: task", "status: ready",
+        "depends_on:", "  - TASK-002", "  - TASK-003",
+        "use_case_refs:", "  - UC-01",
+        "unlocks: []",
+        "---", "", "body", "",
+      ].join("\n"));
+      writeFileSync(join(hdTmp, "TASK-002.md"), [
+        "---", "id: TASK-002", "type: task", "status: ready",
+        "depends_on: [TASK-003, TASK-004]", "use_case_refs: [UC-02]", "unlocks: []",
+        "---", "", "body", "",
+      ].join("\n"));
+      const board = Object.fromEntries(parseBoard(hdTmp).map((t) => [t.id, t]));
+      const blockTask = board["TASK-001"], inlineTask = board["TASK-002"];
+      if (blockTask && blockTask.depends_on.join(",") === "TASK-002,TASK-003" && blockTask.use_case_refs.join(",") === "UC-01")
+        ok("HD-004: board-derive reads a YAML block sequence (was: every list field silently empty)");
+      else fail(`HD-004 regression: a block-sequence board task parsed as depends_on=${JSON.stringify(blockTask?.depends_on)} use_case_refs=${JSON.stringify(blockTask?.use_case_refs)} — the SECOND frontmatter parser has drifted from the first again`);
+      // Non-regression in the other direction: the inline form is what every committed board uses,
+      // and a fix that reads block sequences by breaking `[a, b]` trades one silent empty for another.
+      if (inlineTask && inlineTask.depends_on.join(",") === "TASK-003,TASK-004" && inlineTask.use_case_refs.join(",") === "UC-02")
+        ok("HD-004 fix leaves the inline [a, b] list form intact (discriminates)");
+      else fail(`HD-004 fix broke the inline list form: depends_on=${JSON.stringify(inlineTask?.depends_on)} use_case_refs=${JSON.stringify(inlineTask?.use_case_refs)}`);
+      if (blockTask && blockTask.unlocks.length === 0) ok("HD-004: an empty inline list is still empty (no phantom member)");
+      else fail(`HD-004: \`unlocks: []\` parsed as ${JSON.stringify(blockTask?.unlocks)} — an empty list must not gain a member`);
+    } finally {
+      rmSync(hdTmp, { recursive: true, force: true });
+    }
+
+    // HD-001, spec-lint's arm. §46(f) pins the PARSER — that an unreadable contract reports a
+    // reason instead of an empty field. This pins the CONSUMER: a lint that reads a contract it
+    // cannot see must say so, because every rule below it then passes for the part it could not
+    // read, and a green lint over an unread file is the same fail-open `trace-lint` was made to
+    // stop. Same defect, second call site.
+    const { lint } = await import(slPath);
+    const ulTmp = mkdtempSync(join(tmpdir(), "spec-lint-unreadable-"));
+    try {
+      const scopes = join(ulTmp, "shapeup", "demo", "scopes");
+      mkdirSync(scopes, { recursive: true });
+      writeFileSync(join(scopes, "SC-01.md"), [
+        "---", "schema_version: 1", "scope_id: SC-01", "substrate: [src/cart/**]", "---",
+        "# Affordance manifest — SC-01",            // <- not the heading the parser claims
+        "| test_id | role | name |", "|---|---|---|", "| T-01 | button | Add to cart |", "",
+      ].join("\n"));
+      const findings = lint({ cwd: ulTmp, slug: "demo" }).findings || [];
+      const unreadable = findings.find((f) => f.rule === "CONTRACT-UNREADABLE");
+      if (unreadable && unreadable.level === "red") ok("HD-001: spec-lint reports a scope contract it cannot read (was: every rule passed over an unread file)");
+      else fail(`HD-001 regression: spec-lint returned ${JSON.stringify(findings.map((f) => f.rule))} for a contract whose table it could not parse — silence here means the rules below graded nothing`);
+      // Discriminates: the correctly-headed contract must not trip it, or every scope goes red.
+      writeFileSync(join(scopes, "SC-01.md"), [
+        "---", "schema_version: 1", "scope_id: SC-01", "substrate: [src/cart/**]", "---",
+        "## Affordances",
+        "| test_id | role | name |", "|---|---|---|", "| T-01 | button | Add to cart |", "",
+      ].join("\n"));
+      if (!(lint({ cwd: ulTmp, slug: "demo" }).findings || []).some((f) => f.rule === "CONTRACT-UNREADABLE"))
+        ok("HD-001 spec-lint guard is silent on a correctly-headed scope contract (no false alarm)");
+      else fail("HD-001 spec-lint guard fired on a VALID scope contract — a guard that cannot stay quiet gets switched off");
+    } finally {
+      rmSync(ulTmp, { recursive: true, force: true });
+    }
   } else {
     fail("board-derive.mjs / spec-lint.mjs missing — the planner's mechanical layer is absent");
   }

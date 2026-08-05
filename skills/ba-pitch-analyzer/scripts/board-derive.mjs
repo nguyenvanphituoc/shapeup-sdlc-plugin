@@ -23,17 +23,39 @@ import { resolve, join } from "node:path";
 import { isMain } from "../../tech-lead/scripts/lib/is-main.mjs";
 import { runArgs } from "../../tech-lead/scripts/lib/argv.mjs";
 import { tasksDir, scopesDir, hillDir } from "../../tech-lead/scripts/lib/paths.mjs";
-import { readAllContracts, SCOPE_CONTRACT } from "../../tech-lead/scripts/lib/contract-md.mjs";
+import { readAllContracts, splitFrontmatter, SCOPE_CONTRACT } from "../../tech-lead/scripts/lib/contract-md.mjs";
 
 /**
- * Read an inline `[a, b]` list field from a frontmatter string.
- * @param {string} fm - The frontmatter text.
+ * Read a list field from a frontmatter string, inline `[a, b]` or YAML block sequence alike.
+ *
+ * HD-004 — the SECOND instance of HD-003, in a second parser. This repo had two hand-rolled
+ * frontmatter readers: `contract-md.mjs` for the committed contracts, and this one for the board.
+ * HD-003 was fixed in the first, and this one still silently dropped a block sequence — so a board
+ * written as
+ *   use_case_refs:
+ *     - UC-01
+ *   touched_files:
+ *     - src/review/format.js
+ * lost EVERY list field. Measured on three paid `ba-pitch-analyzer` runs: `touched_files` and
+ * `use_case_refs` came back empty for all twenty tasks, `depends_on`/`unlocks` came back empty in
+ * both directions so edge-symmetry passed VACUOUSLY, and the only reason it was not entirely silent
+ * is that UC-ANCHOR went red. Downstream, `scope-architect` receives a board with no slicing input
+ * at all.
+ *
+ * The fix is to stop having two parsers rather than to patch this one: `splitFrontmatter` already
+ * reads both forms, so this delegates to it. A second implementation of a format is a second
+ * format, and these two had already drifted.
+ *
+ * @param {string} fm - The frontmatter text (without the `---` fences).
  * @param {string} key - The list key to read.
  * @returns {string[]} The trimmed, unquoted, non-empty members; [] when the key is absent.
  */
-const listField = (fm, key) =>
-  (fm.match(new RegExp(`^${key}:\\s*\\[([^\\]]*)\\]`, "im")) || [, ""])[1]
-    .split(",").map((s) => s.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
+const listField = (fm, key) => {
+  const v = splitFrontmatter(`---\n${fm}\n---\n`).meta[key];
+  if (Array.isArray(v)) return v.map((x) => String(x).trim()).filter(Boolean);
+  if (v === null || v === undefined || v === "") return [];
+  return [String(v).trim()].filter(Boolean);
+};
 
 /**
  * Parse every TASK-*.md in a board directory into structured task records.
