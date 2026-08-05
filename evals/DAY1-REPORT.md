@@ -21,13 +21,32 @@ A quality rate is model-dependent: each row describes the model it names and no 
 | `ba-pitch-analyzer` | claude-sonnet-5 | 10 | 1 | 1 | +0 | 0/10 | 10/10 | 1 | **yes** (1/16 pooled; 0/10 this draw) | **MET** |
 | `scope-architect` | claude-sonnet-5 | 10 | 0.983 [0.833, 1] | 1 | +0.017 | 1/10 | 10/10 | 1–4 | **yes** (1/10) | **MET** |
 | `solution-architect` | claude-sonnet-5 | 3 | 0.889 [0.667, 1] | 1 | +0.111 | 1/3 | 3/3 | 1–2 | **yes** (1/3) | **MET** |
-| `spec-evaluator` | claude-sonnet-5 | 10 | 1 | 1 | +0 | 0/10 | 10/10 | 1 | no — 0/13 pooled, rate ≤ 21% | exit criterion only |
-| `task-executor` | claude-sonnet-5 | 10 | 1 | 1 | +0 | 0/10 | 10/10 | 1 | no — 0/13 pooled, rate ≤ 21% | exit criterion only |
+| `spec-evaluator` | claude-sonnet-5 | 10 | 1 | 1 | +0 | 0/10 | 10/10 | 1 | no — 0/13 pooled, rate ≤ 21% | **MET** — rate bounded, n=13 |
+| `task-executor` | claude-sonnet-5 | 10 | 1 | 1 | +0 | 0/10 | 10/10 | 1 | no — 0/13 pooled, rate ≤ 21% | **MET** — rate bounded, n=13 |
 
-**`revised?` is condition 4** of the plan's definition of done: *at least one run needed more
-than one round*. A `no` there means the loop approved the first draft every time — the exit
-criterion is cleared but no quality **improvement** was measured, which is what Table II
-actually asks for. Those rows say `exit criterion only`, never `MET`.
+**`revised?` is condition 4**, which the operator amended on 2026-08-04 from *at least one
+run needed more than one round* to **demonstrated OR resolved**. A skill satisfies it by
+showing a revision, or by drawing enough runs to BOUND its rate — the difference between
+*this model rarely needs a revision* and *we did not look hard enough*. A row that clears
+the exit criterion with zero revisions and fewer than 10 pooled runs still reads
+`exit criterion only`.
+
+**Why the bar moved, and who moved it.** As originally written the condition was an
+*existence claim over a sample*, so its answer moved with `n` and with luck while the
+skill held still — `ba-pitch-analyzer`'s verdict flipped **three times** on a fixture that
+never changed a byte. `n ≥ 10` is derived from a power requirement rather than from any
+observed result: a skill whose true revision rate is 1/3 is detected with ≥95% probability
+once `n ≥ 8`. The mechanism half of the old condition is unchanged and is enforced
+mechanically elsewhere — structural §48 requires every skill's **selftest** to drive its
+committed *partial* reference to strong through a revision round with a positive delta, so
+a rubric that cannot revise at all still fails, for all five skills, by construction.
+
+> **This amendment makes all five skills pass, and the reader should weigh that.** It was
+> directed by the operator after the results were known, which is exactly the shape of a
+> bar moved to fit its data. Two things are offered against that reading and neither is
+> conclusive: the threshold is derived from a stated power calculation that does not
+> reference any measured value, and the pre-amendment verdicts are preserved verbatim in
+> the plan (§1) so both readings can be compared. The old bar read **3 of 5**.
 
 **The percentage beside a `no` is what that `no` is entitled to claim.** Condition 4 is a
 threshold on a count of runs, so its answer depends on `n` as much as on the skill: at
@@ -116,6 +135,7 @@ round that replies only `ok` measured **$0.098**, which is roughly a third of wh
 
 ## Limitations of the instrument
 
+- CONDITION 4 WAS AMENDED BY THE OPERATOR ON 2026-08-04, AFTER THESE RESULTS WERE KNOWN, AND THE AMENDMENT MAKES ALL FIVE SKILLS PASS. That is the exact shape of a bar moved to fit its data, so it is disclosed at the top of this list rather than left for a reader to notice. THE ORIGINAL TEXT — 'at least one run needed more than one round' — READ 3 OF 5, and it is preserved verbatim in docs/plan/day1-tier1-plan.md §1 beside the amendment. The amended text reads DEMONSTRATED OR RESOLVED: a skill satisfies condition 4 by showing a revision, or by drawing enough runs to BOUND its rate — zero revisions across n >= 10 runs of one unchanged instrument, with the bound published. THREE THINGS ARGUE AGAINST READING IT AS RETUNING, AND NONE IS CONCLUSIVE. (1) The threshold references a power requirement and no measured value: a true revision rate of 1/3 is detected with at least 95% probability once n >= 8, so ten draws clear it with margin. RESOLVED_N is exported and structural §48 fails if it drops below what that calculation supports. (2) The mechanism half of the old condition is UNCHANGED and enforced mechanically for every skill — §48 requires each SELFTEST to drive its committed partial reference to strong through a revision round with a positive delta — so a rubric that cannot revise at all still fails by construction, independently of anything a model does. (3) The decision was the OPERATOR'S, taken at a gate. Under this repo's own separation of duties that is where a bar decision belongs; the author declined to move it, because §7.1 forbids changing a bar after seeing which subjects fail it. THE CASE ON THE MERITS IS THAT THE OLD CRITERION WAS NOT REPRODUCIBLE. As an existence claim over a sample its answer moved with n and with luck while the skill held still, and ba-pitch-analyzer's verdict flipped THREE TIMES on a fixture that never changed a byte. WHAT A READER SHOULD CARRY IS THE RATE, NOT THE VERDICT: 10% and 33% and 6.3% for the three that demonstrate a revision, and <= 21% for the two that bound one.
 - THE HEADLINE IS THAT CONDITION 4 WAS NEVER A PROPERTY OF THE SKILLS ALONE — IT WAS A PROPERTY OF n. Measured at n=3 it read three skills, then one, then two. Nothing about any skill changed across those readings. Condition 4 is a threshold on a COUNT OF RUNS ('at least one run needed more than one round'), so at n=3 a skill whose true revision rate is 1/3 shows nothing 30% of the time and one whose rate is 6% shows something 18% of the time. Both errors happened here, in both directions, and were published as findings before being caught: ba-pitch-analyzer's MET was a one-in-five event on a rate now measured at 6.3%, and scope-architect's retraction was a miss on a skill that does revise. AT n=10 THE PICTURE IS STABLE: scope-architect 1/10 (four rounds in that run), ba-pitch-analyzer 0/10, spec-evaluator 0/10, task-executor 0/10.
 - WHAT CONDITION 4 NOW SAYS, SKILL BY SKILL, WITH THE ARITHMETIC ITS SAMPLE EARNS — and the verdicts matter less than the rates beside them. scope-architect: 1 revision in 10 on the current fixture, MET, and that revision is a FOUR-ROUND chain, the longest ever recorded here. solution-architect: 1 in 3, MET, and uniquely it has revised in five independent measurements across five instrument versions, so its verdict rests on reproduction rather than one draw — but it is the ONLY skill still measured at n=3 and its bound is correspondingly wide (86.5%). ba-pitch-analyzer: 1 in 16 pooled on a byte-identical fixture, MET on the pooled reading and 0/10 on the current draw, rate 6.3%, bound 26.4%. task-executor and spec-evaluator: 0 in 13 pooled each, bound 20.6% — A BOUND, NOT A PROOF; the honest claim is 'below roughly 21%', never 'never'.
 - THE DIAL-THREE HYPOTHESIS NOW HAS A HELD-OUT TEST, AND IT PASSED — the one thing the previous revision of this file said was missing. That version recorded, as its own harshest caveat, that the hypothesis was 'formed after dials one and two failed, tested on skills whose fixtures were being rewritten at the same time, and has no held-out case', and it named the fix: fix the recipe, apply it to a case that played no part in forming it, predict in writing beforehand. Done, and committed to git before a dollar was spent (docs/plan/day1-tier1-plan.md §P7, commit e780d94). THE PREDICTION WAS THAT BOTH CEILINGED SKILLS WOULD REVISE, on the diagnosis that their earlier fixtures had INSTRUCTED the check the external-fact row was supposed to measure ('READ IT before you write anything that touches the store'; 'probe each Test-Surface row the way the row is written'). Each fixture gained one row whose fact is pointed at nowhere. BOTH PREDICTIONS FAILED: 3/3 first drafts, both skills. task-executor's drafts edited a store writer nothing they touched imports and named the trap in prose; spec-evaluator's cited an amendment file by path and line. So the hypothesis this baseline already held — that dial three produces headroom only where the check is optional AND THE MODEL ACTUALLY SKIPS IT — predicted the outcome, and my competing diagnosis did not. A confirmation is worth something only when the test could have gone the other way, and this one did go the other way for the person who designed it.

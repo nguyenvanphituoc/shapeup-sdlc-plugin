@@ -710,8 +710,20 @@ export async function run(ctx) {
             // Find this skill+model's row and read its verdict cell.
             const row = md.split("\n").find((l) => l.startsWith(`| \`${skill}\` | ${model} |`));
             if (!row) { fail(`report has no results row for ${skill}/${model}`); continue; }
-            if (!revised && /\*\*MET\*\*/.test(row)) {
-              fail(`${skill}/${model} approved on the first draft in every run, yet its report row claims **MET** — the exit criterion is cleared but no quality IMPROVEMENT was measured, which is what Table II asks for`);
+            // CONDITION 4 AS AMENDED BY THE OPERATOR 2026-08-04: demonstrated OR resolved. A row
+            // may claim MET with zero revisions ONLY when its pooled sample is large enough to
+            // BOUND the rate (n >= 10, from the power requirement that a 1/3 rate be detected with
+            // >=95% probability). Below that, zero revisions means nobody looked hard enough and
+            // the row must still read `exit criterion only`. The mechanism half is unchanged and
+            // enforced above: every selftest must drive its partial reference to strong.
+            const pooledN = pooledRevisions({ result: r, superseded: b.superseded || [], skill, model }).pooled.n;
+            const resolved = !revised && pooledN >= 10;
+            if (!revised && !resolved && /\*\*MET\*\*/.test(row)) {
+              fail(`${skill}/${model} approved on the first draft in every run of only ${pooledN} pooled run(s), yet its report row claims **MET** — below n=10 a zero is not a bound, it is an unmeasured gap, and the amended condition 4 does not cover it`);
+            } else if (resolved && /\*\*MET\*\* — rate bounded/.test(row)) {
+              ok(`${skill}/${model} claims MET on the RESOLVED branch and the row says so, naming its n (${pooledN})`);
+            } else if (resolved && /\*\*MET\*\*/.test(row)) {
+              fail(`${skill}/${model} claims MET with zero revisions but the row does not say the verdict rests on a BOUNDED RATE rather than an observed revision — the two are not the same claim and a reader must not have to infer which one this is`);
             } else if (!revised && /exit criterion only/.test(row)) {
               ok(`${skill}/${model} is ceilinged and the report says "exit criterion only", not MET`);
             } else if (revised && /\*\*MET\*\*/.test(row)) {
@@ -765,6 +777,27 @@ export async function run(ctx) {
             if (pr.pooled.k > 0 && pr.own.k === 0 && !row.includes(`0/${pr.own.n} this draw`)) {
               fail(`${skill}/${model} claims condition 4 from POOLED draws while its current sample shows none, and the row does not say so — a reader would take the verdict as reproduced when it was not: ${row.slice(0, 150)}`);
             }
+          }
+        }
+
+        // CONDITION 4'S AMENDED RULE, driven directly. The row-level guards above cannot see the
+        // n >= 10 threshold removed while no live row happens to have zero revisions below it —
+        // measured: dropping that term left the whole suite green, which is the same blindness that
+        // hid the retirement gap.
+        {
+          const { conditionFour, RESOLVED_N } = await import("../../tools/skill-loop.mjs");
+          if (RESOLVED_N >= 8) ok(`condition 4's resolved-branch threshold is n=${RESOLVED_N}, at or above the n>=8 a 1/3 rate needs for 95% detection`);
+          else fail(`RESOLVED_N is ${RESOLVED_N} — below n=8 a zero does not rule out a 1-in-3 revision rate, so calling it a BOUND overstates what the sample supports`);
+          const cases = [
+            [{ k: 1, n: 3 }, "demonstrated", "one revision in three runs is an observed revision whatever n is"],
+            [{ k: 0, n: RESOLVED_N }, "resolved", "zero revisions at the threshold is a bound"],
+            [{ k: 0, n: RESOLVED_N - 1 }, "unresolved", "zero revisions BELOW the threshold is an unmeasured gap, not a bound"],
+            [{ k: 0, n: 3 }, "unresolved", "zero in three runs rules out almost nothing"],
+          ];
+          for (const [inp, want, why] of cases) {
+            const got = conditionFour(inp);
+            if (got === want) ok(`conditionFour(${JSON.stringify(inp)}) = ${want} — ${why}`);
+            else fail(`conditionFour(${JSON.stringify(inp)}) returned "${got}", expected "${want}": ${why}`);
           }
         }
 

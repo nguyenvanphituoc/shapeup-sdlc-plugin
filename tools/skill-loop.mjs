@@ -1074,6 +1074,40 @@ export function upperBound95(k, n) {
 }
 
 /**
+ * The minimum pooled `n` at which zero observed revisions counts as a BOUND rather than a gap.
+ *
+ * Derived from a power requirement and from nothing that was measured: a skill whose true revision
+ * rate is 1/3 is detected with >=95% probability once `1-(2/3)^n >= 0.95`, i.e. n >= 8. Ten draws
+ * clear that with margin, and they are what separates "this model rarely needs a revision" from
+ * "nobody looked hard enough".
+ */
+export const RESOLVED_N = 10;
+
+/**
+ * Condition 4, as amended by the operator on 2026-08-04: DEMONSTRATED or RESOLVED.
+ *
+ * As originally written — "at least one run needed more than one round" — the condition was an
+ * existence claim over a sample, so its answer moved with `n` and with luck while the skill held
+ * still: ba-pitch-analyzer's verdict flipped THREE TIMES on a fixture that never changed a byte.
+ * A skill now satisfies it either by showing a revision, or by drawing enough runs to bound its
+ * rate. The mechanism half is unchanged and lives elsewhere: structural §48 requires every skill's
+ * SELFTEST to drive its committed partial reference to strong through a revision round, so a rubric
+ * that cannot revise at all still fails by construction, for every skill.
+ *
+ * EXPORTED so the rule is testable rather than only its output. A guard that reads live rows cannot
+ * see this threshold removed while no live row happens to exercise it — measured: dropping the
+ * `n >= RESOLVED_N` term left the whole suite green.
+ *
+ * @param {{k:number, n:number}} pooled - Revisions observed and runs drawn, across one instrument.
+ * @returns {("demonstrated"|"resolved"|"unresolved")} Which branch of condition 4 is satisfied.
+ */
+export function conditionFour({ k, n }) {
+  if (k > 0) return "demonstrated";
+  if (n >= RESOLVED_N) return "resolved";
+  return "unresolved";
+}
+
+/**
  * Condition 4 across every draw of ONE instrument, plus the current draw on its own.
  *
  * WHY POOL AT ALL. Condition 4 asks whether at least one run needed more than one round — a
@@ -1301,6 +1335,16 @@ export function renderReport(baseline) {
         // bare word. Neither is a new measurement; both are the arithmetic the old cell suppressed.
         const bound = upperBound95(pr.pooled.k, pr.pooled.n);
         const scope = pr.pooled.draws > 1 ? " pooled" : "";
+        // CONDITION 4, AMENDED BY THE OPERATOR 2026-08-04: demonstrated OR resolved. A skill
+        // satisfies it by showing a revision, or by drawing enough runs to BOUND its rate — which
+        // is the difference between "this model rarely needs a revision" and "we did not look hard
+        // enough". n >= 10 is derived from the power requirement, not from any observed result: a
+        // true rate of 1/3 is detected with >=95% probability once n >= 8. The mechanism half of
+        // the old condition is enforced elsewhere and unchanged — structural §48 requires every
+        // skill's SELFTEST to drive its committed partial reference to strong through a revision
+        // round, so "a pass/fail check wearing a loop's clothes" is already excluded by construction.
+        const branch = conditionFour(pr.pooled);
+        const resolved = branch === "resolved";
         // Both figures where they differ, so a pooled MET never hides a draw that did not show it.
         const cell = revised
           ? `**yes** (${pr.pooled.k}/${pr.pooled.n}${scope}${pr.own.k === 0 ? `; 0/${pr.own.n} this draw` : ""})`
@@ -1311,15 +1355,34 @@ export function renderReport(baseline) {
           `${r.improved_runs}/${r.n} | ${approved ?? "—"}/${r.n} | ` +
           `${rounds.length ? (Math.min(...rounds) === maxRounds ? String(maxRounds) : `${Math.min(...rounds)}–${maxRounds}`) : "—"} | ` +
           `${cell} | ` +
-          `${met ? (revised ? "**MET**" : "exit criterion only") : "not met"} |`
+          `${met ? (revised ? "**MET**" : resolved ? `**MET** — rate bounded, n=${pr.pooled.n}` : "exit criterion only") : "not met"} |`
         );
       }
     }
     L.push("");
-    L.push("**`revised?` is condition 4** of the plan's definition of done: *at least one run needed more");
-    L.push("than one round*. A `no` there means the loop approved the first draft every time — the exit");
-    L.push("criterion is cleared but no quality **improvement** was measured, which is what Table II");
-    L.push("actually asks for. Those rows say `exit criterion only`, never `MET`.");
+    L.push("**`revised?` is condition 4**, which the operator amended on 2026-08-04 from *at least one");
+    L.push("run needed more than one round* to **demonstrated OR resolved**. A skill satisfies it by");
+    L.push("showing a revision, or by drawing enough runs to BOUND its rate — the difference between");
+    L.push("*this model rarely needs a revision* and *we did not look hard enough*. A row that clears");
+    L.push("the exit criterion with zero revisions and fewer than 10 pooled runs still reads");
+    L.push("`exit criterion only`.");
+    L.push("");
+    L.push("**Why the bar moved, and who moved it.** As originally written the condition was an");
+    L.push("*existence claim over a sample*, so its answer moved with `n` and with luck while the");
+    L.push("skill held still — `ba-pitch-analyzer`'s verdict flipped **three times** on a fixture that");
+    L.push("never changed a byte. `n ≥ 10` is derived from a power requirement rather than from any");
+    L.push("observed result: a skill whose true revision rate is 1/3 is detected with ≥95% probability");
+    L.push("once `n ≥ 8`. The mechanism half of the old condition is unchanged and is enforced");
+    L.push("mechanically elsewhere — structural §48 requires every skill's **selftest** to drive its");
+    L.push("committed *partial* reference to strong through a revision round with a positive delta, so");
+    L.push("a rubric that cannot revise at all still fails, for all five skills, by construction.");
+    L.push("");
+    L.push("> **This amendment makes all five skills pass, and the reader should weigh that.** It was");
+    L.push("> directed by the operator after the results were known, which is exactly the shape of a");
+    L.push("> bar moved to fit its data. Two things are offered against that reading and neither is");
+    L.push("> conclusive: the threshold is derived from a stated power calculation that does not");
+    L.push("> reference any measured value, and the pre-amendment verdicts are preserved verbatim in");
+    L.push("> the plan (§1) so both readings can be compared. The old bar read **3 of 5**.");
     L.push("");
     L.push("**The percentage beside a `no` is what that `no` is entitled to claim.** Condition 4 is a");
     L.push("threshold on a count of runs, so its answer depends on `n` as much as on the skill: at");
