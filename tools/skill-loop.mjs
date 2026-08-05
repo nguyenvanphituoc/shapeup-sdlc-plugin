@@ -1384,13 +1384,12 @@ export function renderReport(baseline) {
     L.push("> reference any measured value, and the pre-amendment verdicts are preserved verbatim in");
     L.push("> the plan (§1) so both readings can be compared. The old bar read **3 of 5**.");
     L.push("");
-    L.push("**The percentage beside a `no` is what that `no` is entitled to claim.** Condition 4 is a");
-    L.push("threshold on a count of runs, so its answer depends on `n` as much as on the skill: at");
-    L.push("`n=3` a skill whose true revision rate is 1/3 shows no revision **30%** of the time. Three");
-    L.push("`MET` verdicts in this file were once carried by a single revision in three runs, and");
-    L.push("re-drawing them held one and dropped two. The figure is a one-sided 95% upper bound from");
-    L.push("the exact binomial with zero observations — `rate ≤ 26%` at n=10 means the data rule out a");
-    L.push("rate above 26%, **not** that the skill never revises. Only a larger `n` narrows it.");
+    L.push("**The percentage beside a `no` is what that `no` is entitled to claim.** It is a one-sided");
+    L.push("95% upper bound from the exact binomial with zero observations, so `rate ≤ 21%` at");
+    L.push("`n=13` means the data rule out a rate above 21% — **not** that the skill never revises.");
+    L.push("Only a larger `n` narrows it. This is why `n` mattered so much here: at `n=3` a skill");
+    L.push("whose true rate is 1/3 shows no revision **30%** of the time, and three `MET` verdicts in");
+    L.push("this file were once each carried by a single revision in three runs.");
     L.push("");
     L.push("**`pooled` means every draw of the same instrument**, which is what a `re-sample`");
     L.push("retirement is by construction — unchanged fixture, oracle and bar, so its runs are draws");
@@ -1521,23 +1520,29 @@ export function renderReport(baseline) {
   L.push("");
   const noRubric = TIER1_SKILLS.filter((s) => cov.skills?.[s]?.day1_rubric !== "present");
   const unmeasured = TIER1_SKILLS.filter((s) => cov.skills?.[s]?.day1_rubric === "present" && !results[s]);
-  const ceilinged = measuredSkills.filter((s) =>
-    Object.values(results[s]).some((r) => (r.per_run || []).every((x) => x.rounds === 1)));
+  // CLASSIFIED BY THE AMENDED CONDITION, not by the published draw. Filtering on "every run in the
+  // latest sample was one round" put ba-pitch-analyzer in this table as unfinished work while the
+  // results table three sections above recorded it MET — the report contradicting itself because
+  // two places computed condition 4 two ways. `unresolved` is now the only unfinished state: zero
+  // revisions AND too few pooled runs to bound the rate.
+  const branchOf = (s, r) => conditionFour(pooledRevisions({ result: r, superseded: b.superseded || [], skill: s, model: r.model }).pooled);
+  const ceilinged = measuredSkills.filter((s) => Object.values(results[s]).some((r) => branchOf(s, r) === "unresolved"));
+  const bounded = measuredSkills.filter((s) => Object.values(results[s]).some((r) => branchOf(s, r) === "resolved"));
   L.push(`Tier 1 is ${TIER1_SKILLS.length} skills (\`${TIER1_SKILLS.join("`, `")}\`).`);
   L.push("");
   L.push(`| Item | Skills | State |`);
   L.push(`|---|---|---|`);
   L.push(`| No rubric yet | ${noRubric.length ? "`" + noRubric.join("`, `") + "`" : "—"} | ${noRubric.length} of ${TIER1_SKILLS.length} Tier-1 skills unbuilt |`);
   L.push(`| Rubric built, never measured | ${unmeasured.length ? "`" + unmeasured.join("`, `") + "`" : "—"} | needs an authenticated \`--measure\` |`);
-  // "in the SAMPLE THAT IS PUBLISHED", never "never" — the row is derived from the live results
-  // only, and two of these skills DID revise in an earlier measurement that has since been
-  // superseded or re-sampled. Writing "never" makes this table contradict the superseded records
-  // sitting a few sections below it, and the weaker claim is the true one.
-  L.push(`| Measured but **ceilinged** — approved on the first draft in every run of the published sample | ${ceilinged.length ? "`" + ceilinged.join("`, `") + "`" : "—"} | a harder fixture, a larger \`n\`, or an honest ceiling — see each skill's notes |`);
+  L.push(`| Measured, zero revisions, and **too few runs to bound the rate** (\`n\` < ${RESOLVED_N} pooled) | ${ceilinged.length ? "`" + ceilinged.join("`, `") + "`" : "—"} | the only unfinished state left: draw more runs, or accept an unmeasured gap |`);
+  L.push(`| Measured, zero revisions, **rate bounded** | ${bounded.length ? "`" + bounded.join("`, `") + "`" : "—"} | done for this rung on the *resolved* branch — the bound is the result, and only a larger \`n\` narrows it |`);
   L.push("");
-  L.push("A skill counts as done for this rung when its loop **revises** — a first draft below the bar,");
-  L.push("a revision round that acts on criterion-level defects, and a final score that clears it. A");
-  L.push("rubric that approves round 1 every time is a pass/fail check wearing a loop's clothes.");
+  L.push("**A skill is done for this rung when its revision behaviour is *demonstrated or resolved*** —");
+  L.push("either a first draft below the bar, a revision round acting on criterion-level defects and a");
+  L.push("final score that clears it, or enough draws to bound how often that happens. A rubric that");
+  L.push("*cannot* revise at all still fails, and that half is checked mechanically rather than being");
+  L.push("inferred from a measurement: structural §48 drives every skill's committed *partial*");
+  L.push("reference through a revision round in the selftest.");
   L.push("");
   if (b.method) {
     L.push("## Method");
@@ -1824,7 +1829,7 @@ if (isMain) {
       status: "measured",
       models_measured: [...new Set([...(prev.models_measured || []), model])].sort(),
       adapter: overridden ? "SKILL_LOOP_CMD override (--allow-override-baseline)" : "default: claude --plugin-dir <root> -p <prompt>",
-      method: `tools/skill-loop.mjs --measure (reflective_task per Graph Engineering §VI.A): round 1 is the skill's first draft, each later round re-prompts with the criterion-level failures from the rubric's DETERMINISTIC head; stopping rule = score >= ${rubric.stopping_rule.approve_at} or ${rubric.stopping_rule.max_rounds} rounds. Each round is one headless session at --max-turns ${maxTurns}, granted Read/Write/Edit/Glob/Grep/Bash — the shell is part of the measured configuration because task-executor uses one to run its own T0 probes in production, and a session denied it aborts rather than producing a number. n=${repeat} independent loops per skill.${rubric.grades === "workspace" ? ` The graded artifact is the DELIVERABLE FILE, not the transcript, and each revision round starts from the previous round's deliverable in a fresh directory — so a round edits one artifact rather than re-drawing it. Runs before 2026-08-04 did NOT carry it forward and are re-sampling, not revision; they are not comparable on delta.` : ""}${rubric.criteria.some((c) => c.detector.rows) ? ` Oracle criteria are scored per ROW (fraction of contract rows passing), not all-or-nothing; \`satisfied\` still requires every row, so approve_at is unchanged in meaning. Runs before 2026-08-04 scored these criteria binary and recorded 0.0 for any artifact short of perfect.` : ""} Quality rates are MODEL-DEPENDENT — this baseline describes the model named below and no other. Scored by regex detectors, NOT by a model judge: anchor-shaped criteria generalize, phrase-shaped ones are brittle against paraphrase (see docs/plan/day1-day2-measurement.md §5).`,
+      method: `tools/skill-loop.mjs --measure (reflective_task per Graph Engineering §VI.A): round 1 is the skill's first draft, each later round re-prompts with the criterion-level failures from the rubric's DETERMINISTIC head; stopping rule = score >= ${rubric.stopping_rule.approve_at} or ${rubric.stopping_rule.max_rounds} rounds. Each round is one headless session at --max-turns ${maxTurns}, granted Read/Write/Edit/Glob/Grep/Bash — the shell is part of the measured configuration because task-executor uses one to run its own T0 probes in production, and a session denied it aborts rather than producing a number. n is per-row and is printed in the results table (10 for four skills, 3 for solution-architect, which already met condition 4 and was out of scope for the n=10 pass); the most recent run used n=${repeat}.${rubric.grades === "workspace" ? ` The graded artifact is the DELIVERABLE FILE, not the transcript, and each revision round starts from the previous round's deliverable in a fresh directory — so a round edits one artifact rather than re-drawing it. Runs before 2026-08-04 did NOT carry it forward and are re-sampling, not revision; they are not comparable on delta.` : ""}${rubric.criteria.some((c) => c.detector.rows) ? ` Oracle criteria are scored per ROW (fraction of contract rows passing), not all-or-nothing; \`satisfied\` still requires every row, so approve_at is unchanged in meaning. Runs before 2026-08-04 scored these criteria binary and recorded 0.0 for any artifact short of perfect.` : ""} Quality rates are MODEL-DEPENDENT — this baseline describes the model named below and no other. Scored by regex detectors, NOT by a model judge: anchor-shaped criteria generalize, phrase-shaped ones are brittle against paraphrase (see docs/plan/day1-day2-measurement.md §5).`,
       model,
       measured_at: measuredAt,
       // Keyed skill -> model. Each entry carries its OWN model and timestamp, because the
