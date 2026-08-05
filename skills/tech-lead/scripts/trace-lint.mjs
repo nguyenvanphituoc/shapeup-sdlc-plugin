@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Traceability oracle (spine v1.3, plan docs/internal/plan/traceability-spine-plan.md §1.4 + §2).
+// Traceability oracle (spine v1.3, plan docs/internal/plan/ratchet-and-receipt-plan.md §1.4 + §2).
 //
 // ONE oracle, TWO mechanically-checkable assertions — nothing that merely *asserts* quality:
 //

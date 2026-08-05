@@ -33,7 +33,7 @@ each row **the way the row is written** catches both of those — and neither of
 
 This is not a trick: `spec/usecases/UC-01.md`'s Test Surface states the seeded store and the exact
 expected remaining list for TS-06. Every graded row traces to a line of the spec, which is the rule
-`docs/plan/day1-tier1-plan.md` §0 binds every fixture to.
+`docs/internal/plan/ratchet-and-receipt-plan.md` §0 binds every fixture to.
 
 ## The last arm — the question the spec does not answer
 

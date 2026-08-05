@@ -117,7 +117,7 @@ export function listSkills(root = ROOT) {
  * skill's own output format defines those anchors, while a phrase-shaped detector
  * (`no-green-suite-justification`) is brittle against paraphrase. Each criterion also carries an
  * `assertion` — the question a model judge would be asked — so the second head can be added over
- * the same rubric without restating the criteria. See docs/plan/day1-day2-measurement.md §5.
+ * the same rubric without restating the criteria.
  *
  * @param {string} text - The draft to grade.
  * @param {object} rubric - A rubric object conforming to day1-rubric.schema.json.
@@ -1252,7 +1252,7 @@ export function coverage(root = ROOT) {
 /**
  * Tier 1 — the skills whose artifact an existing deterministic script already grades, so their
  * rubric is a delegation rather than a judgement. Authored here as a constant because it is a
- * SCOPE decision, not a fact derivable from disk: see docs/plan/day1-tier1-plan.md §0 for the
+ * SCOPE decision, not a fact derivable from disk: see docs/internal/plan/ratchet-and-receipt-plan.md §0 for the
  * table that assigns each one its oracle, and §5 for why the other eight are excluded (six document
  * their own lack of ground truth; `tech-lead` produces a run rather than an artifact).
  * The honest ceiling for Day 1 is 6 of 13 — these five plus `translator` — never 13/13.
@@ -1744,7 +1744,7 @@ if (isMain) {
             // task-executor is a zero-MEMORY subagent, not a zero-CONTEXT one: the previous
             // attempt's code is sitting in the repo when the retry order arrives, and P3 tells it to
             // read the substrate first. Carrying one file forward is what makes this loop the
-            // instrument of the loop already running, per day1-tier1-plan.md §3.1.
+            // instrument of the loop already running, per docs/internal/plan/ratchet-and-receipt-plan.md §3.1.
             if (!ws) {
               const g = generateWithClaude(prompt, model, maxTurns, ROOT);
               return { text: g.text, cost: g.cost, source: "model", path: null };
@@ -1829,7 +1829,7 @@ if (isMain) {
       status: "measured",
       models_measured: [...new Set([...(prev.models_measured || []), model])].sort(),
       adapter: overridden ? "SKILL_LOOP_CMD override (--allow-override-baseline)" : "default: claude --plugin-dir <root> -p <prompt>",
-      method: `tools/skill-loop.mjs --measure (reflective_task per Graph Engineering §VI.A): round 1 is the skill's first draft, each later round re-prompts with the criterion-level failures from the rubric's DETERMINISTIC head; stopping rule = score >= ${rubric.stopping_rule.approve_at} or ${rubric.stopping_rule.max_rounds} rounds. Each round is one headless session at --max-turns ${maxTurns}, granted Read/Write/Edit/Glob/Grep/Bash — the shell is part of the measured configuration because task-executor uses one to run its own T0 probes in production, and a session denied it aborts rather than producing a number. n is per-row and is printed in the results table (10 for four skills, 3 for solution-architect, which already met condition 4 and was out of scope for the n=10 pass); the most recent run used n=${repeat}.${rubric.grades === "workspace" ? ` The graded artifact is the DELIVERABLE FILE, not the transcript, and each revision round starts from the previous round's deliverable in a fresh directory — so a round edits one artifact rather than re-drawing it. Runs before 2026-08-04 did NOT carry it forward and are re-sampling, not revision; they are not comparable on delta.` : ""}${rubric.criteria.some((c) => c.detector.rows) ? ` Oracle criteria are scored per ROW (fraction of contract rows passing), not all-or-nothing; \`satisfied\` still requires every row, so approve_at is unchanged in meaning. Runs before 2026-08-04 scored these criteria binary and recorded 0.0 for any artifact short of perfect.` : ""} Quality rates are MODEL-DEPENDENT — this baseline describes the model named below and no other. Scored by regex detectors, NOT by a model judge: anchor-shaped criteria generalize, phrase-shaped ones are brittle against paraphrase (see docs/plan/day1-day2-measurement.md §5).`,
+      method: `tools/skill-loop.mjs --measure (reflective_task per Graph Engineering §VI.A): round 1 is the skill's first draft, each later round re-prompts with the criterion-level failures from the rubric's DETERMINISTIC head; stopping rule = score >= ${rubric.stopping_rule.approve_at} or ${rubric.stopping_rule.max_rounds} rounds. Each round is one headless session at --max-turns ${maxTurns}, granted Read/Write/Edit/Glob/Grep/Bash — the shell is part of the measured configuration because task-executor uses one to run its own T0 probes in production, and a session denied it aborts rather than producing a number. n is per-row and is printed in the results table (10 for four skills, 3 for solution-architect, which already met condition 4 and was out of scope for the n=10 pass); the most recent run used n=${repeat}.${rubric.grades === "workspace" ? ` The graded artifact is the DELIVERABLE FILE, not the transcript, and each revision round starts from the previous round's deliverable in a fresh directory — so a round edits one artifact rather than re-drawing it. Runs before 2026-08-04 did NOT carry it forward and are re-sampling, not revision; they are not comparable on delta.` : ""}${rubric.criteria.some((c) => c.detector.rows) ? ` Oracle criteria are scored per ROW (fraction of contract rows passing), not all-or-nothing; \`satisfied\` still requires every row, so approve_at is unchanged in meaning. Runs before 2026-08-04 scored these criteria binary and recorded 0.0 for any artifact short of perfect.` : ""} Quality rates are MODEL-DEPENDENT — this baseline describes the model named below and no other. Scored by regex detectors, NOT by a model judge, and the two shapes do not generalize equally: an ANCHOR-shaped criterion (a file:line, an un-ticked AC box, a verdict token the skill's own output contract defines) is hit by a real transcript for the same reason the fixture hits it, while a PHRASE-shaped one matches a particular way of writing an inference and scores a paraphrase of the same bad conclusion as clean - those are the weakest criteria in any rubric here. Every criterion also carries an assertion field, the question a model judge would be asked, so a second and general head can be built over the same rubric without restating the criteria.`,
       model,
       measured_at: measuredAt,
       // Keyed skill -> model. Each entry carries its OWN model and timestamp, because the

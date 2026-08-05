@@ -118,7 +118,8 @@ The numbered sections below are the checks themselves, in section order:
    F-16 countermeasure), that the discovery source exists on disk, and that `reduces` is null unless
    both rates are measured **and** a `reduction_basis` is stated. Selftest records are marked
    `mode: "selftest"` with `source: "reference-*"` on every version, and §48 asserts it: a synthetic
-   score may never be laundered into a measured one. See `docs/plan/day1-day2-measurement.md`.
+   score may never be laundered into a measured one. See `evals/DAY1-REPORT.md` for what the
+   instrument has measured, and `evals/README.md` for how to run it.
 
 Exit 0 = pass, 1 = fail (330+ checks — the docs state the floor, section #26 asserts it). This is
 the cheapest, highest-ROI guard and the one the project lacked. Sections #8–#11 prove the oracle

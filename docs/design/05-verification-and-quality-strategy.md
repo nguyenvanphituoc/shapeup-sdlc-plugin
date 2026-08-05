@@ -74,7 +74,8 @@ artifact that measured nothing.
 | 1–4 | **this file** | They are the harness proving itself — the subject of §05. |
 | 5 | [04 — Functional Design](04-functional-design.md) | The build round and its T0/seesaw verification are functional behaviour. |
 | 6–7 | [03 — System Design §3.2](03-system-design.md) | Both come from the same benchmark passage on the continuity reflex, and both are properties of the runtime rather than of a skill. |
-| method & follow-ups | [`docs/plan/day1-day2-measurement.md`](../plan/day1-day2-measurement.md) | The full Day-1/Day-2 design, the known limits of the deterministic scorer, and the sequenced work to close rows 3, 4 and 6. |
+| method & results | [`evals/DAY1-REPORT.md`](../../evals/DAY1-REPORT.md) | Derived from the committed baseline, never hand-written. Its Method paragraph states the deterministic scorer's known limit — anchor-shaped criteria generalize, phrase-shaped ones score a paraphrase as clean. |
+| the work that closes rows 3, 4 and 6 | [`docs/internal/plan/ratchet-and-receipt-plan.md`](../internal/plan/ratchet-and-receipt-plan.md) | A plan holds intent; the report holds results. |
 
 ---
 [← Functional Design](04-functional-design.md) · [Back to index](README.md) · [Next: Appendix →](06-appendix.md)

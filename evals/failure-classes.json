@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "note": "Day-2 register (Graph Engineering §VI.B). The paper's Day 2 is not 'have tools' — this harness has many — it is 'add ONE tool that addresses a MEASURED failure', with typed schema, permissions, and result confirmation, and the rung's exit criterion is that the tool REDUCES a known error class. This file supplies the link that was missing: for each tool, the error class it exists for, the artifact where that failure was written down, and the before/after rates. `reduces` stays null until BOTH rates are measured, which today is none of them — see docs/plan/day1-day2-measurement.md §6. That is the finding, not an omission.",
+  "note": "Day-2 register (Graph Engineering §VI.B). The paper's Day 2 is not 'have tools' — this harness has many — it is 'add ONE tool that addresses a MEASURED failure', with typed schema, permissions, and result confirmation, and the rung's exit criterion is that the tool REDUCES a known error class. This file supplies the link that was missing: for each tool, the error class it exists for, the artifact where that failure was written down, and the before/after rates. `reduces` stays null until BOTH rates are measured, which today is none of them. That is the finding, not an omission: baselines exist where a failure was painful enough to measure, current rates almost nowhere — this harness measures its failures and not its fixes.",
   "classes": [
     {
       "id": "FC-01",

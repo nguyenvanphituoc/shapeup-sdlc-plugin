@@ -53,7 +53,7 @@ only on errors — warnings are advice.
 Python 3.9+, standard library only.
 
 Calibration: it flags all six planted defects in its test fixture and raises zero false-positive
-errors on `docs/plan/graph-engineering-roadmap.md` (5,700 words, 9 diagrams), which is the
+errors on a 5,700-word, 9-diagram architecture roadmap, which is the
 reference example of the output standard this skill aims at.
 
 ## Changing it

@@ -2,7 +2,7 @@
 
 **Question:** The artifact says Day 1 is complete at 5/5. What is the next action that actually
 closes the Day-1 plan's requirement, and is there one?
-**Sources:** artifact `19018dfb` (Day 1 — Tier 1 measurement record), `docs/plan/day1-tier1-plan.md`,
+**Sources:** artifact `19018dfb` (Day 1 — Tier 1 measurement record), `docs/internal/plan/ratchet-and-receipt-plan.md`,
 `evals/DAY1-REPORT.md`, `evals/baselines/skill-loop.baseline.json`, `tests/structural/48-day1-day2.mjs`,
 `.gitignore`, and five test-suite runs against a local `git clone` of HEAD taken 2026-08-05.
 **Confidence:** High on everything measured — every number below came from running the suite, not
@@ -68,7 +68,7 @@ exactly the place this project spent five defects learning to look.**
 
 ## 1. What is actually being asked
 
-The Day-1 plan declares itself complete (`docs/plan/day1-tier1-plan.md:14-19`): all five Tier-1
+The Day-1 plan declares itself complete (`docs/internal/plan/ratchet-and-receipt-plan.md`): all five Tier-1
 skills meet all four conditions of §1, under the condition-4 text as amended by the operator on
 2026-08-04. That reading is sound and the artifact discloses the amendment properly. So "continue to
 meet the requirement" cannot mean *measure more* — there is no unmeasured skill inside the plan's
@@ -144,7 +144,7 @@ claim is true only there.**
 This matters more here than it would in most repos, because reproducibility is not a nice-to-have
 in this project — it is the thesis. `AGENTS.md` opens with *"every invariant that matters lives in
 the runtime, not in a prompt."* The Day-1 plan's own rule is *"a figure with two homes has one that
-is wrong, and this plan has already been stale twice"* (`docs/plan/day1-tier1-plan.md:37-38`). The
+is wrong, and this plan has already been stale twice"* (`docs/internal/plan/ratchet-and-receipt-plan.md`). The
 programme's best return was five production defects found by *storing every artifact and re-scoring
 it after a fix* — the report says so plainly at `:815-817`: **"Storing every artifact is what made
 that recoverable."**
@@ -223,7 +223,7 @@ another one.
 ## 5. What deliberately not to do
 
 - **Do not measure anything.** There is no Day-1 skill left to measure, and §P7 pre-registered the
-  refusal to escalate fixtures again (`day1-tier1-plan.md:716`). Spending on `translator` or on
+  refusal to escalate fixtures again (`docs/internal/plan/ratchet-and-receipt-plan.md:716`). Spending on `translator` or on
   raising `n` to 40 is Day-2 or Tier-2 work and both were costed and rejected on the record ($52–70,
   55–87% chance of a null). Re-opening either now converts a finished programme into an open one.
 - **Do not amend the report to soften the `Reproduce:` line.** Making the claim smaller is the
@@ -325,9 +325,9 @@ runnable by a teammate for the first time at step 1.
 | 13 | `.gitignore` excludes `evals/*` with 2 negations, and `skills/*/evals/` | `.gitignore:35-40` | read |
 | 14 | `trigger-evals.baseline.json` untracked in `4bf29e4` | `git log -- evals/baselines/trigger-evals.baseline.json` | read |
 | 15 | All five artifact per-skill figures match the baseline | `node -e` over `skill-loop.baseline.json` | computed |
-| 16 | `$61.35` = P7 $13.43 + P8 $47.92 | `day1-tier1-plan.md:674-675` | arithmetic |
-| 17 | Plan declares Day 1 complete, 5/5 amended / 3/5 original | `day1-tier1-plan.md:14-22` | read |
-| 18 | "every artifact stored" is the §VI.A requirement | `day1-tier1-plan.md:3-5` | read |
+| 16 | `$61.35` = P7 $13.43 + P8 $47.92 | `docs/internal/plan/ratchet-and-receipt-plan.md:674-675` | arithmetic |
+| 17 | Plan declares Day 1 complete, 5/5 amended / 3/5 original | `docs/internal/plan/ratchet-and-receipt-plan.md:14-22` | read |
+| 18 | "every artifact stored" is the §VI.A requirement | `docs/internal/plan/ratchet-and-receipt-plan.md:3-5` | read |
 | 19 | §48 self-diagnoses the gap when wired on a clone | check output: `no Day-1 rubric found — the loop rung has no instrument at all` | run |
 
 **Not checked:** whether a CI pipeline exists outside this repo; whether any teammate has already
