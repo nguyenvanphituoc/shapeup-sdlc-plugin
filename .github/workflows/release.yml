@@ -25,13 +25,19 @@ jobs:
       - name: Validate before release
         run: claude plugin validate . --strict
 
-      - name: Check tag matches plugin.json version
+      # Three version strings, one release. plugin.json drives the Claude marketplace, package.json
+      # drives npm, and the tag drives this workflow — so any two of them can drift and ship a
+      # release whose npm number and marketplace number disagree. Checking only plugin.json (as this
+      # step did until v1.6.2) left npm unguarded on the exact path that publishes to it.
+      - name: Check tag matches BOTH plugin.json and package.json
         id: check-version
         run: |
           tag="${GITHUB_REF_NAME#v}"
-          ver="$(python3 -c "import json;print(json.load(open('.claude-plugin/plugin.json'))['version'])")"
-          echo "tag=$tag plugin.json=$ver"
-          test "$tag" = "$ver" || { echo "::error::Tag $tag does not match plugin.json version $ver"; exit 1; }
+          plug="$(python3 -c "import json;print(json.load(open('.claude-plugin/plugin.json'))['version'])")"
+          pkg="$(python3 -c "import json;print(json.load(open('package.json'))['version'])")"
+          echo "tag=$tag plugin.json=$plug package.json=$pkg"
+          test "$tag" = "$plug" || { echo "::error::Tag $tag does not match plugin.json version $plug"; exit 1; }
+          test "$tag" = "$pkg"  || { echo "::error::Tag $tag does not match package.json version $pkg"; exit 1; }
 
       - name: Compile distributions
         run: npm run distribute
@@ -54,6 +60,47 @@ jobs:
             cursor-rules.zip
             antigravity-subagents.zip
           generate_release_notes: true
+
+  publish-npm:
+    name: Publish to npm (trusted publishing, OIDC — no token)
+    needs: release
+    runs-on: ubuntu-latest
+    # `id-token: write` is the whole mechanism: it lets the runner mint a short-lived OIDC token
+    # that npm exchanges for publish rights. There is no NPM_TOKEN and no secret to leak, rotate or
+    # forget — which is the point, because the alternative is on a clock. Per the 2026-07-08 npm
+    # changelog, 2FA-bypass granular access tokens lose account-management scope in early August
+    # 2026 and lose publishing entirely around January 2027. A workflow built on one is a workflow
+    # that has to be rebuilt.
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"          # trusted publishing needs Node >= 22.14
+          registry-url: "https://registry.npmjs.org"
+
+      # setup-node ships npm 10.x with Node 22; OIDC trusted publishing needs >= 11.5.1.
+      - name: Ensure npm supports trusted publishing
+        run: |
+          npm install -g npm@^11
+          npm --version
+
+      # The suite is the gate, not a formality: it is what proves the tarball's own guards are
+      # armed. Publishing a release whose structural suite is red would ship the exact shape this
+      # project keeps finding — a mechanism present and not running.
+      - name: Structural suite
+        run: node tests/structural.mjs
+
+      - name: What is about to ship
+        run: npm pack --dry-run
+
+      # No --provenance flag: on a public repo publishing through trusted publishing, npm generates
+      # and attaches the provenance attestation automatically.
+      - name: Publish
+        run: npm publish
 
   # publish-vs-marketplace:
   #   name: Publish to VS Code Marketplace

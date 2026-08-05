@@ -3,6 +3,31 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.6.2] — 2026-08-05
+
+**Publishing moves to trusted publishing (OIDC), because the token route has a known expiry.**
+Per the [npm changelog of 2026-07-08](https://github.blog/changelog/2026-07-08-npm-install-time-security-and-gat-bypass2fa-deprecation/),
+2FA-bypass granular access tokens lose account-management scope in **early August 2026** and lose
+publishing entirely **around January 2027**. A CI workflow built on one is a workflow that has to be
+rebuilt, so this skips that step.
+
+- **`release.yml` gains a `publish-npm` job** with `id-token: write`. No `NPM_TOKEN`, no secret to
+  leak or rotate: the runner mints a short-lived OIDC token and npm exchanges it for publish rights.
+  Provenance is attached automatically — public repo, public package, no `--provenance` flag.
+- **The tag check now covers `package.json` as well as `.claude-plugin/plugin.json`.** Three version
+  strings describe one release — the tag, the marketplace manifest, the npm manifest — and checking
+  only two of them left npm unguarded on the exact path that publishes to it.
+- **`package.json` gains `repository`, `homepage`, `bugs` and `publishConfig.access`.** Provenance
+  resolves the source repo from `repository`; without it there is nothing to attest against.
+  `publishConfig.provenance` is deliberately **not** set, because forcing it would break a
+  publish run anywhere other than CI — including the one-time bootstrap publish.
+- The suite runs inside the publish job. Shipping a release whose structural suite is red would be
+  this project's own recurring defect: a mechanism present and not running.
+
+**Install-time note (npm v12).** This package declares **no lifecycle scripts** — nothing runs on
+install — so npm v12's scripts-disabled-by-default change does not affect installing it. The
+`shapeup-sdlc` command is a `bin`, invoked deliberately, not an install hook.
+
 ## [1.6.1] — 2026-08-05
 
 **The permission grant was not being written on the path most people take.** Found by installing
