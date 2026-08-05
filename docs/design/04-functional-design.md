@@ -2,7 +2,7 @@
 
 [← Back to index](README.md)
 
-## 4.1 — The twelve skills
+## 4.1 — The thirteen skills
 
 | Skill | Role | Behavior |
 |---|---|---|
@@ -47,6 +47,12 @@ Two facts make this loop safe to run unattended: **zero-memory handoff** — eac
 fresh subagent that only ever sees what `compile-order.mjs` chose to put in the envelope, never
 prior chat — and the **seesaw check** inside T0, which re-runs other scopes' fixtures to catch a
 regression before it's mistaken for progress.
+
+> This round is row **5** of the measurement table
+> ([§5.1](05-verification-and-quality-strategy.md#51--the-measurement-table)). Its measured result
+> is acceptance **identical to running without the harness** on uninterrupted work — a real
+> finding, and a narrow one: it is a statement about a single context window and says nothing about
+> what survives across one (row 6).
 
 ## 4.3 — The two-level circuit breaker
 

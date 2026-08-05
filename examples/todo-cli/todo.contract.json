@@ -31,6 +31,12 @@
       "desc": "missing store is created on first run, exit 0",
       "probe": { "argv": ["list"], "store": null },
       "expect": { "exit": "==0", "no_crash": true }
+    },
+    {
+      "id": "E6",
+      "desc": "a seeded store is actually read — its items are listed, exit 0",
+      "probe": { "argv": ["list"], "store": "[{\"text\":\"buy milk\",\"done\":false},{\"text\":\"write tests\",\"done\":true}]" },
+      "expect": { "exit": "==0", "stdout": "/buy milk[\\s\\S]*write tests/i", "no_crash": true }
     }
   ]
 }

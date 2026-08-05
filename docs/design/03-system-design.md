@@ -301,6 +301,12 @@ The resilience pair makes re-reading the files a reflex:
   open, resume it, do not re-open it* — rather than with a generic pointer to the files, which a
   competent agent finds anyway.
 
+  > Both numbers in that paragraph are rows in the measurement table —
+  > [§5.1](05-verification-and-quality-strategy.md#51--the-measurement-table) rows **6**
+  > (continuity: 0/3) and **7** (run economics: 82–120 turns, $4.57–$10.36). They are also the two
+  > rows with **no automated instrument**, which is why the figures here are quoted from a
+  > benchmark run rather than read off a baseline file.
+
 ## 3.3 — Two storage roots
 
 Every artifact the harness produces lives in one of two roots, split by a single question: does

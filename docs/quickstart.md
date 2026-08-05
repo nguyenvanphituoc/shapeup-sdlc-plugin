@@ -78,6 +78,7 @@ between a demo and a tool:
 | E3 | non-numeric index (`done abc`) | exit ≠ 0, clear message |
 | E4 | corrupted store (`{garbage`) | exit ≠ 0, names the file, **does not delete user data** |
 | E5 | missing store, first run | creates it, exit 0 |
+| E6 | store with two items | lists both, exit 0 — proves the CLI reads the store it was given |
 
 ⏸ **GATE L1b** pauses here. Review the board before a line of code is written — this is the
 last cheap moment to change your mind.
@@ -146,13 +147,15 @@ PASS  E4  corrupted store fails without destroying data
         ⇒ exit 1, crashed=false, out="error: store …/store.json is corrupted"
 PASS  E5  missing store is created on first run, exit 0
         ⇒ exit 0, crashed=false, out="no todos"
+PASS  E6  a seeded store is actually read — its items are listed, exit 0
+        ⇒ exit 0, crashed=false, out="1. [ ] buy milk\n2. [x] write tests"
 ============================================================
-❌ 1/5 criteria FAIL
+❌ 1/6 criteria FAIL
 ```
 
 Read what that verdict is made of: a **command that was run**, an **exit code**, and **observed
 output**. Not "looks good", not "should work". `todo done 99` printed a stack trace, so E2 is a
-FAIL — and the run does not proceed to ship on four out of five.
+FAIL — and the run does not proceed to ship on five out of six.
 
 > **Absence of evidence is a FAIL.** A criterion the evaluator could not probe does not pass by
 > default. This is the rule that makes the verdict worth anything.
@@ -181,8 +184,10 @@ PASS  E4  corrupted store fails without destroying data
         ⇒ exit 1, crashed=false, out="error: store …/store.json is corrupted"
 PASS  E5  missing store is created on first run, exit 0
         ⇒ exit 0, crashed=false, out="no todos"
+PASS  E6  a seeded store is actually read — its items are listed, exit 0
+        ⇒ exit 0, crashed=false, out="1. [ ] buy milk\n2. [x] write tests"
 ============================================================
-✅ all 5 criteria PASS
+✅ all 6 criteria PASS
 ```
 
 E2 now exits 1 with `error: no item 99` and no stack trace. Same probe, same oracle, different

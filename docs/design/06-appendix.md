@@ -19,9 +19,16 @@ hooks/                   hooks.json + safety-spine.mjs · gate-l2.mjs · sandbox
                          (Stop, advisory) + compact-snapshot.mjs (PreCompact) +
                          session-rehydrate.mjs (SessionStart)
 scripts/install-harness.sh, migrate.sh    stable public entrypoints
-scripts/shapeup-sdlc/    dev/CI tooling — lib/, migrations/, oracles/, distribute.js
+scripts/shapeup-sdlc/    dev/CI tooling — lib/, migrations/
+oracles/                 the evaluation-contract oracle registry (test · snapshot · http ·
+                         process), proven to discriminate against negative controls
+tools/                   repo-only measurement harnesses — trigger-eval.mjs (Tier 1),
+                         skill-loop.mjs (Tier 3 / Day-1 loop), distribute.js, demo/
+evals/                   the evidence layer — schemas/ (rubric · loop-run · failure-class),
+                         baselines/ (honesty-invariant, never fabricated), runs/,
+                         failure-classes.json (Day-2 register)
 tests/structural.mjs     Tier 0 runner — threads tests/lib/ helpers through the per-domain
-tests/{lib,structural}/  suites in tests/structural/*.mjs; 770+ checks, zero LLM calls (the
+tests/{lib,structural}/  suites in tests/structural/*.mjs; 880+ checks, zero LLM calls (the
                          floor is asserted by the suite itself; the exact count may only grow)
 examples/                fixtures for oracle + planted-bug discrimination tests
 dist/                    compiled Cursor rules/extension + Antigravity subagents
@@ -48,8 +55,13 @@ dist/                    compiled Cursor rules/extension + Antigravity subagents
 - **Safety spine.** Destructive commands and secret reads are denied mechanically
   (`hooks/safety-spine.mjs`); the only override is a human-authored, schema-governed local file
   (`SafetyOverrides`), itself write-protected and logged when exercised.
-- **Advisory hooks never block.** Stop-event hooks may only inform (`systemMessage`); a
-  blocking Stop hook would be a second gate behind the judge.
+- **Advisory hooks never block — with exactly one named exception.** `anti-rationalization.mjs`
+  and `slop-cleaner.mjs` may only inform (`systemMessage`); a blocking Stop hook would be a second
+  gate behind the judge. `gate-zerowork.mjs` **does** block (`decision: "block"`), deliberately:
+  it fires on a run that produced no receipt at all, which is not a judgement about quality but
+  the absence of any work to judge. Stated here because the invariant read as absolute while the
+  code carried a counter-example — and an invariant with an undocumented exception is how a reader
+  concludes the code is wrong when it is the sentence that is.
 - **Lanes thin ceremony, never verification** *(design — §4.7, not yet implemented)*. No lane
   skips EVAL, T0, or the hooks; a lane may only remove PO ceremony and scout work.
 

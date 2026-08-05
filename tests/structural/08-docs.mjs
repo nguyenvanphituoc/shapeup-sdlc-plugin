@@ -101,7 +101,12 @@ export async function run(ctx) {
     for (const rel of ["README.md", "docs/design/README.md", "docs/design/06-appendix.md"]) {
       const p = join(ROOT, rel);
       if (!existsSync(p)) continue;
-      for (const m of read(p).matchAll(/the (\d+) (?:harness )?skills/g)) {
+      const WORDNUM = { nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15 };
+      // Spelled-out counts drift too, and silently: "The twelve skills" sat above a 13-row table
+      // because the digit-only pattern could not see it. A drift check that only reads one notation
+      // is a drift check with a blind spot.
+      for (const m of read(p).matchAll(/the ([0-9]+|nine|ten|eleven|twelve|thirteen|fourteen|fifteen) (?:harness )?skills/gi)) {
+        m[1] = String(WORDNUM[m[1].toLowerCase()] ?? m[1]);
         if (Number(m[1]) !== skillDirs.length) fail(`${rel} claims "${m[0]}" but skills/ holds ${skillDirs.length}`);
         else ok(`${rel} skill count matches (${m[1]})`);
       }
