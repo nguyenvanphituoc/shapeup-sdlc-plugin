@@ -39,8 +39,8 @@ tech-lead: ... GATE L2 → EVAL → GATE L3 PASS ──► QA EDGE HUNT (you) �
 | `--recheck`: re-probe ONLY items promoted+fixed after triage | Run a second full hunt in the same cycle; fix code; touch task files; keep run-state |
 
 Pure worker (harness rule: stateless workers, one stateful orchestrator). Its WorkOrder
-carries `payload.feature`, `payload.spec_folder`, `payload.eval_report`, `payload.app_url`
-(+ read-only ledger path for covered-territory context); its write surface is
+carries `payload.feature`, `payload.spec_folder`, `payload.eval_report`, `payload.app_url`,
+`payload.kb_rules_path` (+ read-only ledger path for covered-territory context); its write surface is
 `.shapeup/<feature>/qa/**` only. The Hunter never touches the discovery ledger itself —
 ingest appends its `discoveries[]` under a `## Discovered` section, preserving single-writer
 mechanically.
@@ -122,7 +122,7 @@ cutting charters at GATE Q1, not by configuring lenses.
 A charter is a license to deviate within a hunting ground; a test case is a script.
 
 ```
-Q1.0  Read team guidelines: shapeup/knowledge-base/qa-edge-hunter.md (if present).
+Q1.0  Read team guidelines: the file at `payload.kb_rules_path` (if present; absent field = none).
       `/coach`-distilled edge classes that kept biting past features (e.g. "session-expiry
       mid-form keeps surfacing"). Use them to PRIORITIZE charters within the six fixed lenses —
       never to add a seventh lens or skip covered-territory subtraction. Absent = none recorded.
