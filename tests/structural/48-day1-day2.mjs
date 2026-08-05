@@ -691,7 +691,7 @@ export async function run(ctx) {
     // reader cannot be expected to cross-check rounds-per-run against the plan's definition of
     // done; the table has to say it.
     {
-      const { renderReport } = await import("../../tools/skill-loop.mjs");
+      const { renderReport, pooledRevisions } = await import("../../tools/skill-loop.mjs");
       const bl = join(ROOT, "evals/baselines/skill-loop.baseline.json");
       if (existsSync(bl)) {
         const b = readJSON(bl);
@@ -702,7 +702,11 @@ export async function run(ctx) {
             const rounds = (r.per_run || []).map((x) => x.rounds);
             if (!rounds.length) continue;
             checked++;
-            const revised = Math.max(...rounds) > 1;
+            // POOLED, matching the report. Condition 4 asks whether a run EVER needed a second
+            // round on this instrument; a `re-sample` retirement is the same fixture, oracle and
+            // bar, so its runs count. Reading the verdict off the latest draw while quoting a rate
+            // pooled over all of them was the incoherence this replaced.
+            const revised = pooledRevisions({ result: r, superseded: b.superseded || [], skill, model }).pooled.k > 0;
             // Find this skill+model's row and read its verdict cell.
             const row = md.split("\n").find((l) => l.startsWith(`| \`${skill}\` | ${model} |`));
             if (!row) { fail(`report has no results row for ${skill}/${model}`); continue; }
@@ -733,7 +737,7 @@ export async function run(ctx) {
         // happened: two MET rows rested on a single revision in three runs, and re-drawing them
         // held one and dropped the other. The cell must therefore carry the bound its own `n`
         // earns, never the bare word.
-        const { revisionRate } = await import("../../tools/skill-loop.mjs");
+        const { revisionRate, upperBound95 } = await import("../../tools/skill-loop.mjs");
         const z = revisionRate([{ rounds: 1 }, { rounds: 1 }, { rounds: 1 }]);
         if (z && z.k === 0 && Math.abs(z.upper95 - (1 - Math.pow(0.05, 1 / 3))) < 1e-9) ok(`revisionRate bounds a zero-revision n=3 sample at ${(z.upper95 * 100).toFixed(0)}% — a "no" at n=3 rules out almost nothing`);
         else fail(`revisionRate returned ${JSON.stringify(z)} for 0 revisions in 3 runs — expected the exact one-sided 95% bound 1-0.05^(1/3)`);
@@ -749,14 +753,35 @@ export async function run(ctx) {
         // And the rendered cell, because a helper nothing calls is not a guard.
         for (const [skill, byModel] of Object.entries(b.results || {})) {
           for (const [model, r] of Object.entries(byModel)) {
-            const rr = revisionRate(r.per_run || []);
-            if (!rr) continue;
+            const pr = pooledRevisions({ result: r, superseded: b.superseded || [], skill, model });
             const row = md.split("\n").find((l) => l.startsWith(`| \`${skill}\` | ${model} |`));
             if (!row) continue;
-            const want = rr.k === 0 ? `rate ≤ ${Math.round(rr.upper95 * 100)}%` : `(${rr.k}/${rr.n})`;
+            const want = pr.pooled.k === 0
+              ? `rate ≤ ${Math.round(upperBound95(pr.pooled.k, pr.pooled.n) * 100)}%`
+              : `(${pr.pooled.k}/${pr.pooled.n}`;
             if (row.includes(want)) ok(`${skill}/${model} report row carries its condition-4 arithmetic (${want})`);
             else fail(`${skill}/${model} report row states condition 4 without the count or bound its n earns — expected "${want}" in: ${row.slice(0, 150)}`);
+            // A pooled verdict must never hide a draw that failed to reproduce it.
+            if (pr.pooled.k > 0 && pr.own.k === 0 && !row.includes(`0/${pr.own.n} this draw`)) {
+              fail(`${skill}/${model} claims condition 4 from POOLED draws while its current sample shows none, and the row does not say so — a reader would take the verdict as reproduced when it was not: ${row.slice(0, 150)}`);
+            }
           }
+        }
+
+        // The pooling rule itself, driven directly rather than through its output.
+        {
+          const live = { n: 10, fixture_sha: "ff11", per_run: Array.from({ length: 10 }, () => ({ rounds: 1 })) };
+          const sup = [
+            { skill: "d", model: "m", cause: "re-sample", fixture_sha: "ff11", summary: { n: 3, revised_runs: 1 } },
+            { skill: "d", model: "m", cause: "fixture-change", fixture_sha: "ff11", summary: { n: 3, revised_runs: 5 } },
+            { skill: "d", model: "m", cause: "re-sample", fixture_sha: "OTHER", summary: { n: 3, revised_runs: 5 } },
+            { skill: "d", model: "m", cause: "re-sample", fixture_sha: "ff11", summary: { n: 3 } },
+          ];
+          const got = pooledRevisions({ result: live, superseded: sup, skill: "d", model: "m" });
+          if (got.pooled.n === 13 && got.pooled.k === 1 && got.own.k === 0) ok("pooledRevisions pools ONLY same-fixture re-sample draws (13 runs, 1 revision) and keeps the current draw separate");
+          else fail(`pooledRevisions returned ${JSON.stringify(got)} — expected pooled 1/13 from the re-sample draw alone; a fixture-change or a different fingerprint is a DIFFERENT instrument and must not be pooled`);
+          if (got.unreadable === 1) ok("pooledRevisions counts a retirement with no recorded revised_runs as unreadable instead of guessing it from improved_runs");
+          else fail(`pooledRevisions reported unreadable=${got.unreadable} — a retired record whose rounds were never stored must be skipped and counted, never inferred (improved_runs counts delta>0, which is a different question)`);
         }
       }
     }

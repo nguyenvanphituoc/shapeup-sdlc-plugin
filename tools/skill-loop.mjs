@@ -1059,7 +1059,58 @@ export function revisionRate(perRun) {
   const n = (perRun || []).length;
   if (!n) return null;
   const k = perRun.filter((x) => (x.rounds ?? 0) > 1).length;
-  return { n, k, upper95: k === 0 ? 1 - Math.pow(0.05, 1 / n) : null };
+  return { n, k, upper95: upperBound95(k, n) };
+}
+
+/**
+ * Exact one-sided 95% upper bound on a rate, for a zero-observation sample.
+ * @param {number} k - Observed successes.
+ * @param {number} n - Trials.
+ * @returns {(number|null)} `1 - 0.05^(1/n)` when k is 0; null once k > 0, where the observed rate
+ *   is the better figure and a zero-observation bound would be the wrong instrument.
+ */
+export function upperBound95(k, n) {
+  return k === 0 && n > 0 ? 1 - Math.pow(0.05, 1 / n) : null;
+}
+
+/**
+ * Condition 4 across every draw of ONE instrument, plus the current draw on its own.
+ *
+ * WHY POOL AT ALL. Condition 4 asks whether at least one run needed more than one round — a
+ * question about what the loop CAN do, not about which three runs were drawn last. A `re-sample`
+ * retirement is by construction the same fixture, oracle and bar (the fingerprint is unchanged and
+ * `retireEntry` only labels it so when it is), so its runs are draws from the same distribution and
+ * pooling them is the arithmetic, not a concession.
+ *
+ * IT WAS INCOHERENT BEFORE THIS. The report pooled those draws to state a RATE while reading the
+ * VERDICT off the latest sample alone, and for ba-pitch-analyzer that inconsistency was the whole
+ * difference between MET and not: 1 revision in 16 runs of a byte-identical fixture, reported as
+ * `no` because the last ten happened not to contain it. Both figures are now rendered, so a reader
+ * can see the pooled verdict and the current draw that did not reproduce it.
+ *
+ * A retirement whose `revised_runs` was never recorded is SKIPPED rather than guessed at — the
+ * count is returned so the caller can say how many draws it could not read.
+ *
+ * @param {{result:object, superseded:Array<object>, skill:string, model:string}} o - The live result
+ *   and the full retirement list.
+ * @returns {{own:{n:number,k:number}, pooled:{n:number,k:number,draws:number}, unreadable:number}}
+ */
+export function pooledRevisions({ result, superseded = [], skill, model }) {
+  const per = result?.per_run || [];
+  const own = { n: result?.n ?? per.length, k: per.filter((x) => (x.rounds ?? 0) > 1).length };
+  const pooled = { n: own.n, k: own.k, draws: 1 };
+  let unreadable = 0;
+  for (const s of superseded) {
+    if (s.skill !== skill || s.model !== model) continue;
+    if (s.cause !== "re-sample") continue;                       // a changed instrument does not pool
+    if (!s.fixture_sha || s.fixture_sha !== result?.fixture_sha) continue;
+    const k = s.summary?.revised_runs;
+    if (typeof k !== "number") { unreadable++; continue; }        // never inferred from improved_runs
+    pooled.n += s.summary?.n ?? 0;
+    pooled.k += k;
+    pooled.draws++;
+  }
+  return { own, pooled, unreadable };
 }
 
 /**
@@ -1104,7 +1155,13 @@ export function retireEntry({ prior, fxSha, skill, model, measuredAt, fallbackMe
     reason: sameFixture
       ? `re-measured on the SAME fixture (fingerprint ${fxSha} unchanged), so nothing moved but the sample — unlike every fixture-change pair in this list these two numbers ARE directly comparable, and any difference between them is this instrument's own variance at n=${prior.n ?? "?"}`
       : `the fixture changed between runs (fingerprint ${prior.fixture_sha || "unrecorded"} -> ${fxSha}), so this number and the current one measure different instruments and must not be read as a before/after of the SKILL alone`,
-    summary: { n: prior.n, v1_score: prior.v1_score, final_score: prior.final_score, delta: prior.delta, improved_runs: prior.improved_runs, approved_runs: prior.approved_runs, cost: prior.cost ?? null },
+    // `revised_runs` is stored EXPLICITLY, not left to be re-derived. Condition 4 is a question
+    // about ROUNDS, and `improved_runs` counts delta > 0 — a run can revise without improving, so
+    // the two are not interchangeable and using one for the other would be a quiet lie. The retired
+    // record used to keep only `improved_runs`, which meant a retired measurement's condition-4
+    // answer was recoverable solely from a rendered report in git. That is the same gap as the one
+    // that lost the ba-pitch-analyzer number, one level down.
+    summary: { n: prior.n, v1_score: prior.v1_score, final_score: prior.final_score, delta: prior.delta, improved_runs: prior.improved_runs, revised_runs: (prior.per_run || []).filter((x) => (x.rounds ?? 0) > 1).length, approved_runs: prior.approved_runs, cost: prior.cost ?? null },
   };
 }
 
@@ -1226,7 +1283,14 @@ export function renderReport(baseline) {
         // ever executed a revision round.
         const rounds = (r.per_run || []).map((x) => x.rounds);
         const maxRounds = rounds.length ? Math.max(...rounds) : 0;
-        const revised = maxRounds > 1;
+        // CONDITION 4 IS READ ACROSS EVERY DRAW OF THIS INSTRUMENT, not off the latest sample. A
+        // `re-sample` retirement is the same fixture, oracle and bar by construction, so its runs
+        // are draws from the same distribution. Reading the verdict off one draw while quoting a
+        // rate pooled over all of them was incoherent, and it cost ba-pitch-analyzer a MET on a
+        // demonstrated revision: 1 in 16 runs of a byte-identical fixture, reported `no` because
+        // the last ten did not contain it.
+        const pr = pooledRevisions({ result: r, superseded: b.superseded || [], skill, model });
+        const revised = pr.pooled.k > 0;
         // A BARE "no" IS THE FLAW THAT PRODUCED THREE RETRACTED VERDICTS. Condition 4 is a
         // threshold on a COUNT OF RUNS, so its answer depends on `n` as much as on the skill, and
         // at n=3 an event with a true rate of 1/3 is missed 30% of the time. Two skills read MET on
@@ -1235,13 +1299,18 @@ export function renderReport(baseline) {
         // entitled to claim — a one-sided 95% upper bound on the rate (exact binomial with zero
         // observations, 1 - 0.05^(1/n)) — and a `yes` carries the observed count rather than a
         // bare word. Neither is a new measurement; both are the arithmetic the old cell suppressed.
-        const rate = revisionRate(r.per_run || []);
+        const bound = upperBound95(pr.pooled.k, pr.pooled.n);
+        const scope = pr.pooled.draws > 1 ? " pooled" : "";
+        // Both figures where they differ, so a pooled MET never hides a draw that did not show it.
+        const cell = revised
+          ? `**yes** (${pr.pooled.k}/${pr.pooled.n}${scope}${pr.own.k === 0 ? `; 0/${pr.own.n} this draw` : ""})`
+          : `no — 0/${pr.pooled.n}${scope}, rate ≤ ${Math.round(bound * 100)}%`;
         L.push(
           `| \`${skill}\` | ${model} | ${r.n} | ${r.v1_score?.mean}${spread(r.v1_score)} | ` +
           `${r.final_score?.mean}${spread(r.final_score)} | ${r.delta?.mean >= 0 ? "+" : ""}${r.delta?.mean} | ` +
           `${r.improved_runs}/${r.n} | ${approved ?? "—"}/${r.n} | ` +
           `${rounds.length ? (Math.min(...rounds) === maxRounds ? String(maxRounds) : `${Math.min(...rounds)}–${maxRounds}`) : "—"} | ` +
-          `${revised ? `**yes** (${rate.k}/${rate.n})` : rate && rate.upper95 !== null ? `no — 0/${rate.n}, rate ≤ ${Math.round(rate.upper95 * 100)}%` : "no"} | ` +
+          `${cell} | ` +
           `${met ? (revised ? "**MET**" : "exit criterion only") : "not met"} |`
         );
       }
@@ -1259,6 +1328,12 @@ export function renderReport(baseline) {
     L.push("re-drawing them held one and dropped two. The figure is a one-sided 95% upper bound from");
     L.push("the exact binomial with zero observations — `rate ≤ 26%` at n=10 means the data rule out a");
     L.push("rate above 26%, **not** that the skill never revises. Only a larger `n` narrows it.");
+    L.push("");
+    L.push("**`pooled` means every draw of the same instrument**, which is what a `re-sample`");
+    L.push("retirement is by construction — unchanged fixture, oracle and bar, so its runs are draws");
+    L.push("from the same distribution. Condition 4 asks whether at least one run **ever** needed a");
+    L.push("second round, so it is read across all of them; where the latest draw did not reproduce");
+    L.push("it, that draw is printed beside the pooled figure rather than hidden by it.");
   }
   L.push("");
 
