@@ -5,7 +5,7 @@
 // task-executor's next attempt gets a few lines of signal instead of a full stack-trace dump.
 // Script-first by design: regex over known log formats is free (no model tokens); an
 // unrecognized line becomes a "raw" triple (file/line unknown) rather than being silently
-// dropped, so a Haiku fallback (or a human) still has something to look at — this module never
+// dropped, so a Sonnet fallback (or a human) still has something to look at — this module never
 // invents a file:line it didn't find in the text.
 //
 // Zero dependencies, zero network — same discipline as oracles/*.

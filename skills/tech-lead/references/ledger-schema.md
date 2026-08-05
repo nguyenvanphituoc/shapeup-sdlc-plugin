@@ -128,7 +128,7 @@ models:                          # L0.8 resolved matrix, recorded once, source n
   exec: [model] (source: ...)
   eval: [model] (source: ...)
   qa:   [model] (source: ...)
-  digester: script | haiku
+  digester: script | sonnet
 budgets:
   round_budget: [N]              # outer breaker
   attempt_budget: [N]            # inner breaker, per scope

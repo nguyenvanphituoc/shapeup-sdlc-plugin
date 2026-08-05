@@ -56,7 +56,7 @@ Collect (explicit — never inferred):
         Env knobs read at this layer: SHAPEUP_ORCH_MODEL, SHAPEUP_EXEC_MODEL,
         SHAPEUP_EVAL_MODEL, SHAPEUP_QA_MODEL, SHAPEUP_ATTEMPT_BUDGET (default 5),
         SHAPEUP_DIGESTER_MODEL (default "script" — aegis-digest.mjs's regex pass; falls
-        back to a Haiku dispatch only when the digester reports unrecognized log formats).
+        back to a Sonnet dispatch only when the digester reports unrecognized log formats).
         A requested model unavailable on the member's plan → degrade to the next tier down,
         record the degrade in the ledger (R2 — invariants are code paths, so adherence
         survives even when the model tier doesn't).
@@ -96,7 +96,7 @@ Appetite     : [~1 week | ~2 weeks | ~6 weeks | ⚠️ missing — scope uncappe
 Spec folder  : [path]   (lens: [lite|standard])
 Eval dims    : [spec-conformance]   max_rounds: [N, appetite-informed]   auto: [interactive|auto|unattended]
 Run commands : [web: ... | api: ... | mobile: ...]
-Model matrix : orch=[model] exec=[model] eval=[model] qa=[model] digester=[script|haiku]  (source: [flags|settings.local|settings.json|default])
+Model matrix : orch=[model] exec=[model] eval=[model] qa=[model] digester=[script|sonnet]  (source: [flags|settings.local|settings.json|default])
 Budgets      : round_budget=[N] (outer)   attempt_budget=[N] (inner, per scope)
 ```
 Do NOT start ORIENT until confirmed (interactive/auto). Under --unattended, proceed.

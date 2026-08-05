@@ -32,11 +32,14 @@ const BASELINE = join(ROOT, "evals", "baselines", "trigger-evals.baseline.json")
 const mtIdx = process.argv.indexOf("--max-turns");
 const MAX_TURNS = mtIdx > -1 ? Math.max(1, parseInt(process.argv[mtIdx + 1], 10) || 8) : 8;
 
-// Probe model. A full run is 149 headless sessions × up to MAX_TURNS turns, so this is a
-// genuinely expensive job — pass a cheap model explicitly (`--model claude-haiku-4-5-20251001`)
-// rather than letting probes inherit whatever the caller's default is. Trigger rates are
-// MODEL-DEPENDENT, so whatever is used here is recorded in the baseline: an unlabeled
-// activation number is not a measurement of anything.
+// Probe model. A full run is 149 headless sessions × up to MAX_TURNS turns, so this is a genuinely
+// expensive job — pass the model explicitly (`--model claude-sonnet-5`, ~$18 at $3/$15 per MTok)
+// rather than letting probes inherit whatever the caller's default is, which could be several times
+// that. `claude-haiku-4-5-20251001` (~$6) remains valid and is what the committed baseline was
+// measured on. Trigger rates are MODEL-DEPENDENT, so whatever is used here is recorded in the
+// baseline, and a run on a different model starts a SECOND baseline rather than updating the first:
+// an unlabeled activation number is not a measurement of anything, and a cross-model comparison is
+// not a regression signal.
 const mIdx = process.argv.indexOf("--model");
 const MODEL = mIdx > -1 ? process.argv[mIdx + 1] : (process.env.TRIGGER_EVAL_MODEL || null);
 

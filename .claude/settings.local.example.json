@@ -4,7 +4,7 @@
     "SHAPEUP_ORCH_MODEL": "opus",
     "SHAPEUP_EXEC_MODEL": "sonnet",
     "SHAPEUP_EVAL_MODEL": "sonnet",
-    "SHAPEUP_QA_MODEL": "haiku",
+    "SHAPEUP_QA_MODEL": "sonnet",
     "SHAPEUP_ROUND_BUDGET": "3",
     "SHAPEUP_ATTEMPT_BUDGET": "5",
     "SHAPEUP_DIGESTER_MODEL": "script"
