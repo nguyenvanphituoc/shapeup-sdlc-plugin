@@ -137,9 +137,48 @@ const MECH_SCHEMA = {
 const mech = (cmd, label) => agent(
   "Run exactly this command, change nothing about it, and report its outcome as data: the exit " +
   "code, everything printed to stdout, and everything printed to stderr, verbatim, byte for " +
-  `byte. Do not summarize, do not truncate, do not interpret it.\n\n${cmd}`,
+  "byte. Do not summarize, do not truncate, do not interpret it.\n\n" +
+  "`stdout` must contain ONLY what the command itself printed to stdout. Do not append an " +
+  "exit-status marker, do not add `; echo EXIT:$?` or any similar suffix to the command, and do " +
+  "not add commentary — the exit status belongs in `exit_code` and nowhere else. Report the " +
+  "command's exit status in `exit_code`; if you cannot observe it, use 0 when the command " +
+  `produced no error output and 1 when it did.\n\n${cmd}`,
   { model: "sonnet", effort: "low", schema: MECH_SCHEMA, phase: "Orient", label: String(label || cmd).slice(0, 40) },
 );
+
+// A courier is a model, not a pipe. Asked for an exit code it has no sanctioned way to observe,
+// it reaches for `cmd; echo "EXIT:$?"` and hands back the combined text — measured, run 3: the
+// probe below aborted an entire unattended run on a trailing "EXIT:0", while the command itself
+// had printed 636 bytes of clean JSON and exited 0. The prompt above closes the common path; this
+// closes the class. Every JSON fact this file reads off a courier comes through here: take the
+// first balanced {...} / [...] in what was reported and ignore whatever the courier wrapped it
+// in. A command that genuinely printed no JSON still yields null, and every caller still treats
+// null as the failure it is — this recovers the courier's noise, never a command's silence.
+function parseMechJson(stdout) {
+  if (typeof stdout !== "string") return null;
+  const s = stdout.trim();
+  try { return JSON.parse(s); } catch { /* fall through to extraction */ }
+  const start = s.search(/[{[]/);
+  if (start < 0) return null;
+  const open = s[start];
+  const close = open === "{" ? "}" : "]";
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === "\\") esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') { inStr = true; continue; }
+    if (c === open) depth++;
+    else if (c === close && --depth === 0) {
+      try { return JSON.parse(s.slice(start, i + 1)); } catch { return null; }
+    }
+  }
+  return null;
+}
 
 // A workflow script has no filesystem of its own (design doc §1). Every path fact this file
 // needs comes from a `${args.pluginRoot}`-rooted node one-liner that imports the SAME
@@ -193,9 +232,9 @@ async function probe(slug) {
   // A probe that cannot be parsed is not an empty run — it is an unknown one. Returning {} here
   // would read as "status null, no scopes, no wiring map" and the pipeline would confidently
   // re-dispatch every phase from the top, overwriting a run already in progress. Surface it.
-  try { return JSON.parse(r.stdout); } catch {
-    return { __probe_failed: `probe could not parse its own stdout (exit ${r.exit_code}): ${(r.stderr || r.stdout || "").trim().slice(0, 300)}` };
-  }
+  const parsed = parseMechJson(r.stdout);
+  if (parsed) return parsed;
+  return { __probe_failed: `probe could not parse its own stdout (exit ${r.exit_code}): ${(r.stderr || r.stdout || "").trim().slice(0, 300)}` };
 }
 
 /** Has this scope already reached T0-green for THIS round? Files only, never memory — the one
@@ -213,7 +252,7 @@ async function checkScopeGreen(slug, scopeId, round) {
     `  if (b.scope_id === '${scopeId}' && b.round === ${round} && b.overall === 'green') { green = true; path = fp; break; } } catch {} } }`,
     `console.log(JSON.stringify({ green, path }));`,
   ], `t0check:${scopeId}-r${round}`);
-  try { return JSON.parse(r.stdout); } catch { return { green: false, path: null }; }
+  return parseMechJson(r.stdout) || { green: false, path: null };
 }
 
 const setRunStatus = (slug, status) => mechNode([
@@ -298,8 +337,9 @@ const resolveGate = async (slug, answers, gate) => {
     `node "${args.pluginRoot}/skills/tech-lead/scripts/gate-answers.mjs" --resolve ${gate} --slug ${slug} ${answersFlag(answers)}`.trim(),
     `gate:${gate}`,
   );
-  let decision = null;
-  try { decision = JSON.parse(r.stdout).decision ?? null; } catch { /* a gate that printed no JSON has no decision to read */ }
+  // A gate that printed no JSON has no decision to read; a gate whose JSON the courier wrapped in
+  // noise still does — parseMechJson keeps the second case from reading as the first.
+  const decision = parseMechJson(r.stdout)?.decision ?? null;
   return { ...r, decision };
 };
 const GATE_TITLES = {
@@ -313,7 +353,7 @@ const gateBlock = (gate, ctx) => [
 const paused = (gate, valid_decisions, ctx) => ({ status: "paused", paused_at: gate, block: gateBlock(gate, ctx), valid_decisions, context: ctx });
 const abortedFrom = (gate, resolved, fallback) => {
   let reason = resolved.stderr.trim() || fallback;
-  try { reason = JSON.parse(resolved.stdout).reason || reason; } catch { /* keep fallback */ }
+  reason = parseMechJson(resolved.stdout)?.reason || reason;
   return { status: "aborted", aborted_at: gate, reason };
 };
 
@@ -499,8 +539,10 @@ while (round <= args.budgets.maxRounds) {
         `node "${args.pluginRoot}/skills/tech-lead/scripts/t0-verify.mjs" ${scope.path} --round ${round} --attempt ${attempt} --out "${localRoot}" --no-seesaw`,
         `t0:${scope.scope_id}-a${attempt}`,
       );
-      let v = null;
-      try { v = JSON.parse(t0.stdout); } catch { /* an unparsable T0 report is a red, never a crash-the-loop */ }
+      // An unparsable T0 report is a red, never a crash-the-loop — but courier noise around a
+      // GREEN report must not read as red either, or the attempt budget burns down a scope that
+      // actually passed and GATE H gets a hammer proposal for it.
+      const v = parseMechJson(t0.stdout);
       green = v?.overall === "green";
       if (v?.path) lastT0Path = v.path;
     }

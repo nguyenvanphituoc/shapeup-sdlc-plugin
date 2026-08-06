@@ -119,9 +119,47 @@ const MECH_SCHEMA = {
 const mech = (cmd, label) => agent(
   "Run exactly this command, change nothing about it, and report its outcome as data: the exit " +
   "code, everything printed to stdout, and everything printed to stderr, verbatim, byte for " +
-  `byte. Do not summarize, do not truncate, do not interpret it.\n\n${cmd}`,
+  "byte. Do not summarize, do not truncate, do not interpret it.\n\n" +
+  "`stdout` must contain ONLY what the command itself printed to stdout. Do not append an " +
+  "exit-status marker, do not add `; echo EXIT:$?` or any similar suffix to the command, and do " +
+  "not add commentary — the exit status belongs in `exit_code` and nowhere else. Report the " +
+  "command's exit status in `exit_code`; if you cannot observe it, use 0 when the command " +
+  `produced no error output and 1 when it did.\n\n${cmd}`,
   { model: "sonnet", effort: "low", schema: MECH_SCHEMA, phase: "Build", label: String(label || cmd).slice(0, 40) },
 );
+
+// A courier is a model, not a pipe. Asked for an exit code it has no sanctioned way to observe,
+// it reaches for `cmd; echo "EXIT:$?"` and hands back the combined text — measured, run 3, where
+// a trailing "EXIT:0" aborted an unattended run through shapeup-run.js's probe. Here the same
+// noise would read a GREEN T0 report as red and burn the attempt budget on a passing scope, so
+// every JSON fact this file reads off a courier comes through the same extraction: take the first
+// balanced {...} / [...] and ignore what the courier wrapped it in. A command that genuinely
+// printed no JSON still yields null, and callers still treat null as the failure it is.
+function parseMechJson(stdout) {
+  if (typeof stdout !== "string") return null;
+  const s = stdout.trim();
+  try { return JSON.parse(s); } catch { /* fall through to extraction */ }
+  const start = s.search(/[{[]/);
+  if (start < 0) return null;
+  const open = s[start];
+  const close = open === "{" ? "}" : "]";
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === "\\") esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') { inStr = true; continue; }
+    if (c === open) depth++;
+    else if (c === close && --depth === 0) {
+      try { return JSON.parse(s.slice(start, i + 1)); } catch { return null; }
+    }
+  }
+  return null;
+}
 
 // ---------------------------------------------------------------------------------------------
 // C3 — the dispatch channel: the zero-memory boundary. A fresh agent() per call IS the isolation
@@ -262,8 +300,9 @@ for (const scope of args.scopes) {
       `node "${args.pluginRoot}/skills/tech-lead/scripts/t0-verify.mjs" ${scope.path} --round ${args.round} --attempt ${attempt} --out "${localRoot}" --no-seesaw`,
       `t0:${scope.scope_id}-a${attempt}`,
     );
-    let verdict = null;
-    try { verdict = JSON.parse(t0.stdout); } catch { /* an unparsable T0 report is a red, never a crash-the-loop */ }
+    // An unparsable T0 report is a red, never a crash-the-loop — but courier noise around a GREEN
+    // report must not read as red either, or the budget burns down a scope that actually passed.
+    const verdict = parseMechJson(t0.stdout);
     // THE RATCHET (t0-verify.mjs owns the comparison and the tree action already — this loop only
     // reads `overall`, per the architectural rule "never branch on red/green directly, read
     // status"). A `kept`-but-red attempt still isn't green; the loop keeps trying within budget.
@@ -306,7 +345,7 @@ if (l2.exit_code === 4) {
 }
 if (l2.exit_code === 5) {
   let reason = l2.stderr.trim() || "GATE L2 aborted";
-  try { reason = JSON.parse(l2.stdout).reason || reason; } catch { /* keep the fallback */ }
+  reason = parseMechJson(l2.stdout)?.reason || reason;
   return { status: "aborted", aborted_at: "L2", reason };
 }
 
@@ -341,7 +380,7 @@ if (l3.exit_code === 4) {
 }
 if (l3.exit_code === 5) {
   let reason = l3.stderr.trim() || "GATE L3 aborted";
-  try { reason = JSON.parse(l3.stdout).reason || reason; } catch { /* keep the fallback */ }
+  reason = parseMechJson(l3.stdout)?.reason || reason;
   return { status: "aborted", aborted_at: "L3", reason };
 }
 
