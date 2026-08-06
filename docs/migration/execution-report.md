@@ -1,86 +1,109 @@
-# Execution report — workflow-orchestrator migration run 1 (parked)
+# Execution report — workflow-orchestrator migration (cumulative)
 
-**Date:** 2026-08-06 · **Branch:** `feat/workflow-orchestrator` · **Executor:** plan-executor
-skill, contract-driven (`docs/migration/execution-contract.md`, compiled verbatim from
-`docs/workflow_migration_plan.md`, sha256 `949dab98…`).
-**Why parked:** the Stage-2 execute agent hit the session usage limit (resets 7:10pm
-Asia/Saigon) 132 tool calls into the stage. This is a usage event, not a plan failure.
-**Continuation:** on another machine — see *Resuming* below. The run stopped exactly at a
-stage boundary discipline point: everything green is committed and independently verified;
-everything not verified is committed as clearly-labelled WIP.
+Contract: `docs/migration/execution-contract.md`, compiled verbatim from
+`docs/workflow_migration_plan.md` (sha256 `949dab98…`, **re-verified unchanged at run 2 start**).
+Branch: `feat/workflow-orchestrator`. Executor: plan-executor skill.
+
+| Run | Machine | Outcome |
+|---|---|---|
+| 1 (2026-08-06) | `/Users/teo/…` | S0, S1 green. S2 committed WIP/UNVERIFIED at `ff80176`. Parked on session usage limit. |
+| 2 (2026-08-07) | `/Volumes/LibertyMobi/…` | Preflight re-derived state independently. Three defects found and fixed in S2's never-executed code (`d7fac48`). **Blocked** on S2's live runs — environment, not plan. |
+
+---
 
 ## Where the run stands
 
 | Stage | Status | Commit | Verified how |
 |---|---|---|---|
-| S0 — kill-switch spike (D1) | **GREEN — Decision: GO** | `bba8a5f` | Workflow verify agent (fresh clone, ledger `S0-a1`) **and** an independent no-agent re-run of all acceptance rows in a fresh `git clone --local` at `1c695fc`: all PASS |
-| S1 — `shapeup-build-round` | **GREEN** | `1c695fc` | Same double verification (ledger `S1-a1` + independent fresh-clone re-run): all rows PASS, `npm test` 1117 checks (baseline was 1112) |
-| S2 — `shapeup-run` + thin skill | **WIP, unverified** | WIP commit on this branch | Not verified. `npm test` green at 1120 checks *with* the WIP applied, but none of the stage's real verifications (A2 unattended run, A3 interactive pause/relaunch, kill/resume probe) have run, and `stage2-evidence.md` does not exist |
-| S3 — cutover, detectors, benchmark | **Not started** | — | — |
+| S0 — kill-switch spike (D1) | **GREEN — Decision: GO** | `bba8a5f` | Re-verified run 2 in a fresh `git clone --local`: 4/4 acceptance rows PASS |
+| S1 — `shapeup-build-round` | **GREEN** | `1c695fc` | Re-verified run 2 in a fresh clone: 6/6 rows PASS, `npm test` green |
+| S2 — `shapeup-run` + thin skill | **RED (code advanced, verifications not run)** | `ff80176` + `d7fac48` | Code rows PASS (`npm test` 1120, `shapeup-run.js` present, `SKILL.md` 121 ≤ 160). A2/A3/kill-probe **have not run** and `stage2-evidence.md` does not exist → 3 rows RED |
+| S3 — cutover, detectors, benchmark | **Not started** | — | Blocked behind S2 by the contract's ship-gate guardrail |
 
-All three S0 kill-switch checks passed with real, independently re-read evidence (deny rows
-re-read from the scratch project's `decisions.jsonl`, not trusted from the subagent's report).
-The migration's D1 gate is crossed: **the workflow lane is viable.**
+Preflight totals, fresh clone at `d7fac48`: **18 PASS / 7 RED** — identical to run 1's parked
+state, because run 2's fixes correct *behaviour the acceptance rows do not measure*. That is worth
+stating plainly: the S2 rows are greps for a string in an evidence file, and all three defects
+below would have passed every one of them.
 
-## What S2's WIP already contains (do not redo blindly — verify instead)
+---
 
-- `skills/tech-lead/workflows/shapeup-run.js` (587 lines) — outer pipeline, written but never
-  exercised.
-- `skills/tech-lead/SKILL.md` rewritten to the thin shell — **121 lines**, already under the
-  ≤ ~150 target (contract ceiling 160).
-- `skills/tech-lead/references/hard-rules.md` (new), `round-protocol.md` (+16 lines),
-  structural tests 08/14 updated. Suite green at 1120 with all of it.
-- Remaining for S2: the three real verifications (A2, A3, kill/resume probe) in a scratch
-  project against the worktree tarball, then `docs/migration/stage2-evidence.md`, then the
-  fresh-clone acceptance. Treat the WIP as a draft the verifications must earn.
+## Run 2's finding: three defects in code that had never executed
 
-## Measured costs and findings (from the stage evidence files, which are normative)
+`shapeup-run.js` (587 lines) was committed at `ff80176` labelled UNVERIFIED. Before spending on a
+live run, run 2 verified it statically. Each defect was **proven mechanically against the real
+scripts, with no agent involved** — not inferred by reading.
 
-- One `mech()`-shaped Sonnet agent call: **$0.293** — above the review's inferred ≲ $1/round
-  estimate's per-call assumption; flagged in `stage0-evidence.md`, not a gate.
-- Same-feature control (prose-lane dispatch): **$1.461** vs workflow-lane run **$2.010**
-  (both Sonnet, informational — the A7 benchmark is the real comparison and has not run).
-- Run totals: ~1.03M subagent tokens, 513 tool calls, ~2.9 h wall clock, 6 agents.
+**1. Gate decisions were never read.** `gate-answers.mjs` carries cross/pause/abort in its *exit
+code*, but the decision itself (`loop`|`stop`|`run`|`skip`|`accept-cut-list`) travels only in the
+JSON it prints on stdout. The `mech()` envelope is `{exit_code, stdout, stderr}` and nothing else,
+so `qaGate.decision === "run"` read `undefined` and was **always false**:
 
-**Defects surfaced by the run (all documented in the stage evidence files):**
-1. `npx shapeup-sdlc init` points the plugin marketplace at GitHub (served a stale 1.3.0
-   cache) even when installing from a local tarball — worked around via
-   `claude plugin marketplace add <worktree-path> --scope project`. Fixable installer defect
-   (the contract's "check 1" carve-out class).
-2. A fresh scratch/CI directory silently drops the whole `permissions.allow` grant until
-   workspace trust is accepted.
-3. Headless Workflow tool availability is conditional: present under
-   `--permission-mode auto`; default and `dontAsk` block it with a review gate. Binds how
-   Stage-2+ launches must be documented.
-4. `t0-verify.mjs` default `--out` landed T0 artifacts in the SHARED (`shapeup/`) tree instead
-   of LOCAL (`.shapeup/`) — **fixed in S1** by deriving the LOCAL root from
-   `compile-order.mjs` stdout (no new path literal).
-5. The Workflow runtime can deliver `args` as a JSON-encoded string, not an object. First
-   launch of the executor ran over an empty stage list and reported "complete" — the
-   derived-never-claimed defect class in the executor's own plumbing. Both the plan-executor
-   script and `shapeup-build-round.js` now normalize defensively and refuse to run over
-   nothing. **The plan-executor skill patch lives outside this repo**
-   (`.claude/skills/plan-executor/workflows/execute-plan.js` in the main checkout) — re-apply
-   on the other machine if resuming via that skill (normalize stringified `args`; throw when
-   `repo`/`workdir`/`stages` are missing).
+- **QA could never dispatch**, even under preset `ci`, whose answer set explicitly says
+  `QA: {decision: "run"}`.
+- `ship-report.mjs` was always handed `--qa skipped`.
+- GATE L3's `"stop"` arm was dead code.
 
-## Executor rules still in force (from the contract)
+Proven: exit 0 is shared by `run`/`loop`/`proceed`/`accept-cut-list`, so the exit code alone
+cannot distinguish them (6/6 resolutions against the real script). A2's "green end to end" would
+have been reported green *with QA silently never running* — the "looks complete, produces no
+diagnostic, is wrong" class this harness exists to make unreachable.
 
-- **No merge to `main`, no tag** — the cutover merge is the PO's move after S3.
-- **The ~$40–60 A7 benchmark does not launch autonomously** — the run pauses for an explicit
-  go when S3 reaches it.
+**2. The fast-forward handed `compile-order` a bare filename.** `probe()` returned `scope_files`
+as raw `readdir` output (`"SC-x.md"`); both `compile-order.mjs` and `t0-verify.mjs` resolve
+`--scope` against cwd. Every resumed run would hit `no scope contract at <cwd>/SC-x.md`, exit 2,
+and the attempt loop reads a non-zero compile exit as the **stagnation breaker** — so a relaunch
+would hammer-propose every scope instead of continuing. This is precisely the path A3's relaunch
+and the kill/resume probe exercise; both would have failed. `probe()` now emits resolved paths
+built from `scopesDir()`, with no path literal added (test-#45 discipline, `16-workflows.mjs` (b)
+still green). Proven: the probe one-liner executed verbatim against a fixture project, 8/8
+assertions, including that the emitted path is absolute and ends in `/scopes/SC-alpha.md`.
+
+**3. An unparsable probe returned `{}`** — which reads downstream as "status null, no scopes, no
+wiring map", i.e. a fresh run, and would re-dispatch every phase over a run already in progress.
+It now returns a reason and the pipeline aborts on it.
+
+`npm test` green at 1120 checks. **No acceptance command was altered, relaxed, or skipped.**
+
+---
+
+## Why S2 is blocked — environment, not plan
+
+S2's three outstanding verifications (A2 unattended, A3 interactive pause/relaunch, kill/resume)
+all require running *the harness under test* as nested headless sessions in a scratch project.
+The scratch project was built successfully (worktree tarball installed, `npx shapeup-sdlc init`
+run, marketplace re-pointed from GitHub to a **directory source resolving live to this worktree** —
+run 1's defect 1 workaround, reapplied and confirmed). Two blockers remain, both environmental:
+
+1. **`claude -p --permission-mode auto` is denied by the auto-mode classifier.** Stage 0 established
+   that headless Workflow launches require this flag (default and `dontAsk` block the tool behind a
+   review gate). Plain `claude -p` is permitted and works — the flag is the blocker.
+2. **The scratch directory is untrusted, and pre-trusting it is denied.** The run reproduced run 1's
+   defect 2 verbatim: `Ignoring 6 permissions.allow entries from .claude/settings.json: this
+   workspace has not been trusted.` With the grant dropped, every plugin script call stalls for
+   approval. The fix is `projects[<dir>].hasTrustDialogAccepted: true` in `~/.claude.json`, a
+   machine-level file this run is not permitted to write.
+
+Neither is a defect in the migration, and neither can be worked around from inside the run.
+**S3 was deliberately not started**: the contract's guardrail makes S2 the ship gate of the
+cutover ("Stage 3 does not begin until both lane types are green"), and the plan's ordering is
+load-bearing.
+
+---
+
+## Executor rules still in force
+
+- **No merge to `main`, no tag, no push** — the cutover merge is the PO's move after S3.
+- **The ~$40–60 A7 benchmark does not launch autonomously** — the run pauses for an explicit go.
 - Stage 2 remains the ship gate: S3 must not start until A2 **and** A3 are green.
 
-## Resuming on another machine
+## Resuming
 
-1. Clone the repo, check out `feat/workflow-orchestrator`. Baseline: `npm test` must be green
-   (1120 checks at the WIP head; 1117 at `1c695fc`).
-2. Recreate the executor workspace: `mkdir -p .plan-runs/workflow-migration/{ledger,freeze,clones}`
-   and copy `docs/migration/execution-contract.md` → `.plan-runs/workflow-migration/contract.md`
-   (it is byte-identical to the contract this run used; `.plan-runs/` is gitignored by design).
-3. Run the plan-executor preflight (fresh clone, all acceptance rows). It will re-derive:
-   S0 green, S1 green, S2 red-but-partial, S3 red. **Never resume from this report's claims —
-   the preflight is the authority.**
-4. Resume execution at S2. The scratch-project setup steps (tarball install, marketplace
-   re-point, trust acceptance, `--permission-mode auto`) are documented in
-   `stage0-evidence.md` and `stage1-evidence.md`.
+1. `npm test` must be green (1120 checks at `d7fac48`).
+2. Recreate the workspace: `.plan-runs/workflow-migration/{ledger,freeze,clones}` and copy
+   `docs/migration/execution-contract.md` → `.plan-runs/workflow-migration/contract.md`.
+3. Run the preflight (fresh clone, all acceptance rows). **Never resume from this report's claims —
+   the preflight is the authority.** It re-derives S0/S1 green, S2 partial, S3 red for free.
+4. Unblock the two environment items above, then resume at S2's live verifications. Scratch-project
+   setup (tarball install, marketplace re-point, trust, `--permission-mode auto`) is documented in
+   `stage0-evidence.md` and `stage1-evidence.md`, and was reproduced successfully in run 2 up to
+   the trust step.
