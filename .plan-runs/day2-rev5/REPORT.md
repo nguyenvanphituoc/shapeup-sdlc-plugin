@@ -1,108 +1,118 @@
 # Run report — Day-2 tool-efficacy plan, rev 5
 
-**Plan:** `docs/day2_tool_efficacy_review.md` @ sha256 `55fc3b87…`
+**Plan:** `docs/day2_tool_efficacy_review.md` @ sha256 `55fc3b87…` — **unchanged** since the contract
+was compiled against it, so nothing drifted underneath this run.
 **Branch:** `plan/day2-tool-efficacy`
-**Started from:** `c9e6620` · **ended at:** `1bb0d73`
-**Stopped because:** the session usage limit was hit mid-verification. **Not a plan failure.**
+**Started from:** `8bc21ff` (S0 already landed at `1bb0d73`) · **ended at:** `bc61af3`
+**Stopped because:** every non-optional stage reached green. S3 remains held by the operator.
 
 ## Where it got to
 
 | stage | status | verified how |
 |---|---|---|
-| **S0** — Withdraw the unsupported claim | ✅ **green** | 9/9 acceptance rows in a fresh `git clone --local` at `1bb0d73`, **run by hand, no agent involved** |
-| S1 — Predicate and model scope as fields | ⬜ not started | 3 of 5 rows red (the two that are green are `npm test` and the register-unchanged check, both of which pass trivially before the stage runs) |
-| S2 — Guard all three | ⬜ not started | blocked on S1 |
-| S3 — Probe the Sonnet baseline | ⏸ **held by the operator** | compiled in full, `Optional: yes`, not run — $5.8 and the only stage that writes outside this repo |
-| S4 — Gate the plan-executor | ⬜ not started | blocked on S2 |
+| **S0** — Withdraw the unsupported claim | ✅ green | 9/9 rows, by hand, before the run spent anything |
+| **S1** — Predicate and model scope as fields | ✅ green | 5/5 rows at its own commit `9cbbc1f` |
+| **S2** — Guard all three | ✅ green | 8/8 rows at its own commit `5546fee`, four of them mutation rows |
+| S3 — Probe the Sonnet baseline | ⏸ **held by the operator** | compiled in full, `Optional: yes`, not run |
+| **S4** — Gate the plan-executor | ✅ green | 6/6 rows at its own commit `bc61af3` |
 
-**Full acceptance right now: 15 / 28 rows.** Against where the repository started (7/28 at `77f014c`),
-S0 moved 8 rows green and nothing regressed.
+**28 / 28 acceptance rows pass, each evaluated at the commit that produced it.** Against where the
+branch started this session (15/28 at `8bc21ff`), 13 rows moved green and none regressed.
 
-## What S0 actually did
+### The one row that is red at final HEAD, and why that is correct
 
-The claim is withdrawn, not patched — the distinction §3 insists on, and the acceptance holds the
-register to it row by row:
+At final HEAD the table reads **27/28**. The single red is S1's
 
-- `FC-01.reduces` → `null`, `reduction_basis` → `null`. `co_attributed_to` still `["FC-02"]`, because
-  Arm B is unaffected and that is where the finding lives.
-- `FC-01.superseded[]` now carries **two** retired records — the pre-existing `re-measure` (the v1.5
-  rate) *and* the new `instrument-change` (the v1.6.3 Haiku rate, value 0, n 3). Neither was
-  overwritten. The new record's `method` states *why*: it counted `failureMode() === "narrated"`,
-  whose predicate is `writes === 0`, which this harness's own intake write forecloses.
-- `FC-01.current` is the corrected Haiku rate: **1/3 shipped-nothing**, `measured`, carrying Fisher
-  **p = 0.1071** and rep 1's zero-product-writes evidence.
-- `FC-01.baseline` is untouched — still 1.0, n=5, Haiku, `a280e86`. FC-02 is untouched.
-- The register `note` now says a claim is only as good as the predicate its rate counted, and that
-  both the predicate and the model it was counted on must be recorded.
+```
+git diff --quiet 1bb0d73 HEAD -- evals/failure-classes.json
+```
 
-**The headline moved: the register reads 2 of 8 at the Day-2 exit criterion, both `structural`.**
-It read 3 of 8 with one `sampled`. That sampled claim was the one this whole revision argues is
-unsupported, and it is now gone from the register rather than argued about in a document.
+which the contract marks **stage-local**: S1 must leave the register byte-identical, and S2 then
+edits it on purpose. Verified against S1's own commit `9cbbc1f` it passes. This is the plan working
+as designed, not a regression — and it is the reason `preflight.mjs` grew an `--at=<ref>` flag this
+session. Reporting 27/28 without that distinction would have been the more convenient number and the
+less true one.
 
-`npm test` in a clean clone: **1128 checks, 0 failures** (1130 before — two checks disappear because
-§48(f)'s rules 3 and 4 only run against a `sampled` claim, and there no longer is one).
+## What the run did not get to decide — checks no agent participated in
 
-## What I changed beyond the plan, and why
+The workflow reported all four stages green on the first verification attempt, with no freezes and
+no escalations. That is exactly the shape of result this skill exists to distrust, so beyond re-running
+the contract by hand:
 
-Two commits are mine rather than a stage's, and both are flagged here so the diff is honest:
+- **The zero-work gate was tested against rev 3's actual defect, not against the test S4 shipped.**
+  A stage whose only proof is a test written by the same agent proves self-consistency. An
+  independent `node:vm` harness reconstructed the real failure — `stages` non-empty but every stage
+  optional, so `selected` comes out empty and the report path computes `complete` — plus three
+  neighbours. **All four refuse, and refuse before any model call is spent.**
+- **The one parser was cross-checked against a second, independently written one.** S4 item 3 exists
+  because two readers disagreed on `\|`. Its selftest proves the parser agrees with itself; running
+  it against `preflight.mjs`'s separately written parser over the real contract shows **both agree on
+  all 28 rows, including the 12 whose `cmd` contains a literal pipe.**
+- **The predicate citations were read, not just resolved.** S2's acceptance checks that each
+  `error_predicate.source` resolves to a real `file:line`. It cannot check that the cited line is
+  *relevant* — which is this plan's entire thesis one level up. Both were opened:
+  `tests/structural/11-is-main.mjs:152` is the fragile-main-guard scan FC-02 describes, and
+  `tests/structural/02-skills.mjs:173` is the `unmeasured`-with-results branch FC-04 describes.
+  Real citations, not grep-bait.
+- **Check counts move 1128 → 1128 → 1130 → 1130** across the three commits. S2's rules added checks;
+  nothing shrank. (A `2 failur…` string in the suite output turned out to be the §48 module title
+  "Day-**2 failur**e register" — `npm test` exits 0 with 0 failures.)
 
-- **`77f014c`** tracked `.claude/skills/plan-executor/`. S4's acceptance runs in a clone of HEAD, and
-  an untracked skill is invisible there — every S4 row would have failed for the one reason that says
-  nothing about S4.
-- **Three defects in my own contract**, found by running all 28 rows in a clean room *before*
-  spending anything:
-  1. S2's mutating rows shared one clone and contaminated each other — the rule-2 mutation landed on
-     top of rule-1's, so the suite would have gone red for the wrong rule and the row would have
-     "passed" proving nothing. Every S2 row now restores the register first.
-  2. S4's mutation row passed **because the gate test is absent** — `<strip gate> && ! <run gate>`
-     succeeds when the gate test does not exist. It now runs the test green before mutating.
-  3. S1's register-unchanged check had no guarantee the sha it compares against was ever recorded.
+## What is true of the register now
 
-- **A portability fix, made after the run stopped.** Two rows read a sha from
-  `.plan-runs/day2-rev5/s0-register.sha256` by absolute path. `.plan-runs/` is gitignored and the path
-  is machine-specific, so neither row could survive this branch moving to another machine. Both are
-  now git-based and need no side-channel file at all:
-  - S0: `git merge-base --is-ancestor 1bb0d73 HEAD`
-  - S1: `git diff --quiet 1bb0d73 HEAD -- evals/failure-classes.json`
-
-  This is stronger than what it replaced — it pins to S0's actual commit rather than to a hash
-  someone recorded.
-
-## Two places the plan is under-specified
-
-Both are resolved in `contract.md` under explicit **Compiled note** headings, so a reader can always
-tell the plan's words from mine. Whoever picks this up should agree with them before running S1.
-
-1. **Stage 1 cannot both make the new fields `required` and leave the suite green.** Its exit line
-   asks for *"register unchanged; `npm test` green"*, but today's register has measured rates with no
-   `model_scope` and claiming classes with no `error_predicate`. A hard `required` makes the register
-   schema-invalid and §48(f) fails. So the obligation is **declared in S1 and enforced in S2**, which
-   is where the plan puts the mechanical rules and where its exit is explicitly *"not a green suite"*.
-2. **Stage 2's rule 1 is red on arrival** unless FC-02 and FC-04 gain an `error_predicate` — they are
-   the two remaining claimants. That is the plan's own intent (its Appendix: *"whether the other seven
-   classes' implied predicates are tool-independent, [is] which Stage 1 would force each to answer"*),
-   so populating them is written into S2 rather than left for an agent to discover mid-flight.
+- `FC-01.reduces` and `reduction_basis` are `null`; both its rates carry
+  `model_scope: "claude-haiku-4-5-20251001"`. The withdrawal from S0 survived S2's edits.
+- `FC-02` and `FC-04` — the two remaining claimants — each carry an `error_predicate` with
+  `expression`, `source` and `counts`, turned from the prose already in their `current.method`.
+- **2 of 8 at the Day-2 exit criterion, both `structural`.** Unchanged by S2, which is itself an
+  acceptance row.
+- §48 gained rules 6–8: a non-null `reduces` needs a citable predicate; a `sampled` basis needs
+  `predicate_independence`; and a `sampled` basis needs `baseline.model_scope === current.model_scope`
+  — the mechanical form of the pooling rule, and the one that would have caught the Haiku→Sonnet
+  switch silently invalidating FC-01.
 
 ## Escalations
 
-**None.** No fix was proposed and refused; the run never reached a diagnosis. The stop was a usage
-limit during `verify:S0-a1`, which is why S0 shows `stalled` in the workflow's own result even though
-S0 is in fact green — the workflow could not tell, because its verifier never returned. That gap is
-exactly why Phase 5 re-runs acceptance by hand, and why this report does not take the run's word for
-anything.
+**None.** No fix was proposed and refused, because no stage failed a verification. Every stage went
+green on its first attempt, so the freeze → three-lens diagnose → adjudicate path never ran. Worth
+saying plainly: **the rejection rule was never exercised in this run.** It is untested here, not
+proven.
+
+## Two changes in the working tree that belong to no stage
+
+`.gitignore` and `.claude/skills/plan-executor/SKILL.md` are modified and **uncommitted**. The tree
+was clean when I launched; both were modified during the run (04:53 and 04:57). No hooks are
+configured, and a scan of all seven agent transcripts found **no** `Edit`/`Write`/`Bash` call
+targeting either file. **I could not attribute the change, and I am not going to invent a cause.**
+
+What is established: they are uncommitted, so acceptance — which clones HEAD — correctly never saw
+them, and **the result above is unaffected**. They were left exactly as found.
+
+One of the two is semantic rather than cosmetic and needs a human decision:
+
+- `.gitignore` — adds `.claude/worktrees/`. Plausible housekeeping.
+- `SKILL.md` — markdown reformatting (`*not*` → `_not_`, table alignment) **plus a real change**:
+  the documented `verifyModel` flips **`haiku` → `sonnet`** in two places, including the Model policy
+  table whose stated rationale for `haiku` ("Mechanical: clone, run listed commands, transcribe exit
+  codes") is left intact underneath the new value. As it stands the table now argues for haiku and
+  says sonnet.
 
 ## Cost
 
-- **$0 external spend.** Stage 3 was held, so no benchmark reps were bought and nothing was written
-  to `/Users/teo/workspace/sdd-harness-bench`.
-- Workflow: 124k orchestrator tokens, 238k subagent tokens, 3 agents (1 errored on the usage limit),
-  ~46 min wall clock.
-- All verification in this report cost **zero model tokens** — `preflight.mjs` runs the acceptance
-  table directly.
+- **$0 external spend.** S3 was held, so no benchmark reps were bought and nothing was written to
+  `/Users/teo/workspace/sdd-harness-bench`.
+- Workflow: 7 agents, 0 errored, **566k subagent tokens**, 216 tool calls, ~57 min wall clock.
+- Every verification in this report cost **zero model tokens** — `preflight.mjs` and the two
+  independent check scripts run the commands directly.
 
-## Left in the working tree
+## What is still open
 
-`package-lock.json` is untracked run detritus from a stray `npm install` (this project has no
-dependencies and commits no lockfile). It is not committed and will not travel. Delete it or ignore
-it. The other untracked paths — `.claude/workflows/`, `.claude/worktrees/`, `docs/workflow_*.md` —
-predate this run and were not touched.
+1. **S3 is unrun and unbought.** $5.8 for n=3 Sonnet reps at pre-fix `a280e86`, plus a
+   `product_writes` change committed to the benchmark repo. §2(e)'s n=1 says the likely answer is
+   *no collapse on Sonnet*, which would end with FC-01 permanently Haiku-scoped. Nothing that
+   shipped depends on it.
+2. **Day 2 still has no sampled reduction**, which is the plan's own conclusion rather than a
+   shortfall of this run. What shipped is the machinery that stops the *next* unsupported claim:
+   a claim now cannot be `sampled` without a citable predicate, an independence argument, and
+   matching model scopes on both rates.
+3. **The two working-tree changes above** need someone to decide keep-or-discard.

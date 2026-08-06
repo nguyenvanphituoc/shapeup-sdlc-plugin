@@ -142,14 +142,12 @@ The register already carries one retired record on FC-01 (`cause: "re-measure"`,
 "FC-01 carries two retired records" therefore means: keep that one, and add the v1.6.3 rate as a
 second with `cause: "instrument-change"`. Do not merge, re-label or drop the existing one.
 
-After this stage lands, record the register's parsed-value sha for Stage 1's unchanged-check:
-
-```bash
-node -e "console.log(require('crypto').createHash('sha256').update(JSON.stringify(require('/Users/teo/workspace/proj-harness-plugin/evals/failure-classes.json'))).digest('hex'))" \
-  > /Users/teo/workspace/proj-harness-plugin/.plan-runs/day2-rev5/s0-register.sha256
-```
-
-That file lives in the gitignored workdir; it is a run artifact, not a repository change.
+**Superseded, kept for the record.** This note used to ask for the register's sha to be written to
+`.plan-runs/day2-rev5/s0-register.sha256`, and S0's and S1's checks read it back by absolute path.
+That could not survive the branch moving to another machine, and it hashed a value nobody had
+committed. Both rows are now git-based and need no side-channel file: S0 asserts
+`git merge-base --is-ancestor 1bb0d73 HEAD`, and S1 diffs the register against that same commit.
+**Do not create `s0-register.sha256`.** Nothing reads it.
 
 ## Stage S1 — Make the predicate and the model scope into fields
 
