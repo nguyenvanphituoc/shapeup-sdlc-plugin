@@ -80,6 +80,33 @@
           "type": ["string", "null"],
           "enum": ["sampled", "structural", null],
           "description": "Required whenever `reduces` is non-null. 'sampled' = the two rates come from runs over a population. 'structural' = the error is now impossible by construction (a mechanically enforced invariant), so the after-rate is derived rather than observed. §IX.B warns that a ratchet improves the metric it can see; naming the basis stops a structural argument from being read as a sampled result."
+        },
+        "superseded": {
+          "type": "array",
+          "description": "Retired rates for this class, kept addressable rather than overwritten — modelled on evals/baselines/skill-loop.baseline.json's top-level `superseded[]` (see tests/structural/48-day1-day2.mjs §48(d9)). Every superseded object remains readable: a retired number that cannot be read is indistinguishable from a deleted one.",
+          "items": {
+            "type": "object",
+            "required": ["value", "n", "method", "measured_at", "model", "harness_build", "cause"],
+            "properties": {
+              "value": { "type": ["number", "null"], "description": "The retired rate, carried over unchanged from the Rate it replaces." },
+              "n": { "type": ["integer", "null"] },
+              "method": { "type": ["string", "null"] },
+              "measured_at": { "type": ["string", "null"] },
+              "model": { "type": ["string", "null"] },
+              "harness_build": { "type": ["string", "null"], "description": "Carried over unchanged from the Rate this record retires; see Rate.harness_build for what it means." },
+              "cause": {
+                "type": "string",
+                "enum": ["re-measure", "instrument-change", "withdrawn"],
+                "description": "Why the rate was retired, mapped onto Day 1's three (evals/baselines/skill-loop.baseline.json `superseded[].cause`): re-measure = a new run over the same or an improved instrument replaces this one (Day 1's 're-sample'/'fixture-change'). instrument-change = the tool or measurement method changed under the number (Day 1's 'fixture-change'). withdrawn = the rate was retracted, not replaced (Day 1's model-policy withdrawals and HD-004's outright withdrawal)."
+              }
+            }
+          }
+        },
+        "co_attributed_to": {
+          "type": "array",
+          "description": "IDs of other FailureClass entries (e.g. 'FC-02') whose tools are load-bearing for THIS class's reduction (§4.4) — used when a reduction is jointly produced rather than owned by this class's tool alone. A class named here by another class's co_attributed_to may not separately claim `reduces: true` from the same measured_at + harness_build pair — that would double-count one experiment as two clearances.",
+          "items": { "type": "string", "pattern": "^FC-[0-9]{2}$" },
+          "default": []
         }
       }
     },
@@ -100,7 +127,11 @@
         "n": { "type": ["integer", "null"] },
         "method": { "type": ["string", "null"] },
         "measured_at": { "type": ["string", "null"] },
-        "model": { "type": ["string", "null"] }
+        "model": { "type": ["string", "null"] },
+        "harness_build": {
+          "type": ["string", "null"],
+          "description": "A commit sha, git tag, or the benchmark's content-addressed shipped-surface hash — the build this rate was measured against, so a reader can tell whether baseline and current came from the same instrument (§4.2b). Nullable when no build could be identified. When a recorded build label is CONTRADICTED by other evidence (e.g. a run tagged with a commit whose tree does not actually contain the code the label implies), do not silently null the field — write the contradiction itself in `method` (which label was claimed, what refuted it, e.g. a missing init-run.mjs or a failed receipt check) and leave this field as the label that was contradicted, so the reader can see both the claim and its refutation."
+        }
       }
     }
   }
