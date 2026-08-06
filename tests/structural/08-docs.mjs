@@ -81,14 +81,20 @@ export async function run(ctx) {
   // prints the derived resume state; the SessionStart hook injects it); these ten lines are the part
   // that has to be in the orchestrator's own instructions, because they tell it which phase to
   // re-enter at.
-  // RAISED 460 → 480 for docs/workflow_migration_plan.md Stage 1, deliberately and on the record,
-  // same rule. The BUILD section gained one dispatch note: under `--unattended`/`--auto` with scope
-  // contracts present, launch `workflows/shapeup-build-round.js` instead of narrating the attempt
-  // loop, and branch on its `RunReturn` the way every other gate already branches on an exit code.
-  // This is Stage 1 scaffolding (AGENTS.md: "nothing releases from Stage 1") — Stage 3 deletes the
-  // asymmetry it creates once `shapeup-run` exists, and this ratchet comes back down with it rather
-  // than staying raised for a lane that no longer exists.
-  const LINE_RATCHETS = { "skills/tech-lead/SKILL.md": 480 };
+  // LOWERED 480 → 155 for docs/workflow_migration_plan.md Stage 2, deliberately and on the record,
+  // same rule but in the other direction this time. Stage 1's raise (460 → 480) bought one dispatch
+  // note under `--unattended`/`--auto`; Stage 2 is the cutover this migration exists for — SKILL.md
+  // is rewritten to the thin shell the review's §6 sketch describes (L0 intake conversation ->
+  // init-run.mjs -> compile RunArgs -> launch `workflows/shapeup-run.js` -> branch on `RunReturn` ->
+  // gate conversations on pause -> relaunch -> L4/coach). Every gate from ORIENT through GATE H now
+  // resolves inside that script, in code; what used to be ~350 lines of per-gate collect-lists and
+  // GATE-output prose is either moved into the script's own comments (round-protocol.md's normative
+  // loop) or left as pure reference (`references/gates.md`, `references/hard-rules.md`) this file
+  // only points at. Landed at 121 lines. The 155 ceiling leaves headroom for the pause-protocol
+  // table to grow a row without immediately re-raising the ratchet, while still catching the class
+  // of regression this ratchet exists for: new orchestration logic going back into SKILL.md prose
+  // instead of the workflow script or a reference file.
+  const LINE_RATCHETS = { "skills/tech-lead/SKILL.md": 155 };
   for (const [rel, limit] of Object.entries(LINE_RATCHETS)) {
     const p = join(ROOT, rel);
     if (!existsSync(p)) { fail(`ratcheted file missing: ${rel}`); continue; }

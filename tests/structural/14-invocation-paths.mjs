@@ -96,8 +96,21 @@ export async function run(ctx) {
     }
   }
   if (wrong === 0) ok(`all ${literal} documented invocations use the literal \${CLAUDE_PLUGIN_ROOT} form and name the right owner`);
-  if (literal < 25) fail(`only ${literal} invocations found — the census counted 31; the scan is missing call sites`);
-  else ok(`${literal} invocations scanned (the censused population was 31)`);
+  // Floor LOWERED 25 -> 18 for docs/workflow_migration_plan.md Stage 2, deliberately and on the
+  // record (the census this floor guards moved from 36 to 21 in that stage's own diff). Stage 2's
+  // SKILL.md rewrite (the thin shell — see tests/structural/08-docs.mjs's ratchet, same commit)
+  // deletes the BUILD/EVAL/SHIP prose that used to inline ~15 of these `node "${CLAUDE_PLUGIN_ROOT}
+  // /..."` call sites directly in SKILL.md; those operations now run as CODE inside
+  // skills/tech-lead/workflows/shapeup-run.js (which invokes its own scripts through mech(), a
+  // form this scan does not and should not recognise — a workflow script has no permission-grant
+  // problem to guard against, it runs as the harness's own Bash tool call, not a model reading
+  // prose). The remaining literal invocations are real: GATE L0/L4's own scripts (init-run,
+  // gate-answers, ship-report) still run from SKILL.md's own conversation, and every reference file
+  // (gates.md, delegation.md, round-protocol.md) keeps its own copies for the tiny/scope-less lane
+  // this migration explicitly leaves on the old prose path. 18 leaves headroom below the current
+  // 21 without re-opening the floor to a silent drop toward zero.
+  if (literal < 18) fail(`only ${literal} invocations found — the post-migration census expects at least 18; the scan is missing call sites`);
+  else ok(`${literal} invocations scanned (post-migration floor: 18)`);
 
   // (3) The grant is a genuine prefix of every documented command.
   const initPath = join(ROOT, "bin/init.mjs");

@@ -8,6 +8,17 @@ EVAL phase. The feature is done when an EVAL round returns PASS.
 > SHARED spec dir. See tech-lead SKILL.md GATE L1b for the bootstrap step that regenerates it
 > when missing.
 
+**On a spec with committed scope contracts, this loop is now CODE, not prose** —
+`skills/tech-lead/workflows/shapeup-run.js`'s own `while (round <= args.budgets.maxRounds)` loop
+implements exactly the shape below (PASS → ship; `max_rounds` exceeded → GATE H `breaker: outer`;
+else the next round builds bugs only), with the EVAL-timing rule, the regression rule, and the
+three-level breaker all enforced as branches in that script rather than described here for a model
+to follow. Read that script's own comments for the mechanics; this file keeps the historical
+rationale and the parts of the protocol the script does not cover (ESCALATE adjudication,
+discovered-task reconciliation mid-BUILD, the QA `--recheck` promoted-item loop — see its banner
+for the full list) — and, unchanged, the loop below for a `--tiny` run or a spec with no scope
+contracts, which `shapeup-run.js` is out of scope for by design.
+
 ```
 round r = 1
 loop:
@@ -150,6 +161,11 @@ compares "ship without this scope" against the baseline, same as any other cut c
 is never silently dropped, and it is never allowed to block scopes that ARE working.
 
 ## Isolated attempt loop — one T0 attempt, in detail (scope contracts only)
+
+**This is `shapeup-run.js`'s inner per-scope loop, as code**, with one addition the prose below
+never had: before opening a scope's attempt loop, the script checks whether THIS round already
+has a green T0 verdict for that scope on disk, and skips it when it does — the resumability a
+mid-BUILD kill needs, that a session narrating this loop from memory could never guarantee.
 
 ```
 compile-order --scope … --round N --attempt M

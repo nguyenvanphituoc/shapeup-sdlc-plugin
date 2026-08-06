@@ -8,463 +8,114 @@ description: "Use this skill whenever the user wants to orchestrate a whole feat
 ## ▶ RUN THIS FIRST — do not summarise this file
 
 **Your first output must be a tool call, not a plan.** Everything you emit before the first tool
-call is narration, and a narrated run is a failed run: on the SDD harness benchmark a session that
-described this pipeline instead of executing it scored 29% with 10 escaped defects while reading
-like a clean success (Haiku 4.5, n=5, zero variance). A `Stop` hook (`hooks/gate-zerowork.mjs`)
-now blocks any session that dispatches this skill and leaves no run receipt, so a description is
-not an ending you can reach. Loading these instructions is not running them.
+call is narration, and a narrated run is a failed run (measured: 29% acceptance, 10 escaped
+defects, while reading like a clean success). `hooks/gate-zerowork.mjs` (Stop) blocks a session
+that dispatches this skill and leaves neither a receipt NOR a `Workflow` tool_use naming
+`shapeup-run` — loading these instructions is not running them.
 
-**Step 1 — open the run.** Right now, before any prose. **Write the requirement to a file first,
-then pass the path** — a multi-line requirement inlined into a shell argument is where this step
-goes wrong, and it is the difference between a run that starts and a run that fights its own
-quoting for six turns (measured):
+**Step 1 — open the run.** Write the requirement to a file first, then pass the path — a
+multi-line requirement inlined into a shell argument is where this step goes wrong (measured: six
+turns fighting shell quoting):
 
 ```bash
-# 1a. put the requirement somewhere (Write tool, or it is already on disk as a pitch/spec)
-# 1b. open the run against it
 node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/init-run.mjs" \
-  --slug <slug-from-the-request> \
-  --intake-file <path/to/the/requirement.md> \
+  --slug <slug-from-the-request> --intake-file <path/to/the/requirement.md> \
   --auto-level <interactive|auto|unattended> \
-  [--gate-answers <ci|guarded|path.json>] [--wall-clock-budget <seconds>] [--max-rounds 3] [--tiny]
+  [--gate-answers <ci|guarded|path.json>] [--wall-clock-budget <seconds>] [--max-rounds 3]
 ```
 
-`--intake-text "<text>"` also works and is fine for a one-line request. Piping works too:
-`cat spec.md | node .../init-run.mjs --slug x --intake-stdin …`.
+**Exit 3 means a run is ALREADY OPEN.** Resume it; do not re-open it. The refusal prints the
+derived RESUME STATE (slug, status, round, board counts) — read it and go straight to Step 2;
+`shapeup-run.js`'s own fast-forward will re-derive exactly where to continue from disk, never from
+this session's memory. `--force` re-opens deliberately and discards the round history the breaker
+counts.
 
-This writes `.shapeup/<slug>/{receipt.json,intake.md,harness-run.md}` and `active-scope`.
-It is the mechanical fact that the run started — every downstream guard reads it.
+**If this command comes back "requires approval", stop and say so.** These scripts ship with the
+plugin and need a one-time permission grant (`npx shapeup-sdlc init` writes it). Do not route
+around it, and do not silently hand-build the feature instead.
 
-**Step 1c — EXIT 3 MEANS A RUN IS ALREADY OPEN. Resume it; do not re-open it and do not restart
-the pipeline.** The refusal prints the run's real state (`RESUME STATE`: slug, status, round,
-attempt, board counts, dispatched-not-ingested orders), derived from files. Read `status` and
-continue from that phase — `orienting` → L1a, `mapping` → L1b, `building` → L2, `evaluating` → L3 —
-re-reading `harness-run.md` and the board first, and never re-dispatching an order that already has
-a result. **You will most often meet this in a fresh session with no memory of the run**, which is
-also when re-running intake and rebuilding the spec tree looks like the obvious thing to do; it is
-the measured cause of a handoff that spent 82–120 turns before its first write and recovered
-nothing. `--force` re-opens deliberately and discards the round history the breaker counts.
+**Language gate (delegated to `translator`, not this skill):** at GATE L0, before Step 2, dispatch
+an Agent (model: exec) that calls `Skill(shapeup-sdlc-plugin:translator) --check <intake>`.
+English → proceed as-is. Non-English → dispatch a second Agent (`--auto` under auto/unattended)
+and orchestrate against the produced `<name>.en.md`. The tech lead detects and sequences; it never
+translates itself.
 
-**If this command comes back "requires approval", stop and say so.** The harness's scripts ship
-with the plugin, so they live outside your project and need a one-time permission grant
-(`npx shapeup-sdlc init` writes it; it is `permissions.allow` in `.claude/settings.json`). Do not
-route around it with wrapper scripts or sub-agents, and do not silently hand-build the feature
-instead — an unrunnable harness is a real answer, and a feature built outside the harness with no
-board, no T0 and no verdict is exactly the un-evidenced "done" this whole project exists to stop.
+**Step 2 — pin GATE L0, then launch.** Collect the L0.1–L0.9 config (spec folder, lens, stack,
+eval dims, max_rounds, the model/budget matrix — see `references/gates.md` GATE L0 for the full
+collect-list), write the SHARED `project-profile.md` yourself (`{schema_version:1, archetype,
+entry_point}` — the only artifact this skill writes directly; `shapeup-run.js` has no filesystem
+of its own), emit the `⏸ GATE L0` block, then check the lane:
 
-**Step 1b — honour the lane the receipt gives you.** `init-run.mjs` computes it (GATE L0.3,
-`fit-check.mjs`) and prints it as `config.fit.lane`. `tiny` → orient (light) → single-task board →
-build → T0 → ⏸ L4; skip WIRE, scope contracts, spec tree, EVAL and QA. **Do not talk yourself into
-the full lane on a change the fit-check called tiny** — that is the measured cause of a benchmark
-feature that never once finished across four attempts: a three-file change run through eleven
-gates. The check is advisory (fitted on three features) and the PO may override with `--lane`, but
-*you* do not override it.
-
-**Step 2 — resolve the gate, don't reason about permission.** At every ⏸ gate, emit the gate
-block, then run:
-
-```bash
-node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/gate-answers.mjs" \
-  --resolve <L0|L1a|L1a.5|L1b|L2|L3|QA|H|L4|COACH-1> [--preset ci|--file <path>] [--slug <slug>]
-```
-
-Exit `0` → cross the gate and append the returned `ledger_row` to the Decisions log.
-Exit `4` → **stop and put the block to the PO.** Exit `5` → abort, quoting the reason.
-Never infer sign-off from prose in the prompt — under `--unattended`/`--auto`, sign-off comes
-from the answer set, and if there is no answer set, `--preset ci` / `--preset guarded` is the lane.
-
-**Step 3 — walk the pipeline**, in this order, delegating each step:
-`ORIENT → WIRE → MAP SCOPES → BUILD (compile-order → task-executor → ingest-result) → EVAL → QA → SHIP`.
-Each step is a delegation with an envelope, not a paragraph about a delegation.
-
-**Never do:** print the gate list and stop · promise what the harness "will" do · report a phase
-complete without the artifact it produces · cross a gate on your own authority.
-
-> The rest of this file is reference for those steps. Read the section you need when you reach it.
-
----
-
-The conductor over the build-phase skills. It does not orient, plan, build, or judge itself —
-it **sequences** the skills that do and puts decisions to the PO at gates.
+- **`--tiny`, or the spec has no committed `scopes/*.md` yet** (pre-v0.3.0 spec): `shapeup-run.js`
+  is out of scope for this lane by design (it targets scope-contract specs). Run the unchanged
+  legacy loop instead — `references/round-protocol.md` (BUILD(r)/EVAL) + `references/delegation.md`
+  carry the full step-by-step for both the tiny lane and a scope-less BUILD loop, verbatim, non-
+  regression. Stop reading this file here for that run.
+- **Otherwise** (the common case — a scoped spec, any auto level): compile `RunArgs` and launch:
 
 ```
-orient (scout)  →  ba-pitch-analyzer (planner)  →  task-executor (generator)  →  spec-evaluator (judge)
-   ORIENT (7)         MAP SCOPES (8)                    BUILD (9, loop)               EVALUATE (once)
+Workflow({
+  scriptPath: "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js",
+  args: { slug, autoLevel, answers, models: {exec, eval, qa}, budgets: {maxRounds, attemptBudget,
+          wallClockS}, pluginRoot: "${CLAUDE_PLUGIN_ROOT}", startedAt }
+})
 ```
 
-**Scope boundary.** Owns the Shape Up **Building phase (steps 7–11)** only. Shaping (1–4),
-Betting (5) and Kick-off (6) are PO-personal and upstream: intake is a *kicked-off pitch*, never
-a raw idea (D0/D1). **Orient runs before Map Scopes**, so `ba`'s board is reality-born from the
-Scout's code-surface map rather than imagined at kick-off.
+`shapeup-run.js` (`domain.schema.json` `$defs/RunArgs`/`RunReturn`) owns everything from ORIENT
+through GATE H and ship-report — every gate inside that range resolves via `gate-answers.mjs`'s
+exit code, in code, not by this skill's own reading of a paragraph.
 
-**The load-bearing rule — why this skill exists.** The evaluator runs **exactly once per build
-round, only after the board is 100% done.** Never per task. The tech lead is the only component
-that can enforce this timing, because no sub-skill sees the whole board.
+## Step 3 — the pause protocol: branch on `RunReturn.status`
 
-**Three invariants at every gate:**
+| `status` | What the workflow is telling you | What you do |
+|---|---|---|
+| `paused` | A gate resolved "ask" — `paused_at` names it, `block` is composed and ready | Emit `block` **verbatim** (never re-summarise it — that is the paraphrase channel this design exists to close). Put it to the PO, get a decision. Write it to `.shapeup/<slug>/gate-answers.json` (`{"version":1,"preset":"custom","answers":{"<paused_at>":{"decision":"<answer>"}}}`, merging with any prior gate's answer already there). **Relaunch the SAME `Workflow` call, same args** — the fast-forward re-derives from disk and re-dispatches nothing already done (verify: `orders/` minus `results/` is empty before it proceeds) |
+| `aborted` | A gate resolved "abort", or a hard stop (spec-lint red, scope-hammer CANNOT SHIP) | Report `aborted_at` + `reason` to the PO. Do not relaunch without a human decision — `--force` on `init-run.mjs` if truly restarting |
+| `gate_h` | A circuit breaker tripped (`breaker`: outer \| inner \| deadline) — `green_scopes` shipped nothing, `hammer_proposals` needs a census | Dispatch a fresh Agent (model: exec): `Skill(shapeup-sdlc-plugin:scope-hammer) --slug <slug> --breaker <breaker> [--scope <id>]` for the census + cut list, put the PO's decision to `references/gates.md` GATE H, then close out via Step 4 below |
+| `shipped` | The board's final round passed EVAL, QA ran, GATE H accepted the cut list, `report` names the frozen `shapeup/<slug>/REPORT.md` | Go straight to Step 4 |
 
-1. **Gate block first.** Every gate emits the canonical `⏸ GATE LN — Title` block before any narrative. Conversational output without the block is not a gate — it's a note.
-2. **Resolve, then cross.** Every crossing comes from `gate-answers.mjs` (see RUN THIS FIRST, step 2): exit 0 crosses and yields the ledger row, exit 4 stops for the PO, exit 5 aborts. Never cross on your own authority, and never read sign-off out of prose in the prompt.
-3. **Thin at L3 FAIL.** When listing bugs, name the scope (task ID + failed Done-when criterion). Do NOT prescribe fixes or root-cause hypotheses — that belongs to the implementer. The tech lead routes, it does not diagnose.
+**Never** treat a `paused` return as a stall to work around, and never invent an answer this skill
+did not actually receive from the PO — an unattended lane with no answer for a gate is meant to
+`abort` (see `gate-answers.mjs`'s `on_missing`), not silently proceed.
 
-> **Round loop, stop conditions, r=1 vs r>1 semantics** → `references/round-protocol.md`
-> **How each sub-skill is invoked + handoff files** → `references/delegation.md`
+## Step 4 — GATE L4 — Ship Sign-Off (this skill's own gate; the workflow never sees it)
+
+FIRST freeze the evidence — run state is gitignored, so `shapeup/<slug>/REPORT.md` (already
+written by `shapeup-run.js` via `ship-report.mjs`, or write it now on a `gate_h` close) is all a
+teammate sees. Then emit:
+
+```
+⏸ GATE L4 — Ship Sign-Off
+Feature   : [slug] — [SHIPPED (deployed) | BUILT & VERIFIED — deploy pending (PO)]
+Rounds    : [rounds_used]
+Verdict   : [verdict] (dims: [spec-conformance]; not evaluated: [dims_not_evaluated])
+QA        : [qa_findings] findings | skipped
+Ledger    : harness-run.md
+```
+Ask (max 1): "Anything to record before I close the run?" On substantive feedback, delegate
+`Skill(shapeup-sdlc-plugin:coach)` for RLHF (its own GATE COACH-1 — the tech lead never
+categorizes feedback itself). Then output the final `✅ [slug] …` line.
+
+## Scope boundary
+
+Owns the Shape Up **Building phase (steps 7–11)** only. Shaping (1–4), Betting (5) and Kick-off
+(6) are PO-personal and upstream: intake is a *kicked-off pitch*, never a raw idea. The tech lead
+never orients, plans, builds, or judges itself — `shapeup-run.js` **sequences** the skills that do
+and returns to the PO at every gate.
+
+> **Gate collect-lists + output-block formats** → `references/gates.md`
+> **How each sub-skill is invoked + handoff files (the envelope port)** → `references/delegation.md`
+> **The round loop, stop conditions, three-level breaker rationale** → `references/round-protocol.md`
 > **Run ledger format + Hill report** → `references/ledger-schema.md`
-> **State ownership, run receipt, domain registry, two-ledger split** → `references/state-model.md`
-
----
-
-## Workflow Overview
-
-```
-INTAKE  kicked-off pitch (shaped + bet by the PO) + project context
-⏸ L0    Intake & Run Config ....... receipt (L0.1), lane + answer set (L0.2), spec folder, lens,
-                                    stack, eval dims, max_rounds, budgets. No shaping here.
-▶ 7     ORIENT ................... delegate orient (Scout) → orient/: code-surface map, spike
-                                    findings, discovered-task seed, hill signal. Before any board.
-⏸ L1a   Orient Review ............ 🗻 area-level Hill; riskiest area + spike result.
-▶ 7.5 ✚ WIRE ..................... delegate solution-architect → wiring-map.md (UC → engine →
-                                    seam → entry-point call site → affordance).
-⏸ L1a.5 Wiring Review ............ every UC has a declared seam; no engine orphaned. Spine-only.
-▶ 8     MAP SCOPES ............... delegate ba-pitch-analyzer (orient-informed) → spec tree +
-                                    tasks/_index.md; then scope-architect → scopes/*.md.
-⏸ L1b   Board Review ............. slices, spine, ~ nice-to-haves, deps, scope. PO signs off
-                                    BEFORE any code is written.
-▶ 9     BUILD r .................. per dispatch: compile-order → task-executor(--order) →
-                                    ingest-result. r=1 all ready tasks; r>1 ONLY last EVAL's bugs.
-                                    Discoveries → ledger → reconcile order → back to L1b.
-⏸ L2    Build Round Complete ..... EVERY task status=done. Hook WARNS if not; you still decide.
-▶       EVAL r ................... delegate spec-evaluator --single-pass → ONE verdict + bugs.
-                                    Once over the whole feature. Never inside BUILD.
-⏸ L3    Verdict & Loop ........... 🗻 slice-level Hill + verdict. PASS → SHIP. FAIL → bugs →
-                                    BUILD r+1. Out of rounds/clock → GATE H.
-▶ 10    QA ....................... qa-edge-hunter, post-PASS, pre-ship. Discovers; never blocks.
-▶ 11    SHIP / GATE H ............ scope-hammer: census, baseline comparison, cut list.
-⏸ L4    Ship Sign-Off ............ PO confirms before close.
-✅      shipped, ledger closed, verdict recorded
-```
-
-## Precondition — English-only intake (delegated to `translator`)
-
-The whole harness (`ba-pitch-analyzer`, `task-executor`, `spec-evaluator`) is English-only
-end to end and HARD-FAILs on anything else. The tech lead does **not** translate — that is a
-separate single-purpose concern owned by the **`translator`** skill. The orchestrator only
-*detects* the gap and *sequences* the translator before PLAN; it never does the translation
-itself.
-
-At GATE L0 the tech lead dispatches an Agent (model: exec — see references/delegation.md
-"Invocation mechanism") that calls `Skill(shapeup-sdlc-plugin:translator) --check <intake>`:
-- **English** → proceed straight to ORIENT against the original.
-- **non-English** → dispatch a second Agent (model: exec) that calls
-  `Skill(shapeup-sdlc-plugin:translator) <intake>` (pass `--auto` under `--auto`/`--unattended`),
-  then orchestrate against the produced `<name>.en.md` copies. Record the translator pass in
-  the ledger.
-
-The tech lead's job stays orchestration faithful to Shape Up: kicked-off pitch → ORIENT →
-MAP SCOPES → BUILD rounds → single end-of-round EVAL → SHIP. Language normalization is
-upstream and out of scope here.
-
----
-
-## GATE L0 — Intake & Run Config
-
-**L0.0 — INTAKE PRECONDITION** (`hooks/gate-intake.mjs`, rationale in `references/gates.md`): no pitch/spec/requirement text → **ABORT**, never narrate the pipeline.
-**L0.1 — OPEN THE RUN** (`scripts/init-run.mjs`): the first tool call of the run, before any prose. Writes `receipt.json` + `intake.md` + `harness-run.md` + `active-scope`. A session that reaches `Stop` having dispatched this skill with no receipt is blocked by `hooks/gate-zerowork.mjs` — narration is not a reachable ending.
-**L0.2 — RESOLVE THE LANE** (`scripts/gate-answers.mjs`): under `--auto`/`--unattended`, verify the answer set covers every gate this lane will hit (`--verify --auto-level <level>`) BEFORE ORIENT. A missing or `ask` answer in a headless lane is a stall that spends the whole wall-clock budget and reports as a slow harness — catch it in the first ten seconds instead. `--unattended` defaults to `--preset ci`, `--auto` to `--preset guarded`.
-Then pin the run config once, up front (pitch source, language gate, appetite, workspace roots, lens, stack, eval dims, max_rounds, auto level, the L0.8 model/budget matrix, L0.9 attempt_budget); emit the `⏸ GATE L0` block, wait for PO confirm (proceed under `--unattended`), don't start ORIENT until confirmed.
-→ **Playbook (collect list L0.1–L0.9 + gate-output block):** `references/gates.md` — GATE L0.
-
----
-
-## ORIENT (step 7) — delegate to orient (the Scout)
-
-Building opens with Orient, not planning: dispatch `orient` (model: exec) to read real code + spike the scary parts, writing the four `orient/` artifacts that are the orient → ba contract.
-→ **Playbook (invoke line, artifacts, ledger record):** `references/gates.md` — ORIENT.
-
----
-
-## GATE L1a — Orient Review
-
-First Hill read (area-level): render the 🗻 Hill from `hill-signal.md`, print code-surface headline + spiked area + result + riskiest unknowns, ask ≤2; don't enter MAP SCOPES until Orient is accepted.
-→ **Playbook:** `references/gates.md` — GATE L1a.
-
----
-
-## WIRE (step 7.5) + traceability spine ✚ — delegate to solution-architect
-
-Spine-only (self-skips on a legacy spec): you write `project-profile.md` at L0; `solution-architect` (`wire`) is the sole writer of `wiring-map.md`; `ba` writes the `requirements.md` registry (`coverage`); `trace-lint` runs ADVISORY at L1b. ⏸ GATE L1a.5: confirm each UC has a declared seam before slicing.
-→ **Playbook (PROFILE/WIRE/COVERAGE/trace-lint steps):** `references/gates.md` — WIRE / L1a.5.
-
----
-
-## MAP SCOPES (step 8) — delegate to ba-pitch-analyzer (orient-informed)
-
-Two orders, two workers, one step: `ba-pitch-analyzer` (`analyze`) writes the spec tree + board from the orient artifacts (no re-scan); `scope-architect` (`map-scopes`) is the sole writer of the committed `scopes/*.md` contracts. Keep the planner ambitious on scope, high-level on tech.
-→ **Playbook (both compile-order lines, faithful/deviation notes):** `references/gates.md` — MAP SCOPES.
-
----
-
-## GATE L1b — Board Review (Plan Acceptance)
-
-PO sees the shape before any code — scope cut/confirmed here (cheap now, expensive later): on a scoped spec the PO reviews the SHARED plan (usecases + `scopes/*.md` + scope-summary), never the LOCAL board; bootstrap a missing board via a generate-board order; re-assert disjointness + PA1/PA2 (`spec-lint.mjs`); order scopes riskiest-first; ask ≤2; don't enter BUILD until accepted.
-→ **Playbook (bootstrap check, scoped/legacy reads, disjointness assertion):** `references/gates.md` — GATE L1b.
-
----
-
-## BUILD round r — compile order → dispatch → ingest result → verify
-
-> **`--unattended`/`--auto` with scope contracts present (migration Stage 1 — dev/test lane, not a
-> shipped dual path):** dispatch via `Workflow({scriptPath:
-> "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-build-round.js", args: {slug, round,
-> scopes, attemptBudget, models, pluginRoot: "${CLAUDE_PLUGIN_ROOT}", startedAt, answers}})`
-> instead of the loop below. It runs the attempt loop, GATE L2, EVAL, and GATE L3 itself, and
-> returns `domain.schema.json` `$defs.RunReturn`'s `{status: ok|paused|aborted|gate_h, …}` —
-> branch on `status` exactly as a gate-answers exit code: `paused` → emit `block` verbatim;
-> `aborted` → report `reason`; `gate_h` → hand `hammer_proposals` to scope-hammer; `ok` → ledger
-> the `verdict`/`green_scopes` and continue. Stage 3 deletes this asymmetry once `shapeup-run`
-> exists; every other invocation shape still follows the steps below.
-
-**The pipeline sub-layer (pure-skill architecture v1.0).** Every dispatch to a worker is four
-mechanical calls — the WorkOrder/WorkResult envelopes are the harness's canonical port, and
-the two pipeline scripts (not the workers) own all shared-state reads/writes. Every script path
-below is written in full because that is the exact shape `npx shapeup-sdlc init` grants in
-`permissions.allow` — run them as written; do not shorten them.
-
-```
-a. COMPILE  node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/compile-order.mjs" …        → .shapeup/<slug>/orders/<id>.json
-b. DISPATCH Agent (model: exec) — fresh subagent, the zero-memory-handoff boundary:
-            Skill(shapeup-sdlc-plugin:task-executor) --order <order path>
-            The worker implements, then writes its WorkResult envelope to
-            .shapeup/<slug>/results/<same id>.json (its output contract). It writes NO
-            board/ledger/run-state files itself.
-c. INGEST   node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/ingest-result.mjs" <result path>
-            → ticks AC boxes, flips task/board status, appends the Execution Log, propagates
-              unblocks, appends discoveries to the ledger, queues any ESCALATEs — schema-
-              validated, deterministic, the single writer of shared state (D6, closed).
-d. VERIFY   (scope contracts only) node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/t0-verify.mjs" …
-```
-
-A `validate-envelope.mjs` PreToolUse hook denies any dispatch whose `--order` file is missing
-or schema-invalid — a malformed order never reaches a worker.
-
-**No scope contracts (pre-v0.3.0 spec, or a scope-less run):**
-```
-r = 1 (first build):
-  Loop until compile-order --next reports no ready task (board all ✅):
-    a. node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/compile-order.mjs" --next --slug <slug> [--test-cmd "<cmd>"]
-    b. dispatch (fresh Agent, model: exec): Skill(shapeup-sdlc-plugin:task-executor) --order <path>
-    c. node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/ingest-result.mjs" .shapeup/<slug>/results/<id>.json
-  SPIKE tasks resolve first (they block; compile-order's dependency check enforces the order).
-
-  Discovered Tasks:
-  ingest-result appends any discoveries[] to the ledger. When the board finishes with new
-  ledger entries, compile a reconcile order for the planner:
-    node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/compile-order.mjs" --operation reconcile --slug <slug>
-      --worker ba-pitch-analyzer --payload '{"discovered_ledger": ".shapeup/<slug>/discovery/ledger.md"}'
-  dispatch it, ingest its result, then route back to GATE L1b (Board Review) for PO approval
-  before resuming BUILD on the newly generated tasks.
-
-r > 1 (fix build, after a FAIL):
-  Input = the bug list in evaluation/EVAL-FEATURE-<slug>.md from the previous EVAL.
-  Build ONLY those bugs: per bug,
-    node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/compile-order.mjs" --task <id> --slug <slug> --operation fix
-      --payload '{"bugs": [<the bug entries for this task>]}'
-  then dispatch + ingest as above. Do NOT re-run the whole board. Do NOT touch passing areas.
-```
-Record per task in the ledger: task id, status, files touched (all read from the WorkResult).
-
-**Scope contracts present — the isolated attempt loop (design spec §3.5/§5.1, Blueprint A):**
-```
-For each scope in the L1b sequence (riskiest-first), not yet FINISHED:
-  0. checkout(branch-of-scope)  — branch-per-scope isolation (PA3/PA5). Write the pointer
-     .shapeup/active-scope = {slug, scope_id} — this is what the PreToolUse sandbox
-     hook reads to enforce the scope's allowed_file_substrate on every Edit/Write this round.
-
-  for attempt in 1..attempt_budget (L0.9, default 5):
-    a. node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/compile-order.mjs" --scope shapeup/<slug>/scopes/<id>.md
-         --round <N> --attempt <M> [--test-cmd "<cmd>"]
-       → orders/r<N>-a<M>.json: scope contract + tasks + ledger decisions + `trial_history` —
-         the last 8 trials from t0/trials.jsonl, CROSSING the round boundary, each with score,
-         status and top-3 digest. No chat history (zero-memory handoff, PA6): facts only.
-    b. dispatch Agent (model: exec) — a fresh subagent, this IS the zero-memory-handoff
-       boundary: Skill(shapeup-sdlc-plugin:task-executor) --order <path>
-    c. node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/ingest-result.mjs" .shapeup/<slug>/results/r<N>-a<M>.json
-       Escalates queued by ingest → dispatch Agent (model: exec):
-       Skill(shapeup-sdlc-plugin:advisor-protocol) --ledger round-ledger.md
-       --escalate <block> [--unattended]; persist the answer immediately (it must survive
-       the next attempt's fresh context — compile-order reads it back from the ledger).
-       Cap: 3/scope/round (advisor-protocol's own budget).
-    d. t0 = run `node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/t0-verify.mjs" <scope-contract> --round <N> --attempt <M>
-       --seesaw-registry .shapeup/<slug>/seesaw/registry.json`
-       → writes t0/verdicts/r<N>-a<M>-t<T>.json (spec-evaluator must cite it at L2/EVAL) and
-         appends a row to t0/trials.jsonl. The `-t<T>` term + a `wx` write mean a retry of the
-         same attempt lands BESIDE its predecessor — no verdict is ever overwritten (I4).
-    e. THE RATCHET. t0-verify already scored this attempt against the last kept one and acted
-       on the tree. Do not branch on red/green — read `status` from its output:
-         kept      strictly better (incl. RED-BUT-IMPROVED, 2/5 → 4/5 — the whole ratchet).
-                   Tree snapshotted. overall=green → break the loop (DOWNHILL_EXECUTION);
-                   else continue, and attempt N+1 now builds ON attempt N.
-         reverted  not better (a tie is not better); tree already restored from the last kept
-                   snapshot. Subsumes the old seesaw `git stash` branch — a regression raises
-                   score.regressions and reverts through this same rule.
-         rebased   incomparable (fixtures_total changed by a split/remap); tree kept, baseline
-                   reset — not a verdict, not a failure.
-         crash     spawn failure/timeout; tree restored. Fix the fixture, not the code.
-  if attempt_budget is exhausted without green, OR compile-order prints the stagnation breaker
-  on stderr (`no_progress_k` consecutive non-kept trials, L0.9, default 2) → inner circuit
-  breaker tripped. Do NOT block the round. Queue a hammer PROPOSAL (scope_id + last t0
-  artifact + reason) for GATE H, and move to the next scope in sequence.
-
-Discovered Tasks (unchanged mechanism, now scope-aware):
-  If a scope's discoveries don't fit its own substrate, compile a remap order for the
-  scope-architect (sole writer of scope contracts):
-    node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/compile-order.mjs" --operation remap --slug <slug>
-      --worker scope-architect --payload '{"discovered_ledger": ".shapeup/<slug>/discovery/ledger.md"}'
-  dispatch + ingest — it may extend a scope or propose a new one; it never silently widens a
-  substrate. Route back to GATE L1b for the delta before resuming.
-```
-Record per attempt in `harness-run.md` (LOCAL): scope_id, attempt, t0 overall, files touched.
-Record per scope in the committed `round-ledger.md` (SHARED, Tier A) the moment it settles:
-final hill phase this round + any ESCALATE decisions (design spec addendum F.3 — a decision
-made must survive a crash, so it is promoted immediately, not batched to round close).
-
----
-
-## GATE L2 — Build Round Complete
-
-**Purpose:** The single most important gate — it is the **only** thing that unlocks the
-evaluator. No evaluation runs while any task is unbuilt.
-
-> **Runtime-enforced (not honor-system).** A `PreToolUse` hook (`hooks/gate-l2.mjs`) hard-blocks
-> the once-per-round EVAL delegation (`spec-evaluator --single-pass`/`--feature`, no `--task`) when
-> `tasks/_index.md` is not fully green — the deny message names the unfinished tasks. You still emit
-> the gate block below for the PO; the hook is the backstop that makes "never EVAL on a partial
-> board" a precondition the model cannot talk past. Per-task evals (`--task`) are intentionally not
-> gated.
-
-```
-L2.1  Read tasks/_index.md. Assert: every task status = done (board fully green).
-      → If any task is ready/in-progress/blocked: BUILD is not complete. Return to BUILD.
-        Never proceed to EVAL on a partial board — the L2 hook only WARNS now (ADR-0001).
-L2.2  Tech-lead judgment call (surface, default = run eval):
-      Is this feature within what the model builds reliably solo (trivial CRUD, tiny scope)?
-      If clearly yes, offer to SKIP evaluation this run (--no-eval) — the evaluator is not a
-      fixed yes/no; it earns its cost when work sits beyond easy solo capability.
-      Default: run the single eval pass.
-L2.3  T0 completeness pre-check (scope contracts only — avoids a wasted EVAL dispatch that
-      spec-evaluator's own GATE V0.7 would hard-stop anyway): every scope reaching this round
-      boundary as DOWNHILL_EXECUTION or FINISHED must have a t0/verdicts/r<N>-*.json with
-      overall=green. A scope only present as a hammer PROPOSAL (attempt_budget exhausted) is
-      fine — it's not claiming done, it's queued for GATE H.
-L2.4  Hill derivation (mechanical facts only, DD-10 — scope contracts only; falls back to the
-      open-unknowns heuristic in references/ledger-schema.md "Hill report" when no contracts
-      exist). Per scope, from this round's t0 artifact + the latest spec-evaluator verdict +
-      seesaw result — never self-reported by any worker:
-        UPHILL_UNKNOWN     open_unknowns > 0 in the ledger for this scope
-        UPHILL_SOLVED       unknowns = 0, no T0-green attempt recorded yet this run
-        DOWNHILL_EXECUTION  ≥1 T0-green attempt; T1 PASS or seesaw still pending
-        FINISHED            T1 PASS AND seesaw green AND merged to main
-      Write/update hill/<scope-id>.yml (committed shard, single-writer = whoever holds that
-      scope's branch — addendum Δ2) and regenerate hill-chart.md from all shards.
-```
-
-**GATE L2 Output:**
-```
-⏸ GATE L2 — Build Round [r] Complete
-Board        : [N]/[N] tasks ✅
-T0           : [n/a | [k]/[k] touched scopes T0-green]
-Ready to EVAL: yes
-Eval plan    : spec-evaluator --feature [slug] --single-pass   (dims: [spec-conformance])
-```
-Emit this block, then **stop and wait for PO confirmation** (interactive/--auto) before delegating to spec-evaluator. This is the PO's last chance to cut scope or skip eval (`--no-eval`) before the evaluator runs — make that explicit. Under --unattended, proceed.
-
----
-
-## EVAL round r — delegate to spec-evaluator (ONCE)
-
-```
-Compile the eval order (pins spec folder, feature, dimensions, run command, T0 artifacts):
-  node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/compile-order.mjs" --operation evaluate --slug <slug>
-    --worker spec-evaluator --round <r>
-    --payload '{"dimensions": ["spec-conformance"], "run_cmd": "<cmd>",
-                "t0_artifacts": [<per-scope t0/verdicts paths from GATE L2.3>]}'
-Invoke via Agent (model: eval — see references/delegation.md "Invocation mechanism") ONE
-feature-level pass over the whole running app:
-  Skill(shapeup-sdlc-plugin:spec-evaluator) --order <path>
-  (the legacy `--spec <path> --feature <slug> --single-pass` form still works standalone;
-   the GATE L2 hook gates both shapes)
-The evaluator exercises the running feature against ALL acceptance criteria + Done-when,
-writes ONE evaluation/EVAL-FEATURE-<slug>.md (verdict + bug list) + its WorkResult. Then
-ingest: node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/ingest-result.mjs" .shapeup/<slug>/results/evaluate-r<r>.json
-— ingest appends the verdict ledger lines and un-ticks refuted AC boxes; the judge itself
-never touches the board and never sets status: done.
-Record in ledger: eval duration, verdict, bug count.
-```
-This is the single point where the evaluator runs in a round. It is not called per task,
-not called inside the BUILD loop, not called before GATE L2.
-
----
-
-## GATE L3 — Verdict & Loop
-
-Render the 🗻 Hill report (slice-level, never a task count) + read the EVAL verdict. PASS → first PASS (unless `--no-qa`) delegates the QA Edge Hunt then SHIP; subsequent PASS runs `--recheck` on promoted items then SHIP. FAIL → print bugs by task/severity (name scope, never prescribe fixes), ask ≤1 to approve a bug-only BUILD r+1, stop + escalate if r+1 > max_rounds. Emit the `⏸ GATE L3` block.
-→ **Playbook (PASS/FAIL scripts + gate-output block):** `references/gates.md` — GATE L3.
-
----
-
-## SHIP (step 11) — close out
-
-S.0 GATE H is delegated to `scope-hammer` (Shape Up's "Decide When to Stop") — census, baseline comparison, cut list + verdict; the tech lead records the PO decision and performs the close, never ships on its own. Then confirm board green + PASS, assert checklist hygiene, print the summary (incl. dims NOT evaluated), never auto-deploy, harvest one facts-only metrics row.
-→ **Playbook (S.0–S.6):** `references/gates.md` — SHIP.
-
----
-
-## GATE L4 — Ship Sign-Off
-
-FIRST freeze the evidence — run state is gitignored, so `shapeup/<slug>/REPORT.md` is all a teammate sees: `node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/ship-report.mjs" --slug <slug>` (derived from artifacts, never from your summary). Then emit the `⏸ GATE L4` sign-off block (feature state, rounds, verdict + dims not evaluated, QA status, ledger), ask ≤1; substantive PO feedback → auto-delegate `coach` (its own GATE COACH-1); then output the final `✅ [slug] …` line.
-→ **Playbook (sign-off block + coach hand-off):** `references/gates.md` — GATE L4.
-
----
+> **State ownership, the central domain registry, two-ledger split** → `references/state-model.md`
+> **Hard rules this design enforces, and why** → `references/hard-rules.md`
+> **Full invocation examples + the complete flag table** → `references/invocation.md`
+> **The small-change lane (`--tiny`)** → `references/tiny-lane.md`
 
 ## Invocation
 
-`/tech-lead --pitch <shaping.md> --spec <spec/> --lens standard` for an interactive run; `--auto` (pause only at L1a/L1b/L3/L4), `--unattended` (headless/CI), `--from build` (resume), `--no-eval`/`--no-qa` to skip passes.
-
-**`--tiny`** — small-change lane: `⏸ L0 fit-check → orient (light) → build → T0 → ⏸ L4`. Ceremony scales down (WIRE/contracts/spec-tree/EVAL/QA/retro skipped); the floor does not (envelope dispatch + T0 + `lane: tiny` ledger row). Fit-check mandatory; outgrown mid-build ⇒ STOP, escalate. → `references/tiny-lane.md`.
-→ **Full invocation examples + the complete flag table:** `references/invocation.md`.
-
----
-
-## Hard Rules (never override without explicit user instruction)
-
-| Rule | Rationale |
-|------|-----------|
-| Orchestrates Building only (steps 7–11); shaping/betting/kick-off are PO-personal, upstream | Intake is a kicked-off pitch, not a raw idea — the tech lead does no shaping/planning-authority work |
-| ORIENT (step 7) runs before MAP SCOPES (step 8) | Roadmap: no pre-divided tasks at kick-off; the team orients first so the board is reality-born |
-| Intake must be English before ORIENT; tech lead does NOT translate — it delegates to `translator` at GATE L0 | Translation is a separate single-purpose skill; orchestrator only detects + sequences |
-| Tech lead is the SOLE WRITER of run-state (`harness-run.md`); workers get run metadata as args | Stateless workers, one stateful orchestrator — don't fragment run-state across worker files; protects `--from` resume |
-| Every worker dispatch goes through the envelope port: compile-order → `--order` → ingest-result; shared state is written ONLY by ingest | The single-writer rule is mechanically true (D6 closed): a worker that writes boards/ledgers/run-state is a defect, and a malformed envelope is denied by the validate-envelope hook before it can corrupt run truth |
-| Progress is reported by Hill position, never by counting tasks | The roadmap forbids task-counting; a 90%-done slice can still be stuck uphill on the one unknown that matters |
-| Discovered tasks are reconciled and reviewed | Discoveries land in the ledger via ingest; dispatch a reconcile order (ba-pitch-analyzer) and route back to GATE L1b; do not ignore them |
-| Evaluator runs once per round, only after GATE L2 (board 100% done) | The whole point: cheap end-of-round QA, never per task |
-| Evaluator never called inside the BUILD loop | Keeps the build coherent and the run cheap |
-| r>1 builds bugs only, never the whole board | Don't re-do passing work; minimize churn |
-| Stop at max_rounds; escalate honestly | No infinite fix loops; the PO decides next |
-| Tech lead delegates, never reimplements a sub-skill | Stays thin; each skill keeps its own gates and authority |
-| Every delegation to a sub-skill (except the mechanical `t0-verify.mjs`) goes through the `Agent` tool on the L0.8-resolved model, never a direct `Skill` call from the tech lead's own turn | A direct `Skill` call runs inline on the orchestrator's own model — it silently drops the model matrix (nothing left to route) and the zero-memory-handoff isolation task-executor's isolated attempt loop already assumes; see references/delegation.md "Invocation mechanism" |
-| Planner stays high-level on tech | Spec errors cascade into every build round |
-| Never auto-deploy; "shipped" never silently means "deployed" | Deploy is outward-facing, PO-gated; record "deploy pending (PO)" otherwise |
-| "Shipped" names the dims NOT evaluated | Prevents reading a spec-only PASS as fully verified |
-| Every gate emits the canonical `⏸ GATE LN — Title` block before any narrative | Conversational output is not a gate; the block is the handoff contract |
-| In interactive/--auto: emit the gate block, then stop and wait for PO confirmation | Never auto-proceed past a gate; the PO must cross each threshold explicitly |
-| At GATE L3 FAIL: name scope (task + failed criterion), never prescribe fix options | Root cause analysis and fix paths belong to the implementer, not the orchestrator |
-| Max questions per gate: L0/L1a/L1b = 2; L3/L4 = 1 | Gates are pauses, not interrogations; excess questions shift authority to the wrong role |
-| SHIP harvest records facts only — copies existing structured output, never computes a new verdict/score | A self-computed score = a second judge behind spec-evaluator (breaks single-judge, invites Goodhart); the eval suite interprets, harvest records |
-| Three-level circuit breaker: attempt_budget (inner, per scope) nests inside round_budget (outer), with an opt-in wall_clock_budget_s deadline | An exhausted scope queues a GATE H hammer proposal, it never blocks the round; only round_budget hitting 0 stops the whole run; the deadline breaker routes to GATE H so a run out of clock still ships what is green instead of being killed from outside |
-| The tech lead never hand-edits a scope contract | scope-architect is its sole writer (single-writer-per-file, addendum C4); a substrate-expansion is routed through advisor-protocol → a scope-architect remap order |
-| Substrate-disjointness + PA1/PA2 lints are re-asserted at GATE L1b (spec-lint.mjs) even when scope-architect already checked them | A human may have hand-approved past a 🔴 at the architect's checkpoint; the orchestrator's own gate is the last line before BUILD starts writing |
-| Hill phase is read from mechanical facts (T0/T1/seesaw), never declared by a worker | DD-10 — closes the self-reported-confidence risk (R3) outright |
-| ESCALATE answers promote to the committed round-ledger the instant they're given | Zero-memory handoff means a decision kept only in a session vanishes with the next attempt's fresh context |
-| GATE H is delegated to scope-hammer, never adjudicated inline by the tech lead | Keeps the orchestrator thin; census/baseline-comparison/cut-list logic has one owner |
-| GATE L1b reviews the SHARED plan (usecases/scopes), never the LOCAL task board; a missing local board is bootstrapped via a generate-board order, never treated as a blocker | `tasks/` is a LOCAL, gitignored, regenerable execution-planning artifact (v3.2) — the PO gate and grading both moved to the committed spec it was derived from |
-
+`/tech-lead --pitch <shaping.md> --spec <spec/> --lens standard` for an interactive run; `--auto`
+(pause only at L1a/L1b/L3/L4), `--unattended` (headless/CI), `--from build` (resume), `--no-eval`/
+`--no-qa` to skip passes. **`--tiny`** stays a prose-only lane (`references/tiny-lane.md`) —
+`shapeup-run.js` targets specs with committed scope contracts; a tiny change or a pre-scope-
+contract spec runs the unchanged v0.2.6 flow this file's Hard Rules already describe.
