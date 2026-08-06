@@ -1012,8 +1012,6 @@ export async function run(ctx) {
     // Rule 1 — day2-failure-class.schema.json:40: "hypothesized = reasoned, never seen — MUST NOT
     // claim a reduction." A class discovered only by hypothesis has no rate behind it; letting it
     // set `reduces` is the F1 fabrication wearing a different field name.
-    // Cite as any of: schema:40|day2-failure-class.schema.json:40|schema.json:40 — the pipe-joined
-    // spelling is load-bearing for the acceptance grep; do not tidy it into one form.
     if (c.discovered_by && c.discovered_by.kind === "hypothesized" && c.reduces !== null) {
       fail(`${tag} is discovered_by.kind="hypothesized" but reduces=${c.reduces} — a class never seen may not claim a reduction (day2-failure-class.schema.json:40)`);
     } else {
