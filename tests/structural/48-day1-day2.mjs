@@ -1005,6 +1005,61 @@ export async function run(ctx) {
     } else {
       fail(`${tag} claims reduces=${c.reduces} without two measured rates and a stated basis — this is the F1 fabrication in Day-2 clothing`);
     }
+
+    // ---- Five runtime guard rules, moving the register's honesty invariant from prose to a
+    // check that fails a build (§4.3's mutation left the suite green at 1254 before these existed).
+
+    // Rule 1 — day2-failure-class.schema.json:40: "hypothesized = reasoned, never seen — MUST NOT
+    // claim a reduction." A class discovered only by hypothesis has no rate behind it; letting it
+    // set `reduces` is the F1 fabrication wearing a different field name.
+    if (c.discovered_by && c.discovered_by.kind === "hypothesized" && c.reduces !== null) {
+      fail(`${tag} is discovered_by.kind="hypothesized" but reduces=${c.reduces} — a class never seen may not claim a reduction (day2-failure-class.schema.json:40)`);
+    } else {
+      ok(`${tag} does not let a hypothesized discovery claim a reduction`);
+    }
+
+    // Rule 2 — a measured rate must carry measured_at. One rung up from §48(e):936, which already
+    // applies this to the single Day-1 loop baseline; here it applies per class, per rate.
+    for (const which of ["baseline", "current"]) {
+      const r = c[which];
+      if (r && r.status === "measured") {
+        if (r.measured_at) ok(`${tag} ${which} measured rate carries measured_at`);
+        else fail(`${tag} ${which} says 'measured' but carries no measured_at — an undated measurement is not reproducible evidence`);
+      }
+    }
+
+    // Rule 3 — reduction_basis "sampled" requires n on both rates (a sampled claim with no
+    // population size cannot be re-checked by anyone but the person who made it).
+    if (c.reduction_basis === "sampled") {
+      const missingN = ["baseline", "current"].filter((w) => c[w] && (c[w].n === null || c[w].n === undefined));
+      if (missingN.length === 0) ok(`${tag} sampled basis carries n on both rates`);
+      else fail(`${tag} reduction_basis="sampled" but ${missingN.join(" and ")} carries no n — a sampled claim needs a population size`);
+    }
+
+    // Rule 4 — reduction_basis "sampled" requires harness_build on both rates. The mechanical form
+    // of §4.2b: a sampled comparison whose rates cannot be tied to a build is not a comparison.
+    if (c.reduction_basis === "sampled") {
+      const missingBuild = ["baseline", "current"].filter((w) => c[w] && !c[w].harness_build);
+      if (missingBuild.length === 0) ok(`${tag} sampled basis carries harness_build on both rates`);
+      else fail(`${tag} reduction_basis="sampled" but ${missingBuild.join(" and ")} carries no harness_build`);
+    }
+  }
+
+  // Rule 5 — the anti-double-count rule (§5: "one experiment, one clearance"). A class with
+  // non-empty co_attributed_to is not claiming an independent clearance; a class it names may not
+  // separately claim reduces=true from the SAME measured_at + harness_build pair — that would count
+  // one experiment as two clearances. Checked as its own pass because it reads across two classes.
+  const pairKey = (r) => (r ? `${r.measured_at}|${r.harness_build}` : null);
+  for (const c of reg.classes || []) {
+    for (const coId of c.co_attributed_to || []) {
+      const co = (reg.classes || []).find((x) => x.id === coId);
+      if (!co) continue;
+      if (co.reduces === true && pairKey(co.current) === pairKey(c.current)) {
+        fail(`${co.id} claims reduces=true from the same measured_at+harness_build pair as ${c.id}'s current rate, and ${c.id}'s co_attributed_to already names ${co.id} — one experiment, one clearance`);
+      } else {
+        ok(`${co.id} does not independently re-claim the experiment ${c.id}'s co_attributed_to already attributes to it`);
+      }
+    }
   }
   if (seen.size >= 5) ok(`failure register carries ${seen.size} classes`);
   else fail(`failure register carries only ${seen.size} classes — too thin to be the Day-2 rung's evidence`);
