@@ -28,7 +28,7 @@
       "baseline": {
         "status": "measured",
         "unit": "rate",
-        "value": 1.0,
+        "value": 1,
         "n": 5,
         "method": "sdd-harness-bench F2, tech-lead dispatched as args:\"--unattended\" at harness_build a280e86 (git describe: v1.3.0-15-ga280e86); the pathology occurred in all five runs (zero variance) — FINDINGS.md §F-11's 'v1.3 (pilot), n=5' row (29% acceptance, 10 escaped, median wall 37.5s / median cost $0.064, reconciling to the five scored:true pre-fix rows in results/runs.jsonl); both of FC-01's registered tools (init-run.mjs, hooks/gate-zerowork.mjs) are verifiably absent at a280e86 (git cat-file -e), which is what makes this a legitimate before-state",
         "measured_at": "2026-07-27",
@@ -38,15 +38,31 @@
       "current": {
         "status": "measured",
         "unit": "rate",
-        "value": 0.0,
+        "value": 0,
         "n": 3,
-        "method": "sdd-harness-bench @ dff1bf2, results/v15-haiku-f2.log (FINDINGS.md §F-11's post-fix reps, 14/14 acceptance x3); failureMode() classifies all three runs 'ok', none 'narrated' — 0/3; Fisher exact one-tailed vs the 5/5 baseline p=0.0179, one-sided 95% upper bound on the post-fix rate 0.632, so 'the rate fell from 1.0' is supported and 'this now happens under 5% of the time' is not. the contradiction: these rows are labelled harness_build a280e86 in runs.jsonl and each recorded receipt ✓, but the receipt is written by init-run.mjs, which does not exist at a280e86 (git cat-file -e) — a run cannot emit an artifact from a script its build lacks, so the a280e86 label is refuted and harness_build is recorded null here rather than repeating a build id this run cannot have come from",
-        "measured_at": "2026-07-27",
+        "measured_at": "2026-08-06",
         "model": "claude-haiku-4-5-20251001",
-        "harness_build": null
+        "harness_build": "v1.6.3+e08082c685dc",
+        "method": "sdd-harness-bench @ 16fb752, arm-tagged rows in results/runs.jsonl (arm=day2-armA, n=3): failureMode() classifies all three runs 'built_and_failed', 'ok', 'ok' — 0/3 narrated, 3/3 receipts present, harness_build v1.6.3+e08082c685dc (v1.6.3 (e08082c685dc) packed), cost $5.32. Pre-registered attribution (contract.md Stage 2, decided joint: Arm B — grant withheld — recorded 0/3 receipts and 0 scored rows; init-run.mjs never ran, so FC-01's registered tools never fired. The acceptance those Arm B runs would have scored is 0.286 x3, the pilot baseline's own 29% reproduced at zero variance. FC-02's grant is a PRECONDITION, not merely load-bearing, for FC-01's reduction, so reduces:true is claimed jointly with co_attributed_to:['FC-02']). Caveat: one feature, one model, an author-run benchmark — FINDINGS.md §F-11's limit travels with this number: fixing the collapse converted a fake cheap loss into a real expensive pass, and on this cell the harness matches the no-harness control at many times the cost. FC-01's tools removed a defect; that is not the same as the harness being worth running."
       },
-      "reduces": null,
-      "reduction_basis": null
+      "reduces": true,
+      "reduction_basis": "sampled",
+      "superseded": [
+        {
+          "status": "measured",
+          "unit": "rate",
+          "value": 0,
+          "n": 3,
+          "method": "sdd-harness-bench @ dff1bf2, results/v15-haiku-f2.log (FINDINGS.md §F-11's post-fix reps, 14/14 acceptance x3); failureMode() classifies all three runs 'ok', none 'narrated' — 0/3; Fisher exact one-tailed vs the 5/5 baseline p=0.0179, one-sided 95% upper bound on the post-fix rate 0.632, so 'the rate fell from 1.0' is supported and 'this now happens under 5% of the time' is not. the contradiction: these rows are labelled harness_build a280e86 in runs.jsonl and each recorded receipt ✓, but the receipt is written by init-run.mjs, which does not exist at a280e86 (git cat-file -e) — a run cannot emit an artifact from a script its build lacks, so the a280e86 label is refuted and harness_build is recorded null here rather than repeating a build id this run cannot have come from",
+          "measured_at": "2026-07-27",
+          "model": "claude-haiku-4-5-20251001",
+          "harness_build": null,
+          "cause": "re-measure"
+        }
+      ],
+      "co_attributed_to": [
+        "FC-02"
+      ]
     },
     {
       "id": "FC-02",
@@ -209,7 +225,7 @@
       "current": {
         "status": "measured",
         "unit": "rate",
-        "value": 0.0,
+        "value": 0,
         "n": 75,
         "method": "false-positive rate across 75 cross-skill hard negatives, claude headless --max-turns 8 --concurrency 4, real Skill-tool activation",
         "measured_at": "2026-07-26T14:00:00Z",
