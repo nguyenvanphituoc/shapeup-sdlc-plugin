@@ -170,8 +170,16 @@ async function probe(slug) {
     `  if (kv) o[kv[1]] = kv[2].replace(/^['\\x22]|['\\x22]$/g, ''); } return o; }`,
     `const hrPath = harnessRun(cwd, slug);`,
     `const hr = existsSync(hrPath) ? fm(readFileSync(hrPath, 'utf8')) : {};`,
-    `const scopeFiles = existsSync(scopesDir(cwd, slug)) `,
-    `  ? readdirSync(scopesDir(cwd, slug)).filter((f) => f.endsWith('.md')).sort() : [];`,
+    // Emit RESOLVED contract paths, not bare filenames. compile-order.mjs and t0-verify.mjs both
+    // take `--scope <path>` and resolve it against cwd, so a bare "SC-x.md" resolves to a file
+    // that does not exist, compile-order exits 2, and the attempt loop below reads that non-zero
+    // exit as the stagnation breaker — a resumed run would falsely trip the inner breaker and
+    // hammer-propose every scope instead of continuing. The path is built from scopesDir(), the
+    // paths.mjs authority, never spelled out here (test-#45 discipline, 16-workflows.mjs (b)).
+    `const sdir = scopesDir(cwd, slug);`,
+    `const scopeFiles = existsSync(sdir) `,
+    `  ? readdirSync(sdir).filter((f) => f.endsWith('.md')).sort()`,
+    `      .map((f) => ({ scope_id: f.replace(/\\.md$/, ''), path: sdir + '/' + f })) : [];`,
     `const resultFiles = existsSync(resultsDir(cwd, slug)) ? readdirSync(resultsDir(cwd, slug)) : [];`,
     `const orderFiles = existsSync(ordersDir(cwd, slug)) ? readdirSync(ordersDir(cwd, slug)) : [];`,
     `console.log(JSON.stringify({`,
@@ -182,7 +190,12 @@ async function probe(slug) {
     `  eval_rounds_done: resultFiles.filter((f) => /^evaluate-r\\d+\\.json$/.test(f)).map((f) => Number(f.match(/\\d+/)[0])),`,
     `}));`,
   ], "probe");
-  try { return JSON.parse(r.stdout); } catch { return {}; }
+  // A probe that cannot be parsed is not an empty run — it is an unknown one. Returning {} here
+  // would read as "status null, no scopes, no wiring map" and the pipeline would confidently
+  // re-dispatch every phase from the top, overwriting a run already in progress. Surface it.
+  try { return JSON.parse(r.stdout); } catch {
+    return { __probe_failed: `probe could not parse its own stdout (exit ${r.exit_code}): ${(r.stderr || r.stdout || "").trim().slice(0, 300)}` };
+  }
 }
 
 /** Has this scope already reached T0-green for THIS round? Files only, never memory — the one
@@ -273,10 +286,22 @@ const HAMMER_SCHEMA = {
 const PRESET_NAMES = new Set(["ci", "guarded", "interactive"]);
 const answersFlag = (answers) => (!answers ? "" : (PRESET_NAMES.has(answers) ? `--preset ${answers}` : `--file ${answers}`));
 
-const resolveGate = (slug, answers, gate) => mech(
-  `node "${args.pluginRoot}/skills/tech-lead/scripts/gate-answers.mjs" --resolve ${gate} --slug ${slug} ${answersFlag(answers)}`.trim(),
-  `gate:${gate}`,
-);
+// gate-answers.mjs carries its verdict on TWO channels: the exit code says cross/pause/abort
+// (0/4/5), but the DECISION itself — loop|stop|run|skip|accept-cut-list — travels only in the
+// JSON it prints on stdout ({ gate, decision, source, note, status }). The mech() envelope is
+// {exit_code, stdout, stderr} and nothing else, so reading `.decision` straight off it yields
+// `undefined` and silently takes the else-branch at every decision-sensitive gate — QA would
+// never dispatch under a preset that answers it "run", and L3's "stop" arm would be dead code.
+// Parse it here, once, so every caller branches on a real value.
+const resolveGate = async (slug, answers, gate) => {
+  const r = await mech(
+    `node "${args.pluginRoot}/skills/tech-lead/scripts/gate-answers.mjs" --resolve ${gate} --slug ${slug} ${answersFlag(answers)}`.trim(),
+    `gate:${gate}`,
+  );
+  let decision = null;
+  try { decision = JSON.parse(r.stdout).decision ?? null; } catch { /* a gate that printed no JSON has no decision to read */ }
+  return { ...r, decision };
+};
 const GATE_TITLES = {
   L1a: "Orient Review", "L1a.5": "Wiring Review", L1b: "Board Review",
   L2: "Build Round Complete", L3: "Verdict & Loop", QA: "QA Edge Hunt", H: "Decide When to Stop",
@@ -309,6 +334,9 @@ let dispatchedOrient = false, dispatchedWire = false, dispatchedMapScopes = fals
 
 phase("Orient");
 const facts = await probe(slug);
+if (facts.__probe_failed) {
+  return { status: "aborted", aborted_at: "probe", reason: `shapeup-run: ${facts.__probe_failed}` };
+}
 
 // ---------------------------------------------------------------------------------------------
 // ORIENT (step 7) + GATE L1a — skipped when orient/ already produced its four artifacts for a
@@ -375,7 +403,7 @@ if (l1a5.exit_code === 5) return abortedFrom("L1a.5", l1a5, "GATE L1a.5 aborted"
 // unaffected, only sequencing quality on a resumed run).
 // ---------------------------------------------------------------------------------------------
 phase("MapScopes");
-let scopes = facts.scope_files.map((f) => ({ scope_id: f.replace(/\.md$/, ""), path: f }));
+let scopes = facts.scope_files || [];
 if (scopes.length === 0) {
   log(`MAP SCOPES — dispatching (slug ${slug})`);
   const analyzeOrder = await compile(
