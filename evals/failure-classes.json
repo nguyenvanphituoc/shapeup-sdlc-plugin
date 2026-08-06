@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "note": "Day-2 register (Graph Engineering §VI.B). The paper's Day 2 is not 'have tools' — this harness has many — it is 'add ONE tool that addresses a MEASURED failure', with typed schema, permissions, and result confirmation, and the rung's exit criterion is that the tool REDUCES a known error class. This file supplies the link that was missing: for each tool, the error class it exists for, the artifact where that failure was written down, and the before/after rates. `reduces` stays null until BOTH rates are measured, which today is none of them. That is the finding, not an omission: baselines exist where a failure was painful enough to measure, current rates almost nowhere — this harness measures its failures and not its fixes. The rung requires at least one sampled reduction; structural claims remain valid and stay labelled.",
+  "note": "Day-2 register (Graph Engineering §VI.B). The paper's Day 2 is not 'have tools' — this harness has many — it is 'add ONE tool that addresses a MEASURED failure', with typed schema, permissions, and result confirmation, and the rung's exit criterion is that the tool REDUCES a known error class. This file supplies the link that was missing: for each tool, the error class it exists for, the artifact where that failure was written down, and the before/after rates. `reduces` stays null until BOTH rates are measured, which today is none of them. That is the finding, not an omission: baselines exist where a failure was painful enough to measure, current rates almost nowhere — this harness measures its failures and not its fixes. The rung requires at least one sampled reduction; structural claims remain valid and stay labelled. A claim is only as good as the predicate its rate counted — FC-01's withdrawn v1.6.3 rate is the case study — and both that predicate and the model it was counted on must be recorded, or the number cannot be trusted the moment either one changes.",
   "classes": [
     {
       "id": "FC-01",
@@ -38,15 +38,15 @@
       "current": {
         "status": "measured",
         "unit": "rate",
-        "value": 0,
+        "value": 0.3333333333333333,
         "n": 3,
         "measured_at": "2026-08-06",
         "model": "claude-haiku-4-5-20251001",
         "harness_build": "v1.6.3+e08082c685dc",
-        "method": "sdd-harness-bench @ 16fb752, arm-tagged rows in results/runs.jsonl (arm=day2-armA, n=3): failureMode() classifies all three runs 'built_and_failed', 'ok', 'ok' — 0/3 narrated, 3/3 receipts present, harness_build v1.6.3+e08082c685dc (v1.6.3 (e08082c685dc) packed), cost $5.32. Pre-registered attribution (contract.md Stage 2, decided joint: Arm B — grant withheld — recorded 0/3 receipts and 0 scored rows; init-run.mjs never ran, so FC-01's registered tools never fired. The acceptance those Arm B runs would have scored is 0.286 x3, the pilot baseline's own 29% reproduced at zero variance. FC-02's grant is a PRECONDITION, not merely load-bearing, for FC-01's reduction, so reduces:true is claimed jointly with co_attributed_to:['FC-02']). Caveat: one feature, one model, an author-run benchmark — FINDINGS.md §F-11's limit travels with this number: fixing the collapse converted a fake cheap loss into a real expensive pass, and on this cell the harness matches the no-harness control at many times the cost. FC-01's tools removed a defect; that is not the same as the harness being worth running."
+        "method": "Corrected count, replacing the retired narrated-predicate rate (see superseded[], cause instrument-change): sdd-harness-bench @ 16fb752, arm-tagged rows in results/runs.jsonl (arm=day2-armA, n=3), harness_build v1.6.3+e08082c685dc (v1.6.3 (e08082c685dc) packed), cost $5.32. Rep 1 ('built_and_failed') wrote one file (intake.md) and shipped zero product code — 0 product writes — scoring the baseline's own acceptance 0.2857 with 10 escaped defects; the retired predicate (writes===0) missed this because the intake write itself makes writes!==0, so it was recorded 'not narrated'. Counted honestly by what the run actually shipped, rep 1 is a shipped-nothing case; reps 2 and 3 ('ok', 'ok') shipped real product code and are not. The arm is 1/3 shipped-nothing, Fisher exact one-tailed vs the 5/5 baseline p=0.1071 (not the retired rate's p=0.018) — this does not meet the sampled-reduction exit criterion. Caveat unchanged: one feature, one model, an author-run benchmark — FINDINGS.md §F-11's limit travels with this number."
       },
-      "reduces": true,
-      "reduction_basis": "sampled",
+      "reduces": null,
+      "reduction_basis": null,
       "superseded": [
         {
           "status": "measured",
@@ -58,6 +58,17 @@
           "model": "claude-haiku-4-5-20251001",
           "harness_build": null,
           "cause": "re-measure"
+        },
+        {
+          "status": "measured",
+          "unit": "rate",
+          "value": 0,
+          "n": 3,
+          "method": "RETIRED (instrument-change): this rate counted failureMode()==='narrated', whose predicate is writes===0 — and this harness's own intake write (the receipt init-run.mjs writes at run start, and the intake.md document itself) makes writes!==0 for every run that reaches the pipeline at all, foreclosing the predicate from ever firing true on this harness's own output; see Stage 1's predicate_independence field for the general question this instance answers. Original measurement: sdd-harness-bench @ 16fb752, arm-tagged rows in results/runs.jsonl (arm=day2-armA, n=3): failureMode() classifies all three runs 'built_and_failed', 'ok', 'ok' — 0/3 narrated, 3/3 receipts present, harness_build v1.6.3+e08082c685dc (v1.6.3 (e08082c685dc) packed), cost $5.32. Pre-registered attribution (contract.md Stage 2, decided joint): Arm B — grant withheld — recorded 0/3 receipts and 0 scored rows; init-run.mjs never ran there, so FC-01's registered tools never fired on that arm. The acceptance those Arm B runs would have scored is 0.286 x3, the pilot baseline's own 29% reproduced at zero variance — Arm B's finding is unaffected by this withdrawal and stays attributed via co_attributed_to. Caveat: one feature, one model, an author-run benchmark — FINDINGS.md §F-11's limit travels with this number.",
+          "measured_at": "2026-08-06",
+          "model": "claude-haiku-4-5-20251001",
+          "harness_build": "v1.6.3+e08082c685dc",
+          "cause": "instrument-change"
         }
       ],
       "co_attributed_to": [
