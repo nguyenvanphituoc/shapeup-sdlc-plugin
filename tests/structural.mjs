@@ -48,6 +48,9 @@ const MODULE_FILES = [
   "13-argv-contract.mjs",
   "14-invocation-paths.mjs",
   "15-hook-receipts.mjs",
+  // 16-workflows.mjs: skills/tech-lead/workflows/*.js — the D5 model floor and the test-#45
+  // path-literal discipline extended to Workflow scripts (docs/workflow_migration_plan.md S1).
+  "16-workflows.mjs",
   "45-paths.mjs",
   "46-contract-md.mjs",
   "47-ship-report.mjs",

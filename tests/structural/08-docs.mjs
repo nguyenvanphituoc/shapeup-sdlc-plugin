@@ -81,7 +81,14 @@ export async function run(ctx) {
   // prints the derived resume state; the SessionStart hook injects it); these ten lines are the part
   // that has to be in the orchestrator's own instructions, because they tell it which phase to
   // re-enter at.
-  const LINE_RATCHETS = { "skills/tech-lead/SKILL.md": 460 };
+  // RAISED 460 → 480 for docs/workflow_migration_plan.md Stage 1, deliberately and on the record,
+  // same rule. The BUILD section gained one dispatch note: under `--unattended`/`--auto` with scope
+  // contracts present, launch `workflows/shapeup-build-round.js` instead of narrating the attempt
+  // loop, and branch on its `RunReturn` the way every other gate already branches on an exit code.
+  // This is Stage 1 scaffolding (AGENTS.md: "nothing releases from Stage 1") — Stage 3 deletes the
+  // asymmetry it creates once `shapeup-run` exists, and this ratchet comes back down with it rather
+  // than staying raised for a lane that no longer exists.
+  const LINE_RATCHETS = { "skills/tech-lead/SKILL.md": 480 };
   for (const [rel, limit] of Object.entries(LINE_RATCHETS)) {
     const p = join(ROOT, rel);
     if (!existsSync(p)) { fail(`ratcheted file missing: ${rel}`); continue; }

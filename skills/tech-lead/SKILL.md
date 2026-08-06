@@ -213,6 +213,17 @@ PO sees the shape before any code — scope cut/confirmed here (cheap now, expen
 
 ## BUILD round r — compile order → dispatch → ingest result → verify
 
+> **`--unattended`/`--auto` with scope contracts present (migration Stage 1 — dev/test lane, not a
+> shipped dual path):** dispatch via `Workflow({scriptPath:
+> "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-build-round.js", args: {slug, round,
+> scopes, attemptBudget, models, pluginRoot: "${CLAUDE_PLUGIN_ROOT}", startedAt, answers}})`
+> instead of the loop below. It runs the attempt loop, GATE L2, EVAL, and GATE L3 itself, and
+> returns `domain.schema.json` `$defs.RunReturn`'s `{status: ok|paused|aborted|gate_h, …}` —
+> branch on `status` exactly as a gate-answers exit code: `paused` → emit `block` verbatim;
+> `aborted` → report `reason`; `gate_h` → hand `hammer_proposals` to scope-hammer; `ok` → ledger
+> the `verdict`/`green_scopes` and continue. Stage 3 deletes this asymmetry once `shapeup-run`
+> exists; every other invocation shape still follows the steps below.
+
 **The pipeline sub-layer (pure-skill architecture v1.0).** Every dispatch to a worker is four
 mechanical calls — the WorkOrder/WorkResult envelopes are the harness's canonical port, and
 the two pipeline scripts (not the workers) own all shared-state reads/writes. Every script path

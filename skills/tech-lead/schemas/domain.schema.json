@@ -2289,6 +2289,185 @@
           "description": "translator: existing glossary.md to reuse as the base term map."
         }
       }
+    },
+    "RunArgs": {
+      "description": "C1 — the launch half of the workflow's only conversation (docs/workflow_architecture_design.md §2). Compiled ONCE by tech-lead at GATE L0 from init-run.mjs output + the L0.8 model matrix + budgets, then passed to Workflow({scriptPath, args}) as one JSON literal — the workflow cannot ask follow-ups and cannot read config files itself, so everything a run will ever need travels in this one record. A workflow script validates its own subset of this shape in code (no runtime schema check at the C1 boundary itself); this entry is the central-registry definition the migration's Stage 1+ workflow scripts and the tech-lead skill both read as the one true shape.",
+      "x-tier": "EMBEDDED",
+      "x-location": "in-memory only — a Workflow launch argument, never written to disk",
+      "x-writer": "tech-lead (GATE L0, on every launch AND every relaunch after a paused gate)",
+      "x-readers": "the Workflow runtime (shapeup-run, and shapeup-run's own inner round dispatch)",
+      "type": "object",
+      "required": [
+        "slug",
+        "autoLevel",
+        "models",
+        "budgets",
+        "pluginRoot",
+        "startedAt"
+      ],
+      "properties": {
+        "slug": {
+          "type": "string",
+          "description": "The feature slug this run builds — the aggregate root every path is keyed off."
+        },
+        "autoLevel": {
+          "type": "string",
+          "enum": [
+            "interactive",
+            "auto",
+            "unattended"
+          ],
+          "description": "Resolved once at GATE L0; governs which gates pre-approve and what on_missing does (gate-answers.mjs)."
+        },
+        "answers": {
+          "type": "string",
+          "description": "A gate-answers preset name (ci|guarded|interactive) or a path to a gate-answers.json file — the ONLY thing that decides whether a gate crosses, pauses, or aborts."
+        },
+        "models": {
+          "type": "object",
+          "description": "The L0.8 role -> model matrix, resolved once. D5 floor: sonnet or above on every role, including mechanical couriers — no exceptions.",
+          "properties": {
+            "exec": {
+              "type": "string"
+            },
+            "eval": {
+              "type": "string"
+            },
+            "qa": {
+              "type": "string"
+            }
+          }
+        },
+        "budgets": {
+          "type": "object",
+          "description": "The three-level circuit breaker's own limits (AGENTS.md) — outer round_budget, inner attempt_budget, and the opt-in wall-clock breaker.",
+          "properties": {
+            "maxRounds": {
+              "type": "integer"
+            },
+            "attemptBudget": {
+              "type": "integer"
+            },
+            "wallClockS": {
+              "type": "integer"
+            }
+          }
+        },
+        "pluginRoot": {
+          "type": "string",
+          "description": "${CLAUDE_PLUGIN_ROOT} — the only thing a workflow script may ever root a path in (a workflow has no filesystem of its own; every path it resolves is either rooted here or produced by a prior call's stdout)."
+        },
+        "startedAt": {
+          "type": "string",
+          "description": "ISO timestamp, passed in because Date.now() is unavailable inside a workflow script by design — the deadline breaker (budget-check.mjs) computes elapsed time itself, in Node, where the clock lives."
+        },
+        "lane": {
+          "$ref": "#/$defs/Lane",
+          "description": "The fit-check verdict (full|tiny) — compiles away into existing knobs; never rides in WorkOrderPayload."
+        }
+      }
+    },
+    "RunReturn": {
+      "description": "C1 — the return half of the workflow's only conversation. The ONLY way the workflow speaks back to tech-lead, so it is a tagged union keyed on `status` — the skill branches on the tag, never on prose (the same exit-code discipline gate-answers.mjs already applies to gate sign-off, extended to the orchestrator's own return value). A gate resolved 'ask' (exit 4) always returns `paused`; a gate resolved 'abort' (exit 5) always returns `aborted`; any circuit breaker tripping (outer round_budget, inner attempt_budget, or the deadline breaker) returns `gate_h`; a full run whose final EVAL passes returns `shipped`. Stage 1's shapeup-build-round returns the subset of this union one inner round can itself produce (`paused`, `aborted`, `gate_h`, or an `ok` round-complete carrying a verdict) — `shipped` belongs only to the outer run (Stage 2's shapeup-run), which is the only caller that ever sees every scope FINISHED and QA/GATE H closed out.",
+      "x-tier": "EMBEDDED",
+      "x-location": "in-memory only — a Workflow return value, never written to disk",
+      "x-writer": "the Workflow runtime (shapeup-run; shapeup-build-round for the round-scoped subset)",
+      "x-readers": "tech-lead (branches on `status`, emits `block` verbatim on a pause, never re-summarizes it)",
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "shipped",
+            "paused",
+            "aborted",
+            "gate_h",
+            "ok"
+          ],
+          "description": "shipped = the happy ending (outer run only) · paused = a gate resolved 'ask', relaunch after a recorded decision · aborted = a gate resolved 'abort', attributable stop · gate_h = a circuit breaker tripped, ship what is green · ok = one inner round completed (build+eval), not itself a ship — the outer loop decides whether to loop again."
+        },
+        "verdict": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "fail"
+          ],
+          "description": "shipped | ok: the round or run's EVAL verdict, lowercased from spec-evaluator's PASS|FAIL."
+        },
+        "rounds_used": {
+          "type": "integer"
+        },
+        "dims_not_evaluated": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "qa_findings": {
+          "type": "integer"
+        },
+        "report": {
+          "type": "string",
+          "description": "shipped: shapeup/<slug>/REPORT.md path."
+        },
+        "round": {
+          "type": "integer",
+          "description": "ok: which round this return describes."
+        },
+        "paused_at": {
+          "type": "string",
+          "description": "paused: the gate id that resolved 'ask' (e.g. L1b, L2, L3)."
+        },
+        "block": {
+          "type": "string",
+          "description": "paused: the ⏸ gate block, emitted VERBATIM by the skill — the block is the handoff contract; re-phrasing it is the paraphrase channel this design exists to close."
+        },
+        "valid_decisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "paused: the decisions VALID_BY_GATE allows at this gate (gate-answers.mjs)."
+        },
+        "context": {
+          "type": "object",
+          "description": "paused: whatever facts the paused gate needs the PO to see (round, scope counts, spec_lint status, …)."
+        },
+        "aborted_at": {
+          "type": "string",
+          "description": "aborted: the gate id that resolved 'abort'."
+        },
+        "reason": {
+          "type": "string",
+          "description": "aborted: the attributable reason (gate-answers.mjs's own `reason` field, carried through verbatim)."
+        },
+        "breaker": {
+          "type": "string",
+          "enum": [
+            "outer",
+            "inner",
+            "deadline"
+          ],
+          "description": "gate_h: which of the three breakers fired (AGENTS.md's three-level circuit breaker)."
+        },
+        "hammer_proposals": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "gate_h | ok: scope ids queued for GATE H's census (scope-hammer) — an exhausted scope never blocks the round, it proposes."
+        },
+        "green_scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "gate_h | ok: scope ids that reached T0-green this round."
+        }
+      }
     }
   }
 }
