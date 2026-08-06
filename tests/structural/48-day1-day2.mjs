@@ -1043,6 +1043,61 @@ export async function run(ctx) {
       if (missingBuild.length === 0) ok(`${tag} sampled basis carries harness_build on both rates`);
       else fail(`${tag} reduction_basis="sampled" but ${missingBuild.join(" and ")} carries no harness_build`);
     }
+
+    // Rules 6–8 — Day-2 rev 5 Stage 2: the three fields Stage 1 declared but could not enforce
+    // (day2-failure-class.schema.json's error_predicate/predicate_independence/model_scope
+    // descriptions say so explicitly) now bite. Each is mutation-verified in both directions by
+    // the acceptance contract; what lives here is the rule itself.
+
+    // Rule 6 — reduces !== null requires a non-empty error_predicate whose source resolves to a
+    // real file:line. A reduction claimed with no citable predicate is exactly FC-01's withdrawn
+    // v1.6.3 defect: a rate that counted a condition nobody could point at code for.
+    if (c.reduces !== null && c.reduces !== undefined) {
+      const p = c.error_predicate;
+      if (!p || !p.expression || !p.source || !p.counts) {
+        fail(`${tag} claims reduces=${c.reduces} with no error_predicate (or missing expression/source/counts) — a reduction claimed with no citable predicate is FC-01's withdrawn defect, reintroduced`);
+      } else {
+        const m = String(p.source).match(/^(.+):([0-9]+)$/);
+        if (!m) {
+          fail(`${tag} error_predicate.source "${p.source}" is not file:line`);
+        } else {
+          const [, file, lineStr] = m;
+          const filePath = join(ROOT, file);
+          if (!existsSync(filePath)) {
+            fail(`${tag} error_predicate.source names "${file}", which does not exist`);
+          } else {
+            const lineCount = read(filePath).split("\n").length;
+            const line = Number(lineStr);
+            if (line >= 1 && line <= lineCount) ok(`${tag} error_predicate names a predicate whose source resolves to a real file:line (${p.source})`);
+            else fail(`${tag} error_predicate.source points at line ${line} of a ${lineCount}-line file`);
+          }
+        }
+      }
+    }
+
+    // Rule 7 — reduction_basis "sampled" requires predicate_independence, present and non-empty:
+    // why the registered tool cannot satisfy error_predicate with its own output — the question
+    // rev 3 of this plan never asked.
+    if (c.reduction_basis === "sampled") {
+      if (c.predicate_independence && String(c.predicate_independence).trim().length > 0) {
+        ok(`${tag} sampled basis carries predicate_independence`);
+      } else {
+        fail(`${tag} reduction_basis="sampled" but predicate_independence is missing or empty — a sampled claim needs the independence question answered`);
+      }
+    }
+
+    // Rule 8 — reduction_basis "sampled" requires baseline.model_scope === current.model_scope.
+    // The mechanical form of §5's pooling rule, and the one that would have caught FC-01's Haiku
+    // baseline read silently against a Sonnet current.
+    if (c.reduction_basis === "sampled") {
+      const bScope = c.baseline && c.baseline.model_scope;
+      const cScope = c.current && c.current.model_scope;
+      if (bScope && cScope && bScope === cScope) {
+        ok(`${tag} sampled basis carries matching model_scope on both rates (${bScope})`);
+      } else {
+        fail(`${tag} reduction_basis="sampled" but baseline.model_scope (${JSON.stringify(bScope)}) !== current.model_scope (${JSON.stringify(cScope)}) — a sampled comparison across models is not a comparison`);
+      }
+    }
   }
 
   // Rule 5 — the anti-double-count rule (§5: "one experiment, one clearance"). A class with

@@ -33,7 +33,8 @@
         "method": "sdd-harness-bench F2, tech-lead dispatched as args:\"--unattended\" at harness_build a280e86 (git describe: v1.3.0-15-ga280e86); the pathology occurred in all five runs (zero variance) — FINDINGS.md §F-11's 'v1.3 (pilot), n=5' row (29% acceptance, 10 escaped, median wall 37.5s / median cost $0.064, reconciling to the five scored:true pre-fix rows in results/runs.jsonl); both of FC-01's registered tools (init-run.mjs, hooks/gate-zerowork.mjs) are verifiably absent at a280e86 (git cat-file -e), which is what makes this a legitimate before-state",
         "measured_at": "2026-07-27",
         "model": "claude-haiku-4-5-20251001",
-        "harness_build": "a280e86"
+        "harness_build": "a280e86",
+        "model_scope": "claude-haiku-4-5-20251001"
       },
       "current": {
         "status": "measured",
@@ -43,6 +44,7 @@
         "measured_at": "2026-08-06",
         "model": "claude-haiku-4-5-20251001",
         "harness_build": "v1.6.3+e08082c685dc",
+        "model_scope": "claude-haiku-4-5-20251001",
         "method": "Corrected count, replacing the retired narrated-predicate rate (see superseded[], cause instrument-change): sdd-harness-bench @ 16fb752, arm-tagged rows in results/runs.jsonl (arm=day2-armA, n=3), harness_build v1.6.3+e08082c685dc (v1.6.3 (e08082c685dc) packed), cost $5.32. Rep 1 ('built_and_failed') wrote one file (intake.md) and shipped zero product code — 0 product writes — scoring the baseline's own acceptance 0.2857 with 10 escaped defects; the retired predicate (writes===0) missed this because the intake write itself makes writes!==0, so it was recorded 'not narrated'. Counted honestly by what the run actually shipped, rep 1 is a shipped-nothing case; reps 2 and 3 ('ok', 'ok') shipped real product code and are not. The arm is 1/3 shipped-nothing, Fisher exact one-tailed vs the 5/5 baseline p=0.1071 (not the retired rate's p=0.018) — this does not meet the sampled-reduction exit criterion. Caveat unchanged: one feature, one model, an author-run benchmark — FINDINGS.md §F-11's limit travels with this number."
       },
       "reduces": null,
@@ -113,6 +115,11 @@
         "method": "structural §11a scans 33 .mjs modules under bin/ hooks/ skills/ scripts/ for the broken same-line import.meta.url / process.argv[1] main guard and finds 1 hand-rolled occurrence, inside the shared helper's (skills/tech-lead/scripts/lib/is-main.mjs) own explanation of the bug — zero offenders outside it. §11b separately executes the 22 entry points in ENTRY_POINTS (tests/structural/11-is-main.mjs) through a symlinked directory and a directory whose name contains a space, and every one behaves like its real-path invocation. Two denominators, kept distinct: 33 modules scanned for the pattern, 22 entry points execution-probed — not the population the F-16 audit's 26 inert guards were drawn from, and not compared to it.",
         "measured_at": "2026-08-06",
         "model": null
+      },
+      "error_predicate": {
+        "expression": "offender ⇔ a .mjs file under bin/ hooks/ skills/ scripts/ (outside skills/tech-lead/scripts/lib/is-main.mjs) carries import.meta.url and process.argv[1] on the same line — the fragile, symlink-unsafe main guard §11a scans for",
+        "source": "tests/structural/11-is-main.mjs:152",
+        "counts": "offenders.length — the number of scanned .mjs modules that hand-roll the broken main guard; FC-02's current.value (0) is this count found outside the shared helper"
       },
       "reduces": true,
       "reduction_basis": "structural"
@@ -199,6 +206,11 @@
         "method": "fabricated baselines present across the three baseline files now under the invariant (trigger-evals, skill-loop, failure-classes); mechanically enforced, so the value is structural rather than sampled",
         "measured_at": "2026-08-03",
         "model": null
+      },
+      "error_predicate": {
+        "expression": "fabricated ⇔ (status===\"unmeasured\" && results!==null) || (status===\"measured\" && !(results && method && measured_at)) — a baseline record claiming a state its own fields contradict",
+        "source": "tests/structural/02-skills.mjs:173",
+        "counts": "the number of baseline records, across the trigger-eval, skill-loop and failure-classes baselines now held to the same invariant, that violate it; FC-04's current.value (0 of 3) is this count"
       },
       "reduces": true,
       "reduction_basis": "structural"
