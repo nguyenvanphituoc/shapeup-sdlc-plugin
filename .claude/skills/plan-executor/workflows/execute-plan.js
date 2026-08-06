@@ -156,10 +156,19 @@ ${cleanRoom(label)}
    If the clone or the install fails, stop: set clean_room_error and green=false. Nothing was
    learned about the plan, and that is a different thing from the plan failing.
 
-2. Run every acceptance row ${stageClause}, from inside \`$CLONE\`, exactly as written. Do not
-   repair a failing command, do not substitute a similar one, do not skip one that looks
-   irrelevant. Record for each: the command, its exit code, and whether it matched the row's
-   \`expect_exit\` / \`expect_match\` / \`expect_absent\`.
+2. Get the rows ${stageClause} from the one parser — do not read the \`## Acceptance\` table by
+   eye. Its \`\\|\` escaping is exact and easy to misread, and two independent eyeball-reads of the
+   same cell have disagreed before:
+
+\`\`\`bash
+node ${REPO}/.claude/skills/plan-executor/scripts/parse-contract.mjs ${CONTRACT}
+\`\`\`
+
+   It prints one JSON object per row with \`cmd\` / \`cwd\` / \`expect_exit\` / \`expect_match\` /
+   \`expect_absent\` already unescaped — filter to the rows you need from that output, not from
+   the raw markdown. Run every one, from inside \`$CLONE\`, exactly as printed. Do not repair a
+   failing command, do not substitute a similar one, do not skip one that looks irrelevant.
+   Record for each: the command, its exit code, and whether it matched.
 
 3. Write \`${WORKDIR}/ledger/${label}.md\`:
 
@@ -197,8 +206,12 @@ function executePrompt(s) {
 
 **Stage ${s.id} — ${s.title}**
 
-${READ_CONTRACT} Read the \`## Stage ${s.id}\` section for what to do and the Acceptance rows for
-\`${s.id}\` for what will judge it.
+${READ_CONTRACT} Read the \`## Stage ${s.id}\` section for what to do. For what will judge it, get
+the Acceptance rows for \`${s.id}\` from the one parser rather than reading the table by eye:
+
+\`\`\`bash
+node ${REPO}/.claude/skills/plan-executor/scripts/parse-contract.mjs ${CONTRACT} --stage=${s.id}
+\`\`\`
 
 What matters more than finishing quickly:
 
@@ -367,6 +380,18 @@ const selected = (function () {
   for (const s of picked) visit(s);
   return out;
 })();
+
+// Zero-work gate — modelled on hooks/gate-zerowork.mjs. Rev 3 returned "outcome":"complete"
+// having run zero stages because `args` never reached the script; that class is closed above
+// by validating `args` before any model call. This is the same failure one level down: `stages`
+// can be a valid non-empty array and `selected` still come out empty — every stage optional
+// with `includeOptional` unset, or `--only` naming nothing that exists — and the run loop below
+// would then do nothing at all, yet fall through to a report where `unfinished` is vacuously
+// empty too and `outcome` reads "complete". A run with no stage selected touched nothing: no
+// green stage, no commit, no freeze directory. Refuse rather than report it.
+if (!selected.length) {
+  throw new Error('execute-plan: zero-work gate — no stage was selected to run (stages/--only/optional filtering left nothing); refusing to report "complete" on a run that would touch nothing');
+}
 
 const state = {};
 for (const s of selected) state[s.id] = { id: s.id, title: s.title, status: 'pending', attempts: 0, freezes: [], notes: [] };
