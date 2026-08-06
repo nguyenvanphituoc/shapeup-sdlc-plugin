@@ -95,16 +95,16 @@
         "model": null
       },
       "current": {
-        "status": "unmeasured",
-        "unit": null,
-        "value": null,
+        "status": "measured",
+        "unit": "count",
+        "value": 0,
         "n": null,
-        "method": null,
-        "measured_at": null,
+        "method": "structural §11a scans 33 .mjs modules under bin/ hooks/ skills/ scripts/ for the broken same-line import.meta.url / process.argv[1] main guard and finds 1 hand-rolled occurrence, inside the shared helper's (skills/tech-lead/scripts/lib/is-main.mjs) own explanation of the bug — zero offenders outside it. §11b separately executes the 22 entry points in ENTRY_POINTS (tests/structural/11-is-main.mjs) through a symlinked directory and a directory whose name contains a space, and every one behaves like its real-path invocation. Two denominators, kept distinct: 33 modules scanned for the pattern, 22 entry points execution-probed — not the population the F-16 audit's 26 inert guards were drawn from, and not compared to it.",
+        "measured_at": "2026-08-06",
         "model": null
       },
-      "reduces": null,
-      "reduction_basis": null
+      "reduces": true,
+      "reduction_basis": "structural"
     },
     {
       "id": "FC-03",
