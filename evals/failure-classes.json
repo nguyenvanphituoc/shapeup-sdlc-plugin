@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "note": "Day-2 register (Graph Engineering §VI.B). The paper's Day 2 is not 'have tools' — this harness has many — it is 'add ONE tool that addresses a MEASURED failure', with typed schema, permissions, and result confirmation, and the rung's exit criterion is that the tool REDUCES a known error class. This file supplies the link that was missing: for each tool, the error class it exists for, the artifact where that failure was written down, and the before/after rates. `reduces` stays null until BOTH rates are measured, which today is none of them. That is the finding, not an omission: baselines exist where a failure was painful enough to measure, current rates almost nowhere — this harness measures its failures and not its fixes.",
+  "note": "Day-2 register (Graph Engineering §VI.B). The paper's Day 2 is not 'have tools' — this harness has many — it is 'add ONE tool that addresses a MEASURED failure', with typed schema, permissions, and result confirmation, and the rung's exit criterion is that the tool REDUCES a known error class. This file supplies the link that was missing: for each tool, the error class it exists for, the artifact where that failure was written down, and the before/after rates. `reduces` stays null until BOTH rates are measured, which today is none of them. That is the finding, not an omission: baselines exist where a failure was painful enough to measure, current rates almost nowhere — this harness measures its failures and not its fixes. The rung requires at least one sampled reduction; structural claims remain valid and stay labelled.",
   "classes": [
     {
       "id": "FC-01",
@@ -12,7 +12,7 @@
       "discovered_by": {
         "kind": "measured",
         "source": "docs/design/03-system-design.md",
-        "quote": "measured on sdd-harness-bench (F2 / Haiku 4.5, n=3, zero variance) … printed eleven gate names and a plan, wrote no code, and scored 29% while reading as a successful run"
+        "quote": "measured on sdd-harness-bench (F2 / Haiku 4.5, n=5, zero variance) … printed eleven gate names and a plan, wrote no code, and scored 29% while reading as a successful run"
       },
       "tool": {
         "name": "gate-intake + run receipt",
@@ -29,19 +29,21 @@
         "status": "measured",
         "unit": "rate",
         "value": 1.0,
-        "n": 3,
-        "method": "sdd-harness-bench F2, tech-lead dispatched as args:\"--unattended\"; the pathology occurred in all three runs (zero variance)",
-        "measured_at": null,
-        "model": "claude-haiku-4-5-20251001"
+        "n": 5,
+        "method": "sdd-harness-bench F2, tech-lead dispatched as args:\"--unattended\" at harness_build a280e86 (git describe: v1.3.0-15-ga280e86); the pathology occurred in all five runs (zero variance) — FINDINGS.md §F-11's 'v1.3 (pilot), n=5' row (29% acceptance, 10 escaped, median wall 37.5s / median cost $0.064, reconciling to the five scored:true pre-fix rows in results/runs.jsonl); both of FC-01's registered tools (init-run.mjs, hooks/gate-zerowork.mjs) are verifiably absent at a280e86 (git cat-file -e), which is what makes this a legitimate before-state",
+        "measured_at": "2026-07-27",
+        "model": "claude-haiku-4-5-20251001",
+        "harness_build": "a280e86"
       },
       "current": {
-        "status": "unmeasured",
-        "unit": null,
-        "value": null,
-        "n": null,
-        "method": null,
-        "measured_at": null,
-        "model": null
+        "status": "measured",
+        "unit": "rate",
+        "value": 0.0,
+        "n": 3,
+        "method": "sdd-harness-bench @ dff1bf2, results/v15-haiku-f2.log (FINDINGS.md §F-11's post-fix reps, 14/14 acceptance x3); failureMode() classifies all three runs 'ok', none 'narrated' — 0/3; Fisher exact one-tailed vs the 5/5 baseline p=0.0179, one-sided 95% upper bound on the post-fix rate 0.632, so 'the rate fell from 1.0' is supported and 'this now happens under 5% of the time' is not. the contradiction: these rows are labelled harness_build a280e86 in runs.jsonl and each recorded receipt ✓, but the receipt is written by init-run.mjs, which does not exist at a280e86 (git cat-file -e) — a run cannot emit an artifact from a script its build lacks, so the a280e86 label is refuted and harness_build is recorded null here rather than repeating a build id this run cannot have come from",
+        "measured_at": "2026-07-27",
+        "model": "claude-haiku-4-5-20251001",
+        "harness_build": null
       },
       "reduces": null,
       "reduction_basis": null
@@ -72,8 +74,8 @@
         "unit": "count",
         "value": 26,
         "n": null,
-        "method": "count of enforcement points found inert under an ordinary install at v1.4.0; a COUNT, not a rate in [0,1]",
-        "measured_at": null,
+        "method": "count of enforcement points found inert under an ordinary install at v1.4.0; a COUNT, not a rate in [0,1]; counted by the F-16 audit, dated to the commit that resolved it (27deb1b, 'fix: v1.4.1 — the enforcement layer was inert under an ordinary install'), 2026-07-28",
+        "measured_at": "2026-07-28",
         "model": null
       },
       "current": {
@@ -158,8 +160,8 @@
         "unit": "count",
         "value": 1,
         "n": 1,
-        "method": "count of fabricated baselines shipped before the invariant existed (the F1 incident); a COUNT, not a rate",
-        "measured_at": null,
+        "method": "count of fabricated baselines shipped before the invariant existed (the F1 incident); a COUNT, not a rate; counted by the F1 audit that first found the claimed evidence layer unbacked by any committed artifact (2026-06-26), the finding now documented at evals/README.md",
+        "measured_at": "2026-06-26",
         "model": null
       },
       "current": {
