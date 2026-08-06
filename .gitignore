@@ -73,3 +73,6 @@ __pycache__/
 
 
 .playwright-mcp
+
+# plan-executor run workspaces (session-independent, never shipped)
+.plan-runs/
