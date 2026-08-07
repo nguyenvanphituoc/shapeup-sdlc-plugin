@@ -116,7 +116,18 @@ const MECH_SCHEMA = {
   required: ["exit_code", "stdout", "stderr"],
 };
 
-const mech = (cmd, label) => agent(
+// `agent()` returns null when a subagent is skipped mid-run or dies on a terminal error after
+// retries (the Workflow runtime documents this). Dereferencing `.stdout` on null kills the whole
+// workflow with `status: "failed"` — not a member of the return union, so the caller has no arm
+// for it. Measured in shapeup-run.js during run 3; the same shape is here, so the same guard is.
+// A dead courier is a failed COMMAND, which every call site below already knows how to read.
+const mechEnvelope = (r, label) => (
+  r && typeof r === "object"
+    ? r
+    : { exit_code: -1, stdout: "", stderr: `mech courier returned no result (skipped, blocked, or died) for: ${label}` }
+);
+
+const mech = async (cmd, label) => mechEnvelope(await agent(
   "Run exactly this command, change nothing about it, and report its outcome as data: the exit " +
   "code, everything printed to stdout, and everything printed to stderr, verbatim, byte for " +
   "byte. Do not summarize, do not truncate, do not interpret it.\n\n" +
@@ -126,7 +137,7 @@ const mech = (cmd, label) => agent(
   "command's exit status in `exit_code`; if you cannot observe it, use 0 when the command " +
   `produced no error output and 1 when it did.\n\n${cmd}`,
   { model: "sonnet", effort: "low", schema: MECH_SCHEMA, phase: "Build", label: String(label || cmd).slice(0, 40) },
-);
+), String(label || cmd).slice(0, 40));
 
 // A courier is a model, not a pipe. Asked for an exit code it has no sanctioned way to observe,
 // it reaches for `cmd; echo "EXIT:$?"` and hands back the combined text — measured, run 3, where
@@ -178,19 +189,27 @@ const EVAL_DISPATCH_SCHEMA = {
   required: ["result_path", "overall"],
 };
 
-const dispatchBuild = (orderPath, model, label) => agent(
-  `Call Skill(shapeup-sdlc-plugin:task-executor) --order ${orderPath}. Implement the order's ` +
-  "acceptance criteria exactly. Report back: the WorkResult path you wrote (your ONLY pipeline " +
-  "output) — { result_path }.",
-  { model, phase: "Build", label, schema: BUILD_DISPATCH_SCHEMA },
-);
+// Same null contract as mech() — a worker that is skipped or dies yields null, and reading
+// `.result_path` off it kills the round. `__failed` is checked at both call sites instead.
+const dispatchBuild = async (orderPath, model, label) => {
+  const r = await agent(
+    `Call Skill(shapeup-sdlc-plugin:task-executor) --order ${orderPath}. Implement the order's ` +
+    "acceptance criteria exactly. Report back: the WorkResult path you wrote (your ONLY pipeline " +
+    "output) — { result_path }.",
+    { model, phase: "Build", label, schema: BUILD_DISPATCH_SCHEMA },
+  );
+  return (r && typeof r === "object") ? r : { __failed: `task-executor dispatch returned no result at ${label}` };
+};
 
-const dispatchEval = (orderPath, model, label) => agent(
-  `Call Skill(shapeup-sdlc-plugin:spec-evaluator) --order ${orderPath}. Evaluate the running ` +
-  "feature against the order's acceptance criteria and Done-when. Report back: the WorkResult " +
-  "path you wrote and the overall verdict — { result_path, overall }.",
-  { model, phase: "Eval", label, schema: EVAL_DISPATCH_SCHEMA },
-);
+const dispatchEval = async (orderPath, model, label) => {
+  const r = await agent(
+    `Call Skill(shapeup-sdlc-plugin:spec-evaluator) --order ${orderPath}. Evaluate the running ` +
+    "feature against the order's acceptance criteria and Done-when. Report back: the WorkResult " +
+    "path you wrote and the overall verdict — { result_path, overall }.",
+    { model, phase: "Eval", label, schema: EVAL_DISPATCH_SCHEMA },
+  );
+  return (r && typeof r === "object") ? r : { __failed: `spec-evaluator dispatch returned no result at ${label}` };
+};
 
 // ---------------------------------------------------------------------------------------------
 // The one storage-root fact this file needs, resolved through lib/paths.mjs itself instead of
@@ -290,6 +309,9 @@ for (const scope of args.scopes) {
     const localRoot = orderPath.slice(0, orderPath.lastIndexOf("/orders/"));
 
     const built = await dispatchBuild(orderPath, args.models.exec, `build:${scope.scope_id}-a${attempt}`);
+    // A dead builder is a spent attempt, not a dead round — the attempt budget is the instrument
+    // for exactly this, and the inner breaker still proposes the scope to GATE H if all die.
+    if (built.__failed) { log(`scope ${scope.scope_id} — attempt ${attempt} lost its worker: ${built.__failed}`); continue; }
 
     await mech(
       `node "${args.pluginRoot}/skills/tech-lead/scripts/ingest-result.mjs" ${built.result_path}`,
@@ -361,6 +383,9 @@ const evalOrder = await mech(
   `compile:evaluate-r${args.round}`,
 );
 const evalResult = await dispatchEval(evalOrder.stdout.trim(), args.models.eval, `eval:r${args.round}`);
+// The single judge died — the round has no verdict, and inventing one is the exact thing the
+// single-judge rule forbids. Abort with the phase named, never a crash.
+if (evalResult.__failed) return { status: "aborted", aborted_at: "L3", reason: evalResult.__failed };
 await mech(
   `node "${args.pluginRoot}/skills/tech-lead/scripts/ingest-result.mjs" ${evalResult.result_path}`,
   `ingest:evaluate-r${args.round}`,

@@ -134,7 +134,21 @@ const MECH_SCHEMA = {
   required: ["exit_code", "stdout", "stderr"],
 };
 
-const mech = (cmd, label) => agent(
+// `agent()` returns null when a subagent is skipped mid-run or dies on a terminal error after
+// retries — the Workflow runtime documents this, and it is NOT hypothetical: measured, run 3, a
+// safety-classifier block on one compile-order call returned null, `analyzeOrder.stdout` threw
+// "null is not an object", and the whole workflow died with `status: "failed"` — a value that is
+// not a member of the RunReturn union, so SKILL.md's Step 3 branch table has no arm for it and
+// the PO is handed a crash instead of a gate. One courier must never be able to do that: a dead
+// courier is a failed COMMAND (non-zero exit, empty stdout), which every call site below already
+// knows how to read, and the run continues to a real gate decision.
+const mechEnvelope = (r, label) => (
+  r && typeof r === "object"
+    ? r
+    : { exit_code: -1, stdout: "", stderr: `mech courier returned no result (skipped, blocked, or died) for: ${label}` }
+);
+
+const mech = async (cmd, label) => mechEnvelope(await agent(
   "Run exactly this command, change nothing about it, and report its outcome as data: the exit " +
   "code, everything printed to stdout, and everything printed to stderr, verbatim, byte for " +
   "byte. Do not summarize, do not truncate, do not interpret it.\n\n" +
@@ -144,7 +158,7 @@ const mech = (cmd, label) => agent(
   "command's exit status in `exit_code`; if you cannot observe it, use 0 when the command " +
   `produced no error output and 1 when it did.\n\n${cmd}`,
   { model: "sonnet", effort: "low", schema: MECH_SCHEMA, phase: "Orient", label: String(label || cmd).slice(0, 40) },
-);
+), String(label || cmd).slice(0, 40));
 
 // A courier is a model, not a pipe. Asked for an exit code it has no sanctioned way to observe,
 // it reaches for `cmd; echo "EXIT:$?"` and hands back the combined text — measured, run 3: the
@@ -278,11 +292,22 @@ const ingest = (resultPath, label) => mech(
   `node "${args.pluginRoot}/skills/tech-lead/scripts/ingest-result.mjs" ${resultPath}`,
   label,
 );
-const dispatch = (skill, orderPath, model, phase, label, schema, extra) => agent(
-  `Call Skill(shapeup-sdlc-plugin:${skill}) --order ${orderPath}. ${extra || ""} ` +
-  "Report back exactly the fields requested — nothing else travels outside the order/result files.",
-  { model, phase, label, schema },
-);
+// Same null contract as mech() above: a worker that is skipped or dies after retries yields null,
+// and `<result>.result_path` on null throws — killing the workflow with `status: "failed"`, which
+// is not a RunReturn member. A dead worker is an ABORT with a name, not a crash: `__failed` is
+// checked at every call site below and converted into `{status:"aborted", aborted_at, reason}`,
+// so the PO always receives a union member that says which phase died.
+const dispatch = async (skill, orderPath, model, phase, label, schema, extra) => {
+  const r = await agent(
+    `Call Skill(shapeup-sdlc-plugin:${skill}) --order ${orderPath}. ${extra || ""} ` +
+    "Report back exactly the fields requested — nothing else travels outside the order/result files.",
+    { model, phase, label, schema },
+  );
+  return (r && typeof r === "object") ? r : { __failed: `${skill} dispatch returned no result (skipped, blocked, or died) at ${label}` };
+};
+
+/** The abort a dead worker earns: a named phase, never a crash. */
+const dispatchAborted = (gate, r) => ({ status: "aborted", aborted_at: gate, reason: r.__failed });
 
 const ORIENT_SCHEMA = {
   type: "object",
@@ -393,6 +418,7 @@ if (facts.status === null || facts.status === "orienting") {
     "orient", orientOrder.stdout.trim(), args.models.exec, "Orient", "orient",
     ORIENT_SCHEMA, "Read/spike real code before any board exists; write the orient/ artifacts.",
   );
+  if (orientResult.__failed) return dispatchAborted("ORIENT", orientResult);
   await ingest(orientResult.result_path, "ingest:orient");
   spikedArea = orientResult.spiked_area; spikeResult = orientResult.spike_result;
   riskiestUnknowns = orientResult.riskiest_unknowns || [];
@@ -423,6 +449,7 @@ if (!facts.has_wiring_map) {
     "solution-architect", wireOrder.stdout.trim(), args.models.exec, "Wire", "wire",
     RESULT_ONLY_SCHEMA, "Write the wiring map: per-UC engine -> seam -> entry-point call site -> affordance.",
   );
+  if (wireResult.__failed) return dispatchAborted("WIRE", wireResult);
   await ingest(wireResult.result_path, "ingest:wire");
   dispatchedWire = true;
 } else {
@@ -454,6 +481,7 @@ if (scopes.length === 0) {
     "ba-pitch-analyzer", analyzeOrder.stdout.trim(), args.models.exec, "MapScopes", "analyze",
     RESULT_ONLY_SCHEMA, "Write the spec tree + board from the orient artifacts (no re-scan).",
   );
+  if (analyzeResult.__failed) return dispatchAborted("MAP SCOPES", analyzeResult);
   await ingest(analyzeResult.result_path, "ingest:analyze");
 
   const mapScopesOrder = await compile(`--operation map-scopes --slug ${slug}`, "compile:map-scopes");
@@ -461,6 +489,7 @@ if (scopes.length === 0) {
     "scope-architect", mapScopesOrder.stdout.trim(), args.models.exec, "MapScopes", "map-scopes",
     MAPSCOPES_SCHEMA, "Write the scope contracts (substrate whitelists, fixtures) and report the riskiest-first build sequence.",
   );
+  if (mapScopesResult.__failed) return dispatchAborted("MAP SCOPES", mapScopesResult);
   await ingest(mapScopesResult.result_path, "ingest:map-scopes");
   scopes = mapScopesResult.scopes;
   dispatchedMapScopes = true;
@@ -534,6 +563,9 @@ while (round <= args.budgets.maxRounds) {
         "task-executor", orderPath, args.models.exec, "Build", `build:${scope.scope_id}-a${attempt}`,
         RESULT_ONLY_SCHEMA, "Implement the order's acceptance criteria exactly.",
       );
+      // A dead builder is a spent attempt, not a dead run — the attempt budget is exactly the
+      // instrument for this, and the inner breaker still queues a GATE H proposal if they all die.
+      if (built.__failed) { log(`scope ${scope.scope_id} — attempt ${attempt} lost its worker: ${built.__failed}`); continue; }
       await ingest(built.result_path, `ingest:${scope.scope_id}-a${attempt}`);
       const t0 = await mech(
         `node "${args.pluginRoot}/skills/tech-lead/scripts/t0-verify.mjs" ${scope.path} --round ${round} --attempt ${attempt} --out "${localRoot}" --no-seesaw`,
@@ -576,6 +608,7 @@ while (round <= args.budgets.maxRounds) {
     "spec-evaluator", evalOrder.stdout.trim(), args.models.eval, "Eval", `eval:r${round}`,
     EVAL_SCHEMA, "Evaluate the running feature against ALL acceptance criteria + Done-when. ONE feature-level pass.",
   );
+  if (evalResult.__failed) return dispatchAborted("L3", evalResult);
   await ingest(evalResult.result_path, `ingest:evaluate-r${round}`);
   verdict = evalResult.overall === "PASS" ? "pass" : "fail";
 
@@ -615,7 +648,10 @@ if (qaGate.decision === "run") {
     "qa-edge-hunter", qaOrder.stdout.trim(), qaModel, "QA", "hunt",
     QA_SCHEMA, "Exploratory hunt over the shipped feature. No verdict, no score — findings only.",
   );
-  await ingest(qaResult.result_path, "ingest:hunt");
+  // QA is a level-up, not a gate (AGENTS.md) — a dead hunter must not sink a run that already
+  // passed EVAL. Record it and ship without QA rather than abort.
+  if (qaResult.__failed) log(`QA hunt lost its worker: ${qaResult.__failed} — continuing without QA findings`);
+  else await ingest(qaResult.result_path, "ingest:hunt");
   qaFindings = qaResult.findings_count;
 }
 
@@ -634,6 +670,7 @@ const hammerResult = await dispatch(
   "scope-hammer", hammerOrder.stdout.trim(), args.models.exec, "Ship", "hammer",
   HAMMER_SCHEMA, "Run the H0/H1/H2 census, baseline comparison, and cut list.",
 );
+if (hammerResult.__failed) return dispatchAborted("H", hammerResult);
 await ingest(hammerResult.result_path, "ingest:hammer");
 
 if (hammerResult.verdict === "cannot-ship") {
