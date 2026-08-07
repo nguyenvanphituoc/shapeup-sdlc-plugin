@@ -10,8 +10,8 @@ no_progress_rounds: 2
 execute_model: sonnet
 diagnose_model: fable
 verify_model: haiku
-stages: [S0, S1, S2, S4]
-skipped_stages: [S3]
+stages: [S0, S1, S2, S3, S4]
+skipped_stages: []
 ---
 
 # Execution contract — Day-2 tool-efficacy plan (rev 5)
@@ -66,6 +66,14 @@ stage changes on purpose — S1's `register byte-identical`, which S2 then edits
 | S2 | git checkout -- evals/failure-classes.json && node -e "const fs=require('fs');const f='evals/failure-classes.json';const r=JSON.parse(fs.readFileSync(f,'utf8'));r.note=(r.note\|\|'')+' ';fs.writeFileSync(f,JSON.stringify(r,null,2))" && npm test | $CLONE | 0 | structural tests passed | ❌ | the green direction: a semantically-null edit must leave the suite green. Without this the three red rows are also passed by a rule that fails everything |  |
 | S2 | git checkout -- evals/failure-classes.json && node -e "const r=require('./evals/failure-classes.json');const e=[];for(const c of r.classes.filter(x=>x.reduces!==null&&x.reduces!==undefined)){const p=c.error_predicate;if(!p){e.push(c.id+' claims reduces='+c.reduces+' with no error_predicate');continue}if(!p.expression\|\|!p.source\|\|!p.counts){e.push(c.id+'.error_predicate is missing expression/source/counts');continue}const m=String(p.source).match(/^(.+):([0-9]+)$/);if(!m){e.push(c.id+'.error_predicate.source '+JSON.stringify(p.source)+' is not file:line');continue}if(!require('fs').existsSync(m[1])){e.push(c.id+'.error_predicate.source names '+m[1]+', which does not exist');continue}const n=require('fs').readFileSync(m[1],'utf8').split('\n').length;if(+m[2]<1\|\|+m[2]>n)e.push(c.id+'.error_predicate.source points at line '+m[2]+' of a '+n+'-line file')}if(e.length){console.error(e.join('\n'));process.exit(1)}console.log('every claiming class names a predicate whose source resolves to a real file:line')" | $CLONE | 0 | resolves to a real file:line |  | rule 1, green direction, checked independently of the suite so a rule that never runs cannot pass this |  |
 | S2 | git checkout -- evals/failure-classes.json && node -e "const c=require('./evals/failure-classes.json').classes.find(x=>x.id==='FC-01');const e=['baseline','current'].filter(w=>!c[w].model_scope);if(e.length){console.error('FC-01 '+e.join(' and ')+' carries no model_scope — §5: the Haiku baseline \"becomes wrong only when read as evidence about Sonnet, which is what the new model_scope field in Stage 1 exists to prevent\"');process.exit(1)}if(!/haiku/i.test(c.baseline.model_scope)){console.error('FC-01.baseline.model_scope is '+JSON.stringify(c.baseline.model_scope)+' — the baseline is a Haiku measurement');process.exit(1)}console.log('FC-01 is model-scoped on both rates: '+c.baseline.model_scope+' → '+c.current.model_scope)" | $CLONE | 0 | FC-01 is model-scoped on both rates |  | the field has to be *used* on the class the plan is about, or Stage 1 shipped decoration |  |
+| S3 | BENCH="${BENCH_DIR:-/Users/teo/workspace/sdd-harness-bench}"; test -d "$BENCH/.git" \|\| { echo "benchmark checkout absent at $BENCH — S3's prerequisite is a change committed OUTSIDE this repo; set BENCH_DIR"; exit 1; }; git -C "$BENCH" diff --quiet -- runner/lib/transcript-metrics.mjs runner/metrics.test.mjs \|\| { echo "the benchmark metric change is UNCOMMITTED — S3 says the change is committed there"; exit 1; }; grep -q "product_writes" "$BENCH/runner/lib/transcript-metrics.mjs" && grep -q "shipped_nothing" "$BENCH/runner/lib/transcript-metrics.mjs" && echo "benchmark carries product_writes and shipped_nothing, committed" | $REPO | 0 | committed |  | §6 Stage 3 ¶1: the benchmark change is the stage's **prerequisite** and is committed THERE. This is the one row in the contract that reads outside this repository, which is why it names that fact instead of hiding it, and why it fails loudly rather than skipping when the checkout is absent |  |
+| S3 | BENCH="${BENCH_DIR:-/Users/teo/workspace/sdd-harness-bench}"; cd "$BENCH" && node runner/metrics.test.mjs | $REPO | 0 | metrics self-test passed \([7-9][0-9] checks\) | ✗ | the benchmark's own suite, with the same anti-shrinkage guard this contract uses everywhere else — it stood at 48 checks before this stage, so a two-digit count starting at 7 cannot be reached by deleting cases |  |
+| S3 | BENCH="${BENCH_DIR:-/Users/teo/workspace/sdd-harness-bench}"; cd "$BENCH" && node -e "import('./runner/lib/transcript-metrics.mjs').then(({transcriptMetrics,failureMode})=>{const W='/tmp/bench-shapeup-sdlc-f2-budgets-r1-zz';const ev=(p)=>JSON.stringify({type:'assistant',message:{content:[{type:'tool_use',name:'Write',input:{file_path:W+'/'+p}}]}});const intake=transcriptMetrics(ev('intake.md'));const code=transcriptMetrics(ev('lib/store.mjs'));const e=[];if(intake.product_writes!==0)e.push('an intake-only run has product_writes '+intake.product_writes+', expected 0');if(code.product_writes!==1)e.push('a code write has product_writes '+code.product_writes+', expected 1');if(failureMode({status:'ok',first_pass_acceptance:0.2857,metrics:intake})!=='shipped_nothing')e.push('an intake-only run is NOT classified shipped_nothing — the corrected predicate does not fire');if(failureMode({status:'ok',first_pass_acceptance:0.2857,metrics:code})==='shipped_nothing')e.push('a run that wrote product code IS classified shipped_nothing — the predicate does not discriminate');if(failureMode({status:'cut',first_pass_acceptance:0.2857,metrics:intake})==='shipped_nothing')e.push('a run CUT from outside is classified shipped_nothing — it was never allowed to reach the point where shipping happens');if(e.length){console.error(e.join('; '));process.exit(1)}console.log('product_writes discriminates in both directions, and a run stopped from outside is not counted')})" | $REPO | 0 | discriminates in both directions |  | the suite above is the benchmark's own; this asserts the behaviour directly, so a suite that silently stopped running these cases cannot carry the row. The third clause is the one the record forced: 87 `cut` rows are the handoff protocol's deliberate mid-run cut and every one of them has written nothing yet |  |
+| S3 | node -e "const c=require('./evals/failure-classes.json').classes.find(x=>x.id==='FC-01');const m=JSON.stringify(c);const need={'the corrected predicate (product_writes)':/product[_ ]writes/i,'the model the class was probed on':/sonnet/i,'a stated n for that probe':/n\s*=\s*[0-9]/i};const miss=Object.entries(need).filter(([,re])=>!re.test(m)).map(([x])=>x);if(miss.length){console.error('FC-01 does not record S3s outcome — omits: '+miss.join(', '));process.exit(1)}console.log('FC-01 records the Sonnet outcome, the predicate that decided it, and the n behind it')" | $CLONE | 0 | the predicate that decided it, and the n behind it |  | plan Exit, branch 2: *"a recorded, evidenced statement that FC-01's class does not occur on Sonnet, which is an equally successful stage"*. **Recorded** means in the register, not in a document; **evidenced** means it carries its predicate and its n |  |
+| S3 | node -e "const c=require('./evals/failure-classes.json').classes.find(x=>x.id==='FC-01');const rates=[['baseline',c.baseline],['current',c.current]].concat((c.superseded\|\|[]).map((r,i)=>['superseded['+i+']',r]));const son=rates.filter(([,r])=>/sonnet/i.test(r.model\|\|'')\|\|/sonnet/i.test(r.model_scope\|\|''));if(son.length){console.error('FC-01 carries '+son.length+' Sonnet-scoped rate(s) ('+son.map(([k])=>k).join(', ')+') — no Sonnet arm was bought, so a Sonnet RATE here was not measured');process.exit(1)}console.log('no Sonnet rate on FC-01: the after-arm was not bought and no Sonnet number was fabricated')" | $CLONE | 0 | no Sonnet number was fabricated |  | the anti-fabrication row. §5: *"Do not buy a Sonnet after-arm before establishing the Sonnet baseline"* — and a stage that records a rate it did not pay for is the failure this whole plan is about. This row can fail |  |
+| S3 | node -e "const r=require('./evals/failure-classes.json');const s=r.classes.filter(c=>c.reduction_basis==='sampled');if(s.length){console.error(s.length+' class(es) claim a sampled basis ('+s.map(c=>c.id).join(', ')+') — S3 bought no arm, so none can have been established by it');process.exit(1)}console.log('no class claims a sampled reduction: Day 2 stays unclaimed on that basis')" | $CLONE | 0 | stays unclaimed on that basis |  | the disposition table, row 1: *"Day 2's sampled claim must come from another class or stay unclaimed"* |  |
+| S3 | node -e "const r=require('./evals/failure-classes.json');const t=r.classes.filter(c=>c.reduces===true);if(t.length!==2){console.error('the exit criterion is met by '+t.length+' class(es) ('+t.map(c=>c.id).join(', ')+'); S3 changes no verdict, so it must still be 2');process.exit(1)}const ns=t.filter(c=>c.reduction_basis!=='structural');if(ns.length){console.error('claims a non-structural basis: '+ns.map(c=>c.id).join(', '));process.exit(1)}console.log('still 2 of '+r.classes.length+' at the exit criterion, both structural')" | $CLONE | 0 | still 2 of 8 at the exit criterion, both structural |  | S3 records a finding; it moves no headline. The row exists so that recording one cannot quietly move it |  |
+| S3 | npm test | $CLONE | 0 | structural tests passed \(11[0-9][0-9] checks\) | ❌ | the register edit must not cost the suite |  |
 | S4 | npm test | $CLONE | 0 | structural tests passed \(11[0-9][0-9] checks\) | ❌ | the gate must not cost the suite |  |
 | S4 | test -f .claude/skills/plan-executor/scripts/parse-contract.mjs | $CLONE | 0 |  |  | it must survive a clone, or the next run has no parser |  |
 | S4 | node .claude/skills/plan-executor/scripts/parse-contract.mjs --selftest | $CLONE | 0 | escaped pipe | FAIL | one parser, and its selftest must cover the `\\\|` case that produced the comment-written-to-satisfy-a-grep |  |
@@ -235,7 +243,7 @@ can review against it.
 ## Stage S3 — Probe the Sonnet baseline before buying anything
 
 **Depends on:** S2
-**Optional:** **yes — held by the operator, not being run in this execution**
+**Optional:** no — the hold was lifted by the operator on 2026-08-07
 **Exit criterion:** a Sonnet baseline rate carrying `model_scope`, `harness_build` and an `error_predicate` naming `product_writes === 0` — **or** a recorded, evidenced statement that FC-01's class does not occur on Sonnet, which is an equally successful stage.
 **Estimate:** ~35 min · **$5.8**
 
@@ -260,9 +268,38 @@ implementing scripts do not exist at `a280e86`. If the reps fail for adapter rea
 
 ### Compiled note
 
-**This stage is not in `stages` and has no acceptance rows.** It is reproduced here in full so the
-contract is a complete record of the plan, and so a later run can pick it up without recompiling.
-Nothing in S4 depends on it.
+**The hold was lifted and this stage now carries eight acceptance rows.** Two things about them
+that a reader is entitled to know before trusting them:
+
+**1. They were compiled AFTER the prerequisite was built, not before.** Every other stage in this
+contract had its rows written before any work; S3's were written once the benchmark change existed
+and the transcripts had been re-scored. That is a weaker guarantee and it is stated rather than
+hidden. What limits the damage is that the rows are derived from the plan's own `Exit:` line and
+its disposition table — quoted in each row's `note` — and that two of them (`no Sonnet number was
+fabricated`, `still 2 of 8`) are written to catch this stage overreaching rather than to confirm
+it succeeded.
+
+**2. The paid arm was NOT bought, and the rows do not pretend otherwise.** §6 Stage 3 asks for n=3
+Sonnet reps at the pre-fix build `a280e86`. That arm is **not purchasable with today's adapter**,
+and the reason is mechanical rather than a matter of judgement:
+
+- The adapter requires run evidence — `requireEvidence: [".shapeup/*/receipt.json",
+  ".shapeup-sdlc/*/receipt.json"]` (`harnesses/shapeup-sdlc/adapter.mjs`).
+- That receipt is written by `skills/tech-lead/scripts/init-run.mjs`, which **first exists at
+  `36521ba` (v1.4.0)**. At `a280e86` the string `receipt.json` does not appear anywhere in the
+  tree (`git grep receipt.json a280e86` → empty).
+- So every rep at `a280e86` is scored `harness_unreachable`, `scored: false`, and excluded by
+  PROTOCOL §8. **The record already contains 14 such rows**, five of them this exact cell.
+
+`a280e86` is the *pre-fix* build precisely because it predates `init-run.mjs`; the adapter demands
+the artifact whose absence defines the build. The two are mutually exclusive **by construction** —
+the same shape of defect as the one this whole plan is about, one level up in the instrument. This
+is the plan's own §7 falsifier (*"if the pre-fix build cannot be driven by today's adapter"*) and
+its disposition-table row 4 (*"instrument fault — discard, change nothing, and say so"*), reached
+for **$0** instead of $5.8.
+
+The question the arm was to answer was then answered from transcripts already paid for, which is
+what these rows verify. See `REPORT.md` for the numbers.
 
 ## Stage S4 — Gate the plan-executor
 
