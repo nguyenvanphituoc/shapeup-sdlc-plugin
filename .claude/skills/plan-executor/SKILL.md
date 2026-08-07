@@ -19,7 +19,7 @@ description: >
 A plan of this kind — an architecture-research-report with a staged §6, a review with a
 recommendation, an ADR with a migration sequence — is already most of a machine-executable
 specification. It has ordered stages, an exit criterion per stage, and usually a section saying
-what *not* to do. What it lacks is a runtime that will not let itself be talked out of the exit
+what _not_ to do. What it lacks is a runtime that will not let itself be talked out of the exit
 criteria. That is what this skill adds.
 
 ## The one rule everything else serves
@@ -139,7 +139,7 @@ Workflow({
     stages: [ {id:"S1", title:"…", depends_on:[], optional:false}, … ],
     freshState: "head", commitPerStage: true,
     attemptBudget: 3, noProgressRounds: 2, reserveTokens: 60000,
-    executeModel: "sonnet", diagnoseModel: "fable", verifyModel: "haiku"
+    executeModel: "sonnet", diagnoseModel: "fable", verifyModel: "sonnet"
   }
 })
 ```
@@ -149,7 +149,7 @@ adjudicator → fix → re-verify**, until green, until the attempt budget is sp
 attempts produce an identical failure.
 
 **Why three diagnoses and an adjudicator rather than one debugger.** The three lenses are
-*what changed*, *what the check actually asserts*, and *what the plan forbade*. They are blind to
+_what changed_, _what the check actually asserts_, and _what the plan forbade_. They are blind to
 each other on purpose — a single agent that has already decided the bug is in the diff will keep
 finding it there, and the third lens exists because in plans of this shape the failure was often
 predicted in §5 and the run simply did it in the wrong order.
@@ -162,11 +162,11 @@ the mechanism that makes that outcome unreachable rather than merely discouraged
 
 ### Model policy
 
-| Job | Model | Why |
-|---|---|---|
-| Implement a stage, apply a fix | `sonnet` | Real code changes against a spec — the floor for work that gets committed. Raise to the session model for a stage the plan itself calls hard. |
-| Diagnose a failure, adjudicate, break a stall | `fable` | Where the run is stuck is where reasoning depth pays for itself. Effort escalates to `max` automatically once a failure has survived one attempt. |
-| Build a clean room and run acceptance | `haiku` | Mechanical: clone, run listed commands, transcribe exit codes. Nothing here is a judgement call — the contract already made them. |
+| Job                                           | Model    | Why                                                                                                                                               |
+| --------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Implement a stage, apply a fix                | `sonnet` | Real code changes against a spec — the floor for work that gets committed. Raise to the session model for a stage the plan itself calls hard.     |
+| Diagnose a failure, adjudicate, break a stall | `fable`  | Where the run is stuck is where reasoning depth pays for itself. Effort escalates to `max` automatically once a failure has survived one attempt. |
+| Build a clean room and run acceptance         | `sonnet` | Mechanical: clone, run listed commands, transcribe exit codes. Nothing here is a judgement call — the contract already made them.                 |
 
 ## Phase 5 — Do not take the run's word for it
 
