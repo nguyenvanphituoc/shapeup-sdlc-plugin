@@ -5,7 +5,7 @@ This file existed because the previous session stopped on a usage limit with S1,
 the commit that produced it. There is nothing to resume.
 
 Read **`REPORT.md`** instead. It carries what shipped, the checks that were run without any agent
-involved, and the three things still open.
+involved, and the five things still open.
 
 ## If you want to re-derive the result yourself
 
