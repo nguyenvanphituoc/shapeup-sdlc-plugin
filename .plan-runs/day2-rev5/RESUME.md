@@ -1,4 +1,4 @@
-# Resume — superseded, the run finished
+# Resume — superseded, the run finished (S3 included)
 
 This file existed because the previous session stopped on a usage limit with S1, S2 and S4 unstarted.
 **All three have since landed** (`9cbbc1f`, `5546fee`, `bc61af3`) and every acceptance row passes at
@@ -20,8 +20,19 @@ node .plan-runs/day2-rev5/preflight.mjs S1 --at=9cbbc1f # the stage-local row  -
 byte-identical to S0's commit, and S2 edits the register on purpose; it is marked `stage-local` in
 the contract and passes at S1's own commit. `--at=<ref>` exists for exactly this.
 
-## The one stage that was never run
+## S3 has since run too
 
-**S3** — probe the Sonnet baseline. $5.8, n=3 at pre-fix `a280e86`, and the only stage that spends
-money or writes outside this repository. Compiled in full in `contract.md` so it can be picked up
-without recompiling. Nothing that shipped depends on it.
+The hold was lifted on 2026-08-07. S3 is green, 8/8, at `f0b33d7` — and it closed **without
+spending its $5.8**, because the arm it specifies cannot be bought: the adapter requires a receipt
+that `init-run.mjs` writes, `init-run.mjs` first exists at v1.4.0, and `a280e86` is the pre-fix
+build precisely because it predates it. The question was answered instead from transcripts already
+on disk: **0 of 8 scored Sonnet `shapeup-sdlc` rows ship nothing, against 7 of 16 on Haiku.**
+
+```bash
+node .plan-runs/day2-rev5/preflight.mjs                 # all 36 rows at HEAD  -> expect 35/36
+node .plan-runs/day2-rev5/preflight.mjs S1 --at=9cbbc1f # the stage-local row  -> expect 5/5
+```
+
+Three S3 rows read `/Users/teo/workspace/sdd-harness-bench` (set `BENCH_DIR` if it lives
+elsewhere). That is the one place this contract reaches outside the repository, and it does so
+because the plan puts S3's prerequisite there.
