@@ -109,6 +109,12 @@ permanently Haiku-scoped with `reduces: null`."* The register is **already exact
 `reduces: null`, `reduction_basis: null`, both rates `model_scope: claude-haiku-4-5-20251001` —
 left that way by S0–S2. The blocked probe changes nothing about what the register claims.
 
+**Operator decision, 2026-08-08.** The blocker was put to the operator with four options —
+transfer the benchmark here and run it for real, accept the blocked determination, draft the
+`product_writes` patch blind, or reconstruct a benchmark locally. **They accepted the blocked
+determination.** S3 is therefore *closed here as blocked*: not green, not abandoned, carrying no
+rate and claiming nothing. It reopens on the machine that holds the benchmark.
+
 **What now exists so S3 is one step elsewhere:** `s3-feasibility.mjs` (the gate to run first), four
 compiled acceptance rows covering *both* branches of the plan's `or` exit criterion, and a 4-step
 runbook — all in `contract.md` under Stage S3. The rows are deliberately **outside** the live

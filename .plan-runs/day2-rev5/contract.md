@@ -301,6 +301,19 @@ Haiku-scoped with `reduces: null`"* — the register is **already in that state*
 `reduces: null`, `reduction_basis: null`, both rates `model_scope: claude-haiku-4-5-20251001`),
 left there by S0–S2. Nothing was edited to make that true and nothing needs to be.
 
+### Operator disposition — 2026-08-08: blocked determination accepted, S3 closed here
+
+The blocker was put to the operator with four options: transfer the benchmark to this machine and
+run S3 for real; accept the blocked determination; draft the `product_writes` patch blind; or
+reconstruct a benchmark locally. **The operator chose to accept the blocked determination.**
+
+So S3 is **closed on this machine as blocked** — not abandoned, and not green. It carries no rate,
+claims nothing, and leaves the register exactly as S0–S2 left it. It reopens on the machine that
+holds the benchmark, via the runbook below. The two paths deliberately declined are worth naming so
+nobody re-proposes them without meeting the objection: a **blind patch** would be written against a
+`transcript-metrics.mjs` nobody here has read, and a **local reconstruction** would be a different
+instrument whose numbers cannot be compared to the Haiku baseline — §5's pooling rule.
+
 ### Compiled acceptance — to promote into `## Acceptance` when S3 is actually run
 
 **Deliberately not in the live table.** `preflight.mjs` runs every row it finds there, so a stage
