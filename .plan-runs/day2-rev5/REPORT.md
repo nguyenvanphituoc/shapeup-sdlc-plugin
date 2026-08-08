@@ -183,5 +183,6 @@ this session did not decide it for you.
    shortfall of this run. What shipped is the machinery that stops the *next* unsupported claim:
    a claim now cannot be `sampled` without a citable predicate, an independence argument, and
    matching model scopes on both rates.
-3. **`.gitignore`** still needs someone to decide keep-or-discard. (`SKILL.md`, the other half of
-   this item, was resolved at `b33579d`.)
+3. ~~**`.gitignore`** still needs someone to decide keep-or-discard.~~ **Resolved** — the operator
+   chose to keep it; committed. (`SKILL.md`, the other half of this item, was resolved at
+   `b33579d`.) Both unattributed working-tree changes are now decided, and the tree is clean.
