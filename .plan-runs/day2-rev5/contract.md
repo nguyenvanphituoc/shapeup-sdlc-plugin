@@ -283,6 +283,15 @@ Asked and answered before concluding: **is the other machine reachable from here
 `~/.ssh/config` holds only git forges (gitlab, github, unfuddle), there are no SMB/AFP/NFS mounts,
 and `tmutil` reports no backup destination. There is no route to fetch the benchmark over.
 
+**The search was exhausted across eight axes** — recorded path; name anywhere under `/Users` and
+`/Volumes`; content signature (`transcript-metrics.mjs`, `runs.jsonl`, `FINDINGS.md`,
+`*f2-budgets*`); adapter directory names (`spec-kit`, `cc-sdd`, `openspec`); recent archives;
+cloud-storage mounts; **the npm registry** (`sdd-harness-bench` → 404, unpublished); and **a global
+GitHub search** (0 results, not merely absent from the authenticated account). Do not repeat these.
+The `cc-sdd` package that *does* exist on npm is one of the benchmark's comparison harnesses, not
+the benchmark. The second checkout at `/Users/liberty/workspace/proj-harness-plugin` is this same
+plugin at `b33579d`.
+
 **Why C1/C2 are decisive on their own.** S3 needs the benchmark for *both* halves: the
 `product_writes` change is committed **there** (the plan calls it a prerequisite), and the n=3 reps
 run through its runner, adapters and hidden scorer — none of which this repository contains.
