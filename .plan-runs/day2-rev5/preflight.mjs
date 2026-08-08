@@ -3,7 +3,7 @@
 // Parses contract.md's acceptance table and runs every row in a clean room.
 // It answers two questions and no others: do the commands run as written, and
 // how much of the plan is already done?
-import { readFileSync } from "node:fs";
+import { readFileSync, mkdirSync, rmSync } from "node:fs";
 import { execSync, spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,6 +27,26 @@ function splitRow(line) {
   cells.push(cur);
   return cells.slice(1, -1).map((c) => c.trim());
 }
+
+// Two concurrent runs share this one clone path, and the second `rm -rf`s the first's clean
+// room mid-flight — handing the first a RED that is an artifact of the harness rather than a
+// fact about the repository. Measured here on 2026-08-08: an overlapping run turned S2 from
+// GREEN to RED with nothing in the repository having changed. A false RED is the same species
+// of instrument fault this plan was written about, so refuse to race rather than produce one.
+mkdirSync(`${WORKDIR}/clones`, { recursive: true });
+try {
+  mkdirSync(`${WORKDIR}/clones/.lock`);
+} catch {
+  console.error(
+    "REFUSING: another preflight is already running (clones/.lock exists).\n" +
+      "Wait for it to finish — its result and yours would corrupt each other.\n" +
+      `If no run is live the lock is stale: rm -rf ${WORKDIR}/clones/.lock`,
+  );
+  process.exit(2);
+}
+process.on("exit", () => {
+  try { rmSync(`${WORKDIR}/clones/.lock`, { recursive: true, force: true }); } catch {}
+});
 
 const src = readFileSync(CONTRACT, "utf8");
 const body = src.split("\n## Acceptance")[1].split("\n## Guardrails")[0];

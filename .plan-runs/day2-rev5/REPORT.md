@@ -115,6 +115,23 @@ runbook — all in `contract.md` under Stage S3. The rows are deliberately **out
 `## Acceptance` table: `preflight.mjs` runs everything it finds there, and a never-attempted stage
 reporting `S3=RED` is indistinguishable from a stage that was done wrong.
 
+## An instrument fault in `preflight.mjs`, found by tripping it
+
+The 2026-08-08 session ran two `preflight.mjs` invocations that overlapped. They share one
+hard-coded clean-room path (`clones/selfcheck`), and the second `rm -rf`s it at startup — so the
+first ran its remaining rows against a clone being deleted underneath it and reported
+**`S2=RED`**. Nothing in the repository had changed; a serial re-run reports `S2=GREEN`.
+
+That is a **false RED**, and it is the same species of fault as the three benchmark instrument
+faults §4 records: the measurement was wrong because the apparatus was, not because the thing
+measured was. It matters more than it looks — a false RED invites someone to "fix" a stage that
+was never broken, and the fix would be a change made to satisfy a corrupted check.
+
+**Fixed by refusing rather than racing.** `preflight.mjs` now takes a `clones/.lock` directory and
+exits 2 with an explanatory message if one is already held, keeping the single inspectable clone
+path. Verified in both directions: the lock refuses while held, and re-acquires once released, so
+it is not stuck-at-refused.
+
 ## Two changes in the working tree that belong to no stage
 
 `.gitignore` and `.claude/skills/plan-executor/SKILL.md` are modified and **uncommitted**. The tree
