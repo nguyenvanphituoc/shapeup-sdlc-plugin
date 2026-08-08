@@ -260,9 +260,74 @@ implementing scripts do not exist at `a280e86`. If the reps fail for adapter rea
 
 ### Compiled note
 
-**This stage is not in `stages` and has no acceptance rows.** It is reproduced here in full so the
-contract is a complete record of the plan, and so a later run can pick it up without recompiling.
-Nothing in S4 depends on it.
+**This stage is not in `stages`.** It is reproduced above in full so the contract is a complete
+record of the plan, and so a later run can pick it up without recompiling. Nothing in S4 depends
+on it.
+
+### Feasibility determination — attempted 2026-08-08, blocked, not run
+
+A later session was asked to execute S3 and was authorised to do whatever setup this machine
+needed. **It cannot be set up here.** The determination is derived, not asserted — re-run it:
+
+```bash
+node .plan-runs/day2-rev5/s3-feasibility.mjs   # exit 0 runnable · exit 3 blocked
+```
+
+| # | question | answer |
+|---|---|---|
+| C1 | benchmark at its recorded path `/Users/teo/workspace/sdd-harness-bench` | **no** — `/Users/teo` does not exist on this machine |
+| C2 | benchmark reachable anywhere on this machine | **no** — nothing matching `*harness-bench*` under `/Users` or `/Volumes`; the plan records it as author-owned **with no git remote**, and no such repository exists under the authenticated GitHub account, so it cannot be cloned either |
+| C3 | adapter prerequisites present at pre-fix build `a280e86` | **no** — `gate-answers.mjs` and `budget-check.mjs` are absent under *any* path at that commit (both present at HEAD) |
+
+Asked and answered before concluding: **is the other machine reachable from here?** No —
+`~/.ssh/config` holds only git forges (gitlab, github, unfuddle), there are no SMB/AFP/NFS mounts,
+and `tmutil` reports no backup destination. There is no route to fetch the benchmark over.
+
+**Why C1/C2 are decisive on their own.** S3 needs the benchmark for *both* halves: the
+`product_writes` change is committed **there** (the plan calls it a prerequisite), and the n=3 reps
+run through its runner, adapters and hidden scorer — none of which this repository contains.
+Reconstructing a lookalike benchmark would produce a **different instrument**, which is precisely
+the pooling error this plan exists to refuse (§5: *"a different fingerprint is a DIFFERENT
+instrument and must not be pooled"*). So the arm was not simulated, approximated, or bought.
+
+**What C3 adds, and what it does not.** It settles the repository-side half of the plan's own
+"Known risk" from primary evidence rather than from the plan's assertion. It does **not** establish
+that the reps would fail — the adapter itself lives in the unreachable benchmark, and only running
+it could show that. Recorded as corroboration, not as a result.
+
+**No claim was moved.** Per §7 — *"If the pre-fix build cannot be driven by today's adapter … FC-01
+cannot be re-based on Sonnet at all, and the honest terminal state is FC-01 permanently
+Haiku-scoped with `reduces: null`"* — the register is **already in that state** (C4 in the probe:
+`reduces: null`, `reduction_basis: null`, both rates `model_scope: claude-haiku-4-5-20251001`),
+left there by S0–S2. Nothing was edited to make that true and nothing needs to be.
+
+### Compiled acceptance — to promote into `## Acceptance` when S3 is actually run
+
+**Deliberately not in the live table.** `preflight.mjs` runs every row it finds there, so a stage
+that was never attempted would report `S3=RED` — a red that means "not done", indistinguishable
+from a red that means "done wrong". Move these four rows up when the stage is run on the machine
+that holds the benchmark; until then the live table stays a record of work that was executed.
+
+Row 2 accepts **either** branch of the plan's `or` exit criterion and names which one it found.
+
+| stage | cmd | cwd | expect_exit | expect_match | expect_absent | note | review |
+|---|---|---|---|---|---|---|---|
+| S3 | npm test | $CLONE | 0 | structural tests passed \(11[0-9][0-9] checks\) | ❌ | recording the probe's outcome must not cost the suite |  |
+| S3 | node -e "const c=require('./evals/failure-classes.json').classes.find(x=>x.id==='FC-01');const rates=[c.baseline,c.current].concat(c.superseded\|\|[]).filter(Boolean);const A=rates.find(r=>/sonnet/i.test(String(r.model_scope\|\|''))&&r.harness_build&&/product_writes/.test(JSON.stringify(c.error_predicate\|\|null)));if(A){console.log('S3 branch A: Sonnet-scoped rate recorded at build '+A.harness_build);process.exit(0)}const t=JSON.stringify(c);const B=/sonnet/i.test(t)&&/does not occur\|no collapse\|did not reproduce\|instrument fault/i.test(t);if(B){console.log('S3 branch B: an evidenced Sonnet statement is recorded');process.exit(0)}console.error('FC-01 records neither a Sonnet-scoped rate (branch A) nor an evidenced not-on-Sonnet statement (branch B) — the exit criterion names both and requires one');process.exit(1)" | $CLONE | 0 | S3 branch |  | the plan's Exit is an `or`; this row is satisfied by either disposition and by neither absence |  |
+| S3 | node -e "const b=require('./evals/failure-classes.json').classes.find(x=>x.id==='FC-01').baseline;const e=[];if(b.value!==1)e.push('value is '+b.value);if(b.n!==5)e.push('n is '+b.n);if(!/haiku/i.test(String(b.model_scope\|\|'')))e.push('model_scope is '+JSON.stringify(b.model_scope));if(b.harness_build!=='a280e86')e.push('harness_build is '+JSON.stringify(b.harness_build));if(e.length){console.error('S3 altered the Haiku baseline — '+e.join('; ')+'. §5: it is valid evidence ABOUT HAIKU and is neither deleted nor re-labelled');process.exit(1)}console.log('the Haiku baseline survived the Sonnet probe')" | $CLONE | 0 | the Haiku baseline survived the Sonnet probe |  | §5 bullet 5 and 6 — buying a Sonnet rate must not consume the Haiku one |  |
+| S3 | node -e "const c=require('./evals/failure-classes.json').classes.find(x=>x.id==='FC-01');if(c.reduction_basis!=='sampled'){console.log('FC-01 claims no sampled reduction — the pooling rule is not engaged');process.exit(0)}const b=String(c.baseline.model_scope\|\|''),u=String(c.current.model_scope\|\|'');if(b!==u){console.error('FC-01 claims a SAMPLED reduction across model scopes: baseline '+JSON.stringify(b)+' vs current '+JSON.stringify(u)+' — §5: a different model is a different instrument and must not be pooled');process.exit(1)}console.log('sampled claim is within one model scope: '+b)" | $CLONE | 0 | FC-01 claims no sampled reduction\|within one model scope |  | the pooling rule at the exact moment S3 could break it — a Sonnet current against the Haiku baseline |  |
+
+### Runbook — what to do on the machine that holds the benchmark
+
+1. `node .plan-runs/day2-rev5/s3-feasibility.mjs` — must exit **0** there. If C3 still fails, the
+   pre-fix build cannot be driven and the plan's *"Fails for adapter reasons → instrument fault,
+   discard, change nothing, and say so"* disposition applies before any money is spent.
+2. In the benchmark: add `product_writes` (writes excluding `.shapeup/`, `.shapeup-sdlc/`,
+   `shapeup/` and intake/pitch documents) and a `shipped_nothing` mode meaning
+   `product_writes === 0`. **Commit it there** — it is that repository's change, not this one's.
+3. Run `f2-budgets` / `claude-sonnet-5` / `shapeup-sdlc` at `a280e86`, **n = 3**, ≈ **$5.8**.
+4. Apply §6's disposition table by outcome, record it in the register, promote the four rows above
+   into `## Acceptance`, and re-run `preflight.mjs`.
 
 ## Stage S4 — Gate the plan-executor
 

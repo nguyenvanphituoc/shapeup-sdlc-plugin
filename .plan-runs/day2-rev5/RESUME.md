@@ -25,3 +25,16 @@ the contract and passes at S1's own commit. `--at=<ref>` exists for exactly this
 **S3** — probe the Sonnet baseline. $5.8, n=3 at pre-fix `a280e86`, and the only stage that spends
 money or writes outside this repository. Compiled in full in `contract.md` so it can be picked up
 without recompiling. Nothing that shipped depends on it.
+
+**Attempted 2026-08-08 and blocked — it cannot run on this machine.** The benchmark it needs is not
+here and has no remote to fetch it from, so both halves of the stage (the `product_writes` change,
+committed *there*, and the n=3 reps through its runner and scorer) are out of reach. Derive that
+yourself rather than believing this file:
+
+```bash
+node .plan-runs/day2-rev5/s3-feasibility.mjs   # exit 0 runnable · exit 3 blocked, reason named
+```
+
+Run it on the machine that holds the benchmark; if it exits 0, follow the runbook at the end of
+`contract.md`'s Stage S3 section. **No number was invented in the meantime** — the register still
+carries no Sonnet rate, which §7 says is the honest terminal state when this probe is unobtainable.
