@@ -35,6 +35,7 @@ import {
   roundLedger, discoveryLedger, receipt as receiptPath, harnessRun, relShared,
 } from "./lib/paths.mjs";
 import { readTrials } from "./t0-verify.mjs";
+import { ratchetReport } from "./stats.mjs";
 
 /** @returns {string} Today as `YYYY-MM-DD` (UTC). */
 const today = () => new Date().toISOString().slice(0, 10);
@@ -164,7 +165,7 @@ export function section(md, heading) {
  */
 export function buildReport(facts) {
   const {
-    slug, at, verdict, qa, rounds, board, t0, artifacts,
+    slug, at, verdict, qa, rounds, board, t0, artifacts, ratchet,
     evalCriteria, evalBugs, qaFindings, decisions, discovered, intakeSha,
   } = facts;
 
@@ -199,6 +200,25 @@ export function buildReport(facts) {
       const r = s.score ? String(s.score.regressions) : "—";
       L.push(`| ${s.scope_id} | ${f} | ${r} | ${s.trials} | ${s.status} | ${s.delta || "—"} |`);
     }
+    L.push("");
+  }
+
+  // The ratchet aggregate is derived, ~10 scalars that do not grow with the run, which is why it
+  // can live in the committed tier while `metrics/` correctly stays gitignored (ADR-0001: a
+  // committed shard keyed on $HOSTNAME only grows). Without this the instrument existed and was
+  // never read — the trial ledger it reduces is harvested at SHIP or lost with the local tier.
+  if (ratchet && ratchet.trials > 0) {
+    L.push("## Ratchet", "");
+    L.push("Measured over this run's trial ledger. A monotone series is a ratchet working; a flat or",
+      "sawtooth series says the loop is still a budgeted retry loop wearing a ratchet's shape.", "");
+    L.push("| | |", "|---|---|");
+    L.push(`| Trials | ${ratchet.trials} across ${ratchet.scopes} scope(s), ${ratchet.scopes_multi_trial} with more than one attempt |`);
+    L.push(`| Improvement rate | ${ratchet.improvement_rate} — kept ÷ trials after the first |`);
+    L.push(`| Monotone rate | ${ratchet.monotone_rate} — multi-trial scopes whose score never decreased |`);
+    L.push(`| Sawtooth count | ${ratchet.sawtooth_count} — a revert immediately after a keep |`);
+    L.push(`| Mean trials to green | ${ratchet.mean_trials_to_green ?? "— (no scope reached green)"} |`);
+    const hist = Object.entries(ratchet.status_histogram).map(([k, v]) => `${k} ${v}`).join(", ");
+    L.push(`| Statuses | ${hist || "—"} |`);
     L.push("");
   }
 
@@ -238,6 +258,7 @@ export function generate({ cwd, slug, verdict, qa }) {
     intakeSha: receipt.intake_sha256,
     board: boardCensus(cwd, slug),
     t0: t0Summary(cwd, slug),
+    ratchet: ratchetReport(readTrials(trials(cwd, slug))),
     artifacts: verdictArtifactCount(cwd, slug),
     evalCriteria: section(evalReport, /^#+\s.*criteria/i) || section(evalReport, /^#+\s*spec-conformance/i),
     evalBugs: section(evalReport, /^#+\s*Bugs?\b/i),

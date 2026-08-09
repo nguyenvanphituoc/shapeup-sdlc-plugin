@@ -95,6 +95,23 @@ export async function run(ctx) {
       else fail(`report dropped ${label} — the reviewer loses the evidence`);
     }
 
+    // --- (3) the ratchet reading is harvested, not lost with the local tier -----
+    // `ratchetReport()` is the instrument for Day 1's exit criterion — measured quality
+    // improvement — and the trial ledger it reduces lives in the gitignored tier: harvested at
+    // SHIP or gone with the run. These ~10 derived scalars do not grow, which is why they belong
+    // in the committed report even though `metrics/` correctly does not (ADR-0001). The fixture
+    // above is deliberately a sawtooth (kept → kept → reverted), the shape that says the loop is
+    // still a budgeted retry loop, so a report that flattered it would be caught here.
+    const R = facts.ratchet;
+    if (R?.trials === 3 && R.sawtooth_count === 1) ok("ratchet aggregate is derived from the trial ledger (3 trials, 1 sawtooth)");
+    else fail(`ratchet aggregate wrong: ${JSON.stringify(R)}`);
+
+    if (R?.improvement_rate === 0.5 && R.monotone_rate === 0) ok("improvement rate excludes the baseline trial, and the revert breaks monotonicity");
+    else fail(`ratchet rates wrong: improvement=${R?.improvement_rate} monotone=${R?.monotone_rate} — a scope carrying a revert is not monotone`);
+
+    if (/## Ratchet/.test(markdown) && /Sawtooth count \| 1 /.test(markdown)) ok("the report renders the ratchet reading, not just the T0 table");
+    else fail("the run has trials but the report has no Ratchet section — the instrument was built and never read");
+
     // --- destination -----------------------------------------------------------
     if (path.endsWith(join("shapeup", "demo", "REPORT.md"))) ok("report lands in the committed tier as shapeup/<slug>/REPORT.md");
     else fail(`report destination wrong: ${path}`);
@@ -106,6 +123,10 @@ export async function run(ctx) {
       if (r.markdown.includes("type: ship-report") && r.markdown.includes("not-evaluated")) {
         ok("a run with no artifacts still renders a valid report (verdict: not-evaluated)");
       } else fail("report generator failed on a bare run — every section must be optional");
+      // Zeroes from an empty ledger are not a measurement: an improvement_rate of 0 with no trials
+      // reads exactly like a loop that never improved anything.
+      if (!/## Ratchet/.test(r.markdown)) ok("a run with no trials omits the Ratchet section rather than printing zeroes as a reading");
+      else fail("bare run printed a Ratchet section — an unmeasured run must not look like a flat series");
     } finally { rmSync(bare, { recursive: true, force: true }); }
   } finally {
     rmSync(dir, { recursive: true, force: true });
