@@ -26,6 +26,7 @@ rely on (anything absent = **unknown**; never invent it):
 | `substrate.allowed` / `substrate.shared` | The ONLY globs you may write. A needed file outside them → ESCALATE, never a write (a sandbox hook blocks it anyway) |
 | `payload.decisions[]` | Adjudicated answers from prior escalations — binding precedent, apply them |
 | `payload.digested_errors[]` | `{file, line, core_message}` triples from the previous attempt's failed verification — your starting bug list |
+| `payload.trial_history[]` | Up to 8 prior attempts on this scope, oldest first, CROSSING the round boundary: `{score, status, delta, digest}`. `status: "reverted"` is a change that was tried and made things WORSE — do not re-propose it. `status: "kept"` with a still-red score is the tree you are building ON, not a failure to undo. Absent on the first attempt |
 | `payload.verify.test_cmd` | The command that verifies your work. No test_cmd → command-verifiable ACs still need *some* observable check; say what you used |
 | `payload.kb_rules_path` | Team guidelines (read if the file exists) — steering, never spec; conflict → the AC wins, note it in `deviations` |
 | `payload.constraints` | Non-Go items and freezes (e.g. `ui_layers.layer3_frozen`) |
