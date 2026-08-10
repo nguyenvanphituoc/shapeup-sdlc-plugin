@@ -42,15 +42,63 @@ Baseline recorded at run start: `npm test` green, **1112 checks**, at commit 78e
 | S2 | test $(wc -l < skills/tech-lead/SKILL.md) -le 160 | $CLONE | 0 |  |  | plan says thin shell target ≤ ~150 lines; 160 is the tolerance ceiling |  |
 | S2 | cat docs/migration/stage2-evidence.md | $CLONE | 0 | A2 |  | full unattended run (preset ci) green end to end, transcript referenced |  |
 | S2 | cat docs/migration/stage2-evidence.md | $CLONE | 0 | A3 |  | interactive run: ≥2 gates via pause → decision → relaunch; fast-forward re-dispatched nothing (orders/ minus results/ empty) — human reviews the transcript, this row only proves the section exists |  |
-| S2 | grep -qiE 'kill|resume' docs/migration/stage2-evidence.md | $CLONE | 0 |  |  | kill/resume probe: mid-BUILD kill, fresh session, relaunch resumes from disk with no re-work |  |
+| S2 | grep -qE '^kill-resume-probe: (PASS\|FAIL\|NOT-RUN)' docs/migration/stage2-evidence.md | $CLONE | 0 |  |  | **tightened 2026-08-10.** The probe's outcome is a literal status line, so "not run" is *recorded* rather than inferred from absence. The old row (`grep -qiE 'kill\|resume'`) was satisfied by any sentence containing either word — including one stating the probe had **not** been run |  |
 | S3 | npm test | $CLONE | 0 | structural tests passed |  | includes the new gate-zerowork unit fixture (A5) |  |
-| S3 | grep -qi workflow hooks/gate-zerowork.mjs | $CLONE | 0 |  |  | predicate arm: Workflow tool_use matching shapeup- counts as dispatched |  |
-| S3 | grep -rqli 'gate-zerowork' tests/ | $CLONE | 0 |  |  | A5's unit fixture must exist in tests/ |  |
-| S3 | ! grep -qiE 'attempt_budget loop|round protocol|for each scope, dispatch' skills/tech-lead/SKILL.md | $CLONE | 0 |  |  | proxy for A4 (no round/attempt loop prose in SKILL.md); human confirms the runbook prose is deleted, not paraphrased back in |  |
-| S3 | grep -qi pin CHANGELOG.md | $CLONE | 0 |  |  | rollback stated explicitly: pin the previous release; there is no in-tree prose lane |  |
+| S3 | node -e 'import("./hooks/gate-zerowork.mjs").then(m=>process.exit(m.dispatchedOrchestrator([{type:"assistant",message:{content:[{type:"tool_use",name:"Workflow",input:{scriptPath:"p/shapeup-run.js"}}]}}])?0:1))' | $CLONE | 0 |  |  | **tightened 2026-08-10.** The predicate arm asserted **behaviourally**, not by grep: a synthetic `Workflow` event must make `dispatchedOrchestrator` return true. The old row (`grep -qi workflow hooks/gate-zerowork.mjs`) passes on a comment, and comments are exactly what this arm was missing |  |
+| S3 | test -f tests/structural/17-gate-zerowork-workflow.mjs | $CLONE | 0 |  |  | **tightened 2026-08-10.** A5's fixture must exist **as its own new file**. The old row — a recursive, case-insensitive `gate-zerowork` grep over `tests/` — matched three files that predate the branch (`10-run-receipt`, `11-is-main`, `15-hook-receipts`), so it scored work nobody had done. See the revision note below for why the old command is described and not quoted |  |
+| S3 | ! grep -qiE 'attempt_budget loop\|round protocol\|for each scope, dispatch' skills/tech-lead/SKILL.md | $CLONE | 0 |  |  | proxy for A4 (no round/attempt loop prose in SKILL.md); human confirms the runbook prose is deleted, not paraphrased back in. **Pipes escaped 2026-08-10** — the raw `\|` split this cmd across three table columns, so a runner that reads the table could not execute the row at all |  |
+| S3 | grep -q 'no in-tree prose lane' CHANGELOG.md | $CLONE | 0 |  |  | **tightened 2026-08-10.** The rollback must be stated in the **cutover** entry's own words. The old row — a case-insensitive `pin` grep over `CHANGELOG.md` — matched `**Pinned:**` in the 1.6.2 entry, text that predates this branch, so it passed with no cutover entry written at all. See the revision note below for why the old command is described and not quoted |  |
 | S3 | grep -qi workflow commands/build.md | $CLONE | 0 |  |  | commands instruct the Workflow launch (the legitimate opt-in surface) |  |
 | S3 | cat docs/migration/stage3-evidence.md | $CLONE | 0 | candidate |  | benchmark section must show both arms; see guardrails — A7's comparative bar (candidate ≥ control on acceptance, ≤ on wall clock) is reviewed by a human from the run log, it cannot be encoded here without the log schema |  |
 | S3 | cat docs/migration/stage3-evidence.md | $CLONE | 0 | control | [Hh]aiku.*baseline | both arms model-matched on Sonnet; historical Haiku rows are never the baseline |  |
+
+### Instrument revision — 2026-08-10 (Stage A item A.5)
+
+Four rows above were replaced, and the count re-derived with the replacements in place. The reason
+is not bookkeeping: **a row that cannot fail is worse than no row**, because it produces a green a
+human trusts. Three of the four could not fail, and two of those three were scoring S3 work that
+nobody had started (`docs/migration/status-review-2026-08-10.md` §2).
+
+The removed rows are **described** below rather than quoted. That is deliberate: R6's verifier is a
+grep for their exact command text, so reproducing it here — even inside a changelog note — would
+re-create the very string the row exists to prove is gone.
+
+| Row, before | Why it could not fail | Row, now |
+|---|---|---|
+| a case-insensitive `pin` grep over `CHANGELOG.md` | matched `**Pinned:**` in the **1.6.2** entry (`CHANGELOG.md:65`), text that predates this branch | `grep -q 'no in-tree prose lane' CHANGELOG.md` |
+| a recursive, case-insensitive `gate-zerowork` grep over `tests/` | matched `10-run-receipt`, `11-is-main`, `15-hook-receipts` — three files that predate the branch | `test -f tests/structural/17-gate-zerowork-workflow.mjs` |
+| a case-insensitive `kill`-or-`resume` grep over `stage2-evidence.md` | satisfied by any sentence containing either word, **including one saying the probe was not run** | `grep -qE '^kill-resume-probe: (PASS\|FAIL\|NOT-RUN)'` |
+| a case-insensitive `workflow` grep over `hooks/gate-zerowork.mjs` | matched a comment; the arm it was meant to prove is a *predicate*, and comments were exactly what the file already had | a `node -e` import of `dispatchedOrchestrator`, asserting `true` on a synthetic `Workflow` event |
+
+The fourth is a deviation from the Stage A plan's three-row table
+(`docs/migration/remaining-stages-plan.md` §A.5), taken deliberately: acceptance row **R4** of that
+plan already specifies the behavioural assertion as the verifier for this exact work, so leaving the
+grep in place would have kept an instrument the plan itself had superseded. One further row —
+A4's `! grep -qiE 'attempt_budget loop|…'` proxy — had its pipes escaped; unescaped, they split the
+command across three table columns, so a runner reading the table could not execute the row at all.
+
+**Re-derived count, 2026-08-10, in-tree at the Stage A working commit** (not a fresh clone — A6 is
+Stage B's job, and the last clone-derived figure remains **1120 checks at `7c1b15e`**):
+
+| Stage | Rows | Result |
+|---|---|---|
+| S0 | 3 | **3 PASS / 0 RED** |
+| S1 | 6 | **6 PASS / 0 RED** |
+| S2 | 6 | **6 PASS / 0 RED** — `stage2-evidence.md` now exists and carries all three |
+| S3 | 8 | **4 PASS / 4 RED** — CHANGELOG, `commands/build.md`, and `stage3-evidence.md` ×2 |
+| **Total** | **23** | **19 PASS / 4 RED** |
+
+Compare to the pre-revision reading of **17 PASS / 6 RED**: one row moved from PASS to RED
+(CHANGELOG, correctly — no cutover entry exists), one from a false PASS to a real PASS (the fixture
+now exists), one previously-unrunnable row now runs and passes, and the three S2 rows went green when
+Stage A wrote the evidence file. `npm test` green at **1179 checks** (1168 before Stage A; +11 from
+the new fixture).
+
+**The row count is not the ship gate.** All six S2 rows are green *and S2's ship gate is not met*:
+`stage2-evidence.md` §4 records `kill-resume-probe: FAIL`, and the plan's §A.2 makes a failing probe
+a stop. The rows prove the evidence was written and is machine-readable; they were never designed to
+encode the probe's verdict, and reading 19/23 as "nearly done" would be the exact mis-navigation this
+revision exists to end.
 
 ## Guardrails
 

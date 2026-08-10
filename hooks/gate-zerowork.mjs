@@ -62,13 +62,55 @@ import { runHook, readStdin, settle, decisionsPath } from "./lib/decision.mjs";
 
 const MAX_TRANSCRIPT_BYTES = 20 * 1024 * 1024;
 
-/** Tool names that constitute doing something to the project, as opposed to looking at it. */
+/**
+ * Tool names that constitute doing something to the project, as opposed to looking at it.
+ *
+ * `Workflow` is deliberately ABSENT, and its absence is the point. Since v1.7 a
+ * `Workflow(shapeup-*)` call is a DISPATCH signal (see `dispatchedOrchestrator` below); if it
+ * were also counted here, three launches with no receipt would clear the `work_calls > 2`
+ * fail-open and the gate would be escapable by the very act it exists to watch. A launch is not
+ * work by other means — it is the work this hook is asking about.
+ */
 const WORK_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "Task", "Agent"]);
 
-/** Did this session dispatch the orchestrator? Skill(tech-lead) in any of its surface spellings. */
+/**
+ * Is this the orchestrator's own Workflow script?
+ *
+ * Matched on the BASENAME, anchored. The scoped lane launches
+ * `Workflow({scriptPath: "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js"})`,
+ * and `CLAUDE_PLUGIN_ROOT` itself ends in `shapeup-sdlc-plugin/` on a normal install — so a
+ * substring match on the whole path would count EVERY workflow script that happens to live under
+ * the plugin root, including one a user wrote for something else. The basename is the part the
+ * skill controls and the part `SKILL.md` names.
+ *
+ * @param {object} block - A `tool_use` content block.
+ * @returns {boolean} True when the block launches a `shapeup-*` workflow.
+ */
+function launchedShapeupWorkflow(block) {
+  if (block.name !== "Workflow") return false;
+  const scriptPath = String(block.input?.scriptPath ?? "");
+  const base = scriptPath.split(/[\\/]/).pop().replace(/\.[cm]?js$/, "");
+  const named = String(block.input?.name ?? "");
+  return /^shapeup-/.test(base) || /^shapeup-/.test(named);
+}
+
+/**
+ * Did this session dispatch the orchestrator? Three surface spellings, all equivalent:
+ * `Skill(tech-lead)`, a leading `/ship` slash command, and — since the workflow cutover (v1.7) —
+ * a `Workflow` tool_use launching one of the orchestrator's own `shapeup-*` scripts.
+ *
+ * The third arm is a correctness repair, not a new detector. `SKILL.md`'s Step 2 makes the
+ * Workflow launch the scoped lane's front door, so a session can now reach the orchestrator
+ * without ever emitting `Skill(tech-lead)` — and before this arm existed such a session was
+ * invisible to the gate, exactly the "the emptier the failure, the less of it there is to detect"
+ * hole the banner above describes. It is a TRIGGER, never an escape: a launch that left no
+ * receipt is still a blocked stop, because a `Workflow` call that returned without starting a run
+ * is precisely the narration case wearing a tool call.
+ */
 export function dispatchedOrchestrator(events) {
   for (const ev of events) {
     for (const block of toolUses(ev)) {
+      if (launchedShapeupWorkflow(block)) return true;
       if (block.name !== "Skill") continue;
       const skill = String(block.input?.skill ?? block.input?.skill_name ?? "");
       if (skill.split(":").pop() === "tech-lead") return true;
