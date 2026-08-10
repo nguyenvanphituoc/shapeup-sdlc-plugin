@@ -130,6 +130,35 @@ export async function run(ctx) {
       rmSync(hdTmp, { recursive: true, force: true });
     }
 
+    // The entry point itself, CALLED. Every assertion above imports a helper (`parseBoard`,
+    // `deriveUnlocks`) and exercises it directly, so all of them stayed green through a
+    // `const tasksDir = tasksDir(cwd, slug)` self-shadow at derive():166 that made the exported
+    // entry point throw `ReferenceError: Cannot access 'tasksDir' before initialization` on EVERY
+    // invocation — `--write` dead for analyze, generate-board, reconcile and ingest alike. Found by
+    // running a real feature through the planner, not by reading; 1167 structural checks passed
+    // over it. This is the F-16 class the design docs already name: enforcement points silently
+    // inert behind green checks. Testing the parts is not testing the thing.
+    {
+      const { derive } = await import(bdPath);
+      const dTmp = mkdtempSync(join(tmpdir(), "board-derive-entry-"));
+      try {
+        const tdir = join(dTmp, ".shapeup", "probe", "tasks");
+        mkdirSync(tdir, { recursive: true });
+        writeFileSync(join(tdir, "TASK-001.md"), [
+          "---", "id: TASK-001", "type: task", "status: ready", "hours: 2",
+          "depends_on: []", "use_case_refs: [UC-01]", "unlocks: []",
+          "---", "", "body", "",
+        ].join("\n"));
+        const report = derive({ cwd: dTmp, slug: "probe" });
+        if (report && report.task_count === 1) ok("board-derive's derive() entry point runs and counts the board (guards the :166 self-shadow)");
+        else fail(`derive() returned ${JSON.stringify(report)} — expected task_count 1`);
+      } catch (e) {
+        fail(`board-derive derive() threw on a well-formed board: ${e.message} — the entry point is dead even though its helpers pass`);
+      } finally {
+        rmSync(dTmp, { recursive: true, force: true });
+      }
+    }
+
     // HD-001, spec-lint's arm. §46(f) pins the PARSER — that an unreadable contract reports a
     // reason instead of an empty field. This pins the CONSUMER: a lint that reads a contract it
     // cannot see must say so, because every rule below it then passes for the part it could not

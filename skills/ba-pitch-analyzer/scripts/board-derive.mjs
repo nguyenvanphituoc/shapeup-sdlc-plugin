@@ -163,8 +163,8 @@ export function driftCheck(tasks, scopes) {
  *   board, deleted before CLI output).
  */
 export function derive({ cwd, slug, appetiteHours = null }) {
-  const tasksDir = tasksDir(cwd, slug);
-  const tasks = parseBoard(tasksDir);
+  const boardDir = tasksDir(cwd, slug);
+  const tasks = parseBoard(boardDir);
   const unlocks = deriveUnlocks(tasks);
   const keepHours = tasks.filter((t) => t.status !== "cut").reduce((a, t) => a + t.hours, 0);
   const packages = {};
