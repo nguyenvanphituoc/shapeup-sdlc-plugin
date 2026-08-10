@@ -160,7 +160,7 @@ with one scope T0-green and one compiled and in flight. Fresh session, same laun
 WIRE and MAP SCOPES fast-forwarded correctly. **ORIENT re-ran from scratch** — three orient
 artifacts rewritten, a new spike added, `discovery/ledger.md` and two task files mutated.
 
-### `shapeup-run.js:410` — one status-gated branch, and the status never moves
+### `shapeup-run.js:411` — one status-gated branch, and the status never moves
 
 ORIENT is the only phase whose skip is gated on `harness-run.md`'s `status` rather than on its own
 artifacts (WIRE reads `has_wiring_map`, MAP SCOPES reads `scope_files` — both correct). That status
@@ -178,7 +178,7 @@ pause-and-relaunch — which is A3's own lane.
 ### The same class again, and a check that read green on the failure it watches
 
 - **`.shapeup/active-scope` still names scope 1** although scope 2 was built in both legs.
-  `:540-546` writes that pointer before each scope's attempt loop; leg 1 wrote it once, leg 2 never.
+  `:540-545` writes that pointer before each scope's attempt loop; leg 1 wrote it once, leg 2 never.
   `hooks/sandbox-guard.mjs:102` reads it to decide which substrate a worker may write, so scope 2's
   builder ran with the write-whitelist pointed at the wrong scope — invariant #3 enforcing the wrong
   thing, silently. `setRunStatus` and `writeActiveScope` are the only `mech()` call sites in the file

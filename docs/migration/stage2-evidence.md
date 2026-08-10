@@ -205,8 +205,8 @@ Three facts on disk, and they compose into the defect:
 1. **`harness-run.md` still reads `status: orienting`, with the mtime `init-run.mjs` gave it.** It
    never changed through two complete legs — 46 dispatched agents.
 2. **ORIENT is the one phase whose skip is gated on that status, not on its artifacts.**
-   `shapeup-run.js:410` reads `if (facts.status === null || facts.status === "orienting")` and
-   dispatches. WIRE (`:454`, `!facts.has_wiring_map`) and MAP SCOPES (`:497`, `scope_files.length`)
+   `shapeup-run.js:411` reads `if (facts.status === null || facts.status === "orienting")` and
+   dispatches. WIRE (`:442`, `!facts.has_wiring_map`) and MAP SCOPES (`:473-474`, `scope_files`)
    are gated on artifacts, and both skipped correctly. The comment directly above the ORIENT branch
    says it is *"skipped when `orient/` already produced its four artifacts"* — the code does not
    read those artifacts at all. **The doc is ahead of the code, in the same file the arm is in.**
@@ -223,7 +223,7 @@ notice, which is the point below.
 
 **A second instance of the same class, found by the same probe.** `.shapeup/active-scope` still
 names `todo-cli-flow` — scope 1 — even though `verification-surface` was built twice (once per leg).
-`shapeup-run.js:540-546` writes that pointer before each scope's attempt loop; leg 1 wrote it for
+`shapeup-run.js:540-545` writes that pointer before each scope's attempt loop; leg 1 wrote it for
 scope 1 (journal agent #21) and never for scope 2, and leg 2 never wrote it at all. `active-scope`
 is what `hooks/sandbox-guard.mjs:102` reads to decide which substrate a worker may write, so
 **scope 2's builder ran with the write-whitelist pointed at scope 1's substrate** — invariant #3
