@@ -220,6 +220,16 @@ export function buildReport(facts) {
     const hist = Object.entries(ratchet.status_histogram).map(([k, v]) => `${k} ${v}`).join(", ");
     L.push(`| Statuses | ${hist || "—"} |`);
     L.push("");
+    // A zero improvement_rate means one of two opposite things, and the number alone cannot say
+    // which: the loop tried again and failed to improve, or nothing ever needed a second attempt.
+    // Measured on the first two real runs — every scope went green on attempt 1 — so the reading a
+    // reviewer meets by default is the degenerate one. `stats --ratchet` says so on the terminal;
+    // the committed report has to say it too, or a 0 here is read as "the ratchet did not work".
+    if (ratchet.scopes_multi_trial === 0) {
+      L.push("> No scope needed a second attempt, so the rates above are vacuous rather than bad:",
+        "> the ratchet was never asked to climb. The Day-1 question — does the loop measurably",
+        "> improve across attempts — needs a run where at least one scope retries.", "");
+    }
   }
 
   if (evalCriteria) L.push("## Evaluation", "", evalCriteria, "");
