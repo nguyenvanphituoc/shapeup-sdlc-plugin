@@ -1,5 +1,5 @@
 // Structural test module: docs. Split out of tests/structural.mjs (Track C).
-// Sections: 5, 7, 25, 26. Byte-identical bodies; the runner threads the shared ctx.
+// Sections: 5, 7, 25, 26, 49. Byte-identical bodies; the runner threads the shared ctx.
 import { readFileSync, readdirSync, existsSync, statSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { tmpdir } from "node:os";
@@ -172,6 +172,59 @@ export async function run(ctx) {
     const floorM = read(join(ROOT, "docs/design/06-appendix.md")).match(/(\d+)\+ checks/);
     if (!floorM) fail(`docs/design/06-appendix.md states no "N+ checks" floor`);
     else { ctx.checksFloor = Number(floorM[1]); ok(`docs state a checks floor (${ctx.checksFloor}+)`); }
+  }
+
+
+  // =============================================================================
+  section("49. Attempt-loop doc parity — the prose names the ratchet's four-way branch");
+  // =============================================================================
+  // v1.5.0 replaced a green/red + stash-and-retry attempt loop with a ratchet whose branch
+  // selector is `status` ∈ kept|reverted|rebased|crash, decided inside t0-verify.mjs. The two
+  // reference docs the orchestrator is routed to did not follow — round-protocol.md still
+  // prescribed the stash branch that lib/ratchet-tree.mjs was written to fix, and delegation.md
+  // still documented the read-back as "overall (green|red) + regression (bool)". Section 25 above
+  // caps how MUCH orchestrator prose exists and asserts nothing about whether it is TRUE; this is
+  // that other half. The mechanism already drifted from its docs once.
+  //
+  // SKILL.md is deliberately NOT in the list: since the Stage-2 cutover it is a thin shell that
+  // launches workflows/shapeup-run.js and documents no loop branch at all, so demanding the four
+  // statuses there would force prose back into the file section 25 exists to keep thin. Whether
+  // the workflow SCRIPT honours the branch is a code question, not a doc-parity one.
+  {
+    const RATCHET_STATUSES = ["kept", "reverted", "rebased", "crash"];
+    const BRANCH_DOCS = [
+      "skills/tech-lead/references/round-protocol.md",
+      "skills/tech-lead/references/delegation.md",
+    ];
+    for (const rel of BRANCH_DOCS) {
+      const p = join(ROOT, rel);
+      if (!existsSync(p)) { fail(`attempt-loop doc missing: ${rel}`); continue; }
+      const txt = read(p);
+      const missing = RATCHET_STATUSES.filter((s) => !new RegExp(`\\b${s}\\b`).test(txt));
+      if (missing.length) fail(`${rel} describes the attempt loop but never names ${missing.join(", ")} — the branch is kept|reverted|rebased|crash, decided in t0-verify.mjs decideStatus()`);
+      else ok(`${rel} names all four ratchet statuses`);
+      if (/git stash/.test(txt)) fail(`${rel} prescribes \`git stash\` — the retired pre-ratchet branch that left a failing tree on the branch for the next attempt's fresh subagent; the tree is moved by t0-verify.mjs via shadow refs`);
+      else ok(`${rel} free of the retired stash-and-retry branch`);
+      // t0-verify exits 1 on a `kept` red-but-improved attempt — the ratchet's signature case —
+      // because the exit code carries the T0 binary, deliberately mirroring oracles/*. A doc that
+      // hands its reader this branch must say so, or the next one wires it into an `&&` chain and
+      // loses exactly the case the ratchet was built for.
+      if (/exit\s+code/i.test(txt)) ok(`${rel} states the exit-code reading rule`);
+      else fail(`${rel} documents the attempt loop but never warns that the exit code is the T0 binary, not the ratchet decision`);
+    }
+
+    // Drift guard, replacing the hard-coded list this section used to carry. `rebased` is
+    // vocabulary unique to this ratchet — it has no ordinary-English use anywhere in the harness —
+    // so a normative doc that names it is documenting the branch, and must be checked above rather
+    // than drifting unchecked beside it.
+    const normative = ["skills/tech-lead/SKILL.md",
+      ...readdirSync(join(ROOT, "skills/tech-lead/references")).filter((f) => f.endsWith(".md")).map((f) => `skills/tech-lead/references/${f}`)];
+    for (const rel of normative) {
+      if (BRANCH_DOCS.includes(rel)) continue;
+      if (/\brebased\b/.test(read(join(ROOT, rel)))) {
+        fail(`${rel} names the ratchet status \`rebased\` but is not in this section's BRANCH_DOCS list — a doc describing the attempt-loop branch must be checked for all four statuses, not just one`);
+      } else ok(`${rel} does not describe the attempt-loop branch (correctly out of scope)`);
+    }
   }
 
 }

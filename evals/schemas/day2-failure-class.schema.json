@@ -72,6 +72,31 @@
         },
         "baseline": { "$ref": "#/$defs/Rate" },
         "current": { "$ref": "#/$defs/Rate" },
+        "error_predicate": {
+          "type": "object",
+          "description": "The mechanical rule a class's rate was decided by. Required whenever `reduces` is non-null (Day-2 rev 5 Stage 1) — a reduction claimed with no citable predicate is exactly FC-01's withdrawn v1.6.3 defect (Stage 0): a rate that counted a condition nobody could point at code for. Not enforced by a schema `required` here — today's register predates this field on some classes with `reduces !== null` — §48's structural rules (Stage 2) are where the obligation is made to bite, and where it is checked that `source` resolves to a real `file:line`.",
+          "required": ["expression", "source", "counts"],
+          "properties": {
+            "expression": {
+              "type": "string",
+              "description": "The boolean rule in the terms the measuring tool actually used, e.g. `failureMode()===\"narrated\" ⇔ writes===0 && ended_on_promise`."
+            },
+            "source": {
+              "type": "string",
+              "pattern": "^.+:[0-9]+$",
+              "description": "Repo-relative `file:line` implementing the expression, e.g. `transcript-metrics.mjs:208`. §48 resolves this path and asserts the line exists in it."
+            },
+            "counts": {
+              "type": "string",
+              "description": "What the predicate counts, in plain language — the thing a reader has to know before trusting the rate at all."
+            }
+          }
+        },
+        "predicate_independence": {
+          "type": "string",
+          "description": "The independence question a reader must not be able to miss: why the tool being measured cannot satisfy `error_predicate` with its own output, and the check that establishes it. Required alongside `error_predicate` whenever `reduces` is non-null — a predicate the registered tool can itself steer (by, say, choosing what it writes) is not independent evidence of the tool's effect, which is the question rev 3 of this plan never asked. Not enforced by a schema `required` here for the same reason as `error_predicate`; §48 (Stage 2) is where it is made to bite.",
+          "minLength": 1
+        },
         "reduces": {
           "type": ["boolean", "null"],
           "description": "Day-2's exit criterion for this class. MUST be null unless BOTH baseline and current are status=measured — a reduction claimed from two unmeasured rates is the exact fabrication F1 was raised about."
@@ -80,6 +105,33 @@
           "type": ["string", "null"],
           "enum": ["sampled", "structural", null],
           "description": "Required whenever `reduces` is non-null. 'sampled' = the two rates come from runs over a population. 'structural' = the error is now impossible by construction (a mechanically enforced invariant), so the after-rate is derived rather than observed. §IX.B warns that a ratchet improves the metric it can see; naming the basis stops a structural argument from being read as a sampled result."
+        },
+        "superseded": {
+          "type": "array",
+          "description": "Retired rates for this class, kept addressable rather than overwritten — modelled on evals/baselines/skill-loop.baseline.json's top-level `superseded[]` (see tests/structural/48-day1-day2.mjs §48(d9)). Every superseded object remains readable: a retired number that cannot be read is indistinguishable from a deleted one.",
+          "items": {
+            "type": "object",
+            "required": ["value", "n", "method", "measured_at", "model", "harness_build", "cause"],
+            "properties": {
+              "value": { "type": ["number", "null"], "description": "The retired rate, carried over unchanged from the Rate it replaces." },
+              "n": { "type": ["integer", "null"] },
+              "method": { "type": ["string", "null"] },
+              "measured_at": { "type": ["string", "null"] },
+              "model": { "type": ["string", "null"] },
+              "harness_build": { "type": ["string", "null"], "description": "Carried over unchanged from the Rate this record retires; see Rate.harness_build for what it means." },
+              "cause": {
+                "type": "string",
+                "enum": ["re-measure", "instrument-change", "withdrawn"],
+                "description": "Why the rate was retired, mapped onto Day 1's three (evals/baselines/skill-loop.baseline.json `superseded[].cause`): re-measure = a new run over the same or an improved instrument replaces this one (Day 1's 're-sample'/'fixture-change'). instrument-change = the tool or measurement method changed under the number (Day 1's 'fixture-change'). withdrawn = the rate was retracted, not replaced (Day 1's model-policy withdrawals and HD-004's outright withdrawal)."
+              }
+            }
+          }
+        },
+        "co_attributed_to": {
+          "type": "array",
+          "description": "IDs of other FailureClass entries (e.g. 'FC-02') whose tools are load-bearing for THIS class's reduction (§4.4) — used when a reduction is jointly produced rather than owned by this class's tool alone. A class named here by another class's co_attributed_to may not separately claim `reduces: true` from the same measured_at + harness_build pair — that would double-count one experiment as two clearances.",
+          "items": { "type": "string", "pattern": "^FC-[0-9]{2}$" },
+          "default": []
         }
       }
     },
@@ -100,7 +152,15 @@
         "n": { "type": ["integer", "null"] },
         "method": { "type": ["string", "null"] },
         "measured_at": { "type": ["string", "null"] },
-        "model": { "type": ["string", "null"] }
+        "model": { "type": ["string", "null"] },
+        "harness_build": {
+          "type": ["string", "null"],
+          "description": "A commit sha, git tag, or the benchmark's content-addressed shipped-surface hash — the build this rate was measured against, so a reader can tell whether baseline and current came from the same instrument (§4.2b). Three states, and the third is the one that needs a rule. (1) IDENTIFIED: write the build. (2) UNKNOWN: null, because nothing named it. (3) CONTRADICTED — a label exists but other evidence refutes it, e.g. a run tagged with a commit whose tree does not contain the script that wrote the run's own artifact. Then write null HERE and the contradiction in `method`: which label was claimed, and what refuted it. Null and not the refuted label, because this field is read as 'the build this was measured against' and a value known to be false is worse than an absence — a later group-by would pool the rate with runs that really are that build, which is the pooling defect this field was added to prevent. The claim does not disappear; it moves to `method`, where it is prose a reader must read rather than a key a query will trust."
+        },
+        "model_scope": {
+          "type": ["string", "null"],
+          "description": "What this rate is evidence ABOUT, not just which model happened to run it: a rate measured on one model is not evidence about another. Required when `status: \"measured\"` (Day-2 rev 5 Stage 1) — not enforced by a schema `required` here, since today's register predates this field on several measured rates; §48 (Stage 2) makes it bite by requiring `baseline.model_scope === current.model_scope` wherever `reduction_basis: \"sampled\"`, which is the mechanical form of the pooling rule and the check that would have caught a Haiku baseline read against a Sonnet current. Write the model id this rate is scoped to (e.g. `claude-haiku-4-5-20251001`), or the literal `\"model-independent\"` for a structural count whose `model` is honestly null — never invent a model that did not measure it."
+        }
       }
     }
   }

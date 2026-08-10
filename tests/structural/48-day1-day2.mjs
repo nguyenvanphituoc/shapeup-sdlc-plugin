@@ -1005,6 +1005,116 @@ export async function run(ctx) {
     } else {
       fail(`${tag} claims reduces=${c.reduces} without two measured rates and a stated basis — this is the F1 fabrication in Day-2 clothing`);
     }
+
+    // ---- Five runtime guard rules, moving the register's honesty invariant from prose to a
+    // check that fails a build (§4.3's mutation left the suite green at 1254 before these existed).
+
+    // Rule 1 — day2-failure-class.schema.json:40: "hypothesized = reasoned, never seen — MUST NOT
+    // claim a reduction." A class discovered only by hypothesis has no rate behind it; letting it
+    // set `reduces` is the F1 fabrication wearing a different field name.
+    if (c.discovered_by && c.discovered_by.kind === "hypothesized" && c.reduces !== null) {
+      fail(`${tag} is discovered_by.kind="hypothesized" but reduces=${c.reduces} — a class never seen may not claim a reduction (day2-failure-class.schema.json:40)`);
+    } else {
+      ok(`${tag} does not let a hypothesized discovery claim a reduction`);
+    }
+
+    // Rule 2 — a measured rate must carry measured_at. One rung up from §48(e):936, which already
+    // applies this to the single Day-1 loop baseline; here it applies per class, per rate.
+    for (const which of ["baseline", "current"]) {
+      const r = c[which];
+      if (r && r.status === "measured") {
+        if (r.measured_at) ok(`${tag} ${which} measured rate carries measured_at`);
+        else fail(`${tag} ${which} says 'measured' but carries no measured_at — an undated measurement is not reproducible evidence`);
+      }
+    }
+
+    // Rule 3 — reduction_basis "sampled" requires n on both rates (a sampled claim with no
+    // population size cannot be re-checked by anyone but the person who made it).
+    if (c.reduction_basis === "sampled") {
+      const missingN = ["baseline", "current"].filter((w) => c[w] && (c[w].n === null || c[w].n === undefined));
+      if (missingN.length === 0) ok(`${tag} sampled basis carries n on both rates`);
+      else fail(`${tag} reduction_basis="sampled" but ${missingN.join(" and ")} carries no n — a sampled claim needs a population size`);
+    }
+
+    // Rule 4 — reduction_basis "sampled" requires harness_build on both rates. The mechanical form
+    // of §4.2b: a sampled comparison whose rates cannot be tied to a build is not a comparison.
+    if (c.reduction_basis === "sampled") {
+      const missingBuild = ["baseline", "current"].filter((w) => c[w] && !c[w].harness_build);
+      if (missingBuild.length === 0) ok(`${tag} sampled basis carries harness_build on both rates`);
+      else fail(`${tag} reduction_basis="sampled" but ${missingBuild.join(" and ")} carries no harness_build`);
+    }
+
+    // Rules 6–8 — Day-2 rev 5 Stage 2: the three fields Stage 1 declared but could not enforce
+    // (day2-failure-class.schema.json's error_predicate/predicate_independence/model_scope
+    // descriptions say so explicitly) now bite. Each is mutation-verified in both directions by
+    // the acceptance contract; what lives here is the rule itself.
+
+    // Rule 6 — reduces !== null requires a non-empty error_predicate whose source resolves to a
+    // real file:line. A reduction claimed with no citable predicate is exactly FC-01's withdrawn
+    // v1.6.3 defect: a rate that counted a condition nobody could point at code for.
+    if (c.reduces !== null && c.reduces !== undefined) {
+      const p = c.error_predicate;
+      if (!p || !p.expression || !p.source || !p.counts) {
+        fail(`${tag} claims reduces=${c.reduces} with no error_predicate (or missing expression/source/counts) — a reduction claimed with no citable predicate is FC-01's withdrawn defect, reintroduced`);
+      } else {
+        const m = String(p.source).match(/^(.+):([0-9]+)$/);
+        if (!m) {
+          fail(`${tag} error_predicate.source "${p.source}" is not file:line`);
+        } else {
+          const [, file, lineStr] = m;
+          const filePath = join(ROOT, file);
+          if (!existsSync(filePath)) {
+            fail(`${tag} error_predicate.source names "${file}", which does not exist`);
+          } else {
+            const lineCount = read(filePath).split("\n").length;
+            const line = Number(lineStr);
+            if (line >= 1 && line <= lineCount) ok(`${tag} error_predicate names a predicate whose source resolves to a real file:line (${p.source})`);
+            else fail(`${tag} error_predicate.source points at line ${line} of a ${lineCount}-line file`);
+          }
+        }
+      }
+    }
+
+    // Rule 7 — reduction_basis "sampled" requires predicate_independence, present and non-empty:
+    // why the registered tool cannot satisfy error_predicate with its own output — the question
+    // rev 3 of this plan never asked.
+    if (c.reduction_basis === "sampled") {
+      if (c.predicate_independence && String(c.predicate_independence).trim().length > 0) {
+        ok(`${tag} sampled basis carries predicate_independence`);
+      } else {
+        fail(`${tag} reduction_basis="sampled" but predicate_independence is missing or empty — a sampled claim needs the independence question answered`);
+      }
+    }
+
+    // Rule 8 — reduction_basis "sampled" requires baseline.model_scope === current.model_scope.
+    // The mechanical form of §5's pooling rule, and the one that would have caught FC-01's Haiku
+    // baseline read silently against a Sonnet current.
+    if (c.reduction_basis === "sampled") {
+      const bScope = c.baseline && c.baseline.model_scope;
+      const cScope = c.current && c.current.model_scope;
+      if (bScope && cScope && bScope === cScope) {
+        ok(`${tag} sampled basis carries matching model_scope on both rates (${bScope})`);
+      } else {
+        fail(`${tag} reduction_basis="sampled" but baseline.model_scope (${JSON.stringify(bScope)}) !== current.model_scope (${JSON.stringify(cScope)}) — a sampled comparison across models is not a comparison`);
+      }
+    }
+  }
+
+  // Rule 5 — the anti-double-count rule (§5: "one experiment, one clearance"). A class with
+  // non-empty co_attributed_to is not claiming an independent clearance; a class it names may not
+  // separately claim reduces=true from the SAME measured_at + harness_build pair — that would count
+  // one experiment as two clearances. Checked as its own pass because it reads across two classes.
+  const pairKey = (r) => (r ? `${r.measured_at}|${r.harness_build}` : null);
+  for (const c of reg.classes || []) {
+    for (const coId of c.co_attributed_to || []) {
+      const co = (reg.classes || []).find((x) => x.id === coId);
+      if (!co) continue;
+      if (co.reduces === true && pairKey(co.current) === pairKey(c.current)) {
+        fail(`${co.id} claims reduces=true from the same measured_at+harness_build pair as ${c.id}'s current rate, and ${c.id}'s co_attributed_to already names ${co.id} — one experiment, one clearance`);
+      } else {
+        ok(`${co.id} does not independently re-claim the experiment ${c.id}'s co_attributed_to already attributes to it`);
+      }
+    }
   }
   if (seen.size >= 5) ok(`failure register carries ${seen.size} classes`);
   else fail(`failure register carries only ${seen.size} classes — too thin to be the Day-2 rung's evidence`);

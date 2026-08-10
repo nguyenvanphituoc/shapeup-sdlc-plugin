@@ -10,6 +10,11 @@
 !.env.shapeup.example
 !.claude/settings.local.example.json
 
+# Claude Code worktree root. Same tier: a second checkout of THIS repo, per-member and
+# per-task. Untracked it shows as `?? .claude/worktrees/` in every status of the main
+# checkout, and committed it would nest the repo inside itself.
+.claude/worktrees/
+
 # ShapeUp SDLC local workspace (ADR-0001 LOCAL tier): per-slug run trace — board, orders/,
 # results/, t0/, evaluation/, qa/, orient/, trace/, discovery/, working/, receipt.json — plus
 # the checkout-wide active-scope pointer, decisions.jsonl, safety-overrides.json and metrics/.

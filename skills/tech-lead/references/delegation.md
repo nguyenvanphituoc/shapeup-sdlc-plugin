@@ -149,8 +149,11 @@ r>1 (fix) per bug:
 Scope contracts present (isolated attempt loop, per scope, per attempt):
   compile-order --scope shapeup/<slug>/scopes/<id>.md --round <N> --attempt <M>
   → orders/r<N>-a<M>.json inlines the scope contract, this scope's tasks, promoted ledger
-    decisions, and the previous attempt's AEGIS triples — the zero-memory handoff, compiled
-    from facts only. Dispatch a fresh Agent per attempt (this IS the isolation boundary):
+    decisions, the previous attempt's AEGIS triples, and `trial_history` — the last 8 trials
+    for this scope (score, status, delta, top-3 digest), CROSSING the round boundary so a fix
+    round cannot re-propose a change the build round already reverted. The zero-memory
+    handoff, compiled from facts only. Dispatch a fresh Agent per attempt (the isolation
+    boundary):
     Skill(shapeup-sdlc-plugin:task-executor) --order <path>
   ingest-result — any escalates[] in the WorkResult are queued → dispatch 3b below.
 
@@ -178,11 +181,18 @@ Invoke via Bash directly — NOT an Agent, this is deterministic tooling, not a 
         --round <N> --attempt <M> --seesaw-registry .shapeup/<slug>/seesaw/registry.json
 Effect: runs the scope's e2e fixtures + DB probe, then (on green) the seesaw regression check
         over every FINISHED scope's fixtures. Writes the verdict artifact spec-evaluator's
-        GATE V0.7 will require a citation to. Zero LLM tokens — deterministic tooling, not a
+        GATE V0.7 will require a citation to, appends one row to t0/trials.jsonl, and — this
+        is the ratchet — scores the attempt against the last kept trial and snapshots or
+        restores the working tree ITSELF. Zero LLM tokens — deterministic tooling, not a
         judge (this is what keeps "T1 once per round" true even though verification runs
         every attempt, DD-7).
-Read back: overall (green|red) + regression (bool) — drives the attempt-loop branch in
-        round-protocol.md "Isolated attempt loop". On red, its `discovered_tasks` field is
+Read back: the stdout JSON — {path, sha256, trial, overall, regression, score, status,
+        baseline_trial, delta, tree_ref}. `status` (kept|reverted|rebased|crash) is what
+        drives the attempt-loop branch in round-protocol.md "Isolated attempt loop"; by the
+        time you read it the tree action has already happened. Never branch on the process
+        exit code: it carries the T0 binary (0 green / 1 red / 2 bad argv, the oracles/*
+        convention), so a `kept` red-but-improved attempt, the ratchet's own signature case,
+        exits 1. On red, its `discovered_tasks` field is
         the AEGIS digest to fold into the next brief — no separate digester dispatch needed
         (t0-verify.mjs calls its sibling aegis-digest.mjs internally on failure).
 ```
@@ -246,7 +256,8 @@ Read back: the proposed cut list + verdict (SHIP now | SHIP after fixing ship-bl
 | `evaluation/EVAL-FEATURE-<slug>.md` + `.verdicts-*.jsonl` | evaluator (report) / **ingest-result.mjs** (verdict ledger, un-ticks) | tech lead (verdict), next fix order (bug list) |
 | `harness-run.md` | **tech lead (sole writer)** | tech lead (round ledger + Hill + run-state), PO (audit) |
 | `scopes/<scope-id>.md` | `scope-architect` (sole writer, incl. remap/split orders) | tech lead (substrate/sequence), sandbox hook (write-whitelist), compile-order (inlined into orders) |
-| `t0/verdicts/r<N>-a<M>.json` | `scripts/t0-verify.mjs` (skill-local, mechanical — not a worker) | spec-evaluator (required citation), tech lead (hill derivation), compile-order (digested errors) |
+| `t0/verdicts/r<N>-a<M>-t<T>.json` | `scripts/t0-verify.mjs` (skill-local, mechanical — not a worker) | spec-evaluator (required citation), tech lead (hill derivation), compile-order (digested errors) |
+| `t0/trials.jsonl` (the ratchet ledger, append-only, `baseline_trial` as the parent link) | `scripts/t0-verify.mjs` (one row per attempt: score, status, delta, tree_ref) | compile-order (`trial_history` into the next order), ship-report (T0 + Ratchet sections), `stats.mjs --ratchet` |
 | `round-ledger.md` | **tech lead (sole writer)** | compile-order (decisions into every order), advisor-protocol (appends), PO (audit) |
 | `hill/<scope-id>.yml` + `hill-chart.md` | **tech lead (sole writer)** | PO ("status without asking"), scope-hammer (H0 census) |
 

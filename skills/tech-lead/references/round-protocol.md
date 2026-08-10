@@ -109,9 +109,11 @@ coherent to evaluate yet.
    (scope contracts present: also `/scope-hammer --breaker outer`). Do not start another
    build round automatically.
 3. **attempt_budget (INNER breaker, scope contracts only)** — a single scope's T0 attempt
-   loop exhausts `--attempts` (default 5) without a green result → does NOT stop the round;
-   queues a hammer PROPOSAL for GATE H and moves to the next scope in sequence. See
-   "Three-level circuit breaker" below.
+   loop exhausts `--attempts` (default 5) without reaching a trial that is both `kept` and
+   T0-green, **or** `no_progress_k` consecutive trials come back non-`kept` (the stagnation
+   term, default 2 — `compile-order.mjs` prints it as a JSON breaker object on stderr) →
+   does NOT stop the round; queues a hammer PROPOSAL for GATE H and moves to the next scope
+   in sequence. See "Three-level circuit breaker" below.
 4. **wall_clock_budget (DEADLINE breaker, opt-in)** — elapsed seconds since the run receipt
    exceed `--wall-clock-budget` → do NOT start another build round or another scope; go
    straight to GATE H (`/scope-hammer --breaker deadline`). Checked with
@@ -135,6 +137,11 @@ INNER    attempt_budget (per scope) — decremented once per T0 attempt inside B
                                        inner breaker for that scope only: the scope is queued
                                        as a hammer PROPOSAL (not a hard stop) and the round
                                        moves on to the next scope in the L1b sequence.
+                                       no_progress_k (default 2) is COMPOSED INTO this same
+                                       breaker rather than added beside it as a fourth budget:
+                                       attempt_budget counts attempts and cannot see that the
+                                       last two produced nothing, so k consecutive non-`kept`
+                                       trials queue the same GATE H proposal early.
 DEADLINE wall_clock_budget_s        — elapsed seconds since the run receipt. Opt-in; off
                                        unless set at L0. Tripping routes to GATE H with
                                        --breaker deadline. Enforced by hooks/gate-deadline.mjs.
@@ -167,24 +174,51 @@ never had: before opening a scope's attempt loop, the script checks whether THIS
 has a green T0 verdict for that scope on disk, and skips it when it does — the resumability a
 mid-BUILD kill needs, that a session narrating this loop from memory could never guarantee.
 
+Whichever runs it, the loop is a **ratchet**: every attempt is scored against the last kept one,
+and the working tree moves forward only when the score strictly improves. `t0-verify.mjs` makes
+that decision and acts on the tree itself, inside the runtime — its caller reads the decision, it
+never makes it.
+
 ```
 compile-order --scope … --round N --attempt M
                                    → zero-memory WorkOrder (scope contract + this scope's
-                                      tasks + digested errors + ledger decisions — compiled
-                                      facts, no chat history by construction)
+                                      tasks + digested errors + ledger decisions +
+                                      trial_history: the last 8 trials for this scope, each
+                                      with score, status, delta and top-3 digest, CROSSING the
+                                      round boundary — compiled facts, no chat history by
+                                      construction)
 dispatch task-executor --order …   → code within substrate; WorkResult in results/
 ingest-result <result>             → board/ledger writes; escalates[] queued
 handle_escalations(≤3/scope/round) → /advisor-protocol; answer promoted to round-ledger.md
                                       immediately (must survive the NEXT attempt's fresh
                                       context — this is what "zero-memory" is compatible with
                                       escalation memory means, DD-8)
-t0-verify.mjs                      → fixtures + DB probe + (on green) seesaw
-  green            → attempt loop breaks; scope reaches DOWNHILL_EXECUTION
-  red, regression  → git stash (never a hard discard) + retry; a FINISHED scope's fixture
-                      broke (PA5) — the whole point of running seesaw before declaring green
-  red, own fixture  → AEGIS-digest the failure into {file, line, core_message} triples,
-                      feed them into the NEXT attempt's brief; loop
+t0-verify.mjs                      → fixtures + DB probe + (on green) seesaw, then scores the
+                                      attempt against the baseline trial and snapshots or
+                                      restores the tree. Branch on `status` from its stdout
+                                      JSON — the tree action has ALREADY happened:
+  kept      strictly better, INCLUDING red-but-improved (2/5 → 4/5 fixtures — the whole point
+              of the ratchet). Tree snapshotted to refs/shapeup/<scope_id>/kept.
+              overall=green → the attempt loop breaks; scope reaches DOWNHILL_EXECUTION.
+              Still red → loop, and attempt M+1 now builds ON attempt M.
+  reverted  not better — and a tie is not better. Tree already restored from the last kept
+              snapshot. Subsumes the retired stash-and-retry branch: a FINISHED scope's broken
+              fixture (PA5) raises score.regressions and reverts through this same rule, which
+              is why seesaw runs before anything is declared green.
+  rebased   incomparable — fixtures_total changed under a split/remap, so the instrument moved
+              rather than the code. Tree kept, baseline reset. Not a verdict, not a failure.
+  crash     a fixture command failed to spawn or timed out; tree restored. Fix the fixture,
+              not the code.
+  (on any red, `discovered_tasks` carries the AEGIS {file, line, core_message} triples, which
+   compile-order folds into the NEXT attempt's order as digested_errors — no separate dispatch)
 ```
+
+**The exit code is not the branch selector.** `t0-verify.mjs` exits 0 on T0-green and 1 on
+T0-red (2 on bad argv), mirroring the `oracles/*` convention — so a `kept` red-but-improved
+attempt, the exact case the ratchet exists for, exits 1. Branch on `status` from the stdout
+JSON; never on `$?`, and never wire this call into a `set -e` / `&&` chain that would read a
+non-zero exit as "stop".
+
 This replaces the old flat per-task loop for any scope that has a contract;
 scopes/specs without one keep the v0.2.6 behavior verbatim (see BUILD(r) table above).
 

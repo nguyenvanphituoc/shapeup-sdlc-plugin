@@ -42,7 +42,8 @@ from `tech-lead`; it never reads or writes a shared run-state file.
 ## Input contract (pure worker)
 
 Orchestrated, you are invoked as `--order <path>` (a WorkOrder): `payload.pitch` (the
-kicked-off pitch path), `payload.stack` (sweep hint), and `substrate.allowed` naming your one
+kicked-off pitch path), `payload.stack` (sweep hint), `payload.spec_folder` (the SHARED spec
+deliverable dir) and `payload.feature` (the run slug), plus `substrate.allowed` naming your one
 write surface — the orient output dir. Anything absent = unknown: confirm at GATE O-A
 (standalone) or report it in the result's `deviations`, never guess. Standalone, the
 `--pitch/--spec/--stack` flags below carry the same fields; the output dir derives from the

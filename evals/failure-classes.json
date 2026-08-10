@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "note": "Day-2 register (Graph Engineering §VI.B). The paper's Day 2 is not 'have tools' — this harness has many — it is 'add ONE tool that addresses a MEASURED failure', with typed schema, permissions, and result confirmation, and the rung's exit criterion is that the tool REDUCES a known error class. This file supplies the link that was missing: for each tool, the error class it exists for, the artifact where that failure was written down, and the before/after rates. `reduces` stays null until BOTH rates are measured, which today is none of them. That is the finding, not an omission: baselines exist where a failure was painful enough to measure, current rates almost nowhere — this harness measures its failures and not its fixes.",
+  "note": "Day-2 register (Graph Engineering §VI.B). The paper's Day 2 is not 'have tools' — this harness has many — it is 'add ONE tool that addresses a MEASURED failure', with typed schema, permissions, and result confirmation, and the rung's exit criterion is that the tool REDUCES a known error class. This file supplies the link that was missing: for each tool, the error class it exists for, the artifact where that failure was written down, and the before/after rates. `reduces` stays null until BOTH rates are measured, which today is none of them. That is the finding, not an omission: baselines exist where a failure was painful enough to measure, current rates almost nowhere — this harness measures its failures and not its fixes. The rung requires at least one sampled reduction; structural claims remain valid and stay labelled. A claim is only as good as the predicate its rate counted — FC-01's withdrawn v1.6.3 rate is the case study — and both that predicate and the model it was counted on must be recorded, or the number cannot be trusted the moment either one changes.",
   "classes": [
     {
       "id": "FC-01",
@@ -12,7 +12,7 @@
       "discovered_by": {
         "kind": "measured",
         "source": "docs/design/03-system-design.md",
-        "quote": "measured on sdd-harness-bench (F2 / Haiku 4.5, n=3, zero variance) … printed eleven gate names and a plan, wrote no code, and scored 29% while reading as a successful run"
+        "quote": "measured on sdd-harness-bench (F2 / Haiku 4.5, n=5, zero variance) … printed eleven gate names and a plan, wrote no code, and scored 29% while reading as a successful run"
       },
       "tool": {
         "name": "gate-intake + run receipt",
@@ -28,23 +28,54 @@
       "baseline": {
         "status": "measured",
         "unit": "rate",
-        "value": 1.0,
-        "n": 3,
-        "method": "sdd-harness-bench F2, tech-lead dispatched as args:\"--unattended\"; the pathology occurred in all three runs (zero variance)",
-        "measured_at": null,
-        "model": "claude-haiku-4-5-20251001"
+        "value": 1,
+        "n": 5,
+        "method": "sdd-harness-bench F2, tech-lead dispatched as args:\"--unattended\" at harness_build a280e86 (git describe: v1.3.0-15-ga280e86); the pathology occurred in all five runs (zero variance) — FINDINGS.md §F-11's 'v1.3 (pilot), n=5' row (29% acceptance, 10 escaped, median wall 37.5s / median cost $0.064, reconciling to the five scored:true pre-fix rows in results/runs.jsonl); both of FC-01's registered tools (init-run.mjs, hooks/gate-zerowork.mjs) are verifiably absent at a280e86 (git cat-file -e), which is what makes this a legitimate before-state",
+        "measured_at": "2026-07-27",
+        "model": "claude-haiku-4-5-20251001",
+        "harness_build": "a280e86",
+        "model_scope": "claude-haiku-4-5-20251001"
       },
       "current": {
-        "status": "unmeasured",
-        "unit": null,
-        "value": null,
-        "n": null,
-        "method": null,
-        "measured_at": null,
-        "model": null
+        "status": "measured",
+        "unit": "rate",
+        "value": 0.3333333333333333,
+        "n": 3,
+        "measured_at": "2026-08-06",
+        "model": "claude-haiku-4-5-20251001",
+        "harness_build": "v1.6.3+e08082c685dc",
+        "model_scope": "claude-haiku-4-5-20251001",
+        "method": "Corrected count, replacing the retired narrated-predicate rate (see superseded[], cause instrument-change): sdd-harness-bench @ 16fb752, arm-tagged rows in results/runs.jsonl (arm=day2-armA, n=3), harness_build v1.6.3+e08082c685dc (v1.6.3 (e08082c685dc) packed), cost $5.32. Rep 1 ('built_and_failed') wrote one file (intake.md) and shipped zero product code — 0 product writes — scoring the baseline's own acceptance 0.2857 with 10 escaped defects; the retired predicate (writes===0) missed this because the intake write itself makes writes!==0, so it was recorded 'not narrated'. Counted honestly by what the run actually shipped, rep 1 is a shipped-nothing case; reps 2 and 3 ('ok', 'ok') shipped real product code and are not. The arm is 1/3 shipped-nothing, Fisher exact one-tailed vs the 5/5 baseline p=0.1071 (not the retired rate's p=0.018) — this does not meet the sampled-reduction exit criterion. Caveat unchanged: one feature, one model, an author-run benchmark — FINDINGS.md §F-11's limit travels with this number."
       },
       "reduces": null,
-      "reduction_basis": null
+      "reduction_basis": null,
+      "superseded": [
+        {
+          "status": "measured",
+          "unit": "rate",
+          "value": 0,
+          "n": 3,
+          "method": "sdd-harness-bench @ dff1bf2, results/v15-haiku-f2.log (FINDINGS.md §F-11's post-fix reps, 14/14 acceptance x3); failureMode() classifies all three runs 'ok', none 'narrated' — 0/3; Fisher exact one-tailed vs the 5/5 baseline p=0.0179, one-sided 95% upper bound on the post-fix rate 0.632, so 'the rate fell from 1.0' is supported and 'this now happens under 5% of the time' is not. the contradiction: these rows are labelled harness_build a280e86 in runs.jsonl and each recorded receipt ✓, but the receipt is written by init-run.mjs, which does not exist at a280e86 (git cat-file -e) — a run cannot emit an artifact from a script its build lacks, so the a280e86 label is refuted and harness_build is recorded null here rather than repeating a build id this run cannot have come from",
+          "measured_at": "2026-07-27",
+          "model": "claude-haiku-4-5-20251001",
+          "harness_build": null,
+          "cause": "re-measure"
+        },
+        {
+          "status": "measured",
+          "unit": "rate",
+          "value": 0,
+          "n": 3,
+          "method": "RETIRED (instrument-change): this rate counted failureMode()==='narrated', whose predicate is writes===0 — and this harness's own intake write (the receipt init-run.mjs writes at run start, and the intake.md document itself) makes writes!==0 for every run that reaches the pipeline at all, foreclosing the predicate from ever firing true on this harness's own output; see Stage 1's predicate_independence field for the general question this instance answers. Original measurement: sdd-harness-bench @ 16fb752, arm-tagged rows in results/runs.jsonl (arm=day2-armA, n=3): failureMode() classifies all three runs 'built_and_failed', 'ok', 'ok' — 0/3 narrated, 3/3 receipts present, harness_build v1.6.3+e08082c685dc (v1.6.3 (e08082c685dc) packed), cost $5.32. Pre-registered attribution (contract.md Stage 2, decided joint): Arm B — grant withheld — recorded 0/3 receipts and 0 scored rows; init-run.mjs never ran there, so FC-01's registered tools never fired on that arm. The acceptance those Arm B runs would have scored is 0.286 x3, the pilot baseline's own 29% reproduced at zero variance — Arm B's finding is unaffected by this withdrawal and stays attributed via co_attributed_to. Caveat: one feature, one model, an author-run benchmark — FINDINGS.md §F-11's limit travels with this number.",
+          "measured_at": "2026-08-06",
+          "model": "claude-haiku-4-5-20251001",
+          "harness_build": "v1.6.3+e08082c685dc",
+          "cause": "instrument-change"
+        }
+      ],
+      "co_attributed_to": [
+        "FC-02"
+      ]
     },
     {
       "id": "FC-02",
@@ -72,21 +103,26 @@
         "unit": "count",
         "value": 26,
         "n": null,
-        "method": "count of enforcement points found inert under an ordinary install at v1.4.0; a COUNT, not a rate in [0,1]",
-        "measured_at": null,
+        "method": "count of enforcement points found inert under an ordinary install at v1.4.0; a COUNT, not a rate in [0,1]; counted by the F-16 audit, dated to the commit that resolved it (27deb1b, 'fix: v1.4.1 — the enforcement layer was inert under an ordinary install'), 2026-07-28",
+        "measured_at": "2026-07-28",
         "model": null
       },
       "current": {
-        "status": "unmeasured",
-        "unit": null,
-        "value": null,
+        "status": "measured",
+        "unit": "count",
+        "value": 0,
         "n": null,
-        "method": null,
-        "measured_at": null,
+        "method": "structural §11a scans 33 .mjs modules under bin/ hooks/ skills/ scripts/ for the broken same-line import.meta.url / process.argv[1] main guard and finds 1 hand-rolled occurrence, inside the shared helper's (skills/tech-lead/scripts/lib/is-main.mjs) own explanation of the bug — zero offenders outside it. §11b separately executes the 22 entry points in ENTRY_POINTS (tests/structural/11-is-main.mjs) through a symlinked directory and a directory whose name contains a space, and every one behaves like its real-path invocation. Two denominators, kept distinct: 33 modules scanned for the pattern, 22 entry points execution-probed — not the population the F-16 audit's 26 inert guards were drawn from, and not compared to it.",
+        "measured_at": "2026-08-06",
         "model": null
       },
-      "reduces": null,
-      "reduction_basis": null
+      "error_predicate": {
+        "expression": "offender ⇔ a .mjs file under bin/ hooks/ skills/ scripts/ (outside skills/tech-lead/scripts/lib/is-main.mjs) carries import.meta.url and process.argv[1] on the same line — the fragile, symlink-unsafe main guard §11a scans for",
+        "source": "tests/structural/11-is-main.mjs:152",
+        "counts": "offenders.length — the number of scanned .mjs modules that hand-roll the broken main guard; FC-02's current.value (0) is this count found outside the shared helper"
+      },
+      "reduces": true,
+      "reduction_basis": "structural"
     },
     {
       "id": "FC-03",
@@ -158,8 +194,8 @@
         "unit": "count",
         "value": 1,
         "n": 1,
-        "method": "count of fabricated baselines shipped before the invariant existed (the F1 incident); a COUNT, not a rate",
-        "measured_at": null,
+        "method": "count of fabricated baselines shipped before the invariant existed (the F1 incident); a COUNT, not a rate; counted by the F1 audit that first found the claimed evidence layer unbacked by any committed artifact (2026-06-26), the finding now documented at evals/README.md",
+        "measured_at": "2026-06-26",
         "model": null
       },
       "current": {
@@ -170,6 +206,11 @@
         "method": "fabricated baselines present across the three baseline files now under the invariant (trigger-evals, skill-loop, failure-classes); mechanically enforced, so the value is structural rather than sampled",
         "measured_at": "2026-08-03",
         "model": null
+      },
+      "error_predicate": {
+        "expression": "fabricated ⇔ (status===\"unmeasured\" && results!==null) || (status===\"measured\" && !(results && method && measured_at)) — a baseline record claiming a state its own fields contradict",
+        "source": "tests/structural/02-skills.mjs:173",
+        "counts": "the number of baseline records, across the trigger-eval, skill-loop and failure-classes baselines now held to the same invariant, that violate it; FC-04's current.value (0 of 3) is this count"
       },
       "reduces": true,
       "reduction_basis": "structural"
@@ -207,7 +248,7 @@
       "current": {
         "status": "measured",
         "unit": "rate",
-        "value": 0.0,
+        "value": 0,
         "n": 75,
         "method": "false-positive rate across 75 cross-skill hard negatives, claude headless --max-turns 8 --concurrency 4, real Skill-tool activation",
         "measured_at": "2026-07-26T14:00:00Z",
