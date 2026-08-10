@@ -1,5 +1,29 @@
 # Migration plan — extract the tech-lead orchestrator into a Workflow, executed in an isolated worktree
 
+> ## ⟐ Revision B — amended 2026-08-10 at `c469a6c`
+>
+> Revision A (sha256 `949dab98…`) was compiled verbatim into `docs/migration/execution-contract.md`
+> and executed across three runs. This revision amends it against what execution actually produced.
+> **Read `docs/migration/status-review-2026-08-10.md` first** — it carries the evidence for every
+> change below. `execution-contract.md`'s `plan_sha256` still names revision A **deliberately**: the
+> contract is the record of what was executed, not a live mirror of this file. A resuming executor
+> must read the amendment log at the bottom of this file before acting on any stage body.
+>
+> **Status at `c469a6c`** — `npm test` green, 1168 checks. Contract rows: **17 PASS / 6 RED, of which
+> 2 passes are false** (§Acceptance notes) → 15 rows honestly done.
+>
+> | Stage | State | Remaining |
+> |---|---|---|
+> | S0 — kill-switch spike | ✅ **GREEN** | — |
+> | S1 — `shapeup-build-round` | ✅ **GREEN** | — |
+> | S2 — `shapeup-run` + thin skill | 🟡 **behaviour proven, evidence unwritten** | write `stage2-evidence.md`; run the kill/resume probe |
+> | S3 — cutover, detectors, benchmark | 🟠 **partly startable, A7 blocked** | hook arm + fixture, commands, CHANGELOG/upgrading, A6; **A7 unobtainable on this machine** |
+>
+> **A7 is blocked, not merely unstarted.** `node .plan-runs/day2-rev5/s3-feasibility.mjs` returns
+> C1 NO / C2 NO / C3 NO: `sdd-harness-bench` is absent from this machine, and commit `8fe70bc`
+> records the last search axes closed (npm 404, global GitHub 0 results). See the amended A7 row and
+> §6 below.
+
 **Goal:** implement D1–D4 (`docs/workflow_extraction_review.md` §6 decision record) — a
 deterministic Workflow control plane, the prose orchestrator deleted at cutover, both lanes
 served, rollback by version pinning.
@@ -29,10 +53,22 @@ The migration is DONE when, on the worktree branch:
 | A1 | Stage-0 evidence shows all three kill-switch checks passed | `docs/migration/stage0-evidence.md` + `decisions.jsonl` rows quoted in it |
 | A2 | An **unattended** run of a real feature completes through `shapeup-run` (preset `ci`), verdict recorded, zero orchestration prose between gates | run transcript + `.shapeup/<slug>/` artifacts + `REPORT.md` |
 | A3 | An **interactive** run completes with ≥2 gates crossed via pause → PO decision → relaunch fast-forward, and nothing re-dispatched (orders/results set difference empty on relaunch) | run transcript + `docs/migration/stage2-evidence.md` |
-| A4 | The prose runbook is deleted; `SKILL.md` ≤ ~150 lines; the workflow scripts are the loop's only normative home | `git diff --stat` vs `main`; grep shows no round/attempt loop prose in `SKILL.md` |
-| A5 | `gate-zerowork.mjs` blocks a session that launches the skill and never invokes the Workflow (new predicate arm), and still defers on non-harness sessions | new unit fixture in `tests/` + `npm test` |
-| A6 | `npm test` green in the worktree AND in a fresh `git clone --local` of the branch (the repo's own clone discipline) | clone + `npm test` output pasted in stage evidence |
-| A7 | Benchmark F2 cell, **model-matched on Sonnet 5**: candidate arm (workflow lane, n=3) vs control arm (v1.6.x prose lane, n=3). Absolute bar: 3× 14/14 oracle, 0 narrated, receipts present. Comparative bar: candidate ≥ control on acceptance, ≤ control on wall clock. The historical Haiku rows are NOT the baseline — models must match | `sdd-harness-bench` run log referenced by commit + log path, both arms |
+| A4 | ⟐ **Rev B.** No *scoped-lane* loop prose survives; `SKILL.md` ≤ ~150 lines; `shapeup-run.js`/`shapeup-build-round.js` are the only normative home **for specs with committed scope contracts**. The `--tiny` and pre-scope-contract lanes keep their prose loop by design, and `SKILL.md` names the boundary | `wc -l SKILL.md` (**121 at `c469a6c` ✅**); `SKILL.md` routes the excepted lanes explicitly (`:50-55`); `round-protocol.md` states the same split (`:11-22`) |
+| A5 | `gate-zerowork.mjs` blocks a session that launches the skill and never invokes the Workflow (new predicate arm), and still defers on non-harness sessions | new unit fixture in `tests/` + `npm test`. ⟐ **Rev B: RED at `c469a6c`** — `hooks/gate-zerowork.mjs:66` has no `Workflow` in `WORK_TOOLS`, `:69-74` matches `Skill(tech-lead)` only, **while `SKILL.md:12-14` already tells operators the arm exists**. Closing A5 repairs that divergence |
+| A6 | `npm test` green in the worktree AND in a fresh `git clone --local` of the branch (the repo's own clone discipline) | clone + `npm test` output pasted in stage evidence. ⟐ **Rev B:** in-tree green at 1168; last clone-derived count was 1120 at `7c1b15e` — **must be re-derived at the final commit** |
+| A7 | Benchmark F2 cell, **model-matched on Sonnet 5**: candidate arm (workflow lane, n=3) vs control arm (v1.6.x prose lane, n=3). Absolute bar: 3× 14/14 oracle, 0 narrated, receipts present. Comparative bar: candidate ≥ control on acceptance, ≤ control on wall clock. The historical Haiku rows are NOT the baseline — models must match | ⟐ **Rev B — DEFERRED OBLIGATION, not a gate.** The instrument is unobtainable here (3 blockers, §6). A7 converts to an obligation with a named trigger: **the first run on a machine that holds `sdd-harness-bench`**. `stage3-evidence.md` MUST record the unobtainability as a finding — "A7 passed" must not be reachable by grep. See §6 |
+
+⟐ **Rev B — acceptance-instrument notes.** Two rows in `execution-contract.md` pass without the work
+being done, and must be tightened before the count is trusted:
+
+- `grep -qi pin CHANGELOG.md` (`:50`) matches `**Pinned:**` at `CHANGELOG.md:65`, from the **1.6.2**
+  entry. Replace with a predicate on the cutover text, e.g. `grep -q 'no in-tree prose lane' CHANGELOG.md`.
+- `grep -rqli 'gate-zerowork' tests/` (`:48`) matches three pre-existing test files. Replace with a
+  path test for A5's *new* fixture.
+
+The same caution applies to the `grep -qiE 'kill|resume' stage2-evidence.md` row: a sentence saying
+the probe was **not** run satisfies it. Either run the probe or tighten the row — do not let prose
+about an absence score as evidence of a presence.
 
 If A1 fails → the migration does not start (D1). If A2/A3 cannot both go green → the cutover
 release does not ship (D2's ship gate) and the branch stays unmerged.
@@ -40,6 +76,23 @@ release does not ship (D2's ship gate) and the branch stays unmerged.
 ---
 
 ## 0. Worktree setup — one-time, ~10 min
+
+> ⟐ **Rev B — this section is historical. The two-checkout premise no longer holds.**
+> `git worktree list` returns a **single** checkout at
+> `/Volumes/LibertyMobi/workspace/proj-harness-plugin`, on `feat/workflow-orchestrator` directly;
+> the paths below (`/Users/teo/workspace/…`) are a different machine. Consequences that bind the
+> remaining stages:
+> - **There is no control arm available in-place.** The rule "reproduce in main before debugging"
+>   has had no main checkout since run 2. Use `git stash` + `git checkout main`, or accept that
+>   control-arm comparison is unavailable and say so in the evidence.
+> - **The branch is no longer only this migration.** 41 commits ahead of `main`, 10 tagged
+>   `wf-migration`; `af99937` merged the day2 ratchet work in, and **24 of 46 changed files fall
+>   outside the Appendix touch-map**. That merge is in history and `npm test` is green across both —
+>   do not un-merge it. Instead the cutover CHANGELOG must state that pinning the previous release
+>   also reverts the ratchet changes (the rollback story is wider than revision A assumed).
+> - **Freeze the branch at Stage B** (§6). Another unrelated merge makes the touch-map guardrail
+>   unusable as an audit.
+
 
 ```bash
 # from the main checkout (never develop on main directly)
@@ -175,30 +228,140 @@ formats (the skill still emits them verbatim from the workflow's `block` field).
 **Exit artifact:** `docs/migration/stage2-evidence.md` with A2/A3/kill-probe transcripts. This
 is the **ship gate of the cutover** — Stage 3 does not begin until both lane types are green.
 
+> ⟐ **Rev B — status: behaviour proven on 2026-08-07, evidence file never written.**
+> The content for `stage2-evidence.md` already exists at `docs/migration/execution-report.md:32-125`
+> and only needs transcribing with its citations:
+> - **A2 GREEN** — headless run returned `{"status":"shipped","verdict":"pass","rounds_used":1,…}`;
+>   9 orders / 9 results; exactly one `evaluate-r1` order.
+> - **A3 SUBSTANTIALLY GREEN** — L1a and L1b crossed via pause → PO decision → relaunch in fresh
+>   sessions, across 4 relaunches, with the *redone-completed-work* set empty at every leg.
+> - **NOT demonstrated, and the evidence file must say so:** no single interactive run reached
+>   `shipped`, and **verification step 4 (the kill/resume probe) was never run.**
+>
+> **Two defects were found only by executing this stage** and are committed: `e4c8fa6` (the `mech()`
+> courier manufactured `EXIT:0` into its own stdout — 8 parse sites now route through
+> `parseMechJson`; the dangerous silent arm was QA never dispatching under preset `ci` while the run
+> reported green) and `7c1b15e` (`agent()` returns `null` on a skipped/dead subagent, and every call
+> site dereferenced it — `"failed"` is not a member of the `RunReturn` union, so `SKILL.md` Step 3
+> had no arm for it). Both belong in the evidence file.
+>
+> **Stage 3 has already been partly entered while S2's ship gate is unmet.** That is a contract
+> violation on paper (`execution-contract.md:64`) with no practical harm so far — but it means
+> **running the kill/resume probe is not optional bookkeeping.** If it fails, A3 is not green, the
+> ship gate was never met, and every Stage-3 item unwinds.
+
 ---
 
 ## 4. Stage 3 — cutover, deletion, detectors, benchmark · ~1 day + benchmark cost
 
-1. **Delete** the inline orchestration prose (D2): the round/attempt runbook from `SKILL.md`
-   remnants and `gates.md`/`round-protocol.md` normative sections. `git rm`/edit — no
-   commented-out corpses.
+1. ⟐ **Rev B — SUPERSEDED AS WRITTEN. Do NOT delete `round-protocol.md`'s loop.**
+   Revision A ordered: delete "the round/attempt runbook from `SKILL.md` remnants and
+   `gates.md`/`round-protocol.md` normative sections." Stage 2 deliberately refused half of that,
+   and correctly: `SKILL.md:50-55` routes `--tiny` runs **and any spec without committed
+   `scopes/*.md`** to `references/round-protocol.md` + `delegation.md` "verbatim, non-regression",
+   because `shapeup-run.js` targets scope-contract specs by design. `round-protocol.md:11-22` was
+   rewritten to state exactly that split. **Deleting that prose would delete the only normative home
+   a supported lane has.** D2's scope shrank during execution and revision A never recorded it.
+   **What this step now is:** confirm — do not re-delete — that (a) `SKILL.md` carries no
+   scoped-lane round/attempt loop (**already true at 121 lines**), (b) `round-protocol.md` and
+   `gates.md` state which lane each surviving section serves, and (c) no commented-out corpses
+   remain. A4 as amended is the criterion.
 2. **`hooks/gate-zerowork.mjs`:** add the predicate arm — a `Workflow` tool_use whose
    scriptPath/name matches `shapeup-` counts as "dispatched the orchestrator"; a session that
    loaded tech-lead and produced neither a Workflow call nor a receipt still blocks. Unit
    fixture added (A5).
+   ⟐ **Rev B — this is now a correctness repair, not just a detector.** `SKILL.md:12-14` already
+   states the hook blocks a session leaving "neither a receipt NOR a `Workflow` tool_use naming
+   `shapeup-run`". The hook does not implement it (`:66` `WORK_TOOLS` has no `Workflow`; `:69-74`
+   matches `Skill(tech-lead)` only). Practical exposure is small — the block is decided by receipt
+   absence and `init-run.mjs` writes the receipt before launch — but an invariant currently lives in
+   a prompt rather than the runtime, which is the one thing `AGENTS.md` says must never happen.
+   Structural #26 does not catch it (it checks paths and counts, not claimed predicates).
 3. **Commands** (`commands/build.md`, `ship.md`): instruct the Workflow launch (the legitimate
-   opt-in surface).
+   opt-in surface). ⟐ Rev B: neither file mentions `Workflow` at `c469a6c`.
 4. **CHANGELOG + `docs/upgrading.md`:** the cutover entry states the rollback explicitly —
    *pin the previous release; there is no in-tree prose lane* — and names D1–D4.
+   ⟐ **Rev B — three additions revision A could not have known:**
+   (a) "no in-tree prose lane" is **too strong** — say instead that the *scoped* lane is code-only
+   and the `--tiny`/pre-scope-contract lane remains prose by design;
+   (b) pinning the previous release **also reverts the merged day2 ratchet work** (`af99937`), so
+   the rollback's blast radius is wider than this migration;
+   (c) `docs/upgrading.md` must document `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0` as **mandatory for
+   headless runs** — without it `claude -p` terminates the Workflow at 600 s, **exits 0**, and
+   reports a truncated run as a clean one. This is a shipping-safety note and it currently exists in
+   no shipped document.
 5. **Benchmark (A7):** F2 cell, **Sonnet 5, two arms, n=3 each** — candidate (workflow lane,
    worktree build via `npm pack`) and control (v1.6.x prose lane, same model). The historical
    Haiku rows in `results/runs.jsonl` are context, never the baseline: a cross-model comparison
    is the mislabelling class the Day-2 review documents. Label build id and model on every row
    (no number without its build).
+   ⟐ **Rev B — BLOCKED ON THIS MACHINE. Do not attempt; do not substitute.**
+   `node .plan-runs/day2-rev5/s3-feasibility.mjs` → **C1 NO** (`/Users/teo/workspace/sdd-harness-bench`
+   absent), **C2 NO** (no `*harness-bench*` directory or archive under `/Users` or `/Volumes`),
+   **C3 NO**. Commit `8fe70bc` records the last two search axes closed: npm 404, global GitHub
+   0 results. **Rebuilding a lookalike benchmark is forbidden** — it produces a different instrument
+   whose numbers look comparable and are not, which is the pooling error the day2 review exists to
+   refuse. Proceed per §6's fork; `s3-feasibility.mjs` exiting 0 is the trigger that reopens this step.
 6. Fresh-clone `npm test` (A6), then merge `feat/workflow-orchestrator` → `main` as the cutover
-   release; `git worktree remove` after the tag.
+   release; `git worktree remove` after the tag. ⟐ Rev B: there is no worktree to remove.
 
 **Exit artifact:** `docs/migration/stage3-evidence.md` + the release tag.
+⟐ **Rev B:** if A7 is deferred, `stage3-evidence.md` must carry the unobtainability as a **finding**
+with its date and the three blocker codes — omitting the section, or wording it so that "A7 passed"
+is reachable by grep, is not an acceptable exit.
+
+---
+
+## ⟐ 6. Rev B — the remaining work, and the one fork that costs money
+
+Full argument and evidence: `docs/migration/status-review-2026-08-10.md`. Sequence:
+
+### Stage A — close the clerical debt · ~2–3 h · $0 external · all unblocked here
+
+| # | Item | Note |
+|---|---|---|
+| A.1 | Write `docs/migration/stage2-evidence.md` | Content exists at `execution-report.md:32-125`; transcribe with citations, and state what is **not** demonstrated |
+| A.2 | **Run the kill/resume probe** (§3 verify step 4) | The one criterion that retires the 82–120-turn handoff class. If skipped, A3 is marked *partial* in writing — not green |
+| A.3 | Implement A5 — the `Workflow` predicate arm + unit fixture | Also repairs the `SKILL.md:12-14` divergence |
+| A.4 | Tighten the two false-passing contract rows + the `kill\|resume` row | Then re-derive the count |
+
+### Stage B — cutover paperwork · ~2 h · $0
+
+| # | Item |
+|---|---|
+| B.1 | `commands/build.md`, `commands/ship.md` — name the Workflow launch |
+| B.2 | CHANGELOG cutover entry + `docs/upgrading.md`, with §4's three Rev-B additions |
+| B.3 | Confirm step 1 as amended (no scoped-lane loop prose; lane boundaries stated) |
+| B.4 | **A6** — fresh `git clone --local` + `npm test` at the final commit; paste the count |
+
+Freeze the branch here. No further unrelated merges.
+
+### Stage C — the fork · PO decision
+
+| | **C1 — ship on the absolute bar, defer the comparative** | **C2 — hold the merge for the bench machine** |
+|---|---|---|
+| Cost now | $0 | $40–60 + a machine, at an unknown date |
+| Given up | The §7 falsifier. The one cost number in hand (**candidate $2.010 vs control $1.461, +37.6%**, `stage1-evidence.md`) stays unrefuted at scale | Time; the branch keeps absorbing unrelated work, as it already has |
+| Required | `stage3-evidence.md` records "A7 not run — instrument unobtainable, C1/C2/C3 NO at 2026-08-10" | — |
+| Precedent | day2's S3 took exactly this posture on this same blocker (`RESUME.md`: *"No number was invented in the meantime"*) and it held | — |
+
+**Recommended: C1 — conditional on Stage A.2 actually being run.** A7 answered *"does this pay for
+itself"*; the kill/resume probe answers *"does it do the thing it was built for."* Deferring the
+first while skipping the second rests the cutover on two unrun tests with the only measured cost
+number pointing the wrong way. One deferral is a judgement call; two is a hope.
+
+### Deliberately out of scope — record, do not fix
+
+Run 3's seven environment findings (`execution-report.md:134-156`) are outside the Appendix
+touch-map. **Their source file is gone**: `.gitignore:83` ignores `.plan-runs/` and only `day2-rev5`
+was force-added, so `.plan-runs/workflow-migration/ledger/run3-environment-findings.md` is not on
+disk and not in history — the seven-line summary is all that survives. **Transcribe it into a
+committed register and file it as a raw idea for the Betting Table**; fix on `main` after cutover.
+At least three are live at `c469a6c`: `project-profile.md` is written by prose and validated by
+nothing at write time (a run emitted `cli`, not in the enum — `domain.schema.json:2079-2089`);
+`ship-report.mjs` reported `rounds_used: 0` for a 1-round run; and the
+`CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS` requirement, which is the one exception — it ships as
+documentation at B.2, because a truncated run that exits 0 is a shipping hazard, not a backlog item.
 
 ---
 
@@ -231,3 +394,37 @@ is the **ship gate of the cutover** — Stage 3 does not begin until both lane t
 Everything else — all pipeline scripts, all other hooks, all worker skills, both envelope
 schemas' shapes — **untouched by design**; a diff outside this map is scope creep and should be
 challenged at review.
+
+⟐ **Rev B — the map was breached and the breach is accepted, not silently absorbed.** 24 of the 46
+files changed vs. `main` fall outside it, almost all from `af99937`, which merged the day2 ratchet
+work onto this branch. `npm test` is green across both bodies of work and the merge is in history;
+un-merging costs more than it buys. The consequence is carried forward in §4's CHANGELOG item (b)
+instead: the rollback story must state that pinning reverts more than this migration.
+
+---
+
+## ⟐ Amendment log
+
+**Revision B — 2026-08-10, at `c469a6c`.** Author: architecture review
+(`docs/migration/status-review-2026-08-10.md`). Revision A's sha256 `949dab98…` remains the value in
+`execution-contract.md`; that contract records what was executed across runs 1–3 and is not updated
+here. **A resuming executor pins revision B by commit, not by a hash written inside the file** — a
+sha256 recorded in the document it hashes cannot be correct. Use
+`git log -1 --format=%H -- docs/workflow_migration_plan.md`, then
+`shasum -a 256 docs/workflow_migration_plan.md` against that revision. Changes, each with its cause:
+
+| § | Change | Cause |
+|---|---|---|
+| Header | Status banner: stage states, honest row count, A7 blocked | 23 contract rows re-executed at `c469a6c` |
+| A4 | Restated — workflows are the only normative home **for scoped specs**; tiny/pre-scope lanes keep prose | `SKILL.md:50-55` + `round-protocol.md:11-22` deliberately preserved that lane in S2 |
+| A5, A6 | Current state annotated | Hook arm absent; clone count last derived at `7c1b15e` |
+| A7 | Gate → **deferred obligation with a named trigger** | `s3-feasibility.mjs` C1/C2/C3 NO; `8fe70bc` closed the search |
+| Acceptance | Two false-passing rows named; the `kill\|resume` row flagged as satisfiable by prose about an absence | `grep -qi pin` matches the 1.6.2 entry; `grep -rqli gate-zerowork tests/` matches 3 pre-existing files |
+| §0 | Two-checkout premise marked historical | `git worktree list` — one checkout, different machine than the plan's paths |
+| §3 (S2) | Status block: what is proven, what was never run, the two execution-found defects | `execution-report.md:32-125` |
+| §4 step 1 | **Superseded** — do not delete `round-protocol.md`'s loop | Deleting it removes the only normative home of a lane `SKILL.md` still routes to |
+| §4 step 2 | Reframed as a correctness repair | `SKILL.md:12-14` documents an arm `hooks/gate-zerowork.mjs:66,69-74` does not implement |
+| §4 step 4 | Three CHANGELOG/upgrading additions | Lane wording; day2 blast radius; the headless-truncation hazard |
+| §4 step 5 | Marked blocked; lookalike rebuild forbidden | Different instrument = the pooling error day2 refuses |
+| §6 (new) | Stage A / Stage B / the C1–C2 fork, costed | The decision the review was asked to unblock |
+| Appendix | Breach of the touch-map acknowledged and its consequence routed to §4(b) | `git diff --name-only main...HEAD` — 24 files outside |
