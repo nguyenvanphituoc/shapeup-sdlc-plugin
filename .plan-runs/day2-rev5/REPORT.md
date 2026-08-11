@@ -88,7 +88,37 @@ branch started this session (15/28 at `8bc21ff`), the table also grew: S3 had **
 at all** until this session, which under Phase 3's own rule means it would have been marked green
 by default.
 
-### The one row that is red at final HEAD, and why that is correct
+### Four stages now read red at HEAD and green at their own commits — the honest accounting
+
+**After the 2026-08-11 arm, `preflight.mjs` at HEAD reads 27/36.** That number is correct and is not
+a regression. Every stage passes against the commit that produced it:
+
+| stage | at | result |
+|---|---|---|
+| S0 | `1bb0d73` | **9/9** |
+| S1 | `9cbbc1f` | **5/5** |
+| S2 | `5546fee` | **8/8** |
+| S3 | `f0b33d7` | **8/8** |
+| S4 | HEAD | **6/6** |
+
+**Why they diverge.** These rows pin the register's state *as their stage left it* — S0's assert
+"FC-01 claims nothing" and "2 of 8 at the exit criterion, both `structural`". Both were true of the
+register S0 delivered, and both stop being true the moment a later stage buys a real rate. S0's
+deliverable was withdrawing the **artifact** rate — the one counting a predicate this harness's own
+intake write forecloses — and that withdrawal is untouched: the bad rate is still in `superseded[]`
+exactly where S0 put it. What FC-01 carries now is a **different** claim, pre-registered and
+measured, which the plan's own §7 explicitly contemplates ("FC-01 cannot be re-based … *at all*" is
+conditioned on the arm being unbuyable, not forbidden outright).
+
+**What was deliberately not done.** These rows were not edited, relaxed, or deleted to make HEAD read
+36/36. Changing an acceptance row because the result disagrees with it is the exact failure this plan
+was written about, one level up. The `--at=<ref>` flag exists for this, it was built for S1's row,
+and it now covers four.
+
+**The count the plan tracks moved**: **2 of 8 at the exit criterion, both `structural`** → **3 of 8**,
+FC-01 `sampled`, FC-02 and FC-04 `structural`.
+
+### The row that was already red before this arm, and why that too is correct
 
 At final HEAD the table reads **35/36**. The single red is S1's
 

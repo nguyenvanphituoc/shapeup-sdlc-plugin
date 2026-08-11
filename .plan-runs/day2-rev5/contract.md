@@ -418,6 +418,31 @@ Row 2 accepts **either** branch of the plan's `or` exit criterion and names whic
    recorded as Haiku-scoped, no after-arm, eight rows live in `## Acceptance`, `preflight.mjs S3`
    green 8/8 at `f0b33d7`.
 
+## Stage-local rows — verify these with `--at=<ref>`, not at HEAD
+
+`preflight.mjs` at HEAD reads **27/36** after the 2026-08-11 FC-01 arm. That is correct. The rows
+below pin the register's state *as their own stage left it*, so a later stage that legitimately
+changes the register turns them red at HEAD while they stay green where they were written.
+
+| stage | verify with | result |
+|---|---|---|
+| S0 | `preflight.mjs S0 --at=1bb0d73` | 9/9 |
+| S1 | `preflight.mjs S1 --at=9cbbc1f` | 5/5 |
+| S2 | `preflight.mjs S2 --at=5546fee` | 8/8 |
+| S3 | `preflight.mjs S3 --at=f0b33d7` | 8/8 |
+| S4 | `preflight.mjs S4` (HEAD) | 6/6 |
+
+**S0's rows** assert `FC-01 claims nothing` and `2 of 8 at the exit criterion, both structural` —
+true of the register S0 delivered. S0's job was withdrawing the ARTIFACT rate, and that withdrawal
+is intact: the bad rate is still in `superseded[]`. The rate FC-01 carries now is a different,
+pre-registered, measured claim (5/5 → 1/10, p=0.0020, Haiku-scoped). **S1's** row asserts the
+register is byte-identical to S0's commit, which S2 and the arm both change on purpose. **S2's** and
+**S3's** rows likewise encode counts and absences that the arm moved.
+
+**None of these rows may be edited to make HEAD green.** Rewriting an acceptance row because the
+result disagrees with it is the defect this plan exists to refuse, one level up. `--at` is the
+mechanism; it was built for S1 and now covers four stages.
+
 ## Stage S4 — Gate the plan-executor
 
 **Depends on:** S2
