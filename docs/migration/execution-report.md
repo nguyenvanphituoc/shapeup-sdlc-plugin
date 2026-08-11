@@ -271,13 +271,35 @@ the contract's own guardrail.
    closed it — the grant exists, is correct, and is inert. The fix is a line in the installer's own
    output (or in `docs/upgrading.md`) naming the one-time trust step; run 4 set
    `projects[<path>].hasTrustDialogAccepted` in `~/.claude.json` by hand to get a clean probe.
-9. **A build order's id carries no scope id** *(new, run 4)*. `compile-order.mjs:328` names it
+9. **A build order's id carries no scope id** *(new, run 4)*. **Closed at Stage A2** — see
+   `stage-a2-evidence.md` §5; it was the reason a contract row read green on a failing probe, which
+   made it an instrument defect rather than an unrelated one. `compile-order.mjs:328` names it
    `r<round>-a<attempt>`, so in a multi-scope round each scope's order overwrites the previous
    scope's on disk. Harmless to the pipeline — an order is consumed immediately after it is compiled
    — but it means `orders/` is not an audit trail of build dispatches, and it is what let the
    contract's `orders/ minus results/` row read green on a failing run. T0 verdicts do this correctly
    (`t0-verify.mjs:349-358`).
 
+10. **`bin/init.mjs` silently converts a LOCAL marketplace into a GitHub clone** *(new, run 5)*.
+   The documented recipe for testing a candidate build is `npm pack` → unpack → register the
+   directory as a local marketplace → install, so `${CLAUDE_PLUGIN_ROOT}` resolves to the candidate
+   (`execution-contract.md` guardrails: *"Never test against the published 1.6.x — that measures the
+   control, not the candidate"*). Running `npx shapeup-sdlc init` afterwards **undoes it**: it
+   re-adds the marketplace by `repo`, clones `nguyenvanphituoc/shapeup-sdlc-plugin` from GitHub over
+   it, and rewrites the project's `extraKnownMarketplaces` source from `directory` to `github` while
+   keeping the local path in the record — a spelling that looks local and resolves remote. Measured
+   at run 5: `shapeup-run.js` and `resume-state.mjs` were **absent** from the resolved plugin root
+   and `gate-zerowork.mjs` hashed to the published build. A probe run at that moment would have
+   measured the control while reporting on the candidate, and only the sha256 check caught it.
+   Workaround used: give the candidate its own version, then uninstall → re-add the directory
+   marketplace → reinstall, and verify every file by hash before launching.
+11. **The archetype enum has no `cli` member** *(new, run 5 — the root of finding #4)*. Finding #4
+   recorded that a run emitted `archetype: cli`, which is not in the enum, and that nothing
+   validated it at write time. The reason it was reachable: `domain.schema.json`'s enum is
+   `client-only-game | web-service | mobile | library | data-pipeline`, and a command-line tool —
+   the single most common shape of a small feature — has no honest value. The write-time validator
+   finding #4 asks for would have blocked run 5's own profile; the enum needs the member as well as
+   the check.
 ---
 
 ## Executor rules still in force
