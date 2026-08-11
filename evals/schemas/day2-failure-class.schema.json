@@ -84,7 +84,7 @@
             "source": {
               "type": "string",
               "pattern": "^.+:[0-9]+$",
-              "description": "Repo-relative `file:line` implementing the expression, e.g. `transcript-metrics.mjs:208`. §48 resolves this path and asserts the line exists in it."
+              "description": "Where the expression is implemented, in one of two forms. LOCAL — repo-relative `file:line`, e.g. `tests/structural/11-is-main.mjs:152`; §48 resolves the path against this repo and asserts the line exists. CROSS-REPO — `<repo>@<commit>:file:line`, e.g. `bench@d3787fa:runner/lib/transcript-metrics.mjs:387`, where `<repo>` is a key §48 knows the location of. The second form exists because every `measured` or `sampled` predicate this register can carry is decided in the benchmark, a separate repository with no remote: repo-relative resolution could not express a citation for the only basis rules 7 and 8 police, so FC-01 carried none at all. A cross-repo citation is pinned to a COMMIT, which makes it the stronger of the two — it names immutable content rather than a mutable working tree. §48 verifies the pin for real where that repo is on the machine, and where it is not, says UNVERIFIED HERE in the check's own message rather than passing silently as though it had resolved."
             },
             "counts": {
               "type": "string",

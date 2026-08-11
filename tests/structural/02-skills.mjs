@@ -137,6 +137,23 @@ export async function run(ctx) {
   // numbers (the prior roadmap's sin). Each dataset: names its own skill, has positives AND
   // cross-skill hard negatives, every `expected_other` names a real skill (or "none"). Baseline: if
   // `unmeasured`, results MUST be null; if `measured`, it MUST carry method + measured_at.
+  // The harness must be able to SEE the datasets this section validates. `tools/trigger-eval.mjs`
+  // resolved its repo root as `tools/../..` — one level too far — so it scanned a `skills/`
+  // directory OUTSIDE the checkout and loaded nothing, on every machine, while §16 went on
+  // certifying the datasets as well-formed. Validating an input no instrument can reach is the
+  // shape of check this register exists to refuse, so the resolution is asserted here rather than
+  // trusted: FC-05's rate is produced by this tool.
+  {
+    const src = read(join(ROOT, "tools", "trigger-eval.mjs"));
+    const m = src.match(/const ROOT = resolve\(dirname\(fileURLToPath\(import\.meta\.url\)\),\s*"([^"]*)"\)/);
+    if (!m) fail("tools/trigger-eval.mjs no longer resolves ROOT in the recognised form — §16 can no longer prove the harness reaches its datasets");
+    else {
+      const resolved = resolve(join(ROOT, "tools"), m[1]);
+      if (resolved === ROOT) ok(`trigger-eval resolves its repo root to the checkout ("${m[1]}"), so it can load the datasets §16 validates`);
+      else fail(`trigger-eval resolves its repo root to ${resolved}, not the checkout ${ROOT} — it will scan a skills/ directory that is not this repo's and silently load zero datasets`);
+    }
+  }
+
   const VALID_SKILLS = new Set(skillDirs);
   let datasetCount = 0, caseCount = 0;
   for (const dir of skillDirs) {

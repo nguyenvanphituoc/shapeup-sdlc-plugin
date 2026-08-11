@@ -44,12 +44,21 @@ check('C1', 'benchmark repository present at its recorded path', () => {
 // C2 — is it anywhere else, under any name? Cheap breadth-first sweep of the plausible roots.
 // `find` is used rather than a recursive walk so the cost stays bounded on a large volume.
 check('C2', 'benchmark reachable anywhere on this machine', () => {
+  //
+  // `find` exits 1 the moment it meets one unreadable directory — which it always does under
+  // /Users on macOS — HAVING ALREADY PRINTED every hit it found. execFileSync throws on that
+  // non-zero exit, so the assignment below never ran and the earlier empty `catch` discarded the
+  // answer along with the error: C2 reported "not found" on a machine whose C1 had just found it
+  // by existsSync. Read stdout off the thrown error; a partial result from an interrupted walk is
+  // still evidence of presence, and only *presence* is what this check can positively establish.
   let hits = '';
   try {
     hits = execFileSync('/usr/bin/find',
       ['/Users', '/Volumes', '-maxdepth', '6', '-iname', '*harness-bench*', '-not', '-path', '/System/*'],
       { encoding: 'utf8', timeout: 240_000, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
-  } catch { /* find exits non-zero on unreadable dirs; empty stdout is the answer we want */ }
+  } catch (e) {
+    hits = String(e?.stdout ?? '').trim();
+  }
   return { ok: hits.length > 0, detail: hits || 'no directory or archive matching *harness-bench* under /Users or /Volumes' };
 });
 
@@ -92,9 +101,26 @@ if (!blockers.length) {
   console.log('\nS3 IS RUNNABLE HERE. The benchmark is reachable and the pre-fix build has its adapter prerequisites.');
   process.exit(0);
 }
-console.log(`\nS3 IS BLOCKED ON THIS MACHINE — ${blockers.length} blocker(s): ${blockers.map((b) => b.id).join(', ')}`);
-console.log('S3 needs the benchmark for BOTH halves: the product_writes change is committed there,');
-console.log('and the n=3 reps run through its runner and scorer. Neither is reconstructible from this');
-console.log('repository, and rebuilding a lookalike would produce a DIFFERENT instrument — the exact');
-console.log('pooling error this plan exists to refuse. Run this on the machine that holds the benchmark.');
-process.exit(3);
+// Two blocker classes that mean opposite things, and conflating them sends a reader to the wrong
+// place. C1/C2 are about THIS machine — S3 reopens elsewhere. C3 is about the BUILD — no machine
+// can drive `a280e86` with today's adapter, so there is nowhere to reopen it and the plan already
+// names the disposition. They get distinct exit codes so the runbook can route on them.
+const unreachable = blockers.filter((b) => b.id === 'C1' || b.id === 'C2');
+console.log(`\nS3 IS BLOCKED — ${blockers.length} blocker(s): ${blockers.map((b) => b.id).join(', ')}`);
+
+if (unreachable.length) {
+  console.log('\nBLOCKED ON THIS MACHINE (reachability).');
+  console.log('S3 needs the benchmark for BOTH halves: the product_writes change is committed there,');
+  console.log('and the n=3 reps run through its runner and scorer. Neither is reconstructible from this');
+  console.log('repository, and rebuilding a lookalike would produce a DIFFERENT instrument — the exact');
+  console.log('pooling error this plan exists to refuse. Run this on the machine that holds the benchmark.');
+  process.exit(3);
+}
+
+console.log('\nBLOCKED BY CONSTRUCTION (instrument), not by this machine — the benchmark is reachable here.');
+console.log(`The pre-fix build ${PREFIX_BUILD} predates the machinery today's adapter requires, so the arm`);
+console.log('cannot be bought on ANY machine. This is the plan\'s §7 falsifier and its disposition-table');
+console.log('row 4: instrument fault — discard, change nothing, and say so. Do NOT buy the arm; moving to');
+console.log('another machine will not help. S3 answered the question from transcripts already paid for');
+console.log('instead — see the runbook outcomes in contract.md and §S3 in REPORT.md.');
+process.exit(4);
