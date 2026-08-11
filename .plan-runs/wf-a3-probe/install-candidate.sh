@@ -21,6 +21,14 @@ CANDIDATE="$PROBE/candidate"
 VERSION="1.6.3-a3probe"
 MARKETPLACE="a3probe-marketplace"
 
+# The plugin CACHE is what `Skill(shapeup-sdlc-plugin:*)` resolves, and `claude plugin install` is a
+# no-op when a directory for that version already exists — so a rebuilt candidate installs "fine"
+# and the run keeps executing the PREVIOUS build. Measured here on the A3 fix's first re-pack: the
+# candidate carried the change, the cache did not, and only seed-project.sh's hash assertion said so.
+# Purging the cached version makes the install a copy again.
+echo "=== purging the cached install ==="
+rm -rf "$HOME/.claude/plugins/cache/$MARKETPLACE"
+
 echo "=== packing $WORKTREE ==="
 rm -rf "$CANDIDATE"
 mkdir -p "$CANDIDATE"
