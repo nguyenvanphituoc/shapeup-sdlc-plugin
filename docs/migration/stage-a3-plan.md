@@ -65,6 +65,26 @@ committed authorities disagree, and `shapeup-run.js` implements the one the work
 *"confirm each UC has a declared seam before slicing"* (`gates.md:151`): the slicer is
 `scope-architect`, and it still runs after WIRE.)*
 
+### ⟐ Finding 3 — added 2026-08-11, after probe leg 1 ran and died at its first phase
+
+Not in the compiled plan, because nothing on disk could have shown it: it took a live dispatch.
+
+```json
+{"status":"aborted","aborted_at":"ORIENT","reason":"ingest:orient did not apply:
+  ✗ result unreadable: EISDIR: illegal operation on a directory, read"}
+```
+
+ORIENT had done its whole job — all four artifacts on disk, `results/orient.json` valid and exactly
+where its order said it would be — and the run threw it away because the schema-forced report named
+a **directory** as `result_path`, which the pipeline passed straight to `ingest-result.mjs`.
+
+The pairing is a **fact of the envelope port**: `compile-order.mjs` writes `orders/<suffix>.json`,
+every worker writes `results/<suffix>.json` (each SKILL.md says so), and the probe's own assertions
+are set operations over exactly that pairing. This is the same lesson as Finding 1, one field over —
+the pipeline trusting a claim where a fact was available. Fixed at all nine ingest sites in
+`shapeup-run.js` and both in `shapeup-build-round.js`; the reported path stays as a cross-check that
+logs when it disagrees.
+
 ### How they compose into the observed failure
 
 Finding 2 makes WIRE produce no artifact. Finding 1 records it complete regardless. The
@@ -92,6 +112,7 @@ Every row can fail, and every row is mutation-verified — the discipline Stage 
 | **G5** | Every row in this contract is falsifiable | mutation transcript committed to the evidence, one line per row, each showing the row red under its mutation |
 | **G6** | **The probe passes** | `kill-resume-probe: PASS` and all four assertions PASS, on a live SIGKILL, graded by an **unchanged** `assert.mjs` |
 | **G7** | The rig re-runs as a repeat, not a rebuild | `.plan-runs/wf-a3-probe/seed-project.sh` committed: scratch project + intake + profile + `init-run.mjs`, so leg 0 is scripted rather than "by hand" |
+| ⟐ **G8** | **No ingest is aimed by a worker's self-reported path** (Finding 3) | structural arm over `workflows/*.js`: an `ingest(…)` call taking a `.result_path` expression is red. Added 2026-08-11 after leg 1 died on it |
 
 **Ship gate: G6.** G1–G5 are what make G6 mean anything; G7 is what makes the *next* failure cheap.
 G6 is graded by an assert file this stage does not touch — see §5.
@@ -151,6 +172,12 @@ missing:
   both live and both silently measure the control if skipped: the workspace must be TRUSTED, and
   `npx shapeup-sdlc init` re-clones the marketplace from GitHub over a local install.
 
+### ⟐ A3.6 — the result path is the order's, not the worker's (Finding 3)
+
+`resultFor(orderPath, reported, label)` in both workflow scripts: derive `results/<suffix>.json`
+from the order that produced it, log when the worker's report disagrees, never act on the report.
+Held by G8's structural arm.
+
 ### A3.5 — run it, and record what it says
 
 Two legs, byte-identical args, SIGKILL at the same window Stage A2 used (one scope T0-green, one
@@ -194,6 +221,9 @@ Everything outside this map is scope creep.
 ---
 
 ## 6. Open decisions — PO's call, not the executor's
+
+**⟐ All four taken, 2026-08-11 (PO):** D1 **(a)** always abort · D2 **(a)** move `analyze` before
+WIRE · D3 **in** · D4 **same window**. The recommendations below stand as the reasoning behind each.
 
 | # | decision | options | recommendation |
 |---|---|---|---|
