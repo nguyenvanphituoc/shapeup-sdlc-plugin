@@ -7,9 +7,12 @@
 // prose runbook that can drift from what actually executes.
 //
 // WHAT THIS FILE OWNS.
-//   ORIENT -> GATE L1a -> WIRE -> GATE L1a.5 -> MAP SCOPES -> GATE L1b ->
+//   ORIENT -> GATE L1a -> ANALYZE -> WIRE -> GATE L1a.5 -> MAP SCOPES -> GATE L1b ->
 //   rounds of (BUILD -> GATE L2 -> EVAL -> GATE L3) bounded by budgets.maxRounds ->
 //   QA -> GATE H -> ship-report -> { status: "shipped", ... }
+// Every dispatched phase above is followed by a POST-CONDITION (`resume-state.mjs --require`):
+// the phase is complete when its artifact is on disk, never when its result record says so
+// (Stage A3 — see requirePhase below).
 // Every worker dispatch is the SAME four-call shape used throughout this codebase (C4, the
 // envelope port) and by shapeup-build-round.js (Stage 1): compile-order --operation <op> ->
 // Agent (fresh subagent, schema-forced report) -> ingest-result. The operation vocabulary and
@@ -69,12 +72,14 @@
 //   { status: "paused", paused_at, block, valid_decisions, context }
 //   { status: "aborted", aborted_at, reason }
 //   { status: "gate_h", breaker: "outer"|"inner"|"deadline", hammer_proposals, green_scopes }
+// `shipped` and `gate_h` additionally carry `state_warnings[]` when a bookkeeping write did not
+// take — the only channel a headless launch preserves (see setRunStatus).
 
 export const meta = {
   name: "shapeup-run",
-  description: "The outer BUILD-phase pipeline: ORIENT -> WIRE -> MAP SCOPES -> rounds of BUILD/EVAL -> QA -> GATE H -> ship-report. Every gate resolves via gate-answers.mjs exit codes (0 cross / 4 pause / 5 abort); a pause returns and a relaunch fast-forwards from disk, never from memory.",
+  description: "The outer BUILD-phase pipeline: ORIENT -> ANALYZE -> WIRE -> MAP SCOPES -> rounds of BUILD/EVAL -> QA -> GATE H -> ship-report. Every gate resolves via gate-answers.mjs exit codes (0 cross / 4 pause / 5 abort); a pause returns and a relaunch fast-forwards from disk, never from memory, and every dispatched phase must leave its artifact behind before the run moves on.",
   phases: [
-    { title: "Orient" }, { title: "Wire" }, { title: "MapScopes" },
+    { title: "Orient" }, { title: "Analyze" }, { title: "Wire" }, { title: "MapScopes" },
     { title: "Build" }, { title: "Eval" }, { title: "QA" }, { title: "Ship" },
   ],
 };
@@ -250,6 +255,43 @@ async function checkScopeGreen(slug, scopeId, round) {
   return parseMechJson(r.stdout) || { green: false, path: null };
 }
 
+// THE PHASE POST-CONDITION (Stage A3). A phase is complete when its ARTIFACT exists — never when
+// its result record says so.
+//
+// THE DEFECT THIS CLOSES, measured (docs/migration/stage-a2-evidence.md §7.3). Until now every
+// phase block read its artifact predicate ONCE, before dispatching, and never again. A worker that
+// returns `status: "escalated"` with `artifacts: []` — a legitimate outcome work-result.schema.json
+// defines — satisfied the ingest, so the run moved to the next gate as though the phase had landed.
+// Nothing was wrong with the next launch either: the fast-forward looked for the artifact, found
+// none, and re-dispatched. The worker escalated again. That loop is unbounded, it is invisible
+// inside a single leg, and it is what made the kill/resume probe FAIL a second time — on WIRE,
+// whose worker had been dispatched before the spec tree it reads even existed.
+//
+// The check is `resume-state.mjs --require <phase>`: the SAME derivation the fast-forward uses,
+// asked about one phase. Deliberately not a second predicate — two readings of "is this phase
+// done" that can disagree is the defect class itself, not a safeguard against it.
+//
+// D1 (PO, 2026-08-11): an unmet post-condition ABORTS, naming the phase. It is a union member that
+// already exists and needs no adjudication machinery; a `paused` would relaunch into the same order
+// and the same escalation unless the answer persisted somewhere, and that is advisor-protocol —
+// out of scope for this file (see the banner's documented simplifications).
+const requirePhase = async (slug, gate, phaseKey) => {
+  const r = await mech(
+    `node "${args.pluginRoot}/skills/tech-lead/scripts/resume-state.mjs" --slug ${slug} --require ${phaseKey}`,
+    `require:${phaseKey}`,
+  );
+  if (r.exit_code === 0) return null;
+  const missing = parseMechJson(r.stdout)?.required_artifact || phaseKey;
+  return {
+    status: "aborted",
+    aborted_at: gate,
+    reason: `${gate} produced no artifact: ${missing} is not on disk after the phase ran and its result was ingested. `
+      + "The phase did not complete — its worker most likely escalated (a WorkResult may report `escalated` with `artifacts: []`), "
+      + "and because completion is derived from the artifact, every relaunch would re-dispatch this phase and escalate again. "
+      + "Read the phase's result and the run's escalates queue, resolve it, then relaunch.",
+  };
+};
+
 // The ledger's `status` field. Two things changed here at Stage A2.2, and the second is the point.
 //
 // It is no longer this file's resume oracle — the fast-forward reads ARTIFACTS (probe above), the
@@ -263,6 +305,13 @@ async function checkScopeGreen(slug, scopeId, round) {
 // ledger back after writing it and exits non-zero if the value did not take; a failure is logged
 // loudly and the run continues, because bookkeeping that lost its write is a degraded digest, not
 // a corrupted build. The pointer below takes the opposite policy, for the reason stated there.
+//
+// ⟐ Stage A3 adds the second half of that read-back: the warning also travels in the RunReturn.
+// `log()` goes to the progress narrator, and a headless `claude -p` stdout carries only the final
+// message — so when the A2 probe returned `shipped` over a ledger still reading `evaluating`, the
+// evidence could not say whether the failure had been reported at all (stage-a2-evidence.md §7.4).
+// A diagnostic that only exists on a channel the operator cannot read is not a diagnostic.
+const stateWarnings = [];
 const setRunStatus = async (slug, status) => {
   const r = await mech(
     `node "${args.pluginRoot}/skills/tech-lead/scripts/resume-state.mjs" --slug ${slug} --set-status ${status}`,
@@ -271,9 +320,14 @@ const setRunStatus = async (slug, status) => {
   if (r.exit_code !== 0) {
     const why = (parseMechJson(r.stdout)?.reason || r.stderr || `exit ${r.exit_code}`).toString().trim();
     log(`RUN STATE — status="${status}" did not take: ${why}. The run continues (resume is derived from artifacts, not from this field), but run-snapshot and the anti-rationalization hook will read this run as unfinished.`);
+    stateWarnings.push(`status="${status}" did not take: ${why}`);
   }
   return r;
 };
+
+/** Attach any lost bookkeeping writes to a terminal RunReturn. Only the two returns that mean
+ *  "the run did its work" carry it — an `aborted` already names its cause on the same channel. */
+const withStateWarnings = (ret) => (stateWarnings.length ? { ...ret, state_warnings: stateWarnings } : ret);
 
 // ---------------------------------------------------------------------------------------------
 // The uniform dispatch shape (C3/C4) — identical structure for every worker in the Operation
@@ -410,7 +464,7 @@ const slug = args.slug;
 const qaModel = args.models.qa || args.models.exec;
 const allHammerProposals = [];
 const allGreenScopes = [];
-let dispatchedOrient = false, dispatchedWire = false, dispatchedMapScopes = false;
+let dispatchedOrient = false, dispatchedAnalyze = false, dispatchedWire = false, dispatchedMapScopes = false;
 
 phase("Orient");
 const facts = await probe(slug);
@@ -443,6 +497,8 @@ if (!facts.has_orient_artifacts) {
   if (orientResult.__failed) return dispatchAborted("ORIENT", orientResult);
   const orientIngest = await ingestOrAbort("ORIENT", orientResult.result_path, "ingest:orient");
   if (orientIngest) return orientIngest;
+  const orientIncomplete = await requirePhase(slug, "ORIENT", "orient");
+  if (orientIncomplete) return orientIncomplete;
   spikedArea = orientResult.spiked_area; spikeResult = orientResult.spike_result;
   riskiestUnknowns = orientResult.riskiest_unknowns || [];
   dispatchedOrient = true;
@@ -456,12 +512,48 @@ if (l1a.exit_code === 4) return paused("L1a", ["proceed", "ask", "abort"], { spi
 if (l1a.exit_code === 5) return abortedFrom("L1a", l1a, "GATE L1a aborted");
 
 // ---------------------------------------------------------------------------------------------
+// ANALYZE (spec tree + board) — ⟐ MOVED AHEAD OF WIRE AT STAGE A3.
+//
+// It used to be the first of MAP SCOPES' two dispatches, which put it AFTER WIRE. That order is
+// the one solution-architect's own input contract excludes: `wire` is defined as "author/refresh
+// the wiring map after `analyze`, before `map-scopes`" (SKILL.md:43), its payload names the spec
+// folder to "read `usecases/` for the UCs and the engine each one needs" (:44), and its
+// verification checklist requires one wiring-map entry PER use case (:108). `init-run.mjs`
+// scaffolds no spec tree, so on a greenfield run WIRE was handed an empty spec folder, had
+// nothing to wire, and escalated — deterministically, on every launch. Two committed authorities
+// disagreed and this file implemented the one the worker does not (docs/migration/stage-a3-plan.md
+// §1, finding 2).
+//
+// Gate positions are unchanged: gates.md's L1a.5 confirms "each UC has a declared seam BEFORE
+// slicing", and the slicer — scope-architect — still runs after WIRE.
+// ---------------------------------------------------------------------------------------------
+phase("Analyze");
+if (!facts.has_spec_tree) {
+  log(`ANALYZE — dispatching (slug ${slug})`);
+  const analyzeOrder = await compile(
+    `--operation analyze --slug ${slug} --payload '${JSON.stringify({ pitch: facts.intake_path, spec_folder: facts.spec_folder, feature: slug })}'`,
+    "compile:analyze",
+  );
+  const analyzeResult = await dispatch(
+    "ba-pitch-analyzer", analyzeOrder.stdout.trim(), args.models.exec, "Analyze", "analyze",
+    RESULT_ONLY_SCHEMA, "Write the spec tree + board from the orient artifacts (no re-scan).",
+  );
+  if (analyzeResult.__failed) return dispatchAborted("ANALYZE", analyzeResult);
+  const analyzeIngest = await ingestOrAbort("ANALYZE", analyzeResult.result_path, "ingest:analyze");
+  if (analyzeIngest) return analyzeIngest;
+  const analyzeIncomplete = await requirePhase(slug, "ANALYZE", "analyze");
+  if (analyzeIncomplete) return analyzeIncomplete;
+  dispatchedAnalyze = true;
+} else {
+  log("ANALYZE — spec tree already present, skipping dispatch (fast-forward)");
+}
+
+// ---------------------------------------------------------------------------------------------
 // WIRE (step 7.5) + GATE L1a.5 — project-profile.md is written by tech-lead itself at GATE L0,
 // BEFORE this launch (gates.md "WIRE" step 1: "you write it at L0 — compile-order stays
-// pipeline-blind"); this file only dispatches solution-architect and checks trace-lint.
+// pipeline-blind"); this file only dispatches solution-architect.
 // ---------------------------------------------------------------------------------------------
 phase("Wire");
-let seamCoverage = "n/a";
 if (!facts.has_wiring_map) {
   log(`WIRE — dispatching (slug ${slug})`);
   const wireOrder = await compile(
@@ -475,40 +567,28 @@ if (!facts.has_wiring_map) {
   if (wireResult.__failed) return dispatchAborted("WIRE", wireResult);
   const wireIngest = await ingestOrAbort("WIRE", wireResult.result_path, "ingest:wire");
   if (wireIngest) return wireIngest;
+  const wireIncomplete = await requirePhase(slug, "WIRE", "wire");
+  if (wireIncomplete) return wireIncomplete;
   dispatchedWire = true;
 } else {
   log("WIRE — wiring-map.md already present, skipping dispatch (fast-forward)");
 }
-const traceLint = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/trace-lint.mjs" --slug ${slug}`, "trace-lint");
-seamCoverage = traceLint.stdout.includes("🟢 green") ? "green" : "red (advisory)";
 
 const l1a5 = await resolveGate(slug, args.answers, "L1a.5");
-if (l1a5.exit_code === 4) return paused("L1a.5", ["proceed", "ask", "abort"], { seam_coverage: seamCoverage, dispatched: dispatchedWire });
+if (l1a5.exit_code === 4) return paused("L1a.5", ["proceed", "ask", "abort"], { wiring_map: "written", dispatched: dispatchedWire, analyze_dispatched: dispatchedAnalyze });
 if (l1a5.exit_code === 5) return abortedFrom("L1a.5", l1a5, "GATE L1a.5 aborted");
 
 // ---------------------------------------------------------------------------------------------
-// MAP SCOPES (step 8) + GATE L1b — two dispatches, one gate. scope-architect reports back the
-// riskiest-first sequence it computed (its own authority — this file never re-derives ordering
-// on a fresh run). On fast-forward past this phase, the ordering is re-derived from the scope
-// files already on disk (alphabetical — a documented approximation; scope CORRECTNESS is
-// unaffected, only sequencing quality on a resumed run).
+// MAP SCOPES (step 8) + GATE L1b — the slicing half; `analyze` now runs above, before WIRE.
+// scope-architect reports back the riskiest-first sequence it computed (its own authority — this
+// file never re-derives ordering on a fresh run). On fast-forward past this phase, the ordering is
+// re-derived from the scope files already on disk (alphabetical — a documented approximation;
+// scope CORRECTNESS is unaffected, only sequencing quality on a resumed run).
 // ---------------------------------------------------------------------------------------------
 phase("MapScopes");
 let scopes = facts.scope_files || [];
 if (scopes.length === 0) {
   log(`MAP SCOPES — dispatching (slug ${slug})`);
-  const analyzeOrder = await compile(
-    `--operation analyze --slug ${slug} --payload '${JSON.stringify({ pitch: facts.intake_path, spec_folder: facts.spec_folder, feature: slug })}'`,
-    "compile:analyze",
-  );
-  const analyzeResult = await dispatch(
-    "ba-pitch-analyzer", analyzeOrder.stdout.trim(), args.models.exec, "MapScopes", "analyze",
-    RESULT_ONLY_SCHEMA, "Write the spec tree + board from the orient artifacts (no re-scan).",
-  );
-  if (analyzeResult.__failed) return dispatchAborted("MAP SCOPES", analyzeResult);
-  const analyzeIngest = await ingestOrAbort("MAP SCOPES", analyzeResult.result_path, "ingest:analyze");
-  if (analyzeIngest) return analyzeIngest;
-
   const mapScopesOrder = await compile(`--operation map-scopes --slug ${slug}`, "compile:map-scopes");
   const mapScopesResult = await dispatch(
     "scope-architect", mapScopesOrder.stdout.trim(), args.models.exec, "MapScopes", "map-scopes",
@@ -517,11 +597,19 @@ if (scopes.length === 0) {
   if (mapScopesResult.__failed) return dispatchAborted("MAP SCOPES", mapScopesResult);
   const mapScopesIngest = await ingestOrAbort("MAP SCOPES", mapScopesResult.result_path, "ingest:map-scopes");
   if (mapScopesIngest) return mapScopesIngest;
+  const mapScopesIncomplete = await requirePhase(slug, "MAP SCOPES", "map-scopes");
+  if (mapScopesIncomplete) return mapScopesIncomplete;
   scopes = mapScopesResult.scopes;
   dispatchedMapScopes = true;
 } else {
   log(`MAP SCOPES — ${scopes.length} scope contract(s) already present, skipping dispatch (fast-forward)`);
 }
+
+// trace-lint runs HERE, at L1b, where gates.md:154 puts it ("ADVISORY at L1b"). It used to run at
+// L1a.5 — before `analyze` had written a spec tree or a requirement registry, so both of its arms
+// self-skipped and the seam-coverage figure reported on nothing.
+const traceLint = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/trace-lint.mjs" --slug ${slug}`, "trace-lint");
+const seamCoverage = traceLint.stdout.includes("🟢 green") ? "green" : "red (advisory)";
 
 const specLint = await mech(`node "${args.pluginRoot}/skills/ba-pitch-analyzer/scripts/spec-lint.mjs" --slug ${slug}`, "spec-lint");
 if (specLint.exit_code !== 0) {
@@ -529,7 +617,7 @@ if (specLint.exit_code !== 0) {
 }
 
 const l1b = await resolveGate(slug, args.answers, "L1b");
-if (l1b.exit_code === 4) return paused("L1b", ["proceed", "ask", "abort"], { scopes: scopes.map((s) => s.scope_id), dispatched: dispatchedMapScopes });
+if (l1b.exit_code === 4) return paused("L1b", ["proceed", "ask", "abort"], { scopes: scopes.map((s) => s.scope_id), dispatched: dispatchedMapScopes, seam_coverage: seamCoverage });
 if (l1b.exit_code === 5) return abortedFrom("L1b", l1b, "GATE L1b aborted");
 if (dispatchedMapScopes) await setRunStatus(slug, "building");
 
@@ -544,7 +632,7 @@ let verdict = null;
 while (round <= args.budgets.maxRounds) {
   const budget = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/budget-check.mjs" --slug ${slug} --strict`, `budget:r${round}`);
   if (budget.exit_code === 6) {
-    return { status: "gate_h", breaker: "deadline", hammer_proposals: allHammerProposals, green_scopes: allGreenScopes };
+    return withStateWarnings({ status: "gate_h", breaker: "deadline", hammer_proposals: allHammerProposals, green_scopes: allGreenScopes });
   }
 
   log(`BUILD round ${round} — ${scopes.length} scope(s), attempt budget ${args.budgets.attemptBudget}`);
@@ -639,7 +727,7 @@ while (round <= args.budgets.maxRounds) {
   allHammerProposals.push(...roundHammer.map((h) => h.scope_id));
 
   if (roundGreen.length === 0 && roundHammer.length > 0) {
-    return { status: "gate_h", breaker: "inner", hammer_proposals: allHammerProposals, green_scopes: allGreenScopes };
+    return withStateWarnings({ status: "gate_h", breaker: "inner", hammer_proposals: allHammerProposals, green_scopes: allGreenScopes });
   }
 
   const l2 = await resolveGate(slug, args.answers, "L2");
@@ -668,7 +756,7 @@ while (round <= args.budgets.maxRounds) {
 
   if (verdict === "pass") break; // out of the round loop, into QA -> GATE H -> ship
   if (l3.decision === "stop" || round >= args.budgets.maxRounds) {
-    return { status: "gate_h", breaker: "outer", hammer_proposals: allHammerProposals, green_scopes: allGreenScopes };
+    return withStateWarnings({ status: "gate_h", breaker: "outer", hammer_proposals: allHammerProposals, green_scopes: allGreenScopes });
   }
   await setRunStatus(slug, "building");
   round += 1;
@@ -677,7 +765,7 @@ while (round <= args.budgets.maxRounds) {
 if (verdict !== "pass") {
   // Fell out of the loop without a PASS and without hitting the explicit outer-breaker return
   // above — only reachable if budgets.maxRounds was already exceeded on entry (a resumed run).
-  return { status: "gate_h", breaker: "outer", hammer_proposals: allHammerProposals, green_scopes: allGreenScopes };
+  return withStateWarnings({ status: "gate_h", breaker: "outer", hammer_proposals: allHammerProposals, green_scopes: allGreenScopes });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -738,11 +826,11 @@ if (hGate.exit_code === 5) return abortedFrom("H", hGate, "GATE H aborted");
 const shipReport = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/ship-report.mjs" --slug ${slug} --verdict PASS --qa ${qaGate.decision === "run" ? "run" : "skipped"}`, "ship-report");
 await setRunStatus(slug, "shipped");
 
-return {
+return withStateWarnings({
   status: "shipped",
   verdict: "pass",
   rounds_used: round,
   dims_not_evaluated: ["security", "performance"],
   qa_findings: qaFindings,
   report: shipReport.stdout.trim(),
-};
+});

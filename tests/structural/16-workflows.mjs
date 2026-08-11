@@ -152,7 +152,11 @@ export async function run(ctx) {
   // lets the run continue, because resume no longer depends on that field — has already discharged
   // the obligation, and its own `mech()` call is covered by this same check one level down. That
   // is the difference between a value nobody looked at and a value somebody handled.
-  const COURIERS = ["mech", "mechNode", "ingest", "compile", "writeActiveScope"];
+  // `requirePhase` (Stage A3) joins the list for the same reason `ingest` did: it returns the ABORT
+  // a phase with no artifact earns, and a call site that awaits it without returning that value
+  // drops the stop — the run would proceed past a phase that produced nothing, which is the defect
+  // the post-condition exists to catch.
+  const COURIERS = ["mech", "mechNode", "ingest", "compile", "writeActiveScope", "requirePhase"];
   // Characters that mean the value IS consumed: assignment, an enclosing call, a return, an
   // operand position. Anything else (`;`, `{`, `}`, `)`, `else`, start of file) drops it.
   const CONSUMED_BY = /(?:[=(,[?:]|\breturn\b|&&|\|\||\?\?)\s*$/;

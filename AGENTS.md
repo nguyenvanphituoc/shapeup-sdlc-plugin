@@ -59,8 +59,9 @@ it is what makes 1–3 mechanically true, and it should never be the first thing
 |------|------|--------|
 | Kick-off | ⏸ **L0** — Intake & Config (L0.8 model/budget matrix) | `/translator` if non-English |
 | Orient (Scout) | ⏸ **L1a** — Orient Review | delegate → `/orient` |
+| Analyze (Spec tree) | — (reviewed at L1b) | delegate → `/ba-pitch-analyzer` (`analyze`): spec tree + board — UC + Invariants + Test Surface ★. Runs **before** Wire: the wiring map carries one entry per use case, so the use cases must exist first |
 | Wire (Reachability) | ⏸ **L1a.5** — Wiring Review ✚ | delegate → `/solution-architect` (`wire`): committed `wiring-map.md` — per-UC engine → seam → entry-point call site → affordance, against `project-profile.md` entry_point; front-loads the integration seam |
-| Map Scopes | ⏸ **L1b** — Board Review (+ substrate disjointness via `spec-lint.mjs`) | delegate → `/ba-pitch-analyzer` (spec tree + board: UC + Invariants + Test Surface ★; `coverage` op writes the `requirements.md` registry ✚) then `/scope-architect` (scope contracts ✦ — sole writer). Traceability oracle `trace-lint.mjs` runs advisory ✚ |
+| Map Scopes | ⏸ **L1b** — Board Review (+ substrate disjointness via `spec-lint.mjs`) | delegate → `/scope-architect` (scope contracts ✦ — sole writer); `coverage` op writes the `requirements.md` registry ✚. Traceability oracle `trace-lint.mjs` runs advisory ✚ |
 | Build Vertically | ⏸ **L2** — Board 100% ✅ + T0-green ✦ | per dispatch: compile-order → `/task-executor` (--order) → ingest-result, T0-verified per attempt (fixtures + DB probe + seesaw ✦), sandboxed to each scope's substrate ✦ |
 | EVAL (once per round) | ⏸ **L3** — Verdict | delegate → `/spec-evaluator` (--order; spec-conformance + test-surface-conformance ★; requires a T0 artifact citation on scoped specs ✦); refuted boxes/verdict ledger applied by ingest |
 | FAIL → fix round r+1 | — | regression rule ★: bugs + full Test Surface of touched UC |

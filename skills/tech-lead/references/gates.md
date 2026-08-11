@@ -6,8 +6,14 @@ reach that gate** — `SKILL.md` carries the workflow spine, the build/eval loop
 rules; this file carries the step-by-step playbooks. The L2/L4 gates stay hook-enforced regardless
 of where the prose lives.
 
-Order matches the run: GATE L0 → ORIENT → GATE L1a → WIRE/L1a.5 → MAP SCOPES → GATE L1b →
-(BUILD → GATE L2 → EVAL, in SKILL.md) → GATE L3 → SHIP → GATE L4.
+Order matches the run: GATE L0 → ORIENT → GATE L1a → ANALYZE → WIRE/L1a.5 → MAP SCOPES →
+GATE L1b → (BUILD → GATE L2 → EVAL, in SKILL.md) → GATE L3 → SHIP → GATE L4.
+
+⟐ **ANALYZE runs before WIRE** (Stage A3, 2026-08-11). MAP SCOPES' two dispatches split around
+L1a.5: `analyze` writes the spec tree, then `wire` reads its `usecases/` — one wiring-map entry per
+use case — then `map-scopes` slices. Dispatching WIRE first hands `solution-architect` an empty
+spec folder, which its own input contract excludes (`skills/solution-architect/SKILL.md:43-44`); it
+escalates, writes nothing, and every relaunch re-dispatches it (`docs/migration/stage-a3-plan.md`).
 
 ---
 
@@ -149,6 +155,12 @@ Do NOT enter MAP SCOPES until Orient is accepted.
 2. WIRE — compile-order --operation wire --slug <slug> (worker→solution-architect), payload
    {project_profile}. Sole writer of committed wiring-map.md (per-UC engine → seam → entry-point
    call site → affordance). ⏸ GATE L1a.5: confirm each UC has a declared seam before slicing.
+   ⟐ PRECONDITION (Stage A3): MAP SCOPES step 1 (ANALYZE) has already run and usecases/ is
+   populated. WIRE writes one entry per use case, so dispatching it against an empty spec folder
+   is an escalation, not a wiring map — and a phase that writes no artifact is re-dispatched on
+   every relaunch. Verify: node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/resume-state.mjs"
+   --slug <slug> --require analyze (exit 0 = the spec tree is there; exit 6 = do not dispatch WIRE).
+   Post-check the same way after the dispatch: --require wire.
 3. COVERAGE (folds into MAP SCOPES) — compile-order --operation coverage → ba writes the SHARED
    requirements.md registry (atomic REQ clauses, frozen ids).
 4. trace-lint — node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/trace-lint.mjs" --slug <slug>. ADVISORY at L1b:
@@ -159,6 +171,11 @@ Do NOT enter MAP SCOPES until Orient is accepted.
 ---
 
 ## MAP SCOPES (step 8) — delegate to ba-pitch-analyzer (orient-informed)
+
+⟐ **Step 1 runs BEFORE the WIRE section above; step 2 runs after it** (Stage A3). The two
+dispatches sit either side of L1a.5: ANALYZE writes the use cases WIRE reads, and MAP SCOPES slices
+against the seams WIRE declared. Sequence: ORIENT → L1a → **ANALYZE** → **WIRE** → L1a.5 →
+**MAP SCOPES** → L1b.
 
 ```
 Two orders, two workers, one step (both model: exec — see references/delegation.md):

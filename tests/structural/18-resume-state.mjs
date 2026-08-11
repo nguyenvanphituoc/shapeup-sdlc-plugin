@@ -45,12 +45,13 @@ const SLUG = "resume-fixture";
  * @param {object} opts - Which artifacts exist.
  * @param {string|null} [opts.status] - Ledger status line, or null for no ledger at all.
  * @param {string[]} [opts.orient] - Filenames to create under the local orient/ directory.
+ * @param {string[]} [opts.usecases] - Use-case filenames to create under the spec's usecases/.
  * @param {boolean} [opts.wiringMap] - Whether the shared wiring map exists.
  * @param {string[]} [opts.scopes] - Scope contract ids to create.
  * @param {string[]} [opts.results] - Result filenames to create.
  * @returns {string} The tree root, for chaining.
  */
-function plant(root, { status = null, orient = [], wiringMap = false, scopes = [], results = [] }) {
+function plant(root, { status = null, orient = [], usecases = [], wiringMap = false, scopes = [], results = [] }) {
   const local = join(root, ".shapeup", SLUG);
   const shared = join(root, "shapeup", SLUG);
   mkdirSync(local, { recursive: true });
@@ -63,6 +64,14 @@ function plant(root, { status = null, orient = [], wiringMap = false, scopes = [
   if (orient.length) {
     mkdirSync(join(local, "orient"), { recursive: true });
     for (const f of orient) writeFileSync(join(local, "orient", f), "planted\n");
+  }
+  // The spec tree lands under the ledger's own `spec_folder` when there is a ledger (this fixture's
+  // ledger names `shapeup/<slug>`, not the default `shapeup/<slug>/spec`), and under the registry
+  // default when there is none — so this arm also exercises the override resolution.
+  if (usecases.length) {
+    const ucDir = join(status !== null ? shared : join(shared, "spec"), "usecases");
+    mkdirSync(ucDir, { recursive: true });
+    for (const f of usecases) writeFileSync(join(ucDir, f), "planted\n");
   }
   if (wiringMap) writeFileSync(join(shared, "wiring-map.md"), "planted\n");
   if (scopes.length) {
@@ -78,6 +87,10 @@ function plant(root, { status = null, orient = [], wiringMap = false, scopes = [
 
 /** ORIENT's four artifacts, complete. */
 const FULL_ORIENT = ["code-surface.md", "discovered-seed.md", "hill-signal.md", "spike-persistence.md"];
+/** A spec tree with use cases in it. `_index.md` alone is a tree with nothing to wire. */
+const FULL_SPEC = ["_index.md", "UC-01-add-task.md", "UC-02-list-tasks.md"];
+/** Everything upstream of BUILD, for the arms that vary one artifact at a time. */
+const COMPLETE = { orient: FULL_ORIENT, usecases: FULL_SPEC, wiringMap: true, scopes: ["SC-1"] };
 
 /**
  * Run the resume-state checks (Stage A2 acceptance rows G1, G2, G3, G4).
@@ -112,9 +125,7 @@ export async function run(ctx) {
     // --- (a) THE DEFECT, as a single assertion (G2) -------------------------------------------
     // Stale status + complete artifacts. The old predicate (`status === null || status ===
     // "orienting"`) re-dispatched ORIENT here; the artifact predicate must not.
-    const stale = tree("stale-status", {
-      status: "orienting", orient: FULL_ORIENT, wiringMap: true, scopes: ["SC-1", "SC-2"],
-    });
+    const stale = tree("stale-status", { status: "orienting", ...COMPLETE, scopes: ["SC-1", "SC-2"] });
     const staleState = invoke(stale);
     if (staleState.json?.has_orient_artifacts === true && staleState.json?.next_phase !== "orient") {
       ok(`a run with status "orienting" and a complete orient/ resumes at "${staleState.json.next_phase}", not at orient`);
@@ -127,9 +138,14 @@ export async function run(ctx) {
       ["orient", { status: "orienting" }, "nothing on disk"],
       ["orient", { status: "orienting", orient: ["code-surface.md", "hill-signal.md"] }, "a PARTIAL orient/ (no seed, no spike)"],
       ["orient", { status: "building", orient: FULL_ORIENT.filter((f) => !f.startsWith("spike-")) }, "orient/ with no spike file"],
-      ["wire", { status: "mapping", orient: FULL_ORIENT }, "orient complete, no wiring map"],
-      ["map-scopes", { status: "building", orient: FULL_ORIENT, wiringMap: true }, "wiring map present, no scope contracts"],
-      ["build", { status: "orienting", orient: FULL_ORIENT, wiringMap: true, scopes: ["SC-1"] }, "every upstream artifact present"],
+      ["analyze", { status: "mapping", orient: FULL_ORIENT }, "orient complete, no spec tree"],
+      ["analyze", { status: "mapping", orient: FULL_ORIENT, usecases: ["_index.md"] }, "a usecases/ carrying only _index.md"],
+      // ⟐ Stage A3, and the boundary the whole stage turns on: a wiring map is written one entry
+      // PER use case, so WIRE is not reachable until the use cases exist. The pipeline used to
+      // dispatch it here anyway, and solution-architect escalated on every launch.
+      ["wire", { status: "mapping", orient: FULL_ORIENT, usecases: FULL_SPEC }, "spec tree complete, no wiring map"],
+      ["map-scopes", { status: "building", orient: FULL_ORIENT, usecases: FULL_SPEC, wiringMap: true }, "wiring map present, no scope contracts"],
+      ["build", { status: "orienting", ...COMPLETE }, "every upstream artifact present"],
     ];
     BOUNDARIES.forEach(([expected, opts, label], i) => {
       const got = invoke(tree(`boundary-${i}`, opts)).json?.next_phase;
@@ -150,7 +166,7 @@ export async function run(ctx) {
     // field is not consulted at all, so a status branch cannot be reintroduced quietly.
     const phases = new Set();
     for (const status of ["orienting", "mapping", "building", "evaluating", "shipped", "escalated"]) {
-      const t = tree(`status-${status}`, { status, orient: FULL_ORIENT, wiringMap: true, scopes: ["SC-1"] });
+      const t = tree(`status-${status}`, { status, ...COMPLETE });
       phases.add(invoke(t).json?.next_phase);
     }
     if (phases.size === 1 && phases.has("build")) {
@@ -256,6 +272,51 @@ export async function run(ctx) {
       fail(`an unwritable substrate pointer produced exit ${refused.status} with stdout ${JSON.stringify(refused.stdout).slice(0, 120)} — the caller cannot log why the scope was refused`);
     }
 
+    // --- (i) the post-condition: a RESULT is not a completion (Stage A3, rows G1/G2) ----------
+    //
+    // THE DEFECT THIS ARM IS WRITTEN AGAINST. The pipeline dispatched WIRE, ingested a result
+    // reading `status: "escalated"` with `artifacts: []`, and moved to the next gate. The phase had
+    // written nothing, so the next launch's fast-forward re-dispatched it, and the worker escalated
+    // again — forever (docs/migration/stage-a2-evidence.md §7.3). The tree below IS that state:
+    // every upstream artifact present, a wire result on disk, and no wiring map.
+    const escalated = tree("escalated-wire", {
+      status: "mapping", orient: FULL_ORIENT, usecases: FULL_SPEC, results: ["wire.json"],
+    });
+    writeFileSync(join(escalated, ".shapeup", SLUG, "results", "wire.json"),
+      JSON.stringify({ status: "escalated", artifacts: [], escalates: [{ question: "no use cases to wire" }] }) + "\n");
+    const req = invoke(escalated, ["--require", "wire"]);
+    if (req.code === 6 && req.json?.satisfied === false && req.json?.required_phase === "wire") {
+      ok("--require wire exits 6 against a run whose wire RESULT exists and whose wiring map does not — a result record is not a completion");
+    } else {
+      fail(`--require wire accepted an escalated phase with no artifact: exit ${req.code}, ${req.raw.trim().slice(0, 160)} — the pipeline would proceed and every relaunch would re-dispatch it`);
+    }
+
+    // The same predicate, the other way: with the artifact present the phase IS complete. Asserted
+    // for every phase, so a new phase cannot be added to the chain without a post-condition.
+    const whole = tree("require-all", { status: "building", ...COMPLETE });
+    const unsatisfied = ["orient", "analyze", "wire", "map-scopes"].filter((p) => invoke(whole, ["--require", p]).code !== 0);
+    if (unsatisfied.length === 0) {
+      ok("--require passes for all four phases against a complete tree (orient, analyze, wire, map-scopes)");
+    } else {
+      fail(`--require reported these complete phases as unmet: ${unsatisfied.join(", ")}`);
+    }
+
+    // And the resume decision and the completion check are the SAME predicate: whatever phase the
+    // fast-forward names, --require for that phase must fail. Two readings that can disagree about
+    // "is this done" is the defect class itself.
+    for (const [label, opts] of [
+      ["orient", { status: "orienting" }],
+      ["analyze", { status: "mapping", orient: FULL_ORIENT }],
+      ["wire", { status: "mapping", orient: FULL_ORIENT, usecases: FULL_SPEC }],
+      ["map-scopes", { status: "building", orient: FULL_ORIENT, usecases: FULL_SPEC, wiringMap: true }],
+    ]) {
+      const t = tree(`agree-${label}`, opts);
+      const next = invoke(t).json?.next_phase;
+      const code = invoke(t, ["--require", next]).code;
+      if (next === label && code === 6) ok(`next_phase "${next}" and --require ${next} agree that the phase is not done`);
+      else fail(`next_phase="${next}" but --require ${next} exited ${code} — the resume and completion predicates disagree`);
+    }
+
     // --- (h) the workflow actually consults it (the fd5ad3d guard) ----------------------------
     // A Workflow script cannot be imported, so this is a source assertion — the only mechanical
     // check available for the wiring. It is narrow on purpose: it asserts the ORIENT branch reads
@@ -277,6 +338,31 @@ export async function run(ctx) {
       fail("shapeup-run.js never invokes resume-state.mjs — the fast-forward is deriving state some other way");
     } else {
       ok("shapeup-run.js derives its resume state by invoking resume-state.mjs");
+    }
+
+    // --- (j) the A3 wiring: every phase checks its post-condition, and ANALYZE precedes WIRE ---
+    const required = new Set([...wfCode.matchAll(/requirePhase\([^,]+,\s*"[^"]+",\s*"([\w-]+)"\s*\)/g)].map((m) => m[1]));
+    const missingChecks = ["orient", "analyze", "wire", "map-scopes"].filter((p) => !required.has(p));
+    if (missingChecks.length === 0) {
+      ok("every dispatched phase in shapeup-run.js checks its post-condition (requirePhase: orient, analyze, wire, map-scopes)");
+    } else {
+      fail(`these phases dispatch without checking that they produced anything: ${missingChecks.join(", ")} — an escalated worker would be recorded as complete and re-dispatched on every relaunch`);
+    }
+
+    // The ordering itself, as a source fact: `analyze` writes the use cases `wire` reads, so its
+    // order must be compiled first. This is acceptance row G3, and it is the reason the A2 probe
+    // failed a second time (solution-architect escalated because usecases/ did not exist yet).
+    const iAnalyze = wfCode.indexOf("--operation analyze");
+    const iWire = wfCode.indexOf("--operation wire");
+    if (iAnalyze > -1 && iWire > -1 && iAnalyze < iWire) {
+      ok("shapeup-run.js compiles the analyze order before the wire order — WIRE reads the use cases ANALYZE writes (solution-architect/SKILL.md:43-44)");
+    } else {
+      fail(`the analyze order is not compiled before the wire order (analyze@${iAnalyze}, wire@${iWire}) — WIRE would be dispatched against an empty spec folder and escalate on every launch`);
+    }
+    if (/facts\.has_spec_tree/.test(wfCode)) {
+      ok("shapeup-run.js gates ANALYZE on facts.has_spec_tree — the same artifact discipline as every other phase");
+    } else {
+      fail("shapeup-run.js does not gate ANALYZE on facts.has_spec_tree — the phase is gated on something other than its artifact");
     }
   } finally {
     rmSync(ws, { recursive: true, force: true });

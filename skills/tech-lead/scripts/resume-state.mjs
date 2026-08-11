@@ -33,20 +33,37 @@
 // offered as a derived convenience (and is what the fixture asserts over), but every underlying
 // boolean travels too, so a caller is never forced to trust a summary it cannot check.
 //
+// WHY `--require` EXISTS (Stage A3, and it is the same lesson one layer up).
+//
+// Stage A2 made the RESUME decision read artifacts. It left the COMPLETION decision reading
+// nothing at all: shapeup-run.js dispatched a phase, ingested its result, and moved to the next
+// gate without ever re-asking the predicate. A worker that returns `status: "escalated"` with
+// `artifacts: []` — a legitimate outcome its own contract defines — satisfied that. So a phase
+// that wrote no artifact was recorded as complete, the artifact-gated fast-forward then correctly
+// found nothing on the next launch, re-dispatched it, and the worker escalated again: an
+// unbounded loop, invisible inside one leg, which is why three runs and a status review never saw
+// it (docs/migration/stage-a2-evidence.md §7.3).
+//
+// `--require <phase>` is the completion check, and it is deliberately the SAME derivation the
+// fast-forward uses — not a second predicate that can drift from it. Two predicates that can
+// disagree about "is this phase done" is the defect class itself.
+//
 // USAGE
 //   node resume-state.mjs --slug <slug> [--cwd <dir>]              # derive, print ResumeState
+//   node resume-state.mjs --slug <slug> --require <phase>          # post-condition: exit 6 if unmet
 //   node resume-state.mjs --slug <slug> --set-status <status>      # write harness-run.md status
 //   node resume-state.mjs --slug <slug> --set-active-scope <id>    # write the substrate pointer
 //
-// Exit: 0 ok · 2 malformed argv (nothing ran) · 3 the target the operation needs is not on disk.
+// Exit: 0 ok · 2 malformed argv (nothing ran) · 3 the target the operation needs is not on disk ·
+//       6 the required phase's artifact is NOT on disk (the phase did not complete).
 
 import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { isMain } from "./lib/is-main.mjs";
 import { runArgs } from "./lib/argv.mjs";
 import {
   intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir,
-  orientDir, activeScope,
+  orientDir, activeScope, usecasesDir,
 } from "./lib/paths.mjs";
 
 /** The run-state values `references/ledger-schema.md` defines. A typo'd status is a rejection,
@@ -97,16 +114,77 @@ export function hasOrientArtifacts(cwd, slug) {
 }
 
 /**
+ * The use-case directory this run's spec tree lands in. The ledger may name a non-default
+ * `spec_folder` (`init-run.mjs --spec-folder`), so honour it when present and fall back to the
+ * registry path otherwise — never a spelled-out root (test #45).
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {string|null} specFolder - The ledger's `spec_folder`, if it names one.
+ * @returns {string} Absolute path to `usecases/`.
+ */
+export function usecasesPath(cwd, slug, specFolder) {
+  return specFolder ? resolve(cwd, specFolder, "usecases") : usecasesDir(cwd, slug);
+}
+
+/**
+ * Has ANALYZE actually produced the spec tree? `_index.md` alone is a tree with no use cases in
+ * it, and a wiring map is written one entry PER use case — so the index does not count.
+ *
+ * This predicate is why Stage A3 exists at all. WIRE was dispatched before ANALYZE ran, so
+ * `usecases/` did not exist, so `solution-architect` had nothing to wire and escalated — honestly,
+ * and identically on every relaunch (skills/solution-architect/SKILL.md:43-44, :108).
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {string|null} specFolder - The ledger's `spec_folder`, if it names one.
+ * @returns {boolean} True when at least one use case (not the index) is on disk.
+ */
+export function hasSpecTree(cwd, slug, specFolder) {
+  const dir = usecasesPath(cwd, slug, specFolder);
+  if (!existsSync(dir)) return false;
+  let files;
+  try { files = readdirSync(dir); } catch { return false; }
+  return files.some((f) => f.endsWith(".md") && f !== "_index.md");
+}
+
+/**
+ * Each dispatched phase and the artifact that IS its completion. One table, read by the resume
+ * decision (`nextPhase`) and by the post-condition check (`--require`) alike — see the banner.
+ */
+export const PHASE_ARTIFACT = {
+  orient: { fact: "has_orient_artifacts", artifact: "orient/{code-surface,discovered-seed,hill-signal}.md + spike-*.md" },
+  analyze: { fact: "has_spec_tree", artifact: "spec/usecases/*.md" },
+  wire: { fact: "has_wiring_map", artifact: "wiring-map.md" },
+  "map-scopes": { fact: "scope_files", artifact: "scopes/*.md" },
+};
+export const PHASES = Object.keys(PHASE_ARTIFACT);
+
+/**
+ * Is this phase's artifact on disk? The ONE reading of "complete" in this pipeline.
+ *
+ * @param {object} state - A derived ResumeState.
+ * @param {string} phase - One of {@link PHASES}.
+ * @returns {boolean} True when the phase's artifact exists.
+ */
+export function phaseSatisfied(state, phase) {
+  const v = state[PHASE_ARTIFACT[phase].fact];
+  return Array.isArray(v) ? v.length > 0 : Boolean(v);
+}
+
+/**
  * The first phase whose artifacts are incomplete — the design doc's §4 fast-forward, stated once
  * so the workflow and the fixture cannot disagree about it.
  *
- * @param {{has_orient_artifacts: boolean, has_wiring_map: boolean, scope_files: Array}} f - Facts.
- * @returns {"orient"|"wire"|"map-scopes"|"build"} The phase to resume at.
+ * ⟐ Stage A3: ANALYZE joined the chain, between ORIENT and WIRE. The pipeline used to dispatch
+ * WIRE first, which is the position solution-architect's own input contract excludes — it reads
+ * `usecases/`, and `analyze` is what writes them.
+ *
+ * @param {object} f - Facts (a derived ResumeState, or the subset the phase predicates read).
+ * @returns {"orient"|"analyze"|"wire"|"map-scopes"|"build"} The phase to resume at.
  */
 export function nextPhase(f) {
-  if (!f.has_orient_artifacts) return "orient";
-  if (!f.has_wiring_map) return "wire";
-  if (!f.scope_files || f.scope_files.length === 0) return "map-scopes";
+  for (const p of PHASES) if (!phaseSatisfied(f, p)) return p;
   return "build";
 }
 
@@ -139,6 +217,7 @@ export function deriveResumeState(cwd, slug) {
     spec_folder: hr.spec_folder || null,
     status: hr.status || null,
     has_orient_artifacts: hasOrientArtifacts(cwd, slug),
+    has_spec_tree: hasSpecTree(cwd, slug, hr.spec_folder || null),
     has_wiring_map: existsSync(wiringMap(cwd, slug)),
     project_profile_path: projectProfile(cwd, slug),
     has_project_profile: existsSync(projectProfile(cwd, slug)),
@@ -213,10 +292,11 @@ export function writeActiveScope(cwd, slug, scopeId) {
 
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "resume-state.mjs --slug <slug> [--cwd <dir>] [--set-status <status> | --set-active-scope <scope-id>]",
+  usage: "resume-state.mjs --slug <slug> [--cwd <dir>] [--require <phase> | --set-status <status> | --set-active-scope <scope-id>]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   slug: { type: "str", required: true },
   cwd: { type: "path" },
+  require: { type: "enum", values: PHASES },
   "set-status": { type: "enum", values: RUN_STATUSES },
   "set-active-scope": { type: "str" },
 };
@@ -225,9 +305,25 @@ export function main() {
   const args = runArgs(ARGV_SPEC);
   const cwd = args.cwd || process.cwd();
 
-  if (args.setStatus && args.setActiveScope) {
-    process.stderr.write(JSON.stringify({ error: "conflicting_flags", flags: ["--set-status", "--set-active-scope"], expected: "one write per invocation" }) + "\n");
+  const ops = [args.require && "--require", args.setStatus && "--set-status", args.setActiveScope && "--set-active-scope"].filter(Boolean);
+  if (ops.length > 1) {
+    process.stderr.write(JSON.stringify({ error: "conflicting_flags", flags: ops, expected: "one operation per invocation" }) + "\n");
     process.exit(2);
+  }
+
+  // The post-condition. It prints the SAME ResumeState the derivation prints — plus which phase was
+  // asked about and whether its artifact is there — so a caller that wants to act on the facts
+  // rather than on the exit code never has to make a second call.
+  if (args.require) {
+    const state = deriveResumeState(cwd, args.slug);
+    const satisfied = phaseSatisfied(state, args.require);
+    console.log(JSON.stringify({
+      ...state,
+      required_phase: args.require,
+      required_artifact: PHASE_ARTIFACT[args.require].artifact,
+      satisfied,
+    }));
+    process.exit(satisfied ? 0 : 6);
   }
 
   if (args.setStatus) {

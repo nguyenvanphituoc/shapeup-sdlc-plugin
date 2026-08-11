@@ -2301,6 +2301,7 @@
         "intake_path",
         "status",
         "has_orient_artifacts",
+        "has_spec_tree",
         "has_wiring_map",
         "scope_files",
         "pending_orders",
@@ -2329,6 +2330,10 @@
         "has_orient_artifacts": {
           "type": "boolean",
           "description": "ORIENT finished: orient/ carries code-surface.md, discovered-seed.md, hill-signal.md and at least one spike-*.md (skills/orient/SKILL.md §Outputs). The ORIENT skip gates on THIS."
+        },
+        "has_spec_tree": {
+          "type": "boolean",
+          "description": "ANALYZE finished: the spec folder's usecases/ carries at least one use case that is not _index.md. WIRE reads these — one wiring-map entry per use case (skills/solution-architect/SKILL.md:108) — which is why ANALYZE precedes WIRE in the phase chain (Stage A3; before it, WIRE was dispatched against an empty spec folder and escalated on every launch)."
         },
         "has_wiring_map": {
           "type": "boolean",
@@ -2378,11 +2383,12 @@
           "type": "string",
           "enum": [
             "orient",
+            "analyze",
             "wire",
             "map-scopes",
             "build"
           ],
-          "description": "The first phase whose artifacts are incomplete. Derived from the booleans above, in that order."
+          "description": "The first phase whose artifacts are incomplete. Derived from the booleans above, in that order. The same table (resume-state.mjs PHASE_ARTIFACT) answers `--require <phase>`, the post-condition shapeup-run.js checks after every phase dispatch — resume and completion are ONE predicate by construction (Stage A3)."
         }
       }
     },
@@ -2508,6 +2514,13 @@
         "report": {
           "type": "string",
           "description": "shipped: shapeup/<slug>/REPORT.md path."
+        },
+        "state_warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "shipped | gate_h: bookkeeping writes that did not take (a ledger status that read back wrong), carried on the ONE channel a headless launch preserves. The workflow's own log() goes to the progress narrator and `claude -p` stdout carries only the final message, so a run that returned `shipped` over a ledger still reading `evaluating` could not be told from one that warned about it (docs/migration/stage-a2-evidence.md §7.4). Absent when every state write took. Diagnostic, never a status: a lost bookkeeping write is a degraded digest, not a corrupted build."
         },
         "round": {
           "type": "integer",
