@@ -6,14 +6,20 @@ and failed (`stage2-evidence.md` §4, `kill-resume-probe: FAIL`).
 **Hard rule (unchanged):** every stage exit is an artifact on disk, never a claim.
 
 ```
-kill-resume-probe: NOT-RUN
+kill-resume-probe: FAIL
 ```
 
-**That line is the position.** A2.1, A2.2 and A2.3 are complete and mutation-verified. **G6 — the
-re-run of the probe — has not happened, so S2's ship gate is still NOT MET and Stage B still does
-not start.** Nothing below changes that, and the row count in `execution-contract.md` does not
-either: `node tools/contract-check.mjs` now prints the gate before the count precisely so this
-cannot be misread again.
+**That line is the position, and it is a stop.** A2.1, A2.2 and A2.3 are complete and
+mutation-verified, and the probe was re-run on 2026-08-11 (§7). **The defect Stage A found is
+fixed and proven fixed on a live ungraceful kill — ORIENT survived byte-identical.** But a
+*different* completed phase was re-dispatched, for a cause outside the resume logic, and the
+assertion as written does not pass. Per the plan's own rule — *"If it fails again, stop again"* —
+**S2's ship gate is NOT MET and Stage B does not start.**
+
+The rule is worth more than the patch here. The assertion could be narrowed to make this run green
+(WIRE's re-dispatch is arguably correct behaviour, §7.3), and narrowing an assertion so your own
+change passes is the exact move this branch exists to refuse. The status line stays `FAIL`, the
+gate stays shut, and the next stage fixes the cause.
 
 | Gate | Status | Verified by |
 |---|---|---|
@@ -22,7 +28,7 @@ cannot be misread again.
 | **G3** — no courier result is discarded | **MET** | `16-workflows.mjs` arm (d) over every workflow script; suite 1328 → **1351** |
 | **G4** — the resume fixture is its own file, all four phases | **MET** | `tests/structural/18-resume-state.mjs`, 21 checks; mutation transcript §3 |
 | **G5** — every contract row is falsifiable | **MET, with its limits named** | `tools/contract-check.mjs --mutate`: **14/14** mutatable rows go red; 9 rows are not generically mutatable and each says why (§4) |
-| **G6** — the probe passes | **NOT RUN** | — |
+| **G6** — the probe passes | **NOT MET** — re-run 2026-08-11, `kill-resume-probe: FAIL` | §7. 2 of 4 assertions PASS; the 2 that fail do so on WIRE, whose worker escalated and wrote no artifact |
 | **G7** — the zero-work sentence has one reading | **MET** | `SKILL.md` now states the predicate (*reached the orchestrator ∧ no receipt*) rather than "neither … NOR …" |
 
 ---
@@ -191,15 +197,117 @@ a naming improvement can never produce an order that fails its own schema.
 
 ---
 
+## 7. The probe, re-run — 2026-08-11
+
+**Rig.** Same shape as Stage A (`stage2-evidence.md` §4), rebuilt because its scripts lived on the
+other machine. Scratch project outside the checkout; the plugin installed from `npm pack` of this
+branch as a local marketplace and **verified by sha256 against the worktree, file by file**, before
+anything ran. L0 by hand (`init-run.mjs --slug todo-kill --auto-level unattended --gate-answers ci
+--max-rounds 2` + `project-profile.md`), so the two legs differ in exactly one respect: the state on
+disk. One `launch.sh`, called twice, same args both times.
+
+**The instrument was self-tested first, in three directions**: a clean resume must PASS, Stage A's
+recorded failure must FAIL, and a rebuilt green scope with a rewritten citation must FAIL. Fed
+Stage A's own numbers it reproduces that run's signature exactly (`7dd5aef9…` → `359f6650…`). A
+probe that has never been seen to fail is not evidence.
+
+**Leg 1.** Ran ORIENT → WIRE → MAP SCOPES → L1b → BUILD. `map-scopes` produced **five** scope
+contracts rather than the two the plan sketched — the assertions are set operations, so this makes
+the probe harder, not different. Killed with `SIGKILL` at the specified window: **one scope
+T0-green (`SC-task-creation@r1`), one order in flight (`sc-task-listing-r1-a1.json`, no result)**.
+Exit 137, nothing survived, no `RunReturn`, no chance to flush state.
+
+**Leg 2.** Fresh session, same script, same args. It **shipped**:
+
+```json
+{"status":"shipped","verdict":"pass","rounds_used":2,
+ "dims_not_evaluated":["security","performance"],
+ "qa_findings":7,"report":"shapeup/todo-kill/REPORT.md"}
+```
+
+Round 1's EVAL returned **FAIL**; the run looped into a fix round, rebuilt all five scopes, and
+round 2's EVAL returned **PASS**. 18 orders / 18 results, 10 T0 verdicts, all green. A run killed
+mid-BUILD carried itself to a shipped feature.
+
+### 7.1 The four assertions
+
+| # | assertion | outcome |
+|---|---|---|
+| 1 | no completed PHASE order was re-dispatched (5 completed at kill time) | **FAIL** — `wire.json` `46f40cbe…` → `e924248d…` |
+| 1b | no result for a completed phase was re-ingested (5 checked) | **FAIL** — `wire.json` `e79abe34…` → `b8775d79…` |
+| 2 | no scope T0-green at kill time was rebuilt (1 green pair at kill) | **PASS** |
+| 3 | every pre-kill T0 verdict survives byte-identical (1 found) | **PASS** |
+
+**Four of the five completed phases survived untouched**, and the fifth is the subject of §7.3:
+
+```
+analyze.json                  order IDENTICAL · result IDENTICAL
+map-scopes.json               order IDENTICAL · result IDENTICAL
+orient.json                   order IDENTICAL · result IDENTICAL      <- the Stage A defect
+sc-task-creation-r1-a1.json   order IDENTICAL · result IDENTICAL
+wire.json                     order REWRITTEN · result REWRITTEN
+```
+
+### 7.2 What this proves about A2's three fixes
+
+All three are confirmed on a live ungraceful kill, against the Stage A run's own failures:
+
+| Stage A behaviour | This run |
+|---|---|
+| **ORIENT re-ran from scratch** — three artifacts rewritten, a spike added, the ledger and two task files mutated | **`orient.json` and `results/orient.json` byte-identical.** The phase was not re-dispatched |
+| **`status` never left `orienting`** across two legs and 46 agents | **Moved: `orienting` → `building` → `evaluating`** |
+| **`.shapeup/active-scope` still named scope 1** while scope 2 was built, pointing `sandbox-guard` at the wrong substrate | **Named `SC-task-listing` — the scope actually in flight — at the moment of the kill** |
+| **Build orders collided** (`r1-a1.json` overwritten per scope), so `orders/` was not an audit trail and the contract row read green on a failing run | **10 distinct scope-named build orders** (5 scopes × 2 rounds), no collisions |
+
+### 7.3 Why WIRE was re-dispatched, and why that is not the resume logic failing
+
+`results/wire.json` reads `status: "escalated"`, `artifacts: []`, and
+**`shapeup/todo-kill/wiring-map.md` does not exist** — not after leg 1, not after leg 2.
+`solution-architect` escalated instead of writing the wiring map, and reported that honestly.
+
+So the fast-forward read `has_wiring_map: false`, found no artifact, and re-dispatched the phase.
+**That is the artifact-gated rule working — the same rule that now protects ORIENT.** By the
+harness's own doctrine (*"progress is derived, never claimed"*) WIRE was never complete: the result
+record was a claim, the artifact is the truth, and the artifact was absent.
+
+The defect is one layer up, and it is new:
+
+> **A phase whose worker ESCALATES is recorded as complete.** `shapeup-run.js` ingests the result
+> and moves to the next gate without inspecting `status`. The workflow documents that it does not
+> adjudicate mid-round ESCALATE (advisor-protocol is the prose path) — but not adjudicating is not
+> the same as not noticing. Because the escalated phase writes no artifact, it is then
+> **re-dispatched on every subsequent launch, forever**, and each relaunch escalates again. It is
+> invisible inside a single leg and only appears across a resume, which is why three runs and a
+> status review never saw it.
+
+This also explains why it did not appear in Stage A: there, ORIENT's status-gated branch swallowed
+the whole resume, and the run never got far enough for WIRE's own predicate to matter.
+
+### 7.4 One anomaly, unresolved and not explained away
+
+The run returned `shipped`, and the ledger's final status reads **`evaluating`**, not `shipped`.
+The last `setRunStatus(slug, "shipped")` did not land. Two things must be said precisely:
+
+- It is **not** the Stage A failure recurring wholesale — the field moved three times in this run,
+  which it never did there.
+- I **cannot tell from this rig whether the failure was reported.** The A2.2 code logs a loud
+  `RUN STATE —` line when a status write does not take, but a Workflow's `log()` output goes to the
+  progress narrator, and `claude -p` stdout carries only the final message: `leg-2.out` is 8 lines
+  long. So the absence of a warning here is **not evidence that no warning was emitted**, and I am
+  not going to record it as either. What stands is the artifact fact: the write did not take, at
+  one call site, on a run whose other status writes did.
+
 ## 6. What is NOT demonstrated
 
 Stated plainly rather than left to inference:
 
-- **The kill/resume probe has not been re-run.** `kill-resume-probe: NOT-RUN` at the top of this
-  file is the machine-readable form of that. S2's ship gate is not met.
-- **No live run has exercised any of this.** Every claim here is from unit fixtures and from
-  executing the contract rows. The defect Stage A found was reachable *only* by running the thing —
-  that is the entire lesson, and it applies to this stage's fix as much as to the code it fixes.
+- **The probe FAILS.** `kill-resume-probe: FAIL`. S2's ship gate is not met and Stage B does not
+  start, even though the cause is not the defect this stage fixed.
+- **The escalated-phase defect (§7.3) is diagnosed, not fixed.** It needs its own stage.
+- **Why the final status write did not land is not established** (§7.4), and the rig cannot see the
+  workflow's own log channel.
+- **The probe used one kill point.** A kill during EVAL, during QA, or between rounds is still
+  untested; so is a second consecutive kill.
 - **`checkScopeGreen` is still an inline `node -e` blob** in `shapeup-run.js`. It was left there
   deliberately (`stage-a2-plan.md` §6, decision 2): its result is consumed at its call site, so it
   is not the defect class, and absorbing it would have widened the diff on a branch frozen at

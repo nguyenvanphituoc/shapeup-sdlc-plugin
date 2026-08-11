@@ -1,0 +1,521 @@
+{
+  "root": "/private/tmp/claude-501/-Users-teo-workspace-proj-harness-plugin/dbe65ea4-8700-465f-8366-6f23f7827451/scratchpad/probe/project",
+  "slug": "todo-kill",
+  "files": {
+    ".shapeup/todo-kill/discovery/ledger.md": {
+      "sha256": "b24d3e16c770ddecc03229f79c17a1d1125c84176b3c24b1fd9d00f1ed12b646",
+      "size": 4668
+    },
+    ".shapeup/todo-kill/escalates/sc-cli-integration-r1-a1.json": {
+      "sha256": "5db3385b7edbfb6ab14769e5754d28850bbe6e8489ca12e4708719a60e829660",
+      "size": 2929
+    },
+    ".shapeup/todo-kill/escalates/wire.json": {
+      "sha256": "b7e8121a918f21ab5acf488b2fb237c058cb28d6023794d3d2274492092d6b22",
+      "size": 2358
+    },
+    ".shapeup/todo-kill/evaluation/.verdicts-evaluate-r1.jsonl": {
+      "sha256": "49d13694df56165787a7cc1bf7d732a3a703f3fdcac1dde3d5c3947a33116886",
+      "size": 5090
+    },
+    ".shapeup/todo-kill/evaluation/.verdicts-evaluate-r2.jsonl": {
+      "sha256": "573cdef4c0cf51615516a7a9f8524dd4c489caa50aea759df065aef7699d28a3",
+      "size": 6329
+    },
+    ".shapeup/todo-kill/evaluation/EVAL-FEATURE-todo-kill.md": {
+      "sha256": "0de11321975e6db34a64f080a8e5b47265565f80f9d75a35c290a51e0e2e07b6",
+      "size": 11237
+    },
+    ".shapeup/todo-kill/hammer/gate-h.md": {
+      "sha256": "342b4e31e186d085873a981ab5076d8a502e71f1c97bb6822774c52d5cdc0b88",
+      "size": 9493
+    },
+    ".shapeup/todo-kill/harness-run.md": {
+      "sha256": "ccadff2f62e0a2f1e67d0a0bff74bcabe159db5b3562137009d318b902f6f67c",
+      "size": 755
+    },
+    ".shapeup/todo-kill/intake.md": {
+      "sha256": "6e266fd83294f2180d2cc4140e47308a6db826546977b78ab7afc61b55aa0991",
+      "size": 472
+    },
+    ".shapeup/todo-kill/orders/analyze.json": {
+      "sha256": "5030e1ffef009d6d3c2b91b774863ebd2448869f46c2d829b22ad6b73423c9f8",
+      "size": 656
+    },
+    ".shapeup/todo-kill/orders/evaluate-r1.json": {
+      "sha256": "aa4d740fc3dff7db1f402a046152d7835fed2f56d14705723d699cbc632d9863",
+      "size": 3350
+    },
+    ".shapeup/todo-kill/orders/evaluate-r2.json": {
+      "sha256": "b6e92bc1691d9a814e6a657faf94f4217e1779fb960c0c8386dfefe26e6c605f",
+      "size": 4497
+    },
+    ".shapeup/todo-kill/orders/hammer.json": {
+      "sha256": "50e813f412a181ee81e01bd878bef28a33b77745d8708c06328c977fb8b3a5f7",
+      "size": 3398
+    },
+    ".shapeup/todo-kill/orders/hunt.json": {
+      "sha256": "95211129123162204cde856a1039347890e66bbafea6f5ea67390c366e0afacf",
+      "size": 3559
+    },
+    ".shapeup/todo-kill/orders/map-scopes.json": {
+      "sha256": "2d17282bce61574d32a8faee99f0244837ead12348c3ce4d4f8e12eef9828c91",
+      "size": 667
+    },
+    ".shapeup/todo-kill/orders/orient.json": {
+      "sha256": "6b288092c13a1e67ba5a93194efc693de9549750a5c50b7bee455ebca429e79e",
+      "size": 586
+    },
+    ".shapeup/todo-kill/orders/sc-cli-integration-r1-a1.json": {
+      "sha256": "1e159428be15c6c8c9982cbfa8f831bd0bec43072942bfbf13f55622d7741d36",
+      "size": 5760
+    },
+    ".shapeup/todo-kill/orders/sc-cli-integration-r2-a1.json": {
+      "sha256": "b695c1119a6512a9c358519d8c73210937de7da85c4a1bc0dd3b926840a740f8",
+      "size": 6173
+    },
+    ".shapeup/todo-kill/orders/sc-overdue-reporting-r1-a1.json": {
+      "sha256": "47001ad9214ba3bcb415b09a5f99a8dee13e578ab97c8b3a3e2ed05b8533cef8",
+      "size": 2418
+    },
+    ".shapeup/todo-kill/orders/sc-overdue-reporting-r2-a1.json": {
+      "sha256": "c984d6d66026f9296b4a050e95f916d98a5e5220751cbd51e7f2f3a6c53aa862",
+      "size": 2822
+    },
+    ".shapeup/todo-kill/orders/sc-task-completion-r1-a1.json": {
+      "sha256": "aa541a9a71f26441c9e7e54cdbfeb4d934dcf9435572ebf3617cc7e83f49bc7f",
+      "size": 2514
+    },
+    ".shapeup/todo-kill/orders/sc-task-completion-r2-a1.json": {
+      "sha256": "ee3f0ba22fb6280e07f939811209a387e34facdf74f8593e9d00a799ec9471e5",
+      "size": 2916
+    },
+    ".shapeup/todo-kill/orders/sc-task-creation-r1-a1.json": {
+      "sha256": "18797c80e95a0d08f90070c0169f264672d62ecbf531a0fdcd83d0521a587e84",
+      "size": 6380
+    },
+    ".shapeup/todo-kill/orders/sc-task-creation-r2-a1.json": {
+      "sha256": "9ea681e19b01cbe9a692408a1b612d508f8a22b92a66b31454f8d12e77f32c21",
+      "size": 6777
+    },
+    ".shapeup/todo-kill/orders/sc-task-listing-r1-a1.json": {
+      "sha256": "f0b03fac88301c888ee32e9cfd0b016520b314210a0c53c42fff6c3ecb00d65f",
+      "size": 2258
+    },
+    ".shapeup/todo-kill/orders/sc-task-listing-r2-a1.json": {
+      "sha256": "6b37395c4f26d5e011c8339d6d6bd20ceafd9d4ca52fac2b7908f04fe6f9d80f",
+      "size": 2657
+    },
+    ".shapeup/todo-kill/orders/wire.json": {
+      "sha256": "e924248d620fe0bcd5f63cce0ff200e24ac77c56b82c3a4ce0b074d3cb702a3a",
+      "size": 1256
+    },
+    ".shapeup/todo-kill/orient/code-surface.md": {
+      "sha256": "e81b62c8e1d9d600574b1ca587ca9aa8b1694a9b1dd6a35dfd681f479e5c248f",
+      "size": 3533
+    },
+    ".shapeup/todo-kill/orient/discovered-seed.md": {
+      "sha256": "c2704fb6670a3b23e602f2f9472e550a0790e88b9e3fde9a9553ab97144cdcd2",
+      "size": 4148
+    },
+    ".shapeup/todo-kill/orient/hill-signal.md": {
+      "sha256": "0befa810d0373858299567091d8a9e02d08e8a22e4ba270984f7486f6ea53e2d",
+      "size": 2619
+    },
+    ".shapeup/todo-kill/orient/spike-storage.md": {
+      "sha256": "8f04ea88fe6da13e48eb03660f6fb3470ca1ba3fabbdc8071eab4be9387f39ec",
+      "size": 6955
+    },
+    ".shapeup/todo-kill/qa/hunt-report.md": {
+      "sha256": "e1f709fb9ad4cef9f4323b975d6b7e2e22eb61f0ccd59f669df7669f95e68ba7",
+      "size": 11466
+    },
+    ".shapeup/todo-kill/receipt.json": {
+      "sha256": "a04f742436ab0af9b04cbbfd2c26b3c2c1a398ba2931bfbebbfe75735c6ecaf6",
+      "size": 1140
+    },
+    ".shapeup/todo-kill/results/analyze.json": {
+      "sha256": "e62677e3472a0e3433210d5754a9df96fa2ff673df32a4bec13fc074613b9147",
+      "size": 3683
+    },
+    ".shapeup/todo-kill/results/evaluate-r1.json": {
+      "sha256": "0751da5c9a3978a269c24fff0189845768b37ca0202f1fa6ca1c948873634421",
+      "size": 8317
+    },
+    ".shapeup/todo-kill/results/evaluate-r2.json": {
+      "sha256": "b5147fb13fd3a8ba8521238b4d562282beaf98d7df9ec472bb06d1c79117ccbb",
+      "size": 7258
+    },
+    ".shapeup/todo-kill/results/hammer.json": {
+      "sha256": "20d989ed209e5c94c98f2c2947f04db38f1e20fd56db077fdf336247efb6bd6e",
+      "size": 1718
+    },
+    ".shapeup/todo-kill/results/hunt.json": {
+      "sha256": "382dee67b3a276f795d3a7c27ac1791225415a04763ff13218dd278634dd44ea",
+      "size": 5583
+    },
+    ".shapeup/todo-kill/results/map-scopes.json": {
+      "sha256": "2a8b2784e0910502a042210df4e3e87c03e3e4aeadd688f37e073d2066cbf2fd",
+      "size": 2739
+    },
+    ".shapeup/todo-kill/results/orient.json": {
+      "sha256": "08b76b1bd8e776c8c4dc628d8abc924b28986ac7e5ae2bf6d3c5078d21aeb6fd",
+      "size": 1552
+    },
+    ".shapeup/todo-kill/results/sc-cli-integration-r1-a1.json": {
+      "sha256": "7cdb3e3aa9f3dc59c8133e98031c13c830a6f2890f6ddfd34d594a8f0cab94b3",
+      "size": 13453
+    },
+    ".shapeup/todo-kill/results/sc-cli-integration-r2-a1.json": {
+      "sha256": "84621d91893772f4e200bdf1e6c04d16f62cb7f758172eea717cd15b8c693ff6",
+      "size": 6908
+    },
+    ".shapeup/todo-kill/results/sc-overdue-reporting-r1-a1.json": {
+      "sha256": "66be5a9e7a94dac93d1c0b78b4ec12c7eec1727d6f0dbc212f200b811b52753f",
+      "size": 3390
+    },
+    ".shapeup/todo-kill/results/sc-overdue-reporting-r2-a1.json": {
+      "sha256": "bf825952ad7b9a9d73dab4f1cba389f4607b98a274f495c8333e7bc5163f988b",
+      "size": 3274
+    },
+    ".shapeup/todo-kill/results/sc-task-completion-r1-a1.json": {
+      "sha256": "ebbc967263929e67702865e4798003e9cf61b5dcc581580ce471aedb5ee37b6d",
+      "size": 3704
+    },
+    ".shapeup/todo-kill/results/sc-task-completion-r2-a1.json": {
+      "sha256": "e215132f83b5b1b8fe1f2b5e4785ff570d8872c9c57604b54a30883f353ceae9",
+      "size": 3569
+    },
+    ".shapeup/todo-kill/results/sc-task-creation-r1-a1.json": {
+      "sha256": "72b97af8ccf850c8175b0642b8e3a59c507e5ad915cbee6dadecb341d92cf4e5",
+      "size": 10067
+    },
+    ".shapeup/todo-kill/results/sc-task-creation-r2-a1.json": {
+      "sha256": "c057e237fed18f385a430f5c89c31e3f1c60de5a3225a930707b9ddfbe017212",
+      "size": 8166
+    },
+    ".shapeup/todo-kill/results/sc-task-listing-r1-a1.json": {
+      "sha256": "17c0b42e6b50af599dd503700319e52b7ccc6ef9b85edcdff9a64693b1172dd7",
+      "size": 2743
+    },
+    ".shapeup/todo-kill/results/sc-task-listing-r2-a1.json": {
+      "sha256": "4ef676ee10a268e5b1594cc99a4bd658f0dd9f01019f570e278aedf3500f5d47",
+      "size": 2695
+    },
+    ".shapeup/todo-kill/results/wire.json": {
+      "sha256": "b8775d79c9a78f504add42ceb2d9463aacbae691f518c15266dde30b7e6be040",
+      "size": 4545
+    },
+    ".shapeup/todo-kill/t0/trials.jsonl": {
+      "sha256": "17c7e958bb6a83d499ecf5612c6409516b0f8087d200a67dfc50691a116dcd00",
+      "size": 4319
+    },
+    ".shapeup/todo-kill/t0/verdicts/r1-a1-t1.json": {
+      "sha256": "919a952550359133b096b1dd86cdfdda730f8440dbc0214a8288af7e5b12972e",
+      "size": 844
+    },
+    ".shapeup/todo-kill/t0/verdicts/r1-a1-t2.json": {
+      "sha256": "c8a4a804c392ceb245dd532c1c9b3c81ba2d6850cad355c9289030f71b1bfa47",
+      "size": 947
+    },
+    ".shapeup/todo-kill/t0/verdicts/r1-a1-t3.json": {
+      "sha256": "1d957e57a023031803c66aa6bfe7edb26795764b5942b08419a16e2fff186e6e",
+      "size": 646
+    },
+    ".shapeup/todo-kill/t0/verdicts/r1-a1-t4.json": {
+      "sha256": "bb8ca340d572432e79cdbb1c0f6b1ff691e1711caef8c0a5a381685fbbc0f749",
+      "size": 643
+    },
+    ".shapeup/todo-kill/t0/verdicts/r1-a1-t5.json": {
+      "sha256": "506c546a5798cd05657fe31fb9d97018d2e88db10d3d8c7e1e8f68712d48bb5f",
+      "size": 637
+    },
+    ".shapeup/todo-kill/t0/verdicts/r2-a1-t1.json": {
+      "sha256": "102c3848ca5b4d57747c153072a2e5d90961d4596711d33ba7631f012e0473f3",
+      "size": 947
+    },
+    ".shapeup/todo-kill/t0/verdicts/r2-a1-t2.json": {
+      "sha256": "b3c445a88ed6eb0f10df8fa224017721625925017356e53fa13ecb77c39e98cc",
+      "size": 646
+    },
+    ".shapeup/todo-kill/t0/verdicts/r2-a1-t3.json": {
+      "sha256": "b860e19883d7c35a7125406ca685e9b928fe6979ff8844c53458a6f5ded6b5fe",
+      "size": 643
+    },
+    ".shapeup/todo-kill/t0/verdicts/r2-a1-t4.json": {
+      "sha256": "e5806b76821b79c37ce246d14e33eb237ed9bc352a4252efc95b3fb01d00d679",
+      "size": 844
+    },
+    ".shapeup/todo-kill/t0/verdicts/r2-a1-t5.json": {
+      "sha256": "506a39cb7747bff9fe1420880e22f034d98cffa8c1d1506f106c887cc40a8f0a",
+      "size": 637
+    },
+    ".shapeup/todo-kill/tasks/TASK-001-package-wiring.md": {
+      "sha256": "beebee4838932c01d655c2e2313cfa9d02e649d2b1e8aee1090177e7d39574f7",
+      "size": 2872
+    },
+    ".shapeup/todo-kill/tasks/TASK-002-task-domain-model.md": {
+      "sha256": "ea83ddaf1410eeb2a94f93060486934d6a6a902e9ce8eeb43c3569af940ca48d",
+      "size": 4856
+    },
+    ".shapeup/todo-kill/tasks/TASK-003-task-repository.md": {
+      "sha256": "fc770a739a0a7a2be0feb2af4577c06e8254720d933b808905b9a2e92142894d",
+      "size": 7384
+    },
+    ".shapeup/todo-kill/tasks/TASK-004-add-task-usecase.md": {
+      "sha256": "ed5565f5d4f00540424154d057aa991691d466b28b4a3a2fba67f9188d8ac770",
+      "size": 4805
+    },
+    ".shapeup/todo-kill/tasks/TASK-005-list-tasks-usecase.md": {
+      "sha256": "6df422904785dbb6118cdce547b4aca162108f8faf74aeaaa8ff012917d17940",
+      "size": 4163
+    },
+    ".shapeup/todo-kill/tasks/TASK-006-complete-task-usecase.md": {
+      "sha256": "79f11f2f4f770168b972f4bca673b80fa1bf2e20ea60dd2380962798ce974d27",
+      "size": 6349
+    },
+    ".shapeup/todo-kill/tasks/TASK-007-report-overdue-usecase.md": {
+      "sha256": "41d847870ab88a5adc2b725866dac59f851489f12598a2bacee773bb0184a492",
+      "size": 5706
+    },
+    ".shapeup/todo-kill/tasks/TASK-008-cli-dispatcher.md": {
+      "sha256": "59e9cfa8501172c888897b47b8770d489a7e9878e86151ba7d7075d33f511e21",
+      "size": 9400
+    },
+    ".shapeup/todo-kill/tasks/TASK-009-task-storage-capability-tests.md": {
+      "sha256": "b0f17933bfb4fb5cd28a1e5f41fc3415265c66f2bc2c934102ce8d5f1812b589",
+      "size": 3193
+    },
+    ".shapeup/todo-kill/tasks/TASK-010-due-dates-overdue-capability-tests.md": {
+      "sha256": "35fd97e654a2d1201123ec99a64f48687e1ec4714f939fe0d1838f75bd4ad367",
+      "size": 3406
+    },
+    ".shapeup/todo-kill/tasks/TASK-011-cli-integration-test.md": {
+      "sha256": "5f339921ab8eb645298eb6607481b4de3277f6ede452420652196fee4de5cf21",
+      "size": 5678
+    },
+    ".shapeup/todo-kill/tasks/_index.md": {
+      "sha256": "578aafc176f18e079f96509bdc32a6de848f15b8ce89ce5e532f32565be4c787",
+      "size": 2451
+    },
+    ".shapeup/todo-kill/trace/report.json": {
+      "sha256": "1c71e16b9bcc3e686e4d85af492b5912ea4b4ecc1d07a6f36a1df1201ba943df",
+      "size": 663
+    },
+    "shapeup/todo-kill/REPORT.md": {
+      "sha256": "2f13239a0fc28d36403a3aca4c2f32899ea61d16cfdcc6683d9c536af0f0af06",
+      "size": 16117
+    },
+    "shapeup/todo-kill/project-profile.md": {
+      "sha256": "a6a38d1b0d29b42049a9b81c4f695c39df913d7c4c61e25033610998280bbca2",
+      "size": 886
+    },
+    "shapeup/todo-kill/scope-board.md": {
+      "sha256": "6605958183b2e7252d2d4e39b63841dabb461ea011af3f8d867b73add484b557",
+      "size": 3509
+    },
+    "shapeup/todo-kill/scopes/SC-cli-integration.md": {
+      "sha256": "68afc538467aac5e662e37da7fc030711932a779e5f6fe967986b077901fccb2",
+      "size": 3042
+    },
+    "shapeup/todo-kill/scopes/SC-overdue-reporting.md": {
+      "sha256": "caf431240b85d2ccd16e6843c5d0735d95e4751eb51d98737b17da0d16cbccb3",
+      "size": 1513
+    },
+    "shapeup/todo-kill/scopes/SC-task-completion.md": {
+      "sha256": "6d7a9bb3650e9d53537eafbfdd49ca23206d6efce2eec845db14b1282dfbe842",
+      "size": 1689
+    },
+    "shapeup/todo-kill/scopes/SC-task-creation.md": {
+      "sha256": "a4eb8fc9d33f4caa30c889020dc1f04e6d8743ee6343d5e60eadde5612e3892d",
+      "size": 2630
+    },
+    "shapeup/todo-kill/scopes/SC-task-listing.md": {
+      "sha256": "52b72e89e3de6714c3dd961643189f792c0c47716f3328e16858df18710c6b42",
+      "size": 1228
+    },
+    "shapeup/todo-kill/spec/_index.md": {
+      "sha256": "9782db5876cb0d25cc2cac7ab5c08a03026f70cc30f1932860374d5d17307da6",
+      "size": 6475
+    },
+    "shapeup/todo-kill/spec/contracts/_index.md": {
+      "sha256": "c22423c89bf7fffd4008fd21972454eae209c2257ff92a35a74047b715e049cb",
+      "size": 390
+    },
+    "shapeup/todo-kill/spec/contracts/task-repository.contract.md": {
+      "sha256": "f56ecf6d9fbc388ba8e26d5c7e2886605b19cbc120fc3d3a661d0333908c37a8",
+      "size": 4917
+    },
+    "shapeup/todo-kill/spec/domain-model.md": {
+      "sha256": "1cea90aaeb5b714c6ce65b0fd8af30e2d4615942b1389205d0b3bb262d365738",
+      "size": 3567
+    },
+    "shapeup/todo-kill/spec/feedback.md": {
+      "sha256": "0a8ae94ae1ff2a98ba8a945cc1926e579154d8af815fbfb1b01793e70240928e",
+      "size": 2008
+    },
+    "shapeup/todo-kill/spec/integration.md": {
+      "sha256": "357a11749f984a0ef3cff8b638526bebbc0db3d60dc8ae2c3b336c988a86baaa",
+      "size": 2930
+    },
+    "shapeup/todo-kill/spec/scope-summary.md": {
+      "sha256": "16d8a5300d2a65a02fe38ec1d415115da246e2702924f14c2a1e7c75266fbab7",
+      "size": 4074
+    },
+    "shapeup/todo-kill/spec/synthesis.md": {
+      "sha256": "de28350fc4e0fb69296369e2f96200a282bb85baac3e5a16e7cd2cd876aa781f",
+      "size": 7134
+    },
+    "shapeup/todo-kill/spec/usecases/UC-AddTask.md": {
+      "sha256": "52b17e5eaa62b6567367a9f03276c059cecb0309460a1ba6642a24c1a6b78bef",
+      "size": 4095
+    },
+    "shapeup/todo-kill/spec/usecases/UC-CompleteTask.md": {
+      "sha256": "6eaa0c50259060f82a5d717d22c0e9943ce6ca1c748d95b8b1e0d6094512a999",
+      "size": 3454
+    },
+    "shapeup/todo-kill/spec/usecases/UC-ListTasks.md": {
+      "sha256": "dcb318d46ff8922580392bab3b56f1c9e62fe8033a4df8d3231c75f1d21f73fa",
+      "size": 2730
+    },
+    "shapeup/todo-kill/spec/usecases/UC-ReportOverdue.md": {
+      "sha256": "16768e858fa55628d4b78a8f2df9f4cb7247f6408839b41d7f57542a059f74de",
+      "size": 3278
+    },
+    "shapeup/todo-kill/spec/usecases/_index.md": {
+      "sha256": "4801a6e813c23e75afa0bcc835d459c855c1b29c9b296b087d03999d4092380e",
+      "size": 977
+    },
+    "shapeup/todo-kill/spec/ux-behavior.md": {
+      "sha256": "0f37ae81261e0af37ae8eb1181ecebcce3c9da73a2709bae29fe2661d995e8ac",
+      "size": 7481
+    }
+  },
+  "orders": [
+    "analyze.json",
+    "evaluate-r1.json",
+    "evaluate-r2.json",
+    "hammer.json",
+    "hunt.json",
+    "map-scopes.json",
+    "orient.json",
+    "sc-cli-integration-r1-a1.json",
+    "sc-cli-integration-r2-a1.json",
+    "sc-overdue-reporting-r1-a1.json",
+    "sc-overdue-reporting-r2-a1.json",
+    "sc-task-completion-r1-a1.json",
+    "sc-task-completion-r2-a1.json",
+    "sc-task-creation-r1-a1.json",
+    "sc-task-creation-r2-a1.json",
+    "sc-task-listing-r1-a1.json",
+    "sc-task-listing-r2-a1.json",
+    "wire.json"
+  ],
+  "results": [
+    "analyze.json",
+    "evaluate-r1.json",
+    "evaluate-r2.json",
+    "hammer.json",
+    "hunt.json",
+    "map-scopes.json",
+    "orient.json",
+    "sc-cli-integration-r1-a1.json",
+    "sc-cli-integration-r2-a1.json",
+    "sc-overdue-reporting-r1-a1.json",
+    "sc-overdue-reporting-r2-a1.json",
+    "sc-task-completion-r1-a1.json",
+    "sc-task-completion-r2-a1.json",
+    "sc-task-creation-r1-a1.json",
+    "sc-task-creation-r2-a1.json",
+    "sc-task-listing-r1-a1.json",
+    "sc-task-listing-r2-a1.json",
+    "wire.json"
+  ],
+  "completed_phase_orders": [
+    "analyze.json",
+    "evaluate-r1.json",
+    "evaluate-r2.json",
+    "hammer.json",
+    "hunt.json",
+    "map-scopes.json",
+    "orient.json",
+    "sc-cli-integration-r1-a1.json",
+    "sc-cli-integration-r2-a1.json",
+    "sc-overdue-reporting-r1-a1.json",
+    "sc-overdue-reporting-r2-a1.json",
+    "sc-task-completion-r1-a1.json",
+    "sc-task-completion-r2-a1.json",
+    "sc-task-creation-r1-a1.json",
+    "sc-task-creation-r2-a1.json",
+    "sc-task-listing-r1-a1.json",
+    "sc-task-listing-r2-a1.json",
+    "wire.json"
+  ],
+  "pending_orders": [],
+  "verdicts": [
+    "r1-a1-t1.json",
+    "r1-a1-t2.json",
+    "r1-a1-t3.json",
+    "r1-a1-t4.json",
+    "r1-a1-t5.json",
+    "r2-a1-t1.json",
+    "r2-a1-t2.json",
+    "r2-a1-t3.json",
+    "r2-a1-t4.json",
+    "r2-a1-t5.json"
+  ],
+  "green_verdicts": [
+    {
+      "file": "r1-a1-t1.json",
+      "scope_id": "SC-task-creation",
+      "round": 1
+    },
+    {
+      "file": "r1-a1-t2.json",
+      "scope_id": "SC-cli-integration",
+      "round": 1
+    },
+    {
+      "file": "r1-a1-t3.json",
+      "scope_id": "SC-overdue-reporting",
+      "round": 1
+    },
+    {
+      "file": "r1-a1-t4.json",
+      "scope_id": "SC-task-completion",
+      "round": 1
+    },
+    {
+      "file": "r1-a1-t5.json",
+      "scope_id": "SC-task-listing",
+      "round": 1
+    },
+    {
+      "file": "r2-a1-t1.json",
+      "scope_id": "SC-cli-integration",
+      "round": 2
+    },
+    {
+      "file": "r2-a1-t2.json",
+      "scope_id": "SC-overdue-reporting",
+      "round": 2
+    },
+    {
+      "file": "r2-a1-t3.json",
+      "scope_id": "SC-task-completion",
+      "round": 2
+    },
+    {
+      "file": "r2-a1-t4.json",
+      "scope_id": "SC-task-creation",
+      "round": 2
+    },
+    {
+      "file": "r2-a1-t5.json",
+      "scope_id": "SC-task-listing",
+      "round": 2
+    }
+  ],
+  "active_scope": "{\n  \"slug\": \"todo-kill\",\n  \"scope_id\": \"SC-task-listing\"\n}",
+  "run_status": "evaluating"
+}

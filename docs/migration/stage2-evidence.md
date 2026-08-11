@@ -181,6 +181,17 @@ exists to catch is the same defect class as the two false-passing rows Stage A's
 kill-resume-probe: FAIL
 ```
 
+> **⟐ Re-run 2026-08-11 after Stage A2 (`docs/migration/stage-a2-evidence.md` §7): still FAIL, and
+> the cause has moved.** The defect recorded below — ORIENT re-dispatched because its skip was gated
+> on stored `status` — is **fixed and proven fixed**: on the re-run, `orders/orient.json` and
+> `results/orient.json` are byte-identical across an ungraceful kill, `status` moves through
+> `orienting → building → evaluating`, the substrate pointer names the scope actually in flight, and
+> the resumed leg carried the run to `{"status":"shipped","verdict":"pass","rounds_used":2}`.
+> What fails now is **WIRE**, whose worker escalated and never wrote `wiring-map.md` — so the
+> artifact-gated fast-forward correctly re-dispatches it, and the real defect is that an escalated
+> phase is recorded as complete. The status line stays FAIL because the assertion as written does
+> not pass, and narrowing it to fit would be the move this branch exists to refuse.
+
 | # | assertion | outcome |
 |---|---|---|
 | 1 | no completed PHASE order was re-dispatched (4 completed at kill time) | **FAIL** — `orders/orient.json` rewritten, sha `7dd5aef9…` → `359f6650…` |
