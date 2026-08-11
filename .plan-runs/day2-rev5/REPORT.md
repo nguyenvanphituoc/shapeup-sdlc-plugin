@@ -13,7 +13,39 @@ there, and closed it as *blocked — reopens on the machine that holds the bench
 **is** that machine. Its determination is preserved in `contract.md` rather than overwritten,
 because its exhausted-search record is what stops the next session repeating it.
 
-## Verdict
+## Verdict — the rung is met, scoped to Haiku
+
+**Day 2's rung has its first sampled reduction, bought 2026-08-11.** FC-01 carries `reduces: true`,
+`reduction_basis: "sampled"` — **5/5 shipped-nothing at pre-fix `a280e86` against 1/10 at
+`v1.6.3+3864b1d09f71`, Fisher exact one-tailed p = 0.0020**, both rates `model_scope`
+`claude-haiku-4-5-20251001`. Rule 9 recomputes that p-value and accepts it; the same rule refused
+this class at 1/3 (p = 0.107) hours earlier, which is exactly what the arm was bought to fix.
+
+**The scope is part of the claim, not a caveat.** This is a statement about Haiku. The class does
+**not** occur on the model under test — 0 of 8 scored Sonnet rows against 7 of 16 on Haiku, and the
+MUT is now `claude-opus-5`. Read as one finding: *this tool measurably reduces this class on the
+instrument where the class occurs, and the class does not occur on stronger models.* Quoting the
+reduction without its instrument would be the defect rev 3 withdrew.
+
+**The method is the evidence.** Cell, target n=10 scored, 30-attempt cap, statistic and **both**
+dispositions were registered (`f286567`) before any rep existed; the model-scope objection
+(`71ded49`) and the interpretation rule (`38d1829`) were filed before any row; a data-independent
+20:00 time-box (`9542605`) replaced an open-ended run. **The p-value crossed 0.05 at n=4 and the arm
+was not stopped** — stopping when the number looks good is optional stopping, and the
+pre-registration exists to make that refusal automatic rather than a matter of character.
+
+| | |
+|---|---|
+| Attempts / scored | 10 / 10 — **100% yield** (prior arm: 4 of 11, the rest `harness_unreachable`) |
+| Failure observed | rep 3: `writes=1`, `product_writes=0` — finished, wrote one intake file, shipped nothing. **The retired `writes === 0` predicate would have scored it a success.** S0's withdrawal, observed live |
+| Cost | $18.86 |
+| Limits travelling with the number | one feature, one model, an author-owned benchmark with no external replication, n=10 |
+
+**What remains true from the earlier verdict:** every stage is green, the plan's question was answered
+*no* — the original 3-of-8 claim was an artifact and stays withdrawn — and the register reads 3 of 8
+at the bar (FC-02, FC-04 `structural`; FC-01 `sampled`).
+
+<details><summary>Superseded verdict, kept because it was the honest reading before the arm was bought</summary>
 
 **The plan is complete. The rung is not passed, and that is now a derived result rather than a
 status.** All five stages are green, every exit criterion the plan set is met, and the question it
@@ -38,6 +70,8 @@ measurable within one model scope. That is a new bet, not a remainder of Day 2.
 **The shape worth carrying forward:** the stronger the model under test, the fewer of these failures
 occur at all — so a sampled reduction gets *harder* to buy exactly as the harness gets better. FC-01
 is the worked example (7/16 → 0/8), and the benchmark's move to opus sharpens it further.
+
+</details>
 
 ## Where it got to
 
