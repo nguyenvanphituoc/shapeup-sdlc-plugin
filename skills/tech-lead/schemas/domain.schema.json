@@ -2290,6 +2290,102 @@
         }
       }
     },
+    "ResumeState": {
+      "description": "The fast-forward derivation (docs/workflow_architecture_design.md §4): which phase a launch resumes at, derived from artifacts on disk and NEVER from stored state or conversation memory. Produced by skills/tech-lead/scripts/resume-state.mjs on stdout and consumed by shapeup-run.js's preamble on every launch, fresh or relaunch alike. Every phase predicate is an artifact test — `has_orient_artifacts` exists because the ORIENT branch was once gated on the ledger's stored `status` instead, which a silent courier failure left stale, and a completed ORIENT phase was re-dispatched on resume (docs/migration/stage2-evidence.md §4). `next_phase` is a convenience derived from the same booleans, which all travel too: a caller is never forced to trust a summary it cannot re-derive.",
+      "x-tier": "EMBEDDED",
+      "x-location": "stdout of resume-state.mjs — never written to disk (the run's state IS the artifacts this record reports on)",
+      "x-writer": "resume-state.mjs (deriving; the same script's --set-status / --set-active-scope operations write, and report their own outcome record instead)",
+      "x-readers": "shapeup-run.js (the fast-forward preamble, one call per launch), tests/structural/18-resume-state.mjs",
+      "type": "object",
+      "required": [
+        "intake_path",
+        "status",
+        "has_orient_artifacts",
+        "has_wiring_map",
+        "scope_files",
+        "pending_orders",
+        "eval_rounds_done",
+        "next_phase"
+      ],
+      "properties": {
+        "intake_path": {
+          "type": "string",
+          "description": "Resolved path to the run's intake — the pitch a fresh ORIENT dispatch is compiled against."
+        },
+        "spec_folder": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "From harness-run.md frontmatter; null before the ledger names one."
+        },
+        "status": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The ledger's stored status, reported for the readers that legitimately hold a MID_RUN set over it (run-snapshot.mjs, hooks/anti-rationalization.mjs). NOT a resume predicate: no phase decision in shapeup-run.js may branch on this field."
+        },
+        "has_orient_artifacts": {
+          "type": "boolean",
+          "description": "ORIENT finished: orient/ carries code-surface.md, discovered-seed.md, hill-signal.md and at least one spike-*.md (skills/orient/SKILL.md §Outputs). The ORIENT skip gates on THIS."
+        },
+        "has_wiring_map": {
+          "type": "boolean",
+          "description": "WIRE finished: shapeup/<slug>/wiring-map.md exists."
+        },
+        "project_profile_path": {
+          "type": "string"
+        },
+        "has_project_profile": {
+          "type": "boolean",
+          "description": "tech-lead writes project-profile.md at GATE L0, before the launch; trace-lint resolves reachability by its archetype."
+        },
+        "scope_files": {
+          "type": "array",
+          "description": "MAP SCOPES finished when non-empty. Each entry carries a RESOLVED path, never a bare filename — compile-order.mjs and t0-verify.mjs resolve --scope against cwd, and a bare id makes compile-order exit 2, which the attempt loop reads as the stagnation breaker.",
+          "items": {
+            "type": "object",
+            "required": [
+              "scope_id",
+              "path"
+            ],
+            "properties": {
+              "scope_id": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "pending_orders": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Order files with no result beside them. Diagnostic only — build orders carry no scope id, so this set is not an audit trail of build dispatches (see compile-order.mjs's order-id note)."
+        },
+        "eval_rounds_done": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "description": "Round numbers with an evaluate-r<n>.json result — the resumed run's round counter starts one past the maximum."
+        },
+        "next_phase": {
+          "type": "string",
+          "enum": [
+            "orient",
+            "wire",
+            "map-scopes",
+            "build"
+          ],
+          "description": "The first phase whose artifacts are incomplete. Derived from the booleans above, in that order."
+        }
+      }
+    },
     "RunArgs": {
       "description": "C1 — the launch half of the workflow's only conversation (docs/workflow_architecture_design.md §2). Compiled ONCE by tech-lead at GATE L0 from init-run.mjs output + the L0.8 model matrix + budgets, then passed to Workflow({scriptPath, args}) as one JSON literal — the workflow cannot ask follow-ups and cannot read config files itself, so everything a run will ever need travels in this one record. A workflow script validates its own subset of this shape in code (no runtime schema check at the C1 boundary itself); this entry is the central-registry definition the migration's Stage 1+ workflow scripts and the tech-lead skill both read as the one true shape.",
       "x-tier": "EMBEDDED",

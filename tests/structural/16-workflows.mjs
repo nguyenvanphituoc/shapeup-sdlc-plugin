@@ -131,4 +131,47 @@ export async function run(ctx) {
   } else {
     fail(`a workflow script invokes a pipeline script without rooting it at \${args.pluginRoot}:\n    ${scriptCallOffenders.join("\n    ")}`);
   }
+
+  // --- (d) no courier call may discard its own outcome (migration A2.2, row G3) ---------------
+  //
+  // THE DEFECT THIS CLOSES, measured. `setRunStatus` and `writeActiveScope` were the only two
+  // mech() call sites in shapeup-run.js whose return value was never inspected, and they are the
+  // only two whose failure went unnoticed — for two complete runs and 46 dispatched agents. The
+  // ledger's status stayed pinned at "orienting" (so every relaunch re-dispatched a completed
+  // ORIENT phase) and the substrate pointer kept naming scope 1 while scope 2 was built (so the
+  // sandbox guard enforced the wrong whitelist, silently). Auditing the two instances found a
+  // third class the same afternoon: every `ingest-result.mjs` call — the SINGLE WRITER of the
+  // board, the ledger and the verdict record — discarded its outcome too.
+  //
+  // The general statement is what this check enforces: a courier write whose result nobody reads
+  // back is indistinguishable from one that succeeded. `agent()` can return null, the runtime
+  // documents it, and the mech envelope turns that into `exit_code: -1` — a fact that is only a
+  // fact if somebody looks at it.
+  // The list is "helpers that RETURN a raw envelope", not "everything that calls a courier". A
+  // wrapper that inspects `exit_code` itself and acts on it — `setRunStatus` logs the failure and
+  // lets the run continue, because resume no longer depends on that field — has already discharged
+  // the obligation, and its own `mech()` call is covered by this same check one level down. That
+  // is the difference between a value nobody looked at and a value somebody handled.
+  const COURIERS = ["mech", "mechNode", "ingest", "compile", "writeActiveScope"];
+  // Characters that mean the value IS consumed: assignment, an enclosing call, a return, an
+  // operand position. Anything else (`;`, `{`, `}`, `)`, `else`, start of file) drops it.
+  const CONSUMED_BY = /(?:[=(,[?:]|\breturn\b|&&|\|\||\?\?)\s*$/;
+  const discardOffenders = [];
+  for (const f of files) {
+    const code = codeOnly(readFileSync(join(abs, f), "utf8"));
+    const re = new RegExp(`\\bawait\\s+(${COURIERS.join("|")})\\s*\\(`, "g");
+    let m;
+    while ((m = re.exec(code))) {
+      const before = code.slice(0, m.index).trimEnd();
+      if (CONSUMED_BY.test(before)) continue;
+      const line = code.slice(0, m.index).split("\n").length;
+      discardOffenders.push(`${WORKFLOWS_DIR}/${f}:${line}  await ${m[1]}(…) — outcome discarded`);
+    }
+  }
+  if (discardOffenders.length === 0) {
+    ok(`no courier call discards its outcome in ${files.length} workflow script(s) — every ${COURIERS.join("/")} result is read back`);
+  } else {
+    fail("a workflow script discards a courier's outcome; a write nobody reads back is "
+      + `indistinguishable from one that succeeded:\n    ${discardOffenders.join("\n    ")}`);
+  }
 }

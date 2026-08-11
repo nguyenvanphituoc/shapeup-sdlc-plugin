@@ -54,6 +54,10 @@ const MODULE_FILES = [
   // 17-gate-zerowork-workflow.mjs: the zero-work gate's Workflow arm (migration A5). Its own
   // module rather than a section-37 addendum — the predicate is the cutover's, not the receipt's.
   "17-gate-zerowork-workflow.mjs",
+  // 18-resume-state.mjs: the fast-forward derivation (migration A2). The kill/resume probe found
+  // ORIENT re-dispatched on every relaunch because its skip read stored status instead of its own
+  // artifacts; this module is the seam that defect could not be caught through.
+  "18-resume-state.mjs",
   "45-paths.mjs",
   "46-contract-md.mjs",
   "47-ship-report.mjs",

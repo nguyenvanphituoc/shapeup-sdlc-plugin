@@ -218,16 +218,12 @@ const dispatchEval = async (orderPath, model, label) => {
 // itself is never typed in this file — it is produced by paths.mjs at runtime and read back from
 // this call's stdout.
 // ---------------------------------------------------------------------------------------------
+// The pointer sandbox-guard reads to decide which substrate a worker may write. Promoted out of
+// an inline `node -e` blob at Stage A2.1, for the reasons resume-state.mjs's own banner gives:
+// the inline form matched no permissions.allow entry, and its outcome was discarded — which is how
+// a whole run built scope 2 with the whitelist still pointed at scope 1, silently.
 const writeActiveScope = (slug, scopeId) => mech(
-  `node --input-type=module -e "` +
-  `import { activeScope } from '${args.pluginRoot}/skills/tech-lead/scripts/lib/paths.mjs';` +
-  `import { mkdirSync, writeFileSync } from 'node:fs';` +
-  `import { dirname } from 'node:path';` +
-  "const p = activeScope(process.cwd());" +
-  "mkdirSync(dirname(p), { recursive: true });" +
-  `writeFileSync(p, JSON.stringify({ slug: '${slug}', scope_id: '${scopeId}' }, null, 2) + '\\n');` +
-  "console.log(p);" +
-  '"',
+  `node "${args.pluginRoot}/skills/tech-lead/scripts/resume-state.mjs" --slug ${slug} --set-active-scope ${scopeId}`,
   `active-scope:${scopeId}`,
 );
 
@@ -272,11 +268,20 @@ for (const scope of args.scopes) {
 
   // Branch-per-scope isolation (PA3/PA5, design doc D3: sequential in v1) — optional: a scope
   // whose contract names no branch runs in the caller's current tree as-is.
-  if (scope.branch) await mech(`git checkout ${scope.branch}`, `checkout:${scope.scope_id}`);
+  if (scope.branch) {
+    const checkout = await mech(`git checkout ${scope.branch}`, `checkout:${scope.scope_id}`);
+    if (checkout.exit_code !== 0) {
+      return { status: "aborted", aborted_at: "BUILD", reason: `could not check out branch "${scope.branch}" for scope ${scope.scope_id}: ${(checkout.stderr || checkout.stdout || `exit ${checkout.exit_code}`).toString().trim()}` };
+    }
+  }
 
   // The pointer sandbox-guard reads to enforce this scope's substrate on every Edit/Write this
-  // round (C5 — the hook layer is unchanged by this migration).
-  await writeActiveScope(args.slug, scope.scope_id);
+  // round (C5 — the hook layer is unchanged by this migration). A failed write does not degrade to
+  // "unguarded", it degrades to guarding the WRONG scope, so it is not survivable.
+  const pointer = await writeActiveScope(args.slug, scope.scope_id);
+  if (pointer.exit_code !== 0) {
+    return { status: "aborted", aborted_at: "BUILD", reason: `could not point the active-scope pointer at ${scope.scope_id}: ${(pointer.stderr || pointer.stdout || `exit ${pointer.exit_code}`).toString().trim()} — refusing to build against another scope's substrate` };
+  }
 
   let green = false;
   let stagnant = false;
@@ -313,10 +318,17 @@ for (const scope of args.scopes) {
     // for exactly this, and the inner breaker still proposes the scope to GATE H if all die.
     if (built.__failed) { log(`scope ${scope.scope_id} — attempt ${attempt} lost its worker: ${built.__failed}`); continue; }
 
-    await mech(
+    // ingest-result.mjs is the single writer of the board and the ledger; an ingest that failed
+    // unnoticed leaves this attempt's work invisible to everything downstream. A spent attempt,
+    // not a dead round — the same policy a dead builder takes, two lines above.
+    const ingested = await mech(
       `node "${args.pluginRoot}/skills/tech-lead/scripts/ingest-result.mjs" ${built.result_path}`,
       `ingest:${scope.scope_id}-a${attempt}`,
     );
+    if (ingested.exit_code !== 0) {
+      log(`scope ${scope.scope_id} — attempt ${attempt} discarded, its result did not apply: ${(ingested.stderr || ingested.stdout || `exit ${ingested.exit_code}`).toString().trim()}`);
+      continue;
+    }
 
     const t0 = await mech(
       `node "${args.pluginRoot}/skills/tech-lead/scripts/t0-verify.mjs" ${scope.path} --round ${args.round} --attempt ${attempt} --out "${localRoot}" --no-seesaw`,
@@ -386,10 +398,15 @@ const evalResult = await dispatchEval(evalOrder.stdout.trim(), args.models.eval,
 // The single judge died — the round has no verdict, and inventing one is the exact thing the
 // single-judge rule forbids. Abort with the phase named, never a crash.
 if (evalResult.__failed) return { status: "aborted", aborted_at: "L3", reason: evalResult.__failed };
-await mech(
+const evalIngest = await mech(
   `node "${args.pluginRoot}/skills/tech-lead/scripts/ingest-result.mjs" ${evalResult.result_path}`,
   `ingest:evaluate-r${args.round}`,
 );
+// The verdict record IS the round's output. If it did not apply, the round has no verdict on disk
+// and returning one from memory is the single-judge rule broken by a different route.
+if (evalIngest.exit_code !== 0) {
+  return { status: "aborted", aborted_at: "L3", reason: `the round's verdict did not apply: ${(evalIngest.stderr || evalIngest.stdout || `exit ${evalIngest.exit_code}`).toString().trim()}` };
+}
 
 // ---------------------------------------------------------------------------------------------
 // GATE L3 — Verdict & Loop.
