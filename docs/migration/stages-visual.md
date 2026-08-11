@@ -1,3 +1,16 @@
+> # ⟐ Figures updated 2026-08-11 — Stage A has since run, and its probe failed
+>
+> These figures were drawn on 2026-08-10 at `c469a6c`, when Stage A was still future work. Stage A
+> ran that day (`2a134cd`): its five deliverables all landed, and **the kill/resume probe it exists
+> to record came back `FAIL`** — a completed ORIENT phase was re-dispatched on resume.
+>
+> Two panels below are corrected in place (*Where the migration actually stands*, and *A.2*).
+> The rest of Stage A's panels are left as drawn: they describe work that has since shipped, and
+> they are the reasoning that produced it. **Stage A2** — `docs/migration/stage-a2-plan.md` — now
+> sits between Stage A and Stage B, and Stage B does not start until its G6 probe passes.
+>
+> One-page position: `docs/migration/README.md`.
+
 # What each stage buys you — and what the harness becomes when they're all done
 
 **Question:** What does each remaining stage buy, and what is the harness once they are all done?
@@ -5,7 +18,8 @@
 work, the acceptance rows, the guardrails) and `docs/migration/status-review-2026-08-10.md` (the
 evidence and the position). The finding, the negative space, the recommendation and the falsifiers
 live in those two — deliberately not restated here.
-**Sources:** repo state at `c469a6c`, 2026-08-10; `npm test` green at 1168 checks.
+**Sources:** repo state at `c469a6c`, 2026-08-10; `npm test` green at 1168 checks. *(Current tree:
+`5209df7`, 1328 checks — the two corrected panels cite that; every other figure is as-of `c469a6c`.)*
 **Confidence:** High — every figure redraws something verified in the review; no new measurement is
 introduced. **Validity:** re-check any figure whose cited `file:line` has moved.
 
@@ -16,32 +30,43 @@ already on disk at `c469a6c`, cited where they appear.
 
 ## Where the migration actually stands
 
-The execution contract has 23 acceptance rows. It reports 17 PASS. Two of those passes are
-produced by text that predates the branch, so the honest figure is 15.
+*Corrected 2026-08-11. The 2026-08-10 reading of this panel — 17 PASS, two of them false, "every
+red row is a file that was never written, not a behaviour that fails" — was true of the instrument
+and false about the migration. Stage A fixed the instrument and then failed the gate.*
+
+The contract now reads **19 PASS / 4 RED** against the tightened rows. **All six S2 rows are green
+and S2's ship gate is not met** — which is the only thing on this page worth remembering.
 
 ```mermaid
-sankey-beta
-Contract rows,Honest PASS,15
-Contract rows,False PASS,2
-Contract rows,RED,6
-Honest PASS,S0 + S1 complete,9
-Honest PASS,S2 + S3 partial,6
-False PASS,Stage A fixes the gauge,2
-RED,Stage A writes,4
-RED,Stage B writes,1
-RED,Stage C decides,1
+flowchart TB
+  ROWS["execution-contract.md<br/>23 rows → 19 PASS / 4 RED"] --> S2ROWS["all six S2 rows GREEN<br/>the evidence file exists<br/>and is machine-readable"]
+  S2ROWS --> GATE{"S2 ship gate<br/>kill-resume-probe"}
+  GATE -->|"stage2-evidence.md §4<br/>FAIL — ORIENT re-dispatched"| STOP["STOP<br/>Stage B does not start"]
+  GATE -.->|"never encoded by any row"| NOTE["a row proves the evidence<br/>was written, never that<br/>the probe passed"]
+  STOP --> A2["Stage A2<br/>fix the fast-forward,<br/>re-run the probe"]
+  RED4["4 RED rows<br/>CHANGELOG · commands/build.md<br/>stage3-evidence.md ×2"] -.->|"all Stage B/C work,<br/>all downstream of the gate"| STOP
+
+  classDef good fill:#dff0d8,stroke:#3c763d,stroke-width:2px
+  classDef bad fill:#fde2e2,stroke:#c33,stroke-width:2px
+  classDef todo fill:#fcf8e3,stroke:#8a6d3b,stroke-width:2px
+  class S2ROWS good
+  class GATE,STOP bad
+  class A2,RED4 todo
 ```
 
-**The claim:** six red rows, and **every one is a file that was never written — not a behaviour
-that fails.** Four are closed by Stage A, one by Stage B, one is a decision. The two false passes
-are the reason the run has been navigating by a gauge reading two rows high on exactly the stage it
-had not started.
+**The claim:** a green row count sitting above a failed gate is the mis-navigation this whole
+instrument revision exists to end. 19 of 23 is not "nearly done" — the four red rows are downstream
+of a stop.
 
 ---
 
 # Stage A — the gauge stops lying, and the one untested failure class gets tested
 
-**Cost: ~2–3 h, $0 external.** Rows R1–R6.
+**⟐ EXECUTED 2026-08-10 at `2a134cd`.** All five items delivered; rows R1–R6 green. **The gate it
+opened is not met** — A.2's probe FAILED (panel below). The panels in this section are the plan as
+drawn, kept because they are the reasoning behind shipped work.
+
+**Cost as estimated: ~2–3 h, $0 external.** Rows R1–R6.
 
 ## A.1 · Two contract rows cannot fail
 
@@ -99,9 +124,18 @@ sequenceDiagram
 ```
 
 **The claim:** step 6 is where the prose orchestrator lost everything and the workflow lane is
-supposed to lose nothing. Steps 9–11 are the assertion. **Never run.** If it fails, A3 is not green,
-S2's ship gate was never met, and every Stage B item unwinds — which is why the plan makes this a
-stop, not a warning.
+supposed to lose nothing. Steps 9–11 are the assertion.
+
+> **⟐ Run 2026-08-10 — `kill-resume-probe: FAIL`.** The sequence above is what was supposed to
+> happen. Two of the four assertions held: no already-green scope was rebuilt, and every pre-kill T0
+> verdict survived byte-identical. Two did not — **ORIENT re-ran from scratch**, rewriting three
+> orient artifacts, adding a spike, and mutating the discovery ledger and two task files. WIRE and
+> MAP SCOPES fast-forwarded correctly, because they gate on their own artifacts; ORIENT gates on a
+> stored `status` field that never moved. **The kill is incidental** — the interactive lane's normal
+> pause-and-relaunch hits the same branch on every leg.
+>
+> Per the plan, that is a stop: A3 is not green, S2's ship gate is not met, every Stage B item
+> unwinds. Full evidence in `stage2-evidence.md` §4; the fix is `stage-a2-plan.md`.
 
 ## A.3 · The hook documents an arm it does not have
 

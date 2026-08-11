@@ -13,6 +13,23 @@ its evidence file did not happen.
 but its evidence file unwritten and one verification never run. S3 partly entered — which is itself
 a contract violation, since S2's ship gate was never formally met.
 
+> ## ⟐ Status, 2026-08-11 at `5209df7` — Stage A ran, and its gate is not met
+>
+> **Stage A is EXECUTED** (`2a134cd`): all five items delivered, rows **R1–R6 green**, contract
+> re-derived to **19 PASS / 4 RED**, `npm test` 1179 at that commit (1328 in-tree today — the
+> difference is the merged day-2 work, not migration work).
+>
+> **And A.2's kill/resume probe FAILED.** `stage2-evidence.md` §4 records `kill-resume-probe: FAIL`:
+> a completed ORIENT order was re-dispatched and its result re-ingested on resume. Per this plan's
+> own §A.2 — *"If it fails, stop"* — **Stage B has not started and does not start until the probe
+> passes.**
+>
+> **A new stage sits between A and B: `docs/migration/stage-a2-plan.md`**, whose G1–G6 are now the
+> ship gate S2 must clear. Stages B, C and D below stand unchanged and remain blocked behind it.
+> The stage-sequence table at the foot of this file is amended accordingly.
+>
+> Everything else in this file is left as compiled. One-page position: `docs/migration/README.md`.
+
 ---
 
 ## Acceptance contract
@@ -44,6 +61,13 @@ and it is currently unmet while S3 work has already landed.
 ---
 
 ## Stage A — close S2's ship gate
+
+**⟐ EXECUTED 2026-08-10 at `2a134cd` — items delivered, gate NOT met.** A.1 (evidence file), A.3
+(the `gate-zerowork` Workflow arm), A.4 (`tests/structural/17-gate-zerowork-workflow.mjs`,
+mutation-verified both ways) and A.5 (four rows replaced, one row's pipes escaped, count re-derived)
+all shipped; R1–R6 are green. **A.2's probe FAILED** — see the section itself. Actual cost: within
+estimate for A.1/A.3/A.4/A.5; A.2 measured ~70 min to the kill window plus ~45 min for the resumed
+leg. The stage that closes the gate is now `stage-a2-plan.md`.
 
 **Depends on:** —
 **Estimate:** ~2–3 h · **$0 external** (one scratch-project run, dev tokens)
@@ -88,6 +112,16 @@ Record the outcome as the literal line `kill-resume-probe: PASS` (or `FAIL` / `N
 `stage2-evidence.md`. **If it fails, stop.** A3 is not green, S2's ship gate is not met, and every
 Stage B item unwinds. That is not a formality — this probe is the one test of the failure class
 (82–120-turn handoff loss) the whole migration was built to retire.
+
+> **⟐ Ran 2026-08-10: `kill-resume-probe: FAIL`, and the stop is in force.** Assertions 2 and 3
+> passed (no green scope rebuilt; every pre-kill T0 verdict byte-identical). Assertion 1 failed in
+> both halves: `orders/orient.json` and `results/orient.json` were both rewritten. Cause —
+> `shapeup-run.js` gates ORIENT's skip on `harness-run.md`'s stored `status`, which never left
+> `orienting` across two legs and 46 agents, while WIRE and MAP SCOPES gate on their own artifacts
+> and fast-forwarded correctly. A second instance of the same class: `.shapeup/active-scope` was
+> never updated, so scope 2's builder ran with `sandbox-guard`'s write-whitelist pointed at scope 1.
+> Both are `mech()` calls whose return value is discarded. Full write-up: `stage2-evidence.md` §4.
+> The fix and the re-run are `stage-a2-plan.md` A2.1–A2.4.
 
 > **Dev-loop note:** iterate the probe with `Workflow({scriptPath, resumeFromRunId})`. The unchanged
 > prefix of `agent()` calls replays from cache instead of re-spending. Same-session only, so it is a
@@ -141,7 +175,9 @@ computed by the untightened instrument.
 
 ## Stage B — cutover paperwork and the dead-code decision
 
-**Depends on:** Stage A green (R1–R6)
+**Depends on:** ⟐ **Stage A2 green (G1–G6 of `stage-a2-plan.md`)** — amended 2026-08-11. Stage A's
+R1–R6 are green and were never sufficient: the probe they record came back FAIL, so the gate moved
+to the stage that fixes it.
 **Estimate:** ~2–3 h · **$0**
 **Exit artifact:** `docs/migration/stage3-evidence.md` (parts 1–4)
 **Rows:** R7, R8, R9, R10, R11
@@ -332,12 +368,14 @@ Why it matters beyond speed: invariant #3 — *"Parallel work cannot corrupt sha
 write-whitelists, hook-enforced — is capacity built and never spent. And parallel scopes are the
 **only** place the workflow lane can win A7's comparative bar, which it is not allowed to lose.
 
-### D.4 — The seven environment findings
+### D.4 — The environment findings *(now nine, and the register is written)*
 
-Transcribe `execution-report.md:134-156` into a committed register and file it as a raw idea for the
-Betting Table. **Their source file is gone**: `.gitignore:83` ignores `.plan-runs/` and only
-`day2-rev5` was force-added, so `.plan-runs/workflow-migration/ledger/run3-environment-findings.md`
-is neither on disk nor in history — the seven-line summary is all that survives.
+⟐ **Amended 2026-08-11.** The transcription this item asked for **is done**: `execution-report.md`'s
+"Findings recorded, deliberately not fixed" section is the register, it is committed, and it now
+carries **nine** findings — run 4 added the untrusted-workspace installer gap and the order-id
+collision. Their original source file was never committed (`.gitignore` ignores `.plan-runs/`; only
+`day2-rev5` was force-added), so that section is the only copy and is labelled as such. **What
+remains of D.4 is filing them as a raw idea for the Betting Table** — not transcription.
 
 At least three are live at `c469a6c`: `project-profile.md` is written by prose and validated by
 nothing at write time (a run emitted `cli`, not in the enum — `domain.schema.json:2079-2089`);
@@ -349,8 +387,10 @@ which B.4 promotes to shipped documentation rather than leaving here.
 ## Guardrails
 
 - **No merge, no tag, no push, no publish.** The cutover merge is the PO's move after Stage C.
-- **Stage A is the ship gate.** Stage B does not start until R1–R6 are green. If A.2's probe fails,
-  everything downstream unwinds — that is the gate doing its job, not an obstruction.
+- ⟐ **Stage A2 is the ship gate** (amended 2026-08-11; it was Stage A). Stage B does not start until
+  `stage-a2-plan.md`'s G1–G6 are green. A.2's probe **did** fail and everything downstream **did**
+  unwind — that is the gate doing its job, not an obstruction, and it is the one time on this branch
+  the discipline has actually cost something.
 - **A7 does not launch autonomously.** It is the single most expensive action and depends on
   external tooling. Stage C pauses for an explicit go.
 - **Do not rebuild `sdd-harness-bench`.** A reconstructed benchmark is a *different instrument*
@@ -390,7 +430,8 @@ which B.4 promotes to shipped documentation rather than leaving here.
 
 | Stage | Wall clock | External $ | Gate |
 |---|---|---|---|
-| **A** — close S2's ship gate | ~2–3 h | $0 | R1–R6 green, or stop |
+| ~~**A** — close S2's ship gate~~ | ~2–3 h | $0 | **DONE 2026-08-10** — R1–R6 green, **probe FAIL → stop** |
+| ⟐ **A2** — fix the fast-forward, re-run the probe | ~6 h | $0 | **G1–G6 green, or stop again** (`stage-a2-plan.md`) |
 | **B** — cutover paperwork + dead code | ~2–3 h | $0 | R7–R11 green |
 | **C** — the fork | decision | $0 (C1) / $40–60 (C2) | PO decides; PO merges |
 | **D** — Phase 2, separate release | days | dev tokens | not part of this cutover |

@@ -19,6 +19,12 @@ In-tree at `2a134cd` (run 4): **19 PASS / 4 RED** against the *tightened* instru
 green at **1179 checks**. The last fresh-clone derivation remains run 3's — **1120 checks at
 `7c1b15e`** — and re-deriving it is Stage B's A6, not run 4's.
 
+**Restated at `5209df7` (2026-08-11), so the numbers above are not read as current.** `npm test` is
+green in-tree at **1328 checks**; the +149 is the merged day-2 ratchet work (`5209df7`), **not**
+migration work, and no acceptance row moved with it. The 19/4 derivation stands at `2a134cd` and has
+not been re-run since. The next unit of work is `docs/migration/stage-a2-plan.md`; `docs/migration/README.md`
+carries the one-page position.
+
 | Stage | Status | Verified how |
 |---|---|---|
 | S0 — kill-switch spike (D1) | **GREEN — GO** | Re-derived run 3 in a fresh clone: 4/4 rows PASS |
@@ -33,6 +39,25 @@ distinction the whole instrument revision exists to make: the rows prove the evi
 and is machine-readable; `stage2-evidence.md` §4 records `kill-resume-probe: FAIL`, and the plan
 makes a failing probe a stop. A 19/23 scoreboard above a failed gate is exactly the mis-navigation
 run 4 set out to end.
+
+### A1–A7 against the plan's own acceptance contract
+
+Carried forward from `status-review-2026-08-10.md` §2 and **re-derived at `5209df7`** — that review
+predates the probe run, so its A3 and A5 verdicts no longer hold and this table replaces them.
+
+| # | Criterion | Verdict | Basis |
+|---|---|---|---|
+| A1 | Stage-0 kill-switch, all three checks | **GREEN** | `stage0-evidence.md`, `Decision: GO`, ≥2 quoted `deny` rows, cost labelled Sonnet |
+| A2 | Unattended run through `shapeup-run`, preset `ci` | **GREEN** | `{"status":"shipped","verdict":"pass",…}`; 9 orders / 9 results; exactly one `evaluate-r1` order |
+| A3 | Interactive, ≥2 gates via pause → decision → relaunch, nothing re-dispatched | **RED** | L1a and L1b crossed across 4 relaunches — but the kill/resume probe re-dispatched a completed ORIENT phase (`stage2-evidence.md` §4). *Was "substantially green" before the probe ran* |
+| A4 | Scoped-lane loop prose deleted; `SKILL.md` ≤ ~150 lines | **GREEN as restated (Rev B)** | `wc -l SKILL.md` = **121**; the `--tiny`/pre-scope-contract lanes keep their prose loop by design and `SKILL.md` names the boundary |
+| A5 | `gate-zerowork` treats a `Workflow(shapeup-*)` launch as a dispatch; new fixture | **GREEN** *(was RED at `c469a6c`)* | Arm landed in Stage A; `tests/structural/17-gate-zerowork-workflow.mjs` exists; the contract's behavioural row returns `true` when run |
+| A6 | `npm test` green in-tree **and** in a fresh `git clone --local` | **PARTIAL** | In-tree green at 1328. Last clone-derived count is still **1120 at `7c1b15e`**; re-deriving it is Stage B's job |
+| A7 | Benchmark F2, Sonnet-matched, candidate n=3 vs control n=3 | **BLOCKED — deferred obligation (Rev B)** | `s3-feasibility.mjs`: C1/C2/C3 all NO. `sdd-harness-bench` is absent here, npm 404, GitHub 0 results (`8fe70bc`) |
+
+**A3 is the whole of the difference** between this table and the 2026-08-10 review. Everything the
+review called "clerical debt" has been paid; what it could not know is that the one item it insisted
+must not be skipped would come back red.
 
 ---
 
@@ -204,9 +229,15 @@ is the one the cutover exists to buy.
 
 ## Findings recorded, deliberately not fixed
 
-All in `.plan-runs/workflow-migration/ledger/run3-environment-findings.md`. Each is outside the
-plan's Appendix file-touch map, and a diff outside that map is scope creep by the contract's own
-guardrail.
+Each is outside the plan's Appendix file-touch map, and a diff outside that map is scope creep by
+the contract's own guardrail.
+
+> **This list is the register — there is no other copy.** Earlier revisions of this report cited
+> `.plan-runs/workflow-migration/ledger/run3-environment-findings.md` as the home of these findings.
+> That file was never committed: `.gitignore` ignores `.plan-runs/`, only `day2-rev5` was ever
+> force-added, and the ledger is neither on disk in this checkout nor anywhere in history. The nine
+> entries below are what survives, and Stage D's D.4 item — "transcribe the ledger into a committed
+> register" — is therefore already discharged by this section, not pending against a missing file.
 
 1. **`CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0` is mandatory for headless runs.** Without it
    `claude -p` terminates the Workflow at 600 s, **exits 0**, and reports a truncated run as a

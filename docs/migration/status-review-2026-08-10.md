@@ -1,3 +1,28 @@
+> # ⟐ SUPERSEDED — 2026-08-11
+>
+> **The headline below is refuted, and this document's own §7 is what refuted it.** It was written
+> on 2026-08-10 at `c469a6c`, *before* the kill/resume probe had ever been run. The probe ran on
+> 2026-08-10 as Stage A item A.2 and came back **`kill-resume-probe: FAIL`** — a completed ORIENT
+> phase was re-dispatched on resume (`stage2-evidence.md` §4). §7's own trigger row said what that
+> means: *"A3 is not green, S2's ship gate is not met, and Stage 3 must not have started."*
+>
+> So the migration is **not** "finished as engineering and stalled as paperwork". It is stalled on a
+> defect in `shapeup-run.js`'s fast-forward, on the exact property the cutover exists to buy.
+>
+> **What in here is dead:** the title; §0's *"every red is a file that does not exist, not a check
+> that failed"*; the 17 PASS / 6 RED scorecard and the 1168-check figure (now 19/4 at `2a134cd`,
+> 1328 checks at `5209df7`); the A3 and A5 rows in §2's A1–A7 table (A5 shipped in Stage A, A3 went
+> red); and §6's Stage A, which has been executed.
+>
+> **What in here is still live and worth reading:** §3's restatement of A4 (`round-protocol.md` must
+> not be deleted), §3's finding that run 3's environment ledger was never committed, §4's cost
+> analysis and A7 unobtainability, §5's do-not-do list, and §6's Stage C fork.
+>
+> **Current position:** `docs/migration/README.md`. **Current work:** `docs/migration/stage-a2-plan.md`.
+>
+> The body below is left exactly as written. A review is a dated reading, and editing one green
+> after the fact would destroy the only thing that makes it evidence.
+
 # The workflow migration is finished as engineering and stalled as paperwork — except for one row that money cannot buy from this machine
 
 **Question:** What happens next on `feat/workflow-orchestrator` — does it merge, and if not, what is
