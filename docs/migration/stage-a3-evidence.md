@@ -6,14 +6,17 @@ and failed, and which Stage A2 fixed one layer down and failed again.
 **Hard rule (unchanged):** every stage exit is an artifact on disk, never a claim.
 
 ```
-kill-resume-probe: NOT-RUN
+kill-resume-probe: PASS
 ```
 
-**That line is the position.** It is written here *before* the probe returns, deliberately: the
-instrument's own vocabulary carries `NOT-RUN` so that "not run" is **recorded**, never inferred from
-a missing file. It is replaced by `PASS` or `FAIL` when the two legs and the assertions have
-actually run — and if this file is ever read with `NOT-RUN` still in it, that is the true statement
-of where the stage got to.
+**That line is the position, and it is the first time it has read PASS.** All four assertions pass,
+on a live ungraceful `SIGKILL` mid-BUILD, graded by an `assert.mjs` **byte-identical** to the one
+that returned FAIL for Stage A and again for Stage A2 (§4.2 shows it still returning that FAIL when
+fed A2's own snapshots). S2's ship gate is met.
+
+*(This line was committed reading `NOT-RUN` before the run — the instrument's vocabulary carries
+that value so "not run" is recorded rather than inferred from a missing file. It was replaced from
+the run's output, not ahead of it.)*
 
 | Gate | Status | Verified by |
 |---|---|---|
@@ -22,7 +25,7 @@ of where the stage got to.
 | **G3** — WIRE runs after the spec tree exists | **MET** | the `analyze` order is compiled before the `wire` order; `nextPhase()` returns `analyze` before `wire` |
 | **G4** — the fast-forward knows the phase chain | **MET** | `has_spec_tree` travels in the ResumeState; five-phase `next_phase`; boundary arms for each |
 | **G5** — every row is falsifiable | **MET** | mutation transcript, §3 — five rows, five mutations, five reds, tree green afterwards |
-| **G6** — **the probe passes** | **PENDING** | §4 |
+| **G6** — **the probe passes** | **MET** — `kill-resume-probe: PASS`, 4/4 assertions | §4 |
 | **G7** — the rig re-runs as a repeat | **MET** | `.plan-runs/wf-a3-probe/` — `install-candidate.sh` + `seed-project.sh` write every input the run reads |
 | **G8** — no ingest is aimed by a worker's reported path | **MET** | structural arm `16-workflows.mjs` (e); found by leg 1a, which died on it |
 
@@ -111,9 +114,88 @@ doing its job on its first day, against the person who wrote it.
 
 ---
 
-## 4. The probe
+## 4. The probe — 2026-08-12
 
-*(pending — this section is written from the run, never ahead of it)*
+**Rig.** `.plan-runs/wf-a3-probe/`, forked from A2's with `assert.mjs` and `snapshot.mjs`
+byte-identical. The candidate was packed from this worktree, stamped with its own version
+(`1.6.3-a3probe`) and its own marketplace name, **verified file-by-file by sha256 against the
+worktree** (136 files), installed for the scratch project only, and the resolved plugin root was
+hash-checked against the candidate before either leg ran. One `launch.sh`, called twice, same args.
+
+**Leg 1.** ORIENT → GATE L1a → **ANALYZE** → **WIRE** → GATE L1a.5 → MAP SCOPES (five scope
+contracts) → GATE L1b → BUILD. Killed with `SIGKILL` (pid 63470) at the window Stage A2 used:
+
+```
+completed phase orders: add-task-foundation-r1-a1, analyze, map-scopes, orient, wire
+pending orders:         list-tasks-r1-a1
+verdicts:               1 · green: add-task-foundation@r1
+status:                 building
+active-scope:           list-tasks          ← the scope actually in flight
+```
+
+Exit 137, nothing flushed, no `RunReturn`.
+
+**Leg 2.** Fresh session, same script, same args. It fast-forwarded past all four phases, skipped
+the scope that was already green, finished the scope whose order was in flight, ran a full fix
+round, and returned:
+
+```json
+{"status":"gate_h","breaker":"outer",
+ "hammer_proposals":["integration-regression","integration-regression"],
+ "green_scopes":["add-task-foundation","complete-task","delete-task","list-tasks",
+                 "add-task-foundation","complete-task","delete-task","list-tasks"]}
+```
+
+Both rounds' EVAL returned a **structural stop**: `spec-evaluator` refused to grade because one of
+the five scopes (`integration-regression`) had no green T0 verdict to cite — it read
+`t0/trials.jsonl` itself and said so. That scope exhausted its 3-attempt budget in both rounds, so
+the round budget ran out and the **outer breaker** returned `gate_h` — ship what is green, which is
+the designed ending for exactly this shape, not a failure of the resume.
+
+### 4.1 The four assertions
+
+| # | assertion | outcome |
+|---|---|---|
+| 1 | no completed PHASE order was re-dispatched (5 completed at kill time) | **PASS** |
+| 1b | no result for a completed phase was re-ingested (5 checked) | **PASS** |
+| 2 | no scope T0-green at kill time was rebuilt (1 green pair at kill) | **PASS** |
+| 3 | every pre-kill T0 verdict survives byte-identical (1 found) | **PASS** |
+
+Reported, not asserted: `status` moved `building → evaluating`; the substrate pointer named
+`list-tasks` at the kill and again after; **48 new artifacts** after the resume; 102 files, 20
+orders, 20 results, 14 verdicts (8 green) at the end.
+
+**No `state_warnings` in the RunReturn** — every ledger write took on this run. That is the A3.3
+channel reporting an absence it can now distinguish from silence.
+
+### 4.2 The instrument, self-tested in the failing direction
+
+A probe that has never been seen to fail is not evidence. The **same file**, unmodified, fed Stage
+A2's committed snapshots:
+
+```
+kill-resume-probe: FAIL
+| 1  | no completed PHASE order was re-dispatched | FAIL — wire.json  46f40cbe… → e924248d…
+| 1b | no result for a completed phase was re-ingested | FAIL — wire.json  e79abe34… → b8775d79…
+```
+
+It reproduces A2's failure signature exactly. The grader can fail; what changed is the run.
+
+### 4.3 What the PASS actually proves, against A2's FAIL
+
+| Stage A2 behaviour | This run |
+|---|---|
+| `solution-architect` **escalated**, wrote no `wiring-map.md`, and WIRE was re-dispatched on every relaunch | `status: "done"`, `escalates: []`, `wiring-map.md` written (4058 bytes), `--require wire` exit 0. The only change is that `analyze` now runs first, so the worker was handed the `usecases/` its contract has always said it reads |
+| an escalated phase was recorded as complete and the run moved on | every phase is followed by its post-condition; an unmet one aborts naming the phase |
+| — | four phases fast-forwarded on the resume, nothing above BUILD re-dispatched |
+
+### 4.4 One defect this run turned up, unfixed and named
+
+`green_scopes` and `hammer_proposals` in the `gate_h` RunReturn **accumulate across rounds without
+dedup**: each of the four green scopes appears twice and `integration-regression` is proposed twice.
+Cosmetic to the pipeline (GATE H's census reads the board, not this list) but wrong for any consumer
+that counts them — and the duplication is exactly what a resumed run's per-round accumulation looks
+like, so it is worth a fix before anyone reads a scope count off a RunReturn.
 
 ### 4.0 The launches before the kill, recorded because they happened
 
@@ -151,4 +233,9 @@ Stated plainly rather than left to inference:
 - **`checkScopeGreen` is still an inline `node -e` blob** in `shapeup-run.js`, for the reason A2
   gave (its result is consumed at its call site, so it is not the defect class).
 - **Why the A2 run's final status write did not land is still not established.** `state_warnings[]`
-  makes the next occurrence visible; it does not explain the last one.
+  makes the next occurrence visible; it does not explain the last one. This run produced no such
+  warning, which is evidence that the writes took here — not an explanation of the earlier failure.
+- **No run in this stage reached `shipped`.** Leg 2 ended at `gate_h` because one scope could not go
+  T0-green inside its budget in either round. The resume machinery is what the probe grades and it
+  passed; "a resumed run can also *ship*" is A2's evidence (§7), not this one's.
+- **The `gate_h` RunReturn's duplicated scope lists are unfixed** (§4.4).

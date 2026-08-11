@@ -178,8 +178,19 @@ exists to catch is the same defect class as the two false-passing rows Stage A's
 ### Result
 
 ```
-kill-resume-probe: FAIL
+kill-resume-probe: PASS
 ```
+
+> **⟐ Re-run 2026-08-12 after Stage A3 (`docs/migration/stage-a3-evidence.md` §4): PASS — all four
+> assertions, on a live ungraceful SIGKILL, graded by a byte-identical `assert.mjs`.** This status
+> line is the instrument's reading of *does the kill/resume probe pass today*, so it now reads PASS;
+> the table below is preserved as the record of the Stage A run that failed, and the A2 note under
+> it as the record of the second failure. Neither is edited.
+>
+> What closed it: an escalated phase is no longer recorded as complete (every dispatched phase is
+> followed by an artifact post-condition), and WIRE no longer escalates in the first place, because
+> `analyze` now runs before it and hands it the `usecases/` its contract reads. **S2's ship gate is
+> met and Stage B is unblocked.**
 
 > **⟐ Re-run 2026-08-11 after Stage A2 (`docs/migration/stage-a2-evidence.md` §7): still FAIL, and
 > the cause has moved.** The defect recorded below — ORIENT re-dispatched because its skip was gated
