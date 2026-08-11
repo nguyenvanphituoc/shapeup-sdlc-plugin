@@ -29,6 +29,40 @@
 > the same class this branch keeps finding — a claim carried forward instead of a fact re-measured —
 > and it was caught by asking a question the docs could not answer from their own text.*
 >
+> ## ⟐ Revision E — amended 2026-08-12: the gate is met
+>
+> **`kill-resume-probe: PASS`.** Four of four assertions, on a live ungraceful `SIGKILL` mid-BUILD,
+> graded by an `assert.mjs` byte-identical to the one that failed Stage A and Stage A2 — and
+> self-tested in the failing direction on A2's own snapshots first. `node tools/contract-check.mjs`
+> prints **GATE MET — S2 ship gate — kill/resume probe: PASS**, 19 PASS / 4 RED (all four REDs are
+> Stage 3 rows, which have not started).
+>
+> **Status at `e5bf9cd`** — `npm test` green, **1363 checks**.
+>
+> | Stage | State | Remaining |
+> |---|---|---|
+> | S0 · S1 | ✅ **GREEN** | — |
+> | S2 — `shapeup-run` + thin skill | ✅ **SHIP GATE MET** — `kill-resume-probe: PASS` | — |
+> | S3 — cutover, detectors, benchmark | 🟠 **unblocked, not started** | Stage B (R7–R11), then C's fork |
+>
+> **Stage A3 closed the gate in two places, and neither was the resume logic itself:**
+>
+> 1. **A phase is complete only when its ARTIFACT exists.** Every dispatch is now followed by
+>    `resume-state.mjs --require <phase>` — the same derivation the fast-forward uses, so the two
+>    cannot disagree. An escalated phase that writes nothing is an abort naming the phase, not a
+>    silent forever-loop.
+> 2. **`analyze` runs before WIRE.** `solution-architect` reads `usecases/` and writes one map entry
+>    per use case; `analyze` is what writes them. The pipeline dispatched WIRE first, so on a
+>    greenfield run the worker had nothing to wire and escalated — deterministically, every launch.
+>    Handed a populated spec folder it returned `status:"done"`, `escalates:[]`, and a wiring map.
+>
+> Running it also produced two environment findings (#12, #13) and one defect (HD-006, filed): a
+> declared marketplace is not an installed one; `claude plugin install` is a no-op over an existing
+> cache version; and a WorkOrder never names its own result file.
+>
+> Evidence: `docs/migration/stage-a3-evidence.md`. Position: `docs/migration/README.md`.
+> **Stage B is unblocked.**
+>
 > ## ⟐ Revision D — amended 2026-08-11 after the probe re-ran
 >
 > Revision C described Stage A2 as the work that would close the gate. **It ran, and the gate is
@@ -136,7 +170,7 @@ The migration is DONE when, on the worktree branch:
 |---|---|---|
 | A1 | Stage-0 evidence shows all three kill-switch checks passed | `docs/migration/stage0-evidence.md` + `decisions.jsonl` rows quoted in it |
 | A2 | An **unattended** run of a real feature completes through `shapeup-run` (preset `ci`), verdict recorded, zero orchestration prose between gates | run transcript + `.shapeup/<slug>/` artifacts + `REPORT.md` |
-| A3 | An **interactive** run completes with ≥2 gates crossed via pause → PO decision → relaunch fast-forward, and nothing re-dispatched (orders/results set difference empty on relaunch) | ⟐ **Rev D: still RED, different cause.** The ORIENT defect below is fixed and proven on a live kill; A3 now fails because an ESCALATED phase is recorded as complete and re-dispatched forever (`stage-a2-evidence.md` §7.3). — run transcript + `docs/migration/stage2-evidence.md`. ⟐ **Rev C: RED at `2a134cd`** — L1a and L1b were crossed across four fresh-session relaunches with the redone-work set empty, but the kill/resume probe **re-dispatched a completed ORIENT phase** and re-ingested its result (`stage2-evidence.md` §4). The set-difference clause in this very row is what fails. Note that the row's own wording — *orders/results set difference empty* — **passed on the failing run**, because a build order carries no scope id and scope 2's order overwrote scope 1's; assert over T0 verdict artifacts instead |
+| A3 | An **interactive** run completes with ≥2 gates crossed via pause → PO decision → relaunch fast-forward, and nothing re-dispatched (orders/results set difference empty on relaunch) | ⟐ **Rev E: GREEN, 2026-08-12.** `kill-resume-probe: PASS` — 4/4 assertions over a live SIGKILL, asserted against T0 verdict artifacts and completed phase orders rather than the set-difference wording this row started with (`stage-a3-evidence.md` §4). ⟐ **Rev D: still RED, different cause.** The ORIENT defect below is fixed and proven on a live kill; A3 now fails because an ESCALATED phase is recorded as complete and re-dispatched forever (`stage-a2-evidence.md` §7.3). — run transcript + `docs/migration/stage2-evidence.md`. ⟐ **Rev C: RED at `2a134cd`** — L1a and L1b were crossed across four fresh-session relaunches with the redone-work set empty, but the kill/resume probe **re-dispatched a completed ORIENT phase** and re-ingested its result (`stage2-evidence.md` §4). The set-difference clause in this very row is what fails. Note that the row's own wording — *orders/results set difference empty* — **passed on the failing run**, because a build order carries no scope id and scope 2's order overwrote scope 1's; assert over T0 verdict artifacts instead |
 | A4 | ⟐ **Rev B.** No *scoped-lane* loop prose survives; `SKILL.md` ≤ ~150 lines; `shapeup-run.js`/`shapeup-build-round.js` are the only normative home **for specs with committed scope contracts**. The `--tiny` and pre-scope-contract lanes keep their prose loop by design, and `SKILL.md` names the boundary | `wc -l SKILL.md` (**121 at `c469a6c` ✅**); `SKILL.md` routes the excepted lanes explicitly (`:50-55`); `round-protocol.md` states the same split (`:11-22`) |
 | A5 | `gate-zerowork.mjs` blocks a session that launches the skill and never invokes the Workflow (new predicate arm), and still defers on non-harness sessions | new unit fixture in `tests/` + `npm test`. ⟐ **Rev B: RED at `c469a6c`** — `hooks/gate-zerowork.mjs:66` has no `Workflow` in `WORK_TOOLS`, `:69-74` matches `Skill(tech-lead)` only, **while `SKILL.md:12-14` already tells operators the arm exists**. Closing A5 repairs that divergence. ⟐ **Rev C: GREEN at `2a134cd`** — the arm shipped, `tests/structural/17-gate-zerowork-workflow.mjs` exists and is mutation-verified both ways, and the contract's behavioural row (a `node -e` import asserting `dispatchedOrchestrator` returns `true` on a synthetic `Workflow` event) passes when run |
 | A6 | `npm test` green in the worktree AND in a fresh `git clone --local` of the branch (the repo's own clone discipline) | clone + `npm test` output pasted in stage evidence. ⟐ **Rev B:** in-tree green at 1168; last clone-derived count was 1120 at `7c1b15e` — **must be re-derived at the final commit**. ⟐ **Rev C:** in-tree green at **1328** (`5209df7`); the clone figure is unchanged at 1120 and is still Stage B's job. ⟐ **Rev D:** in-tree **1351** |
@@ -511,6 +545,14 @@ it produced, including the part that did not go to plan.
 | A3 | RED → **still RED, cause moved** | ORIENT byte-identical across a SIGKILL; WIRE re-dispatched because its worker escalated and wrote no artifact |
 | A6 | 1328 → **1351** | Stage A2's fixtures |
 | S2 "Remaining" | A2.1–A2.4 → **Stage A3**: completion must depend on the artifact, not the result record | The defect the probe exposed |
+
+### ⟐ Revision E (2026-08-12) — what changed
+
+| Row | Change | Why |
+|---|---|---|
+| A3 | still RED → **GREEN** | `kill-resume-probe: PASS`, 4/4 assertions on a live SIGKILL; the instrument self-tested in the failing direction first (`stage-a3-evidence.md` §4.2) |
+| S2 "Remaining" | Stage A3 → **none — the ship gate is MET** | `contract-check.mjs` prints GATE MET; Stage B is unblocked |
+| S3 | blocked behind S2 → **unblocked, not started** | nothing above it is shut any more |
 
 **Revision C — 2026-08-11, at `5209df7`.** Author: the Stage A run itself
 (`docs/migration/stage2-evidence.md`, `docs/migration/execution-report.md` run 4). Revision B

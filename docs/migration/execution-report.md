@@ -51,7 +51,7 @@ predates the probe run, so its A3 and A5 verdicts no longer hold and this table 
 |---|---|---|---|
 | A1 | Stage-0 kill-switch, all three checks | **GREEN** | `stage0-evidence.md`, `Decision: GO`, ≥2 quoted `deny` rows, cost labelled Sonnet |
 | A2 | Unattended run through `shapeup-run`, preset `ci` | **GREEN** | `{"status":"shipped","verdict":"pass",…}`; 9 orders / 9 results; exactly one `evaluate-r1` order |
-| A3 | Interactive, ≥2 gates via pause → decision → relaunch, nothing re-dispatched | **RED — cause changed at run 5** | ORIENT now survives a SIGKILL byte-identical, and the resumed leg reached `shipped`. It fails on WIRE: `solution-architect` escalated, wrote no `wiring-map.md`, and the pipeline recorded the phase complete anyway — so the artifact-gated fast-forward correctly re-runs it, forever (`stage-a2-evidence.md` §7.3) |
+| A3 | Interactive, ≥2 gates via pause → decision → relaunch, nothing re-dispatched | **GREEN at run 6 (2026-08-12)** — `kill-resume-probe: PASS`, 4/4 assertions on a live SIGKILL; the resumed leg fast-forwarded past all four phases, skipped the already-green scope, finished the in-flight one, and ended at `gate_h/outer` (`stage-a3-evidence.md` §4). Superseded: **RED — cause changed at run 5** | ORIENT now survives a SIGKILL byte-identical, and the resumed leg reached `shipped`. It fails on WIRE: `solution-architect` escalated, wrote no `wiring-map.md`, and the pipeline recorded the phase complete anyway — so the artifact-gated fast-forward correctly re-runs it, forever (`stage-a2-evidence.md` §7.3) |
 | A4 | Scoped-lane loop prose deleted; `SKILL.md` ≤ ~150 lines | **GREEN as restated (Rev B)** | `wc -l SKILL.md` = **121**; the `--tiny`/pre-scope-contract lanes keep their prose loop by design and `SKILL.md` names the boundary |
 | A5 | `gate-zerowork` treats a `Workflow(shapeup-*)` launch as a dispatch; new fixture | **GREEN** *(was RED at `c469a6c`)* | Arm landed in Stage A; `tests/structural/17-gate-zerowork-workflow.mjs` exists; the contract's behavioural row returns `true` when run |
 | A6 | `npm test` green in-tree **and** in a fresh `git clone --local` | **PARTIAL** | In-tree green at **1351**. Last clone-derived count is still **1120 at `7c1b15e`**; re-deriving it is Stage B's job |
@@ -302,6 +302,25 @@ the contract's own guardrail.
    the single most common shape of a small feature — has no honest value. The write-time validator
    finding #4 asks for would have blocked run 5's own profile; the enum needs the member as well as
    the check.
+12. **Declaring a marketplace in `.claude/settings.json` is not INSTALLING it** *(new, run 6)*.
+   With `extraKnownMarketplaces` + `enabledPlugins` written and nothing else, `claude -p` in the
+   scratch project saw **zero** `shapeup-sdlc-plugin` skills — so every `Skill(...)` dispatch the
+   workflow makes would have failed mid-leg, for a reason that looks nothing like its cause.
+   `claude plugin marketplace add` + `claude plugin install` are what put the plugin in the cache;
+   both are now in the probe rig's `seed-project.sh`.
+13. **`claude plugin install` is a no-op when the cache already holds that version** *(new, run 6)*.
+   A rebuilt candidate installs "successfully" and the session keeps executing the PREVIOUS build.
+   Measured on the A3 fix's first re-pack: the candidate carried the change, the cache did not, and
+   only the rig's own sha256 assertion said so. `install-candidate.sh` purges the cached version
+   before packing. This is finding #10's family — the environment quietly serving the control.
+14. **A WorkOrder never names its own result file** *(new, run 6 — filed as HD-006)*. The order
+   carries `order_id`, `substrate` and `payload`; where the WorkResult goes lives only in each
+   worker's SKILL.md prose, and the operation's `substrate.allowed` does not include it. Two
+   consecutive ORIENT dispatches against the same order failed two different ways — one wrote the
+   result and reported a **directory** (`EISDIR`), the next wrote its four artifacts and **no result
+   at all** (`ENOENT`) — both after doing the craft correctly. Worked around in both workflow
+   scripts (the dispatch prompt states the path; the pipeline derives it from the order); the real
+   fix is a bet, in `shapeup/knowledge-base/harness-defects.md`.
 ---
 
 ## Executor rules still in force
@@ -311,37 +330,37 @@ the contract's own guardrail.
   explicit PO instruction, 2026-08-10. That is a branch push for review and backup — no merge, no
   tag, nothing published to npm. The rule's intent, "the release is the PO's decision," is intact.)*
 - **The ~$40–60 A7 benchmark does not launch autonomously** — it pauses for an explicit go.
-- **S2 remains the ship gate**: S3 must not start until A2 *and* A3 are green. **As of run 4 it is
-  not met** — the kill/resume probe failed, so A3 is not green and Stage B is blocked until
-  `shapeup-run.js`'s ORIENT branch is fixed and the probe re-run.
+- **S2 was the ship gate and it is MET as of run 6 (2026-08-12)**: `kill-resume-probe: PASS`,
+  A2 and A3 both green, `contract-check.mjs` printing GATE MET. Stage B is unblocked; S3's own rows
+  stay red until S3 actually runs. *(Superseded: "as of run 4 it is not met — the kill/resume probe
+  failed, so A3 is not green and Stage B is blocked".)*
 
 ## The one thing to do next
 
-**All four items that used to stand here are done** (run 5): ORIENT is artifact-gated, both courier
-writes report their outcome, the regression fixture exists and is mutation-verified, and the probe
-was re-run. What replaced them is one defect, found by the re-run:
+**The defect that stood here is fixed and the gate it shut is open** (run 6): an escalated phase can
+no longer be recorded as complete — every dispatched phase is followed by
+`resume-state.mjs --require <phase>`, and an unmet post-condition aborts naming the phase. WIRE
+stopped escalating for a second reason: `analyze` now runs before it, so `solution-architect` gets
+the `usecases/` its contract reads. `kill-resume-probe: PASS`, 4/4 assertions
+(`stage-a3-evidence.md` §4).
 
-> **A phase whose worker ESCALATES is recorded as complete.** `shapeup-run.js` ingests the result
-> and moves to the next gate without inspecting `status`. Because such a phase writes no artifact,
-> the artifact-gated fast-forward — correctly — re-dispatches it on **every** relaunch, forever, and
-> each relaunch escalates again. Measured at run 5: `results/wire.json` reads
-> `status: "escalated"`, `artifacts: []`, and `shapeup/todo-kill/wiring-map.md` does not exist
-> after either leg.
+**What replaces it: Stage B**, whose first item is R10 — `shapeup-build-round.js` is unreachable
+(nothing launches it; only a test asserts it *exists*) and must be deleted or documented as a live
+second entry point. This stage added the argument for deleting it: the same fix had to be written
+into it twice, because a workflow script cannot import.
 
-Concretely, for whoever picks this up:
+**All three steps that stood here are done** (run 6), and each is worth one line because each was
+the plan's own prescription and each behaved differently from expectation:
 
-1. **Make completion depend on the artifact, not on the result record.** The phase branches already
-   read artifacts (`has_orient_artifacts`, `has_wiring_map`, `scope_files`); what is missing is
-   the check *after* a dispatch — a phase that returns without producing its artifact has not
-   completed, whatever its result says. `AGENTS.md`: progress is derived, never claimed.
-2. **Decide what an ESCALATE means to the outer pipeline.** The workflow deliberately does not
-   adjudicate mid-round ESCALATE (advisor-protocol is the prose path) — but *not adjudicating* is
-   not the same as *not noticing*. The minimum is a named stop: `{status:"aborted", aborted_at:"WIRE",
-   reason:"<the escalation>"}` beats a silent forever-loop.
-3. **Re-run the probe.** The rig is committed at `.plan-runs/wf-a2-probe/` — launch script, kill
-   script, snapshot, and the four assertions, self-tested in three directions. A repeat, not a
-   rebuild, and this time the rig survives the machine.
+1. ~~Make completion depend on the artifact, not on the result record.~~ Done —
+   `resume-state.mjs --require <phase>`, deliberately the *same* derivation the fast-forward uses,
+   so completion and resume cannot drift apart.
+2. ~~Decide what an ESCALATE means to the outer pipeline.~~ Done — it aborts, naming the phase (D1).
+   And the run that proved it never had to: WIRE stopped escalating once `analyze` ran first.
+   **The escalation was a symptom of a pipeline ordering bug, not a worker's judgement call.**
+3. ~~Re-run the probe.~~ Done — `kill-resume-probe: PASS`. It took four launches to reach the kill
+   window; two died on a defect the probe itself exposed (HD-006) and one on a session usage limit.
 
-**Not in that list, and deliberately:** narrowing assertion 1 so WIRE's re-dispatch stops counting.
-It is arguably correct behaviour, and that argument is exactly why the assertion must not move —
-a gate you widen because your own change failed it is not a gate.
+**What was refused, and stays refused:** narrowing assertion 1 so a re-dispatch stops counting.
+The assertion never moved; the run changed under it. A gate you widen because your own change
+failed it is not a gate.

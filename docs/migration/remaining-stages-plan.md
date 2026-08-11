@@ -33,7 +33,15 @@ a contract violation, since S2's ship gate was never formally met.
 > resumed leg shipping a killed run. **Its probe still returned FAIL**, on WIRE, because
 > `solution-architect` escalated without writing `wiring-map.md` and the pipeline recorded the phase
 > complete regardless — so the fast-forward correctly re-runs it, on every relaunch, forever.
-> **Stage A3** is therefore the gate now: *a phase's completion depends on its artifact, not on its
+> **⟐ Third amendment, 2026-08-12 — Stage A3 ran and the gate is MET.** `kill-resume-probe: PASS`,
+> four of four assertions on a live SIGKILL (`stage-a3-evidence.md` §4), and `contract-check.mjs`
+> prints GATE MET. Two fixes closed it: a phase is complete only when its artifact exists, and
+> `analyze` runs before WIRE so `solution-architect` has the use cases it reads. **Every item in
+> Stage B below is now unblocked** — start with B.1 (R10), which this session re-confirmed:
+> `shapeup-build-round.js` is still unreachable, still asserted only to *exist*, and this stage
+> had to write the same fix into it twice because a workflow script cannot import.
+>
+> **Stage A3** was therefore the gate: *a phase's completion depends on its artifact, not on its
 > result record.* Two stages have now been inserted here rather than one, and each was inserted
 > because a test failed rather than because a plan was rewritten — that is the ratchet doing its
 > job, not the plan slipping.
@@ -444,7 +452,7 @@ which B.4 promotes to shipped documentation rather than leaving here.
 |---|---|---|---|
 | ~~**A** — close S2's ship gate~~ | ~2–3 h | $0 | **DONE 2026-08-10** — R1–R6 green, **probe FAIL → stop** |
 | ⟐ ~~**A2** — fix the fast-forward, re-run the probe~~ | ~6 h actual | $0 | **DONE 2026-08-11** — G1–G5, G7 green; the ORIENT defect fixed and proven on a live kill; **probe FAIL again → stop** |
-| ⟐ **A3** — a phase completes when its ARTIFACT exists, not when its result says so | ~2–3 h + a probe run | $0 | **`kill-resume-probe: PASS`, or stop a third time** |
+| ⟐ ~~**A3** — a phase completes when its ARTIFACT exists, not when its result says so~~ | ~8 h actual | $0 | **DONE 2026-08-12 — `kill-resume-probe: PASS`, 4/4 assertions. The gate is met** |
 | **B** — cutover paperwork + dead code | ~2–3 h | $0 | R7–R11 green |
 | **C** — the fork | decision | $0 (C1) / $40–60 (C2) | PO decides; PO merges |
 | **D** — Phase 2, separate release | days | dev tokens | not part of this cutover |

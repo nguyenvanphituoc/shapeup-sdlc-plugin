@@ -4,21 +4,21 @@
 moments. This file says which of them is current, and what the position actually is today. It is
 updated whenever the position changes; everything else is left as the dated record it is.
 
-**Position, 2026-08-11, at `5209df7`:**
+**Position, 2026-08-12, at `e5bf9cd`:**
 
-- **S0 GREEN · S1 GREEN · S2 SHIP GATE NOT MET · S3 not started.**
-- The kill/resume probe — the one test of the failure class the whole migration exists to retire —
-  **FAILED** on 2026-08-10 (`stage2-evidence.md` §4, `kill-resume-probe: FAIL`). Two of its four
-  assertions are red: a completed ORIENT order was re-dispatched and its result re-ingested.
-- Per the plan's own rule (*"if it fails, stop"*), **Stage B did not start** and does not start until
-  the probe passes.
-- **Stage A2 is executed and its probe was re-run** (`stage-a2-evidence.md`, 2026-08-11).
-  **The Stage A defect is fixed and proven fixed on a live ungraceful kill**: ORIENT survived
-  byte-identical, `status` moved, the substrate pointer tracked the scope in flight, and the resumed
-  leg carried the run to `shipped` with a passing verdict. **But the probe still reads FAIL**, on a
-  *different* phase: `solution-architect` escalated without writing `wiring-map.md`, the pipeline
-  recorded the phase as complete anyway, and every relaunch therefore re-dispatches it. G1–G5 and G7
-  are met; **G6 is not**, so the ship gate is shut and Stage B does not start.
+- **S0 GREEN · S1 GREEN · S2 SHIP GATE MET · S3 unblocked, not started.**
+- **The kill/resume probe PASSES** — `stage-a3-evidence.md` §4, `kill-resume-probe: PASS`, all four
+  assertions, on a live ungraceful `SIGKILL` mid-BUILD. It is the one test of the failure class this
+  whole migration exists to retire, it failed twice (Stage A, Stage A2), and it is graded by an
+  `assert.mjs` **byte-identical** to the one that produced both failures — self-tested in the
+  failing direction on A2's own snapshots before the PASS was recorded.
+- **Stage A3 closed it in two places.** A phase is complete only when its ARTIFACT exists (every
+  dispatch is followed by a post-condition; an escalated phase can no longer be recorded as
+  complete and re-dispatched forever), and **`analyze` now runs before WIRE** — so
+  `solution-architect` is handed the `usecases/` its contract has always said it reads, and it wrote
+  the wiring map instead of escalating.
+- **Stage B is unblocked** (`remaining-stages-plan.md`). Its first item is R10: `shapeup-build-round.js`
+  is unreachable and must be deleted or documented.
 - The branch is pushed to `origin/feat/workflow-orchestrator` for review. **Nothing is merged,
   tagged, or published** — that remains the PO's move after Stage C.
 
