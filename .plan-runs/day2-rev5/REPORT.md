@@ -13,6 +13,32 @@ there, and closed it as *blocked — reopens on the machine that holds the bench
 **is** that machine. Its determination is preserved in `contract.md` rather than overwritten,
 because its exhausted-search record is what stops the next session repeating it.
 
+## Verdict
+
+**The plan is complete. The rung is not passed, and that is now a derived result rather than a
+status.** All five stages are green, every exit criterion the plan set is met, and the question it
+was written to answer — *is the 3-of-8 claim true?* — is answered: **no**. The `sampled` reduction
+was an artifact of counting a predicate this harness's own intake write forecloses; it is withdrawn.
+The register stands at **2 of 8, both `structural`**, which is exactly what Stage 0's exit predicted.
+
+The register's `note` has always named the reading in force — *"the rung requires at least one
+sampled reduction; structural claims remain valid and stay labelled"* — so Day 2's rung is open. What
+this run adds is **why it is open, per class, mechanically**, in place of an open-ended backlog:
+
+| Class | Why no sampled reduction |
+|---|---|
+| FC-01 | The class does not occur on the model under test — 0/8 on Sonnet against 7/16 on Haiku. Nothing left to reduce. |
+| FC-05 | Its registered tool **is** the trigger-eval harness — an instrument that reveals the class, not a mechanism that reduces it. Its first measured rate was already 0/75, so there is no before-state either. |
+| FC-03 · 06 · 07 · 08 | Unmeasured on both sides, and each tool is a hook, oracle or ledger that forbids its class by construction — measuring them yields more `structural` claims, not sampled ones. |
+
+**What would reach it** is a class not yet registered, meeting three conditions at once: the failure
+occurs on the model under test, the tool is a mechanism rather than an instrument, and both rates are
+measurable within one model scope. That is a new bet, not a remainder of Day 2.
+
+**The shape worth carrying forward:** the stronger the model under test, the fewer of these failures
+occur at all — so a sampled reduction gets *harder* to buy exactly as the harness gets better. FC-01
+is the worked example (7/16 → 0/8), and the benchmark's move to opus sharpens it further.
+
 ## Where it got to
 
 | stage | status | verified how |

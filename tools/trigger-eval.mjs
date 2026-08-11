@@ -25,7 +25,12 @@ import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync, spawn } from "node:child_process";
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+// `tools/` -> repo root is ONE level up. This read "../.." and resolved to the repo's PARENT, so
+// loadDatasets scanned a `skills/` directory outside the checkout and loaded nothing — on every
+// machine, for as long as it has been wrong. The 13 datasets §16 certifies as well-formed were
+// invisible to the harness meant to run them, and no check asked whether the instrument could
+// reach its own input; §16 now asserts this resolution. FC-05's rate is produced by this tool.
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SKILLS = join(ROOT, "skills");
 const BASELINE = join(ROOT, "evals", "baselines", "trigger-evals.baseline.json");
 // Turn budget per probe — see the adapter note below. Override with --max-turns N.
