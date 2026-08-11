@@ -14,8 +14,37 @@
 
 import { existsSync } from "node:fs";
 import { join, dirname } from "node:path";
+import { execFileSync } from "node:child_process";
 import { validateFile, validate } from "../../skills/tech-lead/scripts/validate-envelope.mjs";
 import { loadRubrics, listSkills, scoreDraft, selftest, coverage } from "../../tools/skill-loop.mjs";
+
+/**
+ * Repositories a `error_predicate.source` may cite outside this one (rule 6, cross-repo form).
+ * Keyed by the prefix used in the citation. A key that is not here is refused rather than
+ * guessed — an unregistered prefix is a citation a reader cannot follow.
+ * @type {Record<string, {env: string, default: string}>}
+ */
+const EXTERNAL_REPOS = {
+  // The benchmark. Author-owned, no git remote (day-2 plan §Sources), which is precisely why its
+  // predicates need a pinned citation form rather than a fetchable one.
+  bench: { env: "BENCH_DIR", default: "/Users/teo/workspace/sdd-harness-bench" },
+};
+
+/**
+ * Line count of a file as it stood at a commit in another repository.
+ * @param {string} repoPath - Absolute path to that repository's working tree.
+ * @param {string} commit - Commit-ish the citation pins.
+ * @param {string} file - Repo-relative path within it.
+ * @returns {number|false} Line count, or false when the commit or path does not resolve there.
+ */
+function gitFileLineCount(repoPath, commit, file) {
+  try {
+    return execFileSync("git", ["-C", repoPath, "show", `${commit}:${file}`],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).split("\n").length;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Run the Day-1/Day-2 instrument checks.
@@ -1052,24 +1081,73 @@ export async function run(ctx) {
     // Rule 6 — reduces !== null requires a non-empty error_predicate whose source resolves to a
     // real file:line. A reduction claimed with no citable predicate is exactly FC-01's withdrawn
     // v1.6.3 defect: a rate that counted a condition nobody could point at code for.
-    if (c.reduces !== null && c.reduces !== undefined) {
-      const p = c.error_predicate;
-      if (!p || !p.expression || !p.source || !p.counts) {
-        fail(`${tag} claims reduces=${c.reduces} with no error_predicate (or missing expression/source/counts) — a reduction claimed with no citable predicate is FC-01's withdrawn defect, reintroduced`);
-      } else {
-        const m = String(p.source).match(/^(.+):([0-9]+)$/);
-        if (!m) {
-          fail(`${tag} error_predicate.source "${p.source}" is not file:line`);
-        } else {
-          const [, file, lineStr] = m;
-          const filePath = join(ROOT, file);
-          if (!existsSync(filePath)) {
-            fail(`${tag} error_predicate.source names "${file}", which does not exist`);
+    //
+    // TWO source forms, and the second exists because the first could not express the predicate
+    // this rule most needs to police:
+    //
+    //   local       path/in/this/repo.mjs:214
+    //   cross-repo  <repo>@<commit>:path/in/that/repo.mjs:214
+    //
+    // Every `structural` predicate is decided here, so the local form covers FC-02 and FC-04. But
+    // every `measured` or `sampled` predicate is decided in the BENCHMARK — failureMode(),
+    // product_writes — a separate repository with no remote. Repo-relative resolution therefore
+    // could not express a predicate for the only basis rules 7 and 8 exist to police, and FC-01
+    // consequently carried no error_predicate at all: a rule with a hole exactly where it matters.
+    //
+    // The cross-repo form is PINNED TO A COMMIT, which makes it a stronger citation than a local
+    // one — it names immutable content rather than a mutable working tree. Where the repo is
+    // reachable the pin is verified against that commit for real. Where it is not, the check says
+    // UNVERIFIED HERE in its own message rather than reading like a verification that happened,
+    // because a citation nobody resolved must not be indistinguishable from one that was.
+    // Requirement and validation are deliberately triggered by different things. `reduces !== null`
+    // REQUIRES a predicate; merely CARRYING one triggers validation whatever `reduces` says. A class
+    // that records how its rates were counted without claiming a reduction — FC-01, after Stage 3
+    // left it at reduces: null — would otherwise carry a citation no rule ever resolved, which is
+    // the unchecked-citation failure this rule exists to prevent, reappearing one condition over.
+    const p = c.error_predicate;
+    const complete = !!(p && p.expression && p.source && p.counts);
+    if (c.reduces !== null && c.reduces !== undefined && !complete) {
+      fail(`${tag} claims reduces=${c.reduces} with no error_predicate (or missing expression/source/counts) — a reduction claimed with no citable predicate is FC-01's withdrawn defect, reintroduced`);
+    } else if (p && !complete) {
+      fail(`${tag} carries an incomplete error_predicate — expression, source and counts are all required; a partial citation reads like evidence and cannot be followed`);
+    } else if (complete) {
+      {
+        const src = String(p.source);
+        const xrepo = src.match(/^([a-z][a-z0-9-]*)@([0-9a-f]{7,40}):(.+):([0-9]+)$/);
+        if (xrepo) {
+          const [, repoKey, commit, file, lineStr] = xrepo;
+          const reg = EXTERNAL_REPOS[repoKey];
+          if (!reg) {
+            fail(`${tag} error_predicate.source cites unknown repository "${repoKey}" — add it to EXTERNAL_REPOS with the path it lives at, or the citation points nowhere a reader can follow`);
           } else {
-            const lineCount = read(filePath).split("\n").length;
+            const repoPath = process.env[reg.env] || reg.default;
+            const lineCount = existsSync(join(repoPath, ".git")) ? gitFileLineCount(repoPath, commit, file) : null;
             const line = Number(lineStr);
-            if (line >= 1 && line <= lineCount) ok(`${tag} error_predicate names a predicate whose source resolves to a real file:line (${p.source})`);
-            else fail(`${tag} error_predicate.source points at line ${line} of a ${lineCount}-line file`);
+            if (lineCount === null) {
+              ok(`${tag} error_predicate.source is a well-formed cross-repo citation pinned to ${repoKey}@${commit} (${file}:${line}) — UNVERIFIED HERE: ${repoKey} is not on this machine (set ${reg.env} to resolve it)`);
+            } else if (lineCount === false) {
+              fail(`${tag} error_predicate.source names ${file} at ${repoKey}@${commit}, which does not exist there — a pinned citation that does not resolve is worse than none, because it looks checked`);
+            } else if (line >= 1 && line <= lineCount) {
+              ok(`${tag} error_predicate names a predicate verified at ${repoKey}@${commit} (${file}:${line} of ${lineCount} lines)`);
+            } else {
+              fail(`${tag} error_predicate.source points at line ${line} of a ${lineCount}-line file at ${repoKey}@${commit}`);
+            }
+          }
+        } else {
+          const m = src.match(/^(.+):([0-9]+)$/);
+          if (!m) {
+            fail(`${tag} error_predicate.source "${p.source}" is neither file:line nor <repo>@<commit>:file:line`);
+          } else {
+            const [, file, lineStr] = m;
+            const filePath = join(ROOT, file);
+            if (!existsSync(filePath)) {
+              fail(`${tag} error_predicate.source names "${file}", which does not exist`);
+            } else {
+              const lineCount = read(filePath).split("\n").length;
+              const line = Number(lineStr);
+              if (line >= 1 && line <= lineCount) ok(`${tag} error_predicate names a predicate whose source resolves to a real file:line (${p.source})`);
+              else fail(`${tag} error_predicate.source points at line ${line} of a ${lineCount}-line file`);
+            }
           }
         }
       }

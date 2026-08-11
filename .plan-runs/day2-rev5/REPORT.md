@@ -238,10 +238,13 @@ this session did not decide it for you.
 1. **The $26.8 after-arm is not bought, and on this evidence should not be.** The disposition
    table only reaches it on a 3/3 baseline. The baseline came back 0/8 on the arm and 0/2 at the
    pre-fix build, which is its **first** row: stop. Buying it anyway would also hit the same
-   `a280e86` wall the $5.8 hit.
-2. **`error_predicate.source` cannot cite the predicate it most needs to.** §48 rule 6 resolves
-   `source` as **repo-relative** (`join(ROOT, file)` + `existsSync`). FC-02 and FC-04 satisfy it
-   because their predicates are `structural` and decided in this repo. But every `measured` or
+   `a280e86` wall the $5.8 hit. **This is now mechanical rather than only argued**:
+   `s3-feasibility.mjs` exits **4** here — blocked by construction, not by this machine — and says
+   in as many words that moving to another machine will not help and the arm must not be bought.
+2. ~~**`error_predicate.source` cannot cite the predicate it most needs to.**~~ **Closed — see
+   below.** §48 rule 6 resolved `source` as **repo-relative** (`join(ROOT, file)` + `existsSync`).
+   FC-02 and FC-04 satisfied it because their predicates are `structural` and decided in this repo.
+   But every `measured` or
    `sampled` predicate is decided in the **benchmark** — `failureMode()`, `product_writes` — which
    is a different repository with no remote. So the field, as built, cannot express a predicate for
    the very basis S2's rules 7 and 8 exist to police. **FC-01 therefore carries no
@@ -261,11 +264,37 @@ this session did not decide it for you.
    same words. Its stated weakness: hand-written harness scripts (`run-init.mjs`, `spike-*.mjs` at
    the workspace root) are `.mjs` at product-shaped paths and still count, so the number is an
    upper bound. A harness that games it would exit the corrected class exactly as `writes === 0`
-   was exited. That is what `predicate_independence` exists to make attackable.
-6. **`s3-feasibility.mjs` reports a false blocker on this machine.** Merged in from the other
-   machine, where its verdict was correct. Here C1 finds the benchmark at
-   `/Users/teo/workspace/sdd-harness-bench` and C2 then reports nothing matching `*harness-bench*`
-   under `/Users` — **the two checks contradict each other**, and C2 is the one that is wrong, so
-   the probe exits 3 (blocked) on a machine where S3 has already run green. Left as found and
-   recorded rather than patched mid-merge; a probe that cannot see a directory `existsSync` just
-   confirmed is worth fixing deliberately.
+   was exited. **Now recorded where it can be attacked** rather than only in prose: FC-01 carries a
+   `predicate_independence` field naming the scorer's separation from the tool *and* this exact
+   limit. Still not proven — that has not changed, and no claim rests on it.
+6. ~~**`s3-feasibility.mjs` reports a false blocker on this machine.**~~ **Fixed.** `find` exits 1
+   on the first unreadable directory under `/Users` **having already printed its hits**;
+   `execFileSync` throws on that exit, so the assignment never ran and the empty `catch` discarded
+   the answer with the error. C2 now reads stdout off the thrown error and agrees with C1. Two
+   consequences worth naming. First, the probe now **corroborates** S3 instead of contradicting it:
+   the only remaining blocker is C3, the pre-fix build genuinely lacking the machinery the adapter
+   needs — disposition row 4, exactly what S3 concluded. Second, the blocked-message was written
+   assuming reachability was the blocker and told a reader standing on the benchmark to go find the
+   machine that holds it; blockers are now split by class, **exit 3 = blocked on this machine
+   (reopens elsewhere)** and **exit 4 = blocked by construction (reopens nowhere)**. The runbook's
+   step 1 could not otherwise ever open its own gate.
+
+**Closed this pass, with what closed them:**
+
+- **Item 2 — `error_predicate.source` can now cite the predicate it most needs to.** §48 rule 6
+  gained a cross-repo form, `<repo>@<commit>:file:line`, resolved through a registry of known
+  external repositories (`bench` → `BENCH_DIR`, defaulting to the recorded path). Where the repo is
+  present the pin is verified against that commit for real; where it is absent the check says
+  UNVERIFIED HERE in its own message rather than passing as though it had resolved. Requirement and
+  validation were also split: `reduces !== null` still *requires* a predicate, but merely *carrying*
+  one now triggers validation — otherwise FC-01's new citation would have been the very thing the
+  rule exists to forbid, an unchecked citation. **FC-01 therefore now carries the
+  `error_predicate` it could not express before**: `bench@d3787fa:runner/lib/transcript-metrics.mjs:387`,
+  the `shipped_nothing` decision line, verified at that commit by the suite. The branch is
+  exercised six ways — valid pin, bad commit, bad path, out-of-range line, unregistered repo
+  prefix, and unreachable repo — four of them negative.
+- **The Model policy table no longer argues one model and names another.** `b33579d` flipped
+  `verifyModel` haiku → sonnet and left the haiku rationale ("Mechanical … nothing here is a
+  judgement call") standing underneath it, recorded there as a known inconsistency. The *Why*
+  column now states the judgement that actually justifies the tier: a verifier must notice a
+  command that exits 0 having measured nothing, and report a red it was hoped not to find.
