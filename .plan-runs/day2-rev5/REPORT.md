@@ -27,7 +27,7 @@ this run adds is **why it is open, per class, mechanically**, in place of an ope
 
 | Class | Why no sampled reduction |
 |---|---|
-| FC-01 | The class does not occur on the model under test — 0/8 on Sonnet against 7/16 on Haiku. Nothing left to reduce. |
+| FC-01 | **Underpowered, not dead.** Within its Haiku scope both rates are measured and rules 6–8 all accept it; Fisher exact on 5/5 → 1/3 is p=0.107, so rule 9 refuses it on power alone. **3–7 more reps at the same scope and build would clear it** (2/6 → p=0.046, 3/10 → p=0.019). The n must be pre-registered. On the MUT the class doesn't occur (0/8 Sonnet), so the reachable claim is explicitly Haiku-scoped. |
 | FC-05 | Its registered tool **is** the trigger-eval harness — an instrument that reveals the class, not a mechanism that reduces it. Its first measured rate was already 0/75, so there is no before-state either. |
 | FC-03 · 06 · 07 · 08 | Unmeasured on both sides, and each tool is a hook, oracle or ledger that forbids its class by construction — measuring them yields more `structural` claims, not sampled ones. |
 

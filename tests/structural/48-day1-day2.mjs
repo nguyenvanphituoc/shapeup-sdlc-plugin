@@ -37,6 +37,30 @@ const EXTERNAL_REPOS = {
  * @param {string} file - Repo-relative path within it.
  * @returns {number|false} Line count, or false when the commit or path does not resolve there.
  */
+/**
+ * Fisher exact test, one-tailed — the probability of a baseline failure count at least this
+ * extreme if the two rates were the same. The register's own statistic: every p-value quoted in
+ * `evals/failure-classes.json` (0.0179, 0.107, 0.018) is Fisher exact one-tailed, so rule 9
+ * recomputes rather than trusting the prose that reports it.
+ * @param {number} a - baseline failures.
+ * @param {number} b - baseline non-failures.
+ * @param {number} c - current failures.
+ * @param {number} d - current non-failures.
+ * @returns {number} One-tailed p-value.
+ */
+function fisherOneTailed(a, b, c, d) {
+  const lg = (n) => { let s = 0; for (let i = 2; i <= n; i++) s += Math.log(i); return s; };
+  const lc = (n, k) => lg(n) - lg(k) - lg(n - k);
+  const n = a + b + c + d, r1 = a + b, r2 = c + d, c1 = a + c;
+  let p = 0;
+  for (let i = 0; i <= Math.min(r1, c1); i++) {
+    const j = c1 - i;
+    if (j < 0 || j > r2) continue;
+    if (i >= a) p += Math.exp(lc(r1, i) + lc(r2, j) - lc(n, c1));
+  }
+  return p;
+}
+
 function gitFileLineCount(repoPath, commit, file) {
   try {
     return execFileSync("git", ["-C", repoPath, "show", `${commit}:${file}`],
@@ -1174,6 +1198,26 @@ export async function run(ctx) {
         ok(`${tag} sampled basis carries matching model_scope on both rates (${bScope})`);
       } else {
         fail(`${tag} reduction_basis="sampled" but baseline.model_scope (${JSON.stringify(bScope)}) !== current.model_scope (${JSON.stringify(cScope)}) — a sampled comparison across models is not a comparison`);
+      }
+    }
+
+    // Rule 9 — reduction_basis "sampled" must actually clear the bar it claims. Rules 6-8 police
+    // WHAT was counted, on WHICH model, with WHAT independence; none of them asks whether the two
+    // rates differ by more than chance. So the defect this plan was written about survived its own
+    // remedy: the plan says in as many words that patching 0/3 to 1/3 in place "would leave a
+    // `sampled` basis at p = 0.107 claiming an exit criterion it does not meet" — and until now
+    // that register would have passed every structural check. The p-value is derivable from fields
+    // rules 7-8 already require (value and n on both rates), so this is arithmetic, not new data.
+    if (c.reduction_basis === "sampled") {
+      const k = (r) => (r && typeof r.value === "number" && typeof r.n === "number") ? Math.round(r.value * r.n) : null;
+      const bK = k(c.baseline), cK = k(c.current);
+      const bN = c.baseline && c.baseline.n, cN = c.current && c.current.n;
+      if (bK === null || cK === null) {
+        fail(`${tag} reduction_basis="sampled" but a rate is missing value or n — significance cannot be derived, so the claim cannot be checked`);
+      } else {
+        const p = fisherOneTailed(bK, bN - bK, cK, cN - cK);
+        if (p < 0.05) ok(`${tag} sampled reduction clears the bar: ${bK}/${bN} → ${cK}/${cN}, Fisher exact one-tailed p=${p.toFixed(4)}`);
+        else fail(`${tag} claims a sampled reduction that does not clear p<0.05: ${bK}/${bN} → ${cK}/${cN}, Fisher exact one-tailed p=${p.toFixed(4)} — this is rev 3's defect exactly, a sampled basis claiming an exit criterion it does not meet. Buy more reps at the SAME model scope and build, or leave reduces null`);
       }
     }
   }
