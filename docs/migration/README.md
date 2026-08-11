@@ -59,9 +59,12 @@ is the specific mis-navigation the instrument revision exists to end.
    probe, and G6 is reachable.
 3. **Stage B** (`remaining-stages-plan.md`) unblocks only after `kill-resume-probe: PASS` — now
    Stage A3's job, not A2's.
-4. **Stage C** is the money fork and does not run autonomously: A7 needs `sdd-harness-bench`, which
-   is unobtainable here (`node .plan-runs/day2-rev5/s3-feasibility.mjs` — re-derive it, never trust
-   this sentence).
+4. **Stage C** is the money fork and does not run autonomously. ⟐ **Corrected 2026-08-11: A7 is
+   obtainable here.** `sdd-harness-bench` is present (`14e4479`, adapter + runner + `f2-budgets` +
+   240 result rows). `s3-feasibility.mjs` still exits 4, but its only failing check (C3) is about
+   the **day-2 plan's** pre-fix build `a280e86` — not about A7's arms, which are both modern builds.
+   A7 is therefore **unstarted, not blocked**, and gated only by the ship gate above it and the PO's
+   ~$40–60 spend decision.
 
 ## Standing guardrails
 

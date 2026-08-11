@@ -1,5 +1,34 @@
 # Migration plan — extract the tech-lead orchestrator into a Workflow, executed in an isolated worktree
 
+> ## ⟐ A7 correction — 2026-08-11, and it reverses a standing status
+>
+> **A7 is NOT blocked on this machine.** The "instrument unobtainable" verdict carried since
+> Revision B was derived on `/Volumes/LibertyMobi/…`, where the benchmark genuinely was absent
+> (C1 NO / C2 NO). On this machine `sdd-harness-bench` **is present** — checkout `14e4479`, with
+> `harnesses/shapeup-sdlc/adapter.mjs`, `runner/run.mjs`, `features/f2-budgets`, and 240 rows in
+> `results/runs.jsonl`.
+>
+> **The blocker that remains belongs to a different plan.** `.plan-runs/day2-rev5/s3-feasibility.mjs`
+> still exits 4, and its only failing check is **C3 — "adapter prerequisites present at pre-fix build
+> `a280e86`"**. That build is the **day-2 tool-efficacy plan's** control build for FC-01. It predates
+> v1.4.0 and therefore lacks `init-run.mjs`, so no rep at `a280e86` can ever be scored. That is a
+> real, permanent blocker — **for day-2's S3 arm, which is a different stage in a different plan
+> that happens to use the same letter.**
+>
+> **A7's arms are not that build.** The migration's benchmark is candidate (this branch's workflow
+> lane, v1.6.3+) versus control (the published v1.6.x prose lane). Both post-date v1.4.0 and both
+> carry the machinery C3 reports missing. C3 does not apply to either.
+>
+> **Corrected status: A7 is OBTAINABLE HERE and UNSTARTED.** It is gated by two things and neither
+> is the instrument: S2's ship gate above it, and the PO's spend decision (~$40–60, and the executor
+> rule that it never launches autonomously). Revision B's "deferred obligation with a named trigger"
+> was the right posture for a machine without the benchmark; the trigger it named — *the first run on
+> a machine that holds `sdd-harness-bench`* — **has fired.**
+>
+> *How this survived four runs: the status was inherited across machines and never re-derived. It is
+> the same class this branch keeps finding — a claim carried forward instead of a fact re-measured —
+> and it was caught by asking a question the docs could not answer from their own text.*
+>
 > ## ⟐ Revision D — amended 2026-08-11 after the probe re-ran
 >
 > Revision C described Stage A2 as the work that would close the gate. **It ran, and the gate is
@@ -111,7 +140,7 @@ The migration is DONE when, on the worktree branch:
 | A4 | ⟐ **Rev B.** No *scoped-lane* loop prose survives; `SKILL.md` ≤ ~150 lines; `shapeup-run.js`/`shapeup-build-round.js` are the only normative home **for specs with committed scope contracts**. The `--tiny` and pre-scope-contract lanes keep their prose loop by design, and `SKILL.md` names the boundary | `wc -l SKILL.md` (**121 at `c469a6c` ✅**); `SKILL.md` routes the excepted lanes explicitly (`:50-55`); `round-protocol.md` states the same split (`:11-22`) |
 | A5 | `gate-zerowork.mjs` blocks a session that launches the skill and never invokes the Workflow (new predicate arm), and still defers on non-harness sessions | new unit fixture in `tests/` + `npm test`. ⟐ **Rev B: RED at `c469a6c`** — `hooks/gate-zerowork.mjs:66` has no `Workflow` in `WORK_TOOLS`, `:69-74` matches `Skill(tech-lead)` only, **while `SKILL.md:12-14` already tells operators the arm exists**. Closing A5 repairs that divergence. ⟐ **Rev C: GREEN at `2a134cd`** — the arm shipped, `tests/structural/17-gate-zerowork-workflow.mjs` exists and is mutation-verified both ways, and the contract's behavioural row (a `node -e` import asserting `dispatchedOrchestrator` returns `true` on a synthetic `Workflow` event) passes when run |
 | A6 | `npm test` green in the worktree AND in a fresh `git clone --local` of the branch (the repo's own clone discipline) | clone + `npm test` output pasted in stage evidence. ⟐ **Rev B:** in-tree green at 1168; last clone-derived count was 1120 at `7c1b15e` — **must be re-derived at the final commit**. ⟐ **Rev C:** in-tree green at **1328** (`5209df7`); the clone figure is unchanged at 1120 and is still Stage B's job. ⟐ **Rev D:** in-tree **1351** |
-| A7 | Benchmark F2 cell, **model-matched on Sonnet 5**: candidate arm (workflow lane, n=3) vs control arm (v1.6.x prose lane, n=3). Absolute bar: 3× 14/14 oracle, 0 narrated, receipts present. Comparative bar: candidate ≥ control on acceptance, ≤ control on wall clock. The historical Haiku rows are NOT the baseline — models must match | ⟐ **Rev B — DEFERRED OBLIGATION, not a gate.** The instrument is unobtainable here (3 blockers, §6). A7 converts to an obligation with a named trigger: **the first run on a machine that holds `sdd-harness-bench`**. `stage3-evidence.md` MUST record the unobtainability as a finding — "A7 passed" must not be reachable by grep. See §6 |
+| A7 | ⟐ **Rev D correction: OBTAINABLE HERE, UNSTARTED** — the benchmark is present on this machine and A7's arms are unaffected by the `a280e86` blocker, which belongs to the day-2 plan's S3. See the A7 correction block at the top. — Benchmark F2 cell, **model-matched on Sonnet 5**: candidate arm (workflow lane, n=3) vs control arm (v1.6.x prose lane, n=3). Absolute bar: 3× 14/14 oracle, 0 narrated, receipts present. Comparative bar: candidate ≥ control on acceptance, ≤ control on wall clock. The historical Haiku rows are NOT the baseline — models must match | ⟐ **Rev B — DEFERRED OBLIGATION, not a gate.** The instrument is unobtainable here (3 blockers, §6). A7 converts to an obligation with a named trigger: **the first run on a machine that holds `sdd-harness-bench`**. `stage3-evidence.md` MUST record the unobtainability as a finding — "A7 passed" must not be reachable by grep. See §6 |
 
 ⟐ **Rev B — acceptance-instrument notes.** Two rows in `execution-contract.md` pass without the work
 being done, and must be tightened before the count is trusted:
