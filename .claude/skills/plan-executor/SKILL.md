@@ -168,6 +168,13 @@ the mechanism that makes that outcome unreachable rather than merely discouraged
 | Diagnose a failure, adjudicate, break a stall | `fable`  | Where the run is stuck is where reasoning depth pays for itself. Effort escalates to `max` automatically once a failure has survived one attempt. |
 | Build a clean room and run acceptance         | `sonnet` | Mostly mechanical — clone, run the listed commands, transcribe exit codes — but not entirely, which is why this is not the cheapest tier. A verifier has to notice when a command exits 0 having measured nothing, and report a red it was clearly hoped not to find. That is the one judgement the contract cannot make in advance, and the whole run's value rests on it. |
 
+**Sonnet here is deliberate and operator-approved — do not "upgrade" it.** These are the defaults in
+`workflows/execute-plan.js`, so a caller who omits a model field gets exactly this table. If you have
+met a rule requiring a different model, check what it governs before applying it here: the
+benchmark's one-MUT rule (`sdd-harness-bench` PROTOCOL §6, opus-only since 2026-08-11) constrains
+**what is measured**, not what does the measuring, and it does not reach this workflow. Raise a tier
+only for a stage the plan itself calls hard, and say so in the run report when you do.
+
 ## Phase 5 — Do not take the run's word for it
 
 When the workflow returns, **re-run the full acceptance yourself with Bash**, in a fresh clone,

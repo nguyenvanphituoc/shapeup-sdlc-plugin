@@ -36,9 +36,17 @@ const ATTEMPTS = A.attemptBudget || 3;
 const NOPROG = A.noProgressRounds || 2;
 const RESERVE = A.reserveTokens || 60000;
 
+// Defaults must equal the Model policy table in SKILL.md, because a caller who omits a field gets
+// THESE and not the documented ones. `verifyModel` read 'haiku' here long after the table said
+// sonnet: the documented policy held only for callers who happened to pass the field, which is the
+// weakest place to keep a policy. Verification is deliberately not the cheapest tier — a verifier
+// has to notice a command that exits 0 having measured nothing, and report a red it was hoped not
+// to find. Sonnet is the floor for that, and is the operator's standing choice for this workflow;
+// it is unrelated to the benchmark's own opus-only MUT rule, which governs what is measured, not
+// what does the measuring.
 const EXEC_MODEL = A.executeModel || 'sonnet';
 const DX_MODEL = A.diagnoseModel || 'fable';
-const VERIFY_MODEL = A.verifyModel || 'haiku';
+const VERIFY_MODEL = A.verifyModel || 'sonnet';
 
 // The clean room, written once and pasted into every prompt that needs one. `head` mode clones
 // HEAD and nothing else, so uncommitted work is invisible to it — that is the whole point, and
