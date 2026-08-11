@@ -208,7 +208,8 @@ const resultFor = (orderPath, reported, label) => {
 const dispatchBuild = async (orderPath, model, label) => {
   const r = await agent(
     `Call Skill(shapeup-sdlc-plugin:task-executor) --order ${orderPath}. Implement the order's ` +
-    "acceptance criteria exactly. Report back: the WorkResult path you wrote (your ONLY pipeline " +
+    "acceptance criteria exactly. Write your WorkResult to exactly this path: " + orderPath.replace("/orders/", "/results/") + " — a phase whose result is missing is treated as a phase that did not run. " +
+    "Report back: the WorkResult path you wrote (your ONLY pipeline " +
     "output) — { result_path }.",
     { model, phase: "Build", label, schema: BUILD_DISPATCH_SCHEMA },
   );
@@ -218,7 +219,8 @@ const dispatchBuild = async (orderPath, model, label) => {
 const dispatchEval = async (orderPath, model, label) => {
   const r = await agent(
     `Call Skill(shapeup-sdlc-plugin:spec-evaluator) --order ${orderPath}. Evaluate the running ` +
-    "feature against the order's acceptance criteria and Done-when. Report back: the WorkResult " +
+    "feature against the order's acceptance criteria and Done-when. Write your WorkResult to exactly this path: " + orderPath.replace("/orders/", "/results/") + " — a phase whose result is missing is treated as a phase that did not run. " +
+    "Report back: the WorkResult " +
     "path you wrote and the overall verdict — { result_path, overall }.",
     { model, phase: "Eval", label, schema: EVAL_DISPATCH_SCHEMA },
   );

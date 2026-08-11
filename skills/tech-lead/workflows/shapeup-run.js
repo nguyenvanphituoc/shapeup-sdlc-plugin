@@ -390,9 +390,28 @@ const ingestOrAbort = async (gate, resultPath, label) => {
 // is not a RunReturn member. A dead worker is an ABORT with a name, not a crash: `__failed` is
 // checked at every call site below and converted into `{status:"aborted", aborted_at, reason}`,
 // so the PO always receives a union member that says which phase died.
+//
+// THE PROMPT NAMES THE RESULT PATH, because the ORDER does not. Measured across two consecutive
+// ORIENT dispatches on the Stage A3 probe, two different failures with one cause:
+//   leg 1a  the worker wrote results/orient.json and reported a DIRECTORY as its path
+//   leg 1b  the worker wrote all four orient artifacts and no result file at all
+// A compiled WorkOrder carries `order_id`, `substrate`, and `payload` — and nothing that says where
+// the WorkResult goes. Every worker SKILL.md documents the convention ("`.shapeup/<slug>/results/
+// <order-suffix>.json`"), so the worker is left to derive a path from a convention while its own
+// order's `substrate.allowed` names a directory that does not contain it. Two workers guessed
+// differently and both legs died at phase one.
+//
+// This states it, in the one place a zero-memory subagent cannot miss: its dispatch prompt. It is
+// the same path `resultFor` ingests, so the two agree by construction. Putting `result_path` INTO
+// the WorkOrder is the deeper fix and it belongs to whoever next opens the envelope schema — it
+// touches compile-order.mjs, domain.schema.json and every worker's input contract, which is a wider
+// diff than a branch frozen at Stage B should take. Recorded as a discovered defect, not silently
+// worked around.
 const dispatch = async (skill, orderPath, model, phase, label, schema, extra) => {
   const r = await agent(
     `Call Skill(shapeup-sdlc-plugin:${skill}) --order ${orderPath}. ${extra || ""} ` +
+    `Write your WorkResult to exactly this path: ${orderPath.replace("/orders/", "/results/")} — ` +
+    "that file is what the pipeline ingests, and a phase whose result is missing is treated as a phase that did not run. " +
     "Report back exactly the fields requested — nothing else travels outside the order/result files.",
     { model, phase, label, schema },
   );
