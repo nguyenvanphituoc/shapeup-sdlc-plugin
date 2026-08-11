@@ -6,7 +6,35 @@
 
 ## Defects
 
-*(none open)*
+### HD-006 — the WorkOrder does not say where the WorkResult goes
+
+**Filed:** 2026-08-11, from the Stage A3 kill/resume probe (`docs/migration/stage-a3-plan.md`
+Finding 3). Not from L4 feedback — from two consecutive dispatches failing in the field.
+
+A compiled WorkOrder carries `order_id`, `substrate` and `payload`, and **nothing that names the
+result file**. Every worker SKILL.md documents the convention in prose
+(`.shapeup/<slug>/results/<order-suffix>.json`), so each worker derives the path itself — while its
+own order's `substrate.allowed` names a directory that does not contain that path (e.g. `orient`'s
+allowed list is `.shapeup/<slug>/orient/**`).
+
+**Measured, two consecutive ORIENT dispatches, same order, two different failures:**
+
+| leg | what the worker did | what the run did |
+|---|---|---|
+| 1a | wrote `results/orient.json` correctly, reported a **directory** as `result_path` | aborted at ORIENT, `EISDIR` |
+| 1b | wrote all four orient artifacts, **no result file at all** | aborted at ORIENT, `ENOENT` |
+
+Both times the craft was done and the phase was thrown away. A convention carried in prose is a
+guess the port is asking each worker to make independently.
+
+**Worked around, not fixed** (`shapeup-run.js` / `shapeup-build-round.js`): the dispatch prompt now
+states the exact path, and the pipeline derives the same one from the order rather than trusting the
+report. That closes the failure for the workflow lane only.
+
+**The fix this defect is filed for:** `result_path` becomes a field of the WorkOrder, written by
+`compile-order.mjs`, declared in `domain.schema.json`, included in each operation's
+`substrate.allowed`, and read by every worker instead of derived. It touches every worker's input
+contract, which is why it is a bet rather than a patch.
 
 ---
 
