@@ -357,6 +357,30 @@ const ingest = (resultPath, label) => mech(
 const ingestFailure = (r, label) => (
   r.exit_code === 0 ? null : `${label} did not apply: ${(r.stderr || r.stdout || `exit ${r.exit_code}`).toString().trim().slice(0, 300)}`
 );
+
+// WHERE A DISPATCH'S RESULT IS — derived from the order, never taken from the worker's report.
+//
+// The envelope port names it: compile-order.mjs writes `orders/<suffix>.json` and every worker
+// writes `results/<suffix>.json` (its own SKILL.md says so — "`.shapeup/<slug>/results/
+// <order-suffix>.json`"). The pairing is a FACT of the port, and the kill/resume probe's own
+// assertions are set operations over exactly that pairing.
+//
+// Until now this file passed the worker's self-reported `result_path` to ingest instead. Measured,
+// Stage A3 probe leg 1: ORIENT wrote `results/orient.json` correctly and reported a DIRECTORY as
+// its path; ingest read it, got EISDIR, and the run aborted at the first phase — `{"status":
+// "aborted","aborted_at":"ORIENT","reason":"ingest:orient did not apply: ✗ result unreadable:
+// EISDIR"}`. A phase that had done its whole job was thrown away on a claim about where it had put
+// the work. Same lesson as the post-condition above, one field over: derive the fact, do not accept
+// the claim. The schema still asks for `result_path` — it is a cross-check now, logged when it
+// disagrees, never the thing the pipeline acts on.
+const baseOf = (p) => String(p || "").trim().split("/").pop();
+const resultFor = (orderPath, reported, label) => {
+  const derived = orderPath.replace("/orders/", "/results/");
+  if (reported && baseOf(reported) !== baseOf(derived)) {
+    log(`${label} — the worker reported result_path "${reported}", which is not "${baseOf(derived)}". Ingesting the derived path; the order's own name is the fact.`);
+  }
+  return derived;
+};
 const ingestOrAbort = async (gate, resultPath, label) => {
   const why = ingestFailure(await ingest(resultPath, label), label);
   return why ? { status: "aborted", aborted_at: gate, reason: `${why} — the board and ledger do not reflect this phase, so nothing downstream can be trusted to read them` } : null;
@@ -495,7 +519,7 @@ if (!facts.has_orient_artifacts) {
     ORIENT_SCHEMA, "Read/spike real code before any board exists; write the orient/ artifacts.",
   );
   if (orientResult.__failed) return dispatchAborted("ORIENT", orientResult);
-  const orientIngest = await ingestOrAbort("ORIENT", orientResult.result_path, "ingest:orient");
+  const orientIngest = await ingestOrAbort("ORIENT", resultFor(orientOrder.stdout.trim(), orientResult.result_path, "ingest:orient"), "ingest:orient");
   if (orientIngest) return orientIngest;
   const orientIncomplete = await requirePhase(slug, "ORIENT", "orient");
   if (orientIncomplete) return orientIncomplete;
@@ -539,7 +563,7 @@ if (!facts.has_spec_tree) {
     RESULT_ONLY_SCHEMA, "Write the spec tree + board from the orient artifacts (no re-scan).",
   );
   if (analyzeResult.__failed) return dispatchAborted("ANALYZE", analyzeResult);
-  const analyzeIngest = await ingestOrAbort("ANALYZE", analyzeResult.result_path, "ingest:analyze");
+  const analyzeIngest = await ingestOrAbort("ANALYZE", resultFor(analyzeOrder.stdout.trim(), analyzeResult.result_path, "ingest:analyze"), "ingest:analyze");
   if (analyzeIngest) return analyzeIngest;
   const analyzeIncomplete = await requirePhase(slug, "ANALYZE", "analyze");
   if (analyzeIncomplete) return analyzeIncomplete;
@@ -565,7 +589,7 @@ if (!facts.has_wiring_map) {
     RESULT_ONLY_SCHEMA, "Write the wiring map: per-UC engine -> seam -> entry-point call site -> affordance.",
   );
   if (wireResult.__failed) return dispatchAborted("WIRE", wireResult);
-  const wireIngest = await ingestOrAbort("WIRE", wireResult.result_path, "ingest:wire");
+  const wireIngest = await ingestOrAbort("WIRE", resultFor(wireOrder.stdout.trim(), wireResult.result_path, "ingest:wire"), "ingest:wire");
   if (wireIngest) return wireIngest;
   const wireIncomplete = await requirePhase(slug, "WIRE", "wire");
   if (wireIncomplete) return wireIncomplete;
@@ -595,7 +619,7 @@ if (scopes.length === 0) {
     MAPSCOPES_SCHEMA, "Write the scope contracts (substrate whitelists, fixtures) and report the riskiest-first build sequence.",
   );
   if (mapScopesResult.__failed) return dispatchAborted("MAP SCOPES", mapScopesResult);
-  const mapScopesIngest = await ingestOrAbort("MAP SCOPES", mapScopesResult.result_path, "ingest:map-scopes");
+  const mapScopesIngest = await ingestOrAbort("MAP SCOPES", resultFor(mapScopesOrder.stdout.trim(), mapScopesResult.result_path, "ingest:map-scopes"), "ingest:map-scopes");
   if (mapScopesIngest) return mapScopesIngest;
   const mapScopesIncomplete = await requirePhase(slug, "MAP SCOPES", "map-scopes");
   if (mapScopesIncomplete) return mapScopesIncomplete;
@@ -702,7 +726,8 @@ while (round <= args.budgets.maxRounds) {
       if (built.__failed) { log(`scope ${scope.scope_id} — attempt ${attempt} lost its worker: ${built.__failed}`); continue; }
       // A build result that did not apply is a spent attempt, not a dead run: the board never
       // recorded this attempt, so T0 would grade a scope whose task rows still read unstarted.
-      const buildIngest = ingestFailure(await ingest(built.result_path, `ingest:${scope.scope_id}-a${attempt}`), `ingest:${scope.scope_id}-a${attempt}`);
+      const buildLabel = `ingest:${scope.scope_id}-a${attempt}`;
+      const buildIngest = ingestFailure(await ingest(resultFor(orderPath, built.result_path, buildLabel), buildLabel), buildLabel);
       if (buildIngest) { log(`scope ${scope.scope_id} — attempt ${attempt} discarded: ${buildIngest}`); continue; }
       const t0 = await mech(
         `node "${args.pluginRoot}/skills/tech-lead/scripts/t0-verify.mjs" ${scope.path} --round ${round} --attempt ${attempt} --out "${localRoot}" --no-seesaw`,
@@ -746,7 +771,8 @@ while (round <= args.budgets.maxRounds) {
     EVAL_SCHEMA, "Evaluate the running feature against ALL acceptance criteria + Done-when. ONE feature-level pass.",
   );
   if (evalResult.__failed) return dispatchAborted("L3", evalResult);
-  const evalIngest = await ingestOrAbort("L3", evalResult.result_path, `ingest:evaluate-r${round}`);
+  const evalLabel = `ingest:evaluate-r${round}`;
+  const evalIngest = await ingestOrAbort("L3", resultFor(evalOrder.stdout.trim(), evalResult.result_path, evalLabel), evalLabel);
   if (evalIngest) return evalIngest;
   verdict = evalResult.overall === "PASS" ? "pass" : "fail";
 
@@ -790,7 +816,7 @@ if (qaGate.decision === "run") {
   // passed EVAL. Record it and ship without QA rather than abort.
   if (qaResult.__failed) log(`QA hunt lost its worker: ${qaResult.__failed} — continuing without QA findings`);
   else {
-    const qaIngest = ingestFailure(await ingest(qaResult.result_path, "ingest:hunt"), "ingest:hunt");
+    const qaIngest = ingestFailure(await ingest(resultFor(qaOrder.stdout.trim(), qaResult.result_path, "ingest:hunt"), "ingest:hunt"), "ingest:hunt");
     if (qaIngest) log(`QA findings were not applied: ${qaIngest} — shipping without them (QA is a level-up, not a gate)`);
   }
   qaFindings = qaResult.findings_count;
@@ -812,7 +838,7 @@ const hammerResult = await dispatch(
   HAMMER_SCHEMA, "Run the H0/H1/H2 census, baseline comparison, and cut list.",
 );
 if (hammerResult.__failed) return dispatchAborted("H", hammerResult);
-const hammerIngest = await ingestOrAbort("H", hammerResult.result_path, "ingest:hammer");
+const hammerIngest = await ingestOrAbort("H", resultFor(hammerOrder.stdout.trim(), hammerResult.result_path, "ingest:hammer"), "ingest:hammer");
 if (hammerIngest) return hammerIngest;
 
 if (hammerResult.verdict === "cannot-ship") {
