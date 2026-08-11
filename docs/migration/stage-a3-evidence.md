@@ -115,6 +115,24 @@ doing its job on its first day, against the person who wrote it.
 
 *(pending — this section is written from the run, never ahead of it)*
 
+### 4.0 The launches before the kill, recorded because they happened
+
+Leg 1 took four launches to reach BUILD. Three died before the kill window and none of them is the
+probe's own result, so they are listed here rather than folded away:
+
+| launch | died of | what it left on disk |
+|---|---|---|
+| 1a | **the pipeline's own defect** — `ingest:orient` handed a directory (`EISDIR`) | orient artifacts + `results/orient.json` |
+| 1b | **the pipeline's own defect** — `results/orient.json` never written (`ENOENT`) | orient artifacts only |
+| 1c | **a session usage limit**, mid-ANALYZE — nothing to do with the harness | orient complete, `analyze.json` order in flight |
+| 1d | *(the leg that reaches the kill window)* | — |
+
+1a and 1b are Finding 3 / HD-006 and are fixed. **1c is worth one line of its own:** the relaunch
+after it derived `has_orient_artifacts: true`, `next_phase: "analyze"`, and skipped ORIENT — the
+fast-forward doing its job across a session death, which is the same mechanism the SIGKILL probe
+tests, observed for free. It is *not* a substitute for the probe: no `SIGKILL`, no mid-BUILD state,
+and no assertion ran over it.
+
 ---
 
 ## 5. What is NOT demonstrated
