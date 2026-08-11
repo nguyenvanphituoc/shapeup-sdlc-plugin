@@ -189,6 +189,20 @@ const EVAL_DISPATCH_SCHEMA = {
   required: ["result_path", "overall"],
 };
 
+// WHERE A DISPATCH'S RESULT IS — derived from the order, never taken from the worker's report.
+// compile-order.mjs writes `orders/<suffix>.json`; every worker writes `results/<suffix>.json` (its
+// own SKILL.md says so). The pairing is a fact of the envelope port. Measured cost of trusting the
+// report instead, Stage A3 probe leg 1: ORIENT wrote its result correctly, reported a DIRECTORY as
+// its path, and the run aborted at the first phase on EISDIR. Same helper as shapeup-run.js.
+const baseOf = (p) => String(p || "").trim().split("/").pop();
+const resultFor = (orderPath, reported, label) => {
+  const derived = orderPath.replace("/orders/", "/results/");
+  if (reported && baseOf(reported) !== baseOf(derived)) {
+    log(`${label} — the worker reported result_path "${reported}", which is not "${baseOf(derived)}". Ingesting the derived path; the order's own name is the fact.`);
+  }
+  return derived;
+};
+
 // Same null contract as mech() — a worker that is skipped or dies yields null, and reading
 // `.result_path` off it kills the round. `__failed` is checked at both call sites instead.
 const dispatchBuild = async (orderPath, model, label) => {
@@ -322,7 +336,7 @@ for (const scope of args.scopes) {
     // unnoticed leaves this attempt's work invisible to everything downstream. A spent attempt,
     // not a dead round — the same policy a dead builder takes, two lines above.
     const ingested = await mech(
-      `node "${args.pluginRoot}/skills/tech-lead/scripts/ingest-result.mjs" ${built.result_path}`,
+      `node "${args.pluginRoot}/skills/tech-lead/scripts/ingest-result.mjs" ${resultFor(orderPath, built.result_path, `ingest:${scope.scope_id}-a${attempt}`)}`,
       `ingest:${scope.scope_id}-a${attempt}`,
     );
     if (ingested.exit_code !== 0) {
@@ -399,7 +413,7 @@ const evalResult = await dispatchEval(evalOrder.stdout.trim(), args.models.eval,
 // single-judge rule forbids. Abort with the phase named, never a crash.
 if (evalResult.__failed) return { status: "aborted", aborted_at: "L3", reason: evalResult.__failed };
 const evalIngest = await mech(
-  `node "${args.pluginRoot}/skills/tech-lead/scripts/ingest-result.mjs" ${evalResult.result_path}`,
+  `node "${args.pluginRoot}/skills/tech-lead/scripts/ingest-result.mjs" ${resultFor(evalOrder.stdout.trim(), evalResult.result_path, `ingest:evaluate-r${args.round}`)}`,
   `ingest:evaluate-r${args.round}`,
 );
 // The verdict record IS the round's output. If it did not apply, the round has no verdict on disk

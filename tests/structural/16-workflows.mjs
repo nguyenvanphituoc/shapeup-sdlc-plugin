@@ -172,6 +172,34 @@ export async function run(ctx) {
       discardOffenders.push(`${WORKFLOWS_DIR}/${f}:${line}  await ${m[1]}(…) — outcome discarded`);
     }
   }
+  // --- (e) no ingest is aimed by a worker's self-reported path (migration A3) -----------------
+  //
+  // THE DEFECT THIS CLOSES, measured. Stage A3's probe leg 1 aborted at its FIRST phase: ORIENT ran
+  // fine, wrote `results/orient.json` exactly where its order said it would, and reported a
+  // DIRECTORY as its `result_path`. `ingest-result.mjs` read it, got EISDIR, and the run returned
+  // `{"status":"aborted","aborted_at":"ORIENT"}` — a phase that had done its whole job thrown away
+  // on a claim about where it had put the work.
+  //
+  // The pairing is a FACT of the envelope port: compile-order.mjs writes `orders/<suffix>.json`,
+  // every worker writes `results/<suffix>.json`, and the kill/resume probe's own assertions are set
+  // operations over exactly that pairing. `resultFor(orderPath, …)` derives it. A `.result_path`
+  // handed straight to an ingest call is the pipeline trusting a claim where a fact is available —
+  // the same class as the phase post-condition, one field over.
+  const REPORTED_PATH = /(?:ingest|ingestOrAbort)\(\s*(?:"[^"]*",\s*)?[A-Za-z_$][\w$]*\.result_path\b|ingest-result\.mjs" \$\{[A-Za-z_$][\w$]*\.result_path\}/;
+  const reportedOffenders = [];
+  for (const f of files) {
+    const code = codeOnly(readFileSync(join(abs, f), "utf8"));
+    code.split("\n").forEach((line, i) => {
+      if (REPORTED_PATH.test(line)) reportedOffenders.push(`${WORKFLOWS_DIR}/${f}:${i + 1}  ${line.trim().slice(0, 90)}`);
+    });
+  }
+  if (reportedOffenders.length === 0) {
+    ok("no ingest is aimed by a worker's self-reported result_path — every one is derived from the order it answers");
+  } else {
+    fail("a workflow script ingests the path a worker CLAIMED it wrote, rather than the one its order "
+      + `determines; a mis-reported path throws away a phase that did its job:\n    ${reportedOffenders.join("\n    ")}`);
+  }
+
   if (discardOffenders.length === 0) {
     ok(`no courier call discards its outcome in ${files.length} workflow script(s) — every ${COURIERS.join("/")} result is read back`);
   } else {
