@@ -36,3 +36,9 @@ node .plan-runs/day2-rev5/preflight.mjs S1 --at=9cbbc1f # the stage-local row  -
 Three S3 rows read `/Users/teo/workspace/sdd-harness-bench` (set `BENCH_DIR` if it lives
 elsewhere). That is the one place this contract reaches outside the repository, and it does so
 because the plan puts S3's prerequisite there.
+
+**Do not trust `s3-feasibility.mjs` here.** It arrived in the merge from a machine that genuinely
+lacked the benchmark, where its exit-3 verdict was right. On this machine it still exits 3, but its
+own output refutes it: C1 finds the benchmark at its recorded path and C2 then claims nothing
+matching `*harness-bench*` exists under `/Users`. Believe `preflight.mjs S3` — which runs the
+benchmark's suite rather than searching for it — and see open item 6 in `REPORT.md`.

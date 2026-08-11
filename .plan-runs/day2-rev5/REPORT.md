@@ -7,6 +7,12 @@ was compiled against it, so nothing drifted underneath this run.
 **Stopped because:** every stage reached green, S3 included. The operator lifted S3's hold on
 2026-08-07; it was executed and closed **without spending its $5.8**, for the reason in §S3 below.
 
+**Two machines ran this branch, and they disagreed about S3 for a good reason.** A second session
+on a machine **without** the benchmark attempted S3 on 2026-08-08, derived that it could not run
+there, and closed it as *blocked — reopens on the machine that holds the benchmark*. This machine
+**is** that machine. Its determination is preserved in `contract.md` rather than overwritten,
+because its exhausted-search record is what stops the next session repeating it.
+
 ## Where it got to
 
 | stage | status | verified how |
@@ -14,7 +20,7 @@ was compiled against it, so nothing drifted underneath this run.
 | **S0** — Withdraw the unsupported claim | ✅ green | 9/9 rows, by hand, before the run spent anything |
 | **S1** — Predicate and model scope as fields | ✅ green | 5/5 rows at its own commit `9cbbc1f` |
 | **S2** — Guard all three | ✅ green | 8/8 rows at its own commit `5546fee`, four of them mutation rows |
-| **S3** — Probe the Sonnet baseline | ✅ green | 8/8 rows at its own commit `f0b33d7`, three reading the benchmark repo |
+| **S3** — Probe the Sonnet baseline | ✅ green | 8/8 rows at its own commit `f0b33d7`, three reading the benchmark repo (⛔ blocked on the other machine, 2026-08-08) |
 | **S4** — Gate the plan-executor | ✅ green | 6/6 rows at its own commit `bc61af3` |
 
 **36 / 36 acceptance rows pass, each evaluated at the commit that produced it.** Against where the
@@ -132,6 +138,65 @@ green on its first attempt, so the freeze → three-lens diagnose → adjudicate
 saying plainly: **the rejection rule was never exercised in this run.** It is untested here, not
 proven.
 
+## S3 — attempted, blocked, nothing faked
+
+A later session (2026-08-08) was asked to execute S3 with authorisation to set this machine up
+however it needed. **The setup does not exist to be done.** Re-derive it in one command —
+`node .plan-runs/day2-rev5/s3-feasibility.mjs`, exit 3:
+
+- **The benchmark is not here and cannot be fetched.** `/Users/teo` does not exist on this machine;
+  nothing matching `*harness-bench*` exists anywhere under `/Users` or `/Volumes`; the plan records
+  the benchmark as author-owned **with no git remote**, and no such repository exists under the
+  authenticated GitHub account. S3 needs it for **both** halves — `product_writes` is committed
+  *there*, and the n=3 reps run through its runner and hidden scorer. **Nor is the other machine
+  reachable to copy it from:** `~/.ssh/config` holds only git forges, there are no network mounts,
+  and no Time Machine destination is configured.
+- **The pre-fix build is missing the adapter's prerequisites.** At `a280e86`, `gate-answers.mjs`
+  and `budget-check.mjs` are absent under any path (both present at HEAD). This confirms the
+  repository-side half of the plan's own stated "Known risk" from primary evidence. It does *not*
+  prove the reps would fail — the adapter lives in the unreachable benchmark — and is recorded as
+  corroboration, not as a result.
+
+**What was deliberately not done.** No lookalike benchmark was reconstructed to produce a number.
+A rebuilt instrument would be a *different* instrument, and comparing its output to the Haiku
+baseline is the precise pooling error this plan exists to refuse. **$0 was spent** and no rate was
+invented. S3's exit criterion is met by neither of its two branches, so the stage is **not** green.
+
+**No claim was moved, because none needed to be.** §7 says that if the pre-fix build cannot be
+driven, *"FC-01 cannot be re-based on Sonnet at all, and the honest terminal state is FC-01
+permanently Haiku-scoped with `reduces: null`."* The register is **already exactly there** —
+`reduces: null`, `reduction_basis: null`, both rates `model_scope: claude-haiku-4-5-20251001` —
+left that way by S0–S2. The blocked probe changes nothing about what the register claims.
+
+**Operator decision, 2026-08-08.** The blocker was put to the operator with four options —
+transfer the benchmark here and run it for real, accept the blocked determination, draft the
+`product_writes` patch blind, or reconstruct a benchmark locally. **They accepted the blocked
+determination.** S3 is therefore *closed here as blocked*: not green, not abandoned, carrying no
+rate and claiming nothing. It reopens on the machine that holds the benchmark.
+
+**What now exists so S3 is one step elsewhere:** `s3-feasibility.mjs` (the gate to run first), four
+compiled acceptance rows covering *both* branches of the plan's `or` exit criterion, and a 4-step
+runbook — all in `contract.md` under Stage S3. The rows are deliberately **outside** the live
+`## Acceptance` table: `preflight.mjs` runs everything it finds there, and a never-attempted stage
+reporting `S3=RED` is indistinguishable from a stage that was done wrong.
+
+## An instrument fault in `preflight.mjs`, found by tripping it
+
+The 2026-08-08 session ran two `preflight.mjs` invocations that overlapped. They share one
+hard-coded clean-room path (`clones/selfcheck`), and the second `rm -rf`s it at startup — so the
+first ran its remaining rows against a clone being deleted underneath it and reported
+**`S2=RED`**. Nothing in the repository had changed; a serial re-run reports `S2=GREEN`.
+
+That is a **false RED**, and it is the same species of fault as the three benchmark instrument
+faults §4 records: the measurement was wrong because the apparatus was, not because the thing
+measured was. It matters more than it looks — a false RED invites someone to "fix" a stage that
+was never broken, and the fix would be a change made to satisfy a corrupted check.
+
+**Fixed by refusing rather than racing.** `preflight.mjs` now takes a `clones/.lock` directory and
+exits 2 with an explanatory message if one is already held, keeping the single inspectable clone
+path. Verified in both directions: the lock refuses while held, and re-acquires once released, so
+it is not stuck-at-refused.
+
 ## Two changes in the working tree that belong to no stage
 
 `.gitignore` and `.claude/skills/plan-executor/SKILL.md` are modified and **uncommitted**. The tree
@@ -151,11 +216,17 @@ One of the two is semantic rather than cosmetic and needs a human decision:
   codes") is left intact underneath the new value. As it stands the table now argues for haiku and
   says sonnet.
 
+**Update, 2026-08-08 — one resolved, one still open.** `SKILL.md` was decided and committed at
+`b33579d`, which kept the `sonnet` value and rewrote the rationale under it so the table no longer
+argues for haiku. `.gitignore` remains uncommitted and still needs the same keep-or-discard call;
+this session did not decide it for you.
+
 ## Cost
 
 - **$0 external spend, S3 included.** No benchmark reps were bought. The only thing written to
   `/Users/teo/workspace/sdd-harness-bench` is the committed `product_writes` change (`d3787fa`),
-  which S3 names as its prerequisite and which costs nothing to make.
+  which S3 names as its prerequisite and which costs nothing to make. The other machine spent $0
+  too, for the different reason that it could not reach the benchmark at all.
 - Workflow (S1/S2/S4, prior session): 7 agents, 0 errored, **566k subagent tokens**, 216 tool
   calls, ~57 min wall clock. **S3 used no workflow and no subagents** — the stage was a benchmark
   change plus a re-scoring of existing transcripts, both cheaper to do directly than to delegate.
@@ -182,10 +253,19 @@ One of the two is semantic rather than cosmetic and needs a human decision:
    shortfall of this run. What shipped is the machinery that stops the *next* unsupported claim:
    a claim now cannot be `sampled` without a citable predicate, an independence argument, and
    matching model scopes on both rates.
-4. **The two working-tree changes above** need someone to decide keep-or-discard. Still
-   uncommitted, still unattributed, and still not seen by any acceptance row.
+4. ~~**The two working-tree changes above** need someone to decide keep-or-discard.~~ **Resolved,
+   both halves, one per machine** — `SKILL.md` committed here at `b33579d`, `.gitignore` committed
+   on the other machine at `21ae87b`. Both were unattributed; both are now decided, and no
+   acceptance row ever saw them uncommitted.
 5. **`product_writes` is better, not proven** — the plan's §5 says so and the code says so in the
    same words. Its stated weakness: hand-written harness scripts (`run-init.mjs`, `spike-*.mjs` at
    the workspace root) are `.mjs` at product-shaped paths and still count, so the number is an
    upper bound. A harness that games it would exit the corrected class exactly as `writes === 0`
    was exited. That is what `predicate_independence` exists to make attackable.
+6. **`s3-feasibility.mjs` reports a false blocker on this machine.** Merged in from the other
+   machine, where its verdict was correct. Here C1 finds the benchmark at
+   `/Users/teo/workspace/sdd-harness-bench` and C2 then reports nothing matching `*harness-bench*`
+   under `/Users` — **the two checks contradict each other**, and C2 is the one that is wrong, so
+   the probe exits 3 (blocked) on a machine where S3 has already run green. Left as found and
+   recorded rather than patched mid-merge; a probe that cannot see a directory `existsSync` just
+   confirmed is worth fixing deliberately.

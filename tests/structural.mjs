@@ -52,6 +52,7 @@ const MODULE_FILES = [
   "46-contract-md.mjs",
   "47-ship-report.mjs",
   "48-day1-day2.mjs",
+  "50-payload-contract-parity.mjs",
   "08-docs.mjs",
 ];
 

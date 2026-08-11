@@ -1,5 +1,5 @@
 // Structural test module: docs. Split out of tests/structural.mjs (Track C).
-// Sections: 5, 7, 25, 26. Byte-identical bodies; the runner threads the shared ctx.
+// Sections: 5, 7, 25, 26, 49. Byte-identical bodies; the runner threads the shared ctx.
 import { readFileSync, readdirSync, existsSync, statSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { tmpdir } from "node:os";
@@ -159,6 +159,47 @@ export async function run(ctx) {
     const floorM = read(join(ROOT, "docs/design/06-appendix.md")).match(/(\d+)\+ checks/);
     if (!floorM) fail(`docs/design/06-appendix.md states no "N+ checks" floor`);
     else { ctx.checksFloor = Number(floorM[1]); ok(`docs state a checks floor (${ctx.checksFloor}+)`); }
+  }
+
+
+  // =============================================================================
+  section("49. Attempt-loop doc parity — the prose names the ratchet's four-way branch");
+  // =============================================================================
+  // v1.5.0 replaced a green/red + stash-and-retry attempt loop with a ratchet whose branch
+  // selector is `status` ∈ kept|reverted|rebased|crash, decided inside t0-verify.mjs. SKILL.md
+  // followed; the two reference docs it routes to at :110-111 did not — round-protocol.md still
+  // prescribed the stash branch that lib/ratchet-tree.mjs was written to fix, and delegation.md
+  // still documented the read-back as "overall (green|red) + regression (bool)". Section 25
+  // above caps how MUCH orchestrator prose exists and asserts nothing about whether it is TRUE;
+  // this is that other half. The mechanism already drifted from its docs once.
+  {
+    const RATCHET_STATUSES = ["kept", "reverted", "rebased", "crash"];
+    const LOOP_DOCS = [
+      "skills/tech-lead/SKILL.md",
+      "skills/tech-lead/references/round-protocol.md",
+      "skills/tech-lead/references/delegation.md",
+    ];
+    // SKILL.md names the retired branch AS retired ("Subsumes the old seesaw `git stash`
+    // branch"), which is the one legitimate use. The reference docs are where the string only
+    // ever appeared as a live instruction, so the ban covers those two.
+    const NO_RETIRED_BRANCH = LOOP_DOCS.slice(1);
+    for (const rel of LOOP_DOCS) {
+      const p = join(ROOT, rel);
+      if (!existsSync(p)) { fail(`attempt-loop doc missing: ${rel}`); continue; }
+      const txt = read(p);
+      const missing = RATCHET_STATUSES.filter((s) => !new RegExp(`\\b${s}\\b`).test(txt));
+      if (missing.length) fail(`${rel} describes the attempt loop but never names ${missing.join(", ")} — the branch is kept|reverted|rebased|crash, decided in t0-verify.mjs decideStatus()`);
+      else ok(`${rel} names all four ratchet statuses`);
+      if (!NO_RETIRED_BRANCH.includes(rel)) continue;
+      if (/git stash/.test(txt)) fail(`${rel} prescribes \`git stash\` — the retired pre-ratchet branch that left a failing tree on the branch for the next attempt's fresh subagent; the tree is moved by t0-verify.mjs via shadow refs`);
+      else ok(`${rel} free of the retired stash-and-retry branch`);
+      // t0-verify exits 1 on a `kept` red-but-improved attempt — the ratchet's signature case —
+      // because the exit code carries the T0 binary, deliberately mirroring oracles/*. A doc
+      // that hands the orchestrator this branch must say so, or the next reader wires it into
+      // an `&&` chain and loses exactly the case the ratchet was built for.
+      if (/exit\s+code/i.test(txt)) ok(`${rel} states the exit-code reading rule`);
+      else fail(`${rel} documents the attempt loop but never warns that the exit code is the T0 binary, not the ratchet decision`);
+    }
   }
 
 }

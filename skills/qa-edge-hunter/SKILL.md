@@ -40,7 +40,8 @@ tech-lead: ... GATE L2 → EVAL → GATE L3 PASS ──► QA EDGE HUNT (you) �
 
 Pure worker (harness rule: stateless workers, one stateful orchestrator). Its WorkOrder
 carries `payload.feature`, `payload.spec_folder`, `payload.eval_report`, `payload.app_url`,
-`payload.kb_rules_path` (+ read-only ledger path for covered-territory context); its write surface is
+`payload.kb_rules_path`, and `payload.ledger` (the discovery ledger, READ-ONLY — covered-territory
+context so a hunt does not re-report what is already known); its write surface is
 `.shapeup/<feature>/qa/**` only. The Hunter never touches the discovery ledger itself —
 ingest appends its `discoveries[]` under a `## Discovered` section, preserving single-writer
 mechanically.
