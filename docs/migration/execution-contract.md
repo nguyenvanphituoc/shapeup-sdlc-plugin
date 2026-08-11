@@ -9,7 +9,7 @@ attempt_budget: 3
 no_progress_rounds: 2
 execute_model: sonnet
 diagnose_model: fable
-verify_model: haiku
+verify_model: haiku # historical — see the note below; the executor's own policy is now sonnet
 stages: [S0, S1, S2, S3]
 ---
 
@@ -23,6 +23,18 @@ the stage bodies below are verbatim copies, but the plan's surrounding context (
 acceptance contract table A1–A7) binds too.
 
 Baseline recorded at run start: `npm test` green, **1112 checks**, at commit 78e56bc.
+
+> **On the frontmatter's `verify_model: haiku` (noted 2026-08-11, deliberately not changed).** That
+> line records what the plan-executor was configured with when this contract was compiled, and this
+> file is the record of what was executed — not a live config. The executor's own policy has since
+> moved to sonnet (`b33579d`, `c9de9ca`: a verifier must notice a command that exits 0 having
+> measured nothing, and report a red it was hoped not to find), and that policy governs any future
+> run. The D5 model floor is a separate rule and always did bind the deliverable's own agents:
+> sonnet or above everywhere, including the couriers.
+>
+> **Run the rows, never read them.** `node tools/contract-check.mjs` executes this table and prints
+> the ship gate BEFORE the count; `--mutate` breaks what each row cites and asserts the row goes
+> red. As of 2026-08-11: 19 PASS / 4 RED, 14/14 mutatable rows falsifiable, **gate NOT MET**.
 
 ## Acceptance
 

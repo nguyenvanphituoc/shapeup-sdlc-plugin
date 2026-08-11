@@ -291,8 +291,19 @@ export async function run(ctx) {
 
       const r = spawnSync("node", [coPath, "--scope", "shapeup/demo/scopes/cart.md", "--round", "1", "--attempt", "2", "--cwd", d], { encoding: "utf8" });
       const orderPath = (r.stdout || "").trim();
-      if (r.status === 0 && existsSync(orderPath)) ok("compile-order writes the order to orders/r<N>-a<M>.json");
+      if (r.status === 0 && existsSync(orderPath)) ok("compile-order writes the order to orders/<scope>-r<N>-a<M>.json");
       else fail(`compile-order failed (exit ${r.status})\n${r.stdout}${r.stderr}`);
+
+      // A BUILD order's id must carry its scope. Without it every scope in a round compiles to the
+      // same filename, so scope 2's order overwrites scope 1's — which is what made the migration
+      // contract's `orders/ minus results/ is empty` row read GREEN on the kill/resume probe that
+      // was, at that moment, re-dispatching a completed phase (docs/migration/stage2-evidence.md
+      // §4). An order file that is not self-identifying is not an audit trail.
+      if (/(^|\/)cart-r1-a2\.json$/.test(orderPath)) {
+        ok("a build order's filename names its scope, so two scopes in one round cannot overwrite each other");
+      } else {
+        fail(`a build order is addressed as "${orderPath.split("/").pop()}" — without a scope id, scope 2's order overwrites scope 1's`);
+      }
       if (existsSync(orderPath)) {
         const order = readJSON(orderPath);
         const { validate: veValidate2 } = await import(vePath);

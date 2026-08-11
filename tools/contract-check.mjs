@@ -84,8 +84,11 @@ export function runRow(row, tree) {
 /** Every file path a row's command names, so a mutation knows what to break. */
 export function citedFiles(cmd) {
   const out = new Set();
-  for (const m of cmd.matchAll(/(?:^|[\s"'`])((?:docs|tests|skills|hooks|commands|oracles)\/[\w./-]+|CHANGELOG\.md|README\.md)/g)) {
-    out.add(m[1].replace(/["'`]+$/, ""));
+  // `./skills/…` and `skills/…` are the same file; both spellings appear in the contract, and a
+  // regex that missed the first reported four real rows as "names no file that exists".
+  for (const m of cmd.matchAll(/(?:^|[\s"'`(])\.?\/?((?:docs|tests|skills|hooks|commands|oracles)\/[\w./-]+|CHANGELOG\.md|README\.md)/g)) {
+    const f = m[1].replace(/["'`)]+$/, "");
+    if (!f.endsWith("/")) out.add(f);
   }
   return [...out];
 }
@@ -98,37 +101,52 @@ export function citedFiles(cmd) {
  * Rows this cannot mutate generically are REPORTED, never silently skipped — a mutation harness
  * with an invisible skip list is the same defect one layer up.
  */
-export function mutateRow(row) {
+export function mutateRow(row, currentlyPasses) {
   if (/npm test/.test(row.cmd)) {
-    return { mutatable: false, why: "runs the whole suite; emptying a file would prove nothing about this row" };
+    return { mutatable: false, why: "runs the whole suite; breaking one file would prove nothing about this row" };
+  }
+  if (!currentlyPasses) {
+    return { mutatable: false, why: "the row is RED as it stands — there is no pass to falsify (it goes green when the work lands, and that is when to mutate it)" };
+  }
+  if (/^\s*!/.test(row.cmd)) {
+    return { mutatable: false, why: "a negative row: breaking its file makes it pass harder, not fail. Falsifying it means INSERTING the text it forbids, which takes the row's own intent" };
   }
   const files = citedFiles(row.cmd).filter((f) => existsSync(join(ROOT, f)));
   if (files.length === 0) {
     return { mutatable: false, why: "names no file that exists — nothing to break" };
   }
-  if (/^\s*!/.test(row.cmd)) {
-    return { mutatable: false, why: "a negative row: emptying its file makes it pass harder, not fail. Mutate by INSERTING the forbidden text, which needs the row's own intent" };
-  }
+
+  // Three generic mutations, because one was not enough and the harness caught that itself: the
+  // first version only EMPTIED the cited file, and reported four `test -f` rows as "cannot fail"
+  // when the truth is that emptying a file it only checks the existence of proves nothing. A row
+  // is falsifiable if ANY of these kills it, and the report names which one did.
+  const MUTATIONS = [
+    ["emptied", (p) => writeFileSync(p, "")],
+    ["removed", (p) => rmSync(p, { force: true })],
+    ["grown past any line-count threshold", (p) => writeFileSync(p, `${readFileSync(p, "utf8")}\n${"filler\n".repeat(500)}`)],
+  ];
 
   const ws = mkdtempSync(join(tmpdir(), "contract-mutate-"));
   try {
-    // Mutate in place with a backup, then restore. A full clone per row costs ~1 s each and the
-    // rows are read-only greps; the restore is in a finally.
+    // Mutate in place with a backup, then restore in a finally. The rows are read-only greps, so
+    // a full clone per row would cost seconds each to prove the same thing.
     const backups = files.map((f) => {
       const b = join(ws, f.replace(/\//g, "_"));
       copyFileSync(join(ROOT, f), b);
       return { f, b };
     });
-    try {
-      for (const { f } of backups) writeFileSync(join(ROOT, f), "");
-      const after = runRow(row, ROOT);
-      return {
-        mutatable: true, broke: files, red: !after.pass,
-        why: after.pass ? "the row still PASSED with its own evidence emptied — it is not reading the work it claims to" : null,
-      };
-    } finally {
-      for (const { f, b } of backups) copyFileSync(b, join(ROOT, f));
+    for (const [name, apply] of MUTATIONS) {
+      try {
+        for (const { f } of backups) apply(join(ROOT, f));
+        if (!runRow(row, ROOT).pass) return { mutatable: true, broke: files, red: true, killedBy: name };
+      } finally {
+        for (const { f, b } of backups) copyFileSync(b, join(ROOT, f));
+      }
     }
+    return {
+      mutatable: true, broke: files, red: false,
+      why: `the row still PASSED with ${files.join(", ")} emptied, removed AND overlong — it is not reading the work it claims to`,
+    };
   } finally {
     rmSync(ws, { recursive: true, force: true });
   }
@@ -164,7 +182,7 @@ function main() {
 
   const gates = readGates();
   const results = rows.map((row) => ({ row, ...runRow(row, ROOT) }));
-  const mutations = wantMutate ? rows.map((row) => ({ row, ...mutateRow(row) })) : [];
+  const mutations = wantMutate ? results.map((r) => ({ row: r.row, ...mutateRow(r.row, r.pass) })) : [];
 
   const passed = results.filter((r) => r.pass).length;
   const gateMet = gates.every((g) => g.met);
@@ -200,7 +218,8 @@ function main() {
   if (wantMutate) {
     console.log(`\nFalsifiability (G5) — ${mutations.filter((m) => m.mutatable && m.red).length}/${mutations.filter((m) => m.mutatable).length} mutatable rows went red under mutation`);
     for (const m of unfalsifiable) console.log(`  CANNOT FAIL  ${m.row.cmd.slice(0, 90)}  — ${m.why}`);
-    for (const m of mutations.filter((x) => !x.mutatable)) console.log(`  not mutatable  ${m.row.cmd.slice(0, 70)}  — ${m.why}`);
+    for (const m of mutations.filter((x) => x.mutatable && x.red)) console.log(`  falsifiable    ${m.row.cmd.slice(0, 70)}  — red when ${m.killedBy}`);
+  for (const m of mutations.filter((x) => !x.mutatable)) console.log(`  not mutatable  ${m.row.cmd.slice(0, 70)}  — ${m.why}`);
   }
 
   process.exit(gateMet && passed === rows.length && unfalsifiable.length === 0 ? 0 : 1);

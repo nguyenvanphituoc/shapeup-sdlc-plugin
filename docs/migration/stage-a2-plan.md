@@ -127,12 +127,26 @@ resumed leg. Mostly waiting.
 | `tests/structural/NN-resume-state.mjs` | — | — | **create** | — |
 | `tests/structural/16-workflows.mjs` | — | — | modify | — |
 | `tests/structural.mjs` | — | — | modify | — |
-| `skills/tech-lead/scripts/gate-status.mjs` | — | — | **create** | — |
+| ~~`skills/tech-lead/scripts/gate-status.mjs`~~ | — | — | *not created* | — |
 | `skills/tech-lead/SKILL.md` | — | — | one sentence (G7) | — |
 | `docs/migration/stage2-evidence.md` | — | — | — | **amend §4** |
 | `docs/migration/execution-contract.md` | — | — | amend | amend |
 
 ---
+
+> **⟐ Touch-map amendments, 2026-08-11, recorded rather than absorbed.** Five rows added, one
+> dropped. `compile-order.mjs` and its regression check are decision 5, taken. `contract-check.mjs`
+> is G5 and it replaces the planned `gate-status.mjs`: the gate line is 20 lines inside the tool
+> that executes the rows, and splitting them would have let a count print without its gate again —
+> which is the entire defect. It lives in `tools/` rather than `skills/tech-lead/scripts/` because
+> it reads THIS repository's migration documents; shipping it inside the plugin would put repo
+> tooling on a user's disk. `shapeup-build-round.js` is in the map because the courier-discard class
+> (G3) is enforced over *every* workflow script, and leaving the dead file exempt would have made
+> the check carry a silent exception on the day it was written.
+>
+> **What the audit added beyond the plan:** every `ingest-result.mjs` call in both workflow scripts
+> discarded its outcome — the single writer of the board, the ledger and the verdict record. That is
+> the same class G3 names, found on the file where it matters most, and it is closed at every site.
 
 ## 5. Guardrails
 
@@ -150,6 +164,19 @@ resumed leg. Mostly waiting.
 ---
 
 ## 6. Open decisions — PO's call, not the executor's
+
+> **⟐ ALL FIVE TAKEN, 2026-08-11 (PO).** In order: **(1)** `status` **stays** — the enumeration this
+> decision required found live readers outside the workflow (`run-snapshot.mjs` and
+> `hooks/anti-rationalization.mjs` hold a `MID_RUN` set over its values), so it survives as
+> bookkeeping while no phase decision reads it. **(2)** `resume-state.mjs` absorbs `probe()` **and
+> both fire-and-forget writers**, not `checkScopeGreen` — that one's result is consumed at its call
+> site, so it is not the defect class. **(3)** the mutation harness is **built** (`tools/contract-check.mjs`),
+> and it earned its place twice over: it caught four rows it was itself wrong about, and the fixture
+> mutations caught two checks that could not fail. **(4)** the re-run keeps the **same two-scope,
+> one-round shape** — harden it only after it passes. **(5)** the order-id fix **comes in**, with the
+> touch-map amended below rather than silently widened.
+>
+> Outcome: `docs/migration/stage-a2-evidence.md`.
 
 These are recorded rather than resolved, so that whoever picks this up does not silently re-decide
 them. **1 and 2 change the shape of the work; 3–5 change its size.**

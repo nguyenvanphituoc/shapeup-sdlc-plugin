@@ -10,8 +10,9 @@ description: "Use this skill whenever the user wants to orchestrate a whole feat
 **Your first output must be a tool call, not a plan.** Everything you emit before the first tool
 call is narration, and a narrated run is a failed run (measured: 29% acceptance, 10 escaped
 defects, while reading like a clean success). `hooks/gate-zerowork.mjs` (Stop) blocks a session
-that dispatches this skill and leaves neither a receipt NOR a `Workflow` tool_use naming
-`shapeup-run` — loading these instructions is not running them.
+that **reached the orchestrator and left no receipt** — where "reached the orchestrator" means
+dispatching this skill or launching a `shapeup-*` Workflow, and the receipt is what
+`init-run.mjs` writes. Loading these instructions is not running them.
 
 **Step 1 — open the run.** Write the requirement to a file first, then pass the path — a
 multi-line requirement inlined into a shell argument is where this step goes wrong (measured: six

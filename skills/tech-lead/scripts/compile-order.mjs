@@ -325,7 +325,28 @@ export function compileOrder({
   slug, worker, mode = "orchestrated", operation, round, attempt,
   scope, tasks, decisions, digestedErrors, trialHistory, testCmd, payloadExtra, specDir, interaction,
 }) {
-  const suffix = round && attempt ? `r${round}-a${attempt}` : round ? `${operation}-r${round}` : operation;
+  // A build order's id carries its SCOPE. Without it, `r<round>-a<attempt>` is the same name for
+  // every scope in a round, so scope 2's order file overwrites scope 1's the moment it is compiled
+  // — measured on the kill/resume probe, where it made `orders/ minus results/` read EMPTY on a run
+  // that was re-dispatching a completed phase. The contract row watching that property therefore
+  // passed on the exact failure it exists to catch. `t0-verify.mjs`'s verdict artifacts have always
+  // been self-identifying this way (`r<R>-a<A>-t<T>.json`, `wx`-created); orders now match, so
+  // `orders/` is an audit trail of dispatches rather than a rolling buffer of the last one.
+  //
+  // The shape stays `<slug>/<suffix>`: every consumer splits on the FIRST "/" (ingest-result.mjs
+  // reads [0] as the slug and [1] as the file stem), and a scope id is already filename-safe
+  // because it is a scope contract's own basename.
+  // `scope` arrives as the PARSED contract object (the CLI reads the .md and embeds it), so the id
+  // comes from its own `scope_id` field; a caller that passes a path instead still works. The id is
+  // lowercased and stripped to the character class `work-order.schema.json` allows after the "/" —
+  // an order that cannot pass its own schema is refused before it is written, and a naming
+  // improvement must not be able to cause that.
+  const rawScopeId = scope && typeof scope === "object"
+    ? scope.scope_id
+    : (scope ? String(scope).split("/").pop().replace(/\.(md|json)$/, "") : null);
+  const scopeId = String(rawScopeId || "").toLowerCase().replace(/[^a-z0-9.-]/g, "-").replace(/^[^a-z0-9]+/, "");
+  const buildSuffix = round && attempt ? (scopeId ? `${scopeId}-r${round}-a${attempt}` : `r${round}-a${attempt}`) : null;
+  const suffix = buildSuffix || (round ? `${operation}-r${round}` : operation);
   const order = {
     schema_version: 1,
     order_id: `${slug}/${suffix}`,
