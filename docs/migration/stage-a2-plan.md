@@ -115,6 +115,26 @@ resumed leg. Mostly waiting.
 > not met and Stage B does not start. A second failure is a signal about the design, not about the
 > patch, and it should be treated as one.
 
+> **⟐ RAN 2026-08-11 — `kill-resume-probe: FAIL`, and the stop is in force.** Full record:
+> `docs/migration/stage-a2-evidence.md` §7. Two things are true at once and both matter:
+>
+> - **This stage's defect is fixed, and proven on a live ungraceful kill.** ORIENT's order and
+>   result are byte-identical across the SIGKILL, `status` moved through
+>   `orienting → building → evaluating`, the substrate pointer named the scope actually in flight,
+>   build orders no longer collide, and the resumed leg carried the killed run to
+>   `{"status":"shipped","verdict":"pass","rounds_used":2}`. Four of five completed phases survived
+>   untouched.
+> - **A different phase was re-dispatched.** `solution-architect` returned `status: "escalated"`
+>   with `artifacts: []` and never wrote `wiring-map.md`, so the artifact-gated fast-forward
+>   correctly re-ran WIRE. The defect is one layer up and is new: an escalated phase is recorded as
+>   complete, writes no artifact, and is therefore re-dispatched on every relaunch forever.
+>
+> The sentence above was written before the run and it decides this: **stop again.** The assertion
+> could be narrowed to make the run green — WIRE's re-dispatch is arguably correct behaviour — and
+> narrowing an assertion so the patch under test passes is the move this branch exists to refuse.
+> A third stage, scoped to "a phase's completion depends on its artifact, not on its result
+> record", is what makes G6 reachable. It is not planned here and it is not this stage's to decide.
+
 ---
 
 ## 4. File-touch map
