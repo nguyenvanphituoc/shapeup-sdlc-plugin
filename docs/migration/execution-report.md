@@ -9,6 +9,7 @@ Branch: `feat/workflow-orchestrator`. Executor: plan-executor skill.
 | 1 (2026-08-06) | `/Users/teo/…` | S0, S1 green. S2 committed WIP/UNVERIFIED at `ff80176`. Parked on session usage limit. |
 | 2 (2026-08-07) | `/Volumes/LibertyMobi/…` | Preflight re-derived state. Three defects found and fixed in S2's never-executed code (`d7fac48`). Blocked on S2's live runs — environment. |
 | 3 (2026-08-07) | `/Volumes/LibertyMobi/…` | **Both blockers cleared. `shapeup-run.js` executed for the first time.** A2 **GREEN**. A3 substantially green (2/2 gates crossed, final leg stopped by operator). Two further defects found — both only reachable by running it. |
+| 5 (2026-08-11) | `/Users/teo/…` | **Stage A2.** The fast-forward became a testable script, ORIENT was artifact-gated, every discarded courier outcome was closed (including every `ingest-result` call, in both workflow scripts), and **the probe was re-run**. Stage A's defect is **fixed and proven on a live ungraceful kill** — but the probe **FAILs again** on a different phase, so the ship gate is still shut. |
 | 4 (2026-08-10) | `/Volumes/LibertyMobi/…` | **Stage A of `remaining-stages-plan.md`.** Evidence file written, A5 arm + fixture landed, instrument tightened. The kill/resume probe ran for the first time and **FAILED** — a third execution-only defect, and this one is on the property the migration exists to buy. **S2's ship gate is not met; Stage B did not start.** |
 
 ---
@@ -19,17 +20,18 @@ In-tree at `2a134cd` (run 4): **19 PASS / 4 RED** against the *tightened* instru
 green at **1179 checks**. The last fresh-clone derivation remains run 3's — **1120 checks at
 `7c1b15e`** — and re-deriving it is Stage B's A6, not run 4's.
 
-**Restated at `5209df7` (2026-08-11), so the numbers above are not read as current.** `npm test` is
-green in-tree at **1328 checks**; the +149 is the merged day-2 ratchet work (`5209df7`), **not**
-migration work, and no acceptance row moved with it. The 19/4 derivation stands at `2a134cd` and has
-not been re-run since. The next unit of work is `docs/migration/stage-a2-plan.md`; `docs/migration/README.md`
-carries the one-page position.
+**Restated after run 5 (2026-08-11), so the numbers above are not read as current.** `npm test` is
+green in-tree at **1351 checks** (1328 before Stage A2; the 1179 → 1328 step was merged day-2 work,
+not migration work). The contract is **19 PASS / 4 RED**, and it is no longer read — it is executed:
+`node tools/contract-check.mjs` runs every row and prints the **gate before the count**. All four
+red rows are Stage B/C work sitting downstream of a shut gate. `docs/migration/README.md` carries
+the one-page position.
 
 | Stage | Status | Verified how |
 |---|---|---|
 | S0 — kill-switch spike (D1) | **GREEN — GO** | Re-derived run 3 in a fresh clone: 4/4 rows PASS |
 | S1 — `shapeup-build-round` | **GREEN** | Re-derived run 3 in a fresh clone: 5/5 rows PASS |
-| S2 — `shapeup-run` + thin skill | **SHIP GATE NOT MET** — A2 green, A3 substantially green, evidence written, **kill/resume probe FAILED** | Live runs; `stage2-evidence.md` §4 |
+| S2 — `shapeup-run` + thin skill | **SHIP GATE NOT MET** — and the reason changed at run 5. The ORIENT defect is fixed and proven on a live kill; the probe now fails because **an escalated phase is recorded as complete** and re-dispatched on every relaunch | `stage2-evidence.md` §4 (run 4) + `stage-a2-evidence.md` §7 (run 5) |
 | S3 — cutover, detectors, benchmark | **Not started** — A5's arm + fixture landed early (they repair a doc/code divergence, not a cutover step) | Blocked by the contract's ship-gate guardrail |
 
 Run 4 changed what the red rows *mean* twice over. Three S2 rows were greps for sections of
@@ -49,10 +51,10 @@ predates the probe run, so its A3 and A5 verdicts no longer hold and this table 
 |---|---|---|---|
 | A1 | Stage-0 kill-switch, all three checks | **GREEN** | `stage0-evidence.md`, `Decision: GO`, ≥2 quoted `deny` rows, cost labelled Sonnet |
 | A2 | Unattended run through `shapeup-run`, preset `ci` | **GREEN** | `{"status":"shipped","verdict":"pass",…}`; 9 orders / 9 results; exactly one `evaluate-r1` order |
-| A3 | Interactive, ≥2 gates via pause → decision → relaunch, nothing re-dispatched | **RED** | L1a and L1b crossed across 4 relaunches — but the kill/resume probe re-dispatched a completed ORIENT phase (`stage2-evidence.md` §4). *Was "substantially green" before the probe ran* |
+| A3 | Interactive, ≥2 gates via pause → decision → relaunch, nothing re-dispatched | **RED — cause changed at run 5** | ORIENT now survives a SIGKILL byte-identical, and the resumed leg reached `shipped`. It fails on WIRE: `solution-architect` escalated, wrote no `wiring-map.md`, and the pipeline recorded the phase complete anyway — so the artifact-gated fast-forward correctly re-runs it, forever (`stage-a2-evidence.md` §7.3) |
 | A4 | Scoped-lane loop prose deleted; `SKILL.md` ≤ ~150 lines | **GREEN as restated (Rev B)** | `wc -l SKILL.md` = **121**; the `--tiny`/pre-scope-contract lanes keep their prose loop by design and `SKILL.md` names the boundary |
 | A5 | `gate-zerowork` treats a `Workflow(shapeup-*)` launch as a dispatch; new fixture | **GREEN** *(was RED at `c469a6c`)* | Arm landed in Stage A; `tests/structural/17-gate-zerowork-workflow.mjs` exists; the contract's behavioural row returns `true` when run |
-| A6 | `npm test` green in-tree **and** in a fresh `git clone --local` | **PARTIAL** | In-tree green at 1328. Last clone-derived count is still **1120 at `7c1b15e`**; re-deriving it is Stage B's job |
+| A6 | `npm test` green in-tree **and** in a fresh `git clone --local` | **PARTIAL** | In-tree green at **1351**. Last clone-derived count is still **1120 at `7c1b15e`**; re-deriving it is Stage B's job |
 | A7 | Benchmark F2, Sonnet-matched, candidate n=3 vs control n=3 | **BLOCKED — deferred obligation (Rev B)** | `s3-feasibility.mjs`: C1/C2/C3 all NO. `sdd-harness-bench` is absent here, npm 404, GitHub 0 results (`8fe70bc`) |
 
 **A3 is the whole of the difference** between this table and the 2026-08-10 review. Everything the
@@ -315,15 +317,31 @@ the contract's own guardrail.
 
 ## The one thing to do next
 
-Fix `shapeup-run.js`'s ORIENT fast-forward and re-run the probe. Concretely:
+**All four items that used to stand here are done** (run 5): ORIENT is artifact-gated, both courier
+writes report their outcome, the regression fixture exists and is mutation-verified, and the probe
+was re-run. What replaced them is one defect, found by the re-run:
 
-1. Gate ORIENT on its artifacts, as WIRE and MAP SCOPES already are — the probe's own `facts` object
-   is one field short of being able to (`has_orient_artifacts`), and the branch's existing comment
-   already describes that design.
-2. Stop discarding the two courier results (`setRunStatus`, `writeActiveScope`). A non-zero
-   `exit_code` from either is a fact the run should act on, not a value to drop on the floor.
-3. Add the regression test: a fixture that a resumed run with `status: orienting` on disk and a full
-   `orient/` directory does not re-dispatch ORIENT.
-4. Re-run the kill/resume probe. `stage2-evidence.md` §4 documents the rig — scratch project, local
-   marketplace install from `npm pack`, `snapshot.mjs`, and the four assertions — so the re-run is a
-   repeat, not a rebuild.
+> **A phase whose worker ESCALATES is recorded as complete.** `shapeup-run.js` ingests the result
+> and moves to the next gate without inspecting `status`. Because such a phase writes no artifact,
+> the artifact-gated fast-forward — correctly — re-dispatches it on **every** relaunch, forever, and
+> each relaunch escalates again. Measured at run 5: `results/wire.json` reads
+> `status: "escalated"`, `artifacts: []`, and `shapeup/todo-kill/wiring-map.md` does not exist
+> after either leg.
+
+Concretely, for whoever picks this up:
+
+1. **Make completion depend on the artifact, not on the result record.** The phase branches already
+   read artifacts (`has_orient_artifacts`, `has_wiring_map`, `scope_files`); what is missing is
+   the check *after* a dispatch — a phase that returns without producing its artifact has not
+   completed, whatever its result says. `AGENTS.md`: progress is derived, never claimed.
+2. **Decide what an ESCALATE means to the outer pipeline.** The workflow deliberately does not
+   adjudicate mid-round ESCALATE (advisor-protocol is the prose path) — but *not adjudicating* is
+   not the same as *not noticing*. The minimum is a named stop: `{status:"aborted", aborted_at:"WIRE",
+   reason:"<the escalation>"}` beats a silent forever-loop.
+3. **Re-run the probe.** The rig is committed at `.plan-runs/wf-a2-probe/` — launch script, kill
+   script, snapshot, and the four assertions, self-tested in three directions. A repeat, not a
+   rebuild, and this time the rig survives the machine.
+
+**Not in that list, and deliberately:** narrowing assertion 1 so WIRE's re-dispatch stops counting.
+It is arguably correct behaviour, and that argument is exactly why the assertion must not move —
+a gate you widen because your own change failed it is not a gate.

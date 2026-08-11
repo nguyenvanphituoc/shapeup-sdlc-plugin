@@ -28,6 +28,16 @@ a contract violation, since S2's ship gate was never formally met.
 > ship gate S2 must clear. Stages B, C and D below stand unchanged and remain blocked behind it.
 > The stage-sequence table at the foot of this file is amended accordingly.
 >
+> **⟐ Second amendment, same day — A2 ran.** Its work is done and its central fix is proven on a
+> live ungraceful kill (`stage-a2-evidence.md` §7): ORIENT byte-identical across a SIGKILL, the
+> resumed leg shipping a killed run. **Its probe still returned FAIL**, on WIRE, because
+> `solution-architect` escalated without writing `wiring-map.md` and the pipeline recorded the phase
+> complete regardless — so the fast-forward correctly re-runs it, on every relaunch, forever.
+> **Stage A3** is therefore the gate now: *a phase's completion depends on its artifact, not on its
+> result record.* Two stages have now been inserted here rather than one, and each was inserted
+> because a test failed rather than because a plan was rewritten — that is the ratchet doing its
+> job, not the plan slipping.
+>
 > Everything else in this file is left as compiled. One-page position: `docs/migration/README.md`.
 
 ---
@@ -175,9 +185,11 @@ computed by the untightened instrument.
 
 ## Stage B — cutover paperwork and the dead-code decision
 
-**Depends on:** ⟐ **Stage A2 green (G1–G6 of `stage-a2-plan.md`)** — amended 2026-08-11. Stage A's
-R1–R6 are green and were never sufficient: the probe they record came back FAIL, so the gate moved
-to the stage that fixes it.
+**Depends on:** ⟐ **Stage A3** — amended 2026-08-11, *twice in one day, and the second time is the
+honest one.* Stage A's R1–R6 went green and were never sufficient; Stage A2 then fixed the defect
+those rows sat above and **proved it on a live ungraceful kill** — and its probe still returned FAIL,
+because a phase whose worker escalates is recorded as complete and re-dispatched on every relaunch.
+Stage B depends on whichever stage finally makes `kill-resume-probe: PASS` true. That is now A3.
 **Estimate:** ~2–3 h · **$0**
 **Exit artifact:** `docs/migration/stage3-evidence.md` (parts 1–4)
 **Rows:** R7, R8, R9, R10, R11
@@ -431,7 +443,8 @@ which B.4 promotes to shipped documentation rather than leaving here.
 | Stage | Wall clock | External $ | Gate |
 |---|---|---|---|
 | ~~**A** — close S2's ship gate~~ | ~2–3 h | $0 | **DONE 2026-08-10** — R1–R6 green, **probe FAIL → stop** |
-| ⟐ **A2** — fix the fast-forward, re-run the probe | ~6 h | $0 | **G1–G6 green, or stop again** (`stage-a2-plan.md`) |
+| ⟐ ~~**A2** — fix the fast-forward, re-run the probe~~ | ~6 h actual | $0 | **DONE 2026-08-11** — G1–G5, G7 green; the ORIENT defect fixed and proven on a live kill; **probe FAIL again → stop** |
+| ⟐ **A3** — a phase completes when its ARTIFACT exists, not when its result says so | ~2–3 h + a probe run | $0 | **`kill-resume-probe: PASS`, or stop a third time** |
 | **B** — cutover paperwork + dead code | ~2–3 h | $0 | R7–R11 green |
 | **C** — the fork | decision | $0 (C1) / $40–60 (C2) | PO decides; PO merges |
 | **D** — Phase 2, separate release | days | dev tokens | not part of this cutover |

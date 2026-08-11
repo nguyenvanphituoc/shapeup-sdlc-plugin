@@ -57,7 +57,8 @@ is the specific mis-navigation the instrument revision exists to end.
    `status: "escalated"` result and moves to the next gate without inspecting it, and because such a
    phase writes no artifact it is re-dispatched on every relaunch forever. Fix that, re-run the
    probe, and G6 is reachable.
-3. **Stage B** (`remaining-stages-plan.md`) unblocks only after G6.
+3. **Stage B** (`remaining-stages-plan.md`) unblocks only after `kill-resume-probe: PASS` — now
+   Stage A3's job, not A2's.
 4. **Stage C** is the money fork and does not run autonomously: A7 needs `sdd-harness-bench`, which
    is unobtainable here (`node .plan-runs/day2-rev5/s3-feasibility.mjs` — re-derive it, never trust
    this sentence).

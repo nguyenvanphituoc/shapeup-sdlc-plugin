@@ -1,5 +1,34 @@
 # Migration plan — extract the tech-lead orchestrator into a Workflow, executed in an isolated worktree
 
+> ## ⟐ Revision D — amended 2026-08-11 after the probe re-ran
+>
+> Revision C described Stage A2 as the work that would close the gate. **It ran, and the gate is
+> still shut — for a different reason, which is the whole content of this revision.**
+>
+> **Status at `aad7807`** — `npm test` green, **1351 checks**. Contract **19 PASS / 4 RED**, now
+> derived by executing it (`node tools/contract-check.mjs`, which prints the gate before the count).
+>
+> | Stage | State | Remaining |
+> |---|---|---|
+> | S0 · S1 | ✅ **GREEN** | — |
+> | S2 — `shapeup-run` + thin skill | 🔴 **SHIP GATE NOT MET** — `kill-resume-probe: FAIL` | **Stage A3 (unplanned):** a phase's completion must depend on its artifact, not on its result record; then re-run the probe |
+> | S3 — cutover, detectors, benchmark | ⛔ **blocked behind S2** | unchanged |
+>
+> **What Stage A2 proved, on a live ungraceful SIGKILL** — this is the migration's own product,
+> demonstrated for the first time: ORIENT's order and result **byte-identical** across the kill,
+> `status` moving `orienting → building → evaluating`, the substrate pointer naming the scope
+> actually in flight, build orders no longer colliding, and the resumed leg carrying the killed run
+> to `{"status":"shipped","verdict":"pass","rounds_used":2}` through an EVAL FAIL and a fix round.
+> **Four of five completed phases survived untouched.**
+>
+> **What it did not close.** The fifth phase, WIRE, was re-dispatched — correctly. Its worker
+> escalated and never wrote `wiring-map.md`, so the artifact-gated fast-forward re-ran a phase that
+> had never actually completed. **A3 stays RED and the cause has moved one layer up**: an escalated
+> phase is recorded as complete, writes no artifact, and is re-dispatched on every relaunch forever.
+> Invisible inside a single leg; only a resume shows it.
+>
+> Evidence: `docs/migration/stage-a2-evidence.md` §7. Position: `docs/migration/README.md`.
+>
 > ## ⟐ Revision C — amended 2026-08-11 at `5209df7`
 >
 > Revision B's remaining work was executed on 2026-08-10 as **Stage A** (`2a134cd`). Four of its
@@ -78,10 +107,10 @@ The migration is DONE when, on the worktree branch:
 |---|---|---|
 | A1 | Stage-0 evidence shows all three kill-switch checks passed | `docs/migration/stage0-evidence.md` + `decisions.jsonl` rows quoted in it |
 | A2 | An **unattended** run of a real feature completes through `shapeup-run` (preset `ci`), verdict recorded, zero orchestration prose between gates | run transcript + `.shapeup/<slug>/` artifacts + `REPORT.md` |
-| A3 | An **interactive** run completes with ≥2 gates crossed via pause → PO decision → relaunch fast-forward, and nothing re-dispatched (orders/results set difference empty on relaunch) | run transcript + `docs/migration/stage2-evidence.md`. ⟐ **Rev C: RED at `2a134cd`** — L1a and L1b were crossed across four fresh-session relaunches with the redone-work set empty, but the kill/resume probe **re-dispatched a completed ORIENT phase** and re-ingested its result (`stage2-evidence.md` §4). The set-difference clause in this very row is what fails. Note that the row's own wording — *orders/results set difference empty* — **passed on the failing run**, because a build order carries no scope id and scope 2's order overwrote scope 1's; assert over T0 verdict artifacts instead |
+| A3 | An **interactive** run completes with ≥2 gates crossed via pause → PO decision → relaunch fast-forward, and nothing re-dispatched (orders/results set difference empty on relaunch) | ⟐ **Rev D: still RED, different cause.** The ORIENT defect below is fixed and proven on a live kill; A3 now fails because an ESCALATED phase is recorded as complete and re-dispatched forever (`stage-a2-evidence.md` §7.3). — run transcript + `docs/migration/stage2-evidence.md`. ⟐ **Rev C: RED at `2a134cd`** — L1a and L1b were crossed across four fresh-session relaunches with the redone-work set empty, but the kill/resume probe **re-dispatched a completed ORIENT phase** and re-ingested its result (`stage2-evidence.md` §4). The set-difference clause in this very row is what fails. Note that the row's own wording — *orders/results set difference empty* — **passed on the failing run**, because a build order carries no scope id and scope 2's order overwrote scope 1's; assert over T0 verdict artifacts instead |
 | A4 | ⟐ **Rev B.** No *scoped-lane* loop prose survives; `SKILL.md` ≤ ~150 lines; `shapeup-run.js`/`shapeup-build-round.js` are the only normative home **for specs with committed scope contracts**. The `--tiny` and pre-scope-contract lanes keep their prose loop by design, and `SKILL.md` names the boundary | `wc -l SKILL.md` (**121 at `c469a6c` ✅**); `SKILL.md` routes the excepted lanes explicitly (`:50-55`); `round-protocol.md` states the same split (`:11-22`) |
 | A5 | `gate-zerowork.mjs` blocks a session that launches the skill and never invokes the Workflow (new predicate arm), and still defers on non-harness sessions | new unit fixture in `tests/` + `npm test`. ⟐ **Rev B: RED at `c469a6c`** — `hooks/gate-zerowork.mjs:66` has no `Workflow` in `WORK_TOOLS`, `:69-74` matches `Skill(tech-lead)` only, **while `SKILL.md:12-14` already tells operators the arm exists**. Closing A5 repairs that divergence. ⟐ **Rev C: GREEN at `2a134cd`** — the arm shipped, `tests/structural/17-gate-zerowork-workflow.mjs` exists and is mutation-verified both ways, and the contract's behavioural row (a `node -e` import asserting `dispatchedOrchestrator` returns `true` on a synthetic `Workflow` event) passes when run |
-| A6 | `npm test` green in the worktree AND in a fresh `git clone --local` of the branch (the repo's own clone discipline) | clone + `npm test` output pasted in stage evidence. ⟐ **Rev B:** in-tree green at 1168; last clone-derived count was 1120 at `7c1b15e` — **must be re-derived at the final commit**. ⟐ **Rev C:** in-tree green at **1328** (`5209df7`); the clone figure is unchanged at 1120 and is still Stage B's job |
+| A6 | `npm test` green in the worktree AND in a fresh `git clone --local` of the branch (the repo's own clone discipline) | clone + `npm test` output pasted in stage evidence. ⟐ **Rev B:** in-tree green at 1168; last clone-derived count was 1120 at `7c1b15e` — **must be re-derived at the final commit**. ⟐ **Rev C:** in-tree green at **1328** (`5209df7`); the clone figure is unchanged at 1120 and is still Stage B's job. ⟐ **Rev D:** in-tree **1351** |
 | A7 | Benchmark F2 cell, **model-matched on Sonnet 5**: candidate arm (workflow lane, n=3) vs control arm (v1.6.x prose lane, n=3). Absolute bar: 3× 14/14 oracle, 0 narrated, receipts present. Comparative bar: candidate ≥ control on acceptance, ≤ control on wall clock. The historical Haiku rows are NOT the baseline — models must match | ⟐ **Rev B — DEFERRED OBLIGATION, not a gate.** The instrument is unobtainable here (3 blockers, §6). A7 converts to an obligation with a named trigger: **the first run on a machine that holds `sdd-harness-bench`**. `stage3-evidence.md` MUST record the unobtainability as a finding — "A7 passed" must not be reachable by grep. See §6 |
 
 ⟐ **Rev B — acceptance-instrument notes.** Two rows in `execution-contract.md` pass without the work
@@ -442,6 +471,17 @@ instead: the rollback story must state that pinning reverts more than this migra
 ---
 
 ## ⟐ Amendment log
+
+**Revision D — 2026-08-11, after the probe re-ran.** Author: the Stage A2 run
+(`docs/migration/stage-a2-evidence.md` §7). Revision C planned the work; this records what running
+it produced, including the part that did not go to plan.
+
+| § | Change | Cause |
+|---|---|---|
+| Header | Revision D banner: what A2 proved on a live kill, and what it did not close | The probe re-ran and returned FAIL on a different phase |
+| A3 | RED → **still RED, cause moved** | ORIENT byte-identical across a SIGKILL; WIRE re-dispatched because its worker escalated and wrote no artifact |
+| A6 | 1328 → **1351** | Stage A2's fixtures |
+| S2 "Remaining" | A2.1–A2.4 → **Stage A3**: completion must depend on the artifact, not the result record | The defect the probe exposed |
 
 **Revision C — 2026-08-11, at `5209df7`.** Author: the Stage A run itself
 (`docs/migration/stage2-evidence.md`, `docs/migration/execution-report.md` run 4). Revision B
