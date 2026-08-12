@@ -3,7 +3,7 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] — the orchestrator cutover
+## [1.7.0] — unreleased · the orchestrator cutover
 
 **The tech-lead's round loop stops being prose a model follows and becomes code a runtime runs.**
 On a spec with committed `scopes/*.md`, `/ship` now hands the whole pipeline — ORIENT → L1a →
@@ -11,8 +11,9 @@ ANALYZE → WIRE → L1a.5 → MAP SCOPES → L1b → rounds of BUILD/L2/EVAL �
 `Workflow` launch (`skills/tech-lead/workflows/shapeup-run.js`). `SKILL.md` is a 122-line shell
 that holds the L0 intake conversation, launches, and branches on what comes back.
 
-*Version number deliberately unset: the release tag, the manifest bump and the merge are the PO's
-move. Pin target below is the last published release, **1.6.3**.*
+*`1.7.0` is the target, not a shipped fact: `package.json` and `.claude-plugin/plugin.json` still
+read **1.6.3** and are stamped at release, because the tag, the manifest bump and the merge are the
+PO's move. Pin target for a rollback is the last published release, **1.6.3**.*
 
 **The four decisions this implements** (PO decision record, 2026-08-06 —
 `docs/workflow_extraction_review.md` §6):

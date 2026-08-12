@@ -4,9 +4,26 @@
 moments. This file says which of them is current, and what the position actually is today. It is
 updated whenever the position changes; everything else is left as the dated record it is.
 
-**Position, 2026-08-12, at `c4735c0` — re-derived by running the instruments, not by reading them:**
+**Position, 2026-08-12, after Stage B — re-derived by running the instruments, not by reading them:**
 
-- **S0 GREEN · S1 GREEN · S2 SHIP GATE MET · S3 unblocked, not started.**
+- **S0 GREEN · S1 GREEN · S2 SHIP GATE MET · S3 — Stage B GREEN, Stage C is the PO's fork.**
+- **The acceptance contract is 23 PASS / 0 RED above `GATE MET`.** Every row green for the first
+  time on this branch. `npm test` green in-tree at **1363** and — the row that had never been
+  re-derived — in a fresh `git clone --local` at **1221**, exit 0. A6 is PASS, not PARTIAL.
+- **Stage B's five rows R7–R11 are closed** (`stage3-evidence.md`). `shapeup-build-round.js` is
+  deleted and all **four** of its assertions moved in one commit — the plan named three; the fourth
+  (`17-gate-zerowork-workflow.mjs:70`) used the filename in a synthetic event that never touches
+  disk, so deletion would have left it green while asserting something false. The cutover CHANGELOG
+  entry, `docs/upgrading.md`, and both commands now describe what shipped.
+- ⟐ **Two instruments were found unfalsifiable while running them, both fixed.** R7's own verifier
+  `grep -q '1.7'` passed on `107`/`127`/`137` in unrelated entries while the literal appeared zero
+  times; and `gates.md` still told operators `SKILL.md` carried the build/eval loop it had not
+  carried since Stage 2. Neither was reachable by reading — only by execution.
+- **What Stage B did NOT buy:** the degenerate inner-breaker branch (`shapeup-run.js:774`) still has
+  never run. Its sibling branch — the one AGENTS.md's invariant is actually about — is demonstrated
+  live by A3's leg 2. See `stage3-evidence.md` §3; this is the half of B.1's cost that went unpaid.
+- **A7: DEFERRED.** Obtainable on this machine (C1/C2 clear; C3 belongs to the day-2 plan, not to
+  A7's arms) and gated only on the PO's ~$40–60 spend decision at Stage C.
 - **The kill/resume probe PASSES** — `stage-a3-evidence.md` §4, `kill-resume-probe: PASS`, all four
   assertions, on a live ungraceful `SIGKILL` mid-BUILD. It is the one test of the failure class this
   whole migration exists to retire, it failed twice (Stage A, Stage A2), and it is graded by an
@@ -29,16 +46,24 @@ updated whenever the position changes; everything else is left as the dated reco
   this branch keeps catching. **Nothing is merged, tagged, or published** — that remains the PO's
   move after Stage C, and the push is theirs to ask for.
 
-**Numbers, and what they are not.** Both re-derived on 2026-08-12 at `c4735c0` by execution:
-`npm test` is green in-tree at **1363 checks** (1351 after Stage A2; 1328 before it; 1179 at the
-Stage A commit `2a134cd`, where the differences are merged day-2 work rather than migration work).
-The acceptance contract reads **19 PASS / 4 RED** above **GATE MET**, from
-`node tools/contract-check.mjs` — all four reds are Stage B/C rows (the CHANGELOG cutover entry,
-`commands/build.md`, and `stage3-evidence.md` twice), none of which has started. *That row count is
-not the ship gate* — for three runs all six S2 rows were green above a **failed** probe, because the
-rows prove the evidence file was written and machine-readable, never that the probe passed. Reading
-19/23 as "nearly done" is the specific mis-navigation the instrument revision exists to end; the
-gate line above the count is what moved, and it moved because a run passed.
+**Numbers, and what they are not.** All re-derived on 2026-08-12 by execution: `npm test` green
+in-tree at **1363** (1351 after Stage A2; 1328 before it; 1179 at the Stage A commit `2a134cd`,
+where the differences are merged day-2 work rather than migration work), green in a fresh clone at
+**1221**, and `node tools/contract-check.mjs` printing **23 PASS / 0 RED** under **GATE MET**.
+
+*The row count was never the ship gate, and that matters more now that it is full.* For three runs
+all six S2 rows were green above a **failed** probe — the rows prove the evidence file was written
+and machine-readable, never that the probe passed. 23/23 means every acceptance row this contract
+knows how to ask has been answered; it does not mean the migration is finished. **A7 has not run**,
+so the only cost figure in hand is still Stage 1's single trivial feature, and one branch of the
+inner breaker has never executed. Read the gate line, then `stage3-evidence.md` §6.
+
+**The 1221 is the more interesting number.** In-tree green has never transferred on this branch, and
+the 142-check gap against 1363 is now located rather than noted: all of it is `48-day1-day2.mjs`
+reading `evals/runs/`, which is gitignored by design (`.gitignore:29-48` — the instrument is
+committed, the 2.3 MB of run records it produces is not). Every other module runs identically. The
+enforced floor is `880+`, so the clone clears it; `README.md:344`'s advertised `1250+ checks` does
+not, and is a one-line fix left outside this stage's touch map.
 
 ---
 
@@ -51,10 +76,11 @@ gate line above the count is what moved, and it moved because a run passed.
 | **`stage-a3-plan.md`** | **CURRENT** — the plan A3 executed | The two composing findings (artifact-less completion; WIRE before `analyze`), G1–G8 |
 | **`stage-a2-evidence.md`** | **CURRENT** — what A2 delivered | G1–G7 status, the mutation transcript (including the two mutations that survived and forced code changes), and what is *not* demonstrated |
 | **`stage-a2-plan.md`** | **CURRENT** — the plan A2 executed | The acceptance contract (G1–G7), the four sub-stages, and the five decisions, all taken 2026-08-11 |
-| **`execution-contract.md`** | **CURRENT** — the instrument | The 23 acceptance rows, the four replaced in Stage A, the re-derived 19/4 |
+| **`stage3-evidence.md`** | **CURRENT** — Stage B's exit artifact | R7–R11 green, the four assertions B.1 moved, the mutation transcript, A6's located 142-check clone gap, `A7: DEFERRED`, and **§6 — what Stage B did not buy** |
+| **`execution-contract.md`** | **CURRENT** — the instrument | The 23 acceptance rows, the four replaced in Stage A, the S1 row Stage B replaced, and the re-derived **23/0** |
 | **`stage0-evidence.md`** · **`stage1-evidence.md`** | **CURRENT** — closed stages | S0's GO decision; S1's cost arms (candidate $2.010 vs control $1.461) |
 | **`stage2-evidence.md`** | **CURRENT** — S2, gate now met | A2/A3 transcripts, the two execution-only defects, and **§4** — whose status line now reads `PASS`, above the two failure records it preserves unedited |
-| `remaining-stages-plan.md` | **PARTLY SUPERSEDED** | Stages B, C, D stand. Its Stage A ran and its ship gate failed; **Stage A2 now sits between A and B** |
+| `remaining-stages-plan.md` | **PARTLY SUPERSEDED** | **Stage B has now run too** — C and D stand. Its Stage A ran and its ship gate failed; A2 and A3 sit between A and B; its R7 row carried an unescaped-dot false pass, fixed in place |
 | `status-review-2026-08-10.md` | **HISTORICAL SNAPSHOT** — headline refuted | Still-live analysis: the A4 restatement, A7's unobtainability, the do-not-do list. Its "stalled as paperwork" framing is dead |
 | `stages-visual.md` | **HISTORICAL SNAPSHOT** — figures at `c469a6c` | The stage-by-stage figures. Its Stage A panels describe work that has since run |
 | `../workflow_migration_plan.md` | **DESIGN AUTHORITY** + amendment log | A1–A7, the touch-map, D1–D4. Read the ⟐ Rev B/C annotations, not the un-annotated body |
@@ -67,20 +93,22 @@ gate line above the count is what moved, and it moved because a run passed.
 2. ~~**A2.1 → A2.4**, then **A3.1 → A3.6**~~ **done. The probe PASSES** — the escalated-phase defect
    is closed (a phase completes only when its artifact exists) and so is its cause (`analyze` runs
    before WIRE). G1–G8 all met.
-3. **← YOU ARE HERE. Stage B** (`remaining-stages-plan.md`), ~2–3 h, $0, on this machine today.
-   Five rows, R7–R11, in the order the plan gives them: **B.1** resolve `shapeup-build-round.js`
-   (delete + amend `16-workflows.mjs` **and** the S1 contract row **and** re-point Stage 1's negative
-   probe at `shapeup-run.js:593` — that re-pointing, not the deletion, is the item's real cost);
-   **B.2** confirm-only on `round-protocol.md`; **B.3** `commands/{build,ship}.md`; **B.4** the
-   CHANGELOG cutover entry + `docs/upgrading.md`; **B.5** A6, the fresh-clone `npm test` (last
-   clone-derived figure is **1120 at `7c1b15e`**; in-tree is 1363 and in-tree green does not
-   transfer). Exit artifact: `docs/migration/stage3-evidence.md`.
-4. **Stage C** is the money fork and does not run autonomously. ⟐ **Corrected 2026-08-11: A7 is
-   obtainable here.** `sdd-harness-bench` is present (`14e4479`, adapter + runner + `f2-budgets` +
-   240 result rows). `s3-feasibility.mjs` still exits 4, but its only failing check (C3) is about
-   the **day-2 plan's** pre-fix build `a280e86` — not about A7's arms, which are both modern builds.
-   A7 is therefore **unstarted, not blocked**, and gated only by the ship gate above it and the PO's
-   ~$40–60 spend decision.
+3. ~~**Stage B**, five rows R7–R11.~~ **Done, 2026-08-12** — `stage3-evidence.md`, contract 23/23.
+   B.1 deleted `shapeup-build-round.js` and moved four assertions (not the three the plan named);
+   B.2 confirmed two of three checks and fixed the third (`gates.md` named the wrong home for the
+   build/eval loop); B.3 and B.4 landed the commands, the cutover entry and `upgrading.md`; B.5
+   re-derived A6 in a fresh clone at **1221**, exit 0. The one item **not** paid: B.1's negative
+   probe was re-pointed on paper and half-demonstrated — the branch AGENTS.md's invariant is about
+   is live from A3's leg 2, the degenerate `:774` branch has never run (`stage3-evidence.md` §3).
+4. **← YOU ARE HERE. Stage C** — the money fork, and the first item on this list that is not the
+   executor's to take. It does not run autonomously. ⟐ **Re-derived 2026-08-12 by running
+   `s3-feasibility.mjs`: A7 is obtainable here.** `sdd-harness-bench` is present at
+   `/Users/teo/workspace/sdd-harness-bench` — C1 **yes**, C2 **yes**. The script still reports
+   blocked, but its one failing check (C3) is about the **day-2 plan's** pre-fix build `a280e86`
+   predating `gate-answers.mjs`/`budget-check.mjs` — not about A7's arms, which are both modern
+   builds. A7 is **unstarted, not blocked**, and gated only on the PO's ~$40–60 spend decision.
+   C1 (ship, defer A7) is the plan's recommendation; `stage3-evidence.md` already records
+   `A7: DEFERRED` with the blocker codes, so that arm needs no further executor work.
 
 ## Standing guardrails
 

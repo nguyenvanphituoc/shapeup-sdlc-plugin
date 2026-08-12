@@ -66,7 +66,7 @@ would satisfy. A row that cannot fail is worse than no row.
 | **R4** | `gate-zerowork` treats a `Workflow(shapeup-*)` tool_use as a dispatch | `node -e` importing `dispatchedOrchestrator` and asserting `true` on a synthetic Workflow event — a **behavioural** assertion, not a grep |
 | **R5** | A5's unit fixture exists as its own file and the suite grew | new `tests/structural/NN-gate-zerowork-workflow.mjs`; `npm test` count **> 1168** |
 | **R6** | The two false-passing rows are replaced in `execution-contract.md` | `! grep -q 'grep -qi pin CHANGELOG.md'` and `! grep -q "grep -rqli 'gate-zerowork' tests/"` |
-| **R7** | The cutover CHANGELOG entry states the rollback in its own words | `grep -q 'no in-tree prose lane'` **and** `grep -q '1.7'` |
+| **R7** | The cutover CHANGELOG entry states the rollback in its own words | `grep -q 'no in-tree prose lane'` **and** `grep -qF '1.7'` — ⟐ **the `F` added 2026-08-12 (Stage B).** As written the dot was a wildcard, so the row passed on `107`, `127` and `137` in unrelated entries while the literal `1.7` appeared **zero** times in the file. Same class as the four rows the instrument revision replaced, one document over |
 | **R8** | The headless-truncation hazard ships as documentation | `grep -q 'CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS' docs/upgrading.md` |
 | **R9** | Both commands instruct the Workflow launch | `grep -qi workflow commands/build.md` **and** `commands/ship.md` |
 | **R10** | `shapeup-build-round.js` is resolved — deleted, or documented as a live second entry point | XOR: `! test -f skills/tech-lead/workflows/shapeup-build-round.js` **or** `grep -q 'shapeup-build-round' skills/tech-lead/SKILL.md` |
@@ -192,6 +192,15 @@ computed by the untightened instrument.
 ---
 
 ## Stage B — cutover paperwork and the dead-code decision
+
+> ⟐ **EXECUTED 2026-08-12. Evidence: `docs/migration/stage3-evidence.md`.** R7–R11 all green;
+> `contract-check.mjs` reads **23 PASS / 0 RED** under `GATE MET`. Read the evidence rather than
+> this section for what happened — four things below turned out to be wrong or incomplete, and each
+> is corrected at its own item: the file was asserted in **four** places, not three; both line
+> numbers B.1 cites had drifted; B.2's "confirm, do not re-execute" found one check that could not
+> be confirmed; and **R7's own verifier above could not fail** (unescaped dot, now `grep -qF`). The
+> half of B.1 that went unpaid — the degenerate inner-breaker branch, never run — is §3 and §6 of
+> the evidence, not a footnote.
 
 **Depends on:** ⟐ **Stage A3** — amended 2026-08-11, *twice in one day, and the second time is the
 honest one.* Stage A's R1–R6 went green and were never sufficient; Stage A2 then fixed the defect
