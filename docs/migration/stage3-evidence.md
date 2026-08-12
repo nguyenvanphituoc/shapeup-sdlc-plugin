@@ -11,8 +11,15 @@ that actually shipped. The stage runs **only because A3's probe passed** — `ki
 stage-b: PASS
 rows: R7 PASS · R8 PASS · R9 PASS · R10 PASS · R11 PASS
 A6: PASS — clone-derived 1221 checks, exit 0
-A7: DEFERRED
+A7: FAIL
+arm-candidate: sdd-harness-bench/results/a7/candidate.log @ 8c0c868
+arm-control: sdd-harness-bench/results/a7/control.log @ f2889e2
 ```
+
+⟐ **Stage C ran on 2026-08-12 and A7 with it. `A7: DEFERRED` above became `A7: FAIL`** — see §7.
+The candidate arm did not clear the absolute bar (3× 14/14 with receipts present; it went 1 of 3),
+and the comparative arm is **void as a test of this migration's thesis**: `shapeup-run.js` never
+executed in any rep, so the workflow lane was never measured. Both facts are in §7.6.
 
 Baseline entering the stage, both re-derived by execution at `c4735c0`: `npm test` green in-tree at
 **1363 checks**; `contract-check.mjs` printing `GATE MET` above **19 PASS / 4 RED**.
@@ -334,3 +341,157 @@ The four rows that were red are the four Stage B was written to close: the CHANG
 (R7), `commands/build.md` (R9), and `stage3-evidence.md` twice (this file). No closed stage went red
 in the process — the specific outcome the `execution-contract.md` amendment of 2026-08-12 was
 written to prevent, and the reason B.1 moved four assertions in one commit instead of one.
+
+---
+
+## 7. Stage C — the fork, and A7 run
+
+**Run 8, 2026-08-12.** The plan calls Stage C "PO decision, not executor work". The fork itself is,
+and it was put and answered — **C2, run A7 now**. But two things had to be repaired before it could
+honestly be put, and both were found by running instruments rather than reading them.
+
+### 7.1 — The fork rested on a refuted premise
+
+Both plan documents told the reader A7 was unobtainable here; the design authority said
+**"BLOCKED ON THIS MACHINE. Do not attempt; do not substitute."** Re-derived by execution:
+
+```
+node .plan-runs/day2-rev5/s3-feasibility.mjs      # exit 4
+  yes  C1  benchmark repository present at its recorded path   /Users/teo/workspace/sdd-harness-bench
+  yes  C2  benchmark reachable anywhere on this machine        /Users/teo/workspace/sdd-harness-bench
+  NO   C3  adapter prerequisites present at pre-fix build a280e86
+```
+
+C1/C2 are clear — the "npm 404, global GitHub 0 results" record (`8fe70bc`) described a different
+machine. C3 is **not about A7**: it asks whether the *day-2 plan's* pre-fix build `a280e86` carries
+`gate-answers.mjs`/`budget-check.mjs`. It does not and never will.
+
+The sharper point: §4 item 5 named `s3-feasibility.mjs` **exiting 0** as the trigger that reopens
+A7. That trigger **can never fire**, because C3 is permanently NO for a reason unrelated to A7.
+Waiting for it was waiting forever. The top-of-file A7 correction banner had said A7 was obtainable
+since 2026-08-11 while §4 went on saying the opposite — a status inherited across documents rather
+than re-derived, which is the class of error this branch keeps catching in itself.
+
+### 7.2 — R12 took a claim for a measurement
+
+§6 asked for one audit pass over the stage-plan row table before Stage C leaned on it. R12 is the
+row Stage C leans on. Mutated in five directions:
+
+| mutation | R12 | correct? |
+|---|---|---|
+| M1 status line deleted | RED | ✅ |
+| M2 prose "A7 passed — the benchmark went green" | RED | ✅ ("passed" unreachable, as specified) |
+| M3 `DEFERRED` kept, feasibility citation stripped | RED | ✅ |
+| M4 file emptied | RED | ✅ |
+| **M5 bare flip to `A7: PASS`, no run logs** | **PASS** | ❌ |
+
+The `DEFERRED` arm carried an evidentiary burden; the `PASS`/`FAIL` arm carried none, so the
+disposition this whole stage exists to record was reachable by typing it. R12 now requires
+`^arm-candidate:` and `^arm-control:` lines naming each run log by path and pinning each build by
+commit. **R1–R11 were audited in the same pass: all green.**
+
+### 7.3 — The two arms
+
+| arm | lane | build tag | files | commit |
+|---|---|---|---|---|
+| **candidate** | Workflow (`shapeup-run.js` present) | `v1.6.3+bde89a1bf91d` | 138 | `8c0c868` |
+| **control** | prose (no `workflows/` dir; 459-line `SKILL.md`) | `v1.6.3+a497a068665b` | 135 | `f2889e2` (tag `v1.6.3`) |
+
+Verified, not assumed: the control tree has **no `skills/tech-lead/workflows/` directory at all**,
+and its `SKILL.md` is 459 lines against the branch's 122.
+
+⟐ **Both builds report version `1.6.3`** — the branch never bumped. The record already held a
+*third* `1.6.3` build (`3864b1d09f71`) with materially different receipt behaviour, so this is not
+hypothetical: only `buildTag`'s shipped-surface hash keeps these arms apart. Rows are additionally
+self-labelled via `BENCH_ARM`. Contamination checked: `docs/` ships zero files, and the untracked
+`.claude/workflows/summarize-changes.js` is not in the pack.
+
+### 7.4 — Model: Sonnet 5, off-MUT, deliberately
+
+The runner enforces one model under test — `claude-opus-5` (PROTOCOL.md §6, amended 2026-08-11) —
+and refuses others without the loud `BENCH_ALLOW_MODEL` hatch. A7 was pre-registered on **Sonnet 5**
+and Sonnet is what ran, because:
+
+1. A7's bars are **within-pair**, so MUT compliance buys no internal validity.
+2. `cost_usd` is a recorded field, and the number A7 exists to test — Stage 1's **+37.6%** — is
+   Sonnet-matched. On opus it would be comparable to nothing.
+3. There are **zero** opus rows in the 240-row record (93 sonnet-5, 147 haiku-4.5).
+4. D5's floor is "Sonnet or higher".
+
+**These rows are off-MUT and are not comparable to future opus-scoped MUT rows.**
+
+### 7.5 — What A7 measured, and what it did not
+
+**`shapeup-run.js` executed ZERO times, in every rep of the candidate arm.** Every `Workflow` tool
+call was denied by the client — `Review dynamic workflow before running` — and no rep fell back to
+running the script through Bash either (Bash invocations of `shapeup-run.js`: 0 in every rep).
+
+Reproduced outside the benchmark, minimally, on a trivial three-line workflow script:
+
+| `--permission-mode` | `Workflow` result |
+|---|---|
+| `acceptEdits` (the bench's uniform mode, `session.mjs:56`) | **denied** — "requires interactive confirmation that isn't available in this session" |
+| `bypassPermissions` | **launches**, returns `{"ok":true}` |
+
+So the lane is not broken; it **cannot start headlessly without `bypassPermissions`**, and the
+plugin says so nowhere: there is no `Workflow` permission string anywhere in the repository,
+`npx shapeup-sdlc init` writes Bash allowances only, and `docs/upgrading.md` documents only
+`CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS` for headless runs.
+
+**The candidate arm therefore measured the harness's fallback when its own lane is unavailable, not
+the lane.** The comparative bar below is a real comparison — thin `SKILL.md` + improvised
+orchestration versus the fat prose orchestrator — but it is **not** this migration's thesis, and it
+must not be read as one.
+
+⟐ **And rep 1 is the failure mode AGENTS.md says the runtime prevents.** `Skill(tech-lead)` was
+dispatched, no receipt was written, and `gate-zerowork` **allowed** the Stop:
+`"37 work calls — the session did work by other means"`. The invariant reads *"a session that
+dispatched the orchestrator and left no receipt is blocked at Stop"*. The work-by-other-means escape
+hatch swallows exactly the case the gate exists for, and the run scored 14/14 while reading like a
+clean run.
+
+### 7.6 — Results
+
+```
+A7: FAIL
+```
+
+| arm | rep | status | acceptance | escaped | receipt | wall (s) | cost |
+|---|---|---|---|---|---|---|---|
+| candidate | 1 | `harness_unreachable` | (14/14 oracle, **not scored**) | 0 | ✗ | 611 | $3.402 |
+| candidate | 2 | ok · gate L4 | **100%** | 0 | ✓ | 1807 | $8.606 |
+| candidate | 3 | ok · gate L1a | 28.6% | 10 | ✓ | 1352 | $3.939 |
+| control | 1 | ok · gate H · `shipped_nothing` | 28.6% | 10 | ✓ | 1927 | $10.936 |
+| control | 2 | ok · gate L1a · `shipped_nothing` | 28.6% | 10 | ✓ | 1200 | $2.997 |
+| control | 3 | **`timed_out`** at the 2700 s cap | — | — | ✓ | *0 recorded* | *$0 recorded* |
+
+**Absolute bar — 3× 14/14, 0 narrated, receipts present: candidate FAILS (1 of 3).** Rep 1 produced
+a perfect artifact with no receipt; rep 3 shipped 4/14 with 10 escaped defects. *The control fails
+it too (0 of 3)* — which is a finding about this cell, not a defence of the candidate.
+
+**Comparative bar.** Candidate ≥ control on acceptance: **yes** — 64.3% vs 28.6% mean over scored
+reps, and 10 escaped defects against the control's 20. Candidate ≤ control on wall clock:
+**not established** (see the caveat).
+
+⟐ **Arm totals must not be compared.** The control's timed-out rep burned a real 2700 s and is
+recorded as `wall_clock_s: 0, cost_usd: 0`. Totals ($15.947/3769 s candidate vs $13.933/3127 s
+control) therefore understate the control on both axes. Per **scored** rep: candidate 1580 s /
+$6.27, control 1564 s / $6.97 — level on time, candidate ~10% cheaper.
+
+**On Stage 1's +37.6%:** it did not reproduce. Per scored rep the candidate came in *below* the
+control on cost. But n=2 vs n=2, on a cell where four of six reps failed the absolute bar, is far
+too weak to retire the Stage 1 figure — it is not refuted, it is unreplicated.
+
+### 7.7 — What Stage C did NOT buy
+
+- **The migration's thesis is still untested.** The workflow lane has never been measured against
+  the prose lane, because it cannot start under the benchmark's uniform permission mode. Doing so
+  needs **both** arms re-run under `bypassPermissions` (uniformity is the rule) — another 6 reps.
+- **The absolute bar failed on both arms**, so this cell says as much about f2-budgets under Sonnet
+  as about either lane.
+- **A7's own bars are not sensitive to the thing that broke.** `receipt.json` is satisfied by an
+  agent emulating the pipeline by hand (candidate rep 2 did exactly that and scored). The
+  run-evidence check cannot distinguish "the lane ran" from "the lane was imitated".
+
+arm-candidate: sdd-harness-bench/results/a7/candidate.log @ 8c0c868
+arm-control: sdd-harness-bench/results/a7/control.log @ f2889e2

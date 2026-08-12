@@ -566,6 +566,24 @@ it produced, including the part that did not go to plan.
 | A6 | 1328 → **1351** | Stage A2's fixtures |
 | S2 "Remaining" | A2.1–A2.4 → **Stage A3**: completion must depend on the artifact, not the result record | The defect the probe exposed |
 
+### ⟐ Revision F (2026-08-12) — Stage C ran, and A7 answered a different question than it asked
+
+Author: the Stage C run (`docs/migration/stage3-evidence.md` §7). Revision E unblocked Stage B;
+this records the fork being taken and the benchmark being bought.
+
+| § | Change | Cause |
+|---|---|---|
+| §4 item 5 | "BLOCKED ON THIS MACHINE. Do not attempt." → **struck; A7 is obtainable here** | `s3-feasibility.mjs` re-run: C1 yes, C2 yes. Its only failing check (C3) belongs to the day-2 plan, so the "exit 0" trigger this item named could **never fire** |
+| §6 Stage C | table restated; C2 is "run A7 here, now" | the machine the C2 column waited for turned out to be this one |
+| A7 | deferred obligation → **`A7: FAIL`** | ran 2026-08-12, six reps, $29.88. Candidate 1 of 3 on the absolute bar; control 0 of 3 |
+| §5 abort path | dormant → **LIVE: the merge waits** | not the benchmark-regression clause as written (the candidate beat the control on acceptance) but **HD-007**: the post-cutover lane cannot start headlessly |
+| §7 falsifier | unrefuted at scale → **unreplicated** | Stage 1's +37.6% did not reproduce (candidate ~10% cheaper per scored rep), but n=2 vs n=2 with 4 of 6 reps failing the bar settles nothing |
+
+**The finding that outranks the numbers:** `shapeup-run.js` executed **zero** times across every
+rep. `Workflow` is denied without `bypassPermissions`, which no shipped document mentions. A7 as
+specified cannot measure this migration's thesis, and the arms it did compare were thin-`SKILL.md`
+improvisation versus the prose orchestrator.
+
 ### ⟐ Revision E (2026-08-12) — what changed
 
 | Row | Change | Why |

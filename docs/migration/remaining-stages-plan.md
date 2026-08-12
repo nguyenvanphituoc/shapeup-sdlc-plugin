@@ -368,6 +368,32 @@ conversation has no wall-clock story to tell — see Phase 2.
 
 ---
 
+> ## ⟐ EXECUTED 2026-08-12 — the PO took C2, A7 ran, and `A7: FAIL`
+>
+> Full record: `stage3-evidence.md` §7. Rows: **R12 green**, and R12 itself was repaired first —
+> it accepted a bare `A7: PASS` with no run logs (M5 of a five-way mutation audit).
+>
+> | | candidate (`v1.6.3+bde89a1bf91d`) | control (`v1.6.3+a497a068665b`) |
+> |---|---|---|
+> | absolute bar (3× 14/14 + receipts) | **FAIL** — 1 of 3 | **FAIL** — 0 of 3 |
+> | acceptance, scored reps | 100%, 28.6% → **64.3%** | 28.6%, 28.6% → **28.6%** |
+> | escaped defects | 10 | 20 |
+> | cost / scored rep | **$6.27** | $6.97 |
+>
+> **The headline is not in that table.** `shapeup-run.js` executed **zero** times: every `Workflow`
+> call was denied (`Review dynamic workflow before running`), so the candidate arm measured the
+> harness's fallback, never the lane. `acceptEdits` → denied, `bypassPermissions` → launches, and the
+> plugin documents this nowhere (`HD-007`). Rep 1 left no receipt while `gate-zerowork` allowed the
+> Stop on "37 work calls — the session did work by other means" (`HD-008`).
+>
+> **Consequences for this plan.** The §5 abort trigger is live and **the merge waits** — on
+> HD-007, not on cost. Stage 1's **+37.6%** did *not* reproduce (candidate came in ~10% cheaper per
+> scored rep), but at n=2 vs n=2 with four of six reps failing the absolute bar it is **unreplicated,
+> not refuted**. Testing the actual thesis needs **both** arms re-run under `bypassPermissions`
+> (uniformity is the rule) — a further 6 reps, and a new PO decision.
+
+---
+
 ## Stage D — Phase 2, after the cutover ships · a separate release
 
 Explicitly **not** part of this cutover. Listed so the arc is visible and so nothing here leaks into
@@ -507,8 +533,8 @@ which B.4 promotes to shipped documentation rather than leaving here.
 | ~~**A** — close S2's ship gate~~ | ~2–3 h | $0 | **DONE 2026-08-10** — R1–R6 green, **probe FAIL → stop** |
 | ⟐ ~~**A2** — fix the fast-forward, re-run the probe~~ | ~6 h actual | $0 | **DONE 2026-08-11** — G1–G5, G7 green; the ORIENT defect fixed and proven on a live kill; **probe FAIL again → stop** |
 | ⟐ ~~**A3** — a phase completes when its ARTIFACT exists, not when its result says so~~ | ~8 h actual | $0 | **DONE 2026-08-12 — `kill-resume-probe: PASS`, 4/4 assertions. The gate is met** |
-| **B** — cutover paperwork + dead code | ~2–3 h | $0 | R7–R11 green |
-| **C** — the fork | decision | $0 (C1) / $40–60 (C2) | PO decides; PO merges |
+| ~~**B** — cutover paperwork + dead code~~ | ~2–3 h | $0 | **DONE 2026-08-12** — R7–R11 green, contract 23/23 |
+| ⟐ ~~**C** — the fork~~ | ~2.7 h actual | **$29.88 actual** | **DONE 2026-08-12 — PO took C2; R12 green; `A7: FAIL`. The merge waits on HD-007, not on cost** |
 | **D** — Phase 2, separate release | days | dev tokens | not part of this cutover |
 
 Everything up to and including Stage B is unblocked on this machine, today, at zero external cost.

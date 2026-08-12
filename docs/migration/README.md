@@ -4,9 +4,27 @@
 moments. This file says which of them is current, and what the position actually is today. It is
 updated whenever the position changes; everything else is left as the dated record it is.
 
+> ## ⟐ Position, 2026-08-12, after Stage C — and the cutover must not merge yet
+>
+> **Stage C ran. The PO took C2, A7 ran, and `A7: FAIL`.** The candidate arm missed the absolute bar
+> (3× 14/14 with receipts; it went 1 of 3). But the number that matters is not the score:
+> **`shapeup-run.js` executed zero times in every rep.** Every `Workflow` call was denied —
+> `Review dynamic workflow before running` — so the lane the cutover makes the *only* lane never
+> started, and A7 measured the fallback instead of the thesis.
+>
+> Reproduced minimally outside the benchmark: `acceptEdits` → denied; `bypassPermissions` → launches.
+> The plugin documents this **nowhere** (`HD-007`). When the lane fails to start the session
+> improvises — once hand-building the feature with no receipt while `gate-zerowork` allowed the Stop
+> (`HD-008`), once emulating the pipeline by hand and reaching L4 with a valid receipt while the
+> workflow never ran. **A receipt does not prove the lane ran.**
+>
+> **Plan §5's trigger is live:** the merge waits. Not on the cost comparison — Stage 1's +37.6% did
+> *not* reproduce, and per scored rep the candidate came in ~10% *cheaper* — but on a lane that
+> cannot start under a standard permission mode. Full record: `stage3-evidence.md` §7.
+
 **Position, 2026-08-12, after Stage B — re-derived by running the instruments, not by reading them:**
 
-- **S0 GREEN · S1 GREEN · S2 SHIP GATE MET · S3 — Stage B GREEN, Stage C is the PO's fork.**
+- **S0 GREEN · S1 GREEN · S2 SHIP GATE MET · S3 — Stage B GREEN; Stage C RAN, `A7: FAIL`.**
 - **The acceptance contract is 23 PASS / 0 RED above `GATE MET`.** Every row green for the first
   time on this branch. `npm test` green in-tree at **1363** and — the row that had never been
   re-derived — in a fresh `git clone --local` at **1221**, exit 0. A6 is PASS, not PARTIAL.
@@ -22,8 +40,9 @@ updated whenever the position changes; everything else is left as the dated reco
 - **What Stage B did NOT buy:** the degenerate inner-breaker branch (`shapeup-run.js:774`) still has
   never run. Its sibling branch — the one AGENTS.md's invariant is actually about — is demonstrated
   live by A3's leg 2. See `stage3-evidence.md` §3; this is the half of B.1's cost that went unpaid.
-- **A7: DEFERRED.** Obtainable on this machine (C1/C2 clear; C3 belongs to the day-2 plan, not to
-  A7's arms) and gated only on the PO's ~$40–60 spend decision at Stage C.
+- ~~**A7: DEFERRED.**~~ ⟐ **`A7: FAIL` — it ran on 2026-08-12** (`stage3-evidence.md` §7). Obtainable
+  here exactly as this line said; the PO took C2 and spent **$29.88** over six reps. Candidate 1 of 3
+  on the absolute bar, control 0 of 3 — and `shapeup-run.js` never executed once.
 - **The kill/resume probe PASSES** — `stage-a3-evidence.md` §4, `kill-resume-probe: PASS`, all four
   assertions, on a live ungraceful `SIGKILL` mid-BUILD. It is the one test of the failure class this
   whole migration exists to retire, it failed twice (Stage A, Stage A2), and it is graded by an
@@ -76,7 +95,7 @@ not, and is a one-line fix left outside this stage's touch map.
 | **`stage-a3-plan.md`** | **CURRENT** — the plan A3 executed | The two composing findings (artifact-less completion; WIRE before `analyze`), G1–G8 |
 | **`stage-a2-evidence.md`** | **CURRENT** — what A2 delivered | G1–G7 status, the mutation transcript (including the two mutations that survived and forced code changes), and what is *not* demonstrated |
 | **`stage-a2-plan.md`** | **CURRENT** — the plan A2 executed | The acceptance contract (G1–G7), the four sub-stages, and the five decisions, all taken 2026-08-11 |
-| **`stage3-evidence.md`** | **CURRENT** — Stage B's exit artifact | R7–R11 green, the four assertions B.1 moved, the mutation transcript, A6's located 142-check clone gap, `A7: DEFERRED`, and **§6 — what Stage B did not buy** |
+| **`stage3-evidence.md`** | **CURRENT** — Stage B **and Stage C's** exit artifact | R7–R11 green, the four assertions B.1 moved, the mutation transcript, A6's located 142-check clone gap, **§6 — what Stage B did not buy**, and ⟐ **§7 — Stage C: the refuted premise, R12's five-way mutation audit, and `A7: FAIL` with the lane that never ran** |
 | **`execution-contract.md`** | **CURRENT** — the instrument | The 23 acceptance rows, the four replaced in Stage A, the S1 row Stage B replaced, and the re-derived **23/0** |
 | **`stage0-evidence.md`** · **`stage1-evidence.md`** | **CURRENT** — closed stages | S0's GO decision; S1's cost arms (candidate $2.010 vs control $1.461) |
 | **`stage2-evidence.md`** | **CURRENT** — S2, gate now met | A2/A3 transcripts, the two execution-only defects, and **§4** — whose status line now reads `PASS`, above the two failure records it preserves unedited |
@@ -100,15 +119,19 @@ not, and is a one-line fix left outside this stage's touch map.
    re-derived A6 in a fresh clone at **1221**, exit 0. The one item **not** paid: B.1's negative
    probe was re-pointed on paper and half-demonstrated — the branch AGENTS.md's invariant is about
    is live from A3's leg 2, the degenerate `:774` branch has never run (`stage3-evidence.md` §3).
-4. **← YOU ARE HERE. Stage C** — the money fork, and the first item on this list that is not the
-   executor's to take. It does not run autonomously. ⟐ **Re-derived 2026-08-12 by running
-   `s3-feasibility.mjs`: A7 is obtainable here.** `sdd-harness-bench` is present at
-   `/Users/teo/workspace/sdd-harness-bench` — C1 **yes**, C2 **yes**. The script still reports
-   blocked, but its one failing check (C3) is about the **day-2 plan's** pre-fix build `a280e86`
-   predating `gate-answers.mjs`/`budget-check.mjs` — not about A7's arms, which are both modern
-   builds. A7 is **unstarted, not blocked**, and gated only on the PO's ~$40–60 spend decision.
-   C1 (ship, defer A7) is the plan's recommendation; `stage3-evidence.md` already records
-   `A7: DEFERRED` with the blocker codes, so that arm needs no further executor work.
+4. ~~**Stage C** — the money fork.~~ **Done, 2026-08-12.** The PO took **C2**. Two repairs first,
+   both found by running instruments: the fork's own premise was refuted (`s3-feasibility.mjs`
+   returns C1 **yes** / C2 **yes**; its one failing check belongs to the day-2 plan, and the "exit 0"
+   trigger §4 named to reopen A7 could therefore **never fire**), and **R12 accepted a bare
+   `A7: PASS` with no run logs** — repaired, then re-verified falsifiable. R1–R11 audited: green.
+   A7 then ran: **`A7: FAIL`**, $29.88, six reps.
+5. **← YOU ARE HERE. The merge decision — and plan §5 says it waits.** Not on cost: Stage 1's
+   **+37.6%** did not reproduce (candidate ~10% *cheaper* per scored rep), though at n=2 vs n=2 that
+   is unreplicated rather than refuted. It waits on **HD-007**: the lane the cutover makes the only
+   lane **cannot start headlessly** without `bypassPermissions`, which the plugin documents nowhere.
+   `shapeup-run.js` ran zero times in six reps. The open PO questions are (a) fix HD-007/HD-008
+   before merging, and (b) whether to buy the real comparison — both arms under `bypassPermissions`,
+   another ~6 reps.
 
 ## Standing guardrails
 
