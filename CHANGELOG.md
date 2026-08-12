@@ -3,7 +3,7 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.7.0] — unreleased · the orchestrator cutover
+## [1.7.0] — 2026-08-12 · the orchestrator cutover
 
 **The tech-lead's round loop stops being prose a model follows and becomes code a runtime runs.**
 On a spec with committed `scopes/*.md`, `/ship` now hands the whole pipeline — ORIENT → L1a →
@@ -23,9 +23,8 @@ written at runtime. `run-workflow.mjs` executes the same script format under the
 (`HD-007` · `docs/migration/hd007-control-plane-probe.md`). `docs/upgrading.md` documents the
 one-line tool grant for anyone who wants the native runtime instead.
 
-*`1.7.0` is the target, not a shipped fact: `package.json` and `.claude-plugin/plugin.json` still
-read **1.6.3** and are stamped at release, because the tag, the manifest bump and the merge are the
-PO's move. Pin target for a rollback is the last published release, **1.6.3**.*
+*Stamped at release: `package.json`, `.claude-plugin/plugin.json` and the tag all read
+**1.7.0**. Pin target for a rollback is the previous release, **1.6.3**.*
 
 **The four decisions this implements** (PO decision record, 2026-08-06 —
 `docs/workflow_extraction_review.md` §6):
@@ -91,6 +90,45 @@ this migration's own probe runs, not reasoned about.
 you already have it: the lane launches through `skills/tech-lead/scripts/run-workflow.mjs`, inside
 the `skills/<owner>/scripts/` prefix `init` writes. Launching by the `Workflow` tool instead is the
 failure above — denied headlessly, ungrantable, and quiet enough to be routed around.
+
+### The substrate is enforced on every lane, not just the orchestrated one
+
+`hooks/sandbox-guard.mjs` enforces the **active order's own `substrate` block** rather than the
+active scope contract. That is the right source — `compile-order` already stamps
+`allowed`/`shared`/`append_only`/`frozen` per operation, while a scope contract only ever existed
+for the build. Two consequences, both new:
+
+- **`frozen` and `append_only` are enforced for the first time.** The compiler has always stamped
+  them; nothing read them. A `Write` to an append-only path is now denied (an `Edit` is not), and a
+  frozen path is denied outright, ahead of any `allowed` glob that would otherwise match.
+- **Every lane is fenced.** `compile-order.mjs` publishes `.shapeup/active-order` as it writes the
+  order, so `--tiny`, the prose round loop and a standalone `/build` are covered. Previously the
+  workflow script was the pointer's only author, so those lanes compiled a write contract that
+  nothing enforced.
+
+`stats --hooks` also reports again: `hooks/lib/decision.mjs` hardcoded the pre-ADR-0001 root, so
+every hook wrote its receipts where the only reader never looked, and the command reported zero
+hook activity on every project — indistinguishable from the inert-enforcement-layer failure the
+receipts exist to make visible.
+
+### ESCALATE, restated to match the envelope
+
+`advisor-protocol`'s decommission left its mechanism half-removed: `work-result.schema.json`
+carried no `escalates` field, so a worker could not raise a question at all, while thirty
+instructions across six worker skills still told them to — and `references/delegation.md`
+instructed a dispatch to a skill that cannot resolve.
+
+The concept survives and the field does not. A blocked worker returns `status: "escalated"` and
+puts the blocker as the **first** entry in `deviations[]`; the phase leaves no artifact, the
+post-condition fails, and the run aborts naming the phase rather than looping. The rule is worded
+identically in all five worker contracts and asserted by a structural check, so it cannot drift out
+of one of them silently.
+
+**`coverage` is back.** It was removed as collateral in the same commit that decommissioned
+`advisor-protocol`, along with `generate-board`, `recheck`, `remap` and `split-scope` — but
+`coverage` is the sole writer of the traceability spine's `requirements.md`, which `trace-lint`
+reads as the covers-closure oracle's input. The other four stay removed; `scope-architect`'s input
+contract no longer advertises operations the schema would deny.
 
 ### Also
 

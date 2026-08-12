@@ -7,7 +7,7 @@ cannot talk past, rather than conventions it is asked to remember.
 | | |
 |---|---|
 | **Plugin** | `shapeup-sdlc-plugin` |
-| **Version** | 1.6.3 — Pure-Skill Architecture + workflow-orchestrated run |
+| **Version** | 1.7.0 — Pure-Skill Architecture + workflow-orchestrated run |
 | **Runtime** | Claude Code |
 | **Author** | Liberty Nguyen |
 
