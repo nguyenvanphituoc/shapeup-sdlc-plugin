@@ -204,13 +204,28 @@ cd a6-clone && npm test
 
 | | commit | checks | exit |
 |---|---|---|---|
-| in-tree | `7557319` | **1363** | 0 |
-| fresh clone | `7557319` | **1221** | **0** |
+| in-tree | `1ba63d8` (final) | **1363** | 0 |
+| fresh clone | `1ba63d8` (final) | **1221** | **0** |
+| fresh clone, mid-stage | `7557319` | 1221 | 0 |
 | previous clone figure (Rev B–E) | `7c1b15e` | 1120 | 0 |
 
-**A6 is PASS: green in the worktree and green in a fresh clone.** `npm ci` is not part of the
-procedure and fails — correctly, since the package declares no dependencies and ships no lockfile.
-The suite is pure Node.
+**A6 is PASS: green in the worktree and green in a fresh clone, at the final commit.** Run twice,
+three commits apart, to check the figure was not an artifact of when the clone was taken. `npm ci`
+is not part of the procedure and fails — correctly, since the package declares no dependencies and
+ships no lockfile. The suite is pure Node.
+
+**The acceptance contract was also executed inside the clone**, which is where its rows have always
+specified they run (`cwd: $CLONE`) and where they had never actually been run on this branch:
+
+```
+cd a6-final && node tools/contract-check.mjs
+GATE MET — S2 ship gate — kill/resume probe: PASS
+23 PASS / 0 RED                                     (exit 0)
+```
+
+That matters more than the in-tree reading it matches. Every row resolves against committed files
+only — no local run trace, no untracked artifact, nothing this machine has that a teammate's clone
+does not.
 
 **The 142-check gap is located, not left as a number.** Instrumented by running each structural
 module in order against both trees and reporting its own check count:
@@ -308,11 +323,12 @@ Stated plainly rather than left to inference — the discipline `stage-a2-eviden
 
 Both re-derived by execution at the stage's final commit:
 
-| instrument | before Stage B | after |
+| instrument | before Stage B | after (at `1ba63d8`) |
 |---|---|---|
 | `npm test`, in-tree | 1363 | **1363** |
-| `npm test`, fresh clone | 1120 (`7c1b15e`, stale) | **1221** |
-| `contract-check.mjs` | GATE MET · 19 PASS / 4 RED | **GATE MET · 23 PASS / 0 RED** |
+| `npm test`, fresh clone | 1120 (`7c1b15e`, stale) | **1221**, exit 0 |
+| `contract-check.mjs`, in-tree | GATE MET · 19 PASS / 4 RED | **GATE MET · 23 PASS / 0 RED** |
+| `contract-check.mjs`, in the clone | never run | **GATE MET · 23 PASS / 0 RED**, exit 0 |
 
 The four rows that were red are the four Stage B was written to close: the CHANGELOG cutover entry
 (R7), `commands/build.md` (R9), and `stage3-evidence.md` twice (this file). No closed stage went red
