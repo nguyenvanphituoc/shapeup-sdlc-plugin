@@ -205,9 +205,25 @@ export async function run(ctx) {
       if (!b.stdout.trim()) ok("defers once a receipt exists (progress is anti-rationalization's job)");
       else fail("fired despite a receipt on disk");
 
+      // ── HD-008. This assertion is INVERTED from what it was, and the inversion is the fix.
+      //
+      // It used to read: "defers when the session did real work by other means (fail-open)". That
+      // is the escape A7 candidate rep 1 walked through — `Skill(tech-lead)` dispatched, the lane
+      // unable to start (HD-007), the feature hand-built across 37 work calls, no receipt, and the
+      // hook ALLOWED the Stop. The rep scored 14/14 and read like a clean run while the pipeline
+      // had never executed. A busy session was the one thing that could switch this gate off.
+      //
+      // Same fixture, opposite expectation: work done AROUND the harness is the case the gate is
+      // FOR. `stop_hook_active` still caps it at one block per stop chain, so the cost of being
+      // wrong here is one turn, never a hang.
       const c = fire({ cwd: empty, transcript_path: worked });
-      if (!c.stdout.trim()) ok("defers when the session did real work by other means (fail-open)");
-      else fail("fired on a session with four work calls");
+      let workedBlock = null;
+      try { workedBlock = JSON.parse(c.stdout || "{}"); } catch { /* not JSON */ }
+      if (workedBlock?.decision === "block") ok("BLOCKS a session that worked around the harness and left no receipt (HD-008)");
+      else fail("deferred on four work calls with no receipt — HD-008's escape is back: a busy session switches the gate off");
+      if (typeof workedBlock?.reason === "string" && /HD-008/.test(workedBlock.reason)) {
+        ok("the block explains why the work calls are the reason, not a waiver");
+      } else fail("the block does not tell a session that DID work why it is still blocked");
 
       const d = fire({ cwd: empty, transcript_path: unrelated });
       if (!d.stdout.trim()) ok("defers on a non-harness session");

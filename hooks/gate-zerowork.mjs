@@ -65,28 +65,39 @@ const MAX_TRANSCRIPT_BYTES = 20 * 1024 * 1024;
 /**
  * Tool names that constitute doing something to the project, as opposed to looking at it.
  *
- * `Workflow` is deliberately ABSENT, and its absence is the point. Since v1.7 a
- * `Workflow(shapeup-*)` call is a DISPATCH signal (see `dispatchedOrchestrator` below); if it
- * were also counted here, three launches with no receipt would clear the `work_calls > 2`
- * fail-open and the gate would be escapable by the very act it exists to watch. A launch is not
- * work by other means — it is the work this hook is asking about.
+ * The census these produce is now DESCRIPTIVE ONLY — it sharpens the block message and nothing
+ * decides on it. Until v1.7.1 a count above two was a fail-open ("the session did work by other
+ * means"), and HD-008 is the measurement that retired it: see the `work-done` note at the decision
+ * site below. `Workflow` stays absent because a launch is not work — it is the work this hook is
+ * asking about — and it is a DISPATCH signal instead (`dispatchedOrchestrator`).
  */
 const WORK_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "Task", "Agent"]);
 
 /**
- * Is this the orchestrator's own Workflow script?
+ * Is this block a launch of the orchestrator's own workflow script, by either surface?
  *
- * Matched on the BASENAME, anchored. The scoped lane launches
- * `Workflow({scriptPath: "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js"})`,
- * and `CLAUDE_PLUGIN_ROOT` itself ends in `shapeup-sdlc-plugin/` on a normal install — so a
- * substring match on the whole path would count EVERY workflow script that happens to live under
- * the plugin root, including one a user wrote for something else. The basename is the part the
- * skill controls and the part `SKILL.md` names.
+ * TWO SURFACES, ONE INVARIANT. `Workflow({scriptPath})` is the tool form. Since HD-007 the shipped
+ * front door is a Bash call — `node "…/scripts/run-workflow.mjs" "…/workflows/shapeup-run.js"` —
+ * because the tool form cannot be granted and is denied in every headless session. A gate that
+ * knew only the tool form would go blind on the lane users actually run, which is the same
+ * "the emptier the failure, the less of it there is to detect" hole the banner above describes.
+ *
+ * Matched on the BASENAME, anchored. `CLAUDE_PLUGIN_ROOT` itself ends in `shapeup-sdlc-plugin/` on
+ * a normal install — so a substring match on the whole path would count EVERY workflow script that
+ * happens to live under the plugin root, including one a user wrote for something else. The
+ * basename is the part the skill controls and the part `SKILL.md` names.
  *
  * @param {object} block - A `tool_use` content block.
  * @returns {boolean} True when the block launches a `shapeup-*` workflow.
  */
 function launchedShapeupWorkflow(block) {
+  if (block.name === "Bash") {
+    const cmd = String(block.input?.command ?? "");
+    // Both halves required: the launcher AND an orchestrator script. `run-workflow.mjs` carrying
+    // somebody else's workflow is not a harness dispatch, and neither is a bare mention of the
+    // script in an unrelated command (`ls`, `cat`).
+    return /\brun-workflow\.mjs\b/.test(cmd) && /[\\/]shapeup-[\w.-]*\.[cm]?js\b/.test(cmd);
+  }
   if (block.name !== "Workflow") return false;
   const scriptPath = String(block.input?.scriptPath ?? "");
   const base = scriptPath.split(/[\\/]/).pop().replace(/\.[cm]?js$/, "");
@@ -220,6 +231,11 @@ export function buildReason({ narration, census, enforcement }) {
     `Mechanical facts: ${census.tool_calls} tool call(s), ${census.work_calls} of them work calls, ` +
     `${census.writes} file write(s), and no \`${globLocal("<slug>", "receipt.json")}\`.`,
     narration ? `The final message reads as a plan, not a result (matched: "${narration}").` : null,
+    census.work_calls > 2
+      ? `Those ${census.work_calls} work calls are why this block exists, not a reason to waive it: a busy ` +
+        "session used to switch this gate off. Work done AROUND the harness has no board, no T0 verdict and " +
+        "no receipt — measured, a hand-built feature scored 14/14 while the pipeline never ran (HD-008)."
+      : null,
     enforcement && enforcement.readable && enforcement.rows === 0
       ? "AND the enforcement layer left zero decision rows — the gates did not merely permit this run, they never ran. " +
         "Check the plugin install (a symlinked or spaced path was the measured cause; see lib/is-main.mjs)."
@@ -237,7 +253,14 @@ export function buildReason({ narration, census, enforcement }) {
     "       --slug <slug> --intake-file <path/to/requirement.md> \\",
     "       --auto-level <interactive|auto|unattended> [--gate-answers <preset|path>]",
     "",
-    "Then proceed through the gates, resolving each one with:",
+    "Then launch the lane itself — a BACKGROUND Bash call, never the `Workflow` tool, which cannot be",
+    "granted and is denied outright in a headless session (HD-007):",
+    "",
+    "  node \"${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/run-workflow.mjs\" \\",
+    "       \"${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js\" \\",
+    "       --args-file <.shapeup/<slug>/run-args.json> --run-dir <.shapeup/<slug>/workflow-run>",
+    "",
+    "Resolve each gate the run pauses at with:",
     "",
     "  node \"${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/gate-answers.mjs\" --resolve <gate-id> …",
     "",
@@ -280,11 +303,30 @@ async function main() {
 
   const census = workCensus(events);
 
-  // Fail open when the session clearly did work by other means. A user may have run the harness
-  // steps by hand, or be on a pre-receipt version of the plugin. Real narration has ~zero work
-  // calls; this threshold keeps the hook off everything else.
-  if (census.work_calls > 2) defer(`${census.work_calls} work calls — the session did work by other means`, "work-done");
-
+  // ── HD-008 — the `work-done` fail-open is GONE, and its removal is the measurement's whole point.
+  //
+  // WHAT IT USED TO DO: `if (census.work_calls > 2) defer("the session did work by other means")`.
+  // The stated rationale was that a user may have run the harness steps by hand, or be on a
+  // pre-receipt version of the plugin.
+  //
+  // WHAT IT ACTUALLY DID, measured (A7 candidate rep 1, docs/migration/stage3-evidence.md §7.5).
+  // `Skill(tech-lead)` was dispatched, the lane could not start (HD-007), the agent hand-built the
+  // whole feature, and the hook ALLOWED the Stop on `"37 work calls — the session did work by
+  // other means"`. The rep scored 14/14 by the oracle and read like a clean run, with no board, no
+  // T0, no verdict and no receipt. A busy session was the one thing that could switch this gate
+  // off — so the harder the agent worked around the harness, the safer it was from the gate
+  // watching for exactly that.
+  //
+  // BOTH HALVES OF THE RATIONALE FAIL ON INSPECTION. Running the harness steps by hand starts with
+  // `init-run.mjs`, which writes the receipt — such a session already deferred at `receipt-present`
+  // two lines up and never reached here. And a pre-receipt plugin cannot be the one executing this
+  // hook: `init-run.mjs` ships in the same install, beside the `lib/` this file imports from.
+  // Neither case needs an escape, so no replacement escape is added — an escape that cannot fire
+  // is the "row that cannot fail" this project keeps catching.
+  //
+  // WHAT KEEPS THIS SAFE is not a threshold, it is the loop guard: `stop_hook_active` defers
+  // unconditionally, so a session that genuinely did the work outside the harness costs one extra
+  // turn and then stops. One nudge, never a hang. That is the trade this gate is worth.
   const message = typeof p.last_assistant_message === "string" ? p.last_assistant_message : "";
   const narration = detectNarration(message);
   const enforcement = enforcementCensus(cwd);

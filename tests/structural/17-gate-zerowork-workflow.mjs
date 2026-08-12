@@ -85,6 +85,35 @@ export async function run(ctx) {
     fail("a named shapeup-run launch is invisible to the gate");
   }
 
+  // --- (a2) the SECOND surface: the Bash launch HD-007 made the shipped front door -------------
+  //
+  // WHY THIS EXISTS. `Workflow({scriptPath})` cannot be granted and is denied in every headless
+  // session, so `SKILL.md` Step 2 now launches the same script through
+  // `node "…/scripts/run-workflow.mjs" "…/workflows/shapeup-run.js"`. A gate that knew only the
+  // tool spelling would be blind on the lane users actually run — the same hole the arm above was
+  // written to close, one surface over, and the reason this check is here the same day the launch
+  // moved rather than the day somebody notices.
+  const LAUNCHER = '${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/run-workflow.mjs';
+  const BASH_LAUNCH = `node "${LAUNCHER}" "${RUN_SCRIPT}" --args-file .shapeup/x/run-args.json`;
+  if (dispatchedOrchestrator([toolUse("Bash", { command: BASH_LAUNCH })])) {
+    ok("the Bash launch (run-workflow.mjs …/shapeup-run.js) counts as dispatching the orchestrator");
+  } else {
+    fail("SKILL.md's shipped launch is invisible to the gate — the post-HD-007 lane has no zero-work detector");
+  }
+
+  // Both halves are required, and each negative below is a way the predicate could go wrong.
+  const BASH_NEGATIVES = [
+    ["the launcher carrying somebody else's workflow",
+     `node "${LAUNCHER}" ./my-own.workflow.js`],
+    ["a command that merely mentions the orchestrator script",
+     `cat "${RUN_SCRIPT}"`],
+    ["an unrelated node invocation", "node scripts/build.mjs --watch"],
+  ];
+  for (const [label, command] of BASH_NEGATIVES) {
+    if (!dispatchedOrchestrator([toolUse("Bash", { command })])) ok(`defers on ${label}`);
+    else fail(`${label} armed the gate — Bash is the busiest tool there is, and a loose predicate here fires on everything`);
+  }
+
   // --- (b) the negative: somebody else's workflow must NOT arm it -----------------------------
   const NEGATIVES = [
     ["an unrelated script under the plugin root",
@@ -128,6 +157,15 @@ export async function run(ctx) {
       ok("BLOCKS a Workflow-lane session that launched shapeup-run and left no receipt");
     else
       fail("a Workflow-only session with no receipt was allowed to stop — the arm is not wired to the block");
+
+    // The shipped surface, end to end. Note this transcript's launch is ALSO a Bash call, i.e. a
+    // work call — under the pre-HD-008 fail-open a session could have cleared the gate by launching
+    // the lane three times and never starting a run. Both fixes are load-bearing in this one case.
+    const bashOnly = jsonl([toolUse("Bash", { command: BASH_LAUNCH })], "bash-launch.jsonl");
+    if (blocked(fire({ cwd: empty, transcript_path: bashOnly })))
+      ok("BLOCKS a session that launched the lane by Bash and left no receipt (the shipped front door)");
+    else
+      fail("the Bash-launch arm is not wired to the block — the lane users run has no zero-work gate");
 
     // Preserved property 1 of A.3: the pre-cutover behaviour is untouched. A session that loaded
     // tech-lead and produced NEITHER a Workflow call nor a receipt still blocks.
