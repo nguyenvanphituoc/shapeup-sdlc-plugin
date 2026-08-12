@@ -659,6 +659,11 @@ if (specLint.exit_code !== 0) {
   return { status: "aborted", aborted_at: "L1b", reason: `spec-lint reported a disjointness/size problem before BUILD could start: ${specLint.stdout.trim() || specLint.stderr.trim()}` };
 }
 
+const hillDeriveL1b = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/hill-derive.mjs" --slug ${slug}`, "hill-derive");
+if (hillDeriveL1b.exit_code !== 0) {
+  log(`hill-derive failed at L1b: ${(hillDeriveL1b.stderr || hillDeriveL1b.stdout).trim()}`);
+}
+
 const l1b = await resolveGate(slug, args.answers, "L1b");
 if (l1b.exit_code === 4) return paused("L1b", ["proceed", "ask", "abort"], { scopes: scopes.map((s) => s.scope_id), dispatched: dispatchedMapScopes, seam_coverage: seamCoverage });
 if (l1b.exit_code === 5) return abortedFrom("L1b", l1b, "GATE L1b aborted");
@@ -675,6 +680,10 @@ let verdict = null;
 while (round <= args.budgets.maxRounds) {
   const budget = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/budget-check.mjs" --slug ${slug} --strict`, `budget:r${round}`);
   if (budget.exit_code === 6) {
+    const hillDeriveH1 = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/hill-derive.mjs" --slug ${slug}`, "hill-derive");
+    if (hillDeriveH1.exit_code !== 0) {
+      log(`hill-derive failed at H (deadline): ${(hillDeriveH1.stderr || hillDeriveH1.stdout).trim()}`);
+    }
     return withStateWarnings({ status: "gate_h", breaker: "deadline", hammer_proposals: allHammerProposals, green_scopes: allGreenScopes });
   }
 
@@ -771,7 +780,16 @@ while (round <= args.budgets.maxRounds) {
   allHammerProposals.push(...roundHammer.map((h) => h.scope_id));
 
   if (roundGreen.length === 0 && roundHammer.length > 0) {
+    const hillDeriveH2 = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/hill-derive.mjs" --slug ${slug}`, "hill-derive");
+    if (hillDeriveH2.exit_code !== 0) {
+      log(`hill-derive failed at H (inner breaker): ${(hillDeriveH2.stderr || hillDeriveH2.stdout).trim()}`);
+    }
     return withStateWarnings({ status: "gate_h", breaker: "inner", hammer_proposals: allHammerProposals, green_scopes: allGreenScopes });
+  }
+
+  const hillDeriveL2 = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/hill-derive.mjs" --slug ${slug}`, "hill-derive");
+  if (hillDeriveL2.exit_code !== 0) {
+    log(`hill-derive failed at L2: ${(hillDeriveL2.stderr || hillDeriveL2.stdout).trim()}`);
   }
 
   const l2 = await resolveGate(slug, args.answers, "L2");
@@ -794,6 +812,11 @@ while (round <= args.budgets.maxRounds) {
   const evalIngest = await ingestOrAbort("L3", resultFor(evalOrder.stdout.trim(), evalResult.result_path, evalLabel), evalLabel);
   if (evalIngest) return evalIngest;
   verdict = evalResult.overall === "PASS" ? "pass" : "fail";
+
+  const hillDeriveL3 = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/hill-derive.mjs" --slug ${slug}`, "hill-derive");
+  if (hillDeriveL3.exit_code !== 0) {
+    log(`hill-derive failed at L3: ${(hillDeriveL3.stderr || hillDeriveL3.stdout).trim()}`);
+  }
 
   const l3 = await resolveGate(slug, args.answers, "L3");
   if (l3.exit_code === 4) return paused("L3", ["loop", "stop", "ask"], { round, verdict, hammer_proposals: allHammerProposals });
