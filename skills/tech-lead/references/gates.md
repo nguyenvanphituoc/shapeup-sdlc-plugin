@@ -2,12 +2,22 @@
 
 The full collect-lists, gate-output blocks, and delegation scripts for every gate and delegation
 step, extracted from `SKILL.md` (progressive disclosure). **Read the relevant section when you
-reach that gate** — `SKILL.md` carries the workflow spine, the build/eval loop, and the hard
-rules; this file carries the step-by-step playbooks. The L2/L4 gates stay hook-enforced regardless
-of where the prose lives.
+reach that gate** — `SKILL.md` carries the workflow spine and the hard rules; this file carries the
+step-by-step playbooks. The L2/L4 gates stay hook-enforced regardless of where the prose lives.
+
+**Which lane these playbooks serve** ⟐ *(corrected 2026-08-12, Stage B item B.2 — this header used
+to say `SKILL.md` carries "the build/eval loop", which stopped being true when Stage 2 moved that
+loop into code and left the sentence behind).* The gate blocks below are lane-independent: every
+lane emits them verbatim, and on the scoped lane `shapeup-run.js` returns the `block` field for
+`SKILL.md` to print unchanged. What differs is who runs the loop *between* the gates:
+
+| lane | BUILD → GATE L2 → EVAL is | read |
+|---|---|---|
+| a spec with committed `scopes/*.md` (the common case) | **code** — `skills/tech-lead/workflows/shapeup-run.js`'s round loop | that script's comments |
+| `--tiny`, or a spec with no scope contracts yet | **prose**, unchanged and non-regression | `references/round-protocol.md` (`:11-22` states the same split) |
 
 Order matches the run: GATE L0 → ORIENT → GATE L1a → ANALYZE → WIRE/L1a.5 → MAP SCOPES →
-GATE L1b → (BUILD → GATE L2 → EVAL, in SKILL.md) → GATE L3 → SHIP → GATE L4.
+GATE L1b → (BUILD → GATE L2 → EVAL — see the table above) → GATE L3 → SHIP → GATE L4.
 
 ⟐ **ANALYZE runs before WIRE** (Stage A3, 2026-08-11). MAP SCOPES' two dispatches split around
 L1a.5: `analyze` writes the spec tree, then `wire` reads its `usecases/` — one wiring-map entry per

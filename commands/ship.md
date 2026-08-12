@@ -12,6 +12,36 @@ loop; do not skip gates by default.
 a session that dispatches the orchestrator and leaves no receipt is blocked at `Stop` by
 `hooks/gate-zerowork.mjs`.
 
+## How the run actually executes
+
+On a spec with committed `scopes/*.md` — the common case — `tech-lead` holds the L0 intake
+conversation, writes `project-profile.md`, then hands the whole pipeline to a single `Workflow`
+launch and does not drive it turn by turn:
+
+```
+Workflow({
+  scriptPath: "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js",
+  args: { slug, autoLevel, answers, models, budgets, pluginRoot: "${CLAUDE_PLUGIN_ROOT}", startedAt }
+})
+```
+
+ORIENT → L1a → ANALYZE → WIRE → L1a.5 → MAP SCOPES → L1b → rounds of BUILD/L2/EVAL → QA → GATE H
+all run inside it. Three things follow, and they are the point of the cutover rather than trivia:
+
+- **A gate pause is a return value, not a stop.** The launch returns `{status: "paused", paused_at,
+  block}`; emit `block` **verbatim**, get the PO's decision, write it to
+  `.shapeup/<slug>/gate-answers.json`, and **relaunch the same call with the same args**. The
+  fast-forward re-derives position from disk and re-dispatches nothing already finished.
+- **A killed session loses nothing.** Resume state comes off disk, never from context, so a fresh
+  session picks the run up where it died — the property this migration exists to buy, and the one
+  the kill/resume probe grades (`docs/migration/stage-a3-evidence.md` §4).
+- **Headless runs need `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0` in the environment.** Without it
+  `claude -p` terminates the Workflow at 600 s and **exits 0**, reporting a truncated run as a clean
+  one. Set it for any `--unattended` or CI invocation.
+
+`--tiny`, and any spec with no committed `scopes/*.md` yet, take the unchanged prose lane in
+`skills/tech-lead/references/round-protocol.md` instead — non-regression, by design.
+
 Only run headless/auto if the user explicitly asks for it in their message:
 - `--auto` → advance low-risk gates automatically, still pause at L4 (Ship sign-off).
   Implies `--gate-answers guarded` unless a set is named.

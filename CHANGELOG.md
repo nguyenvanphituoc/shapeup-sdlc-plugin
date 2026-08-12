@@ -3,6 +3,71 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased] — the orchestrator cutover
+
+**The tech-lead's round loop stops being prose a model follows and becomes code a runtime runs.**
+On a spec with committed `scopes/*.md`, `/ship` now hands the whole pipeline — ORIENT → L1a →
+ANALYZE → WIRE → L1a.5 → MAP SCOPES → L1b → rounds of BUILD/L2/EVAL → QA → GATE H — to one
+`Workflow` launch (`skills/tech-lead/workflows/shapeup-run.js`). `SKILL.md` is a 122-line shell
+that holds the L0 intake conversation, launches, and branches on what comes back.
+
+*Version number deliberately unset: the release tag, the manifest bump and the merge are the PO's
+move. Pin target below is the last published release, **1.6.3**.*
+
+**The four decisions this implements** (PO decision record, 2026-08-06 —
+`docs/workflow_extraction_review.md` §6):
+
+- **D1 — Stage 0 is the kill-switch.** The migration started only because a throwaway spike proved
+  the three runtime assumptions: the permission grant survives into workflow subagents, hooks
+  actually fire inside them (two `deny` rows in `decisions.jsonl`, quoted in the evidence, not
+  inferred from a refusal), and the `Workflow` tool exists headless.
+- **D2 — No dual paths.** Both lanes move at once for scoped specs; the prose orchestrator is not
+  kept alongside as a fallback. **Rollback is version pinning** — see below.
+- **D3 — Scopes run sequentially in v1.** Fan-out is deliberately unspent; the `workflow()` nesting
+  cap is one level deep and v1 does not spend it.
+- **D4 — Gates pause by returning, not blocking.** A gate returns `{status: "paused", paused_at,
+  block}`; the PO answers, the skill relaunches the same call, and the run fast-forwards from disk.
+  A killed session therefore loses no work — the property the whole migration exists to buy, graded
+  by a kill/resume probe over a live `SIGKILL` (`docs/migration/stage-a3-evidence.md` §4).
+
+### Rolling back
+
+**Pin the previous release — `1.6.3`.** There is **no in-tree prose lane** to fall back to for a
+scoped spec: D2 means the runbook the workflow replaced is gone, not commented out, so downgrading
+the package is the only way back.
+
+Two things about that sentence, because on its own it misleads in both directions:
+
+1. **It is narrower than it sounds.** Only the **scoped** lane is code-only. `--tiny` runs, and any
+   spec with no committed `scopes/*.md` yet, keep their prose loop in
+   `skills/tech-lead/references/round-protocol.md` — unchanged, non-regression, and routed there
+   explicitly by `SKILL.md`. If you have never adopted scope contracts, this release changes how
+   nothing runs.
+2. **A pin reverts more than this migration.** The branch also carries the merged day-2 ratchet
+   work (`af99937`), which is unrelated to the orchestrator. Re-derived rather than estimated: that
+   merge touched 30 files, of which **6 ship in the npm package** — `skills/orient/SKILL.md`,
+   `skills/qa-edge-hunter/SKILL.md`, `skills/task-executor/SKILL.md`,
+   `skills/tech-lead/references/delegation.md`, `skills/tech-lead/references/round-protocol.md`,
+   `skills/tech-lead/scripts/ship-report.mjs`. Pinning to fix a workflow problem silently gives
+   those back too. The rest of that merge is repo-side tooling and measurement traces that were
+   never in a release.
+
+### Required for headless runs
+
+**Set `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0`** for any `--unattended` / CI invocation. Without it
+`claude -p` terminates the Workflow at 600 s and **exits 0** — a truncated run reported as a clean
+one, which is worse than a failure because nothing downstream can tell the difference. Measured on
+this migration's own probe runs, not reasoned about.
+
+### Also
+
+- `skills/tech-lead/workflows/shapeup-build-round.js` is **deleted**. Stage 1 shipped it, Stage 2
+  inlined the round loop into `shapeup-run.js`, and nothing ever launched it again — 418 lines of
+  duplicate attempt loop kept alive by a test that asserted it existed. `tests/structural/16-workflows.mjs`
+  now asserts *reachability* instead: every workflow script on disk is one `SKILL.md` launches.
+- `commands/build.md` and `commands/ship.md` name the `Workflow` launch as the opt-in surface.
+  `build.md` keeps its standalone single-task path — that is the task front door, not the round.
+
 ## [1.6.3] — 2026-08-05
 
 **The plugin-only install path does not carry the permission grant, and the docs now say so.**

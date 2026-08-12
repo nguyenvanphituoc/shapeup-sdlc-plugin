@@ -12,3 +12,23 @@ If no task ID was given, read the board (`.shapeup/<slug>/tasks/_index.md`) and 
 next `ready` task, stating which one you picked. Respect the substrate: if scope contracts
 exist, writes outside the active scope's whitelist will be denied by the sandbox hook — that is
 the harness working, not an error to route around.
+
+## Building a whole scoped feature is not this command
+
+This command builds **one task**. A full BUILD round — every scope, the per-scope attempt loop,
+T0 verification, the inner circuit breaker, then the single EVAL — is a `Workflow` launch, and it
+belongs to the orchestrator:
+
+```
+Workflow({
+  scriptPath: "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js",
+  args: { slug, autoLevel, answers, models, budgets, pluginRoot: "${CLAUDE_PLUGIN_ROOT}", startedAt }
+})
+```
+
+Reach it through `/ship` (or the `tech-lead` skill), which opens the run properly — `init-run.mjs`
+first, so the receipt exists. Do not hand-roll the round by calling this command once per task: the
+attempt loop, the T0 ratchet and the breakers are branches in that script, not steps a caller can
+be trusted to reproduce, and a session that rebuilds them by hand is the prose lane the cutover
+replaced. On a `--tiny` run or a spec with no committed `scopes/*.md`, the prose loop in
+`skills/tech-lead/references/round-protocol.md` still applies, unchanged and by design.

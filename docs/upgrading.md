@@ -74,6 +74,56 @@ teammate's committed analysis. It also notes, once, if your gitignored
 > Migrations `0003`–`0008` are documented in [`CHANGELOG.md`](../CHANGELOG.md) under the release
 > that shipped each one.
 
+## Upgrading into the orchestrator cutover
+
+**There is no migration script for this one, and that is the finding, not an omission.** The
+cutover changes how the tech-lead *runs* — the round loop moves from prose into
+`skills/tech-lead/workflows/shapeup-run.js` — and touches no artifact on your disk. Boards, scope
+contracts, ledgers, receipts and `shapeup/` all keep their formats. `migrate.sh` will report
+nothing pending, correctly. What follows is what changes for the person running it.
+
+### Does this affect you?
+
+Only if you run specs that have **committed `scopes/*.md`**. That lane is now code.
+
+`--tiny` runs and any spec without scope contracts keep the prose loop in
+`skills/tech-lead/references/round-protocol.md`, unchanged and non-regression — `SKILL.md` routes
+them there explicitly. If you have not adopted scope contracts, nothing about your runs changes.
+
+### One thing you must set for headless runs
+
+```bash
+export CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0
+```
+
+Required for any `--unattended` or CI invocation. Without it `claude -p` terminates the Workflow at
+600 s and **exits 0**: a truncated run that reports as a clean one. Nothing downstream can tell that
+apart from success, which is why this is a hard requirement and not a tuning knob. Interactive runs
+are unaffected.
+
+### What a gate pause looks like now
+
+Gates no longer block inside a turn — the run **returns** at one. You will see the gate block, and
+the run ends with `paused`. Answer it, then relaunch the *same* command with the *same* arguments:
+the fast-forward re-derives position from disk and re-dispatches nothing already finished. The same
+mechanism means a session killed mid-run resumes where it died instead of starting over.
+
+If you script around the harness, that is the behavioural change to account for: a paused run is a
+normal, zero-exit outcome that expects a relaunch, not a failure to retry differently.
+
+### Rolling back
+
+**Pin `1.6.3`.** Per decision D2 there are no dual paths — the prose orchestrator was deleted for
+the scoped lane rather than kept as a fallback, so downgrading the package is the only way back.
+
+Know what else the pin takes with it: this release also carries the day-2 ratchet work, which is
+unrelated to the orchestrator, and six of its files ship — `skills/orient/SKILL.md`,
+`skills/qa-edge-hunter/SKILL.md`, `skills/task-executor/SKILL.md`,
+`skills/tech-lead/references/delegation.md`, `skills/tech-lead/references/round-protocol.md`,
+`skills/tech-lead/scripts/ship-report.mjs`. Pinning to work around an orchestrator problem reverts
+those too, silently. If that trade is the wrong one, open an issue rather than pinning — the
+rollback is deliberately coarse and we would rather fix forward.
+
 ## Why the entrypoints live where they do
 
 Source resolution, CLI selection, and skill replacement are factored into a shared
