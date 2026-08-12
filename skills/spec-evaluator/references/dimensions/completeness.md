@@ -25,7 +25,7 @@ criteria?"* — it grades the tasks that exist. It cannot see the task that was 
 written. Shape Up's discovered-task philosophy says the real bulk of work is found while
 building; an invariant declared on a UC but never backed by a regression task is exactly
 that blind spot. This dimension converts "absence of a task" from invisible into a graded
-**GAP** — the judge surfaces it; the planner (a ba-pitch-analyzer reconcile/generate-board order) fills it.
+**GAP** — the judge surfaces it; the planner (a ba-pitch-analyzer `reconcile` order) fills it.
 Judge never fills it itself.
 
 **Distinction held:** conformance = *the tasks that exist are correct*; completeness =

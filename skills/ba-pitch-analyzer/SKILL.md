@@ -24,15 +24,16 @@ Invoked as `--order <path>`. Fields you may rely on (absent = unknown; surface i
 
 | Field | What it is |
 |---|---|
-| `operation` | `analyze` (pitch → full spec tree + board) · `reconcile` (fold discovered-ledger items into the board + UC invariants) · `retrofit-surface` (append `## Test Surface` to a pre-surface spec) |
+| `operation` | `analyze` (pitch → full spec tree + board) · `reconcile` (fold discovered-ledger items into the board + UC invariants) · `retrofit-surface` (append `## Test Surface` to a pre-surface spec) · `coverage` (extract atomic requirement clauses → the SHARED `requirements.md` registry) |
 | `payload.pitch` | The pitch/PRD path (analyze) |
-| `payload.lens` | `lite` \| `standard` \| `cross-context`. Absent → judge it: LITE for ≤2-week appetite, no third-party, ≤3 user-facing actions; STANDARD for multi-team, third-party, or bigger appetite; genuinely unclear → one binary question / one `escalates[]` entry |
+| `payload.requirements` | (coverage) the REQ source to extract atomic clauses from — pitch / a customer-requirements doc / the use-case bodies. Absent → default to the pitch and record the choice in `assumptions[]` |
+| `payload.lens` | `lite` \| `standard` \| `cross-context`. Absent → judge it: LITE for ≤2-week appetite, no third-party, ≤3 user-facing actions; STANDARD for multi-team, third-party, or bigger appetite; genuinely unclear → one binary question, or `status: "escalated"` with the question in `deviations[]` |
 | `payload.orient_dir` | The Scout's artifacts — `code-surface.md` IS your codebase map (do not re-scan), `discovered-seed.md` seeds task gen, `spike-*.md` feeds feasibility |
 | `payload.spec_folder` / `payload.feature` | Where the committed tree lives / the slug |
 | `payload.discovered_ledger` | (reconcile) the ledger whose raw `[+]`/`~` lines you fold in |
 | `payload.kb_rules_path` | Team guidelines (read if present) — steering, never spec |
 | `substrate.allowed / append_only / frozen` | Your write contract for THIS operation. The old frozen-zone prose is now data the sandbox hook enforces (reading the order's envelope): respect it, and when an operation genuinely needs a file outside it, ESCALATE — never widen |
-| `interaction.pause_gates` | Caller policy. `true` (standalone default): pause at the phase checkpoints below, max 2 questions each. `false`: run straight through, surfacing questions as `assumptions[]`/`escalates[]` instead |
+| `interaction.pause_gates` | Caller policy. `true` (standalone default): pause at the phase checkpoints below, max 2 questions each. `false`: run straight through, surfacing questions as `assumptions[]` (or `deviations[]` when they block) instead |
 
 ---
 
@@ -92,14 +93,14 @@ its phase; templates live in `assets/templates/`.
 second path to green.
 
 ---
----
 
-## The other two operations — same craft, different payload + whitelist
+## The other three operations — same craft, different payload + whitelist
 
 | Operation | Essence | Never |
 |---|---|---|
-| `reconcile` | Verify `ledger.feature == payload.feature` (mismatch → STOP). Map each `[+]` Keep item → its owning UC; new task continues numbering (never renumber); `~`/Cut → synthesis "Hammered Out" row, no file. A Keep item asserting a new invariant → APPEND `[INV-NN]` + TS-INV row to that UC (append-only sections in your substrate). A new actor/action with no UC → `escalates[]` (spec-ambiguity): spawning a UC mid-cycle is silent re-shaping, the PO decides. Finish with board-derive (appetite overflow → report) + spec-lint | re-run phases 1–5; edit UC Steps; resolve the appetite HAMMER yourself |
+| `reconcile` | Verify `ledger.feature == payload.feature` (mismatch → STOP). Map each `[+]` Keep item → its owning UC; new task continues numbering (never renumber); `~`/Cut → synthesis "Hammered Out" row, no file. A Keep item asserting a new invariant → APPEND `[INV-NN]` + TS-INV row to that UC (append-only sections in your substrate). A new actor/action with no UC → `status: "escalated"` + a `deviations[]` spec-ambiguity entry: spawning a UC mid-cycle is silent re-shaping, the PO decides. Finish with board-derive (appetite overflow → report) + spec-lint | re-run phases 1–5; edit UC Steps; resolve the appetite HAMMER yourself |
 | `retrofit-surface` | Append `## Test Surface` (derived rows only, after Error Cases) to each UC of a pre-surface spec; an all-sources-empty UC gets the explicit empty-sources line | touch anything else — append-only substrate |
+| `coverage` | Extract **atomic** customer requirement clauses from `payload.requirements` (default: the pitch) and write the SHARED `shapeup/<slug>/requirements.md` registry: one `\| REQ-id \| clause (verbatim) \| source \| status \| note \|` row per clause. Split compound sentences into one testable clause each — a clause lost *inside* a bigger sentence is a requirement nothing can be traced to. **Assign REQ-ids ONCE and freeze them** (they behave like scope_id, never TASK-NNN — every `covers:` link rots otherwise): re-running, append new clauses with fresh ids, mark a removed clause `CUT (PO-approved)`, never renumber or delete. Status starts `covered` (a live requirement); only the PO sets `CUT`. The REQ source itself is frozen — the registry is a separate derived file | edit the REQ source; renumber existing REQ-ids; delete a dropped clause instead of marking it CUT; invent a requirement not in the source |
 ---
 
 ## Anti-rationalization table
@@ -117,6 +118,13 @@ second path to green.
 ---
 
 ## Output contract — the WorkResult
+
+**Escalation rule.** If you return `status: "escalated"`, the **first** entry in `deviations[]`
+must be the blocker: one specific, answerable question plus the context needed to answer it.
+Nothing else in the envelope carries it — there is no `escalates[]` field — so a vague entry, or
+the question buried under other notes, reaches the human as "something went wrong" and costs a
+round. Write it so someone without your context can answer it in one reply.
+
 
 Domain artifacts land inside your substrate (the committed spec tree + the LOCAL board). Then
 write `.shapeup/<slug>/results/<order-suffix>.json`:
@@ -165,8 +173,9 @@ status flips for built work (ingest's job), scope contracts (scope-architect's),
 ```
 
 Standalone keeps exactly two flags: the pitch input and `--lens`. Every retired flag is now
-caller context: `--tasks-only` → a generate-board order, `--from-discovered` → a reconcile
-order, `--surface-only` → a retrofit-surface order, `--remap`/`--split` → scope-architect
-orders, `--status` → read `spec-lint.mjs`/`board-derive.mjs` output (zero LLM tokens),
+caller context: `--tasks-only`/`--from-discovered` → a reconcile order, `--surface-only` → a
+retrofit-surface order, `--coverage` → a coverage order, `--remap`/`--split` → a
+scope-architect `map-scopes` order,
+`--status` → read `spec-lint.mjs`/`board-derive.mjs` output (zero LLM tokens),
 `--auto`/`--skip-gate*` → `interaction.pause_gates`, `--upgrade` → an analyze order with the
 standard lens over an existing lite tree (reconciliation pass: extend, never overwrite Steps).

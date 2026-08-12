@@ -361,12 +361,12 @@ Slug rules:
 ## Link-Field Integrity (v3.3)
 
 **`depends_on` is the single authoritative edge; `unlocks` is derived, never hand-authored.**
-On EVERY board write — analyze, generate-board, reconcile — recompute (via
+On EVERY board write — analyze, reconcile — recompute (via
 `board-derive.mjs --write`, never by hand) the `unlocks` field of every task on the board as the
 exact inverse of the full board's `depends_on` graph, then write it. Adding one task that
 declares `depends_on: [TASK-007]` therefore rewrites `TASK-007.unlocks` in the same pass.
 "Write both sides when you remember" allows drift; a derived field cannot drift
-(island-escape shipped 10 asymmetric edges under the old rule). Audit L3-06 fails the board
+(the old rule shipped boards carrying ten asymmetric edges). Audit L3-06 fails the board
 on any asymmetric edge.
 
 The same discipline has a boundary: it applies only when both sides live in the SAME root
@@ -584,7 +584,7 @@ This is scope hammering at the gate boundary — the overflow is surfaced, never
 **Naming note:** the discovery ledger's "scope" sections (above) predate the formal Scope
 Contract artifact below and name the same thing — a `discovery/ledger.md` scope heading MUST
 match an existing `scope_id` from a `scopes/<scope-id>.md` contract, or (a Keep item
-introducing new flow) become the seed for a new one via a scope-architect remap order. One concept, two touch points.
+introducing new flow) become the seed for a new one via a scope-architect `map-scopes` order. One concept, two touch points.
 
 **Import/flow slicing (PA1 countermeasure).** Build a lightweight import graph over the task
 board's touched files: for each file a task writes, note what it imports and what imports it
@@ -615,7 +615,7 @@ or entirely `apps/api/**` with no cross-layer flow is the PA1 failure mode — r
 ```
 `hill_phase` is always written `UPHILL_UNKNOWN` at generation time — it is derived later from
 mechanical T0/T1/seesaw facts, never declared by `ba` (design spec DD-10). `superseded_by` stays
-`null` until a scope-architect split-scope order retires this contract in favor of its replacements.
+`null` until a scope-architect `map-scopes` order retires this contract in favor of its replacements.
 
 **PA2 size lint:** a scope whose `allowed_file_substrate` glob set resolves to more than ~15
 files gets a ⚠️ from spec-lint PA2 (hard-cap configurable via pitch frontmatter `scope_size_cap`, default

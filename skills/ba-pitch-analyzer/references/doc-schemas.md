@@ -152,7 +152,7 @@ status: draft | ready
 > tasks carry `use_case_refs` (LOCAL, per-machine board); reverse lookup is always computed
 > live (synthesis S-01, audit coverage) — never stored on the committed UC. Rule: **never
 > declare a bidirectional field across the committed/local boundary** — task IDs renumber
-> per machine (generate-board bootstrap), so a stored back-link is wrong on every machine
+> per machine (the board is regenerated locally), so a stored back-link is wrong on every machine
 > but one. Tolerate (ignore) the field on pre-v3.3 specs; do not emit or update it.
 
 Required sections: Summary (1 sentence), Preconditions, Input (TS interface), Steps

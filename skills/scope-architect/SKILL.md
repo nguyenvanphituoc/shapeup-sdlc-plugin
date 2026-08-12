@@ -19,7 +19,7 @@ anti-rationalization table.
 
 | Field | What it is |
 |---|---|
-| `operation` | `map-scopes` (first slicing after the board exists) · `remap` (fold discovered items into scope contracts) · `split-scope` (re-slice one stuck scope) |
+| `operation` | `map-scopes` — the only operation this skill has. It covers first slicing after the board exists, folding discovered items in, and re-slicing a stuck scope; the payload says which of those you are doing |
 | `payload.feature` / `payload.spec_folder` | Slug + committed spec (read ux-behavior.md for manifests; usecases for flows) |
 | `payload.tasks[]` | The board's tasks with their touched files — the slicing input |
 | `substrate.allowed` | `scopes/*.md` + `scope-board.md` — your ONLY write surface |
@@ -64,10 +64,10 @@ anti-rationalization table.
 5 BOARD    regenerate scope-board.md (scope_id, topology, task count, substrate size, lint)
 ```
 
-**remap:** a discovered item joins the nearest scope only if the flow matches (extend that
+**Folding in a discovered item:** it joins the nearest scope only if the flow matches (extend that
 substrate minimally); otherwise propose a NEW scope — never silently widen an existing one.
-**split-scope:** re-run step 1 on just that scope's task+file set → N new contracts; mark the
-old one `superseded_by: [ids]` — never delete (branch and T0 history stay attributable).
+**Re-slicing a stuck scope:** re-run step 1 on just that scope's task+file set → N new contracts;
+mark the old one `superseded_by: [ids]` — never delete (branch and T0 history stay attributable).
 
 ## Anti-rationalization table
 
@@ -82,9 +82,16 @@ old one `superseded_by: [ids]` — never delete (branch and T0 history stay attr
 
 ## Output contract — the WorkResult
 
+**Escalation rule.** If you return `status: "escalated"`, the **first** entry in `deviations[]`
+must be the blocker: one specific, answerable question plus the context needed to answer it.
+Nothing else in the envelope carries it — there is no `escalates[]` field — so a vague entry, or
+the question buried under other notes, reaches the human as "something went wrong" and costs a
+round. Write it so someone without your context can answer it in one reply.
+
+
 `scopes/*.md` + `scope-board.md` in your substrate, then
 `.shapeup/<slug>/results/<order-suffix>.json`: `status`, `artifacts[]` (the contracts
-written/superseded), `escalates[]` (e.g. a discovered item implying a new UC — the planner's
+written/superseded), `deviations[]` (e.g. a discovered item implying a new UC — the planner's
 territory), `deviations[]` (any lint warn left standing and why). You never touch task files,
 `tasks/_index.md`, spec docs, or run-state.
 
@@ -105,5 +112,5 @@ territory), `deviations[]` (any lint warn left standing and why). You never touc
 
 # Standalone shims (compile the same envelope)
 /scope-architect --map shapeup/checkout-vnpay/
-/scope-architect --split cart-creation shapeup/checkout-vnpay/
+/scope-architect --map --split cart-creation shapeup/checkout-vnpay/   # re-slice one scope
 ```
