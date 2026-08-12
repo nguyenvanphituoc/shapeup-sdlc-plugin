@@ -1,9 +1,9 @@
 # Security
 
-This plugin installs **eight hook entries (seven Node scripts + one `echo`)**, four of them in
-a `PreToolUse` position where they can deny tool calls. That is the product — and it is also
-exactly the kind of surface a careful reviewer should want spelled out before installing.
-This page is that spelling-out.
+This plugin installs **twelve hook entries (eleven Node scripts + one `echo`)**: six in a
+`PreToolUse` position, of which **five can deny a tool call**, plus one `Stop`-position hook that
+can block a session from ending. That is the product — and it is also exactly the kind of surface
+a careful reviewer should want spelled out before installing. This page is that spelling-out.
 
 ## Reporting a vulnerability
 
@@ -25,14 +25,25 @@ injection path through skill files. Please do not test against machines you don'
    no install-time scripts. What you read is what runs.
 3. **Every hook is fail-open by design.** Unparseable input, missing state files, or an
    unrecognized invocation shape → the hook defers and the normal permission flow proceeds. A
-   hook denies only when it can positively prove its condition (a non-green board, a matched
-   destructive command, a path outside a declared substrate, an invalid order file).
+   hook denies only when it can positively prove its condition (a matched destructive command, a
+   path the active order's substrate does not permit, an invalid order file, an empty intake, a
+   spent wall-clock budget).
 4. **The model cannot widen its own safety envelope.** The escape hatch
    (`.shapeup/safety-overrides.json`) is human-authored; `safety-spine` itself denies any
    write/move/delete touching that file, a malformed overrides file is treated as absent
-   (override channel fails closed), and every exercised override is logged.
-5. **Stop hooks never block.** The two Stop-position hooks are advisory: they emit at most a
-   `systemMessage` and always exit 0.
+   (override channel fails closed), and every exercised override is logged. The same principle
+   covers `.shapeup/active-order`, the pointer `sandbox-guard` reads to decide what a worker may
+   write: it sits outside the run-trace carve-out, so a worker cannot repoint its own sandbox.
+5. **Exactly one hook can block, and only on a mechanical absence.** Two of the three
+   `Stop`-position hooks (`anti-rationalization`, `slop-cleaner`) are advisory — at most a
+   `systemMessage`, always exit 0. The third, `gate-zerowork`, **does** return
+   `decision: "block"`, and only in one state: the session dispatched the orchestrator and left
+   no run receipt on disk. It makes no judgement about quality — it reports that there is no work
+   to judge. `stop_hook_active` caps it at one block per stop chain.
+6. **Every hook decision is recorded.** `hooks/lib/decision.mjs` is the only exit path a hook
+   has, so allow, deny, block and error each leave a row in `.shapeup/decisions.jsonl`. An
+   inert hook and a permitting hook are therefore distinguishable — which matters, because
+   "exit 0, no output" is what both used to look like.
 
 If you find any of these to be false, that is a vulnerability — report it as claim #ⁿ.
 
@@ -44,15 +55,18 @@ sitting, and reading them is the recommended review.
 | Hook | Event (matcher) | Reads | Can deny | Never does |
 |---|---|---|---|---|
 | [`safety-spine.mjs`](hooks/safety-spine.mjs) | PreToolUse (`Bash\|Read\|Write\|Edit\|MultiEdit`) | The proposed command/path; `.shapeup/safety-overrides.json` | Yes — provably destructive ops only: `rm -rf` on unrecoverable targets, `git push --force` / push to main, `git reset --hard`, `git clean -fdx`, `DROP TABLE`/`TRUNCATE`, reads of `.env`/keys/cloud credentials, and any write to its own overrides file | Never blocks an unmatched command; `--force-with-lease` stays allowed |
-| [`gate-l2.mjs`](hooks/gate-l2.mjs) | PreToolUse (`Skill`) | The round's task board (`.shapeup/<slug>/tasks/`) | Yes — the once-per-round EVAL dispatch while any task is unfinished | Never gates a single-task eval (`--task`); no board → defers |
+| [`gate-intake.mjs`](hooks/gate-intake.mjs) | PreToolUse (`Skill`) | The `tech-lead` dispatch's own arguments | Yes — an orchestrator dispatch carrying no resolvable intake (no pitch, spec, resume or requirement text) | Fails open on `--order` and on any ambiguous arg shape |
+| [`gate-deadline.mjs`](hooks/gate-deadline.mjs) | PreToolUse (`Skill`) | The run's opt-in `wall_clock_budget_s` and start time | Yes — a `task-executor` dispatch once the budget is spent, routing to the ship gate instead | Never denies `spec-evaluator`, `scope-hammer` or `qa-edge-hunter`; off entirely unless a budget is configured |
 | [`validate-envelope.mjs`](skills/tech-lead/scripts/validate-envelope.mjs) | PreToolUse (`Skill\|Agent`) | The `--order` file named in the dispatch; the JSON schemas | Yes — a worker dispatch whose order file is missing or schema-invalid | Never gates a dispatch that carries no `--order` (standalone skill use stays free) |
-| [`sandbox-guard.mjs`](hooks/sandbox-guard.mjs) | PreToolUse (`Edit\|Write\|MultiEdit`) | The target path; the active scope contract | Yes — writes outside the active scope's substrate whitelist | No-op unless a scope is active; the active feature's own `.shapeup/<slug>/` run-trace is always writable. Appends denials to the local pathology log |
+| [`sandbox-guard.mjs`](hooks/sandbox-guard.mjs) | PreToolUse (`Edit\|Write\|MultiEdit`) | The target path; the active order's `substrate` block, via `.shapeup/active-order` | Yes — any write the order does not permit: outside `allowed`/`shared`, inside `frozen`, or a `Write` to an `append_only` path | No-op unless an order is live; the active feature's own `.shapeup/<slug>/` run-trace is always writable. Appends denials to the local pathology log |
+| [`gate-l2.mjs`](hooks/gate-l2.mjs) | PreToolUse (`Skill`) | The round's task board (`.shapeup/<slug>/tasks/`) | **No** — advisory since ADR-0001. It detects a non-green board by two independent reads, names the unfinished tasks in a `systemMessage`, and permits the call | Never denies; records a `warn` row so "evaluated a partial board" stays countable |
+| [`gate-zerowork.mjs`](hooks/gate-zerowork.mjs) | Stop | Run receipts on disk; the session transcript; the decision ledger | **Yes — the one blocking hook.** Returns `decision:"block"` when the session dispatched the orchestrator and produced no run receipt | Defers the moment any receipt exists; `stop_hook_active` caps it at one block per stop chain |
 | [`anti-rationalization.mjs`](hooks/anti-rationalization.mjs) | Stop | Board/T0 facts vs. the reply's completion claims | **No** — advisory `systemMessage` only | Never `decision:"block"`, never exit 2 |
 | [`slop-cleaner.mjs`](hooks/slop-cleaner.mjs) | Stop | The session's git diff (local `git diff`, via `spawnSync`) | **No** — advisory `systemMessage` flagging TODO / `console.log` / commented-out leftovers | Same — never blocks |
 | [`compact-snapshot.mjs`](hooks/compact-snapshot.mjs) | PreCompact | Run state | No — writes `.shapeup/<slug>/run-snapshot.json` before compaction | Touches nothing outside `.shapeup/` |
-| [`session-rehydrate.mjs`](hooks/session-rehydrate.mjs) | SessionStart (`compact\|resume`) | The saved run snapshot | No — injects the "trust the files, not the summary" hint when a run is in flight | Silent when no run is in flight |
+| [`session-rehydrate.mjs`](hooks/session-rehydrate.mjs) | SessionStart (`startup\|compact\|resume\|clear`) | The saved run snapshot | No — injects the "trust the files, not the summary" hint when a run is in flight | Silent when no run is in flight |
 
-(The eighth `hooks.json` entry is a plain `echo` on SessionStart confirming the plugin loaded.)
+(The twelfth `hooks.json` entry is a plain `echo` on SessionStart confirming the plugin loaded.)
 
 ## Data handling
 

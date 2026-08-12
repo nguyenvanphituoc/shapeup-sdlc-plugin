@@ -136,12 +136,21 @@ export async function run(ctx) {
     }
     const readme = read(join(ROOT, "README.md"));
     const design03 = read(join(ROOT, "docs/design/03-system-design.md"));
+    // SECURITY.md is in this list for a reason, and it is the sharpest of the three: it SHIPS (it
+    // is in the `files` allowlist), and it is the page a reviewer reads to decide whether to trust
+    // the hook surface at all. While it sat outside this check, three hooks were added without it
+    // — and its falsifiable claim "Stop hooks never block" went on asserting the opposite of
+    // `gate-zerowork`, which returns `decision: "block"`. An undocumented hook in the README is
+    // untidy; an undocumented deny in the security page is a wrong answer to a security question.
+    const security = read(join(ROOT, "SECURITY.md"));
     for (const script of registeredScripts) {
       const base = script.split("/").pop();
       if (!readme.includes(base)) fail(`hooks.json registers ${base} but README.md never mentions it (undocumented hook)`);
       else ok(`README documents hook ${base}`);
       if (!design03.includes(base)) fail(`hooks.json registers ${base} but docs/design/03-system-design.md never mentions it`);
       else ok(`design/03 documents hook ${base}`);
+      if (!security.includes(base)) fail(`hooks.json registers ${base} but SECURITY.md never mentions it — the shipped security page must enumerate every hook`);
+      else ok(`SECURITY.md documents hook ${base}`);
     }
     for (const f of readdirSync(join(ROOT, "hooks")).filter((f) => f.endsWith(".mjs"))) {
       if (![...registeredScripts].some((s) => s.endsWith(`/${f}`) || s === `hooks/${f}`)) {
