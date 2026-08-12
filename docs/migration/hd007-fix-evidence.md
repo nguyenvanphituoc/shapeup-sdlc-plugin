@@ -175,7 +175,10 @@ a granted command rather than compare strings, and that is a PO decision, not an
   candidate arm measures denials again.
 - **§3's evidence rule is validated by replay**, against archived workspaces, not by a live run.
 - **HD-009 is filed, not fixed**, and every option changes what users are asked to grant.
-- The bench changes are uncommitted in a separate repository.
+- Nothing is **pushed**. The plugin work is four commits on `feat/workflow-orchestrator`
+  (`09f458b` launcher · `187aaa5` HD-008 · `8615975` the refutations and HD-009 · `15c6391` this
+  file's §6); the bench's two instrument files are one commit in their own repository, with its
+  `results/` data deliberately left uncommitted.
 
 ## 6 — Step 5, staged and deliberately not run
 
@@ -237,5 +240,6 @@ Plugin: `skills/tech-lead/scripts/run-workflow.mjs` (new) · `skills/tech-lead/S
 `tests/structural/{10-run-receipt,16-workflows,17-gate-zerowork-workflow}.mjs` ·
 `tests/fixtures/workflow-run/` · `shapeup/knowledge-base/harness-defects.md` (HD-009 filed, HD-007
 corrected, HD-008 closed).
-Bench (`../sdd-harness-bench`, uncommitted): `runner/run.mjs` · `harnesses/shapeup-sdlc/adapter.mjs`.
+Bench (`../sdd-harness-bench`, committed separately): `runner/run.mjs` ·
+`harnesses/shapeup-sdlc/adapter.mjs`.
 Rig: `.plan-runs/wf-hd007-pipeline/` (forked from the A3 probe; `seed-project.sh` corrected).

@@ -112,13 +112,27 @@ updated whenever the position changes; everything else is left as the dated reco
   skills/tech-lead/workflows/shapeup-build-round.js`, `execution-contract.md`) — a closed, green
   stage's row. B.1 names the test fixture and the Stage 1 negative probe; it does not name that row.
   Delete and amend in the same commit, or the contract drops to 18/5 and S1 stops being green.
-- ⟐ **The branch is NOT pushed. `origin/feat/workflow-orchestrator` is at `5209df7` — 28 commits
-  behind at `89e07cd` (re-derived 2026-08-12)**, which is everything from Stage A2 onward: A2, A3,
-  Stage B, Stage C. On top of that, the HD-007 probe (`tools/control-plane/`, its evidence file)
-  and this position update are **uncommitted**. The earlier reading ("pushed for
+- ⟐ **The branch is NOT pushed. `origin/feat/workflow-orchestrator` is at `5209df7`, now 38 commits
+  behind (re-derived by execution, not carried forward)** — everything from Stage A2 onward: A2,
+  A3, Stage B, Stage C, the HD-007/008 fix, and day-2 work landing in parallel. The HD-007 work is
+  **committed** as four commits (`09f458b` launcher · `187aaa5` HD-008 · `8615975` the refutations
+  and HD-009 · `15c6391` the staged re-run); the prototype no longer lives at `tools/control-plane/`
+  — it ships at `skills/tech-lead/scripts/run-workflow.mjs`. The earlier reading ("pushed for
   review", true on 2026-08-10) was carried forward instead of re-derived — the same class of error
   this branch keeps catching. **Nothing is merged, tagged, or published** — that remains the PO's
-  move after Stage C, and the push is theirs to ask for.
+  move, and the push is theirs to ask for.
+
+> ⟐ **The suite is RED at `ebe2ea7`, and it arrived with parallel work, not with the migration.**
+> Re-derived rather than carried forward: `npm test` is **1369 / 1 failure**, and
+> `contract-check.mjs` therefore reports **S2 and S3 RED** (both rows run `npm test`). The single
+> failure is structural #16(b) — *a workflow script hardcodes a storage root* — at
+> `shapeup-run.js`'s QA hunt payload, which gained
+> `eval_report: \`.shapeup/${slug}/results/evaluate-r${round}.json\`` in `81faf2e`/`ebe2ea7`. That is
+> the invariant AGENTS.md states in its own words: *every path literal in a workflow script is
+> `${args.pluginRoot}`-rooted or produced by a script's stdout*. The same line at `15c6391` carries
+> no literal and the suite is **green there** (verified by checkout), so every green figure below is
+> true as of the HD-007 commits and false at HEAD until that one payload is routed through the path
+> resolver. Left for whoever owns that change.
 
 **Numbers, and what they are not.** All re-derived on 2026-08-12 by execution: `npm test` green
 in-tree at **1363** (1351 after Stage A2; 1328 before it; 1179 at the Stage A commit `2a134cd`,

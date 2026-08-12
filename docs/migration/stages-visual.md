@@ -15,6 +15,15 @@
 >   tell a lane that ran from one that was imitated. But the `Workflow` tool **is** grantable (a bare
 >   `"Workflow"` token; the bench's settings never carried it), and **`HD-009`** — `init`'s grant
 >   matches no command at all — **blocks the lane and the A7 re-run** (`hd007-fix-evidence.md`).
+> - **Committed, not pushed.** Four commits carry the fix (`09f458b` · `187aaa5` · `8615975` ·
+>   `15c6391`), the bench's two instrument files one more in their own repo. `npm test` **1370**,
+>   contract **23/0**, verified after each. The A7 re-run is **staged and unrun** — both arms'
+>   commands, the `BENCH_REQUIRE_LANE=1` gate and the R12 recording lines are written out in
+>   `hd007-fix-evidence.md` §6, one HD-009 decision from fireable.
+> - ⚠ **The suite is RED at HEAD (`ebe2ea7`) from work landing in parallel, not from the above.**
+>   One failure, structural #16(b): `shapeup-run.js`'s QA hunt payload gained a hardcoded
+>   `.shapeup/…` literal — the exact invariant AGENTS.md states for workflow scripts. Green at
+>   `15c6391`, verified by checkout. Every figure on this page is true as of the migration commits.
 >
 > Panels corrected in place: *Where the migration actually stands*, A.2's probe record, the Stage
 > B and C banners, the contributions table — and one new section, *The HD-007 probe*. Stage A's
@@ -58,6 +67,7 @@ flowchart TB
   FIX -->|"then step 4 probed the premise"| REF["⟐ HD-007 REFUTED<br/>the tool IS grantable —<br/>the bench never granted it"]
   FIX -->|"and the pipeline aborted<br/>at dispatch 1, ×3"| HD9["⟐ HD-009<br/>init's grant matches NO command<br/>(whole-argument boundaries;<br/>quoted call sites match nothing)"]
   HD9 --> HOLD["MERGE WAITS · A7 NOT RUNNABLE<br/>PO decides the grant strategy"]
+  HOLD -.->|"re-run written out, not fired"| S5["step 5 STAGED<br/>both arms · BENCH_REQUIRE_LANE=1<br/>~$30–40, one decision away"]
   REF -.-> HOLD
   T14["14-invocation-paths.mjs<br/>green throughout"] -.->|"compares STRINGS,<br/>never executes a granted command"| HD9
 
@@ -66,7 +76,7 @@ flowchart TB
   classDef todo fill:#fcf8e3,stroke:#8a6d3b,stroke-width:2px
   class ROWS,PROBE,B,FIX good
   class HD9,HOLD bad
-  class REF,T14 todo
+  class REF,T14,S5 todo
 ```
 
 **The claim:** the green scoreboard above a stop is this page's recurring lesson, and HD-009 is its
