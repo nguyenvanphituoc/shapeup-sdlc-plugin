@@ -6,6 +6,64 @@
 
 ## Defects
 
+### HD-009 — the pipeline permission grant matches nothing, and every check of it tested a proxy
+
+**Filed:** 2026-08-12, from the first full-pipeline run through the shipped launcher
+(`.plan-runs/wf-hd007-pipeline`, three legs). Not from L4 feedback — from a run that aborted at its
+FIRST dispatch in a project that was trusted and carried the installer's grant.
+
+`bin/init.mjs` writes `Bash(node ${CLAUDE_PLUGIN_ROOT}/skills/<owner>/scripts/:*)`. **That rule
+grants nothing.** Bash prefix rules match on **complete argument boundaries**, and this prefix ends
+in the middle of an argument (`.../scripts/`), so it matches no command at all. Measured in a
+trusted scratch workspace, one command, three rules:
+
+| rule in `permissions.allow` | command | result |
+|---|---|---|
+| `Bash(node <dir>/scripts/:*)` — prefix ends mid-argument | `node <dir>/scripts/hello.mjs` | **DENIED** |
+| `Bash(node <dir>/scripts/hello.mjs:*)` — prefix is a whole argument | same | **ALLOWED** |
+| `Bash(node:*)` — prefix is a whole token | same | **ALLOWED** |
+
+**And the second half is worse, because it removes the obvious fix.** Every skill writes its call
+sites in the QUOTED form — `node "${CLAUDE_PLUGIN_ROOT}/skills/…"` — which v1.5's leg-2 fix adopted
+so an install path containing a space would not break the command. A quoted command matches
+**neither** rule spelling:
+
+| command | rule | result |
+|---|---|---|
+| `node "<dir>/scripts/hello.mjs"` | `Bash(node <dir>/scripts/hello.mjs:*)` | **DENIED** |
+| `node "<dir>/scripts/hello.mjs"` | `Bash(node "<dir>/scripts/hello.mjs:*)` | **DENIED** |
+
+So the documented call sites are ungrantable as written, and the two fixes pull against each other:
+unquoting restores grantability and reintroduces the spaced-path break the quoting was adopted for.
+
+**Why nothing caught it.** `tests/structural/14-invocation-paths.mjs` asserts the grant is a
+**string prefix** of each documented command, and it is — that is exactly why the module is green.
+String-prefix-ness is a *proxy* for "the CLI will honour this", and the proxy and the behaviour
+diverge precisely here. This is the module's own banner turned on itself: a check that verifies the
+shape of an invariant instead of executing it. The installer test (check 5) executes `init` and
+asserts the rules land in `settings.json`; nothing ever asserted a granted command actually runs.
+
+**What this explains, retroactively.** The "26 approval denials in a single session" that motivated
+the grant — the grant never fixed them. HD-007's headless lane failure. A7's candidate arm
+improvising the feature by hand. And why the benchmark's own harness scripts *did* run: its adapter
+appends a broad `Bash(node:*)` rule (`harnesses/shapeup-sdlc/adapter.mjs`), which works — so the
+bench has been measuring a permission configuration the plugin does not ship.
+
+**The fix this defect is filed for** — a PO decision, because the options trade differently and one
+of them is a security posture, not a bug fix:
+1. **Enumerate whole-argument rules**, one per shipped script (`Bash(node <root>/skills/<owner>/scripts/<name>.mjs:*)`).
+   Least privilege intact, grantable — but requires unquoting the call sites, which re-opens the
+   spaced-install-path break, so it needs a documented install constraint or a path-quoting scheme
+   the matcher accepts.
+2. **Grant `Bash(node:*)`.** Known to work, and what the benchmark has been using all along. Broad:
+   any node command in the project.
+3. Keep the tool lane and grant the unscoped `"Workflow"` token (HD-007's correction) — which has
+   its own unscopable-grant problem.
+
+**Whichever is chosen, the regression guard must EXECUTE a granted command**, not compare strings.
+
+---
+
 ### HD-006 — the WorkOrder does not say where the WorkResult goes
 
 **Filed:** 2026-08-11, from the Stage A3 kill/resume probe (`docs/migration/stage-a3-plan.md`
@@ -72,6 +130,37 @@ command detects that `Workflow` is unavailable and fails loudly at L0 instead of
 than the documentation: a lane that cannot start should stop the run, not quietly hand the work to an
 improvising agent.
 
+⟐ **FIXED 2026-08-12 — and the diagnosis above is WRONG in its central claim. Read this before
+citing it.**
+
+**What is false: "no permission string exists."** Measured by probing the permission layer instead
+of concluding from denials, in the benchmark's own configuration (untrusted temp workspace, explicit
+`--settings`, `--permission-mode acceptEdits`):
+
+| `permissions.allow` contains | `Workflow` call |
+|---|---|
+| `Bash(node:*)` only — **the benchmark's actual settings** | **denied** — "Review dynamic workflow before running" |
+| bare token `"Workflow"` | **allowed** — zero denials, script runs |
+| `Workflow(<path>)` or `Workflow(<script>)` — scoped | **denied** |
+
+So the tool was never ungrantable. **The benchmark's settings file simply never carried the entry**,
+because `npx shapeup-sdlc init` writes Bash prefixes only. The defect is real and it is an
+**installer** defect: the plugin never granted the permission its own only-lane needs, and nothing
+said so. Six paid reps went to a missing line in an allowlist.
+
+**What survives, and is why the fix is not that one line.** The grant **cannot be scoped** — only
+the bare token works, which permits *every* dynamic workflow script in the project, including one a
+model writes at runtime. A harness whose thesis is "gates the agent cannot talk its way past" should
+not ask users for blanket dynamic-code execution.
+
+**The fix as shipped:** the lane launches through `skills/tech-lead/scripts/run-workflow.mjs` as a
+background Bash call (`SKILL.md` Step 2, `commands/ship.md`), executing the same Workflow-format
+script under the **path-scoped** prefix `init` already writes — so every existing install can start
+it with no new grant. It fails closed (`{"ok":false}`, exit non-zero, and the error is written to
+the run dir where a background caller looks). `docs/upgrading.md` documents the one-line `"Workflow"`
+grant as the alternative for anyone who wants the native runtime's resume and isolation, with the
+scope trade-off stated.
+
 ---
 
 ### HD-008 — `gate-zerowork`'s "work by other means" swallows the case the gate exists for
@@ -97,6 +186,25 @@ looks like, not an exemption from the check. The run ended reading like a clean 
 **The fix this defect is filed for:** once the orchestrator has been dispatched, work-by-other-means
 stops being an acquittal — the absence of a receipt is the finding. The `dispatchedOrchestrator`
 branch and the work-call branch need to be ordered, not OR-ed.
+
+⟐ **FIXED 2026-08-12.** The `work-done` fail-open is deleted outright rather than reordered, because
+**both halves of its stated rationale fail on inspection**: a user running the harness steps by hand
+starts with `init-run.mjs`, which writes the receipt, so that session already defers one branch
+earlier at `receipt-present`; and a "pre-receipt version of the plugin" cannot be the thing executing
+this hook, since `init-run.mjs` ships in the same install. No replacement escape was added — an
+escape that cannot fire is the row-that-cannot-fail this project keeps catching. What keeps it safe
+is not a threshold but the loop guard: `stop_hook_active` defers unconditionally, so a session that
+genuinely worked outside the harness costs one extra turn and then stops.
+
+The block message now also tells such a session *why* its work calls are the reason rather than a
+waiver. Pinned by `tests/structural/10-run-receipt.mjs` — the assertion that used to read "defers
+when the session did real work by other means" is **inverted in place**, same fixture, and
+mutation-verified: restoring the escape turns it red.
+
+The same commit gives the gate the **Bash-launch dispatch arm** it needs post-HD-007, so the shipped
+lane is watched (`tests/structural/17-gate-zerowork-workflow.mjs`, both polarities, also
+mutation-verified). Without it the two fixes would have cancelled: the new launch is itself a Bash
+call, so under the old fail-open three launches with no run would have cleared the gate.
 
 ---
 

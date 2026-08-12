@@ -391,6 +391,29 @@ conversation has no wall-clock story to tell — see Phase 2.
 > scored rep), but at n=2 vs n=2 with four of six reps failing the absolute bar it is **unreplicated,
 > not refuted**. Testing the actual thesis needs **both** arms re-run under `bypassPermissions`
 > (uniformity is the rule) — a further 6 reps, and a new PO decision.
+>
+> ⟐ **Amended 2026-08-12, later the same day — the last sentence is superseded by a probe.**
+> `docs/migration/hd007-control-plane-probe.md`: moving the launch surface from the un-grantable
+> `Workflow` tool to a granted Bash prefix starts the lane under `acceptEdits` — T1 ran the
+> HD-007-symmetric script headlessly with zero denials in the exact mode §7.5 records the tool
+> denying, P3 dispatched a real worker under `acceptEdits`, and P1 executed the **unmodified**
+> `shapeup-run.js` to its own arg-validation abort. The A7 re-run therefore needs no
+> `bypassPermissions` on either arm, and HD-007's fix has a concrete shape (the ship command
+> launches via cp-run under Bash; `init`'s `mergePipelinePermissions` writes the prefix; failing
+> closed is already cp-run's behaviour). Still the PO's decision — the probe is a prototype, the
+> full pipeline has never run through it, and nothing in `skills/` changed.
+>
+> ⟐ **Amended again, same day, and this one reverses the paragraph above.** The fix shipped
+> (`hd007-fix-evidence.md`), and then **HD-007's own diagnosis was refuted by probing it**: a bare
+> `"Workflow"` token in `permissions.allow` grants the tool headlessly — the benchmark's settings
+> file simply never carried it, because `init` writes Bash prefixes only. The surviving argument for
+> the Bash lane is that the tool grant **cannot be scoped**, not that it does not exist.
+>
+> **And the full pipeline still has not run.** Three legs through the shipped launcher, all aborted
+> at dispatch 1, on a defect upstream of everything here: **`HD-009` — `init`'s pipeline grant
+> matches no command at all** (Bash prefix rules bind on whole-argument boundaries; the quoted
+> call-site form matches no rule in either spelling). `14-invocation-paths.mjs` compares strings, so
+> it cannot see it. **The A7 re-run is blocked until HD-009 closes**, and its options are a PO call.
 
 ---
 
@@ -535,6 +558,9 @@ which B.4 promotes to shipped documentation rather than leaving here.
 | ⟐ ~~**A3** — a phase completes when its ARTIFACT exists, not when its result says so~~ | ~8 h actual | $0 | **DONE 2026-08-12 — `kill-resume-probe: PASS`, 4/4 assertions. The gate is met** |
 | ~~**B** — cutover paperwork + dead code~~ | ~2–3 h | $0 | **DONE 2026-08-12** — R7–R11 green, contract 23/23 |
 | ⟐ ~~**C** — the fork~~ | ~2.7 h actual | **$29.88 actual** | **DONE 2026-08-12 — PO took C2; R12 green; `A7: FAIL`. The merge waits on HD-007, not on cost** |
+| ⟐ ~~**HD-007 probe** — can the lane start headlessly at all~~ | ~half a day | ~$0.15 actual | **DONE 2026-08-12 — it starts, under `acceptEdits`, when Bash carries it (T1/P3). Prototype only; A7 re-run now obtainable in uniform mode** |
+| ⟐ ~~**HD-007/008 fix** — ship the launcher, close the gate escape, teach the bench to see the lane~~ | ~a day | ~$3 actual | **DONE 2026-08-12 — 1370 checks, contract 23/0. But step 4 refuted HD-007's diagnosis and surfaced `HD-009`** (`hd007-fix-evidence.md`) |
+| **HD-009** — the pipeline grant matches no command | PO decision | — | **BLOCKING.** The lane cannot start and **A7 cannot be re-run** until it closes |
 | **D** — Phase 2, separate release | days | dev tokens | not part of this cutover |
 
 Everything up to and including Stage B is unblocked on this machine, today, at zero external cost.

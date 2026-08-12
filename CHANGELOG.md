@@ -8,8 +8,20 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 **The tech-lead's round loop stops being prose a model follows and becomes code a runtime runs.**
 On a spec with committed `scopes/*.md`, `/ship` now hands the whole pipeline — ORIENT → L1a →
 ANALYZE → WIRE → L1a.5 → MAP SCOPES → L1b → rounds of BUILD/L2/EVAL → QA → GATE H — to one
-`Workflow` launch (`skills/tech-lead/workflows/shapeup-run.js`). `SKILL.md` is a 122-line shell
-that holds the L0 intake conversation, launches, and branches on what comes back.
+workflow-script launch (`skills/tech-lead/workflows/shapeup-run.js`), started through
+`skills/tech-lead/scripts/run-workflow.mjs` as a background Bash call. `SKILL.md` is a ~135-line
+shell that holds the L0 intake conversation, launches, and branches on what comes back.
+
+**The launcher is a Bash script and not the `Workflow` tool, for two measured reasons.** The tool
+call is denied by default in a headless session — across six benchmark runs the pipeline executed
+**zero** times while each session improvised the feature by hand, once reaching GATE L4 with a valid
+receipt. A receipt does not prove the lane ran. And while a bare `"Workflow"` entry in
+`permissions.allow` *does* unblock it, **that grant cannot be narrowed** — `Workflow(<path>)` is
+still denied, so the entry permits every dynamic workflow script in the project, including one
+written at runtime. `run-workflow.mjs` executes the same script format under the path-scoped prefix
+`npx shapeup-sdlc init` already writes, so no new permission and no re-install is needed
+(`HD-007` · `docs/migration/hd007-control-plane-probe.md`). `docs/upgrading.md` documents the
+one-line tool grant for anyone who wants the native runtime instead.
 
 *`1.7.0` is the target, not a shipped fact: `package.json` and `.claude-plugin/plugin.json` still
 read **1.6.3** and are stamped at release, because the tag, the manifest bump and the merge are the
@@ -21,7 +33,12 @@ PO's move. Pin target for a rollback is the last published release, **1.6.3**.*
 - **D1 — Stage 0 is the kill-switch.** The migration started only because a throwaway spike proved
   the three runtime assumptions: the permission grant survives into workflow subagents, hooks
   actually fire inside them (two `deny` rows in `decisions.jsonl`, quoted in the evidence, not
-  inferred from a refusal), and the `Workflow` tool exists headless.
+  inferred from a refusal), and the `Workflow` tool exists headless. ⟐ **The third one was checked
+  too weakly, and A7 found it:** the tool *exists* in a headless session but every *call* is denied
+  unless `permissions.allow` carries the unscoped `"Workflow"` token — which nothing wrote, because
+  the installer grants Bash prefixes only. Existence, invocability and *being granted* are three
+  facts, and Stage 0 probed the first. The lane now launches by Bash (above); Stage 0's other two
+  assumptions stand.
 - **D2 — No dual paths.** Both lanes move at once for scoped specs; the prose orchestrator is not
   kept alongside as a fallback. **Rollback is version pinning** — see below.
 - **D3 — Scopes run sequentially in v1.** Fan-out is deliberately unspent; the `workflow()` nesting
@@ -66,9 +83,14 @@ Two things about that sentence, because on its own it misleads in both direction
 ### Required for headless runs
 
 **Set `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0`** for any `--unattended` / CI invocation. Without it
-`claude -p` terminates the Workflow at 600 s and **exits 0** — a truncated run reported as a clean
+`claude -p` cuts the background wait at 600 s and **exits 0** — a truncated run reported as a clean
 one, which is worse than a failure because nothing downstream can tell the difference. Measured on
 this migration's own probe runs, not reasoned about.
+
+**The pipeline grant is the other requirement**, and if you have ever run `npx shapeup-sdlc init`
+you already have it: the lane launches through `skills/tech-lead/scripts/run-workflow.mjs`, inside
+the `skills/<owner>/scripts/` prefix `init` writes. Launching by the `Workflow` tool instead is the
+failure above — denied headlessly, ungrantable, and quiet enough to be routed around.
 
 ### Also
 
@@ -76,8 +98,16 @@ this migration's own probe runs, not reasoned about.
   inlined the round loop into `shapeup-run.js`, and nothing ever launched it again — 418 lines of
   duplicate attempt loop kept alive by a test that asserted it existed. `tests/structural/16-workflows.mjs`
   now asserts *reachability* instead: every workflow script on disk is one `SKILL.md` launches.
-- `commands/build.md` and `commands/ship.md` name the `Workflow` launch as the opt-in surface.
+- `commands/build.md` and `commands/ship.md` name the launch as the opt-in surface.
   `build.md` keeps its standalone single-task path — that is the task front door, not the round.
+- **`hooks/gate-zerowork.mjs` no longer treats "the session did work by other means" as an
+  exemption** (`HD-008`). A count above two work calls used to fail the gate open; measured, that
+  is precisely the escape a session takes when the lane will not start — one benchmark rep
+  hand-built the whole feature across 37 work calls, left no receipt, and was allowed to stop while
+  scoring 14/14. Work done *around* the harness has no board, no T0 and no verdict, which is the
+  un-evidenced "done" this gate exists for. Running the harness by hand still defers, because
+  `init-run.mjs` writes the receipt; `stop_hook_active` still caps this at one block per stop chain.
+  The gate also now recognises the Bash launch as a dispatch, so the shipped lane is watched.
 
 ## [1.6.3] — 2026-08-05
 

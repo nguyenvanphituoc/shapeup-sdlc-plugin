@@ -1,13 +1,25 @@
-> # ⟐ Figures updated 2026-08-11 — Stage A has since run, and its probe failed
+> # ⟐ Figures updated 2026-08-12 — every stage through C has now run, and the merge waits
 >
-> These figures were drawn on 2026-08-10 at `c469a6c`, when Stage A was still future work. Stage A
-> ran that day (`2a134cd`): its five deliverables all landed, and **the kill/resume probe it exists
-> to record came back `FAIL`** — a completed ORIENT phase was re-dispatched on resume.
+> These figures were drawn on 2026-08-10 at `c469a6c`, when Stages A–D were still future work.
+> Since then, on this branch (`89e07cd` · `npm test` 1363 · contract **23 PASS / 0 RED — GATE MET**):
 >
-> Two panels below are corrected in place (*Where the migration actually stands*, and *A.2*).
-> The rest of Stage A's panels are left as drawn: they describe work that has since shipped, and
-> they are the reasoning that produced it. **Stage A2** — `docs/migration/stage-a2-plan.md` — now
-> sits between Stage A and Stage B, and Stage B does not start until its G6 probe passes.
+> - **Stage A ran and its probe FAILED. A2 ran — FAIL again. A3 ran — `kill-resume-probe: PASS`**,
+>   4/4 assertions on a live SIGKILL. Two failures, each buying a defect unreadable off the code.
+> - **Stage B ran** — R7–R11 green; `shapeup-build-round.js` deleted, four assertions moved with it.
+> - **Stage C ran** — the PO took C2, A7 ran, **`A7: FAIL`** — and the lane it was built to measure
+>   never started: every `Workflow` call denied headlessly (**HD-007**). The merge waits (plan §5).
+> - **The HD-007 probe answered the mechanism**: the lane starts under `acceptEdits` when Bash
+>   carries it (`hd007-control-plane-probe.md` · `tools/control-plane/cp-run.mjs`).
+> - ⟐ **The fix then shipped — and step 4 refuted the reason for it.** The launcher is
+>   `skills/tech-lead/scripts/run-workflow.mjs`, HD-008's escape is deleted, and the benchmark can
+>   tell a lane that ran from one that was imitated. But the `Workflow` tool **is** grantable (a bare
+>   `"Workflow"` token; the bench's settings never carried it), and **`HD-009`** — `init`'s grant
+>   matches no command at all — **blocks the lane and the A7 re-run** (`hd007-fix-evidence.md`).
+>
+> Panels corrected in place: *Where the migration actually stands*, A.2's probe record, the Stage
+> B and C banners, the contributions table — and one new section, *The HD-007 probe*. Stage A's
+> other panels and Stage D are left as drawn: they are the reasoning that produced shipped work,
+> and the work that is still future.
 >
 > One-page position: `docs/migration/README.md`.
 
@@ -19,7 +31,7 @@ work, the acceptance rows, the guardrails) and `docs/migration/status-review-202
 evidence and the position). The finding, the negative space, the recommendation and the falsifiers
 live in those two — deliberately not restated here.
 **Sources:** repo state at `c469a6c`, 2026-08-10; `npm test` green at 1168 checks. *(Current tree:
-`5209df7`, 1328 checks — the two corrected panels cite that; every other figure is as-of `c469a6c`.)*
+`89e07cd`, 1363 checks — the corrected panels cite that; every other figure is as-of `c469a6c`.)*
 **Confidence:** High — every figure redraws something verified in the review; no new measurement is
 introduced. **Validity:** re-check any figure whose cited `file:line` has moved.
 
@@ -30,33 +42,39 @@ already on disk at `c469a6c`, cited where they appear.
 
 ## Where the migration actually stands
 
-*Corrected 2026-08-11. The 2026-08-10 reading of this panel — 17 PASS, two of them false, "every
-red row is a file that was never written, not a behaviour that fails" — was true of the instrument
-and false about the migration. Stage A fixed the instrument and then failed the gate.*
+*Corrected 2026-08-12, the third reading of this panel. The first (17 PASS, two false) was true of
+the instrument and false about the migration; the second (19/4 above a failed probe) is history —
+A3 made the probe pass, Stage B closed the four red rows, Stage C closed R12.*
 
-The contract now reads **19 PASS / 4 RED** against the tightened rows. **All six S2 rows are green
-and S2's ship gate is not met** — which is the only thing on this page worth remembering.
+The contract now reads **23 PASS / 0 RED** above **GATE MET** — every row green for the first time
+on this branch. The panel's lesson did not change, it moved: **a full scoreboard sits above a merge
+that must not happen**, because the contract has no row for the defect that blocks it.
 
 ```mermaid
 flowchart TB
-  ROWS["execution-contract.md<br/>23 rows → 19 PASS / 4 RED"] --> S2ROWS["all six S2 rows GREEN<br/>the evidence file exists<br/>and is machine-readable"]
-  S2ROWS --> GATE{"S2 ship gate<br/>kill-resume-probe"}
-  GATE -->|"stage2-evidence.md §4<br/>FAIL — ORIENT re-dispatched"| STOP["STOP<br/>Stage B does not start"]
-  GATE -.->|"never encoded by any row"| NOTE["a row proves the evidence<br/>was written, never that<br/>the probe passed"]
-  STOP --> A2["Stage A2<br/>fix the fast-forward,<br/>re-run the probe"]
-  RED4["4 RED rows<br/>CHANGELOG · commands/build.md<br/>stage3-evidence.md ×2"] -.->|"all Stage B/C work,<br/>all downstream of the gate"| STOP
+  ROWS["execution-contract.md<br/>23 rows → 23 PASS / 0 RED<br/>GATE MET · npm test 1370"] --> PROBE["kill-resume-probe: PASS<br/>4/4 on a live SIGKILL"]
+  PROBE --> B["Stages B + C EXECUTED<br/>R7–R12 green · $29.88"]
+  B -->|"A7: FAIL — shapeup-run.js<br/>executed ZERO times"| FIX["HD-007/008 FIX SHIPPED<br/>launcher · gate escape closed ·<br/>bench sees the lane"]
+  FIX -->|"then step 4 probed the premise"| REF["⟐ HD-007 REFUTED<br/>the tool IS grantable —<br/>the bench never granted it"]
+  FIX -->|"and the pipeline aborted<br/>at dispatch 1, ×3"| HD9["⟐ HD-009<br/>init's grant matches NO command<br/>(whole-argument boundaries;<br/>quoted call sites match nothing)"]
+  HD9 --> HOLD["MERGE WAITS · A7 NOT RUNNABLE<br/>PO decides the grant strategy"]
+  REF -.-> HOLD
+  T14["14-invocation-paths.mjs<br/>green throughout"] -.->|"compares STRINGS,<br/>never executes a granted command"| HD9
 
   classDef good fill:#dff0d8,stroke:#3c763d,stroke-width:2px
   classDef bad fill:#fde2e2,stroke:#c33,stroke-width:2px
   classDef todo fill:#fcf8e3,stroke:#8a6d3b,stroke-width:2px
-  class S2ROWS good
-  class GATE,STOP bad
-  class A2,RED4 todo
+  class ROWS,PROBE,B,FIX good
+  class HD9,HOLD bad
+  class REF,T14 todo
 ```
 
-**The claim:** a green row count sitting above a failed gate is the mis-navigation this whole
-instrument revision exists to end. 19 of 23 is not "nearly done" — the four red rows are downstream
-of a stop.
+**The claim:** the green scoreboard above a stop is this page's recurring lesson, and HD-009 is its
+purest instance yet. First, two rows passing on pre-existing text. Then six green rows above a
+failed probe. Then 23/23 above a lane that could not start. Now a **green test asserting the
+permission grant covers every call site — by comparing strings**, while the grant it describes
+matches no command the CLI will run. Every one of these was found by *executing* something, never
+by reading it.
 
 ---
 
@@ -137,6 +155,13 @@ supposed to lose nothing. Steps 9–11 are the assertion.
 > Per the plan, that is a stop: A3 is not green, S2's ship gate is not met, every Stage B item
 > unwinds. Full evidence in `stage2-evidence.md` §4; the fix is `stage-a2-plan.md`.
 
+> **⟐ Resolved 2026-08-12 — `kill-resume-probe: PASS`, 4/4, on a live SIGKILL**
+> (`stage-a3-evidence.md` §4). It took two more stages. A2 fixed the ORIENT `status` gate and proved
+> ORIENT byte-identical across a kill — and still failed, because an escalating WIRE was recorded
+> complete and re-dispatched on every relaunch. A3 closed the class: **a phase is complete only when
+> its ARTIFACT exists**, and `analyze` runs before WIRE so the escalation never recurs. The grader
+> that recorded PASS is byte-identical to the one that recorded both FAILs.
+
 ## A.3 · The hook documents an arm it does not have
 
 ```mermaid
@@ -174,6 +199,13 @@ against HEAD: `dispatchedOrchestrator(<Workflow event>)` returns `false` today.
 ---
 
 # Stage B — one round loop instead of two, and a rollback story that is true
+
+**⟐ EXECUTED 2026-08-12** (`stage3-evidence.md`). R7–R11 green. B.1 deleted
+`shapeup-build-round.js` and moved **four** assertions in one commit — the plan named three; the
+fourth (`17-gate-zerowork-workflow.mjs:70`) used the filename in a synthetic event that never
+touches disk. The honest-cost arrow below was half-paid: the live inner-breaker branch is
+demonstrated by A3's leg 2, the degenerate `shapeup-run.js:774` branch has never run (§3). Panels
+left as drawn.
 
 **Cost: ~2–3 h, $0.** Rows R7–R11.
 
@@ -233,6 +265,14 @@ truncated headless run into an exit-0 success.
 
 # Stage C — the fork, recorded either way
 
+**⟐ EXECUTED 2026-08-12 — and the figure's premise was refuted first.** `s3-feasibility.mjs`
+returned **C1 yes / C2 yes**: the bench sits at `~/workspace/sdd-harness-bench`, and the script's
+one failing check belongs to the day-2 plan's arm, not A7 — so the "exit 3" edge below could never
+have fired honestly, and C1's defer-at-no-cost premise was gone. The PO took **C2**. R12 was
+repaired first (it accepted a bare `A7: PASS` with no logs), then six reps, $29.88 —
+**`A7: FAIL`**, candidate 1 of 3 on the absolute bar, control 0 of 3. The headline is not the
+score: `shapeup-run.js` executed **zero** times — the new section below. Figure left as drawn.
+
 **Cost: $0 on C1 · $40–60 on C2.** Row R12.
 
 ```mermaid
@@ -257,6 +297,52 @@ reachable by grep.** The precedent is on record: day2's S3 hit this exact blocke
 `RESUME.md` reads *"No number was invented in the meantime."* The one condition is that Stage A.2
 actually ran — deferring the cost question while also skipping the correctness probe rests the
 cutover on two unrun tests.
+
+---
+
+# ⟐ The HD-007 probe — same mode, same script shape, different launch surface
+
+**Ran 2026-08-12, after Stage C** (`hd007-control-plane-probe.md`; prototype at
+`tools/control-plane/`, not in the npm `files` set). A7's six reps never measured the lane, because
+the `Workflow` tool is denied headlessly and **no permission string exists that could grant it**.
+The probe moves the launch to the surface that *is* grantable.
+
+```mermaid
+flowchart LR
+  subgraph tool["A7, every rep — the tool surface"]
+    direction TB
+    H1["headless session<br/>--permission-mode acceptEdits"] -->|"Workflow(three-line script)"| DENY["DENIED<br/>'Review dynamic workflow'<br/>no grantable string exists"]
+  end
+  subgraph bash["T1 / P3 — the Bash surface"]
+    direction TB
+    H2["headless session<br/>--permission-mode acceptEdits<br/>one granted Bash prefix"] -->|"node cp-run.mjs &lt;script&gt;"| CP["cp-run.mjs<br/>same script format:<br/>meta · agent() · phase() · budget"]
+    CP -->|"claude -p, acceptEdits,<br/>schema-forced, journaled"| W["real worker RAN<br/>$0.118 · 18 s · artifact written"]
+  end
+
+  classDef bad fill:#fde2e2,stroke:#c33,stroke-width:2px
+  classDef good fill:#dff0d8,stroke:#3c763d,stroke-width:2px
+  class DENY bad
+  class CP,W good
+```
+
+**The claim:** T1 against §7.5 is a controlled pair — same permission mode, same three-line script
+shape, only the launch surface differs: **tool denied; Bash ran, `permission_denials: []`.** P1
+executed the **unmodified** `shapeup-run.js` to its own arg-validation abort, so the script format
+survives the surface swap with no fork.
+
+> ⟐ **Corrected 2026-08-12 by probing the permission layer instead of concluding from denials
+> (`hd007-fix-evidence.md` §4).** The measurements above stand; the *explanation* does not. **The
+> `Workflow` tool is grantable** — a bare `"Workflow"` token in `permissions.allow` runs it
+> headlessly in the benchmark's own configuration; scoped forms are denied. The bench's settings
+> never carried the entry, because `init` writes Bash prefixes only, so six paid reps went to a
+> missing allowlist line. The surviving argument for this lane is that the tool grant **cannot be
+> narrowed**, not that it does not exist.
+>
+> **And a defect upstream of both surfaces:** `HD-009` — `init`'s pipeline grant matches **no
+> command at all** (Bash prefix rules bind on whole-argument boundaries; the quoted call-site form
+> matches no rule in either spelling). The full pipeline has now been attempted three times through
+> the shipped launcher and **aborted at dispatch 1 every time**. F2 is answered: an untrusted
+> workspace ignores `permissions.allow` in full, and the CLI says so by name.
 
 ---
 
@@ -405,15 +491,18 @@ sequenceDiagram
 **The claim:** the gate decision is an **exit code**, not a paragraph a model interprets, and the
 block text reaches the PO unparaphrased. Step 9 is the property four relaunches already
 demonstrated at run 3 — and the one the kill/resume probe still has to prove survives an *ungraceful*
-death, not just a clean pause.
+death, not just a clean pause. ⟐ **Proven 2026-08-12** — `stage-a3-evidence.md` §4, on a live
+SIGKILL.
 
 ## What each stage contributes to that picture
 
 | Stage | What the diagram above gains |
 |---|---|
-| **A** | The `Workflow(shapeup-*)` arm on `gate-zerowork`; the fast-forward proven against an ungraceful kill; a contract whose rows can fail |
-| **B** | One round loop instead of two; a rollback statement that matches what pinning actually reverts |
-| **C** | A7 recorded as `DEFERRED` with its blocker codes — or measured |
+| **A / A2 / A3** ⟐ done | The `Workflow(shapeup-*)` arm on `gate-zerowork`; the fast-forward proven against an ungraceful kill — on the third attempt; a contract whose rows can fail |
+| **B** ⟐ done | One round loop instead of two; a rollback statement that matches what pinning actually reverts |
+| **C** ⟐ done | ⟐ Measured: **`A7: FAIL`** — and the measurement's real yield is HD-007/HD-008, the two defects no contract row asked about |
+| **HD-007 probe** ⟐ done | The launch surface that works headlessly: the same scripts under Bash-carried `cp-run` |
+| **HD-007/008 fix** ⟐ done | The launcher ships; the zero-work gate stops exempting busy sessions; the benchmark can tell a lane that ran from one imitated. ⟐ And two refutations: the tool *was* grantable, and **`HD-009`** — the grant matches no command — blocks the lane |
 | **D** | `sandbox-guard`'s stale always-allow narrowed, so D6's single-writer claim becomes mechanical; a token breaker beside the other three; `pipeline()` over scopes once the pointer stops being a singleton |
 
 **Read the arrows that are dotted.** `HOOKS -.-> WORK` and `HOOKS -.-> ING` are the only edges in

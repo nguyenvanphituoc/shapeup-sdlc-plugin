@@ -90,16 +90,51 @@ Only if you run specs that have **committed `scopes/*.md`**. That lane is now co
 `skills/tech-lead/references/round-protocol.md`, unchanged and non-regression — `SKILL.md` routes
 them there explicitly. If you have not adopted scope contracts, nothing about your runs changes.
 
-### One thing you must set for headless runs
+### Two things you must have for headless runs
+
+**1. The pipeline grant, which is what starts the lane at all.**
+
+```bash
+npx shapeup-sdlc init      # writes Bash(node ${CLAUDE_PLUGIN_ROOT}/skills/<owner>/scripts/:*)
+```
+
+The scoped lane launches through `skills/tech-lead/scripts/run-workflow.mjs`, so the prefix rule
+`init` already writes covers it — if you ran `init` at any point, you have this and nothing changes.
+
+**Do not launch the lane with the `Workflow` tool.** That call is denied by default in a headless
+session ("Review dynamic workflow before running"). This is measured, not theoretical: across six
+benchmark runs of the pre-fix build, `shapeup-run.js` executed **zero** times — each session quietly
+improvised the feature by hand instead, once reaching GATE L4 with a valid receipt while the
+pipeline had never started. **A receipt does not prove the lane ran** (`HD-007`;
+`docs/migration/hd007-control-plane-probe.md`). If your own scripts launch the harness, launch
+`run-workflow.mjs` as a background Bash call and read `<run-dir>/result.json`.
+
+<details>
+<summary>If you would rather use the <code>Workflow</code> tool anyway — the trade-off, measured</summary>
+
+Adding the bare token `"Workflow"` to `permissions.allow` **does** unblock the tool headlessly
+(verified in the benchmark's own configuration: untrusted temp workspace, explicit `--settings`,
+`--permission-mode acceptEdits` — zero denials with the entry, denied without it). If you prefer
+the native runtime's resume-from-runId and worktree isolation, that one line is all it takes.
+
+What you accept by adding it: **the grant cannot be narrowed.** `Workflow(<path>)` and
+`Workflow(<script-name>)` are both still denied — only the unscoped token works — so the entry
+permits *every* dynamic workflow script in that project, including one written at runtime. The
+plugin does not add it for you for that reason. The Bash launcher needs no new grant and is scoped
+by path to the plugin's own `scripts/` directory.
+
+</details>
+
+**2. The background-wait ceiling.**
 
 ```bash
 export CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0
 ```
 
-Required for any `--unattended` or CI invocation. Without it `claude -p` terminates the Workflow at
-600 s and **exits 0**: a truncated run that reports as a clean one. Nothing downstream can tell that
-apart from success, which is why this is a hard requirement and not a tuning knob. Interactive runs
-are unaffected.
+Required for any `--unattended` or CI invocation. Without it `claude -p` cuts the wait at 600 s and
+**exits 0**: a truncated run that reports as a clean one. Nothing downstream can tell that apart
+from success, which is why this is a hard requirement and not a tuning knob. Interactive runs are
+unaffected.
 
 ### What a gate pause looks like now
 

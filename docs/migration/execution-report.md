@@ -42,6 +42,7 @@ blocked.
 | S1 — `shapeup-build-round` | **GREEN** | Re-derived run 3 in a fresh clone: 5/5 rows PASS |
 | S2 — `shapeup-run` + thin skill | ⟐ **SHIP GATE MET at run 6 (2026-08-12)** — `kill-resume-probe: PASS`, 4/4 assertions on a live SIGKILL. It took three stages: A fixed nothing and found it, A2 fixed ORIENT and failed on WIRE, A3 fixed the class (completion depends on the artifact) and its cause (`analyze` before WIRE). *(Superseded: "NOT MET — an escalated phase is recorded as complete and re-dispatched on every relaunch.")* | `stage-a3-evidence.md` §4 + `contract-check.mjs` |
 | S3 — cutover, detectors, benchmark | ⟐ **Stage B GREEN at run 7 (2026-08-12)** — R7–R11 closed, contract 23 PASS / 0 RED, A6 re-derived in a fresh clone at 1221. What remains of S3 is **Stage C**, which is a PO spend decision rather than executor work: `A7: DEFERRED`. *(Superseded: "Unblocked, not started"; and before that, "Blocked by the contract's ship-gate guardrail.")* | `stage3-evidence.md` + `contract-check.mjs` |
+| ⟐ Post-S3 — HD-007/008 fix (run 8, 2026-08-12) | **SHIPPED, AND BLOCKED BY WHAT IT FOUND.** The launcher, the closed gate escape and the bench's lane-evidence rule are green at `npm test` **1370** / contract **23 PASS / 0 RED**. Then the premise was refuted (the `Workflow` tool **is** grantable) and **`HD-009`** surfaced: `init`'s pipeline grant matches no command, so the lane cannot start and **A7 cannot be re-run**. Stage C's `A7: FAIL` stands unreplaced | `hd007-fix-evidence.md` |
 
 Run 4 changed what the red rows *mean* twice over. Three S2 rows were greps for sections of
 `stage2-evidence.md`, a file that only gets written once its runs are green — those are now green
@@ -351,6 +352,29 @@ the contract's own guardrail.
   failed, so A3 is not green and Stage B is blocked".)*
 
 ## The one thing to do next
+
+> ⟐ **Run 8, 2026-08-12 — and it is a PO decision, not executor work.** `HD-009`: the grant
+> `npx shapeup-sdlc init` writes — `Bash(node ${CLAUDE_PLUGIN_ROOT}/skills/<owner>/scripts/:*)` —
+> **matches no command at all.** Bash prefix rules bind on whole-argument boundaries, so a prefix
+> ending mid-argument grants nothing; and the *quoted* call-site form every skill uses (adopted so
+> spaced install paths would not break) matches no rule in either spelling. The full pipeline was
+> attempted three times through the newly shipped launcher and **aborted at dispatch 1 every time**.
+>
+> `tests/structural/14-invocation-paths.mjs` stayed green throughout because it asserts the grant is
+> a **string prefix** of each documented command — a proxy for "the CLI honours this" that diverges
+> from the behaviour exactly here. The benchmark's harness scripts ran only because its adapter
+> appends a broad `Bash(node:*)`, so the bench has been measuring a permission configuration the
+> plugin does not ship.
+>
+> **Three options, each trading something real** (`shapeup/knowledge-base/harness-defects.md`
+> HD-009): enumerate whole-argument rules per script and unquote the call sites (least privilege
+> intact, re-opens the spaced-path break); grant `Bash(node:*)` (known to work, broad); or keep the
+> tool lane and grant the unscoped `"Workflow"` token (which has the same unscopable problem one
+> tool over). **Whichever is chosen, its regression guard must EXECUTE a granted command** — string
+> comparison is what let this stand through every green run above.
+>
+> **Until it closes, A7 cannot be re-run**: the candidate arm would measure denials again. Full
+> record, including the two refutations and what remains unproven: `hd007-fix-evidence.md`.
 
 **The defect that stood here is fixed and the gate it shut is open** (run 6): an escalated phase can
 no longer be recorded as complete — every dispatched phase is followed by

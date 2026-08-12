@@ -487,6 +487,12 @@ too weak to retire the Stage 1 figure — it is not refuted, it is unreplicated.
 - **The migration's thesis is still untested.** The workflow lane has never been measured against
   the prose lane, because it cannot start under the benchmark's uniform permission mode. Doing so
   needs **both** arms re-run under `bypassPermissions` (uniformity is the rule) — another 6 reps.
+  ⟐ **Amended 2026-08-12, later the same day — the last sentence was refuted by testing it.**
+  `hd007-control-plane-probe.md` (T1/P3): the same script shape this section records the tool
+  denying under `acceptEdits` **runs** under `acceptEdits` when a granted Bash prefix carries it
+  (`tools/control-plane/cp-run.mjs`). The re-run is obtainable in the bench's uniform mode — no
+  `bypassPermissions` on either arm. The first sentence stands: the full pipeline has never run
+  through cp-run, and the re-run is still the PO's spend decision.
 - **The absolute bar failed on both arms**, so this cell says as much about f2-budgets under Sonnet
   as about either lane.
 - **A7's own bars are not sensitive to the thing that broke.** `receipt.json` is satisfied by an

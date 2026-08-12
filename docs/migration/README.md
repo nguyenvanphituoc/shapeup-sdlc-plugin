@@ -1,8 +1,61 @@
 # Workflow-orchestrator migration — where it stands
 
-**Read this first.** Ten documents describe this migration and they were written at four different
+**Read this first.** Fifteen documents describe this migration and they were written at different
 moments. This file says which of them is current, and what the position actually is today. It is
 updated whenever the position changes; everything else is left as the dated record it is.
+
+> ## ⟐ Position, 2026-08-12, latest — the fix shipped, and the reason it was needed was refuted
+>
+> **Full record: `hd007-fix-evidence.md`.** Steps 1–3 of the pre-A7 fix list shipped and are green
+> (`npm test` **1370**, contract **23/0 GATE MET**): the lane launches through the shipped
+> `skills/tech-lead/scripts/run-workflow.mjs`; **HD-008 is closed** (the "work by other means"
+> escape deleted, its test inverted in place, both arms mutation-verified); and the benchmark can
+> now tell a lane that ran from a lane that was imitated — replayed against the six archived A7
+> workspaces, it correctly rejects candidate reps 2 and 3, which had been **scored**.
+>
+> **Then step 4 refuted two things, and the second is bigger than the bug being fixed.**
+>
+> 1. **HD-007's diagnosis is false.** The `Workflow` tool *is* grantable — a bare `"Workflow"` token
+>    in `permissions.allow` runs it headlessly, verified in the benchmark's own configuration. The
+>    tool was never ungrantable; **the bench's settings file never carried the entry**, because
+>    `init` writes Bash prefixes only. Six paid reps went to a missing allowlist line. What survives
+>    is narrower and is now the stated justification: the grant **cannot be scoped**, so it permits
+>    every dynamic workflow script in the project.
+> 2. ⟐ **HD-009 — `init`'s pipeline grant matches nothing.** Bash prefix rules match on whole-argument
+>    boundaries; `Bash(node …/scripts/:*)` ends mid-argument and grants **no command at all**. And a
+>    *quoted* command — the form every skill uses, adopted so spaced install paths would not break —
+>    matches no rule in either spelling. `14-invocation-paths.mjs` is green because it compares
+>    **strings**, a proxy that diverges from the CLI's behaviour precisely here. The benchmark's own
+>    scripts ran only because its adapter appends a broad `Bash(node:*)`, so the bench has been
+>    measuring a permission configuration the plugin does not ship.
+>
+> **Consequences.** The full pipeline has run three times through the new launcher and **aborted at
+> dispatch 1 every time** — the lane shipped in step 1 is blocked by HD-009, whose call site is
+> quoted. **The A7 re-run is not merely unpaid, it is not yet runnable.** HD-009 is *filed, not
+> fixed*: its options trade a security posture against a spaced-path break, and that is the PO's
+> call. The merge still waits.
+
+> ## ⟐ Position, 2026-08-12, earlier — HD-007's mechanism is answered, and the answer ran
+>
+> **The control-plane probe ran** (`hd007-control-plane-probe.md`; prototype at
+> `tools/control-plane/`, uncommitted): move the launch surface from the un-grantable `Workflow`
+> tool to a granted Bash prefix. `node cp-run.mjs <script>` executes the same workflow-script
+> format, and **the lane starts under `acceptEdits`**. The decisive pair: §7.5's record (tool,
+> three-line script, `acceptEdits` → denied) against T1 (same mode, same script shape, Bash-carried
+> → ran, `permission_denials: []`). P3 dispatched a real schema-forced worker under `acceptEdits`;
+> P1 executed the **unmodified** `shapeup-run.js` to its own arg-validation abort — the script
+> needs no fork to run on this lane.
+>
+> **Two consequences.** The A7 re-run no longer needs `bypassPermissions` on either arm — §7.7's
+> "both arms under `bypassPermissions`" was too strong and is amended in place. And HD-007's fix
+> has a concrete shape: the ship command launches via cp-run under Bash, `init`'s existing
+> `mergePipelinePermissions` writes the one prefix, and cp-run already fails closed.
+>
+> **What the probe did NOT buy:** no full pipeline ran through cp-run (P1 stops at arg validation
+> by design); the composed outer→cp→worker tree ran as two proven halves, not one; resume is
+> journaled, not implemented; the settings-file grant channel failed in a never-trusted workspace
+> (F2 — one user-run line from a trusted project closes it); HD-008 is untouched. **The merge
+> still waits.** The PO decisions are unchanged in kind and cheaper in cost — see step 6 below.
 
 > ## ⟐ Position, 2026-08-12, after Stage C — and the cutover must not merge yet
 >
@@ -59,8 +112,10 @@ updated whenever the position changes; everything else is left as the dated reco
   skills/tech-lead/workflows/shapeup-build-round.js`, `execution-contract.md`) — a closed, green
   stage's row. B.1 names the test fixture and the Stage 1 negative probe; it does not name that row.
   Delete and amend in the same commit, or the contract drops to 18/5 and S1 stops being green.
-- ⟐ **The branch is NOT pushed. `origin/feat/workflow-orchestrator` is at `5209df7` — 20 commits
-  behind**, which is everything Stage A2 and Stage A3 produced. The earlier reading ("pushed for
+- ⟐ **The branch is NOT pushed. `origin/feat/workflow-orchestrator` is at `5209df7` — 28 commits
+  behind at `89e07cd` (re-derived 2026-08-12)**, which is everything from Stage A2 onward: A2, A3,
+  Stage B, Stage C. On top of that, the HD-007 probe (`tools/control-plane/`, its evidence file)
+  and this position update are **uncommitted**. The earlier reading ("pushed for
   review", true on 2026-08-10) was carried forward instead of re-derived — the same class of error
   this branch keeps catching. **Nothing is merged, tagged, or published** — that remains the PO's
   move after Stage C, and the push is theirs to ask for.
@@ -90,18 +145,20 @@ not, and is a one-line fix left outside this stage's touch map.
 
 | Document | Status | Read it for |
 |---|---|---|
-| **`execution-report.md`** | **CURRENT** — cumulative, run 1→4 | What each run delivered and found; the nine environment findings; the next action |
+| **`execution-report.md`** | **CURRENT** — cumulative, run 1→6 | What each run delivered and found; the nine environment findings. Its closing "what replaces it: Stage B" is done work — this README carries the position |
 | **`stage-a3-evidence.md`** | **CURRENT** — the stage that met the gate | `kill-resume-probe: PASS` and its four assertions; the grader self-tested in the failing direction (§4.2); findings #12–14; the six items **not** demonstrated (§5) |
 | **`stage-a3-plan.md`** | **CURRENT** — the plan A3 executed | The two composing findings (artifact-less completion; WIRE before `analyze`), G1–G8 |
 | **`stage-a2-evidence.md`** | **CURRENT** — what A2 delivered | G1–G7 status, the mutation transcript (including the two mutations that survived and forced code changes), and what is *not* demonstrated |
 | **`stage-a2-plan.md`** | **CURRENT** — the plan A2 executed | The acceptance contract (G1–G7), the four sub-stages, and the five decisions, all taken 2026-08-11 |
 | **`stage3-evidence.md`** | **CURRENT** — Stage B **and Stage C's** exit artifact | R7–R11 green, the four assertions B.1 moved, the mutation transcript, A6's located 142-check clone gap, **§6 — what Stage B did not buy**, and ⟐ **§7 — Stage C: the refuted premise, R12's five-way mutation audit, and `A7: FAIL` with the lane that never ran** |
+| **`hd007-fix-evidence.md`** | **CURRENT** — the newest, read it first | What shipped (launcher, HD-008, the bench's lane-evidence rule), the mutation transcripts, and §4 — the two refutations: HD-007's diagnosis, and **HD-009**, the grant that matches nothing. §5 is what is still unproven |
+| `hd007-control-plane-probe.md` | **SUPERSEDED IN ITS DIAGNOSIS** | Its measurements (T1/P1/P3) stand; its explanation does not. Read the banner, then `hd007-fix-evidence.md` §4.1 |
 | **`execution-contract.md`** | **CURRENT** — the instrument | The 23 acceptance rows, the four replaced in Stage A, the S1 row Stage B replaced, and the re-derived **23/0** |
 | **`stage0-evidence.md`** · **`stage1-evidence.md`** | **CURRENT** — closed stages | S0's GO decision; S1's cost arms (candidate $2.010 vs control $1.461) |
 | **`stage2-evidence.md`** | **CURRENT** — S2, gate now met | A2/A3 transcripts, the two execution-only defects, and **§4** — whose status line now reads `PASS`, above the two failure records it preserves unedited |
-| `remaining-stages-plan.md` | **PARTLY SUPERSEDED** | **Stage B has now run too** — C and D stand. Its Stage A ran and its ship gate failed; A2 and A3 sit between A and B; its R7 row carried an unescaped-dot false pass, fixed in place |
+| `remaining-stages-plan.md` | **PARTLY SUPERSEDED** | **Stages A–C have all run** — only D stands. Its Stage C section carries the A7 record and the ⟐ HD-007-probe amendment; its R7 row carried an unescaped-dot false pass, fixed in place |
 | `status-review-2026-08-10.md` | **HISTORICAL SNAPSHOT** — headline refuted | Still-live analysis: the A4 restatement, A7's unobtainability, the do-not-do list. Its "stalled as paperwork" framing is dead |
-| `stages-visual.md` | **HISTORICAL SNAPSHOT** — figures at `c469a6c` | The stage-by-stage figures. Its Stage A panels describe work that has since run |
+| `stages-visual.md` | **CURRENT** — position panels re-drawn 2026-08-12 at `89e07cd` | The figures: the corrected *Where it stands* panel, the HD-007-probe pair, the ⟐ EXECUTED banners; reasoning panels left as drawn |
 | `../workflow_migration_plan.md` | **DESIGN AUTHORITY** + amendment log | A1–A7, the touch-map, D1–D4. Read the ⟐ Rev B/C annotations, not the un-annotated body |
 
 ## The shortest path from here
@@ -125,13 +182,26 @@ not, and is a one-line fix left outside this stage's touch map.
    trigger §4 named to reopen A7 could therefore **never fire**), and **R12 accepted a bare
    `A7: PASS` with no run logs** — repaired, then re-verified falsifiable. R1–R11 audited: green.
    A7 then ran: **`A7: FAIL`**, $29.88, six reps.
-5. **← YOU ARE HERE. The merge decision — and plan §5 says it waits.** Not on cost: Stage 1's
-   **+37.6%** did not reproduce (candidate ~10% *cheaper* per scored rep), though at n=2 vs n=2 that
-   is unreplicated rather than refuted. It waits on **HD-007**: the lane the cutover makes the only
-   lane **cannot start headlessly** without `bypassPermissions`, which the plugin documents nowhere.
-   `shapeup-run.js` ran zero times in six reps. The open PO questions are (a) fix HD-007/HD-008
-   before merging, and (b) whether to buy the real comparison — both arms under `bypassPermissions`,
-   another ~6 reps.
+5. ~~**The HD-007 mechanism question** — can the only post-cutover lane start headlessly at all?~~
+   **Answered, 2026-08-12** (`hd007-control-plane-probe.md`): **yes, under `acceptEdits`, when Bash
+   carries it.** cp-run executes the same script format; T1 ran headlessly with zero denials in the
+   exact mode the `Workflow` tool was denied in; the unmodified `shapeup-run.js` runs on this lane
+   (F3). Prototype only: nothing in `skills/` changed, the full pipeline has never run through it,
+   resume is journaled not implemented, and F2's trusted-project one-liner is open.
+6. ~~Promote the cp-run shape to HD-007's fix; fix HD-008; F2's open question.~~ **Done,
+   2026-08-12** (`hd007-fix-evidence.md`). The launcher ships as
+   `skills/tech-lead/scripts/run-workflow.mjs`; HD-008's escape is deleted and mutation-verified in
+   both directions; the benchmark now records and can gate on lane evidence; F2 is answered (an
+   untrusted workspace ignores `permissions.allow` in full, and the CLI names it).
+7. **← YOU ARE HERE. `HD-009` blocks everything downstream, and it is a PO decision.** The grant
+   `npx shapeup-sdlc init` writes matches no command, and the quoted call-site form the skills use
+   matches no rule — so the lane cannot start, the pipeline aborted at dispatch 1 on all three
+   legs, and **the A7 re-run cannot be bought yet**. The three options (enumerate whole-argument
+   rules and unquote the call sites; grant `Bash(node:*)`; grant the unscoped `"Workflow"` token)
+   trade least-privilege against the spaced-install-path break that motivated the quoting. Whichever
+   is chosen, its regression guard must **execute** a granted command — comparing strings is what
+   let this stand. The merge waits on this, not on cost: Stage 1's **+37.6%** did not reproduce
+   (candidate ~10% *cheaper* per scored rep), unreplicated rather than refuted at n=2 vs n=2.
 
 ## Standing guardrails
 
