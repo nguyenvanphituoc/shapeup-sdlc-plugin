@@ -240,7 +240,7 @@ export function buildReport(facts) {
 
   L.push("---", "",
     "*Run state (board, orders, results, T0 artifacts, evaluation and QA reports) stays in the",
-    "gitignored local tier — see `docs/design/adr/0001-consumer-file-organization.md`. This report",
+    "gitignored local tier (ADR-0001). This report",
     "is the frozen conclusion of it.*", "");
   return L.join("\n");
 }

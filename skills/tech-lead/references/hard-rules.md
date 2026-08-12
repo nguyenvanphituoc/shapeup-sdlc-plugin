@@ -1,6 +1,6 @@
 # Hard Rules (never override without explicit user instruction)
 
-Moved out of `SKILL.md` by the Workflow migration (docs/workflow_migration_plan.md Stage 2):
+Moved out of `SKILL.md` when the round loop became a launchable script:
 most of what this table used to guard against — a partial board reaching EVAL, a gate crossed
 on the model's own authority, an evaluator called mid-BUILD — is now a property of
 `skills/tech-lead/workflows/shapeup-run.js`'s code, not a rule a model has to remember to obey.

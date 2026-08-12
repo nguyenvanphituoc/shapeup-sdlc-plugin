@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Slop cleaner — advisory Stop hook (v1.2, absorb-audit P2).
+// Slop cleaner — advisory Stop hook (v1.2).
 //
 // Scans what actually changed this session (git diff of the working tree; fallback: the
 // newest WorkResult's files_touched) for the classic leftovers — TODO/FIXME markers,

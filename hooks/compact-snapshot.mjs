@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Compact snapshot — PreCompact hook (v1.2, absorb-audit P4).
+// Compact snapshot — PreCompact hook (v1.2).
 //
 // PreCompact provably CANNOT inject context (no additionalContext/systemMessage channel), so
 // this hook is a pure side effect: when a harness run is mid-flight, freeze a RunSnapshot to
@@ -11,10 +11,10 @@
 //
 // Contract: PreCompact stdin JSON { cwd, trigger: "manual"|"auto" }.
 
-// RECEIPTS (v1.5). This hook is the sharpest case for `hooks/lib/decision.mjs`: across 1.2M
-// benchmark tokens it was scored `Unfired` — 0 `PreCompact` events observed — and that score was
-// UNOBTAINABLE, because "never had to fire" and "never ran" produced identical evidence (exit 0,
-// no output). With a decision row per invocation the two become separable facts.
+// RECEIPTS (v1.5). This hook is the sharpest case for `hooks/lib/decision.mjs`: it is routinely
+// scored `Unfired` — 0 `PreCompact` events observed — and that score is UNOBTAINABLE, because
+// "never had to fire" and "never ran" produce identical evidence (exit 0, no output). With a
+// decision row per invocation the two become separable facts.
 
 import { deriveSnapshot, writeSnapshot } from "../skills/tech-lead/scripts/run-snapshot.mjs";
 import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";

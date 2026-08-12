@@ -32,16 +32,15 @@ all run inside it. Three things follow, and they are the point of the cutover ra
   `.shapeup/<slug>/gate-answers.json`, and **relaunch the same call with the same args**. The
   fast-forward re-derives position from disk and re-dispatches nothing already finished.
 - **A killed session loses nothing.** Resume state comes off disk, never from context, so a fresh
-  session picks the run up where it died — the property this migration exists to buy, and the one
-  the kill/resume probe grades (`docs/migration/stage-a3-evidence.md` §4).
+  session picks the run up where it died — the property the whole launch shape exists to buy.
 - **Headless runs need `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0` in the environment.** Without it
   `claude -p` cuts the background wait at 600 s and **exits 0**, reporting a truncated run as a
   clean one. Set it for any `--unattended` or CI invocation.
 - **Never launch this with the `Workflow` tool.** That call needs an interactive confirmation, so it
-  is denied in every headless session and no permission string can grant it. Measured: across six
-  benchmark runs the script executed **zero** times and the agent improvised instead, once reaching
-  GATE L4 with a valid receipt while the pipeline had never started (`HD-007`). `run-workflow.mjs`
-  runs the same script under the grant `npx shapeup-sdlc init` already writes.
+  is denied in every headless session, and the only grant that unblocks it is unscoped. Left to it,
+  the script executes **zero** times and the agent improvises instead — a session can reach GATE L4
+  with a valid receipt while the pipeline never started. `run-workflow.mjs` runs the same script
+  under the path-scoped grant `npx shapeup-sdlc init` already writes.
 
 `--tiny`, and any spec with no committed `scopes/*.md` yet, take the unchanged prose lane in
 `skills/tech-lead/references/round-protocol.md` instead — non-regression, by design.
@@ -56,8 +55,8 @@ Only run headless/auto if the user explicitly asks for it in their message:
   into GATE L0 in the same turn.
 
   > Why this is spelled out: asking for confirmation here made `--unattended` unusable for the
-  > only job it has. In a non-interactive invocation (`claude -p …`, a CI step, a benchmark probe)
-  > there is no second turn in which to answer, so the run spent its turn requesting permission and
+  > only job it has. In a non-interactive invocation (`claude -p …`, a CI step) there is no second
+  > turn in which to answer, so the run spent its turn requesting permission and
   > exited having written nothing. A headless flag that cannot complete a headless run is a defect,
   > not a safety feature — and the warning, which is the part that carries the safety value, is
   > still printed. `--auto` remains the middle setting that pauses at L4.
@@ -73,9 +72,9 @@ Additional flags, pass through to `tech-lead` only when the user names them:
   decision's **source** becomes the answer set instead of a live human, and the ledger says so.
   Generate one with `gate-answers.mjs --init --preset ci --by "<name>"`. This is what makes a
   headless lane finish: without it an unattended run waits at the first ⏸ until the wall-clock
-  budget expires (measured: a benchmark DNF at 1800s on a feature the control finished in 51s).
+  budget expires, having built nothing.
 - `--wall-clock-budget <seconds>` → arm the deadline breaker. Off by default. Set it in any lane
-  with a hard clock (CI, a benchmark, an overnight run) and set it *below* the external kill, so
+  with a hard clock (CI, an overnight run) and set it *below* the external kill, so
   the harness trips its own breaker first: past the deadline `hooks/gate-deadline.mjs` denies new
   `task-executor` work and routes to GATE H, where scope-hammer ships whatever is green. A run
   killed from outside ships nothing — including the scopes that already passed T0.

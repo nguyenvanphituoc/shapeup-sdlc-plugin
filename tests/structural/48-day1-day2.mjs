@@ -27,7 +27,9 @@ import { loadRubrics, listSkills, scoreDraft, selftest, coverage } from "../../t
 const EXTERNAL_REPOS = {
   // The benchmark. Author-owned, no git remote (day-2 plan §Sources), which is precisely why its
   // predicates need a pinned citation form rather than a fetchable one.
-  bench: { env: "BENCH_DIR", default: "/Users/teo/workspace/sdd-harness-bench" },
+  // No default: a developer's absolute path resolves on exactly one machine and silently skips
+  // everywhere else, including CI. Set BENCH_DIR to point this at a bench checkout.
+  bench: { env: "BENCH_DIR", default: "" },
 };
 
 /**
@@ -1144,8 +1146,15 @@ export async function run(ctx) {
           if (!reg) {
             fail(`${tag} error_predicate.source cites unknown repository "${repoKey}" — add it to EXTERNAL_REPOS with the path it lives at, or the citation points nowhere a reader can follow`);
           } else {
+            // An UNCONFIGURED repo path is "not on this machine", never "resolve it against cwd".
+            // `join("", ".git")` is `.git`, which exists in *this* checkout — so an empty path
+            // silently pointed the citation check at the wrong repository and reported a perfectly
+            // good citation as broken. Guarding here keeps "cannot verify" and "does not resolve"
+            // as the two distinct facts the branches below already treat them as.
             const repoPath = process.env[reg.env] || reg.default;
-            const lineCount = existsSync(join(repoPath, ".git")) ? gitFileLineCount(repoPath, commit, file) : null;
+            const lineCount = repoPath && existsSync(join(repoPath, ".git"))
+              ? gitFileLineCount(repoPath, commit, file)
+              : null;
             const line = Number(lineStr);
             if (lineCount === null) {
               ok(`${tag} error_predicate.source is a well-formed cross-repo citation pinned to ${repoKey}@${commit} (${file}:${line}) — UNVERIFIED HERE: ${repoKey} is not on this machine (set ${reg.env} to resolve it)`);

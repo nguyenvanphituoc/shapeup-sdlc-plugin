@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Shared `process` oracle for the evaluation contract (Stage G of the audit).
+// Shared `process` oracle for the evaluation contract.
 //
 // This is the promoted, parameterized form of the todo-cli prototype: instead of hard-coding
 // criteria, it reads a *declarative contract* (a list of criteria, each with a `probe` and an

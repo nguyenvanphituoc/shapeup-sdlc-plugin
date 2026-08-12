@@ -8,12 +8,12 @@ description: "Use this skill whenever the user wants to orchestrate a whole feat
 ## ▶ RUN THIS FIRST — do not summarise this file
 
 **Your first output must be a tool call, not a plan.** Everything you emit before the first tool
-call is narration, and a narrated run is a failed run (measured: 29% acceptance, 10 escaped
-defects, while reading like a clean success). `hooks/gate-zerowork.mjs` (Stop) blocks a session
+call is narration, and a narrated run is a failed run — it reads like a clean success and leaves
+escaped defects behind it. `hooks/gate-zerowork.mjs` (Stop) blocks a session
 that **reached the orchestrator and left no receipt** — where "reached the orchestrator" means
 dispatching this skill or launching a `shapeup-*` workflow by either surface, and the receipt is
 what `init-run.mjs` writes. Working around the harness is not an exemption: a busy session used to
-switch this gate off and no longer does (HD-008). Loading these instructions is not running them.
+switch this gate off and no longer does. Loading these instructions is not running them.
 
 **Step 1 — open the run.** Write the requirement to a file first, then pass the path — a
 multi-line requirement inlined into a shell argument is where this step goes wrong (measured: six
@@ -71,13 +71,13 @@ exit code, in code, not by this skill's own reading of a paragraph. The `RunRetu
 
 **Background, and by Bash — both are load-bearing.** A real run outlives any foreground tool-call
 ceiling. And **do not launch this with the `Workflow` tool** unless the project has explicitly
-granted it: that call is denied by default in a headless session (HD-007 — measured across six
-benchmark runs in which the lane executed zero times while the session improvised a feature by
-hand), and the only grant that unblocks it is the unscoped token `"Workflow"`, which permits *every*
+granted it: that call is denied by default in a headless session — the lane then executes zero
+times while the session improvises the feature by hand — and the only grant that unblocks it is
+the unscoped token `"Workflow"`, which permits *every*
 dynamic workflow script in the project. `run-workflow.mjs` runs the same script under the
 path-scoped grant `npx shapeup-sdlc init` already writes. Headless runs also need
 `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0`, or the wait is cut at 600 s and a truncated run is
-reported as a clean one (`docs/upgrading.md`). If the launch comes back "requires approval", stop
+reported as a clean one. If the launch comes back "requires approval", stop
 and say so — do not hand-build the feature instead.
 
 ## Step 3 — the pause protocol: branch on `RunReturn.status`

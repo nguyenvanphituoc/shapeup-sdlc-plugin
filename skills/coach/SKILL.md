@@ -54,7 +54,7 @@ say so plainly — do **not** force-fit it into a coachable category.
 **Harness defect ≠ worker steering.** When the feedback's root cause is the *mechanism itself* —
 a hook that fail-opens, a gate that reads the wrong file, two skill contracts that contradict
 each other — no amount of steering a worker fixes it, and filing it as a KB rule misdiagnoses a
-defect as a habit (island-escape's KB-BA-002 filed an orchestration/hook defect as BA guidance,
+defect as a habit (a real case: an orchestration/hook defect filed as BA guidance,
 on a premise the skill contracts contradict). That is what the `harness-defect` category below is
 for: the coach records it in the committed defect register as a drafted **raw idea** for the
 Betting Table — the debt-free path ("remaining findings + new feedback → new raw idea") — and it

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// `test` oracle for the evaluation contract (Stage G, step 4a of the audit).
+// `test` oracle for the evaluation contract.
 //
 // Deliverable: a library / module whose acceptance is "its own test suite is green".
 // The oracle runs the project's test command and grades the OBSERVED suite result —

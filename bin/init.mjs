@@ -11,7 +11,7 @@
 //
 // The bash installers remain the stable curl-able entrypoints for existing bookmarks;
 // this is the `npx` front door. Both produce the same layout, and drift between them is
-// a bug (tests/structural keeps the shared bits honest).
+// a bug (the structural suite keeps the shared bits honest).
 //
 // Usage:
 //   npx shapeup-sdlc init [-d <dir>] [-y] [-o]
@@ -230,7 +230,7 @@ function installClaude() {
 /**
  * Pre-approve the harness's OWN pipeline scripts, and nothing else.
  *
- * WHY THIS EXISTS (measured, on this project's own benchmark).
+ * WHY THIS EXISTS (observed, not theorized).
  *
  * Every load-bearing step of a run is a Node script that ships with the plugin and therefore
  * lives OUTSIDE the project — `${CLAUDE_PLUGIN_ROOT}/skills/**\/scripts/*.mjs`. Under any
@@ -238,10 +238,10 @@ function installClaude() {
  * directory needs approval. In an interactive session you click once and forget it. In a headless
  * one there is nobody to click, and the run cannot take its first step.
  *
- * That is not hypothetical. On `sdd-harness-bench`, the run receipt step (`init-run.mjs`) was
+ * That is not hypothetical. Without the grant, the run receipt step (`init-run.mjs`) gets
  * attempted six different ways in a single session — direct, via a heredoc, via two hand-written
- * wrapper scripts, via a sub-agent — and every one came back "This command requires approval".
- * The agent eventually gave up on the harness and built the feature by hand. It is the failure the
+ * wrapper scripts, via a sub-agent — and every one comes back "This command requires approval".
+ * The agent then gives up on the harness and builds the feature by hand. It is the failure the
  * receipt was designed to make visible, arriving through the door the receipt itself opened.
  *
  * Scope is deliberately narrow: `node <plugin>/skills/.../scripts/*.mjs`, by prefix. This grants
@@ -256,7 +256,7 @@ function installClaude() {
  * put every call site back outside the grant — the exact mismatch this fix exists to remove. The
  * unquoted prefix stays for older prose and for anything a user has already typed.
  *
- * `tests/structural/14-invocation-paths.mjs` asserts that every documented call site is in a form
+ * The structural suite asserts that every documented call site is in a form
  * one of these prefixes actually matches, so the two can never drift apart again.
  *
  * @param {object} settings - Parsed settings.json, mutated in place.

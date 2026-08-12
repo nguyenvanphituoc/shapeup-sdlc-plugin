@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// GATE L2 — board-green check on the once-per-round EVAL. PreToolUse hook (audit Stage E1).
+// GATE L2 — board-green check on the once-per-round EVAL. PreToolUse hook.
 //
 // ADVISORY SINCE ADR-0001, and the downgrade was a deliberate product decision rather than a
 // retreat. This hook used to hard-DENY the EVAL delegation (tech-lead → spec-evaluator) while the
@@ -82,8 +82,8 @@ if (!roundMode) defer(hasTask ? "per-task eval — the board-green rule is about
 
 // 4. Locate the board. Since v0.4.0 (Local Tasks Architecture) it lives under the LOCAL
 //    gitignored root `.shapeup/<slug>/tasks/`, NOT the committed spec dir — resolving only
-//    `<spec>/tasks/` made this hook silently fail-open on every v0.4.0+ run (the island-escape
-//    hole: EVAL proceeded with 16/20 task files still `status: ready`).
+//    `<spec>/tasks/` made this hook silently fail-open on every v0.4.0+ run — EVAL proceeded with
+//    most of the board still `status: ready`.
 //    <slug> comes from --feature (the round invocation always carries it: tech-lead's eval plan
 //    is `--spec <path> --feature <slug> --single-pass`), falling back to the spec-path
 //    convention shapeup/<slug>/spec → parent dir name. `<spec>/tasks/` is kept as the

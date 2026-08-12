@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verdict-ledger reference implementation (audit Stage D1) — spec-evaluator's own skill-local
+// Verdict-ledger reference implementation — spec-evaluator's own skill-local
 // reference impl (ships beside SKILL.md; not invoked at runtime).
 //
 // The `spec-evaluator` skill performs verdict re-probe / confidence / flip-detection as a

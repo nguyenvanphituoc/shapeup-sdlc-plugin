@@ -16,13 +16,12 @@
 // `SessionStart:startup`, and the reflex whose entire purpose is "trust the files, not your
 // memory" did not fire in the one case where there IS no memory to distrust.
 //
-// The SDD harness benchmark measured the cost. Its F4 handoff design is exactly this scenario — a
-// fresh `claude -p` in a workspace where a prior session was cut mid-build — and across three
-// Sonnet rows every one recorded `hooks_fired: ["SessionStart:startup"]` (the plugin's load echo,
-// not this hook). With no pointer to the run in flight, the orchestrator re-entered at phase 1:
-// 82–120 turns before its first write, $4.57–$10.36 for the session, and **0/3 of the gap closed**
-// while the run receipt and board sat on disk the whole time. One row reached GATE L4 — ship
-// sign-off — having advanced the deliverable by zero criteria.
+// The cost is concrete. A fresh session in a workspace where a prior one was cut mid-build sees
+// only `SessionStart:startup` — the plugin's load echo, not this hook. With no pointer to the run
+// in flight, the orchestrator re-enters at phase 1 and spends its whole budget rebuilding a
+// pipeline that is already on disk, closing none of the gap, while the run receipt and board sit
+// there the entire time. A session can reach GATE L4 — ship sign-off — having advanced the
+// deliverable by zero criteria.
 //
 // Firing on `startup` is free when there is nothing to say: `findRun` returns a run only for an
 // `active-scope` pointer or a `harness-run.md` whose status is mid-run, so an ordinary session in a
@@ -50,8 +49,8 @@ import { activeScope } from "../skills/tech-lead/scripts/lib/paths.mjs";
 //
 //   compact / resume — the risk is acting on a lossy summary of work you remember doing.
 //   startup / clear  — the risk is not knowing the run exists, and OPENING IT AGAIN. That is the
-//                      failure the benchmark measured: a fresh session re-entered at phase 1 and
-//                      spent 82–120 turns rebuilding a pipeline that was already on disk.
+//                      failure that actually happens: a fresh session re-enters at phase 1 and
+//                      spends its budget rebuilding a pipeline that was already on disk.
 //
 // Naming the right failure is the whole value of the injection. A generic pointer to the files is
 // what a competent agent finds anyway; "there is a run open, do not re-open it" is not.

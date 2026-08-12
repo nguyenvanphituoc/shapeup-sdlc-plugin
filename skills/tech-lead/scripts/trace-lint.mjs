@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Traceability oracle (spine v1.3, plan docs/internal/plan/ratchet-and-receipt-plan.md §1.4 + §2).
+// Traceability oracle (spine v1.3).
 //
 // ONE oracle, TWO mechanically-checkable assertions — nothing that merely *asserts* quality:
 //
@@ -260,7 +260,7 @@ export function traceLint(slug, { cwd, gate = false }) {
   }
   if (wiringFound) wiringMap = wiringFound.contract;
 
-  // HD-001. A map whose `## Wiring` table is under a heading the parser does not claim reads as
+  // A map whose `## Wiring` table is under a heading the parser does not claim reads as
   // zero entries, and the loop below then walks nothing and reports `0/0 engines reach <entry>` —
   // GREEN, for a committed file holding six correct rows. The gate whose entire purpose is that no
   // engine ships orphaned failing open, on a file that looks right to every human who reviews it.

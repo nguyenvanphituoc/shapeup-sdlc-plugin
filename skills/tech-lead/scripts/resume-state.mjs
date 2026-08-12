@@ -1,24 +1,25 @@
 #!/usr/bin/env node
 // RESUME STATE — the fast-forward derivation, as a script rather than as a string.
 //
-// WHY THIS FILE EXISTS (measured, and it is the reason Stage A's ship gate failed).
+// WHY THIS FILE EXISTS (observed, not theorized).
 //
 // `shapeup-run.js` derives "which phase do I resume at" from disk on every launch — that
-// derivation IS the migration's whole product, the thing that retires the 82–120-turn handoff
-// class. Until this file existed, it lived inside the workflow script as a `node --input-type=
-// module -e "…"` blob passed to a courier agent. Three consequences, all of them realised:
+// derivation is what retires the whole class of handoff where a fresh session rebuilds a pipeline
+// already on disk. Until this file existed, it lived inside the workflow script as a
+// `node --input-type=module -e "…"` blob passed to a courier agent. Three consequences, all of
+// them realised:
 //
 //   1. IT COULD NOT BE TESTED. A Workflow script has no `import`, takes `args` as a runtime
 //      global, and is executed by the Workflow runtime — there is no seam a fixture can reach.
-//      So the derivation shipped unverified, and the kill/resume probe (docs/migration/
-//      stage2-evidence.md §4) found it re-dispatching a COMPLETED ORIENT phase: three orient
+//      So the derivation shipped unverified, and the kill/resume probe found it re-dispatching a
+//      COMPLETED ORIENT phase: three orient
 //      artifacts rewritten, a spike added, the discovery ledger and two task files mutated.
 //      The cause was one branch reading stored `status` instead of ORIENT's own artifacts,
 //      while WIRE and MAP SCOPES read artifacts and fast-forwarded correctly.
 //   2. IT MATCHED NO PERMISSION GRANT. `permissions.allow` carries
 //      `Bash(node ${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/:*)`; an inline `node -e` matches
-//      no entry and passes only at the safety classifier's discretion (run-3 environment
-//      finding #5). As a script it is covered by the grant the installer already writes.
+//      no entry and passes only at the safety classifier's discretion. As a script it is covered
+//      by the grant the installer already writes.
 //   3. TWO WRITES HAD NO READER. `setRunStatus` and `writeActiveScope` were the only `mech()`
 //      call sites in the workflow whose return value was discarded — and they are the only two
 //      whose failure went unnoticed for two entire runs. `status` never left `orienting` across
@@ -33,16 +34,16 @@
 // offered as a derived convenience (and is what the fixture asserts over), but every underlying
 // boolean travels too, so a caller is never forced to trust a summary it cannot check.
 //
-// WHY `--require` EXISTS (Stage A3, and it is the same lesson one layer up).
+// WHY `--require` EXISTS (the same lesson, one layer up).
 //
-// Stage A2 made the RESUME decision read artifacts. It left the COMPLETION decision reading
+// Making the RESUME decision read artifacts left the COMPLETION decision reading
 // nothing at all: shapeup-run.js dispatched a phase, ingested its result, and moved to the next
 // gate without ever re-asking the predicate. A worker that returns `status: "escalated"` with
 // `artifacts: []` — a legitimate outcome its own contract defines — satisfied that. So a phase
 // that wrote no artifact was recorded as complete, the artifact-gated fast-forward then correctly
 // found nothing on the next launch, re-dispatched it, and the worker escalated again: an
-// unbounded loop, invisible inside one leg, which is why three runs and a status review never saw
-// it (docs/migration/stage-a2-evidence.md §7.3).
+// unbounded loop, invisible inside one leg, which is why several runs and a status review never
+// saw it.
 //
 // `--require <phase>` is the completion check, and it is deliberately the SAME derivation the
 // fast-forward uses — not a second predicate that can drift from it. Two predicates that can
@@ -131,7 +132,7 @@ export function usecasesPath(cwd, slug, specFolder) {
  * Has ANALYZE actually produced the spec tree? `_index.md` alone is a tree with no use cases in
  * it, and a wiring map is written one entry PER use case — so the index does not count.
  *
- * This predicate is why Stage A3 exists at all. WIRE was dispatched before ANALYZE ran, so
+ * This predicate is why ANALYZE is in the phase chain at all. WIRE was dispatched before it ran, so
  * `usecases/` did not exist, so `solution-architect` had nothing to wire and escalated — honestly,
  * and identically on every relaunch (skills/solution-architect/SKILL.md:43-44, :108).
  *
@@ -176,7 +177,7 @@ export function phaseSatisfied(state, phase) {
  * The first phase whose artifacts are incomplete — the design doc's §4 fast-forward, stated once
  * so the workflow and the fixture cannot disagree about it.
  *
- * ⟐ Stage A3: ANALYZE joined the chain, between ORIENT and WIRE. The pipeline used to dispatch
+ * ⟐ ANALYZE sits between ORIENT and WIRE. The pipeline used to dispatch
  * WIRE first, which is the position solution-architect's own input contract excludes — it reads
  * `usecases/`, and `analyze` is what writes them.
  *

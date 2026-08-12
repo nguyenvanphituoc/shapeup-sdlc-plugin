@@ -1,23 +1,21 @@
 #!/usr/bin/env node
 // run-workflow — a Bash-invoked control plane for Workflow-format orchestrator scripts.
 //
-// WHY THIS FILE EXISTS (HD-007, docs/migration/stage3-evidence.md §7.5). The `Workflow` tool — the
-// only post-cutover lane for scoped specs — is denied in a headless session with "Review dynamic
-// workflow before running". In six paid A7 reps `shapeup-run.js` executed zero times, and the agent
-// improvised the feature by hand instead, once reaching GATE L4 with a valid receipt while the lane
-// had never started. Bash HAS a path-scoped grantable prefix, and `npx shapeup-sdlc init` already
+// WHY THIS FILE EXISTS. The `Workflow` tool — the only lane for scoped specs — is denied in a
+// headless session with "Review dynamic workflow before running". Left to it, `shapeup-run.js`
+// executes zero times and the agent improvises the feature by hand instead; a session can reach
+// GATE L4 with a valid receipt while the lane never started. Bash HAS a path-scoped grantable
+// prefix, and `npx shapeup-sdlc init` already
 // writes exactly that rule (`Bash(node ${CLAUDE_PLUGIN_ROOT}/skills/<owner>/scripts/:*)` —
 // bin/init.mjs mergePipelinePermissions), so this file runs the SAME Workflow-format script through
 // a surface the install already grants.
 //
-// ⟐ CORRECTION, 2026-08-12, from probing the permission layer instead of concluding from denials.
-// HD-007 originally said no permission string could grant the tool. THAT IS FALSE, and the file it
-// justified should say so first. Measured, in the benchmark's own shape (untrusted temp workspace,
-// explicit `--settings`, `--permission-mode acceptEdits`): a bare `"Workflow"` entry in
-// `permissions.allow` grants it — zero denials, the script runs. With the same settings file minus
-// that one entry, denied. So the tool was never ungrantable; the benchmark's settings file simply
-// never carried the entry, because `init` writes Bash prefixes only. The defect is real and is an
-// INSTALLER defect: the plugin never granted the permission its own lane needs.
+// ⟐ ONE CORRECTION, from probing the permission layer rather than concluding from denials. It is
+// NOT true that no permission string can grant the tool: a bare `"Workflow"` entry in
+// `permissions.allow` grants it, and with that entry removed the same call is denied. So the tool
+// was never ungrantable — the installer simply never wrote the entry, because it writes Bash
+// prefixes only. The defect is real, and it is an INSTALLER defect: the plugin never granted the
+// permission its own lane needs.
 //
 // TWO THINGS SURVIVE THE CORRECTION, and they are the reason this file still exists rather than a
 // one-line change to `init`:
@@ -28,20 +26,19 @@
 //      path-scoped to this directory.
 //   2. It costs no new grant at all: existing installs already allow it.
 // The one-line `"Workflow"` grant remains a legitimate alternative for anyone who prefers the
-// native runtime's resume/isolation, and `docs/upgrading.md` documents it as such. It is a choice
+// native runtime's resume/isolation, and the upgrade notes document it as such. It is a choice
 // with a real trade-off, which is why it is documented rather than silently taken.
 //
 // IT LIVES IN `scripts/` FOR A LOAD-BEARING REASON, not a filing one. The grant `init` already
 // writes is a PREFIX rule over this exact directory, so shipping the launcher here means every
 // install that ever ran `npx shapeup-sdlc init` can already start the lane — zero new permission
 // strings, zero migration for existing users. Putting it anywhere else would require a new grant
-// and reproduce HD-007 one directory over. `tests/structural/14-invocation-paths.mjs` asserts the
+// and reproduce the same denial one directory over. The structural suite asserts that the
 // documented call site is covered by a prefix `bin/init.mjs` actually writes.
 //
-// PROVENANCE: prototyped as `tools/control-plane/cp-run.mjs` and proven there before it shipped —
-// `docs/migration/hd007-control-plane-probe.md` (T1: a headless `acceptEdits` session ran the lane
-// through a granted Bash prefix with zero denials; P1: this loader executed the unmodified
-// `shapeup-run.js`; P3: a real worker dispatched under `acceptEdits`).
+// PROVENANCE: prototyped and proven before it shipped — a headless `acceptEdits` session runs the
+// lane through a granted Bash prefix with zero denials, this loader executes the unmodified
+// `shapeup-run.js`, and a real worker dispatches under `acceptEdits`.
 //
 // WHAT IT PROVIDES to the script — the Workflow runtime surface shapeup-run.js actually uses:
 //   args, agent(prompt, {label, phase, schema, model, effort}), parallel(thunks),
@@ -53,9 +50,9 @@
 //
 // HOW agent() DISPATCHES. Each call spawns a fresh headless CLI session:
 //   claude -p <prompt> --model <m> --output-format json --permission-mode acceptEdits
-// (same spawn discipline as sdd-harness-bench/runner/lib/session.mjs: detached process group,
-// SIGTERM-then-SIGKILL escalation on timeout, so a hook grandchild can never hold a dead worker's
-// pipe open — that rig measured a 60s-capped session running 950s without it). Workers are
+// (detached process group, SIGTERM-then-SIGKILL escalation on timeout, so a hook grandchild can
+// never hold a dead worker's pipe open — without that, a time-capped session can outlive its cap
+// many times over). Workers are
 // stateless, craft-only, pipeline-blind (the envelope port) — fresh processes fit that contract
 // exactly; nothing here shares context between dispatches. `schema` is enforced by instruction +
 // parse + shallow validation + one retry; a worker that still fails returns null, which is the
@@ -80,7 +77,7 @@
 // foreground Bash call has a ceiling well below that. Launch it as a BACKGROUND Bash call and read
 // `<run-dir>/result.json`, which this file writes on completion with the same `{ok, result}` shape
 // stdout carries. Headless callers must also set `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0`, or the
-// wait is cut at 600 s and a truncated run is reported as a clean one (docs/upgrading.md).
+// wait is cut at 600 s and a truncated run is reported as a clean one.
 //
 // STDOUT DISCIPLINE: stdout carries exactly one JSON line — {ok, result} — because whatever
 // launched this process (a mech courier, an outer session, a test) reads stdout as data. All
@@ -98,9 +95,9 @@ import { runArgs } from "./lib/argv.mjs";
 import { isMain } from "./lib/is-main.mjs";
 
 /**
- * The typed argv boundary (tests/structural/13-argv-contract.mjs).
+ * The typed argv boundary.
  *
- * FAILING CLOSED IS THE POINT HERE, not hygiene. HD-007's measured cost was not that the lane
+ * FAILING CLOSED IS THE POINT HERE, not hygiene. The cost of a silent launch failure is not that the lane
  * refused to start — it is that the refusal was quiet enough for an agent to route around, so a
  * run that never happened reported like one that did. A launcher that accepts `--max-concurrency`
  * with no value and proceeds on `NaN` is the same shape of defect: this rejects at exit 2 with a
@@ -174,7 +171,7 @@ function makeSemaphore(max) {
 
 // ---------------------------------------------------------------------------------------------
 // Worker spawn — one headless CLI session per dispatch. Process-group kill on timeout
-// (sdd-harness-bench/runner/lib/session.mjs discipline: hook grandchildren keep pipes open, so
+// (hook grandchildren keep pipes open, so
 // signaling one pid is not a cap).
 // ---------------------------------------------------------------------------------------------
 const KILL_GRACE_MS = 10_000;
@@ -366,7 +363,7 @@ async function main() {
 if (isMain(import.meta.url)) {
   main().catch((e) => {
     // The failure is written where a background caller will look for it, not only to a stdout
-    // nobody is reading: a launch that dies silently is the HD-007 shape this file exists to end.
+    // nobody is reading: a launch that dies silently is the exact shape this file exists to end.
     process.stdout.write(JSON.stringify({ ok: false, error: e.message }) + "\n");
     process.stderr.write(`[run-workflow] FATAL ${e.stack}\n`);
     try {

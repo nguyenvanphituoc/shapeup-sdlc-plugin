@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Stats — the telemetry read-plane (v1.2, absorb-audit P3).
+// Stats — the telemetry read-plane (v1.2).
 //
 // SHIP S.6 has been writing fact rows to shapeup/metrics/<machine-id>.jsonl since
 // v0.x with exactly one documented reader: `cat *.jsonl`. This script is the missing

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// `snapshot` oracle for the evaluation contract (Stage G, step 4b of the audit).
+// `snapshot` oracle for the evaluation contract.
 //
 // Deliverable: a generator or a pure refactor — something whose acceptance is "produces exactly
 // this output". The oracle runs the deliverable, captures its stdout, and diffs it against a

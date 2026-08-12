@@ -167,7 +167,7 @@ export function score({ fixtures, dbProbe, seesaw }) {
  *   • REGRESSIONS DOMINATE. Breaking a previously-finished scope is never an improvement, whatever
  *     the new scope's fixtures did. This is what lets the old seesaw branch collapse into the
  *     general rule rather than needing a special case.
- *   • DIFFERENT `fixtures_total` IS INCOMPARABLE, not worse. A scope split or remap changes the
+ *   • DIFFERENT `fixtures_total` IS INCOMPARABLE, not worse. A re-slice changes the
  *     denominator; comparing across it is a category error, so the ratchet treats it as a baseline
  *     reset (`rebased`) rather than issuing a false verdict.
  *
@@ -322,7 +322,7 @@ function sha256(text) {
  * the retry, so the artifact recording the regression was silently replaced by the one recording
  * the recovery, at the same path. Reproduced against the shipped script: two runs at
  * `--round 1 --attempt 2`, one red and one green, left ONE file — the red verdict was gone. This
- * is the same missing-identity-key defect the benchmark logged as its own #9, recurring on the one
+ * is the same missing-identity-key defect logged elsewhere in this codebase, recurring on the one
  * artifact the evaluator is structurally required to cite.
  *
  * An `existsSync` guard would be check-then-write: still racy, and still a policy expressed in code

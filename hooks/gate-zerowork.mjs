@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 // GATE Z — ZERO-WORK. Blocking Stop hook. The detector for "the harness described itself".
 //
-// WHY THIS EXISTS (measured, not theorized).
+// WHY THIS EXISTS (reproduced, not theorized).
 //
-// SDD harness benchmark, F2, Haiku 4.5, n=5, zero variance. The orchestrator was dispatched
-// with a valid spec and returned this, in full:
+// Dispatched with a valid spec, the orchestrator returned this, in full:
 //
 //     TOOL   Skill(tech-lead, "--unattended --rounds 3\n\n# F2 — category budgets…")
 //     TEXT   "The tech-lead skill is orchestrating the full Shape Up harness. It will: 1. …"
@@ -50,9 +49,9 @@
 // SECOND CONDITION (v1.5). Since `hooks/lib/decision.mjs` gives every hook a receipt, this gate
 // gains a second, independent fact it can assert at `Stop`: the orchestrator was dispatched, and
 // `decisions.jsonl` holds ZERO rows for this pid — meaning the enforcement layer itself never ran.
-// That is F-16's class, not its instance: under a symlinked install every gate was inert while
-// every gate reported success. The detector for "the gates didn't run" now stops depending on the
-// gates running.
+// That is a whole CLASS of failure, not one instance: under a symlinked install every gate can be
+// inert while every gate reports success. The detector for "the gates didn't run" therefore stops
+// depending on the gates running.
 
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -67,8 +66,7 @@ const MAX_TRANSCRIPT_BYTES = 20 * 1024 * 1024;
  *
  * The census these produce is now DESCRIPTIVE ONLY — it sharpens the block message and nothing
  * decides on it. Until v1.7.1 a count above two was a fail-open ("the session did work by other
- * means"), and HD-008 is the measurement that retired it: see the `work-done` note at the decision
- * site below. `Workflow` stays absent because a launch is not work — it is the work this hook is
+ * means"), and it was retired for the reason spelled out at the `work-done` note below. `Workflow` stays absent because a launch is not work — it is the work this hook is
  * asking about — and it is a DISPATCH signal instead (`dispatchedOrchestrator`).
  */
 const WORK_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "Task", "Agent"]);
@@ -76,7 +74,7 @@ const WORK_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash"
 /**
  * Is this block a launch of the orchestrator's own workflow script, by either surface?
  *
- * TWO SURFACES, ONE INVARIANT. `Workflow({scriptPath})` is the tool form. Since HD-007 the shipped
+ * TWO SURFACES, ONE INVARIANT. `Workflow({scriptPath})` is the tool form. The shipped
  * front door is a Bash call — `node "…/scripts/run-workflow.mjs" "…/workflows/shapeup-run.js"` —
  * because the tool form cannot be granted and is denied in every headless session. A gate that
  * knew only the tool form would go blind on the lane users actually run, which is the same
@@ -234,15 +232,15 @@ export function buildReason({ narration, census, enforcement }) {
     census.work_calls > 2
       ? `Those ${census.work_calls} work calls are why this block exists, not a reason to waive it: a busy ` +
         "session used to switch this gate off. Work done AROUND the harness has no board, no T0 verdict and " +
-        "no receipt — measured, a hand-built feature scored 14/14 while the pipeline never ran (HD-008)."
+        "no receipt — a hand-built feature can pass its own oracle while the pipeline never ran."
       : null,
     enforcement && enforcement.readable && enforcement.rows === 0
       ? "AND the enforcement layer left zero decision rows — the gates did not merely permit this run, they never ran. " +
-        "Check the plugin install (a symlinked or spaced path was the measured cause; see lib/is-main.mjs)."
+        "Check the plugin install — a symlinked or spaced path is the usual cause; see lib/is-main.mjs."
       : null,
     "",
     "A run that describes its own pipeline and stops is the exact failure this harness exists to",
-    "prevent — measured at 29% acceptance with 10 escaped defects while looking like a clean run.",
+    "prevent: it reads like a clean run and leaves escaped defects behind it.",
     "Loading the instructions is not running them.",
     "",
     "Do the work now, starting with the first step of the runbook:",
@@ -254,7 +252,7 @@ export function buildReason({ narration, census, enforcement }) {
     "       --auto-level <interactive|auto|unattended> [--gate-answers <preset|path>]",
     "",
     "Then launch the lane itself — a BACKGROUND Bash call, never the `Workflow` tool, which cannot be",
-    "granted and is denied outright in a headless session (HD-007):",
+    "granted and is denied outright in a headless session:",
     "",
     "  node \"${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/run-workflow.mjs\" \\",
     "       \"${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js\" \\",
@@ -303,19 +301,18 @@ async function main() {
 
   const census = workCensus(events);
 
-  // ── HD-008 — the `work-done` fail-open is GONE, and its removal is the measurement's whole point.
+  // ── The `work-done` fail-open is GONE, and its removal is the point.
   //
   // WHAT IT USED TO DO: `if (census.work_calls > 2) defer("the session did work by other means")`.
   // The stated rationale was that a user may have run the harness steps by hand, or be on a
   // pre-receipt version of the plugin.
   //
-  // WHAT IT ACTUALLY DID, measured (A7 candidate rep 1, docs/migration/stage3-evidence.md §7.5).
-  // `Skill(tech-lead)` was dispatched, the lane could not start (HD-007), the agent hand-built the
-  // whole feature, and the hook ALLOWED the Stop on `"37 work calls — the session did work by
-  // other means"`. The rep scored 14/14 by the oracle and read like a clean run, with no board, no
-  // T0, no verdict and no receipt. A busy session was the one thing that could switch this gate
-  // off — so the harder the agent worked around the harness, the safer it was from the gate
-  // watching for exactly that.
+  // WHAT IT ACTUALLY DID, observed. `Skill(tech-lead)` was dispatched, the lane could not start,
+  // the agent hand-built the whole feature, and the hook ALLOWED the Stop on `"37 work calls — the
+  // session did work by other means"`. That session passed its own oracle and read like a clean
+  // run, with no board, no T0, no verdict and no receipt. A busy session was the one thing that
+  // could switch this gate off — so the harder the agent worked around the harness, the safer it
+  // was from the gate watching for exactly that.
   //
   // BOTH HALVES OF THE RATIONALE FAIL ON INSPECTION. Running the harness steps by hand starts with
   // `init-run.mjs`, which writes the receipt — such a session already deferred at `receipt-present`

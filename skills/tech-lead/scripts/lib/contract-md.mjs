@@ -38,7 +38,7 @@ import { join } from "node:path";
 // Per-type layout: which array-of-objects field lives under which heading.
 //
 // `signatures` names the columns that identify a table as THAT field's, and it exists because of
-// HD-001: the heading match is exact, so a table written under `# Wiring map — <slug>` instead of
+// The heading match is exact, so a table written under `# Wiring map — <slug>` instead of
 // `## Wiring` parsed as ABSENT, and every reader downstream treats absent as "none declared". The
 // observed consequence was `trace-lint` reporting `🟢 green · 0/0 engines reach src/cli/main.js`
 // for a committed map holding six correct rows — the gate whose whole purpose is that no engine
@@ -91,7 +91,7 @@ export const UNREADABLE = "$unreadable_tables";
  */
 export function coerce(raw) {
   let trimmed = String(raw ?? "").trim();
-  // HD-005 — A MARKDOWN CODE SPAN IS FORMATTING, NOT PART OF THE VALUE.
+  // A MARKDOWN CODE SPAN IS FORMATTING, NOT PART OF THE VALUE.
   //
   // These contracts are MARKDOWN on disk, and a code span is the idiomatic way to write a path or
   // an identifier in one; this repo's own prose backticks every path it names. Read literally,
@@ -99,7 +99,7 @@ export function coerce(raw) {
   // anywhere — so `trace-lint` reported "engine file not on disk" and then "reachability is not
   // demonstrated" for a wiring map whose engines all resolve AND all reach the entry point. The
   // gate that exists so no engine ships orphaned failing CLOSED, on a correct map, is the same
-  // silent-format family as HD-001..HD-004 arriving from the other direction.
+  // silent-format family as the parser defects above, arriving from the other direction.
   //
   // Stripped ONLY when the whole value is a single span: a cell like
   // "Registered as the `add` entry in `TABLE`" is prose that happens to contain spans, and its
@@ -125,7 +125,7 @@ export function coerce(raw) {
  */
 export function uncoerce(v) {
   if (v === null || v === undefined) return "~";
-  // HD-002's other half. A member containing the delimiter must go back out QUOTED, or the round
+  // The other half of the comma defect. A member containing the delimiter must go back out QUOTED, or the round
   // trip that wrote it re-reads as several members — the same shredding, arriving from the writer's
   // side instead of the reader's.
   if (Array.isArray(v)) return `[${v.map((x) => (/[,"]/.test(String(x)) ? JSON.stringify(String(x)) : String(x))).join(", ")}]`;
@@ -135,7 +135,7 @@ export function uncoerce(v) {
 /**
  * Split a `[a, b]` list body on commas that are NOT inside quotes.
  *
- * HD-002. The old implementation was `body.split(",")`, and it shredded any member carrying a
+ * The old implementation was `body.split(",")`, and it shredded any member carrying a
  * comma — even a correctly quoted one. Measured: a `scope-architect` run probed the running CLI,
  * confirmed `tag` was unimplemented, and wrote the honest entry its own SKILL.md asks for —
  *   ["TBD — `tag` is not in dispatch.js's TABLE (exits 1, confirmed against the running CLI). A
@@ -191,12 +191,12 @@ export function splitFrontmatter(md) {
     const key = line.slice(0, c).trim();
     const inline = line.slice(c + 1).trim();
 
-    // HD-003. An indented run beneath a key is a YAML BLOCK SEQUENCE, and it used to be skipped
+    // An indented run beneath a key is a YAML BLOCK SEQUENCE, and it used to be skipped
     // entirely — so `e2e_verification_fixtures:` followed by two `- "node …"` lines parsed to
     // null, the members vanished, and no reader could tell "declared nothing" from "declared
     // something I discarded". Measured: a scope-architect run wrote three scopes of researched
     // fixtures in this form and every one evaporated. It is ACCEPTED now, because it is the form a
-    // model reaches for by default and the one that carries prose members without HD-002's quoting
+    // model reaches for by default and the one that carries prose members without the quoting
     // problem — and anything indented that is NOT a block sequence is reported rather than dropped.
     const block = [];
     let stray = 0;
@@ -322,13 +322,13 @@ export function parseContract(md, spec = SCOPE_CONTRACT) {
   const { meta, body } = splitFrontmatter(md);
   const tables = parseTables(body);
   const out = { ...meta };
-  // Frontmatter-level diagnostics (HD-003) and table-level ones (HD-001) share one channel, so a
+  // Frontmatter-level diagnostics and table-level ones share one channel, so a
   // reader asks `unreadableReason()` once and cannot check for one while missing the other.
   const unreadable = [...(meta[UNREADABLE] || [])];
   delete out[UNREADABLE];
   for (const [field, heading] of Object.entries(spec.tables || {})) {
     if (tables[heading]) { out[field] = tables[heading]; continue; }
-    // HD-001. The field is absent — but is it absent because nobody declared it, or because the
+    // The field is absent — but is it absent because nobody declared it, or because the
     // author declared it somewhere this parser does not look? Those are opposite facts and the
     // old code returned the same thing for both. A table carrying this field's signature columns,
     // under a heading the spec does not claim, is the second case.
@@ -351,7 +351,7 @@ export function parseContract(md, spec = SCOPE_CONTRACT) {
  * The one-line reason a contract could not be read, or null when it read cleanly.
  *
  * Exported so every consumer asks the same question the same way. A reader that skips this is
- * back to treating "I could not see your table" as "you declared no table", which is HD-001.
+ * back to treating "I could not see your table" as "you declared no table" — the whole defect class.
  * @param {Object|null} contract - A parsed contract (or a `readContract()` result's `.contract`).
  * @returns {string|null} A human-readable failure, or null if the contract parsed cleanly.
  */

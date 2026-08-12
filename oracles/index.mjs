@@ -1,4 +1,4 @@
-// Oracle registry for the evaluation contract (Stage G of the audit).
+// Oracle registry for the evaluation contract.
 //
 // The single entry point `spec-evaluator` dispatches through when a criterion / Test-Surface row
 // carries an `oracle:` tag. Adding a new oracle type = registering one runner here (the spec's

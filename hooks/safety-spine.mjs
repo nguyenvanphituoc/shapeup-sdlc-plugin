@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Safety spine — PreToolUse hook (v1.2, absorb-audit P1).
+// Safety spine — PreToolUse hook (v1.2).
 //
 // The three older hooks guard the PIPELINE (gate order, envelopes, substrates); this one
 // guards the MACHINE and the git remote — the substrate everything else sits on. It denies

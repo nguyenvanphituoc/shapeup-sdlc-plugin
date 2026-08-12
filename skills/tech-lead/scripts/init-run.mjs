@@ -1,18 +1,17 @@
 #!/usr/bin/env node
 // GATE L0.1 — START THE RUN. The orchestrator's first tool call, before any prose.
 //
-// WHY THIS EXISTS (measured, not theorized).
+// WHY THIS EXISTS (reproduced, not theorized).
 //
-// On the SDD harness benchmark (`sdd-harness-bench`, F2, Haiku 4.5, n=5, zero variance) the
-// orchestrator was dispatched with a valid spec and did this:
+// Dispatched with a valid spec, the orchestrator did this:
 //
-//     TOOL   Skill(tech-lead, "--unattended --rounds 3\n\n# F2 — category budgets…")
+//     TOOL   Skill(tech-lead, "--unattended --rounds 3\n\n# the requirement…")
 //     TEXT   "The tech-lead skill is orchestrating the full Shape Up harness. It will: 1. …"
 //     FINAL  (same text — session ends)
 //
-// It loaded a 450-line instruction file describing eleven gates and returned a description of
-// eleven gates. No code, no board, no gate artifacts — and prose that reads exactly like a
-// successful run. 29% acceptance, 10 escaped defects, five times out of five.
+// It loaded an instruction file describing eleven gates and returned a description of eleven
+// gates. No code, no board, no gate artifacts — and prose that reads exactly like a successful
+// run, with every defect still in the deliverable.
 //
 // Two guards existed and neither could see it:
 //   • `gate-intake.mjs` (L0.0) fires on an EMPTY intake. Intake was valid here. Correct no-op.
@@ -34,10 +33,10 @@
 //     assumed someone had established. Previously that someone was the model, deciding to.
 //     An invariant that depends on the model choosing to establish it is a prompt, not a gate.
 //
-// It also HASHES the intake into the receipt. The benchmark's first (wrong) diagnosis was that
-// requirement text was dropped on the hand-off. It was not, on re-run — but nothing on disk
-// could have settled that either way. Now it can: the intake that reached the orchestrator is
-// recorded verbatim next to its digest, so "the spec was dropped" is checkable, not arguable.
+// It also HASHES the intake into the receipt. The first (wrong) diagnosis of the failure above was
+// that requirement text had been dropped on the hand-off. It had not — but nothing on disk could
+// settle that either way. Now it can: the intake that reached the orchestrator is recorded
+// verbatim next to its digest, so "the spec was dropped" is checkable, not arguable.
 //
 // USAGE
 //   node init-run.mjs --slug <slug> --intake-file <path>            [options]   <- prefer this
@@ -46,7 +45,7 @@
 //
 // PREFER --intake-file. A multi-line requirement inlined into a shell argument is where this step
 // goes wrong: quoting breaks, a `#` after a newline trips path validation, and the run spends six
-// turns fighting its own command line instead of starting. Measured, on this project's benchmark.
+// turns fighting its own command line instead of starting. Observed, repeatedly.
 //
 //   --auto-level    interactive | auto | unattended   (default: interactive)
 //   --lens          lite | standard | cross-context   (default: standard)
@@ -242,7 +241,7 @@ export function main() {
     })(),
     // The third breaker (see scripts/budget-check.mjs). Null = off, which is the default and
     // keeps every existing run behaving exactly as before. Set it in any lane with a hard clock
-    // — CI, a benchmark, an overnight run — so the harness trips its own breaker and ships what
+    // — CI, an overnight run — so the harness trips its own breaker and ships what
     // is green, instead of being killed from outside and shipping nothing.
     wall_clock_budget_s: args.wallClockBudget ?? null,
   };
@@ -258,9 +257,9 @@ export function main() {
   // step, the runtime named a mechanism that does not exist, on a script whose failure mode was
   // already invisible (see lib/is-main.mjs — under a symlinked install this whole body did not run).
   //
-  // Measured consequence, on the SDD harness benchmark's F4 handoff: a fresh session in a workspace
-  // with an open run spent 82–120 turns before its first write, largely on forensics against this
-  // step, and closed 0/3 of the gap.
+  // Observed consequence on a handoff: a fresh session in a workspace with an open run burns most
+  // of its budget before its first write, largely on forensics against this step, and closes none
+  // of the gap.
   //
   // So the refusal now DOES the resume work instead of describing it. It emits the derived snapshot
   // — the same file-only derivation `hooks/session-rehydrate.mjs` injects — so the orchestrator gets

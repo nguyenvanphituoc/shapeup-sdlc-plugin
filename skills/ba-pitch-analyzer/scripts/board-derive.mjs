@@ -28,9 +28,9 @@ import { readAllContracts, splitFrontmatter, SCOPE_CONTRACT } from "../../tech-l
 /**
  * Read a list field from a frontmatter string, inline `[a, b]` or YAML block sequence alike.
  *
- * HD-004 — the SECOND instance of HD-003, in a second parser. This repo had two hand-rolled
+ * The SECOND instance of the same defect, in a second parser. This repo had two hand-rolled
  * frontmatter readers: `contract-md.mjs` for the committed contracts, and this one for the board.
- * HD-003 was fixed in the first, and this one still silently dropped a block sequence — so a board
+ * It was fixed in the first, and this one still silently dropped a block sequence — so a board
  * written as
  *   use_case_refs:
  *     - UC-01

@@ -1,6 +1,6 @@
 // isMain — "was this module executed directly, or imported?"
 //
-// WHY THIS FILE EXISTS (measured on the SDD harness benchmark, not theorized).
+// WHY THIS FILE EXISTS (observed, not theorized).
 //
 // Eighteen of this plugin's scripts and hooks decided whether to do anything at all with:
 //
@@ -12,22 +12,21 @@
 //
 //  1. A SYMLINKED DIRECTORY ANYWHERE IN THE PATH. Node resolves `import.meta.url` through
 //     symlinks; `process.argv[1]` is the string as typed. On macOS `/var` is a symlink to
-//     `/private/var`, so EVERY path under the system temp directory mismatches — which is how
-//     the benchmark installs this plugin (`/var/folders/…/package`). nvm, pnpm's content store,
+//     `/private/var`, so EVERY path under the system temp directory mismatches — which is where
+//     an npm-packed install lands (`/var/folders/…/package`). nvm, pnpm's content store,
 //     Homebrew and any symlinked checkout do the same thing on every platform.
 //
 //  2. A SPACE OR OTHER URL-RESERVED CHARACTER IN THE PATH. `import.meta.url` is percent-encoded
 //     (`My%20Plugins`); the template literal is not (`My Plugins`). So a plugin installed under
 //     `~/Library/Application Support/…` or any directory with a space in its name mismatches too.
 //
-// WHAT THAT COST, measured. `init-run.mjs` is GATE L0.1 — the orchestrator's mandatory first tool
-// call, the script that writes the run receipt everything else is derived from. Under a `/var`
-// path it exited 0 with empty stdout and wrote no receipt. The orchestrator could not distinguish
-// "the run opened" from "nothing happened", and in the benchmark's F4 handoff rows it spent
-// 82–120 turns before its first write doing forensics on its own bootstrap — retrying the script
-// six ways, hitting five separate permission refusals trying to capture an exit code, and finally
-// running `find /` to look for its own skill. Session B cost $4.57–$10.36 and recovered 0/3 of
-// the gap while the artifact it needed sat on disk the entire time.
+// WHAT THAT COSTS. `init-run.mjs` is GATE L0.1 — the orchestrator's mandatory first tool call, the
+// script that writes the run receipt everything else is derived from. Under a `/var` path it
+// exited 0 with empty stdout and wrote no receipt. The orchestrator then cannot distinguish "the
+// run opened" from "nothing happened", and burns its budget on forensics against its own
+// bootstrap — retrying the script several ways, hitting permission refusals trying to capture an
+// exit code, and finally searching the filesystem for its own skill — while the artifact it needs
+// sits on disk the entire time.
 //
 // The same guard sits in seven hooks, including `gate-zerowork`, `safety-spine` and
 // `sandbox-guard`. This project's stated organising idea is that "every invariant that matters
@@ -36,7 +35,7 @@
 // an enforcement layer can have, because it is indistinguishable from working.
 //
 // THE FIX. Compare resolved URL to resolved URL, using `pathToFileURL` so encoding matches and
-// `realpathSync` so symlinks match. `tests/structural/11-is-main.mjs` asserts that no file
+// `realpathSync` so symlinks match. The structural suite asserts that no file
 // reintroduces the fragile form, and actually executes each entry point through a symlinked
 // directory AND through a directory with a space in its name to prove the guard holds — because
 // this defect was invisible to every test that invoked scripts by their real path.

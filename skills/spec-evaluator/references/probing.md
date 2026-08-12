@@ -43,7 +43,7 @@ The probe loop per [ui] criterion:
      the source file:line where the handler/wiring fails
 ```
 
-## Oracle dispatch (evaluation contract — Stage G)
+## Oracle dispatch (evaluation contract)
 
 Each criterion / Test-Surface row carries an `oracle` tag — the dispatch key that declares *how*
 this criterion is verified. **Dispatch on it to choose the probe mechanism; default to `ui` when

@@ -1,21 +1,15 @@
 #!/usr/bin/env node
 // THE THIRD BREAKER — wall clock. Derived, never claimed; checked at every round boundary.
 //
-// WHY THIS EXISTS (measured, and it corrects an earlier diagnosis).
+// WHY THIS EXISTS (and it corrects an earlier diagnosis).
 //
-// SDD harness benchmark, F3 (wiring trap, Sonnet 5): this harness was killed at the declared
-// 1800 s cap and published as a DNF. The obvious reading — the one the first write-up implied —
-// was that it had stalled at a gate with no human to sign off.
+// A run killed at an external time cap produces nothing scoreable, and the obvious reading is that
+// it stalled at a gate with no human to sign off.
 //
-// Re-reading the retained transcript with transcript-level metrics says otherwise, and the
-// numbers are not close:
-//
-//     327 assistant turns · 262 tool calls · 130 work calls · 37 file writes
-//     19 gate markers, last gate reached L3 · narration_ratio 0.047 · stall_signals 0
-//
-// It was not waiting. It was the LEAST talkative shapeup run in the whole matrix and one of the
-// busiest rows in the dataset, and it got killed mid-loop at GATE L3 — Verdict & Loop. It ran
-// out of clock while genuinely working.
+// Reading the transcript with transcript-level metrics often says otherwise, and not narrowly:
+// steady turns, steady tool calls, steady file writes, gate markers advancing, a low narration
+// ratio and zero stall signals — a run killed mid-loop at GATE L3, Verdict & Loop. It was not
+// waiting. It ran out of clock while genuinely working.
 //
 // That makes the defect specific: **both existing breakers count events, not time.**
 // `round_budget` decrements once per round; `attempt_budget` decrements once per T0 attempt.

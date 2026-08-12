@@ -1,21 +1,20 @@
 #!/usr/bin/env node
 // GATE ANSWER SET — cross a gate with a pre-recorded decision instead of a live human.
 //
-// WHY THIS EXISTS (measured, not theorized).
+// WHY THIS EXISTS (observed, not theorized).
 //
 // This harness pauses at every ⏸ gate for PO sign-off by default. That is the point of it. But
-// on the SDD harness benchmark it produced two distinct failures, both of which look like the
-// harness being slow or broken rather than the harness being safe:
+// unattended it produces two distinct failures, both of which look like the harness being slow or
+// broken rather than the harness being safe:
 //
-//   1. STALL → TIMEOUT. F3 (Sonnet 5): the run was killed at the declared 1800s cap having
-//      produced nothing scoreable, while the no-harness control finished the same feature in
-//      51 seconds. A run with no human at the keyboard sitting at a gate does not fail — it
-//      waits, and a wait is indistinguishable from work until the budget runs out.
+//   1. STALL → TIMEOUT. The run is killed at its time cap having produced nothing scoreable,
+//      on a feature that takes minutes to build by hand. A run with no human at the keyboard
+//      sitting at a gate does not fail — it waits, and a wait is indistinguishable from work
+//      until the budget runs out.
 //   2. CONSENT-BY-PROSE. The workaround was a paragraph of English in the prompt ("treat this
-//      message as advance sign-off for every gate"). On Sonnet that worked. On Haiku 4.5 the
-//      model read the paragraph, read the 450-line gate list, and narrated the pipeline instead
-//      of running it — 29% acceptance, n=5, zero variance. Consent carried in prose is consent
-//      that can be re-summarized instead of acted on.
+//      message as advance sign-off for every gate"). Some models act on it. Others read the
+//      paragraph, read the gate list, and narrate the pipeline instead of running it. Consent
+//      carried in prose is consent that can be re-summarized instead of acted on.
 //
 // The organising rule of this project is that every invariant that matters lives in the runtime,
 // not in a prompt. Gate sign-off was the last big one still living in a prompt. So it becomes a
@@ -79,7 +78,7 @@ export const VALID_BY_GATE = {
 const CI_NOTE = "Pre-approved for a headless lane. No human is present; the decision is recorded here so the ledger still names a source.";
 
 export const PRESETS = {
-  // Everything pre-approved. The lane a CI step or a benchmark runs in.
+  // Everything pre-approved. The lane a CI step runs in.
   ci: {
     version: 1,
     preset: "ci",

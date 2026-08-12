@@ -37,7 +37,7 @@
 // rewrite call sites. Unknown flags are rejected rather than silently swallowed as positionals:
 // a typo'd `--rounds 2` that lands in `_` is the same defect wearing a different hat.
 //
-// `tests/structural/13-argv-contract.mjs` executes every entry point with each declared int flag
+// The structural suite executes every entry point with each declared int flag
 // both empty and non-numeric, and asserts exit 2 with a parseable reason and no artifact on disk.
 
 /** Thrown by {@link parseArgs} when argv does not satisfy the spec. `detail` is the wire shape. */

@@ -203,7 +203,7 @@ export function lint({ cwd, slug }) {
   const tasks = parseBoard(tasksDir(cwd, slug));
   const repoFiles = walkFiles(cwd);
   const findings = [
-    // HD-001. A contract whose table this parser cannot see reads as a contract that declared no
+    // A contract whose table this parser cannot see reads as a contract that declared no
     // table, and every rule below then passes for the part it could not read. Loud, not empty.
     ...contracts
       .map(({ contract, path }) => ({ reason: unreadableReason(contract), scope: contract.scope_id || path }))

@@ -1,4 +1,4 @@
-// Shared helpers for evaluation-contract oracle runners (Stage G of the audit).
+// Shared helpers for evaluation-contract oracle runners.
 //
 // The `process` oracle (step 1–3) inlined these; the test/snapshot/http oracles (steps 4–5)
 // import them so the matching grammar is identical across the registry. Keeping one definition

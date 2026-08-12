@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 // GATE L0.3 — FIT CHECK. Which lane does this change belong in? Decided by measurement.
 //
-// WHY THIS EXISTS (measured, and it is the root cause the other three fixes did not touch).
+// WHY THIS EXISTS (and it is the root cause the other three fixes did not touch).
 //
-// On the SDD harness benchmark, F3 ("add a `summary` command" to a six-file CLI — one new module
-// plus one dispatcher wiring) was run through the full eleven-gate pipeline and never finished.
-// Not once, across four attempts. It was killed at the 1800s cap mid-build; then, with a
-// wall-clock breaker fitted, it reached ship-triage and was killed there; then it produced an
-// honest report saying its two must-haves were 0% started.
+// A change of the size "add a `summary` command to a six-file CLI" — one new module plus one
+// dispatcher wiring — run through the full eleven-gate pipeline does not finish. Not once, across
+// repeated attempts: killed at the time cap mid-build; then, with a wall-clock breaker fitted,
+// killed at ship-triage; then producing an honest report saying its two must-haves were 0%
+// started.
 //
 // Every one of those fixes made the FAILURE better. None of them made the RUN finish, because
 // none addressed why a three-file change was consuming half an hour: **the ceremony was not
 // sized to the change.**
 //
-// The harness already knew. In the pilot transcripts, tech-lead identified F1 at GATE L0 as
+// The harness already knew. In those transcripts tech-lead identified the change at GATE L0 as
 // "about as small as they come… squarely inside the --tiny lane" — and then ran the full pipeline
 // anyway, because the lane was a judgment the model was free to talk itself out of. That is the
 // same class of defect as narration and as prose consent: an invariant living somewhere a model
@@ -121,7 +121,7 @@ export function decideLane({ intake, files }) {
   };
 
   // CONJUNCTIVE, and it must be. The first version asked "is there evidence this is BIG?" and
-  // defaulted to tiny when it found none — which classified all three benchmark features as tiny,
+  // defaulted to tiny when it found none — which classified every trial feature as tiny,
   // including the five-seam one that genuinely needs the pipeline and used two evaluation rounds
   // to pass. A router that confident and that wrong is worse than no router: it would skip review
   // on exactly the change that needed it.
@@ -152,7 +152,7 @@ export function decideLane({ intake, files }) {
     // Say it on every invocation rather than burying it in a doc. These thresholds are calibrated
     // against THREE features. That is enough to stop the router being obviously wrong and nowhere
     // near enough to trust it silently, so it recommends and never denies.
-    calibration: "advisory — thresholds fitted on 3 benchmark features (n=3); `full` is the default and the PO may override with --lane",
+    calibration: "advisory — thresholds are coarse and `full` is the default; the PO may override with --lane",
   };
 }
 
@@ -186,7 +186,7 @@ export function main() {
     ...result,
     // The sentence the orchestrator must act on, so the decision is not re-derived from the JSON.
     action: result.lane === "tiny"
-      ? "TINY LANE. Run: orient (light) → single-task board → build → T0 → ⏸ L4. Skip WIRE, scope contracts, spec tree, EVAL and QA. The full pipeline on a change this size is the measured cause of a benchmark run that never finished, four attempts running."
+      ? "TINY LANE. Run: orient (light) → single-task board → build → T0 → ⏸ L4. Skip WIRE, scope contracts, spec tree, EVAL and QA. The full pipeline on a change this size is why a run burns its whole clock without finishing."
       : "FULL LANE. Run the complete pipeline: ORIENT → WIRE → MAP SCOPES → BUILD → EVAL → QA → GATE H → L4.",
   }, null, 2));
 }

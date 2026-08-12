@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// `http` oracle for the evaluation contract (Stage G, step 5 of the audit).
+// `http` oracle for the evaluation contract.
 //
 // Deliverable: a service / API. The oracle starts the server, waits until it is reachable,
 // sends each criterion's request, and grades the OBSERVED response (status + body) — never the
