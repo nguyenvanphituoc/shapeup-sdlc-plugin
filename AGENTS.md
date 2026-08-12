@@ -1,49 +1,14 @@
 <!-- HARNESS_START -->
 # Shape Up SDLC Local Harness
 
-This project is scaffolded with the Shape Up SDLC Harness for coding agents.
+## Enforcement model
 
-## mechanism instruction
+A three-phase Shape Up loop orchestrated by `/tech-lead`. Invariants live in the runtime, not this file — expect hook denials, not arguments.
 
-The harness follows a **three-phase Shape Up SDLC loop** orchestrated by `/tech-lead`.
-
-**The organising idea: every invariant that matters lives in the runtime, not in a prompt.**
-Three consequences, in the order a reader should meet them:
-
-1. **Gates are enforced, not requested.** A `PreToolUse` hook
-   (`skills/tech-lead/scripts/validate-envelope.mjs`) hard-denies any worker dispatch whose
-   WorkOrder is missing or fails its schema — the malformed order never reaches a worker.
-   `hooks/sandbox-guard.mjs` denies every write outside the active scope's substrate, and
-   `hooks/gate-zerowork.mjs` blocks `Stop` on a run that left no receipt.
-   *Prevents: a worker acting on an order nobody compiled; a scope overwriting another's work.*
-   GATE L2 (`hooks/gate-l2.mjs`) is deliberately **advisory** — it reads the board from two
-   independent sources and warns when the once-per-round EVAL runs over unfinished tasks, but it
-   permits the call. The board is per-machine and the operator asked for the evaluation; see
-   `docs/design/adr/0001-consumer-file-organization.md` for why the denial was traded for a signal.
-   Sign-off itself is a file, not prose: `scripts/gate-answers.mjs` resolves each gate from a
-   schema-validated answer set (`ci` / `guarded` / `interactive`) and the orchestrator branches on
-   its exit code — 0 cross, 4 stop for the PO, 5 abort. Gates still emit their blocks and still
-   record a decision; what changes is that the decision's **source** is named in the ledger.
-   *Prevents: consent carried in a prompt paragraph, which gets paraphrased instead of acted on.*
-2. **Progress is derived, never claimed.** Hill phase comes only from T0/T1/seesaw artifacts on
-   disk, and the evaluator must cite a T0 artifact it re-hashes itself. *Prevents: a worker
-   asserting "done" with nothing behind it.*
-   And **starting** is itself a fact on disk: `scripts/init-run.mjs` writes
-   `.shapeup/<slug>/receipt.json` as the run's first tool call, so a session that dispatched
-   the orchestrator and left no receipt is blocked at `Stop` by `hooks/gate-zerowork.mjs`.
-   *Prevents: the orchestrator describing its own pipeline in future tense and stopping — measured
-   at 29% acceptance with 10 escaped defects while reading like a clean run.*
-3. **Parallel work cannot corrupt shared state.** Per-scope substrate write-whitelists are hook-
-   enforced, and exactly one script (`ingest-result.mjs`) performs every board/ledger/verdict
-   write. *Prevents: two executors rewriting the board, one's completions vanishing.*
-
-Those three rest on one piece of plumbing — the **pure-skill architecture** (v1.0). The
-orchestrator owns ALL pipeline management and talks to workers through two JSON envelopes: a
-WorkOrder in (`compile-order.mjs`, schema-validated by a `validate-envelope.mjs` PreToolUse
-hook) and a WorkResult out (applied by `ingest-result.mjs`). Worker skills contain craft only —
-zero pipeline knowledge; everything they used to write into shared files they now return as data
-(D6 closed: single-writer is mechanically true). Treat the envelope as an implementation detail:
-it is what makes 1–3 mechanically true, and it should never be the first thing a user learns.
+- Hook-denied: dispatching a worker without a schema-valid WorkOrder, writing outside the scope's substrate, stopping a run with no receipt (the run's first act writes one).
+- GATE L2 is advisory — warns when EVAL runs over unfinished tasks, permits the call (per-machine board, operator asked; ADR-0001) — a signal, not a bug.
+- Sign-off is a file: each gate resolves from the answer set (`ci`/`guarded`/`interactive`) — cross, stop for the PO, or abort; the decision's source is ledgered.
+- The build+eval loop breaks only three ways ✦: EVAL PASS → QA → Ship; outer `round_budget` exhausted; opt-in `wall_clock_budget_s` tripped (the wall-clock axis event counters miss). Budget trips route to GATE H — ship what's green, never kill the run from outside. A scope exhausting its per-scope `attempt_budget` (T0 attempts) queues a GATE H proposal, never blocks the round.
 
 ### Phase 1 — Shaping (`/shapeup`)
 1. Set Boundaries → `/shapeup shaping`
@@ -52,83 +17,51 @@ it is what makes 1–3 mechanically true, and it should never be the first thing
 4. Write the Pitch → `/generate-pitch` → `pitch.md`
 
 ### Phase 2 — Betting (PO governance, no skill)
-- PO decides at the Betting Table; rejected pitches loop back to raw idea.
+Betting Table: PO decides; rejected pitches loop back to raw idea.
 
-### Phase 3 — Building (orchestrated by `/tech-lead`)
+### Phase 3 — Building
 | Step | Gate | Action |
 |------|------|--------|
 | Kick-off | ⏸ **L0** — Intake & Config (L0.8 model/budget matrix) | `/translator` if non-English |
-| Orient (Scout) | ⏸ **L1a** — Orient Review | delegate → `/orient` |
-| Analyze (Spec tree) | — (reviewed at L1b) | delegate → `/ba-pitch-analyzer` (`analyze`): spec tree + board — UC + Invariants + Test Surface ★. Runs **before** Wire: the wiring map carries one entry per use case, so the use cases must exist first |
-| Wire (Reachability) | ⏸ **L1a.5** — Wiring Review ✚ | delegate → `/solution-architect` (`wire`): committed `wiring-map.md` — per-UC engine → seam → entry-point call site → affordance, against `project-profile.md` entry_point; front-loads the integration seam |
-| Map Scopes | ⏸ **L1b** — Board Review (+ substrate disjointness via `spec-lint.mjs`) | delegate → `/scope-architect` (scope contracts ✦ — sole writer); `coverage` op writes the `requirements.md` registry ✚. Traceability oracle `trace-lint.mjs` runs advisory ✚ |
-| Build Vertically | ⏸ **L2** — Board 100% ✅ + T0-green ✦ | per dispatch: compile-order → `/task-executor` (--order) → ingest-result, T0-verified per attempt (fixtures + DB probe + seesaw ✦), sandboxed to each scope's substrate ✦ |
-| EVAL (once per round) | ⏸ **L3** — Verdict | delegate → `/spec-evaluator` (--order; spec-conformance + test-surface-conformance ★; requires a T0 artifact citation on scoped specs ✦); refuted boxes/verdict ledger applied by ingest |
-| FAIL → fix round r+1 | — | regression rule ★: bugs + full Test Surface of touched UC |
+| Orient (Scout) | ⏸ **L1a** — Orient Review | `/orient` |
+| Analyze | — (reviewed at L1b) | `/ba-pitch-analyzer` (`analyze`): spec tree + board (UC + Invariants + Test Surface ★); before Wire (needs its use cases) |
+| Wire | ⏸ **L1a.5** — Wiring Review ✚ | `/solution-architect` (`wire`): sole writer of committed `wiring-map.md` — per-UC engine → seam → entry-point call site → affordance, per `project-profile.md` |
+| Map Scopes | ⏸ **L1b** — Board Review (+ substrate disjointness lint) | `/scope-architect` (scope contracts ✦ — sole writer); `coverage` op writes `requirements.md` ✚; traceability oracle advisory ✚ |
+| Build Vertically | ⏸ **L2** — Board 100% ✅ + T0-green ✦ | per dispatch: compile order → `/task-executor` (--order) → ingest result; T0-verified per attempt (fixtures + DB probe + seesaw ✦), substrate-sandboxed ✦ |
+| EVAL (once per round) | ⏸ **L3** — Verdict | `/spec-evaluator` (--order): spec- + test-surface-conformance ★, T0 citation ✦; refuted boxes/verdict applied by ingest |
+| FAIL → round r+1 | — | regression rule ★: bugs + full Test Surface of touched UC |
 
-✦ = v0.3.0 mechanisms, active only when the spec folder has scope contracts
-(`shapeup/<slug>/scopes/*.md`); non-regression on older specs.
-✚ = spine v1.3 traceability mechanisms (covers-closure + reachability), active only when the
-spine artifacts exist (`requirements.md`, `wiring-map.md`, `project-profile.md`); `trace-lint`
-ships advisory (warn-only) and is promoted to a blocking gate only once `covers:` is populated.
-Non-regression on older specs — every arm is skipped when its artifact is absent.
+✦ = requires scope contracts (`shapeup/<slug>/scopes/*.md`); ✚ = requires the spine artifacts (`requirements.md`, `wiring-map.md`, `project-profile.md`). Traceability stays advisory until `covers:` is populated. Absent artifact ⇒ arm skipped (non-regression).
+
+During Build, a worker's structured `ESCALATE` (design / spec ambiguity / substrate expansion) is adjudicated by `/advisor-protocol` — budgeted per scope per round, answers persisted to the round ledger.
 
 ### QA Edge Hunt (`/qa-edge-hunter`, post-PASS, pre-ship)
-- **Q0** Preflight → **Q1** Charter (6 lenses − EVAL-covered) → **Hunt** (repro required, findings `~` → ledger) → report (no verdict, no score).
-- Skip with `--no-qa`.
+**Q0** Preflight → **Q1** Charter (6 lenses − EVAL-covered) → **Hunt** (repro required, findings `~` → ledger) → report (no verdict, no score). Skip with `--no-qa`.
 
 ### Ship & Triage
-- **SHIP S.0 / GATE H** — delegated to `/scope-hammer`: census (QA findings + discovered ledger
-  + attempt-budget hammer proposals ✦) → baseline comparison (never vs. the ideal) → cut list;
-  TL/PO confirms, promotes only selected items.
-- ⏸ **L4** Gate — Ship Sign-off (shows QA status ★).
-- **RLHF (Coach Retro)** — Post-sprint feedback from L4 Gate is processed by `/coach`, which runs a categorization gate (GATE COACH-1 — asks the PO which skill each rule belongs to, never assumes) and files each rule under the responsible skill in `shapeup/knowledge-base/<skill>.md`. These files are **committed** (not the gitignored `.shapeup/` run-trace), so the whole team inherits them on `git pull`. The `/tech-lead` automatically invokes `/coach` when it receives human feedback during the Ship Gate. Coachable skills — each reads its own file at the top of its next run — are `/task-executor` (Phase 1), `/ba-pitch-analyzer` (Phase 1), and `/qa-edge-hunter` (Phase Q1). `/spec-evaluator` is deliberately not coachable (single-judge rule: the KB is guidance, never an invariant). Feedback whose root cause is the mechanism itself (a gate, hook, or skill-contract defect) is categorized `harness-defect` at GATE COACH-1 and filed to the committed defect register (`knowledge-base/harness-defects.md`) as a drafted raw idea for the Betting Table — read by no worker, never worker steering.
-- Post-fix: `eval --single-pass` → `qa --recheck` (only re-probes promoted items ✦).
-- Remaining `~` findings + new feedback → new raw idea (debt-free).
+- **SHIP S.0 / GATE H** — `/scope-hammer`: census (QA findings + discovered ledger + attempt-budget proposals ✦) → baseline comparison (never the ideal) → cut list; TL/PO promotes selected items only.
+- ⏸ **L4** — Ship Sign-off (shows QA status ★).
+- **Coach retro** — L4 feedback → `/coach`; GATE COACH-1 asks the PO which skill owns each rule (never assumes) → committed `shapeup/knowledge-base/<skill>.md` (team inherits on pull). Coachable: `/task-executor`, `/ba-pitch-analyzer`, `/qa-edge-hunter`; `/spec-evaluator` is not (single judge). Mechanism defects file to `knowledge-base/harness-defects.md` as Betting Table raw ideas, never worker steering.
+- Post-fix: `eval --single-pass` → `qa --recheck` (promoted items only ✦); remaining `~` + new feedback → new raw idea.
 
 ### Discovered Tasks
-All discovered tasks are funnelled into `.shapeup/<slug>/discovery/ledger.md` (Orient, task-executor P3.7, QA). A new invariant triggers `ba --tasks-only --from-discovered` which appends a `TS-INV-NN` row to the Test Surface ★.
+Everything discovered funnels into `.shapeup/<slug>/discovery/ledger.md` (Orient, task-executor P3.7, QA); a new invariant triggers `ba --tasks-only --from-discovered` → `TS-INV-NN` Test Surface row ★.
 
 ### Architectural Invariants
-- **Single judge** — verdict belongs to `spec-evaluator`; QA has no verdict and no score.
+- **Single judge** — verdict belongs to `spec-evaluator`; QA has no verdict, no score.
 - **EVAL exactly once per round** — QA sits after PASS, outside the loop.
-- **Ledger = single source of truth** — all discovery flows write only to their own section.
-- **QA is a level-up, not a gate** — `--no-qa` can skip it; circuit breaker outranks the Hunter.
-- **Role separation** — Evaluator grades, task-executor fixes, QA discovers; no cross-role work.
-- **Three-level circuit breaker ✦** — outer `round_budget` (build+eval cycles) nests an inner
-  per-scope `attempt_budget` (T0 attempts); an exhausted scope queues a GATE H proposal, it
-  never blocks the round. A third, opt-in `wall_clock_budget_s` breaker (`budget-check.mjs`,
-  enforced by `hooks/gate-deadline.mjs`) covers the axis the other two cannot see — both count
-  events, so neither notices a single round running for half an hour. Tripping it routes to
-  GATE H rather than killing the run: a run killed from outside ships nothing, a run that trips
-  its own breaker ships what is green.
-- **Hill phase is mechanical, never self-reported ✦** — derived only from T0/T1/seesaw facts.
-- **Envelope port (v1.0)** — every worker dispatch is WorkOrder in / WorkResult out; shared
-  state is written only by `ingest-result.mjs`; a malformed envelope is denied by hook before
-  it reaches a worker. Workers are stateless and pipeline-blind by construction.
-
-## Installed Skills
-
-- **shapeup**: Run Shape Up workflows before writing code (S1-S4, B1-B5).
-- **ba-pitch-analyzer**: The spec-analyzer — pitch → DDD spec tree + board, one craft with five order-selected operations (analyze | generate-board | reconcile | retrofit-surface | coverage); graph math and audits delegated to `board-derive.mjs`/`spec-lint.mjs`; the `coverage` op writes the SHARED requirement registry (`requirements.md`) for covers-closure; stateless pure worker.
-- **scope-architect**: Sole writer of committed scope contracts (`scopes/*.md`) — import-graph slicing by flow, write-whitelist substrates, affordance manifests, fixtures; map-scopes | remap | split-scope operations.
-- **solution-architect**: Sole writer of the committed wiring map (`wiring-map.md`) at gate L1a.5 — per-UC engine → seam → entry-point call site → player-visible affordance, resolved against `project-profile.md`; the reachability input `trace-lint.mjs` checks so no engine ships orphaned; `wire` operation; stateless pure worker.
-- **task-executor**: Implement a work order's acceptance criteria exactly — WorkOrder in, code + WorkResult out; zero-memory, substrate-sandboxed, Layer 1/2/3 UI rules; never writes boards/ledgers/run-state.
-- **spec-evaluator**: The single judge — evaluates the running app against the committed spec; verdict + refuted boxes return as data; requires a T0 artifact citation and grades UI affordance-only on scoped specs.
-- **qa-edge-hunter**: Exploratory QA hunt.
-- **translator**: Bilingual Vietnamese/English gate at intake.
-- **tech-lead**: Orchestrate runs — envelope port (compile-order → dispatch → ingest-result), two-level circuit breaker, T0/seesaw-verified build rounds, mechanical hill derivation.
-- **coach**: Ingests L4 feedback, asks the PO to categorize each rule (GATE COACH-1), and files it under the responsible skill in committed `shapeup/knowledge-base/<skill>.md` for team-shared, read-back continuous learning (RLHF).
-- **advisor-protocol**: Adjudicates a worker's structured `ESCALATE` (design decision / spec ambiguity / substrate expansion) within a per-scope-per-round budget; persists answers to the committed round ledger.
-- **scope-hammer**: GATE H — must-have census, baseline comparison, cut list + ship verdict; handles the normal stop and both circuit-breaker triggers.
+- **Ledger = single source of truth** — every discovery flow writes only its own section.
+- **QA is a level-up, not a gate** — `--no-qa` skips it; circuit breaker outranks the Hunter.
+- **Role separation** — Evaluator grades, task-executor fixes, QA discovers.
+- **Hill phase is mechanical ✦** — derived only from T0/T1/seesaw artifacts, never self-reported; the evaluator cites a T0 artifact it re-hashes itself.
+- **Envelope port (v1.0)** — every dispatch is WorkOrder in / WorkResult out; shared state has exactly one writer (the ingest step); malformed envelopes are hook-denied. Workers: stateless, craft-only, pipeline-blind.
 
 ## Setup & Execution
 
-- Envelope schemas ship inside the orchestrator skill: \`skills/tech-lead/schemas/\`; the pipeline scripts live beside their owning skill (\`skills/tech-lead/scripts/\`, \`skills/ba-pitch-analyzer/scripts/\`); orders/results live in \`.shapeup/<slug>/orders|results/\`
-- **Run entry points** — \`init-run.mjs\` (GATE L0.1, opens the run and writes the receipt), \`gate-answers.mjs\` (resolves a gate from the answer set), \`budget-check.mjs\` (the deadline breaker). Because these ship WITH the plugin they live outside your project, so they need a one-time permission grant; \`npx shapeup-sdlc init\` writes it into \`.claude/settings.json\` (\`permissions.allow\`). Without it a headless run cannot take its first step — measured, 26 approval denials in one session.
-- **Central domain registry** — \`skills/tech-lead/schemas/domain.schema.json\` defines every cross-boundary record type and payload field ONCE (annotated with tier/location/writer/readers, the \`x-erd\` relationship map, and the \`x-payload-by-worker\` table); the envelope schemas \`$ref\` it and no skill defines its own cross-boundary field
-- **Two storage tiers (ADR-0001) — prose is the team's, structured data is the machine's.** COMMITTED \`shapeup/<slug>/\`: \`shaping/\`, \`spec/\`, \`scopes/*.md\`, \`wiring-map.md\`, \`project-profile.md\`, \`requirements.md\`, \`hill/*.yml\`, and \`REPORT.md\` (frozen once at GATE L4 — the only run evidence a teammate sees). GITIGNORED \`.shapeup/\`: the board, orders/results, \`t0/\`, \`evaluation/\`, \`qa/\`, \`working/\`, \`round-ledger.md\`, \`metrics/\`, \`gate-answers.json\`, \`safety-overrides.json\`, \`decisions.jsonl\`
-- The three contracts are MARKDOWN on disk and JSON on the wire: frontmatter for scalars and \`[a, b]\` lists, a markdown table for the one array-of-objects field. \`skills/tech-lead/scripts/lib/contract-md.mjs\` is the only reader/writer of the file form; the envelope is unchanged
-- Every generated path resolves through \`skills/tech-lead/scripts/lib/paths.mjs\` — never hard-code a storage root (structural test #45 enforces this)
-- **Traceability spine (v1.3)** — the covers-closure + reachability oracle \`skills/tech-lead/scripts/trace-lint.mjs\` reads three committed SHARED artifacts: the requirement registry \`shapeup/<slug>/requirements.md\` (RequirementClause rows, written by \`ba-pitch-analyzer coverage\`), the wiring map \`shapeup/<slug>/wiring-map.md\` (written by \`solution-architect wire\`), and \`shapeup/<slug>/project-profile.md\` (archetype + entry_point, written by \`tech-lead\` at L0). It emits the LOCAL run-trace \`.shapeup/<slug>/trace/report.json\`; ships advisory, promoted to a gate only once \`covers:\` is populated
+- Orders/results live in `.shapeup/<slug>/orders|results/`; the envelope schemas ship inside the tech-lead skill.
+- The plugin's run entry points need a one-time permission grant — `npx shapeup-sdlc init` writes it into `.claude/settings.json` (`permissions.allow`); without it a headless run stalls at step one.
+- Two storage tiers (ADR-0001): COMMITTED `shapeup/<slug>/` (shaping, spec, scopes, wiring-map, project-profile, requirements, hill, `REPORT.md` frozen at L4) vs GITIGNORED `.shapeup/` (board, orders/results, T0/eval/QA artifacts, ledgers, metrics, gate answers).
+- Contracts: markdown on disk, JSON on the wire; a single library reads/writes the file form.
+- Never hard-code a storage root — generated paths resolve through the shared path resolver.
+- The traceability oracle emits `.shapeup/<slug>/trace/report.json` from the spine artifacts.
 <!-- HARNESS_END -->
