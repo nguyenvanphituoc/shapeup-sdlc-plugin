@@ -530,7 +530,7 @@ let spikedArea = "~", spikeResult = "~", riskiestUnknowns = [];
 if (!facts.has_orient_artifacts) {
   log(`ORIENT — dispatching (slug ${slug})`);
   const orientOrder = await compile(
-    `--operation orient --slug ${slug} --payload '${JSON.stringify({ pitch: facts.intake_path, spec_folder: facts.spec_folder, feature: slug })}'`,
+    `--operation orient --slug ${slug} --payload '${JSON.stringify({ pitch: facts.intake_path, spec_folder: facts.spec_folder, feature: slug, stack: facts.stack })}'`,
     "compile:orient",
   );
   const orientResult = await dispatch(
@@ -574,7 +574,7 @@ phase("Analyze");
 if (!facts.has_spec_tree) {
   log(`ANALYZE — dispatching (slug ${slug})`);
   const analyzeOrder = await compile(
-    `--operation analyze --slug ${slug} --payload '${JSON.stringify({ pitch: facts.intake_path, spec_folder: facts.spec_folder, feature: slug })}'`,
+    `--operation analyze --slug ${slug} --payload '${JSON.stringify({ pitch: facts.intake_path, spec_folder: facts.spec_folder, feature: slug, lens: facts.lens, orient_dir: facts.orient_dir })}'`,
     "compile:analyze",
   );
   const analyzeResult = await dispatch(
@@ -799,7 +799,7 @@ while (round <= args.budgets.maxRounds) {
   phase("Eval");
   await setRunStatus(slug, "evaluating");
   const evalOrder = await compile(
-    `--operation evaluate --slug ${slug} --round ${round} --payload '${JSON.stringify({ dimensions: ["spec-conformance"], t0_artifacts: roundT0Artifacts })}'`,
+    `--operation evaluate --slug ${slug} --round ${round} --payload '${JSON.stringify({ dimensions: facts.eval_dimensions, run_cmd: facts.run_cmd, t0_artifacts: roundT0Artifacts })}'`,
     `compile:evaluate-r${round}`,
   );
   const EVAL_SCHEMA = { type: "object", properties: { result_path: { type: "string" }, overall: { type: "string", enum: ["PASS", "FAIL"] } }, required: ["result_path", "overall"] };
@@ -847,7 +847,7 @@ if (qaGate.exit_code === 4) return paused("QA", ["run", "skip", "ask"], { round,
 if (qaGate.exit_code === 5) return abortedFrom("QA", qaGate, "GATE QA aborted");
 if (qaGate.decision === "run") {
   const qaOrder = await compile(
-    `--operation hunt --slug ${slug} --payload '${JSON.stringify({ feature: slug, spec_folder: facts.spec_folder })}'`,
+    `--operation hunt --slug ${slug} --payload '${JSON.stringify({ feature: slug, spec_folder: facts.spec_folder, eval_report: `.shapeup/${slug}/results/evaluate-r${round}.json`, app_url: facts.app_url })}'`,
     "compile:hunt",
   );
   const qaResult = await dispatch(
@@ -894,11 +894,14 @@ if (hGate.exit_code === 5) return abortedFrom("H", hGate, "GATE H aborted");
 const shipReport = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/ship-report.mjs" --slug ${slug} --verdict PASS --qa ${qaGate.decision === "run" ? "run" : "skipped"}`, "ship-report");
 await setRunStatus(slug, "shipped");
 
+const allDims = ["spec-conformance", "test-surface-conformance", "completeness", "integration", "security", "performance"];
+const dims_not_evaluated = allDims.filter(d => !(facts.eval_dimensions || []).includes(d));
+
 return withStateWarnings({
   status: "shipped",
   verdict: "pass",
   rounds_used: round,
-  dims_not_evaluated: ["security", "performance"],
+  dims_not_evaluated: dims_not_evaluated,
   qa_findings: qaFindings,
   report: shipReport.stdout.trim(),
 });
