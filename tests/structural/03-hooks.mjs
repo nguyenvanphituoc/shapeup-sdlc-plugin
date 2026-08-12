@@ -204,25 +204,41 @@ export async function run(ctx) {
   // =============================================================================
   section("17. Sandbox guard (PA3) denies an out-of-substrate write and allows an in-substrate one");
   // =============================================================================
-  // The v0.3.0 write-whitelist hook (design spec §4.5/Blueprint E). Same fixture style as #14:
-  // craft PreToolUse payloads against a temp checkout with a scope contract + active-scope
-  // pointer, and assert the hook's allow/deny decisions.
+  // The write-whitelist hook (design spec §4.5/Blueprint E). Same fixture style as #14: craft
+  // PreToolUse payloads against a temp checkout and assert the hook's allow/deny decisions.
+  //
+  // THE FIXTURE DRIVES THE ORDER, NOT THE SCOPE CONTRACT, because that is what the guard reads.
+  // It follows `.shapeup/active-order` to the compiled WorkOrder and enforces that order's own
+  // `substrate` block. Building a scope contract here instead would leave no pointer, the guard
+  // would defer, and every deny assertion below would pass vacuously against a hook that never
+  // enforced anything — a green check for an absent guard, which is the one failure this module
+  // exists to make impossible.
   const sandboxGuardPath = join(ROOT, "hooks/sandbox-guard.mjs");
   if (existsSync(sandboxGuardPath)) {
     const { mkdtempSync, writeFileSync, mkdirSync, rmSync } = await import("node:fs");
     const { tmpdir } = await import("node:os");
-    const makeCheckout = (withScope) => {
+    const makeCheckout = (withOrder) => {
       const dir = mkdtempSync(join(tmpdir(), "sandbox-guard-"));
-      if (withScope) {
-        mkdirSync(join(dir, ".shapeup"), { recursive: true });
-        writeFileSync(join(dir, ".shapeup", "active-scope"), JSON.stringify({ slug: "demo", scope_id: "cart-creation" }));
-        const scopesDir = join(dir, "shapeup", "demo", "scopes");
-        mkdirSync(scopesDir, { recursive: true });
-        writeFileSync(join(scopesDir, "cart-creation.json"), JSON.stringify({
-          scope_id: "cart-creation",
-          allowed_file_substrate: ["apps/web/cart/*.tsx", "apps/api/cart/*.ts"],
-          shared_substrate: ["packages/shared/http.ts"],
-        }));
+      if (withOrder) {
+        const ordersDir = join(dir, ".shapeup", "demo", "orders");
+        mkdirSync(ordersDir, { recursive: true });
+        const orderPath = join(ordersDir, "r1-a1.json");
+        writeFileSync(orderPath, JSON.stringify({
+          schema_version: 1,
+          order_id: "demo/r1-a1",
+          worker: "task-executor",
+          mode: "orchestrated",
+          operation: "execute",
+          substrate: {
+            allowed: ["apps/web/cart/*.tsx", "apps/api/cart/*.ts"],
+            shared: ["packages/shared/http.ts"],
+            append_only: ["shapeup/demo/spec/usecases/UC-01.md"],
+            frozen: ["shapeup/demo/spec/domain-model.md"],
+          },
+          payload: { feature: "demo" },
+        }, null, 2));
+        writeFileSync(join(dir, ".shapeup", "active-order"),
+          JSON.stringify({ slug: "demo", order_path: orderPath }));
       }
       return dir;
     };
@@ -236,13 +252,13 @@ export async function run(ctx) {
     try {
       // 1. In-substrate write → allow (defer).
       const a = ask(scoped, join(scoped, "apps/web/cart/Cart.tsx"));
-      if (!a.denied) ok("sandbox guard ALLOWS a write inside the scope's substrate");
+      if (!a.denied) ok("sandbox guard ALLOWS a write inside the order's allowed substrate");
       else fail(`sandbox guard wrongly denied an in-substrate write\n${a.out}`);
 
-      // 2. Declared shared_substrate write → allow.
+      // 2. Declared shared substrate write → allow.
       const b = ask(scoped, join(scoped, "packages/shared/http.ts"));
-      if (!b.denied) ok("sandbox guard ALLOWS a write to declared shared_substrate");
-      else fail(`sandbox guard wrongly denied a shared_substrate write\n${b.out}`);
+      if (!b.denied) ok("sandbox guard ALLOWS a write to the order's declared shared substrate");
+      else fail(`sandbox guard wrongly denied a shared-substrate write\n${b.out}`);
 
       // 3. Out-of-substrate write → deny, naming the offending path.
       const c = ask(scoped, join(scoped, "apps/api/payments/handler.ts"));
@@ -266,8 +282,14 @@ export async function run(ctx) {
       else fail(`sandbox guard denied the P3.7 discovery-ledger write\n${rt2.out}`);
 
       // 6. The guard's own pointer is NOT carved out — a worker must never rewrite its sandbox.
-      const rt3 = ask(scoped, join(scoped, ".shapeup/active-scope"));
-      if (rt3.denied) ok("sandbox guard still DENIES writing .shapeup/active-scope (pointer stays guard-only)");
+      //    `active-order` is the load-bearing one now (it names the substrate being enforced);
+      //    `active-scope` is asserted alongside it because both sit at the `.shapeup/` root,
+      //    outside the active slug's carve-out, and both must stay that way.
+      const rt3 = ask(scoped, join(scoped, ".shapeup/active-order"));
+      if (rt3.denied) ok("sandbox guard DENIES writing .shapeup/active-order (a worker cannot repoint its own substrate)");
+      else fail("sandbox guard allowed a write to .shapeup/active-order — a worker could widen its own sandbox");
+      const rt3b = ask(scoped, join(scoped, ".shapeup/active-scope"));
+      if (rt3b.denied) ok("sandbox guard still DENIES writing .shapeup/active-scope (pointer stays guard-only)");
       else fail("sandbox guard allowed a write to .shapeup/active-scope — a worker could widen its own sandbox");
 
       // 7. Another feature's run-trace root is NOT carved out (carve-out is active-slug only).
@@ -275,10 +297,29 @@ export async function run(ctx) {
       if (rt4.denied) ok("sandbox guard still DENIES a different feature's run-trace root");
       else fail("sandbox guard allowed a write to another feature's run-trace — carve-out too wide");
 
-      // 8. No active-scope pointer (no harness round in progress) → defer, never break a plain edit.
+      // 7b. FROZEN outranks everything. These two surfaces are the reason the guard reads the
+      //     order at all: `substrateFor` has always stamped them, and while the guard resolved a
+      //     scope contract instead, nothing on the machine enforced either one.
+      const fz = ask(scoped, join(scoped, "shapeup/demo/spec/domain-model.md"));
+      if (fz.denied && /frozen/i.test(fz.out)) ok("sandbox guard DENIES a write to a frozen path (says it is frozen)");
+      else fail(`sandbox guard allowed a write to the order's frozen spec core\n${fz.out}`);
+
+      // 7c. APPEND_ONLY splits on the tool: Edit appends, Write overwrites what the append was
+      //     meant to preserve. Same path, opposite decisions — the discrimination IS the check.
+      const ao1 = ask(scoped, join(scoped, "shapeup/demo/spec/usecases/UC-01.md"), "Edit");
+      if (!ao1.denied) ok("sandbox guard ALLOWS an Edit to an append-only path");
+      else fail(`sandbox guard denied an Edit to an append-only path\n${ao1.out}`);
+      const ao2 = ask(scoped, join(scoped, "shapeup/demo/spec/usecases/UC-01.md"), "Write");
+      if (ao2.denied && /append-only/i.test(ao2.out)) ok("sandbox guard DENIES a Write to an append-only path (Write overwrites)");
+      else fail(`sandbox guard allowed a Write to overwrite an append-only path\n${ao2.out}`);
+
+      // 8. No active-order pointer (no harness dispatch in progress) → defer, never break a plain
+      //    edit. This is the fail-open direction, and it is why `compile-order.mjs` publishes the
+      //    pointer as it writes the order: a lane that never publishes one is a lane that is never
+      //    fenced, silently.
       const d = ask(unscoped, join(unscoped, "anything.ts"));
-      if (!d.denied) ok("sandbox guard defers (fail-open) when no active-scope pointer exists");
-      else fail("sandbox guard wrongly denied a write with no harness round in progress");
+      if (!d.denied) ok("sandbox guard defers (fail-open) when no active-order pointer exists");
+      else fail("sandbox guard wrongly denied a write with no harness dispatch in progress");
 
       // 9. Non Edit/Write/MultiEdit tool → defer.
       const e = ask(scoped, join(scoped, "apps/api/payments/handler.ts"), "Bash");

@@ -39,6 +39,7 @@ import {
   relShared, globLocal, globShared, relKnowledgeBase,
 } from "./lib/paths.mjs";
 import { readContract, SCOPE_CONTRACT } from "./lib/contract-md.mjs";
+import { writeActiveOrder } from "./resume-state.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ORDER_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../schemas/work-order.schema.json"), "utf8"));
@@ -146,8 +147,8 @@ export function ledgerDecisions(ledgerText, scopeId) {
 /**
  * Resolve the write-contract (sandbox substrate) for an operation — one whitelist template per
  * operation, so mode/flag differences are enforced by the sandbox hook reading the order's substrate, not trusted to prose.
- * @param {string} operation - The order's operation (execute|analyze|generate-board|reconcile|
- *   retrofit-surface|coverage|map-scopes|remap|split-scope|wire|evaluate|hunt|recheck|orient|…).
+ * @param {string} operation - The order's operation (execute|fix|spike|analyze|reconcile|
+ *   retrofit-surface|coverage|map-scopes|wire|evaluate|orient|hunt|translate|hammer|coach).
  * @param {{slug?:string, specDir?:string, scope?:object}} [ctx] - slug (names LOCAL/SHARED roots),
  *   specDir (overrides the default spec path), scope (contract supplying allowed/shared substrates).
  * @returns {{allowed:string[], shared?:string[], frozen?:string[], append_only?:string[]}} The
@@ -180,6 +181,12 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
       };
     case "retrofit-surface":
       return { allowed: [], append_only: [`${spec}/usecases/*.md#Test Surface`], frozen: FROZEN_SPEC_CORE };
+
+    case "coverage":
+      // The covers-closure input truth. Writes ONLY the derived registry: the REQ source it
+      // extracts from is frozen alongside the spec core, because a planner that may edit the
+      // requirements it is being measured against is not measuring anything.
+      return { allowed: [globShared(slug, "requirements.md")], frozen: FROZEN_SPEC_CORE };
 
     case "map-scopes":
       return {
@@ -430,7 +437,7 @@ if (isMainModule) {
   // non-build dispatch resolve its worker from the operation alone, without a redundant --worker.
   const OP_OWNER = {
     analyze: "ba-pitch-analyzer", reconcile: "ba-pitch-analyzer",
-    "retrofit-surface": "ba-pitch-analyzer",
+    "retrofit-surface": "ba-pitch-analyzer", coverage: "ba-pitch-analyzer",
     "map-scopes": "scope-architect",
     wire: "solution-architect", evaluate: "spec-evaluator", orient: "orient",
     hunt: "qa-edge-hunter", translate: "translator",
@@ -517,6 +524,29 @@ if (isMainModule) {
   const outPath = join(outDir, `${order.order_id.split("/")[1]}.json`);
   writeFileSync(outPath, JSON.stringify(order, null, 2) + "\n");
   console.log(outPath);
+
+  // POINT THE SANDBOX AT THIS ORDER, HERE, because this is the only place every lane passes
+  // through.
+  //
+  // `hooks/sandbox-guard.mjs` enforces the order's own `substrate` block — allowed/shared,
+  // append_only, frozen — and it finds the order through `.shapeup/active-order`. Until this
+  // write existed the pointer had exactly one author, the workflow script, so the guard fenced
+  // the workflow lane and DEFERRED everywhere else: `--tiny`, the prose round loop, and a
+  // standalone `/build` all compiled an order carrying a write contract that nothing enforced.
+  // A substrate that is only enforced on the lane that also happens to be the most supervised
+  // one is the wrong way round.
+  //
+  // Compiling an order is the moment the write contract comes into existence, so it is the
+  // correct moment to publish it. The workflow script still sets the pointer explicitly before
+  // dispatch (it interleaves phases and must be exact about which order is live); this write
+  // makes the SAME mechanism cover callers that never reach that code.
+  //
+  // Best-effort, on stderr, and never fatal: a compiled order that cannot publish its pointer is
+  // still a valid order, and stdout belongs to the order path the caller consumes. The guard
+  // fails open on a missing pointer by design, so the failure mode is "unfenced", which is
+  // exactly what a warning is for.
+  const ptr = writeActiveOrder(cwd, slug, outPath);
+  if (!ptr.ok) console.error(`compile-order: warning — ${ptr.reason} (this order's substrate will not be enforced)`);
 
   // The stagnation breaker reports on stderr, never on stdout: stdout is the order path the
   // orchestrator consumes, and a breaker that corrupts the pipeline's own output would be worse

@@ -1,26 +1,42 @@
 #!/usr/bin/env node
 // Sandbox guard — PreToolUse hook (design spec v1.1 §4.5/Blueprint E, PA3 countermeasure).
 //
-// Blocks Edit/Write/MultiEdit calls that touch a file outside the active scope's
-// `allowed_file_substrate` (+ declared `shared_substrate`). Turns "generator only edits its
-// own scope" from prose into a precondition the model cannot talk past — the same pattern as
-// hooks/gate-l2.mjs for GATE L2.
+// Blocks Edit/Write/MultiEdit calls that the ACTIVE ORDER's own `substrate` block does not
+// permit. Turns "a worker only writes what its order authorised" from prose into a precondition
+// the model cannot talk past.
+//
+// IT ENFORCES THE ORDER, NOT THE SCOPE CONTRACT, and that is the whole design. `compile-order.mjs`
+// already stamps a write contract onto every order from `substrateFor(operation)` — allowed,
+// shared, append_only, frozen. Resolving the scope contract instead covered exactly one operation,
+// the build, because only build orders carry a scope; every other dispatch (`analyze`, `wire`,
+// `evaluate`, `hunt`, `coach` …) ran unfenced, and the `frozen`/`append_only` surfaces the
+// compiler emits had no enforcer at all. Reading the order makes the contract the compiler writes
+// and the contract the hook enforces the same object, for every operation, with no per-operation
+// code here.
+//
+// It finds the order through `.shapeup/active-order`, which `compile-order.mjs` publishes as it
+// writes the order (and the workflow script re-points explicitly before each dispatch). Both
+// authors matter: the compiler's write is what fences the lanes that never reach the workflow —
+// `--tiny`, the prose round loop, a standalone `/build`.
 //
 // Design (deliberately conservative, mirrors gate-l2.mjs):
-//   • Fail-OPEN whenever there is nothing to enforce: no active-scope pointer (not running
-//     inside a scoped harness round), pointer names a scope contract that doesn't exist or is
-//     unparsable, or the tool call carries no resolvable file path. A guard that breaks
-//     legitimate non-harness edits would just get disabled.
-//   • Fail-CLOSED the moment an active scope IS declared and the target path matches none of
-//     its globs — deny, naming the substrate so the model can self-correct.
+//   • Fail-OPEN whenever there is nothing to enforce: no active-order pointer (not running inside
+//     a harness dispatch), pointer names an order that doesn't exist or is unparsable, the order
+//     declares no boundaries at all, or the tool call carries no resolvable file path. A guard
+//     that breaks legitimate non-harness edits would just get disabled.
+//   • Fail-CLOSED the moment an order IS live and the target is outside what it permits — deny,
+//     naming the reason so the model can self-correct. `frozen` outranks everything, including
+//     an `allowed` glob that would otherwise match; `append_only` permits Edit and denies Write,
+//     because Write overwrites what the append was supposed to preserve.
 //   • Run-trace carve-out — writes under the ACTIVE feature's LOCAL gitignored root
 //     (`.shapeup/<slug>/`) are always allowed: that root is harness bookkeeping the doer
 //     is REQUIRED to write (task-executor P3 status/AC ticks + tasks/_index.md, run-state,
 //     execution logs, the P3.7 discovery ledger). Substrate globs whitelist product code and
-//     never list the run-trace, so without the carve-out every scoped round strands its own
-//     board (island-escape shipped 16/20 task files stale this way). Deliberately narrow:
-//     only the active slug's root — `.shapeup/active-scope` (this guard's own pointer)
-//     and other features' roots remain subject to the substrate whitelist.
+//     never list the run-trace, so without the carve-out a scoped round leaves its own task files
+//     stale. Deliberately narrow: only the active slug's root. The pointers at the `.shapeup/`
+//     root — `active-order` (this guard's own) and `active-scope` — sit OUTSIDE the carve-out by
+//     construction, so a worker cannot widen its own sandbox by rewriting the thing that defines
+//     it.
 //   • Every denial is also appended to the metrics pathology log (telemetry, not just defense).
 //
 // Contract: PreToolUse stdin JSON { tool_name, tool_input:{file_path | edits[].file_path}, cwd }.
