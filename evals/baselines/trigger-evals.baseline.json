@@ -1,8 +1,8 @@
 {
   "status": "measured",
-  "method": "claude headless (--plugin-dir . -p <query> --max-turns 8 --model claude-haiku-4-5-20251001) detecting real Skill-tool activation within the first 8 turns; trigger rates are MODEL-DEPENDENT — this baseline describes the model named in the \"model\" field and no other; NOT slash-command self-invocation (the prior TPR≈0 proxy artifact, audit F1). Activation names are namespace-stripped, and a phase-command wrapper firing counts for the skill(s) it delegates to (COMMAND_ALIASES) — a wrapper firing on the wrong query stays a false positive. Probes run in parallel (independent sessions; concurrency affects wall-clock only). KNOWN LIMITATION: probes run in this repo's own working tree, where the artifacts some queries presuppose (a pitch, a spec folder, TASK-NNN) do not exist; 17 of 74 positive cases name such an artifact and the model may correctly decline to activate and ask for it instead. Those cases understate TPR and are tracked separately — see evals/README.md.",
+  "method": "claude headless (--plugin-dir . -p <query> --max-turns 8 --model claude-haiku-4-5-20251001) detecting real Skill-tool activation within the first 8 turns; trigger rates are MODEL-DEPENDENT — this baseline describes the model named in the \"model\" field and no other; NOT slash-command self-invocation (the prior TPR≈0 proxy artifact, audit F1). Activation names are namespace-stripped, and a phase-command wrapper firing counts for the skill(s) it delegates to (COMMAND_ALIASES) — a wrapper firing on the wrong query stays a false positive. Probes run in parallel (independent sessions; concurrency affects wall-clock only). KNOWN LIMITATION: probes run in this repo's own working tree, where the artifacts some queries presuppose (a pitch, a spec folder, TASK-NNN) do not exist. A substantial minority of the 67 positive cases name such an artifact, and the model may correctly decline to activate and ask for it instead — those cases understate TPR and are tracked separately (see evals/README.md). The share is deliberately NOT hardcoded here: it was hand-counted against a 74-positive dataset and silently outlived it, so a freshly measured baseline was shipping a caveat that described a dataset it no longer had.",
   "model": "claude-haiku-4-5-20251001",
-  "measured_at": "2026-07-26T14:00:00Z",
+  "measured_at": "2026-08-12T16:50:47.393Z",
   "datasets": {
     "ba-pitch-analyzer": {
       "positives": 6,
@@ -66,24 +66,9 @@
     }
   },
   "results": {
-    "advisor-protocol": {
-      "positives": 6,
-      "negatives": 6,
-      "tpr": 0.167,
-      "fpr": 0,
-      "precision": 1,
-      "misses": [
-        "escalate this design decision to the advisor",
-        "how many escalations does the cart-creation scope have left this round?",
-        "adjudicate this spec ambiguity within the escalation budget",
-        "the task-executor needs to write outside its substrate — substrate expansion request",
-        "resolve this ESCALATE using precedent from the round ledger"
-      ],
-      "false_positives": []
-    },
     "ba-pitch-analyzer": {
       "positives": 6,
-      "negatives": 7,
+      "negatives": 6,
       "tpr": 0,
       "fpr": 0,
       "precision": null,
@@ -128,24 +113,25 @@
     "qa-edge-hunter": {
       "positives": 5,
       "negatives": 6,
-      "tpr": 0.6,
+      "tpr": 0.4,
       "fpr": 0,
       "precision": 1,
       "misses": [
-        "the evaluator passed — what did it miss?",
-        "run qa-edge-hunter on the checkout spec and the running app"
+        "hunt edge cases on this feature",
+        "do an exploratory QA pass on the running app",
+        "the evaluator passed — what did it miss?"
       ],
       "false_positives": []
     },
     "scope-architect": {
-      "positives": 5,
+      "positives": 4,
       "negatives": 5,
-      "tpr": 0.2,
+      "tpr": 0,
       "fpr": 0,
-      "precision": 1,
+      "precision": null,
       "misses": [
         "map the scopes for this feature and write the scope contracts",
-        "remap this scope — the discovered tasks don't fit any substrate",
+        "split the cart-creation scope, it's been stuck uphill for 3 rounds",
         "write the allowed_file_substrate whitelist for each vertical slice",
         "derive the affordance manifest and e2e fixtures for these scopes"
       ],
@@ -153,25 +139,30 @@
     },
     "scope-hammer": {
       "positives": 6,
-      "negatives": 6,
-      "tpr": 0.5,
+      "negatives": 5,
+      "tpr": 0.167,
       "fpr": 0,
       "precision": 1,
       "misses": [
+        "scope hammer this down to must-haves",
         "the circuit breaker tripped, what do we ship?",
         "decide when to stop and compare against the baseline, not the ideal",
-        "census the open items and tell me what's must-have vs nice-to-have"
+        "census the open items and tell me what's must-have vs nice-to-have",
+        "we're out of round budget, what survives the hammer vs the baseline?"
       ],
       "false_positives": []
     },
     "shapeup": {
       "positives": 7,
       "negatives": 5,
-      "tpr": 0.429,
+      "tpr": 0,
       "fpr": 0,
-      "precision": 1,
+      "precision": null,
       "misses": [
+        "shape this feature before we build it",
+        "breadboard the checkout flow",
         "write a framing doc for this idea",
+        "is this shaped enough to build?",
         "let's think through this problem before we write any code",
         "turn this transcript into a kickoff document",
         "map the affordances and wiring for this screen"
@@ -181,13 +172,12 @@
     "solution-architect": {
       "positives": 6,
       "negatives": 5,
-      "tpr": 0,
+      "tpr": 0.167,
       "fpr": 0,
-      "precision": null,
+      "precision": 1,
       "misses": [
         "write the wiring map — declare the entry-point call site for each use case",
         "how does each use case's engine get wired into main.js? map it out before we slice scopes",
-        "the asset pipeline has 26 passing tests but zero call sites — declare where it should attach",
         "map every engine module to the entry point so nothing ships unreachable",
         "front-load the integration seam for these use cases against the project profile's entry_point",
         "which use cases are reachable from the game's main loop and which are orphaned?"
@@ -197,10 +187,11 @@
     "spec-evaluator": {
       "positives": 6,
       "negatives": 6,
-      "tpr": 0.833,
+      "tpr": 0.667,
       "fpr": 0,
       "precision": 1,
       "misses": [
+        "does this implementation actually match the spec?",
         "check the test coverage and acceptance criteria for this task"
       ],
       "false_positives": []
@@ -208,29 +199,23 @@
     "task-executor": {
       "positives": 6,
       "negatives": 6,
-      "tpr": 0,
+      "tpr": 0.833,
       "fpr": 0,
-      "precision": null,
+      "precision": 1,
       "misses": [
-        "execute task TASK-007",
-        "implement TASK-012 from the spec folder",
-        "pick up the next task on the board",
-        "start working on TASK-005",
-        "continue from where we left off on the task board",
-        "implement the task in shapeup/checkout/spec/tasks"
+        "continue from where we left off on the task board"
       ],
       "false_positives": []
     },
     "tech-lead": {
       "positives": 5,
       "negatives": 6,
-      "tpr": 0.4,
+      "tpr": 0.6,
       "fpr": 0,
       "precision": 1,
       "misses": [
         "run the full harness on this pitch",
-        "plan, build, and evaluate this feature for me",
-        "drive this feature through the whole SDLC loop, pausing at the gates"
+        "plan, build, and evaluate this feature for me"
       ],
       "false_positives": []
     },

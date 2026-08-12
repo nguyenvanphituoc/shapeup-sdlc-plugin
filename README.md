@@ -287,11 +287,10 @@ Stated plainly, because you will hit them:
   valuable thing that measurement produced was not a score but five production defects, all one
   family — the committed contract format failing silent.
 - **Only half the trigger-eval story is measured.** Skill *discrimination* is:
-  **0 false activations across 75 cross-skill hard negatives** (Haiku 4.5, 2026-07-26 — the
-  skill descriptions do not steal each other's work). That run predates the removal of
-  `advisor-protocol`; the current dataset is 134 cases across 12 skills (67 / 67), and the rate
-  above stands until a re-measurement replaces it. *Activation* rate is measured but
-  confounded and deliberately not quoted as a headline: 38 of 74 positive cases point at a
+  **0 false activations across 67 cross-skill hard negatives** (Haiku 4.5, 2026-08-12 — the
+  skill descriptions do not steal each other's work), over a dataset of 134 cases across 12
+  skills. *Activation* rate is measured but confounded and deliberately not quoted as a
+  headline: a large share of the 67 positive cases point at a
   referent ("coach **this feedback**") the probe never supplies, so a model that names the right
   skill and asks for the missing input scores as a miss. Method, per-skill numbers, and the fix
   are in [evals/README.md](evals/README.md) — the harness ships a CI test that *fails* if
@@ -347,7 +346,7 @@ docs/internal/        # plan/ (the Day-1/Day-2 plan), research/, launch/
 1. Bump `version` in **both** `.claude-plugin/plugin.json` and `package.json` — the release
    workflow fails if either disagrees with the tag.
 2. Update `CHANGELOG.md`.
-3. Tag and push: `git tag v1.6.3 && git push origin main --follow-tags`.
+3. Tag and push: `git tag v1.7.0 && git push origin main --follow-tags`.
 
 The workflow validates the plugin, checks the tag against both manifests, publishes a GitHub
 release, and publishes to npm through **trusted publishing (OIDC)** — no `NPM_TOKEN`, no OTP, with
