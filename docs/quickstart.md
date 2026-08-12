@@ -102,20 +102,31 @@ Suppose two tasks are still unfinished and the agent decides it has done enough:
 /eval
 ```
 
-**Verbatim output** — this is the real `hooks/gate-l2.mjs` denial, not a paraphrase:
+**Verbatim output** — this is the real `hooks/gate-l2.mjs` warning, not a paraphrase:
 
 ```
-⛔ PreToolUse hook — DENIED   Skill(spec-evaluator)
-
-GATE L2 — board is not green. EVAL runs exactly once per round, only after every
-task is done. Unfinished: TASK-003, TASK-004. Route back to BUILD (task-executor)
-to finish these, then re-attempt EVAL. (To override deliberately, the PO can invoke
-spec-evaluator with --task for a single-task check.)
+⚠ GATE L2 — the board is NOT green and the EVAL is proceeding anyway.
+Unfinished (2): TASK-003, TASK-004
+EVAL is designed to run once per round, after every task is done. A verdict taken
+now grades a partial board, so a PASS does not mean the feature is complete — it
+means the finished part passed. Route back to BUILD (task-executor) to close these,
+or use --task for a deliberate single-task check.
 ```
 
-The tool call never reached the evaluator. This is not a reminder in a prompt that a model can
-reason its way around — it is a `deny` decision from a hook, and the only way past it is to
-finish the tasks. That single frame is the product.
+That text is produced by a script that read the board twice — per-task frontmatter *and* the
+board table — and it is recorded as a `warn` row in `.shapeup/decisions.jsonl`. **GATE L2 is
+advisory**: the operator asked for the call and the board is local to this machine, so the hook
+reports rather than refuses. What it buys is that "evaluated a green board" and "evaluated a
+half-green board anyway" are two different, countable facts — a PASS over an incomplete board
+can never later be read as a complete one.
+
+> **The hooks that do refuse.** Advisory is GATE L2's own choice, not the harness's posture.
+> `validate-envelope.mjs` denies a worker dispatch whose order is missing or schema-invalid;
+> `sandbox-guard.mjs` denies a write the active order's substrate does not permit;
+> `gate-intake.mjs` denies an orchestrator dispatch with no requirement in it;
+> `safety-spine.mjs` denies `rm -rf ~`, force-push, `DROP TABLE` and secret reads; and
+> `gate-zerowork.mjs` blocks a session that reached the orchestrator and left no run receipt.
+> Those are `deny` decisions from scripts, and no amount of reasoning gets past them.
 
 ## 6. Evaluate — a FAIL round
 
@@ -216,7 +227,9 @@ skills read it back on their next run.
 Five things, none of which depended on the agent being honest:
 
 1. You reviewed a **pitch** and a **board** before any code existed.
-2. A hook **denied** the evaluation while work was unfinished — mechanically, not by request.
+2. A hook **recorded** that the evaluation ran over unfinished work — mechanically, not by
+   request — and other hooks **denied** the malformed dispatch and the out-of-substrate write
+   outright.
 3. The verdict was built from **commands, exit codes, and observed output**, with a criterion
    that could not be probed counted as a FAIL.
 4. The FAIL round rebuilt **only the bugs plus the touched Test Surface**.

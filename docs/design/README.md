@@ -7,7 +7,7 @@ cannot talk past, rather than conventions it is asked to remember.
 | | |
 |---|---|
 | **Plugin** | `shapeup-sdlc-plugin` |
-| **Version** | 1.0.0 — Pure-Skill Architecture |
+| **Version** | 1.6.3 — Pure-Skill Architecture + workflow-orchestrated run |
 | **Runtime** | Claude Code |
 | **Author** | Liberty Nguyen |
 
@@ -32,5 +32,5 @@ Architectural decisions that change a contract are recorded in [`adr/`](adr/):
   own tree, arranged by lifecycle (ships / installs / builds / proves / explains); the corrected
   publish boundary, the frozen `scripts/` URL contract, and the retired `anti-lying-kit`
 
-> Compiled from a full-repository walkthrough of this plugin at v1.0.0. A rendered, styled
+> Compiled from a full-repository walkthrough of this plugin. A rendered, styled
 > version of this document is also published as a Claude Artifact for viewing outside the repo.

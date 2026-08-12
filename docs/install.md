@@ -30,7 +30,7 @@ register.
 Pin to a released version:
 
 ```
-/plugin marketplace add nguyenvanphituoc/shapeup-sdlc-plugin@v1.3.0
+/plugin marketplace add nguyenvanphituoc/shapeup-sdlc-plugin@v1.6.3
 ```
 
 > **This path installs the plugin and nothing else — in particular, no permission grant.**
@@ -51,7 +51,9 @@ Pin to a released version:
 > ```
 >
 > — or copying the `permissions.allow` block out of `.claude/settings.local.example.json` into your
-> own settings. Both write the same six prefixes.
+> own settings. Both cover the same three script directories (`tech-lead`, `ba-pitch-analyzer`,
+> `spec-evaluator`); the installer additionally writes the double-quoted spelling of each prefix,
+> which is the form the skills' own invocation lines use.
 
 ## The Playwright dependency
 

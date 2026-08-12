@@ -9,15 +9,15 @@ it.
 
 | Term | In plain English |
 |---|---|
-| **board** | The round's task list. "Green" means every task is done. The deny hook reads this. |
+| **board** | The round's task list. "Green" means every task is done. GATE L2's hook reads this before an evaluation and warns if it is not green. |
 | **round** | One build → evaluate cycle. A FAIL verdict starts round *r+1*. |
 | **T0** | The smoke test a scope must pass before it counts as built: its fixtures + a DB probe + the seesaw. Writes an artifact to disk that the evaluator must cite. |
 | **seesaw** | The part of T0 that re-runs *other* scopes' fixtures — so a regression is never mistaken for progress. |
-| **substrate** | The exact list of files one scope is allowed to write. A hook blocks anything outside it. |
+| **substrate** | The exact list of files one dispatch is allowed to write, stamped into its work order. A hook blocks anything outside it — and anything the order marks frozen. |
 | **scope contract** | The file defining one vertical slice: its substrate, its fixtures, its affordances. |
 | **affordance** | The thing a user can actually click, type or call. UI is graded on affordances, not on looks. |
 | **hill / hill phase** | How much of a scope is still *unknown* versus merely *unfinished*. Derived from T0 facts — never self-reported. |
-| **gate (L0–L4)** | A numbered checkpoint in a run. Most pause for you; GATE L2 is the one enforced by a hook. |
+| **gate (L0–L4)** | A numbered checkpoint in a run. Most pause for you; GATE L2 is the one a hook observes and reports on. |
 | **covers-closure** | Every requirement clause has at least one task claiming to cover it. Nothing silently drops. |
 | **wiring reachability** | Every engine has a call site reachable from the app's real entry point. Catches "built, but never wired up". |
 | **discovery ledger** | The one file everything found mid-run gets written to, so nothing is lost between rounds. |
@@ -47,12 +47,13 @@ mechanically true rather than aspirational.
 |---|---|
 | **work order / work result** | The JSON envelope every worker receives and returns. Workers are stateless: everything they used to write into shared files, they now return as data. |
 | **envelope port** | The dispatch path — `compile-order.mjs` builds the order, a `PreToolUse` hook validates it against a schema, `ingest-result.mjs` applies the result. |
+| **fast-forward** | How a relaunched run finds its place: the resume point is derived from artifacts on disk, never from stored status or the conversation, so a killed session picks up where it died. |
 | **single writer** | `ingest-result.mjs` performs *every* board/ledger/verdict write, so parallel scopes cannot corrupt shared state. |
 | **pure worker** | A skill containing craft only, with zero pipeline knowledge — it cannot know or care where it sits in a run. |
 | **zero-memory handoff** | Each build attempt is a fresh subagent that sees only what the order put in the envelope, never prior chat. |
 | **traceability spine** | The three committed artifacts (`requirements.md`, `wiring-map.md`, `project-profile.md`) that `trace-lint.mjs` reads to check covers-closure and reachability. |
 | **substrate disjointness** | The lint asserting no two scopes may write the same file — what makes parallel building safe. |
-| **circuit breaker** | Two nested retry budgets: an outer one on rounds, an inner one on per-scope T0 attempts. An exhausted scope queues a cut proposal rather than blocking the round. |
+| **circuit breaker** | Two nested retry budgets — an outer one on rounds, an inner one on per-scope T0 attempts — plus an opt-in wall-clock budget for the whole run. An exhausted scope queues a cut proposal rather than blocking the round; every other exhaustion routes to the ship gate so whatever is green still ships. |
 | **discovered task** | Anything found mid-run that is not in the current spec. It goes to the ledger, never silently into the build. |
 | **knowledge base** | Committed per-skill guideline files written by `/coach` from your feedback, read back by the coachable skills on their next run. |
 

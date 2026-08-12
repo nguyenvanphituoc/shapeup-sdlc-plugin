@@ -2,20 +2,19 @@
 
 [← Back to index](README.md)
 
-## 4.1 — The thirteen skills
+## 4.1 — The twelve skills
 
 | Skill | Role | Behavior |
 |---|---|---|
 | `shapeup` | Shaper | Set boundaries, breadboard, spike risk, write the pitch (Shape Up steps 1–4). |
 | `translator` | Intake gate | Normalizes non-English intake to faithful English before anything downstream runs; every other skill HARD-FAILs on non-English input. |
 | `orient` | Scout | Builder-led recon (step 7): reads the real code, spikes the single riskiest area, emits a code-surface map *before any board exists*, so the board is reality-born. |
-| `ba-pitch-analyzer` | Spec-analyzer | Decomposes an oriented pitch into a linked DDD tree — domain model → use cases → tasks — with BDD scenarios and a derived Test Surface. One craft, five operations: analyze / generate-board / reconcile / retrofit-surface / coverage (the last writes the shared `requirements.md` registry that anchors covers-closure). |
+| `ba-pitch-analyzer` | Spec-analyzer | Decomposes an oriented pitch into a linked DDD tree — domain model → use cases → tasks — with BDD scenarios and a derived Test Surface. One craft, four registered operations: `analyze` (the spec tree and board), `reconcile` (fold discovered tasks back in), `retrofit-surface` (append Test Surface rows to existing use cases), `coverage` (extract atomic requirement clauses into the shared `requirements.md` registry that anchors covers-closure). |
 | `solution-architect` | Wirer | Sole writer of the committed wiring map (`wiring-map.md`) at GATE L1a.5: per use case, the reachability chain engine → seam → entry-point call site → player-visible affordance, resolved against `project-profile.md` — front-loads the integration seam so no engine ships orphaned. |
 | `scope-architect` | Slicer | Sole writer of committed scope contracts: import-graph slicing by flow, write-whitelisted substrates, affordance manifests, fixtures. |
 | `task-executor` | Generator | Implements a WorkOrder's acceptance criteria exactly. Zero-memory (each attempt is a fresh subagent), substrate-sandboxed, never writes boards or ledgers. |
 | `spec-evaluator` | Single judge | Verifies the running app against the committed spec. Skeptical by default; requires a T0 artifact citation on scoped specs; verdict returns as data, never edits anything. |
 | `qa-edge-hunter` | Explorer | Post-PASS exploratory hunt through six fixed lenses, outside what the evaluator already probed. Findings go to the ledger as `~`; never blocks ship, never issues a verdict. |
-| `advisor-protocol` | Adjudicator | Answers a worker's structured `ESCALATE` within a per-scope-per-round budget (default 3); persists the answer immediately so it survives the next attempt's zero-memory reset. |
 | `scope-hammer` | Ship arbiter | GATE H: must-have census → baseline comparison (never against a perfect ideal) → cut list + ship verdict. Proposes only; a human promotes or ships. |
 | `coach` | RLHF loop | Turns PO feedback at ship sign-off into knowledge-base rules, filed by skill after asking the PO to categorize each one — never assumed. |
 | `tech-lead` | Orchestrator | Sequences all of the above through GATE L0–L4, owns the round loop, and is the sole writer of run-state. |
@@ -31,10 +30,7 @@ flowchart TD
     subgraph LOOP["attempt 1 .. attempt_budget (default 5)"]
       A1["compile-order.mjs\n(scope contract + tasks + prior decisions\n+ last attempt's digested errors)"] --> A2["task-executor\n(fresh Agent — zero prior chat history)"]
       A2 --> A3["ingest-result.mjs\n(board + ledger writes)"]
-      A3 --> A4{"escalate\nqueued?"}
-      A4 -- yes --> A5["advisor-protocol\nanswer persisted to round-ledger.md"]
-      A5 --> A6
-      A4 -- no --> A6["t0-verify.mjs\nfixtures + DB probe + seesaw"]
+      A3 --> A6["t0-verify.mjs\nfixtures + DB probe + seesaw"]
       A6 --> A7{"T0 result"}
     end
     A7 -- green --> DONE["scope → DOWNHILL_EXECUTION"]
@@ -54,12 +50,24 @@ regression before it's mistaken for progress.
 > finding, and a narrow one: it is a statement about a single context window and says nothing about
 > what survives across one (row 6).
 
-## 4.3 — The two-level circuit breaker
+## 4.3 — The circuit breakers
+
+Two count *events* and are always on; a third counts the *clock* and is opt-in.
 
 | Level | Unit | Default | On exhaustion |
 |---|---|---|---|
-| Outer — `round_budget` | Build + eval cycles for the whole run | 3 (appetite-informed) | Stop the run; escalate to the PO with the residual bug list |
+| Outer — `round_budget` | Build + eval cycles for the whole run | 3 (appetite-informed) | Route to GATE H — ship what is green, with the residual bug list |
 | Inner — `attempt_budget` | T0 attempts for one scope, inside one round | 5 | Queue a hammer proposal for GATE H; move on to the next scope — never blocks the round |
+| Wall clock — `wall_clock_budget_s` | Elapsed seconds for the whole run | **off** (opt-in, `--wall-clock-budget`) | `hooks/gate-deadline.mjs` denies new `task-executor` work and routes to GATE H |
+
+The wall-clock axis exists because the other two are blind to it: a single round can run for half
+an hour without spending a round or an attempt. Set it *below* any external kill so the harness
+trips its own breaker first — a run killed from outside ships nothing, including the scopes that
+already passed T0. All three exits route to **GATE H**, never to a hard stop: the run's ending is
+always a ship decision made against what is green.
+
+> The build+eval loop therefore breaks exactly three ways: EVAL PASS → QA → Ship, outer
+> `round_budget` exhausted, or the opt-in wall-clock budget tripped.
 
 ## 4.4 — Hill position (mechanical, never self-reported)
 
@@ -76,9 +84,9 @@ disk, per scope, at each round boundary:
 
 ## 4.5 — Gate walkthrough
 
-The numbered gates pause an interactive or `--auto` run; `--unattended` auto-confirms all of
-them and stops only on PASS, max-rounds, or a hard error. (GATE L1a.5 is a traceability-spine
-gate ✚ — present only when the spine artifacts exist.)
+The numbered gates pause an interactive or `--auto` run; `--unattended` crosses them from the
+pre-recorded `ci` answer set (§3.2d) and stops only on PASS, max-rounds, or a hard error. (GATE
+L1a.5 is a traceability-spine gate ✚ — present only when the spine artifacts exist.)
 
 ```
 ⏸ GATE L0 — Intake & Run Config
@@ -110,7 +118,7 @@ Substrate-disjointness re-asserted via spec-lint.mjs — any red is a hard stop
 
 ```
 ⏸ GATE L2 — Build Round Complete
-Board        : [N]/[N] tasks ✅   (hook-enforced — see hooks/gate-l2.mjs)
+Board        : [N]/[N] tasks ✅   (hook-observed, advisory — see hooks/gate-l2.mjs)
 T0           : [k]/[k] touched scopes T0-green
 Ready to EVAL: yes
 ```
@@ -137,6 +145,13 @@ The gate walkthrough above shows *what* each gate prints, not *when* a human is 
 required to cross it. That turns out to be governed by two independent axes: a **PO-confirmation
 policy** (the run's auto level) and a set of **mechanically-enforced preconditions** that hold
 no matter what the auto level is.
+
+> **How a crossing is actually produced.** Since the gate-answer set (§3.2d) the auto level is not
+> read by the model as a paragraph — each gate resolves through `gate-answers.mjs` and the
+> orchestrator branches on its exit code (`0` cross · `4` stop and put the block to the PO · `5`
+> abort). `--auto` implies the `guarded` preset and `--unattended` the `ci` preset unless a set is
+> named. Every gate still emits its block and still records a decision; what the preset changes is
+> the decision's **source**, which the ledger names.
 
 ### Conditions that open the loop (a human is required)
 
@@ -170,7 +185,7 @@ no matter what the auto level is.
 |---|---|---|
 | 1 | Run mode = `--unattended` | Auto-confirms all L-gates. Proceeds without a human until PASS, max-rounds, or a hard error — the only three stop conditions in this mode. |
 | 2 | Inner breaker (`attempt_budget`) exhausted for one scope | Does **not** stop anything — queues a hammer proposal and moves to the next scope in sequence (DD-9: a struggling scope must not freeze the others). |
-| 3 | ESCALATE resolution under `--unattended` | `advisor-protocol` accepts `--unattended` and resolves via precedent / conservative default instead of asking the PO; the 4th+ escalate in a scope/round auto-resolves and only flags a GATE H proposal for later. |
+| 3 | *(none — see note)* | A worker `ESCALATE` is **not** auto-resolved. `ingest-result.mjs` queues it; in the workflow lane a phase that produced no artifact **aborts**, naming the phase, because a relaunch would re-dispatch the same order and escalate again. Resolving it is a human step in every mode. |
 | 4 | GATE L2's board-green check (`hooks/gate-l2.mjs`) | A different axis entirely — runtime-vs-model, not PO-vs-model. Never asks a human; reads the board in *every* mode and **warns** when the EVAL dispatch runs over unfinished tasks (advisory since ADR-0001 — the board is per-machine and the operator asked for the call). Recorded as a `warn` row in `decisions.jsonl`, so a non-green evaluation stays countable. |
 | 5 | `--no-eval` | Tech-lead judgment call (or PO instruction) for trivial features — skips the evaluator, goes straight to SHIP with verdict `not-evaluated` recorded. |
 | 6 | `--no-qa` | Skips the post-PASS edge hunt; ledger records `qa: skipped`. |

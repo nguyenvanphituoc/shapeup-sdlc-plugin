@@ -48,16 +48,14 @@ erDiagram
     TaskResult }o--|| TaskBoardFile : "task_id — ingest ticks ACs, flips status"
     WorkResult ||--o{ FileTouched : "files_touched[]"
     WorkResult ||--o{ Discovery : "discoveries[] — ingest appends to the ledger"
-    WorkResult ||--o{ Escalate : "escalates[] — ingest queues for the advisor"
-    Escalate ||--o| Decision : "advisor-protocol adjudication → round-ledger"
     WorkResult ||--o| Verdict : "verdict (spec-evaluator only)"
 
     WorkOrder {
         int schema_version "1"
         string order_id PK "slug/rN-aM | slug/operation[-rN]"
-        enum worker "WorkerName (11 workers)"
+        enum worker "WorkerName (10 workers)"
         enum mode "orchestrated | standalone"
-        enum operation "Operation (20 operations)"
+        enum operation "Operation (15 operations)"
         json interaction "pause_gates, max_questions"
         json substrate "allowed[], shared[], append_only[], frozen[]"
         json payload "WorkOrderPayload — see 7.4"
@@ -108,12 +106,6 @@ erDiagram
         string path
         enum change "created | modified | deleted"
         int lines
-    }
-    Escalate {
-        enum kind "design-decision | spec-ambiguity | substrate-expansion"
-        string question "one checkable question"
-        string blocked_ac "unrelated ACs continue"
-        string context
     }
     Discovery {
         enum marker "+ candidate work · ~ nice-to-have"
@@ -237,8 +229,8 @@ erDiagram
 | `VerdictLedgerLine` | LOCAL | `evaluation/.verdicts-<target>.jsonl` | ingest-result.mjs | spec-evaluator (flip detection), verdict-ledger.mjs |
 | `SeesawRegistry` | LOCAL | `seesaw/registry.json` | tech-lead (scope FINISHED) | t0-verify.mjs |
 | `MetricsRow` | SHARED | `metrics/<machine-id>.jsonl` | tech-lead (SHIP S.6) | tier-3 benchmark tooling, stats.mjs (v1.2: optional `at` + `attempt_exhaustions` fields) |
-| `ActiveScopePointer` | LOCAL | `.shapeup/active-scope` | tech-lead (BUILD step 0) | sandbox-guard hook — not writable by any worker |
-| `EscalateBlock` | EMBEDDED | advisor input | worker (via WorkResult) | advisor-protocol — answer persists to round-ledger instantly |
+| `ActiveScopePointer` | LOCAL | `.shapeup/active-scope` | tech-lead (BUILD step 0) | run-scoping for the advisory/Stop hooks — not writable by any worker |
+| `ActiveOrderPointer` | LOCAL | `.shapeup/active-order` | the run (written before each worker dispatch) | sandbox-guard hook — the substrate it enforces is read through this pointer |
 | `SafetyOverrides` (v1.2) | LOCAL | `.shapeup/safety-overrides.json` | **human PO only** — outside the run-trace carve-out, so no worker can write it | safety-spine hook |
 | `RunSnapshot` (v1.2) | LOCAL | `<slug>/run-snapshot.json` | run-snapshot.mjs `--write` (via the PreCompact hook — never a worker) | session-rehydrate hook, tech-lead, human |
 | `StatsReport` (v1.2) | EMBEDDED | stdout only — never persisted | stats.mjs (read-only projection) | human / CLI / CI |
@@ -265,8 +257,8 @@ erDiagram
 
 | Enum | Values |
 |---|---|
-| `WorkerName` (11) | task-executor · spec-evaluator · ba-pitch-analyzer · scope-architect · solution-architect · orient · qa-edge-hunter · translator · scope-hammer · coach · advisor-protocol |
-| `Operation` (20) | execute, fix, spike · analyze, generate-board, reconcile, retrofit-surface, coverage · map-scopes, remap, split-scope · wire · evaluate · orient · hunt, recheck · translate · hammer · coach · adjudicate |
+| `WorkerName` (10) | task-executor · spec-evaluator · ba-pitch-analyzer · scope-architect · solution-architect · orient · qa-edge-hunter · translator · scope-hammer · coach |
+| `Operation` (15) | execute, fix, spike · analyze, reconcile, retrofit-surface, coverage · map-scopes · wire · evaluate · orient · hunt · translate · hammer · coach |
 
 ## 7.6 — Payload fields by worker (`x-payload-by-worker`)
 
@@ -285,7 +277,6 @@ Which `WorkOrderPayload` fields each worker may rely on — anything absent from
 | translator | `intake`, `glossary` |
 | scope-hammer | `feature`, `baseline`, `breaker`, `scope_id` |
 | coach | `feedback` |
-| advisor-protocol | `ledger`, `escalate`, `scope_id`, `round` |
 
 ## 7.7 — Result fields by worker (`x-result-by-worker`)
 
@@ -293,9 +284,9 @@ Which `WorkResult` fields each worker is allowed to output. Enforces architectur
 
 | Worker | Allowed Result Fields |
 |---|---|
-| task-executor | `task_results`, `files_touched`, `escalates`, `discoveries`, `artifacts`, `assumptions`, `deviations` |
-| ba-pitch-analyzer | `discoveries`, `escalates`, `files_touched`, `artifacts`, `assumptions`, `deviations` |
-| scope-architect, solution-architect | `escalates`, `files_touched`, `artifacts`, `assumptions`, `deviations` |
+| task-executor | `task_results`, `files_touched`, `discoveries`, `artifacts`, `assumptions`, `deviations` |
+| ba-pitch-analyzer | `discoveries`, `files_touched`, `artifacts`, `assumptions`, `deviations` |
+| scope-architect, solution-architect | `files_touched`, `artifacts`, `assumptions`, `deviations` |
 | spec-evaluator | `verdict`, `files_touched`, `artifacts`, `assumptions`, `deviations` |
 | qa-edge-hunter | `discoveries`, `files_touched`, `artifacts`, `assumptions`, `deviations` |
-| orient, translator, scope-hammer, coach, advisor-protocol | `files_touched`, `artifacts`, `assumptions`, `deviations` |
+| orient, translator, scope-hammer, coach | `files_touched`, `artifacts`, `assumptions`, `deviations` |

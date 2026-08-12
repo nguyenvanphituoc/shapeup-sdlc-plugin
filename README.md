@@ -15,11 +15,11 @@ The ceremony is right-sized: `/ship` runs the full gated pipeline for real featu
 fixes where the gates would have nothing to say.
 
 <p align="center">
-  <img src="docs/assets/demo-gate.svg" alt="Terminal recording: the agent tries to run EVAL with two tasks unfinished, and a PreToolUse hook denies the tool call outright." width="700">
+  <img src="docs/assets/demo-gate.svg" alt="Terminal recording: the agent tries to run EVAL with two tasks unfinished, and a PreToolUse hook names both unfinished tasks and records the evaluation as taken over a partial board." width="700">
 </p>
 
 <p align="center"><sub>
-The denial text above is <b>verbatim stdout</b> from <code>hooks/gate-l2.mjs</code> —
+The GATE L2 text above is <b>verbatim stdout</b> from <code>hooks/gate-l2.mjs</code> —
 <a href="tools/demo/record-demo.mjs">the recorder runs the real hook</a> and fails rather than
 draw a picture. <a href="docs/assets/demo-gate.txt">Plain-text transcript.</a>
 </sub></p>
@@ -32,8 +32,8 @@ prompt-based harness:
 
 **1. A worker cannot act on an order nobody compiled.** Every dispatch carries a schema-validated
 WorkOrder, and a `PreToolUse` hook hard-denies the call when that order is missing or malformed —
-the tool call never reaches the worker. The same layer denies any write outside the active scope's
-file substrate, and blocks a session that dispatched the orchestrator and left no run receipt.
+the tool call never reaches the worker. The same layer denies any write the order's own substrate
+does not permit, and blocks a session that dispatched the orchestrator and left no run receipt.
 → *Prevents: an agent inventing its own brief, then reporting against it.*
 
 (GATE L2, the board-green check before evaluation, is advisory: it warns when a round's evaluation
@@ -74,7 +74,7 @@ they are documented for [contributors](CONTRIBUTING.md), not for users.
 > ```
 
 Want to see a full run before installing anything? **[docs/quickstart.md](docs/quickstart.md)**
-walks one small feature end to end — including the hook denying a premature eval, a FAIL round
+walks one small feature end to end — including what the hooks do to a premature eval, a FAIL round
 with real evaluator output, and the fix that turns it green.
 
 <sub>No prerequisites for non-UI work — a browser (`npx playwright install chromium`) is needed
@@ -86,10 +86,10 @@ installer, and troubleshooting are in
 
 The harness targets **Claude Code only**. The reason is the row that never travelled when we
 compiled to other CLIs: hooks. The 12 skills, 10 slash commands and pipeline scripts are
-portable prose and plain Node — but hook-enforced gates (deny on premature EVAL, substrate
-sandbox, safety spine) are a per-CLI mechanism, and without them every gate degrades from
+portable prose and plain Node — but hook-enforced gates (envelope validation, substrate
+sandbox, safety spine, the zero-work block) are a per-CLI mechanism, and without them every gate degrades from
 **enforced** to **instructed** — the same honor system every other framework runs on
-everywhere. If the deny hook is why you're here, that means Claude Code.
+everywhere. If the deny hooks are why you're here, that means Claude Code.
 
 ## Glossary
 
@@ -98,15 +98,15 @@ rest of this README after this table and nothing will be a surprise.
 
 | Term | In plain English |
 |---|---|
-| **board** | The round's task list. "Green" means every task is done. The deny hook reads this. |
+| **board** | The round's task list. "Green" means every task is done. GATE L2's hook reads this before an evaluation and warns if it is not green. |
 | **round** | One build → evaluate cycle. A FAIL verdict starts round *r+1*. |
 | **T0** | The smoke test a scope must pass before it counts as built: its fixtures + a DB probe + the seesaw. Writes an artifact to disk that the evaluator must cite. |
 | **seesaw** | The part of T0 that re-runs *other* scopes' fixtures — so a regression is never mistaken for progress. |
-| **substrate** | The exact list of files one scope is allowed to write. A hook blocks anything outside it. |
+| **substrate** | The exact list of files one dispatch is allowed to write, stamped into its work order. A hook blocks anything outside it — and anything the order marks frozen. |
 | **scope contract** | The file defining one vertical slice: its substrate, its fixtures, its affordances. |
 | **affordance** | The thing a user can actually click, type or call. UI is graded on affordances, not on looks. |
 | **hill / hill phase** | How much of a scope is still *unknown* versus merely *unfinished*. Derived from T0 facts — never self-reported. |
-| **gate (L0–L4)** | A numbered checkpoint in a run. Most pause for you; GATE L2 is the one enforced by a hook. |
+| **gate (L0–L4)** | A numbered checkpoint in a run. Most pause for you; GATE L2 is the one a hook observes and reports on. |
 | **covers-closure** | Every requirement clause has at least one task claiming to cover it. Nothing silently drops. |
 | **wiring reachability** | Every engine has a call site reachable from the app's real entry point. Catches "built, but never wired up". |
 | **discovery ledger** | The one file everything found mid-run gets written to, so nothing is lost between rounds. |
@@ -162,12 +162,11 @@ every arm is skipped when its artifact is absent, so older specs are unaffected.
 | Intake (GATE L0) | `translator` | — | Normalizes non-English intake (pitch/PRD/transcript) to faithful English before planning. The harness is English-only downstream. |
 | Orient (7) | `orient` | — | Builder-led recon: reads the code, spikes the single riskiest area, emits a code-surface map, spike findings, discovered-task seed, and a hill signal. Writes no production code. |
 | Wire (GATE L1a.5) | `solution-architect` | v1.1 | Sole writer of the committed wiring map (`wiring-map.md`): per-UC engine → integration seam → entry-point call site → player-visible affordance, resolved against `project-profile.md`. Front-loads the integration seam so no engine ships orphaned; the reachability input `trace-lint.mjs` checks. Operation: wire. |
-| Map Scopes (8) | `ba-pitch-analyzer` | v4.0 | The spec-analyzer (pure worker). Decomposes a pitch into a linked DDD document tree (domain model → use cases → tasks) with BDD scenarios, a UC system flow, and a derived `## Test Surface`. One craft, five order-selected operations (analyze / generate-board / reconcile / retrofit-surface / coverage — the last writes the shared `requirements.md` registry for covers-closure); graph math + audits delegated to `board-derive.mjs`/`spec-lint.mjs`. |
-| Map Scopes (8) | `scope-architect` | v1.0 | Sole writer of committed, write-whitelisted scope contracts (`scopes/*.md`): import-graph slicing by flow, substrates, affordance manifests, fixtures. Operations: map-scopes / remap / split-scope. |
+| Map Scopes (8) | `ba-pitch-analyzer` | v4.0 | The spec-analyzer (pure worker). Decomposes a pitch into a linked DDD document tree (domain model → use cases → tasks) with BDD scenarios, a UC system flow, and a derived `## Test Surface`. One craft, four order-selected operations (analyze / reconcile / retrofit-surface / coverage — the last writes the shared `requirements.md` registry for covers-closure); graph math + audits delegated to `board-derive.mjs`/`spec-lint.mjs`. |
+| Map Scopes (8) | `scope-architect` | v1.0 | Sole writer of committed, write-whitelisted scope contracts (`scopes/*.md`): import-graph slicing by flow, substrates, affordance manifests, fixtures. Operation: map-scopes. |
 | Build (9) | `task-executor` | v2.0 | Pure worker: work order in → code out. Assumption scan, minimum-code/surgical-change discipline, Layer 1/2/3 UI rules, substrate-sandboxed, zero-memory. Never writes boards/ledgers/run-state. |
 | Evaluate (GATE L3) | `spec-evaluator` | v1.0 | The single judge (pure worker). Verifies spec-conformance, TDD surface, and integration against the running app — skeptical, files `file:line` bugs, runs exactly once per build round. Requires a T0 artifact citation, grades UI affordance-only; verdict + refuted boxes return as data. |
 | QA (post-PASS) | `qa-edge-hunter` | v1.1 | Exploratory edge hunt on the running app through six fixed lenses, charting edges *outside* what the evaluator probed. Findings go to the ledger as `~`; never blocks ship. |
-| Advisor (mid-build) | `advisor-protocol` | v0.1 | Adjudicates a worker's structured `ESCALATE` (design decision / spec ambiguity / substrate expansion) within a per-scope-per-round budget; persists answers to the committed round ledger so they survive a zero-memory reset. |
 | Stop (11) | `scope-hammer` | v0.1 | GATE H: must-have census → baseline comparison (never vs. the ideal) → cut list + ship verdict. Handles the normal stop and both circuit-breaker triggers. |
 | Retro (post-L4) | `coach` | — | RLHF for the harness: turns raw PO/TL feedback at Ship Sign-off into per-skill guidelines under committed `shapeup/knowledge-base/<skill>.md`, read back by `task-executor` / `ba-pitch-analyzer` / `qa-edge-hunter` on their next run. GATE COACH-1 asks the PO which skill owns each rule — never assumes; mechanism defects are filed to the harness-defect register instead. |
 | Orchestrator | `tech-lead` | v1.0 | Owns the run end-to-end: PLAN once → BUILD all tasks → EVAL once per round, looping on FAIL. Three-level circuit breaker (rounds / T0 attempts / wall clock), T0/seesaw-verified build rounds, mechanical hill derivation. Sole writer of run-state. |
@@ -201,8 +200,10 @@ What each one reads and what it can deny:
   cold `startup` it leads with the stronger sentence — *a run is already open; resume it, do not
   re-open it* — because that is the failure a fresh session actually makes. Silent when no run is
   in flight, which is the ordinary case.
-- `PreToolUse` (matcher `Skill`) — **`hooks/gate-l2.mjs` hard-blocks the once-per-round EVAL
-  delegation while the task board isn't fully green.** This is the gate in the demo above.
+- `PreToolUse` (matcher `Skill`) — **`hooks/gate-l2.mjs` warns when the once-per-round EVAL
+  delegation runs over an unfinished task board**, naming the offending tasks and recording a
+  `warn` row. Advisory since ADR-0001 — the board is per-machine and the operator asked for the
+  call. This is the gate in the demo above.
 - `PreToolUse` (matcher `Skill`) — **`hooks/gate-intake.mjs` denies a `tech-lead` dispatch that
   carries no pitch, no spec folder, and no requirement text.** Measured on the SDD harness
   benchmark: when the requirement text was dropped on the hand-off and only a flag survived, the
@@ -211,7 +212,7 @@ What each one reads and what it can deny:
   instead of narrating.
 - `PreToolUse` (matcher `Skill`) — **`hooks/gate-deadline.mjs` denies a `task-executor` dispatch
   once the run's opt-in wall-clock budget is spent**, routing to GATE H instead. `spec-evaluator`,
-  `scope-hammer`, `qa-edge-hunter` and `advisor-protocol` stay reachable — a run past its deadline
+  `scope-hammer` and `qa-edge-hunter` stay reachable — a run past its deadline
   must still be able to judge, hammer and close. Off unless a budget is configured.
 - `PreToolUse` (matcher `Bash|Read|Write|Edit|MultiEdit`) — `hooks/safety-spine.mjs` denies
   destructive commands (`rm -rf` on unrecoverable targets, force-push/push-to-main,
@@ -287,7 +288,9 @@ Stated plainly, because you will hit them:
   family — the committed contract format failing silent.
 - **Only half the trigger-eval story is measured.** Skill *discrimination* is:
   **0 false activations across 75 cross-skill hard negatives** (Haiku 4.5, 2026-07-26 — the
-  thirteen descriptions do not steal each other's work). *Activation* rate is measured but
+  skill descriptions do not steal each other's work). That run predates the removal of
+  `advisor-protocol`; the current dataset is 134 cases across 12 skills (67 / 67), and the rate
+  above stands until a re-measurement replaces it. *Activation* rate is measured but
   confounded and deliberately not quoted as a headline: 38 of 74 positive cases point at a
   referent ("coach **this feedback**") the probe never supplies, so a model that names the right
   skill and asks for the missing input scores as a miss. Method, per-skill numbers, and the fix

@@ -50,7 +50,7 @@ time is worth, not something a skill should touch.
 | Kick-off | **L0** Intake & Config | Language check (`/translator`), workspace roots, model/budget matrix |
 | Orient | **L1a** Orient Review | delegate → `/orient` (Scout reads real code before any board exists) |
 | Wire ✚ | **L1a.5** Wiring Review | delegate → `/solution-architect` — commits `wiring-map.md` (per-UC engine → seam → entry-point call site → affordance against `project-profile.md`), front-loading the integration seam so no engine ships orphaned |
-| Map Scopes | **L1b** Board Review | delegate → `/ba-pitch-analyzer` (spec tree + board; the `coverage` op writes the `requirements.md` registry ✚) then `/scope-architect` (scope contracts) |
+| Map Scopes | **L1b** Board Review | delegate → `/ba-pitch-analyzer` (`analyze`: spec tree + board; the `coverage` op writes the `requirements.md` registry ✚) then `/scope-architect` (`map-scopes`: scope contracts) |
 | Build Vertically | **L2** Board 100% + T0-green | per dispatch: compile-order → `/task-executor` → ingest-result, sandboxed per scope |
 | Eval (once/round) | **L3** Verdict | delegate → `/spec-evaluator`; refuted boxes applied by ingest |
 | Fix round r+1 | — | bugs + full Test Surface of the touched use case, never the whole board |

@@ -47,8 +47,8 @@ write to even if it wanted to.
 
 | Field | Purpose |
 |---|---|
-| `worker` | One of 11 enumerated skills — the order names its own destination |
-| `operation` | Replaces ad-hoc flags (`--tasks-only`, `--remap` …) — the caller knows the pipeline position, the worker never re-derives it |
+| `worker` | One of 10 enumerated worker skills — the order names its own destination |
+| `operation` | Replaces ad-hoc flags (`--tasks-only`, `--from-discovered` …) — the caller knows the pipeline position, the worker never re-derives it |
 | `substrate` | The write contract for this order — data the sandbox hook enforces, not prose asking the worker to behave |
 | `payload` | Worker-specific inputs: scope contract, tasks, prior decisions, digested errors, KB rules path |
 
@@ -57,7 +57,6 @@ write to even if it wanted to.
 | Field | Purpose |
 |---|---|
 | `task_results[]` | Per-task status + AC pass/fail + evidence — `ingest-result` flips the board row from this alone |
-| `escalates[]` | The worker's one outward port for a decision it can't make alone — routed to `advisor-protocol` |
 | `discoveries[]` | Raw discovered lines — appended to the discovery ledger by ingest, never by the worker |
 | `verdict` | `spec-evaluator` only — overall PASS/FAIL, per-criterion results, refuted AC boxes, T0 citation hashes |
 
@@ -69,7 +68,7 @@ routing key**: `compile-order` resolves the owning worker from the operation alo
 `OP_OWNER` map, mirroring `domain.schema.json`'s `$defs/Operation` ownership), so a dispatch
 never carries a redundant `--worker`, and each operation stamps a fixed `substrate` write
 contract (from `substrateFor`) that the sandbox hook then enforces. One compiled order therefore
-*is* the dataflow across the skill set — the 20 operations fan out to the 11 worker skills by
+*is* the dataflow across the skill set — the 15 operations fan out to the 10 worker skills by
 pipeline stage:
 
 ```mermaid
@@ -77,13 +76,12 @@ graph LR
     CO["compile-order.mjs<br/>operation → worker + substrate"]
     CO --> ORI["orient<br/>(orient)"]
     CO --> SA["solution-architect<br/>(wire)"]
-    CO --> BA["ba-pitch-analyzer<br/>(analyze · generate-board ·<br/>reconcile · retrofit-surface · coverage)"]
-    CO --> SC["scope-architect<br/>(map-scopes · remap · split-scope)"]
+    CO --> BA["ba-pitch-analyzer<br/>(analyze · reconcile ·<br/>retrofit-surface · coverage)"]
+    CO --> SC["scope-architect<br/>(map-scopes)"]
     CO --> TE["task-executor<br/>(execute · fix · spike)"]
     CO --> SE["spec-evaluator<br/>(evaluate)"]
-    CO --> QA["qa-edge-hunter<br/>(hunt · recheck)"]
+    CO --> QA["qa-edge-hunter<br/>(hunt)"]
     CO --> SH["scope-hammer<br/>(hammer)"]
-    CO --> AD["advisor-protocol<br/>(adjudicate)"]
     CO --> TR["translator<br/>(translate)"]
     CO --> CH["coach<br/>(coach)"]
     ORI --> IR["ingest-result.mjs<br/>(single writer)"]
@@ -94,7 +92,6 @@ graph LR
     SE --> IR
     QA --> IR
     SH --> IR
-    AD --> IR
     TR --> IR
     CH --> IR
 ```
@@ -102,46 +99,64 @@ graph LR
 | Pipeline stage | Operation(s) | Worker skill | Order's `substrate.allowed` (write target) |
 |---|---|---|---|
 | Orient | `orient` | `orient` | `<local>/orient/**` |
-| Wire (spine ✚) | `wire` | `solution-architect` | `docs/…/<slug>/wiring-map.md` |
-| Map scopes | `analyze` | `ba-pitch-analyzer` | `<spec>/**` + `<local>/**` |
-| | `map-scopes`, `remap`, `split-scope` | `scope-architect` | `<slug>/scopes/*.md` + `scope-board.md` |
-| Coverage (spine ✚) | `coverage` | `ba-pitch-analyzer` | `docs/…/<slug>/requirements.md` |
-| Board upkeep | `generate-board`, `reconcile`, `retrofit-surface` | `ba-pitch-analyzer` | `<local>/tasks/**` (+ append-only UC Invariants / Test Surface) |
+| Analyze | `analyze` | `ba-pitch-analyzer` | `<spec>/**` + `<local>/**` |
+| Wire (spine ✚) | `wire` | `solution-architect` | `<shared>/<slug>/wiring-map.md` |
+| Map scopes | `map-scopes` | `scope-architect` | `<shared>/<slug>/scopes/*.md` + `scope-board.md` |
+| Board upkeep | `reconcile` | `ba-pitch-analyzer` | `<local>/tasks/**` + `<spec>/scope-summary.md` + `<local>/working/**` (append-only: UC Invariants / Test Surface) |
+| | `retrofit-surface` | `ba-pitch-analyzer` | *(nothing)* — append-only to `<spec>/usecases/*.md#Test Surface` |
+| Coverage (spine ✚) | `coverage` | `ba-pitch-analyzer` | `<shared>/<slug>/requirements.md` |
 | Build | `execute`, `fix`, `spike` | `task-executor` | the scope's own `allowed_file_substrate` + `<local>/spikes/**` |
 | Evaluate | `evaluate` | `spec-evaluator` | `<local>/evaluation/**` |
-| QA hunt | `hunt`, `recheck` | `qa-edge-hunter` | `<local>/qa/**` |
-| Ship / triage | `hammer` | `scope-hammer` | `<local>/**` (run-trace default) |
-| Escalation | `adjudicate` | `advisor-protocol` | `<local>/**` (its answer lands in the committed round-ledger via ingest) |
-| Intake | `translate` | `translator` | `<local>/**` (writes the faithful `.en.md` copies) |
-| Retro | `coach` | `coach` | `<local>/**` (its rules land in the committed knowledge-base via ingest) |
+| QA hunt | `hunt` | `qa-edge-hunter` | `<local>/qa/**` |
+| Ship / triage | `hammer` | `scope-hammer` | `<shared>/<slug>/REPORT.md` + `<local>/reports/**` |
+| Intake | `translate` | `translator` | `<shared>/<slug>/shaping/*.md` + `glossary.md` |
+| Retro | `coach` | `coach` | `<shared>/knowledge-base/*.md` |
+
+Every case also stamps `frozen` (and, where relevant, `append_only`) — the spec core
+(`domain-model.md`, use-case `#Steps`, `contracts/**`, `ux-behavior.md`) is frozen for every
+operation that is not `analyze`, so board upkeep can add a Test Surface row but can never rewrite
+the contract it is graded against.
 
 Two consequences fall out of routing *in the order* rather than in each skill: **(1)** adding a
 worker is adding an operation, its `OP_OWNER` entry, and its `substrateFor` case — the
 orchestrator owns the vocabulary and workers never re-derive their own pipeline position; and
 **(2)** because the write contract travels inside the order, one `sandbox-guard.mjs` hook fences
-every skill's writes with zero per-skill code. The return leg is uniform too: whatever any of the
-11 workers produces comes back as a `WorkResult`, and `ingest-result.mjs` is the sole writer that
-lands it into shared state (§3.1).
+every skill's writes with zero per-skill code — it reads the *order's* substrate block directly
+(§3.2). The return leg is uniform too: whatever any of the 10 workers produces comes back as a
+`WorkResult`, and `ingest-result.mjs` is the sole writer that lands it into shared state (§3.1) —
+except for the three operations whose product IS a committed design document (`wire`,
+`map-scopes`, `coverage`), which write it directly under the substrate the hook enforces.
 
 ## 3.2 — Runtime-enforced guardrails (hooks)
 
-Five `PreToolUse` hooks turn the harness's load-bearing rules from things the model is asked
-to respect into things it cannot get past:
+Six `PreToolUse` hooks turn the harness's load-bearing rules from things the model is asked
+to respect into things it cannot get past — five that deny, and one (GATE L2) that observes and
+warns:
 
 | Hook | Fires on | Enforces |
 |---|---|---|
 | `safety-spine.mjs` | `Bash` / `Read` / `Edit` / `Write` / `MultiEdit` | Denies the provably destructive operations no session ever legitimately needs: `rm -rf` on unrecoverable targets, force-push and push-to-main, `git reset --hard`, `DROP TABLE`/`TRUNCATE`, and secret-file reads (`.env`, `*.pem`, ssh keys, cloud credentials) via shell readers or the `Read` tool. Unlike the other three, it guards the **machine**, not the pipeline. The only escape hatch is the human-authored `.shapeup/safety-overrides.json` (schema: `SafetyOverrides`) — mechanically self-protected, and every exercised override is logged to the metrics shard as a `SAFETY-OVERRIDE` pathology row. |
-| `gate-l2.mjs` | `Skill → spec-evaluator` (round mode) | Denies the once-per-round EVAL unless every task on the board reads `done` — reading both task frontmatter and the board table independently, and naming the unfinished tasks in the denial. |
-| `gate-intake.mjs` | `Skill → tech-lead` | Denies an orchestrator dispatch with no resolvable intake — no `--pitch`, no `--spec`, no `--from` resume, and no free requirement text. Closes the harness's own front door: measured on `sdd-harness-bench` (F2 / Haiku 4.5, n=5, zero variance), a `tech-lead` reached as `args:"--unattended"` lost the requirement text on the hand-off, printed eleven gate names and a plan, wrote no code, and scored 29% while reading as a successful run — the same "claims done" pathology the harness exists to prevent, at its own entry point. Fails open on `--order` (the envelope port owns that path) and on any ambiguous arg shape. |
-| `gate-deadline.mjs` | `Skill → task-executor` | Denies a dispatch that would start new build work once the run's opt-in `wall_clock_budget_s` is spent, routing to GATE H instead. **Deliberately does not deny `spec-evaluator`, `scope-hammer`, `qa-edge-hunter` or `advisor-protocol`** — a run past its deadline must still be able to judge, hammer and close, and a breaker that blocked the exit would strand green scopes it could not ship. It exists because the benchmark's F3 DNF turned out not to be a stall at all: the retained transcript shows 327 turns, 262 tool calls, 37 writes, last gate L3 and **zero** stall signals. The harness was working when the clock ran out, and both existing breakers count *events* (rounds, T0 attempts) so neither could see it. Off unless a budget is configured. |
+| `gate-l2.mjs` | `Skill → spec-evaluator` (round mode) | **Advisory since ADR-0001 — the one hook here that never denies.** It still detects the same thing by the same two independent reads (per-task frontmatter *and* the board table), names the unfinished tasks, and permits the call, emitting a `systemMessage` and recording a `warn` row in `decisions.jsonl` so "permitted because green" and "permitted despite not green" never collapse into one fact. The board is local and per-machine, so this gate never protected a team boundary — it protected the operator from their own agent, at the cost of denying a call the operator had asked for. The project chose the signal over the denial. Stated plainly: nothing now mechanically prevents an EVAL on a half-green board. |
+| `gate-intake.mjs` | `Skill → tech-lead` | Denies an orchestrator dispatch with no resolvable intake — no `--pitch`, no `--spec`, no `--from` resume, and no free requirement text. Closes the harness's own front door: a `tech-lead` reached as `args:"--unattended"` loses the requirement text on the hand-off and, with nothing to orchestrate, prints the gate names and a confident plan while writing no code — the same "claims done" pathology the harness exists to prevent, at its own entry point. Fails open on `--order` (the envelope port owns that path) and on any ambiguous arg shape. |
+| `gate-deadline.mjs` | `Skill → task-executor` | Denies a dispatch that would start new build work once the run's opt-in `wall_clock_budget_s` is spent, routing to GATE H instead. **Deliberately does not deny `spec-evaluator`, `scope-hammer` or `qa-edge-hunter`** — a run past its deadline must still be able to judge, hammer and close, and a breaker that blocked the exit would strand green scopes it could not ship. It exists because the other two breakers count *events* (rounds, T0 attempts), so neither can observe that a single round has been running for half an hour; an externally killed run ships nothing, including the scopes already green. Off unless a budget is configured. |
 | `validate-envelope.mjs` | `Skill` / `Agent` | Denies any worker dispatch whose `--order` file is missing or fails the WorkOrder schema — a malformed envelope never reaches a worker. |
-| `sandbox-guard.mjs` | `Edit` / `Write` / `MultiEdit` | Denies a write outside the active scope's `allowed_file_substrate`, with a carve-out for the scope's own local run-trace root so it can still update its own board. |
+| `sandbox-guard.mjs` | `Edit` / `Write` / `MultiEdit` | Denies a write that the **active order's own `substrate` block** does not permit. It follows the `.shapeup/active-order` pointer (written before each worker dispatch) to the compiled WorkOrder and enforces all three surfaces: `allowed` + `shared` permit, `append_only` permits `Edit` but denies `Write` (which would overwrite), and `frozen` denies outright and takes precedence over everything. Carve-out: the active feature's own local run-trace root, so a worker can still update its own board. |
 
-All five are deliberately **fail-open** when there's nothing to verify (no active scope, no
-board, no configured budget, unparseable input) and **fail-closed** the instant they can prove a violation — a guard
-that broke legitimate standalone runs would just get disabled, defeating the point of having it.
-(The safety spine adds one asymmetry: a *malformed overrides file* fails **closed** — treated
-as absent — because a parse error must never disable the spine.)
+All six are deliberately **fail-open** when there's nothing to verify (no active order, no
+board, no configured budget, unparseable input) and — for the five that deny — **fail-closed** the
+instant they can prove a violation. A guard that broke legitimate standalone runs would just get
+disabled, defeating the point of having it. (The safety spine adds one asymmetry: a *malformed
+overrides file* fails **closed** — treated as absent — because a parse error must never disable
+the spine.)
+
+> **Why the sandbox reads the order, not the scope contract.** It used to resolve
+> `.shapeup/active-scope` → `scopes/<id>.md` and enforce that contract's
+> `allowed_file_substrate`. That covered exactly one operation — the build — because only build
+> orders carry a scope. Every other dispatch (`analyze`, `wire`, `evaluate`, `hunt`, `coach` …)
+> is compiled with a substrate by `substrateFor` (§3.1b) and then ran unfenced, and the
+> `frozen`/`append_only` surfaces that table stamps had no enforcer at all. Reading the order
+> makes the write contract the compiler already emits the same one the hook enforces, for every
+> operation, with no per-operation code.
 
 ## 3.2b — The zero-work block (Stop, blocking)
 
@@ -335,17 +350,55 @@ without the per-attempt churn.
 
 ```mermaid
 graph TD
-    SRC["Single source of truth\nskills/ · commands/ · hooks/"]
+    SRC["Single source of truth\nskills/ · commands/ · hooks/ · oracles/"]
     SRC --> CC["Claude Code plugin\n(native — .claude-plugin/plugin.json)"]
-    CC -.->|install-harness.sh| PROJ1["Target repo\n.claude/settings.json"]
+    CC -.->|"npx shapeup-sdlc init<br/>(or scripts/install-harness.sh)"| PROJ1["Target repo\n.claude/settings.json"]
 ```
 
 Claude Code is the only delivery target — hooks are a per-CLI mechanism, and without them the
 gates degrade from enforced to instructed, which is the property the harness exists to provide.
-`install-harness.sh` scaffolds a target project by wiring the plugin via settings.
-`migrate.sh` upgrades an existing install the
-same way a database migration tool does — update code, then apply any pending, idempotent
-`NNNN__*.sh` data migration exactly once, recorded in a committed ledger.
+
+Scaffolding a target project has two entry points that do the same job. `npx shapeup-sdlc init`
+(`bin/init.mjs`) is pure Node and works on Windows; `scripts/install-harness.sh` is the bash
+equivalent and the published `curl` URL. Both wire the plugin via `.claude/settings.json` and
+write the **permission grant** the pipeline needs: the harness's scripts ship *with the plugin*
+and therefore live outside the user's project, so running them needs approval that a headless
+session has nobody to give. `migrate.sh` upgrades an existing install the way a database
+migration tool does — update code, then apply any pending, idempotent `NNNN__*.sh` data
+migration exactly once, recorded in a committed ledger. Both shell paths are a frozen URL
+contract (`scripts/FROZEN.md`): they may never be renamed or moved.
+
+## 3.5 — The run itself: one workflow launch, not a turn-by-turn drive
+
+Everything above describes a single dispatch. The **run** that strings them together is not the
+orchestrator narrating steps in the conversation — it is one background script launch that owns
+the whole pipeline:
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/run-workflow.mjs" \
+  "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js" \
+  --args-file .shapeup/<slug>/run-args.json --run-dir .shapeup/<slug>/workflow-run
+```
+
+`tech-lead` holds the GATE L0 intake conversation, writes `project-profile.md`, compiles one
+`RunArgs` record (`domain.schema.json#/$defs/RunArgs`) — and hands over. ORIENT → L1a → ANALYZE →
+WIRE → L1a.5 → MAP SCOPES → L1b → rounds of BUILD/L2/EVAL → QA → GATE H all run inside
+`shapeup-run.js`. Three properties follow, and they are the reason the run is shaped this way:
+
+| Property | Mechanism |
+|---|---|
+| **A gate pause is a return value, not a stop.** | The launch returns `{status: "paused", paused_at, block}`. The orchestrator emits `block` verbatim, gets the PO's decision, writes it to `.shapeup/<slug>/gate-answers.json`, and **relaunches the same call with the same args**. |
+| **A killed session loses nothing.** | `resume-state.mjs` derives the resume point from **artifacts on disk**, never from stored status or conversation memory — every phase predicate is an artifact test. `shapeup-run.js` fast-forwards past finished phases on every launch, fresh or resumed. The same table answers `--require <phase>`, the post-condition checked after each dispatch, so *resume* and *completion* are one predicate by construction. |
+| **The launch surface is one an install already grants.** | `run-workflow.mjs` is a plain Node script under `skills/tech-lead/scripts/`, covered by the same permission prefix the installer writes. The `Workflow` tool is deliberately **not** the launch path: that call needs an interactive confirmation, so it is denied in every headless session and no permission string can grant it. |
+
+`RunArgs` is compiled **once** and passed as a single JSON literal: the workflow cannot ask
+follow-up questions and cannot read config files itself, so everything a run will ever need
+travels in that one record.
+
+**The lane boundary.** `shapeup-run.js` targets specs with committed `scopes/*.md`. A `--tiny`
+run, or any spec with no scope contracts yet, takes the unchanged prose loop in
+`skills/tech-lead/references/round-protocol.md` — non-regression, by design, and the reason that
+file still carries the full step-by-step.
 
 ---
 [← High-Level Design](02-high-level-design.md) · [Back to index](README.md) · [Next: Functional Design →](04-functional-design.md)
