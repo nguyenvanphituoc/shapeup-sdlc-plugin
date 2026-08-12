@@ -420,13 +420,23 @@ is the **ship gate of the cutover** — Stage 3 does not begin until both lane t
    Haiku rows in `results/runs.jsonl` are context, never the baseline: a cross-model comparison
    is the mislabelling class the Day-2 review documents. Label build id and model on every row
    (no number without its build).
-   ⟐ **Rev B — BLOCKED ON THIS MACHINE. Do not attempt; do not substitute.**
-   `node .plan-runs/day2-rev5/s3-feasibility.mjs` → **C1 NO** (`/Users/teo/workspace/sdd-harness-bench`
+   ~~⟐ **Rev B — BLOCKED ON THIS MACHINE. Do not attempt; do not substitute.**~~
+   ~~`node .plan-runs/day2-rev5/s3-feasibility.mjs` → **C1 NO** (`/Users/teo/workspace/sdd-harness-bench`
    absent), **C2 NO** (no `*harness-bench*` directory or archive under `/Users` or `/Volumes`),
    **C3 NO**. Commit `8fe70bc` records the last two search axes closed: npm 404, global GitHub
-   0 results. **Rebuilding a lookalike benchmark is forbidden** — it produces a different instrument
+   0 results.~~ **Rebuilding a lookalike benchmark is forbidden** — it produces a different instrument
    whose numbers look comparable and are not, which is the pooling error the day2 review exists to
-   refuse. Proceed per §6's fork; `s3-feasibility.mjs` exiting 0 is the trigger that reopens this step.
+   refuse. *(That guardrail stands and is now moot in the good way: no rebuild is needed.)*
+   ⟐ **Rev F — 2026-08-12, Stage C. The strike-through above is REFUTED, and this is the second
+   document in which it had to be struck.** Re-derived by running it: **C1 yes · C2 yes** —
+   `sdd-harness-bench` is present at `/Users/teo/workspace/sdd-harness-bench`, git HEAD `14e4479`.
+   The script still exits 4 on **C3 only**, and C3 asks about the **day-2 plan's** pre-fix build
+   `a280e86`, not about A7's arms — both of which are modern builds carrying the machinery C3
+   reports missing. The `exit 0` trigger this line names is therefore **the wrong trigger**: it can
+   never fire, because C3 is permanently NO for a reason that has nothing to do with A7. Waiting for
+   it is waiting forever. **A7 is obtainable here and unstarted**; the only thing gating it is the
+   PO's spend decision at §6's Stage C. See the ⟐ A7 correction banner at the head of this file,
+   which said this on 2026-08-11 while this paragraph went on saying the opposite.
 6. Fresh-clone `npm test` (A6), then merge `feat/workflow-orchestrator` → `main` as the cutover
    release; `git worktree remove` after the tag. ⟐ Rev B: there is no worktree to remove.
 
@@ -468,17 +478,27 @@ Freeze the branch here. No further unrelated merges.
 
 ### Stage C — the fork · PO decision
 
-| | **C1 — ship on the absolute bar, defer the comparative** | **C2 — hold the merge for the bench machine** |
-|---|---|---|
-| Cost now | $0 | $40–60 + a machine, at an unknown date |
-| Given up | The §7 falsifier. The one cost number in hand (**candidate $2.010 vs control $1.461, +37.6%**, `stage1-evidence.md`) stays unrefuted at scale | Time; the branch keeps absorbing unrelated work, as it already has |
-| Required | `stage3-evidence.md` records "A7 not run — instrument unobtainable, C1/C2/C3 NO at 2026-08-10" | — |
-| Precedent | day2's S3 took exactly this posture on this same blocker (`RESUME.md`: *"No number was invented in the meantime"*) and it held | — |
+⟐ **Rev F, 2026-08-12 — this table's C2 column named a machine that turned out to be this one.**
+The columns are restated below; the original two cells that rested on unobtainability are struck
+rather than deleted, because the reversal is the point.
 
-**Recommended: C1 — conditional on Stage A.2 actually being run.** A7 answered *"does this pay for
-itself"*; the kill/resume probe answers *"does it do the thing it was built for."* Deferring the
-first while skipping the second rests the cutover on two unrun tests with the only measured cost
-number pointing the wrong way. One deferral is a judgement call; two is a hope.
+| | **C1 — ship on the absolute bar, defer the comparative** | **C2 — ~~hold the merge for the bench machine~~ run A7 here, now** |
+|---|---|---|
+| Cost now | $0 | ~~$40–60 + a machine, at an unknown date~~ → **~$40–60 of tokens, on this machine, today** |
+| Given up | The §7 falsifier. The one cost number in hand (**candidate $2.010 vs control $1.461, +37.6%**, `stage1-evidence.md`) stays unrefuted at scale — **and is now declined rather than unavailable** | Hours of wall clock; the branch stays unmerged that much longer |
+| Required | ~~`stage3-evidence.md` records "A7 not run — instrument unobtainable, C1/C2/C3 NO at 2026-08-10"~~ **that sentence is now false and must not be written.** A deferral records the re-derivation (C1 yes / C2 yes / C3 not-about-A7) and the real reason: a spend decision | `A7: PASS`/`FAIL` with both arms' run logs by commit and path — enforced by R12 as repaired at this stage |
+| Precedent | day2's S3 took exactly this posture on this same blocker (`RESUME.md`: *"No number was invented in the meantime"*) and it held — **but it held while the instrument was genuinely gone** | — |
+
+**Recommended as compiled: C1 — conditional on Stage A.2 actually being run.** A7 answered *"does
+this pay for itself"*; the kill/resume probe answers *"does it do the thing it was built for."*
+Deferring the first while skipping the second rests the cutover on two unrun tests with the only
+measured cost number pointing the wrong way. One deferral is a judgement call; two is a hope.
+
+⟐ **Rev F:** that condition is now **met** — A3's probe passes, so C1 no longer rests on two unrun
+tests. But C1's other premise is gone: deferring A7 used to cost nothing obtainable, and now it
+costs a measurement that is sitting on disk waiting to be run. Both arms are defensible; the choice
+is the PO's and is no longer a formality. Full restatement: `docs/migration/remaining-stages-plan.md`
+§Stage C.
 
 ### Deliberately out of scope — record, do not fix
 

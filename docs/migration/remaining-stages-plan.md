@@ -71,7 +71,7 @@ would satisfy. A row that cannot fail is worse than no row.
 | **R9** | Both commands instruct the Workflow launch | `grep -qi workflow commands/build.md` **and** `commands/ship.md` |
 | **R10** | `shapeup-build-round.js` is resolved — deleted, or documented as a live second entry point | XOR: `! test -f skills/tech-lead/workflows/shapeup-build-round.js` **or** `grep -q 'shapeup-build-round' skills/tech-lead/SKILL.md` |
 | **R11** | A6 — `npm test` green in a fresh `git clone --local` at the final commit | clone transcript with its check count pasted into `stage3-evidence.md` |
-| **R12** | A7's disposition is recorded as a finding, and "passed" is unreachable | `grep -qE '^A7: (DEFERRED\|PASS\|FAIL)' stage3-evidence.md`; if `DEFERRED`, `grep -q 's3-feasibility'` for the blocker citation |
+| **R12** | A7's disposition is recorded as a finding, and **no disposition is reachable by claiming it** | `grep -qE '^A7: (DEFERRED\|PASS\|FAIL)' stage3-evidence.md`; if `DEFERRED`, `grep -q 's3-feasibility'` for the feasibility citation; ⟐ if `PASS` or `FAIL`, **both** `grep -qE '^arm-candidate: .+ @ [0-9a-f]{7,}'` **and** `grep -qE '^arm-control: .+ @ [0-9a-f]{7,}'` — each arm names its run log by path and pins its build by commit |
 
 **Ship gate:** R1–R6 must all be green before Stage B starts. That is S2's ship gate, restated —
 and it is currently unmet while S3 work has already landed.
@@ -318,20 +318,47 @@ A7 needs `sdd-harness-bench`. Re-derive before deciding — never trust this fil
 node .plan-runs/day2-rev5/s3-feasibility.mjs    # exit 0 = runnable · exit 3 = blocked, reason named
 ```
 
-At compile time it returns **C1 NO / C2 NO / C3 NO**: the repository is absent from this machine and
+At compile time it returned **C1 NO / C2 NO / C3 NO**: the repository was absent from that machine and
 commit `8fe70bc` records the last search axes closed (npm 404, global GitHub 0 results).
 
-| | **C1 — ship, defer A7** *(recommended)* | **C2 — hold for the bench machine** |
-|---|---|---|
-| Cost now | $0 | $40–60, at an unknown date |
-| Given up | The §7 falsifier. The one cost number in hand — **candidate $2.010 vs control $1.461, +37.6%**, Sonnet-matched (`stage1-evidence.md`) — stays unrefuted at scale | Time; the branch keeps absorbing unrelated work, as it already has |
-| Required | `stage3-evidence.md` line `A7: DEFERRED`, citing the three blocker codes and the date | `A7: PASS` / `FAIL` with both arms' run logs by commit and path |
-| Precedent | day2's S3 took exactly this posture on this same blocker and it held: *"No number was invented in the meantime"* | — |
+> ⟐ **Refuted 2026-08-12 by running it, which is what this section told the reader to do.**
+> **C1 yes · C2 yes · C3 NO.** `sdd-harness-bench` is present at `/Users/teo/workspace/sdd-harness-bench`
+> (git, HEAD `14e4479`). The script still exits 4, but its one failing check is **not about A7**: C3
+> asks whether the *day-2 plan's* pre-fix build `a280e86` carries `gate-answers.mjs` /
+> `budget-check.mjs`, and it does not — that plan's arm is unbuyable on any machine. A7's two arms
+> are both modern builds and are untouched by it.
+>
+> **The consequence for this table: C2's "at an unknown date" is gone, and so is the premise that
+> made C1 nearly free.** The fork is no longer *ship vs. wait for a machine that may never come* —
+> it is **ship vs. spend a few hours here, today, on hardware that is sitting right there.** A
+> deferral is still defensible; it is no longer the only option, and it can no longer be justified
+> by unobtainability. Whoever takes C1 now gives up a measurement they **could** have had.
 
-**Recommendation: C1, conditional on Stage A.2 having actually run.** A7 answered *"does this pay for
-itself"*; the kill/resume probe answers *"does it do the thing it was built for."* Deferring the
-first while skipping the second rests the cutover on two unrun tests with the only measured cost
-number pointing the wrong way. One deferral is a judgement call; two is a hope.
+| | **C1 — ship, defer A7** | **C2 — run A7 now** ⟐ *newly available* |
+|---|---|---|
+| Cost now | $0 | ~$40–60 of tokens, **here, today** — no longer "at an unknown date" |
+| Given up | The §7 falsifier. The one cost number in hand — **candidate $2.010 vs control $1.461, +37.6%**, Sonnet-matched (`stage1-evidence.md`) — stays unrefuted at scale. ⟐ And now: a measurement that was available and was declined | Hours of wall clock; the branch stays unmerged that much longer |
+| Required | `stage3-evidence.md` line `A7: DEFERRED`, citing the feasibility re-derivation and the date — ⟐ **and the honest reason, which is no longer "unobtainable"** | `A7: PASS` / `FAIL` with both arms' run logs by commit and path — ⟐ now enforced by R12, which until this stage accepted a bare `A7: PASS` with no logs at all |
+| Precedent | day2's S3 took this posture on this blocker and it held: *"No number was invented in the meantime"* — ⟐ **but it took it while the instrument was genuinely gone.** That is not this situation | — |
+
+**Recommendation as compiled: C1, conditional on Stage A.2 having actually run.** A7 answered *"does
+this pay for itself"*; the kill/resume probe answers *"does it do the thing it was built for."*
+Deferring the first while skipping the second rests the cutover on two unrun tests with the only
+measured cost number pointing the wrong way. One deferral is a judgement call; two is a hope.
+
+> ⟐ **2026-08-12 — the condition is MET and the recommendation is weaker for it.** A.2's probe ran
+> and A3 made it pass (`kill-resume-probe: PASS`, 4/4 on a live SIGKILL), so C1's precondition is
+> satisfied: this is no longer two unrun tests, it is one. That is the argument *for* C1.
+>
+> **Against it:** C1 was recommended when A7 was believed unobtainable, where deferring costs
+> nothing that could have been had. On this machine it is obtainable, so the deferral now has a
+> real price — and the one measurement in hand, **+37.6% cost on the candidate**, points at the
+> lane this migration is about to make the only lane. Shipping C1 means merging a cutover whose
+> single cost observation is unfavourable and whose scaled check was available and declined.
+>
+> **This is a genuine fork, not a formality, and it is the PO's.** Both arms are honest; they buy
+> different things. The executor's work on this stage — re-derivation, the R12 repair, this table —
+> is done and is arm-independent.
 
 **If A7 ever runs and the candidate scores below control** on acceptance, or above on wall clock:
 the merge waits (plan §5). Note honestly that a **sequential** workflow racing a sequential
