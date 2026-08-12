@@ -48,7 +48,7 @@ Baseline recorded at run start: `npm test` green, **1112 checks**, at commit 78e
 | S0 | test $(grep -c deny docs/migration/stage0-evidence.md) -ge 2 | $CLONE | 0 |  |  | the two quoted decisions.jsonl deny rows (sandbox-guard + validate-envelope) are the proof hooks fire inside workflow subagents |  |
 | S0 | grep -qi sonnet docs/migration/stage0-evidence.md | $CLONE | 0 |  |  | the cost measurement must be on Sonnet (D5 floor) and labelled |  |
 | S1 | npm test | $CLONE | 0 | structural tests passed |  | count must be ≥ 1112 (baseline); new structural checks for workflows are part of this stage |  |
-| S1 | test -f skills/tech-lead/workflows/shapeup-build-round.js | $CLONE | 0 |  |  |  |  |
+| S1 | grep -q 'breaker: "inner"' skills/tech-lead/workflows/shapeup-run.js | $CLONE | 0 |  |  | **replaced 2026-08-12 (Stage B, B.1).** Was `test -f .../shapeup-build-round.js`, which pinned a file Stage B deleted as unreachable. The replacement is deliberately *not* `test -f .../shapeup-run.js` — S2 already carries that row, and a duplicate is a row that cannot independently fail. S1's real subject is the per-scope attempt loop and its inner breaker; after Stage 2 inlined them, this row reads the surviving branch |  |
 | S1 | ! grep -riq haiku skills/tech-lead/workflows/ | $CLONE | 0 |  |  | D5 floor, greppable: no model below sonnet anywhere in workflow scripts |  |
 | S1 | node -e 'const s=require("./skills/tech-lead/schemas/domain.schema.json");process.exit(s["$defs"]&&s["$defs"].RunArgs&&s["$defs"].RunReturn?0:1)' | $CLONE | 0 |  |  | C1 is a cross-boundary record; central-registry rule says it is defined once |  |
 | S1 | grep -q workflows/ tests/structural.mjs | $CLONE | 0 |  |  | proxy: test-#45 discipline extended to the new workflow file; human reviews the check is real, not just present |  |
@@ -122,7 +122,25 @@ revision exists to end.
 > table by design, and that is the separation working — had the rows tracked the gate, three runs of
 > "19/23, nearly there" would have read as progress toward a property nothing had yet demonstrated.
 
-### ⟐ 2026-08-12 — a row Stage B is about to break, named before it does
+### ⟐ 2026-08-12 (later the same day) — Stage B broke it, and here is what replaced it
+
+B.1 ran. `shapeup-build-round.js` is deleted and all four of its assertions moved in the same
+commit — the three the section below names, plus a fourth found by grepping rather than reading:
+`tests/structural/17-gate-zerowork-workflow.mjs:70` used the filename as a synthetic `scriptPath`
+to prove the gate's predicate is `shapeup-*` and not `shapeup-run`. That check never touched the
+filesystem, so deletion would have left it **green while asserting something false about the tree**
+— the exact shape this instrument's own revision exists to catch, and the reason the count of
+places was three at 09:00 and four by noon. Its subject is now an explicitly hypothetical sibling,
+so the width is the claim rather than the filename.
+
+The S1 row above is **not** the `shapeup-run.js` presence assertion the plan proposed. That would
+have duplicated S2's existing row, and two rows reading one `test -f` inflate the count by one
+while adding no way to fail. S1's subject was never "a file exists" — it was *the build round's
+attempt loop and its inner breaker live in a workflow script*. After Stage 2 inlined them, the row
+that reads that work is a grep for the surviving inner-breaker return. Mutation-checked: emptying
+`shapeup-run.js` turns it red.
+
+### ⟐ 2026-08-12 — a row Stage B is about to break, named before it does *(discharged above)*
 
 S1's row `test -f skills/tech-lead/workflows/shapeup-build-round.js` **pins a file Stage B's first
 item recommends deleting** (`remaining-stages-plan.md` §B.1). Delete it alone and a closed, green

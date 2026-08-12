@@ -4,7 +4,11 @@
 // WHY THIS MODULE EXISTS.
 //
 // docs/workflow_migration_plan.md Stage 1 moves the BUILD round's per-scope attempt loop out of
-// SKILL.md prose and into a Workflow script (skills/tech-lead/workflows/shapeup-build-round.js).
+// SKILL.md prose and into a Workflow script. Stage 1 shipped it as its own file; Stage 2 inlined
+// the loop into skills/tech-lead/workflows/shapeup-run.js (that file's banner gives the three
+// reasons), and Stage B deleted the orphan. The directory is expected to hold exactly the scripts
+// SKILL.md launches — check (0) below is what keeps that true.
+//
 // Two invariants that used to be enforced by review now need a mechanical guard of their own,
 // because a Workflow script has no PreToolUse hook watching its own source the way a worker's
 // tool calls do:
@@ -62,10 +66,40 @@ export async function run(ctx) {
   }
   ok(`${WORKFLOWS_DIR}/ exists with ${files.length} workflow script(s)`);
 
-  if (!files.includes("shapeup-build-round.js")) {
-    fail(`${WORKFLOWS_DIR}/shapeup-build-round.js is missing (migration plan Stage 1)`);
+  // --- (0) every workflow script on disk is reachable from the skill that launches it ----------
+  //
+  // THE DEFECT THIS CLOSES, measured. This module used to assert `shapeup-build-round.js` EXISTS.
+  // Nothing asserted it RUNS — and for the whole of Stage 2 it did not: `shapeup-run.js` inlined
+  // the round loop (see its own banner for why), SKILL.md launched only `shapeup-run.js`, and a
+  // 418-line duplicate of the attempt loop sat in this directory reading as shipped code because
+  // a green test named it. A presence assertion over an unreachable file is a row that cannot
+  // fail in the direction that matters, one layer up from the three the acceptance contract's own
+  // revision caught (docs/migration/execution-contract.md, "Instrument revision").
+  //
+  // The invariant is reachability, so that is what this asserts: every `.js` in workflows/ is
+  // named by a `scriptPath:` the skill actually launches. It fails in BOTH directions a divergence
+  // can go — a script nobody launches (Stage B's R10), and a launch naming a script that is not
+  // there (the same class inverted, which is what deleting the wrong file would produce).
+  const SKILL_MD = "skills/tech-lead/SKILL.md";
+  const skillSrc = existsSync(join(ROOT, SKILL_MD)) ? readFileSync(join(ROOT, SKILL_MD), "utf8") : "";
+  const launched = new Set(
+    [...skillSrc.matchAll(/scriptPath:\s*"[^"]*\/workflows\/([\w.-]+\.js)"/g)].map((m) => m[1]),
+  );
+  const unreachable = files.filter((f) => !launched.has(f));
+  const missing = [...launched].filter((f) => !files.includes(f));
+
+  if (launched.size === 0) {
+    fail(`${SKILL_MD} launches no workflow script at all — the Workflow dispatch surface is gone`);
+  } else if (unreachable.length === 0 && missing.length === 0) {
+    ok(`every workflow script is launched by ${SKILL_MD} (${[...launched].join(", ")}) — none is unreachable, none is missing`);
   } else {
-    ok("shapeup-build-round.js is present");
+    if (unreachable.length > 0) {
+      fail(`a workflow script nobody launches — ${SKILL_MD} names no scriptPath for:\n    ${unreachable.join("\n    ")}\n`
+        + "    Resolve it (delete, or document the second entry point in SKILL.md); dead code a green test pins reads as shipped.");
+    }
+    if (missing.length > 0) {
+      fail(`${SKILL_MD} launches a workflow script that is not on disk:\n    ${missing.join("\n    ")}`);
+    }
   }
 
   // --- (a) the D5 model floor: no sub-sonnet tier named anywhere in workflows/ ----------------

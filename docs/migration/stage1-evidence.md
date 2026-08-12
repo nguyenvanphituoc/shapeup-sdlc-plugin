@@ -89,6 +89,45 @@ read from the session's own final result, not estimated).
 
 ## Verify 3 — negative probe: the inner breaker
 
+> ⟐ **Amended 2026-08-12 (Stage B, B.1) — the script this probe ran against no longer exists.**
+> Everything below is the unedited record of a real run, and the file it exercised
+> (`shapeup-build-round.js:380`, the `gate_h` early return) was deleted as unreachable: Stage 2
+> inlined the round loop into `shapeup-run.js` and nothing ever launched the original. So the
+> question this section has to answer changed. It is no longer *"did the breaker work?"* — it did,
+> and the transcript stands — but *"does it work on the script that ships?"*
+>
+> **Where the contract now lives.** `shapeup-run.js:762-774`, re-derived by reading the file rather
+> than trusting this note's own line numbers (the plan's numbers for both scripts had drifted by
+> Stage A2/A3's edits — it cited `:351` and `:593`, which are now a T0 call and the WIRE phase).
+> Two branches, one `if`:
+>
+> | branch | condition | returns |
+> |---|---|---|
+> | proposal carried, round continues | ≥1 scope green alongside the exhausted one | falls through to GATE L2 → EVAL, `hammer_proposals` carried forward |
+> | degenerate short-circuit | `roundGreen.length === 0 && roundHammer.length > 0` | `{status: "gate_h", breaker: "inner", …}` at `:774` |
+>
+> **The first branch is demonstrated live on `shapeup-run.js`, and it is the one the invariant is
+> about.** Stage A3's leg 2 (`.plan-runs/wf-a3-probe/`, `leg-2.out`, `after-resume.json`) drove the
+> production script through ORIENT → ANALYZE → WIRE → MAP SCOPES → BUILD over two rounds. Scope
+> `integration-regression` exhausted its budget in both — three attempts each, every T0 red
+> (`t0/verdicts/r{1,2}-a{1,2,3}-t4.json`, plus six `escalates/` records) — while four sibling scopes
+> went green. It was queued as a hammer proposal and **the round was not blocked**: L2 and EVAL both
+> ran, round 2 followed, and the run ended `{"status":"gate_h","breaker":"outer",`
+> `"hammer_proposals":["integration-regression",…],"green_scopes":[…]}`. That is AGENTS.md's
+> three-level breaker — *"an exhausted scope queues a GATE H proposal, it never blocks the round"* —
+> observed from outside, on the shipped path. It is also precisely the branch this section's closing
+> paragraph named as **not** exercised by the probe below, because the probe deliberately made every
+> scope fail. The two records are complementary halves of one `if`.
+>
+> **The degenerate branch (`:774`) is NOT exercised on `shapeup-run.js`.** Said plainly rather than
+> left to inference. Reaching it live needs a round in which *every* scope is impossible, which
+> means driving the outer script through four phases to BUILD — the cost B.1 named and did not pay.
+> It is guarded, not proven: the acceptance contract's S1 row now greps that exact return
+> (`grep -q 'breaker: "inner"' …/shapeup-run.js`, mutation-checked), so the branch cannot be removed
+> silently. A grep over source is a weaker instrument than a run, and this note is the place that
+> says so. To close it, seed a project whose every scope carries `e2e_verification_fixtures: [false]`
+> and relaunch — `.plan-runs/wf-a3-probe/seed-project.sh` is the rig.
+
 **The probe (hand-authored):** slug `s1probe`, one scope `SC-impossible`
 (`e2e_verification_fixtures: [false]` — a fixture no attempt can ever satisfy), `attemptBudget: 2`.
 

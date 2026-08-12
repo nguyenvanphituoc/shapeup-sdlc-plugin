@@ -65,12 +65,17 @@ export async function run(ctx) {
     fail("a shapeup-run.js Workflow launch is not seen as a dispatch — SKILL.md:12-14 claims it is");
   }
 
-  // The inner script is a launchable entry point in its own right, and the plan's predicate is
-  // `shapeup-`, not `shapeup-run`.
-  if (dispatchedOrchestrator([toolUse("Workflow", { scriptPath: "/plugins/x/workflows/shapeup-build-round.js" })])) {
-    ok("the predicate is shapeup-*, so the build-round script arms the gate too");
+  // The plan's predicate is `shapeup-`, not `shapeup-run`, and the difference is load-bearing: a
+  // future orchestrator script must arm this gate the day it lands, not the day somebody remembers
+  // to widen a regex. The subject used to be `shapeup-build-round.js` — a real second entry point
+  // when this fixture was written, deleted in Stage B once it turned out nothing launched it
+  // (docs/migration/stage3-evidence.md §1). Naming a file that no longer exists would have kept
+  // this check green while quietly asserting something false about the tree, so the subject is now
+  // an explicitly hypothetical sibling: the width is the claim, not the filename.
+  if (dispatchedOrchestrator([toolUse("Workflow", { scriptPath: "/plugins/x/workflows/shapeup-future-lane.js" })])) {
+    ok("the predicate is shapeup-*, so a sibling orchestrator script arms the gate the day it lands");
   } else {
-    fail("shapeup-build-round.js does not arm the gate — the predicate is narrower than shapeup-*");
+    fail("a shapeup-*.js script other than shapeup-run does not arm the gate — the predicate is narrower than shapeup-*");
   }
 
   // A named (saved) workflow is the other launch spelling the runtime accepts.
