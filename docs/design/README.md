@@ -8,7 +8,7 @@ cannot talk past, rather than conventions it is asked to remember.
 |---|---|
 | **Plugin** | `shapeup-sdlc-plugin` |
 | **Version** | 1.0.0 — Pure-Skill Architecture |
-| **Runtime** | Claude Code (+ Cursor, Antigravity, Codex via compiled `dist/`) |
+| **Runtime** | Claude Code |
 | **Author** | Liberty Nguyen |
 
 ## Contents

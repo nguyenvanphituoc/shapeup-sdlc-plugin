@@ -67,7 +67,7 @@ they are documented for [contributors](CONTRIBUTING.md), not for users.
 > **Running unattended?** The plugin install grants no permissions — every pipeline step is a Node
 > script that ships *with* the plugin and therefore lives outside your project, so it needs
 > approval. You click once interactively; headless there is nobody to click. Scaffold instead, which
-> writes the grant along with configs for Antigravity and Codex:
+> writes the grant:
 >
 > ```bash
 > npx shapeup-sdlc init -d . -y
@@ -79,26 +79,17 @@ with real evaluator output, and the fix that turns it green.
 
 <sub>No prerequisites for non-UI work — a browser (`npx playwright install chromium`) is needed
 only when a run actually reaches a `[ui]` acceptance criterion. Team installs, the scaffolding
-installer (Claude Code / Antigravity / Codex), and troubleshooting are in
+installer, and troubleshooting are in
 **[docs/install.md](docs/install.md)**; upgrading is **[docs/upgrading.md](docs/upgrading.md)**.</sub>
 
 ## Agent support
 
-The harness is written once and compiled to other agent CLIs (`npm run distribute` emits
-`dist/`; the [scaffolding installer](docs/install.md#local-scaffolding) wires targets in one
-run). The matrix is honest — the row that matters most does not travel:
-
-| | Claude Code | Cursor | Antigravity | Codex |
-|---|:---:|:---:|:---:|:---:|
-| The 13 skills | ✅ plugin | ✅ `.mdc` rules (references inlined) | ✅ subagent defs + skill files | ✅ skill files |
-| Slash commands | ✅ all 10 | ✅ VS Code/Cursor extension + rules | — | — |
-| Pipeline scripts (`t0-verify`, `trace-lint`, oracles) | ✅ | ✅ plain Node, run from any CLI | ✅ | ✅ |
-| **Hook-enforced gates** (deny on premature EVAL, substrate sandbox, safety spine) | ✅ | ❌ | ❌ | ❌ |
-| Advisory Stop hooks | ✅ | ❌ | ❌ | ❌ |
-
-Hooks are a per-CLI mechanism, so outside Claude Code the gates degrade from **enforced** to
-**instructed** — the same honor system every other framework runs on everywhere. If the deny
-hook is why you're here, that currently means Claude Code.
+The harness targets **Claude Code only**. The reason is the row that never travelled when we
+compiled to other CLIs: hooks. The 13 skills, 10 slash commands and pipeline scripts are
+portable prose and plain Node — but hook-enforced gates (deny on premature EVAL, substrate
+sandbox, safety spine) are a per-CLI mechanism, and without them every gate degrades from
+**enforced** to **instructed** — the same honor system every other framework runs on
+everywhere. If the deny hook is why you're here, that means Claude Code.
 
 ## Glossary
 

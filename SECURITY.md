@@ -62,7 +62,7 @@ sitting, and reading them is the recommended review.
 - **The safety-spine actively blocks secret reads** (`.env`, `*.pem`, `*.key`, ssh/cloud
   credentials) rather than merely not making them.
 - The installer (`scripts/install-harness.sh`) writes only into the target project
-  (`.claude/`, `.agents/`, `.codex/`, `shapeup/`, `.gitignore`) and tells you what it
+  (`.claude/`, `shapeup/`, `.gitignore`) and tells you what it
   is going to do first; the `curl | bash` form requires an explicit `--yes` for exactly that
   reason.
 

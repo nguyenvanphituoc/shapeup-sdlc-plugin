@@ -331,26 +331,19 @@ evidence until the run ends: `REPORT.md` is written once at GATE L4 and carries 
 findings, T0 summary and adjudicated decisions, so the deliverable tier gets the conclusions
 without the per-attempt churn.
 
-## 3.4 — Distribution: one source, four runtimes
+## 3.4 — Distribution: one source, one runtime
 
 ```mermaid
 graph TD
     SRC["Single source of truth\nskills/ · commands/ · hooks/"]
     SRC --> CC["Claude Code plugin\n(native — .claude-plugin/plugin.json)"]
-    SRC --> DIST["tools/distribute.js"]
-    DIST --> CUR1["dist/cursor-rules/*.mdc"]
-    DIST --> CUR2["dist/cursor-extension/"]
-    DIST --> ANT["dist/antigravity/subagents/"]
     CC -.->|install-harness.sh| PROJ1["Target repo\n.claude/settings.json"]
-    ANT -.->|install-harness.sh| PROJ2["Target repo\n.agents/skills/"]
-    SRC -.->|install-harness.sh| PROJ3["Target repo\n.codex/skills/"]
 ```
 
-`distribute.js` parses each `SKILL.md`'s frontmatter and inlines its `references/*.md`, so every
-compiled target carries the full behavior contract, not a stub. `install-harness.sh` scaffolds
-a target project per detected CLI — wiring the plugin via settings for Claude Code, or copying
-skill files for Antigravity/Codex, which deliberately enables **local skill evolution**: a team
-can tune its copy without forking the plugin. `migrate.sh` upgrades an existing install the
+Claude Code is the only delivery target — hooks are a per-CLI mechanism, and without them the
+gates degrade from enforced to instructed, which is the property the harness exists to provide.
+`install-harness.sh` scaffolds a target project by wiring the plugin via settings.
+`migrate.sh` upgrades an existing install the
 same way a database migration tool does — update code, then apply any pending, idempotent
 `NNNN__*.sh` data migration exactly once, recorded in a committed ledger.
 

@@ -14,15 +14,14 @@
 // a bug (tests/structural keeps the shared bits honest).
 //
 // Usage:
-//   npx shapeup-sdlc init [-d <dir>] [-y] [-o] [--cli claude,antigravity,codex|all]
+//   npx shapeup-sdlc init [-d <dir>] [-y] [-o]
 //
 // What it configures (identical to install-harness.sh):
 //   AGENTS.md harness block · Claude Code plugin (CLI or settings.json merge) ·
-//   Antigravity .agents/skills + subagents · Codex .codex/skills · CLAUDE.md @AGENTS.md
-//   import · .gitignore rules · shapeup/metrics/ · Tier C templates
+//   CLAUDE.md @AGENTS.md import · .gitignore rules · shapeup/metrics/ · Tier C templates
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, cpSync, readdirSync, appendFileSync } from "node:fs";
-import { resolve, join, dirname, basename } from "node:path";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, cpSync, appendFileSync } from "node:fs";
+import { resolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline";
@@ -35,31 +34,24 @@ const PKG_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const REPO = "nguyenvanphituoc/shapeup-sdlc-plugin";
 const MARKETPLACE_KEY = "nvptuoc-marketplace";
 const PLUGIN_KEY = "shapeup-sdlc-plugin@nvptuoc-marketplace";
-const ALL_CLIS = ["claude", "antigravity", "codex"];
 
 // ---- args -------------------------------------------------------------------
 const argv = process.argv.slice(2);
 const usage = `Usage: npx shapeup-sdlc init [options]
 Options:
   -d, --directory <path>   Target project directory (default: current directory)
-  --cli <list>             Comma-separated: claude,antigravity,codex or "all" (default: all)
   -o, --override           Overwrite existing files in target
   -y, --yes                Run unattended (answer yes to all prompts)
   -h, --help               Print this help`;
 
-let targetDir = ".", yes = false, override = false, clis = [...ALL_CLIS];
+let targetDir = ".", yes = false, override = false;
 const positional = [];
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (a === "-d" || a === "--directory") targetDir = argv[++i];
   else if (a === "-y" || a === "--yes") yes = true;
   else if (a === "-o" || a === "--override") override = true;
-  else if (a === "--cli") {
-    const v = argv[++i] || "";
-    clis = v === "all" ? [...ALL_CLIS] : v.split(",").map((s) => s.trim()).filter(Boolean);
-    const bad = clis.filter((c) => !ALL_CLIS.includes(c));
-    if (bad.length) { console.error(`Unknown CLI(s): ${bad.join(", ")}. Valid: ${ALL_CLIS.join(", ")}, all`); process.exit(1); }
-  } else if (a === "-h" || a === "--help") { console.log(usage); process.exit(0); }
+  else if (a === "-h" || a === "--help") { console.log(usage); process.exit(0); }
   else if (a.startsWith("-")) { console.error(`Unknown option: ${a}\n${usage}`); process.exit(1); }
   else positional.push(a);
 }
@@ -71,7 +63,6 @@ if (positional.length && positional[0] !== "init") {
 const target = resolve(targetDir);
 if (!existsSync(target)) { console.error(`Target directory does not exist: ${target}`); process.exit(1); }
 console.log(`Installing Shape Up SDLC Harness into: ${target}`);
-console.log(`CLIs: ${clis.join(", ")}`);
 
 // ---- confirmation -----------------------------------------------------------
 if (!yes) {
@@ -116,16 +107,11 @@ if (!existsSync(agentsSrc)) {
   }
 }
 
-// ---- 1. per-CLI install -----------------------------------------------------
-for (const cli of clis) {
-  if (cli === "claude") installClaude();
-  else replaceSkills(cli);
-}
+// ---- 1. Claude Code install -------------------------------------------------
+installClaude();
 
-// ---- 2. wire each CLI to the root AGENTS.md ---------------------------------
-if (clis.includes("claude")) ensureAgentImport(join(target, "CLAUDE.md"), "CLAUDE.md", "claude");
-if (clis.includes("antigravity")) ensureAgentImport(join(target, ".agents", "AGENTS.md"), ".agents/AGENTS.md", "auto");
-if (clis.includes("codex")) ensureAgentImport(join(target, ".codex", "AGENTS.md"), ".codex/AGENTS.md", "auto");
+// ---- 2. wire Claude Code to the root AGENTS.md ------------------------------
+ensureAgentImport(join(target, "CLAUDE.md"), "CLAUDE.md");
 
 // ---- 3. .gitignore ----------------------------------------------------------
 // Both roots are listed, deliberately. A project may be mid-migration (0006 moves `.shapeup/`
@@ -288,42 +274,11 @@ function mergePipelinePermissions(settings) {
   settings.permissions.allow = [...allow];
 }
 
-function replaceSkills(cli) {
-  const src = join(PKG_ROOT, "skills");
-  const dest = join(target, cli === "antigravity" ? ".agents" : ".codex", "skills");
-  mkdirSync(dest, { recursive: true });
-  let n = 0;
-  for (const name of readdirSync(src)) {
-    const skillPath = join(src, name);
-    if (!existsSync(join(skillPath, "SKILL.md"))) continue; // skip empty stubs
-    rmSync(join(dest, name), { recursive: true, force: true });
-    cpSync(skillPath, join(dest, name), { recursive: true });
-    n++;
-  }
-  console.log(`  [${cli}] ${n} skills replaced in ${rel(dest)}`);
-
-  if (cli === "antigravity") {
-    const distSub = join(PKG_ROOT, "dist", "antigravity", "subagents");
-    if (existsSync(distSub)) {
-      const subDest = join(target, ".agents", "subagents");
-      mkdirSync(subDest, { recursive: true });
-      cpSync(distSub, subDest, { recursive: true });
-      const idx = join(PKG_ROOT, "dist", "antigravity", "subagents.json");
-      if (existsSync(idx)) cpSync(idx, join(target, ".agents", "subagents.json"));
-      console.log(`  [antigravity] subagent configs replaced in ${rel(subDest)}`);
-    }
-  }
-}
-
-function ensureAgentImport(file, label, mode) {
+function ensureAgentImport(file, label) {
   mkdirSync(dirname(file), { recursive: true });
   if (!existsSync(file)) writeFileSync(file, "");
-  if (mode === "claude") {
-    if (!readFileSync(file, "utf8").includes("@AGENTS.md")) {
-      appendFileSync(file, "\n@AGENTS.md\n");
-      console.log(`Appended @AGENTS.md import tag to ${label}`);
-    } else console.log(`@AGENTS.md import tag already present in ${label}`);
-  } else {
-    console.log(`${label} ready (root AGENTS.md auto-discovered)`);
-  }
+  if (!readFileSync(file, "utf8").includes("@AGENTS.md")) {
+    appendFileSync(file, "\n@AGENTS.md\n");
+    console.log(`Appended @AGENTS.md import tag to ${label}`);
+  } else console.log(`@AGENTS.md import tag already present in ${label}`);
 }

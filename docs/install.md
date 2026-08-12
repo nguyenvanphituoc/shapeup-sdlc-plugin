@@ -4,14 +4,13 @@ Three ways in, depending on whether you want the harness for yourself, for a rep
 a whole team. If you just want to try it, use **Plugin install** and stop there.
 
 > **One-command scaffolding:** `npx shapeup-sdlc init` — pure Node, no bash, no jq, works on
-> Windows, and configures all three CLI targets in one run (same layout as the shell
-> installer below). *Requires the package to be published to npm; until then, run it from a
-> clone: `node bin/init.mjs -d <target> -y`.*
+> Windows (same layout as the shell installer below). *Requires the package to be published
+> to npm; until then, run it from a clone: `node bin/init.mjs -d <target> -y`.*
 
 - [Plugin install (Claude Code)](#plugin-install-claude-code)
 - [The Playwright dependency](#the-playwright-dependency)
 - [Install for the whole team](#install-for-the-whole-team)
-- [Local scaffolding (Claude Code / Antigravity / Codex)](#local-scaffolding)
+- [Local scaffolding](#local-scaffolding)
 - [Troubleshooting](#troubleshooting)
 
 Upgrading an existing install is a separate document: [`upgrading.md`](upgrading.md).
@@ -97,9 +96,8 @@ commit this to the project's `.claude/settings.json`:
 ## Local scaffolding
 
 Instead of installing the plugin globally, you can scaffold the harness directly into a
-target repository. For Claude Code this wires the plugin via `.claude/settings.json`
-(marketplace + enable). For Antigravity and Codex it copies the skill files into the
-project, which enables **local skill evolution and per-project tuning**.
+target repository. This wires the plugin via `.claude/settings.json` (marketplace +
+enable) and writes the headless pipeline permission grant.
 
 Run **one** of the following from the root of your target project.
 
@@ -127,9 +125,6 @@ The installer configures:
   `claude plugin install --scope project` to register the marketplace and enable the plugin
   in one shot (writing `.claude/settings.json`), then appends to / creates `CLAUDE.md`. Falls
   back to writing `settings.json` directly if the `claude` CLI is not on `PATH`.
-- **Antigravity** — copies skills to `.agents/skills/`, subagent configs to
-  `.agents/subagents/`, and creates `.agents/AGENTS.md`.
-- **Codex** — copies skills to `.codex/skills/` and creates `.codex/AGENTS.md`.
 - **Git boundaries & telemetry** — adds the `.shapeup/` + Tier C ignore rules to
   `.gitignore`, initializes the per-machine `shapeup/metrics/` shard directory, and
   drops the Tier C example templates (`.claude/settings.local.example.json`,

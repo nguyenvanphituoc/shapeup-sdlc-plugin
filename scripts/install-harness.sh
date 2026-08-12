@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # Install Shape Up SDLC Harness as Local Scaffolding
-# Supports: Claude Code, Antigravity, and Codex
+# Supports: Claude Code
 #
-# Remote install downloads release assets published by the CI release workflow:
-#   - skills/        sourced from the git archive (no dist/ needed)
-#   - antigravity-subagents.zip  downloaded from the latest GitHub Release asset
+# Remote install downloads the release source archive published by the CI release
+# workflow (skills/ sourced from the git archive; no dist/ needed).
 
 set -e
 
@@ -60,7 +59,6 @@ fi
 
 harness_resolve_source
 SOURCE_DIR="$HARNESS_SOURCE_DIR"
-ANTIGRAVITY_DIST_DIR="$HARNESS_ANTIGRAVITY_DIST"
 
 # -- Confirmation --------------------------------------------------------------
 if [ "$YES_MODE" = false ]; then
@@ -120,57 +118,32 @@ else
   fi
 fi
 
-# -- Helper: ensure CLI-specific config files link to root AGENTS.md -----------
-# Each CLI has a different mechanism:
-#   claude  — supports @AGENTS.md import syntax in CLAUDE.md
-#   antigravity — auto-discovers root AGENTS.md; no import tag needed
-#   codex   — auto-discovers root AGENTS.md; no import tag needed
+# -- Helper: ensure CLAUDE.md links to root AGENTS.md --------------------------
+# Claude Code supports @-import syntax to include root AGENTS.md.
 ensure_agent_import() {
   local file="$1"
   local label="$2"
-  local cli_type="$3"  # "claude" | "antigravity" | "codex"
 
   # Create the file (and parent dirs) if it does not exist yet
   mkdir -p "$(dirname "$file")"
   touch "$file"
 
-  case "$cli_type" in
-    claude)
-      # Claude Code supports @-import syntax to include root AGENTS.md
-      if ! grep -qF '@AGENTS.md' "$file" 2>/dev/null; then
-        echo -e "\n@AGENTS.md" >> "$file"
-        echo "Appended @AGENTS.md import tag to $label"
-      else
-        echo "@AGENTS.md import tag already present in $label"
-      fi
-      ;;
-    antigravity|codex)
-      # These CLIs auto-discover the root AGENTS.md; no import tag needed.
-      # Just ensure the file exists (already handled above).
-      echo "$label ready (root AGENTS.md auto-discovered by $cli_type)"
-      ;;
-    *)
-      echo "Warning: Unknown CLI type '$cli_type' for $label, skipping import setup."
-      ;;
-  esac
+  if ! grep -qF '@AGENTS.md' "$file" 2>/dev/null; then
+    echo -e "\n@AGENTS.md" >> "$file"
+    echo "Appended @AGENTS.md import tag to $label"
+  else
+    echo "@AGENTS.md import tag already present in $label"
+  fi
 }
 
-# -- 1. Install/replace skills for all CLIs (shared lib) -----------------------
-# One implementation, shared with the migrate script: per-skill replace into each CLI's
-# skills dir, plus antigravity subagent configs. The installer always targets all three.
-HARNESS_CLIS=(claude antigravity codex)
+# -- 1. Install the Claude Code plugin (shared lib) ----------------------------
+# One implementation, shared with the migrate script.
+HARNESS_CLIS=(claude)
 harness_replace_skills "$TARGET_DIR"
 
-# -- 2. Wire each CLI to the root AGENTS.md ------------------------------------
-# Claude Code supports @AGENTS.md import; Antigravity and Codex auto-discover the root file.
+# -- 2. Wire Claude Code to the root AGENTS.md ---------------------------------
 echo "Configuring Claude Code local scaffolding..."
-ensure_agent_import "$TARGET_DIR/CLAUDE.md" "CLAUDE.md" "claude"
-
-echo "Configuring Antigravity local scaffolding..."
-ensure_agent_import "$TARGET_DIR/.agents/AGENTS.md" ".agents/AGENTS.md" "antigravity"
-
-echo "Configuring Codex local scaffolding..."
-ensure_agent_import "$TARGET_DIR/.codex/AGENTS.md" ".codex/AGENTS.md" "codex"
+ensure_agent_import "$TARGET_DIR/CLAUDE.md" "CLAUDE.md"
 
 # -- 4. Gitignore Setup --------------------------------------------------------
 GITIGNORE_FILE="$TARGET_DIR/.gitignore"

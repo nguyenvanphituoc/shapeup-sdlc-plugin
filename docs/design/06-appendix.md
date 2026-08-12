@@ -23,7 +23,7 @@ scripts/shapeup-sdlc/    dev/CI tooling — lib/, migrations/
 oracles/                 the evaluation-contract oracle registry (test · snapshot · http ·
                          process), proven to discriminate against negative controls
 tools/                   repo-only measurement harnesses — trigger-eval.mjs (Tier 1),
-                         skill-loop.mjs (Tier 3 / Day-1 loop), distribute.js, demo/
+                         skill-loop.mjs (Tier 3 / Day-1 loop), demo/
 evals/                   the evidence layer — schemas/ (rubric · loop-run · failure-class),
                          baselines/ (honesty-invariant, never fabricated), runs/,
                          failure-classes.json (Day-2 register)
@@ -31,7 +31,6 @@ tests/structural.mjs     Tier 0 runner — threads tests/lib/ helpers through th
 tests/{lib,structural}/  suites in tests/structural/*.mjs; 880+ checks, zero LLM calls (the
                          floor is asserted by the suite itself; the exact count may only grow)
 examples/                fixtures for oracle + planted-bug discrimination tests
-dist/                    compiled Cursor rules/extension + Antigravity subagents
 ```
 
 ## Architectural invariants

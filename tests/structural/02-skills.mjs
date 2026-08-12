@@ -81,10 +81,10 @@ export async function run(ctx) {
   section("12. No SHIPPED skill file points at a repo-only path (would dangle on install)");
   // =============================================================================
   // Only recognized component dirs ship: a Claude plugin install copies the WHOLE repo (incl.
-  // `hooks/` and `scripts/`) to the plugin cache; the Antigravity/Codex scaffolding paths and
-  // distribute.js's Cursor-rules channel copy/inline only `skills/` — so a SKILL.md that assumes
-  // repo-root `scripts/`, `examples/`, `docs/audit|plan|research/`, or `tests/` exists dangles
-  // on those lower-fidelity channels. Since v1.0 the runtime scripts live INSIDE their owning
+  // `hooks/` and `scripts/`) to the plugin cache, but the npm tarball ships only the `files`
+  // allowlist in package.json — so a SKILL.md that assumes repo-root `scripts/`, `examples/`,
+  // `docs/audit|plan|research/`, or `tests/` exists dangles
+  // on that channel. Since v1.0 the runtime scripts live INSIDE their owning
   // skill (per the custom-skills doc: scripts ship beside SKILL.md), so two reference forms are
   // legitimate and checked by EXISTENCE, not pattern:
   //   • skill-local  `scripts/<file>` — must exist under THIS skill's directory

@@ -3,8 +3,8 @@
 **Ownership rule (encoded by structural test #12):** runtime scripts live *inside* the owning
 skill (`skills/<name>/scripts/`, shipped beside `SKILL.md`). The repo-root `scripts/` tree is for
 tooling that runs at **development, CI, or install/upgrade time only** — never anything a skill
-invokes or cites at runtime, because lower-fidelity distribution channels (Cursor/Codex per the
-§12 comment) copy only `skills/` and would leave a repo-root path dangling.
+invokes or cites at runtime, because the npm tarball ships only the `files` allowlist in
+`package.json` (no repo-root `scripts/`), so such a path would dangle in an npm install.
 
 What lives here, and why it stays:
 

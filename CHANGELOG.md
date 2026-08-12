@@ -31,6 +31,16 @@ PO's move. Pin target for a rollback is the last published release, **1.6.3**.*
   A killed session therefore loses no work — the property the whole migration exists to buy, graded
   by a kill/resume probe over a live `SIGKILL` (`docs/migration/stage-a3-evidence.md` §4).
 
+### Removed — Claude Code is the only delivery target
+
+The Cursor, Antigravity and Codex channels are gone: `tools/distribute.js` (and the
+`npm run distribute` script), the release jobs that packaged a VSIX and zipped
+cursor-rules/antigravity configs, the `--cli` flag on `npx shapeup-sdlc init`, and the
+Antigravity/Codex scaffolding in both bash installers. Those channels shipped the skills
+without the hooks, so every gate they carried was instructed, never enforced — the exact
+degradation the README's support matrix existed to admit. One target, fully enforced,
+beats three on the honor system.
+
 ### Rolling back
 
 **Pin the previous release — `1.6.3`.** There is **no in-tree prose lane** to fall back to for a

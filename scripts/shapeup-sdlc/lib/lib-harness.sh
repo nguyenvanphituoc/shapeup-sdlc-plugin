@@ -2,24 +2,22 @@
 # lib-harness.sh — shared helpers for installing/replacing Shape Up SDLC skills.
 #
 # Sourceable library. Provides:
-#   harness_resolve_source           → sets HARNESS_SOURCE_DIR + HARNESS_ANTIGRAVITY_DIST
+#   harness_resolve_source           → sets HARNESS_SOURCE_DIR
 #                                       (local clone, or downloads the latest release)
 #   harness_detect_clis <target>     → echoes the CLIs already installed in <target>
 #   harness_select_clis <target>     → sets HARNESS_CLIS[] (auto-detect under -y, else prompt)
 #   harness_replace_skills <target>  → replaces skills for every CLI in HARNESS_CLIS[]
 #
 # CLI → install locations:
-#   claude       .claude/skills/
-#   antigravity  .agents/skills/  + .agents/subagents/ (+ subagents.json)
-#   codex        .codex/skills/
+#   claude       .claude/ (marketplace plugin via settings.json)
 #
 # Callers must set HARNESS_YES=true for non-interactive runs. Designed to be sourced; it does
 # not run anything on its own.
 
 REPO="${REPO:-nguyenvanphituoc/shapeup-sdlc-plugin}"
 
-# All CLIs the harness knows how to target.
-HARNESS_ALL_CLIS=(claude antigravity codex)
+# All CLIs the harness knows how to target. Claude Code is the only delivery target.
+HARNESS_ALL_CLIS=(claude)
 
 # -- Resolve the skill source (local repo, or download the latest release) -----
 # Mirrors install-harness.sh so both paths behave identically.
@@ -30,7 +28,6 @@ harness_resolve_source() {
   # lib lives at <repo>/scripts/shapeup-sdlc/lib/ — the repo root is three levels up.
   if [ -d "$lib_dir/../../../skills" ]; then
     HARNESS_SOURCE_DIR="$(cd "$lib_dir/../../.." && pwd)"
-    HARNESS_ANTIGRAVITY_DIST="$HARNESS_SOURCE_DIR/dist/antigravity"
     echo "Using local source directory: $HARNESS_SOURCE_DIR"
     return 0
   fi
@@ -42,10 +39,9 @@ harness_resolve_source() {
   trap 'rm -rf "$temp_dir"' EXIT
 
   local release_api="https://api.github.com/repos/${REPO}/releases/latest"
-  local release_json tarball_url subagents_url
+  local release_json tarball_url
   release_json=$(curl -fsSL "$release_api")
   tarball_url=$(echo "$release_json" | grep '"tarball_url"' | head -1 | sed 's/.*"tarball_url": *"\([^"]*\)".*/\1/')
-  subagents_url=$(echo "$release_json" | grep '"browser_download_url"' | grep 'antigravity-subagents.zip' | sed 's/.*"browser_download_url": *"\([^"]*\)".*/\1/')
 
   if [ -z "$tarball_url" ]; then
     echo "Error: Could not fetch release tarball URL from $release_api"
@@ -55,29 +51,14 @@ harness_resolve_source() {
   echo "Downloading release source archive..."
   curl -fsSL "$tarball_url" | tar -xz -C "$temp_dir" --strip-components=1
   HARNESS_SOURCE_DIR="$temp_dir"
-  HARNESS_ANTIGRAVITY_DIST="$temp_dir/dist/antigravity"
-
-  if [ -n "$subagents_url" ]; then
-    echo "Downloading antigravity-subagents.zip from release..."
-    mkdir -p "$HARNESS_ANTIGRAVITY_DIST"
-    curl -fsSL "$subagents_url" -o "$temp_dir/antigravity-subagents.zip"
-    unzip -q "$temp_dir/antigravity-subagents.zip" -d "$temp_dir/antigravity-extract"
-    local extracted
-    extracted=$(find "$temp_dir/antigravity-extract" -type d -name "antigravity" | head -1)
-    [ -n "$extracted" ] && cp -R "$extracted/"* "$HARNESS_ANTIGRAVITY_DIST/"
-  else
-    echo "Warning: antigravity-subagents.zip not in release assets — subagent configs will be skipped."
-  fi
 }
 
 # -- Map a CLI key to its skills directory under a target ----------------------
 harness_skills_dir() {
   local target="$1" cli="$2"
   case "$cli" in
-    claude)      echo "$target/.claude/skills" ;;
-    antigravity) echo "$target/.agents/skills" ;;
-    codex)       echo "$target/.codex/skills" ;;
-    *)           return 1 ;;
+    claude) echo "$target/.claude/skills" ;;
+    *)      return 1 ;;
   esac
 }
 
@@ -108,9 +89,7 @@ harness_parse_cli_choice() {
   for n in $reply; do
     case "$n" in
       1|claude)      HARNESS_CLIS+=(claude) ;;
-      2|antigravity) HARNESS_CLIS+=(antigravity) ;;
-      3|codex)       HARNESS_CLIS+=(codex) ;;
-      4|all|All|ALL) HARNESS_CLIS=("${HARNESS_ALL_CLIS[@]}"); return 0 ;;
+      all|All|ALL)   HARNESS_CLIS=("${HARNESS_ALL_CLIS[@]}"); return 0 ;;
       *) echo "Ignoring unknown choice: $n" >&2 ;;
     esac
   done
@@ -140,12 +119,9 @@ harness_select_clis() {
   fi
 
   echo ""
-  echo "Which AI CLI(s) are you using? Skills will be replaced for the ones you pick."
+  echo "Skills will be replaced for Claude Code."
   echo "  1) Claude Code   (.claude/settings.json — marketplace plugin)"
-  echo "  2) Antigravity   (.agents/skills/ + subagents)"
-  echo "  3) Codex         (.codex/skills/)"
-  echo "  4) All of them"
-  echo "Enter numbers separated by spaces (e.g. '1 3'), or press Enter for default [${fallback[*]}]."
+  echo "Press Enter to confirm the default [${fallback[*]}]."
 
   # Prefer an interactive stdin; fall back to /dev/tty (curl|bash) or piped stdin (CI/tests).
   local reply=""
@@ -244,8 +220,6 @@ EOF
 
 # -- Replace harness skills for one CLI ----------------------------------------
 # Claude Code: configures the marketplace plugin in .claude/settings.json.
-# Antigravity / Codex: per-skill replacement — each harness skill dir is removed
-# then re-copied so upstream deletions don't linger while unrelated user skills stay.
 harness_replace_skills_for_cli() {
   local target="$1" cli="$2"
 
@@ -254,30 +228,8 @@ harness_replace_skills_for_cli() {
     return
   fi
 
-  local src="$HARNESS_SOURCE_DIR/skills"
-  local dest
-  dest="$(harness_skills_dir "$target" "$cli")"
-
-  mkdir -p "$dest"
-  local skill_path skill_name
-  for skill_path in "$src"/*/; do
-    [ -d "$skill_path" ] || continue
-    # A valid skill has a SKILL.md; skip empty stubs (e.g. skill-evolver).
-    [ -f "$skill_path/SKILL.md" ] || continue
-    skill_name="$(basename "$skill_path")"
-    rm -rf "${dest:?}/$skill_name"
-    cp -R "$skill_path" "$dest/$skill_name"
-  done
-  echo "  [$cli] skills replaced in $dest"
-
-  # Antigravity also carries compiled subagent configs.
-  if [ "$cli" = antigravity ] && [ -d "$HARNESS_ANTIGRAVITY_DIST/subagents" ]; then
-    local sub_dest="$target/.agents/subagents"
-    mkdir -p "$sub_dest"
-    cp -R "$HARNESS_ANTIGRAVITY_DIST/subagents/"* "$sub_dest/" 2>/dev/null || true
-    [ -f "$HARNESS_ANTIGRAVITY_DIST/subagents.json" ] && cp "$HARNESS_ANTIGRAVITY_DIST/subagents.json" "$target/.agents/subagents.json"
-    echo "  [antigravity] subagent configs replaced in $sub_dest"
-  fi
+  echo "  [$cli] unknown CLI — skipped (Claude Code is the only delivery target)"
+  return 1
 }
 
 # -- Replace skills for every selected CLI -------------------------------------
