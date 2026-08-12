@@ -58,7 +58,10 @@ function fire(abs, payload, sandbox) {
     input: typeof payload === "string" ? payload : JSON.stringify(payload),
     cwd: sandbox, encoding: "utf8", timeout: 30_000, env,
   });
-  const ledger = join(sandbox, ".shapeup-sdlc", "decisions.jsonl");
+  // The LOCAL root, resolved the same way lib/paths.mjs resolves it — NOT spelled independently.
+  // A test that hardcodes its own copy of the root cannot catch the writer and the reader drifting
+  // apart, which is exactly how the receipts ended up in a directory `stats --hooks` never opened.
+  const ledger = join(sandbox, ".shapeup", "decisions.jsonl");
   let rows = [];
   if (existsSync(ledger)) {
     rows = readFileSync(ledger, "utf8").split("\n").filter((l) => l.trim())
@@ -163,8 +166,8 @@ export async function run(ctx) {
   {
     const sandbox = mkdtempSync(join(tmpdir(), "receipt-blocked-"));
     try {
-      // Occupy `.shapeup-sdlc` with a FILE, so mkdir/append cannot succeed.
-      writeFileSync(join(sandbox, ".shapeup-sdlc"), "not a directory");
+      // Occupy the LOCAL root with a FILE, so mkdir/append cannot succeed.
+      writeFileSync(join(sandbox, ".shapeup"), "not a directory");
       const gl2 = hooks.find((h) => h.name === "gate-l2");
       const r = fire(gl2.abs, { tool_name: "Read", cwd: sandbox }, sandbox);
       if (r.exit === 0) ok("an unwritable decisions.jsonl does not break the hook — the receipt is best-effort by design");
@@ -187,8 +190,8 @@ export async function run(ctx) {
       const none = gz.enforcementCensus(sandbox);
       if (none.rows === 0 && none.readable === false) ok("enforcementCensus reports an ABSENT ledger as unreadable — an absence proves nothing and must not sharpen the message");
       else fail(`enforcementCensus mis-read a missing ledger: ${JSON.stringify(none)}`);
-      mkdirSync(join(sandbox, ".shapeup-sdlc"), { recursive: true });
-      writeFileSync(join(sandbox, ".shapeup-sdlc", "decisions.jsonl"), JSON.stringify({ hook: "gate-l2", verdict: "allow" }) + "\n");
+      mkdirSync(join(sandbox, ".shapeup"), { recursive: true });
+      writeFileSync(join(sandbox, ".shapeup", "decisions.jsonl"), JSON.stringify({ hook: "gate-l2", verdict: "allow" }) + "\n");
       const some = gz.enforcementCensus(sandbox);
       if (some.rows === 1 && some.readable) ok("enforcementCensus counts real decision rows — 'the gates didn't run' no longer depends on the gates running");
       else fail(`enforcementCensus mis-counted a populated ledger: ${JSON.stringify(some)}`);

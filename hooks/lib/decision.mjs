@@ -15,34 +15,42 @@
 //     validate-envelope  exit=0   stdout_len=0
 //
 // exit 0 + silence = allow. But that is ALSO what "inspected the board and deferred" looks like,
-// and what "no rule matched" looks like, and what a thrown exception looks like, and what F-16
-// looked like — a hook whose entire body silently never ran. Four states, one signature. No test,
-// orchestrator or auditor could tell them apart, which is how 26 enforcement points sat inert
-// behind 610 green checks while every one of them reported success.
+// and what "no rule matched" looks like, and what a thrown exception looks like, and what an inert
+// hook looks like — one whose entire body silently never ran. Four states, one signature. No test,
+// orchestrator or auditor can tell them apart, which is how a whole enforcement layer can sit
+// inert while every one of its checks reports success.
 //
 // FAIL-OPEN IS RETAINED, DELIBERATELY. `gate-l2.mjs` argues for it correctly in its own header: a
 // gate that breaks legitimate or standalone runs just gets disabled, and a disabled gate enforces
 // nothing. The defect was never the direction. It is that `allow` carried NO EVIDENCE.
 //
-// THE PREDICATE IS ALREADY INVENTED IN THIS REPO. `tests/structural/11-is-main.mjs` calls its
-// helper `spoke()` — did the script produce output? That is exactly the right question. It existed
-// only in the test harness, applied to entry points. This promotes it to runtime and applies it to
-// hooks, which closes F-16's whole CLASS rather than its instance:
+// THE PREDICATE IS ALREADY INVENTED IN THIS REPO. The structural suite calls its helper `spoke()`
+// — did the script produce output? That is exactly the right question. It existed only in the test
+// harness, applied to entry points. This promotes it to runtime and applies it to
+// hooks, which closes the whole CLASS rather than one instance of it:
 //
 //     inspected-and-permitted · no-rule-matched · threw · never ran
 //
-// all four become distinguishable facts in `.shapeup-sdlc/decisions.jsonl`.
+// all four become distinguishable facts in the decisions ledger.
 //
 // TIER: LOCAL, and checkout-wide rather than per-slug — hooks fire outside any run, so there is
 // frequently no `<slug>` to file under. Pure run-trace; the durable cross-machine record is the
 // committed metrics shard, which `stats --hooks` aggregates into.
+//
+// THE PATH IS RESOLVED, NEVER SPELLED. It comes from `lib/paths.mjs` — the same resolver
+// `stats.mjs --hooks` reads through. This file used to hardcode the pre-ADR-0001 root, so every
+// hook wrote its receipts to `.shapeup-sdlc/` while the only reader looked in `.shapeup/`:
+// `stats --hooks` reported zero hook activity on every project, which is indistinguishable from
+// the inert-enforcement-layer failure this file exists to make visible. A telemetry channel with
+// a hardcoded root is a telemetry channel with a silent disconnect in it.
 //
 // THE RECEIPT IS BEST-EFFORT BY DESIGN. An unwritable `decisions.jsonl` must never turn into a
 // failed tool call: a receipt that can break a run would get the whole layer disabled, which is
 // the exact outcome this file exists to prevent. Every write here is inside a try/catch.
 
 import { appendFileSync, mkdirSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { dirname } from "node:path";
+import { decisions } from "../../skills/tech-lead/scripts/lib/paths.mjs";
 
 /**
  * Where the receipts land.
@@ -54,11 +62,11 @@ import { join, dirname } from "node:path";
  * contaminates is not an instrument.
  *
  * @param {string} [cwd] - Project root; defaults to the process cwd.
- * @returns {string} The ledger path — `SHAPEUP_DECISIONS_PATH` when set, else
- *   `<cwd>/.shapeup-sdlc/decisions.jsonl`.
+ * @returns {string} The ledger path — `SHAPEUP_DECISIONS_PATH` when set, else the LOCAL root's
+ *   `decisions.jsonl`, resolved through `lib/paths.mjs`.
  */
 export function decisionsPath(cwd) {
-  return process.env.SHAPEUP_DECISIONS_PATH || join(cwd || process.cwd(), ".shapeup-sdlc", "decisions.jsonl");
+  return process.env.SHAPEUP_DECISIONS_PATH || decisions(cwd || process.cwd());
 }
 
 /**
