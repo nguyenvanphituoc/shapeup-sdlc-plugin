@@ -63,7 +63,7 @@ import { isMain } from "./lib/is-main.mjs";
 import { runArgs } from "./lib/argv.mjs";
 import {
   intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir,
-  orientDir, activeScope, usecasesDir,
+  orientDir, activeScope, activeOrder, usecasesDir,
 } from "./lib/paths.mjs";
 
 /** The run-state values `references/ledger-schema.md` defines. A typo'd status is a rejection,
@@ -296,22 +296,47 @@ export function writeActiveScope(cwd, slug, scopeId) {
   return { ok: true, path: p, slug, scope_id: scopeId };
 }
 
+/**
+ * Point the substrate pointer at the order about to be executed.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {string} orderPath - Path to the active order.
+ * @returns {{ok: boolean, path: string, slug: string, order_path: string, reason?: string}} Outcome.
+ */
+export function writeActiveOrder(cwd, slug, orderPath) {
+  const p = activeOrder(cwd);
+  try {
+    mkdirSync(dirname(p), { recursive: true });
+    writeFileSync(p, `${JSON.stringify({ slug, order_path: orderPath }, null, 2)}\n`);
+  } catch (e) {
+    return { ok: false, path: p, slug, order_path: orderPath, reason: `could not write the active-order pointer: ${e.message}` };
+  }
+  let readBack;
+  try { readBack = JSON.parse(readFileSync(p, "utf8")); } catch { readBack = null; }
+  if (readBack?.order_path !== orderPath || readBack?.slug !== slug) {
+    return { ok: false, path: p, slug, order_path: orderPath, reason: `pointer read back as ${JSON.stringify(readBack)}` };
+  }
+  return { ok: true, path: p, slug, order_path: orderPath };
+}
+
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "resume-state.mjs --slug <slug> [--cwd <dir>] [--require <phase> | --set-status <status> | --set-active-scope <scope-id>]",
+  usage: "resume-state.mjs --slug <slug> [--cwd <dir>] [--require <phase> | --set-status <status> | --set-active-scope <scope-id> | --set-active-order <path>]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   slug: { type: "str", required: true },
   cwd: { type: "path" },
   require: { type: "enum", values: PHASES },
   "set-status": { type: "enum", values: RUN_STATUSES },
   "set-active-scope": { type: "str" },
+  "set-active-order": { type: "str" },
 };
 
 export function main() {
   const args = runArgs(ARGV_SPEC);
   const cwd = args.cwd || process.cwd();
 
-  const ops = [args.require && "--require", args.setStatus && "--set-status", args.setActiveScope && "--set-active-scope"].filter(Boolean);
+  const ops = [args.require && "--require", args.setStatus && "--set-status", args.setActiveScope && "--set-active-scope", args.setActiveOrder && "--set-active-order"].filter(Boolean);
   if (ops.length > 1) {
     process.stderr.write(JSON.stringify({ error: "conflicting_flags", flags: ops, expected: "one operation per invocation" }) + "\n");
     process.exit(2);
@@ -340,6 +365,12 @@ export function main() {
 
   if (args.setActiveScope) {
     const r = writeActiveScope(cwd, args.slug, args.setActiveScope);
+    console.log(JSON.stringify(r));
+    process.exit(r.ok ? 0 : 3);
+  }
+
+  if (args.setActiveOrder) {
+    const r = writeActiveOrder(cwd, args.slug, args.setActiveOrder);
     console.log(JSON.stringify(r));
     process.exit(r.ok ? 0 : 3);
   }

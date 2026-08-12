@@ -31,7 +31,7 @@ Invoked as `--order <path>`. Fields you may rely on (absent = unknown; surface i
 | `payload.spec_folder` / `payload.feature` | Where the committed tree lives / the slug |
 | `payload.discovered_ledger` | (reconcile) the ledger whose raw `[+]`/`~` lines you fold in |
 | `payload.kb_rules_path` | Team guidelines (read if present) — steering, never spec |
-| `substrate.allowed / append_only / frozen` | Your write contract for THIS operation. The old frozen-zone prose is now data the sandbox hook enforces: respect it, and when an operation genuinely needs a file outside it, ESCALATE — never widen |
+| `substrate.allowed / append_only / frozen` | Your write contract for THIS operation. The old frozen-zone prose is now data the sandbox hook enforces (reading the order's envelope): respect it, and when an operation genuinely needs a file outside it, ESCALATE — never widen |
 | `interaction.pause_gates` | Caller policy. `true` (standalone default): pause at the phase checkpoints below, max 2 questions each. `false`: run straight through, surfacing questions as `assumptions[]`/`escalates[]` instead |
 
 ---

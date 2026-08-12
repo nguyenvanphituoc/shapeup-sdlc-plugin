@@ -145,7 +145,7 @@ export function ledgerDecisions(ledgerText, scopeId) {
 
 /**
  * Resolve the write-contract (sandbox substrate) for an operation — one whitelist template per
- * operation, so mode/flag differences are enforced by the sandbox hook, not trusted to prose.
+ * operation, so mode/flag differences are enforced by the sandbox hook reading the order's substrate, not trusted to prose.
  * @param {string} operation - The order's operation (execute|analyze|generate-board|reconcile|
  *   retrofit-surface|coverage|map-scopes|remap|split-scope|wire|evaluate|hunt|recheck|orient|…).
  * @param {{slug?:string, specDir?:string, scope?:object}} [ctx] - slug (names LOCAL/SHARED roots),
@@ -199,6 +199,12 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
       return { allowed: [`${local}/qa/**`], frozen: [`${spec}/**`, `${local}/tasks/**`] };
     case "orient":
       return { allowed: [`${local}/orient/**`], frozen: [`${spec}/**`] };
+    case "translate":
+      return { allowed: [globShared(slug, "shaping/*.md"), globShared(slug, "glossary.md")] };
+    case "hammer":
+      return { allowed: [globShared(slug, "REPORT.md"), `${local}/reports/**`] };
+    case "coach":
+      return { allowed: [relKnowledgeBase("*")] };
     default:
       return { allowed: [`${local}/**`] };
   }

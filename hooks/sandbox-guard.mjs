@@ -29,8 +29,7 @@
 import { readFileSync, existsSync, appendFileSync, mkdirSync } from "node:fs";
 import { resolve, join, relative, dirname, sep } from "node:path";
 import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
-import { LOCAL, activeScope, scopeContract, metricsShard } from "../skills/tech-lead/scripts/lib/paths.mjs";
-import { readContract, SCOPE_CONTRACT } from "../skills/tech-lead/scripts/lib/contract-md.mjs";
+import { LOCAL, activeOrder, metricsShard } from "../skills/tech-lead/scripts/lib/paths.mjs";
 import { runHook, readStdin, settle } from "./lib/decision.mjs";
 
 // --- tiny glob matcher: supports *, **, ? — enough for substrate globs, zero dependencies ---
@@ -97,46 +96,67 @@ async function main() {
   }
 
   const cwd = p.cwd || process.cwd();
-  const activeScopePath = activeScope(cwd);
-  // no harness round in progress → don't enforce
-  if (!existsSync(activeScopePath)) defer("no active-scope pointer — no harness round in progress", "no-round");
+  const activeOrderPath = activeOrder(cwd);
+  if (!existsSync(activeOrderPath)) defer("no active-order pointer — no tracked task running", "no-round");
 
-  const active = readJSON(activeScopePath);
-  if (!active?.slug || !active?.scope_id) defer("active-scope pointer is unreadable or incomplete", "bad-pointer");
+  const active = readJSON(activeOrderPath);
+  if (!active?.slug || !active?.order_path) defer("active-order pointer is unreadable or incomplete", "bad-pointer");
 
-  // Markdown first, legacy JSON second (ADR-0001) — a project mid-migration must stay sandboxed.
-  let found = null;
-  try { found = readContract(scopeContract(cwd, active.slug, active.scope_id), SCOPE_CONTRACT); }
-  catch (e) { defer(`scope contract is unparseable (${e.message})`, "bad-contract"); }
-  // pointer stale / contract not committed yet → don't break the run
-  if (!found) defer(`no contract for ${active.scope_id} — pointer stale or not committed yet`, "no-contract");
-  const contract = found.contract;
-  if (!contract) defer("scope contract is unparseable", "bad-contract");
+  const orderPathAbs = resolve(cwd, active.order_path);
+  if (!existsSync(orderPathAbs)) defer(`no order found at ${active.order_path}`, "no-order");
 
-  const allowed = [...(contract.allowed_file_substrate || []), ...(contract.shared_substrate || [])];
-  // no whitelist declared → nothing to enforce
-  if (allowed.length === 0) defer(`scope ${active.scope_id} declares no write whitelist`, "no-whitelist");
+  const order = readJSON(orderPathAbs);
+  if (!order?.substrate) defer("active order has no substrate block", "no-substrate");
+
+  const contract = order.substrate;
+  const allowed = [...(contract.allowed || []), ...(contract.shared || [])];
+  const appendOnly = contract.append_only || [];
+  const frozen = contract.frozen || [];
+
+  if (allowed.length === 0 && appendOnly.length === 0 && frozen.length === 0) {
+    defer(`order declares no write/append/frozen boundaries`, "no-whitelist");
+  }
 
   const targetPaths = extractPaths(p.tool_input);
   if (targetPaths.length === 0) defer("no writable path in the tool input", "no-target");
 
   const metricsPath = metricsShard(cwd);
-  // Run-trace carve-out (see header): the active feature's LOCAL root only. The prefix ends
-  // with a separator so a sibling `<local>/<slug>-other/` can't ride along, and the active-scope
-  // pointer sits outside it by construction.
   const runTracePrefix = join(LOCAL, active.slug) + sep;
   const violations = [];
+  const blockReasons = [];
+
   for (const raw of targetPaths) {
     const abs = resolve(cwd, raw);
     const rel = relative(cwd, abs);
     if (rel.startsWith(runTracePrefix)) continue;
-    if (!matchesAny(rel, allowed)) violations.push(rel);
+    
+    // frozen takes absolute precedence
+    if (matchesAny(rel, frozen)) {
+      violations.push(rel);
+      blockReasons.push(`${rel} is frozen`);
+      continue;
+    }
+
+    if (matchesAny(rel, allowed)) {
+      continue; // OK
+    }
+
+    if (matchesAny(rel, appendOnly)) {
+      if (p.tool_name === "Write") {
+        violations.push(rel);
+        blockReasons.push(`${rel} is append-only (Write overwrites, use Edit)`);
+      }
+      continue;
+    }
+
+    violations.push(rel);
+    blockReasons.push(`${rel} is outside allowed scopes`);
   }
 
   // Inside the substrate — the "inspected and permitted" row. Previously byte-identical to
   // "this hook never ran", which is how 26 enforcement points sat inert behind 610 green checks.
   if (violations.length === 0) {
-    defer(`${targetPaths.length} path(s) inside scope ${active.scope_id} substrate — permitted`, "in-substrate");
+    defer(`${targetPaths.length} path(s) inside order substrate — permitted`, "in-substrate");
   }
 
   logPathology(metricsPath, {
@@ -144,23 +164,23 @@ async function main() {
     at: new Date().toISOString(),
     kind: "pathology",
     pathology: "PA3",
-    scope_id: active.scope_id,
+    order: active.order_path,
     slug: active.slug,
     blocked_paths: violations,
   });
 
   return {
-    verdict: "deny", event: "PreToolUse", tool: p.tool_name, subject: active.scope_id, cwd,
+    verdict: "deny", event: "PreToolUse", tool: p.tool_name, subject: active.order_path, cwd,
     rule: "outside-substrate",
-    reason: `${violations.length} write(s) outside the scope substrate: ${violations.join(", ")}`,
+    reason: `${violations.length} write(s) rejected by substrate boundaries: ${blockReasons.join("; ")}`,
     payload: {
       hookSpecificOutput: {
         hookEventName: "PreToolUse",
         permissionDecision: "deny",
         permissionDecisionReason:
-          `Sandbox guard (PA3) — scope "${active.scope_id}" may only write ${JSON.stringify(allowed)}. ` +
-          `Blocked: ${violations.join(", ")}. If this write legitimately crosses scopes, add the path to ` +
-          `the contract's shared_substrate (via ba --remap) rather than editing outside the substrate.`,
+          `Sandbox guard (PA3) — active order substrate blocked these writes:\n` +
+          `${blockReasons.join("\n")}\n` +
+          `If this write legitimately crosses scopes, the order's substrate needs to be expanded (e.g. via ba --remap).`,
       },
     },
   };

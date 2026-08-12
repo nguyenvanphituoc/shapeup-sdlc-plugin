@@ -409,6 +409,14 @@ const ingestOrAbort = async (gate, resultPath, label) => {
 // diff than a branch frozen at Stage B should take. Recorded as a discovered defect, not silently
 // worked around.
 const dispatch = async (skill, orderPath, model, phase, label, schema, extra) => {
+  const setOrderR = await mech(
+    `node "${args.pluginRoot}/skills/tech-lead/scripts/resume-state.mjs" --slug ${slug} --set-active-order ${orderPath}`,
+    `set-active-order:${baseOf(orderPath)}`,
+  );
+  if (setOrderR.exit_code !== 0) {
+    const why = (parseMechJson(setOrderR.stdout)?.reason || setOrderR.stderr || `exit ${setOrderR.exit_code}`).toString().trim();
+    log(`Warning: could not set active-order to ${orderPath}: ${why}`);
+  }
   const r = await agent(
     `Call Skill(shapeup-sdlc-plugin:${skill}) --order ${orderPath}. ${extra || ""} ` +
     `Write your WorkResult to exactly this path: ${orderPath.replace("/orders/", "/results/")} — ` +

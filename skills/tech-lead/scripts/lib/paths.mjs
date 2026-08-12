@@ -191,6 +191,8 @@ export const workingDir = (cwd, slug) => join(localRoot(cwd, slug), "working");
 
 /** The pointer the sandbox guard reads to answer "which scope is checked out?". */
 export const activeScope = (cwd) => join(localDir(cwd), "active-scope");
+/** The pointer the sandbox guard reads to answer "which order is executing?". */
+export const activeOrder = (cwd) => join(localDir(cwd), "active-order");
 /** Hook receipts — one row per evaluation, so `allow` carries evidence. */
 export const decisions = (cwd) => join(localDir(cwd), "decisions.jsonl");
 /** Human-authored safety escape hatch. LOCAL so no PR can widen another machine's envelope. */
