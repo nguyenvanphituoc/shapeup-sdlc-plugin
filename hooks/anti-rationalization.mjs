@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Anti-rationalization — advisory Stop hook (v1.2, absorb-audit P2).
+// Anti-rationalization — advisory Stop hook (v1.2).
 //
 // When the session's final message claims completion ("done", "all tests pass", "ready to
 // ship") while the harness's own mechanical facts disagree (unfinished board tasks, a red T0
-// verdict, unanswered escalates), this hook says so — to the user, out loud, with the facts.
+// verdict), this hook says so — to the user, out loud, with the facts.
 //
 // ADVISORY ONLY, by architectural invariant: "QA is a level-up, not a gate." This hook exits
 // 0 always and emits at most { systemMessage } — never { decision: "block" }, never exit 2.
@@ -59,9 +59,9 @@ export function activeSlug(cwd) {
 /**
  * Does the text claim the work is finished — or promise that it is about to be?
  *
- * The past-tense half is the original detector. The future-tense half was added after the SDD
- * harness benchmark produced a transcript this hook should have caught and structurally could
- * not: the session ended on "The tech-lead skill is orchestrating the full harness. It will: 1…".
+ * The past-tense half is the original detector. The future-tense half was added after a transcript
+ * this hook should have caught and structurally could not: the session ended on "The tech-lead
+ * skill is orchestrating the full harness. It will: 1…".
  * A promise at the END of a session is a completion claim wearing different grammar — the run is
  * over, and the thing it says it will do is never going to happen. Matching only past tense meant
  * the emptiest failures were the least detectable, which is backwards.
@@ -93,7 +93,7 @@ export function isFutureClaim(claim) {
 /** Read-only mechanical facts about the run — the evidence the claim is checked against. */
 export function gatherFacts(cwd, slug) {
   const root = localRoot(cwd, slug);
-  const facts = { unfinished: [], red_t0: null, open_escalates: 0, run_status: null, final_verdict: null };
+  const facts = { unfinished: [], red_t0: null, run_status: null, final_verdict: null };
 
   const tasksDir = join(root, "tasks");
   if (existsSync(tasksDir)) {
@@ -123,11 +123,6 @@ export function gatherFacts(cwd, slug) {
     }
   }
 
-  const escDir = join(root, "escalates");
-  if (existsSync(escDir)) {
-    facts.open_escalates = readdirSync(escDir).filter((f) => f.endsWith(".json")).length;
-  }
-
   const runPath = join(root, "harness-run.md");
   if (existsSync(runPath)) {
     try {
@@ -143,7 +138,7 @@ export function gatherFacts(cwd, slug) {
  * The facts that contradict a claim, as human-readable fragments.
  *
  * TENSE DECIDES WHICH FACTS COUNT, and getting this wrong is what makes a hook get disabled.
- * An unfinished board, a red T0 and unanswered escalates all contradict "it is done". NONE of
+ * An unfinished board and a red T0 both contradict "it is done". NEITHER of
  * them contradict "I am about to run the evaluator" — they are that sentence's PREMISE. Checking
  * a promise against them meant every healthy build round ended with the hook announcing that the
  * turn's own plan "disagrees with the facts", naming as evidence the very work the plan exists to
@@ -175,7 +170,6 @@ export function contradictions(claim, facts) {
     out.push(`${facts.unfinished.length} board task(s) not done (${named}${facts.unfinished.length > 5 ? ", …" : ""})`);
   }
   if (facts.red_t0) out.push(`latest T0 verdict ${facts.red_t0} is red`);
-  if (facts.open_escalates > 0) out.push(`${facts.open_escalates} escalate(s) unanswered`);
   if (facts.final_verdict === "fail") out.push("harness-run records final_verdict: fail");
   if (/ship/i.test(claim || "") && MID_RUN.has(facts.run_status)) out.push(`run status is still "${facts.run_status}"`);
   return out;

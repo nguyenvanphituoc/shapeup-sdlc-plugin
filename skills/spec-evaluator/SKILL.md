@@ -116,6 +116,13 @@ Done-when statements; `_index.md` Non-Go list. Which UCs are in scope comes from
 
 ## Output contract — the WorkResult
 
+**Escalation rule.** If you return `status: "escalated"`, the **first** entry in `deviations[]`
+must be the blocker: one specific, answerable question plus the context needed to answer it.
+Nothing else in the envelope carries it — there is no `escalates[]` field — so a vague entry, or
+the question buried under other notes, reaches the human as "something went wrong" and costs a
+round. Write it so someone without your context can answer it in one reply.
+
+
 1. Write the report `.shapeup/<slug>/evaluation/EVAL-FEATURE-<slug>.md` (or
    `EVAL-<task_id>.md` for a per-task run) per `references/report-schema.md`: verdict,
    per-dimension criteria table with confidence, stability block (flips), bug list (severity,

@@ -53,7 +53,7 @@ A second, committed `round-ledger.md` (`shapeup/<slug>/round-ledger.md`, SHARED,
 Tier A) holds only what must survive a crash or a `.shapeup/` wipe:
 
 - the resolved model/budget matrix (L0.8/L0.9),
-- the **Decisions** table — every gate crossing and every advisor-protocol ESCALATE answer,
+- the **Decisions** table — every gate crossing and every PO answer to a blocked phase,
   promoted the instant it is given, never batched to round close.
 
 Gate crossings resolved from a **gate answer set** (`scripts/gate-answers.mjs`) are written here

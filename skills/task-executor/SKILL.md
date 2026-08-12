@@ -105,27 +105,40 @@ no recorded evidence is reported `fail`, by your own hand.
 
 ---
 
-## ESCALATE protocol — the one outward port
+## ESCALATE protocol — how to stop without guessing
 
 When blocked on a decision that is not yours (design decision, spec ambiguity, substrate
 expansion): stop work on **that AC only**, keep building every AC that doesn't depend on the
-answer, and add a block to `escalates[]`:
+answer, then return `status: "escalated"` with the blocker as the **first** entry in
+`deviations[]`, in this shape (one entry per blocked decision, blockers first):
 
-```json
-{ "kind": "design-decision | spec-ambiguity | substrate-expansion",
-  "question": "one checkable question",
-  "blocked_ac": "which AC waits on this",
-  "context": "the two interpretations / the file and why it's needed" }
+```
+ESCALATE <design-decision | spec-ambiguity | substrate-expansion> [<blocked AC>]
+<one checkable question>
+<the two interpretations, or the file you need and why>
 ```
 
+`deviations[]` is the channel because there is **no `escalates[]` field** — the WorkResult
+envelope carries no structured escalation, so a question written anywhere else does not reach a
+human at all. `status: "escalated"` is what the run notices: the phase leaves its artifact
+unwritten, the orchestrator's post-condition fails, and the run stops and names the phase
+instead of looping. Your `deviations[]` text is the only record of *why*, so make it answerable
+on its own — whoever reads it will not have your context.
+
 Orchestrated (`mode: orchestrated`): never ask an ad hoc question — there is no session to
-answer it; the orchestrator adjudicates and the answer returns in the next order's
-`decisions[]`. Standalone (`mode: standalone`): you may ask the user directly (max 2
-questions) instead of escalating.
+answer it. Standalone (`mode: standalone`): you may ask the user directly (max 2 questions)
+instead of escalating.
 
 ---
 
 ## Output contract — the WorkResult
+
+**Escalation rule.** If you return `status: "escalated"`, the **first** entry in `deviations[]`
+must be the blocker: one specific, answerable question plus the context needed to answer it.
+Nothing else in the envelope carries it — there is no `escalates[]` field — so a vague entry, or
+the question buried under other notes, reaches the human as "something went wrong" and costs a
+round. Write it so someone without your context can answer it in one reply.
+
 
 Write `.shapeup/<slug>/results/<order-suffix>.json` (mirror of the order path; slug and
 suffix come from `order_id`) matching `work-result.schema.json`, and print its path:
@@ -168,7 +181,7 @@ orchestrator's `ingest-result.mjs` does all of that from your envelope.
 - [ ] Every interactive element built binds to a manifest `test_id` with `data-state`
 - [ ] No unused imports/symbols left behind by your changes
 - [ ] Assumptions and deviations are in the envelope, not in your head
-- [ ] Blocked ACs have an `escalates[]` block; unrelated ACs were still built
+- [ ] Blocked ACs are named in a `deviations[]` ESCALATE entry with `status: "escalated"`; unrelated ACs were still built
 - [ ] The WorkResult validates against `work-result.schema.json` and its path was printed
 
 ---

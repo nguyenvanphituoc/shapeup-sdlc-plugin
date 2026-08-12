@@ -71,7 +71,8 @@
       "type": "array",
       "items": {
         "type": "string"
-      }
+      },
+      "description": "When status is \"escalated\", the FIRST entry is the blocker: one specific, answerable question with the context needed to answer it. There is no escalates[] field, so this is the only channel a blocked worker has."
     }
   }
 }

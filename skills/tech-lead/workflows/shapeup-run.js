@@ -1,10 +1,7 @@
-// shapeup-run — the outer BUILD-phase pipeline as a Workflow (v1.0 pure-skill architecture,
-// C1-C6, docs/workflow_architecture_design.md). Stage 2 of the tech-lead-orchestrator ->
-// Workflow migration (docs/workflow_migration_plan.md, docs/workflow_extraction_review.md §6
-// Stage 2). This is the ship gate of the cutover: once this file and the thin SKILL.md exist,
-// BOTH the unattended lane (this file launched headlessly) and the interactive lane (this file
-// paused and relaunched at every gate a human answers) run the SAME code — there is no longer a
-// prose runbook that can drift from what actually executes.
+// shapeup-run — the whole BUILD-phase pipeline as one launchable script (v1.0 pure-skill
+// architecture). This is what makes the two lanes one lane: BOTH the unattended lane (launched
+// headlessly) and the interactive lane (paused and relaunched at every gate a human answers) run
+// the SAME code, so there is no prose runbook that can drift from what actually executes.
 //
 // WHAT THIS FILE OWNS.
 //   ORIENT -> GATE L1a -> ANALYZE -> WIRE -> GATE L1a.5 -> MAP SCOPES -> GATE L1b ->
@@ -12,49 +9,38 @@
 //   QA -> GATE H -> ship-report -> { status: "shipped", ... }
 // Every dispatched phase above is followed by a POST-CONDITION (`resume-state.mjs --require`):
 // the phase is complete when its artifact is on disk, never when its result record says so
-// (Stage A3 — see requirePhase below).
-// Every worker dispatch is the SAME four-call shape used throughout this codebase (C4, the
-// envelope port) and by shapeup-build-round.js (Stage 1): compile-order --operation <op> ->
-// Agent (fresh subagent, schema-forced report) -> ingest-result. The operation vocabulary and
-// worker ownership are the central registry's (domain.schema.json $defs/Operation) — this file
-// never re-derives which worker owns which operation; it just names the operation.
+// (see requirePhase below).
+// Every worker dispatch is the SAME four-call shape used throughout this codebase (the envelope
+// port): compile-order --operation <op> -> Agent (fresh subagent, schema-forced report) ->
+// ingest-result. The operation vocabulary and worker ownership are the central registry's
+// (domain.schema.json $defs/Operation) — this file never re-derives which worker owns which
+// operation; it just names the operation.
 //
-// WHY THE ROUND LOOP IS INLINED HERE RATHER THAN CALLING shapeup-build-round.js.
-// The migration plan's own Stage 2 sketch leaves this open ("shapeup-build-round-equivalent
-// inline or via workflow() child"). This file inlines it, deliberately: shapeup-build-round.js
-// (Stage 1) always attempts every scope in `args.scopes` from attempt 1, with no awareness of
-// what a PRIOR invocation already finished — correct for a round dispatched exactly once, wrong
-// for an outer loop that must survive a mid-BUILD kill and resume without re-work (this
-// migration's own kill/resume probe, docs/migration/stage2-evidence.md). The loop below adds
-// exactly one thing shapeup-build-round.js does not have: before opening a scope's attempt loop,
-// it asks whether THIS ROUND already has a green T0 verdict for that scope on disk, and skips
-// the scope entirely when it does. Nothing else about the per-attempt mechanics differs from
-// Stage 1's own verified design (docs/migration/stage1-evidence.md) — same mech()/dispatch
-// shapes, same ratchet discipline, same inner-breaker semantics.
+// WHY THE ROUND LOOP IS INLINED HERE.
+// A round dispatched exactly once can attempt every scope from attempt 1. An OUTER loop cannot:
+// it must survive a mid-BUILD kill and resume without re-work. So before opening a scope's
+// attempt loop, this file asks whether THIS ROUND already has a green T0 verdict for that scope
+// on disk, and skips the scope entirely when it does. Nothing else about the per-attempt
+// mechanics is special — same mech()/dispatch shapes, same ratchet discipline, same inner-breaker
+// semantics as any single round.
 //
-// WHAT THIS FILE DELIBERATELY DOES NOT DO (documented simplifications, not silent gaps — the
-// same posture Stage 1 took for ESCALATE/advisor-protocol, which shapeup-build-round.js also
-// does not dispatch):
-//   - No mid-round ESCALATE adjudication (advisor-protocol) and no discovered-task reconciliation
-//     mid-BUILD. Both remain the prose-only path in references/round-protocol.md and
-//     references/delegation.md §3b — non-regression for a spec whose workers never escalate or
-//     discover mid-attempt, which is the shape of every fixture this migration's own verification
-//     runs use. A future stage can add them the same way this file adds anything else: a fresh
-//     dispatch + a branch on its schema-forced report.
-//   - No QA `--recheck` promoted-item loop (round-protocol.md "QA edge hunt"): QA runs once after
-//     the first PASS; its findings are reported as a count for GATE H's census, never re-probed
-//     inside this run. Promoting a finding to a fix round is a decision only a live PO makes, and
-//     a headless lane (`ci`/`guarded`) never promotes — this is the common path both benchmark
-//     lanes exercise.
-//   - The `tiny` lane and pre-scope-contract specs are OUT OF SCOPE for this file, exactly as for
-//     shapeup-build-round.js — see that file's own banner. SKILL.md's Hard Rules / tiny-lane.md
-//     keep the prose path for those, verbatim, non-regression.
-//   - This file does not append rows to the committed `round-ledger.md` (references/state-model.md
-//     "Two ledgers") on a gate crossing — a gap it inherits unchanged from shapeup-build-round.js
-//     (Stage 1 also never wrote that ledger). `gate-answers.mjs`'s own resolution IS the audit
-//     record (source + authorized_by on every resolved gate, readable from `decisions.jsonl` and
-//     the gate's own JSON output); promoting that into a committed per-run ledger row is follow-on
-//     work, not a Stage 2 regression.
+// WHAT THIS FILE DELIBERATELY DOES NOT DO (documented simplifications, not silent gaps):
+//   - No mid-round ESCALATE resolution and no discovered-task reconciliation mid-BUILD. Both
+//     remain the prose-only path in references/round-protocol.md and references/delegation.md —
+//     non-regression for a spec whose workers never escalate or discover mid-attempt. Either can
+//     be added the same way this file adds anything else: a fresh dispatch + a branch on its
+//     schema-forced report.
+//   - No QA re-check loop (round-protocol.md "QA edge hunt"): QA runs once after the first PASS;
+//     its findings are reported as a count for GATE H's census, never re-probed inside this run.
+//     Promoting a finding to a fix round is a decision only a live PO makes, and a headless lane
+//     (`ci`/`guarded`) never promotes.
+//   - The `tiny` lane and pre-scope-contract specs are OUT OF SCOPE for this file. SKILL.md's
+//     Hard Rules / tiny-lane.md keep the prose path for those, verbatim, non-regression.
+//   - This file does not append rows to the committed `round-ledger.md`
+//     (references/state-model.md "Two ledgers") on a gate crossing. `gate-answers.mjs`'s own
+//     resolution IS the audit record (source + authorized_by on every resolved gate, readable
+//     from `decisions.jsonl` and the gate's own JSON output); promoting that into a committed
+//     per-run ledger row is follow-on work.
 //
 // args (RunArgs, domain.schema.json $defs/RunArgs — the central-registry shape; this file
 // validates its own subset in code, no runtime schema check at the C1 boundary itself):
@@ -85,21 +71,21 @@ export const meta = {
 };
 
 // Some callers hand `args` through as a JSON-encoded string rather than the object itself
-// (measured against the real Workflow runtime during shapeup-build-round.js's own Stage 1
-// verification — docs/migration/stage1-evidence.md). Normalize once, defensively.
+// (measured against the real Workflow runtime). Normalize once, defensively.
 if (typeof args === "string") {
   try { args = JSON.parse(args); } catch { args = {}; }
 }
 
 // ---------------------------------------------------------------------------------------------
-// The model floor (D5). Allowlist, not a denylist — see shapeup-build-round.js's banner for why.
+// The model floor (D5). Allowlist, not a denylist: an unknown model name must fail closed, and a
+// denylist silently admits every name nobody thought to list.
 // ---------------------------------------------------------------------------------------------
 const MODEL_FLOOR_ALLOWED = new Set(["sonnet", "opus"]);
 const belowFloor = (m) => !MODEL_FLOOR_ALLOWED.has(String(m || "").toLowerCase());
 
 // ---------------------------------------------------------------------------------------------
-// Argument validation — this file's own job for the round-scoped subset it reads (mirrors
-// shapeup-build-round.js). A malformed launch aborts before a single agent() is spent.
+// Argument validation — this file's own job for the subset it reads. A malformed launch aborts
+// before a single agent() is spent.
 // ---------------------------------------------------------------------------------------------
 function validateArgs(a) {
   const problems = [];
@@ -127,8 +113,8 @@ function validateArgs(a) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// C2 — the mechanical channel (design doc §2). Identical shape to shapeup-build-round.js: one
-// helper, one schema, sonnet — the D5 floor — on every call including this courier.
+// C2 — the mechanical channel: one helper, one schema, sonnet — the D5 floor — on every call
+// including this courier.
 // ---------------------------------------------------------------------------------------------
 const MECH_SCHEMA = {
   type: "object",
@@ -205,7 +191,7 @@ function parseMechJson(stdout) {
 // lib/paths.mjs the rest of the harness uses, never a storage-root literal typed here (test-#45
 // discipline, extended — 16-workflows.mjs enforces this mechanically over every file in this
 // directory). The one-liner is wrapped in a double-quoted shell argument so every JS string
-// literal INSIDE it can use single quotes with no escaping (the pattern shapeup-build-round.js's
+// literal INSIDE it can use single quotes with no escaping (the pattern this file's
 // writeActiveScope already verified against the real runtime).
 const mechNode = (statements, label) => mech(
   `node --input-type=module -e "${statements.join("")}"`,
@@ -218,11 +204,11 @@ const mechNode = (statements, label) => mech(
 // incomplete", read from files, never from memory.
 //
 // It lives in skills/tech-lead/scripts/resume-state.mjs, a real pipeline script, rather than in
-// an inline `node -e` blob here. That move is Stage A2.1 and it is not tidying: a Workflow script
+// an inline `node -e` blob here. That move is not tidying: a workflow script
 // cannot be imported, so while the derivation was a string inside this file NOTHING could unit-
-// test it — and the kill/resume probe (docs/migration/stage2-evidence.md §4) found it
+// test it — and the kill/resume probe found it
 // re-dispatching a COMPLETED ORIENT phase on every relaunch. As a script it has a fixture
-// (tests/structural/18-resume-state.mjs) and it matches the permissions.allow grant the installer
+// (its own structural fixture) and it matches the permissions.allow grant the installer
 // writes, which an inline `node -e` never did (run-3 environment finding #5).
 // ---------------------------------------------------------------------------------------------
 async function probe(slug) {
@@ -239,7 +225,7 @@ async function probe(slug) {
 }
 
 /** Has this scope already reached T0-green for THIS round? Files only, never memory — the one
- * piece of resumability shapeup-build-round.js's own attempt loop does not have (see banner).
+ * piece of resumability a single-shot attempt loop does not have (see banner).
  * Returns { green, path } so a resumed round can still cite the pre-kill T0 artifact at EVAL. */
 async function checkScopeGreen(slug, scopeId, round) {
   const r = await mechNode([
@@ -256,10 +242,10 @@ async function checkScopeGreen(slug, scopeId, round) {
   return parseMechJson(r.stdout) || { green: false, path: null };
 }
 
-// THE PHASE POST-CONDITION (Stage A3). A phase is complete when its ARTIFACT exists — never when
+// THE PHASE POST-CONDITION. A phase is complete when its ARTIFACT exists — never when
 // its result record says so.
 //
-// THE DEFECT THIS CLOSES, measured (docs/migration/stage-a2-evidence.md §7.3). Until now every
+// THE DEFECT THIS CLOSES. Until it was added, every
 // phase block read its artifact predicate ONCE, before dispatching, and never again. A worker that
 // returns `status: "escalated"` with `artifacts: []` — a legitimate outcome work-result.schema.json
 // defines — satisfied the ingest, so the run moved to the next gate as though the phase had landed.
@@ -272,10 +258,10 @@ async function checkScopeGreen(slug, scopeId, round) {
 // asked about one phase. Deliberately not a second predicate — two readings of "is this phase
 // done" that can disagree is the defect class itself, not a safeguard against it.
 //
-// D1 (PO, 2026-08-11): an unmet post-condition ABORTS, naming the phase. It is a union member that
-// already exists and needs no adjudication machinery; a `paused` would relaunch into the same order
-// and the same escalation unless the answer persisted somewhere, and that is advisor-protocol —
-// out of scope for this file (see the banner's documented simplifications).
+// An unmet post-condition ABORTS, naming the phase. `aborted` is a union member that already
+// exists and needs no adjudication machinery: a `paused` would relaunch into the same order and
+// hit the same wall, because nothing persists an answer between launches. Aborting puts the
+// question in front of a human once, instead of looping silently.
 const requirePhase = async (slug, gate, phaseKey) => {
   const r = await mech(
     `node "${args.pluginRoot}/skills/tech-lead/scripts/resume-state.mjs" --slug ${slug} --require ${phaseKey}`,
@@ -289,11 +275,11 @@ const requirePhase = async (slug, gate, phaseKey) => {
     reason: `${gate} produced no artifact: ${missing} is not on disk after the phase ran and its result was ingested. `
       + "The phase did not complete — its worker most likely escalated (a WorkResult may report `escalated` with `artifacts: []`), "
       + "and because completion is derived from the artifact, every relaunch would re-dispatch this phase and escalate again. "
-      + "Read the phase's result and the run's escalates queue, resolve it, then relaunch.",
+      + "Read the phase's result to see what it could not complete, resolve it, then relaunch.",
   };
 };
 
-// The ledger's `status` field. Two things changed here at Stage A2.2, and the second is the point.
+// The ledger's `status` field. Two things changed here, and the second is the point.
 //
 // It is no longer this file's resume oracle — the fast-forward reads ARTIFACTS (probe above), the
 // way WIRE and MAP SCOPES always did. `status` survives because it has other readers that would
@@ -307,10 +293,10 @@ const requirePhase = async (slug, gate, phaseKey) => {
 // loudly and the run continues, because bookkeeping that lost its write is a degraded digest, not
 // a corrupted build. The pointer below takes the opposite policy, for the reason stated there.
 //
-// ⟐ Stage A3 adds the second half of that read-back: the warning also travels in the RunReturn.
+// ⟐ The second half of that read-back: the warning also travels in the RunReturn.
 // `log()` goes to the progress narrator, and a headless `claude -p` stdout carries only the final
 // message — so when the A2 probe returned `shipped` over a ledger still reading `evaluating`, the
-// evidence could not say whether the failure had been reported at all (stage-a2-evidence.md §7.4).
+// evidence could not say whether the failure had been reported at all.
 // A diagnostic that only exists on a channel the operator cannot read is not a diagnostic.
 const stateWarnings = [];
 const setRunStatus = async (slug, status) => {
@@ -347,7 +333,7 @@ const ingest = (resultPath, label) => mech(
 );
 
 // ingest-result.mjs is the SINGLE WRITER of the board, the discovery ledger and the verdict record
-// (AGENTS.md invariant #3). Until Stage A2 every call site here discarded its outcome, which is the
+// (AGENTS.md invariant #3). Every call site here used to discard its outcome, which is the
 // same defect class the kill/resume probe found in the two state writes, sitting on the one script
 // whose failure matters most: an ingest that fails unnoticed leaves shared state describing work
 // that never landed, while the pipeline proceeds as though it had — a green board over an
@@ -367,7 +353,7 @@ const ingestFailure = (r, label) => (
 // assertions are set operations over exactly that pairing.
 //
 // Until now this file passed the worker's self-reported `result_path` to ingest instead. Measured,
-// Stage A3 probe leg 1: ORIENT wrote `results/orient.json` correctly and reported a DIRECTORY as
+// Observed in a probe run: ORIENT wrote `results/orient.json` correctly and reported a DIRECTORY as
 // its path; ingest read it, got EISDIR, and the run aborted at the first phase — `{"status":
 // "aborted","aborted_at":"ORIENT","reason":"ingest:orient did not apply: ✗ result unreadable:
 // EISDIR"}`. A phase that had done its whole job was thrown away on a claim about where it had put
@@ -393,7 +379,7 @@ const ingestOrAbort = async (gate, resultPath, label) => {
 // so the PO always receives a union member that says which phase died.
 //
 // THE PROMPT NAMES THE RESULT PATH, because the ORDER does not. Measured across two consecutive
-// ORIENT dispatches on the Stage A3 probe, two different failures with one cause:
+// ORIENT dispatches showed two different failures with one cause:
 //   leg 1a  the worker wrote results/orient.json and reported a DIRECTORY as its path
 //   leg 1b  the worker wrote all four orient artifacts and no result file at all
 // A compiled WorkOrder carries `order_id`, `substrate`, and `payload` — and nothing that says where
@@ -406,7 +392,7 @@ const ingestOrAbort = async (gate, resultPath, label) => {
 // the same path `resultFor` ingests, so the two agree by construction. Putting `result_path` INTO
 // the WorkOrder is the deeper fix and it belongs to whoever next opens the envelope schema — it
 // touches compile-order.mjs, domain.schema.json and every worker's input contract, which is a wider
-// diff than a branch frozen at Stage B should take. Recorded as a discovered defect, not silently
+// diff than this change should take. Recorded as a discovered defect, not silently
 // worked around.
 const dispatch = async (skill, orderPath, model, phase, label, schema, extra) => {
   const setOrderR = await mech(
@@ -466,7 +452,7 @@ const HAMMER_SCHEMA = {
 
 // ---------------------------------------------------------------------------------------------
 // Gate resolution — every gate crosses through gate-answers.mjs's exit code (0 cross / 4 pause /
-// 5 abort), identical convention to shapeup-build-round.js.
+// 5 abort) — the same convention every gate in the harness uses.
 // ---------------------------------------------------------------------------------------------
 const PRESET_NAMES = new Set(["ci", "guarded", "interactive"]);
 const answersFlag = (answers) => (!answers ? "" : (PRESET_NAMES.has(answers) ? `--preset ${answers}` : `--file ${answers}`));
@@ -529,7 +515,7 @@ if (facts.__probe_failed) {
 // PRIOR call this run (fast-forward: never re-dispatch a phase whose artifacts already exist).
 //
 // This branch used to read `facts.status`, and that is the defect the kill/resume probe caught
-// (docs/migration/stage2-evidence.md §4): stored state said "orienting" forever, because the
+// stored state said "orienting" forever, because the
 // write that would have moved it produced no agent and nobody read its result — so every
 // relaunch re-ran a phase whose artifacts were already on disk, rewriting them. The comment above
 // has always described the artifact test; now the code performs it, the same way WIRE reads
@@ -564,7 +550,7 @@ if (l1a.exit_code === 4) return paused("L1a", ["proceed", "ask", "abort"], { spi
 if (l1a.exit_code === 5) return abortedFrom("L1a", l1a, "GATE L1a aborted");
 
 // ---------------------------------------------------------------------------------------------
-// ANALYZE (spec tree + board) — ⟐ MOVED AHEAD OF WIRE AT STAGE A3.
+// ANALYZE (spec tree + board) — ⟐ RUNS AHEAD OF WIRE.
 //
 // It used to be the first of MAP SCOPES' two dispatches, which put it AFTER WIRE. That order is
 // the one solution-architect's own input contract excludes: `wire` is defined as "author/refresh
@@ -573,7 +559,7 @@ if (l1a.exit_code === 5) return abortedFrom("L1a", l1a, "GATE L1a aborted");
 // verification checklist requires one wiring-map entry PER use case (:108). `init-run.mjs`
 // scaffolds no spec tree, so on a greenfield run WIRE was handed an empty spec folder, had
 // nothing to wire, and escalated — deterministically, on every launch. Two committed authorities
-// disagreed and this file implemented the one the worker does not (docs/migration/stage-a3-plan.md
+// disagreed and this file implemented the one the worker does not (
 // §1, finding 2).
 //
 // Gate positions are unchanged: gates.md's L1a.5 confirms "each UC has a declared seam BEFORE
@@ -751,8 +737,7 @@ while (round <= args.budgets.maxRounds) {
       const orderPath = compiled.stdout.trim();
       // t0-verify.mjs's own default --out lands verdicts in the SHARED tree next to the scope
       // contract; the LOCAL ("." + "shapeup/") tree is derived from compile-order's own stdout, never
-      // spelled out here (the same fix shapeup-build-round.js's Stage 1 verification found —
-      // docs/migration/stage1-evidence.md).
+      // spelled out here.
       const localRoot = orderPath.slice(0, orderPath.lastIndexOf("/orders/"));
       const built = await dispatch(
         "task-executor", orderPath, args.models.exec, "Build", `build:${scope.scope_id}-a${attempt}`,

@@ -3,7 +3,7 @@
   "title": "HarnessDomain",
   "description": "The CENTRAL domain registry of the pure-skill architecture. Every shared field that crosses a skill boundary is defined here exactly once, with its meaning, owner, and storage tier annotated — work-order.schema.json and work-result.schema.json $ref into $defs below instead of re-defining records inline, and no skill may introduce a cross-boundary field that is not registered here first. Annotation keys: x-tier = SHARED (committed under shapeup/, survives clone+crash) | LOCAL (gitignored under .shapeup/, regenerable run-trace) | EMBEDDED (a record type that only lives inside another entity); x-location = the canonical path; x-writer = the single component allowed to write it; x-readers = who consumes it. The x-erd block is the machine-readable entity-relationship map; x-payload-by-worker is the authoritative table of which WorkOrder payload fields each worker may rely on.",
   "x-erd": {
-    "description": "Relationship map. Cardinality reads left-to-right (WorkOrder 1:1 WorkResult = every order has exactly one result). Join keys: <slug> (the feature) is the aggregate root every path is keyed off; scope_id is the STABLE cross-machine key (boards regenerate; hill shards, T0 history and branches join on it); TASK-NNN ids are machine-local and must never be joined across machines (generate-board joins on scope, not task id).",
+    "description": "Relationship map. Cardinality reads left-to-right (WorkOrder 1:1 WorkResult = every order has exactly one result). Join keys: <slug> (the feature) is the aggregate root every path is keyed off; scope_id is the STABLE cross-machine key (boards regenerate; hill shards, T0 history and branches join on it); TASK-NNN ids are machine-local and must never be joined across machines (board regeneration joins on scope, not task id).",
     "relationships": [
       {
         "from": "WorkOrder",
@@ -100,20 +100,6 @@
         "cardinality": "1:N",
         "via": "discoveries[]",
         "note": "ingest appends to discovery/ledger.md — three producers (executor +, QA ~, planner overflow), zero direct writers"
-      },
-      {
-        "from": "WorkResult",
-        "to": "Escalate",
-        "cardinality": "1:N",
-        "via": "escalates[]",
-        "note": "ingest queues to escalates/<order>.json; advisor-protocol adjudicates into a Decision"
-      },
-      {
-        "from": "Escalate",
-        "to": "Decision",
-        "cardinality": "1:0..1",
-        "via": "advisor-protocol adjudication",
-        "note": "persisted to the committed round-ledger the instant it is answered (zero-memory handoff)"
       },
       {
         "from": "WorkResult",
@@ -389,7 +375,7 @@
       ]
     },
     "Operation": {
-      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --map-scopes …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix/spike = task-executor · analyze/reconcile/retrofit-surface = ba-pitch-analyzer · map-scopes = scope-architect · wire = solution-architect · evaluate = spec-evaluator · orient = orient · hunt = qa-edge-hunter · translate = translator · hammer = scope-hammer · coach = coach.",
+      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --map-scopes …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix/spike = task-executor · analyze/reconcile/retrofit-surface/coverage = ba-pitch-analyzer · map-scopes = scope-architect · wire = solution-architect · evaluate = spec-evaluator · orient = orient · hunt = qa-edge-hunter · translate = translator · hammer = scope-hammer · coach = coach.",
       "type": "string",
       "enum": [
         "execute",
@@ -398,6 +384,7 @@
         "analyze",
         "reconcile",
         "retrofit-surface",
+        "coverage",
         "map-scopes",
         "wire",
         "evaluate",
@@ -451,7 +438,7 @@
       "properties": {
         "pause_gates": {
           "type": "boolean",
-          "description": "true (standalone default): pause at the worker's phase checkpoints. false: run straight through, surfacing questions as assumptions[]/escalates[]."
+          "description": "true (standalone default): pause at the worker's phase checkpoints. false: run straight through, surfacing questions as assumptions[] — or, when one genuinely blocks, deviations[] with status 'escalated'."
         },
         "max_questions": {
           "type": "integer",
@@ -538,7 +525,7 @@
       "description": "One adjudicated ESCALATE answer as carried inside a WorkOrder — binding precedent the worker must apply. Compiled from the committed round-ledger.md Decisions table (columns: Round | Scope | Kind | Question | Answer | Resolved by) filtered to this scope. The full row lives in the ledger; the envelope carries the minimal {id, answer} projection.",
       "x-tier": "EMBEDDED (projection of the SHARED round-ledger.md Decisions row)",
       "x-location": ".shapeup/<slug>/round-ledger.md",
-      "x-writer": "advisor-protocol (via tech-lead) — promoted the instant an answer is given",
+      "x-writer": "tech-lead — promoted the instant the PO gives an answer",
       "type": "object",
       "required": [
         "id",
@@ -802,49 +789,6 @@
         },
         "lines": {
           "type": "integer"
-        }
-      }
-    },
-    "EscalateBlock": {
-      "description": "The advisor-protocol adjudication grammar — an Escalate enriched with run coordinates and options, as passed to /advisor-protocol --escalate. The answer is persisted to the committed round-ledger.md Decisions table the instant it's given (zero-memory handoff: escalation memory lives in files, not chat).",
-      "x-tier": "EMBEDDED",
-      "x-readers": "advisor-protocol",
-      "type": "object",
-      "required": [
-        "kind",
-        "question"
-      ],
-      "properties": {
-        "scope_id": {
-          "type": "string"
-        },
-        "round": {
-          "type": "integer"
-        },
-        "attempt": {
-          "type": "integer"
-        },
-        "kind": {
-          "type": "string",
-          "enum": [
-            "design-decision",
-            "spec-ambiguity",
-            "substrate-expansion"
-          ]
-        },
-        "question": {
-          "type": "string"
-        },
-        "options": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Proposed answers, each with its rationale."
-        },
-        "default_if_silent": {
-          "type": "string",
-          "description": "Optional low-risk fallback — applied under --unattended (logged + flagged for GATE H); the advisor is never forced to accept it."
         }
       }
     },
@@ -1428,7 +1372,7 @@
       "x-tier": "SHARED",
       "x-location": ".shapeup/metrics/<machine-id>.jsonl",
       "x-writer": "tech-lead (SHIP S.6)",
-      "x-readers": "tier-3 e2e benchmark tooling, stats.mjs (read-only projection)",
+      "x-readers": "tier-3 e2e tooling, stats.mjs (read-only projection)",
       "type": "object",
       "properties": {
         "schema_version": {
@@ -1697,9 +1641,6 @@
             }
           }
         },
-        "open_escalates": {
-          "type": "integer"
-        },
         "pending_orders": {
           "type": "array",
           "items": {
@@ -1865,7 +1806,7 @@
       }
     },
     "Lane": {
-      "description": "v1.2 DESIGN DRAFT — reserves the name and makes the policy reviewable; no envelope references it yet and no runtime reads it. See docs/design/04-functional-design.md §4.7. When implemented, the lane is pipeline knowledge: the orchestrator compiles it away into existing registered knobs (payload.lens, payload.dimensions, interaction gate policy) — it NEVER rides in WorkOrderPayload, so workers stay pipeline-blind.",
+      "description": "v1.2 DESIGN DRAFT — reserves the name and makes the policy reviewable; no envelope references it yet and no runtime reads it. When implemented, the lane is pipeline knowledge: the orchestrator compiles it away into existing registered knobs (payload.lens, payload.dimensions, interaction gate policy) — it NEVER rides in WorkOrderPayload, so workers stay pipeline-blind.",
       "x-tier": "EMBEDDED (when implemented: recorded in harness-run.md frontmatter `lane:` — never a WorkOrderPayload field)",
       "x-writer": "tech-lead (GATE L0 lane selection)",
       "x-readers": "tech-lead only",
@@ -1915,7 +1856,7 @@
       "description": "One atomic customer requirement, frozen with a STABLE id — the covers-closure input truth (spine v1.3). Extracted from the REQ source (Open Decision A: pitch / customer-requirements doc / use-case bodies) by  extraction is judgment (LLM), but ids are assigned ONCE and never renumber (they behave like scope_id, not TASK-NNN — every covers: link would rot otherwise). Supersede-never-delete: a dropped clause is marked CUT (PO-approved), never removed, so the registry stays auditable on a fresh clone. The original REQ source is never edited — the registry is a separate derived, committed file.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/requirements.md",
-      "x-writer": " CUT status is a PO governance edit (same class as a round-ledger Decision)",
+      "x-writer": "ba-pitch-analyzer (operation: coverage) — extraction only; CUT status is a PO governance edit (same class as a round-ledger Decision)",
       "x-readers": "trace-lint.mjs (covers-closure oracle), tech-lead, human (coverage/cut audit)",
       "type": "object",
       "required": [
@@ -2154,7 +2095,7 @@
         },
         "scope_id": {
           "type": "string",
-          "description": "scope-architect (map-scopes): the stuck scope · scope-hammer (--breaker inner): the exhausted scope · advisor-protocol: budget scope."
+          "description": "scope-architect (map-scopes): the stuck scope · scope-hammer (--breaker inner): the exhausted scope."
         },
         "dimensions": {
           "type": "array",
@@ -2193,15 +2134,11 @@
         },
         "ledger": {
           "type": "string",
-          "description": "qa-edge-hunter: discovery ledger path (READ-ONLY context) · advisor-protocol: the committed round-ledger.md decisions persist to."
-        },
-        "escalate": {
-          "$ref": "#/$defs/EscalateBlock",
-          "description": "advisor-protocol: the worker's ESCALATE block to adjudicate."
+          "description": "qa-edge-hunter: discovery ledger path (READ-ONLY context)."
         },
         "round": {
           "type": "integer",
-          "description": "advisor-protocol: the round the budget/decision is counted against."
+          "description": "the round this order is counted against."
         },
         "baseline": {
           "type": "string",
@@ -2233,11 +2170,11 @@
       }
     },
     "ResumeState": {
-      "description": "The fast-forward derivation (docs/workflow_architecture_design.md §4): which phase a launch resumes at, derived from artifacts on disk and NEVER from stored state or conversation memory. Produced by skills/tech-lead/scripts/resume-state.mjs on stdout and consumed by shapeup-run.js's preamble on every launch, fresh or relaunch alike. Every phase predicate is an artifact test — `has_orient_artifacts` exists because the ORIENT branch was once gated on the ledger's stored `status` instead, which a silent courier failure left stale, and a completed ORIENT phase was re-dispatched on resume (docs/migration/stage2-evidence.md §4). `next_phase` is a convenience derived from the same booleans, which all travel too: a caller is never forced to trust a summary it cannot re-derive.",
+      "description": "The fast-forward derivation: which phase a launch resumes at, derived from artifacts on disk and NEVER from stored state or conversation memory. Produced by skills/tech-lead/scripts/resume-state.mjs on stdout and consumed by shapeup-run.js's preamble on every launch, fresh or relaunch alike. Every phase predicate is an artifact test — `has_orient_artifacts` exists because the ORIENT branch was once gated on the ledger's stored `status` instead, which a silent courier failure left stale, and a completed ORIENT phase was re-dispatched on resume. `next_phase` is a convenience derived from the same booleans, which all travel too: a caller is never forced to trust a summary it cannot re-derive.",
       "x-tier": "EMBEDDED",
       "x-location": "stdout of resume-state.mjs — never written to disk (the run's state IS the artifacts this record reports on)",
       "x-writer": "resume-state.mjs (deriving; the same script's --set-status / --set-active-scope operations write, and report their own outcome record instead)",
-      "x-readers": "shapeup-run.js (the fast-forward preamble, one call per launch), tests/structural/18-resume-state.mjs",
+      "x-readers": "shapeup-run.js (the fast-forward preamble, one call per launch)",
       "type": "object",
       "required": [
         "intake_path",
@@ -2275,7 +2212,7 @@
         },
         "has_spec_tree": {
           "type": "boolean",
-          "description": "ANALYZE finished: the spec folder's usecases/ carries at least one use case that is not _index.md. WIRE reads these — one wiring-map entry per use case (skills/solution-architect/SKILL.md:108) — which is why ANALYZE precedes WIRE in the phase chain (Stage A3; before it, WIRE was dispatched against an empty spec folder and escalated on every launch)."
+          "description": "ANALYZE finished: the spec folder's usecases/ carries at least one use case that is not _index.md. WIRE reads these — one wiring-map entry per use case — which is why ANALYZE precedes WIRE in the phase chain: dispatched against an empty spec folder, WIRE escalates on every launch."
         },
         "has_wiring_map": {
           "type": "boolean",
@@ -2330,12 +2267,12 @@
             "map-scopes",
             "build"
           ],
-          "description": "The first phase whose artifacts are incomplete. Derived from the booleans above, in that order. The same table (resume-state.mjs PHASE_ARTIFACT) answers `--require <phase>`, the post-condition shapeup-run.js checks after every phase dispatch — resume and completion are ONE predicate by construction (Stage A3)."
+          "description": "The first phase whose artifacts are incomplete. Derived from the booleans above, in that order. The same table (resume-state.mjs PHASE_ARTIFACT) answers `--require <phase>`, the post-condition shapeup-run.js checks after every phase dispatch — resume and completion are ONE predicate by construction."
         }
       }
     },
     "RunArgs": {
-      "description": "C1 — the launch half of the workflow's only conversation (docs/workflow_architecture_design.md §2). Compiled ONCE by tech-lead at GATE L0 from init-run.mjs output + the L0.8 model matrix + budgets, then passed to Workflow({scriptPath, args}) as one JSON literal — the workflow cannot ask follow-ups and cannot read config files itself, so everything a run will ever need travels in this one record. A workflow script validates its own subset of this shape in code (no runtime schema check at the C1 boundary itself); this entry is the central-registry definition the migration's Stage 1+ workflow scripts and the tech-lead skill both read as the one true shape.",
+      "description": "C1 — the launch half of the workflow's only conversation. Compiled ONCE by tech-lead at GATE L0 from init-run.mjs output + the L0.8 model matrix + budgets, then passed to Workflow({scriptPath, args}) as one JSON literal — the workflow cannot ask follow-ups and cannot read config files itself, so everything a run will ever need travels in this one record. A workflow script validates its own subset of this shape in code (no runtime schema check at the C1 boundary itself); this entry is the central-registry definition the workflow script and the tech-lead skill both read as the one true shape.",
       "x-tier": "EMBEDDED",
       "x-location": "in-memory only — a Workflow launch argument, never written to disk",
       "x-writer": "tech-lead (GATE L0, on every launch AND every relaunch after a paused gate)",
@@ -2416,10 +2353,10 @@
       }
     },
     "RunReturn": {
-      "description": "C1 — the return half of the workflow's only conversation. The ONLY way the workflow speaks back to tech-lead, so it is a tagged union keyed on `status` — the skill branches on the tag, never on prose (the same exit-code discipline gate-answers.mjs already applies to gate sign-off, extended to the orchestrator's own return value). A gate resolved 'ask' (exit 4) always returns `paused`; a gate resolved 'abort' (exit 5) always returns `aborted`; any circuit breaker tripping (outer round_budget, inner attempt_budget, or the deadline breaker) returns `gate_h`; a full run whose final EVAL passes returns `shipped`. Stage 1's shapeup-build-round returned the subset one inner round can itself produce (`paused`, `aborted`, `gate_h`, or an `ok` round-complete carrying a verdict), while `shipped` belonged only to the outer run — which is why the union is written as a superset of the round's. That split is now historical: Stage 2 inlined the round loop into shapeup-run and Stage B deleted the orphan, so one script emits every arm. The union is deliberately NOT narrowed to match, because the round-scoped subset is what a `workflow()` child would return if the fan-out this design anticipates ever spends that nesting level.",
+      "description": "C1 — the return half of the workflow's only conversation. The ONLY way the workflow speaks back to tech-lead, so it is a tagged union keyed on `status` — the skill branches on the tag, never on prose (the same exit-code discipline gate-answers.mjs already applies to gate sign-off, extended to the orchestrator's own return value). A gate resolved 'ask' (exit 4) always returns `paused`; a gate resolved 'abort' (exit 5) always returns `aborted`; any circuit breaker tripping (outer round_budget, inner attempt_budget, or the deadline breaker) returns `gate_h`; a full run whose final EVAL passes returns `shipped`. The union is written as a superset of what one inner round can itself produce (`paused`, `aborted`, `gate_h`, or a round-complete carrying a verdict) — `shipped` belongs only to a full run. It is deliberately NOT narrowed, because the round-scoped subset is what a `workflow()` child would return if the fan-out this design anticipates ever spends that nesting level.",
       "x-tier": "EMBEDDED",
       "x-location": "in-memory only — a Workflow return value, never written to disk",
-      "x-writer": "the Workflow runtime (shapeup-run — the sole writer since Stage B; Stage 1's shapeup-build-round wrote the round-scoped subset and was deleted as unreachable)",
+      "x-writer": "the workflow runtime (shapeup-run — the sole writer)",
       "x-readers": "tech-lead (branches on `status`, emits `block` verbatim on a pause, never re-summarizes it)",
       "type": "object",
       "required": [
@@ -2466,7 +2403,7 @@
           "items": {
             "type": "string"
           },
-          "description": "shipped | gate_h: bookkeeping writes that did not take (a ledger status that read back wrong), carried on the ONE channel a headless launch preserves. The workflow's own log() goes to the progress narrator and `claude -p` stdout carries only the final message, so a run that returned `shipped` over a ledger still reading `evaluating` could not be told from one that warned about it (docs/migration/stage-a2-evidence.md §7.4). Absent when every state write took. Diagnostic, never a status: a lost bookkeeping write is a degraded digest, not a corrupted build."
+          "description": "shipped | gate_h: bookkeeping writes that did not take (a ledger status that read back wrong), carried on the ONE channel a headless launch preserves. The workflow's own log() goes to the progress narrator and `claude -p` stdout carries only the final message, so a run that returned `shipped` over a ledger still reading `evaluating` could not be told from one that warned about it. Absent when every state write took. Diagnostic, never a status: a lost bookkeeping write is a degraded digest, not a corrupted build."
         },
         "round": {
           "type": "integer",

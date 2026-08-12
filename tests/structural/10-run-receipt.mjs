@@ -219,9 +219,14 @@ export async function run(ctx) {
       const c = fire({ cwd: empty, transcript_path: worked });
       let workedBlock = null;
       try { workedBlock = JSON.parse(c.stdout || "{}"); } catch { /* not JSON */ }
-      if (workedBlock?.decision === "block") ok("BLOCKS a session that worked around the harness and left no receipt (HD-008)");
-      else fail("deferred on four work calls with no receipt — HD-008's escape is back: a busy session switches the gate off");
-      if (typeof workedBlock?.reason === "string" && /HD-008/.test(workedBlock.reason)) {
+      if (workedBlock?.decision === "block") ok("BLOCKS a session that worked around the harness and left no receipt");
+      else fail("deferred on four work calls with no receipt — the work-done escape is back: a busy session switches the gate off");
+      // Asserts the SUBSTANCE, never an internal defect id: the shipped message must name the work
+      // calls and say they are the reason rather than a waiver. Pinning a tracker id here would put
+      // this project's own bookkeeping into a string a user reads.
+      if (typeof workedBlock?.reason === "string"
+          && /work calls/i.test(workedBlock.reason)
+          && /not a reason to waive/i.test(workedBlock.reason)) {
         ok("the block explains why the work calls are the reason, not a waiver");
       } else fail("the block does not tell a session that DID work why it is still blocked");
 
@@ -308,7 +313,7 @@ export async function run(ctx) {
         ok("the denial names the exit — Skill(scope-hammer, --breaker deadline)");
       } else fail("the denial does not name the exit");
 
-      for (const survivor of ["spec-evaluator", "scope-hammer", "qa-edge-hunter", "advisor-protocol"]) {
+      for (const survivor of ["spec-evaluator", "scope-hammer", "qa-edge-hunter"]) {
         if (!fire(survivor).stdout.trim()) ok(`allows ${survivor} past the deadline (the run must still be able to close)`);
         else fail(`denied ${survivor} past the deadline — that strands the run with green scopes it cannot ship`);
       }
@@ -535,7 +540,7 @@ export async function run(ctx) {
     const AR = "hooks/anti-rationalization.mjs";
     if (existsSync(join(ROOT, AR))) {
       const { contradictions, detectClaim, isFutureClaim } = await import(`file://${join(ROOT, AR)}`);
-      const midRun = { unfinished: ["TASK-002", "TASK-003"], red_t0: null, open_escalates: 1, run_status: "building", final_verdict: null };
+      const midRun = { unfinished: ["TASK-002", "TASK-003"], red_t0: null, run_status: "building", final_verdict: null };
 
       const promise = detectClaim("I'll now run the evaluator for round 2.");
       if (promise && isFutureClaim(promise)) ok("a future-tense promise is still recognised as a claim");
@@ -548,7 +553,7 @@ export async function run(ctx) {
              `every normal round: ${contradictions(promise, midRun).join("; ")}`);
       }
 
-      const closed = { ...midRun, unfinished: [], open_escalates: 0, run_status: "shipped" };
+      const closed = { ...midRun, unfinished: [], run_status: "shipped" };
       if (contradictions(promise, closed).length > 0) {
         ok("a promise made on a CLOSED run is still contradicted — the real failure survives");
       } else fail("a promise of work on a shipped run raises nothing");

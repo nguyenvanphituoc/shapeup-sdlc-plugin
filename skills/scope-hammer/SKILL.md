@@ -11,7 +11,7 @@ live with today — not to a hypothetical perfect version. "Better than the base
 enough to ship; "not as good as I imagined" is not a reason to keep building.
 
 **Why this is its own skill, not tech-lead prose.** GATE H census pulls from several sources
-that accumulate over a whole run (QA findings, discovered-task ledger, advisor-protocol budget
+that accumulate over a whole run (QA findings, discovered-task ledger, attempt-budget
 overflows, per-scope inner-breaker trips) — a genuinely separate synthesis step from
 orchestration. Splitting it out keeps `tech-lead` thin (it dispatches, this skill decides what
 survives the hammer) and gives the census/cut-list/verdict logic one owner instead of being
@@ -63,7 +63,7 @@ H0.1  Unresolved scopes (breaker cases only):
           with the T0 failure that stalled them (from the last red t0/verdicts/*.json)
 H0.2  QA findings (qa-edge-hunter's hunt-report.md, when present) — all `~` by default.
 H0.3  Discovered-task ledger entries still open (discovery/ledger.md, `[+]`/`~` unresolved).
-H0.4  advisor-protocol budget-overflow flags (auto-resolved ESCALATEs logged for GATE H review).
+H0.4  Attempt-budget hammer proposals (scopes that exhausted their T0 attempts during BUILD).
 H0.5  Classify every item: MUST-HAVE (the pitch's core problem is unsolved without it) vs
       NICE-TO-HAVE (`~`, improves but doesn't block the core promise). Default to NICE-TO-HAVE
       unless the item traces directly to a pitch boundary or a scope's business_goal — a

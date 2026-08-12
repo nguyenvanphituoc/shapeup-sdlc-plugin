@@ -148,22 +148,26 @@ Scope contracts present (isolated attempt loop, per scope, per attempt):
     handoff, compiled from facts only. Dispatch a fresh Agent per attempt (the isolation
     boundary):
     Skill(shapeup-sdlc-plugin:task-executor) --order <path>
-  ingest-result — any escalates[] in the WorkResult are queued → dispatch 3b below.
+  ingest-result — a WorkResult with status "escalated" leaves its artifact unwritten → see 3b below.
 
 Read back: ingest-result's summary line (tasks updated, unblocked, escalates) — not raw board
 files. SPIKE tasks close before the tasks they block can build (compile-order enforces the
 dependency order).
 ```
 
-## 3b. ESCALATE adjudication → advisor-protocol (scope contracts present, mid-attempt)
+## 3b. A worker that cannot finish (scope contracts present, mid-attempt)
 ```
-Invoke via Agent (model: exec): Skill(shapeup-sdlc-plugin:advisor-protocol)
-        --ledger shapeup/<slug>/round-ledger.md --escalate <block> [--unattended]
-        default; appends one row to round-ledger.md "Decisions" the instant it resolves.
-Read back: the answer, to fold into the SAME attempt if still in progress, or the next
-        attempt's isolated brief otherwise.
-Authority: advises; never designs, builds, or judges. Budget ≤3/scope/round — the 4th+
-        ESCALATE this scope/round auto-resolves conservatively and flags a GATE H proposal.
+There is NO adjudication dispatch. A worker has no port for "I cannot decide this": WorkResult
+        carries no escalates field, so the question never reaches you as data.
+What you see: the phase produces no artifact. The workflow's post-condition
+        (resume-state.mjs --require <phase>) fails and the run ABORTS, naming the phase.
+Do: read the phase's result file to find what it could not complete, resolve it yourself —
+        by amending the spec, widening the scope contract, or answering the ambiguity in the
+        round-ledger "Decisions" table — then relaunch. The fast-forward re-dispatches only
+        what is still unfinished.
+Why it aborts rather than pauses: nothing persists an answer between launches, so a pause
+        would relaunch into the same order and hit the same wall. Aborting puts the question
+        in front of a human once instead of looping silently.
 ```
 
 ## 3c. T0 verify → scripts/t0-verify.mjs (skill-local; scope contracts present, every attempt)
@@ -250,7 +254,7 @@ Read back: the proposed cut list + verdict (SHIP now | SHIP after fixing ship-bl
 | `scopes/<scope-id>.md` | `scope-architect` (sole writer) | tech lead (substrate/sequence), sandbox hook (write-whitelist), compile-order (inlined into orders) |
 | `t0/verdicts/r<N>-a<M>-t<T>.json` | `scripts/t0-verify.mjs` (skill-local, mechanical — not a worker) | spec-evaluator (required citation), tech lead (hill derivation), compile-order (digested errors) |
 | `t0/trials.jsonl` (the ratchet ledger, append-only, `baseline_trial` as the parent link) | `scripts/t0-verify.mjs` (one row per attempt: score, status, delta, tree_ref) | compile-order (`trial_history` into the next order), ship-report (T0 + Ratchet sections), `stats.mjs --ratchet` |
-| `round-ledger.md` | **tech lead (sole writer)** | compile-order (decisions into every order), advisor-protocol (appends), PO (audit) |
+| `round-ledger.md` | **tech lead (sole writer)** | compile-order (decisions into every order), PO (audit) |
 | `hill/<scope-id>.yml` + `hill-chart.md` | **tech lead (sole writer)** | PO ("status without asking"), scope-hammer (H0 census) |
 
 > D6 is closed (v1.0): no worker writes `run-state.md`, the board, or the ledger. A worker

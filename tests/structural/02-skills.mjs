@@ -203,4 +203,30 @@ export async function run(ctx) {
   if (existsSync(join(ROOT, "tools/trigger-eval.mjs"))) ok("trigger-eval harness present");
   else fail("tools/trigger-eval.mjs missing");
 
+  // =============================================================================
+  section("2b. A worker that documents a WorkResult contract also says how to escalate");
+  // =============================================================================
+  // `status: "escalated"` is a valid WorkResult value, but the envelope carries NO structured
+  // escalates[] field — the only channel a blocked worker has is deviations[]. That makes the
+  // convention load-bearing: a worker that escalates without putting the blocker FIRST reaches
+  // the human as "something went wrong", which costs a round to re-derive. The rule is worded
+  // identically in every contract on purpose, so this check is an exact-substring parity test
+  // rather than a guess at paraphrase.
+  {
+    const CONTRACT = "## Output contract — the WorkResult";
+    const RULE = "the **first** entry in `deviations[]`";
+    let checked = 0;
+    for (const dir of readdirSync(join(ROOT, "skills"), { withFileTypes: true }).filter((d) => d.isDirectory())) {
+      const p = join(ROOT, "skills", dir.name, "SKILL.md");
+      if (!existsSync(p)) continue;
+      const body = read(p);
+      if (!body.includes(CONTRACT)) continue;      // no formal WorkResult contract → not in scope
+      checked++;
+      if (body.includes(RULE)) ok(`${dir.name} states the escalation rule (blocker goes first in deviations[])`);
+      else fail(`${dir.name} documents a WorkResult contract but never says where a blocker goes — a worker that escalates here has no defined channel`);
+    }
+    if (checked > 0) ok(`escalation-rule parity checked across ${checked} worker contract(s)`);
+    else fail("no SKILL.md carries a WorkResult output contract — the parity check is inert");
+  }
+
 }

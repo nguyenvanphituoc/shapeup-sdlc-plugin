@@ -601,7 +601,6 @@ sequenceDiagram
   IN->>IN: validate against work-result.schema.json
   IN->>IN: tick AC boxes · flip status · append exec log
   IN->>IN: propagate unblocks · append discoveries
-  IN->>IN: queue escalates for advisor-protocol
   IN-->>TL: summary of every write performed
 
   TL->>T0: t0-verify SC-02.json --round 2 --attempt 3
@@ -966,20 +965,6 @@ flowchart TB
 
     <h3>The governors — budget, escalation, learning</h3>
     <div class="cards">
-
-      <div class="card">
-        <div class="name">/advisor-protocol</div>
-        <blockquote>"A worker never asks a free-form question mid-attempt. It returns a
-        structured block and stops work on the blocked AC until an answer comes back."</blockquote>
-        <div class="forces"><b>What breaks it</b>A zero-memory worker that guesses. Attempt 3
-        picks half-up rounding, attempt 4 picks banker's, and the fixtures oscillate with
-        nothing recording why.</div>
-        <div class="mech"><code>escalates[]</code> is a typed field on the WorkResult;
-        <code>ingest-result</code> queues it; the answer is persisted to the committed round
-        ledger and <code>compile-order</code> reads it back into
-        <code>payload.decisions[]</code> as <strong>binding precedent</strong> — so it survives
-        the next attempt's fresh context.</div>
-      </div>
 
       <div class="card">
         <div class="name">/scope-hammer</div>

@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/nguyenvanphituoc/shapeup-sdlc-plugin/schemas/gate-answers.schema.json",
   "title": "GateAnswerSet",
-  "description": "A pre-recorded set of PO decisions, one per gate, that lets a run cross its gates without a human in the loop. This is NOT 'gates off' — every gate still emits its block and still records a decision in the ledger; the decision's SOURCE becomes this file instead of a live human. That distinction is the whole design: an unattended run with no answer set stalls at the first ⏸ and burns its wall-clock budget (measured: shapeup-sdlc DNF at 1800s on benchmark F3), while an unattended run with one produces the same audit trail an interactive run does.",
+  "description": "A pre-recorded set of PO decisions, one per gate, that lets a run cross its gates without a human in the loop. This is NOT 'gates off' — every gate still emits its block and still records a decision in the ledger; the decision's SOURCE becomes this file instead of a live human. That distinction is the whole design: an unattended run with no answer set stalls at the first ⏸ and burns its whole wall-clock budget having built nothing, while an unattended run with one produces the same audit trail an interactive run does.",
   "type": "object",
   "required": ["version", "preset", "answers"],
   "additionalProperties": false,
@@ -26,7 +26,7 @@
     "escalation": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Policy for a worker's structured ESCALATE (advisor-protocol), which is a gate in all but name.",
+      "description": "RESERVED. Policy for a worker-raised question, which would be a gate in all but name. Inert today: WorkResult carries no escalates field, so no worker can raise one. Kept as a declared key because the answer-set schema forbids additional properties, and removing it would invalidate every gate-answers.json already on disk.",
       "properties": {
         "default": {
           "type": "string",

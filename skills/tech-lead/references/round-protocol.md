@@ -118,7 +118,7 @@ coherent to evaluate yet.
    straight to GATE H (`/scope-hammer --breaker deadline`). Checked with
    `scripts/budget-check.mjs` at every round boundary and enforced by `hooks/gate-deadline.mjs`,
    which denies a `task-executor` dispatch past the deadline while leaving `spec-evaluator`,
-   `scope-hammer`, `qa-edge-hunter` and `advisor-protocol` reachable — a run past its deadline
+   `scope-hammer` and `qa-edge-hunter` reachable — a run past its deadline
    must still be able to judge, hammer, and close. Off unless configured.
 5. **Hard error** — a sub-skill fails irrecoverably (e.g. spec folder gone, app won't
    build at all) → stop and report; do not retry blindly.
@@ -146,17 +146,15 @@ DEADLINE wall_clock_budget_s        — elapsed seconds since the run receipt. O
                                        --breaker deadline. Enforced by hooks/gate-deadline.mjs.
 ```
 
-**Why the third one exists — it was measured, and it corrected an earlier diagnosis.** On the
-SDD harness benchmark (F3, Sonnet 5) this harness was killed at the declared 1800 s cap and
-published as a DNF. The natural reading was that it had stalled at a gate. Re-reading the
-retained transcript says otherwise: **327 turns, 262 tool calls, 37 file writes, 19 gate markers,
-last gate L3, and zero stall signals** — the least talkative shapeup run in the whole matrix. It
-was working when the clock ran out.
+**Why the third one exists — and it corrects an earlier diagnosis.** A run killed at an external
+time cap looks like a stall from outside: no verdict, nothing to show. The natural reading is that
+it hung at a gate. Often the transcript says otherwise — steady turns, steady writes, gate markers
+advancing, zero stall signals. The run was working when the clock ran out.
 
 Both existing breakers count *events*, not time: `round_budget` moves once per round,
 `attempt_budget` once per T0 attempt. Neither can observe that round 1 has been running for
 twenty-nine minutes, so a run can burn its entire wall clock with both breakers untouched. The
-cost is not the DNF row — it is that a run killed from *outside* ships nothing, not even the
+cost is not the missing verdict — it is that a run killed from *outside* ships nothing, not even the
 scopes that were already green. A breaker that trips from the inside routes to GATE H, where
 scope-hammer compares the shippable subset against the baseline and ships what works. Same clock,
 different ending.
@@ -187,11 +185,12 @@ compile-order --scope … --round N --attempt M
                                       round boundary — compiled facts, no chat history by
                                       construction)
 dispatch task-executor --order …   → code within substrate; WorkResult in results/
-ingest-result <result>             → board/ledger writes; escalates[] queued
-handle_escalations(≤3/scope/round) → /advisor-protocol; answer promoted to round-ledger.md
-                                      immediately (must survive the NEXT attempt's fresh
-                                      context — this is what "zero-memory" is compatible with
-                                      escalation memory means, DD-8)
+ingest-result <result>             → board/ledger writes
+(a worker cannot escalate)         → WorkResult carries no escalates field. A phase that
+                                      cannot finish leaves no artifact, the post-condition
+                                      fails, and the run ABORTS naming the phase. Resolve it
+                                      yourself and record the answer in round-ledger.md, which
+                                      the NEXT attempt's fresh context reads back (DD-8).
 t0-verify.mjs                      → fixtures + DB probe + (on green) seesaw, then scores the
                                       attempt against the baseline trial and snapshots or
                                       restores the tree. Branch on `status` from its stdout

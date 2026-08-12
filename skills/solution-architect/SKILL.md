@@ -73,7 +73,7 @@ guessed `main.js` would make the later oracle certify nothing.
 3 WRITE    shapeup/<slug>/wiring-map.md (WiringMap): {schema_version:1, feature,
            entry_point (echo of the profile), entries[]}. One entry per use case. A UC whose
            engine has no attachment path is exactly the gap this artifact exists to surface —
-           write the entry with the seam you INTEND and raise it in deviations[]/escalates[], so
+           write the entry with the seam you INTEND and raise it in deviations[], so
            the build knows the wiring it must close. Your craft ends here: WRITE, then return the
            WorkResult. You do not run trace-lint — the orchestrator runs it advisory at L1b.
 ```
@@ -96,8 +96,15 @@ is always an attachment to the entry point, or the code never runs.
 
 ## Output contract — the WorkResult
 
+**Escalation rule.** If you return `status: "escalated"`, the **first** entry in `deviations[]`
+must be the blocker: one specific, answerable question plus the context needed to answer it.
+Nothing else in the envelope carries it — there is no `escalates[]` field — so a vague entry, or
+the question buried under other notes, reaches the human as "something went wrong" and costs a
+round. Write it so someone without your context can answer it in one reply.
+
+
 `wiring-map.md` in your substrate, then `.shapeup/<slug>/results/<order-suffix>.json`:
-`status`, `artifacts[]` (the wiring map written), `escalates[]` (e.g. a missing profile, or a UC
+`status`, `artifacts[]` (the wiring map written), `deviations[]` (e.g. a missing profile, or a UC
 whose engine the spec never names — the planner's territory), `assumptions[]` (engine paths
 inferred from the domain model where the spec was silent), `deviations[]` (any UC left with an
 uncertain seam, or an engine with no attachment path, and why). You never touch spec docs,
@@ -110,7 +117,7 @@ uncertain seam, or an engine with no attachment path, and why). You never touch 
 - [ ] `entry_call_site` is a symbolic composition-root attachment resolved against the profile's `entry_point` — no invented line number, no guessed entry point
 - [ ] `entry_point` echoes the profile — no independently-chosen seam
 - [ ] The profile was READ, not guessed; a missing profile in orchestrated mode → ESCALATE, not an invented entry point
-- [ ] Any UC whose engine has no attachment path is raised in `deviations[]`/`escalates[]` (the wiring the build must close), never silently dropped
+- [ ] Any UC whose engine has no attachment path is raised in `deviations[]` (the wiring the build must close), never silently dropped
 - [ ] The WorkResult validates against `work-result.schema.json`
 
 ## Invocation

@@ -1,27 +1,23 @@
 #!/usr/bin/env node
 // GATE D — DEADLINE. PreToolUse hook. The wall-clock breaker, enforced rather than requested.
 //
-// WHY THIS EXISTS (measured, and it corrects an earlier diagnosis).
+// WHY THIS EXISTS (and it corrects an earlier diagnosis).
 //
-// SDD harness benchmark, F3 (Sonnet 5): this harness was killed at the declared 1800 s cap and
-// published as a DNF — no acceptance, no cost, no turns, a dash in every column. The natural
-// reading was "it stalled at a gate". Re-reading the retained transcript says the opposite:
+// A run killed at an external time cap looks exactly like a stall from outside: no acceptance, no
+// verdict, nothing to show. The natural reading is "it hung at a gate". Often the opposite is
+// true — the run was working, steadily, and was still working when the clock ran out.
 //
-//     327 assistant turns · 262 tool calls · 130 work calls · 37 file writes
-//     19 gate markers, last gate L3 · narration_ratio 0.047 · stall_signals 0
+// Both existing breakers count EVENTS (`round_budget` per round, `attempt_budget` per T0
+// attempt), so neither can observe that a single round has been running for half an hour. A run
+// can burn its whole budget with both breakers untouched.
 //
-// It was working — the least talkative shapeup run in the matrix — and it was still working when
-// the clock ran out. Both existing breakers count EVENTS (`round_budget` per round,
-// `attempt_budget` per T0 attempt), so neither can observe that a single round has been running
-// for twenty-nine minutes. The run burned its whole budget with both breakers untouched.
-//
-// The cost of that is not the DNF row. It is that an externally killed run ships NOTHING, not
+// The cost of that is not the missing verdict. It is that an externally killed run ships NOTHING, not
 // even the scopes that were already green. A breaker that trips from the inside routes to GATE H
 // instead: census, baseline comparison, ship the part that works. Same clock, different ending.
 //
 // WHAT IT DENIES, AND WHAT IT DELIBERATELY DOES NOT. Past the deadline this denies dispatches
-// that START NEW WORK — `task-executor`. It never denies `spec-evaluator`, `scope-hammer`,
-// `qa-edge-hunter` or `advisor-protocol`, because a run past its deadline must still be able to
+// that START NEW WORK — `task-executor`. It never denies `spec-evaluator`, `scope-hammer` or
+// `qa-edge-hunter`, because a run past its deadline must still be able to
 // judge, hammer and close. A breaker that also blocked the exit would strand the run with green
 // scopes it could not ship, which is the failure it exists to prevent.
 //
@@ -132,8 +128,8 @@ const reason = [
   "against the ideal), and produces a cut list. Ship what is green; the rest becomes a raw idea for",
   "the next Betting Table.",
   "",
-  "spec-evaluator, scope-hammer, qa-edge-hunter and advisor-protocol are all still permitted — a run",
-  "past its deadline must still be able to judge, hammer, and close.",
+  "spec-evaluator, scope-hammer and qa-edge-hunter are all still permitted — a run past its",
+  "deadline must still be able to judge, hammer, and close.",
   ...repeat,
 ].join("\n");
 

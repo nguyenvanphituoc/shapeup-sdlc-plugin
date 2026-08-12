@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Run snapshot — the compaction-resilience derivation (v1.2, absorb-audit P4).
+// Run snapshot — the compaction-resilience derivation (v1.2).
 //
 // Derives a RunSnapshot (domain.schema.json#/$defs/RunSnapshot) from FILES ONLY: the
 // active-scope pointer, harness-run.md frontmatter, board task frontmatter, t0/verdicts
@@ -175,11 +175,6 @@ export function deriveSnapshot(cwd) {
     }
     if (board.total > 0) snapshot.board = board;
   }
-
-  const escDir = join(root, "escalates");
-  snapshot.open_escalates = existsSync(escDir)
-    ? readdirSync(escDir).filter((f) => f.endsWith(".json")).length
-    : 0;
 
   const ordersDir = join(root, "orders");
   const resultsDir = join(root, "results");

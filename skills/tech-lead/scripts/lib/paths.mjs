@@ -12,7 +12,7 @@
 // error, and is wrong — `lib/is-main.mjs` (a guard duplicated 18 times, inert under a symlink) and
 // `lib/argv.mjs` (`rNaN-a1.json` written with exit 0) are the same defect at different layers. The
 // remedy each time is to give the duplicated thing one home and add a test that no one may bypass
-// it (`tests/structural/45-paths.mjs`, mirroring #11a).
+// it — asserted by the structural suite.
 //
 // It also removes a live ambiguity. `gate-answers.mjs` resolved three candidate paths and
 // `sandbox-guard.mjs` built a fourth independently; the same filename meant "my personal lane" at
@@ -21,7 +21,7 @@
 // TIER DISCIPLINE, restated here because this is where it becomes mechanical:
 //   SHARED (committed) — prose a teammate reads: shaping, spec, contracts, requirements, report.
 //   LOCAL (gitignored) — run state, envelopes, verification artifacts, machine policy.
-// See docs/design/adr/0001-consumer-file-organization.md.
+// See ADR-0001 (consumer file organization).
 //
 // Zero dependencies. Pure — every function takes `cwd` and returns a path; nothing here touches
 // the filesystem, so importing this module can never have a side effect.
@@ -167,8 +167,6 @@ export const spikesDir = (cwd, slug) => join(localRoot(cwd, slug), "spikes");
 export const traceDir = (cwd, slug) => join(localRoot(cwd, slug), "trace");
 /** The discovered-task ledger every discovery flow appends to. */
 export const discoveryLedger = (cwd, slug) => join(localRoot(cwd, slug), "discovery", "ledger.md");
-/** Queued worker escalations awaiting adjudication. */
-export const escalatesDir = (cwd, slug) => join(localRoot(cwd, slug), "escalates");
 /**
  * Adjudicated decisions, read back by `compile-order` as binding precedent.
  *

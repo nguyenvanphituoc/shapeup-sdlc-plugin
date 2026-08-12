@@ -5,9 +5,7 @@ step, extracted from `SKILL.md` (progressive disclosure). **Read the relevant se
 reach that gate** — `SKILL.md` carries the workflow spine and the hard rules; this file carries the
 step-by-step playbooks. The L2/L4 gates stay hook-enforced regardless of where the prose lives.
 
-**Which lane these playbooks serve** ⟐ *(corrected 2026-08-12, Stage B item B.2 — this header used
-to say `SKILL.md` carries "the build/eval loop", which stopped being true when Stage 2 moved that
-loop into code and left the sentence behind).* The gate blocks below are lane-independent: every
+**Which lane these playbooks serve.** The gate blocks below are lane-independent: every
 lane emits them verbatim, and on the scoped lane `shapeup-run.js` returns the `block` field for
 `SKILL.md` to print unchanged. What differs is who runs the loop *between* the gates:
 
@@ -19,11 +17,11 @@ lane emits them verbatim, and on the scoped lane `shapeup-run.js` returns the `b
 Order matches the run: GATE L0 → ORIENT → GATE L1a → ANALYZE → WIRE/L1a.5 → MAP SCOPES →
 GATE L1b → (BUILD → GATE L2 → EVAL — see the table above) → GATE L3 → SHIP → GATE L4.
 
-⟐ **ANALYZE runs before WIRE** (Stage A3, 2026-08-11). MAP SCOPES' two dispatches split around
+⟐ **ANALYZE runs before WIRE.** MAP SCOPES' two dispatches split around
 L1a.5: `analyze` writes the spec tree, then `wire` reads its `usecases/` — one wiring-map entry per
 use case — then `map-scopes` slices. Dispatching WIRE first hands `solution-architect` an empty
 spec folder, which its own input contract excludes (`skills/solution-architect/SKILL.md:43-44`); it
-escalates, writes nothing, and every relaunch re-dispatches it (`docs/migration/stage-a3-plan.md`).
+escalates, writes nothing, and every relaunch re-dispatches it.
 
 ---
 
@@ -99,8 +97,7 @@ none resolvable  ->  ABORT. Print the ✋ NO INTAKE block from SKILL.md and stop
                      Do NOT describe the pipeline that "will" run.
 ```
 An orchestrator with no spec has nothing to orchestrate. Narrating the gate list in that state
-produces output that reads exactly like a successful run and contains no work — measured at 29%
-acceptance, n=3, on the benchmark. Fail loudly instead.
+produces output that reads exactly like a successful run and contains no work. Fail loudly instead.
 
 **GATE L0 Output:**
 ```
@@ -164,7 +161,7 @@ Do NOT enter MAP SCOPES until Orient is accepted.
 2. WIRE — compile-order --operation wire --slug <slug> (worker→solution-architect), payload
    {project_profile}. Sole writer of committed wiring-map.md (per-UC engine → seam → entry-point
    call site → affordance). ⏸ GATE L1a.5: confirm each UC has a declared seam before slicing.
-   ⟐ PRECONDITION (Stage A3): MAP SCOPES step 1 (ANALYZE) has already run and usecases/ is
+   ⟐ PRECONDITION: MAP SCOPES step 1 (ANALYZE) has already run and usecases/ is
    populated. WIRE writes one entry per use case, so dispatching it against an empty spec folder
    is an escalation, not a wiring map — and a phase that writes no artifact is re-dispatched on
    every relaunch. Verify: node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/resume-state.mjs"
@@ -180,7 +177,7 @@ Do NOT enter MAP SCOPES until Orient is accepted.
 
 ## MAP SCOPES (step 8) — delegate to ba-pitch-analyzer (orient-informed)
 
-⟐ **Step 1 runs BEFORE the WIRE section above; step 2 runs after it** (Stage A3). The two
+⟐ **Step 1 runs BEFORE the WIRE section above; step 2 runs after it.** The two
 dispatches sit either side of L1a.5: ANALYZE writes the use cases WIRE reads, and MAP SCOPES slices
 against the seams WIRE declared. Sequence: ORIENT → L1a → **ANALYZE** → **WIRE** → L1a.5 →
 **MAP SCOPES** → L1b.
@@ -342,7 +339,7 @@ S.0  GATE H — delegate to scope-hammer (this IS Shape Up's "Decide When to Sto
                                               exhausted scopes accumulated during BUILD)
              (no --breaker flag)              normal stop — all scopes FINISHED, post-QA-hunt
      Feeds it: qa/hunt-report.md findings (when present), discovery/ledger.md open items,
-               advisor-protocol budget-overflow flags, the hammer-proposal queue from BUILD.
+               the hammer-proposal queue from BUILD (attempt-budget exhaustions).
      Reads back: its GATE H0/H1/H2 output — census, baseline comparison, cut list + verdict.
      Authority: scope-hammer proposes; the tech lead records the PO's decision in
        round-ledger.md and performs the actual close (S.1 onward). It never ships on its own.

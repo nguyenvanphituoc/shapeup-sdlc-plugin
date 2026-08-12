@@ -142,7 +142,7 @@ budgets:
 | 2 | cart-creation | design-decision | cart-total rounding | round half-up | PO (interactive) |
 | 2 | cart-creation | substrate-expansion | needs packages/shared/http.ts | approved → shared_substrate | PO (interactive) |
 ```
-**Promotion timing:** a row is appended the INSTANT `advisor-protocol` resolves an ESCALATE —
+**Promotion timing:** a row is appended the INSTANT the PO answers —
 never batched to round close. This is the file `task-executor`'s isolated briefs read back
 (zero-memory handoff, DD-8): an answer given once in round 2 must still be known in round 5's
 fresh-context attempt without replaying any chat history.
@@ -175,7 +175,7 @@ skill versions.
    single-judge rule and invites Goodhart. The eval suite *interprets* downstream;
    harvest *records*.
 
-Scope: the harvest feeds **only tier-3 (e2e pipeline benchmark)**. Tier-1
+Scope: the harvest feeds **only tier-3 (e2e pipeline measurement)**. Tier-1
 (trigger-evals) and tier-2 (per-skill functional, golden fixtures) run on isolated
 fixtures and do not consume it.
 

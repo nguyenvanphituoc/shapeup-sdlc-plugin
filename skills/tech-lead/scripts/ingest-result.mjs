@@ -107,7 +107,7 @@ export function updateBoardRow(indexBody, taskId, done) {
 /**
  * Apply one validated WorkResult to the working tree — the single-writer step (D6): ticks AC
  * boxes, flips task status, appends the Execution Log, propagates unblocks, appends discoveries,
- * writes the verdict ledger + un-ticks refuted boxes, and queues escalates.
+ * writes the verdict ledger + un-ticks refuted boxes.
  *   verdict{criteria[],refuted[]}).
  * @param {{cwd:string}} opts - cwd: working-directory root every LOCAL path resolves against.
  * @returns {{slug:string, tasks_updated:string[], acs_ticked:number, unblocked:string[],
