@@ -274,11 +274,27 @@ Do NOT enter BUILD until the board is accepted.
 
 ---
 
+## GATE L2 — Board 100% Done (Pre-Eval)
+
+**Purpose:** The single exit point from the BUILD loop into EVAL. It ensures every scope is green before invoking the evaluator.
+
+**Output:**
+```
+⏸ GATE L2 — Board 100% ✅ + T0-green
+Feature   : [slug]
+Round     : [r]
+Scopes    : [N] green, [M] queued for hammer
+```
+
+Under `--interactive` / `--auto`, the hook warns if the board is not truly green (advisory) and requires explicit PO approval to proceed. Under `--unattended`, it automatically aborts on a red board or proceeds on a green one.
+
+---
+
 ## GATE L3 — Verdict & Loop
 
 ```
 Render the 🗻 Hill report (slice-level) — NOT a task count. Scope contracts present → read
-  committed hill/<scope-id>.yml shards (mechanical phases from GATE L2.4, DD-10). No contracts →
+  committed hill/<scope-id>.yml shards (mechanical phases from GATE L2, DD-10). No contracts →
   fall back to the board + open-unknowns heuristic (uphill/crest/downhill/done). See
   references/ledger-schema.md "Hill report". Roadmap rule unchanged either way: progress is
   reported by hill position, never by "N/M tasks done".

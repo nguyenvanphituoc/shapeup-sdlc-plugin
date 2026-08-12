@@ -1463,7 +1463,7 @@
       "description": "One scope's hill position — DERIVED, never self-reported (DD-10): UPHILL_UNKNOWN (open unknowns > 0) → UPHILL_SOLVED (unknowns 0, no T0-green yet) → DOWNHILL_EXECUTION (≥1 T0-green; T1/seesaw pending) → FINISHED (T1 PASS ∧ seesaw green ∧ merged). Single-writer = whoever holds that scope's branch. Progress is reported by hill position, never task counts.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/hill/<scope-id>.yml",
-      "x-writer": "tech-lead (GATE L2.4 derivation)",
+      "x-writer": "tech-lead (GATE L2 derivation)",
       "x-readers": "tech-lead (GATE L3 hill report), scope-hammer (census), GATE L1b sequencing",
       "type": "object",
       "properties": {
