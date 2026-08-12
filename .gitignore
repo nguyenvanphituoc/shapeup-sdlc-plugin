@@ -28,43 +28,19 @@
 
 # Day-1 / Day-2 measurement instrument, and its run trace.
 #
-# The split is ADR-0001's, and the line falls between the INSTRUMENT and the RECORDS IT PRODUCES:
-#
-#   COMMITTED — rubrics (`skills/*/evals/day1-rubric.json`), the committed weak/partial/strong
-#     reference drafts, the fixture spine, the row renderers, the three schemas, the Day-2
-#     failure-class register, the trigger-eval datasets, and BOTH baselines. This is what a clone
-#     needs to re-run the measurement, and `evals/DAY1-REPORT.md` prints
-#     `Reproduce: node tools/skill-loop.mjs --measure` on the assumption it is there.
-#   IGNORED — `evals/runs/`: raw run records and per-round drafts. 2.3 MB that churns every run,
-#     and the machine's business. Structural §48(d7) fails if this line moves in either direction.
-#
-# Until 2026-08-05 the instrument was ignored too, and the cost was measured rather than argued:
-# a clone ran 790 of 1244 structural checks and failed 4, `--selftest` answered `no Day-1 rubrics
-# found`, and the report's own Reproduce line was false for every reader but one machine. Keeping
-# a paid measurement's apparatus local makes the result unfalsifiable, which is the one thing this
-# rung exists to prevent.
+# What survives under `evals/` is the Tier-2 functional apparatus: the fixture spine and the row
+# renderers that `examples/eval-planted-bug-2` drives. The Tier-1 activation datasets, the Day-1
+# rubrics and drafts, the Day-2 failure-class register, the three schemas and both baselines were
+# removed — so the rules that used to un-ignore them are gone with them rather than left pointing
+# at nothing.
 #
 # `evals/*` rather than `evals/` is load-bearing: git does not descend into an excluded
 # DIRECTORY, so a `!` negation under `evals/` can never be reached.
 evals/*
-!evals/baselines/
-evals/baselines/*
-!evals/baselines/skill-loop.baseline.json
-!evals/baselines/trigger-evals.baseline.json
-!evals/DAY1-REPORT.md
 !evals/README.md
-!evals/failure-classes.json
-!evals/schemas/
 !evals/oracles/
 !evals/fixtures/
-
-# The ba-pitch-analyzer reference drafts carry a BOARD, which lives under `.shapeup/` — and the
-# run-trace rule at the top of this file matches that name at any depth. Without these two lines
-# 66 fixture files drop out of the commit while their fixture directories still look committed,
-# and the loop then grades a spec tree with no board against a rubric that expects one. That is
-# the HD-001..005 shape exactly: a committed artifact half-read, reported as whole.
 !evals/fixtures/**/.shapeup/
-!skills/*/evals/fixtures/**/.shapeup/
 
 # Navigator clone target (gap-scan)
 example/

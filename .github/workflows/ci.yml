@@ -55,14 +55,14 @@ jobs:
         run: node tests/structural.mjs
 
   eval-gate:
-    name: Eval gate (NOT YET ACTIVE — placeholder, see docs/audit)
+    name: Eval gate (NOT ACTIVE — no behavioral eval layer)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: State honestly that behavioral evals are not built yet
+      - name: State honestly that there is no behavioral eval layer
         run: |
-          echo "Tier-1 trigger-evals and Tier-2 functional fixtures are NOT committed yet."
-          echo "This job is a deliberate, honest placeholder (Stage C in the evolution plan)."
-          echo "It will become a real seesaw gate once skills/<name>/evals/ + baselines exist."
-          echo "Running behavioral evals requires Claude auth — see docs/audit/ci-cd-and-distribution.md."
+          echo "There is no Tier-1 activation layer and no Day-1/Day-2 evidence layer in this repo."
+          echo "They existed and were removed deliberately; nothing here measures skill activation"
+          echo "or craft quality, and no CI check enforces the honesty invariant on such numbers."
+          echo "Structural (Tier-0) coverage is the gate that actually runs — see the test job."
           # Exits 0: a placeholder must not give a false sense of coverage by failing either.

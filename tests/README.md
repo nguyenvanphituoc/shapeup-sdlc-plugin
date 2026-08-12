@@ -19,13 +19,12 @@ order and the docs module (`08-docs.mjs`) is last so the floor sees every check:
 | Module | Owns sections |
 |---|---|
 | `structural/01-manifests.mjs` | §1 plugin/marketplace/package agreement |
-| `structural/02-skills.mjs` | §2, 3, 12, 16 per-skill wellformedness, install-safety, trigger-evals |
+| `structural/02-skills.mjs` | §2, 3, 12, 2b per-skill wellformedness, install-safety, escalation-rule parity |
 | `structural/03-hooks.mjs` | §4, 14, 17, 27, 28, 29 hook manifest + behavioral hook suites |
 | `structural/04-oracles.mjs` | §6, 8, 9, 10, 11, 13 oracle registry + discriminating fixtures |
 | `structural/05-tech-lead.mjs` | §18–22, 24, 30, 31 orchestrator-owned scripts, domain registry, spine |
 | `structural/06-ba-pitch-analyzer.mjs` | §23 board-derive + spec-lint |
 | `structural/07-spec-evaluator.mjs` | §15 verdict-ledger |
-| `structural/48-day1-day2.mjs` | §48 Day-1 loop instrument + Day-2 failure register |
 | `structural/08-docs.mjs` | §5, 7, 25, 26 AGENT.md guard, migrations, ratchets, doc-drift |
 
 A **new check lands in the module matching its owner** (a tech-lead script check → `05-tech-lead.mjs`,
@@ -68,12 +67,6 @@ The numbered sections below are the checks themselves, in section order:
    across runs, forces that criterion's confidence to `low`, leaves stable criteria untouched, and
    exits non-zero on a flipping ledger / zero on a stable one. Proves the judge-calibration grammar
    (`spec-evaluator/references/verdict-ledger.md`) discriminates an unstable judge from a stable one.
-16. **Trigger-eval evidence layer (Stage C1):** every skill has a well-formed
-   `evals/trigger-evals.json` (own-skill name, ≥4 positives + ≥3 cross-skill negatives, every
-   `expected_other` a real skill or `none`), and the baseline obeys the **honesty invariant** — an
-   `unmeasured` baseline may carry no results, a `measured` one must carry method + `measured_at`.
-   This is the F1 lesson encoded as a test: numbers can never be fabricated.
-
 17–24. Pure-skill architecture mechanics (v0.3–v1.1): sandbox-guard substrate enforcement,
    t0-verify verdict artifacts, aegis-digest triples, envelope schema discrimination,
    compile-order fact-only assembly, ingest-result single-writer behavior, board-derive +
@@ -104,41 +97,14 @@ The numbered sections below are the checks themselves, in section order:
    table`, leaves the metrics dir byte-identical (read-only proof), and returns a valid empty
    report on a missing dir.
 
-48. **Day-1 / Day-2 measurement instrument (Graph Engineering §VI.A–B):** the two rungs whose exit
-   criteria are numbers — "measured quality improvement" and "tool reduces known error class" — so
-   this section refuses to check that the instrument merely exists. It runs the scorer and asserts
-   the rubric **separates** its known-weak reference draft from its known-strong one; **tampers**
-   with the strong draft (verdict line deleted) and asserts the score falls; asserts an **empty**
-   draft scores at or below the weak floor (the check that caught a real defect — scoring
-   `must_not` as positive credit gave a blank file 0.417); validates every rubric and loop record
-   against `evals/schemas/day1-*.schema.json`; holds `skill-loop.baseline.json` to the same honesty
-   invariant as §16 and asserts its coverage block is not stale; and for each of the 8 entries in
-   `evals/failure-classes.json` checks the paper's three tool requirements **separately** (typed
-   schema resolves, permissions stated, result confirmation names evidence the tool fires — the
-   F-16 countermeasure), that the discovery source exists on disk, and that `reduces` is null unless
-   both rates are measured **and** a `reduction_basis` is stated. Selftest records are marked
-   `mode: "selftest"` with `source: "reference-*"` on every version, and §48 asserts it: a synthetic
-   score may never be laundered into a measured one. See `evals/DAY1-REPORT.md` for what the
-   instrument has measured, and `evals/README.md` for how to run it.
 
 Exit 0 = pass, 1 = fail (330+ checks — the docs state the floor, section #26 asserts it). This is
 the cheapest, highest-ROI guard and the one the project lacked. Sections #8–#11 prove the oracle
-grammar is runnable; #12 proves the shipped skills are self-contained; #13–#16 prove the
-anti-leniency fixture, the L2 gate, the verdict ledger, and the trigger-eval layer do their jobs
-(discriminate / enforce / detect flips / stay honest), not merely that they exist.
+grammar is runnable; #12 proves the shipped skills are self-contained; #13–#15 prove the
+anti-leniency fixture, the L2 gate and the verdict ledger do their jobs (discriminate / enforce /
+detect flips), not merely that they exist.
 
-## Tier 1 — Trigger evals (Stage C1 — datasets + harness LANDED, measurement pending)
-
-Per skill: `skills/<name>/evals/trigger-evals.json` — `{query, should_trigger}` cases with
-cross-skill hard negatives (103 cases across 9 skills today). Measured with skills **installed**
-(`claude --plugin-dir .`) detecting real `Skill`-tool activation via `tools/trigger-eval.mjs`.
-The prior measurement's TPR≈0 was a proxy artifact (it measured slash-command self-invocation) —
-the harness avoids that and **aborts rather than write zeros** if a run produces no model events.
-The baseline (`evals/baselines/trigger-evals.baseline.json`) ships `unmeasured` / `results: null`;
-no number is written until an auth'd `--measure` run produces it. Structural **#16** validates the
-datasets and enforces that honesty invariant. See `evals/README.md`.
-
-## Tier 2 — Functional fixtures (Stage C2, judge-first — first fixture LANDED)
+## Tier 1 — Functional fixtures (judge-first — first fixture LANDED)
 
 Run a skill with-skill vs without-skill to prove the delta. **The first fixture — the
 `spec-evaluator` planted-bug / anti-leniency regression — is built**, at
@@ -156,5 +122,7 @@ the oracle runners out of installs). It plants a FizzBuzz AC4 bug in a build dre
 Remaining Tier-2 work: the same pattern for `ba` (no-invented-ACs), `task-executor`
 (minimum-code + checkbox), `translator` (faithful + untouched original).
 
-> Tier 1 and the rest of Tier 2 were claimed "LANDED" in `docs/internal/plan/evolution-roadmap.md` but were
-> never committed. They are genuine future work, not shipped infrastructure.
+> There is no activation or craft-quality tier. Per-skill trigger-eval datasets, the Day-1 rubrics
+> and the Day-2 failure register were removed, along with structural §16 and §48 and the CI checks
+> that made the honesty invariant mechanical. What is left proves *mechanism* — a gate denies, an
+> oracle discriminates — and not *craft*. See `evals/README.md` for what that costs.

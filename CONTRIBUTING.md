@@ -112,11 +112,13 @@ changes, however good the rest of it is.
 | Workers never learn pipeline position | Keeps skills reusable and testable in isolation |
 | No fabricated eval numbers, ever | See below |
 
-**On that last one.** The trigger-eval harness ships `status: "unmeasured"` and there is a CI
-test that fails if fabricated results appear. If you run the evals, publish what you got —
-including if it is unflattering. A mediocre real number is worth more to this project than a
-great fake one, and that CI test is deliberately hard to talk past. It is the same idea as the
-rest of the harness, pointed at ourselves.
+**On that last one.** There is no behavioral eval layer in this repo any more — the Tier-1
+activation datasets and the Day-1/Day-2 register were removed, and the CI test that failed on
+fabricated results went with them. The rule it enforced still stands and is now on you: if you
+measure something, publish what you got, including if it is unflattering. A mediocre real
+number is worth more to this project than a great fake one. It is the same idea as the rest of
+the harness, pointed at us instead of at the agent — the difference is that this one is no
+longer mechanically enforced, so it depends on the reviewer noticing.
 
 ## Pull requests
 

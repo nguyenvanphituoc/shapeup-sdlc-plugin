@@ -6,7 +6,7 @@
 
 ```
 .claude-plugin/          plugin.json · marketplace.json
-skills/<name>/SKILL.md   the 12 harness skills (+ references/, evals/)
+skills/<name>/SKILL.md   the 12 harness skills (+ references/)
 skills/tech-lead/        schemas/ (WorkOrder · WorkResult · gate-answers · domain registry)
                          scripts/ — envelope port (compile-order · ingest-result ·
                           validate-envelope), run lifecycle (init-run · run-workflow ·
@@ -31,11 +31,8 @@ scripts/install-harness.sh, migrate.sh    stable public entrypoints — a frozen
 scripts/shapeup-sdlc/    what those two entrypoints run on a user's machine — lib/, migrations/
 oracles/                 the evaluation-contract oracle registry (test · snapshot · http ·
                          process), proven to discriminate against negative controls
-tools/                   repo-only, never shipped — trigger-eval.mjs (Tier 1),
-                         skill-loop.mjs (Tier 3 / Day-1 loop), demo/, distribute.js
-evals/                   the evidence layer — schemas/ (rubric · loop-run · failure-class),
-                         baselines/ (honesty-invariant, never fabricated), runs/,
-                         failure-classes.json (Day-2 register)
+tools/                   repo-only, never shipped — contract-check.mjs, demo/
+evals/                   Tier-2 functional apparatus only — fixtures/, oracles/
 tests/structural.mjs     Tier 0 runner — threads tests/lib/ helpers through the per-domain
 tests/{lib,structural}/  suites in tests/structural/*.mjs; 880+ checks, zero LLM calls (the
                          floor is asserted by the suite itself; the exact count may only grow)

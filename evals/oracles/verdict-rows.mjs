@@ -48,7 +48,7 @@ import { runFixtures } from "../../skills/tech-lead/scripts/t0-verify.mjs";
  * @returns {object|null} The parsed envelope, or null when the draft carries none.
  */
 export function extractEnvelope(text) {
-  // LARGEST balanced object, never the first found — the same rule tools/skill-loop.mjs's
+  // LARGEST balanced object, never the first found — the same rule the loop's
   // extractJSON follows and for the same measured reason: scanning inward-first returns a nested
   // member (`bugs[0]` parses perfectly well on its own), after which every field lookup misses
   // against a fragment and the result reads exactly like a skill that returned nothing.

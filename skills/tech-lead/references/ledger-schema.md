@@ -175,9 +175,8 @@ skill versions.
    single-judge rule and invites Goodhart. The eval suite *interprets* downstream;
    harvest *records*.
 
-Scope: the harvest feeds **only tier-3 (e2e pipeline measurement)**. Tier-1
-(trigger-evals) and tier-2 (per-skill functional, golden fixtures) run on isolated
-fixtures and do not consume it.
+Scope: the harvest feeds **only the e2e pipeline measurement**. The per-skill functional
+fixtures run in isolation and do not consume it.
 
 ### Row schema (one JSON object per line)
 | Field | Existing source (copied, never re-graded) | Signal |

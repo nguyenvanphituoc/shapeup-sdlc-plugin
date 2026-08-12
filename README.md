@@ -275,26 +275,15 @@ Stated plainly, because you will hit them:
 
 - **The `--tiny` lane is young.** It right-sizes the ceremony (two gates instead of eight) but
   keeps the T0 verification floor; its fit-check heuristics will need tuning against real use.
-- **Skill quality is measured for 5 of the 12 skills, and the honest ceiling is 6.** The five that
-  a deterministic script already grades — `ba-pitch-analyzer`, `scope-architect`,
-  `solution-architect`, `spec-evaluator`, `task-executor` — clear *Graph Engineering* §VI.A's Day-1
-  bar on `claude-sonnet-5`: approve in every run, revision rates of 10% / 33% / 6.3% and two
-  bounded at ≤21%. The other seven document their own lack of ground truth (`qa-edge-hunter` issues
-  no verdict; `scope-hammer` never compares against an ideal), and inventing one for them would be
-  worse than the gap. **Read the rates, not the verdicts** — and note the bar's condition 4 was
-  amended after results were known, which is disclosed rather than buried:
-  [evals/DAY1-REPORT.md](evals/DAY1-REPORT.md) carries both readings, 5 of 5 and 3 of 5. The most
-  valuable thing that measurement produced was not a score but five production defects, all one
-  family — the committed contract format failing silent.
-- **Only half the trigger-eval story is measured.** Skill *discrimination* is:
-  **0 false activations across 67 cross-skill hard negatives** (Haiku 4.5, 2026-08-12 — the
-  skill descriptions do not steal each other's work), over a dataset of 134 cases across 12
-  skills. *Activation* rate is measured but confounded and deliberately not quoted as a
-  headline: a large share of the 67 positive cases point at a
-  referent ("coach **this feedback**") the probe never supplies, so a model that names the right
-  skill and asks for the missing input scores as a miss. Method, per-skill numbers, and the fix
-  are in [evals/README.md](evals/README.md) — the harness ships a CI test that *fails* if
-  fabricated results appear, and three earlier baselines were discarded rather than published.
+- **Nothing here measures skill quality or activation.** The repo used to carry two evidence
+  layers — a Tier-1 activation dataset per skill, and a Day-1/Day-2 craft-and-efficacy register —
+  and both have been removed. What that cost is worth stating plainly rather than leaving to be
+  discovered: there is now no number for whether a skill's description makes it fire on the right
+  request, no measured craft delta, and no CI check enforcing the honesty invariant on such
+  numbers. The structural suite (Tier 0) and the functional planted-bug fixtures (Tier 2) are the
+  coverage that remains, and both are about mechanism rather than quality.
+- **The gates are verified; the craft is not.** A hook that denies is proven by a test that
+  watches it deny. A skill that writes a good spec tree is, at present, taken on trust.
 
 Contributions to any of these are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -330,14 +319,13 @@ oracles/              # the evaluation-contract oracle registry (test · snapsho
 bin/init.mjs          # `npx shapeup-sdlc init` — scaffolds all three CLI targets
 scripts/install-harness.sh, migrate.sh   # stable public entrypoints (fresh install / update)
 scripts/shapeup-sdlc/                    # dev/CI tooling: lib/, migrations/
-tools/                # repo-only: trigger-eval.mjs, skill-loop.mjs, distribute.js,
+tools/                # repo-only: contract-check.mjs,
                       #   demo/record-demo.mjs (regenerates docs/assets/demo-gate.svg)
-evals/                # the evidence layer: rubrics, fixtures, oracles, schemas, baselines,
-                      #   DAY1-REPORT.md, failure-classes.json (runs/ stays local)
-tests/structural.mjs, tests/structural/*.mjs   # Tier 0 — 1250+ checks, zero LLM calls
+evals/                # Tier-2 functional apparatus only: fixtures/, oracles/
+tests/structural.mjs, tests/structural/*.mjs   # Tier 0 — 900+ checks, zero LLM calls
 docs/install.md, upgrading.md, glossary.md
 docs/design/          # the design document (pipeline, gates, circuit breaker, ERD)
-docs/internal/        # plan/ (the Day-1/Day-2 plan), research/, launch/
+docs/internal/        # plan/, research/, launch/
 .github/workflows/    # CI + release (release publishes to npm via OIDC)
 ```
 

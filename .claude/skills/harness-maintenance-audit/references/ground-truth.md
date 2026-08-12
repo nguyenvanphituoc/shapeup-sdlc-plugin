@@ -13,7 +13,7 @@ Run these against the repo root. They are all read-only.
 - [Hook inventory and registration](#hook-inventory-and-registration)
 - [Hook behavior: execute, do not read](#hook-behavior-execute-do-not-read)
 - [Versions and the shipped set](#versions-and-the-shipped-set)
-- [Test and eval counts](#test-and-eval-counts)
+- [Test counts](#test-and-eval-counts)
 - [Storage roots](#storage-roots)
 
 ## Inventory: what exists on disk
@@ -35,8 +35,8 @@ ls skills/tech-lead/scripts/*.mjs skills/tech-lead/scripts/lib/*.mjs | xargs -n1
 ls skills/tech-lead/workflows/
 ```
 
-A skill directory with a `SKILL.md` is a skill. A directory that only holds `evals/` is not — check
-before counting.
+A skill directory with a `SKILL.md` is a skill. (There are no longer any `skills/*/evals/`
+directories — that layer was removed.)
 
 ## Enums: the vocabulary the runtime enforces
 
@@ -181,33 +181,25 @@ npm pack --dry-run 2>&1 | sed -n '/Tarball Contents/,/Tarball Details/p' | head 
 `npm pack --dry-run` is the ground truth for "does this ship". Use it whenever the allowlist's
 negation patterns make a case ambiguous.
 
-## Test and eval counts
+## Test counts
 
 ```bash
 npm test 2>&1 | tail -3        # total checks + failures
-
-# Trigger-eval dataset, per skill and total
-node -e "
-const fs=require('fs');let pos=0,neg=0,tot=0,n=0;
-for (const d of fs.readdirSync('skills')) {
-  const p='skills/'+d+'/evals/trigger-evals.json';
-  if (!fs.existsSync(p)) continue;
-  n++; const c=JSON.parse(fs.readFileSync(p,'utf8'));
-  for (const x of c.cases||[]) { tot++; x.should_trigger===false?neg++:pos++; }
-}
-console.log({skills:n,total:tot,positives:pos,negatives:neg});
-"
-
-# The committed baseline — compare its datasets block against the live numbers above
-node -e "
-const b=require('./evals/baselines/trigger-evals.baseline.json');
-console.log('status',b.status,'model',b.model,'measured_at',b.measured_at);
-console.log('datasets:',Object.keys(b.datasets||{}).length,'results:',Object.keys(b.results||{}).length);
-"
 ```
 
-A baseline whose `results` still name a skill the tree no longer has is a stale measurement, not a
-count to be corrected. Report it; do not rewrite the rate. See the honesty section in `SKILL.md`.
+**There is no activation or craft-quality measurement in this repo.** The per-skill trigger-eval
+datasets, the Day-1 rubrics, the Day-2 failure register, `tools/trigger-eval.mjs`,
+`tools/skill-loop.mjs`, both baselines and structural §16/§48 were all removed. Expect no
+`skills/*/evals/` directory and no `evals/baselines/`; a doc still promising a measured activation
+rate is drift to fix, not a file to go looking for.
+
+What survives under `evals/` is the Tier-2 functional apparatus only (`fixtures/`, `oracles/`),
+driven from `examples/eval-planted-bug-2/`.
+
+The consequence worth carrying into any audit: the honesty invariant — no number written from
+anything but a run that produced it — is no longer mechanically enforced. It used to fail CI. It
+now depends on the reviewer, which means a fabricated or stale rate in the docs is exactly the kind
+of thing this audit is for.
 
 ## Storage roots
 

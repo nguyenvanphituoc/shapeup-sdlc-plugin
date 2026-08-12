@@ -78,7 +78,7 @@ report.
 
 Establish the numbers and inventories before opening a single doc. `references/ground-truth.md`
 carries the full command catalogue — the enums, the counts, the hook inventory, the operation
-ownership map, the trigger-eval totals, how to execute a hook against a fixture. Read it and work
+ownership map, how to execute a hook against a fixture. Read it and work
 through it; the output of that pass is the fact sheet everything else is compared against.
 
 Two that deserve naming here because everything else depends on them:
@@ -99,7 +99,7 @@ Walk `docs/` plus `README.md` and `AGENTS.md`. For each countable or checkable c
 against Pass 1. The recurring drift sites, in rough order of how often they are wrong:
 
 - **Counts** — "the N skills", "N workers", "N operations", "Five PreToolUse hooks" above a table
-  of six, structural check totals, trigger-eval case counts.
+  of six, structural check totals.
 - **Enum membership** — a worker, operation, or hook named in prose that the schema no longer
   carries, or vice versa.
 - **Behavioral claims** — "denies" vs "warns", what a hook reads, what it fences. These need
