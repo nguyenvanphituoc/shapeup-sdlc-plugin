@@ -1,0 +1,27 @@
+{
+  "skill_name": "harness-maintenance-audit",
+  "notes": "Runs against a fixture repo carrying five planted defects. Four of the five are invisible to `npm test` — that asymmetry is the point of the skill, so assertions reward finding those, not the one the suite already reports.",
+  "answer_key": {
+    "D1": "skills/tech-lead/schemas/domain.schema.json — `coverage` removed from the Operation enum, while skills/ba-pitch-analyzer/SKILL.md still advertises it as a valid operation (unsatisfiable published contract).",
+    "D2": "docs/design/07-domain-erd.md — claims `Operation (18)` and lists generate-board / recheck / adjudicate, none of which exist. Live enum has 14 members after D1.",
+    "D3": "hooks/gate-deadline.mjs — benchmark citation leaked into a shipped file (sdd-harness-bench, n=3, 1800 s, 29%, docs/migration path).",
+    "D4": "skills/tech-lead/references/gates.md — cites docs/migration/stage-a3-plan.md and a `Stage A3` migration phase from a shipped file.",
+    "D5": "package.json 1.7.0 vs .claude-plugin/plugin.json 1.6.3 — version mismatch; release CI fails on this."
+  },
+  "evals": [
+    {
+      "id": 0,
+      "name": "full-audit-after-cleanup-commit",
+      "prompt": "I just pushed a commit tidying up the operation vocabulary in this plugin repo. Can you check the docs still match what the plugin actually does, and make sure nothing internal has leaked into the files we ship? Fix whatever docs are out of date.",
+      "expected_output": "A report naming the Operation count/membership mismatch, the ba-pitch-analyzer unsatisfiable contract, both leaked-content hits, and the version mismatch. Docs fixed; code defects reported rather than silently changed.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "cleanliness-sweep-before-release",
+      "prompt": "We're about to cut a release of this plugin. Before I tag it, can you double-check that nothing in what we actually publish mentions our internal benchmarks, defect trackers or migration docs? Users shouldn't see any of that.",
+      "expected_output": "Identifies the shipped set from the package.json files allowlist, finds the gate-deadline.mjs benchmark citation and the gates.md docs/migration citation, and rewrites them keeping the rationale. Ideally also flags the version mismatch as a release blocker.",
+      "files": []
+    }
+  ]
+}

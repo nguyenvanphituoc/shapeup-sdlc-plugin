@@ -35,3 +35,31 @@ never `.mjs` paths.
   `ingest-result.mjs`. Step 1 alone yields a skill the orchestrator can't dispatch.
 - `tools/` is repo-only and never ships; what ships is the `files` allowlist in `package.json`.
 - Commit subjects: `type(scope): lowercase declarative`.
+
+## Keeping the docs and the plugin honest
+
+This repo is both a product and its own blueprint, and the two drift apart silently — a doc
+saying "11 workers" over a 10-member enum reads perfectly. Two standing rules:
+
+- **Derive facts from artifacts, never from prose.** Enums come from
+  `skills/tech-lead/schemas/domain.schema.json`, counts from the filesystem, and hook behavior
+  from *executing the hook* against a fixture. A doc, a glossary and a screenshot can all agree
+  with each other and all be wrong; reading any one of them just confirms the others.
+- **Nothing in the shipped set may reference something the user did not receive.** No benchmark
+  results, internal defect IDs (`HD-00x`), migration stage names, audit codenames, or paths into
+  `docs/`, `tests/`, `tools/`, `evals/`. Keep the operative rationale, drop the evidence: a
+  comment should explain *why* the code is shaped that way without citing an artifact the reader
+  cannot open.
+
+Run the **`harness-maintenance-audit`** skill (`.claude/skills/`) for both passes — before a
+release, after adding or removing a skill/operation/hook/command, and after any cleanup or rename
+commit, whose blast radius is routinely wider than its subject line claims. It fixes docs and
+reports code defects separately, on purpose: a doc fix records reality, a code fix changes it.
+
+Two traps it exists to catch, both of which have bitten this repo:
+
+- A red check nobody has looked at. Run `npm test` and `npm run demo` *before* editing — a suite
+  you have not run is an assumption, not a baseline. Never make a red check green by weakening it.
+- A stale measured number. Trigger and acceptance rates belong to a run with a model and a date.
+  If the dataset changed, say the measurement predates it — do not rescale the figure to match a
+  count you just derived, which silently manufactures a measurement.
