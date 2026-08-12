@@ -14,7 +14,7 @@ A three-phase Shape Up loop orchestrated by `/tech-lead`. Invariants live in the
 1. Set Boundaries → `/shapeup shaping`
 2. Find the Elements → `/shapeup breadboarding`
 3. Risks & Rabbit Holes → `/shapeup spike`
-4. Write the Pitch → `/generate-pitch` → `pitch.md`
+(The completed pitch is formed by `shaping.md` + `breadboard.md`)
 
 ### Phase 2 — Betting (PO governance, no skill)
 Betting Table: PO decides; rejected pitches loop back to raw idea.

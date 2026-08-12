@@ -3,7 +3,7 @@ description: Shape a raw idea into a pitch (boundaries → breadboard → spike 
 ---
 Use the **shapeup** skill on $ARGUMENTS.
 
-This is Phase 1 of the pipeline — it runs *before* any code and produces the `pitch.md` the
+This is Phase 1 of the pipeline — it runs *before* any code and produces the `shaping.md` and `breadboard.md` files (the pitch) that the
 Betting Table decides on. Default to the full sequence (`full`); when the user names a single
 step, pass it through as the sub-command: `shaping`, `breadboarding`, `spike`, `framing-doc`,
 `kickoff-doc`, or `breadboard-reflection`.

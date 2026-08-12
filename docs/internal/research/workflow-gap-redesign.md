@@ -122,7 +122,7 @@ graph TD
     L0[L0 Intake<br/>+ PROJECT PROFILE<br/>gates everything below]:::gate
 
     A[Raw Idea] -->|/shapeup| B(Framed Pitch<br/>+ appetite)
-    B -->|/generate-pitch| P(pitch.md)
+    B -->|/shapeup| P(shaping.md + breadboard.md)
     P -->|/ba-pitch-analyzer<br/>+ coverage op| C(DDD + Use Cases<br/>ACs carry covers:REQ)
     C -->|/solution-architect<br/>NEW · L1a.5| SA(Wiring Map<br/>+ reachability lint)
     SA -->|/scope-architect| D(Scope Contracts JSON)
