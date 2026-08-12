@@ -11,6 +11,7 @@ Branch: `feat/workflow-orchestrator`. Executor: plan-executor skill.
 | 3 (2026-08-07) | `/Volumes/LibertyMobi/…` | **Both blockers cleared. `shapeup-run.js` executed for the first time.** A2 **GREEN**. A3 substantially green (2/2 gates crossed, final leg stopped by operator). Two further defects found — both only reachable by running it. |
 | 5 (2026-08-11) | `/Users/teo/…` | **Stage A2.** The fast-forward became a testable script, ORIENT was artifact-gated, every discarded courier outcome was closed (including every `ingest-result` call, in both workflow scripts), and **the probe was re-run**. Stage A's defect is **fixed and proven on a live ungraceful kill** — but the probe **FAILs again** on a different phase, so the ship gate is still shut. |
 | 4 (2026-08-10) | `/Volumes/LibertyMobi/…` | **Stage A of `remaining-stages-plan.md`.** Evidence file written, A5 arm + fixture landed, instrument tightened. The kill/resume probe ran for the first time and **FAILED** — a third execution-only defect, and this one is on the property the migration exists to buy. **S2's ship gate is not met; Stage B did not start.** |
+| 6 (2026-08-12) | `/Users/teo/…` | **Stage A3.** A phase completes only when its ARTIFACT exists, and `analyze` runs before WIRE. **The probe PASSES** — 4/4 assertions on a live SIGKILL mid-BUILD, graded by a byte-identical `assert.mjs` first self-tested in the failing direction on A2's snapshots. **S2's ship gate is MET; Stage B is unblocked.** Two environment findings (#12, #13) and one defect (HD-006) surfaced by running it. |
 
 ---
 
@@ -27,12 +28,19 @@ not migration work). The contract is **19 PASS / 4 RED**, and it is no longer re
 red rows are Stage B/C work sitting downstream of a shut gate. `docs/migration/README.md` carries
 the one-page position.
 
+⟐ **Restated again after run 6 (2026-08-12), at `c4735c0`, both figures re-derived by execution:**
+`npm test` green at **1363 checks**; `contract-check.mjs` prints **`GATE MET — S2 ship gate —
+kill/resume probe: PASS`** above **19 PASS / 4 RED**. The count is unchanged from run 5 and that is
+the instrument behaving: the rows never encoded the probe's verdict. The four reds are S3 rows and
+now sit downstream of an **open** gate — Stage B work that has not started, not work that is
+blocked.
+
 | Stage | Status | Verified how |
 |---|---|---|
 | S0 — kill-switch spike (D1) | **GREEN — GO** | Re-derived run 3 in a fresh clone: 4/4 rows PASS |
 | S1 — `shapeup-build-round` | **GREEN** | Re-derived run 3 in a fresh clone: 5/5 rows PASS |
-| S2 — `shapeup-run` + thin skill | **SHIP GATE NOT MET** — and the reason changed at run 5. The ORIENT defect is fixed and proven on a live kill; the probe now fails because **an escalated phase is recorded as complete** and re-dispatched on every relaunch | `stage2-evidence.md` §4 (run 4) + `stage-a2-evidence.md` §7 (run 5) |
-| S3 — cutover, detectors, benchmark | **Not started** — A5's arm + fixture landed early (they repair a doc/code divergence, not a cutover step) | Blocked by the contract's ship-gate guardrail |
+| S2 — `shapeup-run` + thin skill | ⟐ **SHIP GATE MET at run 6 (2026-08-12)** — `kill-resume-probe: PASS`, 4/4 assertions on a live SIGKILL. It took three stages: A fixed nothing and found it, A2 fixed ORIENT and failed on WIRE, A3 fixed the class (completion depends on the artifact) and its cause (`analyze` before WIRE). *(Superseded: "NOT MET — an escalated phase is recorded as complete and re-dispatched on every relaunch.")* | `stage-a3-evidence.md` §4 + `contract-check.mjs` |
+| S3 — cutover, detectors, benchmark | ⟐ **Unblocked, not started** — A5's arm + fixture landed early (they repair a doc/code divergence, not a cutover step). *(Superseded: "Blocked by the contract's ship-gate guardrail.")* | Stage B is the next unit; four contract rows red until it runs |
 
 Run 4 changed what the red rows *mean* twice over. Three S2 rows were greps for sections of
 `stage2-evidence.md`, a file that only gets written once its runs are green — those are now green
@@ -329,6 +337,12 @@ the contract's own guardrail.
   *(Run 4 amendment: the feature branch itself was pushed to `origin/feat/workflow-orchestrator` on
   explicit PO instruction, 2026-08-10. That is a branch push for review and backup — no merge, no
   tag, nothing published to npm. The rule's intent, "the release is the PO's decision," is intact.)*
+  ⟐ **Run 6 correction, 2026-08-12: that push is 20 commits stale.** `origin/feat/workflow-orchestrator`
+  is at `5209df7`; everything Stage A2 and Stage A3 produced is local-only, including both probe rigs
+  and the run that met the gate. A reviewer reading the remote sees a branch whose own documents say
+  the gate is shut. Pushing is one command and needs no permission the PO has not already given — it
+  is listed here rather than done because the standing instruction was for one push on one date, and
+  re-deriving that instruction as standing is the error this line now records.
 - **The ~$40–60 A7 benchmark does not launch autonomously** — it pauses for an explicit go.
 - **S2 was the ship gate and it is MET as of run 6 (2026-08-12)**: `kill-resume-probe: PASS`,
   A2 and A3 both green, `contract-check.mjs` printing GATE MET. Stage B is unblocked; S3's own rows

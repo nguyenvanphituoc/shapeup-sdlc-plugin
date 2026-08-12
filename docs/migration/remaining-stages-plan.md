@@ -233,6 +233,23 @@ and is the whole of this item. Budget it as such.
 Then amend `tests/structural/16-workflows.mjs`: drop the presence assertion, keep the D5 model-floor
 and path-literal checks over whatever workflow files remain.
 
+> ⟐ **Amended 2026-08-12 — a third assertion this item did not name, and it is the one a runner
+> reads.** `execution-contract.md`'s **S1** row `test -f skills/tech-lead/workflows/shapeup-build-round.js`
+> pins the same file. Delete the file without amending that row and `contract-check.mjs` drops to
+> **18 PASS / 5 RED** with the new red inside **S1 — a stage closed and green since run 3**. The
+> instrument would be reporting a regression at the exact moment the plan intends a resolution, and
+> the next reader would have to re-derive which of the two is right.
+>
+> So the file is asserted in **three** places, not one: the fixture (`16-workflows.mjs:65-68`), the
+> S1 contract row, and Stage 1's negative probe (`stage1-evidence.md`, which exercised
+> `shapeup-build-round.js:351` and must be re-pointed at `shapeup-run.js:593`). All three move in the
+> **same commit** as the deletion. On the delete arm the contract row becomes the `shapeup-run.js`
+> presence assertion — S1's real subject was *a workflow script exists for the build round*, and
+> after the inlining that script is `shapeup-run.js`. On the document arm all three stand unchanged.
+>
+> That this was found by grepping for the filename rather than by reading the plan is the point: a
+> file named in an acceptance instrument is load-bearing in a way its own directory does not show.
+
 **If you keep it instead:** R10's other arm — say so in `SKILL.md`, name who launches it and when.
 An undocumented second entry point is the worse outcome either way.
 
@@ -407,10 +424,11 @@ which B.4 promotes to shipped documentation rather than leaving here.
 ## Guardrails
 
 - **No merge, no tag, no push, no publish.** The cutover merge is the PO's move after Stage C.
-- ⟐ **Stage A2 is the ship gate** (amended 2026-08-11; it was Stage A). Stage B does not start until
-  `stage-a2-plan.md`'s G1–G6 are green. A.2's probe **did** fail and everything downstream **did**
-  unwind — that is the gate doing its job, not an obstruction, and it is the one time on this branch
-  the discipline has actually cost something.
+- ⟐ **The ship gate was Stage A, then A2, then A3 — and A3 MET it** (amended 2026-08-12;
+  `kill-resume-probe: PASS`, `stage-a3-evidence.md` §4). Stage B is unblocked and this guardrail is
+  spent. Both failures cost real time and both bought a defect nobody could have read off the code:
+  A2's ORIENT `status` gate, A3's artifact-less completion. **Twice the gate held against a green-
+  looking scoreboard**, which is the only reason the third run means anything.
 - **A7 does not launch autonomously.** It is the single most expensive action and depends on
   external tooling. Stage C pauses for an explicit go.
 - **Do not rebuild `sdd-harness-bench`.** A reconstructed benchmark is a *different instrument*

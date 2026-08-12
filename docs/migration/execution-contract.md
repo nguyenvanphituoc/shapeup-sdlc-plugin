@@ -34,7 +34,11 @@ Baseline recorded at run start: `npm test` green, **1112 checks**, at commit 78e
 >
 > **Run the rows, never read them.** `node tools/contract-check.mjs` executes this table and prints
 > the ship gate BEFORE the count; `--mutate` breaks what each row cites and asserts the row goes
-> red. As of 2026-08-11: 19 PASS / 4 RED, 14/14 mutatable rows falsifiable, **gate NOT MET**.
+> red. ⟐ **Re-derived 2026-08-12 at `c4735c0`: `GATE MET — S2 ship gate — kill/resume probe: PASS`,
+> 19 PASS / 4 RED**, `npm test` green at **1363 checks**. The four reds are all S3 and all Stage B/C
+> work that has not started: the CHANGELOG cutover entry, `commands/build.md`, and
+> `stage3-evidence.md` twice. *(Superseded: "As of 2026-08-11: 19 PASS / 4 RED, 14/14 mutatable rows
+> falsifiable, gate NOT MET." The count did not move; the gate did.)*
 
 ## Acceptance
 
@@ -111,6 +115,23 @@ the new fixture).
 a stop. The rows prove the evidence was written and is machine-readable; they were never designed to
 encode the probe's verdict, and reading 19/23 as "nearly done" would be the exact mis-navigation this
 revision exists to end.
+
+> ⟐ **2026-08-12 — the gate is met, and this paragraph is why that sentence means something.** The
+> count is **still 19 PASS / 4 RED**: not one row moved between the failed probe and the passed one.
+> What moved is the line printed above it. Two stages of real work (A2, A3) are invisible in this
+> table by design, and that is the separation working — had the rows tracked the gate, three runs of
+> "19/23, nearly there" would have read as progress toward a property nothing had yet demonstrated.
+
+### ⟐ 2026-08-12 — a row Stage B is about to break, named before it does
+
+S1's row `test -f skills/tech-lead/workflows/shapeup-build-round.js` **pins a file Stage B's first
+item recommends deleting** (`remaining-stages-plan.md` §B.1). Delete it alone and a closed, green
+stage's row goes red and the contract reads 18/5 — an instrument reporting a regression where the
+plan intends a resolution. B.1 names two of the three places that assertion lives (the fixture
+`tests/structural/16-workflows.mjs:65-68`, and Stage 1's negative probe, which must be re-pointed at
+`shapeup-run.js:593`); **this row is the third**, and it is the one a runner reads. Whichever arm of
+R10 is taken, this row is amended in the same commit: replaced by the `shapeup-run.js` presence
+assertion on the delete arm, or left standing on the document arm.
 
 ## Guardrails
 
