@@ -11,7 +11,6 @@
     { "query": "evaluate TASK-007 against the spec", "should_trigger": false, "expected_other": "spec-evaluator" },
     { "query": "break this pitch into scopes and tasks", "should_trigger": false, "expected_other": "ba-pitch-analyzer" },
     { "query": "implement the next task on the board", "should_trigger": false, "expected_other": "task-executor" },
-    { "query": "escalate this design decision to the advisor", "should_trigger": false, "expected_other": "advisor-protocol" },
     { "query": "run the harness from pitch to ship", "should_trigger": false, "expected_other": "tech-lead" },
     { "query": "summarize this PDF report for me", "should_trigger": false, "expected_other": "none" }
   ]

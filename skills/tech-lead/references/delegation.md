@@ -44,7 +44,6 @@ tokens):
 | ba-pitch-analyzer | exec | planner — builder tier, not judgment |
 | scope-architect | exec | scope-contract author (sole writer of scopes/*.md) — builder tier |
 | task-executor | exec | the builder itself |
-| advisor-protocol | exec | adjudicates ESCALATE by precedent/default, budget-capped — not the single judge |
 | spec-evaluator | eval | the single judge (judge ≠ doer) — keep its own matrix key even if a PO points it at the same model as `exec`, so it can be split later without a harness change |
 | qa-edge-hunter | qa | cheapest tier by design — exploratory breadth over depth |
 | scope-hammer | exec | census + baseline comparison, proposes only — not a verdict |
@@ -95,7 +94,6 @@ Order A (the spec tree + board):
   gen from reality), spike-<area>.md (feasibility/contracts).
   Writes (its substrate): spec_folder → _index.md, domain-model.md, ux-behavior.md, usecases/*,
     contracts/*.contract.md, scope-summary.md (+ api-feasibility.md if third-party) and the
-    LOCAL board .shapeup/<slug>/tasks/ (v3.2; regenerable via a generate-board order).
   Returns: WorkResult (artifacts list + discoveries) → ingest-result.
 Order B (the scope contracts):
   compile-order --operation map-scopes --slug <slug> --worker scope-architect
@@ -121,11 +119,6 @@ Returns: WorkResult → ingest-result (which updates the board and bumps discove
 Read back: updated tasks/_index.md + scope-summary.md before routing back to GATE L1b.
 ```
 
-## 2c. BOOTSTRAP LOCAL BOARD → ba-pitch-analyzer (operation: generate-board, v3.2)
-```
-Only when GATE L1b's bootstrap check fires (LOCAL .shapeup/<slug>/tasks/_index.md missing
-AND SHARED shapeup/<slug>/spec/usecases/ present):
-  compile-order --operation generate-board --slug <slug> --worker ba-pitch-analyzer
   Agent (model: exec): Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) --order <path>
 Effect: regenerates the LOCAL task board fresh from the committed usecases/domain-model/scopes
         — no ledger, no reconciliation. Status bootstraps from committed T0/hill facts at
@@ -166,7 +159,6 @@ dependency order).
 ```
 Invoke via Agent (model: exec): Skill(shapeup-sdlc-plugin:advisor-protocol)
         --ledger shapeup/<slug>/round-ledger.md --escalate <block> [--unattended]
-Effect: adjudicates via precedent / substrate-expansion (→ a scope-architect remap order) / PO ask / conservative
         default; appends one row to round-ledger.md "Decisions" the instant it resolves.
 Read back: the answer, to fold into the SAME attempt if still in progress, or the next
         attempt's isolated brief otherwise.
@@ -255,7 +247,7 @@ Read back: the proposed cut list + verdict (SHIP now | SHIP after fixing ship-bl
 | `scope-summary.md` | planner (analyze/reconcile orders) | tech lead (Done-when), evaluator (Done-when criteria) |
 | `evaluation/EVAL-FEATURE-<slug>.md` + `.verdicts-*.jsonl` | evaluator (report) / **ingest-result.mjs** (verdict ledger, un-ticks) | tech lead (verdict), next fix order (bug list) |
 | `harness-run.md` | **tech lead (sole writer)** | tech lead (round ledger + Hill + run-state), PO (audit) |
-| `scopes/<scope-id>.md` | `scope-architect` (sole writer, incl. remap/split orders) | tech lead (substrate/sequence), sandbox hook (write-whitelist), compile-order (inlined into orders) |
+| `scopes/<scope-id>.md` | `scope-architect` (sole writer) | tech lead (substrate/sequence), sandbox hook (write-whitelist), compile-order (inlined into orders) |
 | `t0/verdicts/r<N>-a<M>-t<T>.json` | `scripts/t0-verify.mjs` (skill-local, mechanical — not a worker) | spec-evaluator (required citation), tech lead (hill derivation), compile-order (digested errors) |
 | `t0/trials.jsonl` (the ratchet ledger, append-only, `baseline_trial` as the parent link) | `scripts/t0-verify.mjs` (one row per attempt: score, status, delta, tree_ref) | compile-order (`trial_history` into the next order), ship-report (T0 + Ratchet sections), `stats.mjs --ratchet` |
 | `round-ledger.md` | **tech lead (sole writer)** | compile-order (decisions into every order), advisor-protocol (appends), PO (audit) |

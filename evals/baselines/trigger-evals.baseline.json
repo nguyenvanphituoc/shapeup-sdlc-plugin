@@ -4,15 +4,10 @@
   "model": "claude-haiku-4-5-20251001",
   "measured_at": "2026-07-26T14:00:00Z",
   "datasets": {
-    "advisor-protocol": {
+    "ba-pitch-analyzer": {
       "positives": 6,
       "negatives": 6,
       "total": 12
-    },
-    "ba-pitch-analyzer": {
-      "positives": 6,
-      "negatives": 7,
-      "total": 13
     },
     "coach": {
       "positives": 5,
@@ -30,14 +25,14 @@
       "total": 11
     },
     "scope-architect": {
-      "positives": 5,
+      "positives": 4,
       "negatives": 5,
-      "total": 10
+      "total": 9
     },
     "scope-hammer": {
       "positives": 6,
-      "negatives": 6,
-      "total": 12
+      "negatives": 5,
+      "total": 11
     },
     "shapeup": {
       "positives": 7,

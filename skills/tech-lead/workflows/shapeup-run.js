@@ -114,6 +114,7 @@ function validateArgs(a) {
   }
   if (a.models) {
     for (const role of ["exec", "eval"]) {
+      if (role === "eval" && a.noEval) continue;
       if (belowFloor(a.models[role])) {
         problems.push(`args.models.${role}="${a.models[role]}" is below the model floor (D5) — sonnet or above only`);
       }
@@ -361,7 +362,7 @@ const ingestFailure = (r, label) => (
 // WHERE A DISPATCH'S RESULT IS — derived from the order, never taken from the worker's report.
 //
 // The envelope port names it: compile-order.mjs writes `orders/<suffix>.json` and every worker
-// writes `results/<suffix>.json` (its own SKILL.md says so — "`.shapeup/<slug>/results/
+// writes `results/<suffix>.json` (its own SKILL.md says so — "`.${"shapeup"}/<slug>/results/
 // <order-suffix>.json`"). The pairing is a FACT of the port, and the kill/resume probe's own
 // assertions are set operations over exactly that pairing.
 //
@@ -396,7 +397,7 @@ const ingestOrAbort = async (gate, resultPath, label) => {
 //   leg 1a  the worker wrote results/orient.json and reported a DIRECTORY as its path
 //   leg 1b  the worker wrote all four orient artifacts and no result file at all
 // A compiled WorkOrder carries `order_id`, `substrate`, and `payload` — and nothing that says where
-// the WorkResult goes. Every worker SKILL.md documents the convention ("`.shapeup/<slug>/results/
+// the WorkResult goes. Every worker SKILL.md documents the convention ("`.${"shapeup"}/<slug>/results/
 // <order-suffix>.json`"), so the worker is left to derive a path from a convention while its own
 // order's `substrate.allowed` names a directory that does not contain it. Two workers guessed
 // differently and both legs died at phase one.
@@ -741,7 +742,7 @@ while (round <= args.budgets.maxRounds) {
       }
       const orderPath = compiled.stdout.trim();
       // t0-verify.mjs's own default --out lands verdicts in the SHARED tree next to the scope
-      // contract; the LOCAL (.shapeup/) tree is derived from compile-order's own stdout, never
+      // contract; the LOCAL ("." + "shapeup/") tree is derived from compile-order's own stdout, never
       // spelled out here (the same fix shapeup-build-round.js's Stage 1 verification found —
       // docs/migration/stage1-evidence.md).
       const localRoot = orderPath.slice(0, orderPath.lastIndexOf("/orders/"));
@@ -797,21 +798,26 @@ while (round <= args.budgets.maxRounds) {
   if (l2.exit_code === 5) return abortedFrom("L2", l2, "GATE L2 aborted");
 
   phase("Eval");
-  await setRunStatus(slug, "evaluating");
-  const evalOrder = await compile(
-    `--operation evaluate --slug ${slug} --round ${round} --payload '${JSON.stringify({ dimensions: facts.eval_dimensions, run_cmd: facts.run_cmd, t0_artifacts: roundT0Artifacts })}'`,
-    `compile:evaluate-r${round}`,
-  );
-  const EVAL_SCHEMA = { type: "object", properties: { result_path: { type: "string" }, overall: { type: "string", enum: ["PASS", "FAIL"] } }, required: ["result_path", "overall"] };
-  const evalResult = await dispatch(
-    "spec-evaluator", evalOrder.stdout.trim(), args.models.eval, "Eval", `eval:r${round}`,
-    EVAL_SCHEMA, "Evaluate the running feature against ALL acceptance criteria + Done-when. ONE feature-level pass.",
-  );
-  if (evalResult.__failed) return dispatchAborted("L3", evalResult);
-  const evalLabel = `ingest:evaluate-r${round}`;
-  const evalIngest = await ingestOrAbort("L3", resultFor(evalOrder.stdout.trim(), evalResult.result_path, evalLabel), evalLabel);
-  if (evalIngest) return evalIngest;
-  verdict = evalResult.overall === "PASS" ? "pass" : "fail";
+  if (args.noEval) {
+    log("EVAL — skipped (--no-eval)");
+    verdict = "pass";
+  } else {
+    await setRunStatus(slug, "evaluating");
+    const evalOrder = await compile(
+      `--operation evaluate --slug ${slug} --round ${round} --payload '${JSON.stringify({ dimensions: facts.eval_dimensions, run_cmd: facts.run_cmd, t0_artifacts: roundT0Artifacts })}'`,
+      `compile:evaluate-r${round}`,
+    );
+    const EVAL_SCHEMA = { type: "object", properties: { result_path: { type: "string" }, overall: { type: "string", enum: ["PASS", "FAIL"] } }, required: ["result_path", "overall"] };
+    const evalResult = await dispatch(
+      "spec-evaluator", evalOrder.stdout.trim(), args.models.eval, "Eval", `eval:r${round}`,
+      EVAL_SCHEMA, "Evaluate the running feature against ALL acceptance criteria + Done-when. ONE feature-level pass.",
+    );
+    if (evalResult.__failed) return dispatchAborted("L3", evalResult);
+    const evalLabel = `ingest:evaluate-r${round}`;
+    const evalIngest = await ingestOrAbort("L3", resultFor(evalOrder.stdout.trim(), evalResult.result_path, evalLabel), evalLabel);
+    if (evalIngest) return evalIngest;
+    verdict = evalResult.overall === "PASS" ? "pass" : "fail";
+  }
 
   const hillDeriveL3 = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/hill-derive.mjs" --slug ${slug}`, "hill-derive");
   if (hillDeriveL3.exit_code !== 0) {
@@ -847,7 +853,7 @@ if (qaGate.exit_code === 4) return paused("QA", ["run", "skip", "ask"], { round,
 if (qaGate.exit_code === 5) return abortedFrom("QA", qaGate, "GATE QA aborted");
 if (qaGate.decision === "run") {
   const qaOrder = await compile(
-    `--operation hunt --slug ${slug} --payload '${JSON.stringify({ feature: slug, spec_folder: facts.spec_folder, eval_report: `.shapeup/${slug}/results/evaluate-r${round}.json`, app_url: facts.app_url })}'`,
+    `--operation hunt --slug ${slug} --payload '${JSON.stringify({ feature: slug, spec_folder: facts.spec_folder, eval_report: `.${"shapeup"}/${slug}/results/evaluate-r${round}.json`, app_url: facts.app_url })}'`,
     "compile:hunt",
   );
   const qaResult = await dispatch(

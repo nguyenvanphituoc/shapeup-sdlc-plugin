@@ -8,7 +8,7 @@ Raw run records and per-round drafts live in the gitignored `evals/runs/`; this 
 baseline it derives from are what survive a clone.
 
 - **Baseline status:** measured (last run 2026-08-05T05:28:28.823Z)
-- **Rubric coverage:** 5 of 13 skills instrumented — honest ceiling is **6 of 13** (5 Tier-1 + `translator`), never 13/13
+- **Rubric coverage:** 5 of 12 skills instrumented — honest ceiling is **6 of 13** (5 Tier-1 + `translator`), never 13/13
 - **Measured:** ba-pitch-analyzer, scope-architect, solution-architect, spec-evaluator, task-executor
 - **Models:** claude-sonnet-5
 

@@ -181,7 +181,7 @@
         "to": "ScopeContract",
         "cardinality": "1:N",
         "via": "superseded_by[]",
-        "note": "set by split-scope — supersede-never-delete keeps branch and T0 history attributable"
+        "note": "set by map-scopes — supersede-never-delete keeps branch and T0 history attributable"
       },
       {
         "from": "T0Artifact",
@@ -254,15 +254,12 @@
       "spec_folder",
       "feature",
       "discovered_ledger",
-      "kb_rules_path",
-      "requirements"
+      "kb_rules_path"
     ],
     "scope-architect": [
       "feature",
       "spec_folder",
-      "tasks",
-      "discovered_ledger",
-      "scope_id"
+      "tasks"
     ],
     "solution-architect": [
       "feature",
@@ -304,12 +301,6 @@
     ],
     "coach": [
       "feedback"
-    ],
-    "advisor-protocol": [
-      "ledger",
-      "escalate",
-      "scope_id",
-      "round"
     ]
   },
   "x-result-by-worker": {
@@ -317,7 +308,6 @@
     "task-executor": [
       "task_results",
       "files_touched",
-      "escalates",
       "discoveries",
       "artifacts",
       "assumptions",
@@ -332,21 +322,18 @@
     ],
     "ba-pitch-analyzer": [
       "discoveries",
-      "escalates",
       "files_touched",
       "artifacts",
       "assumptions",
       "deviations"
     ],
     "scope-architect": [
-      "escalates",
       "files_touched",
       "artifacts",
       "assumptions",
       "deviations"
     ],
     "solution-architect": [
-      "escalates",
       "files_touched",
       "artifacts",
       "assumptions",
@@ -382,12 +369,6 @@
       "artifacts",
       "assumptions",
       "deviations"
-    ],
-    "advisor-protocol": [
-      "files_touched",
-      "artifacts",
-      "assumptions",
-      "deviations"
     ]
   },
   "$defs": {
@@ -404,34 +385,27 @@
         "qa-edge-hunter",
         "translator",
         "scope-hammer",
-        "coach",
-        "advisor-protocol"
+        "coach"
       ]
     },
     "Operation": {
-      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --remap …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix/spike = task-executor · analyze/generate-board/reconcile/retrofit-surface/coverage = ba-pitch-analyzer · map-scopes/remap/split-scope = scope-architect · wire = solution-architect · evaluate = spec-evaluator · orient = orient · hunt/recheck = qa-edge-hunter · translate = translator · hammer = scope-hammer · coach = coach · adjudicate = advisor-protocol.",
+      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --map-scopes …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix/spike = task-executor · analyze/reconcile/retrofit-surface = ba-pitch-analyzer · map-scopes = scope-architect · wire = solution-architect · evaluate = spec-evaluator · orient = orient · hunt = qa-edge-hunter · translate = translator · hammer = scope-hammer · coach = coach.",
       "type": "string",
       "enum": [
         "execute",
         "fix",
         "spike",
         "analyze",
-        "generate-board",
         "reconcile",
         "retrofit-surface",
-        "coverage",
         "map-scopes",
-        "remap",
-        "split-scope",
         "wire",
         "evaluate",
         "orient",
         "hunt",
-        "recheck",
         "translate",
         "hammer",
-        "coach",
-        "adjudicate"
+        "coach"
       ]
     },
     "Substrate": {
@@ -739,7 +713,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Set by split-scope: the replacing scope ids. Supersede-never-delete."
+          "description": "Set by map-scopes: the replacing scope ids. Supersede-never-delete."
         },
         "business_goal": {
           "type": "string",
@@ -831,38 +805,6 @@
         }
       }
     },
-    "Escalate": {
-      "description": "The worker's ONE outward port: a decision it cannot make alone. Ingest queues these to escalates/<order>.json; advisor-protocol adjudicates (budget ≤3/scope/round) and the answer returns as a Decision in the next order. The advisor-side grammar adds scope_id/round/attempt/options/default_if_silent (see EscalateBlock).",
-      "x-tier": "EMBEDDED",
-      "type": "object",
-      "required": [
-        "kind",
-        "question"
-      ],
-      "properties": {
-        "kind": {
-          "type": "string",
-          "enum": [
-            "design-decision",
-            "spec-ambiguity",
-            "substrate-expansion"
-          ],
-          "description": "Three kinds, three resolution paths: design/spec go to the PO (or default_if_silent unattended); substrate-expansion is NEVER silently approved — it routes to a scope-architect remap order."
-        },
-        "question": {
-          "type": "string",
-          "description": "One checkable question."
-        },
-        "blocked_ac": {
-          "type": "string",
-          "description": "Which AC waits on this — work on unrelated ACs continues."
-        },
-        "context": {
-          "type": "string",
-          "description": "The two interpretations / the file and why it's needed."
-        }
-      }
-    },
     "EscalateBlock": {
       "description": "The advisor-protocol adjudication grammar — an Escalate enriched with run coordinates and options, as passed to /advisor-protocol --escalate. The answer is persisted to the committed round-ledger.md Decisions table the instant it's given (zero-memory handoff: escalation memory lives in files, not chat).",
       "x-tier": "EMBEDDED",
@@ -911,7 +853,7 @@
       "x-tier": "EMBEDDED (projection into the LOCAL discovery ledger)",
       "x-location": ".shapeup/<slug>/discovery/ledger.md",
       "x-writer": "ingest-result.mjs",
-      "x-readers": "ba-pitch-analyzer (reconcile), scope-architect (remap), scope-hammer (census), qa-edge-hunter (covered-territory context)",
+      "x-readers": "ba-pitch-analyzer (reconcile), scope-architect (map-scopes), scope-hammer (census), qa-edge-hunter (covered-territory context)",
       "type": "object",
       "required": [
         "marker",
@@ -1970,10 +1912,10 @@
       ]
     },
     "RequirementClause": {
-      "description": "One atomic customer requirement, frozen with a STABLE id — the covers-closure input truth (spine v1.3). Extracted from the REQ source (Open Decision A: pitch / customer-requirements doc / use-case bodies) by ba-pitch-analyzer's `coverage` operation; extraction is judgment (LLM), but ids are assigned ONCE and never renumber (they behave like scope_id, not TASK-NNN — every covers: link would rot otherwise). Supersede-never-delete: a dropped clause is marked CUT (PO-approved), never removed, so the registry stays auditable on a fresh clone. The original REQ source is never edited — the registry is a separate derived, committed file.",
+      "description": "One atomic customer requirement, frozen with a STABLE id — the covers-closure input truth (spine v1.3). Extracted from the REQ source (Open Decision A: pitch / customer-requirements doc / use-case bodies) by  extraction is judgment (LLM), but ids are assigned ONCE and never renumber (they behave like scope_id, not TASK-NNN — every covers: link would rot otherwise). Supersede-never-delete: a dropped clause is marked CUT (PO-approved), never removed, so the registry stays auditable on a fresh clone. The original REQ source is never edited — the registry is a separate derived, committed file.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/requirements.md",
-      "x-writer": "ba-pitch-analyzer (operation: coverage) — extraction only; CUT status is a PO governance edit (same class as a round-ledger Decision)",
+      "x-writer": " CUT status is a PO governance edit (same class as a round-ledger Decision)",
       "x-readers": "trace-lint.mjs (covers-closure oracle), tech-lead, human (coverage/cut audit)",
       "type": "object",
       "required": [
@@ -2200,11 +2142,11 @@
         },
         "discovered_ledger": {
           "type": "string",
-          "description": "ba-pitch-analyzer (reconcile) / scope-architect (remap): the discovery ledger path whose raw [+]/~ lines get folded in."
+          "description": "ba-pitch-analyzer (reconcile) / scope-architect (map-scopes): the discovery ledger path whose raw [+]/~ lines get folded in."
         },
         "requirements": {
           "type": "string",
-          "description": "ba-pitch-analyzer (operation: coverage): the REQ source to extract atomic clauses from (Open Decision A — pitch / customer-requirements doc / use-case bodies). Absent → the planner defaults to the pitch and records the choice in assumptions[]. The written registry lands at shapeup/<slug>/requirements.md (RequirementClause rows)."
+          "description": "ba-pitch-analyzer: the REQ source to extract atomic clauses from (Open Decision A — pitch / customer-requirements doc / use-case bodies). Absent → the planner defaults to the pitch and records the choice in assumptions[]. The written registry lands at shapeup/<slug>/requirements.md (RequirementClause rows)."
         },
         "project_profile": {
           "type": "string",
@@ -2212,7 +2154,7 @@
         },
         "scope_id": {
           "type": "string",
-          "description": "scope-architect (split-scope): the stuck scope · scope-hammer (--breaker inner): the exhausted scope · advisor-protocol: budget scope."
+          "description": "scope-architect (map-scopes): the stuck scope · scope-hammer (--breaker inner): the exhausted scope · advisor-protocol: budget scope."
         },
         "dimensions": {
           "type": "array",
@@ -2466,6 +2408,10 @@
         "lane": {
           "$ref": "#/$defs/Lane",
           "description": "The fit-check verdict (full|tiny) — compiles away into existing knobs; never rides in WorkOrderPayload."
+        },
+        "noEval": {
+          "type": "boolean",
+          "description": "If true, skips the EVAL phase completely."
         }
       }
     },

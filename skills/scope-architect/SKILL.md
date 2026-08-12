@@ -1,6 +1,6 @@
 ---
 name: scope-architect
-description: "Use this skill to map, remap, or split the vertical scopes of a feature — Shape Up's \"map the scopes\" (step 8) as committed, mechanically enforceable contracts. Triggers on: \"map the scopes\", \"write the scope contracts\", \"scope contract\", \"remap this scope\", \"split this stuck scope\", \"the discovered tasks don't fit any scope\", \"re-slice the substrate\", or a tech-lead --order dispatch (operations map-scopes | remap | split-scope). Writes the committed scopes/*.md contracts by import-graph slicing along business flow, with write-whitelist substrates and e2e fixtures. NOT for decomposing a pitch into tasks (ba-pitch-analyzer) or cutting scope at ship time (scope-hammer)."
+description: "Use this skill to map the vertical scopes of a feature — Shape Up's \"map the scopes\" (step 8) as committed, mechanically enforceable contracts. Triggers on: \"map the scopes\", \"write the scope contracts\", \"scope contract\", \"the discovered tasks don't fit any scope\", \"re-slice the substrate\" (operations map-scopes). Writes the committed scopes/*.md contracts by import-graph slicing along business flow, with write-whitelist substrates and e2e fixtures. NOT for decomposing a pitch into tasks (ba-pitch-analyzer) or cutting scope at ship time (scope-hammer)."
 ---
 
 # Scope Architect (pure worker v1.0)
@@ -22,8 +22,6 @@ anti-rationalization table.
 | `operation` | `map-scopes` (first slicing after the board exists) · `remap` (fold discovered items into scope contracts) · `split-scope` (re-slice one stuck scope) |
 | `payload.feature` / `payload.spec_folder` | Slug + committed spec (read ux-behavior.md for manifests; usecases for flows) |
 | `payload.tasks[]` | The board's tasks with their touched files — the slicing input |
-| `payload.discovered_ledger` | (remap) items that fit no existing substrate |
-| `payload.scope_id` | (split-scope) the stuck scope (`rounds_at_position ≥ 3`, or an approved substrate-expansion) |
 | `substrate.allowed` | `scopes/*.md` + `scope-board.md` — your ONLY write surface |
 
 ## Core process
@@ -102,7 +100,7 @@ territory), `deviations[]` (any lint warn left standing and why). You never touc
 ## Invocation
 
 ```bash
-# Orchestrated — compile-order --operation map-scopes|remap|split-scope --worker scope-architect …
+# Orchestrated — compile-order --operation map-scopes --worker scope-architect …
 /scope-architect --order .shapeup/checkout-vnpay/orders/map-scopes.json
 
 # Standalone shims (compile the same envelope)

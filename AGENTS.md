@@ -26,14 +26,13 @@ Betting Table: PO decides; rejected pitches loop back to raw idea.
 | Orient (Scout) | ⏸ **L1a** — Orient Review | `/orient` |
 | Analyze | — (reviewed at L1b) | `/ba-pitch-analyzer` (`analyze`): spec tree + board (UC + Invariants + Test Surface ★); before Wire (needs its use cases) |
 | Wire | ⏸ **L1a.5** — Wiring Review ✚ | `/solution-architect` (`wire`): sole writer of committed `wiring-map.md` — per-UC engine → seam → entry-point call site → affordance, per `project-profile.md` |
-| Map Scopes | ⏸ **L1b** — Board Review (+ substrate disjointness lint) | `/scope-architect` (scope contracts ✦ — sole writer); `coverage` op writes `requirements.md` ✚; traceability oracle advisory ✚ |
+| Map Scopes | ⏸ **L1b** — Board Review (+ substrate disjointness lint) | `/scope-architect` (scope contracts ✦ — sole writer); traceability oracle advisory ✚ |
 | Build Vertically | ⏸ **L2** — Board 100% ✅ + T0-green ✦ | per dispatch: compile order → `/task-executor` (--order) → ingest result; T0-verified per attempt (fixtures + DB probe + seesaw ✦), substrate-sandboxed ✦ |
 | EVAL (once per round) | ⏸ **L3** — Verdict | `/spec-evaluator` (--order): spec- + test-surface-conformance ★, T0 citation ✦; refuted boxes/verdict applied by ingest |
 | FAIL → round r+1 | — | regression rule ★: bugs + full Test Surface of touched UC |
 
 ✦ = requires scope contracts (`shapeup/<slug>/scopes/*.md`); ✚ = requires the spine artifacts (`requirements.md`, `wiring-map.md`, `project-profile.md`). Traceability stays advisory until `covers:` is populated. Absent artifact ⇒ arm skipped (non-regression).
 
-During Build, a worker's structured `ESCALATE` (design / spec ambiguity / substrate expansion) is adjudicated by `/advisor-protocol` — budgeted per scope per round, answers persisted to the round ledger.
 
 ### QA Edge Hunt (`/qa-edge-hunter`, post-PASS, pre-ship)
 **Q0** Preflight → **Q1** Charter (6 lenses − EVAL-covered) → **Hunt** (repro required, findings `~` → ledger) → report (no verdict, no score). Skip with `--no-qa`.
@@ -42,7 +41,7 @@ During Build, a worker's structured `ESCALATE` (design / spec ambiguity / substr
 - **SHIP S.0 / GATE H** — `/scope-hammer`: census (QA findings + discovered ledger + attempt-budget proposals ✦) → baseline comparison (never the ideal) → cut list; TL/PO promotes selected items only.
 - ⏸ **L4** — Ship Sign-off (shows QA status ★).
 - **Coach retro** — L4 feedback → `/coach`; GATE COACH-1 asks the PO which skill owns each rule (never assumes) → committed `shapeup/knowledge-base/<skill>.md` (team inherits on pull). Coachable: `/task-executor`, `/ba-pitch-analyzer`, `/qa-edge-hunter`; `/spec-evaluator` is not (single judge). Mechanism defects file to `knowledge-base/harness-defects.md` as Betting Table raw ideas, never worker steering.
-- Post-fix: `eval --single-pass` → `qa --recheck` (promoted items only ✦); remaining `~` + new feedback → new raw idea.
+- Post-fix: `eval --single-pass` → remaining `~` + new feedback → new raw idea.
 
 ### Discovered Tasks
 Everything discovered funnels into `.shapeup/<slug>/discovery/ledger.md` (Orient, task-executor P3.7, QA); a new invariant triggers `ba --tasks-only --from-discovered` → `TS-INV-NN` Test Surface row ★.

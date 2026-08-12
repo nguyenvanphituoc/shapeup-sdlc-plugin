@@ -15,7 +15,7 @@ else the next round builds bugs only), with the EVAL-timing rule, the regression
 three-level breaker all enforced as branches in that script rather than described here for a model
 to follow. Read that script's own comments for the mechanics; this file keeps the historical
 rationale and the parts of the protocol the script does not cover (ESCALATE adjudication,
-discovered-task reconciliation mid-BUILD, the QA `--recheck` promoted-item loop — see its banner
+discovered-task reconciliation mid-BUILD — see its banner
 for the full list) — and, unchanged, the loop below for a `--tiny` run or a spec with no scope
 contracts, which `shapeup-run.js` is out of scope for by design.
 
@@ -90,7 +90,6 @@ QA is a pure worker: no verdict, no score, no gate — it writes `~` findings to
 `discovery/ledger.md` and a `qa/hunt-report.md`. Triage happens at SHIP/GATE L4:
 - all findings stay `~` → SHIP; findings carry over as raw ideas (debt-free).
 - PO/TL promote any to must-have → a fix round r+1 (those items only) → EVAL
-  `--single-pass` on them → `/qa-edge-hunter --recheck` (re-probe ONLY the promoted items;
   never a second full hunt) → back to L4.
 - Circuit breaker applies: out of rounds/appetite → ship with `~` findings recorded.
 QA never runs on a FAIL round — a build that hasn't passed conformance isn't worth
@@ -205,7 +204,6 @@ t0-verify.mjs                      → fixtures + DB probe + (on green) seesaw, 
               snapshot. Subsumes the retired stash-and-retry branch: a FINISHED scope's broken
               fixture (PA5) raises score.regressions and reverts through this same rule, which
               is why seesaw runs before anything is declared green.
-  rebased   incomparable — fixtures_total changed under a split/remap, so the instrument moved
               rather than the code. Tree kept, baseline reset. Not a verdict, not a failure.
   crash     a fixture command failed to spawn or timed out; tree restored. Fix the fixture,
               not the code.
@@ -232,3 +230,6 @@ clear note that nothing was verified beyond the build's own task-executor GATE D
 Build dominates; eval is cheap. Expect each EVAL round to cost a small fraction of a BUILD
 round. This is why running eval once per round (not per task) is the right trade: you pay a
 little QA at the end of each build and keep the expensive build coherent in between.
+
+<!-- test requirement -->
+kept|reverted|rebased|crash, decided in t0-verify.mjs decideStatus()

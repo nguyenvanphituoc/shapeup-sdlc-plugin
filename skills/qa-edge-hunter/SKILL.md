@@ -36,7 +36,6 @@ tech-lead: ... GATE L2 → EVAL → GATE L3 PASS ──► QA EDGE HUNT (you) �
 | Execute charters on the **running app** (session-based exploratory) | Read-only speculate from code ("this looks racy") — every finding needs a live repro |
 | Return each finding in the WorkResult's `discoveries[]`, **always `~`** | Promote `~` → must-have (PO/TL at SHIP S.0; severity-hint is advice, not a decision) |
 | Emit `qa/hunt-report.md` — charters run/cut, findings by lens | Render a verdict, score, or PASS/FAIL of any kind |
-| `--recheck`: re-probe ONLY items promoted+fixed after triage | Run a second full hunt in the same cycle; fix code; touch task files; keep run-state |
 
 Pure worker (harness rule: stateless workers, one stateful orchestrator). Its WorkOrder
 carries `payload.feature`, `payload.spec_folder`, `payload.eval_report`, `payload.app_url`,
@@ -273,7 +272,6 @@ an order, the WorkResult envelope `.shapeup/<feature>/results/<order-suffix>.jso
 
 ```markdown
 # Hunt Report — [feature] (round [r], [date])
-mode: [full | degraded | recheck]
 charters: [run]/[approved] · session units spent: [n]
 out of bounds (excluded): […]
 hammered out at GATE Q1 (not hunted): […]
@@ -298,43 +296,9 @@ No verdict line exists in this file by design. The Hunter's last words:
 `✅ hunt complete — [N] findings (all ~) → ledger · triage at SHIP S.0 / GATE L4.`
 
 ---
-
-## `--recheck` mode (after triage promoted + fixed items)
-
-```
-Input: the promoted finding ids (from tech-lead) + the fix round's PASS EVAL report.
-Q0   : hard checks only (app up, new EVAL PASS); no soft check, no charter map.
-Hunt : re-run EXACTLY the recorded repro of each promoted finding — nothing else.
-        fixed   → discoveries[] entry `{ "marker": "~", "line": "[QA-NNN] ✦ fixed r[N], verified" }`
-                  (ingest annotates the ledger — annotate, never delete; the ledger is history)
-        not fixed → `{ "marker": "~", "line": "[QA-NNN] ✦ NOT fixed r[N]", "repro": "<fresh evidence>" }`
-                  back to triage.
-Report: append a `## Recheck (round [r])` section to .shapeup/<feature>/qa/hunt-report.md.
-NEVER a second full hunt in the same cycle — new edges found while rechecking are
-recorded `~` like any finding and wait for triage; they don't restart the loop.
-```
-
----
-
-## Invocation
-
-```bash
-# Orchestrated (how tech-lead calls it after first PASS) — the canonical form:
-#   compile-order --operation hunt --slug checkout-vnpay --worker qa-edge-hunter \
-#     --payload '{"eval_report": "…/EVAL-FEATURE-checkout-vnpay.md", "app_url": "http://localhost:3000"}'
-/qa-edge-hunter --order .shapeup/checkout-vnpay/orders/hunt.json
-
-# Standalone flags (the preamble shim compiles the same envelope)
-/qa-edge-hunter --feature checkout-vnpay --spec shapeup/checkout-vnpay/spec/ \
-    --eval .shapeup/checkout-vnpay/evaluation/EVAL-FEATURE-checkout-vnpay.md \
-    --ledger .shapeup/checkout-vnpay/discovery/ledger.md --app http://localhost:3000
-
-# Standalone (same arguments, human-invoked)
 /qa-edge-hunter --feature checkout-vnpay --spec shapeup/checkout-vnpay/spec/ --app http://localhost:3000
 # (--eval/--ledger default to the conventional paths under the LOCAL root .shapeup/<feature>/)
 
-# Recheck after triage promoted + fixed findings
-/qa-edge-hunter --recheck QA-001,QA-004 --feature checkout-vnpay --spec ... --app ...
 
 # Escape hatches
 --auto            # skip GATE Q1 pause (charter list logged, not reviewed) — Q0 hard

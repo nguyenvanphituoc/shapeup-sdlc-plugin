@@ -171,11 +171,7 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
       };
     case "analyze":
       return { allowed: [`${spec}/**`, `${local}/**`], frozen: [] };
-    case "generate-board":
-      return {
-        allowed: [`${local}/tasks/**`, `${spec}/scope-summary.md`, `${working}/**`],
-        frozen: [...FROZEN_SPEC_CORE, `${scopesDir}/**`],
-      };
+
     case "reconcile":
       return {
         allowed: [`${local}/tasks/**`, `${spec}/scope-summary.md`, `${working}/**`],
@@ -184,14 +180,8 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
       };
     case "retrofit-surface":
       return { allowed: [], append_only: [`${spec}/usecases/*.md#Test Surface`], frozen: FROZEN_SPEC_CORE };
-    case "coverage":
-      // ba-pitch-analyzer writes the SHARED requirement registry only — the REQ source and the
-      // spec core stay frozen (the registry is a separate derived file, never an edit of the source).
-      return {
-        allowed: [globShared(slug, "requirements.md")],
-        frozen: [...FROZEN_SPEC_CORE, `${scopesDir}/**`, `${local}/tasks/**`],
-      };
-    case "map-scopes": case "remap": case "split-scope":
+
+    case "map-scopes":
       return {
         allowed: [`${scopesDir}/*.md`, globShared(slug, "scope-board.md")],
         frozen: [...FROZEN_SPEC_CORE, `${local}/tasks/**`],
@@ -205,7 +195,7 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
       };
     case "evaluate":
       return { allowed: [`${local}/evaluation/**`], frozen: [`${spec}/**`, `${local}/tasks/**`] };
-    case "hunt": case "recheck":
+    case "hunt":
       return { allowed: [`${local}/qa/**`], frozen: [`${spec}/**`, `${local}/tasks/**`] };
     case "orient":
       return { allowed: [`${local}/orient/**`], frozen: [`${spec}/**`] };
@@ -433,12 +423,12 @@ if (isMainModule) {
   // Operation → owning worker (mirrors domain.schema.json $defs/Operation ownership). Lets a
   // non-build dispatch resolve its worker from the operation alone, without a redundant --worker.
   const OP_OWNER = {
-    analyze: "ba-pitch-analyzer", "generate-board": "ba-pitch-analyzer", reconcile: "ba-pitch-analyzer",
-    "retrofit-surface": "ba-pitch-analyzer", coverage: "ba-pitch-analyzer",
-    "map-scopes": "scope-architect", remap: "scope-architect", "split-scope": "scope-architect",
+    analyze: "ba-pitch-analyzer", reconcile: "ba-pitch-analyzer",
+    "retrofit-surface": "ba-pitch-analyzer",
+    "map-scopes": "scope-architect",
     wire: "solution-architect", evaluate: "spec-evaluator", orient: "orient",
-    hunt: "qa-edge-hunter", recheck: "qa-edge-hunter", translate: "translator",
-    hammer: "scope-hammer", coach: "coach", adjudicate: "advisor-protocol",
+    hunt: "qa-edge-hunter", translate: "translator",
+    hammer: "scope-hammer", coach: "coach",
   };
   let operation = flag("operation") || (scopePath || flag("task") || has("next") ? "execute" : null);
   const worker = flag("worker")

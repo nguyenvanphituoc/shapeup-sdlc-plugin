@@ -408,7 +408,6 @@ export async function run(ctx) {
           { ac: "second criterion", result: "pass", evidence: "ran it too" },
         ] }],
         discoveries: [{ marker: "+", line: "edge case found" }],
-        escalates: [{ kind: "spec-ambiguity", question: "which default?" }],
       };
       w(".shapeup/demo/results/r1-a2.json", JSON.stringify(result));
       const ri = spawnSync("node", [irPath, join(d, ".shapeup/demo/results/r1-a2.json"), "--cwd", d], { encoding: "utf8" });
@@ -426,8 +425,7 @@ export async function run(ctx) {
       else fail("ingest did not update the board index");
       if (read(join(d, ".shapeup/demo/discovery/ledger.md")).includes("edge case found")) ok("ingest appends discoveries to the ledger");
       else fail("ingest did not append the discovery");
-      if (existsSync(join(d, ".shapeup/demo/escalates/r1-a2.json"))) ok("ingest queues escalates for the orchestrator");
-      else fail("ingest did not queue the escalate");
+
       // Verdict path: refuted box un-ticked + verdict JSONL appended.
       const evalResult = {
         schema_version: 1, order_id: "demo/evaluate-r1", worker: "spec-evaluator", status: "done",
@@ -732,7 +730,7 @@ export async function run(ctx) {
     const ops = new Set(domain.$defs?.Operation?.enum || []);
     if (wn.has("solution-architect")) ok("WorkerName enum registers solution-architect");
     else fail("solution-architect missing from WorkerName enum");
-    for (const op of ["wire", "coverage"]) {
+    for (const op of ["wire"]) {
       if (ops.has(op)) ok(`Operation enum registers ${op}`);
       else fail(`Operation enum missing ${op}`);
     }
@@ -741,7 +739,7 @@ export async function run(ctx) {
       else fail(`$defs missing ${def}`);
     }
     // The new $defs must carry the writer/tier annotations the registry discipline requires.
-    const writers = { RequirementClause: "ba-pitch-analyzer", WiringMap: "solution-architect", ProjectProfile: "tech-lead" };
+    const writers = { WiringMap: "solution-architect", ProjectProfile: "tech-lead" };
     for (const [def, who] of Object.entries(writers)) {
       if ((domain.$defs?.[def]?.["x-writer"] || "").includes(who)) ok(`${def} x-writer is ${who}`);
       else fail(`${def} x-writer must name ${who}`);

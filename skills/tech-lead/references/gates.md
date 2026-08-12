@@ -53,7 +53,6 @@ Collect (explicit — never inferred):
           - LOCAL   .shapeup/<slug>/      — run-trace (hidden, gitignorable):
               harness-run.md (this ledger), digest, orient/, evaluation/, qa/,
               discovery/ledger.md, orders/ + results/ (the envelope port), tasks/ (the task
-              board, v3.2 — regenerable via a generate-board order on any machine)
           spec_folder = shapeup/<slug>/spec/ (the deliverable arg passed to ba/eval/exec)
   L0.3  lens: lite | standard | cross-context   (passed to planner at step 8)
   L0.4  stack hint (e.g. "pnpm, Next 16 web :3000") — aims orient's code-surface sweeps + run commands
@@ -171,7 +170,6 @@ Do NOT enter MAP SCOPES until Orient is accepted.
    every relaunch. Verify: node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/resume-state.mjs"
    --slug <slug> --require analyze (exit 0 = the spec tree is there; exit 6 = do not dispatch WIRE).
    Post-check the same way after the dispatch: --require wire.
-3. COVERAGE (folds into MAP SCOPES) — compile-order --operation coverage → ba writes the SHARED
    requirements.md registry (atomic REQ clauses, frozen ids).
 4. trace-lint — node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/trace-lint.mjs" --slug <slug>. ADVISORY at L1b:
    covers-closure (every covered REQ named by ≥1 AC's covers:) + reachability (every UC engine
@@ -230,7 +228,6 @@ v0.2.6 (non-regression).
 `.shapeup/<slug>/tasks/_index.md` missing AND `shapeup/<slug>/spec/usecases/`
 exists → a teammate (or a `--from build` resumed run) has the SHARED spec via git but no LOCAL
 task board on this machine — `.shapeup/` is gitignored and never travels with a branch.
-compile-order --operation generate-board --slug <slug> --worker ba-pitch-analyzer, then
 Agent (model: exec): Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) --order <path> + ingest —
 regenerates the board from the committed usecases/domain-model/scopes. Record the bootstrap in
 the ledger. No-op on a fresh r=1 run (MAP SCOPES just wrote the board on this same machine) or
@@ -257,7 +254,6 @@ this is the orchestrator's own re-confirmation before committing to a build sequ
   - Run `node "${CLAUDE_PLUGIN_ROOT}/skills/ba-pitch-analyzer/scripts/spec-lint.mjs" --slug <slug>`: DISJOINT (a file in two
     scopes' `allowed_file_substrate` without BOTH declaring it `shared_substrate` — PA3
     waiting to happen), PA1 (directory-aligned scope), PA2 (size cap). Any red → HARD STOP,
-    route a remap order to scope-architect before BUILD — a human may have hand-approved
     past a 🔴 at the architect's own checkpoint.
   - Lock the build SEQUENCE riskiest-first: order scopes by open-unknowns count (from
     hill/<scope-id>.yml if present, else the orient hill signal), not by file count or
@@ -310,7 +306,6 @@ PASS:
       + .shapeup/<slug>/qa/hunt-report.md. No verdict — the run's verdict stays this EVAL's PASS.
       → then proceed to SHIP (triage of QA findings happens at SHIP S.0/GATE L4).
   → subsequent PASS (a promoted-findings fix round): Agent (model: qa):
-    Skill(shapeup-sdlc-plugin:qa-edge-hunter) --recheck on the promoted items only, then SHIP.
   → --no-qa or skill absent: proceed straight to SHIP; ledger records `qa: skipped`.
 
 FAIL:

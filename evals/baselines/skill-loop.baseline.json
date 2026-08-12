@@ -649,11 +649,6 @@
   "measure_command": "node tools/skill-loop.mjs --measure --skill <name> --model claude-sonnet-5",
   "coverage": {
     "skills": {
-      "advisor-protocol": {
-        "day1_rubric": "absent",
-        "criteria": 0,
-        "fixture": null
-      },
       "ba-pitch-analyzer": {
         "day1_rubric": "present",
         "criteria": 1,
@@ -716,7 +711,7 @@
       }
     },
     "with_rubric": 5,
-    "total": 13
+    "total": 12
   },
   "withdrawn": [
     {

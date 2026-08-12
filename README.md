@@ -85,7 +85,7 @@ installer, and troubleshooting are in
 ## Agent support
 
 The harness targets **Claude Code only**. The reason is the row that never travelled when we
-compiled to other CLIs: hooks. The 13 skills, 10 slash commands and pipeline scripts are
+compiled to other CLIs: hooks. The 12 skills, 10 slash commands and pipeline scripts are
 portable prose and plain Node — but hook-enforced gates (deny on premature EVAL, substrate
 sandbox, safety spine) are a per-CLI mechanism, and without them every gate degrades from
 **enforced** to **instructed** — the same honor system every other framework runs on
@@ -274,7 +274,7 @@ Stated plainly, because you will hit them:
 
 - **The `--tiny` lane is young.** It right-sizes the ceremony (two gates instead of eight) but
   keeps the T0 verification floor; its fit-check heuristics will need tuning against real use.
-- **Skill quality is measured for 5 of the 13 skills, and the honest ceiling is 6.** The five that
+- **Skill quality is measured for 5 of the 12 skills, and the honest ceiling is 6.** The five that
   a deterministic script already grades — `ba-pitch-analyzer`, `scope-architect`,
   `solution-architect`, `spec-evaluator`, `task-executor` — clear *Graph Engineering* §VI.A's Day-1
   bar on `claude-sonnet-5`: approve in every run, revision rates of 10% / 33% / 6.3% and two
@@ -311,7 +311,7 @@ claude --plugin-dir .                # load this working copy without installing
 .claude-plugin/
   plugin.json         # plugin manifest
   marketplace.json    # marketplace listing (points at this repo)
-skills/<name>/SKILL.md # the 13 harness skills (+ references/ and assets/)
+skills/<name>/SKILL.md # the 12 harness skills (+ references/ and assets/)
 skills/tech-lead/scripts|schemas/        # orchestrator pipeline: init-run, gate-answers,
                                          #   budget-check, compile-order, ingest-result, validate-envelope,
                                          #   t0-verify, trace-lint, aegis-digest, run-snapshot,

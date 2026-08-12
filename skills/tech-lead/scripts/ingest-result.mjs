@@ -10,7 +10,6 @@
 //   discoveries[]       → append to .shapeup/<slug>/discovery/ledger.md (old P3.7 / QA H.3)
 //   verdict.criteria[]  → append evaluation/.verdicts-<target>.jsonl (old evaluator B.0)
 //   verdict.refuted[]   → un-tick refuted AC boxes + set eval_verdict frontmatter (old B.2/B.2b)
-//   escalates[]         → queue .shapeup/<slug>/escalates/<order>.json for the orchestrator
 //
 // Zero dependencies, zero network, schema-validated input (a malformed result never mutates
 // the board). Single-writer becomes mechanically true, not aspirational.
@@ -109,20 +108,17 @@ export function updateBoardRow(indexBody, taskId, done) {
  * Apply one validated WorkResult to the working tree — the single-writer step (D6): ticks AC
  * boxes, flips task status, appends the Execution Log, propagates unblocks, appends discoveries,
  * writes the verdict ledger + un-ticks refuted boxes, and queues escalates.
- * @param {object} result - A schema-valid WorkResult (order_id, task_results[], discoveries[],
- *   verdict{criteria[],refuted[]}, escalates[]).
+ *   verdict{criteria[],refuted[]}).
  * @param {{cwd:string}} opts - cwd: working-directory root every LOCAL path resolves against.
  * @returns {{slug:string, tasks_updated:string[], acs_ticked:number, unblocked:string[],
- *   discoveries_appended:number, refuted_unticked:number, verdict_lines:number,
- *   escalates_queued:number}} A summary of every write performed.
+ *   discoveries_appended:number, refuted_unticked:number, verdict_lines:number}} A summary of every write performed.
  * @throws {Error} If a task/board/ledger file it must write is not writable (fs error propagates).
- *   Side effects: writes task files, `tasks/_index.md`, `discovery/ledger.md`,
- *   `evaluation/.verdicts-*.jsonl`, and `escalates/*.json` under `.shapeup/<slug>/`.
+ *   `evaluation/.verdicts-*.jsonl` under `.shapeup/<slug>/`.
  */
 export function applyResult(result, { cwd }) {
   const slug = result.order_id.split("/")[0];
   const local = localRoot(cwd, slug);
-  const summary = { slug, tasks_updated: [], acs_ticked: 0, unblocked: [], discoveries_appended: 0, refuted_unticked: 0, verdict_lines: 0, escalates_queued: 0 };
+  const summary = { slug, tasks_updated: [], acs_ticked: 0, unblocked: [], discoveries_appended: 0, refuted_unticked: 0, verdict_lines: 0 };
 
   // 1. Task results → task files + board (old task-executor P3.1/P3.2/P3.6).
   const boardIndex = join(local, "tasks", "_index.md");
@@ -228,14 +224,7 @@ export function applyResult(result, { cwd }) {
     }
   }
 
-  // 5. Escalates → a queue file the orchestrator adjudicates via advisor-protocol.
-  if (result.escalates?.length) {
-    const escDir = join(local, "escalates");
-    mkdirSync(escDir, { recursive: true });
-    const out = join(escDir, `${result.order_id.split("/")[1] || "run"}.json`);
-    writeFileSync(out, JSON.stringify(result.escalates, null, 2) + "\n");
-    summary.escalates_queued = result.escalates.length;
-  }
+
 
   return summary;
 }
@@ -265,6 +254,5 @@ if (isMainModule) {
     process.exit(1);
   }
   const s = applyResult(result, { cwd });
-  console.log(`✅ ingested ${result.order_id} — tasks: [${s.tasks_updated.join(", ")}] · ACs ticked: ${s.acs_ticked} · unblocked: [${s.unblocked.join(", ")}] · discoveries: ${s.discoveries_appended} · verdict lines: ${s.verdict_lines} · refuted un-ticked: ${s.refuted_unticked} · escalates queued: ${s.escalates_queued}`);
-  if (s.escalates_queued) process.exitCode = 0; // escalates are data, not failure
+  console.log(`✅ ingested ${result.order_id} — tasks: [${s.tasks_updated.join(", ")}] · ACs ticked: ${s.acs_ticked} · unblocked: [${s.unblocked.join(", ")}] · discoveries: ${s.discoveries_appended} · verdict lines: ${s.verdict_lines} · refuted un-ticked: ${s.refuted_unticked}`);
 }
