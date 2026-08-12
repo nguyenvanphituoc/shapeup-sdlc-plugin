@@ -15,14 +15,13 @@ a session that dispatches the orchestrator and leaves no receipt is blocked at `
 ## How the run actually executes
 
 On a spec with committed `scopes/*.md` — the common case — `tech-lead` holds the L0 intake
-conversation, writes `project-profile.md`, then hands the whole pipeline to a single `Workflow`
+conversation, writes `project-profile.md`, then hands the whole pipeline to a single background
 launch and does not drive it turn by turn:
 
-```
-Workflow({
-  scriptPath: "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js",
-  args: { slug, autoLevel, answers, models, budgets, pluginRoot: "${CLAUDE_PLUGIN_ROOT}", startedAt }
-})
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/run-workflow.mjs" \
+  "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js" \
+  --args-file .shapeup/<slug>/run-args.json --run-dir .shapeup/<slug>/workflow-run
 ```
 
 ORIENT → L1a → ANALYZE → WIRE → L1a.5 → MAP SCOPES → L1b → rounds of BUILD/L2/EVAL → QA → GATE H
@@ -36,8 +35,13 @@ all run inside it. Three things follow, and they are the point of the cutover ra
   session picks the run up where it died — the property this migration exists to buy, and the one
   the kill/resume probe grades (`docs/migration/stage-a3-evidence.md` §4).
 - **Headless runs need `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0` in the environment.** Without it
-  `claude -p` terminates the Workflow at 600 s and **exits 0**, reporting a truncated run as a clean
-  one. Set it for any `--unattended` or CI invocation.
+  `claude -p` cuts the background wait at 600 s and **exits 0**, reporting a truncated run as a
+  clean one. Set it for any `--unattended` or CI invocation.
+- **Never launch this with the `Workflow` tool.** That call needs an interactive confirmation, so it
+  is denied in every headless session and no permission string can grant it. Measured: across six
+  benchmark runs the script executed **zero** times and the agent improvised instead, once reaching
+  GATE L4 with a valid receipt while the pipeline had never started (`HD-007`). `run-workflow.mjs`
+  runs the same script under the grant `npx shapeup-sdlc init` already writes.
 
 `--tiny`, and any spec with no committed `scopes/*.md` yet, take the unchanged prose lane in
 `skills/tech-lead/references/round-protocol.md` instead — non-regression, by design.

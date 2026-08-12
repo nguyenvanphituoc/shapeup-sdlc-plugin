@@ -80,11 +80,20 @@ export async function run(ctx) {
   // named by a `scriptPath:` the skill actually launches. It fails in BOTH directions a divergence
   // can go — a script nobody launches (Stage B's R10), and a launch naming a script that is not
   // there (the same class inverted, which is what deleting the wrong file would produce).
+  //
+  // ⟐ TWO LAUNCH SPELLINGS ARE RECOGNISED, and the second one is why this check nearly went the
+  // wrong way. HD-007's fix moved SKILL.md's front door from `Workflow({scriptPath})` to a Bash
+  // call — `node "…/scripts/run-workflow.mjs" "…/workflows/shapeup-run.js"` — because the tool form
+  // cannot be granted headlessly. Against the old `scriptPath:`-only regex that lands as
+  // "launches no workflow script at all: the dispatch surface is gone", i.e. the instrument
+  // reporting a deletion at the moment the launcher moved. The INVARIANT is reachability, not a
+  // spelling, so both spellings count and the failure modes below still fail in both directions.
   const SKILL_MD = "skills/tech-lead/SKILL.md";
   const skillSrc = existsSync(join(ROOT, SKILL_MD)) ? readFileSync(join(ROOT, SKILL_MD), "utf8") : "";
-  const launched = new Set(
-    [...skillSrc.matchAll(/scriptPath:\s*"[^"]*\/workflows\/([\w.-]+\.js)"/g)].map((m) => m[1]),
-  );
+  const launched = new Set([
+    ...[...skillSrc.matchAll(/scriptPath:\s*"[^"]*\/workflows\/([\w.-]+\.js)"/g)].map((m) => m[1]),
+    ...[...skillSrc.matchAll(/run-workflow\.mjs"[\s\\]*"[^"]*\/workflows\/([\w.-]+\.js)"/g)].map((m) => m[1]),
+  ]);
   const unreachable = files.filter((f) => !launched.has(f));
   const missing = [...launched].filter((f) => !files.includes(f));
 

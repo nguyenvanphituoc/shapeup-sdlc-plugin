@@ -16,14 +16,13 @@ the harness working, not an error to route around.
 ## Building a whole scoped feature is not this command
 
 This command builds **one task**. A full BUILD round — every scope, the per-scope attempt loop,
-T0 verification, the inner circuit breaker, then the single EVAL — is a `Workflow` launch, and it
-belongs to the orchestrator:
+T0 verification, the inner circuit breaker, then the single EVAL — is a workflow-script launch, and
+it belongs to the orchestrator:
 
-```
-Workflow({
-  scriptPath: "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js",
-  args: { slug, autoLevel, answers, models, budgets, pluginRoot: "${CLAUDE_PLUGIN_ROOT}", startedAt }
-})
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/run-workflow.mjs" \
+  "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js" \
+  --args-file .shapeup/<slug>/run-args.json --run-dir .shapeup/<slug>/workflow-run
 ```
 
 Reach it through `/ship` (or the `tech-lead` skill), which opens the run properly — `init-run.mjs`
