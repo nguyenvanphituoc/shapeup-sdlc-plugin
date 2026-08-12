@@ -177,7 +177,60 @@ a granted command rather than compare strings, and that is a PO decision, not an
 - **HD-009 is filed, not fixed**, and every option changes what users are asked to grant.
 - The bench changes are uncommitted in a separate repository.
 
-## 6 — Files
+## 6 — Step 5, staged and deliberately not run
+
+The A7 re-run is the PO's spend. It is written out here so that firing it is a decision rather than
+a reconstruction — every flag below is derived from the runner and adapter as they now stand, not
+remembered.
+
+**Precondition, and it is hard: `HD-009` must close first.** Until it does, the candidate arm
+measures permission denials again — exactly what the last six reps measured. The check that says so
+takes one command in a trusted scratch project carrying the installer's grant, and it must *execute*
+a granted command rather than compare strings:
+
+```sh
+claude -p 'Run exactly this command, change nothing, report its stdout verbatim, and append no
+suffix: node "<PLUGIN_ROOT>/skills/tech-lead/scripts/resume-state.mjs" --slug <slug>' \
+  --model sonnet --output-format json --permission-mode acceptEdits \
+  | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);
+      console.log((j.permission_denials||[]).length?"STILL BLOCKED":"HD-009 CLOSED")})'
+```
+
+**Then the two arms.** Uniform in everything except the build under test, which is what the arm
+label and `BENCH_SHAPEUP_DIR` pin. `BENCH_REQUIRE_LANE=1` is the §3 gate: on the workflow-lane arm
+it refuses to score a rep in which the lane never executed — the failure that made the last run
+unreadable. The prose-lane arm has no launcher and must NOT set it.
+
+```sh
+cd ~/workspace/sdd-harness-bench
+
+# candidate — the workflow lane. BENCH_SHAPEUP_DIR points at a checkout of the post-fix build.
+BENCH_ARM=candidate BENCH_REQUIRE_LANE=1 \
+BENCH_SHAPEUP_DIR=<checkout of the candidate commit> \
+BENCH_ALLOW_MODEL=claude-sonnet-5 BENCH_MODEL=claude-sonnet-5 \
+  node runner/run.mjs --harness shapeup-sdlc --feature f2-budgets --reps 3 --phase solo
+
+# control — the prose lane, same feature, same reps, same model, no lane gate.
+BENCH_ARM=control \
+BENCH_SHAPEUP_DIR=<checkout of the control commit> \
+BENCH_ALLOW_MODEL=claude-sonnet-5 BENCH_MODEL=claude-sonnet-5 \
+  node runner/run.mjs --harness shapeup-sdlc --feature f2-budgets --reps 3 --phase solo
+
+node runner/aggregate.mjs
+```
+
+Both arms run under `acceptEdits` — the bench's own uniform mode. **No `bypassPermissions`
+anywhere**, which §7.7 of `stage3-evidence.md` once said was required and which §4.1 above retires.
+
+**Recording, per R12:** `A7: PASS|FAIL` plus `arm-candidate:` / `arm-control:` lines naming each run
+log by path and pinning its build by commit. Expect roughly the last run's spend, **$30–40**.
+
+**Three things to check in the results before reading the score at all**, each one a way the last
+run misled: no row carries `lane_under_test_never_executed`; no unscored row shows
+`wall_clock_s: 0` (it should now carry the elapsed clock and a `cost_source`); and the arm totals
+are compared **per scored rep**, never as sums.
+
+## 7 — Files
 
 Plugin: `skills/tech-lead/scripts/run-workflow.mjs` (new) · `skills/tech-lead/SKILL.md` ·
 `hooks/gate-zerowork.mjs` · `commands/{ship,build}.md` · `docs/upgrading.md` · `CHANGELOG.md` ·

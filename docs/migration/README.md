@@ -202,6 +202,10 @@ not, and is a one-line fix left outside this stage's touch map.
    is chosen, its regression guard must **execute** a granted command — comparing strings is what
    let this stand. The merge waits on this, not on cost: Stage 1's **+37.6%** did not reproduce
    (candidate ~10% *cheaper* per scored rep), unreplicated rather than refuted at n=2 vs n=2.
+8. **The A7 re-run is staged, not run** — `hd007-fix-evidence.md` §6 carries both arms' exact
+   commands, the `BENCH_REQUIRE_LANE=1` gate on the candidate arm, the R12 recording lines, and the
+   three result checks to make before reading any score. It is one HD-009 decision away from being
+   fireable, and it stays the PO's spend (~$30–40).
 
 ## Standing guardrails
 
