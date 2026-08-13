@@ -478,7 +478,7 @@ code and false of the installed product, for a reason no test in this repo could
   A silent no-op is the worst failure an enforcement layer can have, because it is indistinguishable
   from working.
 
-  Priced on `sdd-harness-bench`, which installs this plugin from a packed tarball under
+  Priced on the external benchmark, which installed this plugin from a packed tarball under
   `/var/folders/…` — i.e. into the failing shape. `init-run.mjs` is GATE L0.1, the mandatory first
   call that writes the receipt everything else derives from; it exited 0 with empty stdout and wrote
   nothing. The orchestrator could not tell "the run opened" from "nothing happened", and in the F4
@@ -629,8 +629,8 @@ a second application for idempotency.
 
 ### Added — the benchmark-correction release
 
-Four mechanisms, each a direct response to a failure measured on `sdd-harness-bench` — the
-harness's own benchmark, in which it was the only arm that failed to finish a feature and the only
+Four mechanisms, each a direct response to a failure measured on the harness's own
+benchmark, in which it was the only arm that failed to finish a feature and the only
 arm to score below 100%. Every one of these moves an invariant out of a prompt and into the
 runtime, which is the project's organising rule; each was living in a prompt precisely because
 prompts are what get dropped, paraphrased, or summarised.

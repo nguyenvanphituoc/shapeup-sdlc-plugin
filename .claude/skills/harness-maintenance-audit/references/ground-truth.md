@@ -208,8 +208,9 @@ rate is drift to fix, not a file to go looking for.
 removal above took out a section numbered **16** (`02-skills.mjs`, "Tier-1 trigger-eval datasets…")
 and one numbered **48**. A *different* §16 — "Workflow scripts … D5 floor + path-literal
 discipline", in `16-workflows.mjs` — was already sharing that number and is still live, so "§16 was
-removed" and "§16 runs today" are both true of different sections. §12 is currently duplicated the
-same way (`02-skills.mjs` and `12-report-parity.mjs`). Resolve a cited §N by grepping
+removed" and "§16 runs today" are both true of different sections. §12 was duplicated the same way
+until the report-parity module was retired with the benchmark; the live §12 is in `02-skills.mjs`.
+Resolve a cited §N by grepping
 `section("N.` and reading the title, never by the number alone. §7 was removed with the migration
 runner and its ordinal was deliberately not reused.
 

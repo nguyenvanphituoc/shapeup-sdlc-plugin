@@ -44,7 +44,6 @@ const MODULE_FILES = [
   "07-spec-evaluator.mjs",
   "10-run-receipt.mjs",
   "11-is-main.mjs",
-  "12-report-parity.mjs",
   "13-argv-contract.mjs",
   "14-invocation-paths.mjs",
   "15-hook-receipts.mjs",

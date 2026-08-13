@@ -102,7 +102,7 @@ reader somewhere that is not there.
 ## The sweep
 
 ```bash
-grep -rniE "benchmark|sdd-harness|HD-0[0-9]+|F-16|stage [a-z][0-9]?\b|stage-[a-z][0-9]|of the audit|docs/(migration|internal|design|workflow|upgrading)|tests/structural|tools/|evals/|\bn=[0-9]|DNF|island-escape|absorb-audit|[0-9]+% acceptance" \
+grep -rniE "benchmark|HD-0[0-9]+|F-16|stage [a-z][0-9]?\b|stage-[a-z][0-9]|of the audit|docs/(migration|internal|design|workflow|upgrading)|tests/structural|tools/|evals/|\bn=[0-9]|DNF|island-escape|absorb-audit|[0-9]+% acceptance" \
   --include="*.md" --include="*.mjs" --include="*.js" --include="*.json" \
   skills commands hooks oracles bin AGENTS.md SECURITY.md 2>/dev/null \
   | grep -v "/evals/"

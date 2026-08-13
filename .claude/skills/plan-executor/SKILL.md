@@ -170,9 +170,9 @@ the mechanism that makes that outcome unreachable rather than merely discouraged
 
 **Sonnet here is deliberate and operator-approved — do not "upgrade" it.** These are the defaults in
 `workflows/execute-plan.js`, so a caller who omits a model field gets exactly this table. If you have
-met a rule requiring a different model, check what it governs before applying it here: the
-benchmark's one-MUT rule (`sdd-harness-bench` PROTOCOL §6, opus-only since 2026-08-11) constrains
-**what is measured**, not what does the measuring, and it does not reach this workflow. Raise a tier
+met a rule requiring a different model, check what it governs before applying it here: a model
+policy for eval or benchmark runs constrains **what is measured**, not what does the
+measuring, and it does not reach this workflow. Raise a tier
 only for a stage the plan itself calls hard, and say so in the run report when you do.
 
 ## Phase 5 — Do not take the run's word for it

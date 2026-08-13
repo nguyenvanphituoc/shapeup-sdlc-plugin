@@ -10,7 +10,7 @@
 //
 // The whole existing suite invoked scripts by their real, space-free repo path, where the guard
 // happens to hold. So a defect that made `init-run.mjs` — GATE L0.1, the run's mandatory first
-// call — a silent no-op was invisible to every check. On the SDD harness benchmark it cost
+// call — a silent no-op was invisible to every check. On the benchmark it cost
 // 82–120 turns before first write, $4.57–$10.36 per recovery session, and 0/3 gap closed.
 //
 // So this module does two things, and the second is the one that matters:
@@ -171,7 +171,7 @@ export async function run(ctx) {
   // `session-rehydrate` existed to say "trust the files, not your memory". Its matcher was
   // `compact|resume` — both of which continue a conversation that still exists — so it stayed
   // silent on `startup`, the one source where there is no memory to distrust. Measured cost on the
-  // SDD harness benchmark: a fresh session re-opened an already-open run and spent 82–120 turns
+  // benchmark: a fresh session re-opened an already-open run and spent 82–120 turns
   // rebuilding the pipeline, 0/3 gap closed. Pinned here so the matcher cannot narrow again.
   const hooksJson = join(ROOT, "hooks/hooks.json");
   if (existsSync(hooksJson)) {
@@ -213,7 +213,7 @@ export async function run(ctx) {
   // `init-run.mjs` correctly refuses to re-initialise over a live receipt — re-opening would discard
   // the round history the circuit breaker counts against. But it said "Resume it (`--from <slug>`)",
   // and `--from` is not an init-run flag at all: it belongs to `/tech-lead` and it takes a PHASE
-  // (`--from build`), not a slug. So on a cold start into an open run — exactly the SDD benchmark's
+  // (`--from build`), not a slug. So on a cold start into an open run — exactly the benchmark's
   // F4 handoff — the only guidance available named a flag that does not parse.
   //
   // The refusal now emits the file-derived resume snapshot in the same tool call, so it hands over
@@ -265,8 +265,8 @@ export async function run(ctx) {
   section("11b. Every entry point runs identically via a symlink and via a path with a space");
   // =============================================================================
   // A real install shape, twice over. `/var/folders` on macOS is already behind a symlink, so the
-  // symlink case is not exotic — it is the default temp directory, and it is how the SDD harness
-  // benchmark installs this plugin.
+  // symlink case is not exotic — it is the default temp directory, and it is how the
+  // benchmark installed this plugin.
   const tmp = mkdtempSync(join(tmpdir(), "sudd-ismain-"));
   const cwd = join(tmp, "ws");
   mkdirSync(cwd, { recursive: true });

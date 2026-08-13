@@ -136,7 +136,7 @@ it next. The benchmark row, the model name, the dollar figure and the defect ID 
 author are internal bookkeeping — they name artifacts the reader does not have and cannot check.
 Rewrite so the reasoning survives without the citation:
 
-> `// Measured on sdd-harness-bench F2 (Haiku 4.5, n=5): 29% acceptance, 10 escaped defects.`
+> `// Measured on benchmark row F2 (Haiku 4.5, n=5): 29% acceptance, 10 escaped defects.`
 
 becomes
 

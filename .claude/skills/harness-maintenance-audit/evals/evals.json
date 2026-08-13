@@ -4,7 +4,7 @@
   "answer_key": {
     "D1": "skills/tech-lead/schemas/domain.schema.json — `coverage` removed from the Operation enum, while skills/ba-pitch-analyzer/SKILL.md still advertises it as a valid operation (unsatisfiable published contract).",
     "D2": "docs/design/07-domain-erd.md — claims `Operation (18)` and lists generate-board / recheck / adjudicate, none of which exist. Live enum has 14 members after D1.",
-    "D3": "hooks/gate-deadline.mjs — benchmark citation leaked into a shipped file (sdd-harness-bench, n=3, 1800 s, 29%, docs/migration path).",
+    "D3": "hooks/gate-deadline.mjs — benchmark citation leaked into a shipped file (n=3, 1800 s, 29%, docs/migration path).",
     "D4": "skills/tech-lead/references/gates.md — cites docs/migration/stage-a3-plan.md and a `Stage A3` migration phase from a shipped file.",
     "D5": "package.json 1.7.0 vs .claude-plugin/plugin.json 1.6.3 — version mismatch; release CI fails on this."
   },

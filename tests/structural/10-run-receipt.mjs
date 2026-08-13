@@ -1,7 +1,7 @@
 // Structural test module: the run receipt, the gate answer set, and the zero-work block.
 // Sections: 35, 36, 37.
 //
-// These three units exist because of one measured failure (sdd-harness-bench, F2 / Haiku 4.5,
+// These three units exist because of one measured failure (benchmark row F2 / Haiku 4.5,
 // n=5, zero variance): the orchestrator was given a valid spec, described its own pipeline in
 // future tense, and stopped — scoring 29% with 10 escaped defects while reading like a clean
 // run. So the checks here are written against that transcript, not against the happy path. The

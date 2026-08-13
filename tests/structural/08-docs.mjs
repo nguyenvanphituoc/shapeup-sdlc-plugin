@@ -58,7 +58,7 @@ export async function run(ctx) {
   // prose must not regrow SILENTLY. What bought the ten lines is Step 1c: what to do when
   // `init-run.mjs` exits 3 because a run is already open. That branch had no procedure anywhere —
   // `--from build` appeared once in a flags line and nowhere else in 449 lines — and it is the branch
-  // a session takes on every cold start into live work, which is exactly the SDD benchmark's F4
+  // a session takes on every cold start into live work, which is exactly the benchmark's F4
   // handoff. Measured cost of leaving it unwritten: 82–120 turns before the first write, 0/3 gap
   // closed. The mechanical half went into scripts and hooks where this rule wants it (exit 3 now
   // prints the derived resume state; the SessionStart hook injects it); these ten lines are the part
