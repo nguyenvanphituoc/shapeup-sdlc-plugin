@@ -133,8 +133,18 @@ export const knowledgeBase = (cwd, skill) => join(knowledgeBaseDir(cwd), `${skil
 // LOCAL — run state
 // ---------------------------------------------------------------------------
 
+/**
+ * The receipt's filename, as a constant rather than a literal at each call site.
+ *
+ * `lib/run-id.mjs` resolves a receipt from a run root it was handed directly (`t0-verify` gets
+ * `--out <run root>` and never derives a slug), so it cannot go through {@link receipt}, which
+ * takes `(cwd, slug)`. Naming the file once here keeps that second call site from becoming a
+ * second spelling of it.
+ */
+export const RECEIPT_FILE = "receipt.json";
+
 /** The run receipt — the mechanical fact that a run started (GATE L0.1). */
-export const receipt = (cwd, slug) => join(localRoot(cwd, slug), "receipt.json");
+export const receipt = (cwd, slug) => join(localRoot(cwd, slug), RECEIPT_FILE);
 /** The intake, verbatim, next to its digest in the receipt. */
 export const intake = (cwd, slug) => join(localRoot(cwd, slug), "intake.md");
 /** The run ledger — rounds, decisions, status frontmatter. */
@@ -159,6 +169,8 @@ export const trials = (cwd, slug) => join(t0Dir(cwd, slug), "trials.jsonl");
 export const seesawRegistry = (cwd, slug) => join(localRoot(cwd, slug), "seesaw", "registry.json");
 /** Evaluator output — report, evidence, verdict ledger. */
 export const evaluationDir = (cwd, slug) => join(localRoot(cwd, slug), "evaluation");
+/** The workflow launcher's run directory — `journal.jsonl` and the launch `result.json`. */
+export const workflowRunDir = (cwd, slug) => join(localRoot(cwd, slug), "workflow-run");
 /** QA hunt output. */
 export const qaDir = (cwd, slug) => join(localRoot(cwd, slug), "qa");
 /** Scout recon — code-surface map, spikes, discovered seed. */
@@ -209,6 +221,22 @@ export const metricsDir = (cwd) => join(localDir(cwd), "metrics");
 /** This machine's telemetry shard. */
 export const metricsShard = (cwd, id = process.env.HOSTNAME || "local") =>
   join(metricsDir(cwd), `${id}.jsonl`);
+
+/**
+ * The default landing tier for exported run records — the analysis plane's staging area.
+ *
+ * DELIBERATELY LOCAL, and the trade-off is stated rather than dodged. The run trace it reads from
+ * (`.shapeup/<slug>/`) is regenerable and gets wiped per-slug; an export keyed by run id survives
+ * that, which is the failure this directory closes. What it does NOT do is cross a machine
+ * boundary: making it SHARED would put per-run structured data and a machine id back in the
+ * repository, which is exactly what ADR-0001 moved the metrics shards out of git to prevent. A
+ * cross-machine warehouse is therefore an explicit `--out <dir>` to a destination the operator
+ * owns, never a default that commits telemetry on their behalf.
+ */
+export const exportsDir = (cwd) => join(localDir(cwd), "exports");
+
+/** One exported run's table directory, keyed by the run id (see `lib/run-id.mjs`). */
+export const exportRunDir = (cwd, runId) => join(exportsDir(cwd), String(runId ?? "unkeyed"));
 /** Archived pitches. */
 export const pitchArchiveDir = (cwd) => join(localDir(cwd), "pitch-archive");
 

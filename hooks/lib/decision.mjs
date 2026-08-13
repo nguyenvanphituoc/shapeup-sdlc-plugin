@@ -51,6 +51,7 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { decisions } from "../../skills/tech-lead/scripts/lib/paths.mjs";
+import { resolveRunId } from "../../skills/tech-lead/scripts/lib/run-id.mjs";
 
 /**
  * Where the receipts land.
@@ -168,6 +169,18 @@ export async function runHook(name, fn) {
     at: new Date().toISOString(),
     hook: name,
     pid: process.pid,
+    // WHICH RUN THIS DECISION BELONGS TO — resolved from the active-scope pointer, best-effort.
+    //
+    // The ledger is checkout-wide by design (a hook frequently fires with no `<slug>` to file
+    // under), which is exactly why the row needs the key: without it, "the enforcement layer denied
+    // 4 writes" cannot be attributed to a run, so a denial rate cannot be compared between runs and
+    // an inert layer in ONE run is invisible inside a healthy checkout-wide total.
+    //
+    // `null` is a real answer, not a failure: a hook firing outside any run genuinely belongs to no
+    // run, and recording that is what lets the export tier partition ambient decisions from run
+    // ones. Resolution reads two small files and swallows every error — a receipt must never be
+    // able to fail a tool call.
+    run_id: (() => { try { return resolveRunId(d.cwd || process.cwd()); } catch { return null; } })(),
     event: d.event ?? null,
     tool: d.tool ?? null,
     subject: d.subject ?? null,

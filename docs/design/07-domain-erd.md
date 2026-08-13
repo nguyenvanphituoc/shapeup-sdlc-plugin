@@ -20,6 +20,16 @@
 on it. `TASK-NNN` ids are **machine-local** (boards regenerate and renumber); never join on
 task id across machines.
 
+`run_id` (v1.8) is the **temporal key**: which *execution* a record came from.
+`<slug>-<YYYYMMDDTHHMMSSZ>-<8 hex>`, minted by `init-run.mjs` and derived from the receipt, so
+any writer holding the receipt recomputes it and a pre-v1.8 receipt backfills to the id it would
+have had. It exists because every other id here is *positional* — `order_id`, `(round, attempt,
+trial)` and `trial` all identify a record within one run and repeat in the next — so no record
+could be attributed to a run and no two runs could be compared. Join `run_id` to group an
+execution; join `slug` or `scope_id` to group across executions. `WorkResult` deliberately carries
+no `run_id`: it is worker-written, and it reaches the key through `order_id`, which
+`validate-envelope` already enforces.
+
 **Tier direction.** Persisted links flow **LOCAL → SHARED only**: a LOCAL artifact must
 fully anchor into the committed tier (a task's `use_case_refs`/`linked_docs`, a T0
 artifact's `scope_id`, a discovery line's `[UC-NN]` tag), while a SHARED document links
@@ -252,6 +262,56 @@ erDiagram
     T0Artifact ||--o| RunSnapshot : "round/attempt from latest verdict filename"
     SafetyOverrides ||--o| MetricsRow : "exercised override → SAFETY-OVERRIDE pathology row"
 ```
+
+## 7.4c — The record plane (v1.8)
+
+The analysis tier. Every entity here is *derived* — a projection of records the pipeline already
+writes, produced by a read-only step that mutates nothing and grades nothing.
+
+```mermaid
+erDiagram
+    HarnessRun ||--o{ WorkOrder : "run_id — the temporal key"
+    WorkOrder ||--o| DispatchFact : "one row per order"
+    WorkResult }o--|| DispatchFact : "joined on order_id"
+    JournalRow }o--o| DispatchFact : "joined on result_path stem — NULL when absent"
+    DispatchFact ||--o{ AcResult : "ac_result table"
+    DispatchFact ||--o{ Discovery : "discovery table"
+    DispatchFact ||--o{ FileTouched : "file_touched table"
+    DispatchFact ||--o{ EconomicsReport : "cost · wall · turns-to-first-write"
+    MetricsRow }o--|| HarnessRun : "run_id — harvest joins its own trace"
+
+    JournalRow {
+        int seq PK "LOCAL <slug>/workflow-run/journal.jsonl"
+        string run_id FK
+        string model "the ONLY record carrying cost_usd + wall_ms"
+        json[] sessions "cost_usd per session; retries are separate rows"
+    }
+    DispatchFact {
+        string order_id PK "the grain: one compiled order"
+        string run_id FK
+        string worker "with operation, scope_id, round, attempt"
+        int ac_pass "with ac_fail, ac_skipped, files_touched, lines_touched"
+        bool answered "false = dispatched, never came back"
+        number cost_usd "NULL when unjoined — never 0"
+        string agent_join "result_path | NULL — HOW it joined, or that it did not"
+    }
+    EconomicsReport {
+        number cost_attributed_usd "reported apart from cost_unattributed_usd"
+        int calls_to_first_write "with seconds_to_first_write"
+        int retried_calls "with failed_calls, killed_calls"
+    }
+```
+
+| Entity | Tier | Location | Sole writer | Readers |
+|---|---|---|---|---|
+| `JournalRow` | LOCAL | `<slug>/workflow-run/journal.jsonl` | run-workflow.mjs (append-only) | export-run.mjs, human |
+| `DispatchFact` + children | LOCAL | `.shapeup/exports/<run_id>/*.jsonl` | export-run.mjs (read-only over the trace) | any warehouse tool, human |
+| `EconomicsReport` | EMBEDDED | the export manifest, and stdout from `stats.mjs --economics` | lib/facts.mjs (pure projection) | human / CLI / CI |
+
+**The null discipline.** A dispatch with no agent call carries `cost_usd: null` and
+`agent_join: null`, never `0`; a run whose sessions recorded no cost totals to `null`, never
+`$0.0000`. An absent measurement and a measured zero must not share a representation — the same
+rule `hooks/lib/decision.mjs` applies to `allow`, at the read plane instead of the write plane.
 
 ## 7.5 — Vocabulary enums
 

@@ -44,6 +44,7 @@ import { isMain } from "./lib/is-main.mjs";
 import { runArgs } from "./lib/argv.mjs";
 import { snapshot, restore, keptRef } from "./lib/ratchet-tree.mjs";
 import { readContract, SCOPE_CONTRACT } from "./lib/contract-md.mjs";
+import { runIdFromRoot } from "./lib/run-id.mjs";
 
 /**
  * Run one shell command and capture its outcome (10-minute timeout).
@@ -417,7 +418,13 @@ async function main() {
   const crashed = fixtures.results.some((r) => r.error) || !!dbProbe?.error;
   const { status, action } = decideStatus(verdictBetter, crashed);
 
+  // The run key, read from the receipt that lives in the run root this script was pointed at.
+  // `--out` IS that root, so identity comes from the receipt rather than from parsing a slug back
+  // out of a directory name; a caller that points `--out` somewhere else simply gets no key.
+  const runId = runIdFromRoot(outDir);
+
   const { path, sha256: hash, trial } = writeArtifact(outDir, round, attempt, {
+    ...(runId ? { run_id: runId } : {}),
     scope_id: contract.scope_id,
     fixtures: fixtures.results.map(({ cmd, exit, pass }) => ({ cmd, exit, pass })),
     db_probe: dbProbe && { cmd: dbProbe.cmd, exit: dbProbe.exit, pass: dbProbe.pass },
@@ -443,6 +450,7 @@ async function main() {
   const row = {
     schema_version: 1,
     trial: trialNo,
+    ...(runId ? { run_id: runId } : {}),
     round, attempt,
     scope_id: contract.scope_id,
     at: new Date().toISOString(),

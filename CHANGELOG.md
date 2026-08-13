@@ -3,6 +3,97 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.8.0] — 2026-08-13 · the run key, and the records that were already there
+
+**The harness has been writing a complete dataset since v1.0 and throwing it away.** Orders and
+results are a dispatch's input and output; `run-workflow.mjs` journals every agent call with its
+model, wall time and `cost_usd`; every hook appends a decision row; `t0-verify` appends a trial row
+carrying a genuine parent edge. All JSON, all schema-registered, all in the LOCAL tier — and **none
+of it joinable**. The nearest thing to a key was `order_id` (`<slug>/r<N>-a<M>`), which identifies a
+dispatch *within* a run and is byte-identical across every run of the same slug. So the two
+questions you would ask this data first — *compare this run to the last one*, and *what did this run
+cost* — were both unanswerable from records that were entirely present. Those are exactly the two
+rows `docs/design/05` lists as having no instrument.
+
+*Stamped at release: `package.json`, `.claude-plugin/plugin.json` and the tag all read **1.8.0**.
+Pin target for a rollback is the previous release, **1.7.0**.*
+
+**The key is derived, not drawn.** `lib/run-id.mjs` mints `<slug>-<YYYYMMDDTHHMMSSZ>-<8 hex>` as a
+pure function of three fields the receipt already holds (slug, `started_at`, `intake_sha256`).
+`randomUUID()` would have been one line and would have cost the property this repo pays for
+everywhere else: a random key exists only where it was first written, so any record that missed the
+stamp is unjoinable forever. Derived means every writer holding the receipt computes the same id
+without being handed it, and **a pre-1.8 receipt backfills to the id it would have been given** — so
+history the harness never stamped is still keyable.
+
+**Six writers stamp it; one deliberately does not.** `init-run` mints it into `receipt.json`;
+`compile-order` stamps `run_id` + `compiled_at` onto the WorkOrder at the one point every lane
+passes through; `t0-verify` stamps the verdict artifact and the trial row; `run-workflow` resolves
+it once at launch and stamps every journal row; `hooks/lib/decision.mjs` resolves it best-effort
+(and records `null` outside a run, which is the true answer); SHIP S.6 copies it into the harvest
+row. **`WorkResult` gets no stamp** — it is worker-written, and a field a worker must remember to
+copy goes missing under exactly the conditions you most want the record. Results reach the key
+through `order_id`, a join `validate-envelope` already enforces.
+
+**`export-run.mjs` freezes a run's records as ten fact tables** (JSONL) under
+`.shapeup/exports/<run_id>/`, plus a manifest with row counts, a skipped-record count and the
+economics block. The grain is the dispatch: one row per compiled order, joined to its result on
+`order_id` and to its agent call through the `result_path` the workflow's dispatch prompt already
+requires. Read-only over the trace, re-runnable, keyed by run id so a second run of a feature is a
+second dataset rather than an overwrite. It exists because the LOCAL tier is *regenerable* — the
+`TrialRow` contract says it plainly: a measurement left there "answers the question exactly once and
+then deletes itself".
+
+**`stats.mjs --economics` closes measurement-table row 4** — cost, wall clock, retries, and
+turns-to-first-write in both agent calls and seconds — computed from records already on disk.
+**Nothing is measured yet and the doc says so:** the instrument is unfed until a full pipeline run
+produces a trace, and the launcher defect blocking one is still open in the register. An instrument
+that exists is not a measurement, and this release does not claim otherwise.
+
+**Two things it refuses to do**, both load-bearing rather than tidy:
+
+- **It never fabricates a join.** The journal exists only on the workflow lane, so a `--tiny` or
+  prose-lane dispatch has no cost row. Those rows carry `cost_usd: null` and `agent_join: null`,
+  never `0`, and `--economics` reports attributed and unattributed cost separately. An absent value
+  and a measured zero must not share a signature — the same defect `hooks/lib/decision.mjs` exists
+  to close, one layer up. §54 pins it: making `sumOrNull` return `0` on an all-absent list turns the
+  suite red.
+- **It never crosses a machine boundary on its own.** The default destination is LOCAL and
+  gitignored, because a SHARED one would put per-run structured data and a hostname back into git —
+  precisely what ADR-0001 moved the metrics shards out to prevent. `--out <dir>` is a human
+  decision. The export makes the evidence durable and portable; where it travels stays the
+  operator's call.
+
+**Run economics is not velocity, and the harvest row still rejects it.** `MetricsRow` gains `run_id`
+and nothing else: its "Rejected fields" rule against `time_spent` stands, because a signal feed
+carrying a duration becomes a velocity feed on the next person who reads it. Cost and wall clock are
+*derived on demand* from the exported trace instead. Nothing in the read plane grades — every column
+is an id, a count, a duration or a copied enum, and a computed "run quality" figure would be a
+second judge behind `spec-evaluator`.
+
+**§55 — every shipped source file must be text a line-oriented tool can read.** Found by the
+pre-release audit, when its own sweep could not complete. `lib/run-id.mjs` was written with *literal
+NUL bytes* in a template literal — the hash's field separator, typed as raw control characters
+instead of `\u0000` escapes. Node parsed it, every test passed, the module was correct. But `file(1)`
+reported `data`, and a NUL makes grep treat a file as binary, so `grep -rn` over the shipped tree
+**skipped it in silence** — and the repo's non-delivered-content sweep runs on exactly that grep.
+The unreadable file was hiding a real leak: a citation into a `docs/` path a user does not receive.
+One unreadable file turns every grep-based guarantee about the tree into a claim about an unknown
+subset, so the check is general rather than a fix for the instance. The escape produces the same
+bytes at runtime; minted ids are byte-identical either way, verified against a fixed fixture.
+
+⟐ **The check was first written to cover only the shipped roots, and so could not see itself.** The
+same keystroke put a NUL in the test module's own comment and in the changelog entry describing the
+defect; nothing caught either, because neither file ships — only `git` noticed, printing
+`Bin 2484 -> 5746 bytes` in the commit stat. A guard scoped more narrowly than the mistake it guards
+against is the shape of every defect above it, so §55 now covers the whole tree: `docs/` and
+`tests/` do not ship, but a doc or a test no grep can read defeats an audit just as completely.
+
+Structural suite **940 checks** (was 903), green in a fresh clone; `npm run demo` reproduces the SVG
+byte-identically. All three new sections were negative-controlled: dropping the `compile-order`
+stamp, turning an absent cost total into `0`, and planting a NUL in a shipped file each turn the
+suite red. Floor in `docs/design/06` raised 880 → 930, on the record.
+
 ## [1.7.0] — 2026-08-12 · the orchestrator cutover
 
 **The tech-lead's round loop stops being prose a model follows and becomes code a runtime runs.**

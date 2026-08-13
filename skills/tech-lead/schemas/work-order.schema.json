@@ -8,8 +8,17 @@
     "schema_version": { "type": "integer", "enum": [1] },
     "order_id": {
       "type": "string",
-      "description": "\"<slug>/r<N>-a<M>\" for build attempts, \"<slug>/<operation>[-r<N>]\" otherwise",
+      "description": "\"<slug>/r<N>-a<M>\" for build attempts, \"<slug>/<operation>[-r<N>]\" otherwise. Identifies a dispatch WITHIN a run — it repeats across runs of the same slug, which is why run_id exists.",
       "pattern": "^[a-z0-9][a-z0-9-]*/[a-z0-9][A-Za-z0-9.-]*$"
+    },
+    "run_id": {
+      "type": "string",
+      "description": "OPTIONAL (v1.8) — the run this dispatch belongs to, stamped by compile-order.mjs from the receipt (skills/tech-lead/scripts/lib/run-id.mjs). The join key the analysis plane groups on: order_id alone collides across runs of the same slug, so without this no record the pipeline writes can be attributed to a run. Absent when no readable receipt exists (a standalone dispatch in a workspace with no open run) — never invented, and never required, because an analytic field must not be able to block a build.",
+      "pattern": "^[a-z0-9][a-z0-9-]*-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$"
+    },
+    "compiled_at": {
+      "type": "string",
+      "description": "OPTIONAL (v1.8) — ISO timestamp of compilation. The dispatch record's own time dimension: WorkResult carries none, and the journal's timings exist only on the workflow lane, so without this a dispatch on the prose lane is timeless."
     },
     "worker": { "$ref": "domain.schema.json#/$defs/WorkerName" },
     "mode": { "type": "string", "enum": ["orchestrated", "standalone"] },

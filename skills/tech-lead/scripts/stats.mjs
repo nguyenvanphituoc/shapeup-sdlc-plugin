@@ -24,6 +24,7 @@ import { resolve, join } from "node:path";
 import { validate } from "./validate-envelope.mjs";
 import { isMain } from "./lib/is-main.mjs";
 import { runArgs } from "./lib/argv.mjs";
+import { collectRun } from "./export-run.mjs";
 import { localDir, decisions as decisionsPath, metricsDir as metricsDirPath, SHARED } from "./lib/paths.mjs";
 
 /**
@@ -285,6 +286,79 @@ export function readDecisions(cwd) {
 }
 
 /**
+ * Project run economics for every run in the checkout — measurement-table row 4.
+ *
+ * WHY IT LIVES HERE and reads the run trace rather than the metrics shards: the same reason
+ * `--ratchet` reads `trials.jsonl` and `--hooks` reads `decisions.jsonl`. A harvest row is written
+ * once at SHIP S.6 and carries counts, never durations or cost — so a run that never shipped, which
+ * is exactly the run whose cost you want to see, has no harvest row at all. The journal has one row
+ * per agent call from the first dispatch onwards.
+ *
+ * FACTS ONLY, unchanged: sums, counts and durations over rows that already exist. Nothing here is
+ * divided by an expectation or compared to a target, because that would be a grade.
+ *
+ * @param {string} cwd - Project root.
+ * @param {(string|null)} [slug=null] - Restrict to one feature slug.
+ * @returns {object} `{runs, per_run[]}` — one economics block per run, newest last, each tagged
+ *   with its run_id and slug.
+ */
+export function economicsReport(cwd, slug = null) {
+  const root = localDir(cwd);
+  if (!existsSync(root)) return { runs: 0, per_run: [] };
+  let slugs;
+  try { slugs = slug ? [slug] : readdirSync(root); } catch { return { runs: 0, per_run: [] }; }
+  const per_run = [];
+  for (const s of slugs.sort()) {
+    let collected = null;
+    try { collected = collectRun(cwd, s); } catch { collected = null; }
+    if (!collected) continue; // no receipt ⇒ not a run, which is not an error
+    per_run.push({ run_id: collected.run_id, slug: s, ...collected.economics });
+  }
+  return { runs: per_run.length, per_run };
+}
+
+/**
+ * Format a dollar figure, keeping "no cost row was recorded" visibly different from "$0.0000".
+ * @param {(number|null|undefined)} v - A cost in USD, or null when nothing recorded one.
+ * @returns {string} e.g. `$1.2000`, or `—` when the value is absent.
+ */
+function money(v) {
+  return v === null || v === undefined ? "—" : `$${v.toFixed(4)}`;
+}
+
+/**
+ * Render the economics report as text.
+ * @param {object} r - Output of {@link economicsReport}.
+ * @returns {string} The multi-line report.
+ */
+function renderEconomics(r) {
+  const lines = [`economics: ${r.runs} run(s) with a receipt`];
+  if (!r.runs) {
+    lines.push("", "(no run trace in this checkout — this reads the run's own records, so it is empty");
+    lines.push(" until a run opens, and stays readable after one ends until the trace is cleaned.)");
+    return lines.join("\n");
+  }
+  for (const e of r.per_run) {
+    lines.push("", `  ${e.run_id ?? e.slug}`,
+      `    agent calls           ${e.agent_calls}   (${e.retried_calls} retried, ${e.failed_calls} failed, ${e.killed_calls} killed)`,
+      `    cost                  ${money(e.cost_usd)}   attributed ${money(e.cost_attributed_usd)} · unattributed ${money(e.cost_unattributed_usd)}`,
+      `    wall clock            ${e.wall_ms_total === null ? "—" : `${Math.round(e.wall_ms_total / 1000)}s`}`,
+      `    to first write        ${e.calls_to_first_write ?? "—"} call(s)` +
+        `${e.seconds_to_first_write === null ? "" : ` · ${e.seconds_to_first_write}s`}`,
+      `    dispatches            ${e.dispatches}   (${e.dispatches_answered} answered, ${e.dispatches_costed} costed)`);
+    for (const m of e.by_model) {
+      lines.push(`      ${String(m.model).padEnd(22)}${String(m.calls).padStart(3)} call(s)  ${money(m.cost_usd)}`);
+    }
+    // The gap is named, never left as a quiet shortfall in the total.
+    if (e.dispatches_costed < e.dispatches) {
+      lines.push(`    ⓘ ${e.dispatches - e.dispatches_costed} dispatch(es) carry no cost row — the journal exists only on the`,
+        "      workflow lane, so a prose-lane or --tiny dispatch has no agent call to join to.");
+    }
+  }
+  return lines.join("\n");
+}
+
+/**
  * Render a StatsReport as a human-readable fixed-width table.
  * @param {object} report - A validated StatsReport (see {@link aggregate}).
  * @returns {string} The multi-line table text (header + one row per slug + optional trend line).
@@ -322,7 +396,7 @@ function renderTable(report) {
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
   usage: "stats.mjs [--cwd <dir>] [--metrics-dir <dir>] [--slug <slug>] [--format json|table] " +
-         "[--ratchet] [--hooks]",
+         "[--ratchet] [--hooks] [--economics]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   cwd: { type: "path" },
   "metrics-dir": { type: "path" },
@@ -330,6 +404,7 @@ export const ARGV_SPEC = {
   format: { type: "enum", values: ["json", "table"], default: "json" },
   ratchet: { type: "flag" },
   hooks: { type: "flag" },
+  economics: { type: "flag" },
 };
 
 /**
@@ -395,14 +470,16 @@ if (isMainModule) {
 
   // The two exit measurements are separate modes: each reads a different ledger, and neither is a
   // StatsReport (which is schema-locked to the harvest shards).
-  if (args.ratchet || args.hooks) {
+  if (args.ratchet || args.hooks || args.economics) {
     const out = {};
     if (args.ratchet) out.ratchet = ratchetReport(readAllTrials(cwd, args.slug ?? null));
     if (args.hooks) out.hooks = hooksReport(readDecisions(cwd));
+    if (args.economics) out.economics = economicsReport(cwd, args.slug ?? null);
     if (format === "table") {
       const parts = [];
       if (out.ratchet) parts.push(renderRatchet(out.ratchet));
       if (out.hooks) parts.push(renderHooks(out.hooks));
+      if (out.economics) parts.push(renderEconomics(out.economics));
       console.log(parts.join("\n\n"));
     } else {
       console.log(JSON.stringify(out, null, 2));

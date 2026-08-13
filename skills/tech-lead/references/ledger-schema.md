@@ -182,6 +182,7 @@ fixtures run in isolation and do not consume it.
 | Field | Existing source (copied, never re-graded) | Signal |
 |---|---|---|
 | `schema_version` | constant `1` | forward-compat |
+| `run_id` | `receipt.json` (copied verbatim) | **the join key** — the row's only link to the run trace that produced it, and to the S.7 export. Every other field here is a count, and `feature_slug` groups two runs of one feature together rather than apart |
 | `feature_slug` | run-state frontmatter | identity |
 | `terminal_state` | run-state final: `shipped` / `circuit_broken` / `abandoned` | circuit-breaker outcome |
 | `round_count` | round table | effort-to-PASS |
@@ -201,10 +202,14 @@ fixtures run in isolation and do not consume it.
   drives both toward 0 — measured from the build trace, no manual grading.
 - **Rejected fields:** `time_spent` / velocity (no clock; Shape Up forbids counting hours
   — `round_count` is the legitimate effort proxy) and `run_quality_score` (second judge).
+  This rejection is **unchanged** by the run-economics measurement (`stats.mjs
+  --economics`): cost and wall-clock are properties of a machine run, derived on demand
+  from the exported trace, and they deliberately do not enter this row. A signal feed that
+  carried a duration would become a velocity feed on the next person who read it.
 
 ### Row template
 ```json
-{"schema_version":1,"feature_slug":"checkout-vnpay","terminal_state":"shipped","round_count":2,"final_audit_score":"PASS","surprise_count":3,"spike_unresolved_count":0,"scope_cut_count":1,"qa_findings":{"total":5,"promoted":1,"held":4},"slice_count":4,"sources":["shapeup/checkout-vnpay/shaping/shaping.md","shapeup/checkout-vnpay/shaping/breadboard.md"]}
+{"schema_version":1,"run_id":"checkout-vnpay-20260813T091233Z-c714ea8d","feature_slug":"checkout-vnpay","terminal_state":"shipped","round_count":2,"final_audit_score":"PASS","surprise_count":3,"spike_unresolved_count":0,"scope_cut_count":1,"qa_findings":{"total":5,"promoted":1,"held":4},"slice_count":4,"sources":["shapeup/checkout-vnpay/shaping/shaping.md","shapeup/checkout-vnpay/shaping/breadboard.md"]}
 ```
 
 LOCAL artifacts (the EVAL report, discovery ledger, QA hunt report) are *harvest-time reads*:

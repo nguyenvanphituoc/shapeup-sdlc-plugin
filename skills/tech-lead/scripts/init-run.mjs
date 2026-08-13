@@ -76,6 +76,7 @@ import { isMain } from "./lib/is-main.mjs";
 import { runArgs } from "./lib/argv.mjs";
 import { uncoerce } from "./lib/contract-md.mjs";
 import { deriveSnapshot } from "./run-snapshot.mjs";
+import { mintRunId } from "./lib/run-id.mjs";
 import { localRoot, activeScope, globLocal, globShared } from "./lib/paths.mjs";
 
 export const RECEIPT_VERSION = 1;
@@ -131,12 +132,25 @@ export function digest(text) {
  */
 export function buildReceipt({ slug, intake, config, startedAt }) {
   const intakeText = String(intake ?? "");
+  const intakeSha256 = digest(intakeText);
   return {
     receipt_version: RECEIPT_VERSION,
     type: "harness-run-receipt",
     slug,
+    // THE JOIN KEY, minted here because this is where a run acquires an identity at all.
+    //
+    // `order_id` was the nearest thing the harness had, and it is `<slug>/r<N>-a<M>`: unique
+    // WITHIN a run and identical across every run of the same slug. So every record the pipeline
+    // writes — orders, results, journal rows, trial rows, hook receipts — could be grouped by
+    // feature and never by RUN, which makes "compare this run against the last one" and "what did
+    // this run cost" both unanswerable from data that was otherwise all present.
+    //
+    // Derived, not drawn (see lib/run-id.mjs): a pure function of the three fields directly below
+    // it, so any writer holding this receipt recomputes the same id without being handed it, and a
+    // receipt written before this field existed still yields the id it would have been given.
+    run_id: mintRunId({ slug, startedAt, intakeSha256 }),
     started_at: startedAt,
-    intake_sha256: digest(intakeText),
+    intake_sha256: intakeSha256,
     intake_chars: intakeText.length,
     intake_lines: intakeText ? intakeText.split("\n").length : 0,
     // The single fact that separates "the harness ran" from "the harness described itself".
@@ -354,6 +368,8 @@ export function main() {
   console.log(JSON.stringify({
     ok: true,
     slug,
+    // Echoed so the orchestrator can put it in RunArgs without re-reading the receipt.
+    run_id: receipt.run_id,
     run_root: globLocal(slug),
     receipt: globLocal(slug, "receipt.json"),
     intake_sha256: receipt.intake_sha256,

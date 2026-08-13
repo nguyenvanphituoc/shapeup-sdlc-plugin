@@ -1097,6 +1097,11 @@
           "type": "integer",
           "description": "schema_version 2+: the retry ordinal within (round, attempt). Written with flag 'wx', so a retry of the SAME attempt lands beside its predecessor instead of destroying it (invariant I4)."
         },
+        "run_id": {
+          "type": "string",
+          "description": "OPTIONAL (v1.8) — the run key (lib/run-id.mjs). (round, attempt, trial) addresses an artifact within a run and repeats in the next one, so the evidence layer needed this to be groupable by run.",
+          "pattern": "^[a-z0-9][a-z0-9-]*-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$"
+        },
         "at": {
           "type": "string",
           "description": "ISO timestamp."
@@ -1206,6 +1211,11 @@
           "type": "integer",
           "minimum": 1,
           "description": "Monotone ordinal across the run's whole ledger — what baseline_trial points at."
+        },
+        "run_id": {
+          "type": "string",
+          "description": "OPTIONAL (v1.8) — the run key (lib/run-id.mjs), read off the receipt in the run root t0-verify was pointed at. `trial` is monotone WITHIN a run and restarts at 1 in the next one, so ratchet history could not be split by run without it.",
+          "pattern": "^[a-z0-9][a-z0-9-]*-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$"
         },
         "round": {
           "type": "integer"
@@ -1369,10 +1379,10 @@
     },
     "MetricsRow": {
       "description": "One SHIP-time harvest row (facts only — copied from structured output that already exists; never a newly computed verdict/score, which would be a second judge behind spec-evaluator). Sharded per machine so concurrent runs never merge-conflict.",
-      "x-tier": "SHARED",
+      "x-tier": "LOCAL",
       "x-location": ".shapeup/metrics/<machine-id>.jsonl",
       "x-writer": "tech-lead (SHIP S.6)",
-      "x-readers": "tier-3 e2e tooling, stats.mjs (read-only projection)",
+      "x-readers": "stats.mjs (read-only projection), export-run.mjs (the run dimension)",
       "type": "object",
       "properties": {
         "schema_version": {
@@ -1384,6 +1394,11 @@
         "at": {
           "type": "string",
           "description": "OPTIONAL (v1.2) — ISO harvest timestamp; enables real trend-over-time in stats.mjs. Older rows lack it and fall back to shard append order."
+        },
+        "run_id": {
+          "type": "string",
+          "description": "OPTIONAL (v1.8) — the run key (lib/run-id.mjs), COPIED from the receipt at SHIP S.6. This is the harvest row's only link to the run trace that produced it: everything else here is a count, and `feature_slug` groups runs together rather than apart.",
+          "pattern": "^[a-z0-9][a-z0-9-]*-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$"
         },
         "feature_slug": {
           "type": "string"
@@ -2291,6 +2306,11 @@
         "slug": {
           "type": "string",
           "description": "The feature slug this run builds — the aggregate root every path is keyed off."
+        },
+        "runId": {
+          "type": "string",
+          "description": "OPTIONAL (v1.8) — the run key, COPIED from init-run.mjs's `run_id` output. Carried here so run-workflow.mjs stamps every journal row without a receipt lookup per launch; a launch without it falls back to reading the receipt, so this is an optimisation, not the source of truth. This is identity, which x-not-here explicitly admits to RunArgs — it is not run config the ledger already carries.",
+          "pattern": "^[a-z0-9][a-z0-9-]*-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$"
         },
         "autoLevel": {
           "type": "string",

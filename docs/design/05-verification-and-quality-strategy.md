@@ -34,15 +34,31 @@ least once in this project's history, and two of the rows exist because of it.
 
 | # | Layer | Metric | Today | Common misreading | Enforced by |
 |---|---|---|---|---|---|
-| 1 | **Structure** | checks passing | **903 passing, 0 failing** (`npm test`, re-run 2026-08-13 after the eval assets and §13 were removed) | *Green structural means the guard works.* It means the file parses. An earlier audit found **26 enforcement points inert behind 610 green checks** — an unfired guard and an absent one look identical from outside, which is why every hook now records a decision (§3.2f). | `tests/structural.mjs` |
+| 1 | **Structure** | checks passing | **940 passing, 0 failing** (`npm test`, re-run 2026-08-13 with §53–55 added) | *Green structural means the guard works.* It means the file parses. An earlier audit found **26 enforcement points inert behind 610 green checks** — an unfired guard and an absent one look identical from outside, which is why every hook now records a decision (§3.2f). §55 is the same lesson again at the file level: a source file with a raw NUL is skipped by grep, so every content sweep silently reports on an unknown subset — and the first draft of that check, scoped to the shipped roots, could not see the NUL in its own source. | `tests/structural.mjs` |
 | 2 | **Build round** (product) | T0 green, seesaw, acceptance | T0/seesaw verdicts are produced per run; **no acceptance-vs-baseline comparison is maintained** | *Acceptance in one context window generalizes.* It says nothing about what happens across one. | `skills/tech-lead/scripts/t0-verify.mjs`, `spec-evaluator` |
-| 3 | **Continuity / recovery** | gap closed across a handoff | **no current measurement** | *The hook fired, so it helped.* `session-rehydrate` has been observed to fire every time and close none of the gap — it hands a **pointer** where state was needed. Firing is a precondition for helping, never evidence of it. | **no automated metric — gap** |
-| 4 | **Run economics** | turns-to-first-write, $/session | **no current measurement** (§3.2) | *More gates means more rigor.* More agents can increase activity without value. Cost must be read next to the acceptance delta it bought — and row 2 records no measured delta. | **no automated metric — gap** |
+| 3 | **Continuity / recovery** | gap closed across a handoff | **instrument partial, unfed** — the dispatch stream is now keyed and ordered, so *re-opened vs resumed* is derivable from the operations a run emits after a rehydrate; nothing yet computes it | *The hook fired, so it helped.* `session-rehydrate` has been observed to fire every time and close none of the gap — it hands a **pointer** where state was needed. Firing is a precondition for helping, never evidence of it. | `export-run.mjs` (records), **no derived metric yet — gap** |
+| 4 | **Run economics** | turns-to-first-write, $/session | **instrument exists, unfed** — `stats.mjs --economics` computes cost, wall clock, retries and turns-to-first-write from records the pipeline already writes. **No figure is reported here**, because no complete pipeline run has produced a dataset (§3.2g) | *More gates means more rigor.* More agents can increase activity without value. Cost must be read next to the acceptance delta it bought — and row 2 records no measured delta. | `skills/tech-lead/scripts/stats.mjs --economics` |
 
-Two rows have no instrument at all, and they are rows 3 and 4 — recovery and cost. That is not an
-oversight in this table; it is the table's most useful output. **The two layers this harness has
-never been able to measure automatically are also the two where its observed behavior has been
-weakest.**
+Rows 3 and 4 — recovery and cost — were the two with no instrument at all, and that was the table's
+most useful output: **the two layers this harness had never been able to measure automatically were
+also the two where its observed behavior was weakest.** Row 4 now has one, and the reason it took
+so long is worth keeping: the data was never missing. Cost per agent call, wall clock, retries and
+model were all being written to the run journal, and orders, results, trial rows and hook decisions
+were all being written beside them. What was missing was a **key** — `order_id` identifies a
+dispatch within a run and repeats across every run of the same slug, so no record could be
+attributed to a run, and a question as basic as "what did this run cost" was unanswerable from data
+that was entirely present (§3.2g).
+
+Two things that have NOT changed, stated because a new instrument invites both misreadings:
+
+- **Row 4 is unfed, and an unfed instrument is not a measurement.** The figures below the fold in
+  `--economics` are zero-row projections until a full pipeline run produces a trace; the launcher
+  defect that blocks one is open in `shapeup/knowledge-base/harness-defects.md`. This row says the
+  instrument exists — it does not say anything has been measured.
+- **Row 2 is untouched.** The export can hold per-run acceptance, but "versus baseline" needs a
+  second arm and no baseline dataset exists. A read plane over one run's records cannot manufacture
+  a comparison, and presenting one run's numbers as a delta would be exactly the misreading column
+  of row 4.
 
 > **How row 1 went green matters more than that it is green.** Four `sandbox-guard` checks were
 > failing because the guard had been re-pointed from the active *scope contract* to the active
@@ -73,6 +89,7 @@ that was never committed, and its headline number was a proxy artifact that meas
 |---|---|---|
 | 2 | [04 — Functional Design](04-functional-design.md) | The build round and its T0/seesaw verification are functional behaviour. |
 | 3–4 | [03 — System Design §3.2](03-system-design.md) | Both are discussed alongside the continuity reflex, and both are properties of the runtime rather than of a skill. |
+| 4 (instrument) | [03 — System Design §3.2g](03-system-design.md#32g--the-run-key-and-the-record-plane-v18) | The run key and the export are a storage/runtime concern, not a skill's. |
 
 ---
 [← Functional Design](04-functional-design.md) · [Back to index](README.md) · [Next: Appendix →](06-appendix.md)

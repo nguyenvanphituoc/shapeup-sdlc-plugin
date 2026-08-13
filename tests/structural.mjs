@@ -57,6 +57,10 @@ const MODULE_FILES = [
   // ORIENT re-dispatched on every relaunch because its skip read stored status instead of its own
   // artifacts; this module is the seam that defect could not be caught through.
   "18-resume-state.mjs",
+  // 19-run-records.mjs: the run key and the fact tables projected from it. Its own module because
+  // the property is cross-cutting — five separate writers must stamp the same key, and the failure
+  // mode is the one this repo keeps hitting: stamp four of them and nothing errors.
+  "19-run-records.mjs",
   "45-paths.mjs",
   "46-contract-md.mjs",
   "47-ship-report.mjs",

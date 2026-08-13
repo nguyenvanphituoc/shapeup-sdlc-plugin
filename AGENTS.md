@@ -60,6 +60,7 @@ Everything discovered funnels into `.shapeup/<slug>/discovery/ledger.md` (Orient
 - Orders/results live in `.shapeup/<slug>/orders|results/`; the envelope schemas ship inside the tech-lead skill.
 - The plugin's run entry points need a one-time permission grant — `npx shapeup-sdlc init` writes it into `.claude/settings.json` (`permissions.allow`); without it a headless run stalls at step one.
 - Two storage tiers (ADR-0001): COMMITTED `shapeup/<slug>/` (shaping, spec, scopes, wiring-map, project-profile, requirements, hill, `REPORT.md` frozen at L4) vs GITIGNORED `.shapeup/` (board, orders/results, T0/eval/QA artifacts, ledgers, metrics, gate answers).
+- Every run has a `run_id` — the receipt mints it, and orders, T0 artifacts, trial rows, agent-call journal rows and hook decisions all carry it. It is the only key that separates two runs of the same feature: everything else (`order_id`, round/attempt) repeats. SHIP S.7 exports the run's records as fact tables under `.shapeup/exports/<run_id>/` before the run trace is superseded; a WorkResult carries no `run_id` and reaches it through `order_id`.
 - Contracts: markdown on disk, JSON on the wire; a single library reads/writes the file form.
 - Never hard-code a storage root — generated paths resolve through the shared path resolver.
 - The traceability oracle emits `.shapeup/<slug>/trace/report.json` from the spine artifacts.

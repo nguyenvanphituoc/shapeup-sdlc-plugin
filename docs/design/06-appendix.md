@@ -12,8 +12,9 @@ skills/tech-lead/        schemas/ (WorkOrder · WorkResult · gate-answers · do
                           validate-envelope), run lifecycle (init-run · run-workflow ·
                           resume-state · run-snapshot · gate-answers · ship-report),
                           verification (t0-verify · trace-lint · hill-derive · aegis-digest),
-                          policy (budget-check · fit-check · stats), lib/ (argv · paths ·
-                          contract-md · ratchet-tree · is-main)
+                          policy (budget-check · fit-check · stats), measurement (export-run —
+                          read-only fact tables keyed by run id), lib/ (argv · paths ·
+                          contract-md · ratchet-tree · is-main · run-id · facts)
                          workflows/shapeup-run.js — the whole pipeline as one launchable script
 skills/ba-pitch-analyzer/scripts/   board-derive.mjs · spec-lint.mjs
 skills/spec-evaluator/scripts/      verdict-ledger.mjs (flip/confidence grammar, co-located
@@ -33,8 +34,9 @@ oracles/                 the evaluation-contract oracle registry (test · snapsh
                          process), proven to discriminate against negative controls
 tools/                   repo-only, never shipped — demo/
 tests/structural.mjs     Tier 0 runner — threads tests/lib/ helpers through the per-domain
-tests/{lib,structural}/  suites in tests/structural/*.mjs; 880+ checks, zero LLM calls (the
-                         floor is asserted by the suite itself; the exact count may only grow)
+tests/{lib,structural}/  suites in tests/structural/*.mjs; 930+ checks, zero LLM calls (the
+                         floor is asserted by the suite itself; the exact count may only grow —
+                         raised 880 → 930 in v1.8 for §53–54, the run key and the fact tables)
 examples/                worked fixtures + negative controls for the oracle registry
 ```
 

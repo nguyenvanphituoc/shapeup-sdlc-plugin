@@ -32,6 +32,7 @@ import { validate } from "./validate-envelope.mjs";
 import { readTrials } from "./t0-verify.mjs";
 import { isMain } from "./lib/is-main.mjs";
 import { runArgs } from "./lib/argv.mjs";
+import { readRunId } from "./lib/run-id.mjs";
 // `specDir` is aliased: this module has a local `let specDir` holding the resolved, possibly
 // --spec-overridden directory, and the import is the convention-derived default.
 import {
@@ -320,13 +321,17 @@ export function stagnation(trials, k = 2) {
  * @param {object} [opts.payloadExtra] - Extra payload fields merged last (spec_folder, feature, …).
  * @param {string} [opts.specDir] - Spec directory, threaded into the substrate template.
  * @param {object} [opts.interaction] - Interaction flags (e.g. {pause_gates}).
- * @returns {object} A WorkOrder: {schema_version, order_id ("<slug>/<suffix>"), worker, mode,
- *   operation?, interaction?, substrate (from {@link substrateFor}), payload{…}}. A coachable
- *   worker also gets payload.kb_rules_path. Not validated here — the CLI validates before writing.
+ * @param {string} [opts.runId] - The run key (`lib/run-id.mjs`); omitted when no receipt is readable.
+ * @param {string} [opts.compiledAt] - ISO compile time; omitted rather than invented.
+ * @returns {object} A WorkOrder: {schema_version, order_id ("<slug>/<suffix>"), run_id?,
+ *   compiled_at?, worker, mode, operation?, interaction?, substrate (from {@link substrateFor}),
+ *   payload{…}}. A coachable worker also gets payload.kb_rules_path. Not validated here — the CLI
+ *   validates before writing.
  */
 export function compileOrder({
   slug, worker, mode = "orchestrated", operation, round, attempt,
   scope, tasks, decisions, digestedErrors, trialHistory, testCmd, payloadExtra, specDir, interaction,
+  runId, compiledAt,
 }) {
   // A build order's id carries its SCOPE. Without it, `r<round>-a<attempt>` is the same name for
   // every scope in a round, so scope 2's order file overwrites scope 1's the moment it is compiled
@@ -353,6 +358,21 @@ export function compileOrder({
   const order = {
     schema_version: 1,
     order_id: `${slug}/${suffix}`,
+    // THE TWO ANALYTIC FIELDS, and why they are on the ORDER rather than the result.
+    //
+    // `order_id` identifies a dispatch within a run and repeats across runs of the same slug, so
+    // the dispatch record needed a run key to be groupable at all. It is stamped here because this
+    // is the one place every lane passes through — the same reason the active-order pointer is
+    // published here — so the workflow lane, `--tiny`, the prose round loop and a standalone
+    // dispatch all carry it without four separate stamps to keep in step.
+    //
+    // The RESULT deliberately gets neither. It is written by the worker, and a field a worker has
+    // to remember to copy is a field that goes missing under exactly the conditions you most want
+    // the record: the run that went wrong. Results join to orders on `order_id`, which they already
+    // echo and `validate-envelope` already checks — so the key reaches the result leg through a
+    // join that is enforced, instead of through a worker's cooperation.
+    ...(runId ? { run_id: runId } : {}),
+    ...(compiledAt ? { compiled_at: compiledAt } : {}),
     worker,
     mode,
     ...(operation ? { operation } : {}),
@@ -511,6 +531,11 @@ if (isMainModule) {
     slug, worker, operation, round, attempt, scope, tasks, decisions, digestedErrors, trialHistory,
     testCmd: flag("test-cmd"), payloadExtra, specDir,
     interaction: has("pause-gates") ? { pause_gates: true } : { pause_gates: false },
+    // Read off the receipt rather than passed in: a standalone `compile-order` invocation gets the
+    // same key as one the workflow drove, and a dispatch in a workspace with no open run simply
+    // carries no key instead of failing — the analytic field must never be able to block a build.
+    runId: readRunId(cwd, slug),
+    compiledAt: new Date().toISOString(),
   });
 
   const { valid, errors } = validate(order, ORDER_SCHEMA);

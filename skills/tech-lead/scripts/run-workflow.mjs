@@ -93,6 +93,7 @@ import { resolve, basename } from "node:path";
 import process from "node:process";
 import { runArgs } from "./lib/argv.mjs";
 import { isMain } from "./lib/is-main.mjs";
+import { readRunId } from "./lib/run-id.mjs";
 
 /**
  * The typed argv boundary.
@@ -125,14 +126,22 @@ export const ARGV_SPEC = {
  */
 export function configure(a) {
   const script = resolve(a._[0]);
+  const args = a.argsFile ? JSON.parse(readFileSync(a.argsFile, "utf8")) : (a.args ?? {});
+  const workerCwd = a.workerCwd ? resolve(a.workerCwd) : process.cwd();
   return {
     script,
-    args: a.argsFile ? JSON.parse(readFileSync(a.argsFile, "utf8")) : (a.args ?? {}),
+    args,
+    // The run key for every journal row, resolved ONCE at launch. `RunArgs.runId` is preferred
+    // because tech-lead already has it from init-run's output; the receipt lookup is the fallback
+    // that keeps an older args file — or a hand-driven launch — from producing unkeyed rows. A
+    // launch with neither (this loader also runs workflow scripts that are not harness runs)
+    // journals `null`, which is accurate rather than absent.
+    runId: args?.runId ?? (args?.slug ? readRunId(workerCwd, args.slug) : null),
     runDir: a.runDir
       ? resolve(a.runDir)
       : resolve(`.run-workflow-${basename(script).replace(/\.[^.]+$/, "")}-${process.pid}`),
     workerPermissionMode: a.workerPermissionMode || "acceptEdits",
-    workerCwd: a.workerCwd ? resolve(a.workerCwd) : process.cwd(),
+    workerCwd,
     maxConcurrency: a.maxConcurrency ?? 4,
     agentTimeoutS: a.agentTimeoutS ?? 900,
     budgetUsd: a.budgetUsd ?? null,
@@ -319,7 +328,11 @@ async function main() {
         result = null;
       }
       const wallMs = Number(process.hrtime.bigint() - t0) / 1e6;
-      journal({ seq: id, label, phase: phaseName, model, permission_mode: cli.workerPermissionMode,
+      // `run_id` makes this row joinable to the order it executed. The journal is the ONLY place
+      // `cost_usd` and wall-clock are recorded, so without the key the harness's cost data could
+      // never be attributed to a run — which is the whole of the measurement table's run-economics
+      // row. Resolved once at launch (see `runId` above), never per-call.
+      journal({ seq: id, run_id: cli.runId, label, phase: phaseName, model, permission_mode: cli.workerPermissionMode,
         started_at: startedAt, wall_ms: Math.round(wallMs), attempts, sessions, ok: result !== null, result });
       return result;
     } finally {

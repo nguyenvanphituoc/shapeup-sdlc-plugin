@@ -283,6 +283,69 @@ layer itself never ran, so the detector for "the gates didn't run" stops dependi
 running — and `stats.mjs --hooks` can report evaluations, denials and errors per hook, which makes
 "never had to fire" and "never ran" separable facts for the first time.
 
+## 3.2g — The run key, and the record plane (v1.8)
+
+Everything above writes JSON. Orders and results are the dispatch's input and output; the launcher
+journals one row per agent call with its model, wall time and cost; every hook appends a decision
+row; `t0-verify` appends a trial row with a genuine parent edge. The harness has been producing a
+complete, schema-registered dataset since v1.0 — and discarding it, because **none of it was
+joinable**.
+
+The nearest thing to a key was `order_id`: `<slug>/r<N>-a<M>`. It identifies a dispatch *within* a
+run and is identical across every run of the same slug, so two runs of one feature produce two
+`checkout/analyze` records with no field that separates them. Two consequences, and they are
+precisely the two rows [§5.1](05-verification-and-quality-strategy.md#51--the-measurement-table)
+lists as having no instrument: "compare this run against the last one" was not expressible, and
+"what did this run cost" could not be computed, because the cost rows (the journal) and the outcome
+rows (results, verdicts) had no column in common.
+
+**The key is derived, not drawn.** `lib/run-id.mjs` mints `<slug>-<YYYYMMDDTHHMMSSZ>-<8 hex>` as a
+pure function of three fields the receipt already holds — slug, `started_at`, `intake_sha256`. A
+`randomUUID()` would have been one line and would have forfeited the property this repo pays for
+everywhere else: a random key exists only where it was first written, so any record that missed the
+stamp is unjoinable forever. A derived one means every writer holding the receipt computes the same
+id without being handed it, and **runs that predate the field are backfillable** — an old receipt
+yields the id it would have been given.
+
+| Writer | Record | Stamp |
+|---|---|---|
+| `init-run.mjs` | `receipt.json` | mints it — the run acquires identity at the moment it starts |
+| `compile-order.mjs` | WorkOrder | `run_id` + `compiled_at`, at the one point every lane passes through |
+| `t0-verify.mjs` | T0Artifact, TrialRow | read off the receipt in the run root it was pointed at |
+| `run-workflow.mjs` | journal row | resolved once at launch, from `RunArgs.runId` or the receipt |
+| `hooks/lib/decision.mjs` | decision row | best-effort via `active-scope`; `null` outside a run |
+| tech-lead (SHIP S.6) | MetricsRow | copied — the harvest row's only link to its own trace |
+
+**WorkResult deliberately gets no stamp.** It is written by the worker, and a field a worker must
+remember to copy goes missing under exactly the conditions you most want the record. Results join
+to orders on `order_id`, which they already echo and `validate-envelope` already enforces — so the
+key reaches the result leg through a checked join rather than through a worker's cooperation.
+
+### The export, and what it does not do
+
+`export-run.mjs` projects a run's records into ten flat fact tables (JSONL, one object per line)
+under `.shapeup/exports/<run_id>/`, plus a manifest carrying row counts, a skipped-record count and
+the economics block. The dispatch grain is the spine — one row per compiled order, joined to its
+result on `order_id` and to its agent call through the `result_path` the workflow's dispatch prompt
+requires. It is read-only over the trace and re-runnable at any time.
+
+Two properties are load-bearing rather than tidy:
+
+- **It never fabricates a join.** The journal exists only on the workflow lane, so a `--tiny` or
+  prose-lane dispatch has no cost row. Those rows carry `cost_usd: null` and `agent_join: null`,
+  never `0` — an absent value and a zero value must not share a signature, which is the same defect
+  `hooks/lib/decision.mjs` exists to close one layer down. `--economics` reports attributed and
+  unattributed cost separately for the same reason.
+- **It does not cross a machine boundary on its own.** The default destination is LOCAL and
+  gitignored. Making it SHARED would put per-run structured data and a machine name back into the
+  repository, which is exactly what ADR-0001 moved the metrics shards out of git to prevent. What
+  the export fixes is that the LOCAL tier is *regenerable*: a dataset keyed by run id survives the
+  per-slug wipe that used to delete it. Travelling further is `--out <dir>`, a human decision.
+
+The read plane grades nothing. Every column is an id, a count, a duration or a copied enum — the
+rule `stats.mjs` states in its own header, and the reason a computed "run quality" figure is absent
+here: it would be a second judge behind `spec-evaluator`.
+
 ## 3.2e — Compaction resilience (PreCompact + SessionStart)
 
 Nothing on disk is ever lost to a context compaction — the two-root storage design (§3.3)
@@ -330,7 +393,7 @@ this need to survive a `git pull` by a teammate, or can it be rebuilt from what'
 | Root | Scope | Contents |
 |---|---|---|
 | **SHARED** — `shapeup/<slug>/` | Committed — the durable deliverable | `shaping/` (pitch, framing, breadboard, baseline, glossary), `spec/` (domain model, use cases, contracts, ux-behavior, scope-summary), `scopes/*.md`, `wiring-map.md`, `project-profile.md`, `requirements.md`, `hill/*.yml`, `REPORT.md` (frozen at GATE L4), and — at the `shapeup/` root — `knowledge-base/<skill>.md` |
-| **LOCAL** — `.shapeup/<slug>/` | Gitignored — run trace and machine state | `receipt.json`, `harness-run.md`, `orient/`, `tasks/` (the board), `working/` (spec analysis that is not contract), `orders/` + `results/` (the envelope port), `t0/verdicts/` + `trials.jsonl`, `evaluation/`, `qa/`, `trace/`, `discovery/ledger.md`, `round-ledger.md`, `run-snapshot.json` (compaction anchor), and — at the `.shapeup/` root, outside any slug — `active-scope`, `decisions.jsonl`, `metrics/*.jsonl`, `gate-answers.json`, `safety-overrides.json` |
+| **LOCAL** — `.shapeup/<slug>/` | Gitignored — run trace and machine state | `receipt.json`, `harness-run.md`, `orient/`, `tasks/` (the board), `working/` (spec analysis that is not contract), `orders/` + `results/` (the envelope port), `t0/verdicts/` + `trials.jsonl`, `workflow-run/journal.jsonl` (the agent-call record), `evaluation/`, `qa/`, `trace/`, `discovery/ledger.md`, `round-ledger.md`, `run-snapshot.json` (compaction anchor), and — at the `.shapeup/` root, outside any slug — `active-scope`, `decisions.jsonl`, `metrics/*.jsonl`, `exports/<run_id>/` (frozen fact tables, §3.2g), `gate-answers.json`, `safety-overrides.json` |
 
 The rule (ADR-0001): **prose is the team's, structured data is the machine's.** The three
 contracts are the named exception — they are structured, but they are also low-level design a
