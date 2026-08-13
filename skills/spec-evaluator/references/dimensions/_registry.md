@@ -9,7 +9,7 @@ command line overrides this table for a single run.
 |----|---------|------|----------------------|-------|
 | `spec-conformance` | ✅ true | `dimensions/spec-conformance.md` | all tasks | baseline correctness: AC + Done-when + contract shapes + non-go |
 | `tdd-surface` | ✅ true | `dimensions/tdd-surface.md` | all tasks | suite green + companion test files for new code; TDD-1/2 critical, TDD-3 advisory |
-| `integration` | ✅ true | `dimensions/integration.md` | `.be` and `.e2e` variants only | full-stack integration test + auth boundary + RLS-JWT pattern; runs only when variant matches |
+| `integration` | ✅ true | `dimensions/integration.md` | `.be` and `.e2e` variants only | full-stack integration test + access boundary + enforcement-path integrity; stack read from the project profile, not hard-coded; runs only when variant matches |
 | `completeness` | ⚙️ auto | `dimensions/completeness.md` | all tasks (lens lite/standard) | auto-ON when spec has UC `## Invariants` (v2.8+); no-op on older specs |
 | `test-surface-conformance` | ⚙️ auto | `dimensions/test-surface-conformance.md` | all tasks (lens lite/standard) | auto-ON when spec has UC `## Test Surface` (v2.9+ or `--surface-only` retrofit); no-op otherwise. Report must list every TS row probed — qa-edge-hunter's negative-space input |
 | `security` | ⛔ false | `dimensions/security.md` | be / shared | stub — flip on when ready |

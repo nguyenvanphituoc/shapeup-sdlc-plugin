@@ -124,34 +124,53 @@ This is a static read; no running required. Record whether each key AC has a mat
 
 ## Integration probing (for `integration` dimension)
 
-**Finding integration test files:** Check for files matching `*.integration.spec.ts`,
-`*.e2e-spec.ts`, or a top-level `test/` directory in the package. Also inspect
-`package.json` scripts for `test:e2e`, `test:int`, or `test:integration` targets.
+The commands below are shaped for a JS/TS monorepo because that is the most common case, not
+because the dimension assumes one. Resolve the real test pattern and runner from the scope
+contract's `e2e_verification_fixtures` and the project's own test scripts; the criteria in
+`dimensions/integration.md` state the invariant each probe is collecting evidence for.
 
-**INT-1 (no mocks):** After locating integration test files for the task's feature:
+**Finding integration test files:** look for a naming convention that separates integration
+from unit tests (e.g. `*.integration.spec.ts`, `*.e2e-spec.ts`, a top-level `test/`
+directory) and inspect the project's script targets for an integration/e2e entry —
+`test:e2e`, `test:int`, `test:integration`, a tagged subset, or a separate runner config.
+Check every target the project defines: "I only ran the unit suite" is a probing error, not
+a finding.
+
+**INT-1 (no mocked data layer):** after locating the integration tests for the task's
+feature, find the project's mocking primitive and inspect **what it replaces**:
 ```bash
-grep -rn "jest\.mock\|vi\.mock" <integration-test-file>
+grep -rn "jest\.mock\|vi\.mock" <integration-test-file>   # adjust to the project's primitive
 ```
-Mocking HTTP clients, email senders, or third-party APIs is acceptable. Mocking
-`PrismaClient`, a repository class, or the database connection defeats integration testing.
-Then run the integration suite: `pnpm --filter <pkg> test:e2e` (or equivalent). Capture
-exit code and test count.
+Mocking outbound third parties (HTTP clients, email senders, payment sandboxes) is
+acceptable. Mocking the database client, a repository class, or the persistence connection
+defeats integration testing. Then run the integration target and capture exit code and test
+count.
 
-**INT-2 (auth boundary):** Locate the test case exercising the unauthorized path. Inspect
-its setup: it should create a different user's JWT (or use no auth) and assert a 403 or
-empty-set response. Capture the test body and the run output as evidence.
+**INT-2 (access boundary):** first confirm from `usecases/` Error Cases, `contracts/`, or the
+Non-Go list that the spec documents a caller who must not reach this operation. If it
+documents none, record N/A with that citation. Otherwise locate the test case exercising the
+unauthorized path and inspect its setup: it should present an unentitled caller (different
+tenant/user/org, lower-privilege role, or no credentials) and assert the outcome the spec
+documents. Capture the test body and the run output as evidence.
 
-**INT-3 (RLS-JWT pattern + pooler port):**
+**INT-3 (enforcement-path integrity):** identify the layer that actually enforces the
+boundary, then read the test setup — suite-level hooks, shared helpers, test env config — and
+confirm it traverses that layer rather than around it. What to grep for depends on the
+mechanism:
 ```bash
-# Check for set_config call in test setup or helper
-grep -rn "set_config\|request\.jwt\.claims" <test-setup-files>
+# database row-level policies: is the caller's claim set injected, and in the right scope?
+grep -rn "set_config\|jwt\.claims\|SET LOCAL" <test-setup-files>
 
-# Check connection string in test env
-grep "DATABASE_URL" .env.test apps/api/.env.test
+# connection mode: transaction-scoped settings can leak across pooled connections in
+# session mode, so the configured port/mode is part of the evidence
+grep -rn "DATABASE_URL\|DIRECT_URL" <test env config>
+
+# guard / middleware chains: does the suite build the composed app, or the handler alone?
+grep -rn "createTestingModule\|overrideGuard\|overrideProvider" <test-setup-files>
 ```
-The `DATABASE_URL` must end with `:6543/...` (transaction-mode pooler). If no `.env.test`
-exists, check `jest.config.ts` or `globalSetup` for a `DATABASE_URL` override. A missing
-`set_config` call means queries run without RLS — false-positive auth passing silently.
+A setup that connects as an administrative or unscoped principal, omits the guard layer, or
+seeds state through a back door calls the system with privileges the real caller never has —
+every access assertion above it is a false positive. Report each distinct bypass separately.
 
 ## By task variant
 - `.be` — no browser (`--browser none`). Start the API; send contract-shaped requests;
