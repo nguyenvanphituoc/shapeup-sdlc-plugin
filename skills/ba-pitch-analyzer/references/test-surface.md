@@ -7,7 +7,7 @@ source row below, it does not belong here (it belongs to exploratory QA, post-bu
 **Why it exists.** `spec-conformance` grades the AC that were written; it cannot expand
 them. The Test Surface is the systematic expansion — boundary values, negative cases,
 error-code coverage — done once at spec time so the evaluator (`test-surface-conformance`
-dimension) can probe it. Division of labor settled at the QA meeting (2026-06-11):
+dimension) can probe it. Division of labor, a settled design decision:
 derivable tests = BA + Evaluator (this file); exploratory edges = `/qa-edge-hunter`,
 post-PASS, on the running app.
 

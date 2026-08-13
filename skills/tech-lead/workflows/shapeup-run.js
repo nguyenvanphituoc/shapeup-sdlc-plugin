@@ -48,7 +48,7 @@
 //                          — tech-lead's init-run.mjs, GATE L0.1, runs BEFORE this launch)
 //   autoLevel     string   interactive | auto | unattended
 //   answers       string   gate-answers preset name ("ci"|"guarded"|"interactive") or a path
-//   models        object   { exec, eval, qa? } — sonnet-or-above only (D5 floor)
+//   models        object   { exec, eval, qa? } — sonnet-or-above only (the model floor)
 //   budgets       object   { maxRounds, attemptBudget, wallClockS? } — the three-level breaker
 //   pluginRoot    string   ${CLAUDE_PLUGIN_ROOT} — the only thing this file ever roots a path in
 //   startedAt     string   ISO timestamp (Date.now() is unavailable in-script by design)
@@ -77,7 +77,7 @@ if (typeof args === "string") {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The model floor (D5). Allowlist, not a denylist: an unknown model name must fail closed, and a
+// The model floor. Allowlist, not a denylist: an unknown model name must fail closed, and a
 // denylist silently admits every name nobody thought to list.
 // ---------------------------------------------------------------------------------------------
 const MODEL_FLOOR_ALLOWED = new Set(["sonnet", "opus"]);
@@ -102,18 +102,18 @@ function validateArgs(a) {
     for (const role of ["exec", "eval"]) {
       if (role === "eval" && a.noEval) continue;
       if (belowFloor(a.models[role])) {
-        problems.push(`args.models.${role}="${a.models[role]}" is below the model floor (D5) — sonnet or above only`);
+        problems.push(`args.models.${role}="${a.models[role]}" is below the model floor — sonnet or above only`);
       }
     }
     if (a.models.qa !== undefined && belowFloor(a.models.qa)) {
-      problems.push(`args.models.qa="${a.models.qa}" is below the model floor (D5) — sonnet or above only`);
+      problems.push(`args.models.qa="${a.models.qa}" is below the model floor — sonnet or above only`);
     }
   }
   return problems;
 }
 
 // ---------------------------------------------------------------------------------------------
-// C2 — the mechanical channel: one helper, one schema, sonnet — the D5 floor — on every call
+// C2 — the mechanical channel: one helper, one schema, sonnet — the model floor — on every call
 // including this courier.
 // ---------------------------------------------------------------------------------------------
 const MECH_SCHEMA = {

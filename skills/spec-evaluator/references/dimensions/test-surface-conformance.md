@@ -21,7 +21,7 @@ requires_browser: true
 > Explicit `--dimensions ...,test-surface-conformance` always wins over the auto rule.
 
 **Why this exists.** `spec-conformance` grades the AC that were written; it does not
-*expand* them. The QA meeting (2026-06-11) located the gap: nobody systematically derives
+*expand* them. The settled division of labor locates the gap: nobody systematically derives
 the test matrix — boundary values, negative cases, error-code coverage, no-go breaches —
 that the spec already implies. The BA now derives that matrix into each UC's
 `## Test Surface` (D1 Invariants · D2 Error Cases · D3 Contract shapes · D4 No-gos,

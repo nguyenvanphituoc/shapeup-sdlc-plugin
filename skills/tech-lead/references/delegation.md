@@ -31,10 +31,10 @@ The WorkOrder carries everything the worker may rely on (payload, decisions, dig
 substrate write-contract); the WorkResult carries everything the worker used to write into
 shared files. `validate-envelope.mjs` runs as a PreToolUse hook on Skill|Agent and DENIES a
 dispatch whose `--order` file is missing or schema-invalid. Workers write only their own
-domain artifacts inside their substrate — never boards, ledgers, or run-state (D6, closed).
+domain artifacts inside their substrate — never boards, ledgers, or run-state.
 
 Role → model, resolved once at GATE L0.8 from the `orch`/`exec`/`eval`/`qa` matrix
-(`t0-verify.mjs` is mechanical tooling run directly via Bash, never an Agent — DD-7, zero LLM
+(`t0-verify.mjs` is mechanical tooling run directly via Bash, never an Agent — zero LLM
 tokens):
 
 | Skill | L0.8 role | Why this tier |
@@ -150,7 +150,7 @@ Scope contracts present (isolated attempt loop, per scope, per attempt):
     Skill(shapeup-sdlc-plugin:task-executor) --order <path>
   ingest-result — a WorkResult with status "escalated" leaves its artifact unwritten → see 3b below.
 
-Read back: ingest-result's summary line (tasks updated, unblocked, escalates) — not raw board
+Read back: ingest-result's summary line (tasks updated, ACs ticked, unblocked, discoveries) — not raw board
 files. SPIKE tasks close before the tasks they block can build (compile-order enforces the
 dependency order).
 ```
@@ -172,16 +172,16 @@ Why it aborts rather than pauses: nothing persists an answer between launches, s
 
 ## 3c. T0 verify → scripts/t0-verify.mjs (skill-local; scope contracts present, every attempt)
 ```
-Invoke via Bash directly — NOT an Agent, this is deterministic tooling, not a worker (DD-7):
+Invoke via Bash directly — NOT an Agent, this is deterministic tooling, not a worker:
   node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/t0-verify.mjs" shapeup/<slug>/scopes/<scope-id>.md
         --round <N> --attempt <M> --seesaw-registry .shapeup/<slug>/seesaw/registry.json
 Effect: runs the scope's e2e fixtures + DB probe, then (on green) the seesaw regression check
         over every FINISHED scope's fixtures. Writes the verdict artifact spec-evaluator's
-        GATE V0.7 will require a citation to, appends one row to t0/trials.jsonl, and — this
+        T0-citation rule will require a citation to, appends one row to t0/trials.jsonl, and — this
         is the ratchet — scores the attempt against the last kept trial and snapshots or
         restores the working tree ITSELF. Zero LLM tokens — deterministic tooling, not a
         judge (this is what keeps "T1 once per round" true even though verification runs
-        every attempt, DD-7).
+        every attempt).
 Read back: the stdout JSON — {path, sha256, trial, overall, regression, score, status,
         baseline_trial, delta, tree_ref}. `status` (kept|reverted|rebased|crash) is what
         drives the attempt-loop branch in round-protocol.md "Isolated attempt loop"; by the
@@ -257,5 +257,5 @@ Read back: the proposed cut list + verdict (SHIP now | SHIP after fixing ship-bl
 | `round-ledger.md` | **tech lead (sole writer)** | compile-order (decisions into every order), PO (audit) |
 | `hill/<scope-id>.yml` + `hill-chart.md` | **tech lead (sole writer)** | PO ("status without asking"), scope-hammer (H0 census) |
 
-> D6 is closed (v1.0): no worker writes `run-state.md`, the board, or the ledger. A worker
+> The single-writer rule is closed mechanically: no worker writes `run-state.md`, the board, or the ledger. A worker
 > performing a shared-state write is a defect — route it back through its WorkResult.

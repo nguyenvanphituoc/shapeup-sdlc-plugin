@@ -68,7 +68,7 @@ Collect (explicit — never inferred):
                                    at L1a/L1b (orient+plan), L3 (verdict), L4 (ship)
           --unattended           — auto-confirm all L-gates too; stop only on PASS,
                                    max_rounds, or hard error (for headless / Agent SDK / CI)
-  L0.8  Model & budget resolution (addendum Blueprint F, four layers, highest precedence
+  L0.8  Model & budget resolution (four layers, highest precedence
         first) — resolve ONCE here, record the resulting matrix in the ledger header:
           /ship flags  →  .claude/settings.local.json (per-member, Tier C)  →
           .claude/settings.json (team defaults, committed)  →  skill-shipped defaults
@@ -79,7 +79,7 @@ Collect (explicit — never inferred):
         A requested model unavailable on the member's plan → degrade to the next tier down,
         record the degrade in the ledger (R2 — invariants are code paths, so adherence
         survives even when the model tier doesn't).
-  L0.9  attempt_budget: the INNER circuit breaker (design spec DD-9), nested inside
+  L0.9  attempt_budget: the INNER circuit breaker, nested inside
         max_rounds (the OUTER breaker, unchanged, L0.6). Default 5 — the number of T0 verify
         attempts a single scope gets inside one round before its attempt loop trips and
         queues a hammer PROPOSAL for GATE H rather than blocking the round. Only meaningful
@@ -207,7 +207,7 @@ Record in ledger: planner duration + task count + scope count.
 Faithful note: keep the planner ambitious on scope but high-level on tech — do not push it
 to over-specify implementation. Errors baked into the spec cascade into every build round.
 Honest deviation: `ba` is heavier than Shape Up's light "map scopes" bucketing — that extra
-upfront spec-traceability is a deliberate trade for an LLM builder (redesign doc D8), not
+upfront spec-traceability is a deliberate trade for an LLM builder, not
 "pure Shape Up". State it; don't pretend otherwise.
 
 ---
@@ -251,7 +251,7 @@ No scope contracts (pre-v0.3.0, unchanged from v0.2.6):
     - any SPIKE tasks (third-party feasibility) that block others
     - scope-summary "Done when" headline statements
 
-Substrate-disjointness assertion (design spec §5.1 Blueprint A, only when
+Substrate-disjointness assertion (only when
 shapeup/<slug>/scopes/*.md exist — scope-architect's lint pass already ran;
 this is the orchestrator's own re-confirmation before committing to a build sequence):
   - Run `node "${CLAUDE_PLUGIN_ROOT}/skills/ba-pitch-analyzer/scripts/spec-lint.mjs" --slug <slug>`: DISJOINT (a file in two
@@ -293,7 +293,7 @@ Under `--interactive` / `--auto`, the hook warns if the board is not truly green
 
 ```
 Render the 🗻 Hill report (slice-level) — NOT a task count. Scope contracts present → read
-  committed hill/<scope-id>.yml shards (mechanical phases from GATE L2, DD-10). No contracts →
+  committed hill/<scope-id>.yml shards (mechanical phases from GATE L2, never authored). No contracts →
   fall back to the board + open-unknowns heuristic (uphill/crest/downhill/done). See
   references/ledger-schema.md "Hill report". Roadmap rule unchanged either way: progress is
   reported by hill position, never by "N/M tasks done".
@@ -330,7 +330,7 @@ Decision  : [SHIP | re-build bugs in round r+1 | escalate: max rounds hit]
 ```
 The Hill is the progress narrative; the board's `N/N ✅` is execution substrate (it gates
 EVAL at L2), never the headline. Slices come from `ba`'s board; if slice IDs aren't present
-yet (D3 deferred), report at task-group level and note the fallback in the ledger.
+yet, report at task-group level and note the fallback in the ledger.
 
 ---
 
@@ -367,35 +367,36 @@ S.2  Print a feature summary: tasks shipped, rounds used, final verdict, dims ev
      (and explicitly: dims NOT evaluated, so "shipped" is never read as "verified for all").
 S.3  Point to the traceability: tasks/_index.md (all ✅) + EVAL-FEATURE-<slug>.md (PASS) +
      harness-run.md (the round ledger).
-S.4  task-executor's GATE E remains the formal per-task close; the tech lead confirms the
-     feature-level close.
+S.4  task-executor's own verification checklist remains the formal per-task close; the tech
+     lead confirms the feature-level close.
 S.5  Deploy truth — "done means deployed", honestly. Building stops at "built & verified";
      deployment is an outward-facing action gated to the PO. Either:
-       - PO says yes → run the project deploy (docs/infra/DEPLOYMENT.md) and record "deployed".
+       - PO says yes → run the project's own deploy procedure and record "deployed".
        - otherwise → record "built & verified — deploy pending (PO)".
      NEVER auto-deploy; "shipped" must never silently mean "deployed".
-     (Baseline-anchored scope-hammering at ship time is redesign-doc D5 — deferred; for now,
+     (Baseline-anchored scope-hammering at ship time is deliberately deferred; for now,
       `ba`'s Appetite Guard covers overflow and cuts go to synthesis "Hammered Out".)
-S.6  Harvest one signal row → append to `shapeup/metrics/<machine-id>.jsonl`
-     (committed, SHARED root; sharded per machine so concurrent runs never merge-conflict on
-     one file — addendum Δ3; an aggregate view is `cat shapeup/metrics/*.jsonl`).
+S.6  Harvest one signal row → append to `.shapeup/metrics/<machine-id>.jsonl`
+     (LOCAL root, gitignored since ADR-0001 — a committed shard keyed on a hostname only
+     grows and publishes a machine name; sharded per machine so shards can be pooled
+     deliberately without colliding on one filename. The read plane is
+     `stats.mjs`, or `cat .shapeup/metrics/*.jsonl`).
      Copy fields that ALREADY exist as structured output (run-state, final EVAL report,
      discovery ledger, qa/hunt-report, breadboard B5). Two hard rules:
        1. Harvest only fields that already exist at ship time — never evaluate something new.
        2. Record facts, never compute a new verdict (no `run_quality_score` — that would be
           a second judge behind spec-evaluator). The eval suite interprets; harvest records.
      `final_audit_score` is COPIED from the EVAL report, never re-graded.
-     ALSO copy the two v1.5 exit measurements, both produced by scripts at zero model tokens:
+     ALSO copy two run-quality measurements, both produced by scripts at zero model tokens:
        node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/stats.mjs" --ratchet --slug <slug>
          → `ratchet`: {trials, scopes_multi_trial, improvement_rate, monotone_rate,
                        sawtooth_count, mean_trials_to_green}
        node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/stats.mjs" --hooks
          → `hooks`: {evaluations, denials, errors, per_hook}
-     Harvest them HERE or lose them: both read LOCAL ledgers (t0/trials.jsonl,
-     decisions.jsonl) under the gitignored `.shapeup/` root, so a number left there
-     answers its question exactly once and is then wiped. The committed shard is the only
-     record that accumulates across runs and across machines — which is what both exit
-     criteria require, since neither is meaningful from a single run.
+     Harvest them HERE or lose them: both read per-run working ledgers (t0/trials.jsonl,
+     decisions.jsonl) that the next run's bookkeeping supersedes, so a number left there
+     answers its question exactly once. The metrics shard is the one record that
+     accumulates across runs — and neither measurement is meaningful from a single run.
      → full field list + row template: references/ledger-schema.md "Harvest row".
 ```
 

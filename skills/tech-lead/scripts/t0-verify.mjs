@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// T0 mechanical verification layer (design spec v1.1 §3.5, Blueprint A/E).
+// T0 mechanical verification layer.
 //
 // Runs a scope's e2e fixtures + DB probe (zero LLM tokens), then — on green — the seesaw
 // regression check (re-runs every FINISHED scope's fixtures from the registry). Writes one
 // verdict artifact per attempt that spec-evaluator (T1) must cite; a verdict without it is
-// structurally invalid (PA4 countermeasure, DD-7). No agent can fabricate this file's contents
+// structurally invalid. No agent can fabricate this file's contents
 // because it is produced by actually running the commands.
 //
 // Zero dependencies, zero network — same discipline as oracles/* and gate-l2.mjs.

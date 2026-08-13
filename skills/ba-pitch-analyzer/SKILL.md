@@ -113,7 +113,7 @@ second path to green.
 | "My output looks complete, score it 92" | You don't grade yourself. spec-lint reports facts; the judge judges. |
 | "The appetite overflow is small, drop a nice-to-have myself" | Overflow is a HAMMER gate for the caller. You report the fact and the candidate cuts. |
 | "Re-scanning the codebase is safer than trusting orient" | code-surface.md IS the map. Re-scanning burns tokens and forks the truth. |
-| "unlocks is quick to fill in by hand" | Hand-authored unlocks produced 10 asymmetric edges (KB-BA-001). board-derive computes it. |
+| "unlocks is quick to fill in by hand" | Hand-authored unlocks drift asymmetric — observed, repeatedly. board-derive computes it. |
 
 ---
 
@@ -134,9 +134,8 @@ write `.shapeup/<slug>/results/<order-suffix>.json`:
   "schema_version": 1, "order_id": "<copied>", "worker": "ba-pitch-analyzer",
   "status": "done | partial | escalated",
   "artifacts": ["shapeup/<slug>/spec/domain-model.md", "…"],
-  "escalates": [ { "kind": "spec-ambiguity", "question": "New actor 'auditor' has no UC — add UC-07 or cut?" } ],
   "assumptions": ["lens=standard — third-party PSP present"],
-  "deviations": [],
+  "deviations": [ "ESCALATE spec-ambiguity — New actor 'auditor' has no UC — add UC-07 or cut?" ],
   "discoveries": [ { "marker": "+", "line": "appetite overflow 12h — candidate cuts: TASK-014, TASK-017" } ]
 }
 ```

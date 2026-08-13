@@ -159,7 +159,7 @@ export function lintStructure({ specDir, tasks }) {
       }
     }
   }
-  // Task frontmatter + graph integrity (edge symmetry = the mechanized KB-BA-001 check).
+  // Task frontmatter + graph integrity (edge symmetry — the hand-authored-unlocks drift, mechanized).
   const ids = new Set(tasks.map((t) => t.id));
   const derived = deriveUnlocks(tasks);
   for (const t of tasks) {

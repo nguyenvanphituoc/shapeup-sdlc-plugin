@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Sandbox guard — PreToolUse hook (design spec v1.1 §4.5/Blueprint E, PA3 countermeasure).
+// Sandbox guard — PreToolUse hook (the PA3 countermeasure: writes outside the order's substrate).
 //
 // Blocks Edit/Write/MultiEdit calls that the ACTIVE ORDER's own `substrate` block does not
 // permit. Turns "a worker only writes what its order authorised" from prose into a precondition

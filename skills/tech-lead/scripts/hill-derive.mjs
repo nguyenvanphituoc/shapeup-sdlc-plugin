@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Hill Phase Derivation (DD-10)
+// Hill Phase Derivation — phases are derived from facts, never authored
 // Mechanical derivation of a scope's hill position based on facts (T0 verdicts, T1 evaluation, and discovery ledger).
 // Writes to shapeup/<slug>/hill/<scope-id>.yml
 
@@ -13,7 +13,7 @@ import { readAllContracts, SCOPE_CONTRACT } from "./lib/contract-md.mjs";
 /**
  * Derive and write the hill phase for all scopes mechanically based on T0, T1, and ledger facts.
  * 
- * The derived phase follows these progression rules (DD-10):
+ * The derived phase follows these progression rules (facts move dots, not authors):
  * - UPHILL_UNKNOWN: open unknowns > 0 in the ledger for this scope
  * - UPHILL_SOLVED: unknowns 0, no T0-green yet
  * - DOWNHILL_EXECUTION: ≥1 T0-green; T1/seesaw pending

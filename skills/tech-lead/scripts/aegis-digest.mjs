@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// AEGIS digester (design spec v1.1 §3.4/§4.5, PA6 countermeasure).
+// AEGIS digester — compresses a failed verification into the triples the next attempt reads.
 //
 // Distills raw build/test/Playwright logs into {file, line, core_message} triples so a
 // task-executor's next attempt gets a few lines of signal instead of a full stack-trace dump.

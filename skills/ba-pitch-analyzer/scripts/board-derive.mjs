@@ -2,7 +2,7 @@
 // Board derivation (pure-skill architecture v1.0, plan §8.2).
 //
 // The mechanical half of the old ba-pitch-analyzer Phase 7b + v3.3 link-field rules — pure
-// graph math a model should never re-derive (and could get wrong: KB-BA-001's 10 asymmetric
+// graph math a model should never re-derive (and gets wrong: hand-authored inverses drift asymmetric
 // edges came from hand-authored `unlocks`):
 //
 //   • `unlocks` = the depends_on inverse, recomputed over the WHOLE board (--write persists

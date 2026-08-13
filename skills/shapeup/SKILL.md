@@ -33,7 +33,7 @@ This skill lazily loads detail from resource files. **Read the relevant resource
 | `/shapeup breadboard-reflection` | `resources/breadboard-reflection.md` |
 | `/shapeup full` | Read `resources/shaping.md` first, then `resources/breadboarding.md` before B-phases, and `resources/context-compaction.md` for the run digest |
 
-> Resource paths are relative to this skill's directory. In Claude Code: `.claude/skills/shapeup/resources/`.
+> Resource paths are relative to this skill's directory (`resources/` beside this SKILL.md, wherever the plugin is installed).
 > Multi-gate runs maintain a derived **decision digest** so each gate reads a compact slice instead of full prose — see `resources/context-compaction.md` and the "Run Workspace & Digest" section below.
 
 ---
@@ -374,8 +374,8 @@ Two roots, separated by artifact **nature** (full design →
 - **Shared** root `shapeup/[slug]/` = what the team contributes to
   (source + deliverable). **Local** root `.shapeup/[slug]/` = per-run scratch,
   hidden and fully gitignorable. Add **one** line to `.gitignore`: `.shapeup/`.
-  No carve-out needed — the one committed report surface, the harvest feed
-  `shapeup/metrics.jsonl`, lives in the shared root.
+  No carve-out needed — everything machine-written at run time, including the
+  harvest shards `.shapeup/metrics/*.jsonl`, lives under the local root.
 - `digest.md` is the run's derived decision context (the 4-field, two-zone read
   model the gates consume). It is **never** the source of truth and never crosses
   a skill boundary — `ba-pitch-analyzer` reads `pitch.md`/`shaping.md`, never the

@@ -18,7 +18,7 @@ tech-lead: ... GATE L2 → EVAL → GATE L3 PASS ──► QA EDGE HUNT (you) �
             GATE L3 FAIL → fix round (never reaches you — conformance first, edges after)
 ```
 
-**Division of labor (settled at the QA meeting, 2026-06-11):**
+**Division of labor (a settled design decision, not a convention):**
 
 | Tier | Owner | When |
 |---|---|---|
@@ -281,7 +281,8 @@ hammered out at GATE Q1 (not hunted): […]
 |---|---|---|---|
 | ① Boundary | C-01, C-05 | 2 | 0 |
 | … | | | |
-→ details live in .shapeup/<feature>/discovery/ledger.md ## QA Edge Findings (round [r])
+→ details live in .shapeup/<feature>/discovery/ledger.md under the `## Discovered` section
+  ingest appends for this hunt's order
 
 ## Shaping-quality signal (advisory, for the PO — next cycle's input)
 - lens ⑤ findings ≈ No-gos written loosely (breach routes left open)
@@ -296,15 +297,19 @@ No verdict line exists in this file by design. The Hunter's last words:
 `✅ hunt complete — [N] findings (all ~) → ledger · triage at SHIP S.0 / GATE L4.`
 
 ---
+
+## Invocation
+
+```bash
 /qa-edge-hunter --feature checkout-vnpay --spec shapeup/checkout-vnpay/spec/ --app http://localhost:3000
 # (--eval/--ledger default to the conventional paths under the LOCAL root .shapeup/<feature>/)
 
-
-# Escape hatches
+# Escape hatch
 --auto            # skip GATE Q1 pause (charter list logged, not reviewed) — Q0 hard
                   # checks and the out-of-bounds question are NEVER skipped
---lenses-note     # there is deliberately NO --lenses flag: the 6 lenses are fixed;
-                  # narrow by cutting charters at GATE Q1 (or --auto + report)
+
+# There is deliberately NO --lenses flag: the 6 lenses are fixed; narrow by cutting
+# charters at GATE Q1 (or --auto + report).
 ```
 
 ### Progress Markers

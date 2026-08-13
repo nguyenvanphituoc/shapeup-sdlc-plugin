@@ -128,7 +128,7 @@ The installer configures:
   in one shot (writing `.claude/settings.json`), then appends to / creates `CLAUDE.md`. Falls
   back to writing `settings.json` directly if the `claude` CLI is not on `PATH`.
 - **Git boundaries & telemetry** — adds the `.shapeup/` + Tier C ignore rules to
-  `.gitignore`, initializes the per-machine `shapeup/metrics/` shard directory, and
+  `.gitignore`, initializes the per-machine `.shapeup/metrics/` shard directory, and
   drops the Tier C example templates (`.claude/settings.local.example.json`,
   `.env.shapeup.example`).
 

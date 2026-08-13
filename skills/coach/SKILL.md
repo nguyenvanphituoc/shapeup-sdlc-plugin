@@ -41,8 +41,8 @@ they are the **complete** set of categories the gate may offer:
 
 | Category | File | The worker reads it at | Good for |
 |----------|------|------------------------|----------|
-| `task-executor`     | `shapeup/knowledge-base/task-executor.md`     | Phase 1 (Context Load) | implementation discipline, code style, surgical-change habits, recurring over/under-engineering |
-| `ba-pitch-analyzer` | `shapeup/knowledge-base/ba-pitch-analyzer.md` | Phase 1 (Ingest & Scan) | scoping, task decomposition, DDD/spec habits, missed test-surface patterns |
+| `task-executor`     | `shapeup/knowledge-base/task-executor.md`     | PLAN (context load) | implementation discipline, code style, surgical-change habits, recurring over/under-engineering |
+| `ba-pitch-analyzer` | `shapeup/knowledge-base/ba-pitch-analyzer.md` | Phase 1 (INGEST) | scoping, task decomposition, DDD/spec habits, missed test-surface patterns |
 | `qa-edge-hunter`    | `shapeup/knowledge-base/qa-edge-hunter.md`    | Phase Q1 (Charter Map) | recurring edge classes, lenses that keep finding bugs, areas worth probing |
 
 **Not coachable.** `spec-evaluator` is deliberately excluded — the harness has a **single-judge**

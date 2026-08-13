@@ -589,7 +589,7 @@ introducing new flow) become the seed for a new one via a scope-architect `map-s
 **Import/flow slicing (PA1 countermeasure).** Build a lightweight import graph over the task
 board's touched files: for each file a task writes, note what it imports and what imports it
 (grep for `import .* from ['"](\.\.?/[^'"]+)`-class patterns is sufficient — a full AST parser
-is an optimization, not a prerequisite, per design spec R6). Two files are in the same flow if
+is an optimization, not a prerequisite). Two files are in the same flow if
 they sit on one call chain: a UI component → the API route it calls → the use case that route
 invokes → the repository that use case depends on. Group tasks by flow, not by which top-level
 directory their file lives in. A scope whose `allowed_file_substrate` is entirely `apps/web/**`
@@ -614,7 +614,7 @@ or entirely `apps/api/**` with no cross-layer flow is the PA1 failure mode — r
 }
 ```
 `hill_phase` is always written `UPHILL_UNKNOWN` at generation time — it is derived later from
-mechanical T0/T1/seesaw facts, never declared by `ba` (design spec DD-10). `superseded_by` stays
+mechanical T0/T1/seesaw facts, never declared by `ba`. `superseded_by` stays
 `null` until a scope-architect `map-scopes` order retires this contract in favor of its replacements.
 
 **PA2 size lint:** a scope whose `allowed_file_substrate` glob set resolves to more than ~15

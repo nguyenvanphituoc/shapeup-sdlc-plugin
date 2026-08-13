@@ -71,8 +71,9 @@ sitting, and reading them is the recommended review.
 ## Data handling
 
 - **Nothing leaves the machine.** Run state lives in the gitignored `.shapeup/`; telemetry
-  is a per-machine JSONL shard under `shapeup/metrics/` that travels only if you
-  commit it. There is no phone-home of any kind.
+  is a per-machine JSONL shard under `.shapeup/metrics/`, inside that same gitignored root,
+  so it travels only if you deliberately un-ignore and commit it. There is no phone-home of
+  any kind.
 - **The safety-spine actively blocks secret reads** (`.env`, `*.pem`, `*.key`, ssh/cloud
   credentials) rather than merely not making them.
 - The installer (`scripts/install-harness.sh`) writes only into the target project

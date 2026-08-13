@@ -193,7 +193,7 @@ const lines = timed
 
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace" font-size="${FS}">
   <title>shapeup-sdlc-plugin — a gate the agent cannot talk past</title>
-  <desc>A terminal recording: the agent tries to run EVAL on a board with two unfinished tasks, and a PreToolUse hook denies the tool call outright. The denial text is verbatim output from hooks/gate-l2.mjs.</desc>
+  <desc>A terminal recording: the agent runs EVAL on a board with two unfinished tasks, and a PreToolUse hook warns, naming both — advisory, so the call proceeds on the record. The warning text is verbatim output from hooks/gate-l2.mjs.</desc>
   <style>
     /* Base state is VISIBLE on purpose: where CSS animation is unavailable (some
        renderers, reader modes, PDF export) this degrades to the whole transcript

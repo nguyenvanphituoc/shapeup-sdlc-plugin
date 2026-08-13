@@ -173,8 +173,8 @@ scan always stops (never ship half-translated intake to the harness).
 | `glossary.md` | source→English term map | Persisted + reused; the shared vocabulary for this feature |
 | `translation-report.md` | detect table, glossary diff, verification result | Audit trail; what was skipped/flagged |
 
-**Destinations (two-root workspace).** `<name>.en.md` is always written as a sibling
-of its source — when the source already lives under the SHARED root
+**Destinations (two-root workspace).** `<name>.en.md` is written as a sibling
+of its source (or under `--out <dir>` when given) — when the source already lives under the SHARED root
 `shapeup/<slug>/shaping/`, the copy lands there too. `glossary.md` is durable
 shared vocabulary → write it to `shapeup/<slug>/shaping/glossary.md`.
 `translation-report.md` is run-trace (audit) → write it to the LOCAL root

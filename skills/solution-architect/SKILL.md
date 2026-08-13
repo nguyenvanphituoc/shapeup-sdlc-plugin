@@ -7,9 +7,9 @@ description: "Use this skill to design how each use-case's engine integrates int
 
 **Design the seam, or the engine ships orphaned.**
 
-The audit that motivated this skill found a 631-line asset pipeline with 26 passing tests and
-**zero call sites** in the app's composition root — built, green, and unreachable from the
-running application. Five more scopes had engines never wired to a player. This skill closes that
+This skill exists because a sizeable engine module can be built, fully tested, and still have
+**zero call sites** in the app's composition root — green, and unreachable from the
+running application; observed across multiple scopes in one run, not theorized. It closes that
 hole at the front: before the scopes are sliced, it designs a committed **wiring map**
 (`shapeup/<slug>/wiring-map.md`) that names, for every use case, the chain from the
 engine module to a player-visible affordance — including **how** and **where** the engine attaches
@@ -29,7 +29,7 @@ Two payoffs, one artifact:
   proving.
 - **The slicer gets its integration seam up front.** Declaring each attachment *before*
   `scope-architect` runs supplies the missing input behind the round-1 substrate-expansion
-  escalations — the four identical "declined by precedent" stalls. (This skill *front-loads* the
+  escalations — repeated identical "declined by precedent" stalls. (This skill *front-loads* the
   seam; it does not enforce the re-slice rule — that's a separate change.)
 
 You are the **sole writer** of the wiring map, written **directly** (the same authority
@@ -80,7 +80,7 @@ guessed `main.js` would make the later oracle certify nothing.
 
 **No use case is exempt.** If a UC's engine genuinely has no player-facing seam (a pure
 background job), say so in `wiring_seam` and name the boot/cron/init attachment that starts it — a
-cron registration, a boot hook. "It's internal" is how the asset pipeline stayed orphaned; there
+cron registration, a boot hook. "It's internal" is how an engine stays orphaned; there
 is always an attachment to the entry point, or the code never runs.
 
 ## Anti-rationalization table
@@ -104,10 +104,10 @@ round. Write it so someone without your context can answer it in one reply.
 
 
 `wiring-map.md` in your substrate, then `.shapeup/<slug>/results/<order-suffix>.json`:
-`status`, `artifacts[]` (the wiring map written), `deviations[]` (e.g. a missing profile, or a UC
-whose engine the spec never names — the planner's territory), `assumptions[]` (engine paths
-inferred from the domain model where the spec was silent), `deviations[]` (any UC left with an
-uncertain seam, or an engine with no attachment path, and why). You never touch spec docs,
+`status`, `artifacts[]` (the wiring map written), `assumptions[]` (engine paths
+inferred from the domain model where the spec was silent), `deviations[]` (a missing profile, a
+UC whose engine the spec never names — the planner's territory — a UC left with an uncertain
+seam, or an engine with no attachment path, and why). You never touch spec docs,
 `scopes/*.md`, `project-profile.md`, task files, or run-state.
 
 ## Verification checklist

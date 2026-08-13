@@ -158,7 +158,7 @@ cost is not the missing verdict — it is that a run killed from *outside* ships
 scopes that were already green. A breaker that trips from the inside routes to GATE H, where
 scope-hammer compares the shippable subset against the baseline and ships what works. Same clock,
 different ending.
-Nesting rationale (DD-9): a struggling scope should not freeze every other scope's progress
+Nesting rationale: a struggling scope should not freeze every other scope's progress
 in the same round — only running out of *rounds* (the real six-week analog) stops the whole
 run. A scope that trips its inner breaker still gets judged fairly at GATE H: scope-hammer
 compares "ship without this scope" against the baseline, same as any other cut candidate — it
@@ -190,7 +190,7 @@ ingest-result <result>             → board/ledger writes
                                       cannot finish leaves no artifact, the post-condition
                                       fails, and the run ABORTS naming the phase. Resolve it
                                       yourself and record the answer in round-ledger.md, which
-                                      the NEXT attempt's fresh context reads back (DD-8).
+                                      the NEXT attempt's fresh context reads back.
 t0-verify.mjs                      → fixtures + DB probe + (on green) seesaw, then scores the
                                       attempt against the baseline trial and snapshots or
                                       restores the tree. Branch on `status` from its stdout
@@ -201,7 +201,7 @@ t0-verify.mjs                      → fixtures + DB probe + (on green) seesaw, 
               Still red → loop, and attempt M+1 now builds ON attempt M.
   reverted  not better — and a tie is not better. Tree already restored from the last kept
               snapshot. Subsumes the retired stash-and-retry branch: a FINISHED scope's broken
-              fixture (PA5) raises score.regressions and reverts through this same rule, which
+              fixture raises score.regressions and reverts through this same rule, which
               is why seesaw runs before anything is declared green.
               rather than the code. Tree kept, baseline reset. Not a verdict, not a failure.
   crash     a fixture command failed to spawn or timed out; tree restored. Fix the fixture,
@@ -223,7 +223,7 @@ scopes/specs without one keep the v0.2.6 behavior verbatim (see BUILD(r) table a
 A tech-lead judgment, surfaced at GATE L2: if the feature is clearly within what the model
 builds reliably solo, the evaluator is optional overhead. With `--no-eval`, after GATE L2
 the run goes straight to SHIP with verdict `not-evaluated` recorded in the ledger and a
-clear note that nothing was verified beyond the build's own task-executor GATE D checks.
+clear note that nothing was verified beyond task-executor's own per-AC evidence checks.
 
 ## Round-cost intuition
 Build dominates; eval is cheap. Expect each EVAL round to cost a small fraction of a BUILD

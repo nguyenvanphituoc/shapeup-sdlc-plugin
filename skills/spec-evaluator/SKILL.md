@@ -150,10 +150,10 @@ round. Write it so someone without your context can answer it in one reply.
 ```
 
 **Every FAIL criterion's `evidence` MUST carry a `file:line` locator** — schema-enforced, not
-advice: `validate-envelope` rejects the whole result before ingest sees it. A PASS may cite plain
-output. (Measured: a run returned a correct FAIL with `bugs: null` and no locator anywhere, which
-is unactionable without re-investigating. The rule used to be repeated five times in this prompt
-and enforced nowhere; it is now stated once and enforced by `domain.schema.json`.)
+advice: the envelope is validated against `work-result.schema.json` at ingest and a locatorless
+FAIL is rejected before any write. A PASS may cite plain output. (Observed, not theorized: a
+correct FAIL verdict with no locator anywhere is unactionable without re-investigating — the
+rule used to live in prose and be enforced nowhere; it is now data in `domain.schema.json`.)
 
 The orchestrator's ingest appends the verdict ledger, un-ticks the `refuted` boxes, and sets
 `eval_verdict` frontmatter. You never touch a task file, a board, or run-state — and you
@@ -216,5 +216,5 @@ summary — standalone has no orchestrator to ingest for you.
 | Probe the RUNNING app, not the source alone | Apps that look right still break when used |
 | Re-probe every FAIL; flip ⇒ confidence low | A single snapshot lies; the ledger makes it visible |
 | Verdict-ledger lines are returned, appended by ingest, never rewritten | Verdict history is how a single-snapshot judge becomes measurable |
-| A verdict on a scoped spec without a T0 citation is structurally invalid | T0 is a machine fact the generator cannot fabricate (DD-7, PA4) |
+| A verdict on a scoped spec without a T0 citation is structurally invalid | T0 is a machine fact the generator cannot fabricate |
 | UI assertions target affordances only (test_id/role/data-state) | Layer-3 styling is frozen; grading it resurrects the freeze through the judge |

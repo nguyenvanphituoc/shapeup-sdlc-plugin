@@ -4,7 +4,7 @@
 // The orchestrator's pipeline sub-layer: assembles the structured input envelope a worker is
 // dispatched with. Replaces tech-lead's hand-assembled `isolated_brief()` prose step and every
 // worker's GATE A/B plumbing (path resolution, run-state parse, board glob-matching, dependency
-// reads, mode detection). Deterministic, zero LLM tokens (DD-7).
+// reads, mode detection). Deterministic, zero LLM tokens.
 //
 // A worker depends on its ORDER, never on filesystem topology — moving a directory again
 // (the v3.2 lesson) touches this script, zero skills.

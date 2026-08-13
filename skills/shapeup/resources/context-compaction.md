@@ -182,9 +182,10 @@ Everything keys off the feature `<slug>`. Two roots, split by **who needs it**:
 - The **local** root `.shapeup/[slug]/` is per-run scratch + reports — hidden,
   fully gitignorable, dies with the run. It is derived from the same `<slug>`.
 - `.gitignore`: one line — `.shapeup/`. The whole local root is ignored; no
-  carve-out is needed because the one committed report surface, the harvested
-  signal feed `shapeup/metrics.jsonl` (written by the tech-lead at SHIP,
-  fact-only; see the tech-lead skill's SHIP step), lives in the **shared** root.
+  carve-out is needed because everything machine-written at run time lives there,
+  including the harvested signal shards `.shapeup/metrics/*.jsonl` (written by
+  the tech-lead at SHIP, fact-only; see the tech-lead skill's SHIP step). The
+  committed report surface is the frozen `shapeup/[slug]/REPORT.md`.
 - All paths are **project-relative, resolved from the project root / cwd.** Never
   `/mnt/...` — that is the claude.ai authoring sandbox and dies in a user repo.
 

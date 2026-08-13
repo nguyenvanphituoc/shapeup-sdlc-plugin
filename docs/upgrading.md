@@ -44,10 +44,13 @@ and is read by nothing. Move its rules into `shapeup/knowledge-base/_INBOX.md` a
 to assign each one — GATE COACH-1 asks which skill owns a rule, it never assumes — then commit
 `shapeup/` so the team inherits it on `git pull`.
 
-### Metrics are sharded per machine
+### Metrics are sharded per machine, and local
 
-A flat `shapeup/metrics.jsonl` should be split into `shapeup/metrics/<machine-id>.jsonl`. A single
-committed file keyed on no machine only grows and conflicts on every pull.
+The metrics feed now lives at `.shapeup/metrics/<machine-id>.jsonl` — per-machine shards under
+the gitignored LOCAL root (ADR-0001: a committed shard keyed on a hostname only grows and puts a
+machine name in the repo). If you still carry a committed `shapeup/metrics.jsonl` or
+`shapeup/metrics/`, stop tracking it; new rows land under `.shapeup/metrics/` and `stats.mjs`
+reads them there.
 
 ### The contract parsers were repaired; find what they now reject
 

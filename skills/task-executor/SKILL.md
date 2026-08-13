@@ -156,7 +156,6 @@ suffix come from `order_id`) matching `work-result.schema.json`, and print its p
           "evidence": "pnpm --filter api test → 14/14" } ] }
   ],
   "files_touched": [ { "path": "apps/api/src/orders/create.ts", "change": "created" } ],
-  "escalates": [],
   "discoveries": [ { "marker": "+", "line": "empty-cart edge case unhandled" } ],
   "assumptions": [ "amount stored in minor units — inferred from schema" ],
   "deviations": []

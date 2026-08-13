@@ -22,10 +22,10 @@ re-derived inline at every SHIP.
 ## When this fires
 
 ```
-1. All scopes reach FINISHED on the hill (design spec B2) → normal stop, post-QA-hunt.
+1. All scopes reach FINISHED on the hill → normal stop, post-QA-hunt.
 2. Outer circuit breaker trips: round_budget reaches 0 with scopes still uphill/downhill.
 3. Inner circuit breaker trips: a scope's attempt_budget (default 5) is exhausted without a
-   T0-green result → queued as a hammer PROPOSAL (design spec Blueprint A `hammer_proposals`),
+   T0-green result → queued as a hammer PROPOSAL (`hammer_proposals`),
    judged here rather than immediately blocking the round.
 ```
 Any of the three routes to this skill; the difference is only what's in the census (case 1 has
@@ -87,7 +87,7 @@ customer suffers through today), never to a perfect ideal.
 
 ```
 H1.1  Resolve the baseline: shapeup/<slug>/shaping/baseline.md if present (written at
-      shaping time, design spec Blueprint F — first-class, not a pitch footnote). Absent →
+      shaping time — first-class, not a pitch footnote). Absent →
       degrade honestly: read the pitch's problem statement as the implicit baseline and flag
       "baseline not first-class — comparison is approximate" in the report. Do not invent one.
 H1.2  For each MUST-HAVE item from H0: "with this item cut/carried, is the shipped product

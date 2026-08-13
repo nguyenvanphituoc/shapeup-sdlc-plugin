@@ -57,7 +57,7 @@ anti-rationalization table.
                                                                a fixture for unbuilt behavior
              hill_phase: "UPHILL_UNKNOWN"                    — ALWAYS; phase is derived from
                                                                T0/T1/seesaw facts later,
-                                                               never authored (DD-10)
+                                                               never authored
 4 LINT     node "${CLAUDE_PLUGIN_ROOT}/skills/ba-pitch-analyzer/scripts/spec-lint.mjs" --slug <slug>
            → PA1 (directory alignment), PA2 (>~15 files), DISJOINT (undeclared overlap).
            Fix reds by re-slicing, not by silencing.
@@ -92,7 +92,7 @@ round. Write it so someone without your context can answer it in one reply.
 `scopes/*.md` + `scope-board.md` in your substrate, then
 `.shapeup/<slug>/results/<order-suffix>.json`: `status`, `artifacts[]` (the contracts
 written/superseded), `deviations[]` (e.g. a discovered item implying a new UC — the planner's
-territory), `deviations[]` (any lint warn left standing and why). You never touch task files,
+territory — and any lint warn left standing, with why). You never touch task files,
 `tasks/_index.md`, spec docs, or run-state.
 
 ## Verification checklist

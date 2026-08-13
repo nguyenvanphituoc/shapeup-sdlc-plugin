@@ -26,16 +26,16 @@ dimensions, off by default.
 - id: SC-AC
   statement: "Every UC Step, Error Case, and (when present) Invariant/Test-Surface row for the
     use case(s) this task/feature implements is satisfied."
-  probe: cmd          # most are cmd; [ui]/[data] criteria use those probes per GATE V1.2 classification
+  probe: cmd          # most are cmd; [ui]/[data] criteria use those probes per the CONTRACT-phase classification
   evidence_required: true
   pass_rule: >
     Each criterion is drawn from usecases/UC-*.md (numbered ## Steps, ## Error Cases rows,
     ## Invariants [INV-NN] entries, ## Test Surface derived rows when present) for every UC
-    named in this task's use_case_refs (or confirmed with the user at V1.1 when no local task
-    file exists). Run each via its classified probe and PASS. Zero failing criterion.
+    named in this task's use_case_refs (or confirmed with the user at CONTRACT when no local
+    task file exists). Run each via its classified probe and PASS. Zero failing criterion.
     A stubbed/display-only implementation that satisfies a local task file's own AC wording but
     not the UC's actual behavior FAILS — the task's AC (if present) is a paraphrase read only
-    for traceability (GATE V0.2b), never the grading text itself.
+    for traceability, never the grading text itself.
   source: usecases
 
 - id: SC-DONE-WHEN

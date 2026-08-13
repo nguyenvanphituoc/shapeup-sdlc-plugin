@@ -510,7 +510,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Explicit dependencies. The inverse (unlocks) is ALWAYS derived by board-derive.mjs, never hand-authored (KB-BA-001)."
+          "description": "Explicit dependencies. The inverse (unlocks) is ALWAYS derived by board-derive.mjs, never hand-authored — hand-authored inverses drift asymmetric, observed repeatedly."
         },
         "use_case_refs": {
           "type": "array",
@@ -693,7 +693,7 @@
             "DOWNHILL_EXECUTION",
             "FINISHED"
           ],
-          "description": "ALWAYS authored as UPHILL_UNKNOWN (DD-10). The live phase is DERIVED from T0/T1/seesaw facts into hill/<scope-id>.yml — facts move dots, not authors."
+          "description": "ALWAYS authored as UPHILL_UNKNOWN — self-reported confidence is the risk this closes. The live phase is DERIVED from T0/T1/seesaw facts into hill/<scope-id>.yml — facts move dots, not authors."
         },
         "superseded_by": {
           "type": "array",
@@ -847,7 +847,7 @@
       }
     },
     "T0Citation": {
-      "description": "The judge's pointer to a mechanical T0 artifact. The evaluator RECOMPUTES sha256 from disk — a handed hash is never trusted; a verdict on a scoped spec without a citation is structurally invalid (PA4/DD-7: T0 is a machine fact the generator cannot fabricate).",
+      "description": "The judge's pointer to a mechanical T0 artifact. The evaluator RECOMPUTES sha256 from disk — a handed hash is never trusted; a verdict on a scoped spec without a citation is structurally invalid: T0 is a machine fact the generator cannot fabricate.",
       "x-tier": "EMBEDDED",
       "type": "object",
       "required": [
@@ -957,7 +957,7 @@
             "evidence": {
               "type": "string",
               "pattern": "[\\w./\\-]+:[0-9]+",
-              "description": "A FAIL must carry a file:line locator. Was stated 5x in spec-evaluator/SKILL.md prose and enforced 0x; a measured run returned a correct FAIL verdict with bugs[] null and no locator anywhere, so the finding could not be acted on without re-investigating. Now mechanical: validate-envelope rejects it before ingest."
+              "description": "A FAIL must carry a file:line locator. The rule used to live in prose and be enforced nowhere — a correct FAIL verdict with no locator anywhere is unactionable without re-investigating (observed, not theorized). Now mechanical: the ingest-side schema validation rejects it before any write."
             },
             "traces_to": {
               "type": "array",
@@ -1276,7 +1276,7 @@
       ]
     },
     "SeesawRegistry": {
-      "description": "The fixture registry of every FINISHED scope — what seesawCheck re-runs on each later attempt so a new scope cannot silently break a shipped one (PA5).",
+      "description": "The fixture registry of every FINISHED scope — what seesawCheck re-runs on each later attempt so a new scope cannot silently break a shipped one — a regression mistaken for progress is the pathology the seesaw exists for.",
       "x-tier": "LOCAL",
       "x-location": ".shapeup/<slug>/seesaw/registry.json",
       "x-writer": "tech-lead (when a scope reaches FINISHED)",
@@ -1346,7 +1346,7 @@
       }
     },
     "HillShard": {
-      "description": "One scope's hill position — DERIVED, never self-reported (DD-10): UPHILL_UNKNOWN (open unknowns > 0) → UPHILL_SOLVED (unknowns 0, no T0-green yet) → DOWNHILL_EXECUTION (≥1 T0-green; T1/seesaw pending) → FINISHED (T1 PASS ∧ seesaw green ∧ merged). Single-writer = whoever holds that scope's branch. Progress is reported by hill position, never task counts.",
+      "description": "One scope's hill position — DERIVED, never self-reported: UPHILL_UNKNOWN (open unknowns > 0) → UPHILL_SOLVED (unknowns 0, no T0-green yet) → DOWNHILL_EXECUTION (≥1 T0-green; T1/seesaw pending) → FINISHED (T1 PASS ∧ seesaw green ∧ merged). Single-writer = whoever holds that scope's branch. Progress is reported by hill position, never task counts.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/hill/<scope-id>.yml",
       "x-writer": "tech-lead (GATE L2 derivation)",
@@ -1806,8 +1806,8 @@
       }
     },
     "Lane": {
-      "description": "v1.2 DESIGN DRAFT — reserves the name and makes the policy reviewable; no envelope references it yet and no runtime reads it. When implemented, the lane is pipeline knowledge: the orchestrator compiles it away into existing registered knobs (payload.lens, payload.dimensions, interaction gate policy) — it NEVER rides in WorkOrderPayload, so workers stay pipeline-blind.",
-      "x-tier": "EMBEDDED (when implemented: recorded in harness-run.md frontmatter `lane:` — never a WorkOrderPayload field)",
+      "description": "The run's lane (full|tiny), computed by fit-check.mjs at GATE L0.3 and recorded in harness-run.md frontmatter `lane:` (with its evidence, and marked overridden when --lane/--tiny outranks the recommendation); RunArgs.lane carries it to the workflow launch. The lane is pipeline knowledge: the orchestrator compiles it away into existing registered knobs (lens, budgets, gate policy) — it NEVER rides in WorkOrderPayload, so workers stay pipeline-blind.",
+      "x-tier": "EMBEDDED (recorded in harness-run.md frontmatter `lane:` — never a WorkOrderPayload field)",
       "x-writer": "tech-lead (GATE L0 lane selection)",
       "x-readers": "tech-lead only",
       "x-lane-policy": {
@@ -1853,7 +1853,7 @@
       ]
     },
     "RequirementClause": {
-      "description": "One atomic customer requirement, frozen with a STABLE id — the covers-closure input truth (spine v1.3). Extracted from the REQ source (Open Decision A: pitch / customer-requirements doc / use-case bodies) by  extraction is judgment (LLM), but ids are assigned ONCE and never renumber (they behave like scope_id, not TASK-NNN — every covers: link would rot otherwise). Supersede-never-delete: a dropped clause is marked CUT (PO-approved), never removed, so the registry stays auditable on a fresh clone. The original REQ source is never edited — the registry is a separate derived, committed file.",
+      "description": "One atomic customer requirement, frozen with a STABLE id — the covers-closure input truth (spine v1.3). Extracted from the REQ source (pitch / customer-requirements doc / use-case bodies) by the planner — extraction is judgment (LLM), but ids are assigned ONCE and never renumber (they behave like scope_id, not TASK-NNN — every covers: link would rot otherwise). Supersede-never-delete: a dropped clause is marked CUT (PO-approved), never removed, so the registry stays auditable on a fresh clone. The original REQ source is never edited — the registry is a separate derived, committed file.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/requirements.md",
       "x-writer": "ba-pitch-analyzer (operation: coverage) — extraction only; CUT status is a PO governance edit (same class as a round-ledger Decision)",
@@ -2272,9 +2272,9 @@
       }
     },
     "RunArgs": {
-      "description": "C1 — the launch half of the workflow's only conversation. Compiled ONCE by tech-lead at GATE L0 from init-run.mjs output + the L0.8 model matrix + budgets, then passed to Workflow({scriptPath, args}) as one JSON literal — the workflow cannot ask follow-ups and cannot read config files itself, so everything a run will ever need travels in this one record. A workflow script validates its own subset of this shape in code (no runtime schema check at the C1 boundary itself); this entry is the central-registry definition the workflow script and the tech-lead skill both read as the one true shape.",
+      "description": "C1 — the launch half of the workflow's only conversation. Compiled ONCE by tech-lead at GATE L0 from init-run.mjs output + the L0.8 model matrix + budgets, written to .shapeup/<slug>/run-args.json and handed to the run-workflow.mjs launch as one JSON literal — the workflow cannot ask follow-ups and cannot read config files itself, so everything a run will ever need travels in this one record. A workflow script validates its own subset of this shape in code (no runtime schema check at the C1 boundary itself); this entry is the central-registry definition the workflow script and the tech-lead skill both read as the one true shape.",
       "x-tier": "EMBEDDED",
-      "x-location": "in-memory only — a Workflow launch argument, never written to disk",
+      "x-location": ".shapeup/<slug>/run-args.json — written fresh by tech-lead on every launch and relaunch; the workflow receives it as its args and never reads other config",
       "x-writer": "tech-lead (GATE L0, on every launch AND every relaunch after a paused gate)",
       "x-readers": "the Workflow runtime (shapeup-run, and shapeup-run's own inner round dispatch)",
       "x-not-here": "Run config the LEDGER already carries does NOT get a second home in RunArgs — eval_dimensions, lens, spec_folder, stack, run_cmd, app_url are read off harness-run.md frontmatter by resume-state on every launch AND every relaunch, so a copy here would be a second source that can disagree with the first. RunArgs carries what a workflow cannot derive from disk (identity, budgets, the model matrix, pluginRoot, startedAt) plus noEval, which no frontmatter line holds.",
@@ -2307,7 +2307,7 @@
         },
         "models": {
           "type": "object",
-          "description": "The L0.8 role -> model matrix, resolved once. D5 floor: sonnet or above on every role, including mechanical couriers — no exceptions.",
+          "description": "The L0.8 role -> model matrix, resolved once. The model floor: sonnet or above on every role, including mechanical couriers — no exceptions.",
           "properties": {
             "exec": {
               "type": "string"

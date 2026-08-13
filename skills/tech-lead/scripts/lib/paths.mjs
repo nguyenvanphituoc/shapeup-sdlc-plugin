@@ -2,10 +2,11 @@
 //
 // WHY THIS FILE EXISTS (measured by grepping the shipped tree, not theorized).
 //
-// The two storage roots were hard-coded in ~90 files, in TWO syntaxes that no single search finds:
+// The two storage roots were hard-coded across the tree in TWO syntaxes that no single search
+// finds:
 //
-//     "docs/shapeup-sdlc/<slug>/scopes/..."            568 string literals
-//     join(cwd, "docs", "shapeup-sdlc", slug, ...)      48 segment-built sites
+//     "docs/shapeup-sdlc/<slug>/scopes/..."            spelled string literals
+//     join(cwd, "docs", "shapeup-sdlc", slug, ...)      segment-built sites
 //
 // A find/replace over the first set leaves the second silently pointing at the old root. That is
 // the failure mode this project keeps rediscovering: a change that appears complete, produces no
@@ -267,13 +268,13 @@ export const globLocal = (slug, ...parts) => [LOCAL, slug, ...parts].join("/");
  * A deliverable glob, POSIX-separated for the same reason as {@link globLocal}.
  * @param {string} slug - Feature slug.
  * @param {...string} parts - Glob segments under the feature's shared root.
- * @returns {string} e.g. `docs/shapeup-sdlc/checkout/scopes/*.json`.
+ * @returns {string} e.g. `shapeup/checkout/scopes/*.md`.
  */
 export const globShared = (slug, ...parts) => [SHARED, slug, ...parts].join("/");
 
 /**
  * The coaching file a coachable worker reads, as a repo-relative path for the WorkOrder payload.
  * @param {string} skill - Worker name (task-executor | ba-pitch-analyzer | qa-edge-hunter).
- * @returns {string} e.g. `docs/shapeup-sdlc/knowledge-base/task-executor.md`.
+ * @returns {string} e.g. `shapeup/knowledge-base/task-executor.md`.
  */
 export const relKnowledgeBase = (skill) => [SHARED, "knowledge-base", `${skill}.md`].join("/");

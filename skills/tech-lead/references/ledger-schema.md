@@ -6,7 +6,7 @@ not a shared deliverable). It is the structured
 artifact that carries state across rounds and across sessions (so `--from` can resume), and
 the PO's audit of how the feature was built.
 
-**The tech lead is the sole writer of this file** (redesign doc D6). It is the authoritative
+**The tech lead is the sole writer of this file.** It is the authoritative
 run-state for the whole build phase — rounds, gate decisions, Hill positions, verdicts,
 `discovered_rounds`, config, language record. Workers never write here; the tech lead passes
 them what they need (`feature`, `spec`, `stack`, `discovered_rounds`) as args. The board
@@ -71,7 +71,7 @@ Position triggers:
 - ✅ **Done** — slice clickable-done.
 
 Source: `orient/hill-signal.md` (area-level, at L1a) then the board + open SPIKE/contract state
-(slice-level, L1b onward). If slice IDs aren't on the board yet (D3 deferred), report at
+(slice-level, L1b onward). If slice IDs aren't on the board yet, report at
 task-group level and note the fallback here.
 
 ## Decisions log
@@ -116,7 +116,7 @@ Decision owner: PO.
 
 Lives at `shapeup/<slug>/round-ledger.md` (SHARED root, tracked). Not a replacement
 for `harness-run.md` — a small, committed **subset** of it: the two things that must survive
-a `.shapeup/` wipe or a crash (design spec addendum §F.3). Absent on specs with no scope
+a `.shapeup/` wipe or a crash. Absent on specs with no scope
 contracts; `harness-run.md`'s existing Decisions log stays the only ledger there.
 
 ```yaml
@@ -144,7 +144,7 @@ budgets:
 ```
 **Promotion timing:** a row is appended the INSTANT the PO answers —
 never batched to round close. This is the file `task-executor`'s isolated briefs read back
-(zero-memory handoff, DD-8): an answer given once in round 2 must still be known in round 5's
+(the zero-memory handoff): an answer given once in round 2 must still be known in round 5's
 fresh-context attempt without replaying any chat history.
 
 ---
@@ -156,16 +156,16 @@ FAIL-loop, and QA reconcile; worthless after ship. At SHIP the tech-lead **harve
 the durable-mineable *signals* out of it into one append-only row:
 
 ```
-shapeup/metrics/<machine-id>.jsonl   # one row = one e2e run; COMMITTED (tracked)
+.shapeup/metrics/<machine-id>.jsonl   # one row = one e2e run; LOCAL (gitignored)
 ```
 
-Path note: the per-slug local run dirs `.shapeup/[slug]/` are gitignored wholesale
-(`.shapeup/`), but `metrics/` lives under the **shared** workspace
-`shapeup/` and stays **tracked** — it is the committed report surface, the
-durable signal feed that survives the gitignored run-trace. Sharded per machine (addendum
-Δ3) so concurrent runs append without merge-conflicting on one file; an aggregate view is
-`cat shapeup/metrics/*.jsonl`. `schema_version` makes a v2.1 row readable by later
-skill versions.
+Path note: `metrics/` lives under the LOCAL root with the rest of the run trace — moved
+there by ADR-0001, because a committed shard keyed on `$HOSTNAME` only grows and puts a
+person's machine name in the repo. It outlives any single run (the per-slug run dirs are
+superseded run by run; the shard only appends), which is what makes it the durable signal
+feed. Sharded per machine so shards can be pooled deliberately without colliding on one
+filename; the read plane is `stats.mjs`, or `cat .shapeup/metrics/*.jsonl`.
+`schema_version` makes an old row readable by later skill versions.
 
 ### Two hard rules (same discipline as the Test Surface: *derived, never invented*)
 1. **Harvest only fields that already exist as structured output at ship time.** If a
@@ -191,7 +191,7 @@ fixtures run in isolation and do not consume it.
 | `scope_cut_count` | `~` items cut at SHIP S.0 | appetite pressure / scope hammer |
 | `qa_findings` | `.shapeup/<slug>/qa/hunt-report.md` + triage → `{total, promoted, held}` | edge quality |
 | `slice_count` | breadboard B5 (≤9) | **normalizer / denominator** |
-| `sources` | path to each **SHARED** source artifact — never a LOCAL `.shapeup/` path (this row is committed; the run-trace is gitignored/wiped, so a LOCAL path dangles on every clone — tier-direction rule) | auditability |
+| `sources` | path to each **SHARED** source artifact — never a LOCAL `.shapeup/` path (the run-trace is superseded run by run, so a LOCAL path dangles by the time anyone reads the row; SHARED paths resolve on any clone — tier-direction rule) | auditability |
 
 - `slice_count` is the **denominator**: `round_count=4` on a 2-slice feature is alarming,
   on a 9-slice feature is normal. Without it, e2e comparisons are apples-to-oranges.

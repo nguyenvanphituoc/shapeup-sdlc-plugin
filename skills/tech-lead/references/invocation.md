@@ -34,7 +34,7 @@ disclosure). Read this when you need the exact CLI shape or a flag's effect.
 | `--unattended` | Auto-confirm all L-gates (headless / CI) |
 | `--max-rounds N` | BUILD→EVAL cycles before escalating (default 3) — the OUTER breaker |
 | `--attempts N` | Per-scope T0 attempts before queuing a GATE H hammer proposal (default 5) — the INNER breaker; no-op on specs without scope contracts |
-| `--orch-model / --exec-model / --eval-model / --qa-model <name>` | Override L0.8's resolved model matrix for this run only (highest precedence) |
+| `--exec-model / --eval-model / --qa-model <name>` | Override L0.8's resolved model matrix (`RunArgs.models`: exec/eval/qa) for this run only — highest precedence. The orchestrator itself runs in-session; it has no model knob here |
 | `--from orient\|plan\|build\|eval` | Resume an in-progress run at a build-phase step |
 | `--no-eval` | Skip the evaluation pass this run (trivial feature) |
 | `--no-qa` | Skip the post-PASS /qa-edge-hunter pass (ledger records `qa: skipped`) |

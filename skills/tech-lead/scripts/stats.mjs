@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Stats — the telemetry read-plane (v1.2).
 //
-// SHIP S.6 has been writing fact rows to shapeup/metrics/<machine-id>.jsonl since
+// SHIP S.6 has been writing fact rows to .shapeup/metrics/<machine-id>.jsonl since
 // v0.x with exactly one documented reader: `cat *.jsonl`. This script is the missing
 // projection: rounds per pitch, hammer-cut rate, attempt-budget exhaustions, QA promotion
 // rate, and the round_count trend — the "is the KB flywheel actually working?" chart.
@@ -149,10 +149,10 @@ export function aggregate({ rows, pathologies, sources, rows_malformed }, { metr
 // they reduce over artifacts the harness already writes while doing its ordinary work.
 
 /**
- * `--ratchet` — DAY 1's exit criterion, measured.
+ * `--ratchet` — does the build loop actually ratchet?
  *
- * Every measurement in this project's record so far has been HARNESS VERSUS BARE AGENT — a
- * question already answered. This one is THE LOOP VERSUS ITS OWN FIRST ATTEMPT, and it cannot be
+ * The question harness-versus-bare-agent is already answered elsewhere. This one is THE LOOP
+ * VERSUS ITS OWN FIRST ATTEMPT, and it cannot be
  * won by a one-sentence control, because a one-sentence control has no second attempt to compare.
  *
  * A monotone series is a ratchet working. A flat or sawtooth series says the loop is still a
@@ -220,12 +220,11 @@ export function ratchetReport(trials) {
 }
 
 /**
- * `--hooks` — DAY 2's instrument.
+ * `--hooks` — do the enforcement points actually fire?
  *
- * Of the eight tools built against a MEASURED failure, several scores were previously unobtainable
- * because "never had to fire" and "never ran" produced the same evidence. With a decision row per
- * evaluation, `compact-snapshot` (0 PreCompact events across 1.2M tokens) and `gate-zerowork`
- * ("never had to fire after the fix") become SEPARABLE FACTS rather than the same blank.
+ * For a hook, "never had to fire" and "never ran" used to produce the same evidence: exit 0,
+ * empty stdout. With a decision row per evaluation, a hook that sat inert and a hook that
+ * inspected-and-permitted become SEPARABLE FACTS rather than the same blank.
  *
  * @param {Array<object>} decisions - Rows from `.shapeup/decisions.jsonl`.
  * @returns {{evaluations:number, hooks:number, per_hook:Array<object>}} Per-hook fire, allow, deny,
