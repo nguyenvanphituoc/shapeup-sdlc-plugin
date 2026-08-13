@@ -105,8 +105,8 @@ The scoped lane launches through `skills/tech-lead/scripts/run-workflow.mjs`, so
 `init` already writes covers it — if you ran `init` at any point, you have this and nothing changes.
 
 **Do not launch the lane with the `Workflow` tool.** That call is denied by default in a headless
-session ("Review dynamic workflow before running"). This is measured, not theoretical: across six
-benchmark runs of the pre-fix build, `shapeup-run.js` executed **zero** times — each session quietly
+session ("Review dynamic workflow before running"). This is observed, not theoretical: left to
+that path, pre-fix sessions never executed `shapeup-run.js` at all — each quietly
 improvised the feature by hand instead, once reaching GATE L4 with a valid receipt while the
 pipeline had never started. **A receipt does not prove the lane ran** — the run's first act writes
 one, so a receipt attests that a session started, never that the pipeline executed. If your own
@@ -114,10 +114,10 @@ scripts launch the harness, launch
 `run-workflow.mjs` as a background Bash call and read `<run-dir>/result.json`.
 
 <details>
-<summary>If you would rather use the <code>Workflow</code> tool anyway — the trade-off, measured</summary>
+<summary>If you would rather use the <code>Workflow</code> tool anyway — the trade-off, verified</summary>
 
 Adding the bare token `"Workflow"` to `permissions.allow` **does** unblock the tool headlessly
-(verified in the benchmark's own configuration: untrusted temp workspace, explicit `--settings`,
+(verified in a headless configuration: untrusted temp workspace, explicit `--settings`,
 `--permission-mode acceptEdits` — zero denials with the entry, denied without it). If you prefer
 the native runtime's resume-from-runId and worktree isolation, that one line is all it takes.
 
@@ -155,7 +155,7 @@ normal, zero-exit outcome that expects a relaunch, not a failure to retry differ
 **Pin `1.6.3`.** Per decision D2 there are no dual paths — the prose orchestrator was deleted for
 the scoped lane rather than kept as a fallback, so downgrading the package is the only way back.
 
-Know what else the pin takes with it: this release also carries the day-2 ratchet work, which is
+Know what else the pin takes with it: this release also carries the attempt-ratchet work, which is
 unrelated to the orchestrator, and six of its files ship — `skills/orient/SKILL.md`,
 `skills/qa-edge-hunter/SKILL.md`, `skills/task-executor/SKILL.md`,
 `skills/tech-lead/references/delegation.md`, `skills/tech-lead/references/round-protocol.md`,

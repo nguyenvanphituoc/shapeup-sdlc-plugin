@@ -400,12 +400,12 @@ pre.mermaid[data-processed] {
     <div>
       <p class="eyebrow">shapeup-sdlc · plugin runtime · post ADR-0001/0002</p>
       <h1>Anatomy of a constrained agent runtime</h1>
-      <p class="lede">Thirteen skills, eleven hooks and eighteen scripts arranged around one
+      <p class="lede">Twelve skills, eleven hooks and nineteen scripts arranged around one
       idea: an agent's word is never load-bearing. This document draws the machine, then
       explains why each skill's own definition <em>forces</em> the mechanism attached to it.</p>
       <div class="meta">
         <span><b>Scope</b> hooks · pipeline scripts · envelope schemas · skill contracts</span>
-        <span><b>Suite</b> 803 structural checks, passing</span>
+        <span><b>Suite</b> 917 structural checks, passing</span>
         <span><b>Plates</b> six</span>
       </div>
     </div>
@@ -450,7 +450,7 @@ pre.mermaid[data-processed] {
         <div class="planes">
           <div class="plane">
             <div class="who">Policy</div>
-            <div class="what">11 registrations on <em>PreToolUse · Stop · SessionStart · PreCompact</em>.
+            <div class="what">12 registrations on <em>PreToolUse · Stop · SessionStart · PreCompact</em>.
               Deny a dispatch, block a stop, inject state. Cannot be argued with because they
               run outside the conversation.</div>
             <div class="cost">0 tokens</div>
@@ -458,7 +458,7 @@ pre.mermaid[data-processed] {
           <div class="plane-gap">↑ verdicts · receipts appended to decisions.jsonl</div>
           <div class="plane">
             <div class="who">Pipeline</div>
-            <div class="what">18 scripts. <em>compile-order → ingest-result → t0-verify</em>.
+            <div class="what">19 scripts. <em>compile-order → ingest-result → t0-verify</em>.
               Compiles the envelope going in, applies the envelope coming out, runs the fixtures,
               scores the attempt, moves the tree.</div>
             <div class="cost">0 tokens</div>
@@ -466,7 +466,7 @@ pre.mermaid[data-processed] {
           <div class="plane-gap">↑ WorkOrder in ↓ WorkResult out — both schema-validated</div>
           <div class="plane craft">
             <div class="who">Craft</div>
-            <div class="what">13 skills. Judgment, decomposition, code, grading. The only plane
+            <div class="what">12 skills. Judgment, decomposition, code, grading. The only plane
               that reasons — and the only plane whose output is treated as a
               <em>claim</em> rather than a fact.</div>
             <div class="cost">all of them</div>
@@ -486,7 +486,7 @@ pre.mermaid[data-processed] {
   <div class="mark">§3<br>Plate 2</div>
   <div>
     <h2>The run, end to end</h2>
-    <p>A run is eleven gates over three phases. What matters in this drawing is not the
+    <p>A run is ten gates over three phases. What matters in this drawing is not the
     sequence — it is which arrows a script controls and which a hook can sever.</p>
 
     <div class="plate">
@@ -552,10 +552,10 @@ flowchart TD
       </div>
     </div>
     <p class="plate-note">Four denial points and one advisory, each closing a failure that was
-    measured rather than imagined. <code>gate-intake</code> exists because a benchmark hand-off dropped
+    observed rather than imagined. <code>gate-intake</code> exists because a hand-off once dropped
     the requirement text and kept the flags. <code>gate-zerowork</code> exists because an
-    orchestrator once printed its own pipeline in future tense and stopped — scoring 29% while
-    reading like a clean run.</p>
+    orchestrator once printed its own pipeline in future tense and stopped — reading like a
+    clean run while leaving every defect in the deliverable.</p>
   </div>
 </section>
 
@@ -771,10 +771,10 @@ flowchart LR
       </div>
     </div>
     <p class="plate-note">Both original breakers count <em>events</em>, so neither could observe
-    a single round running for twenty-nine minutes. The third exists because a benchmark row was
-    killed at its 1800-second cap while genuinely working — 327 turns, 37 file writes, narration
-    ratio 0.047 — and shipped nothing. Tripping inward routes to GATE H instead of dying: the
-    difference between a dash in every column and a smaller feature that works.</p>
+    a single round running for half an hour. The third exists because a run was once
+    killed at an external time cap while genuinely working — deep in honest activity, files
+    written, barely narrating — and shipped nothing. Tripping inward routes to GATE H instead of
+    dying: the difference between a dash in every column and a smaller feature that works.</p>
   </div>
 </section>
 

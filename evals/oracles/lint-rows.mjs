@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-// Row renderer for the Tier-1 lint oracles — REPO-ONLY dev/CI asset, zero spend, zero judgement.
+// Row renderer for the lint oracles — REPO-ONLY dev/CI asset, zero spend, zero judgement.
 //
 // WHY THIS FILE EXISTS, AND WHAT IT DELIBERATELY IS NOT.
 //
 // The thesis this file is built on: a rubric should be a LOOKUP rather than a
-// judgement: each of these five skills is sole writer of a committed artifact that a deterministic
+// judgement: each of the skills graded here is sole writer of a committed artifact that a deterministic
 // script already grades, so the rubric delegates and inherits none of an author's blind spots.
 // The obstacle is a format mismatch, not a semantic one — `spec-lint.mjs` and `trace-lint.mjs`
 // print a JSON report, and `detector.rows` needs `PASS <id> <label>` lines so a criterion can score
 // the FRACTION of rows passing. Without rows a five-rule contract scores 0 or 1 and the delta has
-// two reachable values; that defect is already on the record (fifteen consecutive rounds at 4-of-5,
-// every one recorded as 0.0).
+// two reachable values; that defect is already on the record (a contract that sat one rule short
+// of perfect for round after round, every one recorded as 0.0).
 //
 // So this is a FORMATTER. Every row is a read of a report the real oracle produced — this file
 // imports `lint()` and `traceLint()` rather than re-implementing them, because a second
@@ -20,9 +20,9 @@
 //
 //   * VACUOUS TRUTH IS NOT A PASS. "no scope violates PA1" is trivially true of a draft that wrote
 //     no scopes, and a lint that reports zero findings for zero artifacts would score an empty
-//     directory 1.0. Structural §48(d) already asserts an empty draft must score at or below the
-//     weak floor, so every profile below fails ALL of its rows when the artifact it grades is
-//     absent. This is not a stricter reading of the oracle; it is the difference between "checked
+//     directory 1.0. So every profile below fails ALL of its rows when the artifact it grades is
+//     absent — an empty draft must never outscore a weak real one.
+//     This is not a stricter reading of the oracle; it is the difference between "checked
 //     and clean" and "nothing to check", which a findings array cannot express.
 //
 //   * COVERAGE ROWS. Two rows (SA-COVERAGE, WM-UC-COVERAGE) assert that the artifact accounts for
@@ -30,7 +30,8 @@
 //     existing oracle checks these. They are therefore AUTHORED, they are counted as authored in
 //     the rubric's own note, and they exist because without them a one-line artifact maximises the
 //     fraction: a single scope claiming nothing passes PA1/PA2/DISJOINT by having nothing to
-//     violate. Both are derivable from the fixture's own seeded input, which is §0's binding rule.
+//     violate. Both are derivable from the fixture's own seeded input — the binding rule for any
+//     authored row, so the apparatus never becomes the target.
 //
 // Usage:  node evals/oracles/lint-rows.mjs --profile <scopes|wiring|spec> --slug <slug> [--cwd <dir>]
 // Output: one `PASS|FAIL  <ID>  <label>` line per row, then a summary line.
@@ -119,7 +120,7 @@ export function scopeRows({ cwd, slug }) {
       // SEEDED, and this is a correction to the first version of this row rather than a nicety.
       // Run against an EMPTY store, `done 1` exits non-zero — there is no item 1 — so a perfectly
       // good fixture would fail for a reason that is about the probe's environment, not about the
-      // skill. That is plan §0 risk 2 (the apparatus becoming the target) and it was caught by the
+      // skill. That is the apparatus becoming the target, and it was caught by the
       // hand-authored STRONG reference failing its own row. The fact this row exists to check is
       // "does this command EXIST in the built CLI", so the state it needs to exercise is supplied.
       // Fresh store per probe: these write, and one fixture must not set up the next.
@@ -134,7 +135,7 @@ export function scopeRows({ cwd, slug }) {
       // The first version spawned a split argv; production runs `spawnSync(cmd, {shell: true})`, so
       // the shapes a worker legitimately writes — `TODO_STORE=$X node … # what this asserts` — ran
       // fine at GATE L2 and failed here. A row that grades a command differently from the gate that
-      // will actually run it is measuring the eval harness, which is plan §0 risk 2 again.
+      // will actually run it is measuring the eval harness — the apparatus becoming the target again.
       const prev = process.env.TODO_STORE;
       process.env.TODO_STORE = store;
       let r;

@@ -44,11 +44,11 @@ fresh subagent that only ever sees what `compile-order.mjs` chose to put in the 
 prior chat — and the **seesaw check** inside T0, which re-runs other scopes' fixtures to catch a
 regression before it's mistaken for progress.
 
-> This round is row **5** of the measurement table
-> ([§5.1](05-verification-and-quality-strategy.md#51--the-measurement-table)). Its measured result
-> is acceptance **identical to running without the harness** on uninterrupted work — a real
-> finding, and a narrow one: it is a statement about a single context window and says nothing about
-> what survives across one (row 6).
+> This round is row **2** of the measurement table
+> ([§5.1](05-verification-and-quality-strategy.md#51--the-measurement-table)). Its verdicts are
+> per-run T0/seesaw facts; no acceptance-vs-baseline comparison is maintained. And any acceptance
+> observed in an uninterrupted round is a statement about a single context window — it says
+> nothing about what survives across one (row 3).
 
 ## 4.3 — The circuit breakers
 

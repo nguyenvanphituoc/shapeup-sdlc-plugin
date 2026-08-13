@@ -228,7 +228,7 @@ erDiagram
 |---|---|---|---|---|
 | `VerdictLedgerLine` | LOCAL | `evaluation/.verdicts-<target>.jsonl` | ingest-result.mjs | spec-evaluator (flip detection), verdict-ledger.mjs |
 | `SeesawRegistry` | LOCAL | `seesaw/registry.json` | tech-lead (scope FINISHED) | t0-verify.mjs |
-| `MetricsRow` | SHARED | `metrics/<machine-id>.jsonl` | tech-lead (SHIP S.6) | tier-3 benchmark tooling, stats.mjs (v1.2: optional `at` + `attempt_exhaustions` fields) |
+| `MetricsRow` | SHARED | `metrics/<machine-id>.jsonl` | tech-lead (SHIP S.6) | stats.mjs (v1.2: optional `at` + `attempt_exhaustions` fields) |
 | `ActiveScopePointer` | LOCAL | `.shapeup/active-scope` | tech-lead (BUILD step 0) | run-scoping for the advisory/Stop hooks — not writable by any worker |
 | `ActiveOrderPointer` | LOCAL | `.shapeup/active-order` | the run (written before each worker dispatch) | sandbox-guard hook — the substrate it enforces is read through this pointer |
 | `SafetyOverrides` (v1.2) | LOCAL | `.shapeup/safety-overrides.json` | **human PO only** — outside the run-trace carve-out, so no worker can write it | safety-spine hook |

@@ -34,7 +34,7 @@ Pin to a released version:
 ```
 
 > **This path installs the plugin and nothing else — in particular, no permission grant.**
-> Measured on a fresh project: `/plugin install` leaves `permissions.allow` empty, because it
+> Observed on a fresh project: `/plugin install` leaves `permissions.allow` empty, because it
 > registers the plugin and knows nothing about what the plugin needs to run.
 >
 > Every load-bearing step of a run is a Node script that ships *with* the plugin and therefore lives
@@ -42,8 +42,8 @@ Pin to a released version:
 > once and forget it, which is why this is still the right way to try the harness.
 >
 > **Unattended, it is fatal.** There is nobody to approve, and the run cannot take its first step:
-> measured at **26 approval denials in a single session**, after which the agent gave up on the
-> harness and built the feature by hand. Before any headless or `--unattended` run, get the grant by
+> the session stalls into approval denial after approval denial until the agent gives up on the
+> harness and builds the feature by hand. Before any headless or `--unattended` run, get the grant by
 > either running the scaffolding installer —
 >
 > ```bash

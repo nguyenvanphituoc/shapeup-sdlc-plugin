@@ -1,7 +1,7 @@
 # Raw idea — `wl`, a work-log CLI
 
-The **scale** fixture for the Day-1 loop, and the escalation dial is deliberate. Three prior
-escalations raised the *complexity of one artifact* and the ceiling did not move. This one raises
+The **scale** fixture of the spine, and the escalation dial is deliberate. Escalations that
+raised the *complexity of one artifact* did not move the ceiling. This one raises
 the **number of constraints that must stay mutually consistent** — the bookkeeping surface, not the
 difficulty of any single decision. Every individual judgement below is easy; there are just a lot of
 them and they have to agree with each other.

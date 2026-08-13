@@ -1,8 +1,8 @@
 # Raw idea — `todo` CLI
 
-The seed of the Day-1 fixture spine. One authored artifact grounds four measurements, so this file
+The seed of the fixture spine. One authored artifact grounds everything downstream, so this file
 is the only place the domain is invented; every stage after the first runs against a FROZEN
-reference copy of the previous stage's output rather than against a live one (plan §3).
+reference copy of the previous stage's output rather than against a live one.
 
 ## The pitch (one paragraph)
 

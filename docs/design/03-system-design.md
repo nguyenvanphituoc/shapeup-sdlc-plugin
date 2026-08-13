@@ -166,11 +166,11 @@ One `Stop`-event hook may block, and its predicate is why the invariant survives
 |---|---|---|
 | `gate-zerowork.mjs` | Session end | Blocks a session that **dispatched the orchestrator and left no run receipt** — no `.shapeup/<slug>/receipt.json`, which `init-run.mjs` writes as the run's first act (§3.2d). |
 
-**Why it exists.** Measured on `sdd-harness-bench` (F2 / Haiku 4.5, n=5, zero variance): given a
-*valid* spec, the orchestrator loaded a 450-line instruction file describing eleven gates and
-returned a description of eleven gates — "The tech-lead skill is orchestrating the full Shape Up
+**Why it exists.** Observed repeatedly, not theorized: given a
+*valid* spec, the orchestrator loaded a 450-line instruction file describing the gates and
+returned a description of those gates — "The tech-lead skill is orchestrating the full Shape Up
 harness. It will: 1. …" — then ended. No code, no board, no gate artifacts, and prose that reads
-like a successful run. 29% acceptance, 10 escaped defects.
+like a successful run, with every defect left in the deliverable.
 
 **Why nothing already caught it.** Two guards existed and both missed it for independent
 structural reasons, which is the finding worth keeping:
@@ -203,7 +203,7 @@ never a `decision`. Both are harness-scoped — silent unless a run is active.
 
 ## 3.2d — The run receipt and the gate answer set
 
-Two small scripts in `skills/tech-lead/scripts/` close the two failures the benchmark surfaced.
+Two small scripts in `skills/tech-lead/scripts/` close two failures observed in real runs.
 Both follow the same rule as the hooks: move the invariant out of the prompt and into the runtime.
 
 **`init-run.mjs` — the run receipt (GATE L0.1).** The orchestrator's first tool call, before any
@@ -212,18 +212,19 @@ prose. It writes `receipt.json`, `intake.md` (the requirement verbatim, plus its
 run started*. Every prior guard could only observe what a run **did**, so a run that did nothing
 was invisible to all of them; the receipt makes starting observable independently of progress.
 Recording the intake digest also makes "the spec was dropped on the hand-off" a checkable claim
-rather than an arguable one — the benchmark's first diagnosis was exactly that, and nothing on
-disk could settle it either way.
+rather than an arguable one — that is routinely the first diagnosis offered for a narrated run,
+and previously nothing on disk could settle it either way.
 
 **`gate-answers.mjs` — pre-recorded gate decisions.** Sign-off was the last load-bearing
 invariant still living in a prompt, and it failed in both directions:
 
 - *Stall.* An unattended run with no human waits at the first ⏸ until the wall-clock budget
-  expires. On benchmark F3 that produced a DNF at 1800 s on a feature the no-harness control
-  finished in 51 s. A wait is indistinguishable from work until the budget runs out.
+  expires — a run killed at an external time cap having produced nothing scoreable, on a
+  feature a bare agent finishes in under a minute. A wait is indistinguishable from work until
+  the budget runs out.
 - *Consent-by-prose.* The workaround was a paragraph in the prompt ("treat this as advance
-  sign-off for every gate"). It worked on Sonnet 5 and was re-summarised instead of acted on by
-  Haiku 4.5. Consent carried in prose is consent that can be paraphrased.
+  sign-off for every gate"). It worked on one model and was re-summarised instead of acted on
+  by another. Consent carried in prose is consent that can be paraphrased.
 
 The answer set is a schema-validated file (`schemas/gate-answers.schema.json`) mapping each gate
 id to a decision, with presets `ci` / `guarded` / `interactive`. The orchestrator **resolves**
@@ -308,19 +309,18 @@ The resilience pair makes re-reading the files a reflex:
   the work up in a fresh checkout, and the CLI calls that `startup`. A reflex whose whole purpose is
   *trust the files, not your memory* did not fire in the one case where there is no memory at all.
 
-  The SDD harness benchmark priced it. Its handoff design is exactly that scenario, and across three
-  Sonnet rows the orchestrator re-entered at phase 1 with no pointer to the open run: **82–120 turns
-  before the first write, $4.57–$10.36 per session, and 0/3 of the gap closed** while the receipt and
-  board sat on disk. One row reached GATE L4 having advanced the deliverable by zero criteria. On a
+  The cost has been observed, not imagined: re-entering exactly that scenario with no pointer to
+  the open run, the orchestrator started over at phase 1, burning most of a session re-deriving
+  state before its first write and closing none of the handoff gap while the receipt and board sat
+  on disk — one such run reached GATE L4 having advanced the deliverable by zero criteria. On a
   cold start the injection therefore leads with the failure that actually happens — *a run is already
   open, resume it, do not re-open it* — rather than with a generic pointer to the files, which a
   competent agent finds anyway.
 
-  > Both numbers in that paragraph are rows in the measurement table —
-  > [§5.1](05-verification-and-quality-strategy.md#51--the-measurement-table) rows **6**
-  > (continuity: 0/3) and **7** (run economics: 82–120 turns, $4.57–$10.36). They are also the two
-  > rows with **no automated instrument**, which is why the figures here are quoted from a
-  > benchmark run rather than read off a baseline file.
+  > Continuity and run economics are also the two measurement-table rows with **no automated
+  > instrument** ([§5.1](05-verification-and-quality-strategy.md#51--the-measurement-table)
+  > rows **3–4**) — the harness cannot produce those figures for itself, which is why this
+  > paragraph reports observations rather than numbers read off a baseline file.
 
 ## 3.3 — Two storage roots
 

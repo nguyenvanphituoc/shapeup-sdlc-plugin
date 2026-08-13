@@ -205,11 +205,10 @@ What each one reads and what it can deny:
   `warn` row. Advisory since ADR-0001 — the board is per-machine and the operator asked for the
   call. This is the gate in the demo above.
 - `PreToolUse` (matcher `Skill`) — **`hooks/gate-intake.mjs` denies a `tech-lead` dispatch that
-  carries no pitch, no spec folder, and no requirement text.** Measured on the SDD harness
-  benchmark: when the requirement text was dropped on the hand-off and only a flag survived, the
-  run printed the gate list, built nothing, and scored 29% against a hidden acceptance suite while
-  looking like a success (n=3, zero variance). An orchestrator with no spec now fails loudly
-  instead of narrating.
+  carries no pitch, no spec folder, and no requirement text.** Observed, not theorized: when the
+  requirement text is dropped on the hand-off and only a flag survives, the run prints the gate
+  list, builds nothing, and reads like a success while leaving every defect in the deliverable.
+  An orchestrator with no spec now fails loudly instead of narrating.
 - `PreToolUse` (matcher `Skill`) — **`hooks/gate-deadline.mjs` denies a `task-executor` dispatch
   once the run's opt-in wall-clock budget is spent**, routing to GATE H instead. `spec-evaluator`,
   `scope-hammer` and `qa-edge-hunter` stay reachable — a run past its deadline
@@ -225,9 +224,9 @@ What each one reads and what it can deny:
 - `Stop` — **`hooks/gate-zerowork.mjs` blocks a session that dispatched the orchestrator and
   left no run receipt.** The one blocking `Stop` hook, and the narrowest: its predicate is
   mechanical — orchestrator dispatched AND no `.shapeup/<slug>/receipt.json` — so it never
-  judges quality, it reports that no work exists to judge. It exists because the benchmark caught
-  this harness describing its own pipeline instead of running it (Haiku 4.5, n=5, zero variance,
-  29% acceptance) while both existing guards structurally could not see it: one is scoped to an
+  judges quality, it reports that no work exists to judge. It exists because this harness was
+  repeatedly observed describing its own pipeline instead of running it — a narrated run that
+  reads like a clean success — while both existing guards structurally could not see it: one is scoped to an
   active run, and a run that never started leaves no files; the other matches past-tense
   completion claims, and narration is future-tense. Fails open on everything ambiguous, and
   `stop_hook_active` caps it at one block per stop chain.
@@ -275,13 +274,11 @@ Stated plainly, because you will hit them:
 
 - **The `--tiny` lane is young.** It right-sizes the ceremony (two gates instead of eight) but
   keeps the T0 verification floor; its fit-check heuristics will need tuning against real use.
-- **Nothing here measures skill quality or activation.** The repo used to carry two evidence
-  layers — a Tier-1 activation dataset per skill, and a Day-1/Day-2 craft-and-efficacy register —
-  and both have been removed. What that cost is worth stating plainly rather than leaving to be
-  discovered: there is now no number for whether a skill's description makes it fire on the right
-  request, no measured craft delta, and no CI check enforcing the honesty invariant on such
-  numbers. The structural suite (Tier 0) and the functional planted-bug fixtures (Tier 2) are the
-  coverage that remains, and both are about mechanism rather than quality.
+- **Nothing here measures skill quality or activation.** There is no number for whether a
+  skill's description makes it fire on the right request, no measured craft delta, and no CI
+  check enforcing the honesty invariant on such numbers. The structural suite (Tier 0) and the
+  functional planted-bug fixtures (Tier 2) are the coverage that exists, and both are about
+  mechanism rather than quality.
 - **The gates are verified; the craft is not.** A hook that denies is proven by a test that
   watches it deny. A skill that writes a good spec tree is, at present, taken on trust.
 

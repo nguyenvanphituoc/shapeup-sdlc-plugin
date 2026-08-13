@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // Row renderer for a JUDGE — REPO-ONLY dev/CI asset, zero spend.
 //
-// WHAT MAKES THIS DIFFERENT FROM THE OTHER FOUR TIER-1 RUBRICS, and it is the whole of P5.
+// WHAT MAKES A JUDGE DIFFERENT FROM EVERY LINT-CHECKABLE SKILL, and why this file grades AGREEMENT.
 //
-// `spec-evaluator` is the one Tier-1 skill whose artifact is not itself checkable by a lint: its
+// `spec-evaluator` is the one graded skill whose artifact is not itself checkable by a lint: its
 // output is a VERDICT, and a verdict is right or wrong only relative to what the build actually
-// does. So its rubric was nine hand-authored criteria — and that authorship was the source of every
-// problem the pilot had (a rubric derived from the skill's own contract measures contract
-// conformance, ceilings at 1.0, and swung the same skill's score 8x on what the author chose to
+// does. So its rubric was once nine hand-authored criteria — and that authorship was the source of
+// every problem observed with it (a rubric derived from the skill's own contract measures contract
+// conformance, ceilings at 1.0, and swings the skill's score on whatever the author chose to
 // look at).
 //
 // There IS an oracle that can answer here; it just answers a different question. The `process`
