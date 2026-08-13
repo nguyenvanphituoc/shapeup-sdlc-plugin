@@ -163,58 +163,16 @@ scope trade-off stated.
 
 ---
 
-### HD-008 — `gate-zerowork`'s "work by other means" swallows the case the gate exists for
-
-**Filed:** 2026-08-12, from the same run (A7 candidate rep 1).
-
-AGENTS.md states the invariant: *"a session that dispatched the orchestrator and left no receipt is
-blocked at `Stop` by `hooks/gate-zerowork.mjs`"*, and names what it prevents — *"the orchestrator
-describing its own pipeline in future tense and stopping — measured at 29% acceptance with 10 escaped
-defects while reading like a clean run."*
-
-**Measured, candidate rep 1.** `Skill(tech-lead)` was dispatched. No receipt was written. The hook
-**allowed** the Stop:
-
-```
-gate-zerowork Stop null allow | 37 work calls — the session did work by other means
-```
-
-The escape hatch is doing exactly the opposite of the invariant: an orchestrator dispatch that
-produced no run is *precisely* the case, and doing 37 unrelated edits is what a degraded session
-looks like, not an exemption from the check. The run ended reading like a clean one.
-
-**The fix this defect is filed for:** once the orchestrator has been dispatched, work-by-other-means
-stops being an acquittal — the absence of a receipt is the finding. The `dispatchedOrchestrator`
-branch and the work-call branch need to be ordered, not OR-ed.
-
-⟐ **FIXED 2026-08-12.** The `work-done` fail-open is deleted outright rather than reordered, because
-**both halves of its stated rationale fail on inspection**: a user running the harness steps by hand
-starts with `init-run.mjs`, which writes the receipt, so that session already defers one branch
-earlier at `receipt-present`; and a "pre-receipt version of the plugin" cannot be the thing executing
-this hook, since `init-run.mjs` ships in the same install. No replacement escape was added — an
-escape that cannot fire is the row-that-cannot-fail this project keeps catching. What keeps it safe
-is not a threshold but the loop guard: `stop_hook_active` defers unconditionally, so a session that
-genuinely worked outside the harness costs one extra turn and then stops.
-
-The block message now also tells such a session *why* its work calls are the reason rather than a
-waiver. Pinned by `tests/structural/10-run-receipt.mjs` — the assertion that used to read "defers
-when the session did real work by other means" is **inverted in place**, same fixture, and
-mutation-verified: restoring the escape turns it red.
-
-The same commit gives the gate the **Bash-launch dispatch arm** it needs post-HD-007, so the shipped
-lane is watched (`tests/structural/17-gate-zerowork-workflow.mjs`, both polarities, also
-mutation-verified). Without it the two fixes would have cancelled: the new launch is itself a Bash
-call, so under the old fail-open three launches with no run would have cleared the gate.
-
----
-
 **Where a closed defect goes.** Its fix is pinned by a regression guard, and that guard is the
 durable record — a defect whose test fires on reversion cannot come back silently, which is more
 than a paragraph in this file could ever promise. HD-001…HD-005, the family in which *the committed
 contract format fails silent*, closed 2026-08-04/05: pinned by structural §46(f)(g)(h)(i) for the
 parser and §23 for the two call sites §46 does not reach, every one mutation-verified in both
-directions. Those guards are the whole write-up that still matters: what the family cost is
-recoverable from the tests that now fail on reversion, and nothing else needs to survive for the
-fix to hold.
+directions. HD-008, `gate-zerowork`'s work-by-other-means fail-open, closed 2026-08-12: the escape
+was deleted rather than reordered, and the assertion that used to license it is **inverted in
+place** in `tests/structural/10-run-receipt.mjs`, with the Bash-launch dispatch arm the deletion
+depends on pinned in `17-gate-zerowork-workflow.mjs` — both polarities, both mutation-verified.
+Those guards are the whole write-up that still matters: what a closed defect cost is recoverable
+from the tests that now fail on reversion, and nothing else needs to survive for the fix to hold.
 
 This file stays short on purpose. It is a queue, not an archive.
