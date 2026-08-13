@@ -52,6 +52,7 @@
 //   --max-rounds N  outer circuit breaker             (default: 3)
 //   --attempts N    inner per-scope T0 budget         (default: 5)
 //   --spec-folder   SHARED spec deliverable path      (default: shapeup/<slug>/spec/)
+//   --dimensions    comma-separated eval dimensions   (default: spec-conformance)
 //   --gate-answers  path | preset name                (see gate-answers.mjs; recorded, not read)
 //   --wall-clock-budget N  deadline breaker, seconds  (off by default; see budget-check.mjs)
 //   --cwd           project root                      (default: process.cwd())
@@ -73,6 +74,7 @@ import { createHash } from "node:crypto";
 import { decideLane, treeSize } from "./fit-check.mjs";
 import { isMain } from "./lib/is-main.mjs";
 import { runArgs } from "./lib/argv.mjs";
+import { uncoerce } from "./lib/contract-md.mjs";
 import { deriveSnapshot } from "./run-snapshot.mjs";
 import { localRoot, activeScope, globLocal, globShared } from "./lib/paths.mjs";
 
@@ -80,6 +82,35 @@ export const RECEIPT_VERSION = 1;
 
 const AUTO_LEVELS = new Set(["interactive", "auto", "unattended"]);
 const LENSES = new Set(["lite", "standard", "cross-context"]);
+
+/**
+ * The eval dimension set when the caller names none. Kept to the base correctness dimension so an
+ * unconfigured run behaves exactly as it did before this flag existed.
+ */
+export const DEFAULT_DIMENSIONS = ["spec-conformance"];
+
+/**
+ * Parse `--dimensions` into the set written to the ledger. Shape-validated only, NOT checked against
+ * the dimensions that ship: adding `references/dimensions/<id>.md` and naming it here is the
+ * documented injection path, so a closed list here would make the evaluator's own extension point
+ * unreachable. An id with no file behind it is skipped-with-a-warning at dimension resolution, which
+ * is where that check belongs and where it can actually see the files.
+ *
+ * @param {(string|null|undefined)} raw - The comma-separated flag value; absent → the default set.
+ * @returns {string[]} Trimmed, de-duplicated ids in the caller's order.
+ * @throws {Error} If the list is empty or an entry is not a kebab-case id.
+ */
+export function parseDimensions(raw) {
+  if (raw === null || raw === undefined) return [...DEFAULT_DIMENSIONS];
+  const ids = String(raw).split(",").map((s) => s.trim()).filter(Boolean);
+  if (!ids.length) throw new Error("--dimensions: empty list — omit the flag to use the default [spec-conformance]");
+  for (const id of ids) {
+    if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(id)) {
+      throw new Error(`--dimensions: "${id}" is not a dimension id (kebab-case, e.g. spec-conformance, tdd-surface, integration)`);
+    }
+  }
+  return [...new Set(ids)];
+}
 
 /** Slugify a free-text feature name into a filesystem-safe run id. */
 export function slugify(text) {
@@ -123,7 +154,10 @@ export function runFrontmatter({ slug, config, startedAt }) {
     `feature: ${slug}`,
     `spec_folder: ${config.spec_folder}`,
     `lens: ${config.lens}`,
-    "eval_dimensions: [spec-conformance]",
+    // The ledger is the ONE place the dimension set lives: resume-state reads it back off this line
+    // and the workflow hands it to every evaluate order. Written through the same list dialect the
+    // parser reads (contract-md), never hand-joined.
+    `eval_dimensions: ${uncoerce(config.eval_dimensions ?? DEFAULT_DIMENSIONS)}`,
     `max_rounds: ${config.max_rounds}`,
     `attempt_budget: ${config.attempt_budget}`,
     `wall_clock_budget_s: ${config.wall_clock_budget_s ?? "~"}`,
@@ -163,7 +197,8 @@ export function runFrontmatter({ slug, config, startedAt }) {
 export const ARGV_SPEC = {
   usage: 'init-run.mjs (--intake-file <path> | --intake-text "<req>" | --intake-stdin) ' +
          "[--slug <slug>] [--auto-level interactive|auto|unattended] [--lens <lens>] " +
-         "[--max-rounds N] [--attempts N] [--spec-folder <dir>] [--gate-answers <preset|path>] " +
+         "[--max-rounds N] [--attempts N] [--spec-folder <dir>] [--dimensions <a,b>] " +
+         "[--gate-answers <preset|path>] " +
          "[--lane full|tiny] [--tiny] [--wall-clock-budget <seconds>] [--cwd <dir>] [--force]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   cwd: { type: "path" },
@@ -176,6 +211,7 @@ export const ARGV_SPEC = {
   "max-rounds": { type: "int", min: 1 },
   attempts: { type: "int", min: 1 },
   "spec-folder": { type: "path" },
+  dimensions: { type: "str" },
   "gate-answers": { type: "str" },
   lane: { type: "str" },
   tiny: { type: "flag" },
@@ -219,10 +255,17 @@ export function main() {
   if (!AUTO_LEVELS.has(auto_level)) fail(2, `--auto-level must be one of: ${[...AUTO_LEVELS].join(", ")}`);
   const lens = args.lens ?? "standard";
   if (!LENSES.has(lens)) fail(2, `--lens must be one of: ${[...LENSES].join(", ")}`);
+  // GATE L0.5 — the eval dimension set, resolved ONCE here and carried by the ledger. Before this
+  // flag the line was a constant, so a dimension the PO asked for at L0.5 had nowhere to be
+  // recorded and the run graded spec-conformance whatever the answer had been.
+  let eval_dimensions;
+  try { eval_dimensions = parseDimensions(args.dimensions ?? null); }
+  catch (e) { fail(2, e.message); }
 
   const config = {
     auto_level,
     lens,
+    eval_dimensions,
     max_rounds: args.maxRounds ?? 3,
     attempt_budget: args.attempts ?? 5,
     spec_folder: args.specFolder ?? `${globShared(slug, "spec")}/`,

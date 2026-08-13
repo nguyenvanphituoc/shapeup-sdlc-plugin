@@ -54,7 +54,13 @@ Collect (explicit — never inferred):
           spec_folder = shapeup/<slug>/spec/ (the deliverable arg passed to ba/eval/exec)
   L0.3  lens: lite | standard | cross-context   (passed to planner at step 8)
   L0.4  stack hint (e.g. "pnpm, Next 16 web :3000") — aims orient's code-surface sweeps + run commands
-  L0.5  eval dimensions: default [spec-conformance]; only add if user asks
+  L0.5  eval dimensions: default [spec-conformance]; only add if user asks. An added dimension
+        must reach `init-run.mjs --dimensions <a,b>` — it is recorded in the ledger's
+        `eval_dimensions:` line and every EVAL order is compiled from there, so a set agreed
+        in conversation and not passed to the flag grades nothing. Shipped ids:
+        spec-conformance, tdd-surface, integration, completeness, test-surface-conformance
+        (security + performance ship disabled). Whatever is left out is reported at L4 as
+        `dims_not_evaluated` — "shipped" never silently means "verified for all".
   L0.6  max_rounds: default 3, appetite-informed (see L0.1b)
   L0.7  auto level:
           interactive (default) — pause at every L-gate; sub-skills keep their own gates

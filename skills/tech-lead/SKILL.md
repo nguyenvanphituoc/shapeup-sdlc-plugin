@@ -23,7 +23,7 @@ turns fighting shell quoting):
 node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/init-run.mjs" \
   --slug <slug-from-the-request> --intake-file <path/to/the/requirement.md> \
   --auto-level <interactive|auto|unattended> \
-  [--gate-answers <ci|guarded|path.json>] [--wall-clock-budget <seconds>] [--max-rounds 3]
+  [--dimensions <a,b>] [--gate-answers <ci|guarded|path.json>] [--wall-clock-budget <seconds>] [--max-rounds 3]
 ```
 
 **Exit 3 means a run is ALREADY OPEN.** Resume it; do not re-open it. The refusal prints the

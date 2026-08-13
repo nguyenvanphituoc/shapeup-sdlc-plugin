@@ -893,7 +893,12 @@ if (hGate.exit_code === 5) return abortedFrom("H", hGate, "GATE H aborted");
 const shipReport = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/ship-report.mjs" --slug ${slug} --verdict PASS --qa ${qaGate.decision === "run" ? "run" : "skipped"}`, "ship-report");
 await setRunStatus(slug, "shipped");
 
-const allDims = ["spec-conformance", "test-surface-conformance", "completeness", "integration", "security", "performance"];
+// The dimensions the evaluator ships, so GATE L4 can say what "shipped" did NOT cover. Must stay in
+// step with spec-evaluator/references/dimensions/_registry.md — a workflow has no filesystem of its
+// own, so it cannot read that registry and this literal is the only place it can be stated. It
+// omitted tdd-surface, which made the one dimension most likely to be off the most likely to go
+// unmentioned. A dimension injected by the consumer is theirs to track; this list covers what ships.
+const allDims = ["spec-conformance", "tdd-surface", "integration", "completeness", "test-surface-conformance", "security", "performance"];
 const dims_not_evaluated = allDims.filter(d => !(facts.eval_dimensions || []).includes(d));
 
 return withStateWarnings({

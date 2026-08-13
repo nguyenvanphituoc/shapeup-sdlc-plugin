@@ -39,7 +39,7 @@ disclosure). Read this when you need the exact CLI shape or a flag's effect.
 | `--no-eval` | Skip the evaluation pass this run (trivial feature) |
 | `--no-qa` | Skip the post-PASS /qa-edge-hunter pass (ledger records `qa: skipped`) |
 | `--tiny` | The small-change lane: orient (light) → single-task board → build → T0 → done. Implies `--no-eval --no-qa`, skips WIRE and scope contracts, collapses the gates to L0 + L4. See "The tiny lane" in SKILL.md — the L0 fit-check is mandatory and the ledger records `lane: tiny` |
-| `--dimensions <list>` | Eval dimensions (default spec-conformance) |
+| `--dimensions <list>` | Eval dimensions, comma-separated (default `spec-conformance`). Passed straight through to `init-run.mjs --dimensions`, which records the set in the ledger's `eval_dimensions:` — that line is what every EVAL order is compiled from, so a dimension named anywhere else does not run. Ids the evaluator ships: `spec-conformance`, `tdd-surface`, `integration`, `completeness`, `test-surface-conformance`, `security`, `performance` (the last two are disabled stubs); a dimension you inject yourself is named here the same way |
 
 ---
 

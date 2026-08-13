@@ -2277,6 +2277,7 @@
       "x-location": "in-memory only — a Workflow launch argument, never written to disk",
       "x-writer": "tech-lead (GATE L0, on every launch AND every relaunch after a paused gate)",
       "x-readers": "the Workflow runtime (shapeup-run, and shapeup-run's own inner round dispatch)",
+      "x-not-here": "Run config the LEDGER already carries does NOT get a second home in RunArgs — eval_dimensions, lens, spec_folder, stack, run_cmd, app_url are read off harness-run.md frontmatter by resume-state on every launch AND every relaunch, so a copy here would be a second source that can disagree with the first. RunArgs carries what a workflow cannot derive from disk (identity, budgets, the model matrix, pluginRoot, startedAt) plus noEval, which no frontmatter line holds.",
       "type": "object",
       "required": [
         "slug",
@@ -2348,7 +2349,7 @@
         },
         "noEval": {
           "type": "boolean",
-          "description": "If true, skips the EVAL phase completely."
+          "description": "If true, skips the EVAL phase completely. Rides here rather than in the ledger because there is no frontmatter line that carries it — contrast eval_dimensions, which does."
         }
       }
     },

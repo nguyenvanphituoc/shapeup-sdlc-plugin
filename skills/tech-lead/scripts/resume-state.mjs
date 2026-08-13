@@ -62,6 +62,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from 
 import { dirname, join, resolve } from "node:path";
 import { isMain } from "./lib/is-main.mjs";
 import { runArgs } from "./lib/argv.mjs";
+import { splitFrontmatter } from "./lib/contract-md.mjs";
 import {
   intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir,
   orientDir, activeScope, activeOrder, usecasesDir,
@@ -79,21 +80,22 @@ export const ORIENT_REQUIRED = ["code-surface.md", "discovered-seed.md", "hill-s
 export const ORIENT_SPIKE = /^spike-.+\.md$/;
 
 /**
- * Parse a leading `---` frontmatter block into a flat object. Deliberately the same tolerant
- * shape the inline probe used, so promoting the blob to a file changed no behaviour here.
+ * Parse a leading `---` frontmatter block into a flat object, through the ONE library that reads
+ * this file form (`lib/contract-md.mjs`).
+ *
+ * It used to be a private scalar-only regex — every value came back a string, including a
+ * `key: [a, b]` list. That is why `eval_dimensions` was pinned: the ledger could carry the set the
+ * PO asked for and the `Array.isArray(hr.eval_dimensions)` branch below could never be true, so the
+ * fallback fired on every read and the run graded spec-conformance whatever the file said. A second
+ * parser for a format that already has one is the defect; the dialects diverge silently and the
+ * reader that loses a value looks identical to a file that never carried it.
  *
  * @param {string} text - Whole file contents.
- * @returns {Object<string,string>} Scalar keys only; quotes stripped.
+ * @returns {Object<string,*>} Frontmatter keys, coerced: `[a, b]` → string[], `~` → null,
+ *   digits → number, true/false → boolean, everything else the unquoted string.
  */
 export function parseFrontmatter(text) {
-  const m = /^---\n([\s\S]*?)\n---/.exec(text || "");
-  if (!m) return {};
-  const out = {};
-  for (const line of m[1].split("\n")) {
-    const kv = /^([A-Za-z_][\w-]*):\s*(.*)$/.exec(line.trim());
-    if (kv) out[kv[1]] = kv[2].replace(/^['"]|['"]$/g, "");
-  }
-  return out;
+  return splitFrontmatter(text).meta;
 }
 
 /**
