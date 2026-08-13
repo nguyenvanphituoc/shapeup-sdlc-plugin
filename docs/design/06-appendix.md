@@ -32,11 +32,10 @@ scripts/shapeup-sdlc/    what those two entrypoints run on a user's machine — 
 oracles/                 the evaluation-contract oracle registry (test · snapshot · http ·
                          process), proven to discriminate against negative controls
 tools/                   repo-only, never shipped — demo/
-evals/                   Tier-2 functional apparatus only — fixtures/, oracles/
 tests/structural.mjs     Tier 0 runner — threads tests/lib/ helpers through the per-domain
 tests/{lib,structural}/  suites in tests/structural/*.mjs; 880+ checks, zero LLM calls (the
                          floor is asserted by the suite itself; the exact count may only grow)
-examples/                fixtures for oracle + planted-bug discrimination tests
+examples/                worked fixtures + negative controls for the oracle registry
 ```
 
 ## Architectural invariants

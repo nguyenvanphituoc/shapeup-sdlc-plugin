@@ -26,21 +26,16 @@
 .shapeup/
 .shapeup-sdlc/
 
-# Day-1 / Day-2 measurement instrument, and its run trace.
+# The measurement apparatus is gone in full — activation datasets, Day-1 rubrics and drafts, the
+# Day-2 failure-class register, the schemas, both baselines, the fixture spine, the row renderers
+# and the judge fixtures. The rules that used to un-ignore parts of `evals/` went with it rather
+# than being left pointing at nothing; `evals/` itself no longer exists.
 #
-# What survives under `evals/` is the Tier-2 functional apparatus: the fixture spine and the row
-# renderers that `examples/eval-planted-bug-2` drives. The Tier-1 activation datasets, the Day-1
-# rubrics and drafts, the Day-2 failure-class register, the three schemas and both baselines were
-# removed — so the rules that used to un-ignore them are gone with them rather than left pointing
-# at nothing.
-#
-# `evals/*` rather than `evals/` is load-bearing: git does not descend into an excluded
-# DIRECTORY, so a `!` negation under `evals/` can never be reached.
-evals/*
-!evals/README.md
-!evals/oracles/
-!evals/fixtures/
-!evals/fixtures/**/.shapeup/
+# Kept as a trap, not as bookkeeping: hook receipts under the PRE-ADR-0001 root. A hardcoded path
+# once sent every receipt to `.shapeup-sdlc/` while the only reader looked in `.shapeup/`, so the
+# telemetry was invisible rather than absent. Ignoring the old root stops a stray one being
+# committed and read back as if it were current.
+.shapeup-sdlc/
 
 # Navigator clone target (gap-scan)
 example/

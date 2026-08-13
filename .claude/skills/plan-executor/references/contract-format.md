@@ -90,7 +90,7 @@ job is the shell equivalent.
 | "commit as its own change" | — | `git log --oneline -5 \| grep -q '<the change>'` |
 
 **Prefer a check the plan already ran.** These reports mostly quote a command and its output —
-`git clone --local . /tmp/x && npm test`, `node tools/skill-loop.mjs --selftest`. That is your row,
+`git clone --local . /tmp/x && npm test`, `node skills/tech-lead/scripts/stats.mjs --hooks`. That is your row,
 minus the cloning, because the harness has already put you inside a fresh clone.
 
 **Acceptance only reads.** No `git push`, no `npm publish`, no `gh pr create`. A check that
@@ -108,29 +108,34 @@ acceptance authored from their prose.
 ```markdown
 | stage | cmd | cwd | expect_exit | expect_match | expect_absent | note | review |
 |---|---|---|---|---|---|---|---|
-| S1 | test -n "$(git ls-files evals/fixtures)" | $CLONE | 0 |  |  | the instrument must survive a clone |  |
-| S1 | test -f evals/failure-classes.json | $CLONE | 0 |  |  |  |  |
-| S2 | grep -q '48-day1-day2.mjs' tests/structural.mjs | $CLONE | 0 |  |  | §48 must be wired into MODULE_FILES |  |
-| S3 | npm test | $CLONE | 0 | 0 failures |  | plan expects ~1107 checks |  |
-| S3 | node tools/skill-loop.mjs --selftest --skill scope-architect | $CLONE | 0 | weak | no Day-1 rubrics found | the loop must find its instrument |  |
+| S1 | test -n "$(git ls-files skills/tech-lead/scripts/stats.mjs)" | $CLONE | 0 |  |  | the instrument must survive a clone |  |
+| S2 | grep -q '04-oracles.mjs' tests/structural.mjs | $CLONE | 0 |  |  | the module must be wired into MODULE_FILES |  |
+| S3 | npm test | $CLONE | 0 | 0 failures |  |  |  |
+| S3 | node skills/tech-lead/scripts/stats.mjs --ratchet --format table | $CLONE | 0 | improvement_rate | no scope has a second trial | the ledger must actually hold trials |  |
 ```
 
-Note S3's last row: `expect_absent` is doing the real work. `--selftest` may well exit 0 while
-printing `no Day-1 rubrics found`, and an exit-code-only row would call that done.
+Note S3's last row: `expect_absent` is doing the real work. `--ratchet` exits 0 and prints a
+well-formed report over an **empty** ledger — the line `no scope has a second trial yet` is the
+tell — so an exit-code-only row would call an unmeasured run done. Any command whose empty case is
+indistinguishable from its success case needs an `expect_absent`.
 
-Note also what the plan says about ordering — *"do not wire §48 in as the first commit; it takes a
-clone from 4 failures to 10"*. That is why `depends_on` is a chain by default and why that
-sentence belongs in `## Guardrails` verbatim.
+Note also what a plan should say about ordering — *do not wire a new structural module in as the
+first commit if it takes a clone from 4 failures to 10*. That is why `depends_on` is a chain by
+default, and why that sentence belongs in `## Guardrails` verbatim.
 
-## Worked example — Day 2
+## Worked example — a mutation-verified guard
+
+The pattern worth stealing here is S2: when a plan adds a check, the acceptance is not that the
+suite stays green, it is that the suite **goes red** when the thing being guarded is broken. A
+guard nobody has watched fail is an assumption.
 
 ```markdown
 | stage | cmd | cwd | expect_exit | expect_match | expect_absent | note | review |
 |---|---|---|---|---|---|---|---|
-| S1 | npm test | $CLONE | 0 | 0 failures |  |  |  |
-| S1 | node -e "const c=require('./evals/failure-classes.json');const f=c.classes.find(x=>x.id==='FC-01');process.exit(f.current.status==='measured'&&f.reduces===true?0:1)" | $CLONE | 0 |  |  | FC-01 must be off unmeasured |  |
-| S2 | node -e "<mutate FC-06 to claim a sampled reduction>" && ! npm test | $CLONE | 0 |  |  | the acceptance IS that the suite goes red; the clone is disposable |  |
-| S3 | node -e "<count classes at the exit criterion>" | $CLONE | 0 | ^3$ |  | three of eight, each labelled |  |
+| S1 | npm test | $CLONE | 0 | 0 failures |  | baseline before touching anything |  |
+| S2 | node -e "<write a decision row with verdict:'warn'>" && node skills/tech-lead/scripts/stats.mjs --hooks --format table | $CLONE | 0 | warn |  | the new column must count it |  |
+| S2 | node -e "<revert the counter to allow/deny/block/error only>" && ! npm test | $CLONE | 0 |  |  | the acceptance IS that the suite goes red; the clone is disposable |  |
+| S3 | git -C $CLONE diff --quiet | $CLONE | 0 |  |  | the mutation must not survive into the tree |  |
 ```
 
 S2 is the sharpest row in either plan, and worth copying the shape of: the stage adds a check, so

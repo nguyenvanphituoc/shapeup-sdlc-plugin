@@ -16,8 +16,8 @@ tree distinguishing product from build tooling from proof. Three consequences:
 **The publish boundary was wrong in three independent ways.** `package.json` `files[]` declared
 `agents/`, which does not exist. It declared `dist/antigravity/`, which is gitignored with zero
 tracked files — so the tarball's contents depended on whether the publisher happened to have run
-`distribute.js` locally. And `files: ["skills/"]` shipped 13 trigger-eval datasets that
-`evals/README.md` explicitly calls "repo-only, not shipped".
+`distribute.js` locally. And `files: ["skills/"]` shipped 13 trigger-eval datasets that the eval
+layer's own README explicitly called "repo-only, not shipped".
 
 **`scripts/` was simultaneously a frozen public API and a dev scratch space.** `docs/upgrading.md`
 publishes `curl .../main/scripts/migrate.sh | bash`, and line 58 promises those entry points stay
@@ -39,7 +39,7 @@ and were **not in `files[]`**, meaning the quickstart referenced a file no insta
 | **Ships** | `skills/` `hooks/` `commands/` `oracles/` `.claude-plugin/` `AGENTS.md` | loaded via `${CLAUDE_PLUGIN_ROOT}` |
 | **Installs** | `bin/` `scripts/` | **frozen — published `curl` URLs** |
 | **Builds** | `tools/` | maintainer-only; `dist/` is its output, gitignored |
-| **Proves** | `tests/` `evals/` `examples/` | CI; never ships |
+| **Proves** | `tests/` `examples/` | CI; never ships |
 | **Explains** | `docs/` | humans |
 
 ### The moves

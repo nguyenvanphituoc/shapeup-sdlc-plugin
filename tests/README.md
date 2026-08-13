@@ -1,7 +1,8 @@
 # Tests
 
-Two tiers, by cost and what they prove. See `docs/audit/independent-audit-and-evolution-plan.md`
-for why this layering exists.
+One tier. The structural suite is the whole of the automated proof; the tiers above it were built,
+measured, and removed. See `../docs/design/05-verification-and-quality-strategy.md` for what that
+leaves uncovered.
 
 ## Tier 0 — Structural (built, runs in CI today)
 
@@ -55,10 +56,6 @@ The numbered sections below are the checks themselves, in section order:
    `skills/**/references/*.md`) references a repo-only path (`scripts/`, `examples/`,
    `docs/audit|plan|research/`, `tests/`) that would be absent at install. Runtime project paths
    the harness creates (`shapeup/`, `.shapeup/`) are allowed.
-13. **Anti-leniency fixture (Stage C2):** the `spec-evaluator` planted-bug fixture
-   (`examples/eval-planted-bug/`) discriminates — the `process` oracle PASSes the correct control
-   and FAILs the buggy build on TS-04 — and its `evals.json` / gold files are well-formed with the
-   leniency trap armed (AC4 ships ticked).
 14. **GATE L2 enforcement (Stage E1):** the `PreToolUse` hook (`hooks/gate-l2.mjs`) DENIES the
    once-per-round EVAL on a partial board (naming the unfinished task) and ALLOWS it on a green
    board, while never gating per-task evals, other skills, or non-`Skill` tools. Driven against
@@ -98,31 +95,23 @@ The numbered sections below are the checks themselves, in section order:
    report on a missing dir.
 
 
-Exit 0 = pass, 1 = fail (330+ checks — the docs state the floor, section #26 asserts it). This is
-the cheapest, highest-ROI guard and the one the project lacked. Sections #8–#11 prove the oracle
-grammar is runnable; #12 proves the shipped skills are self-contained; #13–#15 prove the
-anti-leniency fixture, the L2 gate and the verdict ledger do their jobs (discriminate / enforce /
-detect flips), not merely that they exist.
+Exit 0 = pass, 1 = fail (the docs state a floor, section #26 asserts it against the real total).
+This is the cheapest, highest-ROI guard and the one the project lacked. Sections #8–#11 prove the
+oracle grammar is runnable; #12 proves the shipped skills are self-contained; #14–#15 prove the L2
+gate and the verdict ledger do their jobs (enforce / detect flips), not merely that they exist.
 
-## Tier 1 — Functional fixtures (judge-first — first fixture LANDED)
+## There is no second tier
 
-Run a skill with-skill vs without-skill to prove the delta. **The first fixture — the
-`spec-evaluator` planted-bug / anti-leniency regression — is built**, at
-`examples/eval-planted-bug/` (repo-only dev/CI asset, not shipped — same F9 reasoning that keeps
-the oracle runners out of installs). It plants a FizzBuzz AC4 bug in a build dressed to look done
-(green self-suite, all AC boxes ticked) and asserts a skeptical judge FAILs it.
+Every layer above the structural suite was built, measured, and removed: per-skill trigger-eval
+datasets, the Day-1 rubrics and the Day-2 failure register (with structural §16 and §48), and then
+the judge-first planted-bug fixtures with structural §13. Ordinals are not reused.
 
-- **Deterministic half (runs in CI today):** structural test **#13** drives the planted bug
-  through the `process` oracle — PASS on the correct control, FAIL on the buggy build (TS-04) —
-  proving the bug is real and catchable, plus that the fixture + `evals.json` are well-formed.
-- **LLM half (needs Claude auth, not yet in CI):** `evals.json` + `EXPECTED-VERDICT.md` score the
-  actual `/spec-evaluator` transcript against must / must-not assertions. Wiring this into a real
-  `eval-gate` job is Stage C/D follow-up.
+What remains proves **mechanism** — a gate denies, an oracle discriminates against a negative
+control. It does not prove **craft**, and three specific claims now have no automated check behind
+them:
 
-Remaining Tier-2 work: the same pattern for `ba` (no-invented-ACs), `task-executor`
-(minimum-code + checkbox), `translator` (faithful + untouched original).
-
-> There is no activation or craft-quality tier. Per-skill trigger-eval datasets, the Day-1 rubrics
-> and the Day-2 failure register were removed, along with structural §16 and §48 and the CI checks
-> that made the honesty invariant mechanical. What is left proves *mechanism* — a gate denies, an
-> oracle discriminates — and not *craft*. See `evals/README.md` for what that costs.
+- that a skill's `description` makes the model reach for it, and does not steal a sibling's queries;
+- that the evaluator stays skeptical — that it FAILs a build dressed to look done;
+- that the honesty invariant holds. *No number may be written from anything but a run that produced
+  it* is still the rule, but it is upheld by review rather than by CI, which is weaker and is
+  recorded as such.

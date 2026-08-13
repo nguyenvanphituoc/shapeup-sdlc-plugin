@@ -276,9 +276,9 @@ Stated plainly, because you will hit them:
   keeps the T0 verification floor; its fit-check heuristics will need tuning against real use.
 - **Nothing here measures skill quality or activation.** There is no number for whether a
   skill's description makes it fire on the right request, no measured craft delta, and no CI
-  check enforcing the honesty invariant on such numbers. The structural suite (Tier 0) and the
-  functional planted-bug fixtures (Tier 2) are the coverage that exists, and both are about
-  mechanism rather than quality.
+  check enforcing the honesty invariant on such numbers. The structural suite is the coverage
+  that exists, and it is about mechanism rather than quality — it proves a gate denies and an
+  oracle discriminates, never that a skill's output is good.
 - **The gates are verified; the craft is not.** A hook that denies is proven by a test that
   watches it deny. A skill that writes a good spec tree is, at present, taken on trust.
 
@@ -318,7 +318,6 @@ scripts/install-harness.sh, migrate.sh   # stable public entrypoints (fresh inst
 scripts/shapeup-sdlc/lib/                # shell libs both entrypoints source
 tools/                # repo-only: demo/
                       #   demo/record-demo.mjs (regenerates docs/assets/demo-gate.svg)
-evals/                # Tier-2 functional apparatus only: fixtures/, oracles/
 tests/structural.mjs, tests/structural/*.mjs   # Tier 0 — 880+ checks, zero LLM calls
 docs/install.md, upgrading.md, glossary.md
 docs/design/          # the design document (pipeline, gates, circuit breaker, ERD) + adr/

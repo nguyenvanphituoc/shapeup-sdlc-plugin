@@ -249,9 +249,8 @@ pre.mermaid[data-processed] { font-size:inherit; line-height:inherit; white-spac
           <div class="row"><span class="path">tools/demo/</span><span class="note">records the README demo · never ships</span></div>
 
           <div class="band b-prove"><span>Proves</span><span class="when">CI only</span></div>
-          <div class="row"><span class="path">tests/structural/  <span class="dim">21</span></span><span class="note">880+ checks behind one runner</span></div>
-          <div class="row"><span class="path">evals/</span><span class="note">Tier-2 functional apparatus — fixtures + oracles</span></div>
-          <div class="row"><span class="path">examples/</span><span class="note">dual role: fixtures AND quickstart tutorial</span></div>
+          <div class="row"><span class="path">tests/structural/  <span class="dim">20</span></span><span class="note">880+ checks behind one runner</span></div>
+          <div class="row"><span class="path">examples/</span><span class="note">dual role: oracle fixtures AND quickstart tutorial</span></div>
 
           <div class="band b-explain"><span>Explains</span><span class="when">read by humans</span></div>
           <div class="row"><span class="path">docs/design/       <span class="dim">+ adr/</span></span><span class="note">the design record — public, it is the pitch</span></div>
@@ -284,7 +283,7 @@ pre.mermaid[data-processed] { font-size:inherit; line-height:inherit; white-spac
         <tbody>
           <tr><td class="mono">agents/</td><td>declared, and does not exist</td><td>removed</td></tr>
           <tr><td class="mono">dist/antigravity/</td><td>declared, gitignored, <strong>0 tracked files</strong> — the tarball depended on whether the publisher had run <code>distribute.js</code> locally</td><td>removed; <code>dist/</code> is build output, not product</td></tr>
-          <tr><td class="mono">skills/**/evals/**</td><td>13 datasets shipped, while <code>evals/README.md</code> calls them "repo-only, not shipped"</td><td>excluded — intent and mechanism now agree</td></tr>
+          <tr><td class="mono">skills/**/evals/**</td><td>13 datasets shipped, while the eval layer's own README called them "repo-only, not shipped"</td><td>excluded — intent and mechanism now agree</td></tr>
           <tr><td class="mono">oracles/</td><td>absent — the quickstart told users to run a file no install contained</td><td>ships</td></tr>
         </tbody>
       </table>

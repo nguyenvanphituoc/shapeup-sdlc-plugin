@@ -13,8 +13,9 @@ The harness generates ~90 distinct artifacts inside a user's repository across s
 but the design documents describe only three tiers (A shared / B local / C per-member). The
 conflated lifecycles are where the defects live:
 
-- **The publish/visibility boundary was inferred, not stated.** `evals/README.md` says the eval
-  layer is "repo-only, not shipped"; `package.json` `files: ["skills/"]` ships it anyway.
+- **The publish/visibility boundary was inferred, not stated.** The eval layer's own README said it
+  was "repo-only, not shipped"; `package.json` `files: ["skills/"]` shipped it anyway. (That layer
+  has since been removed entirely; the boundary this ADR fixes outlived it.)
   `agents/` is declared and does not exist. `dist/antigravity/` is declared, gitignored, and has
   zero tracked files — so the npm tarball's contents depended on whether the publisher happened
   to have run `distribute.js` locally.

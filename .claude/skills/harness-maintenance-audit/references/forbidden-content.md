@@ -30,7 +30,7 @@ node -e "console.log(require('./.claude-plugin/marketplace.json').plugins[0].sou
 git ls-files | wc -l                                     # what a plugin install delivers
 ```
 
-The npm allowlist roots are `bin/`, `skills/` (minus `skills/**/evals/**`), `hooks/`, `commands/`,
+The npm allowlist roots are `bin/`, `skills/`, `hooks/`, `commands/`,
 `oracles/`, `.claude-plugin/`, `AGENTS.md`, `.env.shapeup.example`,
 `.claude/settings.local.example.json` and `SECURITY.md`. Re-derive rather than trusting that list.
 
@@ -104,12 +104,13 @@ reader somewhere that is not there.
 ```bash
 grep -rniE "benchmark|HD-0[0-9]+|F-16|stage [a-z][0-9]?\b|stage-[a-z][0-9]|of the audit|docs/(migration|internal|design|workflow|upgrading)|tests/structural|tools/|evals/|\bn=[0-9]|DNF|island-escape|absorb-audit|[0-9]+% acceptance" \
   --include="*.md" --include="*.mjs" --include="*.js" --include="*.json" \
-  skills commands hooks oracles bin AGENTS.md SECURITY.md 2>/dev/null \
-  | grep -v "/evals/"
+  skills commands hooks oracles bin AGENTS.md SECURITY.md 2>/dev/null
 ```
 
-The trailing `grep -v "/evals/"` matters: `skills/**/evals/**` is excluded by the allowlist, so hits
-there are not violations and will otherwise drown the signal.
+Every hit is now a real candidate: there is no longer an excluded-subtree exception to filter out,
+because `skills/**/evals/**` and the top-level `evals/` are both gone. The `evals/` and `tools/`
+alternations stay in the pattern deliberately — they catch a doc that resurrects a path a user
+cannot open, which is the failure this sweep exists for, not a directory that must currently exist.
 
 **Two lessons are baked into that pattern, both learned by missing things.**
 

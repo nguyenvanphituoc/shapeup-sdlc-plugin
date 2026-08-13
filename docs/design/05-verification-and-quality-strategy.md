@@ -9,8 +9,13 @@ correctness isn't accepted without a mechanical check behind it.
 
 | Tier | What it proves | Cost |
 |---|---|---|
-| **0 — Structural**<br/>`tests/structural.mjs` | The plugin is well-formed and its own gates actually discriminate: every schema parses, every skill has a valid frontmatter contract, the GATE L2 hook warns on a partial board and stays silent on a green one (and never denies — the advisory downgrade is itself pinned, ADR-0001), the planted-bug fixture fails a buggy build and passes the correct one. 880+ checks (the suite asserts its own documented floor, so this number may only grow), split by ownership domain into `tests/structural/*.mjs` behind a thin `structural.mjs` runner that threads one shared context (`tests/lib/`). | Zero LLM calls, zero network — runs in CI on every push. |
-| **1 — Functional fixtures**<br/>`examples/eval-planted-bug/` | A with-skill vs without-skill delta — e.g. a FizzBuzz build with a deliberately planted bug, dressed to look done (green self-suite, every AC box ticked), that a properly skeptical judge must still FAIL. | Deterministic half in CI today; the full transcript-graded half needs live Claude auth. |
+| **0 — Structural**<br/>`tests/structural.mjs` | The plugin is well-formed and its own gates actually discriminate: every schema parses, every skill has a valid frontmatter contract, the GATE L2 hook warns on a partial board and stays silent on a green one (and never denies — the advisory downgrade is itself pinned, ADR-0001), and each registered oracle passes its worked fixture while failing a negative control. 880+ checks (the suite asserts its own documented floor, so this number may only grow), split by ownership domain into `tests/structural/*.mjs` behind a thin `structural.mjs` runner that threads one shared context (`tests/lib/`). | Zero LLM calls, zero network — runs in CI on every push. |
+
+**There is no second tier.** The judge-first functional fixtures were removed along with the rest
+of the eval apparatus, and the gap is stated here rather than left as an absence: nothing now
+proves the evaluator's skeptical posture — that it FAILs a build dressed to look done, with a green
+self-suite and every AC box ticked. Tier 0 proves each *grader* discriminates against a negative
+control. Nothing proves the *judge* does.
 
 The oracle registry behind Tier 0 (`oracles/`) is itself proven to
 discriminate, not just to run: each of the `test`, `snapshot`, and `http` oracles is checked
@@ -29,7 +34,7 @@ least once in this project's history, and two of the rows exist because of it.
 
 | # | Layer | Metric | Today | Common misreading | Enforced by |
 |---|---|---|---|---|---|
-| 1 | **Structure** | checks passing | **917 passing, 0 failing** (`npm test`, re-run 2026-08-13) | *Green structural means the guard works.* It means the file parses. An earlier audit found **26 enforcement points inert behind 610 green checks** — an unfired guard and an absent one look identical from outside, which is why every hook now records a decision (§3.2f). | `tests/structural.mjs` |
+| 1 | **Structure** | checks passing | **903 passing, 0 failing** (`npm test`, re-run 2026-08-13 after the eval assets and §13 were removed) | *Green structural means the guard works.* It means the file parses. An earlier audit found **26 enforcement points inert behind 610 green checks** — an unfired guard and an absent one look identical from outside, which is why every hook now records a decision (§3.2f). | `tests/structural.mjs` |
 | 2 | **Build round** (product) | T0 green, seesaw, acceptance | T0/seesaw verdicts are produced per run; **no acceptance-vs-baseline comparison is maintained** | *Acceptance in one context window generalizes.* It says nothing about what happens across one. | `skills/tech-lead/scripts/t0-verify.mjs`, `spec-evaluator` |
 | 3 | **Continuity / recovery** | gap closed across a handoff | **no current measurement** | *The hook fired, so it helped.* `session-rehydrate` has been observed to fire every time and close none of the gap — it hands a **pointer** where state was needed. Firing is a precondition for helping, never evidence of it. | **no automated metric — gap** |
 | 4 | **Run economics** | turns-to-first-write, $/session | **no current measurement** (§3.2) | *More gates means more rigor.* More agents can increase activity without value. Cost must be read next to the acceptance delta it bought — and row 2 records no measured delta. | **no automated metric — gap** |

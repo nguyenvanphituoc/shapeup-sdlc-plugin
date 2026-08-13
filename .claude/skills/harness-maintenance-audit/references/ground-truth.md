@@ -36,7 +36,7 @@ ls skills/tech-lead/workflows/
 ```
 
 A skill directory with a `SKILL.md` is a skill. (There are no longer any `skills/*/evals/`
-directories — that layer was removed.)
+directories, nor a top-level `evals/` — that whole layer was removed.)
 
 ## Enums: the vocabulary the runtime enforces
 
@@ -198,11 +198,17 @@ negation patterns make a case ambiguous.
 npm test 2>&1 | tail -3        # total checks + failures
 ```
 
-**There is no activation or craft-quality measurement in this repo.** The per-skill trigger-eval
-datasets, the Day-1 rubrics, the Day-2 failure register, `tools/trigger-eval.mjs`,
-`tools/skill-loop.mjs` and both baselines were all removed. Expect no
-`skills/*/evals/` directory and no `evals/baselines/`; a doc still promising a measured activation
-rate is drift to fix, not a file to go looking for.
+**There is no measurement apparatus in this repo at all.** The per-skill trigger-eval datasets, the
+Day-1 rubrics, the Day-2 failure register, `tools/trigger-eval.mjs`, `tools/skill-loop.mjs`, both
+baselines, the fixture spine, the row renderers and the judge-first planted-bug fixtures were all
+removed. Expect **no `evals/` directory** and no `examples/eval-planted-bug*`; a doc still promising
+a measured activation rate, a craft delta, or a Tier-1/Tier-2 fixture is drift to fix, not a file to
+go looking for.
+
+The read-only projections in `skills/tech-lead/scripts/stats.mjs` (`--ratchet`, `--hooks`, and the
+harvest report) are **not** part of that apparatus and must not be swept up with it: they reduce
+over ledgers the harness writes during ordinary work, cost zero model tokens, and are the only
+measurement surface that still exists.
 
 **Section numbers are not unique, so do not use one to decide whether something still exists.** The
 removal above took out a section numbered **16** (`02-skills.mjs`, "Tier-1 trigger-eval datasets…")
@@ -212,10 +218,9 @@ removed" and "§16 runs today" are both true of different sections. §12 was dup
 until the report-parity module was retired with the benchmark; the live §12 is in `02-skills.mjs`.
 Resolve a cited §N by grepping
 `section("N.` and reading the title, never by the number alone. §7 was removed with the migration
-runner and its ordinal was deliberately not reused.
-
-What survives under `evals/` is the Tier-2 functional apparatus only (`fixtures/`, `oracles/`),
-driven from `examples/eval-planted-bug-2/`.
+runner and its ordinal was deliberately not reused. **§13** — the anti-leniency planted-bug fixture
+in `04-oracles.mjs` — went the same way when the eval assets were deleted, and its ordinal is also
+not reused.
 
 The consequence worth carrying into any audit: the honesty invariant — no number written from
 anything but a run that produced it — is no longer mechanically enforced. It used to fail CI. It
@@ -237,7 +242,12 @@ import('./skills/tech-lead/scripts/lib/paths.mjs').then(m=>{
 
 # Anything spelling a root by hand instead of resolving it
 grep -rn '"\.shapeup\|\x27\.shapeup\|"shapeup/' --include="*.mjs" --include="*.js" skills hooks bin \
-  | grep -v "lib/paths.mjs" | grep -v "/evals/"
+  | grep -v "lib/paths.mjs"
+
+# The pre-ADR-0001 root is a live trap, not history: receipts written to `.shapeup-sdlc/` are
+# invisible to every reader, so the symptom is zero telemetry rather than an error.
+grep -rn "shapeup-sdlc/" --include="*.mjs" --include="*.js" skills hooks bin | grep -v "lib/paths.mjs"
+find . -name ".shapeup-sdlc" -type d -not -path "./.git/*"
 ```
 
 Cross-check writers against readers: if one module writes a path and another reads a different one,
