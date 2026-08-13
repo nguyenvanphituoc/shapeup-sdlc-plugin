@@ -45,12 +45,17 @@ That is a positioning call rather than a hygiene defect, so raise it, do not act
 evidence in the README is doing deliberate credibility work for the product. The cheap fix, if the
 user wants a clean npm surface, is a short npm-facing README rather than gutting the GitHub one.
 
-**Do not conclude from this that `docs/internal/` should be deleted.** That the tree is public is a
+**Do not delete repo-only documentation as a cleanliness measure.** That the tree is public is a
 recorded decision, not an oversight — `docs/design/adr/0002-plugin-repo-organization.md` states it
 plainly: the repo/publish split is *a legibility boundary, not an access-control one; nothing here
 is secret*. The repo is public on GitHub, so removing files would not un-publish them anyway. If
 the premise has changed, that is an ADR to revisit with the user, not something a cleanliness pass
 reverses on its own initiative.
+
+(`docs/internal/` was the standing example here until it was retired outright — the working record
+was folded into the design record, and ADR-0002 now carries that outcome. The rule is unchanged;
+only the example is gone. Deleting it was a decision taken with the user, which is exactly the bar
+this paragraph sets.)
 
 ## Severity: where a leak actually hurts
 
@@ -144,11 +149,24 @@ Then sweep for dangling references separately, since they need a different judgm
 
 ```bash
 # Named .mjs/.js files that no longer exist
-grep -rhoE "[a-z0-9-]+\.(mjs|js)" --include="*.md" --include="*.mjs" skills hooks commands \
+grep -rhoP "[a-zA-Z0-9._-]+\.(?:mjs|js)(?![a-zA-Z0-9])" \
+  --include="*.md" --include="*.mjs" skills hooks commands oracles bin \
   | sort -u | while read f; do
       [ -z "$(find . -name "$f" -not -path './.git/*' -print -quit)" ] && echo "MISSING: $f"
     done
 ```
+
+**Three corrections are load-bearing in that pattern; the earlier `[a-z0-9-]+\.(mjs|js)` reported 38
+missing files of which 36 did not exist as claims at all.** The trailing `(?![a-zA-Z0-9])` stops
+`.js` from matching inside **`.json`**, which was the bulk of it — every `analyze.json`,
+`receipt.json` and `settings.json` in the tree was reported as a missing `.js`. `_` and `.` belong
+in the character class or `_shared.mjs` reads as a missing `shared.mjs` and `mathx.test.mjs` as a
+missing `test.mjs`, both of which exist. A sweep whose output is mostly noise is one nobody reads to
+the end, which is the same as not running it.
+
+Expect two survivors that are *not* defects: `file.js` in a stack-frame example
+(`aegis-digest.mjs`) and `workflow-script.js` in a usage string (`run-workflow.mjs`). Both are
+illustrative placeholders. Confirm by reading the line before reporting either.
 
 ## Rewriting a hit
 

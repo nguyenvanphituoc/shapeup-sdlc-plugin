@@ -77,7 +77,6 @@ shapeup/
 ├── knowledge-base/
 │   ├── task-executor.md · ba-pitch-analyzer.md · qa-edge-hunter.md
 │   └── harness-defects.md
-└── .harness-version · .harness-migrations
 ```
 
 ### `.shapeup/` — the local tier
@@ -101,7 +100,7 @@ shapeup/
 └── pitch-archive/
 ```
 
-### Three exceptions to the markdown rule, named
+### Two exceptions to the markdown rule, named (a third was withdrawn)
 
 A rule with unnamed exceptions is a rule nobody can apply. These three are the complete set:
 
@@ -112,9 +111,11 @@ A rule with unnamed exceptions is a rule nobody can apply. These three are the c
    agent should work *in this codebase*, which is a team property even when every run is
    individual. `gate-answers.json` and `safety-overrides.json` do not follow it: consent and
    safety envelope stay per-machine, so no committed file can widen another person's.
-3. **`.harness-version` / `.harness-migrations` stay committed although they are machine state.**
-   They are the Flyway-style record of which migrations *this repository* has had applied. Local,
-   and every teammate re-runs them.
+3. ~~**`.harness-version` / `.harness-migrations` stay committed although they are machine state.**~~
+   **Withdrawn.** These were the Flyway-style record of which migrations *this repository* had had
+   applied. The upgrade path's data-migration step has since been removed, and it was the only
+   writer of either file, so the exception has no subject left. Two exceptions remain, not three;
+   an existing project may still carry the files, and nothing reads them.
 
 ### Contract format — markdown in, JSON on the wire
 

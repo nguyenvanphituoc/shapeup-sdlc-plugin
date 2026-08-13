@@ -318,14 +318,14 @@ hooks/                # hooks.json + safety-spine, gate-l2, gate-intake, gate-de
 oracles/              # the evaluation-contract oracle registry (test · snapshot · http · process)
 bin/init.mjs          # `npx shapeup-sdlc init` — scaffolds all three CLI targets
 scripts/install-harness.sh, migrate.sh   # stable public entrypoints (fresh install / update)
-scripts/shapeup-sdlc/                    # dev/CI tooling: lib/, migrations/
-tools/                # repo-only: contract-check.mjs,
+scripts/shapeup-sdlc/lib/                # shell libs both entrypoints source
+tools/                # repo-only: demo/
                       #   demo/record-demo.mjs (regenerates docs/assets/demo-gate.svg)
 evals/                # Tier-2 functional apparatus only: fixtures/, oracles/
-tests/structural.mjs, tests/structural/*.mjs   # Tier 0 — 900+ checks, zero LLM calls
+tests/structural.mjs, tests/structural/*.mjs   # Tier 0 — 880+ checks, zero LLM calls
 docs/install.md, upgrading.md, glossary.md
-docs/design/          # the design document (pipeline, gates, circuit breaker, ERD)
-docs/internal/        # plan/, research/, launch/
+docs/design/          # the design document (pipeline, gates, circuit breaker, ERD) + adr/
+docs/visualize/       # rendered views of the tree and the pipeline
 .github/workflows/    # CI + release (release publishes to npm via OIDC)
 ```
 

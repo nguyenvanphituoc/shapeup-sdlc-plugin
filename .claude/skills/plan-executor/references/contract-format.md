@@ -13,7 +13,7 @@ asking them not to make it.
 ```markdown
 ---
 schema: plan-execution-contract/v1
-plan: docs/day2_tool_efficacy_review.md
+plan: docs/<the plan document this contract was compiled from>.md
 plan_sha256: <sha256 of the plan file, so drift is detectable>
 title: <the plan's H1>
 fresh_state: head

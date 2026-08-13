@@ -295,10 +295,10 @@ export async function run(ctx) {
       else fail(`compile-order failed (exit ${r.status})\n${r.stdout}${r.stderr}`);
 
       // A BUILD order's id must carry its scope. Without it every scope in a round compiles to the
-      // same filename, so scope 2's order overwrites scope 1's — which is what made the migration
-      // contract's `orders/ minus results/ is empty` row read GREEN on the kill/resume probe that
-      // was, at that moment, re-dispatching a completed phase (docs/migration/stage2-evidence.md
-      // §4). An order file that is not self-identifying is not an audit trail.
+      // same filename, so scope 2's order overwrites scope 1's — which is what made an
+      // `orders/ minus results/ is empty` acceptance row read GREEN on a kill/resume probe that
+      // was, at that moment, re-dispatching a completed phase. An order file that is not
+      // self-identifying is not an audit trail.
       if (/(^|\/)cart-r1-a2\.json$/.test(orderPath)) {
         ok("a build order's filename names its scope, so two scopes in one round cannot overwrite each other");
       } else {

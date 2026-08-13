@@ -79,16 +79,27 @@ grep -n "OP_OWNER" -A 12 skills/tech-lead/scripts/compile-order.mjs
 node -e "
 import('./skills/tech-lead/scripts/compile-order.mjs').then(m=>{
   for (const op of ['analyze','reconcile','retrofit-surface','coverage','map-scopes','wire',
-                    'evaluate','orient','hunt','translate','hammer','coach','execute']) {
+                    'evaluate','orient','hunt','translate','hammer','coach','execute',
+                    'fix','spike']) {
     console.log(op, JSON.stringify(m.substrateFor(op,{slug:'demo'})));
   }
 });
 "
 ```
 
-An operation in the enum with no `OP_OWNER` entry cannot be routed. An operation with no
-`substrateFor` case silently falls to the default whitelist, which is usually wrong and always
-worth flagging.
+An operation with no `substrateFor` case silently falls to the default whitelist, which is usually
+wrong and always worth flagging.
+
+"No `OP_OWNER` entry" is *not* the same as "cannot be routed", and reading the map alone will
+mislead you twice. Its keys are **unquoted** (`analyze:`, not `'analyze':`), so a grep for `'<op>'`
+reports every entry missing. And `execute`/`fix`/`spike` are absent from the map by design — they
+resolve through the `scopePath || --task || --next` branch just below it. Settle it by running the
+compiler, which is the only thing that answers the question:
+
+```bash
+node <repo>/skills/tech-lead/scripts/compile-order.mjs --operation <op> --slug demo --cwd "$PWD"
+# exit 2 + "could not resolve --worker/--operation" = genuinely unroutable in that invocation
+```
 
 Compile a real order end to end when you want certainty:
 
@@ -189,9 +200,18 @@ npm test 2>&1 | tail -3        # total checks + failures
 
 **There is no activation or craft-quality measurement in this repo.** The per-skill trigger-eval
 datasets, the Day-1 rubrics, the Day-2 failure register, `tools/trigger-eval.mjs`,
-`tools/skill-loop.mjs`, both baselines and structural §16/§48 were all removed. Expect no
+`tools/skill-loop.mjs` and both baselines were all removed. Expect no
 `skills/*/evals/` directory and no `evals/baselines/`; a doc still promising a measured activation
 rate is drift to fix, not a file to go looking for.
+
+**Section numbers are not unique, so do not use one to decide whether something still exists.** The
+removal above took out a section numbered **16** (`02-skills.mjs`, "Tier-1 trigger-eval datasets…")
+and one numbered **48**. A *different* §16 — "Workflow scripts … D5 floor + path-literal
+discipline", in `16-workflows.mjs` — was already sharing that number and is still live, so "§16 was
+removed" and "§16 runs today" are both true of different sections. §12 is currently duplicated the
+same way (`02-skills.mjs` and `12-report-parity.mjs`). Resolve a cited §N by grepping
+`section("N.` and reading the title, never by the number alone. §7 was removed with the migration
+runner and its ordinal was deliberately not reused.
 
 What survives under `evals/` is the Tier-2 functional apparatus only (`fixtures/`, `oracles/`),
 driven from `examples/eval-planted-bug-2/`.

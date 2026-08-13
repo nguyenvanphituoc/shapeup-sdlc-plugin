@@ -49,7 +49,7 @@ const MODULE_FILES = [
   "14-invocation-paths.mjs",
   "15-hook-receipts.mjs",
   // 16-workflows.mjs: skills/tech-lead/workflows/*.js — the D5 model floor and the test-#45
-  // path-literal discipline extended to Workflow scripts (docs/workflow_migration_plan.md S1).
+  // path-literal discipline extended to Workflow scripts.
   "16-workflows.mjs",
   // 17-gate-zerowork-workflow.mjs: the zero-work gate's Workflow arm (migration A5). Its own
   // module rather than a section-37 addendum — the predicate is the cutover's, not the receipt's.

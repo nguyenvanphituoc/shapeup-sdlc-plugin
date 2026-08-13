@@ -9,8 +9,8 @@
 // script has no `import`, takes `args` as a runtime global, and is executed by the Workflow
 // runtime: there was no seam a fixture could reach.
 //
-// So it shipped unverified, and the kill/resume probe found what that costs
-// (docs/migration/stage2-evidence.md §4). ORIENT's skip was gated on the ledger's stored `status`
+// So it shipped unverified, and a kill/resume probe found what that costs.
+// ORIENT's skip was gated on the ledger's stored `status`
 // rather than on ORIENT's own artifacts. A courier write left that status pinned at "orienting"
 // across two complete legs and 46 dispatched agents, and every relaunch re-ran ORIENT from
 // scratch — three artifacts rewritten, a spike added, the discovery ledger and two task files
@@ -277,7 +277,7 @@ export async function run(ctx) {
     // THE DEFECT THIS ARM IS WRITTEN AGAINST. The pipeline dispatched WIRE, ingested a result
     // reading `status: "escalated"` with `artifacts: []`, and moved to the next gate. The phase had
     // written nothing, so the next launch's fast-forward re-dispatched it, and the worker escalated
-    // again — forever (docs/migration/stage-a2-evidence.md §7.3). The tree below IS that state:
+    // again — forever. The tree below IS that state:
     // every upstream artifact present, a wire result on disk, and no wiring map.
     const escalated = tree("escalated-wire", {
       status: "mapping", orient: FULL_ORIENT, usecases: FULL_SPEC, results: ["wire.json"],

@@ -96,8 +96,9 @@ export async function run(ctx) {
     }
   }
   if (wrong === 0) ok(`all ${literal} documented invocations use the literal \${CLAUDE_PLUGIN_ROOT} form and name the right owner`);
-  // Floor LOWERED 25 -> 18 for docs/workflow_migration_plan.md Stage 2, deliberately and on the
-  // record (the census this floor guards moved from 36 to 21 in that stage's own diff). Stage 2's
+  // Floor LOWERED 25 -> 18 at the orchestrator cutover, deliberately and on the record — this
+  // comment being the record, since the staging plan it cited is no longer in the tree (the census
+  // this floor guards moved from 36 to 21 in that cutover's own diff). The cutover's
   // SKILL.md rewrite (the thin shell — see tests/structural/08-docs.mjs's ratchet, same commit)
   // deletes the BUILD/EVAL/SHIP prose that used to inline ~15 of these `node "${CLAUDE_PLUGIN_ROOT}
   // /..."` call sites directly in SKILL.md; those operations now run as CODE inside

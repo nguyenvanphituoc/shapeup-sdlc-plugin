@@ -114,9 +114,9 @@ installClaude();
 ensureAgentImport(join(target, "CLAUDE.md"), "CLAUDE.md");
 
 // ---- 3. .gitignore ----------------------------------------------------------
-// Both roots are listed, deliberately. A project may be mid-migration (0006 moves `.shapeup/`
-// to `.shapeup/`), and a run trace committed by accident during that window is exactly the mistake
-// the tier split exists to prevent. Ignoring a directory that does not exist costs nothing.
+// Both roots are listed, deliberately. A project may still be carrying the pre-ADR-0001 local root
+// alongside the current one, and a run trace committed by accident from either is exactly the
+// mistake the tier split exists to prevent. Ignoring a directory that does not exist costs nothing.
 const GITIGNORE_RULE = `# Shape Up SDLC run workspace
 ${LOCAL}/
 ${LEGACY_LOCAL}/

@@ -3,11 +3,11 @@
 //
 // WHY THIS MODULE EXISTS.
 //
-// docs/workflow_migration_plan.md Stage 1 moves the BUILD round's per-scope attempt loop out of
-// SKILL.md prose and into a Workflow script. Stage 1 shipped it as its own file; Stage 2 inlined
-// the loop into skills/tech-lead/workflows/shapeup-run.js (that file's banner gives the three
-// reasons), and Stage B deleted the orphan. The directory is expected to hold exactly the scripts
-// SKILL.md launches — check (0) below is what keeps that true.
+// The orchestrator cutover moved the BUILD round's per-scope attempt loop out of SKILL.md prose and
+// into a Workflow script. It shipped first as its own file, was then inlined into
+// skills/tech-lead/workflows/shapeup-run.js (that file's banner gives the three reasons), and the
+// orphan was deleted. The directory is expected to hold exactly the scripts SKILL.md launches —
+// check (0) below is what keeps that true.
 //
 // Two invariants that used to be enforced by review now need a mechanical guard of their own,
 // because a Workflow script has no PreToolUse hook watching its own source the way a worker's
@@ -15,9 +15,9 @@
 //
 //   1. THE MODEL FLOOR (D5, PO decision 2026-08-06). Every agent() call in every workflow
 //      script — including the mechanical courier — runs at sonnet or above. A workflow script
-//      that quietly drops to a cheaper tier for "just the courier" reproduces the exact
-//      mislabelled-comparison class docs/workflow_extraction_review.md's Day-2 lesson names:
-//      a courier that mis-transcribes stdout corrupts the pipeline at its narrowest channel.
+//      that quietly drops to a cheaper tier for "just the courier" reproduces a measured
+//      mislabelled-comparison failure: a courier that mis-transcribes stdout corrupts the
+//      pipeline at its narrowest channel.
 //      Greppable, case-insensitively, over the whole directory — the migration contract's own
 //      acceptance row does the same grep; this module exists so `npm test` catches a regression
 //      before a human has to run that grep by hand.
@@ -30,8 +30,8 @@
 //      module asserts every quoted string in a workflow script that names one of the two storage
 //      roots (`shapeup/`, `.shapeup/`) is EITHER produced by a script's stdout (never spelled out
 //      as a literal — the source contains no such literal at all) or does not appear outside a
-//      comment. A workflow script that hardcodes ".shapeup/<slug>/results/…" the way
-//      docs/workflow_extraction_review.md's own illustrative pseudocode does would pass code
+//      comment. A workflow script that hardcodes ".shapeup/<slug>/results/…" the way the
+//      cutover's own illustrative pseudocode did would pass code
 //      review by looking identical to the SKILL.md prose it replaces, and be exactly the kind of
 //      "looks complete, produces no diagnostic, is wrong" defect #45's own banner describes.
 
@@ -73,8 +73,8 @@ export async function run(ctx) {
   // the round loop (see its own banner for why), SKILL.md launched only `shapeup-run.js`, and a
   // 418-line duplicate of the attempt loop sat in this directory reading as shipped code because
   // a green test named it. A presence assertion over an unreachable file is a row that cannot
-  // fail in the direction that matters, one layer up from the three the acceptance contract's own
-  // revision caught (docs/migration/execution-contract.md, "Instrument revision").
+  // fail in the direction that matters, one layer up from the three that revising the cutover's
+  // acceptance instrument caught.
   //
   // The invariant is reachability, so that is what this asserts: every `.js` in workflows/ is
   // named by a `scriptPath:` the skill actually launches. It fails in BOTH directions a divergence

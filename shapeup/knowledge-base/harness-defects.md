@@ -66,8 +66,8 @@ of them is a security posture, not a bug fix:
 
 ### HD-006 — the WorkOrder does not say where the WorkResult goes
 
-**Filed:** 2026-08-11, from the Stage A3 kill/resume probe (`docs/migration/stage-a3-plan.md`
-Finding 3). Not from L4 feedback — from two consecutive dispatches failing in the field.
+**Filed:** 2026-08-11, from a kill/resume probe of the orchestrated lane. Not from L4 feedback —
+from two consecutive dispatches failing in the field.
 
 A compiled WorkOrder carries `order_id`, `substrate` and `payload`, and **nothing that names the
 result file**. Every worker SKILL.md documents the convention in prose
@@ -98,8 +98,8 @@ contract, which is why it is a bet rather than a patch.
 
 ### HD-007 — the only post-cutover lane cannot start headlessly, and nothing says so
 
-**Filed:** 2026-08-12, from the Stage C / A7 benchmark run (`docs/migration/stage3-evidence.md` §7.5).
-Not from L4 feedback — from six paid benchmark reps in which the lane never once executed.
+**Filed:** 2026-08-12, from a headless benchmark run of the post-cutover lane. Not from L4
+feedback — from six paid benchmark reps in which the lane never once executed.
 
 The cutover (D1–D4) deletes the prose orchestrator and makes the `Workflow` lane the only lane for
 scoped specs. **In a headless session that lane cannot start.** Every `Workflow` tool call is denied
@@ -213,8 +213,8 @@ durable record — a defect whose test fires on reversion cannot come back silen
 than a paragraph in this file could ever promise. HD-001…HD-005, the family in which *the committed
 contract format fails silent*, closed 2026-08-04/05: pinned by structural §46(f)(g)(h)(i) for the
 parser and §23 for the two call sites §46 does not reach, every one mutation-verified in both
-directions. What they cost and what they taught is written up once, in
-[`evals/DAY1-REPORT.md`](../../evals/DAY1-REPORT.md) and
-[`docs/internal/plan/ratchet-and-receipt-plan.md`](../../docs/internal/plan/ratchet-and-receipt-plan.md) §5.
+directions. Those guards are the whole write-up that still matters: what the family cost is
+recoverable from the tests that now fail on reversion, and nothing else needs to survive for the
+fix to hold.
 
 This file stays short on purpose. It is a queue, not an archive.

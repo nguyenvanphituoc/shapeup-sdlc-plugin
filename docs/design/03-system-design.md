@@ -336,8 +336,8 @@ The rule (ADR-0001): **prose is the team's, structured data is the machine's.** 
 contracts are the named exception — they are structured, but they are also low-level design a
 reviewer must read, so they are converted to markdown rather than hidden. The knowledge base is
 the second: it is policy, but coaching rules describe how an agent should work *in this codebase*,
-which is a team property. `.harness-version`/`.harness-migrations` are the third — machine state
-that must be committed, or every teammate re-runs the migrations.
+which is a team property. A third exception once covered the migration bookkeeping files; the
+upgrade path no longer migrates data, so it was withdrawn with its subject (ADR-0001).
 
 The split matters operationally: a second developer who pulls a branch mid-run has the SHARED
 spec but no LOCAL board — the harness detects that at GATE L1b and regenerates the board from

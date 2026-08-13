@@ -1,8 +1,9 @@
 # To-be architecture — how the system communicates once the control plane is a Workflow
 
-Companion to `docs/workflow_extraction_review.md` (§6 Stage 1–2). That report argued *whether*;
-this document draws *how*: every component, every channel between them, and the exact shape of
-what travels on each channel — with the workflow's four communication channels as the focus.
+The extraction review that argued *whether* to move the control plane into a workflow has been
+retired now that the cutover has shipped; this document is what survives it, and it draws *how*:
+every component, every channel between them, and the exact shape of what travels on each channel —
+with the workflow's four communication channels as the focus.
 
 The design rule carried over from the harness unchanged: **every channel is typed, and every
 channel has exactly one writer.** Prose crosses no boundary. What used to be "the orchestrator
@@ -283,9 +284,10 @@ code).
 
 ## 6. Design decisions worth recording
 
-Rows marked **[D1–D5]** were confirmed by the PO on 2026-08-06 (decision record in
-`workflow_extraction_review.md` §6). D2 revised the review's original staging; D5 revised its
-original Haiku courier tier; D1/D3/D4 adopted it as drafted.
+Rows marked **[D1–D5]** were confirmed by the PO on 2026-08-06, against the staging the extraction
+review proposed: D2 revised its original staging; D5 revised its original Haiku courier tier;
+D1/D3/D4 adopted it as drafted. The rows below are now the record — the review they amended is not
+in the tree.
 
 | Decision | Alternative rejected | Why |
 |---|---|---|

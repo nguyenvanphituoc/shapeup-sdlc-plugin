@@ -32,8 +32,8 @@ command once catches BUG 1 and misses BUG 2, which reads like diligence. Only a 
 each row **the way the row is written** catches both of those — and neither of them is BUG 3.
 
 This is not a trick: `spec/usecases/UC-01.md`'s Test Surface states the seeded store and the exact
-expected remaining list for TS-06. Every graded row traces to a line of the spec, which is the rule
-`docs/internal/plan/ratchet-and-receipt-plan.md` §0 binds every fixture to.
+expected remaining list for TS-06. Every graded row traces to a line of the spec — that traceability
+is the rule every fixture here is built to, and a row that cannot cite one does not belong.
 
 ## The last arm — the question the spec does not answer
 

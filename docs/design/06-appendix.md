@@ -28,10 +28,10 @@ hooks/                   hooks.json + PreToolUse: safety-spine · gate-l2 (advis
                          compact-snapshot · SessionStart: session-rehydrate
                          + lib/decision.mjs (every hook records allow / deny / error)
 scripts/install-harness.sh, migrate.sh    stable public entrypoints — a frozen URL contract
-scripts/shapeup-sdlc/    what those two entrypoints run on a user's machine — lib/, migrations/
+scripts/shapeup-sdlc/    what those two entrypoints run on a user's machine — lib/
 oracles/                 the evaluation-contract oracle registry (test · snapshot · http ·
                          process), proven to discriminate against negative controls
-tools/                   repo-only, never shipped — contract-check.mjs, demo/
+tools/                   repo-only, never shipped — demo/
 evals/                   Tier-2 functional apparatus only — fixtures/, oracles/
 tests/structural.mjs     Tier 0 runner — threads tests/lib/ helpers through the per-domain
 tests/{lib,structural}/  suites in tests/structural/*.mjs; 880+ checks, zero LLM calls (the

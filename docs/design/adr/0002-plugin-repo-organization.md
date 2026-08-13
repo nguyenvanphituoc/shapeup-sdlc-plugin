@@ -40,7 +40,7 @@ and were **not in `files[]`**, meaning the quickstart referenced a file no insta
 | **Installs** | `bin/` `scripts/` | **frozen — published `curl` URLs** |
 | **Builds** | `tools/` | maintainer-only; `dist/` is its output, gitignored |
 | **Proves** | `tests/` `evals/` `examples/` | CI; never ships |
-| **Explains** | `docs/` (+ `docs/internal/`) | humans |
+| **Explains** | `docs/` | humans |
 
 ### The moves
 
@@ -50,8 +50,12 @@ and were **not in `files[]`**, meaning the quickstart referenced a file no insta
   `scripts/` holding only the frozen URL contract.
 - **`scripts/FROZEN.md`** states the guarantee in the directory it protects, not only in
   `docs/upgrading.md` where the person doing the tidying will not look.
-- **`docs/internal/`** takes `research/`, `plan/` and `launch/`. `docs/design/` stays public —
-  this project's pitch is "measured, not theorized", so the design record is product value.
+- **The working record is separated from the design record.** Research notes, staging plans and
+  launch drafts were split away from `docs/design/`, which stays public — this project's pitch is
+  "measured, not theorized", so the design record is product value. That separation has since been
+  resolved by retiring the working record entirely: once a plan has shipped, what is worth keeping
+  is the decision, and the decision belongs in an ADR. `docs/design/` is now the whole explanation
+  layer, and this file is where that outcome lives.
 - **`files[]` corrected**: `agents/` and `dist/antigravity/` dropped, `oracles/` added,
   `!skills/**/evals/**` added. The tarball went from 135 files with 13 unwanted eval datasets and
   two dangling entries to 135 files with zero of either.
@@ -68,18 +72,19 @@ repo, plugin-at-root is idiomatic.
 
 ### `dist/` is output, not product
 
-The Claude Code plugin is the product; Cursor, Antigravity and Codex are export targets generated
-on demand by `tools/distribute.js`. No documentation offers them via npm, so removing
-`dist/antigravity/` from `files[]` resolves the gitignored-but-published contradiction and breaks
-nothing.
+The Claude Code plugin is the product; Cursor, Antigravity and Codex were export targets generated
+on demand by a maintainer-only distribute script. No documentation offered them via npm, so removing
+`dist/antigravity/` from `files[]` resolved the gitignored-but-published contradiction and broke
+nothing. Those export channels have since been removed outright — Claude Code is the only target the
+hooks enforce — and the distribute script went with them.
 
 ## Consequences
 
 - The tarball is now derivable from the tree rather than from the publisher's local state.
 - A contributor can tell product from tooling from proof by reading `ls`.
 - The check count fell from 826 to 802 — test #30 covered the retired plugin and went with it.
-- `docs/internal/` is still published to anyone who clones. It is a *legibility* boundary, not an
-  access-control one; nothing here is secret.
+- The lifecycle split is a *legibility* boundary, not an access-control one — everything in the
+  tree is published to anyone who clones, and nothing here is secret.
 
 ## Follow-up not taken
 

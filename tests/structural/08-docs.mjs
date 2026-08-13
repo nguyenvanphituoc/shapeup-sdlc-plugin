@@ -39,28 +39,11 @@ export async function run(ctx) {
   if (hasAgentsMd) ok("AGENTS.md present");
 
 
-  // =============================================================================
-  section("7. Migrations are well-formed (DB-migration discipline)");
-  // =============================================================================
-  // Ordered NNNN__slug.sh, unique ids, each defines MIGRATION_DESC + migration_up — so the runner
-  // in lib-migrate.sh can discover, order, and apply them deterministically.
-  const migDir = join(ROOT, "scripts/shapeup-sdlc/migrations");
-  if (existsSync(migDir)) {
-    const seen = new Map();
-    for (const name of readdirSync(migDir).filter((f) => f.endsWith(".sh"))) {
-      const m = name.match(/^(\d{4})__[a-z0-9-]+\.sh$/);
-      if (!m) { fail(`migration "${name}" must match NNNN__slug.sh (4-digit id, kebab slug)`); continue; }
-      const id = m[1];
-      if (seen.has(id)) fail(`duplicate migration id ${id}: ${name} and ${seen.get(id)}`);
-      else seen.set(id, name);
-      const body = read(join(migDir, name));
-      if (!/migration_up\s*\(\)/.test(body)) fail(`migration ${name} does not define migration_up()`);
-      else ok(`migration ${name} defines migration_up()`);
-      if (!/MIGRATION_DESC=/.test(body)) fail(`migration ${name} missing MIGRATION_DESC`);
-    }
-  } else {
-    console.log("  (no scripts/shapeup-sdlc/migrations dir — skipping)");
-  }
+  // Section 7 asserted the shape of scripts/shapeup-sdlc/migrations/NNNN__*.sh — ordered ids,
+  // MIGRATION_DESC, migration_up — for a runner that no longer exists. The data-migration half of
+  // migrate.sh was removed with every migration it applied, so the section went with its subject
+  // rather than staying as an existsSync() that can only ever skip. The ordinal is not reused:
+  // renumbering sections silently rewrites what a cited "§N" in a comment or commit refers to.
 
 
   // =============================================================================
@@ -81,9 +64,12 @@ export async function run(ctx) {
   // prints the derived resume state; the SessionStart hook injects it); these ten lines are the part
   // that has to be in the orchestrator's own instructions, because they tell it which phase to
   // re-enter at.
-  // LOWERED 480 → 155 for docs/workflow_migration_plan.md Stage 2, deliberately and on the record,
-  // same rule but in the other direction this time. Stage 1's raise (460 → 480) bought one dispatch
-  // note under `--unattended`/`--auto`; Stage 2 is the cutover this migration exists for — SKILL.md
+  // LOWERED 480 → 155 at the orchestrator cutover, deliberately and on the record — and THIS COMMENT
+  // is that record, because the staging plan it used to cite has been retired. A lowered ratchet
+  // whose justification lives in a deleted file is indistinguishable from a check someone weakened
+  // to get to green, so the reasoning is inlined here where it cannot be separated from the number.
+  // The preceding raise (460 → 480) bought one dispatch
+  // note under `--unattended`/`--auto`; the cutover is what this drop pays for — SKILL.md
   // is rewritten to the thin shell the review's §6 sketch describes (L0 intake conversation ->
   // init-run.mjs -> compile RunArgs -> launch `workflows/shapeup-run.js` -> branch on `RunReturn` ->
   // gate conversations on pause -> relaunch -> L4/coach). Every gate from ORIENT through GATE H now
@@ -159,17 +145,52 @@ export async function run(ctx) {
     }
 
     // (c) cited concrete paths exist (placeholders/globs are excluded by the char class).
-    const pathRe = /(?:^|[\s`("'])((?:hooks|skills|scripts|tests|commands)\/[A-Za-z0-9._/-]+\.(?:mjs|json|js|md|sh))(?![A-Za-z0-9])/g;
+    // `docs` belongs in this alternation and its absence was a hole big enough to drive a purge
+    // through: a commit deleting 26 files under `docs/migration/` and `docs/internal/` left live
+    // pointers in README, upgrading.md, an ADR and the org diagram, and this suite stayed green
+    // because it could not see a `docs/...` citation at all. A drift check blind to the directory
+    // docs cite most is a drift check that certifies the next purge too.
+    // `>` is in the leading class because the scan covers `.html`, where a path is a text node
+    // sitting directly against the tag that opens it (`<span class="path">tools/foo.js</span>`).
+    // Without it the org diagram was scanned and still reported nothing, which is the worst of both
+    // — a file inside the checked set, immune to the check.
+    const pathRe = /(?:^|[\s`("'>])((?:hooks|skills|scripts|tests|commands|docs|tools|oracles|evals)\/[A-Za-z0-9._/-]+\.(?:mjs|json|js|md|sh|html))(?![A-Za-z0-9])/g;
+    // Directory citations are the other half, and the half that broke worst: README's repo-layout
+    // tree names `docs/internal/` with no filename, so an extension-anchored pattern skips the very
+    // line whose whole job is to describe the tree. Restricted to `docs/` because that is where
+    // prose points readers at a folder rather than a file; the char class excludes `<`, so
+    // placeholder roots like `<slug>/` cannot match and be reported as missing.
+    const dirRe = /(?:^|[\s`("'>])(docs\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*\/)(?![A-Za-z0-9])/g;
     // Recurse: `docs/design/` gained `adr/` (ADR-0001), and a flat readdir both skipped the
     // decision records and handed a directory to readFileSync. Decision records cite more concrete
     // paths than any other doc, so they are exactly what this drift check wants to cover.
-    const mdUnder = (rel) => readdirSync(join(ROOT, rel)).flatMap((f) =>
-      statSync(join(ROOT, rel, f)).isDirectory() ? mdUnder(`${rel}/${f}`) : (f.endsWith(".md") ? [`${rel}/${f}`] : []));
-    const docFiles = ["README.md", ...mdUnder("docs/design")];
+    // `.html` joins `.md` because `docs/visualize/` renders the file-organization diagram, which is
+    // prose about the tree in another notation and goes stale exactly like prose does.
+    const docsUnder = (rel) => readdirSync(join(ROOT, rel)).flatMap((f) =>
+      statSync(join(ROOT, rel, f)).isDirectory() ? docsUnder(`${rel}/${f}`)
+        : (/\.(md|html)$/.test(f) ? [`${rel}/${f}`] : []));
+    // Every living doc, not a hand-kept list that a new file joins only if someone remembers.
+    // Changelogs are the deliberate exclusion, by basename rather than by a list of two: they record
+    // what was true at each release, so a path they name is *supposed* to stop existing. Applying
+    // this check to them would demand editing history to keep a test green, which is the opposite
+    // of what it is for.
+    const isChangelog = (rel) => /(^|\/)changelog[^/]*\.md$/i.test(rel);
+    const docFiles = ["README.md", "CONTRIBUTING.md", "SECURITY.md", ...docsUnder("docs")]
+      .filter((rel) => !isChangelog(rel));
+    // The same exemption at line granularity, because a living doc still has historical sentences in
+    // it. An ADR's `Supersedes` row and its "Renamed from `<old>`" clause name a dead path ON
+    // PURPOSE — that is the decision being recorded. Flagging those would push an author to delete
+    // the very lines that explain why the tree looks the way it does. Present-tense prose gets no
+    // such pass: "generated on demand by `tools/distribute.js`" is a claim about now, and stays in
+    // scope.
+    const isHistoricalLine = (l) => /\*\*Supersedes\*\*|Superseded by|Renamed from|\bWas `/.test(l);
     const cited = new Map();
     for (const rel of docFiles) {
-      for (const m of read(join(ROOT, rel)).matchAll(pathRe)) {
-        if (!cited.has(m[1])) cited.set(m[1], rel);
+      for (const line of read(join(ROOT, rel)).split("\n")) {
+        if (isHistoricalLine(line)) continue;
+        for (const re of [pathRe, dirRe]) {
+          for (const m of line.matchAll(re)) if (!cited.has(m[1])) cited.set(m[1], rel);
+        }
       }
     }
     for (const [p, from] of cited) {

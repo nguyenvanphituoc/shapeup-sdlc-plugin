@@ -122,10 +122,11 @@ export const report = (cwd, slug) => join(sharedRoot(cwd, slug), "REPORT.md");
 export const knowledgeBaseDir = (cwd) => join(sharedDir(cwd), "knowledge-base");
 /** One worker's coaching file. */
 export const knowledgeBase = (cwd, skill) => join(knowledgeBaseDir(cwd), `${skill}.md`);
-/** Migration bookkeeping — committed by necessity (ADR-0001 exception 3). */
-export const harnessVersion = (cwd) => join(sharedDir(cwd), ".harness-version");
-/** Applied-migration record — committed by necessity (ADR-0001 exception 3). */
-export const harnessMigrations = (cwd) => join(sharedDir(cwd), ".harness-migrations");
+// `.harness-version` and `.harness-migrations` were resolved here, committed by necessity as
+// ADR-0001's third exception. Their sole writer was the upgrade path's data-migration runner, which
+// has been removed; no code in the plugin has written either file since. The helpers went with
+// them rather than remaining as resolvable paths to files nothing produces — a path helper is a
+// claim that the file is part of the layout, and this one would have been false.
 
 // ---------------------------------------------------------------------------
 // LOCAL — run state

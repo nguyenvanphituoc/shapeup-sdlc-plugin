@@ -9,20 +9,20 @@ would type, not an abstract exercise.
 
 **Prompt**
 
-> execute the recommendation in docs/day1_evidence_chain_review.md
+> execute the recommendation in docs/<a staged plan whose Outcome block says it already landed>.md
 
 **What should happen**
 
-The plan's §6 has three steps and its own Outcome block says they landed. So the run should compile
-a contract, preflight it, find every stage already green, and stop — spending one cheap agent
-rather than re-implementing finished work.
+The plan's recommendation section has a handful of steps and its own Outcome block says they
+landed. So the run should compile a contract, preflight it, find every stage already green, and
+stop — spending one cheap agent rather than re-implementing finished work.
 
 **Passes if**
 
-- `contract.md` exists with three stages, chained `depends_on`, and at least one acceptance row per
-  stage
-- `## Guardrails` carries the plan's five "do not" bullets, including *"do not wire §48 in as the
-  first commit"*
+- `contract.md` exists with one stage per step, chained `depends_on`, and at least one acceptance
+  row per stage
+- `## Guardrails` carries every one of the plan's "do not" bullets verbatim, including any that
+  constrain commit ORDER rather than content
 - the preflight is run with Bash in a fresh clone before any workflow is invoked
 - the run reports "already green" rather than re-executing, and the repository is unchanged
 - `REPORT.md` distinguishes "verified green" from "assumed done"
@@ -35,12 +35,14 @@ rather than re-implementing finished work.
 
 **Prompt**
 
-> run docs/day2_tool_efficacy_review.md — stages 1 to 3, skip the optional one
+> run docs/<a plan whose exit criteria are prose, not commands>.md — stages 1 to 3, skip the
+> optional one
 
 **What should happen**
 
-None of Day 2's stages carry a shell block; all three exit criteria are prose (*"the register shows
-2 of 8 classes at the exit criterion"*). The authoring judgement is the whole test.
+None of the stages carry a shell block; every exit criterion is prose (*"the register shows 2 of 8
+classes at the exit criterion"*). Turning those into commands that can actually fail is the whole
+test — the authoring judgement, not the execution.
 
 **Passes if**
 
@@ -85,7 +87,7 @@ failure until the budget is gone.
 
 These are near-misses. The skill should stay out of the way.
 
-> read docs/day2_tool_efficacy_review.md and summarise what it recommends
+> read docs/<any plan>.md and summarise what it recommends
 
 Reading and summarising. No execution, no contract, no clone.
 

@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
-# migrate.sh — update an installed Shape Up SDLC harness and run any pending data migrations.
+# migrate.sh — update an installed Shape Up SDLC harness to the current source version.
 #
-# Two distinct operations, by analogy to a database-backed app deploy:
-#   1. UPDATE CODE  — replace the installed skill files for each chosen CLI (stateless; always
-#                     overwrite to the source version). Like shipping new application code.
-#   2. MIGRATE DATA — run every pending versioned migration in scripts/shapeup-sdlc/migrations/
-#                     against the project's stateful harness artifacts, recording each in a
-#                     committed ledger. Like running pending DB schema migrations after the deploy.
+# ONE operation: replace the installed skill files for each chosen CLI. Skill files are stateless,
+# so the update is a straight overwrite and re-running is free.
 #
-# Idempotent: re-running replaces code again (cheap) and applies only migrations not yet in the
-# ledger. Use --data-only to run migrations without touching skill files.
+# There is deliberately no second, data-migration half any more. Versioned migrations used to run
+# here against a project's stateful harness artifacts, recorded by ordinal in a committed ledger.
+# That machinery was removed with the artifacts it carried forward: every migration in it existed
+# to move a project across a layout change that no supported version is still on. A runner with
+# nothing pending is indistinguishable from a runner that silently did nothing, which is the exact
+# shape this repo keeps finding and removing.
 #
-# Usage: migrate.sh [-d <dir>] [-y] [--data-only] [--dry-run]
+# The path is unchanged on purpose — this URL is published and cannot 404. See FROZEN.md.
+#
+# Usage: migrate.sh [-d <dir>] [-y]
 
 set -e
 
@@ -32,28 +34,28 @@ load_lib() {
   fi
 }
 load_lib lib-harness.sh
-load_lib lib-migrate.sh
 
 # -- Defaults / args ---------------------------------------------------------------------------
 TARGET_DIR="."
 YES_MODE=false
-DATA_ONLY=false
-DRY_RUN=false
 print_usage() {
   echo "Usage: $0 [options]"
   echo "  -d, --directory <path>  Target project (default: current directory)"
   echo "  -y, --yes               Non-interactive (auto-select installed CLIs)"
-  echo "      --data-only         Skip skill replacement; run migrations only"
-  echo "      --dry-run           List pending migrations without applying them"
   echo "  -h, --help              This help"
 }
 while [[ "$#" -gt 0 ]]; do
   case $1 in
     -d|--directory) TARGET_DIR="$2"; shift ;;
     -y|--yes)       YES_MODE=true ;;
-    --data-only)    DATA_ONLY=true ;;
-    --dry-run)      DRY_RUN=true ;;
     -h|--help)      print_usage; exit 0 ;;
+    # --data-only and --dry-run were the data-migration half's flags. Rejected loudly rather than
+    # ignored: a script that accepts a flag it no longer honours reports success for work it did
+    # not do, and an upgrade is exactly where that goes unnoticed.
+    --data-only|--dry-run)
+      echo "Error: $1 was a flag of the data-migration step, which no longer exists."
+      echo "       This script now only replaces installed skill files."
+      exit 1 ;;
     *) echo "Unknown parameter: $1"; print_usage; exit 1 ;;
   esac
   shift
@@ -61,31 +63,17 @@ done
 
 TARGET_DIR="$(cd "$TARGET_DIR" && pwd)"
 export HARNESS_YES="$YES_MODE"
-export HARNESS_MIGRATE_DRYRUN="$DRY_RUN"
 
 harness_resolve_source
-echo "Migrating Shape Up SDLC harness in: $TARGET_DIR"
+echo "Updating Shape Up SDLC harness in: $TARGET_DIR"
 
-# -- 1. Update code: replace installed skill files (unless --data-only) ------------------------
-if [ "$DATA_ONLY" = true ]; then
-  echo "[--data-only] skipping skill replacement."
-elif [ "$DRY_RUN" = true ]; then
-  echo "[--dry-run] skipping skill replacement."
+# -- Update code: replace installed skill files ------------------------------------------------
+if harness_select_clis "$TARGET_DIR"; then
+  harness_replace_skills "$TARGET_DIR"
 else
-  if harness_select_clis "$TARGET_DIR"; then
-    harness_replace_skills "$TARGET_DIR"
-  else
-    echo "No CLI selected — skipping skill replacement, continuing with data migrations."
-  fi
+  echo "No CLI selected — nothing to update."
+  exit 0
 fi
-
-# -- 2. Migrate data: run pending migrations ---------------------------------------------------
-harness_run_migrations "$TARGET_DIR"
 
 echo ""
-echo "Done. Migration ledger: $TARGET_DIR/$HARNESS_LEDGER_REL"
-if [ "$DRY_RUN" != true ]; then
-  echo "Next steps:"
-  echo "  1. If shapeup/knowledge-base/_INBOX.md was created, run /coach to categorize its rules."
-  echo "  2. Commit shapeup/ (knowledge base + .harness-migrations + .harness-version)."
-fi
+echo "Done. Skill files are at the current source version."

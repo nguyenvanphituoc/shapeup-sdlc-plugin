@@ -191,9 +191,9 @@ pre.mermaid[data-processed] { font-size:inherit; line-height:inherit; white-spac
       plugin's own repository asks <em>when does this run?</em> The workspace it generates in your
       project asks <em>who is this for?</em> Getting either wrong is silent.</p>
       <div class="meta">
-        <span><b>Plugin</b> 13 skills · 11 hook registrations · 6 oracles · 18 scripts</span>
-        <span><b>Suite</b> 803 checks</span>
-        <span><b>Tarball</b> 135 files</span>
+        <span><b>Plugin</b> 12 skills · 12 hook registrations · 6 oracles · 16 scripts</span>
+        <span><b>Suite</b> 880+ checks</span>
+        <span><b>Tarball</b> 139 files</span>
       </div>
     </div>
   </div>
@@ -232,7 +232,7 @@ pre.mermaid[data-processed] { font-size:inherit; line-height:inherit; white-spac
 
           <div class="band b-ships"><span>Ships</span><span class="when">loaded in the user's Claude Code session, via <code>${CLAUDE_PLUGIN_ROOT}</code></span></div>
           <div class="row"><span class="path">.claude-plugin/</span><span class="note">plugin.json · marketplace.json</span></div>
-          <div class="row"><span class="path">skills/            <span class="dim">13</span></span><span class="note">SKILL.md + references/ scripts/ schemas/ assets/</span></div>
+          <div class="row"><span class="path">skills/            <span class="dim">12</span></span><span class="note">SKILL.md + references/ scripts/ schemas/ assets/</span></div>
           <div class="row"><span class="path">hooks/             <span class="dim">10</span></span><span class="note">the enforcement layer + lib/decision.mjs</span></div>
           <div class="row"><span class="path">commands/          <span class="dim">10</span></span><span class="note">slash-command front doors</span></div>
           <div class="row"><span class="path new">oracles/           6  ← moved</span><span class="note">the probing grammar a user's fixtures invoke</span></div>
@@ -243,25 +243,20 @@ pre.mermaid[data-processed] { font-size:inherit; line-height:inherit; white-spac
           <div class="row"><span class="path">scripts/install-harness.sh</span><span class="note">published <code>curl | bash</code> entry point</span></div>
           <div class="row"><span class="path">scripts/migrate.sh</span><span class="note">published <code>curl | bash</code> entry point</span></div>
           <div class="row"><span class="path">scripts/shapeup-sdlc/lib/</span><span class="note">sourced by both entry points</span></div>
-          <div class="row"><span class="path">scripts/shapeup-sdlc/migrations/  <span class="dim">8</span></span><span class="note">applied by ordinal, recorded in the target project</span></div>
           <div class="row"><span class="path new">scripts/FROZEN.md  ← new</span><span class="note">why nothing here may be renamed</span></div>
 
           <div class="band b-build"><span>Builds</span><span class="when">release time only — never ships</span></div>
-          <div class="row"><span class="path new">tools/distribute.js       ← moved</span><span class="note">compiles Cursor / Antigravity / Codex output</span></div>
-          <div class="row"><span class="path new">tools/trigger-eval.mjs    ← moved</span><span class="note">measures the trigger-eval baseline</span></div>
-          <div class="row"><span class="path new">tools/demo/               ← moved</span><span class="note">records the README demo</span></div>
-          <div class="row"><span class="path dim">dist/</span><span class="note">output of the above · gitignored · not in the tarball</span></div>
+          <div class="row"><span class="path">tools/demo/</span><span class="note">records the README demo · never ships</span></div>
 
           <div class="band b-prove"><span>Proves</span><span class="when">CI only</span></div>
-          <div class="row"><span class="path">tests/structural/  <span class="dim">17</span></span><span class="note">803 checks behind one runner</span></div>
-          <div class="row"><span class="path">evals/</span><span class="note">trigger-eval harness + baseline</span></div>
+          <div class="row"><span class="path">tests/structural/  <span class="dim">21</span></span><span class="note">880+ checks behind one runner</span></div>
+          <div class="row"><span class="path">evals/</span><span class="note">Tier-2 functional apparatus — fixtures + oracles</span></div>
           <div class="row"><span class="path">examples/</span><span class="note">dual role: fixtures AND quickstart tutorial</span></div>
 
           <div class="band b-explain"><span>Explains</span><span class="when">read by humans</span></div>
           <div class="row"><span class="path">docs/design/       <span class="dim">+ adr/</span></span><span class="note">the design record — public, it is the pitch</span></div>
           <div class="row"><span class="path">docs/quickstart · install · upgrading · glossary</span><span class="note">user surface</span></div>
           <div class="row"><span class="path">docs/visualize/</span><span class="note">these pages</span></div>
-          <div class="row"><span class="path new">docs/internal/     ← moved</span><span class="note">research/ · plan/ · launch/ — working record</span></div>
           <div class="row"><span class="path gone">plugins/anti-lying-kit/</span><span class="note">retired — superseded by the main hooks</span></div>
 
         </div>
@@ -334,8 +329,7 @@ structured data is the machine's  →  .shapeup/    gitignored</pre>
           &nbsp;&nbsp;requirements.md <em>— the REQ registry</em><br>
           &nbsp;&nbsp;hill/*.yml<br>
           &nbsp;&nbsp;<strong>REPORT.md</strong> <em>— frozen once at GATE L4</em><br>
-          knowledge-base/*.md<br>
-          .harness-version · .harness-migrations
+          knowledge-base/*.md
         </div>
         <div class="foot">Business requirement, use cases, high- and low-level design — plus the
         one piece of run evidence, frozen when the run ends.</div>
@@ -366,7 +360,7 @@ structured data is the machine's  →  .shapeup/    gitignored</pre>
 <section class="rail">
   <div class="mark">§5<br>Plate 3</div>
   <div>
-    <h2>Three exceptions, named</h2>
+    <h2>Two exceptions, named</h2>
     <p>A rule with unnamed exceptions is a rule nobody can apply. These are the complete set — each
     breaks the prose/structured line, and each has a reason that is not "it was convenient".</p>
 
@@ -390,12 +384,6 @@ structured data is the machine's  →  .shapeup/    gitignored</pre>
             is a team property even when every run is individual.</td>
           </tr>
           <tr>
-            <td class="mono">.harness-version<br>.harness-migrations</td>
-            <td><span class="chip hide">hide</span> machine state</td>
-            <td><span class="chip keep">shared</span></td>
-            <td>The Flyway-style record of which migrations <em>this repository</em> has had
-            applied. Local, and every teammate re-runs them.</td>
-          </tr>
         </tbody>
       </table>
     </div>

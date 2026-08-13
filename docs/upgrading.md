@@ -1,13 +1,17 @@
 # Upgrading an existing install
 
-Updating an install is a **versioned migration**, modeled on database migration tools
-(Flyway / Rails). `migrate.sh` first **updates code** — replacing the installed skills for
-each detected CLI — then **migrates data** by applying any pending
-`scripts/shapeup-sdlc/migrations/NNNN__*.sh` in order and recording each in a committed
-`shapeup/.harness-migrations` ledger.
+Updating an install **replaces code, and only code**: `migrate.sh` overwrites the installed skill
+files for each detected CLI. Skill files are stateless, so this is a straight overwrite and
+re-running it is free and always safe.
 
-It is idempotent: applied migrations are skipped on re-run, so it is always safe to run
-again, and every future version adds its own migration rather than another one-off script.
+**Data migration has been removed.** Earlier versions carried a set of versioned migration scripts
+that rewrote a project's own harness artifacts in place and recorded each in a committed ledger.
+Every one of them existed to carry a project across a layout change that no supported version is
+still on, so the machinery is gone rather than left running over nothing — a runner that reports
+"nothing pending" on every invocation cannot be told apart from one that has quietly stopped
+working. The consequence is stated here rather than left to be discovered: **an install old enough
+to predate the current layout is not converted for you.** Run `install-harness.sh` against it
+instead and treat it as a fresh install.
 
 ## Running it
 
@@ -23,33 +27,29 @@ curl -fsSL "https://raw.githubusercontent.com/nguyenvanphituoc/shapeup-sdlc-plug
 **Option B — local clone:**
 
 ```bash
-/path/to/shapeup-sdlc-plugin/scripts/migrate.sh --directory .             # update code + migrate data
-/path/to/shapeup-sdlc-plugin/scripts/migrate.sh --directory . --dry-run   # list pending migrations
+/path/to/shapeup-sdlc-plugin/scripts/migrate.sh --directory .    # replace installed skill files
 ```
 
-## The migrations
+## What the update does not do for you
 
-### `0001` — knowledge base becomes team-shared
+Three things older installs used to get automatically. Each is now a manual check, and each is
+worth making before your next run rather than at a gate.
 
-As of plugin 0.2.5 / tech-lead 0.12, `/coach` no longer writes one flat, gitignored
-`.shapeup/knowledge-base.md` — which never reached teammates and was never read back. It
-now files each rule **by skill** under committed `shapeup/knowledge-base/<skill>.md`,
-read back by `task-executor` / `ba-pitch-analyzer` / `qa-edge-hunter` at the top of their next
-run.
+### The knowledge base is per-skill and committed
 
-Old rules are preserved verbatim into `shapeup/knowledge-base/_INBOX.md` and are
-**never auto-categorized**. Afterward, run `/coach` on `_INBOX.md` to assign each rule to a
-skill — its GATE COACH-1 asks, it never assumes — then commit `shapeup/` so the team
-inherits the knowledge base and the migration ledger on `git pull`.
+`/coach` files each rule **by skill** under committed `shapeup/knowledge-base/<skill>.md`, read
+back by `task-executor` / `ba-pitch-analyzer` / `qa-edge-hunter` at the top of their next run. If
+you still carry a single flat `.shapeup/knowledge-base.md`, it is gitignored, reaches no teammate
+and is read by nothing. Move its rules into `shapeup/knowledge-base/_INBOX.md` and run `/coach`
+to assign each one — GATE COACH-1 asks which skill owns a rule, it never assumes — then commit
+`shapeup/` so the team inherits it on `git pull`.
 
-### `0002` — file-organization addendum
+### Metrics are sharded per machine
 
-Brings a pre-0.3.0 install up to date: shards a flat `shapeup/metrics.jsonl` into
-`shapeup/metrics/<machine-id>.jsonl` (retiring the old file to
-`metrics.jsonl.migrated`), adds the Tier C `.gitignore` rules, and drops the Tier C example
-templates — the same three steps a fresh `install-harness.sh` run already does.
+A flat `shapeup/metrics.jsonl` should be split into `shapeup/metrics/<machine-id>.jsonl`. A single
+committed file keyed on no machine only grows and conflicts on every pull.
 
-### `0009` — the contract parsers were repaired; find what they now reject
+### The contract parsers were repaired; find what they now reject
 
 v1.6.0 fixes five defects in one family — *the committed contract format fails silent* — plus a
 schema tightening. Every one is a change to a **reader**, so the code arrives with the upgrade and
@@ -65,22 +65,22 @@ the change is from green to red, and you should meet that here rather than at a 
 - **a stored `FAIL` with no `file:line` locator** is rejected before ingest from v1.6.0; that round
   must be re-evaluated rather than resumed.
 
-**It writes nothing.** Two of the three are unrecoverable by machine and the third is a rewrite of a
-committed design document that a person should make and review — the same call `0008` made about a
-teammate's committed analysis. It also notes, once, if your gitignored
-`.claude/settings.local.json` still names `haiku` in the model matrix; the shipped default moved to
-`sonnet`, and your machine's choice is not the upgrade's business.
+**Nothing rewrites these for you.** Two of the three are unrecoverable by machine, and the third is
+a rewrite of a committed design document that a person should make and review. Worth checking at the
+same time: if your gitignored `.claude/settings.local.json` still names `haiku` in the model matrix,
+the shipped default has moved to `sonnet` — your machine's choice, but rarely the one you meant to
+keep.
 
-> Migrations `0003`–`0008` are documented in [`CHANGELOG.md`](../CHANGELOG.md) under the release
-> that shipped each one.
+> Per-release upgrade notes are in [`CHANGELOG.md`](../CHANGELOG.md) under the release that shipped
+> each change.
 
 ## Upgrading into the orchestrator cutover
 
-**There is no migration script for this one, and that is the finding, not an omission.** The
+**Nothing on your disk changes, and that is the finding, not an omission.** The
 cutover changes how the tech-lead *runs* — the round loop moves from prose into
-`skills/tech-lead/workflows/shapeup-run.js` — and touches no artifact on your disk. Boards, scope
-contracts, ledgers, receipts and `shapeup/` all keep their formats. `migrate.sh` will report
-nothing pending, correctly. What follows is what changes for the person running it.
+`skills/tech-lead/workflows/shapeup-run.js` — and touches no artifact you own. Boards, scope
+contracts, ledgers, receipts and `shapeup/` all keep their formats. What follows is what changes
+for the person running it.
 
 ### Does this affect you?
 
@@ -105,8 +105,9 @@ The scoped lane launches through `skills/tech-lead/scripts/run-workflow.mjs`, so
 session ("Review dynamic workflow before running"). This is measured, not theoretical: across six
 benchmark runs of the pre-fix build, `shapeup-run.js` executed **zero** times — each session quietly
 improvised the feature by hand instead, once reaching GATE L4 with a valid receipt while the
-pipeline had never started. **A receipt does not prove the lane ran** (`HD-007`;
-`docs/migration/hd007-control-plane-probe.md`). If your own scripts launch the harness, launch
+pipeline had never started. **A receipt does not prove the lane ran** — the run's first act writes
+one, so a receipt attests that a session started, never that the pipeline executed. If your own
+scripts launch the harness, launch
 `run-workflow.mjs` as a background Bash call and read `<run-dir>/result.json`.
 
 <details>
@@ -162,8 +163,7 @@ rollback is deliberately coarse and we would rather fix forward.
 ## Why the entrypoints live where they do
 
 Source resolution, CLI selection, and skill replacement are factored into a shared
-`scripts/shapeup-sdlc/lib/lib-harness.sh`; the migration runner lives in
-`scripts/shapeup-sdlc/lib/lib-migrate.sh`.
+`scripts/shapeup-sdlc/lib/lib-harness.sh`, which both entry points source.
 
 The `install-harness.sh` / `migrate.sh` entrypoints stay at a stable `scripts/` path on
 purpose — an update mechanism that broke its own bookmarked URL on every refactor would

@@ -3,7 +3,7 @@
 //
 // WHY THIS FILE EXISTS, AND WHAT IT DELIBERATELY IS NOT.
 //
-// docs/internal/plan/ratchet-and-receipt-plan.md §0's whole thesis is that a Tier-1 rubric should be a LOOKUP rather than a
+// The thesis this file is built on: a rubric should be a LOOKUP rather than a
 // judgement: each of these five skills is sole writer of a committed artifact that a deterministic
 // script already grades, so the rubric delegates and inherits none of an author's blind spots.
 // The obstacle is a format mismatch, not a semantic one — `spec-lint.mjs` and `trace-lint.mjs`
