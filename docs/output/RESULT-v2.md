@@ -41,3 +41,26 @@ Phase-0 baseline recorded here is structural (line counts, inventories, a green 
 so there is nothing to compare against. **No number about v2.0's cost or wall-clock appears anywhere
 in this repo** — the fan-out and the warm sub-agents are reasons to expect an improvement, not a
 measurement of one.
+
+## Provenance of `skills/tech-lead/workflows/shapeup-run.js`
+
+It is the review's companion draft, `docs/output/shapeuprun.native.js`, adopted in Phase 2 and then
+adjusted. Roughly forty identifiers carry across unchanged — every schema (`CMD`, `ORIENT`,
+`PHASE_OK`, `MAPSCOPES`, `SCOPE_RESULT`, `EVAL`, `HAMMER`), the dispatch helpers (`worker`, `cmd`,
+`nullFail`), the whole gate layer (`crossGate`, `TITLES`, `gateBlock`, `paused`, `aborted`,
+`diedAt`), `validateArgs` and the model floor, `buildScope`, and the refute wave. The draft is why
+the courier layer could be deleted in one commit rather than designed.
+
+Six deliberate deviations, and the first two are the ones that matter:
+
+| # | Draft | Shipped | Why |
+|---|---|---|---|
+| 1 | A phase is complete when the worker's report says `artifact_written: true` (lines 314, 336, 351, 371) | `requirePhase()` — the artifact is on disk, or the run aborts | The draft trusts a worker's own boolean. A WorkResult may legitimately report `escalated` with an empty artifacts list, which satisfies ingest; the run then walks to the next gate as though the phase landed, and every relaunch re-dispatches it. That loop is unbounded and was measured once already. Adopting the draft verbatim would have re-introduced it. |
+| 2 | Drops `setRunStatus` and the state warnings entirely | Both kept, and the warning travels in the `RunReturn` | Those two writes failed silently for two entire runs — 46 dispatched agents with the ledger pinned at `orienting`. A headless stdout carries only the final message, so a diagnostic that only reaches `log()` is a diagnostic nobody can read. |
+| 3 | `graphProbe()` is the fast-forward from the start, needing new `graph-query.mjs` + `graph-reduce.mjs` (`[ADD]`) | `probe resume` stays the fast-forward; the graph is additive, and answers the round's green-scope set | The plan sequences the graph into Phase 4, and Phase 2 was one change class. `probe resume` also has a 370-line structural fixture behind it that a wholesale replacement would have discarded. Both `[ADD]` scripts exist, folded into one `kernel/reduce/graph.mjs` — a reducer and its query, single-writer by file placement. |
+| 4 | The per-phase graph append is FATAL | `advisory()` — it logs and the run continues | The graph is a projection of the artifacts. Making a projection fatal inverts which of the two is authoritative; `requirePhase` is the fatal check, and it reads the artifact. |
+| 5 | `isolation: 'worktree'` on build legs (`[REQ]`, and the draft's own closing note says it is not actually wired) | Not used; disjoint substrates plus a pointer-free `sandbox-guard` are the isolation | A fresh worktree does not carry the gitignored `.shapeup/` run state every leg reads and writes, so it would break the legs it was meant to isolate. Stated in the Phase 3 commit rather than left as a `[REQ]`. |
+| 6 | Two pipeline stages: build, then reduce | Three: check, build, **confirm** | The worker reports green; `probe t0` has to find the verdict artifact before the round believes it. Measured, not claimed — and it is the artifact the evaluator is required to cite. |
+
+Plus: every script path re-routed through the kernel (Phase 1 postdates the draft), and
+`args.maxParallelScopes` added, which the draft leaves to the runtime's own cap.
