@@ -13,7 +13,7 @@
 // So the harness has been producing a complete dataset and discarding it. Not losing it to a bug;
 // discarding it by design, because nothing ever read it before the directory was cleaned. This
 // script is the read that was missing, and it is deliberately a SEPARATE STEP rather than a write
-// added to the pipeline: the run's writers stay exactly as they are, `ingest-result.mjs` remains
+// added to the pipeline: the run's writers stay exactly as they are, ``harness reduce ingest`` remains
 // the sole writer of shared state, and an export can be re-run against a trace at any point
 // without touching it.
 //
@@ -28,10 +28,10 @@
 // not parse is skipped and COUNTED in the manifest rather than aborting the export — a warehouse
 // loader that dies on one bad line loses the other nine thousand, and the count is what tells an
 // analyst their table is short. It never grades: every column is an id, a count, a duration or a
-// copied enum, per the rule `stats.mjs` states in its own header.
+// copied enum, per the rule ``harness probe stats`` states in its own header.
 //
 // USAGE
-//   node export-run.mjs [--slug <slug>] [--cwd <dir>] [--out <dir>] [--all] [--format jsonl|json]
+//   node `harness report export` [--slug <slug>] [--cwd <dir>] [--out <dir>] [--all] [--format jsonl|json]
 //
 //   --slug     the run to export; defaults to the active-scope pointer's slug
 //   --all      export every run under the LOCAL root that has a readable receipt

@@ -32,10 +32,10 @@
 // pre-recorded answer") rather than a silent wait that gets reported as a slow harness.
 //
 // USAGE
-//   node gate-answers.mjs --init [--preset ci|guarded|interactive] [--out <path>] [--by "<name>"]
-//   node gate-answers.mjs --resolve <gate-id> [--file <path>|--preset <name>] [--slug <slug>]
-//   node gate-answers.mjs --list [--file <path>|--preset <name>]
-//   node gate-answers.mjs --verify [--file <path>|--preset <name>] [--auto-level unattended]
+//   node `harness gate` --init [--preset ci|guarded|interactive] [--out <path>] [--by "<name>"]
+//   node `harness gate` --resolve <gate-id> [--file <path>|--preset <name>] [--slug <slug>]
+//   node `harness gate` --list [--file <path>|--preset <name>]
+//   node `harness gate` --verify [--file <path>|--preset <name>] [--auto-level unattended]
 //
 // RESOLUTION ORDER for --resolve / --list / --verify, first hit wins:
 //   1. --file <path>

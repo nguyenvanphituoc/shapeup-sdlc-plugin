@@ -9,14 +9,14 @@
 // re-dispatching an already-ingested order, miscounting attempts (breaking the inner circuit
 // breaker), or "remembering" a hill phase instead of re-deriving it.
 //
-// Consumers (both in hooks/): compact-snapshot.mjs persists it before compaction (audit
-// anchor); session-rehydrate.mjs re-derives it fresh after compaction and injects the
+// Consumers (both in hooks/): `harness reduce snapshot` persists it before compaction (audit
+// anchor); `harness reduce graph --subgraph run` re-derives it fresh after compaction and injects the
 // rehydrate_hint as additionalContext.
 //
 // Output is self-validated against the registry before it is emitted — the same
-// refuse-to-emit-schema-drift discipline as compile-order.mjs.
+// refuse-to-emit-schema-drift discipline as `harness compile`.
 //
-// Usage: node run-snapshot.mjs [--cwd <dir>] [--format json|text] [--write]
+// Usage: node `harness reduce snapshot` [--cwd <dir>] [--format json|text] [--write]
 //   exit 0 with empty stdout when no run is active (fail-open), 1 on schema drift.
 
 import { readFileSync, readdirSync, existsSync, writeFileSync } from "node:fs";
@@ -83,13 +83,13 @@ function findRun(cwd) {
   // The pointer names the run the sandbox guard is scoping, NOT necessarily a run still open.
   // `.shapeup/active-scope` has existed since v0.3 and nothing has ever cleared it, because
   // its original reader (sandbox-guard) fails OPEN on a stale one — a pointer at a finished run
-  // simply stops matching any substrate. session-rehydrate is the opposite kind of reader: it
+  // simply stops matching any substrate. `harness reduce graph --subgraph run` is the opposite kind of reader: it
   // turns a pointer into "a run is ALREADY OPEN in this workspace … do NOT open a new run", and
   // it now fires on `startup`/`clear`. Following the pointer without checking the run's status
   // therefore made every cold session in every repo that had EVER run the harness open with a
   // false claim about its own workspace — including sessions with nothing to do with the harness,
   // and including the case where the user's next act is to open the run the injection forbids.
-  // This function's own contract (and session-rehydrate's header) always said "a run only for an
+  // This function's own contract (and `harness reduce graph --subgraph run`'s header) always said "a run only for an
   // active-scope pointer or a mid-run harness-run.md"; the status check is what makes that true.
   const pointer = readJSON(join(root, "active-scope"));
   if (pointer?.slug && isMidRun(root, pointer.slug)) {

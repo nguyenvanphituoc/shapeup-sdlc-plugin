@@ -415,7 +415,7 @@ async function requirePhase(gate, phaseKey, phaseName) {
 }
 
 // The ledger's `status` field is bookkeeping, not this file's resume oracle — the fast-forward reads
-// artifacts. It survives because `reduce snapshot` and the anti-rationalization hook read it to tell
+// artifacts. It survives because `reduce snapshot` and the the ship report's census hook read it to tell
 // a run in flight from a finished one. A lost write is a degraded digest, not a corrupted build, so
 // it warns and continues — and the warning travels in the RunReturn, because a headless stdout
 // carries only the final message and a diagnostic on a channel nobody reads is not a diagnostic.
@@ -425,7 +425,7 @@ async function setRunStatus(status, phaseName) {
   if (!r.ok) {
     const why = (r.detail || `exit ${r.exit_code}`).trim();
     log(`RUN STATE — status="${status}" did not take: ${why}. The run continues (resume is derived from ` +
-        `artifacts, not from this field), but the snapshot and the anti-rationalization hook will read ` +
+        `artifacts, not from this field), but the snapshot and the the ship report's census hook will read ` +
         `this run as unfinished.`);
     stateWarnings.push(`status="${status}" did not take: ${why}`);
   }

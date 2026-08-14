@@ -85,7 +85,7 @@ installer, and troubleshooting are in
 ## Agent support
 
 The harness targets **Claude Code only**. The reason is the row that never travelled when we
-compiled to other CLIs: hooks. The 12 skills, 10 slash commands and pipeline scripts are
+compiled to other CLIs: hooks. The 12 skills, 10 slash commands and the kernel are
 portable prose and plain Node — but hook-enforced gates (envelope validation, substrate
 sandbox, safety spine, the zero-work block) are a per-CLI mechanism, and without them every gate degrades from
 **enforced** to **instructed** — the same honor system every other framework runs on

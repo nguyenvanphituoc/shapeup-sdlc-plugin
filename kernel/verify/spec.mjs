@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Spec lint (pure-skill architecture v1.0, plan §8.2).
+// Spec lint — the checks that must hold before a board becomes work.
 //
 // The mechanical half of the old ba-pitch-analyzer Phase 7a self-audit + Phase 7c parse steps
 // + Phase 6b PA1/PA2 lints — checkbox walking and glob checks a model should never grade on
@@ -165,7 +165,7 @@ export function lintStructure({ specDir, tasks }) {
     for (const k of ["id", "status"]) if (!t[k] || t[k] === "unknown") findings.push({ rule: "TASK", level: "red", detail: `${t.file} missing frontmatter ${k}` });
     for (const d of t.depends_on) if (!ids.has(d)) findings.push({ rule: "TASK", level: "red", detail: `${t.id} depends_on ${d} which does not exist` });
     if (JSON.stringify([...t.unlocks].sort()) !== JSON.stringify(derived[t.id] || [])) {
-      findings.push({ rule: "EDGE-SYMMETRY", level: "red", detail: `${t.id} unlocks ${JSON.stringify(t.unlocks)} ≠ derived inverse ${JSON.stringify(derived[t.id])} — run board-derive.mjs --write` });
+      findings.push({ rule: "EDGE-SYMMETRY", level: "red", detail: `${t.id} unlocks ${JSON.stringify(t.unlocks)} ≠ derived inverse ${JSON.stringify(derived[t.id])} — run harness reduce board --write` });
     }
   }
   // UC-ANCHOR — the LOCAL→SHARED anchor must be complete: every implementation task names

@@ -49,9 +49,9 @@
 // disagree about "is this phase done" is the defect class itself.
 //
 // USAGE
-//   node resume-state.mjs --slug <slug> [--cwd <dir>]              # derive, print ResumeState
-//   node resume-state.mjs --slug <slug> --require <phase>          # post-condition: exit 6 if unmet
-//   node resume-state.mjs --slug <slug> --set-status <status>      # write harness-run.md status
+//   node harness probe resume --slug <slug> [--cwd <dir>]              # derive, print ResumeState
+//   node harness probe resume --slug <slug> --require <phase>          # post-condition: exit 6 if unmet
+//   node harness probe resume --slug <slug> --set-status <status>      # write harness-run.md status
 //
 // Exit: 0 ok · 2 malformed argv (nothing ran) · 3 the target the operation needs is not on disk ·
 //       6 the required phase's artifact is NOT on disk (the phase did not complete).
@@ -115,7 +115,7 @@ export function hasOrientArtifacts(cwd, slug) {
 
 /**
  * The use-case directory this run's spec tree lands in. The ledger may name a non-default
- * `spec_folder` (`init-run.mjs --spec-folder`), so honour it when present and fall back to the
+ * `spec_folder` (`harness init run --spec-folder`), so honour it when present and fall back to the
  * registry path otherwise — never a spelled-out root (test #45).
  *
  * @param {string} cwd - Project root.
@@ -199,7 +199,7 @@ export function deriveResumeState(cwd, slug) {
   const hrPath = harnessRun(cwd, slug);
   const hr = existsSync(hrPath) ? parseFrontmatter(readFileSync(hrPath, "utf8")) : {};
 
-  // Resolved contract PATHS, not bare filenames: compile-order.mjs and t0-verify.mjs both resolve
+  // Resolved contract PATHS, not bare filenames: harness compile and harness verify t0 both resolve
   // `--scope` against cwd, so a bare "SC-x.md" names a file that does not exist, compile-order
   // exits 2, and the attempt loop reads that non-zero exit as the stagnation breaker — a resumed
   // run would falsely trip the inner breaker and hammer-propose every scope instead of continuing.
@@ -249,7 +249,7 @@ export function deriveResumeState(cwd, slug) {
 export function setRunStatus(cwd, slug, status) {
   const p = harnessRun(cwd, slug);
   if (!existsSync(p)) {
-    return { ok: false, path: p, status, reason: `no harness-run.md for slug "${slug}" — open the run with init-run.mjs (GATE L0.1) before setting its status` };
+    return { ok: false, path: p, status, reason: `no harness-run.md for slug "${slug}" — open the run with harness init run (GATE L0.1) before setting its status` };
   }
   const body = readFileSync(p, "utf8");
   if (!/^status:.*$/m.test(body)) {

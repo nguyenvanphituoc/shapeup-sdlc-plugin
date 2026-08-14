@@ -4,7 +4,7 @@
 // Blocks Edit/Write/MultiEdit calls that no LIVE ORDER's `substrate` block permits. Turns "a worker
 // only writes what the run authorised" from prose into a precondition the model cannot talk past.
 //
-// IT ENFORCES THE ORDER, NOT THE SCOPE CONTRACT, and that is the whole design. `compile-order.mjs`
+// IT ENFORCES THE ORDER, NOT THE SCOPE CONTRACT, and that is the whole design. ``harness compile``
 // already stamps a write contract onto every order from `substrateFor(operation)` — allowed,
 // shared, append_only, frozen. Resolving the scope contract instead covered exactly one operation,
 // the build, because only build orders carry a scope; every other dispatch (`analyze`, `wire`,
@@ -27,7 +27,7 @@
 // path, and it runs at GATE L1b before any build starts. `frozen` is checked across all of them, so
 // a path one scope froze stays frozen while another scope is in flight.
 //
-// Design (deliberately conservative, mirrors gate-l2.mjs):
+// Design (deliberately conservative, mirrors the GATE L2 block):
 //   • Fail-OPEN whenever there is nothing to enforce: no active-order pointer (not running inside
 //     a harness dispatch), pointer names an order that doesn't exist or is unparsable, the order
 //     declares no boundaries at all, or the tool call carries no resolvable file path. A guard

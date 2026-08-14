@@ -17,7 +17,7 @@
 // was living in a prompt, and a prompt is exactly what gets dropped on a hand-off. So it becomes a
 // hook, like GATE L2.
 //
-// Design mirrors gate-l2.mjs deliberately:
+// Design mirrors the GATE L2 block deliberately:
 //   • Scope — only `Skill` → tech-lead. Anything else defers instantly.
 //   • Fail-CLOSED only on a provably empty intake, with an actionable re-invocation in the reason.
 //   • Fail-OPEN on anything ambiguous (unparseable payload, unknown arg shape, an envelope
@@ -55,7 +55,7 @@ const args = String(p.tool_input?.skill_args ?? p.tool_input?.args ?? "");
 const skill = String(skillRaw).split(":").pop();
 if (skill !== "tech-lead") defer(`Skill(${skill}) is not the orchestrator — out of scope`);
 
-// The envelope port supplies its own intake; validate-envelope.mjs owns that path.
+// The envelope port supplies its own intake; `harness verify envelope` owns that path.
 if (/--order\b/.test(args)) defer("envelope dispatch — validate-envelope owns this path", "--order");
 
 // Intake is satisfied by ANY of: a pitch path, a spec folder, or free requirement text.

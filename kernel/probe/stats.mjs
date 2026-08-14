@@ -17,7 +17,7 @@
 // Output is a StatsReport (domain.schema.json#/$defs/StatsReport), self-validated before it
 // is emitted; --format table renders the human view from the already-validated object.
 //
-// Usage: node stats.mjs [--cwd <dir>] [--metrics-dir <dir>] [--slug <slug>] [--format json|table]
+// Usage: node `harness probe stats` [--cwd <dir>] [--metrics-dir <dir>] [--slug <slug>] [--format json|table]
 
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { resolve, join } from "node:path";

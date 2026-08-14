@@ -6,13 +6,11 @@
 // input, every gate in this repo answered the same way:
 //
 //     $ echo 'NOT JSON AT ALL {{{' | node hooks/<gate>.mjs
-//     gate-l2            exit=0   stdout_len=0
 //     gate-zerowork      exit=0   stdout_len=0
 //     sandbox-guard      exit=0   stdout_len=0
 //     safety-spine       exit=0   stdout_len=0
-//     gate-deadline      exit=0   stdout_len=0
 //     gate-intake        exit=0   stdout_len=0
-//     validate-envelope  exit=0   stdout_len=0
+//     verify envelope    exit=0   stdout_len=0
 //
 // exit 0 + silence = allow. But that is ALSO what "inspected the board and deferred" looks like,
 // and what "no rule matched" looks like, and what a thrown exception looks like, and what an inert
@@ -20,8 +18,8 @@
 // orchestrator or auditor can tell them apart, which is how a whole enforcement layer can sit
 // inert while every one of its checks reports success.
 //
-// FAIL-OPEN IS RETAINED, DELIBERATELY. `gate-l2.mjs` argues for it correctly in its own header: a
-// gate that breaks legitimate or standalone runs just gets disabled, and a disabled gate enforces
+// FAIL-OPEN IS RETAINED, DELIBERATELY, and every hook here argues for it in its own header: a gate
+// that breaks legitimate or standalone runs just gets disabled, and a disabled gate enforces
 // nothing. The defect was never the direction. It is that `allow` carried NO EVIDENCE.
 //
 // THE PREDICATE IS ALREADY INVENTED IN THIS REPO. The structural suite calls its helper `spoke()`
@@ -38,7 +36,7 @@
 // committed metrics shard, which `stats --hooks` aggregates into.
 //
 // THE PATH IS RESOLVED, NEVER SPELLED. It comes from `lib/paths.mjs` — the same resolver
-// `stats.mjs --hooks` reads through. This file used to hardcode the pre-ADR-0001 root, so every
+// ``harness probe stats` --hooks` reads through. This file used to hardcode the pre-ADR-0001 root, so every
 // hook wrote its receipts to `.shapeup-sdlc/` while the only reader looked in `.shapeup/`:
 // `stats --hooks` reported zero hook activity on every project, which is indistinguishable from
 // the inert-enforcement-layer failure this file exists to make visible. A telemetry channel with
@@ -189,7 +187,7 @@ export async function runHook(name, fn) {
     rule: d.rule ?? null,
   }, d.cwd);
   // Deny/block/warn payloads are emitted by definition. `emit: true` covers the hooks whose whole
-  // job is to SAY something on an allow — session-rehydrate's additionalContext, for instance — so
+  // job is to SAY something on an allow — an injected context hint, for instance — so
   // a permitting hook can still write to stdout without pretending to be a denial.
   //
   // WHY `warn` IS ITS OWN VERDICT (ADR-0001). An advisory gate permits the call, so the obvious

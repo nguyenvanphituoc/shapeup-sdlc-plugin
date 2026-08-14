@@ -11,7 +11,7 @@
 // from code it did not write, cannot see the history of, and is told about only through error
 // strings. The paper's `revert(commit)` is the MORE COMMON branch, and it was the absent one.
 //
-// Under a ratchet there is one rule for both (see `t0-verify.mjs` → `decideStatus`): keep the tree
+// Under a ratchet there is one rule for both (see ``harness verify t0`` → `decideStatus`): keep the tree
 // when the score strictly improved, restore the last kept tree when it did not.
 //
 // NO COMMITS ON THE BRANCH UNDER TEST. The harness's standing convention is that it never writes
@@ -19,7 +19,7 @@
 // SHADOW REF — `refs/shapeup/<scope_id>/kept` — which is invisible to `git log`, `git status` and
 // every branch operation, and is reachable for `git restore` and for forensics afterwards.
 //
-// NON-REGRESSION (plan §7). Every operation here is best-effort: outside a git work tree, with no
+// NON-REGRESSION. Every operation here is best-effort: outside a git work tree, with no
 // `git` on PATH, or with no snapshot yet taken, the functions report `{ ok: false, reason }` and
 // the caller proceeds exactly as it does today. A ratchet that can break a build by failing to
 // take a snapshot would get the whole mechanism disabled, which costs more than it saves.

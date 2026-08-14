@@ -15,7 +15,7 @@
 //
 // Two guards existed and neither could see it:
 //   • `gate-intake.mjs` (L0.0) fires on an EMPTY intake. Intake was valid here. Correct no-op.
-//   • `anti-rationalization.mjs` fires when a completion claim contradicts run facts. It is
+//   • the ship report's census fires when a completion claim contradicts run facts. It is
 //     scoped to an ACTIVE run — and a run that never started produces none of the files it
 //     reads — and its claim detector matches past-tense completion ("done", "shipped"), while
 //     narration is future-tense ("it will"). Two independent misses on the same transcript.
@@ -39,9 +39,9 @@
 // verbatim next to its digest, so "the spec was dropped" is checkable, not arguable.
 //
 // USAGE
-//   node init-run.mjs --slug <slug> --intake-file <path>            [options]   <- prefer this
-//   node init-run.mjs --slug <slug> --intake-text "<requirement>"   [options]
-//   cat spec.md | node init-run.mjs --slug <slug> --intake-stdin    [options]
+//   node `harness init run` --slug <slug> --intake-file <path>            [options]   <- prefer this
+//   node `harness init run` --slug <slug> --intake-text "<requirement>"   [options]
+//   cat spec.md | node `harness init run` --slug <slug> --intake-stdin    [options]
 //
 // PREFER --intake-file. A multi-line requirement inlined into a shell argument is where this step
 // goes wrong: quoting breaks, a `#` after a newline trips path validation, and the run spends six
@@ -53,8 +53,8 @@
 //   --attempts N    inner per-scope T0 budget         (default: 5)
 //   --spec-folder   SHARED spec deliverable path      (default: shapeup/<slug>/spec/)
 //   --dimensions    comma-separated eval dimensions   (default: spec-conformance)
-//   --gate-answers  path | preset name                (see gate-answers.mjs; recorded, not read)
-//   --wall-clock-budget N  deadline breaker, seconds  (off by default; see budget-check.mjs)
+//   --gate-answers  path | preset name                (see `harness gate`; recorded, not read)
+//   --wall-clock-budget N  deadline breaker, seconds  (off by default; see `harness verify budget`)
 //   --cwd           project root                      (default: process.cwd())
 //   --force         re-init over an existing run receipt
 //
@@ -188,7 +188,7 @@ export function runFrontmatter({ slug, config, startedAt }) {
     "",
     `# Harness run — ${slug}`,
     "",
-    "Opened by `init-run.mjs` (GATE L0.1). The tech lead is the sole writer from here on.",
+    "Opened by ``harness init run`` (GATE L0.1). The tech lead is the sole writer from here on.",
     "",
     "## Rounds",
     "",
@@ -291,7 +291,7 @@ export function cli(rawArgv) {
     spec_folder: args.specFolder ?? `${globShared(slug, "spec")}/`,
     gate_answers: args.gateAnswers ?? null,
     tiny_lane: !!args.tiny,
-    // GATE L0.3 — the lane, computed rather than judged (see fit-check.mjs). Recorded with its
+    // GATE L0.3 — the lane, computed rather than judged (see `harness init fit`). Recorded with its
     // evidence so a heavy lane on a small change is visible instead of accidental. An explicit
     // --lane or --tiny is honoured and marked as an override, because a measured recommendation
     // fitted on three features must not outrank a human who knows the codebase.
@@ -325,7 +325,7 @@ export function cli(rawArgv) {
   // of the gap.
   //
   // So the refusal now DOES the resume work instead of describing it. It emits the derived snapshot
-  // — the same file-only derivation `hooks/session-rehydrate.mjs` injects — so the orchestrator gets
+  // — the same file-only derivation `harness reduce graph --subgraph run` injects — so the orchestrator gets
   // slug, status, round, attempt, board counts and pending orders in THIS tool call rather than
   // needing to discover that it needs another one. Exit 3 still means "do not proceed as if you
   // opened a run"; it now also means "here is the run you are actually in".

@@ -13,7 +13,7 @@
 // That is the "agent claims done" pathology this project exists to prevent, reproduced by the
 // project, at its own front door.
 //
-// THE TWO STRUCTURAL MISSES IT EXPOSED. `anti-rationalization.mjs` is the guard for exactly
+// THE TWO STRUCTURAL MISSES IT EXPOSED. the ship report's census is the guard for exactly
 // this class of failure, and it could not see this one for two independent reasons:
 //
 //   1. SCOPE. It defers unless a run is active (`activeSlug()` → `.shapeup/<slug>/`).
@@ -29,10 +29,10 @@
 //
 //     the session dispatched the orchestrator   AND   the run left no receipt
 //
-// `init-run.mjs` writes that receipt as the orchestrator's first tool call. Its absence is the
+// ``harness init run`` writes that receipt as the orchestrator's first tool call. Its absence is the
 // fact. Nothing here parses intent, so nothing here can be talked past.
 //
-// WHY THIS ONE BLOCKS, WHEN anti-rationalization DOES NOT. The invariant is "QA is a level-up,
+// WHY THIS ONE BLOCKS, WHEN the ship report's census DOES NOT. The invariant is "QA is a level-up,
 // not a gate" — no second judge behind `spec-evaluator`. That governs quality JUDGMENTS. This
 // hook makes no judgment: it reports that no work exists to judge. Blocking is also uniquely
 // safe here, because a session with no artifacts has nothing to lose by continuing, and a
@@ -161,7 +161,7 @@ export function workCensus(events) {
   return census;
 }
 
-/** Any run receipt on disk, from any run. Written by init-run.mjs as the run's first act. */
+/** Any run receipt on disk, from any run. Written by `harness init run` as the run's first act. */
 export function findReceipts(cwd) {
   const root = localDir(cwd);
   if (!existsSync(root)) return [];
@@ -295,7 +295,7 @@ async function main() {
   // not a harness session → not our business
   if (!dispatchedOrchestrator(events)) defer("session never dispatched the orchestrator — not a harness run", "no-dispatch");
 
-  // A receipt means the run started. What happens after that is anti-rationalization's job and
+  // A receipt means the run started. What happens after that is the ship report's census's job and
   // the evaluator's; this hook only asks whether anything started at all.
   const receipts = findReceipts(cwd);
   if (receipts.length > 0) defer(`${receipts.length} run receipt(s) on disk — the run started`, "receipt-present");
@@ -316,9 +316,9 @@ async function main() {
   // was from the gate watching for exactly that.
   //
   // BOTH HALVES OF THE RATIONALE FAIL ON INSPECTION. Running the harness steps by hand starts with
-  // `init-run.mjs`, which writes the receipt — such a session already deferred at `receipt-present`
+  // ``harness init run``, which writes the receipt — such a session already deferred at `receipt-present`
   // two lines up and never reached here. And a pre-receipt plugin cannot be the one executing this
-  // hook: `init-run.mjs` ships in the same install, beside the `lib/` this file imports from.
+  // hook: ``harness init run`` ships in the same install, beside the `lib/` this file imports from.
   // Neither case needs an escape, so no replacement escape is added — an escape that cannot fire
   // is the "row that cannot fail" this project keeps catching.
   //

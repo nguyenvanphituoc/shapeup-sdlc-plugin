@@ -281,7 +281,7 @@ export function selectTrialHistory(trials, { scopeId, round } = {}) {
 }
 
 /**
- * The stagnation term of the inner circuit breaker (plan §2.6).
+ * The stagnation term of the inner circuit breaker.
  *
  * `attempt_budget` counts attempts; it cannot see that the last two produced nothing. One term
  * joins it: `no_progress_k` consecutive non-`kept` trials ends the scope early and queues the
@@ -336,11 +336,11 @@ export function compileOrder({
   // every scope in a round, so scope 2's order file overwrites scope 1's the moment it is compiled
   // — measured on the kill/resume probe, where it made `orders/ minus results/` read EMPTY on a run
   // that was re-dispatching a completed phase. The contract row watching that property therefore
-  // passed on the exact failure it exists to catch. `t0-verify.mjs`'s verdict artifacts have always
+  // passed on the exact failure it exists to catch. ``harness verify t0``'s verdict artifacts have always
   // been self-identifying this way (`r<R>-a<A>-t<T>.json`, `wx`-created); orders now match, so
   // `orders/` is an audit trail of dispatches rather than a rolling buffer of the last one.
   //
-  // The shape stays `<slug>/<suffix>`: every consumer splits on the FIRST "/" (ingest-result.mjs
+  // The shape stays `<slug>/<suffix>`: every consumer splits on the FIRST "/" (`harness reduce ingest`
   // reads [0] as the slug and [1] as the file stem), and a scope id is already filename-safe
   // because it is a scope contract's own basename.
   // `scope` arrives as the PARSED contract object (the CLI reads the .md and embeds it), so the id
@@ -499,7 +499,7 @@ export async function cli(rawArgv) {
 
   // inspect() — the attempt loop's history (see selectTrialHistory above).
   //
-  // NON-REGRESSION (plan §7). With no `trials.jsonl` on disk this falls back to exactly today's
+  // NON-REGRESSION. With no `trials.jsonl` on disk this falls back to exactly the pre-ratchet
   // read — the previous attempt's verdict artifact, AEGIS triples only, byte-for-byte the same
   // order. Every new arm is skipped when its artifact is absent, per the ✦/✚ convention.
   let digestedErrors = [];

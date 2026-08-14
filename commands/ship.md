@@ -73,7 +73,7 @@ Additional flags, pass through to `tech-lead` only when the user names them:
   budget expires, having built nothing.
 - `--wall-clock-budget <seconds>` → arm the deadline breaker. Off by default. Set it in any lane
   with a hard clock (CI, an overnight run) and set it *below* the external kill, so
-  the harness trips its own breaker first: past the deadline `hooks/gate-deadline.mjs` denies new
+  the harness trips its own breaker first: past the deadline `harness verify budget` denies new
   `task-executor` work and routes to GATE H, where scope-hammer ships whatever is green. A run
   killed from outside ships nothing — including the scopes that already passed T0.
 - `--rounds N` → override the outer circuit breaker (build+eval cycles, default 3).

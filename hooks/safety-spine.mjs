@@ -17,7 +17,7 @@
 //                        the model must never widen its own safety envelope (same principle
 //                        as sandbox-guard's active-scope pointer rule)
 //
-// Deliberately conservative, mirrors gate-l2/sandbox-guard: fail-OPEN on unparseable input
+// Deliberately conservative, mirrors the GATE L2 block/sandbox-guard: fail-OPEN on unparseable input
 // or an unmatched command (precision over reach — a spine that broke `rm -rf ./build` would
 // just get disabled), fail-CLOSED the moment a rule provably matches.
 //

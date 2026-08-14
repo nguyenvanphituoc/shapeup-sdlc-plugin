@@ -33,7 +33,7 @@ The tech lead owns `harness-run.md` — rounds, gate decisions, Hill positions, 
 `.shapeup/<slug>/receipt.json` plus `.shapeup/active-scope` before any gate. The
 receipt is the mechanical fact that a run *started* — distinct from every other artifact here,
 which records what a run *did*. That distinction is load-bearing: the guards that check a run's
-progress (`anti-rationalization.mjs`) are all scoped to an active run, so before the receipt
+progress (the ship report's census) are all scoped to an active run, so before the receipt
 existed, a run that never started was invisible to every one of them. `hooks/gate-zerowork.mjs`
 reads only the receipt's presence, which is why it can see a total failure that leaves no other
 trace. See `references/gates.md` — GATE L0.1.

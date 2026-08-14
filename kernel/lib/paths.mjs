@@ -205,7 +205,7 @@ export const safetyOverrides = (cwd) => join(localDir(cwd), "safety-overrides.js
  *
  * LOCAL since ADR-0001. Committed, they put `process.env.HOSTNAME` — a person's laptop name —
  * into the repository, and append-only JSONL in git only grows. The cost, stated plainly: with
- * these local, `stats.mjs` becomes a personal tool and "is the KB flywheel working across the
+ * these local, ``harness probe stats`` becomes a personal tool and "is the KB flywheel working across the
  * team?" is no longer answerable from the repo.
  */
 export const metricsDir = (cwd) => join(localDir(cwd), "metrics");
@@ -387,7 +387,7 @@ export function readReceipt(path) {
 /**
  * The run key for a run whose LOCAL root is known directly.
  *
- * `t0-verify.mjs` is the caller this exists for: it is handed the run root as `--out` and never
+ * ``harness verify t0`` is the caller this exists for: it is handed the run root as `--out` and never
  * derives a slug, so asking it for one would mean inferring identity from a directory name.
  *
  * @param {string} runRoot - The feature's LOCAL root, e.g. `<cwd>/.shapeup/<slug>`.
@@ -410,7 +410,7 @@ export function readRunId(cwd, slug) {
 /**
  * Best-effort run key for a caller that may not know the slug — the shape hooks need.
  *
- * Resolution order: the slug it was given, else the `active-scope` pointer `init-run.mjs` writes.
+ * Resolution order: the slug it was given, else the `active-scope` pointer ``harness init run`` writes.
  * A hook firing outside any run resolves to null, which is the correct answer and not an error:
  * "this row belongs to no run" is a fact the warehouse must be able to record.
  *

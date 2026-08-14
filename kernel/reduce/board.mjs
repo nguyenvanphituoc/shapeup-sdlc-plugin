@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Board derivation (pure-skill architecture v1.0, plan §8.2).
+// Board derivation — the planner's graph math, as code a model never re-derives.
 //
 // The mechanical half of the old ba-pitch-analyzer Phase 7b + v3.3 link-field rules — pure
 // graph math a model should never re-derive (and gets wrong: hand-authored inverses drift asymmetric

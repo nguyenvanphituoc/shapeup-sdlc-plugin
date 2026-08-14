@@ -21,7 +21,7 @@
 // Zero dependencies, zero network.
 //
 // Usage:
-//   node ship-report.mjs --slug <slug> [--cwd <dir>] [--verdict PASS|FAIL|not-evaluated]
+//   node `harness reduce ship` --slug <slug> [--cwd <dir>] [--verdict PASS|FAIL|not-evaluated]
 //                        [--qa run|skipped] [--stdout]
 //
 // Exit: 0 written (path on stdout), 2 usage error.
@@ -67,7 +67,7 @@ export function frontmatter(text) {
 }
 
 /**
- * Board census, from task frontmatter — the same two-source discipline `gate-l2` uses, reduced to
+ * Board census, from task frontmatter — the same two-source discipline the GATE L2 block uses, reduced to
  * the authoritative one.
  * @param {string} cwd - Project root.
  * @param {string} slug - Feature slug.

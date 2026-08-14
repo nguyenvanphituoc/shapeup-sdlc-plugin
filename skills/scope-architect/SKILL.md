@@ -13,7 +13,7 @@ harness enforces mechanically: the sandbox hook denies writes outside a substrat
 runs the fixtures, the evaluator asserts only against the affordance manifest. This skill is
 the **sole writer** of scope contracts — a distinct authority from the planner (task
 decomposition) and a distinct failure mode (directory-thinking, PA1) deserving its own
-anti-rationalization table.
+the ship report's census table.
 
 ## Input contract — the WorkOrder
 

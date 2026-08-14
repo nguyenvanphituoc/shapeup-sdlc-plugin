@@ -128,7 +128,7 @@ coherent to evaluate yet.
 4. **wall_clock_budget (DEADLINE breaker, opt-in)** — elapsed seconds since the run receipt
    exceed `--wall-clock-budget` → do NOT start another build round or another scope; go
    straight to GATE H (`/scope-hammer --breaker deadline`). Checked with
-   `harness verify budget` at every round boundary and enforced by `hooks/gate-deadline.mjs`,
+   `harness verify budget` at every round boundary and enforced by `harness verify budget`,
    which denies a `task-executor` dispatch past the deadline while leaving `spec-evaluator`,
    `scope-hammer` and `qa-edge-hunter` reachable — a run past its deadline
    must still be able to judge, hammer, and close. Off unless configured.
@@ -155,7 +155,7 @@ INNER    attempt_budget (per scope) — decremented once per T0 attempt inside B
                                        trials queue the same GATE H proposal early.
 DEADLINE wall_clock_budget_s        — elapsed seconds since the run receipt. Opt-in; off
                                        unless set at L0. Tripping routes to GATE H with
-                                       --breaker deadline. Enforced by hooks/gate-deadline.mjs.
+                                       --breaker deadline. Enforced by `harness verify budget`.
 ```
 
 **Why the third one exists — and it corrects an earlier diagnosis.** A run killed at an external

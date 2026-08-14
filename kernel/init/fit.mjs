@@ -34,11 +34,11 @@
 // symmetric, and the tie goes to the gates.
 //
 // USAGE
-//   node fit-check.mjs --intake-file <path> [--cwd <root>] [--json]
-//   node fit-check.mjs --intake-text "<requirement>" [--cwd <root>]
+//   node `harness init fit` --intake-file <path> [--cwd <root>] [--json]
+//   node `harness init fit` --intake-text "<requirement>" [--cwd <root>]
 //
 // Exit 0 always — this informs a decision, it does not deny a tool call. The orchestrator reads
-// `lane` and acts on it; `init-run.mjs` records it in the receipt.
+// `lane` and acts on it; ``harness init run`` records it in the receipt.
 
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";

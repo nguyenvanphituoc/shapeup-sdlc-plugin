@@ -33,8 +33,8 @@
 // `off` and nothing changes. Existing runs behave exactly as before.
 //
 // USAGE
-//   node budget-check.mjs [--slug <slug>] [--cwd <root>] [--at <ISO>]   # status, exit 0
-//   node budget-check.mjs --strict …    # exit 6 when the breaker has tripped
+//   node `harness verify budget` [--slug <slug>] [--cwd <root>] [--at <ISO>]   # status, exit 0
+//   node `harness verify budget` --strict …    # exit 6 when the breaker has tripped
 //
 // Output: { status, elapsed_s, budget_s, remaining_s, used_fraction, action }
 //   status ∈ off | ok | warn | trip
@@ -135,7 +135,7 @@ export function cli(rawArgv) {
   const cwd = args.cwd || process.cwd();
   const run = findRun(cwd, args.slug ?? null);
   if (!run) {
-    console.error("no run receipt found — open the run with init-run.mjs first (GATE L0.1).");
+    console.error("no run receipt found — open the run with `harness init run` first (GATE L0.1).");
     process.exit(2);
   }
   const startedAt = Date.parse(run.receipt.started_at || "");

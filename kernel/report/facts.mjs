@@ -16,7 +16,7 @@
 //
 // TWO RULES, INHERITED, AND NEITHER IS STYLISTIC.
 //
-//   1. FACTS ONLY — the rule `stats.mjs` states in its own header. Every field below is a count,
+//   1. FACTS ONLY — the rule ``harness probe stats`` states in its own header. Every field below is a count,
 //      a duration, a copied enum or an id. No field here is a score, a rate of quality, or a
 //      judgement, because a computed grade in the read plane is a second judge behind
 //      spec-evaluator and the architecture forbids one. `n_ac_fail` is a fact; "AC health" is not.

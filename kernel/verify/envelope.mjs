@@ -2,11 +2,11 @@
 // Envelope schema gate (pure-skill architecture v1.0, plan P0).
 //
 // The lesson already in the repo: structured artifacts + deterministic tooling beat prose
-// conventions (t0-verify.mjs is the most reliable component in the harness). This script makes
+// conventions (harness verify t0 is the most reliable component in the harness). This script makes
 // the WorkOrder/WorkResult ports mechanically checkable: a malformed order never reaches a
 // worker, a malformed result never reaches ingest.
 //
-// Zero dependencies, zero network — same discipline as the oracles and gate-l2.mjs. Implements
+// Zero dependencies, zero network — same discipline as the oracles and the GATE L2 block. Implements
 // the JSON-Schema subset the shipped schemas use (type, required, properties, items, enum,
 // pattern, $ref) rather than pulling in a validator dependency. $ref supports two forms:
 //   #/$defs/Name                       — a definition in the SAME schema document
@@ -228,7 +228,7 @@ export async function cli(rawArgv) {
       process.exit(1);
     }
   } else {
-    // Hook mode (PreToolUse). Deny contract identical to gate-l2.mjs, and — since v1.5 — the same
+    // Hook mode (PreToolUse). Deny contract identical to the GATE L2 block, and — since v1.5 — the same
     // receipt: `allow` carries evidence, so "validated the order and permitted it" is no longer
     // byte-identical to "this hook never ran" (hooks/lib/decision.mjs).
     await runHook("validate-envelope", async () => {
@@ -271,12 +271,12 @@ export async function cli(rawArgv) {
         },
       });
       if (!existsSync(orderPath)) {
-        deny(`WorkOrder gate — order file not found: ${orderPath}. Compile it first (compile-order.mjs) — a worker must never be dispatched against a dangling order.`, "order-missing");
+        deny(`WorkOrder gate — order file not found: ${orderPath}. Compile it first (harness compile) — a worker must never be dispatched against a dangling order.`, "order-missing");
       }
       try {
         const { valid, errors } = validateFile(orderPath, join(SCHEMAS_DIR, "work-order.schema.json"));
         if (!valid) {
-          deny(`WorkOrder gate — ${orderPath} fails schema validation: ${errors.slice(0, 5).join("; ")}. A malformed order never reaches a worker; fix the order (or compile-order.mjs) and re-dispatch.`, "schema-invalid");
+          deny(`WorkOrder gate — ${orderPath} fails schema validation: ${errors.slice(0, 5).join("; ")}. A malformed order never reaches a worker; fix the order (or harness compile) and re-dispatch.`, "schema-invalid");
         }
       } catch (e) {
         if (e?.name === "HookDecision") throw e;

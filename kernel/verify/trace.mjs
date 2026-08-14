@@ -30,7 +30,7 @@
 // Writes  LOCAL  .shapeup/<slug>/trace/report.json       (regenerated each run)
 //         LOCAL  .shapeup/<slug>/trace/wiring.mmd         (Mermaid view of the checked graph)
 //
-// Zero dependencies, zero network — same discipline as t0-verify.mjs / compile-order.mjs.
+// Zero dependencies, zero network — same discipline as `harness verify t0` / `harness compile`.
 //
 // Usage:  node kernel/harness.mjs verify trace --slug <slug> [--cwd <dir>] [--gate] [--quiet]
 // Exit:   advisory (default) → always 0. --gate → 1 when overall is red.

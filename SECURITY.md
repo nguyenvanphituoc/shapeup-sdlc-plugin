@@ -8,26 +8,26 @@ a careful reviewer should want spelled out before installing. This page is that 
 ## Reporting a vulnerability
 
 Use [GitHub private vulnerability reporting](https://github.com/nguyenvanphituoc/shapeup-sdlc-plugin/security/advisories/new)
-for anything exploitable — especially anything that would let a run **escape a deny** (talk
-past GATE L2, write outside a substrate, widen its own safety overrides) or exfiltrate data.
+for anything exploitable — especially anything that would let a run **escape a deny** (write
+outside a substrate, dispatch on an uncompiled order, widen its own safety overrides) or
+exfiltrate data.
 For non-sensitive hardening ideas, an ordinary issue is fine.
 
-In scope: the hooks, the pipeline scripts (`compile-order` / `ingest-result` /
-`validate-envelope` / `t0-verify`), the installer/migration shell scripts, and any prompt-
-injection path through skill files. Please do not test against machines you don't own.
+In scope: the hooks, the kernel (`kernel/harness.mjs` and every subcommand beneath it), the
+installer/migration shell scripts, and any prompt-injection path through skill files. Please do not
+test against machines you don't own.
 
 ## The claims, stated so they can be falsified
 
-1. **No hook or pipeline script makes a network request.** There is no `fetch`, no
+1. **No hook or kernel subcommand makes a network request.** There is no `fetch`, no
    `node:http(s)`, no `node:net`, no shelling out to `curl`/`wget` anywhere in `hooks/` or
-   `skills/*/scripts/`. Verify: `grep -rnE "fetch|node:http|node:net|curl|wget" hooks/ skills/*/scripts/`.
+   `kernel/`. Verify: `grep -rnE "fetch|node:http|node:net|curl|wget" hooks/ kernel/`.
 2. **No hook has dependencies.** Plain `.mjs`, Node standard library only, no `node_modules`,
    no install-time scripts. What you read is what runs.
 3. **Every hook is fail-open by design.** Unparseable input, missing state files, or an
    unrecognized invocation shape → the hook defers and the normal permission flow proceeds. A
    hook denies only when it can positively prove its condition (a matched destructive command, a
-   path the active order's substrate does not permit, an invalid order file, an empty intake, a
-   spent wall-clock budget).
+   path no live order's substrate permits, an invalid order file, an empty intake).
 4. **The model cannot widen its own safety envelope.** The escape hatch
    (`.shapeup/safety-overrides.json`) is human-authored; `safety-spine` itself denies any
    write/move/delete touching that file, a malformed overrides file is treated as absent
