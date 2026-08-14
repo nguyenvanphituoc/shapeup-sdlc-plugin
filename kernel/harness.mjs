@@ -22,7 +22,7 @@
 //   verify   t0 · budget · envelope ·        Measured, not claimed. A model verifying itself is
 //            trace · spec                     claiming; these read artifacts and re-hash them.
 //   reduce   ingest · hill · snapshot ·       Single writer. Shared state has exactly one author.
-//            ship · board · verdict
+//            ship · board · verdict · graph
 //   gate                                      An answer file with a source, not a vibe.
 //   probe    resume · t0 · stats · digest     Read-only queries over run state.
 //   init     run · fit                        Opens a run, or refuses it (exit 3).
@@ -53,6 +53,7 @@ export const ROUTES = {
   reduce: {
     ingest: "./reduce/ingest.mjs", hill: "./reduce/hill.mjs", snapshot: "./reduce/snapshot.mjs",
     ship: "./reduce/ship.mjs", board: "./reduce/board.mjs", verdict: "./reduce/verdict.mjs",
+    graph: "./reduce/graph.mjs",
   },
   probe: { resume: "./probe/resume.mjs", t0: "./probe/t0.mjs", stats: "./probe/stats.mjs", digest: "./probe/digest.mjs" },
   init: { run: "./init/run.mjs", fit: "./init/fit.mjs" },

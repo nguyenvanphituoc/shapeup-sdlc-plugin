@@ -61,6 +61,10 @@ const MODULE_FILES = [
   // the property is cross-cutting — five separate writers must stamp the same key, and the failure
   // mode is the one this repo keeps hitting: stamp four of them and nothing errors.
   "19-run-records.mjs",
+  // 20-run-graph.mjs: the run graph. Its own module because the properties that make a read model
+  // trustworthy — derived, idempotent, backfilled by the same path that maintains it — are
+  // cross-cutting, and each is lost silently: a graph that has drifted still answers every query.
+  "20-run-graph.mjs",
   "45-paths.mjs",
   "46-contract-md.mjs",
   "47-ship-report.mjs",

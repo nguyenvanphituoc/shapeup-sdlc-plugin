@@ -153,6 +153,23 @@ const RESUME = {
   required: ["has_orient_artifacts", "has_spec_tree", "has_wiring_map", "scope_files", "eval_rounds_done"],
 };
 
+/** `harness reduce graph --subgraph run` — the bounded read model a round opens with. */
+const SUBGRAPH = {
+  type: "object",
+  properties: {
+    run: nullable("string"),
+    scopes: { type: "array", items: { type: "string" } },
+    requirements: { type: "array", items: { type: "string" } },
+    orders: { type: "integer" },
+    pending_orders: { type: "array", items: { type: "string" } },
+    rounds_with_green: { type: "array", items: { type: "integer" } },
+    green_scopes_by_round: { type: "object" },
+    trials: { type: "integer" },
+    edges: { type: "integer" },
+  },
+  required: ["scopes", "rounds_with_green", "green_scopes_by_round"],
+};
+
 /** `harness probe t0` — has this scope already gone green in this round? */
 const T0CHECK = {
   type: "object",
@@ -443,6 +460,7 @@ if (!rs.has_orient_artifacts) {
   if (o.__failed) return diedAt("ORIENT", o);
   const post = await requirePhase("ORIENT", "orient", "Orient");
   if (post) return withWarnings(post);
+  await advisory(`reduce graph --slug ${slug}`, "Orient", "graph:orient");
   spikedArea = o.spiked_area; spikeResult = o.spike_result; riskiest = o.riskiest_unknowns || [];
 } else {
   log("ORIENT — artifacts already on disk, fast-forwarding past it");
@@ -467,6 +485,7 @@ if (!rs.has_spec_tree) {
   if (a.__failed) return diedAt("ANALYZE", a);
   const post = await requirePhase("ANALYZE", "analyze", "Analyze");
   if (post) return withWarnings(post);
+  await advisory(`reduce graph --slug ${slug}`, "Analyze", "graph:analyze");
 } else {
   log("ANALYZE — spec tree already on disk, fast-forwarding past it");
 }
@@ -483,6 +502,7 @@ if (!rs.has_wiring_map) {
   if (w.__failed) return diedAt("WIRE", w);
   const post = await requirePhase("WIRE", "wire", "Wire");
   if (post) return withWarnings(post);
+  await advisory(`reduce graph --slug ${slug}`, "Wire", "graph:wire");
 } else {
   log("WIRE — wiring map already on disk, fast-forwarding past it");
 }
@@ -505,6 +525,7 @@ if (scopes.length === 0) {
   if (m.__failed) return diedAt("MAP SCOPES", m);
   const post = await requirePhase("MAP SCOPES", "map-scopes", "MapScopes");
   if (post) return withWarnings(post);
+  await advisory(`reduce graph --slug ${slug}`, "MapScopes", "graph:map-scopes");
   scopes = m.scopes;
 } else {
   log(`MAP SCOPES — ${scopes.length} scope contract(s) already on disk, fast-forwarding past it`);
@@ -552,6 +573,13 @@ while (round <= maxRounds) {
   log(`BUILD round ${round} — ${scopes.length} scope(s), up to ${maxParallelScopes} at once, attempt budget ${attemptBudget}`);
   const roundGreen = [], roundHammer = [];
 
+  // ONE bounded query opens the round, instead of one probe per scope. The graph is a projection of
+  // the same verdict artifacts `probe t0` reads, so this is the identical fact asked once — which is
+  // the difference between a read model and a directory walk.
+  const g = await query(`reduce graph --slug ${slug} --subgraph run`, SUBGRAPH, "Build", `graph:r${round}`);
+  const alreadyGreen = new Set(g?.green_scopes_by_round?.[String(round)] || []);
+  if (alreadyGreen.size) log(`BUILD r${round} — ${alreadyGreen.size} scope(s) already green in the graph, skipping them`);
+
   // SCOPES FAN OUT. A scope contract is the definition of an independent subtask — disjoint
   // substrate, own fixtures, own ratchet — so the loop that ran them one at a time was leaving the
   // whole point of the contract on the floor. `pipeline()` has NO barrier between its stages: a
@@ -566,15 +594,9 @@ while (round <= maxRounds) {
   for (const group of chunk(scopes, maxParallelScopes)) {
     const settled = await pipeline(
       group,
-      async (scope) => {
-        const already = await query(`probe t0 --slug ${slug} --scope ${scope.scope_id} --round ${round}`,
-          T0CHECK, "Build", `t0check:${scope.scope_id}-r${round}`);
-        if (already?.green) {
-          log(`BUILD r${round} — ${scope.scope_id} is already green on disk, skipping`);
-          return { scope_id: scope.scope_id, green: true, resumed: true };
-        }
-        return null;                                   // not green yet → stage 2 builds it
-      },
+      async (scope) => (alreadyGreen.has(scope.scope_id)
+        ? { scope_id: scope.scope_id, green: true, resumed: true }
+        : null),                                       // not green yet → stage 2 builds it
       async (pre, scope) => (pre ? pre : buildScope(scope, round)),
       async (res, scope) => {
         if (!res || res.__failed) return res;
@@ -659,6 +681,7 @@ while (round <= maxRounds) {
     }
   }
 
+  await advisory(`reduce graph --slug ${slug}`, "Eval", `graph:eval-r${round}`);
   await advisory(`reduce hill --slug ${slug}`, "Eval", "hill-derive");
   const g3 = await crossGate("L3", "Eval", ["loop", "stop", "ask"], { round, verdict });
   if (g3.stop) return withWarnings(g3.stop);
