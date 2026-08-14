@@ -24,11 +24,10 @@
 //   reduce   ingest · hill · snapshot ·       Single writer. Shared state has exactly one author.
 //            ship · board · verdict
 //   gate                                      An answer file with a source, not a vibe.
-//   probe    resume · stats · digest          Read-only queries over run state.
+//   probe    resume · t0 · stats · digest     Read-only queries over run state.
 //   init     run · fit                        Opens a run, or refuses it (exit 3).
 //   report   export                           Projects the run's records as fact tables.
 //   compile                                   The WorkOrder: schema-valid or nothing is dispatched.
-//   run                                       Launches a workflow script on the bundled runtime.
 //
 // EXIT CODES are the subcommand's own and are part of its contract: 0 success · 1 ran, answer is
 // no · 2 malformed input, nothing ran (`lib/argv.mjs`) · 3 `init run` refused to open · 4/5 gate
@@ -55,12 +54,11 @@ export const ROUTES = {
     ingest: "./reduce/ingest.mjs", hill: "./reduce/hill.mjs", snapshot: "./reduce/snapshot.mjs",
     ship: "./reduce/ship.mjs", board: "./reduce/board.mjs", verdict: "./reduce/verdict.mjs",
   },
-  probe: { resume: "./probe/resume.mjs", stats: "./probe/stats.mjs", digest: "./probe/digest.mjs" },
+  probe: { resume: "./probe/resume.mjs", t0: "./probe/t0.mjs", stats: "./probe/stats.mjs", digest: "./probe/digest.mjs" },
   init: { run: "./init/run.mjs", fit: "./init/fit.mjs" },
   report: { export: "./report/export.mjs", _default: "export" },
   gate: "./gate.mjs",
   compile: "./compile.mjs",
-  run: "./run.mjs",
 };
 
 /** Every `<verb> <action>` pair, for the usage text and the unknown-verb rejection. */

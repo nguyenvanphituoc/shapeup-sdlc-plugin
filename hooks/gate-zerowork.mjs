@@ -74,11 +74,11 @@ const WORK_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash"
 /**
  * Is this block a launch of the orchestrator's own workflow script, by either surface?
  *
- * TWO SURFACES, ONE INVARIANT. `Workflow({scriptPath})` is the tool form. The shipped
- * front door is a Bash call — `node "…/kernel/harness.mjs" run "…/workflows/shapeup-run.js"` —
- * because the tool form cannot be granted and is denied in every headless session. A gate that
- * knew only the tool form would go blind on the lane users actually run, which is the same
- * "the emptier the failure, the less of it there is to detect" hole the banner above describes.
+ * The shipped front door is `Workflow({scriptPath})`; `npx shapeup-sdlc init` writes the grant it
+ * needs. The Bash arm below is kept because a project that declined that grant, or one still on a
+ * v1 install, launches the same script through a Bash runtime — a gate that knew only one surface
+ * would go blind on the lane those users actually run, which is the same "the emptier the failure,
+ * the less of it there is to detect" hole the banner above describes.
  *
  * Matched on the BASENAME, anchored. `CLAUDE_PLUGIN_ROOT` itself ends in `shapeup-sdlc-plugin/` on
  * a normal install — so a substring match on the whole path would count EVERY workflow script that
@@ -91,10 +91,10 @@ const WORK_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash"
 function launchedShapeupWorkflow(block) {
   if (block.name === "Bash") {
     const cmd = String(block.input?.command ?? "");
-    // Both halves required: the launcher AND an orchestrator script. `harness run` carrying
+    // Both halves required: a node launcher AND an orchestrator script. A launcher carrying
     // somebody else's workflow is not a harness dispatch, and neither is a bare mention of the
     // script in an unrelated command (`ls`, `cat`).
-    return /\bharness\.mjs"?\s+run\b/.test(cmd) && /[\\/]shapeup-[\w.-]*\.[cm]?js\b/.test(cmd);
+    return /\bnode\b/.test(cmd) && /[\\/]shapeup-[\w.-]*\.[cm]?js\b/.test(cmd);
   }
   if (block.name !== "Workflow") return false;
   const scriptPath = String(block.input?.scriptPath ?? "");
@@ -251,12 +251,13 @@ export function buildReason({ narration, census, enforcement }) {
     "       --slug <slug> --intake-file <path/to/requirement.md> \\",
     "       --auto-level <interactive|auto|unattended> [--gate-answers <preset|path>]",
     "",
-    "Then launch the lane itself — a BACKGROUND Bash call, or the `Workflow` tool when the install",
-    "granted it (`npx shapeup-sdlc init` writes that grant unless --no-native-workflow was given):",
+    "Then launch the lane itself with the Workflow tool (`npx shapeup-sdlc init` writes the grant",
+    "it needs, unless --no-native-workflow was given, in which case approve the launch once):",
     "",
-    "  node \"${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs\" run \\",
-    "       \"${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js\" \\",
-    "       --args-file <.shapeup/<slug>/run-args.json> --run-dir <.shapeup/<slug>/workflow-run>",
+    "  Workflow({",
+    "    scriptPath: \"${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js\",",
+    "    args: <the RunArgs object>",
+    "  })",
     "",
     "Resolve each gate the run pauses at with:",
     "",

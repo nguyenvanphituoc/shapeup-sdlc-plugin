@@ -304,7 +304,7 @@ erDiagram
 
 | Entity | Tier | Location | Sole writer | Readers |
 |---|---|---|---|---|
-| `JournalRow` | LOCAL | `<slug>/workflow-run/journal.jsonl` | harness run (append-only) | harness report export, human |
+| `JournalRow` | LOCAL | `<slug>/workflow-run/journal.jsonl` | the Workflow runtime (append-only) | harness report export, human |
 | `DispatchFact` + children | LOCAL | `.shapeup/exports/<run_id>/*.jsonl` | harness report export (read-only over the trace) | any warehouse tool, human |
 | `EconomicsReport` | EMBEDDED | the export manifest, and stdout from `harness probe stats --economics` | lib/facts.mjs (pure projection) | human / CLI / CI |
 

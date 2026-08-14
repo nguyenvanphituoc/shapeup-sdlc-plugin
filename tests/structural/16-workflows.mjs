@@ -190,16 +190,16 @@ export async function run(ctx) {
   // back is indistinguishable from one that succeeded. `agent()` can return null, the runtime
   // documents it, and the mech envelope turns that into `exit_code: -1` — a fact that is only a
   // fact if somebody looks at it.
-  // The list is "helpers that RETURN a raw envelope", not "everything that calls a courier". A
-  // wrapper that inspects `exit_code` itself and acts on it — `setRunStatus` logs the failure and
-  // lets the run continue, because resume no longer depends on that field — has already discharged
-  // the obligation, and its own `mech()` call is covered by this same check one level down. That
-  // is the difference between a value nobody looked at and a value somebody handled.
+  // The list is "helpers that RETURN an outcome", not "everything that runs something". A wrapper
+  // that inspects the outcome itself and acts on it — `setRunStatus` and `advisory` both log the
+  // failure and let the run continue, because neither result is a gate — has already discharged the
+  // obligation, and its own `cmd()` call is covered by this same check one level down. That is the
+  // difference between a value nobody looked at and a value somebody handled.
   // `requirePhase` (Stage A3) joins the list for the same reason `ingest` did: it returns the ABORT
   // a phase with no artifact earns, and a call site that awaits it without returning that value
   // drops the stop — the run would proceed past a phase that produced nothing, which is the defect
   // the post-condition exists to catch.
-  const COURIERS = ["mech", "mechNode", "ingest", "compile", "writeActiveScope", "requirePhase"];
+  const COURIERS = ["cmd", "query", "worker", "requirePhase", "buildScope"];
   // Characters that mean the value IS consumed: assignment, an enclosing call, a return, an
   // operand position. Anything else (`;`, `{`, `}`, `)`, `else`, start of file) drops it.
   const CONSUMED_BY = /(?:[=(,[?:]|\breturn\b|&&|\|\||\?\?)\s*$/;

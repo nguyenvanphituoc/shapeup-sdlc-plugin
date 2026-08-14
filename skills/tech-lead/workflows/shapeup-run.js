@@ -1,911 +1,700 @@
-// shapeup-run — the whole BUILD-phase pipeline as one launchable script (v1.0 pure-skill
-// architecture). This is what makes the two lanes one lane: BOTH the unattended lane (launched
-// headlessly) and the interactive lane (paused and relaunched at every gate a human answers) run
-// the SAME code, so there is no prose runbook that can drift from what actually executes.
+// shapeup-run — the BUILD-phase pipeline as one script on the native Dynamic Workflow runtime.
 //
 // WHAT THIS FILE OWNS.
-//   ORIENT -> GATE L1a -> ANALYZE -> WIRE -> GATE L1a.5 -> MAP SCOPES -> GATE L1b ->
-//   rounds of (BUILD -> GATE L2 -> EVAL -> GATE L3) bounded by budgets.maxRounds ->
-//   QA -> GATE H -> ship-report -> { status: "shipped", ... }
-// Every dispatched phase above is followed by a POST-CONDITION (`harness probe resume --require`):
-// the phase is complete when its artifact is on disk, never when its result record says so
-// (see requirePhase below).
-// Every worker dispatch is the SAME four-call shape used throughout this codebase (the envelope
-// port): compile-order --operation <op> -> Agent (fresh subagent, schema-forced report) ->
-// ingest-result. The operation vocabulary and worker ownership are the central registry's
-// (domain.schema.json $defs/Operation) — this file never re-derives which worker owns which
-// operation; it just names the operation.
+//   ORIENT → GATE L1a → ANALYZE → WIRE → GATE L1a.5 → MAP SCOPES → GATE L1b →
+//   rounds of (BUILD → GATE L2 → EVAL → GATE L3) bounded by budgets.maxRounds →
+//   QA → GATE H → ship report → RunReturn.
 //
-// WHY THE ROUND LOOP IS INLINED HERE.
-// A round dispatched exactly once can attempt every scope from attempt 1. An OUTER loop cannot:
-// it must survive a mid-BUILD kill and resume without re-work. So before opening a scope's
-// attempt loop, this file asks whether THIS ROUND already has a green T0 verdict for that scope
-// on disk, and skips the scope entirely when it does. Nothing else about the per-attempt
-// mechanics is special — same mech()/dispatch shapes, same ratchet discipline, same inner-breaker
-// semantics as any single round.
+// THE THREE PLANES THIS FILE RESPECTS, because collapsing them is what the previous version cost:
+//   CONTROL (here)   — sequences phases and branches on structured returns. Owns NO I/O: no shell,
+//                      no filesystem, no stdout parsing. Nothing in this file reads a model's prose.
+//   EXECUTION        — the sub-agents. Each has a real shell and a real filesystem, runs the kernel
+//                      itself, and returns a SCHEMA-VALIDATED object. The runtime enforces the
+//                      shape, so every branch below reads a real typed field.
+//   ARTIFACT         — the kernel. `harness compile` writes the order and `harness reduce ingest`
+//                      applies the result; those remain the only writers of shared state.
 //
-// WHAT THIS FILE DELIBERATELY DOES NOT DO (documented simplifications, not silent gaps):
-//   - No mid-round ESCALATE resolution and no discovered-task reconciliation mid-BUILD. Both
-//     remain the prose-only path in references/round-protocol.md and references/delegation.md —
-//     non-regression for a spec whose workers never escalate or discover mid-attempt. Either can
-//     be added the same way this file adds anything else: a fresh dispatch + a branch on its
-//     schema-forced report.
-//   - No QA re-check loop (round-protocol.md "QA edge hunt"): QA runs once after the first PASS;
-//     its findings are reported as a count for GATE H's census, never re-probed inside this run.
-//     Promoting a finding to a fix round is a decision only a live PO makes, and a headless lane
-//     (`ci`/`guarded`) never promotes.
-//   - The `tiny` lane and pre-scope-contract specs are OUT OF SCOPE for this file. SKILL.md's
-//     Hard Rules / tiny-lane.md keep the prose path for those, verbatim, non-regression.
-//   - This file does not append rows to the committed `round-ledger.md`
-//     (references/state-model.md "Two ledgers") on a gate crossing. `harness gate`'s own
-//     resolution IS the audit record (source + authorized_by on every resolved gate, readable
-//     from `decisions.jsonl` and the gate's own JSON output); promoting that into a committed
-//     per-run ledger row is follow-on work.
+// BOTH LANES ARE THIS CODE. The unattended lane launches it headlessly; the interactive lane pauses
+// at each gate a human answers and relaunches. There is no prose runbook that can drift from what
+// executes.
 //
-// args (RunArgs, domain.schema.json $defs/RunArgs — the central-registry shape; this file
-// validates its own subset in code, no runtime schema check at the C1 boundary itself):
-//   slug          string   the feature slug this run builds (a receipt for it must already exist
-//                          — tech-lead's harness init run, GATE L0.1, runs BEFORE this launch)
-//   autoLevel     string   interactive | auto | unattended
-//   answers       string   gate-answers preset name ("ci"|"guarded"|"interactive") or a path
-//   models        object   { exec, eval, qa? } — sonnet-or-above only (the model floor)
-//   budgets       object   { maxRounds, attemptBudget, wallClockS? } — the three-level breaker
-//   pluginRoot    string   ${CLAUDE_PLUGIN_ROOT} — the only thing this file ever roots a path in
-//   startedAt     string   ISO timestamp (Date.now() is unavailable in-script by design)
+// EVERY PHASE HAS A POST-CONDITION. A phase is complete when its ARTIFACT is on disk, never when a
+// result record says so — `requirePhase()` below. A WorkResult may legitimately report `escalated`
+// with an empty artifacts list, which satisfies ingest; without the post-condition the run walks to
+// the next gate as though the phase landed, and every relaunch re-dispatches it.
 //
-// return (RunReturn, domain.schema.json $defs/RunReturn) — the FULL union this file can produce:
-//   { status: "shipped", verdict: "pass", rounds_used, dims_not_evaluated, qa_findings, report }
-//   { status: "paused", paused_at, block, valid_decisions, context }
+// DELIBERATE OMISSIONS, stated rather than hidden:
+//   - No mid-round ESCALATE resolution and no discovered-task reconciliation mid-BUILD. Both stay
+//     on the prose path in references/round-protocol.md and references/delegation.md.
+//   - QA runs once after the first PASS; its findings are a count for GATE H's census, never
+//     re-probed inside this run. Promoting a finding to a fix round is a live PO's decision.
+//   - The `tiny` lane and pre-scope-contract specs are out of scope here; SKILL.md's tiny-lane
+//     reference keeps that path.
+//
+// args — RunArgs (domain.schema.json $defs/RunArgs):
+//   slug, autoLevel (interactive|auto|unattended), answers (preset name or path),
+//   models {exec, eval, qa?}, budgets {maxRounds, attemptBudget, wallClockS?}, pluginRoot,
+//   startedAt, and the optional switches noEval / noQa / adversarialVerify.
+//
+// return — RunReturn (domain.schema.json $defs/RunReturn), the full union:
+//   { status: "shipped", verdict, rounds_used, dims_not_evaluated, qa_findings, report }
+//   { status: "paused",  paused_at, block, valid_decisions, context }
 //   { status: "aborted", aborted_at, reason }
-//   { status: "gate_h", breaker: "outer"|"inner"|"deadline", hammer_proposals, green_scopes }
-// `shipped` and `gate_h` additionally carry `state_warnings[]` when a bookkeeping write did not
-// take — the only channel a headless launch preserves (see setRunStatus).
+//   { status: "gate_h",  breaker: "outer"|"inner"|"deadline", hammer_proposals, green_scopes }
 
 export const meta = {
   name: "shapeup-run",
-  description: "The outer BUILD-phase pipeline: ORIENT -> ANALYZE -> WIRE -> MAP SCOPES -> rounds of BUILD/EVAL -> QA -> GATE H -> ship-report. Every gate resolves via harness gate exit codes (0 cross / 4 pause / 5 abort); a pause returns and a relaunch fast-forwards from disk, never from memory, and every dispatched phase must leave its artifact behind before the run moves on.",
+  description:
+    "BUILD-phase pipeline: ORIENT → ANALYZE → WIRE → MAP SCOPES → rounds of BUILD/EVAL → QA → " +
+    "GATE H → ship. Gates resolve by the kernel's exit code; every dispatch is WorkOrder in / " +
+    "WorkResult out; the fast-forward is derived from artifacts on disk.",
   phases: [
     { title: "Orient" }, { title: "Analyze" }, { title: "Wire" }, { title: "MapScopes" },
-    { title: "Build" }, { title: "Eval" }, { title: "QA" }, { title: "Ship" },
+    { title: "Build" }, { title: "Eval" }, { title: "Refute" }, { title: "QA" }, { title: "Ship" },
   ],
 };
 
-// Some callers hand `args` through as a JSON-encoded string rather than the object itself
-// (measured against the real Workflow runtime). Normalize once, defensively.
-if (typeof args === "string") {
-  try { args = JSON.parse(args); } catch { args = {}; }
-}
+// Some callers hand args as a JSON string.
+if (typeof args === "string") { try { args = JSON.parse(args); } catch { args = {}; } }
 
 // ---------------------------------------------------------------------------------------------
-// The model floor. Allowlist, not a denylist: an unknown model name must fail closed, and a
-// denylist silently admits every name nobody thought to list.
+// ARGS — validated here because nothing validates the C1 boundary for us. A run that starts with a
+// below-floor model or a missing budget produces work nobody can trust, and finding that out at
+// GATE L3 costs the whole run.
 // ---------------------------------------------------------------------------------------------
-const MODEL_FLOOR_ALLOWED = new Set(["sonnet", "opus"]);
-const belowFloor = (m) => !MODEL_FLOOR_ALLOWED.has(String(m || "").toLowerCase());
+const MODEL_FLOOR = new Set(["sonnet", "opus"]);
+const belowFloor = (m) => !MODEL_FLOOR.has(String(m || "").toLowerCase());
 
-// ---------------------------------------------------------------------------------------------
-// Argument validation — this file's own job for the subset it reads. A malformed launch aborts
-// before a single agent() is spent.
-// ---------------------------------------------------------------------------------------------
 function validateArgs(a) {
   const problems = [];
-  for (const k of ["slug", "autoLevel", "models", "budgets", "pluginRoot", "startedAt"]) {
-    if (a[k] === undefined || a[k] === null || a[k] === "") problems.push(`missing args.${k}`);
+  for (const k of ["slug", "autoLevel", "models", "budgets", "pluginRoot"]) {
+    if (a?.[k] === undefined || a[k] === null || a[k] === "") problems.push(`missing args.${k}`);
   }
-  if (!["interactive", "auto", "unattended"].includes(a.autoLevel)) {
+  if (a && !["interactive", "auto", "unattended"].includes(a.autoLevel)) {
     problems.push(`args.autoLevel="${a.autoLevel}" must be interactive|auto|unattended`);
   }
-  if (a.budgets && (!a.budgets.maxRounds || !a.budgets.attemptBudget)) {
+  if (a?.budgets && (!a.budgets.maxRounds || !a.budgets.attemptBudget)) {
     problems.push("args.budgets must carry maxRounds and attemptBudget");
   }
-  if (a.models) {
+  if (a?.models) {
     for (const role of ["exec", "eval"]) {
       if (role === "eval" && a.noEval) continue;
-      if (belowFloor(a.models[role])) {
-        problems.push(`args.models.${role}="${a.models[role]}" is below the model floor — sonnet or above only`);
-      }
-    }
-    if (a.models.qa !== undefined && belowFloor(a.models.qa)) {
-      problems.push(`args.models.qa="${a.models.qa}" is below the model floor — sonnet or above only`);
+      if (belowFloor(a.models[role])) problems.push(`args.models.${role} is below the model floor (sonnet or above)`);
     }
   }
   return problems;
 }
 
+const argProblems = validateArgs(args);
+if (argProblems.length) return { status: "aborted", aborted_at: "args", reason: argProblems.join("; ") };
+
+const slug          = args.slug;
+const KERNEL        = `${args.pluginRoot}/kernel/harness.mjs`;
+const execModel     = args.models.exec;
+const evalModel     = args.models.eval;
+const qaModel       = args.models.qa || args.models.exec;
+const maxRounds     = args.budgets.maxRounds;
+const attemptBudget = args.budgets.attemptBudget;
+
 // ---------------------------------------------------------------------------------------------
-// C2 — the mechanical channel: one helper, one schema, sonnet — the model floor — on every call
-// including this courier.
+// SCHEMAS — the only contract between this control script and a sub-agent. The runtime forces the
+// agent's final message to validate against these, which is the entire reason no stdout is parsed
+// anywhere in this file.
 // ---------------------------------------------------------------------------------------------
-const MECH_SCHEMA = {
+const nullable = (t) => ({ type: [t, "null"] });
+
+/** A kernel subcommand a sub-agent ran in its own shell, reported as data. */
+const CMD = {
   type: "object",
   properties: {
     exit_code: { type: "integer" },
-    stdout: { type: "string" },
-    stderr: { type: "string" },
+    ok: { type: "boolean" },
+    detail: { type: "string" },
   },
-  required: ["exit_code", "stdout", "stderr"],
+  required: ["exit_code", "ok"],
 };
 
-// `agent()` returns null when a subagent is skipped mid-run or dies on a terminal error after
-// retries — the Workflow runtime documents this, and it is NOT hypothetical: measured, run 3, a
-// safety-classifier block on one compile-order call returned null, `analyzeOrder.stdout` threw
-// "null is not an object", and the whole workflow died with `status: "failed"` — a value that is
-// not a member of the RunReturn union, so SKILL.md's Step 3 branch table has no arm for it and
-// the PO is handed a crash instead of a gate. One courier must never be able to do that: a dead
-// courier is a failed COMMAND (non-zero exit, empty stdout), which every call site below already
-// knows how to read, and the run continues to a real gate decision.
-const mechEnvelope = (r, label) => (
-  r && typeof r === "object"
-    ? r
-    : { exit_code: -1, stdout: "", stderr: `mech courier returned no result (skipped, blocked, or died) for: ${label}` }
-);
-
-const mech = async (cmd, label) => mechEnvelope(await agent(
-  "Run exactly this command, change nothing about it, and report its outcome as data: the exit " +
-  "code, everything printed to stdout, and everything printed to stderr, verbatim, byte for " +
-  "byte. Do not summarize, do not truncate, do not interpret it.\n\n" +
-  "`stdout` must contain ONLY what the command itself printed to stdout. Do not append an " +
-  "exit-status marker, do not add `; echo EXIT:$?` or any similar suffix to the command, and do " +
-  "not add commentary — the exit status belongs in `exit_code` and nowhere else. Report the " +
-  "command's exit status in `exit_code`; if you cannot observe it, use 0 when the command " +
-  `produced no error output and 1 when it did.\n\n${cmd}`,
-  { model: "sonnet", effort: "low", schema: MECH_SCHEMA, phase: "Orient", label: String(label || cmd).slice(0, 40) },
-), String(label || cmd).slice(0, 40));
-
-// A courier is a model, not a pipe. Asked for an exit code it has no sanctioned way to observe,
-// it reaches for `cmd; echo "EXIT:$?"` and hands back the combined text — measured, run 3: the
-// probe below aborted an entire unattended run on a trailing "EXIT:0", while the command itself
-// had printed 636 bytes of clean JSON and exited 0. The prompt above closes the common path; this
-// closes the class. Every JSON fact this file reads off a courier comes through here: take the
-// first balanced {...} / [...] in what was reported and ignore whatever the courier wrapped it
-// in. A command that genuinely printed no JSON still yields null, and every caller still treats
-// null as the failure it is — this recovers the courier's noise, never a command's silence.
-function parseMechJson(stdout) {
-  if (typeof stdout !== "string") return null;
-  const s = stdout.trim();
-  try { return JSON.parse(s); } catch { /* fall through to extraction */ }
-  const start = s.search(/[{[]/);
-  if (start < 0) return null;
-  const open = s[start];
-  const close = open === "{" ? "}" : "]";
-  let depth = 0, inStr = false, esc = false;
-  for (let i = start; i < s.length; i++) {
-    const c = s[i];
-    if (inStr) {
-      if (esc) esc = false;
-      else if (c === "\\") esc = true;
-      else if (c === '"') inStr = false;
-      continue;
-    }
-    if (c === '"') { inStr = true; continue; }
-    if (c === open) depth++;
-    else if (c === close && --depth === 0) {
-      try { return JSON.parse(s.slice(start, i + 1)); } catch { return null; }
-    }
-  }
-  return null;
-}
-
-// A workflow script has no filesystem of its own (design doc §1). Every path fact this file
-// needs comes from a `${args.pluginRoot}`-rooted node one-liner that imports the SAME
-// lib/paths.mjs the rest of the harness uses, never a storage-root literal typed here (test-#45
-// discipline, extended — 16-workflows.mjs enforces this mechanically over every file in this
-// directory). The one-liner is wrapped in a double-quoted shell argument so every JS string
-// literal INSIDE it can use single quotes with no escaping (the pattern this file's
-// writeActiveScope already verified against the real runtime).
-const mechNode = (statements, label) => mech(
-  `node --input-type=module -e "${statements.join("")}"`,
-  label,
-);
-
-// ---------------------------------------------------------------------------------------------
-// The one-time probe: every path/artifact fact this file needs, in one courier call. This IS the
-// fast-forward derivation (design doc §4) — "jump to the first phase whose artifacts are
-// incomplete", read from files, never from memory.
-//
-// It lives in kernel/probe/resume.mjs, a real pipeline script, rather than in
-// an inline `node -e` blob here. That move is not tidying: a workflow script
-// cannot be imported, so while the derivation was a string inside this file NOTHING could unit-
-// test it — and the kill/resume probe found it
-// re-dispatching a COMPLETED ORIENT phase on every relaunch. As a script it has a fixture
-// (its own structural fixture) and it matches the permissions.allow grant the installer
-// writes, which an inline `node -e` never did (run-3 environment finding #5).
-// ---------------------------------------------------------------------------------------------
-async function probe(slug) {
-  const r = await mech(
-    `node "${args.pluginRoot}/kernel/harness.mjs" probe resume --slug ${slug}`,
-    "resume-state",
-  );
-  // A probe that cannot be parsed is not an empty run — it is an unknown one. Returning {} here
-  // would read as "no orient artifacts, no scopes, no wiring map" and the pipeline would
-  // confidently re-dispatch every phase from the top, overwriting a run already in progress.
-  const parsed = parseMechJson(r.stdout);
-  if (parsed) return parsed;
-  return { __probe_failed: `resume-state could not be parsed (exit ${r.exit_code}): ${(r.stderr || r.stdout || "").trim().slice(0, 300)}` };
-}
-
-/** Has this scope already reached T0-green for THIS round? Files only, never memory — the one
- * piece of resumability a single-shot attempt loop does not have (see banner).
- * Returns { green, path } so a resumed round can still cite the pre-kill T0 artifact at EVAL. */
-async function checkScopeGreen(slug, scopeId, round) {
-  const r = await mechNode([
-    `import { existsSync, readdirSync, readFileSync } from 'node:fs';`,
-    `import { verdictsDir } from '${args.pluginRoot}/kernel/lib/paths.mjs';`,
-    `const dir = verdictsDir(process.cwd(), '${slug}');`,
-    `let green = false; let path = null;`,
-    `if (existsSync(dir)) { for (const f of readdirSync(dir)) { if (!f.endsWith('.json')) continue; `,
-    `  const fp = dir + '/' + f;`,
-    `  try { const b = JSON.parse(readFileSync(fp, 'utf8')); `,
-    `  if (b.scope_id === '${scopeId}' && b.round === ${round} && b.overall === 'green') { green = true; path = fp; break; } } catch {} } }`,
-    `console.log(JSON.stringify({ green, path }));`,
-  ], `t0check:${scopeId}-r${round}`);
-  return parseMechJson(r.stdout) || { green: false, path: null };
-}
-
-// THE PHASE POST-CONDITION. A phase is complete when its ARTIFACT exists — never when
-// its result record says so.
-//
-// THE DEFECT THIS CLOSES. Until it was added, every
-// phase block read its artifact predicate ONCE, before dispatching, and never again. A worker that
-// returns `status: "escalated"` with `artifacts: []` — a legitimate outcome work-result.schema.json
-// defines — satisfied the ingest, so the run moved to the next gate as though the phase had landed.
-// Nothing was wrong with the next launch either: the fast-forward looked for the artifact, found
-// none, and re-dispatched. The worker escalated again. That loop is unbounded, it is invisible
-// inside a single leg, and it is what made the kill/resume probe FAIL a second time — on WIRE,
-// whose worker had been dispatched before the spec tree it reads even existed.
-//
-// The check is `harness probe resume --require <phase>`: the SAME derivation the fast-forward uses,
-// asked about one phase. Deliberately not a second predicate — two readings of "is this phase
-// done" that can disagree is the defect class itself, not a safeguard against it.
-//
-// An unmet post-condition ABORTS, naming the phase. `aborted` is a union member that already
-// exists and needs no adjudication machinery: a `paused` would relaunch into the same order and
-// hit the same wall, because nothing persists an answer between launches. Aborting puts the
-// question in front of a human once, instead of looping silently.
-const requirePhase = async (slug, gate, phaseKey) => {
-  const r = await mech(
-    `node "${args.pluginRoot}/kernel/harness.mjs" probe resume --slug ${slug} --require ${phaseKey}`,
-    `require:${phaseKey}`,
-  );
-  if (r.exit_code === 0) return null;
-  const missing = parseMechJson(r.stdout)?.required_artifact || phaseKey;
-  return {
-    status: "aborted",
-    aborted_at: gate,
-    reason: `${gate} produced no artifact: ${missing} is not on disk after the phase ran and its result was ingested. `
-      + "The phase did not complete — its worker most likely escalated (a WorkResult may report `escalated` with `artifacts: []`), "
-      + "and because completion is derived from the artifact, every relaunch would re-dispatch this phase and escalate again. "
-      + "Read the phase's result to see what it could not complete, resolve it, then relaunch.",
-  };
-};
-
-// The ledger's `status` field. Two things changed here, and the second is the point.
-//
-// It is no longer this file's resume oracle — the fast-forward reads ARTIFACTS (probe above), the
-// way WIRE and MAP SCOPES always did. `status` survives because it has other readers that would
-// otherwise lose their only signal: harness reduce snapshot and hooks/anti-rationalization.mjs both hold
-// a MID_RUN set over these values to tell a run in flight from a finished one.
-//
-// And its outcome is no longer discarded. This was one of exactly two mech() call sites in this
-// file whose return value nobody read, and both of them failed silently for two entire runs
-// (46 dispatched agents, status pinned at "orienting" throughout). harness probe resume now reads the
-// ledger back after writing it and exits non-zero if the value did not take; a failure is logged
-// loudly and the run continues, because bookkeeping that lost its write is a degraded digest, not
-// a corrupted build. The pointer below takes the opposite policy, for the reason stated there.
-//
-// ⟐ The second half of that read-back: the warning also travels in the RunReturn.
-// `log()` goes to the progress narrator, and a headless `claude -p` stdout carries only the final
-// message — so when the A2 probe returned `shipped` over a ledger still reading `evaluating`, the
-// evidence could not say whether the failure had been reported at all.
-// A diagnostic that only exists on a channel the operator cannot read is not a diagnostic.
-const stateWarnings = [];
-const setRunStatus = async (slug, status) => {
-  const r = await mech(
-    `node "${args.pluginRoot}/kernel/harness.mjs" probe resume --slug ${slug} --set-status ${status}`,
-    `status:${status}`,
-  );
-  if (r.exit_code !== 0) {
-    const why = (parseMechJson(r.stdout)?.reason || r.stderr || `exit ${r.exit_code}`).toString().trim();
-    log(`RUN STATE — status="${status}" did not take: ${why}. The run continues (resume is derived from artifacts, not from this field), but run-snapshot and the anti-rationalization hook will read this run as unfinished.`);
-    stateWarnings.push(`status="${status}" did not take: ${why}`);
-  }
-  return r;
-};
-
-/** Attach any lost bookkeeping writes to a terminal RunReturn. Only the two returns that mean
- *  "the run did its work" carry it — an `aborted` already names its cause on the same channel. */
-const withStateWarnings = (ret) => (stateWarnings.length ? { ...ret, state_warnings: stateWarnings } : ret);
-
-// ---------------------------------------------------------------------------------------------
-// The uniform dispatch shape (C3/C4) — identical structure for every worker in the Operation
-// vocabulary (domain.schema.json $defs/Operation): compile an order, dispatch a fresh agent that
-// reports back a schema-forced subset of what it wrote, ingest the result. The schema is the
-// only thing that varies per worker — it is what a gate needs to know, nothing more (the
-// zero-memory-handoff boundary, PA6: the prompt below carries only the order path).
-// ---------------------------------------------------------------------------------------------
-const compile = (flags, label) => mech(
-  `node "${args.pluginRoot}/kernel/harness.mjs" compile ${flags}`,
-  label,
-);
-const ingest = (resultPath, label) => mech(
-  `node "${args.pluginRoot}/kernel/harness.mjs" reduce ingest ${resultPath}`,
-  label,
-);
-
-// harness reduce ingest is the SINGLE WRITER of the board, the discovery ledger and the verdict record
-// (AGENTS.md invariant #3). Every call site here used to discard its outcome, which is the
-// same defect class the kill/resume probe found in the two state writes, sitting on the one script
-// whose failure matters most: an ingest that fails unnoticed leaves shared state describing work
-// that never landed, while the pipeline proceeds as though it had — a green board over an
-// unapplied result. Every phase checks it now. The policy follows the architecture, exactly as the
-// dead-worker policy above does: a PHASE ingest is fatal (the phase produced nothing the run can
-// stand on), a BUILD-attempt ingest is a spent attempt (the budget is the instrument for that),
-// and a QA ingest is logged (QA is a level-up, not a gate).
-const ingestFailure = (r, label) => (
-  r.exit_code === 0 ? null : `${label} did not apply: ${(r.stderr || r.stdout || `exit ${r.exit_code}`).toString().trim().slice(0, 300)}`
-);
-
-// WHERE A DISPATCH'S RESULT IS — derived from the order, never taken from the worker's report.
-//
-// The envelope port names it: harness compile writes `orders/<suffix>.json` and every worker
-// writes `results/<suffix>.json` (its own SKILL.md says so — "`.${"shapeup"}/<slug>/results/
-// <order-suffix>.json`"). The pairing is a FACT of the port, and the kill/resume probe's own
-// assertions are set operations over exactly that pairing.
-//
-// Until now this file passed the worker's self-reported `result_path` to ingest instead. Measured,
-// Observed in a probe run: ORIENT wrote `results/orient.json` correctly and reported a DIRECTORY as
-// its path; ingest read it, got EISDIR, and the run aborted at the first phase — `{"status":
-// "aborted","aborted_at":"ORIENT","reason":"ingest:orient did not apply: ✗ result unreadable:
-// EISDIR"}`. A phase that had done its whole job was thrown away on a claim about where it had put
-// the work. Same lesson as the post-condition above, one field over: derive the fact, do not accept
-// the claim. The schema still asks for `result_path` — it is a cross-check now, logged when it
-// disagrees, never the thing the pipeline acts on.
-const baseOf = (p) => String(p || "").trim().split("/").pop();
-const resultFor = (orderPath, reported, label) => {
-  const derived = orderPath.replace("/orders/", "/results/");
-  if (reported && baseOf(reported) !== baseOf(derived)) {
-    log(`${label} — the worker reported result_path "${reported}", which is not "${baseOf(derived)}". Ingesting the derived path; the order's own name is the fact.`);
-  }
-  return derived;
-};
-const ingestOrAbort = async (gate, resultPath, label) => {
-  const why = ingestFailure(await ingest(resultPath, label), label);
-  return why ? { status: "aborted", aborted_at: gate, reason: `${why} — the board and ledger do not reflect this phase, so nothing downstream can be trusted to read them` } : null;
-};
-// Same null contract as mech() above: a worker that is skipped or dies after retries yields null,
-// and `<result>.result_path` on null throws — killing the workflow with `status: "failed"`, which
-// is not a RunReturn member. A dead worker is an ABORT with a name, not a crash: `__failed` is
-// checked at every call site below and converted into `{status:"aborted", aborted_at, reason}`,
-// so the PO always receives a union member that says which phase died.
-//
-// THE PROMPT NAMES THE RESULT PATH, because the ORDER does not. Measured across two consecutive
-// ORIENT dispatches showed two different failures with one cause:
-//   leg 1a  the worker wrote results/orient.json and reported a DIRECTORY as its path
-//   leg 1b  the worker wrote all four orient artifacts and no result file at all
-// A compiled WorkOrder carries `order_id`, `substrate`, and `payload` — and nothing that says where
-// the WorkResult goes. Every worker SKILL.md documents the convention ("`.${"shapeup"}/<slug>/results/
-// <order-suffix>.json`"), so the worker is left to derive a path from a convention while its own
-// order's `substrate.allowed` names a directory that does not contain it. Two workers guessed
-// differently and both legs died at phase one.
-//
-// This states it, in the one place a zero-memory subagent cannot miss: its dispatch prompt. It is
-// the same path `resultFor` ingests, so the two agree by construction. Putting `result_path` INTO
-// the WorkOrder is the deeper fix and it belongs to whoever next opens the envelope schema — it
-// touches harness compile, domain.schema.json and every worker's input contract, which is a wider
-// diff than this change should take. Recorded as a discovered defect, not silently
-// worked around.
-const dispatch = async (skill, orderPath, model, phase, label, schema, extra) => {
-  const setOrderR = await mech(
-    `node "${args.pluginRoot}/kernel/harness.mjs" probe resume --slug ${slug} --set-active-order ${orderPath}`,
-    `set-active-order:${baseOf(orderPath)}`,
-  );
-  if (setOrderR.exit_code !== 0) {
-    const why = (parseMechJson(setOrderR.stdout)?.reason || setOrderR.stderr || `exit ${setOrderR.exit_code}`).toString().trim();
-    log(`Warning: could not set active-order to ${orderPath}: ${why}`);
-  }
-  const r = await agent(
-    `Call Skill(shapeup-sdlc-plugin:${skill}) --order ${orderPath}. ${extra || ""} ` +
-    `Write your WorkResult to exactly this path: ${orderPath.replace("/orders/", "/results/")} — ` +
-    "that file is what the pipeline ingests, and a phase whose result is missing is treated as a phase that did not run. " +
-    "Report back exactly the fields requested — nothing else travels outside the order/result files.",
-    { model, phase, label, schema },
-  );
-  return (r && typeof r === "object") ? r : { __failed: `${skill} dispatch returned no result (skipped, blocked, or died) at ${label}` };
-};
-
-/** The abort a dead worker earns: a named phase, never a crash. */
-const dispatchAborted = (gate, r) => ({ status: "aborted", aborted_at: gate, reason: r.__failed });
-
-const ORIENT_SCHEMA = {
+/** `harness probe resume` — the fast-forward derivation, every field artifact-derived. */
+const RESUME = {
   type: "object",
   properties: {
-    result_path: { type: "string" },
-    spiked_area: { type: "string" },
-    spike_result: { type: "string" },
+    intake_path: nullable("string"), spec_folder: nullable("string"), orient_dir: nullable("string"),
+    project_profile_path: nullable("string"), status: nullable("string"),
+    lens: nullable("string"), stack: nullable("string"),
+    run_cmd: nullable("string"), app_url: nullable("string"),
+    eval_dimensions: { type: "array", items: { type: "string" } },
+    has_orient_artifacts: { type: "boolean" },
+    has_spec_tree: { type: "boolean" },
+    has_wiring_map: { type: "boolean" },
+    has_project_profile: { type: "boolean" },
+    scope_files: { type: "array", items: { type: "string" } },
+    eval_rounds_done: { type: "array", items: { type: "integer" } },
+    next_phase: nullable("string"),
+  },
+  required: ["has_orient_artifacts", "has_spec_tree", "has_wiring_map", "scope_files", "eval_rounds_done"],
+};
+
+/** `harness probe t0` — has this scope already gone green in this round? */
+const T0CHECK = {
+  type: "object",
+  properties: { green: { type: "boolean" }, path: nullable("string") },
+  required: ["green"],
+};
+
+const ORIENT = {
+  type: "object",
+  properties: {
+    ok: { type: "boolean" }, artifact_written: { type: "boolean" },
+    spiked_area: { type: "string" }, spike_result: { type: "string" },
     riskiest_unknowns: { type: "array", items: { type: "string" } },
   },
-  required: ["result_path", "spiked_area", "spike_result"],
+  required: ["ok", "artifact_written", "spiked_area", "spike_result"],
 };
-const RESULT_ONLY_SCHEMA = { type: "object", properties: { result_path: { type: "string" } }, required: ["result_path"] };
-const MAPSCOPES_SCHEMA = {
+
+/** analyze / wire — "did the artifact land?" is all a gate needs from them. */
+const PHASE_OK = {
+  type: "object",
+  properties: { ok: { type: "boolean" }, artifact_written: { type: "boolean" }, detail: { type: "string" } },
+  required: ["ok", "artifact_written"],
+};
+
+const MAPSCOPES = {
   type: "object",
   properties: {
-    result_path: { type: "string" },
-    scopes: { type: "array", items: { type: "object", properties: { scope_id: { type: "string" }, path: { type: "string" } }, required: ["scope_id", "path"] } },
+    ok: { type: "boolean" }, artifact_written: { type: "boolean" },
+    scopes: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { scope_id: { type: "string" }, path: { type: "string" } },
+        required: ["scope_id", "path"],
+      },
+    },
   },
-  required: ["result_path", "scopes"],
+  required: ["ok", "artifact_written", "scopes"],
 };
-const QA_SCHEMA = {
-  type: "object",
-  properties: { result_path: { type: "string" }, findings_count: { type: "integer" } },
-  required: ["result_path", "findings_count"],
-};
-const HAMMER_SCHEMA = {
+
+/** One scope's whole attempt ratchet, run inside the worker leg (see buildScope). */
+const SCOPE_RESULT = {
   type: "object",
   properties: {
-    result_path: { type: "string" },
+    scope_id: { type: "string" },
+    green: { type: "boolean" },
+    t0_artifact: nullable("string"),
+    attempts_used: { type: "integer" },
+    breaker: { type: "string", enum: ["none", "stagnation", "attempt_budget"] },
+    reason: { type: "string" },
+  },
+  required: ["scope_id", "green", "attempts_used", "breaker"],
+};
+
+const EVAL = {
+  type: "object",
+  properties: {
+    ok: { type: "boolean" },
+    overall: { type: "string", enum: ["PASS", "FAIL"] },
+    findings: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { id: { type: "string" }, criterion: { type: "string" }, evidence: { type: "string" } },
+        required: ["id", "criterion", "evidence"],
+      },
+    },
+  },
+  required: ["ok", "overall"],
+};
+
+const REFUTATION = {
+  type: "object",
+  properties: { id: { type: "string" }, refuted: { type: "boolean" }, why: { type: "string" } },
+  required: ["id", "refuted"],
+};
+
+const QA_REPORT = {
+  type: "object",
+  properties: { ok: { type: "boolean" }, findings_count: { type: "integer" } },
+  required: ["ok", "findings_count"],
+};
+
+const HAMMER = {
+  type: "object",
+  properties: {
+    ok: { type: "boolean" },
     verdict: { type: "string", enum: ["ship-now", "ship-after-fixes", "cannot-ship"] },
     cut_list: { type: "array", items: { type: "string" } },
   },
-  required: ["result_path", "verdict", "cut_list"],
+  required: ["ok", "verdict", "cut_list"],
 };
 
 // ---------------------------------------------------------------------------------------------
-// Gate resolution — every gate crosses through harness gate's exit code (0 cross / 4 pause /
-// 5 abort) — the same convention every gate in the harness uses.
+// DISPATCH — three shapes, and none of them parses text.
+//
+// A sub-agent can be skipped by the operator or die on a terminal API error, in which case the
+// runtime hands back `null`. A null is a NAMED failure here, never a crash: `status: "failed"` is
+// not a member of the RunReturn union, so every call site converts it to one that is.
 // ---------------------------------------------------------------------------------------------
-const PRESET_NAMES = new Set(["ci", "guarded", "interactive"]);
-const answersFlag = (answers) => (!answers ? "" : (PRESET_NAMES.has(answers) ? `--preset ${answers}` : `--file ${answers}`));
+const nullFail = (label) => ({ __failed: `${label}: sub-agent skipped, blocked, or died after retries` });
 
-// harness gate carries its verdict on TWO channels: the exit code says cross/pause/abort
-// (0/4/5), but the DECISION itself — loop|stop|run|skip|accept-cut-list — travels only in the
-// JSON it prints on stdout ({ gate, decision, source, note, status }). The mech() envelope is
-// {exit_code, stdout, stderr} and nothing else, so reading `.decision` straight off it yields
-// `undefined` and silently takes the else-branch at every decision-sensitive gate — QA would
-// never dispatch under a preset that answers it "run", and L3's "stop" arm would be dead code.
-// Parse it here, once, so every caller branches on a real value.
-const resolveGate = async (slug, answers, gate) => {
-  const r = await mech(
-    `node "${args.pluginRoot}/kernel/harness.mjs" gate --resolve ${gate} --slug ${slug} ${answersFlag(answers)}`.trim(),
-    `gate:${gate}`,
+/**
+ * Run one kernel subcommand in a sub-agent's own shell and get its outcome as data.
+ *
+ * @param {string} verbs - Kernel verb words plus flags, e.g. `reduce hill --slug x`.
+ * @param {string} phaseName - Progress group.
+ * @param {string} label - Display label.
+ * @returns {Promise<{exit_code:number, ok:boolean, detail?:string}>} Never rejects.
+ */
+async function cmd(verbs, phaseName, label) {
+  const r = await agent(
+    `Run exactly this command and nothing else:\n\n  node "${KERNEL}" ${verbs}\n\n` +
+    `Report its exit code as exit_code, ok=true if and only if exit_code is 0, and one line of ` +
+    `detail. Do not interpret, summarise or act on the command's output beyond that.`,
+    { model: "sonnet", effort: "low", phase: phaseName, label, schema: CMD },
   );
-  // A gate that printed no JSON has no decision to read; a gate whose JSON the courier wrapped in
-  // noise still does — parseMechJson keeps the second case from reading as the first.
-  const decision = parseMechJson(r.stdout)?.decision ?? null;
-  return { ...r, decision };
-};
-const GATE_TITLES = {
+  return (r && typeof r === "object") ? r : { exit_code: -1, ok: false, detail: `${label}: no result` };
+}
+
+/**
+ * Run a kernel subcommand whose outcome is advisory — a projection or a lint that informs but does
+ * not stop the run.
+ *
+ * It still LOOKS at the exit code. A command whose result nobody reads is a command whose failure
+ * is indistinguishable from its success, which is the defect class this whole file is arranged
+ * against; "advisory" means the run continues, not that nothing is recorded.
+ *
+ * @param {string} verbs - Kernel verb words plus flags.
+ * @param {string} phaseName - Progress group.
+ * @param {string} label - Display label.
+ * @returns {Promise<void>} Settles when the command has run.
+ */
+async function advisory(verbs, phaseName, label) {
+  const r = await cmd(verbs, phaseName, label);
+  if (!r.ok) log(`${label} — did not complete (${r.detail || `exit ${r.exit_code}`}). The run continues; this output is a projection, not a gate.`);
+}
+
+/**
+ * Run a kernel subcommand whose stdout is a JSON document this script needs the fields of.
+ *
+ * The sub-agent re-reports the document against `schema`, so what reaches this file is validated by
+ * the runtime rather than parsed here.
+ *
+ * @param {string} verbs - Kernel verb words plus flags.
+ * @param {object} schema - The shape the caller branches on.
+ * @param {string} phaseName - Progress group.
+ * @param {string} label - Display label.
+ * @returns {Promise<(object|null)>} The validated document, or null when the agent produced none.
+ */
+async function query(verbs, schema, phaseName, label) {
+  const r = await agent(
+    `Run exactly this command and nothing else:\n\n  node "${KERNEL}" ${verbs}\n\n` +
+    `It prints one JSON document on stdout. Return that document's fields as the schema names ` +
+    `them, verbatim — do not add, rename, summarise or infer any value.`,
+    { model: "sonnet", effort: "low", phase: phaseName, label, schema },
+  );
+  return (r && typeof r === "object") ? r : null;
+}
+
+/**
+ * Dispatch one worker through the envelope port and get back the fields a gate needs.
+ *
+ * The sub-agent compiles its own WorkOrder with `harness compile`, calls the Skill against it, and
+ * applies its WorkResult with `harness reduce ingest` — all in its own shell. This script never
+ * couriers those commands, and the `verify envelope` hook still denies a dispatch whose order is
+ * missing or schema-invalid, because that hook fires on the Skill call the sub-agent makes.
+ *
+ * @param {object} spec - `{skill, operation, payload, schema, phase, label, model, extra}`.
+ * @returns {Promise<object>} The validated worker report, or a `__failed` marker.
+ */
+async function worker({ skill, operation, payload, schema, phase: phaseName, label, model = execModel, extra = "" }) {
+  const r = await agent(
+    `You are running one step of an orchestrated build over feature slug "${slug}".\n\n` +
+    `1. Compile the WorkOrder:\n` +
+    `     node "${KERNEL}" compile --operation ${operation} --slug ${slug} --payload '${JSON.stringify(payload)}'\n` +
+    `   It prints the order path on stdout.\n` +
+    `2. Dispatch the worker against that order:\n` +
+    `     Skill(shapeup-sdlc-plugin:${skill}) --order <the path from step 1>\n` +
+    `   ${extra}\n` +
+    `3. Apply its WorkResult:\n` +
+    `     node "${KERNEL}" reduce ingest <the result path the worker wrote>\n\n` +
+    `Then report ONLY the fields the schema names. Nothing else crosses this boundary — no ` +
+    `narration, no file contents, no summary of the work.`,
+    { model, phase: phaseName, label, schema, effort: "medium" },
+  );
+  return (r && typeof r === "object") ? r : nullFail(label);
+}
+
+// ---------------------------------------------------------------------------------------------
+// GATES — the kernel's exit-code convention, unchanged: 0 cross · 4 pause · 5 abort. The resolved
+// decision string travels in `detail`.
+// ---------------------------------------------------------------------------------------------
+const PRESETS = new Set(["ci", "guarded", "interactive"]);
+const answersFlag = (a) => (!a ? "" : PRESETS.has(a) ? `--preset ${a}` : `--file ${a}`);
+
+const TITLES = {
   L1a: "Orient Review", "L1a.5": "Wiring Review", L1b: "Board Review",
   L2: "Build Round Complete", L3: "Verdict & Loop", QA: "QA Edge Hunt", H: "Decide When to Stop",
 };
-const gateBlock = (gate, ctx) => [
-  `⏸ GATE ${gate} — ${GATE_TITLES[gate] || gate}`,
-  ...Object.entries(ctx).map(([k, v]) => `${k}: ${JSON.stringify(v)}`),
-].join("\n");
-const paused = (gate, valid_decisions, ctx) => ({ status: "paused", paused_at: gate, block: gateBlock(gate, ctx), valid_decisions, context: ctx });
-const abortedFrom = (gate, resolved, fallback) => {
-  let reason = resolved.stderr.trim() || fallback;
-  reason = parseMechJson(resolved.stdout)?.reason || reason;
-  return { status: "aborted", aborted_at: gate, reason };
-};
+const gateBlock = (g, ctx) =>
+  [`⏸ GATE ${g} — ${TITLES[g] || g}`, ...Object.entries(ctx).map(([k, v]) => `${k}: ${JSON.stringify(v)}`)].join("\n");
+const paused  = (g, valid, ctx) => ({ status: "paused", paused_at: g, block: gateBlock(g, ctx), valid_decisions: valid, context: ctx });
+const aborted = (g, why) => ({ status: "aborted", aborted_at: g, reason: why });
+const diedAt  = (g, r) => ({ status: "aborted", aborted_at: g, reason: r.__failed });
 
-// =================================================================================================
-// The run.
-// =================================================================================================
-
-const argProblems = validateArgs(args);
-if (argProblems.length) {
-  return { status: "aborted", aborted_at: "args", reason: `shapeup-run: ${argProblems.join("; ")}` };
+/**
+ * Resolve one gate: cross, pause, or abort.
+ *
+ * @param {string} gateId - Gate id (L1a, L2, …).
+ * @param {string} phaseName - Progress group.
+ * @param {string[]} validDecisions - What a human may answer if this pauses.
+ * @param {object} ctx - The facts the gate block shows.
+ * @returns {Promise<{stop?: object, decision?: string}>} `stop` carries a terminal RunReturn.
+ */
+async function crossGate(gateId, phaseName, validDecisions, ctx) {
+  const g = await cmd(`gate --resolve ${gateId} --slug ${slug} ${answersFlag(args.answers)}`.trim(), phaseName, `gate:${gateId}`);
+  if (g.exit_code === 4) return { stop: paused(gateId, validDecisions, ctx) };
+  if (g.exit_code === 5) return { stop: aborted(gateId, g.detail || `GATE ${gateId} aborted`) };
+  return { decision: g.detail || "proceed" };
 }
 
-const slug = args.slug;
-const qaModel = args.models.qa || args.models.exec;
-const allHammerProposals = [];
-const allGreenScopes = [];
-let dispatchedOrient = false, dispatchedAnalyze = false, dispatchedWire = false, dispatchedMapScopes = false;
+/**
+ * The phase post-condition: the artifact is on disk, or the run stops here.
+ *
+ * Deliberately the SAME derivation the fast-forward uses, asked about one phase. Two readings of
+ * "is this phase done" that can disagree is the defect class, not a safeguard against it.
+ *
+ * @param {string} gate - The gate name to report the abort under.
+ * @param {string} phaseKey - The phase `probe resume --require` knows.
+ * @param {string} phaseName - Progress group.
+ * @returns {Promise<(object|null)>} An aborted RunReturn, or null when the artifact is there.
+ */
+async function requirePhase(gate, phaseKey, phaseName) {
+  const r = await cmd(`probe resume --slug ${slug} --require ${phaseKey}`, phaseName, `require:${phaseKey}`);
+  if (r.exit_code === 0) return null;
+  return aborted(gate,
+    `${gate} produced no artifact: the ${phaseKey} artifact is not on disk after the phase ran and its ` +
+    `result was ingested. The phase did not complete — its worker most likely escalated (a WorkResult ` +
+    `may report "escalated" with an empty artifacts list) — and because completion is derived from the ` +
+    `artifact, every relaunch would re-dispatch this phase and escalate again. Read the phase's result ` +
+    `to see what it could not complete, resolve it, then relaunch.`);
+}
 
+// The ledger's `status` field is bookkeeping, not this file's resume oracle — the fast-forward reads
+// artifacts. It survives because `reduce snapshot` and the anti-rationalization hook read it to tell
+// a run in flight from a finished one. A lost write is a degraded digest, not a corrupted build, so
+// it warns and continues — and the warning travels in the RunReturn, because a headless stdout
+// carries only the final message and a diagnostic on a channel nobody reads is not a diagnostic.
+const stateWarnings = [];
+async function setRunStatus(status, phaseName) {
+  const r = await cmd(`probe resume --slug ${slug} --set-status ${status}`, phaseName, `status:${status}`);
+  if (!r.ok) {
+    const why = (r.detail || `exit ${r.exit_code}`).trim();
+    log(`RUN STATE — status="${status}" did not take: ${why}. The run continues (resume is derived from ` +
+        `artifacts, not from this field), but the snapshot and the anti-rationalization hook will read ` +
+        `this run as unfinished.`);
+    stateWarnings.push(`status="${status}" did not take: ${why}`);
+  }
+}
+const withWarnings = (ret) => (stateWarnings.length ? { ...ret, state_warnings: stateWarnings } : ret);
+
+// =============================================================================================
+// THE RUN
+// =============================================================================================
 phase("Orient");
-const facts = await probe(slug);
-if (facts.__probe_failed) {
-  return { status: "aborted", aborted_at: "probe", reason: `shapeup-run: ${facts.__probe_failed}` };
+
+const rs = await query(`probe resume --slug ${slug}`, RESUME, "Orient", "resume-state");
+// A probe that produced nothing is not an EMPTY run — it is an unknown one. Treating it as empty
+// would re-dispatch every phase from the top, over a run that may be in progress.
+if (!rs) {
+  return aborted("probe", "the fast-forward derivation returned no state — refusing to re-dispatch a run that may already be in progress");
 }
 
-// ---------------------------------------------------------------------------------------------
-// ORIENT (step 7) + GATE L1a — skipped when orient/ already produced its four artifacts for a
-// PRIOR call this run (fast-forward: never re-dispatch a phase whose artifacts already exist).
-//
-// This branch used to read `facts.status`, and that is the defect the kill/resume probe caught
-// stored state said "orienting" forever, because the
-// write that would have moved it produced no agent and nobody read its result — so every
-// relaunch re-ran a phase whose artifacts were already on disk, rewriting them. The comment above
-// has always described the artifact test; now the code performs it, the same way WIRE reads
-// has_wiring_map and MAP SCOPES reads scope_files. AGENTS.md: progress is derived, never claimed.
-// ---------------------------------------------------------------------------------------------
-let spikedArea = "~", spikeResult = "~", riskiestUnknowns = [];
-if (!facts.has_orient_artifacts) {
+const specFolder = rs.spec_folder || `shapeup/${slug}/spec/`;
+const evalDims = rs.eval_dimensions?.length ? rs.eval_dimensions : ["spec-conformance"];
+
+// ---- ORIENT + GATE L1a ----------------------------------------------------------------------
+let spikedArea = "~", spikeResult = "~", riskiest = [];
+if (!rs.has_orient_artifacts) {
   log(`ORIENT — dispatching (slug ${slug})`);
-  const orientOrder = await compile(
-    `--operation orient --slug ${slug} --payload '${JSON.stringify({ pitch: facts.intake_path, spec_folder: facts.spec_folder, feature: slug, stack: facts.stack })}'`,
-    "compile:orient",
-  );
-  const orientResult = await dispatch(
-    "orient", orientOrder.stdout.trim(), args.models.exec, "Orient", "orient",
-    ORIENT_SCHEMA, "Read/spike real code before any board exists; write the orient/ artifacts.",
-  );
-  if (orientResult.__failed) return dispatchAborted("ORIENT", orientResult);
-  const orientIngest = await ingestOrAbort("ORIENT", resultFor(orientOrder.stdout.trim(), orientResult.result_path, "ingest:orient"), "ingest:orient");
-  if (orientIngest) return orientIngest;
-  const orientIncomplete = await requirePhase(slug, "ORIENT", "orient");
-  if (orientIncomplete) return orientIncomplete;
-  spikedArea = orientResult.spiked_area; spikeResult = orientResult.spike_result;
-  riskiestUnknowns = orientResult.riskiest_unknowns || [];
-  dispatchedOrient = true;
-  await setRunStatus(slug, "mapping");
+  await setRunStatus("orienting", "Orient");
+  const o = await worker({
+    skill: "orient", operation: "orient", schema: ORIENT, phase: "Orient", label: "orient",
+    payload: { pitch: rs.intake_path, spec_folder: specFolder, feature: slug, stack: rs.stack },
+    extra: "Read and spike real code before any board exists; write the orient/ artifacts.",
+  });
+  if (o.__failed) return diedAt("ORIENT", o);
+  const post = await requirePhase("ORIENT", "orient", "Orient");
+  if (post) return withWarnings(post);
+  spikedArea = o.spiked_area; spikeResult = o.spike_result; riskiest = o.riskiest_unknowns || [];
 } else {
-  log("ORIENT — artifacts already present, skipping dispatch (fast-forward)");
+  log("ORIENT — artifacts already on disk, fast-forwarding past it");
 }
 
-const l1a = await resolveGate(slug, args.answers, "L1a");
-if (l1a.exit_code === 4) return paused("L1a", ["proceed", "ask", "abort"], { spiked_area: spikedArea, spike_result: spikeResult, riskiest_unknowns: riskiestUnknowns, dispatched: dispatchedOrient });
-if (l1a.exit_code === 5) return abortedFrom("L1a", l1a, "GATE L1a aborted");
+{
+  const g = await crossGate("L1a", "Orient", ["proceed", "ask", "abort"],
+    { spiked_area: spikedArea, spike_result: spikeResult, riskiest_unknowns: riskiest });
+  if (g.stop) return withWarnings(g.stop);
+}
 
-// ---------------------------------------------------------------------------------------------
-// ANALYZE (spec tree + board) — ⟐ RUNS AHEAD OF WIRE.
-//
-// It used to be the first of MAP SCOPES' two dispatches, which put it AFTER WIRE. That order is
-// the one solution-architect's own input contract excludes: `wire` is defined as "author/refresh
-// the wiring map after `analyze`, before `map-scopes`" (SKILL.md:43), its payload names the spec
-// folder to "read `usecases/` for the UCs and the engine each one needs" (:44), and its
-// verification checklist requires one wiring-map entry PER use case (:108). `harness init run`
-// scaffolds no spec tree, so on a greenfield run WIRE was handed an empty spec folder, had
-// nothing to wire, and escalated — deterministically, on every launch. Two committed authorities
-// disagreed and this file implemented the one the worker does not (
-// §1, finding 2).
-//
-// Gate positions are unchanged: gates.md's L1a.5 confirms "each UC has a declared seam BEFORE
-// slicing", and the slicer — scope-architect — still runs after WIRE.
-// ---------------------------------------------------------------------------------------------
+// ---- ANALYZE (spec tree + board) — ahead of WIRE, which reads its use cases -------------------
 phase("Analyze");
-if (!facts.has_spec_tree) {
+if (!rs.has_spec_tree) {
   log(`ANALYZE — dispatching (slug ${slug})`);
-  const analyzeOrder = await compile(
-    `--operation analyze --slug ${slug} --payload '${JSON.stringify({ pitch: facts.intake_path, spec_folder: facts.spec_folder, feature: slug, lens: facts.lens, orient_dir: facts.orient_dir })}'`,
-    "compile:analyze",
-  );
-  const analyzeResult = await dispatch(
-    "ba-pitch-analyzer", analyzeOrder.stdout.trim(), args.models.exec, "Analyze", "analyze",
-    RESULT_ONLY_SCHEMA, "Write the spec tree + board from the orient artifacts (no re-scan).",
-  );
-  if (analyzeResult.__failed) return dispatchAborted("ANALYZE", analyzeResult);
-  const analyzeIngest = await ingestOrAbort("ANALYZE", resultFor(analyzeOrder.stdout.trim(), analyzeResult.result_path, "ingest:analyze"), "ingest:analyze");
-  if (analyzeIngest) return analyzeIngest;
-  const analyzeIncomplete = await requirePhase(slug, "ANALYZE", "analyze");
-  if (analyzeIncomplete) return analyzeIncomplete;
-  dispatchedAnalyze = true;
+  await setRunStatus("analyzing", "Analyze");
+  const a = await worker({
+    skill: "ba-pitch-analyzer", operation: "analyze", schema: PHASE_OK, phase: "Analyze", label: "analyze",
+    payload: { pitch: rs.intake_path, spec_folder: specFolder, feature: slug, lens: rs.lens, orient_dir: rs.orient_dir },
+    extra: "Write the spec tree and the board from the orient artifacts — do not re-scan the code.",
+  });
+  if (a.__failed) return diedAt("ANALYZE", a);
+  const post = await requirePhase("ANALYZE", "analyze", "Analyze");
+  if (post) return withWarnings(post);
 } else {
-  log("ANALYZE — spec tree already present, skipping dispatch (fast-forward)");
+  log("ANALYZE — spec tree already on disk, fast-forwarding past it");
 }
 
-// ---------------------------------------------------------------------------------------------
-// WIRE (step 7.5) + GATE L1a.5 — project-profile.md is written by tech-lead itself at GATE L0,
-// BEFORE this launch (gates.md "WIRE" step 1: "you write it at L0 — compile-order stays
-// pipeline-blind"); this file only dispatches solution-architect.
-// ---------------------------------------------------------------------------------------------
+// ---- WIRE + GATE L1a.5 ------------------------------------------------------------------------
 phase("Wire");
-if (!facts.has_wiring_map) {
+if (!rs.has_wiring_map) {
   log(`WIRE — dispatching (slug ${slug})`);
-  const wireOrder = await compile(
-    `--operation wire --slug ${slug} --payload '${JSON.stringify({ feature: slug, spec_folder: facts.spec_folder, project_profile: facts.project_profile_path })}'`,
-    "compile:wire",
-  );
-  const wireResult = await dispatch(
-    "solution-architect", wireOrder.stdout.trim(), args.models.exec, "Wire", "wire",
-    RESULT_ONLY_SCHEMA, "Write the wiring map: per-UC engine -> seam -> entry-point call site -> affordance.",
-  );
-  if (wireResult.__failed) return dispatchAborted("WIRE", wireResult);
-  const wireIngest = await ingestOrAbort("WIRE", resultFor(wireOrder.stdout.trim(), wireResult.result_path, "ingest:wire"), "ingest:wire");
-  if (wireIngest) return wireIngest;
-  const wireIncomplete = await requirePhase(slug, "WIRE", "wire");
-  if (wireIncomplete) return wireIncomplete;
-  dispatchedWire = true;
+  const w = await worker({
+    skill: "solution-architect", operation: "wire", schema: PHASE_OK, phase: "Wire", label: "wire",
+    payload: { feature: slug, spec_folder: specFolder, project_profile: rs.project_profile_path },
+    extra: "Write the wiring map: per use case, engine → seam → entry-point call site → affordance.",
+  });
+  if (w.__failed) return diedAt("WIRE", w);
+  const post = await requirePhase("WIRE", "wire", "Wire");
+  if (post) return withWarnings(post);
 } else {
-  log("WIRE — wiring-map.md already present, skipping dispatch (fast-forward)");
+  log("WIRE — wiring map already on disk, fast-forwarding past it");
 }
 
-const l1a5 = await resolveGate(slug, args.answers, "L1a.5");
-if (l1a5.exit_code === 4) return paused("L1a.5", ["proceed", "ask", "abort"], { wiring_map: "written", dispatched: dispatchedWire, analyze_dispatched: dispatchedAnalyze });
-if (l1a5.exit_code === 5) return abortedFrom("L1a.5", l1a5, "GATE L1a.5 aborted");
+{
+  const g = await crossGate("L1a.5", "Wire", ["proceed", "ask", "abort"], { wiring_map: "written" });
+  if (g.stop) return withWarnings(g.stop);
+}
 
-// ---------------------------------------------------------------------------------------------
-// MAP SCOPES (step 8) + GATE L1b — the slicing half; `analyze` now runs above, before WIRE.
-// scope-architect reports back the riskiest-first sequence it computed (its own authority — this
-// file never re-derives ordering on a fresh run). On fast-forward past this phase, the ordering is
-// re-derived from the scope files already on disk (alphabetical — a documented approximation;
-// scope CORRECTNESS is unaffected, only sequencing quality on a resumed run).
-// ---------------------------------------------------------------------------------------------
+// ---- MAP SCOPES + GATE L1b --------------------------------------------------------------------
 phase("MapScopes");
-let scopes = facts.scope_files || [];
+let scopes = (rs.scope_files || []).map((p) => ({ path: p, scope_id: p.split("/").pop().replace(/\.(md|json)$/, "") }));
 if (scopes.length === 0) {
   log(`MAP SCOPES — dispatching (slug ${slug})`);
-  const mapScopesOrder = await compile(`--operation map-scopes --slug ${slug}`, "compile:map-scopes");
-  const mapScopesResult = await dispatch(
-    "scope-architect", mapScopesOrder.stdout.trim(), args.models.exec, "MapScopes", "map-scopes",
-    MAPSCOPES_SCHEMA, "Write the scope contracts (substrate whitelists, fixtures) and report the riskiest-first build sequence.",
-  );
-  if (mapScopesResult.__failed) return dispatchAborted("MAP SCOPES", mapScopesResult);
-  const mapScopesIngest = await ingestOrAbort("MAP SCOPES", resultFor(mapScopesOrder.stdout.trim(), mapScopesResult.result_path, "ingest:map-scopes"), "ingest:map-scopes");
-  if (mapScopesIngest) return mapScopesIngest;
-  const mapScopesIncomplete = await requirePhase(slug, "MAP SCOPES", "map-scopes");
-  if (mapScopesIncomplete) return mapScopesIncomplete;
-  scopes = mapScopesResult.scopes;
-  dispatchedMapScopes = true;
+  const m = await worker({
+    skill: "scope-architect", operation: "map-scopes", schema: MAPSCOPES, phase: "MapScopes", label: "map-scopes",
+    payload: { feature: slug },
+    extra: "Write the scope contracts (substrate whitelists, verification fixtures) and report the riskiest-first sequence.",
+  });
+  if (m.__failed) return diedAt("MAP SCOPES", m);
+  const post = await requirePhase("MAP SCOPES", "map-scopes", "MapScopes");
+  if (post) return withWarnings(post);
+  scopes = m.scopes;
 } else {
-  log(`MAP SCOPES — ${scopes.length} scope contract(s) already present, skipping dispatch (fast-forward)`);
+  log(`MAP SCOPES — ${scopes.length} scope contract(s) already on disk, fast-forwarding past it`);
 }
 
-// trace-lint runs HERE, at L1b, where gates.md:154 puts it ("ADVISORY at L1b"). It used to run at
-// L1a.5 — before `analyze` had written a spec tree or a requirement registry, so both of its arms
-// self-skipped and the seam-coverage figure reported on nothing.
-const traceLint = await mech(`node "${args.pluginRoot}/kernel/harness.mjs" verify trace --slug ${slug}`, "trace-lint");
-const seamCoverage = traceLint.stdout.includes("🟢 green") ? "green" : "red (advisory)";
+// Advisory lints at L1b. spec-lint is hard — a substrate overlap makes parallel builds unsafe;
+// trace-lint stays advisory until `covers:` is populated; hill-derive is a projection.
+const specLint = await cmd(`verify spec --slug ${slug}`, "MapScopes", "spec-lint");
+if (!specLint.ok) {
+  return aborted("L1b", `spec-lint reported a disjointness or size problem before BUILD: ${specLint.detail || `exit ${specLint.exit_code}`}`);
+}
+await advisory(`verify trace --slug ${slug} --quiet`, "MapScopes", "trace-lint");
+await advisory(`reduce hill --slug ${slug}`, "MapScopes", "hill-derive");
 
-const specLint = await mech(`node "${args.pluginRoot}/kernel/harness.mjs" verify spec --slug ${slug}`, "spec-lint");
-if (specLint.exit_code !== 0) {
-  return { status: "aborted", aborted_at: "L1b", reason: `spec-lint reported a disjointness/size problem before BUILD could start: ${specLint.stdout.trim() || specLint.stderr.trim()}` };
+{
+  const g = await crossGate("L1b", "MapScopes", ["proceed", "ask", "abort"], { scopes: scopes.map((s) => s.scope_id) });
+  if (g.stop) return withWarnings(g.stop);
 }
 
-const hillDeriveL1b = await mech(`node "${args.pluginRoot}/kernel/harness.mjs" reduce hill --slug ${slug}`, "hill-derive");
-if (hillDeriveL1b.exit_code !== 0) {
-  log(`hill-derive failed at L1b: ${(hillDeriveL1b.stderr || hillDeriveL1b.stdout).trim()}`);
-}
-
-const l1b = await resolveGate(slug, args.answers, "L1b");
-if (l1b.exit_code === 4) return paused("L1b", ["proceed", "ask", "abort"], { scopes: scopes.map((s) => s.scope_id), dispatched: dispatchedMapScopes, seam_coverage: seamCoverage });
-if (l1b.exit_code === 5) return abortedFrom("L1b", l1b, "GATE L1b aborted");
-if (dispatchedMapScopes) await setRunStatus(slug, "building");
-
-// ---------------------------------------------------------------------------------------------
-// Rounds of BUILD -> GATE L2 -> EVAL -> GATE L3, bounded by budgets.maxRounds (the OUTER
-// breaker) with harness verify budget consulted at every round boundary (the DEADLINE breaker).
-// ---------------------------------------------------------------------------------------------
-phase("Build");
-let round = facts.eval_rounds_done.length ? Math.max(...facts.eval_rounds_done) + 1 : 1;
+// =============================================================================================
+// ROUNDS of BUILD → GATE L2 → EVAL → GATE L3, bounded by maxRounds.
+//
+// The round loop is inlined here rather than dispatched round-by-round because a round dispatched
+// once can attempt every scope from attempt 1, while an outer loop must survive a mid-BUILD kill
+// and resume without re-work. So before opening a scope's attempt loop this file asks whether THIS
+// ROUND already has a green T0 verdict for it on disk, and skips the scope entirely when it does.
+// =============================================================================================
+let round = rs.eval_rounds_done?.length ? Math.max(...rs.eval_rounds_done) + 1 : 1;
 let verdict = null;
+const allGreen = [];
+const allHammer = [];
 
-while (round <= args.budgets.maxRounds) {
-  const budget = await mech(`node "${args.pluginRoot}/kernel/harness.mjs" verify budget --slug ${slug} --strict`, `budget:r${round}`);
+while (round <= maxRounds) {
+  phase("Build");
+  await setRunStatus("building", "Build");
+
+  // The wall-clock breaker, opt-in, checked at each round boundary. Exit 6 is "tripped": route to
+  // GATE H and ship what is green, never kill the run from outside.
+  const budget = await cmd(`verify budget --slug ${slug} --strict`, "Build", `budget:r${round}`);
   if (budget.exit_code === 6) {
-    const hillDeriveH1 = await mech(`node "${args.pluginRoot}/kernel/harness.mjs" reduce hill --slug ${slug}`, "hill-derive");
-    if (hillDeriveH1.exit_code !== 0) {
-      log(`hill-derive failed at H (deadline): ${(hillDeriveH1.stderr || hillDeriveH1.stdout).trim()}`);
-    }
-    return withStateWarnings({ status: "gate_h", breaker: "deadline", hammer_proposals: allHammerProposals, green_scopes: allGreenScopes });
+    await advisory(`reduce hill --slug ${slug}`, "Build", "hill-derive");
+    return withWarnings({ status: "gate_h", breaker: "deadline", hammer_proposals: allHammer, green_scopes: allGreen });
   }
 
-  log(`BUILD round ${round} — ${scopes.length} scope(s), attempt budget ${args.budgets.attemptBudget}`);
-  const roundGreen = [];
-  const roundHammer = [];
-  const roundT0Artifacts = [];
+  log(`BUILD round ${round} — ${scopes.length} scope(s), attempt budget ${attemptBudget}`);
+  const roundGreen = [], roundHammer = [];
 
   for (const scope of scopes) {
-    const already = await checkScopeGreen(slug, scope.scope_id, round);
-    if (already.green) {
-      log(`scope ${scope.scope_id} — already T0-green this round (resumed from disk, no re-work)`);
+    // Resume: a scope already green THIS round is not re-attempted.
+    const already = await query(`probe t0 --slug ${slug} --scope ${scope.scope_id} --round ${round}`,
+      T0CHECK, "Build", `t0check:${scope.scope_id}-r${round}`);
+    if (already?.green) {
+      log(`BUILD r${round} — ${scope.scope_id} is already green on disk, skipping`);
       roundGreen.push(scope.scope_id);
-      if (already.path) roundT0Artifacts.push(already.path);
       continue;
     }
 
-    log(`scope ${scope.scope_id} — starting attempt loop (budget ${args.budgets.attemptBudget})`);
-    // Branch-per-scope isolation (design doc D3). A checkout that silently failed would build
-    // this scope's code on the previous scope's branch — the same "wrong map, no diagnostic" shape
-    // as the substrate pointer below, so it takes the same policy.
-    if (scope.branch) {
-      const checkout = await mech(`git checkout ${scope.branch}`, `checkout:${scope.scope_id}`);
-      if (checkout.exit_code !== 0) {
-        return { status: "aborted", aborted_at: "BUILD", reason: `could not check out branch "${scope.branch}" for scope ${scope.scope_id}: ${(checkout.stderr || checkout.stdout || `exit ${checkout.exit_code}`).toString().trim()}` };
-      }
+    const res = await buildScope(scope, round);
+    if (res.__failed) {
+      // A dead builder is a SPENT ATTEMPT, not a dead run: the scope goes to GATE H's census and
+      // the round continues. Killing the run here would discard every other scope's green work.
+      log(`BUILD r${round} — ${scope.scope_id} lost its worker: ${res.__failed}`);
+      roundHammer.push(scope.scope_id);
+      continue;
     }
-    // The substrate pointer, and the one write in this file that must NOT be survivable. It is
-    // what hooks/sandbox-guard.mjs reads to decide which scope's write-whitelist the next worker
-    // is held to — so a failed write does not degrade to "unguarded", it degrades to guarding the
-    // WRONG scope, silently, which is invariant #3 enforcing the wrong thing. That is exactly what
-    // the kill/resume probe measured: the pointer still named scope 1 while scope 2 was built,
-    // twice, and nothing noticed because this call's result was discarded. It is read back now,
-    // and a failure aborts the run at a named phase rather than building against the wrong map.
-    const pointer = await mech(
-      `node "${args.pluginRoot}/kernel/harness.mjs" probe resume --slug ${slug} --set-active-scope ${scope.scope_id}`,
-      `active-scope:${scope.scope_id}`,
-    );
-    if (pointer.exit_code !== 0) {
-      const why = (parseMechJson(pointer.stdout)?.reason || pointer.stderr || `exit ${pointer.exit_code}`).toString().trim();
-      return {
-        status: "aborted",
-        aborted_at: "BUILD",
-        reason: `could not point the active-scope pointer at ${scope.scope_id}: ${why}. Refusing to build — the sandbox guard would hold this scope's worker to another scope's substrate.`,
-      };
-    }
-
-    let green = false, stagnant = false, lastT0Path = null;
-    for (let attempt = 1; attempt <= args.budgets.attemptBudget && !green; attempt++) {
-      const compiled = await compile(`--scope ${scope.path} --round ${round} --attempt ${attempt}`, `compile:${scope.scope_id}-a${attempt}`);
-      if (compiled.stderr.includes('"breaker":"stagnation"') || compiled.exit_code !== 0) {
-        log(`scope ${scope.scope_id} — inner breaker on attempt ${attempt}: ${(compiled.stderr || `exit ${compiled.exit_code}`).trim()}`);
-        stagnant = true;
-        break;
-      }
-      const orderPath = compiled.stdout.trim();
-      // harness verify t0's own default --out lands verdicts in the SHARED tree next to the scope
-      // contract; the LOCAL ("." + "shapeup/") tree is derived from compile-order's own stdout, never
-      // spelled out here.
-      const localRoot = orderPath.slice(0, orderPath.lastIndexOf("/orders/"));
-      const built = await dispatch(
-        "task-executor", orderPath, args.models.exec, "Build", `build:${scope.scope_id}-a${attempt}`,
-        RESULT_ONLY_SCHEMA, "Implement the order's acceptance criteria exactly.",
-      );
-      // A dead builder is a spent attempt, not a dead run — the attempt budget is exactly the
-      // instrument for this, and the inner breaker still queues a GATE H proposal if they all die.
-      if (built.__failed) { log(`scope ${scope.scope_id} — attempt ${attempt} lost its worker: ${built.__failed}`); continue; }
-      // A build result that did not apply is a spent attempt, not a dead run: the board never
-      // recorded this attempt, so T0 would grade a scope whose task rows still read unstarted.
-      const buildLabel = `ingest:${scope.scope_id}-a${attempt}`;
-      const buildIngest = ingestFailure(await ingest(resultFor(orderPath, built.result_path, buildLabel), buildLabel), buildLabel);
-      if (buildIngest) { log(`scope ${scope.scope_id} — attempt ${attempt} discarded: ${buildIngest}`); continue; }
-      const t0 = await mech(
-        `node "${args.pluginRoot}/kernel/harness.mjs" verify t0 ${scope.path} --round ${round} --attempt ${attempt} --out "${localRoot}" --no-seesaw`,
-        `t0:${scope.scope_id}-a${attempt}`,
-      );
-      // An unparsable T0 report is a red, never a crash-the-loop — but courier noise around a
-      // GREEN report must not read as red either, or the attempt budget burns down a scope that
-      // actually passed and GATE H gets a hammer proposal for it.
-      const v = parseMechJson(t0.stdout);
-      green = v?.overall === "green";
-      if (v?.path) lastT0Path = v.path;
-    }
-
-    if (green) { roundGreen.push(scope.scope_id); if (lastT0Path) roundT0Artifacts.push(lastT0Path); log(`scope ${scope.scope_id} — T0 green`); }
-    else {
-      roundHammer.push({ scope_id: scope.scope_id, t0_artifact: lastT0Path, reason: stagnant ? "stagnation breaker" : "attempt_budget exhausted without a green T0" });
-      log(`scope ${scope.scope_id} — inner breaker tripped, queued a GATE H proposal`);
-    }
+    if (res.green) roundGreen.push(res.scope_id);
+    else roundHammer.push(res.scope_id);
   }
 
-  allGreenScopes.push(...roundGreen);
-  allHammerProposals.push(...roundHammer.map((h) => h.scope_id));
+  allGreen.push(...roundGreen);
+  allHammer.push(...roundHammer);
 
+  // INNER breaker: nothing green and something queued → GATE H. The census is scope-hammer's job.
   if (roundGreen.length === 0 && roundHammer.length > 0) {
-    const hillDeriveH2 = await mech(`node "${args.pluginRoot}/kernel/harness.mjs" reduce hill --slug ${slug}`, "hill-derive");
-    if (hillDeriveH2.exit_code !== 0) {
-      log(`hill-derive failed at H (inner breaker): ${(hillDeriveH2.stderr || hillDeriveH2.stdout).trim()}`);
-    }
-    return withStateWarnings({ status: "gate_h", breaker: "inner", hammer_proposals: allHammerProposals, green_scopes: allGreenScopes });
+    await advisory(`reduce hill --slug ${slug}`, "Build", "hill-derive");
+    return withWarnings({ status: "gate_h", breaker: "inner", hammer_proposals: allHammer, green_scopes: allGreen });
   }
 
-  const hillDeriveL2 = await mech(`node "${args.pluginRoot}/kernel/harness.mjs" reduce hill --slug ${slug}`, "hill-derive");
-  if (hillDeriveL2.exit_code !== 0) {
-    log(`hill-derive failed at L2: ${(hillDeriveL2.stderr || hillDeriveL2.stdout).trim()}`);
+  await advisory(`reduce hill --slug ${slug}`, "Build", "hill-derive");
+  {
+    const g = await crossGate("L2", "Build", ["proceed", "ask", "abort"],
+      { round, green_scopes: roundGreen, hammer_proposals: roundHammer });
+    if (g.stop) return withWarnings(g.stop);
   }
 
-  const l2 = await resolveGate(slug, args.answers, "L2");
-  if (l2.exit_code === 4) return paused("L2", ["proceed", "ask", "abort"], { round, green_scopes: roundGreen, hammer_proposals: roundHammer.map((h) => h.scope_id) });
-  if (l2.exit_code === 5) return abortedFrom("L2", l2, "GATE L2 aborted");
-
+  // ---- EVAL — exactly one feature-level pass per round (the single-judge invariant) ------------
   phase("Eval");
+  await setRunStatus("evaluating", "Eval");
+  let findings = [];
   if (args.noEval) {
     log("EVAL — skipped (--no-eval)");
     verdict = "pass";
   } else {
-    await setRunStatus(slug, "evaluating");
-    const evalOrder = await compile(
-      `--operation evaluate --slug ${slug} --round ${round} --payload '${JSON.stringify({ dimensions: facts.eval_dimensions, run_cmd: facts.run_cmd, t0_artifacts: roundT0Artifacts })}'`,
-      `compile:evaluate-r${round}`,
-    );
-    const EVAL_SCHEMA = { type: "object", properties: { result_path: { type: "string" }, overall: { type: "string", enum: ["PASS", "FAIL"] } }, required: ["result_path", "overall"] };
-    const evalResult = await dispatch(
-      "spec-evaluator", evalOrder.stdout.trim(), args.models.eval, "Eval", `eval:r${round}`,
-      EVAL_SCHEMA, "Evaluate the running feature against ALL acceptance criteria + Done-when. ONE feature-level pass.",
-    );
-    if (evalResult.__failed) return dispatchAborted("L3", evalResult);
-    const evalLabel = `ingest:evaluate-r${round}`;
-    const evalIngest = await ingestOrAbort("L3", resultFor(evalOrder.stdout.trim(), evalResult.result_path, evalLabel), evalLabel);
-    if (evalIngest) return evalIngest;
-    verdict = evalResult.overall === "PASS" ? "pass" : "fail";
+    const e = await worker({
+      skill: "spec-evaluator", operation: "evaluate", schema: EVAL, phase: "Eval", label: `eval:r${round}`,
+      model: evalModel,
+      payload: { dimensions: evalDims, run_cmd: rs.run_cmd, round },
+      extra: "Evaluate the running feature against every acceptance criterion and Done-when. One feature-level pass; cite the T0 artifact you re-hash yourself.",
+    });
+    if (e.__failed) return diedAt("L3", e);
+    verdict = e.overall === "PASS" ? "pass" : "fail";
+    findings = e.findings || [];
   }
 
-  const hillDeriveL3 = await mech(`node "${args.pluginRoot}/kernel/harness.mjs" reduce hill --slug ${slug}`, "hill-derive");
-  if (hillDeriveL3.exit_code !== 0) {
-    log(`hill-derive failed at L3: ${(hillDeriveL3.stderr || hillDeriveL3.stdout).trim()}`);
+  // ---- REFUTE WAVE (opt-in) — one independent skeptic per FAIL finding, BEFORE it costs a whole
+  // fix round. Perspective-diverse by prompt: the refuter is told to try to refute and to default to
+  // "real" when it cannot. A pure addition; off unless args.adversarialVerify.
+  if (verdict === "fail" && args.adversarialVerify && findings.length) {
+    phase("Refute");
+    const checks = await parallel(findings.map((f) => () =>
+      agent(
+        `A single judge marked this acceptance criterion FAILED for slug "${slug}":\n` +
+        `  criterion: ${f.criterion}\n  evidence: ${f.evidence}\n\n` +
+        `Independently try to REFUTE the failure by exercising the running feature yourself. ` +
+        `Return refuted=true ONLY if you can show it actually passes; otherwise refuted=false.`,
+        { model: evalModel, phase: "Refute", label: `refute:${f.id}`, schema: REFUTATION },
+      )));
+    const overturned = new Set(checks.filter(Boolean).filter((c) => c.refuted).map((c) => c.id));
+    if (overturned.size) log(`REFUTE — ${overturned.size}/${findings.length} FAIL finding(s) overturned by an independent skeptic`);
+    if (overturned.size === findings.length) {
+      verdict = "pass";
+      log("REFUTE — every finding was overturned; treating this round as PASS");
+    }
   }
 
-  const l3 = await resolveGate(slug, args.answers, "L3");
-  if (l3.exit_code === 4) return paused("L3", ["loop", "stop", "ask"], { round, verdict, hammer_proposals: allHammerProposals });
-  if (l3.exit_code === 5) return abortedFrom("L3", l3, "GATE L3 aborted");
+  await advisory(`reduce hill --slug ${slug}`, "Eval", "hill-derive");
+  const g3 = await crossGate("L3", "Eval", ["loop", "stop", "ask"], { round, verdict });
+  if (g3.stop) return withWarnings(g3.stop);
 
-  if (verdict === "pass") break; // out of the round loop, into QA -> GATE H -> ship
-  if (l3.decision === "stop" || round >= args.budgets.maxRounds) {
-    return withStateWarnings({ status: "gate_h", breaker: "outer", hammer_proposals: allHammerProposals, green_scopes: allGreenScopes });
+  if (verdict === "pass") break;                                  // → QA → GATE H → ship
+  if (g3.decision === "stop" || round >= maxRounds) {
+    return withWarnings({ status: "gate_h", breaker: "outer", hammer_proposals: allHammer, green_scopes: allGreen });
   }
-  await setRunStatus(slug, "building");
   round += 1;
 }
 
 if (verdict !== "pass") {
-  // Fell out of the loop without a PASS and without hitting the explicit outer-breaker return
-  // above — only reachable if budgets.maxRounds was already exceeded on entry (a resumed run).
-  return withStateWarnings({ status: "gate_h", breaker: "outer", hammer_proposals: allHammerProposals, green_scopes: allGreenScopes });
+  return withWarnings({ status: "gate_h", breaker: "outer", hammer_proposals: allHammer, green_scopes: allGreen });
 }
 
-// ---------------------------------------------------------------------------------------------
-// QA (post-PASS, pre-ship) — a level-up, never a gate that blocks; --no-qa is a preset that
-// answers "QA" with "skip" (round-protocol.md).
-// ---------------------------------------------------------------------------------------------
+// ---- QA (post-PASS, pre-ship) — a level-up, never a gate. `--no-qa` answers it "skip". --------
 phase("QA");
 let qaFindings = 0;
-const qaGate = await resolveGate(slug, args.answers, "QA");
-if (qaGate.exit_code === 4) return paused("QA", ["run", "skip", "ask"], { round, verdict });
-if (qaGate.exit_code === 5) return abortedFrom("QA", qaGate, "GATE QA aborted");
-if (qaGate.decision === "run") {
-  const qaOrder = await compile(
-    `--operation hunt --slug ${slug} --payload '${JSON.stringify({ feature: slug, spec_folder: facts.spec_folder, eval_report: `.${"shapeup"}/${slug}/results/evaluate-r${round}.json`, app_url: facts.app_url })}'`,
-    "compile:hunt",
-  );
-  const qaResult = await dispatch(
-    "qa-edge-hunter", qaOrder.stdout.trim(), qaModel, "QA", "hunt",
-    QA_SCHEMA, "Exploratory hunt over the shipped feature. No verdict, no score — findings only.",
-  );
-  // QA is a level-up, not a gate (AGENTS.md) — a dead hunter must not sink a run that already
-  // passed EVAL. Record it and ship without QA rather than abort.
-  if (qaResult.__failed) log(`QA hunt lost its worker: ${qaResult.__failed} — continuing without QA findings`);
-  else {
-    const qaIngest = ingestFailure(await ingest(resultFor(qaOrder.stdout.trim(), qaResult.result_path, "ingest:hunt"), "ingest:hunt"), "ingest:hunt");
-    if (qaIngest) log(`QA findings were not applied: ${qaIngest} — shipping without them (QA is a level-up, not a gate)`);
-  }
-  qaFindings = qaResult.findings_count;
+const qaG = await crossGate("QA", "QA", ["run", "skip", "ask"], { round, verdict });
+if (qaG.stop) return withWarnings(qaG.stop);
+const qaRan = !args.noQa && qaG.decision === "run";
+if (qaRan) {
+  const q = await worker({
+    skill: "qa-edge-hunter", operation: "hunt", schema: QA_REPORT, phase: "QA", label: "hunt", model: qaModel,
+    payload: { feature: slug, spec_folder: specFolder, app_url: rs.app_url, round },
+    extra: "Exploratory hunt over the shipped feature. No verdict and no score — findings only, each with a repro.",
+  });
+  // QA is a level-up: losing its worker costs the findings, not the run.
+  if (q.__failed) log(`QA — the hunt lost its worker: ${q.__failed}. Shipping without QA findings.`);
+  else qaFindings = q.findings_count;
 }
 
-// ---------------------------------------------------------------------------------------------
-// GATE H — delegated to scope-hammer (census, baseline comparison, cut list). Runs on the
-// normal-stop path here (a PASS); the two breaker paths return earlier, above, without a hammer
-// dispatch of their own — GATE H's census there is the caller's job (the thin skill relays
-// `hammer_proposals` to a fresh scope-hammer call, same as any other cut candidate).
-// ---------------------------------------------------------------------------------------------
+// ---- GATE H — delegated to scope-hammer (census, baseline comparison, cut list) ----------------
 phase("Ship");
-const hammerOrder = await compile(
-  `--operation hammer --slug ${slug} --payload '${JSON.stringify({ feature: slug })}'`,
-  "compile:hammer",
-);
-const hammerResult = await dispatch(
-  "scope-hammer", hammerOrder.stdout.trim(), args.models.exec, "Ship", "hammer",
-  HAMMER_SCHEMA, "Run the H0/H1/H2 census, baseline comparison, and cut list.",
-);
-if (hammerResult.__failed) return dispatchAborted("H", hammerResult);
-const hammerIngest = await ingestOrAbort("H", resultFor(hammerOrder.stdout.trim(), hammerResult.result_path, "ingest:hammer"), "ingest:hammer");
-if (hammerIngest) return hammerIngest;
-
-if (hammerResult.verdict === "cannot-ship") {
-  return { status: "aborted", aborted_at: "H", reason: `scope-hammer verdict: CANNOT SHIP — ${hammerResult.cut_list.join(", ") || "a must-have item failed"}` };
+const h = await worker({
+  skill: "scope-hammer", operation: "hammer", schema: HAMMER, phase: "Ship", label: "hammer",
+  payload: { feature: slug, qa_findings: qaFindings, hammer_proposals: allHammer },
+  extra: "Run the census, compare against the BASELINE and never the ideal, and produce the cut list.",
+});
+if (h.__failed) return diedAt("H", h);
+if (h.verdict === "cannot-ship") {
+  return withWarnings(aborted("H", `scope-hammer: CANNOT SHIP — ${h.cut_list.join(", ") || "a must-have failed"}`));
 }
 
-const hGate = await resolveGate(slug, args.answers, "H");
-if (hGate.exit_code === 4) return paused("H", ["accept-cut-list", "ship-all", "ask"], { verdict: hammerResult.verdict, cut_list: hammerResult.cut_list });
-if (hGate.exit_code === 5) return abortedFrom("H", hGate, "GATE H aborted");
+{
+  const g = await crossGate("H", "Ship", ["accept-cut-list", "ship-all", "ask"], { verdict: h.verdict, cut_list: h.cut_list });
+  if (g.stop) return withWarnings(g.stop);
+}
 
-const shipReport = await mech(`node "${args.pluginRoot}/kernel/harness.mjs" reduce ship --slug ${slug} --verdict PASS --qa ${qaGate.decision === "run" ? "run" : "skipped"}`, "ship-report");
-await setRunStatus(slug, "shipped");
+const ship = await cmd(`reduce ship --slug ${slug} --verdict PASS --qa ${qaRan ? "run" : "skipped"}`, "Ship", "ship-report");
+await advisory(`report export --slug ${slug}`, "Ship", "export-run");
+await setRunStatus("shipped", "Ship");
 
-// The dimensions the evaluator ships, so GATE L4 can say what "shipped" did NOT cover. Must stay in
-// step with spec-evaluator/references/dimensions/_registry.md — a workflow has no filesystem of its
-// own, so it cannot read that registry and this literal is the only place it can be stated. It
-// omitted tdd-surface, which made the one dimension most likely to be off the most likely to go
-// unmentioned. A dimension injected by the consumer is theirs to track; this list covers what ships.
-const allDims = ["spec-conformance", "tdd-surface", "integration", "completeness", "test-surface-conformance", "security", "performance"];
-const dims_not_evaluated = allDims.filter(d => !(facts.eval_dimensions || []).includes(d));
+// The dimensions this run did NOT evaluate, so GATE L4 can say what "shipped" does not cover.
+const ALL_DIMS = ["spec-conformance", "tdd-surface", "integration", "completeness",
+                  "test-surface-conformance", "security", "performance"];
 
-return withStateWarnings({
+return withWarnings({
   status: "shipped",
   verdict: "pass",
   rounds_used: round,
-  dims_not_evaluated: dims_not_evaluated,
+  dims_not_evaluated: ALL_DIMS.filter((d) => !evalDims.includes(d)),
   qa_findings: qaFindings,
-  report: shipReport.stdout.trim(),
+  report: ship.detail || `shapeup/${slug}/REPORT.md`,
 });
+
+// =============================================================================================
+// buildScope — one scope's full attempt ratchet, as a single worker leg.
+//
+// The ratchet lives inside the worker's own shell rather than in this control script because each
+// attempt is implement → `harness verify t0`, and both halves need a real filesystem and a real
+// git. The worker reports only the outcome the round loop branches on.
+// =============================================================================================
+async function buildScope(scope, roundNo) {
+  return worker({
+    skill: "task-executor", operation: "execute", schema: SCOPE_RESULT, phase: "Build",
+    label: `build:${scope.scope_id}-r${roundNo}`,
+    payload: { scope_path: scope.path, scope_id: scope.scope_id, round: roundNo, attempt_budget: attemptBudget },
+    extra:
+      `Compile the order with --scope ${scope.path} --round ${roundNo} --attempt <n>, once per attempt. ` +
+      `Run the attempt ratchet for THIS scope only: up to ${attemptBudget} attempts of implement → ` +
+      `\`node "${KERNEL}" verify t0 ${scope.path} --round ${roundNo} --attempt <n>\`, each scored against ` +
+      `the last kept trial. Stop on the first green T0, or when the attempt budget or the stagnation ` +
+      `breaker trips. Write only inside this scope's substrate whitelist — the sandbox hook enforces it. ` +
+      `Report green, attempts_used, which breaker (if any) tripped, and the T0 artifact path.`,
+  });
+}

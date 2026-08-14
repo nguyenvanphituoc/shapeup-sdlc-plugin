@@ -312,7 +312,7 @@ yields the id it would have been given.
 | `harness init run` | `receipt.json` | mints it — the run acquires identity at the moment it starts |
 | `harness compile` | WorkOrder | `run_id` + `compiled_at`, at the one point every lane passes through |
 | `harness verify t0` | T0Artifact, TrialRow | read off the receipt in the run root it was pointed at |
-| `harness run` | journal row | resolved once at launch, from `RunArgs.runId` or the receipt |
+| the Workflow runtime | journal row | resolved once at launch, from `RunArgs.runId` or the receipt |
 | `hooks/lib/decision.mjs` | decision row | best-effort via `active-scope`; `null` outside a run |
 | tech-lead (SHIP S.6) | MetricsRow | copied — the harvest row's only link to its own trace |
 
@@ -452,7 +452,7 @@ WIRE → L1a.5 → MAP SCOPES → L1b → rounds of BUILD/L2/EVAL → QA → GAT
 |---|---|
 | **A gate pause is a return value, not a stop.** | The launch returns `{status: "paused", paused_at, block}`. The orchestrator emits `block` verbatim, gets the PO's decision, writes it to `.shapeup/<slug>/gate-answers.json`, and **relaunches the same call with the same args**. |
 | **A killed session loses nothing.** | `harness probe resume` derives the resume point from **artifacts on disk**, never from stored status or conversation memory — every phase predicate is an artifact test. `shapeup-run.js` fast-forwards past finished phases on every launch, fresh or resumed. The same table answers `--require <phase>`, the post-condition checked after each dispatch, so *resume* and *completion* are one predicate by construction. |
-| **The launch surface is one an install already grants.** | `harness run` is a plain Node script under `kernel/`, covered by the same permission prefix the installer writes. The `Workflow` tool is deliberately **not** the launch path: that call needs an interactive confirmation, so it is denied in every headless session and no permission string can grant it. |
+| **The launch surface is one an install grants explicitly.** | The `Workflow` tool is the launch path, and `npx shapeup-sdlc init` writes the `"Workflow"` grant it needs. That grant is unscoped — it authorises every dynamic workflow script in the project — so it is opt-out (`--no-native-workflow`), and an install that declines it approves the launch once per session instead. |
 
 `RunArgs` is compiled **once** and passed as a single JSON literal: the workflow cannot ask
 follow-up questions and cannot read config files itself, so everything a run will ever need

@@ -318,22 +318,29 @@ export async function run(ctx) {
       else fail(`next_phase="${next}" but --require ${next} exited ${code} — the resume and completion predicates disagree`);
     }
 
-    // --- (h) the workflow actually consults it (the fd5ad3d guard) ----------------------------
+    // --- (h) the workflow actually consults it -------------------------------------------------
     // A Workflow script cannot be imported, so this is a source assertion — the only mechanical
     // check available for the wiring. It is narrow on purpose: it asserts the ORIENT branch reads
-    // the artifact predicate and that no phase decision reads `facts.status`.
+    // the artifact predicate and that no phase decision reads the stored `status`.
+    //
+    // The name of the resume object is DERIVED from the source rather than assumed, so a rename
+    // cannot quietly turn these checks into assertions about a variable that no longer exists.
     const WF = join(ROOT, "skills/tech-lead/workflows/shapeup-run.js");
     const wfSrc = existsSync(WF) ? readFileSync(WF, "utf8") : "";
     const wfCode = wfSrc.replace(/\/\*[\s\S]*?\*\//g, "").split("\n").map((l) => l.replace(/\/\/.*$/, "")).join("\n");
-    if (/if\s*\(\s*!\s*facts\.has_orient_artifacts\s*\)/.test(wfCode)) {
-      ok("shapeup-run.js gates ORIENT on facts.has_orient_artifacts");
+    const resumeVar = (wfCode.match(/const\s+(\w+)\s*=\s*await\s+query\(/) || [])[1];
+    if (resumeVar) ok(`shapeup-run.js binds its resume state to \`${resumeVar}\` (derived, not assumed)`);
+    else fail("shapeup-run.js has no `await query(...)` binding — the fast-forward derivation is not read into a variable this check can follow");
+
+    if (resumeVar && new RegExp(`if\\s*\\(\\s*!\\s*${resumeVar}\\.has_orient_artifacts\\s*\\)`).test(wfCode)) {
+      ok(`shapeup-run.js gates ORIENT on ${resumeVar}.has_orient_artifacts`);
     } else {
-      fail("shapeup-run.js does not gate ORIENT on facts.has_orient_artifacts — the derivation is correct and unused");
+      fail("shapeup-run.js does not gate ORIENT on has_orient_artifacts — the derivation is correct and unused");
     }
-    if (!/facts\.status/.test(wfCode)) {
-      ok("no phase decision in shapeup-run.js reads facts.status — the field survives for its other readers only");
+    if (resumeVar && !new RegExp(`\\b${resumeVar}\\.status\\b`).test(wfCode)) {
+      ok("no phase decision in shapeup-run.js reads the stored status — the field survives for its other readers only");
     } else {
-      fail("shapeup-run.js still branches on facts.status — stored state is back in the resume decision");
+      fail("shapeup-run.js still branches on the stored status — stored state is back in the resume decision");
     }
     if (!/probe[" ,]+resume|resume-state\.mjs/.test(wfCode)) {
       fail("shapeup-run.js never invokes `harness probe resume` — the fast-forward is deriving state some other way");
@@ -341,8 +348,8 @@ export async function run(ctx) {
       ok("shapeup-run.js derives its resume state by invoking `harness probe resume`");
     }
 
-    // --- (j) the A3 wiring: every phase checks its post-condition, and ANALYZE precedes WIRE ---
-    const required = new Set([...wfCode.matchAll(/requirePhase\([^,]+,\s*"[^"]+",\s*"([\w-]+)"\s*\)/g)].map((m) => m[1]));
+    // --- (j) every phase checks its post-condition, and ANALYZE precedes WIRE -------------------
+    const required = new Set([...wfCode.matchAll(/requirePhase\(\s*"[^"]+",\s*"([\w-]+)"/g)].map((m) => m[1]));
     const missingChecks = ["orient", "analyze", "wire", "map-scopes"].filter((p) => !required.has(p));
     if (missingChecks.length === 0) {
       ok("every dispatched phase in shapeup-run.js checks its post-condition (requirePhase: orient, analyze, wire, map-scopes)");
@@ -351,19 +358,19 @@ export async function run(ctx) {
     }
 
     // The ordering itself, as a source fact: `analyze` writes the use cases `wire` reads, so its
-    // order must be compiled first. This is acceptance row G3, and it is the reason the A2 probe
-    // failed a second time (solution-architect escalated because usecases/ did not exist yet).
-    const iAnalyze = wfCode.indexOf("--operation analyze");
-    const iWire = wfCode.indexOf("--operation wire");
+    // dispatch must come first. This is acceptance row G3, and it is the reason the kill/resume
+    // probe failed a second time (solution-architect escalated because usecases/ did not exist yet).
+    const iAnalyze = wfCode.indexOf('operation: "analyze"');
+    const iWire = wfCode.indexOf('operation: "wire"');
     if (iAnalyze > -1 && iWire > -1 && iAnalyze < iWire) {
-      ok("shapeup-run.js compiles the analyze order before the wire order — WIRE reads the use cases ANALYZE writes (solution-architect/SKILL.md:43-44)");
+      ok("shapeup-run.js dispatches analyze before wire — WIRE reads the use cases ANALYZE writes (solution-architect/SKILL.md:43-44)");
     } else {
-      fail(`the analyze order is not compiled before the wire order (analyze@${iAnalyze}, wire@${iWire}) — WIRE would be dispatched against an empty spec folder and escalate on every launch`);
+      fail(`analyze is not dispatched before wire (analyze@${iAnalyze}, wire@${iWire}) — WIRE would be dispatched against an empty spec folder and escalate on every launch`);
     }
-    if (/facts\.has_spec_tree/.test(wfCode)) {
-      ok("shapeup-run.js gates ANALYZE on facts.has_spec_tree — the same artifact discipline as every other phase");
+    if (resumeVar && new RegExp(`${resumeVar}\\.has_spec_tree`).test(wfCode)) {
+      ok("shapeup-run.js gates ANALYZE on has_spec_tree — the same artifact discipline as every other phase");
     } else {
-      fail("shapeup-run.js does not gate ANALYZE on facts.has_spec_tree — the phase is gated on something other than its artifact");
+      fail("shapeup-run.js does not gate ANALYZE on has_spec_tree — the phase is gated on something other than its artifact");
     }
   } finally {
     rmSync(ws, { recursive: true, force: true });

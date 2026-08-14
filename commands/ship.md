@@ -33,14 +33,12 @@ all run inside it. Three things follow, and they are the point of the cutover ra
   fast-forward re-derives position from disk and re-dispatches nothing already finished.
 - **A killed session loses nothing.** Resume state comes off disk, never from context, so a fresh
   session picks the run up where it died — the property the whole launch shape exists to buy.
-- **Headless runs need `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0` in the environment.** Without it
-  `claude -p` cuts the background wait at 600 s and **exits 0**, reporting a truncated run as a
-  clean one. Set it for any `--unattended` or CI invocation.
-- **Never launch this with the `Workflow` tool.** That call needs an interactive confirmation, so it
-  is denied in every headless session, and the only grant that unblocks it is unscoped. Left to it,
-  the script executes **zero** times and the agent improvises instead — a session can reach GATE L4
-  with a valid receipt while the pipeline never started. `harness run` runs the same script
-  under the path-scoped grant `npx shapeup-sdlc init` already writes.
+- **The launch is the `Workflow` tool**, which is what gives the run resume-from-journal, worktree
+  isolation, and sub-agents that share the session's prompt cache instead of paying a cold start
+  each. `npx shapeup-sdlc init` writes the `"Workflow"` grant it needs. That grant is unscoped — it
+  authorises every dynamic workflow script in the project — so an install may decline it with
+  `--no-native-workflow`, in which case the launch asks for approval once per session and the
+  unattended lane is unavailable.
 
 `--tiny`, and any spec with no committed `scopes/*.md` yet, take the unchanged prose lane in
 `skills/tech-lead/references/round-protocol.md` instead — non-regression, by design.

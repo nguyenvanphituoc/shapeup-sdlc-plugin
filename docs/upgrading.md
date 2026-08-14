@@ -98,59 +98,42 @@ them there explicitly. If you have not adopted scope contracts, nothing about yo
 **1. The pipeline grant, which is what starts the lane at all.**
 
 ```bash
-npx shapeup-sdlc init      # writes Bash(node "*/skills/<owner>/scripts/<name>.mjs" *) — two per script
+npx shapeup-sdlc init      # writes two Bash rules for kernel/harness.mjs, plus the "Workflow" token
 ```
 
-**If you installed before v1.9, re-run `init`.** Every release up to and including v1.8 wrote
-`Bash(node ${CLAUDE_PLUGIN_ROOT}/skills/<owner>/scripts/:*)`, and that rule **granted nothing**:
-Bash permission rules match at complete argument boundaries, and that prefix ends in the middle of a
-path argument. The pipeline aborted at its first dispatch on every install that ever had it. Re-running
-`init` removes the dead rules and writes working ones; your own unrelated rules are left alone.
+**If you installed before v2.0, re-run `init`.** v2.0 replaced twenty-one pipeline entry points with
+one — `kernel/harness.mjs`, with `verify | reduce | gate | probe | init | report | compile`
+beneath it — so the grant is now three lines instead of forty-one, and the per-script rules an
+older install wrote are removed by the same command. Your own unrelated rules are left alone.
 
-Two rules per script, because the trailing ` *` form requires at least one argument and a bare
+```
+Bash(node "*/kernel/harness.mjs" *)
+Bash(node "*/kernel/harness.mjs")
+Workflow
+```
+
+Two Bash rules, because the trailing ` *` form requires at least one argument and a bare
 `node "<path>"` needs the argument-less form. The leading `*` spans the install root — a marketplace
 install lives in a version-stamped cache directory, a `--plugin-dir` checkout lives wherever you
 cloned it — which is also what keeps the grant working across a plugin upgrade instead of silently
-expiring.
+expiring. `npm run test:grant` proves these by execution: it starts real CLI sessions and decides
+each case by whether the target's side effect landed on disk.
 
-The scoped lane launches through `kernel/run.mjs`, which is one of the
-granted entry points.
-
-**Do not launch the lane with the `Workflow` tool.** That call is denied by default in a headless
-session ("Review dynamic workflow before running"). This is observed, not theoretical: left to
-that path, pre-fix sessions never executed `shapeup-run.js` at all — each quietly
-improvised the feature by hand instead, once reaching GATE L4 with a valid receipt while the
-pipeline had never started. **A receipt does not prove the lane ran** — the run's first act writes
-one, so a receipt attests that a session started, never that the pipeline executed. If your own
-scripts launch the harness, launch
-`harness run` as a background Bash call and read `<run-dir>/result.json`.
-
-<details>
-<summary>If you would rather use the <code>Workflow</code> tool anyway — the trade-off, verified</summary>
-
-Adding the bare token `"Workflow"` to `permissions.allow` **does** unblock the tool headlessly
-(verified in a headless configuration: untrusted temp workspace, explicit `--settings`,
-`--permission-mode acceptEdits` — zero denials with the entry, denied without it). If you prefer
-the native runtime's resume-from-runId and worktree isolation, that one line is all it takes.
-
-What you accept by adding it: **the grant cannot be narrowed.** `Workflow(<path>)` and
-`Workflow(<script-name>)` are both still denied — only the unscoped token works — so the entry
-permits *every* dynamic workflow script in that project, including one written at runtime. The
-plugin does not add it for you for that reason. The Bash launcher needs no new grant and is scoped
-by path to the plugin's own `scripts/` directory.
-
-</details>
-
-**2. The background-wait ceiling.**
+**The third entry is the one to read before you accept it.** `"Workflow"` is what lets the tech lead
+launch `shapeup-run.js` without an approval prompt, and it is the reason a v2.0 run gets
+resume-from-journal, worktree isolation and prompt-cache-warm sub-agents. It **cannot be narrowed**:
+`Workflow(<path>)` and `Workflow(<script-name>)` are both denied, so the bare token authorises
+*every* dynamic workflow script in that project, including one written at runtime. Decline it with:
 
 ```bash
-export CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0
+npx shapeup-sdlc init --no-native-workflow
 ```
 
-Required for any `--unattended` or CI invocation. Without it `claude -p` cuts the wait at 600 s and
-**exits 0**: a truncated run that reports as a clean one. Nothing downstream can tell that apart
-from success, which is why this is a hard requirement and not a tuning knob. Interactive runs are
-unaffected.
+An install that declines still runs the harness — the launch simply asks for approval once per
+session, which means the unattended lane is unavailable there.
+
+**A receipt does not prove the lane ran.** The run's first act writes one, so a receipt attests that
+a session started, never that the pipeline executed. Check the run's artifacts.
 
 ### What a gate pause looks like now
 
