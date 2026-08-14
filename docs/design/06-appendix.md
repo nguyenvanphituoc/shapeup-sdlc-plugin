@@ -34,7 +34,7 @@ oracles/                 the evaluation-contract oracle registry (test · snapsh
                          process), proven to discriminate against negative controls
 tools/                   repo-only, never shipped — demo/
 tests/structural.mjs     Tier 0 runner — threads tests/lib/ helpers through the per-domain
-tests/{lib,structural}/  suites in tests/structural/*.mjs; 850+ checks, zero LLM calls (the
+tests/{lib,structural}/  suites in tests/structural/*.mjs; 875+ checks, zero LLM calls (the
                          floor is asserted by the suite itself. It may only grow EXCEPT when checks
                          are deliberately removed with the code they covered: lowered 930 → 875 in
                          v2.0, where six hooks were retired into the runtime and their behavioural

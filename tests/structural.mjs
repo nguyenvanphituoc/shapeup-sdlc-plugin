@@ -65,6 +65,11 @@ const MODULE_FILES = [
   // trustworthy — derived, idempotent, backfilled by the same path that maintains it — are
   // cross-cutting, and each is lost silently: a graph that has drifted still answers every query.
   "20-run-graph.mjs",
+  // 21-gauntlet.mjs: the probes this codebase's comments used to describe. A narrated probe proves
+  // something about a tree that no longer exists and goes on reading as evidence anyway; these run.
+  // Four of the six are here — the two that need a live model run are named in tests/README.md with
+  // their status, rather than left to look like coverage this file has.
+  "21-gauntlet.mjs",
   "45-paths.mjs",
   "46-contract-md.mjs",
   "47-ship-report.mjs",

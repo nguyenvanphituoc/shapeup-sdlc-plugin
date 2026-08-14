@@ -99,7 +99,36 @@ This is the cheapest, highest-ROI guard and the one the project lacked. Sections
 oracle grammar is runnable; #12 proves the shipped skills are self-contained; #14–#15 prove the L2
 gate and the verdict ledger do their jobs (enforce / detect flips), not merely that they exist.
 
-## There is no second tier
+## Tier 1 — checks that need a real session (`npm run test:grant`, and two that are not written)
+
+Two things this repo asserts cannot be decided offline, because the decision happens inside a live
+CLI. One of them has a runner; two do not, and saying so is the point of this section.
+
+**`npm run test:grant` — RUN, and stamped.** The permission grant is the check the structural suite
+provably cannot make: it once asserted the granted prefix was a string *prefix* of each documented
+command, which was true of a rule that granted nothing at all, and stayed green for three releases
+over a pipeline that could not take its first step. So this starts nine real `claude` sessions under
+the rules `bin/lib/grant.mjs` actually emits, asks each to run one command, and decides ALLOWED vs
+DENIED by whether the target script's marker file landed on disk. Evidence, not a claim. The result
+is stamped to `tests/grant/last-verified.json`, and structural §43 fails when the generator has
+moved since that stamp. **Last run: 9/9 against the v2.0 two-line kernel grant.**
+
+**G2 — a full unattended run, zero prompts. NOT WRITTEN.** The gauntlet
+(`tests/structural/21-gauntlet.mjs`) covers four of the architecture review's six probes. This is
+one of the two it does not: the grant half is proven above, and the installer-writes-it half is
+executed in structural §43, but "a real `--unattended` run completes on a fresh clone" needs a real
+feature, a real model and real money. It is unproven, and it is listed here rather than approximated
+by something cheaper that would read like coverage.
+
+**G6 — cost and wall-clock against a v1 baseline. NOT WRITTEN.** Needs two live runs of the same
+feature, one on `v1.7.0-final` and one on v2.0. The v2.0 rebuild recorded a structural baseline
+(`docs/output/BASELINE-v1.md`: line counts, script and hook inventory, the green suite) but never
+executed a v1 feature run, so there is nothing to compare against. **No number about v2.0's cost or
+wall-clock appears anywhere in this repo**, which is the honest position until that pair of runs
+exists — the fan-out and the warm sub-agents are reasons to *expect* an improvement, not a
+measurement of one.
+
+## There is no second tier beyond that
 
 Every layer above the structural suite was built, measured, and removed: per-skill trigger-eval
 datasets, the Day-1 rubrics and the Day-2 failure register (with structural §16 and §48), and then

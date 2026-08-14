@@ -17,7 +17,7 @@
 // Usage:  node kernel/harness.mjs reduce ingest <result.json> [--cwd <dir>]
 // Exit:   0 = ingested, 1 = result rejected (schema) or a write failed.
 
-import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, appendFileSync, mkdirSync, rmdirSync, statSync, existsSync, readdirSync } from "node:fs";
 import { resolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validate } from "../verify/envelope.mjs";
@@ -31,6 +31,46 @@ const RESULT_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../../skills/tech-l
  * @returns {string} Today's date as an ISO `YYYY-MM-DD` string (UTC), for log/frontmatter stamps.
  */
 const today = () => new Date().toISOString().slice(0, 10);
+
+/**
+ * Hold an exclusive lock on one run's shared state for the duration of `fn`.
+ *
+ * WHY THIS EXISTS (measured, not theorized). Since scopes fan out, several legs call this reducer
+ * AT THE SAME TIME, each with its own result. Most of what it writes is per-task and cannot
+ * collide — but `tasks/_index.md`, the discovery ledger and the verdict record are one file each,
+ * updated read-modify-write. Three concurrent ingests over three different tasks left all three
+ * task files `done` and the BOARD showing two: the middle write read the index before the first
+ * had written it and then overwrote it. A board that disagrees with its own task files is the
+ * exact "parallel work corrupts shared state" failure the single-writer rule exists to prevent,
+ * and the rule was true of the CODE and false of the PROCESS the moment there were two of them.
+ *
+ * `mkdir` is the primitive: it is atomic on POSIX and Windows alike, needs no dependency, and
+ * leaves a directory a human can delete. A stale lock older than the timeout is broken rather than
+ * waited on forever — a crashed reducer must not wedge every later one.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug; the lock is per run, never global.
+ * @param {Function} fn - The critical section.
+ * @returns {*} Whatever `fn` returns.
+ */
+function withLock(cwd, slug, fn) {
+  const lock = join(localRoot(cwd, slug), ".ingest.lock");
+  const STALE_MS = 30_000, WAIT_MS = 20;
+  const startedAt = Date.now();
+  mkdirSync(dirname(lock), { recursive: true });
+  for (;;) {
+    try { mkdirSync(lock); break; } catch { /* held — wait, or break a stale one */ }
+    let heldFor = 0;
+    try { heldFor = Date.now() - statSync(lock).mtimeMs; } catch { continue; }  // released mid-check
+    if (heldFor > STALE_MS) { try { rmdirSync(lock); } catch { /* someone else broke it */ } continue; }
+    if (Date.now() - startedAt > STALE_MS) {
+      // Refusing is the safe direction: proceeding unlocked is how the lost update happened.
+      throw new Error(`ingest could not take the ${slug} lock within ${STALE_MS} ms (${lock}) — another reducer is holding it`);
+    }
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, WAIT_MS);   // sleep, no busy spin
+  }
+  try { return fn(); } finally { try { rmdirSync(lock); } catch { /* already gone */ } }
+}
 
 /**
  * Locate a task file on the LOCAL board by id.
@@ -116,6 +156,17 @@ export function updateBoardRow(indexBody, taskId, done) {
  */
 export function applyResult(result, { cwd }) {
   const slug = result.order_id.split("/")[0];
+  return withLock(cwd, slug, () => applyResultLocked(result, { cwd, slug }));
+}
+
+/**
+ * The reducer proper. Runs inside the run's ingest lock — see {@link withLock}.
+ *
+ * @param {object} result - A schema-valid WorkResult.
+ * @param {object} ctx - `{cwd, slug}`.
+ * @returns {object} The summary {@link applyResult} returns.
+ */
+function applyResultLocked(result, { cwd, slug }) {
   const local = localRoot(cwd, slug);
   const summary = { slug, tasks_updated: [], acs_ticked: 0, unblocked: [], discoveries_appended: 0, refuted_unticked: 0, verdict_lines: 0 };
 
