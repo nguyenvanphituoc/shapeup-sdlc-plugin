@@ -70,6 +70,32 @@ says in its own banner that it is bookkeeping, not evidence.
 through a granted Bash prefix with zero denials. With no working grant that cannot have been what it
 claims; the banner now says so rather than carrying it as evidence.
 
+### ⚠ STILL OPEN — a third layer, above the grant: workspace trust
+
+Correct rules are not sufficient. Measured 2026-08-14: in an **untrusted workspace** the CLI prints
+`Ignoring 40 permissions.allow entries from .claude/settings.json: this workspace has not been
+trusted` and discards the entire allow-list before any rule is consulted.
+
+`.claude/settings.json` is precisely where `npx shapeup-sdlc init` writes, and **a fresh clone is
+untrusted by definition** — so in CI, the case the grant exists for, the grant is dropped whole.
+`-p` skips the trust *dialog*; it does not confer trust.
+
+This is why the executing guard's other cases pass: they deliver rules via `--settings`, from
+outside the project, which is not trust-gated. That route proves the rules are well-formed; it says
+nothing about the configuration a user actually gets. `PIN project-scoped rules are ignored in an
+untrusted workspace` now covers the difference, and it asserts DENIED — a fail-closed pin, so if the
+platform ever relaxes this the guard turns red and tells us.
+
+**Shipped mitigation, deliberately partial:** `bin/init.mjs` now detects the condition and prints
+what to do about it. It **reports rather than repairs** — trusting a directory authorises executing
+code from it, which is the user's decision, not one for a package running under `npx`.
+
+**The open question for the Betting Table:** what a headless/CI install should do. Candidates: bake
+`hasTrustDialogAccepted` into the CI image; ship the grant to *user* scope instead of project scope
+(untested — user scope may not be trust-gated); or document `--settings` pointing outside the
+project as the supported CI route. Until one is chosen, **Phase 7's headless probe cannot pass**,
+and no plan should claim it can.
+
 ---
 
 **Where a closed defect goes.** Its fix is pinned by a regression guard, and that guard is the

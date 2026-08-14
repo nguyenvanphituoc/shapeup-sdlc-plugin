@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline";
 import { LOCAL, LEGACY, metricsDir } from "../skills/tech-lead/scripts/lib/paths.mjs";
-import { mergePipelinePermissions as mergeGrant } from "./lib/grant.mjs";
+import { mergePipelinePermissions as mergeGrant, isWorkspaceTrusted } from "./lib/grant.mjs";
 
 /** The root a project migrating off the pre-ADR-0001 layout may still be carrying. */
 const LEGACY_LOCAL = LEGACY.local;
@@ -110,6 +110,7 @@ if (!existsSync(agentsSrc)) {
 
 // ---- 1. Claude Code install -------------------------------------------------
 installClaude();
+warnIfUntrusted(target);
 
 // ---- 2. wire Claude Code to the root AGENTS.md ------------------------------
 ensureAgentImport(join(target, "CLAUDE.md"), "CLAUDE.md");
@@ -255,6 +256,32 @@ function installClaude() {
  */
 function mergePipelinePermissions(settings) {
   mergeGrant(settings, PKG_ROOT);
+}
+
+/**
+ * Say so when the grant we just wrote will be ignored anyway.
+ *
+ * Writing a correct rule into an untrusted workspace produces no error at install, no error at
+ * session start, and a denial at the first dispatch — the same invisible failure shape that let a
+ * grant matching no command at all ship for three releases. The one thing this project cannot
+ * afford is another enforcement point that is silent when it is not working, so this prints.
+ *
+ * It reports rather than repairs: trusting a directory authorises executing code from it, which is
+ * the user's call, not a decision for a package running under `npx`.
+ *
+ * @param {string} projectDir - The directory just installed into.
+ * @returns {void}
+ */
+function warnIfUntrusted(projectDir) {
+  const trusted = isWorkspaceTrusted(projectDir);
+  if (trusted === true || trusted === null) return;
+  console.log("");
+  console.log("  [claude] ⚠ This workspace is not trusted yet, so Claude Code will IGNORE the");
+  console.log("           permission grant just written and the harness will stop at its first");
+  console.log("           dispatch. Fix it in one of two ways:");
+  console.log("             • open Claude Code here interactively once and accept the trust prompt, or");
+  console.log(`             • set projects[${JSON.stringify(resolve(projectDir))}].hasTrustDialogAccepted`);
+  console.log("               to true in ~/.claude.json (this is what a CI image should bake in).");
 }
 
 function ensureAgentImport(file, label) {

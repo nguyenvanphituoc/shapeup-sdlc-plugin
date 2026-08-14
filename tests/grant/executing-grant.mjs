@@ -43,7 +43,7 @@ const fail = (m) => { failures.push(m); console.log(`  FAIL ${m}`); };
  * @param {object} spec - `{label, allow, command, layout}`.
  * @returns {("ALLOWED"|"DENIED"|"ERROR")} Verdict, decided by the marker file.
  */
-function runCase({ allow, command, layout }) {
+function runCase({ allow, command, layout, projectScoped = false }) {
   const box = mkdtempSync(join(tmpdir(), "exec-grant-"));
   try {
     const pluginRoot = join(box, layout);
@@ -62,8 +62,19 @@ function runCase({ allow, command, layout }) {
     // The negative control's target lives outside any skills/ tree, so no rule can reach it.
     writeFileSync(join(box, "not-ours.mjs"), `console.log("SHOULD_NOT_RUN");\n`);
 
+    // Two delivery routes, and the difference is load-bearing. `--settings` hands the rules in
+    // from outside the project; `.claude/settings.json` is where the INSTALLER actually writes.
+    // Those are not equivalent: a project-scoped allow-list is discarded wholesale in an untrusted
+    // workspace, which is every fresh CI clone. Testing only the `--settings` route would prove
+    // the rules are well-formed while saying nothing about the configuration users get.
     const settingsFile = join(box, "settings.json");
-    writeFileSync(settingsFile, JSON.stringify({ permissions: { allow, deny: [], ask: [] } }, null, 2));
+    const payload = JSON.stringify({ permissions: { allow, deny: [], ask: [] } }, null, 2);
+    if (projectScoped) {
+      mkdirSync(join(proj, ".claude"), { recursive: true });
+      writeFileSync(join(proj, ".claude", "settings.json"), payload);
+    } else {
+      writeFileSync(settingsFile, payload);
+    }
 
     const cmd = command(scriptDir, box);
     const r = spawnSync(
@@ -73,7 +84,8 @@ function runCase({ allow, command, layout }) {
         `Do not modify it, do not add flags, do not append an exit-code marker, and do not ` +
         `substitute another tool. If it is denied by permissions, stop and reply with the single ` +
         `word DENIED. Do not create any file yourself.`,
-        "--settings", settingsFile, "--permission-mode", "default", "--model", MODEL],
+        ...(projectScoped ? [] : ["--settings", settingsFile]),
+        "--permission-mode", "default", "--model", MODEL],
       { cwd: proj, encoding: "utf8", timeout: 240_000, stdio: ["ignore", "pipe", "pipe"] },
     );
     const say = (r.stdout || "") + (r.stderr || "");
@@ -120,6 +132,17 @@ const CASES = [
     allow: RULES, layout: "proj-harness-plugin",
     command: () => `node "\${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/init-run.mjs" --slug demo`,
     expect: "DENIED" },
+
+  // --- the third layer: correct rules, in the place the installer writes them, still ignored ---
+  // This case is expected to FAIL-CLOSED and that is the point. `.claude/settings.json` is exactly
+  // what `npx shapeup-sdlc init` produces, and a fresh clone — every CI checkout — is untrusted,
+  // so the CLI discards the whole allow-list before any rule is consulted. The rules are right and
+  // the harness still cannot dispatch. `bin/init.mjs` prints a warning at install time because of
+  // this; if this case ever starts returning ALLOWED, the trust requirement has changed and that
+  // warning is now lying to users.
+  { label: "PIN project-scoped rules are ignored in an untrusted workspace (the CI case)",
+    allow: RULES, layout: "proj-harness-plugin", projectScoped: true,
+    command: (d) => `${q(d)} --slug demo`, expect: "DENIED" },
 ];
 
 console.log(`\nexecuting-grant: ${CASES.length} cases against ${RULES.length} generated rules\n`);

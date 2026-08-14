@@ -70,8 +70,9 @@
 // `/`, so it also covers `scripts/lib/*.mjs` — this plugin's own libraries, in its own read-only
 // install directory. Per-script enumeration is the shipped default.
 
-import { existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { homedir } from "node:os";
 
 /**
  * Every shipped pipeline entry point, read off the package being installed.
@@ -124,6 +125,36 @@ export function pipelineRules(pkgRoot) {
  */
 export function isSupersededRule(rule) {
   return /^Bash\(node "?\$\{CLAUDE_PLUGIN_ROOT\}\/skills\/[a-z-]+\/scripts\/:\*\)$/.test(rule);
+}
+
+/**
+ * Whether Claude Code will honour a PROJECT-scoped grant in this directory at all.
+ *
+ * A THIRD failure layer, above the two in the banner, and the one that bites hardest in exactly
+ * the case the grant exists for. Measured 2026-08-14 (CC 2.1.232): in an untrusted workspace the
+ * CLI prints
+ *
+ *     Ignoring 40 permissions.allow entries from .claude/settings.json:
+ *     this workspace has not been trusted.
+ *
+ * and drops every one of them. `.claude/settings.json` is where the installer writes, and a fresh
+ * clone in CI is untrusted by definition — so a perfectly correct rule set still grants nothing
+ * there. `-p` skips the trust *dialog*; it does not confer trust.
+ *
+ * This returns a fact, not a fix. The installer reports it; it deliberately does NOT write the
+ * trust flag itself, because trusting a directory is a decision about executing code from it and
+ * belongs to the person, not to a package running under `npx`.
+ *
+ * @param {string} projectDir - The project directory being installed into.
+ * @returns {(boolean|null)} True/false when `~/.claude.json` is readable, null when it is not.
+ */
+export function isWorkspaceTrusted(projectDir) {
+  const cfg = join(homedir(), ".claude.json");
+  if (!existsSync(cfg)) return null;
+  try {
+    const projects = JSON.parse(readFileSync(cfg, "utf8"))?.projects || {};
+    return projects[resolve(projectDir)]?.hasTrustDialogAccepted === true;
+  } catch { return null; }
 }
 
 /**

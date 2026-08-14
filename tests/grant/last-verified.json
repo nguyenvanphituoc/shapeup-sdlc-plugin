@@ -1,7 +1,7 @@
 {
   "cli_version": "2.1.232 (Claude Code)",
   "plugin_version": "1.8.0",
-  "git_sha": "a4e5acdaeac846c691545433ed7ddba07bccc09e",
+  "git_sha": "678308ebfa1529451f4a14685682cc4ed4bd093f",
   "rules": 40,
   "cases": [
     {
@@ -34,6 +34,10 @@
     },
     {
       "label": "PIN a call site carrying the literal ${CLAUDE_PLUGIN_ROOT} is refused",
+      "expect": "DENIED"
+    },
+    {
+      "label": "PIN project-scoped rules are ignored in an untrusted workspace (the CI case)",
       "expect": "DENIED"
     }
   ]
