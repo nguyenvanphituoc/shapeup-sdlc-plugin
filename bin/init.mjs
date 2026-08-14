@@ -26,6 +26,7 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline";
 import { LOCAL, LEGACY, metricsDir } from "../skills/tech-lead/scripts/lib/paths.mjs";
+import { mergePipelinePermissions as mergeGrant } from "./lib/grant.mjs";
 
 /** The root a project migrating off the pre-ADR-0001 layout may still be carrying. */
 const LEGACY_LOCAL = LEGACY.local;
@@ -233,45 +234,27 @@ function installClaude() {
  * WHY THIS EXISTS (observed, not theorized).
  *
  * Every load-bearing step of a run is a Node script that ships with the plugin and therefore
- * lives OUTSIDE the project — `${CLAUDE_PLUGIN_ROOT}/skills/**\/scripts/*.mjs`. Under any
- * permission mode short of `bypassPermissions`, executing a script from outside the working
- * directory needs approval. In an interactive session you click once and forget it. In a headless
- * one there is nobody to click, and the run cannot take its first step.
+ * lives OUTSIDE the project. Under any permission mode short of `bypassPermissions`, executing a
+ * script from outside the working directory needs approval. In an interactive session you click
+ * once and forget it. In a headless one there is nobody to click, and the run cannot take its
+ * first step.
  *
- * That is not hypothetical. Without the grant, the run receipt step (`init-run.mjs`) gets
+ * That is not hypothetical. Without a WORKING grant, the run receipt step (`init-run.mjs`) gets
  * attempted six different ways in a single session — direct, via a heredoc, via two hand-written
  * wrapper scripts, via a sub-agent — and every one comes back "This command requires approval".
  * The agent then gives up on the harness and builds the feature by hand. It is the failure the
  * receipt was designed to make visible, arriving through the door the receipt itself opened.
  *
- * Scope is deliberately narrow: `node <plugin>/skills/.../scripts/*.mjs`, by prefix. This grants
- * the harness the right to run its own deterministic, dependency-free, network-free scripts. It
- * grants no general `Bash(node:*)`, which would be a much larger ask for a much smaller reason.
- *
- * BOTH SPELLINGS ARE GRANTED, and that is the point of v1.5's leg-2 fix. The skills now write
- * every invocation in the QUOTED literal form — `node "${CLAUDE_PLUGIN_ROOT}/skills/…"` — because
- * the unquoted form breaks the moment the plugin is installed under a path with a space in it
- * (`~/Library/Application Support/…`), which `lib/is-main.mjs` documents as a measured case, not a
- * hypothetical. A prefix rule is a literal string match, so the quote character would otherwise
- * put every call site back outside the grant — the exact mismatch this fix exists to remove. The
- * unquoted prefix stays for older prose and for anything a user has already typed.
- *
- * The structural suite asserts that every documented call site is in a form
- * one of these prefixes actually matches, so the two can never drift apart again.
+ * The rule form, why each character of it is load-bearing, and the measurements behind it live in
+ * `bin/lib/grant.mjs`. It is a separate module so the structural suite can IMPORT the generator
+ * instead of regex-parsing this file for the rule shape — the proxy that let a grant matching no
+ * command at all ship green for three releases.
  *
  * @param {object} settings - Parsed settings.json, mutated in place.
  * @returns {void}
  */
 function mergePipelinePermissions(settings) {
-  const OWNERS = ["tech-lead", "ba-pitch-analyzer", "spec-evaluator"];
-  const PREFIXES = OWNERS.flatMap((o) => [
-    `node \${CLAUDE_PLUGIN_ROOT}/skills/${o}/scripts/`,
-    `node "\${CLAUDE_PLUGIN_ROOT}/skills/${o}/scripts/`,
-  ]);
-  settings.permissions = settings.permissions || {};
-  const allow = new Set(settings.permissions.allow || []);
-  for (const p of PREFIXES) allow.add(`Bash(${p}:*)`);
-  settings.permissions.allow = [...allow];
+  mergeGrant(settings, PKG_ROOT);
 }
 
 function ensureAgentImport(file, label) {

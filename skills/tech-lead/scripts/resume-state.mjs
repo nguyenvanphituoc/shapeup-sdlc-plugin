@@ -16,10 +16,9 @@
 //      artifacts rewritten, a spike added, the discovery ledger and two task files mutated.
 //      The cause was one branch reading stored `status` instead of ORIENT's own artifacts,
 //      while WIRE and MAP SCOPES read artifacts and fast-forwarded correctly.
-//   2. IT MATCHED NO PERMISSION GRANT. `permissions.allow` carries
-//      `Bash(node ${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/:*)`; an inline `node -e` matches
-//      no entry and passes only at the safety classifier's discretion. As a script it is covered
-//      by the grant the installer already writes.
+//   2. IT MATCHED NO PERMISSION GRANT. An inline `node -e` matches no rule in `permissions.allow`
+//      and passes only at the safety classifier's discretion. As a named script it is covered by
+//      the per-script rules the installer writes (`bin/lib/grant.mjs`).
 //   3. TWO WRITES HAD NO READER. `setRunStatus` and `writeActiveScope` were the only `mech()`
 //      call sites in the workflow whose return value was discarded — and they are the only two
 //      whose failure went unnoticed for two entire runs. `status` never left `orienting` across

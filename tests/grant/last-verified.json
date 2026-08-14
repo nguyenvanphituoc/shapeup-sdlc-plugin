@@ -1,0 +1,40 @@
+{
+  "cli_version": "2.1.232 (Claude Code)",
+  "plugin_version": "1.8.0",
+  "git_sha": "a4e5acdaeac846c691545433ed7ddba07bccc09e",
+  "rules": 40,
+  "cases": [
+    {
+      "label": "marketplace layout, quoted + args",
+      "expect": "ALLOWED"
+    },
+    {
+      "label": "marketplace layout, quoted + NO args (the ` *` rule alone would deny this)",
+      "expect": "ALLOWED"
+    },
+    {
+      "label": "dev --plugin-dir checkout, arbitrary directory name",
+      "expect": "ALLOWED"
+    },
+    {
+      "label": "install path containing a space (v1.5's reason for quoting)",
+      "expect": "ALLOWED"
+    },
+    {
+      "label": "NEGATIVE a script outside any skills/ tree is not granted",
+      "expect": "DENIED"
+    },
+    {
+      "label": "NEGATIVE an unrelated destructive command is not granted",
+      "expect": "DENIED"
+    },
+    {
+      "label": "PIN the superseded mid-argument prefix rule still grants nothing",
+      "expect": "DENIED"
+    },
+    {
+      "label": "PIN a call site carrying the literal ${CLAUDE_PLUGIN_ROOT} is refused",
+      "expect": "DENIED"
+    }
+  ]
+}

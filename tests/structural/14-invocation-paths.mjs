@@ -32,6 +32,7 @@
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { pipelineEntryPoints, pipelineRules } from "../../bin/lib/grant.mjs";
 
 /**
  * Run the structural checks for documented invocation paths.
@@ -113,34 +114,98 @@ export async function run(ctx) {
   if (literal < 18) fail(`only ${literal} invocations found — the post-migration census expects at least 18; the scan is missing call sites`);
   else ok(`${literal} invocations scanned (post-migration floor: 18)`);
 
-  // (3) The grant is a genuine prefix of every documented command.
-  const initPath = join(ROOT, "bin/init.mjs");
-  if (!existsSync(initPath)) fail("bin/init.mjs is missing — the permission grant cannot be verified");
-  else {
-    const initSrc = readFileSync(initPath, "utf8");
-    // Reconstruct the granted prefixes from the source, both spellings.
-    const owners = [...initSrc.matchAll(/const OWNERS = \[([^\]]+)\]/g)]
-      .flatMap((m) => [...m[1].matchAll(/"([a-z-]+)"/g)].map((x) => x[1]));
-    if (owners.length === 0) fail("bin/init.mjs no longer declares an OWNERS list — the grant shape changed and this check is blind");
+  // (3) Every documented call site has a rule, and every rule has a script.
+  //
+  // WHAT THIS CHECK USED TO BE, AND WHY IT WAS REPLACED. It asserted the granted prefix was a
+  // STRING PREFIX of each documented command. That is a proxy for "the CLI will honour this", and
+  // the two diverged exactly here: the shipped rule `Bash(node ${CLAUDE_PLUGIN_ROOT}/skills/<o>/
+  // scripts/:*)` is a perfectly good string prefix of every call site AND granted no command at
+  // all, because Bash prefix rules match at complete ARGUMENT boundaries and that prefix ends in
+  // the middle of a path argument. The module stayed green across three releases over a pipeline
+  // that could not take its first step (HD-009).
+  //
+  // So the matching SEMANTICS are no longer asserted here — they cannot be, offline: the decision
+  // lives inside the CLI. `tests/grant/executing-grant.mjs` starts a real session and decides by
+  // whether the target script's marker file landed. THAT is the evidence; this is bookkeeping.
+  // What is checkable here, and worth checking, is COMPLETENESS in both directions: no call site
+  // without a rule, no rule without a script.
+  const rules = pipelineRules(ROOT);
+  const entryPoints = new Set(pipelineEntryPoints(ROOT));
+
+  if (rules.length === 0) fail("bin/lib/grant.mjs produced no rules — the grant is empty and every dispatch will be denied");
+  else ok(`bin/lib/grant.mjs generates ${rules.length} rules over ${entryPoints.size} entry points`);
+
+  // 3a — every script a shipped doc tells the model to run is covered, in BOTH argument shapes.
+  // Both are needed: the trailing ` *` form requires at least one argument, so a bare `node "<p>"`
+  // is denied without the argument-less rule. That asymmetry is measured, not assumed.
+  {
+    const cited = new Set();
+    for (const { abs } of docs) {
+      for (const m of readFileSync(abs, "utf8").matchAll(LITERAL)) {
+        cited.add(`skills/${m[1]}/scripts/${m[2]}${m[3]}`);
+      }
+    }
+    let missing = 0;
+    for (const rel of [...cited].sort()) {
+      const withArgs = `Bash(node "*/${rel}" *)`;
+      const bare = `Bash(node "*/${rel}")`;
+      for (const want of [withArgs, bare]) {
+        if (!rules.includes(want)) { fail(`documented call site ${rel} has no rule ${want}`); missing++; }
+      }
+    }
+    if (missing === 0) ok(`all ${cited.size} documented call sites are granted in both argument shapes`);
+  }
+
+  // 3b — no rule points at a script that does not exist. A dead rule is a grant nobody can audit.
+  {
+    let dead = 0;
+    for (const rule of rules) {
+      const m = rule.match(/^Bash\(node "\*\/(skills\/[a-z-]+\/scripts\/[a-z0-9-]+\.mjs)"/);
+      if (!m) { fail(`rule is not in the audited shape: ${rule}`); dead++; continue; }
+      if (!entryPoints.has(m[1]) || !existsSync(join(ROOT, m[1]))) {
+        fail(`rule grants ${m[1]}, which is not a shipped entry point`); dead++;
+      }
+    }
+    if (dead === 0) ok("every generated rule names a script that exists on disk");
+  }
+
+  // 3c — the example file users are pointed at must BE the generated set, not a hand-copy of it.
+  // It drifted before: it listed 3 rules while the installer wrote 6, and the README calls it the
+  // authoritative preview of what is pre-approved.
+  {
+    const ex = join(ROOT, ".claude/settings.local.example.json");
+    if (!existsSync(ex)) fail(".claude/settings.local.example.json is missing — it ships in the files allowlist");
     else {
-      const prefixes = owners.flatMap((o) => [
-        `node \${CLAUDE_PLUGIN_ROOT}/skills/${o}/scripts/`,
-        `node "\${CLAUDE_PLUGIN_ROOT}/skills/${o}/scripts/`,
-      ]);
-      let ungranted = 0;
-      for (const { rel, abs } of docs) {
-        const body = readFileSync(abs, "utf8");
-        for (const m of body.matchAll(LITERAL)) {
-          if (!prefixes.some((p) => m[0].startsWith(p))) {
-            fail(`${rel}: "${m[0].slice(0, 60)}" is not covered by any granted prefix`);
-            ungranted++;
-          }
+      let parsed = null;
+      try { parsed = JSON.parse(readFileSync(ex, "utf8")); } catch (e) { fail(`.claude/settings.local.example.json is not valid JSON: ${e.message}`); }
+      if (parsed) {
+        const shown = [...(parsed.permissions?.allow || [])].sort();
+        const want = [...rules].sort();
+        if (shown.length === want.length && shown.every((r, i) => r === want[i])) {
+          ok("settings.local.example.json shows exactly the rules the installer writes");
+        } else {
+          fail(`settings.local.example.json lists ${shown.length} rules but the installer writes ${want.length} — the preview users are pointed at is drift`);
         }
       }
-      if (ungranted === 0) ok(`every documented invocation is covered by a prefix bin/init.mjs grants (${prefixes.length} rules over ${owners.length} owners)`);
-      // The quoted spelling must be granted, or quoting silently un-grants everything.
-      if (prefixes.some((p) => p.includes('"'))) ok("the grant covers the QUOTED spelling — quoting for spaced install paths does not un-grant the call sites");
-      else fail("bin/init.mjs grants only the unquoted prefix, but the skills write the quoted form — every call site is outside the grant");
+    }
+  }
+
+  // 3d — staleness gate on the executing proof. Bookkeeping above cannot see whether the rules
+  // still WORK; only `npm run test:grant` can. If the grant generator or any entry point has moved
+  // since that proof was last stamped, say so rather than let this module imply coverage it has not
+  // got. Degrades to a note outside a git checkout instead of failing the suite.
+  {
+    const stampFile = join(ROOT, "tests/grant/last-verified.json");
+    if (!existsSync(stampFile)) {
+      fail("tests/grant/last-verified.json is missing — no execution has ever proven these rules grant anything");
+    } else {
+      let stamp = null;
+      try { stamp = JSON.parse(readFileSync(stampFile, "utf8")); } catch { fail("tests/grant/last-verified.json is not valid JSON"); }
+      if (stamp) {
+        if (stamp.rules !== rules.length) {
+          fail(`the executing guard last proved ${stamp.rules} rules, the generator now emits ${rules.length} — re-run: npm run test:grant`);
+        } else ok(`executing guard last verified ${stamp.rules} rules on CLI ${stamp.cli_version || "?"} (tests/grant/last-verified.json)`);
+      }
     }
   }
 
@@ -161,17 +226,11 @@ export async function run(ctx) {
     const { tmpdir } = await import("node:os");
     const { spawnSync } = await import("node:child_process");
 
-    // Re-derived here rather than shared with (3): that block is scoped to the case where the
-    // OWNERS list parses, and this check must still run — and still fail — if it does not.
+    // IMPORTED, never re-derived. This block used to rebuild the expected rules by regex-parsing
+    // `const OWNERS = [...]` out of the installer's source — a test comparing the code against its
+    // own copy of the intent, which is how a grant that matched nothing passed. Ask the generator.
     const initFile = join(ROOT, "bin/init.mjs");
-    const owners = existsSync(initFile)
-      ? [...readFileSync(initFile, "utf8").matchAll(/const OWNERS = \[([^\]]+)\]/g)]
-          .flatMap((m) => [...m[1].matchAll(/"([a-z-]+)"/g)].map((x) => x[1]))
-      : [];
-    const prefixes = owners.flatMap((o) => [
-      `node \${CLAUDE_PLUGIN_ROOT}/skills/${o}/scripts/`,
-      `node "\${CLAUDE_PLUGIN_ROOT}/skills/${o}/scripts/`,
-    ]);
+    const expectedRules = pipelineRules(ROOT);
 
     const grantsIn = (file) => {
       if (!existsSync(file)) return null;
@@ -206,8 +265,8 @@ export async function run(ctx) {
 
         const allow = grantsIn(join(proj, ".claude", "settings.json"));
         if (allow === null) { fail(`bin/init.mjs (${label} path) left no readable .claude/settings.json — the pipeline grant cannot be there`); return; }
-        const missing = prefixes.filter((p) => !allow.has(`Bash(${p}:*)`));
-        if (missing.length === 0) ok(`bin/init.mjs writes all ${prefixes.length} pipeline grants on the ${label} path`);
+        const missing = expectedRules.filter((r) => !allow.has(r));
+        if (missing.length === 0) ok(`bin/init.mjs writes all ${expectedRules.length} pipeline grants on the ${label} path`);
         else fail(`bin/init.mjs (${label} path) wrote ${allow.size} grant(s), missing ${missing.length}: ${missing[0]} — a headless run cannot take its first step without these`);
 
         if (withFakeCli) {
@@ -220,7 +279,7 @@ export async function run(ctx) {
       } finally { rmSync(box, { recursive: true, force: true }); }
     };
 
-    if (existsSync(join(ROOT, "bin/init.mjs")) && prefixes.length) {
+    if (existsSync(initFile) && expectedRules.length) {
       runInstaller("claude-CLI", true);
       runInstaller("fallback", false);
     }

@@ -5,10 +5,16 @@
 // headless session with "Review dynamic workflow before running". Left to it, `shapeup-run.js`
 // executes zero times and the agent improvises the feature by hand instead; a session can reach
 // GATE L4 with a valid receipt while the lane never started. Bash HAS a path-scoped grantable
-// prefix, and `npx shapeup-sdlc init` already
-// writes exactly that rule (`Bash(node ${CLAUDE_PLUGIN_ROOT}/skills/<owner>/scripts/:*)` —
-// bin/init.mjs mergePipelinePermissions), so this file runs the SAME Workflow-format script through
-// a surface the install already grants.
+// rule, and `npx shapeup-sdlc init` writes one per shipped script (`bin/lib/grant.mjs`), so this
+// file runs the SAME Workflow-format script through a surface the install already grants.
+//
+// ⚠ THE GRANT THIS BANNER ORIGINALLY CLAIMED DID NOT EXIST. Through v1.8 the installer wrote
+// `Bash(node ${CLAUDE_PLUGIN_ROOT}/skills/<owner>/scripts/:*)`, which matched no command at all —
+// Bash rules match at complete argument boundaries and that prefix ends mid-argument. So the
+// "provenance" paragraph below, asserting a headless run through this launcher with zero denials,
+// cannot have been what it claims; it is retained as a record of the claim, not as evidence. The
+// working rules and the measurements behind them are in `bin/lib/grant.mjs`, and
+// `npm run test:grant` is what proves them by execution.
 //
 // ⟐ ONE CORRECTION, from probing the permission layer rather than concluding from denials. It is
 // NOT true that no permission string can grant the tool: a bare `"Workflow"` entry in

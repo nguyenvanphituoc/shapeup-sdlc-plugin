@@ -12,19 +12,63 @@ Two defects were open at the moment of clearing and are **not** closed by their 
 file — they are carried in the v2.0 plan as staged work, and each will be re-filed here only if a
 run reproduces it after its stage lands:
 
-- The installer writes a permission prefix that ends mid-argument, so it grants nothing and the
-  pipeline stops at its first dispatch. The regression guard asserted string-prefix-ness — a proxy
-  for "the CLI honours this" — which is why the suite stayed green. **And the grant shape is not
-  the whole defect:** a Bash command carrying `${…}` is refused before any rule is consulted, so
-  the call-site spelling `tests/structural/14-invocation-paths.mjs` mandates — literal
-  `node "${CLAUDE_PLUGIN_ROOT}/skills/<owner>/scripts/…"`, no bare, no half-qualified — is denied
-  under *every* grant, including `Bash(node:*)`. Any fix has to resolve the root before the command
-  is issued, not template it. Whatever shape is chosen, **its guard must execute a granted command,
-  not compare strings.**
+- ~~The installer writes a permission prefix that ends mid-argument, so it grants nothing and the
+  pipeline stops at its first dispatch.~~ **FIXED 2026-08-14** — see below. The half of this entry
+  claiming the call-site spelling is doomed was **wrong, and measurement is what showed it**; the
+  correction is recorded because acting on the claim would have caused a needless rewrite of every
+  call site in the plugin.
 - The WorkOrder carries no field naming where the WorkResult goes, so each worker derives the path
   from prose while its own `substrate.allowed` names a directory that does not contain it. The
   workflow lane works around this by stating the path in the dispatch prompt and deriving the same
   one from the order; the port itself is unfixed.
+
+### The permission grant — fixed, and one claim above corrected
+
+Measured 2026-08-14 against Claude Code 2.1.232, every verdict decided by whether the target
+script's marker file landed on disk rather than by what a model reported.
+
+**There are two rule syntaxes.** `Bash(<prefix>:*)` is a prefix match at complete argument
+boundaries, where a `*` is a literal asterisk. `Bash(<pattern> *)` is an anchored **glob**, where
+`*` expands and crosses `/`. Only the first was ever tried, which is why the fix looked like a
+trade between least privilege and quoted call sites. It is not one:
+
+| rule | command | result |
+|---|---|---|
+| `Bash(node "<abs>.mjs":*)` — closing quote **inside** the rule | quoted | ALLOWED |
+| `Bash(node "*/skills/<owner>/scripts/<n>.mjs" *)` | quoted abs path **+ args** | ALLOWED |
+| same | quoted abs path, **zero args** | DENIED — hence two rules per script |
+| `Bash(node "*/skills/<owner>/scripts/<n>.mjs")` | quoted, zero args | ALLOWED |
+
+**The correction.** The claim that a call site carrying `${CLAUDE_PLUGIN_ROOT}` is denied under
+every grant conflates two different things:
+
+- A **skill's** `${CLAUDE_PLUGIN_ROOT}` **is** expanded, at skill-load time, before the model reads
+  the prose. Verified with a throwaway single-skill plugin: a documented
+  `node "${CLAUDE_PLUGIN_ROOT}/scripts/hello.mjs"` reaches the model as an absolute quoted path. So
+  the `${…}` refusal never fires on the plugin's real path, and the shipped call-site spelling is
+  fine exactly as `14-invocation-paths.mjs` mandates it. No call site needed rewriting.
+- A **rule's** `${CLAUDE_PLUGIN_ROOT}` is **not** expanded — rules live in the user's project
+  settings, where the token means nothing. That, plus the mid-argument prefix, is the whole defect.
+
+The `${…}` refusal is real (it blocks even `${HOME}`), but it only reaches a command a *user* types
+by hand out of the docs — worth a README note, not an architecture change.
+
+**Shipped.** `bin/lib/grant.mjs` enumerates entry points from the filesystem and emits two rules
+each (20 → 40; a kernel would take it to 2). `mergePipelinePermissions` purges the dead v1.5–v1.8
+rules on upgrade instead of accumulating them, and leaves unrelated user rules alone.
+**Anyone who installed before this fix must re-run `npx shapeup-sdlc init`** — the old rules never
+granted anything.
+
+**The guard executes, as this register demanded.** `npm run test:grant`
+(`tests/grant/executing-grant.mjs`) starts a real session per case and decides on the marker file:
+8 cases covering a marketplace layout with and without arguments, a `--plugin-dir` checkout under an
+arbitrary directory name, an install path containing a space, two negative controls that must be
+DENIED, and pins for both halves of this defect. Tier-0 keeps only what is checkable offline and
+says in its own banner that it is bookkeeping, not evidence.
+
+**One claim this invalidates.** `run-workflow.mjs`'s provenance paragraph asserted a headless run
+through a granted Bash prefix with zero denials. With no working grant that cannot have been what it
+claims; the banner now says so rather than carrying it as evidence.
 
 ---
 

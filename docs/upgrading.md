@@ -98,11 +98,23 @@ them there explicitly. If you have not adopted scope contracts, nothing about yo
 **1. The pipeline grant, which is what starts the lane at all.**
 
 ```bash
-npx shapeup-sdlc init      # writes Bash(node ${CLAUDE_PLUGIN_ROOT}/skills/<owner>/scripts/:*)
+npx shapeup-sdlc init      # writes Bash(node "*/skills/<owner>/scripts/<name>.mjs" *) — two per script
 ```
 
-The scoped lane launches through `skills/tech-lead/scripts/run-workflow.mjs`, so the prefix rule
-`init` already writes covers it — if you ran `init` at any point, you have this and nothing changes.
+**If you installed before v1.9, re-run `init`.** Every release up to and including v1.8 wrote
+`Bash(node ${CLAUDE_PLUGIN_ROOT}/skills/<owner>/scripts/:*)`, and that rule **granted nothing**:
+Bash permission rules match at complete argument boundaries, and that prefix ends in the middle of a
+path argument. The pipeline aborted at its first dispatch on every install that ever had it. Re-running
+`init` removes the dead rules and writes working ones; your own unrelated rules are left alone.
+
+Two rules per script, because the trailing ` *` form requires at least one argument and a bare
+`node "<path>"` needs the argument-less form. The leading `*` spans the install root — a marketplace
+install lives in a version-stamped cache directory, a `--plugin-dir` checkout lives wherever you
+cloned it — which is also what keeps the grant working across a plugin upgrade instead of silently
+expiring.
+
+The scoped lane launches through `skills/tech-lead/scripts/run-workflow.mjs`, which is one of the
+granted entry points.
 
 **Do not launch the lane with the `Workflow` tool.** That call is denied by default in a headless
 session ("Review dynamic workflow before running"). This is observed, not theoretical: left to

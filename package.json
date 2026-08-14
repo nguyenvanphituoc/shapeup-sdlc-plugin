@@ -1,7 +1,7 @@
 {
   "name": "shapeup-sdlc",
   "version": "1.8.0",
-  "description": "Shape Up for coding agents \u2014 with gates the agent can't talk its way past. Harness for Claude Code.",
+  "description": "Shape Up for coding agents — with gates the agent can't talk its way past. Harness for Claude Code.",
   "bin": {
     "shapeup-sdlc": "bin/init.mjs"
   },
@@ -33,7 +33,8 @@
   },
   "scripts": {
     "test": "node tests/structural.mjs",
-    "demo": "node tools/demo/record-demo.mjs"
+    "demo": "node tools/demo/record-demo.mjs",
+    "test:grant": "node tests/grant/executing-grant.mjs"
   },
   "keywords": [
     "shapeup",
