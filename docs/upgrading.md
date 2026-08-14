@@ -77,21 +77,42 @@ keep.
 > Per-release upgrade notes are in [`CHANGELOG.md`](../CHANGELOG.md) under the release that shipped
 > each change.
 
-## Upgrading into the orchestrator cutover
+## Upgrading into v2.0
 
-**Nothing on your disk changes, and that is the finding, not an omission.** The
-cutover changes how the tech-lead *runs* — the round loop moves from prose into
-`skills/tech-lead/workflows/shapeup-run.js` — and touches no artifact you own. Boards, scope
-contracts, ledgers, receipts and `shapeup/` all keep their formats. What follows is what changes
-for the person running it.
+**Nothing on your disk changes format.** Boards, scope contracts, ledgers, receipts and `shapeup/`
+all keep their shapes; the run graph a v2.0 run reads is *projected* from those same artifacts on
+first touch, so a v1 tree needs no conversion. What changes is how you invoke the harness, and one
+permission grant.
 
-### Does this affect you?
+### Four things to know
 
-Only if you run specs that have **committed `scopes/*.md`**. That lane is now code.
+**1. Re-run `init`.** Every pipeline script became a subcommand of one entry point, so the
+per-script grants an older install wrote no longer name anything. `npx shapeup-sdlc init` removes
+them and writes the new ones; your unrelated rules are left alone.
 
-`--tiny` runs and any spec without scope contracts keep the prose loop in
-`skills/tech-lead/references/round-protocol.md`, unchanged and non-regression — `SKILL.md` routes
-them there explicitly. If you have not adopted scope contracts, nothing about your runs changes.
+**2. Commands changed shape.** If you script around the harness:
+
+| v1 | v2.0 |
+|---|---|
+| `node …/skills/tech-lead/scripts/init-run.mjs …` | `node …/kernel/harness.mjs init run …` |
+| `node …/skills/tech-lead/scripts/compile-order.mjs …` | `node …/kernel/harness.mjs compile …` |
+| `node …/skills/tech-lead/scripts/ingest-result.mjs …` | `node …/kernel/harness.mjs reduce ingest …` |
+| `node …/skills/tech-lead/scripts/t0-verify.mjs …` | `node …/kernel/harness.mjs verify t0 …` |
+| `node …/skills/tech-lead/scripts/gate-answers.mjs …` | `node …/kernel/harness.mjs gate …` |
+| `node …/skills/ba-pitch-analyzer/scripts/spec-lint.mjs …` | `node …/kernel/harness.mjs verify spec …` |
+| `node …/skills/tech-lead/scripts/run-workflow.mjs <script>` | `Workflow({scriptPath, args})` |
+
+`node …/kernel/harness.mjs --help` lists every verb; each subcommand rejects a bad flag at the argv
+boundary with a machine-readable reason on stderr and exit 2, unchanged.
+
+**3. Six hooks were retired.** Their work moved into the runtime rather than disappearing — see
+README's enforcement table, which also states the one real coverage change (a long-running build
+leg is no longer interrupted mid-flight, only prevented from opening another round).
+
+**4. `probe resume --set-active-scope` is gone**, with the shared substrate pointer it wrote.
+`sandbox-guard` reads every live order instead, which is what makes concurrent scopes safe.
+
+### The grant, and the one decision in it
 
 ### Two things you must have for headless runs
 
@@ -147,16 +168,14 @@ normal, zero-exit outcome that expects a relaunch, not a failure to retry differ
 
 ### Rolling back
 
-**Pin `1.6.3`.** Per decision D2 there are no dual paths — the prose orchestrator was deleted for
-the scoped lane rather than kept as a fallback, so downgrading the package is the only way back.
+**Pin `1.7.0-final`**, the last release of the script-runtime line. There are no dual paths: the
+hand-rolled runtime and the per-script entry points were deleted rather than kept as a fallback, so
+downgrading the package is the only way back — and a downgrade also means re-running `init`, because
+the two grants do not overlap.
 
-Know what else the pin takes with it: this release also carries the attempt-ratchet work, which is
-unrelated to the orchestrator, and six of its files ship — `skills/orient/SKILL.md`,
-`skills/qa-edge-hunter/SKILL.md`, `skills/task-executor/SKILL.md`,
-`skills/tech-lead/references/delegation.md`, `skills/tech-lead/references/round-protocol.md`,
-`kernel/reduce/ship.mjs`. Pinning to work around an orchestrator problem reverts
-those too, silently. If that trade is the wrong one, open an issue rather than pinning — the
-rollback is deliberately coarse and we would rather fix forward.
+Know what the pin takes with it: the fan-out, the run graph, the pointer-free substrate guard and
+the proven two-line grant all go together. If a v2.0 problem is worth pinning for, open an issue
+rather than pinning — the rollback is deliberately coarse and we would rather fix forward.
 
 ## Why the entrypoints live where they do
 

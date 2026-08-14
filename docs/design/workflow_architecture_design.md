@@ -152,7 +152,7 @@ between is a courier.
 ### C3 — the dispatch channel: the zero-memory boundary, kept
 
 A worker dispatch is a fresh `agent()` whose prompt carries **only the order path** — the payload
-travels on C4, not in the prompt, exactly as `delegation.md` prescribes today:
+travels on C4, not in the prompt, exactly as `protocol.md` prescribes today:
 
 ```js
 await agent(

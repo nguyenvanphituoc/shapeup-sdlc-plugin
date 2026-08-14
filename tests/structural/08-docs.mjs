@@ -230,10 +230,9 @@ export async function run(ctx) {
   // the workflow SCRIPT honours the branch is a code question, not a doc-parity one.
   {
     const RATCHET_STATUSES = ["kept", "reverted", "rebased", "crash"];
-    const BRANCH_DOCS = [
-      "skills/tech-lead/references/round-protocol.md",
-      "skills/tech-lead/references/delegation.md",
-    ];
+    // One file since the v2.0 references consolidation: the round loop and the delegation shape
+    // are the same document now, so the attempt-loop branch is described in exactly one place.
+    const BRANCH_DOCS = ["skills/tech-lead/references/protocol.md"];
     for (const rel of BRANCH_DOCS) {
       const p = join(ROOT, rel);
       if (!existsSync(p)) { fail(`attempt-loop doc missing: ${rel}`); continue; }

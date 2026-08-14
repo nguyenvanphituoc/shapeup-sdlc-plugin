@@ -69,8 +69,7 @@ The numbered sections below are the checks themselves, in section order:
    compile-order fact-only assembly, ingest-result single-writer behavior, board-derive +
    spec-lint planner math, and the central domain-registry consistency check.
 25. **Prompt line-count ratchet (v1.2; lowered to 450 by the skills-optimization plan A3):** `skills/tech-lead/SKILL.md` may not exceed 450 lines —
-   the 24995ba changelog-extraction + A3 gate-playbook extraction (→ `references/gates.md`,
-   `references/invocation.md`) encoded as a regression; new logic goes into scripts or references/.
+   the 24995ba changelog-extraction + A3 gate-playbook extraction (→ `references/gates.md`,) encoded as a regression; new logic goes into scripts or references/.
 26. **Doc-drift (v1.2):** documented skill counts match `skills/`, every hook registered in
    `hooks.json` is documented in README + design/03 (and no orphan hook files exist), every
    concrete `hooks|skills|scripts|tests|commands/...` path cited in README/docs/design exists on

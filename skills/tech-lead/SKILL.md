@@ -57,7 +57,7 @@ of its own), emit the `⏸ GATE L0` block, then check the lane:
 
 - **`--tiny`, or the spec has no committed `scopes/*.md` yet** (pre-v0.3.0 spec): `shapeup-run.js`
   is out of scope for this lane by design (it targets scope-contract specs). Run the unchanged
-  legacy loop instead — `references/round-protocol.md` (BUILD(r)/EVAL) + `references/delegation.md`
+  legacy loop instead — `references/protocol.md` (BUILD(r)/EVAL) + `references/protocol.md`
   carry the full step-by-step for both the tiny lane and a scope-less BUILD loop, verbatim, non-
   regression. Stop reading this file here for that run.
 - **Otherwise** (the common case — a scoped spec, any auto level): build `RunArgs`
@@ -125,12 +125,12 @@ never orients, plans, builds, or judges itself — `shapeup-run.js` **sequences*
 and returns to the PO at every gate.
 
 > **Gate collect-lists + output-block formats** → `references/gates.md`
-> **How each sub-skill is invoked + handoff files (the envelope port)** → `references/delegation.md`
-> **The round loop, stop conditions, three-level breaker rationale** → `references/round-protocol.md`
-> **Run ledger format + Hill report** → `references/ledger-schema.md`
-> **State ownership, the central domain registry, two-ledger split** → `references/state-model.md`
-> **Hard rules this design enforces, and why** → `references/hard-rules.md`
-> **Full invocation examples + the complete flag table** → `references/invocation.md`
+> **How each sub-skill is invoked + handoff files (the envelope port)** → `references/protocol.md`
+> **The round loop, stop conditions, three-level breaker rationale** → `references/protocol.md`
+> **Run ledger format + Hill report** → `references/state.md`
+> **State ownership, the central domain registry, two-ledger split** → `references/state.md`
+> **Hard rules this design enforces, and why** → `references/protocol.md`
+> **Full invocation examples + the complete flag table** →
 > **The small-change lane (`--tiny`)** → `references/tiny-lane.md`
 
 ## Invocation

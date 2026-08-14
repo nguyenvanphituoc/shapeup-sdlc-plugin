@@ -30,4 +30,4 @@ first, so the receipt exists. Do not hand-roll the round by calling this command
 attempt loop, the T0 ratchet and the breakers are branches in that script, not steps a caller can
 be trusted to reproduce, and a session that rebuilds them by hand is the prose lane the cutover
 replaced. On a `--tiny` run or a spec with no committed `scopes/*.md`, the prose loop in
-`skills/tech-lead/references/round-protocol.md` still applies, unchanged and by design.
+`skills/tech-lead/references/protocol.md` still applies, unchanged and by design.

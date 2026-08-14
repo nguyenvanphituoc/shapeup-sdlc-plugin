@@ -21,17 +21,17 @@ tech-lead/
 ├── SKILL.md                       # entry — GATE L0–L4, the round loop, flags, hard rules
 ├── README.md                      # this file
 └── references/
-    ├── round-protocol.md          # ★ the loop: r=1 vs r>1, stop conditions, eval timing rule
-    ├── delegation.md              # how each of the 3 sub-skills is invoked + handoff files
-    └── ledger-schema.md           # harness-run.md — the round table / decisions / escalation
+    ├── protocol.md          # ★ the loop: r=1 vs r>1, stop conditions, eval timing rule
+    ├── protocol.md              # how each of the 3 sub-skills is invoked + handoff files
+    └── state.md           # harness-run.md — the round table / decisions / escalation
 ```
 
 | Resource | Loaded at | Purpose |
 |----------|-----------|---------|
 | `SKILL.md` | always | L-gates, phase sequence, invocation, authority rules |
-| `references/round-protocol.md` | BUILD/EVAL | the loop semantics + the "eval once at end" rule |
-| `references/delegation.md` | each phase | exact sub-skill commands + which handoff files to read |
-| `references/ledger-schema.md` | throughout | the run ledger that carries state across rounds/sessions |
+| `references/protocol.md` | BUILD/EVAL | the loop semantics + the "eval once at end" rule |
+| `references/protocol.md` | each phase | exact sub-skill commands + which handoff files to read |
+| `references/state.md` | throughout | the run ledger that carries state across rounds/sessions |
 
 ## Install
 ```bash
@@ -40,7 +40,7 @@ cp -r tech-lead <repo>/.claude/skills/      # or ~/.claude/skills/
 Requires the harness skills installed: `ba-pitch-analyzer`, `task-executor`,
 `spec-evaluator`, plus `translator` (the GATE L0 language gate for non-English intake).
 The EVAL phase uses spec-evaluator's feature-level pass
-(`--feature <slug>`) — see the dependency note in `references/delegation.md`.
+(`--feature <slug>`) — see the dependency note in `references/protocol.md`.
 
 ## Invoke
 ```bash

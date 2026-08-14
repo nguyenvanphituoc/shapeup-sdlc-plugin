@@ -41,7 +41,7 @@ all run inside it. Three things follow, and they are the point of the cutover ra
   unattended lane is unavailable.
 
 `--tiny`, and any spec with no committed `scopes/*.md` yet, take the unchanged prose lane in
-`skills/tech-lead/references/round-protocol.md` instead — non-regression, by design.
+`skills/tech-lead/references/protocol.md` instead — non-regression, by design.
 
 Only run headless/auto if the user explicitly asks for it in their message:
 - `--auto` → advance low-risk gates automatically, still pause at L4 (Ship sign-off).

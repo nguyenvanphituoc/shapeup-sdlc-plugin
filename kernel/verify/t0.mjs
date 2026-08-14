@@ -397,7 +397,7 @@ export async function cli(rawArgv) {
 
   const fixtures = runFixtures(contract.e2e_verification_fixtures, cwd);
   const dbProbe = runDbProbe(contract.db_probe, cwd);
-  // --seesaw-registry is expected explicitly (tech-lead always passes it, delegation.md 3c);
+  // --seesaw-registry is expected explicitly (tech-lead always passes it, protocol.md 3c);
   // standalone CLI use without it simply skips the seesaw check rather than guessing a path.
   const seesawRegistry = args.noSeesaw ? null : args.seesawRegistry || null;
   const seesaw = args.noSeesaw || fixtures.pass === false

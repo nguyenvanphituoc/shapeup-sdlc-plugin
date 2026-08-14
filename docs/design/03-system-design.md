@@ -460,7 +460,7 @@ travels in that one record.
 
 **The lane boundary.** `shapeup-run.js` targets specs with committed `scopes/*.md`. A `--tiny`
 run, or any spec with no scope contracts yet, takes the unchanged prose loop in
-`skills/tech-lead/references/round-protocol.md` — non-regression, by design, and the reason that
+`skills/tech-lead/references/protocol.md` — non-regression, by design, and the reason that
 file still carries the full step-by-step.
 
 ---

@@ -12,7 +12,7 @@ lane emits them verbatim, and on the scoped lane `shapeup-run.js` returns the `b
 | lane | BUILD → GATE L2 → EVAL is | read |
 |---|---|---|
 | a spec with committed `scopes/*.md` (the common case) | **code** — `skills/tech-lead/workflows/shapeup-run.js`'s round loop | that script's comments |
-| `--tiny`, or a spec with no scope contracts yet | **prose**, unchanged and non-regression | `references/round-protocol.md` (`:11-22` states the same split) |
+| `--tiny`, or a spec with no scope contracts yet | **prose**, unchanged and non-regression | `references/protocol.md` (`:11-22` states the same split) |
 
 Order matches the run: GATE L0 → ORIENT → GATE L1a → ANALYZE → WIRE/L1a.5 → MAP SCOPES →
 GATE L1b → (BUILD → GATE L2 → EVAL — see the table above) → GATE L3 → SHIP → GATE L4.
@@ -127,7 +127,7 @@ The Shape Up Building phase opens with **Orient, not planning**: the team reads 
 and spikes the scary parts *before* any board exists, so the board comes out reality-born.
 
 ```
-Invoke via Agent (model: exec — see references/delegation.md "Invocation mechanism"):
+Invoke via Agent (model: exec — see references/protocol.md "Invocation mechanism"):
         Skill(shapeup-sdlc-plugin:orient) --pitch <intake> --spec <path> --stack "<hint>" [--auto]
 Owns:   its own GATE O-A/O-B; runs straight through under --auto.
 Writes: .shapeup/<slug>/orient/ → code-surface.md, spike-<area>.md, discovered-seed.md, hill-signal.md.
@@ -144,7 +144,7 @@ re-scanning the codebase. Pass `--auto` only when the run level is `--auto`/`--u
 committing to a scope map. This is the first Hill read (area-level — slices don't exist yet).
 
 ```
-Read .shapeup/<slug>/orient/. Render the 🗻 Hill from hill-signal.md (see ledger-schema.md "Hill report"):
+Read .shapeup/<slug>/orient/. Render the 🗻 Hill from hill-signal.md (see state.md "Hill report"):
   - each suspected area → uphill (open unknowns) | crest (approach proven by the spike) | downhill
 Print: the code-surface headline (where it lands), the spiked area + result, the riskiest
        open unknowns going into mapping.
@@ -189,7 +189,7 @@ against the seams WIRE declared. Sequence: ORIENT → L1a → **ANALYZE** → **
 **MAP SCOPES** → L1b.
 
 ```
-Two orders, two workers, one step (both model: exec — see references/delegation.md):
+Two orders, two workers, one step (both model: exec — see references/protocol.md):
 1. ANALYZE + BOARD — compile-order --operation analyze --slug <slug> --worker ba-pitch-analyzer
      --payload '{"pitch": "<path>", "lens": "<lens>", "orient_dir": ".shapeup/<slug>/orient/"}'
    dispatch: Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) --order <path>. The order hands it
@@ -295,14 +295,14 @@ Under `--interactive` / `--auto`, the hook warns if the board is not truly green
 Render the 🗻 Hill report (slice-level) — NOT a task count. Scope contracts present → read
   committed hill/<scope-id>.yml shards (mechanical phases from GATE L2, never authored). No contracts →
   fall back to the board + open-unknowns heuristic (uphill/crest/downhill/done). See
-  references/ledger-schema.md "Hill report". Roadmap rule unchanged either way: progress is
+  references/state.md "Hill report". Roadmap rule unchanged either way: progress is
   reported by hill position, never by "N/M tasks done".
 
 Read EVAL-FEATURE-<slug>.md verdict.
 
 PASS:
   → first PASS of the run AND not --no-qa:
-      delegate ▶ QA EDGE HUNT → Agent (model: qa — see references/delegation.md
+      delegate ▶ QA EDGE HUNT → Agent (model: qa — see references/protocol.md
       "Invocation mechanism"): Skill(shapeup-sdlc-plugin:qa-edge-hunter) (pure worker; see
       round-protocol "QA edge hunt"). Args: spec folder, EVAL report path, ledger path, app URL.
       Its GATE Q0/Q1 pauses surface here. Output: `~` findings → .shapeup/<slug>/discovery/ledger.md
@@ -338,7 +338,7 @@ yet, report at task-group level and note the fallback in the ledger.
 
 ```
 S.0  GATE H — delegate to scope-hammer (this IS Shape Up's "Decide When to Stop", step 11):
-     Invoke via Agent (model: exec — see references/delegation.md "Invocation mechanism"):
+     Invoke via Agent (model: exec — see references/protocol.md "Invocation mechanism"):
        Skill(shapeup-sdlc-plugin:scope-hammer) --slug <slug> --baseline <shaping/baseline.md if present>
              [--breaker outer]   when round_budget hit 0 with scopes still open
              [--breaker inner --scope <id>]   once per queued hammer proposal (attempt_budget
@@ -400,7 +400,7 @@ S.6  Harvest one signal row → append to `.shapeup/metrics/<machine-id>.jsonl`
      ALSO copy `run_id` from `receipt.json`. It is the row's only link to the run trace
      that produced it: every other field here is a count, and `feature_slug` groups runs
      TOGETHER rather than apart. It is what joins this row to the S.7 export.
-     → full field list + row template: references/ledger-schema.md "Harvest row".
+     → full field list + row template: references/state.md "Harvest row".
 S.7  Export the run's records → one keyed dataset, before the trace is superseded.
        node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" report export --slug <slug>
      Same argument as S.6, applied to the records the harvest row does NOT carry: orders,
@@ -413,7 +413,7 @@ S.7  Export the run's records → one keyed dataset, before the trace is superse
      WHY IT IS NOT A HARVEST FIELD. Run economics — cost, wall clock, turns-to-first-write —
      is DERIVED from this dataset (`harness probe stats --economics`), never copied into the metrics
      shard, because that row's contract rejects clock fields on purpose (see
-     ledger-schema.md "Rejected fields"). Preserving the trace keeps the figures available
+     state.md "Rejected fields"). Preserving the trace keeps the figures available
      without putting a velocity number in the signal feed.
 ```
 
@@ -431,7 +431,7 @@ Ledger    : harness-run.md
 ```
 Question (max 1): "Anything to record before I close the run? (y/n) or provide feedback for the next sprint."
 On confirm:
-- If the PO provides substantive feedback (not just 'y' or empty) → automatically delegate via Agent (model: exec — see references/delegation.md "Invocation mechanism"): Skill(shapeup-sdlc-plugin:coach) with the provided feedback for RLHF. The coach runs its own GATE COACH-1 to have the PO categorize each rule, then files it under the responsible skill in `shapeup/knowledge-base/<skill>.md` (committed → team-shared). Coachable skills: `task-executor`, `ba-pitch-analyzer`, `qa-edge-hunter`; each reads its own file at the top of its next run. The tech lead does not categorize the feedback itself — that is the coach's gate, by design (no assumptions).
+- If the PO provides substantive feedback (not just 'y' or empty) → automatically delegate via Agent (model: exec — see references/protocol.md "Invocation mechanism"): Skill(shapeup-sdlc-plugin:coach) with the provided feedback for RLHF. The coach runs its own GATE COACH-1 to have the PO categorize each rule, then files it under the responsible skill in `shapeup/knowledge-base/<skill>.md` (committed → team-shared). Coachable skills: `task-executor`, `ba-pitch-analyzer`, `qa-edge-hunter`; each reads its own file at the top of its next run. The tech lead does not categorize the feedback itself — that is the coach's gate, by design (no assumptions).
 - Then output → `✅ [slug] [shipped & deployed | built & verified, deploy pending] — [r] rounds, verdict PASS.`
 
 ---

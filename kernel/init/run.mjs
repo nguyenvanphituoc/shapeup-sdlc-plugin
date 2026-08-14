@@ -159,7 +159,7 @@ export function buildReceipt({ slug, intake, config, startedAt }) {
   };
 }
 
-/** The `harness-run.md` frontmatter block, per references/ledger-schema.md. */
+/** The `harness-run.md` frontmatter block, per references/state.md. */
 export function runFrontmatter({ slug, config, startedAt }) {
   return [
     "---",
