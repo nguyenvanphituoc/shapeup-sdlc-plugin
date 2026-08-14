@@ -26,6 +26,13 @@ node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" init run \
   [--dimensions <a,b>] [--gate-answers <ci|guarded|path.json>] [--wall-clock-budget <seconds>] [--max-rounds 3]
 ```
 
+**After a compaction, or in a fresh session over an open run, re-derive before you act.** One
+command answers where the run stands, from artifacts and never from memory:
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" reduce graph --slug <slug> --subgraph run
+```
+
 **Exit 3 means a run is ALREADY OPEN.** Resume it; do not re-open it. The refusal prints the
 derived RESUME STATE (slug, status, round, board counts) — read it and go straight to Step 2;
 `shapeup-run.js`'s own fast-forward will re-derive exactly where to continue from disk, never from

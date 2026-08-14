@@ -3,7 +3,7 @@
 // THE DEFECT THIS MODULE EXISTS FOR, reproduced by executing every shipped gate:
 //
 //     $ echo 'NOT JSON AT ALL {{{' | node hooks/<gate>.mjs
-//     gate-l2            exit=0   stdout_len=0
+//     gate-intake        exit=0   stdout_len=0
 //     gate-zerowork      exit=0   stdout_len=0
 //     sandbox-guard      exit=0   stdout_len=0
 //     safety-spine       exit=0   stdout_len=0
@@ -17,7 +17,7 @@
 // indistinguishability is why 26 enforcement points sat inert behind 610 green checks while every
 // one of them reported success.
 //
-// FAIL-OPEN IS NOT THE DEFECT and is not changed here: `gate-l2.mjs` argues for it correctly in
+// FAIL-OPEN IS NOT THE DEFECT and is not changed here: every hook here argues for it correctly in
 // its own header — a gate that breaks legitimate runs just gets disabled. This module asserts that
 // the direction is UNCHANGED (still exit 0, still no block on a malformed payload) while the
 // EVIDENCE is now present.
@@ -82,8 +82,14 @@ export async function run(ctx) {
   section("44. Every hook records a decision — allow, deny and error stop looking identical");
   // =============================================================================
   const hooks = hookEntries(ROOT);
-  if (hooks.length < 11) fail(`expected ≥11 enforcement entry points, found ${hooks.length}`);
-  else ok(`${hooks.length} enforcement entry points discovered (10 hooks + validate-envelope)`);
+  // The floor moved 11 → 5 at the v2.0 hook diet, deliberately and on the record: six hooks were
+  // deleted because their work moved into the runtime (the L2 signal into the gate block, the
+  // deadline into `verify budget`'s round-boundary check, rehydration into `reduce graph
+  // --subgraph run`, the leftovers scan into the ship report) — not because enforcement was
+  // reduced. What survives is the set that is a WALL: it works under every permission mode and
+  // there is no runtime path that can substitute for it.
+  if (hooks.length < 5) fail(`expected ≥5 enforcement entry points, found ${hooks.length}`);
+  else ok(`${hooks.length} enforcement entry points discovered (4 hooks + verify envelope)`);
 
   // (b) MALFORMED INPUT — the reproduced case. Must still fail open, and must now be recorded
   //     as `error` rather than as the same silence a clean allow produces.
@@ -168,10 +174,10 @@ export async function run(ctx) {
     try {
       // Occupy the LOCAL root with a FILE, so mkdir/append cannot succeed.
       writeFileSync(join(sandbox, ".shapeup"), "not a directory");
-      const gl2 = hooks.find((h) => h.name === "gate-l2");
-      const r = fire(gl2.abs, { tool_name: "Read", cwd: sandbox }, sandbox);
+      const probe = hooks.find((h) => h.name === "gate-intake");
+      const r = fire(probe.abs, { tool_name: "Read", cwd: sandbox }, sandbox);
       if (r.exit === 0) ok("an unwritable decisions.jsonl does not break the hook — the receipt is best-effort by design");
-      else fail(`gate-l2 exited ${r.exit} when the decision ledger was unwritable — a receipt must never fail a run`);
+      else fail(`gate-intake exited ${r.exit} when the decision ledger was unwritable — a receipt must never fail a run`);
     } finally {
       rmSync(sandbox, { recursive: true, force: true });
     }
@@ -191,7 +197,7 @@ export async function run(ctx) {
       if (none.rows === 0 && none.readable === false) ok("enforcementCensus reports an ABSENT ledger as unreadable — an absence proves nothing and must not sharpen the message");
       else fail(`enforcementCensus mis-read a missing ledger: ${JSON.stringify(none)}`);
       mkdirSync(join(sandbox, ".shapeup"), { recursive: true });
-      writeFileSync(join(sandbox, ".shapeup", "decisions.jsonl"), JSON.stringify({ hook: "gate-l2", verdict: "allow" }) + "\n");
+      writeFileSync(join(sandbox, ".shapeup", "decisions.jsonl"), JSON.stringify({ hook: "gate-intake", verdict: "allow" }) + "\n");
       const some = gz.enforcementCensus(sandbox);
       if (some.rows === 1 && some.readable) ok("enforcementCensus counts real decision rows — 'the gates didn't run' no longer depends on the gates running");
       else fail(`enforcementCensus mis-counted a populated ledger: ${JSON.stringify(some)}`);
@@ -205,12 +211,12 @@ export async function run(ctx) {
   {
     const { hooksReport } = await import(join(ROOT, "kernel/probe/stats.mjs"));
     const rep = hooksReport([
-      { hook: "gate-l2", verdict: "allow", rule: "board-green" },
-      { hook: "gate-l2", verdict: "deny", rule: "board-not-green" },
-      { hook: "gate-l2", verdict: "error" },
+      { hook: "gate-intake", verdict: "allow", rule: "intake-present" },
+      { hook: "gate-intake", verdict: "deny", rule: "no-intake" },
+      { hook: "gate-intake", verdict: "error" },
       { hook: "compact-snapshot", verdict: "allow", rule: "snapshot-written" },
     ]);
-    const l2 = rep.per_hook.find((h) => h.hook === "gate-l2");
+    const l2 = rep.per_hook.find((h) => h.hook === "gate-intake");
     if (rep.evaluations === 4 && l2.evaluations === 3 && l2.deny === 1 && l2.error === 1 && l2.allow === 1) {
       ok("stats --hooks separates evaluations / denials / errors per hook — the Day-2 exit instrument");
     } else fail(`hooksReport mis-aggregated: ${JSON.stringify(rep)}`);

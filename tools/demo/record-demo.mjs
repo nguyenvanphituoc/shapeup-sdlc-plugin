@@ -1,20 +1,19 @@
 #!/usr/bin/env node
 // Demo recorder — renders docs/assets/demo-gate.svg (+ a plain-text transcript).
 //
-// Honesty contract (the reason this is a script and not a hand-drawn asset):
-// the ⚠ GATE L2 block in the demo is NOT written by hand. This script builds a real
-// partial task board in a temp dir, pipes a real PreToolUse payload into the real
-// `hooks/gate-l2.mjs`, and embeds the hook's verbatim stdout. It then flips the board
-// green and re-runs the same hook to prove the silent path. If the hook's behaviour or
-// wording ever changes, re-running `npm run demo` changes the asset — and if the hook
-// stopped detecting a partial board, or stopped naming which tasks were unfinished,
-// this script fails loudly rather than shipping a flattering picture.
+// Honesty contract (the reason this is a script and not a hand-drawn asset): the DENIAL block in
+// the demo is NOT written by hand. This script compiles a real WorkOrder substrate in a temp dir,
+// pipes a real PreToolUse payload into the real `hooks/sandbox-guard.mjs`, and embeds the hook's
+// verbatim denial reason. It then asks for a write INSIDE the substrate and re-runs the same hook
+// to prove the permitting path. If the hook's behaviour or wording changes, re-running
+// `npm run demo` changes the asset — and if it stopped denying, or stopped naming the offending
+// path, this script fails loudly rather than shipping a flattering picture.
 //
-// It asserted a `deny` until GATE L2 became advisory (ADR-0001) — and it did fail loudly,
-// which is the contract working.
+// It drove `gate-l2` until v2.0, where that hook was retired into the gate block it advised. The
+// demo moved to a hook that DENIES, which is the harder claim and the one the README makes.
 //
-// Everything outside the GATE L2 block is scripted narration of the pipeline steps and is
-// labelled as such in docs/assets/demo-gate.txt.
+// Everything outside the denial block is scripted narration of the pipeline steps and is labelled
+// as such in docs/assets/demo-gate.txt.
 //
 // Usage: npm run demo
 
@@ -25,80 +24,68 @@ import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const HOOK = join(ROOT, "hooks", "gate-l2.mjs");
+const HOOK = join(ROOT, "hooks", "sandbox-guard.mjs");
 const SLUG = "dark-mode";
 
 // ─── 1. Drive the real hook ────────────────────────────────────────────────────
 
-const TASKS = [
-  { id: "TASK-001", scope: "tokens", partial: "done" },
-  { id: "TASK-002", scope: "toggle-ui", partial: "done" },
-  { id: "TASK-003", scope: "persist", partial: "ready" },
-  { id: "TASK-004", scope: "wiring", partial: "in-progress" },
-];
+// The scope being built and the one path it must not touch. Both are real inputs to the hook: the
+// substrate comes off a compiled order, exactly as it does in a run.
+const ALLOWED = "src/theme/*.ts";
+const OUTSIDE = "src/billing/charge.ts";
+const INSIDE = "src/theme/tokens.ts";
 
 const box = mkdtempSync(join(tmpdir(), "shapeup-demo-"));
-const tasksDir = join(box, ".shapeup", SLUG, "tasks");
-mkdirSync(tasksDir, { recursive: true });
+const ordersDir = join(box, ".shapeup", SLUG, "orders");
+mkdirSync(ordersDir, { recursive: true });
+const orderPath = join(ordersDir, "tokens-r1-a1.json");
+writeFileSync(orderPath, JSON.stringify({
+  schema_version: 1,
+  order_id: `${SLUG}/tokens-r1-a1`,
+  worker: "task-executor",
+  mode: "orchestrated",
+  operation: "execute",
+  round: 1,
+  attempt: 1,
+  substrate: { allowed: [ALLOWED], shared: [], append_only: [], frozen: [] },
+  payload: { feature: SLUG, scope_contract: { scope_id: "tokens" } },
+}, null, 2));
+writeFileSync(join(box, ".shapeup", "active-order"), JSON.stringify({ slug: SLUG, order_path: orderPath }));
 
-function writeBoard(statusOf) {
-  for (const t of TASKS) {
-    writeFileSync(
-      join(tasksDir, `${t.id}.md`),
-      `---\nid: ${t.id}\nstatus: ${statusOf(t)}\n---\n# ${t.scope}\n`,
-    );
-  }
-  const rows = TASKS.map((t) => `| ${t.id} | ${t.scope} | ${statusOf(t)} |`).join("\n");
-  writeFileSync(
-    join(tasksDir, "_index.md"),
-    `# Board — ${SLUG}\n\n| Task | Scope | Status |\n|---|---|---|\n${rows}\n`,
-  );
-}
-
-function runHook() {
+/**
+ * Ask the real hook to judge one write.
+ * @param {string} rel - Repo-relative path the worker wants to edit.
+ * @returns {string} The hook's verbatim stdout, trimmed.
+ */
+function runHook(rel) {
   const payload = JSON.stringify({
-    tool_name: "Skill",
-    tool_input: {
-      skill_name: "spec-evaluator",
-      skill_args: `--spec shapeup/${SLUG}/spec --feature ${SLUG} --single-pass`,
-    },
+    tool_name: "Edit",
+    tool_input: { file_path: join(box, rel) },
     cwd: box,
   });
   return execFileSync("node", [HOOK], { input: payload, encoding: "utf8" }).trim();
 }
 
-// (a) partial board → must WARN, naming every unfinished task.
-//
-// GATE L2 is ADVISORY (ADR-0001): it permits the call and reports what it found. The assertion
-// below is therefore about the WARNING, not a denial — but it is exactly as strict, because the
-// thing worth protecting is unchanged: the hook must still detect a partial board and must still
-// name the offenders. A demo that rendered a hand-written warning would be the lie this script
-// exists to prevent, whichever decision the hook returns.
-writeBoard((t) => t.partial);
-const warnRaw = runHook();
-if (!warnRaw) {
-  rmSync(box, { recursive: true, force: true });
-  throw new Error("gate-l2 said nothing about a partial board — refusing to render a demo that lies.");
-}
-const warn = JSON.parse(warnRaw);
-if (typeof warn?.systemMessage !== "string") {
-  rmSync(box, { recursive: true, force: true });
-  throw new Error(`expected a systemMessage from gate-l2, got ${JSON.stringify(warn)}`);
-}
-for (const t of TASKS.filter((t) => t.partial !== "done")) {
-  if (!warn.systemMessage.includes(t.id)) {
-    rmSync(box, { recursive: true, force: true });
-    throw new Error(`gate-l2 warned but never named ${t.id} — the warning does not identify the offenders`);
-  }
+// (a) a write outside the substrate → must DENY, naming the path.
+const denyRaw = runHook(OUTSIDE);
+const bail = (msg) => { rmSync(box, { recursive: true, force: true }); throw new Error(msg); };
+if (!denyRaw) bail("sandbox-guard said nothing about an out-of-substrate write — refusing to render a demo that lies.");
+const deny = JSON.parse(denyRaw);
+const decision = deny?.hookSpecificOutput?.permissionDecision;
+const reason = deny?.hookSpecificOutput?.permissionDecisionReason;
+if (decision !== "deny") bail(`expected a deny from sandbox-guard, got ${JSON.stringify(deny)}`);
+if (typeof reason !== "string" || !reason.includes(OUTSIDE)) {
+  bail(`sandbox-guard denied but never named ${OUTSIDE} — the denial does not identify the offender`);
 }
 
-// (b) green board → must stay SILENT (defer = empty stdout)
-writeBoard(() => "done");
-const allowRaw = runHook();
+// (b) a write INSIDE the substrate → must PERMIT (defer = no deny payload).
+const allowRaw = runHook(INSIDE);
 rmSync(box, { recursive: true, force: true });
-if (allowRaw) throw new Error(`gate-l2 warned about a green board: ${allowRaw}`);
+if (allowRaw.includes('"permissionDecision":"deny"')) {
+  throw new Error(`sandbox-guard denied a write inside its own substrate: ${allowRaw}`);
+}
 
-const REASON = warn.systemMessage.replace(/\n/g, " ");
+const REASON = reason.replace(/\n/g, " ");
 
 // ─── 2. Compose the frames ─────────────────────────────────────────────────────
 
@@ -126,26 +113,22 @@ const script = [
   ["  GATE L1a.5 wiring map: 4 use cases ........ ok", C.dim, 0],
   ["  GATE L1b  board: 4 tasks .................. ok", C.dim, 2],
   ["", C.fg, 0],
-  ["  BUILD  TASK-001  tokens ........... ✅ T0 green", C.green, 1],
-  ["  BUILD  TASK-002  toggle-ui ........ ✅ T0 green", C.green, 1],
-  ["  BUILD  TASK-003  persist .......... ⬜ ready", C.yellow, 0],
-  ["  BUILD  TASK-004  wiring ........... 🔄 in-progress", C.yellow, 2],
+  ["  BUILD  scope tokens   substrate: src/theme/*.ts", C.dim, 2],
   ["", C.fg, 0],
-  ["> looks good — running EVAL now", C.white, 1],
-  ["  (the agent decides it is done. it is not.)", C.dim, 2],
+  ["> the worker decides billing needs a tweak too", C.white, 1],
+  ["  Edit(src/billing/charge.ts)", C.dim, 2],
   ["", C.fg, 0],
-  ["  ⚠ PreToolUse hook — GATE L2   Skill(spec-evaluator)", C.yellow, 1],
+  ["  ⛔ PreToolUse hook — sandbox-guard   DENIED", C.red, 1],
   ...wrap(REASON).map((l) => ["     " + l, C.fg, 0]),
   ["", C.fg, 2],
-  ["  ↑ verbatim stdout from hooks/gate-l2.mjs.", C.mag, 0],
-  ["    Not a prompt. A script that read the board twice,", C.mag, 0],
-  ["    named the offenders, and logged a `warn` row.", C.mag, 3],
+  ["  ↑ verbatim stdout from hooks/sandbox-guard.mjs.", C.mag, 0],
+  ["    Not a prompt. A script that read the order's own", C.mag, 0],
+  ["    substrate and named the path it does not cover.", C.mag, 3],
   ["", C.fg, 0],
-  ["  BUILD  TASK-003  persist .......... ✅ T0 green", C.green, 1],
-  ["  BUILD  TASK-004  wiring ........... ✅ T0 green", C.green, 2],
+  ["> back inside the scope", C.white, 1],
+  ["  Edit(src/theme/tokens.ts) ......... ✅ permitted", C.green, 2],
   ["", C.fg, 0],
-  ["> EVAL", C.white, 1],
-  ["  ✅ allowed — board green, 4/4", C.green, 1],
+  ["  BUILD  scope tokens ............... ✅ T0 green", C.green, 1],
   ["  hill 4/4 · derived from T0 artifacts, not self-report", C.cyan, 4],
 ];
 
@@ -193,7 +176,7 @@ const lines = timed
 
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace" font-size="${FS}">
   <title>shapeup-sdlc-plugin — a gate the agent cannot talk past</title>
-  <desc>A terminal recording: the agent runs EVAL on a board with two unfinished tasks, and a PreToolUse hook warns, naming both — advisory, so the call proceeds on the record. The warning text is verbatim output from hooks/gate-l2.mjs.</desc>
+  <desc>A terminal recording: a worker tries to edit a file outside the scope it was given, and a PreToolUse hook denies the write, naming the path. The next edit, inside the scope, is permitted. The denial text is verbatim output from hooks/sandbox-guard.mjs.</desc>
   <style>
     /* Base state is VISIBLE on purpose: where CSS animation is unavailable (some
        renderers, reader modes, PDF export) this degrades to the whole transcript
@@ -207,7 +190,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" 
   <rect width="${W}" height="${HEAD}" rx="10" fill="#161b22"/>
   <rect y="${HEAD - 10}" width="${W}" height="10" fill="#161b22"/>
   <circle cx="20" cy="18" r="5.5" fill="#ff5f57"/><circle cx="39" cy="18" r="5.5" fill="#febc2e"/><circle cx="58" cy="18" r="5.5" fill="#28c840"/>
-  <text x="${W / 2}" y="23" fill="#7d8590" font-size="12" text-anchor="middle">shapeup-sdlc — GATE L2</text>
+  <text x="${W / 2}" y="23" fill="#7d8590" font-size="12" text-anchor="middle">shapeup-sdlc — sandbox-guard</text>
   ${lines}
   <rect class="cur" x="${PAD}" y="${HEAD + PAD + script.length * LH + 4}" width="${CH.toFixed(1)}" height="${FS}" fill="#3fb950"/>
 </svg>
@@ -222,29 +205,28 @@ writeFileSync(join(outDir, "demo-gate.svg"), svg);
 writeFileSync(
   join(outDir, "demo-gate.txt"),
   [
-    "shapeup-sdlc-plugin — GATE L2 demo, plain-text transcript",
+    "shapeup-sdlc-plugin — sandbox-guard demo, plain-text transcript",
     "Generated by tools/demo/record-demo.mjs (npm run demo).",
     "",
-    "The GATE L2 block below is verbatim stdout captured from a real run of",
-    "hooks/gate-l2.mjs against a real partial board. Every other line is scripted",
-    "narration of the surrounding pipeline steps.",
+    "The denial block below is verbatim stdout captured from a real run of",
+    "hooks/sandbox-guard.mjs against a real compiled order. Every other line is",
+    "scripted narration of the surrounding pipeline steps.",
     "",
-    "GATE L2 is ADVISORY (ADR-0001): it names the unfinished tasks and permits the",
-    "call, recording a `warn` row. The hooks that DENY are validate-envelope,",
-    "sandbox-guard, gate-intake, safety-spine and gate-zerowork.",
+    "This is a DENY, not a warning: the write does not happen. The other walls are",
+    "harness verify envelope, gate-intake, safety-spine and gate-zerowork.",
     "",
     "-".repeat(72),
     ...script.map(([text]) => text),
     "-".repeat(72),
     "",
-    "Raw hook stdout (partial board):",
-    warnRaw,
+    `Raw hook stdout (write to ${OUTSIDE}):`,
+    denyRaw,
     "",
-    "Raw hook stdout (green board): <empty> — exit 0, i.e. defer, nothing to report.",
+    `Raw hook stdout (write to ${INSIDE}): permitted — no deny payload.`,
     "",
   ].join("\n"),
 );
 
-console.log(`✅ verified: gate-l2 named every unfinished task and stayed silent on a green board`);
+console.log(`✅ verified: sandbox-guard denied the out-of-substrate write by name, and permitted the in-substrate one`);
 console.log(`   docs/assets/demo-gate.svg  (${(svg.length / 1024).toFixed(1)} KB, ${TOTAL.toFixed(1)}s loop)`);
 console.log(`   docs/assets/demo-gate.txt`);

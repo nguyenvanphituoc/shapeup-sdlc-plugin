@@ -268,10 +268,14 @@ export async function run(ctx) {
   // existing breakers count EVENTS, so neither could see it. These checks assert the third
   // breaker's two load-bearing properties — it stops new work, and it does NOT block the run's
   // ability to judge, hammer and close (a breaker that sealed the exit would strand green scopes).
+  // The breaker is ONE mechanism now. It was two — `verify budget` computing the verdict and a
+  // PreToolUse hook denying dispatches past the deadline — which is two readings of "are we out of
+  // time" that can disagree. The round loop checks the verdict at every round boundary, which is
+  // the only moment new work is opened, so the hook was a second implementation of a decision that
+  // already had one.
   const BUDGET = "verify budget";
-  const DEADLINE = "hooks/gate-deadline.mjs";
-  if (!existsSync(KERNEL) || !existsSync(join(ROOT, DEADLINE))) {
-    fail("the wall-clock breaker is missing budget-check.mjs and/or gate-deadline.mjs");
+  if (!existsSync(KERNEL)) {
+    fail("the wall-clock breaker is missing — kernel/harness.mjs is not on disk");
   } else {
     const { evaluateBudget, WARN_AT } = await import(`file://${join(ROOT, "kernel/verify/budget.mjs")}`);
 
@@ -298,52 +302,16 @@ export async function run(ctx) {
       if (rec.config.wall_clock_budget_s === 1800) ok("the budget is recorded in the receipt, where the hook reads it");
       else fail("wall_clock_budget_s did not reach the receipt");
 
-      // Wind the clock back rather than waiting for it.
-      rec.started_at = new Date(Date.now() - 2000 * 1000).toISOString();
-      writeFileSync(receiptPath, JSON.stringify(rec, null, 2));
-
-      const fire = (skill) => spawnSync("node", [join(ROOT, DEADLINE)], {
-        encoding: "utf8",
-        input: JSON.stringify({ tool_name: "Skill", cwd: ws, tool_input: { skill } }),
-      });
-
-      const denied = fire("shapeup-sdlc-plugin:task-executor");
-      let out = null;
-      try { out = JSON.parse(denied.stdout || "{}"); } catch { /* not JSON */ }
-      if (out?.hookSpecificOutput?.permissionDecision === "deny") ok("DENIES task-executor past the deadline");
-      else fail("did not deny new build work past the deadline");
-      if (/scope-hammer/.test(out?.hookSpecificOutput?.permissionDecisionReason || "")) {
-        ok("the denial names the exit — Skill(scope-hammer, --breaker deadline)");
-      } else fail("the denial does not name the exit");
-
-      for (const survivor of ["spec-evaluator", "scope-hammer", "qa-edge-hunter"]) {
-        if (!fire(survivor).stdout.trim()) ok(`allows ${survivor} past the deadline (the run must still be able to close)`);
-        else fail(`denied ${survivor} past the deadline — that strands the run with green scopes it cannot ship`);
-      }
-
-      // STICKY TRIP. The first version denied politely and could be retried; a measured run
-      // re-dispatched task-executor THIRTEEN times and burned the budget the breaker exists to
-      // protect. A re-triable denial makes the failure it prevents worse, so the trip is recorded
-      // and the language escalates — the second denial must not read like the first.
-      const second = fire("task-executor");
-      let out2 = null;
-      try { out2 = JSON.parse(second.stdout || "{}"); } catch { /* not JSON */ }
-      const reason2 = out2?.hookSpecificOutput?.permissionDecisionReason || "";
-      if (/DENIAL #2/.test(reason2)) ok("a repeat denial says so, and escalates");
-      else fail("the second denial is identical to the first — the retry loop is not addressed");
-      if (/STOP TRYING TO BUILD/.test(reason2)) ok("the repeat denial is unambiguous about stopping");
-      else fail("the repeat denial does not tell the orchestrator to stop retrying");
-      if (existsSync(join(ws, ".shapeup", "f3", "deadline-tripped.json"))) {
-        const trip = JSON.parse(readFileSync(join(ws, ".shapeup", "f3", "deadline-tripped.json"), "utf8"));
-        if (trip.denials >= 2) ok(`the trip is a fact on disk, with a retry count (${trip.denials})`);
-        else fail("deadline-tripped.json does not count retries");
-      } else fail("the trip was not recorded on disk");
-
-      // Non-regression: the whole mechanism is invisible unless a budget is set.
-      rec.config.wall_clock_budget_s = null;
-      writeFileSync(receiptPath, JSON.stringify(rec, null, 2));
-      if (!fire("task-executor").stdout.trim()) ok("defers entirely when no budget is configured");
-      else fail("fired without a configured budget — that is a regression on every existing run");
+      // WHAT THE BREAKER NO LONGER DOES, recorded rather than quietly dropped. A PreToolUse hook
+      // used to DENY a task-executor dispatch past the deadline while leaving spec-evaluator,
+      // scope-hammer and qa-edge-hunter reachable, with a sticky, escalating denial because a
+      // measured run re-dispatched thirteen times through a politely re-triable one.
+      //
+      // v2.0 deletes that hook: the round loop checks this verdict at every round boundary — the
+      // only moment new build work is opened — and routes a trip to GATE H. The residual gap is
+      // real and is stated in README's enforcement table rather than papered over: a single build
+      // leg that runs long is not interrupted mid-flight, only prevented from being followed by
+      // another round. The `attempt_budget` breaker bounds that leg by attempts instead.
     } finally {
       rmSync(ws, { recursive: true, force: true });
     }

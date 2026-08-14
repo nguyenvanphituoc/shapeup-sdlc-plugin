@@ -53,10 +53,6 @@ const ENTRY_POINTS = [
   { file: "hooks/gate-zerowork.mjs", stdin: "not json", expect: "exit0" },
   { file: "hooks/safety-spine.mjs", stdin: "not json", expect: "exit0" },
   { file: "hooks/sandbox-guard.mjs", stdin: "not json", expect: "exit0" },
-  { file: "hooks/anti-rationalization.mjs", stdin: "not json", expect: "exit0" },
-  { file: "hooks/slop-cleaner.mjs", stdin: "not json", expect: "exit0" },
-  { file: "hooks/session-rehydrate.mjs", stdin: "not json", expect: "exit0" },
-  { file: "hooks/compact-snapshot.mjs", stdin: "not json", expect: "exit0" },
   // The kernel. Since v2.0 the deterministic half of the harness has ONE entry point, so the guard
   // has one home — but each subcommand still has to reach its own refusal path through it, which is
   // what these probes assert. A correct guard produces a refusal on stderr/stdout and a non-zero
@@ -173,40 +169,29 @@ export async function run(ctx) {
   // The companion defect to the main-guard one, and the same shape: a mechanism that was present,
   // reported as working, and wired to fire only in cases that do not happen much.
   //
-  // `session-rehydrate` existed to say "trust the files, not your memory". Its matcher was
-  // `compact|resume` — both of which continue a conversation that still exists — so it stayed
-  // silent on `startup`, the one source where there is no memory to distrust. Measured cost on the
-  // benchmark: a fresh session re-opened an already-open run and spent 82–120 turns
-  // rebuilding the pipeline, 0/3 gap closed. Pinned here so the matcher cannot narrow again.
-  const hooksJson = join(ROOT, "hooks/hooks.json");
-  if (existsSync(hooksJson)) {
-    const cfg = ctx.readJSON(hooksJson);
-    const starts = (cfg.hooks?.SessionStart || cfg.SessionStart || []);
-    const rehydrate = starts.find((m) => (m.hooks || []).some((h) => String(h.command).includes("session-rehydrate")));
-    if (!rehydrate) {
-      fail("no SessionStart matcher runs hooks/session-rehydrate.mjs");
+  // CONTINUITY IS A COMMAND, NOT A REFLEX. `session-rehydrate` injected "trust the files, not your
+  // memory" as SessionStart context, and its matcher had to be pinned here because it once omitted
+  // `startup` — the one source where there IS no memory to distrust — at a measured cost of 82-120
+  // turns rebuilding an already-open run.
+  //
+  // The reflex is gone because the answer is now a query anyone can run at any point:
+  // `harness reduce graph --slug <slug> --subgraph run`. A hook fires at two moments the platform
+  // chooses; a command answers whenever the question is asked, including the moments a hook never
+  // saw. What has to be pinned instead is that the orchestrator's own instructions still TELL it to
+  // ask — an unasked query is exactly as silent as an unfired hook.
+  {
+    const skill = join(ROOT, "skills/tech-lead/SKILL.md");
+    const body = existsSync(skill) ? read(skill) : "";
+    if (/reduce graph[\s\S]{0,80}subgraph run/.test(body) || /subgraph run/.test(body)) {
+      ok("tech-lead SKILL.md names the rehydration query the retired SessionStart hook used to carry");
     } else {
-      const matcher = String(rehydrate.matcher ?? "");
-      for (const source of ["startup", "compact", "resume"]) {
-        if (matcher.split("|").includes(source)) ok(`session-rehydrate fires on SessionStart:${source}`);
-        else fail(`session-rehydrate does NOT fire on SessionStart:${source} (matcher ${JSON.stringify(matcher)}) — ` +
-                  `a continuity reflex that skips a cold start is the defect the benchmark priced at 0/3 recovery`);
-      }
+      fail("tech-lead SKILL.md never names `reduce graph --subgraph run` — the continuity reflex was deleted " +
+           "and nothing replaced it, which is the cold-start defect the retired hook was written for");
     }
-  } else {
-    fail("hooks/hooks.json missing");
-  }
-
-  // The cold-start injection must NAME the failure a fresh session actually makes. A generic
-  // "re-read the files" is what a competent agent does anyway; "a run is already open, do not
-  // re-open it" is the part that changes behaviour, so it is asserted rather than assumed.
-  const rehydrateSrc = existsSync(join(ROOT, "hooks/session-rehydrate.mjs"))
-    ? read(join(ROOT, "hooks/session-rehydrate.mjs")) : "";
-  if (/ALREADY OPEN/.test(rehydrateSrc) && /startup/.test(rehydrateSrc)) {
-    ok("the cold-start injection tells the orchestrator to resume rather than re-open");
-  } else {
-    fail("hooks/session-rehydrate.mjs no longer distinguishes a cold start — the injected text must " +
-         "say a run is already open and must not be re-opened");
+    for (const gone of ["session-rehydrate", "compact-snapshot"]) {
+      if (!existsSync(join(ROOT, "hooks", `${gone}.mjs`))) ok(`hooks/${gone}.mjs is retired`);
+      else fail(`hooks/${gone}.mjs is still on disk — the reflex and the command are now two answers to one question`);
+    }
   }
 
   // =============================================================================

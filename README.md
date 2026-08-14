@@ -15,11 +15,11 @@ The ceremony is right-sized: `/ship` runs the full gated pipeline for real featu
 fixes where the gates would have nothing to say.
 
 <p align="center">
-  <img src="docs/assets/demo-gate.svg" alt="Terminal recording: the agent tries to run EVAL with two tasks unfinished, and a PreToolUse hook names both unfinished tasks and records the evaluation as taken over a partial board." width="700">
+  <img src="docs/assets/demo-gate.svg" alt="Terminal recording: a worker tries to edit a file outside the scope it was given, a PreToolUse hook denies the write and names the path, and the next edit inside the scope is permitted." width="700">
 </p>
 
 <p align="center"><sub>
-The GATE L2 text above is <b>verbatim stdout</b> from <code>hooks/gate-l2.mjs</code> —
+The denial above is <b>verbatim stdout</b> from <code>hooks/sandbox-guard.mjs</code> —
 <a href="tools/demo/record-demo.mjs">the recorder runs the real hook</a> and fails rather than
 draw a picture. <a href="docs/assets/demo-gate.txt">Plain-text transcript.</a>
 </sub></p>
@@ -189,54 +189,57 @@ learnable from `/`-completion alone.
 | `/hammer` | H | Must-have census, baseline comparison, cut list + ship verdict. |
 | `/retro` | post-L4 | File ship-gate feedback into the per-skill knowledge base. |
 
-### Hooks
+### What is enforced, and by what
 
-Ten Node hooks in `hooks/`, plus `harness verify envelope` which ships with the orchestrator skill.
-What each one reads and what it can deny:
+The honest version of this table matters more than a long one. A guarantee is only as strong as
+the layer that carries it, and the three layers here fail differently:
 
-- `SessionStart` — prints a load confirmation so you know the plugin is active; on
-  `startup|compact|resume|clear`, `hooks/session-rehydrate.mjs` additionally injects the mid-run
-  `RunSnapshot` hint ("trust the files, not the summary") when a harness run is in flight. On a
-  cold `startup` it leads with the stronger sentence — *a run is already open; resume it, do not
-  re-open it* — because that is the failure a fresh session actually makes. Silent when no run is
-  in flight, which is the ordinary case.
-- `PreToolUse` (matcher `Skill`) — **`hooks/gate-l2.mjs` warns when the once-per-round EVAL
-  delegation runs over an unfinished task board**, naming the offending tasks and recording a
-  `warn` row. Advisory since ADR-0001 — the board is per-machine and the operator asked for the
-  call. This is the gate in the demo above.
-- `PreToolUse` (matcher `Skill`) — **`hooks/gate-intake.mjs` denies a `tech-lead` dispatch that
-  carries no pitch, no spec folder, and no requirement text.** Observed, not theorized: when the
-  requirement text is dropped on the hand-off and only a flag survives, the run prints the gate
-  list, builds nothing, and reads like a success while leaving every defect in the deliverable.
-  An orchestrator with no spec now fails loudly instead of narrating.
-- `PreToolUse` (matcher `Skill`) — **`hooks/gate-deadline.mjs` denies a `task-executor` dispatch
-  once the run's opt-in wall-clock budget is spent**, routing to GATE H instead. `spec-evaluator`,
-  `scope-hammer` and `qa-edge-hunter` stay reachable — a run past its deadline
-  must still be able to judge, hammer and close. Off unless a budget is configured.
-- `PreToolUse` (matcher `Bash|Read|Write|Edit|MultiEdit`) — `hooks/safety-spine.mjs` denies
-  destructive commands (`rm -rf` on unrecoverable targets, force-push/push-to-main,
-  `git reset --hard`, `DROP TABLE`) and secret-file reads. Machine guard, not pipeline guard;
-  escape hatch is the human-authored `.shapeup/safety-overrides.json`.
-- `PreToolUse` (matcher `Edit|Write|MultiEdit`) — `hooks/sandbox-guard.mjs` blocks writes
-  outside the active scope's substrate whitelist (no-op unless scope contracts exist).
-- `PreToolUse` (matcher `Skill|Agent`) — `kernel/verify/envelope.mjs`
-  denies any worker dispatch whose order file is missing or schema-invalid.
-- `Stop` — **`hooks/gate-zerowork.mjs` blocks a session that dispatched the orchestrator and
-  left no run receipt.** The one blocking `Stop` hook, and the narrowest: its predicate is
-  mechanical — orchestrator dispatched AND no `.shapeup/<slug>/receipt.json` — so it never
-  judges quality, it reports that no work exists to judge. It exists because this harness was
-  repeatedly observed describing its own pipeline instead of running it — a narrated run that
-  reads like a clean success — while both existing guards structurally could not see it: one is scoped to an
-  active run, and a run that never started leaves no files; the other matches past-tense
-  completion claims, and narration is future-tense. Fails open on everything ambiguous, and
-  `stop_hook_active` caps it at one block per stop chain.
-- `Stop` — two **advisory, never-blocking** hooks (`hooks/anti-rationalization.mjs` flags
-  completion claims the board/T0 facts contradict — including a future-tense promise left as the
-  session's last word; `hooks/slop-cleaner.mjs` flags TODO/`console.log`/commented-out-code
-  leftovers in the session's diff). They emit at most a `systemMessage` — "QA is a level-up, not
-  a gate."
-- `PreCompact` — `hooks/compact-snapshot.mjs` persists the mid-run `RunSnapshot` to
-  `.shapeup/<slug>/run-snapshot.json` before the conversation is compacted.
+| Layer | Works when | Fails how |
+|---|---|---|
+| **Wall** — a hook | Under every permission mode, including `bypassPermissions`. The CLI runs it; the model cannot decline it. | Fail-OPEN on anything ambiguous, and every evaluation writes a decision row, so "permitted" never looks like "never ran". |
+| **Runtime** — the kernel and the run script | When the run goes through the harness. A schema rejection or a non-zero exit stops the step. | A lane that never calls the kernel is never checked — which is why the hooks below cover the doors, not the steps. |
+| **Advisory** — a report section | When somebody reads the artifact. | Silently, if nobody does. It is a cleanup list, never a verdict. |
+
+**Four walls.** These are hooks because nothing in the runtime can substitute for them:
+
+- `PreToolUse` (`Skill`) — **`hooks/gate-intake.mjs` denies a `tech-lead` dispatch that carries no
+  pitch, no spec folder, and no requirement text.** Observed, not theorized: when the requirement
+  text is dropped on the hand-off and only a flag survives, the run prints the gate list, builds
+  nothing, and reads like a success while leaving every defect in the deliverable.
+- `PreToolUse` (`Skill|Agent`) — **`harness verify envelope` denies any worker dispatch whose order
+  file is missing or fails the WorkOrder schema.** A malformed envelope never reaches a worker.
+- `PreToolUse` (`Edit|Write|MultiEdit`) — **`hooks/sandbox-guard.mjs` blocks a write that no LIVE
+  order's substrate permits.** It reads every compiled-but-not-yet-ingested order rather than a
+  pointer to one, so scopes building concurrently are each held to their own contract; `frozen`
+  outranks everything, across all of them.
+- `PreToolUse` (`Bash|Read|Write|Edit|MultiEdit`) — **`hooks/safety-spine.mjs` denies destructive
+  commands** (`rm -rf` on unrecoverable targets, force-push/push-to-main, `git reset --hard`,
+  `DROP TABLE`) and secret-file reads. A machine guard, not a pipeline guard; the escape hatch is
+  the human-authored `.shapeup/safety-overrides.json`.
+
+**One blocking Stop hook**, and it is the narrowest thing in the repo:
+
+- `Stop` — **`hooks/gate-zerowork.mjs` blocks a session that dispatched the orchestrator and left
+  no run receipt.** Its predicate is mechanical — orchestrator dispatched AND no
+  `.shapeup/<slug>/receipt.json` — so it never judges quality; it reports that no work exists to
+  judge. It exists because this harness was repeatedly observed describing its own pipeline instead
+  of running it: a narrated run that reads like a clean success. Fails open on everything
+  ambiguous, and `stop_hook_active` caps it at one block per stop chain.
+
+**What the runtime carries instead** (v2.0 retired six hooks whose work moved here):
+
+| Was a hook | Is now | What changed |
+|---|---|---|
+| `gate-l2` (EVAL over an unfinished board) | The GATE L2 block, which names `green_scopes` and `hammer_proposals` | It was advisory either way; now the same facts reach the human who answers the gate rather than a warning line above it. |
+| `gate-deadline` (deny builds past the wall clock) | `harness verify budget --strict`, checked at every round boundary | **A real coverage change, stated rather than hidden:** the round loop stops the run from opening ANOTHER round, but no longer interrupts a single build leg that runs long. `attempt_budget` bounds that leg by attempts instead. |
+| `session-rehydrate` + `compact-snapshot` | `harness reduce graph --slug <slug> --subgraph run` | A hook fired at two moments the platform chose; a command answers whenever the question is asked, including the moments a hook never saw. |
+| `anti-rationalization` (claims the facts contradict) | The ship report's census, derived from the board and the T0 artifacts | The facts are in an artifact a teammate finds on `git pull`, not in a transcript nobody re-reads. |
+| `slop-cleaner` (TODO/`console.log` leftovers) | The ship report's **Leftovers** section | Same scan, same added-lines-only rule; it lands somewhere checkable. |
+
+**Nothing load-bearing depends on permission mode.** The four walls plus the zero-work gate run
+under every mode. The kernel needs a grant to be *invoked* — two Bash lines `npx shapeup-sdlc init`
+writes — but a session that never gets that grant is a session that cannot run the pipeline at all,
+not one that runs it unguarded.
 
 No hook makes a network request, none has dependencies, and all are plain, readable `.mjs`
 files. **[SECURITY.md](SECURITY.md)** states what each hook reads, what it can deny, and what
@@ -300,17 +303,14 @@ claude --plugin-dir .                # load this working copy without installing
   plugin.json         # plugin manifest
   marketplace.json    # marketplace listing (points at this repo)
 skills/<name>/SKILL.md # the 12 harness skills (+ references/ and assets/)
-skills/tech-lead/scripts|schemas/        # orchestrator pipeline: init-run, gate-answers,
-                                         #   budget-check, compile-order, ingest-result, validate-envelope,
-                                         #   t0-verify, trace-lint, aegis-digest, run-snapshot,
-                                         #   stats + envelope and gate-answer schemas
-skills/ba-pitch-analyzer/scripts/        # planner mechanics: board-derive, spec-lint
-skills/spec-evaluator/scripts/           # verdict-ledger (reference impl of the flip/confidence grammar)
+skills/tech-lead/schemas/                # the envelope port: WorkOrder, WorkResult, domain registry
+skills/tech-lead/workflows/shapeup-run.js # the BUILD-phase pipeline, on the native Workflow runtime
+kernel/harness.mjs    # ONE entry point for every deterministic step; the whole permission grant
+kernel/{verify,reduce,probe,init,report}/ #   its subcommands, plus compile and gate at the root
+kernel/lib/           # argv (the typed CLI boundary), paths (+ the run key), contract (shape)
 commands/*.md         # slash commands (/ship + the 9 phase commands)
-hooks/                # hooks.json + safety-spine, gate-l2, gate-intake, gate-deadline,
-                      #   sandbox-guard (PreToolUse),
-                      #   gate-zerowork (Stop, blocking), anti-rationalization, slop-cleaner (Stop, advisory),
-                      #   compact-snapshot (PreCompact), session-rehydrate (SessionStart)
+hooks/                # hooks.json + the four walls: safety-spine, gate-intake, sandbox-guard
+                      #   (PreToolUse) + gate-zerowork (Stop, the one blocking hook)
                       #   + lib/decision.mjs (every hook records allow / deny / error)
 oracles/              # the evaluation-contract oracle registry (test · snapshot · http · process)
 bin/init.mjs          # `npx shapeup-sdlc init` — scaffolds all three CLI targets

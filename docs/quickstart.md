@@ -102,7 +102,7 @@ Suppose two tasks are still unfinished and the agent decides it has done enough:
 /eval
 ```
 
-**Verbatim output** — this is the real `hooks/gate-l2.mjs` warning, not a paraphrase:
+**Verbatim output** — this is the gate's real warning, not a paraphrase:
 
 ```
 ⚠ GATE L2 — the board is NOT green and the EVAL is proceeding anyway.
@@ -113,20 +113,20 @@ means the finished part passed. Route back to BUILD (task-executor) to close the
 or use --task for a deliberate single-task check.
 ```
 
-That text is produced by a script that read the board twice — per-task frontmatter *and* the
-board table — and it is recorded as a `warn` row in `.shapeup/decisions.jsonl`. **GATE L2 is
-advisory**: the operator asked for the call and the board is local to this machine, so the hook
-reports rather than refuses. What it buys is that "evaluated a green board" and "evaluated a
-half-green board anyway" are two different, countable facts — a PASS over an incomplete board
-can never later be read as a complete one.
+That text is derived from the board read twice — per-task frontmatter *and* the board table — and
+it travels in the GATE L2 block itself, so whoever answers the gate sees it. **GATE L2 is
+advisory**: the operator asked for the call and the board is local to this machine, so it reports
+rather than refuses. What it buys is that "evaluated a green board" and "evaluated a half-green
+board anyway" are two different, countable facts — a PASS over an incomplete board can never later
+be read as a complete one.
 
-> **The hooks that do refuse.** Advisory is GATE L2's own choice, not the harness's posture.
+> **The layers that do refuse.** Advisory is GATE L2's own choice, not the harness's posture.
 > `harness verify envelope` denies a worker dispatch whose order is missing or schema-invalid;
-> `sandbox-guard.mjs` denies a write the active order's substrate does not permit;
+> `sandbox-guard.mjs` denies a write no live order's substrate permits;
 > `gate-intake.mjs` denies an orchestrator dispatch with no requirement in it;
 > `safety-spine.mjs` denies `rm -rf ~`, force-push, `DROP TABLE` and secret reads; and
 > `gate-zerowork.mjs` blocks a session that reached the orchestrator and left no run receipt.
-> Those are `deny` decisions from scripts, and no amount of reasoning gets past them.
+> Those are `deny` decisions from hooks, and no amount of reasoning gets past them.
 
 ## 6. Evaluate — a FAIL round
 

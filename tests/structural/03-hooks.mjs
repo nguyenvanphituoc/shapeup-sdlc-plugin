@@ -451,55 +451,15 @@ export async function run(ctx) {
 
 
   // =============================================================================
-  section("28. Advisory Stop hooks inform but can never block (QA is a level-up, not a gate)");
+  section("28. The leftovers scan moved into the ship report, and stayed advisory");
   // =============================================================================
+  // It was an advisory Stop hook: it printed once, into a transcript, at the moment a session
+  // ended — the channel least likely to be read and impossible to check afterwards. The scan is
+  // unchanged; where its answer lands is not. These checks are on the SCANNER (a pure function,
+  // which is why it was worth keeping) and on the report carrying it as a SECTION rather than a
+  // verdict, because "QA is a level-up, not a gate" has to survive the move.
   {
-    const arPath = join(ROOT, "hooks/anti-rationalization.mjs");
-    const scPath = join(ROOT, "hooks/slop-cleaner.mjs");
-    const d = mkdtempSync(join(tmpdir(), "stop-"));
-    const w = (rel, body) => { mkdirSync(dirname(join(d, rel)), { recursive: true }); writeFileSync(join(d, rel), body); };
-    w(".shapeup/active-scope", JSON.stringify({ slug: "demo", scope_id: "cart" }));
-    w(".shapeup/demo/tasks/TASK-001.md", `---\nid: TASK-001\nstatus: done\n---\n`);
-    w(".shapeup/demo/tasks/TASK-002.md", `---\nid: TASK-002\nstatus: in-progress\n---\n`);
-    w(".shapeup/demo/t0/verdicts/r1-a1.json", JSON.stringify({ overall: "red" }));
-
-    const stop = (path, payload) => {
-      const r = spawnSync("node", [path], { encoding: "utf8", input: JSON.stringify(payload) });
-      let out = null;
-      try { out = JSON.parse(r.stdout); } catch { /* silent */ }
-      return { status: r.status, out, raw: r.stdout };
-    };
-
-    const claim = { cwd: d, stop_hook_active: false, last_assistant_message: "All done — feature complete, all tests pass." };
-    const red = stop(arPath, claim);
-    if (red.status === 0 && red.out?.systemMessage) ok("claim + contradicting facts → advisory systemMessage");
-    else fail(`expected systemMessage on red fixture, got: ${red.raw}`);
-    if (red.out?.systemMessage?.includes("TASK-002") && red.out?.systemMessage?.includes("red")) ok("message names the specific facts (task + red T0)");
-    else fail(`message doesn't name the facts: ${red.out?.systemMessage}`);
-    if (red.out && !("decision" in red.out)) ok("output carries NO decision key — advisory can never block");
-    else fail("advisory hook emitted a decision key — that's a gate, not a level-up");
-
-    const claimless = stop(arPath, { ...claim, last_assistant_message: "Still investigating the parser." });
-    if (claimless.status === 0 && !claimless.out) ok("no completion claim → silent");
-    else fail(`claimless message should be silent, got: ${claimless.raw}`);
-
-    const looping = stop(arPath, { ...claim, stop_hook_active: true });
-    if (looping.status === 0 && !looping.out) ok("stop_hook_active → silent (no stop-hook loops)");
-    else fail("hook fired while stop_hook_active");
-
-    w(".shapeup/demo/tasks/TASK-002.md", `---\nid: TASK-002\nstatus: done\n---\n`);
-    w(".shapeup/demo/t0/verdicts/r1-a2.json", JSON.stringify({ overall: "green" }));
-    const green = stop(arPath, claim);
-    if (green.status === 0 && !green.out) ok("green board + green T0 → claim stands, silent");
-    else fail(`green fixture should be silent, got: ${green.raw}`);
-
-    const noRun = mkdtempSync(join(tmpdir(), "norun-"));
-    const idle = stop(arPath, { cwd: noRun, stop_hook_active: false, last_assistant_message: "All done." });
-    if (idle.status === 0 && !idle.out) ok("no harness run → silent (harness-scoped, not an always-on nag)");
-    else fail(`no-run case should be silent, got: ${idle.raw}`);
-
-    // slop-cleaner: pure scanner unit + fail-open CLI.
-    const { scanDiff, summarize } = await import(scPath);
+    const { scanDiff, summarize } = await import(join(ROOT, "kernel/reduce/leftovers.mjs"));
     const dirtyDiff = [
       "+++ b/src/x.ts", "+console.log(1)", "+// TODO fix this later", "+const a = 1;",
       "+++ b/src/clean.ts", "+const b = 2;",
@@ -513,21 +473,30 @@ export async function run(ctx) {
     const bigDiff = ["+++ b/src/gen.ts", ...Array.from({ length: 500 }, (_, i) => `+line ${i}`)].join("\n");
     if (scanDiff(bigDiff)[0]?.big && summarize(scanDiff(bigDiff))[0].includes("+500 lines")) ok("scanDiff flags a 500-line single-file add");
     else fail("scanDiff missed the big-file signal");
-    const scIdle = stop(scPath, { cwd: noRun, stop_hook_active: false });
-    if (scIdle.status === 0 && !scIdle.out) ok("slop-cleaner: no run → silent exit 0 (fail-open)");
-    else fail(`slop-cleaner no-run case not silent: ${scIdle.raw}`);
-    rmSync(d, { recursive: true, force: true });
-    rmSync(noRun, { recursive: true, force: true });
+
+    // The report carries it as a section, and the section is absent when there is nothing to say —
+    // a "Leftovers: none" heading on every report is how a signal becomes furniture.
+    const { buildReport } = await import(join(ROOT, "kernel/reduce/ship.mjs"));
+    const base = {
+      slug: "demo", at: "2026-08-14", verdict: "PASS", qa: "run", rounds: 1,
+      board: { done: 1, total: 1, unfinished: [] }, t0: [], artifacts: 0, ratchet: null,
+    };
+    const withSlop = buildReport({ ...base, leftovers: ["src/x.ts: TODO/FIXME ×1"] });
+    if (/## Leftovers \(advisory\)/.test(withSlop) && withSlop.includes("src/x.ts")) ok("the ship report carries a Leftovers section naming the file");
+    else fail("the ship report dropped the leftovers scan — the check moved out of the hook and into nothing");
+    if (!/verdict: .*leftover/i.test(withSlop)) ok("leftovers do not touch the verdict — still advisory after the move");
+    else fail("leftovers reached the verdict — an advisory scan became a gate");
+    const clean = buildReport({ ...base, leftovers: [] });
+    if (!/## Leftovers/.test(clean)) ok("no leftovers → no section (a heading on every report is furniture, not a signal)");
+    else fail("the report prints an empty Leftovers section");
   }
 
 
   // =============================================================================
-  section("29. run-snapshot derives mid-run state from files only; compact/rehydrate hooks carry it");
+  section("29. run-snapshot derives mid-run state from files only");
   // =============================================================================
   {
     const rsPath = join(ROOT, "kernel/reduce/snapshot.mjs");
-    const csPath = join(ROOT, "hooks/compact-snapshot.mjs");
-    const srPath = join(ROOT, "hooks/session-rehydrate.mjs");
     const d = mkdtempSync(join(tmpdir(), "snap-"));
     const w = (rel, body) => { mkdirSync(dirname(join(d, rel)), { recursive: true }); writeFileSync(join(d, rel), body); };
     w(".shapeup/active-scope", JSON.stringify({ slug: "demo", scope_id: "cart" }));
@@ -566,24 +535,16 @@ export async function run(ctx) {
     if (rEmpty.status === 0 && !rEmpty.stdout.trim()) ok("no active run → exit 0, empty stdout (fail-open)");
     else fail(`empty dir should be silent, got status=${rEmpty.status} stdout=${rEmpty.stdout}`);
 
-    rmSync(join(d, ".shapeup/demo/run-snapshot.json"));
-    const rCompact = spawnSync("node", [csPath], { encoding: "utf8", input: JSON.stringify({ cwd: d, trigger: "auto" }) });
-    if (rCompact.status === 0 && existsSync(join(d, ".shapeup/demo/run-snapshot.json"))) ok("PreCompact hook persists the snapshot mid-run");
-    else fail(`compact-snapshot failed: status=${rCompact.status} ${rCompact.stderr}`);
-    const rCompactIdle = spawnSync("node", [csPath], { encoding: "utf8", input: JSON.stringify({ cwd: empty, trigger: "auto" }) });
-    if (rCompactIdle.status === 0) ok("PreCompact hook exits 0 with no run (never blocks compaction)");
-    else fail("compact-snapshot blocked on an empty dir");
-
-    const rRehy = spawnSync("node", [srPath], { encoding: "utf8", input: JSON.stringify({ cwd: d, source: "compact" }) });
-    let rehyOut = null;
-    try { rehyOut = JSON.parse(rRehy.stdout); } catch { /* silent */ }
-    const ctx = rehyOut?.hookSpecificOutput?.additionalContext || "";
-    if (rehyOut?.hookSpecificOutput?.hookEventName === "SessionStart" && ctx.includes("mid-run") && ctx.includes("demo") && ctx.includes("round 1"))
-      ok("SessionStart(compact) injects the rehydrate hint as additionalContext");
-    else fail(`rehydrate output wrong: ${rRehy.stdout.slice(0, 120)}`);
-    const rRehyIdle = spawnSync("node", [srPath], { encoding: "utf8", input: JSON.stringify({ cwd: empty, source: "compact" }) });
-    if (rRehyIdle.status === 0 && !rRehyIdle.stdout.trim()) ok("rehydrate is silent with no active run");
-    else fail("rehydrate spoke with no run active");
+    // REHYDRATION IS A COMMAND NOW, not two hooks. `session-rehydrate` injected this snapshot as
+    // additionalContext on SessionStart and `compact-snapshot` froze it before compaction; both are
+    // gone, because the same answer is one query a relaunch already makes — and a query the
+    // orchestrator can run at any point, not only at the two moments a hook happened to fire.
+    const rGraph = spawnSync("node", [join(ROOT, "kernel/harness.mjs"), "reduce", "graph", "--slug", "demo", "--cwd", d, "--subgraph", "run"],
+      { encoding: "utf8" });
+    let sub = null;
+    try { sub = JSON.parse(rGraph.stdout); } catch { /* asserted below */ }
+    if (rGraph.status === 0 && sub && typeof sub.orders === "number") ok("`reduce graph --subgraph run` answers the rehydration question the retired hooks used to carry");
+    else fail(`the graph query does not answer for a mid-run tree: exit ${rGraph.status}, ${String(rGraph.stdout).slice(0, 120)}`);
     rmSync(d, { recursive: true, force: true });
     rmSync(empty, { recursive: true, force: true });
   }

@@ -166,8 +166,9 @@ the run ends.
 
 ### GATE L2 becomes advisory
 
-`hooks/gate-l2.mjs` keeps reading the board from both independent sources and keeps naming the
-unfinished tasks. It stops denying the dispatch; it emits a `systemMessage` instead.
+The board census keeps reading from both independent sources and keeps naming the unfinished
+tasks. It stops denying the dispatch. (In v2.0 the hook itself was retired and the census travels
+in the GATE L2 block, which puts the same facts in front of whoever answers the gate.)
 
 `hooks/lib/decision.mjs` gains a `warn` verdict. Without it an advisory permit would be
 byte-identical in `decisions.jsonl` to "board was green, permitted" — the exact

@@ -8,27 +8,6 @@
             "command": "echo \"shapeup-sdlc-plugin loaded from ${CLAUDE_PLUGIN_ROOT}\""
           }
         ]
-      },
-      {
-        "matcher": "startup|compact|resume|clear",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-rehydrate.mjs\"",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/compact-snapshot.mjs\"",
-            "timeout": 10
-          }
-        ]
       }
     ],
     "PreToolUse": [
@@ -47,27 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/gate-l2.mjs\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "Skill",
-        "hooks": [
-          {
-            "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/gate-intake.mjs\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "Skill",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/gate-deadline.mjs\"",
             "timeout": 10
           }
         ]
@@ -100,16 +59,6 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/gate-zerowork.mjs\"",
             "timeout": 10
-          },
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/anti-rationalization.mjs\"",
-            "timeout": 10
-          },
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/slop-cleaner.mjs\"",
-            "timeout": 15
           }
         ]
       }

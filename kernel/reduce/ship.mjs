@@ -35,6 +35,7 @@ import {
 } from "../lib/paths.mjs";
 import { readTrials } from "../verify/t0.mjs";
 import { ratchetReport } from "../probe/stats.mjs";
+import { collectDiff, scanDiff, summarize } from "./leftovers.mjs";
 
 /** @returns {string} Today as `YYYY-MM-DD` (UTC). */
 const today = () => new Date().toISOString().slice(0, 10);
@@ -165,7 +166,7 @@ export function section(md, heading) {
 export function buildReport(facts) {
   const {
     slug, at, verdict, qa, rounds, board, t0, artifacts, ratchet,
-    evalCriteria, evalBugs, qaFindings, decisions, discovered, intakeSha,
+    evalCriteria, evalBugs, qaFindings, decisions, discovered, intakeSha, leftovers,
   } = facts;
 
   const L = [];
@@ -188,6 +189,16 @@ export function buildReport(facts) {
   if (board.unfinished.length) {
     L.push(`> **${board.unfinished.length} task(s) did not finish:** ${board.unfinished.join(", ")}.`,
       "> The verdict above grades what was built, not what was planned.", "");
+  }
+
+  // Leftovers — advisory, and a SECTION rather than a verdict. It was a Stop hook that printed once
+  // into a transcript; here it lands in the artifact a human reads at GATE L4 and a teammate finds
+  // on `git pull`, which is the difference between a note and a record.
+  if (leftovers?.length) {
+    L.push("## Leftovers (advisory)", "");
+    L.push("Markers in lines this run ADDED. Not a gate and not part of the verdict — a cleanup list.", "");
+    for (const line of leftovers) L.push(`- ${line}`);
+    L.push("");
   }
 
   if (t0.length) {
@@ -274,6 +285,11 @@ export function generate({ cwd, slug, verdict, qa }) {
     qaFindings: section(huntReport, /^#+\s*Findings?\b/i),
     decisions: section(ledger, /^#+\s*Decisions?\b/i),
     discovered: section(discovery, /^#+\s*Discovered\b/i),
+    leftovers: (() => {
+      // Advisory, and derived like everything else here: the run's own diff, added lines only.
+      const diff = collectDiff(cwd, slug);
+      return diff ? summarize(scanDiff(diff)) : [];
+    })(),
   };
   return { markdown: buildReport(facts), path: reportPath(cwd, slug), facts };
 }

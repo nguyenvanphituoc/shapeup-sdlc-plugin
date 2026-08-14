@@ -58,7 +58,7 @@ Two count *events* and are always on; a third counts the *clock* and is opt-in.
 |---|---|---|---|
 | Outer — `round_budget` | Build + eval cycles for the whole run | 3 (appetite-informed) | Route to GATE H — ship what is green, with the residual bug list |
 | Inner — `attempt_budget` | T0 attempts for one scope, inside one round | 5 | Queue a hammer proposal for GATE H; move on to the next scope — never blocks the round |
-| Wall clock — `wall_clock_budget_s` | Elapsed seconds for the whole run | **off** (opt-in, `--wall-clock-budget`) | `hooks/gate-deadline.mjs` denies new `task-executor` work and routes to GATE H |
+| Wall clock — `wall_clock_budget_s` | Elapsed seconds for the whole run | **off** (opt-in, `--wall-clock-budget`) | `harness verify budget --strict` at every round boundary; a trip opens no further round and routes to GATE H |
 
 The wall-clock axis exists because the other two are blind to it: a single round can run for half
 an hour without spending a round or an attempt. Set it *below* any external kill so the harness
@@ -118,7 +118,7 @@ Substrate-disjointness re-asserted via harness verify spec — any red is a hard
 
 ```
 ⏸ GATE L2 — Build Round Complete
-Board        : [N]/[N] tasks ✅   (hook-observed, advisory — see hooks/gate-l2.mjs)
+Board        : [N]/[N] tasks ✅   (derived from the board, advisory)
 T0           : [k]/[k] touched scopes T0-green
 Ready to EVAL: yes
 ```
@@ -171,7 +171,7 @@ no matter what the auto level is.
 > L2 ("confirmed (interactive/auto)", "wait for PO confirmation (interactive/--auto)") are
 > harmless in practice and now read against this ruling: **L0** is where the auto level is
 > *set*, so the run is necessarily interactive there — the inline text is trivially satisfied;
-> **L2**'s check is `hooks/gate-l2.mjs`, which is mode-independent (closed-loop row 4 below).
+> **L2**'s board census travels in the gate block itself (closed-loop row 4 below).
 > Since ADR-0001 it advises rather than denies, so the inline "wait for PO confirmation" phrasing
 > is no longer redundant with a mechanical block — it is the only thing standing there.
 > Follow-up: align the two inline
@@ -186,7 +186,7 @@ no matter what the auto level is.
 | 1 | Run mode = `--unattended` | Auto-confirms all L-gates. Proceeds without a human until PASS, max-rounds, or a hard error — the only three stop conditions in this mode. |
 | 2 | Inner breaker (`attempt_budget`) exhausted for one scope | Does **not** stop anything — queues a hammer proposal and moves to the next scope in sequence (DD-9: a struggling scope must not freeze the others). |
 | 3 | *(none — see note)* | A worker `ESCALATE` is **not** auto-resolved. `harness reduce ingest` queues it; in the workflow lane a phase that produced no artifact **aborts**, naming the phase, because a relaunch would re-dispatch the same order and escalate again. Resolving it is a human step in every mode. |
-| 4 | GATE L2's board-green check (`hooks/gate-l2.mjs`) | A different axis entirely — runtime-vs-model, not PO-vs-model. Never asks a human; reads the board in *every* mode and **warns** when the EVAL dispatch runs over unfinished tasks (advisory since ADR-0001 — the board is per-machine and the operator asked for the call). Recorded as a `warn` row in `decisions.jsonl`, so a non-green evaluation stays countable. |
+| 4 | GATE L2's board census | A different axis entirely — runtime-vs-model, not PO-vs-model. Never asks a human; the gate block carries `green_scopes` and `hammer_proposals` derived from the round's own results, so an EVAL over unfinished work is visible to whoever answers the gate. Advisory since ADR-0001 — the board is per-machine and the operator asked for the call. |
 | 5 | `--no-eval` | Tech-lead judgment call (or PO instruction) for trivial features — skips the evaluator, goes straight to SHIP with verdict `not-evaluated` recorded. |
 | 6 | `--no-qa` | Skips the post-PASS edge hunt; ledger records `qa: skipped`. |
 | 7 | BUILD-loop internals (r=1 tasks, r>1 bugs) | Neither requires a human step-by-step — only the round *boundaries* (L2, L3) are gated per whichever mode is active. |

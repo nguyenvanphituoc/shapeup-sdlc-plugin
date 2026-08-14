@@ -1,27 +1,23 @@
-#!/usr/bin/env node
-// Slop cleaner — advisory Stop hook (v1.2).
+// leftovers — what the run's own diff still carries that nobody meant to ship.
 //
-// Scans what actually changed this session (git diff of the working tree; fallback: the
-// newest WorkResult's files_touched) for the classic leftovers — TODO/FIXME markers,
-// console.log/debugger, blocks of commented-out code, one file swallowing hundreds of added
-// lines — and mentions them to the user on stop.
+// TODO/FIXME markers, `console.log`/`debugger`, blocks of commented-out code, one file swallowing
+// hundreds of added lines. Added lines only: a marker the feature did not introduce is somebody
+// else's, and a report that lists those is a report people learn to skim.
 //
-// ADVISORY ONLY, same contract as anti-rationalization.mjs: exit 0 always, at most
-// { systemMessage }, never { decision:"block" }, never exit 2 ("QA is a level-up, not a
-// gate"). Harness-scoped: silent unless a run is active.
+// WHY IT IS PART OF THE SHIP REPORT AND NOT A STOP HOOK. It used to be an advisory Stop hook that
+// printed once, into a transcript, at the moment a session ended — the channel least likely to be
+// read and impossible to check later. The ship report is the artifact a human actually reads at
+// GATE L4 and the one a teammate finds on `git pull`, so a leftover recorded there is a leftover
+// somebody can act on. Nothing about the check changed; only where its answer lands.
 //
-// Contract: Stop stdin JSON { cwd, stop_hook_active }.
+// Advisory by construction: it is a SECTION, never a verdict. QA is a level-up, not a gate.
 
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { activeSlug } from "./anti-rationalization.mjs";
-import { isMain } from "../kernel/lib/argv.mjs";
-import { LOCAL, SHARED, resultsDir } from "../kernel/lib/paths.mjs";
+import { LOCAL, SHARED, resultsDir } from "../lib/paths.mjs";
 
-import { runHook, readStdin, settle } from "./lib/decision.mjs";
-
-// Harness bookkeeping is never "slop" — skip both storage roots, whichever names they carry.
+// Harness bookkeeping is never a leftover — skip both storage roots, whichever names they carry.
 const SKIP_PATH = new RegExp(`^(${[LOCAL, SHARED].map((r) => r.replace(/[.\\]/g, "\\$&")).join("|")})/`);
 const MAX_FILES = 30;
 const MAX_ADDED_LINES_PER_FILE = 400;
@@ -32,8 +28,16 @@ const MARKERS = [
   { name: "debugger", re: /^\s*debugger\b/ },
 ];
 
-/** Scan a unified diff for slop in ADDED lines only.
- *  Returns [{ file, markers: {name: count}, added, big, commented_code }]. */
+/**
+ * Scan a unified diff for leftovers in ADDED lines only.
+ *
+ * Added lines only, deliberately: a TODO the feature did not introduce is somebody else's, and a
+ * report that lists it is a report people learn to skim.
+ *
+ * @param {string} diffText - A unified diff.
+ * @returns {Array<{file:string, markers:Object<string,number>, added:number, big:boolean, commented_code:boolean}>}
+ *   One entry per dirty file, capped at MAX_FILES.
+ */
 export function scanDiff(diffText) {
   const findings = [];
   let current = null;
@@ -78,7 +82,11 @@ export function scanDiff(diffText) {
   return findings;
 }
 
-/** One human-readable fragment per finding. */
+/**
+ * One human-readable fragment per finding.
+ * @param {Array} findings - The result of {@link scanDiff}.
+ * @returns {string[]} At most six lines, each naming a file and what it carries.
+ */
 export function summarize(findings) {
   return findings.slice(0, 6).map((f) => {
     const bits = Object.entries(f.markers).map(([name, n]) => `${name} ×${n}`);
@@ -88,12 +96,24 @@ export function summarize(findings) {
   });
 }
 
+/**
+ * Run git, returning stdout on success and null otherwise.
+ * @param {string} cwd - Working directory.
+ * @param {string[]} args - Arguments after `git`.
+ * @returns {(string|null)} stdout, or null when git failed or is absent.
+ */
 function git(cwd, args) {
   const r = spawnSync("git", args, { cwd, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 });
   return r.status === 0 ? r.stdout : null;
 }
 
-/** The session's change set as a unified diff — git first, WorkResult fallback. */
+/**
+ * The run's change set as a unified diff — git first, WorkResult fallback.
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {(string|null)} A unified diff, or null when there is nothing to scan.
+ */
+export
 function collectDiff(cwd, slug) {
   const tracked = git(cwd, ["diff", "HEAD"]);
   if (tracked !== null) {
@@ -136,41 +156,4 @@ function collectDiff(cwd, slug) {
     }
   } catch { return null; }
   return diff || null;
-}
-
-async function main() {
-  await runHook("slop-cleaner", async () => {
-  const raw = await readStdin();
-  let p;
-  /** Stay silent — with the reason on the record (hooks/lib/decision.mjs). */
-  const defer = (reason, rule) => settle({ verdict: "allow", event: "Stop", cwd: p?.cwd, reason, rule });
-  try { p = JSON.parse(raw || "{}"); }
-  catch (e) { settle({ verdict: "error", event: "Stop", reason: `unparseable payload: ${e.message}` }); }
-
-  if (p.stop_hook_active) defer("stop_hook_active — never participate in a stop-hook loop", "loop-guard");
-
-  const cwd = p.cwd || process.cwd();
-  const slug = activeSlug(cwd);
-  if (!slug) defer("no active run — stay silent", "no-run");
-
-  const diff = collectDiff(cwd, slug);
-  if (!diff) defer("no diff to scan", "no-diff");
-
-  const findings = scanDiff(diff);
-  if (findings.length === 0) defer("diff scanned, no leftovers found — inspected and permitted", "diff-clean");
-
-  return {
-    verdict: "allow", event: "Stop", cwd, subject: slug, rule: "slop-found", emit: true,
-    reason: `${findings.length} leftover(s) in the recent diff — advisory note emitted, not a block`,
-    payload: {
-      systemMessage:
-        `slop-cleaner (advisory): recent edits carry leftovers — ${summarize(findings).join("; ")}. ` +
-        `Not blocking — consider a cleanup pass.`,
-    },
-  };
-  });
-}
-
-if (isMain(import.meta.url)) {
-  main();
 }

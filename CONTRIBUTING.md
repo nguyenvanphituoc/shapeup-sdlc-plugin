@@ -40,7 +40,7 @@ claude --plugin-dir .                # load this working copy in a session, with
 There is no build. Skills are markdown, hooks and scripts are plain `.mjs` with no
 dependencies. If `npm test` and `claude plugin validate . --strict` both pass, CI will too.
 
-To re-record the README demo after changing `hooks/gate-l2.mjs`:
+To re-record the README demo after changing a gate:
 
 ```bash
 npm run demo
@@ -89,7 +89,7 @@ is an explicit goal, not a fact of life.
 Hooks are the load-bearing part of this project, so they get the strictest rule:
 **fail open, never closed, unless you can prove the bad state.**
 
-`hooks/gate-l2.mjs` is the reference implementation and its header comment explains the
+`hooks/sandbox-guard.mjs` is the reference implementation and its header comment explains the
 reasoning. It denies only when it can positively read a partial board; a missing board, an
 unparseable payload, or an unrecognised invocation shape all defer to the normal permission
 flow. A gate that breaks legitimate runs gets disabled by its users, and then it protects
