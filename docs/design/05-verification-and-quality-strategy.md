@@ -52,9 +52,10 @@ that was entirely present (§3.2g).
 Two things that have NOT changed, stated because a new instrument invites both misreadings:
 
 - **Row 4 is unfed, and an unfed instrument is not a measurement.** The figures below the fold in
-  `--economics` are zero-row projections until a full pipeline run produces a trace; the launcher
-  defect that blocks one is open in `shapeup/knowledge-base/harness-defects.md`. This row says the
-  instrument exists — it does not say anything has been measured.
+  `--economics` are zero-row projections until a full pipeline run produces a trace, and none has:
+  the installer writes a permission prefix that ends mid-argument, so it grants nothing and the
+  pipeline stops at its first dispatch. This row says the instrument exists — it does not say
+  anything has been measured.
 - **Row 2 is untouched.** The export can hold per-run acceptance, but "versus baseline" needs a
   second arm and no baseline dataset exists. A read plane over one run's records cannot manufacture
   a comparison, and presenting one run's numbers as a delta would be exactly the misreading column
