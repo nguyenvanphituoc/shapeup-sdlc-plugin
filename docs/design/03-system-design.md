@@ -355,7 +355,7 @@ summary without noticing*: re-dispatching an already-ingested order, miscounting
 The resilience pair makes re-reading the files a reflex:
 
 - **`harness reduce snapshot`** (in `kernel/`) derives a `RunSnapshot`
-  (registered in the domain registry) from **files only** — the active-scope pointer,
+  (registered in the domain registry) from **files only** — the run pointer,
   `harness-run.md` frontmatter, board frontmatter, `t0/verdicts/` filenames, and the
   `orders/` vs `results/` diff — and self-validates it against the registry before emitting.
 - **`compact-snapshot.mjs`** (PreCompact) persists that snapshot to

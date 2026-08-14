@@ -19,7 +19,7 @@
 //   2. IT MATCHED NO PERMISSION GRANT. An inline `node -e` matches no rule in `permissions.allow`
 //      and passes only at the safety classifier's discretion. As a named script it is covered by
 //      the per-script rules the installer writes (`bin/lib/grant.mjs`).
-//   3. TWO WRITES HAD NO READER. `setRunStatus` and `writeActiveScope` were the only `mech()`
+//   3. TWO WRITES HAD NO READER. `setRunStatus` and the substrate pointer were the only
 //      call sites in the workflow whose return value was discarded — and they are the only two
 //      whose failure went unnoticed for two entire runs. `status` never left `orienting` across
 //      46 dispatched agents, and `.shapeup/active-scope` still named scope 1 while scope 2 was
@@ -52,7 +52,6 @@
 //   node resume-state.mjs --slug <slug> [--cwd <dir>]              # derive, print ResumeState
 //   node resume-state.mjs --slug <slug> --require <phase>          # post-condition: exit 6 if unmet
 //   node resume-state.mjs --slug <slug> --set-status <status>      # write harness-run.md status
-//   node resume-state.mjs --slug <slug> --set-active-scope <id>    # write the substrate pointer
 //
 // Exit: 0 ok · 2 malformed argv (nothing ran) · 3 the target the operation needs is not on disk ·
 //       6 the required phase's artifact is NOT on disk (the phase did not complete).
@@ -269,35 +268,6 @@ export function setRunStatus(cwd, slug, status) {
 }
 
 /**
- * Point the substrate pointer at the scope about to be built. `hooks/sandbox-guard.mjs` reads
- * this to decide which write-whitelist a worker is held to, so a failed write here does not
- * degrade gracefully — it silently enforces the WRONG scope's substrate.
- *
- * @param {string} cwd - Project root.
- * @param {string} slug - Feature slug.
- * @param {string} scopeId - Scope contract id.
- * @returns {{ok: boolean, path: string, slug: string, scope_id: string, reason?: string}} Outcome.
- */
-export function writeActiveScope(cwd, slug, scopeId) {
-  const p = activeScope(cwd);
-  // A throw here would exit 1 with a stack trace and an empty stdout — readable enough to the
-  // workflow (any non-zero aborts the scope), but the caller learns nothing it can log. Report the
-  // failure as the same outcome record every other operation returns.
-  try {
-    mkdirSync(dirname(p), { recursive: true });
-    writeFileSync(p, `${JSON.stringify({ slug, scope_id: scopeId }, null, 2)}\n`);
-  } catch (e) {
-    return { ok: false, path: p, slug, scope_id: scopeId, reason: `could not write the substrate pointer: ${e.message}` };
-  }
-  let readBack;
-  try { readBack = JSON.parse(readFileSync(p, "utf8")); } catch { readBack = null; }
-  if (readBack?.scope_id !== scopeId || readBack?.slug !== slug) {
-    return { ok: false, path: p, slug, scope_id: scopeId, reason: `pointer read back as ${JSON.stringify(readBack)} — sandbox-guard would hold the next worker to the wrong substrate` };
-  }
-  return { ok: true, path: p, slug, scope_id: scopeId };
-}
-
-/**
  * Point the substrate pointer at the order about to be executed.
  *
  * @param {string} cwd - Project root.
@@ -323,13 +293,12 @@ export function writeActiveOrder(cwd, slug, orderPath) {
 
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "harness.mjs probe resume --slug <slug> [--cwd <dir>] [--require <phase> | --set-status <status> | --set-active-scope <scope-id> | --set-active-order <path>]",
+  usage: "harness.mjs probe resume --slug <slug> [--cwd <dir>] [--require <phase> | --set-status <status> | --set-active-order <path>]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   slug: { type: "str", required: true },
   cwd: { type: "path" },
   require: { type: "enum", values: PHASES },
   "set-status": { type: "enum", values: RUN_STATUSES },
-  "set-active-scope": { type: "str" },
   "set-active-order": { type: "str" },
 };
 
@@ -344,7 +313,7 @@ export function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = args.cwd || process.cwd();
 
-  const ops = [args.require && "--require", args.setStatus && "--set-status", args.setActiveScope && "--set-active-scope", args.setActiveOrder && "--set-active-order"].filter(Boolean);
+  const ops = [args.require && "--require", args.setStatus && "--set-status", args.setActiveOrder && "--set-active-order"].filter(Boolean);
   if (ops.length > 1) {
     process.stderr.write(JSON.stringify({ error: "conflicting_flags", flags: ops, expected: "one operation per invocation" }) + "\n");
     process.exit(2);
@@ -367,12 +336,6 @@ export function cli(rawArgv) {
 
   if (args.setStatus) {
     const r = setRunStatus(cwd, args.slug, args.setStatus);
-    console.log(JSON.stringify(r));
-    process.exit(r.ok ? 0 : 3);
-  }
-
-  if (args.setActiveScope) {
-    const r = writeActiveScope(cwd, args.slug, args.setActiveScope);
     console.log(JSON.stringify(r));
     process.exit(r.ok ? 0 : 3);
   }

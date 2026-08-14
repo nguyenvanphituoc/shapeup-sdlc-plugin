@@ -26,7 +26,7 @@ first:
 
 ```mermaid
 flowchart TD
-    S0["Checkout scope branch\nwrite .shapeup/active-scope pointer"] --> A1
+    S0["Compile the scope order\n(its substrate is the fence)"] --> A1
     subgraph LOOP["attempt 1 .. attempt_budget (default 5)"]
       A1["harness compile\n(scope contract + tasks + prior decisions\n+ last attempt's digested errors)"] --> A2["task-executor\n(fresh Agent — zero prior chat history)"]
       A2 --> A3["harness reduce ingest\n(board + ledger writes)"]

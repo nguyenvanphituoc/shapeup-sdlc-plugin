@@ -325,6 +325,39 @@ export async function run(ctx) {
       const e = ask(scoped, join(scoped, "apps/api/payments/handler.ts"), "Bash");
       if (!e.denied) ok("sandbox guard ignores non-Edit/Write/MultiEdit tool calls");
       else fail("sandbox guard wrongly gated a non-write tool call");
+
+      // 10. CONCURRENCY. Two scopes build at once; the pointer names only one of them. Under the
+      //     old single-pointer read, the other scope's every write was denied — a false block that
+      //     scales with the fan-out, and one that only appears when scopes actually run in
+      //     parallel, which is exactly when nobody is watching a single leg.
+      //
+      //     The guard reads every LIVE order instead: compiled, with no matching result on disk.
+      //     So the assertions are (a) the un-pointed scope's own substrate is honoured, (b) a path
+      //     no live order claims is still denied — the enforcement did not simply widen to
+      //     everything — and (c) an order whose result HAS landed stops authorising writes.
+      const twoOrderPath = join(scoped, ".shapeup", "demo", "orders", "sc-02-r1-a1.json");
+      writeFileSync(twoOrderPath, JSON.stringify({
+        schema_version: 1, order_id: "demo/sc-02-r1-a1", worker: "task-executor",
+        mode: "orchestrated", operation: "execute",
+        substrate: { allowed: ["apps/web/checkout/*.tsx"], shared: [], append_only: [], frozen: [] },
+        payload: { feature: "demo" },
+      }, null, 2));
+
+      const par1 = ask(scoped, join(scoped, "apps/web/checkout/Checkout.tsx"));
+      if (!par1.denied) ok("sandbox guard ALLOWS a write inside a LIVE order the pointer does not name (concurrent scopes)");
+      else fail(`sandbox guard denied a write inside a live sibling scope's substrate — a fanned-out build would be blocked on every leg but one\n${par1.out}`);
+
+      const par2 = ask(scoped, join(scoped, "apps/api/payments/handler.ts"));
+      if (par2.denied) ok("sandbox guard still DENIES a path no live order claims (enforcement did not widen to everything)");
+      else fail("sandbox guard allowed a path outside every live order — reading all orders turned into reading none");
+
+      // (c) an ingested order is finished, and a finished scope's substrate closes with it.
+      const resultsDirPath = join(scoped, ".shapeup", "demo", "results");
+      mkdirSync(resultsDirPath, { recursive: true });
+      writeFileSync(join(resultsDirPath, "sc-02-r1-a1.json"), JSON.stringify({ order_id: "demo/sc-02-r1-a1" }));
+      const par3 = ask(scoped, join(scoped, "apps/web/checkout/Checkout.tsx"));
+      if (par3.denied) ok("sandbox guard DENIES a write to an INGESTED order's substrate — a finished scope stops authorising writes");
+      else fail("sandbox guard still honoured an order whose result has landed — every finished scope would stay open for the rest of the run");
     } finally {
       rmSync(scoped, { recursive: true, force: true });
       rmSync(unscoped, { recursive: true, force: true });

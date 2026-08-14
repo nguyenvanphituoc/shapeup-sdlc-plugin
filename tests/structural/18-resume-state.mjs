@@ -244,33 +244,20 @@ export async function run(ctx) {
       fail(`an invalid status was not rejected: exit ${bogus.code}, ${bogus.raw.trim().slice(0, 120)}`);
     }
 
-    // --- (g) the substrate pointer, the write that must not fail quietly ----------------------
-    const pointerTree = tree("pointer", { status: "building", orient: FULL_ORIENT, wiringMap: true, scopes: ["SC-1", "SC-2"] });
-    const pointed = invoke(pointerTree, ["--set-active-scope", "SC-2"]);
-    let pointer = null;
-    try { pointer = JSON.parse(readFileSync(join(pointerTree, ".shapeup", "active-scope"), "utf8")); } catch { /* reported below */ }
-    if (pointed.code === 0 && pointer?.scope_id === "SC-2" && pointer?.slug === SLUG) {
-      ok("--set-active-scope writes the pointer sandbox-guard reads, and reports it back by value");
+    // --- (g) the shared substrate pointer is GONE ---------------------------------------------
+    //
+    // `--set-active-scope` wrote `.shapeup/active-scope` with the scope about to be built, and
+    // sandbox-guard read it to pick a write-whitelist. That is a single mutable pointer, so with
+    // scopes building CONCURRENTLY the last writer wins it and every other leg is fenced by
+    // somebody else's contract. The guard now reads every LIVE ORDER instead (see
+    // tests/structural/03-hooks.mjs), which needs no pointer at all — so the flag must be gone,
+    // not merely unused. A flag that still parses is a flag something will call.
+    const gonePointer = invoke(tree("pointer", { status: "building", orient: FULL_ORIENT, wiringMap: true, scopes: ["SC-1", "SC-2"] }),
+      ["--set-active-scope", "SC-2"]);
+    if (gonePointer.code === 2 && /unknown_flag/.test(gonePointer.raw)) {
+      ok("--set-active-scope is rejected at the argv boundary — the shared substrate pointer has no writer left");
     } else {
-      fail(`the substrate pointer did not land: exit ${pointed.code}, on disk ${JSON.stringify(pointer)} — a worker would be held to another scope's substrate`);
-    }
-
-    // The failure arm, and the reason this check exists in this shape. A first version of it
-    // asserted only the happy path, and mutation-testing caught that: deleting the write's own
-    // read-back left every assertion green. A pointer that cannot be written must produce the same
-    // outcome record every other operation here produces — never a stack trace with an empty
-    // stdout, which tells the workflow "non-zero" and its log nothing. The tree below makes the
-    // write impossible by putting a FILE where the local root's directory has to go.
-    const blocked = join(ws, "pointer-blocked");
-    mkdirSync(blocked, { recursive: true });
-    writeFileSync(join(blocked, ".shapeup"), "not a directory\n");
-    const refused = spawnSync("node", [...SCRIPT, "--slug", SLUG, "--cwd", blocked, "--set-active-scope", "SC-1"], { encoding: "utf8" });
-    let refusedJson = null;
-    try { refusedJson = JSON.parse(refused.stdout); } catch { /* asserted below */ }
-    if (refused.status === 3 && refusedJson?.ok === false && refusedJson?.reason) {
-      ok("--set-active-scope reports an unwritable pointer as an outcome record (exit 3 + reason), not as a stack trace");
-    } else {
-      fail(`an unwritable substrate pointer produced exit ${refused.status} with stdout ${JSON.stringify(refused.stdout).slice(0, 120)} — the caller cannot log why the scope was refused`);
+      fail(`--set-active-scope still parses (exit ${gonePointer.code}) — a shared pointer that survives concurrency will be written by one leg and read by another`);
     }
 
     // --- (i) the post-condition: a RESULT is not a completion (Stage A3, rows G1/G2) ----------

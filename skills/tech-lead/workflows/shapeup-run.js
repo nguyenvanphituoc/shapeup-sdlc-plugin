@@ -34,7 +34,8 @@
 // args — RunArgs (domain.schema.json $defs/RunArgs):
 //   slug, autoLevel (interactive|auto|unattended), answers (preset name or path),
 //   models {exec, eval, qa?}, budgets {maxRounds, attemptBudget, wallClockS?}, pluginRoot,
-//   startedAt, and the optional switches noEval / noQa / adversarialVerify.
+//   startedAt, and the optional switches noEval / noQa / adversarialVerify /
+//   maxParallelScopes (default 4).
 //
 // return — RunReturn (domain.schema.json $defs/RunReturn), the full union:
 //   { status: "shipped", verdict, rounds_used, dims_not_evaluated, qa_findings, report }
@@ -95,6 +96,24 @@ const evalModel     = args.models.eval;
 const qaModel       = args.models.qa || args.models.exec;
 const maxRounds     = args.budgets.maxRounds;
 const attemptBudget = args.budgets.attemptBudget;
+
+// How many scopes may build at once. A dial rather than a constant because concurrency is a COST
+// question before it is a speed one: every extra leg is another worker's full context. 4 is the
+// default because a feature is rarely cut into more independent slices than that; 1 restores the
+// sequential behaviour for a project whose workers are not safe to run side by side.
+const maxParallelScopes = Math.max(1, Number(args.maxParallelScopes ?? 4) || 1);
+
+/**
+ * Split a list into consecutive groups of at most `size`.
+ * @param {Array} xs - The list.
+ * @param {number} size - Maximum group size.
+ * @returns {Array[]} Groups, in order.
+ */
+function chunk(xs, size) {
+  const out = [];
+  for (let i = 0; i < xs.length; i += size) out.push(xs.slice(i, i + size));
+  return out;
+}
 
 // ---------------------------------------------------------------------------------------------
 // SCHEMAS — the only contract between this control script and a sub-agent. The runtime forces the
@@ -530,29 +549,58 @@ while (round <= maxRounds) {
     return withWarnings({ status: "gate_h", breaker: "deadline", hammer_proposals: allHammer, green_scopes: allGreen });
   }
 
-  log(`BUILD round ${round} — ${scopes.length} scope(s), attempt budget ${attemptBudget}`);
+  log(`BUILD round ${round} — ${scopes.length} scope(s), up to ${maxParallelScopes} at once, attempt budget ${attemptBudget}`);
   const roundGreen = [], roundHammer = [];
 
-  for (const scope of scopes) {
-    // Resume: a scope already green THIS round is not re-attempted.
-    const already = await query(`probe t0 --slug ${slug} --scope ${scope.scope_id} --round ${round}`,
-      T0CHECK, "Build", `t0check:${scope.scope_id}-r${round}`);
-    if (already?.green) {
-      log(`BUILD r${round} — ${scope.scope_id} is already green on disk, skipping`);
-      roundGreen.push(scope.scope_id);
-      continue;
-    }
+  // SCOPES FAN OUT. A scope contract is the definition of an independent subtask — disjoint
+  // substrate, own fixtures, own ratchet — so the loop that ran them one at a time was leaving the
+  // whole point of the contract on the floor. `pipeline()` has NO barrier between its stages: a
+  // fast scope is being confirmed while a slow one is still on attempt 3.
+  //
+  // Three stages, because each answers a different question about the same scope:
+  //   check   — is it already green on disk from a killed round? (resume, no re-work)
+  //   build   — the attempt ratchet, inside the worker's own shell
+  //   confirm — MEASURED, NOT CLAIMED: the worker says green; the T0 artifact has to agree.
+  //             A green with no artifact on disk is a claim, and the evaluator that must cite that
+  //             artifact would find nothing.
+  for (const group of chunk(scopes, maxParallelScopes)) {
+    const settled = await pipeline(
+      group,
+      async (scope) => {
+        const already = await query(`probe t0 --slug ${slug} --scope ${scope.scope_id} --round ${round}`,
+          T0CHECK, "Build", `t0check:${scope.scope_id}-r${round}`);
+        if (already?.green) {
+          log(`BUILD r${round} — ${scope.scope_id} is already green on disk, skipping`);
+          return { scope_id: scope.scope_id, green: true, resumed: true };
+        }
+        return null;                                   // not green yet → stage 2 builds it
+      },
+      async (pre, scope) => (pre ? pre : buildScope(scope, round)),
+      async (res, scope) => {
+        if (!res || res.__failed) return res;
+        if (res.resumed || !res.green) return res;
+        const confirmed = await query(`probe t0 --slug ${slug} --scope ${scope.scope_id} --round ${round}`,
+          T0CHECK, "Build", `t0confirm:${scope.scope_id}-r${round}`);
+        if (confirmed?.green) return res;
+        log(`BUILD r${round} — ${scope.scope_id} reported green but no T0 verdict is on disk for this ` +
+            `round; treating it as not green (the evaluator cites that artifact, and it is not there).`);
+        return { ...res, green: false, reason: "reported green with no T0 verdict artifact on disk" };
+      },
+    );
 
-    const res = await buildScope(scope, round);
-    if (res.__failed) {
+    for (const [i, res] of settled.entries()) {
+      const scopeId = group[i].scope_id;
       // A dead builder is a SPENT ATTEMPT, not a dead run: the scope goes to GATE H's census and
       // the round continues. Killing the run here would discard every other scope's green work.
-      log(`BUILD r${round} — ${scope.scope_id} lost its worker: ${res.__failed}`);
-      roundHammer.push(scope.scope_id);
-      continue;
+      if (!res || res.__failed) {
+        log(`BUILD r${round} — ${scopeId} lost its worker: ${res?.__failed || "no result"}`);
+        roundHammer.push(scopeId);
+      } else if (res.green) {
+        roundGreen.push(res.scope_id || scopeId);
+      } else {
+        roundHammer.push(res.scope_id || scopeId);
+      }
     }
-    if (res.green) roundGreen.push(res.scope_id);
-    else roundHammer.push(res.scope_id);
   }
 
   allGreen.push(...roundGreen);
