@@ -64,7 +64,7 @@ audit_rules_version: "2.5"
 
 ## Audit Report
 
-*Generated from spec-lint.mjs output — do not edit manually.*
+*Generated from harness verify spec output — do not edit manually.*
 *skill_version: 2.1 | audit_rules_version: 2.1*
 
 ### Score Summary

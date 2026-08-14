@@ -20,12 +20,12 @@ T0 verification, the inner circuit breaker, then the single EVAL — is a workfl
 it belongs to the orchestrator:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/run-workflow.mjs" \
+node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" run \
   "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js" \
   --args-file .shapeup/<slug>/run-args.json --run-dir .shapeup/<slug>/workflow-run
 ```
 
-Reach it through `/ship` (or the `tech-lead` skill), which opens the run properly — `init-run.mjs`
+Reach it through `/ship` (or the `tech-lead` skill), which opens the run properly — `harness init run`
 first, so the receipt exists. Do not hand-roll the round by calling this command once per task: the
 attempt loop, the T0 ratchet and the breakers are branches in that script, not steps a caller can
 be trusted to reproduce, and a session that rebuilds them by hand is the prose lane the cutover

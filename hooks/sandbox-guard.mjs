@@ -44,8 +44,8 @@
 
 import { readFileSync, existsSync, appendFileSync, mkdirSync } from "node:fs";
 import { resolve, join, relative, dirname, sep } from "node:path";
-import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
-import { LOCAL, activeOrder, metricsShard } from "../skills/tech-lead/scripts/lib/paths.mjs";
+import { isMain } from "../kernel/lib/argv.mjs";
+import { LOCAL, activeOrder, metricsShard } from "../kernel/lib/paths.mjs";
 import { runHook, readStdin, settle } from "./lib/decision.mjs";
 
 // --- tiny glob matcher: supports *, **, ? — enough for substrate globs, zero dependencies ---

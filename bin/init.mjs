@@ -25,8 +25,8 @@ import { resolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline";
-import { LOCAL, LEGACY, metricsDir } from "../skills/tech-lead/scripts/lib/paths.mjs";
-import { mergePipelinePermissions as mergeGrant, isWorkspaceTrusted } from "./lib/grant.mjs";
+import { LOCAL, LEGACY, metricsDir } from "../kernel/lib/paths.mjs";
+import { mergePipelinePermissions as mergeGrant, isWorkspaceTrusted, WORKFLOW_RULE } from "./lib/grant.mjs";
 
 /** The root a project migrating off the pre-ADR-0001 layout may still be carrying. */
 const LEGACY_LOCAL = LEGACY.local;
@@ -43,15 +43,24 @@ Options:
   -d, --directory <path>   Target project directory (default: current directory)
   -o, --override           Overwrite existing files in target
   -y, --yes                Run unattended (answer yes to all prompts)
-  -h, --help               Print this help`;
+      --no-native-workflow Do not grant the unscoped "Workflow" permission (see below)
+  -h, --help               Print this help
 
-let targetDir = ".", yes = false, override = false;
+The grant this writes is two Bash rules for the harness kernel, plus — unless
+--no-native-workflow is given — the "Workflow" token that lets the tech-lead
+launch its run script without approving each launch. That token is UNSCOPED: it
+authorises every dynamic workflow script in the project, not only this plugin's.
+Declining it leaves the harness fully functional in an interactive session; only
+the unattended lane needs the pre-approval.`;
+
+let targetDir = ".", yes = false, override = false, nativeWorkflow = true;
 const positional = [];
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (a === "-d" || a === "--directory") targetDir = argv[++i];
   else if (a === "-y" || a === "--yes") yes = true;
   else if (a === "-o" || a === "--override") override = true;
+  else if (a === "--no-native-workflow") nativeWorkflow = false;
   else if (a === "-h" || a === "--help") { console.log(usage); process.exit(0); }
   else if (a.startsWith("-")) { console.error(`Unknown option: ${a}\n${usage}`); process.exit(1); }
   else positional.push(a);
@@ -181,7 +190,7 @@ function installClaude() {
       : add;
     if (ins.status === 0) {
       // The CLI registers the marketplace and enables the plugin. It does NOT know about the
-      // pipeline permission grant, so this path has to add it — and until v1.6.1 it did not,
+      // kernel permission grant, so this path has to add it — and until v1.6.1 it did not,
       // while the comment below claimed both paths merged it. Measured on a fresh `npx
       // shapeup-sdlc init`: `permissions.allow` came out EMPTY on every machine with the claude
       // CLI installed, which is the common case and the one that prints success. That is FC-02
@@ -195,13 +204,13 @@ function installClaude() {
         try { written = JSON.parse(readFileSync(settingsFile, "utf8")); }
         catch (e) {
           console.error(`  [claude] plugin installed, but ${rel(settingsFile)} is not valid JSON (${e.message}) —`);
-          console.error("           the pipeline permission grant was NOT added. Copy it from .claude/settings.local.example.json.");
+          console.error("           the kernel permission grant was NOT added. Copy it from .claude/settings.local.example.json.");
           return;
         }
       }
       mergePipelinePermissions(written);
       writeFileSync(settingsFile, JSON.stringify(written, null, 2) + "\n");
-      console.log("  [claude] plugin installed at project scope + pipeline permissions granted — run /reload-plugins to activate in a live session");
+      console.log("  [claude] plugin installed at project scope + kernel permissions granted — run /reload-plugins to activate in a live session");
       return;
     }
     console.log("  [claude] Warning: claude CLI failed — falling back to writing settings.json directly");
@@ -225,37 +234,34 @@ function installClaude() {
   settings.enabledPlugins[PLUGIN_KEY] = true;
   mergePipelinePermissions(settings);
   writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + "\n");
-  console.log(`  [claude] merged marketplace + plugin + pipeline permissions into ${rel(settingsFile)}`);
+  console.log(`  [claude] merged marketplace + plugin + kernel permissions into ${rel(settingsFile)}`);
   console.log("  [claude] the plugin auto-enables on the next session opened in this directory");
 }
 
 /**
- * Pre-approve the harness's OWN pipeline scripts, and nothing else.
+ * Pre-approve the harness's OWN kernel, and nothing else.
  *
- * WHY THIS EXISTS (observed, not theorized).
+ * WHY THIS EXISTS. Every deterministic step of a run is a Node subcommand that ships with the
+ * plugin and therefore lives OUTSIDE the project. Under any permission mode short of
+ * `bypassPermissions`, executing a script from outside the working directory needs approval. In an
+ * interactive session you click once and forget it. In a headless one there is nobody to click,
+ * and the run cannot take its first step — measured, without a working grant, as the receipt step
+ * being attempted six different ways in one session and denied every time, after which the agent
+ * abandons the harness and builds the feature by hand.
  *
- * Every load-bearing step of a run is a Node script that ships with the plugin and therefore
- * lives OUTSIDE the project. Under any permission mode short of `bypassPermissions`, executing a
- * script from outside the working directory needs approval. In an interactive session you click
- * once and forget it. In a headless one there is nobody to click, and the run cannot take its
- * first step.
- *
- * That is not hypothetical. Without a WORKING grant, the run receipt step (`init-run.mjs`) gets
- * attempted six different ways in a single session — direct, via a heredoc, via two hand-written
- * wrapper scripts, via a sub-agent — and every one comes back "This command requires approval".
- * The agent then gives up on the harness and builds the feature by hand. It is the failure the
- * receipt was designed to make visible, arriving through the door the receipt itself opened.
- *
- * The rule form, why each character of it is load-bearing, and the measurements behind it live in
- * `bin/lib/grant.mjs`. It is a separate module so the structural suite can IMPORT the generator
- * instead of regex-parsing this file for the rule shape — the proxy that let a grant matching no
- * command at all ship green for three releases.
+ * The rule form and the measurements behind it live in `bin/lib/grant.mjs`. It is a separate module
+ * so the structural suite can IMPORT the generator instead of regex-parsing this file for the rule
+ * shape — the proxy that let a grant matching no command at all ship green for three releases.
  *
  * @param {object} settings - Parsed settings.json, mutated in place.
  * @returns {void}
  */
 function mergePipelinePermissions(settings) {
-  mergeGrant(settings, PKG_ROOT);
+  mergeGrant(settings, { nativeWorkflow });
+  if (!nativeWorkflow) {
+    console.log(`  [claude] --no-native-workflow: "${WORKFLOW_RULE}" not granted — launch the run`);
+    console.log("           script interactively and approve it, or re-run init without the flag.");
+  }
 }
 
 /**

@@ -64,10 +64,10 @@ its phase; templates live in `assets/templates/`.
 6  TASKS       atomic, ordered, executable → tasks/ (LOCAL root; the one uncommitted branch
                of the tree — regenerable, machine-local)        [references/task-generation.md]
 7  DERIVE+LINT mechanical, not yours to grade:
-               node "${CLAUDE_PLUGIN_ROOT}/skills/ba-pitch-analyzer/scripts/board-derive.mjs" --slug <slug> --write
+               node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" reduce board --slug <slug> --write
                  (unlocks = depends_on inverse; Σ hours; critical path; appetite arithmetic —
                   overflow is a fact you REPORT for the caller's HAMMER gate, never resolve)
-               node "${CLAUDE_PLUGIN_ROOT}/skills/ba-pitch-analyzer/scripts/spec-lint.mjs" --slug <slug>
+               node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify spec --slug <slug>
                  (structure, wikilinks, edge symmetry — fix reds, then re-run; you never
                   self-grade with a hand-walked checklist)
                → scope-summary.md + synthesis.md (traceability matrix, risk register,
@@ -165,7 +165,7 @@ status flips for built work (ingest's job), scope contracts (scope-architect's),
 /ba-pitch-analyzer --order .shapeup/checkout-vnpay/orders/analyze.json
 
 # Standalone — the preamble shim compiles the order (mode: standalone, pause_gates: true):
-#   node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/compile-order.mjs" --operation analyze --slug <slug> \
+#   node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" compile --operation analyze --slug <slug> \
 #        --worker ba-pitch-analyzer --payload '{"pitch": "docs/pitch.md", "lens": "standard"}'
 /ba-pitch-analyzer docs/pitch.md                      # operation: analyze, lens judged
 /ba-pitch-analyzer --lens standard docs/pitch.md      # lens pinned
@@ -175,6 +175,6 @@ Standalone keeps exactly two flags: the pitch input and `--lens`. Every retired 
 caller context: `--tasks-only`/`--from-discovered` → a reconcile order, `--surface-only` → a
 retrofit-surface order, `--coverage` → a coverage order, `--remap`/`--split` → a
 scope-architect `map-scopes` order,
-`--status` → read `spec-lint.mjs`/`board-derive.mjs` output (zero LLM tokens),
+`--status` → read `harness verify spec`/`harness reduce board` output (zero LLM tokens),
 `--auto`/`--skip-gate*` → `interaction.pause_gates`, `--upgrade` → an analyze order with the
 standard lens over an existing lite tree (reconciliation pass: extend, never overwrite Steps).

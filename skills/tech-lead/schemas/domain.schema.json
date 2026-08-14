@@ -10,7 +10,7 @@
         "to": "WorkResult",
         "cardinality": "1:1",
         "via": "order_id",
-        "note": "the envelope port — compile-order.mjs emits, worker answers, ingest-result.mjs applies"
+        "note": "the envelope port — harness compile emits, worker answers, harness reduce ingest applies"
       },
       {
         "from": "WorkOrder",
@@ -398,7 +398,7 @@
     "Substrate": {
       "description": "The write contract of one order — mode/flag differences ARE write-contract differences (one whitelist template per operation, compile-order substrateFor()). Enforced mechanically by the sandbox hook; a worker needing a file outside it must ESCALATE (substrate-expansion), never write.",
       "x-tier": "EMBEDDED",
-      "x-writer": "compile-order.mjs (templates) / scope-architect (per-scope globs)",
+      "x-writer": "harness compile (templates) / scope-architect (per-scope globs)",
       "type": "object",
       "properties": {
         "allowed": {
@@ -449,7 +449,7 @@
     "TaskRef": {
       "description": "One task as carried inside a WorkOrder — parsed from the LOCAL board file (.shapeup/<slug>/tasks/TASK-*.md frontmatter + AC checkboxes) by compile-order parseTaskFile(). NOTE: task ids are machine-local (boards regenerate and renumber); never join on id across machines — the scope is the stable key.",
       "x-tier": "EMBEDDED",
-      "x-writer": "compile-order.mjs (from the board ba-pitch-analyzer generated)",
+      "x-writer": "harness compile (from the board ba-pitch-analyzer generated)",
       "type": "object",
       "required": [
         "id"
@@ -510,7 +510,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Explicit dependencies. The inverse (unlocks) is ALWAYS derived by board-derive.mjs, never hand-authored — hand-authored inverses drift asymmetric, observed repeatedly."
+          "description": "Explicit dependencies. The inverse (unlocks) is ALWAYS derived by harness reduce board, never hand-authored — hand-authored inverses drift asymmetric, observed repeatedly."
         },
         "use_case_refs": {
           "type": "array",
@@ -543,9 +543,9 @@
       }
     },
     "AegisTriple": {
-      "description": "One digested failure — aegis-digest.mjs distills raw build/test/Playwright logs into these so the next attempt gets a few lines of signal instead of a stack-trace dump. Appears as T0Artifact.discovered_tasks[] (red attempts) and as WorkOrder payload.digested_errors[] (the next attempt's starting bug list).",
+      "description": "One digested failure — harness probe digest distills raw build/test/Playwright logs into these so the next attempt gets a few lines of signal instead of a stack-trace dump. Appears as T0Artifact.discovered_tasks[] (red attempts) and as WorkOrder payload.digested_errors[] (the next attempt's starting bug list).",
       "x-tier": "EMBEDDED",
-      "x-writer": "aegis-digest.mjs (regex pass; Sonnet fallback only on unrecognized formats)",
+      "x-writer": "harness probe digest (regex pass; Sonnet fallback only on unrecognized formats)",
       "type": "object",
       "properties": {
         "file": {
@@ -623,11 +623,11 @@
       }
     },
     "ScopeContract": {
-      "description": "A vertical scope as a committed, mechanically enforceable contract — Shape Up's 'map the scopes' as data. Sliced by business flow (one call chain: UI screen + API route + use case + repository), NEVER by directory (PA1). The sandbox hook enforces the substrate, t0-verify runs the fixtures, the evaluator asserts against the manifest. Superseded contracts are kept, never deleted (branch and T0 history stay attributable). ON-DISK FORMAT IS MARKDOWN (ADR-0001): frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `skills/tech-lead/scripts/lib/contract-md.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
+      "description": "A vertical scope as a committed, mechanically enforceable contract — Shape Up's 'map the scopes' as data. Sliced by business flow (one call chain: UI screen + API route + use case + repository), NEVER by directory (PA1). The sandbox hook enforces the substrate, t0-verify runs the fixtures, the evaluator asserts against the manifest. Superseded contracts are kept, never deleted (branch and T0 history stay attributable). ON-DISK FORMAT IS MARKDOWN (ADR-0001): frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `kernel/lib/contract.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/scopes/<scope-id>.md",
       "x-writer": "scope-architect (SOLE writer — a hand-edit anywhere else is a defect)",
-      "x-readers": "compile-order.mjs, sandbox-guard hook, t0-verify.mjs, spec-lint.mjs, spec-evaluator, scope-hammer, tech-lead",
+      "x-readers": "harness compile, sandbox-guard hook, harness verify t0, harness verify spec, spec-evaluator, scope-hammer, tech-lead",
       "type": "object",
       "required": [
         "scope_id"
@@ -796,7 +796,7 @@
       "description": "The universal currency of surprise: one raw discovered line. Producers: task-executor (marker +, P3.7), qa-edge-hunter (always ~, repro required), ba-pitch-analyzer (overflow reports). NO producer writes the ledger — ingest-result appends every entry to discovery/ledger.md (single-writer, mechanically). Promotion ~ → must-have is always a human act at SHIP S.0/GATE H.",
       "x-tier": "EMBEDDED (projection into the LOCAL discovery ledger)",
       "x-location": ".shapeup/<slug>/discovery/ledger.md",
-      "x-writer": "ingest-result.mjs",
+      "x-writer": "harness reduce ingest",
       "x-readers": "ba-pitch-analyzer (reconcile), scope-architect (map-scopes), scope-hammer (census), qa-edge-hunter (covered-territory context)",
       "type": "object",
       "required": [
@@ -1073,11 +1073,11 @@
       }
     },
     "T0Artifact": {
-      "description": "The mechanical verification verdict for one build attempt — the evidence layer under the LLM judge. Written by t0-verify.mjs from actually running the scope's fixtures + DB probe + seesaw; zero LLM tokens. spec-evaluator must cite it (sha256) on scoped specs. Red artifacts carry AEGIS triples that become the next attempt's digested_errors.",
+      "description": "The mechanical verification verdict for one build attempt — the evidence layer under the LLM judge. Written by harness verify t0 from actually running the scope's fixtures + DB probe + seesaw; zero LLM tokens. spec-evaluator must cite it (sha256) on scoped specs. Red artifacts carry AEGIS triples that become the next attempt's digested_errors.",
       "x-tier": "LOCAL",
       "x-location": ".shapeup/<slug>/t0/verdicts/r<N>-a<M>-t<T>.json (schema_version 2; the unsuffixed r<N>-a<M>.json of schema_version 1 is still readable)",
-      "x-writer": "t0-verify.mjs",
-      "x-readers": "compile-order.mjs (next attempt), spec-evaluator (citation), tech-lead (hill derivation, GATE L2.3), scope-hammer (stall census)",
+      "x-writer": "harness verify t0",
+      "x-readers": "harness compile (next attempt), spec-evaluator (citation), tech-lead (hill derivation, GATE L2.3), scope-hammer (stall census)",
       "type": "object",
       "properties": {
         "schema_version": {
@@ -1197,8 +1197,8 @@
       "description": "One row per T0 run — the ratchet's history, and the artifact that makes 'is attempt N+1 better than attempt N?' answerable. Append-only (I4: every superseded object remains addressable). baseline_trial is the parent link: that single field IS the experiment DAG (lineage, PARENT_OF, and a genuine SUPERSEDES edge) delivered without a graph store. Written by t0-verify, NOT ingest-result: a trial row is a mechanical fact produced by running commands, in the same class as the verdict artifact t0-verify already owns, and carries no worker claim to apply.",
       "x-tier": "LOCAL",
       "x-location": ".shapeup/<slug>/t0/trials.jsonl",
-      "x-writer": "t0-verify.mjs (append-only)",
-      "x-readers": "compile-order.mjs (payload.trial_history — the paper's inspect()), stats.mjs --ratchet (improvement_rate, monotone_rate, sawtooth_count)",
+      "x-writer": "harness verify t0 (append-only)",
+      "x-readers": "harness compile (payload.trial_history — the paper's inspect()), harness probe stats --ratchet (improvement_rate, monotone_rate, sawtooth_count)",
       "type": "object",
       "properties": {
         "schema_version": {
@@ -1290,7 +1290,7 @@
       "x-tier": "LOCAL",
       "x-location": ".shapeup/<slug>/seesaw/registry.json",
       "x-writer": "tech-lead (when a scope reaches FINISHED)",
-      "x-readers": "t0-verify.mjs",
+      "x-readers": "harness verify t0",
       "type": "object",
       "properties": {
         "scopes": {
@@ -1316,8 +1316,8 @@
       "description": "One appended line of judge history (JSONL). Never rewritten — flips across runs are detected here and force confidence low. run auto-increments per append batch.",
       "x-tier": "LOCAL",
       "x-location": ".shapeup/<slug>/evaluation/.verdicts-<target>.jsonl",
-      "x-writer": "ingest-result.mjs (from Verdict.criteria[])",
-      "x-readers": "spec-evaluator (read-only flip detection), verdict-ledger.mjs",
+      "x-writer": "harness reduce ingest (from Verdict.criteria[])",
+      "x-readers": "spec-evaluator (read-only flip detection), harness reduce verdict",
       "type": "object",
       "properties": {
         "run": {
@@ -1382,7 +1382,7 @@
       "x-tier": "LOCAL",
       "x-location": ".shapeup/metrics/<machine-id>.jsonl",
       "x-writer": "tech-lead (SHIP S.6)",
-      "x-readers": "stats.mjs (read-only projection), export-run.mjs (the run dimension)",
+      "x-readers": "harness probe stats (read-only projection), harness report export (the run dimension)",
       "type": "object",
       "properties": {
         "schema_version": {
@@ -1393,7 +1393,7 @@
         },
         "at": {
           "type": "string",
-          "description": "OPTIONAL (v1.2) — ISO harvest timestamp; enables real trend-over-time in stats.mjs. Older rows lack it and fall back to shard append order."
+          "description": "OPTIONAL (v1.2) — ISO harvest timestamp; enables real trend-over-time in harness probe stats. Older rows lack it and fall back to shard append order."
         },
         "run_id": {
           "type": "string",
@@ -1426,7 +1426,7 @@
         },
         "attempt_exhaustions": {
           "type": "integer",
-          "description": "OPTIONAL (v1.2) — scopes whose inner attempt_budget tripped this run, COPIED at SHIP S.6 from the queued GATE H hammer proposals (a fact registered at the source; stats.mjs must never re-derive it)."
+          "description": "OPTIONAL (v1.2) — scopes whose inner attempt_budget tripped this run, COPIED at SHIP S.6 from the queued GATE H hammer proposals (a fact registered at the source; harness probe stats must never re-derive it)."
         },
         "qa_findings": {
           "type": "object",
@@ -1448,7 +1448,7 @@
         },
         "ratchet": {
           "type": "object",
-          "description": "OPTIONAL (v1.5) — the DAY-1 exit measurement, COPIED from `stats.mjs --ratchet` over this run's t0/trials.jsonl before the LOCAL trace is wiped. This is the only place the ratchet numbers survive the run, and the only reason they can be compared across machines: `.shapeup/` is gitignored, so a measurement left there answers the question exactly once and then deletes itself. Facts only — every field is a count or a ratio over recorded trial rows, never a grade.",
+          "description": "OPTIONAL (v1.5) — the DAY-1 exit measurement, COPIED from `harness probe stats --ratchet` over this run's t0/trials.jsonl before the LOCAL trace is wiped. This is the only place the ratchet numbers survive the run, and the only reason they can be compared across machines: `.shapeup/` is gitignored, so a measurement left there answers the question exactly once and then deletes itself. Facts only — every field is a count or a ratio over recorded trial rows, never a grade.",
           "properties": {
             "trials": {
               "type": "integer"
@@ -1479,7 +1479,7 @@
         },
         "hooks": {
           "type": "object",
-          "description": "OPTIONAL (v1.5) — the DAY-2 exit measurement, COPIED from `stats.mjs --hooks` over .shapeup/decisions.jsonl. Makes 'never had to fire' and 'never ran' separable across runs: before the decision ledger both produced exit 0 and empty stdout, which is why several enforcement tools were unscoreable.",
+          "description": "OPTIONAL (v1.5) — the DAY-2 exit measurement, COPIED from `harness probe stats --hooks` over .shapeup/decisions.jsonl. Makes 'never had to fire' and 'never ran' separable across runs: before the decision ledger both produced exit 0 and empty stdout, which is why several enforcement tools were unscoreable.",
           "properties": {
             "evaluations": {
               "type": "integer"
@@ -1561,8 +1561,8 @@
     "RunSnapshot": {
       "description": "Mechanical mid-run state digest, derived ONLY from files (active-scope pointer, harness-run.md frontmatter, board frontmatter, t0/verdicts filenames, orders/ vs results/) — never from conversation memory. The compaction-resilience reflex: persisted by the PreCompact hook as an audit anchor, re-derived fresh and injected as additionalContext by the SessionStart(startup|compact|resume|clear) hook so the orchestrator re-reads the files instead of trusting a lossy summary — or, on a cold startup, instead of re-opening a run that is already open.",
       "x-tier": "LOCAL",
-      "x-location": ".shapeup/<slug>/run-snapshot.json (persisted by the compact-snapshot hook; also emitted ephemerally on stdout by run-snapshot.mjs)",
-      "x-writer": "run-snapshot.mjs --write (invoked by the PreCompact hook — never a worker; this is LOCAL derived cache, ingest-result.mjs remains the sole writer of SHARED state)",
+      "x-location": ".shapeup/<slug>/run-snapshot.json (persisted by the compact-snapshot hook; also emitted ephemerally on stdout by harness reduce snapshot)",
+      "x-writer": "harness reduce snapshot --write (invoked by the PreCompact hook — never a worker; this is LOCAL derived cache, harness reduce ingest remains the sole writer of SHARED state)",
       "x-readers": "session-rehydrate hook, tech-lead (--from resume aid), human",
       "type": "object",
       "required": [
@@ -1675,7 +1675,7 @@
     "StatsReport": {
       "description": "The telemetry read-plane's output — an aggregate projection over the MetricsRow shards. Aggregates COPIED facts only (counts, rates, trends over already-recorded fields); it never grades, so it can never become a second judge. Malformed rows are skipped fail-open and counted; pathology rows (sandbox-guard/safety-spine denials share the shards) are partitioned, not errors.",
       "x-tier": "EMBEDDED (ephemeral projection — printed to stdout, never persisted; the metrics JSONL stays the only source of truth)",
-      "x-writer": "stats.mjs (read-only over metrics/ — writes nothing)",
+      "x-writer": "harness probe stats (read-only over metrics/ — writes nothing)",
       "x-readers": "human / CLI / CI",
       "type": "object",
       "required": [
@@ -1821,7 +1821,7 @@
       }
     },
     "Lane": {
-      "description": "The run's lane (full|tiny), computed by fit-check.mjs at GATE L0.3 and recorded in harness-run.md frontmatter `lane:` (with its evidence, and marked overridden when --lane/--tiny outranks the recommendation); RunArgs.lane carries it to the workflow launch. The lane is pipeline knowledge: the orchestrator compiles it away into existing registered knobs (lens, budgets, gate policy) — it NEVER rides in WorkOrderPayload, so workers stay pipeline-blind.",
+      "description": "The run's lane (full|tiny), computed by harness init fit at GATE L0.3 and recorded in harness-run.md frontmatter `lane:` (with its evidence, and marked overridden when --lane/--tiny outranks the recommendation); RunArgs.lane carries it to the workflow launch. The lane is pipeline knowledge: the orchestrator compiles it away into existing registered knobs (lens, budgets, gate policy) — it NEVER rides in WorkOrderPayload, so workers stay pipeline-blind.",
       "x-tier": "EMBEDDED (recorded in harness-run.md frontmatter `lane:` — never a WorkOrderPayload field)",
       "x-writer": "tech-lead (GATE L0 lane selection)",
       "x-readers": "tech-lead only",
@@ -1872,7 +1872,7 @@
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/requirements.md",
       "x-writer": "ba-pitch-analyzer (operation: coverage) — extraction only; CUT status is a PO governance edit (same class as a round-ledger Decision)",
-      "x-readers": "trace-lint.mjs (covers-closure oracle), tech-lead, human (coverage/cut audit)",
+      "x-readers": "harness verify trace (covers-closure oracle), tech-lead, human (coverage/cut audit)",
       "type": "object",
       "required": [
         "id",
@@ -1939,11 +1939,11 @@
       }
     },
     "WiringMap": {
-      "description": "The reachability map — per UC, the chain from engine to a player-visible affordance (spine v1.3). Written DIRECTLY by solution-architect at gate L1a.5 (precedent: ScopeContract is written directly by scope-architect, bypassing ingest-result). Its purpose: no engine ships orphaned from the running application. trace-lint folds reachability into its covers-closure pass — a UC whose engine does not reach ProjectProfile.entry_point via the import graph is red. A Mermaid view is auto-rendered from this map (a view of a checked graph, so it cannot drift). ON-DISK FORMAT IS MARKDOWN (ADR-0001): frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `skills/tech-lead/scripts/lib/contract-md.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
+      "description": "The reachability map — per UC, the chain from engine to a player-visible affordance (spine v1.3). Written DIRECTLY by solution-architect at gate L1a.5 (precedent: ScopeContract is written directly by scope-architect, bypassing ingest-result). Its purpose: no engine ships orphaned from the running application. trace-lint folds reachability into its covers-closure pass — a UC whose engine does not reach ProjectProfile.entry_point via the import graph is red. A Mermaid view is auto-rendered from this map (a view of a checked graph, so it cannot drift). ON-DISK FORMAT IS MARKDOWN (ADR-0001): frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `kernel/lib/contract.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/wiring-map.md",
       "x-writer": "solution-architect (SOLE writer, direct — like scope-architect writes scopes/*.md)",
-      "x-readers": "trace-lint.mjs (reachability oracle), scope-architect (integration seam at slicing time), tech-lead",
+      "x-readers": "harness verify trace (reachability oracle), scope-architect (integration seam at slicing time), tech-lead",
       "type": "object",
       "required": [
         "schema_version",
@@ -1974,11 +1974,11 @@
       }
     },
     "ProjectProfile": {
-      "description": "The archetype + entry-point declaration reachability depends on (spine v1.3). Exists for ONE load-bearing reason: reachability must know the entry point, and that is archetype-specific (main.js for a client-only game is not the seam for a web-service). SHARED — a declaration that must survive `rm -rf .shapeup/` + clone cannot live in the gitignored run-trace. Role-gating (skip SysRS/Auth/CI-CD) is explicitly OUT of scope — those roles are not workers; the profile is introduced only as the entry-point/archetype declaration. ON-DISK FORMAT IS MARKDOWN (ADR-0001): frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `skills/tech-lead/scripts/lib/contract-md.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
+      "description": "The archetype + entry-point declaration reachability depends on (spine v1.3). Exists for ONE load-bearing reason: reachability must know the entry point, and that is archetype-specific (main.js for a client-only game is not the seam for a web-service). SHARED — a declaration that must survive `rm -rf .shapeup/` + clone cannot live in the gitignored run-trace. Role-gating (skip SysRS/Auth/CI-CD) is explicitly OUT of scope — those roles are not workers; the profile is introduced only as the entry-point/archetype declaration. ON-DISK FORMAT IS MARKDOWN (ADR-0001): frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `kernel/lib/contract.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/project-profile.md",
-      "x-writer": "tech-lead (GATE L0 — not compile-order.mjs, which stays pipeline-blind)",
-      "x-readers": "trace-lint.mjs (reachability entry_point), solution-architect (wire), tech-lead",
+      "x-writer": "tech-lead (GATE L0 — not harness compile, which stays pipeline-blind)",
+      "x-readers": "harness verify trace (reachability entry_point), solution-architect (wire), tech-lead",
       "type": "object",
       "required": [
         "schema_version",
@@ -2185,10 +2185,10 @@
       }
     },
     "ResumeState": {
-      "description": "The fast-forward derivation: which phase a launch resumes at, derived from artifacts on disk and NEVER from stored state or conversation memory. Produced by skills/tech-lead/scripts/resume-state.mjs on stdout and consumed by shapeup-run.js's preamble on every launch, fresh or relaunch alike. Every phase predicate is an artifact test — `has_orient_artifacts` exists because the ORIENT branch was once gated on the ledger's stored `status` instead, which a silent courier failure left stale, and a completed ORIENT phase was re-dispatched on resume. `next_phase` is a convenience derived from the same booleans, which all travel too: a caller is never forced to trust a summary it cannot re-derive.",
+      "description": "The fast-forward derivation: which phase a launch resumes at, derived from artifacts on disk and NEVER from stored state or conversation memory. Produced by kernel/probe/resume.mjs on stdout and consumed by shapeup-run.js's preamble on every launch, fresh or relaunch alike. Every phase predicate is an artifact test — `has_orient_artifacts` exists because the ORIENT branch was once gated on the ledger's stored `status` instead, which a silent courier failure left stale, and a completed ORIENT phase was re-dispatched on resume. `next_phase` is a convenience derived from the same booleans, which all travel too: a caller is never forced to trust a summary it cannot re-derive.",
       "x-tier": "EMBEDDED",
-      "x-location": "stdout of resume-state.mjs — never written to disk (the run's state IS the artifacts this record reports on)",
-      "x-writer": "resume-state.mjs (deriving; the same script's --set-status / --set-active-scope operations write, and report their own outcome record instead)",
+      "x-location": "stdout of harness probe resume — never written to disk (the run's state IS the artifacts this record reports on)",
+      "x-writer": "harness probe resume (deriving; the same script's --set-status / --set-active-scope operations write, and report their own outcome record instead)",
       "x-readers": "shapeup-run.js (the fast-forward preamble, one call per launch)",
       "type": "object",
       "required": [
@@ -2219,7 +2219,7 @@
             "string",
             "null"
           ],
-          "description": "The ledger's stored status, reported for the readers that legitimately hold a MID_RUN set over it (run-snapshot.mjs, hooks/anti-rationalization.mjs). NOT a resume predicate: no phase decision in shapeup-run.js may branch on this field."
+          "description": "The ledger's stored status, reported for the readers that legitimately hold a MID_RUN set over it (harness reduce snapshot, hooks/anti-rationalization.mjs). NOT a resume predicate: no phase decision in shapeup-run.js may branch on this field."
         },
         "has_orient_artifacts": {
           "type": "boolean",
@@ -2242,7 +2242,7 @@
         },
         "scope_files": {
           "type": "array",
-          "description": "MAP SCOPES finished when non-empty. Each entry carries a RESOLVED path, never a bare filename — compile-order.mjs and t0-verify.mjs resolve --scope against cwd, and a bare id makes compile-order exit 2, which the attempt loop reads as the stagnation breaker.",
+          "description": "MAP SCOPES finished when non-empty. Each entry carries a RESOLVED path, never a bare filename — harness compile and harness verify t0 resolve --scope against cwd, and a bare id makes compile-order exit 2, which the attempt loop reads as the stagnation breaker.",
           "items": {
             "type": "object",
             "required": [
@@ -2264,7 +2264,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Order files with no result beside them. Diagnostic only — build orders carry no scope id, so this set is not an audit trail of build dispatches (see compile-order.mjs's order-id note)."
+          "description": "Order files with no result beside them. Diagnostic only — build orders carry no scope id, so this set is not an audit trail of build dispatches (see harness compile's order-id note)."
         },
         "eval_rounds_done": {
           "type": "array",
@@ -2282,12 +2282,12 @@
             "map-scopes",
             "build"
           ],
-          "description": "The first phase whose artifacts are incomplete. Derived from the booleans above, in that order. The same table (resume-state.mjs PHASE_ARTIFACT) answers `--require <phase>`, the post-condition shapeup-run.js checks after every phase dispatch — resume and completion are ONE predicate by construction."
+          "description": "The first phase whose artifacts are incomplete. Derived from the booleans above, in that order. The same table (harness probe resume PHASE_ARTIFACT) answers `--require <phase>`, the post-condition shapeup-run.js checks after every phase dispatch — resume and completion are ONE predicate by construction."
         }
       }
     },
     "RunArgs": {
-      "description": "C1 — the launch half of the workflow's only conversation. Compiled ONCE by tech-lead at GATE L0 from init-run.mjs output + the L0.8 model matrix + budgets, written to .shapeup/<slug>/run-args.json and handed to the run-workflow.mjs launch as one JSON literal — the workflow cannot ask follow-ups and cannot read config files itself, so everything a run will ever need travels in this one record. A workflow script validates its own subset of this shape in code (no runtime schema check at the C1 boundary itself); this entry is the central-registry definition the workflow script and the tech-lead skill both read as the one true shape.",
+      "description": "C1 — the launch half of the workflow's only conversation. Compiled ONCE by tech-lead at GATE L0 from harness init run output + the L0.8 model matrix + budgets, written to .shapeup/<slug>/run-args.json and handed to the harness run launch as one JSON literal — the workflow cannot ask follow-ups and cannot read config files itself, so everything a run will ever need travels in this one record. A workflow script validates its own subset of this shape in code (no runtime schema check at the C1 boundary itself); this entry is the central-registry definition the workflow script and the tech-lead skill both read as the one true shape.",
       "x-tier": "EMBEDDED",
       "x-location": ".shapeup/<slug>/run-args.json — written fresh by tech-lead on every launch and relaunch; the workflow receives it as its args and never reads other config",
       "x-writer": "tech-lead (GATE L0, on every launch AND every relaunch after a paused gate)",
@@ -2309,7 +2309,7 @@
         },
         "runId": {
           "type": "string",
-          "description": "OPTIONAL (v1.8) — the run key, COPIED from init-run.mjs's `run_id` output. Carried here so run-workflow.mjs stamps every journal row without a receipt lookup per launch; a launch without it falls back to reading the receipt, so this is an optimisation, not the source of truth. This is identity, which x-not-here explicitly admits to RunArgs — it is not run config the ledger already carries.",
+          "description": "OPTIONAL (v1.8) — the run key, COPIED from harness init run's `run_id` output. Carried here so harness run stamps every journal row without a receipt lookup per launch; a launch without it falls back to reading the receipt, so this is an optimisation, not the source of truth. This is identity, which x-not-here explicitly admits to RunArgs — it is not run config the ledger already carries.",
           "pattern": "^[a-z0-9][a-z0-9-]*-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$"
         },
         "autoLevel": {
@@ -2319,7 +2319,7 @@
             "auto",
             "unattended"
           ],
-          "description": "Resolved once at GATE L0; governs which gates pre-approve and what on_missing does (gate-answers.mjs)."
+          "description": "Resolved once at GATE L0; governs which gates pre-approve and what on_missing does (harness gate)."
         },
         "answers": {
           "type": "string",
@@ -2361,7 +2361,7 @@
         },
         "startedAt": {
           "type": "string",
-          "description": "ISO timestamp, passed in because Date.now() is unavailable inside a workflow script by design — the deadline breaker (budget-check.mjs) computes elapsed time itself, in Node, where the clock lives."
+          "description": "ISO timestamp, passed in because Date.now() is unavailable inside a workflow script by design — the deadline breaker (harness verify budget) computes elapsed time itself, in Node, where the clock lives."
         },
         "lane": {
           "$ref": "#/$defs/Lane",
@@ -2374,7 +2374,7 @@
       }
     },
     "RunReturn": {
-      "description": "C1 — the return half of the workflow's only conversation. The ONLY way the workflow speaks back to tech-lead, so it is a tagged union keyed on `status` — the skill branches on the tag, never on prose (the same exit-code discipline gate-answers.mjs already applies to gate sign-off, extended to the orchestrator's own return value). A gate resolved 'ask' (exit 4) always returns `paused`; a gate resolved 'abort' (exit 5) always returns `aborted`; any circuit breaker tripping (outer round_budget, inner attempt_budget, or the deadline breaker) returns `gate_h`; a full run whose final EVAL passes returns `shipped`. The union is written as a superset of what one inner round can itself produce (`paused`, `aborted`, `gate_h`, or a round-complete carrying a verdict) — `shipped` belongs only to a full run. It is deliberately NOT narrowed, because the round-scoped subset is what a `workflow()` child would return if the fan-out this design anticipates ever spends that nesting level.",
+      "description": "C1 — the return half of the workflow's only conversation. The ONLY way the workflow speaks back to tech-lead, so it is a tagged union keyed on `status` — the skill branches on the tag, never on prose (the same exit-code discipline harness gate already applies to gate sign-off, extended to the orchestrator's own return value). A gate resolved 'ask' (exit 4) always returns `paused`; a gate resolved 'abort' (exit 5) always returns `aborted`; any circuit breaker tripping (outer round_budget, inner attempt_budget, or the deadline breaker) returns `gate_h`; a full run whose final EVAL passes returns `shipped`. The union is written as a superset of what one inner round can itself produce (`paused`, `aborted`, `gate_h`, or a round-complete carrying a verdict) — `shipped` belongs only to a full run. It is deliberately NOT narrowed, because the round-scoped subset is what a `workflow()` child would return if the fan-out this design anticipates ever spends that nesting level.",
       "x-tier": "EMBEDDED",
       "x-location": "in-memory only — a Workflow return value, never written to disk",
       "x-writer": "the workflow runtime (shapeup-run — the sole writer)",
@@ -2443,7 +2443,7 @@
           "items": {
             "type": "string"
           },
-          "description": "paused: the decisions VALID_BY_GATE allows at this gate (gate-answers.mjs)."
+          "description": "paused: the decisions VALID_BY_GATE allows at this gate (harness gate)."
         },
         "context": {
           "type": "object",
@@ -2455,7 +2455,7 @@
         },
         "reason": {
           "type": "string",
-          "description": "aborted: the attributable reason (gate-answers.mjs's own `reason` field, carried through verbatim)."
+          "description": "aborted: the attributable reason (harness gate's own `reason` field, carried through verbatim)."
         },
         "breaker": {
           "type": "string",

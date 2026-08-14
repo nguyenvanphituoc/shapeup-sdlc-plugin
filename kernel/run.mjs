@@ -1,50 +1,17 @@
 #!/usr/bin/env node
-// run-workflow — a Bash-invoked control plane for Workflow-format orchestrator scripts.
+// run — a Bash-invoked runtime for Workflow-format orchestrator scripts.
 //
-// WHY THIS FILE EXISTS. The `Workflow` tool — the only lane for scoped specs — is denied in a
-// headless session with "Review dynamic workflow before running". Left to it, `shapeup-run.js`
-// executes zero times and the agent improvises the feature by hand instead; a session can reach
-// GATE L4 with a valid receipt while the lane never started. Bash HAS a path-scoped grantable
-// rule, and `npx shapeup-sdlc init` writes one per shipped script (`bin/lib/grant.mjs`), so this
-// file runs the SAME Workflow-format script through a surface the install already grants.
+// CONTRACT. Runs a `shapeup-run.js`-shaped script (`export const meta` + top-level await) without
+// the native `Workflow` tool, so a session that has not granted that token can still start the
+// lane. The kernel grant already covers this entry point, so it costs no new permission string.
 //
-// ⚠ THE GRANT THIS BANNER ORIGINALLY CLAIMED DID NOT EXIST. Through v1.8 the installer wrote
-// `Bash(node ${CLAUDE_PLUGIN_ROOT}/skills/<owner>/scripts/:*)`, which matched no command at all —
-// Bash rules match at complete argument boundaries and that prefix ends mid-argument. So the
-// "provenance" paragraph below, asserting a headless run through this launcher with zero denials,
-// cannot have been what it claims; it is retained as a record of the claim, not as evidence. The
-// working rules and the measurements behind them are in `bin/lib/grant.mjs`, and
-// `npm run test:grant` is what proves them by execution.
-//
-// ⟐ ONE CORRECTION, from probing the permission layer rather than concluding from denials. It is
-// NOT true that no permission string can grant the tool: a bare `"Workflow"` entry in
-// `permissions.allow` grants it, and with that entry removed the same call is denied. So the tool
-// was never ungrantable — the installer simply never wrote the entry, because it writes Bash
-// prefixes only. The defect is real, and it is an INSTALLER defect: the plugin never granted the
-// permission its own lane needs.
-//
-// TWO THINGS SURVIVE THE CORRECTION, and they are the reason this file still exists rather than a
-// one-line change to `init`:
-//   1. THE GRANT CANNOT BE SCOPED. `Workflow(<path>)` and `Workflow(<script>)` are both denied —
-//      only the bare token works, which grants EVERY dynamic workflow script in the project,
-//      including one a model writes at runtime. A harness whose thesis is "gates the agent cannot
-//      talk its way past" should not ask for blanket dynamic-code execution. The Bash prefix is
-//      path-scoped to this directory.
-//   2. It costs no new grant at all: existing installs already allow it.
-// The one-line `"Workflow"` grant remains a legitimate alternative for anyone who prefers the
-// native runtime's resume/isolation, and the upgrade notes document it as such. It is a choice
-// with a real trade-off, which is why it is documented rather than silently taken.
-//
-// IT LIVES IN `scripts/` FOR A LOAD-BEARING REASON, not a filing one. The grant `init` already
-// writes is a PREFIX rule over this exact directory, so shipping the launcher here means every
-// install that ever ran `npx shapeup-sdlc init` can already start the lane — zero new permission
-// strings, zero migration for existing users. Putting it anywhere else would require a new grant
-// and reproduce the same denial one directory over. The structural suite asserts that the
-// documented call site is covered by a prefix `bin/init.mjs` actually writes.
-//
-// PROVENANCE: prototyped and proven before it shipped — a headless `acceptEdits` session runs the
-// lane through a granted Bash prefix with zero denials, this loader executes the unmodified
-// `shapeup-run.js`, and a real worker dispatches under `acceptEdits`.
+// THE TRADE-OFF, stated because it is a real one. The native `Workflow` grant is a bare
+// `"Workflow"` token — it cannot be path-scoped, so granting it authorises every dynamic workflow
+// script in the project. This launcher is path-scoped by construction but reimplements the
+// runtime, so it forfeits native resume-from-journal, worktree isolation and prompt-cache-warm
+// sub-agents (each `agent()` here is a cold `claude -p`). `npx shapeup-sdlc init` writes the
+// native grant by default and `--no-native-workflow` declines it; this is the lane a declining
+// install runs on.
 //
 // WHAT IT PROVIDES to the script — the Workflow runtime surface shapeup-run.js actually uses:
 //   args, agent(prompt, {label, phase, schema, model, effort}), parallel(thunks),
@@ -98,8 +65,7 @@ import { readFileSync, writeFileSync, mkdirSync, appendFileSync } from "node:fs"
 import { resolve, basename } from "node:path";
 import process from "node:process";
 import { runArgs } from "./lib/argv.mjs";
-import { isMain } from "./lib/is-main.mjs";
-import { readRunId } from "./lib/run-id.mjs";
+import { readRunId } from "./lib/paths.mjs";
 
 /**
  * The typed argv boundary.
@@ -111,7 +77,7 @@ import { readRunId } from "./lib/run-id.mjs";
  * machine-readable reason before a single worker is spawned or a run directory created.
  */
 export const ARGV_SPEC = {
-  usage: 'run-workflow.mjs <workflow-script.js> [--args <json> | --args-file <path>] ' +
+  usage: 'harness.mjs run <workflow-script.js> [--args <json> | --args-file <path>] ' +
          "[--run-dir <dir>] [--worker-permission-mode <mode>] [--worker-cwd <dir>] " +
          "[--max-concurrency <n>] [--agent-timeout-s <n>] [--budget-usd <n>]",
   _: { arity: 1, name: "workflow-script.js" },
@@ -282,8 +248,33 @@ const schemaInstruction = (schema) =>
 // ---------------------------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------------------------
-async function main() {
-  const cli = configure(runArgs(ARGV_SPEC));
+/**
+ * Launch a workflow script on the bundled runtime.
+ *
+ * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb word).
+ * @returns {Promise<void>} Settles when the run directory has its result; exits 1 on a launch failure.
+ */
+export async function cli(rawArgv) {
+  await main(rawArgv).catch((e) => {
+    // The failure is written where a background caller will look for it, not only to a stdout
+    // nobody is reading: a launch that dies silently is the exact shape this file exists to end.
+    process.stdout.write(JSON.stringify({ ok: false, error: e.message }) + "\n");
+    process.stderr.write(`[harness run] FATAL ${e.stack}\n`);
+    try {
+      const i = rawArgv.indexOf("--run-dir");
+      if (i !== -1 && rawArgv[i + 1]) {
+        const dir = resolve(rawArgv[i + 1]);
+        mkdirSync(dir, { recursive: true });
+        writeFileSync(resolve(dir, "result.json"),
+          JSON.stringify({ ok: false, error: e.message }, null, 2) + "\n");
+      }
+    } catch { /* the stdout line above is still the record */ }
+    process.exit(1);
+  });
+}
+
+async function main(rawArgv) {
+  const cli = configure(runArgs(ARGV_SPEC, rawArgv));
   mkdirSync(cli.runDir, { recursive: true });
   const journalPath = resolve(cli.runDir, "journal.jsonl");
   const journal = (entry) => appendFileSync(journalPath, JSON.stringify(entry) + "\n");
@@ -377,24 +368,4 @@ async function main() {
   writeFileSync(resolve(cli.runDir, "result.json"), JSON.stringify(summary, null, 2) + "\n");
   process.stdout.write(JSON.stringify({ ok: true, result }) + "\n");
   return cli.runDir;
-}
-
-if (isMain(import.meta.url)) {
-  main().catch((e) => {
-    // The failure is written where a background caller will look for it, not only to a stdout
-    // nobody is reading: a launch that dies silently is the exact shape this file exists to end.
-    process.stdout.write(JSON.stringify({ ok: false, error: e.message }) + "\n");
-    process.stderr.write(`[run-workflow] FATAL ${e.stack}\n`);
-    try {
-      const dir = process.argv.includes("--run-dir")
-        ? resolve(process.argv[process.argv.indexOf("--run-dir") + 1])
-        : null;
-      if (dir) {
-        mkdirSync(dir, { recursive: true });
-        writeFileSync(resolve(dir, "result.json"),
-          JSON.stringify({ ok: false, error: e.message }, null, 2) + "\n");
-      }
-    } catch { /* the stdout line above is still the record */ }
-    process.exit(1);
-  });
 }

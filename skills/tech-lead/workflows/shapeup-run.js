@@ -7,7 +7,7 @@
 //   ORIENT -> GATE L1a -> ANALYZE -> WIRE -> GATE L1a.5 -> MAP SCOPES -> GATE L1b ->
 //   rounds of (BUILD -> GATE L2 -> EVAL -> GATE L3) bounded by budgets.maxRounds ->
 //   QA -> GATE H -> ship-report -> { status: "shipped", ... }
-// Every dispatched phase above is followed by a POST-CONDITION (`resume-state.mjs --require`):
+// Every dispatched phase above is followed by a POST-CONDITION (`harness probe resume --require`):
 // the phase is complete when its artifact is on disk, never when its result record says so
 // (see requirePhase below).
 // Every worker dispatch is the SAME four-call shape used throughout this codebase (the envelope
@@ -37,7 +37,7 @@
 //   - The `tiny` lane and pre-scope-contract specs are OUT OF SCOPE for this file. SKILL.md's
 //     Hard Rules / tiny-lane.md keep the prose path for those, verbatim, non-regression.
 //   - This file does not append rows to the committed `round-ledger.md`
-//     (references/state-model.md "Two ledgers") on a gate crossing. `gate-answers.mjs`'s own
+//     (references/state-model.md "Two ledgers") on a gate crossing. `harness gate`'s own
 //     resolution IS the audit record (source + authorized_by on every resolved gate, readable
 //     from `decisions.jsonl` and the gate's own JSON output); promoting that into a committed
 //     per-run ledger row is follow-on work.
@@ -45,7 +45,7 @@
 // args (RunArgs, domain.schema.json $defs/RunArgs — the central-registry shape; this file
 // validates its own subset in code, no runtime schema check at the C1 boundary itself):
 //   slug          string   the feature slug this run builds (a receipt for it must already exist
-//                          — tech-lead's init-run.mjs, GATE L0.1, runs BEFORE this launch)
+//                          — tech-lead's harness init run, GATE L0.1, runs BEFORE this launch)
 //   autoLevel     string   interactive | auto | unattended
 //   answers       string   gate-answers preset name ("ci"|"guarded"|"interactive") or a path
 //   models        object   { exec, eval, qa? } — sonnet-or-above only (the model floor)
@@ -63,7 +63,7 @@
 
 export const meta = {
   name: "shapeup-run",
-  description: "The outer BUILD-phase pipeline: ORIENT -> ANALYZE -> WIRE -> MAP SCOPES -> rounds of BUILD/EVAL -> QA -> GATE H -> ship-report. Every gate resolves via gate-answers.mjs exit codes (0 cross / 4 pause / 5 abort); a pause returns and a relaunch fast-forwards from disk, never from memory, and every dispatched phase must leave its artifact behind before the run moves on.",
+  description: "The outer BUILD-phase pipeline: ORIENT -> ANALYZE -> WIRE -> MAP SCOPES -> rounds of BUILD/EVAL -> QA -> GATE H -> ship-report. Every gate resolves via harness gate exit codes (0 cross / 4 pause / 5 abort); a pause returns and a relaunch fast-forwards from disk, never from memory, and every dispatched phase must leave its artifact behind before the run moves on.",
   phases: [
     { title: "Orient" }, { title: "Analyze" }, { title: "Wire" }, { title: "MapScopes" },
     { title: "Build" }, { title: "Eval" }, { title: "QA" }, { title: "Ship" },
@@ -203,7 +203,7 @@ const mechNode = (statements, label) => mech(
 // fast-forward derivation (design doc §4) — "jump to the first phase whose artifacts are
 // incomplete", read from files, never from memory.
 //
-// It lives in skills/tech-lead/scripts/resume-state.mjs, a real pipeline script, rather than in
+// It lives in kernel/probe/resume.mjs, a real pipeline script, rather than in
 // an inline `node -e` blob here. That move is not tidying: a workflow script
 // cannot be imported, so while the derivation was a string inside this file NOTHING could unit-
 // test it — and the kill/resume probe found it
@@ -213,7 +213,7 @@ const mechNode = (statements, label) => mech(
 // ---------------------------------------------------------------------------------------------
 async function probe(slug) {
   const r = await mech(
-    `node "${args.pluginRoot}/skills/tech-lead/scripts/resume-state.mjs" --slug ${slug}`,
+    `node "${args.pluginRoot}/kernel/harness.mjs" probe resume --slug ${slug}`,
     "resume-state",
   );
   // A probe that cannot be parsed is not an empty run — it is an unknown one. Returning {} here
@@ -230,7 +230,7 @@ async function probe(slug) {
 async function checkScopeGreen(slug, scopeId, round) {
   const r = await mechNode([
     `import { existsSync, readdirSync, readFileSync } from 'node:fs';`,
-    `import { verdictsDir } from '${args.pluginRoot}/skills/tech-lead/scripts/lib/paths.mjs';`,
+    `import { verdictsDir } from '${args.pluginRoot}/kernel/lib/paths.mjs';`,
     `const dir = verdictsDir(process.cwd(), '${slug}');`,
     `let green = false; let path = null;`,
     `if (existsSync(dir)) { for (const f of readdirSync(dir)) { if (!f.endsWith('.json')) continue; `,
@@ -254,7 +254,7 @@ async function checkScopeGreen(slug, scopeId, round) {
 // inside a single leg, and it is what made the kill/resume probe FAIL a second time — on WIRE,
 // whose worker had been dispatched before the spec tree it reads even existed.
 //
-// The check is `resume-state.mjs --require <phase>`: the SAME derivation the fast-forward uses,
+// The check is `harness probe resume --require <phase>`: the SAME derivation the fast-forward uses,
 // asked about one phase. Deliberately not a second predicate — two readings of "is this phase
 // done" that can disagree is the defect class itself, not a safeguard against it.
 //
@@ -264,7 +264,7 @@ async function checkScopeGreen(slug, scopeId, round) {
 // question in front of a human once, instead of looping silently.
 const requirePhase = async (slug, gate, phaseKey) => {
   const r = await mech(
-    `node "${args.pluginRoot}/skills/tech-lead/scripts/resume-state.mjs" --slug ${slug} --require ${phaseKey}`,
+    `node "${args.pluginRoot}/kernel/harness.mjs" probe resume --slug ${slug} --require ${phaseKey}`,
     `require:${phaseKey}`,
   );
   if (r.exit_code === 0) return null;
@@ -283,12 +283,12 @@ const requirePhase = async (slug, gate, phaseKey) => {
 //
 // It is no longer this file's resume oracle — the fast-forward reads ARTIFACTS (probe above), the
 // way WIRE and MAP SCOPES always did. `status` survives because it has other readers that would
-// otherwise lose their only signal: run-snapshot.mjs and hooks/anti-rationalization.mjs both hold
+// otherwise lose their only signal: harness reduce snapshot and hooks/anti-rationalization.mjs both hold
 // a MID_RUN set over these values to tell a run in flight from a finished one.
 //
 // And its outcome is no longer discarded. This was one of exactly two mech() call sites in this
 // file whose return value nobody read, and both of them failed silently for two entire runs
-// (46 dispatched agents, status pinned at "orienting" throughout). resume-state.mjs now reads the
+// (46 dispatched agents, status pinned at "orienting" throughout). harness probe resume now reads the
 // ledger back after writing it and exits non-zero if the value did not take; a failure is logged
 // loudly and the run continues, because bookkeeping that lost its write is a degraded digest, not
 // a corrupted build. The pointer below takes the opposite policy, for the reason stated there.
@@ -301,7 +301,7 @@ const requirePhase = async (slug, gate, phaseKey) => {
 const stateWarnings = [];
 const setRunStatus = async (slug, status) => {
   const r = await mech(
-    `node "${args.pluginRoot}/skills/tech-lead/scripts/resume-state.mjs" --slug ${slug} --set-status ${status}`,
+    `node "${args.pluginRoot}/kernel/harness.mjs" probe resume --slug ${slug} --set-status ${status}`,
     `status:${status}`,
   );
   if (r.exit_code !== 0) {
@@ -324,15 +324,15 @@ const withStateWarnings = (ret) => (stateWarnings.length ? { ...ret, state_warni
 // zero-memory-handoff boundary, PA6: the prompt below carries only the order path).
 // ---------------------------------------------------------------------------------------------
 const compile = (flags, label) => mech(
-  `node "${args.pluginRoot}/skills/tech-lead/scripts/compile-order.mjs" ${flags}`,
+  `node "${args.pluginRoot}/kernel/harness.mjs" compile ${flags}`,
   label,
 );
 const ingest = (resultPath, label) => mech(
-  `node "${args.pluginRoot}/skills/tech-lead/scripts/ingest-result.mjs" ${resultPath}`,
+  `node "${args.pluginRoot}/kernel/harness.mjs" reduce ingest ${resultPath}`,
   label,
 );
 
-// ingest-result.mjs is the SINGLE WRITER of the board, the discovery ledger and the verdict record
+// harness reduce ingest is the SINGLE WRITER of the board, the discovery ledger and the verdict record
 // (AGENTS.md invariant #3). Every call site here used to discard its outcome, which is the
 // same defect class the kill/resume probe found in the two state writes, sitting on the one script
 // whose failure matters most: an ingest that fails unnoticed leaves shared state describing work
@@ -347,7 +347,7 @@ const ingestFailure = (r, label) => (
 
 // WHERE A DISPATCH'S RESULT IS — derived from the order, never taken from the worker's report.
 //
-// The envelope port names it: compile-order.mjs writes `orders/<suffix>.json` and every worker
+// The envelope port names it: harness compile writes `orders/<suffix>.json` and every worker
 // writes `results/<suffix>.json` (its own SKILL.md says so — "`.${"shapeup"}/<slug>/results/
 // <order-suffix>.json`"). The pairing is a FACT of the port, and the kill/resume probe's own
 // assertions are set operations over exactly that pairing.
@@ -391,12 +391,12 @@ const ingestOrAbort = async (gate, resultPath, label) => {
 // This states it, in the one place a zero-memory subagent cannot miss: its dispatch prompt. It is
 // the same path `resultFor` ingests, so the two agree by construction. Putting `result_path` INTO
 // the WorkOrder is the deeper fix and it belongs to whoever next opens the envelope schema — it
-// touches compile-order.mjs, domain.schema.json and every worker's input contract, which is a wider
+// touches harness compile, domain.schema.json and every worker's input contract, which is a wider
 // diff than this change should take. Recorded as a discovered defect, not silently
 // worked around.
 const dispatch = async (skill, orderPath, model, phase, label, schema, extra) => {
   const setOrderR = await mech(
-    `node "${args.pluginRoot}/skills/tech-lead/scripts/resume-state.mjs" --slug ${slug} --set-active-order ${orderPath}`,
+    `node "${args.pluginRoot}/kernel/harness.mjs" probe resume --slug ${slug} --set-active-order ${orderPath}`,
     `set-active-order:${baseOf(orderPath)}`,
   );
   if (setOrderR.exit_code !== 0) {
@@ -451,13 +451,13 @@ const HAMMER_SCHEMA = {
 };
 
 // ---------------------------------------------------------------------------------------------
-// Gate resolution — every gate crosses through gate-answers.mjs's exit code (0 cross / 4 pause /
+// Gate resolution — every gate crosses through harness gate's exit code (0 cross / 4 pause /
 // 5 abort) — the same convention every gate in the harness uses.
 // ---------------------------------------------------------------------------------------------
 const PRESET_NAMES = new Set(["ci", "guarded", "interactive"]);
 const answersFlag = (answers) => (!answers ? "" : (PRESET_NAMES.has(answers) ? `--preset ${answers}` : `--file ${answers}`));
 
-// gate-answers.mjs carries its verdict on TWO channels: the exit code says cross/pause/abort
+// harness gate carries its verdict on TWO channels: the exit code says cross/pause/abort
 // (0/4/5), but the DECISION itself — loop|stop|run|skip|accept-cut-list — travels only in the
 // JSON it prints on stdout ({ gate, decision, source, note, status }). The mech() envelope is
 // {exit_code, stdout, stderr} and nothing else, so reading `.decision` straight off it yields
@@ -466,7 +466,7 @@ const answersFlag = (answers) => (!answers ? "" : (PRESET_NAMES.has(answers) ? `
 // Parse it here, once, so every caller branches on a real value.
 const resolveGate = async (slug, answers, gate) => {
   const r = await mech(
-    `node "${args.pluginRoot}/skills/tech-lead/scripts/gate-answers.mjs" --resolve ${gate} --slug ${slug} ${answersFlag(answers)}`.trim(),
+    `node "${args.pluginRoot}/kernel/harness.mjs" gate --resolve ${gate} --slug ${slug} ${answersFlag(answers)}`.trim(),
     `gate:${gate}`,
   );
   // A gate that printed no JSON has no decision to read; a gate whose JSON the courier wrapped in
@@ -556,7 +556,7 @@ if (l1a.exit_code === 5) return abortedFrom("L1a", l1a, "GATE L1a aborted");
 // the one solution-architect's own input contract excludes: `wire` is defined as "author/refresh
 // the wiring map after `analyze`, before `map-scopes`" (SKILL.md:43), its payload names the spec
 // folder to "read `usecases/` for the UCs and the engine each one needs" (:44), and its
-// verification checklist requires one wiring-map entry PER use case (:108). `init-run.mjs`
+// verification checklist requires one wiring-map entry PER use case (:108). `harness init run`
 // scaffolds no spec tree, so on a greenfield run WIRE was handed an empty spec folder, had
 // nothing to wire, and escalated — deterministically, on every launch. Two committed authorities
 // disagreed and this file implemented the one the worker does not (
@@ -646,15 +646,15 @@ if (scopes.length === 0) {
 // trace-lint runs HERE, at L1b, where gates.md:154 puts it ("ADVISORY at L1b"). It used to run at
 // L1a.5 — before `analyze` had written a spec tree or a requirement registry, so both of its arms
 // self-skipped and the seam-coverage figure reported on nothing.
-const traceLint = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/trace-lint.mjs" --slug ${slug}`, "trace-lint");
+const traceLint = await mech(`node "${args.pluginRoot}/kernel/harness.mjs" verify trace --slug ${slug}`, "trace-lint");
 const seamCoverage = traceLint.stdout.includes("🟢 green") ? "green" : "red (advisory)";
 
-const specLint = await mech(`node "${args.pluginRoot}/skills/ba-pitch-analyzer/scripts/spec-lint.mjs" --slug ${slug}`, "spec-lint");
+const specLint = await mech(`node "${args.pluginRoot}/kernel/harness.mjs" verify spec --slug ${slug}`, "spec-lint");
 if (specLint.exit_code !== 0) {
   return { status: "aborted", aborted_at: "L1b", reason: `spec-lint reported a disjointness/size problem before BUILD could start: ${specLint.stdout.trim() || specLint.stderr.trim()}` };
 }
 
-const hillDeriveL1b = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/hill-derive.mjs" --slug ${slug}`, "hill-derive");
+const hillDeriveL1b = await mech(`node "${args.pluginRoot}/kernel/harness.mjs" reduce hill --slug ${slug}`, "hill-derive");
 if (hillDeriveL1b.exit_code !== 0) {
   log(`hill-derive failed at L1b: ${(hillDeriveL1b.stderr || hillDeriveL1b.stdout).trim()}`);
 }
@@ -666,16 +666,16 @@ if (dispatchedMapScopes) await setRunStatus(slug, "building");
 
 // ---------------------------------------------------------------------------------------------
 // Rounds of BUILD -> GATE L2 -> EVAL -> GATE L3, bounded by budgets.maxRounds (the OUTER
-// breaker) with budget-check.mjs consulted at every round boundary (the DEADLINE breaker).
+// breaker) with harness verify budget consulted at every round boundary (the DEADLINE breaker).
 // ---------------------------------------------------------------------------------------------
 phase("Build");
 let round = facts.eval_rounds_done.length ? Math.max(...facts.eval_rounds_done) + 1 : 1;
 let verdict = null;
 
 while (round <= args.budgets.maxRounds) {
-  const budget = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/budget-check.mjs" --slug ${slug} --strict`, `budget:r${round}`);
+  const budget = await mech(`node "${args.pluginRoot}/kernel/harness.mjs" verify budget --slug ${slug} --strict`, `budget:r${round}`);
   if (budget.exit_code === 6) {
-    const hillDeriveH1 = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/hill-derive.mjs" --slug ${slug}`, "hill-derive");
+    const hillDeriveH1 = await mech(`node "${args.pluginRoot}/kernel/harness.mjs" reduce hill --slug ${slug}`, "hill-derive");
     if (hillDeriveH1.exit_code !== 0) {
       log(`hill-derive failed at H (deadline): ${(hillDeriveH1.stderr || hillDeriveH1.stdout).trim()}`);
     }
@@ -714,7 +714,7 @@ while (round <= args.budgets.maxRounds) {
     // twice, and nothing noticed because this call's result was discarded. It is read back now,
     // and a failure aborts the run at a named phase rather than building against the wrong map.
     const pointer = await mech(
-      `node "${args.pluginRoot}/skills/tech-lead/scripts/resume-state.mjs" --slug ${slug} --set-active-scope ${scope.scope_id}`,
+      `node "${args.pluginRoot}/kernel/harness.mjs" probe resume --slug ${slug} --set-active-scope ${scope.scope_id}`,
       `active-scope:${scope.scope_id}`,
     );
     if (pointer.exit_code !== 0) {
@@ -735,7 +735,7 @@ while (round <= args.budgets.maxRounds) {
         break;
       }
       const orderPath = compiled.stdout.trim();
-      // t0-verify.mjs's own default --out lands verdicts in the SHARED tree next to the scope
+      // harness verify t0's own default --out lands verdicts in the SHARED tree next to the scope
       // contract; the LOCAL ("." + "shapeup/") tree is derived from compile-order's own stdout, never
       // spelled out here.
       const localRoot = orderPath.slice(0, orderPath.lastIndexOf("/orders/"));
@@ -752,7 +752,7 @@ while (round <= args.budgets.maxRounds) {
       const buildIngest = ingestFailure(await ingest(resultFor(orderPath, built.result_path, buildLabel), buildLabel), buildLabel);
       if (buildIngest) { log(`scope ${scope.scope_id} — attempt ${attempt} discarded: ${buildIngest}`); continue; }
       const t0 = await mech(
-        `node "${args.pluginRoot}/skills/tech-lead/scripts/t0-verify.mjs" ${scope.path} --round ${round} --attempt ${attempt} --out "${localRoot}" --no-seesaw`,
+        `node "${args.pluginRoot}/kernel/harness.mjs" verify t0 ${scope.path} --round ${round} --attempt ${attempt} --out "${localRoot}" --no-seesaw`,
         `t0:${scope.scope_id}-a${attempt}`,
       );
       // An unparsable T0 report is a red, never a crash-the-loop — but courier noise around a
@@ -774,14 +774,14 @@ while (round <= args.budgets.maxRounds) {
   allHammerProposals.push(...roundHammer.map((h) => h.scope_id));
 
   if (roundGreen.length === 0 && roundHammer.length > 0) {
-    const hillDeriveH2 = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/hill-derive.mjs" --slug ${slug}`, "hill-derive");
+    const hillDeriveH2 = await mech(`node "${args.pluginRoot}/kernel/harness.mjs" reduce hill --slug ${slug}`, "hill-derive");
     if (hillDeriveH2.exit_code !== 0) {
       log(`hill-derive failed at H (inner breaker): ${(hillDeriveH2.stderr || hillDeriveH2.stdout).trim()}`);
     }
     return withStateWarnings({ status: "gate_h", breaker: "inner", hammer_proposals: allHammerProposals, green_scopes: allGreenScopes });
   }
 
-  const hillDeriveL2 = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/hill-derive.mjs" --slug ${slug}`, "hill-derive");
+  const hillDeriveL2 = await mech(`node "${args.pluginRoot}/kernel/harness.mjs" reduce hill --slug ${slug}`, "hill-derive");
   if (hillDeriveL2.exit_code !== 0) {
     log(`hill-derive failed at L2: ${(hillDeriveL2.stderr || hillDeriveL2.stdout).trim()}`);
   }
@@ -812,7 +812,7 @@ while (round <= args.budgets.maxRounds) {
     verdict = evalResult.overall === "PASS" ? "pass" : "fail";
   }
 
-  const hillDeriveL3 = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/hill-derive.mjs" --slug ${slug}`, "hill-derive");
+  const hillDeriveL3 = await mech(`node "${args.pluginRoot}/kernel/harness.mjs" reduce hill --slug ${slug}`, "hill-derive");
   if (hillDeriveL3.exit_code !== 0) {
     log(`hill-derive failed at L3: ${(hillDeriveL3.stderr || hillDeriveL3.stdout).trim()}`);
   }
@@ -890,7 +890,7 @@ const hGate = await resolveGate(slug, args.answers, "H");
 if (hGate.exit_code === 4) return paused("H", ["accept-cut-list", "ship-all", "ask"], { verdict: hammerResult.verdict, cut_list: hammerResult.cut_list });
 if (hGate.exit_code === 5) return abortedFrom("H", hGate, "GATE H aborted");
 
-const shipReport = await mech(`node "${args.pluginRoot}/skills/tech-lead/scripts/ship-report.mjs" --slug ${slug} --verdict PASS --qa ${qaGate.decision === "run" ? "run" : "skipped"}`, "ship-report");
+const shipReport = await mech(`node "${args.pluginRoot}/kernel/harness.mjs" reduce ship --slug ${slug} --verdict PASS --qa ${qaGate.decision === "run" ? "run" : "skipped"}`, "ship-report");
 await setRunStatus(slug, "shipped");
 
 // The dimensions the evaluator ships, so GATE L4 can say what "shipped" did NOT cover. Must stay in

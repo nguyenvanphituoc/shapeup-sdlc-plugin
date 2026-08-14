@@ -23,7 +23,7 @@ orchestrator's `trace-lint` proves against real code at L1b. Your job is to make
 
 Two payoffs, one artifact:
 - **Reachability becomes checkable later.** Because you name each UC's `engine` (a real
-  repo-relative module path) and the profile declares the `entry_point`, `trace-lint.mjs` can
+  repo-relative module path) and the profile declares the `entry_point`, `harness verify trace` can
   fold this map into its oracle *after the build*: a UC whose engine does not reach the
   `entry_point` via the import graph goes red. You supply the two anchors; the oracle does the
   proving.
@@ -132,5 +132,5 @@ seam, or an engine with no attachment path, and why). You never touch spec docs,
 # The reachability oracle is the ORCHESTRATOR's, run advisory at L1b — not part of your craft.
 # Standalone, you MAY preview it after writing the map (it self-skips arms whose artifacts are
 # absent, and is near-vacuous pre-build since the engine code does not exist yet):
-#   node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/trace-lint.mjs" --slug checkout-vnpay
+#   node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify trace --slug checkout-vnpay
 ```

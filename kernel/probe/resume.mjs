@@ -59,13 +59,12 @@
 
 import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { isMain } from "./lib/is-main.mjs";
-import { runArgs } from "./lib/argv.mjs";
-import { splitFrontmatter } from "./lib/contract-md.mjs";
+import { runArgs } from "../lib/argv.mjs";
+import { splitFrontmatter } from "../lib/contract.mjs";
 import {
   intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir,
   orientDir, activeScope, activeOrder, usecasesDir,
-} from "./lib/paths.mjs";
+} from "../lib/paths.mjs";
 
 /** The run-state values `references/ledger-schema.md` defines. A typo'd status is a rejection,
  *  not a write — the whole point of this file is that a write nobody validates is a write nobody
@@ -324,7 +323,7 @@ export function writeActiveOrder(cwd, slug, orderPath) {
 
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "resume-state.mjs --slug <slug> [--cwd <dir>] [--require <phase> | --set-status <status> | --set-active-scope <scope-id> | --set-active-order <path>]",
+  usage: "harness.mjs probe resume --slug <slug> [--cwd <dir>] [--require <phase> | --set-status <status> | --set-active-scope <scope-id> | --set-active-order <path>]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   slug: { type: "str", required: true },
   cwd: { type: "path" },
@@ -334,8 +333,15 @@ export const ARGV_SPEC = {
   "set-active-order": { type: "str" },
 };
 
-export function main() {
-  const args = runArgs(ARGV_SPEC);
+/**
+ * Derive the run's resume state, or set one of the run pointers.
+ *
+ * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
+ * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
+ *   call `process.exit()` with the subcommand's documented code rather than returning.
+ */
+export function cli(rawArgv) {
+  const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = args.cwd || process.cwd();
 
   const ops = [args.require && "--require", args.setStatus && "--set-status", args.setActiveScope && "--set-active-scope", args.setActiveOrder && "--set-active-order"].filter(Boolean);
@@ -381,6 +387,3 @@ export function main() {
   process.exit(0);
 }
 
-if (isMain(import.meta.url)) {
-  main();
-}

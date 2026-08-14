@@ -53,7 +53,7 @@ function fingerprint(dir, base = dir, acc = {}) {
  */
 function openRun(ROOT, ws, slug, intake) {
   const r = spawnSync(process.execPath, [
-    join(ROOT, "skills/tech-lead/scripts/init-run.mjs"),
+    join(ROOT, "kernel/harness.mjs"), "init", "run",
     "--slug", slug, "--intake-text", intake, "--auto-level", "unattended", "--cwd", ws,
   ], { cwd: ws, encoding: "utf8", timeout: 30_000 });
   const p = join(ws, ".shapeup", slug, "receipt.json");
@@ -69,7 +69,7 @@ export async function run(ctx) {
   const { ROOT, ok, fail, section } = ctx;
 
   const { RUN_ID_PATTERN, mintRunId, runIdFromReceipt, resolveRunId } =
-    await import(join(ROOT, "skills/tech-lead/scripts/lib/run-id.mjs"));
+    await import(join(ROOT, "kernel/lib/paths.mjs"));
 
   // =============================================================================
   section("53. Every record carries the run key — order_id alone collides across runs");
@@ -109,7 +109,7 @@ export async function run(ctx) {
 
       // compile-order: the one place every lane passes through.
       const co = spawnSync(process.execPath, [
-        join(ROOT, "skills/tech-lead/scripts/compile-order.mjs"),
+        join(ROOT, "kernel/harness.mjs"), "compile",
         "--operation", "analyze", "--slug", "budgets", "--cwd", ws,
       ], { cwd: ws, encoding: "utf8", timeout: 30_000 });
       const orderPath = join(ws, ".shapeup", "budgets", "orders", "analyze.json");
@@ -125,7 +125,7 @@ export async function run(ctx) {
       const contract = join(ws, "sc-01.json");
       writeFileSync(contract, JSON.stringify({ scope_id: "sc-01", e2e_verification_fixtures: ["node -e \"process.exit(0)\""] }));
       const t0 = spawnSync(process.execPath, [
-        join(ROOT, "skills/tech-lead/scripts/t0-verify.mjs"), contract,
+        join(ROOT, "kernel/harness.mjs"), "verify", "t0", contract,
         "--round", "1", "--attempt", "1", "--cwd", ws,
         "--out", join(ws, ".shapeup", "budgets"), "--no-seesaw", "--no-ratchet",
       ], { cwd: ws, encoding: "utf8", timeout: 60_000 });
@@ -182,7 +182,7 @@ export async function run(ctx) {
   section("54. The fact tables project the records and never invent a join");
   // =============================================================================
 
-  const facts = await import(join(ROOT, "skills/tech-lead/scripts/lib/facts.mjs"));
+  const facts = await import(join(ROOT, "kernel/report/facts.mjs"));
   const { dispatchFacts, economics, agentCallRow, parseOrderStem, TABLES } = facts;
 
   // (a) The join, and the two shapes it must keep distinguishable.
@@ -290,7 +290,7 @@ export async function run(ctx) {
 
       const before = fingerprint(runRoot);
       const r = spawnSync(process.execPath, [
-        join(ROOT, "skills/tech-lead/scripts/export-run.mjs"), "--slug", "budgets", "--cwd", ws,
+        join(ROOT, "kernel/harness.mjs"), "report", "export", "--slug", "budgets", "--cwd", ws,
       ], { cwd: ws, encoding: "utf8", timeout: 30_000 });
 
       if (r.status !== 0) { fail(`export-run failed: ${r.stderr || r.stdout}`); }

@@ -49,7 +49,7 @@ to assign each one — GATE COACH-1 asks which skill owns a rule, it never assum
 The metrics feed now lives at `.shapeup/metrics/<machine-id>.jsonl` — per-machine shards under
 the gitignored LOCAL root (ADR-0001: a committed shard keyed on a hostname only grows and puts a
 machine name in the repo). If you still carry a committed `shapeup/metrics.jsonl` or
-`shapeup/metrics/`, stop tracking it; new rows land under `.shapeup/metrics/` and `stats.mjs`
+`shapeup/metrics/`, stop tracking it; new rows land under `.shapeup/metrics/` and `harness probe stats`
 reads them there.
 
 ### The contract parsers were repaired; find what they now reject
@@ -113,7 +113,7 @@ install lives in a version-stamped cache directory, a `--plugin-dir` checkout li
 cloned it — which is also what keeps the grant working across a plugin upgrade instead of silently
 expiring.
 
-The scoped lane launches through `skills/tech-lead/scripts/run-workflow.mjs`, which is one of the
+The scoped lane launches through `kernel/run.mjs`, which is one of the
 granted entry points.
 
 **Do not launch the lane with the `Workflow` tool.** That call is denied by default in a headless
@@ -123,7 +123,7 @@ improvised the feature by hand instead, once reaching GATE L4 with a valid recei
 pipeline had never started. **A receipt does not prove the lane ran** — the run's first act writes
 one, so a receipt attests that a session started, never that the pipeline executed. If your own
 scripts launch the harness, launch
-`run-workflow.mjs` as a background Bash call and read `<run-dir>/result.json`.
+`harness run` as a background Bash call and read `<run-dir>/result.json`.
 
 <details>
 <summary>If you would rather use the <code>Workflow</code> tool anyway — the trade-off, verified</summary>
@@ -171,7 +171,7 @@ Know what else the pin takes with it: this release also carries the attempt-ratc
 unrelated to the orchestrator, and six of its files ship — `skills/orient/SKILL.md`,
 `skills/qa-edge-hunter/SKILL.md`, `skills/task-executor/SKILL.md`,
 `skills/tech-lead/references/delegation.md`, `skills/tech-lead/references/round-protocol.md`,
-`skills/tech-lead/scripts/ship-report.mjs`. Pinning to work around an orchestrator problem reverts
+`kernel/reduce/ship.mjs`. Pinning to work around an orchestrator problem reverts
 those too, silently. If that trade is the wrong one, open an issue rather than pinning — the
 rollback is deliberately coarse and we would rather fix forward.
 

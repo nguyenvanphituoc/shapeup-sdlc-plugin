@@ -121,7 +121,7 @@ half-green board anyway" are two different, countable facts — a PASS over an i
 can never later be read as a complete one.
 
 > **The hooks that do refuse.** Advisory is GATE L2's own choice, not the harness's posture.
-> `validate-envelope.mjs` denies a worker dispatch whose order is missing or schema-invalid;
+> `harness verify envelope` denies a worker dispatch whose order is missing or schema-invalid;
 > `sandbox-guard.mjs` denies a write the active order's substrate does not permit;
 > `gate-intake.mjs` denies an orchestrator dispatch with no requirement in it;
 > `safety-spine.mjs` denies `rm -rf ~`, force-push, `DROP TABLE` and secret reads; and

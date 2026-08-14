@@ -24,7 +24,7 @@ export async function run(ctx) {
   section("46. Committed contracts round-trip as markdown without losing fields or prose");
   // =============================================================================
 
-  const C = await import(join(ROOT, "skills/tech-lead/scripts/lib/contract-md.mjs"));
+  const C = await import(join(ROOT, "kernel/lib/contract.mjs"));
 
   const SCOPE_MD = [
     "---",
@@ -264,7 +264,7 @@ export async function run(ctx) {
 
   // The oracle leg: trace-lint must go RED and must NOT claim reachability it never checked.
   {
-    const { traceLint } = await import("../../skills/tech-lead/scripts/trace-lint.mjs");
+    const { traceLint } = await import("../../kernel/verify/trace.mjs");
     const dir = mkdtempSync(join(tmpdir(), "hd001-"));
     try {
       mkdirSync(join(dir, "shapeup", "demo"), { recursive: true });

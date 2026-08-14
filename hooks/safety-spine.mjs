@@ -33,8 +33,8 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, join, basename } from "node:path";
 import { globToRegExp, logPathology } from "./sandbox-guard.mjs";
-import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
-import { LOCAL, safetyOverrides, metricsShard } from "../skills/tech-lead/scripts/lib/paths.mjs";
+import { isMain } from "../kernel/lib/argv.mjs";
+import { LOCAL, safetyOverrides, metricsShard } from "../kernel/lib/paths.mjs";
 
 import { runHook, readStdin, settle } from "./lib/decision.mjs";
 

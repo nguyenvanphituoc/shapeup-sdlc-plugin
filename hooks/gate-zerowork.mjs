@@ -55,8 +55,8 @@
 
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
-import { localDir, globLocal } from "../skills/tech-lead/scripts/lib/paths.mjs";
+import { isMain } from "../kernel/lib/argv.mjs";
+import { localDir, globLocal } from "../kernel/lib/paths.mjs";
 import { runHook, readStdin, settle, decisionsPath } from "./lib/decision.mjs";
 
 const MAX_TRANSCRIPT_BYTES = 20 * 1024 * 1024;
@@ -75,7 +75,7 @@ const WORK_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash"
  * Is this block a launch of the orchestrator's own workflow script, by either surface?
  *
  * TWO SURFACES, ONE INVARIANT. `Workflow({scriptPath})` is the tool form. The shipped
- * front door is a Bash call — `node "…/scripts/run-workflow.mjs" "…/workflows/shapeup-run.js"` —
+ * front door is a Bash call — `node "…/kernel/harness.mjs" run "…/workflows/shapeup-run.js"` —
  * because the tool form cannot be granted and is denied in every headless session. A gate that
  * knew only the tool form would go blind on the lane users actually run, which is the same
  * "the emptier the failure, the less of it there is to detect" hole the banner above describes.
@@ -91,10 +91,10 @@ const WORK_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash"
 function launchedShapeupWorkflow(block) {
   if (block.name === "Bash") {
     const cmd = String(block.input?.command ?? "");
-    // Both halves required: the launcher AND an orchestrator script. `run-workflow.mjs` carrying
+    // Both halves required: the launcher AND an orchestrator script. `harness run` carrying
     // somebody else's workflow is not a harness dispatch, and neither is a bare mention of the
     // script in an unrelated command (`ls`, `cat`).
-    return /\brun-workflow\.mjs\b/.test(cmd) && /[\\/]shapeup-[\w.-]*\.[cm]?js\b/.test(cmd);
+    return /\bharness\.mjs"?\s+run\b/.test(cmd) && /[\\/]shapeup-[\w.-]*\.[cm]?js\b/.test(cmd);
   }
   if (block.name !== "Workflow") return false;
   const scriptPath = String(block.input?.scriptPath ?? "");
@@ -247,20 +247,20 @@ export function buildReason({ narration, census, enforcement }) {
     "",
     "  # write the requirement to a file first — inlining multi-line text into a shell",
     "  # argument is where this step goes wrong",
-    "  node \"${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/init-run.mjs\" \\",
+    "  node \"${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs\" init run \\",
     "       --slug <slug> --intake-file <path/to/requirement.md> \\",
     "       --auto-level <interactive|auto|unattended> [--gate-answers <preset|path>]",
     "",
-    "Then launch the lane itself — a BACKGROUND Bash call, never the `Workflow` tool, which cannot be",
-    "granted and is denied outright in a headless session:",
+    "Then launch the lane itself — a BACKGROUND Bash call, or the `Workflow` tool when the install",
+    "granted it (`npx shapeup-sdlc init` writes that grant unless --no-native-workflow was given):",
     "",
-    "  node \"${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/run-workflow.mjs\" \\",
+    "  node \"${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs\" run \\",
     "       \"${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js\" \\",
     "       --args-file <.shapeup/<slug>/run-args.json> --run-dir <.shapeup/<slug>/workflow-run>",
     "",
     "Resolve each gate the run pauses at with:",
     "",
-    "  node \"${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/gate-answers.mjs\" --resolve <gate-id> …",
+    "  node \"${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs\" gate --resolve <gate-id> …",
     "",
     "If the command comes back \"requires approval\", say so and stop — the harness's scripts ship with",
     "the plugin and need a one-time permission grant (`npx shapeup-sdlc init` writes it). Do NOT route",

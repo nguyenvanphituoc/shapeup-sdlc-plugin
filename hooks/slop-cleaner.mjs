@@ -16,8 +16,8 @@ import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { activeSlug } from "./anti-rationalization.mjs";
-import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
-import { LOCAL, SHARED, resultsDir } from "../skills/tech-lead/scripts/lib/paths.mjs";
+import { isMain } from "../kernel/lib/argv.mjs";
+import { LOCAL, SHARED, resultsDir } from "../kernel/lib/paths.mjs";
 
 import { runHook, readStdin, settle } from "./lib/decision.mjs";
 

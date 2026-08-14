@@ -32,16 +32,15 @@
 //
 // Zero dependencies, zero network — same discipline as t0-verify.mjs / compile-order.mjs.
 //
-// Usage:  node skills/tech-lead/scripts/trace-lint.mjs --slug <slug> [--cwd <dir>] [--gate] [--quiet]
+// Usage:  node kernel/harness.mjs verify trace --slug <slug> [--cwd <dir>] [--gate] [--quiet]
 // Exit:   advisory (default) → always 0. --gate → 1 when overall is red.
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from "node:fs";
 import { resolve, join, dirname, relative, isAbsolute } from "node:path";
-import { readBoard } from "./compile-order.mjs";
-import { isMain } from "./lib/is-main.mjs";
-import { runArgs } from "./lib/argv.mjs";
-import { sharedRoot, traceDir, relLocal } from "./lib/paths.mjs";
-import { readContract, unreadableReason, WIRING_MAP, PROJECT_PROFILE } from "./lib/contract-md.mjs";
+import { readBoard } from "../compile.mjs";
+import { runArgs } from "../lib/argv.mjs";
+import { sharedRoot, traceDir, relLocal } from "../lib/paths.mjs";
+import { readContract, unreadableReason, WIRING_MAP, PROJECT_PROFILE } from "../lib/contract.mjs";
 
 // --- requirements.md registry parser -----------------------------------------
 // A committed markdown table: | REQ-id | clause (verbatim) | source | status | note |
@@ -329,7 +328,7 @@ export function traceLint(slug, { cwd, gate = false }) {
 // ---------------------------------------------------------------------------
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "trace-lint.mjs --slug <slug> [--cwd <dir>] [--gate] [--quiet]",
+  usage: "harness.mjs verify trace --slug <slug> [--cwd <dir>] [--gate] [--quiet]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   slug: { type: "str", required: true },
   cwd: { type: "path" },
@@ -337,9 +336,15 @@ export const ARGV_SPEC = {
   quiet: { type: "flag" },
 };
 
-const isMainModule = isMain(import.meta.url);
-if (isMainModule) {
-  const args = runArgs(ARGV_SPEC);
+/**
+ * Run the traceability oracle over the spine artifacts and write its report.
+ *
+ * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
+ * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
+ *   call `process.exit()` with the subcommand's documented code rather than returning.
+ */
+export async function cli(rawArgv) {
+  const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = resolve(args.cwd || process.cwd());
   const slug = args.slug;
   const gate = !!args.gate;

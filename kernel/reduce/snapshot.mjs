@@ -21,10 +21,9 @@
 
 import { readFileSync, readdirSync, existsSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { validate } from "./validate-envelope.mjs";
-import { isMain } from "./lib/is-main.mjs";
-import { runArgs } from "./lib/argv.mjs";
-import { localDir, localRoot, relLocal, globLocal, runSnapshot as runSnapshotPath } from "./lib/paths.mjs";
+import { validate } from "../verify/envelope.mjs";
+import { runArgs } from "../lib/argv.mjs";
+import { localDir, localRoot, relLocal, globLocal, runSnapshot as runSnapshotPath } from "../lib/paths.mjs";
 
 /**
  * Read a JSON file, tolerating absence/parse errors.
@@ -237,16 +236,22 @@ function assertValid(snapshot) {
 
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "run-snapshot.mjs [--cwd <dir>] [--format json|text] [--write]",
+  usage: "harness.mjs reduce snapshot [--cwd <dir>] [--format json|text] [--write]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   cwd: { type: "path" },
   format: { type: "enum", values: ["json", "text"], default: "json" },
   write: { type: "flag" },
 };
 
-const isMainModule = isMain(import.meta.url);
-if (isMainModule) {
-  const args = runArgs(ARGV_SPEC);
+/**
+ * Derive the file-based run snapshot, and optionally freeze it to disk.
+ *
+ * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
+ * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
+ *   call `process.exit()` with the subcommand's documented code rather than returning.
+ */
+export async function cli(rawArgv) {
+  const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = resolve(args.cwd || process.cwd());
   const format = args.format;
 

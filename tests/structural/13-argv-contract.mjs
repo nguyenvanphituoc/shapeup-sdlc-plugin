@@ -29,15 +29,26 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 
-/** Every skill-local entry point, discovered from the filesystem rather than listed by hand. */
-function entryPoints(ROOT) {
+/**
+ * Every kernel subcommand, read off the kernel's own routing table.
+ *
+ * Derived rather than listed: a subcommand added to `ROUTES` is checked here on the next run, and a
+ * hand-kept second copy of the routing cannot drift from the first.
+ *
+ * @param {string} ROOT - Repo root.
+ * @returns {Promise<Array<{rel:string, abs:string, verbs:string[]}>>} One entry per subcommand.
+ */
+async function entryPoints(ROOT) {
+  const { ROUTES } = await import(join(ROOT, "kernel/harness.mjs"));
   const out = [];
-  const skillsDir = join(ROOT, "skills");
-  for (const skill of readdirSync(skillsDir)) {
-    const scripts = join(skillsDir, skill, "scripts");
-    if (!existsSync(scripts)) continue;
-    for (const f of readdirSync(scripts)) {
-      if (f.endsWith(".mjs")) out.push({ rel: `skills/${skill}/scripts/${f}`, abs: join(scripts, f) });
+  for (const [verb, target] of Object.entries(ROUTES)) {
+    if (typeof target === "string") {
+      out.push({ rel: `harness ${verb}`, abs: join(ROOT, "kernel", target.slice(2)), verbs: [verb] });
+      continue;
+    }
+    for (const [action, mod] of Object.entries(target)) {
+      if (action === "_default") continue;
+      out.push({ rel: `harness ${verb} ${action}`, abs: join(ROOT, "kernel", mod.slice(2)), verbs: [verb, action] });
     }
   }
   return out.sort((a, b) => a.rel.localeCompare(b.rel));
@@ -54,14 +65,15 @@ export async function run(ctx) {
   // =============================================================================
   section("42. The argv boundary is typed: a malformed flag is rejected before anything runs");
   // =============================================================================
-  const eps = entryPoints(ROOT);
-  if (eps.length < 15) fail(`expected ≥15 skill-local entry points, found ${eps.length}`);
-  else ok(`${eps.length} skill-local entry points discovered`);
+  const KERNEL = join(ROOT, "kernel/harness.mjs");
+  const eps = await entryPoints(ROOT);
+  if (eps.length < 15) fail(`expected ≥15 kernel subcommands, found ${eps.length}`);
+  else ok(`${eps.length} kernel subcommands discovered from the routing table`);
 
   let specced = 0;
   let numericChecked = 0;
 
-  for (const { rel, abs } of eps) {
+  for (const { rel, abs, verbs } of eps) {
     let mod;
     try { mod = await import(abs); }
     catch (e) { fail(`${rel} cannot be imported: ${e.message}`); continue; }
@@ -95,7 +107,7 @@ export async function run(ctx) {
           cases.push({ label: `below min (${def.min})`, argv: [`--${flagName}`, String(def.min - 1), "--cwd", sandbox, operand] });
         }
         for (const c of cases) {
-          const r = spawnSync(process.execPath, [abs, ...c.argv], { cwd: sandbox, encoding: "utf8", timeout: 30_000 });
+          const r = spawnSync(process.execPath, [KERNEL, ...verbs, ...c.argv], { cwd: sandbox, encoding: "utf8", timeout: 30_000 });
           numericChecked++;
           if (r.status !== 2) {
             fail(`${rel} --${flagName} ${c.label}: exit ${r.status}, expected 2 (this is the rNaN defect)`);
@@ -128,10 +140,10 @@ export async function run(ctx) {
   // are the flags the reproduced failure actually ran through, pinned by name so the type cannot
   // be downgraded without a test failure.
   const ANCHORS = [
-    ["skills/tech-lead/scripts/t0-verify.mjs", "round", { type: "int", min: 1, required: true }],
-    ["skills/tech-lead/scripts/t0-verify.mjs", "attempt", { type: "int", min: 1, required: true }],
-    ["skills/tech-lead/scripts/compile-order.mjs", "round", { type: "int", min: 1 }],
-    ["skills/tech-lead/scripts/compile-order.mjs", "attempt", { type: "int", min: 1 }],
+    ["kernel/verify/t0.mjs", "round", { type: "int", min: 1, required: true }],
+    ["kernel/verify/t0.mjs", "attempt", { type: "int", min: 1, required: true }],
+    ["kernel/compile.mjs", "round", { type: "int", min: 1 }],
+    ["kernel/compile.mjs", "attempt", { type: "int", min: 1 }],
   ];
   for (const [rel, flagName, want] of ANCHORS) {
     const abs = join(ROOT, rel);
@@ -145,13 +157,12 @@ export async function run(ctx) {
   }
 
   // Unknown flags: rejected, not silently absorbed as positionals.
-  const t0 = join(ROOT, "skills/tech-lead/scripts/t0-verify.mjs");
-  if (existsSync(t0)) {
+  if (existsSync(KERNEL)) {
     const sandbox = mkdtempSync(join(tmpdir(), "argv-unknown-"));
     try {
       const operand = join(sandbox, "c.json");
       writeFileSync(operand, JSON.stringify({ scope_id: "SC-01", e2e_verification_fixtures: [] }));
-      const r = spawnSync(process.execPath, [t0, operand, "--round", "1", "--attempt", "1", "--rounds", "2"], { cwd: sandbox, encoding: "utf8", timeout: 30_000 });
+      const r = spawnSync(process.execPath, [KERNEL, "verify", "t0", operand, "--round", "1", "--attempt", "1", "--rounds", "2"], { cwd: sandbox, encoding: "utf8", timeout: 30_000 });
       if (r.status === 2 && /unknown_flag/.test(r.stderr || "")) ok("t0-verify rejects an unknown flag (--rounds) rather than absorbing it as a positional");
       else fail(`t0-verify accepted the typo'd --rounds: exit ${r.status}, stderr ${(r.stderr || "").slice(0, 80)}`);
     } finally {
@@ -160,7 +171,7 @@ export async function run(ctx) {
   }
 
   // The unit-level truth table for the parser itself, including the exact reproduced case.
-  const { parseArgs, ArgvError } = await import(join(ROOT, "skills/tech-lead/scripts/lib/argv.mjs"));
+  const { parseArgs, ArgvError } = await import(join(ROOT, "kernel/lib/argv.mjs"));
   const SPEC = { _: { arity: 1, name: "contract" }, round: { type: "int", min: 1, required: true }, "no-seesaw": { type: "flag" } };
   const reject = (argv, wantError, label) => {
     try {

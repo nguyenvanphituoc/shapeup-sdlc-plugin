@@ -1,9 +1,9 @@
 # Changelog for advisor-protocol
 
 > **DECOMMISSIONED (2026-08-12).** The skill, its `adjudicate` operation, and its `WorkerName`
-> entry were removed; `Operation` and `WorkerName` no longer carry them, and `compile-order.mjs`
+> entry were removed; `Operation` and `WorkerName` no longer carry them, and `harness compile`
 > cannot route to it. A worker `ESCALATE` is still a first-class `WorkResult` field — it is queued
-> by `ingest-result.mjs` and answered by the PO at the next gate, and in the workflow lane a phase
+> by `harness reduce ingest` and answered by the PO at the next gate, and in the workflow lane a phase
 > that produced no artifact aborts by name rather than looping. This file is kept as the record of
 > what the skill did while it existed; nothing below describes shipping behaviour.
 

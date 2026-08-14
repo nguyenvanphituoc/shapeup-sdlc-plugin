@@ -31,9 +31,9 @@
 
 import { readFileSync, readdirSync, existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { evaluateBudget } from "../skills/tech-lead/scripts/budget-check.mjs";
+import { evaluateBudget } from "../kernel/verify/budget.mjs";
 import { runHook, readStdin, settle } from "./lib/decision.mjs";
-import { localDir, localRoot } from "../skills/tech-lead/scripts/lib/paths.mjs";
+import { localDir, localRoot } from "../kernel/lib/paths.mjs";
 
 await runHook("gate-deadline", async () => {
 /** Fail-open, with the reason on the record (hooks/lib/decision.mjs). */

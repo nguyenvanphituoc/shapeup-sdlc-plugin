@@ -31,8 +31,8 @@ never `.mjs` paths.
 - A version bump touches both `package.json` and `.claude-plugin/plugin.json`;
   release CI fails on mismatch.
 - A new worker skill takes 3 steps: `SKILL.md` → declare fields in
-  `skills/tech-lead/schemas/domain.schema.json` → teach `compile-order.mjs` and
-  `ingest-result.mjs`. Step 1 alone yields a skill the orchestrator can't dispatch.
+  `skills/tech-lead/schemas/domain.schema.json` → teach `harness compile` and
+  `harness reduce ingest`. Step 1 alone yields a skill the orchestrator can't dispatch.
 - `tools/` is repo-only and never ships; what ships is the `files` allowlist in `package.json`.
 - Commit subjects: `type(scope): lowercase declarative`.
 

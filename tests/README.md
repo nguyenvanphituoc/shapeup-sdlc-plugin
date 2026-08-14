@@ -60,7 +60,7 @@ The numbered sections below are the checks themselves, in section order:
    once-per-round EVAL on a partial board (naming the unfinished task) and ALLOWS it on a green
    board, while never gating per-task evals, other skills, or non-`Skill` tools. Driven against
    temp board fixtures — proves the gate actually enforces, not just that it parses.
-15. **Verdict-ledger calibration (Stage D1):** `skills/spec-evaluator/scripts/verdict-ledger.mjs` flags a PASS→FAIL flip
+15. **Verdict-ledger calibration (Stage D1):** `kernel/reduce/verdict.mjs` flags a PASS→FAIL flip
    across runs, forces that criterion's confidence to `low`, leaves stable criteria untouched, and
    exits non-zero on a flipping ledger / zero on a stable one. Proves the judge-calibration grammar
    (`spec-evaluator/references/verdict-ledger.md`) discriminates an unstable judge from a stable one.
@@ -85,11 +85,11 @@ The numbered sections below are the checks themselves, in section order:
    contradicting facts on a red fixture + completion claim, stays silent on green/claimless/
    no-run/`stop_hook_active` cases, and never emits a `decision` key; slop-cleaner's `scanDiff`
    flags console.log/TODO/big-add slop in added lines only and its CLI fails open.
-29. **Compaction resilience (v1.2):** `run-snapshot.mjs` derives slug/scope/round/attempt/board/
+29. **Compaction resilience (v1.2):** `harness reduce snapshot` derives slug/scope/round/attempt/board/
    pending-orders from files alone and the result validates against `RunSnapshot`; the PreCompact
    hook persists it mid-run and never blocks; the SessionStart(compact) hook injects the
    rehydrate hint as `additionalContext` and stays silent with no active run.
-30. **Telemetry read-plane (v1.2):** `stats.mjs` emits a schema-valid `StatsReport`, aggregates
+30. **Telemetry read-plane (v1.2):** `harness probe stats` emits a schema-valid `StatsReport`, aggregates
    correctly, skips-and-counts malformed rows, partitions pathology rows, renders `--format
    table`, leaves the metrics dir byte-identical (read-only proof), and returns a valid empty
    report on a missing dir.

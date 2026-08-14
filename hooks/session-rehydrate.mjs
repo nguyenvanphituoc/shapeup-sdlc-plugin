@@ -38,10 +38,10 @@
 // Inject via { hookSpecificOutput: { hookEventName: "SessionStart", additionalContext } }.
 
 import { readFileSync } from "node:fs";
-import { deriveSnapshot, snapshotPath } from "../skills/tech-lead/scripts/run-snapshot.mjs";
-import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
+import { deriveSnapshot, snapshotPath } from "../kernel/reduce/snapshot.mjs";
+import { isMain } from "../kernel/lib/argv.mjs";
 import { runHook, readStdin } from "./lib/decision.mjs";
-import { activeScope } from "../skills/tech-lead/scripts/lib/paths.mjs";
+import { activeScope } from "../kernel/lib/paths.mjs";
 
 // The snapshot's own hint says "trust the files, not the conversation summary" — correct after a
 // compaction, and slightly wrong on a cold start, where there is no summary and no conversation

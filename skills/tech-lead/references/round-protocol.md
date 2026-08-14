@@ -110,13 +110,13 @@ coherent to evaluate yet.
 3. **attempt_budget (INNER breaker, scope contracts only)** — a single scope's T0 attempt
    loop exhausts `--attempts` (default 5) without reaching a trial that is both `kept` and
    T0-green, **or** `no_progress_k` consecutive trials come back non-`kept` (the stagnation
-   term, default 2 — `compile-order.mjs` prints it as a JSON breaker object on stderr) →
+   term, default 2 — `harness compile` prints it as a JSON breaker object on stderr) →
    does NOT stop the round; queues a hammer PROPOSAL for GATE H and moves to the next scope
    in sequence. See "Three-level circuit breaker" below.
 4. **wall_clock_budget (DEADLINE breaker, opt-in)** — elapsed seconds since the run receipt
    exceed `--wall-clock-budget` → do NOT start another build round or another scope; go
    straight to GATE H (`/scope-hammer --breaker deadline`). Checked with
-   `scripts/budget-check.mjs` at every round boundary and enforced by `hooks/gate-deadline.mjs`,
+   `harness verify budget` at every round boundary and enforced by `hooks/gate-deadline.mjs`,
    which denies a `task-executor` dispatch past the deadline while leaving `spec-evaluator`,
    `scope-hammer` and `qa-edge-hunter` reachable — a run past its deadline
    must still be able to judge, hammer, and close. Off unless configured.
@@ -172,7 +172,7 @@ has a green T0 verdict for that scope on disk, and skips it when it does — the
 mid-BUILD kill needs, that a session narrating this loop from memory could never guarantee.
 
 Whichever runs it, the loop is a **ratchet**: every attempt is scored against the last kept one,
-and the working tree moves forward only when the score strictly improves. `t0-verify.mjs` makes
+and the working tree moves forward only when the score strictly improves. `harness verify t0` makes
 that decision and acts on the tree itself, inside the runtime — its caller reads the decision, it
 never makes it.
 
@@ -191,7 +191,7 @@ ingest-result <result>             → board/ledger writes
                                       fails, and the run ABORTS naming the phase. Resolve it
                                       yourself and record the answer in round-ledger.md, which
                                       the NEXT attempt's fresh context reads back.
-t0-verify.mjs                      → fixtures + DB probe + (on green) seesaw, then scores the
+harness verify t0                      → fixtures + DB probe + (on green) seesaw, then scores the
                                       attempt against the baseline trial and snapshots or
                                       restores the tree. Branch on `status` from its stdout
                                       JSON — the tree action has ALREADY happened:
@@ -210,7 +210,7 @@ t0-verify.mjs                      → fixtures + DB probe + (on green) seesaw, 
    compile-order folds into the NEXT attempt's order as digested_errors — no separate dispatch)
 ```
 
-**The exit code is not the branch selector.** `t0-verify.mjs` exits 0 on T0-green and 1 on
+**The exit code is not the branch selector.** `harness verify t0` exits 0 on T0-green and 1 on
 T0-red (2 on bad argv), mirroring the `oracles/*` convention — so a `kept` red-but-improved
 attempt, the exact case the ratchet exists for, exits 1. Branch on `status` from the stdout
 JSON; never on `$?`, and never wire this call into a `set -e` / `&&` chain that would read a
@@ -231,4 +231,4 @@ round. This is why running eval once per round (not per task) is the right trade
 little QA at the end of each build and keep the expensive build coherent in between.
 
 <!-- test requirement -->
-kept|reverted|rebased|crash, decided in t0-verify.mjs decideStatus()
+kept|reverted|rebased|crash, decided in harness verify t0 decideStatus()

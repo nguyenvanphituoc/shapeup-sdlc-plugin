@@ -55,7 +55,7 @@ Collect (explicit — never inferred):
   L0.3  lens: lite | standard | cross-context   (passed to planner at step 8)
   L0.4  stack hint (e.g. "pnpm, Next 16 web :3000") — aims orient's code-surface sweeps + run commands
   L0.5  eval dimensions: default [spec-conformance]; only add if user asks. An added dimension
-        must reach `init-run.mjs --dimensions <a,b>` — it is recorded in the ledger's
+        must reach `harness init run --dimensions <a,b>` — it is recorded in the ledger's
         `eval_dimensions:` line and every EVAL order is compiled from there, so a set agreed
         in conversation and not passed to the flag grades nothing. Shipped ids:
         spec-conformance, tdd-surface, integration, completeness, test-surface-conformance
@@ -74,7 +74,7 @@ Collect (explicit — never inferred):
           .claude/settings.json (team defaults, committed)  →  skill-shipped defaults
         Env knobs read at this layer: SHAPEUP_ORCH_MODEL, SHAPEUP_EXEC_MODEL,
         SHAPEUP_EVAL_MODEL, SHAPEUP_QA_MODEL, SHAPEUP_ATTEMPT_BUDGET (default 5),
-        SHAPEUP_DIGESTER_MODEL (default "script" — aegis-digest.mjs's regex pass; falls
+        SHAPEUP_DIGESTER_MODEL (default "script" — harness probe digest's regex pass; falls
         back to a Sonnet dispatch only when the digester reports unrecognized log formats).
         A requested model unavailable on the member's plan → degrade to the next tier down,
         record the degrade in the ledger (R2 — invariants are code paths, so adherence
@@ -170,11 +170,11 @@ Do NOT enter MAP SCOPES until Orient is accepted.
    ⟐ PRECONDITION: MAP SCOPES step 1 (ANALYZE) has already run and usecases/ is
    populated. WIRE writes one entry per use case, so dispatching it against an empty spec folder
    is an escalation, not a wiring map — and a phase that writes no artifact is re-dispatched on
-   every relaunch. Verify: node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/resume-state.mjs"
+   every relaunch. Verify: node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe resume
    --slug <slug> --require analyze (exit 0 = the spec tree is there; exit 6 = do not dispatch WIRE).
    Post-check the same way after the dispatch: --require wire.
    requirements.md registry (atomic REQ clauses, frozen ids).
-4. trace-lint — node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/trace-lint.mjs" --slug <slug>. ADVISORY at L1b:
+4. trace-lint — node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify trace --slug <slug>. ADVISORY at L1b:
    covers-closure (every covered REQ named by ≥1 AC's covers:) + reachability (every UC engine
    reaches entry_point). Promote to --gate only once covers: is populated.
 ```
@@ -201,7 +201,7 @@ Two orders, two workers, one step (both model: exec — see references/delegatio
 2. MAP SCOPES — compile-order --operation map-scopes --slug <slug> --worker scope-architect
    dispatch: Skill(shapeup-sdlc-plugin:scope-architect) --order <path>. Sole writer of the
    committed scopes/<scope-id>.md contracts (import-graph slicing, substrate whitelists,
-   affordance manifest, fixtures, PA1/PA2 — mechanically linted by spec-lint.mjs).
+   affordance manifest, fixtures, PA1/PA2 — mechanically linted by harness verify spec).
 Record in ledger: planner duration + task count + scope count.
 ```
 Faithful note: keep the planner ambitious on scope but high-level on tech — do not push it
@@ -254,7 +254,7 @@ No scope contracts (pre-v0.3.0, unchanged from v0.2.6):
 Substrate-disjointness assertion (only when
 shapeup/<slug>/scopes/*.md exist — scope-architect's lint pass already ran;
 this is the orchestrator's own re-confirmation before committing to a build sequence):
-  - Run `node "${CLAUDE_PLUGIN_ROOT}/skills/ba-pitch-analyzer/scripts/spec-lint.mjs" --slug <slug>`: DISJOINT (a file in two
+  - Run `node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify spec --slug <slug>`: DISJOINT (a file in two
     scopes' `allowed_file_substrate` without BOTH declaring it `shared_substrate` — PA3
     waiting to happen), PA1 (directory-aligned scope), PA2 (size cap). Any red → HARD STOP,
     past a 🔴 at the architect's own checkpoint.
@@ -380,7 +380,7 @@ S.6  Harvest one signal row → append to `.shapeup/metrics/<machine-id>.jsonl`
      (LOCAL root, gitignored since ADR-0001 — a committed shard keyed on a hostname only
      grows and publishes a machine name; sharded per machine so shards can be pooled
      deliberately without colliding on one filename. The read plane is
-     `stats.mjs`, or `cat .shapeup/metrics/*.jsonl`).
+     `harness probe stats`, or `cat .shapeup/metrics/*.jsonl`).
      Copy fields that ALREADY exist as structured output (run-state, final EVAL report,
      discovery ledger, qa/hunt-report, breadboard B5). Two hard rules:
        1. Harvest only fields that already exist at ship time — never evaluate something new.
@@ -388,10 +388,10 @@ S.6  Harvest one signal row → append to `.shapeup/metrics/<machine-id>.jsonl`
           a second judge behind spec-evaluator). The eval suite interprets; harvest records.
      `final_audit_score` is COPIED from the EVAL report, never re-graded.
      ALSO copy two run-quality measurements, both produced by scripts at zero model tokens:
-       node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/stats.mjs" --ratchet --slug <slug>
+       node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe stats --ratchet --slug <slug>
          → `ratchet`: {trials, scopes_multi_trial, improvement_rate, monotone_rate,
                        sawtooth_count, mean_trials_to_green}
-       node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/stats.mjs" --hooks
+       node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe stats --hooks
          → `hooks`: {evaluations, denials, errors, per_hook}
      Harvest them HERE or lose them: both read per-run working ledgers (t0/trials.jsonl,
      decisions.jsonl) that the next run's bookkeeping supersedes, so a number left there
@@ -402,7 +402,7 @@ S.6  Harvest one signal row → append to `.shapeup/metrics/<machine-id>.jsonl`
      TOGETHER rather than apart. It is what joins this row to the S.7 export.
      → full field list + row template: references/ledger-schema.md "Harvest row".
 S.7  Export the run's records → one keyed dataset, before the trace is superseded.
-       node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/export-run.mjs" --slug <slug>
+       node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" report export --slug <slug>
      Same argument as S.6, applied to the records the harvest row does NOT carry: orders,
      results, the agent-call journal, T0 verdicts, trial rows, criterion verdicts and this
      run's hook decisions all live in the LOCAL tier, which is regenerable and gets wiped.
@@ -411,7 +411,7 @@ S.7  Export the run's records → one keyed dataset, before the trace is superse
      dataset rather than an overwrite. `--out <dir>` sends it somewhere durable instead.
      It is READ-ONLY: it writes nothing into the trace, so it may be re-run at any time.
      WHY IT IS NOT A HARVEST FIELD. Run economics — cost, wall clock, turns-to-first-write —
-     is DERIVED from this dataset (`stats.mjs --economics`), never copied into the metrics
+     is DERIVED from this dataset (`harness probe stats --economics`), never copied into the metrics
      shard, because that row's contract rejects clock fields on purpose (see
      ledger-schema.md "Rejected fields"). Preserving the trace keeps the figures available
      without putting a velocity number in the signal feed.

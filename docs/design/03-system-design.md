@@ -11,15 +11,15 @@ or writes the run's shared files directly.
 ## 3.1 — The envelope port
 
 Every worker dispatch is two JSON documents and three scripts, all living beside the
-orchestrator skill (`skills/tech-lead/scripts/`, schemas in `skills/tech-lead/schemas/`):
+orchestrator skill (`kernel/`, schemas in `skills/tech-lead/schemas/`):
 
 ```mermaid
 sequenceDiagram
     participant TL as tech-lead (orchestrator)
-    participant CO as compile-order.mjs
-    participant VE as validate-envelope.mjs (hook)
+    participant CO as harness compile
+    participant VE as harness verify envelope (hook)
     participant W as worker skill (fresh Agent)
-    participant IR as ingest-result.mjs
+    participant IR as harness reduce ingest
     participant FS as shared state<br/>(board · ledger · run trace)
 
     TL->>CO: compile order (scope, round, attempt, decisions, digested errors)
@@ -32,13 +32,13 @@ sequenceDiagram
     else valid
         VE-->>W: allow
         W->>FS: write results/<id>.json (WorkResult only)
-        TL->>IR: node ingest-result.mjs <result path>;
+        TL->>IR: node harness reduce ingest <result path>;
         IR->>FS: tick AC boxes, flip board status,<br/>append ledger, propagate unblocks
     end
 ```
 
 Workers never write boards, ledgers, or run-state. Everything a worker used to write into
-shared files directly, it now **returns as data** in its `WorkResult`; `ingest-result.mjs` is
+shared files directly, it now **returns as data** in its `WorkResult`; `harness reduce ingest` is
 the single, deterministic writer. This closes what the project calls **D6** — "single-writer"
 stops being a convention and becomes mechanically true, because no worker holds a path to
 write to even if it wanted to.
@@ -63,7 +63,7 @@ write to even if it wanted to.
 ## 3.1b — Operation routing: one compiler, the whole skill set
 
 The envelope port above is drawn once, generically — but there is a *single* compiler
-(`compile-order.mjs`) behind every worker in the harness. The order's **`operation` is the
+(`harness compile`) behind every worker in the harness. The order's **`operation` is the
 routing key**: `compile-order` resolves the owning worker from the operation alone (its
 `OP_OWNER` map, mirroring `domain.schema.json`'s `$defs/Operation` ownership), so a dispatch
 never carries a redundant `--worker`, and each operation stamps a fixed `substrate` write
@@ -73,7 +73,7 @@ pipeline stage:
 
 ```mermaid
 graph LR
-    CO["compile-order.mjs<br/>operation → worker + substrate"]
+    CO["harness compile<br/>operation → worker + substrate"]
     CO --> ORI["orient<br/>(orient)"]
     CO --> SA["solution-architect<br/>(wire)"]
     CO --> BA["ba-pitch-analyzer<br/>(analyze · reconcile ·<br/>retrofit-surface · coverage)"]
@@ -84,7 +84,7 @@ graph LR
     CO --> SH["scope-hammer<br/>(hammer)"]
     CO --> TR["translator<br/>(translate)"]
     CO --> CH["coach<br/>(coach)"]
-    ORI --> IR["ingest-result.mjs<br/>(single writer)"]
+    ORI --> IR["harness reduce ingest<br/>(single writer)"]
     SA --> IR
     BA --> IR
     SC --> IR
@@ -123,7 +123,7 @@ orchestrator owns the vocabulary and workers never re-derive their own pipeline 
 **(2)** because the write contract travels inside the order, one `sandbox-guard.mjs` hook fences
 every skill's writes with zero per-skill code — it reads the *order's* substrate block directly
 (§3.2). The return leg is uniform too: whatever any of the 10 workers produces comes back as a
-`WorkResult`, and `ingest-result.mjs` is the sole writer that lands it into shared state (§3.1) —
+`WorkResult`, and `harness reduce ingest` is the sole writer that lands it into shared state (§3.1) —
 except for the three operations whose product IS a committed design document (`wire`,
 `map-scopes`, `coverage`), which write it directly under the substrate the hook enforces.
 
@@ -139,7 +139,7 @@ warns:
 | `gate-l2.mjs` | `Skill → spec-evaluator` (round mode) | **Advisory since ADR-0001 — the one hook here that never denies.** It still detects the same thing by the same two independent reads (per-task frontmatter *and* the board table), names the unfinished tasks, and permits the call, emitting a `systemMessage` and recording a `warn` row in `decisions.jsonl` so "permitted because green" and "permitted despite not green" never collapse into one fact. The board is local and per-machine, so this gate never protected a team boundary — it protected the operator from their own agent, at the cost of denying a call the operator had asked for. The project chose the signal over the denial. Stated plainly: nothing now mechanically prevents an EVAL on a half-green board. |
 | `gate-intake.mjs` | `Skill → tech-lead` | Denies an orchestrator dispatch with no resolvable intake — no `--pitch`, no `--spec`, no `--from` resume, and no free requirement text. Closes the harness's own front door: a `tech-lead` reached as `args:"--unattended"` loses the requirement text on the hand-off and, with nothing to orchestrate, prints the gate names and a confident plan while writing no code — the same "claims done" pathology the harness exists to prevent, at its own entry point. Fails open on `--order` (the envelope port owns that path) and on any ambiguous arg shape. |
 | `gate-deadline.mjs` | `Skill → task-executor` | Denies a dispatch that would start new build work once the run's opt-in `wall_clock_budget_s` is spent, routing to GATE H instead. **Deliberately does not deny `spec-evaluator`, `scope-hammer` or `qa-edge-hunter`** — a run past its deadline must still be able to judge, hammer and close, and a breaker that blocked the exit would strand green scopes it could not ship. It exists because the other two breakers count *events* (rounds, T0 attempts), so neither can observe that a single round has been running for half an hour; an externally killed run ships nothing, including the scopes already green. Off unless a budget is configured. |
-| `validate-envelope.mjs` | `Skill` / `Agent` | Denies any worker dispatch whose `--order` file is missing or fails the WorkOrder schema — a malformed envelope never reaches a worker. |
+| `harness verify envelope` | `Skill` / `Agent` | Denies any worker dispatch whose `--order` file is missing or fails the WorkOrder schema — a malformed envelope never reaches a worker. |
 | `sandbox-guard.mjs` | `Edit` / `Write` / `MultiEdit` | Denies a write that the **active order's own `substrate` block** does not permit. It follows the `.shapeup/active-order` pointer (written before each worker dispatch) to the compiled WorkOrder and enforces all three surfaces: `allowed` + `shared` permit, `append_only` permits `Edit` but denies `Write` (which would overwrite), and `frozen` denies outright and takes precedence over everything. Carve-out: the active feature's own local run-trace root, so a worker can still update its own board. |
 
 All six are deliberately **fail-open** when there's nothing to verify (no active order, no
@@ -164,7 +164,7 @@ One `Stop`-event hook may block, and its predicate is why the invariant survives
 
 | Hook | Fires on | Enforces |
 |---|---|---|
-| `gate-zerowork.mjs` | Session end | Blocks a session that **dispatched the orchestrator and left no run receipt** — no `.shapeup/<slug>/receipt.json`, which `init-run.mjs` writes as the run's first act (§3.2d). |
+| `gate-zerowork.mjs` | Session end | Blocks a session that **dispatched the orchestrator and left no run receipt** — no `.shapeup/<slug>/receipt.json`, which `harness init run` writes as the run's first act (§3.2d). |
 
 **Why it exists.** Observed repeatedly, not theorized: given a
 *valid* spec, the orchestrator loaded a 450-line instruction file describing the gates and
@@ -203,10 +203,10 @@ never a `decision`. Both are harness-scoped — silent unless a run is active.
 
 ## 3.2d — The run receipt and the gate answer set
 
-Two small scripts in `skills/tech-lead/scripts/` close two failures observed in real runs.
+Two small scripts in `kernel/` close two failures observed in real runs.
 Both follow the same rule as the hooks: move the invariant out of the prompt and into the runtime.
 
-**`init-run.mjs` — the run receipt (GATE L0.1).** The orchestrator's first tool call, before any
+**`harness init run` — the run receipt (GATE L0.1).** The orchestrator's first tool call, before any
 prose. It writes `receipt.json`, `intake.md` (the requirement verbatim, plus its SHA-256),
 `harness-run.md`, and `active-scope`. It supplies the fact that was missing from the system: *a
 run started*. Every prior guard could only observe what a run **did**, so a run that did nothing
@@ -215,7 +215,7 @@ Recording the intake digest also makes "the spec was dropped on the hand-off" a 
 rather than an arguable one — that is routinely the first diagnosis offered for a narrated run,
 and previously nothing on disk could settle it either way.
 
-**`gate-answers.mjs` — pre-recorded gate decisions.** Sign-off was the last load-bearing
+**`harness gate` — pre-recorded gate decisions.** Sign-off was the last load-bearing
 invariant still living in a prompt, and it failed in both directions:
 
 - *Stall.* An unattended run with no human waits at the first ⏸ until the wall-clock budget
@@ -244,7 +244,7 @@ half-hour that gets reported as a slow harness.
 Two shared libraries and one hook library, added because the harness had built a ratchet,
 enforced it beautifully, and never fitted the pawl.
 
-**`skills/tech-lead/scripts/lib/argv.mjs` — the typed argv boundary.** The envelope boundary is
+**`kernel/lib/argv.mjs` — the typed argv boundary.** The envelope boundary is
 rigorously typed and hook-validated in both directions; that discipline stopped dead at
 `process.argv`, which is where the pipeline actually executes. `t0-verify` parsed `--round` with
 `Number(argv[++i])` and then `?? 1`, which does not catch `NaN`: a flag passed without a value
@@ -254,7 +254,7 @@ puts a machine-readable reason on stderr — the same contract `validate-envelop
 malformed order. Every entry point exports its `ARGV_SPEC`, which is what makes the contract
 inspectable by `tests/structural/13-argv-contract.mjs` rather than guessable.
 
-**`skills/tech-lead/scripts/lib/ratchet-tree.mjs` — `keep` and `revert`.** The attempt loop
+**`kernel/verify/ratchet-tree.mjs` — `keep` and `revert`.** The attempt loop
 branched a red T0 two ways and only one of them reverted anything: a seesaw regression got
 `git stash push -u`, while a red on the scope's *own* fixtures got "loop to the next attempt" and
 no revert at all — so attempt N+1's fresh, zero-memory subagent began from code it did not write
@@ -265,7 +265,7 @@ commits to the branch under test; `restore()` rewrites the tree from it. Both ar
 outside a work tree, or with no snapshot yet, they report `{ok:false, reason}` and the caller
 proceeds exactly as before.
 
-Together with `score()`, `better()` and `trials.jsonl` in `t0-verify.mjs`, these collapse the two
+Together with `score()`, `better()` and `trials.jsonl` in `harness verify t0`, these collapse the two
 red branches into one rule — *keep what is strictly better, restore what is not* — whose important
 consequence is that an attempt moving 2/5 → 4/5 fixtures is **red but better**, and is therefore
 **kept**. The ratchet retains improvements, not just greens.
@@ -280,7 +280,7 @@ permitting decision now carries evidence. `runHook(name, fn)` is the only exit p
 no route out of one can skip the record. Two things fall out at no extra cost: `gate-zerowork`
 gains a second `Stop` condition — orchestrator dispatched, zero decision rows ⇒ the enforcement
 layer itself never ran, so the detector for "the gates didn't run" stops depending on the gates
-running — and `stats.mjs --hooks` can report evaluations, denials and errors per hook, which makes
+running — and `harness probe stats --hooks` can report evaluations, denials and errors per hook, which makes
 "never had to fire" and "never ran" separable facts for the first time.
 
 ## 3.2g — The run key, and the record plane (v1.8)
@@ -309,10 +309,10 @@ yields the id it would have been given.
 
 | Writer | Record | Stamp |
 |---|---|---|
-| `init-run.mjs` | `receipt.json` | mints it — the run acquires identity at the moment it starts |
-| `compile-order.mjs` | WorkOrder | `run_id` + `compiled_at`, at the one point every lane passes through |
-| `t0-verify.mjs` | T0Artifact, TrialRow | read off the receipt in the run root it was pointed at |
-| `run-workflow.mjs` | journal row | resolved once at launch, from `RunArgs.runId` or the receipt |
+| `harness init run` | `receipt.json` | mints it — the run acquires identity at the moment it starts |
+| `harness compile` | WorkOrder | `run_id` + `compiled_at`, at the one point every lane passes through |
+| `harness verify t0` | T0Artifact, TrialRow | read off the receipt in the run root it was pointed at |
+| `harness run` | journal row | resolved once at launch, from `RunArgs.runId` or the receipt |
 | `hooks/lib/decision.mjs` | decision row | best-effort via `active-scope`; `null` outside a run |
 | tech-lead (SHIP S.6) | MetricsRow | copied — the harvest row's only link to its own trace |
 
@@ -323,7 +323,7 @@ key reaches the result leg through a checked join rather than through a worker's
 
 ### The export, and what it does not do
 
-`export-run.mjs` projects a run's records into ten flat fact tables (JSONL, one object per line)
+`harness report export` projects a run's records into ten flat fact tables (JSONL, one object per line)
 under `.shapeup/exports/<run_id>/`, plus a manifest carrying row counts, a skipped-record count and
 the economics block. The dispatch grain is the spine — one row per compiled order, joined to its
 result on `order_id` and to its agent call through the `result_path` the workflow's dispatch prompt
@@ -343,7 +343,7 @@ Two properties are load-bearing rather than tidy:
   per-slug wipe that used to delete it. Travelling further is `--out <dir>`, a human decision.
 
 The read plane grades nothing. Every column is an id, a count, a duration or a copied enum — the
-rule `stats.mjs` states in its own header, and the reason a computed "run quality" figure is absent
+rule `harness probe stats` states in its own header, and the reason a computed "run quality" figure is absent
 here: it would be a second judge behind `spec-evaluator`.
 
 ## 3.2e — Compaction resilience (PreCompact + SessionStart)
@@ -354,7 +354,7 @@ summary without noticing*: re-dispatching an already-ingested order, miscounting
 (breaking the inner circuit breaker), or "remembering" a hill phase instead of re-deriving it.
 The resilience pair makes re-reading the files a reflex:
 
-- **`run-snapshot.mjs`** (in `skills/tech-lead/scripts/`) derives a `RunSnapshot`
+- **`harness reduce snapshot`** (in `kernel/`) derives a `RunSnapshot`
   (registered in the domain registry) from **files only** — the active-scope pointer,
   `harness-run.md` frontmatter, board frontmatter, `t0/verdicts/` filenames, and the
   `orders/` vs `results/` diff — and self-validates it against the registry before emitting.
@@ -438,7 +438,7 @@ orchestrator narrating steps in the conversation — it is one background script
 the whole pipeline:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/run-workflow.mjs" \
+node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" run \
   "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js" \
   --args-file .shapeup/<slug>/run-args.json --run-dir .shapeup/<slug>/workflow-run
 ```
@@ -451,8 +451,8 @@ WIRE → L1a.5 → MAP SCOPES → L1b → rounds of BUILD/L2/EVAL → QA → GAT
 | Property | Mechanism |
 |---|---|
 | **A gate pause is a return value, not a stop.** | The launch returns `{status: "paused", paused_at, block}`. The orchestrator emits `block` verbatim, gets the PO's decision, writes it to `.shapeup/<slug>/gate-answers.json`, and **relaunches the same call with the same args**. |
-| **A killed session loses nothing.** | `resume-state.mjs` derives the resume point from **artifacts on disk**, never from stored status or conversation memory — every phase predicate is an artifact test. `shapeup-run.js` fast-forwards past finished phases on every launch, fresh or resumed. The same table answers `--require <phase>`, the post-condition checked after each dispatch, so *resume* and *completion* are one predicate by construction. |
-| **The launch surface is one an install already grants.** | `run-workflow.mjs` is a plain Node script under `skills/tech-lead/scripts/`, covered by the same permission prefix the installer writes. The `Workflow` tool is deliberately **not** the launch path: that call needs an interactive confirmation, so it is denied in every headless session and no permission string can grant it. |
+| **A killed session loses nothing.** | `harness probe resume` derives the resume point from **artifacts on disk**, never from stored status or conversation memory — every phase predicate is an artifact test. `shapeup-run.js` fast-forwards past finished phases on every launch, fresh or resumed. The same table answers `--require <phase>`, the post-condition checked after each dispatch, so *resume* and *completion* are one predicate by construction. |
+| **The launch surface is one an install already grants.** | `harness run` is a plain Node script under `kernel/`, covered by the same permission prefix the installer writes. The `Workflow` tool is deliberately **not** the launch path: that call needs an interactive confirmation, so it is denied in every headless session and no permission string can grant it. |
 
 `RunArgs` is compiled **once** and passed as a single JSON literal: the workflow cannot ask
 follow-up questions and cannot read config files itself, so everything a run will ever need

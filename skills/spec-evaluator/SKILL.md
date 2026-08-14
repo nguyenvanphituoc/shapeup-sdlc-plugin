@@ -191,7 +191,7 @@ bug_template). Adding one (e.g. security) = write `references/dimensions/securit
 /spec-evaluator --order .shapeup/checkout-vnpay/orders/evaluate-r2.json
 
 # Standalone — the preamble shim compiles a minimal order, then the single code path runs:
-#   node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/compile-order.mjs" --operation evaluate --slug <slug> \
+#   node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" compile --operation evaluate --slug <slug> \
 #        --worker spec-evaluator [--payload '{"dimensions": [...], "run_cmd": "..."}']
 /spec-evaluator --spec shapeup/checkout-vnpay/spec/ --task TASK-007
 /spec-evaluator --spec shapeup/checkout-vnpay/spec/ --feature checkout-vnpay --single-pass
@@ -199,7 +199,7 @@ bug_template). Adding one (e.g. security) = write `references/dimensions/securit
 
 Standalone keeps `--task` (per-task check, not round-gated) and `--single-pass` (feature-level)
 — the shim maps them onto the order's payload; missing run command → ask. After writing the
-WorkResult, run `node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/ingest-result.mjs" <result path>` and show its
+WorkResult, run `node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" reduce ingest <result path>` and show its
 summary — standalone has no orchestrator to ingest for you.
 
 ---

@@ -46,12 +46,12 @@ mechanically true rather than aspirational.
 | Term | In plain English |
 |---|---|
 | **work order / work result** | The JSON envelope every worker receives and returns. Workers are stateless: everything they used to write into shared files, they now return as data. |
-| **envelope port** | The dispatch path — `compile-order.mjs` builds the order, a `PreToolUse` hook validates it against a schema, `ingest-result.mjs` applies the result. |
+| **envelope port** | The dispatch path — `harness compile` builds the order, a `PreToolUse` hook validates it against a schema, `harness reduce ingest` applies the result. |
 | **fast-forward** | How a relaunched run finds its place: the resume point is derived from artifacts on disk, never from stored status or the conversation, so a killed session picks up where it died. |
-| **single writer** | `ingest-result.mjs` performs *every* board/ledger/verdict write, so parallel scopes cannot corrupt shared state. |
+| **single writer** | `harness reduce ingest` performs *every* board/ledger/verdict write, so parallel scopes cannot corrupt shared state. |
 | **pure worker** | A skill containing craft only, with zero pipeline knowledge — it cannot know or care where it sits in a run. |
 | **zero-memory handoff** | Each build attempt is a fresh subagent that sees only what the order put in the envelope, never prior chat. |
-| **traceability spine** | The three committed artifacts (`requirements.md`, `wiring-map.md`, `project-profile.md`) that `trace-lint.mjs` reads to check covers-closure and reachability. |
+| **traceability spine** | The three committed artifacts (`requirements.md`, `wiring-map.md`, `project-profile.md`) that `harness verify trace` reads to check covers-closure and reachability. |
 | **substrate disjointness** | The lint asserting no two scopes may write the same file — what makes parallel building safe. |
 | **circuit breaker** | Two nested retry budgets — an outer one on rounds, an inner one on per-scope T0 attempts — plus an opt-in wall-clock budget for the whole run. An exhausted scope queues a cut proposal rather than blocking the round; every other exhaustion routes to the ship gate so whatever is green still ships. |
 | **discovered task** | Anything found mid-run that is not in the current spec. It goes to the ledger, never silently into the build. |

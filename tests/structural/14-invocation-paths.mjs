@@ -2,37 +2,30 @@
 //
 // THE DEFECT THIS MODULE EXISTS FOR (censused across the shipped prose).
 //
-// `npx shapeup-sdlc init` writes prefix rules of the form
-// `Bash(node ${CLAUDE_PLUGIN_ROOT}/skills/<owner>/scripts/:*)`. Against that grant, the skills
-// actually instructed the model to run:
+// Skill prose and the installer's grant are written by different hands and drift silently. Measured
+// once already: 18 shipped call sites in a bare `node scripts/…` form that resolves to nothing from
+// a project root and matches no rule, bridged by a PROSE NOTE asking the model to perform a string
+// substitution — a prompt-carried invariant sitting directly underneath the mechanism built to
+// forbid prompt-carried invariants. Its failure mode is measured: 26 approval denials in one
+// session.
 //
-//     node "${CLAUDE_PLUGIN_ROOT}/skills/…"      2 sites   — matches
-//     node skills/<owner>/scripts/…             13 sites   — only if the model prepends the root
-//     node scripts/…                (bare)      18 sites   — matches nothing, and resolves to
-//                                                            nothing from the project cwd
-//
-// The bare form was the HOT PATH: `compile-order` ×8, `ingest-result` ×5, `t0-verify` ×3 — once
-// per attempt, up to five attempts per scope per round. There is no `scripts/` at a project root;
-// those scripts ship with the plugin. The gap was bridged by a PROSE NOTE asking the model to
-// perform a string substitution — a prompt-carried invariant sitting directly underneath the
-// mechanism built to forbid prompt-carried invariants. Its failure mode is measured: 26 approval
-// denials in one session. The two sites that DID carry the literal form were `init-run` and
-// `gate-answers` — precisely the two the project had already been burned on.
+// v2.0 removes most of the surface this guarded: the deterministic half of the harness has ONE
+// entry point (`kernel/harness.mjs`), so there is one command shape and one grant. What remains
+// checkable, and worth checking, is that the prose and the grant still name the same thing.
 //
 // WHAT THIS MODULE ASSERTS:
-//   1. Every `node …/scripts/*.mjs` in shipped skill prose is in the literal, quoted
-//      `node "${CLAUDE_PLUGIN_ROOT}/skills/<owner>/scripts/…"` form. No bare, no half-qualified.
-//   2. The owner segment names the skill the script ACTUALLY lives in — a literal path pointing
-//      at the wrong skill is a dangling command that merely looks right.
-//   3. The grant `bin/init.mjs` writes is a prefix of every one of those commands. This is the
-//      check that keeps the two from drifting apart again: quoting the path (needed for install
-//      paths containing a space) would otherwise silently put every call site back outside the
-//      grant, which is the exact defect being fixed.
+//   1. Every kernel invocation in shipped skill prose is in the literal, quoted
+//      `node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" <verb> [<action>]` form. No bare, no
+//      half-qualified, no leftover per-script path.
+//   2. The verb (and action) named is one the kernel's own routing table actually routes — a
+//      command that merely looks right is a dangling instruction.
+//   3. The grant `bin/init.mjs` writes covers that one entry point, in both argument shapes, and
+//      names nothing that does not exist.
 //   4. The substitution note is gone. It existed only to explain the bare form.
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { pipelineEntryPoints, pipelineRules } from "../../bin/lib/grant.mjs";
+import { pipelineRules, mergePipelinePermissions, KERNEL_ENTRY, WORKFLOW_RULE } from "../../bin/lib/grant.mjs";
 
 /**
  * Run the structural checks for documented invocation paths.
@@ -46,16 +39,11 @@ export async function run(ctx) {
   section("43. Every documented script invocation is in the form the permission grant matches");
   // =============================================================================
 
-  // Where each script actually lives — the filesystem is the only authority.
-  const owner = new Map();
-  const skillsDir = join(ROOT, "skills");
-  for (const skill of readdirSync(skillsDir)) {
-    const scripts = join(skillsDir, skill, "scripts");
-    if (!existsSync(scripts)) continue;
-    for (const f of readdirSync(scripts)) if (f.endsWith(".mjs")) owner.set(f, skill);
-  }
+  // What the kernel actually routes — the routing table is the only authority.
+  const { ROUTES } = await import(join(ROOT, "kernel/harness.mjs"));
 
   // Every shipped prose file (SKILL.md + references/), the surface a model actually reads.
+  const skillsDir = join(ROOT, "skills");
   const docs = [];
   for (const skill of readdirSync(skillsDir)) {
     const sf = join(skillsDir, skill, "SKILL.md");
@@ -68,51 +56,48 @@ export async function run(ctx) {
     }
   }
 
-  const LITERAL = /node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/skills\/([a-z-]+)\/scripts\/((?:[a-z-]+\/)*)([a-z0-9-]+\.mjs)"/g;
-  const ANY_INVOCATION = /node\s+(?:"?\$\{CLAUDE_PLUGIN_ROOT\}[^"\s]*"?|skills\/[a-z-]+\/scripts\/[^\s`]+|scripts\/[a-z0-9/-]+\.mjs)/g;
+  const LITERAL = /node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/kernel\/harness\.mjs"\s+([a-z]+)(?:\s+([a-z0-9]+))?/g;
+  // Anything that looks like an attempt to run a shipped script, in ANY shape. A form this catches
+  // and LITERAL does not is a call site outside the grant.
+  const ANY_INVOCATION = /node\s+(?:"?\$\{CLAUDE_PLUGIN_ROOT\}[^"\s]*"?|skills\/[a-z-]+\/scripts\/[^\s`]+|kernel\/[a-z0-9/-]+\.mjs|scripts\/[a-z0-9/-]+\.mjs)/g;
 
   let literal = 0, wrong = 0;
   for (const { rel, abs } of docs) {
-    const body = readFileSync(abs, "utf8");
-    const lines = body.split(/\r?\n/);
+    const lines = readFileSync(abs, "utf8").split(/\r?\n/);
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       for (const m of line.matchAll(ANY_INVOCATION)) {
-        const text = m[0];
-        // Re-match the literal form against this exact token.
+        const text = line.slice(m.index);          // the verb words follow the quoted path
         const lit = new RegExp(LITERAL.source).exec(text);
         if (!lit) {
-          fail(`${rel}:${i + 1} invokes a script in a form no permission rule matches: ${text.slice(0, 70)}`);
+          fail(`${rel}:${i + 1} invokes the harness in a form no permission rule matches: ${m[0].slice(0, 70)}`);
           wrong++;
           continue;
         }
         literal++;
-        const [, ownerSeg, sub, script] = lit;
-        const actual = owner.get(script);
-        if (actual && actual !== ownerSeg && !sub) {
-          fail(`${rel}:${i + 1} names skills/${ownerSeg}/ but ${script} lives in skills/${actual}/`);
+        const [, verb, action] = lit;
+        const target = ROUTES[verb];
+        if (!target) {
+          fail(`${rel}:${i + 1} names verb "${verb}", which the kernel does not route`);
+          wrong++;
+        } else if (typeof target === "object" && action && !target[action]) {
+          fail(`${rel}:${i + 1} names "${verb} ${action}", and "${action}" is not one of ${Object.keys(target).filter((a) => a !== "_default").join(" | ")}`);
+          wrong++;
+        } else if (typeof target === "object" && !action && !target._default) {
+          fail(`${rel}:${i + 1} names verb "${verb}" with no action, but it requires one`);
           wrong++;
         }
       }
     }
   }
-  if (wrong === 0) ok(`all ${literal} documented invocations use the literal \${CLAUDE_PLUGIN_ROOT} form and name the right owner`);
-  // Floor LOWERED 25 -> 18 at the orchestrator cutover, deliberately and on the record — this
-  // comment being the record, since the staging plan it cited is no longer in the tree (the census
-  // this floor guards moved from 36 to 21 in that cutover's own diff). The cutover's
-  // SKILL.md rewrite (the thin shell — see tests/structural/08-docs.mjs's ratchet, same commit)
-  // deletes the BUILD/EVAL/SHIP prose that used to inline ~15 of these `node "${CLAUDE_PLUGIN_ROOT}
-  // /..."` call sites directly in SKILL.md; those operations now run as CODE inside
-  // skills/tech-lead/workflows/shapeup-run.js (which invokes its own scripts through mech(), a
-  // form this scan does not and should not recognise — a workflow script has no permission-grant
-  // problem to guard against, it runs as the harness's own Bash tool call, not a model reading
-  // prose). The remaining literal invocations are real: GATE L0/L4's own scripts (init-run,
-  // gate-answers, ship-report) still run from SKILL.md's own conversation, and every reference file
-  // (gates.md, delegation.md, round-protocol.md) keeps its own copies for the tiny/scope-less lane
-  // this migration explicitly leaves on the old prose path. 18 leaves headroom below the current
-  // 21 without re-opening the floor to a silent drop toward zero.
-  if (literal < 18) fail(`only ${literal} invocations found — the post-migration census expects at least 18; the scan is missing call sites`);
-  else ok(`${literal} invocations scanned (post-migration floor: 18)`);
+  if (wrong === 0) ok(`all ${literal} documented invocations use the literal \${CLAUDE_PLUGIN_ROOT} kernel form and route`);
+  // A floor, not a target. It exists so a rewrite that deletes the call sites instead of fixing
+  // them cannot pass by making the census empty. The count moved 21 -> single digits at the v2.0
+  // kernel cutover, because the BUILD/EVAL/SHIP prose that inlined one call site per step now runs
+  // as CODE inside the workflow script (which invokes the kernel from a worker's own shell, a form
+  // this scan does not and should not recognise — a workflow script reads no prose).
+  if (literal < 4) fail(`only ${literal} invocations found — the kernel census expects at least 4; the scan is missing call sites`);
+  else ok(`${literal} invocations scanned (kernel-cutover floor: 4)`);
 
   // (3) Every documented call site has a rule, and every rule has a script.
   //
@@ -129,44 +114,41 @@ export async function run(ctx) {
   // whether the target script's marker file landed. THAT is the evidence; this is bookkeeping.
   // What is checkable here, and worth checking, is COMPLETENESS in both directions: no call site
   // without a rule, no rule without a script.
-  const rules = pipelineRules(ROOT);
-  const entryPoints = new Set(pipelineEntryPoints(ROOT));
+  // The GRANT is what the installer actually writes — the Bash rules plus the optional Workflow
+  // token — not just the Bash generator's output. Asking for the merged set is what keeps the
+  // example file, the executing proof and this module comparing the same thing.
+  const granted = {};
+  mergePipelinePermissions(granted);
+  const rules = granted.permissions.allow;
 
   if (rules.length === 0) fail("bin/lib/grant.mjs produced no rules — the grant is empty and every dispatch will be denied");
-  else ok(`bin/lib/grant.mjs generates ${rules.length} rules over ${entryPoints.size} entry points`);
+  else ok(`bin/lib/grant.mjs generates ${rules.length} rules over one entry point (${KERNEL_ENTRY})`);
 
-  // 3a — every script a shipped doc tells the model to run is covered, in BOTH argument shapes.
-  // Both are needed: the trailing ` *` form requires at least one argument, so a bare `node "<p>"`
-  // is denied without the argument-less rule. That asymmetry is measured, not assumed.
+  // 3a — the one entry point every documented call site uses is granted in BOTH argument shapes.
+  // Both are needed: the trailing ` *` form requires at least one argument, so a bare
+  // `node "<p>"` is denied without the argument-less rule. That asymmetry is measured, not assumed.
   {
-    const cited = new Set();
-    for (const { abs } of docs) {
-      for (const m of readFileSync(abs, "utf8").matchAll(LITERAL)) {
-        cited.add(`skills/${m[1]}/scripts/${m[2]}${m[3]}`);
-      }
-    }
     let missing = 0;
-    for (const rel of [...cited].sort()) {
-      const withArgs = `Bash(node "*/${rel}" *)`;
-      const bare = `Bash(node "*/${rel}")`;
-      for (const want of [withArgs, bare]) {
-        if (!rules.includes(want)) { fail(`documented call site ${rel} has no rule ${want}`); missing++; }
-      }
+    for (const want of [`Bash(node "*/${KERNEL_ENTRY}" *)`, `Bash(node "*/${KERNEL_ENTRY}")`]) {
+      if (!rules.includes(want)) { fail(`the kernel entry point has no rule ${want}`); missing++; }
     }
-    if (missing === 0) ok(`all ${cited.size} documented call sites are granted in both argument shapes`);
+    if (missing === 0) ok("the kernel entry point is granted in both argument shapes");
+    if (rules.includes(WORKFLOW_RULE)) ok(`the optional "${WORKFLOW_RULE}" grant is written by default (declinable with --no-native-workflow)`);
+    else fail(`the default grant omits "${WORKFLOW_RULE}" — the unattended lane cannot launch its run script`);
   }
 
-  // 3b — no rule points at a script that does not exist. A dead rule is a grant nobody can audit.
+  // 3b — no rule points at something that does not exist. A dead rule is a grant nobody can audit.
   {
     let dead = 0;
     for (const rule of rules) {
-      const m = rule.match(/^Bash\(node "\*\/(skills\/[a-z-]+\/scripts\/[a-z0-9-]+\.mjs)"/);
+      if (rule === WORKFLOW_RULE) continue;                 // a tool token, not a path
+      const m = rule.match(/^Bash\(node "\*\/(kernel\/[a-z0-9-]+\.mjs)"/);
       if (!m) { fail(`rule is not in the audited shape: ${rule}`); dead++; continue; }
-      if (!entryPoints.has(m[1]) || !existsSync(join(ROOT, m[1]))) {
-        fail(`rule grants ${m[1]}, which is not a shipped entry point`); dead++;
+      if (m[1] !== KERNEL_ENTRY || !existsSync(join(ROOT, m[1]))) {
+        fail(`rule grants ${m[1]}, which is not the shipped entry point`); dead++;
       }
     }
-    if (dead === 0) ok("every generated rule names a script that exists on disk");
+    if (dead === 0) ok("every generated rule names something that exists on disk");
   }
 
   // 3c — the example file users are pointed at must BE the generated set, not a hand-copy of it.
@@ -230,7 +212,7 @@ export async function run(ctx) {
     // `const OWNERS = [...]` out of the installer's source — a test comparing the code against its
     // own copy of the intent, which is how a grant that matched nothing passed. Ask the generator.
     const initFile = join(ROOT, "bin/init.mjs");
-    const expectedRules = pipelineRules(ROOT);
+    const expectedRules = pipelineRules();
 
     const grantsIn = (file) => {
       if (!existsSync(file)) return null;
@@ -266,7 +248,7 @@ export async function run(ctx) {
         const allow = grantsIn(join(proj, ".claude", "settings.json"));
         if (allow === null) { fail(`bin/init.mjs (${label} path) left no readable .claude/settings.json — the pipeline grant cannot be there`); return; }
         const missing = expectedRules.filter((r) => !allow.has(r));
-        if (missing.length === 0) ok(`bin/init.mjs writes all ${expectedRules.length} pipeline grants on the ${label} path`);
+        if (missing.length === 0) ok(`bin/init.mjs writes all ${expectedRules.length} harness grants on the ${label} path`);
         else fail(`bin/init.mjs (${label} path) wrote ${allow.size} grant(s), missing ${missing.length}: ${missing[0]} — a headless run cannot take its first step without these`);
 
         if (withFakeCli) {

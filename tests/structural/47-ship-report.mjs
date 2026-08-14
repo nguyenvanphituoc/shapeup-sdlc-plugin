@@ -28,7 +28,7 @@ export async function run(ctx) {
   section("47. The ship report is derived from artifacts, and names the surviving tree");
   // =============================================================================
 
-  const SR = await import(join(ROOT, "skills/tech-lead/scripts/ship-report.mjs"));
+  const SR = await import(join(ROOT, "kernel/reduce/ship.mjs"));
   const dir = mkdtempSync(join(tmpdir(), "ship-report-"));
 
   try {

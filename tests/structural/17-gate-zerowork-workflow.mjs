@@ -89,14 +89,14 @@ export async function run(ctx) {
   //
   // WHY THIS EXISTS. `Workflow({scriptPath})` cannot be granted and is denied in every headless
   // session, so `SKILL.md` Step 2 now launches the same script through
-  // `node "…/scripts/run-workflow.mjs" "…/workflows/shapeup-run.js"`. A gate that knew only the
+  // `node "…/kernel/harness.mjs" run "…/workflows/shapeup-run.js"`. A gate that knew only the
   // tool spelling would be blind on the lane users actually run — the same hole the arm above was
   // written to close, one surface over, and the reason this check is here the same day the launch
   // moved rather than the day somebody notices.
-  const LAUNCHER = '${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/run-workflow.mjs';
-  const BASH_LAUNCH = `node "${LAUNCHER}" "${RUN_SCRIPT}" --args-file .shapeup/x/run-args.json`;
+  const LAUNCHER = '${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs';
+  const BASH_LAUNCH = `node "${LAUNCHER}" run "${RUN_SCRIPT}" --args-file .shapeup/x/run-args.json`;
   if (dispatchedOrchestrator([toolUse("Bash", { command: BASH_LAUNCH })])) {
-    ok("the Bash launch (run-workflow.mjs …/shapeup-run.js) counts as dispatching the orchestrator");
+    ok("the Bash launch (harness run …/shapeup-run.js) counts as dispatching the orchestrator");
   } else {
     fail("SKILL.md's shipped launch is invisible to the gate — the post-HD-007 lane has no zero-work detector");
   }
@@ -104,7 +104,7 @@ export async function run(ctx) {
   // Both halves are required, and each negative below is a way the predicate could go wrong.
   const BASH_NEGATIVES = [
     ["the launcher carrying somebody else's workflow",
-     `node "${LAUNCHER}" ./my-own.workflow.js`],
+     `node "${LAUNCHER}" run ./my-own.workflow.js`],
     ["a command that merely mentions the orchestrator script",
      `cat "${RUN_SCRIPT}"`],
     ["an unrelated node invocation", "node scripts/build.mjs --watch"],

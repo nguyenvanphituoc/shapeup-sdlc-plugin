@@ -57,32 +57,37 @@ const ENTRY_POINTS = [
   { file: "hooks/slop-cleaner.mjs", stdin: "not json", expect: "exit0" },
   { file: "hooks/session-rehydrate.mjs", stdin: "not json", expect: "exit0" },
   { file: "hooks/compact-snapshot.mjs", stdin: "not json", expect: "exit0" },
-  // Scripts whose refusal path prints. These are the strongest probes: a correct guard produces a
-  // refusal on stderr/stdout and a non-zero exit; a broken guard produces silence and exit 0.
-  { file: "skills/tech-lead/scripts/init-run.mjs", args: [], expect: "stdout" },
-  { file: "skills/tech-lead/scripts/gate-answers.mjs", args: [], expect: "stdout" },
-  { file: "skills/tech-lead/scripts/t0-verify.mjs", args: [], expect: "stdout" },
-  { file: "skills/tech-lead/scripts/budget-check.mjs", args: [], expect: "stdout" },
-  { file: "skills/tech-lead/scripts/fit-check.mjs", args: [], expect: "stdout" },
-  { file: "skills/tech-lead/scripts/aegis-digest.mjs", args: [], expect: "stdout" },
-  { file: "skills/spec-evaluator/scripts/verdict-ledger.mjs", args: [], expect: "stdout" },
-  // The five that carried the second spelling of the guard. `validate-envelope` is a registered
-  // PreToolUse hook, so its probe is the sharpest one here: fed a dispatch against a dangling order
-  // it must emit a `deny` decision. Under the broken guard it emitted nothing, which reads as allow.
-  { file: "skills/tech-lead/scripts/validate-envelope.mjs",
+  // The kernel. Since v2.0 the deterministic half of the harness has ONE entry point, so the guard
+  // has one home — but each subcommand still has to reach its own refusal path through it, which is
+  // what these probes assert. A correct guard produces a refusal on stderr/stdout and a non-zero
+  // exit; a broken guard produces silence and exit 0.
+  { file: "kernel/harness.mjs", args: ["init", "run"], label: "kernel init run", expect: "stdout" },
+  { file: "kernel/harness.mjs", args: ["gate"], label: "kernel gate", expect: "stdout" },
+  { file: "kernel/harness.mjs", args: ["verify", "t0"], label: "kernel verify t0", expect: "stdout" },
+  { file: "kernel/harness.mjs", args: ["verify", "budget"], label: "kernel verify budget", expect: "stdout" },
+  { file: "kernel/harness.mjs", args: ["verify", "trace"], label: "kernel verify trace", expect: "stdout" },
+  { file: "kernel/harness.mjs", args: ["verify", "spec"], label: "kernel verify spec", expect: "stdout" },
+  { file: "kernel/harness.mjs", args: ["init", "fit"], label: "kernel init fit", expect: "stdout" },
+  { file: "kernel/harness.mjs", args: ["probe", "digest"], label: "kernel probe digest", expect: "stdout" },
+  { file: "kernel/harness.mjs", args: ["reduce", "verdict"], label: "kernel reduce verdict", expect: "stdout" },
+  { file: "kernel/harness.mjs", args: ["reduce", "ingest"], label: "kernel reduce ingest", expect: "stdout" },
+  { file: "kernel/harness.mjs", args: ["reduce", "board"], label: "kernel reduce board", expect: "stdout" },
+  { file: "kernel/harness.mjs", args: ["compile"], label: "kernel compile", expect: "stdout" },
+  // `verify envelope` is a registered PreToolUse hook, so its probe is the sharpest one here: fed a
+  // dispatch against a dangling order it must emit a `deny` decision. Under a broken guard it
+  // emitted nothing, which reads as allow.
+  { file: "kernel/harness.mjs", args: ["verify", "envelope"], label: "kernel verify envelope (hook mode)",
     stdin: JSON.stringify({ tool_name: "Skill",
       tool_input: { skill: "shapeup-sdlc-plugin:task-executor", args: "--order /nonexistent.json" } }),
     expect: "stdout" },
-  { file: "skills/tech-lead/scripts/compile-order.mjs", args: [], expect: "stdout" },
-  { file: "skills/tech-lead/scripts/ingest-result.mjs", args: [], expect: "stdout" },
-  { file: "skills/tech-lead/scripts/trace-lint.mjs", args: [], expect: "stdout" },
-  // Dev tooling rather than shipped surface (`scripts/` is not in package.json `files`), but the
-  // oracles are what a contributor runs by hand, and a silent no-op there reads as "contract passed".
+  // The oracles are what a contributor runs by hand, and a silent no-op there reads as
+  // "contract passed".
   { file: "oracles/process-oracle.mjs", args: [], expect: "stdout" },
   { file: "oracles/test-oracle.mjs", args: [], expect: "stdout" },
   { file: "oracles/http-oracle.mjs", args: [], expect: "stdout" },
   { file: "oracles/snapshot-oracle.mjs", args: [], expect: "stdout" },
 ];
+
 
 // Assembled from pieces on purpose: a literal here would make this file its own offender.
 const FRAGILE = "file://$" + "{process.argv[1]}";
@@ -108,7 +113,7 @@ export async function run(ctx) {
   section("11a. No entry point may use the fragile unresolved-path main guard");
   // =============================================================================
   // The one legitimate occurrence is inside is-main.mjs's own explanation of the bug.
-  const HELPER = "skills/tech-lead/scripts/lib/is-main.mjs";
+  const HELPER = "kernel/lib/argv.mjs";
   const helperPath = join(ROOT, HELPER);
   if (existsSync(helperPath)) ok(`the shared guard exists (${HELPER})`);
   else fail(`missing ${HELPER} — the shared, symlink-safe main guard`);
@@ -233,7 +238,7 @@ export async function run(ctx) {
       writeFileSync(join(tmp2, "intake.md"), "# demo\n\nadd a flag\n");
 
       const r = spawnSync("node", [
-        join(ROOT, "skills/tech-lead/scripts/init-run.mjs"),
+        join(ROOT, "kernel/harness.mjs"), "init", "run",
         "--slug", slug, "--intake-file", "intake.md", "--auto-level", "unattended",
       ], { cwd: tmp2, encoding: "utf8" });
       const out = `${r.stdout || ""}${r.stderr || ""}`;
@@ -279,10 +284,10 @@ export async function run(ctx) {
     const viaLink = join(tmp, "plugin-link");
     symlinkSync(ROOT, viaLink, "dir");
     // Shape 2 — a real copy under a directory whose name contains a space. Copying only the trees
-    // an entry point can reach keeps this fast; `skills/` carries the shared guard.
+    // an entry point can reach keeps this fast; `kernel/` carries the shared guard.
     const spaced = join(tmp, "My Plugins", "plugin");
     mkdirSync(spaced, { recursive: true });
-    for (const dir of ["hooks", "skills"]) {
+    for (const dir of ["hooks", "skills", "kernel"]) {
       if (existsSync(join(ROOT, dir))) cpSync(join(ROOT, dir), join(spaced, dir), { recursive: true });
     }
 
@@ -300,16 +305,16 @@ export async function run(ctx) {
       // path. Under the old guard the symlinked and spaced invocations were silent, exit 0.
       if (spec.expect === "stdout") {
         if (!spoke(baseline)) {
-          fail(`${spec.file} says nothing even by its real path — the probe cannot discriminate; ` +
+          fail(`${spec.label ?? spec.file} says nothing even by its real path — the probe cannot discriminate; ` +
                `give it args that reach a refusal, or move it out of ENTRY_POINTS`);
           continue;
         }
-        if (spoke(bySymlink)) ok(`${spec.file} runs via a symlinked plugin root`);
-        else fail(`${spec.file} is a SILENT NO-OP via a symlinked plugin root (exit ${bySymlink.status}) — ` +
+        if (spoke(bySymlink)) ok(`${spec.label ?? spec.file} runs via a symlinked plugin root`);
+        else fail(`${spec.label ?? spec.file} is a SILENT NO-OP via a symlinked plugin root (exit ${bySymlink.status}) — ` +
                   `the main guard is comparing an unresolved path`);
         if (bySpace) {
-          if (spoke(bySpace)) ok(`${spec.file} runs via a path containing a space`);
-          else fail(`${spec.file} is a SILENT NO-OP via a path containing a space (exit ${bySpace.status}) — ` +
+          if (spoke(bySpace)) ok(`${spec.label ?? spec.file} runs via a path containing a space`);
+          else fail(`${spec.label ?? spec.file} is a SILENT NO-OP via a path containing a space (exit ${bySpace.status}) — ` +
                     `the main guard is comparing an unencoded path`);
         }
       }
@@ -319,8 +324,8 @@ export async function run(ctx) {
       // it shows up as a divergence the moment the body would have done something.
       if (spec.expect === "exit0") {
         const same = bySymlink.status === baseline.status && (!bySpace || bySpace.status === baseline.status);
-        if (same) ok(`${spec.file} behaves identically by real path, symlink and spaced path`);
-        else fail(`${spec.file} diverges by invocation path: real=${baseline.status} ` +
+        if (same) ok(`${spec.label ?? spec.file} behaves identically by real path, symlink and spaced path`);
+        else fail(`${spec.label ?? spec.file} diverges by invocation path: real=${baseline.status} ` +
                   `symlink=${bySymlink.status}${bySpace ? ` spaced=${bySpace.status}` : ""}`);
       }
     }
@@ -391,9 +396,9 @@ export async function run(ctx) {
         mkdirSync(wsPacked, { recursive: true });
         spawnSync("git", ["init", "-q"], { cwd: wsPacked });
 
-        // `scripts/` is dev tooling and deliberately NOT in package.json `files` — excluded here
-        // rather than asserted, so this check never argues with a shipping decision.
-        const shipped = ENTRY_POINTS.filter((s) => !s.file.startsWith("scripts/"));
+        // `oracles/` ships; `tools/` does not and is not listed here. Excluding rather than
+        // asserting keeps this check from arguing with a shipping decision.
+        const shipped = ENTRY_POINTS.filter((s) => !s.file.startsWith("tools/"));
         let missing = 0, diverged = 0;
         for (const spec of shipped) {
           const inPack = join(pkg, spec.file);
@@ -411,9 +416,9 @@ export async function run(ctx) {
           const same = spec.expect === "stdout"
             ? spoke(fromPack)
             : fromPack.status === fromRepo.status;
-          if (same) ok(`${spec.file} ships and behaves identically from the packed distributable`);
+          if (same) ok(`${spec.label ?? spec.file} ships and behaves identically from the packed distributable`);
           else {
-            fail(`${spec.file} ships but DIVERGES when run from the packed tarball ` +
+            fail(`${spec.label ?? spec.file} ships but DIVERGES when run from the packed tarball ` +
                  `(repo exit ${fromRepo.status}, packed exit ${fromPack.status}, ` +
                  `packed said ${fromPack.out.trim().length} bytes) — this is the install shape the ` +
                  `benchmark measured F-16 in.`);

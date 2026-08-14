@@ -52,7 +52,6 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { isMain } from "./lib/is-main.mjs";
 import { runArgs } from "./lib/argv.mjs";
 import { gateAnswerCandidates, LOCAL } from "./lib/paths.mjs";
 
@@ -239,7 +238,7 @@ export function discover({ cwd = process.cwd(), file = null, preset = null, slug
 
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "gate-answers.mjs (--init | --list | --verify | --resolve <gate-id>) [--preset <name>] " +
+  usage: "harness.mjs gate (--init | --list | --verify | --resolve <gate-id>) [--preset <name>] " +
          "[--file <path>] [--slug <slug>] [--cwd <dir>] [--out <path>] [--by <who>] " +
          "[--auto-level <level>] [--tiny] [--no-qa]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
@@ -267,8 +266,15 @@ function die(msg, code = 2) {
   process.exit(code);
 }
 
-export function main() {
-  const args = runArgs(ARGV_SPEC);
+/**
+ * Resolve, verify, list or initialise the gate answer set.
+ *
+ * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
+ * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
+ *   call `process.exit()` with the subcommand's documented code rather than returning.
+ */
+export function cli(rawArgv) {
+  const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = args.cwd || process.cwd();
 
   if (args.init) {
@@ -332,6 +338,3 @@ export function main() {
   out({ ...r, ok: true }, 0);
 }
 
-if (isMain(import.meta.url)) {
-  main();
-}

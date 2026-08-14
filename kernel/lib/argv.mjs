@@ -1,44 +1,27 @@
-// parseArgs — the typed argv boundary.
+// argv — the typed CLI boundary: who is running, and with what.
 //
-// WHY THIS FILE EXISTS (measured by executing the shipped scripts, not theorized).
-//
-// This project's envelope boundary is rigorously typed: 38 `$defs` in `domain.schema.json`,
-// both directions validated, and a `PreToolUse` hook that DENIES a malformed WorkOrder before a
-// worker ever sees it. That discipline stopped dead at `process.argv` — which is where the
-// pipeline actually executes.
-//
-// The reproduced defect. `t0-verify.mjs` parsed its own flags with
-//
-//     if (a === "--round") out.round = Number(argv[++i]);      // then: args.round ?? 1
-//
-// `Number(undefined)` is `NaN`, and `??` does not catch `NaN`. So passing a flag WITHOUT a value
-// wrote a real verdict artifact to `t0/verdicts/rNaN-a1.json` and **exited 0**:
-//
-//     $ t0-verify.mjs contract.json --round --attempt 1
-//     { "path": "t0/verdicts/rNaN-a1.json", "overall": "green", ... }   exit=0
-//
-// The orchestrator then looks for `r1-a1.json`, finds nothing, and the evaluator's MANDATORY T0
-// citation cannot resolve — on the single artifact the judge is structurally required to cite.
-// A green verdict at an address nobody will look up is the same failure class as a silent no-op:
-// indistinguishable from working.
-//
-// THE CONTRACT, mirroring `validate-envelope`'s: reject BEFORE anything runs, exit 2, and put a
+// CONTRACT, mirroring the envelope's: reject BEFORE anything runs, exit 2, and put a
 // machine-readable reason on stderr. Nothing here touches the filesystem, so a rejected parse
-// cannot leave a half-written artifact behind.
+// cannot leave a half-written artifact behind. Exit 2 is this plugin's "the input was malformed,
+// nothing ran" code — deliberately NOT 1, which every oracle uses for "ran, and the answer is no".
 //
 //     const SPEC = {
 //       _:           { arity: 1, name: "scope-contract.json" },
 //       round:       { type: "int", min: 1, required: true },
 //       "no-seesaw": { type: "flag" },
 //     };
-//     const args = runArgs(SPEC, process.argv.slice(2));   // args.round, args.noSeesaw, args._
+//     const args = runArgs(SPEC, argv);   // args.round, args.noSeesaw, args._
 //
-// Flag names reach the caller camelCased (`--no-seesaw` → `noSeesaw`), so adoption does not
-// rewrite call sites. Unknown flags are rejected rather than silently swallowed as positionals:
-// a typo'd `--rounds 2` that lands in `_` is the same defect wearing a different hat.
+// Flag names reach the caller camelCased (`--no-seesaw` → `noSeesaw`). Unknown flags are rejected
+// rather than swallowed as positionals: a typo'd `--rounds 2` landing in `_` is the same defect
+// wearing a different hat. Untyped coercion is the failure this guards — `Number(undefined)` is
+// `NaN`, `??` does not catch `NaN`, and a verdict written to `r NaN-a1.json` with exit 0 is
+// indistinguishable from working.
 //
-// The structural suite executes every entry point with each declared int flag
-// both empty and non-numeric, and asserts exit 2 with a parseable reason and no artifact on disk.
+// {@link isMain} answers the other half of the boundary question: was this module executed, or
+// imported? Comparing `import.meta.url` to a raw `file://${process.argv[1]}` is false under a
+// symlinked install path (macOS `/var`, nvm, pnpm, Homebrew) and under any path containing a space,
+// which silently turns an entry point into a no-op that still exits 0.
 
 /** Thrown by {@link parseArgs} when argv does not satisfy the spec. `detail` is the wire shape. */
 export class ArgvError extends Error {
@@ -220,5 +203,43 @@ export function runArgs(spec, argv = process.argv.slice(2)) {
     process.stderr.write(JSON.stringify(e.detail) + "\n");
     if (spec.usage) process.stderr.write(`usage: ${spec.usage}\n`);
     process.exit(2);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// isMain — "was this module executed directly, or imported?"
+// ---------------------------------------------------------------------------
+
+import { realpathSync } from "node:fs";
+import { pathToFileURL } from "node:url";
+
+/**
+ * True when `moduleUrl` belongs to the module Node was asked to execute.
+ *
+ * Resolves both sides through `pathToFileURL` (so percent-encoding matches) and `realpathSync` (so
+ * symlinks match), which is what makes the guard hold where the naive string compare does not.
+ *
+ * @param {string} moduleUrl - The caller's `import.meta.url`.
+ * @returns {boolean} true if executed directly, false if imported (or if there is no entry point,
+ *   e.g. `node --eval`, where nothing should auto-run).
+ */
+export function isMain(moduleUrl) {
+  const entry = process.argv[1];
+  if (!entry || !moduleUrl) return false;
+
+  // Cheap path first: correct encoding, no filesystem access. Handles spaces and unicode.
+  let entryUrl;
+  try { entryUrl = pathToFileURL(entry).href; } catch { return false; }
+  if (entryUrl === moduleUrl) return true;
+
+  try {
+    const realEntry = pathToFileURL(realpathSync(entry)).href;
+    if (realEntry === moduleUrl) return true;
+    return realEntry === pathToFileURL(realpathSync(new URL(moduleUrl))).href;
+  } catch {
+    // An unreadable or deleted entry point is not this function's problem to report. Returning
+    // false means "do not auto-run", which is the safe direction for an imported module and is
+    // never the direction that silently skips a gate.
+    return false;
   }
 }

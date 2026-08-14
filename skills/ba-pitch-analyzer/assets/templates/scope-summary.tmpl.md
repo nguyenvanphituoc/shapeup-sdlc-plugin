@@ -94,7 +94,7 @@ Carried from [[_index#Rabbit-Holes]]:
 
 ## Execution Recommendation
 
-<!-- Filled from spec-lint.mjs output -->
+<!-- Filled from harness verify spec output -->
 
 **Audit Score: N/100**
 

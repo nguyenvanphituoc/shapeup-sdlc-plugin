@@ -21,7 +21,7 @@ on it. `TASK-NNN` ids are **machine-local** (boards regenerate and renumber); ne
 task id across machines.
 
 `run_id` (v1.8) is the **temporal key**: which *execution* a record came from.
-`<slug>-<YYYYMMDDTHHMMSSZ>-<8 hex>`, minted by `init-run.mjs` and derived from the receipt, so
+`<slug>-<YYYYMMDDTHHMMSSZ>-<8 hex>`, minted by `harness init run` and derived from the receipt, so
 any writer holding the receipt recomputes it and a pre-v1.8 receipt backfills to the id it would
 have had. It exists because every other id here is *positional* — `order_id`, `(round, attempt,
 trial)` and `trial` all identify a record within one run and repeat in the next — so no record
@@ -34,14 +34,14 @@ no `run_id`: it is worker-written, and it reaches the key through `order_id`, wh
 fully anchor into the committed tier (a task's `use_case_refs`/`linked_docs`, a T0
 artifact's `scope_id`, a discovery line's `[UC-NN]` tag), while a SHARED document links
 only its committed siblings — never a LOCAL path or a machine-local task id, which would
-dangle on every fresh clone. `spec-lint.mjs` enforces both halves mechanically
+dangle on every fresh clone. `harness verify spec` enforces both halves mechanically
 (`TIER-DIRECTION` red for a `[[tasks/...]]` link in a spec doc, `UC-ANCHOR` red for a task
 with an empty or unresolvable anchor).
 
 ## 7.1 — The envelope port (WorkOrder → worker → WorkResult)
 
 Everything a worker receives arrives inside a WorkOrder; everything it used to write into
-shared files it now returns inside a WorkResult, and `ingest-result.mjs` is the single
+shared files it now returns inside a WorkResult, and `harness reduce ingest` is the single
 writer that projects the result into shared state.
 
 ```mermaid
@@ -236,29 +236,29 @@ erDiagram
 
 | Entity | Tier | Location | Sole writer | Readers |
 |---|---|---|---|---|
-| `VerdictLedgerLine` | LOCAL | `evaluation/.verdicts-<target>.jsonl` | ingest-result.mjs | spec-evaluator (flip detection), verdict-ledger.mjs |
-| `SeesawRegistry` | LOCAL | `seesaw/registry.json` | tech-lead (scope FINISHED) | t0-verify.mjs |
-| `MetricsRow` | SHARED | `metrics/<machine-id>.jsonl` | tech-lead (SHIP S.6) | stats.mjs (v1.2: optional `at` + `attempt_exhaustions` fields) |
+| `VerdictLedgerLine` | LOCAL | `evaluation/.verdicts-<target>.jsonl` | harness reduce ingest | spec-evaluator (flip detection), harness reduce verdict |
+| `SeesawRegistry` | LOCAL | `seesaw/registry.json` | tech-lead (scope FINISHED) | harness verify t0 |
+| `MetricsRow` | SHARED | `metrics/<machine-id>.jsonl` | tech-lead (SHIP S.6) | harness probe stats (v1.2: optional `at` + `attempt_exhaustions` fields) |
 | `ActiveScopePointer` | LOCAL | `.shapeup/active-scope` | tech-lead (BUILD step 0) | run-scoping for the advisory/Stop hooks — not writable by any worker |
 | `ActiveOrderPointer` | LOCAL | `.shapeup/active-order` | the run (written before each worker dispatch) | sandbox-guard hook — the substrate it enforces is read through this pointer |
 | `SafetyOverrides` (v1.2) | LOCAL | `.shapeup/safety-overrides.json` | **human PO only** — outside the run-trace carve-out, so no worker can write it | safety-spine hook |
-| `RunSnapshot` (v1.2) | LOCAL | `<slug>/run-snapshot.json` | run-snapshot.mjs `--write` (via the PreCompact hook — never a worker) | session-rehydrate hook, tech-lead, human |
-| `StatsReport` (v1.2) | EMBEDDED | stdout only — never persisted | stats.mjs (read-only projection) | human / CLI / CI |
-| `RequirementClause` (spine v1.3) | SHARED | `<slug>/requirements.md` | ba-pitch-analyzer (`coverage` — extraction only; a `CUT` is a PO governance edit) | trace-lint.mjs (covers-closure), tech-lead, human |
-| `WiringMap` (spine v1.3) | SHARED | `<slug>/wiring-map.md` | solution-architect (SOLE writer, direct — like `scopes/*.md`); `entries[]` are `WiringEntry` | trace-lint.mjs (reachability), scope-architect (seam), tech-lead |
-| `ProjectProfile` (spine v1.3) | SHARED | `<slug>/project-profile.md` | tech-lead (GATE L0 — not compile-order.mjs, which stays pipeline-blind) | trace-lint.mjs (entry_point), solution-architect (`wire`), tech-lead |
+| `RunSnapshot` (v1.2) | LOCAL | `<slug>/run-snapshot.json` | harness reduce snapshot `--write` (via the PreCompact hook — never a worker) | session-rehydrate hook, tech-lead, human |
+| `StatsReport` (v1.2) | EMBEDDED | stdout only — never persisted | harness probe stats (read-only projection) | human / CLI / CI |
+| `RequirementClause` (spine v1.3) | SHARED | `<slug>/requirements.md` | ba-pitch-analyzer (`coverage` — extraction only; a `CUT` is a PO governance edit) | harness verify trace (covers-closure), tech-lead, human |
+| `WiringMap` (spine v1.3) | SHARED | `<slug>/wiring-map.md` | solution-architect (SOLE writer, direct — like `scopes/*.md`); `entries[]` are `WiringEntry` | harness verify trace (reachability), scope-architect (seam), tech-lead |
+| `ProjectProfile` (spine v1.3) | SHARED | `<slug>/project-profile.md` | tech-lead (GATE L0 — not harness compile, which stays pipeline-blind) | harness verify trace (entry_point), solution-architect (`wire`), tech-lead |
 | `Lane` (v1.2 · design draft) | EMBEDDED | (when implemented) `harness-run.md` frontmatter `lane:` — never a payload field | tech-lead (GATE L0) | tech-lead only — see design §4.7 |
 
 ## 7.4b — Telemetry & resilience read-plane (v1.2)
 
 The absorb-audit additions are all *derived* records: they read the run's files and project
-them — none of them is a new write surface for workers, and `ingest-result.mjs` remains the
+them — none of them is a new write surface for workers, and `harness reduce ingest` remains the
 sole SHARED-state writer.
 
 ```mermaid
 erDiagram
-    MetricsRow ||--o{ StatsReport : "aggregated by stats.mjs (read-only)"
-    HarnessRun ||--o| RunSnapshot : "derived from files by run-snapshot.mjs"
+    MetricsRow ||--o{ StatsReport : "aggregated by harness probe stats (read-only)"
+    HarnessRun ||--o| RunSnapshot : "derived from files by harness reduce snapshot"
     T0Artifact ||--o| RunSnapshot : "round/attempt from latest verdict filename"
     SafetyOverrides ||--o| MetricsRow : "exercised override → SAFETY-OVERRIDE pathology row"
 ```
@@ -304,9 +304,9 @@ erDiagram
 
 | Entity | Tier | Location | Sole writer | Readers |
 |---|---|---|---|---|
-| `JournalRow` | LOCAL | `<slug>/workflow-run/journal.jsonl` | run-workflow.mjs (append-only) | export-run.mjs, human |
-| `DispatchFact` + children | LOCAL | `.shapeup/exports/<run_id>/*.jsonl` | export-run.mjs (read-only over the trace) | any warehouse tool, human |
-| `EconomicsReport` | EMBEDDED | the export manifest, and stdout from `stats.mjs --economics` | lib/facts.mjs (pure projection) | human / CLI / CI |
+| `JournalRow` | LOCAL | `<slug>/workflow-run/journal.jsonl` | harness run (append-only) | harness report export, human |
+| `DispatchFact` + children | LOCAL | `.shapeup/exports/<run_id>/*.jsonl` | harness report export (read-only over the trace) | any warehouse tool, human |
+| `EconomicsReport` | EMBEDDED | the export manifest, and stdout from `harness probe stats --economics` | lib/facts.mjs (pure projection) | human / CLI / CI |
 
 **The null discipline.** A dispatch with no agent call carries `cost_usd: null` and
 `agent_join: null`, never `0`; a run whose sessions recorded no cost totals to `null`, never

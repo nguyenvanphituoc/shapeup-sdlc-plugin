@@ -16,15 +16,15 @@ skills/tech-lead/        schemas/ (WorkOrder · WorkResult · gate-answers · do
                           read-only fact tables keyed by run id), lib/ (argv · paths ·
                           contract-md · ratchet-tree · is-main · run-id · facts)
                          workflows/shapeup-run.js — the whole pipeline as one launchable script
-skills/ba-pitch-analyzer/scripts/   board-derive.mjs · spec-lint.mjs
-skills/spec-evaluator/scripts/      verdict-ledger.mjs (flip/confidence grammar, co-located
+skills/ba-pitch-analyzer/scripts/   harness reduce board · harness verify spec
+skills/spec-evaluator/scripts/      harness reduce verdict (flip/confidence grammar, co-located
                                     with its owning skill)
 bin/init.mjs             `npx shapeup-sdlc init` — pure-Node scaffolding + permission grant
 commands/*.md            10 slash commands (/shape /orient /scopes /wire /build /eval /qa
                          /hammer /ship /retro)
 hooks/                   hooks.json + PreToolUse: safety-spine · gate-l2 (advisory) ·
                          gate-intake · gate-deadline · sandbox-guard (+ tech-lead's
-                         validate-envelope.mjs) · Stop: gate-zerowork (blocking) ·
+                         harness verify envelope) · Stop: gate-zerowork (blocking) ·
                          anti-rationalization · slop-cleaner (advisory) · PreCompact:
                          compact-snapshot · SessionStart: session-rehydrate
                          + lib/decision.mjs (every hook records allow / deny / error)
@@ -58,7 +58,7 @@ examples/                worked fixtures + negative controls for the oracle regi
 - **Hill phase is mechanical.** Derived only from T0 / T1 / seesaw facts — never self-reported
   by a worker.
 - **Envelope port.** Every dispatch is WorkOrder in / WorkResult out; shared state is written
-  only by `ingest-result.mjs`. A malformed envelope is denied before it reaches a worker.
+  only by `harness reduce ingest`. A malformed envelope is denied before it reaches a worker.
 - **Safety spine.** Destructive commands and secret reads are denied mechanically
   (`hooks/safety-spine.mjs`); the only override is a human-authored, schema-governed local file
   (`SafetyOverrides`), itself write-protected and logged when exercised.

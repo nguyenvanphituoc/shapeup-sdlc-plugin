@@ -90,7 +90,7 @@ The skill passes everything the run will ever need as one literal, because the w
 follow-ups and cannot read config files itself:
 
 ```jsonc
-// args (RunArgs) — compiled by tech-lead at GATE L0, from init-run.mjs output
+// args (RunArgs) — compiled by tech-lead at GATE L0, from harness init run output
 {
   "slug": "island-escape",
   "autoLevel": "unattended",            // interactive | auto | unattended
@@ -179,7 +179,7 @@ sequenceDiagram
   participant EX as task-executor agent
   participant D as disk (.shapeup/)
 
-  WF->>MA: C2: compile-order.mjs --scope … --round r --attempt a
+  WF->>MA: C2: harness compile --scope … --round r --attempt a
   MA->>D: writes orders/r-a.json (schema-validated before write)
   MA-->>WF: {exit_code: 0, stdout: "orders/r-a.json", stderr: ""}
   Note over WF: stderr carries the stagnation breaker<br/>as JSON — the loop checks it in code
@@ -189,9 +189,9 @@ sequenceDiagram
   HK-->>EX: sandbox-guard: every Edit/Write vs substrate, else DENY
   EX->>D: writes WorkResult — its ONLY pipeline output
   EX-->>WF: WorkResult path
-  WF->>MA: C2: ingest-result.mjs results/r-a.json
+  WF->>MA: C2: harness reduce ingest results/r-a.json
   MA->>D: board ticks · ledger appends · escalates queued (single writer)
-  WF->>MA: C2: t0-verify.mjs … --round r --attempt a
+  WF->>MA: C2: harness verify t0 … --round r --attempt a
   MA->>D: verdict artifact r-a-t.json + trials.jsonl row (immutable, I4)
   MA-->>WF: {stdout: "{overall, status: kept|reverted|rebased|crash}"}
   Note over WF: branch in code: green → next scope ·<br/>budget/stagnation → GATE H proposal · else attempt a+1
@@ -215,9 +215,9 @@ sequenceDiagram
   participant D as disk state
 
   PO->>TL: kicked-off pitch
-  TL->>D: init-run.mjs — receipt.json (first tool call, gate-zerowork's fact)
+  TL->>D: harness init run — receipt.json (first tool call, gate-zerowork's fact)
   TL->>WF: C1: launch(args)
-  Note over WF: ORIENT → L1a → WIRE → L1a.5 →<br/>MAP SCOPES → L1b → BUILD → L2 → EVAL → L3 …<br/>each gate: gate-answers.mjs via C2
+  Note over WF: ORIENT → L1a → WIRE → L1a.5 →<br/>MAP SCOPES → L1b → BUILD → L2 → EVAL → L3 …<br/>each gate: harness gate via C2
   alt gate resolves 0 (pre-recorded / preset)
     WF->>WF: cross, append ledger row, next phase
   else gate resolves 4 — "ask"
@@ -237,7 +237,7 @@ sequenceDiagram
   TL->>PO: ⏸ GATE L4 sign-off · feedback → coach
 ```
 
-**The fast-forward algorithm (step 13)** is the same derivation `init-run.mjs` already performs
+**The fast-forward algorithm (step 13)** is the same derivation `harness init run` already performs
 for its exit-3 RESUME STATE, moved to where it can never be skipped:
 
 ```
@@ -261,7 +261,7 @@ exactly the property that makes an orchestrator resumable.
 
 ```mermaid
 stateDiagram-v2
-  [*] --> configured: init-run.mjs writes receipt
+  [*] --> configured: harness init run writes receipt
   configured --> running: Workflow launched (C1)
   running --> running: phase advances — gate resolved 0
   running --> paused: gate resolved 4 — "ask"
@@ -277,7 +277,7 @@ stateDiagram-v2
 Two transitions deliberately absent, and their absence is the design: there is no
 `running → done-by-claim` (the narrated-run arc — a workflow ends only through a typed return),
 and no `paused → timeout` (the F3 arc — a pause is a *return*, so nothing is waiting; the clock
-only runs while the workflow runs, and `budget-check.mjs` is consulted at every round boundary by
+only runs while the workflow runs, and `harness verify budget` is consulted at every round boundary by
 code).
 
 ---
@@ -294,10 +294,10 @@ in the tree.
 | **[D2] One lane from the cutover release** — the prose orchestrator is deleted, both interactive and unattended move to the Workflow at once; rollback = pin the previous plugin version | keeping the inline prose lane as a "frozen" in-tree fallback (the review's original draft) | dual paths are a measured defect class here (v1.6.1); a frozen lane diverges silently the moment loop semantics change, and it is the copy nobody tests — a pinned release cannot diverge. Conditions priced in: headless availability is a Stage-0 kill-switch, and both lane types green is the cutover's ship gate |
 | **[D4]** Pause = return + relaunch, state on disk | in-flight human input to a running workflow | the runtime has no such channel; and disk-derived re-entry works across sessions/crashes, which in-flight input never would |
 | Mechanical agents per script call | folding compile/ingest into the worker's agent | keeps the worker blind to pipeline mechanics (v1.0's point); a worker that ingests its own result sits inside its own trust boundary |
-| One `RunReturn` union, skill branches on `status` | free-text workflow summaries | the exit-code lesson (`gate-answers.mjs`) applied to the orchestrator itself: prose gets paraphrased, tags get branched on |
+| One `RunReturn` union, skill branches on `status` | free-text workflow summaries | the exit-code lesson (`harness gate`) applied to the orchestrator itself: prose gets paraphrased, tags get branched on |
 | **[D3]** Scopes sequential in v1 | `pipeline()` over scopes | `.shapeup/active-scope` is a singleton the sandbox hook reads; branch-per-scope assumes one tree. Parallel scopes = a later pitch (worktree isolation), not a default |
 | Gate blocks composed by the workflow, emitted verbatim by the skill | skill re-summarizing gate state | the block is the handoff contract today (Hard Rules); re-phrasing is the paraphrase channel this design exists to close |
-| `args.startedAt` passed in | reading the clock in-script | `Date.now()` is unavailable in workflow scripts by design; the deadline breaker (`budget-check.mjs`) computes elapsed itself in Node, where the clock lives |
+| `args.startedAt` passed in | reading the clock in-script | `Date.now()` is unavailable in workflow scripts by design; the deadline breaker (`harness verify budget`) computes elapsed itself in Node, where the clock lives |
 | **[D5]** Model floor: Sonnet on every agent — workers, judge, QA, and the mechanical couriers alike | Haiku couriers and QA tier (3–5× cheaper) | PO decision 2026-08-06: courier fidelity over cost — a mis-transcribed `stdout` corrupts the pipeline at its narrowest channel, and the delta is ≲ $1/round. Historical benchmark rows measured on Haiku 4.5 remain valid as *history*; no future phase runs below Sonnet |
 
 **[D1]** Open items are gated, not assumed: Stage 0 is the kill-switch and now carries three

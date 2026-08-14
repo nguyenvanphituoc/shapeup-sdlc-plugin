@@ -164,7 +164,7 @@ there by ADR-0001, because a committed shard keyed on `$HOSTNAME` only grows and
 person's machine name in the repo. It outlives any single run (the per-slug run dirs are
 superseded run by run; the shard only appends), which is what makes it the durable signal
 feed. Sharded per machine so shards can be pooled deliberately without colliding on one
-filename; the read plane is `stats.mjs`, or `cat .shapeup/metrics/*.jsonl`.
+filename; the read plane is `harness probe stats`, or `cat .shapeup/metrics/*.jsonl`.
 `schema_version` makes an old row readable by later skill versions.
 
 ### Two hard rules (same discipline as the Test Surface: *derived, never invented*)
@@ -202,7 +202,7 @@ fixtures run in isolation and do not consume it.
   drives both toward 0 — measured from the build trace, no manual grading.
 - **Rejected fields:** `time_spent` / velocity (no clock; Shape Up forbids counting hours
   — `round_count` is the legitimate effort proxy) and `run_quality_score` (second judge).
-  This rejection is **unchanged** by the run-economics measurement (`stats.mjs
+  This rejection is **unchanged** by the run-economics measurement (`harness probe stats
   --economics`): cost and wall-clock are properties of a machine run, derived on demand
   from the exported trace, and they deliberately do not enter this row. A signal feed that
   carried a duration would become a velocity feed on the next person who read it.

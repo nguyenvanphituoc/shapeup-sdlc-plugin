@@ -12,7 +12,7 @@ call is narration, and a narrated run is a failed run — it reads like a clean 
 escaped defects behind it. `hooks/gate-zerowork.mjs` (Stop) blocks a session
 that **reached the orchestrator and left no receipt** — where "reached the orchestrator" means
 dispatching this skill or launching a `shapeup-*` workflow by either surface, and the receipt is
-what `init-run.mjs` writes. Working around the harness is not an exemption: a busy session used to
+what `harness init run` writes. Working around the harness is not an exemption: a busy session used to
 switch this gate off and no longer does. Loading these instructions is not running them.
 
 **Step 1 — open the run.** Write the requirement to a file first, then pass the path — a
@@ -20,7 +20,7 @@ multi-line requirement inlined into a shell argument is where this step goes wro
 turns fighting shell quoting):
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/init-run.mjs" \
+node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" init run \
   --slug <slug-from-the-request> --intake-file <path/to/the/requirement.md> \
   --auto-level <interactive|auto|unattended> \
   [--dimensions <a,b>] [--gate-answers <ci|guarded|path.json>] [--wall-clock-budget <seconds>] [--max-rounds 3]
@@ -59,13 +59,13 @@ of its own), emit the `⏸ GATE L0` block, then check the lane:
   `.shapeup/<slug>/run-args.json`, then launch it as a **background** Bash call:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/run-workflow.mjs" \
+node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" run \
   "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js" \
   --args-file .shapeup/<slug>/run-args.json --run-dir .shapeup/<slug>/workflow-run
 ```
 
 `shapeup-run.js` (`domain.schema.json` `$defs/RunArgs`/`RunReturn`) owns everything from ORIENT
-through GATE H and ship-report — every gate inside that range resolves via `gate-answers.mjs`'s
+through GATE H and ship-report — every gate inside that range resolves via `harness gate`'s
 exit code, in code, not by this skill's own reading of a paragraph. The `RunReturn` arrives as
 `result` in `.shapeup/<slug>/workflow-run/result.json`, and on stdout.
 
@@ -74,7 +74,7 @@ ceiling. And **do not launch this with the `Workflow` tool** unless the project 
 granted it: that call is denied by default in a headless session — the lane then executes zero
 times while the session improvises the feature by hand — and the only grant that unblocks it is
 the unscoped token `"Workflow"`, which permits *every*
-dynamic workflow script in the project. `run-workflow.mjs` runs the same script under the
+dynamic workflow script in the project. `harness run` runs the same script under the
 path-scoped grant `npx shapeup-sdlc init` already writes. Headless runs also need
 `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0`, or the wait is cut at 600 s and a truncated run is
 reported as a clean one. If the launch comes back "requires approval", stop
@@ -85,18 +85,18 @@ and say so — do not hand-build the feature instead.
 | `status` | What the workflow is telling you | What you do |
 |---|---|---|
 | `paused` | A gate resolved "ask" — `paused_at` names it, `block` is composed and ready | Emit `block` **verbatim** (never re-summarise it — that is the paraphrase channel this design exists to close). Put it to the PO, get a decision. Write it to `.shapeup/<slug>/gate-answers.json` (`{"version":1,"preset":"custom","answers":{"<paused_at>":{"decision":"<answer>"}}}`, merging with any prior gate's answer already there). **Relaunch the SAME command, same `--args-file`** — the fast-forward re-derives from disk and re-dispatches nothing already done (verify: `orders/` minus `results/` is empty before it proceeds) |
-| `aborted` | A gate resolved "abort", or a hard stop (spec-lint red, scope-hammer CANNOT SHIP) | Report `aborted_at` + `reason` to the PO. Do not relaunch without a human decision — `--force` on `init-run.mjs` if truly restarting |
+| `aborted` | A gate resolved "abort", or a hard stop (spec-lint red, scope-hammer CANNOT SHIP) | Report `aborted_at` + `reason` to the PO. Do not relaunch without a human decision — `--force` on `harness init run` if truly restarting |
 | `gate_h` | A circuit breaker tripped (`breaker`: outer \| inner \| deadline) — `green_scopes` shipped nothing, `hammer_proposals` needs a census | Dispatch a fresh Agent (model: exec): `Skill(shapeup-sdlc-plugin:scope-hammer) --slug <slug> --breaker <breaker> [--scope <id>]` for the census + cut list, put the PO's decision to `references/gates.md` GATE H, then close out via Step 4 below |
 | `shipped` | The board's final round passed EVAL, QA ran, GATE H accepted the cut list, `report` names the frozen `shapeup/<slug>/REPORT.md` | Go straight to Step 4 |
 
 **Never** treat a `paused` return as a stall to work around, and never invent an answer this skill
 did not actually receive from the PO — an unattended lane with no answer for a gate is meant to
-`abort` (see `gate-answers.mjs`'s `on_missing`), not silently proceed.
+`abort` (see `harness gate`'s `on_missing`), not silently proceed.
 
 ## Step 4 — GATE L4 — Ship Sign-Off (this skill's own gate; the workflow never sees it)
 
 FIRST freeze the evidence — run state is gitignored, so `shapeup/<slug>/REPORT.md` (already
-written by `shapeup-run.js` via `ship-report.mjs`, or write it now on a `gate_h` close) is all a
+written by `shapeup-run.js` via `harness reduce ship`, or write it now on a `gate_h` close) is all a
 teammate sees. Then emit:
 
 ```

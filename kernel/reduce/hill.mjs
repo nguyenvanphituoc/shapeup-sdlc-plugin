@@ -5,10 +5,9 @@
 
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { isMain } from "./lib/is-main.mjs";
-import { runArgs } from "./lib/argv.mjs";
-import { scopesDir, hillDir, verdictsDir, evaluationDir, discoveryLedger } from "./lib/paths.mjs";
-import { readAllContracts, SCOPE_CONTRACT } from "./lib/contract-md.mjs";
+import { runArgs } from "../lib/argv.mjs";
+import { scopesDir, hillDir, verdictsDir, evaluationDir, discoveryLedger } from "../lib/paths.mjs";
+import { readAllContracts, SCOPE_CONTRACT } from "../lib/contract.mjs";
 
 /**
  * Derive and write the hill phase for all scopes mechanically based on T0, T1, and ledger facts.
@@ -119,14 +118,21 @@ export function deriveHill(cwd, slug) {
 }
 
 export const ARGV_SPEC = {
-  usage: "hill-derive.mjs --slug <slug> [--cwd <dir>]",
+  usage: "harness.mjs reduce hill --slug <slug> [--cwd <dir>]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   slug: { type: "str", required: true },
   cwd: { type: "path" },
 };
 
-if (isMain(import.meta.url)) {
-  const args = runArgs(ARGV_SPEC);
+/**
+ * Derive each scope's hill phase from its T0 and evaluation artifacts.
+ *
+ * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
+ * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
+ *   call `process.exit()` with the subcommand's documented code rather than returning.
+ */
+export async function cli(rawArgv) {
+  const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = resolve(args.cwd || process.cwd());
   const report = deriveHill(cwd, args.slug);
   console.log(JSON.stringify(report, null, 2));

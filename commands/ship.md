@@ -8,7 +8,7 @@ sign-off — especially the Ship gate (L4). The harness's safety depends on the 
 loop; do not skip gates by default.
 
 **Before anything else, dispatch `tech-lead` and let it open the run** — its first action is
-`scripts/init-run.mjs`, which writes the run receipt. Do not summarise what the harness will do;
+`harness init run`, which writes the run receipt. Do not summarise what the harness will do;
 a session that dispatches the orchestrator and leaves no receipt is blocked at `Stop` by
 `hooks/gate-zerowork.mjs`.
 
@@ -19,7 +19,7 @@ conversation, writes `project-profile.md`, then hands the whole pipeline to a si
 launch and does not drive it turn by turn:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/run-workflow.mjs" \
+node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" run \
   "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js" \
   --args-file .shapeup/<slug>/run-args.json --run-dir .shapeup/<slug>/workflow-run
 ```
@@ -39,7 +39,7 @@ all run inside it. Three things follow, and they are the point of the cutover ra
 - **Never launch this with the `Workflow` tool.** That call needs an interactive confirmation, so it
   is denied in every headless session, and the only grant that unblocks it is unscoped. Left to it,
   the script executes **zero** times and the agent improvises instead — a session can reach GATE L4
-  with a valid receipt while the pipeline never started. `run-workflow.mjs` runs the same script
+  with a valid receipt while the pipeline never started. `harness run` runs the same script
   under the path-scoped grant `npx shapeup-sdlc init` already writes.
 
 `--tiny`, and any spec with no committed `scopes/*.md` yet, take the unchanged prose lane in
@@ -70,7 +70,7 @@ Additional flags, pass through to `tech-lead` only when the user names them:
 - `--gate-answers <ci|guarded|interactive|path.json>` → the pre-recorded PO decisions this run
   crosses its gates with. Gates still emit their blocks and still record a decision; the
   decision's **source** becomes the answer set instead of a live human, and the ledger says so.
-  Generate one with `gate-answers.mjs --init --preset ci --by "<name>"`. This is what makes a
+  Generate one with `harness gate --init --preset ci --by "<name>"`. This is what makes a
   headless lane finish: without it an unattended run waits at the first ⏸ until the wall-clock
   budget expires, having built nothing.
 - `--wall-clock-budget <seconds>` → arm the deadline breaker. Off by default. Set it in any lane

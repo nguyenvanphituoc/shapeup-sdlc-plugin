@@ -1,7 +1,7 @@
 {
   "$id": "work-order.schema.json",
   "title": "WorkOrder",
-  "description": "The orchestrator → worker envelope (pure-skill architecture v1.0). Compiled by skills/tech-lead/scripts/compile-order.mjs, validated by validate-envelope.mjs before any worker dispatch. A worker depends only on this envelope — never on filesystem topology, run-state format, board schema, or another worker. Path: .shapeup/<slug>/orders/r<N>-a<M>.json (or <slug>/orders/<operation>.json for non-attempt work). Every record type and payload field is DEFINED CENTRALLY in domain.schema.json ($defs + x-payload-by-worker) — this file only shapes the envelope; it never re-defines a domain entity.",
+  "description": "The orchestrator → worker envelope (pure-skill architecture v1.0). Compiled by kernel/compile.mjs, validated by harness verify envelope before any worker dispatch. A worker depends only on this envelope — never on filesystem topology, run-state format, board schema, or another worker. Path: .shapeup/<slug>/orders/r<N>-a<M>.json (or <slug>/orders/<operation>.json for non-attempt work). Every record type and payload field is DEFINED CENTRALLY in domain.schema.json ($defs + x-payload-by-worker) — this file only shapes the envelope; it never re-defines a domain entity.",
   "type": "object",
   "required": ["schema_version", "order_id", "worker", "mode", "payload"],
   "properties": {
@@ -13,7 +13,7 @@
     },
     "run_id": {
       "type": "string",
-      "description": "OPTIONAL (v1.8) — the run this dispatch belongs to, stamped by compile-order.mjs from the receipt (skills/tech-lead/scripts/lib/run-id.mjs). The join key the analysis plane groups on: order_id alone collides across runs of the same slug, so without this no record the pipeline writes can be attributed to a run. Absent when no readable receipt exists (a standalone dispatch in a workspace with no open run) — never invented, and never required, because an analytic field must not be able to block a build.",
+      "description": "OPTIONAL (v1.8) — the run this dispatch belongs to, stamped by harness compile from the receipt (kernel/lib/paths.mjs). The join key the analysis plane groups on: order_id alone collides across runs of the same slug, so without this no record the pipeline writes can be attributed to a run. Absent when no readable receipt exists (a standalone dispatch in a workspace with no open run) — never invented, and never required, because an analytic field must not be able to block a build.",
       "pattern": "^[a-z0-9][a-z0-9-]*-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$"
     },
     "compiled_at": {

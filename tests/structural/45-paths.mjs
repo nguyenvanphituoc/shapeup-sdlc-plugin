@@ -31,7 +31,7 @@ export async function run(ctx) {
   section("45. The storage roots have exactly one home (lib/paths.mjs)");
   // =============================================================================
 
-  const PATHS_MODULE = "skills/tech-lead/scripts/lib/paths.mjs";
+  const PATHS_MODULE = "kernel/lib/paths.mjs";
   const paths = await import(join(ROOT, PATHS_MODULE));
 
   // --- (a) no runtime file names a root outside paths.mjs --------------------

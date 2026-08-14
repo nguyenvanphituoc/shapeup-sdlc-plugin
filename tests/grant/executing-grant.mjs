@@ -13,9 +13,8 @@
 // WHY IT IS NOT IN `npm test`. Tier-0 promises zero dependencies, zero network and zero Claude
 // calls, and that promise is worth more than this check. The permission decision only happens
 // inside a real CLI session, so this is Tier 1: `npm run test:grant`, run in CI on any diff
-// touching `bin/` or `skills/**/scripts/**`. It SKIPS LOUDLY (non-zero) when the `claude` binary
-// or auth is missing, because a silent skip reported as a pass is the failure mode this module
-// exists to end.
+// touching `bin/` or `kernel/`. It SKIPS LOUDLY (non-zero) when the `claude` binary or auth is
+// missing, because a silent skip reported as a pass is the failure mode this module exists to end.
 //
 // The negative controls are not decoration. Without them a future `Bash(node:*)` regression — or
 // any rule broad enough to grant everything — turns every positive case green and the suite would
@@ -26,7 +25,7 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
-import { pipelineRules } from "../../bin/lib/grant.mjs";
+import { mergePipelinePermissions, KERNEL_ENTRY } from "../../bin/lib/grant.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const MARKER = "EXECUTING_GRANT_MARKER_b41c";
@@ -47,19 +46,22 @@ function runCase({ allow, command, layout, projectScoped = false }) {
   const box = mkdtempSync(join(tmpdir(), "exec-grant-"));
   try {
     const pluginRoot = join(box, layout);
-    const scriptDir = join(pluginRoot, "skills", "tech-lead", "scripts");
+    const kernelDir = join(pluginRoot, "kernel");
     const proj = join(box, "proj");
-    mkdirSync(scriptDir, { recursive: true });
+    mkdirSync(kernelDir, { recursive: true });
     mkdirSync(proj, { recursive: true });
 
+    // A stand-in for the real kernel: same PATH SHAPE (the only thing a rule matches on), and a
+    // side effect only it can produce. Running the real one would need a whole project tree and
+    // would prove the same one bit less directly.
     const marker = join(box, "marker.txt");
     writeFileSync(
-      join(scriptDir, "init-run.mjs"),
+      join(kernelDir, "harness.mjs"),
       `import { writeFileSync } from "node:fs";\n` +
         `writeFileSync(${JSON.stringify(marker)}, ${JSON.stringify(MARKER)});\n` +
         `console.log(${JSON.stringify(MARKER)});\n`,
     );
-    // The negative control's target lives outside any skills/ tree, so no rule can reach it.
+    // The negative control's target lives outside any kernel/ path, so no rule can reach it.
     writeFileSync(join(box, "not-ours.mjs"), `console.log("SHOULD_NOT_RUN");\n`);
 
     // Two delivery routes, and the difference is load-bearing. `--settings` hands the rules in
@@ -76,7 +78,7 @@ function runCase({ allow, command, layout, projectScoped = false }) {
       writeFileSync(settingsFile, payload);
     }
 
-    const cmd = command(scriptDir, box);
+    const cmd = command(kernelDir, box);
     const r = spawnSync(
       "claude",
       ["-p",
@@ -98,26 +100,28 @@ function runCase({ allow, command, layout, projectScoped = false }) {
 
 // The rules under test are IMPORTED, never re-derived. A test that rebuilds what it expects to see
 // is testing its own copy of the intent, which is how the last one stayed green.
-const RULES = pipelineRules(ROOT);
-const q = (dir) => `node "${join(dir, "init-run.mjs")}"`;
+const granted = {};
+mergePipelinePermissions(granted);
+const RULES = granted.permissions.allow;
+const q = (dir) => `node "${join(dir, "harness.mjs")}"`;
 
 const CASES = [
   // --- positives: the two argument shapes, in both install topologies -------------------------
   { label: "marketplace layout, quoted + args",
-    allow: RULES, layout: "cache/nvptuoc-marketplace/shapeup-sdlc-plugin/1.8.0",
-    command: (d) => `${q(d)} --slug demo`, expect: "ALLOWED" },
+    allow: RULES, layout: "cache/nvptuoc-marketplace/shapeup-sdlc-plugin/2.0.0",
+    command: (d) => `${q(d)} init run --slug demo`, expect: "ALLOWED" },
   { label: "marketplace layout, quoted + NO args (the ` *` rule alone would deny this)",
-    allow: RULES, layout: "cache/nvptuoc-marketplace/shapeup-sdlc-plugin/1.8.0",
+    allow: RULES, layout: "cache/nvptuoc-marketplace/shapeup-sdlc-plugin/2.0.0",
     command: (d) => q(d), expect: "ALLOWED" },
   { label: "dev --plugin-dir checkout, arbitrary directory name",
     allow: RULES, layout: "proj-harness-plugin",
-    command: (d) => `${q(d)} --slug demo`, expect: "ALLOWED" },
+    command: (d) => `${q(d)} init run --slug demo`, expect: "ALLOWED" },
   { label: "install path containing a space (v1.5's reason for quoting)",
     allow: RULES, layout: "Application Support/shapeup",
-    command: (d) => `${q(d)} --slug demo`, expect: "ALLOWED" },
+    command: (d) => `${q(d)} init run --slug demo`, expect: "ALLOWED" },
 
   // --- negative controls: without these, an over-broad rule passes every positive -------------
-  { label: "NEGATIVE a script outside any skills/ tree is not granted",
+  { label: "NEGATIVE a script outside any kernel/ path is not granted",
     allow: RULES, layout: "proj-harness-plugin",
     command: (_d, box) => `node "${join(box, "not-ours.mjs")}"`, expect: "DENIED" },
   { label: "NEGATIVE an unrelated destructive command is not granted",
@@ -126,11 +130,11 @@ const CASES = [
 
   // --- regression pins for the two defects that made up HD-009 --------------------------------
   { label: "PIN the superseded mid-argument prefix rule still grants nothing",
-    allow: ["Bash(node ${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/:*)"],
-    layout: "proj-harness-plugin", command: (d) => `${q(d)} --slug demo`, expect: "DENIED" },
+    allow: ["Bash(node ${CLAUDE_PLUGIN_ROOT}/kernel/:*)"],
+    layout: "proj-harness-plugin", command: (d) => `${q(d)} init run --slug demo`, expect: "DENIED" },
   { label: "PIN a call site carrying the literal ${CLAUDE_PLUGIN_ROOT} is refused",
     allow: RULES, layout: "proj-harness-plugin",
-    command: () => `node "\${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/init-run.mjs" --slug demo`,
+    command: () => `node "\${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" init run --slug demo`,
     expect: "DENIED" },
 
   // --- the third layer: correct rules, in the place the installer writes them, still ignored ---
@@ -142,7 +146,7 @@ const CASES = [
   // warning is now lying to users.
   { label: "PIN project-scoped rules are ignored in an untrusted workspace (the CI case)",
     allow: RULES, layout: "proj-harness-plugin", projectScoped: true,
-    command: (d) => `${q(d)} --slug demo`, expect: "DENIED" },
+    command: (d) => `${q(d)} init run --slug demo`, expect: "DENIED" },
 ];
 
 console.log(`\nexecuting-grant: ${CASES.length} cases against ${RULES.length} generated rules\n`);
@@ -165,6 +169,7 @@ for (const c of CASES) {
 const stamp = {
   cli_version: (spawnSync("claude", ["--version"], { encoding: "utf8" }).stdout || "").trim(),
   plugin_version: JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).version,
+  entry_point: KERNEL_ENTRY,
   git_sha: (spawnSync("git", ["rev-parse", "HEAD"], { cwd: ROOT, encoding: "utf8" }).stdout || "").trim(),
   rules: RULES.length,
   cases: CASES.map((c) => ({ label: c.label, expect: c.expect })),

@@ -78,7 +78,7 @@ highest friction today (we know; help welcome):
 2. Declare the fields it needs in the central registry
    `skills/tech-lead/schemas/domain.schema.json`. Every cross-boundary field is defined there
    **once**, annotated with its tier, location, writer and readers. No skill defines its own.
-3. Teach `compile-order.mjs` how to build its order and `ingest-result.mjs` how to apply its
+3. Teach `harness compile` how to build its order and `harness reduce ingest` how to apply its
    result.
 
 If step 2 or 3 is where you got stuck, please say so in the PR or an issue — reducing that cost
@@ -107,7 +107,7 @@ changes, however good the rest of it is.
 |---|---|
 | One judge — only `spec-evaluator` produces a verdict | QA discovering a bug is not a second opinion on ship-readiness |
 | EVAL runs exactly once per round | The loop terminates because the judge is expensive and singular |
-| Only `ingest-result.mjs` writes shared state | This is what makes parallel scopes safe |
+| Only `harness reduce ingest` writes shared state | This is what makes parallel scopes safe |
 | Hill phase is derived from artifacts, never self-reported | The entire honesty claim of the project |
 | Workers never learn pipeline position | Keeps skills reusable and testable in isolation |
 | No fabricated eval numbers, ever | See below |

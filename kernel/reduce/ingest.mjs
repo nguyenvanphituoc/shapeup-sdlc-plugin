@@ -14,19 +14,18 @@
 // Zero dependencies, zero network, schema-validated input (a malformed result never mutates
 // the board). Single-writer becomes mechanically true, not aspirational.
 //
-// Usage:  node skills/tech-lead/scripts/ingest-result.mjs <result.json> [--cwd <dir>]
+// Usage:  node kernel/harness.mjs reduce ingest <result.json> [--cwd <dir>]
 // Exit:   0 = ingested, 1 = result rejected (schema) or a write failed.
 
 import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
 import { resolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { validate } from "./validate-envelope.mjs";
-import { isMain } from "./lib/is-main.mjs";
-import { runArgs } from "./lib/argv.mjs";
-import { tasksDir, localRoot } from "./lib/paths.mjs";
+import { validate } from "../verify/envelope.mjs";
+import { runArgs } from "../lib/argv.mjs";
+import { tasksDir, localRoot } from "../lib/paths.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const RESULT_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../schemas/work-result.schema.json"), "utf8"));
+const RESULT_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../../skills/tech-lead/schemas/work-result.schema.json"), "utf8"));
 
 /**
  * @returns {string} Today's date as an ISO `YYYY-MM-DD` string (UTC), for log/frontmatter stamps.
@@ -232,14 +231,20 @@ export function applyResult(result, { cwd }) {
 // ---------------------------------------------------------------------------
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "ingest-result.mjs <result.json> [--cwd <dir>]",
+  usage: "harness.mjs reduce ingest <result.json> [--cwd <dir>]",
   _: { arity: 1, max: 1, name: "result.json" },
   cwd: { type: "path" },
 };
 
-const isMainModule = isMain(import.meta.url);
-if (isMainModule) {
-  const args = runArgs(ARGV_SPEC);
+/**
+ * Apply one WorkResult to shared state — the single writer for the board and the ledgers.
+ *
+ * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
+ * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
+ *   call `process.exit()` with the subcommand's documented code rather than returning.
+ */
+export async function cli(rawArgv) {
+  const args = runArgs(ARGV_SPEC, rawArgv);
   const file = args._[0];
   const cwd = resolve(args.cwd || process.cwd());
 

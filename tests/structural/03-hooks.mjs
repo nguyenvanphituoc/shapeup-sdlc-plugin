@@ -492,7 +492,7 @@ export async function run(ctx) {
   section("29. run-snapshot derives mid-run state from files only; compact/rehydrate hooks carry it");
   // =============================================================================
   {
-    const rsPath = join(ROOT, "skills/tech-lead/scripts/run-snapshot.mjs");
+    const rsPath = join(ROOT, "kernel/reduce/snapshot.mjs");
     const csPath = join(ROOT, "hooks/compact-snapshot.mjs");
     const srPath = join(ROOT, "hooks/session-rehydrate.mjs");
     const d = mkdtempSync(join(tmpdir(), "snap-"));
@@ -519,17 +519,17 @@ export async function run(ctx) {
       ok("pending_orders = dispatched-but-not-ingested (orders/ minus results/)");
     else fail(`pending_orders wrong: ${JSON.stringify(snap?.pending_orders)}`);
 
-    const { validate: veValidateSnap } = await import(join(ROOT, "skills/tech-lead/scripts/validate-envelope.mjs"));
+    const { validate: veValidateSnap } = await import(join(ROOT, "kernel/verify/envelope.mjs"));
     const snapCheck = veValidateSnap(snap, { $ref: "domain.schema.json#/$defs/RunSnapshot" });
     if (snapCheck.valid) ok("derived snapshot validates against domain.schema.json#/$defs/RunSnapshot");
     else fail(`snapshot fails its own registry def: ${snapCheck.errors.join("; ")}`);
 
-    const rWrite = spawnSync("node", [rsPath, "--cwd", d, "--write"], { encoding: "utf8" });
+    const rWrite = spawnSync("node", [join(ROOT, "kernel/harness.mjs"), "reduce", "snapshot", "--cwd", d, "--write"], { encoding: "utf8" });
     if (rWrite.status === 0 && existsSync(join(d, ".shapeup/demo/run-snapshot.json"))) ok("--write persists run-snapshot.json");
     else fail(`--write failed: ${rWrite.stderr}`);
 
     const empty = mkdtempSync(join(tmpdir(), "snapempty-"));
-    const rEmpty = spawnSync("node", [rsPath, "--cwd", empty], { encoding: "utf8" });
+    const rEmpty = spawnSync("node", [join(ROOT, "kernel/harness.mjs"), "reduce", "snapshot", "--cwd", empty], { encoding: "utf8" });
     if (rEmpty.status === 0 && !rEmpty.stdout.trim()) ok("no active run → exit 0, empty stdout (fail-open)");
     else fail(`empty dir should be silent, got status=${rEmpty.status} stdout=${rEmpty.stdout}`);
 

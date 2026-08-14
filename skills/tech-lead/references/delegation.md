@@ -17,7 +17,7 @@ WorkOrder in `orders/r<N>-a<M>.json`) already assumes every worker below has.
 
 Standard shape (pure-skill architecture v1.0 — the envelope port):
 ```
-1. node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/compile-order.mjs" <mode flags>      # → orders/<id>.json
+1. node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" compile <mode flags>      # → orders/<id>.json
 2. Agent({
      description: "<short task description>",
      subagent_type: "general-purpose",
@@ -25,16 +25,16 @@ Standard shape (pure-skill architecture v1.0 — the envelope port):
      prompt: "Call Skill(shapeup-sdlc-plugin:<skill>) --order <orders/<id>.json>.
               Report back: the WorkResult path (.shapeup/<slug>/results/<id>.json)."
    })
-3. node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/ingest-result.mjs" .shapeup/<slug>/results/<id>.json
+3. node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" reduce ingest .shapeup/<slug>/results/<id>.json
 ```
 The WorkOrder carries everything the worker may rely on (payload, decisions, digested errors,
 substrate write-contract); the WorkResult carries everything the worker used to write into
-shared files. `validate-envelope.mjs` runs as a PreToolUse hook on Skill|Agent and DENIES a
+shared files. `harness verify envelope` runs as a PreToolUse hook on Skill|Agent and DENIES a
 dispatch whose `--order` file is missing or schema-invalid. Workers write only their own
 domain artifacts inside their substrate — never boards, ledgers, or run-state.
 
 Role → model, resolved once at GATE L0.8 from the `orch`/`exec`/`eval`/`qa` matrix
-(`t0-verify.mjs` is mechanical tooling run directly via Bash, never an Agent — zero LLM
+(`harness verify t0` is mechanical tooling run directly via Bash, never an Agent — zero LLM
 tokens):
 
 | Skill | L0.8 role | Why this tier |
@@ -99,7 +99,7 @@ Order B (the scope contracts):
   compile-order --operation map-scopes --slug <slug> --worker scope-architect
   Agent (model: exec): Skill(shapeup-sdlc-plugin:scope-architect) --order <path>
   Writes (its substrate): shapeup/<slug>/scopes/*.md + scope-board.md — sole
-    writer. Lint mechanically: node "${CLAUDE_PLUGIN_ROOT}/skills/ba-pitch-analyzer/scripts/spec-lint.mjs" <slug> (PA1/PA2 +
+    writer. Lint mechanically: node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify spec <slug> (PA1/PA2 +
     substrate disjointness) before GATE L1b.
 Read back: .shapeup/<slug>/tasks/_index.md (the board) + scope-summary.md (Done-when)
   + the spec-lint verdict.
@@ -113,7 +113,7 @@ compile-order --operation reconcile --slug <slug> --worker ba-pitch-analyzer
 Agent (model: exec): Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) --order <path>
 Effect: reconciles raw ledger discoveries into board tasks + appended UC invariants/TS rows,
         inside the reconcile write-contract (frozen zone enforced by the sandbox hook, not
-        prose). Appetite Guard runs mechanically: node "${CLAUDE_PLUGIN_ROOT}/skills/ba-pitch-analyzer/scripts/board-derive.mjs".
+        prose). Appetite Guard runs mechanically: node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" reduce board.
 Returns: WorkResult → ingest-result (which updates the board and bumps discovered_rounds in
         harness-run.md — the worker holds no counter).
 Read back: updated tasks/_index.md + scope-summary.md before routing back to GATE L1b.
@@ -122,7 +122,7 @@ Read back: updated tasks/_index.md + scope-summary.md before routing back to GAT
   Agent (model: exec): Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) --order <path>
 Effect: regenerates the LOCAL task board fresh from the committed usecases/domain-model/scopes
         — no ledger, no reconciliation. Status bootstraps from committed T0/hill facts at
-        SCOPE granularity; unlocks recomputed by node "${CLAUDE_PLUGIN_ROOT}/skills/ba-pitch-analyzer/scripts/board-derive.mjs" --write.
+        SCOPE granularity; unlocks recomputed by node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" reduce board --write.
 Read back: the freshly regenerated tasks/_index.md before entering BUILD.
 ```
 
@@ -160,7 +160,7 @@ dependency order).
 There is NO adjudication dispatch. A worker has no port for "I cannot decide this": WorkResult
         carries no escalates field, so the question never reaches you as data.
 What you see: the phase produces no artifact. The workflow's post-condition
-        (resume-state.mjs --require <phase>) fails and the run ABORTS, naming the phase.
+        (harness probe resume --require <phase>) fails and the run ABORTS, naming the phase.
 Do: read the phase's result file to find what it could not complete, resolve it yourself —
         by amending the spec, widening the scope contract, or answering the ambiguity in the
         round-ledger "Decisions" table — then relaunch. The fast-forward re-dispatches only
@@ -170,10 +170,10 @@ Why it aborts rather than pauses: nothing persists an answer between launches, s
         in front of a human once instead of looping silently.
 ```
 
-## 3c. T0 verify → scripts/t0-verify.mjs (skill-local; scope contracts present, every attempt)
+## 3c. T0 verify → `harness verify t0` (skill-local; scope contracts present, every attempt)
 ```
 Invoke via Bash directly — NOT an Agent, this is deterministic tooling, not a worker:
-  node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/t0-verify.mjs" shapeup/<slug>/scopes/<scope-id>.md
+  node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify t0 shapeup/<slug>/scopes/<scope-id>.md
         --round <N> --attempt <M> --seesaw-registry .shapeup/<slug>/seesaw/registry.json
 Effect: runs the scope's e2e fixtures + DB probe, then (on green) the seesaw regression check
         over every FINISHED scope's fixtures. Writes the verdict artifact spec-evaluator's
@@ -190,7 +190,7 @@ Read back: the stdout JSON — {path, sha256, trial, overall, regression, score,
         convention), so a `kept` red-but-improved attempt, the ratchet's own signature case,
         exits 1. On red, its `discovered_tasks` field is
         the AEGIS digest to fold into the next brief — no separate digester dispatch needed
-        (t0-verify.mjs calls its sibling aegis-digest.mjs internally on failure).
+        (harness verify t0 calls its sibling harness probe digest internally on failure).
 ```
 
 ## 4. EVAL → spec-evaluator (once per round)
@@ -229,7 +229,7 @@ Read back: the proposed cut list + verdict (SHIP now | SHIP after fixing ship-bl
 ## Authority boundaries (do not cross)
 - The Scout orients; it never plans, builds, or judges — it hands raw material to the planner.
 - The planner decides scope; the tech lead confirms it with the PO at GATE L1b.
-- The generator reports task outcomes in its WorkResult; `ingest-result.mjs` flips `status:
+- The generator reports task outcomes in its WorkResult; `harness reduce ingest` flips `status:
   done` from that report. The tech lead confirms the feature-level close at GATE L4.
 - The evaluator issues verdicts only; it never closes tasks. Judge ≠ doer.
 - The tech lead decides *when* and *whether* each skill runs and how rounds proceed, owns
@@ -244,16 +244,16 @@ Read back: the proposed cut list + verdict (SHIP now | SHIP after fixing ship-bl
 | `orient/spike-<area>.md` | Scout (step 7) | planner Phase 1b/contracts; tech lead (L1a) |
 | `orient/discovered-seed.md` | Scout (step 7) | planner Phase 6 (task gen) |
 | `orient/hill-signal.md` | Scout (step 7) | tech lead (renders L1a Hill) |
-| `orders/<id>.json` (WorkOrder) | **compile-order.mjs (mechanical)** | every worker (its ONLY pipeline input), validate-envelope hook |
-| `results/<id>.json` (WorkResult) | the dispatched worker (its ONLY pipeline output) | ingest-result.mjs (the single writer of everything below it) |
-| `.shapeup/<slug>/tasks/*` (LOCAL board, v3.2) | **ingest-result.mjs** (status, AC ticks, unblocks) + planner orders (task bodies) | tech lead (board status), compile-order (next task, ACs) |
-| `discovery/ledger.md` | **ingest-result.mjs** (from workers' `discoveries[]`) | reconcile orders (ba), scope-hammer (H0 census) |
+| `orders/<id>.json` (WorkOrder) | **harness compile (mechanical)** | every worker (its ONLY pipeline input), validate-envelope hook |
+| `results/<id>.json` (WorkResult) | the dispatched worker (its ONLY pipeline output) | harness reduce ingest (the single writer of everything below it) |
+| `.shapeup/<slug>/tasks/*` (LOCAL board, v3.2) | **harness reduce ingest** (status, AC ticks, unblocks) + planner orders (task bodies) | tech lead (board status), compile-order (next task, ACs) |
+| `discovery/ledger.md` | **harness reduce ingest** (from workers' `discoveries[]`) | reconcile orders (ba), scope-hammer (H0 census) |
 | `scope-summary.md` | planner (analyze/reconcile orders) | tech lead (Done-when), evaluator (Done-when criteria) |
-| `evaluation/EVAL-FEATURE-<slug>.md` + `.verdicts-*.jsonl` | evaluator (report) / **ingest-result.mjs** (verdict ledger, un-ticks) | tech lead (verdict), next fix order (bug list) |
+| `evaluation/EVAL-FEATURE-<slug>.md` + `.verdicts-*.jsonl` | evaluator (report) / **harness reduce ingest** (verdict ledger, un-ticks) | tech lead (verdict), next fix order (bug list) |
 | `harness-run.md` | **tech lead (sole writer)** | tech lead (round ledger + Hill + run-state), PO (audit) |
 | `scopes/<scope-id>.md` | `scope-architect` (sole writer) | tech lead (substrate/sequence), sandbox hook (write-whitelist), compile-order (inlined into orders) |
-| `t0/verdicts/r<N>-a<M>-t<T>.json` | `scripts/t0-verify.mjs` (skill-local, mechanical — not a worker) | spec-evaluator (required citation), tech lead (hill derivation), compile-order (digested errors) |
-| `t0/trials.jsonl` (the ratchet ledger, append-only, `baseline_trial` as the parent link) | `scripts/t0-verify.mjs` (one row per attempt: score, status, delta, tree_ref) | compile-order (`trial_history` into the next order), ship-report (T0 + Ratchet sections), `stats.mjs --ratchet` |
+| `t0/verdicts/r<N>-a<M>-t<T>.json` | `harness verify t0` (skill-local, mechanical — not a worker) | spec-evaluator (required citation), tech lead (hill derivation), compile-order (digested errors) |
+| `t0/trials.jsonl` (the ratchet ledger, append-only, `baseline_trial` as the parent link) | `harness verify t0` (one row per attempt: score, status, delta, tree_ref) | compile-order (`trial_history` into the next order), ship-report (T0 + Ratchet sections), `harness probe stats --ratchet` |
 | `round-ledger.md` | **tech lead (sole writer)** | compile-order (decisions into every order), PO (audit) |
 | `hill/<scope-id>.yml` + `hill-chart.md` | **tech lead (sole writer)** | PO ("status without asking"), scope-hammer (H0 census) |
 

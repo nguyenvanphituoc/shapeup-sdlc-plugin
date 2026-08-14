@@ -19,7 +19,7 @@ guarantee lives in the script and, where noted, in a hook.
 | r>1 builds bugs only, never the whole board | Don't re-do passing work; minimize churn — see round-protocol.md's regression rule for what DOES re-run (touched UCs' full Test Surface) |
 | Stop at max_rounds; escalate honestly | No infinite fix loops; `shapeup-run.js` returns `{status: "gate_h", breaker: "outer"}` rather than looping past the budget |
 | Tech lead delegates, never reimplements a sub-skill | Stays thin; each skill keeps its own gates and authority |
-| Every delegation to a sub-skill (except the mechanical `t0-verify.mjs`/`compile-order.mjs`/`ingest-result.mjs`) is a fresh Agent on the L0.8-resolved model | Isolation the zero-memory-handoff design assumes; a direct inline call would silently drop the model matrix — see references/delegation.md "Invocation mechanism" |
+| Every delegation to a sub-skill (except the mechanical `harness verify t0`/`harness compile`/`harness reduce ingest`) is a fresh Agent on the L0.8-resolved model | Isolation the zero-memory-handoff design assumes; a direct inline call would silently drop the model matrix — see references/delegation.md "Invocation mechanism" |
 | Planner stays high-level on tech | Spec errors cascade into every build round |
 | Never auto-deploy; "shipped" never silently means "deployed" | Deploy is outward-facing, PO-gated; record "deploy pending (PO)" otherwise |
 | "Shipped" names the dims NOT evaluated | `RunReturn`'s `dims_not_evaluated` field carries this; the L4 sign-off block shows it, never silently drops it |
@@ -29,6 +29,6 @@ guarantee lives in the script and, where noted, in a hook.
 | SHIP harvest records facts only — copies existing structured output, never computes a new verdict/score | A self-computed score = a second judge behind spec-evaluator (breaks single-judge, invites Goodhart); the eval suite interprets, harvest records |
 | Three-level circuit breaker: attempt_budget (inner, per scope) nests inside round_budget (outer), with an opt-in wall_clock_budget_s deadline | An exhausted scope queues a GATE H hammer proposal, it never blocks the round; only round_budget hitting 0 stops the whole run; the deadline breaker (checked every round boundary in `shapeup-run.js`) routes to GATE H so a run out of clock still ships what is green instead of being killed from outside |
 | The tech lead never hand-edits a scope contract | scope-architect is its sole writer (single-writer-per-file) |
-| Substrate-disjointness + PA1/PA2 lints are re-asserted at GATE L1b (spec-lint.mjs) even when scope-architect already checked them | A human may have hand-approved past a 🔴 at the architect's checkpoint; `shapeup-run.js` runs spec-lint itself, in code, before resolving L1b |
+| Substrate-disjointness + PA1/PA2 lints are re-asserted at GATE L1b (harness verify spec) even when scope-architect already checked them | A human may have hand-approved past a 🔴 at the architect's checkpoint; `shapeup-run.js` runs spec-lint itself, in code, before resolving L1b |
 | Hill phase is read from mechanical facts (T0/T1/seesaw), never declared by a worker | Closes the self-reported-confidence risk outright — facts move dots, not authors |
 | GATE H is delegated to scope-hammer, never adjudicated inline by the tech lead | Keeps the orchestrator thin; census/baseline-comparison/cut-list logic has one owner |

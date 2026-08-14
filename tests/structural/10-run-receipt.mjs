@@ -20,8 +20,11 @@ import { spawnSync } from "node:child_process";
 export async function run(ctx) {
   const { ROOT, ok, fail, section } = ctx;
 
-  const node = (script, args, opts = {}) =>
-    spawnSync("node", [join(ROOT, script), ...args], { encoding: "utf8", ...opts });
+  // One entry point, so a spawn names its verb: `node("init run", [...])` runs exactly the command
+  // string a permission rule is matched against.
+  const KERNEL = join(ROOT, "kernel/harness.mjs");
+  const node = (verbs, args, opts = {}) =>
+    spawnSync("node", [KERNEL, ...verbs.split(" "), ...args], { encoding: "utf8", ...opts });
 
   // =============================================================================
   section("35. init-run.mjs opens a run and leaves the receipt every later guard depends on");
@@ -31,8 +34,8 @@ export async function run(ctx) {
   // started was invisible to all of them — the emptier the failure, the less of it there was
   // to detect. These checks assert the receipt is written, is complete, and cannot be
   // clobbered by a second init.
-  const INIT = "skills/tech-lead/scripts/init-run.mjs";
-  if (!existsSync(join(ROOT, INIT))) {
+  const INIT = "init run";
+  if (!existsSync(KERNEL)) {
     fail(`${INIT} is missing — the run receipt has no writer`);
   } else {
     const ws = mkdtempSync(join(tmpdir(), "struct-initrun-"));
@@ -104,8 +107,8 @@ export async function run(ctx) {
   // `--verify` is the ten-second check that replaces a 1800s DNF: an unattended lane whose
   // answer set stops at a gate is a stall, and a stall is indistinguishable from work until the
   // budget runs out.
-  const GA = "skills/tech-lead/scripts/gate-answers.mjs";
-  if (!existsSync(join(ROOT, GA))) {
+  const GA = "gate";
+  if (!existsSync(KERNEL)) {
     fail(`${GA} is missing — gate sign-off has no mechanism`);
   } else {
     const cross = node(GA, ["--resolve", "L1b", "--preset", "ci"]);
@@ -197,7 +200,7 @@ export async function run(ctx) {
       try { blocked = JSON.parse(a.stdout || "{}"); } catch { /* not JSON */ }
       if (blocked?.decision === "block") ok("BLOCKS the benchmark transcript: orchestrator dispatched, no receipt");
       else fail("did not block the narrated-run transcript — the failure it exists for");
-      if (typeof blocked?.reason === "string" && /init-run\.mjs/.test(blocked.reason)) {
+      if (typeof blocked?.reason === "string" && /harness\.mjs"?\s+init run/.test(blocked.reason)) {
         ok("the block names the exact next command, not just the problem");
       } else fail("block reason does not tell the model what to run");
 
@@ -265,12 +268,12 @@ export async function run(ctx) {
   // existing breakers count EVENTS, so neither could see it. These checks assert the third
   // breaker's two load-bearing properties — it stops new work, and it does NOT block the run's
   // ability to judge, hammer and close (a breaker that sealed the exit would strand green scopes).
-  const BUDGET = "skills/tech-lead/scripts/budget-check.mjs";
+  const BUDGET = "verify budget";
   const DEADLINE = "hooks/gate-deadline.mjs";
-  if (!existsSync(join(ROOT, BUDGET)) || !existsSync(join(ROOT, DEADLINE))) {
+  if (!existsSync(KERNEL) || !existsSync(join(ROOT, DEADLINE))) {
     fail("the wall-clock breaker is missing budget-check.mjs and/or gate-deadline.mjs");
   } else {
-    const { evaluateBudget, WARN_AT } = await import(`file://${join(ROOT, BUDGET)}`);
+    const { evaluateBudget, WARN_AT } = await import(`file://${join(ROOT, "kernel/verify/budget.mjs")}`);
 
     if (evaluateBudget(10, null).status === "off") ok("no budget configured → breaker off (non-regression)");
     else fail("an unconfigured budget should report off");
@@ -418,11 +421,11 @@ export async function run(ctx) {
   // earned on every axis, `full` is the default, and a wrong `tiny` (skipping gates) is worse than
   // a wrong `full` (spending money).
   {
-    const FC = "skills/tech-lead/scripts/fit-check.mjs";
-    if (!existsSync(join(ROOT, FC))) {
+    const FC = "init fit";
+    if (!existsSync(KERNEL)) {
       fail(`${FC} is missing — the lane is a judgment again`);
     } else {
-      const { decideLane } = await import(`file://${join(ROOT, FC)}`);
+      const { decideLane } = await import(`file://${join(ROOT, "kernel/init/fit.mjs")}`);
 
       const small = decideLane({ intake: "Add a `summary` command that prints the total, the largest expense and the count.", files: 3 });
       if (small.lane === "tiny") ok("a one-module change in a 3-file tree routes to the tiny lane");
@@ -466,11 +469,11 @@ export async function run(ctx) {
     // ALREADY OPEN … do NOT open a new run" — and now fires on `startup`/`clear`. Following the
     // pointer without checking status made every cold session in every repo that had ever run the
     // harness open with a false claim about its own workspace.
-    const RS = "skills/tech-lead/scripts/run-snapshot.mjs";
-    if (!existsSync(join(ROOT, RS))) {
+    const RS = "reduce snapshot";
+    if (!existsSync(KERNEL)) {
       fail(`${RS} is missing — nothing derives the run state`);
     } else {
-      const { deriveSnapshot } = await import(`file://${join(ROOT, RS)}`);
+      const { deriveSnapshot } = await import(`file://${join(ROOT, "kernel/reduce/snapshot.mjs")}`);
       const mk = (status) => {
         const d = mkdtempSync(join(tmpdir(), "struct-stale-"));
         mkdirSync(join(d, ".shapeup", "demo"), { recursive: true });

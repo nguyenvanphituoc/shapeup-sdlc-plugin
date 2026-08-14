@@ -12,12 +12,11 @@
 //   { run, task, dimension, criterion, verdict:"PASS"|"FAIL", confidence, reprobed, flip, evidence, at }
 //
 // Library use:
-//   import { reconcile, detectFlips, stability } from "skills/spec-evaluator/scripts/verdict-ledger.mjs";
+//   import { reconcile, detectFlips, stability } from "kernel/reduce/verdict.mjs";
 //   const { records, summary } = reconcile(priorLines, currentRecords);
 
 // Most recent prior line for a (dimension, criterion), by highest run number.
-import { isMain } from "../../tech-lead/scripts/lib/is-main.mjs";
-import { runArgs } from "../../tech-lead/scripts/lib/argv.mjs";
+import { runArgs } from "../lib/argv.mjs";
 
 /**
  * Find the most recent prior ledger line for a record's (dimension, criterion), by highest run.
@@ -139,15 +138,22 @@ export function parseLedger(text) {
 }
 
 // --- CLI entry: summarize a ledger file -------------------------------------
-/** The typed argv contract (see `skills/tech-lead/scripts/lib/argv.mjs`). */
+/** The typed argv contract (see `kernel/lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "verdict-ledger.mjs <.verdicts-TASK.jsonl>",
+  usage: "harness.mjs reduce verdict <.verdicts-TASK.jsonl>",
   _: { arity: 1, max: 1, name: ".verdicts-TASK.jsonl" },
 };
 
-if (isMain(import.meta.url)) {
+/**
+ * Reconcile a verdict ledger and report its flips and stability.
+ *
+ * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
+ * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
+ *   call `process.exit()` with the subcommand's documented code rather than returning.
+ */
+export async function cli(rawArgv) {
   const { readFileSync } = await import("node:fs");
-  const path = runArgs(ARGV_SPEC)._[0];
+  const path = runArgs(ARGV_SPEC, rawArgv)._[0];
   let lines;
   try { lines = parseLedger(readFileSync(path, "utf8")); }
   catch (e) { console.error(`cannot read ledger ${path}: ${e.message}`); process.exit(2); }

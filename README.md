@@ -148,7 +148,7 @@ Since v1.3 the pipeline carries a **traceability spine**: `ba-pitch-analyzer`'s 
 operation writes a requirement registry (`requirements.md`), `solution-architect` commits a
 per-use-case wiring map (`wiring-map.md`, gate L1a.5) resolved against the L0
 `project-profile.md`, and the covers-closure + reachability oracle
-`skills/tech-lead/scripts/trace-lint.mjs` checks that no engine ships orphaned. It runs
+`kernel/verify/trace.mjs` checks that no engine ships orphaned. It runs
 advisory (warn-only) and is promoted to a blocking gate only once `covers:` is populated;
 every arm is skipped when its artifact is absent, so older specs are unaffected.
 
@@ -161,8 +161,8 @@ every arm is skipped when its artifact is absent, so older specs are unaffected.
 | Shaping (1–4) | `shapeup` | — | Frame the problem, breadboard affordances, spike risks, write the pitch. Sub-commands: `full`, `shaping`, `spike`, `breadboarding`, `framing-doc`, `kickoff-doc`, `breadboard-reflection`. |
 | Intake (GATE L0) | `translator` | — | Normalizes non-English intake (pitch/PRD/transcript) to faithful English before planning. The harness is English-only downstream. |
 | Orient (7) | `orient` | — | Builder-led recon: reads the code, spikes the single riskiest area, emits a code-surface map, spike findings, discovered-task seed, and a hill signal. Writes no production code. |
-| Wire (GATE L1a.5) | `solution-architect` | v1.1 | Sole writer of the committed wiring map (`wiring-map.md`): per-UC engine → integration seam → entry-point call site → player-visible affordance, resolved against `project-profile.md`. Front-loads the integration seam so no engine ships orphaned; the reachability input `trace-lint.mjs` checks. Operation: wire. |
-| Map Scopes (8) | `ba-pitch-analyzer` | v4.0 | The spec-analyzer (pure worker). Decomposes a pitch into a linked DDD document tree (domain model → use cases → tasks) with BDD scenarios, a UC system flow, and a derived `## Test Surface`. One craft, four order-selected operations (analyze / reconcile / retrofit-surface / coverage — the last writes the shared `requirements.md` registry for covers-closure); graph math + audits delegated to `board-derive.mjs`/`spec-lint.mjs`. |
+| Wire (GATE L1a.5) | `solution-architect` | v1.1 | Sole writer of the committed wiring map (`wiring-map.md`): per-UC engine → integration seam → entry-point call site → player-visible affordance, resolved against `project-profile.md`. Front-loads the integration seam so no engine ships orphaned; the reachability input `harness verify trace` checks. Operation: wire. |
+| Map Scopes (8) | `ba-pitch-analyzer` | v4.0 | The spec-analyzer (pure worker). Decomposes a pitch into a linked DDD document tree (domain model → use cases → tasks) with BDD scenarios, a UC system flow, and a derived `## Test Surface`. One craft, four order-selected operations (analyze / reconcile / retrofit-surface / coverage — the last writes the shared `requirements.md` registry for covers-closure); graph math + audits delegated to `harness reduce board`/`harness verify spec`. |
 | Map Scopes (8) | `scope-architect` | v1.0 | Sole writer of committed, write-whitelisted scope contracts (`scopes/*.md`): import-graph slicing by flow, substrates, affordance manifests, fixtures. Operation: map-scopes. |
 | Build (9) | `task-executor` | v2.0 | Pure worker: work order in → code out. Assumption scan, minimum-code/surgical-change discipline, Layer 1/2/3 UI rules, substrate-sandboxed, zero-memory. Never writes boards/ledgers/run-state. |
 | Evaluate (GATE L3) | `spec-evaluator` | v1.0 | The single judge (pure worker). Verifies spec-conformance, TDD surface, and integration against the running app — skeptical, files `file:line` bugs, runs exactly once per build round. Requires a T0 artifact citation, grades UI affordance-only; verdict + refuted boxes return as data. |
@@ -191,7 +191,7 @@ learnable from `/`-completion alone.
 
 ### Hooks
 
-Ten Node hooks in `hooks/`, plus `validate-envelope.mjs` which ships with the orchestrator skill.
+Ten Node hooks in `hooks/`, plus `harness verify envelope` which ships with the orchestrator skill.
 What each one reads and what it can deny:
 
 - `SessionStart` — prints a load confirmation so you know the plugin is active; on
@@ -219,7 +219,7 @@ What each one reads and what it can deny:
   escape hatch is the human-authored `.shapeup/safety-overrides.json`.
 - `PreToolUse` (matcher `Edit|Write|MultiEdit`) — `hooks/sandbox-guard.mjs` blocks writes
   outside the active scope's substrate whitelist (no-op unless scope contracts exist).
-- `PreToolUse` (matcher `Skill|Agent`) — `skills/tech-lead/scripts/validate-envelope.mjs`
+- `PreToolUse` (matcher `Skill|Agent`) — `kernel/verify/envelope.mjs`
   denies any worker dispatch whose order file is missing or schema-invalid.
 - `Stop` — **`hooks/gate-zerowork.mjs` blocks a session that dispatched the orchestrator and
   left no run receipt.** The one blocking `Stop` hook, and the narrowest: its predicate is
@@ -263,8 +263,8 @@ These hold across the harness and are the reason it stays predictable:
 - **Hill phase is mechanical, never self-reported** — derived only from T0/T1/seesaw facts, closing
   the self-reported-confidence risk outright.
 - **One writer per shared file** — every board/ledger/verdict write goes through
-  `ingest-result.mjs`; workers return data and never touch shared state.
-- **Traceability is oracle-checked, opt-in** — `trace-lint.mjs` verifies covers-closure and
+  `harness reduce ingest`; workers return data and never touch shared state.
+- **Traceability is oracle-checked, opt-in** — `harness verify trace` verifies covers-closure and
   wiring reachability from the committed spine artifacts; it ships advisory (warn-only) and every
   arm is skipped when its artifact is absent, so older specs are non-regressed.
 

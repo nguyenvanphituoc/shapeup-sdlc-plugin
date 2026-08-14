@@ -1,33 +1,25 @@
-// paths — the single source of truth for where the harness writes.
+// paths — where the harness writes, and which run a record belongs to.
 //
-// WHY THIS FILE EXISTS (measured by grepping the shipped tree, not theorized).
+// CONTRACT. Every generated path in this plugin resolves through this module; nothing else may
+// spell a storage root. The structural suite enforces that, because a root hard-coded in two
+// syntaxes (a string literal and a `join(cwd, "…", …)` chain) is a rename that no single search
+// completes.
 //
-// The two storage roots were hard-coded across the tree in TWO syntaxes that no single search
-// finds:
-//
-//     "docs/shapeup-sdlc/<slug>/scopes/..."            spelled string literals
-//     join(cwd, "docs", "shapeup-sdlc", slug, ...)      segment-built sites
-//
-// A find/replace over the first set leaves the second silently pointing at the old root. That is
-// the failure mode this project keeps rediscovering: a change that appears complete, produces no
-// error, and is wrong — `lib/is-main.mjs` (a guard duplicated 18 times, inert under a symlink) and
-// `lib/argv.mjs` (`rNaN-a1.json` written with exit 0) are the same defect at different layers. The
-// remedy each time is to give the duplicated thing one home and add a test that no one may bypass
-// it — asserted by the structural suite.
-//
-// It also removes a live ambiguity. `gate-answers.mjs` resolved three candidate paths and
-// `sandbox-guard.mjs` built a fourth independently; the same filename meant "my personal lane" at
-// one path and "team policy" at another, auto-discovered with no flag (ADR-0001 §Context).
-//
-// TIER DISCIPLINE, restated here because this is where it becomes mechanical:
+// TIER DISCIPLINE (ADR-0001), the reason there are two roots:
 //   SHARED (committed) — prose a teammate reads: shaping, spec, contracts, requirements, report.
 //   LOCAL (gitignored) — run state, envelopes, verification artifacts, machine policy.
-// See ADR-0001 (consumer file organization).
 //
-// Zero dependencies. Pure — every function takes `cwd` and returns a path; nothing here touches
-// the filesystem, so importing this module can never have a side effect.
+// RUN KEY. The bottom half of this file mints and reads `run_id`, the only field that separates
+// two runs of the same feature — `order_id`, round and attempt all repeat. It lives here because a
+// run key is an addressing question, and because every reader of it also needs a path.
+//
+// Zero dependencies. The path half is pure — every function takes `cwd` and returns a string,
+// touching no filesystem. The run-key half reads receipts and fails open (`null`, never a throw),
+// because hooks call it and telemetry must never break a tool call.
 
 import { join } from "node:path";
+import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 
 // ---------------------------------------------------------------------------
 // The two roots. Renaming a root is these two lines plus migration 0006.
@@ -102,7 +94,7 @@ export const usecasesDir = (cwd, slug) => join(specDir(cwd, slug), "usecases");
 /** Shaping artifacts — pitch, framing, breadboard, baseline, glossary. */
 export const shapingDir = (cwd, slug) => join(sharedRoot(cwd, slug), "shaping");
 // The three contracts are markdown on disk and JSON on the wire (ADR-0001) — see
-// `lib/contract-md.mjs`. `readContract()` accepts either extension, so a project mid-migration
+// `lib/contract.mjs`. `readContract()` accepts either extension, so a project mid-migration
 // keeps working; these builders name the form the harness WRITES.
 
 /** Scope contracts, one markdown file per vertical slice. */
@@ -136,10 +128,9 @@ export const knowledgeBase = (cwd, skill) => join(knowledgeBaseDir(cwd), `${skil
 /**
  * The receipt's filename, as a constant rather than a literal at each call site.
  *
- * `lib/run-id.mjs` resolves a receipt from a run root it was handed directly (`t0-verify` gets
+ * {@link runIdFromRoot} resolves a receipt from a run root it was handed directly (`verify t0` gets
  * `--out <run root>` and never derives a slug), so it cannot go through {@link receipt}, which
- * takes `(cwd, slug)`. Naming the file once here keeps that second call site from becoming a
- * second spelling of it.
+ * takes `(cwd, slug)`.
  */
 export const RECEIPT_FILE = "receipt.json";
 
@@ -235,7 +226,7 @@ export const metricsShard = (cwd, id = process.env.HOSTNAME || "local") =>
  */
 export const exportsDir = (cwd) => join(localDir(cwd), "exports");
 
-/** One exported run's table directory, keyed by the run id (see `lib/run-id.mjs`). */
+/** One exported run's table directory, keyed by the run id (see {@link mintRunId}). */
 export const exportRunDir = (cwd, runId) => join(exportsDir(cwd), String(runId ?? "unkeyed"));
 /** Archived pitches. */
 export const pitchArchiveDir = (cwd) => join(localDir(cwd), "pitch-archive");
@@ -306,3 +297,131 @@ export const globShared = (slug, ...parts) => [SHARED, slug, ...parts].join("/")
  * @returns {string} e.g. `shapeup/knowledge-base/task-executor.md`.
  */
 export const relKnowledgeBase = (skill) => [SHARED, "knowledge-base", `${skill}.md`].join("/");
+
+
+// ---------------------------------------------------------------------------
+// The run key — `<slug>-<YYYYMMDDTHHMMSSZ>-<8 hex>`.
+// ---------------------------------------------------------------------------
+//
+// DERIVED, NEVER DRAWN. `randomUUID()` would be one line and would forfeit re-derivability: a
+// random key exists only where it was first written, so a record that missed the stamp could never
+// be joined afterwards. This id is a pure function of three fields the receipt already holds —
+// slug, started_at, intake_sha256 — so every writer that can see the receipt computes the same id,
+// and runs that predate the field are backfillable.
+//
+// Slug first because it is the aggregate root every path is already keyed off; timestamp second so
+// a lexical sort within a slug is chronological; hash last as the tiebreak. Filesystem-safe by
+// construction — the export tier uses it as a directory name.
+
+
+/**
+ * The id's shape, as one regex. Exported so the schema, the tests and the export tier check the
+ * same pattern instead of three drifting copies of it.
+ */
+export const RUN_ID_PATTERN = /^[a-z0-9][a-z0-9-]*-\d{8}T\d{6}Z-[0-9a-f]{8}$/;
+
+/**
+ * Compact an ISO timestamp into the id's sortable middle segment.
+ * @param {string} iso - An ISO-8601 timestamp, e.g. `2026-08-13T09:12:33.456Z`.
+ * @returns {(string|null)} e.g. `20260813T091233Z`, or null when the input is not ISO-shaped.
+ */
+export function compactStamp(iso) {
+  const m = String(iso ?? "").match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+  return m ? `${m[1]}${m[2]}${m[3]}T${m[4]}${m[5]}${m[6]}Z` : null;
+}
+
+/**
+ * Mint the run key from the three receipt fields it is a function of.
+ *
+ * Pure and total: same inputs → same id, on every machine and at any later date. That is what makes
+ * an unstamped record joinable after the fact.
+ *
+ * @param {object} o - The identity inputs (destructured):
+ * @param {string} o.slug - The feature slug — the aggregate root, and the id's partition prefix.
+ * @param {string} o.startedAt - The run's ISO start time (`receipt.started_at`).
+ * @param {string} [o.intakeSha256=""] - The intake digest, which separates two runs of the same
+ *   slug started in the same second.
+ * @returns {(string|null)} `<slug>-<YYYYMMDDTHHMMSSZ>-<8 hex>`, or null when slug or timestamp is
+ *   missing or malformed — never a partial id, which would join wrongly rather than not at all.
+ */
+export function mintRunId({ slug, startedAt, intakeSha256 = "" }) {
+  const stamp = compactStamp(startedAt);
+  const clean = String(slug ?? "").toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, "");
+  if (!clean || !stamp) return null;
+  // NUL as the field separator — it cannot occur in a slug, an ISO timestamp or a hex digest, so
+  // no two different field triples can concatenate to the same string. Written as the ESCAPE
+  // `\u0000`, never as a literal control byte: a source file carrying a raw NUL is classified as
+  // binary, and every line-oriented tool — `grep -r`, a diff viewer, this repo's own
+  // non-delivered-content sweep — skips it in silence. A file no grep can see is a file no audit
+  // can check, and this one hid a real finding until it was read another way.
+  const h = createHash("sha256")
+    .update(`${clean}\u0000${startedAt}\u0000${intakeSha256 ?? ""}`, "utf8")
+    .digest("hex").slice(0, 8);
+  return `${clean}-${stamp}-${h}`;
+}
+
+/**
+ * The run key for a parsed receipt — stamped if present, minted if not.
+ *
+ * The backfill branch is the load-bearing one: a receipt written before this field existed still
+ * yields the id it would have been given, so the export tier can key runs it never stamped.
+ *
+ * @param {(object|null)} r - A parsed `receipt.json`.
+ * @returns {(string|null)} The run key, or null when the receipt is absent or lacks identity fields.
+ */
+export function runIdFromReceipt(r) {
+  if (!r || typeof r !== "object") return null;
+  if (typeof r.run_id === "string" && RUN_ID_PATTERN.test(r.run_id)) return r.run_id;
+  return mintRunId({ slug: r.slug, startedAt: r.started_at, intakeSha256: r.intake_sha256 });
+}
+
+/**
+ * Read a receipt from disk without throwing.
+ * @param {string} path - Path to a `receipt.json`.
+ * @returns {(object|null)} The parsed receipt, or null when missing or unparseable.
+ */
+export function readReceipt(path) {
+  try { return JSON.parse(readFileSync(path, "utf8")); } catch { return null; }
+}
+
+/**
+ * The run key for a run whose LOCAL root is known directly.
+ *
+ * `t0-verify.mjs` is the caller this exists for: it is handed the run root as `--out` and never
+ * derives a slug, so asking it for one would mean inferring identity from a directory name.
+ *
+ * @param {string} runRoot - The feature's LOCAL root, e.g. `<cwd>/.shapeup/<slug>`.
+ * @returns {(string|null)} The run key, or null when no readable receipt lives there.
+ */
+export function runIdFromRoot(runRoot) {
+  return runIdFromReceipt(readReceipt(join(runRoot, RECEIPT_FILE)));
+}
+
+/**
+ * The run key for a feature slug under a project root.
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {(string|null)} The run key, or null when that run has no readable receipt.
+ */
+export function readRunId(cwd, slug) {
+  return runIdFromReceipt(readReceipt(receipt(cwd, slug)));
+}
+
+/**
+ * Best-effort run key for a caller that may not know the slug — the shape hooks need.
+ *
+ * Resolution order: the slug it was given, else the `active-scope` pointer `init-run.mjs` writes.
+ * A hook firing outside any run resolves to null, which is the correct answer and not an error:
+ * "this row belongs to no run" is a fact the warehouse must be able to record.
+ *
+ * @param {string} cwd - Project root.
+ * @param {(string|null)} [slug=null] - Feature slug when the caller already knows it.
+ * @returns {(string|null)} The run key, or null when no run is active or readable.
+ */
+export function resolveRunId(cwd, slug = null) {
+  if (slug) return readRunId(cwd, slug);
+  try {
+    const ptr = JSON.parse(readFileSync(activeScope(cwd), "utf8"));
+    return ptr?.slug ? readRunId(cwd, ptr.slug) : null;
+  } catch { return null; }
+}

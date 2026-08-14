@@ -16,8 +16,8 @@
 // "never had to fire" and "never ran" produce identical evidence (exit 0, no output). With a
 // decision row per invocation the two become separable facts.
 
-import { deriveSnapshot, writeSnapshot } from "../skills/tech-lead/scripts/run-snapshot.mjs";
-import { isMain } from "../skills/tech-lead/scripts/lib/is-main.mjs";
+import { deriveSnapshot, writeSnapshot } from "../kernel/reduce/snapshot.mjs";
+import { isMain } from "../kernel/lib/argv.mjs";
 import { runHook, readStdin } from "./lib/decision.mjs";
 
 async function main() {

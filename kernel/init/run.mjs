@@ -71,13 +71,12 @@
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { createHash } from "node:crypto";
-import { decideLane, treeSize } from "./fit-check.mjs";
-import { isMain } from "./lib/is-main.mjs";
-import { runArgs } from "./lib/argv.mjs";
-import { uncoerce } from "./lib/contract-md.mjs";
-import { deriveSnapshot } from "./run-snapshot.mjs";
-import { mintRunId } from "./lib/run-id.mjs";
-import { localRoot, activeScope, globLocal, globShared } from "./lib/paths.mjs";
+import { decideLane, treeSize } from "./fit.mjs";
+import { runArgs } from "../lib/argv.mjs";
+import { uncoerce } from "../lib/contract.mjs";
+import { deriveSnapshot } from "../reduce/snapshot.mjs";
+import { mintRunId } from "../lib/paths.mjs";
+import { localRoot, activeScope, globLocal, globShared } from "../lib/paths.mjs";
 
 export const RECEIPT_VERSION = 1;
 
@@ -209,7 +208,7 @@ export function runFrontmatter({ slug, config, startedAt }) {
 
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: 'init-run.mjs (--intake-file <path> | --intake-text "<req>" | --intake-stdin) ' +
+  usage: 'harness.mjs init run (--intake-file <path> | --intake-text "<req>" | --intake-stdin) ' +
          "[--slug <slug>] [--auto-level interactive|auto|unattended] [--lens <lens>] " +
          "[--max-rounds N] [--attempts N] [--spec-folder <dir>] [--dimensions <a,b>] " +
          "[--gate-answers <preset|path>] " +
@@ -238,8 +237,15 @@ function fail(code, msg) {
   process.exit(code);
 }
 
-export function main() {
-  const args = runArgs(ARGV_SPEC);
+/**
+ * Open a run: mint the receipt, or refuse (exit 3) when one is already live.
+ *
+ * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
+ * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
+ *   call `process.exit()` with the subcommand's documented code rather than returning.
+ */
+export function cli(rawArgv) {
+  const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = args.cwd || process.cwd();
 
   let intake = args.intakeText ?? null;
@@ -342,7 +348,7 @@ export function main() {
           ].join("\n"),
       "",
       "To re-derive this at any time:",
-      "  node <plugin>/skills/tech-lead/scripts/run-snapshot.mjs --cwd <dir>",
+      "  node <plugin>/kernel/harness.mjs reduce snapshot --cwd <dir>",
       "To abandon the open run and start over, deliberately: --force",
     ].join("\n"));
   }
@@ -379,6 +385,3 @@ export function main() {
   }, null, 2));
 }
 
-if (isMain(import.meta.url)) {
-  main();
-}

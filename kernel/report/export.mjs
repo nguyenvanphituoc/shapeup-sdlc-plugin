@@ -43,16 +43,15 @@
 
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { isMain } from "./lib/is-main.mjs";
-import { runArgs } from "./lib/argv.mjs";
-import { splitFrontmatter } from "./lib/contract-md.mjs";
-import { runIdFromReceipt, readReceipt } from "./lib/run-id.mjs";
-import { TABLES, runRow, agentCallRow, dispatchFacts, economics } from "./lib/facts.mjs";
+import { runArgs } from "../lib/argv.mjs";
+import { splitFrontmatter } from "../lib/contract.mjs";
+import { runIdFromReceipt, readReceipt } from "../lib/paths.mjs";
+import { TABLES, runRow, agentCallRow, dispatchFacts, economics } from "./facts.mjs";
 import {
   localDir, activeScope, receipt as receiptPath, harnessRun, ordersDir, resultsDir,
   workflowRunDir, trials as trialsPath, verdictsDir, evaluationDir, decisions as decisionsPath,
   exportsDir, exportRunDir,
-} from "./lib/paths.mjs";
+} from "../lib/paths.mjs";
 
 export const EXPORT_SCHEMA_VERSION = 1;
 
@@ -276,7 +275,7 @@ export function discoverRuns(cwd) {
 
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "export-run.mjs [--slug <slug>] [--all] [--cwd <dir>] [--out <dir>] [--format jsonl|json]",
+  usage: "harness.mjs report export [--slug <slug>] [--all] [--cwd <dir>] [--out <dir>] [--format jsonl|json]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   cwd: { type: "path" },
   slug: { type: "str" },
@@ -286,11 +285,14 @@ export const ARGV_SPEC = {
 };
 
 /**
- * CLI entry: resolve the run(s), collect, write, print the manifests.
- * @returns {void} Exits 0 on success, 2 on a usage error, 3 when nothing was exportable.
+ * Project a run's records as fact tables under the exports tier.
+ *
+ * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
+ * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
+ *   call `process.exit()` with the subcommand's documented code rather than returning.
  */
-export function main() {
-  const args = runArgs(ARGV_SPEC);
+export function cli(rawArgv) {
+  const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = resolve(args.cwd || process.cwd());
 
   let slugs = [];
@@ -321,6 +323,3 @@ export function main() {
   console.log(JSON.stringify(manifests.length === 1 ? manifests[0] : manifests, null, 2));
 }
 
-if (isMain(import.meta.url)) {
-  main();
-}

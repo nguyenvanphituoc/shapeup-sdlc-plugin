@@ -14,7 +14,7 @@
 //                                        registry; resolved against the schema's own dir,
 //                                        falling back to skills/tech-lead/schemas/)
 //
-// Usage (CLI):    node skills/tech-lead/scripts/validate-envelope.mjs <envelope.json> <schema.json>
+// Usage (CLI):    node kernel/harness.mjs verify envelope <envelope.json> <schema.json>
 //                 exit 0 = valid, 1 = invalid (errors printed one per line)
 // Usage (hook):   PreToolUse on Skill|Agent — when the tool input carries `--order <path>`,
 //                 the order file is validated against schemas/work-order.schema.json; an
@@ -24,12 +24,11 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isMain } from "./lib/is-main.mjs";
-import { runArgs } from "./lib/argv.mjs";
-import { runHook, readStdin, settle } from "../../../hooks/lib/decision.mjs";
+import { runArgs } from "../lib/argv.mjs";
+import { runHook, readStdin, settle } from "../../hooks/lib/decision.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-export const SCHEMAS_DIR = resolve(HERE, "../schemas");
+export const SCHEMAS_DIR = resolve(HERE, "../../skills/tech-lead/schemas");
 
 /**
  * Validate a value against the JSON-Schema subset the envelope schemas use (type, required,
@@ -201,15 +200,21 @@ export function validateFile(envelopePath, schemaPath) {
  * the envelope arrives on stdin, so nothing here is consulted.
  */
 export const ARGV_SPEC = {
-  usage: "validate-envelope.mjs <envelope.json> <schema.json>   (no args → PreToolUse hook mode)",
+  usage: "harness.mjs verify envelope <envelope.json> <schema.json>   (no args → PreToolUse hook mode)",
   _: { arity: 2, max: 2, name: "<envelope.json> <schema.json>" },
 };
 
-const isMainModule = isMain(import.meta.url);
-if (isMainModule) {
-  if (process.argv[2]) {
+/**
+ * Validate an envelope against its schema, or run as the PreToolUse gate when given no args.
+ *
+ * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
+ * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
+ *   call `process.exit()` with the subcommand's documented code rather than returning.
+ */
+export async function cli(rawArgv) {
+  if (rawArgv.length) {
     // CLI mode
-    const [envelopePath, schemaPath] = runArgs(ARGV_SPEC)._;
+    const [envelopePath, schemaPath] = runArgs(ARGV_SPEC, rawArgv)._;
     try {
       const { valid, errors } = validateFile(resolve(envelopePath), resolve(schemaPath));
       if (valid) {

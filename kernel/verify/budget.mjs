@@ -42,9 +42,8 @@
 
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { isMain } from "./lib/is-main.mjs";
-import { runArgs } from "./lib/argv.mjs";
-import { localDir } from "./lib/paths.mjs";
+import { runArgs } from "../lib/argv.mjs";
+import { localDir } from "../lib/paths.mjs";
 
 /** Fraction of the budget at which the run should stop STARTING work it cannot finish. */
 export const WARN_AT = 0.75;
@@ -116,7 +115,7 @@ export function findRun(cwd, slug = null) {
 
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "budget-check.mjs [--slug <slug>] [--cwd <dir>] [--at <iso8601>] [--strict]",
+  usage: "harness.mjs verify budget [--slug <slug>] [--cwd <dir>] [--at <iso8601>] [--strict]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   slug: { type: "str" },
   cwd: { type: "path" },
@@ -124,8 +123,15 @@ export const ARGV_SPEC = {
   strict: { type: "flag" },
 };
 
-export function main() {
-  const args = runArgs(ARGV_SPEC);
+/**
+ * Check the wall-clock budget for the open run and report the breaker's verdict.
+ *
+ * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
+ * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
+ *   call `process.exit()` with the subcommand's documented code rather than returning.
+ */
+export function cli(rawArgv) {
+  const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = args.cwd || process.cwd();
   const run = findRun(cwd, args.slug ?? null);
   if (!run) {
@@ -145,6 +151,3 @@ export function main() {
   process.exit(args.strict && result.status === "trip" ? 6 : 0);
 }
 
-if (isMain(import.meta.url)) {
-  main();
-}

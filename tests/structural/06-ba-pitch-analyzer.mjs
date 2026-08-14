@@ -20,8 +20,8 @@ export async function run(ctx) {
   // =============================================================================
   section("23. board-derive + spec-lint mechanize the planner's graph math and lints (pure-skill P3)");
   // =============================================================================
-  const bdPath = join(ROOT, "skills/ba-pitch-analyzer/scripts/board-derive.mjs");
-  const slPath = join(ROOT, "skills/ba-pitch-analyzer/scripts/spec-lint.mjs");
+  const bdPath = join(ROOT, "kernel/reduce/board.mjs");
+  const slPath = join(ROOT, "kernel/verify/spec.mjs");
   if (existsSync(bdPath) && existsSync(slPath)) {
     const { deriveUnlocks, criticalPath } = await import(bdPath);
     const { lintScopes } = await import(slPath);
@@ -191,7 +191,7 @@ export async function run(ctx) {
       rmSync(ulTmp, { recursive: true, force: true });
     }
   } else {
-    fail("board-derive.mjs / spec-lint.mjs missing — the planner's mechanical layer is absent");
+    fail("kernel reduce board / verify spec missing — the planner's mechanical layer is absent");
   }
 
   // =============================================================================
@@ -200,7 +200,7 @@ export async function run(ctx) {
   // The planner's mechanical layer is graph math a model must never re-derive; its function
   // signatures are the contract (skills-optimization plan, Track D). Counted into the floor.
   assertJsdocCoverage(ctx, [
-    "skills/ba-pitch-analyzer/scripts/board-derive.mjs",
-    "skills/ba-pitch-analyzer/scripts/spec-lint.mjs",
+    "kernel/reduce/board.mjs",
+    "kernel/verify/spec.mjs",
   ].map((f) => join(ROOT, f)), (p) => p.replace(ROOT + "/", ""));
 }

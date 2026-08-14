@@ -14,16 +14,15 @@
 //     contracts name their tasks — flag, never fix
 //
 // Zero dependencies. Usage:
-//   node skills/ba-pitch-analyzer/scripts/board-derive.mjs --slug <slug> [--cwd <dir>] [--write]
+//   node kernel/harness.mjs reduce board --slug <slug> [--cwd <dir>] [--write]
 //        [--appetite-hours N]
 // Prints a JSON report; exit 0 (drift/overflow are flags for the caller's gate, not errors).
 
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { isMain } from "../../tech-lead/scripts/lib/is-main.mjs";
-import { runArgs } from "../../tech-lead/scripts/lib/argv.mjs";
-import { tasksDir, scopesDir, hillDir } from "../../tech-lead/scripts/lib/paths.mjs";
-import { readAllContracts, splitFrontmatter, SCOPE_CONTRACT } from "../../tech-lead/scripts/lib/contract-md.mjs";
+import { runArgs } from "../lib/argv.mjs";
+import { tasksDir, scopesDir, hillDir } from "../lib/paths.mjs";
+import { readAllContracts, splitFrontmatter, SCOPE_CONTRACT } from "../lib/contract.mjs";
 
 /**
  * Read a list field from a frontmatter string, inline `[a, b]` or YAML block sequence alike.
@@ -220,9 +219,9 @@ export function writeUnlocks(report) {
   return written;
 }
 
-/** The typed argv contract (see `skills/tech-lead/scripts/lib/argv.mjs`). */
+/** The typed argv contract (see `kernel/lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "board-derive.mjs --slug <slug> [--cwd <dir>] [--write] [--appetite-hours N]",
+  usage: "harness.mjs reduce board --slug <slug> [--cwd <dir>] [--write] [--appetite-hours N]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   slug: { type: "str", required: true },
   cwd: { type: "path" },
@@ -230,9 +229,15 @@ export const ARGV_SPEC = {
   "appetite-hours": { type: "num", min: 0 },
 };
 
-const isMainModule = isMain(import.meta.url);
-if (isMainModule) {
-  const args = runArgs(ARGV_SPEC);
+/**
+ * Derive the task board from the scope contracts, and optionally write it.
+ *
+ * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
+ * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
+ *   call `process.exit()` with the subcommand's documented code rather than returning.
+ */
+export async function cli(rawArgv) {
+  const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = resolve(args.cwd || process.cwd());
   const report = derive({ cwd, slug: args.slug, appetiteHours: args.appetiteHours ?? null });
   if (args.write) report.unlocks_written = writeUnlocks(report);

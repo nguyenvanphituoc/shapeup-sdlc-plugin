@@ -104,17 +104,18 @@ export async function run(ctx) {
   section("52. The fast-forward resumes on artifacts, never on stored status (migration A2)");
   // =============================================================================
 
-  const SCRIPT = join(ROOT, "skills/tech-lead/scripts/resume-state.mjs");
-  if (!existsSync(SCRIPT)) {
-    fail("skills/tech-lead/scripts/resume-state.mjs is missing — the fast-forward derivation has no testable seam (Stage A2.1)");
+  const KERNEL = join(ROOT, "kernel/harness.mjs");
+  const SCRIPT = [KERNEL, "probe", "resume"];
+  if (!existsSync(KERNEL) || !existsSync(join(ROOT, "kernel/probe/resume.mjs"))) {
+    fail("`harness probe resume` is missing — the fast-forward derivation has no testable seam");
     return;
   }
-  ok("resume-state.mjs exists — the derivation is a script, not a string inside a workflow");
+  ok("`harness probe resume` exists — the derivation is a subcommand, not a string inside a workflow");
 
   const ws = mkdtempSync(join(tmpdir(), "struct-resume-"));
   /** Invoke the script against a planted tree. @returns {{code: number, json: object|null}} */
   const invoke = (root, extra = []) => {
-    const r = spawnSync("node", [SCRIPT, "--slug", SLUG, "--cwd", root, ...extra], { encoding: "utf8" });
+    const r = spawnSync("node", [...SCRIPT, "--slug", SLUG, "--cwd", root, ...extra], { encoding: "utf8" });
     let json = null;
     try { json = JSON.parse(r.stdout); } catch { /* a non-JSON stdout is itself the failure */ }
     return { code: r.status, json, raw: `${r.stdout}${r.stderr}` };
@@ -263,7 +264,7 @@ export async function run(ctx) {
     const blocked = join(ws, "pointer-blocked");
     mkdirSync(blocked, { recursive: true });
     writeFileSync(join(blocked, ".shapeup"), "not a directory\n");
-    const refused = spawnSync("node", [SCRIPT, "--slug", SLUG, "--cwd", blocked, "--set-active-scope", "SC-1"], { encoding: "utf8" });
+    const refused = spawnSync("node", [...SCRIPT, "--slug", SLUG, "--cwd", blocked, "--set-active-scope", "SC-1"], { encoding: "utf8" });
     let refusedJson = null;
     try { refusedJson = JSON.parse(refused.stdout); } catch { /* asserted below */ }
     if (refused.status === 3 && refusedJson?.ok === false && refusedJson?.reason) {
@@ -334,10 +335,10 @@ export async function run(ctx) {
     } else {
       fail("shapeup-run.js still branches on facts.status — stored state is back in the resume decision");
     }
-    if (!/resume-state\.mjs/.test(wfCode)) {
-      fail("shapeup-run.js never invokes resume-state.mjs — the fast-forward is deriving state some other way");
+    if (!/probe[" ,]+resume|resume-state\.mjs/.test(wfCode)) {
+      fail("shapeup-run.js never invokes `harness probe resume` — the fast-forward is deriving state some other way");
     } else {
-      ok("shapeup-run.js derives its resume state by invoking resume-state.mjs");
+      ok("shapeup-run.js derives its resume state by invoking `harness probe resume`");
     }
 
     // --- (j) the A3 wiring: every phase checks its post-condition, and ANALYZE precedes WIRE ---

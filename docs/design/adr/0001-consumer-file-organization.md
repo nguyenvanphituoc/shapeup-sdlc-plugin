@@ -185,7 +185,7 @@ indistinguishability that file exists to eliminate. With it, `stats --hooks` can
   is no longer true. `validate-envelope` becomes the flagship example of an enforced gate — a
   malformed order structurally cannot reach a worker. `gate-zerowork` still blocks at `Stop`, and
   `sandbox-guard`, `safety-spine` and `gate-deadline` still deny.
-- **`stats.mjs` becomes a personal tool.** With metrics local, "is the KB flywheel working across
+- **`harness probe stats` becomes a personal tool.** With metrics local, "is the KB flywheel working across
   the team?" is no longer answerable from the repository.
 - **Contracts are hand-editable.** Mitigated by the `spec-lint` re-validation above, not removed.
 
@@ -199,7 +199,7 @@ indistinguishability that file exists to eliminate. With it, `stats --hooks` can
 
 ## Implementation
 
-`skills/tech-lead/scripts/lib/paths.mjs` becomes the single source of truth for both roots and
+`kernel/lib/paths.mjs` becomes the single source of truth for both roots and
 every generated artifact path. This is the same remedy applied twice before in this repo —
 `lib/is-main.mjs` replaced a fragile guard duplicated across 18 files, `lib/argv.mjs` replaced
 hand-rolled flag parsing — and it is what turns a 90-file rename from *hope the grep was
@@ -215,7 +215,7 @@ complete* into *the test fails if it was not*.
 | 2 | Flip the two root constants · migration `0006` | ✅ |
 | 3 | Contracts to markdown · `lib/contract-md.mjs` · test #46 · migration `0007` | ✅ |
 | 4 | `spec/` working-note split · round-ledger and metrics to local · committed `gate-answers.json` removed · migration `0008` | ✅ |
-| 5 | `skills/tech-lead/scripts/ship-report.mjs` at GATE L4 · test #47 | ✅ |
+| 5 | `kernel/reduce/ship.mjs` at GATE L4 · test #47 | ✅ |
 | 6 | Prose sweep — 325 root references + 66 contract-extension references across 89 files | ✅ |
 
 Three migrations, applied in order: `0006` renames the roots, `0007` converts the contracts,

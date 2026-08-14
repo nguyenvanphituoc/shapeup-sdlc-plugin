@@ -21,11 +21,10 @@
 
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { validate } from "./validate-envelope.mjs";
-import { isMain } from "./lib/is-main.mjs";
-import { runArgs } from "./lib/argv.mjs";
-import { collectRun } from "./export-run.mjs";
-import { localDir, decisions as decisionsPath, metricsDir as metricsDirPath, SHARED } from "./lib/paths.mjs";
+import { validate } from "../verify/envelope.mjs";
+import { runArgs } from "../lib/argv.mjs";
+import { collectRun } from "../report/export.mjs";
+import { localDir, decisions as decisionsPath, metricsDir as metricsDirPath, SHARED } from "../lib/paths.mjs";
 
 /**
  * Read every metrics shard, partitioning valid rows, pathology rows, and malformed lines.
@@ -395,7 +394,7 @@ function renderTable(report) {
 
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "stats.mjs [--cwd <dir>] [--metrics-dir <dir>] [--slug <slug>] [--format json|table] " +
+  usage: "harness.mjs probe stats [--cwd <dir>] [--metrics-dir <dir>] [--slug <slug>] [--format json|table] " +
          "[--ratchet] [--hooks] [--economics]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   cwd: { type: "path" },
@@ -461,9 +460,15 @@ function renderHooks(r) {
   return lines.join("\n");
 }
 
-const isMainModule = isMain(import.meta.url);
-if (isMainModule) {
-  const args = runArgs(ARGV_SPEC);
+/**
+ * Aggregate the metric shards, or report the ratchet, hook and economics ledgers.
+ *
+ * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
+ * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
+ *   call `process.exit()` with the subcommand's documented code rather than returning.
+ */
+export async function cli(rawArgv) {
+  const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = resolve(args.cwd || process.cwd());
   const metricsDir = args.metricsDir ? resolve(cwd, args.metricsDir) : metricsDirPath(cwd);
   const format = args.format;

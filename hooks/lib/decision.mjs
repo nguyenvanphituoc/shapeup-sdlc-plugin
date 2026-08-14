@@ -50,8 +50,8 @@
 
 import { appendFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import { decisions } from "../../skills/tech-lead/scripts/lib/paths.mjs";
-import { resolveRunId } from "../../skills/tech-lead/scripts/lib/run-id.mjs";
+import { decisions } from "../../kernel/lib/paths.mjs";
+import { resolveRunId } from "../../kernel/lib/paths.mjs";
 
 /**
  * Where the receipts land.

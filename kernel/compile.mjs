@@ -13,13 +13,13 @@
 //
 // Usage:
 //   Scope attempt (isolated attempt loop):
-//     node skills/tech-lead/scripts/compile-order.mjs --scope shapeup/<slug>/scopes/<id>.md \
+//     node kernel/harness.mjs compile --scope shapeup/<slug>/scopes/<id>.md \
 //          --round N --attempt M [--cwd <dir>] [--test-cmd "<cmd>"]
 //   Single task (no scope contracts — pre-v0.3.0 boards):
-//     node skills/tech-lead/scripts/compile-order.mjs --task TASK-003 --slug <slug> [--worker task-executor]
-//     node skills/tech-lead/scripts/compile-order.mjs --next --slug <slug>
+//     node kernel/harness.mjs compile --task TASK-003 --slug <slug> [--worker task-executor]
+//     node kernel/harness.mjs compile --next --slug <slug>
 //   Non-build operation (planner/judge/QA dispatches; flag surface → operation + whitelist):
-//     node skills/tech-lead/scripts/compile-order.mjs --operation reconcile --slug <slug> [--round N]
+//     node kernel/harness.mjs compile --operation reconcile --slug <slug> [--round N]
 //          [--worker ba-pitch-analyzer] [--payload '<json>']
 //
 // Output: .shapeup/<slug>/orders/<order-file>.json (schema-validated before write; a
@@ -28,22 +28,21 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
 import { resolve, join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
-import { validate } from "./validate-envelope.mjs";
-import { readTrials } from "./t0-verify.mjs";
-import { isMain } from "./lib/is-main.mjs";
+import { validate } from "./verify/envelope.mjs";
+import { readTrials } from "./verify/t0.mjs";
 import { runArgs } from "./lib/argv.mjs";
-import { readRunId } from "./lib/run-id.mjs";
+import { readRunId } from "./lib/paths.mjs";
 // `specDir` is aliased: this module has a local `let specDir` holding the resolved, possibly
 // --spec-overridden directory, and the import is the convention-derived default.
 import {
   tasksDir, specDir as defaultSpecDir, roundLedger, trials, verdictsDir, ordersDir,
   relShared, globLocal, globShared, relKnowledgeBase,
 } from "./lib/paths.mjs";
-import { readContract, SCOPE_CONTRACT } from "./lib/contract-md.mjs";
-import { writeActiveOrder } from "./resume-state.mjs";
+import { readContract, SCOPE_CONTRACT } from "./lib/contract.mjs";
+import { writeActiveOrder } from "./probe/resume.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ORDER_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../schemas/work-order.schema.json"), "utf8"));
+const ORDER_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "./../skills/tech-lead/schemas/work-order.schema.json"), "utf8"));
 
 // --- tiny frontmatter reader (scalar keys + [a, b] inline lists) --------------------------
 /**
@@ -396,7 +395,7 @@ export function compileOrder({
 // ---------------------------------------------------------------------------
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "compile-order.mjs (--scope <contract.json> --round N --attempt M | --task TASK-NNN --slug <slug> " +
+  usage: "harness.mjs compile (--scope <contract.json> --round N --attempt M | --task TASK-NNN --slug <slug> " +
          "| --next --slug <slug> | --operation <op> --slug <slug>) [--worker <skill>] [--payload '<json>'] " +
          "[--spec <dir>] [--test-cmd \"<cmd>\"] [--cwd <dir>] [--pause-gates]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
@@ -415,9 +414,15 @@ export const ARGV_SPEC = {
   "pause-gates": { type: "flag" },
 };
 
-const isMainModule = isMain(import.meta.url);
-if (isMainModule) {
-  const argv = runArgs(ARGV_SPEC);
+/**
+ * Compile a WorkOrder for one dispatch and publish the substrate pointer that fences it.
+ *
+ * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
+ * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
+ *   call `process.exit()` with the subcommand's documented code rather than returning.
+ */
+export async function cli(rawArgv) {
+  const argv = runArgs(ARGV_SPEC, rawArgv);
   /**
    * Read a parsed flag's value, normalising "absent" to null (the shape the body below expects).
    * @param {string} name - Flag name without leading dashes.

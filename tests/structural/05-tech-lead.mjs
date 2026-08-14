@@ -17,10 +17,15 @@ import { assertJsdocCoverage } from "../lib/jsdoc.mjs";
 export async function run(ctx) {
   const { ROOT, ok, fail, section, read, readJSON, frontmatter, walk } = ctx;
 
+  // Every deterministic step is a subcommand of one entry point (kernel/harness.mjs), so a spawn
+  // names the verb rather than a script path — the same string a permission rule sees. Modules are
+  // still imported by path when a check wants a pure function out of one.
+  const K = (words) => [join(ROOT, "kernel/harness.mjs"), ...words.split(" ")];
+
   // =============================================================================
-  section("18. T0 mechanical layer (t0-verify.mjs) computes a discriminating verdict + writes a citable artifact");
+  section("18. T0 mechanical layer (harness verify t0) computes a discriminating verdict + writes a citable artifact");
   // =============================================================================
-  const t0Path = join(ROOT, "skills/tech-lead/scripts/t0-verify.mjs");
+  const t0Path = join(ROOT, "kernel/verify/t0.mjs");
   if (existsSync(t0Path)) {
     const {
       runFixtures, runDbProbe, seesawCheck, computeVerdict, writeArtifact,
@@ -158,7 +163,7 @@ export async function run(ctx) {
   // =============================================================================
   section("19. AEGIS digester distills raw logs into {file, line, core_message} triples");
   // =============================================================================
-  const digestPath = join(ROOT, "skills/tech-lead/scripts/aegis-digest.mjs");
+  const digestPath = join(ROOT, "kernel/probe/digest.mjs");
   if (existsSync(digestPath)) {
     const { digest } = await import(digestPath);
 
@@ -192,7 +197,7 @@ export async function run(ctx) {
   // The WorkOrder/WorkResult port is the harness's canonical contract (plan §4.1). The validator
   // must PASS a well-formed order, FAIL a malformed one, and as a PreToolUse hook DENY a dispatch
   // whose --order file is invalid while deferring on everything else (fail-open for standalone).
-  const vePath = join(ROOT, "skills/tech-lead/scripts/validate-envelope.mjs");
+  const vePath = join(ROOT, "kernel/verify/envelope.mjs");
   const orderSchemaPath = join(ROOT, "skills/tech-lead/schemas/work-order.schema.json");
   const resultSchemaPath = join(ROOT, "skills/tech-lead/schemas/work-result.schema.json");
   if (existsSync(vePath) && existsSync(orderSchemaPath)) {
@@ -229,7 +234,7 @@ export async function run(ctx) {
         writeFileSync(join(d, "bad.json"), JSON.stringify(badOrder));
         writeFileSync(join(d, "good.json"), JSON.stringify(goodOrder));
         const askVe = (prompt, tool = "Agent") => {
-          const r = spawnSync("node", [vePath], { encoding: "utf8", input: JSON.stringify({ tool_name: tool, cwd: d, tool_input: { prompt } }) });
+          const r = spawnSync("node", [...K("verify envelope")], { encoding: "utf8", input: JSON.stringify({ tool_name: tool, cwd: d, tool_input: { prompt } }) });
           return (r.stdout || "").includes('"permissionDecision":"deny"');
         };
         if (askVe("run task-executor --order bad.json")) ok("hook DENIES a dispatch whose --order fails the schema");
@@ -244,9 +249,9 @@ export async function run(ctx) {
     }
     // hooks.json must wire the envelope gate.
     const hooksManifest2 = readJSON(join(ROOT, "hooks/hooks.json"));
-    const wired = JSON.stringify(hooksManifest2).includes("validate-envelope.mjs");
-    if (wired) ok("hooks.json wires validate-envelope.mjs as a PreToolUse hook");
-    else fail("hooks.json does not wire validate-envelope.mjs — malformed orders would reach workers");
+    const wired = /harness\.mjs\\?"? verify envelope/.test(JSON.stringify(hooksManifest2));
+    if (wired) ok("hooks.json wires `harness verify envelope` as a PreToolUse hook");
+    else fail("hooks.json does not wire the envelope gate — malformed orders would reach workers");
   } else {
     fail("validate-envelope.mjs or schemas/ missing — the P0 envelope layer is absent");
   }
@@ -255,8 +260,8 @@ export async function run(ctx) {
   // =============================================================================
   section("21. compile-order.mjs assembles a schema-valid, fact-only WorkOrder (pure-skill P1)");
   // =============================================================================
-  const coPath = join(ROOT, "skills/tech-lead/scripts/compile-order.mjs");
-  const irPath = join(ROOT, "skills/tech-lead/scripts/ingest-result.mjs");
+  const coPath = join(ROOT, "kernel/compile.mjs");
+  const irPath = join(ROOT, "kernel/reduce/ingest.mjs");
   if (existsSync(coPath) && existsSync(irPath)) {
     const { mkdtempSync, writeFileSync, mkdirSync, rmSync } = await import("node:fs");
     const { tmpdir } = await import("node:os");
@@ -289,7 +294,7 @@ export async function run(ctx) {
       w(".shapeup/demo/round-ledger.md", `## Decisions\n| ID | Scope | Q | A |\n|---|---|---|---|\n| ESC-1 | cart | q | use idempotency key |\n| ESC-2 | other | q | not mine |\n`);
       w(".shapeup/demo/t0/verdicts/r1-a1.json", JSON.stringify({ overall: "red", discovered_tasks: [{ file: "apps/api/cart/x.ts", line: 4, core_message: "boom" }] }));
 
-      const r = spawnSync("node", [coPath, "--scope", "shapeup/demo/scopes/cart.md", "--round", "1", "--attempt", "2", "--cwd", d], { encoding: "utf8" });
+      const r = spawnSync("node", [...K("compile"), "--scope", "shapeup/demo/scopes/cart.md", "--round", "1", "--attempt", "2", "--cwd", d], { encoding: "utf8" });
       const orderPath = (r.stdout || "").trim();
       if (r.status === 0 && existsSync(orderPath)) ok("compile-order writes the order to orders/<scope>-r<N>-a<M>.json");
       else fail(`compile-order failed (exit ${r.status})\n${r.stdout}${r.stderr}`);
@@ -346,7 +351,7 @@ export async function run(ctx) {
       trialRows.push({ schema_version: 1, trial: 12, round: 9, attempt: 1, scope_id: "cart", score: { regressions: 0, fixtures_passed: 1, fixtures_total: 12, db_probe: null }, status: "kept", digest: [] });
       w(".shapeup/demo/t0/trials.jsonl", trialRows.map((r) => JSON.stringify(r)).join("\n") + "\n");
 
-      const rh = spawnSync("node", [coPath, "--scope", "shapeup/demo/scopes/cart.md", "--round", "2", "--attempt", "3", "--cwd", d], { encoding: "utf8" });
+      const rh = spawnSync("node", [...K("compile"), "--scope", "shapeup/demo/scopes/cart.md", "--round", "2", "--attempt", "3", "--cwd", d], { encoding: "utf8" });
       const hOrder = rh.status === 0 ? readJSON((rh.stdout || "").trim()) : null;
       if (!hOrder) fail(`compile-order failed with a trial ledger present: ${rh.stdout}${rh.stderr}`);
       else {
@@ -379,7 +384,7 @@ export async function run(ctx) {
         { schema_version: 1, trial: 2, round: 2, attempt: 2, scope_id: "cart", score: { regressions: 0, fixtures_passed: 2, fixtures_total: 5, db_probe: null }, status: "reverted", digest: [] },
         { schema_version: 1, trial: 3, round: 2, attempt: 3, scope_id: "cart", score: { regressions: 0, fixtures_passed: 2, fixtures_total: 5, db_probe: null }, status: "reverted", digest: [] },
       ].map((r) => JSON.stringify(r)).join("\n") + "\n");
-      const rs = spawnSync("node", [coPath, "--scope", "shapeup/demo/scopes/cart.md", "--round", "2", "--attempt", "4", "--cwd", d], { encoding: "utf8" });
+      const rs = spawnSync("node", [...K("compile"), "--scope", "shapeup/demo/scopes/cart.md", "--round", "2", "--attempt", "4", "--cwd", d], { encoding: "utf8" });
       if (rs.status === 0 && /"breaker":"stagnation"/.test(rs.stderr || "")) ok("the stagnation breaker fires after no_progress_k consecutive non-kept trials");
       else fail(`stagnation breaker did not fire: exit ${rs.status}, stderr ${(rs.stderr || "").slice(0, 120)}`);
       if (rs.status === 0) ok("the stagnation breaker ADVISES (exit 0) — an exhausted scope queues a GATE H proposal, it never blocks the round");
@@ -392,7 +397,7 @@ export async function run(ctx) {
       } else fail("stagnation() mis-counts the trailing streak");
 
       // --next respects dependency order: only TASK-001 is dispatchable.
-      const rn = spawnSync("node", [coPath, "--next", "--slug", "demo", "--cwd", d], { encoding: "utf8" });
+      const rn = spawnSync("node", [...K("compile"), "--next", "--slug", "demo", "--cwd", d], { encoding: "utf8" });
       const nextOrder = rn.status === 0 ? readJSON((rn.stdout || "").trim()) : null;
       if (nextOrder && nextOrder.payload.tasks.length === 1 && nextOrder.payload.tasks[0].id === "TASK-001")
         ok("compile-order --next picks the ready task with satisfied dependencies");
@@ -410,7 +415,7 @@ export async function run(ctx) {
         discoveries: [{ marker: "+", line: "edge case found" }],
       };
       w(".shapeup/demo/results/r1-a2.json", JSON.stringify(result));
-      const ri = spawnSync("node", [irPath, join(d, ".shapeup/demo/results/r1-a2.json"), "--cwd", d], { encoding: "utf8" });
+      const ri = spawnSync("node", [...K("reduce ingest"), join(d, ".shapeup/demo/results/r1-a2.json"), "--cwd", d], { encoding: "utf8" });
       if (ri.status === 0) ok("ingest-result ingests a valid WorkResult");
       else fail(`ingest-result failed (exit ${ri.status})\n${ri.stdout}${ri.stderr}`);
       const t1 = read(join(d, ".shapeup/demo/tasks/TASK-001-a.md"));
@@ -437,7 +442,7 @@ export async function run(ctx) {
           refuted: [{ task_id: "TASK-001", ac: "first criterion" }] },
       };
       w(".shapeup/demo/results/evaluate-r1.json", JSON.stringify(evalResult));
-      const rv = spawnSync("node", [irPath, join(d, ".shapeup/demo/results/evaluate-r1.json"), "--cwd", d], { encoding: "utf8" });
+      const rv = spawnSync("node", [...K("reduce ingest"), join(d, ".shapeup/demo/results/evaluate-r1.json"), "--cwd", d], { encoding: "utf8" });
       const t1b = read(join(d, ".shapeup/demo/tasks/TASK-001-a.md"));
       if (rv.status === 0 && /- \[ \] first criterion/.test(t1b) && /eval_verdict: fail/.test(t1b))
         ok("ingest un-ticks refuted AC boxes + sets eval_verdict from the judge's data");
@@ -447,7 +452,7 @@ export async function run(ctx) {
       else fail("ingest did not write the verdict ledger");
       // Negative control: malformed result must be rejected without mutating anything.
       w(".shapeup/demo/results/bad.json", JSON.stringify({ schema_version: 1, order_id: "demo/x", status: "nope" }));
-      const rb = spawnSync("node", [irPath, join(d, ".shapeup/demo/results/bad.json"), "--cwd", d], { encoding: "utf8" });
+      const rb = spawnSync("node", [...K("reduce ingest"), join(d, ".shapeup/demo/results/bad.json"), "--cwd", d], { encoding: "utf8" });
       if (rb.status === 1) ok("ingest-result REJECTS a malformed WorkResult (a bad envelope never mutates the board)");
       else fail("ingest-result accepted a malformed result — the board can be corrupted");
     } finally { rmSync(d, { recursive: true, force: true }); }
@@ -588,7 +593,7 @@ export async function run(ctx) {
   section("30. stats.mjs is a read-only, schema-valid projection over the metrics shards");
   // =============================================================================
   {
-    const statsPath = join(ROOT, "skills/tech-lead/scripts/stats.mjs");
+    const statsPath = join(ROOT, "kernel/probe/stats.mjs");
     const d = mkdtempSync(join(tmpdir(), "stats-"));
     const mdir = join(d, ".shapeup/metrics");
     mkdirSync(mdir, { recursive: true });
@@ -602,13 +607,13 @@ export async function run(ctx) {
     writeFileSync(join(mdir, "b.jsonl"), JSON.stringify({ schema_version: 1, feature_slug: "other", terminal_state: "escalated", round_count: 4, sources: [] }) + "\n");
 
     const before = readdirSync(mdir).map((f) => `${f}:${statSync(join(mdir, f)).size}`).join(",");
-    const r = spawnSync("node", [statsPath, "--cwd", d], { encoding: "utf8" });
+    const r = spawnSync("node", [...K("probe stats"), "--cwd", d], { encoding: "utf8" });
     let report = null;
     try { report = JSON.parse(r.stdout); } catch { /* handled below */ }
     if (r.status === 0 && report) ok("stats exits 0 and emits parseable JSON");
     else fail(`stats failed: status=${r.status} ${r.stderr}`);
 
-    const { validate: veValidateStats } = await import(join(ROOT, "skills/tech-lead/scripts/validate-envelope.mjs"));
+    const { validate: veValidateStats } = await import(join(ROOT, "kernel/verify/envelope.mjs"));
     const repCheck = report ? veValidateStats(report, { $ref: "domain.schema.json#/$defs/StatsReport" }) : { valid: false, errors: ["no report"] };
     if (repCheck.valid) ok("report validates against domain.schema.json#/$defs/StatsReport");
     else fail(`report fails its own registry def: ${repCheck.errors.join("; ")}`);
@@ -621,7 +626,7 @@ export async function run(ctx) {
       ok("malformed rows skipped+counted; pathology rows partitioned, not errors");
     else fail(`row accounting wrong: malformed=${report?.rows_malformed} pathology=${report?.rows_pathology}`);
 
-    const rTable = spawnSync("node", [statsPath, "--cwd", d, "--format", "table"], { encoding: "utf8" });
+    const rTable = spawnSync("node", [...K("probe stats"), "--cwd", d, "--format", "table"], { encoding: "utf8" });
     if (rTable.status === 0 && rTable.stdout.includes("demo")) ok("--format table renders and names the slug");
     else fail(`table render failed: ${rTable.stderr}`);
 
@@ -630,7 +635,7 @@ export async function run(ctx) {
     else fail(`stats WROTE to the metrics dir: before=${before} after=${after}`);
 
     const emptyDir = mkdtempSync(join(tmpdir(), "statsempty-"));
-    const rEmpty = spawnSync("node", [statsPath, "--cwd", emptyDir], { encoding: "utf8" });
+    const rEmpty = spawnSync("node", [...K("probe stats"), "--cwd", emptyDir], { encoding: "utf8" });
     let emptyReport = null;
     try { emptyReport = JSON.parse(rEmpty.stdout); } catch { /* handled below */ }
     if (rEmpty.status === 0 && emptyReport?.rows_total === 0) ok("missing metrics dir → valid empty report, exit 0");
@@ -649,11 +654,11 @@ export async function run(ctx) {
   // true non-regression on legacy specs (no spine artifacts → green). It also guards the schema
   // registration surface the plan requires (worker/operation/$def/payload) against drift.
   {
-    const tlPath = join(ROOT, "skills/tech-lead/scripts/trace-lint.mjs");
+    const tlPath = join(ROOT, "kernel/verify/trace.mjs");
     if (!existsSync(tlPath)) fail("skills/tech-lead/scripts/trace-lint.mjs missing — the traceability oracle is absent");
     else {
       const run = (slug, cwd, extra = []) => {
-        const r = spawnSync("node", [tlPath, "--slug", slug, "--cwd", cwd, "--quiet", ...extra], { encoding: "utf8" });
+        const r = spawnSync("node", [...K("verify trace"), "--slug", slug, "--cwd", cwd, "--quiet", ...extra], { encoding: "utf8" });
         let report = null;
         try { report = readJSON(join(cwd, ".shapeup", slug, "trace", "report.json")); } catch { /* handled by caller */ }
         return { status: r.status, report };
@@ -758,7 +763,7 @@ export async function run(ctx) {
     mkdirSync(join(cwd2, ".shapeup/px/tasks"), { recursive: true });
     writeFileSync(join(cwd2, ".shapeup/px/tasks/TASK-001.md"),
       "---\nid: TASK-001\nstatus: ready\npriority: 1\n---\n- [ ] does A (covers: REQ-3, REQ-7)\n- [ ] plain B\n");
-    const { readBoard } = await import(join(ROOT, "skills/tech-lead/scripts/compile-order.mjs"));
+    const { readBoard } = await import(join(ROOT, "kernel/compile.mjs"));
     const board = readBoard(cwd2, "px");
     const acs = board[0]?.acceptance_criteria || [];
     const withCovers = acs.find((a) => typeof a === "object");
@@ -778,14 +783,14 @@ export async function run(ctx) {
   // skills depend on, so every top-level/exported function must document its input/output shape
   // (skills-optimization plan, Track D). Counted into the checks-floor so it can't silently regress.
   assertJsdocCoverage(ctx, [
-    "skills/tech-lead/scripts/compile-order.mjs",
-    "skills/tech-lead/scripts/ingest-result.mjs",
-    "skills/tech-lead/scripts/validate-envelope.mjs",
-    "skills/tech-lead/scripts/t0-verify.mjs",
-    "skills/tech-lead/scripts/run-snapshot.mjs",
-    "skills/tech-lead/scripts/stats.mjs",
-    "skills/tech-lead/scripts/aegis-digest.mjs",
-    "skills/tech-lead/scripts/trace-lint.mjs",
+    "kernel/compile.mjs",
+    "kernel/reduce/ingest.mjs",
+    "kernel/verify/envelope.mjs",
+    "kernel/verify/t0.mjs",
+    "kernel/reduce/snapshot.mjs",
+    "kernel/probe/stats.mjs",
+    "kernel/probe/digest.mjs",
+    "kernel/verify/trace.mjs",
     "tests/lib/harness.mjs",
     "tests/lib/jsdoc.mjs",
   ].map((f) => join(ROOT, f)), (p) => p.replace(ROOT + "/", ""));

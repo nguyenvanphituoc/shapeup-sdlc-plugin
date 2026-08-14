@@ -42,9 +42,8 @@
 
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { isMain } from "./lib/is-main.mjs";
-import { LOCAL } from "./lib/paths.mjs";
-import { runArgs } from "./lib/argv.mjs";
+import { LOCAL } from "../lib/paths.mjs";
+import { runArgs } from "../lib/argv.mjs";
 
 /** Directories that are never part of "the tree being changed". */
 const IGNORE_DIRS = new Set([".git", "node_modules", LOCAL, "dist", "build", ".next", "coverage", ".claude"]);
@@ -160,15 +159,22 @@ export function decideLane({ intake, files }) {
 
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: 'fit-check.mjs (--intake-file <path> | --intake-text "<requirement>") [--cwd <dir>]',
+  usage: 'harness.mjs init fit (--intake-file <path> | --intake-text "<requirement>") [--cwd <dir>]',
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   cwd: { type: "path" },
   "intake-text": { type: "str" },
   "intake-file": { type: "path" },
 };
 
-export function main() {
-  const args = runArgs(ARGV_SPEC);
+/**
+ * Decide the lane (full or tiny) for an intake and the tree it will build in.
+ *
+ * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
+ * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
+ *   call `process.exit()` with the subcommand's documented code rather than returning.
+ */
+export function cli(rawArgv) {
+  const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = args.cwd || process.cwd();
   let intake = args.intakeText ?? null;
   const f = args.intakeFile ?? null;
@@ -191,6 +197,3 @@ export function main() {
   }, null, 2));
 }
 
-if (isMain(import.meta.url)) {
-  main();
-}

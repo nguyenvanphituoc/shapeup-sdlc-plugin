@@ -28,9 +28,9 @@ first:
 flowchart TD
     S0["Checkout scope branch\nwrite .shapeup/active-scope pointer"] --> A1
     subgraph LOOP["attempt 1 .. attempt_budget (default 5)"]
-      A1["compile-order.mjs\n(scope contract + tasks + prior decisions\n+ last attempt's digested errors)"] --> A2["task-executor\n(fresh Agent — zero prior chat history)"]
-      A2 --> A3["ingest-result.mjs\n(board + ledger writes)"]
-      A3 --> A6["t0-verify.mjs\nfixtures + DB probe + seesaw"]
+      A1["harness compile\n(scope contract + tasks + prior decisions\n+ last attempt's digested errors)"] --> A2["task-executor\n(fresh Agent — zero prior chat history)"]
+      A2 --> A3["harness reduce ingest\n(board + ledger writes)"]
+      A3 --> A6["harness verify t0\nfixtures + DB probe + seesaw"]
       A6 --> A7{"T0 result"}
     end
     A7 -- green --> DONE["scope → DOWNHILL_EXECUTION"]
@@ -40,7 +40,7 @@ flowchart TD
 ```
 
 Two facts make this loop safe to run unattended: **zero-memory handoff** — each attempt is a
-fresh subagent that only ever sees what `compile-order.mjs` chose to put in the envelope, never
+fresh subagent that only ever sees what `harness compile` chose to put in the envelope, never
 prior chat — and the **seesaw check** inside T0, which re-runs other scopes' fixtures to catch a
 regression before it's mistaken for progress.
 
@@ -113,7 +113,7 @@ Committed wiring-map.md checked against project-profile.md entry_point — no or
 ```
 ⏸ GATE L1b — Board Review
 UC count + actors · scope board (topology, substrate size) · SPIKE blockers
-Substrate-disjointness re-asserted via spec-lint.mjs — any red is a hard stop
+Substrate-disjointness re-asserted via harness verify spec — any red is a hard stop
 ```
 
 ```
@@ -147,7 +147,7 @@ policy** (the run's auto level) and a set of **mechanically-enforced preconditio
 no matter what the auto level is.
 
 > **How a crossing is actually produced.** Since the gate-answer set (§3.2d) the auto level is not
-> read by the model as a paragraph — each gate resolves through `gate-answers.mjs` and the
+> read by the model as a paragraph — each gate resolves through `harness gate` and the
 > orchestrator branches on its exit code (`0` cross · `4` stop and put the block to the PO · `5`
 > abort). `--auto` implies the `guarded` preset and `--unattended` the `ci` preset unless a set is
 > named. Every gate still emits its block and still records a decision; what the preset changes is
@@ -185,7 +185,7 @@ no matter what the auto level is.
 |---|---|---|
 | 1 | Run mode = `--unattended` | Auto-confirms all L-gates. Proceeds without a human until PASS, max-rounds, or a hard error — the only three stop conditions in this mode. |
 | 2 | Inner breaker (`attempt_budget`) exhausted for one scope | Does **not** stop anything — queues a hammer proposal and moves to the next scope in sequence (DD-9: a struggling scope must not freeze the others). |
-| 3 | *(none — see note)* | A worker `ESCALATE` is **not** auto-resolved. `ingest-result.mjs` queues it; in the workflow lane a phase that produced no artifact **aborts**, naming the phase, because a relaunch would re-dispatch the same order and escalate again. Resolving it is a human step in every mode. |
+| 3 | *(none — see note)* | A worker `ESCALATE` is **not** auto-resolved. `harness reduce ingest` queues it; in the workflow lane a phase that produced no artifact **aborts**, naming the phase, because a relaunch would re-dispatch the same order and escalate again. Resolving it is a human step in every mode. |
 | 4 | GATE L2's board-green check (`hooks/gate-l2.mjs`) | A different axis entirely — runtime-vs-model, not PO-vs-model. Never asks a human; reads the board in *every* mode and **warns** when the EVAL dispatch runs over unfinished tasks (advisory since ADR-0001 — the board is per-machine and the operator asked for the call). Recorded as a `warn` row in `decisions.jsonl`, so a non-green evaluation stays countable. |
 | 5 | `--no-eval` | Tech-lead judgment call (or PO instruction) for trivial features — skips the evaluator, goes straight to SHIP with verdict `not-evaluated` recorded. |
 | 6 | `--no-qa` | Skips the post-PASS edge hunt; ledger records `qa: skipped`. |
@@ -194,7 +194,7 @@ no matter what the auto level is.
 The practical takeaway: **PO-confirmation policy** and **mechanical preconditions** are
 orthogonal. Turning a run fully unattended removes the PO from every *decision* point except the
 three unattended stop conditions — it does not, and cannot, remove the hook-enforced
-preconditions (`validate-envelope.mjs`, `sandbox-guard.mjs`, `safety-spine.mjs`,
+preconditions (`harness verify envelope`, `sandbox-guard.mjs`, `safety-spine.mjs`,
 `gate-zerowork.mjs`), which hold in every mode because they are scripts, not prompts. GATE L2's
 board-green check is the one that deliberately does *not* hold that way: it observes in every mode
 but decides in none.

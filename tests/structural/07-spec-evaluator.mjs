@@ -24,7 +24,7 @@ export async function run(ctx) {
   // grammar discriminates an unstable judge (verdict changed across runs) from a stable one — and
   // that a flip FORCES confidence low regardless of what the judge proposed. The skill performs this
   // procedure itself (verdict-ledger.md, no script dep); this is the executable proof, like the oracles.
-  const vlPath = join(ROOT, "skills/spec-evaluator/scripts/verdict-ledger.mjs");
+  const vlPath = join(ROOT, "kernel/reduce/verdict.mjs");
   if (existsSync(vlPath)) {
     const { reconcile, detectFlips, stability, parseLedger } = await import(vlPath);
 
@@ -74,13 +74,13 @@ export async function run(ctx) {
     try {
       const flipFile = join(d, ".verdicts-TASK-001.jsonl");
       writeFileSync(flipFile, ledger.map((l) => JSON.stringify(l)).join("\n"));
-      const rf = spawnSync("node", [vlPath, flipFile], { encoding: "utf8" });
+      const rf = spawnSync("node", [join(ROOT, "kernel/harness.mjs"), "reduce", "verdict", flipFile], { encoding: "utf8" });
       if (rf.status === 1 && /flip/i.test(rf.stdout)) ok("verdict-ledger CLI exits 1 and reports the flip");
       else fail(`verdict-ledger CLI did not flag the flip (exit ${rf.status})\n${rf.stdout}`);
 
       const okFile = join(d, ".verdicts-TASK-002.jsonl");
       writeFileSync(okFile, stable.map((l) => JSON.stringify(l)).join("\n"));
-      const rs = spawnSync("node", [vlPath, okFile], { encoding: "utf8" });
+      const rs = spawnSync("node", [join(ROOT, "kernel/harness.mjs"), "reduce", "verdict", okFile], { encoding: "utf8" });
       if (rs.status === 0 && /no verdict flips/i.test(rs.stdout)) ok("verdict-ledger CLI exits 0 on a stable ledger");
       else fail(`verdict-ledger CLI mis-graded a stable ledger (exit ${rs.status})\n${rs.stdout}`);
       parseLedger(""); // smoke: empty parse must not throw
@@ -95,6 +95,6 @@ export async function run(ctx) {
   // The executable proof of the flip/confidence grammar; its exported functions are the seam a
   // consumer imports (skills-optimization plan, Track D). Counted into the checks-floor.
   assertJsdocCoverage(ctx, [
-    "skills/spec-evaluator/scripts/verdict-ledger.mjs",
+    "kernel/reduce/verdict.mjs",
   ].map((f) => join(ROOT, f)), (p) => p.replace(ROOT + "/", ""));
 }

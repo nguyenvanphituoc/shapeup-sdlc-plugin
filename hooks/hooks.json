@@ -77,7 +77,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/validate-envelope.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs\" verify envelope",
             "timeout": 10
           }
         ]

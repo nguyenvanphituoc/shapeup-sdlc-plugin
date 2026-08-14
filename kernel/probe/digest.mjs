@@ -10,8 +10,7 @@
 //
 // Zero dependencies, zero network — same discipline as oracles/*.
 
-import { isMain } from "./lib/is-main.mjs";
-import { runArgs } from "./lib/argv.mjs";
+import { runArgs } from "../lib/argv.mjs";
 
 const PATTERNS = [
   // Node stack frame:  "    at fn (path/to/file.js:12:34)"  or  "    at path/to/file.js:12:34"
@@ -92,16 +91,19 @@ export function digest(rawText) {
 // --- CLI ---------------------------------------------------------------------
 /** The typed argv contract (see `./lib/argv.mjs`). A bare `-`, or nothing, means stdin. */
 export const ARGV_SPEC = {
-  usage: "aegis-digest.mjs [<log-file>|-]   (no file → stdin)",
+  usage: "harness.mjs probe digest [<log-file>|-]   (no file → stdin)",
   _: { arity: 0, max: 1, name: "log-file" },
 };
 
 /**
- * CLI entry: read a log from a file arg or stdin, print the digested triples as JSON, exit 0.
- * @returns {Promise<void>} Resolves after printing.
+ * Digest a build log into AEGIS triples on stdout.
+ *
+ * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
+ * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
+ *   call `process.exit()` with the subcommand's documented code rather than returning.
  */
-async function main() {
-  const arg = runArgs(ARGV_SPEC)._[0];
+export async function cli(rawArgv) {
+  const arg = runArgs(ARGV_SPEC, rawArgv)._[0];
   let raw;
   if (arg && arg !== "-") {
     const { readFileSync } = await import("node:fs");
@@ -119,6 +121,3 @@ async function main() {
   process.exit(0);
 }
 
-if (isMain(import.meta.url)) {
-  main();
-}

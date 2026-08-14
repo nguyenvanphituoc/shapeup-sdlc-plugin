@@ -39,7 +39,7 @@ function hookEntries(ROOT) {
   for (const f of readdirSync(hooksDir)) {
     if (f.endsWith(".mjs")) out.push({ name: f.replace(/\.mjs$/, ""), abs: join(hooksDir, f) });
   }
-  out.push({ name: "validate-envelope", abs: join(ROOT, "skills/tech-lead/scripts/validate-envelope.mjs") });
+  out.push({ name: "validate-envelope", abs: join(ROOT, "kernel/harness.mjs"), argv: ["verify", "envelope"] });
   return out.filter((h) => existsSync(h.abs)).sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -51,10 +51,10 @@ function hookEntries(ROOT) {
  * resolution IS the thing under test, and a redirect would send every hook's row to one shared
  * file, making the per-sandbox assertions below vacuous.
  */
-function fire(abs, payload, sandbox) {
+function fire(abs, payload, sandbox, argv = []) {
   const env = { ...process.env };
   delete env.SHAPEUP_DECISIONS_PATH;
-  const r = spawnSync(process.execPath, [abs], {
+  const r = spawnSync(process.execPath, [abs, ...argv], {
     input: typeof payload === "string" ? payload : JSON.stringify(payload),
     cwd: sandbox, encoding: "utf8", timeout: 30_000, env,
   });
@@ -88,10 +88,10 @@ export async function run(ctx) {
   // (b) MALFORMED INPUT — the reproduced case. Must still fail open, and must now be recorded
   //     as `error` rather than as the same silence a clean allow produces.
   let recorded = 0;
-  for (const { name, abs } of hooks) {
+  for (const { name, abs, argv = [] } of hooks) {
     const sandbox = mkdtempSync(join(tmpdir(), "receipt-"));
     try {
-      const r = fire(abs, "NOT JSON AT ALL {{{", sandbox);
+      const r = fire(abs, "NOT JSON AT ALL {{{", sandbox, argv);
       if (r.exit !== 0) { fail(`${name}: malformed payload exited ${r.exit} — fail-open is deliberate and must not change`); continue; }
       if (r.rows.length === 0) {
         fail(`${name}: malformed payload produced exit 0 and NO decision row — indistinguishable from never having run`);
@@ -111,12 +111,12 @@ export async function run(ctx) {
   // (a) A VALID, OUT-OF-SCOPE PAYLOAD — the commonest case, and previously the one that was
   //     byte-identical to a hook that never ran. It must record an `allow` with a reason.
   let allows = 0;
-  for (const { name, abs } of hooks) {
+  for (const { name, abs, argv = [] } of hooks) {
     const sandbox = mkdtempSync(join(tmpdir(), "receipt-allow-"));
     try {
       // Deliberately something every hook should defer on: a Read of an ordinary file, in a
       // workspace with no harness run at all.
-      const r = fire(abs, { tool_name: "Read", tool_input: { file_path: join(sandbox, "readme.md") }, cwd: sandbox, source: "startup", trigger: "manual" }, sandbox);
+      const r = fire(abs, { tool_name: "Read", tool_input: { file_path: join(sandbox, "readme.md") }, cwd: sandbox, source: "startup", trigger: "manual" }, sandbox, argv);
       if (r.exit !== 0) { fail(`${name}: an out-of-scope payload exited ${r.exit}, expected 0`); continue; }
       if (r.rows.length === 0) { fail(`${name}: an out-of-scope payload left no decision row — "permitted" is still indistinguishable from "never ran"`); continue; }
       const row = r.rows[r.rows.length - 1];
@@ -148,7 +148,7 @@ export async function run(ctx) {
     if (!hook) { fail(`deny case names a missing hook: ${c.name}`); continue; }
     const sandbox = mkdtempSync(join(tmpdir(), "receipt-deny-"));
     try {
-      const r = fire(hook.abs, { ...c.payload, cwd: sandbox }, sandbox);
+      const r = fire(hook.abs, { ...c.payload, cwd: sandbox }, sandbox, hook.argv || []);
       if (r.exit !== 0) { fail(`${c.name}: a deny must still exit 0 (the decision rides on stdout), got ${r.exit}`); continue; }
       if (!/permissionDecision"?\s*:\s*"deny"/.test(r.stdout)) { fail(`${c.name}: deny payload did not reach stdout`); continue; }
       const row = r.rows[r.rows.length - 1];
@@ -203,7 +203,7 @@ export async function run(ctx) {
 
   // stats --hooks is the Day-2 instrument: it must separate a fire count from a denial count.
   {
-    const { hooksReport } = await import(join(ROOT, "skills/tech-lead/scripts/stats.mjs"));
+    const { hooksReport } = await import(join(ROOT, "kernel/probe/stats.mjs"));
     const rep = hooksReport([
       { hook: "gate-l2", verdict: "allow", rule: "board-green" },
       { hook: "gate-l2", verdict: "deny", rule: "board-not-green" },

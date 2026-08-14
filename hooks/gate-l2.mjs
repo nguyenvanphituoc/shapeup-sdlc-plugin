@@ -39,7 +39,7 @@ import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { resolve, join, basename, dirname } from "node:path";
 import { runHook, readStdin, settle } from "./lib/decision.mjs";
 // Aliased: the body binds a local `tasksDir` to whichever candidate actually holds a board.
-import { tasksDir as localTasksDir } from "../skills/tech-lead/scripts/lib/paths.mjs";
+import { tasksDir as localTasksDir } from "../kernel/lib/paths.mjs";
 
 await runHook("gate-l2", async () => {
 /** Allow normal permission flow — with the reason on the record. */

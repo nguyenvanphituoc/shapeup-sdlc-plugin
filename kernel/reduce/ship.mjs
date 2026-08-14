@@ -28,14 +28,13 @@
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { isMain } from "./lib/is-main.mjs";
-import { runArgs } from "./lib/argv.mjs";
+import { runArgs } from "../lib/argv.mjs";
 import {
   report as reportPath, tasksDir, verdictsDir, trials, evaluationDir, qaDir,
   roundLedger, discoveryLedger, receipt as receiptPath, harnessRun, relShared,
-} from "./lib/paths.mjs";
-import { readTrials } from "./t0-verify.mjs";
-import { ratchetReport } from "./stats.mjs";
+} from "../lib/paths.mjs";
+import { readTrials } from "../verify/t0.mjs";
+import { ratchetReport } from "../probe/stats.mjs";
 
 /** @returns {string} Today as `YYYY-MM-DD` (UTC). */
 const today = () => new Date().toISOString().slice(0, 10);
@@ -282,7 +281,7 @@ export function generate({ cwd, slug, verdict, qa }) {
 // ---------------------------------------------------------------------------
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "ship-report.mjs --slug <slug> [--cwd <dir>] [--verdict PASS|FAIL|not-evaluated] " +
+  usage: "harness.mjs reduce ship --slug <slug> [--cwd <dir>] [--verdict PASS|FAIL|not-evaluated] " +
          "[--qa run|skipped] [--stdout]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   slug: { type: "str", required: true },
@@ -292,8 +291,15 @@ export const ARGV_SPEC = {
   stdout: { type: "flag" },
 };
 
-if (isMain(import.meta.url)) {
-  const args = runArgs(ARGV_SPEC);
+/**
+ * Generate the ship report from the artifacts on disk.
+ *
+ * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
+ * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
+ *   call `process.exit()` with the subcommand's documented code rather than returning.
+ */
+export async function cli(rawArgv) {
+  const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = args.cwd || process.cwd();
   const { markdown, path } = generate({ cwd, slug: args.slug, verdict: args.verdict, qa: args.qa });
   if (args.stdout) {

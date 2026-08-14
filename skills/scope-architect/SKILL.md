@@ -58,7 +58,7 @@ anti-rationalization table.
              hill_phase: "UPHILL_UNKNOWN"                    — ALWAYS; phase is derived from
                                                                T0/T1/seesaw facts later,
                                                                never authored
-4 LINT     node "${CLAUDE_PLUGIN_ROOT}/skills/ba-pitch-analyzer/scripts/spec-lint.mjs" --slug <slug>
+4 LINT     node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify spec --slug <slug>
            → PA1 (directory alignment), PA2 (>~15 files), DISJOINT (undeclared overlap).
            Fix reds by re-slicing, not by silencing.
 5 BOARD    regenerate scope-board.md (scope_id, topology, task count, substrate size, lint)

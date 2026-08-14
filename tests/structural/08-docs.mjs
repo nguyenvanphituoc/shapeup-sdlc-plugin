@@ -113,11 +113,18 @@ export async function run(ctx) {
 
     // (b) hook inventory, both directions.
     const manifest = readJSON(join(ROOT, "hooks/hooks.json"));
+    // The LABEL a doc has to carry, derived from the command rather than assumed. A hook in
+    // `hooks/` is named by its filename; the envelope gate is a kernel subcommand, so what a reader
+    // must be able to find is the verb, not `harness.mjs` — which names every subcommand at once
+    // and would let the check pass on a mention of any of them.
     const registeredScripts = new Set();
     for (const groups of Object.values(manifest.hooks || {})) {
       for (const g of groups) for (const h of g.hooks || []) {
-        const m = (h.command || "").match(/\$\{CLAUDE_PLUGIN_ROOT\}\/(\S+?\.mjs)/);
-        if (m) registeredScripts.add(m[1]);
+        const cmd = h.command || "";
+        const m = cmd.match(/\$\{CLAUDE_PLUGIN_ROOT\}\/(\S+?\.mjs)/);
+        if (!m) continue;
+        const verbs = cmd.slice(cmd.indexOf(m[1]) + m[1].length).replace(/^\\?"/, "").trim();
+        registeredScripts.add(verbs ? `${m[1]}|${verbs}` : m[1]);
       }
     }
     const readme = read(join(ROOT, "README.md"));
@@ -129,8 +136,9 @@ export async function run(ctx) {
     // `gate-zerowork`, which returns `decision: "block"`. An undocumented hook in the README is
     // untidy; an undocumented deny in the security page is a wrong answer to a security question.
     const security = read(join(ROOT, "SECURITY.md"));
-    for (const script of registeredScripts) {
-      const base = script.split("/").pop();
+    for (const entry of registeredScripts) {
+      const [script, verbs] = entry.split("|");
+      const base = verbs || script.split("/").pop();
       if (!readme.includes(base)) fail(`hooks.json registers ${base} but README.md never mentions it (undocumented hook)`);
       else ok(`README documents hook ${base}`);
       if (!design03.includes(base)) fail(`hooks.json registers ${base} but docs/design/03-system-design.md never mentions it`);
@@ -139,7 +147,7 @@ export async function run(ctx) {
       else ok(`SECURITY.md documents hook ${base}`);
     }
     for (const f of readdirSync(join(ROOT, "hooks")).filter((f) => f.endsWith(".mjs"))) {
-      if (![...registeredScripts].some((s) => s.endsWith(`/${f}`) || s === `hooks/${f}`)) {
+      if (![...registeredScripts].some((s) => s.split("|")[0].endsWith(`/${f}`) || s.split("|")[0] === `hooks/${f}`)) {
         fail(`hooks/${f} exists on disk but hooks.json never registers it (orphan hook — it enforces nothing)`);
       } else ok(`hooks/${f} is registered`);
     }

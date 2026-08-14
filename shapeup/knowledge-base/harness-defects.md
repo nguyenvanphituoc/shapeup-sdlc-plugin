@@ -66,7 +66,7 @@ arbitrary directory name, an install path containing a space, two negative contr
 DENIED, and pins for both halves of this defect. Tier-0 keeps only what is checkable offline and
 says in its own banner that it is bookkeeping, not evidence.
 
-**One claim this invalidates.** `run-workflow.mjs`'s provenance paragraph asserted a headless run
+**One claim this invalidates.** `harness run`'s provenance paragraph asserted a headless run
 through a granted Bash prefix with zero denials. With no working grant that cannot have been what it
 claims; the banner now says so rather than carrying it as evidence.
 

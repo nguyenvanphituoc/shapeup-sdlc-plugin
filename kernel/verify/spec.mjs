@@ -23,17 +23,16 @@
 // Zero dependencies (glob matcher inlined from hooks/sandbox-guard.mjs). Judgment stays in the skill
 // (gap severity, lens choice); this script only reports facts.
 //
-// Usage:  node skills/ba-pitch-analyzer/scripts/spec-lint.mjs --slug <slug> [--cwd <dir>]
+// Usage:  node kernel/harness.mjs verify spec --slug <slug> [--cwd <dir>]
 // Prints a JSON report. Exit 0 = no red findings, 1 = at least one red.
 
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { resolve, join, relative } from "node:path";
-import { parseBoard, deriveUnlocks } from "./board-derive.mjs";
-import { isMain } from "../../tech-lead/scripts/lib/is-main.mjs";
-import { runArgs } from "../../tech-lead/scripts/lib/argv.mjs";
-import { LOCAL } from "../../tech-lead/scripts/lib/paths.mjs";
-import { specDir, scopesDir, tasksDir } from "../../tech-lead/scripts/lib/paths.mjs";
-import { readAllContracts, unreadableReason, SCOPE_CONTRACT } from "../../tech-lead/scripts/lib/contract-md.mjs";
+import { parseBoard, deriveUnlocks } from "../reduce/board.mjs";
+import { runArgs } from "../lib/argv.mjs";
+import { LOCAL } from "../lib/paths.mjs";
+import { specDir, scopesDir, tasksDir } from "../lib/paths.mjs";
+import { readAllContracts, unreadableReason, SCOPE_CONTRACT } from "../lib/contract.mjs";
 
 // Inlined from hooks/sandbox-guard.mjs so this skill ships self-contained (a skill's scripts
 // must not reach outside its own folder — channels that copy only skills/ would dangle).
@@ -222,17 +221,23 @@ export function lint({ cwd, slug }) {
   };
 }
 
-/** The typed argv contract (see `skills/tech-lead/scripts/lib/argv.mjs`). */
+/** The typed argv contract (see `kernel/lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "spec-lint.mjs --slug <slug> [--cwd <dir>]",
+  usage: "harness.mjs verify spec --slug <slug> [--cwd <dir>]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   slug: { type: "str", required: true },
   cwd: { type: "path" },
 };
 
-const isMainModule = isMain(import.meta.url);
-if (isMainModule) {
-  const args = runArgs(ARGV_SPEC);
+/**
+ * Lint the committed spec tree against the board it must stay in step with.
+ *
+ * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
+ * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
+ *   call `process.exit()` with the subcommand's documented code rather than returning.
+ */
+export async function cli(rawArgv) {
+  const args = runArgs(ARGV_SPEC, rawArgv);
   const report = lint({ cwd: resolve(args.cwd || process.cwd()), slug: args.slug });
   console.log(JSON.stringify(report, null, 2));
   process.exit(report.red > 0 ? 1 : 0);

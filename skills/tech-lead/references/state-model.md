@@ -10,8 +10,8 @@ prose ahead of the first tool call is a line it can summarise instead of execute
 
 Workers are stateless; the orchestrator layer is the **sole writer of ALL run-state**. Every
 worker receives a structured **WorkOrder** envelope (`.shapeup/<slug>/orders/`, compiled by
-`compile-order.mjs`) and returns a **WorkResult** envelope (`results/`); the deterministic
-`ingest-result.mjs` performs every shared-state write — board status, AC ticks, unblock
+`harness compile`) and returns a **WorkResult** envelope (`results/`); the deterministic
+`harness reduce ingest` performs every shared-state write — board status, AC ticks, unblock
 propagation, discovery-ledger appends, verdict bookkeeping.
 
 No worker writes `run-state.md`, `tasks/_index.md`, or the ledger. Everything a worker used to
@@ -21,7 +21,7 @@ The tech lead owns `harness-run.md` — rounds, gate decisions, Hill positions, 
 `discovered_rounds`, config, language record. The board (`tasks/_index.md`, LOCAL root — v3.2) is
 **execution truth**, maintained exclusively through ingest.
 
-**The run receipt (v1.4).** `scripts/init-run.mjs` opens the run and writes
+**The run receipt (v1.4).** `harness init run` opens the run and writes
 `.shapeup/<slug>/receipt.json` plus `.shapeup/active-scope` before any gate. The
 receipt is the mechanical fact that a run *started* — distinct from every other artifact here,
 which records what a run *did*. That distinction is load-bearing: the guards that check a run's
@@ -56,7 +56,7 @@ Tier A) holds only what must survive a crash or a `.shapeup/` wipe:
 - the **Decisions** table — every gate crossing and every PO answer to a blocked phase,
   promoted the instant it is given, never batched to round close.
 
-Gate crossings resolved from a **gate answer set** (`scripts/gate-answers.mjs`) are written here
+Gate crossings resolved from a **gate answer set** (`harness gate`) are written here
 with their source — `preset:ci`, `file:.shapeup/gate-answers.json` — and the set's
 `authorized_by`. A headless run that ships must always be able to name the human behind its
 sign-off; that name lives here and nowhere else.

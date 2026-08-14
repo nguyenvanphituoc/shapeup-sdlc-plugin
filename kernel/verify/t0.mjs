@@ -29,7 +29,7 @@
 // N+1 build on attempt N instead of restarting from unexplained code.
 //
 // Usage:
-//   node "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/scripts/t0-verify.mjs" <scope-contract.json> \
+//   node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify t0 <scope-contract.json> \
 //        --round N --attempt M [--cwd <dir>] [--out <dir>] [--seesaw-registry <path>] [--no-seesaw]
 //        [--no-ratchet]
 //
@@ -39,12 +39,11 @@ import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync, rea
 import { join, dirname } from "node:path";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { digest } from "./aegis-digest.mjs";
-import { isMain } from "./lib/is-main.mjs";
-import { runArgs } from "./lib/argv.mjs";
-import { snapshot, restore, keptRef } from "./lib/ratchet-tree.mjs";
-import { readContract, SCOPE_CONTRACT } from "./lib/contract-md.mjs";
-import { runIdFromRoot } from "./lib/run-id.mjs";
+import { digest } from "../probe/digest.mjs";
+import { runArgs } from "../lib/argv.mjs";
+import { snapshot, restore, keptRef } from "./ratchet-tree.mjs";
+import { readContract, SCOPE_CONTRACT } from "../lib/contract.mjs";
+import { runIdFromRoot } from "../lib/paths.mjs";
 
 /**
  * Run one shell command and capture its outcome (10-minute timeout).
@@ -365,7 +364,7 @@ export function writeArtifact(outDir, round, attempt, verdictBody) {
 
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "t0-verify.mjs <scope-contract.json> --round N --attempt M [--cwd <dir>] [--out <dir>] " +
+  usage: "harness.mjs verify t0 <scope-contract.json> --round N --attempt M [--cwd <dir>] [--out <dir>] " +
          "[--seesaw-registry <path>] [--no-seesaw] [--no-ratchet]",
   _: { arity: 1, max: 1, name: "scope-contract.json" },
   round: { type: "int", min: 1, required: true },
@@ -378,12 +377,14 @@ export const ARGV_SPEC = {
 };
 
 /**
- * CLI entry: run a scope's fixtures + probe + seesaw, write the verdict artifact, print it, and
- * exit 0 (green) / 1 (red) / 2 (usage).
- * @returns {Promise<void>} Resolves after writing the artifact; the process exit code carries the verdict.
+ * Run the T0 evidence layer for one attempt and write the verdict artifact the judge cites.
+ *
+ * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
+ * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
+ *   call `process.exit()` with the subcommand's documented code rather than returning.
  */
-async function main() {
-  const args = runArgs(ARGV_SPEC);
+export async function cli(rawArgv) {
+  const args = runArgs(ARGV_SPEC, rawArgv);
   const contractPath = args._[0];
   // Markdown first, legacy JSON second (ADR-0001, lib/contract-md.mjs).
   const found = readContract(contractPath, SCOPE_CONTRACT);
@@ -473,6 +474,3 @@ async function main() {
   process.exit(verdict.overall === "green" ? 0 : 1);
 }
 
-if (isMain(import.meta.url)) {
-  main();
-}
