@@ -233,7 +233,40 @@ root is correct. One wrong default made every trial row in every real run unattr
 that produced it, and the guard written to prevent that could not see it. A check that supplies the
 input it is verifying is testing its own assumption.
 
-All three were found the same way everything real in this document was found: by executing the thing.
+### A fourth: the fan-out was scheduled by the alphabet
+
+With BUILD dispatching and T0 readable, the run reached EVAL for the first time and returned a
+verdict that was rigorous, cited and **correct**: 17 FAIL / 3 PASS in round 1, diagnosing that
+`bin/todo.js` was still a two-line placeholder and every command module was unreachable —
+*"`src/commands/list.js:74` has no call site"*, *"`src/store.js:74` has zero production call sites"*.
+
+Five of six scopes went green. The sixth, `cli-integration`, is the one that wires the other five to
+the entry point — and it is alphabetically second, so `chunk(scopes, maxParallelScopes)` put it in the
+first wave in BOTH rounds, building beside the very scopes it consumes. It burned all three attempts
+at 0/2 fixtures in round 1; in round 2 its leg died. One scheduling decision produced 19 FAILs.
+
+The ordering was derivable the whole time: each scope contract names its `tasks`, each task file
+carries `depends_on`. `probe resume` now emits `scope_waves`, and for this feature that is:
+
+```
+wave 1  foundation
+wave 2  add-todo, complete-todo, list-todos, remove-todo    ← concurrency unchanged
+wave 3  cli-integration
+```
+
+Proven live on the next run: wave 1 dispatched **one** order where the previous run dispatched four,
+`foundation` went green 2/2 on its first attempt, and only then did wave 2 release. And
+`cli-integration`, finally building last, wrote the real dispatcher it had never managed before —
+argv routing, `UNKNOWN_COMMAND` on stderr with exit 1, delegation to each command module.
+
+Concurrency is unchanged within a wave; only dependency edges are forbidden. Every unusable input —
+no board, no `tasks`, a cycle — falls back to a single wave, exactly the previous behavior, because
+a scheduler that refuses to run is worse than one that runs unscheduled.
+
+All four were found the same way everything real in this document was found: by executing the thing.
+Each hid the next — the fan-out never dispatched, so the compile line was never reached, so the
+verdict was never read, so the scheduling was never exercised — which is why a suite of 900+ static
+checks certified every one of them.
 
 The failed run is kept, not discarded — `traces/phase2-criterion1/headless-attempt1-build-never-dispatched/`
 holds its whole tree, because a trace of the defect is the only thing that makes "BUILD never
