@@ -43,7 +43,24 @@ import { digest } from "../probe/digest.mjs";
 import { runArgs } from "../lib/argv.mjs";
 import { snapshot, restore, keptRef } from "./ratchet-tree.mjs";
 import { readContract, SCOPE_CONTRACT } from "../lib/contract.mjs";
-import { runIdFromRoot } from "../lib/paths.mjs";
+import { runIdFromRoot, localRoot, SHARED } from "../lib/paths.mjs";
+
+/**
+ * The feature slug a scope contract belongs to, from its path.
+ *
+ * Scope contracts live at `<SHARED>/<slug>/scopes/<id>.md`, so the slug is the segment two levels
+ * above the file. Derived rather than flagged because every caller already names the contract, and
+ * a second way to say the same thing is a second thing to get wrong.
+ *
+ * @param {string} contractPath - Path to the scope contract, absolute or relative.
+ * @returns {string} The slug, or "" when the path does not have the expected shape — in which case
+ *   the caller's `--out` is the only sensible answer and its absence is a usage error.
+ */
+export function slugFromContractPath(contractPath) {
+  const parts = String(contractPath).split(/[/\\]/);
+  const i = parts.lastIndexOf("scopes");
+  return i > 0 ? parts[i - 1] : "";
+}
 
 /**
  * Run one shell command and capture its outcome (10-minute timeout).
@@ -391,7 +408,25 @@ export async function cli(rawArgv) {
   if (!found) { console.error(`t0-verify: no scope contract at ${contractPath} (.md or .json)`); process.exit(2); }
   const contract = found.contract;
   const cwd = args.cwd || process.cwd();
-  const outDir = args.out || dirname(dirname(contractPath)); // default: <slug>/ (parent of scopes/)
+  // WHERE THE VERDICT LANDS, and the one thing about this file that must not be derived from the
+  // contract's own location.
+  //
+  // This used to be `dirname(dirname(contractPath))` — "the parent of scopes/" — which was correct
+  // while scope contracts and the run trace shared a root. ADR-0001 split the tiers and moved scope
+  // contracts to COMMITTED `shapeup/<slug>/scopes/`, so the default silently followed them: every
+  // T0 verdict and trial row was written to `shapeup/<slug>/t0/` while `probe t0` — the ONLY reader,
+  // and the one the build round's confirm stage asks — resolves `verdictsDir()` to
+  // `.shapeup/<slug>/t0/`. AGENTS.md is unambiguous that T0 artifacts are LOCAL tier.
+  //
+  // Measured on a live run: six verdicts and six trial rows were written, `foundation` among them
+  // with `fixtures_passed: 2/2, status: kept` — a real green — and the round still reported ZERO
+  // green scopes, tripped the inner breaker and returned `gate_h`. The evidence existed, was
+  // correct, and was invisible to the only thing that reads it. That is the same silent disconnect
+  // `hooks/lib/decision.mjs` records in its own header, one directory over.
+  //
+  // `--out` still wins: `verify t0` is also called with an explicit run root, and that caller knows
+  // better than any derivation.
+  const outDir = args.out || localRoot(cwd, slugFromContractPath(contractPath));
   const round = args.round;
   const attempt = args.attempt;
 

@@ -436,4 +436,111 @@ export async function run(ctx) {
       fail(`a workflow script's \`meta\` is missing a required field:\n    ${metaMissing.join("\n    ")}`);
     }
   }
+
+  // (j) THE CANARY IS THE FIRST THING THE RUN DOES, and its failure aborts.
+  //
+  // `init run` refuses when the SKILL.md files are not on disk, and that check passes green on both
+  // states the failure actually takes — installed-but-disabled, and a different version loaded. Only
+  // a live dispatch separates them, so the orchestrator makes one before any worker is paid for, and
+  // reads the hook layer's evidence rather than the sub-agent's report of what happened.
+  //
+  // Checked on the SOURCE because the alternative is a live run: the leg costs a real sub-agent, so
+  // it cannot be a Tier-0 check. What is asserted is that the mechanism is wired — the evidence is
+  // read from the kernel, and a failure returns an `aborted` rather than logging and continuing.
+  for (const f of files) {
+    const src = readFileSync(join(abs, f), "utf8");
+    if (!/\bphase\("Preflight"\)/.test(src)) continue;   // only the orchestrator carries one
+    const problems = [];
+    if (!/Skill\(shapeup-sdlc-plugin:\$\{canarySkill\}\)/.test(src)) {
+      problems.push("the preflight makes no Skill dispatch — a file check cannot prove the session resolves one");
+    }
+    if (!/verify dispatch --skill \$\{canarySkill\}/.test(src)) {
+      problems.push("the preflight does not read the hook layer's evidence, so it trusts the sub-agent's own report");
+    }
+    if (!/--within \d+/.test(src)) {
+      problems.push("the evidence query is unbounded in time — a checkout that once loaded the plugin passes forever");
+    }
+    if (!/if \(!canary\.ok\)[\s\S]{0,400}?return aborted\("preflight"/.test(src)) {
+      problems.push("a failed canary does not abort the run — the preflight is advisory, which is the defect it exists to catch");
+    }
+    // The canary must dispatch with NO order: a compiled order with no result would sit in
+    // `orders/`, where three readers enumerate, and a preflight that perturbs the run it clears is
+    // not a preflight.
+    if (/canarySkill\}\)[\s\S]{0,200}?--order/.test(src)) {
+      problems.push("the canary threads an --order, leaving a compiled order with no result in the run's records");
+    }
+    if (!problems.length) ok(`${WORKFLOWS_DIR}/${f} opens with a live canary dispatch whose evidence is mechanical and whose failure aborts`);
+    else fail(`${WORKFLOWS_DIR}/${f} preflight is not load-bearing:\n    ${problems.join("\n    ")}`);
+  }
+
+  // (l) NO pipeline() STAGE MAY RETURN A BARE `null` TO MEAN "carry on".
+  //
+  // The runtime reads a null stage result as DROP THIS ITEM and skips its remaining stages.
+  // Measured directly rather than inferred, with a probe whose only job was to ask:
+  //
+  //     stage1 → null   ⇒ stage2 ran 0/3 times, settled = [NULL, NULL, NULL]
+  //     stage1 → {…}    ⇒ stage2 ran 3/3 times
+  //
+  // The BUILD fan-out used `null` as its "this scope is not green yet, build it" signal, so every
+  // scope that was not ALREADY green was dropped before the builder could run. On a fresh run that
+  // is every scope: 0 green, all queued, inner breaker, `gate_h` — with no builder ever dispatched.
+  // The run reads exactly like six genuinely hard scopes, which is why nothing caught it for the
+  // life of the branch and why criterion 1 was never met.
+  //
+  // A static check earns its place here because the behavioural one cannot: proving it costs a live
+  // Workflow launch and real sub-agents, which Tier-0 forbids. What it can do is refuse the SHAPE
+  // whose meaning the runtime inverts.
+  for (const f of files) {
+    const src = readFileSync(join(abs, f), "utf8");
+    if (!/\bpipeline\s*\(/.test(src)) continue;
+    // Only the arrow-body form is checked, which is the one that reads as a value and is therefore
+    // the one an author writes when they mean "nothing to report yet".
+    const nullReturners = [...src.matchAll(/^\s*(?::|\?)?\s*null\s*[,)]/gm)].map((m) => m[0].trim());
+    if (!nullReturners.length) {
+      ok(`${WORKFLOWS_DIR}/${f} has no pipeline stage returning a bare null — the runtime would read one as "drop this item"`);
+    } else {
+      fail(`${WORKFLOWS_DIR}/${f} has a pipeline stage whose value is a bare \`null\` (${nullReturners.length} site(s)). ` +
+        `The runtime DROPS an item whose stage returned null and skips its remaining stages, so a stage using null ` +
+        `to mean "not ready, continue" silently prevents every later stage from running. Return a sentinel object instead.`);
+    }
+  }
+
+  // (k) EVERY OPERATION THE SCRIPT DISPATCHES MUST BE ONE `compile` CAN RESOLVE A WORKER FOR.
+  //
+  // Found by executing a real run, not by reading. `worker()` builds every leg's step 1 as
+  //     compile --operation <operation> --slug <slug> --payload '<json>'
+  // and `compile` resolves the worker for that form from `OP_OWNER` alone. `OP_OWNER` has no
+  // `execute` key, so the BUILD leg's step 1 exits 2 with "could not resolve --worker/--operation"
+  // — measured. The build leg survives only because its `extra` prose contradicts step 1 with the
+  // correct `--scope … --round … --attempt` form, so the failure costs a round rather than the run,
+  // which is precisely why a static suite never saw it: nothing was permanently broken, and the
+  // cost showed up as a wasted BUILD round that looks like a hard scope.
+  //
+  // This is the same defect class as the operations that could not compile a WorkOrder at all: a
+  // vocabulary shared by two files where only one of them enumerates it.
+  // Checked PER CALL SITE, not per file, because a dispatch may legitimately address its order
+  // another way: a build order is identified by scope + round + attempt, which the slug form cannot
+  // express, so that leg overrides the compile line and is exempt. What must never happen is a leg
+  // taking the generic form for an operation the table cannot resolve — that exits 2 before the
+  // dispatch, and the leg's only route out is prose telling it something different.
+  const { OP_OWNER } = await import(join(ROOT, "kernel/compile.mjs"));
+  for (const f of files) {
+    const src = readFileSync(join(abs, f), "utf8");
+    if (!/compile --operation \$\{operation\}/.test(src)) continue;   // no generic-leg shape here
+    const calls = [...src.matchAll(/worker\(\{([\s\S]*?)\n\s*\}\)/g)].map((m) => m[1]);
+    const broken = [];
+    for (const body of calls) {
+      const op = (body.match(/\boperation:\s*"([^"]+)"/) || [])[1];
+      if (!op) continue;
+      if (/\bcompile:\s*/.test(body)) continue;            // addresses its order its own way
+      if (!OP_OWNER[op]) broken.push(op);
+    }
+    if (!broken.length) {
+      ok(`${WORKFLOWS_DIR}/${f}: every leg taking the generic compile form names an operation OP_OWNER resolves (${calls.length} call site(s))`);
+    } else {
+      fail(`${WORKFLOWS_DIR}/${f} dispatches operation(s) compile cannot resolve a worker for: ` +
+        `${[...new Set(broken)].join(", ")} — the leg's step-1 \`compile --operation <op> --slug <slug>\` exits 2 ` +
+        `("could not resolve --worker/--operation"). Either add the operation to OP_OWNER or give that leg a \`compile:\` override.`);
+    }
+  }
 }

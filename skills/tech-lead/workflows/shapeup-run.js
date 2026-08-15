@@ -51,6 +51,7 @@ export const meta = {
   name: "shapeup-run",
   description: "BUILD-phase pipeline: ORIENT → ANALYZE → WIRE → MAP SCOPES → rounds of BUILD/EVAL → QA → GATE H → ship. Gates resolve by the kernel's exit code; every dispatch is WorkOrder in / WorkResult out; the fast-forward is derived from artifacts on disk.",
   phases: [
+    { title: "Preflight", detail: "one canary dispatch — can this session resolve a worker skill" },
     { title: "Orient" }, { title: "Analyze" }, { title: "Wire" }, { title: "MapScopes" },
     { title: "Build" }, { title: "Eval" }, { title: "Refute" }, { title: "QA" }, { title: "Ship" },
   ],
@@ -360,14 +361,25 @@ const compact = (payload) =>
  * @param {object} spec - `{skill, operation, payload, schema, phase, label, model, extra}`.
  * @returns {Promise<object>} The validated worker report, or a `__failed` marker.
  */
-async function worker({ skill, operation, payload, schema, phase: phaseName, label, model = execModel, extra = "" }) {
+async function worker({ skill, operation, payload, schema, phase: phaseName, label, model = execModel, extra = "", compile }) {
+  // The compile line is overridable because not every dispatch can be addressed the same way.
+  // `--operation <op> --slug <slug>` resolves its worker from `compile`'s OP_OWNER table, which
+  // covers the planner/judge/QA operations and NOT `execute`: a build order is addressed by scope,
+  // round and attempt, so the generic form exits 2 ("could not resolve --worker/--operation") for
+  // exactly the leg that runs most often. It used to be emitted for build legs anyway, contradicted
+  // one line later by `extra`'s correct `--scope …` instruction — a prompt arguing with itself.
+  const compileCmd = compile
+    || `compile --operation ${operation} --slug ${slug} --payload '${JSON.stringify(compact(payload))}'`;
   const r = await agent(
     `You are running one step of an orchestrated build over feature slug "${slug}".\n\n` +
     `1. Compile the WorkOrder:\n` +
-    `     node "${KERNEL}" compile --operation ${operation} --slug ${slug} --payload '${JSON.stringify(compact(payload))}'\n` +
+    `     node "${KERNEL}" ${compileCmd}\n` +
     `   It prints the order path on stdout.\n` +
     `2. Dispatch the worker against that order:\n` +
-    `     Skill(shapeup-sdlc-plugin:${skill}) --order <the path from step 1>\n` +
+    `     Skill(shapeup-sdlc-plugin:${skill}) --order "<the path from step 1>"\n` +
+    `   If the Skill dispatch fails or returns an error, STOP and report the error. Never work ` +
+    `around a failed dispatch by doing the craft yourself — the run has a receipt gate and an ` +
+    `improvised result is refused at step 3 anyway.\n` +
     `   ${extra}\n` +
     `3. Apply its WorkResult, naming the ORDER from step 1 — not any path the worker reports:\n` +
     `     node "${KERNEL}" reduce ingest --order <the path from step 1>\n\n` +
@@ -454,6 +466,41 @@ const withWarnings = (ret) => (stateWarnings.length ? { ...ret, state_warnings: 
 // =============================================================================================
 // THE RUN
 // =============================================================================================
+phase("Preflight");
+
+// CANARY — can THIS SESSION resolve a worker skill at all?
+//
+// `init run` already refused if the SKILL.md files are not on disk. That is the cheap half and it
+// is not the failure: in the session that produced this defect the files were sitting right there
+// in the repo, and the dispatch still returned "Unknown skill" because the plugin was not loaded.
+// A file check passes green on both states that actually happen — installed-but-disabled, and a
+// different version loaded — because those copies have all ten SKILL.md files too.
+//
+// So one real dispatch, before any worker is paid for. Deliberately with NO `--order`: this is
+// testing name resolution, not doing work, and an order would leave a compiled order with no result
+// in `orders/` that every reader of that directory would then have to know about. A canary that
+// perturbs the run it is clearing is not a preflight.
+//
+// The evidence is not the sub-agent's report — it is the hook layer's. A Skill call whose name does
+// not resolve fires no hook at all, so a decision row naming the skill is proof the name resolved,
+// and `verify dispatch` reads that row. The sub-agent cannot write it, so it cannot fake it.
+const canarySkill = "orient";
+await agent(
+  `Make exactly ONE tool call and nothing else: Skill(shapeup-sdlc-plugin:${canarySkill}).\n\n` +
+  `Pass no arguments. Do NOT act on anything the skill returns — this is a preflight that checks ` +
+  `the skill can be reached, not a request to do its work. Do not use any other tool.\n\n` +
+  `Then report whether the call returned or errored, in one line.`,
+  { model: "sonnet", effort: "low", phase: "Preflight", label: `canary:${canarySkill}` },
+);
+const canary = await cmd(`verify dispatch --skill ${canarySkill} --within 900`, "Preflight", "canary-evidence");
+if (!canary.ok) {
+  return aborted("preflight",
+    `the ${canarySkill} skill did not resolve in this session — no dispatch reached the hook layer. ` +
+    `A run would report phases completing while the sub-agents improvised every worker's craft. ` +
+    `Load the plugin (\`claude --plugin-dir <repo>\`, or install and enable it) and relaunch. ` +
+    `(${canary.detail || `exit ${canary.exit_code}`})`);
+}
+
 phase("Orient");
 
 const rs = await query(`probe resume --slug ${slug}`, RESUME, "Orient", "resume-state");
@@ -615,13 +662,24 @@ while (round <= maxRounds) {
   //   confirm — MEASURED, NOT CLAIMED: the worker says green; the T0 artifact has to agree.
   //             A green with no artifact on disk is a claim, and the evaluator that must cite that
   //             artifact would find nothing.
+  // NEVER RETURN `null` FROM A STAGE TO MEAN "carry on". The runtime reads a null stage result as
+  // DROP THIS ITEM and skips its remaining stages — measured directly, not inferred:
+  //
+  //     stage1 → null    ⇒ stage2 ran 0/3 times, settled = [NULL, NULL, NULL]
+  //     stage1 → {…}     ⇒ stage2 ran 3/3 times
+  //
+  // This stage used to return `null` for "not green yet — stage 2, please build it", which meant
+  // every scope that was not ALREADY green was dropped before `buildScope` could run. On a fresh
+  // run that is every scope, so the round ended with 0 green and 6 queued, the inner breaker tripped
+  // and the run returned `gate_h` having dispatched no builder at all. BUILD could never dispatch;
+  // the failure looked exactly like six genuinely hard scopes.
   for (const group of chunk(scopes, maxParallelScopes)) {
     const settled = await pipeline(
       group,
       async (scope) => (alreadyGreen.has(scope.scope_id)
         ? { scope_id: scope.scope_id, green: true, resumed: true }
-        : null),                                       // not green yet → stage 2 builds it
-      async (pre, scope) => (pre ? pre : buildScope(scope, round)),
+        : { scope_id: scope.scope_id, pending: true }),   // not green yet → stage 2 builds it
+      async (pre, scope) => (pre?.pending ? buildScope(scope, round) : pre),
       async (res, scope) => {
         if (!res || res.__failed) return res;
         if (res.resumed || !res.green) return res;
@@ -784,8 +842,12 @@ async function buildScope(scope, roundNo) {
     skill: "task-executor", operation: "execute", schema: SCOPE_RESULT, phase: "Build",
     label: `build:${scope.scope_id}-r${roundNo}`,
     payload: { scope_path: scope.path, scope_id: scope.scope_id, round: roundNo, attempt_budget: attemptBudget },
+    // A build order is addressed by scope + round + attempt, never by operation: the attempt number
+    // is part of its identity, so there is one order per attempt and the generic slug form cannot
+    // express it.
+    compile: `compile --scope ${scope.path} --round ${roundNo} --attempt 1`,
     extra:
-      `Compile the order with --scope ${scope.path} --round ${roundNo} --attempt <n>, once per attempt. ` +
+      `Re-compile the order for every attempt after the first, with --attempt <n>. ` +
       `Run the attempt ratchet for THIS scope only: up to ${attemptBudget} attempts of implement → ` +
       `\`node "${KERNEL}" verify t0 ${scope.path} --round ${roundNo} --attempt <n>\`, each scored against ` +
       `the last kept trial. Stop on the first green T0, or when the attempt budget or the stagnation ` +

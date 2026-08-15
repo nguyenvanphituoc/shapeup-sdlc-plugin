@@ -155,6 +155,54 @@ export async function run(ctx) {
     } finally {
       rmSync(regDir, { recursive: true, force: true });
     }
+
+    // ---- the writer and the reader must agree on WHERE ------------------------------------
+    //
+    // Everything above tests T0's functions in process. None of it asks the question that actually
+    // decided a live run: when `verify t0` is invoked the way a build leg invokes it — through the
+    // CLI, with no `--out` — does `probe t0` find what it wrote?
+    //
+    // For the life of the v2 branch it did not. `verify t0` defaulted its output to
+    // `dirname(dirname(<contract path>))`, which was "the parent of scopes/" and correct until
+    // ADR-0001 moved scope contracts to the COMMITTED tier; after that every verdict landed in
+    // `shapeup/<slug>/t0/` while `probe t0` resolved `verdictsDir()` to `.shapeup/<slug>/t0/`.
+    // A live run wrote six verdicts — one of them `foundation`, 2/2 fixtures, `kept`, a real green —
+    // and the build round still reported ZERO green scopes, tripped the inner breaker and returned
+    // `gate_h`. The measurement was taken, was correct, and was thrown away.
+    //
+    // This is the "measured, not claimed" invariant's own load-bearing seam, and both halves passed
+    // their unit checks while the pair was broken. So the check is an EXECUTION of the pair.
+    const t0box = mkdtempSync(join(tmpdir(), "t0-tier-"));
+    try {
+      const wr = (rel, body) => { mkdirSync(dirname(join(t0box, rel)), { recursive: true }); writeFileSync(join(t0box, rel), body); };
+      wr("shapeup/demo/scopes/sc-01.md", [
+        "---", "scope_id: sc-01", "topology_type: LAYER_CAKE", "tasks: [TASK-001]",
+        "allowed_file_substrate: [src/a.js]",
+        `e2e_verification_fixtures: ["node -e \\"process.exit(0)\\""]`,
+        "hill_phase: UPHILL_UNKNOWN", "---", "", "# Scope: sc-01", "",
+      ].join("\n"));
+      const rv = spawnSync("node", [...K("verify t0"), join(t0box, "shapeup/demo/scopes/sc-01.md"),
+        "--round", "1", "--attempt", "1", "--cwd", t0box, "--no-seesaw", "--no-ratchet"], { encoding: "utf8" });
+      const rp = spawnSync("node", [...K("probe t0"), "--slug", "demo", "--scope", "sc-01", "--round", "1", "--cwd", t0box], { encoding: "utf8" });
+      let seen = null;
+      try { seen = JSON.parse(rp.stdout); } catch { /* asserted below */ }
+      if (rv.status === 0 && seen?.green === true && seen.path) {
+        ok("`verify t0` with no --out writes where `probe t0` reads — the confirm stage can see a green verdict");
+      } else {
+        fail(`the T0 writer and reader disagree on location: verify exit ${rv.status}, probe said ${rp.stdout.trim()}. ` +
+          `A green verdict that probe t0 cannot find makes every scope not-green, so BUILD reports 0 green and trips the inner breaker.`);
+      }
+      // And it must be the LOCAL tier specifically: AGENTS.md puts T0 artifacts in the gitignored
+      // root, and a verdict committed to `shapeup/<slug>/` would travel with the repo.
+      if (existsSync(join(t0box, ".shapeup/demo/t0/verdicts")) && !existsSync(join(t0box, "shapeup/demo/t0"))) {
+        ok("T0 verdicts land in the LOCAL tier, never beside the committed scope contracts");
+      } else {
+        fail(`T0 verdicts are in the wrong storage tier: local=${existsSync(join(t0box, ".shapeup/demo/t0/verdicts"))} ` +
+          `committed=${existsSync(join(t0box, "shapeup/demo/t0"))}`);
+      }
+    } finally {
+      rmSync(t0box, { recursive: true, force: true });
+    }
   } else {
     console.log("  (t0-verify.mjs not found — skipping)");
   }
@@ -455,6 +503,83 @@ export async function run(ctx) {
       const rb = spawnSync("node", [...K("reduce ingest"), join(d, ".shapeup/demo/results/bad.json"), "--cwd", d], { encoding: "utf8" });
       if (rb.status === 1) ok("ingest-result REJECTS a malformed WorkResult (a bad envelope never mutates the board)");
       else fail("ingest-result accepted a malformed result — the board can be corrupted");
+
+      // --- the attestation gate ------------------------------------------------------------
+      // THE DEFECT THESE EXIST FOR, observed live: a Skill dispatch failed with "Unknown skill",
+      // the sub-agent did the craft itself from the prose in its own prompt, the artifacts landed
+      // inside the substrate the order permitted, and ingest accepted the result. Every wall passed
+      // and the run advanced having applied none of the shipped craft. The receipt is the only fact
+      // that separates the two, and ingest is the only place it is load-bearing.
+      //
+      // Note what makes the checks ABOVE stay green without being weakened: their results sit in a
+      // fixture tree with no `orders/`, so there is no orchestrated claim to attest. That is the
+      // scoping, asserted here rather than assumed.
+      const attOrder = (over = {}) => ({
+        schema_version: 1, order_id: "demo/attest", run_id: "demo-20260815T000000Z-deadbeef",
+        compiled_at: "2026-08-15T12:00:00.000Z", worker: "task-executor", mode: "orchestrated",
+        substrate: { allowed: ["src/**"] }, payload: { feature: "demo" }, ...over,
+      });
+      const attResult = { schema_version: 1, order_id: "demo/attest", worker: "task-executor", status: "done" };
+      const attReceipt = (over = {}) => JSON.stringify({
+        at: "2026-08-15T12:30:00.000Z", order_id: "demo/attest", run_id: "demo-20260815T000000Z-deadbeef",
+        worker_declared: "task-executor", skill_invoked: "task-executor", dispatch_ok: true, ...over,
+      }) + "\n";
+      const ingestAttest = (...extra) => spawnSync("node",
+        [...K("reduce ingest"), "--order", join(d, ".shapeup/demo/orders/attest.json"), "--cwd", d, ...extra],
+        { encoding: "utf8" });
+
+      w(".shapeup/demo/orders/attest.json", JSON.stringify(attOrder()));
+      w(".shapeup/demo/results/attest.json", JSON.stringify(attResult));
+
+      const a1 = ingestAttest();
+      if (a1.status === 1 && /no dispatch receipts|no receipt for/.test(a1.stderr))
+        ok("ingest REFUSES an orchestrated result with no dispatch receipt (the D2 false green)");
+      else fail(`ingest accepted an unattested orchestrated result (exit ${a1.status})\n${a1.stdout}${a1.stderr}`);
+
+      // The escape hatch has to actually work, or the gate is a wall with no door and the first
+      // environmental failure gets the whole channel disabled.
+      const a2 = ingestAttest("--no-receipt-check");
+      if (a2.status === 0) ok("--no-receipt-check is a real way through the attestation gate");
+      else fail(`--no-receipt-check did not bypass the gate (exit ${a2.status})\n${a2.stdout}${a2.stderr}`);
+
+      // Wrong skill: a receipt exists, for a dispatch that ran something else. Existence alone
+      // must not satisfy the gate.
+      w(".shapeup/demo/receipts/dispatch.jsonl", attReceipt({ skill_invoked: "orient" }));
+      const a3 = ingestAttest();
+      if (a3.status === 1 && /ran a different skill/.test(a3.stderr))
+        ok("ingest REFUSES a receipt whose skill_invoked is not the worker the order declares");
+      else fail(`ingest accepted a wrong-skill receipt (exit ${a3.status})\n${a3.stdout}${a3.stderr}`);
+
+      // Stale: the right skill, for the right order id, from BEFORE this order was compiled —
+      // exactly what a relaunch produces, because `orders/<name>.json` is reused verbatim.
+      w(".shapeup/demo/receipts/dispatch.jsonl", attReceipt({ at: "2026-08-15T09:00:00.000Z" }));
+      const a4 = ingestAttest();
+      if (a4.status === 1 && /predates the order/.test(a4.stderr))
+        ok("ingest REFUSES a receipt older than the order it claims to answer (the relaunch case)");
+      else fail(`ingest accepted a stale receipt (exit ${a4.status})\n${a4.stdout}${a4.stderr}`);
+
+      // The positive. Without it, a gate that refuses everything would pass every check above.
+      w(".shapeup/demo/receipts/dispatch.jsonl", attReceipt({ at: "2026-08-15T09:00:00.000Z" }) + attReceipt());
+      const a5 = ingestAttest();
+      if (a5.status === 0 && /✓ attested/.test(a5.stdout))
+        ok("ingest ACCEPTS an orchestrated result carrying a matching receipt, and says so");
+      else fail(`ingest refused a properly attested result (exit ${a5.status})\n${a5.stdout}${a5.stderr}`);
+
+      // The gate must not be opt-out-able by aiming the ingest the other documented way. A result
+      // named positionally is mirrored back to its order, so `orders/` decides, not the flag.
+      w(".shapeup/demo/orders/attest2.json", JSON.stringify(attOrder({ order_id: "demo/attest2" })));
+      w(".shapeup/demo/results/attest2.json", JSON.stringify({ ...attResult, order_id: "demo/attest2" }));
+      const a6 = spawnSync("node", [...K("reduce ingest"), join(d, ".shapeup/demo/results/attest2.json"), "--cwd", d], { encoding: "utf8" });
+      if (a6.status === 1 && /no receipt for demo\/attest2/.test(a6.stderr))
+        ok("a positionally-named result is held to the same attestation — omitting --order is not an escape");
+      else fail(`the positional ingest path skipped the attestation gate (exit ${a6.status})\n${a6.stdout}${a6.stderr}`);
+
+      // Non-regression, stated rather than assumed: a standalone order is not held to any of this.
+      w(".shapeup/demo/orders/solo.json", JSON.stringify(attOrder({ order_id: "demo/solo", mode: "standalone" })));
+      w(".shapeup/demo/results/solo.json", JSON.stringify({ ...attResult, order_id: "demo/solo" }));
+      const a7 = spawnSync("node", [...K("reduce ingest"), "--order", join(d, ".shapeup/demo/orders/solo.json"), "--cwd", d], { encoding: "utf8" });
+      if (a7.status === 0) ok("a standalone order needs no receipt — the gate is scoped to orchestrated dispatches");
+      else fail(`the attestation gate caught a standalone ingest (exit ${a7.status})\n${a7.stdout}${a7.stderr}`);
     } finally { rmSync(d, { recursive: true, force: true }); }
   } else {
     fail("compile-order.mjs / ingest-result.mjs missing — the P1 pipeline layer is absent");
