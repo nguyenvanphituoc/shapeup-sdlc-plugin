@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/evaluate",
+  "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+  "compiled_at": "2026-08-15T16:49:06.099Z",
+  "worker": "spec-evaluator",
+  "mode": "orchestrated",
+  "operation": "evaluate",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      ".shapeup/todo-cli/evaluation/**"
+    ],
+    "frozen": [
+      "shapeup/todo-cli/spec/**",
+      ".shapeup/todo-cli/tasks/**"
+    ]
+  },
+  "payload": {
+    "trial_history": [
+      {
+        "schema_version": 1,
+        "trial": 3,
+        "round": 1,
+        "attempt": 3,
+        "scope_id": "cli-integration",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 0,
+          "fixtures_total": 2,
+          "db_probe": null
+        },
+        "status": "reverted",
+        "delta": "no change",
+        "digest": []
+      },
+      {
+        "schema_version": 1,
+        "trial": 4,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "complete-todo",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      },
+      {
+        "schema_version": 1,
+        "trial": 5,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "remove-todo",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      },
+      {
+        "schema_version": 1,
+        "trial": 6,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "list-todos",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      },
+      {
+        "schema_version": 1,
+        "trial": 7,
+        "round": 2,
+        "attempt": 1,
+        "scope_id": "complete-todo",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "reverted",
+        "delta": "no change",
+        "digest": []
+      },
+      {
+        "schema_version": 1,
+        "trial": 8,
+        "round": 2,
+        "attempt": 1,
+        "scope_id": "foundation",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 2,
+          "fixtures_total": 2,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      },
+      {
+        "schema_version": 1,
+        "trial": 9,
+        "round": 2,
+        "attempt": 1,
+        "scope_id": "add-todo",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      },
+      {
+        "schema_version": 1,
+        "trial": 10,
+        "round": 2,
+        "attempt": 1,
+        "scope_id": "remove-todo",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "reverted",
+        "delta": "no change",
+        "digest": []
+      }
+    ],
+    "dimensions": [
+      "spec-conformance"
+    ],
+    "round": 2,
+    "spec_folder": "shapeup/todo-cli/spec",
+    "feature": "todo-cli"
+  }
+}

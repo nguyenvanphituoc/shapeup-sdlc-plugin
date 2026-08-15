@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/add-todo-r2-a1",
+  "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+  "compiled_at": "2026-08-15T16:46:21.023Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "src/commands/add.js",
+      "test/commands/add.test.js",
+      ".shapeup/todo-cli/spikes/**"
+    ],
+    "shared": []
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "add-todo",
+      "topology_type": "LAYER_CAKE",
+      "tasks": [
+        "TASK-004"
+      ],
+      "allowed_file_substrate": [
+        "src/commands/add.js",
+        "test/commands/add.test.js"
+      ],
+      "e2e_verification_fixtures": [
+        "node --test test/commands/add.test.js"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN",
+      "affordance_manifest": [
+        {
+          "test_id": "cli:add",
+          "role": "command",
+          "required_states": [
+            "idle",
+            "loading",
+            "success",
+            "error"
+          ]
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "TASK-004",
+        "title": "Implement `add <text>` command",
+        "status": "done",
+        "priority": 4,
+        "depends_on": [
+          "TASK-003"
+        ],
+        "use_case_refs": [
+          "UC-AddTodo"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-headless/.shapeup/todo-cli/tasks/TASK-004-add-command.md",
+        "acceptance_criteria": [
+          "`src/commands/add.js` exports a function taking the raw args array and performing UC-AddTodo",
+          "`node --test test/commands/add.test.js` passes"
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/todo-cli/spec",
+    "feature": "todo-cli",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

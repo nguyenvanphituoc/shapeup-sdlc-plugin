@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/complete-todo-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-006",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`src/commands/done.js` validates presence, numeric-ness, and range of `<n>` BEFORE any",
+          "result": "pass",
+          "evidence": "src/commands/done.js run(): checks raw===undefined, then /^[1-9][0-9]*$/ regex, then loads store and checks 1<=n<=items.length, all before completeAt()/saveStore() is called; node --test test/commands/done.test.js → 11/11 pass"
+        },
+        {
+          "ac": "`node --test test/commands/done.test.js` passes",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → tests 11, pass 11, fail 0"
+        },
+        {
+          "ac": "`<n> = 0`: rejected (`INVALID_INDEX`), no store write",
+          "result": "pass",
+          "evidence": "test 'n = 0 is rejected as INVALID_INDEX, no store write' → exit 1, stderr 'not a valid index', store file unchanged (deepEqual before/after)"
+        },
+        {
+          "ac": "`<n> = list.length`: accepted (last item)",
+          "result": "pass",
+          "evidence": "test 'n = list.length is accepted (last item)' → exit 0, items[1].done === true (2-item list, n=2)"
+        },
+        {
+          "ac": "`<n> = list.length + 1`: rejected (`INDEX_OUT_OF_RANGE`), no store write",
+          "result": "pass",
+          "evidence": "test 'n = list.length + 1 is rejected as INDEX_OUT_OF_RANGE, no store write' → exit 1, stderr 'no item at index 2' (1-item list, n=2), store unchanged"
+        },
+        {
+          "ac": "`<n>` on an empty list (any positive integer): rejected (`INDEX_OUT_OF_RANGE`)",
+          "result": "pass",
+          "evidence": "test 'any positive n on an empty list is rejected as INDEX_OUT_OF_RANGE' → exit 1, stderr 'no item at index 1'; also 'missing store file behaves as an empty list' → exit 1, no crash, no store file created"
+        },
+        {
+          "ac": "`<n> = \"abc\"` or `<n> = \"1.5\"`: rejected (`INVALID_INDEX`), no store write",
+          "result": "pass",
+          "evidence": "tests 'n = \"abc\" is rejected as INVALID_INDEX' and 'n = \"1.5\" is rejected as INVALID_INDEX' → both exit 1, stderr 'not a valid index', store unchanged"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "src/commands/done.js", "change": "created" },
+    { "path": "test/commands/done.test.js", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "TASK-003's shared TodoStoreRepository (src/store.js) does not exist on disk despite the task board marking TASK-003 done — the scope contract's allowed_file_substrate for this scope is limited to src/commands/done.js and its test, with no shared store module in scope, so load()/save() are implemented self-contained inside done.js (temp-file+rename write, ENOENT->empty list, JSON.parse/shape failure->StoreCorruptedError) directly against contracts/todo-store.contract.md rather than requiring a separate repository file.",
+    "done.js exports an async run(args, {cwd, stdout, stderr}) function rather than reading process.argv directly — argv routing/dispatch is explicitly Non-Go for this task (TASK-008), and no dispatcher exists yet to define a calling convention, so this shape lets a future bin/todo.js pass argv.slice(3) and injectable streams support deterministic testing without spawning a subprocess.",
+    "Confirmation message on success is 'Marked done: [<n>] <text>\\n' to stdout — the use case's Output interface names id/text but ux-behavior.md does not pin an exact string, so this satisfies 'prints confirmation line' without inventing a format the spec constrains elsewhere.",
+    "MISSING_INDEX case (empty args) is validated and covered by a test for completeness (matches ux-behavior.md's Error Catalog and UC-CompleteTodo Step 2) even though it isn't itemized as a boundary-value AC in TASK-006's checklist.",
+    "STORE_CORRUPTED handling is implemented and tested (matches UC-CompleteTodo's Error Cases table and ux-behavior.md) even though it isn't itemized as a boundary-value AC in TASK-006's checklist, since 'validates ... BEFORE any store mutation' and the use case's Steps 3/STORE_CORRUPTED row imply it must not crash or corrupt further."
+  ],
+  "deviations": []
+}

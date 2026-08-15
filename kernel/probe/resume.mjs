@@ -62,7 +62,7 @@ import { runArgs } from "../lib/argv.mjs";
 import { splitFrontmatter } from "../lib/contract.mjs";
 import {
   intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir,
-  orientDir, activeScope, activeOrder, usecasesDir,
+  orientDir, activeScope, activeOrder, usecasesDir, tasksDir,
 } from "../lib/paths.mjs";
 
 /** The run-state values `references/state.md` defines. A typo'd status is a rejection,
@@ -104,6 +104,83 @@ export function parseFrontmatter(text) {
  * @param {string} slug - Feature slug.
  * @returns {boolean} True when all three named artifacts and at least one spike file exist.
  */
+/**
+ * Group the scopes into dependency WAVES: every scope in a wave can be built at the same time,
+ * and no wave contains a scope that depends on one still in flight.
+ *
+ * WHY THIS EXISTS, measured rather than reasoned. BUILD chunked the scopes by a fixed width over
+ * whatever order the directory listing gave — alphabetical. On the criterion-1 run that put
+ * `cli-integration` second, in the first wave, alongside the `foundation` and command scopes its own
+ * contract says it consumes ("replaces foundation's bin/todo.js placeholder", "routes to each command
+ * scope's module"). It burned all three attempts at 0/2 fixtures in round 1 and its leg died in round
+ * 2, so `bin/todo.js` stayed a two-line placeholder and four individually T0-green command modules
+ * were unreachable from the entry point. Five of six scopes went green; the sixth was the one that
+ * had to go last, and it was scheduled second by alphabet.
+ *
+ * THE ORDER IS DERIVED, NEVER DECLARED. Each scope contract names its `tasks`, and each task file
+ * carries `depends_on`. Scope A follows scope B when any task of A depends on a task of B. Nothing
+ * new is authored, and nothing here can disagree with the board — the fan-out was discarding an
+ * ordering its own inputs already hand it.
+ *
+ * NON-REGRESSION IS THE DEFAULT. Any missing or unreadable input — no board, no `tasks` in a
+ * contract, a dependency cycle — falls back to one wave containing everything, which is exactly
+ * today's behavior. A scheduler that refuses to run is worse than one that runs unscheduled.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {Array<{scope_id:string, path:string}>} scopes - The scopes, in their existing order.
+ * @returns {string[][]} Waves of resolved scope paths, dependencies first. Order within a wave is
+ *   the input order, so the result is deterministic.
+ */
+export function scopeWaves(cwd, slug, scopes) {
+  const all = scopes.map((s) => s.path);
+  if (scopes.length < 2) return all.length ? [all] : [];
+
+  // task id → the scope that owns it, from each contract's `tasks` frontmatter list.
+  const owner = new Map();
+  for (const s of scopes) {
+    let tasks = [];
+    try { tasks = parseFrontmatter(readFileSync(s.path, "utf8")).tasks; } catch { tasks = []; }
+    if (!Array.isArray(tasks)) continue;
+    for (const t of tasks) owner.set(String(t).trim(), s.scope_id);
+  }
+  if (!owner.size) return [all];
+
+  // scope → the scopes it depends on, via its tasks' `depends_on`.
+  const deps = new Map(scopes.map((s) => [s.scope_id, new Set()]));
+  let sawEdge = false;
+  const tdir = tasksDir(cwd, slug);
+  let taskFiles = [];
+  try { taskFiles = readdirSync(tdir).filter((f) => /^TASK-[\w.-]+\.md$/i.test(f)); } catch { return [all]; }
+  for (const f of taskFiles) {
+    let fm;
+    try { fm = parseFrontmatter(readFileSync(join(tdir, f), "utf8")); } catch { continue; }
+    const mine = owner.get(String(fm.id ?? "").trim());
+    if (!mine || !Array.isArray(fm.depends_on)) continue;
+    for (const d of fm.depends_on) {
+      const from = owner.get(String(d).trim());
+      if (from && from !== mine) { deps.get(mine).add(from); sawEdge = true; }
+    }
+  }
+  if (!sawEdge) return [all];
+
+  // Kahn, one wave per level. A cycle cannot stall the build: the remainder ships as one wave.
+  const byId = new Map(scopes.map((s) => [s.scope_id, s]));
+  const done = new Set();
+  const waves = [];
+  while (done.size < scopes.length) {
+    const ready = scopes.filter((s) => !done.has(s.scope_id)
+      && [...deps.get(s.scope_id)].every((d) => done.has(d)));
+    if (!ready.length) {
+      waves.push(scopes.filter((s) => !done.has(s.scope_id)).map((s) => s.path));
+      break;
+    }
+    waves.push(ready.map((s) => s.path));
+    for (const s of ready) done.add(s.scope_id);
+  }
+  return waves;
+}
+
 export function hasOrientArtifacts(cwd, slug) {
   const dir = orientDir(cwd, slug);
   if (!existsSync(dir)) return false;
@@ -228,6 +305,9 @@ export function deriveResumeState(cwd, slug) {
     project_profile_path: projectProfile(cwd, slug),
     has_project_profile: existsSync(projectProfile(cwd, slug)),
     scope_files,
+    // The same scopes, grouped so a wave never contains a scope depending on one still in flight.
+    // Additive: a caller that ignores it gets exactly today's behavior.
+    scope_waves: scopeWaves(cwd, slug, scope_files),
     pending_orders: orderFiles.filter((f) => f.endsWith(".json") && !resultFiles.includes(f)),
     eval_rounds_done: resultFiles
       .filter((f) => /^evaluate-r\d+\.json$/.test(f))

@@ -218,6 +218,21 @@ assert `probe t0` finds the verdict and that it landed in the LOCAL tier. Both h
 unit checks for the whole life of the branch while the pair was broken, so a guard that tested either
 alone would have certified it again.
 
+**It was also silently stripping the run key**, which is the part worth dwelling on. `verify t0`
+stamps each trial row with `runIdFromRoot(outDir)`, and the run receipt lives in `.shapeup/<slug>/`.
+Pointed at the committed tier, that lookup found no receipt and returned nothing:
+
+```
+before the fix (committed tier):  run_id: undefined
+after  the fix (local tier):      run_id: "todo-cli-20260815T152011Z-1a6a2efb"
+```
+
+Guard #53 exists for exactly this — *"every record carries the run key; `order_id` alone collides
+across runs"* — and it passed the whole time, because it checks the writer against a fixture whose
+root is correct. One wrong default made every trial row in every real run unattributable to the run
+that produced it, and the guard written to prevent that could not see it. A check that supplies the
+input it is verifying is testing its own assumption.
+
 All three were found the same way everything real in this document was found: by executing the thing.
 
 The failed run is kept, not discarded — `traces/phase2-criterion1/headless-attempt1-build-never-dispatched/`

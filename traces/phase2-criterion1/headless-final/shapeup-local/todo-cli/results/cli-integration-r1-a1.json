@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/cli-integration-r1-a1",
+  "worker": "task-executor",
+  "status": "escalated",
+  "task_results": [
+    {
+      "task_id": "TASK-008",
+      "status": "failed",
+      "ac_results": [
+        {
+          "ac": "`bin/todo.js` routes `argv[2] === \"add\"` → `commands/add.js`, `\"list\"` → `commands/list.js`,",
+          "result": "fail",
+          "evidence": "find -iname add.js/list.js/done.js/rm.js over the whole repo returns nothing; the repo tree contains only .git, .gitignore, .shapeup, idea.md, shapeup/ — no bin/, src/, or commands/ directory exists at all. None of the four command modules TASK-008 must dispatch to have been built, and commands/*.js is outside this scope's allowed_file_substrate (bin/todo.js, test/cli.test.js, test/integration/cli.test.js), so a working dispatcher cannot be written or verified against real command modules."
+        },
+        {
+          "ac": "The command's own process.exit code (0 or 1) propagates as the CLI's exit code",
+          "result": "skipped",
+          "evidence": "No command module exists to exercise; exit-code propagation cannot be exercised end-to-end."
+        },
+        {
+          "ac": "`node --test test/cli.test.js` (or equivalent, spawning the CLI as a subprocess) passes",
+          "result": "skipped",
+          "evidence": "Not attempted — blocked on missing command modules (see deviations)."
+        },
+        {
+          "ac": "`bin/todo.js` invoked with no subcommand, or an unrecognized one (e.g. `todo frobnicate`),",
+          "result": "skipped",
+          "evidence": "Not attempted — blocked on missing command modules (see deviations)."
+        },
+        {
+          "ac": "No command module is invoked more than once per process run",
+          "result": "skipped",
+          "evidence": "Not attempted — blocked on missing command modules (see deviations)."
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-009",
+      "status": "failed",
+      "ac_results": [
+        {
+          "ac": "`test/integration/cli.test.js` spawns `node bin/todo.js <args>` with `cwd` set to a",
+          "result": "skipped",
+          "evidence": "Not attempted — depends on TASK-008's dispatcher, which is itself blocked (see deviations)."
+        },
+        {
+          "ac": "`node --test test/integration/cli.test.js` passes",
+          "result": "skipped",
+          "evidence": "Not attempted — blocked."
+        },
+        {
+          "ac": "Full round-trip: `add` → `list` shows the item pending → `done 1` → `list` shows it done →",
+          "result": "skipped",
+          "evidence": "Not attempted — none of add/list/done/rm command modules exist yet."
+        },
+        {
+          "ac": "Missing store file: `list` on a fresh temp dir exits 0 with the empty message, does not",
+          "result": "skipped",
+          "evidence": "Not attempted — `list` command module does not exist yet."
+        },
+        {
+          "ac": "Corrupted store file: write `not json {{{` to `./.todo.json` in the temp dir, then run any",
+          "result": "skipped",
+          "evidence": "Not attempted — blocked."
+        }
+      ]
+    }
+  ],
+  "files_touched": [],
+  "discoveries": [],
+  "assumptions": [],
+  "deviations": [
+    "ESCALATE substrate-expansion [TASK-008, TASK-009]\nAre TASK-004..007 (commands/add.js, list.js, done.js, rm.js) built yet anywhere in the repo, and if not, has this scope's round been dispatched before its dependency scopes completed?\nCurrent repo state (checked via `find` over the whole tree, excluding .git/.shapeup) contains zero source files: no bin/, src/, or commands/ directory exists at all — only .gitignore, idea.md, and the shapeup/ spec tree. TASK-008 depends on TASK-004, TASK-005, TASK-006, TASK-007 (the four command modules), none of which exist. commands/*.js is outside this scope's allowed_file_substrate (bin/todo.js, test/cli.test.js, test/integration/cli.test.js, .shapeup/todo-cli/spikes/**), so this worker cannot create them even as a workaround. Until the add-todo, list-todos, complete-todo, remove-todo, and foundation scopes have actually landed real files in the repo, TASK-008's dispatcher and TASK-009's integration test have nothing real to route to or exercise."
+  ]
+}

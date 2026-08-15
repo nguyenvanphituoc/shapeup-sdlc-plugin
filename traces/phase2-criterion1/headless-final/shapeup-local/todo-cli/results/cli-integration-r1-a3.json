@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/cli-integration-r1-a3",
+  "worker": "task-executor",
+  "status": "escalated",
+  "task_results": [
+    {
+      "task_id": "TASK-008",
+      "status": "failed",
+      "ac_results": [
+        {
+          "ac": "`bin/todo.js` routes `argv[2] === \"add\"` → `commands/add.js`, `\"list\"` → `commands/list.js`,",
+          "result": "fail",
+          "evidence": "As of this attempt only src/commands/done.js exists (find over src/ confirms); src/commands/add.js, list.js, and rm.js still do not exist anywhere in the repo. commands/*.js remains outside this scope's allowed_file_substrate (bin/todo.js, test/cli.test.js, test/integration/cli.test.js), so the dispatcher cannot be wired to the three missing modules."
+        },
+        {
+          "ac": "The command's own process.exit code (0 or 1) propagates as the CLI's exit code",
+          "result": "skipped",
+          "evidence": "Only 1 of 4 command modules exists; propagation cannot be verified end-to-end for the missing add/list/rm paths."
+        },
+        {
+          "ac": "`node --test test/cli.test.js` (or equivalent, spawning the CLI as a subprocess) passes",
+          "result": "skipped",
+          "evidence": "Not attempted — blocked on missing command modules (see deviations)."
+        },
+        {
+          "ac": "`bin/todo.js` invoked with no subcommand, or an unrecognized one (e.g. `todo frobnicate`),",
+          "result": "skipped",
+          "evidence": "Not attempted — blocked on missing command modules (see deviations)."
+        },
+        {
+          "ac": "No command module is invoked more than once per process run",
+          "result": "skipped",
+          "evidence": "Not attempted — blocked on missing command modules (see deviations)."
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-009",
+      "status": "failed",
+      "ac_results": [
+        {
+          "ac": "`test/integration/cli.test.js` spawns `node bin/todo.js <args>` with `cwd` set to a",
+          "result": "skipped",
+          "evidence": "Not attempted — depends on TASK-008's dispatcher, which is itself blocked (see deviations)."
+        },
+        {
+          "ac": "`node --test test/integration/cli.test.js` passes",
+          "result": "skipped",
+          "evidence": "Not attempted — blocked."
+        },
+        {
+          "ac": "Full round-trip: `add` → `list` shows the item pending → `done 1` → `list` shows it done →",
+          "result": "skipped",
+          "evidence": "Not attempted — the round-trip requires add/list/rm, none of which exist yet."
+        },
+        {
+          "ac": "Missing store file: `list` on a fresh temp dir exits 0 with the empty message, does not",
+          "result": "skipped",
+          "evidence": "Not attempted — `list` command module does not exist yet."
+        },
+        {
+          "ac": "Corrupted store file: write `not json {{{` to `./.todo.json` in the temp dir, then run any",
+          "result": "skipped",
+          "evidence": "Not attempted — blocked."
+        }
+      ]
+    }
+  ],
+  "files_touched": [],
+  "discoveries": [],
+  "assumptions": [],
+  "deviations": [
+    "ESCALATE substrate-expansion [TASK-008, TASK-009]\nHave the add-todo, list-todos, and remove-todo scopes been dispatched this round, and when will their commands/*.js output land?\nRepo state this attempt: only src/commands/done.js exists (built by the complete-todo scope); src/commands/add.js, list.js, and rm.js do not exist anywhere in the repo. commands/*.js remains outside this scope's allowed_file_substrate (bin/todo.js, test/cli.test.js, test/integration/cli.test.js), so this worker cannot create the missing modules even provisionally. TASK-008's dispatcher and TASK-009's integration test cannot be built against real command modules for add/list/rm until those sibling scopes land."
+  ]
+}

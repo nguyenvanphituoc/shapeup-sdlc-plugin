@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/add-todo-r1-a1",
+  "worker": "task-executor",
+  "status": "escalated",
+  "task_results": [
+    {
+      "task_id": "TASK-004",
+      "status": "escalated",
+      "ac_results": [
+        {
+          "ac": "`src/commands/add.js` exports a function taking the raw args array and performing UC-AddTodo",
+          "result": "fail",
+          "evidence": "Cannot implement Steps 1-6 (load/addItem/save) without importing src/domain/todo-list.js and src/store.js, neither of which exists on disk (repo is greenfield: `find src` returns nothing) and neither of which is in this order's substrate.allowed (only src/commands/add.js, test/commands/add.test.js, .shapeup/todo-cli/spikes/**)."
+        },
+        {
+          "ac": "`node --test test/commands/add.test.js` passes",
+          "result": "fail",
+          "evidence": "Not run: add.js cannot be written correctly without its dependencies, so any test file would fail on `require`/`import` of missing modules."
+        }
+      ]
+    }
+  ],
+  "files_touched": [],
+  "discoveries": [],
+  "assumptions": [
+    "Verified via `find` that the repo has no src/, bin/, or package.json anywhere on disk despite TASK-002/TASK-003/TASK-004 frontmatter and a stale 'Execution Log' block in TASK-004-add-command.md claiming status: done — treated the actual filesystem as ground truth over that stale doc text, per the zero-memory rule (nothing in this order's payload.decisions or payload.trial_history corroborates prior completion)."
+  ],
+  "deviations": [
+    "ESCALATE substrate-expansion [TASK-004, both ACs]\nCan the foundation scope (src/domain/todo-list.js, src/store.js — TASK-002/TASK-003) be built and merged before add-todo is re-dispatched, or should this order's substrate be expanded to include those two files?\nThis order's substrate.allowed is only src/commands/add.js, test/commands/add.test.js, and .shapeup/todo-cli/spikes/**. UC-AddTodo Steps 1-6 require loading/saving via src/store.js and mutating state via src/domain/todo-list.js's addItem, but neither file exists on disk (confirmed via `find src -type f` = empty) and neither is in my substrate — I cannot create them without the sandbox hook blocking the write, and even if I could, foundation.md declares those files frozen/owned by the foundation scope, not add-todo. A separate compiled order exists at .shapeup/todo-cli/orders/foundation-r1-a1.json but no matching result/artifact was found, so foundation's build status is unknown to me. No AC can pass until this dependency is resolved."
+  ]
+}

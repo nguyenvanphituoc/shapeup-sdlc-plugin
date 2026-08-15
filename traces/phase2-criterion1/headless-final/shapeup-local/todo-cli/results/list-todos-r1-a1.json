@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/list-todos-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-005",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`src/commands/list.js` exports a function that loads the store, and for each item prints",
+          "result": "pass",
+          "evidence": "src/commands/list.js run(): loadStore() then list.items.forEach printing `[${idx+1}] [${marker}] ${item.text}\\n`, exit 0; test 'lists two items with correct 1-based indices and done markers, exit code 0' → out[0]='[1] [ ] first\\n', out[1]='[2] [x] second\\n'"
+        },
+        {
+          "ac": "`node --test test/commands/list.test.js` passes",
+          "result": "pass",
+          "evidence": "node --test test/commands/list.test.js → tests 6, pass 6, fail 0"
+        },
+        {
+          "ac": "Empty list (missing file or `items: []`): prints an explicit non-blank \"no todos yet\"-style",
+          "result": "pass",
+          "evidence": "tests 'missing store file prints explicit \"no todos yet\" message, exit code 0' and 'empty items array prints explicit \"no todos yet\" message, exit code 0' → both exit 0, stdout 'no todos yet\\n' (non-blank)"
+        },
+        {
+          "ac": "`STORE_CORRUPTED`: stderr message, no stack trace, exit code 1 (does not fall through to",
+          "result": "pass",
+          "evidence": "tests 'corrupted store file is rejected with STORE_CORRUPTED, no stack trace leaked to stdout, exit code 1' and 'wrong-shape store file is rejected with STORE_CORRUPTED, exit code 1' → exit 1, stderr matches /store file is corrupted/, no stack-trace pattern (/at Object|\\.js:\\d+/) in stderr, stdout empty (does not fall through to the empty-list message)"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "src/commands/list.js", "change": "created" },
+    { "path": "test/commands/list.test.js", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "TASK-003's shared TodoStoreRepository (src/store.js) exists on disk but this scope's allowed_file_substrate is limited to src/commands/list.js and its test, with no shared store module in scope, so load() is implemented self-contained inside list.js (ENOENT->empty list, JSON.parse/shape failure->StoreCorruptedError) directly against contracts/todo-store.contract.md, matching the precedent already set in src/commands/done.js.",
+    "list.js exports an async run(args, {cwd, stdout, stderr}) function rather than reading process.argv directly — argv routing/dispatch is Non-Go for this task (TASK-008) — matching done.js's calling convention so bin/todo.js can dispatch to it uniformly.",
+    "Done marker is rendered as `[x]` for done and `[ ]` (single space) for not-done, per RULE-03's `[x|  ] <text>` pattern and UC-ListTodos Step 3's `[i] [x|  ] <text>` format.",
+    "The empty-list message text is exactly 'no todos yet' (lowercase, no trailing punctuation) — the spec only constrains it as a \"no todos yet\"-style, explicit, non-blank message; no exact string is pinned elsewhere.",
+    "Wrong-shape (parses as JSON but fails isValidShape) is treated identically to unparseable JSON as STORE_CORRUPTED, per UC-ListTodos Step 1 ('SyntaxError/shape → StoreCorruptedError') and covered by an added test even though only the unparseable case is itemized as a boundary case in TASK-005's checklist."
+  ],
+  "deviations": []
+}

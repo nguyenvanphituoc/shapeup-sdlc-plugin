@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/wire",
+  "worker": "solution-architect",
+  "status": "done",
+  "artifacts": [
+    "shapeup/todo-cli/wiring-map.md"
+  ],
+  "assumptions": [
+    "Engine module paths (commands/add.js, commands/list.js, commands/done.js, commands/rm.js, lib/todo-list.js, lib/todo-store.js) are inferred from the domain-model's repository interface, the todo-store contract, and each use case's 'System Flow' section (which already names bin/todo.js, commands/<name>.js, and ./.todo.json) — the repo is greenfield so no code exists yet to confirm against.",
+    "lib/todo-store.js and lib/todo-list.js are treated as shared engine dependencies (not per-UC engines) since all four use cases operate on the same TodoStoreRepository and TodoList aggregate; each UC's distinct engine is its commands/<name>.js handler."
+  ],
+  "deviations": []
+}

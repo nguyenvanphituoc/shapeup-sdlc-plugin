@@ -149,6 +149,8 @@ const RESUME = {
     has_wiring_map: { type: "boolean" },
     has_project_profile: { type: "boolean" },
     scope_files: { type: "array", items: { type: "string" } },
+    // Additive: the same scopes grouped into dependency waves. Absent or unusable → one wave.
+    scope_waves: { type: "array", items: { type: "array", items: { type: "string" } } },
     eval_rounds_done: { type: "array", items: { type: "integer" } },
     next_phase: nullable("string"),
   },
@@ -586,6 +588,7 @@ if (!rs.has_wiring_map) {
 // ---- MAP SCOPES + GATE L1b --------------------------------------------------------------------
 phase("MapScopes");
 let scopes = (rs.scope_files || []).map((p) => ({ path: p, scope_id: p.split("/").pop().replace(/\.(md|json)$/, "") }));
+const mappedThisRun = scopes.length === 0;
 if (scopes.length === 0) {
   log(`MAP SCOPES — dispatching (slug ${slug})`);
   const m = await worker({
@@ -601,6 +604,34 @@ if (scopes.length === 0) {
 } else {
   log(`MAP SCOPES — ${scopes.length} scope contract(s) already on disk, fast-forwarding past it`);
 }
+
+// DEPENDENCY WAVES — a wave never contains a scope that depends on one still in flight.
+//
+// The fan-out used to chunk scopes by a fixed width over the directory's alphabetical order. On the
+// criterion-1 run that scheduled `cli-integration` — the scope that wires every other scope's module
+// to the entry point — SECOND, beside the very scopes it consumes. It failed both rounds, and its
+// failure was the whole of the run's failure: five of six scopes went green, `bin/todo.js` stayed a
+// placeholder, and four individually T0-green command modules were unreachable.
+//
+// The order is derived by the kernel from the contracts' `tasks` and the board's `depends_on`, so
+// nothing here declares it. Concurrency is unchanged WITHIN a wave — the todo-cli feature still
+// fans out four scopes at once — it is only forbidden ACROSS a dependency edge.
+const wavesFrom = (raw, list) => {
+  const byId = new Map(list.map((s) => [s.scope_id, s]));
+  const idOf = (p) => String(p).split("/").pop().replace(/\.(md|json)$/, "");
+  const w = (raw || []).map((g) => g.map((p) => byId.get(idOf(p))).filter(Boolean)).filter((g) => g.length);
+  // Every scope must appear exactly once, or the grouping is not trustworthy and one wave — today's
+  // behavior — is the safe answer. A scheduler that drops a scope is worse than an unscheduled one.
+  return w.length && w.reduce((a, g) => a + g.length, 0) === list.length ? w : [list];
+};
+let waves = wavesFrom(rs.scope_waves, scopes);
+if (mappedThisRun && scopes.length > 1) {
+  // The contracts were written THIS run, so the state probed before MAP SCOPES could not have seen
+  // them. One cheap re-derivation, on the fresh-run path only.
+  const rs2 = await query(`probe resume --slug ${slug}`, RESUME, "MapScopes", "scope-waves");
+  if (rs2?.scope_waves?.length) waves = wavesFrom(rs2.scope_waves, scopes);
+}
+if (waves.length > 1) log(`BUILD order — ${waves.length} dependency wave(s): ${waves.map((w) => w.map((s) => s.scope_id).join("+")).join(" → ")}`);
 
 // Advisory lints at L1b. spec-lint is hard — a substrate overlap makes parallel builds unsafe;
 // trace-lint stays advisory until `covers:` is populated; hill-derive is a projection.
@@ -673,7 +704,7 @@ while (round <= maxRounds) {
   // run that is every scope, so the round ended with 0 green and 6 queued, the inner breaker tripped
   // and the run returned `gate_h` having dispatched no builder at all. BUILD could never dispatch;
   // the failure looked exactly like six genuinely hard scopes.
-  for (const group of chunk(scopes, maxParallelScopes)) {
+  for (const group of waves.flatMap((w) => chunk(w, maxParallelScopes))) {
     const settled = await pipeline(
       group,
       async (scope) => (alreadyGreen.has(scope.scope_id)

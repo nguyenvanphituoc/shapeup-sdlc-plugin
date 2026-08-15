@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/add-todo-r2-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-004",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`src/commands/add.js` exports a function taking the raw args array and performing UC-AddTodo",
+          "result": "pass",
+          "evidence": "src/commands/add.js exports `run(args, options)`: joins+trims args (Step 1), validates non-empty else stderr 'todo add: text is required' + exit 1 (Step 2, MISSING_TEXT), loads the store via a self-contained loadStore (ENOENT -> empty list, JSON.parse/shape errors -> StoreCorruptedError -> stderr + exit 1, Step 3), calls domain's addItem (Step 4), atomically saves via temp-file+rename (Step 5), writes 'Added: [<id>] <text>' to stdout and returns 0 (Step 6). Manually verified with node --test test/commands/add.test.js 'add a valid item on an empty/missing store' case: exit 0, stdout matches /Buy milk/, ./.todo.json contains one item {text:'Buy milk', done:false}."
+        },
+        {
+          "ac": "`node --test test/commands/add.test.js` passes",
+          "result": "pass",
+          "evidence": "node --test test/commands/add.test.js -> tests 7, pass 7, fail 0 (valid add on empty/missing store, append to existing store, missing-args rejection, whitespace-only rejection, whitespace-only leaves existing store unchanged, corrupted-store rejection with no stdout leak, id-never-reused after removal)."
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "src/commands/add.js", "change": "created" },
+    { "path": "test/commands/add.test.js", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "Followed the file-local store I/O pattern already established by src/commands/done.js and src/commands/rm.js (each command duplicates a small loadStore/saveStore instead of importing the shared src/store.js) since this scope's allowed_file_substrate is only src/commands/add.js + its test — src/store.js is not in it, and the scope doc's own wording ('reads and calls foundation's ... store.js#save') is satisfied at the domain-model level (same store format, same contract) without a cross-scope write dependency.",
+    "Confirmation message format 'Added: [<id>] <text>' chosen to mirror done.js's 'Marked done: [<n>] <text>' and rm.js's 'Removed: [<n>] <text>' sibling commands for stdout consistency; the AC only requires 'stdout confirms the addition'."
+  ],
+  "deviations": []
+}

@@ -442,8 +442,25 @@ fails for a reason nothing about it caused, and is paid for again.
 Worth stating plainly because Phase 3's "done when" was *"a 3-scope feature builds with ≥2 scopes
 concurrently, board/ledger uncorrupted"* — and by that bar this run passes. Concurrency works and
 nothing corrupted. What the bar did not ask is whether the concurrency was *scheduled*, and it is
-not. Candidate raw idea: topologically order scopes by declared dependency before chunking, so a wave
-never contains a scope that depends on one still in flight.
+not.
+
+**Upgraded from a cost finding to the proven cause of criterion 1's failure.** `cli-integration` is
+alphabetically second, so `chunk(scopes, maxParallelScopes)` placed it in the first wave in BOTH
+rounds, alongside the very scopes it consumes:
+
+```
+r1  3 attempts, 0/2 fixtures each   attempt budget exhausted
+r2  order compiled, no result       the leg died
+```
+
+Five of six scopes went green; the sixth is the one that had to go last and was scheduled second by
+alphabet. Its failure is the whole of Block C: `bin/todo.js` stayed a two-line placeholder, so four
+individually T0-green command modules are unreachable, and the evaluator said exactly that, cited —
+*"`src/commands/list.js:74` has no call site"*, *"`src/store.js:74` has zero production call sites"*.
+
+The ordering is derivable from artifacts already on disk: each scope contract names its `tasks`, and
+the board's task files carry `depends_on`. Scope A follows scope B when any of A's tasks depends on
+one of B's. The fan-out discards an ordering its own inputs hand it for free.
 
 **F5 — a killed phase leaves a live order, and a live order is a live substrate.** After F1's kill,
 `probe resume` reported `pending_orders: ["analyze.json"]` for the rest of the run: an order compiled,

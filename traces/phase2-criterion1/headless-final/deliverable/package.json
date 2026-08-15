@@ -1,0 +1,8 @@
+{
+  "name": "todo-cli",
+  "version": "0.1.0",
+  "type": "commonjs",
+  "bin": {
+    "todo": "./bin/todo.js"
+  }
+}

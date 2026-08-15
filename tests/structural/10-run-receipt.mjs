@@ -7,7 +7,7 @@
 // run. So the checks here are written against that transcript, not against the happy path. The
 // question each one answers is "would this have caught THAT?".
 import { existsSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 
@@ -637,6 +637,89 @@ export async function run(ctx) {
     ok("only dispatch-receipt rows count as evidence — another hook's row is not proof of resolution");
   } else {
     fail("any hook's row satisfies verify dispatch, so the evidence is not specific to a dispatch");
+  }
+
+  // =============================================================================
+  section("59. BUILD's fan-out is ordered by declared dependency, not by the alphabet");
+  // =============================================================================
+  // WHAT THIS COSTS WHEN IT IS WRONG, measured on a live criterion-1 run. The fan-out chunked scopes
+  // by a fixed width over the directory's alphabetical order, which put `cli-integration` — the scope
+  // whose own contract says it replaces the placeholder entry point and routes to every command
+  // scope's module — SECOND, in the first wave, beside the scopes it consumes. It burned all three
+  // attempts at 0/2 fixtures in round 1 and its leg died in round 2. Five of six scopes went green;
+  // the sixth was the one that had to go last, and its failure was the whole of the run's failure:
+  // `bin/todo.js` stayed a two-line placeholder and four individually T0-green command modules were
+  // unreachable from the entry point.
+  //
+  // The check builds the shape that failed — a scope alphabetically FIRST that must run LAST — so it
+  // cannot pass on an implementation that merely sorts.
+  const { scopeWaves } = await import(join(ROOT, "kernel/probe/resume.mjs"));
+  const waveBox = mkdtempSync(join(tmpdir(), "scope-waves-"));
+  try {
+    const put = (rel, body) => { mkdirSync(dirname(join(waveBox, rel)), { recursive: true }); writeFileSync(join(waveBox, rel), body); };
+    const contract = (id, tasks) => [
+      "---", `scope_id: ${id}`, "topology_type: LAYER_CAKE", `tasks: [${tasks.join(", ")}]`,
+      "allowed_file_substrate: [src/x.js]", "hill_phase: UPHILL_UNKNOWN", "---", "", `# Scope: ${id}`, "",
+    ].join("\n");
+    const task = (id, deps) => [
+      "---", `id: ${id}`, "title: t", "status: ready", "priority: 1",
+      `depends_on: [${deps.join(", ")}]`, "---", "", "- [ ] does the thing", "",
+    ].join("\n");
+    // `aaa-wiring` sorts FIRST and depends on everything; `zzz-core` sorts LAST and depends on nothing.
+    put("shapeup/demo/scopes/aaa-wiring.md", contract("aaa-wiring", ["TASK-003"]));
+    put("shapeup/demo/scopes/mmm-feature.md", contract("mmm-feature", ["TASK-002"]));
+    put("shapeup/demo/scopes/zzz-core.md", contract("zzz-core", ["TASK-001"]));
+    put(".shapeup/demo/tasks/TASK-001-core.md", task("TASK-001", []));
+    put(".shapeup/demo/tasks/TASK-002-feature.md", task("TASK-002", ["TASK-001"]));
+    put(".shapeup/demo/tasks/TASK-003-wiring.md", task("TASK-003", ["TASK-002"]));
+
+    const sdir = join(waveBox, "shapeup/demo/scopes");
+    const scopes = ["aaa-wiring", "mmm-feature", "zzz-core"].map((id) => ({ scope_id: id, path: join(sdir, `${id}.md`) }));
+    const waves = scopeWaves(waveBox, "demo", scopes).map((w) => w.map((p) => p.split("/").pop().replace(".md", "")));
+    if (JSON.stringify(waves) === JSON.stringify([["zzz-core"], ["mmm-feature"], ["aaa-wiring"]])) {
+      ok("scope waves follow declared dependencies — the alphabetically-first scope that must run last is scheduled last");
+    } else {
+      fail(`the fan-out is not dependency-ordered: got ${JSON.stringify(waves)}, expected [[zzz-core],[mmm-feature],[aaa-wiring]]. ` +
+        `A scope built beside the scopes it consumes fails for a reason nothing about it caused, and burns its attempt budget doing it.`);
+    }
+
+    // Independence must still fan out. The fixture deliberately carries a real dependency edge AND
+    // a pair of siblings, because a tree with NO edges short-circuits before the wave loop — so a
+    // fixture without one would pass against an implementation that emits scopes one at a time.
+    const flat = mkdtempSync(join(tmpdir(), "scope-flat-"));
+    try {
+      const putf = (rel, body) => { mkdirSync(dirname(join(flat, rel)), { recursive: true }); writeFileSync(join(flat, rel), body); };
+      putf("shapeup/demo/scopes/core.md", contract("core", ["TASK-001"]));
+      putf("shapeup/demo/scopes/a.md", contract("a", ["TASK-002"]));
+      putf("shapeup/demo/scopes/b.md", contract("b", ["TASK-003"]));
+      putf(".shapeup/demo/tasks/TASK-001-core.md", task("TASK-001", []));
+      putf(".shapeup/demo/tasks/TASK-002-a.md", task("TASK-002", ["TASK-001"]));
+      putf(".shapeup/demo/tasks/TASK-003-b.md", task("TASK-003", ["TASK-001"]));
+      const fdir = join(flat, "shapeup/demo/scopes");
+      const fw = scopeWaves(flat, "demo", ["core", "a", "b"].map((id) => ({ scope_id: id, path: join(fdir, `${id}.md`) })));
+      const shape = fw.map((w) => w.length);
+      if (JSON.stringify(shape) === JSON.stringify([1, 2])) {
+        ok("siblings sharing a dependency ride the SAME wave — ordering constrains dependency edges, never concurrency");
+      } else {
+        fail(`two independent siblings were split across waves (shape ${JSON.stringify(shape)}, expected [1,2]) — ` +
+          `the fan-out has been serialised for no reason, which costs wall-clock on every round`);
+      }
+    } finally { rmSync(flat, { recursive: true, force: true }); }
+
+    // Non-regression: no board at all → one wave, exactly today's behavior. A scheduler that
+    // refuses to run is worse than one that runs unscheduled.
+    const bare = mkdtempSync(join(tmpdir(), "scope-bare-"));
+    try {
+      mkdirSync(join(bare, "shapeup/demo/scopes"), { recursive: true });
+      writeFileSync(join(bare, "shapeup/demo/scopes/only.md"), contract("only", ["TASK-001"]));
+      writeFileSync(join(bare, "shapeup/demo/scopes/other.md"), contract("other", ["TASK-002"]));
+      const bdir = join(bare, "shapeup/demo/scopes");
+      const bw = scopeWaves(bare, "demo", ["only", "other"].map((id) => ({ scope_id: id, path: join(bdir, `${id}.md`) })));
+      if (bw.length === 1 && bw[0].length === 2) ok("a tree with no board falls back to one wave — the ordering is additive, never a precondition");
+      else fail(`a boardless tree produced ${bw.length} wave(s) instead of falling back`);
+    } finally { rmSync(bare, { recursive: true, force: true }); }
+  } finally {
+    rmSync(waveBox, { recursive: true, force: true });
   }
 
   for (const dir of [brokenRoot, l0box, stampBox]) rmSync(dir, { recursive: true, force: true });

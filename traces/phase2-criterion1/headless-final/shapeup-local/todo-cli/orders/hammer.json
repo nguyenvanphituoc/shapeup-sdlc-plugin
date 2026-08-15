@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/hammer",
+  "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+  "compiled_at": "2026-08-15T15:54:28.332Z",
+  "worker": "scope-hammer",
+  "mode": "orchestrated",
+  "operation": "hammer",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "shapeup/todo-cli/REPORT.md",
+      ".shapeup/todo-cli/reports/**"
+    ]
+  },
+  "payload": {
+    "feature": "todo-cli",
+    "breaker": "inner",
+    "hammer_proposals": [
+      "foundation",
+      "add-todo",
+      "list-todos",
+      "complete-todo",
+      "remove-todo",
+      "cli-integration"
+    ],
+    "green_scopes": [],
+    "spec_folder": "shapeup/todo-cli/spec"
+  }
+}

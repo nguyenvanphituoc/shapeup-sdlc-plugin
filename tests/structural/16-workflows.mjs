@@ -505,6 +505,26 @@ export async function run(ctx) {
     }
   }
 
+  // (m) THE BUILD LOOP MUST CONSUME THE DEPENDENCY WAVES, not the flat scope list.
+  //
+  // The kernel deriving a correct order buys nothing if the orchestrator chunks around it, and that
+  // is a one-token regression: `chunk(waves.flatMap(…))` back to `chunk(scopes, …)` restores the
+  // exact scheduling that made criterion 1 fail, with the kernel still cheerfully computing waves
+  // nobody reads.
+  for (const f of files) {
+    const src = readFileSync(join(abs, f), "utf8");
+    if (!/\bmaxParallelScopes\b/.test(src)) continue;
+    const usesWaves = /for \(const group of waves\.flatMap\(/.test(src);
+    const flatChunk = /for \(const group of chunk\(scopes,/.test(src);
+    if (usesWaves && !flatChunk) {
+      ok(`${WORKFLOWS_DIR}/${f} builds from dependency waves, so a scope is never built beside one it consumes`);
+    } else {
+      fail(`${WORKFLOWS_DIR}/${f} chunks the flat scope list instead of the dependency waves. ` +
+        `A scope built alongside the scopes it depends on fails for a reason nothing about it caused and burns ` +
+        `its attempt budget doing so — measured: it cost criterion 1 an entire run.`);
+    }
+  }
+
   // (k) EVERY OPERATION THE SCRIPT DISPATCHES MUST BE ONE `compile` CAN RESOLVE A WORKER FOR.
   //
   // Found by executing a real run, not by reading. `worker()` builds every leg's step 1 as

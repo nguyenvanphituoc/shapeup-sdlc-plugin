@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/foundation-r2-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-001",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`package.json` created at repo root with `name`, `version`, `type: \"commonjs\"` (or `module` —",
+          "result": "pass",
+          "evidence": "package.json at repo root: name \"todo-cli\", version \"0.1.0\", type \"commonjs\", bin: { \"todo\": \"./bin/todo.js\" }"
+        },
+        {
+          "ac": "`bin/todo.js` exists as a placeholder file with a `#!/usr/bin/env node` shebang and is",
+          "result": "pass",
+          "evidence": "bin/todo.js exists, first line `#!/usr/bin/env node`"
+        },
+        {
+          "ac": "`node bin/todo.js` runs without a Node syntax error (no commands implemented yet is fine)",
+          "result": "pass",
+          "evidence": "`node bin/todo.js` → exit=0"
+        },
+        {
+          "ac": "No runtime dependencies added — `package.json` has no `dependencies` field (or an empty one),",
+          "result": "pass",
+          "evidence": "package.json has no `dependencies` field"
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-002",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`src/domain/todo-list.js` exports functions/class implementing:",
+          "result": "pass",
+          "evidence": "src/domain/todo-list.js exports createEmpty, addItem, completeAt, removeAt with monotonic nextId that never decreases or is reused"
+        },
+        {
+          "ac": "A unit test file (e.g. `test/domain/todo-list.test.js`) exercises: add assigns increasing",
+          "result": "pass",
+          "evidence": "test/domain/todo-list.test.js covers increasing ids, idempotent complete, no id reuse on remove"
+        },
+        {
+          "ac": "`node --test test/domain/todo-list.test.js` (or the project's chosen test runner) passes",
+          "result": "pass",
+          "evidence": "`node --test test/domain/todo-list.test.js` → 9 pass, 0 fail"
+        },
+        {
+          "ac": "`completeAt`/`removeAt` at index 1 (first item) and index `items.length` (last item) both",
+          "result": "pass",
+          "evidence": "Dedicated boundary-index tests pass for both completeAt and removeAt at index 1 and index items.length"
+        },
+        {
+          "ac": "`addItem` on an empty list assigns id `1`",
+          "result": "pass",
+          "evidence": "test 'addItem on an empty list assigns id 1' passes"
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-003",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`src/store.js` exports `load()` and `save(list)` per the contract's method signatures",
+          "result": "pass",
+          "evidence": "src/store.js exports load() and save(list) matching the contract signatures"
+        },
+        {
+          "ac": "`save(list)` writes to `./.todo.json.tmp` via `fs.writeFileSync`, then renames to",
+          "result": "pass",
+          "evidence": "save() writes to ./.todo.json.tmp then fs.renameSync to ./.todo.json; round-trip test confirms tmp file absent afterward"
+        },
+        {
+          "ac": "`load()` on a missing file (`err.code === 'ENOENT'`) returns `{ nextId: 1, items: [] }` —",
+          "result": "pass",
+          "evidence": "load() checks err.code === 'ENOENT' and returns { nextId: 1, items: [] }"
+        },
+        {
+          "ac": "`load()` on a file that exists but fails `JSON.parse` (catches `SyntaxError`) throws/returns",
+          "result": "pass",
+          "evidence": "load() catches SyntaxError and throws StoreCorruptedError; covered by test"
+        },
+        {
+          "ac": "`load()` on a file that parses but has the wrong shape (`items` not an array, or an item",
+          "result": "pass",
+          "evidence": "isValidShape() rejects non-array items and items missing id/text; covered by two dedicated tests"
+        },
+        {
+          "ac": "`node --test test/store.test.js` (or equivalent) passes, covering: missing file → empty",
+          "result": "pass",
+          "evidence": "`node --test test/store.test.js` → 6 pass, 0 fail"
+        },
+        {
+          "ac": "`load()` on a missing file returns `{ nextId: 1, items: [] }`, never `null` and never throws",
+          "result": "pass",
+          "evidence": "test asserts result !== null, deepEqual { nextId: 1, items: [] }, doesNotThrow(() => store.load())"
+        },
+        {
+          "ac": "`load()` on a store with `items: []` (valid empty JSON) returns that empty list, not an error",
+          "result": "pass",
+          "evidence": "test 'load() on a store with items: [] (valid empty JSON) returns that empty list, not an error' passes"
+        }
+      ]
+    }
+  ],
+  "files_touched": [],
+  "discoveries": [],
+  "assumptions": [
+    "All foundation substrate files (package.json, bin/todo.js, src/domain/todo-list.js, src/store.js, test/domain/todo-list.test.js, test/store.test.js) already existed on disk from a prior attempt and already satisfied every AC — re-verified in place, nothing rewritten"
+  ],
+  "deviations": []
+}

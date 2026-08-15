@@ -1,0 +1,46 @@
+{
+  "receipt_version": 1,
+  "type": "harness-run-receipt",
+  "slug": "todo-cli",
+  "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+  "started_at": "2026-08-15T15:20:11.663Z",
+  "intake_sha256": "c00ef2138131c2b3ef2a4de080c4cb308354a2a8d54c2bd958a6f935774d893f",
+  "intake_chars": 758,
+  "intake_lines": 22,
+  "started": true,
+  "plugin": {
+    "name": "shapeup-sdlc-plugin",
+    "version": "2.0.0",
+    "root": "/Volumes/LibertyMobi/workspace/proj-harness-plugin"
+  },
+  "config": {
+    "auto_level": "unattended",
+    "lens": "standard",
+    "eval_dimensions": [
+      "spec-conformance"
+    ],
+    "max_rounds": 2,
+    "attempt_budget": 3,
+    "spec_folder": "shapeup/todo-cli/spec/",
+    "gate_answers": "ci",
+    "tiny_lane": false,
+    "fit": {
+      "lane": "full",
+      "confidence": "clear",
+      "reasons": [
+        "✗ tree has 0 source file(s) (tiny needs 1–10)",
+        "✓ intake is 758 chars (tiny needs ≤1500)",
+        "✓ intake names ~0 deliverable(s) (tiny needs ≤2)",
+        "✗ 1 breadth signal(s) present"
+      ],
+      "signals": {
+        "tree_source_files": 0,
+        "intake_chars": 758,
+        "deliverable_mentions": 0,
+        "breadth_signals": 1
+      },
+      "calibration": "advisory — thresholds are coarse and `full` is the default; the PO may override with --lane"
+    },
+    "wall_clock_budget_s": null
+  }
+}

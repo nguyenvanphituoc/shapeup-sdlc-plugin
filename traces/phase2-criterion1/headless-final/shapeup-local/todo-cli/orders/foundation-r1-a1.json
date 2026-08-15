@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/foundation-r1-a1",
+  "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+  "compiled_at": "2026-08-15T16:34:41.764Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "package.json",
+      "bin/todo.js",
+      "src/domain/todo-list.js",
+      "src/store.js",
+      "test/domain/todo-list.test.js",
+      "test/store.test.js",
+      ".shapeup/todo-cli/spikes/**"
+    ],
+    "shared": [
+      "bin/todo.js"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "foundation",
+      "topology_type": "ICEBERG",
+      "tasks": [
+        "TASK-001",
+        "TASK-002",
+        "TASK-003"
+      ],
+      "allowed_file_substrate": [
+        "package.json",
+        "bin/todo.js",
+        "src/domain/todo-list.js",
+        "src/store.js",
+        "test/domain/todo-list.test.js",
+        "test/store.test.js"
+      ],
+      "shared_substrate": [
+        "bin/todo.js"
+      ],
+      "e2e_verification_fixtures": [
+        "node --test test/domain/todo-list.test.js",
+        "node --test test/store.test.js"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN"
+    },
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "title": "Scaffold package.json with a `todo` bin entry",
+        "status": "done",
+        "priority": 1,
+        "depends_on": [],
+        "use_case_refs": [
+          "UC-AddTodo",
+          "UC-ListTodos",
+          "UC-CompleteTodo",
+          "UC-RemoveTodo"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-headless/.shapeup/todo-cli/tasks/TASK-001-project-scaffolding.md",
+        "acceptance_criteria": [
+          "`package.json` created at repo root with `name`, `version`, `type: \"commonjs\"` (or `module` —",
+          "`bin/todo.js` exists as a placeholder file with a `#!/usr/bin/env node` shebang and is",
+          "`node bin/todo.js` runs without a Node syntax error (no commands implemented yet is fine)",
+          "No runtime dependencies added — `package.json` has no `dependencies` field (or an empty one),"
+        ]
+      },
+      {
+        "id": "TASK-002",
+        "title": "Implement TodoList domain module (add/complete/remove, in-memory)",
+        "status": "done",
+        "priority": 2,
+        "depends_on": [
+          "TASK-001"
+        ],
+        "use_case_refs": [
+          "UC-AddTodo",
+          "UC-CompleteTodo",
+          "UC-RemoveTodo"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-headless/.shapeup/todo-cli/tasks/TASK-002-domain-types.md",
+        "acceptance_criteria": [
+          "`src/domain/todo-list.js` exports functions/class implementing:",
+          "A unit test file (e.g. `test/domain/todo-list.test.js`) exercises: add assigns increasing",
+          "`node --test test/domain/todo-list.test.js` (or the project's chosen test runner) passes",
+          "`completeAt`/`removeAt` at index 1 (first item) and index `items.length` (last item) both",
+          "`addItem` on an empty list assigns id `1`"
+        ]
+      },
+      {
+        "id": "TASK-003",
+        "title": "Implement TodoStoreRepository (JSON file, corruption + missing-file handling, atomic write)",
+        "status": "done",
+        "priority": 3,
+        "depends_on": [
+          "TASK-001",
+          "TASK-002"
+        ],
+        "use_case_refs": [
+          "UC-AddTodo",
+          "UC-ListTodos",
+          "UC-CompleteTodo",
+          "UC-RemoveTodo"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-headless/.shapeup/todo-cli/tasks/TASK-003-store-persistence.md",
+        "acceptance_criteria": [
+          "`src/store.js` exports `load()` and `save(list)` per the contract's method signatures",
+          "`save(list)` writes to `./.todo.json.tmp` via `fs.writeFileSync`, then renames to",
+          "`load()` on a missing file (`err.code === 'ENOENT'`) returns `{ nextId: 1, items: [] }` —",
+          "`load()` on a file that exists but fails `JSON.parse` (catches `SyntaxError`) throws/returns",
+          "`load()` on a file that parses but has the wrong shape (`items` not an array, or an item",
+          "`node --test test/store.test.js` (or equivalent) passes, covering: missing file → empty",
+          "`load()` on a missing file returns `{ nextId: 1, items: [] }`, never `null` and never throws",
+          "`load()` on a store with `items: []` (valid empty JSON) returns that empty list, not an error"
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/todo-cli/spec",
+    "feature": "todo-cli",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

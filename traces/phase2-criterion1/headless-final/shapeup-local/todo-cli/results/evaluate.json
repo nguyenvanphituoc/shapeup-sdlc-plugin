@@ -1,0 +1,262 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/evaluate",
+  "worker": "spec-evaluator",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/todo-cli/evaluation/EVAL-FEATURE-todo-cli.md"
+  ],
+  "verdict": {
+    "overall": "FAIL",
+    "report_path": ".shapeup/todo-cli/evaluation/EVAL-FEATURE-todo-cli.md",
+    "t0_citations": [
+      {
+        "scope_id": "complete-todo",
+        "path": ".shapeup/todo-cli/t0/verdicts/r2-a1-t1.json",
+        "sha256": "599cbd8f8cf698a2d370db1ea2d520247bd468d3362015230f59d89b63ec6176"
+      },
+      {
+        "scope_id": "foundation",
+        "path": ".shapeup/todo-cli/t0/verdicts/r2-a1-t2.json",
+        "sha256": "1f843bed60cb589c21910f81e3a8710742d928748d011495803a6b1cce375534"
+      },
+      {
+        "scope_id": "add-todo",
+        "path": ".shapeup/todo-cli/t0/verdicts/r2-a1-t3.json",
+        "sha256": "78c3f1bc01124deeca445c5563d15fb01a6552652f77edf7d3bcbbc17c10c765"
+      },
+      {
+        "scope_id": "remove-todo",
+        "path": ".shapeup/todo-cli/t0/verdicts/r2-a1-t4.json",
+        "sha256": "2e0a8214fc2a90bff85ebd7b5e3f4853a9169cbf9d72fff3f5f41b1ce52d5e00"
+      },
+      {
+        "scope_id": "cli-integration",
+        "path": ".shapeup/todo-cli/t0/verdicts/r1-a3-t1.json",
+        "sha256": "8758eaa6fbbd210be6842736a9735e3350718ff1dafb3ff37e61e584003d996c"
+      },
+      {
+        "scope_id": "list-todos",
+        "path": ".shapeup/todo-cli/t0/verdicts/r1-a1-t4.json",
+        "sha256": "49bb4b6595fcabd96e631d5f50f55f6a6286d4df66ec02f71d60b078bd0b7e7b"
+      }
+    ],
+    "criteria": [
+      {
+        "criterion": "UC-AddTodo Steps 1-6 — append item, persist, print confirmation, exit 0",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "bin/todo.js:2 is still the foundation placeholder — `todo add \"Buy milk\"` in a clean cwd emits nothing, exits 0, writes no ./.todo.json; the working engine at src/commands/add.js:89 has zero call sites"
+      },
+      {
+        "criterion": "UC-AddTodo Error Case MISSING_TEXT — stderr 'text is required', exit 1, no store write",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "bin/todo.js:2 — `todo add` with no argument exits 0 with empty stderr; src/commands/add.js:70 is unreachable"
+      },
+      {
+        "criterion": "UC-AddTodo Error Case STORE_CORRUPTED — stderr names corrupted store, exit 1, no stack trace",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "bin/todo.js:2 — with ./.todo.json = 'not json {{{', `todo add \"x\"` exits 0 silently"
+      },
+      {
+        "criterion": "UC-AddTodo TS-INV-01 — third item's id is not reused after rm (INV-01)",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "bin/todo.js:2 — the CLI never writes a store file, so the process oracle the TS row specifies cannot observe any id"
+      },
+      {
+        "criterion": "UC-AddTodo TS-NOGO-01 — no ANSI escapes or interactive prompt in add output",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "medium",
+        "reprobed": false,
+        "evidence": "od -c of stdout shows no escape sequence and no prompt — vacuously satisfied, the command produces no output at all"
+      },
+      {
+        "criterion": "UC-ListTodos Steps 1-3 — render each item as '[i] [x| ] <text>', exit 0",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "bin/todo.js:2 — `todo list` prints nothing; the correct renderer at src/commands/list.js:76 has no call site"
+      },
+      {
+        "criterion": "UC-ListTodos TS-INV-02 / ux-behavior RULE-04 — missing store prints 'no todos yet', exit 0, never blank",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "bin/todo.js:2 — stdout is empty, which RULE-04 explicitly forbids; src/commands/list.js:70 is unreachable"
+      },
+      {
+        "criterion": "UC-ListTodos TS-ERR-STORE_CORRUPTED — exit 1, stderr names the store, no stack trace",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "bin/todo.js:2 — `todo list` against a corrupted ./.todo.json exits 0 with empty stderr"
+      },
+      {
+        "criterion": "UC-CompleteTodo Steps 1-8 — mark item at 1-based index done, save, exit 0",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "bin/todo.js:2 — `todo done 1` no-ops; src/commands/done.js:99 is unreachable from the entry point"
+      },
+      {
+        "criterion": "UC-CompleteTodo Error Cases MISSING_INDEX / INVALID_INDEX / INDEX_OUT_OF_RANGE (RULE-05)",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "bin/todo.js:2 — `todo done`, `todo done abc` and `todo done 99` all exit 0 with empty stderr"
+      },
+      {
+        "criterion": "UC-CompleteTodo TS-REQ-n-boundary — 0 and length+1 rejected, 1 and length accepted",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "bin/todo.js:2 — the process neither accepts nor rejects any index"
+      },
+      {
+        "criterion": "UC-CompleteTodo TS-ERR-STORE_CORRUPTED — exit 1, no stack trace",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "bin/todo.js:2 — exits 0 against a corrupted store"
+      },
+      {
+        "criterion": "UC-CompleteTodo TS-NOGO-03 / RULE-06 — `done 1` twice succeeds idempotently, no confirm prompt",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "bin/todo.js:2 — no item can be marked done a first time, so idempotence is unobservable at the process oracle"
+      },
+      {
+        "criterion": "UC-RemoveTodo Steps 1-8 — splice item at index, save without decrementing nextId, exit 0",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "bin/todo.js:2 — `todo rm 1` no-ops; src/commands/rm.js:101 is unreachable from the entry point"
+      },
+      {
+        "criterion": "UC-RemoveTodo Error Cases MISSING_INDEX / INVALID_INDEX / INDEX_OUT_OF_RANGE (RULE-07)",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "bin/todo.js:2 — `todo rm` and `todo rm 0` both exit 0 with empty stderr"
+      },
+      {
+        "criterion": "UC-RemoveTodo TS-INV-01 — id never recycled after removal, nextId not decremented",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "bin/todo.js:2 — unverifiable at the specified process oracle; the CLI never writes a store to inspect"
+      },
+      {
+        "criterion": "UC-RemoveTodo TS-REQ-n-boundary — on a 3-item list, 0 and (now-)4 rejected, 1 accepted and list shrinks",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "bin/todo.js:2 — no list can be built through the CLI, so no boundary can be exercised"
+      },
+      {
+        "criterion": "ux-behavior cross-cutting UNKNOWN_COMMAND — unrecognized or absent argv[2] prints usage, exit 1",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "bin/todo.js:2 — `todo badcmd` and bare `todo` both exit 0 with no usage line; the cli:dispatch affordance's error state does not exist"
+      },
+      {
+        "criterion": "Contract TodoStoreRepository — commands perform store I/O through foundation's load()/save()",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "src/store.js:74 has zero production call sites (grep finds only test/store.test.js:27); src/commands/add.js:25, done.js:25, list.js:23 and rm.js:25 each inline a private duplicate loader that has drifted from the contract"
+      },
+      {
+        "criterion": "scope-summary Done-when (cli-integration) — real dispatcher plus TASK-009 subprocess round-trip test",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "bin/todo.js:2 — T0 red on all three round-1 attempts (0/2 fixtures) and no round-2 attempt; both declared fixtures test/cli.test.js and test/integration/cli.test.js do not exist on disk"
+      },
+      {
+        "criterion": "Non-Go — no sync, no server, no accounts",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "package.json declares no dependencies; no network module is required anywhere under src/ or bin/"
+      },
+      {
+        "criterion": "Non-Go — no TUI, no colors, no interactive prompts",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "No ANSI escape sequences and no stdin prompts across 11 probed invocations; od -c on `list` stdout is empty"
+      }
+    ],
+    "refuted": [],
+    "bugs": [
+      {
+        "id": "BUG-01",
+        "severity": "blocker",
+        "criterion": "UC-AddTodo/ListTodos/CompleteTodo/RemoveTodo Steps; UNKNOWN_COMMAND; cli-integration Done-when",
+        "location": "bin/todo.js:2",
+        "repro": "cd /tmp/empty && node <repo>/bin/todo.js add \"Buy milk\"; echo $?",
+        "expected": "stdout 'Added: [1] Buy milk', exit 0, ./.todo.json created",
+        "actual": "no output, exit 0, no file created — identical for list, done <n>, rm <n>, badcmd and bare todo. bin/todo.js is still the two-line foundation placeholder with zero requires of src/commands/*"
+      },
+      {
+        "id": "BUG-02",
+        "severity": "major",
+        "criterion": "Contract TodoStoreRepository",
+        "location": "src/store.js:74",
+        "repro": "grep -rn \"require.*store\" bin src test  # only test/store.test.js:27",
+        "expected": "all four command engines load/save through the single repository implementation per contracts/todo-store.contract.md and wiring-map.md",
+        "actual": "src/store.js has zero production consumers; src/commands/add.js:25, done.js:25, list.js:23, rm.js:25 each inline a private loadStore/saveStore/isValidShape plus their own StoreCorruptedError class, already drifted (module-constant path vs cwd option) and not cross-module instanceof-compatible"
+      },
+      {
+        "id": "BUG-03",
+        "severity": "major",
+        "criterion": "scope-summary Done-when (cli-integration)",
+        "location": "shapeup/todo-cli/scopes/cli-integration.md:6",
+        "repro": "ls test/cli.test.js test/integration/cli.test.js",
+        "expected": "two subprocess round-trip fixtures exercising bin/todo.js -> all four commands -> the shared store",
+        "actual": "both files are absent; the scope's three round-1 T0 attempts were red for that reason (0/2, delta 'no change') and it received no round-2 attempt, so its T0 signal is both red and stale"
+      }
+    ]
+  },
+  "assumptions": [
+    "The WorkOrder listed no t0_artifacts[]; citations were selected by the evaluator from .shapeup/todo-cli/t0/trials.jsonl (newest verdict per scope) and every sha256 was recomputed from disk with shasum -a 256.",
+    "Grading oracle is the committed UC '## Test Surface' rows, all of which specify Oracle: process — module-level unit tests (44 assertions green) are recorded as context, never as pass evidence."
+  ],
+  "deviations": [
+    "Structural precondition defect: cli-integration — the scope owning bin/todo.js — has NO round-2 T0 verdict; its newest artifact is r1-a3-t1.json, red at 0/2 fixtures, with all three round-1 attempts burned. Round 2 dispatched complete-todo, foundation, add-todo and remove-todo and never re-dispatched it. The round was graded anyway because direct process probing gave decisive first-hand FAIL evidence; a PASS on this ground would have been structurally invalid.",
+    "cli-integration needs an explicit attempt-budget reset (or a scope-hammer decision) before round 3, or the omission repeats.",
+    "No task AC checkbox is refuted: TASK-008 and TASK-009 carry no ticked boxes, and TASK-004's two ticked boxes are true at the module level (src/commands/add.js exists and its fixture passes) — the defect is the missing call site, which those boxes do not claim."
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/list-todos-r2-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-005",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`src/commands/list.js` exports a function that loads the store, and for each item prints",
+          "result": "pass",
+          "evidence": "src/commands/list.js run() loads store via loadStore() and prints `[${idx+1}] [${marker}] ${item.text}` per item, exit 0; node --test test/commands/list.test.js → 'lists two items with correct 1-based indices and done markers, exit code 0' passes"
+        },
+        {
+          "ac": "`node --test test/commands/list.test.js` passes",
+          "result": "pass",
+          "evidence": "node --test test/commands/list.test.js → tests 6, pass 6, fail 0"
+        },
+        {
+          "ac": "Empty list (missing file or `items: []`): prints an explicit non-blank \"no todos yet\"-style",
+          "result": "pass",
+          "evidence": "tests 'missing store file prints explicit \"no todos yet\" message, exit code 0' and 'empty items array prints explicit \"no todos yet\" message, exit code 0' both pass, stdout 'no todos yet\\n' non-blank, exit 0"
+        },
+        {
+          "ac": "`STORE_CORRUPTED`: stderr message, no stack trace, exit code 1 (does not fall through to",
+          "result": "pass",
+          "evidence": "tests 'corrupted store file is rejected with STORE_CORRUPTED, no stack trace leaked to stdout, exit code 1' and 'wrong-shape store file is rejected with STORE_CORRUPTED, exit code 1' both pass, exit 1, stderr matches /store file is corrupted/, no stack-trace pattern in stderr, stdout empty"
+        }
+      ]
+    }
+  ],
+  "files_touched": [],
+  "discoveries": [],
+  "assumptions": [
+    "Scope was already fully implemented and verified in a prior round (trial_history shows round 1 attempt 1 kept, 1/1 fixtures passed, 0 regressions); this attempt re-verified the existing implementation against the same acceptance criteria and confirmed all pass with no code changes needed."
+  ],
+  "deviations": []
+}

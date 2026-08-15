@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/complete-todo-r2-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-006",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`src/commands/done.js` validates presence, numeric-ness, and range of `<n>` BEFORE any",
+          "result": "pass",
+          "evidence": "src/commands/done.js: presence check (raw === undefined) at line ~69, numeric-ness regex check at line ~75, range check (n < 1 || n > list.items.length) at line ~99 — all before saveStore/completeAt is called"
+        },
+        {
+          "ac": "`node --test test/commands/done.test.js` passes",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → tests 11, pass 11, fail 0"
+        },
+        {
+          "ac": "`<n> = 0`: rejected (`INVALID_INDEX`), no store write",
+          "result": "pass",
+          "evidence": "test 'n = 0 is rejected as INVALID_INDEX, no store write' passes — exit 1, stderr matches /not a valid index/, store unchanged"
+        },
+        {
+          "ac": "`<n> = list.length`: accepted (last item)",
+          "result": "pass",
+          "evidence": "test 'n = list.length is accepted (last item)' passes — exit 0, saved.items[1].done === true"
+        },
+        {
+          "ac": "`<n> = list.length + 1`: rejected (`INDEX_OUT_OF_RANGE`), no store write",
+          "result": "pass",
+          "evidence": "test 'n = list.length + 1 is rejected as INDEX_OUT_OF_RANGE, no store write' passes — exit 1, stderr matches /no item at index 2/, store unchanged"
+        },
+        {
+          "ac": "`<n>` on an empty list (any positive integer): rejected (`INDEX_OUT_OF_RANGE`)",
+          "result": "pass",
+          "evidence": "test 'any positive n on an empty list is rejected as INDEX_OUT_OF_RANGE' passes — exit 1, stderr matches /no item at index 1/"
+        },
+        {
+          "ac": "`<n> = \"abc\"` or `<n> = \"1.5\"`: rejected (`INVALID_INDEX`), no store write",
+          "result": "pass",
+          "evidence": "tests 'n = \"abc\" is rejected...' and 'n = \"1.5\" is rejected...' both pass — exit 1, stderr matches /not a valid index/, store unchanged"
+        }
+      ]
+    }
+  ],
+  "files_touched": [],
+  "discoveries": [],
+  "assumptions": [
+    "Implementation from a prior kept trial (round 1) already satisfied every AC in this scope — no code changes were needed; this attempt re-verified the existing src/commands/done.js and test/commands/done.test.js against the full AC list."
+  ],
+  "deviations": []
+}

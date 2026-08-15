@@ -2259,6 +2259,16 @@
             }
           }
         },
+        "scope_waves": {
+          "type": "array",
+          "description": "The same scopes as scope_files, grouped into dependency WAVES: every scope in a wave may build concurrently, and no wave contains a scope that depends on one still in flight. Derived by `probe resume` from each contract's `tasks` list and the board's `depends_on` — never authored, so it cannot disagree with the board. ADDITIVE: a consumer that ignores it, or a tree whose board is missing, taskless or cyclic, gets a single wave containing everything, which is the unscheduled fixed-width fan-out this replaced.",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
         "pending_orders": {
           "type": "array",
           "items": {
