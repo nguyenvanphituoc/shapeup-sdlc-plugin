@@ -3,6 +3,64 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased] · BUILD had never dispatched a scope
+
+**Fixed — the fan-out dropped every scope it was supposed to build.** BUILD's first pipeline stage
+answered "is this scope already green from a killed round?" and returned `null` for no. The runtime
+reads a null stage result as *drop this item and skip its remaining stages*, so every scope that was
+not already green was discarded before the builder ran — on a fresh run, all of them. The round
+landed as `0 green + N queued`, tripped the inner breaker and returned `gate_h` having dispatched no
+builder at all. The failure is indistinguishable from a genuinely hard feature: six ship-blocking
+scopes, every upstream artifact correct, and only the absence of a build agent in the workflow
+journal to tell them apart. Now returns a sentinel object and branches on it; a shipped workflow
+script may no longer have a bare `null` as a pipeline stage's value.
+
+**Fixed — the build leg's compile line could not resolve its own worker.** Every leg's step 1 was
+`compile --operation <op> --slug <slug>`, whose worker comes from `OP_OWNER`. That table has no
+`execute` key, because a build order is addressed by scope + round + attempt and the slug form cannot
+express it — so the build leg's step 1 exits 2 (`could not resolve --worker/--operation`),
+contradicted one line later by prose telling it the correct `--scope …` form. Masked by the defect
+above, which meant the leg never ran to discover it. Dispatches may now override their compile line,
+and the check is per call site so a leg addressing its order another way is exempt rather than
+special-cased.
+
+## [Unreleased] · a dispatch has to prove it happened
+
+**The defect.** A `Skill` dispatch against a plugin that is absent, disabled or a different version
+returns `<tool_use_error>Unknown skill</tool_use_error>` — and the sub-agent then does the craft
+itself, from the prose already in its own prompt. Every downstream check accepts it: the artifacts
+land under exactly the path the order's substrate permits, so the order gate passes (the *order* was
+well-formed) and the sandbox guard passes (the *writes* were in bounds), the phase post-condition
+passes because the artifacts exist, and the run advances. Both walls fired correctly and neither
+could help, because nothing attested **which skill produced an artifact**. That is not a failed run;
+it is a green one that applied none of the shipped craft.
+
+**New hook — `hooks/dispatch-receipt.mjs` (`PostToolUse` on `Skill|Agent`).** Appends
+`{order_id, run_id, worker_declared, skill_invoked, dispatch_ok, at}` to
+`.shapeup/<slug>/receipts/dispatch.jsonl` when the tool result names a resolved skill. It has no deny
+path and every write is guarded — a receipt that can fail a tool call gets the whole layer disabled,
+which is the outcome it exists to prevent. `PostToolUse` and not `PreToolUse` deliberately: the pre
+event fires before the tool runs, so it cannot separate "the Skill returned" from "the Skill errored
+and the sub-agent improvised", and it would appear to work only until the environment was repaired.
+
+**`harness reduce ingest` refuses an unattested orchestrated result.** The order must declare
+`mode: "orchestrated"` and a receipt must match on all three of `order_id`,
+`skill_invoked === order.worker`, and `at ≥ compiled_at` — existence alone is satisfied by a stale
+receipt from an earlier relaunch, since order paths are reused verbatim on re-dispatch. Standalone
+and fixture ingests are unaffected. `--no-receipt-check` is the documented way through when the
+channel itself fails.
+
+**Two new verbs, answering two different questions.** `harness verify skills` reads the worker roster
+off `domain.schema.json#/$defs/WorkerName` (never a literal list) and `harness init run` now refuses
+with **exit 3** when a `SKILL.md` is missing, leaving no run root behind; the run receipt records
+`plugin: {name, version, root}`, so every trace names the copy that produced it. That check is
+honestly incomplete — both states that actually happen, installed-but-disabled and
+wrong-version-loaded, have every `SKILL.md` and pass it green — so the orchestrator now opens with a
+**canary**: one live dispatch, deliberately with no `--order`, and `harness verify dispatch` reads
+the hook layer's decision rows for the evidence. A Skill call whose name does not resolve fires no
+hook at all, so a row naming a skill is proof the session resolved it, and the sub-agent that made
+the call cannot write that row.
+
 ## [2.0.0] — 2026-08-14 · the strip-down
 
 **v1.x owned a runtime it was supposed to stand on, and most of its cleverness existed to survive

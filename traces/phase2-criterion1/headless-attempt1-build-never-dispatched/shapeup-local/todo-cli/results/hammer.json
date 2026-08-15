@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/hammer",
+  "worker": "scope-hammer",
+  "status": "escalated",
+  "artifacts": [
+    ".shapeup/todo-cli/reports/hammer-gate-h.md"
+  ],
+  "files_touched": [
+    {
+      "path": ".shapeup/todo-cli/reports/hammer-gate-h.md",
+      "change": "created"
+    }
+  ],
+  "assumptions": [
+    "shapeup/todo-cli/shaping/baseline.md does not exist (no shaping/ directory under shapeup/todo-cli/ at all); per H1.1, degraded honestly to idea.md's problem statement ('Developers keep todos in their head and lose them' — i.e. no tool at all) as the implicit baseline, flagged approximate rather than invented.",
+    "All 6 board scopes (foundation, add-todo, list-todos, complete-todo, remove-todo, cli-integration) were classified MUST-HAVE per H0.5 because each traces directly to one of the pitch's four named commands or their shared substrate/dispatcher — there was no nice-to-have surface to default into.",
+    "No QA findings and no discovery-ledger entries exist to fold into the census (qa-edge-hunter never ran; .shapeup/todo-cli/discovery/ is empty) — the census is scoped entirely to the 6 attempt-budget-exhausted scopes.",
+    "No T0 verdict artifacts exist anywhere in the tree, so the stall could not be attributed to a specific failing fixture — only that attempt_budget (3, from receipt.json) was exhausted with green_scopes: [] and zero source files ever produced (no src/, bin/, or package.json on disk; trace/report.json independently confirms bin/todo.js is not on disk)."
+  ],
+  "deviations": [
+    "ESCALATE: GATE H1.2 finds all 6 must-have scopes fail the baseline comparison — there is no partial product to cut down to (zero source files exist anywhere in the repo despite attempt_budget(3) being exhausted). receipts/dispatch.jsonl shows orient -> ba-pitch-analyzer -> wire (x2) -> map-scopes -> hammer were dispatched but no task-executor/build dispatch is recorded, so the run may never have actually attempted implementation. PO must decide: (a) authorize a fresh BUILD round after confirming the task-executor dispatch path is wired correctly, or (b) close this run without shipping. Verdict is CANNOT SHIP — escalate to PO; no must-have was auto-shipped or silently cut."
+  ]
+}

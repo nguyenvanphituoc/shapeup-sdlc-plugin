@@ -1,0 +1,39 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 1,
+  "at": "2026-08-15T16:11:27.000Z",
+  "scope_id": "cli-integration",
+  "fixtures": [
+    {
+      "cmd": "node --test test/cli.test.js",
+      "exit": 1,
+      "pass": false
+    },
+    {
+      "cmd": "node --test test/integration/cli.test.js",
+      "exit": 1,
+      "pass": false
+    }
+  ],
+  "db_probe": null,
+  "seesaw": {
+    "ran": false,
+    "pass": true,
+    "scopes_checked": [],
+    "failing": []
+  },
+  "fixtures_green": false,
+  "db_probe_green": true,
+  "seesaw_green": true,
+  "overall": "red",
+  "regression": false,
+  "score": {
+    "regressions": 0,
+    "fixtures_passed": 0,
+    "fixtures_total": 2,
+    "db_probe": null
+  },
+  "discovered_tasks": []
+}

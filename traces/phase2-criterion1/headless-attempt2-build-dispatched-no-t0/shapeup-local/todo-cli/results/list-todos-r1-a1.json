@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/list-todos-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-005",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`src/commands/list.js` exports a function that loads the store, and for each item prints",
+          "result": "pass",
+          "evidence": "node --test test/commands/list.test.js → 'lists items with 1-based index and done markers, exit 0' passed; prints `[<n>] [x| ] <text>` per item"
+        },
+        {
+          "ac": "`node --test test/commands/list.test.js` passes",
+          "result": "pass",
+          "evidence": "node --test test/commands/list.test.js → tests 4, pass 4, fail 0"
+        },
+        {
+          "ac": "Empty list (missing file or `items: []`): prints an explicit non-blank \"no todos yet\"-style",
+          "result": "pass",
+          "evidence": "node --test test/commands/list.test.js → 'missing store file...' and 'empty items array...' tests both passed, exit code 0, message 'todo: no todos yet'"
+        },
+        {
+          "ac": "`STORE_CORRUPTED`: stderr message, no stack trace, exit code 1 (does not fall through to",
+          "result": "pass",
+          "evidence": "node --test test/commands/list.test.js → 'corrupted store file...' test passed: stderr message matches /store file is corrupted/, no stack-trace text, exit code 1, stdout logs.length === 0"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "src/commands/list.js", "change": "created" },
+    { "path": "test/commands/list.test.js", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "Done/not-done marker uses a single-character bracket cell (`[x]`/`[ ]`), matching the conventional checkbox rendering also implied by the AC text `[x|  ]`; not literally two spaces for the not-done case.",
+    "The empty-list message is `todo: no todos yet`, following the `todo: <message>` prefix convention used by done.js/add.js for user-facing lines and the ux-behavior.md STORE_CORRUPTED message."
+  ],
+  "deviations": []
+}

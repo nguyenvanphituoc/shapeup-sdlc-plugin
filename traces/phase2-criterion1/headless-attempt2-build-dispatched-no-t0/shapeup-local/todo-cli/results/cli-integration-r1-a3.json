@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/cli-integration-r1-a3",
+  "worker": "task-executor",
+  "status": "escalated",
+  "task_results": [
+    {
+      "task_id": "TASK-008",
+      "status": "failed",
+      "ac_results": [
+        {
+          "ac": "`bin/todo.js` routes `argv[2] === \"add\"` \u2192 `commands/add.js`, `\"list\"` \u2192 `commands/list.js`,",
+          "result": "fail",
+          "evidence": "As of this attempt, src/commands/add.js and src/commands/done.js now exist (built by sibling scopes add-todo and complete-todo), but src/commands/list.js and src/commands/rm.js still do not exist anywhere in the repo (find . -maxdepth 3 confirms), and no order file for the list-todos or remove-todo scopes exists in .shapeup/todo-cli/orders/ or .shapeup/todo-cli/receipts/dispatch.jsonl \u2014 those two scopes have not been dispatched this round. A dispatcher wired to two real modules and two nonexistent ones cannot pass its own AC."
+        },
+        {
+          "ac": "The command's own process.exit code (0 or 1) propagates as the CLI's exit code",
+          "result": "fail",
+          "evidence": "Only 2 of 4 command modules exist; propagation cannot be verified for the missing list/rm paths."
+        },
+        {
+          "ac": "`node --test test/cli.test.js` (or equivalent, spawning the CLI as a subprocess) passes",
+          "result": "skipped",
+          "evidence": "Not attempted \u2014 blocked, same reason as attempt 1 (see deviations)."
+        },
+        {
+          "ac": "`bin/todo.js` invoked with no subcommand, or an unrecognized one (e.g. `todo frobnicate`),",
+          "result": "skipped",
+          "evidence": "Not attempted \u2014 blocked (see deviations)."
+        },
+        {
+          "ac": "No command module is invoked more than once per process run",
+          "result": "skipped",
+          "evidence": "Not attempted \u2014 blocked (see deviations)."
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-009",
+      "status": "failed",
+      "ac_results": [
+        {
+          "ac": "`test/integration/cli.test.js` spawns `node bin/todo.js <args>` with `cwd` set to a",
+          "result": "skipped",
+          "evidence": "Not attempted \u2014 depends on TASK-008's dispatcher, still blocked (see deviations)."
+        },
+        {
+          "ac": "`node --test test/integration/cli.test.js` passes",
+          "result": "skipped",
+          "evidence": "Not attempted \u2014 blocked."
+        },
+        {
+          "ac": "Full round-trip: `add` \u2192 `list` shows the item pending \u2192 `done 1` \u2192 `list` shows it done \u2192",
+          "result": "skipped",
+          "evidence": "Not attempted \u2014 the round-trip requires `list` and `rm`, neither of which exists yet."
+        },
+        {
+          "ac": "Missing store file: `list` on a fresh temp dir exits 0 with the empty message, does not",
+          "result": "skipped",
+          "evidence": "Not attempted \u2014 `list` command module does not exist yet."
+        },
+        {
+          "ac": "Corrupted store file: write `not json {{{` to `./.todo.json` in the temp dir, then run any",
+          "result": "skipped",
+          "evidence": "Not attempted \u2014 blocked."
+        }
+      ]
+    }
+  ],
+  "files_touched": [],
+  "discoveries": [],
+  "assumptions": [],
+  "deviations": [
+    "ESCALATE substrate-expansion [TASK-008, TASK-009] (unchanged from attempts 1-2 \u2014 this is attempt 3/3, still no new information resolves it)\nSame blocker as r1-a1, now partially narrowed: src/commands/add.js and src/commands/done.js exist (sibling scopes add-todo/complete-todo completed), but src/commands/list.js and src/commands/rm.js do not exist, and this round's own order/dispatch ledger (.shapeup/todo-cli/orders/, .shapeup/todo-cli/receipts/dispatch.jsonl) shows no list-todos-r1-a1 or remove-todo-r1-a1 order was ever compiled or dispatched \u2014 those two scopes are not scheduled in this round at all, not merely slower. TASK-008/TASK-009 cannot be built or tested against real list/rm modules, and this scope's substrate (bin/todo.js, test/cli.test.js, test/integration/cli.test.js) forbids writing commands/list.js or commands/rm.js itself even as a stopgap. Question: will the list-todos and remove-todo scopes be dispatched in this round before cli-integration's attempt budget is exhausted, or is cli-integration expected to carry forward to a later round once all four command scopes exist? No code was written this attempt either, for the same reason as attempt 1."
+  ]
+}

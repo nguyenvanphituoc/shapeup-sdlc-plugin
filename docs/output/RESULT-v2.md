@@ -30,6 +30,23 @@ deleting the skills or the suite.
 the opt-in refute wave, the graph query and a JSDoc block on each helper. The 600 figure came from a
 draft that had none of those.
 
+**Phase 2's own third criterion — "diff is net-negative ≥1,500 LOC". DESCOPED, not met.**
+
+Measured from the commit itself (`4bd9592`, *refactor(orchestrator): run on the native Workflow
+runtime and delete the courier layer*): **711 added, 1,241 deleted, net −530** across 12 files.
+
+The reason it is descoped rather than failed: the −1,500 target was written against a Phase 2 that
+would *also* delete the 21 pipeline scripts. Phase 1 had already moved them into the kernel, so by
+the time Phase 2 ran, its own scope was the runtime and the courier layer — about a third of the
+deletion the number was sized for. The target and the work were measured against different phase
+boundaries.
+
+**What is deliberately not done here:** re-measuring across Phases 1 and 2 together to reach −1,500.
+The two phases did land a deletion of roughly that size between them, and saying so as though it
+satisfied *this* criterion would manufacture a measurement to fit a bar — the same move as rescaling
+a stale trigger rate to match a count derived later. The criterion asked what Phase 2's diff was. It
+was −530. Phase 2 closes with criterion 1 met and criterion 3 recorded as out of scope.
+
 ## The orchestrator had never been launched, and did not load
 
 Everything above was measured from the artifacts. Nothing had ever *run* the file the whole rebuild
@@ -83,6 +100,231 @@ The smoke script is `scratchpad`-only and not committed: it costs real sub-agent
 `npm test` check. What is committed is the pair of static guards above.
 
 This closes the *loadability* half of G2 below. It does not close the run half — see G2.
+
+## The dispatch boundary, measured
+
+D2 — *a failed `Skill` dispatch is indistinguishable from a successful one* — is the one defect the
+rebuild left open, and every proposed fix for it rested on an assumption nobody had tested: that a
+hook fires for a tool call made by a **sub-agent**. Every dispatch in this pipeline is a `Skill(...)`
+call made by a workflow leg, never by the main session, so if hooks are blind there, an attestation
+cannot be written for exactly the calls that need one.
+
+Measured with a real `claude --plugin-dir .` session that made no dispatch itself and delegated three
+`Skill(...) --order` calls to one sub-agent, with probe hooks injected through `--settings` so the
+shipped `hooks/hooks.json` was never edited to take the measurement:
+
+| Dispatch state | `PreToolUse` | `PostToolUse` | Outcome legible? |
+|---|---|---|---|
+| skill resolves and completes | fires | fires | yes — `tool_response = {success:true, commandName:"shapeup-sdlc-plugin:orient"}` |
+| skill name unknown | **never fires** | **never fires** | the host rejects the name upstream of the hook layer |
+| order missing → `validate-envelope` denies | fires (the deny) | **never fires** | a denied call never runs, so it never reaches the post event |
+
+Both hook events fire inside a sub-agent, and the payload carries `agent_id` / `agent_type` there and
+not in a main-session call. The discriminator turns out to be stronger than a status field: **a failed
+dispatch produces no `PostToolUse` row at all**, so the mere existence of a receipt separates "the
+shipped skill ran" from "the sub-agent improvised the craft" — which is the false green D2 describes.
+
+One incidental defect, caught by the probe's own first attempt: the `PreToolUse` envelope gate scans
+the **`Agent` prompt** as well as `Skill` args, so an order path quoted into a sub-agent's prompt
+without its own quotes is read together with the trailing quote and denies the entire `Agent`
+dispatch. Anything that threads an order path through a prompt must quote it.
+
+## BUILD had never dispatched a scope, and could not have
+
+Criterion 1's first real attempt reached MAP SCOPES cleanly — spec tree, 9 tasks, 6 scope contracts,
+wiring map, L1b lint 0 red / 0 warn — and then returned:
+
+```json
+{"status":"gate_h","breaker":"inner",
+ "hammer_proposals":["foundation","add-todo","list-todos","complete-todo","remove-todo","cli-integration"],
+ "green_scopes":[]}
+```
+
+Six scopes queued, none green, no source file anywhere in the tree. The workflow journal shows why:
+between `verify budget` and `reduce hill` there is **no build agent at all**. The round did not fail;
+it never dispatched.
+
+### The cause: `null` means "drop", not "carry on"
+
+The fan-out's first stage answered "is this scope already green from a killed round?" and returned
+`null` for no — with the comment `// not green yet → stage 2 builds it`. The runtime reads a null
+stage result as **drop this item and skip its remaining stages**. Measured with a probe written to
+ask exactly that and nothing else:
+
+```
+stage1 → null   ⇒ stage2 ran 0/3 times, settled = [NULL, NULL, NULL]
+stage1 → {…}    ⇒ stage2 ran 3/3 times
+```
+
+So every scope that was not *already* green was dropped before the builder could run. On a fresh run
+that is every scope, which lands as `0 green + N queued` → inner breaker → `gate_h`. **BUILD could
+never dispatch a single scope**, on any fresh run, for the life of the branch.
+
+What makes it the most expensive kind of defect: the failure is indistinguishable from success at
+doing something hard. `gate_h` with six ship-blocking scopes is exactly what a genuinely difficult
+feature looks like, and every artifact up to that point is correct and high quality. Only the absence
+of a builder in the journal separates the two, and nothing was reading the journal.
+
+Fixed by returning a sentinel object (`{scope_id, pending: true}`) and branching on it. Guard: a
+pipeline stage in a shipped workflow script may not have a bare `null` as its value.
+
+### A second defect underneath it
+
+`worker()` built every leg's step 1 as `compile --operation <op> --slug <slug>`, and `compile`
+resolves the worker for that form from `OP_OWNER` — which has no `execute` key, because a build order
+is addressed by scope + round + attempt and the slug form cannot express it. So the build leg's
+step 1 exits 2 with `could not resolve --worker/--operation`, contradicted one line later by the
+`extra` prose telling it the correct `--scope …` form: a prompt arguing with itself. It was masked
+entirely by the first defect — the leg never ran to discover it.
+
+Fixed with a `compile:` override on the dispatch that needs one. Guard: any leg taking the generic
+form must name an operation `OP_OWNER` resolves, checked per call site so a leg that addresses its
+order another way is exempt rather than special-cased.
+
+### A third, underneath both: the T0 verdict was written where nothing reads
+
+With BUILD finally dispatching, the next run wrote 13 source files, ran the attempt ratchet, and
+returned `gate_h` again — `0 green`, all six scopes queued. Five of six legs had reported `done`.
+
+The legs had run the verifier. Six verdicts and six trial rows were on disk, `foundation` among them:
+
+```
+{"trial":2,"scope_id":"foundation","score":{"fixtures_passed":2,"fixtures_total":2},"status":"kept"}
+```
+
+A genuine green. And the round could not see it:
+
+```
+verify t0  wrote to   shapeup/<slug>/t0/verdicts/     ← COMMITTED tier
+probe t0   reads      .shapeup/<slug>/t0/verdicts/    ← LOCAL tier (verdictsDir)
+```
+
+`verify t0` defaulted its output to `dirname(dirname(<contract path>))` — "the parent of `scopes/`",
+which was correct while scope contracts and the run trace shared a root. ADR-0001 split the tiers and
+moved contracts to COMMITTED `shapeup/<slug>/scopes/`; the default followed them and nobody noticed,
+because the only reader is one `probe t0` call inside the build round's confirm stage, and BUILD had
+never dispatched far enough to make that call. Two defects hid a third.
+
+**This is the "measured, not claimed" invariant's own seam.** The measurement was taken, was correct,
+and was thrown away — which lands as `0 green` and is indistinguishable from six genuinely failing
+scopes. It is the same silent disconnect `hooks/lib/decision.mjs` memorializes one directory over
+("every hook wrote its receipts to `.shapeup-sdlc/` while the only reader looked in `.shapeup/`"),
+recurring because the root was *derived from a moving file* rather than resolved through
+`lib/paths.mjs` — the rule AGENTS.md states as "never hard-code a storage root".
+
+Fixed: the default is now the LOCAL run root, with `--out` still winning for callers that know
+better. Guard: an **execution of the pair** — run `verify t0` through the CLI with no `--out`, then
+assert `probe t0` finds the verdict and that it landed in the LOCAL tier. Both halves passed their
+unit checks for the whole life of the branch while the pair was broken, so a guard that tested either
+alone would have certified it again.
+
+All three were found the same way everything real in this document was found: by executing the thing.
+
+The failed run is kept, not discarded — `traces/phase2-criterion1/headless-attempt1-build-never-dispatched/`
+holds its whole tree, because a trace of the defect is the only thing that makes "BUILD never
+dispatched" checkable by someone who was not here. Traces live outside `docs/` deliberately: the
+doc-drift check reads every `.md` under `docs/` and fails on any cited path not on disk, which is
+right for living documentation and wrong for a record of a run in a different project, whose paths
+are *supposed* to be absent. The suite already carves out that category for changelogs, with the same
+reasoning.
+
+## D2 is closed
+
+`hooks/dispatch-receipt.mjs` (PostToolUse) appends `{order_id, run_id, worker_declared,
+skill_invoked, dispatch_ok, at}` to `.shapeup/<slug>/receipts/dispatch.jsonl` when — and only when —
+a tool result names the skill that ran. `harness reduce ingest` refuses a result whose order declares
+`mode: "orchestrated"` and carries no receipt matching on all three of `order_id`,
+`skill_invoked === order.worker`, and `at ≥ compiled_at`. Existence alone is not enough: order paths
+are reused verbatim on relaunch, so a stale receipt would satisfy a weaker check. Standalone and
+fixture ingests are untouched — there was no orchestrated claim to attest — and `--no-receipt-check`
+is the documented way through when the channel itself fails.
+
+Proven by execution, in a live session with the shipped hooks and no injected probes, one sub-agent
+making one real dispatch:
+
+| Arm | Result |
+|---|---|
+| a live `Skill(shapeup-sdlc-plugin:orient) --order` dispatch | receipt written: `live-d2/orient ran orient, dispatch_ok=true`, tagged with the sub-agent's `agent_id` |
+| ingest of that order's result | **accepted**, `✓ attested: live-d2/orient ran orient` |
+| ingest of an order nothing ever dispatched | **refused**, exit 1, naming the missing receipt and what its absence means |
+| the same result under `--no-receipt-check` | accepted — the escape is real, not folklore |
+
+Six guards, each verified the only way a check can be — by re-introducing the defect and watching
+the suite go red, then restoring the fix:
+
+| Guard | Catches |
+|---|---|
+| ingest refuses a receipt-less orchestrated order | the D2 false green itself |
+| ingest accepts one carrying a valid receipt | a gate that refuses everything |
+| a receipt whose `skill_invoked ≠ order.worker` is refused | a dispatch that ran a different skill |
+| a receipt older than `compiled_at` is refused | a stale attestation surviving a relaunch |
+| a positionally-named result is held to the same gate | opting out by omitting `--order` |
+| the hook attests a completed dispatch and nothing else | the hook minting the fact instead of recording it |
+
+## The run refuses to open against a plugin it cannot reach
+
+The receipt catches a bad dispatch at ingest, which is after the worker has been paid for. Two checks
+now catch it earlier, and they answer different questions — a distinction worth keeping because
+conflating them is how the first draft of this fix would have shipped something that looks complete:
+
+| Check | Question | Where | On failure |
+|---|---|---|---|
+| `harness verify skills` | are the `SKILL.md` files on disk, at this root, at this version? | GATE L0, inside `init run` | **exit 3**, naming the missing workers, leaving no run root behind |
+| `harness verify dispatch` | did **this session** actually resolve one of them? | the orchestrator's first leg | `aborted` at `preflight`, before any worker spend |
+
+The roster comes from `domain.schema.json#/$defs/WorkerName`, never a literal — the two names a
+hand-written eight-name list would have omitted (`translator`, `coach`) are exactly the ones a short
+run never reaches, so the omission would surface months later on the one run that did. The run
+receipt now records `plugin: {name, version, root}`: afterwards it is unrecoverable, because every
+artifact a run leaves looks identical whether it came from this version, a stale install, or a
+sub-agent improvising past a failed dispatch.
+
+**The file check is honestly incomplete, and saying so is the point.** It proves the files exist. It
+cannot prove the session will resolve that copy — and both states the diagnosis names, installed-but-
+disabled and wrong-version-loaded, have all ten `SKILL.md` files and pass it green. So the run's first
+act is one live canary dispatch, deliberately carrying **no `--order`**: it is testing name
+resolution, not doing work, and an order would leave a compiled order with no result in `orders/`,
+which three readers enumerate. Its evidence is the hook layer's decision row, not the sub-agent's
+account of what happened — a Skill call whose name does not resolve fires no hook at all, so a row
+naming a skill is proof the name resolved, and the sub-agent that made the call cannot write it.
+
+The evidence window is required rather than optional. A Workflow script may not call `Date.now()` —
+it would break resume — so the kernel does the arithmetic (`--within <seconds>`); without a window,
+a checkout that once had the plugin loaded would pass the canary forever.
+
+Proven live: the canary reported `✅ orient resolved in this session — dispatch observed at …`, while
+a skill nothing dispatched, and the same skill outside the window, both correctly reported no
+evidence.
+
+### The staleness rule, validated by an accident rather than a fixture
+
+The guard that a receipt must satisfy `at ≥ order.compiled_at` was written against a predicted case:
+order paths like `orders/wire.json` are re-used verbatim on a relaunch, so a receipt that only has to
+*exist* is satisfied by one from an earlier, failed dispatch. During the criterion-1 headless run that
+prediction happened for real — WIRE escalated, the phase was re-dispatched against the same path, and
+the ledger held both:
+
+```
+order compiled_at : 2026-08-15T15:42:26.462Z   (wire, re-compiled)
+  receipt 15:33:49  solution-architect  → REJECTED as stale
+  receipt 15:42:28  solution-architect  → ACCEPTED
+```
+
+A receipt-must-exist gate would have accepted the failed dispatch's receipt and let the re-run's
+result through unattested. This is also the case that justifies the append-only JSONL: one file per
+order would have overwritten the 15:33 row with the 15:42 one and destroyed the evidence that the
+distinction was ever needed.
+
+Two things the writing of these guards caught that the code review had not:
+
+- **`--no-receipt-check` did not work.** `lib/argv.mjs` hands flags to the caller camelCased, and the
+  gate read `args["no-receipt-check"]`. The escape hatch was inert on its first run — the guard that
+  exists to prove the door opens found it welded shut.
+- **One guard was vacuous.** The fail-open check asserted `exit === 0`, which `runHook` guarantees
+  unconditionally — it is satisfied by a hook that crashed on every payload. It now asserts the
+  distinction the receipt layer exists to make visible: an unreadable order is a reasoned
+  `verdict:"allow"` defer, not a `verdict:"error"` throw. Removing the guard around the order read
+  now turns it red; asserting the exit code never would have.
 
 ## Two probes not run
 

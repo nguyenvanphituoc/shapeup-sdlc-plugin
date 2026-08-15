@@ -1,0 +1,39 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 2,
+  "at": "2026-08-15T16:11:44.109Z",
+  "scope_id": "foundation",
+  "fixtures": [
+    {
+      "cmd": "node --test test/domain/todo-list.test.js",
+      "exit": 0,
+      "pass": true
+    },
+    {
+      "cmd": "node --test test/store.test.js",
+      "exit": 0,
+      "pass": true
+    }
+  ],
+  "db_probe": null,
+  "seesaw": {
+    "ran": false,
+    "pass": true,
+    "scopes_checked": [],
+    "failing": []
+  },
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "seesaw_green": true,
+  "overall": "green",
+  "regression": false,
+  "score": {
+    "regressions": 0,
+    "fixtures_passed": 2,
+    "fixtures_total": 2,
+    "db_probe": null
+  },
+  "discovered_tasks": []
+}

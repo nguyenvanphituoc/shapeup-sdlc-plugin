@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/cli-integration-r1-a3",
+  "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+  "compiled_at": "2026-08-15T16:19:55.370Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "bin/todo.js",
+      "test/cli.test.js",
+      "test/integration/cli.test.js",
+      ".shapeup/todo-cli/spikes/**"
+    ],
+    "shared": [
+      "bin/todo.js"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "cli-integration",
+      "topology_type": "LAYER_CAKE",
+      "tasks": [
+        "TASK-008",
+        "TASK-009"
+      ],
+      "allowed_file_substrate": [
+        "bin/todo.js",
+        "test/cli.test.js",
+        "test/integration/cli.test.js"
+      ],
+      "shared_substrate": [
+        "bin/todo.js"
+      ],
+      "e2e_verification_fixtures": [
+        "node --test test/cli.test.js",
+        "node --test test/integration/cli.test.js"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN",
+      "affordance_manifest": [
+        {
+          "test_id": "cli:dispatch",
+          "role": "router",
+          "required_states": [
+            "idle",
+            "error"
+          ]
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "TASK-008",
+        "title": "Wire CLI entry point: argv dispatch to add/list/done/rm + unknown-command handling",
+        "status": "in-progress",
+        "priority": 8,
+        "depends_on": [
+          "TASK-004",
+          "TASK-005",
+          "TASK-006",
+          "TASK-007"
+        ],
+        "use_case_refs": [
+          "UC-AddTodo",
+          "UC-ListTodos",
+          "UC-CompleteTodo",
+          "UC-RemoveTodo"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-headless/.shapeup/todo-cli/tasks/TASK-008-cli-dispatcher.md",
+        "acceptance_criteria": [
+          "`bin/todo.js` routes `argv[2] === \"add\"` → `commands/add.js`, `\"list\"` → `commands/list.js`,",
+          "The command's own process.exit code (0 or 1) propagates as the CLI's exit code",
+          "`node --test test/cli.test.js` (or equivalent, spawning the CLI as a subprocess) passes",
+          "`bin/todo.js` invoked with no subcommand, or an unrecognized one (e.g. `todo frobnicate`),",
+          "No command module is invoked more than once per process run"
+        ]
+      },
+      {
+        "id": "TASK-009",
+        "title": "Integration test — full CLI round-trip via subprocess",
+        "status": "in-progress",
+        "priority": 9,
+        "depends_on": [
+          "TASK-008"
+        ],
+        "use_case_refs": [
+          "UC-AddTodo",
+          "UC-ListTodos",
+          "UC-CompleteTodo",
+          "UC-RemoveTodo"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-headless/.shapeup/todo-cli/tasks/TASK-009-integration-test.md",
+        "acceptance_criteria": [
+          "`test/integration/cli.test.js` spawns `node bin/todo.js <args>` with `cwd` set to a",
+          "`node --test test/integration/cli.test.js` passes",
+          "Full round-trip: `add` → `list` shows the item pending → `done 1` → `list` shows it done →",
+          "Missing store file: `list` on a fresh temp dir exits 0 with the empty message, does not",
+          "Corrupted store file: write `not json {{{` to `./.todo.json` in the temp dir, then run any"
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/todo-cli/spec",
+    "feature": "todo-cli",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

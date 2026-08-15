@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/complete-todo-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-006",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`src/commands/done.js` validates presence, numeric-ness, and range of `<n>` BEFORE any",
+          "result": "pass",
+          "evidence": "src/commands/done.js checks raw===undefined (MISSING_INDEX), then INDEX_RE positive-integer test (INVALID_INDEX), then 1<=n<=list.items.length (INDEX_OUT_OF_RANGE), all before todoList.completeAt/store.save; test/commands/done.test.js asserts no store write on each rejection path"
+        },
+        {
+          "ac": "`node --test test/commands/done.test.js` passes",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js -> 8 pass, 0 fail"
+        },
+        {
+          "ac": "`<n> = 0`: rejected (`INVALID_INDEX`), no store write",
+          "result": "pass",
+          "evidence": "test 'n = 0 is rejected as INVALID_INDEX, no store write' passes"
+        },
+        {
+          "ac": "`<n> = list.length`: accepted (last item)",
+          "result": "pass",
+          "evidence": "test 'n = list.length is accepted (last item)' passes"
+        },
+        {
+          "ac": "`<n> = list.length + 1`: rejected (`INDEX_OUT_OF_RANGE`), no store write",
+          "result": "pass",
+          "evidence": "test 'n = list.length + 1 is rejected as INDEX_OUT_OF_RANGE, no store write' passes"
+        },
+        {
+          "ac": "`<n>` on an empty list (any positive integer): rejected (`INDEX_OUT_OF_RANGE`)",
+          "result": "pass",
+          "evidence": "test 'any positive n on an empty list is rejected as INDEX_OUT_OF_RANGE' passes (no store file at all -> store.load() returns empty list -> range check rejects n=1)"
+        },
+        {
+          "ac": "`<n> = \"abc\"` or `<n> = \"1.5\"`: rejected (`INVALID_INDEX`), no store write",
+          "result": "pass",
+          "evidence": "tests 'n = \"abc\" is rejected as INVALID_INDEX, no store write' and 'n = \"1.5\" is rejected as INVALID_INDEX, no store write' pass"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "src/commands/done.js", "change": "created" },
+    { "path": "test/commands/done.test.js", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "Success confirmation message format is not pinned by the spec (ux-behavior.md only says 'print confirmation'); used `todo: [<n>] \"<text>\" marked done`.",
+    "Command module signature follows TASK-008's dispatcher contract: exported function `done(args)` where args = process.argv.slice(3), returning the exit code (0/1) rather than calling process.exit itself, so the dispatcher (TASK-008, not yet built) can propagate it and so the module is directly unit-testable.",
+    "Validation order follows UC-CompleteTodo Steps 1-5 verbatim: presence -> store.load() -> numeric format -> range; store.load() is a read, not a mutation, so it does not violate the 'validates ... BEFORE any store mutation' AC."
+  ],
+  "deviations": []
+}

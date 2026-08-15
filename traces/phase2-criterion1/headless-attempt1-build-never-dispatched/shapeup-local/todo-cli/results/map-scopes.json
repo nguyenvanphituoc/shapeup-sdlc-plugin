@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/map-scopes",
+  "worker": "scope-architect",
+  "status": "done",
+  "artifacts": [
+    "shapeup/todo-cli/scopes/foundation.md",
+    "shapeup/todo-cli/scopes/add-todo.md",
+    "shapeup/todo-cli/scopes/list-todos.md",
+    "shapeup/todo-cli/scopes/complete-todo.md",
+    "shapeup/todo-cli/scopes/remove-todo.md",
+    "shapeup/todo-cli/scopes/cli-integration.md",
+    "shapeup/todo-cli/scope-board.md"
+  ],
+  "assumptions": [
+    "TASK-001..009 are the full task set (from .shapeup/todo-cli/tasks/_index.md); no further discovered items existed to fold in.",
+    "src/domain/todo-list.js and src/store.js are treated as frozen/call-only from every command scope's point of view — a command scope reads their exports but never rewrites them, so they live only in `foundation`'s allowed_file_substrate.",
+    "bin/todo.js is written twice by design (TASK-001 placeholder, TASK-008 real dispatcher) and is declared shared_substrate between foundation and cli-integration rather than split across two files."
+  ],
+  "deviations": [
+    "spec-lint (harness verify spec --slug todo-cli) reports 0 red / 0 warn across all 6 scopes — no lint warnings left standing."
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/add-todo-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-004",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`src/commands/add.js` exports a function taking the raw args array and performing UC-AddTodo Steps 1–6: trim, validate non-empty, load, `addItem`, save, print confirmation to stdout, return exit code 0",
+          "result": "pass",
+          "evidence": "src/commands/add.js exports `run(args)` — joins+trims args, validates non-empty (else stderr + exit 1), calls store.load(), domain addItem, store.save(), writes confirmation to stdout, returns 0. Manually invoked via test/commands/add.test.js 'add a valid item' case: exit 0, stdout matches /Buy milk/, ./.todo.json contains one item with text 'Buy milk', done:false."
+        },
+        {
+          "ac": "`node --test test/commands/add.test.js` passes",
+          "result": "pass",
+          "evidence": "node --test test/commands/add.test.js → tests 4, pass 4, fail 0 (valid add, empty-args rejection, whitespace-only rejection, id-never-reused via addItem sequence)."
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "src/commands/add.js", "change": "created" },
+    { "path": "test/commands/add.test.js", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "`add.js`'s exported function receives args already sliced past the `add` subcommand (i.e. argv.slice(3)), matching UC-AddTodo Step 1's `argv.slice(3).join(' ').trim()` — TASK-008 (dispatcher, out of this scope's Non-Go) is responsible for the argv[0..2] slicing before calling this function.",
+    "Confirmation stdout format `Added [<id>] <text>` is not specified verbatim by the contract (only 'prints confirmation line naming the item' / 'stdout confirms the addition') — chose a plain, assertable, non-colored line per ux-behavior's no-TUI/no-color no-go.",
+    "STORE_CORRUPTED handling in add.js checks `err.name === 'StoreCorruptedError'` against `../store.js`'s exported error class (TASK-003, foundation scope, frozen/read-only per this scope's contract) — verified against the landed src/store.js at implementation time.",
+    "Write-failure path (StoreWriteError) reported via a generic 'todo add: failed to save store' stderr line and exit 1, per ux-behavior's generic `error` state for `add`; not separately itemized as a distinct error code in this task's AC/BDD scenarios."
+  ],
+  "deviations": []
+}

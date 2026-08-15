@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/orient",
+  "worker": "orient",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/todo-cli/orient/code-surface.md",
+    ".shapeup/todo-cli/orient/spike-persistence.md",
+    ".shapeup/todo-cli/orient/discovered-seed.md",
+    ".shapeup/todo-cli/orient/hill-signal.md"
+  ],
+  "assumptions": [
+    "Pitch (.shapeup/todo-cli/intake.md) has appetite (Small batch) and solution boundaries (No-gos) though it lacks a formal 'status: shaped / bet:' frontmatter; treated as kicked-off per GATE O-A's appetite-and-boundaries test rather than STOPping.",
+    "Repo is greenfield (no src/, no package.json) confirmed via git log and file listing; every code-surface element is marked NEW.",
+    "Store file location (cwd-relative vs. home-relative) and done/rm index semantics (positional vs. stable id) are left as open decisions for ba to pin down, not resolved unilaterally."
+  ],
+  "deviations": []
+}

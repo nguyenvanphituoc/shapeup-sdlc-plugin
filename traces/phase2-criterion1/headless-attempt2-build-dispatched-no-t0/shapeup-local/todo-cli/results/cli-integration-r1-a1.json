@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/cli-integration-r1-a1",
+  "worker": "task-executor",
+  "status": "escalated",
+  "task_results": [
+    {
+      "task_id": "TASK-008",
+      "status": "failed",
+      "ac_results": [
+        {
+          "ac": "`bin/todo.js` routes `argv[2] === \"add\"` → `commands/add.js`, `\"list\"` → `commands/list.js`,",
+          "result": "fail",
+          "evidence": "commands/add.js, commands/list.js, commands/done.js, commands/rm.js do not exist in the repo (only idea.md is present at repo root; find . -maxdepth 3 shows no bin/, commands/, or lib/ directories) and are outside this scope's allowed_file_substrate (bin/todo.js, test/cli.test.js, test/integration/cli.test.js), so a working dispatcher cannot be verified against real command modules."
+        },
+        {
+          "ac": "The command's own process.exit code (0 or 1) propagates as the CLI's exit code",
+          "result": "fail",
+          "evidence": "No command module exists to exercise; exit-code propagation cannot be exercised end-to-end."
+        },
+        {
+          "ac": "`node --test test/cli.test.js` (or equivalent, spawning the CLI as a subprocess) passes",
+          "result": "skipped",
+          "evidence": "Not attempted — blocked on missing command modules (see deviations)."
+        },
+        {
+          "ac": "`bin/todo.js` invoked with no subcommand, or an unrecognized one (e.g. `todo frobnicate`),",
+          "result": "skipped",
+          "evidence": "Not attempted — blocked on missing command modules (see deviations)."
+        },
+        {
+          "ac": "No command module is invoked more than once per process run",
+          "result": "skipped",
+          "evidence": "Not attempted — blocked on missing command modules (see deviations)."
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-009",
+      "status": "failed",
+      "ac_results": [
+        {
+          "ac": "`test/integration/cli.test.js` spawns `node bin/todo.js <args>` with `cwd` set to a",
+          "result": "skipped",
+          "evidence": "Not attempted — depends on TASK-008's dispatcher, which itself is blocked (see deviations)."
+        },
+        {
+          "ac": "`node --test test/integration/cli.test.js` passes",
+          "result": "skipped",
+          "evidence": "Not attempted — blocked."
+        },
+        {
+          "ac": "Full round-trip: `add` → `list` shows the item pending → `done 1` → `list` shows it done →",
+          "result": "skipped",
+          "evidence": "Not attempted — blocked."
+        },
+        {
+          "ac": "Missing store file: `list` on a fresh temp dir exits 0 with the empty message, does not",
+          "result": "skipped",
+          "evidence": "Not attempted — blocked."
+        },
+        {
+          "ac": "Corrupted store file: write `not json {{{` to `./.todo.json` in the temp dir, then run any",
+          "result": "skipped",
+          "evidence": "Not attempted — blocked."
+        }
+      ]
+    }
+  ],
+  "files_touched": [],
+  "discoveries": [],
+  "assumptions": [],
+  "deviations": [
+    "ESCALATE substrate-expansion [TASK-008, TASK-009]\nThe repo is empty except idea.md — none of TASK-001 (bin/todo.js placeholder, package.json), TASK-002 (domain module), TASK-003 (TodoStoreRepository), or TASK-004..007 (commands/add.js, commands/list.js, commands/done.js, commands/rm.js) exist on disk (verified via `find . -maxdepth 3` from repo root, and `ls bin commands lib` all report 'No such file or directory'). This scope's own contract says 'Build this scope LAST — it depends on foundation and all four command scopes existing' (shapeup/todo-cli/scopes/cli-integration.md), and TASK-008's own Non-Go section states 'Command logic itself → TASK-004..007 (this task only routes)' — so writing those command/lib modules is explicitly out of scope here, yet cli-integration's allowed_file_substrate (bin/todo.js, test/cli.test.js, test/integration/cli.test.js) contains no path for them either. Question: should the orchestrator run the foundation and command scopes (foundation, add-todo, list-todos, complete-todo, remove-todo) first and re-dispatch cli-integration afterward, or should this scope's substrate be expanded to also let TASK-008 write the missing commands/*.js and lib/*.js files itself? No code was written; bin/todo.js and the two test files were left untouched to avoid producing a dispatcher that only routes to nonexistent modules."
+  ]
+}

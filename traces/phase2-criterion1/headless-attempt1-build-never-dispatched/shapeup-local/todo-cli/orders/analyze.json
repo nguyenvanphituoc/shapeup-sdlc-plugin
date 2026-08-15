@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/analyze",
+  "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+  "compiled_at": "2026-08-15T15:24:55.660Z",
+  "worker": "ba-pitch-analyzer",
+  "mode": "orchestrated",
+  "operation": "analyze",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "shapeup/todo-cli/spec/**",
+      ".shapeup/todo-cli/**"
+    ],
+    "frozen": []
+  },
+  "payload": {
+    "pitch": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-headless/.shapeup/todo-cli/intake.md",
+    "spec_folder": "shapeup/todo-cli/spec/",
+    "feature": "todo-cli",
+    "lens": "standard",
+    "orient_dir": ".shapeup/todo-cli/orient/",
+    "kb_rules_path": "shapeup/knowledge-base/ba-pitch-analyzer.md"
+  }
+}

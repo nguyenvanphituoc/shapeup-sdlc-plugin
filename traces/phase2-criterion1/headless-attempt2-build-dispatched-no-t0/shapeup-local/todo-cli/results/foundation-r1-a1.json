@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/foundation-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-001",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`package.json` created at repo root with `name`, `version`, `type: \"commonjs\"` (or `module` —",
+          "result": "pass",
+          "evidence": "package.json created with name, version, type: \"commonjs\", bin.todo: ./bin/todo.js"
+        },
+        {
+          "ac": "`bin/todo.js` exists as a placeholder file with a `#!/usr/bin/env node` shebang and is",
+          "result": "pass",
+          "evidence": "bin/todo.js created with #!/usr/bin/env node shebang; chmod +x applied (rwxr-xr-x)"
+        },
+        {
+          "ac": "`node bin/todo.js` runs without a Node syntax error (no commands implemented yet is fine)",
+          "result": "pass",
+          "evidence": "`node bin/todo.js` → exit=0"
+        },
+        {
+          "ac": "No runtime dependencies added — `package.json` has no `dependencies` field (or an empty one),",
+          "result": "pass",
+          "evidence": "package.json has no dependencies field at all"
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-002",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`src/domain/todo-list.js` exports functions/class implementing:",
+          "result": "pass",
+          "evidence": "src/domain/todo-list.js exports createEmpty, addItem, completeAt, removeAt matching the AC's exact semantics (nextId increments on add, never on remove/complete)"
+        },
+        {
+          "ac": "A unit test file (e.g. `test/domain/todo-list.test.js`) exercises: add assigns increasing",
+          "result": "pass",
+          "evidence": "test/domain/todo-list.test.js includes 'add assigns increasing ids', 'complete on an already-done item is idempotent (no throw, stays done)', 'remove does not reuse the removed item id on a subsequent add'"
+        },
+        {
+          "ac": "`node --test test/domain/todo-list.test.js` (or the project's chosen test runner) passes",
+          "result": "pass",
+          "evidence": "node --test test/domain/todo-list.test.js → tests 9, pass 9, fail 0"
+        },
+        {
+          "ac": "`completeAt`/`removeAt` at index 1 (first item) and index `items.length` (last item) both",
+          "result": "pass",
+          "evidence": "Dedicated boundary tests for completeAt/removeAt at index 1 and index items.length, all pass"
+        },
+        {
+          "ac": "`addItem` on an empty list assigns id `1`",
+          "result": "pass",
+          "evidence": "test 'addItem on an empty list assigns id 1' passes"
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-003",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`src/store.js` exports `load()` and `save(list)` per the contract's method signatures",
+          "result": "pass",
+          "evidence": "src/store.js exports load() and save(list) matching todo-store.contract.md signatures"
+        },
+        {
+          "ac": "`save(list)` writes to `./.todo.json.tmp` via `fs.writeFileSync`, then renames to",
+          "result": "pass",
+          "evidence": "save() calls fs.writeFileSync('./.todo.json.tmp', ...) then fs.renameSync('./.todo.json.tmp', './.todo.json'); test confirms tmp file absent and real file present after save()"
+        },
+        {
+          "ac": "`load()` on a missing file (`err.code === 'ENOENT'`) returns `{ nextId: 1, items: [] }` —",
+          "result": "pass",
+          "evidence": "load() checks err.code === 'ENOENT' and returns { nextId: 1, items: [] }; test passes"
+        },
+        {
+          "ac": "`load()` on a file that exists but fails `JSON.parse` (catches `SyntaxError`) throws/returns",
+          "result": "pass",
+          "evidence": "load() catches SyntaxError from JSON.parse and throws StoreCorruptedError; test 'load() on a file that fails JSON.parse throws StoreCorruptedError' passes"
+        },
+        {
+          "ac": "`load()` on a file that parses but has the wrong shape (`items` not an array, or an item",
+          "result": "pass",
+          "evidence": "isValidShape() checks Array.isArray(items) and each item has id/text; both shape-violation tests pass"
+        },
+        {
+          "ac": "`node --test test/store.test.js` (or equivalent) passes, covering: missing file → empty",
+          "result": "pass",
+          "evidence": "node --test test/store.test.js → tests 6, pass 6, fail 0 (missing file, corrupted file, round-trip all covered)"
+        },
+        {
+          "ac": "`load()` on a missing file returns `{ nextId: 1, items: [] }`, never `null` and never throws",
+          "result": "pass",
+          "evidence": "test asserts result !== null, deepEqual { nextId: 1, items: [] }, doesNotThrow"
+        },
+        {
+          "ac": "`load()` on a store with `items: []` (valid empty JSON) returns that empty list, not an error",
+          "result": "pass",
+          "evidence": "test 'load() on a store with items: [] ... returns that empty list, not an error' passes"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "package.json", "change": "created" },
+    { "path": "bin/todo.js", "change": "created" },
+    { "path": "src/domain/todo-list.js", "change": "created" },
+    { "path": "test/domain/todo-list.test.js", "change": "created" },
+    { "path": "src/store.js", "change": "created" },
+    { "path": "test/store.test.js", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "package.json uses type: \"commonjs\" (CommonJS require/module.exports throughout), per TASK-001's either/or wording — chosen for consistency with Node core fs sync APIs used in store.js",
+    "isValidShape() treats a missing nextId as acceptable at the type level (the contract's shape-violation AC only enumerates items-not-array and item-missing-id/text); load() still passes through whatever nextId value is present since no AC requires validating nextId's type"
+  ],
+  "deviations": []
+}

@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/complete-todo-r1-a1",
+  "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+  "compiled_at": "2026-08-15T16:10:11.663Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "src/commands/done.js",
+      "test/commands/done.test.js",
+      ".shapeup/todo-cli/spikes/**"
+    ],
+    "shared": []
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "complete-todo",
+      "topology_type": "LAYER_CAKE",
+      "tasks": [
+        "TASK-006"
+      ],
+      "allowed_file_substrate": [
+        "src/commands/done.js",
+        "test/commands/done.test.js"
+      ],
+      "e2e_verification_fixtures": [
+        "node --test test/commands/done.test.js"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN",
+      "affordance_manifest": [
+        {
+          "test_id": "cli:done",
+          "role": "command",
+          "required_states": [
+            "idle",
+            "loading",
+            "success",
+            "error"
+          ]
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "TASK-006",
+        "title": "Implement `done <n>` command with index validation",
+        "status": "ready",
+        "priority": 6,
+        "depends_on": [
+          "TASK-003"
+        ],
+        "use_case_refs": [
+          "UC-CompleteTodo"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-headless/.shapeup/todo-cli/tasks/TASK-006-done-command.md",
+        "acceptance_criteria": [
+          "`src/commands/done.js` validates presence, numeric-ness, and range of `<n>` BEFORE any",
+          "`node --test test/commands/done.test.js` passes",
+          "`<n> = 0`: rejected (`INVALID_INDEX`), no store write",
+          "`<n> = list.length`: accepted (last item)",
+          "`<n> = list.length + 1`: rejected (`INDEX_OUT_OF_RANGE`), no store write",
+          "`<n>` on an empty list (any positive integer): rejected (`INDEX_OUT_OF_RANGE`)",
+          "`<n> = \"abc\"` or `<n> = \"1.5\"`: rejected (`INVALID_INDEX`), no store write"
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/todo-cli/spec",
+    "feature": "todo-cli",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}
