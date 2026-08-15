@@ -69,7 +69,7 @@
 // one moment it mattered named a mechanism that does not parse.
 
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join, dirname, resolve } from "node:path";
 import { createHash } from "node:crypto";
 import { decideLane, treeSize } from "./fit.mjs";
 import { runArgs } from "../lib/argv.mjs";
@@ -77,6 +77,7 @@ import { uncoerce } from "../lib/contract.mjs";
 import { deriveSnapshot } from "../reduce/snapshot.mjs";
 import { mintRunId } from "../lib/paths.mjs";
 import { localRoot, activeScope, globLocal, globShared } from "../lib/paths.mjs";
+import { resolveWorkers } from "../verify/skills.mjs";
 
 export const RECEIPT_VERSION = 1;
 
@@ -129,7 +130,7 @@ export function digest(text) {
  * Build the receipt record. Pure — takes resolved inputs, returns the object that gets written.
  * Kept separate from I/O so the structural tests can assert its shape without a filesystem.
  */
-export function buildReceipt({ slug, intake, config, startedAt }) {
+export function buildReceipt({ slug, intake, config, startedAt, plugin = null }) {
   const intakeText = String(intake ?? "");
   const intakeSha256 = digest(intakeText);
   return {
@@ -155,6 +156,12 @@ export function buildReceipt({ slug, intake, config, startedAt }) {
     // The single fact that separates "the harness ran" from "the harness described itself".
     // Written before any gate, so its ABSENCE at Stop is unambiguous.
     started: true,
+    // WHICH COPY OF THE PLUGIN PRODUCED THIS RUN. Recorded while it is in hand, because afterwards
+    // it is unrecoverable: every artifact a run leaves looks identical whether it came from this
+    // version, a stale marketplace install, or a sub-agent improvising past a failed dispatch. A
+    // run whose trace cannot name its own plugin cannot be compared with another run, and cannot be
+    // cleared of the wrong-version failure the roster check exists to catch.
+    plugin: plugin ? { name: plugin.name, version: plugin.version, root: plugin.root } : null,
     config,
   };
 }
@@ -212,7 +219,8 @@ export const ARGV_SPEC = {
          "[--slug <slug>] [--auto-level interactive|auto|unattended] [--lens <lens>] " +
          "[--max-rounds N] [--attempts N] [--spec-folder <dir>] [--dimensions <a,b>] " +
          "[--gate-answers <preset|path>] " +
-         "[--lane full|tiny] [--tiny] [--wall-clock-budget <seconds>] [--cwd <dir>] [--force]",
+         "[--lane full|tiny] [--tiny] [--wall-clock-budget <seconds>] [--cwd <dir>] " +
+         "[--plugin-root <dir>] [--force]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   cwd: { type: "path" },
   "intake-text": { type: "str" },
@@ -229,6 +237,11 @@ export const ARGV_SPEC = {
   lane: { type: "str" },
   tiny: { type: "flag" },
   "wall-clock-budget": { type: "int", min: 1 },
+  // Which copy of the plugin this run is opened against. Defaults to the one this kernel is part
+  // of, which is right for every ordinary invocation; it is nameable because a machine can carry
+  // several installs, and because the roster refusal below is otherwise unreachable for a test —
+  // a check whose failure path cannot be exercised is a check nobody has seen work.
+  "plugin-root": { type: "path" },
   force: { type: "flag" },
 };
 
@@ -247,6 +260,34 @@ function fail(code, msg) {
 export function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = args.cwd || process.cwd();
+
+  // GATE L0 — the worker roster, before any spend.
+  //
+  // HERE AND NOT IN THE WORKFLOW SCRIPT, for two reasons. This is what GATE L0 actually executes,
+  // and it covers both lanes rather than only the orchestrated one — the prose/`--tiny` lane opens
+  // its run through exactly this call. And it is genuinely before any spend: the workflow script's
+  // own helpers reach the kernel by spawning a sub-agent first, so a check placed there has already
+  // paid for a model call before it can refuse.
+  //
+  // What it can and cannot prove is stated in verify/skills.mjs and is worth repeating where it is
+  // enforced: this says the files exist at this root at this version. It does not say the SESSION
+  // will resolve that copy. The orchestrator's canary dispatch answers that, and its receipt is the
+  // evidence; this refusal is the cheap half that costs nothing to run on every single run.
+  const plugin = resolveWorkers(args.pluginRoot ? resolve(args.pluginRoot) : undefined);
+  if (plugin.missing.length) {
+    fail(3, [
+      `✋ init-run: refusing to open a run — ${plugin.missing.length} of ${plugin.workers.length} worker skills are missing.`,
+      "",
+      `  plugin: ${plugin.name ?? "unknown"} ${plugin.version ?? "unknown version"}`,
+      `  root:   ${plugin.root}`,
+      `  missing: ${plugin.missing.join(", ")}`,
+      "",
+      "A run against this copy would dispatch workers that cannot resolve, and a failed dispatch is",
+      "answered by the sub-agent improvising the craft itself — phases reporting complete with none",
+      "of the shipped craft applied. Load the working copy (`claude --plugin-dir <repo>`) or install",
+      "and enable the plugin, then retry. `harness verify skills` reports the same thing on demand.",
+    ].join("\n"));
+  }
 
   let intake = args.intakeText ?? null;
   const intakeFile = args.intakeFile ?? null;
@@ -354,7 +395,7 @@ export function cli(rawArgv) {
   }
 
   const startedAt = new Date().toISOString();
-  const receipt = buildReceipt({ slug, intake, config, startedAt });
+  const receipt = buildReceipt({ slug, intake, config, startedAt, plugin });
 
   mkdirSync(runRoot, { recursive: true });
   mkdirSync(join(runRoot, "orders"), { recursive: true });

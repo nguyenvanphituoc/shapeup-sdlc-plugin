@@ -20,7 +20,10 @@
 // THE VERBS, and the invariant each one exists to keep:
 //
 //   verify   t0 · budget · envelope ·        Measured, not claimed. A model verifying itself is
-//            trace · spec                     claiming; these read artifacts and re-hash them.
+//            trace · spec · skills ·          claiming; these read artifacts and re-hash them.
+//            dispatch                         `skills` reads the roster off disk; `dispatch` reads
+//                                             the hook layer's evidence that a skill really resolved
+//                                             in this session — the half a file check cannot answer.
 //   reduce   ingest · hill · snapshot ·       Single writer. Shared state has exactly one author.
 //            ship · board · verdict · graph
 //   gate                                      An answer file with a source, not a vibe.
@@ -48,7 +51,8 @@ import { isMain } from "./lib/argv.mjs";
 export const ROUTES = {
   verify: {
     t0: "./verify/t0.mjs", budget: "./verify/budget.mjs", envelope: "./verify/envelope.mjs",
-    trace: "./verify/trace.mjs", spec: "./verify/spec.mjs",
+    trace: "./verify/trace.mjs", spec: "./verify/spec.mjs", skills: "./verify/skills.mjs",
+    dispatch: "./verify/dispatch.mjs",
   },
   reduce: {
     ingest: "./reduce/ingest.mjs", hill: "./reduce/hill.mjs", snapshot: "./reduce/snapshot.mjs",

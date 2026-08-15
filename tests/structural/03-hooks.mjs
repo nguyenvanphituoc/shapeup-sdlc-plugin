@@ -549,4 +549,111 @@ export async function run(ctx) {
     rmSync(empty, { recursive: true, force: true });
   }
 
+  // =============================================================================
+  section("57. dispatch-receipt attests a completed dispatch, and attests nothing else");
+  // =============================================================================
+  // The hook half of the D2 fix. Its counterpart in 05-tech-lead §22 proves ingest REFUSES an
+  // unattested result; this proves the receipt those checks depend on is written when — and only
+  // when — a dispatch really ran. Both halves are needed: a gate reading a channel nobody fills
+  // refuses every result in the run, and a channel that fills itself on a failed dispatch restores
+  // the false green the gate exists to end.
+  //
+  // The payload shapes are not invented. They were measured from a live session with the plugin
+  // loaded and a SUB-AGENT making the Skill calls: `tool_input` is `{skill, args}`, a completed
+  // dispatch reports `tool_response = {success:true, commandName:"<namespace>:<skill>"}`, and a
+  // dispatch that failed produces no PostToolUse event at all.
+  const drPath = join(ROOT, "hooks/dispatch-receipt.mjs");
+  if (!existsSync(drPath)) {
+    fail("hooks/dispatch-receipt.mjs missing — orchestrated ingests have no attestation channel");
+  } else {
+    const drBox = mkdtempSync(join(tmpdir(), "dispatch-receipt-"));
+    const orderPath = join(drBox, ".shapeup/demo/orders/orient.json");
+    mkdirSync(dirname(orderPath), { recursive: true });
+    writeFileSync(orderPath, JSON.stringify({
+      schema_version: 1, order_id: "demo/orient", run_id: "demo-20260815T000000Z-deadbeef",
+      compiled_at: "2026-08-15T12:00:00.000Z", worker: "orient", mode: "orchestrated",
+      substrate: { allowed: [".shapeup/demo/orient/**"] }, payload: { feature: "demo" },
+    }));
+    const ledgerPath = join(drBox, ".shapeup/demo/receipts/dispatch.jsonl");
+    const rowsNow = () => (existsSync(ledgerPath)
+      ? readFileSync(ledgerPath, "utf8").split("\n").filter((l) => l.trim())
+        .map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean)
+      : []);
+    // The decision ledger is checkout-wide, resolved the way lib/paths.mjs resolves it. It is read
+    // here because exit code alone cannot distinguish "handled this case" from "threw": runHook
+    // catches everything and exits 0 either way, so an assertion on the exit code is satisfied by a
+    // hook that crashed on every payload.
+    const decisionsNow = () => {
+      const p = join(drBox, ".shapeup", "decisions.jsonl");
+      return existsSync(p)
+        ? readFileSync(p, "utf8").split("\n").filter((l) => l.trim())
+          .map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean)
+        : [];
+    };
+    const firePost = (payload) => {
+      const env = { ...process.env };
+      delete env.SHAPEUP_DECISIONS_PATH;
+      const r = spawnSync("node", [drPath], { encoding: "utf8", input: JSON.stringify(payload), cwd: drBox, env });
+      const decisions = decisionsNow();
+      return { exit: r.status, rows: rowsNow(), decision: decisions[decisions.length - 1] };
+    };
+    const dispatch = (over = {}) => ({
+      hook_event_name: "PostToolUse", tool_name: "Skill", cwd: drBox,
+      agent_id: "abc123", agent_type: "general-purpose",
+      tool_input: { skill: "shapeup-sdlc-plugin:orient", args: `--order '${orderPath}'` },
+      tool_response: { success: true, commandName: "shapeup-sdlc-plugin:orient" },
+      ...over,
+    });
+
+    // (a) the completed dispatch — the only state that earns a receipt.
+    const okFire = firePost(dispatch());
+    const row = okFire.rows[okFire.rows.length - 1];
+    if (okFire.exit === 0 && okFire.rows.length === 1 && row.order_id === "demo/orient"
+        && row.skill_invoked === "orient" && row.worker_declared === "orient" && row.dispatch_ok === true) {
+      ok("dispatch-receipt writes an attestation for a completed dispatch, keyed by order_id");
+    } else {
+      fail(`no usable receipt for a completed dispatch: exit ${okFire.exit}, rows ${JSON.stringify(okFire.rows)}`);
+    }
+    // The host namespaces the command and the order does not. A receipt carrying
+    // "shapeup-sdlc-plugin:orient" would never equal the order's "orient", so the gate downstream
+    // would refuse every result in the run — a wall that denies everything is not a wall.
+    if (row && row.skill_invoked === "orient" && !String(row.skill_invoked).includes(":")) {
+      ok("the namespaced commandName is reduced to the bare skill name the WorkOrder declares");
+    } else {
+      fail(`skill_invoked is "${row?.skill_invoked}" — it must match order.worker, which is never namespaced`);
+    }
+    if (row && row.agent_id === "abc123") ok("the receipt records sub-agent provenance, separating an orchestrated leg from a hand-driven skill call");
+    else fail("the receipt drops agent_id — an operator's own dispatch is indistinguishable from a leg's");
+
+    // (b) a dispatch that resolved nothing. This is the shape an `Agent` call has, and the shape
+    //     any host result has when no skill ran. Minting a receipt here would forge the fact.
+    const before = rowsNow().length;
+    const noSkill = firePost(dispatch({ tool_response: { status: "completed" } }));
+    if (noSkill.exit === 0 && noSkill.rows.length === before) {
+      ok("a dispatch whose result names no resolved skill gets NO receipt (the false green stays refused)");
+    } else {
+      fail(`a result naming no skill produced a receipt: ${JSON.stringify(noSkill.rows.slice(before))}`);
+    }
+
+    // (c) not an orchestrated dispatch at all — a plain skill call an operator made. Out of scope,
+    //     and it must not accumulate rows that a later order could match against.
+    const noOrder = firePost(dispatch({ tool_input: { skill: "shapeup-sdlc-plugin:orient", args: "" } }));
+    if (noOrder.exit === 0 && noOrder.rows.length === before) ok("a Skill call with no --order is not attested — standalone use stays out of the ledger");
+    else fail(`an unorchestrated Skill call wrote a receipt: ${JSON.stringify(noOrder.rows.slice(before))}`);
+
+    // (d) a broken channel is HANDLED, not merely survived. Asserting exit 0 here would be
+    //     vacuous — runHook catches every throw and exits 0 regardless, so that assertion is
+    //     satisfied by a hook that crashed. The fact worth guarding is the one the receipt layer
+    //     exists to make visible: an unreadable order is a reasoned defer, not an exception. Drop
+    //     the guard around the order read and this row becomes verdict:"error".
+    const brokenFire = firePost(dispatch({ tool_input: { skill: "x", args: `--order '${join(drBox, "nope.json")}'` } }));
+    if (brokenFire.exit === 0 && brokenFire.decision?.verdict === "allow" && brokenFire.decision?.rule === "order-unreadable") {
+      ok("an unreadable order is a reasoned defer, not a thrown exception — the hook never denies and never crashes");
+    } else {
+      fail(`an unreadable order was not handled: exit ${brokenFire.exit}, decision ${JSON.stringify(brokenFire.decision)}`);
+    }
+
+    rmSync(drBox, { recursive: true, force: true });
+  }
+
 }

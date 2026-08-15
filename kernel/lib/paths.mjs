@@ -150,6 +150,24 @@ export const boardIndex = (cwd, slug) => join(tasksDir(cwd, slug), "_index.md");
 export const ordersDir = (cwd, slug) => join(localRoot(cwd, slug), "orders");
 /** Returned WorkResults. */
 export const resultsDir = (cwd, slug) => join(localRoot(cwd, slug), "results");
+/**
+ * Dispatch receipts — the attestation that the SHIPPED skill ran, one appended row per dispatch.
+ *
+ * IT HAS ITS OWN DIRECTORY, and that is not tidiness. A receipt filed as a sibling of the order it
+ * answers (`orders/orient.receipt.json`) would land inside a directory three readers enumerate —
+ * `probe resume`, `reduce graph` and `report export` all `readdirSync` `orders/` — where it survives
+ * today only because each of them happens to filter `.json`. `orient.receipt.json` passes that
+ * filter and becomes a bogus `Order` node in the run graph. A separate directory means no future
+ * reader has to know this file exists.
+ *
+ * IT IS APPEND-ONLY JSONL, not one file per order, for the same reason `trials.jsonl` is: order
+ * paths repeat (`orders/orient.json` is re-dispatched verbatim on a relaunch) and scopes dispatch
+ * concurrently. One small `O_APPEND` line per dispatch needs no lock and loses no history, where a
+ * per-order file would silently overwrite the very staleness the reader has to detect.
+ *
+ * (`receipt`, above, is the RUN receipt — a different fact, hence the different name.)
+ */
+export const dispatchReceipts = (cwd, slug) => join(localRoot(cwd, slug), "receipts", "dispatch.jsonl");
 /** T0 verification artifacts. */
 export const t0Dir = (cwd, slug) => join(localRoot(cwd, slug), "t0");
 /** Immutable per-attempt verdict artifacts the evaluator must cite. */

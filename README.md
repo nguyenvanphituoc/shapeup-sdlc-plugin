@@ -217,6 +217,20 @@ the layer that carries it, and the three layers here fail differently:
   `DROP TABLE`) and secret-file reads. A machine guard, not a pipeline guard; the escape hatch is
   the human-authored `.shapeup/safety-overrides.json`.
 
+**One recorder**, which denies nothing and is what makes a wall possible one layer down:
+
+- `PostToolUse` (`Skill|Agent`) — **`hooks/dispatch-receipt.mjs` writes down which skill actually
+  ran.** Until it existed, a dispatch that failed — plugin absent, disabled, or a different version
+  loaded — was indistinguishable from one that succeeded: the sub-agent would do the craft itself
+  from the prose in its own prompt, the artifacts landed in exactly the place the order permitted, so
+  the order gate and the sandbox guard both passed and the run advanced having applied none of the
+  shipped craft. A green run was consistent with zero worker craft. The hook appends
+  `{order_id, worker_declared, skill_invoked, dispatch_ok, at}` to `.shapeup/<slug>/receipts/`, and
+  `harness reduce ingest` refuses an orchestrated result with no matching receipt. A failed dispatch
+  never reaches `PostToolUse` at all, so the receipt's *existence* is the evidence. It has no deny
+  path, every write is guarded, and `--no-receipt-check` is the documented way through when the
+  channel itself fails.
+
 **One blocking Stop hook**, and it is the narrowest thing in the repo:
 
 - `Stop` — **`hooks/gate-zerowork.mjs` blocks a session that dispatched the orchestrator and left
@@ -311,6 +325,7 @@ kernel/lib/           # argv (the typed CLI boundary), paths (+ the run key), co
 commands/*.md         # slash commands (/ship + the 9 phase commands)
 hooks/                # hooks.json + the four walls: safety-spine, gate-intake, sandbox-guard
                       #   (PreToolUse) + gate-zerowork (Stop, the one blocking hook)
+                      #   + dispatch-receipt (PostToolUse, denies nothing, attests which skill ran)
                       #   + lib/decision.mjs (every hook records allow / deny / error)
 oracles/              # the evaluation-contract oracle registry (test · snapshot · http · process)
 bin/init.mjs          # `npx shapeup-sdlc init` — scaffolds all three CLI targets

@@ -535,4 +535,109 @@ export async function run(ctx) {
       } else fail("past-tense claims stopped being contradicted — the original detector is gone");
     }
   }
+
+  // =============================================================================
+  section("58. GATE L0 refuses a run whose workers cannot be reached, and says which copy answered");
+  // =============================================================================
+  // TWO HALVES OF ONE QUESTION, and they are not interchangeable.
+  //
+  //   `verify skills`   — are the SKILL.md files on disk at this root, at this version?
+  //   `verify dispatch` — did THIS SESSION actually resolve one of them?
+  //
+  // The file check alone passes green on both states the failure actually takes: the plugin
+  // installed but disabled, and a different version loaded. In the session that produced the
+  // defect the files were sitting right there in the repo and every dispatch still returned
+  // "Unknown skill". The second half is answerable only because a Skill call whose name does not
+  // resolve fires NO hook at all — measured, not assumed — so a decision row naming a skill is
+  // proof the name resolved, and its absence after an attempted dispatch is proof it did not.
+  const { roster, resolveWorkers } = await import(join(ROOT, "kernel/verify/skills.mjs"));
+  const { dispatchEvidence } = await import(join(ROOT, "kernel/verify/dispatch.mjs"));
+
+  // (a) THE ROSTER IS DERIVED. A hand-written list beside a schema enum is the drift this project
+  //     exists to prevent: the two names an eight-name literal would have omitted (`translator`,
+  //     `coach`) are exactly the ones a short run never reaches, so the omission surfaces months
+  //     later on the one run that did.
+  const schemaEnum = JSON.parse(readFileSync(join(ROOT, "skills/tech-lead/schemas/domain.schema.json"), "utf8"))
+    .$defs.WorkerName.enum;
+  if (JSON.stringify(roster(ROOT)) === JSON.stringify(schemaEnum)) {
+    ok(`verify skills derives its roster from domain.schema.json#/$defs/WorkerName (${schemaEnum.length} workers), never a literal`);
+  } else {
+    fail(`the roster has drifted from the schema enum: ${JSON.stringify(roster(ROOT))} vs ${JSON.stringify(schemaEnum)}`);
+  }
+
+  // Every operation the compiler can route must name a worker the enum carries, or `compile`
+  // produces an order that fails its own schema and the dispatch is denied for a reason that
+  // names the envelope rather than the typo.
+  const { OP_OWNER } = await import(join(ROOT, "kernel/compile.mjs"));
+  const strays = Object.entries(OP_OWNER).filter(([, w]) => !schemaEnum.includes(w));
+  if (!strays.length) ok(`all ${Object.keys(OP_OWNER).length} routed operations name a worker WorkerName declares`);
+  else fail(`operations routed to non-workers: ${strays.map(([o, w]) => `${o}→${w}`).join(", ")}`);
+
+  // (b) THE CHECK IS NOT INERT. A fixture root describes a broken installation without touching
+  //     the installation under test — the reason `--plugin-root` exists at all.
+  const brokenRoot = mkdtempSync(join(tmpdir(), "broken-plugin-"));
+  mkdirSync(join(brokenRoot, "skills/tech-lead/schemas"), { recursive: true });
+  mkdirSync(join(brokenRoot, ".claude-plugin"), { recursive: true });
+  writeFileSync(join(brokenRoot, "skills/tech-lead/schemas/domain.schema.json"),
+    readFileSync(join(ROOT, "skills/tech-lead/schemas/domain.schema.json")));
+  writeFileSync(join(brokenRoot, ".claude-plugin/plugin.json"), JSON.stringify({ name: "shapeup-sdlc-plugin", version: "1.6.3" }));
+  for (const w of schemaEnum.filter((x) => x !== "orient")) {
+    mkdirSync(join(brokenRoot, "skills", w), { recursive: true });
+    writeFileSync(join(brokenRoot, "skills", w, "SKILL.md"), "# stub\n");
+  }
+  const vs = node("verify skills", ["--plugin-root", brokenRoot]);
+  if (vs.status === 1 && /orient/.test(vs.stderr)) ok("verify skills exits non-zero against a root with a worker missing, and names it");
+  else fail(`verify skills did not catch a missing worker: exit ${vs.status}\n${vs.stdout}${vs.stderr}`);
+
+  const vsOk = node("verify skills", ["--plugin-root", ROOT]);
+  if (vsOk.status === 0 && /2\.0\.0|version/.test(vsOk.stdout)) ok("verify skills passes on a complete root and prints the version that answered");
+  else fail(`verify skills failed on the real root: exit ${vsOk.status}\n${vsOk.stdout}${vsOk.stderr}`);
+
+  // (c) THE REFUSAL IS EXIT 3 — `init run` refused to open — and it happens before a run root is
+  //     created, because refusing after writing state is not refusing.
+  const l0box = mkdtempSync(join(tmpdir(), "gate-l0-"));
+  const l0 = node("init run", ["--slug", "nope", "--intake-text", "anything at all",
+                               "--cwd", l0box, "--plugin-root", brokenRoot]);
+  if (l0.status === 3 && /orient/.test(l0.stderr)) ok("init run refuses with exit 3 when a worker skill cannot be reached, naming it");
+  else fail(`init run opened a run against a broken plugin root: exit ${l0.status}\n${l0.stdout}${l0.stderr}`);
+  if (!existsSync(join(l0box, ".shapeup", "nope"))) ok("the refused run left no run root behind — a refusal that writes state is not a refusal");
+  else fail("init run created a run root and then refused");
+
+  // (d) THE RECEIPT NAMES THE COPY. Afterwards it is unrecoverable: every artifact looks identical
+  //     whether it came from this version, a stale install, or an improvising sub-agent.
+  const stampBox = mkdtempSync(join(tmpdir(), "plugin-stamp-"));
+  const stamped = node("init run", ["--slug", "stamp", "--intake-text", "record which plugin produced this run", "--cwd", stampBox]);
+  const stampReceipt = stamped.status === 0
+    ? JSON.parse(readFileSync(join(stampBox, ".shapeup/stamp/receipt.json"), "utf8")) : null;
+  if (stampReceipt?.plugin?.name && stampReceipt.plugin.version && stampReceipt.plugin.root) {
+    ok(`the run receipt records the plugin that produced it (${stampReceipt.plugin.name} ${stampReceipt.plugin.version})`);
+  } else {
+    fail(`the receipt does not name its plugin: ${JSON.stringify(stampReceipt?.plugin)}`);
+  }
+
+  // (e) THE CANARY'S READ HALF discriminates. Rows are hand-built here rather than produced by a
+  //     live session: the shape they must have is asserted against the real hook in 03-hooks §57,
+  //     so this is free to test the reading in isolation.
+  const rows = [
+    { hook: "dispatch-receipt", at: "2026-08-15T12:00:00.000Z", subject: "shapeup-sdlc-plugin:orient" },
+    { hook: "validate-envelope", at: "2026-08-15T12:00:01.000Z", subject: "/some/order.json" },
+  ];
+  if (dispatchEvidence(rows, "orient").resolved) ok("verify dispatch finds evidence through the namespaced skill name the host reports");
+  else fail("verify dispatch cannot match a namespaced commandName against a bare worker name");
+  if (!dispatchEvidence(rows, "qa-edge-hunter").resolved) ok("verify dispatch reports NO evidence for a skill nothing dispatched");
+  else fail("verify dispatch claims evidence for a skill that was never dispatched — the canary would pass on a dead plugin");
+  if (!dispatchEvidence(rows, "orient", "2026-08-15T13:00:00.000Z").resolved) {
+    ok("evidence older than the window does not count — a checkout that once had the plugin loaded cannot pass forever");
+  } else {
+    fail("verify dispatch counts stale evidence, so the canary passes on a plugin that is no longer loaded");
+  }
+  // Only dispatch-receipt rows are evidence: the other hooks fire on tools whose names prove nothing
+  // about skill resolution.
+  if (!dispatchEvidence([{ hook: "gate-intake", at: "2026-08-15T12:00:00.000Z", subject: "orient" }], "orient").resolved) {
+    ok("only dispatch-receipt rows count as evidence — another hook's row is not proof of resolution");
+  } else {
+    fail("any hook's row satisfies verify dispatch, so the evidence is not specific to a dispatch");
+  }
+
+  for (const dir of [brokenRoot, l0box, stampBox]) rmSync(dir, { recursive: true, force: true });
 }

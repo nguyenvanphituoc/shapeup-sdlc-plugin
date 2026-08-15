@@ -145,6 +145,25 @@ export function ledgerDecisions(ledgerText, scopeId) {
 }
 
 /**
+ * Operation → owning worker (mirrors `domain.schema.json#/$defs/Operation` ownership). Lets a
+ * non-build dispatch resolve its worker from the operation alone, without a redundant `--worker`.
+ *
+ * Exported and at module scope so it is ONE table. Every value here must be a member of
+ * `WorkerName`: an operation mapped to a name the enum does not carry compiles an order that fails
+ * its own schema, and the dispatch is then denied by the order gate for a reason that names the
+ * envelope rather than the typo. That parity is checked by the suite, which can only read a table
+ * it can import.
+ */
+export const OP_OWNER = {
+  analyze: "ba-pitch-analyzer", reconcile: "ba-pitch-analyzer",
+  "retrofit-surface": "ba-pitch-analyzer", coverage: "ba-pitch-analyzer",
+  "map-scopes": "scope-architect",
+  wire: "solution-architect", evaluate: "spec-evaluator", orient: "orient",
+  hunt: "qa-edge-hunter", translate: "translator",
+  hammer: "scope-hammer", coach: "coach",
+};
+
+/**
  * Resolve the write-contract (sandbox substrate) for an operation — one whitelist template per
  * operation, so mode/flag differences are enforced by the sandbox hook reading the order's substrate, not trusted to prose.
  * @param {string} operation - The order's operation (execute|fix|spike|analyze|reconcile|
@@ -458,16 +477,6 @@ export async function cli(rawArgv) {
 
   const round = flag("round");
   const attempt = flag("attempt");
-  // Operation → owning worker (mirrors domain.schema.json $defs/Operation ownership). Lets a
-  // non-build dispatch resolve its worker from the operation alone, without a redundant --worker.
-  const OP_OWNER = {
-    analyze: "ba-pitch-analyzer", reconcile: "ba-pitch-analyzer",
-    "retrofit-surface": "ba-pitch-analyzer", coverage: "ba-pitch-analyzer",
-    "map-scopes": "scope-architect",
-    wire: "solution-architect", evaluate: "spec-evaluator", orient: "orient",
-    hunt: "qa-edge-hunter", translate: "translator",
-    hammer: "scope-hammer", coach: "coach",
-  };
   let operation = flag("operation") || (scopePath || flag("task") || has("next") ? "execute" : null);
   const worker = flag("worker")
     || (scopePath || flag("task") || has("next") ? "task-executor" : null)

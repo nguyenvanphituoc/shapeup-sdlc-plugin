@@ -6,6 +6,7 @@
 A three-phase Shape Up loop orchestrated by `/tech-lead`. Invariants live in the runtime, not this file — expect hook denials, not arguments.
 
 - Hook-denied: dispatching a worker without a schema-valid WorkOrder, writing outside the scope's substrate, stopping a run with no receipt (the run's first act writes one).
+- Attested, not assumed: a dispatch leaves a receipt naming the skill that ran, and ingest refuses an orchestrated result that has none. A dispatch that fails is answered by the sub-agent improvising the craft, which every other check accepts — so "the artifact exists" is not evidence that the shipped skill produced it. `--no-receipt-check` is the way through when the receipt channel itself fails.
 - GATE L2 is advisory — warns when EVAL runs over unfinished tasks, permits the call (per-machine board, operator asked; ADR-0001) — a signal, not a bug.
 - Sign-off is a file: each gate resolves from the answer set (`ci`/`guarded`/`interactive`) — cross, stop for the PO, or abort; the decision's source is ledgered.
 - The build+eval loop breaks only three ways ✦: EVAL PASS → QA → Ship; outer `round_budget` exhausted; opt-in `wall_clock_budget_s` tripped (the wall-clock axis event counters miss). Budget trips route to GATE H — ship what's green, never kill the run from outside. A scope exhausting its per-scope `attempt_budget` (T0 attempts) queues a GATE H proposal, never blocks the round.
@@ -22,7 +23,7 @@ Betting Table: PO decides; rejected pitches loop back to raw idea.
 ### Phase 3 — Building
 | Step | Gate | Action |
 |------|------|--------|
-| Kick-off | ⏸ **L0** — Intake & Config (L0.8 model/budget matrix) | `/translator` if non-English |
+| Kick-off | ⏸ **L0** — Intake & Config (L0.8 model/budget matrix) + worker roster ✧ | `/translator` if non-English |
 | Orient (Scout) | ⏸ **L1a** — Orient Review | `/orient` |
 | Analyze | — (reviewed at L1b) | `/ba-pitch-analyzer` (`analyze`): spec tree + board (UC + Invariants + Test Surface ★); before Wire (needs its use cases) |
 | Wire | ⏸ **L1a.5** — Wiring Review ✚ | `/solution-architect` (`wire`): sole writer of committed `wiring-map.md` — per-UC engine → seam → entry-point call site → affordance, per `project-profile.md` |
@@ -32,6 +33,8 @@ Betting Table: PO decides; rejected pitches loop back to raw idea.
 | FAIL → round r+1 | — | regression rule ★: bugs + full Test Surface of touched UC |
 
 ✦ = requires scope contracts (`shapeup/<slug>/scopes/*.md`); ✚ = requires the spine artifacts (`requirements.md`, `wiring-map.md`, `project-profile.md`). Traceability stays advisory until `covers:` is populated. Absent artifact ⇒ arm skipped (non-regression).
+
+✧ **Two refusals, and they answer different questions.** Opening a run refuses outright when the worker skills are not on disk — the roster comes from the schema that defines it, so it cannot drift from a hand-kept list. That alone passes green on the two states that actually happen (installed but disabled, or a different version loaded), so the run's first act is one live canary dispatch, and the evidence is the hook layer's rather than the sub-agent's account of it. A run that cannot reach its workers stops before it spends anything, instead of reporting phases complete while none of the shipped craft was applied.
 
 
 ### QA Edge Hunt (`/qa-edge-hunter`, post-PASS, pre-ship)

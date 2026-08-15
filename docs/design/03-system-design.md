@@ -158,6 +158,74 @@ the spine.)
 > makes the write contract the compiler already emits the same one the hook enforces, for every
 > operation, with no per-operation code.
 
+## 3.2a — The dispatch receipt (PostToolUse, records only)
+
+Every hook above answers *may this call proceed*. This one answers a different question, and it is
+the question the walls above structurally cannot reach: **did the shipped skill actually run?**
+
+| Hook | Fires on | Records |
+|---|---|---|
+| `dispatch-receipt.mjs` | `Skill` / `Agent`, **after** the call | Appends `{order_id, run_id, worker_declared, skill_invoked, dispatch_ok, at}` to `.shapeup/<slug>/receipts/dispatch.jsonl` when the tool result names a resolved skill. Never denies; every write is inside `try`/`catch`. |
+
+**Why it exists.** Measured, not theorized. A dispatch against a plugin that is absent, disabled or
+a different version returns `<tool_use_error>Unknown skill</tool_use_error>`. The sub-agent then does
+the craft itself, from the prose already in its own prompt — and every downstream check accepts it.
+The artifacts land under exactly the path the order's `substrate` permits, so `verify envelope`
+passes (the *order* was well-formed) and `sandbox-guard` passes (the *writes* were in bounds); the
+phase post-condition passes because the artifacts exist; the run advances. Both walls fired correctly
+and neither could help, because nothing in the system attested **which skill produced an artifact**.
+That is not a failed run, it is a **false green**, and it defeats "measured, not claimed" at the
+root: the measurement was "is the artifact on disk", which cannot separate skill-produced from
+improvised.
+
+**Why `PostToolUse` and not `PreToolUse`.** The pre event fires before the tool runs, so it cannot
+tell "the Skill returned" from "the Skill errored and the sub-agent improvised". It appears to catch
+the observed instance only by coincidence — the plugin was not loaded, so these hooks were not
+registered either. Repair the environment and a failing dispatch gets a pre-receipt written just
+before it fails: the fix would expire exactly when the thing it guards starts working.
+
+**What the boundary actually does**, measured in a live session with a sub-agent making the calls,
+because every dispatch here is a `Skill(...)` made by a workflow leg and a hook blind there is blind
+where it matters:
+
+| Dispatch state | `PreToolUse` | `PostToolUse` |
+|---|---|---|
+| resolves and completes | fires | fires, with `tool_response = {success, commandName}` |
+| skill name unknown | never fires | never fires — the host rejects the name upstream of the hook layer |
+| order missing → gate denies | fires (the deny) | never fires — a denied call never runs |
+
+So a failed dispatch leaves **no row at all**, and the receipt's mere existence is the evidence;
+`dispatch_ok` is corroboration recorded on top, so a future host that reports failures through this
+event cannot satisfy the gate merely by firing. The host names the skill namespaced
+(`shapeup-sdlc-plugin:orient`) where the order names it bare (`orient`), so the comparison is against
+the segment after the last `:`.
+
+**Where it becomes a wall.** Nowhere in the hook — it has no deny path. `harness reduce ingest`
+refuses a result whose order declares `mode: "orchestrated"` and has no receipt matching on all three
+of `order_id`, `skill_invoked === order.worker`, and `at ≥ compiled_at`. Existence alone would be
+satisfied by a stale receipt from an earlier relaunch, since order paths like `orders/orient.json`
+are reused verbatim on re-dispatch. A result with no order beside it — a standalone or fixture
+ingest — made no such claim and is not held to it. `--no-receipt-check` is the documented way
+through, because the receipt channel is best-effort by design and a load-bearing gate built on one
+needs a stated escape rather than a folkloric one.
+
+**The same rows answer a second question, at GATE L0.** `harness verify skills` reads the worker
+roster off `domain.schema.json#/$defs/WorkerName` and refuses `init run` with exit 3 when a
+`SKILL.md` is missing, recording the plugin root and version in the run receipt so every run's trace
+names the copy that produced it. That is the cheap half, and it is honestly incomplete: it proves
+*these files exist at this root at this version*, not that the session will resolve that copy. Both
+states the failure actually takes — installed but disabled, and a different version loaded — have all
+ten `SKILL.md` files and pass it green.
+
+So the orchestrator's first leg is a canary: one `Skill(...)` dispatch, deliberately with no
+`--order` (it is testing name resolution, not doing work, and an order would leave a compiled order
+with no result in `orders/` that three readers would then have to know about). `harness verify
+dispatch --skill <worker> --within <seconds>` then reads the decision rows above. Because a Skill
+call whose name does not resolve fires no hook at all, a row naming a skill IS the proof that this
+session resolved it, and the sub-agent that made the call cannot write that row — so the evidence is
+not its account of what happened. The window is required rather than optional: without one, a
+checkout that had the plugin loaded once passes forever.
+
 ## 3.2b — The zero-work block (Stop, blocking)
 
 One `Stop`-event hook may block, and its predicate is why the invariant survives intact.

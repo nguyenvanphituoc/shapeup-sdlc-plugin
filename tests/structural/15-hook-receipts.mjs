@@ -88,8 +88,13 @@ export async function run(ctx) {
   // --subgraph run`, the leftovers scan into the ship report) — not because enforcement was
   // reduced. What survives is the set that is a WALL: it works under every permission mode and
   // there is no runtime path that can substitute for it.
-  if (hooks.length < 5) fail(`expected ≥5 enforcement entry points, found ${hooks.length}`);
-  else ok(`${hooks.length} enforcement entry points discovered (4 hooks + verify envelope)`);
+  //
+  // `dispatch-receipt` joined later and is the one entry point here that is NOT a wall — it denies
+  // nothing. It belongs in this census anyway, because the failure this module exists for is an
+  // enforcement point that silently never ran, and a recorder that never runs is the same defect
+  // wearing a different hat: ingest then refuses every orchestrated result in the run.
+  if (hooks.length < 6) fail(`expected ≥6 enforcement entry points, found ${hooks.length}`);
+  else ok(`${hooks.length} enforcement entry points discovered (${hooks.map((h) => h.name).join(", ")})`);
 
   // (b) MALFORMED INPUT — the reproduced case. Must still fail open, and must now be recorded
   //     as `error` rather than as the same silence a clean allow produces.

@@ -22,7 +22,7 @@ import { resolve, join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validate } from "../verify/envelope.mjs";
 import { runArgs } from "../lib/argv.mjs";
-import { tasksDir, localRoot } from "../lib/paths.mjs";
+import { tasksDir, localRoot, dispatchReceipts } from "../lib/paths.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RESULT_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../../skills/tech-lead/schemas/work-result.schema.json"), "utf8"));
@@ -282,10 +282,14 @@ function applyResultLocked(result, { cwd, slug }) {
 // ---------------------------------------------------------------------------
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "harness.mjs reduce ingest (<result.json> | --order <order.json>) [--cwd <dir>]",
+  usage: "harness.mjs reduce ingest (<result.json> | --order <order.json>) [--cwd <dir>] [--no-receipt-check]",
   _: { arity: 0, max: 1, name: "result.json" },
   order: { type: "path" },
   cwd: { type: "path" },
+  // The documented way through. The receipt channel is best-effort by design — a hook that could
+  // fail a tool call would get the layer disabled — so a gate built on it needs an escape for the
+  // environmental case, and one that appears in the run's own output rather than in folklore.
+  "no-receipt-check": { type: "flag" },
 };
 
 /**
@@ -309,6 +313,78 @@ export function resultFor(orderPath) {
     process.exit(2);
   }
   return join(dirname(dir), "results", basename(abs));
+}
+
+/**
+ * The order a given result answers — the inverse of {@link resultFor}.
+ *
+ * Used only when a result was passed positionally, so an ingest aimed the documented old way is
+ * still held to the same attestation as one aimed by `--order`.
+ *
+ * @param {string} resultPath - Path to the result.
+ * @returns {string|null} The mirrored order path, or null when the result does not live in a
+ *   `results/` directory (a fixture tree, typically — which is exactly when there is nothing to
+ *   attest).
+ */
+export function orderFor(resultPath) {
+  const abs = resolve(resultPath);
+  const dir = dirname(abs);
+  if (basename(dir) !== "results") return null;
+  return join(dirname(dir), "orders", basename(abs));
+}
+
+/**
+ * Did the SHIPPED skill actually run for this order?
+ *
+ * WHY AN INGEST ASKS THIS AT ALL. A dispatch that fails — plugin absent, disabled, or the wrong
+ * version — returns `<tool_use_error>Unknown skill</tool_use_error>`, and the sub-agent then does
+ * the craft itself from the prose in its own prompt. The artifacts land in exactly the right place,
+ * so the order gate and the sandbox guard both pass, the phase post-condition passes, and the run
+ * advances having applied none of the shipped craft. The receipt (`hooks/dispatch-receipt.mjs`) is
+ * the only fact that separates the two, and this is the only place that fact is load-bearing.
+ *
+ * ALL THREE CONDITIONS, NOT MERELY EXISTENCE. A receipt that only has to EXIST is satisfied by a
+ * stale one from an earlier relaunch — order paths like `orders/orient.json` are stable across
+ * relaunches and the re-dispatch path reuses them verbatim — and a receipt from the wrong skill is
+ * satisfied by any dispatch at all. So: same `order_id`, `skill_invoked` equal to the worker the
+ * order DECLARES, and not older than the order it claims to answer.
+ *
+ * `compiled_at` is optional in the schema, so the staleness bound is applied only when the order
+ * carries one; an order without it is checked on the first two conditions rather than waved through
+ * on a timestamp nobody wrote.
+ *
+ * @param {object} order - The parsed WorkOrder.
+ * @param {string} cwd - Project root.
+ * @returns {{ok:boolean, reason?:string, receipt?:object, rows:number}} `ok` with the matching
+ *   receipt, or the reason no row qualified plus how many rows were considered.
+ */
+export function attestation(order, cwd) {
+  const slug = String(order.order_id).split("/")[0];
+  const path = dispatchReceipts(cwd, slug);
+  let rows = [];
+  try {
+    rows = readFileSync(path, "utf8").split("\n").filter(Boolean)
+      .map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+  } catch { return { ok: false, reason: `no dispatch receipts at ${path}`, rows: 0 }; }
+
+  const mine = rows.filter((r) => r.order_id === order.order_id);
+  if (!mine.length) return { ok: false, reason: `no receipt for ${order.order_id}`, rows: rows.length };
+
+  const rightSkill = mine.filter((r) => r.skill_invoked === order.worker);
+  if (!rightSkill.length) {
+    const saw = [...new Set(mine.map((r) => r.skill_invoked))].join(", ");
+    return { ok: false, rows: mine.length,
+      reason: `${order.order_id} declares worker "${order.worker}" but every receipt names [${saw}] — the dispatch ran a different skill` };
+  }
+  const floor = order.compiled_at ? Date.parse(order.compiled_at) : null;
+  const fresh = floor === null || Number.isNaN(floor)
+    ? rightSkill
+    : rightSkill.filter((r) => Date.parse(r.at) >= floor);
+  if (!fresh.length) {
+    return { ok: false, rows: rightSkill.length,
+      reason: `every receipt for ${order.order_id} predates the order (compiled ${order.compiled_at}) — a stale attestation from an earlier dispatch` };
+  }
+  return { ok: true, receipt: fresh[fresh.length - 1], rows: fresh.length };
 }
 
 /**
@@ -337,6 +413,30 @@ export async function cli(rawArgv) {
     for (const e of errors) console.error(`  ✗ ${e}`);
     process.exit(1);
   }
+
+  // --- attestation gate -----------------------------------------------------------------------
+  // SCOPED TO ORCHESTRATED ORDERS, deliberately. A result with no order beside it is a standalone
+  // or fixture ingest — there was no dispatch to attest, so demanding a receipt would refuse work
+  // that never made the claim. What it must NOT do is let the orchestrated case opt out by omitting
+  // `--order`, which is why a positionally-named result is mirrored back to its order first.
+  const orderPath = args.order ? resolve(args.order) : orderFor(file);
+  let order = null;
+  if (orderPath) { try { order = JSON.parse(readFileSync(orderPath, "utf8")); } catch { order = null; } }
+  if (order?.mode === "orchestrated" && !args.noReceiptCheck) {
+    const att = attestation(order, cwd);
+    if (!att.ok) {
+      console.error(`ingest-result: result refused — ${att.reason}.`);
+      console.error(`  The order declares mode "orchestrated", so the dispatch must have left a receipt`);
+      console.error(`  (${dispatchReceipts(cwd, String(order.order_id).split("/")[0])}). No receipt means the Skill`);
+      console.error(`  dispatch never ran: the plugin may be absent, disabled, or a different version, and the`);
+      console.error(`  artifacts on disk were produced by something other than the shipped skill.`);
+      console.error(`  Re-dispatch the worker, or pass --no-receipt-check if the receipt failed for an`);
+      console.error(`  environmental reason and you are accepting the result without that attestation.`);
+      process.exit(1);
+    }
+    console.log(`  ✓ attested: ${att.receipt.order_id} ran ${att.receipt.skill_invoked} at ${att.receipt.at}`);
+  }
+
   const s = applyResult(result, { cwd });
   console.log(`✅ ingested ${result.order_id} — tasks: [${s.tasks_updated.join(", ")}] · ACs ticked: ${s.acs_ticked} · unblocked: [${s.unblocked.join(", ")}] · discoveries: ${s.discoveries_appended} · verdict lines: ${s.verdict_lines} · refuted un-ticked: ${s.refuted_unticked}`);
 }
