@@ -92,6 +92,19 @@ The numbered sections below are the checks themselves, in section order:
    correctly, skips-and-counts malformed rows, partitions pathology rows, renders `--format
    table`, leaves the metrics dir byte-identical (read-only proof), and returns a valid empty
    report on a missing dir.
+56. **The installed project (`structural/22-consumer-install.mjs`):** §43 proves the grant matches
+   the shipped call sites and that `bin/init.mjs` writes it; this runs the real installer into a
+   temp project and asserts what the *user* is left holding. The allow-list is exactly what
+   `bin/lib/grant.mjs` emits (presence cannot see accumulation) over at most two Bash rules naming
+   one entry point; an upgrade from a v1.x settings.json purges the superseded rules and keeps the
+   user's own; `--no-native-workflow` removes the `Workflow` token from a project that already had
+   it and re-running init restores it; a second install replaces the harness block rather than
+   appending one; no shipped directory still contains a `scripts/` folder; and the kernel runs from
+   that project at its documented exits (2 unknown verb, 0 run opened, 3 re-open refused, 4 gate
+   ask, 6 wall-clock trip). Each of these fails silently in production — a settings.json full of
+   dead rules works, and an opt-out that does nothing prints the same success line as one that
+   works — so the module is kept honest by mutation: breaking the purge, the opt-out, or the
+   one-entry-point rule each turns it red.
 
 
 Exit 0 = pass, 1 = fail (the docs state a floor, section #26 asserts it against the real total).

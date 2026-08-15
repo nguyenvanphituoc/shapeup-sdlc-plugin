@@ -30,6 +30,60 @@ deleting the skills or the suite.
 the opt-in refute wave, the graph query and a JSDoc block on each helper. The 600 figure came from a
 draft that had none of those.
 
+## The orchestrator had never been launched, and did not load
+
+Everything above was measured from the artifacts. Nothing had ever *run* the file the whole rebuild
+is about, and when it was finally launched on the `Workflow` tool it was refused before its body
+executed:
+
+```
+Invalid workflow script: meta must be a pure literal: non-literal node type in meta: BinaryExpression
+```
+
+`meta.description` was three string literals joined with `+`. The runtime parses `meta` statically
+and rejects the whole script on any node it would have to evaluate, so `shapeup-run.js` could not
+start — under any lane, interactive or headless. It shipped that way, tagged 2.0.0, under a green
+suite: v2.0's central claim ("runs on the native Workflow runtime") was false for the entire life of
+the branch. The defect came in with the draft — `docs/output/shapeuprun.native.js` writes its
+description the same way, so neither file was ever runnable — which is the cost of adopting a
+companion draft that had also never been executed.
+
+A second one, in the SHIPPED set, from the same cause. `commands/build.md` and `commands/ship.md`
+both documented the launch as `node "…/kernel/harness.mjs" run "…/shapeup-run.js" --args-file …`.
+The kernel has no `run` verb and never has; the documented front door to a whole feature build exits
+2 on `unknown_verb`. `ship.md` contradicted itself three paragraphs later ("**The launch is the
+`Workflow` tool**") — the bash block was v1 residue Phase 2 replaced in SKILL.md and left in
+`commands/`.
+
+Both are fixed, and both now have a guard that fails on the original defect and passes on the fix
+(each verified by re-introducing the defect and watching the suite go red):
+
+- **#16 (f)** — every workflow script's `meta` is a pure literal carrying `name` + `description`.
+  The suite checked the orchestrator's SHAPE exhaustively and never whether it LOADS, because that
+  property is visible only to a parse.
+- **#43** — the invocation census now reads `commands/*.md` as well as `skills/`. Its verb check was
+  already correct and derived from `ROUTES`; it was pointed one directory short of the defect.
+
+The general lesson, and the reason both survived a fully green suite: **a static suite cannot tell
+you that a thing runs.** Only an execution can, and until this session nothing had executed it.
+
+## What is now proven by execution
+
+Two live launches on the `Workflow` tool, after the fix:
+
+| Probe | Result |
+|---|---|
+| The shipped `shapeup-run.js` loads and runs on the native runtime | Returned the `aborted` member of `RunReturn` with all six expected arg problems, incl. the model floor rejecting a below-floor tier. 0 agents, 11 ms |
+| A native worker leg dispatches, with a real shell and the real kernel | `{ok: true, exit_code: 0}`, schema-validated |
+| **A non-zero exit survives the boundary with no courier** | `{ok: false, exit_code: 2}` — the exact fact the deleted courier layer existed to carry |
+| A JSON document crosses schema-validated (`query()`) | The `RESUME` doc came back field-for-field identical to the kernel's own stdout |
+| `pipeline()` dispatches legs in parallel | 3/3 legs green. **Max 2 ran simultaneously**, not 3: two started 198 ms apart and overlapped, the third began after the second finished. Parallel dispatch is proven; a 3-wide fan-out is not, and the probe that reported it only counted greens — it never measured overlap. |
+
+The smoke script is `scratchpad`-only and not committed: it costs real sub-agents, so it cannot be a
+`npm test` check. What is committed is the pair of static guards above.
+
+This closes the *loadability* half of G2 below. It does not close the run half — see G2.
+
 ## Two probes not run
 
 **G2 — a full unattended run with zero prompts.** The grant half is proven by execution
@@ -45,7 +99,10 @@ measurement of one.
 ## Provenance of `skills/tech-lead/workflows/shapeup-run.js`
 
 It is the review's companion draft, `docs/output/shapeuprun.native.js`, adopted in Phase 2 and then
-adjusted. Roughly forty identifiers carry across unchanged — every schema (`CMD`, `ORIENT`,
+adjusted. **59 of the draft's 73 top-level identifiers carry across** (measured, not estimated; an
+earlier revision of this section said "roughly forty" and understated it). Every one of the 14 that
+did not is a rename (`R`→`KERNEL`, `QA`→`QA_REPORT`, `VERDICT_REFUTE`→`REFUTATION`, `gx`→`rs`,
+`p`→`problems`, `scopeResults`→`settled`) or a deviation below. The carried set is every schema (`CMD`, `ORIENT`,
 `PHASE_OK`, `MAPSCOPES`, `SCOPE_RESULT`, `EVAL`, `HAMMER`), the dispatch helpers (`worker`, `cmd`,
 `nullFail`), the whole gate layer (`crossGate`, `TITLES`, `gateBlock`, `paused`, `aborted`,
 `diedAt`), `validateArgs` and the model floor, `buildScope`, and the refute wave. The draft is why
@@ -64,3 +121,25 @@ Six deliberate deviations, and the first two are the ones that matter:
 
 Plus: every script path re-routed through the kernel (Phase 1 postdates the draft), and
 `args.maxParallelScopes` added, which the draft leaves to the runtime's own cap.
+
+### Four defects in the draft the adoption fixed without recording it
+
+The six above are choices. These are cases where the draft is simply wrong against the shipped
+contract, found by comparing the two files field by field rather than by re-reading this section:
+
+| Draft | Consequence had it been adopted verbatim |
+|---|---|
+| No reference to `args.noQa` anywhere (0 occurrences) — the QA gate branches only on `qaG.decision` | `--no-qa` is documented in AGENTS.md as the switch that skips the Hunt ("QA is a level-up, not a gate"). It would have been accepted and ignored. |
+| GATE H payload is `{ feature: slug }` | `scope-hammer`'s census is "QA findings + discovered ledger + attempt-budget proposals". Two of its three inputs never reach it, so the cut list is drawn from a census that cannot see them. |
+| No `report export` step | SHIP S.7 exports the run's records as fact tables under `.shapeup/exports/<run_id>/` before the trace is superseded. The run would ship without them. |
+| Resume filter is `eval_rounds_done.includes(round) ? green_scope_ids : []` | `green_scope_ids` is not round-keyed, so a scope green in round 1 reads as green in round 2 and is skipped. The shipped file asks the graph for `green_scopes_by_round[round]`. |
+
+### One thing the draft did that the shipped file deliberately does not
+
+The draft appends the graph **per scope, inside the pipeline** (line 420), where the shipped file
+appends once per round. That looks like lost resume fidelity and is not: `harness reduce graph` calls
+`appendGraph` unconditionally before answering any query (`kernel/reduce/graph.mjs:368`), so the
+round-opening `--subgraph run` re-derives from the T0 verdict artifacts on disk first. A kill
+mid-BUILD is still recovered, and the round boundary is the only writer — which is what keeps
+parallel legs from contending for one append-only file. The graph is derived, never authored; that
+property is what makes the cheaper cadence safe.

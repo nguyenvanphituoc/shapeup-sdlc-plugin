@@ -70,6 +70,10 @@ const MODULE_FILES = [
   // Four of the six are here — the two that need a live model run are named in tests/README.md with
   // their status, rather than left to look like coverage this file has.
   "21-gauntlet.mjs",
+  // 22-consumer-install.mjs: the installed project. §43 proves the grant matches the call sites and
+  // that init writes it; nothing then looked at the tree it wrote into — where a grant that has
+  // accumulated dead rules, an opt-out that is a no-op, and a second harness block all read fine.
+  "22-consumer-install.mjs",
   "45-paths.mjs",
   "46-contract-md.mjs",
   "47-ship-report.mjs",

@@ -56,6 +56,20 @@ export async function run(ctx) {
     }
   }
 
+  // ⟐ `commands/` IS PART OF THIS SURFACE, and leaving it out cost exactly what the module was
+  // built to prevent. A slash command is prose a model reads and acts on, same as a SKILL.md; the
+  // only difference is which directory it sits in. While this census skipped it, `commands/build.md`
+  // and `commands/ship.md` both told the operator to launch the orchestrator with
+  // `harness.mjs run …` — a verb the routing table has never had, so the documented front door to a
+  // whole feature build exited 2 on `unknown_verb`. Every assertion in this module was green
+  // throughout: the check was right and was pointed one directory short of the defect.
+  const commandsDir = join(ROOT, "commands");
+  if (existsSync(commandsDir)) {
+    for (const f of readdirSync(commandsDir).filter((x) => x.endsWith(".md"))) {
+      docs.push({ rel: `commands/${f}`, abs: join(commandsDir, f) });
+    }
+  }
+
   const LITERAL = /node\s+"\$\{CLAUDE_PLUGIN_ROOT\}\/kernel\/harness\.mjs"\s+([a-z]+)(?:\s+([a-z0-9]+))?/g;
   // Anything that looks like an attempt to run a shipped script, in ANY shape. A form this catches
   // and LITERAL does not is a call site outside the grant.

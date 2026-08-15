@@ -43,12 +43,13 @@
 //   { status: "aborted", aborted_at, reason }
 //   { status: "gate_h",  breaker: "outer"|"inner"|"deadline", hammer_proposals, green_scopes }
 
+// meta must be a PURE LITERAL — the runtime parses it statically, before the body ever runs, and
+// rejects the whole script on anything it has to evaluate. A `+`-joined description is a
+// BinaryExpression, so the concatenation that reads better in source costs the file its ability to
+// load at all. Keep every value here a plain literal, however long the line gets.
 export const meta = {
   name: "shapeup-run",
-  description:
-    "BUILD-phase pipeline: ORIENT → ANALYZE → WIRE → MAP SCOPES → rounds of BUILD/EVAL → QA → " +
-    "GATE H → ship. Gates resolve by the kernel's exit code; every dispatch is WorkOrder in / " +
-    "WorkResult out; the fast-forward is derived from artifacts on disk.",
+  description: "BUILD-phase pipeline: ORIENT → ANALYZE → WIRE → MAP SCOPES → rounds of BUILD/EVAL → QA → GATE H → ship. Gates resolve by the kernel's exit code; every dispatch is WorkOrder in / WorkResult out; the fast-forward is derived from artifacts on disk.",
   phases: [
     { title: "Orient" }, { title: "Analyze" }, { title: "Wire" }, { title: "MapScopes" },
     { title: "Build" }, { title: "Eval" }, { title: "Refute" }, { title: "QA" }, { title: "Ship" },
@@ -330,6 +331,24 @@ async function query(verbs, schema, phaseName, label) {
   return (r && typeof r === "object") ? r : null;
 }
 
+// A payload field that is not known yet is ABSENT, never `null`.
+//
+// The two contracts either side of this line disagree about how to say "unknown", and the
+// disagreement is load-bearing: `probe resume` declares `stack`, `lens`, `run_cmd` and `app_url`
+// nullable — null is its legitimate answer on a fresh run — while `WorkOrderPayload` types them
+// `string` and marks every one of them OPTIONAL. So the contract already models unknown as an
+// absent key, and forwarding the probe's `null` into it produces an order that fails its own schema
+// before a worker ever sees it. Four of the seven operations this file dispatches — orient, analyze,
+// evaluate, hunt — carry such a field, ORIENT among them, so the first dispatch of every fresh run
+// was refused at compile. The three that carry none (wire, map-scopes, hammer) always compiled,
+// which is why the fault looked intermittent rather than total.
+//
+// Dropping the key is the correct direction. Widening the schema to accept null would make
+// `"stack": null` a valid order and push the null downstream into every worker's prompt, where each
+// one would have to re-decide what a null stack means.
+const compact = (payload) =>
+  Object.fromEntries(Object.entries(payload).filter(([, v]) => v !== null && v !== undefined));
+
 /**
  * Dispatch one worker through the envelope port and get back the fields a gate needs.
  *
@@ -345,13 +364,13 @@ async function worker({ skill, operation, payload, schema, phase: phaseName, lab
   const r = await agent(
     `You are running one step of an orchestrated build over feature slug "${slug}".\n\n` +
     `1. Compile the WorkOrder:\n` +
-    `     node "${KERNEL}" compile --operation ${operation} --slug ${slug} --payload '${JSON.stringify(payload)}'\n` +
+    `     node "${KERNEL}" compile --operation ${operation} --slug ${slug} --payload '${JSON.stringify(compact(payload))}'\n` +
     `   It prints the order path on stdout.\n` +
     `2. Dispatch the worker against that order:\n` +
     `     Skill(shapeup-sdlc-plugin:${skill}) --order <the path from step 1>\n` +
     `   ${extra}\n` +
-    `3. Apply its WorkResult:\n` +
-    `     node "${KERNEL}" reduce ingest <the result path the worker wrote>\n\n` +
+    `3. Apply its WorkResult, naming the ORDER from step 1 — not any path the worker reports:\n` +
+    `     node "${KERNEL}" reduce ingest --order <the path from step 1>\n\n` +
     `Then report ONLY the fields the schema names. Nothing else crosses this boundary — no ` +
     `narration, no file contents, no summary of the work.`,
     { model, phase: phaseName, label, schema, effort: "medium" },
@@ -476,7 +495,12 @@ if (!rs.has_orient_artifacts) {
 phase("Analyze");
 if (!rs.has_spec_tree) {
   log(`ANALYZE — dispatching (slug ${slug})`);
-  await setRunStatus("analyzing", "Analyze");
+  // "mapping", not "analyzing": the kernel's RUN_STATUSES enum is deliberately COARSER than this
+  // file's phases — one value covers ANALYZE through MAP SCOPES, the stretch where the run is
+  // working out the shape. `analyzing` is not a member and never was, so this call failed on every
+  // single run since the cutover. It is advisory, so nothing stopped; the ledger simply stayed on
+  // the previous phase and the snapshot under-reported where the run had got to.
+  await setRunStatus("mapping", "Analyze");
   const a = await worker({
     skill: "ba-pitch-analyzer", operation: "analyze", schema: PHASE_OK, phase: "Analyze", label: "analyze",
     payload: { pitch: rs.intake_path, spec_folder: specFolder, feature: slug, lens: rs.lens, orient_dir: rs.orient_dir },

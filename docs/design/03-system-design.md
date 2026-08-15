@@ -434,13 +434,14 @@ contract (`scripts/FROZEN.md`): they may never be renamed or moved.
 ## 3.5 — The run itself: one workflow launch, not a turn-by-turn drive
 
 Everything above describes a single dispatch. The **run** that strings them together is not the
-orchestrator narrating steps in the conversation — it is one background script launch that owns
-the whole pipeline:
+orchestrator narrating steps in the conversation — it is one launch on the native Workflow runtime
+that owns the whole pipeline:
 
-```bash
-node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" run \
-  "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js" \
-  --args-file .shapeup/<slug>/run-args.json --run-dir .shapeup/<slug>/workflow-run
+```
+Workflow({
+  scriptPath: "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js",
+  args: <the RunArgs object>
+})
 ```
 
 `tech-lead` holds the GATE L0 intake conversation, writes `project-profile.md`, compiles one

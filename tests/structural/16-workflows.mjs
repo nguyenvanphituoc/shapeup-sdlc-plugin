@@ -249,4 +249,191 @@ export async function run(ctx) {
     fail("a workflow script discards a courier's outcome; a write nobody reads back is "
       + `indistinguishable from one that succeeded:\n    ${discardOffenders.join("\n    ")}`);
   }
+
+  // --- (g) an ingest a workflow script DESCRIBES is aimed the same way one it CODES is ---------
+  //
+  // THE DEFECT THIS CLOSES, measured. Check (e) above forbids aiming an ingest with a worker's
+  // self-reported `result_path`, because a worker that had done its whole job once reported a
+  // DIRECTORY and the phase was thrown away on EISDIR. The native-runtime cutover deleted the
+  // helper that derived the pairing (`resultFor`) along with the courier layer, and moved the
+  // ingest call OUT of script code and INTO the prompt a sub-agent is handed — where it read
+  // "reduce ingest <the result path the worker wrote>". That is check (e)'s exact defect, in prose,
+  // one layer below the regex that guards it: a shell command a model composes from a claim.
+  //
+  // So the invariant is restated for the prose surface: every `reduce ingest` a workflow script
+  // builds must be aimed by `--order`, which the kernel resolves through the orders/→results/
+  // pairing itself. A control plane that stopped shelling out did not stop issuing commands; it
+  // only stopped issuing them where the earlier checks were looking.
+  const INGEST_CALL = /reduce\s+ingest\s+(\S+)/g;
+  const proseOffenders = [];
+  for (const f of files) {
+    const src = readFileSync(join(abs, f), "utf8");
+    codeOnly(src).split("\n").forEach((line, i) => {
+      for (const m of line.matchAll(INGEST_CALL)) {
+        if (!m[1].startsWith("--order")) {
+          proseOffenders.push(`${WORKFLOWS_DIR}/${f}:${i + 1}  reduce ingest ${m[1].slice(0, 40)}`);
+        }
+      }
+    });
+  }
+  if (proseOffenders.length === 0) {
+    ok("every `reduce ingest` a workflow script builds is aimed by --order — the kernel derives the result from the order, so no dispatch rides on a claim about where the work was put");
+  } else {
+    fail("a workflow script aims an ingest at something other than `--order`; the orders/→results/ "
+      + `pairing is a fact the kernel can derive, and anything else is a worker's claim:\n    ${proseOffenders.join("\n    ")}`);
+  }
+
+  // --- (h) no payload field is forwarded to compile as a bare null ------------------------------
+  //
+  // THE DEFECT THIS CLOSES, measured. `probe resume` answers `null` for context it does not know
+  // yet (`stack`, `lens`, `run_cmd`, `app_url`); `WorkOrderPayload` types those `string` and marks
+  // them OPTIONAL, so the contract says "omit it", not "send null". The cutover forwarded the
+  // probe's value straight into the payload, and four of the seven operations this file dispatches
+  // — orient, analyze, evaluate, hunt — were refused by their own order schema before any worker
+  // ran. ORIENT is one of them, so the FIRST dispatch of every fresh run failed at compile; the
+  // three operations carrying no nullable field always worked, which made a total failure look
+  // intermittent.
+  //
+  // The mechanical guard: a payload object literal handed to compile must pass through a compacting
+  // step. Checked by requiring the file to define one and to use it on the compile line, which is
+  // weaker than type-checking the payload and is the strongest thing available to a static scan.
+  const compileOffenders = [];
+  for (const f of files) {
+    const code = codeOnly(readFileSync(join(abs, f), "utf8"));
+    if (!/compile\s+--operation/.test(code)) continue;
+    const definesCompact = /const\s+compact\s*=/.test(code);
+    const usesCompact = /--payload\s+'\$\{JSON\.stringify\(compact\(/.test(code);
+    if (!definesCompact || !usesCompact) {
+      compileOffenders.push(`${WORKFLOWS_DIR}/${f} — ${!definesCompact ? "defines no compact() helper" : "builds --payload without compact()"}`);
+    }
+  }
+  if (compileOffenders.length === 0) {
+    ok("every workflow script that compiles an order strips null/undefined payload fields first — an unknown value is an absent key, which is what WorkOrderPayload's optional string fields require");
+  } else {
+    fail("a workflow script forwards a possibly-null payload field into `compile`; `probe resume` "
+      + "returns null for unknown context and the order schema types those fields `string`, so the "
+      + `order is refused before any worker sees it:\n    ${compileOffenders.join("\n    ")}`);
+  }
+
+  // --- (i) every run status a workflow script sets is a member of the kernel's enum -------------
+  //
+  // THE DEFECT THIS CLOSES, measured. `shapeup-run.js` called `setRunStatus("analyzing")` at the
+  // ANALYZE phase. `RUN_STATUSES` in the kernel is `orienting | mapping | building | evaluating |
+  // shipped | escalated` — deliberately coarser than the file's phases — so that call was rejected
+  // with exit 2 on EVERY run since the cutover, and the string "analyzing" appears nowhere in the
+  // kernel at all. Because the write is advisory the run continued, and the only trace was a line
+  // in a state-warning array nobody had read.
+  //
+  // The enum comes from the module that owns it, never from a copy kept here: a second list beside
+  // the first is a second thing to forget, which is the same failure one level up.
+  const { RUN_STATUSES } = await import(join(ROOT, "kernel/probe/resume.mjs"));
+  const statusOffenders = [];
+  for (const f of files) {
+    const code = codeOnly(readFileSync(join(abs, f), "utf8"));
+    for (const m of code.matchAll(/setRunStatus\(\s*"([^"]+)"/g)) {
+      if (!RUN_STATUSES.includes(m[1])) {
+        const line = code.slice(0, m.index).split("\n").length;
+        statusOffenders.push(`${WORKFLOWS_DIR}/${f}:${line}  setRunStatus("${m[1]}") — not one of ${RUN_STATUSES.join(" | ")}`);
+      }
+    }
+  }
+  if (statusOffenders.length === 0) {
+    ok(`every run status a workflow script sets is a member of the kernel's RUN_STATUSES enum (${RUN_STATUSES.length} values, read from the module that defines it)`);
+  } else {
+    fail("a workflow script sets a run status the kernel does not accept; the write is advisory, so "
+      + `it fails silently on every run and the ledger under-reports the phase:\n    ${statusOffenders.join("\n    ")}`);
+  }
+
+  // --- (f) `meta` is a PURE LITERAL, or the runtime never runs the file at all -----------------
+  //
+  // THE DEFECT THIS CLOSES, measured. Every check above this one asks whether the orchestrator is
+  // shaped correctly. None of them asked whether it LOADS — and it did not. The runtime parses
+  // `meta` statically, before the body executes, and rejects the whole script on any node it would
+  // have to evaluate. `shapeup-run.js` wrote its description as three `+`-joined string literals,
+  // which reads better in source and is a BinaryExpression to a parser, so the launch failed with
+  // "meta must be a pure literal" and the pipeline could not start. It shipped that way through the
+  // rebuild, tagged 2.0.0, under a fully green suite: the file was never once launched, because
+  // every instrument pointed at it was static and this property is only visible to a parse.
+  //
+  // That is the general lesson worth the guard: a suite that checks a file's SHAPE exhaustively can
+  // still miss whether the thing runs, and "the tests are green" then means less than it reads.
+  //
+  // The mechanical proxy for "pure literal": strip the string CONTENTS out of the meta block, then
+  // look at the skeleton that remains. Anything that survives and implies evaluation — `+`
+  // (BinaryExpression), `${` (a template with an expression), `(` (CallExpression), `...`
+  // (SpreadElement) — is a node the runtime would refuse. Naming the classes, rather than pattern-
+  // matching the one that bit, is what makes this catch the next spelling too.
+  const META_START = /export\s+const\s+meta\s*=\s*\{/;
+
+  /** The source of the `meta = { … }` object, brace-balanced with string state tracked. */
+  function metaBlock(src) {
+    const m = META_START.exec(src);
+    if (!m) return null;
+    let i = m.index + m[0].length - 1, depth = 0, quote = null;
+    for (; i < src.length; i++) {
+      const c = src[i], prev = src[i - 1];
+      if (quote) {
+        if (c === quote && prev !== "\\") quote = null;
+        continue;
+      }
+      if (c === '"' || c === "'" || c === "`") { quote = c; continue; }
+      if (c === "{") depth++;
+      else if (c === "}" && --depth === 0) return src.slice(m.index, i + 1);
+    }
+    return null;
+  }
+
+  /** Replace every string literal's CONTENTS with nothing, leaving the quotes in place. */
+  const stripStringContents = (block) => {
+    let out = "", quote = null;
+    for (let i = 0; i < block.length; i++) {
+      const c = block[i], prev = block[i - 1];
+      if (quote) {
+        if (c === quote && prev !== "\\") { quote = null; out += c; }
+        else if (c === "`" && quote === "`") out += c;
+        continue;
+      }
+      if (c === '"' || c === "'" || c === "`") { quote = c; out += c; continue; }
+      out += c;
+    }
+    return out;
+  };
+
+  const IMPURE = [
+    [/\+/, "BinaryExpression (a `+`-joined string — write it as one literal, however long)"],
+    [/\$\{/, "TemplateLiteral with an expression"],
+    [/\(/, "CallExpression"],
+    [/\.\.\./, "SpreadElement"],
+  ];
+
+  const metaOffenders = [], metaMissing = [];
+  for (const f of files) {
+    const src = readFileSync(join(abs, f), "utf8");
+    const block = metaBlock(src);
+    if (!block) {
+      metaMissing.push(`${WORKFLOWS_DIR}/${f} — no \`export const meta = { … }\`; the runtime requires it`);
+      continue;
+    }
+    const skeleton = stripStringContents(codeOnly(block));
+    for (const [pattern, why] of IMPURE) {
+      if (pattern.test(skeleton)) metaOffenders.push(`${WORKFLOWS_DIR}/${f} — ${why}`);
+    }
+    for (const field of ["name", "description"]) {
+      if (!new RegExp(`\\b${field}\\s*:`).test(block)) {
+        metaMissing.push(`${WORKFLOWS_DIR}/${f} — meta.${field} is required`);
+      }
+    }
+  }
+
+  if (metaOffenders.length === 0 && metaMissing.length === 0) {
+    ok(`every workflow script's \`meta\` is a pure literal carrying name + description (${files.length} file(s)) — the runtime can parse it and launch the file`);
+  } else {
+    if (metaOffenders.length > 0) {
+      fail("a workflow script's `meta` is not a pure literal, so the Workflow runtime refuses the "
+        + `WHOLE file before its body ever runs — the orchestrator cannot launch:\n    ${metaOffenders.join("\n    ")}`);
+    }
+    if (metaMissing.length > 0) {
+      fail(`a workflow script's \`meta\` is missing a required field:\n    ${metaMissing.join("\n    ")}`);
+    }
+  }
 }

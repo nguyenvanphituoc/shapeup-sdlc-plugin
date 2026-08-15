@@ -18,7 +18,7 @@
 // Exit:   0 = ingested, 1 = result rejected (schema) or a write failed.
 
 import { readFileSync, writeFileSync, appendFileSync, mkdirSync, rmdirSync, statSync, existsSync, readdirSync } from "node:fs";
-import { resolve, join, dirname } from "node:path";
+import { resolve, join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validate } from "../verify/envelope.mjs";
 import { runArgs } from "../lib/argv.mjs";
@@ -282,10 +282,34 @@ function applyResultLocked(result, { cwd, slug }) {
 // ---------------------------------------------------------------------------
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "harness.mjs reduce ingest <result.json> [--cwd <dir>]",
-  _: { arity: 1, max: 1, name: "result.json" },
+  usage: "harness.mjs reduce ingest (<result.json> | --order <order.json>) [--cwd <dir>]",
+  _: { arity: 0, max: 1, name: "result.json" },
+  order: { type: "path" },
   cwd: { type: "path" },
 };
+
+/**
+ * The result a given order is answered by.
+ *
+ * THE PAIRING IS A FACT OF THE ENVELOPE PORT, not a claim: `compile` writes `orders/<suffix>.json`
+ * and every worker writes `results/<suffix>.json`. Deriving it here is what stops a dispatch from
+ * being aimed by a worker's own report of where it put the work — measured once, when a worker that
+ * had done its whole job reported a DIRECTORY as its result path, ingest read it, got EISDIR, and
+ * the phase was thrown away. The caller naming the ORDER cannot make that mistake, because the
+ * order is the thing it already holds.
+ *
+ * @param {string} orderPath - Path to the order this result answers.
+ * @returns {string} The result path implied by that order.
+ */
+export function resultFor(orderPath) {
+  const abs = resolve(orderPath);
+  const dir = dirname(abs);
+  if (basename(dir) !== "orders") {
+    console.error(`  ✗ --order must name a file inside an orders/ directory (got ${abs})`);
+    process.exit(2);
+  }
+  return join(dirname(dir), "results", basename(abs));
+}
 
 /**
  * Apply one WorkResult to shared state — the single writer for the board and the ledgers.
@@ -296,7 +320,11 @@ export const ARGV_SPEC = {
  */
 export async function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
-  const file = args._[0];
+  const file = args.order ? resultFor(args.order) : args._[0];
+  if (!file) {
+    console.error("  ✗ nothing to ingest: pass a result path, or --order <order.json> to derive it");
+    process.exit(2);
+  }
   const cwd = resolve(args.cwd || process.cwd());
 
   let result;

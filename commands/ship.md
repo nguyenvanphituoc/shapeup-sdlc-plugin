@@ -18,10 +18,11 @@ On a spec with committed `scopes/*.md` — the common case — `tech-lead` holds
 conversation, writes `project-profile.md`, then hands the whole pipeline to a single background
 launch and does not drive it turn by turn:
 
-```bash
-node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" run \
-  "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js" \
-  --args-file .shapeup/<slug>/run-args.json --run-dir .shapeup/<slug>/workflow-run
+```
+Workflow({
+  scriptPath: "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js",
+  args: <the RunArgs object>
+})
 ```
 
 ORIENT → L1a → ANALYZE → WIRE → L1a.5 → MAP SCOPES → L1b → rounds of BUILD/L2/EVAL → QA → GATE H
