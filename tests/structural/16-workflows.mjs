@@ -505,6 +505,29 @@ export async function run(ctx) {
     }
   }
 
+  // (n) A PHASE WHOSE COMPLETION IS DECIDED BY EXACT FILENAMES MUST NAME THEM TO ITS WORKER.
+  //
+  // ORIENT's completion is `ORIENT_REQUIRED.every(present)` — three exact names plus a spike. The
+  // dispatch prose said only "write the orient/ artifacts". A leg then did the work properly and
+  // called its output `code-surface-map.md` and `discovered-tasks.md`; the post-condition correctly
+  // refused to advance, and a run that had spiked real code and written four useful files aborted
+  // over two filenames. The skill doc names them four times over; the dispatch named them zero.
+  //
+  // The names are READ FROM THE PREDICATE, so this cannot drift: rename a required artifact and the
+  // prose must follow, which is the coupling the failure showed was missing.
+  const { ORIENT_REQUIRED } = await import(join(ROOT, "kernel/probe/resume.mjs"));
+  for (const f of files) {
+    const src = readFileSync(join(abs, f), "utf8");
+    if (!/skill: "orient"/.test(src)) continue;
+    const missing = ORIENT_REQUIRED.filter((name) => !src.includes(name));
+    if (!missing.length) {
+      ok(`${WORKFLOWS_DIR}/${f} names all ${ORIENT_REQUIRED.length} required ORIENT artifacts in the dispatch itself`);
+    } else {
+      fail(`${WORKFLOWS_DIR}/${f} dispatches ORIENT without naming ${missing.join(", ")} — completion is decided by ` +
+        `those exact filenames, so a leg that does the work under another name aborts the run at the post-condition`);
+    }
+  }
+
   // (m) THE BUILD LOOP MUST CONSUME THE DEPENDENCY WAVES, not the flat scope list.
   //
   // The kernel deriving a correct order buys nothing if the orchestrator chunks around it, and that

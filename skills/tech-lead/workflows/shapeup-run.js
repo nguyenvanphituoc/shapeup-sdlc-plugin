@@ -523,7 +523,19 @@ if (!rs.has_orient_artifacts) {
   const o = await worker({
     skill: "orient", operation: "orient", schema: ORIENT, phase: "Orient", label: "orient",
     payload: { pitch: rs.intake_path, spec_folder: specFolder, feature: slug, stack: rs.stack },
-    extra: "Read and spike real code before any board exists; write the orient/ artifacts.",
+    // NAME THE FILES. "write the orient/ artifacts" was the whole instruction, while completion is
+    // decided by four exact filenames — so a leg that did the work and called its output
+    // `code-surface-map.md` and `discovered-tasks.md` aborted the run at the post-condition, having
+    // spiked real code and written four genuinely useful files. The skill doc states these names
+    // four times over; the dispatch prose stated them zero. Cheap to say, and the phase's completion
+    // contract belongs where the worker reads it, not only where it is enforced.
+    extra:
+      "Read and spike real code before any board exists. The phase is COMPLETE only when the run's " +
+      "orient directory — the one this order's substrate permits — contains all four of these, " +
+      "named exactly: `code-surface.md`, " +
+      "`discovered-seed.md`, `hill-signal.md`, and one `spike-<area>.md` (or `spike-not-needed.md` " +
+      "when the risk scan came back rank 0). Any other filename leaves the phase incomplete and " +
+      "the run aborts, however good the contents are.",
   });
   if (o.__failed) return diedAt("ORIENT", o);
   const post = await requirePhase("ORIENT", "orient", "Orient");
