@@ -121,6 +121,39 @@ all of them rather than dropped.
 `execute`. A round carrying cited defects now compiles as `fix`, with a byte-identical write
 contract.
 
+### The gates a human answers, and the reader underneath them
+
+Found by the first run driven interactively end to end — the one lane where a person actually
+answers every gate, which is the only way these three surface.
+
+**Fixed — a gate decision was read out of prose, so QA never ran and `stop` did nothing.** The
+control plane branches on gate decisions by token equality (`decision === "run"`). That value was
+taken from the free-text field a sub-agent fills, which came back as a sentence — "Command exited 0;
+gate QA resolved decision=run from …" — so every such comparison was false on every run that has
+ever executed. The post-PASS edge hunt was skipped silently, with no log line, no warning and no
+artifact whose absence would show; and a PO answering `stop` at the verdict gate was ignored, leaving
+the round budget as the only way out of the loop. The kernel already prints the decision as a
+top-level JSON key; it is now copied verbatim into its own field and checked against the gate's valid
+set, and a decision that cannot be read **aborts** instead of defaulting to `proceed` — the default
+is what made the original silence look like health.
+
+**Fixed — the edge hunt was unreachable for anything without a URL.** `payload.app_url` was a
+non-nullable string, so a CLI, a library or a batch job could not compile a QA order at all: the
+payload carries null, the order fails its own schema, and the phase is skipped for a reason that
+looks nothing like "this deliverable has no URL". It is now nullable, and the Hunter's contract says
+what to do with it — drive the built entry point, exactly as the Test Surface's process rows do.
+
+**Fixed — the contract reader silently ate a character from any value ending in a quote.** Scalars
+were unquoted by stripping a leading *or* trailing quote independently, with no check that the two
+paired. A verification fixture written as `export STORE="$T/s.json"` therefore reached the shell
+missing its final quote and died as a syntax error. Nothing reports that as a parse failure: the
+scope simply scores red, attempt after attempt, against an implementation that was correct the whole
+time — and a lossy reader is indistinguishable from a builder that cannot make progress. Quotes are
+now removed only in matching pairs, a JSON-escaped scalar is read as JSON, and a value that is not
+valid JSON is unwrapped but **not** unescaped, because a backslash there belongs to the shell that
+will run it. The test corpus previously contained no quote character anywhere, which is how a reader
+this central shipped; it now carries the shapes that broke.
+
 ### Scheduling, identity, and the rest
 
 **The fan-out was ordered by the alphabet.** BUILD chunked scopes by directory listing, which put an
