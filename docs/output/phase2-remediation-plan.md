@@ -502,8 +502,15 @@ Betting Table rather than made during the phase that is validating the current b
 
 ## Step 5 — run criterion 1 twice, keep both traces — **IN PROGRESS**
 
-> Headless lane: three launches. What each one bought, and what it cost, because a run that fails for
-> a diagnosable reason is not a wasted run — it is the only instrument that has ever found these:
+> **Where this stands.** Fourteen defects found by execution, all fixed and guarded, each guard
+> verified by re-introducing its defect. The headless lane now builds a working CLI with all six
+> scopes T0-green on the first attempt, and reaches a real EVAL verdict — FAIL 20/26, six criteria,
+> five bugs cited to `file:line`. The remaining question is the one the run in flight answers: does
+> a FAIL round actually produce fixes. Every previous attempt at round 2 was a no-op for reasons
+> now closed (see "The FAIL→fix loop had never closed" in `RESULT-v2.md`).
+>
+> Headless lane: the launches, and what each one bought — because a run that fails for a diagnosable
+> reason is not a wasted run, it is the only instrument that has ever found these:
 >
 > | Launch | Reached | Ended | Bought |
 > |---|---|---|---|

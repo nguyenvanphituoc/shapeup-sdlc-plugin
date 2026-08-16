@@ -320,19 +320,22 @@ The deliverable works. Driven by hand under its own store convention, `add`/`lis
 exit 0 with correct output and `[x]` state, and a corrupted store exits 1 naming the file **without
 destroying user data** — `EXPECTED.md`'s E4, exactly as written.
 
-**And the evaluator failed it anyway: 20/26, threshold 100%.** Three real defects, each cited to
-`file:line`, each re-probed and reproduced:
+**And the evaluator failed it anyway: 20/26, threshold 100%.** Six criteria failed, written up as
+five bug entries, each cited to `file:line`. The first three I also re-probed by hand against the
+built binary; all three reproduced:
 
 | | |
 |---|---|
 | BUG-01 | an uncaught `StoreWriteError` prints a full Node stack trace (`bin/todo.js:27`) — the spec's global convention is "never a bare stack trace" |
 | BUG-02 | the index is validated AFTER `load()`, so a corrupted store masks `E_MISSING_INDEX` (`bin/todo.js:53`, `:85`); the UC steps require validation before any store access |
 | BUG-03 | the error text diverges from the Error Catalog: `E_MISSING_INDEX - index is required` where the spec says `Error: missing index` (`lib/parse-index.js:5,13,21`) |
+| BUG-04 | the `bin` entry point declared in `package.json:9` is not the one the project verifies through |
+| BUG-05 | a `foundation` T0 fixture has drifted from the scope contract's declared set (`test/bin-scaffold.test.js:39`) |
 
 This is the clearest demonstration in the whole exercise of why T0 and EVAL are separate layers.
 **T0 was green on every scope and the feature still did not conform.** T0 runs the tests the workers
 wrote; EVAL grades the deliverable against the committed spec. The workers' own tests passed while
-the CLI diverged from its specification in three ways — and a human (this session) had already driven
+the CLI diverged from its specification in six ways — and a human (this session) had already driven
 the binary by hand and called it working. It runs correctly. It does not conform. Only the judge
 caught the difference.
 
@@ -343,6 +346,60 @@ anti-self-grading disciplines holding under live conditions rather than in a fix
 Each hid the next — the fan-out never dispatched, so the compile line was never reached, so the
 verdict was never read, so the scheduling was never exercised — which is why a suite of 900+ static
 checks certified every one of them.
+
+## The FAIL→fix loop had never closed, in four independent places
+
+Everything above was found by getting a *first* round to run. The verdict then exposed a second
+family, invisible to any single-round run and to every static check in the suite: the loop that is
+supposed to turn a FAIL into a fix was broken at four separate points, each of which alone is
+sufficient to make round 2 a no-op.
+
+The measurement that started it: **round 2 kept all six trees and changed none of them.**
+`bin/todo.js` was byte-identical before and after, and all three re-probed bugs reproduced.
+
+**The ratchet was discarding the fixes.** `better()` decided whether an attempt's tree replaced the
+last kept one. A green-scoring attempt did not beat an equally green predecessor, so with T0 already
+green — which is the defining condition of a spec-conformance fix round — every fix was scored,
+found "not better", and reverted. Measured on the run's own ledger: 6 trials, **0 kept, 6 reverted**.
+A green tie now KEEPS, because the later tree is the one carrying the fix.
+
+**The evaluate order was compiled without its round.** `compile` suffixes an order id with `--round`
+and `probe resume` reads `evaluate-r<N>.json` back to learn which rounds are done — writer and reader
+had agreed all along, and only this one caller omitted the flag. Two silent consequences: every
+relaunch restarted the round counter at 1, and round 2's result **overwrote round 1's**, so a run
+kept only its last round's envelope.
+
+**And nothing ever told the workers what to fix.** `payload.bugs` is defined in `WorkOrderPayload`,
+registered for `task-executor` in `x-payload-by-worker`, and declared in that worker's own input
+contract — three artifacts in complete agreement, and no producer anywhere. A round-2 leg was
+dispatched with `{scope_path, scope_id, round, attempt_budget}`, re-ran T0, found the scope still
+green, and reported done. Which is correct behavior for a worker that was never told a judge had
+cited it.
+
+The first fix for that one did not work either, and it is worth recording why, because it type-checks
+and reads correctly:
+
+- **A build order takes no payload from its caller.** Build legs override the compile line, because
+  an order is addressed by scope/round/attempt and the generic `--operation` form cannot express
+  that — and only the generic form serialises `--payload`. So the payload was assembled, filtered,
+  and dropped, on every fix round, silently.
+- **A variable does not survive a relaunch.** Round r's verdict is what round r+1 must act on, and
+  the boundary between them is exactly where a long run gets killed and resumed. A resumed round 2
+  starts in a fresh process with an empty list, while the verdict sits on disk unread.
+
+So the delivery moved into `harness compile`, which reads the ledgered verdict itself: one path for
+a fresh round and a resumed one, and no model in transit — a transcribed repro is a repro that may
+not reproduce. Ownership is *elected* rather than matched, because an entry point is routinely shared
+(`bin/todo.js` sits in five scopes' substrate here), and addressing one fix to every scope that may
+write the file sets up a write race between concurrent legs. A defect matching no substrate at all is
+marked `unowned` and sent to everyone rather than dropped.
+
+**The pattern across all four:** state that has to cross a boundary — a round, a process, a
+scheduler — kept in the one place that does not cross it. And the reason none of them ever showed up:
+every defect above is *unreachable* until the run before it works. The fan-out never dispatched, so
+the compile line was never reached, so the verdict was never read, so the ratchet was never exercised
+on a green tie, so the fix round was never dispatched at all. A suite of 1,000 static checks
+certified every one of them, because each was guarding a line that no run had executed.
 
 The failed run is kept, not discarded — `traces/phase2-criterion1/headless-attempt1-build-never-dispatched/`
 holds its whole tree, because a trace of the defect is the only thing that makes "BUILD never
