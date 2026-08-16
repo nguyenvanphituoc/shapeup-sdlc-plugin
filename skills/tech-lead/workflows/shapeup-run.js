@@ -377,6 +377,16 @@ async function worker({ skill, operation, payload, schema, phase: phaseName, lab
   // 1, because `eval_rounds_done` could never match `evaluate.json`; and round 2's evaluate result
   // OVERWROTE round 1's, so a run kept only its last round's envelope.
   const roundFlag = round ? ` --round ${round}` : "";
+  // A CALLER-SUPPLIED PAYLOAD ONLY REACHES THE ORDER ON THE GENERIC LINE. Overriding `compile`
+  // replaces the whole command, `--payload` included, so a caller that passes both is writing a
+  // field nobody will ever read — which is exactly how `payload.bugs` came to be built, filtered,
+  // and discarded on every fix round for the life of this file. Loud rather than fatal: the order
+  // is still valid, and killing a build leg over a discarded field would cost more than it saves.
+  if (compile && payload && Object.keys(compact(payload)).length) {
+    log(`DISPATCH — ${label}: payload dropped (${Object.keys(compact(payload)).join(", ")}). This ` +
+        `dispatch overrides its compile line, so --payload is not emitted; the order must derive ` +
+        `those fields itself (see harness compile).`);
+  }
   const compileCmd = compile
     || `compile --operation ${operation} --slug ${slug}${roundFlag} --payload '${JSON.stringify(compact(payload))}'`;
   const r = await agent(
@@ -749,7 +759,7 @@ while (round <= maxRounds) {
       async (scope) => (alreadyGreen.has(scope.scope_id)
         ? { scope_id: scope.scope_id, green: true, resumed: true }
         : { scope_id: scope.scope_id, pending: true }),   // not green yet → stage 2 builds it
-      async (pre, scope) => (pre?.pending ? buildScope(scope, round, findings) : pre),
+      async (pre, scope) => (pre?.pending ? buildScope(scope, round) : pre),
       async (res, scope) => {
         if (!res || res.__failed) return res;
         if (res.resumed || !res.green) return res;
@@ -906,43 +916,42 @@ return withWarnings({
 // attempt is implement → `harness verify t0`, and both halves need a real filesystem and a real
 // git. The worker reports only the outcome the round loop branches on.
 // =============================================================================================
-async function buildScope(scope, roundNo, bugs = []) {
-  // CARRY THE VERDICT'S BUGS INTO THE ROUND THAT MUST FIX THEM.
+async function buildScope(scope, roundNo) {
+  // THE VERDICT'S BUGS REACH THIS LEG THROUGH ITS ORDER, NOT THROUGH THIS FUNCTION.
   //
-  // `WorkOrderPayload.bugs` exists and its description says exactly this — "the EVAL report's bug
-  // entries for this task — touch nothing else" — and AGENTS.md states the regression rule as
-  // "bugs + full Test Surface of touched UC". The field was never populated, so a round r+1 leg was
-  // dispatched with `{scope_path, scope_id, round, attempt_budget}` and no idea the judge had cited
-  // anything. It re-ran T0, found the scope still green, and reported done.
+  // `WorkOrderPayload.bugs` is "the EVAL report's bug entries for this task — touch nothing else",
+  // and AGENTS.md states the regression rule as "bugs + full Test Surface of touched UC". Nothing
+  // populated it, so a round r+1 leg was dispatched with no idea the judge had cited anything: it
+  // re-ran T0, found the scope still green, and reported done. Measured — EVAL returned FAIL naming
+  // five defects at file:line; round 2 kept all six trees and changed none of them, and every bug
+  // re-probed identically.
   //
-  // Measured: EVAL returned FAIL naming three defects at file:line; round 2 kept all six trees and
-  // changed none of them, and all three bugs re-probed identically. The ratchet had been discarding
-  // the fixes (see `better()`), which hid this — with the ratchet fixed the trees survive, and the
-  // trees are unchanged, because nobody was told what to change.
+  // Threading them from here was tried first and cannot work, twice over: a build order overrides
+  // the compile line (below), and only the GENERIC line serialises `--payload`, so the field was
+  // built and dropped; and the value lived in a variable, which a relaunch between two rounds
+  // resets to empty. `harness compile` reads them off the ledgered verdict instead — see
+  // `verdictBugs` — so a fresh round and a resumed one take the identical path.
   //
-  // `digested_errors` could not cover this: it carries AEGIS triples from a RED T0, and a scope whose
-  // fixtures pass while its behaviour contradicts the spec has no red trial to digest. That gap is
-  // the whole reason EVAL is a separate layer, so the channel out of it has to be separate too.
-  const forThisScope = bugs.filter((b) => !b.scope_id || b.scope_id === scope.scope_id);
+  // `digested_errors` could not cover this: it carries AEGIS triples from a RED T0, and a scope
+  // whose fixtures pass while its behaviour contradicts the spec has no red trial to digest. That
+  // gap is why EVAL is a separate layer, so the channel out of it has to be separate too.
   return worker({
     skill: "task-executor", operation: "execute", schema: SCOPE_RESULT, phase: "Build",
     label: `build:${scope.scope_id}-r${roundNo}`,
-    payload: {
-      scope_path: scope.path, scope_id: scope.scope_id, round: roundNo, attempt_budget: attemptBudget,
-      ...(forThisScope.length ? { bugs: forThisScope } : {}),
-    },
     // A build order is addressed by scope + round + attempt, never by operation: the attempt number
     // is part of its identity, so there is one order per attempt and the generic slug form cannot
-    // express it.
+    // express it. NOTE this override is why no `payload` is passed — it would be discarded.
     compile: `compile --scope ${scope.path} --round ${roundNo} --attempt 1`,
     extra:
-      (forThisScope.length
-        ? `THIS IS A FIX ROUND. The evaluator returned FAIL and cited ${forThisScope.length} defect(s) ` +
-          `against this scope, carried in the order's \`payload.bugs\` — each with the criterion it ` +
-          `broke and a file:line. Fix exactly those and touch nothing else. They are spec-conformance ` +
-          `defects, so T0 already passes and will keep passing whether or not you fix them: a green ` +
-          `T0 is NOT evidence you are done this round, and re-running the fixtures cannot tell you. ` +
-          `Read the cited lines against the committed spec, change them, and keep T0 green. `
+      (roundNo > 1
+        ? `THIS MAY BE A FIX ROUND. If your compiled order carries \`payload.bugs\`, the evaluator ` +
+          `returned FAIL last round and those are the defects it cited against files you own — each ` +
+          `with the criterion it broke and a file:line. Fix exactly those and touch nothing else. ` +
+          `They are spec-conformance defects, so T0 already passes and will keep passing whether or ` +
+          `not you fix them: a green T0 is NOT evidence you are done this round, and re-running the ` +
+          `fixtures cannot tell you. Read the cited lines against the committed spec, change them, ` +
+          `and keep T0 green. An entry marked \`unowned\` cites no file any scope owns — fix it only ` +
+          `if it falls inside your substrate. `
         : "") +
       `Re-compile the order for every attempt after the first, with --attempt <n>. ` +
       `Run the attempt ratchet for THIS scope only: up to ${attemptBudget} attempts of implement → ` +

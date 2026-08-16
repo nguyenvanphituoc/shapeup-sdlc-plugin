@@ -2072,7 +2072,7 @@
         },
         "bugs": {
           "type": "array",
-          "description": "task-executor (operation: fix): the EVAL report's bug entries for this task — touch nothing else."
+          "description": "The previous round's FAIL verdict, addressed to the scope whose substrate contains each cited file — touch nothing else. Written by `harness compile` from results/evaluate-r<N-1>.json, never by a caller: a build order is addressed by scope/round/attempt and carries no caller payload, and the verdict must survive the relaunch that separates two rounds. Present on any r≥2 execute order whose predecessor failed; an entry matching no scope's substrate is marked `unowned` and sent to all of them rather than dropped."
         },
         "spec_folder": {
           "type": "string",

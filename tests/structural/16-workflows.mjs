@@ -586,39 +586,49 @@ export async function run(ctx) {
     }
   }
 
-  // (q) THE VERDICT'S BUGS MUST REACH THE ROUND THAT HAS TO FIX THEM.
+  // (q) A DISPATCH THAT OVERRIDES ITS COMPILE LINE MUST NOT ALSO BUILD A PAYLOAD.
   //
-  // `WorkOrderPayload.bugs` exists and says what it is for — "the EVAL report's bug entries for this
-  // task — touch nothing else" — and AGENTS.md states the regression rule as "bugs + full Test
-  // Surface of touched UC". The orchestrator captured the evaluator's findings into a local and used
-  // them only for the optional refute wave, so a round r+1 leg was dispatched knowing nothing about
-  // the verdict. It re-ran T0, found the scope still green, and reported done.
+  // `worker()` emits `--payload` on ONE line — the generic `--operation <op> --slug <slug>` form.
+  // Overriding `compile` (which every build leg does, because a build order is addressed by scope,
+  // round and attempt) replaces that command wholesale, `--payload` included. A caller that passes
+  // both is therefore assembling a field that no order will ever carry, and the code reads exactly
+  // like a caller that delivers one.
   //
-  // Measured: EVAL returned FAIL citing three defects at file:line; round 2 kept all six trees and
-  // changed none of them. `digested_errors` cannot cover this — it carries AEGIS triples from a RED
-  // T0, and a scope whose fixtures pass while its behaviour contradicts the spec has no red trial to
-  // digest. That gap is why EVAL is a separate layer, so its output needs a separate channel.
+  // This is not hypothetical. `payload.bugs` — "the EVAL report's bug entries for this task, touch
+  // nothing else", the channel AGENTS.md's regression rule depends on — was built and filtered on
+  // every fix round, and dropped on every fix round, for the life of this file. Measured: EVAL
+  // returned FAIL citing five defects at file:line; round 2's legs were never told, kept all six
+  // trees and changed none of them.
   //
-  // Both halves are checked. The declaration one matters because `findings` inside the round loop is
-  // in the temporal dead zone at the BUILD that reads it — a runtime error nothing but a real second
-  // round reaches, which is exactly the kind a static suite certifies forever.
+  // The delivery itself belongs to `harness compile`, which reads the ledgered verdict off disk
+  // (§62 in 05-tech-lead.mjs asserts a compiled round-2 order actually carries them). It has to
+  // live there rather than here for a second reason: a variable does not survive the relaunch that
+  // separates two rounds, and a resumed round r+1 starts in a fresh process.
   for (const f of files) {
     const src = readFileSync(join(abs, f), "utf8");
     if (!/while \(round <= maxRounds\)/.test(src)) continue;
     const problems = [];
-    if (!/buildScope\(scope, round, findings\)/.test(src)) {
-      problems.push("the build call does not pass the verdict's findings, so a fix round is dispatched blind");
+    // Each `worker({...})` call's own object literal, sliced at the next call so two adjacent
+    // dispatches cannot lend each other a property.
+    const calls = [...src.matchAll(/\bworker\(\{/g)].map((m, i, all) =>
+      src.slice(m.index, i + 1 < all.length ? all[i + 1].index : src.length));
+    let toldAboutBugs = false;
+    for (const call of calls) {
+      const label = (call.match(/label:\s*[`"']([^`"'$]*)/) || [])[1] || "(unlabelled)";
+      if (/^\s*compile:/m.test(call) && /^\s*payload:\s*\{/m.test(call)) {
+        problems.push(`the "${label}" dispatch passes both compile: and payload: — the override drops the payload`);
+      }
+      // Read the dispatch's OWN prose, not the file. `payload.bugs` appears in the banner comment
+      // above this very function, so a whole-file grep goes green on a build leg whose instructions
+      // never mention the field — a delivered bug nobody was told to read.
+      const extra = call.slice(call.indexOf("extra:"));
+      if (/build:/.test(label) && /payload\.bugs/.test(extra)) toldAboutBugs = true;
     }
-    const declIdx = src.indexOf("let findings = []");
-    const loopIdx = src.indexOf("while (round <= maxRounds)");
-    if (declIdx === -1 || declIdx > loopIdx) {
-      problems.push("`findings` is declared inside the round loop, so the BUILD that needs it reads it in the temporal dead zone");
-    }
-    if (!/payload\.bugs|bugs: forThisScope|\bbugs\b/.test(src)) {
-      problems.push("nothing populates the order's `bugs` payload field");
+    if (calls.length && !toldAboutBugs) {
+      problems.push("the build dispatch's own instructions never mention `payload.bugs`, so a fix round reads like any other");
     }
     if (!problems.length) {
-      ok(`${WORKFLOWS_DIR}/${f} carries the verdict's bugs into the round that must fix them`);
+      ok(`${WORKFLOWS_DIR}/${f} never assembles a payload its own compile override would discard`);
     } else {
       fail(`${WORKFLOWS_DIR}/${f} cannot act on its own verdict:\n    ${problems.join("\n    ")}`);
     }

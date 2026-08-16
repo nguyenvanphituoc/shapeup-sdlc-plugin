@@ -1026,4 +1026,133 @@ export async function run(ctx) {
       fail("the unverifiable lint fires on a scope that has fixtures — it would block every run");
     }
   }
+
+  // =============================================================================
+  section("62. A FAIL verdict reaches the round that must fix it (payload.bugs)");
+  // =============================================================================
+  //
+  // `bugs` was registered in `x-payload-by-worker`, declared in task-executor's input contract, and
+  // defined in `WorkOrderPayload` — three artifacts in perfect agreement, and NOTHING WROTE IT. The
+  // measured cost: EVAL returned FAIL citing five defects at file:line, and round 2 dispatched six
+  // build legs that were never told, kept all six trees and changed none of them. §50 could not see
+  // it (it checks the registry against the worker's prose, not against a producer), and no
+  // single-round run can see it at all.
+  //
+  // So this section compiles a REAL round-2 order over a fixture whose round 1 failed, and asserts
+  // the bug is in the file that gets written. Producer-side, because the two ways the orchestrator
+  // tried to deliver these both type-check and both deliver nothing: a build order overrides its
+  // compile line (so `--payload` is never emitted), and a variable does not survive the relaunch
+  // that separates two rounds.
+  {
+    const { verdictBugs, bugLocations, electOwner, bugsForScope, scopeSubstrates } =
+      await import(join(ROOT, "kernel/compile.mjs"));
+    const d = mkdtempSync(join(tmpdir(), "bugs-"));
+    const w = (rel, body) => { mkdirSync(dirname(join(d, rel)), { recursive: true }); writeFileSync(join(d, rel), body); };
+    const contract = (id, allowed, shared) => [
+      "---", `scope_id: ${id}`, "topology_type: LAYER_CAKE",
+      `allowed_file_substrate: [${allowed.join(", ")}]`, `shared_substrate: [${shared.join(", ")}]`,
+      "---", "## Why this slice", "x", "",
+    ].join("\n");
+    try {
+      // Two scopes sharing an entry point, one owning a module exclusively — the shape the measured
+      // run had, and the one that decides whether an election is needed at all.
+      w("shapeup/demo/scopes/alpha.md", contract("alpha", ["bin/app.js", "lib/alpha.js"], ["bin/app.js"]));
+      w("shapeup/demo/scopes/beta.md", contract("beta", ["bin/app.js", "lib/beta.js"], ["bin/app.js"]));
+      // `zeta` claims the entry point OUTRIGHT — allowed, not shared. It sorts last, so it is only
+      // ever elected if exclusivity actually outranks the alphabetical tie-break.
+      w("shapeup/demo/scopes/zeta.md", contract("zeta", ["bin/app.js", "lib/zeta.js"], []));
+      w(".shapeup/demo/tasks/_index.md", "| ID | Title | Status |\n|---|---|---|\n");
+      const bugs = [
+        { id: "BUG-A", severity: "high", criterion: "c1", location: "lib/beta.js:12", repro: "r", expected: "e", actual: "a" },
+        { id: "BUG-B", severity: "high", criterion: "c2", location: "bin/app.js:5, bin/app.js:9", repro: "r", expected: "e", actual: "a" },
+        { id: "BUG-C", severity: "low", criterion: "c3", location: "docs/readme.md:1", repro: "r", expected: "e", actual: "a" },
+        { id: "BUG-D", severity: "low", criterion: "withdrawn", location: "lib/alpha.js:3", repro: "r", expected: "e", actual: "a" },
+      ];
+      w(".shapeup/demo/results/evaluate-r1.json", JSON.stringify({
+        schema_version: 1, order_id: "demo/evaluate-r1", worker: "spec-evaluator", status: "done",
+        artifacts: [], verdict: { overall: "FAIL", bugs, refuted: [{ id: "BUG-D" }] },
+      }));
+
+      // ---- the derivation ---------------------------------------------------------------
+      const got = verdictBugs(d, "demo", 2);
+      if (got.length === 3 && !got.some((b) => b.id === "BUG-D")) {
+        ok("verdictBugs reads the previous round's FAIL verdict and drops the refuted entry");
+      } else {
+        fail(`verdictBugs returned ${JSON.stringify(got.map((b) => b.id))} — expected BUG-A/B/C with the refuted BUG-D removed`);
+      }
+      if (verdictBugs(d, "demo", 1).length === 0) ok("round 1 carries no bugs — there is no previous verdict to carry");
+      else fail("verdictBugs returned entries for round 1, which has no predecessor");
+
+      // A multi-site locator is the common case, not the exception: the judge writes every line it
+      // found. A parser that reads only a lone `file:line` returned nothing for two of the five
+      // bugs on the measured verdict, and "nothing" means "belongs to no scope".
+      if (JSON.stringify(bugLocations(bugs[1])) === JSON.stringify(["bin/app.js"])) {
+        ok("a locator naming several sites resolves to the distinct files it cites");
+      } else {
+        fail(`bugLocations lost a multi-site locator: ${JSON.stringify(bugLocations(bugs[1]))}`);
+      }
+
+      // ---- the election -----------------------------------------------------------------
+      const scopes = scopeSubstrates(d, "demo");
+      if (electOwner("lib/beta.js", scopes) === "beta") ok("a file inside exactly one substrate elects that scope");
+      else fail(`exclusive ownership not elected: ${electOwner("lib/beta.js", scopes)}`);
+      // The shared entry point is the whole reason this is an election. Addressing it to everyone
+      // who matches hands one fix to every scope building concurrently against the same file.
+      const shared = scopes.filter((s) => bugsForScope(got, s.scope_id, scopes).some((b) => b.id === "BUG-B"));
+      if (shared.length === 1) ok(`a defect in a SHARED file goes to exactly one scope (${shared[0].scope_id}), not to all that may write it`);
+      else fail(`a shared-file defect was addressed to ${shared.length} scopes — concurrent legs would race on one file`);
+      // WHICH one, not just how many. Picking the lowest id alone would elect `alpha`, a scope that
+      // only co-writes the file; the scope that owns it outright is the one that can fix it without
+      // colliding with anybody. Sorting is the tie-break, never the rule.
+      if (electOwner("bin/app.js", scopes) === "zeta") {
+        ok("a file one scope owns outright elects that scope over an alphabetically-earlier co-writer");
+      } else {
+        fail(`a shared file elected "${electOwner("bin/app.js", scopes)}" over its exclusive owner "zeta" — ` +
+          `the fix is addressed to a scope that shares the file with two others`);
+      }
+      if (electOwner("docs/readme.md", scopes) === null) ok("a file no scope may write elects nobody");
+      else fail("electOwner invented an owner for a file outside every substrate");
+
+      // ---- nothing is dropped -----------------------------------------------------------
+      const delivered = new Set(scopes.flatMap((s) => bugsForScope(got, s.scope_id, scopes).map((b) => b.id)));
+      if (got.every((b) => delivered.has(b.id))) {
+        ok("every cited defect reaches at least one scope — an unowned one is marked, never dropped");
+      } else {
+        fail(`${got.filter((b) => !delivered.has(b.id)).map((b) => b.id).join(", ")} reached no scope at all — ` +
+          `a judged defect the run paid to find, silently forgotten before the round that must fix it`);
+      }
+      const unowned = bugsForScope(got, "alpha", scopes).find((b) => b.id === "BUG-C");
+      if (unowned?.unowned === true) ok("an unowned defect is flagged as such, so the worker can tell it apart from its own");
+      else fail("an unowned defect arrives unmarked — indistinguishable from one the scope owns");
+
+      // ---- and it survives the actual compile --------------------------------------------
+      const r2 = spawnSync("node", [...K("compile"), "--scope", "shapeup/demo/scopes/beta.md",
+        "--round", "2", "--attempt", "1", "--cwd", d], { encoding: "utf8" });
+      const p2 = (r2.stdout || "").trim();
+      if (r2.status === 0 && existsSync(p2)) {
+        const order = readJSON(p2);
+        const ids = (order.payload.bugs || []).map((b) => b.id);
+        if (ids.includes("BUG-A")) ok("a compiled round-2 order carries the defect cited against the file this scope owns");
+        else fail(`the compiled order's payload.bugs is ${JSON.stringify(ids)} — the fix round is dispatched blind, which is the defect itself`);
+        if ((order.payload.bugs || []).every((b) => b.repro && b.expected && b.actual)) {
+          ok("the bug entries arrive whole — repro, expected and actual, straight off the ledgered verdict");
+        } else {
+          fail("payload.bugs lost fields in transit — a repro that was rewritten is a repro that may not reproduce");
+        }
+      } else {
+        fail(`compiling a round-2 order failed (exit ${r2.status})\n${r2.stdout}${r2.stderr}`);
+      }
+      // Non-regression: a first round must be byte-identical to what it always was.
+      const r1 = spawnSync("node", [...K("compile"), "--scope", "shapeup/demo/scopes/beta.md",
+        "--round", "1", "--attempt", "1", "--cwd", d], { encoding: "utf8" });
+      const p1 = (r1.stdout || "").trim();
+      if (r1.status === 0 && existsSync(p1) && readJSON(p1).payload.bugs === undefined) {
+        ok("a first-round order omits payload.bugs entirely (non-regression)");
+      } else {
+        fail("a first-round order carries a bugs field — round 1 has no verdict to carry");
+      }
+    } finally {
+      rmSync(d, { recursive: true, force: true });
+    }
+  }
 }

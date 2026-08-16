@@ -36,10 +36,14 @@ import { readRunId } from "./lib/paths.mjs";
 // --spec-overridden directory, and the import is the convention-derived default.
 import {
   tasksDir, specDir as defaultSpecDir, roundLedger, trials, verdictsDir, ordersDir,
-  relShared, globLocal, globShared, relKnowledgeBase,
+  relShared, globLocal, globShared, relKnowledgeBase, resultsDir, scopesDir,
 } from "./lib/paths.mjs";
 import { readContract, SCOPE_CONTRACT } from "./lib/contract.mjs";
 import { writeActiveOrder } from "./probe/resume.mjs";
+// The SAME matcher the sandbox hook enforces with. "Is this cited file inside this scope's
+// substrate" has to mean exactly what the guard means, or a bug is addressed to a scope that is
+// then denied the write that fixes it.
+import { matchesAny } from "../hooks/sandbox-guard.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ORDER_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "./../skills/tech-lead/schemas/work-order.schema.json"), "utf8"));
@@ -321,6 +325,162 @@ export function stagnation(trials, k = 2) {
   return { stagnant: streak >= k && k > 0, streak, k };
 }
 
+// --- the FAIL verdict's bugs, carried into the round that must fix them ----------------------
+//
+// WHY THE KERNEL OWNS THIS AND NOT THE ORCHESTRATOR (measured twice, two different ways).
+//
+// `WorkOrderPayload.bugs` is defined as "the EVAL report's bug entries for this task — touch
+// nothing else", and AGENTS.md states the regression rule as "bugs + full Test Surface of touched
+// UC". Nothing ever populated it. The orchestrator's first fix threaded the evaluator's findings
+// from memory into the build leg's `payload`, and it could not work, for two independent reasons:
+//
+//   1. A BUILD ORDER TAKES NO PAYLOAD FROM THE CALLER. Build legs override the compile line
+//      (`compile --scope … --round … --attempt …`) because an order is addressed by scope, round
+//      and attempt; only the generic fallback line serialises `--payload`. So the payload object
+//      the orchestrator built for a build leg was constructed, filtered, and dropped on the floor.
+//   2. IT LIVED ONLY IN MEMORY. Round r's verdict is what round r+1 must act on, and a run killed
+//      after EVAL and relaunched — the normal case here — starts round r+1 in a fresh process with
+//      an empty variable. The verdict was on disk the whole time.
+//
+// Both vanish if the evidence is read where the order is written: the same read on a fresh round
+// and a resumed one, no process boundary to survive, and no model in the path — an LLM courier
+// transcribing a repro string is a repro string that no longer reproduces.
+//
+// The shape is also RICHER than the in-memory channel ever was: the ledgered verdict carries
+// severity, file:line, repro, expected and actual per bug, where the structured return carried
+// only `{id, criterion, evidence}`.
+
+/**
+ * The previous round's cited defects, if that round returned FAIL.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {number} [round] - The round being compiled; round 1 has no predecessor.
+ * @returns {Array<object>} Bug entries, minus any the adversarial check overturned. Empty for a
+ *   first round, a PASS, or an absent/unreadable result — a fix round with nothing to fix is a
+ *   normal build round, never an error.
+ */
+export function verdictBugs(cwd, slug, round) {
+  if (!round || round < 2) return [];
+  const p = join(resultsDir(cwd, slug), `evaluate-r${round - 1}.json`);
+  if (!existsSync(p)) return [];
+  let v;
+  try { v = JSON.parse(readFileSync(p, "utf8"))?.verdict; } catch { return []; }
+  if (v?.overall !== "FAIL" || !Array.isArray(v.bugs)) return [];
+  // A refuted acceptance criterion is one the judge withdrew. Re-dispatching it would send a
+  // worker to "fix" behaviour that was found correct.
+  const refuted = new Set(
+    (Array.isArray(v.refuted) ? v.refuted : [])
+      .flatMap((r) => [r?.id, r?.ac_id, r?.criterion, typeof r === "string" ? r : null])
+      .filter(Boolean).map(String),
+  );
+  return v.bugs.filter((b) => !refuted.has(String(b?.id)) && !refuted.has(String(b?.criterion)));
+}
+
+/**
+ * Every repo-relative file a bug is cited against.
+ *
+ * A LOCATOR NAMES MORE THAN ONE SITE, ROUTINELY. The judge writes what it found, and what it finds
+ * is often the same defect at several lines, sometimes across files:
+ * `"bin/todo.js:53, bin/todo.js:85"`, or `"lib/parse-index.js:5, :13, :21 (rendered by
+ * bin/todo.js:66)"`. A parser that accepts only a lone `file:line` returns nothing for those, and
+ * "nothing" routes the bug to every scope as unowned — the safe direction, but it throws away an
+ * address the judge did supply. On the measured round-1 verdict that was two of five bugs.
+ *
+ * @param {object} bug - One bug entry.
+ * @returns {string[]} Distinct paths, `:line` suffixes and `./` prefixes stripped, in first-seen
+ *   order. Empty when the entry carries no locator this can read.
+ */
+export function bugLocations(bug) {
+  const raw = String(bug?.location ?? bug?.file ?? "").trim();
+  // A path-looking token: at least one dot-extension, and no whitespace. The extension is what
+  // keeps prose out ("exit 1", "Node 20") without needing to know the project's layout.
+  const out = [];
+  for (const m of raw.matchAll(/(?:^|[\s(,[])([\w@][\w./-]*\.[A-Za-z][A-Za-z0-9]{0,5})(?::\d+)?/g)) {
+    const p = m[1].replace(/^\.\//, "");
+    if (!out.includes(p)) out.push(p);
+  }
+  return out;
+}
+
+/**
+ * Elect the ONE scope that should fix a defect cited against a given file.
+ *
+ * OWNERSHIP IS BY SUBSTRATE, because that is what the sandbox enforces: a scope is exactly the set
+ * of files its worker may write, so a scope whose substrate excludes the cited line cannot fix it
+ * however well it understands the bug.
+ *
+ * BUT A MATCH IS NOT AN ELECTION. An entry point is routinely SHARED — on the measured run
+ * `bin/todo.js` sits in five scopes' substrate at once — so "address it to every scope that
+ * matches" hands the same one-line fix to five workers building concurrently against one file.
+ * That is a write race the harness sets up itself, and four of the five fixes are waste even when
+ * it resolves. So: prefer a scope that owns the file EXCLUSIVELY (allowed, not shared), and among
+ * equals take the lowest scope id — a rule that needs no coordination to agree with itself, since
+ * each leg compiles its own order in its own process.
+ *
+ * @param {string} path - Repo-relative file the bug cites.
+ * @param {Array<{scope_id:string, allowed:string[], shared:string[]}>} scopes - Every scope.
+ * @returns {string|null} The elected scope id, or null when no scope may write that file.
+ */
+export function electOwner(path, scopes) {
+  const can = (scopes || []).filter((s) => matchesAny(path, s.allowed));
+  if (!can.length) return null;
+  const exclusive = can.filter((s) => !matchesAny(path, s.shared || []));
+  return (exclusive.length ? exclusive : can).map((s) => s.scope_id).sort()[0];
+}
+
+/**
+ * Address each bug to the scope that must fix it.
+ *
+ * AN UNOWNED BUG GOES TO EVERYONE, MARKED. A cited defect matching no scope's substrate — or
+ * carrying no locator this can read — has no owner, and dropping it silently is precisely how a
+ * judged defect survives a fix round to reappear in the next verdict. Better one scope reads a bug
+ * it turns out not to own than the run forgets a defect it already paid to find.
+ *
+ * @param {Array<object>} bugs - The previous verdict's bugs (see {@link verdictBugs}).
+ * @param {string|undefined} scopeId - The scope being compiled for.
+ * @param {Array<{scope_id:string, allowed:string[], shared:string[]}>} scopes - Every scope.
+ * @returns {Array<object>} The subset this order should carry; unowned entries get `unowned: true`.
+ */
+export function bugsForScope(bugs, scopeId, scopes) {
+  const out = [];
+  for (const b of bugs || []) {
+    if (b?.scope_id) {
+      if (b.scope_id === scopeId) out.push(b);
+      continue;
+    }
+    const owners = bugLocations(b).map((p) => electOwner(p, scopes)).filter(Boolean);
+    if (owners.includes(scopeId)) out.push(b);
+    else if (!owners.length) out.push({ ...b, unowned: true });
+  }
+  return out;
+}
+
+/**
+ * Every scope's write substrate, for the election in {@link electOwner}.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {Array<{scope_id:string, allowed:string[], shared:string[]}>} One entry per readable
+ *   contract; `[]` when the scopes directory is absent or unreadable.
+ */
+export function scopeSubstrates(cwd, slug) {
+  const dir = scopesDir(cwd, slug);
+  let files;
+  try { files = readdirSync(dir).filter((f) => f.endsWith(".md") || f.endsWith(".json")); } catch { return []; }
+  const out = [];
+  for (const f of files) {
+    const c = readContract(join(dir, f), SCOPE_CONTRACT)?.contract;
+    if (!c?.scope_id || !Array.isArray(c.allowed_file_substrate)) continue;
+    out.push({
+      scope_id: c.scope_id,
+      allowed: c.allowed_file_substrate,
+      shared: Array.isArray(c.shared_substrate) ? c.shared_substrate : [],
+    });
+  }
+  return out;
+}
+
 /**
  * Assemble a WorkOrder envelope. Pure given its inputs — the CLI wrapper does the disk reads.
  * @param {object} opts - The order inputs (destructured):
@@ -335,6 +495,7 @@ export function stagnation(trials, k = 2) {
  * @param {Array<{id:string,answer:string}>} [opts.decisions] - This scope's advisor answers.
  * @param {Array<object>} [opts.digestedErrors] - Prior-attempt AEGIS triples (payload.digested_errors).
  * @param {Array<object>} [opts.trialHistory] - Compacted trial rows (payload.trial_history).
+ * @param {Array<object>} [opts.bugs] - The previous round's cited defects (payload.bugs).
  * @param {string} [opts.testCmd] - Verify command, recorded under payload.verify.test_cmd.
  * @param {object} [opts.payloadExtra] - Extra payload fields merged last (spec_folder, feature, …).
  * @param {string} [opts.specDir] - Spec directory, threaded into the substrate template.
@@ -348,7 +509,7 @@ export function stagnation(trials, k = 2) {
  */
 export function compileOrder({
   slug, worker, mode = "orchestrated", operation, round, attempt,
-  scope, tasks, decisions, digestedErrors, trialHistory, testCmd, payloadExtra, specDir, interaction,
+  scope, tasks, decisions, digestedErrors, trialHistory, bugs, testCmd, payloadExtra, specDir, interaction,
   runId, compiledAt,
 }) {
   // A build order's id carries its SCOPE. Without it, `r<round>-a<attempt>` is the same name for
@@ -402,6 +563,9 @@ export function compileOrder({
       ...(decisions?.length ? { decisions } : {}),
       ...(digestedErrors?.length ? { digested_errors: digestedErrors } : {}),
       ...(trialHistory?.length ? { trial_history: trialHistory } : {}),
+      // Before `payloadExtra`, so an explicit `--payload '{"bugs":…}'` still wins: an operator
+      // hand-addressing a defect outranks the derivation.
+      ...(bugs?.length ? { bugs } : {}),
       ...(testCmd ? { verify: { test_cmd: testCmd, env: [] } } : {}),
       ...(payloadExtra || {}),
     },
@@ -541,8 +705,13 @@ export async function cli(rawArgv) {
   if (specDir && !payloadExtra.spec_folder) payloadExtra.spec_folder = specDir;
   if (!payloadExtra.feature) payloadExtra.feature = slug;
 
+  // The fix round's inbound evidence. Derived here, from the ledgered verdict, for every lane —
+  // the workflow, `--tiny`, the prose round loop and a standalone `/build` all compile through
+  // this line, and none of them can pass a payload to a build order (see the banner above).
+  const bugs = scope ? bugsForScope(verdictBugs(cwd, slug, round), scope.scope_id, scopeSubstrates(cwd, slug)) : [];
+
   const order = compileOrder({
-    slug, worker, operation, round, attempt, scope, tasks, decisions, digestedErrors, trialHistory,
+    slug, worker, operation, round, attempt, scope, tasks, decisions, digestedErrors, trialHistory, bugs,
     testCmd: flag("test-cmd"), payloadExtra, specDir,
     interaction: has("pause-gates") ? { pause_gates: true } : { pause_gates: false },
     // Read off the receipt rather than passed in: a standalone `compile-order` invocation gets the
