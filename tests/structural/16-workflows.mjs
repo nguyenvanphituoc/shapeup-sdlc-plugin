@@ -528,6 +528,26 @@ export async function run(ctx) {
     }
   }
 
+  // (o) THE MAP-SCOPES DISPATCH MUST STATE THE FIXTURE PASS RULE.
+  //
+  // `verify t0` passes a fixture iff it exits 0. That rule lived only in the scorer, and the
+  // contract the architect reads said "commands that drive this scope end-to-end" — so it wrote the
+  // scope's error paths as bare invocations (`todo done abc  # E_INVALID_INDEX, exit 1`). Those
+  // cannot pass by construction: four of six scopes burned their attempt budget on code that was
+  // already correct, and the run reported them as hard scopes. Same lesson as ORIENT's filenames —
+  // a rule enforced in one file and unstated in the prose the worker holds is not a rule, it is a
+  // trap.
+  for (const f of files) {
+    const src = readFileSync(join(abs, f), "utf8");
+    if (!/skill: "scope-architect"/.test(src)) continue;
+    if (/e2e_verification_fixture[^"]*MUST EXIT 0|MUST EXIT 0/i.test(src)) {
+      ok(`${WORKFLOWS_DIR}/${f} tells the scope architect that every fixture must exit 0`);
+    } else {
+      fail(`${WORKFLOWS_DIR}/${f} dispatches scope-architect without stating that a fixture must exit 0. ` +
+        `An error-path fixture cannot pass, so its scope can never go T0-green however correct the code is.`);
+    }
+  }
+
   // (m) THE BUILD LOOP MUST CONSUME THE DEPENDENCY WAVES, not the flat scope list.
   //
   // The kernel deriving a correct order buys nothing if the orchestrator chunks around it, and that

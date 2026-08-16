@@ -919,4 +919,57 @@ export async function run(ctx) {
     "tests/lib/harness.mjs",
     "tests/lib/jsdoc.mjs",
   ].map((f) => join(ROOT, f)), (p) => p.replace(ROOT + "/", ""));
+
+  // =============================================================================
+  section("60. A producer's own output validates against its own schema, and an unpassable fixture is caught at L1b");
+  // =============================================================================
+  // TWO DEFECTS FROM ONE RUN, both of the same shape: a rule that existed in exactly one place and
+  // was contradicted by the other.
+  //
+  // (a) `probe digest` emits `{file: null, line: null}` for a failure whose log carried no location
+  //     — deliberately, and its schema's own field description SAYS so ("null/absent when the log
+  //     line carried no location — never invented"). The TYPE said `string`/`integer`. So the
+  //     digester's honest output could not pass its own registry, `compile` refused every order
+  //     carrying it, and the consequences were invisible and severe: no scope could reach attempt 2
+  //     once it had a red trial, and `evaluate` orders carry the same field — so spec-evaluator was
+  //     NEVER DISPATCHED, in either round. A run with no verdict at all, from a type annotation.
+  //
+  // (b) `verify t0` passes a fixture iff it exits 0. That rule lived only in the scorer; the
+  //     contract said "commands that drive this scope end-to-end". The architect duly wrote the
+  //     error paths as bare invocations (`todo done abc  # E_INVALID_INDEX, exit 1`), which cannot
+  //     pass by construction — four of six scopes burned their budget on already-correct code.
+  const { validate: v60 } = await import(join(ROOT, "kernel/verify/envelope.mjs"));
+  const triple = (over) => v60({ core_message: "boom", kind: "error-message", ...over },
+    { $ref: "domain.schema.json#/$defs/AegisTriple" });
+  if (triple({ file: null, line: null }).valid) {
+    ok("a location-less AegisTriple validates — the digester's own output passes its own registry");
+  } else {
+    fail("AegisTriple rejects {file: null, line: null}, which is exactly what probe digest emits for a " +
+      "location-less failure. compile then refuses every order carrying it: no second attempt for any " +
+      "scope with a red trial, and no evaluate order at all — a run that cannot produce a verdict.");
+  }
+  if (triple({ file: "src/a.js", line: 12 }).valid) ok("a located AegisTriple still validates");
+  else fail("AegisTriple rejects a normal located triple");
+  if (!triple({ file: 42, line: "x" }).valid) ok("AegisTriple still rejects genuinely wrong types — nullable is not permissive");
+  else fail("AegisTriple accepts a number for file and a string for line — the nullable widening went too far");
+
+  const { lintScopes } = await import(join(ROOT, "kernel/verify/spec.mjs")).then((m) => ({ lintScopes: m.lintScopes }))
+    .catch(() => ({ lintScopes: null }));
+  if (typeof lintScopes !== "function") {
+    console.log("  (verify/spec.mjs exports no lintScopes — fixture lint checked via the CLI in §21)");
+  } else {
+    const scope = (id, fixtures) => ({ scope_id: id, allowed_file_substrate: ["src/a.js", "test/a.test.js"],
+      topology_type: "LAYER_CAKE", e2e_verification_fixtures: fixtures });
+    const hits = (fx) => lintScopes([scope("s", fx)], []).filter((f) => f.rule === "T0-UNPASSABLE");
+    if (hits(["node bin/todo.js done abc  # E_INVALID_INDEX, exit 1"]).length === 1) {
+      ok("the L1b lint flags a fixture whose own comment declares a non-zero exit — caught before BUILD spends an attempt");
+    } else {
+      fail("an error-path fixture is not flagged at L1b, so a scope that cannot go green burns its whole attempt budget first");
+    }
+    if (hits(["node --test test/commands/done.test.js"]).length === 0) {
+      ok("a test-file fixture is not flagged — the lint reads the author's own declaration, it does not guess");
+    } else {
+      fail("the lint flags an ordinary test-file fixture, which would cry wolf at every L1b");
+    }
+  }
 }

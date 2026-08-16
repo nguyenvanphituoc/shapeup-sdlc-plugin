@@ -107,6 +107,28 @@ export function lintScopes(scopes, repoFiles) {
     if (files.length > SIZE_CAP && s.topology_type !== "CHOWDER") {
       findings.push({ rule: "PA2", level: "warn", scope: s.scope_id, detail: `substrate resolves to ${files.length} files (cap ~${SIZE_CAP}) — consider splitting` });
     }
+    // T0-UNPASSABLE — a fixture whose own comment declares a non-zero exit.
+    //
+    // `verify t0` scores a fixture as passing iff it exits 0, and that rule lived only in the
+    // scorer. Handed a contract that said "commands that drive this scope end-to-end", an architect
+    // wrote the error paths as bare invocations — `todo done abc  # E_INVALID_INDEX, exit 1` — which
+    // cannot pass by construction. Four of six scopes then burned their attempt budget on code that
+    // was already correct, and the run reported them as hard scopes.
+    //
+    // Caught here because the cost of finding it late is measured in whole attempts: this is the
+    // last gate before BUILD spends anything. Matched on the author's OWN declaration of a non-zero
+    // exit, not on guessing what a command does — a fixture that merely mentions "exit" in another
+    // sense does not match, and a warn never blocks a run.
+    for (const fx of s.e2e_verification_fixtures || []) {
+      const m = String(fx).match(/#[^#]*\bexit\s+([1-9]\d*)\b/i);
+      if (m) {
+        findings.push({
+          rule: "T0-UNPASSABLE", level: "warn", scope: s.scope_id,
+          detail: `fixture declares "exit ${m[1]}" — T0 passes a fixture only on exit 0, so this scope cannot go green. ` +
+            `Assert the error path inside a test file that itself exits 0: ${String(fx).slice(0, 60)}`,
+        });
+      }
+    }
   }
   // DISJOINT — pairwise overlap not covered by BOTH scopes' shared_substrate.
   for (let i = 0; i < scopes.length; i++) {

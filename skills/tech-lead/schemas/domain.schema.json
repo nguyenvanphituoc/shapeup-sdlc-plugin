@@ -549,11 +549,18 @@
       "type": "object",
       "properties": {
         "file": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Source file of the failure; null/absent when the log line carried no location (raw triple — never invented)."
         },
         "line": {
-          "type": "integer"
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Line of the failure; null/absent when the log line carried no location. Paired with `file` — a triple has both or neither, and neither is ever invented to satisfy a shape."
         },
         "core_message": {
           "type": "string",
@@ -679,7 +686,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Command(s) that drive this scope end-to-end (the T0 layer). Too speculative to fixture → an explicit TBD flag, never an invented fixture."
+          "description": "Command(s) that drive this scope end-to-end (the T0 layer). EACH MUST EXIT 0 WHEN THE SCOPE IS CORRECT — `harness verify t0` scores a fixture as failed on any non-zero exit, so a fixture written as a bare error-path invocation (`todo done abc  # exit 1`) can never pass and the scope can never go T0-green however correct the code is. Assert error paths INSIDE a test file that itself exits 0 (`node --test test/commands/done.test.js`), which is what the expected non-zero exit belongs in. Too speculative to fixture → an explicit TBD flag, never an invented fixture."
         },
         "db_probe": {
           "type": "string",

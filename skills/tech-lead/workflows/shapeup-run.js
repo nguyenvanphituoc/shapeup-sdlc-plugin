@@ -606,7 +606,19 @@ if (scopes.length === 0) {
   const m = await worker({
     skill: "scope-architect", operation: "map-scopes", schema: MAPSCOPES, phase: "MapScopes", label: "map-scopes",
     payload: { feature: slug },
-    extra: "Write the scope contracts (substrate whitelists, verification fixtures) and report the riskiest-first sequence.",
+    // SAY THE PASS RULE, for the same reason ORIENT's filenames are named above: the rule lives in
+    // `verify t0` (a fixture passes iff it exits 0) and the architect never saw it. Given a contract
+    // that said only "commands that drive this scope end-to-end", it wrote the scope's error paths
+    // as bare invocations — `todo done abc  # E_INVALID_INDEX, exit 1` — which cannot pass by
+    // construction, so four of six scopes could never go T0-green however correct their code was.
+    // The two that did go green were the two whose fixtures happened to be `node --test …`.
+    extra:
+      "Write the scope contracts (substrate whitelists, verification fixtures) and report the " +
+      "riskiest-first sequence. EVERY e2e_verification_fixture MUST EXIT 0 when the scope is " +
+      "correct — T0 scores any non-zero exit as a failure, so a fixture written as a bare " +
+      "error-path invocation can never pass and its scope can never go green. Put expected " +
+      "non-zero exits INSIDE a test file that itself exits 0, and name that test file as the " +
+      "fixture.",
   });
   if (m.__failed) return diedAt("MAP SCOPES", m);
   const post = await requirePhase("MAP SCOPES", "map-scopes", "MapScopes");
