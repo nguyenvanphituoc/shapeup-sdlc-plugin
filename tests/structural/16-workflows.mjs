@@ -706,4 +706,56 @@ export async function run(ctx) {
         `("could not resolve --worker/--operation"). Either add the operation to OP_OWNER or give that leg a \`compile:\` override.`);
     }
   }
+
+  // ===========================================================================
+  section("16b. A gate decision is a machine value, never a sentence a sub-agent wrote");
+  // ===========================================================================
+  //
+  // The control plane branches on gate decisions with token equality — `decision === "run"`,
+  // `decision === "stop"`. If that value is sourced from a free-text field, every one of those
+  // comparisons is false forever: what comes back is "Command exited 0; gate QA resolved
+  // decision=run from …", which is not the token `run`. The failure is silent in the worst way —
+  // a documented phase simply never runs, and a PO's answer at the verdict gate does nothing,
+  // with no error, no log line and no missing artifact to notice the absence by.
+  //
+  // These assertions are about WHERE the value comes from, because that is the property that broke.
+  for (const f of files) {
+    const src = readFileSync(join(abs, f), "utf8");
+    const fn = (src.match(/async function crossGate\([\s\S]*?\n\}/) || [])[0];
+    if (!fn) continue;
+    const label = `${WORKFLOWS_DIR}/${f}`;
+
+    // (a) The decision must be read from its own field, not from the prose field.
+    if (/\bdecision:\s*g\.detail\b/.test(fn) || /\bdecision:\s*[^,}\n]*\bdetail\b/.test(fn)) {
+      fail(`${label}: crossGate sources the gate decision from \`detail\`, which the sub-agent writes as ` +
+        `a sentence. Every \`decision === "<token>"\` comparison downstream is then false on every run.`);
+    } else if (/\bg\.decision\b/.test(fn)) {
+      ok(`${label}: crossGate reads the gate decision from its own \`decision\` field, not from prose`);
+    } else {
+      fail(`${label}: crossGate reads a gate decision from neither \`g.decision\` nor anything recognisable — ` +
+        `the control plane must branch on the kernel's own token.`);
+    }
+
+    // (b) An unrecognised decision must stop the run, not fall back to a plausible default.
+    //     A default is precisely what hid the original defect: "proceed" is valid at four gates,
+    //     so the run continued and looked healthy while the gate had decided nothing.
+    if (/validDecisions\.includes\(/.test(fn) || /!\s*validDecisions\b/.test(fn)) {
+      ok(`${label}: crossGate checks the decision against the gate's own valid set before acting on it`);
+    } else {
+      fail(`${label}: crossGate does not validate the decision against validDecisions — an unreadable or ` +
+        `misspelled decision silently takes whichever branch the fallback names.`);
+    }
+    if (/decision:\s*g\.\w+\s*\|\|\s*"/.test(fn)) {
+      fail(`${label}: crossGate falls back to a hard-coded decision string. A gate that could not be read ` +
+        `must stop the run; defaulting makes the failure indistinguishable from a real answer.`);
+    } else {
+      ok(`${label}: crossGate has no hard-coded decision fallback`);
+    }
+
+    // (c) The schema the sub-agent fills must actually carry the field crossGate reads.
+    const cmdSchema = (src.match(/const CMD = \{[\s\S]*?\n\};/) || [])[0] || "";
+    if (/\bdecision:\s*\{/.test(cmdSchema)) ok(`${label}: the CMD schema declares \`decision\`, so the field can arrive at all`);
+    else fail(`${label}: crossGate reads \`decision\` but the CMD schema does not declare it — the sub-agent is ` +
+      `never asked for it, so it arrives undefined on every call.`);
+  }
 }

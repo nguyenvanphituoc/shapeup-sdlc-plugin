@@ -131,6 +131,10 @@ const CMD = {
     exit_code: { type: "integer" },
     ok: { type: "boolean" },
     detail: { type: "string" },
+    // The machine value, copied CHARACTER FOR CHARACTER out of the command's own JSON. Separate
+    // from `detail` on purpose: `detail` is prose for a human to read, this is a token the control
+    // plane branches on, and collapsing the two is what made every gate comparison silently false.
+    decision: { type: "string" },
   },
   required: ["exit_code", "ok"],
 };
@@ -288,7 +292,9 @@ async function cmd(verbs, phaseName, label) {
   const r = await agent(
     `Run exactly this command and nothing else:\n\n  node "${KERNEL}" ${verbs}\n\n` +
     `Report its exit code as exit_code, ok=true if and only if exit_code is 0, and one line of ` +
-    `detail. Do not interpret, summarise or act on the command's output beyond that.`,
+    `detail. If the command printed JSON carrying a top-level "decision" key, copy that value into ` +
+    `decision EXACTLY as it appears — one bare token, no sentence, no quotes, no rephrasing. ` +
+    `Otherwise omit decision. Do not interpret, summarise or act on the command's output beyond that.`,
     { model: "sonnet", effort: "low", phase: phaseName, label, schema: CMD },
   );
   return (r && typeof r === "object") ? r : { exit_code: -1, ok: false, detail: `${label}: no result` };
@@ -411,7 +417,19 @@ async function worker({ skill, operation, payload, schema, phase: phaseName, lab
 
 // ---------------------------------------------------------------------------------------------
 // GATES — the kernel's exit-code convention, unchanged: 0 cross · 4 pause · 5 abort. The resolved
-// decision string travels in `detail`.
+// decision travels in `decision`, copied verbatim out of the kernel's own JSON.
+//
+// IT USED TO BE READ OUT OF `detail`, which is free prose a sub-agent writes. What came back was a
+// sentence — "Command exited 0; gate QA resolved decision=run from …" — and every comparison
+// downstream is against a token, so `decision === "run"` and `decision === "stop"` were false on
+// every run that has ever executed. The observable effect was a documented phase that silently
+// never ran and a PO answer at L3 that did nothing, with no error and no artifact to notice the
+// absence by. This file's own header says nothing here reads a model's prose; this was the one
+// place that did, and every gate decision passed through it.
+//
+// An unreadable decision now ABORTS rather than defaulting. A default is what made the original
+// defect invisible: "proceed" is a plausible answer at four of these gates, so the run continued
+// and read as healthy. Stopping converts a silent skip into a first-run error.
 // ---------------------------------------------------------------------------------------------
 const PRESETS = new Set(["ci", "guarded", "interactive"]);
 const answersFlag = (a) => (!a ? "" : PRESETS.has(a) ? `--preset ${a}` : `--file ${a}`);
@@ -439,7 +457,17 @@ async function crossGate(gateId, phaseName, validDecisions, ctx) {
   const g = await cmd(`gate --resolve ${gateId} --slug ${slug} ${answersFlag(args.answers)}`.trim(), phaseName, `gate:${gateId}`);
   if (g.exit_code === 4) return { stop: paused(gateId, validDecisions, ctx) };
   if (g.exit_code === 5) return { stop: aborted(gateId, g.detail || `GATE ${gateId} aborted`) };
-  return { decision: g.detail || "proceed" };
+  const decision = String(g.decision ?? "").trim();
+  if (!validDecisions.includes(decision)) {
+    return {
+      stop: aborted(gateId,
+        `GATE ${gateId} exited 0 but its decision did not come back as one of ` +
+        `${validDecisions.join(" | ")} — got ${JSON.stringify(g.decision ?? null)}. The kernel prints ` +
+        `the decision as a top-level JSON key; a run must not guess it. Re-run this gate, or answer ` +
+        `it directly with --answers.`),
+    };
+  }
+  return { decision };
 }
 
 /**
