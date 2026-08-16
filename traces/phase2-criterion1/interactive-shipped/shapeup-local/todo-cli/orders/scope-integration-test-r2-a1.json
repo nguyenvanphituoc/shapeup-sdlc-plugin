@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/scope-integration-test-r2-a1",
+  "run_id": "todo-cli-20260816T084725Z-ddb6d292",
+  "compiled_at": "2026-08-16T10:46:51.248Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "tests/**",
+      ".shapeup/todo-cli/spikes/**"
+    ],
+    "shared": []
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "scope-integration-test",
+      "topology_type": "CHOWDER",
+      "feature": "todo-cli",
+      "tasks": [
+        "TASK-007"
+      ],
+      "use_case_refs": [
+        "UC-AddTodo",
+        "UC-ListTodos",
+        "UC-CompleteTodo",
+        "UC-RemoveTodo"
+      ],
+      "allowed_file_substrate": [
+        "tests/**"
+      ],
+      "shared_substrate": [],
+      "build_order": 6,
+      "hill_phase": "UPHILL_UNKNOWN",
+      "status": "ready",
+      "e2e_verification_fixtures": [
+        "python3 -m unittest discover -s tests -p 'test_*.py' -v"
+      ],
+      "affordance_manifest": [
+        {
+          "test_id": "test:full-round-trip",
+          "role": "test-suite",
+          "required_states": [
+            "success"
+          ]
+        },
+        {
+          "test_id": "test:corrupted-store-uniform",
+          "role": "test-suite",
+          "required_states": [
+            "success"
+          ]
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "TASK-007",
+        "title": "Integration test — full todo CLI round-trip across all commands",
+        "status": "done",
+        "priority": 4,
+        "depends_on": [
+          "TASK-003",
+          "TASK-004",
+          "TASK-005",
+          "TASK-006"
+        ],
+        "use_case_refs": [
+          "UC-AddTodo",
+          "UC-ListTodos",
+          "UC-CompleteTodo",
+          "UC-RemoveTodo"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-interactive/.shapeup/todo-cli/tasks/TASK-007-integration-test.md",
+        "acceptance_criteria": [
+          "`python3 -m unittest` (or `pytest`, whichever the repo's test runner ends up being — no",
+          "Full round-trip: `add \"a\"` → `add \"b\"` → `list` shows both, 1-based, correct done markers",
+          "Each subprocess call asserts BOTH the exit code AND the exact stdout/stderr text (not just"
+        ]
+      }
+    ],
+    "trial_history": [
+      {
+        "schema_version": 1,
+        "trial": 4,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "scope-integration-test",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      }
+    ],
+    "spec_folder": "shapeup/todo-cli/spec",
+    "feature": "todo-cli",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

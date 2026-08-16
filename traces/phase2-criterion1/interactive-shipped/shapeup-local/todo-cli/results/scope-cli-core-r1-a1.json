@@ -1,0 +1,261 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/scope-cli-core-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-001",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`todo/store.py` exists, exporting `default_store_path()`, `load(path)`, `save(path, items)`",
+          "result": "pass",
+          "evidence": "todo/store.py exports default_store_path, load, save"
+        },
+        {
+          "ac": "`default_store_path()` returns `$TODO_STORE` verbatim when set; otherwise",
+          "result": "pass",
+          "evidence": "manual run: TODO_STORE=/tmp/x python3 -c 'import sys; sys.path.insert(0,\".\"); from todo import store; print(store.default_store_path())' -> /tmp/x; unset TODO_STORE -> ~/.todo.json"
+        },
+        {
+          "ac": "`load(path)` on a non-existent path returns `[]`",
+          "result": "pass",
+          "evidence": "load('/nonexistent') -> [] (verified via T0 fixture DISPATCH_OK path and manual test)"
+        },
+        {
+          "ac": "`save(path, items)` then `load(path)` round-trips exactly (same items, same order)",
+          "result": "pass",
+          "evidence": "save(path,[{'text':'a','done':False}]) then load(path) round-trips exactly, manual python3 check"
+        },
+        {
+          "ac": "`save()` uses `tempfile.mkstemp` (same directory as `path`) + `os.replace` \u2014 never a bare",
+          "result": "pass",
+          "evidence": "save() uses tempfile.mkstemp(dir=same dir) + os.replace, no bare open(path,'w') for writes"
+        },
+        {
+          "ac": "Request shape matches [[contracts/todo-store.contract#Write-Input]] table",
+          "result": "pass",
+          "evidence": "save(path, items) signature matches contract Write-Input (path, items)"
+        },
+        {
+          "ac": "Response mapping matches [[contracts/todo-store.contract#Read-Output]] table",
+          "result": "pass",
+          "evidence": "load(path) returns items list per Read-Output; [] for missing file"
+        },
+        {
+          "ac": "All error codes in [[contracts/todo-store.contract#Error-Cases]] are handled",
+          "result": "pass",
+          "evidence": "StoreCorruptedError raised for invalid JSON and non-list root, one error type covers both per contract Error-Cases"
+        },
+        {
+          "ac": "`load()` returns `[]` (never `None`, never throws) when the store file does not exist",
+          "result": "pass",
+          "evidence": "load() on missing file returns [] verified manually, never raises/None"
+        },
+        {
+          "ac": "`save(path, [])` then `load(path)` returns `[]` \u2014 an emptied store is a valid, loadable state",
+          "result": "pass",
+          "evidence": "save(path, []) then load(path) -> [] verified manually"
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-002",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`bin/todo` exists and is executable (`chmod +x`), shebang `#!/usr/bin/env python3`",
+          "result": "pass",
+          "evidence": "bin/todo chmod +x, shebang #!/usr/bin/env python3 (ls -la bin/todo shows executable bit)"
+        },
+        {
+          "ac": "`python3 bin/todo add \"x\"` / `list` / `done 1` / `rm 1` all reach their respective",
+          "result": "pass",
+          "evidence": "python3 bin/todo add/list/done/rm all dispatch to commands.add/list_/done/rm \u2014 manual run confirmed output from each"
+        },
+        {
+          "ac": "`python3 bin/todo` (no subcommand) exits non-zero with a usage message, no traceback",
+          "result": "pass",
+          "evidence": "python3 bin/todo (no subcommand) -> argparse usage error, exit 2, no traceback"
+        },
+        {
+          "ac": "`python3 bin/todo bogus-command` exits non-zero with a usage message, no traceback",
+          "result": "pass",
+          "evidence": "python3 bin/todo bogus-command -> argparse usage error, exit 2, no traceback"
+        },
+        {
+          "ac": "Any `StoreCorruptedError` raised by a command function is caught at the top level, printed",
+          "result": "pass",
+          "evidence": "StoreCorruptedError caught in main(), prints 'error: corrupted store at <path>' to stderr, exit 1 \u2014 manual run confirmed"
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-003",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`python3 bin/todo add \"ship it\"` against a fresh `$TODO_STORE` prints `added #1: ship it`",
+          "result": "pass",
+          "evidence": "python3 bin/todo add \"ship it\" against fresh store -> stdout 'added #1: ship it', exit 0 (manual run)"
+        },
+        {
+          "ac": "A second `add` against the same store prints `added #2: ...` (position is `len(items)`",
+          "result": "pass",
+          "evidence": "second add -> 'added #2: write the spec', position = len(items) after append (manual run)"
+        },
+        {
+          "ac": "The store file on disk after `add` contains the new item appended at the end, all prior",
+          "result": "pass",
+          "evidence": "store file after add: prior items unchanged, new item appended at end \u2014 verified via python3 json read"
+        },
+        {
+          "ac": "No stdout is written if `save()` raises \u2014 see [[usecases/UC-AddTodo#Steps]] step 3",
+          "result": "pass",
+          "evidence": "commands.add calls store.save() before print(); if save() raises the exception propagates before the print statement executes \u2014 no stdout on failure"
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-004",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`python3 bin/todo list` against a store with 2 items (`ship it` not done, `write the spec`",
+          "result": "pass",
+          "evidence": "todo list against 2-item store (ship it undone, write the spec done) prints '1. [ ] ship it\\n2. [x] write the spec', exit 0 (manual run)"
+        },
+        {
+          "ac": "Output contains no ANSI escape codes (`\\x1b[`) \u2014 plain text only",
+          "result": "pass",
+          "evidence": "output is plain f-string text, no ANSI codes; grep for \\\\x1b[ found nothing"
+        },
+        {
+          "ac": "`python3 bin/todo list` against a fresh (non-existent) `$TODO_STORE` prints exactly",
+          "result": "pass",
+          "evidence": "todo list against fresh nonexistent store -> exactly '(no items)', exit 0 (manual run)"
+        },
+        {
+          "ac": "`python3 bin/todo list` against a store file containing `[]` prints exactly `(no items)`",
+          "result": "pass",
+          "evidence": "todo list against store file containing [] -> exactly '(no items)', exit 0"
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-005",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`todo done 1` against a 2-item store marks item 1 done, prints `done #1: <text>`, exits 0",
+          "result": "pass",
+          "evidence": "todo done 1 against 2-item store -> 'done #1: <text>', exit 0 (manual run)"
+        },
+        {
+          "ac": "The store file after `done 1` has item 1's `done` field `true`; item 2 unchanged",
+          "result": "pass",
+          "evidence": "store file after done 1: item 1 done=true, item 2 unchanged \u2014 verified via json read"
+        },
+        {
+          "ac": "Marking an already-done item done again still succeeds (idempotent), prints the same",
+          "result": "pass",
+          "evidence": "marking already-done item again succeeds idempotently, same confirmation message, exit 0"
+        },
+        {
+          "ac": "`todo done 0` (below min) against a 2-item store: exit 1, stderr",
+          "result": "pass",
+          "evidence": "todo done 0 against 2-item store -> exit 1, stderr 'error: no item 0 (list has 2 items)' (manual run)"
+        },
+        {
+          "ac": "`todo done 1` (min, valid): exit 0, item 1 marked done",
+          "result": "pass",
+          "evidence": "todo done 1 (min valid) -> exit 0, item 1 marked done"
+        },
+        {
+          "ac": "`todo done 2` (max, valid, 2-item store): exit 0, item 2 marked done",
+          "result": "pass",
+          "evidence": "todo done 2 (max valid, 2-item store) -> exit 0, item 2 marked done"
+        },
+        {
+          "ac": "`todo done 3` (max+1, 2-item store): exit 1, stderr",
+          "result": "pass",
+          "evidence": "todo done 3 (max+1) -> exit 1, stderr 'error: no item 3 (list has 2 items)' (manual run, matches PO transcript shape)"
+        },
+        {
+          "ac": "`todo done abc` (non-integer): exit 1, stderr `error: invalid item number 'abc'`, store",
+          "result": "pass",
+          "evidence": "todo done abc -> exit 1, stderr \"error: invalid item number 'abc'\", store unchanged (manual run)"
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-006",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`todo rm 1` against a 2-item store removes item 1, prints `removed #1: <text of old item 1>`, exits 0",
+          "result": "pass",
+          "evidence": "todo rm 1 against 2-item store -> 'removed #1: <text of old item 1>', exit 0 (manual run)"
+        },
+        {
+          "ac": "The store file after `rm 1` has exactly 1 item \u2014 the former item 2, `text`/`done` unchanged",
+          "result": "pass",
+          "evidence": "store file after rm 1 has exactly 1 item \u2014 former item 2, text/done unchanged \u2014 verified via json read"
+        },
+        {
+          "ac": "After a removal, a subsequent `list` renumbers remaining items starting at 1 (no gaps)",
+          "result": "pass",
+          "evidence": "after removal, list renumbers remaining items starting at 1, no gaps \u2014 manual run rm 2 of 3 then list"
+        },
+        {
+          "ac": "`todo rm 0` (below min) against a 2-item store: exit 1, stderr",
+          "result": "pass",
+          "evidence": "todo rm 0 against 2-item store -> exit 1, stderr 'error: no item 0 (list has 2 items)'"
+        },
+        {
+          "ac": "`todo rm 1` (min, valid): exit 0, store now has 1 item",
+          "result": "pass",
+          "evidence": "todo rm 1 (min valid) -> exit 0, store now has 1 item"
+        },
+        {
+          "ac": "`todo rm 2` (max, valid, 2-item store): exit 0, store now has 1 item",
+          "result": "pass",
+          "evidence": "todo rm 2 (max valid, 2-item store) -> exit 0, store now has 1 item"
+        },
+        {
+          "ac": "`todo rm 3` (max+1, 2-item store): exit 1, stderr `error: no item 3 (list has 2 items)`,",
+          "result": "pass",
+          "evidence": "todo rm 3 (max+1) -> exit 1, stderr 'error: no item 3 (list has 2 items)' (manual run)"
+        },
+        {
+          "ac": "`todo rm xyz` (non-integer): exit 1, stderr `error: invalid item number 'xyz'`, store unchanged",
+          "result": "pass",
+          "evidence": "todo rm xyz -> exit 1, stderr \"error: invalid item number 'xyz'\", store unchanged (manual run)"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    {
+      "path": "todo/store.py",
+      "change": "created"
+    },
+    {
+      "path": "todo/commands.py",
+      "change": "created"
+    },
+    {
+      "path": "bin/todo",
+      "change": "created"
+    }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "No todo/__init__.py was added \u2014 Python 3's implicit namespace packages make `from todo import store` work without one, and the substrate whitelist names only bin/todo, todo/store.py, todo/commands.py.",
+    "bin/todo inserts the repo root onto sys.path so `from todo import commands, store` resolves regardless of invocation cwd \u2014 not specified by the AC text but required for the entry point to be runnable from any directory."
+  ],
+  "deviations": [
+    "T0 e2e_verification_fixtures #2-7 in scope-cli-core.md all fail (fixtures_passed 1/7 across 3 attempts, unchanged) due to a fixture-authoring bug, not an implementation defect: each fixture's inner `python3 -c \"...\\\"$T/s.json\\\"...\"` / `TODO_STORE=\\\"$T/s.json\\\"` construct uses backslash-escaped quotes inside a single-quoted `bash -c '...'` string. Single quotes in bash do not process backslash escapes, so the inner bash script receives literal `\\\"` sequences; its own parser then treats those as an escaped-literal-quote-character (not a quote delimiter), embedding literal `\"` characters into values like TODO_STORE and turning `add \\\"ship it\\\"` into two arguments (`\"ship`, `it\"`) instead of one quoted argument. Reproduced directly: piping the exact fixture #2 string (as stored, JSON-decoded once) through `sh -c \"<fixture>\"` yields `todo: error: unrecognized arguments: it\"` \u2014 an argparse error from the malformed quoting, not from bin/todo's logic. I confirmed the intended behavior manually by running the same assertions with normal (unescaped) quoting substituted for the fixture's inner shell logic against this implementation, and it passed (ADD_OK / LIST_OK / DONE_OK / RM_OK / CORRUPTED_UNIFORM_OK / INV05_DEFAULT_PATH_OK equivalents all printed, matching every use case's Test Surface row and error-message wording verbatim). I did not modify scope-cli-core.md \u2014 it is outside this order's substrate (allowed: bin/todo, todo/store.py, todo/commands.py, .shapeup/todo-cli/spikes/**) \u2014 so I cannot fix the fixture text myself; flagging for GATE H / a fixture-authoring fix in the scope contract."
+  ]
+}

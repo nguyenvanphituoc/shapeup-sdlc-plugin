@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "preset": "interactive",
+  "authorized_by": "PO — live sign-off at every gate (interactive lane)",
+  "on_missing": "ask",
+  "escalation": {
+    "default": "ask",
+    "budget_per_scope_per_round": 2
+  },
+  "answers": {
+    "L0": {
+      "decision": "proceed",
+      "note": "PO answered the L0 collect-list live: stack=Python 3 stdlib-only (entry bin/todo), eval dims=[spec-conformance, test-surface-conformance], proceed into Building without an upstream /shapeup pass. Recorded 2026-08-16."
+    },
+    "L1a": {
+      "decision": "proceed",
+      "note": "PO accepted the orient read at GATE L1a: store-persistence was the right area to spike, Rank 0 accepted, no further spike required. Two product decisions answered at the same gate and appended to intake.md: done/rm are 1-based; default store path is ~/.todo.json. Recorded 2026-08-16."
+    },
+    "L1a.5": {
+      "decision": "proceed",
+      "note": "PO accepted the wiring map at GATE L1a.5: all 4 UCs carry a full engine -> seam -> entry-point -> affordance chain, shared todo/store.py declared as a component. Tech lead found one gap at review — the $TODO_STORE fallback branch is specified in six places and asserted by zero of the 14 Test Surface rows — and the PO elected to close it before slicing scopes: filed to discovery/ledger.md and dispatched a reconcile order. Recorded 2026-08-16."
+    },
+    "L1b": {
+      "decision": "proceed",
+      "note": "Board accepted at GATE L1b: 2 scopes (scope-cli-core LAYER_CAKE build_order 1; scope-integration-test CHOWDER build_order 6), disjointness lint 0 red/0 warn, no SPIKE blockers, 15 Test Surface rows, INV-05 fixture present. One correction ordered before BUILD: wiring-map.md named todo/usecases/*.py engines that no task, scope contract or scope board agrees with, and that scope-cli-core substrate excludes — re-dispatched wire to name todo/commands.py. Recorded 2026-08-16."
+    },
+    "L2": {
+      "decision": "proceed",
+      "note": "Both scopes T0-green on the verifiers own evidence: scope-cli-core 7/7 kept (delta +6 fixtures), scope-integration-test 1/1, 10 integration tests OK. The reported round-1 failure was HD-003 (contract.mjs coerce() unquotes without unescaping, corrupting 6 of 7 fixtures) not a build defect - the implementation was correct throughout. Recorded 2026-08-16."
+    },
+    "L3": {
+      "decision": "stop",
+      "note": "Round 1 PASS accepted: 31/31 criteria (16 spec-conformance + 15 test-surface-conformance), 0 bugs, 0 refuted, all high confidence, T0 artifacts cited by sha256 and re-hashed by the evaluator. Tech lead spot-checks agreed (rm reindexing, done idempotence, no ANSI, no stdin block). Loop closed with round 2 of 2 unspent. Recorded 2026-08-16."
+    },
+    "QA": {
+      "decision": "run",
+      "note": "PO elected to run the post-PASS edge hunt. Pitch makes edge behaviour load-bearing, and one open observation exists: empty (not unset) TODO_STORE falls back to the default, uncovered by any AC. Recorded 2026-08-16."
+    },
+    "H": {
+      "decision": "accept-cut-list",
+      "note": "PO promoted 4 of 10 QA findings (QA-001/004/005/010) to must-fix at GATE H and they were built and verified in round 3: T0 11/11 green, EVAL round 3 PASS 31/31 re-probed, integration suite 10/10. Remaining cut list accepted: 6 QA nice-to-haves (QA-002/003/006/007/008/009) plus the atomic-write ledger note, all carried to the discovery ledger as raw ideas. Recorded 2026-08-16."
+    },
+    "L4": {
+      "decision": "ship",
+      "note": "PO signed off 2026-08-16. Built and verified: T0 11/11 + 1/1, EVAL round 3 PASS 31/31 re-probed post-fix, integration 10/10, board 7/7. Deploy not performed (no deploy target in scope). 6 QA nice-to-haves + 3 hygiene items carried to the discovery ledger; HD-001..HD-004 filed as Betting Table raw ideas."
+    },
+    "COACH-1": {
+      "decision": "ask"
+    }
+  }
+}

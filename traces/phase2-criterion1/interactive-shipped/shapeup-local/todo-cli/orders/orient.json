@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/orient",
+  "run_id": "todo-cli-20260816T084725Z-ddb6d292",
+  "compiled_at": "2026-08-16T08:51:48.484Z",
+  "worker": "orient",
+  "mode": "orchestrated",
+  "operation": "orient",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      ".shapeup/todo-cli/orient/**"
+    ],
+    "frozen": [
+      "shapeup/todo-cli/spec/**"
+    ]
+  },
+  "payload": {
+    "pitch": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-interactive/.shapeup/todo-cli/intake.md",
+    "spec_folder": "shapeup/todo-cli/spec/",
+    "feature": "todo-cli",
+    "stack": "Python 3 stdlib-only (3.10.16 on this machine) — json + argparse, no dependencies, no install step. Entry point bin/todo; use-case engines under todo/."
+  }
+}

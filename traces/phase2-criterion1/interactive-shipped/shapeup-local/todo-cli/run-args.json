@@ -1,0 +1,17 @@
+{
+  "slug": "todo-cli",
+  "runId": "todo-cli-20260816T084725Z-ddb6d292",
+  "autoLevel": "interactive",
+  "models": {
+    "exec": "sonnet",
+    "eval": "sonnet",
+    "qa": "sonnet"
+  },
+  "budgets": {
+    "maxRounds": 2,
+    "attemptBudget": 5
+  },
+  "pluginRoot": "/Volumes/LibertyMobi/workspace/proj-harness-plugin",
+  "startedAt": "2026-08-16T08:47:25.530Z",
+  "lane": "full"
+}

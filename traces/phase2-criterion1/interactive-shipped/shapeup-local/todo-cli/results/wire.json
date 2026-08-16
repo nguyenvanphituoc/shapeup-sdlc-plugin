@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/wire",
+  "worker": "solution-architect",
+  "status": "done",
+  "artifacts": [
+    "shapeup/todo-cli/wiring-map.md"
+  ],
+  "assumptions": [
+    "Took the four engine function signatures (add(path, text), list_(path), done(path, n), rm(path, n)) verbatim from TASK-003 through TASK-006's Context sections and scope-cli-core.md, rather than re-deriving them, per this order's instruction to read the frozen tasks and scope contract first."
+  ],
+  "deviations": [
+    "CORRECTION dispatch: rewrote wiring-map.md's engine module names. The prior revision named four per-use-case modules under todo/usecases/ (add_todo.py, list_todos.py, complete_todo.py, remove_todo.py, each exporting execute(...)) — a design nothing else in the spec agreed with. All seven frozen tasks, scope-cli-core.md, and scope-board.md name a single module todo/commands.py with functions add(path, text), list_(path), done(path, n), rm(path, n) on top of todo/store.py; scope-cli-core's allowed_file_substrate is exactly [bin/todo, todo/store.py, todo/commands.py], excluding todo/usecases/, so the old map would have gotten an executor hook-denied on first write. The PO decided at GATE L1b that todo/commands.py is the correct build surface (1-day appetite; four single-function modules is over-structure). This revision renames all four `engine` fields to todo/commands.py with their real signatures and adds a note to the wiring_seam of UC-CompleteTodo and UC-RemoveTodo that the done/rm argparse positional for `n` must stay a plain string (no type=int), since argparse would otherwise own the invalid-number failure and exit 2, breaking the spec's `error: invalid item number '<n>'` / exit 1 contract. Everything else (the four UC entries, the engine -> wiring_seam -> entry_call_site -> affordance structure, the shared-components section, and the archetype note about the reachability oracle's JS/TS-only import-graph arm) is unchanged."
+  ],
+  "discoveries": []
+}

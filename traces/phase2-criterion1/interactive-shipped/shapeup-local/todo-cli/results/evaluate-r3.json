@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/evaluate-r3",
+  "worker": "spec-evaluator",
+  "status": "done",
+  "verdict": {
+    "overall": "PASS",
+    "report_path": ".shapeup/todo-cli/evaluation/EVAL-FEATURE-todo-cli.md",
+    "t0_citations": [
+      {
+        "scope_id": "scope-cli-core",
+        "path": ".shapeup/todo-cli/t0/verdicts/r3-a2-t1.json",
+        "sha256": "71ac331d04c1e2458c1b213d7613e582f568920f10b6467633d343933fa2d4ba"
+      },
+      {
+        "scope_id": "scope-integration-test",
+        "path": ".shapeup/todo-cli/t0/verdicts/r2-a1-t2.json",
+        "sha256": "3ff702d46723d4e656f1052f42a7786ae04ff0216d7022e36cf9512b6e3397d4"
+      }
+    ],
+    "criteria": [
+      { "criterion": "UC-AddTodo Steps 1-6 (add appends, prints, exit 0)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "live re-probe: add a; add b -> stdout 'added #1: a' / 'added #2: b'; store = [{\"text\":\"a\",\"done\":false},{\"text\":\"b\",\"done\":false}] (todo/commands.py:5-9)" },
+      { "criterion": "UC-AddTodo TS-REQ-text-missing", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "live re-probe: 'todo add' with no arg -> exit 2, argparse usage error, no traceback, no store file created" },
+      { "criterion": "UC-AddTodo Error Cases (corrupted store)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "live re-probe: all 3 corruption shapes (invalid JSON, non-list root, element missing key) x 'add' -> exit 1, 'error: corrupted store at <path>', no traceback, store byte-unchanged (sha256 verified)" },
+      { "criterion": "UC-AddTodo INV-05 (default path fallback, unset TODO_STORE)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "live re-probe: env -u TODO_STORE HOME=$H add x -> exit 0, $H/.todo.json created; followed by list/done 1/list against same fallback, all correct. QA-004 fix in todo/store.py:22-27 did not touch the env_val is None branch -- no regression" },
+      { "criterion": "UC-ListTodos Steps 1-5", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "live re-probe: 2-item store -> '1. [ ] a\\n2. [ ] b'; fresh nonexistent path -> '(no items)'" },
+      { "criterion": "UC-ListTodos TS-NOGO-01 (no ANSI)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "live re-probe: cat -v on list output, no ^[[ sequences" },
+      { "criterion": "UC-ListTodos Error Cases (corrupted store)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "live re-probe: all 3 corruption shapes x 'list' -> uniform error, exit 1" },
+      { "criterion": "UC-CompleteTodo Steps 1-8", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "live re-probe: 3-item store, done 2 -> 'done #2: b'" },
+      { "criterion": "UC-CompleteTodo INV-02 (isolation)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "live re-probe: after done 2 on 3-item store, items 1 and 3 text/done byte-identical to seed, count/order unchanged, only item 2 flipped" },
+      { "criterion": "UC-CompleteTodo Error Cases + TS-REQ-n-boundary", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "live re-probe: done 0/1/2/3/abc on 2-item store -> 0/3/abc rejected with exact 'error: no item N (list has K items)' / 'error: invalid item number X', 1/2 accepted" },
+      { "criterion": "UC-RemoveTodo Steps 1-8", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "live re-probe: rm 1 on 2-item store -> 'removed #1: a', store = [{\"text\":\"b\",\"done\":false}]" },
+      { "criterion": "UC-RemoveTodo INV-03 (reindex, isolation)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "live re-probe: 3-item store, rm 2 -> 'removed #2: b', list -> '1. [ ] a' / '2. [ ] c'" },
+      { "criterion": "UC-RemoveTodo Error Cases + TS-REQ-n-boundary", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "live re-probe: rm 0/3/xyz rejected (count stays 2, exact error text), rm 1 accepted (count -> 1)" },
+      { "criterion": "Repository contract: load() [] on missing, save() atomic full-list write, extra unknown element keys tolerated", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "live re-probe: nonexistent path -> []/'(no items)'; store with extra keys (priority, extra) on an element round-trips fine, not treated as corruption by the QA-010 fix's key-presence check (todo/store.py:43-45)" },
+      { "criterion": "Non-Go: no TUI/colors/prompts", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "live re-probe cat -v clean; no stdin read attempted" },
+      { "criterion": "Non-Go: stdlib-only, no third-party deps", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "bin/todo, todo/store.py, todo/commands.py import only argparse/json/os/sys/tempfile" },
+      { "criterion": "TS-INV-01", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "T0 r3-a2-t1 fixture 2 (ADD_OK) pass=true; live re-probe byte-matches store JSON" },
+      { "criterion": "TS-ERR-ERR_CORRUPTED_STORE (AddTodo)", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "T0 r3-a2-t1 fixture 6 (CORRUPTED_UNIFORM_OK) pass=true; live re-probe confirms" },
+      { "criterion": "TS-REQ-text-missing", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "T0 r3-a2-t1 fixture 1 (DISPATCH_OK) pass=true; live re-probe confirms" },
+      { "criterion": "TS-INV-05", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "T0 r3-a2-t1 fixture 7 (INV05_DEFAULT_PATH_OK) pass=true; live re-probe confirms unset-fallback unaffected by QA-004 fix" },
+      { "criterion": "TS-INV-04", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "T0 r3-a2-t1 fixture 3 (LIST_OK) pass=true: fresh path -> '(no items)'" },
+      { "criterion": "TS-ERR-ERR_CORRUPTED_STORE (ListTodos)", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "T0 r3-a2-t1 fixture 6 pass=true (wrong-shape JSON row); live re-probe confirms" },
+      { "criterion": "TS-NOGO-01", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "T0 r3-a2-t1 fixture 3 pass=true (ANSI check); live re-probe cat -v clean" },
+      { "criterion": "TS-INV-02", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "T0 r3-a2-t1 fixture 4 (DONE_OK) pass=true; live re-probe confirms" },
+      { "criterion": "TS-ERR-ERR_INVALID_INDEX (CompleteTodo)", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "live re-probe: done 9 -> 'error: no item 9 (list has 2 items)', exit 1" },
+      { "criterion": "TS-ERR-ERR_CORRUPTED_STORE (CompleteTodo)", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "T0 r3-a2-t1 fixture 6 pass=true (done row); live re-probe confirms, including new QA-010 fixture 11" },
+      { "criterion": "TS-REQ-n-boundary (CompleteTodo)", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "T0 r3-a2-t1 fixture 4 pass=true (0/3/abc rejected loop); live re-probe confirms" },
+      { "criterion": "TS-INV-03", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "T0 r3-a2-t1 fixture 5 (RM_OK) pass=true; live re-probe confirms" },
+      { "criterion": "TS-ERR-ERR_INVALID_INDEX (RemoveTodo)", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "T0 r3-a2-t1 fixture 5 pass=true; live re-probe confirms" },
+      { "criterion": "TS-ERR-ERR_CORRUPTED_STORE (RemoveTodo)", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "T0 r3-a2-t1 fixture 6 pass=true (rm row); live re-probe confirms, including new QA-010 fixture 11" },
+      { "criterion": "TS-REQ-n-boundary (RemoveTodo)", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "live re-probe: rm 0/3/xyz rejected, rm 1 accepted" },
+      { "criterion": "Integration suite (10 unittest cases)", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": true, "evidence": "T0 r2-a1-t2.json fixtures_passed=1/1 (unchanged scope, todo/commands.py and tests/test_integration.py confirmed untouched by mtime); independently re-ran directly: python3 -m unittest tests.test_integration -> Ran 10 tests, OK" }
+    ],
+    "refuted": [],
+    "bugs": [],
+    "notes": [
+      {
+        "severity": "info",
+        "type": "spec-staleness",
+        "location": "shapeup/todo-cli/spec/domain-model.md (StorePath VO invariant) vs todo/store.py:22-27",
+        "description": "domain-model.md states StorePath resolution is exactly two branches ('verbatim when set; else default. No third path branch'). The QA-004 fix adds a third, distinct outcome for a set-but-empty $TODO_STORE (clean validation error) instead of round 1/2's silent fallback-to-default bug. No committed Test Surface row covers this case (TS-INV-05 only covers unset), so this does not fail any graded criterion, and the new behavior is strictly safer than before. Recommend domain-model.md be updated next cycle to document this as an explicit third resolution outcome."
+      }
+    ]
+  }
+}

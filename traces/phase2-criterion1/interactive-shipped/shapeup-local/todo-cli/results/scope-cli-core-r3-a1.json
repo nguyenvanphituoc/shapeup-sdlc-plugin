@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/scope-cli-core-r3-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    { "task_id": "TASK-001", "status": "done", "ac_results": [
+      { "ac": "QA-004: an empty-but-set $TODO_STORE is a clean error, not a silent fallback to ~/.todo.json",
+        "result": "pass",
+        "evidence": "todo/store.py:15 default_store_path() now distinguishes unset ($TODO_STORE not in env -> fallback preserved, TS-INV-05 fixture 7 still green) from set-but-empty (raises ValueError(\"$TODO_STORE is set but empty\")); verify t0 fixture 9 (QA004_EMPTY_STORE_OK) passes." },
+      { "ac": "QA-010: a malformed store element (missing a required key) is treated as a corrupted store, not a raw KeyError",
+        "result": "pass",
+        "evidence": "todo/store.py:43-45 load() now validates every element is a dict containing 'text' and 'done', raising StoreCorruptedError uniformly with the invalid-JSON and wrong-shape-root paths; verify t0 fixture 11 (QA010_MALFORMED_ELEMENT_OK) passes for list/rm/done." }
+    ] },
+    { "task_id": "TASK-002", "status": "done", "ac_results": [
+      { "ac": "QA-001: todo list piped to a reader that closes early must not raise an uncaught BrokenPipeError / dump a traceback",
+        "result": "pass",
+        "evidence": "bin/todo:52-61 main() now catches BrokenPipeError around the dispatch, redirects fd 1 to /dev/null before exiting so the interpreter's shutdown-time stdout flush cannot re-raise on stderr; verify t0 fixture 8 (QA001_PIPE_OK) passes." },
+      { "ac": "QA-005: store-path I/O errors below the JSON layer (missing parent dir, path is a directory) must produce the app's uniform error: ... on stderr, exit 1, no traceback",
+        "result": "pass",
+        "evidence": "bin/todo:37,62-64 moved store.default_store_path() inside the top-level try and added except OSError (after the more specific BrokenPipeError) printing 'error: {e}' and exit(1); verify t0 fixture 10 (QA005_IO_ERRORS_OK) passes for both the missing-parent-dir and path-is-a-directory cases." }
+    ] },
+    { "task_id": "TASK-003", "status": "done", "ac_results": [
+      { "ac": "no change required this round", "result": "pass", "evidence": "T0 r3-a1: 11/11 fixtures green, no regression on the 3 add fixtures" } ] },
+    { "task_id": "TASK-004", "status": "done", "ac_results": [
+      { "ac": "no change required this round", "result": "pass", "evidence": "T0 r3-a1: 11/11 fixtures green, no regression on the list fixtures; QA-001/QA-010 fixed upstream in store.py/bin/todo without touching commands.list_" } ] },
+    { "task_id": "TASK-005", "status": "done", "ac_results": [
+      { "ac": "no change required this round", "result": "pass", "evidence": "T0 r3-a1: 11/11 fixtures green, no regression on the done fixtures" } ] },
+    { "task_id": "TASK-006", "status": "done", "ac_results": [
+      { "ac": "no change required this round", "result": "pass", "evidence": "T0 r3-a1: 11/11 fixtures green, no regression on the rm fixtures" } ] }
+  ],
+  "files_touched": [
+    { "path": "bin/todo", "change": "modified" },
+    { "path": "todo/store.py", "change": "modified" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "QA-004's required error message format is unconstrained beyond the fixture's `^error: ` stderr prefix, so default_store_path() raises ValueError(\"$TODO_STORE is set but empty\") — reusing bin/todo's existing `except ValueError as e: print(f\"error: {e}\", ...)` path rather than adding a new exception type or handler.",
+    "QA-010's 'corrupted store' treatment is implemented as element-shape validation inside store.load() (require dict with 'text' and 'done' keys), raising the existing StoreCorruptedError so the message and exit path stay identical to the invalid-JSON and wrong-shape-root cases already covered by fixture 6 — per the order's 'consistent with the existing invalid-JSON and wrong-shape-root paths' guidance.",
+    "QA-001's fix wraps the whole dispatch (add/list/done/rm) in one BrokenPipeError handler rather than only list, since any command's stdout could theoretically hit a closed pipe and the minimum-code single catch point covers all of them uniformly.",
+    "QA-005's missing-parent-directory case surfaces as FileNotFoundError from tempfile.mkstemp in store.save(), and the is-a-directory case surfaces as IsADirectoryError from open() in store.load(); both are OSError subclasses, so one generic 'except OSError' clause (placed after the more specific BrokenPipeError) covers both without touching store.py's save()/load() control flow."
+  ],
+  "deviations": []
+}

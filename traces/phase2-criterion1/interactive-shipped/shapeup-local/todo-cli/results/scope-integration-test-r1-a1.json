@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/scope-integration-test-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-007",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`python3 -m unittest` (or `pytest`, whichever the repo's test runner ends up being — no",
+          "result": "pass",
+          "evidence": "python3 -m unittest discover -s tests -p 'test_*.py' -v -> Ran 10 tests in 0.931s, OK"
+        },
+        {
+          "ac": "Full round-trip: `add \"a\"` → `add \"b\"` → `list` shows both, 1-based, correct done markers",
+          "result": "pass",
+          "evidence": "tests/test_integration.py::FullRoundTripTest::test_full_round_trip — asserts stdout at each step: 'added #1: a', 'added #2: b', list '1. [ ] a\\n2. [ ] b', 'done #1: a', list '1. [x] a\\n2. [ ] b', 'removed #2: b', final list '1. [x] a', plus direct store-file read"
+        },
+        {
+          "ac": "Each subprocess call asserts BOTH the exit code AND the exact stdout/stderr text (not just",
+          "result": "pass",
+          "evidence": "every subprocess.run() call in tests/test_integration.py is followed by assertEqual on .returncode and exact/regex assertion on .stdout and .stderr (e.g. test_done_out_of_range, test_corrupted_store_rejected_uniformly)"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "tests/test_integration.py", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "Test runner is stdlib unittest (no framework declared in Orient), matching the AC's own note",
+    "Corrupted-store stderr format checked with regex `^error: corrupted store at .*\\n$` rather than exact-match since the embedded path/error detail varies by tmpdir",
+    "Store-path fallback test (INV-05, $TODO_STORE unset) included as part of the required cross-boundary coverage since UC-AddTodo's Test Surface names it and TASK-007 scopes all four UC's edge cases"
+  ],
+  "deviations": []
+}

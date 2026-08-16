@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/hunt",
+  "run_id": "todo-cli-20260816T084725Z-ddb6d292",
+  "worker": "qa-edge-hunter",
+  "status": "done",
+  "discoveries": [
+    {
+      "marker": "~",
+      "lens": "①boundary",
+      "line": "[QA-001] [UC-ListTodos] `todo list` piped to a fast-closing reader (e.g. `| head`) crashes with an uncaught BrokenPipeError traceback instead of exiting cleanly",
+      "repro": "1. TODO_STORE=$S python3 bin/todo add \"$(python3 -c \"print('A'*100000)\")\"\n2. TODO_STORE=$S python3 bin/todo list | head -c 50 >/dev/null\n3. stderr shows: Traceback ... File \"todo/commands.py\", line 21, in list_ ... BrokenPipeError: [Errno 32] Broken pipe",
+      "severity_hint": "ux-degradation",
+      "test_gap": "exploratory-only"
+    },
+    {
+      "marker": "~",
+      "lens": "①boundary",
+      "line": "[QA-002] [UC-AddTodo] Empty-string and whitespace-only <text> are accepted silently by `add`, contradicting domain-model's claim that non-empty is 'enforced by the CLI's required positional arg'",
+      "repro": "1. TODO_STORE=$S python3 bin/todo add \"\" -> exit 0, stdout 'added #1: '\n2. TODO_STORE=$S python3 bin/todo add \"   \" -> exit 0, stdout 'added #2:    '\n3. TODO_STORE=$S python3 bin/todo list shows two visually-blank rows",
+      "severity_hint": "boundary-breach",
+      "test_gap": "unit"
+    },
+    {
+      "marker": "~",
+      "lens": "①boundary",
+      "line": "[QA-003] [UC-AddTodo] Todo text starting with '-' collides with argparse's own flag parsing instead of being taken verbatim; error messages leak argparse internals to the user",
+      "repro": "1. TODO_STORE=$S python3 bin/todo add -x -> exit 2, \"the following arguments are required: text\" (real text silently rejected)\n2. TODO_STORE=$S python3 bin/todo add \"-high priority: fix bug\" -> exit 2, \"argument -h/--help: ignored explicit argument 'igh priority: fix bug'\"\n3. Workaround `todo add -- \"-text\"` works but is undocumented in --help",
+      "severity_hint": "ux-degradation",
+      "test_gap": "exploratory-only"
+    },
+    {
+      "marker": "~",
+      "lens": "①boundary",
+      "line": "[QA-004] [domain-model#StorePath] An explicitly-set but EMPTY $TODO_STORE silently falls back to ~/.todo.json instead of being used verbatim or rejected -- confirms the lead flagged in this order's payload",
+      "repro": "1. rm -rf $FAKEHOME; mkdir -p $FAKEHOME\n2. TODO_STORE=\"\" HOME=$FAKEHOME python3 bin/todo add \"x\" -> exit 0\n3. $FAKEHOME/.todo.json is created and contains the item -- TODO_STORE=\"\" behaved identically to TODO_STORE unset. Root cause: todo/store.py:18 uses `if env_val:` (truthiness) not `if env_val is not None:`. Any caller whose computed TODO_STORE ever evaluates to \"\" -- including this harness's own `TODO_STORE=<throwaway path>` convention, if that path is ever empty -- silently writes to the developer's REAL ~/.todo.json instead of erroring.",
+      "severity_hint": "data-integrity",
+      "test_gap": "unit"
+    },
+    {
+      "marker": "~",
+      "lens": "①boundary",
+      "line": "[QA-005] [domain-model#TodoStoreRepository] Store-path I/O errors below the JSON-parse layer (missing parent directory, path is a directory, unwritable directory) escape as raw uncaught Python tracebacks instead of the app's uniform 'error: ...' / exit-1 pattern",
+      "repro": "1. TODO_STORE=/no/such/dir/store.json python3 bin/todo add x -> FileNotFoundError traceback (todo/store.py:44, tempfile.mkstemp), exit 1\n2. mkdir $D; TODO_STORE=$D python3 bin/todo add x (or list) -> IsADirectoryError traceback (todo/store.py:32, open(path)), exit 1\n3. mkdir $D2; chmod 555 $D2; TODO_STORE=$D2/store.json python3 bin/todo add x -> PermissionError traceback (todo/store.py:44), exit 1\nAll three bypass StoreCorruptedError's clean handling.",
+      "severity_hint": "ux-degradation",
+      "test_gap": "unit"
+    },
+    {
+      "marker": "~",
+      "lens": "①boundary",
+      "line": "[QA-006] [domain-model#TodoStoreRepository] The first write through a symlinked $TODO_STORE silently replaces the symlink itself with a regular file, permanently orphaning whatever it used to point to",
+      "repro": "1. echo '[{\"text\":\"original via real file\",\"done\":false}]' > real.json\n2. ln -s real.json link.json\n3. TODO_STORE=link.json python3 bin/todo add \"added via symlink\" -> exit 0\n4. ls -la link.json now shows a regular file, not a symlink; `file link.json` reports 'JSON data'\n5. cat real.json still shows only the original 1-item content -- forever stale, since link.json no longer points to it. Root cause: save() calls os.replace(tmp, path) where path is the symlink -- rename(2) replaces the directory entry itself rather than following the link.",
+      "severity_hint": "data-integrity",
+      "test_gap": "exploratory-only"
+    },
+    {
+      "marker": "~",
+      "lens": "①boundary",
+      "line": "[QA-007] [domain-model#TodoStoreRepository] A store file chmod'd read-only (444) provides no protection -- `add` still succeeds and silently downgrades the file's permission bits to 600 as a side effect of the atomic tempfile+rename write",
+      "repro": "1. TODO_STORE=$S python3 bin/todo add seed\n2. chmod 444 $S (now -r--r--r--)\n3. TODO_STORE=$S python3 bin/todo add \"second item\" -> exit 0, no warning\n4. ls -la $S now shows -rw------- (600) -- the user's explicit read-only protection is gone and the write succeeded despite it",
+      "severity_hint": "data-integrity",
+      "test_gap": "exploratory-only"
+    },
+    {
+      "marker": "~",
+      "lens": "②concurrency",
+      "line": "[QA-008] [domain-model#TodoList] Concurrent `add` invocations on one store race (unlocked read-modify-write) and silently lose items -- every invocation still reports success",
+      "repro": "1. rm -f $S\n2. Launch 20 `TODO_STORE=$S python3 bin/todo add \"item-$i\"` processes in the background simultaneously (for i in 1..20 & ... ; wait)\n3. python3 -c \"import json; print(len(json.load(open('$S'))))\" -> observed 17, not 20 (3 items silently lost); every one of the 20 invocations exited 0 and printed 'added #n: ...'. Root cause: load() then append then save() has no locking, so two concurrent processes' save() calls can each write a full list computed from a stale load(), and the later os.replace() clobbers the earlier one's addition.",
+      "severity_hint": "data-integrity",
+      "test_gap": "integration"
+    },
+    {
+      "marker": "~",
+      "lens": "⑥residue",
+      "line": "[QA-009] [domain-model#TodoItem / todo/commands.py:19] The `done` field is read with Python truthiness, not JSON-boolean semantics -- a store with \"done\": \"false\" (a string) displays as done",
+      "repro": "1. echo '[{\"text\": \"should show as NOT done\", \"done\": \"false\"}]' > $S\n2. TODO_STORE=$S python3 bin/todo list -> prints '1. [x] should show as NOT done' (marker = \"x\" if item[\"done\"] else \" \", and the non-empty string \"false\" is truthy in Python)",
+      "severity_hint": "data-integrity",
+      "test_gap": "unit"
+    },
+    {
+      "marker": "~",
+      "lens": "⑥residue",
+      "line": "[QA-010] [domain-model#TodoStoreRepository] StoreCorruptedError's shape check only validates that the JSON root is a list -- a list element missing a required key ('text' or 'done') is not caught as corruption and instead crashes with a raw uncaught KeyError traceback",
+      "repro": "1. echo '[{\"text\": \"no done field\"}]' > $S; TODO_STORE=$S python3 bin/todo list -> KeyError: 'done' traceback at todo/commands.py:19, exit 1 (not the uniform 'error: corrupted store at ...' message)\n2. echo '[{\"done\": false}, {\"text\": \"second\", \"done\": false}]' > $S; TODO_STORE=$S python3 bin/todo rm 1 -> KeyError: 'text' traceback at todo/commands.py:52, exit 1",
+      "severity_hint": "ux-degradation",
+      "test_gap": "unit"
+    }
+  ],
+  "artifacts": [
+    ".shapeup/todo-cli/qa/hunt-report.md"
+  ],
+  "files_touched": [
+    {
+      "path": ".shapeup/todo-cli/qa/hunt-report.md",
+      "change": "created"
+    }
+  ],
+  "assumptions": [
+    "This is a CLI (Python 3 stdlib-only), not a web app -- Q0's 'app reachable' check was one real subprocess invocation (`add` + `list` against a throwaway $TODO_STORE), not an app_url ping; no browser or network tooling was used anywhere in this hunt.",
+    "GATE Q0/Q1 ran non-interactively: the order's `interaction.pause_gates` is false, so the out-of-bounds question (none identified) and the charter list (13 charters across the 6 fixed lenses, minus EVAL-covered territory) were both resolved by the Hunter itself and logged in qa/hunt-report.md for visibility rather than confirmed live by a human.",
+    "Every probe ran against a throwaway $TODO_STORE path (or a temp $HOME) under this session's scratchpad/private tmp -- the developer's real ~/.todo.json was never touched.",
+    "Test Surface was present on all four usecases/UC-*.md files, so this hunt ran in normal mode, not DEGRADED MODE -- no [derivable-fallback] charters were needed."
+  ],
+  "deviations": [
+    "Operational self-correction (not a QA finding, not filed to the ledger): the first probe command in charter C-01 omitted TODO_STORE= and fell through to the real default path, writing one throwaway test item to the invoking user's actual ~/.todo.json. Caught immediately by a post-hoc check, confirmed the file did not exist before this session (single garbage entry, no other content, no backups), and removed it to restore the pre-hunt state. Every other probe in this hunt used an explicit TODO_STORE=<scratchpad path> or a temp $HOME."
+  ]
+}

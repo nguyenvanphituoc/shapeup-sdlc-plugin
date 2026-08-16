@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/analyze",
+  "worker": "ba-pitch-analyzer",
+  "status": "done",
+  "artifacts": [
+    "shapeup/todo-cli/spec/_index.md",
+    "shapeup/todo-cli/spec/domain-model.md",
+    "shapeup/todo-cli/spec/ux-behavior.md",
+    "shapeup/todo-cli/spec/usecases/_index.md",
+    "shapeup/todo-cli/spec/usecases/UC-AddTodo.md",
+    "shapeup/todo-cli/spec/usecases/UC-ListTodos.md",
+    "shapeup/todo-cli/spec/usecases/UC-CompleteTodo.md",
+    "shapeup/todo-cli/spec/usecases/UC-RemoveTodo.md",
+    "shapeup/todo-cli/spec/contracts/_index.md",
+    "shapeup/todo-cli/spec/contracts/todo-store.contract.md",
+    "shapeup/todo-cli/spec/integration.md",
+    "shapeup/todo-cli/spec/scope-summary.md",
+    "shapeup/todo-cli/spec/synthesis.md",
+    "shapeup/todo-cli/spec/feedback.md",
+    ".shapeup/todo-cli/tasks/TASK-001-store-module.md",
+    ".shapeup/todo-cli/tasks/TASK-002-cli-dispatcher.md",
+    ".shapeup/todo-cli/tasks/TASK-003-add-command.md",
+    ".shapeup/todo-cli/tasks/TASK-004-list-command.md",
+    ".shapeup/todo-cli/tasks/TASK-005-done-command.md",
+    ".shapeup/todo-cli/tasks/TASK-006-rm-command.md",
+    ".shapeup/todo-cli/tasks/TASK-007-integration-test.md",
+    ".shapeup/todo-cli/tasks/_index.md"
+  ],
+  "assumptions": [
+    "lens=standard per order payload — third-party check found no external API/SDK, so contracts/ has one offline-storage entry (TodoStoreRepository) and no api-feasibility.md was generated.",
+    "bounded_context set to 'todo' (a single-context feature; the doc-schema's example enum — ordering|inventory|identity|notification|payment — is illustrative, not exhaustive).",
+    "actor set to 'Developer' across all four UCs (the CLI has one human actor, invoking the binary directly).",
+    "package field on tasks adapted from the monorepo apps/api|apps/web convention to this project's actual layout: 'todo' (the todo/ Python package), 'bin' (the bin/todo entry point), 'tests' (integration test) — there is no packages/shared|apps/api|apps/web here.",
+    "Test Surface Oracle set to 'process' on every row per references/test-surface.md's CLI guidance (no browser exists) — never defaulted to 'ui'.",
+    "Wrote scope-summary.md and synthesis.md by hand using harness reduce board's derived numbers (task_count, total_hours, critical_path, unlocks) — those two files are not themselves written by the mechanical reducer.",
+    "appetite_hours left unset when running 'harness reduce board' (pitch names a small batch / single round but no numeric hours) — no Appetite Guard overflow was computed; total estimated effort is 9.5h across 7 tasks, reported here as a fact, not silently absorbed.",
+    "TASK-001 and TASK-002 (foundation/dispatcher) anchor use_case_refs to all 4 UCs since they are genuinely shared infrastructure every use case depends on, not a single-anchor violation — each of the 4 command tasks (TASK-003..006) still anchors to exactly one UC."
+  ],
+  "deviations": [],
+  "discoveries": []
+}

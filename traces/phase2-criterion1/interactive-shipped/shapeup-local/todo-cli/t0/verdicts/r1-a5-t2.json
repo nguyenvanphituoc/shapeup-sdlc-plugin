@@ -1,0 +1,65 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 5,
+  "trial": 2,
+  "at": "2026-08-16T10:33:02.192Z",
+  "run_id": "todo-cli-20260816T084725Z-ddb6d292",
+  "scope_id": "scope-cli-core",
+  "fixtures": [
+    {
+      "cmd": "bash -c 'FAIL=3; T=$(mktemp -d); export TODO_STORE=\"$T/s.json\"; if python3 bin/todo bogus-command 1>/tmp/f_out 2>/tmp/f_err; then echo BAD_EXIT_ZERO; exit $FAIL; fi; [ -f \"$T/s.json\" ] && { echo STORE_SHOULD_NOT_EXIST; exit $FAIL; }; if python3 bin/todo 1>>/tmp/f_out 2>>/tmp/f_err; then echo BAD_NOSUBCMD_EXIT_ZERO; exit $FAIL; fi; grep -qi \"Traceback\" /tmp/f_err && { echo TRACEBACK_LEAKED; exit $FAIL; }; rm -rf \"$T\"; echo DISPATCH_OK'",
+      "exit": 0,
+      "pass": true
+    },
+    {
+      "cmd": "bash -c 'FAIL=3; T=$(mktemp -d); export TODO_STORE=\"$T/s.json\"; OUT1=$(python3 bin/todo add \"ship it\"); [ \"$OUT1\" = \"added #1: ship it\" ] || { echo \"BAD1: $OUT1\"; exit $FAIL; }; OUT2=$(python3 bin/todo add \"write the spec\"); [ \"$OUT2\" = \"added #2: write the spec\" ] || { echo \"BAD2: $OUT2\"; exit $FAIL; }; python3 -c \"import json; d=json.load(open(\\\"$T/s.json\\\")); assert d==[{\\\"text\\\": \\\"ship it\\\", \\\"done\\\": False}, {\\\"text\\\": \\\"write the spec\\\", \\\"done\\\": False}], d\"; rm -rf \"$T\"; echo ADD_OK'",
+      "exit": 0,
+      "pass": true
+    },
+    {
+      "cmd": "bash -c 'FAIL=3; T=$(mktemp -d); export TODO_STORE=\"$T/s.json\"; python3 bin/todo add \"ship it\" >/dev/null; python3 bin/todo done 1 >/dev/null; python3 bin/todo add \"write the spec\" >/dev/null; OUT=$(python3 bin/todo list); EXPECTED=$(printf \"1. [x] ship it\\n2. [ ] write the spec\"); [ \"$OUT\" = \"$EXPECTED\" ] || { echo \"BAD_LIST: [$OUT]\"; exit $FAIL; }; EMPTY_T=$(mktemp -d); OUT2=$(TODO_STORE=\"$EMPTY_T/s.json\" python3 bin/todo list); [ \"$OUT2\" = \"(no items)\" ] || { echo \"BAD_EMPTY: $OUT2\"; exit $FAIL; }; ESC=$(printf \"\\033\"); echo \"$OUT\" | grep -qF \"$ESC[\" && { echo ANSI_LEAKED; exit $FAIL; }; rm -rf \"$T\" \"$EMPTY_T\"; echo LIST_OK'",
+      "exit": 0,
+      "pass": true
+    },
+    {
+      "cmd": "bash -c 'FAIL=3; T=$(mktemp -d); export TODO_STORE=\"$T/s.json\"; python3 bin/todo add \"a\" >/dev/null; python3 bin/todo add \"b\" >/dev/null; OUT=$(python3 bin/todo done 1); [ \"$OUT\" = \"done #1: a\" ] || { echo \"BAD_DONE: $OUT\"; exit $FAIL; }; ERR=$(python3 bin/todo done 9 2>&1 1>/dev/null); CODE=$?; [ \"$CODE\" -eq 1 ] && [ \"$ERR\" = \"error: no item 9 (list has 2 items)\" ] || { echo \"BAD_DONE_ERR: code=$CODE err=$ERR\"; exit $FAIL; }; for n in 0 3 abc; do python3 bin/todo done \"$n\" >/dev/null 2>&1 && { echo \"n=$n SHOULD_HAVE_FAILED\"; exit $FAIL; }; done; python3 -c \"import json; d=json.load(open(\\\"$T/s.json\\\")); assert d[0][\\\"done\\\"] is True and d[1][\\\"text\\\"]==\\\"b\\\" and d[1][\\\"done\\\"] is False, d\"; rm -rf \"$T\"; echo DONE_OK'",
+      "exit": 0,
+      "pass": true
+    },
+    {
+      "cmd": "bash -c 'FAIL=3; T=$(mktemp -d); export TODO_STORE=\"$T/s.json\"; python3 bin/todo add \"a\" >/dev/null; python3 bin/todo add \"b\" >/dev/null; OUT=$(python3 bin/todo rm 1); [ \"$OUT\" = \"removed #1: a\" ] || { echo \"BAD_RM: $OUT\"; exit $FAIL; }; python3 -c \"import json; d=json.load(open(\\\"$T/s.json\\\")); assert len(d)==1 and d[0][\\\"text\\\"]==\\\"b\\\", d\"; ERR=$(python3 bin/todo rm 5 2>&1 1>/dev/null); CODE=$?; [ \"$CODE\" -eq 1 ] && [ \"$ERR\" = \"error: no item 5 (list has 1 items)\" ] || { echo \"BAD_RM_ERR: code=$CODE err=$ERR\"; exit $FAIL; }; rm -rf \"$T\"; echo RM_OK'",
+      "exit": 0,
+      "pass": true
+    },
+    {
+      "cmd": "bash -c 'FAIL=3; T=$(mktemp -d); echo \"not valid json\" > \"$T/s.json\"; export TODO_STORE=\"$T/s.json\"; for cmd in \"list\" \"add x\" \"done 1\" \"rm 1\"; do OUT=$(python3 bin/todo $cmd 2>&1 1>/dev/null); CODE=$?; [ \"$CODE\" -eq 1 ] || { echo \"cmd=$cmd WRONG_EXIT_$CODE\"; exit $FAIL; }; echo \"$OUT\" | grep -Eq \"^error: corrupted store at \" || { echo \"cmd=$cmd BAD_STDERR: $OUT\"; exit $FAIL; }; done; echo \"{\\\"not\\\": \\\"a list\\\"}\" > \"$T/s2.json\"; OUT=$(TODO_STORE=\"$T/s2.json\" python3 bin/todo list 2>&1 1>/dev/null); echo \"$OUT\" | grep -Eq \"^error: corrupted store at \" || { echo \"WRONG_SHAPE_ERR: $OUT\"; exit $FAIL; }; rm -rf \"$T\"; echo CORRUPTED_UNIFORM_OK'",
+      "exit": 0,
+      "pass": true
+    },
+    {
+      "cmd": "bash -c 'FAIL=3; H=$(mktemp -d); OUT=$(env -u TODO_STORE HOME=\"$H\" python3 bin/todo add \"x\"); CODE=$?; [ \"$CODE\" -eq 0 ] || { echo \"WRONG_EXIT_$CODE\"; exit $FAIL; }; [ -f \"$H/.todo.json\" ] || { echo \"STORE_NOT_AT_HOME: $(ls $H)\"; exit $FAIL; }; rm -rf \"$H\"; echo INV05_DEFAULT_PATH_OK'",
+      "exit": 0,
+      "pass": true
+    }
+  ],
+  "db_probe": null,
+  "seesaw": {
+    "ran": false,
+    "pass": true,
+    "scopes_checked": [],
+    "failing": []
+  },
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "seesaw_green": true,
+  "overall": "green",
+  "regression": false,
+  "score": {
+    "regressions": 0,
+    "fixtures_passed": 7,
+    "fixtures_total": 7,
+    "db_probe": null
+  },
+  "discovered_tasks": []
+}

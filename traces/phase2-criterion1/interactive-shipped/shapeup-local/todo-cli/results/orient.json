@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/orient",
+  "worker": "orient",
+  "status": "done",
+  "discoveries": [
+    {
+      "marker": "+",
+      "line": "[ORIENT] Corrupted-store error must surface as a clean CLI error, not a raw traceback — the dispatcher needs to catch the domain RuntimeError and print + exit non-zero."
+    },
+    {
+      "marker": "+",
+      "line": "[ORIENT] Wrong-shape JSON (valid JSON, non-list root) is a corruption variant not named in the intake; spike confirms it should share the same 'corrupted store' error path/AC as invalid JSON rather than a separate use case."
+    },
+    {
+      "marker": "+",
+      "line": "[ORIENT] done <n> / rm <n> index semantics (1-based vs 0-based, behavior on out-of-range or non-integer <n>) need an explicit BA decision and AC, not just 'doesn't crash'."
+    },
+    {
+      "marker": "+",
+      "line": "[ORIENT] Default store path chosen in the spike is ~/.todo.json (os.path.expanduser) — the intake only says 'a sensible default'; BA/PO should confirm before it's load-bearing in the wiring map."
+    },
+    {
+      "marker": "~",
+      "line": "[ORIENT] Atomic-write approach (tempfile.mkstemp + os.replace) is a save-path implementation detail worth naming in the wiring map so a future edit doesn't regress to a non-atomic open(path, \"w\"); not directly black-box assertable so not a Test Surface row."
+    }
+  ],
+  "artifacts": [
+    ".shapeup/todo-cli/orient/code-surface.md",
+    ".shapeup/todo-cli/orient/spike-store-persistence.md",
+    ".shapeup/todo-cli/orient/discovered-seed.md",
+    ".shapeup/todo-cli/orient/hill-signal.md"
+  ],
+  "assumptions": [
+    "Repo is greenfield at orient time — no bin/todo or todo/ package exists yet, so code-surface.md documents the starting state rather than an existing implementation.",
+    "The single riskiest area (store persistence: load/save, corruption handling, $TODO_STORE resolution) was spiked with a throwaway script outside the orient substrate (/tmp/todo-spike/); no production code was written."
+  ],
+  "deviations": []
+}

@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/scope-integration-test-r2-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-007",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`python3 -m unittest` (or `pytest`, whichever the repo's test runner ends up being — no",
+          "result": "pass",
+          "evidence": "python3 -m unittest discover -s tests -p 'test_*.py' -v -> Ran 10 tests in 0.931s, OK"
+        },
+        {
+          "ac": "Full round-trip: `add \"a\"` → `add \"b\"` → `list` shows both, 1-based, correct done markers",
+          "result": "pass",
+          "evidence": "tests/test_integration.py::FullRoundTripTest::test_full_round_trip passes; harness verify t0 r2-a1 -> overall green, fixtures_passed 1/1, no regression"
+        },
+        {
+          "ac": "Each subprocess call asserts BOTH the exit code AND the exact stdout/stderr text (not just",
+          "result": "pass",
+          "evidence": "existing tests/test_integration.py assertions on .returncode plus exact/regex stdout/stderr checks unchanged; suite still green"
+        }
+      ]
+    }
+  ],
+  "files_touched": [],
+  "discoveries": [],
+  "assumptions": [
+    "This scope's test suite was already implemented and green from round 1 (trial 4, kept baseline); round 2 order carries no payload.bugs and no digested_errors, so no code change was required — re-verified green with no regression."
+  ],
+  "deviations": []
+}

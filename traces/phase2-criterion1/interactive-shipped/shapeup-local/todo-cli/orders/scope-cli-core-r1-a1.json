@@ -1,0 +1,254 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/scope-cli-core-r1-a1",
+  "run_id": "todo-cli-20260816T084725Z-ddb6d292",
+  "compiled_at": "2026-08-16T10:21:53.766Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "bin/todo",
+      "todo/store.py",
+      "todo/commands.py",
+      ".shapeup/todo-cli/spikes/**"
+    ],
+    "shared": []
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "scope-cli-core",
+      "topology_type": "LAYER_CAKE",
+      "feature": "todo-cli",
+      "tasks": [
+        "TASK-001",
+        "TASK-002",
+        "TASK-003",
+        "TASK-004",
+        "TASK-005",
+        "TASK-006"
+      ],
+      "use_case_refs": [
+        "UC-AddTodo",
+        "UC-ListTodos",
+        "UC-CompleteTodo",
+        "UC-RemoveTodo"
+      ],
+      "allowed_file_substrate": [
+        "bin/todo",
+        "todo/store.py",
+        "todo/commands.py"
+      ],
+      "shared_substrate": [],
+      "build_order": 1,
+      "hill_phase": "UPHILL_UNKNOWN",
+      "e2e_verification_fixtures": [
+        "bash -c 'FAIL=3; T=$(mktemp -d); export TODO_STORE=\\\"$T/s.json\\\"; if python3 bin/todo bogus-command 1>/tmp/f_out 2>/tmp/f_err; then echo BAD_EXIT_ZERO; exit $FAIL; fi; [ -f \\\"$T/s.json\\\" ] && { echo STORE_SHOULD_NOT_EXIST; exit $FAIL; }; if python3 bin/todo 1>>/tmp/f_out 2>>/tmp/f_err; then echo BAD_NOSUBCMD_EXIT_ZERO; exit $FAIL; fi; grep -qi \\\"Traceback\\\" /tmp/f_err && { echo TRACEBACK_LEAKED; exit $FAIL; }; rm -rf \\\"$T\\\"; echo DISPATCH_OK'",
+        "bash -c 'FAIL=3; T=$(mktemp -d); export TODO_STORE=\\\"$T/s.json\\\"; OUT1=$(python3 bin/todo add \\\"ship it\\\"); [ \\\"$OUT1\\\" = \\\"added #1: ship it\\\" ] || { echo \\\"BAD1: $OUT1\\\"; exit $FAIL; }; OUT2=$(python3 bin/todo add \\\"write the spec\\\"); [ \\\"$OUT2\\\" = \\\"added #2: write the spec\\\" ] || { echo \\\"BAD2: $OUT2\\\"; exit $FAIL; }; python3 -c \\\"import json; d=json.load(open(\\\\\\\"$T/s.json\\\\\\\")); assert d==[{\\\\\\\"text\\\\\\\": \\\\\\\"ship it\\\\\\\", \\\\\\\"done\\\\\\\": False}, {\\\\\\\"text\\\\\\\": \\\\\\\"write the spec\\\\\\\", \\\\\\\"done\\\\\\\": False}], d\\\"; rm -rf \\\"$T\\\"; echo ADD_OK'",
+        "bash -c 'FAIL=3; T=$(mktemp -d); export TODO_STORE=\\\"$T/s.json\\\"; python3 bin/todo add \\\"ship it\\\" >/dev/null; python3 bin/todo done 1 >/dev/null; python3 bin/todo add \\\"write the spec\\\" >/dev/null; OUT=$(python3 bin/todo list); EXPECTED=$(printf \\\"1. [x] ship it\\\\n2. [ ] write the spec\\\"); [ \\\"$OUT\\\" = \\\"$EXPECTED\\\" ] || { echo \\\"BAD_LIST: [$OUT]\\\"; exit $FAIL; }; EMPTY_T=$(mktemp -d); OUT2=$(TODO_STORE=\\\"$EMPTY_T/s.json\\\" python3 bin/todo list); [ \\\"$OUT2\\\" = \\\"(no items)\\\" ] || { echo \\\"BAD_EMPTY: $OUT2\\\"; exit $FAIL; }; ESC=$(printf \\\"\\\\033\\\"); echo \\\"$OUT\\\" | grep -qF \\\"$ESC[\\\" && { echo ANSI_LEAKED; exit $FAIL; }; rm -rf \\\"$T\\\" \\\"$EMPTY_T\\\"; echo LIST_OK'",
+        "bash -c 'FAIL=3; T=$(mktemp -d); export TODO_STORE=\\\"$T/s.json\\\"; python3 bin/todo add \\\"a\\\" >/dev/null; python3 bin/todo add \\\"b\\\" >/dev/null; OUT=$(python3 bin/todo done 1); [ \\\"$OUT\\\" = \\\"done #1: a\\\" ] || { echo \\\"BAD_DONE: $OUT\\\"; exit $FAIL; }; ERR=$(python3 bin/todo done 9 2>&1 1>/dev/null); CODE=$?; [ \\\"$CODE\\\" -eq 1 ] && [ \\\"$ERR\\\" = \\\"error: no item 9 (list has 2 items)\\\" ] || { echo \\\"BAD_DONE_ERR: code=$CODE err=$ERR\\\"; exit $FAIL; }; for n in 0 3 abc; do python3 bin/todo done \\\"$n\\\" >/dev/null 2>&1 && { echo \\\"n=$n SHOULD_HAVE_FAILED\\\"; exit $FAIL; }; done; python3 -c \\\"import json; d=json.load(open(\\\\\\\"$T/s.json\\\\\\\")); assert d[0][\\\\\\\"done\\\\\\\"] is True and d[1][\\\\\\\"text\\\\\\\"]==\\\\\\\"b\\\\\\\" and d[1][\\\\\\\"done\\\\\\\"] is False, d\\\"; rm -rf \\\"$T\\\"; echo DONE_OK'",
+        "bash -c 'FAIL=3; T=$(mktemp -d); export TODO_STORE=\\\"$T/s.json\\\"; python3 bin/todo add \\\"a\\\" >/dev/null; python3 bin/todo add \\\"b\\\" >/dev/null; OUT=$(python3 bin/todo rm 1); [ \\\"$OUT\\\" = \\\"removed #1: a\\\" ] || { echo \\\"BAD_RM: $OUT\\\"; exit $FAIL; }; python3 -c \\\"import json; d=json.load(open(\\\\\\\"$T/s.json\\\\\\\")); assert len(d)==1 and d[0][\\\\\\\"text\\\\\\\"]==\\\\\\\"b\\\\\\\", d\\\"; ERR=$(python3 bin/todo rm 5 2>&1 1>/dev/null); CODE=$?; [ \\\"$CODE\\\" -eq 1 ] && [ \\\"$ERR\\\" = \\\"error: no item 5 (list has 1 items)\\\" ] || { echo \\\"BAD_RM_ERR: code=$CODE err=$ERR\\\"; exit $FAIL; }; rm -rf \\\"$T\\\"; echo RM_OK'",
+        "bash -c 'FAIL=3; T=$(mktemp -d); echo \\\"not valid json\\\" > \\\"$T/s.json\\\"; export TODO_STORE=\\\"$T/s.json\\\"; for cmd in \\\"list\\\" \\\"add x\\\" \\\"done 1\\\" \\\"rm 1\\\"; do OUT=$(python3 bin/todo $cmd 2>&1 1>/dev/null); CODE=$?; [ \\\"$CODE\\\" -eq 1 ] || { echo \\\"cmd=$cmd WRONG_EXIT_$CODE\\\"; exit $FAIL; }; echo \\\"$OUT\\\" | grep -Eq \\\"^error: corrupted store at \\\" || { echo \\\"cmd=$cmd BAD_STDERR: $OUT\\\"; exit $FAIL; }; done; echo \\\"{\\\\\\\"not\\\\\\\": \\\\\\\"a list\\\\\\\"}\\\" > \\\"$T/s2.json\\\"; OUT=$(TODO_STORE=\\\"$T/s2.json\\\" python3 bin/todo list 2>&1 1>/dev/null); echo \\\"$OUT\\\" | grep -Eq \\\"^error: corrupted store at \\\" || { echo \\\"WRONG_SHAPE_ERR: $OUT\\\"; exit $FAIL; }; rm -rf \\\"$T\\\"; echo CORRUPTED_UNIFORM_OK'",
+        "bash -c 'FAIL=3; H=$(mktemp -d); OUT=$(env -u TODO_STORE HOME=\\\"$H\\\" python3 bin/todo add \\\"x\\\"); CODE=$?; [ \\\"$CODE\\\" -eq 0 ] || { echo \\\"WRONG_EXIT_$CODE\\\"; exit $FAIL; }; [ -f \\\"$H/.todo.json\\\" ] || { echo \\\"STORE_NOT_AT_HOME: $(ls $H)\\\"; exit $FAIL; }; rm -rf \\\"$H\\\"; echo INV05_DEFAULT_PATH_OK'"
+      ],
+      "status": "ready",
+      "affordance_manifest": [
+        {
+          "test_id": "cli:todo-add",
+          "role": "cli-command",
+          "required_states": [
+            "success",
+            "error"
+          ]
+        },
+        {
+          "test_id": "cli:todo-list",
+          "role": "cli-command",
+          "required_states": [
+            "success",
+            "empty",
+            "error"
+          ]
+        },
+        {
+          "test_id": "cli:todo-done",
+          "role": "cli-command",
+          "required_states": [
+            "success",
+            "error"
+          ]
+        },
+        {
+          "test_id": "cli:todo-rm",
+          "role": "cli-command",
+          "required_states": [
+            "success",
+            "error"
+          ]
+        },
+        {
+          "test_id": "cli:dispatch-unknown-subcommand",
+          "role": "cli-command",
+          "required_states": [
+            "error"
+          ]
+        },
+        {
+          "test_id": "cli:dispatch-no-subcommand",
+          "role": "cli-command",
+          "required_states": [
+            "error"
+          ]
+        },
+        {
+          "test_id": "cli:error-boundary-corrupted-store",
+          "role": "cli-command",
+          "required_states": [
+            "error"
+          ]
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "title": "Implement TodoStoreRepository (load/save, atomic, path resolution)",
+        "status": "ready",
+        "priority": 1,
+        "depends_on": [],
+        "use_case_refs": [
+          "UC-AddTodo",
+          "UC-ListTodos",
+          "UC-CompleteTodo",
+          "UC-RemoveTodo"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-interactive/.shapeup/todo-cli/tasks/TASK-001-store-module.md",
+        "acceptance_criteria": [
+          "`todo/store.py` exists, exporting `default_store_path()`, `load(path)`, `save(path, items)`",
+          "`default_store_path()` returns `$TODO_STORE` verbatim when set; otherwise",
+          "`load(path)` on a non-existent path returns `[]`",
+          "`save(path, items)` then `load(path)` round-trips exactly (same items, same order)",
+          "`save()` uses `tempfile.mkstemp` (same directory as `path`) + `os.replace` — never a bare",
+          "Request shape matches [[contracts/todo-store.contract#Write-Input]] table",
+          "Response mapping matches [[contracts/todo-store.contract#Read-Output]] table",
+          "All error codes in [[contracts/todo-store.contract#Error-Cases]] are handled",
+          "`load()` returns `[]` (never `None`, never throws) when the store file does not exist",
+          "`save(path, [])` then `load(path)` returns `[]` — an emptied store is a valid, loadable state"
+        ]
+      },
+      {
+        "id": "TASK-002",
+        "title": "Build bin/todo argparse dispatcher with top-level error boundary",
+        "status": "ready",
+        "priority": 2,
+        "depends_on": [
+          "TASK-001"
+        ],
+        "use_case_refs": [
+          "UC-AddTodo",
+          "UC-ListTodos",
+          "UC-CompleteTodo",
+          "UC-RemoveTodo"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-interactive/.shapeup/todo-cli/tasks/TASK-002-cli-dispatcher.md",
+        "acceptance_criteria": [
+          "`bin/todo` exists and is executable (`chmod +x`), shebang `#!/usr/bin/env python3`",
+          "`python3 bin/todo add \"x\"` / `list` / `done 1` / `rm 1` all reach their respective",
+          "`python3 bin/todo` (no subcommand) exits non-zero with a usage message, no traceback",
+          "`python3 bin/todo bogus-command` exits non-zero with a usage message, no traceback",
+          "Any `StoreCorruptedError` raised by a command function is caught at the top level, printed"
+        ]
+      },
+      {
+        "id": "TASK-003",
+        "title": "Implement todo add <text>",
+        "status": "ready",
+        "priority": 3,
+        "depends_on": [
+          "TASK-002"
+        ],
+        "use_case_refs": [
+          "UC-AddTodo"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-interactive/.shapeup/todo-cli/tasks/TASK-003-add-command.md",
+        "acceptance_criteria": [
+          "`python3 bin/todo add \"ship it\"` against a fresh `$TODO_STORE` prints `added #1: ship it`",
+          "A second `add` against the same store prints `added #2: ...` (position is `len(items)`",
+          "The store file on disk after `add` contains the new item appended at the end, all prior",
+          "No stdout is written if `save()` raises — see [[usecases/UC-AddTodo#Steps]] step 3"
+        ]
+      },
+      {
+        "id": "TASK-004",
+        "title": "Implement todo list",
+        "status": "ready",
+        "priority": 3,
+        "depends_on": [
+          "TASK-002"
+        ],
+        "use_case_refs": [
+          "UC-ListTodos"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-interactive/.shapeup/todo-cli/tasks/TASK-004-list-command.md",
+        "acceptance_criteria": [
+          "`python3 bin/todo list` against a store with 2 items (`ship it` not done, `write the spec`",
+          "Output contains no ANSI escape codes (`\\x1b[`) — plain text only",
+          "`python3 bin/todo list` against a fresh (non-existent) `$TODO_STORE` prints exactly",
+          "`python3 bin/todo list` against a store file containing `[]` prints exactly `(no items)`"
+        ]
+      },
+      {
+        "id": "TASK-005",
+        "title": "Implement todo done <n>",
+        "status": "ready",
+        "priority": 3,
+        "depends_on": [
+          "TASK-002"
+        ],
+        "use_case_refs": [
+          "UC-CompleteTodo"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-interactive/.shapeup/todo-cli/tasks/TASK-005-done-command.md",
+        "acceptance_criteria": [
+          "`todo done 1` against a 2-item store marks item 1 done, prints `done #1: <text>`, exits 0",
+          "The store file after `done 1` has item 1's `done` field `true`; item 2 unchanged",
+          "Marking an already-done item done again still succeeds (idempotent), prints the same",
+          "`todo done 0` (below min) against a 2-item store: exit 1, stderr",
+          "`todo done 1` (min, valid): exit 0, item 1 marked done",
+          "`todo done 2` (max, valid, 2-item store): exit 0, item 2 marked done",
+          "`todo done 3` (max+1, 2-item store): exit 1, stderr",
+          "`todo done abc` (non-integer): exit 1, stderr `error: invalid item number 'abc'`, store"
+        ]
+      },
+      {
+        "id": "TASK-006",
+        "title": "Implement todo rm <n>",
+        "status": "ready",
+        "priority": 3,
+        "depends_on": [
+          "TASK-002"
+        ],
+        "use_case_refs": [
+          "UC-RemoveTodo"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-interactive/.shapeup/todo-cli/tasks/TASK-006-rm-command.md",
+        "acceptance_criteria": [
+          "`todo rm 1` against a 2-item store removes item 1, prints `removed #1: <text of old item 1>`, exits 0",
+          "The store file after `rm 1` has exactly 1 item — the former item 2, `text`/`done` unchanged",
+          "After a removal, a subsequent `list` renumbers remaining items starting at 1 (no gaps)",
+          "`todo rm 0` (below min) against a 2-item store: exit 1, stderr",
+          "`todo rm 1` (min, valid): exit 0, store now has 1 item",
+          "`todo rm 2` (max, valid, 2-item store): exit 0, store now has 1 item",
+          "`todo rm 3` (max+1, 2-item store): exit 1, stderr `error: no item 3 (list has 2 items)`,",
+          "`todo rm xyz` (non-integer): exit 1, stderr `error: invalid item number 'xyz'`, store unchanged"
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/todo-cli/spec",
+    "feature": "todo-cli",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

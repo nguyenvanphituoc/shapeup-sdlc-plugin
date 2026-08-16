@@ -1,0 +1,32 @@
+{
+  "lane": "interactive-shipped",
+  "run_id": "todo-cli-20260816T084725Z-ddb6d292",
+  "plugin": {
+    "name": "shapeup-sdlc-plugin",
+    "version": "2.0.0",
+    "root": "/Volumes/LibertyMobi/workspace/proj-harness-plugin"
+  },
+  "auto_level": "interactive",
+  "budgets": {
+    "max_rounds": 2,
+    "attempt_budget": 5
+  },
+  "orders": 13,
+  "results": 14,
+  "dispatch_receipts": 17,
+  "attested_skills": [
+    "orient",
+    "ba-pitch-analyzer",
+    "solution-architect",
+    "scope-architect",
+    "task-executor",
+    "spec-evaluator",
+    "scope-hammer",
+    "qa-edge-hunter"
+  ],
+  "copied": [
+    "shapeup-local",
+    "shapeup-committed",
+    "deliverable (bin, tests, todo)"
+  ]
+}

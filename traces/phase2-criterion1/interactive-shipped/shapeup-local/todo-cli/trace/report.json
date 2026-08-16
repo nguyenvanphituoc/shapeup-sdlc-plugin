@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "slug": "todo-cli",
+  "at": "2026-08-16T10:44:55.539Z",
+  "mode": "advisory",
+  "advisory": true,
+  "covers_closure": {
+    "checked": false,
+    "requirements_total": 0,
+    "covered_status": 0,
+    "cut_status": 0,
+    "covered_by_ac": 0,
+    "uncovered": [],
+    "dangling_covers": [],
+    "pass": true,
+    "skipped_reason": "no requirements.md registry — covers-closure not applicable (non-regression on pre-spine specs)."
+  },
+  "reachability": {
+    "checked": true,
+    "entry_point": "bin/todo",
+    "entry_resolved": "bin/todo",
+    "reachable_files": 1,
+    "engines_total": 0,
+    "unreachable": [],
+    "pass": true
+  },
+  "findings": [],
+  "overall": "green"
+}

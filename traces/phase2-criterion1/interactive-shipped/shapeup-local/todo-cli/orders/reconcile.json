@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/reconcile",
+  "run_id": "todo-cli-20260816T084725Z-ddb6d292",
+  "compiled_at": "2026-08-16T09:20:23.252Z",
+  "worker": "ba-pitch-analyzer",
+  "mode": "orchestrated",
+  "operation": "reconcile",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      ".shapeup/todo-cli/tasks/**",
+      "shapeup/todo-cli/spec/scope-summary.md",
+      ".shapeup/todo-cli/working/**"
+    ],
+    "append_only": [
+      "shapeup/todo-cli/spec/usecases/*.md#Invariants",
+      "shapeup/todo-cli/spec/usecases/*.md#Test Surface"
+    ],
+    "frozen": [
+      "shapeup/todo-cli/spec/domain-model.md",
+      "shapeup/todo-cli/spec/usecases/*.md#Steps",
+      "shapeup/todo-cli/spec/contracts/**",
+      "shapeup/todo-cli/spec/ux-behavior.md"
+    ]
+  },
+  "payload": {
+    "discovered_ledger": ".shapeup/todo-cli/discovery/ledger.md",
+    "spec_folder": "shapeup/todo-cli/spec/",
+    "feature": "todo-cli",
+    "lens": "standard",
+    "orient_dir": ".shapeup/todo-cli/orient/",
+    "kb_rules_path": "shapeup/knowledge-base/ba-pitch-analyzer.md"
+  }
+}

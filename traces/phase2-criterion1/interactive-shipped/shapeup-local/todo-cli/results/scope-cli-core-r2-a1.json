@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/scope-cli-core-r2-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    { "task_id": "TASK-001", "status": "done", "ac_results": [
+      { "ac": "no change required this round", "result": "pass", "evidence": "T0 r2-a1: 7/7 fixtures green, no payload.bugs present" } ] },
+    { "task_id": "TASK-002", "status": "done", "ac_results": [
+      { "ac": "no change required this round", "result": "pass", "evidence": "T0 r2-a1: 7/7 fixtures green, no payload.bugs present" } ] },
+    { "task_id": "TASK-003", "status": "done", "ac_results": [
+      { "ac": "no change required this round", "result": "pass", "evidence": "T0 r2-a1: 7/7 fixtures green, no payload.bugs present" } ] },
+    { "task_id": "TASK-004", "status": "done", "ac_results": [
+      { "ac": "no change required this round", "result": "pass", "evidence": "T0 r2-a1: 7/7 fixtures green, no payload.bugs present" } ] },
+    { "task_id": "TASK-005", "status": "done", "ac_results": [
+      { "ac": "no change required this round", "result": "pass", "evidence": "T0 r2-a1: 7/7 fixtures green, no payload.bugs present" } ] },
+    { "task_id": "TASK-006", "status": "done", "ac_results": [
+      { "ac": "no change required this round", "result": "pass", "evidence": "T0 r2-a1: 7/7 fixtures green, no payload.bugs present" } ] }
+  ],
+  "files_touched": [],
+  "discoveries": [],
+  "assumptions": [
+    "Order carried no payload.bugs and operation=execute; all tasks were already status:done with T0 already green (7/7) from round 1 attempt 5, so no code changes were made this round."
+  ],
+  "deviations": []
+}

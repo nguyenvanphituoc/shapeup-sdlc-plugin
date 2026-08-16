@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/evaluate-r1",
+  "worker": "spec-evaluator",
+  "status": "done",
+  "verdict": {
+    "overall": "PASS",
+    "report_path": ".shapeup/todo-cli/evaluation/EVAL-FEATURE-todo-cli.md",
+    "t0_citations": [
+      {
+        "scope_id": "scope-cli-core",
+        "path": ".shapeup/todo-cli/t0/verdicts/r1-a5-t2.json",
+        "sha256": "ac773ad9ede4d2e30cc4f52981b7f610cf39ad82732dd3f9e3d73f24b695933f"
+      },
+      {
+        "scope_id": "scope-integration-test",
+        "path": ".shapeup/todo-cli/t0/verdicts/r1-a1-t2.json",
+        "sha256": "8109af2498665fce606e6511cbf2981aebd7fb753c46b3473dbdcc01599266bf"
+      }
+    ],
+    "criteria": [
+      { "criterion": "UC-AddTodo Steps 1-6 (add appends, prints, exit 0)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "add a; add b -> stdout 'added #1: a' / 'added #2: b'; store = [{\"text\":\"a\",\"done\":false},{\"text\":\"b\",\"done\":false}] (todo/commands.py:6-9)" },
+      { "criterion": "UC-AddTodo TS-REQ-text-missing", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "bin/todo add (no text) -> exit 2, argparse usage error, no traceback, no write" },
+      { "criterion": "UC-AddTodo Error Cases (corrupted store)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "seeded invalid JSON; add x -> exit 1, stderr 'error: corrupted store at ...' (bin/todo:44-46)" },
+      { "criterion": "UC-AddTodo INV-05 (default path fallback)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "env -u TODO_STORE HOME=$H add x -> exit 0, $H/.todo.json created; todo/store.py:16-19 uses os.environ.get" },
+      { "criterion": "UC-ListTodos Steps 1-5", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "2-item store -> '1. [ ] x\\n2. [ ] y'; fresh path -> '(no items)' (todo/commands.py:12-19)" },
+      { "criterion": "UC-ListTodos TS-NOGO-01 (no ANSI)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "cat -v on list output: no ^[[ sequences" },
+      { "criterion": "UC-ListTodos Error Cases (corrupted store)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "wrong-shape JSON {\"not\":\"a list\"} -> list exit 1, 'error: corrupted store at ...'" },
+      { "criterion": "UC-CompleteTodo Steps 1-8", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "done 1 on 2-item store -> 'done #1: a'; store item1.done=true (todo/commands.py:39-44)" },
+      { "criterion": "UC-CompleteTodo INV-02 (isolation)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "3-item store, done 2 -> item1/item3 text unchanged, count/order unchanged" },
+      { "criterion": "UC-CompleteTodo Error Cases + TS-REQ-n-boundary", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "done 0/3/abc rejected with exact messages (todo/commands.py:24-32); done 1/2 accepted" },
+      { "criterion": "UC-RemoveTodo Steps 1-8", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "rm 2 on 3-item store -> 'removed #2: b'; list shows remaining renumbered (todo/commands.py:47-51)" },
+      { "criterion": "UC-RemoveTodo INV-03 (reindex, isolation)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "3-item store, rm 2 -> list = '1. [ ] a' / '2. [ ] c'" },
+      { "criterion": "UC-RemoveTodo Error Cases + TS-REQ-n-boundary", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "rm 5 on 1-item store -> 'error: no item 5 (list has 1 items)', exit 1, no write" },
+      { "criterion": "Repository contract: load() [] on missing, save() atomic full-list write", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "todo/store.py:22-48 (os.path.exists guard; tempfile.mkstemp + os.replace)" },
+      { "criterion": "Non-Go: no TUI/colors/prompts", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "see TS-NOGO-01 evidence" },
+      { "criterion": "Non-Go: stdlib-only, no third-party deps", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "bin/todo, todo/store.py, todo/commands.py import only argparse/json/os/sys/tempfile" },
+      { "criterion": "TS-INV-01", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "add roundtrip byte-matches expected store JSON" },
+      { "criterion": "TS-ERR-ERR_CORRUPTED_STORE (AddTodo)", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "invalid JSON seed -> exit 1, uniform message" },
+      { "criterion": "TS-REQ-text-missing", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "exit 2, clean usage error" },
+      { "criterion": "TS-INV-05", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "store created at $HOME/.todo.json when TODO_STORE unset" },
+      { "criterion": "TS-INV-04", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "list on missing store -> '(no items)', exit 0" },
+      { "criterion": "TS-ERR-ERR_CORRUPTED_STORE (ListTodos)", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "wrong-shape JSON -> exit 1, uniform message" },
+      { "criterion": "TS-NOGO-01", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "cat -v shows no ANSI escapes" },
+      { "criterion": "TS-INV-02", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "done 2 leaves item1/item3 untouched" },
+      { "criterion": "TS-ERR-ERR_INVALID_INDEX (CompleteTodo)", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "done 9 -> 'error: no item 9 (list has 2 items)'" },
+      { "criterion": "TS-ERR-ERR_CORRUPTED_STORE (CompleteTodo)", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "corrupted store, done 1 -> exit 1 uniform message" },
+      { "criterion": "TS-REQ-n-boundary (CompleteTodo)", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "0/3/abc rejected, 1/2 accepted" },
+      { "criterion": "TS-INV-03", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "rm 2 on 3-item store reindexes correctly" },
+      { "criterion": "TS-ERR-ERR_INVALID_INDEX (RemoveTodo)", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "rm 5 -> 'error: no item 5 (list has 1 items)'" },
+      { "criterion": "TS-ERR-ERR_CORRUPTED_STORE (RemoveTodo)", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "corrupted store, rm 1 -> exit 1 uniform message" },
+      { "criterion": "TS-REQ-n-boundary (RemoveTodo)", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "0/3/xyz rejected, 1 accepted" }
+    ],
+    "refuted": [],
+    "bugs": []
+  }
+}

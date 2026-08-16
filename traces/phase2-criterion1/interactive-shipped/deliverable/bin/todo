@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+"""todo — a tiny CLI task list. Subcommands: add, list, done, rm."""
+import argparse
+import os
+import sys
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from todo import commands, store
+
+
+def build_parser():
+    parser = argparse.ArgumentParser(prog="todo")
+    sub = parser.add_subparsers(dest="subcommand", required=True)
+
+    add_p = sub.add_parser("add")
+    add_p.add_argument("text")
+
+    sub.add_parser("list")
+
+    done_p = sub.add_parser("done")
+    done_p.add_argument("n")
+
+    rm_p = sub.add_parser("rm")
+    rm_p.add_argument("n")
+
+    return parser
+
+
+def main():
+    parser = build_parser()
+    args = parser.parse_args()
+
+    try:
+        path = store.default_store_path()
+        if args.subcommand == "add":
+            commands.add(path, args.text)
+        elif args.subcommand == "list":
+            commands.list_(path)
+        elif args.subcommand == "done":
+            commands.done(path, args.n)
+        elif args.subcommand == "rm":
+            commands.rm(path, args.n)
+    except store.StoreCorruptedError:
+        print(f"error: corrupted store at {path}", file=sys.stderr)
+        sys.exit(1)
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except BrokenPipeError:
+        # Ordinary shell composition (e.g. `todo list | head`) can close the
+        # read end early. Python re-flushes stdout at interpreter shutdown,
+        # which would otherwise raise a second BrokenPipeError and print a
+        # traceback to stderr — redirect fd 1 to devnull first so that
+        # shutdown flush is a silent no-op (see CPython docs, Note on
+        # SIGPIPE).
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, sys.stdout.fileno())
+        sys.exit(1)
+    except OSError as e:
+        print(f"error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

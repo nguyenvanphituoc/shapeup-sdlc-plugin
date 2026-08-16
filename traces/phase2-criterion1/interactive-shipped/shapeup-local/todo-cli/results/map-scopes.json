@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/map-scopes",
+  "worker": "scope-architect",
+  "status": "done",
+  "artifacts": [
+    "shapeup/todo-cli/scopes/scope-cli-core.md",
+    "shapeup/todo-cli/scopes/scope-integration-test.md",
+    "shapeup/todo-cli/scope-board.md"
+  ],
+  "assumptions": [
+    "Followed the frozen task substrate (todo/commands.py with functions add/list_/done/rm, plus bin/todo and todo/store.py) rather than wiring-map.md's per-UC todo/usecases/*.py module names, since the tasks are the actual build surface the scopes verify against.",
+    "scope-integration-test's fixture fixes the test runner as `python3 -m unittest discover` per TASK-007's stated stdlib-only default, since no test framework is installed on this machine (pip3 show pytest returned nothing) and TASK-007 itself leaves the runner choice open.",
+    "All e2e_verification_fixtures were hand-verified locally against a throwaway reference implementation of the CLI before being committed: each fixture exits 0 against a correct implementation and exits non-zero against a deliberately broken one (spot-checked on the done-index-validation fixture)."
+  ],
+  "deviations": [
+    "wiring-map.md declares per-use-case engine modules under todo/usecases/ (add_todo.py, list_todos.py, complete_todo.py, remove_todo.py), but the frozen tasks (TASK-002 through TASK-007) all target a single todo/commands.py module with functions add/list_/done/rm instead. This scope mapping follows the frozen tasks. The wiring-map's module-naming should be reconciled with the tasks by whichever party owns that spine artifact — not something scope-architect can silently resolve or write to (wiring-map.md is outside this order's substrate).",
+    "Sliced the four command use cases (UC-AddTodo, UC-ListTodos, UC-CompleteTodo, UC-RemoveTodo) into a single scope-cli-core rather than four per-command scopes: per-command slicing would give each scope an allowed_file_substrate of exactly ['todo/commands.py'] (all four commands live in one shared file per the frozen tasks), which the spec-lint's PA1 rule correctly flags as directory/file alignment rather than a flow slice. One consolidated scope crossing bin/todo -> todo/commands.py -> todo/store.py is the honest slice for this feature's actual file layout."
+  ],
+  "discoveries": []
+}

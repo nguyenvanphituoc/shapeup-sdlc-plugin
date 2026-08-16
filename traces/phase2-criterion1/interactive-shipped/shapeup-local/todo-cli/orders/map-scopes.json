@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/map-scopes",
+  "run_id": "todo-cli-20260816T084725Z-ddb6d292",
+  "compiled_at": "2026-08-16T09:31:53.186Z",
+  "worker": "scope-architect",
+  "mode": "orchestrated",
+  "operation": "map-scopes",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "shapeup/todo-cli/scopes/*.md",
+      "shapeup/todo-cli/scope-board.md"
+    ],
+    "frozen": [
+      "shapeup/todo-cli/spec/domain-model.md",
+      "shapeup/todo-cli/spec/usecases/*.md#Steps",
+      "shapeup/todo-cli/spec/contracts/**",
+      "shapeup/todo-cli/spec/ux-behavior.md",
+      ".shapeup/todo-cli/tasks/**"
+    ]
+  },
+  "payload": {
+    "feature": "todo-cli",
+    "spec_folder": "shapeup/todo-cli/spec"
+  }
+}
