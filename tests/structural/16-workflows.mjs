@@ -556,6 +556,36 @@ export async function run(ctx) {
     }
   }
 
+  // (p) THE EVALUATE DISPATCH MUST CARRY ITS ROUND, because the resume derivation reads it back.
+  //
+  // `compile` suffixes a non-build order with its round when given one (`evaluate-r2`), and
+  // `probe resume` derives `eval_rounds_done` from `/^evaluate-r\d+\.json$/`. Writer and reader
+  // agreed; only this caller omitted `--round`, so the order was always `evaluate.json` and:
+  //
+  //   • `eval_rounds_done` was ALWAYS [] — every relaunch restarted the round counter at 1, so a
+  //     resumed run re-graded a round it had already paid for and the outer breaker could not trip.
+  //   • round 2's evaluate result OVERWROTE round 1's, leaving a run with only its last envelope.
+  //
+  // Both silent, and invisible inside a single uninterrupted launch because `round` is a local
+  // variable there — which is exactly why only a resumed run would have shown it.
+  for (const f of files) {
+    const src = readFileSync(join(abs, f), "utf8");
+    if (!/operation: "evaluate"/.test(src)) continue;
+    // Isolate the evaluate call's own object literal. A regex spanning from the file's first
+    // `worker({` would swallow every earlier dispatch and find a `round` belonging to one of them —
+    // which is how the first version of this guard passed against the defect it was written for.
+    const call = src.split(/worker\(\{/).slice(1)
+      .map((chunk) => chunk.split(/\n\s*\}\);/)[0])
+      .find((body) => /operation: "evaluate"/.test(body)) || "";
+    if (/\bround,|\bround:\s*round\b/.test(call)) {
+      ok(`${WORKFLOWS_DIR}/${f} passes the round to its evaluate dispatch, so each round's order is addressable`);
+    } else {
+      fail(`${WORKFLOWS_DIR}/${f} dispatches evaluate without its round. The order is then \`evaluate.json\` for every ` +
+        `round: \`eval_rounds_done\` never matches, so a relaunch restarts at round 1, and each round's result ` +
+        `overwrites the last.`);
+    }
+  }
+
   // (m) THE BUILD LOOP MUST CONSUME THE DEPENDENCY WAVES, not the flat scope list.
   //
   // The kernel deriving a correct order buys nothing if the orchestrator chunks around it, and that

@@ -363,15 +363,22 @@ const compact = (payload) =>
  * @param {object} spec - `{skill, operation, payload, schema, phase, label, model, extra}`.
  * @returns {Promise<object>} The validated worker report, or a `__failed` marker.
  */
-async function worker({ skill, operation, payload, schema, phase: phaseName, label, model = execModel, extra = "", compile }) {
+async function worker({ skill, operation, payload, schema, phase: phaseName, label, model = execModel, extra = "", compile, round }) {
   // The compile line is overridable because not every dispatch can be addressed the same way.
   // `--operation <op> --slug <slug>` resolves its worker from `compile`'s OP_OWNER table, which
   // covers the planner/judge/QA operations and NOT `execute`: a build order is addressed by scope,
   // round and attempt, so the generic form exits 2 ("could not resolve --worker/--operation") for
   // exactly the leg that runs most often. It used to be emitted for build legs anyway, contradicted
   // one line later by `extra`'s correct `--scope …` instruction — a prompt arguing with itself.
+  // `--round` when the dispatch belongs to one. `compile` already suffixes the order id with it
+  // (`evaluate-r2`), and `probe resume` already reads `evaluate-r<N>.json` back to learn which EVAL
+  // rounds are done — writer and reader agreed all along and only this caller omitted the flag. The
+  // cost of that omission is two facts, both silent: every relaunch restarted the round counter at
+  // 1, because `eval_rounds_done` could never match `evaluate.json`; and round 2's evaluate result
+  // OVERWROTE round 1's, so a run kept only its last round's envelope.
+  const roundFlag = round ? ` --round ${round}` : "";
   const compileCmd = compile
-    || `compile --operation ${operation} --slug ${slug} --payload '${JSON.stringify(compact(payload))}'`;
+    || `compile --operation ${operation} --slug ${slug}${roundFlag} --payload '${JSON.stringify(compact(payload))}'`;
   const r = await agent(
     `You are running one step of an orchestrated build over feature slug "${slug}".\n\n` +
     `1. Compile the WorkOrder:\n` +
@@ -791,7 +798,7 @@ while (round <= maxRounds) {
   } else {
     const e = await worker({
       skill: "spec-evaluator", operation: "evaluate", schema: EVAL, phase: "Eval", label: `eval:r${round}`,
-      model: evalModel,
+      model: evalModel, round,
       payload: { dimensions: evalDims, run_cmd: rs.run_cmd, round },
       extra: "Evaluate the running feature against every acceptance criterion and Done-when. One feature-level pass; cite the T0 artifact you re-hash yourself.",
     });
