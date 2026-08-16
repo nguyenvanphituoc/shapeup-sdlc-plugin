@@ -3,13 +3,16 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] · the v2 runtime, made to actually run
+## [Unreleased] — becomes 2.0.0 at cut · the native runtime
 
-Every defect below was found by executing the pipeline, not by reading it. None was visible to the
-structural suite, because each one guarded a line no run had ever reached: the fan-out never
-dispatched, so the compile line was never used, so the verdict was never read, so the ratchet was
-never scored on a green tie, so the fix round was never dispatched at all. Each fix ships with a
-guard, and every guard was verified by putting its defect back.
+v2 moves the orchestrator onto the native Dynamic Workflow runtime, and then makes it run. The
+first half is the strip-down (last section below); the rest is what executing it turned up.
+
+Every defect here was found by running the pipeline, not by reading it, and none was visible to the
+structural suite — each guarded a line no run had ever reached. The fan-out never dispatched, so the
+compile line was never used, so the verdict was never read, so the ratchet was never scored on a
+green tie, so the fix round was never dispatched at all. Each fix ships with a guard, and every
+guard was verified by putting its defect back.
 
 ### BUILD had never dispatched a scope
 
@@ -139,7 +142,7 @@ recorded across two full rounds**. The fields are nullable unions now.
 **Smaller, same class.** ORIENT was never told the filenames its own phase-completion check reads.
 The canonical example pitch never stated the store convention its acceptance oracle grades by.
 
-## [2.0.0] — 2026-08-14 · the strip-down
+### The strip-down
 
 **v1.x owned a runtime it was supposed to stand on, and most of its cleverness existed to survive
 that decision.** `run-workflow.mjs` was a 400-line hand re-implementation of the native Dynamic
