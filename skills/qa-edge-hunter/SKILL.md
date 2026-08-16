@@ -33,14 +33,17 @@ tech-lead: ... GATE L2 → EVAL → GATE L3 PASS ──► QA EDGE HUNT (you) �
 |------|----------|
 | Read EVAL-*.md to map covered territory — then hunt OUTSIDE it | Re-probe anything the evaluator already graded |
 | Charter edges via six fixed lenses, minus covered territory | Author or extend `## Test Surface` (that is the planner's retrofit-surface operation) |
-| Execute charters on the **running app** (session-based exploratory) | Read-only speculate from code ("this looks racy") — every finding needs a live repro |
+| Execute charters against the **running deliverable** (session-based exploratory) | Read-only speculate from code ("this looks racy") — every finding needs a live repro |
 | Return each finding in the WorkResult's `discoveries[]`, **always `~`** | Promote `~` → must-have (PO/TL at SHIP S.0; severity-hint is advice, not a decision) |
 | Emit `qa/hunt-report.md` — charters run/cut, findings by lens | Render a verdict, score, or PASS/FAIL of any kind |
 
 Pure worker (harness rule: stateless workers, one stateful orchestrator). Its WorkOrder
 carries `payload.feature`, `payload.spec_folder`, `payload.eval_report`, `payload.app_url`,
 `payload.kb_rules_path`, and `payload.ledger` (the discovery ledger, READ-ONLY — covered-territory
-context so a hunt does not re-report what is already known); its write surface is
+context so a hunt does not re-report what is already known). **`app_url` is null when the
+deliverable is not served over HTTP** — a CLI, a library, a batch job. That is a normal order, not a
+malformed one: drive the built entry point instead, exactly as the Test Surface's process rows do.
+Do not refuse the hunt, and do not invent a URL. Its write surface is
 `.shapeup/<feature>/qa/**` only. The Hunter never touches the discovery ledger itself —
 ingest appends its `discoveries[]` under a `## Discovered` section, preserving single-writer
 mechanically.
@@ -50,7 +53,8 @@ mechanically.
 ## Workflow
 
 ```
-⏸ GATE Q0 │ Preflight ────► hard: app running? EVAL verdict PASS? ledger exists?
+⏸ GATE Q0 │ Preflight ────► hard: deliverable reachable (one real request at `app_url`, or one
+          │                 real invocation of the entry point when it is null)? EVAL PASS? ledger?
           │                 soft: Test Surface present? absent → DEGRADED MODE offer
 Phase Q1  │ Charter Map ──► 6 lenses × UC tree − covered territory (EVAL-probed rows/AC)
 ⏸ GATE Q1 │ Charter Review► PO/TL hammer the charter list (QA's own appetite is fixed too)

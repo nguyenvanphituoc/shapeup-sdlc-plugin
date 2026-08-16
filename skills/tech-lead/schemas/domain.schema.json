@@ -2151,8 +2151,11 @@
           "description": "qa-edge-hunter: the PASS EVAL report — negative-space input; its covered territory is subtracted from charters."
         },
         "app_url": {
-          "type": "string",
-          "description": "qa-edge-hunter: the running app to hunt (one real request at Q0, not a ping)."
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "qa-edge-hunter: the running app to hunt (one real request at Q0, not a ping). NULL for a deliverable that is not served over HTTP — a CLI, a library, a batch job — where Q0 drives the binary instead. It was a bare string, so the first genuinely non-UI run could not compile a QA order at all: the payload carries null, the order fails its own schema, and the hunt is skipped for a reason that looks nothing like 'this deliverable has no URL'."
         },
         "ledger": {
           "type": "string",
