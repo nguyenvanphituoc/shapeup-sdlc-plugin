@@ -52,6 +52,34 @@ export async function run(ctx) {
     } catch (e) { fail(`todo.contract.json does not parse: ${e.message}`); }
   }
 
+  // THE PITCH MUST STATE THE CONVENTION THE ORACLE GRADES AGAINST.
+  //
+  // The oracle seeds `$TODO_STORE` and points the CLI at a throwaway file — that is how it
+  // exercises "corrupted store" and "a seeded store is actually read" without writing to the
+  // developer's own todo list. The reference implementation honours it, in a source comment: "so
+  // the eval oracle can sandbox it". The PITCH said only "a local JSON file".
+  //
+  // So a harness run built a CLI storing at `~/.todo.json` — a perfectly reasonable reading of the
+  // pitch, working correctly under its own convention, with `add/list/done/rm` all correct and a
+  // corrupted store refused by name without destroying data — and the oracle scored it 4/6, because
+  // it could not reach the store it had seeded. Two FAILs that were a contract mismatch, not a
+  // defect, in the file this repo uses to decide whether a run succeeded.
+  //
+  // A requirement that lives only in the grader is a trick question. This asserts the pitch a run is
+  // built from names the same mechanism the grader drives it by.
+  const pitch = join(ROOT, "examples/todo-cli/idea.md");
+  if (existsSync(pitch) && existsSync(contract)) {
+    const usesEnv = /TODO_STORE/.test(read(pitch));
+    const oracleSeeds = /"store"\s*:/.test(read(contract));
+    if (!oracleSeeds || usesEnv) {
+      ok("the todo-cli pitch states the $TODO_STORE convention its own oracle seeds — the grader tests nothing the brief withheld");
+    } else {
+      fail("todo.contract.json seeds a store the pitch never mentions. A run built from idea.md cannot know to read " +
+        "$TODO_STORE, so a correct CLI is graded FAIL on the two criteria that need a sandboxed store — a defect in " +
+        "the acceptance contract, scored against the deliverable.");
+    }
+  }
+
 
   // =============================================================================
   section("8. Evaluation-contract oracle registry (Stage G) is complete & consistent");
