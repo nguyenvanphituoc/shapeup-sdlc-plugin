@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/complete-todo-r2-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-005",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`node bin/todo.js done` (no index) exits 1 with an `E_MISSING_INDEX` message to stderr,",
+          "result": "pass",
+          "evidence": "BUG-03 fix: lib/parse-index.js MissingIndexError message now `missing index`; bin/todo.js cmdDone renders `Error: ${err.message}`. Manual repro: `HOME=/tmp/bugtest node bin/todo.js done` -> stderr `Error: missing index`. node --test test/commands/done.test.js: 12/12 pass."
+        },
+        {
+          "ac": "`node bin/todo.js done abc` exits 1 with an `E_INVALID_INDEX` message to stderr, store",
+          "result": "pass",
+          "evidence": "BUG-03 fix: InvalidIndexError message now `\"<raw>\" is not a valid index`. Manual repro: `done zz` -> stderr `Error: \"zz\" is not a valid index`. done.test.js line 76 updated to assert catalog text, passes."
+        },
+        {
+          "ac": "Below min (`0` or negative): rejected `E_INDEX_OUT_OF_RANGE`",
+          "result": "pass",
+          "evidence": "BUG-03 fix: IndexOutOfRangeError message now `no todo at index <n>`. Manual repro: `done 7` on 1-item store -> stderr `Error: no todo at index 7`. done.test.js lines 135/137/148/159 updated to assert catalog text, all pass."
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "lib/parse-index.js", "change": "modified" },
+    { "path": "bin/todo.js", "change": "modified" },
+    { "path": "test/commands/done.test.js", "change": "modified" }
+  ],
+  "discoveries": [
+    { "marker": "+", "line": "lib/todo-repository.js:50 prints the expanded absolute store path instead of the catalog's literal `~/.todo.json` in the E_STORE_CORRUPTED message (BUG-03 related cosmetic) — file is outside this scope's substrate, not fixed here" },
+    { "marker": "+", "line": "bin/todo.js cmdRm (line ~106) still renders `Error: ${err.code} - ${err.message}` for done/rm's shared parseIndex errors, so `rm`'s stderr does not yet match the ux-behavior.md Error Catalog sentence either — left untouched since `rm` belongs to a different scope and test/commands/rm.test.js (which asserts the old code-substring format) is outside this order's substrate" }
+  ],
+  "assumptions": [
+    "BUG-03's cited fix is scoped to the `done` command owned by this scope (TASK-005/UC-CompleteTodo); the identical drift in `rm`'s rendering at bin/todo.js is left as-is because rm.test.js is not in this order's substrate and changing shared error-class messages already flows the corrected catalog text into rm's `E_CODE - message` format without breaking its existing code-substring regex assertions",
+    "Catalog match is judged on stderr containing the exact catalog sentence, not full-string equality, matching how test/commands/done.test.js already asserts via regex"
+  ],
+  "deviations": []
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/map-scopes",
+  "worker": "scope-architect",
+  "status": "done",
+  "artifacts": [
+    "shapeup/todo-cli/scopes/foundation.md",
+    "shapeup/todo-cli/scopes/add-todo.md",
+    "shapeup/todo-cli/scopes/list-todos.md",
+    "shapeup/todo-cli/scopes/complete-todo.md",
+    "shapeup/todo-cli/scopes/remove-todo.md",
+    "shapeup/todo-cli/scopes/cli-integration-test.md",
+    "shapeup/todo-cli/scope-board.md"
+  ],
+  "deviations": [
+    "wiring-map.md (solution-architect, prior order) proposed per-UC engine files (src/usecases/add-todo.js etc.) plus src/repositories/todo-repository.js, explicitly flagged as inferred/proposed names since the repo was greenfield at that point. The already-committed shapeup/todo-cli/scope-board.md (present before this order ran) instead reflects an inline-dispatch shape -- bin/todo.js holds all four command branches directly, with lib/todo-repository.js and a shared lib/parse-index.js helper -- matching what the task execution logs (.shapeup/todo-cli/tasks/TASK-001..007) actually record as built (cmdAdd/cmdList/cmdDone/cmdRm functions inside bin/todo.js). This slicing follows the committed scope-board.md/task-log shape (lib/, inline dispatch) rather than the wiring-map's proposed src/usecases/ layout, since the latter was marked assumption-only and the former is the substrate already in use. No re-wire is required either way -- all four use cases still attach to bin/todo.js as the sole composition root.",
+    "scope-board.md already existed in the substrate before this order (topology table, riskiest-first sequence, and shared-substrate table were pre-committed); this order verified it against the newly-written scope contracts rather than regenerating it, since its content matched exactly (6 scopes, same topology_type per scope, same shared_substrate entries for bin/todo.js and lib/parse-index.js) -- no edit was needed to keep it in sync."
+  ]
+}

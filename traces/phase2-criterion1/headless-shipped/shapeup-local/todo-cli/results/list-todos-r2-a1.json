@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/list-todos-r2-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-004",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`node bin/todo.js list` on a missing store prints `No todos yet.` to stdout and exits 0",
+          "result": "pass",
+          "evidence": "node --test test/commands/list.test.js -> 'list on missing store prints \"No todos yet.\" and exits 0' passed"
+        },
+        {
+          "ac": "`node bin/todo.js list` with items prints one line per item, 1-based:",
+          "result": "pass",
+          "evidence": "node --test test/commands/list.test.js -> 'list with items prints one line per item, 1-based, in store order' passed"
+        },
+        {
+          "ac": "`list` never writes to `~/.todo.json` (read-only) under any input, including a corrupted",
+          "result": "pass",
+          "evidence": "node --test test/commands/list.test.js -> 'list never writes to the store, even for a corrupted store' passed (file contents byte-identical before/after)"
+        },
+        {
+          "ac": "Empty result (missing file OR file containing `[]`): prints `No todos yet.`, exit 0 — both",
+          "result": "pass",
+          "evidence": "node --test test/commands/list.test.js -> 'list on store containing [] prints \"No todos yet.\" and exits 0, identical to missing store' passed"
+        },
+        {
+          "ac": "No crash when an item's `done` field is unexpectedly missing/undefined on a hand-edited",
+          "result": "pass",
+          "evidence": "node --test test/commands/list.test.js -> 'list does not crash when an item is missing the done field, treats it as falsy' passed"
+        }
+      ]
+    }
+  ],
+  "files_touched": [],
+  "discoveries": [],
+  "assumptions": [
+    "Order carried no payload.bugs and the existing bin/todo.js list implementation already satisfies every AC per prior execution logs; no code changes were made, only re-verification via node --test test/commands/list.test.js (5/5 passed)."
+  ],
+  "deviations": []
+}

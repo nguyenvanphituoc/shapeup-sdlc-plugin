@@ -1,0 +1,35 @@
+{
+  "schema_version": 2,
+  "round": 2,
+  "attempt": 1,
+  "trial": 3,
+  "at": "2026-08-16T03:26:18.473Z",
+  "run_id": "todo-cli-20260815T171521Z-b135247d",
+  "scope_id": "list-todos",
+  "fixtures": [
+    {
+      "cmd": "node --test test/commands/list.test.js",
+      "exit": 0,
+      "pass": true
+    }
+  ],
+  "db_probe": null,
+  "seesaw": {
+    "ran": false,
+    "pass": true,
+    "scopes_checked": [],
+    "failing": []
+  },
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "seesaw_green": true,
+  "overall": "green",
+  "regression": false,
+  "score": {
+    "regressions": 0,
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": []
+}

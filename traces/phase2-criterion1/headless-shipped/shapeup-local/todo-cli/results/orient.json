@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/orient",
+  "worker": "orient",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/todo-cli/orient/code-surface.md",
+    ".shapeup/todo-cli/orient/spike-store-parsing.md",
+    ".shapeup/todo-cli/orient/discovered-seed.md",
+    ".shapeup/todo-cli/orient/hill-signal.md"
+  ],
+  "assumptions": [
+    "Repo is greenfield (no package.json, bin/, src/) confirmed via `git ls-files` and directory listing; the code surface is entirely NEW, not an extension of existing modules.",
+    "Treated intake.md (small-batch appetite + explicit no-gos) as the kicked-off pitch per GATE O-A's appetite-and-boundaries test, since it lacks a formal 'status: shaped / bet:' frontmatter.",
+    "Spike ran as a throwaway Node probe in /tmp (outside the repo and outside this order's substrate) since there is no production code yet to spike inside; the probe was deleted after use and left no artifact besides the write-up.",
+    "Store file location, corrupted-file recovery policy, exit-code convention, and 1-based/0-based indexing convention are left as open decisions for ba to pin down in the spec, not resolved unilaterally by orient."
+  ],
+  "deviations": []
+}

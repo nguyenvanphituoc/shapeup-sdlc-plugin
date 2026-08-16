@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/wire",
+  "run_id": "todo-cli-20260815T171521Z-b135247d",
+  "compiled_at": "2026-08-15T17:41:17.524Z",
+  "worker": "solution-architect",
+  "mode": "orchestrated",
+  "operation": "wire",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "shapeup/todo-cli/wiring-map.md"
+    ],
+    "frozen": [
+      "shapeup/todo-cli/spec/domain-model.md",
+      "shapeup/todo-cli/spec/usecases/*.md#Steps",
+      "shapeup/todo-cli/spec/contracts/**",
+      "shapeup/todo-cli/spec/ux-behavior.md",
+      "shapeup/todo-cli/scopes/**",
+      "shapeup/todo-cli/project-profile.md"
+    ]
+  },
+  "payload": {
+    "feature": "todo-cli",
+    "spec_folder": "shapeup/todo-cli/spec/",
+    "project_profile": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-final/shapeup/todo-cli/project-profile.md"
+  }
+}

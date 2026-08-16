@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/add-todo-r2-a1",
+  "run_id": "todo-cli-20260815T171521Z-b135247d",
+  "compiled_at": "2026-08-16T03:25:50.804Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "bin/todo.js",
+      "test/commands/add.test.js",
+      ".shapeup/todo-cli/spikes/**"
+    ],
+    "shared": [
+      "bin/todo.js"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "type": "scope-contract",
+      "scope_id": "add-todo",
+      "feature": "todo-cli",
+      "topology_type": "LAYER_CAKE",
+      "tasks": [
+        "TASK-003"
+      ],
+      "allowed_file_substrate": [
+        "bin/todo.js",
+        "test/commands/add.test.js"
+      ],
+      "shared_substrate": [
+        "bin/todo.js"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN",
+      "e2e_verification_fixtures": [
+        "node --test test/commands/add.test.js"
+      ],
+      "affordance_manifest": [
+        {
+          "test_id": "todo-add-command",
+          "role": "cli-command",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "`<text>` present (non-empty after trim) → appends item, prints `Added: \"N) <text>\"` to stdout, exit 0",
+          "error": "missing/blank `<text>` → `Error: missing todo text` to stderr, exit 1 (`E_MISSING_TEXT`); corrupted store → corrupted-store message to stderr, exit 1, no write",
+          "empty": "first `add` on a missing/empty store creates the store with exactly one item"
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "TASK-003",
+        "title": "Implement `todo add <text>` command",
+        "status": "done",
+        "priority": 3,
+        "depends_on": [
+          "TASK-002"
+        ],
+        "use_case_refs": [
+          "UC-AddTodo"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-final/.shapeup/todo-cli/tasks/TASK-003-add-command.md",
+        "acceptance_criteria": [
+          "`node bin/todo.js add \"buy milk\"` on an empty/missing store exits 0, prints",
+          "A second `add` appends (does not overwrite) — running `add` twice results in 2 items in",
+          "`node bin/todo.js add` (no text) exits 1, prints an `E_MISSING_TEXT` message to stderr, and",
+          "`node bin/todo.js add \"   \"` (whitespace-only) is treated the same as missing text",
+          "Text is stored trimmed (leading/trailing whitespace removed, interior whitespace preserved)"
+        ]
+      }
+    ],
+    "trial_history": [
+      {
+        "schema_version": 1,
+        "trial": 2,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "add-todo",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      }
+    ],
+    "bugs": [
+      {
+        "id": "BUG-01",
+        "severity": "high",
+        "criterion": "UC-AddTodo Error Case E_STORE_WRITE_FAILED / ux-behavior global convention 'never a bare stack trace'",
+        "location": "bin/todo.js:27",
+        "repro": "H=/tmp/x; mkdir -p $H; HOME=$H node bin/todo.js add seed; chmod 444 $H/.todo.json; chmod 555 $H; HOME=$H node bin/todo.js add second",
+        "expected": "stderr `Error: could not save todo store: <reason>`, exit 1",
+        "actual": "exit 1 with an uncaught StoreWriteError and a full Node stack trace (lib/todo-repository.js:65 -> bin/todo.js:27). cmdDone (bin/todo.js:73) and cmdRm (bin/todo.js:105) wrap save() correctly; cmdAdd does not."
+      },
+      {
+        "id": "BUG-02",
+        "severity": "medium",
+        "criterion": "UC-CompleteTodo Steps 2-4 and UC-RemoveTodo Steps 2-4 (index parsed before load; E_MISSING_INDEX = no store access)",
+        "location": "bin/todo.js:53, bin/todo.js:85",
+        "repro": "H=/tmp/y; mkdir -p $H; printf '{{bad' > $H/.todo.json; HOME=$H node bin/todo.js done; HOME=$H node bin/todo.js done abc; HOME=$H node bin/todo.js rm; HOME=$H node bin/todo.js rm abc",
+        "expected": "`Error: missing index` for the bare form and `Error: \"abc\" is not a valid index` for the bad-index form - the store is never read",
+        "actual": "all four print `Error: todo store is corrupted (...)`; the store is read on a path the spec says must not touch it and the user is told the wrong thing is wrong"
+      },
+      {
+        "id": "BUG-03",
+        "severity": "medium",
+        "criterion": "ux-behavior#Error-Catalog user-message column for E_MISSING_INDEX, E_INVALID_INDEX, E_INDEX_OUT_OF_RANGE",
+        "location": "lib/parse-index.js:5, lib/parse-index.js:13, lib/parse-index.js:21 (rendered by bin/todo.js:66 and bin/todo.js:98)",
+        "repro": "1-item store, then: node bin/todo.js done | node bin/todo.js done zz | node bin/todo.js done 7",
+        "expected": "`Error: missing index` / `Error: \"zz\" is not a valid index` / `Error: no todo at index 7`",
+        "actual": "`Error: E_MISSING_INDEX - index is required` / `Error: E_INVALID_INDEX - invalid index: \"zz\"` / `Error: E_INDEX_OUT_OF_RANGE - index 7 out of range (1-1)`. The drift is invisible to the suite because test/commands/done.test.js:65,76,100,135,148,159 and test/commands/rm.test.js:46,56,109,119,129,138 assert only the error code regex, never the catalog sentence. Related cosmetic: lib/todo-repository.js:50 prints the expanded absolute path where the catalog shows ~/.todo.json."
+      }
+    ],
+    "spec_folder": "shapeup/todo-cli/spec",
+    "feature": "todo-cli",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

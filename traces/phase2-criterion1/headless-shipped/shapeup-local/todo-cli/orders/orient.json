@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/orient",
+  "run_id": "todo-cli-20260815T171521Z-b135247d",
+  "compiled_at": "2026-08-15T17:27:37.323Z",
+  "worker": "orient",
+  "mode": "orchestrated",
+  "operation": "orient",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      ".shapeup/todo-cli/orient/**"
+    ],
+    "frozen": [
+      "shapeup/todo-cli/spec/**"
+    ]
+  },
+  "payload": {
+    "pitch": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-final/.shapeup/todo-cli/intake.md",
+    "spec_folder": "shapeup/todo-cli/spec/",
+    "feature": "todo-cli"
+  }
+}

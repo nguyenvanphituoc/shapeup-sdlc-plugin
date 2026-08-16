@@ -422,6 +422,31 @@ export async function cli(rawArgv) {
   const orderPath = args.order ? resolve(args.order) : orderFor(file);
   let order = null;
   if (orderPath) { try { order = JSON.parse(readFileSync(orderPath, "utf8")); } catch { order = null; } }
+
+  // --- identity gate --------------------------------------------------------------------------
+  // A RESULT MUST CLAIM THE ORDER IT IS ANSWERING. `order_id` is the only join in the record set:
+  // a WorkResult deliberately carries no `run_id` and reaches it through this field, so a result
+  // that echoes the wrong id is not mislabelled, it is DETACHED — from its run, its round, and the
+  // order whose receipt attests it.
+  //
+  // Measured on a two-round run: round 1's evaluate order was `todo-cli/evaluate-r1` and its result
+  // came back claiming `todo-cli/evaluate`, an order that has never existed. Everything downstream
+  // still looked right, because the FILE is named after the order — only the run graph disagreed,
+  // and only because it keys nodes off the envelope rather than the filename. Round 2's ids matched,
+  // so a single-round run cannot show this at all.
+  //
+  // The ORDER is authoritative: it is the compiled artifact, and the result is a reply to it. But
+  // this refuses rather than rewriting, because silently normalising a worker's output is how the
+  // drift becomes permanent and invisible — the same reason ingest refuses a malformed envelope
+  // instead of repairing one.
+  if (order && String(result.order_id) !== String(order.order_id)) {
+    console.error(`ingest-result: result refused — it answers order "${order.order_id}" but claims`);
+    console.error(`  order_id "${result.order_id}". A result reaches its run through this field and`);
+    console.error(`  nothing else, so an id that names a different order (or none) detaches the record`);
+    console.error(`  from the run that produced it. Correct the result's order_id to match its order.`);
+    process.exit(1);
+  }
+
   if (order?.mode === "orchestrated" && !args.noReceiptCheck) {
     const att = attestation(order, cwd);
     if (!att.ok) {

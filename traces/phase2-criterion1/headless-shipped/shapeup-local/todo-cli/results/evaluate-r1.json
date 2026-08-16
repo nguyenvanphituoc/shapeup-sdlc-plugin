@@ -1,0 +1,293 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/evaluate",
+  "worker": "spec-evaluator",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/todo-cli/evaluation/EVAL-FEATURE-todo-cli.md"
+  ],
+  "verdict": {
+    "overall": "FAIL",
+    "report_path": ".shapeup/todo-cli/evaluation/EVAL-FEATURE-todo-cli.md",
+    "t0_citations": [
+      {
+        "scope_id": "foundation",
+        "path": ".shapeup/todo-cli/t0/verdicts/r1-a1-t1.json",
+        "sha256": "c5674059c7bd6280ae87ff66c62374b700558153742bd27a412bea1477b1dee6"
+      },
+      {
+        "scope_id": "add-todo",
+        "path": ".shapeup/todo-cli/t0/verdicts/r1-a1-t2.json",
+        "sha256": "3677f5c89c0bf456310ac7d67f1f59b6de971d6171e60ac59a12c0e145959ae6"
+      },
+      {
+        "scope_id": "complete-todo",
+        "path": ".shapeup/todo-cli/t0/verdicts/r1-a1-t3.json",
+        "sha256": "0b8635d7dd500bf0d7f16da507b78fb93489a1b608822b367a7c4922e20909d1"
+      },
+      {
+        "scope_id": "list-todos",
+        "path": ".shapeup/todo-cli/t0/verdicts/r1-a1-t4.json",
+        "sha256": "21d4821e80315f2cd3cdeadf7b8959fd15709c71db459919e14d06e755d057f5"
+      },
+      {
+        "scope_id": "remove-todo",
+        "path": ".shapeup/todo-cli/t0/verdicts/r1-a1-t5.json",
+        "sha256": "762d76ea08c1719d0cdf8033c5d9fa2bd2c1d165dafc2620db859db40f1d0d70"
+      },
+      {
+        "scope_id": "cli-integration-test",
+        "path": ".shapeup/todo-cli/t0/verdicts/r1-a1-t6.json",
+        "sha256": "2fe1781cf5dc3f7dcd50b99e3a2d87dc5f76f4ed679c2b8ba8a493c22d6b347c"
+      }
+    ],
+    "criteria": [
+      {
+        "criterion": "UC-AddTodo Error Case E_STORE_WRITE_FAILED - stderr message + exit 1, never a bare stack trace (ux-behavior Global convention)",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "repo.save() is not wrapped in try/catch at bin/todo.js:27 (cmdDone bin/todo.js:73 and cmdRm bin/todo.js:105 both are). Probe: HOME=/tmp/rp1b with chmod 444 store + chmod 555 dir, `node bin/todo.js add second` -> exit 1 with an uncaught StoreWriteError stack trace naming lib/todo-repository.js:65 and bin/todo.js:27, instead of `Error: could not save todo store: <reason>`. Reproduced identically on re-probe."
+      },
+      {
+        "criterion": "UC-CompleteTodo Steps 2-4 - index validated before TodoRepository.load(); E_MISSING_INDEX handling states 'no store access attempted'",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "cmdDone calls repo.load() at bin/todo.js:53 before parseIndex at bin/todo.js:64, inverting spec step order. Probe: corrupted store `{{bad` + `node bin/todo.js done` -> `Error: todo store is corrupted (...)` instead of the spec's E_MISSING_INDEX; `done abc` likewise yields E_STORE_CORRUPTED instead of E_INVALID_INDEX. Reproduced on re-probe."
+      },
+      {
+        "criterion": "UC-RemoveTodo Steps 2-4 - index validated before TodoRepository.load(); E_MISSING_INDEX handling states 'no store access attempted'",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "cmdRm calls repo.load() at bin/todo.js:85 before parseIndex at bin/todo.js:96. Probe: corrupted store + `node bin/todo.js rm` and `rm abc` both print `Error: todo store is corrupted (...)` instead of E_MISSING_INDEX / E_INVALID_INDEX. Reproduced on re-probe."
+      },
+      {
+        "criterion": "ux-behavior#Error-Catalog E_MISSING_INDEX user message is `Error: missing index`",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "MissingIndexError message is 'index is required' at lib/parse-index.js:5, rendered as `Error: ${err.code} - ${err.message}` by bin/todo.js:66. Probe: 1-item store + `node bin/todo.js done` -> `Error: E_MISSING_INDEX - index is required`, not `Error: missing index`. Reproduced on re-probe."
+      },
+      {
+        "criterion": "ux-behavior#Error-Catalog E_INVALID_INDEX user message is `Error: \"<n>\" is not a valid index`",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "InvalidIndexError message is `invalid index: \"<raw>\"` at lib/parse-index.js:13. Probe: `node bin/todo.js done zz` -> `Error: E_INVALID_INDEX - invalid index: \"zz\"`, not `Error: \"zz\" is not a valid index`. Reproduced on re-probe."
+      },
+      {
+        "criterion": "ux-behavior#Error-Catalog E_INDEX_OUT_OF_RANGE user message is `Error: no todo at index <n>`",
+        "dimension": "spec-conformance",
+        "verdict": "FAIL",
+        "confidence": "high",
+        "reprobed": true,
+        "evidence": "IndexOutOfRangeError message is `index <n> out of range (1-<len>)` at lib/parse-index.js:21. Probe: 1-item store + `node bin/todo.js done 7` -> `Error: E_INDEX_OUT_OF_RANGE - index 7 out of range (1-1)`, not `Error: no todo at index 7`. Reproduced on re-probe."
+      },
+      {
+        "criterion": "UC-ListTodos INV-04 / TS-INV-04 - missing store file prints `No todos yet.` with exit 0, never an error",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "evidence": "HOME=/tmp/evh (no store file) + `node bin/todo.js list` -> stdout `No todos yet.`, exit 0"
+      },
+      {
+        "criterion": "UC-ListTodos Step 3 - each item printed as `N) [ ] text` / `N) [x] text`, 1-based, in store order",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "evidence": "after add \"buy milk\", add \"write spec\", done 2: stdout `1) [ ] buy milk` / `2) [x] write spec`, exit 0"
+      },
+      {
+        "criterion": "UC-ListTodos INV-03 / TS-INV-03b - list never mutates the store, including a corrupted store",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "evidence": "store containing `not json{{` is byte-identical after a failed `list` (exit 1); no write path exists in cmdList"
+      },
+      {
+        "criterion": "UC-ListTodos TS-NOGO-02 - output is plain text only, no ANSI colour or cursor-control escapes",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "evidence": "od -c of `todo list` stdout = `1 ) [ ] a n s i t e s t \\n` - zero escape bytes"
+      },
+      {
+        "criterion": "UC-AddTodo Steps 4-6 - appends { text, done:false } and reports the new 1-based position",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "evidence": "`Added: \"1) buy milk\"` then `Added: \"2) write spec\"`; store = [{\"text\":\"buy milk\",\"done\":false},...]"
+      },
+      {
+        "criterion": "UC-AddTodo INV-02 / TS-INV-02 - add only appends, never overwrites or reorders",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "evidence": "three adds produce [{a},{b},{c}] in insertion order; subsequent list shows the same order"
+      },
+      {
+        "criterion": "UC-AddTodo E_MISSING_TEXT / TS-ERR-E_MISSING_TEXT - missing or whitespace-only text rejected, exit 1, no store created",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "evidence": "`todo add` and `todo add \"   \"` -> stderr `Error: missing todo text (E_MISSING_TEXT)`, exit 1, no store file created (message is a superset of the catalog's `Error: missing todo text`)"
+      },
+      {
+        "criterion": "UC-AddTodo INV-01 / TS-INV-01 - a failed add leaves the store byte-for-byte unchanged",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "evidence": "read-only store + `add \"y\"` (which crashes, see FAIL above) leaves the file as [{\"text\":\"seed\",\"done\":false}]"
+      },
+      {
+        "criterion": "todo-repository.contract load() - invalid JSON throws StoreCorruptedError; exit 1; file never auto-overwritten",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "evidence": "all four commands against `not json{{` print `Error: todo store is corrupted (...) - fix or delete the file`, exit 1; file unchanged afterwards"
+      },
+      {
+        "criterion": "todo-repository.contract load() - contents that parse but are not an array are treated as corruption, not coerced",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "evidence": "store `{\"a\":1}` + `todo list` -> corrupted-store message, exit 1"
+      },
+      {
+        "criterion": "todo-repository.contract save() - no partial write; prior on-disk contents preserved when the write fails",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "evidence": "after three EACCES-failed writes (add/done/rm) the store is still [{\"text\":\"seed\",\"done\":false}]"
+      },
+      {
+        "criterion": "UC-CompleteTodo INV-06 / TS-INV-06 - done <n> is idempotent, same success output and exit 0 both times",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "evidence": "`done 2` twice -> both exit 0, both stdout `Done: \"2) write spec\"`, item stays done:true"
+      },
+      {
+        "criterion": "UC-CompleteTodo/UC-RemoveTodo Step 3 + RULE-05 - strict integer parse, never bare Number()/parseInt() coercion",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "evidence": "`abc`, `2.5`, `3abc` and `\"\"` are all rejected as E_INVALID_INDEX; the empty string is not coerced to 0 (lib/parse-index.js INTEGER_RE)"
+      },
+      {
+        "criterion": "TS-REQ-index-boundary (done + rm) - 0 and length+1 rejected out-of-range; 1 and length accepted",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "evidence": "3-item store: `done 0` and `done 4` exit 1 out-of-range; `done 1` and `done 3` exit 0; same pattern for rm"
+      },
+      {
+        "criterion": "UC-CompleteTodo INV-05 / UC-RemoveTodo INV-07 - a failed done/rm never mutates the store",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "evidence": "store byte-identical after done 0, done 4, rm, rm abc, rm 0, rm 9"
+      },
+      {
+        "criterion": "UC-RemoveTodo INV-08 / TS-INV-08 - removal shifts later items left and alters no item's text/done",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "evidence": "[buy milk, write spec] + `rm 1` -> `Removed: \"1) buy milk\"`, list shows `1) [x] write spec` with text and done preserved"
+      },
+      {
+        "criterion": "ux-behavior#Error-Catalog E_UNKNOWN_COMMAND - `Error: unknown command \"<cmd>\". Usage: todo <add|list|done|rm> ...`",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "evidence": "`todo bogus` -> exactly that string on stderr, exit 1; bare `todo` -> usage line, exit 1"
+      },
+      {
+        "criterion": "_index.md Non-Go - no TUI, colours, or interactive prompts (TS-NOGO-01/03/04)",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "evidence": "no escape bytes in list output; `add`, `done`, `rm` with missing args exit 1 immediately without reading stdin; `rm 1` deletes with no confirmation prompt"
+      },
+      {
+        "criterion": "_index.md Non-Go - no config file or flag for the store location; path fixed to ~/.todo.json",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "evidence": "lib/todo-repository.js storePath() returns path.join(os.homedir(), '.todo.json') with no env or flag override; store observed created at $HOME/.todo.json"
+      },
+      {
+        "criterion": "_index.md Non-Go - no sync/server/accounts and no persisted item ids beyond array position",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "evidence": "on-disk store is a bare array of {text,done} with no id field; no network or server code anywhere in bin/ or lib/"
+      }
+    ],
+    "refuted": [],
+    "bugs": [
+      {
+        "id": "BUG-01",
+        "severity": "high",
+        "criterion": "UC-AddTodo Error Case E_STORE_WRITE_FAILED / ux-behavior global convention 'never a bare stack trace'",
+        "location": "bin/todo.js:27",
+        "repro": "H=/tmp/x; mkdir -p $H; HOME=$H node bin/todo.js add seed; chmod 444 $H/.todo.json; chmod 555 $H; HOME=$H node bin/todo.js add second",
+        "expected": "stderr `Error: could not save todo store: <reason>`, exit 1",
+        "actual": "exit 1 with an uncaught StoreWriteError and a full Node stack trace (lib/todo-repository.js:65 -> bin/todo.js:27). cmdDone (bin/todo.js:73) and cmdRm (bin/todo.js:105) wrap save() correctly; cmdAdd does not."
+      },
+      {
+        "id": "BUG-02",
+        "severity": "medium",
+        "criterion": "UC-CompleteTodo Steps 2-4 and UC-RemoveTodo Steps 2-4 (index parsed before load; E_MISSING_INDEX = no store access)",
+        "location": "bin/todo.js:53, bin/todo.js:85",
+        "repro": "H=/tmp/y; mkdir -p $H; printf '{{bad' > $H/.todo.json; HOME=$H node bin/todo.js done; HOME=$H node bin/todo.js done abc; HOME=$H node bin/todo.js rm; HOME=$H node bin/todo.js rm abc",
+        "expected": "`Error: missing index` for the bare form and `Error: \"abc\" is not a valid index` for the bad-index form - the store is never read",
+        "actual": "all four print `Error: todo store is corrupted (...)`; the store is read on a path the spec says must not touch it and the user is told the wrong thing is wrong"
+      },
+      {
+        "id": "BUG-03",
+        "severity": "medium",
+        "criterion": "ux-behavior#Error-Catalog user-message column for E_MISSING_INDEX, E_INVALID_INDEX, E_INDEX_OUT_OF_RANGE",
+        "location": "lib/parse-index.js:5, lib/parse-index.js:13, lib/parse-index.js:21 (rendered by bin/todo.js:66 and bin/todo.js:98)",
+        "repro": "1-item store, then: node bin/todo.js done | node bin/todo.js done zz | node bin/todo.js done 7",
+        "expected": "`Error: missing index` / `Error: \"zz\" is not a valid index` / `Error: no todo at index 7`",
+        "actual": "`Error: E_MISSING_INDEX - index is required` / `Error: E_INVALID_INDEX - invalid index: \"zz\"` / `Error: E_INDEX_OUT_OF_RANGE - index 7 out of range (1-1)`. The drift is invisible to the suite because test/commands/done.test.js:65,76,100,135,148,159 and test/commands/rm.test.js:46,56,109,119,129,138 assert only the error code regex, never the catalog sentence. Related cosmetic: lib/todo-repository.js:50 prints the expanded absolute path where the catalog shows ~/.todo.json."
+      },
+      {
+        "id": "BUG-04",
+        "severity": "medium",
+        "criterion": "project verification entry point (not a UC criterion - reported, does not drive the verdict)",
+        "location": "package.json:9",
+        "repro": "npm test",
+        "expected": "the whole test suite runs",
+        "actual": "exit 1, `Error: Cannot find module '.../phase2-todo-cli-final/test'` - on Node v24.15.0 `node --test test/` resolves the directory as a module path. Fix shape: `node --test \"test/**/*.test.js\"`."
+      },
+      {
+        "id": "BUG-05",
+        "severity": "low",
+        "criterion": "foundation scope e2e_verification_fixtures (T0 drift - reported, does not drive the verdict)",
+        "location": "test/bin-scaffold.test.js:39",
+        "repro": "node --test test/bin-scaffold.test.js",
+        "expected": "green, as recorded in t0/verdicts/r1-a1-t1.json (2/2 fixtures)",
+        "actual": "pass 6 / fail 1 - 'node bin/todo.js list reaches its stub branch without throwing' asserts exit === 1 but list now correctly exits 0 (TASK-004 replaced the stub). The product is right and the test is stale, but the foundation scope contract's declared fixture is red at feature level."
+      }
+    ]
+  },
+  "assumptions": [
+    "The order carried no run_cmd. This is a non-UI CLI with a single entry point (package.json bin -> ./bin/todo.js), so every probe invoked `node bin/todo.js <args>` directly rather than escalating.",
+    "Store isolation was achieved by setting HOME per invocation, since lib/todo-repository.js:32 resolves the store via os.homedir(); Node honours $HOME on this platform (verified: HOME=/tmp/ev1 node -e \"os.homedir()\" -> /tmp/ev1).",
+    "The order listed no t0_artifacts, but the six per-scope verdicts exist on disk and their sha256 values were recomputed by this evaluator and matched t0/trials.jsonl exactly; they are cited on that basis."
+  ],
+  "deviations": [
+    "Spec defect surfaced, not silently passed: the success-message format is self-contradictory across committed docs. ux-behavior#done-command specifies `Done: N) <text>` (unquoted) while UC-CompleteTodo's System Flow specifies `Done: \"2) buy milk\"` (quoted); same split for rm. The build emits the quoted UC form. Graded against the UC as the designated source of truth, so no FAIL was recorded - but the two documents must be reconciled or this stays an arbitrary judgement call.",
+    "Tolerance recorded: E_MISSING_TEXT prints `Error: missing todo text (E_MISSING_TEXT)` where the catalog says `Error: missing todo text`. Counted PASS as a superset containing the required sentence; if BUG-03 is fixed by dropping code prefixes, align this for symmetry.",
+    "An early probe ran before HOME isolation was confirmed and wrote ~/.todo.json in the real home directory. It was detected immediately, contained only probe data, and was deleted; all subsequent probes set HOME inline per invocation."
+  ]
+}

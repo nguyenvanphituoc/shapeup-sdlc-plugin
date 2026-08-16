@@ -583,6 +583,32 @@ export async function run(ctx) {
         ok("a positionally-named result is held to the same attestation — omitting --order is not an escape");
       else fail(`the positional ingest path skipped the attestation gate (exit ${a6.status})\n${a6.stdout}${a6.stderr}`);
 
+      // --- the identity gate ---------------------------------------------------------------
+      // A RESULT MUST CLAIM THE ORDER IT ANSWERS. `order_id` is the only join in the record set —
+      // a WorkResult carries no `run_id` and reaches it through this field — so a result echoing
+      // the wrong id is not mislabelled, it is detached from its run and its round.
+      //
+      // Observed on a live two-round run: the round-1 evaluate order was `todo-cli/evaluate-r1`
+      // and its result came back claiming `todo-cli/evaluate`, an order that has never existed.
+      // Nothing downstream complained, because the result FILE is named after the order; only the
+      // run graph disagreed, and only because it keys nodes off the envelope rather than the
+      // filename. Round 2's ids matched, so a single-round run cannot surface this at all.
+      w(".shapeup/demo/orders/ident.json", JSON.stringify(attOrder({ order_id: "demo/ident-r1" })));
+      w(".shapeup/demo/receipts/dispatch.jsonl", attReceipt({ order_id: "demo/ident-r1" }));
+      w(".shapeup/demo/results/ident.json", JSON.stringify({ ...attResult, order_id: "demo/ident" }));
+      const i1 = spawnSync("node", [...K("reduce ingest"), "--order", join(d, ".shapeup/demo/orders/ident.json"), "--cwd", d], { encoding: "utf8" });
+      if (i1.status === 1 && /claims/.test(i1.stderr) && /demo\/ident-r1/.test(i1.stderr)) {
+        ok("ingest REFUSES a result whose order_id names a different order than the one it answers");
+      } else {
+        fail(`ingest accepted a result claiming the wrong order_id (exit ${i1.status}) — the record ` +
+          `joins to nothing, so its run and round are lost\n${i1.stdout}${i1.stderr}`);
+      }
+      // The positive, so a gate that refuses everything cannot pass the check above.
+      w(".shapeup/demo/results/ident.json", JSON.stringify({ ...attResult, order_id: "demo/ident-r1" }));
+      const i2 = spawnSync("node", [...K("reduce ingest"), "--order", join(d, ".shapeup/demo/orders/ident.json"), "--cwd", d], { encoding: "utf8" });
+      if (i2.status === 0) ok("ingest ACCEPTS a result whose order_id matches its order");
+      else fail(`ingest refused a correctly-identified result (exit ${i2.status})\n${i2.stdout}${i2.stderr}`);
+
       // Non-regression, stated rather than assumed: a standalone order is not held to any of this.
       w(".shapeup/demo/orders/solo.json", JSON.stringify(attOrder({ order_id: "demo/solo", mode: "standalone" })));
       w(".shapeup/demo/results/solo.json", JSON.stringify({ ...attResult, order_id: "demo/solo" }));

@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/remove-todo-r2-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-006",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`node bin/todo.js rm 1` on a store with ≥1 item removes item 1, saves, prints",
+          "result": "pass",
+          "evidence": "node --test test/commands/rm.test.js → 'rm 1 on a store with 1 item removes it, saves, prints, exits 0' passed"
+        },
+        {
+          "ac": "`node bin/todo.js rm` (no index) exits 1 with `E_MISSING_INDEX` to stderr, store unchanged",
+          "result": "pass",
+          "evidence": "node --test test/commands/rm.test.js → 'rm with no index exits 1 with E_MISSING_INDEX, store unchanged' passed"
+        },
+        {
+          "ac": "`node bin/todo.js rm abc` exits 1 with `E_INVALID_INDEX` to stderr, store unchanged",
+          "result": "pass",
+          "evidence": "node --test test/commands/rm.test.js → 'rm abc exits 1 with E_INVALID_INDEX, store unchanged' passed"
+        },
+        {
+          "ac": "Removing an item shifts later items left by one position (verified via a subsequent `list`",
+          "result": "pass",
+          "evidence": "node --test test/commands/rm.test.js → 'removing a middle item shifts later items left, leaves others unchanged' passed"
+        },
+        {
+          "ac": "Removing an item does not alter the `text`/`done` value of any remaining item",
+          "result": "pass",
+          "evidence": "node --test test/commands/rm.test.js → same test asserts remaining items' text/done untouched"
+        },
+        {
+          "ac": "At min value (`1`, with ≥1 item): accepted, removes the first item",
+          "result": "pass",
+          "evidence": "node --test test/commands/rm.test.js → 'at min value (1) with >=1 item: accepted, removes the first item' passed"
+        },
+        {
+          "ac": "At max value (`items.length`, exact upper bound): accepted, removes the last item",
+          "result": "pass",
+          "evidence": "node --test test/commands/rm.test.js → 'at max value (items.length): accepted, removes the last item' passed"
+        },
+        {
+          "ac": "Below min (`0` or negative): rejected `E_INDEX_OUT_OF_RANGE`",
+          "result": "pass",
+          "evidence": "node --test test/commands/rm.test.js → 'below min (0)' and 'below min (negative)' both passed"
+        },
+        {
+          "ac": "Above max (`items.length + 1`): rejected `E_INDEX_OUT_OF_RANGE`",
+          "result": "pass",
+          "evidence": "node --test test/commands/rm.test.js → 'above max (items.length + 1) is rejected E_INDEX_OUT_OF_RANGE, store unchanged' passed"
+        },
+        {
+          "ac": "Empty store (`rm 1` with 0 items): rejected `E_INDEX_OUT_OF_RANGE`",
+          "result": "pass",
+          "evidence": "node --test test/commands/rm.test.js → 'empty store: rm 1 is rejected E_INDEX_OUT_OF_RANGE, no file created' passed"
+        }
+      ]
+    }
+  ],
+  "files_touched": [],
+  "discoveries": [],
+  "assumptions": [
+    "No `payload.bugs` were present in this order and the scope's implementation from prior rounds already satisfies every AC (10/10 pass, `node --test test/commands/rm.test.js`); no code changes were required this attempt."
+  ],
+  "deviations": []
+}

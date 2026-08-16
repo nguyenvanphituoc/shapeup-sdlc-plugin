@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/hammer",
+  "worker": "scope-hammer",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/todo-cli/reports/hammer.md"
+  ],
+  "assumptions": [
+    "No shapeup/todo-cli/shaping/baseline.md exists (no shaping/ directory at all) — the baseline comparison degrades honestly to the pitch's problem statement in .shapeup/todo-cli/intake.md ('Developers keep todos in their head and lose them'), flagged approximate rather than first-class per H1.1.",
+    "The order carries payload.breaker: \"outer\" with no payload.scope_id — treated as the outer round_budget breaker case (H0.1 unresolved-scope census), not an inner attempt_budget proposal.",
+    "No qa-edge-hunter hunt-report.md exists anywhere under .shapeup/todo-cli/ — the run never reached a PASS gate to trigger the QA hunt, so H0.2 (QA findings) is empty by construction, not by omission.",
+    "Used the real, current EVAL data on disk (results/evaluate-r1.json status:done, results/evaluate-r2.json status:partial, .shapeup/todo-cli/evaluation/EVAL-FEATURE-todo-cli.md, both FAIL) rather than .shapeup/todo-cli/harness-run.md's escalation claim that spec-evaluator never ran — that claim is stale relative to current disk state; see the flag in the report artifact.",
+    "Every EVAL-reported bug (BUG-1 through BUG-4) and the node --test test/ directory-form failure were independently re-confirmed by this agent via direct source read of bin/todo.js and live repro commands, not taken on the prior report's word alone.",
+    "gate_answers preset 'ci' with interaction.pause_gates: false on this order means no live PO round-trip is available in this dispatch; the cut list is presented as a proposal per the skill's authority boundary, consistent with harness-run.md's own documented convention that this preset mechanically resolves GATE H to accept-cut-list — scope-hammer does not itself finalize SHIP."
+  ],
+  "deviations": []
+}

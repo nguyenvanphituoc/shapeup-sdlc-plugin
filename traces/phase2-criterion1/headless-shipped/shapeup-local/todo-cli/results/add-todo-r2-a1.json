@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/add-todo-r2-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-003",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`node bin/todo.js add \"buy milk\"` on an empty/missing store exits 0, prints",
+          "result": "pass",
+          "evidence": "node --test test/commands/add.test.js -> 'add on empty/missing store exits 0 and prints Added: \"1) buy milk\"' passed"
+        },
+        {
+          "ac": "A second `add` appends (does not overwrite) — running `add` twice results in 2 items in",
+          "result": "pass",
+          "evidence": "node --test test/commands/add.test.js -> 'a second add appends, resulting in 2 items in original order' passed"
+        },
+        {
+          "ac": "`node bin/todo.js add` (no text) exits 1, prints an `E_MISSING_TEXT` message to stderr, and",
+          "result": "pass",
+          "evidence": "node --test test/commands/add.test.js -> 'add with no text exits 1, prints E_MISSING_TEXT message to stderr, no store file created' passed"
+        },
+        {
+          "ac": "`node bin/todo.js add \"   \"` (whitespace-only) is treated the same as missing text",
+          "result": "pass",
+          "evidence": "node --test test/commands/add.test.js -> 'add with whitespace-only text is treated as missing text' passed"
+        },
+        {
+          "ac": "Text is stored trimmed (leading/trailing whitespace removed, interior whitespace preserved)",
+          "result": "pass",
+          "evidence": "node --test test/commands/add.test.js -> 'text is stored trimmed, interior whitespace preserved' passed"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "bin/todo.js", "change": "modified" },
+    { "path": "test/commands/add.test.js", "change": "modified" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "BUG-01 (payload.bugs) is the only fix in scope: cmdAdd's repo.save() call was unwrapped, letting a StoreWriteError surface as a raw Node stack trace instead of the clean 'Error: <message>' stderr line and exit 1 that cmdDone/cmdRm already produce. Wrapped repo.save() in cmdAdd (bin/todo.js) in a try/catch matching the existing cmdDone/cmdRm pattern, and added a regression test in test/commands/add.test.js that makes the store directory+file read-only, retries add, and asserts a clean 'Error: could not save todo store: ...' line with no stack-trace frames.",
+    "BUG-02 and BUG-03 are not fixed by this scope: they cite bin/todo.js:53/85/66/98 (the done/rm index-parsing order) and lib/parse-index.js (the error-message catalog), which belong to the done/rm command behavior owned by other scopes (TASK-004/005/006), not TASK-003's add command. lib/parse-index.js is also outside this scope's allowed_file_substrate (bin/todo.js, test/commands/add.test.js only), so those two bugs are left for the scope(s) that own that substrate."
+  ],
+  "deviations": []
+}

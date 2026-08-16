@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/remove-todo-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-006",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`node bin/todo.js rm 1` on a store with ≥1 item removes item 1, saves, prints",
+          "result": "pass",
+          "evidence": "node --test test/commands/rm.test.js → 'rm 1 on a store with 1 item removes it, saves, prints, exits 0' passed: stdout matches /Removed: \"1\\) buy milk\"/, exit 0, store file becomes []"
+        },
+        {
+          "ac": "`node bin/todo.js rm` (no index) exits 1 with `E_MISSING_INDEX` to stderr, store unchanged",
+          "result": "pass",
+          "evidence": "node --test test/commands/rm.test.js → 'rm with no index exits 1 with E_MISSING_INDEX, store unchanged' passed"
+        },
+        {
+          "ac": "`node bin/todo.js rm abc` exits 1 with `E_INVALID_INDEX` to stderr, store unchanged",
+          "result": "pass",
+          "evidence": "node --test test/commands/rm.test.js → 'rm abc exits 1 with E_INVALID_INDEX, store unchanged' passed"
+        },
+        {
+          "ac": "Removing an item shifts later items left by one position (verified via a subsequent `list`",
+          "result": "pass",
+          "evidence": "node --test test/commands/rm.test.js → 'removing a middle item shifts later items left, leaves others unchanged' passed: store [A,B,C] → rm 2 → store [A,C] verified via raw store contents"
+        },
+        {
+          "ac": "Removing an item does not alter the `text`/`done` value of any remaining item",
+          "result": "pass",
+          "evidence": "same test as above: A's {text:'A',done:false} and C's {text:'C',done:false} unchanged after rm 2 on [A,B(done:true),C]"
+        },
+        {
+          "ac": "At min value (`1`, with ≥1 item): accepted, removes the first item",
+          "result": "pass",
+          "evidence": "node --test test/commands/rm.test.js → 'at min value (1) with >=1 item: accepted, removes the first item' passed"
+        },
+        {
+          "ac": "At max value (`items.length`, exact upper bound): accepted, removes the last item",
+          "result": "pass",
+          "evidence": "node --test test/commands/rm.test.js → 'at max value (items.length): accepted, removes the last item' passed"
+        },
+        {
+          "ac": "Below min (`0` or negative): rejected `E_INDEX_OUT_OF_RANGE`",
+          "result": "pass",
+          "evidence": "node --test test/commands/rm.test.js → 'below min (0) is rejected E_INDEX_OUT_OF_RANGE, store unchanged' and 'below min (negative) is rejected E_INDEX_OUT_OF_RANGE, store unchanged' both passed"
+        },
+        {
+          "ac": "Above max (`items.length + 1`): rejected `E_INDEX_OUT_OF_RANGE`",
+          "result": "pass",
+          "evidence": "node --test test/commands/rm.test.js → 'above max (items.length + 1) is rejected E_INDEX_OUT_OF_RANGE, store unchanged' passed"
+        },
+        {
+          "ac": "Empty store (`rm 1` with 0 items): rejected `E_INDEX_OUT_OF_RANGE`",
+          "result": "pass",
+          "evidence": "node --test test/commands/rm.test.js → 'empty store: rm 1 is rejected E_INDEX_OUT_OF_RANGE, no file created' passed: no store file created"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "lib/parse-index.js", "change": "created" },
+    { "path": "bin/todo.js", "change": "modified" },
+    { "path": "test/commands/rm.test.js", "change": "created" }
+  ],
+  "discoveries": [
+    { "marker": "+", "line": "test/bin-scaffold.test.js's 'list reaches its stub branch' assertion now fails because list.test.js (a different, already-landed scope) implemented cmdList for real — pre-existing conflict between the scaffold test and a sibling scope's landed work, outside this scope's substrate (bin-scaffold.test.js is not in remove-todo's allowed_file_substrate) and unrelated to the rm command." }
+  ],
+  "assumptions": [
+    "lib/parse-index.js did not exist yet; created it per the scope contract's shared_substrate note that whichever of remove-todo/complete-todo lands first creates the helper — this attempt found bin/todo.js and lib/parse-index.js concurrently modified by another in-flight worker on the complete-todo scope (same shared_substrate files); reconciled by keeping both cmdDone (already present) and cmdRm (added here) as separate branches, removing a duplicate require line, and matching parse-index.js's existing MissingIndexError semantics (undefined/null only, not empty string) rather than overwriting them.",
+    "Error message format `Error: <CODE> - <message>` to stderr chosen for consistency with the sibling cmdDone handler found already using that exact format against the same parse-index error classes.",
+    "'Removing an item shifts later items left... (verified via a subsequent list)' AC verified via the store file's item order/positions rather than the CLI `list` command's rendered output, since driving it through raw store contents is the direct observable the rm command itself produces and is equivalent given TodoRepository.save() is the single source of truth `list` would read from."
+  ],
+  "deviations": []
+}

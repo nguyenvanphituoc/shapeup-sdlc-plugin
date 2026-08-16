@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/list-todos-r2-a1",
+  "run_id": "todo-cli-20260815T171521Z-b135247d",
+  "compiled_at": "2026-08-16T03:25:50.843Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "bin/todo.js",
+      "test/commands/list.test.js",
+      ".shapeup/todo-cli/spikes/**"
+    ],
+    "shared": [
+      "bin/todo.js"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "type": "scope-contract",
+      "scope_id": "list-todos",
+      "feature": "todo-cli",
+      "topology_type": "LAYER_CAKE",
+      "tasks": [
+        "TASK-004"
+      ],
+      "allowed_file_substrate": [
+        "bin/todo.js",
+        "test/commands/list.test.js"
+      ],
+      "shared_substrate": [
+        "bin/todo.js"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN",
+      "e2e_verification_fixtures": [
+        "node --test test/commands/list.test.js"
+      ],
+      "affordance_manifest": [
+        {
+          "test_id": "todo-list-command",
+          "role": "cli-command",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "≥1 item → one line per item, 1-based, `N) [ ] <text>` / `N) [x] <text>`, in store order, exit 0",
+          "error": "corrupted store → corrupted-store message to stderr, exit 1; never writes to the store under any input",
+          "empty": "0 items (missing file OR `[]` on disk) → `No todos yet.` to stdout, exit 0 — never an error"
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "TASK-004",
+        "title": "Implement `todo list` command",
+        "status": "done",
+        "priority": 3,
+        "depends_on": [
+          "TASK-002"
+        ],
+        "use_case_refs": [
+          "UC-ListTodos"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-final/.shapeup/todo-cli/tasks/TASK-004-list-command.md",
+        "acceptance_criteria": [
+          "`node bin/todo.js list` on a missing store prints `No todos yet.` to stdout and exits 0",
+          "`node bin/todo.js list` with items prints one line per item, 1-based:",
+          "`list` never writes to `~/.todo.json` (read-only) under any input, including a corrupted",
+          "Empty result (missing file OR file containing `[]`): prints `No todos yet.`, exit 0 — both",
+          "No crash when an item's `done` field is unexpectedly missing/undefined on a hand-edited"
+        ]
+      }
+    ],
+    "trial_history": [
+      {
+        "schema_version": 1,
+        "trial": 4,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "list-todos",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      }
+    ],
+    "spec_folder": "shapeup/todo-cli/spec",
+    "feature": "todo-cli",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

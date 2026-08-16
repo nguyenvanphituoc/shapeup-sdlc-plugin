@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/foundation-r2-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-001",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`package.json` exists at repo root with `\"bin\": { \"todo\": \"./bin/todo.js\" }`",
+          "result": "pass",
+          "evidence": "node -e \"console.log(JSON.parse(fs.readFileSync('package.json')).bin)\" -> { todo: './bin/todo.js' } (unchanged this round)"
+        },
+        {
+          "ac": "`bin/todo.js` exists, starts with `#!/usr/bin/env node`, and is executable (`chmod +x`)",
+          "result": "pass",
+          "evidence": "ls -la bin/todo.js -> -rwxr-xr-x; first line is #!/usr/bin/env node; test/bin-scaffold.test.js shebang test passes (unchanged this round)"
+        },
+        {
+          "ac": "`node bin/todo.js` with no subcommand prints a usage line to stderr and exits 1",
+          "result": "pass",
+          "evidence": "node --test test/bin-scaffold.test.js -> 'with no subcommand prints usage to stderr and exits 1' passes"
+        },
+        {
+          "ac": "`node bin/todo.js frobnicate` (unknown command) prints `Error: unknown command \"frobnicate\"...`",
+          "result": "pass",
+          "evidence": "node --test test/bin-scaffold.test.js -> 'frobnicate (unknown command) prints error and exits 1' passes"
+        },
+        {
+          "ac": "`node bin/todo.js add`, `node bin/todo.js list`, `node bin/todo.js done`, `node bin/todo.js rm`",
+          "result": "pass",
+          "evidence": "node --test test/bin-scaffold.test.js -> 7/7 pass, incl. list's exit-0/'No todos yet.' success path (superseded stub, TASK-004)"
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-002",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "A `TodoRepository` module is created (e.g. `lib/todo-repository.js`) exporting `load()`",
+          "result": "pass",
+          "evidence": "lib/todo-repository.js exports load, save, storePath, StoreCorruptedError, StoreReadError, StoreWriteError (unchanged this round)"
+        },
+        {
+          "ac": "`load()` on a missing file returns `[]` (does not throw)",
+          "result": "pass",
+          "evidence": "node --test test/todo-repository.test.js -> 'load() on a missing file returns []' passed"
+        },
+        {
+          "ac": "`load()` on a file containing invalid JSON throws/returns an error tagged",
+          "result": "pass",
+          "evidence": "test 'load() on invalid JSON throws StoreCorruptedError tagged E_STORE_CORRUPTED' passed"
+        },
+        {
+          "ac": "`load()` on a file containing valid JSON that is not an array (e.g. `{}`) also resolves to",
+          "result": "pass",
+          "evidence": "test 'load() on valid JSON that is not an array throws E_STORE_CORRUPTED' passed"
+        },
+        {
+          "ac": "`save(items)` writes valid JSON that `load()` can read back unchanged (round-trip)",
+          "result": "pass",
+          "evidence": "test 'save(items) writes JSON that load() reads back unchanged (round-trip)' passed"
+        },
+        {
+          "ac": "Request shape matches [[contracts/todo-repository.contract#Storage-Schema]] table",
+          "result": "pass",
+          "evidence": "save(items) accepts TodoItem[] = {text, done}[]; JSON.stringify(items) written verbatim as top-level array, matches contract Storage Schema (unchanged this round)"
+        },
+        {
+          "ac": "Response mapping matches [[contracts/todo-repository.contract#Method-load-Read]] Read Output",
+          "result": "pass",
+          "evidence": "load() returns TodoItem[] always, [] on ENOENT, never null — matches Read Output row (unchanged this round)"
+        },
+        {
+          "ac": "All error codes in [[contracts/todo-repository.contract]] Error Cases tables are handled",
+          "result": "pass",
+          "evidence": "ENOENT -> []; SyntaxError -> StoreCorruptedError E_STORE_CORRUPTED; non-array parse -> E_STORE_CORRUPTED; other read errors -> StoreReadError; write failure -> StoreWriteError E_STORE_WRITE_FAILED (unchanged this round)"
+        },
+        {
+          "ac": "Missing store file: `load()` returns `[]`, not `null` and not a thrown error",
+          "result": "pass",
+          "evidence": "test 'load() on a missing file returns []' passed"
+        },
+        {
+          "ac": "Empty array file (`[]` on disk): `load()` returns `[]` — no special-casing needed beyond",
+          "result": "pass",
+          "evidence": "test 'empty array file ([] on disk): load() returns []' passed"
+        },
+        {
+          "ac": "`load()` never returns `null` under any input — always `[]` or throws a typed error",
+          "result": "pass",
+          "evidence": "test 'load() never returns null' passed"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "package.json", "change": "modified" }
+  ],
+  "discoveries": [],
+  "assumptions": [],
+  "deviations": [
+    "BUG-04 fix (package.json:9, reported-only, not a UC criterion): test script changed from `node --test test/` to `node --test \"test/**/*.test.js\"` — `npm test` now runs the full suite instead of failing with `Cannot find module '.../test'` on Node v24, which resolves a bare directory path as a module rather than a test glob. Verified: `npm test` -> 50/50 pass.",
+    "BUG-05 (test/bin-scaffold.test.js:39, reported-only, T0 drift): no change needed — the assertion already matches the correct exit-0/'No todos yet.' behavior for `list` in this working tree; `node --test test/bin-scaffold.test.js` runs 7/7 green, including that test."
+  ]
+}

@@ -1,0 +1,1 @@
+{"schema_version":1,"run_id":"todo-cli-20260815T171521Z-b135247d","feature_slug":"todo-cli","terminal_state":"shipped","round_count":2,"final_audit_score":"FAIL","surprise_count":5,"spike_unresolved_count":0,"scope_cut_count":8,"qa_findings":null,"slice_count":null,"sources":["shapeup/todo-cli/spec/_index.md","shapeup/todo-cli/REPORT.md"]}

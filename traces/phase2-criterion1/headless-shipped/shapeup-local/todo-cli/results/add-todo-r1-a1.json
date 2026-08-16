@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/add-todo-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-003",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`node bin/todo.js add \"buy milk\"` on an empty/missing store exits 0, prints",
+          "result": "pass",
+          "evidence": "node --test test/commands/add.test.js -> 'add on empty/missing store exits 0 and prints Added: \"1) buy milk\"' passed"
+        },
+        {
+          "ac": "A second `add` appends (does not overwrite) — running `add` twice results in 2 items in",
+          "result": "pass",
+          "evidence": "node --test test/commands/add.test.js -> 'a second add appends, resulting in 2 items in original order' passed"
+        },
+        {
+          "ac": "`node bin/todo.js add` (no text) exits 1, prints an `E_MISSING_TEXT` message to stderr, and",
+          "result": "pass",
+          "evidence": "node --test test/commands/add.test.js -> 'add with no text exits 1, prints E_MISSING_TEXT message to stderr, no store file created' passed"
+        },
+        {
+          "ac": "`node bin/todo.js add \"   \"` (whitespace-only) is treated the same as missing text",
+          "result": "pass",
+          "evidence": "node --test test/commands/add.test.js -> 'add with whitespace-only text is treated as missing text' passed"
+        },
+        {
+          "ac": "Text is stored trimmed (leading/trailing whitespace preserved, interior whitespace preserved)",
+          "result": "pass",
+          "evidence": "node --test test/commands/add.test.js -> 'text is stored trimmed, interior whitespace preserved' passed (input '  buy   milk  ' stored as 'buy   milk')"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "bin/todo.js", "change": "modified" },
+    { "path": "test/commands/add.test.js", "change": "created" }
+  ],
+  "discoveries": [
+    { "marker": "+", "line": "npm test / `node --test test/` fails with MODULE_NOT_FOUND on this Node version (v24.15.0) because `node --test test/` resolves 'test' as a module path rather than a directory glob; pre-existing, unrelated to this scope's substrate (bin/todo.js, test/commands/add.test.js) — the scoped fixture `node --test test/commands/add.test.js` passes cleanly." }
+  ],
+  "assumptions": [
+    "stderr error message format follows the E_MISSING_TEXT pattern used in the task body/affordance manifest: 'Error: missing todo text (E_MISSING_TEXT)' — exact wording beyond containing 'E_MISSING_TEXT' is not pinned elsewhere in the order",
+    "on repo.load() failure (e.g. E_STORE_CORRUPTED) the add command prints 'Error: <message>' to stderr and exits 1 without writing, per the affordance manifest's corrupted-store behavior; store's own corruption detection was implemented in TASK-002 (out of scope here)"
+  ],
+  "deviations": []
+}
