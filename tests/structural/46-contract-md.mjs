@@ -332,4 +332,46 @@ export async function run(ctx) {
       fail(`a correctly-declared field is reported unreadable because prose repeats its name: ${unreadableReason(both)}`);
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // (f) A VALUE CARRYING A QUOTE SURVIVES. The corpus above contains no quote character anywhere,
+  //     which is how a lossy reader shipped: `coerce` stripped a leading OR trailing quote
+  //     independently, so any value merely ENDING in one lost it. Verification fixtures are shell
+  //     one-liners and quote constantly, so this is not an exotic input — it is the common one.
+  //
+  //     What made it expensive is that nothing reports it as a parse error. The truncated fixture
+  //     reaches the shell as a syntax error, the attempt scores red, and a correct implementation
+  //     is retried until its budget is gone. A lossy reader and a builder that cannot make progress
+  //     look identical from outside, so the assertion has to live here, at the reader.
+  // ---------------------------------------------------------------------------
+  {
+    const quoted = [
+      ['say "hi"', "a value ending in a double quote"],
+      ['export STORE="$T/s.json"', "a shell assignment, the shape that actually broke"],
+      ["it's", "a value ending in an apostrophe"],
+      ['"quoted"', "a value that is itself wrapped in quotes"],
+      ["'q'", "the same with apostrophes"],
+      ['a "b" c', "quotes in the middle"],
+      ["plain", "the ordinary case"],
+    ];
+    let lost = 0;
+    for (const [value, label] of quoted) {
+      const back = C.coerce(C.uncoerce(value));
+      if (back === value) ok(`round trip preserves ${label}`);
+      else { lost++; fail(`coerce(uncoerce(${JSON.stringify(value)})) === ${JSON.stringify(back)} — ${label} was corrupted in transit`); }
+    }
+
+    // The same property through a real table cell, since frontmatter and cells share the reader
+    // but not the surrounding syntax.
+    const withQuote = 'bash -c \'echo "ok"\'';
+    const md = [
+      "---", "scope_id: SC-Q", `db_probe: ${C.uncoerce(withQuote)}`, "---",
+      "# SC-Q", "", "## Why this slice", "", "Because quoting is not exotic.", "",
+    ].join("\n");
+    const parsed = C.parseContract(md, C.SCOPE_CONTRACT);
+    if (parsed.db_probe === withQuote) ok("a quoted shell command survives the frontmatter round trip intact");
+    else fail(`db_probe read back as ${JSON.stringify(parsed.db_probe)}, not ${JSON.stringify(withQuote)} — the fixture the verifier runs is not the one the author wrote`);
+
+    if (!lost) ok("no value containing a quote is silently truncated by the contract reader");
+  }
 }

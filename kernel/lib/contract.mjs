@@ -79,6 +79,40 @@ export const UNREADABLE = "$unreadable_tables";
 // ---------------------------------------------------------------------------
 
 /**
+ * Remove ONE matching pair of surrounding quotes, and unescape what was inside them.
+ *
+ * The pairing check is the whole point. Stripping a leading or trailing quote INDEPENDENTLY eats a
+ * character from any value that merely ends in one — a shell fixture like
+ * `export STORE="$T/s.json"` came back missing its final quote and was handed to `bash` as a
+ * syntax error. Nothing reports that as a parse failure: the verification step simply scores the
+ * implementation red, attempt after attempt, against code that was correct the whole time. A lossy
+ * reader is indistinguishable from a builder that cannot make progress, which is what makes this
+ * expensive rather than merely wrong.
+ *
+ * A double-quoted scalar that parses as JSON is read as JSON, because that is the escaping
+ * convention {@link uncoerce} emits — the two are exact inverses, and the round trip is asserted.
+ *
+ * EVERYTHING ELSE IS UNWRAPPED BUT NOT UNESCAPED, deliberately. A backslash inside a scalar that
+ * is not valid JSON belongs to whatever will consume the value, not to this dialect: shell
+ * verification fixtures are the common case, and there `echo "[{\"text\": \"ok\"}]"` needs its
+ * backslashes delivered intact. Unescaping on this path would corrupt them exactly as surely as
+ * the missing pair check corrupted the values that end in a quote — the same defect, from the
+ * other side. So the escaping convention applies only where it is unambiguous.
+ *
+ * @param {string} s - The trimmed raw text.
+ * @returns {string} The value with its surrounding quotes removed, or `s` unchanged.
+ */
+function unquote(s) {
+  if (s.length < 2) return s;
+  const q = s[0];
+  if ((q !== '"' && q !== "'") || s[s.length - 1] !== q) return s;
+  if (q === '"') {
+    try { return JSON.parse(s); } catch { /* not JSON — unwrap only, see above */ }
+  }
+  return s.slice(1, -1);
+}
+
+/**
  * Coerce one frontmatter or table-cell value.
  *
  * ONE RULE IN BOTH PLACES, deliberately: a value wrapped in `[...]` is a list of strings,
@@ -110,7 +144,7 @@ export function coerce(raw) {
   // A LIST IS TESTED BEFORE THE QUOTES ARE STRIPPED. `"[a, b]"` is a quoted STRING; stripping first
   // would turn it into a list and change its type on a round-trip.
   if (/^\[.*\]$/.test(trimmed)) return splitList(trimmed.slice(1, -1));
-  const v = trimmed.replace(/^["']|["']$/g, "");
+  const v = unquote(trimmed);
   if (v === "true") return true;
   if (v === "false") return false;
   if (v === "~" || v === "null" || v === "") return null;
@@ -129,7 +163,12 @@ export function uncoerce(v) {
   // trip that wrote it re-reads as several members — the same shredding, arriving from the writer's
   // side instead of the reader's.
   if (Array.isArray(v)) return `[${v.map((x) => (/[,"]/.test(String(x)) ? JSON.stringify(String(x)) : String(x))).join(", ")}]`;
-  return String(v);
+  const s = String(v);
+  // A scalar that itself begins AND ends with a quote is indistinguishable, once written, from a
+  // quoted scalar — so emit it in the JSON form the reader unwraps exactly. Without this the round
+  // trip loses the value's own outer quotes, which is the same shredding as the reader's half.
+  if (s.length >= 2 && (s[0] === '"' || s[0] === "'") && s[s.length - 1] === s[0]) return JSON.stringify(s);
+  return s;
 }
 
 /**
