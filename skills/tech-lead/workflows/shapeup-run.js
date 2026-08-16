@@ -693,6 +693,11 @@ let round = rs.eval_rounds_done?.length ? Math.max(...rs.eval_rounds_done) + 1 :
 let verdict = null;
 const allGreen = [];
 const allHammer = [];
+// OUTSIDE the loop, because its whole purpose is to cross a round boundary: round r's verdict is
+// what round r+1 has to act on. Declared inside, it was in the temporal dead zone at the BUILD that
+// needed it — a runtime error no static check can see, since nothing but a real second round ever
+// reaches that line.
+let findings = [];
 
 while (round <= maxRounds) {
   phase("Build");
@@ -744,7 +749,7 @@ while (round <= maxRounds) {
       async (scope) => (alreadyGreen.has(scope.scope_id)
         ? { scope_id: scope.scope_id, green: true, resumed: true }
         : { scope_id: scope.scope_id, pending: true }),   // not green yet → stage 2 builds it
-      async (pre, scope) => (pre?.pending ? buildScope(scope, round) : pre),
+      async (pre, scope) => (pre?.pending ? buildScope(scope, round, findings) : pre),
       async (res, scope) => {
         if (!res || res.__failed) return res;
         if (res.resumed || !res.green) return res;
@@ -791,7 +796,6 @@ while (round <= maxRounds) {
   // ---- EVAL — exactly one feature-level pass per round (the single-judge invariant) ------------
   phase("Eval");
   await setRunStatus("evaluating", "Eval");
-  let findings = [];
   if (args.noEval) {
     log("EVAL — skipped (--no-eval)");
     verdict = "pass";
@@ -902,16 +906,44 @@ return withWarnings({
 // attempt is implement → `harness verify t0`, and both halves need a real filesystem and a real
 // git. The worker reports only the outcome the round loop branches on.
 // =============================================================================================
-async function buildScope(scope, roundNo) {
+async function buildScope(scope, roundNo, bugs = []) {
+  // CARRY THE VERDICT'S BUGS INTO THE ROUND THAT MUST FIX THEM.
+  //
+  // `WorkOrderPayload.bugs` exists and its description says exactly this — "the EVAL report's bug
+  // entries for this task — touch nothing else" — and AGENTS.md states the regression rule as
+  // "bugs + full Test Surface of touched UC". The field was never populated, so a round r+1 leg was
+  // dispatched with `{scope_path, scope_id, round, attempt_budget}` and no idea the judge had cited
+  // anything. It re-ran T0, found the scope still green, and reported done.
+  //
+  // Measured: EVAL returned FAIL naming three defects at file:line; round 2 kept all six trees and
+  // changed none of them, and all three bugs re-probed identically. The ratchet had been discarding
+  // the fixes (see `better()`), which hid this — with the ratchet fixed the trees survive, and the
+  // trees are unchanged, because nobody was told what to change.
+  //
+  // `digested_errors` could not cover this: it carries AEGIS triples from a RED T0, and a scope whose
+  // fixtures pass while its behaviour contradicts the spec has no red trial to digest. That gap is
+  // the whole reason EVAL is a separate layer, so the channel out of it has to be separate too.
+  const forThisScope = bugs.filter((b) => !b.scope_id || b.scope_id === scope.scope_id);
   return worker({
     skill: "task-executor", operation: "execute", schema: SCOPE_RESULT, phase: "Build",
     label: `build:${scope.scope_id}-r${roundNo}`,
-    payload: { scope_path: scope.path, scope_id: scope.scope_id, round: roundNo, attempt_budget: attemptBudget },
+    payload: {
+      scope_path: scope.path, scope_id: scope.scope_id, round: roundNo, attempt_budget: attemptBudget,
+      ...(forThisScope.length ? { bugs: forThisScope } : {}),
+    },
     // A build order is addressed by scope + round + attempt, never by operation: the attempt number
     // is part of its identity, so there is one order per attempt and the generic slug form cannot
     // express it.
     compile: `compile --scope ${scope.path} --round ${roundNo} --attempt 1`,
     extra:
+      (forThisScope.length
+        ? `THIS IS A FIX ROUND. The evaluator returned FAIL and cited ${forThisScope.length} defect(s) ` +
+          `against this scope, carried in the order's \`payload.bugs\` — each with the criterion it ` +
+          `broke and a file:line. Fix exactly those and touch nothing else. They are spec-conformance ` +
+          `defects, so T0 already passes and will keep passing whether or not you fix them: a green ` +
+          `T0 is NOT evidence you are done this round, and re-running the fixtures cannot tell you. ` +
+          `Read the cited lines against the committed spec, change them, and keep T0 green. `
+        : "") +
       `Re-compile the order for every attempt after the first, with --attempt <n>. ` +
       `Run the attempt ratchet for THIS scope only: up to ${attemptBudget} attempts of implement → ` +
       `\`node "${KERNEL}" verify t0 ${scope.path} --round ${roundNo} --attempt <n>\`, each scored against ` +

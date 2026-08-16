@@ -586,6 +586,44 @@ export async function run(ctx) {
     }
   }
 
+  // (q) THE VERDICT'S BUGS MUST REACH THE ROUND THAT HAS TO FIX THEM.
+  //
+  // `WorkOrderPayload.bugs` exists and says what it is for — "the EVAL report's bug entries for this
+  // task — touch nothing else" — and AGENTS.md states the regression rule as "bugs + full Test
+  // Surface of touched UC". The orchestrator captured the evaluator's findings into a local and used
+  // them only for the optional refute wave, so a round r+1 leg was dispatched knowing nothing about
+  // the verdict. It re-ran T0, found the scope still green, and reported done.
+  //
+  // Measured: EVAL returned FAIL citing three defects at file:line; round 2 kept all six trees and
+  // changed none of them. `digested_errors` cannot cover this — it carries AEGIS triples from a RED
+  // T0, and a scope whose fixtures pass while its behaviour contradicts the spec has no red trial to
+  // digest. That gap is why EVAL is a separate layer, so its output needs a separate channel.
+  //
+  // Both halves are checked. The declaration one matters because `findings` inside the round loop is
+  // in the temporal dead zone at the BUILD that reads it — a runtime error nothing but a real second
+  // round reaches, which is exactly the kind a static suite certifies forever.
+  for (const f of files) {
+    const src = readFileSync(join(abs, f), "utf8");
+    if (!/while \(round <= maxRounds\)/.test(src)) continue;
+    const problems = [];
+    if (!/buildScope\(scope, round, findings\)/.test(src)) {
+      problems.push("the build call does not pass the verdict's findings, so a fix round is dispatched blind");
+    }
+    const declIdx = src.indexOf("let findings = []");
+    const loopIdx = src.indexOf("while (round <= maxRounds)");
+    if (declIdx === -1 || declIdx > loopIdx) {
+      problems.push("`findings` is declared inside the round loop, so the BUILD that needs it reads it in the temporal dead zone");
+    }
+    if (!/payload\.bugs|bugs: forThisScope|\bbugs\b/.test(src)) {
+      problems.push("nothing populates the order's `bugs` payload field");
+    }
+    if (!problems.length) {
+      ok(`${WORKFLOWS_DIR}/${f} carries the verdict's bugs into the round that must fix them`);
+    } else {
+      fail(`${WORKFLOWS_DIR}/${f} cannot act on its own verdict:\n    ${problems.join("\n    ")}`);
+    }
+  }
+
   // (m) THE BUILD LOOP MUST CONSUME THE DEPENDENCY WAVES, not the flat scope list.
   //
   // The kernel deriving a correct order buys nothing if the orchestrator chunks around it, and that
