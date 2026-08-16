@@ -609,6 +609,33 @@ measurement to fit a bar.
 
 ---
 
+## Step 7 — maintenance audit before the cut — **DONE**
+
+Not in the original plan. Added because the freeze decision routes through
+`harness-maintenance-audit`, and the sixteen fixes moved enough behaviour that the prose describing
+it could not be assumed current. Four findings, each validated on its own, each derived by
+executing the artifact rather than by re-reading the edit.
+
+| # | Finding | Validated by |
+|---|---|---|
+| 1 | A fix round dispatched `operation: execute` while carrying `payload.bugs`, which `task-executor`'s contract binds to `fix` | Compiled real round-2 orders: the scope with cited defects → `fix` (3 bugs), the scope without → `execute` (0), substrate identical. 4/4 mutants caught. |
+| 2 | `protocol.md` told the orchestrator "a tie is not better" — read at runtime, and the opposite of what the ratchet now does | Executed `better()` over all four branches: green tie KEEPS, red tie does not, red→better keeps, green→red reverts. |
+| 3 | `gates.md` described build ordering with no mention that dependencies constrain it | Executed `scopeWaves` on the real run: `foundation` → four command scopes → `cli-integration-test` last. The entry-point scope the alphabet once scheduled second is now sixth of six. Unreadable board → one wave of six (non-regression). |
+| 4 | The audit skill's own commands pointed at `skills/tech-lead/scripts/`, removed in the strip-down — so they returned nothing and the audit read as "no findings" | Executed each repaired command: 30 kernel modules, 65 path exports, 12 of 15 operations owned (`execute`/`fix`/`spike` unowned by design, resolved via `--scope`). |
+
+Finding 1 was a code defect and was reported before it was fixed, per the skill's own rule that a
+doc fix records reality while a code fix changes it. The other three were doc fixes.
+
+One thing worth keeping on the record: the guard written for finding 1 **passed against its own
+defect twice**. Anchored at line-start it missed the one-line property style this file uses;
+re-anchored on punctuation it missed again, because a paragraph of prose sits between every
+property. Only re-introducing the defect caught either version. A guard is not verified until the
+thing it names has been put back.
+
+Clean on the rest: zero undelivered-path or internal-defect-ID leaks in the shipped set,
+`SECURITY.md`'s hook table matches `hooks.json` both ways (6/6), no stale measured numbers, version
+parity 2.0.0/2.0.0.
+
 ## Verification plan
 
 ### Automated
@@ -634,3 +661,14 @@ suite that has not been run is an assumption, not a baseline.
 
 Steps 0–6 complete, `npm test` green, and criterion 1 demonstrated in both lanes with the traces
 kept. Criterion 2 is already met. Criterion 3 is recorded as descoped, not claimed.
+
+**Standing as of 2026-08-16.** Steps 0–4, 6 and 7 are done. Step 5's headless lane is done — a run
+reached `status: shipped` with a frozen report, archived at
+`traces/phase2-criterion1/headless-shipped/`. The interactive lane is the single open item, and it
+is open on the PO rather than on the harness: it pauses at seven gates a human answers.
+
+The release is prepared and deliberately not cut. `CHANGELOG.md` carries one pending entry that
+becomes 2.0.0 at tag time; both manifests already read 2.0.0, which was never tagged or published
+(npm's latest is 1.7.0), so there is no released 2.0.0 for these fixes to sit above. The cut is
+held until the interactive lane lands, so the release notes can say criterion 1 was demonstrated in
+both lanes rather than in one.
