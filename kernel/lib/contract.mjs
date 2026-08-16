@@ -343,6 +343,34 @@ export function parseContract(md, spec = SCOPE_CONTRACT) {
       }
     }
   }
+  // A NON-TABLE FIELD WRITTEN AS A `## SECTION` VANISHES, and the loop above cannot see it.
+  //
+  // Everything above answers "was a declared TABLE written under the wrong heading". It says
+  // nothing about the other half of the contract — the scalars and string lists that live in
+  // frontmatter — because the parser has no heading to expect for them. So an author who writes
+  //
+  //     ## e2e_verification_fixtures
+  //     - `node --test test/store.test.js` — round-trips load()/save()
+  //
+  // instead of a frontmatter key produces a contract where that field is simply `undefined`, and
+  // every reader downstream treats it as "not declared". Measured: an architect did exactly this,
+  // the fixtures reached `verify t0` as `undefined`, and six scopes were certified T0-green having
+  // executed nothing — while the substrate list beside it, written as a frontmatter block list,
+  // parsed perfectly. One field silently vanished between the writer and the reader.
+  //
+  // The detector is deliberately narrow: a heading whose text is a bare snake_case identifier is
+  // an author naming a FIELD, not writing prose — `## Why this slice` and `## Affordances` cannot
+  // match. Reported through the same channel, so `unreadableReason()` covers both halves and a
+  // reader still asks once.
+  for (const m of String(body).matchAll(/^##\s+([a-z][a-z0-9]*(?:_[a-z0-9]+)+)\s*$/gm)) {
+    const field = m[1];
+    if (field in out) continue;                                   // also present in frontmatter — fine
+    if (Object.prototype.hasOwnProperty.call(spec.tables || {}, field)) continue;  // handled above
+    unreadable.push({
+      field, expected_heading: field, rows: 0,
+      found_under: "a `## " + field + "` markdown section, which this dialect reads as prose",
+    });
+  }
   if (unreadable.length) out[UNREADABLE] = unreadable;
   return out;
 }
@@ -359,9 +387,19 @@ export function unreadableReason(contract) {
   const u = contract && contract[UNREADABLE];
   if (!u || !u.length) return null;
   return u
-    .map((x) => (x.found_under === "an indented block this dialect cannot read" || x.found_under === "both"
-      ? `\`${x.field}\` was written as \`${x.expected_heading}\` but ${x.rows} indented line(s) beneath it could not be read, so the value parsed as ABSENT`
-      : `\`${x.field}\` must be a table under a \`## ${x.expected_heading}\` heading; found ${x.rows} matching row(s) under "${x.found_under}" instead, so the field parsed as ABSENT`))
+    .map((x) => {
+      if (x.found_under === "an indented block this dialect cannot read" || x.found_under === "both") {
+        return `\`${x.field}\` was written as \`${x.expected_heading}\` but ${x.rows} indented line(s) beneath it could not be read, so the value parsed as ABSENT`;
+      }
+      // A frontmatter field written as a prose section. Phrased as its own case because telling an
+      // author to "use a table heading" when the fix is "put it in frontmatter" sends them the
+      // wrong way — and this is the field whose silent absence certified six scopes on no evidence.
+      if (x.rows === 0 && String(x.found_under).includes("markdown section")) {
+        return `\`${x.field}\` was written as a \`## ${x.field}\` markdown section, which this dialect reads as prose — ` +
+          `it must be a FRONTMATTER key (a \`- \` block list or an inline [a, b] list), so as written the field parsed as ABSENT`;
+      }
+      return `\`${x.field}\` must be a table under a \`## ${x.expected_heading}\` heading; found ${x.rows} matching row(s) under "${x.found_under}" instead, so the field parsed as ABSENT`;
+    })
     .join("; ");
 }
 

@@ -283,4 +283,53 @@ export async function run(ctx) {
       rmSync(dir, { recursive: true, force: true });
     }
   }
+
+  // =============================================================================
+  section("61. A frontmatter field written as a `## section` is reported ABSENT, loudly");
+  // =============================================================================
+  // The existing UNREADABLE channel answers "was a declared TABLE written under the wrong heading".
+  // It says nothing about the scalars and string lists that live in frontmatter, because the parser
+  // has no heading to expect for them — so an author who writes
+  //
+  //     ## e2e_verification_fixtures
+  //     - `node --test test/store.test.js` — round-trips load()/save()
+  //
+  // produces a contract where the field is simply `undefined`, indistinguishable from "not
+  // declared". Measured, on a live run: the fixtures reached `verify t0` as `undefined` and six
+  // scopes were certified T0-green having executed nothing, while the substrate list beside them —
+  // written as a frontmatter block list — parsed perfectly.
+  {
+    const { parseContract, unreadableReason, SCOPE_CONTRACT } = await import(join(ROOT, "kernel/lib/contract.mjs"));
+    const md = (extra) => [
+      "---", "scope_id: sc-01", "topology_type: LAYER_CAKE", "tasks: [TASK-001]",
+      "allowed_file_substrate:", "  - src/a.js", "hill_phase: UPHILL_UNKNOWN", "---", "",
+      "# Scope: sc-01", "", "## Why this slice", "", "Because the flow crosses two layers.", "", extra,
+    ].join("\n");
+
+    const asSection = parseContract(md("## e2e_verification_fixtures\n\n- `node --test test/a.test.js` — round-trips\n"), SCOPE_CONTRACT);
+    const reason = unreadableReason(asSection);
+    if (asSection.e2e_verification_fixtures === undefined && reason && /FRONTMATTER key/.test(reason)) {
+      ok("a frontmatter field written as a `## section` is reported unreadable, and the message names the actual fix");
+    } else {
+      fail(`a field written as a markdown section parsed as ABSENT with no diagnostic (reason=${JSON.stringify(reason)}). ` +
+        `Every reader downstream then treats it as "not declared" — which is how a scope reached T0 with nothing to run.`);
+    }
+
+    // Prose headings must not trip it: a contract is mostly prose, and a detector that cried wolf on
+    // "## Why this slice" would be turned off within a day.
+    const proseOnly = parseContract(md("## Affordances\n\n| test_id | role |\n|---|---|\n| cli:add | command |\n"), SCOPE_CONTRACT);
+    if (!unreadableReason(proseOnly)) ok("ordinary prose and table headings raise nothing — the detector matches a bare snake_case field name only");
+    else fail(`the detector fires on an ordinary contract: ${unreadableReason(proseOnly)}`);
+
+    // And a field present in BOTH places is not a mistake worth reporting — frontmatter won.
+    const both = parseContract([
+      "---", "scope_id: sc-01", "e2e_verification_fixtures: [node --test test/a.test.js]", "---", "",
+      "## e2e_verification_fixtures", "", "documented again in prose for the reader", "",
+    ].join("\n"), SCOPE_CONTRACT);
+    if (!unreadableReason(both) && Array.isArray(both.e2e_verification_fixtures)) {
+      ok("a field in frontmatter AND echoed as a prose heading is read from frontmatter, silently");
+    } else {
+      fail(`a correctly-declared field is reported unreadable because prose repeats its name: ${unreadableReason(both)}`);
+    }
+  }
 }

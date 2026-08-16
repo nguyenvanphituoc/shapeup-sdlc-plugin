@@ -263,7 +263,49 @@ Concurrency is unchanged within a wave; only dependency edges are forbidden. Eve
 no board, no `tasks`, a cycle — falls back to a single wave, exactly the previous behavior, because
 a scheduler that refuses to run is worse than one that runs unscheduled.
 
-All four were found the same way everything real in this document was found: by executing the thing.
+### The one that would have let a run succeed: a scope certified having run nothing
+
+`runFixtures` scored `pass: results.every(r => r.pass)`, and `[].every(…)` is `true`. So a scope
+with no fixtures came back green:
+
+```
+runFixtures(undefined)  ->  pass=true, results=0
+computeVerdict(…)       ->  {"overall":"green"}
+```
+
+Not hypothetical. An architect wrote perfectly good fixtures — `node --test test/…`, exit-0 test
+files, exactly what the contract asks for — as a markdown `## e2e_verification_fixtures` **section**
+rather than a frontmatter key. The field reached the scorer as `undefined` and six scopes were about
+to be certified T0-green having executed nothing. The substrate list beside it, written as a
+frontmatter block list, parsed perfectly: one field vanished silently between the writer and the
+reader.
+
+Every other defect in this document blocked the pipeline, so each was found the moment a run reached
+it. **This one manufactures success.** It is D2's class — a green run consistent with no work — in
+the one layer the evaluator is required to cite, and the only reason it was caught is that the parsed
+contract was read rather than the scope count trusted.
+
+Closed at all three doors: `verify t0` reports `ran` and refuses to call an unrun scope green;
+`verify spec` fails **red at GATE L1b**, one gate earlier, where the fix is editing a contract rather
+than burning a round; and `parseContract` now reports *any* frontmatter field written as a `##`
+section through the same UNREADABLE channel that already existed for misplaced tables — so the class
+is closed, not the instance.
+
+### The audit that followed, and the rule it produced
+
+Finding a false green by accident is not evidence there are no others, so the kernel was swept for the
+shape: any predicate an **absence** can satisfy. Every other one turned out to be honest, and for a
+single reason worth stating as a rule:
+
+> **A predicate that an absence can satisfy must report that absence in the same value.**
+
+`stability()` returns `ratio: 1` for an empty ledger — beside `runs: 0, total: 0`. `verify trace`
+returns `pass: true` with no engines — beside `engines_total: 0`. `gate --verify` returns `ok` —
+beside `required_gates`. In each case a reader can see that nothing was measured. `runFixtures`
+returned `pass: true` and nothing else: the absence was unobservable, which is exactly what made it
+a lie rather than a limitation. That is why the fix adds `ran` rather than only flipping `pass`.
+
+All five were found the same way everything real in this document was found: by executing the thing.
 Each hid the next — the fan-out never dispatched, so the compile line was never reached, so the
 verdict was never read, so the scheduling was never exercised — which is why a suite of 900+ static
 checks certified every one of them.
