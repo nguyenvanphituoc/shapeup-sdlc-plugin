@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/remove-todo-r2-a1",
+  "run_id": "todo-cli-20260815T171521Z-b135247d",
+  "compiled_at": "2026-08-16T02:29:34.918Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "bin/todo.js",
+      "lib/parse-index.js",
+      "test/commands/rm.test.js",
+      ".shapeup/todo-cli/spikes/**"
+    ],
+    "shared": [
+      "bin/todo.js",
+      "lib/parse-index.js"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "type": "scope-contract",
+      "scope_id": "remove-todo",
+      "feature": "todo-cli",
+      "topology_type": "LAYER_CAKE",
+      "tasks": [
+        "TASK-006"
+      ],
+      "allowed_file_substrate": [
+        "bin/todo.js",
+        "lib/parse-index.js",
+        "test/commands/rm.test.js"
+      ],
+      "shared_substrate": [
+        "bin/todo.js",
+        "lib/parse-index.js"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN",
+      "e2e_verification_fixtures": [
+        "node --test test/commands/rm.test.js"
+      ],
+      "affordance_manifest": [
+        {
+          "test_id": "todo-rm-command",
+          "role": "cli-command",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "`1 <= n <= items.length` → removes `items[n-1]`, shifts subsequent items left, saves, prints `Removed: \"N) <text>\"` to stdout, exit 0 — no other item's `text`/`done` value changes",
+          "error": "missing `<n>` → `E_MISSING_INDEX` to stderr, exit 1, store untouched; non-integer `<n>` → `E_INVALID_INDEX` to stderr, exit 1, store untouched (never bare `Number()`/`parseInt()`); out-of-range integer (`< 1` or `> items.length`) → `E_INDEX_OUT_OF_RANGE` to stderr, exit 1, store untouched; corrupted store → corrupted-store message to stderr, exit 1, store untouched",
+          "empty": "`rm 1` against a 0-item store → `E_INDEX_OUT_OF_RANGE`, no file created/modified"
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "TASK-006",
+        "title": "Implement `todo rm <n>` command",
+        "status": "done",
+        "priority": 3,
+        "depends_on": [
+          "TASK-002"
+        ],
+        "use_case_refs": [
+          "UC-RemoveTodo"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-final/.shapeup/todo-cli/tasks/TASK-006-rm-command.md",
+        "acceptance_criteria": [
+          "`node bin/todo.js rm 1` on a store with ≥1 item removes item 1, saves, prints",
+          "`node bin/todo.js rm` (no index) exits 1 with `E_MISSING_INDEX` to stderr, store unchanged",
+          "`node bin/todo.js rm abc` exits 1 with `E_INVALID_INDEX` to stderr, store unchanged",
+          "Removing an item shifts later items left by one position (verified via a subsequent `list`",
+          "Removing an item does not alter the `text`/`done` value of any remaining item",
+          "At min value (`1`, with ≥1 item): accepted, removes the first item",
+          "At max value (`items.length`, exact upper bound): accepted, removes the last item",
+          "Below min (`0` or negative): rejected `E_INDEX_OUT_OF_RANGE`",
+          "Above max (`items.length + 1`): rejected `E_INDEX_OUT_OF_RANGE`",
+          "Empty store (`rm 1` with 0 items): rejected `E_INDEX_OUT_OF_RANGE`"
+        ]
+      }
+    ],
+    "trial_history": [
+      {
+        "schema_version": 1,
+        "trial": 5,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "remove-todo",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      }
+    ],
+    "spec_folder": "shapeup/todo-cli/spec",
+    "feature": "todo-cli",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

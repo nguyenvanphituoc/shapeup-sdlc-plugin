@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "slug": "todo-cli",
+  "at": "2026-08-16T02:13:15.435Z",
+  "mode": "advisory",
+  "advisory": true,
+  "covers_closure": {
+    "checked": false,
+    "requirements_total": 0,
+    "covered_status": 0,
+    "cut_status": 0,
+    "covered_by_ac": 0,
+    "uncovered": [],
+    "dangling_covers": [],
+    "pass": true,
+    "skipped_reason": "no requirements.md registry — covers-closure not applicable (non-regression on pre-spine specs)."
+  },
+  "reachability": {
+    "checked": false,
+    "pass": true,
+    "unreachable": [],
+    "entry_point": "bin/todo.js",
+    "skipped_reason": "entry_point \"bin/todo.js\" does not resolve to a source file on disk — reachability skipped."
+  },
+  "findings": [
+    {
+      "severity": "warn",
+      "code": "ENTRY-MISSING",
+      "message": "project-profile.md entry_point \"bin/todo.js\" is not on disk — reachability cannot run."
+    }
+  ],
+  "overall": "green"
+}

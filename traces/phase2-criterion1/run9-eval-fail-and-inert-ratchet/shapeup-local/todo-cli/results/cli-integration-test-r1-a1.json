@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/cli-integration-test-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-007",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "A test runner command exists and passes (e.g. `node --test test/cli.test.js`, or",
+          "result": "pass",
+          "evidence": "node --test test/cli.test.js -> tests 4, pass 4, fail 0"
+        },
+        {
+          "ac": "Test isolates each run's store — point `HOME` (or the store path, whichever TASK-002",
+          "result": "pass",
+          "evidence": "test/cli.test.js: freshHome() uses fs.mkdtempSync(path.join(os.tmpdir(), 'todo-cli-integration-test-')) per test; run() spawns bin/todo.js with env HOME/USERPROFILE overridden to that temp dir. lib/todo-repository.js storePath() = path.join(os.homedir(), '.todo.json'), which resolves HOME in the child's env, so the real user's ~/.todo.json is never touched."
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "test/cli.test.js", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "Interpreted the 4 BDD scenarios (happy-path round-trip, empty list, bad index x4 invocations, corrupted store x4 invocations) as the concrete observable checks backing the two baseline AC checkboxes; all 4 are implemented as node:test cases in test/cli.test.js and all pass.",
+    "Corrupted-store stderr check asserts /corrupt/i is present (matches todo-repository.js's existing 'todo store is corrupted' message) and asserts SyntaxError/stack-trace text is absent, per the AC's 'no raw SyntaxError/stack-trace text' requirement."
+  ],
+  "deviations": []
+}

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/cli-integration-test-r2-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-007",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "A test runner command exists and passes (e.g. `node --test test/cli.test.js`, or",
+          "result": "pass",
+          "evidence": "node --test test/cli.test.js -> tests 4, pass 4, fail 0 (re-verified, no changes needed this attempt)"
+        },
+        {
+          "ac": "Test isolates each run's store — point `HOME` (or the store path, whichever TASK-002",
+          "result": "pass",
+          "evidence": "Confirmed test/cli.test.js freshHome() uses fs.mkdtempSync(path.join(os.tmpdir(), 'todo-cli-integration-test-')) per test and spawns bin/todo.js with env HOME/USERPROFILE overridden to that temp dir; lib/todo-repository.js resolves storePath() via os.homedir(), which honors the child's HOME env, so the real user's ~/.todo.json is never touched"
+        }
+      ]
+    }
+  ],
+  "files_touched": [],
+  "discoveries": [],
+  "assumptions": [
+    "Existing test/cli.test.js from prior attempts already satisfies both ACs and the scope contract's four affordance rows (happy-path round-trip, empty list, bad index, corrupted store); no code changes were needed this attempt"
+  ],
+  "deviations": []
+}

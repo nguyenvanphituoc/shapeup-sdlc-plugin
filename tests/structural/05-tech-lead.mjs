@@ -100,7 +100,16 @@ export async function run(ctx) {
       // build on it instead of restarting from unexplained code.
       ["red-but-improved 2/5 → 4/5 is strictly better", better(S(0, 4, 5, null), S(0, 2, 5, null)), true],
       ["fewer fixtures passing is not better", better(S(0, 1, 5, null), S(0, 2, 5, null)), false],
-      ["a tie is NOT better (a sawtooth must not read as a ratchet)", better(S(0, 2, 5, 1), S(0, 2, 5, 1)), false],
+      ["a tie on a RED scope is NOT better (a sawtooth must not read as a ratchet)", better(S(0, 2, 5, 1), S(0, 2, 5, 1)), false],
+      // The green tie is the other half, and its absence cost a live run. At 5/5 there is no score
+      // left to win, so every attempt ties by construction and `false` restores the tree every time
+      // — the scope can never change again. That is the state a spec-conformance round is in: EVAL
+      // cites bugs T0's fixtures do not test, the workers fix them, T0 ties, and the ratchet throws
+      // the fix away. Measured: round 2 produced 6 trials, 0 kept, 6 reverted, the entry point
+      // byte-for-byte unchanged, all three cited bugs still reproducing.
+      ["a tie on a GREEN scope KEEPS (else EVAL's findings can never be fixed)", better(S(0, 5, 5, 1), S(0, 5, 5, 1)), true],
+      ["a green tie with an outstanding regression is still not better", better(S(1, 5, 5, 1), S(1, 5, 5, 1)), false],
+      ["a zero-fixture 'tie' is not green and does not keep", better(S(0, 0, 0, null), S(0, 0, 0, null)), false],
       ["a new regression dominates a fixture gain", better(S(1, 5, 5, null), S(0, 2, 5, null)), false],
       ["clearing a regression is better even with fewer fixtures", better(S(0, 1, 5, null), S(1, 4, 5, null)), true],
       ["a db_probe recovery is better when all else ties", better(S(0, 2, 5, 1), S(0, 2, 5, 0)), true],

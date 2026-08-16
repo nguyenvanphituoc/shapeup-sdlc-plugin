@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/complete-todo-r1-a1",
+  "run_id": "todo-cli-20260815T171521Z-b135247d",
+  "compiled_at": "2026-08-16T02:15:38.762Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "bin/todo.js",
+      "lib/parse-index.js",
+      "test/commands/done.test.js",
+      ".shapeup/todo-cli/spikes/**"
+    ],
+    "shared": [
+      "bin/todo.js",
+      "lib/parse-index.js"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "type": "scope-contract",
+      "scope_id": "complete-todo",
+      "feature": "todo-cli",
+      "topology_type": "LAYER_CAKE",
+      "tasks": [
+        "TASK-005"
+      ],
+      "allowed_file_substrate": [
+        "bin/todo.js",
+        "lib/parse-index.js",
+        "test/commands/done.test.js"
+      ],
+      "shared_substrate": [
+        "bin/todo.js",
+        "lib/parse-index.js"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN",
+      "e2e_verification_fixtures": [
+        "node --test test/commands/done.test.js"
+      ],
+      "affordance_manifest": [
+        {
+          "test_id": "todo-done-command",
+          "role": "cli-command",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "`1 <= n <= items.length` → sets `items[n-1].done = true`, saves, prints `Done: \"N) <text>\"` to stdout, exit 0; re-running on an already-done item is idempotent (same message, exit 0)",
+          "error": "missing `<n>` → `E_MISSING_INDEX` to stderr, exit 1, store untouched; non-integer `<n>` (`abc`, `2.5`, `3abc`, `\"\"`) → `E_INVALID_INDEX` to stderr, exit 1, store untouched (never bare `Number()`/`parseInt()`); out-of-range integer (`< 1` or `> items.length`) → `E_INDEX_OUT_OF_RANGE` to stderr, exit 1, store untouched; corrupted store → corrupted-store message to stderr, exit 1, store untouched",
+          "empty": "`done 1` against a 0-item store → `E_INDEX_OUT_OF_RANGE` (range `[1, 0]` is never satisfiable)"
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "TASK-005",
+        "title": "Implement `todo done <n>` command",
+        "status": "done",
+        "priority": 3,
+        "depends_on": [
+          "TASK-002"
+        ],
+        "use_case_refs": [
+          "UC-CompleteTodo"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-final/.shapeup/todo-cli/tasks/TASK-005-done-command.md",
+        "acceptance_criteria": [
+          "`node bin/todo.js done 1` on a store with ≥1 item sets item 1's `done` to `true`, saves,",
+          "Running `done 1` a second time (already done) is idempotent: same success message, exit 0,",
+          "`node bin/todo.js done` (no index) exits 1 with an `E_MISSING_INDEX` message to stderr,",
+          "`node bin/todo.js done abc` exits 1 with an `E_INVALID_INDEX` message to stderr, store",
+          "`node bin/todo.js done 2.5` and `node bin/todo.js done 3abc` are both rejected as",
+          "`node bin/todo.js done \"\"` (empty-string arg, if reachable via the shell) is rejected as",
+          "At min value (`1`, with ≥1 item): accepted, marks the first item done",
+          "At max value (`items.length`, exact upper bound): accepted, marks the last item done",
+          "Below min (`0` or negative): rejected `E_INDEX_OUT_OF_RANGE`",
+          "Above max (`items.length + 1`): rejected `E_INDEX_OUT_OF_RANGE`",
+          "Empty store (`done 1` with 0 items): rejected `E_INDEX_OUT_OF_RANGE` (range `[1, 0]` is"
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/todo-cli/spec",
+    "feature": "todo-cli",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/complete-todo-r2-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-005",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`node bin/todo.js done 1` on a store with ≥1 item sets item 1's `done` to `true`, saves,",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'done 1 on a store with >=1 item marks it done, saves, prints Done, exits 0' passed"
+        },
+        {
+          "ac": "Running `done 1` a second time (already done) is idempotent: same success message, exit 0,",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'running done 1 a second time is idempotent' passed"
+        },
+        {
+          "ac": "`node bin/todo.js done` (no index) exits 1 with an `E_MISSING_INDEX` message to stderr,",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'done with no index exits 1 with E_MISSING_INDEX' passed"
+        },
+        {
+          "ac": "`node bin/todo.js done abc` exits 1 with an `E_INVALID_INDEX` message to stderr, store",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'done abc exits 1 with E_INVALID_INDEX' passed"
+        },
+        {
+          "ac": "`node bin/todo.js done 2.5` and `node bin/todo.js done 3abc` are both rejected as",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'done 2.5 and done 3abc are both rejected as E_INVALID_INDEX' passed"
+        },
+        {
+          "ac": "`node bin/todo.js done \"\"` (empty-string arg, if reachable via the shell) is rejected as",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'done \"\" (empty-string arg) is rejected as E_INVALID_INDEX' passed"
+        },
+        {
+          "ac": "At min value (`1`, with ≥1 item): accepted, marks the first item done",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'min value (1, with >=1 item): accepted, marks the first item done' passed"
+        },
+        {
+          "ac": "At max value (`items.length`, exact upper bound): accepted, marks the last item done",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'max value (items.length): accepted, marks the last item done' passed"
+        },
+        {
+          "ac": "Below min (`0` or negative): rejected `E_INDEX_OUT_OF_RANGE`",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'below min (0 or negative) rejected E_INDEX_OUT_OF_RANGE' passed"
+        },
+        {
+          "ac": "Above max (`items.length + 1`): rejected `E_INDEX_OUT_OF_RANGE`",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'above max (items.length + 1) rejected E_INDEX_OUT_OF_RANGE' passed"
+        },
+        {
+          "ac": "Empty store (`done 1` with 0 items): rejected `E_INDEX_OUT_OF_RANGE` (range `[1, 0]` is",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'empty store (done 1 with 0 items) rejected E_INDEX_OUT_OF_RANGE' passed"
+        }
+      ]
+    }
+  ],
+  "files_touched": [],
+  "discoveries": [],
+  "assumptions": [
+    "Implementation from the prior round (bin/todo.js cmdDone, lib/parse-index.js, test/commands/done.test.js) already satisfies every AC in this scope contract; re-ran the full test/commands/done.test.js suite (12/12 pass) to confirm rather than re-writing working code."
+  ],
+  "deviations": []
+}

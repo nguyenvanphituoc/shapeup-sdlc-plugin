@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/list-todos-r2-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-004",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`node bin/todo.js list` on a missing store prints `No todos yet.` to stdout and exits 0",
+          "result": "pass",
+          "evidence": "node --test test/commands/list.test.js -> 'list on missing store prints \"No todos yet.\" and exits 0' passed"
+        },
+        {
+          "ac": "`node bin/todo.js list` with items prints one line per item, 1-based:",
+          "result": "pass",
+          "evidence": "node --test test/commands/list.test.js -> 'list with items prints one line per item, 1-based, in store order' passed"
+        },
+        {
+          "ac": "`list` never writes to `~/.todo.json` (read-only) under any input, including a corrupted",
+          "result": "pass",
+          "evidence": "node --test test/commands/list.test.js -> 'list never writes to the store, even for a corrupted store' passed (file contents byte-identical before/after)"
+        },
+        {
+          "ac": "Empty result (missing file OR file containing `[]`): prints `No todos yet.`, exit 0 — both",
+          "result": "pass",
+          "evidence": "node --test test/commands/list.test.js -> 'list on store containing [] prints \"No todos yet.\" and exits 0, identical to missing store' passed"
+        },
+        {
+          "ac": "No crash when an item's `done` field is unexpectedly missing/undefined on a hand-edited",
+          "result": "pass",
+          "evidence": "node --test test/commands/list.test.js -> 'list does not crash when an item is missing the done field, treats it as falsy' passed (renders '1) [ ] no done field')"
+        }
+      ]
+    }
+  ],
+  "files_touched": [],
+  "discoveries": [],
+  "assumptions": [
+    "Prior attempt (todo-cli/list-todos-r1-a1, kept, fixtures 1/1) already implements all TASK-004 ACs correctly in bin/todo.js's cmdList; re-verified against the full fixture suite (5/5 passing) with no code changes needed"
+  ],
+  "deviations": []
+}

@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/cli-integration-test-r2-a1",
+  "run_id": "todo-cli-20260815T171521Z-b135247d",
+  "compiled_at": "2026-08-16T02:31:11.755Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "test/cli.test.js",
+      ".shapeup/todo-cli/spikes/**"
+    ],
+    "shared": []
+  },
+  "payload": {
+    "scope_contract": {
+      "type": "scope-contract",
+      "scope_id": "cli-integration-test",
+      "feature": "todo-cli",
+      "topology_type": "CHOWDER",
+      "tasks": [
+        "TASK-007"
+      ],
+      "allowed_file_substrate": [
+        "test/cli.test.js"
+      ],
+      "shared_substrate": [],
+      "hill_phase": "UPHILL_UNKNOWN",
+      "e2e_verification_fixtures": [
+        "node --test test/cli.test.js"
+      ],
+      "affordance_manifest": [
+        {
+          "test_id": "cli-happy-path-roundtrip",
+          "role": "integration-test",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "spawns `node bin/todo.js <args>` as a real subprocess against a temp `HOME` through `add`, `add`, `list`, `done 1`, `list`, `rm 2`, `list` — each step's stdout/exit code matches [[ux-behavior#Command-Flow]]",
+          "error": "n/a — this row is the happy path; error rows below cover the same subprocess mechanism",
+          "empty": "n/a"
+        },
+        {
+          "test_id": "cli-empty-list-not-error",
+          "role": "integration-test",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "`list` on a fresh temp `HOME` with no store prints `No todos yet.`, exit 0",
+          "error": "n/a",
+          "empty": "fresh temp `HOME`, no prior `add`"
+        },
+        {
+          "test_id": "cli-bad-index-rejected",
+          "role": "integration-test",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "n/a",
+          "error": "`done 99`, `done abc`, `done 0`, `rm` (no arg) against a 1-item temp store each exit 1 with a plain stderr message (no raw stack trace), store unchanged after each",
+          "empty": "n/a"
+        },
+        {
+          "test_id": "cli-corrupted-store-clean-fail",
+          "role": "integration-test",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "n/a",
+          "error": "`list`, `add \"x\"`, `done 1`, `rm 1` against a temp store containing `{not valid json,,,` each exit 1, stderr names the store as corrupted (no raw `SyntaxError`/stack-trace text), corrupted file left byte-for-byte unchanged",
+          "empty": "n/a"
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "TASK-007",
+        "title": "Integration test — full add/list/done/rm round-trip + edge cases",
+        "status": "done",
+        "priority": 4,
+        "depends_on": [
+          "TASK-003",
+          "TASK-004",
+          "TASK-005",
+          "TASK-006"
+        ],
+        "use_case_refs": [
+          "UC-AddTodo",
+          "UC-ListTodos",
+          "UC-CompleteTodo",
+          "UC-RemoveTodo"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-final/.shapeup/todo-cli/tasks/TASK-007-integration-test.md",
+        "acceptance_criteria": [
+          "A test runner command exists and passes (e.g. `node --test test/cli.test.js`, or",
+          "Test isolates each run's store — point `HOME` (or the store path, whichever TASK-002"
+        ]
+      }
+    ],
+    "trial_history": [
+      {
+        "schema_version": 1,
+        "trial": 6,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "cli-integration-test",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      }
+    ],
+    "spec_folder": "shapeup/todo-cli/spec",
+    "feature": "todo-cli",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

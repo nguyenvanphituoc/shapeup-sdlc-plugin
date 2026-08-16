@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/analyze",
+  "worker": "ba-pitch-analyzer",
+  "status": "done",
+  "artifacts": [
+    "shapeup/todo-cli/spec/_index.md",
+    "shapeup/todo-cli/spec/domain-model.md",
+    "shapeup/todo-cli/spec/ux-behavior.md",
+    "shapeup/todo-cli/spec/usecases/_index.md",
+    "shapeup/todo-cli/spec/usecases/UC-AddTodo.md",
+    "shapeup/todo-cli/spec/usecases/UC-ListTodos.md",
+    "shapeup/todo-cli/spec/usecases/UC-CompleteTodo.md",
+    "shapeup/todo-cli/spec/usecases/UC-RemoveTodo.md",
+    "shapeup/todo-cli/spec/contracts/_index.md",
+    "shapeup/todo-cli/spec/contracts/todo-repository.contract.md",
+    "shapeup/todo-cli/spec/integration.md",
+    "shapeup/todo-cli/spec/scope-summary.md",
+    "shapeup/todo-cli/spec/synthesis.md",
+    "shapeup/todo-cli/spec/feedback.md",
+    ".shapeup/todo-cli/tasks/TASK-001-cli-scaffold.md",
+    ".shapeup/todo-cli/tasks/TASK-002-todo-repository.md",
+    ".shapeup/todo-cli/tasks/TASK-003-add-command.md",
+    ".shapeup/todo-cli/tasks/TASK-004-list-command.md",
+    ".shapeup/todo-cli/tasks/TASK-005-done-command.md",
+    ".shapeup/todo-cli/tasks/TASK-006-rm-command.md",
+    ".shapeup/todo-cli/tasks/TASK-007-integration-test.md",
+    ".shapeup/todo-cli/tasks/_index.md"
+  ],
+  "assumptions": [
+    "Store path pinned to ~/.todo.json (not cwd-relative) — resolves discovered-seed #1; rationale recorded in domain-model.md Bounded Context section.",
+    "Corrupted-store recovery policy: hard-fail with a clear stderr message and non-zero exit, never auto-overwrite — resolves discovered-seed #2, per orient's recommendation.",
+    "Exit-code / stream convention pinned: stdout + exit 0 on success, stderr + exit 1 on any error — resolves discovered-seed #3.",
+    "1-based display/index convention pinned, with array-position identity re-derived fresh on every command (no persisted item id) — resolves discovered-seed #4.",
+    "Entry-point wiring: package.json with a `bin` field (`todo`) plus direct `node bin/todo.js` invocation, no CLI-parsing dependency — resolves discovered-seed #5.",
+    "Lens=standard applied per the order payload: full domain-model + contracts/ + integration.md + synthesis S-02/S-03 generated, even though the deliverable is a single-package CLI with no monorepo apps/packages split (package field on tasks uses 'cli' as the single package name).",
+    "Test Surface Oracle set to `process` on every derived row (non-UI CLI deliverable) per references/test-surface.md — evaluator should spawn the CLI as a subprocess and assert exit code + stdout/stderr, never drive a browser.",
+    "`done <n>` treated as idempotent (marking an already-done item done again succeeds, does not error) — a product decision not stated in the pitch, recorded as UC-CompleteTodo INV-06 and RULE in ux-behavior.md."
+  ],
+  "deviations": [],
+  "discoveries": []
+}

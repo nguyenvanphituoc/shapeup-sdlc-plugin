@@ -217,7 +217,41 @@ export function better(next, current) {
   if (next.regressions !== current.regressions) return next.regressions < current.regressions;
   if (next.fixtures_passed !== current.fixtures_passed) return next.fixtures_passed > current.fixtures_passed;
   if (next.db_probe !== current.db_probe) return (next.db_probe ?? 0) > (current.db_probe ?? 0);
+  // EVERY COMPONENT TIES. What that means depends entirely on whether the incumbent was green.
+  //
+  // On a RED scope a tie is the sawtooth the pawl exists to stop, and it stays `false` — that is the
+  // case the rule above was written for and the case the guard fixtures assert (2/5 vs 2/5).
+  //
+  // On a GREEN scope there is no score left to win. Every further attempt ties BY CONSTRUCTION, so
+  // `false` restores the tree every time and the scope can never change again: the pawl stops being
+  // a pawl and becomes a weld. That is exactly the state a spec-conformance round is in. EVAL
+  // returns FAIL citing bugs T0's fixtures do not test — a bare stack trace, an error message that
+  // does not match the catalogue, validation ordered after a load — the next round's workers fix
+  // them, T0 scores 1/1 again because its fixtures never tested the prose, and the ratchet throws
+  // the fix away.
+  //
+  // Measured on a live run: round 2 produced six trials, 0 kept, 6 reverted, `bin/todo.js` byte-for-
+  // byte unchanged, and all three cited bugs reproducing. The FAIL → fix → re-evaluate loop — the
+  // harness's central promise — is inert for precisely the defects EVAL is best at finding.
+  //
+  // So: a green tie KEEPS. The tree may move when the score cannot, because by then the work being
+  // done is work T0 does not measure, and refusing it does not protect the scope — it freezes it.
+  if (isGreenScore(next) && isGreenScore(current)) return true;
   return false;
+}
+
+/**
+ * Is this score a clean pass — every fixture passing, none of them absent, no outstanding regression?
+ *
+ * `fixtures_total > 0` is load-bearing: a scope with no fixtures has nothing to be green ABOUT, and
+ * treating its empty score as a pass is the same absence-reads-as-success mistake `runFixtures`
+ * made one function above.
+ *
+ * @param {{regressions:number, fixtures_passed:number, fixtures_total:number}} s - A trial score.
+ * @returns {boolean} True when the score represents a real, complete pass.
+ */
+function isGreenScore(s) {
+  return s.regressions === 0 && s.fixtures_total > 0 && s.fixtures_passed === s.fixtures_total;
 }
 
 /**

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/wire",
+  "worker": "solution-architect",
+  "status": "done",
+  "artifacts": [
+    "shapeup/todo-cli/wiring-map.md"
+  ],
+  "assumptions": [
+    "Engine module paths (src/usecases/add-todo.js, list-todos.js, complete-todo.js, remove-todo.js) and the shared src/repositories/todo-repository.js are inferred from the domain model's Repository Interfaces section and each UC's System Flow diagram naming 'Use Case: X.execute(...)' and 'TodoRepository.load()/save()' -- the spec does not pin exact file paths; the repo is greenfield (no bin/ or src/ directory exists yet), so these are proposed names for the build to create.",
+    "bin/todo.js is assumed to use a single switch/if-else dispatch on argv[2] (the simplest composition-root shape consistent with the project profile's description of it as 'the argv dispatcher'); the build may implement the dispatch differently as long as all four cases remain reachable from bin/todo.js by import."
+  ],
+  "deviations": []
+}

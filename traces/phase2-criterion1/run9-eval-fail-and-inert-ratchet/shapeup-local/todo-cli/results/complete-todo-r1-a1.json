@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/complete-todo-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-005",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`node bin/todo.js done 1` on a store with ≥1 item sets item 1's `done` to `true`, saves,",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'done 1 on a store with >=1 item marks it done, saves, prints Done, exits 0' passed: stdout 'Done: \"1) buy milk\"', exit 0, store becomes [{text:'buy milk',done:true}]"
+        },
+        {
+          "ac": "Running `done 1` a second time (already done) is idempotent: same success message, exit 0,",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'running done 1 a second time is idempotent: same message, exit 0, no error' passed"
+        },
+        {
+          "ac": "`node bin/todo.js done` (no index) exits 1 with an `E_MISSING_INDEX` message to stderr,",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'done with no index exits 1 with E_MISSING_INDEX to stderr, store unchanged' passed"
+        },
+        {
+          "ac": "`node bin/todo.js done abc` exits 1 with an `E_INVALID_INDEX` message to stderr, store",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'done abc exits 1 with E_INVALID_INDEX to stderr, store unchanged' passed"
+        },
+        {
+          "ac": "`node bin/todo.js done 2.5` and `node bin/todo.js done 3abc` are both rejected as",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'done 2.5 and done 3abc are both rejected as E_INVALID_INDEX' passed (parseIndex uses ^-?\\d+$ regex, no bare Number()/parseInt())"
+        },
+        {
+          "ac": "`node bin/todo.js done \"\"` (empty-string arg, if reachable via the shell) is rejected as",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'done \"\" (empty-string arg) is rejected as E_INVALID_INDEX, never treated as index 0' passed"
+        },
+        {
+          "ac": "At min value (`1`, with ≥1 item): accepted, marks the first item done",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'min value (1, with >=1 item): accepted, marks the first item done' passed"
+        },
+        {
+          "ac": "At max value (`items.length`, exact upper bound): accepted, marks the last item done",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'max value (items.length): accepted, marks the last item done' passed: stdout 'Done: \"2) second\"'"
+        },
+        {
+          "ac": "Below min (`0` or negative): rejected `E_INDEX_OUT_OF_RANGE`",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'below min (0 or negative) rejected E_INDEX_OUT_OF_RANGE' passed"
+        },
+        {
+          "ac": "Above max (`items.length + 1`): rejected `E_INDEX_OUT_OF_RANGE`",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'above max (items.length + 1) rejected E_INDEX_OUT_OF_RANGE' passed"
+        },
+        {
+          "ac": "Empty store (`done 1` with 0 items): rejected `E_INDEX_OUT_OF_RANGE` (range `[1, 0]` is",
+          "result": "pass",
+          "evidence": "node --test test/commands/done.test.js → 'empty store (done 1 with 0 items) rejected E_INDEX_OUT_OF_RANGE' passed"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "lib/parse-index.js", "change": "created" },
+    { "path": "bin/todo.js", "change": "modified" },
+    { "path": "test/commands/done.test.js", "change": "created" }
+  ],
+  "discoveries": [
+    { "marker": "+", "line": "test/bin-scaffold.test.js's 'list reaches its stub branch' assertion now fails because a sibling, already-landed scope implemented cmdList for real — pre-existing conflict between the scaffold test and that sibling scope's work, outside this scope's substrate and unrelated to the done command." }
+  ],
+  "assumptions": [
+    "lib/parse-index.js and bin/todo.js are shared_substrate with sibling scopes (add-todo, list-todo, remove-todo) also running concurrently; found cmdAdd, cmdList and cmdRm already implemented mid-edit by other in-flight workers and reconciled by adding only the cmdDone branch and the shared require line, touching no other handler.",
+    "lib/parse-index.js already existed with a MissingIndexError that also caught raw === '' (empty string); this scope's AC explicitly requires `done \"\"` to be E_INVALID_INDEX, not E_MISSING_INDEX, so narrowed the missing-check to `undefined`/`null` only, letting '' fall through to the strict integer regex and come out E_INVALID_INDEX — matches this scope's AC without changing behavior for the true missing-argument case other commands rely on.",
+    "Error message format `Error: <CODE> - <message>` to stderr for parse-index errors, matching the format already used by the sibling `rm` handler for the same error classes.",
+    "Store items seeded directly via fs.writeFileSync/JSON in tests (not through `todo add`) since the `add` command's implementation is outside this scope's task and its landed state at test-run time isn't something this scope should depend on."
+  ],
+  "deviations": []
+}

@@ -306,6 +306,40 @@ returned `pass: true` and nothing else: the absence was unobservable, which is e
 a lie rather than a limitation. That is why the fix adds `ran` rather than only flipping `pass`.
 
 All five were found the same way everything real in this document was found: by executing the thing.
+
+## What the pipeline did once it could run
+
+With the defects above closed, a run reached EVAL over a build where every scope was genuinely
+T0-green — six scopes, first attempt each, on fixtures that actually executed:
+
+```
+foundation 2/2 · add-todo 1/1 · complete-todo 1/1 · list-todos 1/1 · remove-todo 1/1 · cli-integration-test 1/1
+```
+
+The deliverable works. Driven by hand under its own store convention, `add`/`list`/`done`/`rm` all
+exit 0 with correct output and `[x]` state, and a corrupted store exits 1 naming the file **without
+destroying user data** — `EXPECTED.md`'s E4, exactly as written.
+
+**And the evaluator failed it anyway: 20/26, threshold 100%.** Three real defects, each cited to
+`file:line`, each re-probed and reproduced:
+
+| | |
+|---|---|
+| BUG-01 | an uncaught `StoreWriteError` prints a full Node stack trace (`bin/todo.js:27`) — the spec's global convention is "never a bare stack trace" |
+| BUG-02 | the index is validated AFTER `load()`, so a corrupted store masks `E_MISSING_INDEX` (`bin/todo.js:53`, `:85`); the UC steps require validation before any store access |
+| BUG-03 | the error text diverges from the Error Catalog: `E_MISSING_INDEX - index is required` where the spec says `Error: missing index` (`lib/parse-index.js:5,13,21`) |
+
+This is the clearest demonstration in the whole exercise of why T0 and EVAL are separate layers.
+**T0 was green on every scope and the feature still did not conform.** T0 runs the tests the workers
+wrote; EVAL grades the deliverable against the committed spec. The workers' own tests passed while
+the CLI diverged from its specification in three ways — and a human (this session) had already driven
+the binary by hand and called it working. It runs correctly. It does not conform. Only the judge
+caught the difference.
+
+The report also re-hashed every T0 artifact it cited and printed a "matches `trials.jsonl`" column,
+sandboxed `HOME` to drive the real binary rather than reading the code, and recorded that task-file
+checklists "were read for traceability only and were not graded against" — the single-judge and
+anti-self-grading disciplines holding under live conditions rather than in a fixture.
 Each hid the next — the fan-out never dispatched, so the compile line was never reached, so the
 verdict was never read, so the scheduling was never exercised — which is why a suite of 900+ static
 checks certified every one of them.

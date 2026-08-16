@@ -1,0 +1,172 @@
+{
+  "schema_version": 1,
+  "order_id": "todo-cli/foundation-r2-a1",
+  "run_id": "todo-cli-20260815T171521Z-b135247d",
+  "compiled_at": "2026-08-16T02:27:48.714Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "package.json",
+      "bin/todo.js",
+      "lib/todo-repository.js",
+      "test/todo-repository.test.js",
+      "test/bin-scaffold.test.js",
+      ".shapeup/todo-cli/spikes/**"
+    ],
+    "shared": [
+      "bin/todo.js"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "type": "scope-contract",
+      "scope_id": "foundation",
+      "feature": "todo-cli",
+      "topology_type": "ICEBERG",
+      "tasks": [
+        "TASK-001",
+        "TASK-002"
+      ],
+      "allowed_file_substrate": [
+        "package.json",
+        "bin/todo.js",
+        "lib/todo-repository.js",
+        "test/todo-repository.test.js",
+        "test/bin-scaffold.test.js"
+      ],
+      "shared_substrate": [
+        "bin/todo.js"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN",
+      "e2e_verification_fixtures": [
+        "node --test test/todo-repository.test.js",
+        "node --test test/bin-scaffold.test.js"
+      ],
+      "affordance_manifest": [
+        {
+          "test_id": "cli-dispatch-no-args",
+          "role": "cli-command",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "n/a — no-arg invocation is always the usage-error path",
+          "error": "prints usage line to stderr, exit 1",
+          "empty": "n/a"
+        },
+        {
+          "test_id": "cli-dispatch-unknown-cmd",
+          "role": "cli-command",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "n/a",
+          "error": "prints `Error: unknown command \"<cmd>\"...` to stderr, exit 1 (`E_UNKNOWN_COMMAND`)",
+          "empty": "n/a"
+        },
+        {
+          "test_id": "cli-dispatch-stub-branches",
+          "role": "cli-command",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "reaches a distinct stub branch per command without throwing (TASK-001 baseline, superseded in place by TASK-003–006)",
+          "error": "n/a",
+          "empty": "n/a"
+        },
+        {
+          "test_id": "todo-repository-load",
+          "role": "repository-method",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "`load()` returns parsed `TodoItem[]`, or `[]` on `ENOENT`/`[]`-on-disk",
+          "error": "invalid JSON or non-array JSON throws `StoreCorruptedError` (`E_STORE_CORRUPTED`); other read failures throw `StoreReadError`",
+          "empty": "missing file / `[]` on disk → `[]`, never `null`"
+        },
+        {
+          "test_id": "todo-repository-save",
+          "role": "repository-method",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "writes full `items` array atomically, round-trips through `load()` unchanged",
+          "error": "filesystem write failure throws `StoreWriteError` (`E_STORE_WRITE_FAILED`)",
+          "empty": "saving `[]` writes a valid empty-array file"
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "title": "Scaffold bin/todo.js entry point and argv dispatcher",
+        "status": "done",
+        "priority": 1,
+        "depends_on": [],
+        "use_case_refs": [
+          "UC-AddTodo",
+          "UC-ListTodos",
+          "UC-CompleteTodo",
+          "UC-RemoveTodo"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-final/.shapeup/todo-cli/tasks/TASK-001-cli-scaffold.md",
+        "acceptance_criteria": [
+          "`package.json` exists at repo root with `\"bin\": { \"todo\": \"./bin/todo.js\" }`",
+          "`bin/todo.js` exists, starts with `#!/usr/bin/env node`, and is executable (`chmod +x`)",
+          "`node bin/todo.js` with no subcommand prints a usage line to stderr and exits 1",
+          "`node bin/todo.js frobnicate` (unknown command) prints `Error: unknown command \"frobnicate\"...`",
+          "`node bin/todo.js add`, `node bin/todo.js list`, `node bin/todo.js done`, `node bin/todo.js rm`"
+        ]
+      },
+      {
+        "id": "TASK-002",
+        "title": "Implement TodoRepository (load/save ~/.todo.json)",
+        "status": "done",
+        "priority": 2,
+        "depends_on": [
+          "TASK-001"
+        ],
+        "use_case_refs": [
+          "UC-AddTodo",
+          "UC-ListTodos",
+          "UC-CompleteTodo",
+          "UC-RemoveTodo"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase2-todo-cli-final/.shapeup/todo-cli/tasks/TASK-002-todo-repository.md",
+        "acceptance_criteria": [
+          "A `TodoRepository` module is created (e.g. `lib/todo-repository.js`) exporting `load()`",
+          "`load()` on a missing file returns `[]` (does not throw)",
+          "`load()` on a file containing invalid JSON throws/returns an error tagged",
+          "`load()` on a file containing valid JSON that is not an array (e.g. `{}`) also resolves to",
+          "`save(items)` writes valid JSON that `load()` can read back unchanged (round-trip)",
+          "Request shape matches [[contracts/todo-repository.contract#Storage-Schema]] table",
+          "Response mapping matches [[contracts/todo-repository.contract#Method-load-Read]] Read Output",
+          "All error codes in [[contracts/todo-repository.contract]] Error Cases tables are handled",
+          "Missing store file: `load()` returns `[]`, not `null` and not a thrown error",
+          "Empty array file (`[]` on disk): `load()` returns `[]` — no special-casing needed beyond",
+          "`load()` never returns `null` under any input — always `[]` or throws a typed error"
+        ]
+      }
+    ],
+    "trial_history": [
+      {
+        "schema_version": 1,
+        "trial": 1,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "foundation",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 2,
+          "fixtures_total": 2,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      }
+    ],
+    "spec_folder": "shapeup/todo-cli/spec",
+    "feature": "todo-cli",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}
