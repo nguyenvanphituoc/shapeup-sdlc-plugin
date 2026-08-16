@@ -107,6 +107,30 @@ export function lintScopes(scopes, repoFiles) {
     if (files.length > SIZE_CAP && s.topology_type !== "CHOWDER") {
       findings.push({ rule: "PA2", level: "warn", scope: s.scope_id, detail: `substrate resolves to ${files.length} files (cap ~${SIZE_CAP}) — consider splitting` });
     }
+    // T0-UNVERIFIABLE — a scope with no fixtures the parser can see.
+    //
+    // RED, not warn, and it is the most important line in this file. `runFixtures` used to answer
+    // `pass: true` for an empty list (`[].every(…)` is `true`), so a scope whose fixtures did not
+    // PARSE was certified T0-green having executed nothing — "measured, not claimed" inverted into
+    // "nothing measured, therefore green", in the one layer the evaluator must cite.
+    //
+    // It is not hypothetical and it is not an authoring slip in the usual sense: the architect wrote
+    // GOOD fixtures (`node --test test/…`) as a markdown `## e2e_verification_fixtures` section
+    // instead of a frontmatter key. The substrate list beside it, written as a frontmatter block
+    // list, parsed perfectly. One field silently reached the scorer as `undefined` and the scope
+    // went green on zero evidence.
+    //
+    // `verify t0` now refuses to call an unrun scope green, so the failure is loud either way. This
+    // catches it one gate earlier, where the fix is editing a contract rather than burning a round.
+    if (!(s.e2e_verification_fixtures || []).length) {
+      findings.push({
+        rule: "T0-UNVERIFIABLE", level: "red", scope: s.scope_id,
+        detail: "no e2e_verification_fixtures the parser can see — T0 has nothing to run, so this scope " +
+          "cannot be verified. Declare them as a FRONTMATTER key (a `- ` block list or a [a, b] inline " +
+          "list); a `## e2e_verification_fixtures` markdown section is not read, and a scope whose " +
+          "fixtures silently vanish is a scope certified on no evidence.",
+      });
+    }
     // T0-UNPASSABLE — a fixture whose own comment declares a non-zero exit.
     //
     // `verify t0` scores a fixture as passing iff it exits 0, and that rule lived only in the

@@ -540,11 +540,19 @@ export async function run(ctx) {
   for (const f of files) {
     const src = readFileSync(join(abs, f), "utf8");
     if (!/skill: "scope-architect"/.test(src)) continue;
-    if (/e2e_verification_fixture[^"]*MUST EXIT 0|MUST EXIT 0/i.test(src)) {
-      ok(`${WORKFLOWS_DIR}/${f} tells the scope architect that every fixture must exit 0`);
+    // Two rules, both learned the same way — by a run losing a phase to each. A fixture that
+    // cannot pass, and a fixture the parser cannot see, fail in opposite directions and are equally
+    // fatal: the first makes a correct scope look hard, the second made six scopes go green having
+    // run nothing at all.
+    const missing = [];
+    if (!/MUST EXIT 0/i.test(src)) missing.push("that every fixture must exit 0");
+    if (!/FRONTMATTER key/i.test(src)) missing.push("that fixtures go in a frontmatter key, not a markdown section");
+    if (!missing.length) {
+      ok(`${WORKFLOWS_DIR}/${f} tells the scope architect both fixture rules — must exit 0, and where they are read from`);
     } else {
-      fail(`${WORKFLOWS_DIR}/${f} dispatches scope-architect without stating that a fixture must exit 0. ` +
-        `An error-path fixture cannot pass, so its scope can never go T0-green however correct the code is.`);
+      fail(`${WORKFLOWS_DIR}/${f} dispatches scope-architect without stating ${missing.join(" and ")}. ` +
+        `A fixture that cannot pass strands a correct scope; a fixture written where the parser cannot see it ` +
+        `leaves the scope with nothing to verify it at all.`);
     }
   }
 

@@ -618,7 +618,10 @@ if (scopes.length === 0) {
       "correct — T0 scores any non-zero exit as a failure, so a fixture written as a bare " +
       "error-path invocation can never pass and its scope can never go green. Put expected " +
       "non-zero exits INSIDE a test file that itself exits 0, and name that test file as the " +
-      "fixture.",
+      "fixture. Write `e2e_verification_fixtures` as a FRONTMATTER key holding bare command " +
+      "strings — a `## e2e_verification_fixtures` markdown section is not parsed, and a command " +
+      "with prose appended to it is not runnable. A scope whose fixtures do not parse has nothing " +
+      "to verify it and is refused at the board review.",
   });
   if (m.__failed) return diedAt("MAP SCOPES", m);
   const post = await requirePhase("MAP SCOPES", "map-scopes", "MapScopes");

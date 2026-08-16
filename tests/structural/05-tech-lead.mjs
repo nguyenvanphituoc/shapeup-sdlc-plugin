@@ -953,6 +953,37 @@ export async function run(ctx) {
   if (!triple({ file: 42, line: "x" }).valid) ok("AegisTriple still rejects genuinely wrong types — nullable is not permissive");
   else fail("AegisTriple accepts a number for file and a string for line — the nullable widening went too far");
 
+  // (c) THE FALSE GREEN AT THE BOTTOM OF "MEASURED, NOT CLAIMED".
+  //
+  // `[].every(...)` is `true`, so a scope with no fixtures scored `pass: true` and the verdict came
+  // back `overall: "green"` — certified having executed nothing. Not hypothetical: an architect
+  // wrote perfectly good fixtures as a markdown `## e2e_verification_fixtures` SECTION instead of a
+  // frontmatter key, the field reached the scorer as `undefined`, and all six scopes of a live run
+  // were about to go green on zero evidence. The substrate list beside it, written as a frontmatter
+  // block list, parsed perfectly — one field silently vanished.
+  //
+  // This is the same defect class as D2 (a green run consistent with no work) in the one layer the
+  // evaluator is required to cite. Both directions are checked, because refusing everything would
+  // be just as wrong as certifying everything.
+  const { runFixtures, computeVerdict } = await import(join(ROOT, "kernel/verify/t0.mjs"));
+  const verdictFor = (fx) => computeVerdict({ fixtures: runFixtures(fx, ROOT), dbProbe: null, seesaw: { ran: false, pass: true } });
+  for (const [label, fx] of [["absent", undefined], ["empty", []]]) {
+    const r = runFixtures(fx, ROOT);
+    if (!r.pass && r.ran === false && verdictFor(fx).overall === "red") {
+      ok(`a scope with ${label} fixtures is NOT green — an absence is not a pass`);
+    } else {
+      fail(`a scope with ${label} fixtures scores pass=${r.pass}, overall=${verdictFor(fx).overall}. ` +
+        `Nothing ran and the scope is certified: "measured, not claimed" inverted into "nothing measured, therefore green".`);
+    }
+  }
+  if (runFixtures(['node -e "process.exit(0)"'], ROOT).pass && verdictFor(['node -e "process.exit(0)"']).overall === "green") {
+    ok("a scope whose fixtures RUN and pass is still green — the refusal is about absence, not strictness");
+  } else {
+    fail("a passing fixture no longer scores green — the absence fix over-corrected and no scope can ever pass");
+  }
+  if (!runFixtures(['node -e "process.exit(1)"'], ROOT).pass) ok("a failing fixture is still red (the check still discriminates)");
+  else fail("a failing fixture scores green");
+
   const { lintScopes } = await import(join(ROOT, "kernel/verify/spec.mjs")).then((m) => ({ lintScopes: m.lintScopes }))
     .catch(() => ({ lintScopes: null }));
   if (typeof lintScopes !== "function") {
@@ -970,6 +1001,20 @@ export async function run(ctx) {
       ok("a test-file fixture is not flagged — the lint reads the author's own declaration, it does not guess");
     } else {
       fail("the lint flags an ordinary test-file fixture, which would cry wolf at every L1b");
+    }
+    // And the fixture-less scope is caught one gate before T0 refuses it, where the fix is editing
+    // a contract rather than burning a build round.
+    const unverifiable = lintScopes([scope("s", [])], []).filter((f) => f.rule === "T0-UNVERIFIABLE");
+    if (unverifiable.length === 1 && unverifiable[0].level === "red") {
+      ok("a scope with no parsed fixtures is RED at L1b — an unverifiable scope never reaches BUILD");
+    } else {
+      fail(`a scope with no fixtures is not flagged red at L1b (got ${JSON.stringify(unverifiable)}). ` +
+        `Its fixtures silently vanished and nothing said so before the build spent on it.`);
+    }
+    if (lintScopes([scope("s", ["node --test test/a.test.js"])], []).filter((f) => f.rule === "T0-UNVERIFIABLE").length === 0) {
+      ok("a scope WITH fixtures is not flagged unverifiable");
+    } else {
+      fail("the unverifiable lint fires on a scope that has fixtures — it would block every run");
     }
   }
 }

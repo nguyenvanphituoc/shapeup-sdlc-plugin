@@ -88,7 +88,24 @@ function runCommand(cmd, cwd) {
  */
 export function runFixtures(fixtures, cwd) {
   const results = (fixtures || []).map((cmd) => runCommand(cmd, cwd));
-  return { pass: results.every((r) => r.pass), results };
+  // AN ABSENCE IS NOT A PASS, and this is the whole "measured, not claimed" invariant in one line.
+  //
+  // `[].every(...)` is `true`, so a scope whose contract declared no fixtures — or whose fixtures
+  // failed to PARSE, which is how it actually happened — scored `pass: true` and the verdict came
+  // back `overall: "green"`. Measured directly:
+  //
+  //     runFixtures(undefined)  ->  pass=true, results=0
+  //     computeVerdict(…)       ->  {"overall":"green"}
+  //
+  // Nothing ran, and the scope was certified. That is not a weaker version of the guarantee, it is
+  // the inverse of it: the one layer the evaluator is required to cite, green on zero evidence. The
+  // same reasoning the decision ledger states one directory over — "an absence proves nothing and
+  // must not sharpen the message".
+  //
+  // `ran` is reported rather than folded into `pass` so the two facts stay distinguishable: a scope
+  // with nothing to run is a contract that is not finished, which is different from a scope whose
+  // fixtures ran and failed, and the ratchet should be able to tell them apart.
+  return { pass: results.length > 0 && results.every((r) => r.pass), ran: results.length > 0, results };
 }
 
 /**
