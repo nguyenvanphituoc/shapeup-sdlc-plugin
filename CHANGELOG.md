@@ -3,7 +3,15 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] · BUILD had never dispatched a scope
+## [Unreleased] · the v2 runtime, made to actually run
+
+Every defect below was found by executing the pipeline, not by reading it. None was visible to the
+structural suite, because each one guarded a line no run had ever reached: the fan-out never
+dispatched, so the compile line was never used, so the verdict was never read, so the ratchet was
+never scored on a green tie, so the fix round was never dispatched at all. Each fix ships with a
+guard, and every guard was verified by putting its defect back.
+
+### BUILD had never dispatched a scope
 
 **Fixed — the fan-out dropped every scope it was supposed to build.** BUILD's first pipeline stage
 answered "is this scope already green from a killed round?" and returned `null` for no. The runtime
@@ -24,7 +32,7 @@ above, which meant the leg never ran to discover it. Dispatches may now override
 and the check is per call site so a leg addressing its order another way is exempt rather than
 special-cased.
 
-## [Unreleased] · a dispatch has to prove it happened
+### A dispatch has to prove it happened
 
 **The defect.** A `Skill` dispatch against a plugin that is absent, disabled or a different version
 returns `<tool_use_error>Unknown skill</tool_use_error>` — and the sub-agent then does the craft
@@ -60,6 +68,76 @@ wrong-version-loaded, have every `SKILL.md` and pass it green — so the orchest
 the hook layer's decision rows for the evidence. A Skill call whose name does not resolve fires no
 hook at all, so a row naming a skill is proof the session resolved it, and the sub-agent that made
 the call cannot write that row.
+
+### Verification could certify a scope that ran nothing
+
+**A scope with no fixtures scored green.** `results.every(...)` on an empty array is `true`, so a
+scope whose `e2e_verification_fixtures` failed to parse was declared T0-green having executed
+nothing at all — the one failure mode that converts the whole ratchet into decoration. `pass` now
+requires at least one result, and `ran` travels beside it: a predicate an absence can satisfy has to
+report that absence in the same value. Two L1b lints catch it a gate earlier, where the fix is
+editing a contract rather than burning a build round — `T0-UNVERIFIABLE` (red: no parsed fixtures)
+and `T0-UNPASSABLE` (warn: a fixture whose own comment declares a non-zero exit).
+
+**T0 verdicts were written where nothing reads them.** `harness verify t0` derived its output
+directory from the contract path, landing verdicts in the COMMITTED tier while `harness probe t0`
+read the LOCAL one — and the detour stripped the `run_id` on the way. Six green verdicts existed and
+the round could see none of them, so it reported zero green scopes over a build that had worked.
+Both sides resolve through the shared path resolver now.
+
+**A frontmatter field written as a `## section` vanished silently.** A contract whose author wrote
+`## e2e_verification_fixtures` as a body heading parsed as a contract with no fixtures — clean, valid
+and empty. It is reported through the existing unreadable-field channel instead.
+
+### The loop that could not close
+
+A FAIL verdict is only worth what the next round does with it. It did nothing, for four independent
+reasons, each sufficient on its own — and none reachable until a run got as far as a second round.
+
+**A green tie reverted the fix.** The ratchet kept an attempt only if it scored strictly better. A
+spec-conformance fix cannot raise a score that is already at full marks, which is the defining
+condition of a fix round, so every fix was scored, found "not better", and thrown away. Measured on
+one run's ledger: 6 trials, 0 kept, 6 reverted, the entry point byte-identical before and after. A
+tie on a GREEN score now keeps.
+
+**Each round's verdict overwrote the last.** The evaluate dispatch omitted `--round`, so every round
+compiled to `evaluate.json`. `eval_rounds_done` could never match, every relaunch restarted the round
+counter at 1, and a run kept only its final round's envelope.
+
+**Nothing told the workers what to fix.** `payload.bugs` was defined in the schema, registered for
+`task-executor`, and declared in that worker's input contract — three artifacts in agreement, and no
+producer anywhere. It is read off the ledgered verdict by `harness compile` now, which is the only
+place that works: a build order overrides its compile line, so a caller-supplied payload is
+discarded, and an orchestrator variable does not survive the relaunch that separates two rounds.
+Ownership is elected by substrate — an entry point is routinely shared, and handing one fix to five
+concurrent legs is a write race — and a defect matching no substrate is marked `unowned` and sent to
+all of them rather than dropped.
+
+**And the round arrived under the wrong operation.** `payload.bugs` is the one field
+`task-executor`'s contract binds to a specific operation, and a fix round was dispatched as
+`execute`. A round carrying cited defects now compiles as `fix`, with a byte-identical write
+contract.
+
+### Scheduling, identity, and the rest
+
+**The fan-out was ordered by the alphabet.** BUILD chunked scopes by directory listing, which put an
+entry-point scope in the first wave alongside the command scopes its own contract says it consumes.
+Scopes are now grouped into dependency waves derived from each contract's `tasks` and each task's
+`depends_on` — nothing new is authored, and any missing input falls back to one wave containing
+everything.
+
+**A result could claim an order it was not answering.** `order_id` is the only join in the record
+set, so a result echoing the wrong id is detached from its run rather than mislabelled. `harness
+reduce ingest` refuses it, rather than normalising: silently rewriting a worker's output is how
+drift becomes permanent.
+
+**A worker escalated on a type its own schema contradicted.** `AegisTriple` typed `file`/`line` as
+required strings while its description told the judge to use `null` when a criterion has no single
+site — so a conforming evaluator produced a non-conforming envelope, and **zero verdicts were
+recorded across two full rounds**. The fields are nullable unions now.
+
+**Smaller, same class.** ORIENT was never told the filenames its own phase-completion check reads.
+The canonical example pitch never stated the store convention its acceptance oracle grades by.
 
 ## [2.0.0] — 2026-08-14 · the strip-down
 
