@@ -2,10 +2,15 @@
 
 ## Goal
 
-Close the defects `DIAGNOSIS-phase2.md` left open, in the order that lets each step be validated
+Close the defects the phase-2 diagnosis left open, in the order that lets each step be validated
 before the next one is built. The through-line is D2: **nothing in the system attests which skill
 produced an artifact**, so a run against a missing, disabled or wrong-version plugin reports phases
 completing while none of the shipped craft was applied.
+
+The diagnosis and the native-runtime evidence note that preceded this plan have been removed now
+that Phase 2 is closed — every finding either landed as a step below or is recorded in
+`RESULT-v2.md` and `CHANGELOG.md`. What they measured is restated here rather than cited, so this
+plan stands on its own.
 
 The deliverable is not "the fixes are written". It is criterion 1 of the phase's own acceptance line
 — the baseline feature ships end-to-end on the native tool, interactive *and* headless, with both
@@ -104,12 +109,20 @@ dispatch. Quote the path where a prompt carries one.
 ### Why not `PreToolUse` (the earlier draft of this plan)
 
 `PreToolUse` fires *before* the tool runs, so it cannot separate "the Skill returned" from "the Skill
-errored and the sub-agent improvised the craft itself" — which is the measured failure
-(`DIAGNOSIS-phase2.md:62-87`). It appears to catch the observed instance only by coupling: the plugin
-was not loaded, so `hooks/hooks.json` was not registered either, so no receipt. Once the plugin *is*
-loaded — Step 4's whole point — a dispatch that errors still gets a `PreToolUse` receipt written
-before it fails. The fix would expire exactly when the environment is repaired.
-`DIAGNOSIS-phase2.md:151-153` says the same thing; this plan takes that branch.
+errored and the sub-agent improvised the craft itself" — which is the measured failure. What was
+observed live: `Skill(shapeup-sdlc-plugin:orient)` and `Skill(orient)` both returned
+`<tool_use_error>Unknown skill</tool_use_error>`, the sub-agent then did the craft itself from the
+`extra` prose in its prompt, and everything downstream accepted it — all four orient artifacts on
+disk, `results/orient.json` ingested, the leg returning `{ok: true, artifact_written: true}`, the
+phase post-condition passing, the run advancing. Both walls fired correctly and neither could help:
+the envelope check validates the *order*, `sandbox-guard` validates *where writes land*, and
+improvised writes landed in exactly the right place.
+
+`PreToolUse` appears to catch that instance only by coupling: the plugin was not loaded, so
+`hooks/hooks.json` was not registered either, so no receipt. Once the plugin *is* loaded — Step 4's
+whole point — a dispatch that errors still gets a `PreToolUse` receipt written before it fails. The
+fix would expire exactly when the environment is repaired. The diagnosis reached the same conclusion
+and named recording completion from `PostToolUse` as the alternative; this plan takes that branch.
 
 ### [NEW] `hooks/dispatch-receipt.mjs`
 
@@ -303,8 +316,9 @@ mutates the plugin under test and is not repeatable.
 
 The earlier draft proposed a new `examples/it-jobs-researcher` — a CLI researching Vietnamese IT jobs
 and real estate. Dropped: it needs live network access, in a repo whose load-bearing rule is zero
-network, and it would have shipped without the expected outcome the diagnosis asks for
-(`DIAGNOSIS-phase2.md:160-163`), leaving Phase 7's G6 comparison with nothing to compare against.
+network, and it would have shipped without the expected outcome the diagnosis asks for — a standing feature
+fixture with a committed pitch *and* an expected outcome, so criterion 1 has something concrete to
+ship — leaving Phase 7's G6 comparison with nothing to compare against.
 
 **Use `examples/todo-cli`.** It already is the thing being asked for:
 
@@ -357,8 +371,10 @@ Two small tasks, since this promotes `EXPECTED.md` to the acceptance contract:
 
 ### Original note
 
-This is an **environment** action, not a docs edit — blocker #2 of `DIAGNOSIS-phase2.md:129-131`.
-Nothing in Steps 1–3 can be validated without it.
+This is an **environment** action, not a docs edit — the diagnosis's blocker #2: no environment had
+the v2 plugin loaded at all. Installed copies were v1.6.3 and v1.7.0, all `✘ disabled`, so
+`Skill(shapeup-sdlc-plugin:<worker>)` could not resolve from any session. Nothing in Steps 1–3 can
+be validated without it.
 
 - Load the working copy (`claude --plugin-dir .`) or install 2.0.0 from the marketplace; confirm
   `Skill(shapeup-sdlc-plugin:orient)` resolves before spending a run on it.
@@ -500,7 +516,7 @@ a web-app tool. The one vocabulary that classifies deliverables has no word for 
 schema change with a compile-and-ingest blast radius, so it is recorded here as a raw idea for the
 Betting Table rather than made during the phase that is validating the current behavior.
 
-## Step 5 — run criterion 1 twice, keep both traces — **IN PROGRESS**
+## Step 5 — run criterion 1 twice, keep both traces — **DONE (both lanes landed; four new defects filed)**
 
 > **Where this stands.** Fourteen defects found by execution, all fixed and guarded, each guard
 > verified by re-introducing its defect. The headless lane now builds a working CLI with all six
@@ -579,9 +595,117 @@ Betting Table rather than made during the phase that is validating the current b
 > caught a stale escalation claim from its own orchestrator, re-verified against artifacts, and
 > corrected the ledger append-only rather than rewriting it.
 >
-> **Still open: the interactive lane**, which is prepared and waiting on the PO to answer its gates
-> (`phase2-todo-cli-interactive/HOW-TO-RUN.md`). Criterion 1 is not met until that lane lands, and
-> this section says so rather than counting the lane that did.
+> **The interactive lane landed on 2026-08-16** — run `todo-cli-20260816T084725Z-ddb6d292`,
+> `auto_level: interactive`, no committed gate-answer file, the PO answering at each gate. It is the
+> stronger of the two runs and it reached a **PASS**: 3 rounds, board 7/7, both scopes T0-green
+> (`scope-cli-core` 11/11 fixtures, `scope-integration-test` 1/1, 0 regressions), QA run, GATE H
+> answered, `shapeup/todo-cli/REPORT.md` frozen at L4 with `verdict: pass`.
+>
+> Criterion 1 is now demonstrated in both lanes. The evidence that the *shipped* craft ran — not a
+> sub-agent improvising it — is the receipt ledger, which is written by the hook layer rather than by
+> the sub-agent's own account: **17 dispatch receipts, 8 distinct worker skills, zero
+> `worker_declared` ≠ `skill_invoked` mismatches.** The interactive lane attested one skill the
+> headless lane never reached, `qa-edge-hunter`, because QA sits after PASS and the headless lane
+> ended FAIL.
+>
+> Graded against `EXPECTED.md`: **14 PASS · 2 FAIL · 0 UNGRADED**. Blocks A and B pass outright
+> (20 committed spec files, four use cases, five `TS-INV-*` rows; 95 criterion verdicts, every one
+> PASS/FAIL with evidence). The headless lane's E4/E6 gap is **closed** — the `$TODO_STORE`
+> requirement is now stated in the pitch, and both now pass. The one remaining Block C failure, E1,
+> is again the oracle rather than the pipeline, and in a way worth recording precisely because it is
+> the second instance of the same class: the contract asserts `stdout =~ /no todos|empty|nothing/i`,
+> while this run's own Test Surface (`TS-INV-04`) pins stdout to **exactly `(no items)`** — a string
+> the BA chose and the evaluator then graded against correctly. Driven by hand the deliverable prints
+> `(no items)` and exits 0. The headless lane passed E1 only because its builder happened to write
+> "No todos yet.". An oracle that asserts a phrase the intake never specifies can only be satisfied
+> by luck; it should assert the behaviour (exit 0, one line, no traceback) or the pitch should pin
+> the wording. Filed, not patched — editing the regex to make the check green is the move this repo
+> exists to prevent.
+>
+> ### What the interactive lane cost
+>
+> Reconstructed from the session transcripts, because the harness's own economics tables are empty
+> (see the two export defects below). One session, 822 API calls, ~85.0M tokens (94% cache reads),
+> **2h52m elapsed / 2h29m active**, 7 workflow launches, 110 agents. Notional API-list equivalent
+> ~$121, of which ~$93 is the Opus orchestrator — this ran on a subscription and was not billed at
+> that rate. The headless lane, for comparison: 1,428 calls, ~58.3M tokens, 10h31m elapsed but only
+> 2h11m active, 201 agents, ~$56 notional. The interactive lane costs roughly twice as much for
+> fewer calls because its orchestrator ran on Opus and carried the gate deliberation and the defect
+> diagnosis in-session; the headless lane's idle time is operator gaps, not machine time.
+>
+> ### Four mechanism defects the interactive lane found — all confirmed independently
+>
+> The run filed these to `shapeup/knowledge-base/harness-defects.md` as Betting Table raw ideas,
+> per the coach-retro rule. **Each was then re-verified here against the code rather than accepted
+> from the run's prose**, because a KB file written by a run is prose like any other. All four
+> reproduce. They are defects in the code frozen for 2.0.0.
+>
+> | ID | Claim | Independent verification | Verdict |
+> |---|---|---|---|
+> | **HD-001** | `append_only` globs carrying a `#section` anchor are unmatchable, so `reconcile` and `retrofit-surface` can never write | Executed `substrateFor()` → `matchesAny()`: every anchored glob returns `false` against the real path, `true` with the anchor stripped. `retrofit-surface` also has `allowed: []`, so it can write **nothing at all, on any project** | CONFIRMED |
+> | **HD-002** | GATE L1b's lint passes scope contracts that `compile` categorically refuses | Re-introduced the defect (unbracketed `required_states`) into a throwaway copy: `verify spec` → `red: 0, warn: 0, findings: []`, exit 0. `compile` on the same file → refuses all 7 rows, `expected array, got string` | CONFIRMED |
+> | **HD-003** | `coerce()` unquotes without unescaping, so T0 reports red against a correct implementation | `coerce(uncoerce(x)) !== x` for values that begin or end with a quote — `say "hi"` → `say "hi`, a character silently eaten. Impact corroborated on the **append-only trial ledger**: `scope-cli-core` stuck at 1/7 for four attempts, then 7/7 `kept`, `delta +6 fixtures` the moment the fixtures were repaired | CONFIRMED |
+> | **HD-004** | `crossGate` branches on a model's prose, so QA never runs and a PO's `stop` at L3 is inert | `CMD.detail` is a free-text `string` and the sub-agent is asked for "one line of detail"; `crossGate` returns `{decision: g.detail}`; `shapeup-run.js:866` tests `qaG.decision === "run"` and `:851` tests `g3.decision === "stop"`. Neither can ever be true. `app_url` is `{"type":"string"}`, non-nullable, so QA is separately unreachable for any non-UI deliverable | CONFIRMED |
+>
+> Two corrections to the run's own write-up, recorded because the fixes depend on them. HD-003's
+> claim that the round-trip breaks "for any value containing a quote" is **overstated** — `a"b`
+> round-trips fine; the true predicate is a value that *begins or ends* with a quote. And HD-003's
+> proposed fix #1 (parse with `JSON.parse` when the scalar is valid JSON) would **not** have fixed
+> its own case: the on-disk fixtures are not valid JSON (`Unexpected non-whitespace character at
+> position 53`), so they would all fall through to the current strip.
+>
+> Two further defects, found here rather than by the run, in the same family — state that must cross
+> a boundary kept in the one place that does not cross it:
+>
+> - **Nothing writes the journal the exporter reads.** `kernel/report/export.mjs:191` reads
+>   `.shapeup/<slug>/workflow-run/journal.jsonl`; `workflowRunDir` appears in exactly two places in
+>   the repo, both of them that read. The Workflow runtime writes its journal into the session
+>   transcript directory instead. The economics half of `harness export` cannot populate, for any run.
+> - **The journal rows carry no economics anyway.** Every row is `{type, key, agentId, result}` — no
+>   cost, no `wall_ms`, no model — so `agentCallRow` would emit nulls even with the path fixed.
+>
+> Neither was caught by the structural suite because `harness export` has never run against a run
+> that had a journal, so nothing ever reached the line. Same shape as defects 11–16.
+>
+> ### What was fixed, on the PO's decision
+>
+> PO elected to fix the two that corrupt or disable core invariants, and to cut after. Each fix was
+> validated on its own, and each guard verified by putting its defect back and watching the suite go
+> red — never by reading the diff.
+>
+> - **HD-003 — fixed.** Quotes are now removed only in *matching* pairs; a JSON-escaped scalar is
+>   read as JSON; a scalar that is not valid JSON is unwrapped but **not** unescaped, because a
+>   backslash there belongs to the shell that will run it. That last clause was found the hard way:
+>   the first version of the fix unescaped on both paths and silently changed 6 of the 11 real
+>   fixtures on disk, where `\"` is a shell escape the fixture needs delivered intact. Validated
+>   against the artifact rather than against synthetic strings, which is what caught it. Guard: a
+>   quote-bearing corpus in `46-contract-md.mjs`, previously absent entirely — re-introducing the
+>   defect produces 4 failures naming the exact shapes.
+> - **HD-004 — fixed, both blocking halves.** The gate decision is copied verbatim out of the
+>   kernel's own JSON into its own schema field, checked against the gate's valid set, and a decision
+>   that cannot be read **aborts** rather than defaulting to `proceed`. `payload.app_url` is now
+>   nullable, and `qa-edge-hunter`'s contract says what a null means — drive the entry point, do not
+>   refuse and do not invent a URL. Verified by compiling a real QA order with `app_url: null`
+>   (succeeds; reverting the schema reproduces `✗ $.payload.app_url: expected string, got null`).
+>   Guard: four assertions in `16-workflows.mjs` on where a gate decision may come from —
+>   re-introducing the defect produces 3 failures.
+> - **E1 — resolved by making the oracle assert behaviour.** It now requires exit 0, no traceback and
+>   exactly one line, and asserts no wording. Proven to still discriminate: two correct
+>   implementations with different wording pass; silence, a phantom item list, a traceback and a
+>   non-zero exit all fail. The rationale is recorded in `EXPECTED.md` itself so it reads as a
+>   decision rather than a check quietly widened until the current run slipped through.
+>
+> With E1 resolved the interactive lane grades **16 PASS · 0 FAIL · 0 UNGRADED — `EXPECTED.md`
+> satisfied.** The headless lane improves to 13/3; its remaining E4/E6 failures are the stale-checkout
+> gap already recorded above, not a pipeline defect.
+>
+> **Still open, filed and not fixed** — HD-001 (anchored `append_only` globs; `reconcile` and
+> `retrofit-surface` can write nothing), HD-002 (the L1b lint greenlights contracts `compile`
+> refuses), the two export-economics defects, and HD-004's two smaller siblings (a paused L3 costs a
+> whole round; `hammer`/`evaluate` orders can never be ingested, so `pending_orders` is permanently
+> non-empty). These are Betting Table items, not release blockers.
+>
+> **Criterion 1 is met and the two blocking defects are closed.** The cut is the remaining step.
 
 ### Original note
 
@@ -662,13 +786,25 @@ suite that has not been run is an assumption, not a baseline.
 Steps 0–6 complete, `npm test` green, and criterion 1 demonstrated in both lanes with the traces
 kept. Criterion 2 is already met. Criterion 3 is recorded as descoped, not claimed.
 
-**Standing as of 2026-08-16.** Steps 0–4, 6 and 7 are done. Step 5's headless lane is done — a run
-reached `status: shipped` with a frozen report, archived at
-`traces/phase2-criterion1/headless-shipped/`. The interactive lane is the single open item, and it
-is open on the PO rather than on the harness: it pauses at seven gates a human answers.
+**Standing as of 2026-08-16 (end of day).** Steps 0–7 are complete. **Criterion 1 is met in both
+lanes**: headless reached `status: shipped` (verdict FAIL, the designed GATE H path), interactive
+reached `verdict: pass` over 3 rounds with QA run and the board 7/7. Both are attested by the hook
+layer's receipt ledger rather than by any sub-agent's account — 8 distinct shipped skills across
+the two lanes, zero declared≠invoked mismatches. Phase 2's acceptance is therefore satisfied:
+criterion 1 demonstrated in both lanes, criterion 2 already met, criterion 3 recorded as descoped.
 
-The release is prepared and deliberately not cut. `CHANGELOG.md` carries one pending entry that
-becomes 2.0.0 at tag time; both manifests already read 2.0.0, which was never tagged or published
-(npm's latest is 1.7.0), so there is no released 2.0.0 for these fixes to sit above. The cut is
-held until the interactive lane lands, so the release notes can say criterion 1 was demonstrated in
-both lanes rather than in one.
+**The release is prepared, still not cut, and now blocked on a decision rather than on a run.** The
+interactive lane found four mechanism defects (HD-001…HD-004), each re-verified here against the
+code; two more (the export journal path, and the journal's missing economics) were found while
+reporting on it. All six are in the tree that reads 2.0.0. None was caught by the 1014-check
+structural suite, for the same reason as defects 11–16: each guards a line no run had reached until
+one did.
+
+The PO's call was to fix the two that corrupt or disable core invariants and cut after. **Both are
+now fixed, guarded, and validated** (see Step 5). The suite stands at **1027 checks**, up from 1014,
+with the added checks verified by re-introducing each defect. Demo green, both `plugin validate
+--strict` green, version parity 2.0.0/2.0.0.
+
+**The remaining step is the cut itself**, which is a deliberate action and not taken yet: no tag, no
+push, no publish. HD-001, HD-002, the two export-economics defects and HD-004's two smaller siblings
+ship as filed known issues, each with a reproduction.
