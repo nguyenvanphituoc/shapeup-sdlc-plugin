@@ -936,7 +936,12 @@ async function buildScope(scope, roundNo) {
   // whose fixtures pass while its behaviour contradicts the spec has no red trial to digest. That
   // gap is why EVAL is a separate layer, so the channel out of it has to be separate too.
   return worker({
-    skill: "task-executor", operation: "execute", schema: SCOPE_RESULT, phase: "Build",
+    // No `operation` either, and for the same reason as the payload: the compile override below
+    // replaces the whole command, so a declared operation here would be discarded — and it would
+    // now be WRONG as well as dead. `harness compile` derives it: a round carrying cited defects
+    // compiles as `fix`, which is the operation task-executor's own contract binds `payload.bugs`
+    // to, and a round with nothing cited stays `execute`.
+    skill: "task-executor", schema: SCOPE_RESULT, phase: "Build",
     label: `build:${scope.scope_id}-r${roundNo}`,
     // A build order is addressed by scope + round + attempt, never by operation: the attempt number
     // is part of its identity, so there is one order per attempt and the generic slug form cannot

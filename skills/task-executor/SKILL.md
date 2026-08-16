@@ -30,7 +30,8 @@ rely on (anything absent = **unknown**; never invent it):
 | `payload.verify.test_cmd` | The command that verifies your work. No test_cmd → command-verifiable ACs still need *some* observable check; say what you used |
 | `payload.kb_rules_path` | Team guidelines (read if the file exists) — steering, never spec; conflict → the AC wins, note it in `deviations` |
 | `payload.constraints` | Non-Go items and freezes (e.g. `ui_layers.layer3_frozen`) |
-| `operation` | `execute` (fresh), `fix` (only the bugs in `payload.bugs` — touch nothing else), `spike` (produce a decision doc, not code) |
+| `payload.bugs[]` | The previous round's FAIL verdict, addressed to files inside YOUR substrate: `{severity, criterion, location, repro, expected, actual}`. Fix exactly these and touch nothing else. They are spec-conformance defects, so verification is ALREADY green and will stay green whether or not you fix them — a passing `test_cmd` is not evidence you are done this round, and re-running it cannot tell you. Read the cited lines against the committed spec instead. An entry marked `unowned` cites a file no scope owns: fix it only if it falls inside your substrate. Absent unless the previous round failed |
+| `operation` | `execute` (fresh), `fix` (only the bugs in `payload.bugs` — touch nothing else), `spike` (produce a decision doc, not code). A build round whose predecessor returned FAIL arrives as `fix` with the same substrate as the `execute` that preceded it |
 
 **Zero-memory rule.** You have no memory of prior attempts or sessions. Decisions that
 mattered are in `payload.decisions`; errors that mattered are in `payload.digested_errors`.

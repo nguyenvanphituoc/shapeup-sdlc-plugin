@@ -641,7 +641,26 @@ export async function cli(rawArgv) {
 
   const round = flag("round");
   const attempt = flag("attempt");
-  let operation = flag("operation") || (scopePath || flag("task") || has("next") ? "execute" : null);
+
+  // The fix round's inbound evidence. Derived here, from the ledgered verdict, for every lane —
+  // the workflow, `--tiny`, the prose round loop and a standalone `/build` all compile through
+  // this line, and none of them can pass a payload to a build order (see the banner above).
+  const bugs = scope ? bugsForScope(verdictBugs(cwd, slug, round), scope.scope_id, scopeSubstrates(cwd, slug)) : [];
+
+  // A ROUND CARRYING CITED DEFECTS IS A `fix`, AND THE ORDER HAS TO SAY SO.
+  //
+  // `payload.bugs` is the only field task-executor's input contract binds to a specific operation:
+  // "`fix` (only the bugs in `payload.bugs` — touch nothing else)". Dispatching a fix round as
+  // `execute` hands the worker a field its own contract associates with a different operation,
+  // against a Zero-memory rule that says to treat anything not in the order as unknown. Delivering
+  // evidence the receiving contract does not claim is half a delivery.
+  //
+  // Free of blast radius by construction: `substrateFor` returns the same whitelist for
+  // execute/fix/spike, so the sandbox contract is byte-identical, and the order id is addressed by
+  // scope/round/attempt rather than by operation, so no filename moves. An explicit `--operation`
+  // still wins — an operator naming the operation outranks the derivation.
+  let operation = flag("operation")
+    || (scopePath || flag("task") || has("next") ? (bugs.length ? "fix" : "execute") : null);
   const worker = flag("worker")
     || (scopePath || flag("task") || has("next") ? "task-executor" : null)
     || (operation ? OP_OWNER[operation] : null);
@@ -704,11 +723,6 @@ export async function cli(rawArgv) {
   let payloadExtra = flag("payload") || {};
   if (specDir && !payloadExtra.spec_folder) payloadExtra.spec_folder = specDir;
   if (!payloadExtra.feature) payloadExtra.feature = slug;
-
-  // The fix round's inbound evidence. Derived here, from the ledgered verdict, for every lane —
-  // the workflow, `--tiny`, the prose round loop and a standalone `/build` all compile through
-  // this line, and none of them can pass a payload to a build order (see the banner above).
-  const bugs = scope ? bugsForScope(verdictBugs(cwd, slug, round), scope.scope_id, scopeSubstrates(cwd, slug)) : [];
 
   const order = compileOrder({
     slug, worker, operation, round, attempt, scope, tasks, decisions, digestedErrors, trialHistory, bugs,

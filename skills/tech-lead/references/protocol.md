@@ -211,7 +211,10 @@ harness verify t0                      → fixtures + DB probe + (on green) sees
               of the ratchet). Tree snapshotted to refs/shapeup/<scope_id>/kept.
               overall=green → the attempt loop breaks; scope reaches DOWNHILL_EXECUTION.
               Still red → loop, and attempt M+1 now builds ON attempt M.
-  reverted  not better — and a tie is not better. Tree already restored from the last kept
+  reverted  not better. A tie on a RED score is not better either — but a tie on a GREEN one
+              KEEPS, because a spec-conformance fix cannot raise a score that is already at
+              full marks, and reverting it would discard exactly the work a fix round exists
+              to do. Tree already restored from the last kept
               snapshot. Subsumes the retired stash-and-retry branch: a FINISHED scope's broken
               fixture raises score.regressions and reverts through this same rule, which
               is why seesaw runs before anything is declared green.

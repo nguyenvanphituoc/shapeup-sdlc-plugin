@@ -1165,6 +1165,21 @@ export async function run(ctx) {
         } else {
           fail("payload.bugs lost fields in transit — a repro that was rewritten is a repro that may not reproduce");
         }
+        // AND THE ORDER HAS TO SAY IT IS A FIX. task-executor's input contract binds `payload.bugs`
+        // to one operation — "`fix` (only the bugs in `payload.bugs` — touch nothing else)" — under
+        // a Zero-memory rule that treats anything not in the order as unknown. An `execute` order
+        // carrying bugs hands the worker a field its own contract assigns to a different operation.
+        if (order.operation === "fix") {
+          ok("a round carrying cited defects compiles as `fix`, the operation the worker's contract binds bugs to");
+        } else {
+          fail(`a round carrying ${(order.payload.bugs || []).length} cited defect(s) compiled as ` +
+            `"${order.operation}" — the worker's contract binds payload.bugs to \`fix\`, so the evidence ` +
+            `arrives under an operation that does not claim it`);
+        }
+        // The substrate must be untouched by that switch, or the fix round is fenced differently
+        // from the build round that preceded it.
+        if (order.substrate.allowed.includes("lib/beta.js")) ok("switching to `fix` leaves the write contract identical");
+        else fail(`the fix round's substrate differs from the build round's: ${JSON.stringify(order.substrate.allowed)}`);
       } else {
         fail(`compiling a round-2 order failed (exit ${r2.status})\n${r2.stdout}${r2.stderr}`);
       }
@@ -1176,6 +1191,12 @@ export async function run(ctx) {
         ok("a first-round order omits payload.bugs entirely (non-regression)");
       } else {
         fail("a first-round order carries a bugs field — round 1 has no verdict to carry");
+      }
+      if (r1.status === 0 && existsSync(p1) && readJSON(p1).operation === "execute") {
+        ok("a round with nothing cited stays `execute` — the switch is driven by evidence, not by round number");
+      } else {
+        fail(`a first round compiled as "${existsSync(p1) ? readJSON(p1).operation : "?"}" — a build with no ` +
+          `cited defects is not a fix round, and telling the worker otherwise invites it to look for bugs that do not exist`);
       }
     } finally {
       rmSync(d, { recursive: true, force: true });

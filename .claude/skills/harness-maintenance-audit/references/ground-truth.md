@@ -31,7 +31,7 @@ ls commands/*.md | xargs -n1 basename | sed 's/\.md//'
 ls oracles/*.mjs | xargs -n1 basename
 
 # Orchestrator scripts — docs routinely list a stale subset
-ls skills/tech-lead/scripts/*.mjs skills/tech-lead/scripts/lib/*.mjs | xargs -n1 basename
+ls kernel/*.mjs kernel/*/*.mjs | xargs -n1 basename
 ls skills/tech-lead/workflows/
 ```
 
@@ -73,11 +73,11 @@ agree, and a doc's table of write targets is derived from the second.
 
 ```bash
 # The routing map — grep the OP_OWNER literal
-grep -n "OP_OWNER" -A 12 skills/tech-lead/scripts/compile-order.mjs
+grep -n "OP_OWNER" -A 12 kernel/compile.mjs
 
 # The actual substrate an operation is compiled with (authoritative — it is what the hook enforces)
 node -e "
-import('./skills/tech-lead/scripts/compile-order.mjs').then(m=>{
+import('./kernel/compile.mjs').then(m=>{
   for (const op of ['analyze','reconcile','retrofit-surface','coverage','map-scopes','wire',
                     'evaluate','orient','hunt','translate','hammer','coach','execute',
                     'fix','spike']) {
@@ -97,7 +97,7 @@ resolve through the `scopePath || --task || --next` branch just below it. Settle
 compiler, which is the only thing that answers the question:
 
 ```bash
-node <repo>/skills/tech-lead/scripts/compile-order.mjs --operation <op> --slug demo --cwd "$PWD"
+node <repo>/kernel/compile.mjs --operation <op> --slug demo --cwd "$PWD"
 # exit 2 + "could not resolve --worker/--operation" = genuinely unroutable in that invocation
 ```
 
@@ -106,7 +106,7 @@ Compile a real order end to end when you want certainty:
 ```bash
 mkdir -p /tmp/gt/.shapeup/demo/tasks && cd /tmp/gt
 printf -- '---\nfeature: demo\n---\n| ID | Title | Status |\n|---|---|---|\n' > .shapeup/demo/tasks/_index.md
-node <repo>/skills/tech-lead/scripts/compile-order.mjs --operation coverage --slug demo --cwd "$PWD"
+node <repo>/kernel/compile.mjs --operation coverage --slug demo --cwd "$PWD"
 cat .shapeup/demo/orders/coverage.json
 ```
 
@@ -130,7 +130,7 @@ ls hooks/*.mjs | xargs -n1 basename
 ```
 
 Count `PreToolUse` entries specifically — that is the number docs quote, and note that
-`validate-envelope.mjs` is registered from `skills/tech-lead/scripts/`, not from `hooks/`, so a
+The envelope check is registered as `harness.mjs verify envelope` (`kernel/verify/envelope.mjs`), not from `hooks/`, so a
 naive `ls hooks/` undercounts by one.
 
 ## Hook behavior: execute, do not read
@@ -205,7 +205,7 @@ removed. Expect **no `evals/` directory** and no `examples/eval-planted-bug*`; a
 a measured activation rate, a craft delta, or a Tier-1/Tier-2 fixture is drift to fix, not a file to
 go looking for.
 
-The read-only projections in `skills/tech-lead/scripts/stats.mjs` (`--ratchet`, `--hooks`, and the
+The read-only projections in `kernel/probe/stats.mjs` (`--ratchet`, `--hooks`, and the
 harvest report) are **not** part of that apparatus and must not be swept up with it: they reduce
 over ledgers the harness writes during ordinary work, cost zero model tokens, and are the only
 measurement surface that still exists.
@@ -234,7 +234,7 @@ happens to be correct today.
 
 ```bash
 node -e "
-import('./skills/tech-lead/scripts/lib/paths.mjs').then(m=>{
+import('./kernel/lib/paths.mjs').then(m=>{
   console.log('SHARED', m.SHARED, '| LOCAL', m.LOCAL, '| LEGACY', JSON.stringify(m.LEGACY));
   console.log('decisions ->', m.decisions('/proj'));
 });

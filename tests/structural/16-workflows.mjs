@@ -615,8 +615,22 @@ export async function run(ctx) {
     let toldAboutBugs = false;
     for (const call of calls) {
       const label = (call.match(/label:\s*[`"']([^`"'$]*)/) || [])[1] || "(unlabelled)";
-      if (/^\s*compile:/m.test(call) && /^\s*payload:\s*\{/m.test(call)) {
-        problems.push(`the "${label}" dispatch passes both compile: and payload: — the override drops the payload`);
+      // `payload` and `operation` are the two fields `worker()` emits ONLY on the generic compile
+      // line, so an override discards either one. `operation` is the worse of the two now: the
+      // kernel derives it (a round carrying cited defects compiles as `fix`), so a declared value
+      // here is not merely dead but contradicts what the order will actually say.
+      // Anchored on `{` or `,` rather than line-start, because these are object properties and the
+      // house style packs several onto one line (`skill: "…", operation: "…", schema: …`) — a
+      // line-start anchor reads correctly and misses exactly the formatting this file uses. And
+      // comments are stripped FIRST, because the same style puts a paragraph of prose between one
+      // property and the next, so the character actually preceding `compile:` is a full stop.
+      // Both mistakes were made here in turn, and each left a check that passed against its own
+      // defect: a guard is not verified until the defect it names has been put back.
+      const code = call.replace(/^\s*\/\/.*$/gm, "");
+      for (const field of ["payload", "operation"]) {
+        if (/[{,]\s*compile:/.test(code) && new RegExp(`[{,]\\s*${field}:`).test(code)) {
+          problems.push(`the "${label}" dispatch passes both compile: and ${field}: — the override drops the ${field}`);
+        }
       }
       // Read the dispatch's OWN prose, not the file. `payload.bugs` appears in the banner comment
       // above this very function, so a whole-file grep goes green on a build leg whose instructions
