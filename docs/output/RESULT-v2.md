@@ -347,12 +347,13 @@ Each hid the next — the fan-out never dispatched, so the compile line was neve
 verdict was never read, so the scheduling was never exercised — which is why a suite of 900+ static
 checks certified every one of them.
 
-## The FAIL→fix loop had never closed, in four independent places
+## The FAIL→fix loop had never closed, in five independent places
 
 Everything above was found by getting a *first* round to run. The verdict then exposed a second
 family, invisible to any single-round run and to every static check in the suite: the loop that is
 supposed to turn a FAIL into a fix was broken at four separate points, each of which alone is
-sufficient to make round 2 a no-op.
+sufficient to make round 2 a no-op — and a fifth that only surfaced once two rounds' records
+existed to compare.
 
 The measurement that started it: **round 2 kept all six trees and changed none of them.**
 `bin/todo.js` was byte-identical before and after, and all three re-probed bugs reproduced.
@@ -394,8 +395,44 @@ not reproduce. Ownership is *elected* rather than matched, because an entry poin
 write the file sets up a write race between concurrent legs. A defect matching no substrate at all is
 marked `unowned` and sent to everyone rather than dropped.
 
-**The pattern across all four:** state that has to cross a boundary — a round, a process, a
-scheduler — kept in the one place that does not cross it. And the reason none of them ever showed up:
+### And the loop, once it closed
+
+Round 2 dispatched with the verdict in hand and the deliverable changed — the first time in this
+project. Measured by driving the binary, not by reading a worker's report:
+
+| | before | after |
+|---|---|---|
+| missing index | `Error: E_MISSING_INDEX - index is required` | `Error: missing index` |
+| unwritable store | an uncaught `StoreWriteError` stack trace | `Error: could not save todo store: EACCES…` |
+| `npm test` | reached part of the suite | all 7 files, 50 tests |
+
+Three of five cited defects fixed, one partially, one not. EVAL round 2 then graded it independently
+and its bug list agrees with those probes exactly: BUG-01/04/05 gone, BUG-02 and the `rm` half of
+BUG-03 still cited, plus one new low-severity code leak. 20/26 → 22/27.
+
+The partial one is worth naming, because the routing did its job and the craft did not: BUG-03's
+order named **both** call sites (`bin/todo.js:66 and bin/todo.js:98`), the shared
+`lib/parse-index.js` text was corrected, and `done` renders it bare while `rm` still prefixes the
+error code. The judge caught precisely that in round 2, at `bin/todo.js:106`.
+
+One mechanism fired for the first time here, because it needs two rounds to have anything to
+compare: the shipped report grades criterion 6 `PASS · low (flip)` — BUG-01 was FAIL in round 1 and
+PASS in round 2, and the verdict ledger's flip rule forced confidence down on its own.
+
+### A fifth, visible only once two rounds existed
+
+`order_id` is the only join in the record set — a WorkResult carries no `run_id` and reaches it
+through this field. Round 1's evaluate order was `todo-cli/evaluate-r1`; its result came back
+claiming `todo-cli/evaluate`, an order that has never existed. Nothing downstream complained,
+because the result *file* is named after the order — only the run graph disagreed, and only because
+it keys nodes off the envelope rather than the filename. Round 2's ids matched.
+
+`ingest` now refuses a result whose `order_id` names a different order than the one it is answering.
+It refuses rather than normalising: the order is authoritative, but silently rewriting a worker's
+output is how drift becomes permanent and invisible.
+
+**The pattern across all five:** state that has to cross a boundary — a round, a process, a
+scheduler, a join — kept in the one place that does not cross it. And the reason none of them ever showed up:
 every defect above is *unreachable* until the run before it works. The fan-out never dispatched, so
 the compile line was never reached, so the verdict was never read, so the ratchet was never exercised
 on a green tie, so the fix round was never dispatched at all. A suite of 1,000 static checks

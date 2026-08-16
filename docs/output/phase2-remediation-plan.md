@@ -548,8 +548,40 @@ Betting Table rather than made during the phase that is validating the current b
 > leg that pasted `"<the path from step 1>"` literally; a declared `shared_substrate` overlap is
 > honored; and workers escalate rather than fabricate.
 >
-> **Not yet proven: T0 verification, EVAL, QA, ship, and the interactive lane.** Criterion 1 is not
-> met until those land, and this section says so rather than counting the parts that did.
+> **The headless lane is now complete.** A run went ORIENT → ANALYZE → WIRE → MAP SCOPES →
+> BUILD r1 → EVAL r1 → BUILD r2 → EVAL r2 → GATE H → SHIP and reached `status: shipped` with a
+> frozen `shapeup/todo-cli/REPORT.md` (verdict FAIL 22/27, rounds_used 2, QA skipped — correctly,
+> since QA sits after PASS). Archived at `traces/phase2-criterion1/headless-shipped/`.
+>
+> The result that matters is not the verdict but the loop: **round 1's verdict reached round 2's
+> workers and the deliverable changed.** Three of five cited defects were fixed, verified by driving
+> the binary rather than by reading a report — the stack-trace leak, the Error Catalog text on
+> `done`, and the test entry point (`npm test` now runs all 7 files, 50 tests). EVAL round 2 then
+> graded it independently and its bug list agrees exactly with those hand probes: BUG-01/04/05 gone,
+> BUG-02 and the `rm` half of BUG-03 still cited, plus one new low-severity leak. Criterion 6 in the
+> shipped report reads `PASS · low (flip)` — the verdict ledger's flip rule firing for the first
+> time, because this is the first run with two rounds for it to compare.
+>
+> Graded against `EXPECTED.md`: blocks A and B pass outright (24 committed spec files, four use
+> cases, nine `TS-INV-*` rows; 53 criterion verdicts, every one PASS/FAIL with evidence). Block C's
+> E4 and E6 fail **through the oracle only**. The oracle seeds the store by exporting
+> `$TODO_STORE`; the pitch never asked for a configurable store location, so a CLI that reads
+> `~/.todo.json` — the convention its own spec settled on — is graded against a requirement it was
+> never given. `examples/todo-cli/idea.md` now states the `$TODO_STORE` requirement and why, but
+> this scratch checkout was taken from the pitch before that edit. Driven under the store
+> convention the run's own pitch specifies, all six E-block behaviours are correct: a corrupted store
+> exits 1 naming the file with the bytes preserved and no stack trace, and a seeded store lists its
+> items at exit 0. The gap is the checkout's, not the pipeline's, and a fresh run grades clean.
+>
+> Also proven in this run: dependency-ordered fan-out (`foundation` first, not alphabetically), bug
+> routing by substrate ownership, the ratchet keeping green-tie fixes, rounds no longer overwriting
+> each other's envelopes, and `graph.jsonl` rebuilding from artifacts after deletion. The SHIP step
+> caught a stale escalation claim from its own orchestrator, re-verified against artifacts, and
+> corrected the ledger append-only rather than rewriting it.
+>
+> **Still open: the interactive lane**, which is prepared and waiting on the PO to answer its gates
+> (`phase2-todo-cli-interactive/HOW-TO-RUN.md`). Criterion 1 is not met until that lane lands, and
+> this section says so rather than counting the lane that did.
 
 ### Original note
 
