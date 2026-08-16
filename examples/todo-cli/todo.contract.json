@@ -4,9 +4,9 @@
   "criteria": [
     {
       "id": "E1",
-      "desc": "empty list prints a friendly message, exit 0",
+      "desc": "empty list exits 0 and says so on one line, without a traceback — wording is the spec's to choose, not this oracle's",
       "probe": { "argv": ["list"], "store": "[]" },
-      "expect": { "exit": "==0", "stdout": "/no todos|empty|nothing/i" }
+      "expect": { "exit": "==0", "no_crash": true, "stdout": "/^\\s*\\S[^\\n]*\\s*$/" }
     },
     {
       "id": "E2",

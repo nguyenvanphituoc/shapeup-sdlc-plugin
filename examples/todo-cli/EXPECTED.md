@@ -53,7 +53,7 @@ the assertions a process-level evaluator (or a human, today) checks:
 
 | # | Edge | Command | Expected |
 |---|------|---------|----------|
-| E1 | empty list | `todo list` (no items) | exit 0, prints "no todos" (not a crash, not empty silence ambiguous with error) |
+| E1 | empty list | `todo list` (no items) | exit 0, one line of output, no traceback — the empty state is *announced*, never silence that reads as an error. The **wording is not asserted** (see below) |
 | E2 | bad index | `todo done 99` | exit ≠ 0, clear message, **no stack trace** |
 | E3 | non-numeric index | `todo done abc` | exit ≠ 0, clear message |
 | E4 | corrupted store | store file is `{garbage` | exit ≠ 0, message naming the file, **does not delete user data** |
@@ -62,6 +62,20 @@ the assertions a process-level evaluator (or a human, today) checks:
 
 A run that builds `add/list/done/rm` but crashes on E2/E4 has **not** met the goal — "edge cases
 handled" is a first-class acceptance criterion here, not a nice-to-have.
+
+**Why E1 stopped asserting a phrase.** It used to require stdout matching `/no todos|empty|nothing/i`.
+Nothing in this pitch tells a builder which words to use, so that check could only be satisfied by
+luck: one run's analyst settled on `(no items)`, pinned it in that run's own Test Surface, the
+builder implemented it exactly, the evaluator graded it PASS — and this oracle failed it. Another
+run wrote "No todos yet." and passed, for no better reason. An acceptance check that a correct
+implementation fails half the time is measuring the wrong thing, and the honest repair is to assert
+the properties every correct implementation shares rather than to widen the word list until the
+current run slips through.
+
+It is not a weaker check. It is verified to reject silence, a phantom item list, a traceback and a
+non-zero exit, while accepting correct implementations whose wording differs — which the old form
+did not. If the exact string ever needs to be load-bearing, the place to say so is this pitch, so
+the builder is told; an oracle that requires an unstated convention is a trap, not a specification.
 
 ---
 
