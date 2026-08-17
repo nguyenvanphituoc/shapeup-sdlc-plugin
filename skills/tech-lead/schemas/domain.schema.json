@@ -2271,7 +2271,27 @@
         },
         "scope_waves": {
           "type": "array",
-          "description": "The same scopes as scope_files, grouped into dependency WAVES: every scope in a wave may build concurrently, and no wave contains a scope that depends on one still in flight. Derived by `probe resume` from each contract's `tasks` list and the board's `depends_on` — never authored, so it cannot disagree with the board. ADDITIVE: a consumer that ignores it, or a tree whose board is missing, taskless or cyclic, gets a single wave containing everything, which is the unscheduled fixed-width fan-out this replaced.",
+          "description": "The same scopes as scope_files, grouped into dependency WAVES: no wave contains a scope that depends on one still in flight. Derived by `probe resume` from each contract's `tasks` list and the board's `depends_on` — never authored, so it cannot disagree with the board. Under the edge-released scheduler this is an ORDER and a cross-check rather than a barrier: the orchestrator trusts `scope_deps` only when Kahn-levelling it reproduces this field, so an edge lost crossing the sub-agent boundary degrades to wave release instead of starting a scope early. ADDITIVE: a consumer that ignores it, or a tree whose board is missing, taskless or cyclic, gets a single wave containing everything, which is the unscheduled fixed-width fan-out this replaced.",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "scope_deps": {
+          "type": "array",
+          "description": "The dependency edges the waves were levelled from, as `[dependant, dependency]` pairs, so a scope can be released the moment ITS OWN dependencies are green rather than when its whole wave finishes. Same parse as scope_waves; the two validate each other. ADDITIVE — absent, unusable or disagreeing with scope_waves, release falls back to the wave boundary.",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "scope_exclusions": {
+          "type": "array",
+          "description": "Pairs of scopes that may not build AT THE SAME TIME because both declare a write to one path — `substrate.shared` is the sanctioned escape from the disjointness rule, so the lint passes it and the substrate wall permits that path to every live order. Measured: three concurrent writers to one entry point lost work in 20 of 20 trials, because an edit is read-modify-write and the later writer drops the earlier one silently. Unlike scope_deps these pairs are UNORDERED — neither scope waits for the other, they merely never overlap — and unlike a dependency they cost concurrency rather than buying correctness in sequence, which is why the release ceiling they imply is reported before a run spends anything.",
           "items": {
             "type": "array",
             "items": {

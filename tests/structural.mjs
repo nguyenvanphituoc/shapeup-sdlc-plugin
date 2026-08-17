@@ -84,6 +84,10 @@ const MODULE_FILES = [
   // because half of it has to RACE: a lock that works and a lock that is never contended produce
   // the identical green.
   "24-parallel-isolation.mjs",
+  // 25-scheduler.mjs: BUILD's fan-out, read out of the shipped workflow script and EXECUTED against
+  // fixtures on a virtual clock. Its own module because the invariant is a schedule, not a spelling:
+  // the guard it replaces asserted one source form and would have failed a strictly better one.
+  "25-scheduler.mjs",
   "45-paths.mjs",
   "46-contract-md.mjs",
   "47-ship-report.mjs",

@@ -60,6 +60,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from 
 import { dirname, join, resolve } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
 import { splitFrontmatter } from "../lib/contract.mjs";
+import { globToRegExp } from "../verify/spec.mjs";
 import {
   intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir,
   orientDir, activeOrder, usecasesDir, tasksDir,
@@ -135,37 +136,10 @@ export function parseFrontmatter(text) {
 export function scopeWaves(cwd, slug, scopes) {
   const all = scopes.map((s) => s.path);
   if (scopes.length < 2) return all.length ? [all] : [];
-
-  // task id → the scope that owns it, from each contract's `tasks` frontmatter list.
-  const owner = new Map();
-  for (const s of scopes) {
-    let tasks = [];
-    try { tasks = parseFrontmatter(readFileSync(s.path, "utf8")).tasks; } catch { tasks = []; }
-    if (!Array.isArray(tasks)) continue;
-    for (const t of tasks) owner.set(String(t).trim(), s.scope_id);
-  }
-  if (!owner.size) return [all];
-
-  // scope → the scopes it depends on, via its tasks' `depends_on`.
-  const deps = new Map(scopes.map((s) => [s.scope_id, new Set()]));
-  let sawEdge = false;
-  const tdir = tasksDir(cwd, slug);
-  let taskFiles = [];
-  try { taskFiles = readdirSync(tdir).filter((f) => /^TASK-[\w.-]+\.md$/i.test(f)); } catch { return [all]; }
-  for (const f of taskFiles) {
-    let fm;
-    try { fm = parseFrontmatter(readFileSync(join(tdir, f), "utf8")); } catch { continue; }
-    const mine = owner.get(String(fm.id ?? "").trim());
-    if (!mine || !Array.isArray(fm.depends_on)) continue;
-    for (const d of fm.depends_on) {
-      const from = owner.get(String(d).trim());
-      if (from && from !== mine) { deps.get(mine).add(from); sawEdge = true; }
-    }
-  }
-  if (!sawEdge) return [all];
+  const deps = scopeDepGraph(cwd, slug, scopes);
+  if (!deps) return [all];
 
   // Kahn, one wave per level. A cycle cannot stall the build: the remainder ships as one wave.
-  const byId = new Map(scopes.map((s) => [s.scope_id, s]));
   const done = new Set();
   const waves = [];
   while (done.size < scopes.length) {
@@ -179,6 +153,123 @@ export function scopeWaves(cwd, slug, scopes) {
     for (const s of ready) done.add(s.scope_id);
   }
   return waves;
+}
+
+/**
+ * The dependency relation `scopeWaves` levels — parsed once, so the two answers cannot disagree.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {Array<{scope_id:string, path:string}>} scopes - The scopes, in their existing order.
+ * @returns {(Map<string,Set<string>>|null)} scope_id → the scope_ids it waits for, or null when the
+ *   inputs carry no usable relation at all (no `tasks`, no tasks directory, no cross-scope edge).
+ */
+function scopeDepGraph(cwd, slug, scopes) {
+  // task id → the scope that owns it, from each contract's `tasks` frontmatter list.
+  const owner = new Map();
+  for (const s of scopes) {
+    let tasks = [];
+    try { tasks = parseFrontmatter(readFileSync(s.path, "utf8")).tasks; } catch { tasks = []; }
+    if (!Array.isArray(tasks)) continue;
+    for (const t of tasks) owner.set(String(t).trim(), s.scope_id);
+  }
+  if (!owner.size) return null;
+
+  // scope → the scopes it depends on, via its tasks' `depends_on`.
+  const deps = new Map(scopes.map((s) => [s.scope_id, new Set()]));
+  let sawEdge = false;
+  const tdir = tasksDir(cwd, slug);
+  let taskFiles = [];
+  try { taskFiles = readdirSync(tdir).filter((f) => /^TASK-[\w.-]+\.md$/i.test(f)); } catch { return null; }
+  for (const f of taskFiles) {
+    let fm;
+    try { fm = parseFrontmatter(readFileSync(join(tdir, f), "utf8")); } catch { continue; }
+    const mine = owner.get(String(fm.id ?? "").trim());
+    if (!mine || !Array.isArray(fm.depends_on)) continue;
+    for (const d of fm.depends_on) {
+      const from = owner.get(String(d).trim());
+      if (from && from !== mine) { deps.get(mine).add(from); sawEdge = true; }
+    }
+  }
+  return sawEdge ? deps : null;
+}
+
+/**
+ * The SAME relation as {@link scopeWaves}, as edges rather than levels.
+ *
+ * WHY BOTH SHAPES SHIP. A level says when it is definitely safe to start a scope; an edge says when
+ * it BECAME safe, and the two differ by however long the slowest sibling in the previous level takes.
+ * A build that releases per level holds `cli-integration` until the last command scope lands even
+ * when the only scope it consumes went green first. Levels remain the ORDER the fan-out considers
+ * scopes in; edges are what release them.
+ *
+ * ADDITIVE, in the same sense `scope_waves` is: a consumer that ignores this field can rebuild the
+ * level-release points from `scope_waves` alone, which is exactly the previous behaviour.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {Array<{scope_id:string, path:string}>} scopes - The scopes, in their existing order.
+ * @returns {string[][]} `[dependant_path, dependency_path]` pairs, resolved paths on both ends so a
+ *   consumer resolves ids the one way it already resolves `scope_files`. Empty when no relation is
+ *   derivable — never a partial or invented one.
+ */
+/**
+ * Pairs of scopes that must not BUILD AT THE SAME TIME, because both may write the same path.
+ *
+ * WHY THIS IS A SCHEDULING FACT AND NOT A LINT. `shared_substrate` is the declared escape hatch from
+ * the disjointness rule: the spec lint passes an overlap both contracts declare, and the sandbox
+ * guard permits that path to every live order that names it. Every layer is individually correct and
+ * the join is wrong — concurrent writers to one declared-shared entry point lose each other's work,
+ * with every check green. An overlap that is NOT declared shared never reaches BUILD (the lint reds
+ * it and the run stops at the board review), so what this returns is precisely the set the escape
+ * hatch created.
+ *
+ * It is an EXCLUSION, not a dependency: neither scope has to go first, they only have to not
+ * overlap. The consumer orients each pair by build position, which is what keeps the constraint from
+ * ever forming a cycle with a real dependency edge.
+ *
+ * ADDITIVE, like the two fields above it: a consumer that ignores it schedules exactly as before.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {Array<{scope_id:string, path:string}>} scopes - The scopes, in their existing order.
+ * @returns {string[][]} Unordered `[pathA, pathB]` pairs. Empty when nothing can collide.
+ */
+export function scopeExclusions(cwd, slug, scopes) {
+  if (scopes.length < 2) return [];
+  const globsOf = (s) => {
+    try {
+      const fm = parseFrontmatter(readFileSync(s.path, "utf8"));
+      return [...(fm.allowed_file_substrate || []), ...(fm.shared_substrate || [])].map((g) => String(g).trim()).filter(Boolean);
+    } catch { return []; }
+  };
+  const globs = new Map(scopes.map((s) => [s.scope_id, globsOf(s)]));
+  // Two globs MEET when either matches the other read as a literal path. It is an approximation of
+  // "these two patterns can name the same file", and it is deliberately the generous one: a false
+  // meet costs two scopes their overlap in time, a missed meet costs one of them its work.
+  const meet = (a, b) => a === b || globToRegExp(a).test(b) || globToRegExp(b).test(a);
+  const out = [];
+  for (let i = 0; i < scopes.length; i++) {
+    for (let j = i + 1; j < scopes.length; j++) {
+      const A = globs.get(scopes[i].scope_id) || [], B = globs.get(scopes[j].scope_id) || [];
+      if (A.some((a) => B.some((b) => meet(a, b)))) out.push([scopes[i].path, scopes[j].path]);
+    }
+  }
+  return out;
+}
+
+export function scopeDeps(cwd, slug, scopes) {
+  if (scopes.length < 2) return [];
+  const deps = scopeDepGraph(cwd, slug, scopes);
+  if (!deps) return [];
+  const pathOf = new Map(scopes.map((s) => [s.scope_id, s.path]));
+  const out = [];
+  for (const s of scopes) {
+    for (const d of deps.get(s.scope_id) || []) {
+      if (pathOf.has(d)) out.push([s.path, pathOf.get(d)]);
+    }
+  }
+  return out;
 }
 
 export function hasOrientArtifacts(cwd, slug) {
@@ -308,6 +399,16 @@ export function deriveResumeState(cwd, slug) {
     // The same scopes, grouped so a wave never contains a scope depending on one still in flight.
     // Additive: a caller that ignores it gets exactly today's behavior.
     scope_waves: scopeWaves(cwd, slug, scope_files),
+    // The same relation as edges. A wave says when a scope is definitely safe to start; an edge says
+    // when it BECAME safe. A fan-out that releases per wave holds a scope until the slowest member of
+    // the previous wave lands, even when the one scope it consumes finished first. Also additive: the
+    // wave list alone rebuilds the per-wave release points, which is the previous behaviour.
+    scope_deps: scopeDeps(cwd, slug, scope_files),
+    // Pairs that may write the same declared-shared path. Not an ordering — an exclusion: they may
+    // build in either order, and they may not build at the same time. Concurrent writers to one
+    // shared entry point lose each other's work while every check stays green, and the escape hatch
+    // that permits the overlap is the same one that makes it invisible to the disjointness lint.
+    scope_exclusions: scopeExclusions(cwd, slug, scope_files),
     pending_orders: orderFiles.filter((f) => f.endsWith(".json") && !resultFiles.includes(f)),
     eval_rounds_done: resultFiles
       .filter((f) => /^evaluate-r\d+\.json$/.test(f))

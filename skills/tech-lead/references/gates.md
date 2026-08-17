@@ -284,11 +284,12 @@ this is the orchestrator's own re-confirmation before committing to a build sequ
     alphabetical — Shape Up's "solve in the right sequence" (step 10).
     DEPENDENCIES CONSTRAIN THAT ORDER, and they are derived, not declared: each contract names
     its `tasks`, each task carries `depends_on`, and scope A follows scope B when any task of A
-    depends on one of B. The build fans out in waves — no wave contains a scope that depends on
-    one still in flight — and risk orders the scopes WITHIN a wave. A scope that consumes the
-    others' output (an entry point wiring up command modules) therefore cannot be scheduled
+    depends on one of B. Risk orders the scopes; the dependencies decide when each one is
+    RELEASED — a scope starts as soon as the scopes it consumes have settled, not when its whole
+    level has, so a scope may well start while a sibling is still building. A scope that consumes
+    the others' output (an entry point wiring up command modules) therefore cannot be scheduled
     alongside them however low its unknowns count. Nothing here is authored: any missing or
-    unreadable input falls back to one wave containing everything.
+    unreadable input falls back to releasing a level at a time, and then to no constraint at all.
 
 Ask (max 2): scope cuts? lens correct? any SPIKE to resolve before build?
   Scope-hammer framing: reference the appetite from the pitch

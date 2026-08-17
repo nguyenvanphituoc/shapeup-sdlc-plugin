@@ -103,19 +103,249 @@ const attemptBudget = args.budgets.attemptBudget;
 // question before it is a speed one: every extra leg is another worker's full context. 4 is the
 // default because a feature is rarely cut into more independent slices than that; 1 restores the
 // sequential behaviour for a project whose workers are not safe to run side by side.
+//
+// It is a CAP, not a group size. The window refills the instant any leg settles, so the dial bounds
+// spend without ever quantising the schedule — see the scheduler below for what the difference cost.
 const maxParallelScopes = Math.max(1, Number(args.maxParallelScopes ?? 4) || 1);
 
+// ---- SCHEDULER REGION START ------------------------------------------------------------------
+// BUILD's fan-out, as three separable decisions instead of one list operation:
+//
+//     WAVES ORDER the scopes.   EDGES RELEASE them.   THE DIAL CAPS them.
+//
+// Fusing the three into `waves.flatMap((w) => chunk(w, maxParallelScopes))` cost wall-clock twice
+// over, and both costs are structural rather than incidental:
+//
+//   1. `chunk` turns the dial from a CAP into a QUANTUM. A wave of six at a dial of four runs four,
+//      then idles three workers until the SLOWEST of those four lands, then runs two. Nothing about
+//      the scopes asked for that; it falls out of splitting a list instead of scheduling it.
+//   2. A wave is a LEVEL, and a level says when a scope is definitely safe to start, never when it
+//      BECAME safe. The scope that wires the others to the entry point waits for the slowest command
+//      scope even when the one scope it actually consumes went green minutes earlier.
+//
+// Everything the previous loop bought with blood survives, and each is named at the line that keeps
+// it: a scope never starts beside a scope it consumes; no scope is ever dropped; a dead builder is a
+// spent attempt rather than a dead run; the dial is honoured exactly.
+//
+// This region is self-contained on purpose. The scheduling decision is PURE — no dispatch, no clock,
+// no randomness — so it is the one part of this file that can be executed against a fixture instead
+// of reasoned about, and the round loop below injects the real dispatcher as `launch`.
+
 /**
- * Split a list into consecutive groups of at most `size`.
- * @param {Array} xs - The list.
- * @param {number} size - Maximum group size.
- * @returns {Array[]} Groups, in order.
+ * The dependency relation the fan-out releases on, as `scope_id → the scope_ids it waits for`.
+ *
+ * Three rungs, each a strict non-regression on the next. The edge list is used only when it
+ * re-levels to the SAME waves: both fields are projections of one graph the kernel parsed once, so
+ * each validates the other, and an edge dropped or invented in transit lands on the wave rung rather
+ * than releasing a scope early — which is the one direction this must never fail in.
+ *
+ * @param {*} rawDeps - `probe resume`'s `scope_deps`: `[dependant, dependency]` path pairs.
+ * @param {Array[]} waves - Validated dependency waves, arrays of scope objects.
+ * @param {Array} list - Every scope in the round.
+ * @returns {Map<string,Set<string>>} One entry per scope; an empty set means "ready immediately".
  */
-function chunk(xs, size) {
-  const out = [];
-  for (let i = 0; i < xs.length; i += size) out.push(xs.slice(i, i + size));
-  return out;
+function scopeEdges(rawDeps, waves, list) {
+  const known = new Set(list.map((s) => s.scope_id));
+  const idOf = (p) => String(p).split("/").pop().replace(/\.(md|json)$/, "");
+  const blank = () => new Map(list.map((s) => [s.scope_id, new Set()]));
+
+  // Kahn. A CYCLE IS THE ONE INPUT THAT TURNS THIS SCHEDULER INTO A HANG rather than a failure: two
+  // scopes awaiting each other produce no error, no log line and no artifact, which a list-chunking
+  // loop could not do. So an edge set is used only when every node peels.
+  const levelsOf = (m) => {
+    const done = new Set(), out = [];
+    for (;;) {
+      const ready = list.filter((s) => !done.has(s.scope_id) && [...m.get(s.scope_id)].every((d) => done.has(d)));
+      if (!ready.length) break;
+      out.push(ready.map((s) => s.scope_id).sort());
+      for (const s of ready) done.add(s.scope_id);
+    }
+    return done.size === list.length ? out : undefined;
+  };
+  const shape = (levels) => (levels ? JSON.stringify(levels) : "");
+
+  if (Array.isArray(rawDeps) && rawDeps.length) {
+    const m = blank();
+    let edges = 0;
+    for (const pair of rawDeps) {
+      if (!Array.isArray(pair) || pair.length < 2) continue;
+      const to = idOf(pair[0]), from = idOf(pair[1]);
+      if (to === from || !known.has(to) || !known.has(from)) continue;
+      m.get(to).add(from);
+      edges++;
+    }
+    const want = shape(waves.map((w) => w.map((s) => s.scope_id).sort()));
+    if (edges && shape(levelsOf(m)) === want) return m;
+    log(`BUILD order — the dependency edge list does not re-derive the wave order (${edges} usable ` +
+        `edge(s)); releasing per wave instead, which is what a wave-stepped fan-out did.`);
+  }
+
+  // WAVE RUNG. "Everything in wave i waits for everything in wave i-1" — the exact release points a
+  // wave-stepped loop had, and acyclic by construction. An absent or unusable edge list costs the
+  // per-edge release and nothing else; a single wave yields no edges at all, which is the fully
+  // unscheduled fan-out. A scheduler that refuses to run is worse than one that runs unscheduled.
+  const m = blank();
+  for (let i = 1; i < waves.length; i++) {
+    for (const to of waves[i]) for (const from of waves[i - 1]) m.get(to.scope_id).add(from.scope_id);
+  }
+  return m;
 }
+
+/**
+ * Forbid two scopes that may write the same path from building at the same time.
+ *
+ * WHY THIS IS THE SCHEDULER'S JOB AND NOBODY ELSE'S. `shared_substrate` is the declared escape hatch
+ * from the disjointness rule: the spec lint passes an overlap both contracts declare, and the
+ * sandbox guard permits that path to every live order naming it. Both layers are individually
+ * correct and the join is wrong — concurrent writers to one shared entry point lose each other's
+ * work, measured in every trial, with every check green. No lint can catch it because nothing is
+ * mis-declared; the only place the fact "these two are running RIGHT NOW" exists is here.
+ *
+ * AN EXCLUSION IS NOT A DEPENDENCY. Neither scope has to go first — they only have to not overlap —
+ * so each pair is oriented by BUILD POSITION, later waits for earlier. That orientation is what
+ * makes it safe to mix with real dependency edges: every dependency edge already points backwards
+ * in this list (it is the waves flattened, so a scope's dependencies are strictly earlier), and an
+ * exclusion oriented the same way keeps the whole set pointing backwards, which cannot cycle.
+ *
+ * DEGRADES LIKE EVERYTHING ELSE HERE, but note which way. Absent or unreadable pairs mean no
+ * exclusions and today's scheduling — a scheduler that refuses to run is worse than one that runs
+ * unscheduled. What is NOT acceptable is the opposite reading: when the pairs ARE there, the edge is
+ * enforced rather than warned about, because a run that quietly loses work is worse than both.
+ *
+ * @param {Map<string,Set<string>>} edges - Release edges so far; mutated and returned.
+ * @param {*} rawPairs - `probe resume`'s `scope_exclusions`: unordered path pairs.
+ * @param {Array} order - The build order. Position in it decides which side of a pair waits.
+ * @returns {{edges: Map<string,Set<string>>, added: number}} The composed set and how many landed.
+ */
+function withExclusions(edges, rawPairs, order) {
+  if (!Array.isArray(rawPairs) || !rawPairs.length) return { edges, added: 0 };
+  const idOf = (p) => String(p).split("/").pop().replace(/\.(md|json)$/, "");
+  const at = new Map(order.map((s, i) => [s.scope_id, i]));
+  let added = 0;
+  for (const pair of rawPairs) {
+    if (!Array.isArray(pair) || pair.length < 2) continue;
+    const a = idOf(pair[0]), b = idOf(pair[1]);
+    if (a === b || !at.has(a) || !at.has(b)) continue;
+    const [first, later] = at.get(a) < at.get(b) ? [a, b] : [b, a];
+    if (edges.get(later)?.has(first)) continue;                 // already ordered by a real edge
+    edges.get(later).add(first);
+    added++;
+  }
+  return { edges, added };
+}
+
+/**
+ * The widest set of scopes this release graph can have open at one moment.
+ *
+ * WHY A RUN NEEDS THIS BEFORE IT DISPATCHES ANYTHING. The dial says how many legs are PAID FOR; this
+ * says how many the constraints actually permit, and the two are not the same number. A feature
+ * whose entry point sits in five scopes' substrate has a ceiling of ONE however wide the dial is
+ * opened — that is a scope-cutting fact, decided at the board review, and without this line it shows
+ * up hours later as a slow round that reads exactly like slow workers.
+ *
+ * It also splits the concurrency shortfall into its two causes, which no single observation can. A
+ * peak below the CEILING is a dispatch or runtime limit; a ceiling below the DIAL is the scope cut.
+ * One number each, and the repair is different.
+ *
+ * The measure is the widest level of the release DAG, which is a guarantee rather than an estimate:
+ * every member of a level has all its predecessors in earlier levels, so a level's whole width is
+ * simultaneously admissible.
+ *
+ * @param {Map<string,Set<string>>} edges - The composed release set.
+ * @param {Array} items - The scopes in the round.
+ * @returns {number} Widest simultaneously-admissible set; 1 when nothing may overlap.
+ */
+function releaseCeiling(edges, items) {
+  const done = new Set();
+  let widest = 1;
+  for (;;) {
+    const ready = items.filter((s) => !done.has(s.scope_id) && [...(edges.get(s.scope_id) || [])].every((d) => done.has(d)));
+    if (!ready.length) break;
+    widest = Math.max(widest, ready.length);
+    for (const s of ready) done.add(s.scope_id);
+  }
+  return widest;
+}
+
+/**
+ * Run `launch` over every item, at most `width` at once, releasing each item as soon as ITS OWN
+ * dependencies have settled rather than when its whole wave has.
+ *
+ * Release is on SETTLED, not on green, which is deliberate and matches what a wave-stepped loop did.
+ * Gating on green is strictly stronger and costs more than it buys: a dependency that fails would
+ * starve every dependant of any attempt at all, and those scopes would leave the round's census
+ * entirely — an outcome class the gate, the hill projection and the ledger have no reading for. What
+ * must never happen is a scope building CONCURRENTLY with a scope it consumes, and that is what the
+ * dependency await forbids.
+ *
+ * No race, no timer, no clock — deliberately. `Promise.race` over the in-flight legs would tighten
+ * the schedule marginally and is disqualified for the same reason a clock read is: it makes the
+ * schedule a function of real time, so a relaunch reschedules differently.
+ *
+ * @param {Array} items - The scopes, in the order the waves put them.
+ * @param {Map<string,Set<string>>} edges - scope_id → the scope_ids it waits for.
+ * @param {number} width - Concurrency cap.
+ * @param {function(object): Promise<object>} launch - Dispatches one scope. May reject; may not be
+ *   trusted to return anything.
+ * @returns {Promise<object[]>} Exactly one settled record per item, in input order. Never rejects.
+ */
+async function scheduleScopes(items, edges, width, launch) {
+  let free = Math.max(1, Number(width) || 1);
+  const waiting = [];
+  const acquire = () => (free > 0 ? (free--, Promise.resolve()) : new Promise((r) => waiting.push(r)));
+  const release = () => { const next = waiting.shift(); if (next) next(); else free++; };
+
+  // TWO COLLECTIONS, and the split is the difference between "one entry per item" and "one entry per
+  // id". `runs` is POSITIONAL, so two scopes that somehow carry the same id are two legs and two
+  // records; keying the settle by id instead would silently run one of them and report it twice,
+  // which is a dropped scope wearing the right name. `started` is by id because that is how an edge
+  // names its dependency, and it keeps the first promise for an id — a duplicate cannot make a
+  // dependant wait on the wrong one.
+  const runs = [];
+  const started = new Map();
+
+  async function runOne(item) {
+    // THE DEPENDENCY WAIT HAPPENS BEFORE THE SLOT ACQUIRE, and that ordering is the whole reason
+    // the window cannot deadlock against the edges: a waiting scope occupies no capacity, so the
+    // window can never fill with scopes that are all waiting on one another.
+    const deps = [...(edges.get(item.scope_id) || [])].map((d) => started.get(d)).filter(Boolean);
+    if (deps.length) await Promise.all(deps);
+    await acquire();
+    try {
+      const res = await launch(item);
+      // The runtime drops an item whose stage returned no value and leaves an empty slot in the
+      // settled list. Name that by itself: an empty slot and a dead worker are different repairs.
+      return res || { scope_id: item.scope_id, __failed: "the runtime dropped this leg — a pipeline stage returned no value" };
+    } catch (e) {
+      // A DEAD BUILDER IS A SPENT ATTEMPT, NOT A DEAD RUN. Rethrowing would reject every other
+      // scope's promise through the settle below and discard a whole round of green work.
+      return { scope_id: item.scope_id, __failed: `${item.scope_id}: ${(e && e.message) || String(e)}` };
+    } finally {
+      // In `finally`, so a leg that dies before returning does not narrow the window permanently.
+      release();
+    }
+  }
+
+  // TWO PHASES, because one phase is a silently dropped edge. A body reads its dependencies' promises
+  // out of `started` on its first line; built in a single pass, a dependency declared LATER in the
+  // list is not there yet, its edge is discarded as unknown, and the scope that edge was protecting
+  // starts early — the exact failure the edge exists to prevent, with no diagnostic anywhere.
+  const begin = [];
+  for (const item of items) {
+    let open;
+    const gate = new Promise((r) => { open = r; });
+    const leg = gate.then(() => runOne(item));
+    runs.push(leg);
+    if (!started.has(item.scope_id)) started.set(item.scope_id, leg);
+    begin.push(open);
+  }
+  for (const open of begin) open();
+
+  // ONE ENTRY PER ITEM, IN INPUT ORDER, structurally — no edge, no failure, no dial setting and no
+  // repeated id can drop a scope out of the round's census.
+  return Promise.all(runs);
+}
+// ---- SCHEDULER REGION END --------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------------------------
 // SCHEMAS — the only contract between this control script and a sub-agent. The runtime forces the
@@ -155,6 +385,13 @@ const RESUME = {
     scope_files: { type: "array", items: { type: "string" } },
     // Additive: the same scopes grouped into dependency waves. Absent or unusable → one wave.
     scope_waves: { type: "array", items: { type: "array", items: { type: "string" } } },
+    // The same relation as edges — `[dependant, dependency]` pairs. A wave says when a scope is
+    // definitely safe to start; an edge says when it BECAME safe. Absent or unusable → the waves'
+    // own release points, which is what a wave-stepped fan-out had.
+    scope_deps: { type: "array", items: { type: "array", items: { type: "string" } } },
+    // Pairs that may write the same declared-shared path, so they may not build at the same time.
+    // Not an ordering — either may go first. Absent or unusable → no exclusion, today's scheduling.
+    scope_exclusions: { type: "array", items: { type: "array", items: { type: "string" } } },
     eval_rounds_done: { type: "array", items: { type: "integer" } },
     next_phase: nullable("string"),
   },
@@ -183,6 +420,19 @@ const T0CHECK = {
   type: "object",
   properties: { green: { type: "boolean" }, path: nullable("string") },
   required: ["green"],
+};
+
+/** `probe leg` — did this scope's result reach the board, or is it finished work nothing applied? */
+const LEGCHECK = {
+  type: "object",
+  properties: {
+    closed: { type: "boolean" },
+    orders_total: { type: "integer" },
+    results_total: { type: "integer" },
+    applied_total: { type: "integer" },
+    unapplied: { type: "array", items: { type: "string" } },
+  },
+  required: ["closed"],
 };
 
 const ORIENT = {
@@ -677,7 +927,7 @@ if (scopes.length === 0) {
   log(`MAP SCOPES — ${scopes.length} scope contract(s) already on disk, fast-forwarding past it`);
 }
 
-// DEPENDENCY WAVES — a wave never contains a scope that depends on one still in flight.
+// DEPENDENCY ORDER — a scope is never built beside a scope it consumes.
 //
 // The fan-out used to chunk scopes by a fixed width over the directory's alphabetical order. On the
 // criterion-1 run that scheduled `cli-integration` — the scope that wires every other scope's module
@@ -685,9 +935,10 @@ if (scopes.length === 0) {
 // failure was the whole of the run's failure: five of six scopes went green, `bin/todo.js` stayed a
 // placeholder, and four individually T0-green command modules were unreachable.
 //
-// The order is derived by the kernel from the contracts' `tasks` and the board's `depends_on`, so
-// nothing here declares it. Concurrency is unchanged WITHIN a wave — the todo-cli feature still
-// fans out four scopes at once — it is only forbidden ACROSS a dependency edge.
+// All three facts below are derived by the kernel from the contracts, so nothing here declares any
+// of them. The waves fix the ORDER scopes are considered in; the dependency edges fix when each one
+// is RELEASED; the exclusions forbid two scopes that may write the same declared-shared path from
+// running at the same time. Everything else fans out.
 const wavesFrom = (raw, list) => {
   const byId = new Map(list.map((s) => [s.scope_id, s]));
   const idOf = (p) => String(p).split("/").pop().replace(/\.(md|json)$/, "");
@@ -697,13 +948,40 @@ const wavesFrom = (raw, list) => {
   return w.length && w.reduce((a, g) => a + g.length, 0) === list.length ? w : [list];
 };
 let waves = wavesFrom(rs.scope_waves, scopes);
+let rawDeps = rs.scope_deps;
+let rawExclusions = rs.scope_exclusions;
 if (mappedThisRun && scopes.length > 1) {
   // The contracts were written THIS run, so the state probed before MAP SCOPES could not have seen
   // them. One cheap re-derivation, on the fresh-run path only.
   const rs2 = await query(`probe resume --slug ${slug}`, RESUME, "MapScopes", "scope-waves");
-  if (rs2?.scope_waves?.length) waves = wavesFrom(rs2.scope_waves, scopes);
+  if (rs2?.scope_waves?.length) {
+    waves = wavesFrom(rs2.scope_waves, scopes);
+    rawDeps = rs2.scope_deps;
+    rawExclusions = rs2.scope_exclusions;
+  }
 }
-if (waves.length > 1) log(`BUILD order — ${waves.length} dependency wave(s): ${waves.map((w) => w.map((s) => s.scope_id).join("+")).join(" → ")}`);
+// The waves flattened ARE the build order: dependencies first, input order within a level. At a dial
+// of 1 the window degrades to exactly this sequence, which is the sequential lane unchanged.
+const buildOrder = waves.flat();
+const excluded = withExclusions(scopeEdges(rawDeps, waves, scopes), rawExclusions, buildOrder);
+const scopeReleases = excluded.edges;
+if (excluded.added) {
+  log(`BUILD order — ${excluded.added} pair(s) of scopes may write the same declared-shared path and are ` +
+      `serialised against each other. Concurrent writers to one shared file lose each other's work, and ` +
+      `nothing downstream reports it: every fixture, lint and hook stays green over the surviving copy.`);
+}
+// THE CEILING IS REPORTED WHETHER OR NOT IT IS THE DIAL, and it is reported BEFORE anything is
+// dispatched. A ceiling under the dial is a scope-cutting fact — the substrate the contracts declared
+// does not admit the concurrency the run is paying for — and it is fixed by re-cutting scopes at the
+// board review, not by anything BUILD can do. Said here, it costs a line; found later, it is a slow
+// round indistinguishable from slow workers.
+const ceiling = Math.min(releaseCeiling(scopeReleases, buildOrder), maxParallelScopes);
+if (waves.length > 1 || excluded.added || ceiling < maxParallelScopes) {
+  const edgeCount = [...scopeReleases.values()].reduce((a, s) => a + s.size, 0);
+  log(`BUILD order — ${waves.length} dependency wave(s): ${waves.map((w) => w.map((s) => s.scope_id).join("+")).join(" → ")}` +
+      ` · ${edgeCount} release edge(s) · at most ${ceiling} scope(s) can be open at once` +
+      `${ceiling < maxParallelScopes ? ` (the window is ${maxParallelScopes}; the substrate the contracts declared is what caps it, not the dial)` : ""}`);
+}
 
 // Advisory lints at L1b. spec-lint is hard — a substrate overlap makes parallel builds unsafe;
 // trace-lint stays advisory until `covers:` is populated; hill-derive is a projection.
@@ -762,7 +1040,9 @@ while (round <= maxRounds) {
   // SCOPES FAN OUT. A scope contract is the definition of an independent subtask — disjoint
   // substrate, own fixtures, own ratchet — so the loop that ran them one at a time was leaving the
   // whole point of the contract on the floor. `pipeline()` has NO barrier between its stages: a
-  // fast scope is being confirmed while a slow one is still on attempt 3.
+  // fast scope is being confirmed while a slow one is still on attempt 3. One pipeline per scope,
+  // so that property is now GLOBAL rather than per group — nothing waits on a group boundary, and
+  // the window refills the instant any leg settles.
   //
   // Three stages, because each answers a different question about the same scope:
   //   check   — is it already green on disk from a killed round? (resume, no re-work)
@@ -781,37 +1061,68 @@ while (round <= maxRounds) {
   // run that is every scope, so the round ended with 0 green and 6 queued, the inner breaker tripped
   // and the run returned `gate_h` having dispatched no builder at all. BUILD could never dispatch;
   // the failure looked exactly like six genuinely hard scopes.
-  for (const group of waves.flatMap((w) => chunk(w, maxParallelScopes))) {
-    const settled = await pipeline(
-      group,
-      async (scope) => (alreadyGreen.has(scope.scope_id)
-        ? { scope_id: scope.scope_id, green: true, resumed: true }
-        : { scope_id: scope.scope_id, pending: true }),   // not green yet → stage 2 builds it
-      async (pre, scope) => (pre?.pending ? buildScope(scope, round) : pre),
-      async (res, scope) => {
+  const settled = await scheduleScopes(buildOrder, scopeReleases, maxParallelScopes, async (scope) => {
+    const done = await pipeline(
+      [scope],
+      async (s) => (alreadyGreen.has(s.scope_id)
+        ? { scope_id: s.scope_id, green: true, resumed: true }
+        : { scope_id: s.scope_id, pending: true }),   // not green yet → stage 2 builds it
+      async (pre, s) => (pre?.pending ? buildScope(s, round) : pre),
+      async (res, s) => {
         if (!res || res.__failed) return res;
         if (res.resumed || !res.green) return res;
-        const confirmed = await query(`probe t0 --slug ${slug} --scope ${scope.scope_id} --round ${round}`,
-          T0CHECK, "Build", `t0confirm:${scope.scope_id}-r${round}`);
-        if (confirmed?.green) return res;
-        log(`BUILD r${round} — ${scope.scope_id} reported green but no T0 verdict is on disk for this ` +
-            `round; treating it as not green (the evaluator cites that artifact, and it is not there).`);
-        return { ...res, green: false, reason: "reported green with no T0 verdict artifact on disk" };
+        const confirmed = await query(`probe t0 --slug ${slug} --scope ${s.scope_id} --round ${round}`,
+          T0CHECK, "Build", `t0confirm:${s.scope_id}-r${round}`);
+        if (!confirmed?.green) {
+          log(`BUILD r${round} — ${s.scope_id} reported green but no T0 verdict is on disk for this ` +
+              `round; treating it as not green (the evaluator cites that artifact, and it is not there).`);
+          return { ...res, green: false, reason: "reported green with no T0 verdict artifact on disk" };
+        }
+        // AND ITS RESULT HAS TO HAVE REACHED THE BOARD. A green T0 says the worker's fixtures ran and
+        // passed; it says nothing about whether the WorkResult was applied, and this stage used to ask
+        // only the first question. Measured on a live run: a leg wrote its code, a green verdict, a
+        // kept trial row and its WorkResult, then skipped step 3 of its own script. It reported green,
+        // this stage re-verified the T0 artifact, agreed, and the round walked on with the scope's task
+        // still `pending` and zero acceptance criteria ticked — the board GATE L2 reads as 100%
+        // disagreeing with a scope that was genuinely finished.
+        //
+        // The evidence is the leg-completion row, because `reduce ingest` writes it: its presence
+        // proves the writer ran, and it is not something the leg can assert about itself.
+        const applied = await query(`probe leg --slug ${slug} --scope ${s.scope_id} --round ${round}`,
+          LEGCHECK, "Build", `legcheck:${s.scope_id}-r${round}`);
+        for (const orderPath of (applied?.closed ? [] : applied?.unapplied || [])) {
+          // INGESTED HERE RATHER THAN FAILED. The result is on disk and valid — re-running the leg
+          // would pay a whole attempt again for work already done. Only the single writer writes
+          // shared state, and that writer is this command; which step invokes it is not the invariant.
+          log(`BUILD r${round} — ${s.scope_id} finished without applying its own result. Ingesting it ` +
+              `here: ${orderPath}. The leg skipped its ingest step, so the board did not see work that ` +
+              `is on disk and T0-green.`);
+          await advisory(`reduce ingest --order ${orderPath}`, "Build", `late-ingest:${s.scope_id}-r${round}`);
+        }
+        if (applied && !applied.closed && !(applied.unapplied || []).length && applied.results_total === 0) {
+          // Green T0, no result envelope at all: the two records disagree about whether a leg ran, and
+          // the round must not resolve that by preferring the one that says yes.
+          log(`BUILD r${round} — ${s.scope_id} has a green T0 verdict and no WorkResult on disk for ` +
+              `this round; treating it as not green.`);
+          return { ...res, green: false, reason: "green T0 verdict with no WorkResult envelope" };
+        }
+        return res;
       },
     );
+    return done[0];
+  });
 
-    for (const [i, res] of settled.entries()) {
-      const scopeId = group[i].scope_id;
-      // A dead builder is a SPENT ATTEMPT, not a dead run: the scope goes to GATE H's census and
-      // the round continues. Killing the run here would discard every other scope's green work.
-      if (!res || res.__failed) {
-        log(`BUILD r${round} — ${scopeId} lost its worker: ${res?.__failed || "no result"}`);
-        roundHammer.push(scopeId);
-      } else if (res.green) {
-        roundGreen.push(res.scope_id || scopeId);
-      } else {
-        roundHammer.push(res.scope_id || scopeId);
-      }
+  for (const [i, res] of settled.entries()) {
+    const scopeId = buildOrder[i].scope_id;
+    // A dead builder is a SPENT ATTEMPT, not a dead run: the scope goes to GATE H's census and
+    // the round continues. Killing the run here would discard every other scope's green work.
+    if (!res || res.__failed) {
+      log(`BUILD r${round} — ${scopeId} lost its worker: ${res?.__failed || "no result"}`);
+      roundHammer.push(scopeId);
+    } else if (res.green) {
+      roundGreen.push(res.scope_id || scopeId);
+    } else {
+      roundHammer.push(res.scope_id || scopeId);
     }
   }
 

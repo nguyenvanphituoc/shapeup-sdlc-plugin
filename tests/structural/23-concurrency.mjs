@@ -1,5 +1,5 @@
 // Structural test module: the leg-completion record, and the instrument that reads it.
-// Sections: 63, 64.
+// Sections: 63, 64, 68.
 //
 // THE DEFECT THIS MODULE EXISTS FOR. Fanning the scope loop out has three acceptance questions —
 // did two scopes run at once, did shared state survive it, did wall-clock improve — and nothing in
@@ -22,6 +22,14 @@
 //     record set must not yield a confident number, a speedup that cannot be supported must be
 //     refused rather than approximated, and the output must be byte-stable — an instrument whose
 //     answer moves between two runs over one unchanged tree is measuring itself.
+//
+// §68 THE APPLICATION. The record turned out to answer a second question nobody had asked. A green
+//     T0 says a scope's fixtures passed; it says nothing about whether its WorkResult was applied,
+//     and the BUILD round's confirm stage asked only the first. On a live run one leg skipped its own
+//     `reduce ingest` step, reported green, and was accepted — its task left `pending` with zero
+//     acceptance criteria ticked while its code sat finished on disk. The leg ledger is what
+//     distinguished it from its neighbour, because the row is written BY the writer and so cannot be
+//     asserted by the leg that was supposed to run it.
 
 import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync, appendFileSync } from "node:fs";
 import { join } from "node:path";
@@ -441,4 +449,88 @@ export async function run(ctx) {
       }
     }
   }
+
+  await runLegApplication(ctx);
+}
+
+/**
+ * Run the leg-application checks (section 68).
+ *
+ * A green T0 says a scope's fixtures passed. It does not say its WorkResult was ever applied, and
+ * the BUILD round's confirm stage asked only the first question.
+ * @param {object} ctx - Shared structural-test context from tests/lib/harness.mjs (makeCtx).
+ * @returns {Promise<void>} Resolves when section 68 has been recorded on ctx.
+ */
+export async function runLegApplication(ctx) {
+  const { ROOT, ok, fail, section } = ctx;
+
+  // =============================================================================
+  section("68. A scope is not finished because its T0 is green — its result has to have reached the board");
+  // =============================================================================
+
+  // Measured on a live run, dial 1, three scopes. One build leg wrote its code, a green T0 verdict
+  // and a kept trial row, wrote its WorkResult to disk — and skipped step 3 of its own script,
+  // `reduce ingest`. It reported green; the confirm stage re-verified the T0 artifact, agreed, and
+  // the round walked on:
+  //
+  //     TASK-001 (env-parsing)   status: pending   ACs ticked: 0     ← skipped its ingest
+  //     TASK-002 (schema-rules)  status: done      ACs ticked: 12
+  //
+  // Ingesting the same file afterwards succeeded, attested, and ticked nine criteria — so nothing was
+  // wrong with the order, the receipt or the result. The single writer just never ran, and the board
+  // GATE L2 reads as "100% ✅" disagreed with a scope that was genuinely finished.
+  const probe = await import(join(ROOT, "kernel/probe/leg.mjs"));
+  const ws = mkdtempSync(join(tmpdir(), "legapply-"));
+  try {
+    const root = join(ws, ".shapeup", "f");
+    mkdirSync(join(root, "orders"), { recursive: true });
+    mkdirSync(join(root, "results"), { recursive: true });
+    const order = (scope, attempt) => {
+      const name = `${scope}-r1-a${attempt}.json`;
+      writeFileSync(join(root, "orders", name), JSON.stringify({ order_id: `f/${scope}-r1-a${attempt}`, slug: "f", worker: "task-executor" }));
+      return name;
+    };
+    const a = order("alpha", 1);
+    const b = order("beta", 1);
+    writeFileSync(join(root, "results", a), JSON.stringify({ order_id: "f/alpha-r1-a1", worker: "task-executor", status: "done" }));
+    writeFileSync(join(root, "results", b), JSON.stringify({ order_id: "f/beta-r1-a1", worker: "task-executor", status: "done" }));
+    // Only beta's ingest ran. This is the live shape exactly.
+    writeFileSync(join(root, "legs.jsonl"), JSON.stringify({
+      schema_version: 1, run_id: "f-20260101T000000Z-abcdef01", order_id: "f/beta-r1-a1",
+      scope_id: "beta", round: 1, attempt: 1, ingested_at: "2026-01-01T00:00:05.000Z",
+    }) + "\n");
+
+    const alpha = probe.legState(ws, "f", "alpha", 1);
+    if (alpha.closed === false && alpha.unapplied.length === 1) {
+      ok("a scope whose result is on disk and was never ingested reports closed:false and names the order");
+    } else {
+      fail(`a result that never reached the board reported ${JSON.stringify({ closed: alpha.closed, unapplied: alpha.unapplied.length })}. ` +
+        `This is the live defect: the round accepted the scope on its T0 verdict alone while its task stayed pending.`);
+    }
+    const beta = probe.legState(ws, "f", "beta", 1);
+    if (beta.closed === true && beta.unapplied.length === 0) ok("a scope whose ingest ran reports closed:true — the check discriminates");
+    else fail(`an applied scope reported ${JSON.stringify({ closed: beta.closed, unapplied: beta.unapplied.length })}`);
+
+    // "Nothing ran" must not read the same as "ran and was not applied". Both are `closed: false`,
+    // and a caller has to answer them differently — one is a leg still in flight or dead, which the
+    // round already handles as a spent attempt; the other is finished work the board cannot see.
+    const absent = probe.legState(ws, "f", "gamma", 1);
+    if (absent.closed === false && absent.orders.length === 0 && absent.unapplied.length === 0) {
+      ok("a scope with no orders at all reports closed:false with an empty order list, distinguishable from unapplied work");
+    } else fail(`an unstarted scope reported ${JSON.stringify(absent)}`);
+
+    // The row must belong to THIS round. A leg row from round 1 satisfying round 2 would let a fix
+    // round inherit its predecessor's application — the same shape as the resume filter that read a
+    // round-1 green as a round-2 green.
+    const wrongRound = probe.legState(ws, "f", "beta", 2);
+    if (wrongRound.closed === false) ok("a leg row from another round does not close this one");
+    else fail("a round-1 leg row closed round 2 — the ingest record is not round-keyed");
+
+    // And the CLI's exit code has to carry it, because that is the only part a workflow leg reads.
+    const K = join(ROOT, "kernel", "harness.mjs");
+    const red = spawnSync("node", [K, "probe", "leg", "--slug", "f", "--scope", "alpha", "--round", "1", "--cwd", ws], { encoding: "utf8" });
+    const green = spawnSync("node", [K, "probe", "leg", "--slug", "f", "--scope", "beta", "--round", "1", "--cwd", ws], { encoding: "utf8" });
+    if (red.status === 1 && green.status === 0) ok("probe leg exits 1 on unapplied work and 0 when the board has it");
+    else fail(`probe leg exits: unapplied=${red.status} (want 1), applied=${green.status} (want 0)`);
+  } finally { rmSync(ws, { recursive: true, force: true }); }
 }
