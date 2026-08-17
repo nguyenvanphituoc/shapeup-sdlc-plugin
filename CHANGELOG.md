@@ -59,6 +59,15 @@ dependencies are green instead of when its whole wave finishes, capped by the di
 workloads on a virtual clock, the window never loses on duration and reaches the critical path
 wherever it is reachable — and gains nothing at all on a feature whose waves already match the dial.
 
+**What the fan-out is worth, measured on two live runs of one feature.** Both built the identical
+decomposition — same spec, same four scope contracts, same task board, same models and budgets — with
+one variable, the dial. On the two scopes that are genuinely independent the span falls from 222.8 s
+to **84.6 s, −62%** (−57% after normalising for per-leg drift between the runs). Across the whole
+build round the saving is **~21%**, and that ceiling is arithmetic rather than a defect: this feature
+has three dependency waves and only one is wide, so at most one leg's duration can ever be hidden
+behind another. Sequential also pays the confirm stage once per leg where the fan-out pays it once per
+wave — 45 s between two legs, on this run.
+
 **A green T0 is not a finished scope.** A build leg wrote its code, a green verdict, a kept trial row
 and its WorkResult, then skipped its own `reduce ingest` step. It reported green, the round
 re-verified the T0 artifact, agreed, and walked on — leaving that scope's task `pending` with zero

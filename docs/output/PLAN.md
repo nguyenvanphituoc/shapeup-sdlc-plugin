@@ -108,10 +108,15 @@ The subtraction that unlocks everything else, and it doesn't touch behavior.
 - Add `args.maxParallelScopes` (default 4) so cost stays a dial, honoring the article's "can the organization afford the cost?" question.
 - **Done when:** a 3-scope feature builds with ≥2 scopes concurrently, board/ledger uncorrupted (the reducer proves itself), wall-clock beats Phase-2 baseline by ≥30%.
 
-> **Closed — see `RESULT-P3.md`.** D1 met and now measurable rather than asserted; D2 met, and it was
-> false before (four concurrency defects, each invisible to a green suite); **D3 not claimed** — the
-> baseline this clause names is Phase 2's *sequential* loop, so the 30% was bought by fan-out
-> existing at all, and a better scheduler competes for a residual measured at ≤14.5%. Two items go
+> **Closed — see `RESULT-P3.md`.** D1 met and now measurable rather than asserted (`2 (exact)` on a
+> shipped run); D2 met, and it was false before (four concurrency defects, each invisible to a green
+> suite); **D3 not met, and measured rather than estimated** — 62% on the wave that can fan out,
+> ~21% on the round, 0% from the scheduler change itself. The ceiling is arithmetic: a feature with
+> three waves of which one is wide can never hide more than one leg's duration behind another. The
+> clause's own baseline is also the wrong comparison — Phase 2 kept the *sequential* loop, so the 30%
+> was bought by fan-out existing at all. And the experiment as specified is unrunnable: it asks for
+> "everything else held" while the scope cut is decided by a model each run, which on this pitch gave
+> four scopes once and one the next time. Two items go
 > against the text above with the evidence recorded: `isolation:'worktree'` is declined in ADR-0003
 > (the reason on record turned out to be false; what declines it is that a worktree disarms the
 > substrate wall and nothing merges it back), and the `active-scope` pointer is kept because the
