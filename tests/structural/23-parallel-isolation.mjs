@@ -278,6 +278,56 @@ export async function run(ctx) {
     } finally { rmSync(ws, { recursive: true, force: true }); }
   }
 
+  // --- (f) The T0 ratchet's revert cannot reach outside the scope that triggered it -------------
+  // The one cross-scope write path no hook can see. `sandbox-guard` fences Edit/Write; the ratchet
+  // reverts through a `git` subprocess, so an unbounded revert destroys a neighbour's work with
+  // every control still green.
+  {
+    const ws = mkdtempSync(join(tmpdir(), "struct-par-f-"));
+    try {
+      const { snapshot, restore, isRepo } = await import(`file://${join(ROOT, "kernel/verify/ratchet-tree.mjs")}`);
+      const g = (args) => spawnSync("git", args, { cwd: ws, encoding: "utf8" });
+      g(["init", "-q", "-b", "main"]);
+      g(["config", "user.email", "probe@example.invalid"]);
+      g(["config", "user.name", "probe"]);
+      mkdirSync(join(ws, "src", "a"), { recursive: true });
+      mkdirSync(join(ws, "src", "b"), { recursive: true });
+      writeFileSync(join(ws, "src", "a", "index.js"), "// A baseline\n");
+      writeFileSync(join(ws, "src", "b", "index.js"), "// B baseline\n");
+      g(["add", "-A"]);
+      g(["commit", "-q", "-m", "baseline"]);
+
+      if (!isRepo(ws)) {
+        // An absence reported in the same value, never a silent skip.
+        fail("git is unavailable in this environment, so the ratchet's revert bound could not be executed — this check proved nothing");
+      } else {
+        writeFileSync(join(ws, "src", "a", "index.js"), "// A attempt 1, kept\n");
+        const snap = snapshot("SC-A", ws);
+        if (snap.ok) ok("the ratchet takes a kept-tree snapshot for a scope");
+        else fail(`snapshot failed: ${snap.reason}`);
+
+        // Neighbour does its own work, then SC-A's next attempt goes red and reverts.
+        writeFileSync(join(ws, "src", "b", "index.js"), "// B'S REAL WORK\n");
+        writeFileSync(join(ws, "src", "a", "index.js"), "// A attempt 2, red\n");
+        const rest = restore("SC-A", ws, ["src/a/**"]);
+
+        if (rest.ok) ok("a bounded revert succeeds against the scope's own substrate");
+        else fail(`bounded revert failed: ${rest.reason}`);
+        if (readFileSync(join(ws, "src", "a", "index.js"), "utf8").includes("attempt 1")) ok("the reverting scope's own file is rolled back to its kept tree");
+        else fail("the ratchet did not roll back the scope's own file — the revert is not reverting");
+        if (readFileSync(join(ws, "src", "b", "index.js"), "utf8").includes("B'S REAL WORK")) ok("a neighbouring scope's work SURVIVES another scope's revert");
+        else fail("one scope's revert destroyed a neighbouring scope's work — the ratchet rolls back the whole tree, and no hook can see it because it reverts through git");
+
+        // And with nothing to bound it, it must refuse rather than roll the repo back.
+        const unbounded = restore("SC-A", ws, []);
+        if (!unbounded.ok && /pathspec|refus/i.test(unbounded.reason || "")) ok("with no substrate to bound it the revert REFUSES, instead of falling back to the whole repo");
+        else fail(`an unbounded revert returned ${JSON.stringify(unbounded)} — the repo-wide fallback is still reachable`);
+        if (readFileSync(join(ws, "src", "b", "index.js"), "utf8").includes("B'S REAL WORK")) ok("the refused revert changed nothing");
+        else fail("the refused revert still rewrote the tree");
+      }
+    } finally { rmSync(ws, { recursive: true, force: true }); }
+  }
+
   // =============================================================================
   section("64. The substrate wall is rooted at the cwd it is handed, and says which state it is in");
   // =============================================================================

@@ -525,7 +525,10 @@ export async function cli(rawArgv) {
   // the pre-v1.5 behaviour, kept for standalone CLI use and for any caller managing its own tree.
   let tree = { ok: false, reason: "--no-ratchet" };
   if (!args.noRatchet) {
-    tree = action === "keep" ? snapshot(contract.scope_id, cwd) : restore(contract.scope_id, cwd);
+    // The revert is bounded by what this scope was allowed to write. Unbounded, it rolls back every
+    // other scope building alongside it — see `restore`.
+    const own = contract.substrate?.allowed || [];
+    tree = action === "keep" ? snapshot(contract.scope_id, cwd) : restore(contract.scope_id, cwd, own);
     // First trial with nothing to restore to: there is no kept tree yet BY DEFINITION. Take one,
     // so trial 2 has a floor to fall back to instead of inheriting the "no revert at all" defect.
     if (action === "restore" && !tree.ok) tree = { ...snapshot(contract.scope_id, cwd), fell_back_to: "snapshot" };

@@ -62,10 +62,15 @@ export function isRepo(cwd) {
 }
 
 /**
- * `keep` — publish the current working tree (including untracked files) as this scope's kept tree.
+ * `keep` — publish the current TRACKED working tree as this scope's kept tree.
  *
  * `git stash create` builds the stash commit WITHOUT touching the index, the working tree, or the
  * stash list; `update-ref` then points the shadow ref at it. Nothing the user can see changes.
+ *
+ * TRACKED ONLY, and the limit is real rather than a nicety: `stash create` takes no `-u`, so a file
+ * the attempt CREATED is not in the snapshot. {@link restore} therefore cannot remove it — which is
+ * the behaviour that function already documents, stated here too so the pair reads honestly from
+ * either end.
  *
  * @param {string} scopeId - Scope id the snapshot belongs to.
  * @param {string} cwd - Repository working directory.
@@ -88,25 +93,42 @@ export function snapshot(scopeId, cwd) {
 }
 
 /**
- * `revert` — restore the working tree from this scope's last kept snapshot.
+ * `revert` — restore THIS SCOPE'S OWN FILES from its last kept snapshot.
  *
- * Deliberately `git restore --source=<ref> --worktree -- .`: it rewrites tracked files back to the
- * kept state and leaves the index and HEAD alone. It does NOT delete files created since the
- * snapshot — removing a file the harness cannot prove it created is not a revert, it is data loss,
- * and the attempt's own fixtures are what decide whether the leftover matters.
+ * `git restore --source=<ref> --worktree -- <pathspec>`: it rewrites tracked files back to the kept
+ * state and leaves the index and HEAD alone. It does NOT delete files created since the snapshot —
+ * removing a file the harness cannot prove it created is not a revert, it is data loss, and the
+ * attempt's own fixtures are what decide whether the leftover matters.
+ *
+ * THE PATHSPEC IS THE WHOLE POINT, and it used to be `.`. A scope's snapshot is a stash of the
+ * ENTIRE tree, so a repo-wide revert rolled every other scope back to whatever state it happened to
+ * be in when THIS scope last went green. With scopes building side by side that is silent
+ * cross-scope data destruction, and no other control can see it: `sandbox-guard` fences the Edit and
+ * Write tools, and this is a `git` subprocess. Measured directly — one scope's red attempt reverted
+ * a neighbour's committed file back to the baseline while the neighbour was still working in it.
+ *
+ * Substrate globs are usable as git pathspecs unchanged (`src/parse/**`, `apps/web/cart/*.tsx`).
+ * `allowed` only, never `shared`: a shared path is by definition one another scope may also be
+ * writing, so reverting it is the very thing this bound exists to prevent. An empty pathspec
+ * restores NOTHING and says so, rather than falling back to a repo-wide revert — a scope that
+ * declares no writable surface has nothing of its own to roll back.
  *
  * @param {string} scopeId - Scope id whose kept tree should be restored.
  * @param {string} cwd - Repository working directory.
- * @returns {{ok:boolean, ref?:string, sha?:string, reason?:string}} `ok:true` when the tree was
- *   restored; `ok:false` with a reason when there is no snapshot yet (the first trial, by
- *   definition) or git refused.
+ * @param {string[]} [pathspec=[]] - The scope's `substrate.allowed` globs; the bound on what may be
+ *   rewritten.
+ * @returns {{ok:boolean, ref?:string, sha?:string, paths?:number, reason?:string}} `ok:true` when
+ *   the tree was restored; `ok:false` with a reason when there is no snapshot yet (the first trial,
+ *   by definition), no pathspec to bound the revert, or git refused.
  */
-export function restore(scopeId, cwd) {
+export function restore(scopeId, cwd, pathspec = []) {
   if (!isRepo(cwd)) return { ok: false, reason: "not a git work tree" };
+  const paths = (pathspec || []).filter((p) => typeof p === "string" && p.trim());
+  if (!paths.length) return { ok: false, reason: `no substrate pathspec for ${scopeId} — refusing a repo-wide revert` };
   const ref = keptRef(scopeId);
   const resolved = git(["rev-parse", "--verify", "--quiet", ref], cwd);
   if (!resolved.ok || !resolved.stdout) return { ok: false, reason: `no snapshot at ${ref}` };
-  const restored = git(["restore", `--source=${resolved.stdout}`, "--worktree", "--", "."], cwd);
+  const restored = git(["restore", `--source=${resolved.stdout}`, "--worktree", "--", ...paths], cwd);
   if (!restored.ok) return { ok: false, reason: restored.stderr || "git restore failed" };
-  return { ok: true, ref, sha: resolved.stdout };
+  return { ok: true, ref, sha: resolved.stdout, paths: paths.length };
 }
