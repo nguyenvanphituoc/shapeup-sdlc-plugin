@@ -922,6 +922,11 @@ if (h.verdict === "cannot-ship") {
 
 const ship = await cmd(`reduce ship --slug ${slug} --verdict PASS --qa ${qaRan ? "run" : "skipped"}`, "Ship", "ship-report");
 await advisory(`report export --slug ${slug}`, "Ship", "export-run");
+// The run's own concurrency, printed once where the records are complete and before the next run
+// supersedes the trace. It is a projection over `receipts/dispatch.jsonl` and `legs.jsonl`, so it
+// asserts nothing and gates nothing — and when those records cannot support a figure it says so
+// rather than printing a plausible one.
+await advisory(`probe concurrency --slug ${slug} --format table`, "Ship", "concurrency");
 await setRunStatus("shipped", "Ship");
 
 // The dimensions this run did NOT evaluate, so GATE L4 can say what "shipped" does not cover.

@@ -432,6 +432,15 @@ derives a `RunSnapshot` (registered in the domain registry, self-validated befor
 the run pointer, `harness-run.md` frontmatter, board frontmatter, `t0/verdicts/` filenames and
 the `orders/` vs `results/` diff — `--write` persists it as an audit anchor.
 
+A third answers the question the fan-out is judged on. `harness probe concurrency` joins the
+dispatch receipts (a leg's start, hook-attested) to the leg-completion rows `reduce ingest` appends
+(its end) and reports how many legs were open at once, the build span, and the waves it observed.
+It is the only measurement in the system whose subject is the pipeline rather than the deliverable,
+and it is built around one rule: every figure travels with the completeness of the record set it
+came from, and a speedup it cannot support is refused rather than approximated. A concurrency of 1
+computed over four legs with one usable record reads exactly like a run that was genuinely
+sequential, which is why the count of legs with no completion record sits in the same document.
+
 **Why a command rather than the lifecycle hooks this used to be.** The pair that preceded it
 fired at two moments the platform chose, and the commonest continuity event in practice was
 covered only by accident: you close the terminal and come back tomorrow, or a teammate picks the
