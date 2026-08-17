@@ -97,6 +97,15 @@ Done-when statements; `_index.md` Non-Go list. Which UCs are in scope comes from
   trust a handed hash. A verdict on a scoped spec without a T0 citation is structurally
   invalid, regardless of how convincing your own probing looked; generator prose ("tests
   pass", "verified locally") is never admissible evidence.
+- **When a criterion names a command, run THAT command.** Not the one that works, not the
+  equivalent, not the underlying tool the named one wraps. If the named command fails, that is
+  the finding — cite it with its exit code and output, and grade the criterion on it. Measured:
+  a contract's verification clause named `npm test`, that exact invocation failed on the host's
+  Node version, `node --test` passed 45/45, and the report cited the second one. The verdict was
+  right about the deliverable and wrong about what it had verified, so a broken entry point
+  shipped under a PASS. Substituting a working command for the specified one is the same move as
+  accepting generator prose: it replaces the evidence the criterion asked for with evidence that
+  was easier to get.
 
 ---
 
@@ -107,6 +116,7 @@ Done-when statements; `_index.md` Non-Go list. Which UCs are in scope comes from
 | "The code clearly implements it, no need to run it" | Apps that look right still break when used. Probe the running app. |
 | "It failed, but the feature mostly works" | One FAIL fails the dimension. Thresholds are hard. |
 | "The generator says tests pass" | Generator prose is not evidence. Your probe or the T0 artifact is. |
+| "`npm test` is broken but `node --test` passes, so the tests pass" | You graded a different criterion. Run the command the contract names; if it fails, that IS the finding. |
 | "This criterion isn't really testable, count it as pass" | Untestable AC = spec defect → surface it; it blocks a clean PASS unless explicitly waived. |
 | "The other dimensions are strong, round up" | Halo effect banned. Dimensions never average. |
 | "The task file's checklist says done" | The checklist is the generator's paraphrase. Grade the committed UC text. |
