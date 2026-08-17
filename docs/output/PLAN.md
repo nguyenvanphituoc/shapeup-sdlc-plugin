@@ -4,19 +4,45 @@
 
 **One sentence:** *delete the runtime, fan out the scopes, shrink 21 scripts to 1 kernel, make the state a graph, keep only the hooks that are walls.*
 
-**Target metrics (measurable, checked at the end):**
+**Target metrics — measured bottom-up, not estimated.**
+
+> **Correction (v2 of this plan).** An earlier draft targeted "≤15,000 LOC repo-wide." Measurement disproved it: consolidation removes *surface area*, not proportional lines (`compile-order.mjs` is 565 lines because compiling a WorkOrder genuinely takes 565 lines), and it conflated shipped LOC with repo LOC. The realistic cut is **−33%, not −67%**. More importantly, **LOC is the wrong primary target here** — it rewards deleting templates and references, which are the product, not the bloat. Surface area is what actually tracks maintainability.
+
+**Primary metrics (surface area):**
 
 | Metric | Today (v1.7.0) | Target (v2.0) |
 |---|---|---|
-| Repo size | ~45,500 LOC | ≤ 15,000 LOC |
-| Pipeline scripts (`skills/tech-lead/scripts/`) | 16 + 5 lib = 21 | **1 kernel CLI** + ≤3 lib |
-| Hand-rolled runtime | `run-workflow.mjs` (~380 LOC) | **0** — native Workflow tool |
-| Orchestrator script | 911 lines, courier-defended | ≤ 600 lines, zero couriers |
-| Hooks | 10 | **4 hard** (rest deleted or folded) |
-| Permission grant lines written by init | N prefix rules + fragile merge | **2 lines** (one Bash prefix, one optional `Workflow`) |
+| Executable script files | 24 | **~11** (1 entry + core modules) |
+| Permission strings written by `init` | **6** (3 owners × 2 spellings) | **1** |
+| Runtimes owned | 1 (`run-workflow.mjs`) | **0** — native Workflow tool |
+| Hooks | 10 | **4 hard** |
+| Comment density, shipped JS | **36%** (3,649 / 10,056) | **~18%** |
+| Orchestrator script | 911 lines, courier-defended | ≤ 600, zero couriers |
+| Skills requiring any change | — | **2 of 12** |
 | Scope build | sequential | parallel (`pipeline()` + worktree) |
 | Resume | directory re-scan every launch | one bounded graph query |
-| Sub-agent dispatch cost | cold `claude -p` per worker | in-session, prompt-cache-warm |
+| Sub-agent dispatch | cold `claude -p` per worker | in-session, prompt-cache-warm |
+
+**Secondary metric (LOC budget, measured):**
+
+| Bucket | Today | v2 | What changes |
+|---|---|---|---|
+| Logic (kernel + schema) | 9,492 | ~6,400 | −`run-workflow`, −boilerplate, −trimmed `$defs` |
+| Content (SKILL.md, references, templates) | 10,091 | ~8,200 | consolidation only — capability preserved |
+| Hooks | 2,144 | ~1,100 | 10 → 4 |
+| **Shipped total** (`package.json` `files`) | **~24,240** | **~17,000** | **−30%** |
+| Non-shipped (tests, docs, evals, `.claude/`) | ~21,250 | ~13,500 | −evals, −CHANGELOG, +ADRs, +6 probes |
+| **Repo total** | **45,490** | **~30,500** | **−33%** |
+
+**Where the mass actually is** — two skills are 75% of all skill code; the other ten are already lean and are *not touched* by this plan:
+
+| Skill | SKILL.md | refs | templates | scripts | schemas | total |
+|---|---|---|---|---|---|---|
+| **tech-lead** | 136 | 1,326 | — | 6,189 | 2,657 | **11,290** |
+| **ba-pitch-analyzer** | 180 | 1,746 | 1,822 | 480 | — | **4,228** |
+| spec-evaluator | 220 | 1,319 | — | 166 | — | 1,798 |
+| shapeup | 403 | — | 1,130 | — | — | 1,533 |
+| *other 8 skills* | 116–339 each | 102 | — | — | — | **1,875** |
 
 ---
 
@@ -64,9 +90,10 @@ Seven phases, each independently shippable, each with a hard "done when." Order 
 ### Phase 1 — Kernel consolidation *(fixes: permission fragility, BAD-6 partially)* *(2–3 days)*
 The subtraction that unlocks everything else, and it doesn't touch behavior.
 - Create `kernel/harness.mjs` + `kernel/lib/{paths,argv,schema}.mjs`. Move the 21 scripts' logic under the five subcommands; **delete originals** as each moves. Keep exit-code contracts identical (gate 0/4/5, init 3, budget 6).
-- While moving, apply the archaeology rule (BAD-6): keep comments stating the *current* contract; delete narrated dead bugs. Target: every kernel file readable in one sitting.
+- While moving, apply the archaeology rule (BAD-6): keep comments stating the *current* contract; delete narrated dead bugs. **This is measurable** — shipped JS is 36% comments today (`paths.mjs` 70%, `t0-verify.mjs` 47%). Target ~18%, worth ~1,200 lines and the single largest recoverable block in the repo.
 - `bin/init.mjs`: replace the prefix set with the single kernel line + write the optional `"Workflow"` grant behind a `--native-workflow` flag (default **on** in v2; `--no-native-workflow` documented for locked-down orgs, falling back to interactive-only use). Update `.claude/settings.local.example.json` to show exactly these two lines.
-- **Done when:** structural tests green against the kernel; `grep -r "scripts/" skills/` finds only `kernel/harness.mjs` references; init writes ≤2 permission lines.
+- **Experiment (optional, ~half a day):** test whether *vendoring* the kernel into the project at init time (`.shapeup/kernel/harness.mjs`, version-stamped, refusing to run on a stamp mismatch) reduces permission friction versus running it from `${CLAUDE_PLUGIN_ROOT}`. Pass criterion: a headless run with **zero** approval prompts under `default` permission mode. If it passes, adopt it; if not, keep the plugin-root path and record the result. Do not assume either way — measure.
+- **Done when:** structural tests green against the kernel; `grep -r "scripts/" skills/` finds only `kernel/harness.mjs` references; init writes ≤2 permission lines; executable script files down from 24 to ~11.
 
 ### Phase 2 — Native runtime swap *(fixes: BAD-1, BAD-2, BAD-5)* *(2–3 days)*
 - Adopt `shapeup-run.native.js` (delivered with the review) as `skills/tech-lead/workflows/shapeup-run.js`. Tech-lead SKILL.md Step 2 changes from "background Bash + run-workflow.mjs" to "launch via the `Workflow` tool with `{scriptPath, args}`"; Step 3 branch table unchanged.
@@ -90,12 +117,18 @@ The subtraction that unlocks everything else, and it doesn't touch behavior.
 ### Phase 5 — Hook diet & enforcement honesty *(fixes: permission story, BAD-6 rest)* *(1 day)*
 - **Keep 4 hard hooks:** `safety-spine` (machine safety), `sandbox-guard` (substrate walls — the parallel-safety backstop), `gate-intake` (no empty dispatch), `validate-envelope` (no uncompiled order).
 - **Delete 6:** `gate-l2` (already advisory — becomes a `reduce` warning in the L2 gate context), `gate-deadline` (breaker already lives in `verify`/budget), `gate-zerowork`, `anti-rationalization`, `slop-cleaner` (fold the useful checks into spec-evaluator's dimensions or the ship report), `session-rehydrate`/`compact-snapshot` (Phase 4).
+- **Write the diet up as a decision record.** Deleting an enforcement control is security-adjacent: never remove one silently — record the decision and either name the compensating control or state the accepted risk. Git preserves the code; the ADR preserves the *judgment*, and git is a pull medium nobody queries for a file they never knew existed. Triage: one line each for the four that were **relocated** (`gate-l2`, `gate-deadline`, `session-rehydrate`, `compact-snapshot`) and for `slop-cleaner` (folded); a **full entry** for `gate-zerowork` and `anti-rationalization`, which have **no compensating control** — each encodes an expensively-learned failure mode ("the agent described the work instead of doing it"; "claimed done while the facts disagreed"). For each: what it caught, what replaced it or why the risk is accepted, and what evidence would justify reinstating it.
+- Those two dropped guarantees also belong in the **CHANGELOG + upgrade notes** — anyone running unattended needs to know *before* upgrading, not after.
+- **No tombstone comments in code** ("we used to have a hook here that…"). That is the same BAD-6 archaeology this plan deletes elsewhere; deleted code leaves a clean codebase, the record lives in the write-up.
 - README enforcement table rewritten honestly: which guarantees are walls (hooks — work under every permission mode), which are runtime (schemas, worktrees), which are advisory. This is the direct answer to the bypassPermissions concern: **nothing load-bearing depends on permission mode anymore.**
-- **Done when:** hooks/ contains 4 files + hooks.json; README table matches reality.
+- **Done when:** hooks/ contains 4 files + hooks.json; the judgment is recorded somewhere a reader lands on without knowing to look — it went into the v2.0.0 CHANGELOG entry and `docs/design/03-system-design.md` §3.2/§3.2c/§3.2e rather than a new ADR, because the diet changed the enforcement model those sections describe and belongs next to it; README table matches reality.
 
-### Phase 6 — Skill & docs diet *(maintainability)* *(2–3 days)*
-- Every SKILL.md: workers keep the envelope contract + craft; move history/rationale to `docs/design/`. Tech-lead SKILL.md shrinks to: open run → launch Workflow → branch on RunReturn → L4 (the two-lane prose fork for `--tiny` stays, now the *only* prose lane).
-- Consolidate `tech-lead/references/` (8 files) into 3: `gates.md`, `protocol.md` (round+delegation+state), `tiny-lane.md`. Delete what the code now self-documents.
+### Phase 6 — Skill & docs diet *(maintainability)* *(2 days)*
+**Scope is narrower than it looks: only 2 of 12 skills need work.** `tech-lead` (11,290 lines) and `ba-pitch-analyzer` (4,228) are 75% of all skill mass; the other ten are 116–403-line SKILL.md files that are already lean and are **not touched**. Do not "tidy" them — that is scope creep with no payoff.
+- **tech-lead:** SKILL.md shrinks to open run → launch Workflow → branch on RunReturn → L4 (the `--tiny` prose fork stays, now the *only* prose lane). Consolidate `references/` (8 files, 1,326 lines) into 3: `gates.md`, `protocol.md` (round+delegation+state), `tiny-lane.md`. Trim `domain.schema.json`'s unused `$defs` — but treat the schema as **contract, not bloat**: it is 2,466 lines because it defines every cross-boundary record, and cutting it is capability loss.
+- **ba-pitch-analyzer:** its 1,746 lines of references and 1,822 of templates are **product, not waste** — they are what the planner actually emits. Consolidate overlapping reference files only; do not delete templates to hit a line count.
+- Delete the three per-skill `README.md` files (230 lines) that duplicate their SKILL.md.
+- Every SKILL.md: keep the envelope contract + craft; move history/rationale to `docs/design/`.
 - Trim `CHANGELOG.md` (99 KB!) to v2-relevant history + link to the v1 tag. Rewrite README around the three-layer architecture; quickstart unchanged (`/ship` still the whole story).
 - Version 2.0.0 in both manifests; upgrade notes: what v1 users must re-run (`npx shapeup-sdlc init`), what got deleted and why.
 - **Done when:** a newcomer can read README + tech-lead SKILL.md + the workflow script in under an hour and correctly answer "where is a gate enforced?"
@@ -108,7 +141,8 @@ Rerun every probe the v1 code memorializes in comments, as real checks:
 4. Dead-worker probe: kill one build leg's sub-agent; assert spent-attempt (not dead-run) semantics survive.
 5. Gate-refusal probe: missing gate answer under `--unattended` → clean `aborted`, never silent proceed.
 6. Baseline comparison: cost + wall-clock vs Phase 0 fixture; expect wall-clock ↓ (fan-out) and per-worker token cost ↓ (warm cache).
-- **Done when:** all six pass and are committed as CI-runnable checks (they replace the deleted eval machinery as the repo's proof of behavior).
+7. **Metrics audit** — verify against the measured budget at the top of this plan, not against a remembered number: executable script files ≤11, permission strings = 1, runtimes owned = 0, hooks = 4, comment density ~18%, shipped LOC ~17,000 (±10%). A miss is a finding to record, not a number to explain away — the same standard the harness holds its own workers to.
+- **Done when:** all seven pass and are committed as CI-runnable checks (they replace the deleted eval machinery as the repo's proof of behavior).
 
 ---
 
@@ -136,8 +170,10 @@ Rerun every probe the v1 code memorializes in comments, as real checks:
 
 ## 4 · Estimated effort
 
-Roughly **12–16 working days** end-to-end, but each phase ships alone; Phases 1–2 (≈5 days) already deliver the permission fix and the biggest code deletion. If you only get one week: do 0–2 and stop — you'll have a smaller, cheaper, native-runtime v2.0-beta with today's exact behavior.
+Roughly **11–15 working days** end-to-end (Phase 6 narrowed once measurement showed only 2 of 12 skills need work), but each phase ships alone; Phases 1–2 (≈5 days) already deliver the permission fix and the biggest deletion. If you only get one week: do 0–2 and stop — you'll have a smaller, cheaper, native-runtime v2.0-beta with today's exact behavior.
+
+**A note on how to read the targets.** The numbers above are measured, not aspirational, and they are deliberately less dramatic than the first draft's. A plan that promises −67% and delivers −33% teaches you to discount its next estimate; one that promises −33% and hits it stays useful. If a phase misses its target, record it as a finding — that is the standard this harness holds its own workers to, and the plan should not get an exemption.
 
 ---
 
-*The one-line test from the review still closes the loop: after Phase 4, "every important output traces to an objective, a plan, an artifact, a source, a graph path, an evaluator decision, and a bounded execution record" stops being a grep and becomes an edge walk — on a codebase a third the size.*
+*The one-line test from the review still closes the loop: after Phase 4, "every important output traces to an objective, a plan, an artifact, a source, a graph path, an evaluator decision, and a bounded execution record" stops being a grep and becomes an edge walk — on a codebase a third smaller, with half the executable surface and one permission string.*
