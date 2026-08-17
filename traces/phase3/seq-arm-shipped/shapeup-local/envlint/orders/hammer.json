@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/hammer",
+  "run_id": "envlint-20260817T051041Z-3c608d2e",
+  "compiled_at": "2026-08-17T05:51:28.474Z",
+  "worker": "scope-hammer",
+  "mode": "orchestrated",
+  "operation": "hammer",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "shapeup/envlint/REPORT.md",
+      ".shapeup/envlint/reports/**"
+    ]
+  },
+  "payload": {
+    "trial_history": [
+      {
+        "schema_version": 1,
+        "trial": 1,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "env-parsing",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      },
+      {
+        "schema_version": 1,
+        "trial": 1,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "schema-rules",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      },
+      {
+        "schema_version": 1,
+        "trial": 1,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "cli-pipeline",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 2,
+          "fixtures_total": 2,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      }
+    ],
+    "feature": "envlint",
+    "qa_findings": 4,
+    "hammer_proposals": [],
+    "spec_folder": "shapeup/envlint/spec"
+  }
+}

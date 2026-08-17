@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/orient",
+  "worker": "orient",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/envlint/orient/code-surface.md",
+    ".shapeup/envlint/orient/spike-parsing-type-rules.md",
+    ".shapeup/envlint/orient/discovered-seed.md",
+    ".shapeup/envlint/orient/hill-signal.md"
+  ],
+  "assumptions": [
+    "Repo is greenfield (no bin/, lib/, or test/ present) confirmed via `find`; package.json's bin/test-script wiring is scaffolding only, not existing code to extend.",
+    "Treated intake.md as the kicked-off pitch (small-batch appetite + explicit no-gos section) since it is the only pitch document present and the run's payload names it directly.",
+    "shapeup/envlint/spec/ is empty on disk; EXPECTED.md at repo root was read as the acceptance contract this run is graded against, and shapeup/envlint/project-profile.md as the committed entry_point declaration.",
+    "Spike ran as throwaway `node -e` probes (not committed, no files left behind) validating the int/bool/url regexes and quote-stripping rule from EXPECTED.md against representative edge-case inputs, since there is no production code yet to spike inside.",
+    "Truncation semantics for E4, exact JSON finding-object shape, and the definition of `checked` are left as open decisions for ba to pin down (see discovered-seed.md), not resolved unilaterally by orient."
+  ],
+  "deviations": []
+}

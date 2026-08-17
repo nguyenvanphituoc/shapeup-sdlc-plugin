@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/evaluate-r1",
+  "worker": "spec-evaluator",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/envlint/evaluation/EVAL-FEATURE-envlint.md"
+  ],
+  "verdict": {
+    "overall": "PASS",
+    "report_path": ".shapeup/envlint/evaluation/EVAL-FEATURE-envlint.md",
+    "t0_citations": [
+      {
+        "scope_id": "env-parsing",
+        "path": ".shapeup/envlint/t0/verdicts/r1-a1-t1.json",
+        "sha256": "e27db73df2c746e01087ff9aaeb78aec24d666680ed4b359be39b40a363cfcdf"
+      },
+      {
+        "scope_id": "schema-rules",
+        "path": ".shapeup/envlint/t0/verdicts/r1-a1-t2.json",
+        "sha256": "858fd4b19612bdce3d0e3831cd8819e2ad18828d1863718feecbf825d8686dc0"
+      },
+      {
+        "scope_id": "cli-pipeline",
+        "path": ".shapeup/envlint/t0/verdicts/r1-a1-t3.json",
+        "sha256": "c31b80f7eab787a0fbb1d3a8565b62c38b801bbd6e5dea8ae32676a38e86b795"
+      }
+    ],
+    "criteria": [
+      {
+        "criterion": "UC-01 Test Surface (TS-UC01-01..10) — parseEnv comments/blank/export/quote-stripping/trim/dup-key/E4/E3/never-throws",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "node --test test/parse.test.mjs (10/10 pass); lib/parse.mjs:14-40 matches UC-01 Steps 1-7"
+      },
+      {
+        "criterion": "UC-02 Test Surface (TS-UC02-01..11) — checkRules type/enum checks, empty value, schema-format, E3, checked count, dup-key resolution, no-network url check",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "node --test test/rules.test.mjs (11/11 pass); lib/rules.mjs:1-46 matches rules-contract.md rule-evaluation order 1-4"
+      },
+      {
+        "criterion": "UC-03 Test Surface (TS-UC03-01..12) — E1/E1-schema/E2/missing-flag/E3/E4/E5, ok/findings rendering, line:0 rendering, no-network, composition-only",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "node --test test/cli.test.mjs test/integration.test.mjs pass; live probe of bin/envlint.mjs reproduced E1 (cannot read env file), E1-schema, E2 (schema is not valid JSON), missing-flag, E4 with exact 30-char truncation, --json single-document output, all exit codes 0/1/2 matching UC-03 Steps 8 + Error Cases table"
+      },
+      {
+        "criterion": "parse-contract.md Request/Response/Error triplet",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "lib/parse.mjs returns { pairs: Map, problems: Array } exactly, never throws — TS-UC01-10 + full suite green"
+      },
+      {
+        "criterion": "rules-contract.md Request/Response/Error triplet",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "lib/rules.mjs:28-46 matches Response shape { findings, checked, ok }, never throws"
+      },
+      {
+        "criterion": "scope-summary.md Done-when statements (all 3 scopes)",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "T0 verdicts r1-a1-t1/t2/t3 all overall:green, regression:false; full suite node --test test/*.test.mjs 45/45 pass"
+      },
+      {
+        "criterion": "_index.md Non-Go list (no .env writing, no ${VAR} interpolation, no dotenv loading, no colors/TUI/prompts, no network ever)",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "grep for writeFileSync/dotenv/ANSI in lib/*.mjs bin/*.mjs: none; test/integration.test.mjs 'no network access occurs during a run' passes; lib/rules.mjs:14-21 url check is try/catch + protocol allow-list only, no fetch/http request"
+      }
+    ],
+    "refuted": [],
+    "bugs": []
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/schema-rules-r1-a1",
+  "run_id": "envlint-20260817T051041Z-3c608d2e",
+  "compiled_at": "2026-08-17T05:37:21.551Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "lib/rules.mjs",
+      "test/rules.test.mjs",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": []
+  },
+  "payload": {
+    "scope_contract": {
+      "type": "scope-contract",
+      "scope_id": "schema-rules",
+      "feature": "envlint",
+      "topology_type": "ICEBERG",
+      "tasks": [
+        "TASK-002"
+      ],
+      "allowed_file_substrate": [
+        "lib/rules.mjs",
+        "test/rules.test.mjs"
+      ],
+      "shared_substrate": [],
+      "hill_phase": "UPHILL_UNKNOWN",
+      "e2e_verification_fixtures": [
+        "node --test test/rules.test.mjs"
+      ],
+      "affordance_manifest": [
+        {
+          "test_id": "rules-int-type",
+          "role": "engine-function",
+          "idle": "N/A (pure function, non-interactive)",
+          "loading": "N/A (pure function, non-interactive)",
+          "success": "`int` regex `/^-?\\d+$/`: `\"0\"`, `\"-1\"`, `\"01\"` pass",
+          "error": "`\"1.5\"`, `\"1e3\"`, `\"\"` fail",
+          "empty": "`KEY=` (empty value) fails `int`"
+        },
+        {
+          "test_id": "rules-bool-type",
+          "role": "engine-function",
+          "idle": "N/A (pure function, non-interactive)",
+          "loading": "N/A (pure function, non-interactive)",
+          "success": "`bool` regex `/^(true",
+          "error": false,
+          "empty": 1
+        },
+        {
+          "test_id": "rules-url-type",
+          "role": "engine-function",
+          "idle": "N/A (pure function, non-interactive)",
+          "loading": "N/A (pure function, non-interactive)",
+          "success": "`new URL(value)` succeeds AND protocol ∈ `{http:, https:}`",
+          "error": "`ftp://a.com`, `not a url`, bare `http://` (throws inside `new URL`) rejected without throwing out of `checkRules`",
+          "empty": "`KEY=` (empty value) fails `url`"
+        },
+        {
+          "test_id": "rules-string-enum-type",
+          "role": "engine-function",
+          "idle": "N/A (pure function, non-interactive)",
+          "loading": "N/A (pure function, non-interactive)",
+          "success": "`string` accepts any value including empty; `enum` requires exact match against listed values",
+          "error": "enum value not in the list fails",
+          "empty": "`KEY=` (empty value) passes `string`"
+        },
+        {
+          "test_id": "rules-required-missing",
+          "role": "engine-function",
+          "idle": "N/A (pure function, non-interactive)",
+          "loading": "N/A (pure function, non-interactive)",
+          "success": "key present in `pairs` but absent from `schema` → no finding",
+          "error": "`required` key absent from `pairs` → finding with `line: 0`",
+          "empty": "zero-assignment input + a `required` schema key → finding for it, `ok: false` (never `ok: true`)"
+        },
+        {
+          "test_id": "rules-checked-count",
+          "role": "engine-function",
+          "idle": "N/A (pure function, non-interactive)",
+          "loading": "N/A (pure function, non-interactive)",
+          "success": "`checked === Object.keys(schema).length` regardless of which keys are present in `pairs`",
+          "error": "n/a",
+          "empty": "`schema = {}` → `checked: 0`, no findings; `pairs` empty + no `required` keys → `findings: []`, `ok: true`"
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "TASK-002",
+        "title": "Implement lib/rules.mjs",
+        "status": "pending",
+        "priority": 999,
+        "depends_on": [],
+        "use_case_refs": [
+          "UC-02-validate-against-schema"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase3-envlint-seq/.shapeup/envlint/tasks/TASK-002-lib-rules.md",
+        "acceptance_criteria": [
+          "`node --test test/rules.test.mjs` passes.",
+          "`int` regex `/^-?\\d+$/`: `\"01\"` passes; `\"1.5\"`, `\"1e3\"`, `\"\"` fail.",
+          "`bool` regex `/^(true|false|1|0)$/i`: case-insensitive accept, rejects `\"yes\"`.",
+          "`url`: `new URL(value)` succeeds AND protocol ∈ `{http:, https:}`; `ftp://a.com` rejected;",
+          "`string` type accepts any value including empty.",
+          "`enum` requires exact match against the listed values.",
+          "`KEY=` (empty value) passes `string`, fails `int`/`bool`/`url`/`enum`.",
+          "key present in `pairs` but absent from `schema` → no finding.",
+          "`required` key absent from `pairs` → finding with `line: 0`.",
+          "zero-assignment input + a `required` schema key → finding for it, `ok: false` (never `ok: true`).",
+          "`checked === Object.keys(schema).length` regardless of which keys are present in `pairs`.",
+          "`lib/rules.mjs` has zero imports of `lib/parse.mjs` (substrate disjointness)."
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

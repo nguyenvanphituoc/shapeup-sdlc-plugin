@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/map-scopes",
+  "worker": "scope-architect",
+  "status": "done",
+  "artifacts": [
+    "shapeup/envlint/scopes/env-parsing.md",
+    "shapeup/envlint/scopes/schema-rules.md",
+    "shapeup/envlint/scopes/cli-pipeline.md",
+    "shapeup/envlint/scope-board.md"
+  ],
+  "assumptions": [
+    "Sliced exactly along scope-summary.md's stated line: a Parsing scope, a Rules scope, and a CLI scope depending on both -- TASK-001/TASK-002 map 1:1 to env-parsing/schema-rules, TASK-003 to cli-pipeline.",
+    "TASK-004's integration test was folded into cli-pipeline rather than split into a separate CHOWDER scope, since it shares cli-pipeline's exact flow and substrate concern (drive the real binary against fixtures) rather than being a topological stray."
+  ],
+  "deviations": []
+}

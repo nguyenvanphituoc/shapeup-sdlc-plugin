@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/wire",
+  "worker": "solution-architect",
+  "status": "done",
+  "artifacts": [
+    "shapeup/envlint/wiring-map.md"
+  ],
+  "assumptions": [
+    "Engine module paths (lib/parse.mjs, lib/rules.mjs) are taken directly from the engine frontmatter and System Flow sections of UC-01/UC-02, and from the domain model's Engines table -- the spec already pins these paths.",
+    "bin/envlint.mjs is assumed to implement UC-03 as a single straight-line pipeline (parse argv -> read env file -> read+parse schema -> parseEnv -> checkRules -> render -> exit) rather than a subcommand dispatch, since the CLI has exactly one invocation shape; the build may restructure internal control flow as long as bin/envlint.mjs remains the sole caller of lib/parse.mjs and lib/rules.mjs (TS-UC03-12).",
+    "The EnvFileReader/SchemaFileReader repository seams named in domain-model.md are modeled as named helper functions or inline fs.readFileSync calls inside bin/envlint.mjs, not separate files -- the domain model frames them as repositories only for reachability-tracing symmetry with the web-service archetype."
+  ],
+  "deviations": [
+    "None -- all three use cases have a direct, single-path attachment to the entry point; no background/cron use case exists in this feature, so no boot-hook seam was needed."
+  ]
+}

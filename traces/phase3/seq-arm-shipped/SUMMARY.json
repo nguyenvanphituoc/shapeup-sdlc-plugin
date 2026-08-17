@@ -1,0 +1,30 @@
+{
+  "lane": "phase3-sequential-arm",
+  "purpose": "The D3 comparison's sequential arm, and the shakedown run that found three defects the fan-out's own instrument made visible.",
+  "run_id": "envlint-20260817T051041Z-3c608d2e",
+  "feature": "envlint",
+  "plugin_head_at_launch": "b6b95c2",
+  "auto_level": "unattended",
+  "dial": { "maxParallelScopes": 1, "source": "run-args.json — the first run in this project's history to record its own launch configuration" },
+  "budgets": { "max_rounds": 2, "attempt_budget": 3 },
+  "models": { "exec": "sonnet", "eval": "sonnet", "qa": "sonnet" },
+  "outcome": "shipped, verdict PASS, no gate paused under --unattended",
+  "scopes": ["env-parsing", "schema-rules", "cli-pipeline"],
+  "scopes_green_first_attempt": 3,
+  "eval_rounds": 1,
+  "qa_findings": 4,
+  "deliverable_tests": "45 pass / 0 fail (node --test)",
+  "launches": 3,
+  "why_three_launches": [
+    "launch 1 was killed by claude -p's 600s background-task ceiling, mid-WIRE — the finding that CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 is required for the headless lane",
+    "launch 2 died on an API transport error (expired SSL certificate)",
+    "launch 3 resumed from MAP SCOPES and ran to ship in one go"
+  ],
+  "defects_this_run_found": [
+    "a build leg can skip its `reduce ingest` step, report green, and be accepted by the round — the confirm stage re-verifies the T0 artifact and nothing else. env-parsing's task stayed `pending` with 0 ACs ticked while its code was written and T0 was green. Visible only because the leg-completion ledger had a row for schema-rules and none for env-parsing.",
+    "an out-of-band ingest inflates a leg's recorded interval and can manufacture concurrency: repairing env-parsing by hand 250.8s late made this dial-1 run report `max_concurrent: 2 (exact)`. The instrument now measures the legs' own T0 windows as well and answers `disputed` instead.",
+    "EVAL cited `node --test` where the acceptance contract's literal grading command is `npm test`. The specified command fails on this Node version and the equivalent-looking one passes, so the discrepancy shipped with a PASS."
+  ],
+  "not_usable_for_d3": "env-parsing's leg has no honest end — its ingest never ran inside the leg, and the repair timestamp is the operator's, not the leg's. The D3 comparison is measured on a later pair of runs taken on the fixed harness.",
+  "copied": ["shapeup-local", "shapeup-committed", "deliverable (bin, lib, test, package.json)", "idea.md", "EXPECTED.md"]
+}

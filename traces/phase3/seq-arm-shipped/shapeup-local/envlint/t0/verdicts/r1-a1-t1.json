@@ -1,0 +1,35 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 1,
+  "at": "2026-08-17T05:36:59.904Z",
+  "run_id": "envlint-20260817T051041Z-3c608d2e",
+  "scope_id": "env-parsing",
+  "fixtures": [
+    {
+      "cmd": "node --test test/parse.test.mjs",
+      "exit": 0,
+      "pass": true
+    }
+  ],
+  "db_probe": null,
+  "seesaw": {
+    "ran": false,
+    "pass": true,
+    "scopes_checked": [],
+    "failing": []
+  },
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "seesaw_green": true,
+  "overall": "green",
+  "regression": false,
+  "score": {
+    "regressions": 0,
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": []
+}

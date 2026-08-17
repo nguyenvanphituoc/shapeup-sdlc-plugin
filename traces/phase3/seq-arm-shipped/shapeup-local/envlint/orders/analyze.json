@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/analyze",
+  "run_id": "envlint-20260817T051041Z-3c608d2e",
+  "compiled_at": "2026-08-17T05:15:37.984Z",
+  "worker": "ba-pitch-analyzer",
+  "mode": "orchestrated",
+  "operation": "analyze",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "shapeup/envlint/spec/**",
+      ".shapeup/envlint/**"
+    ],
+    "frozen": []
+  },
+  "payload": {
+    "pitch": "/Volumes/LibertyMobi/workspace/phase3-envlint-seq/.shapeup/envlint/intake.md",
+    "spec_folder": "shapeup/envlint/spec/",
+    "feature": "envlint",
+    "lens": "standard",
+    "orient_dir": ".shapeup/envlint/orient/",
+    "kb_rules_path": "shapeup/knowledge-base/ba-pitch-analyzer.md"
+  }
+}

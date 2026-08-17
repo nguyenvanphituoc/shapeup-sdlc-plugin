@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/schema-rules-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-002",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`node --test test/rules.test.mjs` passes.",
+          "result": "pass",
+          "evidence": "node --test test/rules.test.mjs → 15/15 pass, 0 fail"
+        },
+        {
+          "ac": "`int` regex `/^-?\\d+$/`: `\"01\"` passes; `\"1.5\"`, `\"1e3\"`, `\"\"` fail.",
+          "result": "pass",
+          "evidence": "TS-UC02-01, TS-UC02-01b pass"
+        },
+        {
+          "ac": "`bool` regex `/^(true|false|1|0)$/i`: case-insensitive accept, rejects `\"yes\"`.",
+          "result": "pass",
+          "evidence": "TS-UC02-02 passes"
+        },
+        {
+          "ac": "`url`: `new URL(value)` succeeds AND protocol ∈ `{http:, https:}`; `ftp://a.com` rejected;",
+          "result": "pass",
+          "evidence": "TS-UC02-03 passes; checkRules never throws (try/catch around new URL)"
+        },
+        {
+          "ac": "`string` type accepts any value including empty.",
+          "result": "pass",
+          "evidence": "TS-UC02-04 passes"
+        },
+        {
+          "ac": "`enum` requires exact match against the listed values.",
+          "result": "pass",
+          "evidence": "TS-UC02-05 passes"
+        },
+        {
+          "ac": "`KEY=` (empty value) passes `string`, fails `int`/`bool`/`url`/`enum`.",
+          "result": "pass",
+          "evidence": "TS-UC02-06 passes"
+        },
+        {
+          "ac": "key present in `pairs` but absent from `schema` → no finding.",
+          "result": "pass",
+          "evidence": "TS-UC02-07 passes"
+        },
+        {
+          "ac": "`required` key absent from `pairs` → finding with `line: 0`.",
+          "result": "pass",
+          "evidence": "TS-UC02-08 passes"
+        },
+        {
+          "ac": "zero-assignment input + a `required` schema key → finding for it, `ok: false` (never `ok: true`).",
+          "result": "pass",
+          "evidence": "TS-UC02-08 passes (ok === false asserted)"
+        },
+        {
+          "ac": "`checked === Object.keys(schema).length` regardless of which keys are present in `pairs`.",
+          "result": "pass",
+          "evidence": "TS-UC02-09 passes"
+        },
+        {
+          "ac": "`lib/rules.mjs` has zero imports of `lib/parse.mjs` (substrate disjointness).",
+          "result": "pass",
+          "evidence": "regex test on file source in rules.test.mjs finds no 'parse.mjs' import; lib/rules.mjs has no import statements at all"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "lib/rules.mjs", "change": "created" },
+    { "path": "test/rules.test.mjs", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "The contract's SchemaKeyRule.type union does not list \"enum\" even though the type/enum-check section treats enum as a fifth check; implemented enum as triggered by presence of rule.enum (independent of rule.type), matching the AC wording that 'enum requires exact match against the listed values' rather than treating enum as a type literal."
+  ],
+  "deviations": []
+}

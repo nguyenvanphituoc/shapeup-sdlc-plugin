@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/map-scopes",
+  "run_id": "envlint-20260817T051041Z-3c608d2e",
+  "compiled_at": "2026-08-17T05:33:25.789Z",
+  "worker": "scope-architect",
+  "mode": "orchestrated",
+  "operation": "map-scopes",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "shapeup/envlint/scopes/*.md",
+      "shapeup/envlint/scope-board.md"
+    ],
+    "frozen": [
+      "shapeup/envlint/spec/domain-model.md",
+      "shapeup/envlint/spec/usecases/*.md#Steps",
+      "shapeup/envlint/spec/contracts/**",
+      "shapeup/envlint/spec/ux-behavior.md",
+      ".shapeup/envlint/tasks/**"
+    ]
+  },
+  "payload": {
+    "feature": "envlint",
+    "spec_folder": "shapeup/envlint/spec"
+  }
+}

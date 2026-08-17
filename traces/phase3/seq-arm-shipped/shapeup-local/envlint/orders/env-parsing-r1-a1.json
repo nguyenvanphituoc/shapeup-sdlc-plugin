@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/env-parsing-r1-a1",
+  "run_id": "envlint-20260817T051041Z-3c608d2e",
+  "compiled_at": "2026-08-17T05:36:23.911Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "lib/parse.mjs",
+      "test/parse.test.mjs",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": []
+  },
+  "payload": {
+    "scope_contract": {
+      "type": "scope-contract",
+      "scope_id": "env-parsing",
+      "feature": "envlint",
+      "topology_type": "ICEBERG",
+      "tasks": [
+        "TASK-001"
+      ],
+      "allowed_file_substrate": [
+        "lib/parse.mjs",
+        "test/parse.test.mjs"
+      ],
+      "shared_substrate": [],
+      "hill_phase": "UPHILL_UNKNOWN",
+      "e2e_verification_fixtures": [
+        "node --test test/parse.test.mjs"
+      ],
+      "affordance_manifest": [
+        {
+          "test_id": "parse-comment-blank",
+          "role": "engine-function",
+          "idle": "N/A (pure function, non-interactive)",
+          "loading": "N/A (pure function, non-interactive)",
+          "success": "`#` comment lines and blank lines produce no `pairs` entry and no `problems` entry",
+          "error": "n/a — never throws",
+          "empty": "n/a"
+        },
+        {
+          "test_id": "parse-export-prefix",
+          "role": "engine-function",
+          "idle": "N/A (pure function, non-interactive)",
+          "loading": "N/A (pure function, non-interactive)",
+          "success": "`export KEY=value` parses identically to `KEY=value`",
+          "error": "n/a",
+          "empty": "n/a"
+        },
+        {
+          "test_id": "parse-quote-stripping",
+          "role": "engine-function",
+          "idle": "N/A (pure function, non-interactive)",
+          "loading": "N/A (pure function, non-interactive)",
+          "success": "`KEY=\"value\"` / `KEY='value'` strip matching-pair quotes only; whitespace around `KEY` and value trimmed",
+          "error": "`KEY=\"value` (unterminated) keeps the leading quote rather than stripping or throwing",
+          "empty": "`KEY=\"\"` → `pairs.get(\"KEY\").value === \"\"`"
+        },
+        {
+          "test_id": "parse-duplicate-key",
+          "role": "engine-function",
+          "idle": "N/A (pure function, non-interactive)",
+          "loading": "N/A (pure function, non-interactive)",
+          "success": "duplicate key: last assignment wins in `pairs`; earlier assignment produces no `problems` entry",
+          "error": "n/a",
+          "empty": "n/a"
+        },
+        {
+          "test_id": "parse-malformed-line",
+          "role": "engine-function",
+          "idle": "N/A (pure function, non-interactive)",
+          "loading": "N/A (pure function, non-interactive)",
+          "success": "n/a — this row is the error path",
+          "error": "a line that is not blank/comment/`KEY=VALUE` is added to `problems` with correct 1-based `line` and `rawText`; never throws",
+          "empty": "n/a"
+        },
+        {
+          "test_id": "parse-empty-input",
+          "role": "engine-function",
+          "idle": "N/A (pure function, non-interactive)",
+          "loading": "N/A (pure function, non-interactive)",
+          "success": "n/a",
+          "error": "n/a",
+          "empty": "empty string, or comments/blanks-only input → `{ pairs: new Map(), problems: [] }`"
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "title": "Implement lib/parse.mjs",
+        "status": "pending",
+        "priority": 999,
+        "depends_on": [],
+        "use_case_refs": [
+          "UC-01-parse-env-file"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase3-envlint-seq/.shapeup/envlint/tasks/TASK-001-lib-parse.md",
+        "acceptance_criteria": [
+          "`node --test test/parse.test.mjs` passes.",
+          "`# comment` / blank lines produce no `pairs` and no `problems` entry.",
+          "`export KEY=value` parses identically to `KEY=value`.",
+          "`KEY=\"value\"` and `KEY='value'` strip matching-pair quotes only; `KEY=\"value`",
+          "Whitespace around `KEY` and value is trimmed.",
+          "Duplicate key: last assignment wins; earlier assignment produces no `problems` entry.",
+          "A line that is not blank/comment/`KEY=VALUE` is added to `problems` with correct 1-based",
+          "Zero-assignment input (empty or comments/blanks only) → `{ pairs: empty Map, problems: [] }`.",
+          "`lib/parse.mjs` has zero imports of `lib/rules.mjs` (substrate disjointness)."
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

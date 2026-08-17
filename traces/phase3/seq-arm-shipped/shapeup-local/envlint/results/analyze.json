@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/analyze",
+  "worker": "ba-pitch-analyzer",
+  "status": "done",
+  "artifacts": [
+    "shapeup/envlint/spec/_index.md",
+    "shapeup/envlint/spec/domain-model.md",
+    "shapeup/envlint/spec/ux-behavior.md",
+    "shapeup/envlint/spec/usecases/UC-01-parse-env-file.md",
+    "shapeup/envlint/spec/usecases/UC-02-validate-against-schema.md",
+    "shapeup/envlint/spec/usecases/UC-03-run-cli-lint.md",
+    "shapeup/envlint/spec/contracts/parse-contract.md",
+    "shapeup/envlint/spec/contracts/rules-contract.md",
+    "shapeup/envlint/spec/integration.md",
+    "shapeup/envlint/spec/scope-summary.md",
+    "shapeup/envlint/spec/synthesis.md",
+    "shapeup/envlint/spec/feedback.md",
+    ".shapeup/envlint/tasks/TASK-001-lib-parse.md",
+    ".shapeup/envlint/tasks/TASK-002-lib-rules.md",
+    ".shapeup/envlint/tasks/TASK-003-bin-envlint-cli.md",
+    ".shapeup/envlint/tasks/TASK-004-integration-test.md"
+  ],
+  "assumptions": [
+    "lens=standard per payload — wrote contracts/ (2b) and integration.md (phase 5), matching the multi-piece (Parsing/Rules/CLI) shape called out in intake.md even though appetite is a single small-batch round.",
+    "Read only .shapeup/envlint/orient/*.md and the committed EXPECTED.md/project-profile.md already on disk; did not re-scan for code since code-surface.md confirms greenfield (nothing to scan).",
+    "discovered-seed.md items 2-4 (JSON finding shape, checked-count definition, duplicate-key/type interaction) pinned inline in domain-model.md/rules-contract.md rather than left as ledger items, since each has exactly one consistent reading of EXPECTED.md's other clauses.",
+    "discovered-seed.md item 1 (E4 truncation semantics: byte vs char, ellipsis) has no such single consistent reading and was left open — recorded as a risk in synthesis.md, not resolved by invention.",
+    "kb_rules_path (shapeup/knowledge-base/ba-pitch-analyzer.md) does not exist on disk — no team guidelines to apply, none assumed.",
+    "Tasks written to .shapeup/envlint/tasks/ (LOCAL board) per ADR-0001 two-tier storage rather than under shapeup/envlint/spec/tasks/ — the committed tree only contains the spine + contracts."
+  ],
+  "deviations": [],
+  "discoveries": [
+    { "marker": "~", "line": "E4 truncation semantics (byte vs char count, ellipsis or not) remain unspecified by EXPECTED.md — no Test Surface row asserts a specific algorithm beyond '≤30 chars of the line text'; flagged in shapeup/envlint/spec/synthesis.md risk register for PO/TL decision before TASK-003 is graded on exact bytes." }
+  ]
+}

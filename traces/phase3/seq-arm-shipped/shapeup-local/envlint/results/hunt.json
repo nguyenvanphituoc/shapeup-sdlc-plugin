@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/hunt",
+  "worker": "qa-edge-hunter",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/envlint/qa/hunt-report.md"
+  ],
+  "discoveries": [
+    {
+      "marker": "~",
+      "lens": "①boundary",
+      "line": "[QA-001] [UC-01] CRLF (\\r\\n) line endings make every valid KEY=VALUE line fail to parse: the assignment regex's `.` never matches `\\r`, so each line falls through to the no-match branch and is reported as an E4 problem",
+      "repro": "1. write an env file with `FOO=bar\\r\\nBAZ=qux\\r\\n` (actual CRLF line endings)\n2. write a schema requiring FOO and BAZ\n3. run `envlint --schema <schema> <envfile>`\n4. observe: both lines reported `not a KEY=VALUE assignment`, both FOO/BAZ reported `required key missing`, exit 1 — despite the file being syntactically valid KEY=VALUE per line",
+      "severity_hint": "data-integrity",
+      "test_gap": "unit"
+    },
+    {
+      "marker": "~",
+      "lens": "①boundary",
+      "line": "[QA-002] [UC-03] E4 line truncation in bin/envlint.mjs's truncate() slices by UTF-16 code unit, not codepoint — a multi-byte character (e.g. emoji surrogate pair) straddling the 30-char cutoff is split, producing an unpaired surrogate that renders as U+FFFD (�) on stdout",
+      "repro": "1. write an env file with a malformed line = 29 ASCII chars + an emoji (surrogate pair) + more text\n2. run `envlint --schema <any> <envfile>` (human mode, no --json)\n3. observe: the rendered `<KEY>` slot shows 29 'x' chars followed by the replacement character `�` instead of a clean 30-char truncation",
+      "severity_hint": "boundary-breach",
+      "test_gap": "unit"
+    },
+    {
+      "marker": "~",
+      "lens": "①boundary",
+      "line": "[QA-003] [UC-03] An unrecognized flag (e.g. --verbose) placed before the positional envfile argument is silently captured by parseArgv as the envfile path itself, since it matches neither --schema nor --json and envfile is still unset — the real envfile argument that follows is dropped",
+      "repro": "1. run `envlint --schema <valid schema.json> --verbose <real-envfile>`\n2. observe: `Error: cannot read env file: --verbose`, exit 2 — the flag is misreported as a missing file rather than surfaced as an unknown option, and the real envfile path is never read",
+      "severity_hint": "ux-degradation",
+      "test_gap": "unit"
+    },
+    {
+      "marker": "~",
+      "lens": "①boundary",
+      "line": "[QA-004] [UC-03] Passing two positional file arguments silently uses only the first and drops the second with no warning",
+      "repro": "1. run `envlint --schema <schema.json> a.env b.env`\n2. observe: only a.env is checked (exit code / findings reflect a.env alone); b.env is silently ignored, no error or warning printed",
+      "severity_hint": "ux-degradation",
+      "test_gap": "unit"
+    }
+  ]
+}

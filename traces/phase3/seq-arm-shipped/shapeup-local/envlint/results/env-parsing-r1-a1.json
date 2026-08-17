@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/env-parsing-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-001",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`node --test test/parse.test.mjs` passes.",
+          "result": "pass",
+          "evidence": "node --test test/parse.test.mjs → 11/11 pass, 0 fail"
+        },
+        {
+          "ac": "`# comment` / blank lines produce no `pairs` and no `problems` entry.",
+          "result": "pass",
+          "evidence": "TS-UC01-01 passes"
+        },
+        {
+          "ac": "`export KEY=value` parses identically to `KEY=value`.",
+          "result": "pass",
+          "evidence": "TS-UC01-02 passes"
+        },
+        {
+          "ac": "`KEY=\"value\"` and `KEY='value'` strip matching-pair quotes only; `KEY=\"value`",
+          "result": "pass",
+          "evidence": "TS-UC01-03, TS-UC01-04, TS-UC01-05 pass"
+        },
+        {
+          "ac": "Whitespace around `KEY` and value is trimmed.",
+          "result": "pass",
+          "evidence": "TS-UC01-06 passes"
+        },
+        {
+          "ac": "Duplicate key: last assignment wins; earlier assignment produces no `problems` entry.",
+          "result": "pass",
+          "evidence": "TS-UC01-07 passes"
+        },
+        {
+          "ac": "A line that is not blank/comment/`KEY=VALUE` is added to `problems` with correct 1-based",
+          "result": "pass",
+          "evidence": "TS-UC01-08 passes"
+        },
+        {
+          "ac": "Zero-assignment input (empty or comments/blanks only) → `{ pairs: empty Map, problems: [] }`.",
+          "result": "pass",
+          "evidence": "TS-UC01-09 passes"
+        },
+        {
+          "ac": "`lib/parse.mjs` has zero imports of `lib/rules.mjs` (substrate disjointness).",
+          "result": "pass",
+          "evidence": "grep for 'rules.mjs' in lib/parse.mjs → no matches; file has zero imports"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "lib/parse.mjs", "change": "created" },
+    { "path": "test/parse.test.mjs", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "Line splitting uses '\\n' only; carriage returns are not stripped separately since no fixture requires CRLF handling.",
+    "The regex capture for `key` never contains whitespace (identifier chars only), so trimming it is a no-op kept for defensiveness."
+  ],
+  "deviations": []
+}

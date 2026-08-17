@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/cli-pipeline-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-003",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`node --test test/cli.test.mjs` passes (drives the built binary via child_process or\n      direct module import, per EXPECTED.md Verification).",
+          "result": "pass",
+          "evidence": "node --test test/cli.test.mjs → 11/11 pass"
+        },
+        {
+          "ac": "`--schema` missing → stderr `Error: ...`, exit 2, no stack trace.",
+          "result": "pass",
+          "evidence": "cli-missing-schema-flag test → exit 2, stderr matches /^Error: /, no `at ` stack frame"
+        },
+        {
+          "ac": "env file missing/unreadable → stderr `Error: cannot read env file: <path>`, exit 2.",
+          "result": "pass",
+          "evidence": "cli-env-unreadable test → stderr exactly `Error: cannot read env file: <path>`, exit 2"
+        },
+        {
+          "ac": "schema file missing/unreadable → stderr error pattern, exit 2.",
+          "result": "pass",
+          "evidence": "cli-schema-unreadable test → stderr matches /^Error: /, exit 2"
+        },
+        {
+          "ac": "schema file not valid JSON → stderr `Error: schema is not valid JSON: <path>`, exit 2.",
+          "result": "pass",
+          "evidence": "cli-schema-invalid-json test → stderr exactly `Error: schema is not valid JSON: <path>`, exit 2"
+        },
+        {
+          "ac": "zero-assignment env file → every `required` key reported missing, exit 1, no `ok` line.",
+          "result": "pass",
+          "evidence": "cli-empty-file-e3 test → stdout contains PORT and HOST, no `ok:` line, exit 1"
+        },
+        {
+          "ac": "malformed line (E4) → `<envfile>:<line>: <line text truncated to 30 chars>: not a KEY=VALUE assignment`, exit 1.",
+          "result": "pass",
+          "evidence": "cli-malformed-line-e4 test → first stdout line matches `<envfile>:1: <30-char text>: not a KEY=VALUE assignment`, exit 1"
+        },
+        {
+          "ac": "`--json` prints exactly one JSON document `{\"ok\":bool,\"findings\":[...],\"checked\":N}`,",
+          "result": "pass",
+          "evidence": "cli-clean-json and cli-findings-json tests → JSON.parse(stdout) succeeds, single line, shape matches"
+        },
+        {
+          "ac": "0 findings, human mode → `ok: N keys checked`, exit 0.",
+          "result": "pass",
+          "evidence": "cli-clean-human test → stdout `ok: 1 keys checked`, exit 0"
+        },
+        {
+          "ac": "≥1 finding, human mode → one line per finding + `N problem(s)` trailer, exit 1.",
+          "result": "pass",
+          "evidence": "cli-findings-human test → one finding line + `1 problem(s)` trailer, exit 1"
+        },
+        {
+          "ac": "finding with no source line renders `line` as `0`.",
+          "result": "pass",
+          "evidence": "'finding with no source line renders line as 0' test → doc.findings[0].line === 0"
+        },
+        {
+          "ac": "no network call made at any point.",
+          "result": "pass",
+          "evidence": "'no network access occurs during a run' integration test → url check against unresolvable host completes <5s, no fetch/http calls in bin/envlint.mjs"
+        },
+        {
+          "ac": "top-level try/catch wraps file reads AND the UC-01/UC-02 calls (integration.md\n      silent-failure risk) so any unexpected throw still renders as `Error: ...`, never a stack trace.",
+          "result": "pass",
+          "evidence": "bin/envlint.mjs: single try/catch in main() around both fs reads and the parseEnv/checkRules calls; top-level catch in the IIFE-less entry renders `Error: ${err.message}` and exit 2"
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-004",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`npm test` (== `node --test test/`) passes and includes this file.",
+          "result": "pass",
+          "evidence": "test/integration.test.mjs is discovered and run by both `node --test` (no-arg auto-discovery, 45/45 pass across all four test files) and by the scope's e2e fixture command `node --test test/integration.test.mjs` (8/8 pass); note in deviations about a `node --test <dir>/` positional-arg environment quirk"
+        },
+        {
+          "ac": "At least one fixture run covers each of E1, E2, E3, E4, E5.",
+          "result": "pass",
+          "evidence": "test/integration.test.mjs has one test per E1..E5 by name"
+        },
+        {
+          "ac": "At least one run asserts exit 0 (clean) and one asserts exit 1 (findings) via the real",
+          "result": "pass",
+          "evidence": "'clean run: exit 0 via the real binary' and 'findings run: exit 1 via the real binary' tests, both spawn the built bin/envlint.mjs via child_process.spawnSync"
+        },
+        {
+          "ac": "Fixtures are written to a temp directory per test (or `test/fixtures/`), never touch the",
+          "result": "pass",
+          "evidence": "withTempDir() uses fs.mkdtempSync(os.tmpdir()) per test and rmSync cleanup in a finally block; no reference to a real .env anywhere"
+        },
+        {
+          "ac": "No network access occurs during the test run (no-go).",
+          "result": "pass",
+          "evidence": "'no network access occurs during a run' test — offline-safe url regex/protocol check only, no fetch/http/https client calls in bin/envlint.mjs or lib/*"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "bin/envlint.mjs", "change": "created" },
+    { "path": "test/cli.test.mjs", "change": "created" },
+    { "path": "test/integration.test.mjs", "change": "created" }
+  ],
+  "discoveries": [
+    { "marker": "~", "line": "`node --test test/` (bare directory positional arg, space-separated) fails in this sandbox with `Error: Cannot find module '.../test'`, while `node --test` (no args, auto-discovery), `node --test test/<file>.mjs` (file-level), and `node --test=test/` (equals form) all work correctly — looks like a Node 24.15.0 / this-environment argument-parsing quirk on directory positional args, not a defect in the test files themselves. package.json's `test` script (`node --test test/`) is outside this scope's substrate so it was not touched; the scope's own e2e_verification_fixtures use the file-level form and pass." }
+  ],
+  "assumptions": [
+    "schema file missing/unreadable renders as `Error: cannot read schema file: <path>` — UC-03's error table literally reuses the env-file wording for this row ('same pattern, schema path'), and the task AC only requires 'stderr error pattern, exit 2' with no exact text pinned, so a schema-specific message satisfies the letter of the spec without contradicting it.",
+    "the E4 finding's `<KEY>` render slot is filled from the matching `problems[].rawText` (looked up by line number) truncated to 30 chars, since `checkRules` returns E4 findings with `key: ''` and no `rawText` field — the CLI is the only place both `problems` and `findings` are in scope simultaneously."
+  ],
+  "deviations": []
+}

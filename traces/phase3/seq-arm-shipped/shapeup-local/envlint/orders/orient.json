@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/orient",
+  "run_id": "envlint-20260817T051041Z-3c608d2e",
+  "compiled_at": "2026-08-17T05:13:14.976Z",
+  "worker": "orient",
+  "mode": "orchestrated",
+  "operation": "orient",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      ".shapeup/envlint/orient/**"
+    ],
+    "frozen": [
+      "shapeup/envlint/spec/**"
+    ]
+  },
+  "payload": {
+    "pitch": "/Volumes/LibertyMobi/workspace/phase3-envlint-seq/.shapeup/envlint/intake.md",
+    "spec_folder": "shapeup/envlint/spec/",
+    "feature": "envlint"
+  }
+}

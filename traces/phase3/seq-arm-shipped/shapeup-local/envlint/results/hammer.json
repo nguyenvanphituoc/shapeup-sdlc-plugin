@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/hammer",
+  "worker": "scope-hammer",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/envlint/reports/hammer-r1.md"
+  ],
+  "assumptions": [
+    "No shapeup/envlint/shaping/baseline.md exists; baseline comparison used the pitch's problem statement (spec/_index.md Pitch digest) as an approximate baseline, flagged as such in the report.",
+    "Unattended orchestrated dispatch (interaction.pause_gates: false) — no PO response available; the PO's actual confirm/keep decision on the cut list is still owed at tech-lead's L4 Ship Sign-off."
+  ],
+  "deviations": []
+}

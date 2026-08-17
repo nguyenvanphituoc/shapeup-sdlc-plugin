@@ -1,0 +1,203 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/cli-pipeline-r1-a1",
+  "run_id": "envlint-20260817T051041Z-3c608d2e",
+  "compiled_at": "2026-08-17T05:38:48.618Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "bin/envlint.mjs",
+      "test/cli.test.mjs",
+      "test/integration.test.mjs",
+      "test/fixtures/**",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": []
+  },
+  "payload": {
+    "scope_contract": {
+      "type": "scope-contract",
+      "scope_id": "cli-pipeline",
+      "feature": "envlint",
+      "topology_type": "LAYER_CAKE",
+      "tasks": [
+        "TASK-003",
+        "TASK-004"
+      ],
+      "allowed_file_substrate": [
+        "bin/envlint.mjs",
+        "test/cli.test.mjs",
+        "test/integration.test.mjs",
+        "test/fixtures/**"
+      ],
+      "shared_substrate": [],
+      "hill_phase": "UPHILL_UNKNOWN",
+      "e2e_verification_fixtures": [
+        "node --test test/cli.test.mjs",
+        "node --test test/integration.test.mjs"
+      ],
+      "affordance_manifest": [
+        {
+          "test_id": "cli-missing-schema-flag",
+          "role": "cli-command",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "n/a — this row is the error path",
+          "error": "`--schema` not given → stderr `Error: ...`, no stack trace, exit 2",
+          "empty": "n/a"
+        },
+        {
+          "test_id": "cli-env-unreadable",
+          "role": "cli-command",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "n/a",
+          "error": "env file missing/unreadable → stderr `Error: cannot read env file: <path>`, exit 2",
+          "empty": "n/a"
+        },
+        {
+          "test_id": "cli-schema-unreadable",
+          "role": "cli-command",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "n/a",
+          "error": "schema file missing/unreadable → stderr error pattern, exit 2",
+          "empty": "n/a"
+        },
+        {
+          "test_id": "cli-schema-invalid-json",
+          "role": "cli-command",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "n/a",
+          "error": "schema file not valid JSON → stderr `Error: schema is not valid JSON: <path>`, exit 2",
+          "empty": "n/a"
+        },
+        {
+          "test_id": "cli-clean-human",
+          "role": "cli-command",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "0 findings, human mode → stdout `ok: N keys checked`, exit 0",
+          "error": "n/a",
+          "empty": "n/a"
+        },
+        {
+          "test_id": "cli-clean-json",
+          "role": "cli-command",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "0 findings, `--json` → exactly one JSON document `{\"ok\":true,\"findings\":[],\"checked\":N}` on stdout, exit 0",
+          "error": "n/a",
+          "empty": "n/a"
+        },
+        {
+          "test_id": "cli-findings-human",
+          "role": "cli-command",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "n/a",
+          "error": "≥1 finding, human mode → one `<envfile>:<line>: <KEY>: <message>` line per finding + `N problem(s)` trailer, exit 1",
+          "empty": "n/a"
+        },
+        {
+          "test_id": "cli-findings-json",
+          "role": "cli-command",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "n/a",
+          "error": "≥1 finding, `--json` → exactly one JSON document `{\"ok\":false,\"findings\":[...],\"checked\":N}`, exit 1",
+          "empty": "n/a"
+        },
+        {
+          "test_id": "cli-malformed-line-e4",
+          "role": "cli-command",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "n/a",
+          "error": "malformed line (E4) → `<envfile>:<line>: <line text truncated to 30 chars>: not a KEY=VALUE assignment`, exit 1",
+          "empty": "n/a"
+        },
+        {
+          "test_id": "cli-empty-file-e3",
+          "role": "cli-command",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "n/a",
+          "error": "n/a",
+          "empty": "zero-assignment env file → every `required` key reported missing, exit 1, no `ok` line"
+        },
+        {
+          "test_id": "cli-integration-full-chain",
+          "role": "integration-test",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "real binary spawn/exec against fixture files covers E1–E5 plus clean/findings human + `--json` paths together, at least one exit-0 and one exit-1 run via the real binary (not direct `lib/*` calls)",
+          "error": "same fixture matrix's error rows (E1–E5) verified via the real binary",
+          "empty": "fixtures written to a temp dir or `test/fixtures/`, never touching the developer's real `.env`; no network access during the run"
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "TASK-003",
+        "title": "Implement bin/envlint.mjs CLI",
+        "status": "pending",
+        "priority": 999,
+        "depends_on": [
+          "TASK-001",
+          "TASK-002"
+        ],
+        "use_case_refs": [
+          "UC-03-run-cli-lint"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase3-envlint-seq/.shapeup/envlint/tasks/TASK-003-bin-envlint-cli.md",
+        "acceptance_criteria": [
+          "`node --test test/cli.test.mjs` passes (drives the built binary via child_process or",
+          "`--schema` missing → stderr `Error: ...`, exit 2, no stack trace.",
+          "env file missing/unreadable → stderr `Error: cannot read env file: <path>`, exit 2.",
+          "schema file missing/unreadable → stderr error pattern, exit 2.",
+          "schema file not valid JSON → stderr `Error: schema is not valid JSON: <path>`, exit 2.",
+          "zero-assignment env file → every `required` key reported missing, exit 1, no `ok` line.",
+          "malformed line (E4) → `<envfile>:<line>: <line text truncated to 30 chars>: not a KEY=VALUE assignment`, exit 1.",
+          "`--json` prints exactly one JSON document `{\"ok\":bool,\"findings\":[...],\"checked\":N}`,",
+          "0 findings, human mode → `ok: N keys checked`, exit 0.",
+          "≥1 finding, human mode → one line per finding + `N problem(s)` trailer, exit 1.",
+          "finding with no source line renders `line` as `0`.",
+          "no network call made at any point.",
+          "top-level try/catch wraps file reads AND the UC-01/UC-02 calls (integration.md"
+        ]
+      },
+      {
+        "id": "TASK-004",
+        "title": "Integration test — end-to-end fixture-driven run",
+        "status": "pending",
+        "priority": 999,
+        "depends_on": [
+          "TASK-003"
+        ],
+        "use_case_refs": [
+          "UC-01-parse-env-file",
+          "UC-02-validate-against-schema",
+          "UC-03-run-cli-lint"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/phase3-envlint-seq/.shapeup/envlint/tasks/TASK-004-integration-test.md",
+        "acceptance_criteria": [
+          "`npm test` (== `node --test test/`) passes and includes this file.",
+          "At least one fixture run covers each of E1, E2, E3, E4, E5.",
+          "At least one run asserts exit 0 (clean) and one asserts exit 1 (findings) via the real",
+          "Fixtures are written to a temp directory per test (or `test/fixtures/`), never touch the",
+          "No network access occurs during the test run (no-go)."
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}
