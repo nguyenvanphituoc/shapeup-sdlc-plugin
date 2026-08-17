@@ -14,6 +14,112 @@ compile line was never used, so the verdict was never read, so the ratchet was n
 green tie, so the fix round was never dispatched at all. Each fix ships with a guard, and every
 guard was verified by putting its defect back.
 
+### The fan-out, and what measuring it found
+
+The fan-out shipped and nothing could tell you whether it had happened. Its acceptance was three
+numbers — two scopes concurrent, shared state uncorrupted, wall-clock down — and no instrument in the
+repo could produce any of them; the concurrency claim on record came from a probe that counted green
+legs, which three legs run strictly one after another satisfy exactly. Building the instrument is
+what turned up everything in this section.
+
+**A leg now has an end.** `reduce ingest` appends a completion row per closed leg, and
+`probe concurrency` answers max-concurrency, span and the waves a run *observed* from those records —
+refusing to state a speedup it cannot support rather than approximating one, because a ratio of two
+lower bounds bounds nothing. The dispatch receipt looks like a completion record and is not one:
+`PostToolUse` fires when the skill **resolves**, measured at 1.8–46.8 s after compile on legs that
+then ran for minutes.
+
+**A scope's failed attempt destroyed its neighbours' work.** The T0 ratchet reverted a red attempt
+with a repo-wide `git restore --worktree -- .`, and a scope's snapshot is a stash of the whole tree.
+Executed with two scopes building at once: one scope's revert replaced the other's file with the
+baseline while that scope's leg was still working in it. No control could see it — the substrate wall
+fences the Edit and Write tools, and the ratchet destroys through a `git` subprocess. Reverts are now
+bounded to the scope's own `allowed` globs, never `shared`, and refuse rather than falling back to the
+repo when there is nothing to bound them.
+
+**Half the execution records vanished when scopes finished together.** The trial ordinal was
+`readTrials().length + 1`, a read-modify-write counter: four concurrent scopes produced `[1,1,1,4]` in
+95% of 20 runs, and the run graph folded four trial rows into two nodes. Counted per scope now, with
+the scope in the node key.
+
+**The reducer's lock admitted a second writer.** It broke any lock older than 30 s, but `mkdir` stamps
+its mtime once and the critical section is synchronous — so "working for 31 s" and "died 31 s ago"
+were the same observation. The stale-break now asks whether the owner is still alive.
+
+**A shared surface loses writes, and the scheduler now prevents it.** `substrate.shared` is the
+sanctioned escape from the disjointness rule, so the lint passes it and the wall permits that path to
+every live order; three concurrent writers to one entry point lost work in 20 of 20 trials. Two
+scopes that may write one path never overlap now. On a badly-cut feature — an entry point in five
+scopes' substrate — that costs 43% of the makespan and drops concurrency to one scope at a time, and
+it is still right: the faster alternative does not finish building the feature. The concurrency the
+contracts actually permit is reported before the run spends anything.
+
+**Build scopes are released by dependency edge rather than by wave.** A scope starts when *its own*
+dependencies are green instead of when its whole wave finishes, capped by the dial. Measured over 14
+workloads on a virtual clock, the window never loses on duration and reaches the critical path
+wherever it is reachable — and gains nothing at all on a feature whose waves already match the dial.
+
+**A green T0 is not a finished scope.** A build leg wrote its code, a green verdict, a kept trial row
+and its WorkResult, then skipped its own `reduce ingest` step. It reported green, the round
+re-verified the T0 artifact, agreed, and walked on — leaving that scope's task `pending` with zero
+acceptance criteria ticked while its code sat finished on disk. The round now also asks whether the
+result reached the board, evidence written *by* the writer so a leg cannot assert it about itself, and
+ingests finished work its leg failed to apply rather than paying a whole attempt again.
+
+**An ingest that ran outside its leg was manufacturing concurrency.** A leg's recorded end is when the
+writer ran, which is normally its last act and sometimes not the leg at all. One leg repaired by hand
+250.8 s late — against −2.4 s and +29.2 s for its two untouched neighbours — made a run whose dial was
+**1** report two legs concurrent. Overlap is measured against the legs' own mid-flight T0 windows as
+well now, and where the two disagree the answer is `disputed` rather than either number.
+
+**Per-leg git worktrees are declined, and the recorded reason was wrong** (ADR-0003). The premise held
+— a fresh worktree carries none of the run state — and was not the obstacle: the root is reachable
+from a worktree three ways, one needing no configuration. What declines it is that a worktree silently
+*disarms* the substrate wall, deferring with the same decision row it writes when no run exists
+anywhere, and that nothing merges a worktree back — legs would write product code where the evaluator,
+the ship report and the oracle do not look.
+
+### Three switches that were accepted and ignored
+
+**`--no-qa`, the concurrency dial and the refute wave never reached the run.** The orchestrator reads
+`args.noQa`, `args.maxParallelScopes` and `args.adversarialVerify`; `$defs/RunArgs` declared none of
+them, and tech-lead builds the launch record from that definition. `--no-qa` was spelled out in seven
+places across the shipped set and did nothing. `--no-eval` worked, which is what shows this was an
+oversight rather than a design. Both halves were individually correct — the script defaults a field it
+reads, the schema declares a coherent record — so nothing was wrong until you asked what the join
+between them said, and nothing was reading the join. A check now asserts it, one direction only: an
+arg the script reads that the record omits is a switch the launcher never learns to send, while a
+declared arg the script ignores is legitimate. Documenting `--parallel-scopes` immediately turned an
+existing check red, because a valued flag missing from the intake gate's list leaves its value to be
+read as requirement text.
+
+**A run could not state what it was launched with.** The schema declares `run-args.json`, names
+tech-lead as its writer and says it is written fresh on every launch and relaunch. No line of
+tech-lead's instructions ever said to write one, so on a live run it was absent — and the flags reach
+the workflow as a value in memory, so nothing on disk recorded the models, budgets or fan-out width.
+The instrument reported `default (no run-args.json)` for a run launched with `--parallel-scopes 1`:
+honest, and unfalsifiable. A check now requires every artifact the schema makes tech-lead responsible
+for to be named in tech-lead's own instructions — a registry entry is not an instruction.
+
+### Two things the documentation said that were not true
+
+**`/ship` is not a command.** Measured on both install topologies — a project-scope marketplace install
+and a `--plugin-dir` checkout — it answers `Unknown command: /ship`. The name that resolves carries the
+plugin's namespace: `/shapeup-sdlc-plugin:ship`. Interactively `/`-completion supplies the prefix; a
+script or a `claude -p` invocation must spell it out, and the README called `/ship` the whole
+quickstart.
+
+**A headless run is killed ten minutes in.** `claude -p` terminates a session's background tasks after
+600 s and the whole pipeline is one background launch, so an unattended run dies mid-phase with no
+diagnostic beyond the CLI's own "background tasks still running; terminating" — which reads like a tidy
+shutdown. Set `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0`. Nothing is lost when it happens, because
+resume state is on disk; the cost is a relaunch, not the run.
+
+**The run key is not a time boundary.** One `run_id` legitimately spans every launch after a paused
+gate or a kill — measured at four launches over 10.3 hours — and each relaunch rewrites
+`orders/<id>.json`. Anything measuring elapsed time reads the append-only records, never the span of a
+key.
+
 ### BUILD had never dispatched a scope
 
 **Fixed — the fan-out dropped every scope it was supposed to build.** BUILD's first pipeline stage
