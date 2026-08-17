@@ -49,6 +49,11 @@ Only run headless/auto if the user explicitly asks for it in their message:
   Implies `--gate-answers guarded` unless a set is named.
 - `--unattended` → fully headless, `max_rounds 3`. Intended for CI, not day-to-day local runs.
   Implies `--gate-answers ci` unless a set is named.
+  **In a `claude -p` invocation, set `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0` first.** Print mode
+  terminates a session's background tasks after 600 s, and the entire pipeline is one background
+  launch, so without it the run is killed roughly ten minutes in — mid-phase, with no error beyond
+  the CLI's own "background tasks still running; terminating". Resume state is on disk, so a
+  relaunch fast-forwards past whatever finished; the cost is a relaunch, not the run.
   **Typing the flag IS the confirmation — do not stop to ask for another one.** Emit the warning
   that no human will review the verdict before ship as the run's first line, then proceed straight
   into GATE L0 in the same turn.

@@ -81,6 +81,19 @@ quickstart.
 > ```bash
 > npx shapeup-sdlc init -d . -y
 > ```
+>
+> **And lift the print-mode background ceiling, or the run is killed at ten minutes.** `claude -p`
+> terminates a session's background tasks after 600 s by default, and the whole pipeline runs as
+> one background launch — so an unattended run dies mid-BUILD with the CLI reporting nothing worse
+> than "background tasks still running after 600s; terminating". Measured, on a run that had
+> reached WIRE:
+>
+> ```bash
+> CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 claude -p "/shapeup-sdlc-plugin:ship …" …
+> ```
+>
+> Nothing is lost when it happens — resume state is on disk, so relaunching fast-forwards past the
+> phases that finished. It costs a relaunch, not a run.
 
 Want to see a full run before installing anything? **[docs/quickstart.md](docs/quickstart.md)**
 walks one small feature end to end — including what the hooks do to a premature eval, a FAIL round
