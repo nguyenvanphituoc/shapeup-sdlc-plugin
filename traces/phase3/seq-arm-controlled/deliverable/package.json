@@ -1,0 +1,12 @@
+{
+  "name": "envlint",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "envlint": "./bin/envlint.mjs"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}

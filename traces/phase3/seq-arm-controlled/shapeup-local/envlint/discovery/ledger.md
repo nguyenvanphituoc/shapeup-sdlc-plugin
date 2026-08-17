@@ -1,0 +1,29 @@
+---
+feature: envlint
+---
+# Discovery Ledger — envlint
+
+## Discovered — envlint/hunt (2026-08-17)
+~ [lens:①boundary] [QA-001] [UC-01] An unrecognized argv flag (e.g. --unknown-flag) between --schema <path> and the real envfile argument is silently treated as the positional envPath, dropping the real envfile argument entirely
+    repro: 1. schema.json: {"X":{"type":"int"}}
+2. envfile.env: X=1
+3. Run: node bin/envlint.mjs --schema schema.json --unknown-flag envfile.env
+4. Observed: stderr "Error: cannot read env file: --unknown-flag", exit 2 -- envfile.env is never read
+    severity-hint: ux-degradation
+    test-gap: unit
+~ [lens:①boundary] [QA-002] [UC-01] A schema rule value that is not an object (e.g. {"X":"int"} instead of {"type":"int"}) silently disables all type/enum checking for that key -- an otherwise-invalid value is reported ok
+    repro: 1. schema.json: {"X":"int"}
+2. envfile.env: X=notanumber
+3. Run: node bin/envlint.mjs --schema schema.json --json envfile.env
+4. Observed: {"ok":true,"findings":[],"checked":1}, exit 0 -- an equivalent well-formed rule {"type":"int"} would fail this value
+    severity-hint: boundary-breach
+    test-gap: unit
+~ [lens:①boundary] [QA-003] [UC-01] A schema document that parses as valid JSON but is not an object (e.g. the literal null) crashes with an uncaught TypeError and a full stack trace on stderr, exit code 1 -- violates INV-03 (never a stack trace, exit code always 0/1/2) and INV-05 (exit-2 tool errors: single-line Error: -prefixed stderr)
+    repro: 1. schema.json content: null (valid JSON)
+2. envfile.env: X=1
+3. Run: node bin/envlint.mjs --schema schema.json --json envfile.env
+4. Observed stderr: "TypeError: Cannot convert undefined or null to object" plus full multi-line Node stack trace (at Object.keys, at main, bin/envlint.mjs:68:26), no "Error: " prefix
+5. Observed exit code: 1 (not 2)
+    severity-hint: data-integrity
+    test-gap: unit
+    contradicts: INV-03, INV-05

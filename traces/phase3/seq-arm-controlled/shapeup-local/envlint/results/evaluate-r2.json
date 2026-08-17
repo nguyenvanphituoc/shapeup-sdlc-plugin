@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/evaluate-r2",
+  "worker": "spec-evaluator",
+  "status": "done",
+  "verdict": {
+    "overall": "PASS",
+    "report_path": ".shapeup/envlint/evaluation/EVAL-FEATURE-envlint.md",
+    "t0_citations": [
+      { "scope_id": "parsing-engine", "path": ".shapeup/envlint/t0/verdicts/r2-a1-t1.json", "sha256": "c18b714f07bc0c58b2b260544fa6f4da86a41833e93f2c42e2a1aa0f83a47c8e" },
+      { "scope_id": "rules-engine", "path": ".shapeup/envlint/t0/verdicts/r2-a1-t2.json", "sha256": "385fee385bfc73f213fb4a922f3dc88e257465256d6480b52a70f1bf1965c351" },
+      { "scope_id": "cli-composition-root", "path": ".shapeup/envlint/t0/verdicts/r2-a1-t3.json", "sha256": "4e8a00f298311a1ffa0ea3fc4547576df33ca43a1bb653f7c8ca4cc4ef06e908" },
+      { "scope_id": "test-surface-suite", "path": ".shapeup/envlint/t0/verdicts/r2-a1-t4.json", "sha256": "6a3b7d238b5734f582d1594e124be7aa54e2bbd9f7602d63c9b6807be5d7fcb0" }
+    ],
+    "criteria": [
+      { "criterion": "UC-01 Steps 1-8 (argv parse -> schema read -> env read -> parseEnv -> evaluate -> compose -> render -> exit)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "evidence": "node --test -> cli.test.mjs 10/10 pass; bin/envlint.mjs:68-88 matches Steps 6-8 composition/render order" },
+      { "criterion": "INV-01: key present in env but absent from schema is never a finding", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "evidence": "TS-INV-01 pass - test/test-surface.test.mjs:34" },
+      { "criterion": "INV-02: duplicate key, last occurrence wins, earlier produces no finding of its own", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "evidence": "TS-INV-02 and TS-INV-02b pass - test/test-surface.test.mjs:42,50" },
+      { "criterion": "INV-03: exit code always exactly one of 0/1/2, never an uncaught exception", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "evidence": "TS-INV-03 pass across E1/E2/E3/E4/clean/findings" },
+      { "criterion": "INV-04: --json changes only rendering, never branch/exit code", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "evidence": "TS-INV-04 pass" },
+      { "criterion": "INV-05: every exit-2 message is stderr, Error: prefixed, single line, no stack trace", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "evidence": "TS-INV-05 pass across E_NOFLAG/E_SCHEMA_UNREADABLE/E2/E1" },
+      { "criterion": "INV-06: zero-assignment file against zero-required schema exits 0 with ok printed", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "evidence": "TS-INV-06 pass" },
+      { "criterion": "Error Cases E_NOFLAG/E_SCHEMA_UNREADABLE/E2/E1/E3/E4/E5", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "evidence": "TS-ERR-E_NOFLAG, TS-ERR-E_SCHEMA_UNREADABLE, TS-ERR-E2, TS-ERR-E1, TS-ERR-E3, TS-ERR-E4, TS-ERR-E5 all pass" },
+      { "criterion": "Type rules: int/bool/url (scheme gate + leniency)/enum/empty-value", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "evidence": "TS-TYPE-int, TS-TYPE-bool, TS-TYPE-url-scheme-gate, TS-TYPE-url-leniency, TS-TYPE-enum, TS-TYPE-empty-value all pass; src/rules.mjs:22 case \"url\" gates on protocol per spike" },
+      { "criterion": "Non-Go: no ${VAR} interpolation / no .env writing / no colors-TUI-prompts / no network access", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "evidence": "TS-NOGO-01, TS-NOGO-02, TS-NOGO-03, TS-NOGO-04 all pass" },
+      { "criterion": "domain-model.md value objects EnvPair/ParseProblem/SchemaRule/Finding/LintReport shapes", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "evidence": "node --test -> parsing.test.mjs 12/12, rules.test.mjs 12/12 pass" },
+      { "criterion": "scope-summary.md Wave 3 Done-when: test/test-surface.test.mjs drives built binary once per TS-* row via spawnSync against temp-dir fixtures", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "evidence": "test/test-surface.test.mjs exists, 26 TS-*-named tests, spawnSync(BIN,...) against mkdtempSync fixtures - test/test-surface.test.mjs:1-16; round-1 FAIL (file absent) resolved" }
+    ],
+    "refuted": [],
+    "bugs": []
+  }
+}

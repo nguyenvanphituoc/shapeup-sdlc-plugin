@@ -1,0 +1,35 @@
+{
+  "schema_version": 2,
+  "round": 2,
+  "attempt": 1,
+  "trial": 3,
+  "at": "2026-08-17T07:57:33.228Z",
+  "run_id": "envlint-20260817T073824Z-cb963f38",
+  "scope_id": "cli-composition-root",
+  "fixtures": [
+    {
+      "cmd": "node --test test/cli.test.mjs",
+      "exit": 0,
+      "pass": true
+    }
+  ],
+  "db_probe": null,
+  "seesaw": {
+    "ran": false,
+    "pass": true,
+    "scopes_checked": [],
+    "failing": []
+  },
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "seesaw_green": true,
+  "overall": "green",
+  "regression": false,
+  "score": {
+    "regressions": 0,
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": []
+}

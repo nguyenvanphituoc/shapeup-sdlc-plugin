@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/rules-engine-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-002",
+      "status": "done",
+      "ac_results": [
+        { "ac": "`src/rules.mjs` exports `evaluate(pairs, problems, schema): Finding[]`", "result": "pass", "evidence": "src/rules.mjs exports evaluate(pairs, problems, schema); test 'src/rules.mjs exports evaluate(pairs, problems, schema)' passes" },
+        { "ac": "`node --test test/rules.test.mjs` passes", "result": "pass", "evidence": "node --test test/rules.test.mjs -> 15 pass, 0 fail" },
+        { "ac": "Each `ParseProblem` becomes one `Finding`: `key` = raw line text truncated to 30 chars,", "result": "pass", "evidence": "test 'ParseProblem becomes one Finding (E4 shape)' passes" },
+        { "ac": "A key present in the file but absent from the schema is never a finding (INV-01)", "result": "pass", "evidence": "test 'key present in file but absent from schema is never a finding (INV-01)' passes" },
+        { "ac": "`required: true` + key absent from the (deduped) pairs → `Finding` with `line: 0`", "result": "pass", "evidence": "test 'required:true + key absent from deduped pairs -> Finding with line:0' passes" },
+        { "ac": "When a key is assigned more than once, only the LAST occurrence in file order is", "result": "pass", "evidence": "test 'duplicate key: only LAST occurrence in file order is evaluated (INV-02)' passes" },
+        { "ac": "`type: \"int\"` matches `/^-?\\d+$/`: `01`/`-5` valid, `1.5`/`1e3`/`\"\"` invalid", "result": "pass", "evidence": "test 'type:int matches /^-?\\d+$/' passes" },
+        { "ac": "`type: \"bool\"` matches `true`/`false`/`1`/`0` case-insensitively", "result": "pass", "evidence": "test 'type:bool matches true/false/1/0 case-insensitively' passes" },
+        { "ac": "`type: \"url\"` requires BOTH `new URL(v)` to not throw AND `protocol` to be `http:` or", "result": "pass", "evidence": "test 'type:url requires new URL() to parse AND protocol http:/https:' passes" },
+        { "ac": "`type: \"string\"` accepts any value, including empty", "result": "pass", "evidence": "test 'type:string accepts any value, including empty' passes" },
+        { "ac": "`enum: [...]` requires an exact match against one of the listed values", "result": "pass", "evidence": "test 'enum requires exact match against listed values' passes" },
+        { "ac": "A present-but-empty value (`KEY=`) satisfies `string`, fails `int`/`bool`/`url`/`enum`", "result": "pass", "evidence": "test 'present-but-empty value satisfies string, fails int/bool/url/enum' passes" },
+        { "ac": "Zero pairs + zero `required` keys in schema → zero findings (INV-06: this is the \"ok\"", "result": "pass", "evidence": "test 'zero pairs + zero required keys -> zero findings (INV-06 ok branch)' passes" },
+        { "ac": "`int` at `01` (leading zero): valid", "result": "pass", "evidence": "test 'boundary: int leading zero 01 is valid' passes" },
+        { "ac": "`int` at `1.5`, `1e3`, `\"\"`, `\"5-\"`, `\"+5\"`: all invalid", "result": "pass", "evidence": "test 'boundary: int invalid set 1.5/1e3/\"\"/5-/+5 all invalid' passes" },
+        { "ac": "`bool` at `TRUE`, `False`, `1`, `0`: valid; at `yes`, `2`: invalid", "result": "pass", "evidence": "test 'boundary: bool TRUE/False/1/0 valid, yes/2 invalid' passes" }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "src/rules.mjs", "change": "created" },
+    { "path": "test/rules.test.mjs", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "Finding.message text for required-missing/type/enum failures is not pinned by the spec beyond the E4 case, so a descriptive message was chosen (e.g. 'PORT is required', 'PORT does not match type \"int\"') since only ParseProblem-derived findings (E4) have a spec-pinned message string."
+  ],
+  "deviations": []
+}

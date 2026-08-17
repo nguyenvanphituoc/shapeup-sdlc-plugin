@@ -11,8 +11,14 @@ the corruption probe. Their own write-ups are `PLAN-P3-{A,B,C}.md` and `LESSONS-
 
 ## 1 · The acceptance ledger
 
-Phase 3's "done when" has three clauses. They are answered here in the order they can be answered,
-which is not the order they are written.
+| | Clause | Verdict | The number |
+|---|---|---|---|
+| **D1** | a 3-scope feature builds with ≥2 scopes concurrently | **met** | `2 (exact)` on a shipped run — both end signals agreeing, 0 legs missing a completion record |
+| **D2** | board/ledger uncorrupted under concurrency | **met, and it was false before** | four defects, found by racing it: 19/20, 20/20, 20/20, and a lock that admitted a second writer |
+| **D3** | wall-clock beats the Phase-2 baseline by ≥30% | **not met — measured, not estimated** | **62%** on the wave that can fan out; **~21%** on the round. The ceiling is arithmetic: one wide wave of three |
+
+The three are answered below in the order they *can* be answered, which is not the order the plan
+writes them.
 
 ### D2 — board/ledger uncorrupted under concurrency
 
@@ -185,6 +191,47 @@ Phase-2's **sequential** scope loop, so the 30% was bought by fan-out existing a
 before this phase. A better scheduler competes only for the residual, measured at ≤14.5% of one
 archived build span. Saying so is the point: a plan that promises 30% and delivers a differently-sized
 number teaches you to discount its next estimate.
+
+### D3, measured on two live arms
+
+Both arms built the **identical** decomposition: the controlled arm was seeded with the fan-out arm's
+committed spec tree, its four scope contracts and its task board, so `probe resume` reported the same
+waves and the same dependency edges. Same models, same budgets, same machine, same plugin tree. One
+variable: `maxParallelScopes` 4 against 1, and each run's `run-args.json` records which it got — the
+first time that was checkable at all.
+
+Per-leg, from the leg-completion records:
+
+| | dial 4 (fan-out) | dial 1 (sequential) |
+|---|---|---|
+| `parsing-engine` | 06:30:05 → 06:31:29 (84.6 s) | 07:40:53 → 07:42:27 (94.2 s) |
+| `rules-engine` | 06:30:06 → 06:31:18 (71.9 s) | 07:43:12 → 07:44:35 (83.2 s) |
+| the pair's **span** | **84.6 s** (they overlapped fully) | **222.8 s** |
+| the pair's work sum | 156.5 s | 177.4 s |
+
+**On the wave that can fan out, the span falls 62.0%** — and 57.0% after normalising for the ~13%
+per-leg drift between the two runs, which is model variance rather than the dial. Note where the
+sequential arm's extra time goes: `rules-engine` is dispatched 45 s *after* `parsing-engine` closes,
+because the confirm stage runs between them. Sequential pays that once per leg; the fan-out pays it
+once per wave.
+
+**On the whole round, the saving is ~21% — below the 30% clause, structurally.** Taken as a
+counterfactual from the fan-out arm's own legs, so no cross-run variance enters it: serialising wave 1
+would replace its 84.6 s span with its 156.5 s work sum, making the round 346.1 s against the observed
+274.2 s — a 20.8% saving. The ceiling is arithmetic, not a defect: this feature has three waves and
+only one is wide, so at most one leg's duration can ever be hidden behind another.
+
+That is the whole of D3's answer. **62% on the parallelisable wave, ~21% on the round, 0% from the
+scheduler change itself** (Lane B measured that separately, in simulation, on this exact wave shape).
+The clause asks for ≥30% of the round, and this feature cannot yield it at any dial setting.
+
+Two caveats stated rather than buried. The controlled arm's round 1 completed **2 of 4** legs — one
+build leg lost its worker to a transport error and one had its result **refused by the attestation
+gate** — so only the wave-1 pair is comparable between the arms; the round figure above is
+deliberately the single-run counterfactual instead. And the fan-out arm ran while three doc commits
+and one workflow quoting fix landed in the plugin tree; the controlled arm ran on the frozen tree
+afterwards. Nothing in those commits touches scheduling, but the arms were not launched from
+byte-identical trees and it would be wrong to imply they were.
 
 ### The safety edge, and the one place it costs D1
 

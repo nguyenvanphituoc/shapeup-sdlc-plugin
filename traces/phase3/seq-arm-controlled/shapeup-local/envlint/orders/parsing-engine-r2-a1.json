@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/parsing-engine-r2-a1",
+  "run_id": "envlint-20260817T073824Z-cb963f38",
+  "compiled_at": "2026-08-17T07:54:44.924Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "fix",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "src/parsing.mjs",
+      "test/parsing.test.mjs",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": []
+  },
+  "payload": {
+    "scope_contract": {
+      "type": "scope-contract",
+      "scope_id": "parsing-engine",
+      "feature": "envlint",
+      "topology_type": "ICEBERG",
+      "tasks": [
+        "TASK-001"
+      ],
+      "allowed_file_substrate": [
+        "src/parsing.mjs",
+        "test/parsing.test.mjs"
+      ],
+      "shared_substrate": [],
+      "hill_phase": "UPHILL_UNKNOWN",
+      "e2e_verification_fixtures": [
+        "node --test test/parsing.test.mjs"
+      ],
+      "affordance_manifest": [
+        {
+          "test_id": "parse-env-text",
+          "role": "pure-function",
+          "idle": "N/A (non-interactive, no CLI surface)",
+          "loading": "N/A (non-interactive, no CLI surface)",
+          "success": "valid `[export] KEY=VALUE` lines (optionally quoted, optional `export` prefix, trimmed whitespace) yield one `EnvPair` per occurrence in file order with correct 1-based `line`; repeated keys are never deduped here (Rules' job, INV-02)",
+          "error": "a non-blank/non-comment line that is not `[export] KEY=VALUE` yields one `ParseProblem` with the correct 1-based `line` and the raw, untrimmed `text`",
+          "empty": "comments and blank lines produce neither a pair nor a problem; an entirely empty file or a comments/blanks-only file returns `{ pairs: [], problems: [] }` (the E3 precondition Rules consumes downstream)"
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "title": "Create Parsing engine (src/parsing.mjs)",
+        "status": "done",
+        "priority": 1,
+        "depends_on": [],
+        "use_case_refs": [
+          "UC-01"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/p3-seq-ctl/.shapeup/envlint/tasks/TASK-001-parsing-engine.md",
+        "acceptance_criteria": [
+          "`src/parsing.mjs` exports `parseEnv(text: string): { pairs: EnvPair[], problems: ParseProblem[] }`",
+          "`node --test test/parsing.test.mjs` passes",
+          "Comment lines (`# ...`) and blank lines produce neither a pair nor a problem",
+          "`export KEY=value` parses identically to `KEY=value`",
+          "`export KEY=\"value\"` strips both the `export` prefix and the matching quotes (combined form)",
+          "`KEY=\"value\"` / `KEY='value'` strip matching surrounding quotes only",
+          "`KEY=\"value` (no closing quote) is left untouched — leading quote stays in the value",
+          "Whitespace around `KEY` and around the value is trimmed (outside quotes)",
+          "A line that is not blank/comment/`[export] KEY=VALUE` produces a `ParseProblem` with its",
+          "A key assigned more than once produces one `EnvPair` per occurrence, in file order (no",
+          "Every `EnvPair`/`ParseProblem` carries the correct 1-based line number",
+          "Line 1 of the file is correctly reported as line `1` (not `0`), and the last line of a",
+          "An entirely empty file (`\"\"`) returns `{ pairs: [], problems: [] }`",
+          "A file that is only comments/blank lines returns `{ pairs: [], problems: [] }` (this is"
+        ]
+      }
+    ],
+    "trial_history": [
+      {
+        "schema_version": 1,
+        "trial": 1,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "parsing-engine",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      }
+    ],
+    "bugs": [
+      {
+        "severity": "high",
+        "criterion": "TASK-004 Done-when: test/test-surface.test.mjs",
+        "location": "test/ (file absent); false claim at .shapeup/envlint/tasks/TASK-004-integration-test-suite.md:1",
+        "repro": "ls test/ shows cli.test.mjs, parsing.test.mjs, rules.test.mjs only; npm test reports 'tests 38' not the claimed 64",
+        "expected": "test/test-surface.test.mjs exists, driving bin/envlint.mjs once per TS-* row via spawnSync against temp-dir fixtures",
+        "actual": "file does not exist; task board and scope-board report the scope as done/green",
+        "unowned": true
+      },
+      {
+        "severity": "medium",
+        "criterion": "T0 verification coverage",
+        "location": ".shapeup/envlint/t0/trials.jsonl; shapeup/envlint/hill/cli-composition-root.yml; shapeup/envlint/hill/test-surface-suite.yml",
+        "repro": "cat .shapeup/envlint/t0/trials.jsonl has exactly 2 rows (parsing-engine, rules-engine)",
+        "expected": "every scope marked UPHILL_SOLVED/green has a backing T0 verdict artifact",
+        "actual": "cli-composition-root and test-surface-suite have no T0 verdict artifact at all",
+        "unowned": true
+      }
+    ],
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

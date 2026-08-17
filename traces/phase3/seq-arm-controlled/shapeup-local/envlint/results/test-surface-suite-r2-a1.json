@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/test-surface-suite-r2-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-004",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`npm test` (== `node --test test/`) exits 0",
+          "result": "pass",
+          "evidence": "npm test -> tests 64, pass 64, fail 0, exit 0"
+        },
+        {
+          "ac": "Every `TS-*` row in [[usecases/UC-01#Test-Surface]] has a corresponding test",
+          "result": "pass",
+          "evidence": "test/test-surface.test.mjs has one test per TS-INV-01/02/02b/03/04/05/06, TS-ERR-E_NOFLAG/E_SCHEMA_UNREADABLE/E2/E1/E3/E4/E5, TS-REQ-schema-missing/envfile-missing, TS-TYPE-int/bool/url-scheme-gate/url-leniency/enum/empty-value, TS-NOGO-01/02/03/04 (26 tests), each driving bin/envlint.mjs via spawnSync"
+        },
+        {
+          "ac": "Fixtures (env files, schema files) are written to a temp directory per test run and never",
+          "result": "pass",
+          "evidence": "tmpFile()/schemaFile() helpers write into mkdtempSync(tmpdir(), 'envlint-ts-') per call; no fixture file is committed to the repo"
+        },
+        {
+          "ac": "`TS-NOGO-02` (no `.env` writing) is verified by comparing fixture file contents/mtime",
+          "result": "pass",
+          "evidence": "TS-NOGO-02 test reads content+mtimeMs via statSync/readFileSync before and after run(), asserts both unchanged"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "test/test-surface.test.mjs", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "test/test-surface.test.mjs did not exist on disk despite the prior round's task log claiming it did; rebuilt from the committed spec (UC-01 Test-Surface table) rather than trusting the stale log"
+  ],
+  "deviations": []
+}

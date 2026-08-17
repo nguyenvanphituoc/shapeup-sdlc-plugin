@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/hunt",
+  "run_id": "envlint-20260817T073824Z-cb963f38",
+  "compiled_at": "2026-08-17T08:02:43.884Z",
+  "worker": "qa-edge-hunter",
+  "mode": "orchestrated",
+  "operation": "hunt",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      ".shapeup/envlint/qa/**"
+    ],
+    "frozen": [
+      "shapeup/envlint/spec/**",
+      ".shapeup/envlint/tasks/**"
+    ]
+  },
+  "payload": {
+    "trial_history": [
+      {
+        "schema_version": 1,
+        "trial": 1,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "parsing-engine",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      },
+      {
+        "schema_version": 1,
+        "trial": 1,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "rules-engine",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      },
+      {
+        "schema_version": 1,
+        "trial": 2,
+        "round": 2,
+        "attempt": 1,
+        "scope_id": "parsing-engine",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "no change",
+        "digest": []
+      },
+      {
+        "schema_version": 1,
+        "trial": 2,
+        "round": 2,
+        "attempt": 1,
+        "scope_id": "rules-engine",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "no change",
+        "digest": []
+      },
+      {
+        "schema_version": 1,
+        "trial": 1,
+        "round": 2,
+        "attempt": 1,
+        "scope_id": "cli-composition-root",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      },
+      {
+        "schema_version": 1,
+        "trial": 1,
+        "round": 2,
+        "attempt": 1,
+        "scope_id": "test-surface-suite",
+        "score": {
+          "regressions": 0,
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      }
+    ],
+    "feature": "envlint",
+    "spec_folder": "shapeup/envlint/spec/",
+    "round": 2,
+    "kb_rules_path": "shapeup/knowledge-base/qa-edge-hunter.md"
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "lane": "phase3-fanout-arm",
+  "purpose": "The run D1 was proven on, and the D3 numerator. First run in this project to yield an EXACT concurrency measurement rather than a lower bound.",
+  "run_id": "envlint-20260817T061119Z-434bbd9d",
+  "dial": {
+    "maxParallelScopes": 4,
+    "source": "run-args.json"
+  },
+  "outcome": "shipped, verdict PASS in round 1 — 12 of 12 criteria, 0 refuted",
+  "scopes": [
+    "parsing-engine",
+    "rules-engine",
+    "cli-composition-root",
+    "test-surface-suite"
+  ],
+  "waves_observed": [
+    [
+      "parsing-engine",
+      "rules-engine"
+    ],
+    [
+      "cli-composition-root"
+    ],
+    [
+      "test-surface-suite"
+    ]
+  ],
+  "scopes_green_first_attempt": 4,
+  "deliverable_tests": "64 pass / 0 fail (npm test, the contract's own named command)",
+  "qa_findings": 5,
+  "d1": {
+    "max_concurrent": 2,
+    "bound": "exact",
+    "inner_agrees": true,
+    "legs_total": 4,
+    "legs_exact": 4,
+    "legs_without_completion_record": 0,
+    "wave1_dispatch_gap_s": 1.75,
+    "wave1_span_s": 84.6,
+    "wave1_work_s": 156.5,
+    "wave1_speedup": 1.85,
+    "round_span_s": 274.2,
+    "round_work_s": 317.5,
+    "round_speedup": 1.16,
+    "note": "Read the round figure next to the wave figure. 1.16 against 1.85 is not a shortfall — three of four scopes are dependency-chained, so only one wave could ever be wide."
+  },
+  "interruption": "killed mid-EVAL by a transport failure (expired SSL certificate). The relaunch re-dispatched ZERO scopes: the fast-forward read all four as green from the graph and went straight to EVAL. run-args.json was rewritten and preserved the dial.",
+  "ship_gate_note": "The gate re-ran the acceptance contract's own named command rather than trusting the report — npm test, 64/64 — which is the discipline the spec-evaluator fix landed this phase asks for.",
+  "copied": [
+    "shapeup-local",
+    "shapeup-committed",
+    "deliverable",
+    "idea.md",
+    "EXPECTED.md",
+    "ARM.txt",
+    "CONCURRENCY.txt",
+    "concurrency-r1.json"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/hammer",
+  "worker": "scope-hammer",
+  "status": "done",
+  "files_touched": [],
+  "artifacts": [
+    ".shapeup/envlint/reports/hammer-r2.md"
+  ],
+  "assumptions": [
+    "No shapeup/envlint/shaping/baseline.md on disk; baseline treated as approximate, derived from the pitch's implicit problem statement (UC-01 / project-profile.md) per H1.1.",
+    "hammer_proposals (cli-composition-root, test-surface-suite) reflect the round-1 defect, resolved in round 2 — treated as closed, not open carry candidates, since all four scopes hold green T0 for round 2 and EVAL round 2 is PASS."
+  ],
+  "deviations": []
+}

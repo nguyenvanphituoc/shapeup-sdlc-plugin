@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "run_id": "envlint-20260817T073824Z-cb963f38",
+  "slug": "envlint",
+  "generated_at": "2026-08-17T08:08:20.436Z",
+  "format": "jsonl",
+  "tables": [
+    {
+      "name": "run",
+      "file": "run.jsonl",
+      "rows": 1
+    },
+    {
+      "name": "dispatch",
+      "file": "dispatch.jsonl",
+      "rows": 12
+    },
+    {
+      "name": "ac_result",
+      "file": "ac_result.jsonl",
+      "rows": 88
+    },
+    {
+      "name": "discovery",
+      "file": "discovery.jsonl",
+      "rows": 3
+    },
+    {
+      "name": "file_touched",
+      "file": "file_touched.jsonl",
+      "rows": 7
+    },
+    {
+      "name": "agent_call",
+      "file": "agent_call.jsonl",
+      "rows": 0
+    },
+    {
+      "name": "trial",
+      "file": "trial.jsonl",
+      "rows": 6
+    },
+    {
+      "name": "t0_verdict",
+      "file": "t0_verdict.jsonl",
+      "rows": 6
+    },
+    {
+      "name": "criterion_verdict",
+      "file": "criterion_verdict.jsonl",
+      "rows": 30
+    },
+    {
+      "name": "hook_decision",
+      "file": "hook_decision.jsonl",
+      "rows": 378
+    }
+  ],
+  "rows_total": 531,
+  "records_skipped": 0,
+  "economics": {
+    "agent_calls": 0,
+    "cost_usd": null,
+    "cost_attributed_usd": null,
+    "cost_unattributed_usd": null,
+    "wall_ms_total": null,
+    "calls_to_first_write": null,
+    "seconds_to_first_write": null,
+    "retried_calls": 0,
+    "failed_calls": 0,
+    "killed_calls": 0,
+    "dispatches": 12,
+    "dispatches_answered": 11,
+    "dispatches_costed": 0,
+    "by_model": []
+  }
+}

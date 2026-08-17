@@ -1,0 +1,27 @@
+{
+  "lane": "phase3-sequential-arm-controlled",
+  "purpose": "The D3 denominator, with the decomposition held fixed rather than re-derived. Seeded with the fan-out arm's committed spec tree, its four scope contracts and its task board, so probe resume reported the same waves and the same dependency edges. One variable differs from the fan-out arm: the dial.",
+  "why_a_second_attempt_was_needed": "The first sequential arm re-shaped the pitch from scratch and its architect cut ONE scope carrying all five tasks, where the fan-out arm's cut four. At one scope the dial is inert, so that run measured a different decomposition rather than a sequential execution of the same one. A run whose plan is generated per run cannot serve as the control for a variable inside that plan.",
+  "run_id": "envlint-20260817T073824Z-cb963f38",
+  "dial": { "maxParallelScopes": 1, "source": "run-args.json" },
+  "held_constant": ["feature and pitch", "spec tree", "the four scope contracts", "the task board and its dependency edges", "models (exec/eval/qa = sonnet)", "budgets (2 rounds, 3 attempts)", "machine", "gate answer set (ci)", "plugin tree (frozen)"],
+  "outcome": "shipped, verdict PASS after 2 rounds, 64/64 tests in the deliverable, 3 non-blocking QA findings",
+  "round_1": {
+    "legs_closed": "2 of 4",
+    "why": "one build leg lost its worker to a transport error; one had its result REFUSED by the attestation gate as an unattested improvised response — the receipt gate firing on a live run rather than in a fixture",
+    "parsing_engine": "07:40:53 -> 07:42:27 (94.2s)",
+    "rules_engine": "07:43:12 -> 07:44:35 (83.2s)",
+    "pair_span_s": 222.8,
+    "pair_work_s": 177.4,
+    "note": "rules-engine is dispatched 45s AFTER parsing-engine closes, because the confirm stage runs between them. Sequential pays that gap once per leg; the fan-out pays it once per wave."
+  },
+  "comparison_with_fanout_arm": {
+    "same_pair_fanout_span_s": 84.6,
+    "same_pair_sequential_span_s": 222.8,
+    "span_reduction_pct": 62.0,
+    "work_normalised_reduction_pct": 57.0,
+    "whole_round_saving_pct": 20.8,
+    "whole_round_basis": "a counterfactual taken from the FAN-OUT arm's own legs, so no cross-run variance enters it: serialising wave 1 replaces its 84.6s span with its 156.5s work sum, making the round 346.1s against the observed 274.2s"
+  },
+  "caveat": "Only the wave-1 pair is comparable between the arms, because this arm's round 1 closed 2 of 4 legs. The fan-out arm also ran while three doc commits and one workflow quoting fix landed; this arm ran on the frozen tree afterwards. Nothing in those commits touches scheduling, but the two arms were not launched from byte-identical trees."
+}

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/parsing-engine-r2-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-001",
+      "status": "done",
+      "ac_results": [
+        { "ac": "`src/parsing.mjs` exports `parseEnv(text: string): { pairs: EnvPair[], problems: ParseProblem[] }`", "result": "pass", "evidence": "src/parsing.mjs exports parseEnv with { pairs, problems } shape" },
+        { "ac": "`node --test test/parsing.test.mjs` passes", "result": "pass", "evidence": "node --test test/parsing.test.mjs → 13 pass, 0 fail" },
+        { "ac": "Comment lines (`# ...`) and blank lines produce neither a pair nor a problem", "result": "pass", "evidence": "test 'comments and blank lines produce neither a pair nor a problem' passes" },
+        { "ac": "`export KEY=value` parses identically to `KEY=value`", "result": "pass", "evidence": "test 'export KEY=value parses identically to KEY=value' passes" },
+        { "ac": "`export KEY=\"value\"` strips both the `export` prefix and the matching quotes (combined form)", "result": "pass", "evidence": "test 'export KEY=\"value\" strips both export prefix and matching quotes' passes" },
+        { "ac": "`KEY=\"value\"` / `KEY='value'` strip matching surrounding quotes only", "result": "pass", "evidence": "test 'KEY=\"value\" / KEY=\\'value\\' strip matching surrounding quotes only' passes" },
+        { "ac": "`KEY=\"value` (no closing quote) is left untouched — leading quote stays in the value", "result": "pass", "evidence": "test 'KEY=\"value (no closing quote) is left untouched' passes" },
+        { "ac": "Whitespace around `KEY` and around the value is trimmed (outside quotes)", "result": "pass", "evidence": "test 'whitespace around KEY and value is trimmed (outside quotes)' passes" },
+        { "ac": "A line that is not blank/comment/`[export] KEY=VALUE` produces a `ParseProblem` with its", "result": "pass", "evidence": "test 'invalid line produces a ParseProblem with correct line number and raw untrimmed text' passes" },
+        { "ac": "A key assigned more than once produces one `EnvPair` per occurrence, in file order (no", "result": "pass", "evidence": "test 'a key assigned more than once produces one EnvPair per occurrence, in file order' passes" },
+        { "ac": "Every `EnvPair`/`ParseProblem` carries the correct 1-based line number", "result": "pass", "evidence": "test 'every EnvPair/ParseProblem carries the correct 1-based line number' passes" },
+        { "ac": "Line 1 of the file is correctly reported as line `1` (not `0`), and the last line of a", "result": "pass", "evidence": "test 'line 1 is reported as 1, and last line with no trailing newline is parsed and numbered' passes" },
+        { "ac": "An entirely empty file (`\"\"`) returns `{ pairs: [], problems: [] }`", "result": "pass", "evidence": "test 'an entirely empty file returns { pairs: [], problems: [] }' passes" },
+        { "ac": "A file that is only comments/blank lines returns `{ pairs: [], problems: [] }` (this is", "result": "pass", "evidence": "test 'a file that is only comments/blank lines returns { pairs: [], problems: [] }' passes" }
+      ]
+    }
+  ],
+  "files_touched": [],
+  "discoveries": [],
+  "assumptions": [
+    "Both entries in payload.bugs are marked unowned and cite files outside this scope's substrate (test/test-surface.test.mjs and other scopes' hill/T0 artifacts) — no fix applied here, per operation:fix instructions to touch only owned bugs."
+  ],
+  "deviations": []
+}

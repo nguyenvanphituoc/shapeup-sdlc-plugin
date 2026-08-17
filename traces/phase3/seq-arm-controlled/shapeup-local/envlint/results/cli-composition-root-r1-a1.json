@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/cli-composition-root-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-003",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`bin/envlint.mjs` is the `package.json` `bin.envlint` entry, invocable as",
+          "result": "pass",
+          "evidence": "package.json bin.envlint already pointed at ./bin/envlint.mjs; bin/envlint.mjs created, executable, invocable as `envlint --schema <schema.json> [--json] <envfile>`"
+        },
+        {
+          "ac": "`node --test test/cli.test.mjs` passes (drives the built binary via `child_process`, per",
+          "result": "pass",
+          "evidence": "node --test test/cli.test.mjs -> tests 10, pass 10, fail 0"
+        },
+        {
+          "ac": "Missing `--schema` → exit 2, stderr `Error: ` prefix, single line",
+          "result": "pass",
+          "evidence": "test 'missing --schema -> exit 2, stderr Error prefix, single line' passes"
+        },
+        {
+          "ac": "Unreadable/missing schema file → exit 2, stderr `Error: cannot read schema file: <path>`",
+          "result": "pass",
+          "evidence": "test 'unreadable schema file -> exit 2, specific stderr message' passes"
+        },
+        {
+          "ac": "Schema file is not valid JSON → exit 2, stderr `Error: schema is not valid JSON: <path>`",
+          "result": "pass",
+          "evidence": "test 'schema file not valid JSON -> exit 2, specific stderr message' passes"
+        },
+        {
+          "ac": "Unreadable/missing env file → exit 2, stderr `Error: cannot read env file: <path>`",
+          "result": "pass",
+          "evidence": "test 'unreadable env file -> exit 2, tool error, empty stdout' passes"
+        },
+        {
+          "ac": "No findings → stdout `ok: N keys checked` (N = `Object.keys(schema).length`), exit 0",
+          "result": "pass",
+          "evidence": "test 'clean env file against its schema -> exit 0, ok summary' passes"
+        },
+        {
+          "ac": "≥1 finding → stdout one line per finding `<envfile>:<line>: <KEY>: <message>` (in file",
+          "result": "pass",
+          "evidence": "test '>=1 finding -> stdout one line per finding then N problem(s), exit 1' passes"
+        },
+        {
+          "ac": "`--json` on the clean branch → stdout exactly `{\"ok\":true,\"findings\":[],\"checked\":N}`,",
+          "result": "pass",
+          "evidence": "test '--json on the clean branch -> exact JSON doc, exit 0' passes"
+        },
+        {
+          "ac": "`--json` on the findings branch → stdout exactly one JSON document",
+          "result": "pass",
+          "evidence": "test '--json on the findings branch -> exact JSON doc, exit 1' passes"
+        },
+        {
+          "ac": "`--json` never changes the exit code or which branch (error/clean/findings) is taken",
+          "result": "pass",
+          "evidence": "test '--json never changes exit code or which branch is taken' passes"
+        },
+        {
+          "ac": "No exit-2 path ever prints a raw stack trace to stderr or anything to stdout",
+          "result": "pass",
+          "evidence": "test 'no exit-2 path prints a raw stack trace or anything to stdout' passes"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "bin/envlint.mjs", "change": "created" },
+    { "path": "test/cli.test.mjs", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "For the >=1 finding case, findings are rendered in the order returned by evaluate() — parse-problem findings first (in file order), then schema-key findings in schema key order — since that is the order the Rules engine (TASK-002) already produces and the CLI composes without re-deriving it."
+  ],
+  "deviations": []
+}
