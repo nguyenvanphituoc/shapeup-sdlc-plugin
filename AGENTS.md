@@ -5,6 +5,8 @@
 
 A three-phase Shape Up loop orchestrated by `/tech-lead`. Invariants live in the runtime, not this file — expect hook denials, not arguments.
 
+Skills and commands are named short throughout this file; every one of them resolves only under the plugin's namespace — `Skill(shapeup-sdlc-plugin:orient)`, `/shapeup-sdlc-plugin:ship`. A bare name is not a typo you get a warning for: an unknown skill name is rejected upstream of the hook layer, so the dispatch fires no hook, leaves no decision row, and is answered by improvisation.
+
 - Hook-denied: dispatching a worker without a schema-valid WorkOrder, writing outside the scope's substrate, stopping a run with no receipt (the run's first act writes one).
 - Attested, not assumed: a dispatch leaves a receipt naming the skill that ran, and ingest refuses an orchestrated result that has none. A dispatch that fails is answered by the sub-agent improvising the craft, which every other check accepts — so "the artifact exists" is not evidence that the shipped skill produced it. `--no-receipt-check` is the way through when the receipt channel itself fails.
 - GATE L2 is advisory — warns when EVAL runs over unfinished tasks, permits the call (per-machine board, operator asked; ADR-0001) — a signal, not a bug.

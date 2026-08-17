@@ -7,6 +7,11 @@ is a **non-UI** deliverable — no browser, no Playwright, nothing to install be
 Every command below is real, and every block of output marked **verbatim** was produced by
 running it. Nothing here is illustrative-only.
 
+**One convention before you start.** Slash commands are written short here — `/ship`, `/build` —
+and their real names carry the plugin's namespace: `/shapeup-sdlc-plugin:ship`. Typing the bare
+form answers `Unknown command`. Interactively `/`-completion supplies the prefix, so you will rarely
+notice; a script or a `claude -p` invocation has to spell it out.
+
 - [What you need](#what-you-need)
 - [1. The idea](#1-the-idea)
 - [2. Shape it](#2-shape-it)

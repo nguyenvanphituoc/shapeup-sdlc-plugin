@@ -59,10 +59,19 @@ they are documented for [contributors](CONTRIBUTING.md), not for users.
 ```
 /plugin marketplace add nguyenvanphituoc/shapeup-sdlc-plugin
 /plugin install shapeup-sdlc-plugin@nvptuoc-marketplace
-/ship "add dark mode to the settings screen"
+/shapeup-sdlc-plugin:ship "add dark mode to the settings screen"
 ```
 
-`/ship` walks the whole lifecycle and pauses at each gate for you. That's the whole quickstart.
+That last one walks the whole lifecycle and pauses at each gate for you. That's the whole
+quickstart.
+
+> **The `shapeup-sdlc-plugin:` prefix is not optional.** A plugin's commands are namespaced by the
+> plugin that ships them, so the bare `/ship` is not a command and answers `Unknown command: /ship`
+> — measured on both a marketplace install and a `--plugin-dir` checkout. Interactively you will
+> normally pick the command off `/`-completion and never type the prefix yourself; it matters when
+> you are writing the command down, which is exactly what a headless `claude -p` invocation or a CI
+> step does. **Everything below writes commands in the short form for readability — prepend
+> `shapeup-sdlc-plugin:` to any of them you actually type.**
 
 > **Running unattended?** The plugin install grants no permissions — every pipeline step is a Node
 > script that ships *with* the plugin and therefore lives outside your project, so it needs
@@ -174,7 +183,8 @@ every arm is skipped when its artifact is absent, so older specs are unaffected.
 ### Commands
 
 `/ship` runs the whole lifecycle; the phase commands run one step each, so the pipeline is
-learnable from `/`-completion alone.
+learnable from `/`-completion alone. Names are written short here; the real name of each carries the
+`shapeup-sdlc-plugin:` prefix, which `/`-completion fills in for you and a script must spell out.
 
 | Command | Phase | Description |
 |---------|-------|-------------|
