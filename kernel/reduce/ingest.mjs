@@ -10,6 +10,11 @@
 //   discoveries[]       → append to .shapeup/<slug>/discovery/ledger.md (old P3.7 / QA H.3)
 //   verdict.criteria[]  → append evaluation/.verdicts-<target>.jsonl (old evaluator B.0)
 //   verdict.refuted[]   → un-tick refuted AC boxes + set eval_verdict frontmatter (old B.2/B.2b)
+//   (the leg itself)    → append one leg-completion row to .shapeup/<slug>/legs.jsonl
+//
+// That last one is the LEG'S END, and it is here because this is the step that closes a leg. The
+// dispatch receipt gives a start; nothing gave an end, so how long a leg took and how many ran at
+// once were unanswerable from the record set. See legRow() for why every field is a snapshot.
 //
 // Zero dependencies, zero network, schema-validated input (a malformed result never mutates
 // the board). Single-writer becomes mechanically true, not aspirational.
@@ -22,7 +27,7 @@ import { resolve, join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validate } from "../verify/envelope.mjs";
 import { runArgs } from "../lib/argv.mjs";
-import { tasksDir, localRoot, dispatchReceipts } from "../lib/paths.mjs";
+import { tasksDir, localRoot, dispatchReceipts, legLedger, readRunId } from "../lib/paths.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RESULT_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../../skills/tech-lead/schemas/work-result.schema.json"), "utf8"));
@@ -387,6 +392,113 @@ export function attestation(order, cwd) {
   return { ok: true, receipt: fresh[fresh.length - 1], rows: fresh.length };
 }
 
+// ---------------------------------------------------------------------------
+// Leg completion — the record the run had no way to write.
+// ---------------------------------------------------------------------------
+//
+// A leg has a real start (the dispatch receipt, hook-attested and append-only) and, until now, no
+// end. Without one, "how many scopes ran at once" and "how long did BUILD take" are guesses: the
+// only other candidates are an order file that is overwritten on relaunch and result-file mtimes,
+// which are whatever the last copy did. Ingest is where the end belongs — it is the single writer
+// of shared state and it is the act that closes a leg (compile → dispatch → ingest).
+
+/** `<slug>/<scope>-r<N>-a<M>` and `<slug>/evaluate-r<N>` — the round-addressed order id forms. */
+const ROUND_SUFFIX = /^(.*?)-r(\d+)(?:-a(\d+))?$/;
+
+/**
+ * Split an order id into the scope/phase name and the round-attempt address it encodes.
+ *
+ * The id is the authority here rather than the payload: `compile` builds it from scope, round and
+ * attempt, and it is the field every other record joins on.
+ *
+ * @param {string} orderId - e.g. `todo-cli/foundation-r2-a1`.
+ * @returns {{name:(string|null), round:(number|null), attempt:(number|null)}} Nulls for a phase
+ *   order that carries no round (`orient`, `wire`, `hammer`).
+ */
+export function addressOf(orderId) {
+  const suffix = String(orderId ?? "").split("/").slice(1).join("/");
+  if (!suffix) return { name: null, round: null, attempt: null };
+  const m = suffix.match(ROUND_SUFFIX);
+  if (!m) return { name: suffix, round: null, attempt: null };
+  return { name: m[1], round: Number(m[2]), attempt: m[3] === undefined ? null : Number(m[3]) };
+}
+
+/**
+ * Build the leg-completion row for one closed leg.
+ *
+ * EVERY TIME FIELD IS A SNAPSHOT. `compiled_at` is copied off the order as it reads NOW, because
+ * the file is re-written verbatim on relaunch; a row that pointed at the file instead would re-date
+ * itself to a later dispatch. `dispatched_at` comes from the receipt that ATTESTED this dispatch —
+ * the one that already passed the same-order, same-skill and not-stale tests — so it cannot be an
+ * earlier failed dispatch's row.
+ *
+ * THE RUN KEY IS RESOLVED, NOT COPIED. `order_id` alone collides across runs, and a row that
+ * carried only it would be unjoinable exactly when two runs of one slug exist. When the order
+ * carries no `run_id` the key is read from the run's own receipt through `lib/paths.mjs`, which is
+ * the same derivation every other writer uses.
+ *
+ * Exported so the suite can assert the row's shape without a live dispatch.
+ *
+ * @param {object} order - The parsed WorkOrder this leg answered.
+ * @param {(object|null)} receipt - The attesting dispatch receipt, when one matched.
+ * @param {string} cwd - Project root, for the run-key fallback.
+ * @param {string} [ingestedAt] - The completion instant; defaults to now.
+ * @returns {object} The row appended to `legs.jsonl`.
+ */
+export function legRow(order, receipt, cwd, ingestedAt = new Date().toISOString()) {
+  const slug = String(order.order_id ?? "").split("/")[0];
+  const { name, round, attempt } = addressOf(order.order_id);
+  const dispatchedAt = receipt?.at ?? null;
+  const startedAt = dispatchedAt ?? order.compiled_at ?? null;
+  const startMs = startedAt ? Date.parse(startedAt) : NaN;
+  const endMs = Date.parse(ingestedAt);
+  return {
+    schema_version: 1,
+    // Resolved rather than defaulted to null: an unkeyed row is a row no later run can be
+    // distinguished from, and the receipt on disk already answers the question.
+    run_id: order.run_id ?? (slug ? readRunId(cwd, slug) : null),
+    order_id: order.order_id ?? null,
+    worker: order.worker ?? null,
+    operation: order.operation ?? null,
+    mode: order.mode ?? null,
+    scope_id: name,
+    round,
+    attempt,
+    compiled_at: order.compiled_at ?? null,
+    dispatched_at: dispatchedAt,
+    ingested_at: ingestedAt,
+    // Which fact the duration is measured FROM travels with the duration, because the two starts
+    // are not the same measurement: a receipt is evidence the skill resolved, `compiled_at` is only
+    // evidence an order was written.
+    started_from: dispatchedAt ? "dispatch-receipt" : (order.compiled_at ? "compiled_at" : null),
+    duration_ms: Number.isFinite(startMs) && Number.isFinite(endMs) ? endMs - startMs : null,
+    attested: !!receipt,
+  };
+}
+
+/**
+ * Append one leg-completion row. Never throws.
+ *
+ * FAIL-OPEN, like the receipt hook it complements: a timing record that can fail an ingest would
+ * cost the run a board write to save a measurement, which is the wrong trade. A row that does not
+ * reach disk surfaces later as a leg with no completion record — visible, and not mistaken for a
+ * leg that ran instantly.
+ *
+ * @param {object} row - A {@link legRow}.
+ * @param {string} cwd - Project root.
+ * @returns {(string|null)} The ledger path when the row landed, else null.
+ */
+export function appendLeg(row, cwd) {
+  try {
+    const slug = String(row.order_id).split("/")[0];
+    if (!slug) return null;
+    const path = legLedger(cwd, slug);
+    mkdirSync(dirname(path), { recursive: true });
+    appendFileSync(path, JSON.stringify(row) + "\n");
+    return path;
+  } catch { return null; }
+}
+
 /**
  * Apply one WorkResult to shared state — the single writer for the board and the ledgers.
  *
@@ -447,8 +559,12 @@ export async function cli(rawArgv) {
     process.exit(1);
   }
 
+  // Resolved for EVERY order, not only the gated ones: the attesting receipt is this leg's start,
+  // and a standalone or `--no-receipt-check` ingest still deserves a truthful timing row rather
+  // than one silently falling back to the order's re-writable `compiled_at`.
+  const att = order ? attestation(order, cwd) : { ok: false, receipt: null };
+
   if (order?.mode === "orchestrated" && !args.noReceiptCheck) {
-    const att = attestation(order, cwd);
     if (!att.ok) {
       console.error(`ingest-result: result refused — ${att.reason}.`);
       console.error(`  The order declares mode "orchestrated", so the dispatch must have left a receipt`);
@@ -463,5 +579,18 @@ export async function cli(rawArgv) {
   }
 
   const s = applyResult(result, { cwd });
+
+  // The leg closes HERE, after the writes land — a row written before them would date a leg by an
+  // ingest that could still fail. Only when an order is on disk: a fixture ingest answers no
+  // dispatch, so it has no leg to close and inventing one would put a phantom interval in the
+  // record set every later measurement reads.
+  if (order) {
+    const row = legRow(order, att.ok ? att.receipt : null, cwd);
+    if (!appendLeg(row, cwd)) {
+      console.error(`  ! leg-completion row could not be written for ${row.order_id} — this leg will ` +
+                    `read as having no completion record (harness probe concurrency reports it as such).`);
+    }
+  }
+
   console.log(`✅ ingested ${result.order_id} — tasks: [${s.tasks_updated.join(", ")}] · ACs ticked: ${s.acs_ticked} · unblocked: [${s.unblocked.join(", ")}] · discoveries: ${s.discoveries_appended} · verdict lines: ${s.verdict_lines} · refuted un-ticked: ${s.refuted_unticked}`);
 }

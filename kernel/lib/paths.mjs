@@ -168,6 +168,27 @@ export const resultsDir = (cwd, slug) => join(localRoot(cwd, slug), "results");
  * (`receipt`, above, is the RUN receipt — a different fact, hence the different name.)
  */
 export const dispatchReceipts = (cwd, slug) => join(localRoot(cwd, slug), "receipts", "dispatch.jsonl");
+/**
+ * Leg-completion rows — the moment a dispatched leg was closed by the reducer.
+ *
+ * WHY IT IS A SEPARATE LEDGER FROM {@link dispatchReceipts}. A dispatch receipt is written by a
+ * `PostToolUse` hook, which fires when the skill RESOLVES — measured across archived runs, 1.8 to
+ * 47 seconds after the order was compiled, on legs that then ran for minutes. So the receipt is a
+ * hook-attested START and there is no end anywhere in the record set: concurrency and span are
+ * guesses without one. This ledger is the end, written by the one component that closes a leg.
+ *
+ * WHY IT SNAPSHOTS RATHER THAN POINTS. A row carries the order's `compiled_at` as a VALUE, not a
+ * path to read it from later. Order paths are reused verbatim on relaunch, so the `compiled_at` in
+ * `orders/<id>.json` is the LAST compile's; a row that deferred to the file would silently re-date
+ * itself to a dispatch that is not the one it recorded.
+ *
+ * APPEND-ONLY JSONL, for the same two reasons `dispatch.jsonl` is: order ids repeat across
+ * relaunches and rounds, and scopes close concurrently. One `O_APPEND` line needs no lock.
+ *
+ * A LEG THAT DIES LEAVES NO ROW, deliberately. The absence is the fact — a reader compares starts
+ * to completions and reports the hole rather than averaging over it.
+ */
+export const legLedger = (cwd, slug) => join(localRoot(cwd, slug), "legs.jsonl");
 /** T0 verification artifacts. */
 export const t0Dir = (cwd, slug) => join(localRoot(cwd, slug), "t0");
 /** Immutable per-attempt verdict artifacts the evaluator must cite. */
