@@ -17,7 +17,7 @@
 // Usage:  node kernel/harness.mjs reduce ingest <result.json> [--cwd <dir>]
 // Exit:   0 = ingested, 1 = result rejected (schema) or a write failed.
 
-import { readFileSync, writeFileSync, appendFileSync, mkdirSync, rmdirSync, statSync, existsSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, appendFileSync, mkdirSync, rmSync, statSync, existsSync, readdirSync } from "node:fs";
 import { resolve, join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validate } from "../verify/envelope.mjs";
@@ -55,21 +55,58 @@ const today = () => new Date().toISOString().slice(0, 10);
  */
 function withLock(cwd, slug, fn) {
   const lock = join(localRoot(cwd, slug), ".ingest.lock");
+  const owner = join(lock, "owner.json");
   const STALE_MS = 30_000, WAIT_MS = 20;
   const startedAt = Date.now();
   mkdirSync(dirname(lock), { recursive: true });
+
+  /**
+   * Is the process that took this lock still running?
+   *
+   * AGE ALONE CANNOT ANSWER IT, and that was the hole. `mkdir` stamps the lock's mtime once and the
+   * critical section is synchronous, so a holder cannot refresh it while it works — which makes "has
+   * been working for 31 seconds" and "died 31 seconds ago" the same observation. A waiter then broke
+   * a live holder's lock and entered the section beside it, so the reducer that exists to serialise
+   * shared-state writes had two writers inside it. Reproduced directly: a 45-second-old lock over a
+   * working holder was broken and the second ingest wrote.
+   *
+   * `kill(pid, 0)` sends no signal and only asks whether the process exists. A lock with no readable
+   * owner is treated as ABANDONED once it is also stale — that is the pre-existing behaviour, kept
+   * for locks written before this file recorded an owner.
+   *
+   * @returns {boolean} True when a live process holds the lock.
+   */
+  const heldByLiveProcess = () => {
+    try {
+      const o = JSON.parse(readFileSync(owner, "utf8"));
+      if (typeof o?.pid !== "number") return false;
+      process.kill(o.pid, 0);      // throws ESRCH when the process is gone
+      return true;
+    } catch { return false; }
+  };
+
   for (;;) {
-    try { mkdirSync(lock); break; } catch { /* held — wait, or break a stale one */ }
+    try {
+      mkdirSync(lock);
+      // Best-effort: the lock is already held by us, so failing to name the owner costs a later
+      // waiter its liveness check, never correctness of this section.
+      try { writeFileSync(owner, JSON.stringify({ pid: process.pid, at: new Date().toISOString() })); } catch { /* ignore */ }
+      break;
+    } catch { /* held — wait, or break an abandoned one */ }
     let heldFor = 0;
     try { heldFor = Date.now() - statSync(lock).mtimeMs; } catch { continue; }  // released mid-check
-    if (heldFor > STALE_MS) { try { rmdirSync(lock); } catch { /* someone else broke it */ } continue; }
+    // Break it only when it is BOTH stale AND ownerless-or-dead. A slow holder keeps its lock.
+    if (heldFor > STALE_MS && !heldByLiveProcess()) {
+      try { rmSync(lock, { recursive: true, force: true }); } catch { /* someone else broke it */ }
+      continue;
+    }
     if (Date.now() - startedAt > STALE_MS) {
       // Refusing is the safe direction: proceeding unlocked is how the lost update happened.
       throw new Error(`ingest could not take the ${slug} lock within ${STALE_MS} ms (${lock}) — another reducer is holding it`);
     }
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, WAIT_MS);   // sleep, no busy spin
   }
-  try { return fn(); } finally { try { rmdirSync(lock); } catch { /* already gone */ } }
+  try { return fn(); } finally { try { rmSync(lock, { recursive: true, force: true }); } catch { /* already gone */ } }
 }
 
 /**

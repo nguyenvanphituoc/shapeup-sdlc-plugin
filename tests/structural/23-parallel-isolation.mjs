@@ -21,7 +21,7 @@
 // The deterministic sections are the ratchet: they fail on the defect without needing a race to fire.
 // The racing sections are here because a static check cannot tell you that a lock works.
 
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync, rmSync, utimesSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { spawn, spawnSync } from "node:child_process";
@@ -52,15 +52,37 @@ function plant(root) {
   return root;
 }
 
-/** Start every command at once and wait for all of them — the only way to observe a race. */
+/**
+ * Start every command at once and wait for all of them — the only way to observe a race.
+ *
+ * Each result carries the interval the process was actually alive for, because a concurrency probe
+ * that does not measure overlap is satisfied by processes that ran one after another. That is the
+ * same false green as counting only successes and calling it parallelism: the assertions pass, and
+ * they passed over a sequential execution.
+ */
 function race(argvs, cwd) {
   return Promise.all(argvs.map((args) => new Promise((res) => {
+    const startedAt = Date.now();
     const p = spawn("node", args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
     let out = "", err = "";
     p.stdout.on("data", (d) => { out += d; });
     p.stderr.on("data", (d) => { err += d; });
-    p.on("close", (code) => res({ code, out, err }));
+    p.on("close", (code) => res({ code, out, err, startedAt, endedAt: Date.now() }));
   })));
+}
+
+/**
+ * The greatest number of the given intervals that were open at the same instant.
+ * @param {Array<{startedAt:number, endedAt:number}>} rows - Observed process lifetimes.
+ * @returns {number} Peak overlap; 1 means nothing ever ran beside anything else.
+ */
+function maxConcurrent(rows) {
+  const events = [];
+  for (const r of rows) { events.push([r.startedAt, 1], [r.endedAt, -1]); }
+  events.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  let cur = 0, peak = 0;
+  for (const [, d] of events) { cur += d; peak = Math.max(peak, cur); }
+  return peak;
 }
 
 const lines = (p) => (existsSync(p) ? readFileSync(p, "utf8").split("\n").filter((l) => l.trim()) : []);
@@ -166,6 +188,13 @@ export async function run(ctx) {
       if (crashed.length === 0) ok("four concurrent `verify t0` processes all completed");
       else fail(`${crashed.length}/4 concurrent verify t0 processes failed: ${crashed[0].err.slice(0, 200)}`);
 
+      // THE PROBE HAS TO PROVE IT RACED. Every assertion below is satisfied by four processes that
+      // ran one after another, so without this the whole arm can go green over a sequential run and
+      // report that concurrency is safe on evidence that contains no concurrency.
+      const peak = maxConcurrent(res);
+      if (peak >= 2) ok(`the four verify-t0 processes really did overlap (peak ${peak} alive at once)`);
+      else fail(`peak overlap was ${peak} — these processes ran sequentially, so nothing below tested concurrency at all`);
+
       const rows = lines(join(ws, `.shapeup/${SLUG}/t0/trials.jsonl`)).map((l) => JSON.parse(l));
       if (rows.length === 4) ok("every concurrent trial row reached the ledger — no append was lost");
       else fail(`${rows.length}/4 trial rows landed — a concurrent append was lost`);
@@ -218,6 +247,10 @@ export async function run(ctx) {
       const failed = res.filter((r) => r.code !== 0);
       if (failed.length === 0) ok("four concurrent `reduce ingest` processes all completed");
       else fail(`${failed.length}/4 concurrent ingests failed — the run lock refuses work it should serialise: ${failed[0].err.slice(0, 200)}`);
+
+      const peakIngest = maxConcurrent(res);
+      if (peakIngest >= 2) ok(`the four ingest processes really did overlap (peak ${peakIngest} alive at once)`);
+      else fail(`peak overlap was ${peakIngest} — the ingests ran sequentially, so the board/ledger result below says nothing about contention`);
 
       const board = readFileSync(join(ws, `.shapeup/${SLUG}/tasks/_index.md`), "utf8");
       const stale = [];
@@ -278,6 +311,59 @@ export async function run(ctx) {
     } finally { rmSync(ws, { recursive: true, force: true }); }
   }
 
+  // --- (e2) A stale lock is broken only when its OWNER is gone ---------------------------------
+  // The lock breaks a holding lock after 30s so a crashed reducer cannot wedge the run forever. But
+  // `mkdir` stamps the mtime once and the critical section is synchronous, so a holder cannot
+  // refresh it — which made "working for 31s" and "died 31s ago" the same observation, and a waiter
+  // then entered the section beside a live holder. Age is not evidence of abandonment; liveness is.
+  {
+    const ws = mkdtempSync(join(tmpdir(), "struct-par-e2-"));
+    try {
+      plant(ws);
+      const oid = `${SLUG}/solo`;
+      w(ws, `.shapeup/${SLUG}/orders/solo.json`, JSON.stringify({
+        schema_version: 1, order_id: oid, slug: SLUG, worker: "task-executor",
+        operation: "execute", compiled_at: "2026-08-17T09:00:00.000Z", substrate: { allowed: ["src/**"] },
+      }));
+      w(ws, `.shapeup/${SLUG}/results/solo.json`, JSON.stringify({
+        schema_version: 1, order_id: oid, worker: "task-executor", status: "done",
+        task_results: [{ task_id: "TASK-001", status: "done", ac_results: [] }],
+      }));
+      const lock = join(ws, ".shapeup", SLUG, ".ingest.lock");
+      const stale = new Date(Date.now() - 45_000);
+
+      /** Start an ingest against a stale lock of the given ownership and see if it breaks in. */
+      const raceStaleLock = async (ownerBody) => {
+        rmSync(lock, { recursive: true, force: true });
+        mkdirSync(lock, { recursive: true });
+        if (ownerBody) writeFileSync(join(lock, "owner.json"), ownerBody);
+        utimesSync(lock, stale, stale);
+        const p = spawn("node", [KERNEL, "reduce", "ingest", "--order",
+          join(ws, `.shapeup/${SLUG}/orders/solo.json`), "--cwd", ws, "--no-receipt-check"],
+          { cwd: ws, stdio: ["ignore", "pipe", "pipe"] });
+        let finished = false;
+        p.on("close", () => { finished = true; });
+        await new Promise((r) => setTimeout(r, 600));
+        p.kill("SIGKILL");
+        return finished;
+      };
+
+      // A live owner keeps its lock however old the stamp is.
+      if (!(await raceStaleLock(JSON.stringify({ pid: process.pid, at: stale.toISOString() })))) {
+        ok("a stale lock whose owner is STILL ALIVE is not broken — a slow reducer keeps the section to itself");
+      } else fail("a waiter broke a stale lock held by a live process and entered the critical section beside it — two reducers write at once, which is the failure the lock exists to prevent");
+
+      // A dead owner must not wedge the run — the stale break still has to work.
+      if (await raceStaleLock(JSON.stringify({ pid: 999999, at: stale.toISOString() }))) {
+        ok("a stale lock whose owner is GONE is still broken — a crashed reducer cannot wedge the run");
+      } else fail("a stale lock left by a dead process was not broken — one crash wedges every later ingest");
+
+      // Locks written before an owner was recorded keep the old age-only behaviour.
+      if (await raceStaleLock(null)) ok("a stale lock with no recorded owner is broken, as before — an older lock file is not a deadlock");
+      else fail("a stale ownerless lock was not broken — the compatibility path regressed into a wedge");
+    } finally { rmSync(ws, { recursive: true, force: true }); }
+  }
+
   // --- (f) The T0 ratchet's revert cannot reach outside the scope that triggered it -------------
   // The one cross-scope write path no hook can see. `sandbox-guard` fences Edit/Write; the ratchet
   // reverts through a `git` subprocess, so an unbounded revert destroys a neighbour's work with
@@ -326,6 +412,37 @@ export async function run(ctx) {
         else fail("the refused revert still rewrote the tree");
       }
     } finally { rmSync(ws, { recursive: true, force: true }); }
+  }
+
+  // --- (g) A `shared` path is legal for two scopes and unsafe for two scopes AT ONCE -----------
+  // DISJOINT's escape hatch: an entry point both scopes declare `shared` passes the lint on purpose.
+  // The permission is right and the concurrency is not, and nothing connected the two — so the fact
+  // has to reach the scheduler as a finding rather than as a collision in the file.
+  {
+    const { lintScopes } = await import(`file://${join(ROOT, "kernel/verify/spec.mjs")}`);
+    // Two layer directories each, so the PA1 directory-thinking rule is not what fires here.
+    const repoFiles = ["bin/todo.js", "src/a/x.js", "src/b/x.js"];
+    const scopes = [
+      { scope_id: "SC-A", allowed_file_substrate: ["bin/todo.js", "src/a/x.js"], shared_substrate: ["bin/todo.js"], e2e_verification_fixtures: ["node --test"] },
+      { scope_id: "SC-B", allowed_file_substrate: ["bin/todo.js", "src/b/x.js"], shared_substrate: ["bin/todo.js"], e2e_verification_fixtures: ["node --test"] },
+    ];
+    const found = lintScopes(scopes, repoFiles);
+    const reds = found.filter((f) => f.rule === "DISJOINT");
+    const warned = found.filter((f) => f.rule === "SHARED-CONCURRENT");
+    if (reds.length === 0) ok("a path both scopes declare `shared` is NOT a disjointness failure — the escape hatch still opens");
+    else fail("a properly declared shared path was reported as a disjointness violation — the escape hatch is welded shut");
+    if (warned.length === 1 && warned[0].scope === "SC-A+SC-B") ok("...but it IS reported as SHARED-CONCURRENT, so the scheduler can keep the two scopes out of one wave");
+    else fail(`a shared writable path produced ${warned.length} SHARED-CONCURRENT finding(s) — two scopes can be co-scheduled onto one file with nothing naming the hazard`);
+    if (warned.every((f) => f.level === "warn")) ok("SHARED-CONCURRENT is advisory — it informs the scheduler without failing a legal contract");
+    else fail("SHARED-CONCURRENT is red, which fails a contract the escape hatch explicitly permits");
+
+    // Scopes that share nothing must not be flagged, or the signal is noise.
+    const clean = lintScopes([
+      { scope_id: "SC-A", allowed_file_substrate: ["src/a/x.js", "bin/a.js"], shared_substrate: [], e2e_verification_fixtures: ["node --test"] },
+      { scope_id: "SC-B", allowed_file_substrate: ["src/b/x.js", "bin/b.js"], shared_substrate: [], e2e_verification_fixtures: ["node --test"] },
+    ], ["src/a/x.js", "src/b/x.js", "bin/a.js", "bin/b.js"]);
+    if (clean.filter((f) => f.rule === "SHARED-CONCURRENT").length === 0) ok("scopes with no shared surface produce no co-scheduling finding");
+    else fail("disjoint scopes were reported as sharing a writable path — the finding fires on everything and means nothing");
   }
 
   // =============================================================================
