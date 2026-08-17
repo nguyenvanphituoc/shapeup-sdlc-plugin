@@ -6,7 +6,7 @@
 // per agent call, a decision row per hook evaluation, a trial row per T0 run. What it never had
 // was a way to READ them together. Each record answers a question about itself; none of them
 // answers "what did this run do, and what did it cost", because that question needs a join and
-// nothing on disk was joinable (see `lib/run-id.mjs` for why).
+// nothing on disk was joinable (see `mintRunId` in `lib/paths.mjs` for why).
 //
 // This module is the projection half. It takes parsed records and returns flat rows — a star
 // schema whose grain is the DISPATCH, which is the finest unit the harness actually plans in:

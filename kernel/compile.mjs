@@ -500,7 +500,7 @@ export function scopeSubstrates(cwd, slug) {
  * @param {object} [opts.payloadExtra] - Extra payload fields merged last (spec_folder, feature, …).
  * @param {string} [opts.specDir] - Spec directory, threaded into the substrate template.
  * @param {object} [opts.interaction] - Interaction flags (e.g. {pause_gates}).
- * @param {string} [opts.runId] - The run key (`lib/run-id.mjs`); omitted when no receipt is readable.
+ * @param {string} [opts.runId] - The run key (`mintRunId` in `lib/paths.mjs`); omitted when no receipt is readable.
  * @param {string} [opts.compiledAt] - ISO compile time; omitted rather than invented.
  * @returns {object} A WorkOrder: {schema_version, order_id ("<slug>/<suffix>"), run_id?,
  *   compiled_at?, worker, mode, operation?, interaction?, substrate (from {@link substrateFor}),

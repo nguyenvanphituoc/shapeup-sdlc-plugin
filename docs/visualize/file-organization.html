@@ -191,9 +191,9 @@ pre.mermaid[data-processed] { font-size:inherit; line-height:inherit; white-spac
       plugin's own repository asks <em>when does this run?</em> The workspace it generates in your
       project asks <em>who is this for?</em> Getting either wrong is silent.</p>
       <div class="meta">
-        <span><b>Plugin</b> 12 skills · 12 hook registrations · 6 oracles · 16 scripts</span>
-        <span><b>Suite</b> 880+ checks</span>
-        <span><b>Tarball</b> 139 files</span>
+        <span><b>Plugin</b> 12 skills · 6 hook registrations · 4 oracles · 1 kernel (30 modules)</span>
+        <span><b>Suite</b> 1000+ checks</span>
+        <span><b>Tarball</b> 137 files</span>
       </div>
     </div>
   </div>
@@ -398,7 +398,7 @@ structured data is the machine's  →  .shapeup/    gitignored</pre>
 <pre class="mermaid">
 flowchart LR
   MD["shapeup/&lt;slug&gt;/scopes/SC-02.md<br/>─────────────<br/>frontmatter: scope_id, substrate[], fixtures[]<br/>## Why this slice — prose<br/>## Affordances — markdown table"]
-  LIB(["lib/contract-md.mjs<br/>the only reader/writer of the file form"])
+  LIB(["kernel/lib/contract.mjs<br/>the only reader/writer of the file form"])
   OBJ["{ scope_id, allowed_file_substrate[],<br/>affordance_manifest[{…}] }"]
   ORD["WorkOrder.payload.scope_contract<br/><i>envelope + schema unchanged</i>"]
   SG{{"sandbox-guard<br/>enforces the substrate"}}
@@ -414,7 +414,7 @@ flowchart LR
       </div>
     </div>
     <p class="plate-note">Nothing downstream of the parse knows the file was markdown. That is what
-    made the change safe: the envelope, its schema and <code>validate-envelope</code> are untouched.
+    made the change safe: the envelope, its schema and <code>harness verify envelope</code> are untouched.
     <code>readContract()</code> still accepts the legacy <code>.json</code>, so a project that
     upgrades its plugin and its data at different moments is never caught between them.</p>
   </div>

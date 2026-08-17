@@ -8,25 +8,26 @@
 .claude-plugin/          plugin.json · marketplace.json
 skills/<name>/SKILL.md   the 12 harness skills (+ references/)
 skills/tech-lead/        schemas/ (WorkOrder · WorkResult · gate-answers · domain registry)
-                         scripts/ — envelope port (compile-order · ingest-result ·
-                          validate-envelope), run lifecycle (init-run · run-workflow ·
-                          resume-state · run-snapshot · gate-answers · ship-report),
-                          verification (t0-verify · trace-lint · hill-derive · aegis-digest),
-                          policy (budget-check · fit-check · stats), measurement (export-run —
-                          read-only fact tables keyed by run id), lib/ (argv · paths ·
-                          contract-md · ratchet-tree · is-main · run-id · facts)
                          workflows/shapeup-run.js — the whole pipeline as one launchable script
-skills/ba-pitch-analyzer/scripts/   harness reduce board · harness verify spec
-skills/spec-evaluator/scripts/      harness reduce verdict (flip/confidence grammar, co-located
-                                    with its owning skill)
+kernel/harness.mjs       the deterministic half behind ONE entry point (and therefore one
+                         permission prefix). Subcommands:
+                          compile — the envelope port's order compiler
+                          verify  — t0 · spec · envelope · dispatch · skills · budget ·
+                                    ratchet-tree · trace
+                          reduce  — ingest (the single writer) · board · verdict · hill ·
+                                    graph · snapshot · ship · leftovers
+                          probe   — resume · t0 · stats · digest
+                          report  — export · facts (read-only fact tables keyed by run id)
+                          init    — run · fit
+                          gate    — the gate answer set
+                          lib/    — argv · contract · paths
 bin/init.mjs             `npx shapeup-sdlc init` — pure-Node scaffolding + permission grant
 commands/*.md            10 slash commands (/shape /orient /scopes /wire /build /eval /qa
                          /hammer /ship /retro)
-hooks/                   hooks.json + PreToolUse: safety-spine · gate-l2 (advisory) ·
-                         gate-intake · gate-deadline · sandbox-guard (+ tech-lead's
-                         harness verify envelope) · Stop: gate-zerowork (blocking) ·
-                         anti-rationalization · slop-cleaner (advisory) · PreCompact:
-                         compact-snapshot · SessionStart: session-rehydrate
+hooks/                   hooks.json + PreToolUse: safety-spine · gate-intake ·
+                         sandbox-guard (+ the kernel's harness verify envelope) ·
+                         PostToolUse: dispatch-receipt (records only, no deny path) ·
+                         Stop: gate-zerowork (the one blocking hook)
                          + lib/decision.mjs (every hook records allow / deny / error)
 scripts/install-harness.sh, migrate.sh    stable public entrypoints — a frozen URL contract
 scripts/shapeup-sdlc/    what those two entrypoints run on a user's machine — lib/
@@ -34,12 +35,15 @@ oracles/                 the evaluation-contract oracle registry (test · snapsh
                          process), proven to discriminate against negative controls
 tools/                   repo-only, never shipped — demo/
 tests/structural.mjs     Tier 0 runner — threads tests/lib/ helpers through the per-domain
-tests/{lib,structural}/  suites in tests/structural/*.mjs; 875+ checks, zero LLM calls (the
-                         floor is asserted by the suite itself. It may only grow EXCEPT when checks
-                         are deliberately removed with the code they covered: lowered 930 → 875 in
-                         v2.0, where six hooks were retired into the runtime and their behavioural
-                         checks went with them, and again 875 → 855 when eight tech-lead
-                         references were consolidated into four)
+tests/{lib,structural}/  suites in tests/structural/*.mjs; 1000+ checks, zero LLM calls (a
+                         FLOOR, deliberately not the exact count — this line is where the suite
+                         parses it, and pinning it to the running total would fail on every
+                         legitimate removal. It may only grow EXCEPT when checks are deliberately
+                         removed with the code they covered: lowered twice during v2.0, once when
+                         six hooks were retired into the runtime and their behavioural checks went
+                         with them, and again when eight tech-lead references were consolidated
+                         into four; raised to 1000 once the v2 suite settled above it. A floor
+                         left far below the real count is a check that can no longer fail)
 examples/                worked fixtures + negative controls for the oracle registry
 ```
 
@@ -65,13 +69,14 @@ examples/                worked fixtures + negative controls for the oracle regi
 - **Safety spine.** Destructive commands and secret reads are denied mechanically
   (`hooks/safety-spine.mjs`); the only override is a human-authored, schema-governed local file
   (`SafetyOverrides`), itself write-protected and logged when exercised.
-- **Advisory hooks never block — with exactly one named exception.** `anti-rationalization.mjs`
-  and `slop-cleaner.mjs` may only inform (`systemMessage`); a blocking Stop hook would be a second
-  gate behind the judge. `gate-zerowork.mjs` **does** block (`decision: "block"`), deliberately:
-  it fires on a run that produced no receipt at all, which is not a judgement about quality but
-  the absence of any work to judge. Stated here because the invariant read as absolute while the
-  code carried a counter-example — and an invariant with an undocumented exception is how a reader
-  concludes the code is wrong when it is the sentence that is.
+- **Advisory checks never block — with exactly one named exception.** The claim-versus-facts
+  census and the leftovers scan may only inform, and they now do it as *sections of the ship
+  report* rather than as Stop hooks; either one blocking would be a second gate behind the judge.
+  `gate-zerowork.mjs` **does** block (`decision: "block"`), deliberately: it fires on a run that
+  produced no receipt at all, which is not a judgement about quality but the absence of any work
+  to judge. Stated here because the invariant read as absolute while the code carried a
+  counter-example — and an invariant with an undocumented exception is how a reader concludes the
+  code is wrong when it is the sentence that is.
 - **Lanes thin ceremony, never verification** *(design — §4.7, not yet implemented)*. No lane
   skips EVAL, T0, or the hooks; a lane may only remove PO ceremony and scout work.
 

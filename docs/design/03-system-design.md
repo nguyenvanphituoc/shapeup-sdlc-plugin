@@ -129,22 +129,18 @@ except for the three operations whose product IS a committed design document (`w
 
 ## 3.2 — Runtime-enforced guardrails (hooks)
 
-Six `PreToolUse` hooks turn the harness's load-bearing rules from things the model is asked
-to respect into things it cannot get past — five that deny, and one (GATE L2) that observes and
-warns:
+Four `PreToolUse` hooks turn the harness's load-bearing rules from things the model is asked
+to respect into things it cannot get past. All four deny:
 
 | Hook | Fires on | Enforces |
 |---|---|---|
 | `safety-spine.mjs` | `Bash` / `Read` / `Edit` / `Write` / `MultiEdit` | Denies the provably destructive operations no session ever legitimately needs: `rm -rf` on unrecoverable targets, force-push and push-to-main, `git reset --hard`, `DROP TABLE`/`TRUNCATE`, and secret-file reads (`.env`, `*.pem`, ssh keys, cloud credentials) via shell readers or the `Read` tool. Unlike the other three, it guards the **machine**, not the pipeline. The only escape hatch is the human-authored `.shapeup/safety-overrides.json` (schema: `SafetyOverrides`) — mechanically self-protected, and every exercised override is logged to the metrics shard as a `SAFETY-OVERRIDE` pathology row. |
-| `gate-l2.mjs` | `Skill → spec-evaluator` (round mode) | **Advisory since ADR-0001 — the one hook here that never denies.** It still detects the same thing by the same two independent reads (per-task frontmatter *and* the board table), names the unfinished tasks, and permits the call, emitting a `systemMessage` and recording a `warn` row in `decisions.jsonl` so "permitted because green" and "permitted despite not green" never collapse into one fact. The board is local and per-machine, so this gate never protected a team boundary — it protected the operator from their own agent, at the cost of denying a call the operator had asked for. The project chose the signal over the denial. Stated plainly: nothing now mechanically prevents an EVAL on a half-green board. |
 | `gate-intake.mjs` | `Skill → tech-lead` | Denies an orchestrator dispatch with no resolvable intake — no `--pitch`, no `--spec`, no `--from` resume, and no free requirement text. Closes the harness's own front door: a `tech-lead` reached as `args:"--unattended"` loses the requirement text on the hand-off and, with nothing to orchestrate, prints the gate names and a confident plan while writing no code — the same "claims done" pathology the harness exists to prevent, at its own entry point. Fails open on `--order` (the envelope port owns that path) and on any ambiguous arg shape. |
-| `gate-deadline.mjs` | `Skill → task-executor` | Denies a dispatch that would start new build work once the run's opt-in `wall_clock_budget_s` is spent, routing to GATE H instead. **Deliberately does not deny `spec-evaluator`, `scope-hammer` or `qa-edge-hunter`** — a run past its deadline must still be able to judge, hammer and close, and a breaker that blocked the exit would strand green scopes it could not ship. It exists because the other two breakers count *events* (rounds, T0 attempts), so neither can observe that a single round has been running for half an hour; an externally killed run ships nothing, including the scopes already green. Off unless a budget is configured. |
 | `harness verify envelope` | `Skill` / `Agent` | Denies any worker dispatch whose `--order` file is missing or fails the WorkOrder schema — a malformed envelope never reaches a worker. |
 | `sandbox-guard.mjs` | `Edit` / `Write` / `MultiEdit` | Denies a write that the **active order's own `substrate` block** does not permit. It follows the `.shapeup/active-order` pointer (written before each worker dispatch) to the compiled WorkOrder and enforces all three surfaces: `allowed` + `shared` permit, `append_only` permits `Edit` but denies `Write` (which would overwrite), and `frozen` denies outright and takes precedence over everything. Carve-out: the active feature's own local run-trace root, so a worker can still update its own board. |
 
-All six are deliberately **fail-open** when there's nothing to verify (no active order, no
-board, no configured budget, unparseable input) and — for the five that deny — **fail-closed** the
-instant they can prove a violation. A guard that broke legitimate standalone runs would just get
+All four are deliberately **fail-open** when there's nothing to verify (no active order, no
+board, unparseable input) and **fail-closed** the instant they can prove a violation. A guard that broke legitimate standalone runs would just get
 disabled, defeating the point of having it. (The safety spine adds one asymmetry: a *malformed
 overrides file* fails **closed** — treated as absent — because a parse error must never disable
 the spine.)
@@ -244,9 +240,9 @@ like a successful run, with every defect left in the deliverable.
 structural reasons, which is the finding worth keeping:
 
 1. `gate-intake.mjs` fires on an *empty* intake. Intake was valid. Correct no-op.
-2. `anti-rationalization.mjs` is scoped to an *active* run, and a run that never started
-   produces none of the files it reads — it catches "claimed done on a half-green board" and
-   misses "claimed done with no board at all". Its claim detector also matched only past-tense
+2. The claim-versus-facts check of the day was scoped to an *active* run, and a run that never
+   started produces none of the files it reads — it catches "claimed done on a half-green board"
+   and misses "claimed done with no board at all". Its claim detector also matched only past-tense
    completion, while narration is future-tense. **The emptier the failure, the less of it there
    was to detect.**
 
@@ -257,17 +253,19 @@ also uniquely safe in this state: a session with zero artifacts has nothing to l
 continuing, and an *advisory* note at the end of a narrated run simply gets narrated too.
 Everything ambiguous fails open, and `stop_hook_active` caps it at one block per stop chain.
 
-## 3.2c — Advisory hooks (Stop)
+## 3.2c — The advisory checks, and where their answers land
 
-Two `Stop`-event hooks review the session as it ends — and, by architectural invariant, may
-only **inform**, never block. "QA is a level-up, not a gate": an advisory hook here cannot be a
-second gate behind the single judge, so both exit 0 always and emit at most a `systemMessage`,
-never a `decision`. Both are harness-scoped — silent unless a run is active.
+`gate-zerowork` is the only `Stop`-event hook. The two advisory checks that used to sit beside it
+are now **sections of the ship report**, and the architectural invariant is what moved them:
+"QA is a level-up, not a gate", so neither may ever become a second gate behind the single judge.
+An advisory note printed into a transcript at the moment a session ends is the channel least
+likely to be read and impossible to check later; the ship report is the artifact a human reads at
+GATE L4 and a teammate finds on `git pull`. Neither check changed — only where its answer lands.
 
-| Hook | Checks | Says |
+| Check | Looks for | Lands in |
 |---|---|---|
-| `anti-rationalization.mjs` | The final message claims completion ("done", "all tests pass", "ready to ship") — **or promises it in future tense** ("will now run", "is orchestrating") as the session's last word — while the run's mechanical facts disagree: unfinished board tasks, a red T0 verdict, unanswered escalates, `final_verdict: fail`. | Names the specific contradicting facts, out loud, to the user. |
-| `slop-cleaner.mjs` | The session's diff (git working tree; fallback: the newest WorkResult's `files_touched`) carries leftovers in **added lines**: TODO/FIXME, `console.log`/`debugger`, commented-out code blocks, one file swallowing 400+ added lines. | Lists the files and markers, suggests a cleanup pass. |
+| Board census | The run's mechanical facts: unfinished board tasks, a red T0 verdict, unanswered escalates, `final_verdict: fail` — the facts a confident summary can contradict | The ship report's **Outcome** and **Verification (T0)** sections, derived from the board and the T0 artifacts (`harness reduce ship`) |
+| Leftovers | The run's own diff carrying, in **added lines** only, TODO/FIXME, `console.log`/`debugger`, commented-out blocks, or one file swallowing hundreds of added lines | The ship report's **Leftovers (advisory)** section — a section, never a verdict |
 
 ## 3.2d — The run receipt and the gate answer set
 
@@ -318,7 +316,7 @@ rigorously typed and hook-validated in both directions; that discipline stopped 
 `Number(argv[++i])` and then `?? 1`, which does not catch `NaN`: a flag passed without a value
 wrote a real verdict to `rNaN-a1.json` and **exited 0**, leaving the evaluator's mandatory T0
 citation unresolvable. `parseArgs` takes a declarative spec, rejects before any I/O, exits 2, and
-puts a machine-readable reason on stderr — the same contract `validate-envelope` applies to a
+puts a machine-readable reason on stderr — the same contract `harness verify envelope` applies to a
 malformed order. Every entry point exports its `ARGV_SPEC`, which is what makes the contract
 inspectable by `tests/structural/13-argv-contract.mjs` rather than guessable.
 
@@ -367,7 +365,7 @@ lists as having no instrument: "compare this run against the last one" was not e
 "what did this run cost" could not be computed, because the cost rows (the journal) and the outcome
 rows (results, verdicts) had no column in common.
 
-**The key is derived, not drawn.** `lib/run-id.mjs` mints `<slug>-<YYYYMMDDTHHMMSSZ>-<8 hex>` as a
+**The key is derived, not drawn.** `mintRunId` (in `lib/paths.mjs`) mints `<slug>-<YYYYMMDDTHHMMSSZ>-<8 hex>` as a
 pure function of three fields the receipt already holds — slug, `started_at`, `intake_sha256`. A
 `randomUUID()` would have been one line and would have forfeited the property this repo pays for
 everywhere else: a random key exists only where it was first written, so any record that missed the
@@ -386,7 +384,7 @@ yields the id it would have been given.
 
 **WorkResult deliberately gets no stamp.** It is written by the worker, and a field a worker must
 remember to copy goes missing under exactly the conditions you most want the record. Results join
-to orders on `order_id`, which they already echo and `validate-envelope` already enforces — so the
+to orders on `order_id`, which they already echo and `harness verify envelope` already enforces — so the
 key reaches the result leg through a checked join rather than through a worker's cooperation.
 
 ### The export, and what it does not do
@@ -414,44 +412,42 @@ The read plane grades nothing. Every column is an id, a count, a duration or a c
 rule `harness probe stats` states in its own header, and the reason a computed "run quality" figure is absent
 here: it would be a second judge behind `spec-evaluator`.
 
-## 3.2e — Compaction resilience (PreCompact + SessionStart)
+## 3.2e — Continuity across a context loss
 
 Nothing on disk is ever lost to a context compaction — the two-root storage design (§3.3)
 already guarantees that. The residual risk is the orchestrator *continuing on a degraded
 summary without noticing*: re-dispatching an already-ingested order, miscounting attempts
 (breaking the inner circuit breaker), or "remembering" a hill phase instead of re-deriving it.
-The resilience pair makes re-reading the files a reflex:
 
-- **`harness reduce snapshot`** (in `kernel/`) derives a `RunSnapshot`
-  (registered in the domain registry) from **files only** — the run pointer,
-  `harness-run.md` frontmatter, board frontmatter, `t0/verdicts/` filenames, and the
-  `orders/` vs `results/` diff — and self-validates it against the registry before emitting.
-- **`compact-snapshot.mjs`** (PreCompact) persists that snapshot to
-  `.shapeup/<slug>/run-snapshot.json` before compaction. PreCompact provably cannot
-  inject context, so this hook is a pure side effect: the audit anchor and fallback.
-- **`session-rehydrate.mjs`** (SessionStart, matcher `startup|compact|resume|clear`) re-derives the
-  snapshot **fresh** and injects its `rehydrate_hint` as `additionalContext`: *"re-read
-  `.shapeup/<slug>/harness-run.md` and the board before continuing — trust the files, not
-  the conversation summary."*
+The answer is a **query, not a reflex**. After a compaction, or in a fresh session over an open
+run, the orchestrator re-derives where the run stands from artifacts:
 
-  The matcher was `compact|resume` until v1.4.1, and that was a real gap rather than a scoping
-  choice. Both of those sources continue a conversation that still exists; the commonest continuity
-  event in practice has none — you close the terminal and come back tomorrow, or a teammate picks
-  the work up in a fresh checkout, and the CLI calls that `startup`. A reflex whose whole purpose is
-  *trust the files, not your memory* did not fire in the one case where there is no memory at all.
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" reduce graph --slug <slug> --subgraph run
+```
 
-  The cost has been observed, not imagined: re-entering exactly that scenario with no pointer to
-  the open run, the orchestrator started over at phase 1, burning most of a session re-deriving
-  state before its first write and closing none of the handoff gap while the receipt and board sat
-  on disk — one such run reached GATE L4 having advanced the deliverable by zero criteria. On a
-  cold start the injection therefore leads with the failure that actually happens — *a run is already
-  open, resume it, do not re-open it* — rather than with a generic pointer to the files, which a
-  competent agent finds anyway.
+Two supporting derivations answer narrower questions from the same files: `harness probe resume`
+reports the phase and can refuse to proceed past one (`--require`), and `harness reduce snapshot`
+derives a `RunSnapshot` (registered in the domain registry, self-validated before emitting) from
+the run pointer, `harness-run.md` frontmatter, board frontmatter, `t0/verdicts/` filenames and
+the `orders/` vs `results/` diff — `--write` persists it as an audit anchor.
 
-  > Continuity and run economics are also the two measurement-table rows with **no automated
-  > instrument** ([§5.1](05-verification-and-quality-strategy.md#51--the-measurement-table)
-  > rows **3–4**) — the harness cannot produce those figures for itself, which is why this
-  > paragraph reports observations rather than numbers read off a baseline file.
+**Why a command rather than the lifecycle hooks this used to be.** The pair that preceded it
+fired at two moments the platform chose, and the commonest continuity event in practice was
+covered only by accident: you close the terminal and come back tomorrow, or a teammate picks the
+work up in a fresh checkout. The cost of missing it has been observed, not imagined — re-entering
+exactly that scenario with no pointer to the open run, the orchestrator started over at phase 1,
+burning most of a session re-deriving state before its first write and closing none of the
+handoff gap while the receipt and board sat on disk; one such run reached GATE L4 having advanced
+the deliverable by zero criteria. A command answers whenever the question is asked, including the
+moments a hook never saw, and `harness init run` refuses with **exit 3** over an already-open run
+and prints the derived resume state — so the failure that actually happens is caught at the front
+door rather than depended on being injected.
+
+> Continuity and run economics are also the two measurement-table rows with **no automated
+> instrument** ([§5.1](05-verification-and-quality-strategy.md#51--the-measurement-table)
+> rows **3–4**) — the harness cannot produce those figures for itself, which is why this
+> paragraph reports observations rather than numbers read off a baseline file.
 
 ## 3.3 — Two storage roots
 

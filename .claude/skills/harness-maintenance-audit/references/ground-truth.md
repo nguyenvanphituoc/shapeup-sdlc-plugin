@@ -139,16 +139,24 @@ The highest-value part of this catalogue. A hook's header comment, the design do
 can all describe behavior the hook no longer has.
 
 The payload shape matters — `tool_input` field names differ per tool, and a wrong field name makes
-the hook defer, which looks exactly like "permitted".
+the hook defer, which looks exactly like "permitted". For `Skill` the fields are **`skill` and
+`args`**; `skill_name`/`skill_args` are not the field names, and a fixture using them probes
+nothing while appearing to pass.
+
+Always run the deny case **and** the permit case. A hook that denies everything and a hook that is
+inert both produce a one-line result; only the pair distinguishes them.
 
 ```bash
-# GATE L2 against a partial board — does it deny, warn, or say nothing?
-mkdir -p /tmp/hb/.shapeup/dm/tasks && cd /tmp/hb
-printf -- '---\nfeature: dm\n---\n| ID | Title | Status |\n|---|---|---|\n| TASK-001 | a | done |\n| TASK-002 | b | ready |\n' > .shapeup/dm/tasks/_index.md
-printf -- '---\nid: TASK-001\nstatus: done\n---\n'  > .shapeup/dm/tasks/TASK-001.md
-printf -- '---\nid: TASK-002\nstatus: ready\n---\n' > .shapeup/dm/tasks/TASK-002.md
-echo '{"tool_name":"Skill","tool_input":{"skill_name":"spec-evaluator","skill_args":"--spec shapeup/dm/spec --feature dm --single-pass"},"cwd":"'$PWD'"}' \
-  | node <repo>/hooks/gate-l2.mjs; echo "EXIT=$?"
+# GATE L0.0 — does gate-intake deny an orchestrator dispatch with nothing to orchestrate?
+mkdir -p /tmp/hb && cd /tmp/hb
+echo '{"tool_name":"Skill","tool_input":{"skill":"shapeup-sdlc-plugin:tech-lead","args":"--unattended"},"cwd":"'$PWD'"}' \
+  | node <repo>/hooks/gate-intake.mjs; echo "EXIT=$?"
+# → {"hookSpecificOutput":{...,"permissionDecision":"deny",...}}  EXIT=0
+
+# The permit half — same hook, resolvable intake.
+echo '{"tool_name":"Skill","tool_input":{"skill":"shapeup-sdlc-plugin:tech-lead","args":"--pitch idea.md"},"cwd":"'$PWD'"}' \
+  | node <repo>/hooks/gate-intake.mjs; echo "EXIT=$?"
+# → empty stdout, EXIT=0
 ```
 
 Read the result by shape, not by exit code alone:
@@ -241,12 +249,12 @@ import('./kernel/lib/paths.mjs').then(m=>{
 "
 
 # Anything spelling a root by hand instead of resolving it
-grep -rn '"\.shapeup\|\x27\.shapeup\|"shapeup/' --include="*.mjs" --include="*.js" skills hooks bin \
+grep -rn '"\.shapeup\|\x27\.shapeup\|"shapeup/' --include="*.mjs" --include="*.js" kernel skills hooks bin \
   | grep -v "lib/paths.mjs"
 
 # The pre-ADR-0001 root is a live trap, not history: receipts written to `.shapeup-sdlc/` are
 # invisible to every reader, so the symptom is zero telemetry rather than an error.
-grep -rn "shapeup-sdlc/" --include="*.mjs" --include="*.js" skills hooks bin | grep -v "lib/paths.mjs"
+grep -rn "shapeup-sdlc/" --include="*.mjs" --include="*.js" kernel skills hooks bin | grep -v "lib/paths.mjs"
 find . -name ".shapeup-sdlc" -type d -not -path "./.git/*"
 ```
 

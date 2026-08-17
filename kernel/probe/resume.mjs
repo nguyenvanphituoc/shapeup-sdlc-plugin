@@ -78,7 +78,7 @@ export const ORIENT_SPIKE = /^spike-.+\.md$/;
 
 /**
  * Parse a leading `---` frontmatter block into a flat object, through the ONE library that reads
- * this file form (`lib/contract-md.mjs`).
+ * this file form (`lib/contract.mjs`).
  *
  * It used to be a private scalar-only regex — every value came back a string, including a
  * `key: [a, b]` list. That is why `eval_dimensions` was pinned: the ledger could carry the set the

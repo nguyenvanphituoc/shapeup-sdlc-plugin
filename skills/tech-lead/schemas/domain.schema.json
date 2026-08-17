@@ -1106,7 +1106,7 @@
         },
         "run_id": {
           "type": "string",
-          "description": "OPTIONAL (v1.8) — the run key (lib/run-id.mjs). (round, attempt, trial) addresses an artifact within a run and repeats in the next one, so the evidence layer needed this to be groupable by run.",
+          "description": "OPTIONAL (v1.8) — the run key (mintRunId in lib/paths.mjs). (round, attempt, trial) addresses an artifact within a run and repeats in the next one, so the evidence layer needed this to be groupable by run.",
           "pattern": "^[a-z0-9][a-z0-9-]*-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$"
         },
         "at": {
@@ -1221,7 +1221,7 @@
         },
         "run_id": {
           "type": "string",
-          "description": "OPTIONAL (v1.8) — the run key (lib/run-id.mjs), read off the receipt in the run root t0-verify was pointed at. `trial` is monotone WITHIN a run and restarts at 1 in the next one, so ratchet history could not be split by run without it.",
+          "description": "OPTIONAL (v1.8) — the run key (mintRunId in lib/paths.mjs), read off the receipt in the run root t0-verify was pointed at. `trial` is monotone WITHIN a run and restarts at 1 in the next one, so ratchet history could not be split by run without it.",
           "pattern": "^[a-z0-9][a-z0-9-]*-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$"
         },
         "round": {
@@ -1404,7 +1404,7 @@
         },
         "run_id": {
           "type": "string",
-          "description": "OPTIONAL (v1.8) — the run key (lib/run-id.mjs), COPIED from the receipt at SHIP S.6. This is the harvest row's only link to the run trace that produced it: everything else here is a count, and `feature_slug` groups runs together rather than apart.",
+          "description": "OPTIONAL (v1.8) — the run key (mintRunId in lib/paths.mjs), COPIED from the receipt at SHIP S.6. This is the harvest row's only link to the run trace that produced it: everything else here is a count, and `feature_slug` groups runs together rather than apart.",
           "pattern": "^[a-z0-9][a-z0-9-]*-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$"
         },
         "feature_slug": {
@@ -1566,11 +1566,11 @@
       }
     },
     "RunSnapshot": {
-      "description": "Mechanical mid-run state digest, derived ONLY from files (active-scope pointer, harness-run.md frontmatter, board frontmatter, t0/verdicts filenames, orders/ vs results/) — never from conversation memory. The compaction-resilience reflex: persisted by the PreCompact hook as an audit anchor, re-derived fresh and injected as additionalContext by the SessionStart(startup|compact|resume|clear) hook so the orchestrator re-reads the files instead of trusting a lossy summary — or, on a cold startup, instead of re-opening a run that is already open.",
+      "description": "Mechanical mid-run state digest, derived ONLY from files (active-scope pointer, harness-run.md frontmatter, board frontmatter, t0/verdicts filenames, orders/ vs results/) — never from conversation memory. The continuity reflex: after any context loss the orchestrator re-derives this from disk rather than trusting a lossy summary — or, on a cold startup, rather than re-opening a run that is already open.",
       "x-tier": "LOCAL",
-      "x-location": ".shapeup/<slug>/run-snapshot.json (persisted by the compact-snapshot hook; also emitted ephemerally on stdout by harness reduce snapshot)",
-      "x-writer": "harness reduce snapshot --write (invoked by the PreCompact hook — never a worker; this is LOCAL derived cache, harness reduce ingest remains the sole writer of SHARED state)",
-      "x-readers": "session-rehydrate hook, tech-lead (--from resume aid), human",
+      "x-location": ".shapeup/<slug>/run-snapshot.json (written by harness reduce snapshot --write; also emitted ephemerally on stdout by harness reduce snapshot)",
+      "x-writer": "harness reduce snapshot --write (never a worker; this is LOCAL derived cache, harness reduce ingest remains the sole writer of SHARED state)",
+      "x-readers": "tech-lead (--from resume aid), human",
       "type": "object",
       "required": [
         "schema_version",
@@ -1675,7 +1675,7 @@
         },
         "rehydrate_hint": {
           "type": "string",
-          "description": "The composed one-paragraph instruction injected after compaction: re-read run-state, trust the files, not the summary."
+          "description": "The composed one-paragraph instruction for resuming after a context loss: re-read run-state, trust the files, not the summary."
         }
       }
     },
@@ -2229,7 +2229,7 @@
             "string",
             "null"
           ],
-          "description": "The ledger's stored status, reported for the readers that legitimately hold a MID_RUN set over it (harness reduce snapshot, hooks/anti-rationalization.mjs). NOT a resume predicate: no phase decision in shapeup-run.js may branch on this field."
+          "description": "The ledger's stored status, reported for the readers that legitimately hold a MID_RUN set over it (harness reduce snapshot, and the ship report's census). NOT a resume predicate: no phase decision in shapeup-run.js may branch on this field."
         },
         "has_orient_artifacts": {
           "type": "boolean",

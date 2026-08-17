@@ -31,12 +31,12 @@ flowchart TB
   end
 
   subgraph truth["TRUTH ON DISK — scripts are the only writers"]
-    SCR["pipeline scripts<br/>compile-order · ingest-result ·<br/>t0-verify · gate-answers · budget-check"]
+    SCR["kernel subcommands<br/>compile · reduce ingest ·<br/>verify t0 · gate · verify budget"]
     LOC[(".shapeup/&lt;slug&gt;/ LOCAL<br/>receipt · board · orders · results ·<br/>trials.jsonl · active-scope")]
     SHA[("shapeup/&lt;slug&gt;/ COMMITTED<br/>spec · scopes · wiring-map ·<br/>round-ledger · REPORT.md")]
   end
 
-  HK["ENFORCEMENT — hooks, cross-cutting<br/>validate-envelope · sandbox-guard ·<br/>gate-l2 · gate-deadline · gate-zerowork"]
+  HK["ENFORCEMENT — hooks, cross-cutting<br/>verify envelope · sandbox-guard ·<br/>safety-spine · gate-intake · gate-zerowork"]
 
   PO <-->|"⏸ gate blocks / decisions"| TL
   TL -->|"C1: args (one JSON literal)"| WF
@@ -76,7 +76,7 @@ Three structural facts the picture encodes:
 | C1 | Launch / return | Workflow `args` in, return value out | `RunArgs` / `RunReturn` (below) | tech-lead → workflow → tech-lead |
 | C2 | Mechanical | agent prompt (exact command) in, schema-forced JSON out | `{exit_code, stdout, stderr}` | workflow ↔ sonnet courier agent |
 | C3 | Dispatch | agent prompt naming the order path | prompt carries only the path + report-back instruction | workflow → worker agent |
-| C4 | Envelope | files on disk | `work-order.schema.json` / `work-result.schema.json` — **unchanged** | compile-order → worker; worker → ingest-result |
+| C4 | Envelope | files on disk | `work-order.schema.json` / `work-result.schema.json` — **unchanged** | harness compile → worker; worker → ingest-result |
 | C5 | Enforcement | PreToolUse/Stop stdin JSON; `decisions.jsonl` receipts | deny / warn / allow + one receipt row per evaluation | hooks → runtime + audit |
 | C6 | Gate & resume | `gate-answers.json` + exit codes; disk facts for fast-forward | answers schema; exit 0/4/5; `receipt.json` + board + `trials.jsonl` | scripts ↔ workflow; PO decision via tech-lead |
 
@@ -163,7 +163,7 @@ await agent(
 
 Fresh context per `agent()` call **is** the zero-memory handoff (PA6) — the isolation the attempt
 loop assumes is now guaranteed by the runtime rather than by the instruction "dispatch a fresh
-Agent". The `validate-envelope` hook fires on the `Skill` call inside this agent (C5), so a
+Agent". The `harness verify envelope` hook fires on the `Skill` call inside this agent (C5), so a
 malformed order is denied at the same point in the same way as today.
 
 ---
@@ -184,7 +184,7 @@ sequenceDiagram
   MA-->>WF: {exit_code: 0, stdout: "orders/r-a.json", stderr: ""}
   Note over WF: stderr carries the stagnation breaker<br/>as JSON — the loop checks it in code
   WF->>EX: C3: dispatch, prompt names the order path only
-  HK-->>EX: validate-envelope: order exists + schema-valid, else DENY
+  HK-->>EX: verify envelope: order exists + schema-valid, else DENY
   EX->>D: reads WorkOrder — its ONLY pipeline input
   HK-->>EX: sandbox-guard: every Edit/Write vs substrate, else DENY
   EX->>D: writes WorkResult — its ONLY pipeline output

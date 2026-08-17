@@ -9,9 +9,10 @@
 // re-dispatching an already-ingested order, miscounting attempts (breaking the inner circuit
 // breaker), or "remembering" a hill phase instead of re-deriving it.
 //
-// Consumers (both in hooks/): `harness reduce snapshot` persists it before compaction (audit
-// anchor); `harness reduce graph --subgraph run` re-derives it fresh after compaction and injects the
-// rehydrate_hint as additionalContext.
+// Consumers: `--write` persists it as an audit anchor; `--format text` prints the rehydrate_hint
+// for whoever asks. Nothing fires it automatically — the orchestrator re-derives after a context
+// loss by running it, which answers whenever the question is asked rather than only at the two
+// moments a lifecycle hook happened to see.
 //
 // Output is self-validated against the registry before it is emitted — the same
 // refuse-to-emit-schema-drift discipline as `harness compile`.

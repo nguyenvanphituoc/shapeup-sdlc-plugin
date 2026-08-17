@@ -400,7 +400,7 @@ pre.mermaid[data-processed] {
     <div>
       <p class="eyebrow">shapeup-sdlc · plugin runtime · post ADR-0001/0002</p>
       <h1>Anatomy of a constrained agent runtime</h1>
-      <p class="lede">Twelve skills, eleven hooks and nineteen scripts arranged around one
+      <p class="lede">Twelve skills, six hook registrations and one kernel entry point arranged around one
       idea: an agent's word is never load-bearing. This document draws the machine, then
       explains why each skill's own definition <em>forces</em> the mechanism attached to it.</p>
       <div class="meta">
@@ -458,7 +458,7 @@ pre.mermaid[data-processed] {
           <div class="plane-gap">↑ verdicts · receipts appended to decisions.jsonl</div>
           <div class="plane">
             <div class="who">Pipeline</div>
-            <div class="what">19 scripts. <em>compile-order → ingest-result → t0-verify</em>.
+            <div class="what">One kernel, 30 modules. <em>compile → verify → reduce ingest</em>.
               Compiles the envelope going in, applies the envelope coming out, runs the fixtures,
               scores the attempt, moves the tree.</div>
             <div class="cost">0 tokens</div>
@@ -527,8 +527,8 @@ flowchart TD
     REST --> CO
   end
 
-  LOOP -->|"scope green"| GL2{{"gate-l2.mjs<br/>board 100% done?"}}
-  GL2 -->|"unfinished tasks"| WARN4[WARN · the call proceeds]
+  LOOP -->|"scope green"| GL2{{"GATE L2 block<br/>board 100% done?"}}
+  GL2 -->|"unfinished tasks"| WARN4[the block names them · the human answers]
   GL2 -->|"board green"| EV[["/spec-evaluator — L3<br/>must cite a T0 hash"]]
 
   EV -->|FAIL| LOOP
@@ -546,7 +546,7 @@ flowchart TD
   class DENY1,DENY2,DENY3,BLOCK deny;
   classDef warn fill:#f3ead6,stroke:#93650a,color:#6b4a08;
   class WARN4 warn;
-  class GI,VE,SG,GL2,GZ hook;
+  class GI,VE,SG,GZ hook;
   class IR,GA,CO,ING,T0,RESUME script;
 </pre>
       </div>
@@ -684,16 +684,10 @@ better(next, current)
             <td>Flags survive a hand-off; requirement text doesn't</td>
           </tr>
           <tr>
-            <td>PreToolUse</td><td class="mono">validate-envelope</td>
+            <td>PreToolUse</td><td class="mono">harness verify envelope</td>
             <td><code>--order</code> is missing or fails the WorkOrder schema</td>
             <td><span class="chip deny">deny</span></td>
             <td>A malformed order reaching a worker</td>
-          </tr>
-          <tr>
-            <td>PreToolUse</td><td class="mono">gate-l2</td>
-            <td>round EVAL dispatched while any board task is unfinished</td>
-            <td><span class="chip deny">deny</span></td>
-            <td>EVAL run on a half-green board, reported PASS</td>
           </tr>
           <tr>
             <td>PreToolUse</td><td class="mono">sandbox-guard</td>
@@ -708,40 +702,16 @@ better(next, current)
             <td>The machine and the remote, not the pipeline</td>
           </tr>
           <tr>
-            <td>PreToolUse</td><td class="mono">gate-deadline</td>
-            <td>wall clock exhausted and a dispatch would start <em>new</em> work</td>
-            <td><span class="chip deny">deny</span></td>
-            <td>An external kill ships nothing; a self-trip ships what's green</td>
+            <td>PostToolUse</td><td class="mono">dispatch-receipt</td>
+            <td>a worker dispatch completes — records which skill actually resolved</td>
+            <td><span class="chip inj">records</span></td>
+            <td>A failed dispatch improvised by the sub-agent, reported as done</td>
           </tr>
           <tr>
             <td>Stop</td><td class="mono">gate-zerowork</td>
             <td>orchestrator dispatched, no receipt on disk</td>
             <td><span class="chip block">block</span></td>
             <td>Narration as a reachable ending</td>
-          </tr>
-          <tr>
-            <td>Stop</td><td class="mono">anti-rationalization</td>
-            <td>completion claim contradicts board / T0 / escalate facts</td>
-            <td><span class="chip adv">advisory</span></td>
-            <td>Says so out loud — never blocks (single-judge rule)</td>
-          </tr>
-          <tr>
-            <td>Stop</td><td class="mono">slop-cleaner</td>
-            <td>diff carries TODO, <code>console.log</code>, commented-out blocks</td>
-            <td><span class="chip adv">advisory</span></td>
-            <td>Leftovers shipping quietly</td>
-          </tr>
-          <tr>
-            <td>SessionStart</td><td class="mono">session-rehydrate</td>
-            <td>a run is open and the session has no memory of it</td>
-            <td><span class="chip inj">inject</span></td>
-            <td>Cold start re-entering the pipeline at phase 1</td>
-          </tr>
-          <tr>
-            <td>PreCompact</td><td class="mono">compact-snapshot</td>
-            <td>always, mid-run — freezes a file-derived RunSnapshot</td>
-            <td><span class="chip inj">persist</span></td>
-            <td>Acting on a lossy conversation summary</td>
           </tr>
         </tbody>
       </table>
@@ -814,7 +784,7 @@ flowchart TB
   SCOPES -.->|"read by"| SG["sandbox-guard hook"]
   REQS -.->|"read by"| TLINT["trace-lint — covers-closure"]
   WIRE -.->|"read by"| TLINT
-  BOARD -.->|"read by"| GL2["gate-l2 hook"]
+  BOARD -.->|"read by"| GL2["GATE L2 block"]
   T0V -.->|"cited + re-hashed by"| EVAL["spec-evaluator"]
   RCP -.->|"absence read by"| GZ["gate-zerowork hook"]
 
@@ -823,7 +793,7 @@ flowchart TB
   classDef guard fill:#f4ddd6,stroke:#a3341c,color:#7d2716;
   class SPEC,SCOPES,WIRE,REQS,REPORT,KB shared;
   class RCP,BOARD,ENV,T0V,DISC,DEC local;
-  class SG,GL2,GZ,EVAL,TLINT guard;
+  class SG,GZ,EVAL,TLINT guard;
 </pre>
       </div>
     </div>
@@ -856,9 +826,10 @@ flowchart TB
         <div class="forces"><b>What breaks it</b>An orchestrator that is also the thing being
         orchestrated can always re-decide the timing. Under budget pressure "once per round"
         drifts to "once per task", and a per-task PASS is not evidence about a feature.</div>
-        <div class="mech"><b>gate-l2.mjs</b> reads the board from two independent sources —
-        task frontmatter <em>and</em> the index table — and denies the EVAL dispatch while
-        either shows unfinished work. The rule leaves the prompt entirely.</div>
+        <div class="mech">The <b>GATE L2 block</b> reads the board from two independent sources —
+        task frontmatter <em>and</em> the index table — and names the unfinished work in the
+        question put to the human. The board is per-machine, so this was never a team
+        boundary; the facts reach whoever answers the gate rather than a warning line.</div>
       </div>
 
       <div class="card">
@@ -898,9 +869,9 @@ flowchart TB
         cheapest resolution is always "ship nothing".</div>
         <div class="mech">The marker is structural, not stylistic: <code>discoveries[]</code>
         has no verdict field to populate, and promotion from <code>~</code> to must-have happens
-        only at GATE H, by <code>scope-hammer</code> with PO confirmation. The Stop hooks that
-        <em>could</em> block deliberately don't — <code>anti-rationalization</code> emits
-        <code>systemMessage</code> and never <code>decision:"block"</code>.</div>
+        only at GATE H, by <code>scope-hammer</code> with PO confirmation. The advisory checks that
+        <em>could</em> become a second judge deliberately don't — they land as
+        <em>sections</em> of the ship report, never as a verdict.</div>
       </div>
     </div>
 
@@ -976,7 +947,7 @@ flowchart TB
         <div class="mech">All three stop conditions route <em>here</em> rather than to an exit:
         normal completion, round budget, and attempt budget (queued as a
         <code>hammer_proposal</code> that never blocks the round).
-        <b>gate-deadline.mjs</b> deliberately refuses to deny <code>scope-hammer</code> —
+        A wall-clock trip routes to GATE H rather than killing the run —
         a breaker that also blocked the exit would strand green work.</div>
       </div>
 
@@ -1078,7 +1049,7 @@ flowchart TB
   <div class="mark">End</div>
   <div style="font-family:var(--f-display); font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); display:flex; flex-wrap:wrap; gap:.4rem 1.6rem;">
     <span>shapeup-sdlc · post ADR-0001/0002</span>
-    <span>Source of record: <code>hooks/</code> · <code>skills/tech-lead/scripts/</code></span>
+    <span>Source of record: <code>hooks/</code> · <code>kernel/</code></span>
     <span>Diagrams render with Mermaid; offline they read as source.</span>
   </div>
 </footer>

@@ -27,7 +27,7 @@ never `.mjs` paths.
 - Zero dependencies is load-bearing: executable code is plain Node ESM (`.mjs`),
   `node:` builtins only, no network calls anywhere.
 - Hooks fail open, never closed, unless the bad state is positively proven
-  (`hooks/gate-l2.mjs` is the reference implementation).
+  (`hooks/sandbox-guard.mjs` is the reference implementation).
 - A version bump touches both `package.json` and `.claude-plugin/plugin.json`;
   release CI fails on mismatch.
 - A new worker skill takes 3 steps: `SKILL.md` → declare fields in

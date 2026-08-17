@@ -145,7 +145,7 @@ export function buildReceipt({ slug, intake, config, startedAt, plugin = null })
     // feature and never by RUN, which makes "compare this run against the last one" and "what did
     // this run cost" both unanswerable from data that was otherwise all present.
     //
-    // Derived, not drawn (see lib/run-id.mjs): a pure function of the three fields directly below
+    // Derived, not drawn (see `mintRunId` in lib/paths.mjs): a pure function of the three fields below
     // it, so any writer holding this receipt recomputes the same id without being handed it, and a
     // receipt written before this field existed still yields the id it would have been given.
     run_id: mintRunId({ slug, startedAt, intakeSha256 }),
@@ -343,7 +343,7 @@ export function cli(rawArgv) {
         ? { ...auto, lane: forced, overridden_from: auto.lane, override_source: args.tiny ? "--tiny" : "--lane" }
         : auto;
     })(),
-    // The third breaker (see scripts/budget-check.mjs). Null = off, which is the default and
+    // The third breaker (see `harness verify budget`). Null = off, which is the default and
     // keeps every existing run behaving exactly as before. Set it in any lane with a hard clock
     // — CI, an overnight run — so the harness trips its own breaker and ships what
     // is green, instead of being killed from outside and shipping nothing.
@@ -359,7 +359,7 @@ export function cli(rawArgv) {
   // <slug>`)". `--from` is not an init-run flag at all; it is a `/tech-lead` flag, and it takes a
   // PHASE (`--from build`), not a slug. So at the one moment the orchestrator most needs a next
   // step, the runtime named a mechanism that does not exist, on a script whose failure mode was
-  // already invisible (see lib/is-main.mjs — under a symlinked install this whole body did not run).
+  // already invisible — under a symlinked install an entry-point guard once skipped this whole body.
   //
   // Observed consequence on a handoff: a fresh session in a workspace with an open run burns most
   // of its budget before its first write, largely on forensics against this step, and closes none

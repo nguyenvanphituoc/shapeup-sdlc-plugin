@@ -395,7 +395,7 @@ function sha256(text) {
  *
  * An `existsSync` guard would be check-then-write: still racy, and still a policy expressed in code
  * rather than a property of the store. `flag: "wx"` makes overwriting IMPOSSIBLE — the filesystem
- * refuses with EEXIST and the loop moves to the next ordinal. Same class of move as `lib/is-main.mjs`:
+ * refuses with EEXIST and the loop moves to the next ordinal. Same class of move as the entry-point guard:
  * replace a fragile comparison with one that cannot silently be wrong.
  *
  * The evaluator's citation contract is unaffected: it re-hashes whatever path it is handed, and
@@ -454,7 +454,7 @@ export const ARGV_SPEC = {
 export async function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
   const contractPath = args._[0];
-  // Markdown first, legacy JSON second (ADR-0001, lib/contract-md.mjs).
+  // Markdown first, legacy JSON second (ADR-0001, lib/contract.mjs).
   const found = readContract(contractPath, SCOPE_CONTRACT);
   if (!found) { console.error(`t0-verify: no scope contract at ${contractPath} (.md or .json)`); process.exit(2); }
   const contract = found.contract;

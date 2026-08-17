@@ -28,7 +28,7 @@ import { readAllContracts, splitFrontmatter, SCOPE_CONTRACT } from "../lib/contr
  * Read a list field from a frontmatter string, inline `[a, b]` or YAML block sequence alike.
  *
  * The SECOND instance of the same defect, in a second parser. This repo had two hand-rolled
- * frontmatter readers: `contract-md.mjs` for the committed contracts, and this one for the board.
+ * frontmatter readers: `lib/contract.mjs` for the committed contracts, and this one for the board.
  * It was fixed in the first, and this one still silently dropped a block sequence — so a board
  * written as
  *   use_case_refs:

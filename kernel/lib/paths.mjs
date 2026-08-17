@@ -140,7 +140,7 @@ export const receipt = (cwd, slug) => join(localRoot(cwd, slug), RECEIPT_FILE);
 export const intake = (cwd, slug) => join(localRoot(cwd, slug), "intake.md");
 /** The run ledger — rounds, decisions, status frontmatter. */
 export const harnessRun = (cwd, slug) => join(localRoot(cwd, slug), "harness-run.md");
-/** File-derived mid-run digest, frozen before compaction. */
+/** File-derived mid-run digest, frozen by `reduce snapshot --write` as an audit anchor. */
 export const runSnapshot = (cwd, slug) => join(localRoot(cwd, slug), "run-snapshot.json");
 /** The task board directory. */
 export const tasksDir = (cwd, slug) => join(localRoot(cwd, slug), "tasks");

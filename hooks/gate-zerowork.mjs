@@ -236,7 +236,7 @@ export function buildReason({ narration, census, enforcement }) {
       : null,
     enforcement && enforcement.readable && enforcement.rows === 0
       ? "AND the enforcement layer left zero decision rows — the gates did not merely permit this run, they never ran. " +
-        "Check the plugin install — a symlinked or spaced path is the usual cause; see lib/is-main.mjs."
+        "Check the plugin install — a symlinked path or a path with a space is the usual cause."
       : null,
     "",
     "A run that describes its own pipeline and stops is the exact failure this harness exists to",
