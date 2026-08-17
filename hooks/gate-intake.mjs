@@ -73,7 +73,7 @@ const hasResume = /--from\s+\S/.test(args); // resuming an existing run has its 
 // the spec.
 // Adding a valued flag anywhere in the harness means adding it here, and structural test §39
 // enforces exactly that against commands/ship.md.
-const VALUED_FLAGS = /--(pitch|spec|from|lens|rounds|attempts|orch-model|exec-model|eval-model|qa-model|feature|task|gate-answers|wall-clock-budget|slug|auto-level|max-rounds|intake-file|intake-text|spec-folder|cwd|out|by|preset|file|order)\s+\S+/g;
+const VALUED_FLAGS = /--(pitch|spec|from|lens|rounds|attempts|parallel-scopes|orch-model|exec-model|eval-model|qa-model|feature|task|gate-answers|wall-clock-budget|slug|auto-level|max-rounds|intake-file|intake-text|spec-folder|cwd|out|by|preset|file|order)\s+\S+/g;
 const BARE_FLAGS = /--[a-z0-9-]+/g;
 const freeText = args.replace(VALUED_FLAGS, " ").replace(BARE_FLAGS, " ").trim();
 

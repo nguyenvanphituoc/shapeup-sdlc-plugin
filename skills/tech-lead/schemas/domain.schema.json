@@ -2390,6 +2390,20 @@
         "noEval": {
           "type": "boolean",
           "description": "If true, skips the EVAL phase completely. Rides here rather than in the ledger because there is no frontmatter line that carries it — contrast eval_dimensions, which does."
+        },
+        "noQa": {
+          "type": "boolean",
+          "description": "If true, skips the QA Edge Hunt (`--no-qa`). Rides here for the same reason as noEval: no frontmatter line carries it. It is declared because the workflow reads it — an arg the script consumes and this record omits is a switch the launcher never learns to send, which is a documented flag that does nothing."
+        },
+        "maxParallelScopes": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 4,
+          "description": "How many scopes may build at once (`--parallel-scopes`). A dial rather than a constant because concurrency is a COST question before it is a speed one: every extra leg is another worker's full context. 1 restores sequential scope building, which is the mitigation when a worker archetype proves unsafe to run beside itself."
+        },
+        "adversarialVerify": {
+          "type": "boolean",
+          "description": "If true, each FAIL finding gets one independent skeptic before it costs a whole fix round (`--adversarial-verify`). Off by default: it is a pure addition that spends one sub-agent per finding, and the single-judge invariant is unaffected — a refutation retracts a finding, it never issues a verdict."
         }
       }
     },

@@ -668,6 +668,47 @@ export async function run(ctx) {
     }
   }
 
+  // (n) EVERY ARG THE SCRIPT READS MUST BE DECLARED IN THE RECORD THE LAUNCHER BUILDS.
+  //
+  // `RunArgs` is the launch half of the workflow's only conversation. The script cannot read a
+  // config file and cannot ask a follow-up, so an arg it consumes that the record does not declare
+  // is a switch the launcher never learns to send — the flag is accepted and does nothing.
+  //
+  // Measured, not hypothetical: `noQa`, `maxParallelScopes` and `adversarialVerify` were read here
+  // and declared in `$defs/RunArgs` nowhere, while `--no-qa` was spelled out in seven places across
+  // the shipped set as the switch that skips the Hunt. `--no-eval` worked, which is what shows this
+  // was an oversight rather than a design. Nothing caught it because both halves are individually
+  // correct: the script reads a field it defines a default for, and the schema declares a coherent
+  // record. Only the JOIN between them is wrong, and nothing was reading the join.
+  //
+  // ONE DIRECTION ONLY. A declared arg the script never reads is legitimate — `runId`, `startedAt`
+  // and `lane` are carried for the record layer and for tech-lead's own use — so asserting the
+  // reverse would fail on a correct contract.
+  {
+    const domain = JSON.parse(readFileSync(join(ROOT, "skills/tech-lead/schemas/domain.schema.json"), "utf8"));
+    const declared = new Set(Object.keys(domain?.$defs?.RunArgs?.properties || {}));
+    if (declared.size === 0) {
+      fail("domain.schema.json declares no $defs/RunArgs.properties — the launch contract has no fields at all");
+    } else {
+      for (const f of files) {
+        const code = codeOnly(readFileSync(join(abs, f), "utf8"));
+        // The lookahead is load-bearing: `args.${k}` inside a template literal is a message about
+        // an arg, not a read of one, and without it the check reports a field named `$`.
+        const read = [...new Set([...code.matchAll(/\bargs\??\.(?!\$\{)([A-Za-z_$][\w$]*)/g)].map((m) => m[1]))].sort();
+        const undeclared = read.filter((k) => !declared.has(k));
+        if (!read.length) {
+          fail(`${WORKFLOWS_DIR}/${f} reads no args at all — a workflow with no launch record cannot be parameterised`);
+        } else if (undeclared.length) {
+          fail(`${WORKFLOWS_DIR}/${f} reads args.${undeclared.join(", args.")} but $defs/RunArgs declares ` +
+            `${undeclared.length === 1 ? "it" : "them"} nowhere. tech-lead builds RunArgs from that definition, so ` +
+            `the field never arrives: the switch is documented, accepted, and inert.`);
+        } else {
+          ok(`${WORKFLOWS_DIR}/${f} reads ${read.length} args, all declared in $defs/RunArgs`);
+        }
+      }
+    }
+  }
+
   // (k) EVERY OPERATION THE SCRIPT DISPATCHES MUST BE ONE `compile` CAN RESOLVE A WORKER FOR.
   //
   // Found by executing a real run, not by reading. `worker()` builds every leg's step 1 as

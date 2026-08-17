@@ -77,6 +77,15 @@ Additional flags, pass through to `tech-lead` only when the user names them:
   the harness trips its own breaker first: past the deadline `harness verify budget` denies new
   `task-executor` work and routes to GATE H, where scope-hammer ships whatever is green. A run
   killed from outside ships nothing — including the scopes that already passed T0.
+- `--parallel-scopes N` → how many scopes build at once (default 4). Concurrency is a cost
+  question before it is a speed one — every extra leg is another worker's full context — so this
+  is a dial rather than a constant. `1` builds scopes one at a time, which is the setting for a
+  project whose workers are not safe to run beside each other.
+- `--adversarial-verify` → before a FAIL finding costs a whole fix round, spend one independent
+  skeptic on it, prompted to refute and to default to "real" when it cannot. Off by default; it
+  does not touch the single-judge invariant, because a refutation retracts a finding rather than
+  issuing a verdict.
+- `--no-qa` → skip the QA Edge Hunt. QA is a level-up, not a gate.
 - `--rounds N` → override the outer circuit breaker (build+eval cycles, default 3).
 - `--attempts N` → override the inner circuit breaker (per-scope T0 attempts, default 5;
   no-op on specs without scope contracts).

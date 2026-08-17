@@ -61,9 +61,20 @@ of its own), emit the `⏸ GATE L0` block, then check the lane:
   carry the full step-by-step for both the tiny lane and a scope-less BUILD loop, verbatim, non-
   regression. Stop reading this file here for that run.
 - **Otherwise** (the common case — a scoped spec, any auto level): build `RunArgs`
-  (`domain.schema.json` `$defs/RunArgs` — `{slug, autoLevel, answers, models:{exec,eval,qa},
-  budgets:{maxRounds,attemptBudget,wallClockS}, pluginRoot, startedAt}`) and launch the run script
-  with the **`Workflow` tool**:
+  (`domain.schema.json` `$defs/RunArgs` — `{slug, runId, autoLevel, answers, lane,
+  models:{exec,eval,qa}, budgets:{maxRounds,attemptBudget,wallClockS}, pluginRoot, startedAt}`,
+  plus the switches below) and launch the run script with the **`Workflow` tool**:
+
+  **Every flag the operator typed must be carried into this record or it does nothing.** The
+  workflow cannot read config files and cannot ask follow-ups, so a flag that stops here is a flag
+  that was accepted and ignored:
+
+  | Flag | RunArgs field |
+  |---|---|
+  | `--no-eval` | `noEval: true` |
+  | `--no-qa` | `noQa: true` |
+  | `--parallel-scopes N` | `maxParallelScopes: N` (default 4; `1` = sequential) |
+  | `--adversarial-verify` | `adversarialVerify: true` |
 
 ```
 Workflow({
@@ -137,6 +148,7 @@ and returns to the PO at every gate.
 
 `/tech-lead --pitch <shaping.md> --spec <spec/> --lens standard` for an interactive run; `--auto`
 (pause only at L1a/L1b/L3/L4), `--unattended` (headless/CI), `--from build` (resume), `--no-eval`/
-`--no-qa` to skip passes. **`--tiny`** stays a prose-only lane (`references/tiny-lane.md`) —
+`--no-qa` to skip passes, `--parallel-scopes N` to set how many scopes build at once (default 4,
+`1` = sequential), `--adversarial-verify` to refute each FAIL finding before it costs a fix round. **`--tiny`** stays a prose-only lane (`references/tiny-lane.md`) —
 `shapeup-run.js` targets specs with committed scope contracts; a tiny change or a pre-scope-
 contract spec runs the unchanged v0.2.6 flow this file's Hard Rules already describe.
