@@ -92,6 +92,27 @@ Collect (explicit — never inferred):
         attempts. Set per scope (`no_progress_k` on the contract) or per run in the payload.
 ```
 
+**L0.9b — the launch record.** Every switch the operator typed becomes a `RunArgs` field, or it
+does nothing at all: the workflow cannot read a config file and cannot ask a follow-up, so a flag
+that stops at the skill boundary was accepted and ignored. That is not hypothetical — `--no-qa` was
+documented in seven places across the shipped set and inert in all of them, because no line of this
+protocol ever put `noQa` into the record.
+
+| Flag | `RunArgs` field |
+|---|---|
+| `--no-eval` | `noEval: true` |
+| `--no-qa` | `noQa: true` |
+| `--parallel-scopes N` | `maxParallelScopes: N` — how many scopes build at once (default 4; `1` = sequential) |
+| `--adversarial-verify` | `adversarialVerify: true` |
+| `--rounds N` / `--attempts N` / `--wall-clock-budget S` | `budgets.{maxRounds,attemptBudget,wallClockS}` |
+| `--gate-answers <set>` | `answers` |
+| `--orch-model/--exec-model/--eval-model/--qa-model` | `models.{…}` (L0.8) |
+
+The assembled object is written to `.shapeup/<slug>/run-args.json` before the launch, fresh on every
+launch and relaunch. It is the only artifact that records what a run was configured with; the ship
+report, a resumed session and any later measurement all read it, and none of them can recover a
+value that only ever existed as an argument.
+
 **L0.0 — intake precondition (before any other L0 collection):**
 ```
 resolve intake from, in order:

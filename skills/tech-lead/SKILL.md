@@ -52,8 +52,8 @@ translates itself.
 **Step 2 — pin GATE L0, then launch.** Collect the L0.1–L0.9 config (spec folder, lens, stack,
 eval dims, max_rounds, the model/budget matrix — see `references/gates.md` GATE L0 for the full
 collect-list), write the SHARED `project-profile.md` yourself (`{schema_version:1, archetype,
-entry_point}` — the only artifact this skill writes directly; `shapeup-run.js` has no filesystem
-of its own), emit the `⏸ GATE L0` block, then check the lane:
+entry_point}` — `shapeup-run.js` has no filesystem of its own), emit the `⏸ GATE L0` block, then
+check the lane:
 
 - **`--tiny`, or the spec has no committed `scopes/*.md` yet** (pre-v0.3.0 spec): `shapeup-run.js`
   is out of scope for this lane by design (it targets scope-contract specs). Run the unchanged
@@ -63,18 +63,12 @@ of its own), emit the `⏸ GATE L0` block, then check the lane:
 - **Otherwise** (the common case — a scoped spec, any auto level): build `RunArgs`
   (`domain.schema.json` `$defs/RunArgs` — `{slug, runId, autoLevel, answers, lane,
   models:{exec,eval,qa}, budgets:{maxRounds,attemptBudget,wallClockS}, pluginRoot, startedAt}`,
-  plus the switches below) and launch the run script with the **`Workflow` tool**:
-
-  **Every flag the operator typed must be carried into this record or it does nothing.** The
-  workflow cannot read config files and cannot ask follow-ups, so a flag that stops here is a flag
-  that was accepted and ignored:
-
-  | Flag | RunArgs field |
-  |---|---|
-  | `--no-eval` | `noEval: true` |
-  | `--no-qa` | `noQa: true` |
-  | `--parallel-scopes N` | `maxParallelScopes: N` (default 4; `1` = sequential) |
-  | `--adversarial-verify` | `adversarialVerify: true` |
+  plus every switch the operator typed — `references/gates.md` GATE L0.9 has the flag→field table,
+  and a flag that stops here is a flag that was accepted and ignored). **Write that exact object to
+  `.shapeup/<slug>/run-args.json` before launching**, fresh on every launch and relaunch: the flags
+  reach the workflow as a value in memory, so it is the run's only evidence of what it was launched
+  with, and a run that cannot state its own configuration cannot have a claim about it checked.
+  Then launch the run script with the **`Workflow` tool**:
 
 ```
 Workflow({

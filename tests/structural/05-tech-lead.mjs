@@ -1202,4 +1202,58 @@ export async function run(ctx) {
       rmSync(d, { recursive: true, force: true });
     }
   }
+
+  await runLaunchRecord(ctx);
+}
+
+/**
+ * Run the launch-record parity check (section 67).
+ *
+ * Every artifact the schema says tech-lead writes must be named in tech-lead's own instructions.
+ * @param {object} ctx - Shared structural-test context from tests/lib/harness.mjs (makeCtx).
+ * @returns {Promise<void>} Resolves when section 67 has been recorded on ctx.
+ */
+export async function runLaunchRecord(ctx) {
+  const { ROOT, ok, fail, section, read, readJSON } = ctx;
+
+  // =============================================================================
+  section("67. Every artifact the schema names tech-lead as the writer of is named in its own instructions");
+  // =============================================================================
+
+  // The schema is a registry of who writes what. It is not an instruction: a `$defs` entry can say
+  // `x-writer: tech-lead` and `x-location: .shapeup/<slug>/run-args.json` while nothing anywhere
+  // tells tech-lead to write it, and then the file simply never exists.
+  //
+  // Measured on a live run: `run-args.json` was declared by the schema, described as "written fresh
+  // by tech-lead on every launch AND every relaunch", named in no SKILL.md and no reference, and
+  // absent from the run root. The consequence is not cosmetic — the launch flags reach the workflow
+  // as a value in memory, so with no file on disk the run has NO evidence of the models, budgets or
+  // fan-out width it used, and every claim about its configuration is unfalsifiable afterwards.
+  //
+  // Scoped to entries whose `x-location` names a concrete file. The EMBEDDED ones legitimately have
+  // no path (`Lane` rides in frontmatter, `HillShard` is a projection), and demanding a filename of
+  // them would be demanding the schema lie.
+  const domain = readJSON(join(ROOT, "skills/tech-lead/schemas/domain.schema.json"));
+  const instructions = [
+    read(join(ROOT, "skills/tech-lead/SKILL.md")),
+    ...readdirSync(join(ROOT, "skills/tech-lead/references"))
+      .map((f) => read(join(ROOT, "skills/tech-lead/references", f))),
+  ].join("\n");
+
+  let checked = 0;
+  for (const [name, def] of Object.entries(domain.$defs || {})) {
+    if (!/tech-lead/.test(String(def["x-writer"] || ""))) continue;
+    const file = (String(def["x-location"] || "").match(/([A-Za-z0-9_.<>-]+\.(?:json|md|jsonl))/) || [])[1];
+    if (!file) continue;                       // no concrete path — nothing to name
+    checked++;
+    if (instructions.includes(file)) {
+      ok(`$defs/${name}: tech-lead's instructions name ${file}, the artifact the schema makes it responsible for`);
+    } else {
+      fail(`$defs/${name} names tech-lead as the writer of ${file}, and no line of tech-lead's SKILL.md or ` +
+        `references ever tells it to write one. A registry entry is not an instruction: the artifact is ` +
+        `simply never produced, and every fact it was supposed to carry is unrecoverable after the run.`);
+    }
+  }
+  if (checked === 0) fail("no $defs entry names tech-lead as the writer of a concrete file — the check verified nothing");
+  else ok(`${checked} tech-lead-written artifact(s) are each named in its own instructions`);
 }
