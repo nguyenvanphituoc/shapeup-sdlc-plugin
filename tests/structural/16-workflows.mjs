@@ -648,23 +648,68 @@ export async function run(ctx) {
     }
   }
 
-  // (m) THE BUILD LOOP MUST CONSUME THE DEPENDENCY WAVES, not the flat scope list.
+  // (m) THE BUILD LOOP MUST FEED ITS SCHEDULER THE KERNEL'S OWN ORDERING DATA.
   //
-  // The kernel deriving a correct order buys nothing if the orchestrator chunks around it, and that
-  // is a one-token regression: `chunk(waves.flatMap(…))` back to `chunk(scopes, …)` restores the
-  // exact scheduling that made criterion 1 fail, with the kernel still cheerfully computing waves
-  // nobody reads.
+  // The kernel deriving a correct order buys nothing if the orchestrator schedules around it, and
+  // that is a one-token regression: hand the scheduler the flat scope list, or an empty release map,
+  // and the exact scheduling that made criterion 1 fail is back with the kernel still cheerfully
+  // computing an order nobody reads.
+  //
+  // ⟐ WHY THIS IS A DATA-FLOW CHECK AND NOT A SPELLING. It used to assert the literal source form
+  // `for (const group of waves.flatMap((w) => chunk(w, maxParallelScopes)))`. That regex passes on a
+  // loop reading the WRONG wave list, and fails on a scheduler that is strictly better at the thing
+  // the regex was standing in for — which is what a guard that pins a spelling always eventually
+  // does. The invariant here is that the two facts the kernel derives (the wave ORDER and the
+  // dependency EDGES) are what reach the scheduler; the invariant that the scheduler then HONOURS
+  // them is a behaviour, and it is checked by executing the shipped scheduler in 23-scheduler.mjs.
+  // Neither half is sufficient alone: this one cannot see a scheduler that ignores its arguments,
+  // and that one cannot see a call site that passes the wrong ones.
   for (const f of files) {
     const src = readFileSync(join(abs, f), "utf8");
     if (!/\bmaxParallelScopes\b/.test(src)) continue;
-    const usesWaves = /for \(const group of waves\.flatMap\(/.test(src);
-    const flatChunk = /for \(const group of chunk\(scopes,/.test(src);
-    if (usesWaves && !flatChunk) {
-      ok(`${WORKFLOWS_DIR}/${f} builds from dependency waves, so a scope is never built beside one it consumes`);
+    const code = codeOnly(src);
+    // The CALL, not the declaration — `function scheduleScopes(items, edges, width, …)` matches the
+    // same shape and would report the parameter names as if they were the arguments.
+    // The width argument matches a LITERAL too, so a hard-coded `4` is reported as the dial being
+    // bypassed rather than as "the scheduler is not called at all" — a true failure with a message
+    // pointing at the wrong repair is only half a guard.
+    const call = [...code.matchAll(/(function\s+)?scheduleScopes\(\s*([A-Za-z_$][\w$]*)\s*,\s*([A-Za-z_$][\w$]*)\s*,\s*([A-Za-z_$][\w$.]*|\d+)\s*,/g)]
+      .filter((m) => !m[1]).map((m) => m.slice(1))[0];
+    if (!call) {
+      fail(`${WORKFLOWS_DIR}/${f} never calls scheduleScopes(items, edges, width, launch) — BUILD's fan-out is ` +
+        "not going through the scheduler at all, so nothing below can be checked about the order it uses.");
+      continue;
+    }
+    const [, itemsArg, edgesArg, widthArg] = call;
+    const bindingOf = (name) => (code.match(new RegExp(`\\b(?:const|let|var)\\s+${name}\\s*=\\s*([^\\n;]+)`)) || [])[1] || "";
+    const problems = [];
+    // The ITEM ORDER must come from the kernel's waves, never from the raw scope list.
+    if (!/\bwaves\b/.test(bindingOf(itemsArg))) {
+      problems.push(`the scheduled item list \`${itemsArg}\` is not derived from the dependency waves (bound as \`${bindingOf(itemsArg) || "?"}\`)`);
+    }
+    if (!/wavesFrom\(\s*\w+\.scope_waves/.test(code)) {
+      problems.push("the waves are not derived from `probe resume`'s scope_waves");
+    }
+    // The RELEASE SET must come from the kernel's edges, run through the validator.
+    if (!/^scopeEdges\(/.test(bindingOf(edgesArg).trim())) {
+      problems.push(`the release set \`${edgesArg}\` is not built by scopeEdges() (bound as \`${bindingOf(edgesArg) || "?"}\`)`);
+    }
+    if (!/scopeEdges\([^)]*\bwaves\b/.test(code)) {
+      problems.push("scopeEdges() is called without the waves, so a malformed edge list has nothing safe to fall back to");
+    }
+    if (!/\bscope_deps\b/.test(code)) {
+      problems.push("the workflow never reads `scope_deps`, so every scope waits for its whole wave");
+    }
+    // The DIAL must be the dial.
+    if (widthArg !== "maxParallelScopes") {
+      problems.push(`the concurrency argument is \`${widthArg}\`, not maxParallelScopes — the cost dial is not the cap`);
+    }
+    if (!problems.length) {
+      ok(`${WORKFLOWS_DIR}/${f} schedules the kernel's wave order under the kernel's dependency edges, capped by maxParallelScopes`);
     } else {
-      fail(`${WORKFLOWS_DIR}/${f} chunks the flat scope list instead of the dependency waves. ` +
-        `A scope built alongside the scopes it depends on fails for a reason nothing about it caused and burns ` +
-        `its attempt budget doing so — measured: it cost criterion 1 an entire run.`);
+      fail(`${WORKFLOWS_DIR}/${f} schedules around the ordering the kernel derived:\n    ${problems.join("\n    ")}\n` +
+        "    A scope built alongside the scopes it depends on fails for a reason nothing about it caused and burns\n" +
+        "    its attempt budget doing so — measured: it cost criterion 1 an entire run.");
     }
   }
 

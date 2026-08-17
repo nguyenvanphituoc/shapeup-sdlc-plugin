@@ -147,7 +147,8 @@ lesson exactly, and it is what the guard asserts.
 | Widen the dial and keep chunking | The dial is a cost knob. Buying wall-clock with money is not a scheduler. |
 | One `pipeline()` over every scope, gating inside stage 1 | A stage that blocks holds a runtime slot. Ready scopes would queue behind waiting ones, and `maxParallelScopes` would become unenforceable — the runtime's own cap would be the real limit, which is the thing RESULT-v2 could not explain ("max 2 ran simultaneously, not 3"). |
 | Work-stealing lanes racing in-flight legs (`Promise.race`) | Same class as `Date.now()`: schedule becomes a function of wall time, so a replay reschedules differently. Buys ~nothing over the eager-promise form. |
-| Critical-path / longest-job-first ordering | Needs a per-scope duration estimate. RESULT-v2: *"No number about v2.0's cost or wall-clock appears anywhere in this repo."* Ordering by a guessed duration is ordering by a guess. Revisit when LANE A's instrument produces real per-leg durations — the design keeps *order* separable from *release*, so it is a one-line change then. |
+| Critical-path / longest-job-first ordering | Needs a per-scope duration estimate. RESULT-v2: *"No number about v2.0's cost or wall-clock appears anywhere in this repo."* Ordering by a guessed duration is ordering by a guess. Revisit when LANE A's instrument produces real per-leg durations — the design keeps *order* separable from *release*, so it is a one-line change then. Measured cost of not doing it: on the worst workload the window lands at 51 against a critical path of 50 — one leg's worth. |
+| Over-subscribe the window while legs are still spawning | LANE A measured a 54 s launch ramp, so a slot held during dispatch is a slot doing nothing. Admitting extra legs to compensate would recover it — and would break the one thing the dial promises, which is a bound on spend. The ramp is a dispatch problem and wants a dispatch fix; see `LESSONS-P3-B.md` §5. |
 | Speculative start with rollback | That **is** the cli-integration defect, with extra steps. |
 | Release on green (see §3) | Starves dependants of a failed dependency; invents an outcome class nothing downstream reads. |
 | Leave `chunk()` in for small waves | Two schedulers is two schedulers. |
@@ -182,7 +183,13 @@ The scheduling decision is pure, so it is testable without dispatching anything.
   drain, no real sleeping), and reports **makespan and max concurrency** for each. Adversarial cases:
   one slow leg among fast ones, a wave wider than the dial, a dependency chain, a leg that dies, a
   dial of 1, and the two real shapes (todo-cli's six scopes, phase3-envlint's three).
-- The numbers are what get reported. Where the win is zero, that gets reported too.
+- The comparison runs under **two dispatch models**: legs starting the instant a slot opens, and legs
+  taking a turn on a serialised dispatch path. The second is the one calibrated to a measured fact —
+  four legs of one archived wave started across 54 s of a 376 s build span — and it is the demanding
+  direction for the claim, because a change that only wins under the optimistic model is not worth
+  making.
+- The numbers are what get reported. Where the win is zero, that gets reported too — and it is zero
+  on the sample project.
 
 ## 7 · What I need from the coordinator (answering bulletin #1)
 

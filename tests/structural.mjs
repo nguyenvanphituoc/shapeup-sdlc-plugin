@@ -74,6 +74,10 @@ const MODULE_FILES = [
   // that init writes it; nothing then looked at the tree it wrote into — where a grant that has
   // accumulated dead rules, an opt-out that is a no-op, and a second harness block all read fine.
   "22-consumer-install.mjs",
+  // 23-scheduler.mjs: BUILD's fan-out, read out of the shipped workflow script and EXECUTED against
+  // fixtures on a virtual clock. Its own module because the invariant is a schedule, not a spelling:
+  // the guard it replaces asserted one source form and would have failed a strictly better one.
+  "23-scheduler.mjs",
   "45-paths.mjs",
   "46-contract-md.mjs",
   "47-ship-report.mjs",
