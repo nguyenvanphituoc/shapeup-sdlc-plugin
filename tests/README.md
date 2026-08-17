@@ -23,10 +23,12 @@ order and the docs module (`08-docs.mjs`) is last so the floor sees every check:
 | `structural/02-skills.mjs` | §2, 3, 12, 2b per-skill wellformedness, install-safety, escalation-rule parity |
 | `structural/03-hooks.mjs` | §4, 14, 17, 27, 28, 29 hook manifest + behavioral hook suites |
 | `structural/04-oracles.mjs` | §6, 8, 9, 10, 11, 13 oracle registry + discriminating fixtures |
-| `structural/05-tech-lead.mjs` | §18–22, 24, 30, 31 orchestrator-owned scripts, domain registry, spine |
+| `structural/05-tech-lead.mjs` | §18–22, 24, 30, 31, 67 orchestrator-owned scripts, domain registry, spine, launch-record parity |
 | `structural/06-ba-pitch-analyzer.mjs` | §23 board-derive + spec-lint |
 | `structural/07-spec-evaluator.mjs` | §15 verdict-ledger |
-| `structural/25-scheduler.mjs` | §63 BUILD's fan-out, executed against fixtures on a virtual clock |
+| `structural/23-concurrency.mjs` | §63, 64, 68 the leg-completion record, the instrument over it, and whether a scope's work reached the board |
+| `structural/24-parallel-isolation.mjs` | §65, 66 what survives scopes building at the same time — half of it RACES, because an uncontended lock and a working one look identical |
+| `structural/25-scheduler.mjs` | §69 BUILD's fan-out, executed against fixtures on a virtual clock |
 | `structural/08-docs.mjs` | §5, 7, 25, 26 AGENT.md guard, migrations, ratchets, doc-drift |
 
 A **new check lands in the module matching its owner** (a tech-lead script check → `05-tech-lead.mjs`,

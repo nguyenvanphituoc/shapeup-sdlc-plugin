@@ -441,6 +441,19 @@ came from, and a speedup it cannot support is refused rather than approximated. 
 computed over four legs with one usable record reads exactly like a run that was genuinely
 sequential, which is why the count of legs with no completion record sits in the same document.
 
+The same leg-completion rows answer a second question, and `harness probe leg` is what asks it: did a
+scope's result actually **reach the board**? A green T0 verdict says the worker's fixtures ran and
+passed; it says nothing about whether the `WorkResult` was applied, and the BUILD round's confirm
+stage asked only the first question. On a live run a build leg wrote its code, a green verdict, a kept
+trial row and its result envelope, then skipped its own `reduce ingest` step — leaving that scope's
+task `pending` with zero acceptance criteria ticked while its code sat finished on disk, and the board
+that GATE L2 reads as complete silently disagreeing with a scope that was genuinely done. The row is
+the evidence because `reduce ingest` is what writes it: its presence proves the writer ran, and it is
+not something the leg can assert about itself — the same reason a dispatch receipt is written by the
+hook layer rather than by the sub-agent making the call. Finished work whose leg failed to apply it is
+ingested by the round rather than re-built, because re-running the leg would pay a whole attempt again
+for work already on disk.
+
 **Why a command rather than the lifecycle hooks this used to be.** The pair that preceded it
 fired at two moments the platform chose, and the commonest continuity event in practice was
 covered only by accident: you close the terminal and come back tomorrow, or a teammate picks the
