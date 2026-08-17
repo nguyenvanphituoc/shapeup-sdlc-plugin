@@ -79,6 +79,11 @@ const MODULE_FILES = [
   // contract is three numbers nothing in the repo could produce, and the failure mode is a
   // confident figure computed over a record set that was missing most of its ends.
   "23-concurrency.mjs",
+  // 24-parallel-isolation.mjs: what survives scopes building at the same time. Its own module
+  // because the failure mode is not a crash but state that quietly disagrees with itself — and
+  // because half of it has to RACE: a lock that works and a lock that is never contended produce
+  // the identical green.
+  "24-parallel-isolation.mjs",
   "45-paths.mjs",
   "46-contract-md.mjs",
   "47-ship-report.mjs",

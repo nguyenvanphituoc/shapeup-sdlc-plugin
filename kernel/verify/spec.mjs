@@ -165,6 +165,20 @@ export function lintScopes(scopes, repoFiles) {
       for (const f of overlap) {
         const declared = sharedA.some((r) => r.test(f)) && sharedB.some((r) => r.test(f));
         if (!declared) findings.push({ rule: "DISJOINT", level: "red", scope: `${a.scope_id}+${b.scope_id}`, detail: `${f} is in both substrates but not in both shared_substrate lists — PA3 waiting to happen` });
+        // DECLARING IT SHARED MAKES IT LEGAL, NOT SAFE, and those are different claims.
+        //
+        // `shared` is the escape hatch from DISJOINT: two scopes may both write an entry point when
+        // both say so. That is right for the WRITE PERMISSION — `sandbox-guard` permits a path any
+        // live order covers — and it says nothing about the two scopes running at the SAME TIME.
+        // Measured on a shared entry point with three concurrent writers: every trial lost work,
+        // because an edit is read-modify-write and the last writer wins. Every layer was individually
+        // correct — the lint permitted the overlap, the waves co-scheduled the scopes, the guard
+        // allowed both writes — and the join silently dropped a scope's registration.
+        //
+        // Reported rather than blocked: refusing a legal contract would break the case the escape
+        // hatch exists for. What the scheduler needs is the FACT, so it can put two scopes sharing a
+        // writable path in different waves instead of discovering the collision in the file.
+        else findings.push({ rule: "SHARED-CONCURRENT", level: "warn", scope: `${a.scope_id}+${b.scope_id}`, detail: `${f} is writable by both scopes — legal, but they must not build concurrently: an edit is read-modify-write and the later writer silently drops the earlier one` });
       }
     }
   }

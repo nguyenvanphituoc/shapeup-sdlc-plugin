@@ -525,7 +525,10 @@ export async function cli(rawArgv) {
   // the pre-v1.5 behaviour, kept for standalone CLI use and for any caller managing its own tree.
   let tree = { ok: false, reason: "--no-ratchet" };
   if (!args.noRatchet) {
-    tree = action === "keep" ? snapshot(contract.scope_id, cwd) : restore(contract.scope_id, cwd);
+    // The revert is bounded by what this scope was allowed to write. Unbounded, it rolls back every
+    // other scope building alongside it — see `restore`.
+    const own = contract.substrate?.allowed || [];
+    tree = action === "keep" ? snapshot(contract.scope_id, cwd) : restore(contract.scope_id, cwd, own);
     // First trial with nothing to restore to: there is no kept tree yet BY DEFINITION. Take one,
     // so trial 2 has a floor to fall back to instead of inheriting the "no revert at all" defect.
     if (action === "restore" && !tree.ok) tree = { ...snapshot(contract.scope_id, cwd), fell_back_to: "snapshot" };
@@ -533,7 +536,18 @@ export async function cli(rawArgv) {
 
   // `baseline_trial` is the parent link — the experiment DAG (lineage, PARENT_OF and a genuine
   // SUPERSEDES edge) delivered as one field, with no graph store behind it.
-  const trialNo = readTrials(trialsPath).length + 1;
+  //
+  // COUNTED WITHIN THE SCOPE, NEVER ACROSS THE FILE. This used to be
+  // `readTrials(trialsPath).length + 1` — every row in the run, whoever wrote it — which is a
+  // read-modify-write counter over a file that concurrent scopes append to. Scopes build in
+  // parallel, so several `verify t0` processes reach this line at once, each reads the same length
+  // and each writes the same ordinal: four concurrent scopes produced ordinals [1,1,1,4] and
+  // [1,1,3,3]. The ordinal is only ever consumed WITHIN a scope — `baseline` is picked from
+  // `priorTrials`, which is already filtered by `scope_id`, and the ratchet report groups by scope
+  // before it sorts — so counting the scope's own prior trials is both the race-free answer and the
+  // one the readers actually want. Two attempts of the SAME scope cannot race: one worker leg owns
+  // a scope and runs its attempts in sequence.
+  const trialNo = priorTrials.length + 1;
   const row = {
     schema_version: 1,
     trial: trialNo,
