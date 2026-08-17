@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/rules-engine-r1-a1",
+  "run_id": "envlint-20260817T061119Z-434bbd9d",
+  "compiled_at": "2026-08-17T06:30:04.494Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "src/rules.mjs",
+      "test/rules.test.mjs",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": []
+  },
+  "payload": {
+    "scope_contract": {
+      "type": "scope-contract",
+      "scope_id": "rules-engine",
+      "feature": "envlint",
+      "topology_type": "ICEBERG",
+      "tasks": [
+        "TASK-002"
+      ],
+      "allowed_file_substrate": [
+        "src/rules.mjs",
+        "test/rules.test.mjs"
+      ],
+      "shared_substrate": [],
+      "hill_phase": "UPHILL_UNKNOWN",
+      "e2e_verification_fixtures": [
+        "node --test test/rules.test.mjs"
+      ],
+      "affordance_manifest": [
+        {
+          "test_id": "evaluate-pairs-against-schema",
+          "role": "pure-function",
+          "idle": "N/A (non-interactive, no CLI surface)",
+          "loading": "N/A (non-interactive, no CLI surface)",
+          "success": "a key present in the file but absent from the schema never produces a finding (INV-01); for a repeated key only the last occurrence in file order is evaluated, earlier occurrences never finding of their own (INV-02); a `required`+present-and-valid key, or zero `required` keys with zero pairs, yields zero findings for that key (INV-06 \"ok\" branch)",
+          "error": "`required:true` + key absent after dedup → `Finding{line:0}`; `type:\"int\"` fails non-`/^-?\\d+$/` values (`1.5`, `1e3`, `\"\"`); `type:\"bool\"` fails anything but case-insensitive `true`/`false`/`1`/`0`; `type:\"url\"` fails a value that merely parses via `new URL()` but has a protocol other than `http:`/`https:` (the protocol-gate footgun — never a naive `try{new URL(v)}catch{}`-only check, per `spike-url-type-validation.md`); `enum` fails a value not exactly matching a listed entry; each `ParseProblem` becomes one `Finding` (`key`=truncated-to-30-chars raw text, `message`=\"not a KEY=VALUE assignment\", E4)",
+          "empty": "a present-but-empty value (`KEY=`) satisfies `type:\"string\"` but fails `int`/`bool`/`url`/`enum`"
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "TASK-002",
+        "title": "Create Rules engine (src/rules.mjs)",
+        "status": "ready",
+        "priority": 1,
+        "depends_on": [],
+        "use_case_refs": [
+          "UC-01"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/p3-fanout/.shapeup/envlint/tasks/TASK-002-rules-engine.md",
+        "acceptance_criteria": [
+          "`src/rules.mjs` exports `evaluate(pairs, problems, schema): Finding[]`",
+          "`node --test test/rules.test.mjs` passes",
+          "Each `ParseProblem` becomes one `Finding`: `key` = raw line text truncated to 30 chars,",
+          "A key present in the file but absent from the schema is never a finding (INV-01)",
+          "`required: true` + key absent from the (deduped) pairs → `Finding` with `line: 0`",
+          "When a key is assigned more than once, only the LAST occurrence in file order is",
+          "`type: \"int\"` matches `/^-?\\d+$/`: `01`/`-5` valid, `1.5`/`1e3`/`\"\"` invalid",
+          "`type: \"bool\"` matches `true`/`false`/`1`/`0` case-insensitively",
+          "`type: \"url\"` requires BOTH `new URL(v)` to not throw AND `protocol` to be `http:` or",
+          "`type: \"string\"` accepts any value, including empty",
+          "`enum: [...]` requires an exact match against one of the listed values",
+          "A present-but-empty value (`KEY=`) satisfies `string`, fails `int`/`bool`/`url`/`enum`",
+          "Zero pairs + zero `required` keys in schema → zero findings (INV-06: this is the \"ok\"",
+          "`int` at `01` (leading zero): valid",
+          "`int` at `1.5`, `1e3`, `\"\"`, `\"5-\"`, `\"+5\"`: all invalid",
+          "`bool` at `TRUE`, `False`, `1`, `0`: valid; at `yes`, `2`: invalid"
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

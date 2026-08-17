@@ -1,0 +1,46 @@
+{
+  "receipt_version": 1,
+  "type": "harness-run-receipt",
+  "slug": "envlint",
+  "run_id": "envlint-20260817T061119Z-434bbd9d",
+  "started_at": "2026-08-17T06:11:19.115Z",
+  "intake_sha256": "0d5b6d952418a2b3889c6a039d96a2c9ca6ea95194962b5252fa61c456421596",
+  "intake_chars": 2333,
+  "intake_lines": 43,
+  "started": true,
+  "plugin": {
+    "name": "shapeup-sdlc-plugin",
+    "version": "2.0.0",
+    "root": "/Volumes/LibertyMobi/workspace/proj-harness-plugin"
+  },
+  "config": {
+    "auto_level": "unattended",
+    "lens": "standard",
+    "eval_dimensions": [
+      "spec-conformance"
+    ],
+    "max_rounds": 2,
+    "attempt_budget": 3,
+    "spec_folder": "shapeup/envlint/spec/",
+    "gate_answers": "ci",
+    "tiny_lane": false,
+    "fit": {
+      "lane": "full",
+      "confidence": "clear",
+      "reasons": [
+        "✗ tree has 0 source file(s) (tiny needs 1–10)",
+        "✗ intake is 2333 chars (tiny needs ≤1500)",
+        "✓ intake names ~0 deliverable(s) (tiny needs ≤2)",
+        "✗ 1 breadth signal(s) present"
+      ],
+      "signals": {
+        "tree_source_files": 0,
+        "intake_chars": 2333,
+        "deliverable_mentions": 0,
+        "breadth_signals": 1
+      },
+      "calibration": "advisory — thresholds are coarse and `full` is the default; the PO may override with --lane"
+    },
+    "wall_clock_budget_s": null
+  }
+}

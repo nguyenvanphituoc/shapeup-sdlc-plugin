@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/parsing-engine-r1-a1",
+  "run_id": "envlint-20260817T061119Z-434bbd9d",
+  "compiled_at": "2026-08-17T06:30:03.018Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "src/parsing.mjs",
+      "test/parsing.test.mjs",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": []
+  },
+  "payload": {
+    "scope_contract": {
+      "type": "scope-contract",
+      "scope_id": "parsing-engine",
+      "feature": "envlint",
+      "topology_type": "ICEBERG",
+      "tasks": [
+        "TASK-001"
+      ],
+      "allowed_file_substrate": [
+        "src/parsing.mjs",
+        "test/parsing.test.mjs"
+      ],
+      "shared_substrate": [],
+      "hill_phase": "UPHILL_UNKNOWN",
+      "e2e_verification_fixtures": [
+        "node --test test/parsing.test.mjs"
+      ],
+      "affordance_manifest": [
+        {
+          "test_id": "parse-env-text",
+          "role": "pure-function",
+          "idle": "N/A (non-interactive, no CLI surface)",
+          "loading": "N/A (non-interactive, no CLI surface)",
+          "success": "valid `[export] KEY=VALUE` lines (optionally quoted, optional `export` prefix, trimmed whitespace) yield one `EnvPair` per occurrence in file order with correct 1-based `line`; repeated keys are never deduped here (Rules' job, INV-02)",
+          "error": "a non-blank/non-comment line that is not `[export] KEY=VALUE` yields one `ParseProblem` with the correct 1-based `line` and the raw, untrimmed `text`",
+          "empty": "comments and blank lines produce neither a pair nor a problem; an entirely empty file or a comments/blanks-only file returns `{ pairs: [], problems: [] }` (the E3 precondition Rules consumes downstream)"
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "title": "Create Parsing engine (src/parsing.mjs)",
+        "status": "ready",
+        "priority": 1,
+        "depends_on": [],
+        "use_case_refs": [
+          "UC-01"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/p3-fanout/.shapeup/envlint/tasks/TASK-001-parsing-engine.md",
+        "acceptance_criteria": [
+          "`src/parsing.mjs` exports `parseEnv(text: string): { pairs: EnvPair[], problems: ParseProblem[] }`",
+          "`node --test test/parsing.test.mjs` passes",
+          "Comment lines (`# ...`) and blank lines produce neither a pair nor a problem",
+          "`export KEY=value` parses identically to `KEY=value`",
+          "`export KEY=\"value\"` strips both the `export` prefix and the matching quotes (combined form)",
+          "`KEY=\"value\"` / `KEY='value'` strip matching surrounding quotes only",
+          "`KEY=\"value` (no closing quote) is left untouched — leading quote stays in the value",
+          "Whitespace around `KEY` and around the value is trimmed (outside quotes)",
+          "A line that is not blank/comment/`[export] KEY=VALUE` produces a `ParseProblem` with its",
+          "A key assigned more than once produces one `EnvPair` per occurrence, in file order (no",
+          "Every `EnvPair`/`ParseProblem` carries the correct 1-based line number",
+          "Line 1 of the file is correctly reported as line `1` (not `0`), and the last line of a",
+          "An entirely empty file (`\"\"`) returns `{ pairs: [], problems: [] }`",
+          "A file that is only comments/blank lines returns `{ pairs: [], problems: [] }` (this is"
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

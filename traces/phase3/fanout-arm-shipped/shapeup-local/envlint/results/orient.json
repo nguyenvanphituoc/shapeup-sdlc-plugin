@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/orient",
+  "worker": "orient",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/envlint/orient/code-surface.md",
+    ".shapeup/envlint/orient/discovered-seed.md",
+    ".shapeup/envlint/orient/hill-signal.md",
+    ".shapeup/envlint/orient/spike-url-type-validation.md"
+  ],
+  "discoveries": [
+    {
+      "marker": "+",
+      "line": "[ORIENT] A naive url-type check that omits the http/https protocol gate (try{new URL(v)}catch{} alone) silently passes ftp:// and mailto:// values -- Test Surface needs a non-http(s)-scheme case, not just a malformed-string case."
+    },
+    {
+      "marker": "+",
+      "line": "[ORIENT] EXPECTED.md never states the combined form `export KEY=\"value\"` -- worth an explicit fixture so parse order (strip export, trim, strip quotes) is unambiguous."
+    },
+    {
+      "marker": "+",
+      "line": "[ORIENT] Duplicate-key override interacting with a Rules check (e.g. a later PORT= assignment that itself fails validation) is unspecified by EXPECTED.md -- confirm Rules evaluates the winning value, not the first."
+    },
+    {
+      "marker": "+",
+      "line": "[ORIENT] An empty schema object {} against a non-empty env file is not in EXPECTED.md's E1-E5 list -- should exit 0 with 'ok: N keys checked'; worth an explicit fixture."
+    },
+    {
+      "marker": "~",
+      "line": "[ORIENT] --json findings array ordering (file order vs schema-key order) is not pinned by EXPECTED.md -- confirm with PO/BA before an implementation picks one."
+    }
+  ],
+  "assumptions": [
+    "No production code, spec tree, or board existed at orient time -- this is a pre-BA recon on a greenfield feature, matching the harness sequencing (orient runs before ba-pitch-analyzer).",
+    "The single riskiest area is the `url` type check's dependence on `new URL()`'s runtime leniency; regex-based int/bool checks and quote-stripping were spiked as lower-risk secondary confirmations in the same pass rather than as separate spike files."
+  ]
+}

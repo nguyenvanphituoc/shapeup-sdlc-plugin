@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/evaluate-r1",
+  "worker": "spec-evaluator",
+  "status": "done",
+  "verdict": {
+    "overall": "PASS",
+    "report_path": ".shapeup/envlint/evaluation/EVAL-FEATURE-envlint.md",
+    "criteria": [
+      {
+        "criterion": "UC-01 Steps 1-8 (parse/read/validate/render/exit)",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "npm test 64/64 pass; direct CLI probe confirms exit 0/2 branches; bin/envlint.mjs:9-89"
+      },
+      {
+        "criterion": "INV-01 extra key never a finding",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "TS-INV-01 passing in npm test; src/rules.mjs:52"
+      },
+      {
+        "criterion": "INV-02 dedup: last occurrence wins",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "TS-INV-02 and TS-INV-02b passing; src/rules.mjs:47-49"
+      },
+      {
+        "criterion": "INV-03 exit code always 0/1/2, no stack trace",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "TS-INV-03 passing; bin/envlint.mjs:9-12"
+      },
+      {
+        "criterion": "INV-04 --json changes only rendering",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "TS-INV-04 passing; direct CLI probe against live binary confirmed same exit codes with/without --json"
+      },
+      {
+        "criterion": "INV-05 every exit-2 msg Error:, one line, stderr",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "TS-INV-05 passing; bin/envlint.mjs:9-12"
+      },
+      {
+        "criterion": "INV-06 E3 required-vs-not-required ok/exit split",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "TS-INV-06 and TS-ERR-E3 passing"
+      },
+      {
+        "criterion": "Error Cases E_NOFLAG/E_SCHEMA_UNREADABLE/E2/E1/E3/E4/E5",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "TS-ERR-* rows all passing; direct CLI probe confirms E_NOFLAG and E_SCHEMA_UNREADABLE against live binary"
+      },
+      {
+        "criterion": "Test Surface (25 rows TS-INV-*/TS-ERR-*/TS-REQ-*/TS-TYPE-*/TS-NOGO-*)",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "all 25 UC-01 Test Surface IDs present and passing 1:1 in npm test output"
+      },
+      {
+        "criterion": "domain-model.md aggregate rules (Finding/LintReport shape)",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "bin/envlint.mjs:73; src/rules.mjs:39-43,58,64"
+      },
+      {
+        "criterion": "scope-summary.md Done-when (4 scopes)",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "trial_history round1/attempt1: parsing-engine, rules-engine, cli-composition-root, test-surface-suite all kept/baseline, 1/1 fixtures"
+      },
+      {
+        "criterion": "_index.md Non-Go (no interpolation, no file writes, no TUI/color, no network)",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "TS-NOGO-01..04 all passing in npm test output"
+      }
+    ],
+    "refuted": [],
+    "bugs": []
+  }
+}

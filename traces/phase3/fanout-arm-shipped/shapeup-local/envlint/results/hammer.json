@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/hammer",
+  "worker": "scope-hammer",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/envlint/reports/hammer-report.md"
+  ],
+  "assumptions": [
+    "No shapeup/envlint/shaping/baseline.md exists on disk -- baseline comparison used the pitch problem statement / UC-01 spec as the implicit baseline, flagged approximate in the report per H1.1.",
+    "All 4 scopes (parsing-engine, rules-engine, cli-composition-root, test-surface-suite) are recorded FINISHED/kept in the trial_history payload with 0 regressions and no hammer_proposals -- this is a normal-stop census (case 1), not a circuit-breaker case; no scope-id/breaker was supplied in the order payload.",
+    "All 5 QA findings (QA-001..QA-005) are already logged as '~' (nice-to-have) in .shapeup/envlint/discovery/ledger.md by the prior QA hunt -- census treated them as already carried, no duplicate ledger write was made."
+  ],
+  "deviations": []
+}

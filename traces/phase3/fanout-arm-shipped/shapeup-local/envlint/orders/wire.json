@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/wire",
+  "run_id": "envlint-20260817T061119Z-434bbd9d",
+  "compiled_at": "2026-08-17T06:25:27.540Z",
+  "worker": "solution-architect",
+  "mode": "orchestrated",
+  "operation": "wire",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "shapeup/envlint/wiring-map.md"
+    ],
+    "frozen": [
+      "shapeup/envlint/spec/domain-model.md",
+      "shapeup/envlint/spec/usecases/*.md#Steps",
+      "shapeup/envlint/spec/contracts/**",
+      "shapeup/envlint/spec/ux-behavior.md",
+      "shapeup/envlint/scopes/**",
+      "shapeup/envlint/project-profile.md"
+    ]
+  },
+  "payload": {
+    "feature": "envlint",
+    "spec_folder": "shapeup/envlint/spec/",
+    "project_profile": "/Volumes/LibertyMobi/workspace/p3-fanout/shapeup/envlint/project-profile.md"
+  }
+}

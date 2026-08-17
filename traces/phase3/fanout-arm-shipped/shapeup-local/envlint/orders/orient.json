@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/orient",
+  "run_id": "envlint-20260817T061119Z-434bbd9d",
+  "compiled_at": "2026-08-17T06:13:37.928Z",
+  "worker": "orient",
+  "mode": "orchestrated",
+  "operation": "orient",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      ".shapeup/envlint/orient/**"
+    ],
+    "frozen": [
+      "shapeup/envlint/spec/**"
+    ]
+  },
+  "payload": {
+    "pitch": "/Volumes/LibertyMobi/workspace/p3-fanout/.shapeup/envlint/intake.md",
+    "spec_folder": "shapeup/envlint/spec/",
+    "feature": "envlint"
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/test-surface-suite-r1-a1",
+  "run_id": "envlint-20260817T061119Z-434bbd9d",
+  "compiled_at": "2026-08-17T06:33:14.133Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "test/test-surface.test.mjs",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": []
+  },
+  "payload": {
+    "scope_contract": {
+      "type": "scope-contract",
+      "scope_id": "test-surface-suite",
+      "feature": "envlint",
+      "topology_type": "CHOWDER",
+      "tasks": [
+        "TASK-004"
+      ],
+      "allowed_file_substrate": [
+        "test/test-surface.test.mjs"
+      ],
+      "shared_substrate": [],
+      "hill_phase": "UPHILL_UNKNOWN",
+      "e2e_verification_fixtures": [
+        "node --test test/test-surface.test.mjs"
+      ],
+      "affordance_manifest": [
+        {
+          "test_id": "full-test-surface-coverage",
+          "role": "integration-test",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "every `TS-*` row in [[usecases/UC-01#Test-Surface]] (TS-INV-*, TS-ERR-*, TS-REQ-*, TS-TYPE-*, TS-NOGO-*) has a corresponding test that drives the built `bin/envlint.mjs` binary via `child_process.spawnSync` against throwaway fixtures written to a temp directory per run; `npm test` exits 0",
+          "error": "a `TS-*` row's assertion failing means one of TASK-001/002/003 is incomplete, not this scope — this scope only adds coverage, per TASK-004's Non-Go",
+          "empty": "`TS-NOGO-02` (no `.env` writing) is verified by diffing fixture file contents/mtime before and after each run, not by code inspection alone; no fixture is ever committed as a stale golden file"
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "TASK-004",
+        "title": "Integration test suite covering the full Test Surface",
+        "status": "ready",
+        "priority": 3,
+        "depends_on": [
+          "TASK-001",
+          "TASK-002",
+          "TASK-003"
+        ],
+        "use_case_refs": [
+          "UC-01"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/p3-fanout/.shapeup/envlint/tasks/TASK-004-integration-test-suite.md",
+        "acceptance_criteria": [
+          "`npm test` (== `node --test test/`) exits 0",
+          "Every `TS-*` row in [[usecases/UC-01#Test-Surface]] has a corresponding test",
+          "Fixtures (env files, schema files) are written to a temp directory per test run and never",
+          "`TS-NOGO-02` (no `.env` writing) is verified by comparing fixture file contents/mtime"
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

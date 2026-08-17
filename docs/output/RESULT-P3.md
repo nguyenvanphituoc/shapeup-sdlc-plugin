@@ -51,12 +51,35 @@ involved was individually correct:
 legs run strictly one after another satisfy exactly. There was no instrument in the repo that could
 measure overlap.
 
-`harness probe concurrency` now answers it from run records alone. Re-derived over the committed
-archive (`traces/phase2-criterion1/CONCURRENCY-BASELINE.json`), the strongest honest evidence is
-`headless-shipped` round 1: **4 legs open simultaneously**, 6 of 6 legs closed, and the dependency
-wave structure re-derived from the timings rather than read off the scheduler. Every archived figure
-is a *lower* bound — leg-completion records did not exist when those runs were taken — which is the
-safe direction for a "≥ 2" claim.
+`harness probe concurrency` now answers it from run records alone, and a live run on the converged
+code answers it **exactly** rather than as a bound — the first measurement of its kind here:
+
+```
+legs          4 total · 4 exact · 0 lower-bound · 0 with NO completion record
+concurrency   2 (exact) at 2026-08-17T06:30:06.808Z · 2 measured inside the legs' own T0 windows
+≥2 concurrent true
+  launch 1   legs=4 max=2 (exact)  span=274.2s  work=317.6s  speedup=1.16
+     wave  parsing-engine + rules-engine
+     wave  cli-composition-root
+     wave  test-surface-suite
+```
+
+Both end signals agree, so nothing is disputed; every leg carries a completion record, so nothing is
+a floor; and the speedup is **stated rather than refused**. Wave 1's two legs were dispatched 1.75 s
+apart and overlapped for their whole length: 156.6 s of work inside an 84.6 s span, a **1.85×**
+speedup on the one wave that could be wide.
+
+**Read the round figure next to the wave figure, because the gap between them is the finding.** The
+round-wide speedup is 1.16, not 1.85, because three of this feature's four scopes are
+dependency-chained — only one wave could ever hold more than one scope. The waves the run *observed*
+match the ones the kernel derived, so the schedule it executed is the schedule it was given.
+
+The archive corroborates it more widely and less precisely. Re-derived over
+`traces/phase2-criterion1/CONCURRENCY-BASELINE.json`, the strongest evidence there is
+`headless-shipped` round 1: **4 legs open simultaneously**, 6 of 6 legs closed, wave structure
+re-derived from timings rather than read off the scheduler. Every archived figure is a *lower* bound —
+leg-completion records did not exist when those runs were taken — which is the safe direction for a
+"≥ 2" claim.
 
 Two properties the instrument has because a false answer was caught in the act:
 
@@ -72,7 +95,24 @@ Two properties the instrument has because a false answer was caught in the act:
 
 ### D3 — wall-clock beats the Phase-2 baseline by ≥30%
 
-*(measured below in §3)*
+**Not claimed**, for two independent reasons — one about what the clause compares, one about whether
+the comparison can be run at all. Both are in §3.
+
+The clause names Phase 2's baseline, and Phase 2 says *"keep the sequential scope loop for THIS
+phase"* — so the 30% was bought by fan-out **existing**, which shipped before this phase. A better
+scheduler competes only for the residual, measured at ≤14.5% of one archived build span.
+
+And the experiment as specified cannot hold its own control. `traces/phase2-criterion1/CONCURRENCY-BASELINE.json`
+prescribed "the same feature built twice, changing exactly one variable: `maxParallelScopes` 1 vs 4,
+everything else held" — and **the scope cut cannot be held that way, because a model decides it.**
+Run against the identical pitch, `scope-architect` cut the feature into four scopes on one run and
+**one scope carrying all five tasks** on the next. At one scope the dial is inert: there is nothing to
+fan out, so that arm measures a different decomposition rather than a sequential execution of the same
+one. Discovering this cost a run, and it is the more useful of the two findings: **an A/B over a
+pipeline whose plan is generated per run has a confound the plan did not anticipate.**
+
+What is comparable is a run seeded with the *committed* contracts of another — the cut held fixed by
+construction, only the dial differing. §3 reports that arm.
 
 ---
 
@@ -164,6 +204,30 @@ with different repairs: below the ceiling is a dispatch problem, a ceiling below
 scope-cut problem.
 
 ---
+
+### What the fan-out arm actually delivered
+
+The run D1 was measured on went the whole way, headless, with no gate pausing:
+
+| | |
+|---|---|
+| Outcome | **shipped**, verdict PASS — 12 of 12 criteria, 0 refuted |
+| Scopes | 4, cut by the architect into waves `[2, 1, 1]` |
+| Build | every scope green on its **first** attempt |
+| Deliverable | 64 tests, 64 pass |
+| QA | 5 findings, all non-blocking, ledgered with reproductions |
+| GATE H | nothing to cut |
+| Interruption | killed mid-EVAL by a transport failure; the relaunch re-dispatched **zero** scopes |
+
+Two of those rows are worth more than the verdict. The **zero re-dispatches** is the kill/resume
+property demonstrated on a real interruption rather than a fixture: the fast-forward read all four
+scopes as green from the graph and went straight to EVAL. And the ship gate **re-ran the acceptance
+contract's own named command** rather than trusting the report — `npm test` → 64/64 — which is the
+discipline §5's evaluator fix asks for, exercised on the run after it landed.
+
+QA's best find is a real defect the evaluator's 12 criteria did not cover: a schema rule carrying both
+`type: "string"` and `enum` has its enum silently dropped, because the type branch returns before the
+enum is ever consulted. Non-blocking by design — QA discovers, it does not grade.
 
 ## 4 · What the live runs found that no fixture could
 

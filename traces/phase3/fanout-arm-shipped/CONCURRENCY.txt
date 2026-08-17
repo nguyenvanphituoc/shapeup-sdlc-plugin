@@ -1,0 +1,10 @@
+run_root      /Volumes/LibertyMobi/workspace/p3-fanout/.shapeup/envlint
+run_id        envlint-20260817T061119Z-434bbd9d
+dial          maxParallelScopes=4 (run-args)
+legs          4 total · 4 exact · 0 lower-bound · 0 with NO completion record (+8 non-build dispatch(es) excluded)
+concurrency   2 (exact) at 2026-08-17T06:30:06.808Z · 2 measured inside the legs' own T0 windows
+≥2 concurrent true
+  launch 1  2026-08-17T06:30:05.055Z → 2026-08-17T06:34:39.293Z  legs=4 max=2 (exact)  span=274.2s  work=317.6s  speedup=1.16
+     wave  parsing-engine + rules-engine
+     wave  cli-composition-root
+     wave  test-surface-suite

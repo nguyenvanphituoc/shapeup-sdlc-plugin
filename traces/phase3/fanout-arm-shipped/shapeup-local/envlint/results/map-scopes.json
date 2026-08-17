@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/map-scopes",
+  "worker": "scope-architect",
+  "status": "done",
+  "artifacts": [
+    "shapeup/envlint/scopes/rules-engine.md",
+    "shapeup/envlint/scopes/parsing-engine.md",
+    "shapeup/envlint/scopes/cli-composition-root.md",
+    "shapeup/envlint/scopes/test-surface-suite.md",
+    "shapeup/envlint/scope-board.md"
+  ],
+  "assumptions": [
+    "TASK-004's test file has no name pinned by the tasks/spec docs; chose test/test-surface.test.mjs to keep it disjoint from TASK-003's own test/cli.test.mjs (BDD-scenario coverage) since both would otherwise collide on a shared file.",
+    "No shared_substrate declared anywhere: unlike todo-cli's precedent, envlint's four tasks each own a fully disjoint file set (src/parsing.mjs, src/rules.mjs, bin/envlint.mjs, one test file each) with zero cross-scope writes — package.json already carries the bin.envlint entry and needed no scope to touch it."
+  ],
+  "deviations": []
+}

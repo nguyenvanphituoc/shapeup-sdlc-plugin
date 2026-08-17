@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/test-surface-suite-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-004",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`npm test` (== `node --test test/`) exits 0",
+          "result": "pass",
+          "evidence": "npm test -> 64 tests, 64 pass, 0 fail, exit 0"
+        },
+        {
+          "ac": "Every `TS-*` row in [[usecases/UC-01#Test-Surface]] has a corresponding test",
+          "result": "pass",
+          "evidence": "test/test-surface.test.mjs has one test per TS-INV-01..06, TS-ERR-E_NOFLAG/E_SCHEMA_UNREADABLE/E2/E1/E3/E4/E5, TS-REQ-schema-missing/envfile-missing, TS-TYPE-int/bool/url-scheme-gate/url-leniency/enum/empty-value, TS-NOGO-01..04 (26 tests), driving bin/envlint.mjs via spawnSync"
+        },
+        {
+          "ac": "Fixtures (env files, schema files) are written to a temp directory per test run and never",
+          "result": "pass",
+          "evidence": "fixture() helper writes into mkdtempSync(tmpdir(), 'envlint-ts-') per call; no fixture file is committed to the repo"
+        },
+        {
+          "ac": "`TS-NOGO-02` (no `.env` writing) is verified by comparing fixture file contents/mtime",
+          "result": "pass",
+          "evidence": "TS-NOGO-02 test reads content+mtimeMs via statSync/readFileSync before and after run(), asserts both unchanged"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "test/test-surface.test.mjs", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "TS-NOGO-04 (offline url check) is asserted by expecting a deterministic pass/fail against a well-formed https URL, since the sandbox has no way to assert network calls were never attempted; the isUrlValid implementation only calls new URL() + protocol check, which is inherently synchronous/local"
+  ],
+  "deviations": []
+}

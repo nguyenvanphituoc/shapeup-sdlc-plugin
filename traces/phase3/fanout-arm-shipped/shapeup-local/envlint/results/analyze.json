@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/analyze",
+  "worker": "ba-pitch-analyzer",
+  "status": "done",
+  "artifacts": [
+    "shapeup/envlint/spec/_index.md",
+    "shapeup/envlint/spec/domain-model.md",
+    "shapeup/envlint/spec/ux-behavior.md",
+    "shapeup/envlint/spec/usecases/_index.md",
+    "shapeup/envlint/spec/usecases/UC-01.md",
+    "shapeup/envlint/spec/integration.md",
+    "shapeup/envlint/spec/scope-summary.md",
+    "shapeup/envlint/spec/synthesis.md",
+    "shapeup/envlint/spec/feedback.md",
+    ".shapeup/envlint/tasks/TASK-001-parsing-engine.md",
+    ".shapeup/envlint/tasks/TASK-002-rules-engine.md",
+    ".shapeup/envlint/tasks/TASK-003-cli-composition-root.md",
+    ".shapeup/envlint/tasks/TASK-004-integration-test-suite.md",
+    ".shapeup/envlint/tasks/_index.md"
+  ],
+  "assumptions": [
+    "lens=standard (per order payload); no third-party/repository/service boundary exists in this feature (zero-network, zero-dependency CLI per pitch no-gos), so contracts/ (standard lens's normal central document) was not generated — typed shapes live in usecases/UC-01's Input/Output/Error Cases instead; documented in domain-model.md Repository Interfaces section and _index.md Document Map.",
+    "requirements.md registry was not generated — the order's operation is 'analyze', not 'coverage'; no coverage payload was given.",
+    "--json findings array ordering is assumed to match the human-readable output's line order (file order), since EXPECTED.md pins the JSON shape but not the array ordering guarantee — flagged in ux-behavior.md RULE-06 for PO confirmation rather than silently decided.",
+    "E3's 'must not report ok' is read as applying only when the zero-assignment file also has >=1 required schema key (guaranteeing >=1 finding); a zero-assignment file against a schema with zero required keys exits 0 with 'ok' per EXPECTED.md's own exit-code rule — pinned as UC-01 INV-06 + TS-INV-06 rather than left ambiguous.",
+    "Single UC (UC-01) models the pitch's one actor/action (Developer lints a file); the pitch's 'three independent pieces' (Parsing/Rules/CLI) are scope-level slices for scope-architect, not three separate use cases — documented in usecases/_index.md.",
+    "Task package values (src/bin/test) reflect this repo's actual flat single-package layout (package.json bin.envlint) rather than the doc-schema's monorepo-style enum (apps/api|apps/web|packages/shared|apps/mobile), which does not fit a single-package CLI repo.",
+    "Discovered-seed observations 1-4 (protocol-gate test, export+quote combined form, duplicate-key+malformed-line interaction, empty-schema case) were folded directly into UC-01's Steps/Invariants/Test Surface and TASK-001/002 acceptance criteria as spec content, not filed to a discovery ledger — this is an analyze operation (first pass on a greenfield feature), not a reconcile operation over an existing ledger."
+  ],
+  "deviations": [],
+  "discoveries": []
+}

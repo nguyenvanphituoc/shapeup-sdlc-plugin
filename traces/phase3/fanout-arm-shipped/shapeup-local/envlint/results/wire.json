@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/wire",
+  "worker": "solution-architect",
+  "status": "done",
+  "artifacts": [
+    "shapeup/envlint/wiring-map.md"
+  ],
+  "assumptions": [
+    "Engine paths (src/parsing.mjs, src/rules.mjs, bin/envlint.mjs) are taken from synthesis.md's task/critical-path table (TASK-001/002/003), which names them as the modules the build will create; the spec's usecases/domain-model do not independently restate file paths.",
+    "entry_call_site is the composition root itself (bin/envlint.mjs's inline argv-dispatch body), not a route registered into a separate root, since project-profile.md confirms bin/envlint.mjs IS the entry_point for this CLI archetype."
+  ],
+  "deviations": []
+}

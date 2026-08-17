@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/hunt",
+  "worker": "qa-edge-hunter",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/envlint/qa/hunt-report.md"
+  ],
+  "discoveries": [
+    {
+      "marker": "~",
+      "lens": "①boundary",
+      "line": "[QA-001] [UC-01] An unrecognized schema `type` value (e.g. \"weirdtype\") is silently treated as always-valid -- no error, no warning; repro: schema `{\"X\":{\"type\":\"weirdtype\"}}`, env `X=anything` -> exit 0, `ok: 1 keys checked` instead of flagging the unknown type.",
+      "repro": "1. Write s-weird.json: {\"X\":{\"type\":\"weirdtype\"}}\n2. Write e2.env: X=anything\n3. Run: node bin/envlint.mjs --schema s-weird.json e2.env\n4. Observe: exit 0, `ok: 1 keys checked` -- no indication the type was unrecognized",
+      "severity_hint": "boundary-breach",
+      "test_gap": "unit"
+    },
+    {
+      "marker": "~",
+      "lens": "①boundary",
+      "line": "[QA-002] [UC-01] When a schema rule has both `type:\"string\"` and `enum`, `isValueValid`'s type-then-enum branch order returns on the `type===\"string\"` check before ever consulting `enum`, so the enum constraint is silently dropped; repro: schema `{\"L\":{\"type\":\"string\",\"enum\":[\"debug\",\"info\"]}}`, env `L=warn` -> exit 0 (should be a finding, `warn` is not in the enum).",
+      "repro": "1. Write s-typeenum.json: {\"L\":{\"type\":\"string\",\"enum\":[\"debug\",\"info\"]}}\n2. Write e5.env: L=warn\n3. Run: node bin/envlint.mjs --schema s-typeenum.json e5.env\n4. Observe: exit 0, `ok: 1 keys checked` -- enum constraint never applied (src/rules.mjs isValueValid: `type==='string'` returns true before the `rule.enum` check is reached)",
+      "severity_hint": "boundary-breach",
+      "test_gap": "unit"
+    },
+    {
+      "marker": "~",
+      "lens": "①boundary",
+      "line": "[QA-003] [UC-01] A schema file that parses as valid JSON but isn't a `{key: Rule}` object (a bare array or a bare number) passes the E2 \"valid JSON\" gate and is handed straight to `Object.keys()`, producing nonsensical, non-error output; repro: schema file `[\"not\",\"an\",\"object\"]` against any env file -> exit 0, `ok: 3 keys checked` (array indices treated as schema keys, no validation ever applied).",
+      "repro": "1. Write s-array.json: [\"not\",\"an\",\"object\"]\n2. Write e-port.env: PORT=8080\n3. Run: node bin/envlint.mjs --schema s-array.json e-port.env\n4. Observe: exit 0, `ok: 3 keys checked` -- schema shape is never validated beyond \"is it JSON\"; a bare number (e.g. schema file content `42`) similarly passes silently with `ok: 0 keys checked`",
+      "severity_hint": "ux-degradation",
+      "test_gap": "integration"
+    },
+    {
+      "marker": "~",
+      "lens": "①boundary",
+      "line": "[QA-004] [UC-01] An unrecognized CLI flag (e.g. a typo like `--bogus` or `--Json`) is not rejected -- it falls into the positional-args bucket and, since it appears before the real env-file path, becomes `positionals[0]`, shadowing the intended env file; the tool then reports `Error: cannot read env file: --bogus` instead of any hint that the flag itself was the problem. An extra trailing positional argument (`envlint --schema s.json e.env extra-arg`) is likewise silently dropped with no warning.",
+      "repro": "1. Write s-port.json: {\"PORT\":{\"required\":true,\"type\":\"int\"}}\n2. Write e-port.env: PORT=8080\n3. Run: node bin/envlint.mjs --schema s-port.json --bogus e-port.env\n4. Observe: `Error: cannot read env file: --bogus`, exit 2 -- the real e-port.env is never read; the misleading error names the flag, not the actual mistake.\n5. Separately: node bin/envlint.mjs --schema s-port.json e-port.env extra-arg -> exit 0, `extra-arg` silently ignored, no warning",
+      "severity_hint": "ux-degradation",
+      "test_gap": "unit"
+    },
+    {
+      "marker": "~",
+      "lens": "①boundary",
+      "line": "[QA-005] [UC-01] `--schema` given twice on the command line silently keeps the last value with no warning that the first was discarded; repro: `envlint --schema s1.json --schema s2.json e.env` lints against s2.json only.",
+      "repro": "1. Write s-port.json: {\"PORT\":{\"required\":true,\"type\":\"int\"}}\n2. Write s-empty.json: {}\n3. Write e-port.env: PORT=8080\n4. Run: node bin/envlint.mjs --schema s-port.json --schema s-empty.json e-port.env\n5. Observe: `ok: 0 keys checked` -- silently used s-empty.json, no warning that s-port.json was overridden",
+      "severity_hint": "cosmetic",
+      "test_gap": "unit"
+    }
+  ],
+  "assumptions": [
+    "app_url is absent from the order payload and the deliverable is a CLI (no HTTP server per project-profile.md) -- GATE Q0's reachability check was satisfied by a real invocation of the built entry point (`node bin/envlint.mjs --help`), not an HTTP request.",
+    "interaction.pause_gates is false in the order -- GATE Q0/Q1 questions were answered by reasoning from the spec/EVAL/project context rather than pausing for a human answer; out-of-bounds areas: none identified (local, stateless CLI, no payments/PII/prod data).",
+    "Concurrency (②), state-interruption (③), cross-UC (④), and data-residue (⑥) lenses were reasoned inapplicable rather than actively probed, given UC-01 is a single-process, no-persistence, no-network, single-UC, read-only tool (confirmed by TS-NOGO-02/04 in the already-PASSED EVAL) -- logged in the hunt report, not silently skipped."
+  ]
+}

@@ -1,0 +1,9 @@
+arm: fan-out (--parallel-scopes 4)
+plugin HEAD: a34e34b
+started: 2026-08-17T06:09:33Z
+EXIT=1
+ended: 2026-08-17T06:38:40Z
+--- relaunch (resume from EVAL) ---
+started: 2026-08-17T06:50:48Z
+EXIT=0
+ended: 2026-08-17T07:12:01Z

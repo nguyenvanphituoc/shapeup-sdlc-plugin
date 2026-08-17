@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/cli-composition-root-r1-a1",
+  "run_id": "envlint-20260817T061119Z-434bbd9d",
+  "compiled_at": "2026-08-17T06:31:37.251Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "bin/envlint.mjs",
+      "test/cli.test.mjs",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": []
+  },
+  "payload": {
+    "scope_contract": {
+      "type": "scope-contract",
+      "scope_id": "cli-composition-root",
+      "feature": "envlint",
+      "topology_type": "LAYER_CAKE",
+      "tasks": [
+        "TASK-003"
+      ],
+      "allowed_file_substrate": [
+        "bin/envlint.mjs",
+        "test/cli.test.mjs"
+      ],
+      "shared_substrate": [],
+      "hill_phase": "UPHILL_UNKNOWN",
+      "e2e_verification_fixtures": [
+        "node --test test/cli.test.mjs"
+      ],
+      "affordance_manifest": [
+        {
+          "test_id": "envlint-cli-invocation",
+          "role": "cli-command",
+          "idle": "N/A (non-interactive CLI)",
+          "loading": "N/A (non-interactive CLI)",
+          "success": "`findings.length === 0` → stdout `ok: N keys checked` (N=`Object.keys(schema).length`), exit 0; `--json` clean → stdout exactly `{\"ok\":true,\"findings\":[],\"checked\":N}`, exit 0; `≥1` finding → stdout one line per finding `<envfile>:<line>: <KEY>: <message>` in file order then `N problem(s)`, exit 1; `--json` findings → stdout exactly one JSON doc `{\"ok\":false,\"findings\":[...],\"checked\":N}`, exit 1; `--json` never changes which branch is taken or the exit code (INV-04)",
+          "error": "missing `--schema` → exit 2, stderr `Error: ` prefix, single line, no schema/env file read (E_NOFLAG); unreadable/missing schema → exit 2, stderr `Error: cannot read schema file: <path>` (E_SCHEMA_UNREADABLE); schema not valid JSON → exit 2, stderr `Error: schema is not valid JSON: <path>` (E2); unreadable/missing env file → exit 2, stderr `Error: cannot read env file: <path>` (E1); no exit-2 path ever prints a raw stack trace or anything to stdout",
+          "empty": "n/a — the CLI always takes exactly one of the branches above; there is no separate \"nothing happened\" state"
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "TASK-003",
+        "title": "Create CLI composition root (bin/envlint.mjs)",
+        "status": "ready",
+        "priority": 2,
+        "depends_on": [
+          "TASK-001",
+          "TASK-002"
+        ],
+        "use_case_refs": [
+          "UC-01"
+        ],
+        "body_path": "/Volumes/LibertyMobi/workspace/p3-fanout/.shapeup/envlint/tasks/TASK-003-cli-composition-root.md",
+        "acceptance_criteria": [
+          "`bin/envlint.mjs` is the `package.json` `bin.envlint` entry, invocable as",
+          "`node --test test/cli.test.mjs` passes (drives the built binary via `child_process`, per",
+          "Missing `--schema` → exit 2, stderr `Error: ` prefix, single line",
+          "Unreadable/missing schema file → exit 2, stderr `Error: cannot read schema file: <path>`",
+          "Schema file is not valid JSON → exit 2, stderr `Error: schema is not valid JSON: <path>`",
+          "Unreadable/missing env file → exit 2, stderr `Error: cannot read env file: <path>`",
+          "No findings → stdout `ok: N keys checked` (N = `Object.keys(schema).length`), exit 0",
+          "≥1 finding → stdout one line per finding `<envfile>:<line>: <KEY>: <message>` (in file",
+          "`--json` on the clean branch → stdout exactly `{\"ok\":true,\"findings\":[],\"checked\":N}`,",
+          "`--json` on the findings branch → stdout exactly one JSON document",
+          "`--json` never changes the exit code or which branch (error/clean/findings) is taken",
+          "No exit-2 path ever prints a raw stack trace to stderr or anything to stdout"
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}
