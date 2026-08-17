@@ -1,0 +1,50 @@
+<svg width="100%" viewBox="0 0 680 354" role="img" xmlns="http://www.w3.org/2000/svg">
+  <title>Replace with one line naming what this diagram shows</title>
+  <desc>Replace with one or two sentences a screen reader can use instead of the picture.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke"
+            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <style>
+    :root {
+      --surface: #E1F5EE; --edge: #0F6E56; --ink: #085041;
+      --ink-2: #0F6E56; --hair: #888780; --neutral: #F1EFE8;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --surface: #085041; --edge: #5DCAA5; --ink: #9FE1CB;
+        --ink-2: #5DCAA5; --hair: #888780; --neutral: #2C2C2A;
+      }
+    }
+    .box  { fill: var(--surface); stroke: var(--edge); stroke-width: .5; }
+    .box-n{ fill: var(--neutral); stroke: var(--hair); stroke-width: .5; }
+    .t    { fill: var(--ink);   font: 500 14px system-ui, sans-serif; }
+    .ts   { fill: var(--ink-2); font: 400 12px system-ui, sans-serif; }
+    .edge { fill: none; stroke: var(--hair); stroke-width: .5; }
+  </style>
+
+  <g>
+    <rect class="box" x="250" y="40" width="180" height="56" rx="8"/>
+    <text class="t"  x="340" y="58" text-anchor="middle" dominant-baseline="central">Title</text>
+    <text class="ts" x="340" y="78" text-anchor="middle" dominant-baseline="central">Five words max</text>
+  </g>
+
+  <line class="edge" x1="340" y1="96" x2="340" y2="146" marker-end="url(#arrow)"/>
+
+  <g>
+    <rect class="box-n" x="250" y="156" width="180" height="44" rx="8"/>
+    <text class="t" x="340" y="178" text-anchor="middle" dominant-baseline="central">Neutral node</text>
+  </g>
+
+  <path class="edge" d="M340 200 L340 240 L500 240 L500 280" marker-end="url(#arrow)"/>
+
+  <g>
+    <rect class="box" x="410" y="290" width="180" height="44" rx="8"/>
+    <text class="t" x="500" y="312" text-anchor="middle" dominant-baseline="central">L-bend target</text>
+  </g>
+</svg>

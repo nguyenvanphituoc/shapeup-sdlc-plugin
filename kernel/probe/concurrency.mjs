@@ -145,9 +145,9 @@ export function pairLegs(starts, legRows, trials) {
     // occupied. `ingested_at` is when the WRITER ran, which is normally the leg's last act and is
     // sometimes not the leg at all — an out-of-band ingest (a repair, a `--no-receipt-check` rescue,
     // a relaunch re-applying a result) stamps a later instant onto the same row and stretches the
-    // leg over time it was not running. Measured on a run whose dial was 1: one leg repaired by hand
-    // 250.8s after its own T0 landmark — against −2.4s and +29.2s for the two untouched legs —
-    // produced `max_concurrent: 2 (exact)`, overlap on a run that built one scope at a time.
+    // leg over time it was not running. That is not hypothetical: one leg ingested out of band, minutes
+    // after its own T0 landmark while its neighbours closed within seconds of theirs, is enough to
+    // report two legs overlapping on a run whose dial was 1 and which built one scope at a time.
     const innerEnd = landmarks.length ? landmarks[landmarks.length - 1] : null;
 
     const exact = legRows
@@ -395,9 +395,9 @@ export function report(runRoot, { round = null, gapS = DEFAULT_GAP_S } = {}) {
       // record set cannot answer it, which is a third state and not a "no".
       //
       // ANSWERED FROM THE INNER INTERVALS WHEN THEY COVER EVERY LEG, because that is the only form
-      // of the evidence an out-of-band ingest cannot fabricate. A run with dial 1 reported
-      // `max_concurrent: 2 (exact)` after one of its three legs was ingested by hand 250.8s late;
-      // the inner intervals said 1, which was the truth. Where the two disagree the answer is
+      // of the evidence an out-of-band ingest cannot fabricate. A run with dial 1 has been observed
+      // reporting `max_concurrent: 2 (exact)` because one leg was ingested long after it finished; the
+      // inner intervals said 1, which was the truth. Where the two disagree the answer is
       // `"disputed"` rather than either number — a fourth state, and the honest one.
       two_or_more_concurrent: !best ? null
         : (bestInner && bestInner.max_concurrent_inner_legs === bestInner.legs)
@@ -430,10 +430,11 @@ export function report(runRoot, { round = null, gapS = DEFAULT_GAP_S } = {}) {
       end_source: l.end_source,
       duration_ms: l.end === null ? null : l.end - l.start,
       bound: l.bound,
-      // The leg's own mid-flight landmark and how far its recorded end sits past it. Left for the
-      // reader to judge rather than thresholded: on one measured round the two untouched legs came in
-      // at −2.4s and +29.2s while the hand-repaired one was +250.8s, and no constant separates those
-      // three that would still separate them on a slower machine.
+      // The leg's own mid-flight landmark and how far its recorded end sits past it. Reported for the
+      // reader to judge rather than thresholded, deliberately: a leg that closed inside itself and one
+      // ingested out of band differ by orders of magnitude on any single machine, and by nothing
+      // reliable ACROSS machines — so no constant that separates them here would survive slower
+      // hardware. The lag is the fact; what counts as suspicious is the reader's call.
       inner_ended_at: l.inner_end === null ? null : new Date(l.inner_end).toISOString(),
       end_lag_ms: (l.end === null || l.inner_end === null) ? null : l.end - l.inner_end,
     })),

@@ -1,9 +1,20 @@
 # Security
 
-This plugin installs **twelve hook entries (eleven Node scripts + one `echo`)**: six in a
-`PreToolUse` position, of which **five can deny a tool call**, plus one `Stop`-position hook that
-can block a session from ending. That is the product — and it is also exactly the kind of surface
-a careful reviewer should want spelled out before installing. This page is that spelling-out.
+This plugin installs **seven hook entries (six Node scripts + one `echo`)**: four in a
+`PreToolUse` position, **all four of which can deny a tool call**, one `PostToolUse` hook that has no
+deny path at all, and one `Stop`-position hook that can block a session from ending. That is the
+product — and it is also exactly the kind of surface a careful reviewer should want spelled out
+before installing. This page is that spelling-out.
+
+Count them yourself rather than taking the paragraph's word for it, because this paragraph has been
+wrong before — it described a twelve-entry surface for the whole life of v2.0, after the hook diet cut
+it to four walls and updated the table below without updating the sentence above it:
+
+```bash
+node -e "const h=require('./hooks/hooks.json').hooks;
+  for (const [e,gs] of Object.entries(h)) for (const g of gs) for (const x of g.hooks)
+    console.log(e, g.matcher||'*', x.command.match(/[^/ ]+\.mjs/)?.[0] ?? '(echo)')"
+```
 
 ## Reporting a vulnerability
 

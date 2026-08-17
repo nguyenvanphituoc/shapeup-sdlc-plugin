@@ -239,8 +239,10 @@ erDiagram
 | `VerdictLedgerLine` | LOCAL | `evaluation/.verdicts-<target>.jsonl` | harness reduce ingest | spec-evaluator (flip detection), harness reduce verdict |
 | `SeesawRegistry` | LOCAL | `seesaw/registry.json` | tech-lead (scope FINISHED) | harness verify t0 |
 | `MetricsRow` | SHARED | `metrics/<machine-id>.jsonl` | tech-lead (SHIP S.6) | harness probe stats (v1.2: optional `at` + `attempt_exhaustions` fields) |
-| `ActiveScopePointer` | LOCAL | `.shapeup/active-scope` | tech-lead (BUILD step 0) | run-scoping for the advisory/Stop hooks — not writable by any worker |
-| `ActiveOrderPointer` | LOCAL | `.shapeup/active-order` | the run (written before each worker dispatch) | sandbox-guard hook — the substrate it enforces is read through this pointer |
+| `ActiveScopePointer` | LOCAL | `.shapeup/active-scope` | harness init run (GATE L0) — write-once per run, not writable by any worker | harness report export, harness reduce snapshot, harness verify budget. **No hook reads it**: the advisory hooks that once did were retired with the hook diet, and `sandbox-guard` never read it |
+| `ActiveOrderPointer` | LOCAL | `.shapeup/active-order` | harness compile (published as it writes each order) | sandbox-guard hook. It **seeds** the search rather than scoping it: the guard enforces the substrate of *every* live order for the run this pointer names — compiled and not yet ingested — because with scopes building concurrently the writer may not be the order the pointer happens to name |
+| `DispatchReceipt` | LOCAL | `<slug>/receipts/dispatch.jsonl` | dispatch-receipt hook (PostToolUse, append-only) — a sub-agent cannot write its own attestation | harness reduce ingest (refuses an orchestrated result with no matching receipt), harness probe concurrency (a leg's start) |
+| `LegRow` | LOCAL | `<slug>/legs.jsonl` | harness reduce ingest (append-only, one row per closed leg) | harness probe concurrency (a leg's end), harness probe leg (whether a scope's result reached the board) |
 | `SafetyOverrides` (v1.2) | LOCAL | `.shapeup/safety-overrides.json` | **human PO only** — outside the run-trace carve-out, so no worker can write it | safety-spine hook |
 | `RunSnapshot` (v1.2) | LOCAL | `<slug>/run-snapshot.json` | harness reduce snapshot `--write` (never a worker) | tech-lead, human |
 | `StatsReport` (v1.2) | EMBEDDED | stdout only — never persisted | harness probe stats (read-only projection) | human / CLI / CI |

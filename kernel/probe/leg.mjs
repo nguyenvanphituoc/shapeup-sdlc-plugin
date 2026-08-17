@@ -7,19 +7,16 @@
 //
 // WHY IT EXISTS. `probe t0` answers "is the T0 verdict green", and the BUILD round's confirm stage
 // asked only that. A green T0 says the worker's fixtures ran and passed; it says nothing about
-// whether the WorkResult was applied. Measured on a live run: a build leg wrote its code, wrote a
-// green T0 verdict and a kept trial row, wrote its WorkResult to disk — and never ran step 3 of its
-// own script, `reduce ingest`. It reported green, the confirm stage re-verified the T0 artifact,
-// agreed, and the round walked on. The scope's task stayed `pending` with zero acceptance criteria
-// ticked while its code sat finished on disk:
+// whether the WorkResult was applied — and this is a state a real run reaches. A build leg can write
+// its code, a green T0 verdict, a kept trial row and its WorkResult to disk, and never run step 3 of
+// its own script, `reduce ingest`. It reports green; a confirm stage that re-verifies only the T0
+// artifact agrees, and the round walks on. That scope's task is left `pending` with zero acceptance
+// criteria ticked while its code sits finished on disk, beside a sibling scope whose task is `done`.
 //
-//     TASK-001 (env-parsing)   status: pending   ACs ticked: 0     ← the leg that skipped ingest
-//     TASK-002 (schema-rules)  status: done      ACs ticked: 12
-//
-// Nothing was wrong with the order, the receipt or the result — ingesting the same file afterwards
-// succeeded, attested, and ticked nine criteria. The single writer of shared state simply never ran,
-// and the board GATE L2 reads as "100% ✅" silently disagreed with a scope that was genuinely
-// finished. Under fan-out this gets worse rather than better: N legs can each drop the step
+// Nothing has to be wrong with the order, the receipt or the result for this to happen — ingesting the
+// same file afterwards succeeds and ticks the criteria. The single writer of shared state simply never
+// ran, and the board GATE L2 reads as "100% ✅" silently disagrees with a scope that is genuinely
+// finished. Under fan-out it gets worse rather than better: N legs can each drop the step
 // independently, and the only symptom is a board that lags reality.
 //
 // WHY A LEG ROW IS THE RIGHT EVIDENCE. The row is appended BY `reduce ingest`. Its presence is
