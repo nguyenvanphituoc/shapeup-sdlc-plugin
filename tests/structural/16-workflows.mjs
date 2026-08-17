@@ -830,13 +830,53 @@ export async function run(ctx) {
     }
     // Acting on the answer, not merely fetching it: the unapplied orders have to be ingested, or the
     // query is a fact nobody uses — which reads exactly like a fixed defect and is not one.
-    if (!/reduce ingest --order \$\{/.test(code)) {
+    // Quote-agnostic on purpose. This pattern was `--order \$\{` and went red the moment the path was
+    // correctly quoted per check (p) — a guard pinned to a spelling failing a strictly better one,
+    // which is the same trap check (m) records having fallen into.
+    if (!/reduce ingest --order "?\$\{/.test(code)) {
       problems.push("nothing ingests the unapplied order the leg check names — the finished work stays invisible to the board");
     }
     if (!problems.length) {
       ok(`${WORKFLOWS_DIR}/${f} confirms a scope on its T0 verdict AND on its result having been applied`);
     } else {
       fail(`${WORKFLOWS_DIR}/${f} treats a green T0 as a finished scope:\n    ${problems.join("\n    ")}`);
+    }
+  }
+
+  // (p) A PATH SPELLED INTO A SUB-AGENT'S PROMPT MUST BE QUOTED.
+  //
+  // Every kernel call in a workflow script is prose inside an `agent()` prompt, and the PreToolUse
+  // envelope gate scans that prompt as well as a `Skill` call's own args. An interpolated path with no
+  // quotes of its own is read together with the trailing quote of the literal around it, and the gate
+  // denies the entire dispatch — measured once, on an order path threaded through a prompt exactly
+  // this way. The workflow has no shell to escape for it: what it writes is what the gate parses.
+  //
+  // Latent rather than loud, which is why it needs a guard: a path with no spaces and no quotes
+  // usually survives, so the defect ships and waits for a project whose directory has a space in it.
+  //
+  // Only PATH-taking flags are checked. `--scope` takes a contract path at the compile line and a bare
+  // scope id at `probe t0` / `probe leg`, so it is required to be quoted only when the interpolated
+  // expression names a path — otherwise this would demand quotes around an identifier and teach the
+  // next reader that the rule is arbitrary.
+  const PATH_FLAGS = ["--order", "--file", "--out", "--contract", "--intake-file", "--args-file"];
+  for (const f of files) {
+    const code = codeOnly(readFileSync(join(abs, f), "utf8"));
+    const bare = [];
+    for (const flag of PATH_FLAGS) {
+      for (const m of code.matchAll(new RegExp(`${flag}\\s+\\$\\{([^}]*)\\}`, "g"))) {
+        bare.push(`${flag} \${${m[1]}}`);
+      }
+    }
+    // `--scope`, and any bare positional, when the value is a path expression.
+    for (const m of code.matchAll(/(--scope|verify t0)\s+\$\{([^}]*)\}/g)) {
+      if (/\bpath\b|Path\b/.test(m[2])) bare.push(`${m[1]} \${${m[2]}}`);
+    }
+    if (bare.length) {
+      fail(`${WORKFLOWS_DIR}/${f} interpolates a path into a kernel command without quoting it:\n    ` +
+        bare.join("\n    ") + "\n    The envelope gate parses the sub-agent prompt this becomes, so the " +
+        "path is read together with the surrounding literal's closing quote and the dispatch is denied.");
+    } else {
+      ok(`${WORKFLOWS_DIR}/${f} quotes every path it spells into a kernel command`);
     }
   }
 

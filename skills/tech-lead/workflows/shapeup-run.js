@@ -682,7 +682,11 @@ async function worker({ skill, operation, payload, schema, phase: phaseName, lab
 // and read as healthy. Stopping converts a silent skip into a first-run error.
 // ---------------------------------------------------------------------------------------------
 const PRESETS = new Set(["ci", "guarded", "interactive"]);
-const answersFlag = (a) => (!a ? "" : PRESETS.has(a) ? `--preset ${a}` : `--file ${a}`);
+// The non-preset branch is an operator-supplied PATH, so it is quoted: every kernel call in this file
+// is spelled into a sub-agent's prompt, and the PreToolUse envelope gate scans that prompt as well as
+// a `Skill` call's args. A bare path is read together with the trailing quote of the literal around
+// it, and the whole dispatch is denied.
+const answersFlag = (a) => (!a ? "" : PRESETS.has(a) ? `--preset ${a}` : `--file "${a}"`);
 
 const TITLES = {
   L1a: "Orient Review", "L1a.5": "Wiring Review", L1b: "Board Review",
@@ -1097,7 +1101,11 @@ while (round <= maxRounds) {
           log(`BUILD r${round} — ${s.scope_id} finished without applying its own result. Ingesting it ` +
               `here: ${orderPath}. The leg skipped its ingest step, so the board did not see work that ` +
               `is on disk and T0-green.`);
-          await advisory(`reduce ingest --order ${orderPath}`, "Build", `late-ingest:${s.scope_id}-r${round}`);
+          // QUOTED, and that is not cosmetic. The PreToolUse envelope gate scans the `Agent` prompt as
+          // well as `Skill` args, so a bare order path interpolated into a sub-agent's prompt is read
+          // together with the trailing quote of the surrounding literal and the whole dispatch is
+          // denied — measured once already, on a path threaded through a prompt exactly like this one.
+          await advisory(`reduce ingest --order "${orderPath}"`, "Build", `late-ingest:${s.scope_id}-r${round}`);
         }
         if (applied && !applied.closed && !(applied.unapplied || []).length && applied.results_total === 0) {
           // Green T0, no result envelope at all: the two records disagree about whether a leg ran, and
@@ -1290,7 +1298,7 @@ async function buildScope(scope, roundNo) {
     // A build order is addressed by scope + round + attempt, never by operation: the attempt number
     // is part of its identity, so there is one order per attempt and the generic slug form cannot
     // express it. NOTE this override is why no `payload` is passed — it would be discarded.
-    compile: `compile --scope ${scope.path} --round ${roundNo} --attempt 1`,
+    compile: `compile --scope "${scope.path}" --round ${roundNo} --attempt 1`,
     extra:
       (roundNo > 1
         ? `THIS MAY BE A FIX ROUND. If your compiled order carries \`payload.bugs\`, the evaluator ` +
@@ -1304,7 +1312,7 @@ async function buildScope(scope, roundNo) {
         : "") +
       `Re-compile the order for every attempt after the first, with --attempt <n>. ` +
       `Run the attempt ratchet for THIS scope only: up to ${attemptBudget} attempts of implement → ` +
-      `\`node "${KERNEL}" verify t0 ${scope.path} --round ${roundNo} --attempt <n>\`, each scored against ` +
+      `\`node "${KERNEL}" verify t0 "${scope.path}" --round ${roundNo} --attempt <n>\`, each scored against ` +
       `the last kept trial. Stop on the first green T0, or when the attempt budget or the stagnation ` +
       `breaker trips. Write only inside this scope's substrate whitelist — the sandbox hook enforces it. ` +
       `Report green, attempts_used, which breaker (if any) tripped, and the T0 artifact path.`,
