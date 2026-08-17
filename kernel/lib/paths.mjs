@@ -210,7 +210,23 @@ export const workingDir = (cwd, slug) => join(localRoot(cwd, slug), "working");
 
 // --- checkout-wide ---------------------------------------------------------
 
-/** The pointer the sandbox guard reads to answer "which scope is checked out?". */
+/**
+ * The RUN pointer — "which run is open in this checkout?" — written once by ``harness init run``.
+ *
+ * IT NO LONGER NAMES A SCOPE, and the name is the last trace of what it used to be. It was the
+ * branch-per-scope substrate pointer, rewritten as each scope was checked out, and a single mutable
+ * pointer cannot survive scopes building side by side: the last writer wins it and another leg's
+ * write is then judged against the wrong contract. That pointer is gone — the writer that moved it
+ * was removed, and `sandbox-guard` resolves the LIVE ORDER SET instead, which is why the guard is
+ * unaffected by this file's presence or absence.
+ *
+ * What is left is written once, at run open, and never moved again, so it is not a concurrency
+ * hazard. Its readers all degrade rather than fail without it: the budget check and the snapshot
+ * both fall back to scanning for a receipt or a mid-run ledger, and `report export` refuses with
+ * instructions rather than guessing. The one thing it uniquely supplies is the slug that
+ * {@link resolveRunId} turns into a `run_id` for callers that were handed no slug — hook decision
+ * rows, above all, which without it are written unjoinable to any run.
+ */
 export const activeScope = (cwd) => join(localDir(cwd), "active-scope");
 /** The pointer the sandbox guard reads to answer "which order is executing?". */
 export const activeOrder = (cwd) => join(localDir(cwd), "active-order");

@@ -172,13 +172,21 @@ export function project(cwd, slug) {
       if (!line.trim()) continue;
       const t = readJson0(line);
       if (!t?.trial) continue;
-      const id = `trial:${slug}:${t.trial}`;
+      // THE SCOPE IS PART OF THE KEY, because the ordinal alone is not unique. A trial ordinal
+      // counts within its scope, so `trial:<slug>:1` names one row per scope and every one of them
+      // collapsed onto a single node — the Map this graph is read back into keeps the last writer,
+      // so a scope's whole execution record vanished silently. Measured: four scopes' trials
+      // projected to two nodes. `--trace` is supposed to reach "the execution record"; it reached
+      // whichever scope happened to be written last. `baseline_trial` is chosen from the same
+      // scope's prior rows, so the SUPERSEDES edge resolves inside the same partition.
+      const trialKey = (n) => `trial:${slug}:${t.scope_id ? `${t.scope_id}:` : ""}${n}`;
+      const id = trialKey(t.trial);
       node(id, "Trial", {
         trial: t.trial, round: t.round ?? null, attempt: t.attempt ?? null,
         scope_id: t.scope_id ?? null, status: t.status ?? null, artifact: t.artifact ?? null,
         sha256: t.sha256 ?? null, run_id: t.run_id ?? runId ?? null,
       });
-      if (t.baseline_trial) edge(id, "SUPERSEDES", `trial:${slug}:${t.baseline_trial}`);
+      if (t.baseline_trial) edge(id, "SUPERSEDES", trialKey(t.baseline_trial));
       if (t.artifact) edge(id, "EVALUATES", `verdict:${slug}:${basename(String(t.artifact), ".json")}`);
     }
   }

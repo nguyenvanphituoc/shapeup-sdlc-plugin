@@ -62,7 +62,7 @@ import { runArgs } from "../lib/argv.mjs";
 import { splitFrontmatter } from "../lib/contract.mjs";
 import {
   intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir,
-  orientDir, activeScope, activeOrder, usecasesDir, tasksDir,
+  orientDir, activeOrder, usecasesDir, tasksDir,
 } from "../lib/paths.mjs";
 
 /** The run-state values `references/state.md` defines. A typo'd status is a rejection,

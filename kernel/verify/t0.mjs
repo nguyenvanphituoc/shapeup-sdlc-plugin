@@ -533,7 +533,18 @@ export async function cli(rawArgv) {
 
   // `baseline_trial` is the parent link — the experiment DAG (lineage, PARENT_OF and a genuine
   // SUPERSEDES edge) delivered as one field, with no graph store behind it.
-  const trialNo = readTrials(trialsPath).length + 1;
+  //
+  // COUNTED WITHIN THE SCOPE, NEVER ACROSS THE FILE. This used to be
+  // `readTrials(trialsPath).length + 1` — every row in the run, whoever wrote it — which is a
+  // read-modify-write counter over a file that concurrent scopes append to. Scopes build in
+  // parallel, so several `verify t0` processes reach this line at once, each reads the same length
+  // and each writes the same ordinal: four concurrent scopes produced ordinals [1,1,1,4] and
+  // [1,1,3,3]. The ordinal is only ever consumed WITHIN a scope — `baseline` is picked from
+  // `priorTrials`, which is already filtered by `scope_id`, and the ratchet report groups by scope
+  // before it sorts — so counting the scope's own prior trials is both the race-free answer and the
+  // one the readers actually want. Two attempts of the SAME scope cannot race: one worker leg owns
+  // a scope and runs its attempts in sequence.
+  const trialNo = priorTrials.length + 1;
   const row = {
     schema_version: 1,
     trial: trialNo,

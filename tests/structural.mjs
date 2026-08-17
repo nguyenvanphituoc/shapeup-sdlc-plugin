@@ -74,6 +74,11 @@ const MODULE_FILES = [
   // that init writes it; nothing then looked at the tree it wrote into — where a grant that has
   // accumulated dead rules, an opt-out that is a no-op, and a second harness block all read fine.
   "22-consumer-install.mjs",
+  // 23-parallel-isolation.mjs: what survives scopes building at the same time. Its own module
+  // because the failure mode is not a crash but state that quietly disagrees with itself — and
+  // because half of it has to RACE: a lock that works and a lock that is never contended produce
+  // the identical green.
+  "23-parallel-isolation.mjs",
   "45-paths.mjs",
   "46-contract-md.mjs",
   "47-ship-report.mjs",
