@@ -80,10 +80,10 @@ export async function run(ctx) {
   // =============================================================================
 
   // --- (a) the region is present and evaluates -------------------------------------------------
-  let scopeEdges, scheduleScopes;
+  let scopeEdges, withExclusions, releaseCeiling, scheduleScopes;
   try {
-    ({ scopeEdges, scheduleScopes } = loadScheduler(ROOT));
-    ok("the shipped workflow's scheduler region loads and defines scopeEdges + scheduleScopes — every check below runs the shipped bytes, not a copy");
+    ({ scopeEdges, withExclusions, releaseCeiling, scheduleScopes } = loadScheduler(ROOT));
+    ok("the shipped workflow's scheduler region loads and defines scopeEdges + withExclusions + releaseCeiling + scheduleScopes — every check below runs the shipped bytes, not a copy");
   } catch (e) {
     fail(`the BUILD scheduler cannot be loaded out of the shipped workflow script: ${e.message}`);
     return;
@@ -151,11 +151,30 @@ export async function run(ctx) {
     const edges = scopeEdges(junk, f.waves, f.scopes);
     const r = await run1(scheduleScopes, f.order, edges, 2, spec);
     const ids = r.result.settled.map((x) => x && x.scope_id).sort();
-    if (r.result.settled.length === 3 && JSON.stringify(ids) === JSON.stringify(["a", "b", "c"])) {
-      ok("a malformed edge list drops edges, never scopes — every scope still settles exactly once, so the round's census is complete");
+
+    // And a repeated scope_id is two legs with two records, not one record reported twice. The
+    // detector has to be IDENTITY, not shape or count: putting the defect back showed that keying
+    // the settled list by id still produces four entries of the right length, because the fourth is
+    // the FIRST leg's record handed back a second time while the fourth leg's own result is thrown
+    // away. A census that only counts cannot see that; two records that are the same object can.
+    const dupItems = [...f.order, f.order[0]];
+    const rDup = await run1(scheduleScopes, dupItems, edges, 2, spec);
+    const distinctRecords = rDup.result.settled[0] !== rDup.result.settled[rDup.result.settled.length - 1];
+
+    const problems = [];
+    if (r.result.settled.length !== 3 || JSON.stringify(ids) !== JSON.stringify(["a", "b", "c"])) {
+      problems.push(`malformed edges: settled ${JSON.stringify(ids)}, expected a,b,c`);
+    }
+    if (rDup.result.settled.length !== 4 || rDup.result.trace.length !== 4 || !distinctRecords) {
+      problems.push(`a repeated scope id produced ${rDup.result.settled.length} record(s) from ${rDup.result.trace.length} leg(s) `
+        + `(expected 4 and 4), and the repeated positions ${distinctRecords ? "hold" : "DO NOT hold"} distinct records`);
+    }
+    if (!problems.length) {
+      ok("a malformed edge list drops edges, never scopes, and a repeated scope id is two legs and two records — "
+        + "every item settles exactly once, so the round's census is complete");
     } else {
-      fail(`the BUILD scheduler dropped a scope on malformed edge data: settled ${JSON.stringify(ids)}, expected a,b,c. `
-        + "A scope missing from the settled list is missing from GATE H's census and from the ledger.");
+      fail(`the BUILD scheduler dropped a scope:\n    ${problems.join("\n    ")}\n`
+        + "    A scope missing from the settled list is missing from GATE H's census and from the ledger.");
     }
   }
 
@@ -330,6 +349,143 @@ export async function run(ctx) {
     } else {
       fail("a barrier is back in BUILD's fan-out:\n    "
         + regressions.map((r) => `${r.name}: ${r.before} ticks before, ${r.mine} now`).join("\n    "));
+    }
+  }
+
+  // --- (k) TWO SCOPES THAT MAY WRITE THE SAME PATH NEVER BUILD AT THE SAME TIME -----------------
+  //
+  // WHAT THIS COSTS WHEN IT IS WRONG, measured: three concurrent writers to one declared-shared
+  // entry point lost work in TWENTY OF TWENTY trials. And there is nothing to notice it by — the
+  // surviving copy passes its fixtures, the sandbox guard permitted every write (the path is in
+  // every one of those orders' shared block, which is exactly what `shared_substrate` means), and
+  // the disjointness lint passed because the overlap was correctly declared. Three layers, each
+  // right on its own; the join is the defect, and the join only exists here, because "these two are
+  // running right now" is a fact no lint can hold.
+  //
+  // Four properties, and the third and fourth are what stop the cure being worse:
+  //   1. an excluded pair never overlaps in time
+  //   2. scopes that do NOT collide still fan out — an exclusion is a pair, never a global lock
+  //   3. an exclusion mixed with a real dependency edge does not deadlock (it is oriented by build
+  //      position, so the whole edge set keeps pointing backwards and cannot cycle)
+  //   4. absent or malformed pairs mean today's scheduling, not a refusal to run
+  {
+    const spec = {
+      foundation: { ms: 10 },
+      "add-todo": { ms: 20, deps: ["foundation"] },
+      "list-todos": { ms: 20, deps: ["foundation"] },
+      "cli-integration": { ms: 20, deps: ["foundation"] },
+    };
+    const f = fixture(spec);
+    // All three wave-2 scopes write the entry point; none of them depends on another.
+    const pairs = [
+      ["scopes/add-todo.md", "scopes/cli-integration.md"],
+      ["scopes/list-todos.md", "scopes/cli-integration.md"],
+      ["scopes/add-todo.md", "scopes/list-todos.md"],
+    ];
+    const base = scopeEdges(f.rawDeps, f.waves, f.scopes);
+    const { edges, added } = withExclusions(base, pairs, f.order);
+    const r = await run1(scheduleScopes, f.order, edges, 4, spec);
+
+    const at = new Map(r.result.trace.map((t) => [t.scope_id, t]));
+    const overlaps = [];
+    for (const [a, b] of pairs.map((p) => p.map((x) => x.split("/").pop().replace(".md", "")))) {
+      const A = at.get(a), B = at.get(b);
+      if (A && B && A.start < B.end && B.start < A.end) overlaps.push(`${a} [${A.start},${A.end}] overlaps ${b} [${B.start},${B.end}]`);
+    }
+
+    // Non-collidng scopes must still fan out, and the exclusion must not have become a global lock.
+    const wide = { a: { ms: 10 }, b: { ms: 10 }, c: { ms: 10 }, d: { ms: 10 } };
+    const fw = fixture(wide);
+    const one = withExclusions(scopeEdges([], fw.waves, fw.scopes), [["scopes/a.md", "scopes/b.md"]], fw.order);
+    const rw = await run1(scheduleScopes, fw.order, one.edges, 4, wide);
+
+    // Absent / malformed pairs: today's scheduling, and the round still completes.
+    const none = withExclusions(scopeEdges([], fw.waves, fw.scopes), undefined, fw.order);
+    const junk = withExclusions(scopeEdges([], fw.waves, fw.scopes), [["scopes/ghost.md", "scopes/a.md"], ["scopes/a.md"], 7], fw.order);
+    const rn = await run1(scheduleScopes, fw.order, none.edges, 4, wide);
+
+    // ⟐ A PAIR WRITTEN DEPENDANT-FIRST, BETWEEN TWO SCOPES THAT ALSO HAVE A DEPENDENCY EDGE. This is
+    // the deadlock, and it is the sub-check that nearly went missing: the fixture above happens to
+    // list every pair in build order, so it passes against an implementation that ignores build
+    // position entirely — putting that defect back is the only reason this exists. An exclusion
+    // oriented by the pair's own order points FORWARD, meets the dependency edge pointing back, and
+    // the two scopes wait for each other with no error, no log line and no artifact.
+    const chainSpec = { core: { ms: 10 }, wire: { ms: 10, deps: ["core"] } };
+    const fc = fixture(chainSpec);
+    const reversed = withExclusions(scopeEdges(fc.rawDeps, fc.waves, fc.scopes),
+      [["scopes/wire.md", "scopes/core.md"]], fc.order);
+    let chainOk = false, chainWhy = "";
+    try {
+      const rc = await run1(scheduleScopes, fc.order, reversed.edges, 4, chainSpec);
+      chainOk = rc.result.settled.length === 2 && !edgeViolations(rc.result.trace, reversed.edges).length;
+      if (!chainOk) chainWhy = `${rc.result.settled.length}/2 settled`;
+    } catch (e) { chainWhy = e.message; }
+
+    const problems = [];
+    if (added !== 3) problems.push(`${added} exclusion edge(s) landed, expected 3`);
+    if (!chainOk) problems.push(`a pair written dependant-first deadlocked or lost a scope (${chainWhy}) — exclusions must be `
+      + "oriented by build position, so the whole edge set keeps pointing backwards and cannot cycle");
+    if (reversed.added !== 0) problems.push(`an exclusion between two scopes that already have a dependency edge added `
+      + `${reversed.added} redundant edge(s); the pair is already ordered`);
+    if (overlaps.length) problems.push(`excluded scopes ran concurrently:\n      ${overlaps.join("\n      ")}`);
+    if (r.result.settled.length !== 4) problems.push(`${r.result.settled.length}/4 scopes settled under exclusions`);
+    if (rw.result.peak !== 3) problems.push(`one excluded pair among four scopes dropped peak concurrency to ${rw.result.peak}, expected 3 — an exclusion is a pair, not a global lock`);
+    if (none.added !== 0 || junk.added !== 0) problems.push(`absent/malformed pairs produced ${none.added}/${junk.added} edges, expected 0/0`);
+    if (rn.result.peak !== 4) problems.push(`with no exclusions the window reached ${rn.result.peak}, expected the full dial of 4`);
+    if (!problems.length) {
+      ok(`two scopes that may write the same declared-shared path are never open at once (3 pair(s) serialised, ${r.elapsed} ticks, `
+        + "no overlap), scopes that do not collide still fan out to the full dial, and absent or malformed pairs schedule exactly as before");
+    } else {
+      fail(`the co-scheduling exclusion is not enforced:\n    ${problems.join("\n    ")}\n`
+        + "    Concurrent writers to one declared-shared path lose each other's work in every trial, and every fixture,\n"
+        + "    lint and hook stays green over the copy that survived.");
+    }
+  }
+
+  // --- (l) THE REPORTED CEILING IS THE PEAK THAT ACTUALLY HAPPENS --------------------------------
+  //
+  // The run prints how many scopes CAN be open at once before it dispatches anything, because that
+  // number and the dial are different facts and the difference is attributable: a peak below the
+  // ceiling is a dispatch or runtime limit, a ceiling below the dial is the scope cut. A reported
+  // ceiling that the schedule then misses would be worse than not reporting one — a number in a log
+  // that nothing checks is the shape of every measurement this repo has had to throw away.
+  //
+  // Asserted in both directions on three graphs, because the interesting one is the pathological
+  // case the coordinator asked about: a six-scope feature whose entry point sits in every scope's
+  // substrate has a ceiling of ONE, and that is the honest answer rather than a bug. The alternative
+  // is six legs writing one file, which lost work in twenty of twenty trials — a shorter makespan
+  // over a feature that was not built.
+  {
+    const cases = [
+      ["nothing shared, four independent scopes", { a: { ms: 10 }, b: { ms: 10 }, c: { ms: 10 }, d: { ms: 10 } }, [], 4],
+      ["a chain — nothing may ever overlap", { a: { ms: 10 }, b: { ms: 10, deps: ["a"] }, c: { ms: 10, deps: ["b"] } }, [], 1],
+      ["every scope writes the entry point (a clique)", {
+        foundation: { ms: 10 },
+        "add-todo": { ms: 10, deps: ["foundation"] },
+        "list-todos": { ms: 10, deps: ["foundation"] },
+        "cli-integration": { ms: 10, deps: ["add-todo", "list-todos"] },
+      }, "all", 1],
+    ];
+    const problems = [];
+    for (const [name, spec, pairSpec, want] of cases) {
+      const f = fixture(spec);
+      const ids = Object.keys(spec);
+      const pairs = pairSpec === "all"
+        ? ids.flatMap((a, i) => ids.slice(i + 1).map((b) => [`scopes/${a}.md`, `scopes/${b}.md`]))
+        : pairSpec;
+      const { edges } = withExclusions(scopeEdges(f.rawDeps, f.waves, f.scopes), pairs, f.order);
+      const ceiling = releaseCeiling(edges, f.order);
+      const r = await run1(scheduleScopes, f.order, edges, 8, spec);
+      if (ceiling !== want) problems.push(`${name}: ceiling reported ${ceiling}, expected ${want}`);
+      if (r.result.peak > ceiling) problems.push(`${name}: ${r.result.peak} legs ran at once against a reported ceiling of ${ceiling}`);
+      if (r.result.peak < ceiling) problems.push(`${name}: the schedule never reached its own reported ceiling (${r.result.peak} of ${ceiling}) at an unbounded dial`);
+      if (r.result.settled.length !== ids.length) problems.push(`${name}: ${r.result.settled.length}/${ids.length} settled`);
+    }
+    if (!problems.length) {
+      ok("the concurrency ceiling the run reports before dispatching is exactly the peak the schedule reaches — 4 when nothing "
+        + "is shared, 1 for a chain, and 1 when every scope writes the entry point, which is a scope-cutting fact and not a bug");
+    } else {
+      fail(`the reported concurrency ceiling is not what happens:\n    ${problems.join("\n    ")}`);
     }
   }
 

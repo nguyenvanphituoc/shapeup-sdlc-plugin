@@ -690,15 +690,63 @@ export async function run(ctx) {
     if (!/wavesFrom\(\s*\w+\.scope_waves/.test(code)) {
       problems.push("the waves are not derived from `probe resume`'s scope_waves");
     }
-    // The RELEASE SET must come from the kernel's edges, run through the validator.
-    if (!/^scopeEdges\(/.test(bindingOf(edgesArg).trim())) {
-      problems.push(`the release set \`${edgesArg}\` is not built by scopeEdges() (bound as \`${bindingOf(edgesArg) || "?"}\`)`);
+    // The RELEASE SET must come from the kernel's edges, run through the validator, and then
+    // through the co-scheduling exclusions. Resolved one hop, because the composition legitimately
+    // lands in an intermediate (`const x = withExclusions(scopeEdges(…), …); const edges = x.edges`).
+    const chain = (name, hops = 2) => {
+      let expr = bindingOf(name).trim();
+      for (let i = 0; i < hops; i++) {
+        const base = expr.match(/^([A-Za-z_$][\w$]*)\s*\.\s*\w+$/);
+        if (!base) break;
+        expr = bindingOf(base[1]).trim();
+      }
+      return expr;
+    };
+    const releaseExpr = chain(edgesArg);
+    if (!/^withExclusions\(/.test(releaseExpr)) {
+      problems.push(`the release set \`${edgesArg}\` does not pass through withExclusions() (resolves to \`${releaseExpr || "?"}\`), `
+        + "so two scopes that may write the same declared-shared path can be open at once");
+    }
+    if (!/withExclusions\(\s*scopeEdges\(/.test(code)) {
+      problems.push("the exclusions are not composed over scopeEdges()'s output, so one of the two constraints is being dropped");
     }
     if (!/scopeEdges\([^)]*\bwaves\b/.test(code)) {
       problems.push("scopeEdges() is called without the waves, so a malformed edge list has nothing safe to fall back to");
     }
     if (!/\bscope_deps\b/.test(code)) {
       problems.push("the workflow never reads `scope_deps`, so every scope waits for its whole wave");
+    }
+    // THE SAFETY EDGE, and it is the one whose absence is silent. A missing dependency edge costs a
+    // scope its attempt budget and shows up as a failure; a missing exclusion loses a scope's work
+    // and shows up as nothing at all, because every fixture, lint and hook passes over the copy that
+    // survived. Measured: three concurrent writers to one shared path lost work in 20 of 20 trials.
+    if (!/\bscope_exclusions\b/.test(code)) {
+      problems.push("the workflow never reads `scope_exclusions`, so scopes sharing a writable path are co-scheduled");
+    }
+    if (!/withExclusions\([^;]*\brawExclusions\b|withExclusions\([^;]*scope_exclusions/.test(code)) {
+      problems.push("withExclusions() is not given the kernel's exclusion pairs, so it can only ever add zero edges");
+    }
+    // THE CEILING MUST BE COMPUTED OVER THE SAME GRAPH THE SCHEDULER RUNS, AND MUST BE REPORTED.
+    // A ceiling under the dial is a scope-cutting fact — the declared substrate does not admit the
+    // concurrency the run is paying for — and it is repaired at the board review, not in BUILD. Said
+    // before the first dispatch it costs a line; discovered later it is a slow round indistinguishable
+    // from slow workers. Computed and not logged, it is worth nothing at all, which is why the check
+    // follows it into the log call: putting the defect back showed that guarding the function alone
+    // passes on a run that never reports the number.
+    // Again the CALL, not the declaration — `function releaseCeiling(edges, items)` matches the same
+    // shape, and reading its parameter names as the arguments is how this check first went green
+    // against the very mismatch it exists to find.
+    const ceilingCall = [...code.matchAll(/(function\s+)?releaseCeiling\(\s*([A-Za-z_$][\w$]*)\s*,\s*([A-Za-z_$][\w$]*)\s*\)/g)]
+      .filter((m) => !m[1]).map((m) => m.slice(1))[0];
+    const ceilingVar = (code.match(/\b(?:const|let|var)\s+(\w+)\s*=\s*[^\n;]*releaseCeiling\(/) || [])[1];
+    if (!ceilingCall) {
+      problems.push("releaseCeiling() is never called, so the run cannot say how many scopes its own constraints permit");
+    } else if (ceilingCall[1] !== edgesArg || ceilingCall[2] !== itemsArg) {
+      problems.push(`releaseCeiling(${ceilingCall[1]}, ${ceilingCall[2]}) is not computed over the release set and order the `
+        + `scheduler actually runs (${edgesArg}, ${itemsArg}) — a ceiling from another graph is a number about nothing`);
+    } else if (!ceilingVar || !new RegExp(`log\\([^;]*\\$\\{${ceilingVar}\\b`).test(code)) {
+      problems.push("the concurrency ceiling is computed but never reported, so the one fact that separates a scope-cut limit "
+        + "from a dispatch limit never leaves the process");
     }
     // The DIAL must be the dial.
     if (widthArg !== "maxParallelScopes") {

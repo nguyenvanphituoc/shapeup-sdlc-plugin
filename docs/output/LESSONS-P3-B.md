@@ -100,6 +100,11 @@ nine of the eleven workloads above. Four requirements, in priority order:
 4. **Per-leg duration variance.** Two rounds with the same makespan and different variance have very
    different headroom. Publish the spread, not the mean — the mean is what makes a 49% win look like
    a 0% win.
+5. **Compare the observed peak against the run's own reported CEILING, not against the dial.** The
+   workflow now logs `at most N scope(s) can be open at once` before it dispatches anything. That
+   splits a concurrency shortfall into two causes with different repairs, which no single number can:
+   **peak < ceiling ⇒ a dispatch or runtime limit; ceiling < dial ⇒ the scope cut.** An instrument
+   that only knows the dial reports one symptom for two diseases.
 
 And one anti-requirement: **do not derive makespan from the round's start and end alone.** That
 measures the round, which includes the gate, the graph query and EVAL. The scheduler owns the
@@ -107,6 +112,65 @@ interval between the first leg's start and the last leg's end, and only that int
 attributed to it.
 
 ---
+
+## 2b · The safety edge, and what it costs a five-way shared entry point
+
+The scheduler also refuses to co-schedule two scopes that may write the same path. Measured, same
+harness, `excl` = exclusion edges added:
+
+| workload | dial | crit | chunked | window | saved | peak(c) | peak(w) | excl |
+|---|---|---|---|---|---|---|---|---|
+| **five-way shared entry point** (all 6 scopes write it) | 4 | 70 | 70 | **100** | **−42.9%** | 4 | **1** | 7 |
+| same feature, entry point owned by ONE scope | 4 | 70 | 70 | 70 | 0% | 4 | **4** | 1 |
+| phase3-envlint with a shared entry point | 4 | 40 | 40 | 40 | 0% | 2 | **2** | 0 |
+
+Ramped model: −52.9% and peak 1 for the five-way case; 0% and peak 3 for the other two.
+
+**So the coordinator's worry is real and I am not going to argue it away: a naive shared-path rule
+serialises a five-way shared entry point to peak concurrency 1 and costs 43–53% wall-clock. It fails
+D1 on that feature.** My judgement, in writing:
+
+**Accept it. Record D1 as conditional on the scope cut rather than weakening the edge.**
+
+Three reasons, in order of weight.
+
+1. **The faster alternative is not faster — it is wrong.** The 70-tick concurrent run loses work in
+   twenty of twenty trials. A makespan comparison that ignores whether the feature got built is the
+   same instrument failure as the probe that *"only counted greens — it never measured overlap"*, one
+   metric over. There is no scheduler that makes six concurrent writers to one file safe; the choice
+   is not speed vs safety, it is a slower build vs a build that has to be redone.
+2. **D1 is satisfiable exactly when the scope cut is sound, which is what a scope contract is for.**
+   Disjoint `allowed_file_substrate` is already a HARD lint at the board review. A feature whose scopes
+   all write one file has no independent subtasks, and *"a 3-scope feature builds with ≥2 scopes
+   concurrently"* is a claim about a feature cut into three independent scopes. **The sample project
+   satisfies D1 with the edge on** (peak 2, zero cost) — that is the row that matters for convergence.
+   So does the well-cut todo-cli feature (peak 4, zero cost). Only the badly-cut variant fails.
+3. **The cost is now stated before anything is spent, and attributable.** The run computes the
+   **concurrency ceiling** — the widest simultaneously-admissible set of its own release graph — and
+   logs it against the dial at BUILD-order time. `at most 1 scope(s) can be open at once (the window
+   is 4; the substrate the contracts declared is what caps it, not the dial)`. Found there it costs a
+   line and a re-cut at L1b; found later it is a slow round indistinguishable from slow workers.
+
+**What I recommend the merge does with it, and it is a gate change I do not own:** carry the ceiling
+into GATE L1b's context, beside the scope list. The PO then decides *re-cut or accept a serial build*
+at the one gate where re-cutting is cheap. Keep `SHARED-CONCURRENT` advisory — a red would block
+features that are perfectly correct built serially — but stop letting the concurrency consequence be
+invisible until BUILD.
+
+**Why I rejected bulletin #5's cheaper door** (enforce the shared-path edge inside `scopeWaves`):
+
+- **It does not work with this loop, at all.** Under a sliding window `scope_waves` is only an ORDER,
+  not a barrier — nothing is enforced by which level a scope sits in. Splitting a wave would change
+  the sequence and nothing else. **The cheap door and the sliding window are alternatives, not
+  complements: if the merge decides against the scheduler, take the cheap door instead.**
+- **Where it does work (the chunked loop) it over-serialises.** A wave is a barrier for *every* member,
+  so separating two colliding scopes also separates every scope that was riding beside them. Two
+  colliding scopes in a wave of four become two waves of two — peak 2 with a barrier between them,
+  where a pairwise edge gives peak 3.
+- **It makes a documented invariant false.** `scope_waves` says it is derived from `tasks` and
+  `depends_on` and therefore *"cannot disagree with the board"*. A substrate collision is not a
+  dependency; smuggling one in makes the field disagree with the board by design, and the next reader
+  of that sentence is entitled to believe it.
 
 ## 3 · What LANE C's corruption probe must now survive
 
@@ -146,9 +210,14 @@ be judged separately, and the merge can take the first two without the third.
 
 | Piece | New information needed | Prize | Risk | Recommend |
 |---|---|---|---|---|
+| **P0 — the safety edge** (no two writers to one path at once) | `scope_exclusions` | correctness: three concurrent writers lost work 20/20 | serialises a badly-cut feature to peak 1 (measured −43%) | **merge, and it is the piece I would keep if you take only one.** It is the only one that changes an outcome rather than a duration |
 | **P1 — sliding window** (drop the chunk barrier) | none | 0% today; 5–33% the moment a dial narrower than a wave is set, which is now requestable | one semaphore; `maxParallelScopes: 1` proven identical to sequential | **merge** |
 | **P2 — dependency release** (edges, not levels) | `scope_deps` over the sub-agent boundary | LANE A's ≤14.5% inter-wave idle | a lost edge releases a scope early — the class that cost a run | **merge**, because the failure direction is closed: an edge list that does not re-derive `scope_waves` is discarded in favour of wave release |
 | **P3 — duration-aware ordering** (longest-job-first) | per-leg durations, which LANE A now produces | the residual: the window lands at 51 against a critical path of 50 on the worst workload — one leg's worth | ordering by an estimate | **do not build now.** Revisit once the leg-duration distribution is real. The design keeps *order* separable from *release*, so it stays a one-line change |
+
+P0 needs P1's machinery only for its *mechanism* (release edges), not for its *decision*. If the merge
+wants the safety edge without the scheduler, bulletin #5's door is the right one — see §2b for why the
+two cannot both be taken.
 
 I am not recommending "change it because I built it". The specific thing that moved me is §1's model
 B: the strongest argument against this scheduler was LANE A's launch-ramp measurement, and putting
@@ -185,6 +254,51 @@ run without spending a model:
 Until one of those is answered, **nobody should quote a fan-out width from a dial setting.** The dial
 is now honoured exactly by the scheduler — guarded — and that is a different claim from the legs
 actually running side by side.
+
+## 5b · The confirm stage: my diff moves it, and the fix that is coming becomes a WRITER
+
+I did not touch the leg-never-ingested defect, as instructed. Two things the owner of that fix needs
+from me before rebasing.
+
+**1 · The confirm stage's enclosing structure changed, so the rebase is not a clean apply.** The
+stage body is byte-identical in logic but it now lives inside a per-scope launcher rather than a
+group pipeline, and its parameter is renamed:
+
+- was: `pipeline(group, check, build, confirm)` inside `for (const group of waves.flatMap(chunk(…)))`,
+  stage signature `async (res, scope) => …`
+- now: `pipeline([scope], check, build, confirm)` inside the `launch` callback passed to
+  `scheduleScopes(buildOrder, scopeReleases, maxParallelScopes, async (scope) => { … })`, stage
+  signature `async (res, s) => …` (the outer parameter took the name `scope`, so the stage's own
+  parameter is `s`). The settle loop indexes `buildOrder[i]` instead of `group[i]`.
+
+Nothing else about the stage moved: it still asks `probe t0`, still returns `res` or a `green:false`
+copy of it, and still never returns a bare value the runtime would read as a drop.
+
+**2 · The fix turns confirm into a writer, and that has a scheduling consequence.** "Ingest the valid
+result itself, loudly" makes the confirm stage a writer of shared state. Under the loop this replaces,
+confirms could overlap only within one chunk. Under a sliding window **confirms overlap across the
+whole round** — up to `maxParallelScopes` of them, with no quiesce point. Two implications:
+
+- The single-writer invariant is doing all the work, for a call site that did not previously make
+  writes. If `reduce ingest` is not safe against a concurrent `reduce ingest` for a *different* scope,
+  the fan-out will find that out, and the symptom will be a board that disagrees with reality — the
+  same symptom as the defect being fixed, which makes it the worst possible failure to introduce here.
+- If it is not safe, the remedy already exists and needs no new mechanism: emit an exclusion pair for
+  it. `withExclusions` takes unordered pairs and orients them by build position; a whole-round
+  ingest lock is expressible as pairing every scope with every other, and the *ceiling* line will then
+  print `at most 1` so the cost is visible rather than mysterious. I would not do that speculatively —
+  measure first.
+
+**3 · My scheduler does not assume a completed leg has ingested.** It branches on `green` and
+`__failed` only, and its own `__failed` records name their cause (`the runtime dropped this leg`,
+`<id>: worker died`). Whatever confirm decides, the scheduler reports one record per leg and never
+infers anything from a leg's own account of its steps.
+
+**And the instrument point is worth keeping.** `legs.jsonl` — built for D3's concurrency measurement —
+is what made this visible, because the row is written *by* ingest, so its absence is proof the writer
+never ran. That is the same property my §2 asks LANE A for: **a record whose absence is evidence, not
+a gap.** Everything else in the record set (T0 verdict, receipt, WorkResult) was present and correct
+for a leg that had not closed.
 
 ## 6 · Cross-lane facts worth having
 

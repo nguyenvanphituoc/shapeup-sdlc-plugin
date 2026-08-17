@@ -34,7 +34,8 @@ export const WORKFLOW = "skills/tech-lead/workflows/shapeup-run.js";
  * @param {function(string):void} [opts.log] - Stand-in for the runtime's `log` global.
  * @param {string} [opts.source] - Override the source text (used to re-introduce a defect and
  *   confirm the guard actually catches it).
- * @returns {{scopeEdges: Function, scheduleScopes: Function, source: string, lines: number}}
+ * @returns {{scopeEdges: Function, withExclusions: Function, scheduleScopes: Function,
+ *   source: string, lines: number}}
  * @throws {Error} When the file, either marker, or either binding is absent.
  */
 export function loadScheduler(ROOT, opts = {}) {
@@ -48,9 +49,9 @@ export function loadScheduler(ROOT, opts = {}) {
   const region = src.slice(a, b);
   const log = opts.log || (() => {});
   // eslint-disable-next-line no-new-func -- the region is repo source, read from disk, not input.
-  const factory = new Function("log", `${region}\nreturn { scopeEdges, scheduleScopes };`);
+  const factory = new Function("log", `${region}\nreturn { scopeEdges, withExclusions, releaseCeiling, scheduleScopes };`);
   const bound = factory(log);
-  for (const name of ["scopeEdges", "scheduleScopes"]) {
+  for (const name of ["scopeEdges", "withExclusions", "releaseCeiling", "scheduleScopes"]) {
     if (typeof bound[name] !== "function") throw new Error(`the scheduler region defines no ${name}()`);
   }
   return { ...bound, source: region, lines: region.split("\n").length };

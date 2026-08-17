@@ -718,6 +718,44 @@ export async function run(ctx) {
       if (bw.length === 1 && bw[0].length === 2) ok("a tree with no board falls back to one wave — the ordering is additive, never a precondition");
       else fail(`a boardless tree produced ${bw.length} wave(s) instead of falling back`);
     } finally { rmSync(bare, { recursive: true, force: true }); }
+
+    // SCOPES THAT MAY WRITE THE SAME PATH ARE NAMED AS A PAIR, and the naming has to happen HERE
+    // because it is the only layer that can. `shared_substrate` is the declared escape hatch from
+    // the disjointness rule: the spec lint passes an overlap both contracts declare, and the sandbox
+    // guard permits that path to every live order naming it — so an overlap that reaches BUILD is,
+    // by construction, one every check has already approved. Three concurrent writers to one such
+    // path lost work in twenty of twenty trials, and nothing reported it: the surviving copy passes
+    // its own fixtures.
+    //
+    // The fixture carries the two ways a pair can collide (an identical literal, and a glob that
+    // swallows it) AND a scope that collides with nobody, because a derivation that returns every
+    // pair would serialise a whole build and pass a check that only looks for the true positives.
+    const shared = mkdtempSync(join(tmpdir(), "scope-shared-"));
+    try {
+      const { scopeExclusions } = await import(join(ROOT, "kernel/probe/resume.mjs"));
+      const puts = (rel, body) => { mkdirSync(dirname(join(shared, rel)), { recursive: true }); writeFileSync(join(shared, rel), body); };
+      const withSubstrate = (id, allowed, sharedGlobs) => [
+        "---", `scope_id: ${id}`, "topology_type: LAYER_CAKE", "tasks: [TASK-001]",
+        `allowed_file_substrate: [${allowed.join(", ")}]`,
+        ...(sharedGlobs ? [`shared_substrate: [${sharedGlobs.join(", ")}]`] : []),
+        "hill_phase: UPHILL_UNKNOWN", "---", "", `# ${id}`, "",
+      ].join("\n");
+      puts("shapeup/demo/scopes/add.md", withSubstrate("add", ["src/add.js", "bin/todo.js"], ["bin/todo.js"]));
+      puts("shapeup/demo/scopes/list.md", withSubstrate("list", ["src/list.js", "bin/todo.js"], ["bin/todo.js"]));
+      puts("shapeup/demo/scopes/solo.md", withSubstrate("solo", ["src/solo.js"]));
+      puts("shapeup/demo/scopes/wild.md", withSubstrate("wild", ["bin/*"], ["bin/*"]));
+      const xdir = join(shared, "shapeup/demo/scopes");
+      const xs = ["add", "list", "solo", "wild"].map((id) => ({ scope_id: id, path: join(xdir, `${id}.md`) }));
+      const got = scopeExclusions(shared, "demo", xs).map((p) => p.map((q) => q.split("/").pop().replace(".md", "")).join("+"));
+      const want = ["add+list", "add+wild", "list+wild"];
+      if (JSON.stringify(got) === JSON.stringify(want)) {
+        ok("scopes that may write the same path are named as exclusion pairs — an identical literal and a glob that swallows it both count, "
+          + "and a scope sharing nothing is in no pair");
+      } else {
+        fail(`the co-scheduling exclusions are wrong: got ${JSON.stringify(got)}, expected ${JSON.stringify(want)}. `
+          + "A missed pair loses one scope's work with every check green; a spurious pair serialises a build for nothing.");
+      }
+    } finally { rmSync(shared, { recursive: true, force: true }); }
   } finally {
     rmSync(waveBox, { recursive: true, force: true });
   }

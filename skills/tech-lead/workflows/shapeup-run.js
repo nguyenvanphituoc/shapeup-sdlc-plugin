@@ -192,6 +192,82 @@ function scopeEdges(rawDeps, waves, list) {
 }
 
 /**
+ * Forbid two scopes that may write the same path from building at the same time.
+ *
+ * WHY THIS IS THE SCHEDULER'S JOB AND NOBODY ELSE'S. `shared_substrate` is the declared escape hatch
+ * from the disjointness rule: the spec lint passes an overlap both contracts declare, and the
+ * sandbox guard permits that path to every live order naming it. Both layers are individually
+ * correct and the join is wrong — concurrent writers to one shared entry point lose each other's
+ * work, measured in every trial, with every check green. No lint can catch it because nothing is
+ * mis-declared; the only place the fact "these two are running RIGHT NOW" exists is here.
+ *
+ * AN EXCLUSION IS NOT A DEPENDENCY. Neither scope has to go first — they only have to not overlap —
+ * so each pair is oriented by BUILD POSITION, later waits for earlier. That orientation is what
+ * makes it safe to mix with real dependency edges: every dependency edge already points backwards
+ * in this list (it is the waves flattened, so a scope's dependencies are strictly earlier), and an
+ * exclusion oriented the same way keeps the whole set pointing backwards, which cannot cycle.
+ *
+ * DEGRADES LIKE EVERYTHING ELSE HERE, but note which way. Absent or unreadable pairs mean no
+ * exclusions and today's scheduling — a scheduler that refuses to run is worse than one that runs
+ * unscheduled. What is NOT acceptable is the opposite reading: when the pairs ARE there, the edge is
+ * enforced rather than warned about, because a run that quietly loses work is worse than both.
+ *
+ * @param {Map<string,Set<string>>} edges - Release edges so far; mutated and returned.
+ * @param {*} rawPairs - `probe resume`'s `scope_exclusions`: unordered path pairs.
+ * @param {Array} order - The build order. Position in it decides which side of a pair waits.
+ * @returns {{edges: Map<string,Set<string>>, added: number}} The composed set and how many landed.
+ */
+function withExclusions(edges, rawPairs, order) {
+  if (!Array.isArray(rawPairs) || !rawPairs.length) return { edges, added: 0 };
+  const idOf = (p) => String(p).split("/").pop().replace(/\.(md|json)$/, "");
+  const at = new Map(order.map((s, i) => [s.scope_id, i]));
+  let added = 0;
+  for (const pair of rawPairs) {
+    if (!Array.isArray(pair) || pair.length < 2) continue;
+    const a = idOf(pair[0]), b = idOf(pair[1]);
+    if (a === b || !at.has(a) || !at.has(b)) continue;
+    const [first, later] = at.get(a) < at.get(b) ? [a, b] : [b, a];
+    if (edges.get(later)?.has(first)) continue;                 // already ordered by a real edge
+    edges.get(later).add(first);
+    added++;
+  }
+  return { edges, added };
+}
+
+/**
+ * The widest set of scopes this release graph can have open at one moment.
+ *
+ * WHY A RUN NEEDS THIS BEFORE IT DISPATCHES ANYTHING. The dial says how many legs are PAID FOR; this
+ * says how many the constraints actually permit, and the two are not the same number. A feature
+ * whose entry point sits in five scopes' substrate has a ceiling of ONE however wide the dial is
+ * opened — that is a scope-cutting fact, decided at the board review, and without this line it shows
+ * up hours later as a slow round that reads exactly like slow workers.
+ *
+ * It also splits the concurrency shortfall into its two causes, which no single observation can. A
+ * peak below the CEILING is a dispatch or runtime limit; a ceiling below the DIAL is the scope cut.
+ * One number each, and the repair is different.
+ *
+ * The measure is the widest level of the release DAG, which is a guarantee rather than an estimate:
+ * every member of a level has all its predecessors in earlier levels, so a level's whole width is
+ * simultaneously admissible.
+ *
+ * @param {Map<string,Set<string>>} edges - The composed release set.
+ * @param {Array} items - The scopes in the round.
+ * @returns {number} Widest simultaneously-admissible set; 1 when nothing may overlap.
+ */
+function releaseCeiling(edges, items) {
+  const done = new Set();
+  let widest = 1;
+  for (;;) {
+    const ready = items.filter((s) => !done.has(s.scope_id) && [...(edges.get(s.scope_id) || [])].every((d) => done.has(d)));
+    if (!ready.length) break;
+    widest = Math.max(widest, ready.length);
+    for (const s of ready) done.add(s.scope_id);
+  }
+  return widest;
+}
+
+/**
  * Run `launch` over every item, at most `width` at once, releasing each item as soon as ITS OWN
  * dependencies have settled rather than when its whole wave has.
  *
@@ -219,6 +295,13 @@ async function scheduleScopes(items, edges, width, launch) {
   const acquire = () => (free > 0 ? (free--, Promise.resolve()) : new Promise((r) => waiting.push(r)));
   const release = () => { const next = waiting.shift(); if (next) next(); else free++; };
 
+  // TWO COLLECTIONS, and the split is the difference between "one entry per item" and "one entry per
+  // id". `runs` is POSITIONAL, so two scopes that somehow carry the same id are two legs and two
+  // records; keying the settle by id instead would silently run one of them and report it twice,
+  // which is a dropped scope wearing the right name. `started` is by id because that is how an edge
+  // names its dependency, and it keeps the first promise for an id — a duplicate cannot make a
+  // dependant wait on the wrong one.
+  const runs = [];
   const started = new Map();
 
   async function runOne(item) {
@@ -251,14 +334,16 @@ async function scheduleScopes(items, edges, width, launch) {
   for (const item of items) {
     let open;
     const gate = new Promise((r) => { open = r; });
-    started.set(item.scope_id, gate.then(() => runOne(item)));
+    const leg = gate.then(() => runOne(item));
+    runs.push(leg);
+    if (!started.has(item.scope_id)) started.set(item.scope_id, leg);
     begin.push(open);
   }
   for (const open of begin) open();
 
-  // ONE ENTRY PER ITEM, IN INPUT ORDER, structurally — the result is a map over `items`, so no edge,
-  // no failure and no dial setting can drop a scope out of the round's census.
-  return Promise.all(items.map((s) => started.get(s.scope_id)));
+  // ONE ENTRY PER ITEM, IN INPUT ORDER, structurally — no edge, no failure, no dial setting and no
+  // repeated id can drop a scope out of the round's census.
+  return Promise.all(runs);
 }
 // ---- SCHEDULER REGION END --------------------------------------------------------------------
 
@@ -304,6 +389,9 @@ const RESUME = {
     // definitely safe to start; an edge says when it BECAME safe. Absent or unusable → the waves'
     // own release points, which is what a wave-stepped fan-out had.
     scope_deps: { type: "array", items: { type: "array", items: { type: "string" } } },
+    // Pairs that may write the same declared-shared path, so they may not build at the same time.
+    // Not an ordering — either may go first. Absent or unusable → no exclusion, today's scheduling.
+    scope_exclusions: { type: "array", items: { type: "array", items: { type: "string" } } },
     eval_rounds_done: { type: "array", items: { type: "integer" } },
     next_phase: nullable("string"),
   },
@@ -834,9 +922,10 @@ if (scopes.length === 0) {
 // failure was the whole of the run's failure: five of six scopes went green, `bin/todo.js` stayed a
 // placeholder, and four individually T0-green command modules were unreachable.
 //
-// Both facts are derived by the kernel from the contracts' `tasks` and the board's `depends_on`, so
-// nothing here declares either one. The waves fix the ORDER scopes are considered in; the edges fix
-// when each one is RELEASED. Concurrency is never constrained by either — only dependency edges are.
+// All three facts below are derived by the kernel from the contracts, so nothing here declares any
+// of them. The waves fix the ORDER scopes are considered in; the dependency edges fix when each one
+// is RELEASED; the exclusions forbid two scopes that may write the same declared-shared path from
+// running at the same time. Everything else fans out.
 const wavesFrom = (raw, list) => {
   const byId = new Map(list.map((s) => [s.scope_id, s]));
   const idOf = (p) => String(p).split("/").pop().replace(/\.(md|json)$/, "");
@@ -847,20 +936,38 @@ const wavesFrom = (raw, list) => {
 };
 let waves = wavesFrom(rs.scope_waves, scopes);
 let rawDeps = rs.scope_deps;
+let rawExclusions = rs.scope_exclusions;
 if (mappedThisRun && scopes.length > 1) {
   // The contracts were written THIS run, so the state probed before MAP SCOPES could not have seen
   // them. One cheap re-derivation, on the fresh-run path only.
   const rs2 = await query(`probe resume --slug ${slug}`, RESUME, "MapScopes", "scope-waves");
-  if (rs2?.scope_waves?.length) { waves = wavesFrom(rs2.scope_waves, scopes); rawDeps = rs2.scope_deps; }
+  if (rs2?.scope_waves?.length) {
+    waves = wavesFrom(rs2.scope_waves, scopes);
+    rawDeps = rs2.scope_deps;
+    rawExclusions = rs2.scope_exclusions;
+  }
 }
 // The waves flattened ARE the build order: dependencies first, input order within a level. At a dial
 // of 1 the window degrades to exactly this sequence, which is the sequential lane unchanged.
 const buildOrder = waves.flat();
-const scopeReleases = scopeEdges(rawDeps, waves, scopes);
-if (waves.length > 1) {
+const excluded = withExclusions(scopeEdges(rawDeps, waves, scopes), rawExclusions, buildOrder);
+const scopeReleases = excluded.edges;
+if (excluded.added) {
+  log(`BUILD order — ${excluded.added} pair(s) of scopes may write the same declared-shared path and are ` +
+      `serialised against each other. Concurrent writers to one shared file lose each other's work, and ` +
+      `nothing downstream reports it: every fixture, lint and hook stays green over the surviving copy.`);
+}
+// THE CEILING IS REPORTED WHETHER OR NOT IT IS THE DIAL, and it is reported BEFORE anything is
+// dispatched. A ceiling under the dial is a scope-cutting fact — the substrate the contracts declared
+// does not admit the concurrency the run is paying for — and it is fixed by re-cutting scopes at the
+// board review, not by anything BUILD can do. Said here, it costs a line; found later, it is a slow
+// round indistinguishable from slow workers.
+const ceiling = Math.min(releaseCeiling(scopeReleases, buildOrder), maxParallelScopes);
+if (waves.length > 1 || excluded.added || ceiling < maxParallelScopes) {
   const edgeCount = [...scopeReleases.values()].reduce((a, s) => a + s.size, 0);
   log(`BUILD order — ${waves.length} dependency wave(s): ${waves.map((w) => w.map((s) => s.scope_id).join("+")).join(" → ")}` +
-      ` · ${edgeCount} release edge(s), window ${maxParallelScopes}`);
+      ` · ${edgeCount} release edge(s) · at most ${ceiling} scope(s) can be open at once` +
+      `${ceiling < maxParallelScopes ? ` (the window is ${maxParallelScopes}; the substrate the contracts declared is what caps it, not the dial)` : ""}`);
 }
 
 // Advisory lints at L1b. spec-lint is hard — a substrate overlap makes parallel builds unsafe;

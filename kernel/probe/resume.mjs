@@ -60,6 +60,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from 
 import { dirname, join, resolve } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
 import { splitFrontmatter } from "../lib/contract.mjs";
+import { globToRegExp } from "../verify/spec.mjs";
 import {
   intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir,
   orientDir, activeScope, activeOrder, usecasesDir, tasksDir,
@@ -212,6 +213,51 @@ function scopeDepGraph(cwd, slug, scopes) {
  *   consumer resolves ids the one way it already resolves `scope_files`. Empty when no relation is
  *   derivable — never a partial or invented one.
  */
+/**
+ * Pairs of scopes that must not BUILD AT THE SAME TIME, because both may write the same path.
+ *
+ * WHY THIS IS A SCHEDULING FACT AND NOT A LINT. `shared_substrate` is the declared escape hatch from
+ * the disjointness rule: the spec lint passes an overlap both contracts declare, and the sandbox
+ * guard permits that path to every live order that names it. Every layer is individually correct and
+ * the join is wrong — concurrent writers to one declared-shared entry point lose each other's work,
+ * with every check green. An overlap that is NOT declared shared never reaches BUILD (the lint reds
+ * it and the run stops at the board review), so what this returns is precisely the set the escape
+ * hatch created.
+ *
+ * It is an EXCLUSION, not a dependency: neither scope has to go first, they only have to not
+ * overlap. The consumer orients each pair by build position, which is what keeps the constraint from
+ * ever forming a cycle with a real dependency edge.
+ *
+ * ADDITIVE, like the two fields above it: a consumer that ignores it schedules exactly as before.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {Array<{scope_id:string, path:string}>} scopes - The scopes, in their existing order.
+ * @returns {string[][]} Unordered `[pathA, pathB]` pairs. Empty when nothing can collide.
+ */
+export function scopeExclusions(cwd, slug, scopes) {
+  if (scopes.length < 2) return [];
+  const globsOf = (s) => {
+    try {
+      const fm = parseFrontmatter(readFileSync(s.path, "utf8"));
+      return [...(fm.allowed_file_substrate || []), ...(fm.shared_substrate || [])].map((g) => String(g).trim()).filter(Boolean);
+    } catch { return []; }
+  };
+  const globs = new Map(scopes.map((s) => [s.scope_id, globsOf(s)]));
+  // Two globs MEET when either matches the other read as a literal path. It is an approximation of
+  // "these two patterns can name the same file", and it is deliberately the generous one: a false
+  // meet costs two scopes their overlap in time, a missed meet costs one of them its work.
+  const meet = (a, b) => a === b || globToRegExp(a).test(b) || globToRegExp(b).test(a);
+  const out = [];
+  for (let i = 0; i < scopes.length; i++) {
+    for (let j = i + 1; j < scopes.length; j++) {
+      const A = globs.get(scopes[i].scope_id) || [], B = globs.get(scopes[j].scope_id) || [];
+      if (A.some((a) => B.some((b) => meet(a, b)))) out.push([scopes[i].path, scopes[j].path]);
+    }
+  }
+  return out;
+}
+
 export function scopeDeps(cwd, slug, scopes) {
   if (scopes.length < 2) return [];
   const deps = scopeDepGraph(cwd, slug, scopes);
@@ -358,6 +404,11 @@ export function deriveResumeState(cwd, slug) {
     // the previous wave lands, even when the one scope it consumes finished first. Also additive: the
     // wave list alone rebuilds the per-wave release points, which is the previous behaviour.
     scope_deps: scopeDeps(cwd, slug, scope_files),
+    // Pairs that may write the same declared-shared path. Not an ordering — an exclusion: they may
+    // build in either order, and they may not build at the same time. Concurrent writers to one
+    // shared entry point lose each other's work while every check stays green, and the escape hatch
+    // that permits the overlap is the same one that makes it invisible to the disjointness lint.
+    scope_exclusions: scopeExclusions(cwd, slug, scope_files),
     pending_orders: orderFiles.filter((f) => f.endsWith(".json") && !resultFiles.includes(f)),
     eval_rounds_done: resultFiles
       .filter((f) => /^evaluate-r\d+\.json$/.test(f))

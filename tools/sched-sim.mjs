@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 import { loadScheduler, runVirtual, fakeLauncher, chunkedSchedule } from "../tests/lib/scheduler-region.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const { scopeEdges, scheduleScopes } = loadScheduler(ROOT);
+const { scopeEdges, withExclusions, scheduleScopes } = loadScheduler(ROOT);
 
 /**
  * Turn a workload spec into the three things both schedulers consume: the scope objects, the waves
@@ -43,6 +43,15 @@ function build(spec) {
   const rawDeps = [];
   for (const id of ids) for (const d of deps.get(id)) rawDeps.push([`scopes/${id}.md`, `scopes/${d}.md`]);
 
+  // Pairs that may write the same path, exactly as `probe resume` derives them from the contracts.
+  const rawExclusions = [];
+  for (let i = 0; i < ids.length; i++) {
+    for (let j = i + 1; j < ids.length; j++) {
+      const A = spec[ids[i]].writes || [], B = spec[ids[j]].writes || [];
+      if (A.some((p) => B.includes(p))) rawExclusions.push([`scopes/${ids[i]}.md`, `scopes/${ids[j]}.md`]);
+    }
+  }
+
   // The critical path: the best any scheduler could do at unbounded width. The floor the table's
   // "window" column is really being compared against.
   const memo = new Map();
@@ -52,7 +61,7 @@ function build(spec) {
     memo.set(id, v);
     return v;
   };
-  return { scopes, waves, rawDeps, critical: Math.max(...ids.map(longest)) };
+  return { scopes, waves, rawDeps, rawExclusions, critical: Math.max(...ids.map(longest)) };
 }
 
 /**
@@ -62,9 +71,10 @@ function build(spec) {
  * @returns {Promise<object>} One row of the comparison table.
  */
 async function measure(w, ramp = 0) {
-  const { scopes, waves, rawDeps, critical } = build(w.spec);
-  const edges = scopeEdges(rawDeps, waves, scopes);
+  const { scopes, waves, rawDeps, rawExclusions, critical } = build(w.spec);
   const order = waves.flat();
+  const composed = withExclusions(scopeEdges(rawDeps, waves, scopes), rawExclusions, order);
+  const edges = composed.edges;
 
   const chunked = await runVirtual(async (sleep, now) => {
     const f = fakeLauncher(sleep, now, w.spec, { ramp });
@@ -87,6 +97,7 @@ async function measure(w, ramp = 0) {
     saved_pct: chunked.elapsed ? Math.round(((chunked.elapsed - window.elapsed) / chunked.elapsed) * 1000) / 10 : 0,
     chunked_peak: chunked.result.peak,
     window_peak: window.result.peak,
+    excl: composed.added,
     chunked_order: chunked.result.order.join(","),
     window_order: window.result.order.join(","),
     settled: `${chunked.result.settled}/${window.result.settled}`,
@@ -96,6 +107,8 @@ async function measure(w, ramp = 0) {
 // The workloads. Every one is either a shape a real run produced or a shape that isolates one of the
 // two barriers, and each says which.
 const S = (ms, deps = [], extra = {}) => ({ ms, deps, ...extra });
+/** A scope that also writes one or more shared paths. */
+const W = (ms, deps, writes, extra = {}) => ({ ms, deps, writes, ...extra });
 
 const WORKLOADS = [
   {
@@ -180,8 +193,51 @@ const WORKLOADS = [
     spec: { s1: S(50), b: S(1), c: S(1), d: S(1), s2: S(50), f: S(1), g: S(1), h: S(1) },
   },
   {
+    // THE SHARED-ENTRY-POINT CASE, and the one that decides whether the safety edge is affordable.
+    // Every scope declares the entry point in its substrate — a five-way share — so every pair
+    // collides and the exclusion set is a clique. The number to read is peak(w): if it is 1, the
+    // rule has bought D2 by failing D1.
+    name: "W11 five-way shared entry point (all 6 write it)",
+    dial: 4,
+    spec: {
+      foundation: W(20, [], ["bin/cli.js"]),
+      "add-todo": W(30, ["foundation"], ["bin/cli.js"]),
+      "complete-todo": W(10, ["foundation"], ["bin/cli.js"]),
+      "list-todos": W(10, ["foundation"], ["bin/cli.js"]),
+      "remove-todo": W(10, ["foundation"], ["bin/cli.js"]),
+      "cli-integration": W(20, ["add-todo", "complete-todo", "list-todos", "remove-todo"], ["bin/cli.js"]),
+    },
+  },
+  {
+    // The same feature with the entry point owned by ONE scope and the others writing their own
+    // modules — the substrate cut the scope architect is supposed to produce. Nothing collides, so
+    // the safety edge costs nothing and the fan-out is untouched. The contrast between this row and
+    // the one above it is the whole argument: the cost belongs to the scope cut, not the scheduler.
+    name: "W12 same feature, entry point owned by one scope",
+    dial: 4,
+    spec: {
+      foundation: W(20, [], ["bin/cli.js"]),
+      "add-todo": W(30, ["foundation"], ["src/add.js"]),
+      "complete-todo": W(10, ["foundation"], ["src/complete.js"]),
+      "list-todos": W(10, ["foundation"], ["src/list.js"]),
+      "remove-todo": W(10, ["foundation"], ["src/remove.js"]),
+      "cli-integration": W(20, ["add-todo", "complete-todo", "list-todos", "remove-todo"], ["bin/cli.js"]),
+    },
+  },
+  {
+    // The sample project with a realistic share: the two modules are disjoint, the CLI owns the
+    // entry point. D1 (≥2 concurrent) must still hold with the safety edge on.
+    name: "W13 phase3-envlint with a shared entry point",
+    dial: 4,
+    spec: {
+      parse: W(20, [], ["src/parse.js"]),
+      rules: W(20, [], ["src/rules.js"]),
+      cli: W(20, ["parse", "rules"], ["bin/envlint.js"]),
+    },
+  },
+  {
     // The sequential lane. Must be identical in BOTH makespan and order.
-    name: "W11 dial of 1 (todo-cli shape)",
+    name: "W14 dial of 1 (todo-cli shape)",
     dial: 1,
     spec: {
       foundation: S(20),
@@ -205,8 +261,8 @@ const ramped = [];
 for (const w of WORKLOADS) ramped.push(await measure(w, RAMP));
 
 const table = (rs, title) => {
-  const cols = ["workload", "dial", "critical_path", "chunked_makespan", "window_makespan", "saved_pct", "chunked_peak", "window_peak", "settled"];
-  const head = ["workload", "dial", "crit", "chunked", "window", "saved %", "peak(c)", "peak(w)", "settled"];
+  const cols = ["workload", "dial", "critical_path", "chunked_makespan", "window_makespan", "saved_pct", "chunked_peak", "window_peak", "excl", "settled"];
+  const head = ["workload", "dial", "crit", "chunked", "window", "saved %", "peak(c)", "peak(w)", "excl", "settled"];
   const width = cols.map((c, i) => Math.max(head[i].length, ...rs.map((r) => String(r[c]).length)));
   const line = (cells) => cells.map((v, i) => String(v).padEnd(width[i])).join("  ");
   console.log(`\n${title}`);
