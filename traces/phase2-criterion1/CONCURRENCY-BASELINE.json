@@ -6,7 +6,9 @@
     "leg_start": "receipts/dispatch.jsonl — the PostToolUse dispatch receipt, hook-attested and append-only",
     "leg_end": "t0/trials.jsonl — the last T0 trial inside the dispatch's own window. A LANDMARK NEAR THE END, not the end: every figure derived through it is a lower bound.",
     "not_used": "result-file mtimes. The traces were copied, so every mtime is the copy time; a measurement built on them is fabricated, not approximate.",
-    "note": "No archived run has a legs.jsonl — leg completion records did not exist when these runs were taken. That is why every leg below is `lower` and every speedup is refused."
+    "note": "No archived run has a legs.jsonl — leg completion records did not exist when these runs were taken. That is why every leg below is `lower` and every speedup is refused.",
+    "leg_end_inner": "t0/trials.jsonl is ALSO kept as an inner end alongside any leg-record end, not only as a fallback. An interval that closes at a T0 trial is one the leg provably occupied; one that closes at an ingest may have been closed by somebody other than the leg. Overlap is reported both ways and the acceptance answer is taken from the inner form when it covers every leg.",
+    "regenerated": "2026-08-17 — the instrument gained the inner-interval fields (max_concurrent_inner, ends_disputed, inner_ended_at, end_lag_ms) after a dial-1 run reported max_concurrent 2 because one of its legs had been ingested by hand 250.8s late. EVERY FIGURE ALREADY RECORDED HERE IS UNCHANGED: all nine entries re-derive the same max_concurrent, the same bound, the same instant and the same acceptance answer, and on all nine the inner figure equals the outer one. Only the added fields moved, which is why this is a regeneration and not a new measurement."
   },
   "d1": {
     "question": "did ≥2 scopes ever build concurrently?",
@@ -40,7 +42,7 @@
       "round": 1,
       "report": {
         "schema_version": 1,
-        "run_root": null,
+        "run_root": "/Volumes/LibertyMobi/workspace/proj-harness-plugin/traces/phase2-criterion1/headless-final/shapeup-local/todo-cli",
         "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
         "receipt_present": true,
         "round": 1,
@@ -66,7 +68,9 @@
           "bound": "lower",
           "at": "2026-08-15T16:34:57.898Z",
           "launch": 1,
-          "two_or_more_concurrent": true
+          "max_concurrent_inner": 2,
+          "two_or_more_concurrent": true,
+          "disputed_because": null
         },
         "launches": [
           {
@@ -77,6 +81,9 @@
             "max_concurrent": 2,
             "max_concurrent_at": "2026-08-15T16:34:57.898Z",
             "max_concurrent_bound": "lower",
+            "max_concurrent_inner": 2,
+            "max_concurrent_inner_legs": 6,
+            "ends_disputed": false,
             "span_ms": 342143,
             "span_bound": "lower",
             "sum_leg_ms": 444044,
@@ -127,7 +134,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/foundation-r1-a1",
@@ -140,7 +149,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/complete-todo-r1-a1",
@@ -153,7 +164,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/cli-integration-r1-a1",
@@ -166,7 +179,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/cli-integration-r1-a2",
@@ -179,7 +194,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/cli-integration-r1-a3",
@@ -192,7 +209,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/list-todos-r1-a1",
@@ -205,7 +224,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/remove-todo-r1-a1",
@@ -218,7 +239,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/add-todo-r1-a1",
@@ -231,7 +254,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/cli-integration-r1-a1",
@@ -244,7 +269,9 @@
             "ended_at": "2026-08-15T16:35:58.992Z",
             "end_source": "t0-landmark",
             "duration_ms": 79655,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-15T16:35:58.992Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/foundation-r1-a1",
@@ -257,7 +284,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/complete-todo-r1-a1",
@@ -270,7 +299,9 @@
             "ended_at": "2026-08-15T16:37:44.260Z",
             "end_source": "t0-landmark",
             "duration_ms": 166362,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-15T16:37:44.260Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/cli-integration-r1-a2",
@@ -283,7 +314,9 @@
             "ended_at": "2026-08-15T16:36:58.347Z",
             "end_source": "t0-landmark",
             "duration_ms": 5165,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-15T16:36:58.347Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/cli-integration-r1-a3",
@@ -296,7 +329,9 @@
             "ended_at": "2026-08-15T16:37:25.272Z",
             "end_source": "t0-landmark",
             "duration_ms": 3379,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-15T16:37:25.272Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/remove-todo-r1-a1",
@@ -309,7 +344,9 @@
             "ended_at": "2026-08-15T16:39:12.716Z",
             "end_source": "t0-landmark",
             "duration_ms": 61564,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-15T16:39:12.716Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/list-todos-r1-a1",
@@ -322,7 +359,9 @@
             "ended_at": "2026-08-15T16:40:21.480Z",
             "end_source": "t0-landmark",
             "duration_ms": 127919,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-15T16:40:21.480Z",
+            "end_lag_ms": 0
           }
         ],
         "warnings": [
@@ -336,7 +375,7 @@
       "round": 2,
       "report": {
         "schema_version": 1,
-        "run_root": null,
+        "run_root": "/Volumes/LibertyMobi/workspace/proj-harness-plugin/traces/phase2-criterion1/headless-final/shapeup-local/todo-cli",
         "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
         "receipt_present": true,
         "round": 2,
@@ -362,7 +401,9 @@
           "bound": "lower",
           "at": "2026-08-15T16:46:27.143Z",
           "launch": 1,
-          "two_or_more_concurrent": true
+          "max_concurrent_inner": 3,
+          "two_or_more_concurrent": true,
+          "disputed_because": null
         },
         "launches": [
           {
@@ -373,6 +414,9 @@
             "max_concurrent": 3,
             "max_concurrent_at": "2026-08-15T16:46:27.143Z",
             "max_concurrent_bound": "lower",
+            "max_concurrent_inner": 3,
+            "max_concurrent_inner_legs": 4,
+            "ends_disputed": false,
             "span_ms": 135341,
             "span_bound": "lower",
             "sum_leg_ms": 192676,
@@ -423,7 +467,9 @@
             "ended_at": "2026-08-15T16:46:45.205Z",
             "end_source": "t0-landmark",
             "duration_ms": 24751,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-15T16:46:45.205Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/add-todo-r2-a1",
@@ -436,7 +482,9 @@
             "ended_at": "2026-08-15T16:47:41.466Z",
             "end_source": "t0-landmark",
             "duration_ms": 78158,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-15T16:47:41.466Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/foundation-r2-a1",
@@ -449,7 +497,9 @@
             "ended_at": "2026-08-15T16:47:27.138Z",
             "end_source": "t0-landmark",
             "duration_ms": 59995,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-15T16:47:27.138Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/list-todos-r2-a1",
@@ -462,7 +512,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/remove-todo-r2-a1",
@@ -475,7 +527,9 @@
             "ended_at": "2026-08-15T16:48:35.795Z",
             "end_source": "t0-landmark",
             "duration_ms": 29772,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-15T16:48:35.795Z",
+            "end_lag_ms": 0
           }
         ],
         "warnings": [
@@ -489,7 +543,7 @@
       "round": 1,
       "report": {
         "schema_version": 1,
-        "run_root": null,
+        "run_root": "/Volumes/LibertyMobi/workspace/proj-harness-plugin/traces/phase2-criterion1/headless-shipped/shapeup-local/todo-cli",
         "run_id": "todo-cli-20260815T171521Z-b135247d",
         "receipt_present": true,
         "round": 1,
@@ -515,7 +569,9 @@
           "bound": "lower",
           "at": "2026-08-16T02:16:34.692Z",
           "launch": 1,
-          "two_or_more_concurrent": true
+          "max_concurrent_inner": 4,
+          "two_or_more_concurrent": true,
+          "disputed_because": null
         },
         "launches": [
           {
@@ -526,6 +582,9 @@
             "max_concurrent": 4,
             "max_concurrent_at": "2026-08-16T02:16:34.692Z",
             "max_concurrent_bound": "lower",
+            "max_concurrent_inner": 4,
+            "max_concurrent_inner_legs": 6,
+            "ends_disputed": false,
             "span_ms": 376346,
             "span_bound": "lower",
             "sum_leg_ms": 643110,
@@ -586,7 +645,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/remove-todo-r1-a1",
@@ -599,7 +660,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/add-todo-r1-a1",
@@ -612,7 +675,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/complete-todo-r1-a1",
@@ -625,7 +690,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/list-todos-r1-a1",
@@ -638,7 +705,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/cli-integration-test-r1-a1",
@@ -651,7 +720,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/foundation-r1-a1",
@@ -664,7 +735,9 @@
             "ended_at": "2026-08-16T02:15:24.868Z",
             "end_source": "t0-landmark",
             "duration_ms": 97728,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T02:15:24.868Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/complete-todo-r1-a1",
@@ -677,7 +750,9 @@
             "ended_at": "2026-08-16T02:18:06.175Z",
             "end_source": "t0-landmark",
             "duration_ms": 145588,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T02:18:06.175Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/add-todo-r1-a1",
@@ -690,7 +765,9 @@
             "ended_at": "2026-08-16T02:17:25.979Z",
             "end_source": "t0-landmark",
             "duration_ms": 105218,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T02:17:25.979Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/remove-todo-r1-a1",
@@ -703,7 +780,9 @@
             "ended_at": "2026-08-16T02:18:14.616Z",
             "end_source": "t0-landmark",
             "duration_ms": 128173,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T02:18:14.616Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/list-todos-r1-a1",
@@ -716,7 +795,9 @@
             "ended_at": "2026-08-16T02:18:11.164Z",
             "end_source": "t0-landmark",
             "duration_ms": 96472,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T02:18:11.164Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/cli-integration-test-r1-a1",
@@ -729,7 +810,9 @@
             "ended_at": "2026-08-16T02:20:03.486Z",
             "end_source": "t0-landmark",
             "duration_ms": 69931,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T02:20:03.486Z",
+            "end_lag_ms": 0
           }
         ],
         "warnings": [
@@ -743,7 +826,7 @@
       "round": 2,
       "report": {
         "schema_version": 1,
-        "run_root": null,
+        "run_root": "/Volumes/LibertyMobi/workspace/proj-harness-plugin/traces/phase2-criterion1/headless-shipped/shapeup-local/todo-cli",
         "run_id": "todo-cli-20260815T171521Z-b135247d",
         "receipt_present": true,
         "round": 2,
@@ -769,7 +852,9 @@
           "bound": "lower",
           "at": "2026-08-16T03:26:04.533Z",
           "launch": 1,
-          "two_or_more_concurrent": true
+          "max_concurrent_inner": 4,
+          "two_or_more_concurrent": true,
+          "disputed_because": null
         },
         "launches": [
           {
@@ -780,6 +865,9 @@
             "max_concurrent": 4,
             "max_concurrent_at": "2026-08-16T03:26:04.533Z",
             "max_concurrent_bound": "lower",
+            "max_concurrent_inner": 4,
+            "max_concurrent_inner_legs": 6,
+            "ends_disputed": false,
             "span_ms": 222833,
             "span_bound": "lower",
             "sum_leg_ms": 200044,
@@ -840,7 +928,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/cli-integration-test-r2-a1",
@@ -853,7 +943,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/foundation-r2-a1",
@@ -866,7 +958,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/list-todos-r2-a1",
@@ -879,7 +973,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/remove-todo-r2-a1",
@@ -892,7 +988,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/complete-todo-r2-a1",
@@ -905,7 +1003,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/add-todo-r2-a1",
@@ -918,7 +1018,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/cli-integration-test-r2-a1",
@@ -931,7 +1033,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/foundation-r2-a1",
@@ -944,7 +1048,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/complete-todo-r2-a1",
@@ -957,7 +1063,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/add-todo-r2-a1",
@@ -970,7 +1078,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/list-todos-r2-a1",
@@ -983,7 +1093,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/remove-todo-r2-a1",
@@ -996,7 +1108,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/cli-integration-test-r2-a1",
@@ -1009,7 +1123,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/complete-todo-r2-a1",
@@ -1022,7 +1138,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/cli-integration-test-r2-a1",
@@ -1035,7 +1153,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/add-todo-r2-a1",
@@ -1048,7 +1168,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/foundation-r2-a1",
@@ -1061,7 +1183,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/foundation-r2-a1",
@@ -1074,7 +1198,9 @@
             "ended_at": "2026-08-16T03:24:56.935Z",
             "end_source": "t0-landmark",
             "duration_ms": 14882,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T03:24:56.935Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/complete-todo-r2-a1",
@@ -1087,7 +1213,9 @@
             "ended_at": "2026-08-16T03:27:41.523Z",
             "end_source": "t0-landmark",
             "duration_ms": 106073,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T03:27:41.523Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/list-todos-r2-a1",
@@ -1100,7 +1228,9 @@
             "ended_at": "2026-08-16T03:26:18.499Z",
             "end_source": "t0-landmark",
             "duration_ms": 22046,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T03:26:18.499Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/remove-todo-r2-a1",
@@ -1113,7 +1243,9 @@
             "ended_at": "2026-08-16T03:26:08.697Z",
             "end_source": "t0-landmark",
             "duration_ms": 10383,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T03:26:08.697Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/add-todo-r2-a1",
@@ -1126,7 +1258,9 @@
             "ended_at": "2026-08-16T03:26:27.985Z",
             "end_source": "t0-landmark",
             "duration_ms": 23452,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T03:26:27.985Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/cli-integration-test-r2-a1",
@@ -1139,7 +1273,9 @@
             "ended_at": "2026-08-16T03:28:24.886Z",
             "end_source": "t0-landmark",
             "duration_ms": 23208,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T03:28:24.886Z",
+            "end_lag_ms": 0
           }
         ],
         "warnings": [
@@ -1153,7 +1289,7 @@
       "round": 1,
       "report": {
         "schema_version": 1,
-        "run_root": null,
+        "run_root": "/Volumes/LibertyMobi/workspace/proj-harness-plugin/traces/phase2-criterion1/interactive-shipped/shapeup-local/todo-cli",
         "run_id": "todo-cli-20260816T084725Z-ddb6d292",
         "receipt_present": true,
         "round": 1,
@@ -1179,7 +1315,9 @@
           "bound": "lower",
           "at": "2026-08-16T10:26:06.685Z",
           "launch": 1,
-          "two_or_more_concurrent": true
+          "max_concurrent_inner": 2,
+          "two_or_more_concurrent": true,
+          "disputed_because": null
         },
         "launches": [
           {
@@ -1190,6 +1328,9 @@
             "max_concurrent": 2,
             "max_concurrent_at": "2026-08-16T10:26:06.685Z",
             "max_concurrent_bound": "lower",
+            "max_concurrent_inner": 2,
+            "max_concurrent_inner_legs": 2,
+            "ends_disputed": false,
             "span_ms": 666005,
             "span_bound": "lower",
             "sum_leg_ms": 727635,
@@ -1230,7 +1371,9 @@
             "ended_at": "2026-08-16T10:33:02.223Z",
             "end_source": "t0-landmark",
             "duration_ms": 666005,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T10:33:02.223Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/scope-integration-test-r1-a1",
@@ -1243,7 +1386,9 @@
             "ended_at": "2026-08-16T10:27:08.315Z",
             "end_source": "t0-landmark",
             "duration_ms": 61630,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T10:27:08.315Z",
+            "end_lag_ms": 0
           }
         ],
         "warnings": [
@@ -1257,7 +1402,7 @@
       "round": 1,
       "report": {
         "schema_version": 1,
-        "run_root": null,
+        "run_root": "/Volumes/LibertyMobi/workspace/proj-harness-plugin/traces/phase2-criterion1/run9-eval-fail-and-inert-ratchet/shapeup-local/todo-cli",
         "run_id": "todo-cli-20260815T171521Z-b135247d",
         "receipt_present": true,
         "round": 1,
@@ -1283,7 +1428,9 @@
           "bound": "lower",
           "at": "2026-08-16T02:16:34.692Z",
           "launch": 1,
-          "two_or_more_concurrent": true
+          "max_concurrent_inner": 4,
+          "two_or_more_concurrent": true,
+          "disputed_because": null
         },
         "launches": [
           {
@@ -1294,6 +1441,9 @@
             "max_concurrent": 4,
             "max_concurrent_at": "2026-08-16T02:16:34.692Z",
             "max_concurrent_bound": "lower",
+            "max_concurrent_inner": 4,
+            "max_concurrent_inner_legs": 6,
+            "ends_disputed": false,
             "span_ms": 376346,
             "span_bound": "lower",
             "sum_leg_ms": 643110,
@@ -1354,7 +1504,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/remove-todo-r1-a1",
@@ -1367,7 +1519,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/add-todo-r1-a1",
@@ -1380,7 +1534,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/complete-todo-r1-a1",
@@ -1393,7 +1549,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/list-todos-r1-a1",
@@ -1406,7 +1564,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/cli-integration-test-r1-a1",
@@ -1419,7 +1579,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/foundation-r1-a1",
@@ -1432,7 +1594,9 @@
             "ended_at": "2026-08-16T02:15:24.868Z",
             "end_source": "t0-landmark",
             "duration_ms": 97728,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T02:15:24.868Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/complete-todo-r1-a1",
@@ -1445,7 +1609,9 @@
             "ended_at": "2026-08-16T02:18:06.175Z",
             "end_source": "t0-landmark",
             "duration_ms": 145588,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T02:18:06.175Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/add-todo-r1-a1",
@@ -1458,7 +1624,9 @@
             "ended_at": "2026-08-16T02:17:25.979Z",
             "end_source": "t0-landmark",
             "duration_ms": 105218,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T02:17:25.979Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/remove-todo-r1-a1",
@@ -1471,7 +1639,9 @@
             "ended_at": "2026-08-16T02:18:14.616Z",
             "end_source": "t0-landmark",
             "duration_ms": 128173,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T02:18:14.616Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/list-todos-r1-a1",
@@ -1484,7 +1654,9 @@
             "ended_at": "2026-08-16T02:18:11.164Z",
             "end_source": "t0-landmark",
             "duration_ms": 96472,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T02:18:11.164Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/cli-integration-test-r1-a1",
@@ -1497,7 +1669,9 @@
             "ended_at": "2026-08-16T02:20:03.486Z",
             "end_source": "t0-landmark",
             "duration_ms": 69931,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T02:20:03.486Z",
+            "end_lag_ms": 0
           }
         ],
         "warnings": [
@@ -1511,7 +1685,7 @@
       "round": 2,
       "report": {
         "schema_version": 1,
-        "run_root": null,
+        "run_root": "/Volumes/LibertyMobi/workspace/proj-harness-plugin/traces/phase2-criterion1/run9-eval-fail-and-inert-ratchet/shapeup-local/todo-cli",
         "run_id": "todo-cli-20260815T171521Z-b135247d",
         "receipt_present": true,
         "round": 2,
@@ -1537,7 +1711,9 @@
           "bound": "lower",
           "at": "2026-08-16T02:29:37.278Z",
           "launch": 1,
-          "two_or_more_concurrent": true
+          "max_concurrent_inner": 4,
+          "two_or_more_concurrent": true,
+          "disputed_because": null
         },
         "launches": [
           {
@@ -1548,6 +1724,9 @@
             "max_concurrent": 4,
             "max_concurrent_at": "2026-08-16T02:29:37.278Z",
             "max_concurrent_bound": "lower",
+            "max_concurrent_inner": 4,
+            "max_concurrent_inner_legs": 6,
+            "ends_disputed": false,
             "span_ms": 214239,
             "span_bound": "lower",
             "sum_leg_ms": 255995,
@@ -1608,7 +1787,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/cli-integration-test-r2-a1",
@@ -1621,7 +1802,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/foundation-r2-a1",
@@ -1634,7 +1817,9 @@
             "ended_at": "2026-08-16T02:29:19.788Z",
             "end_source": "t0-landmark",
             "duration_ms": 89039,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T02:29:19.788Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/list-todos-r2-a1",
@@ -1647,7 +1832,9 @@
             "ended_at": "2026-08-16T02:29:58.764Z",
             "end_source": "t0-landmark",
             "duration_ms": 21795,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T02:29:58.764Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/remove-todo-r2-a1",
@@ -1660,7 +1847,9 @@
             "ended_at": "2026-08-16T02:30:02.633Z",
             "end_source": "t0-landmark",
             "duration_ms": 25434,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T02:30:02.633Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/complete-todo-r2-a1",
@@ -1673,7 +1862,9 @@
             "ended_at": "2026-08-16T02:30:07.966Z",
             "end_source": "t0-landmark",
             "duration_ms": 30707,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T02:30:07.966Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/add-todo-r2-a1",
@@ -1686,7 +1877,9 @@
             "ended_at": "2026-08-16T02:30:55.232Z",
             "end_source": "t0-landmark",
             "duration_ms": 77954,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T02:30:55.232Z",
+            "end_lag_ms": 0
           },
           {
             "order_id": "todo-cli/cli-integration-test-r2-a1",
@@ -1699,7 +1892,9 @@
             "ended_at": "2026-08-16T02:31:24.988Z",
             "end_source": "t0-landmark",
             "duration_ms": 11066,
-            "bound": "lower"
+            "bound": "lower",
+            "inner_ended_at": "2026-08-16T02:31:24.988Z",
+            "end_lag_ms": 0
           }
         ],
         "warnings": [
@@ -1713,7 +1908,7 @@
       "round": 1,
       "report": {
         "schema_version": 1,
-        "run_root": null,
+        "run_root": "/Volumes/LibertyMobi/workspace/proj-harness-plugin/traces/phase2-criterion1/headless-attempt2-build-dispatched-no-t0/shapeup-local/todo-cli",
         "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
         "receipt_present": true,
         "round": 1,
@@ -1739,7 +1934,9 @@
           "bound": null,
           "at": null,
           "launch": null,
-          "two_or_more_concurrent": null
+          "max_concurrent_inner": null,
+          "two_or_more_concurrent": null,
+          "disputed_because": null
         },
         "launches": [],
         "segmentation": {
@@ -1760,7 +1957,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/foundation-r1-a1",
@@ -1773,7 +1972,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/complete-todo-r1-a1",
@@ -1786,7 +1987,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/cli-integration-r1-a1",
@@ -1799,7 +2002,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/cli-integration-r1-a2",
@@ -1812,7 +2017,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/cli-integration-r1-a3",
@@ -1825,7 +2032,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/list-todos-r1-a1",
@@ -1838,7 +2047,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           },
           {
             "order_id": "todo-cli/remove-todo-r1-a1",
@@ -1851,7 +2062,9 @@
             "ended_at": null,
             "end_source": null,
             "duration_ms": null,
-            "bound": null
+            "bound": null,
+            "inner_ended_at": null,
+            "end_lag_ms": null
           }
         ],
         "warnings": [
@@ -1865,7 +2078,7 @@
       "round": null,
       "report": {
         "schema_version": 1,
-        "run_root": null,
+        "run_root": "/Volumes/LibertyMobi/workspace/proj-harness-plugin/traces/phase2-criterion1/headless-attempt1-build-never-dispatched/shapeup-local/todo-cli",
         "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
         "receipt_present": true,
         "round": null,
@@ -1891,7 +2104,9 @@
           "bound": null,
           "at": null,
           "launch": null,
-          "two_or_more_concurrent": null
+          "max_concurrent_inner": null,
+          "two_or_more_concurrent": null,
+          "disputed_because": null
         },
         "launches": [],
         "segmentation": {

@@ -137,20 +137,29 @@ export function pairLegs(starts, legRows, trials) {
     const until = nextOf.get(i) ?? Infinity;
     const inWindow = (t) => Number.isFinite(t) && t >= s.start && t < until;
 
+    const landmarks = trials
+      .filter((t) => t.scope_id === s.scope_id && Number(t.round) === s.round && inWindow(Date.parse(t.at)))
+      .map((t) => Date.parse(t.at)).sort((a, b) => a - b);
+    // The INNER end, kept alongside the outer one rather than used only as a fallback. A T0 trial
+    // was written BY THE LEG, mid-flight, so `[start, inner_end]` is an interval the leg provably
+    // occupied. `ingested_at` is when the WRITER ran, which is normally the leg's last act and is
+    // sometimes not the leg at all — an out-of-band ingest (a repair, a `--no-receipt-check` rescue,
+    // a relaunch re-applying a result) stamps a later instant onto the same row and stretches the
+    // leg over time it was not running. Measured on a run whose dial was 1: one leg repaired by hand
+    // 250.8s after its own T0 landmark — against −2.4s and +29.2s for the two untouched legs —
+    // produced `max_concurrent: 2 (exact)`, overlap on a run that built one scope at a time.
+    const innerEnd = landmarks.length ? landmarks[landmarks.length - 1] : null;
+
     const exact = legRows
       .filter((r) => r.order_id === s.order_id && inWindow(Date.parse(r.ingested_at)))
       .map((r) => Date.parse(r.ingested_at)).sort((a, b) => a - b);
     if (exact.length) {
-      return { ...s, end: exact[exact.length - 1], end_source: "leg-record", bound: "exact" };
+      return { ...s, end: exact[exact.length - 1], end_source: "leg-record", bound: "exact", inner_end: innerEnd };
     }
-
-    const landmarks = trials
-      .filter((t) => t.scope_id === s.scope_id && Number(t.round) === s.round && inWindow(Date.parse(t.at)))
-      .map((t) => Date.parse(t.at)).sort((a, b) => a - b);
-    if (landmarks.length) {
-      return { ...s, end: landmarks[landmarks.length - 1], end_source: "t0-landmark", bound: "lower" };
+    if (innerEnd !== null) {
+      return { ...s, end: innerEnd, end_source: "t0-landmark", bound: "lower", inner_end: innerEnd };
     }
-    return { ...s, end: null, end_source: null, bound: null };
+    return { ...s, end: null, end_source: null, bound: null, inner_end: null };
   });
 }
 
@@ -188,20 +197,24 @@ export function segment(legs, gapMs) {
  * genuinely running, and a tie at the boundary is the case where that is least certain.
  *
  * @param {Array<object>} legs - Legs with `start` and `end`.
- * @returns {{max:(number|null), at:(number|null)}} `null` when there is nothing to measure — never
- *   `0` or `1`, which a reader would take for a sequential run.
+ * @param {string} [endField] - Which end to measure against: `end` (the outer end, an ingest) or
+ *   `inner_end` (the last T0 trial the leg wrote, provably mid-flight). Legs lacking the named field
+ *   are dropped, so the caller must read the returned `legs` count before trusting `max`.
+ * @returns {{max:(number|null), at:(number|null), legs:number}} `null` when there is nothing to
+ *   measure — never `0` or `1`, which a reader would take for a sequential run.
  */
-export function maxConcurrent(legs) {
-  if (!legs.length) return { max: null, at: null };
+export function maxConcurrent(legs, endField = "end") {
+  const usable = legs.filter((l) => Number.isFinite(l[endField]));
+  if (!usable.length) return { max: null, at: null, legs: 0 };
   const events = [];
-  for (const l of legs) { events.push([l.start, 1]); events.push([l.end, -1]); }
+  for (const l of usable) { events.push([l.start, 1]); events.push([l[endField], -1]); }
   events.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   let open = 0, max = 0, at = null;
   for (const [t, delta] of events) {
     open += delta;
     if (open > max) { max = open; at = t; }
   }
-  return { max, at };
+  return { max, at, legs: usable.length };
 }
 
 /**
@@ -247,6 +260,10 @@ export function wavesObserved(legs) {
  */
 export function summarise(index, legs) {
   const { max, at } = maxConcurrent(legs);
+  // The same question asked of the inner intervals — dispatch to the leg's own T0 trial. Two legs
+  // overlapping THERE were both provably mid-flight at one instant; two legs overlapping only on the
+  // outer intervals may be one leg plus somebody else's later ingest of it.
+  const inner = maxConcurrent(legs, "inner_end");
   const exact = legs.every((l) => l.bound === "exact");
   const from = Math.min(...legs.map((l) => l.start));
   const to = Math.max(...legs.map((l) => l.end));
@@ -261,6 +278,13 @@ export function summarise(index, legs) {
     max_concurrent: max,
     max_concurrent_at: at === null ? null : new Date(at).toISOString(),
     max_concurrent_bound: bound,
+    // Reported beside the outer figure, never instead of it, and with its own coverage count: an
+    // inner figure over 2 of 6 legs is not evidence the other four ran alone.
+    max_concurrent_inner: inner.max,
+    max_concurrent_inner_legs: inner.legs,
+    // The two ends disagreeing is a fact about the RECORD, not about the run, and it is the only
+    // signal that separates a leg that ran long from a leg something ingested later.
+    ends_disputed: max !== null && inner.max !== null && inner.legs === legs.length && max > inner.max,
     span_ms: span,
     span_bound: bound,
     sum_leg_ms: sum,
@@ -334,6 +358,11 @@ export function report(runRoot, { round = null, gapS = DEFAULT_GAP_S } = {}) {
   const launches = segment(usable, gapS * 1000).map((g, i) => summarise(i + 1, g));
 
   const best = launches.reduce((a, b) => (b.max_concurrent > (a?.max_concurrent ?? -1) ? b : a), null);
+  // The launch the headline verdict is answered from, chosen on the INNER figure. Taking the inner
+  // number off `best` would compare two different launches: the widest outer overlap and the widest
+  // inner one need not be the same launch, and mixing them would let one launch's ingest artefact
+  // stand beside another launch's honest evidence.
+  const bestInner = launches.reduce((a, b) => (b.max_concurrent_inner > (a?.max_concurrent_inner ?? -1) ? b : a), null);
   return {
     schema_version: 1,
     run_root: runRoot,
@@ -361,9 +390,26 @@ export function report(runRoot, { round = null, gapS = DEFAULT_GAP_S } = {}) {
       bound: best ? best.max_concurrent_bound : null,
       at: best ? best.max_concurrent_at : null,
       launch: best ? best.launch : null,
+      max_concurrent_inner: bestInner ? bestInner.max_concurrent_inner : null,
       // The acceptance predicate, answered rather than left to the reader — and `null` when the
       // record set cannot answer it, which is a third state and not a "no".
-      two_or_more_concurrent: best ? best.max_concurrent >= 2 : null,
+      //
+      // ANSWERED FROM THE INNER INTERVALS WHEN THEY COVER EVERY LEG, because that is the only form
+      // of the evidence an out-of-band ingest cannot fabricate. A run with dial 1 reported
+      // `max_concurrent: 2 (exact)` after one of its three legs was ingested by hand 250.8s late;
+      // the inner intervals said 1, which was the truth. Where the two disagree the answer is
+      // `"disputed"` rather than either number — a fourth state, and the honest one.
+      two_or_more_concurrent: !best ? null
+        : (bestInner && bestInner.max_concurrent_inner_legs === bestInner.legs)
+          ? (bestInner.max_concurrent_inner >= 2 ? true : (best.max_concurrent >= 2 ? "disputed" : false))
+          : best.max_concurrent >= 2,
+      disputed_because: (best && bestInner && bestInner.max_concurrent_inner_legs === bestInner.legs
+        && bestInner.max_concurrent_inner < 2 && best.max_concurrent >= 2)
+        ? "the overlap exists only between intervals that END AT AN INGEST; measured against each leg's own " +
+          "T0 trial — an instant the leg provably occupied — no two legs were open together. An ingest run " +
+          "outside its leg (a repair, a --no-receipt-check rescue, a relaunch re-applying a result) stamps a " +
+          "later end onto the row and manufactures exactly this overlap."
+        : null,
     },
     launches,
     segmentation: {
@@ -384,6 +430,12 @@ export function report(runRoot, { round = null, gapS = DEFAULT_GAP_S } = {}) {
       end_source: l.end_source,
       duration_ms: l.end === null ? null : l.end - l.start,
       bound: l.bound,
+      // The leg's own mid-flight landmark and how far its recorded end sits past it. Left for the
+      // reader to judge rather than thresholded: on one measured round the two untouched legs came in
+      // at −2.4s and +29.2s while the hand-repaired one was +250.8s, and no constant separates those
+      // three that would still separate them on a slower machine.
+      inner_ended_at: l.inner_end === null ? null : new Date(l.inner_end).toISOString(),
+      end_lag_ms: (l.end === null || l.inner_end === null) ? null : l.end - l.inner_end,
     })),
     warnings,
   };
@@ -403,8 +455,10 @@ export function table(r) {
     `legs          ${c.legs_total} total · ${c.legs_exact} exact · ${c.legs_lower_bound} lower-bound · ${c.no_completion_record} with NO completion record` +
       `${c.phase_dispatches_excluded ? ` (+${c.phase_dispatches_excluded} non-build dispatch(es) excluded)` : ""}`,
     `concurrency   ${r.concurrency.max_concurrent ?? "unmeasurable"}` +
-      `${r.concurrency.max_concurrent === null ? "" : ` (${r.concurrency.bound}) at ${r.concurrency.at}`}`,
+      `${r.concurrency.max_concurrent === null ? "" : ` (${r.concurrency.bound}) at ${r.concurrency.at}`}` +
+      `${r.concurrency.max_concurrent_inner === null ? "" : ` · ${r.concurrency.max_concurrent_inner} measured inside the legs' own T0 windows`}`,
     `≥2 concurrent ${r.concurrency.two_or_more_concurrent === null ? "UNKNOWN — no leg in scope has a usable interval" : r.concurrency.two_or_more_concurrent}`,
+    ...(r.concurrency.disputed_because ? [`  ! ${r.concurrency.disputed_because}`] : []),
   ];
   for (const l of r.launches) {
     lines.push(`  launch ${l.launch}  ${l.from} → ${l.to}  legs=${l.legs} max=${l.max_concurrent} (${l.max_concurrent_bound})` +

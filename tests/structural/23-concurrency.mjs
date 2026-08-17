@@ -289,6 +289,73 @@ export async function run(ctx) {
       else fail(`no warning names the missing ledger: ${JSON.stringify(blind.warnings)}`);
     } finally { rmSync(ws, { recursive: true, force: true }); }
 
+    // (i) AN INGEST THAT RAN OUTSIDE ITS LEG MUST NOT MANUFACTURE CONCURRENCY.
+    //
+    //     `ingested_at` is when the WRITER ran, and that is normally the leg's last act. It is not
+    //     always the leg: a repair, a `--no-receipt-check` rescue and a relaunch re-applying a result
+    //     all stamp a later instant onto the row, stretching the leg over time it was not running.
+    //     Measured on a live run whose dial was 1 — one of three legs ingested by hand 250.8s after
+    //     its own T0 landmark, against −2.4s and +29.2s for the two untouched legs — the instrument
+    //     reported `max_concurrent: 2 (exact)` and `two_or_more_concurrent: true`. On a run that built
+    //     one scope at a time. That is D1's acceptance predicate answered yes by an artefact.
+    //
+    //     The fix is a second interval, not a threshold: a T0 trial was written BY THE LEG, so
+    //     `[start, inner_end]` is time the leg provably occupied, and no constant has to be guessed.
+    {
+      const ws3 = mkdtempSync(join(tmpdir(), "concur-dispute-"));
+      try {
+        const root = join(ws3, ".shapeup", "g");
+        mkdirSync(join(root, "receipts"), { recursive: true });
+        mkdirSync(join(root, "t0"), { recursive: true });
+        const T = (ms) => new Date(Date.parse("2026-01-01T00:00:00.000Z") + ms).toISOString();
+        const rid = "g-20260101T000000Z-abcdef01";
+        // Two legs, strictly sequential: A occupies 0–1000, B occupies 2000–3000.
+        writeFileSync(join(root, "receipts", "dispatch.jsonl"), [
+          { at: T(0), order_id: "g/a-r1-a1", run_id: rid, skill_invoked: "task-executor", worker_declared: "task-executor" },
+          { at: T(2000), order_id: "g/b-r1-a1", run_id: rid, skill_invoked: "task-executor", worker_declared: "task-executor" },
+        ].map((r) => JSON.stringify(r)).join("\n") + "\n");
+        writeFileSync(join(root, "t0", "trials.jsonl"), [
+          { trial: 1, run_id: rid, scope_id: "a", round: 1, attempt: 1, at: T(1000), status: "kept" },
+          { trial: 2, run_id: rid, scope_id: "b", round: 1, attempt: 1, at: T(3000), status: "kept" },
+        ].map((r) => JSON.stringify(r)).join("\n") + "\n");
+        // A's ingest lands AFTER B's whole leg — the out-of-band case. Nothing else differs.
+        writeFileSync(join(root, "legs.jsonl"), [
+          { schema_version: 1, run_id: rid, order_id: "g/a-r1-a1", scope_id: "a", round: 1, attempt: 1, ingested_at: T(4000) },
+          { schema_version: 1, run_id: rid, order_id: "g/b-r1-a1", scope_id: "b", round: 1, attempt: 1, ingested_at: T(3100) },
+        ].map((r) => JSON.stringify(r)).join("\n") + "\n");
+
+        const d = probe.report(root, {});
+        if (d.concurrency.max_concurrent === 2 && d.concurrency.max_concurrent_inner === 1) {
+          ok("the two ends are measured separately: the outer intervals overlap, the legs' own T0 windows do not");
+        } else fail(`outer/inner read ${d.concurrency.max_concurrent}/${d.concurrency.max_concurrent_inner} — expected 2/1`);
+
+        if (d.concurrency.two_or_more_concurrent === "disputed") {
+          ok("D1 is answered `disputed` when the only overlap is between intervals that end at an ingest");
+        } else {
+          fail(`D1 answered ${JSON.stringify(d.concurrency.two_or_more_concurrent)} on a set whose overlap exists only ` +
+            `between ingest-ended intervals. \`true\` here is the acceptance criterion satisfied by an artefact.`);
+        }
+        if (String(d.concurrency.disputed_because || "").length > 60) ok("the dispute carries its reason in the same value");
+        else fail("the disputed verdict names no reason, so a reader cannot tell it from a measurement");
+
+        const legA = d.legs.find((l) => l.scope_id === "a");
+        if (legA && legA.end_lag_ms === 3000 && legA.inner_ended_at === T(1000)) {
+          ok("each leg reports its own mid-flight landmark and how far its recorded end sits past it");
+        } else fail(`leg a reports lag ${legA && legA.end_lag_ms} / inner ${legA && legA.inner_ended_at}`);
+
+        // And the discriminating half: honest sequential legs must NOT read as disputed, or the check
+        // is satisfied by an instrument that cries foul on everything.
+        writeFileSync(join(root, "legs.jsonl"), [
+          { schema_version: 1, run_id: rid, order_id: "g/a-r1-a1", scope_id: "a", round: 1, attempt: 1, ingested_at: T(1100) },
+          { schema_version: 1, run_id: rid, order_id: "g/b-r1-a1", scope_id: "b", round: 1, attempt: 1, ingested_at: T(3100) },
+        ].map((r) => JSON.stringify(r)).join("\n") + "\n");
+        const clean = probe.report(root, {});
+        if (clean.concurrency.two_or_more_concurrent === false && clean.concurrency.disputed_because === null) {
+          ok("a sequential run whose legs closed inside themselves reads plainly false, with nothing disputed");
+        } else fail(`an honest sequential set read ${JSON.stringify(clean.concurrency)}`);
+      } finally { rmSync(ws3, { recursive: true, force: true }); }
+    }
+
     // (d) A SPEEDUP IS REFUSED WHEN IT CANNOT BE SUPPORTED. Truncated legs shorten the work sum once
     //     per leg and the span only for the last one, so the ratio moves in a direction that depends
     //     on the round's shape — measured at 0.90 on a round that ran four scopes at once.
