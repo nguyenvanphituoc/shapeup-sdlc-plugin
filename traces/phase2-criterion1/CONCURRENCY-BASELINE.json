@@ -1,0 +1,1910 @@
+{
+  "schema_version": 1,
+  "what": "Concurrency and span facts re-derived from the archived run traces by `harness probe concurrency`.",
+  "derivation": {
+    "tool": "kernel/probe/concurrency.mjs",
+    "leg_start": "receipts/dispatch.jsonl — the PostToolUse dispatch receipt, hook-attested and append-only",
+    "leg_end": "t0/trials.jsonl — the last T0 trial inside the dispatch's own window. A LANDMARK NEAR THE END, not the end: every figure derived through it is a lower bound.",
+    "not_used": "result-file mtimes. The traces were copied, so every mtime is the copy time; a measurement built on them is fabricated, not approximate.",
+    "note": "No archived run has a legs.jsonl — leg completion records did not exist when these runs were taken. That is why every leg below is `lower` and every speedup is refused."
+  },
+  "d1": {
+    "question": "did ≥2 scopes ever build concurrently?",
+    "answer": "yes — proven, and by a lower bound, which is the safe direction",
+    "strongest_evidence": "headless-shipped round 1: 4 legs open simultaneously at 2026-08-16T02:16:34.692Z, 6/6 legs with an end landmark",
+    "note": "Truncated legs are subintervals of the true legs, so overlap over them UNDER-counts. A lower bound of 4 settles ≥2 without needing the exact figure."
+  },
+  "d3": {
+    "question": "does wall-clock beat the Phase-2 baseline by ≥30%?",
+    "available": false,
+    "reason": "There is no sequential arm anywhere in this archive. Every archived run was executed by the post-Phase-3 fan-out scheduler, so there is nothing for a fan-out to be measured against. Phase 2's recorded baseline is structural — line counts, inventories and a green suite — not a run, which is what RESULT-v2 means by 'No number about v2.0's cost or wall-clock appears anywhere in this repo'. No number is entered here, because a number derived from these traces would be a comparison of a run against itself.",
+    "what_would_produce_one": {
+      "design": "the same feature built twice, changing exactly one variable: maxParallelScopes 1 vs 4",
+      "hold_constant": [
+        "feature and spec tree",
+        "model set",
+        "round budget and attempt budget",
+        "machine",
+        "gate answer set"
+      ],
+      "measure": "BUILD-phase span only (`probe concurrency --round <N>` → launches[].span_ms). Whole-run wall-clock dilutes the ratio toward zero, because ORIENT/ANALYZE/WIRE/EVAL/QA are sequential in both arms.",
+      "requires": "the fan-out dial must be reachable first — `maxParallelScopes` is read by the orchestrator and declared in no contract, so the sequential arm cannot currently be requested.",
+      "precondition": "both arms must produce legs.jsonl rows for every leg, or the instrument will refuse the speedup exactly as it does here."
+    },
+    "cost_note": "Cost is not derivable either: no archived run root carries an agent-call journal, so no cost_usd row exists to aggregate."
+  },
+  "runs": [
+    {
+      "label": "headless-final r1 (alphabet-scheduled fan-out)",
+      "run_root_repo_relative": "traces/phase2-criterion1/headless-final/shapeup-local/todo-cli",
+      "round": 1,
+      "report": {
+        "schema_version": 1,
+        "run_root": null,
+        "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+        "receipt_present": true,
+        "round": 1,
+        "dial": {
+          "max_parallel_scopes": 4,
+          "source": "default (no run-args.json)"
+        },
+        "completeness": {
+          "legs_total": 16,
+          "legs_exact": 0,
+          "legs_lower_bound": 6,
+          "no_completion_record": 10,
+          "legs_unkeyed": 0,
+          "phase_dispatches_excluded": 8,
+          "end_sources": {
+            "leg-record": 0,
+            "t0-landmark": 6,
+            "none": 10
+          }
+        },
+        "concurrency": {
+          "max_concurrent": 2,
+          "bound": "lower",
+          "at": "2026-08-15T16:34:57.898Z",
+          "launch": 1,
+          "two_or_more_concurrent": true
+        },
+        "launches": [
+          {
+            "launch": 1,
+            "from": "2026-08-15T16:34:39.337Z",
+            "to": "2026-08-15T16:40:21.480Z",
+            "legs": 6,
+            "max_concurrent": 2,
+            "max_concurrent_at": "2026-08-15T16:34:57.898Z",
+            "max_concurrent_bound": "lower",
+            "span_ms": 342143,
+            "span_bound": "lower",
+            "sum_leg_ms": 444044,
+            "sum_leg_bound": "lower",
+            "speedup": null,
+            "speedup_refused_because": "6 of 6 leg(s) end at a T0 landmark rather than a completion record, so both the span and the work sum are floors; their ratio bounds nothing",
+            "waves_observed": [
+              {
+                "from": "2026-08-15T16:34:39.337Z",
+                "to": "2026-08-15T16:37:44.260Z",
+                "scopes": [
+                  "cli-integration",
+                  "complete-todo"
+                ]
+              },
+              {
+                "from": "2026-08-15T16:38:11.152Z",
+                "to": "2026-08-15T16:40:21.480Z",
+                "scopes": [
+                  "list-todos",
+                  "remove-todo"
+                ]
+              }
+            ],
+            "scopes": [
+              "cli-integration",
+              "complete-todo",
+              "list-todos",
+              "remove-todo"
+            ]
+          }
+        ],
+        "segmentation": {
+          "rule": "a quiet period longer than gap_s starts a new launch",
+          "gap_s": 900,
+          "launches": 1,
+          "note": "heuristic: nothing in the record set identifies a launch, and one run_id spans every relaunch"
+        },
+        "legs": [
+          {
+            "order_id": "todo-cli/add-todo-r1-a1",
+            "scope_id": "add-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:10:12.936Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/foundation-r1-a1",
+            "scope_id": "foundation",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:10:13.530Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/complete-todo-r1-a1",
+            "scope_id": "complete-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:10:13.662Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/cli-integration-r1-a1",
+            "scope_id": "cli-integration",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:10:13.812Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/cli-integration-r1-a2",
+            "scope_id": "cli-integration",
+            "round": 1,
+            "attempt": 2,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:19:13.016Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/cli-integration-r1-a3",
+            "scope_id": "cli-integration",
+            "round": 1,
+            "attempt": 3,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:19:58.688Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/list-todos-r1-a1",
+            "scope_id": "list-todos",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:20:24.037Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/remove-todo-r1-a1",
+            "scope_id": "remove-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:20:24.384Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/add-todo-r1-a1",
+            "scope_id": "add-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:34:38.546Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/cli-integration-r1-a1",
+            "scope_id": "cli-integration",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:34:39.337Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-15T16:35:58.992Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 79655,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/foundation-r1-a1",
+            "scope_id": "foundation",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:34:43.933Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/complete-todo-r1-a1",
+            "scope_id": "complete-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:34:57.898Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-15T16:37:44.260Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 166362,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/cli-integration-r1-a2",
+            "scope_id": "cli-integration",
+            "round": 1,
+            "attempt": 2,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:36:53.182Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-15T16:36:58.347Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 5165,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/cli-integration-r1-a3",
+            "scope_id": "cli-integration",
+            "round": 1,
+            "attempt": 3,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:37:21.893Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-15T16:37:25.272Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 3379,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/remove-todo-r1-a1",
+            "scope_id": "remove-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:38:11.152Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-15T16:39:12.716Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 61564,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/list-todos-r1-a1",
+            "scope_id": "list-todos",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:38:13.561Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-15T16:40:21.480Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 127919,
+            "bound": "lower"
+          }
+        ],
+        "warnings": [
+          "no legs.jsonl — this run was recorded before leg completions were written, so every end falls back to the T0 landmark and every figure below is a floor."
+        ]
+      }
+    },
+    {
+      "label": "headless-final r2 (alphabet-scheduled fan-out)",
+      "run_root_repo_relative": "traces/phase2-criterion1/headless-final/shapeup-local/todo-cli",
+      "round": 2,
+      "report": {
+        "schema_version": 1,
+        "run_root": null,
+        "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+        "receipt_present": true,
+        "round": 2,
+        "dial": {
+          "max_parallel_scopes": 4,
+          "source": "default (no run-args.json)"
+        },
+        "completeness": {
+          "legs_total": 5,
+          "legs_exact": 0,
+          "legs_lower_bound": 4,
+          "no_completion_record": 1,
+          "legs_unkeyed": 0,
+          "phase_dispatches_excluded": 8,
+          "end_sources": {
+            "leg-record": 0,
+            "t0-landmark": 4,
+            "none": 1
+          }
+        },
+        "concurrency": {
+          "max_concurrent": 3,
+          "bound": "lower",
+          "at": "2026-08-15T16:46:27.143Z",
+          "launch": 1,
+          "two_or_more_concurrent": true
+        },
+        "launches": [
+          {
+            "launch": 1,
+            "from": "2026-08-15T16:46:20.454Z",
+            "to": "2026-08-15T16:48:35.795Z",
+            "legs": 4,
+            "max_concurrent": 3,
+            "max_concurrent_at": "2026-08-15T16:46:27.143Z",
+            "max_concurrent_bound": "lower",
+            "span_ms": 135341,
+            "span_bound": "lower",
+            "sum_leg_ms": 192676,
+            "sum_leg_bound": "lower",
+            "speedup": null,
+            "speedup_refused_because": "4 of 4 leg(s) end at a T0 landmark rather than a completion record, so both the span and the work sum are floors; their ratio bounds nothing",
+            "waves_observed": [
+              {
+                "from": "2026-08-15T16:46:20.454Z",
+                "to": "2026-08-15T16:47:41.466Z",
+                "scopes": [
+                  "add-todo",
+                  "complete-todo",
+                  "foundation"
+                ]
+              },
+              {
+                "from": "2026-08-15T16:48:06.023Z",
+                "to": "2026-08-15T16:48:35.795Z",
+                "scopes": [
+                  "remove-todo"
+                ]
+              }
+            ],
+            "scopes": [
+              "add-todo",
+              "complete-todo",
+              "foundation",
+              "remove-todo"
+            ]
+          }
+        ],
+        "segmentation": {
+          "rule": "a quiet period longer than gap_s starts a new launch",
+          "gap_s": 900,
+          "launches": 1,
+          "note": "heuristic: nothing in the record set identifies a launch, and one run_id spans every relaunch"
+        },
+        "legs": [
+          {
+            "order_id": "todo-cli/complete-todo-r2-a1",
+            "scope_id": "complete-todo",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:46:20.454Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-15T16:46:45.205Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 24751,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/add-todo-r2-a1",
+            "scope_id": "add-todo",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:46:23.308Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-15T16:47:41.466Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 78158,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/foundation-r2-a1",
+            "scope_id": "foundation",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:46:27.143Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-15T16:47:27.138Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 59995,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/list-todos-r2-a1",
+            "scope_id": "list-todos",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:48:05.969Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/remove-todo-r2-a1",
+            "scope_id": "remove-todo",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:48:06.023Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-15T16:48:35.795Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 29772,
+            "bound": "lower"
+          }
+        ],
+        "warnings": [
+          "no legs.jsonl — this run was recorded before leg completions were written, so every end falls back to the T0 landmark and every figure below is a floor."
+        ]
+      }
+    },
+    {
+      "label": "headless-shipped r1 (dependency-wave fan-out)",
+      "run_root_repo_relative": "traces/phase2-criterion1/headless-shipped/shapeup-local/todo-cli",
+      "round": 1,
+      "report": {
+        "schema_version": 1,
+        "run_root": null,
+        "run_id": "todo-cli-20260815T171521Z-b135247d",
+        "receipt_present": true,
+        "round": 1,
+        "dial": {
+          "max_parallel_scopes": 4,
+          "source": "default (run-args.json declares none)"
+        },
+        "completeness": {
+          "legs_total": 12,
+          "legs_exact": 0,
+          "legs_lower_bound": 6,
+          "no_completion_record": 6,
+          "legs_unkeyed": 0,
+          "phase_dispatches_excluded": 11,
+          "end_sources": {
+            "leg-record": 0,
+            "t0-landmark": 6,
+            "none": 6
+          }
+        },
+        "concurrency": {
+          "max_concurrent": 4,
+          "bound": "lower",
+          "at": "2026-08-16T02:16:34.692Z",
+          "launch": 1,
+          "two_or_more_concurrent": true
+        },
+        "launches": [
+          {
+            "launch": 1,
+            "from": "2026-08-16T02:13:47.140Z",
+            "to": "2026-08-16T02:20:03.486Z",
+            "legs": 6,
+            "max_concurrent": 4,
+            "max_concurrent_at": "2026-08-16T02:16:34.692Z",
+            "max_concurrent_bound": "lower",
+            "span_ms": 376346,
+            "span_bound": "lower",
+            "sum_leg_ms": 643110,
+            "sum_leg_bound": "lower",
+            "speedup": null,
+            "speedup_refused_because": "6 of 6 leg(s) end at a T0 landmark rather than a completion record, so both the span and the work sum are floors; their ratio bounds nothing",
+            "waves_observed": [
+              {
+                "from": "2026-08-16T02:13:47.140Z",
+                "to": "2026-08-16T02:15:24.868Z",
+                "scopes": [
+                  "foundation"
+                ]
+              },
+              {
+                "from": "2026-08-16T02:15:40.587Z",
+                "to": "2026-08-16T02:18:14.616Z",
+                "scopes": [
+                  "add-todo",
+                  "complete-todo",
+                  "list-todos",
+                  "remove-todo"
+                ]
+              },
+              {
+                "from": "2026-08-16T02:18:53.555Z",
+                "to": "2026-08-16T02:20:03.486Z",
+                "scopes": [
+                  "cli-integration-test"
+                ]
+              }
+            ],
+            "scopes": [
+              "add-todo",
+              "cli-integration-test",
+              "complete-todo",
+              "foundation",
+              "list-todos",
+              "remove-todo"
+            ]
+          }
+        ],
+        "segmentation": {
+          "rule": "a quiet period longer than gap_s starts a new launch",
+          "gap_s": 900,
+          "launches": 1,
+          "note": "heuristic: nothing in the record set identifies a launch, and one run_id spans every relaunch"
+        },
+        "legs": [
+          {
+            "order_id": "todo-cli/foundation-r1-a1",
+            "scope_id": "foundation",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-15T17:48:21.081Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/remove-todo-r1-a1",
+            "scope_id": "remove-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-15T17:52:32.176Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/add-todo-r1-a1",
+            "scope_id": "add-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-15T17:52:32.189Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/complete-todo-r1-a1",
+            "scope_id": "complete-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-15T17:53:39.899Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/list-todos-r1-a1",
+            "scope_id": "list-todos",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-15T17:53:43.788Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/cli-integration-test-r1-a1",
+            "scope_id": "cli-integration-test",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-15T17:57:33.124Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/foundation-r1-a1",
+            "scope_id": "foundation",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:13:47.140Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T02:15:24.868Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 97728,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/complete-todo-r1-a1",
+            "scope_id": "complete-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:15:40.587Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T02:18:06.175Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 145588,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/add-todo-r1-a1",
+            "scope_id": "add-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:15:40.761Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T02:17:25.979Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 105218,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/remove-todo-r1-a1",
+            "scope_id": "remove-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:16:06.443Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T02:18:14.616Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 128173,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/list-todos-r1-a1",
+            "scope_id": "list-todos",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:16:34.692Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T02:18:11.164Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 96472,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/cli-integration-test-r1-a1",
+            "scope_id": "cli-integration-test",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:18:53.555Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T02:20:03.486Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 69931,
+            "bound": "lower"
+          }
+        ],
+        "warnings": [
+          "no legs.jsonl — this run was recorded before leg completions were written, so every end falls back to the T0 landmark and every figure below is a floor."
+        ]
+      }
+    },
+    {
+      "label": "headless-shipped r2 (dependency-wave fan-out)",
+      "run_root_repo_relative": "traces/phase2-criterion1/headless-shipped/shapeup-local/todo-cli",
+      "round": 2,
+      "report": {
+        "schema_version": 1,
+        "run_root": null,
+        "run_id": "todo-cli-20260815T171521Z-b135247d",
+        "receipt_present": true,
+        "round": 2,
+        "dial": {
+          "max_parallel_scopes": 4,
+          "source": "default (run-args.json declares none)"
+        },
+        "completeness": {
+          "legs_total": 24,
+          "legs_exact": 0,
+          "legs_lower_bound": 6,
+          "no_completion_record": 18,
+          "legs_unkeyed": 0,
+          "phase_dispatches_excluded": 11,
+          "end_sources": {
+            "leg-record": 0,
+            "t0-landmark": 6,
+            "none": 18
+          }
+        },
+        "concurrency": {
+          "max_concurrent": 4,
+          "bound": "lower",
+          "at": "2026-08-16T03:26:04.533Z",
+          "launch": 1,
+          "two_or_more_concurrent": true
+        },
+        "launches": [
+          {
+            "launch": 1,
+            "from": "2026-08-16T03:24:42.053Z",
+            "to": "2026-08-16T03:28:24.886Z",
+            "legs": 6,
+            "max_concurrent": 4,
+            "max_concurrent_at": "2026-08-16T03:26:04.533Z",
+            "max_concurrent_bound": "lower",
+            "span_ms": 222833,
+            "span_bound": "lower",
+            "sum_leg_ms": 200044,
+            "sum_leg_bound": "lower",
+            "speedup": null,
+            "speedup_refused_because": "6 of 6 leg(s) end at a T0 landmark rather than a completion record, so both the span and the work sum are floors; their ratio bounds nothing",
+            "waves_observed": [
+              {
+                "from": "2026-08-16T03:24:42.053Z",
+                "to": "2026-08-16T03:24:56.935Z",
+                "scopes": [
+                  "foundation"
+                ]
+              },
+              {
+                "from": "2026-08-16T03:25:55.450Z",
+                "to": "2026-08-16T03:27:41.523Z",
+                "scopes": [
+                  "add-todo",
+                  "complete-todo",
+                  "list-todos",
+                  "remove-todo"
+                ]
+              },
+              {
+                "from": "2026-08-16T03:28:01.678Z",
+                "to": "2026-08-16T03:28:24.886Z",
+                "scopes": [
+                  "cli-integration-test"
+                ]
+              }
+            ],
+            "scopes": [
+              "add-todo",
+              "cli-integration-test",
+              "complete-todo",
+              "foundation",
+              "list-todos",
+              "remove-todo"
+            ]
+          }
+        ],
+        "segmentation": {
+          "rule": "a quiet period longer than gap_s starts a new launch",
+          "gap_s": 900,
+          "launches": 1,
+          "note": "heuristic: nothing in the record set identifies a launch, and one run_id spans every relaunch"
+        },
+        "legs": [
+          {
+            "order_id": "todo-cli/list-todos-r2-a1",
+            "scope_id": "list-todos",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-15T18:00:36.405Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/cli-integration-test-r2-a1",
+            "scope_id": "cli-integration-test",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-15T18:02:33.332Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/foundation-r2-a1",
+            "scope_id": "foundation",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:27:50.749Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/list-todos-r2-a1",
+            "scope_id": "list-todos",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:29:36.969Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/remove-todo-r2-a1",
+            "scope_id": "remove-todo",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:29:37.199Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/complete-todo-r2-a1",
+            "scope_id": "complete-todo",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:29:37.259Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/add-todo-r2-a1",
+            "scope_id": "add-todo",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:29:37.278Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/cli-integration-test-r2-a1",
+            "scope_id": "cli-integration-test",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:31:13.922Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/foundation-r2-a1",
+            "scope_id": "foundation",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:47:33.515Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/complete-todo-r2-a1",
+            "scope_id": "complete-todo",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:48:16.284Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/add-todo-r2-a1",
+            "scope_id": "add-todo",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:48:16.295Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/list-todos-r2-a1",
+            "scope_id": "list-todos",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:48:16.808Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/remove-todo-r2-a1",
+            "scope_id": "remove-todo",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:48:17.691Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/cli-integration-test-r2-a1",
+            "scope_id": "cli-integration-test",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:49:08.880Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/complete-todo-r2-a1",
+            "scope_id": "complete-todo",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:58:06.805Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/cli-integration-test-r2-a1",
+            "scope_id": "cli-integration-test",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:58:08.945Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/add-todo-r2-a1",
+            "scope_id": "add-todo",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:58:14.373Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/foundation-r2-a1",
+            "scope_id": "foundation",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:58:16.387Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/foundation-r2-a1",
+            "scope_id": "foundation",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T03:24:42.053Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T03:24:56.935Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 14882,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/complete-todo-r2-a1",
+            "scope_id": "complete-todo",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T03:25:55.450Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T03:27:41.523Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 106073,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/list-todos-r2-a1",
+            "scope_id": "list-todos",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T03:25:56.453Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T03:26:18.499Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 22046,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/remove-todo-r2-a1",
+            "scope_id": "remove-todo",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T03:25:58.314Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T03:26:08.697Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 10383,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/add-todo-r2-a1",
+            "scope_id": "add-todo",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T03:26:04.533Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T03:26:27.985Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 23452,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/cli-integration-test-r2-a1",
+            "scope_id": "cli-integration-test",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T03:28:01.678Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T03:28:24.886Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 23208,
+            "bound": "lower"
+          }
+        ],
+        "warnings": [
+          "no legs.jsonl — this run was recorded before leg completions were written, so every end falls back to the T0 landmark and every figure below is a floor."
+        ]
+      }
+    },
+    {
+      "label": "interactive-shipped r1 (2-scope feature)",
+      "run_root_repo_relative": "traces/phase2-criterion1/interactive-shipped/shapeup-local/todo-cli",
+      "round": 1,
+      "report": {
+        "schema_version": 1,
+        "run_root": null,
+        "run_id": "todo-cli-20260816T084725Z-ddb6d292",
+        "receipt_present": true,
+        "round": 1,
+        "dial": {
+          "max_parallel_scopes": 4,
+          "source": "default (run-args.json declares none)"
+        },
+        "completeness": {
+          "legs_total": 2,
+          "legs_exact": 0,
+          "legs_lower_bound": 2,
+          "no_completion_record": 0,
+          "legs_unkeyed": 0,
+          "phase_dispatches_excluded": 12,
+          "end_sources": {
+            "leg-record": 0,
+            "t0-landmark": 2,
+            "none": 0
+          }
+        },
+        "concurrency": {
+          "max_concurrent": 2,
+          "bound": "lower",
+          "at": "2026-08-16T10:26:06.685Z",
+          "launch": 1,
+          "two_or_more_concurrent": true
+        },
+        "launches": [
+          {
+            "launch": 1,
+            "from": "2026-08-16T10:21:56.218Z",
+            "to": "2026-08-16T10:33:02.223Z",
+            "legs": 2,
+            "max_concurrent": 2,
+            "max_concurrent_at": "2026-08-16T10:26:06.685Z",
+            "max_concurrent_bound": "lower",
+            "span_ms": 666005,
+            "span_bound": "lower",
+            "sum_leg_ms": 727635,
+            "sum_leg_bound": "lower",
+            "speedup": null,
+            "speedup_refused_because": "2 of 2 leg(s) end at a T0 landmark rather than a completion record, so both the span and the work sum are floors; their ratio bounds nothing",
+            "waves_observed": [
+              {
+                "from": "2026-08-16T10:21:56.218Z",
+                "to": "2026-08-16T10:33:02.223Z",
+                "scopes": [
+                  "scope-cli-core",
+                  "scope-integration-test"
+                ]
+              }
+            ],
+            "scopes": [
+              "scope-cli-core",
+              "scope-integration-test"
+            ]
+          }
+        ],
+        "segmentation": {
+          "rule": "a quiet period longer than gap_s starts a new launch",
+          "gap_s": 900,
+          "launches": 1,
+          "note": "heuristic: nothing in the record set identifies a launch, and one run_id spans every relaunch"
+        },
+        "legs": [
+          {
+            "order_id": "todo-cli/scope-cli-core-r1-a1",
+            "scope_id": "scope-cli-core",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260816T084725Z-ddb6d292",
+            "started_at": "2026-08-16T10:21:56.218Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T10:33:02.223Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 666005,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/scope-integration-test-r1-a1",
+            "scope_id": "scope-integration-test",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260816T084725Z-ddb6d292",
+            "started_at": "2026-08-16T10:26:06.685Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T10:27:08.315Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 61630,
+            "bound": "lower"
+          }
+        ],
+        "warnings": [
+          "no legs.jsonl — this run was recorded before leg completions were written, so every end falls back to the T0 landmark and every figure below is a floor."
+        ]
+      }
+    },
+    {
+      "label": "run9 r1 (eval-fail / inert ratchet)",
+      "run_root_repo_relative": "traces/phase2-criterion1/run9-eval-fail-and-inert-ratchet/shapeup-local/todo-cli",
+      "round": 1,
+      "report": {
+        "schema_version": 1,
+        "run_root": null,
+        "run_id": "todo-cli-20260815T171521Z-b135247d",
+        "receipt_present": true,
+        "round": 1,
+        "dial": {
+          "max_parallel_scopes": 4,
+          "source": "default (run-args.json declares none)"
+        },
+        "completeness": {
+          "legs_total": 12,
+          "legs_exact": 0,
+          "legs_lower_bound": 6,
+          "no_completion_record": 6,
+          "legs_unkeyed": 0,
+          "phase_dispatches_excluded": 8,
+          "end_sources": {
+            "leg-record": 0,
+            "t0-landmark": 6,
+            "none": 6
+          }
+        },
+        "concurrency": {
+          "max_concurrent": 4,
+          "bound": "lower",
+          "at": "2026-08-16T02:16:34.692Z",
+          "launch": 1,
+          "two_or_more_concurrent": true
+        },
+        "launches": [
+          {
+            "launch": 1,
+            "from": "2026-08-16T02:13:47.140Z",
+            "to": "2026-08-16T02:20:03.486Z",
+            "legs": 6,
+            "max_concurrent": 4,
+            "max_concurrent_at": "2026-08-16T02:16:34.692Z",
+            "max_concurrent_bound": "lower",
+            "span_ms": 376346,
+            "span_bound": "lower",
+            "sum_leg_ms": 643110,
+            "sum_leg_bound": "lower",
+            "speedup": null,
+            "speedup_refused_because": "6 of 6 leg(s) end at a T0 landmark rather than a completion record, so both the span and the work sum are floors; their ratio bounds nothing",
+            "waves_observed": [
+              {
+                "from": "2026-08-16T02:13:47.140Z",
+                "to": "2026-08-16T02:15:24.868Z",
+                "scopes": [
+                  "foundation"
+                ]
+              },
+              {
+                "from": "2026-08-16T02:15:40.587Z",
+                "to": "2026-08-16T02:18:14.616Z",
+                "scopes": [
+                  "add-todo",
+                  "complete-todo",
+                  "list-todos",
+                  "remove-todo"
+                ]
+              },
+              {
+                "from": "2026-08-16T02:18:53.555Z",
+                "to": "2026-08-16T02:20:03.486Z",
+                "scopes": [
+                  "cli-integration-test"
+                ]
+              }
+            ],
+            "scopes": [
+              "add-todo",
+              "cli-integration-test",
+              "complete-todo",
+              "foundation",
+              "list-todos",
+              "remove-todo"
+            ]
+          }
+        ],
+        "segmentation": {
+          "rule": "a quiet period longer than gap_s starts a new launch",
+          "gap_s": 900,
+          "launches": 1,
+          "note": "heuristic: nothing in the record set identifies a launch, and one run_id spans every relaunch"
+        },
+        "legs": [
+          {
+            "order_id": "todo-cli/foundation-r1-a1",
+            "scope_id": "foundation",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-15T17:48:21.081Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/remove-todo-r1-a1",
+            "scope_id": "remove-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-15T17:52:32.176Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/add-todo-r1-a1",
+            "scope_id": "add-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-15T17:52:32.189Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/complete-todo-r1-a1",
+            "scope_id": "complete-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-15T17:53:39.899Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/list-todos-r1-a1",
+            "scope_id": "list-todos",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-15T17:53:43.788Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/cli-integration-test-r1-a1",
+            "scope_id": "cli-integration-test",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-15T17:57:33.124Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/foundation-r1-a1",
+            "scope_id": "foundation",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:13:47.140Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T02:15:24.868Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 97728,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/complete-todo-r1-a1",
+            "scope_id": "complete-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:15:40.587Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T02:18:06.175Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 145588,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/add-todo-r1-a1",
+            "scope_id": "add-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:15:40.761Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T02:17:25.979Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 105218,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/remove-todo-r1-a1",
+            "scope_id": "remove-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:16:06.443Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T02:18:14.616Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 128173,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/list-todos-r1-a1",
+            "scope_id": "list-todos",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:16:34.692Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T02:18:11.164Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 96472,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/cli-integration-test-r1-a1",
+            "scope_id": "cli-integration-test",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:18:53.555Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T02:20:03.486Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 69931,
+            "bound": "lower"
+          }
+        ],
+        "warnings": [
+          "no legs.jsonl — this run was recorded before leg completions were written, so every end falls back to the T0 landmark and every figure below is a floor."
+        ]
+      }
+    },
+    {
+      "label": "run9 r2 (eval-fail / inert ratchet)",
+      "run_root_repo_relative": "traces/phase2-criterion1/run9-eval-fail-and-inert-ratchet/shapeup-local/todo-cli",
+      "round": 2,
+      "report": {
+        "schema_version": 1,
+        "run_root": null,
+        "run_id": "todo-cli-20260815T171521Z-b135247d",
+        "receipt_present": true,
+        "round": 2,
+        "dial": {
+          "max_parallel_scopes": 4,
+          "source": "default (run-args.json declares none)"
+        },
+        "completeness": {
+          "legs_total": 8,
+          "legs_exact": 0,
+          "legs_lower_bound": 6,
+          "no_completion_record": 2,
+          "legs_unkeyed": 0,
+          "phase_dispatches_excluded": 8,
+          "end_sources": {
+            "leg-record": 0,
+            "t0-landmark": 6,
+            "none": 2
+          }
+        },
+        "concurrency": {
+          "max_concurrent": 4,
+          "bound": "lower",
+          "at": "2026-08-16T02:29:37.278Z",
+          "launch": 1,
+          "two_or_more_concurrent": true
+        },
+        "launches": [
+          {
+            "launch": 1,
+            "from": "2026-08-16T02:27:50.749Z",
+            "to": "2026-08-16T02:31:24.988Z",
+            "legs": 6,
+            "max_concurrent": 4,
+            "max_concurrent_at": "2026-08-16T02:29:37.278Z",
+            "max_concurrent_bound": "lower",
+            "span_ms": 214239,
+            "span_bound": "lower",
+            "sum_leg_ms": 255995,
+            "sum_leg_bound": "lower",
+            "speedup": null,
+            "speedup_refused_because": "6 of 6 leg(s) end at a T0 landmark rather than a completion record, so both the span and the work sum are floors; their ratio bounds nothing",
+            "waves_observed": [
+              {
+                "from": "2026-08-16T02:27:50.749Z",
+                "to": "2026-08-16T02:29:19.788Z",
+                "scopes": [
+                  "foundation"
+                ]
+              },
+              {
+                "from": "2026-08-16T02:29:36.969Z",
+                "to": "2026-08-16T02:30:55.232Z",
+                "scopes": [
+                  "add-todo",
+                  "complete-todo",
+                  "list-todos",
+                  "remove-todo"
+                ]
+              },
+              {
+                "from": "2026-08-16T02:31:13.922Z",
+                "to": "2026-08-16T02:31:24.988Z",
+                "scopes": [
+                  "cli-integration-test"
+                ]
+              }
+            ],
+            "scopes": [
+              "add-todo",
+              "cli-integration-test",
+              "complete-todo",
+              "foundation",
+              "list-todos",
+              "remove-todo"
+            ]
+          }
+        ],
+        "segmentation": {
+          "rule": "a quiet period longer than gap_s starts a new launch",
+          "gap_s": 900,
+          "launches": 1,
+          "note": "heuristic: nothing in the record set identifies a launch, and one run_id spans every relaunch"
+        },
+        "legs": [
+          {
+            "order_id": "todo-cli/list-todos-r2-a1",
+            "scope_id": "list-todos",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-15T18:00:36.405Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/cli-integration-test-r2-a1",
+            "scope_id": "cli-integration-test",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-15T18:02:33.332Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/foundation-r2-a1",
+            "scope_id": "foundation",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:27:50.749Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T02:29:19.788Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 89039,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/list-todos-r2-a1",
+            "scope_id": "list-todos",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:29:36.969Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T02:29:58.764Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 21795,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/remove-todo-r2-a1",
+            "scope_id": "remove-todo",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:29:37.199Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T02:30:02.633Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 25434,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/complete-todo-r2-a1",
+            "scope_id": "complete-todo",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:29:37.259Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T02:30:07.966Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 30707,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/add-todo-r2-a1",
+            "scope_id": "add-todo",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:29:37.278Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T02:30:55.232Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 77954,
+            "bound": "lower"
+          },
+          {
+            "order_id": "todo-cli/cli-integration-test-r2-a1",
+            "scope_id": "cli-integration-test",
+            "round": 2,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T171521Z-b135247d",
+            "started_at": "2026-08-16T02:31:13.922Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": "2026-08-16T02:31:24.988Z",
+            "end_source": "t0-landmark",
+            "duration_ms": 11066,
+            "bound": "lower"
+          }
+        ],
+        "warnings": [
+          "no legs.jsonl — this run was recorded before leg completions were written, so every end falls back to the T0 landmark and every figure below is a floor."
+        ]
+      }
+    },
+    {
+      "label": "headless-attempt2 (build dispatched, no T0 written)",
+      "run_root_repo_relative": "traces/phase2-criterion1/headless-attempt2-build-dispatched-no-t0/shapeup-local/todo-cli",
+      "round": 1,
+      "report": {
+        "schema_version": 1,
+        "run_root": null,
+        "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+        "receipt_present": true,
+        "round": 1,
+        "dial": {
+          "max_parallel_scopes": 4,
+          "source": "default (no run-args.json)"
+        },
+        "completeness": {
+          "legs_total": 8,
+          "legs_exact": 0,
+          "legs_lower_bound": 0,
+          "no_completion_record": 8,
+          "legs_unkeyed": 0,
+          "phase_dispatches_excluded": 6,
+          "end_sources": {
+            "leg-record": 0,
+            "t0-landmark": 0,
+            "none": 8
+          }
+        },
+        "concurrency": {
+          "max_concurrent": null,
+          "bound": null,
+          "at": null,
+          "launch": null,
+          "two_or_more_concurrent": null
+        },
+        "launches": [],
+        "segmentation": {
+          "rule": "a quiet period longer than gap_s starts a new launch",
+          "gap_s": 900,
+          "launches": 0,
+          "note": "heuristic: nothing in the record set identifies a launch, and one run_id spans every relaunch"
+        },
+        "legs": [
+          {
+            "order_id": "todo-cli/add-todo-r1-a1",
+            "scope_id": "add-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:10:12.936Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/foundation-r1-a1",
+            "scope_id": "foundation",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:10:13.530Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/complete-todo-r1-a1",
+            "scope_id": "complete-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:10:13.662Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/cli-integration-r1-a1",
+            "scope_id": "cli-integration",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:10:13.812Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/cli-integration-r1-a2",
+            "scope_id": "cli-integration",
+            "round": 1,
+            "attempt": 2,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:19:13.016Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/cli-integration-r1-a3",
+            "scope_id": "cli-integration",
+            "round": 1,
+            "attempt": 3,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:19:58.688Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/list-todos-r1-a1",
+            "scope_id": "list-todos",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:20:24.037Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          },
+          {
+            "order_id": "todo-cli/remove-todo-r1-a1",
+            "scope_id": "remove-todo",
+            "round": 1,
+            "attempt": 1,
+            "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+            "started_at": "2026-08-15T16:20:24.384Z",
+            "start_source": "dispatch-receipt",
+            "ended_at": null,
+            "end_source": null,
+            "duration_ms": null,
+            "bound": null
+          }
+        ],
+        "warnings": [
+          "no legs.jsonl — this run was recorded before leg completions were written, so every end falls back to the T0 landmark and every figure below is a floor."
+        ]
+      }
+    },
+    {
+      "label": "headless-attempt1 (BUILD never dispatched)",
+      "run_root_repo_relative": "traces/phase2-criterion1/headless-attempt1-build-never-dispatched/shapeup-local/todo-cli",
+      "round": null,
+      "report": {
+        "schema_version": 1,
+        "run_root": null,
+        "run_id": "todo-cli-20260815T152011Z-1a6a2efb",
+        "receipt_present": true,
+        "round": null,
+        "dial": {
+          "max_parallel_scopes": 4,
+          "source": "default (no run-args.json)"
+        },
+        "completeness": {
+          "legs_total": 0,
+          "legs_exact": 0,
+          "legs_lower_bound": 0,
+          "no_completion_record": 0,
+          "legs_unkeyed": 0,
+          "phase_dispatches_excluded": 6,
+          "end_sources": {
+            "leg-record": 0,
+            "t0-landmark": 0,
+            "none": 0
+          }
+        },
+        "concurrency": {
+          "max_concurrent": null,
+          "bound": null,
+          "at": null,
+          "launch": null,
+          "two_or_more_concurrent": null
+        },
+        "launches": [],
+        "segmentation": {
+          "rule": "a quiet period longer than gap_s starts a new launch",
+          "gap_s": 900,
+          "launches": 0,
+          "note": "heuristic: nothing in the record set identifies a launch, and one run_id spans every relaunch"
+        },
+        "legs": [],
+        "warnings": [
+          "no legs.jsonl — this run was recorded before leg completions were written, so every end falls back to the T0 landmark and every figure below is a floor."
+        ]
+      }
+    }
+  ]
+}

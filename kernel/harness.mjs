@@ -27,7 +27,10 @@
 //   reduce   ingest · hill · snapshot ·       Single writer. Shared state has exactly one author.
 //            ship · board · verdict · graph
 //   gate                                      An answer file with a source, not a vibe.
-//   probe    resume · t0 · stats · digest     Read-only queries over run state.
+//   probe    resume · t0 · stats · digest ·   Read-only queries over run state. `concurrency`
+//            concurrency                       answers how many legs ran at once and what the
+//                                              fan-out bought, and refuses a figure the record set
+//                                              cannot support rather than printing a plausible one.
 //   init     run · fit                        Opens a run, or refuses it (exit 3).
 //   report   export                           Projects the run's records as fact tables.
 //   compile                                   The WorkOrder: schema-valid or nothing is dispatched.
@@ -59,7 +62,10 @@ export const ROUTES = {
     ship: "./reduce/ship.mjs", board: "./reduce/board.mjs", verdict: "./reduce/verdict.mjs",
     graph: "./reduce/graph.mjs",
   },
-  probe: { resume: "./probe/resume.mjs", t0: "./probe/t0.mjs", stats: "./probe/stats.mjs", digest: "./probe/digest.mjs" },
+  probe: {
+    resume: "./probe/resume.mjs", t0: "./probe/t0.mjs", stats: "./probe/stats.mjs",
+    digest: "./probe/digest.mjs", concurrency: "./probe/concurrency.mjs",
+  },
   init: { run: "./init/run.mjs", fit: "./init/fit.mjs" },
   report: { export: "./report/export.mjs", _default: "export" },
   gate: "./gate.mjs",
