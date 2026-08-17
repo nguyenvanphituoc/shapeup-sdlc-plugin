@@ -74,6 +74,11 @@ const MODULE_FILES = [
   // that init writes it; nothing then looked at the tree it wrote into — where a grant that has
   // accumulated dead rules, an opt-out that is a no-op, and a second harness block all read fine.
   "22-consumer-install.mjs",
+  // 23-concurrency.mjs: the leg-completion record and the instrument over it. Its own module
+  // because the property is a measurement rather than a shape: the fan-out's whole acceptance
+  // contract is three numbers nothing in the repo could produce, and the failure mode is a
+  // confident figure computed over a record set that was missing most of its ends.
+  "23-concurrency.mjs",
   "45-paths.mjs",
   "46-contract-md.mjs",
   "47-ship-report.mjs",
