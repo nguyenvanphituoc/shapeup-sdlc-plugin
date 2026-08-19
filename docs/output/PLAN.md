@@ -404,6 +404,49 @@ Rerun every probe the v1 code memorializes in comments, as real checks:
 7. **Metrics audit** — verify against the measured budget at the top of this plan, not against a remembered number: executable script files ≤11, permission strings = 1, runtimes owned = 0, hooks = 4, comment density ~18%, shipped LOC ~17,000 (±10%). A miss is a finding to record, not a number to explain away — the same standard the harness holds its own workers to.
 - **Done when:** all seven pass and are committed as CI-runnable checks (they replace the deleted eval machinery as the repo's proof of behavior).
 
+> **Closed — see `RESULT-P7.md`. The Done-when's literal "all seven pass" is not met, recorded
+> plainly rather than smoothed, the same standard Phase 3's D3 box already applied to itself.**
+> 4 of 7 (G1 kill/resume, G3 parallel safety, G4 dead worker, G5 gate refusal) were already written
+> and pass as committed CI checks (`tests/structural/21-gauntlet.mjs`) before this phase started —
+> confirmed still green, not re-implemented. G2 and G6 had also already been run live by a prior
+> session (`docs/output/EXP-A-G2-G6.md`) before this phase's own contract was compiled: **G2
+> measured FAIL** (two characterized, non-hang, non-crash stalls; root cause already folded into
+> shipped `AGENTS.md` by commit `7d5a850` — the documented grant is necessary but not sufficient for
+> `--unattended`), and **G6 produced v2.0's first cost/wall-clock number** (73m 30.8s / ~$34.50
+> combined pipeline, `todo-cli`, 2 rounds) with no v1 baseline yet to compare it against. This
+> phase's own new live work (Stage S4) supplied that missing half — and found the comparison
+> **impossible to make on wall-clock/cost terms at all**: v1.7.0's headless permission grant is keyed
+> on a literal, unexpanded `${CLAUDE_PLUGIN_ROOT}` token, and the current Claude Code CLI now
+> categorically rejects any `${VAR}`-expansion Bash command before permission-mode is even
+> consulted — confirmed at two independent code paths (41 permission denials across two full
+> attempts, plus a direct `run-workflow.mjs` invocation that aborted cleanly at its very first
+> dispatch, 41.369s / $0.198, from an independent path). Neither smoothed nor treated as v1 "just
+> being slower" — v1's own dispatch mechanism does not run at all against this CLI version, which is
+> arguably a *stronger* signal in probe 6's predicted direction than a completing-but-slower v1
+> number would have been, stated as the different claim it actually is.
+>
+> **Probe 7 (the metrics audit, `docs/output/METRICS-P7.md`) re-measured all six named metrics
+> directly and found 1 match, 5 misses** — executable script files (33 under `kernel/` vs. a ~11
+> target), permission strings (3 by default vs. 1, though a genuine 3-owner→1-owner reduction),
+> hooks (5 hard walls vs. 4, already-documented non-drift), comment density (41.0% vs. an ~18%
+> target — the wrong direction), and shipped LOC (28,257 vs. ~17,000±10%, ~64–66% over). Runtimes
+> owned matched (0). None redefined or explained away; each carries its derivation and largest
+> contributors. Acting on these misses is out of this phase's own scope, per its guardrails.
+>
+> G2 and G6 are deliberately **not** wrapped in CI assertions — `21-gauntlet.mjs`'s own architecture
+> already reasons why (a check that cannot fail is worse than a missing one), and forcing either
+> green would itself be the "explain away a miss" move probe 7 forbids. Probe 7 likewise stays a
+> point-in-time measurement document, not a ratchet, for the same reason. What the Done-when's own
+> premise missed: a probe can be genuinely **answered** — executed for real, its outcome on record,
+> independently re-verified in a fresh clone rather than trusted from any run's own say-so — without
+> **passing**. All seven were answered. Four pass as committed checks; G2 measured FAIL; G6's
+> comparison proved unmakeable rather than unfavorable; probe 7 found five real misses. That is the
+> honest closing state, not "all seven pass," and per this plan's own §4 note on reading its
+> targets, the plan does not get an exemption from the standard it holds its own workers to. `npm
+> test` green throughout (1200 → 1208 checks, parametrized growth, not a weakened suite); every
+> stage's acceptance independently re-verified in a fresh clone by the operator session, not trusted
+> from the executing workflow's own report.
+
 ---
 
 ## 2 · Traceability — every finding → its fix
