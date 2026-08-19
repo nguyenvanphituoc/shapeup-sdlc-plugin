@@ -281,6 +281,85 @@ fast-forward. Together worth roughly 5% of a run. Not worth their own phase.)*
 - Version 2.0.0 in both manifests; upgrade notes: what v1 users must re-run (`npx shapeup-sdlc init`), what got deleted and why.
 - **Done when:** a newcomer can read README + tech-lead SKILL.md + the workflow script in under an hour and correctly answer "where is a gate enforced?"
 
+> **Closed.** Most of this phase had already shipped before this session touched anything: both
+> manifests read `2.0.0`; `CHANGELOG.md` sits at 459 lines with a `v1.7.0-final` pointer for v1.x
+> history; root `README.md` is rewritten around the Wall/Runtime/Advisory table; `tech-lead/SKILL.md`
+> was already the 148-line runbook the plan describes (open run → branch on `RunReturn.status` → GATE
+> L4); `references/` was already down to 4 files (1,364 lines) from the plan's stated 8. Three things
+> were left, plus one thing to check honestly rather than assume, plus one that turned out to need no
+> action.
+>
+> **References: 4 → 3.** `state.md` (295 lines: state ownership/D6, the central domain registry, the
+> two-ledger split, the full `harness-run.md` schema, `round-ledger.md`, the harvest-row schema) is
+> merged into `protocol.md` as a new "Part 4 — State" (550 → 832 lines) and deleted. Every citation
+> pointing at it now points at `protocol.md` instead — two in `SKILL.md`'s citation block, four in
+> `gates.md` (Hill report ×2, Harvest row, Rejected fields) — plus three this session's own grep
+> found that weren't on the known list: a doc comment in `kernel/init/run.mjs`, a doc comment in
+> `kernel/probe/resume.mjs`, and a live error string in the same file (`setRunStatus`'s "malformed
+> frontmatter" message) — all three cited the reference path directly and would have gone stale
+> silently otherwise. `references/` now totals 1,351 lines across 3 files — 13 fewer than the
+> 4-file total, because the merge dropped two title-only wrapper headings ("Part 1 — State
+> ownership", "Part 2 — The ledger schema") that existed only to name a file boundary that no longer
+> exists; every substantive line moved, nothing was cut for content. Two `docs/skills/changelog-
+> tech-lead.md` rows still say `references/state.md` — left alone on purpose: they're dated v1.4/
+> v0.8 history entries describing what the file was called *at that version*, and rewriting a
+> changelog to match a later refactor is exactly the revisionism CLAUDE.md's changelog rule exists
+> to forbid.
+>
+> **`domain.schema.json`: no cut.** Checked all 41 `$defs` against actual usage — internal `$ref`
+> within the schema, external `$ref` from `work-order.schema.json`/`work-result.schema.json`, and
+> (the case a naive grep misses) programmatic `validate(x, {$ref: "domain.schema.json#/$defs/X"})`
+> calls in kernel code (`RunSnapshot` in `kernel/reduce/snapshot.mjs`, `StatsReport` in
+> `kernel/probe/stats.mjs`, `WorkerName` read straight off `schema.$defs.WorkerName.enum` in
+> `kernel/verify/skills.mjs`). Every entry resolved to a real file format the harness reads or
+> writes — `ActiveScopePointer` to `.shapeup/active-scope` (read in `kernel/verify/budget.mjs`,
+> `kernel/reduce/snapshot.mjs`, `hooks/sandbox-guard.mjs`), `HillShard` to `hill/<scope-id>.yml`
+> (`kernel/reduce/hill.mjs`, `board.mjs`), `SeesawRegistry` to `seesaw/registry.json`
+> (`kernel/verify/t0.mjs`), and so on down the list — zero orphans. Left at 2,540 lines, unchanged.
+> The plan named this outcome explicitly ("cutting it is capability loss") and it's the one that held.
+>
+> **Three duplicate READMEs deleted.** Was `skills/tech-lead/README.md` (71 lines). Was
+> `skills/spec-evaluator/README.md` (93 lines). Was `skills/translator/README.md` (66 lines) — 230
+> total, matching the plan's own number exactly. Re-grepped the whole repo before deleting; nothing
+> referenced them, before or after.
+>
+> **`ba-pitch-analyzer` references: read all 7 (1,746 lines), changed none.** The plausible pair —
+> `contract-patterns.md` (Phase 2b, the wire shape of one repository call) and
+> `integration-analysis.md` (Phase 5, feature-level system impact) — turned out to be topically
+> adjacent, not duplicative: different artifacts, different phases, different audiences. The one
+> literal overlap found — a 3-line AC template ("Request shape matches… / Response mapping
+> matches… / All error codes… are handled") appearing verbatim in both `contract-patterns.md`'s
+> "Contract → Task Traceability" and `task-generation.md`'s "Contract-First Rule" — is normal
+> cross-phase restatement (Phase 6 task generation quoting what Phase 2b's contract already
+> requires), not a redundant file. `doc-schemas.md` is a cross-cutting meta-reference (frontmatter
+> taxonomy for every doc type) with no single-phase peer to fold into. `ddd-patterns.md`,
+> `test-surface.md`, `ux-behavior-patterns.md` are each the sole reference for their phase. No merge
+> made: collapsing e.g. contract-patterns into integration-analysis would force a reader looking for
+> "how do I write a `.contract.md`" to wade through unrelated system-impact material — the
+> false-consolidation failure mode the brief warned against by name.
+>
+> **Verification.** `npm test` green throughout every structural change, settling at **1199
+> checks** (measured baseline before this phase's edits was 1203-1204 depending on worktree, since
+> the calling session's own working tree carried an uncommitted Phase 5 closure-box edit to this
+> same file that the execution worktree did not — both baselines were green, and the one-check gap
+> predates this phase's work). The four fewer than baseline are parametrized checks that scale with
+> file/section counts (doc-drift, prompt line-count ratchet) correctly reacting to 4 reference files
+> becoming 3 and 3 fewer README.md files existing — not a weakened suite. `claude plugin validate .
+> --strict` and the marketplace validate stayed green throughout. Final repo-wide grep for dangling
+> references to `state.md`, the three deleted READMEs, or any ba-pitch-analyzer reference filename
+> (none renamed): clean.
+>
+> **Done when — met, with one honest hedge.** README (389 lines) + `tech-lead/SKILL.md` (148 lines)
+> + the workflow script (`shapeup-run.js`, 1,369 lines, untouched by this phase) totals ~1,900
+> lines, roughly a third prose and two-thirds JS. A linear, careful read of all three plausibly runs
+> past an hour on the script alone. But the Done-when's actual question — "where is a gate
+> enforced?" — doesn't require a linear read: `SKILL.md`'s own citation block points straight at
+> `references/gates.md` for the collect-lists and `references/protocol.md` for the invocation
+> mechanism, and the script concentrates gate logic in one findable place (`gateBlock()`/`paused()`
+> at line 736, `GATE` appearing 22 times, never scattered across the file) rather than diffusing it.
+> Met in the sense the line intends — a newcomer chasing that specific question finds it fast — not
+> mechanically re-verified against a live newcomer this session.
+
 ### Phase 7 — Verification gauntlet *(1–2 days)*
 Rerun every probe the v1 code memorializes in comments, as real checks:
 1. Kill/resume probe (SIGKILL mid-BUILD, relaunch, assert no re-dispatch) — now against the graph.

@@ -66,7 +66,7 @@ import {
   orientDir, activeOrder, usecasesDir, tasksDir,
 } from "../lib/paths.mjs";
 
-/** The run-state values `references/state.md` defines. A typo'd status is a rejection,
+/** The run-state values `references/protocol.md` (Part 4 — State) defines. A typo'd status is a rejection,
  *  not a write — the whole point of this file is that a write nobody validates is a write nobody
  *  can trust. */
 export const RUN_STATUSES = ["orienting", "mapping", "building", "evaluating", "shipped", "escalated"];
@@ -434,7 +434,7 @@ export function setRunStatus(cwd, slug, status) {
   }
   const body = readFileSync(p, "utf8");
   if (!/^status:.*$/m.test(body)) {
-    return { ok: false, path: p, status, reason: `harness-run.md carries no "status:" line to replace — the ledger's frontmatter is malformed (references/state.md)` };
+    return { ok: false, path: p, status, reason: `harness-run.md carries no "status:" line to replace — the ledger's frontmatter is malformed (references/protocol.md)` };
   }
   try {
     writeFileSync(p, body.replace(/^status:.*$/m, `status: ${status}`));

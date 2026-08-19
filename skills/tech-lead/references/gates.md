@@ -165,7 +165,7 @@ re-scanning the codebase. Pass `--auto` only when the run level is `--auto`/`--u
 committing to a scope map. This is the first Hill read (area-level — slices don't exist yet).
 
 ```
-Read .shapeup/<slug>/orient/. Render the 🗻 Hill from hill-signal.md (see state.md "Hill report"):
+Read .shapeup/<slug>/orient/. Render the 🗻 Hill from hill-signal.md (see protocol.md "Hill report"):
   - each suspected area → uphill (open unknowns) | crest (approach proven by the spike) | downhill
 Print: the code-surface headline (where it lands), the spiked area + result, the riskiest
        open unknowns going into mapping.
@@ -324,7 +324,7 @@ Under `--interactive` / `--auto`, the hook warns if the board is not truly green
 Render the 🗻 Hill report (slice-level) — NOT a task count. Scope contracts present → read
   committed hill/<scope-id>.yml shards (mechanical phases from GATE L2, never authored). No contracts →
   fall back to the board + open-unknowns heuristic (uphill/crest/downhill/done). See
-  references/state.md "Hill report". Roadmap rule unchanged either way: progress is
+  references/protocol.md "Hill report". Roadmap rule unchanged either way: progress is
   reported by hill position, never by "N/M tasks done".
 
 Read EVAL-FEATURE-<slug>.md verdict.
@@ -429,7 +429,7 @@ S.6  Harvest one signal row → append to `.shapeup/metrics/<machine-id>.jsonl`
      ALSO copy `run_id` from `receipt.json`. It is the row's only link to the run trace
      that produced it: every other field here is a count, and `feature_slug` groups runs
      TOGETHER rather than apart. It is what joins this row to the S.7 export.
-     → full field list + row template: references/state.md "Harvest row".
+     → full field list + row template: references/protocol.md "Harvest row".
 S.7  Export the run's records → one keyed dataset, before the trace is superseded.
        node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" report export --slug <slug>
      Same argument as S.6, applied to the records the harvest row does NOT carry: orders,
@@ -442,7 +442,7 @@ S.7  Export the run's records → one keyed dataset, before the trace is superse
      WHY IT IS NOT A HARVEST FIELD. Run economics — cost, wall clock, turns-to-first-write —
      is DERIVED from this dataset (`harness probe stats --economics`), never copied into the metrics
      shard, because that row's contract rejects clock fields on purpose (see
-     state.md "Rejected fields"). Preserving the trace keeps the figures available
+     protocol.md "Rejected fields"). Preserving the trace keeps the figures available
      without putting a velocity number in the signal feed.
 ```
 

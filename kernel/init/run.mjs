@@ -166,7 +166,7 @@ export function buildReceipt({ slug, intake, config, startedAt, plugin = null })
   };
 }
 
-/** The `harness-run.md` frontmatter block, per references/state.md. */
+/** The `harness-run.md` frontmatter block, per references/protocol.md Part 4 — State. */
 export function runFrontmatter({ slug, config, startedAt }) {
   return [
     "---",

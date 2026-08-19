@@ -132,8 +132,8 @@ and returns to the PO at every gate.
 > **Gate collect-lists + output-block formats** → `references/gates.md`
 > **How each sub-skill is invoked + handoff files (the envelope port)** → `references/protocol.md`
 > **The round loop, stop conditions, three-level breaker rationale** → `references/protocol.md`
-> **Run ledger format + Hill report** → `references/state.md`
-> **State ownership, the central domain registry, two-ledger split** → `references/state.md`
+> **Run ledger format + Hill report** → `references/protocol.md` (Part 4 — State)
+> **State ownership, the central domain registry, two-ledger split** → `references/protocol.md` (Part 4 — State)
 > **Hard rules this design enforces, and why** → `references/protocol.md`
 > **Full invocation examples + the complete flag table** →
 > **The small-change lane (`--tiny`)** → `references/tiny-lane.md`
