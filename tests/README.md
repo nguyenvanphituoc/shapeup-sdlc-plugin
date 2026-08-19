@@ -115,10 +115,15 @@ This is the cheapest, highest-ROI guard and the one the project lacked. Sections
 oracle grammar is runnable; #12 proves the shipped skills are self-contained; #14–#15 prove the L2
 gate and the verdict ledger do their jobs (enforce / detect flips), not merely that they exist.
 
-## Tier 1 — checks that need a real session (`npm run test:grant`, and two that are not written)
+## Tier 1 — checks that need a real session (`npm run test:grant`, and two proven by live-run evidence, not by CI)
 
 Two things this repo asserts cannot be decided offline, because the decision happens inside a live
-CLI. One of them has a runner; two do not, and saying so is the point of this section.
+CLI. One of them has a runner that runs on every `npm test`. The other two are deliberately *not*
+encoded as structural checks — `tests/structural/21-gauntlet.mjs`'s own header states why: a check
+that cannot fail is worse than a missing one. Full unattended completion and cost/wall-clock both
+need a real feature, a real model and real money; wrapping either in a structural assertion would
+mean it either always passes or has to be gamed to pass. So they are proven by live-run evidence
+documents instead, and their status is stated honestly below.
 
 **`npm run test:grant` — RUN, and stamped.** The permission grant is the check the structural suite
 provably cannot make: it once asserted the granted prefix was a string *prefix* of each documented
@@ -129,20 +134,35 @@ DENIED by whether the target script's marker file landed on disk. Evidence, not 
 is stamped to `tests/grant/last-verified.json`, and structural §43 fails when the generator has
 moved since that stamp. **Last run: 9/9 against the v2.0 two-line kernel grant.**
 
-**G2 — a full unattended run, zero prompts. NOT WRITTEN.** The gauntlet
-(`tests/structural/21-gauntlet.mjs`) covers four of the architecture review's six probes. This is
-one of the two it does not: the grant half is proven above, and the installer-writes-it half is
-executed in structural §43, but "a real `--unattended` run completes on a fresh clone" needs a real
-feature, a real model and real money. It is unproven, and it is listed here rather than approximated
-by something cheaper that would read like coverage.
+**G2 — a full unattended run, zero prompts. MEASURED — FAIL, characterized.** A live run
+(`examples/todo-cli/`, the full harness loop through the shipped `/shape`/`/ship` commands,
+`--unattended --gate-answers ci`, every dispatch `sonnet`) did not complete with zero prompts: two
+self-initiated stalls, neither a permission hang nor a crash — (a) a judgment call the model
+surfaced despite an explicit "do not stop to ask" instruction, and (b) the run correctly refusing
+to compound a since-fixed EVAL-verdict bug into a false ship. This is a real, measured FAIL against
+the "zero prompts" bar, and the load-bearing finding underneath it is not "the harness is broken":
+the documented kernel-only permission grant (`bin/lib/grant.mjs`) is **necessary but not
+sufficient** for a truly unattended run. It covers the kernel's own Bash invocation and the
+`Workflow` token; it does not cover the generic Write/Edit calls every worker skill makes
+constantly, and AGENTS.md's own text does not currently say a headless lane also needs a CLI
+permission mode (`--permission-mode acceptEdits` at minimum) on top of it. Full account — including
+the sandbox-guard denials that held throughout regardless of permission mode, and the EVAL-verdict
+defect that caused stall (b), found and fixed live: `docs/output/EXP-A-G2-G6.md`.
 
-**G6 — cost and wall-clock against a v1 baseline. NOT WRITTEN.** Needs two live runs of the same
-feature, one on `v1.7.0-final` and one on v2.0. The v2.0 rebuild recorded a structural baseline
-(`docs/output/BASELINE-v1.md`: line counts, script and hook inventory, the green suite) but never
-executed a v1 feature run, so there is nothing to compare against. **No number about v2.0's cost or
-wall-clock appears anywhere in this repo**, which is the honest position until that pair of runs
-exists — the fan-out and the warm sub-agents are reasons to *expect* an improvement, not a
-measurement of one.
+**G6 — cost and wall-clock against a v1 baseline. MEASURED — a v2.0 number exists; no v1 baseline
+exists yet to compare it against.** The same live run produced v2.0's first cost/wall-clock number:
+`examples/todo-cli/`, 2 rounds, every dispatch `sonnet`, **73m 30.8s / ~$34.50 combined pipeline
+wall-clock** (56m 6.2s / ~$22.95 for round 1 through an incorrectly-aborted GATE H, plus 17m 24.6s /
+~$11.55 for the fix round, to a genuine EVAL PASS and a real ship). What this is not yet is a
+*comparison*: `docs/output/BASELINE-v1.md` (Phase 0's own baseline artifact) recorded only
+structural line counts and inventory, never a live v1.7.0-final feature run — so there is nothing
+yet on the other side of the ledger. Closing that requires a live v1.7.0-final run of the same
+fixture, which has not happened as of this writing; until it has, no wall-clock or cost delta
+between v1 and v2 may be stated. Also worth noting: the harness's own economics tooling
+(`journal.jsonl`, meant to key `harness report export`/`harness probe stats --economics`) was never
+populated by this real run — the numbers above come from the coarser dispatch-attestation ledger
+instead, a real, separate, adjacent gap `docs/output/EXP-A-G2-G6.md` documents in detail. Full
+derivation, including the per-phase table: `docs/output/EXP-A-G2-G6.md`.
 
 ## There is no second tier beyond that
 
