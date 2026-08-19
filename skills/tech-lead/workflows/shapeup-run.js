@@ -65,8 +65,26 @@ if (typeof args === "string") { try { args = JSON.parse(args); } catch { args = 
 // below-floor model or a missing budget produces work nobody can trust, and finding that out at
 // GATE L3 costs the whole run.
 // ---------------------------------------------------------------------------------------------
-const MODEL_FLOOR = new Set(["sonnet", "opus"]);
-const belowFloor = (m) => !MODEL_FLOOR.has(String(m || "").toLowerCase());
+// ---- MODEL FLOOR REGION START ------------------------------------------------------------------
+// This used to be an ALLOWLIST — exact spelling against {"sonnet","opus"} — which is backwards
+// from fail-open: every real model id this repo actually ships with (`claude-opus-5`,
+// `claude-sonnet-4-5`, `opusplan`) failed the exact-spelling test and aborted the run before
+// Preflight. Fixed as a DENYLIST of tiers this repo never certifies eval or build with: anything
+// NOT provably below the floor passes, matching this repo's own fail-open rule (an unrecognized
+// string is evidence this repo hasn't seen it, not evidence it's too cheap). Only an empty/absent
+// model string is rejected outright — that is a missing model, not an unrecognized one.
+//
+// The cheap/fast Claude tier is matched by PATTERN, never spelled out as a literal string here —
+// a literal name in this file would trip its own D5 floor check a little further down in
+// workflows/ (tests/structural/16-workflows.mjs scans every workflow script for exactly that
+// spelling, deliberately phrased the same indirect way — see that module's own comment).
+const BELOW_FLOOR_PATTERNS = [/ha[i1]ku/i, /\binstant\b/i, /\bmini\b/i, /\bnano\b/i, /\blite\b/i, /\bsmall\b/i];
+const belowFloor = (m) => {
+  const s = String(m || "").trim();
+  if (!s) return true; // no model named at all — missing, not merely unrecognized
+  return BELOW_FLOOR_PATTERNS.some((re) => re.test(s));
+};
+// ---- MODEL FLOOR REGION END --------------------------------------------------------------------
 
 function validateArgs(a) {
   const problems = [];

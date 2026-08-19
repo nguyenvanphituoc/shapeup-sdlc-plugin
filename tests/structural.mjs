@@ -92,6 +92,10 @@ const MODULE_FILES = [
   "46-contract-md.mjs",
   "47-ship-report.mjs",
   "50-payload-contract-parity.mjs",
+  // 26-model-floor.mjs: the model floor (D3.5), executed against the shipped belowFloor()
+  // predicate rather than a hand-kept copy of it — see the module's own banner for why it has to
+  // be loaded this way.
+  "26-model-floor.mjs",
   "08-docs.mjs",
 ];
 
