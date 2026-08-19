@@ -533,7 +533,18 @@ export function compileOrder({
     : (scope ? String(scope).split("/").pop().replace(/\.(md|json)$/, "") : null);
   const scopeId = String(rawScopeId || "").toLowerCase().replace(/[^a-z0-9.-]/g, "-").replace(/^[^a-z0-9]+/, "");
   const buildSuffix = round && attempt ? (scopeId ? `${scopeId}-r${round}-a${attempt}` : `r${round}-a${attempt}`) : null;
-  const suffix = buildSuffix || (round ? `${operation}-r${round}` : operation);
+  // A non-BUILD order was suffixed by operation+round alone, with no per-leg discriminator — so two
+  // concurrent non-BUILD legs of the SAME operation and round, dispatched for different scopes
+  // (e.g. two scopes both running `evaluate` in the same round), compiled to the identical suffix
+  // and the second write clobbered the first order file on disk while the run read green. `scopeId`
+  // is already derived above for any operation, not only BUILD; folding it in here — only when a
+  // scope was actually passed — closes that collision. Operation-level dispatches (orient, analyze,
+  // wire, map-scopes, evaluate, hunt, hammer) never pass a scope, so `scopeId` is empty for them and
+  // this reduces to the unchanged `${operation}-r${round}` / `${operation}` shape.
+  const scopedRoundSuffix = scopeId
+    ? (round ? `${operation}-${scopeId}-r${round}` : `${operation}-${scopeId}`)
+    : (round ? `${operation}-r${round}` : operation);
+  const suffix = buildSuffix || scopedRoundSuffix;
   const order = {
     schema_version: 1,
     order_id: `${slug}/${suffix}`,

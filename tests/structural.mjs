@@ -109,6 +109,10 @@ const MODULE_FILES = [
   // `regression === false` when the check never ran (Phase 3.5 / S4). Its own module because no
   // existing test drives `deriveHill()` against a T0 verdict artifact at all.
   "29-hill-seesaw.mjs",
+  // 30-order-id-collision.mjs: every operation, not only BUILD, now gets a per-leg discriminator
+  // (Phase 3.5 / S5). Its own module because no existing test drives `compileOrder()` directly at
+  // all — the collision only shows up when two non-BUILD calls for different scopes are compared.
+  "30-order-id-collision.mjs",
   "08-docs.mjs",
 ];
 
