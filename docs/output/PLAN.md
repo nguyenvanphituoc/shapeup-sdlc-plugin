@@ -19,7 +19,7 @@
 | Comment density, shipped JS | **36%** (3,649 / 10,056) | **~18%** |
 | Orchestrator script | 911 lines, courier-defended | ≤ 600, zero couriers |
 | Skills requiring any change | — | **2 of 12** |
-| Scope build | sequential | parallel (`pipeline()` + worktree) |
+| Scope build | sequential | parallel (`pipeline()`; worktree isolation declined, see Phase 3 update) |
 | Resume | directory re-scan every launch | one bounded graph query |
 | Sub-agent dispatch | cold `claude -p` per worker | in-session, prompt-cache-warm |
 
@@ -124,6 +124,116 @@ The subtraction that unlocks everything else, and it doesn't touch behavior.
 > pointer. The one hook-coupling risk this phase was told to verify was real and misnamed:
 > `sandbox-guard` is coupled to `cwd`, not to that pointer.
 
+> **Update — D3 retired (double-checked against the `D3-fanout-analysis` and `FINAL-harness-report`
+> artifacts, 2026-08-19).** The box above's "not met" undersold it: D3 is not merely unmet this
+> round, it is unreachable by the only mechanism anyone has proposed. The obvious next step —
+> release a dependent scope at T0-settled instead of leg-settled — was modeled at 31.6–36.6% and
+> then actually built and measured at **23.005%**, because the model's premise was wrong: T0-settled
+> and leg-settled are both written inside one sub-agent turn, so the control script cannot observe
+> the earlier boundary at all. A companion fix (batching dispatch counts) added **21.884%** measured
+> separately; the two are substitutes, not complements — **25.510% jointly**, still short of 30%.
+> No further scheduler work closes this; it is a platform limit on the `agent()` abstraction, not a
+> tuning gap.
+>
+> It also would not have mattered much if it had closed. BUILD's fan-out returns **3.3–3.6% of a
+> total run** on the two runs measured — the round D3 grades is 11–20% of a run whose phase shares
+> move up to 3.17× between identical-pitch runs (QA alone: 620s / 276s / 208s / 195s across four runs
+> of one pitch). ANALYZE, not BUILD, is the phase that's actually large and stable (22–27% across
+> runs) — and it is a constant-rate writer (measured 95.8 B/s ±9.9%), not a schedulable phase. The
+> one attempt to speed it by splitting it produced a *thinner, less correct* spec tree that still
+> shipped a PASS verdict with fewer EVAL criteria, undetected — so "make ANALYZE faster" is not a
+> safe substitute goal for D3 either.
+>
+> **D3 is retired as written.** D1 and D2 stand — the scope loop is genuinely parallel and the
+> corruption probes did their job. A run-level wall-clock clause may replace D3 later, but only after
+> Phase 3.5 below closes the certification gap; a speed number measured on a harness that can
+> silently skip building a scope is not a number worth keeping. Two smaller corrections while
+> re-reading this phase: `isolation:'worktree'` in the bullets above reads as shipped — the box above
+> already says it was declined, so no code should exist that uses it. And `maxParallelScopes`
+> default 4 in the bullets above is a ceiling the contracts usually don't reach — this feature's own
+> realized ceiling was 2 — so the dial is not the lever the bullet implies; a scope cut's dependency
+> depth is.
+
+### Phase 3.5 — Close the certification gap *(new, from the two-artifact review)* *(6–7 days)*
+Phase 3's own probes only looked for corruption. The nine-arm review that produced the D3 verdict
+above went looking for speed and found something worse: the harness can report success on work it
+did not do, and every layer built to catch that reports success too. This phase closes that gap
+before Phase 4 builds a queryable graph on top of it — a graph derived from a system that can
+silently skip dispatching a scope is confidently wrong, not just incomplete.
+
+- **Two run-killers, first.** The model floor (`shapeup-run.js`) tests exact spelling against a
+  two-entry allowlist, so every real model id (`claude-opus-5`, `claude-sonnet-4-5`, `opusplan`)
+  aborts the run before Preflight — following the shipped documentation kills the run. Fix: reject
+  only what is *provably* below the floor; an unrecognized string passes, matching this repo's own
+  fail-open rule. Separately, a dispatched-but-unanswered order wedges the tech lead's committed
+  writes and `--force` does not clear it — needs a real unwedge path.
+- **The T0 ratchet's revert.** `kernel/verify/t0.mjs:530` reads `contract.substrate?.allowed` — a
+  path no `ScopeContract` has; every sibling reader uses `allowed_file_substrate`. The bound is
+  therefore always `[]`, the pathspec-bounded `restore()` in `ratchet-tree.mjs` correctly refuses on
+  principle every time, and the caller's own "first trial, nothing to restore to yet" fallback fires
+  on *every* subsequent restore too — silently promoting a **failing** attempt's tree as the new
+  baseline. Fix the field name **and** gate the fallback on "no prior kept trial exists," not on
+  "restore returned not-ok for any reason" — a field-name fix alone still falls through to the same
+  wrong behavior on a genuine git-level restore failure. A companion fix is needed at
+  `kernel/reduce/graph.mjs:202` — the report ships these together and warns that the field fix alone
+  leaves a related path ungated. Add a test that drives this through `t0.mjs`'s own CLI entry with a
+  real contract object, not `restore()` called directly — no existing test does, which is why this
+  survived.
+- **Stop certifying an unrun regression check.** `hill.mjs` infers `seesawGreen` from
+  `regression === false` on a green T0, but nothing anywhere writes the seesaw registry or passes
+  `--seesaw-registry`, so `regression` is always `false` — "not asked," read as "clean." A scope
+  reaches FINISHED on a check that has never executed. Stop the inference; then explicitly choose,
+  as a Betting Table decision, whether to wire the registry for real (cost: re-runs every finished
+  scope's fixtures on every later attempt) or delete the dead plumbing. Do not ship the machinery
+  half-armed and silent about it.
+- **Fix the order-id collision.** `compile.mjs`'s order suffix is unique per scope only for BUILD
+  orders (`scopeId-r{round}-a{attempt}`); every other operation falls back to
+  `{operation}-r{round}` or bare `operation`, so N concurrent legs of the same non-BUILD operation
+  overwrite each other's dispatch file while the run reads green. Give every operation the same
+  per-leg discriminator BUILD already has.
+- **Reconcile the board against contracts on disk.** The defect that motivated this whole phase: a
+  whole scope was cut, never dispatched, and the board still read `✅ done` because nothing compares
+  the board's rows to what's actually on disk (contracts, task files, dispatched orders). This is the
+  cheapest fix in the phase — both artifacts already exist on disk — and no check does this today.
+- **Floor the spec tree.** The correctness hole behind the ANALYZE-speed trap above: nothing stops a
+  spec tree that derives *nothing* from the pitch from shipping green, because a criteria-count check
+  can't tell a healthy small tree from a silently thin one. Add a lint that fails when the raw idea
+  names explicit constraints (a No-gos/Constraints/Edge-cases section) and the tree declares zero
+  invariants anywhere.
+- **Verification hygiene, before trusting any number this phase produces.** Confirm the concurrency
+  probe's own process-matching doesn't match its own command line, and that whatever reads "which
+  run is this" doesn't cross two run directories when more than one exists. An instrument that has
+  never once said no is not evidence — the same standard this phase holds the product to applies to
+  the tools measuring it.
+- **Done when:** every fix above is watched red first (re-introduce the defect, confirm the specific
+  new test fails for the reason it should, restore, confirm green — this repo's own standing method),
+  `npm test` stays green throughout, and a fresh live run of a multi-scope feature — forced to include
+  at least one failing attempt on one scope and a legitimate concurrent build on another — produces a
+  board, a T0 trial history, and a hill status that all agree with the actual dispatched orders on
+  disk.
+
+*(Lower priority, only if capacity remains after the above: the small proven perf wins the same
+review found — dispatch batching, dropping a projection call nothing reads, trimming the relaunch
+fast-forward. Together worth roughly 5% of a run. Not worth their own phase.)*
+
+> **Closed — see `RESULT-P3.5.md`.** All eight items and the Done-when both met. The T0 ratchet
+> field-name bug was the most load-bearing fix in the phase — the fallback was silently promoting a
+> **failing** attempt's tree as the new kept baseline on every genuine restore failure, not only the
+> first-trial case the field-name fix alone would have covered. The seesaw check got the Betting
+> Table decision the plan asked for rather than a silent default: registry-wiring deferred (real
+> running cost), the false-positive inference removed either way. Verification hygiene on the
+> measuring tools came back **confirmed safe, not a defect** — both claims were watched red before
+> being accepted, which is not the same thing as assumed clean. The Done-when's live run exercised
+> the T0 ratchet fix for real (a genuine CRLF-parsing failure, retried, fixed) and S8's own
+> concurrency probe measured real `max_concurrent: 2`, inside a dedicated `git worktree`, never the
+> working tree or a plain clone. One incident worth carrying forward: a leftover scratch clone in
+> the execution run's own working directory got mistaken for a working copy by three separate
+> stage-executing agents, and one recovery attempt was phrased as a push to a remote and correctly
+> blocked by the safety classifier before anything was touched — the lesson recorded in
+> `RESULT-P3.5.md` §3 is about workdir hygiene during a run, not about this phase's fixes. Phase 4 is
+> now unblocked: the graph it builds is no longer built over a system that can silently skip
+> dispatching a scope.
+
 ### Phase 4 — The run graph *(fixes: BAD-4)* *(2–3 days)*
 - `reduce` appends typed nodes/edges to `graph.jsonl` alongside its existing writes; `probe` answers from the graph (`--subgraph run` returning the `SUBGRAPH` shape the native script already expects). Markdown board/ledger become projections regenerated by `reduce` — humans keep their files, machines stop parsing them.
 - Migration shim: on first v2 run over a v1 `.shapeup/` tree, `probe` falls back to the directory walk once and `reduce` backfills the graph from it.
@@ -186,7 +296,7 @@ Rerun every probe the v1 code memorializes in comments, as real checks:
 
 ## 4 · Estimated effort
 
-Roughly **11–15 working days** end-to-end (Phase 6 narrowed once measurement showed only 2 of 12 skills need work), but each phase ships alone; Phases 1–2 (≈5 days) already deliver the permission fix and the biggest deletion. If you only get one week: do 0–2 and stop — you'll have a smaller, cheaper, native-runtime v2.0-beta with today's exact behavior.
+Roughly **17–22 working days** end-to-end (Phase 6 narrowed once measurement showed only 2 of 12 skills need work; Phase 3.5 added — 6–7 days — once the two-artifact review showed the certification gap gates everything after it), but each phase ships alone; Phases 1–2 (≈5 days) already deliver the permission fix and the biggest deletion. If you only get one week: do 0–2 and stop — you'll have a smaller, cheaper, native-runtime v2.0-beta with today's exact behavior. Phase 3.5 should land before Phase 4 regardless of what else is sequenced around it — a run graph built on a system that can silently skip dispatching a scope is confidently wrong, not just incomplete.
 
 **A note on how to read the targets.** The numbers above are measured, not aspirational, and they are deliberately less dramatic than the first draft's. A plan that promises −67% and delivers −33% teaches you to discount its next estimate; one that promises −33% and hits it stays useful. If a phase misses its target, record it as a finding — that is the standard this harness holds its own workers to, and the plan should not get an exemption.
 
