@@ -20,7 +20,7 @@
 //   AGENTS.md harness block · Claude Code plugin (CLI or settings.json merge) ·
 //   CLAUDE.md @AGENTS.md import · .gitignore rules · shapeup/metrics/ · Tier C templates
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, cpSync, appendFileSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, cpSync, appendFileSync, realpathSync } from "node:fs";
 import { resolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -159,9 +159,23 @@ for (const [srcRel, note] of [
   const src = join(PKG_ROOT, srcRel);
   if (existsSync(src)) {
     const dst = join(target, srcRel);
-    mkdirSync(dirname(dst), { recursive: true });
-    cpSync(src, dst);
-    console.log(`Installed ${srcRel} (${note})`);
+    // Self-install (the target IS the plugin's own checkout — dogfooding, or a worktree loaded
+    // with --plugin-dir and initialized against itself) makes src and dst the same file. cpSync
+    // throws ERR_FS_CP_EINVAL on that rather than treating "already there" as done, which crashed
+    // the installer AFTER its one load-bearing step (the permission grant, step 2) had already
+    // succeeded — so the failure looked worse than it was, but it was still a crash. A plain
+    // string compare isn't enough: `target` can reach the same file through a symlinked temp root
+    // (macOS's `/tmp` -> `/private/tmp`, `/var/folders/...`) that `PKG_ROOT` — resolved from
+    // `import.meta.url`, which Node already canonicalizes — does not share textually. Comparing
+    // real paths is what makes the check hold under both forms.
+    const samePath = existsSync(dst) && realpathSync(src) === realpathSync(dst);
+    if (src === dst || samePath) {
+      console.log(`${srcRel} already present at the install target (self-install) — nothing to copy`);
+    } else {
+      mkdirSync(dirname(dst), { recursive: true });
+      cpSync(src, dst);
+      console.log(`Installed ${srcRel} (${note})`);
+    }
   }
 }
 

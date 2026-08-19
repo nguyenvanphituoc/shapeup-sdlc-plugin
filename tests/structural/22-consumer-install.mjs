@@ -22,7 +22,7 @@
 // installer's own stdout — a script that prints "kernel permissions granted" and writes nothing is
 // the exact defect this repo has already shipped once.
 
-import { existsSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, readdirSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, readdirSync, statSync, cpSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
@@ -319,4 +319,29 @@ export async function run(ctx) {
       else if (body) fail("the receipt carries no run_id — nothing downstream can key to this run");
     }
   } finally { rmSync(ran.box, { recursive: true, force: true }); }
+
+  // ---------------------------------------------------------------------------------------------
+  // (e) SELF-INSTALL. The plugin's own repo dogfooding itself (`-d .` from inside a checkout, or
+  //     any target that resolves to PKG_ROOT — a live worktree loaded with `--plugin-dir` and
+  //     initialized against itself is exactly this shape) is a real, if unusual, usage pattern:
+  //     step 4's template copy (`cpSync(src, dst)`) throws uncaught (`ERR_FS_CP_EINVAL`, "src and
+  //     dest cannot be the same") the moment src === dst, because the two template files it copies
+  //     already live at that path in PKG_ROOT itself. Step 2's permission grant (the part that
+  //     actually matters for a headless run) runs and succeeds BEFORE this crash, so the failure is
+  //     silent-ish rather than blocking — but "installer exits non-zero on its own repo" is still a
+  //     real defect a maintainer can hit by hand. Runs against a throwaway COPY of the repo, never
+  //     ROOT itself — `-o` overrides files in place, and this suite must not mutate the checkout
+  //     it is testing.
+  // ---------------------------------------------------------------------------------------------
+  {
+    const selfCopy = mkdtempSync(join(tmpdir(), "self-install-"));
+    try {
+      cpSync(ROOT, selfCopy, { recursive: true, filter: (src) => !src.includes(`${join(ROOT, ".git")}`) });
+      const r = spawnSync(process.execPath, [join(selfCopy, "bin/init.mjs"), "init", "-d", selfCopy, "-y", "-o"], {
+        cwd: selfCopy, env: { ...process.env, PATH: pathWithoutClaude() }, encoding: "utf8", timeout: 60_000,
+      });
+      if (r.status === 0) ok("init -d <own repo root> (self-install / dogfood) exits 0, not a crash");
+      else fail(`init against its own repo root exited ${r.status} — ${(r.stderr || r.stdout || "").slice(-300)}`);
+    } finally { rmSync(selfCopy, { recursive: true, force: true }); }
+  }
 }
