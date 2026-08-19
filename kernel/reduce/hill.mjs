@@ -63,8 +63,21 @@ export function deriveHill(cwd, slug) {
         if (!t0Facts[b.scope_id]) t0Facts[b.scope_id] = { hasGreen: false, seesawGreen: false };
         if (b.overall === "green") {
           t0Facts[b.scope_id].hasGreen = true;
-          // If regression is false on a green T0, it means seesaw was also green
-          if (b.regression === false) {
+          // Read the REAL seesaw result off the verdict artifact (`t0.mjs`'s `writeArtifact()`
+          // already persists the full `{ran, pass, scopes_checked, failing}` object), rather than
+          // inferring it from a false `regression` flag. That inference was vacuously true on every
+          // green T0 whether or not a seesaw check ever ran: nothing in this codebase currently
+          // passes `--seesaw-registry` to `verify t0`, so `seesaw.ran` is always `false` today and
+          // `regression` is always `false` too — "not asked" was being read as "clean," letting a
+          // scope reach FINISHED on a regression check that had never executed.
+          //
+          // Betting Table decision (Phase 3.5 / S4): wiring the seesaw registry for real is a
+          // genuine feature with a real running cost (re-running every finished scope's fixtures
+          // on every later attempt) and is out of proportion to a certification-gap fix. Deferred,
+          // not silently dropped — a scope with no registry wired simply cannot reach FINISHED via
+          // this path today, which is the honest state of the system: this check was never really
+          // gating FINISHED before either.
+          if (b.seesaw?.ran && b.seesaw?.pass) {
             t0Facts[b.scope_id].seesawGreen = true;
           }
         }

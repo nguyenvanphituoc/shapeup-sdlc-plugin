@@ -105,6 +105,10 @@ const MODULE_FILES = [
   // `ScopeContract` — every prior probe called `restore()` directly, which cannot see a caller-side
   // field-name bug or a fallback gated on the wrong condition.
   "28-t0-ratchet-fallback.mjs",
+  // 29-hill-seesaw.mjs: hill.mjs no longer infers a seesaw regression check as clean from
+  // `regression === false` when the check never ran (Phase 3.5 / S4). Its own module because no
+  // existing test drives `deriveHill()` against a T0 verdict artifact at all.
+  "29-hill-seesaw.mjs",
   "08-docs.mjs",
 ];
 
