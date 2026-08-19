@@ -28,7 +28,7 @@
 //            ship · board · verdict · graph
 //   gate                                      An answer file with a source, not a vibe.
 //   probe    resume · t0 · stats · digest ·   Read-only queries over run state. `concurrency`
-//            concurrency · leg                 answers how many legs ran at once and what the
+//            concurrency · leg · eval          answers how many legs ran at once and what the
 //                                              fan-out bought, and refuses a figure the record set
 //                                              cannot support rather than printing a plausible one.
 //                                              `leg` answers whether a scope's work reached the
@@ -36,6 +36,10 @@
 //                                              its result was ever applied, and a leg that skipped
 //                                              its own ingest step is indistinguishable from one that
 //                                              did not until something reads the writer's own record.
+//                                              `eval` answers what an EVAL round's WorkResult
+//                                              actually said, mechanically — the round-loop branch
+//                                              reads this instead of trusting a dispatching agent's
+//                                              own end-of-turn summary of its own verdict.
 //   init     run · fit                        Opens a run, or refuses it (exit 3).
 //   report   export                           Projects the run's records as fact tables.
 //   compile                                   The WorkOrder: schema-valid or nothing is dispatched.
@@ -70,7 +74,7 @@ export const ROUTES = {
   probe: {
     resume: "./probe/resume.mjs", t0: "./probe/t0.mjs", stats: "./probe/stats.mjs",
     digest: "./probe/digest.mjs", concurrency: "./probe/concurrency.mjs",
-    leg: "./probe/leg.mjs",
+    leg: "./probe/leg.mjs", eval: "./probe/eval.mjs",
   },
   init: { run: "./init/run.mjs", fit: "./init/fit.mjs" },
   report: { export: "./report/export.mjs", _default: "export" },

@@ -517,6 +517,29 @@ const EVAL = {
   required: ["ok", "overall"],
 };
 
+// The round-loop branch reads THIS, not `EVAL` above, for the pass/fail decision. `EVAL` shapes
+// the dispatching agent's own end-of-turn summary of a 3-step dispatch (compile, dispatch,
+// ingest) — schema-checked for SHAPE only, never re-verified against the WorkResult `reduce
+// ingest` just wrote. Measured live (2026-08-19, todo-cli): that summary reported the round as
+// passing while `results/evaluate-r1.json`'s own `verdict.overall` said `"FAIL"` (2 cited bugs),
+// and the round loop broke straight to QA/GATE H on the strength of the summary alone — the same
+// self-report-instead-of-artifact-read shape this file already fixed once for gate DECISIONS
+// (see the comment above `crossGate`), just never extended to the EVAL verdict itself. `probe
+// eval` is `harness probe eval`'s own output — a narrow, single-purpose "transcribe this JSON
+// verbatim" query over the WorkResult on disk, the same pattern `probe t0`/`probe resume` already
+// use everywhere else a fact has to cross the no-filesystem boundary.
+const EVAL_VERDICT = {
+  type: "object",
+  properties: {
+    ok: { type: "boolean" },
+    overall: nullable("string"),
+    bug_count: nullable("integer"),
+    report_path: nullable("string"),
+    round: { type: "integer" },
+  },
+  required: ["ok", "round"],
+};
+
 const REFUTATION = {
   type: "object",
   properties: { id: { type: "string" }, refuted: { type: "boolean" }, why: { type: "string" } },
@@ -1182,7 +1205,11 @@ while (round <= maxRounds) {
       extra: "Evaluate the running feature against every acceptance criterion and Done-when. One feature-level pass; cite the T0 artifact you re-hash yourself.",
     });
     if (e.__failed) return diedAt("L3", e);
-    verdict = e.overall === "PASS" ? "pass" : "fail";
+    // The pass/fail branch is decided from the WorkResult on disk, not from the dispatching
+    // agent's own summary of it (`e.overall`) — see EVAL_VERDICT's comment for why.
+    const ev = await query(`probe eval --slug ${slug} --round ${round}`, EVAL_VERDICT, "Eval", `verdict:r${round}`);
+    if (!ev || !ev.ok || !ev.overall) return diedAt("L3", nullFail(`verdict:r${round}`));
+    verdict = ev.overall === "PASS" ? "pass" : "fail";
     findings = e.findings || [];
   }
 
