@@ -79,7 +79,7 @@ export async function run(ctx) {
   const { ROOT, ok, fail, section } = ctx;
 
   // =============================================================================
-  section("32. spec-lint floors the tree against a pitch that names constraints (Phase 3.5 / S7)");
+  section("76. spec-lint floors the tree against a pitch that names constraints (Phase 3.5 / S7)");
   // =============================================================================
 
   const { lintStructure, intakeNamesConstraints, lint } = await import(join(ROOT, "kernel/verify/spec.mjs"));

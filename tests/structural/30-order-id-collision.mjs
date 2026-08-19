@@ -31,7 +31,7 @@ export async function run(ctx) {
   const { ROOT, ok, fail, section } = ctx;
 
   // =============================================================================
-  section("30. Non-BUILD orders get a per-leg discriminator, same as BUILD (Phase 3.5 / S5)");
+  section("75. Non-BUILD orders get a per-leg discriminator, same as BUILD (Phase 3.5 / S5)");
   // =============================================================================
 
   const { compileOrder } = await import(join(ROOT, "kernel/compile.mjs"));

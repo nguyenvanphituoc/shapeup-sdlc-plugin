@@ -52,7 +52,7 @@ export async function run(ctx) {
   const { ROOT, ok, fail, section } = ctx;
 
   // =============================================================================
-  section("33. The concurrency probe's leg-matching and \"which run is this\" resolution, watched (Phase 3.5 / S8)");
+  section("77. The concurrency probe's leg-matching and \"which run is this\" resolution, watched (Phase 3.5 / S8)");
   // =============================================================================
 
   const { report, addressOf } = await import(join(ROOT, "kernel/probe/concurrency.mjs"));

@@ -73,7 +73,7 @@ export async function run(ctx) {
   const { ROOT, ok, fail, section } = ctx;
 
   // =============================================================================
-  section("29. hill.mjs stops certifying a seesaw check that never ran (Phase 3.5 / S4)");
+  section("74. hill.mjs stops certifying a seesaw check that never ran (Phase 3.5 / S4)");
   // =============================================================================
 
   const { deriveHill } = await import(join(ROOT, "kernel/reduce/hill.mjs"));

@@ -31,7 +31,7 @@ export async function run(ctx) {
   const { ROOT, ok, fail, section } = ctx;
 
   // =============================================================================
-  section("26. Model floor — the shipped belowFloor() predicate, executed against real ids");
+  section("72. Model floor — the shipped belowFloor() predicate, executed against real ids");
   // =============================================================================
 
   let belowFloor;

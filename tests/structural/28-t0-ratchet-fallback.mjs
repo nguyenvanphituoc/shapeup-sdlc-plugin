@@ -69,7 +69,7 @@ export async function run(ctx) {
   const KERNEL = join(ROOT, "kernel/harness.mjs");
 
   // =============================================================================
-  section("28. The T0 ratchet reads the real substrate field, and its fallback is gated on baseline (Phase 3.5 / S3)");
+  section("73. The T0 ratchet reads the real substrate field, and its fallback is gated on baseline (Phase 3.5 / S3)");
   // =============================================================================
 
   // --- (1) first trial, no baseline, a genuine crash → falls back to a real snapshot, unchanged --
