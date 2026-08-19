@@ -123,6 +123,12 @@ const MODULE_FILES = [
   // thin one. Its own module because no existing test drives `lintStructure()`'s new
   // `intakeContent` parameter, nor `lint()`'s wiring of `intake(cwd, slug)` into it, at all.
   "32-spec-invariant-floor.mjs",
+  // 33-probe-hygiene.mjs: verification hygiene on the measuring tools themselves (Phase 3.5 / S8) —
+  // the concurrency probe's leg-matching against a mechanical non-leg dispatch, and `resolveRunId`'s
+  // no-slug resolution against two run directories on disk at once. Its own module because no
+  // existing test drives `probe concurrency`'s `report()` over a fixture mixing build-leg and
+  // non-leg rows, nor `resolveRunId(cwd, null)` with more than one run directory present.
+  "33-probe-hygiene.mjs",
   "08-docs.mjs",
 ];
 
