@@ -31,7 +31,7 @@ import { join, dirname } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
 import {
   report as reportPath, tasksDir, verdictsDir, trials, evaluationDir, qaDir,
-  roundLedger, discoveryLedger, receipt as receiptPath, harnessRun, relShared,
+  roundLedger, discoveryLedger, receipt as receiptPath, harnessRun, relShared, resultsDir,
 } from "../lib/paths.mjs";
 import { readTrials } from "../verify/t0.mjs";
 import { ratchetReport } from "../probe/stats.mjs";
@@ -256,6 +256,32 @@ export function buildReport(facts) {
 }
 
 /**
+ * How many BUILD/EVAL rounds this run actually completed.
+ *
+ * `harness-run.md`'s `rounds_used` frontmatter field is written ONCE, at GATE L0.1 (`init run`),
+ * as `0` — nothing in the round loop ever rewrites it as rounds complete. The orchestrator's own
+ * `RunReturn` carries the real count (`shapeup-run.js`'s `rounds_used: round`), but that value
+ * never reaches `reduce ship`, so every real run's report printed "Rounds used | 0" beside its own
+ * `results/evaluate-r1.json` — a claim the frontmatter makes about the run, contradicted by the
+ * artifact sitting next to it. Derived instead, the same way `probe resume`'s `eval_rounds_done`
+ * already does: the highest `evaluate-r<N>.json` result on disk. Falls back to the frontmatter
+ * value only when no EVAL round ever ran (the `--tiny` lane has no round concept at all), so a
+ * bare or tiny run's reporting is unchanged.
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {(string|undefined)} fallback - `run.rounds_used` from the frontmatter.
+ * @returns {(number|string|undefined)} The derived round count, or the fallback.
+ */
+function roundsUsed(cwd, slug, fallback) {
+  const dir = resultsDir(cwd, slug);
+  const done = (existsSync(dir) ? readdirSync(dir) : [])
+    .map((f) => f.match(/^evaluate-r(\d+)\.json$/))
+    .filter(Boolean)
+    .map((m) => Number(m[1]));
+  return done.length ? Math.max(...done) : fallback;
+}
+
+/**
  * Gather every fact from disk and render the report.
  * @param {{cwd:string, slug:string, verdict?:string, qa?:string}} opts - Inputs.
  * @returns {{markdown:string, path:string, facts:object}} The document, its destination, the facts.
@@ -274,7 +300,7 @@ export function generate({ cwd, slug, verdict, qa }) {
     at: today(),
     verdict: verdict || run.final_verdict || "not-evaluated",
     qa: qa || (huntReport ? "run" : "skipped"),
-    rounds: run.rounds_used,
+    rounds: roundsUsed(cwd, slug, run.rounds_used),
     intakeSha: receipt.intake_sha256,
     board: boardCensus(cwd, slug),
     t0: t0Summary(cwd, slug),

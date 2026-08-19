@@ -116,6 +116,30 @@ export async function run(ctx) {
     if (path.endsWith(join("shapeup", "demo", "REPORT.md"))) ok("report lands in the committed tier as shapeup/<slug>/REPORT.md");
     else fail(`report destination wrong: ${path}`);
 
+    // --- (4) rounds_used is derived from evaluate-r<N>.json results, not trusted from
+    //     harness-run.md's frontmatter, which nothing in the round loop ever rewrites -----------
+    // Reproduced against a real live run: `harness-run.md` is written once at GATE L0.1 with
+    // `rounds_used: 0` and no writer anywhere updates that field as rounds complete (the
+    // orchestrator's own RunReturn carries the real count, but shapeup-run.js never passes it to
+    // `reduce ship`), so a real one-round run's `REPORT.md` printed "Rounds used | 0" beside its
+    // own `results/evaluate-r1.json`. This fixture reproduces exactly that shape: a stale
+    // `rounds_used: 0` in the frontmatter alongside two real completed rounds on disk.
+    const roundsDir = mkdtempSync(join(tmpdir(), "ship-report-rounds-"));
+    try {
+      const w2 = (rel, body) => {
+        const p = join(roundsDir, rel);
+        mkdirSync(join(p, ".."), { recursive: true });
+        writeFileSync(p, body);
+      };
+      w2(".shapeup/rounds-demo/harness-run.md", "---\ntype: harness-run\nrounds_used: 0\nfinal_verdict: PASS\n---\n");
+      w2(".shapeup/rounds-demo/results/evaluate-r1.json", "{}");
+      w2(".shapeup/rounds-demo/results/evaluate-r2.json", "{}");
+
+      const { facts: rf } = SR.generate({ cwd: roundsDir, slug: "rounds-demo" });
+      if (rf.rounds === 2) ok("rounds_used is derived from the highest evaluate-r<N>.json result on disk (2), not the stale frontmatter (0)");
+      else fail(`rounds_used still trusted the stale frontmatter claim instead of the real artifacts: got ${JSON.stringify(rf.rounds)}, expected 2`);
+    } finally { rmSync(roundsDir, { recursive: true, force: true }); }
+
     // --- a bare run still produces a valid report -------------------------------
     const bare = mkdtempSync(join(tmpdir(), "ship-report-bare-"));
     try {
