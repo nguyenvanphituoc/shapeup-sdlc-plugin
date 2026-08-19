@@ -68,7 +68,7 @@
 // that takes a phase, not an init-run flag that takes a slug: the one instruction available at the
 // one moment it mattered named a mechanism that does not parse.
 
-import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { createHash } from "node:crypto";
 import { decideLane, treeSize } from "./fit.mjs";
@@ -76,7 +76,7 @@ import { runArgs } from "../lib/argv.mjs";
 import { uncoerce } from "../lib/contract.mjs";
 import { deriveSnapshot } from "../reduce/snapshot.mjs";
 import { mintRunId } from "../lib/paths.mjs";
-import { localRoot, activeScope, globLocal, globShared } from "../lib/paths.mjs";
+import { localRoot, activeScope, globLocal, globShared, ordersDir, resultsDir } from "../lib/paths.mjs";
 import { resolveWorkers } from "../verify/skills.mjs";
 
 export const RECEIPT_VERSION = 1;
@@ -209,6 +209,52 @@ export function runFrontmatter({ slug, config, startedAt }) {
     "|------|----------|--------|------|",
     "",
   ].join("\n");
+}
+
+/**
+ * Unwedge `--force`: resolve every order left LIVE by a run nobody is continuing.
+ *
+ * `hooks/sandbox-guard.mjs`'s `liveOrders()` treats any file under `orders/` with no SAME-NAMED
+ * file under `results/` as live, and constrains every later Edit/Write to what some live order's
+ * substrate permits. `--force` used to `mkdirSync(..., {recursive:true})` over the same directories
+ * and stop — a no-op on dirs that already exist and already hold the stale order, so the wedge
+ * survived it exactly as before. This is the real unwedge path: for every order abandoned by the run
+ * being forced over, write a same-named record under `results/` so `liveOrders()` no longer counts
+ * it, without deleting the order file itself (`orders/` is this codebase's own audit trail of what
+ * was dispatched, not a rolling buffer — losing the file loses the record that a dispatch happened).
+ *
+ * Not a real WorkResult: `work-result.schema.json`'s `status` enum (done/partial/escalated/failed)
+ * has no member that honestly means "no worker ever answered" — every one of those values would
+ * misrepresent an abandoned dispatch as an attempt that actually ran. So this writes a plainly
+ * self-labelled, intentionally non-conforming marker instead of forcing a lie into a schema-valid
+ * shape. `liveOrders()` only checks filename presence under `results/`, never content, so this is
+ * sufficient to unwedge on its own.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - The run being forced over.
+ * @returns {string[]} Order-id suffixes (filenames minus `.json`) resolved as abandoned.
+ */
+export function resolveAbandonedOrders(cwd, slug) {
+  const oDir = ordersDir(cwd, slug);
+  const rDir = resultsDir(cwd, slug);
+  if (!existsSync(oDir)) return [];
+  const done = new Set(existsSync(rDir) ? readdirSync(rDir) : []);
+  const resolvedAt = new Date().toISOString();
+  const resolved = [];
+  for (const f of readdirSync(oDir)) {
+    if (!f.endsWith(".json") || done.has(f)) continue;
+    mkdirSync(rDir, { recursive: true });
+    const marker = {
+      synthetic: true,
+      status: "abandoned", // not in work-result.schema.json's enum — deliberately: see banner above
+      order_id: f.slice(0, -".json".length),
+      reason: "dispatched, never answered — resolved by `harness init run --force`",
+      resolved_at: resolvedAt,
+    };
+    writeFileSync(join(rDir, f), JSON.stringify(marker, null, 2) + "\n", "utf8");
+    resolved.push(marker.order_id);
+  }
+  return resolved;
 }
 
 // ---- CLI -------------------------------------------------------------------
@@ -392,6 +438,21 @@ export function cli(rawArgv) {
       "  node <plugin>/kernel/harness.mjs reduce snapshot --cwd <dir>",
       "To abandon the open run and start over, deliberately: --force",
     ].join("\n"));
+  }
+
+  // THE REAL UNWEDGE PATH. `--force` used to `mkdirSync(..., {recursive:true})` over orders/,
+  // results/ and discovery/ and stop — a no-op on directories that already exist and already hold a
+  // dispatched-but-unanswered order, so `sandbox-guard.mjs`'s `liveOrders()` kept constraining every
+  // later write to that stale order's substrate regardless of `--force`. Resolve every such order
+  // BEFORE the fresh run starts writing (see `resolveAbandonedOrders()` above for why this writes a
+  // marker under `results/` rather than deleting the order file).
+  if (args.force) {
+    const abandoned = resolveAbandonedOrders(cwd, slug);
+    if (abandoned.length) {
+      console.error(
+        `⚠ init-run --force: resolved ${abandoned.length} dispatched-but-unanswered order(s) as abandoned — ${abandoned.join(", ")}`,
+      );
+    }
   }
 
   const startedAt = new Date().toISOString();

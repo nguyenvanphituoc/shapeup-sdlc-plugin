@@ -96,6 +96,10 @@ const MODULE_FILES = [
   // predicate rather than a hand-kept copy of it — see the module's own banner for why it has to
   // be loaded this way.
   "26-model-floor.mjs",
+  // 27-unwedge.mjs: `--force` actually clearing a dispatched-but-unanswered order (Phase 3.5 / S2).
+  // Its own module because the defect is a permanent wedge — nothing else in the suite dispatches
+  // `init run --force` against a fixture that already has a live, unanswered order on disk.
+  "27-unwedge.mjs",
   "08-docs.mjs",
 ];
 
