@@ -6,21 +6,40 @@
 
 ## Defects
 
-*None open.* Cleared 2026-08-14 to start the v2.0 work from a clean slate.
+- The WorkOrder carries no field naming where the WorkResult goes, so each worker derives the path
+  from prose while its own `substrate.allowed` names a directory that does not contain it. The
+  workflow lane works around this by stating the path in the dispatch prompt and deriving the same
+  one from the order; the port itself is unfixed.
+- **Cost/wall-clock instrumentation is dead.** `harness report export` and `harness probe stats
+  --economics` are both keyed off a per-agent-call journal the Workflow runtime is supposed to
+  stamp. Measured live 2026-08-19, twice, in two independent worktrees: it is never written — the
+  journal's own directory does not exist after a real run either time. Cost/wall-clock reporting has
+  to be reconstructed from the dispatch-attestation ledger instead — real, mechanically timestamped,
+  but coarser, with no per-phase cost split. Needs a Betting Table call: wire the runtime (or the
+  orchestrator itself) to write the journal for real, or delete the reporting commands that assume
+  it exists — a mechanism that looks like it works but doesn't is worse than no mechanism.
 
-Two defects were open at the moment of clearing and are **not** closed by their removal from this
-file — they are carried in the v2.0 plan as staged work, and each will be re-filed here only if a
-run reproduces it after its stage lands:
+Cleared once already, 2026-08-14, to start the v2.0 work from a clean slate:
 
 - ~~The installer writes a permission prefix that ends mid-argument, so it grants nothing and the
   pipeline stops at its first dispatch.~~ **FIXED 2026-08-14** — see below. The half of this entry
   claiming the call-site spelling is doomed was **wrong, and measurement is what showed it**; the
   correction is recorded because acting on the claim would have caused a needless rewrite of every
   call site in the plugin.
-- The WorkOrder carries no field naming where the WorkResult goes, so each worker derives the path
-  from prose while its own `substrate.allowed` names a directory that does not contain it. The
-  workflow lane works around this by stating the path in the dispatch prompt and deriving the same
-  one from the order; the port itself is unfixed.
+
+### Raw idea, not yet a pitch — QA lens fan-out
+
+Not a defect: a real, measured opportunity, filed here per this file's own "raw ideas for the
+Betting Table" charter rather than through a coach retro — no Ship-Gate ran; this came from a direct
+real-execution experiment, 2026-08-19.
+
+QA Edge Hunt's wall-clock variance (reproduced independently on two fixtures, ~160–670s per hunt)
+is per-turn model latency noise, not a scheduling bug — QA has no lens-level dispatch today, so
+there is nothing to schedule badly. A prototype fanning its 6 lenses out via `parallel()` measured a
+real but modest ~18–31% win (n=2), at roughly 6x one hunt's own setup-phase token cost. If bet, it
+needs a `lens` field on `qa-edge-hunter`'s WorkOrder payload, a lens-aware order-suffix
+discriminator, and a merge step for the per-lens reports — none of which exist yet. Should ship
+opt-in only: QA's findings are advisory by design, and the sample size here is thin.
 
 ### The permission grant — fixed, and one claim above corrected
 
