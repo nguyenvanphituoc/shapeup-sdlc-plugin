@@ -527,11 +527,15 @@ export async function cli(rawArgv) {
   if (!args.noRatchet) {
     // The revert is bounded by what this scope was allowed to write. Unbounded, it rolls back every
     // other scope building alongside it — see `restore`.
-    const own = contract.substrate?.allowed || [];
+    const own = contract.allowed_file_substrate || [];
     tree = action === "keep" ? snapshot(contract.scope_id, cwd) : restore(contract.scope_id, cwd, own);
     // First trial with nothing to restore to: there is no kept tree yet BY DEFINITION. Take one,
     // so trial 2 has a floor to fall back to instead of inheriting the "no revert at all" defect.
-    if (action === "restore" && !tree.ok) tree = { ...snapshot(contract.scope_id, cwd), fell_back_to: "snapshot" };
+    // Gated on `!baseline` (no prior kept/rebased trial exists at all), NOT on `!tree.ok` alone —
+    // a genuine restore failure with a real baseline to have restored to must NOT be silently
+    // promoted as the new kept tree; it stays `tree.ok === false` so the trial row records
+    // `tree_ref: null` and the failure stays visible instead of quietly becoming the baseline.
+    if (action === "restore" && !tree.ok && !baseline) tree = { ...snapshot(contract.scope_id, cwd), fell_back_to: "snapshot" };
   }
 
   // `baseline_trial` is the parent link — the experiment DAG (lineage, PARENT_OF and a genuine

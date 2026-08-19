@@ -199,7 +199,7 @@ export function project(cwd, slug) {
       const id = `scope:${slug}:${contract.scope_id}`;
       node(id, "Scope", {
         scope_id: contract.scope_id, title: contract.title ?? null,
-        substrate: (contract.substrate_allowed || contract.allowed || []).length,
+        substrate: (contract.allowed_file_substrate || []).length,
       });
       for (const req of contract.covers || []) edge(id, "COVERS", `req:${slug}:${req}`);
     }

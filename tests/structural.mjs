@@ -100,6 +100,11 @@ const MODULE_FILES = [
   // Its own module because the defect is a permanent wedge — nothing else in the suite dispatches
   // `init run --force` against a fixture that already has a live, unanswered order on disk.
   "27-unwedge.mjs",
+  // 28-t0-ratchet-fallback.mjs: the T0 ratchet's field-name bug and the fallback that survived it
+  // (Phase 3.5 / S3). Its own module because no existing test drives `verify t0`'s CLI with a real
+  // `ScopeContract` — every prior probe called `restore()` directly, which cannot see a caller-side
+  // field-name bug or a fallback gated on the wrong condition.
+  "28-t0-ratchet-fallback.mjs",
   "08-docs.mjs",
 ];
 
