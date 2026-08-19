@@ -149,20 +149,32 @@ permission mode (`--permission-mode acceptEdits` at minimum) on top of it. Full 
 the sandbox-guard denials that held throughout regardless of permission mode, and the EVAL-verdict
 defect that caused stall (b), found and fixed live: `docs/output/EXP-A-G2-G6.md`.
 
-**G6 — cost and wall-clock against a v1 baseline. MEASURED — a v2.0 number exists; no v1 baseline
-exists yet to compare it against.** The same live run produced v2.0's first cost/wall-clock number:
-`examples/todo-cli/`, 2 rounds, every dispatch `sonnet`, **73m 30.8s / ~$34.50 combined pipeline
-wall-clock** (56m 6.2s / ~$22.95 for round 1 through an incorrectly-aborted GATE H, plus 17m 24.6s /
-~$11.55 for the fix round, to a genuine EVAL PASS and a real ship). What this is not yet is a
-*comparison*: `docs/output/BASELINE-v1.md` (Phase 0's own baseline artifact) recorded only
-structural line counts and inventory, never a live v1.7.0-final feature run — so there is nothing
-yet on the other side of the ledger. Closing that requires a live v1.7.0-final run of the same
-fixture, which has not happened as of this writing; until it has, no wall-clock or cost delta
-between v1 and v2 may be stated. Also worth noting: the harness's own economics tooling
-(`journal.jsonl`, meant to key `harness report export`/`harness probe stats --economics`) was never
-populated by this real run — the numbers above come from the coarser dispatch-attestation ledger
-instead, a real, separate, adjacent gap `docs/output/EXP-A-G2-G6.md` documents in detail. Full
-derivation, including the per-phase table: `docs/output/EXP-A-G2-G6.md`.
+**G6 — cost and wall-clock against a v1 baseline. MEASURED — v2.0 has a real number; the v1
+comparison was attempted live and found impossible to make, not merely unattempted.** The same live
+run produced v2.0's first cost/wall-clock number: `examples/todo-cli/`, 2 rounds, every dispatch
+`sonnet`, **73m 30.8s / ~$34.50 combined pipeline wall-clock** (56m 6.2s / ~$22.95 for round 1
+through an incorrectly-aborted GATE H, plus 17m 24.6s / ~$11.55 for the fix round, to a genuine
+EVAL PASS and a real ship). A separate live run then drove the same fixture through the `v1.7.0` tag
+(`docs/output/BASELINE-v1.md`, Phase 0's own baseline artifact, had recorded only structural line
+counts and inventory, never a feature run) and found that v1's BUILD-through-ship pipeline **cannot
+be started at all** against the current Claude Code CLI (2.1.235): v1.7.0's headless permission
+grant is a prefix rule keyed on the literal, unexpanded `${CLAUDE_PLUGIN_ROOT}` token, and the CLI's
+Bash tool now categorically rejects any command containing `${VAR}` expansion before permission-mode
+is even consulted — confirmed across two full documented-entry-point attempts (41 permission
+denials), 5 isolating diagnostics, and one direct, disclosed invocation of `run-workflow.mjs` itself
+(a clean, real `aborted` RunReturn at its very first dispatch, in 41.369s for $0.197705, from an
+independent code path). v2.0's grant avoids this by design (`bin/lib/grant.mjs`, dated 2026-08-14 —
+a glob on the post-substitution absolute path, never asking the matcher to see a literal
+`${CLAUDE_PLUGIN_ROOT}` token). **No wall-clock or cost delta between v1 and v2 can be stated on
+these terms — not because v1 is slower, but because v1's own dispatch mechanism no longer runs at
+all** — arguably a stronger signal in the direction probe 6 predicted than a slower-but-completing
+v1 number would have been, but a different claim, stated as such. Also worth noting: the harness's
+own economics tooling (`journal.jsonl`, meant to key `harness report export`/`harness probe stats
+--economics`) was never populated by the v2.0 run — the numbers above come from the coarser
+dispatch-attestation ledger instead, a real, separate, adjacent gap. Full derivation for both runs:
+`docs/output/EXP-A-G2-G6.md` (v2.0) and `.plan-runs/phase7-verification-gauntlet/ledger/S4-v1-baseline/SUMMARY.md`
+(v1.7.0; not shipped — a repo-only verification artifact, see that file for the full evidence
+pack).
 
 ## There is no second tier beyond that
 
