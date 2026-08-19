@@ -271,6 +271,39 @@ fast-forward. Together worth roughly 5% of a run. Not worth their own phase.)*
 - README enforcement table rewritten honestly: which guarantees are walls (hooks — work under every permission mode), which are runtime (schemas, worktrees), which are advisory. This is the direct answer to the bypassPermissions concern: **nothing load-bearing depends on permission mode anymore.**
 - **Done when:** hooks/ contains 4 files + hooks.json; the judgment is recorded somewhere a reader lands on without knowing to look — it went into the v2.0.0 CHANGELOG entry and `docs/design/03-system-design.md` §3.2/§3.2c/§3.2e rather than a new ADR, because the diet changed the enforcement model those sections describe and belongs next to it; README table matches reality.
 
+> **Closed — done in two waves, both already on `main` before this box was written.** The diet
+> itself landed 2026-08-14 (`aa63ce8`): `gate-l2`, `gate-deadline`, `session-rehydrate`,
+> `compact-snapshot`, `anti-rationalization`, and `slop-cleaner` are all deleted from `hooks/` —
+> six files, matching the plan's count — with the triage table (relocated vs. folded vs. accepted
+> risk) shipped in the same commit into README's enforcement table, `CHANGELOG.md`, and
+> `docs/design/03-system-design.md` §3.2/§3.2b/§3.2c/§3.2e, exactly where the Done-when asked for
+> it, not as a new ADR.
+>
+> One deviation from the bullet text, made deliberately and documented at the time rather than
+> silently: **`gate-zerowork` was kept, not deleted.** The plan's delete-list named it alongside
+> the other six; the commit message gives the reason — it is the one check with a mechanical,
+> unspoofable predicate ("dispatched the orchestrator, left no run receipt") that catches the
+> failure mode this harness was built for, a run that narrates its own pipeline and does none of
+> it. §3.2b records why nothing else in the runtime can substitute for it. That leaves **4 hard
+> `PreToolUse`/`Stop` walls**, matching the plan's real target (`safety-spine`, `sandbox-guard`,
+> `gate-intake`, `verify envelope` + `gate-zerowork` as the one blocking `Stop` hook) — the bullet
+> text's own count was one hook short of what its rationale actually argued for.
+>
+> A second, later addition means the Done-when's literal "4 files" is no longer true on disk.
+> `863e894` (2026-08-15, Phase 3.5-adjacent) added `hooks/dispatch-receipt.mjs` — a `PostToolUse`,
+> records-only hook answering a question the diet never asked ("did the shipped skill actually
+> run", not "may this call proceed"). `hooks/` therefore holds **5** `.mjs` files today, not 4.
+> This is not drift: it is documented in its own right (§3.2a), it has no deny path so it adds no
+> new wall to audit, and `tests/structural/08-docs.mjs` §26 mechanically checks hook-inventory
+> parity across `hooks.json`, README, `docs/design/03-system-design.md`, and `SECURITY.md` on
+> every run — currently green. The number in this phase's own bullet is stale; the enforcement
+> model it was protecting (four hard walls + one narrow Stop block) is intact, and everything that
+> arrived afterward earned its place by the same standard, on the record, in the same places a
+> reader already lands.
+>
+> `npm test` — 1203 checks, including the doc-drift parity check above — is green throughout; no
+> code or doc changes were needed to close this phase, only recording that it already had been.
+
 ### Phase 6 — Skill & docs diet *(maintainability)* *(2 days)*
 **Scope is narrower than it looks: only 2 of 12 skills need work.** `tech-lead` (11,290 lines) and `ba-pitch-analyzer` (4,228) are 75% of all skill mass; the other ten are 116–403-line SKILL.md files that are already lean and are **not touched**. Do not "tidy" them — that is scope creep with no payoff.
 - **tech-lead:** SKILL.md shrinks to open run → launch Workflow → branch on RunReturn → L4 (the `--tiny` prose fork stays, now the *only* prose lane). Consolidate `references/` (8 files, 1,326 lines) into 3: `gates.md`, `protocol.md` (round+delegation+state), `tiny-lane.md`. Trim `domain.schema.json`'s unused `$defs` — but treat the schema as **contract, not bloat**: it is 2,466 lines because it defines every cross-boundary record, and cutting it is capability loss.
