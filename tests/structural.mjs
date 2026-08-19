@@ -118,6 +118,11 @@ const MODULE_FILES = [
   // Its own module because no existing test drives `board.mjs`'s `derive()` against a fixture with
   // both a scope contract and an orders/results tree at once.
   "31-board-reconcile.mjs",
+  // 32-spec-invariant-floor.mjs: the spec tree floored against a pitch that names constraints
+  // (Phase 3.5 / S7) — a criteria-count check can't tell a healthy small tree from a silently
+  // thin one. Its own module because no existing test drives `lintStructure()`'s new
+  // `intakeContent` parameter, nor `lint()`'s wiring of `intake(cwd, slug)` into it, at all.
+  "32-spec-invariant-floor.mjs",
   "08-docs.mjs",
 ];
 

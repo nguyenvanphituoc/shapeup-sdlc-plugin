@@ -19,6 +19,10 @@
 //   UC-ANCHOR a task whose use_case_refs is empty or names a UC with no usecases/UC-*.md —
 //             the LOCAL→SHARED anchor must be complete (single-anchor rule; SPIKE/CHORE/
 //             DOCS/MIGRATION tasks anchor elsewhere and are exempt)
+//   INV-FLOOR the raw idea (intake.md) names explicit constraints (a No-gos/Constraints/
+//             Edge-cases heading with real content under it) but no usecases/UC-*.md declares
+//             a single [INV-NN] anywhere — a criteria-count check can't tell a healthy small
+//             tree from one that silently derived nothing from the pitch
 //
 // Zero dependencies (glob matcher inlined from hooks/sandbox-guard.mjs). Judgment stays in the skill
 // (gap severity, lens choice); this script only reports facts.
@@ -31,7 +35,7 @@ import { resolve, join, relative } from "node:path";
 import { parseBoard, deriveUnlocks } from "../reduce/board.mjs";
 import { runArgs } from "../lib/argv.mjs";
 import { LOCAL } from "../lib/paths.mjs";
-import { specDir, scopesDir, tasksDir } from "../lib/paths.mjs";
+import { specDir, scopesDir, tasksDir, intake } from "../lib/paths.mjs";
 import { readAllContracts, unreadableReason, SCOPE_CONTRACT } from "../lib/contract.mjs";
 
 // Inlined from hooks/sandbox-guard.mjs so this skill ships self-contained (a skill's scripts
@@ -185,21 +189,58 @@ export function lintScopes(scopes, repoFiles) {
   return findings;
 }
 
+// Match a heading-like line naming No-gos/Constraints/Edge-cases anywhere in the free-form raw
+// idea, any markdown heading level, case-insensitive.
+const CONSTRAINT_HEADING = /^#{1,6}\s*(no-?gos|constraints|edge[\s-]?cases)\b/im;
+
+/**
+ * Does the raw idea (intake.md, verbatim and free-form) name an explicit constraints section
+ * with real content under it — as opposed to naming the heading and leaving it empty? Only a
+ * pitch that actually named constraints obligates the derived spec tree to have derived at
+ * least one invariant from them (INV-FLOOR below); a pitch that never raised the topic is not
+ * evidence of a thinned tree.
+ * @param {string} intakeContent - The raw idea, verbatim (may be "" when no intake.md exists).
+ * @returns {boolean} True when a No-gos/Constraints/Edge-cases heading is followed by non-blank,
+ *   non-comment content before the next heading (or end of file).
+ */
+export function intakeNamesConstraints(intakeContent) {
+  if (!intakeContent) return false;
+  const lines = intakeContent.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    if (!CONSTRAINT_HEADING.test(lines[i])) continue;
+    let body = "";
+    for (let j = i + 1; j < lines.length && !/^#{1,6}\s/.test(lines[j]); j++) body += lines[j] + "\n";
+    if (body.replace(/<!--[\s\S]*?-->/g, "").trim().length > 0) return true;
+  }
+  return false;
+}
+
 /**
  * Lint spec-tree completeness, wikilink resolution, tier-direction, task frontmatter/graph
- * integrity (edge symmetry, dependency existence), and UC-anchor completeness.
- * @param {{specDir:string, tasks:Array<object>}} input - The SHARED spec dir and the parsed board.
+ * integrity (edge symmetry, dependency existence), UC-anchor completeness, and the invariant
+ * floor against a pitch that named constraints.
+ * @param {{specDir:string, tasks:Array<object>, intakeContent?:string}} input - The SHARED spec
+ *   dir, the parsed board, and the raw idea's verbatim text (intake.md; "" when absent — a run
+ *   with no intake on disk cannot be checked against it, so INV-FLOOR simply cannot fire).
  * @returns {Array<{rule:string, level:("red"|"warn"), detail:string}>} Findings; [] when clean.
  */
-export function lintStructure({ specDir, tasks }) {
+export function lintStructure({ specDir, tasks, intakeContent = "" }) {
   const findings = [];
   const ucDir = join(specDir, "usecases");
   if (!existsSync(join(specDir, "domain-model.md"))) findings.push({ rule: "STRUCTURE", level: "red", detail: "domain-model.md missing" });
   const ucs = existsSync(ucDir) ? readdirSync(ucDir).filter((f) => /^UC-.*\.md$/.test(f)) : [];
   if (!ucs.length) findings.push({ rule: "STRUCTURE", level: "red", detail: "usecases/ has no UC-*.md — nothing to build or grade against" });
+  let anyInvariant = false;
   for (const f of ucs) {
     const body = readFileSync(join(ucDir, f), "utf8");
     if (!/^##\s+Steps/m.test(body)) findings.push({ rule: "STRUCTURE", level: "warn", detail: `${f} has no ## Steps section` });
+    if (/\[INV-\d+\]/.test(body)) anyInvariant = true;
+  }
+  // INV-FLOOR — a criteria-count check can't tell a healthy small tree from one that derived
+  // nothing from the pitch. Only fire when the pitch itself named constraints: a pitch that
+  // never raised the topic is not evidence of a thinned tree.
+  if (!anyInvariant && intakeNamesConstraints(intakeContent)) {
+    findings.push({ rule: "INV-FLOOR", level: "red", detail: "intake.md names explicit constraints (a No-gos/Constraints/Edge-cases section with content) but no usecases/UC-*.md declares a single [INV-NN] anywhere — the spec tree derived nothing from the pitch's own constraints" });
   }
   // Wikilinks in spec docs must resolve within the spec dir — and never cross the tier
   // boundary: a SHARED doc linking the LOCAL board is the wrong direction by construction.
@@ -260,6 +301,8 @@ export function lint({ cwd, slug }) {
   const contracts = readAllContracts(scopesDir(cwd, slug), SCOPE_CONTRACT);
   const scopes = contracts.map((c) => c.contract);
   const tasks = parseBoard(tasksDir(cwd, slug));
+  const intakePath = intake(cwd, slug);
+  const intakeContent = existsSync(intakePath) ? readFileSync(intakePath, "utf8") : "";
   const repoFiles = walkFiles(cwd);
   const findings = [
     // A contract whose table this parser cannot see reads as a contract that declared no
@@ -269,7 +312,7 @@ export function lint({ cwd, slug }) {
       .filter((x) => x.reason)
       .map((x) => ({ rule: "CONTRACT-UNREADABLE", level: "red", scope: x.scope, detail: `${x.reason} — the rules below could not check what they could not read` })),
     ...lintScopes(scopes, repoFiles),
-    ...lintStructure({ specDir: specRoot, tasks }),
+    ...lintStructure({ specDir: specRoot, tasks, intakeContent }),
   ];
   return {
     slug,
