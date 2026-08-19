@@ -1,15 +1,22 @@
 # Animation
 
-Animate to show **behavior** — flow, propagation, rotation, convection, state change.
-Never to decorate. If the motion could be removed without losing information, remove it.
+Every diagram this skill produces moves. The question at build time is *which* motion,
+never *whether* — most subjects worth drawing do something, and a still picture makes the
+reader rebuild that from arrowheads on their own.
 
-Every animated diagram must still communicate in its static state, because a screenshot,
-a PDF export, and a reduced-motion reader all get exactly that.
+The failure mode that default creates is decoration, so the bar is narrow: motion earns
+its place by encoding something the diagram already claims — flow, propagation, rotation,
+convection, state change, or, when the subject genuinely holds still, the order in which
+its parts make sense. A pulse with no referent is worse than stillness, because it implies
+a behavior that isn't there. If you can't say what a movement means in one clause, you
+picked the wrong movement rather than too much of it.
 
 ## Contents
 
 - [Choosing a mechanism](#choosing-a-mechanism)
 - [What to animate](#what-to-animate)
+- [The resting state](#the-resting-state)
+- [Per-form recipes](#per-form-recipes)
 - [Reduced motion](#reduced-motion)
 - [CSS keyframes](#css-keyframes)
 - [SMIL](#smil)
@@ -42,6 +49,77 @@ flow along a line or draw a path on.
 
 Loops under ~2s. Longer than that and the reader stops perceiving it as a loop and starts
 waiting for something to happen.
+
+Growing a bar with `transform: scaleY()` scales its stroke and any text inside it too.
+Scale the rect alone, keep labels out of the scaled group, and set
+`transform-box: fill-box; transform-origin: bottom` so it grows from its baseline rather
+than from the canvas center.
+
+## The resting state
+
+Most readers never see a frame play. A screenshot, a PDF export, an `<img src="…">` in a
+feed and a reduced-motion reader all get the markup exactly as written, with the animation
+never started. Design that frame first; motion is what you add to a diagram that already
+works.
+
+The rule that follows: **anything that hides an element must live inside the
+`no-preference` block, and the element's own attributes must hold the finished state.**
+The cheapest way to satisfy it is a `from`-only keyframe, since there is then no hidden
+state to leak:
+
+```css
+/* the rect is there; the reveal fades it in from nothing */
+@keyframes reveal { from { opacity: 0; } }
+@media (prefers-reduced-motion: no-preference) {
+  .node { animation: reveal .4s ease-out; }
+}
+```
+
+A staggered reveal needs a real start state during `animation-delay`, or each element sits
+visible and blinks out when its turn arrives. `animation-fill-mode: both` supplies it —
+back-filling the `from` through the delay and holding the `to` afterwards — which keeps
+the hiding inside the keyframe, where a still reader never reaches it:
+
+```css
+@keyframes reveal { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) {
+  .node { animation: reveal .4s ease-out both; }
+  .node:nth-of-type(2) { animation-delay: .15s; }
+}
+```
+
+**State both ends of a reveal keyframe.** A `from`-only keyframe leaves the terminal value
+implicit, and CSS resolves it from the element's own computed style — so the moment a rule
+also says `.node { opacity: 0 }`, the animation interpolates 0 to 0 and the element never
+appears at all. The failure is silent and total: the animation runs, `playState` reports
+`running`, and the diagram is blank. `check_svg.py` errors on it as `REVEAL_STUCK`. The
+`from`-only shorthand is safe only where nothing else touches the property — the
+un-delayed case above — and the two-ended form is correct in both, so prefer it.
+
+What ships a blank picture is hiding declared *unconditionally* — `opacity="0"` as a
+markup attribute, or a `.node { opacity: 0 }` rule outside the guard. Both survive into
+the state where no animation runs, and the reader gets an empty canvas with a title.
+`check_svg.py` errors on both as `STATIC_BLANK`, and ignores the same declaration inside
+the guard or inside a keyframe.
+
+## Per-form recipes
+
+Each form has one motion that reads as meaning rather than movement. Start here, and
+deviate only when the subject's actual behavior wants something else.
+
+| Form | Motion | Mechanism |
+|---|---|---|
+| Flowchart | Dash march along edges, staggered so upstream leads | CSS on `stroke-dashoffset` |
+| Structural | Staged reveal, containers before their contents | CSS `reveal` + `animation-delay` |
+| Illustrative | The mechanism itself — the thing the diagram explains | Whatever it takes; often JS |
+| Chart | Marks growing along the encoding axis only | CSS `transform: scaleY()` + `transform-box: fill-box` |
+
+Two constraints on top:
+
+- **Loops are for continuous behavior**, and run under ~2s. A reveal plays once and stops —
+  an infinite reveal turns the diagram into a flashing sign.
+- **One idea in motion at a time.** Marching edges *and* pulsing nodes *and* a rotating
+  badge read as noise; the reader cannot tell which movement was the point.
 
 ## Reduced motion
 
@@ -112,6 +190,20 @@ Best when one object follows one route and you want zero script:
 
 Stagger with `begin="0s"`, `begin="0.8s"`, `begin="1.6s"` on sibling copies.
 `keyPoints`/`keyTimes` with `calcMode="linear"` control pacing along the route.
+
+**SMIL honors no media query.** There is no declarative way to tell `<animateMotion>` about
+`prefers-reduced-motion`, so guard the moving object with CSS instead — and since the
+travelling dot is pure motion, dropping it is the right still frame:
+
+```css
+.dot { display: none; }
+@media (prefers-reduced-motion: no-preference) { .dot { display: inline; } }
+```
+
+That also handles where the dot rests. `<animateMotion>` supplies a transform *on top of*
+the element's own coordinates, which is why the idiom authors it at the origin — so
+whenever the animation does not run, an unguarded dot sits in the top-left corner of the
+canvas. Hidden, it simply isn't there, and the diagram reads as it should.
 
 SMIL cannot be paused or re-rated from a control without script, and it has no concept of
 object lifecycle. At that point, switch to JS.

@@ -5,6 +5,7 @@ Usage:
     python check_svg.py diagram.svg
     python check_svg.py page.html --json
     python check_svg.py diagram.svg --strict     # warnings also exit non-zero
+    python check_svg.py foreign.svg --allow-static   # skip the motion checks
 
 Exit codes: 0 clean (or warnings only), 1 errors found, 2 could not parse.
 
@@ -41,6 +42,25 @@ def classes_setting_fill(style_text):
         for cls in re.findall(r"\.([A-Za-z_][-\w]*)", selector):
             found.add(cls)
     return found
+
+
+def resting_css(style_text):
+    """The CSS that still applies when no animation ever plays.
+
+    Two things are dropped because neither reaches a reader who gets the still
+    diagram: @keyframes bodies, where a `from { opacity: 0 }` is exactly right,
+    and the prefers-reduced-motion: no-preference block, whose rules are opt-in by
+    construction. What survives is the resting state, and that is what a
+    screenshot shows.
+    """
+    block = r"(?:[^{}]*\{[^{}]*\})*[^{}]*\}"
+    text = re.sub(r"@keyframes[^{]*\{" + block, "", style_text)
+    text = re.sub(
+        r"@media[^{]*prefers-reduced-motion\s*:\s*no-preference[^{]*\{" + block,
+        "",
+        text,
+    )
+    return text
 
 
 def tag(el):
@@ -142,7 +162,7 @@ def text_extent(el):
     return widest, size, longest
 
 
-def check(svg_src, report):
+def check(svg_src, report, allow_static=False):
     try:
         svg = ET.fromstring(svg_src)
     except ET.ParseError as exc:
@@ -195,6 +215,11 @@ def check(svg_src, report):
     max_x = 0.0
     for el in svg.iter():
         t = tag(el)
+        # An element carrying <animateMotion> is placed by its path: the motion is a
+        # transform applied on top of its own coordinates, so the idiom is to author
+        # it at the origin. Reading that origin as geometry reports a phantom.
+        if any(tag(c) == "animateMotion" for c in el):
+            continue
         if t == "rect":
             x, y = fnum(el.get("x"), 0), fnum(el.get("y"), 0)
             w, h = fnum(el.get("width"), 0), fnum(el.get("height"), 0)
@@ -395,12 +420,126 @@ def check(svg_src, report):
     has_smil = any(
         tag(e) in ("animate", "animateTransform", "animateMotion") for e in svg.iter()
     )
-    if (has_css_anim or has_smil) and "prefers-reduced-motion" not in style_text:
-        report.warn(
-            "MOTION_PREF",
-            "Animation present with no prefers-reduced-motion guard. Wrap it in "
-            "@media (prefers-reduced-motion: no-preference).",
+    animated = has_css_anim or has_smil
+
+    if not animated and not allow_static:
+        report.error(
+            "NO_MOTION",
+            "No animation found. Motion is the default output: pick the pattern that "
+            "carries this diagram's meaning -- flow along the edges, a staged reveal, "
+            "a state change. Pass --allow-static for a deliberately still SVG.",
         )
+
+    if animated and "prefers-reduced-motion" not in style_text:
+        report.error(
+            "MOTION_PREF",
+            "Animation present with no prefers-reduced-motion guard. Declare it "
+            "inside @media (prefers-reduced-motion: no-preference).",
+        )
+    elif animated and "no-preference" not in style_text:
+        report.warn(
+            "MOTION_PREF_INVERTED",
+            "Motion looks declared globally and switched off under `reduce`. A reader "
+            "whose preference is unspecified still gets it. Declare the animation "
+            "inside @media (prefers-reduced-motion: no-preference) instead.",
+        )
+
+    # A diagram can declare motion and still not move: keyframes whose class no
+    # element carries, or an animation naming a keyframe nobody defined. NO_MOTION
+    # cannot see either -- the markup does contain animation, it just does nothing.
+    if has_css_anim and not has_smil:
+        used_classes = set()
+        for el in svg.iter():
+            used_classes.update((el.get("class") or "").split())
+        kf_names = set(re.findall(r"@keyframes\s+([A-Za-z_][-\w]*)", style_text))
+        animated_classes, opaque_selector, undefined = set(), False, set()
+        for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", style_text):
+            decls = re.findall(r"(?:^|[;\s])animation(?:-name)?\s*:([^;]*)", body)
+            if not decls:
+                continue
+            tokens = set(re.findall(r"[A-Za-z_][-\w]*", " ".join(decls)))
+            if tokens and not (tokens & kf_names) and not (
+                tokens & {"none", "inherit", "initial", "unset", "revert"}
+            ):
+                undefined.add(" ".join(d.strip() for d in decls))
+            cls = re.findall(r"\.([A-Za-z_][-\w]*)", selector)
+            if cls:
+                animated_classes.update(cls)
+            else:
+                opaque_selector = True
+
+        for value in sorted(undefined):
+            report.error(
+                "MOTION_UNDEFINED",
+                f"`animation: {value}` names no @keyframes that exists, so nothing "
+                "plays. Define the keyframe or fix the name.",
+            )
+        if animated_classes and not opaque_selector and not (
+            animated_classes & used_classes
+        ):
+            report.error(
+                "MOTION_INERT",
+                "Animation is declared for "
+                + ", ".join("." + c for c in sorted(animated_classes))
+                + ", but no element carries that class -- the diagram is still. "
+                "Put the class on the elements the motion is about.",
+            )
+
+    # A reveal that never arrives. With a `from`-only keyframe the terminal value is
+    # implicit -- it resolves from the element's own style -- so a rule that also
+    # sets `opacity: 0` animates 0 to 0 and the element stays invisible for good.
+    # Nothing else here can see it: the animation runs, it just renders nothing.
+    if has_css_anim:
+        kf_bodies = {
+            m.group(1): m.group(2)
+            for m in re.finditer(
+                r"@keyframes\s+([A-Za-z_][-\w]*)\s*\{((?:[^{}]*\{[^{}]*\})*[^{}]*)\}",
+                style_text,
+            )
+        }
+        for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", style_text):
+            if not re.search(r"(^|[;\s])opacity\s*:\s*0(\.0+)?\s*(;|$)", body):
+                continue
+            decls = re.findall(r"(?:^|[;\s])animation(?:-name)?\s*:([^;]*)", body)
+            for name in set(re.findall(r"[A-Za-z_][-\w]*", " ".join(decls))) & set(kf_bodies):
+                if not re.search(r"(to|100%)[^{}]*\{[^{}]*opacity", kf_bodies[name]):
+                    report.error(
+                        "REVEAL_STUCK",
+                        f"`{selector.strip()}` sets opacity 0 and runs @keyframes "
+                        f"{name}, which has no explicit `to`. The implicit end value "
+                        "reads back that same 0, so the element never appears. Give "
+                        f"@keyframes {name} an explicit `to {{ opacity: 1 }}`.",
+                    )
+
+    # Motion by default makes the resting state load-bearing: a screenshot, a PDF
+    # export and a reduced-motion reader all get exactly what the markup says.
+    # An element hidden at rest and revealed by the animation hands them a blank.
+    if animated:
+        hidden_at_rest = re.compile(r"(^|[;\s])opacity\s*:\s*0(\.0+)?\s*(;|$)")
+        for el in svg.iter():
+            if tag(el) in ("svg", "defs", "style", "title", "desc", "marker"):
+                continue
+            op = fnum(el.get("opacity"))
+            if (op is not None and op < 0.05) or el.get("visibility") == "hidden" or (
+                el.get("style") and hidden_at_rest.search(el.get("style"))
+            ):
+                ident = el.get("id") or el.get("class") or ""
+                report.error(
+                    "STATIC_BLANK",
+                    f'<{tag(el)}{" " + ident if ident else ""}> is invisible at rest '
+                    "and only the animation brings it in. Leave the finished state in "
+                    "the markup and animate `from { opacity: 0 }` instead.",
+                )
+        for selector, body in re.findall(
+            r"([^{}]+)\{([^{}]*)\}", resting_css(style_text)
+        ):
+            if hidden_at_rest.search(body):
+                report.error(
+                    "STATIC_BLANK",
+                    f"`{selector.strip()}` rests at opacity 0, so the diagram is blank "
+                    "until the motion plays. Animate `from { opacity: 0 }` and let the "
+                    "rule hold the finished state.",
+                )
 
     banned = re.findall(r"\b(filter|box-shadow|backdrop-filter)\s*:", style_text)
     for b in set(banned):
@@ -414,6 +553,11 @@ def main():
     ap.add_argument("path", help="Path to an .svg or .html file")
     ap.add_argument("--json", action="store_true", help="Machine-readable output")
     ap.add_argument("--strict", action="store_true", help="Warnings also exit non-zero")
+    ap.add_argument(
+        "--allow-static",
+        action="store_true",
+        help="Skip the motion checks (debugging an SVG that is meant to be still)",
+    )
     args = ap.parse_args()
 
     try:
@@ -432,7 +576,7 @@ def main():
         print("Note: more than one <svg> found; validating the first.", file=sys.stderr)
 
     report = Report()
-    check(svg_src, report)
+    check(svg_src, report, allow_static=args.allow_static)
 
     if args.json:
         print(

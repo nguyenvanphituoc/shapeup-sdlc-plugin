@@ -1,6 +1,6 @@
 ---
 name: svg-builder
-description: Build correct, self-contained SVG diagrams, illustrations, and animations from a description. Use this skill whenever the user asks for a diagram, flowchart, architecture or system diagram, sequence or data-flow visualization, infographic, animated explainer, or any request to "draw", "visualize", "illustrate", "show me how X works", or "make a diagram of Y" — even when they never say the word "SVG". Also use it when editing, debugging, or fixing existing SVG (overlapping boxes, clipped viewBox, text spilling out of shapes, invisible-in-dark-mode text), and when building animated or interactive SVG such as particles flowing along a path. Ships a validator script that catches the failure modes generated SVG reliably hits. Do NOT use for raster image generation or editing (PNG/JPEG), and route database ER diagrams to mermaid `erDiagram` instead.
+description: Build correct, self-contained SVG diagrams, illustrations, and animations from a description. Everything it produces moves by default -- flow along the edges, a staged reveal, a state change -- with a resting state that still reads on its own. Use this skill whenever the user asks for a diagram, flowchart, architecture or system diagram, sequence or data-flow visualization, infographic, animated explainer, or any request to "draw", "visualize", "illustrate", "show me how X works", or "make a diagram of Y" — even when they never say the word "SVG". Also use it when editing, debugging, or fixing existing SVG (overlapping boxes, clipped viewBox, text spilling out of shapes, invisible-in-dark-mode text), and when building animated or interactive SVG such as particles flowing along a path. Ships a validator script that catches the failure modes generated SVG reliably hits. Do NOT use for raster image generation or editing (PNG/JPEG), and route database ER diagrams to mermaid `erDiagram` instead.
 ---
 
 # SVG Builder
@@ -11,7 +11,7 @@ The failure mode here is never ugliness — it is **overlap**. Text spilling pas
 an arrow slashing through an unrelated node, content clipped by a too-short viewBox. This
 happens because coordinates get invented token-by-token with no global view of the canvas.
 Every step below exists to prevent that, and the order matters: **arithmetic first,
-markup second, validator third.**
+markup second, motion third, validator fourth.**
 
 ## Workflow
 
@@ -19,7 +19,8 @@ markup second, validator third.**
 2. **Route** — pick the form from the user's verb, not their noun.
 3. **Ledger** — write the coordinate table in plain text. Do not skip this.
 4. **Build** — emit the markup, following the ledger.
-5. **Validate** — run `scripts/check_svg.py`. Fix what it reports. Re-run.
+5. **Animate** — give the diagram the motion its behavior calls for. Not optional.
+6. **Validate** — run `scripts/check_svg.py`. Fix what it reports. Re-run.
 
 ## 1. Intake
 
@@ -27,7 +28,7 @@ markup second, validator third.**
 |---|---|---|
 | Subject | What entities, and how do they relate? | — must be stated |
 | Intent | Reference, intuition, data, or decorative? | Infer from the verb (§2) |
-| Medium | Static, animated, or interactive? | Static |
+| Medium | Does it need playback controls? | Animated (§5); interactive only on request |
 | Surface | Target width? Light, dark, or both? | 680px, both modes |
 | Constraints | Brand palette, fonts, no-JS, size budget? | None |
 
@@ -53,7 +54,7 @@ answers a question nobody asked.
 | "how does X *actually* work", "give me intuition", "I don't get X" | Illustrative | The mechanism itself, or a spatial metaphor for it |
 | "compare", "how much", "trend", "breakdown" | Chart | Axes, marks, one encoding per variable |
 | "show me the schema", "the ERD" | **Not SVG** | Emit mermaid `erDiagram` — hand-placed table rows always fail |
-| "make it move", "animate", "simulate" | Any of the above + motion | Pick a form, then read `references/animation.md` |
+| "make it move", "animate", "simulate" | The form's own motion, dialled up | Motion is already on (§5); this asks it to carry more |
 
 Illustrative is the default for an unqualified "how does X work", and it is the more
 ambitious choice. Do not retreat to a flowchart because boxes feel safer. Abstract
@@ -136,9 +137,60 @@ feed. Lay stages out linearly and convey the loop with a return path or a `↻` 
 the cycle has per-stage detail, build a stepper instead.
 
 Color and dark mode have their own failure modes — read `references/color.md` before
-picking any fill. Animation has its own — read `references/animation.md`.
+picking any fill.
 
-## 5. Validate
+## 5. Motion
+
+**Every diagram ships moving.** Most subjects worth drawing *do* something — data flows,
+state changes, a request propagates — and a still picture makes the reader reconstruct
+that from arrowheads. Motion hands it to them directly.
+
+The risk this creates is decoration, so the bar is narrow: **motion must encode something
+the diagram already claims.** A pulse on a box that pulses for no reason is worse than no
+motion at all, because it implies a behavior that isn't there. Pick from the form's
+vocabulary rather than inventing an effect:
+
+| Form | What moves | What the reader learns |
+|---|---|---|
+| Flowchart | Dash march along the edges, staggered in dependency order | Direction, and what waits on what |
+| Structural | Staged reveal, containers before contents | Containment — what exists inside what |
+| Illustrative | The mechanism itself | The behavior being explained |
+| Chart | Marks growing along their encoding axis | Which axis carries the value |
+
+When the subject genuinely has no behavior — a taxonomy, a legend, a comparison of two
+fixed things — the honest motion is a **staged reveal** in reading order. That still
+teaches something real: the order in which the parts make sense. It plays once and stops;
+only continuous behavior loops, and a loop runs under ~2s.
+
+**The resting state is the diagram.** A screenshot, a PDF export, an `<img src="…">` and a
+reduced-motion reader all get exactly what the markup says with zero frames played. So the
+element's own attributes hold the *finished* state and the animation runs *from* a start
+state:
+
+```css
+@keyframes reveal { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) {
+  .node { animation: reveal .4s ease-out both; }   /* hiding lives in the keyframe */
+}
+```
+
+State both ends. A `from`-only keyframe takes its end value from the element's own style,
+so pairing it with a `.node { opacity: 0 }` rule animates 0 to 0 and the element never
+appears — silent and total, since the animation does run (`REVEAL_STUCK`). Writing
+`opacity="0"` into the markup, or that same rule outside the guard, is the other half: it
+ships a blank picture to everyone who doesn't watch it play (`STATIC_BLANK`). Both are
+failure modes motion-by-default introduces, and the validator errors on each.
+
+**The one exception is an explicit constraint**, not a quiet judgment call: the user asks
+for stillness, or the target can't animate — print, a renderer you've been told is static.
+Then build it still, say which rule you set aside and why (per the output contract), and
+validate with `--allow-static`. "This subject felt static to me" is not that exception;
+it is the staged-reveal case above.
+
+Read `references/animation.md` before writing the animation: it has the mechanism choice
+(CSS vs SMIL vs JS), the per-form recipes, and the traps in each.
+
+## 6. Validate
 
 ```bash
 python scripts/check_svg.py path/to/diagram.svg
@@ -149,9 +201,14 @@ It parses the emitted markup and reports, with line numbers: connector paths mis
 clipped by the viewBox or floating in dead space, partially overlapping rects, negative
 coordinates, sub-11px type, and a missing accessibility block.
 
+It also enforces §5: no animation at all is an error, and so is animation that cannot
+play — a keyframe nobody defined, a class no element carries, a blank resting state, or a
+missing `prefers-reduced-motion` guard.
+
 Fix what it reports and run it again. `--json` gives machine-readable output; `--strict`
-exits non-zero on warnings as well as errors. The script also accepts an HTML file and
-will pull the `<svg>` out of it.
+exits non-zero on warnings as well as errors; `--allow-static` drops the motion checks,
+which is for debugging an SVG someone handed you, not for skipping §5 on your own output.
+The script also accepts an HTML file and will pull the `<svg>` out of it.
 
 Treat its warnings as questions, not verdicts. It estimates text width from character
 counts, so a warning on a short label in a wide box is worth a look but may be fine. An
@@ -186,7 +243,9 @@ Do not hand over the file until every line is true. The validator checks the sta
 [ ] Readable on a near-black background
 [ ] No distinction carried by color alone
 [ ] role="img" + <title> + <desc> as first children                    *
-[ ] Animations respect prefers-reduced-motion; static state still reads
+[ ] Motion present, encoding something the diagram already says        *
+[ ] Motion declared inside @media (prefers-reduced-motion: no-pref…)   *
+[ ] Resting state is the finished diagram; nothing hidden at rest      *
 [ ] Exactly one <svg>; no orphaned partial attempt
 ```
 
@@ -194,7 +253,7 @@ Do not hand over the file until every line is true. The validator checks the sta
 
 - `references/layout.md` — text metrics, tier packing, collision routing, tree layout
 - `references/color.md` — palette selection, dark mode, contrast, colorblind safety
-- `references/animation.md` — CSS vs SMIL vs JS, path sampling, reduced motion
+- `references/animation.md` — mechanism choice, per-form recipes, path sampling, reduced motion
 - `references/forms.md` — construction patterns per diagram form
 - `scripts/check_svg.py` — validator
 - `assets/scaffold.svg` — starting skeleton with the accessibility block and arrow marker

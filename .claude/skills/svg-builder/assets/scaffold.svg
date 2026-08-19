@@ -26,6 +26,16 @@
     .t    { fill: var(--ink);   font: 500 14px system-ui, sans-serif; }
     .ts   { fill: var(--ink-2); font: 400 12px system-ui, sans-serif; }
     .edge { fill: none; stroke: var(--hair); stroke-width: .5; }
+
+    /* Motion is the default. The dash march says "this edge carries flow"; swap it
+       for whatever this diagram's behaviour actually is. Declared inside
+       no-preference so the resting picture -- what a screenshot, a PDF export and a
+       reduced-motion reader get -- is the finished diagram, never a blank one. */
+    .flow { stroke-dasharray: 5 5; }
+    @keyframes march { to { stroke-dashoffset: -20; } }
+    @media (prefers-reduced-motion: no-preference) {
+      .flow { animation: march 1.6s linear infinite; }
+    }
   </style>
 
   <g>
@@ -34,14 +44,14 @@
     <text class="ts" x="340" y="78" text-anchor="middle" dominant-baseline="central">Five words max</text>
   </g>
 
-  <line class="edge" x1="340" y1="96" x2="340" y2="146" marker-end="url(#arrow)"/>
+  <line class="edge flow" x1="340" y1="96" x2="340" y2="146" marker-end="url(#arrow)"/>
 
   <g>
     <rect class="box-n" x="250" y="156" width="180" height="44" rx="8"/>
     <text class="t" x="340" y="178" text-anchor="middle" dominant-baseline="central">Neutral node</text>
   </g>
 
-  <path class="edge" d="M340 200 L340 240 L500 240 L500 280" marker-end="url(#arrow)"/>
+  <path class="edge flow" d="M340 200 L340 240 L500 240 L500 280" marker-end="url(#arrow)"/>
 
   <g>
     <rect class="box" x="410" y="290" width="180" height="44" rx="8"/>
