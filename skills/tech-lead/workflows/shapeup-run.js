@@ -749,7 +749,11 @@ const diedAt  = (g, r) => ({ status: "aborted", aborted_at: g, reason: r.__faile
  * @returns {Promise<{stop?: object, decision?: string}>} `stop` carries a terminal RunReturn.
  */
 async function crossGate(gateId, phaseName, validDecisions, ctx) {
-  const g = await cmd(`gate --resolve ${gateId} --slug ${slug} ${answersFlag(args.answers)}`.trim(), phaseName, `gate:${gateId}`);
+  // The gate ledger keys a per-round crossing (L2, L3) on gate id + round, so it needs the round
+  // whenever the caller already has one to show in the block — the same value `ctx.round` carries
+  // for display, threaded through rather than re-derived.
+  const roundFlag = ctx?.round != null ? ` --round ${ctx.round}` : "";
+  const g = await cmd(`gate --resolve ${gateId} --slug ${slug}${roundFlag} ${answersFlag(args.answers)}`.trim(), phaseName, `gate:${gateId}`);
   if (g.exit_code === 4) return { stop: paused(gateId, validDecisions, ctx) };
   if (g.exit_code === 5) return { stop: aborted(gateId, g.detail || `GATE ${gateId} aborted`) };
   const decision = String(g.decision ?? "").trim();

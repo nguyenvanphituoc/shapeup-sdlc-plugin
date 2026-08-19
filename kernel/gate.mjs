@@ -50,10 +50,10 @@
 //   5  no answer and on_missing=abort → the run aborts here, attributably
 //   2  usage / validation error
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { runArgs } from "./lib/argv.mjs";
-import { gateAnswerCandidates, LOCAL } from "./lib/paths.mjs";
+import { gateAnswerCandidates, gates as gatesPath, LOCAL } from "./lib/paths.mjs";
 
 export const GATE_IDS = ["L0", "L1a", "L1a.5", "L1b", "L2", "L3", "QA", "H", "L4", "COACH-1"];
 
@@ -203,6 +203,33 @@ export function resolve(set, gate, source) {
   };
 }
 
+/**
+ * Append one row to the per-slug gate-crossing ledger — `.shapeup/<slug>/gates.jsonl` ({@link
+ * gatesPath}, from `lib/paths.mjs`).
+ *
+ * WRITER RULE, same shape as {@link appendTrial} in `verify/t0.mjs` and the dispatch-receipt hook's
+ * ownership of `decisions.jsonl`: one small file, one writer, append-only JSONL so concurrent
+ * scopes crossing gates in the same round cannot clobber each other's row.
+ *
+ * Records every resolution that reached a real status — a crossing (`ok`), a recorded pause
+ * (`ask`), or an abort (`abort`) — because "the run stopped here" is exactly the kind of fact this
+ * ledger exists to hold. Best-effort: a ledger write that could fail a gate crossing would cost more
+ * than the row is worth, matching {@link appendTrial}'s own trade-off.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {object} row - The ledger row (gate, decision, source, note, round, status).
+ * @returns {boolean} True when the row was written.
+ */
+export function appendGateLedger(cwd, slug, row) {
+  try {
+    const p = gatesPath(cwd, slug);
+    mkdirSync(dirname(p), { recursive: true });
+    appendFileSync(p, JSON.stringify(row) + "\n");
+    return true;
+  } catch { return false; }
+}
+
 /** Gates this lane will actually hit — used by --verify to catch a set that stalls halfway. */
 export function requiredGates({ autoLevel = "unattended", tiny = false, qa = true } = {}) {
   if (tiny) return ["L0", "L4"];
@@ -240,7 +267,7 @@ export function discover({ cwd = process.cwd(), file = null, preset = null, slug
 export const ARGV_SPEC = {
   usage: "harness.mjs gate (--init | --list | --verify | --resolve <gate-id>) [--preset <name>] " +
          "[--file <path>] [--slug <slug>] [--cwd <dir>] [--out <path>] [--by <who>] " +
-         "[--auto-level <level>] [--tiny] [--no-qa]",
+         "[--auto-level <level>] [--tiny] [--no-qa] [--round <n>]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   cwd: { type: "path" },
   init: { type: "flag" },
@@ -255,6 +282,10 @@ export const ARGV_SPEC = {
   "auto-level": { type: "str" },
   tiny: { type: "flag" },
   "no-qa": { type: "flag" },
+  // The current BUILD round, when the caller has one — L2/L3 are crossed once per round, so the
+  // ledger row needs it to key a `GateDecision` node uniquely per crossing. Round-independent gates
+  // (L0, L1a, …) simply omit it and the row carries `round: null`.
+  round: { type: "int", min: 1 },
 };
 
 function out(obj, code = 0) {
@@ -333,6 +364,16 @@ export function cli(rawArgv) {
 
   const r = resolve(found.set, gate, found.source);
   if (r.status === "error") die(r.reason);
+  // A gate with no `--slug` (e.g. `--file` used ad hoc, outside any run) has nowhere to file a
+  // per-run ledger row — the same reasoning `resolveRunId` uses for "no run is active": absence is
+  // the correct answer, not an error, so the write is skipped rather than guessing a location.
+  if (args.slug) {
+    appendGateLedger(cwd, args.slug, {
+      gate: r.gate, status: r.status, decision: r.decision ?? null,
+      source: r.source ?? found.source, note: r.note ?? r.reason ?? null,
+      round: args.round ?? null,
+    });
+  }
   if (r.status === "ask") out({ ...r, ok: false }, 4);
   if (r.status === "abort") out({ ...r, ok: false }, 5);
   out({ ...r, ok: true }, 0);

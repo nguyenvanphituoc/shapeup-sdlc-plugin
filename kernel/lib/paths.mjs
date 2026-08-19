@@ -195,6 +195,15 @@ export const t0Dir = (cwd, slug) => join(localRoot(cwd, slug), "t0");
 export const verdictsDir = (cwd, slug) => join(t0Dir(cwd, slug), "verdicts");
 /** The append-only trial ledger the ratchet reduces over. */
 export const trials = (cwd, slug) => join(t0Dir(cwd, slug), "trials.jsonl");
+/**
+ * The gate-crossing ledger — one append-only row per resolved gate, written by `kernel/gate.mjs`.
+ *
+ * `resolve()` in `gate.mjs` has always computed a `ledger_row` string but never persisted it, so a
+ * gate crossing left no durable trace for the run graph to project a `GateDecision` node from. This
+ * is that write's home: same tier, same append-only-JSONL shape as {@link trials} and
+ * {@link decisions}, one small file with one writer.
+ */
+export const gates = (cwd, slug) => join(localRoot(cwd, slug), "gates.jsonl");
 /** Finished-scope fixture registry for the seesaw regression check. */
 export const seesawRegistry = (cwd, slug) => join(localRoot(cwd, slug), "seesaw", "registry.json");
 /** Evaluator output — report, evidence, verdict ledger. */

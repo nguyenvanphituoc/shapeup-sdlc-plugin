@@ -57,6 +57,8 @@ function plant(root) {
   writeFileSync(join(local, "t0", "trials.jsonl"),
     JSON.stringify({ schema_version: 1, trial: 1, round: 1, attempt: 1, scope_id: "sc-01", status: "kept", artifact: "verdicts/r1-a1-t1.json", baseline_trial: null }) + "\n" +
     JSON.stringify({ schema_version: 1, trial: 2, round: 1, attempt: 2, scope_id: "sc-01", status: "kept", artifact: "verdicts/r1-a2-t1.json", baseline_trial: 1 }) + "\n");
+  writeFileSync(join(local, "gates.jsonl"),
+    JSON.stringify({ gate: "L2", status: "ok", decision: "proceed", source: "preset:ci", note: null, round: 1 }) + "\n");
   writeFileSync(join(shared, "scopes", "sc-01.md"),
     "---\nschema_version: 1\nscope_id: sc-01\ntitle: Health endpoint\ncovers: [REQ-1, REQ-2]\n---\n\n# sc-01\n");
   writeFileSync(join(shared, "requirements.md"),
@@ -140,7 +142,7 @@ export async function run(ctx) {
       fail("the verdict node is not in the graph — there is nothing to trace from");
     } else {
       const reached = new Set(t.path.map((h) => h.node?.t).filter(Boolean));
-      const want = { objective: "Run", plan: "Scope", source: "Requirement", record: "Trial" };
+      const want = { objective: "Run", plan: "Scope", source: "Requirement", record: "Trial", gate: "GateDecision" };
       const missing = Object.entries(want).filter(([, type]) => !reached.has(type));
       if (missing.length === 0) {
         ok(`one query from a verdict reaches ${Object.values(want).join(", ")} — the reliability invariant is an edge walk, not a grep`);

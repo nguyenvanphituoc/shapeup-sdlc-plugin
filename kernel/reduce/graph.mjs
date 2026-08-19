@@ -30,7 +30,7 @@ import { join, dirname, basename, resolve } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
 import {
   localRoot, receipt as receiptPath, ordersDir, resultsDir, verdictsDir, trials as trialsPath,
-  scopesDir, usecasesDir, requirements as requirementsPath, wiringMap as wiringMapPath,
+  gates as gatesPath, scopesDir, usecasesDir, requirements as requirementsPath, wiringMap as wiringMapPath,
 } from "../lib/paths.mjs";
 import { readAllContracts, readContract, SCOPE_CONTRACT, WIRING_MAP } from "../lib/contract.mjs";
 import { runIdFromReceipt } from "../lib/paths.mjs";
@@ -39,7 +39,7 @@ import { runIdFromReceipt } from "../lib/paths.mjs";
 export const graphPath = (cwd, slug) => join(localRoot(cwd, slug), "graph.jsonl");
 
 /** Node types, by family. A type outside these sets is a bug, not an extension point. */
-export const WORK_NODES = ["Run", "Order", "Result", "Verdict", "Trial"];
+export const WORK_NODES = ["Run", "Order", "Result", "Verdict", "Trial", "GateDecision"];
 export const DOMAIN_NODES = ["Scope", "UseCase", "Requirement", "Seam"];
 
 /** Edge types. Each names a direction that is meaningful to read backwards. */
@@ -148,6 +148,7 @@ export function project(cwd, slug) {
   // T0 verdicts — the artifact the evaluator is required to cite, and the reason the lineage half
   // of this graph is worth having: a verdict node is the anchor of every "show me the evidence".
   const vDir = verdictsDir(cwd, slug);
+  const verdictIdsByRound = new Map();     // round -> [verdict node id, ...], for the gate edge below
   if (existsSync(vDir)) {
     for (const f of readdirSync(vDir).filter((x) => x.endsWith(".json")).sort()) {
       const v = readJson(join(vDir, f));
@@ -161,6 +162,47 @@ export function project(cwd, slug) {
       if (v.scope_id) edge(id, "EVALUATES", `scope:${slug}:${v.scope_id}`);
       if (v.round != null && v.attempt != null && v.scope_id) {
         edge(`order:${slug}/${v.scope_id}-r${v.round}-a${v.attempt}`, "PRODUCED", id);
+      }
+      if (v.round != null) {
+        if (!verdictIdsByRound.has(v.round)) verdictIdsByRound.set(v.round, []);
+        verdictIdsByRound.get(v.round).push(id);
+      }
+    }
+  }
+
+  // Gate crossings — `kernel/gate.mjs` is the sole writer of `gates.jsonl`; this reads the same
+  // ledger `verify/t0.mjs` writes for `trials.jsonl`, defensive per-line JSON.parse-or-skip.
+  //
+  // ID KEYED ON GATE ID + ORDINAL, not gate id alone, for the exact reason the trial key above is
+  // not the ordinal alone: L2 and L3 are crossed once per round, so a bare `gate:<slug>:L2` id would
+  // collapse every round's crossing onto one node — a repeat of the trial-key bug this file already
+  // learned from once. The ordinal counts a gate id's occurrences in ledger order, which also
+  // disambiguates round-independent gates (L1a, …) re-crossed across relaunches, where `round` alone
+  // is `null` on every row.
+  const gPath = gatesPath(cwd, slug);
+  if (existsSync(gPath)) {
+    const seenByGate = new Map();
+    for (const line of readFileSync(gPath, "utf8").split("\n")) {
+      if (!line.trim()) continue;
+      const g = readJson0(line);
+      if (!g?.gate) continue;
+      const n = (seenByGate.get(g.gate) || 0) + 1;
+      seenByGate.set(g.gate, n);
+      const id = `gate:${slug}:${g.gate}:${n}`;
+      node(id, "GateDecision", {
+        gate: g.gate, decision: g.decision ?? null, status: g.status ?? null,
+        source: g.source ?? null, note: g.note ?? null, round: g.round ?? null,
+        run_id: g.run_id ?? runId ?? null,
+      });
+      // A round-scoped gate's decision depends on that round's T0 verdict(s) — the most honest
+      // shape, since that is the evidence the decision was made against. Every other gate (and a
+      // round-scoped one with no verdict yet on disk) depends on the Run instead, so no
+      // `GateDecision` node is ever orphaned.
+      const roundVerdicts = (g.gate === "L2" || g.gate === "L3") ? verdictIdsByRound.get(g.round) : null;
+      if (roundVerdicts?.length) {
+        for (const vid of roundVerdicts) edge(id, "DEPENDS_ON", vid);
+      } else if (runNode) {
+        edge(id, "DEPENDS_ON", runNode);
       }
     }
   }

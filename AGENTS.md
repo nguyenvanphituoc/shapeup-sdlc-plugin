@@ -68,11 +68,12 @@ Everything discovered funnels into `.shapeup/<slug>/discovery/ledger.md` (Orient
 - Two storage tiers (ADR-0001): COMMITTED `shapeup/<slug>/` (shaping, spec, scopes, wiring-map, project-profile, requirements, hill, `REPORT.md` frozen at L4) vs GITIGNORED `.shapeup/` (board, orders/results, T0/eval/QA artifacts, ledgers, metrics, gate answers).
 - Every run has a `run_id` — the receipt mints it, and orders, T0 artifacts, trial rows, agent-call journal rows and hook decisions all carry it. It is the only key that separates two runs of the same feature: everything else (`order_id`, round/attempt) repeats. It is **not** a time boundary — a relaunch resumes the same run and reuses the key, so one `run_id` legitimately spans every launch after a paused gate or a kill, with hours of wall clock between them, and `orders/<id>.json` is rewritten by each. Anything measuring elapsed time reads the append-only records, never the span of a key. SHIP S.7 exports the run's records as fact tables under `.shapeup/exports/<run_id>/` before the run trace is superseded; a WorkResult carries no `run_id` and reaches it through `order_id`.
 - Every run projects a **run graph** — `.shapeup/<slug>/graph.jsonl`, append-only, written only by
-  `reduce graph`. Two families kept separate: work lineage (Run, Order, Result, Verdict, Trial) and
-  domain (Scope, UseCase, Requirement, Seam). It is derived from the artifacts, never authored, so
-  it can be deleted and rebuilt — and a run recorded before it existed backfills on first touch.
-  `--subgraph run` is the fast-forward as one bounded query; `--trace <node>` walks a verdict back
-  to the objective, the plan, the source and the execution record.
+  `reduce graph`. Two families kept separate: work lineage (Run, Order, Result, Verdict, Trial,
+  GateDecision) and domain (Scope, UseCase, Requirement, Seam). It is derived from the artifacts,
+  never authored, so it can be deleted and rebuilt — and a run recorded before it existed backfills
+  on first touch. `--subgraph run` is the fast-forward as one bounded query; `--trace <node>` walks
+  a verdict back to the objective, the plan, the source, the execution record and the gate that
+  crossed it.
 - Contracts: markdown on disk, JSON on the wire; a single library reads/writes the file form.
 - Never hard-code a storage root — generated paths resolve through the shared path resolver.
 - The traceability oracle emits `.shapeup/<slug>/trace/report.json` from the spine artifacts.
