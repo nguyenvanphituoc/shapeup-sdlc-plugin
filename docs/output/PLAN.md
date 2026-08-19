@@ -240,6 +240,28 @@ fast-forward. Together worth roughly 5% of a run. Not worth their own phase.)*
 - Retire `session-rehydrate` + `compact-snapshot` hooks: rehydration after compaction is now "run `probe`" — one line in tech-lead SKILL.md, not two hooks.
 - **Done when:** kill -9 mid-BUILD → relaunch fast-forwards from the graph re-dispatching nothing completed (the kill/resume probe, rerun); the reliability sentence is demonstrable: pick any verdict node, walk edges back to objective/plan/artifact/T0/gate in one query.
 
+> **Closed — see `RESULT-P4.md`.** Most of this phase's own text had already shipped before Phase
+> 3.5 even closed (commit `94acc4b`, 2026-08-14): the graph read model, the migration/backfill
+> shim (by a simpler, single-path design than the plan described — no separate directory-walk
+> fallback was needed, since `appendGraph`'s backfill already covers a v1-vintage tree through the
+> same code path as a fresh run), and the `session-rehydrate`/`compact-snapshot` hook retirement.
+> The one real gap, confirmed by reading the code rather than assumed: gate crossings were never
+> durably recorded anywhere on disk — `gate.mjs` computed a ledger row on every resolve but nothing
+> wrote it — so the Done-when's own "…T0/gate…" reachability requirement was unmet and no
+> `GateDecision` node type existed. Fixed: `gate.mjs` now appends every resolved crossing to
+> `.shapeup/<slug>/gates.jsonl`; `reduce graph` projects it into a `GateDecision` node keyed on gate
+> id **+ occurrence ordinal** (the same fix this file already applied once to a trial-id collision,
+> generalized correctly), wired via `DEPENDS_ON` to its round's T0 verdict when one exists, else to
+> the `Run` node. Both Done-when clauses demonstrated live, not only in a fixture: a genuine `kill
+> -9` mid-BUILD, relaunched fresh, correctly skipped the completed scope (byte-identical order/result
+> files) and built only the incomplete one; a real `reduce graph --trace` query against that live
+> run's own graph, from a real verdict node, reached two `GateDecision` nodes at hop 1. One finding
+> surfaced, not a phase failure: the new instrumentation made visible (for the first time — nothing
+> could see it before) that a relaunch re-crosses `L1a`/`L1a.5`/`L1b` a second time even though those
+> phases' *work* is correctly fast-forwarded — a pre-existing characteristic of the orchestrator's
+> resume model, not a regression from this phase, and not a defect this phase's own Done-when is
+> about; left on record for whoever next touches `kernel/probe/resume.mjs`.
+
 ### Phase 5 — Hook diet & enforcement honesty *(fixes: permission story, BAD-6 rest)* *(1 day)*
 - **Keep 4 hard hooks:** `safety-spine` (machine safety), `sandbox-guard` (substrate walls — the parallel-safety backstop), `gate-intake` (no empty dispatch), `validate-envelope` (no uncompiled order).
 - **Delete 6:** `gate-l2` (already advisory — becomes a `reduce` warning in the L2 gate context), `gate-deadline` (breaker already lives in `verify`/budget), `gate-zerowork`, `anti-rationalization`, `slop-cleaner` (fold the useful checks into spec-evaluator's dimensions or the ship report), `session-rehydrate`/`compact-snapshot` (Phase 4).
