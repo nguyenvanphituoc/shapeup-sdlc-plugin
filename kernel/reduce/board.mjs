@@ -12,6 +12,9 @@
 //     overflow is an orchestrator gate, never resolved here)
 //   • board-vs-T0 drift check (a FINISHED scope whose tasks still read `ready`) when scope
 //     contracts name their tasks — flag, never fix
+//   • board-vs-dispatch reconciliation (BOARD-UNDISPATCHED, Phase 3.5 / S6): a scope with a
+//     done-marked task but no dispatched-and-answered order anywhere for it — a cut, never
+//     dispatched scope cannot read `done` — flag, never fix
 //
 // Zero dependencies. Usage:
 //   node kernel/harness.mjs reduce board --slug <slug> [--cwd <dir>] [--write]
@@ -21,7 +24,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
-import { tasksDir, scopesDir, hillDir } from "../lib/paths.mjs";
+import { tasksDir, scopesDir, hillDir, ordersDir, resultsDir } from "../lib/paths.mjs";
 import { readAllContracts, splitFrontmatter, SCOPE_CONTRACT } from "../lib/contract.mjs";
 
 /**
@@ -154,6 +157,68 @@ export function driftCheck(tasks, scopes) {
 }
 
 /**
+ * Read every dispatched-and-answered order's scope id (Phase 3.5 / S6).
+ *
+ * "Dispatched and answered" is filename presence in both directories, the same completion signal
+ * `sandbox-guard`'s `liveOrders()` already uses — a result join on content would let a malformed
+ * result count as an answer. The scope an order belongs to comes from `payload.scope_contract.
+ * scope_id`, not the filename: a non-BUILD order's suffix puts the operation before the scope id
+ * (`compileOrder`'s `scopedRoundSuffix`), so filename-prefix matching would miss it.
+ *
+ * @param {string} orders - Absolute path to the run's `orders/` directory.
+ * @param {string} results - Absolute path to the run's `results/` directory.
+ * @returns {Set<string>} scope_ids with at least one dispatched order answered by a same-named
+ *   result file; empty when neither directory has anything to read.
+ */
+function answeredScopeIds(orders, results) {
+  const answered = new Set();
+  if (!existsSync(orders)) return answered;
+  const done = new Set(existsSync(results) ? readdirSync(results) : []);
+  for (const f of readdirSync(orders)) {
+    if (!f.endsWith(".json") || !done.has(f)) continue;
+    try {
+      const sid = JSON.parse(readFileSync(join(orders, f), "utf8"))?.payload?.scope_contract?.scope_id;
+      if (sid) answered.add(sid);
+    } catch { /* an unreadable order answers nothing — spec-lint reports unreadable contracts, not this */ }
+  }
+  return answered;
+}
+
+/**
+ * Flag a scope whose board tasks read done but has no dispatched-and-answered order on disk
+ * (Phase 3.5 / S6) — the defect that motivated this phase: a scope cut before it was ever
+ * dispatched can still read `done` on the board because nothing compared the board's rows to what
+ * was actually dispatched, though both the scope contract and the order/result trail already exist
+ * on disk. A sibling to {@link driftCheck} (a FINISHED scope whose tasks are NOT done) — this is
+ * the opposite direction (done tasks, no dispatch trail) and both must keep running.
+ *
+ * @param {Array<{id:string, status:string}>} tasks - The parsed board.
+ * @param {Array<{scope_id:string, tasks?:string[]}>} scopes - Scope contracts.
+ * @param {string} orders - Absolute path to the run's `orders/` directory.
+ * @param {string} results - Absolute path to the run's `results/` directory.
+ * @returns {Array<{rule:string, level:string, scope_id:string, detail:string}>} One finding per
+ *   undispatched-but-done scope, in this codebase's `{rule, level, detail}` finding shape
+ *   (`kernel/verify/spec.mjs`); [] when every done-marked scope has a dispatch trail.
+ */
+export function undispatchedCheck(tasks, scopes, orders, results) {
+  const byId = Object.fromEntries(tasks.map((t) => [t.id, t]));
+  const answered = answeredScopeIds(orders, results);
+  const findings = [];
+  for (const s of scopes) {
+    if (!Array.isArray(s.tasks) || !s.tasks.length) continue;
+    const doneTaskId = s.tasks.find((id) => byId[id]?.status === "done");
+    if (doneTaskId && !answered.has(s.scope_id)) {
+      findings.push({
+        rule: "BOARD-UNDISPATCHED", level: "red", scope_id: s.scope_id,
+        detail: `${doneTaskId} reads done for scope ${s.scope_id}, but no order under orders/ has a ` +
+          `matching result under results/ for this scope — a cut, never-dispatched scope cannot read done`,
+      });
+    }
+  }
+  return findings;
+}
+
+/**
  * Derive the full board report (unlocks, hours, packages, critical path, appetite overflow, drift).
  * @param {{cwd:string, slug:string, appetiteHours?:(number|null)}} opts - Working root, feature
  *   slug, and optional appetite budget (in hours) that drives the overflow flag.
@@ -193,6 +258,7 @@ export function derive({ cwd, slug, appetiteHours = null }) {
     unlocks,
     unlocks_stale: tasks.filter((t) => JSON.stringify([...t.unlocks].sort()) !== JSON.stringify(unlocks[t.id])).map((t) => t.id),
     drift: driftCheck(tasks, scopes),
+    undispatched: undispatchedCheck(tasks, scopes, ordersDir(cwd, slug), resultsDir(cwd, slug)),
     _tasks: tasks,
   };
 }

@@ -113,6 +113,11 @@ const MODULE_FILES = [
   // (Phase 3.5 / S5). Its own module because no existing test drives `compileOrder()` directly at
   // all — the collision only shows up when two non-BUILD calls for different scopes are compared.
   "30-order-id-collision.mjs",
+  // 31-board-reconcile.mjs: the board reconciled against contracts and orders on disk (Phase 3.5 /
+  // S6) — a scope with a done-marked task but no dispatched-and-answered order anywhere for it.
+  // Its own module because no existing test drives `board.mjs`'s `derive()` against a fixture with
+  // both a scope contract and an orders/results tree at once.
+  "31-board-reconcile.mjs",
   "08-docs.mjs",
 ];
 
