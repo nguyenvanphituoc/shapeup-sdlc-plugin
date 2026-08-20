@@ -104,6 +104,35 @@ scope that is not in the run. The run graph gained the edges this made drawable:
 reader and no writer since it was added, so a Scope sat in the graph as an isolated node beside the
 UseCase nodes it was built from.
 
+**Three things a relaunch after a paused gate lost.** A gate pause is a return, so the PO's answer
+is followed by a fresh launch of the same script, and the launch is where all three defects lived.
+The visible one was the progress panel: a phase whose artifact is already on disk fast-forwards and
+therefore dispatches nothing, so its box rendered `Analyze · 0 agents · Not started yet` — a
+completed phase reported as one that never ran, on the screen an operator uses to decide whether a
+resumed run came back correctly. ORIENT, WIRE and MAP SCOPES looked right only by accident, because
+a gate leg lands in each of their progress groups and earns them a tick, while ANALYZE — reviewed at
+L1b, in another group — had nothing at all. A skip now costs one cheap leg that re-asks
+`probe resume --require <phase>`, which puts the phase in the record and, more to the point, attests
+the skip at the moment it is acted on instead of inheriting it from a state probe taken at the top of
+the run. The second was expensive and silent: the round loop opens at `max(eval_rounds_done) + 1` and
+skips a scope only when the graph reports it green *for that round*, so a pause at GATE L3, at QA or
+at GATE H — each of which happens strictly after `evaluate-r<N>.json` is written — opened round N+1,
+found nothing green in it, re-dispatched **every scope** through the attempt ratchet and ran a second
+EVAL over a verdict of PASS sitting on disk. It cost a round of `round_budget`, a full build fan-out,
+and a judgement free to return FAIL where the first passed; the docs had promised "re-dispatches
+nothing already finished" throughout. The last had never failed and could not: the orchestrator
+declared `scope_files` as an array of strings against a kernel that emits `{scope_id, path}` objects,
+and the courier sub-agent between them coerced one shape into the other on every run — the failure
+that shape invites is a coercion that drops the entries instead, which reads as zero scopes and
+re-dispatches MAP SCOPES over contracts already on disk. The schema now declares what the kernel
+writes, `ResumeState` declares the six fields it had always emitted and never described, and the
+structural suite compares the two halves of every resume field rather than trusting that a reader and
+a writer of the same record agree. Two instruments came out of the same pass, both closing gaps that
+had let a green suite mean less than it read: the orchestrator is now *compiled* the way the runtime
+compiles it, so a syntax error in the file is a red row rather than a launch failure no static check
+could see; and the payload/override check no longer selects its subject by the literal source text of
+the round loop, which had disarmed it silently the moment that loop gained a condition.
+
 ## [2.0.0] — 2026-08-20 · the native runtime
 
 v2 moves the orchestrator onto the native Dynamic Workflow runtime, and then makes it run. The

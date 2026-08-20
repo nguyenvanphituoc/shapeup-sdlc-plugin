@@ -437,6 +437,38 @@ export async function run(ctx) {
     }
   }
 
+  // --- (f2) …AND THE REST OF THE FILE PARSES, which is the other half of "does it load" ---------
+  //
+  // (f) asks whether the runtime can read `meta`. Nothing asked whether it can compile the 1,400
+  // lines underneath — and no other instrument here can see a syntax error, because every one of
+  // them is a regex over the source. The file cannot simply be imported to find out: it has no
+  // module resolution, `args` arrives as a global, it closes with a top-level `return` (a
+  // SyntaxError for ESM) and it awaits at the top level (a SyntaxError for CommonJS). So it is
+  // compiled the way the runtime compiles it — the body wrapped in an async function, with the
+  // runtime's own globals as parameters — which is a parse, never an execution: constructing a
+  // Function compiles its source and runs none of it.
+  //
+  // The lesson is (f)'s, one layer down: a suite that checks a file's SHAPE exhaustively can still
+  // miss whether the thing runs, and "the tests are green" then means less than it reads.
+  const RUNTIME_GLOBALS = ["args", "agent", "parallel", "pipeline", "log", "phase", "budget", "workflow"];
+  const unparseable = [];
+  for (const f of files) {
+    // `export` is a module-level form the runtime strips before wrapping; everything else is body.
+    const body = readFileSync(join(abs, f), "utf8").replace(/^export\s+const\s+meta/m, "const meta");
+    try {
+      // eslint-disable-next-line no-new-func -- repo source, compiled to parse it, never invoked.
+      new Function(...RUNTIME_GLOBALS, `return (async () => {\n${body}\n})();`);
+    } catch (e) {
+      unparseable.push(`${WORKFLOWS_DIR}/${f} — ${e.message}`);
+    }
+  }
+  if (unparseable.length === 0) {
+    ok(`every workflow script compiles as the runtime compiles it (${files.length} file(s)) — an async body over the runtime's globals, top-level return and top-level await included`);
+  } else {
+    fail("a workflow script does not parse, so the runtime cannot launch it and every other check in "
+      + `this module is asserting the shape of a file that will not run:\n    ${unparseable.join("\n    ")}`);
+  }
+
   // (j) THE CANARY IS THE FIRST THING THE RUN DOES, and its failure aborts.
   //
   // `init run` refuses when the SKILL.md files are not on disk, and that check passes green on both
@@ -604,9 +636,20 @@ export async function run(ctx) {
   // (§62 in 05-tech-lead.mjs asserts a compiled round-2 order actually carries them). It has to
   // live there rather than here for a second reason: a variable does not survive the relaunch that
   // separates two rounds, and a resumed round r+1 starts in a fresh process.
+  //
+  // AND A NOTE ABOUT THE SELECTOR, learned the same way as everything else here. It used to read
+  // `while (round <= maxRounds)` verbatim, so the day the round loop's condition gained a resume
+  // guard — `while (verdict !== "pass" && round <= maxRounds)` — this whole check stopped selecting
+  // the only file it exists for and passed by skipping. Nothing went red; the suite simply reported
+  // one fewer green row than the run before, which is visible only to someone counting. A selector
+  // spelled as the exact bytes of the construct it selects disarms itself on the next edit to that
+  // construct, so it is anchored on the orchestrator's Preflight (check (j)'s marker) and on the
+  // SHAPE of a round loop, and the check fails rather than skips when it matches nothing at all.
+  let orchestrators = 0;
   for (const f of files) {
     const src = readFileSync(join(abs, f), "utf8");
-    if (!/while \(round <= maxRounds\)/.test(src)) continue;
+    if (!/\bphase\("Preflight"\)/.test(src) || !/\bwhile\s*\([^)]*\bround\s*<=/.test(src)) continue;
+    orchestrators++;
     const problems = [];
     // Each `worker({...})` call's own object literal, sliced at the next call so two adjacent
     // dispatches cannot lend each other a property.
@@ -646,6 +689,11 @@ export async function run(ctx) {
     } else {
       fail(`${WORKFLOWS_DIR}/${f} cannot act on its own verdict:\n    ${problems.join("\n    ")}`);
     }
+  }
+  if (!orchestrators) {
+    fail(`no script in ${WORKFLOWS_DIR} carries both a Preflight and a round loop, so the payload/override `
+      + "check above examined nothing and reported nothing — a check that selects no file passes for the "
+      + "same reason a check that finds no defect does, and the two are indistinguishable from the summary");
   }
 
   // (m) THE BUILD LOOP MUST FEED ITS SCHEDULER THE KERNEL'S OWN ORDERING DATA.

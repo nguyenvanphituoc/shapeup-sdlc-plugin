@@ -368,7 +368,16 @@ async function scheduleScopes(items, edges, width, launch) {
 // SCHEMAS — the only contract between this control script and a sub-agent. The runtime forces the
 // agent's final message to validate against these, which is the entire reason no stdout is parsed
 // anywhere in this file.
-// ---------------------------------------------------------------------------------------------
+//
+// A SCHEMA HERE IS ONE HALF OF A CONTRACT, and the other half is a kernel subcommand's stdout. The
+// runtime validates the agent's report against the shape declared BELOW, never against the shape the
+// kernel actually prints, so the two can disagree indefinitely: the courier sub-agent sits between
+// them and quietly coerces whatever it was handed into whatever it was asked for. That is not a
+// hypothetical — `scope_files` was declared here as an array of strings against a kernel that emits
+// `{scope_id, path}` objects, and it "worked" for the life of the file. The region markers are the
+// seam the structural suite reads these declarations through, so the two halves can be compared by
+// something other than a reader's eye.
+// ---- SCHEMA REGION START -----------------------------------------------------------------------
 const nullable = (t) => ({ type: [t, "null"] });
 
 /** A kernel subcommand a sub-agent ran in its own shell, reported as data. */
@@ -399,7 +408,22 @@ const RESUME = {
     has_spec_tree: { type: "boolean" },
     has_wiring_map: { type: "boolean" },
     has_project_profile: { type: "boolean" },
-    scope_files: { type: "array", items: { type: "string" } },
+    // THE SHAPE THE KERNEL WRITES, not a convenient one. `probe resume` emits `{scope_id, path}` per
+    // contract and `ResumeState` declares exactly that; this declared an array of strings and the
+    // call site below split each entry as a path. Nothing failed and nothing could: the courier
+    // sub-agent sits between the kernel's stdout and this schema, so it coerced the objects into
+    // whatever it was asked for, on every run, for the life of the file. The failure that shape
+    // invites is silent in the other direction — a coercion that DROPS the entries reads as zero
+    // scopes, which this file cannot distinguish from a run whose contracts were never written, so
+    // MAP SCOPES is re-dispatched over contracts already on disk.
+    scope_files: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { scope_id: { type: "string" }, path: { type: "string" } },
+        required: ["scope_id", "path"],
+      },
+    },
     // Additive: the same scopes grouped into dependency waves. Absent or unusable → one wave.
     scope_waves: { type: "array", items: { type: "array", items: { type: "string" } } },
     // The same relation as edges — `[dependant, dependency]` pairs. A wave says when a scope is
@@ -414,6 +438,7 @@ const RESUME = {
   },
   required: ["has_orient_artifacts", "has_spec_tree", "has_wiring_map", "scope_files", "eval_rounds_done"],
 };
+// ---- SCHEMA REGION END -------------------------------------------------------------------------
 
 /** `harness reduce graph --subgraph run` — the bounded read model a round opens with. */
 const SUBGRAPH = {
@@ -768,6 +793,12 @@ async function crossGate(gateId, phaseName, validDecisions, ctx) {
   return { decision };
 }
 
+// Ask the completion oracle about ONE phase, as a leg in that phase's progress group. Declared
+// ahead of both callers rather than between them: a `const` is not hoisted, and this file has paid
+// for a temporal-dead-zone binding once already (see `findings` at the round loop).
+const attest = (phaseKey, phaseName, label) =>
+  cmd(`probe resume --slug ${slug} --require ${phaseKey}`, phaseName, label);
+
 /**
  * The phase post-condition: the artifact is on disk, or the run stops here.
  *
@@ -780,7 +811,7 @@ async function crossGate(gateId, phaseName, validDecisions, ctx) {
  * @returns {Promise<(object|null)>} An aborted RunReturn, or null when the artifact is there.
  */
 async function requirePhase(gate, phaseKey, phaseName) {
-  const r = await cmd(`probe resume --slug ${slug} --require ${phaseKey}`, phaseName, `require:${phaseKey}`);
+  const r = await attest(phaseKey, phaseName, `require:${phaseKey}`);
   if (r.exit_code === 0) return null;
   return aborted(gate,
     `${gate} produced no artifact: the ${phaseKey} artifact is not on disk after the phase ran and its ` +
@@ -788,6 +819,44 @@ async function requirePhase(gate, phaseKey, phaseName) {
     `may report "escalated" with an empty artifacts list) — and because completion is derived from the ` +
     `artifact, every relaunch would re-dispatch this phase and escalate again. Read the phase's result ` +
     `to see what it could not complete, resolve it, then relaunch.`);
+}
+
+/**
+ * A phase this launch did not run, said where the run is actually watched — and proved.
+ *
+ * A GATE PAUSE IS A RETURN, so the PO's answer is followed by a fresh launch of this file, and the
+ * runtime's progress panel is rebuilt from THAT launch's dispatches: this repo resumes off the
+ * artifacts under `.shapeup/`, deliberately, rather than off the runtime's own `resumeFromRunId`.
+ * A phase that fast-forwards used to dispatch nothing, so its box rendered `0 agents · Not started
+ * yet` — identical to a phase that never ran, on the one screen an operator has to decide whether a
+ * paused run came back correctly. Measured on a relaunch: ORIENT, WIRE and MAP SCOPES looked right
+ * only by accident, because a gate leg lands in each of their progress groups and earns them a tick,
+ * while ANALYZE — reviewed at L1b, in another group — showed as never started with its spec tree
+ * sitting on disk. There is no runtime call for "mark this phase complete"; a leg is the only thing
+ * that puts a phase in the record, so the skip has to cost one.
+ *
+ * WHICH MAKES THE LEG WORTH SPENDING ON THE ONE QUESTION THE SKIP NEVER ASKED. Every fast-forward
+ * decision in this file branches on a SINGLE `probe resume` snapshot taken at the top of the run,
+ * before ORIENT dispatches. Re-asking `--require` at the phase itself is the same oracle the
+ * post-condition uses, one phase over, and it converts "the state probe said so a few legs ago" into
+ * an attestation made where it is acted on.
+ *
+ * @param {string} gate - The gate name to report an abort under.
+ * @param {string} phaseKey - The phase `probe resume --require` knows.
+ * @param {string} phaseName - Progress group.
+ * @param {string} what - What is already on disk, for the narrator line.
+ * @returns {Promise<(object|null)>} An aborted RunReturn, or null when the artifact is really there.
+ */
+async function fastForward(gate, phaseKey, phaseName, what) {
+  log(`${gate} — ${what}, fast-forwarding past it`);
+  const r = await attest(phaseKey, phaseName, `ff:${phaseKey}`);
+  if (r.exit_code === 0) return null;
+  return aborted(gate,
+    `${gate} was fast-forwarded on a state probe that reported its artifact present, and re-asking ` +
+    `\`probe resume --require ${phaseKey}\` at the phase itself says it is not on disk. Two readings ` +
+    `of "is this done" disagree, and the one taken AT the phase is the later of the two — so the run ` +
+    `stops here rather than building on a phase nothing can attest. Check whether the ${phaseKey} ` +
+    `artifact was moved or removed since this run last touched it, then relaunch.`);
 }
 
 // The ledger's `status` field is bookkeeping, not this file's resume oracle — the fast-forward reads
@@ -886,7 +955,8 @@ if (!rs.has_orient_artifacts) {
   await advisory(`reduce graph --slug ${slug}`, "Orient", "graph:orient");
   spikedArea = o.spiked_area; spikeResult = o.spike_result; riskiest = o.riskiest_unknowns || [];
 } else {
-  log("ORIENT — artifacts already on disk, fast-forwarding past it");
+  const post = await fastForward("ORIENT", "orient", "Orient", "artifacts already on disk");
+  if (post) return withWarnings(post);
 }
 
 {
@@ -915,7 +985,8 @@ if (!rs.has_spec_tree) {
   if (post) return withWarnings(post);
   await advisory(`reduce graph --slug ${slug}`, "Analyze", "graph:analyze");
 } else {
-  log("ANALYZE — spec tree already on disk, fast-forwarding past it");
+  const post = await fastForward("ANALYZE", "analyze", "Analyze", "spec tree already on disk");
+  if (post) return withWarnings(post);
 }
 
 // ---- WIRE + GATE L1a.5 ------------------------------------------------------------------------
@@ -932,7 +1003,8 @@ if (!rs.has_wiring_map) {
   if (post) return withWarnings(post);
   await advisory(`reduce graph --slug ${slug}`, "Wire", "graph:wire");
 } else {
-  log("WIRE — wiring map already on disk, fast-forwarding past it");
+  const post = await fastForward("WIRE", "wire", "Wire", "wiring map already on disk");
+  if (post) return withWarnings(post);
 }
 
 {
@@ -942,7 +1014,13 @@ if (!rs.has_wiring_map) {
 
 // ---- MAP SCOPES + GATE L1b --------------------------------------------------------------------
 phase("MapScopes");
-let scopes = (rs.scope_files || []).map((p) => ({ path: p, scope_id: p.split("/").pop().replace(/\.(md|json)$/, "") }));
+// Both ways this list is produced now carry the same shape: `probe resume`'s `scope_files` and
+// `MAPSCOPES.scopes` are each `{scope_id, path}`, so nothing downstream has to know which branch
+// filled it. An entry missing either half is dropped rather than turned into a scope whose path is
+// `undefined` — `compile --scope undefined` exits 2, and the attempt loop reads a non-zero exit as
+// the stagnation breaker, which is a dead scope reported as a hard one.
+let scopes = (rs.scope_files || []).filter((s) => s?.scope_id && s?.path)
+  .map((s) => ({ path: s.path, scope_id: s.scope_id }));
 const mappedThisRun = scopes.length === 0;
 if (scopes.length === 0) {
   log(`MAP SCOPES — dispatching (slug ${slug})`);
@@ -972,7 +1050,9 @@ if (scopes.length === 0) {
   await advisory(`reduce graph --slug ${slug}`, "MapScopes", "graph:map-scopes");
   scopes = m.scopes;
 } else {
-  log(`MAP SCOPES — ${scopes.length} scope contract(s) already on disk, fast-forwarding past it`);
+  const post = await fastForward("MAP SCOPES", "map-scopes", "MapScopes",
+    `${scopes.length} scope contract(s) already on disk`);
+  if (post) return withWarnings(post);
 }
 
 // DEPENDENCY ORDER — a scope is never built beside a scope it consumes.
@@ -1053,7 +1133,8 @@ await advisory(`reduce hill --slug ${slug}`, "MapScopes", "hill-derive");
 // and resume without re-work. So before opening a scope's attempt loop this file asks whether THIS
 // ROUND already has a green T0 verdict for it on disk, and skips the scope entirely when it does.
 // =============================================================================================
-let round = rs.eval_rounds_done?.length ? Math.max(...rs.eval_rounds_done) + 1 : 1;
+const lastEval = rs.eval_rounds_done?.length ? Math.max(...rs.eval_rounds_done) : 0;
+let round = lastEval + 1;
 let verdict = null;
 const allGreen = [];
 const allHammer = [];
@@ -1063,7 +1144,32 @@ const allHammer = [];
 // reaches that line.
 let findings = [];
 
-while (round <= maxRounds) {
+// THE ROUND THE RELAUNCH IS RESUMING INTO MAY ALREADY HAVE PASSED, and until this leg existed the
+// run had no way to find out. `round` above opens at the round AFTER the last EVAL — correct when
+// that EVAL returned FAIL, and the only reading available. But a pause at GATE L3, at QA or at
+// GATE H happens strictly AFTER `results/evaluate-r<N>.json` is written, so the relaunch opened
+// round N+1, asked the graph which scopes were green IN ROUND N+1, was told none, and re-dispatched
+// every scope through the attempt ratchet before running a second EVAL — over a verdict of PASS
+// sitting on disk. It cost a round of `maxRounds`, a full build fan-out, and a second judgement free
+// to return FAIL where the first passed. The PO answered a gate and the run went backwards.
+//
+// The verdict is an ARTIFACT, and `probe eval` reads it out of the WorkResult `reduce ingest` wrote
+// — the same probe, and deliberately not the dispatching agent's account of it, that L3 branches on
+// below. This is the fast-forward the planning phases have always had, applied to the one phase that
+// did not have it: a completed EVAL is skipped exactly like a completed ANALYZE.
+if (lastEval) {
+  phase("Eval");
+  const prior = await query(`probe eval --slug ${slug} --round ${lastEval}`, EVAL_VERDICT, "Eval", `ff:eval-r${lastEval}`);
+  if (prior?.ok && prior.overall === "PASS") {
+    verdict = "pass";
+    round = lastEval;
+    log(`EVAL — round ${lastEval} already returned PASS on disk, fast-forwarding past the build/eval loop`);
+  }
+}
+
+// `verdict !== "pass"` is the same exit the `break` below takes when a round passes — stated here as
+// well so a RESUMED run reaches it, since the break belongs to a loop iteration a relaunch never ran.
+while (verdict !== "pass" && round <= maxRounds) {
   phase("Build");
   await setRunStatus("building", "Build");
 

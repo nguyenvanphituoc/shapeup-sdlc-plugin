@@ -2393,6 +2393,45 @@
           ],
           "description": "The ledger's stored status, reported for the readers that legitimately hold a MID_RUN set over it (harness reduce snapshot, and the ship report's census). NOT a resume predicate: no phase decision in shapeup-run.js may branch on this field."
         },
+        "lens": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "From harness-run.md frontmatter; forwarded to the analyze dispatch. Null when the ledger names none — an unknown value is an ABSENT key in the order, never a null."
+        },
+        "stack": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "From harness-run.md frontmatter; forwarded to the orient dispatch. Null when the ledger names none."
+        },
+        "run_cmd": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "How to run the feature, from harness-run.md frontmatter; forwarded to the evaluate dispatch so the judge exercises a running thing. Null when the ledger names none."
+        },
+        "app_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Where the feature answers, from harness-run.md frontmatter; forwarded to the QA hunt. Null when the ledger names none."
+        },
+        "eval_dimensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The dimensions this run's EVAL grades, from harness-run.md frontmatter. Defaults to [\"spec-conformance\"] rather than empty, so a ledger that names none still produces a graded run — and the ship sign-off reports the complement as the dimensions the run did NOT cover."
+        },
+        "orient_dir": {
+          "type": "string",
+          "description": "The run's LOCAL orient directory, resolved for the analyze dispatch: ORIENT's spike and code-surface notes are working artifacts, not deliverables, so they live in the gitignored tier (ADR-0001)."
+        },
         "has_orient_artifacts": {
           "type": "boolean",
           "description": "ORIENT finished: orient/ carries code-surface.md, discovered-seed.md, hill-signal.md and at least one spike-*.md (skills/orient/SKILL.md §Outputs). The ORIENT skip gates on THIS."
