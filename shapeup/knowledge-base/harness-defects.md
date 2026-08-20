@@ -41,6 +41,36 @@ needs a `lens` field on `qa-edge-hunter`'s WorkOrder payload, a lens-aware order
 discriminator, and a merge step for the per-lens reports — none of which exist yet. Should ship
 opt-in only: QA's findings are advisory by design, and the sample size here is thin.
 
+### Raw idea, not yet a pitch — what a rebuilt trigger-eval layer must have
+
+Not a defect: a correction plus two proven requirements, from a direct real-execution experiment,
+2026-08-20. Filed here because the decision it needs — whether an activation-measurement layer comes
+back at all after `9236559`/`fda81c4` removed it — is a Betting Table call, not a maintenance one.
+
+`solution-architect` measures **TPR 1.0 / FPR 0 / precision 1.0** with its `description:`
+byte-for-byte unchanged. The only variable was the probe's working directory: 0.333 in the plugin's
+own repo, 1.0 in a workspace holding the artifacts the queries presuppose (11 cases, Sonnet, named
+explicitly, concurrency 1, detection logic lifted verbatim from the deleted harness so scoring
+matches the baseline).
+
+**The claim this corrects** — GH#12 held that this skill's low score could not be the missing-
+artifact confound because it had "0/6 deictic positives", and concluded a description rewrite was
+the fix. Measured: **6/6 presuppose artifacts**, one literally deictic. The hand classification
+counted only file-path referents like `TASK-007` and missed that "each use case" or "main.js" is
+just as unsupplied. Acting on it would have tuned the prose until the skill activated where its
+inputs do not exist — violating its own "profile absent ⇒ ESCALATE, do not invent an entry point"
+rule, and spending the one clean result the baseline had to do it. Recorded for the same reason as
+the permission-grant correction below: the wrong claim was the actionable-looking one.
+
+Two requirements, now proven rather than hypothesised, for any successor layer:
+
+1. Probes run against a workspace containing what the queries presuppose. Without it a correct
+   refusal is scored as a description defect, and the metric is unstable besides — the same prose,
+   model and dataset read 0.0 on 2026-07-26 and 0.167 on 2026-08-12.
+2. The scorer records **what activated instead**, not just fired/not-fired. Every miss here
+   activated *nothing*; no sibling ever stole a query. That silence is what distinguishes a
+   sensible refusal from a real description defect, and the old harness could not see it.
+
 ### The permission grant — fixed, and one claim above corrected
 
 Measured 2026-08-14 against Claude Code 2.1.232, every verdict decided by whether the target
