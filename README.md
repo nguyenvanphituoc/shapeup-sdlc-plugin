@@ -140,31 +140,18 @@ A longer version, including the internals, is in [docs/glossary.md](docs/glossar
 The harness walks a pitch from idea to ship. The full annotated pipeline — the build round,
 the gate walkthrough, the circuit breaker — is
 [`docs/design/04-functional-design.md`](docs/design/04-functional-design.md), and the design
-document as a whole starts at [`docs/design/`](docs/design/README.md). A simplified view:
+document as a whole starts at [`docs/design/`](docs/design/README.md). This diagram shows the
+full phase and gate mechanism — simpler than that per-attempt detail, but the whole pipeline:
 
-```mermaid
-graph LR
-    A([Raw Idea]) --> S["Shaping<br>/shapeup"]
-    S --> P["Pitch"]
-    P --> BET{"Betting<br>(PO)"}
-    BET --> KO["Kick-off + Orient<br>/orient"]
-    KO --> WIRE["Wire<br>/solution-architect"]
-    WIRE --> MAP["Map Scopes<br>/ba-pitch-analyzer<br>+ /scope-architect"]
-    MAP --> BUILD["Build Vertically<br>/task-executor"]
-    BUILD --> EVAL["Evaluate<br>/spec-evaluator"]
-    EVAL -- FAIL --> BUILD
-    EVAL -- PASS --> QA["Edge Hunt<br>/qa-edge-hunter"]
-    QA --> SHIP["Triage + Ship<br>/scope-hammer"]
-    SHIP --> RETRO["Coach Retro<br>/coach"]
-    TL["/tech-lead orchestrates Orient → Ship"] -.-> KO
+<p align="center">
+  <img src="docs/assets/workflow-mechanism.svg" alt="The shapeup-sdlc harness pipeline from raw idea to Coach Retro: Shaping produces a Pitch, the Betting Table bets into the tech-lead-orchestrated run or rejects back to raw idea, Kick-off through Ship Sign-off cross gates L0, L1a, L1a.5, L1b, advisory L2, L3, GATE H and L4, the Build/Evaluate round loops on FAIL, and a circuit breaker routes straight to GATE H — bypassing QA — when the round or wall-clock budget runs out." width="900">
+</p>
 
-    classDef plan fill:#e3f2fd,stroke:#1e88e5;
-    classDef build fill:#e8f5e9,stroke:#43a047;
-    classDef qa fill:#fce4ec,stroke:#c2185b;
-    class S,WIRE,MAP plan;
-    class KO,BUILD build;
-    class QA,EVAL qa;
-```
+<p align="center"><sub>
+Plan-phase skills in blue, build-phase in green, QA-phase in pink; amber pills are gates —
+the outlined <b>L2</b> is advisory, the rest block. The dashed region marks what
+<code>/tech-lead</code> orchestrates end to end.
+</sub></p>
 
 Since v1.3 the pipeline carries a **traceability spine**: `ba-pitch-analyzer`'s `coverage`
 operation writes a requirement registry (`requirements.md`), `solution-architect` commits a
