@@ -185,7 +185,7 @@ export async function run(ctx) {
     try {
       const wr = (rel, body) => { mkdirSync(dirname(join(t0box, rel)), { recursive: true }); writeFileSync(join(t0box, rel), body); };
       wr("shapeup/demo/scopes/sc-01.md", [
-        "---", "scope_id: sc-01", "topology_type: LAYER_CAKE", "tasks: [TASK-001]",
+        "---", "scope_id: sc-01", "topology_type: LAYER_CAKE", "use_cases: [UC-01]",
         "allowed_file_substrate: [src/a.js]",
         `e2e_verification_fixtures: ["node -e \\"process.exit(0)\\""]`,
         "hill_phase: UPHILL_UNKNOWN", "---", "", "# Scope: sc-01", "",

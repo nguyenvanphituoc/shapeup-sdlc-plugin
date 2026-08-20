@@ -359,6 +359,129 @@ export async function run(ctx) {
     } else {
       fail("shapeup-run.js does not gate ANALYZE on has_spec_tree — the phase is gated on something other than its artifact");
     }
+
+    // --- (k) A PHASE THIS LAUNCH DID NOT RUN MUST STILL SAY SO WHERE THE RUN IS WATCHED ---------
+    //
+    // THE DEFECT THIS CLOSES, measured off a live relaunch. A gate pause is a RETURN, so the PO's
+    // answer is followed by a fresh launch of the same script — and the runtime's progress panel is
+    // rebuilt from that launch's own dispatches, because this repo resumes off `.shapeup/` artifacts
+    // rather than the runtime's `resumeFromRunId`. A fast-forwarded phase dispatched nothing, so its
+    // box rendered `Analyze · 0 agents · Not started yet`: identical to a phase that never ran, on
+    // the one screen an operator uses to decide whether a paused run came back correctly. Three of
+    // the four phases hid it by accident — a gate leg lands in their progress group and earns them a
+    // tick — and ANALYZE, whose review happens at L1b in another group, had nothing at all.
+    //
+    // The fix is not cosmetic and the check is written against the part that is not: a skipped phase
+    // re-asks `--require`, so the claim "already on disk" is ATTESTED at the moment it is acted on
+    // rather than inherited from the single probe taken at the top of the run. The phase list comes
+    // from the module that owns it, never from a copy kept here — a second list beside the first is
+    // a second thing to forget, which is the same failure one level up.
+    const { PHASES } = await import(join(ROOT, "kernel/probe/resume.mjs"));
+    const attested = new Set([...wfCode.matchAll(/fastForward\(\s*"[^"]+",\s*"([\w-]+)"/g)].map((m) => m[1]));
+    const unattested = PHASES.filter((p) => !attested.has(p));
+    if (unattested.length === 0) {
+      ok(`every fast-forwardable phase attests its skip with a dispatched leg (${PHASES.join(", ")}) — a resumed run's progress panel shows the phase complete instead of "Not started yet"`);
+    } else {
+      fail("these phases fast-forward without dispatching anything into their progress group: "
+        + `${unattested.join(", ")} — on every relaunch after a paused gate they render as "0 agents · `
+        + 'Not started yet", which is indistinguishable from a phase that never ran, and the skip is '
+        + "acted on without anything re-asking whether the artifact is still there");
+    }
+
+    // The announcement belongs to the helper that attests, so no phase branch may compose its own.
+    // (k) above would still pass with a fifth branch that logged a skip and dispatched nothing —
+    // which is precisely the shape all four of them had.
+    const selfAnnounced = [...wfCode.matchAll(/log\(\s*[`"'][^`"']*fast-forward[^`"']*/g)]
+      .map((m) => m[0].replace(/\s+/g, " ").trim())
+      .filter((s) => /\b(ORIENT|ANALYZE|WIRE|MAP SCOPES)\b/.test(s));
+    if (selfAnnounced.length === 0) {
+      ok("no phase branch composes its own fast-forward message — the skip is announced by the helper that attests it");
+    } else {
+      fail("a phase announces its own fast-forward instead of going through the helper that attests it, "
+        + `so it can skip the phase while dispatching nothing into its progress group:\n    ${selfAnnounced.join("\n    ")}`);
+    }
+
+    // --- (l) A ROUND THAT ALREADY PASSED MUST NOT BE REBUILT ON RELAUNCH -----------------------
+    //
+    // THE DEFECT THIS CLOSES. The round loop opens at `max(eval_rounds_done) + 1` and skips a scope
+    // only when the run graph reports it green FOR THAT ROUND. A pause at L3, QA or GATE H happens
+    // after `results/evaluate-r1.json` exists, so the relaunch computed round 2, found nothing green
+    // in round 2, re-dispatched EVERY scope through the attempt ratchet and ran EVAL again — over a
+    // round whose verdict was already PASS on disk. It cost a round of `maxRounds`, a full build
+    // fan-out, and a second judgement that could return FAIL where the first passed.
+    //
+    // Both halves are asserted because either alone is passable: reading the prior verdict without
+    // guarding the loop changes nothing, and guarding the loop on a verdict nothing derives is a
+    // condition that is always true on a fresh launch.
+    const loopAt = wfCode.search(/while\s*\([^)]*round\s*<=/);
+    const iRounds = wfCode.indexOf("eval_rounds_done");
+    const priorVerdict = [...wfCode.matchAll(/probe eval --slug/g)]
+      .map((m) => m.index)
+      .filter((i) => loopAt > -1 && i < loopAt && i > iRounds);
+    if (priorVerdict.length) {
+      ok("shapeup-run.js reads the last EVAL round's verdict off disk before opening the round loop — a relaunch after a pause at L3/QA/H resumes at QA instead of rebuilding a round that already passed");
+    } else {
+      fail("shapeup-run.js opens its round loop without asking what the last EVAL round decided; "
+        + "`probe eval` is the derivation and it is only consulted INSIDE the loop, so a relaunch after "
+        + "a pause at L3, QA or GATE H re-dispatches every scope at round+1 and re-runs EVAL over a "
+        + "verdict already on disk");
+    }
+    const loopCond = (wfCode.match(/while\s*\(([^)]*round\s*<=[^)]*)\)/) || [])[1] || "";
+    if (/verdict/.test(loopCond)) {
+      ok(`the round loop is entered only when the verdict is not already a pass (\`${loopCond.trim()}\`)`);
+    } else {
+      fail(`the round loop condition is \`${loopCond.trim() || "<not found>"}\` — it does not consult the `
+        + "verdict, so a resumed run re-enters BUILD even when the round it is resuming into already passed");
+    }
+
+    // --- (m) THE TWO HALVES OF EVERY RESUME FIELD MUST AGREE ABOUT ITS SHAPE -------------------
+    //
+    // THE DEFECT THIS CLOSES, and the class it belongs to. `probe resume` emits `scope_files` as
+    // `{scope_id, path}` objects — check (e) above asserts exactly that, and domain.schema.json
+    // declares it — while the workflow declared `items: {type: "string"}` and then split each entry
+    // as a path. Nothing failed: the courier sub-agent sits between the kernel's stdout and the
+    // schema the runtime validates against, so it coerced the objects on the way through and both
+    // halves stayed green while disagreeing. When such a coercion drops the value instead, the
+    // orchestrator reads zero scopes and re-dispatches MAP SCOPES over contracts already on disk.
+    //
+    // A reader and a writer disagreeing about a format with nothing comparing them is the shape of
+    // every defect the tier pass closed. This is the comparison, made against the SHIPPED bytes of
+    // both halves rather than a description of either.
+    const { loadResumeSchema } = await import("../lib/resume-schema-region.mjs");
+    const domain = JSON.parse(readFileSync(join(ROOT, "skills/tech-lead/schemas/domain.schema.json"), "utf8"));
+    const declared = domain?.$defs?.ResumeState?.properties;
+    let wfResume = null;
+    try { wfResume = loadResumeSchema(ROOT); } catch (e) { fail(String(e.message)); }
+    if (!declared) {
+      fail("domain.schema.json declares no $defs/ResumeState.properties — the resume state's shipped shape has no owner");
+    } else if (wfResume) {
+      /** The type token(s) of one schema node, plus the item shape when it is an array. */
+      const shape = (s) => {
+        if (!s || typeof s !== "object") return "?";
+        const t = Array.isArray(s.type) ? [...s.type].sort().join("|") : s.type;
+        return t === "array" ? `array<${shape(s.items)}>` : String(t);
+      };
+      const clashes = [];
+      for (const [field, node] of Object.entries(wfResume.properties || {})) {
+        if (!declared[field]) {
+          clashes.push(`${field} — the workflow reads it; ResumeState does not declare it`);
+          continue;
+        }
+        const [a, b] = [shape(node), shape(declared[field])];
+        // The workflow may narrow a nullable field to the non-null half (it drops nulls before they
+        // reach an order), so `string` against `null|string` is not a clash. A different BASE type,
+        // or a different item shape inside an array, is.
+        const base = (s) => s.replace(/^null\|/, "").replace(/<null\|/, "<");
+        if (base(a) !== base(b)) clashes.push(`${field} — workflow reads ${a}, ResumeState declares ${b}`);
+      }
+      if (clashes.length === 0) {
+        ok(`every field the workflow's RESUME schema declares matches $defs/ResumeState (${Object.keys(wfResume.properties).length} fields, both read from the shipped artifacts)`);
+      } else {
+        fail("the orchestrator's RESUME schema and the shipped ResumeState disagree about a field's shape; "
+          + "the courier sub-agent validates against the workflow's declaration and coerces whatever the "
+          + `kernel actually printed, so the disagreement is invisible until the coercion drops a value:\n    ${clashes.join("\n    ")}`);
+      }
+    }
   } finally {
     rmSync(ws, { recursive: true, force: true });
   }

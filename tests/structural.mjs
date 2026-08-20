@@ -129,6 +129,30 @@ const MODULE_FILES = [
   // existing test drives `probe concurrency`'s `report()` over a fixture mixing build-leg and
   // non-leg rows, nor `resolveRunId(cwd, null)` with more than one run directory present.
   "33-probe-hygiene.mjs",
+  // 34-scope-anchor.mjs: the scope contract anchors into the COMMITTED spec (use_cases) rather than
+  // naming LOCAL task ids, and declares its own build order. Its own module because no existing test
+  // drives the contract's spec anchor at all — every prior fixture carried `tasks:` as inert filler,
+  // and the tier rule that forbids it (TIER-DIRECTION) only ever walked wikilinks inside spec/.
+  "34-scope-anchor.mjs",
+  // 35-domain-catalog.mjs: the three expressions of the domain model — the $defs type catalog, the
+  // x-erd relationship catalog, and the node vocabulary reduce graph actually emits — checked
+  // against each other, plus the tier rule asserted at the catalog level. Its own module because
+  // nothing compared any pair of them, and all three had drifted apart unnoticed.
+  "35-domain-catalog.mjs",
+  // 36-wiring-map.mjs: the wiring map parses and reduce graph reads the fields it produces. Its own
+  // module because three independent name mismatches (layout, contract field, cell names) each
+  // yielded an empty domain half in silence — 9 of 9 committed maps parsed to zero entries while
+  // reporting readable, and trace-lint certified 0/0 engines reach the entry point.
+  "36-wiring-map.mjs",
+  // 37-committed-tier.mjs: no committed artifact references the gitignored tier, checked over the
+  // whole shapeup/<slug>/ tree rather than the two corners the narrower rules watched — plus the
+  // root-cause half, that no template owning a committed artifact teaches a task id.
+  "37-committed-tier.mjs",
+  // 38-scope-partition.mjs: dispatch must assign each task to exactly one scope. Its own module
+  // because replacing the contract's tasks[] with a use_cases[] anchor traded a declared partition
+  // for a derived N:N — on a four-scope/one-use-case cut every scope claimed every task. Also holds
+  // the depends_on cycle check and the rule that the board restates no derived value.
+  "38-scope-partition.mjs",
   "08-docs.mjs",
 ];
 

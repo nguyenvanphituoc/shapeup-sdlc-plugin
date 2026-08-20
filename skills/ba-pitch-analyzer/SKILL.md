@@ -50,7 +50,7 @@ its phase; templates live in `assets/templates/`.
 2  DDD         bounded contexts, aggregates (new vs extended), value objects, domain events,
                repository interfaces → domain-model.md          [references/ddd-patterns.md]
 2b CONTRACTS   (standard lens) typed Request/Response/Error per repository; two-pass rule:
-               unresolvable at spec time → `⏳ TBD — verify in TASK-NNN-spike-…`, resolved
+               unresolvable at spec time → `⏳ TBD — verify in the [UC-x] spike`, resolved
                post-SPIKE with citation → contracts/            [references/contract-patterns.md]
 3  UX          per screen: state table (idle→loading→error→success), error cases with
                message+action, ASCII flows → ux-behavior.md     [references/ux-behavior-patterns.md]

@@ -14,9 +14,12 @@ dependent implementation tasks can proceed.*
 
 ## Detected Third-Party Dependencies
 
-| # | Service | Capability Claimed | Status | SPIKE Task |
-|---|---------|-------------------|--------|------------|
-| API-01 | [ServiceName] | [What pitch claims this API can do] | ❓ UNVERIFIED | [[TASK-001-spike-[api]]] |
+| # | Service | Capability Claimed | Status | Spike |
+|---|---------|-------------------|--------|-------|
+| API-01 | [ServiceName] | [What pitch claims this API can do] | ❓ UNVERIFIED | ⏳ open |
+
+<!-- The Spike column records STATUS (⏳ open / ✅ done / — none), never a task id.
+     This document is committed; the board is not, and its ids renumber per machine. -->
 
 ---
 
@@ -49,10 +52,12 @@ Specifically: [quote or paraphrase relevant pitch sentence].
 | Partially supported | [Describe workaround] | +[N]h |
 | Not supported | [Describe alternative or de-scope] | [TBD with PO] |
 
-**Dependent Tasks:**
-<!-- List all tasks blocked until this investigation is complete -->
-- [[TASK-NNN]] — [reason blocked]
-- [[TASK-NNN]] — [reason blocked]
+**Blocked Use Cases:**
+<!-- What cannot be built until this investigation resolves. Name the committed UC, never
+     a task id: this doc is committed and task ids are machine-local. The tasks are found
+     by inverting use_case_refs over the LOCAL board. -->
+- [[usecases/UC-Name]] — [reason blocked]
+- [[usecases/UC-Name]] — [reason blocked]
 
 **Decision Gate:**
 - All questions answered + capability confirmed → update `contracts/[repo].contract.md`, remove ⏳ TBD fields, notify SPIKE complete

@@ -117,11 +117,15 @@ Every contracts folder must have an `_index.md` registry:
 ```markdown
 # Contract Registry — [feature-slug]
 
-| Repository | Source Type | Service / Engine | Status | SPIKE Task |
-|-----------|------------|-----------------|--------|------------|
-| [[FramerPageRepository]] | third-party-api | Framer REST API | ⚠️ speculative | [[TASK-001]] |
+| Repository | Source Type | Service / Engine | Status | Spike |
+|-----------|------------|-----------------|--------|-------|
+| [[FramerPageRepository]] | third-party-api | Framer REST API | ⚠️ speculative | ⏳ open |
 | [[PageCacheRepository]] | offline-storage | SQLite/Drizzle | ✅ confirmed | — |
 | [[UserSessionRepository]] | be-service | apps/api /auth | ✅ confirmed | — |
+
+The Spike column carries a STATUS, not a task id. The registry is committed; the board is
+not, and its ids renumber on every regeneration — so a task id recorded here resolves on
+the machine that wrote it and nowhere else (spec-lint TIER-DIRECTION).
 ```
 
 This registry is the entry point for the spec-lint structure checks.
@@ -147,6 +151,6 @@ Every implementation task that uses a repository MUST:
 
 3. If contract is still `speculative` at task-generation time:
    ```markdown
-   > ⏳ BLOCKED by [[TASK-001-spike-framer-feasibility]]
+   > ⏳ BLOCKED — spike open, see [[api-feasibility#API-01]]
    > Unblock condition: [[contracts/framer-page.contract.md]] has no remaining ⏳ TBD fields
    ```

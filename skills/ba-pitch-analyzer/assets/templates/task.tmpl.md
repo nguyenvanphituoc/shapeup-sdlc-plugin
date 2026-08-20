@@ -9,6 +9,9 @@ priority: N
 depends_on: []
 unlocks: []
 use_case_refs: []
+scope_id: ""                     # optional — set ONLY when several scopes share this task's use
+                                 # case and spec-lint SCOPE-PARTITION says the UC anchor cannot
+                                 # decide who builds it. Names a committed scope_id (LOCAL→SHARED).
 entities: []
 repositories: []
 linked_docs: []

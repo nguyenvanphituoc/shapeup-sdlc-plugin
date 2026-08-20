@@ -206,7 +206,7 @@ export async function run(ctx) {
   // with a reason — and every member evaporated. `t0-verify` consumes this field.
   {
     const blockForm = [
-      "---", "scope_id: SC-demo", "tasks: [TASK-001, TASK-002]",
+      "---", "scope_id: SC-demo", "use_cases: [UC-01, UC-02]",
       "e2e_verification_fixtures:",
       '  - "node src/cli/main.js archive"',
       '  - "TBD — not built (exits 1, confirmed). Needs the command first."',
@@ -221,9 +221,9 @@ export async function run(ctx) {
     if (Array.isArray(fx) && /Needs the command first\.$/.test(fx[1] || "")) ok("HD-003: a block member carrying commas survives whole");
     else fail(`HD-003 regression: block member came back as ${JSON.stringify(fx && fx[1])}`);
     // Non-regression: inline lists and scalars beside a block key are untouched.
-    if (JSON.stringify(c.tasks) === '["TASK-001","TASK-002"]' && c.business_goal === "demo" && C.unreadableReason(c) === null) {
+    if (JSON.stringify(c.use_cases) === '["UC-01","UC-02"]' && c.business_goal === "demo" && C.unreadableReason(c) === null) {
       ok("HD-003 fix leaves inline lists and scalars alone, and reports the contract as clean");
-    } else fail(`HD-003 fix disturbed its neighbours: tasks=${JSON.stringify(c.tasks)} goal=${JSON.stringify(c.business_goal)} reason=${JSON.stringify(C.unreadableReason(c))}`);
+    } else fail(`HD-003 fix disturbed its neighbours: use_cases=${JSON.stringify(c.use_cases)} goal=${JSON.stringify(c.business_goal)} reason=${JSON.stringify(C.unreadableReason(c))}`);
     // And the half that matters most: an indented shape that is NOT a block sequence is REPORTED.
     const junk = C.parseContract(["---", "scope_id: SC-junk", "e2e_verification_fixtures:",
       "    node src/cli/main.js archive", "    node src/cli/main.js list", "---", ""].join("\n"), C.SCOPE_CONTRACT);
@@ -301,7 +301,7 @@ export async function run(ctx) {
   {
     const { parseContract, unreadableReason, SCOPE_CONTRACT } = await import(join(ROOT, "kernel/lib/contract.mjs"));
     const md = (extra) => [
-      "---", "scope_id: sc-01", "topology_type: LAYER_CAKE", "tasks: [TASK-001]",
+      "---", "scope_id: sc-01", "topology_type: LAYER_CAKE", "use_cases: [UC-01]",
       "allowed_file_substrate:", "  - src/a.js", "hill_phase: UPHILL_UNKNOWN", "---", "",
       "# Scope: sc-01", "", "## Why this slice", "", "Because the flow crosses two layers.", "", extra,
     ].join("\n");

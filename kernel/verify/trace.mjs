@@ -40,7 +40,7 @@ import { resolve, join, dirname, relative, isAbsolute } from "node:path";
 import { readBoard } from "../compile.mjs";
 import { runArgs } from "../lib/argv.mjs";
 import { sharedRoot, traceDir, relLocal } from "../lib/paths.mjs";
-import { readContract, unreadableReason, WIRING_MAP, PROJECT_PROFILE } from "../lib/contract.mjs";
+import { readContract, unreadableReason, LEGACY_LAYOUT, WIRING_MAP, PROJECT_PROFILE } from "../lib/contract.mjs";
 
 // --- requirements.md registry parser -----------------------------------------
 // A committed markdown table: | REQ-id | clause (verbatim) | source | status | note |
@@ -270,6 +270,16 @@ export function traceLint(slug, { cwd, gate = false }) {
     wiringMap = null;
     reachability = { checked: false, pass: false, unreachable: [],
       skipped_reason: `wiring-map.md is present but unreadable (${wiringUnreadable}) — reachability cannot be claimed.` };
+  }
+
+  // A map that parsed only through the migration reader still WORKS — but silence about that is
+  // how a temporary fallback becomes a permanent second format. Warn, so the next `wire` converges
+  // the file on the canonical table rather than the reader carrying the old shape indefinitely.
+  if (wiringMap && wiringMap[LEGACY_LAYOUT]) {
+    findings.push({ severity: "warn", code: "WIRING-LEGACY-LAYOUT", message:
+      "wiring-map.md is in the pre-canonical per-use-case layout (`### UC-xx` + a `| Field | Value |` table). " +
+      "It reads correctly through the migration reader, but the canonical form is one `## Wiring` table — " +
+      "re-run the wire operation to converge it, so this artifact stops having two shapes." });
   }
 
   if (wiringMap) {

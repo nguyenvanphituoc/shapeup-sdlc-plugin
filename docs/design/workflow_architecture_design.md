@@ -242,12 +242,16 @@ for its exit-3 RESUME STATE, moved to where it can never be skipped:
 
 ```
 on launch, before phase 1:
-  receipt   = mech(read receipt.json)          — absent → fresh run, start at ORIENT
-  status    = receipt.status                    — orienting|mapping|building|evaluating|…
-  board     = mech(board-derive / read _index)  — done/total counts
-  trials    = mech(tail trials.jsonl)           — last attempt per scope, kept/reverted
-  jump to the first phase whose artifacts are incomplete; never re-dispatch an order
-  that already has a result (orders/ vs results/ set difference — pure code)
+  state     = mech(probe resume --slug <slug>)  — one derivation, every field read off disk
+    orient/ complete? · usecases/*.md? · wiring-map.md? · scopes/*.md?
+    orders/ minus results/    — never re-dispatch an order that already has a result
+    evaluate-r<N>.json        — which rounds have been judged
+  status    — REPORTED, never consulted: a stored claim is what pinned a run at "orienting"
+              across two complete legs while every relaunch re-ran ORIENT from scratch
+  jump to the first phase whose artifacts are incomplete; a round whose EVAL already
+  returned PASS is skipped the same way (probe eval reads that verdict off the WorkResult),
+  and every skip re-asks --require for the phase before acting on it, so the claim is
+  attested where it is used rather than inherited from one probe at the top of the run
 ```
 
 This is why the pause protocol needs no session affinity: a relaunch in a fresh session, a crash,

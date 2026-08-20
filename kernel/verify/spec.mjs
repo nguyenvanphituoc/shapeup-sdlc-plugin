@@ -12,13 +12,32 @@
 //   STRUCTURE spec tree completeness (usecases/ ≥1 UC, domain-model, UC ## Steps),
 //             unresolved wikilinks, task frontmatter completeness, unlocks edge-symmetry,
 //             depends_on referencing unknown tasks
-//   TIER-DIRECTION  a committed (SHARED) spec doc wikilinking the LOCAL board ([[tasks/...]]).
-//             Persisted links flow LOCAL→SHARED only: task ids are machine-local (boards
-//             regenerate and renumber) and .shapeup/ is gitignored — a committed task
-//             link dangles on every fresh clone. Cite the UC or scope_id instead.
+//   TIER-DIRECTION  ANY committed (SHARED) file referencing the LOCAL tier: a `TASK-` id in
+//             prose, a table cell or frontmatter, or a path into .shapeup/. Scans the whole
+//             shapeup/<slug>/ tree, because the leak was never confined to the two corners the
+//             narrower checks watched — measured across nine runs it was 264 ids in
+//             spec/synthesis.md, 183 in scope-summary.md, 136 in scope-board.md, all in cells
+//             and sentences no wikilink check can see. Persisted links flow LOCAL→SHARED only:
+//             board ids renumber per machine and .shapeup/ is gitignored, so a committed
+//             reference resolves for its author and nobody else. Cite the UC or scope_id.
+//             (shapeup/knowledge-base/ is a sibling of the slug tree, so it is outside this
+//             walk by construction — those files instruct workers, they do not cite artifacts.)
 //   UC-ANCHOR a task whose use_case_refs is empty or names a UC with no usecases/UC-*.md —
 //             the LOCAL→SHARED anchor must be complete (single-anchor rule; SPIKE/CHORE/
 //             DOCS/MIGRATION tasks anchor elsewhere and are exempt)
+//   SCOPE-ANCHOR  the same rule for the other direction's artifact: a scope contract whose
+//             use_cases is empty or names a UC with no usecases/UC-*.md. The contract is
+//             committed, so this anchor is what the scope↔task join is re-derived through
+//   SCOPE-DEPS  a contract's depends_on naming itself, a scope not in this run, or a CYCLE —
+//             build ORDER lives in the committed tier now, and the scheduler answers a cycle by
+//             dumping every remaining scope into one unordered wave without reporting it
+//   SCOPE-COVERS  a contract's covers entry that is not a REQ-id (warn), or names a REQ that
+//             is not in requirements.md (red, when a registry exists) — shape alone let a scope
+//             claim coverage of a requirement that does not exist
+//   SCOPE-PARTITION  a task claimed by more than one scope. The UC anchor is a SPEC link, not an
+//             assignment: one use case is routinely implemented by several scopes, so on a
+//             four-scope/one-UC cut every scope claimed every task and would build all of them.
+//             Resolved by a `scope_id:` on the task (LOCAL→SHARED) or by re-cutting
 //   INV-FLOOR the raw idea (intake.md) names explicit constraints (a No-gos/Constraints/
 //             Edge-cases heading with real content under it) but no usecases/UC-*.md declares
 //             a single [INV-NN] anywhere — a criteria-count check can't tell a healthy small
@@ -35,8 +54,8 @@ import { resolve, join, relative } from "node:path";
 import { parseBoard, deriveUnlocks } from "../reduce/board.mjs";
 import { runArgs } from "../lib/argv.mjs";
 import { LOCAL } from "../lib/paths.mjs";
-import { specDir, scopesDir, tasksDir, intake } from "../lib/paths.mjs";
-import { readAllContracts, unreadableReason, SCOPE_CONTRACT } from "../lib/contract.mjs";
+import { specDir, scopesDir, tasksDir, intake, sharedRoot, requirements } from "../lib/paths.mjs";
+import { readAllContracts, unreadableReason, ucId, scopePartitionConflicts, SCOPE_CONTRACT } from "../lib/contract.mjs";
 
 // Inlined from hooks/sandbox-guard.mjs so this skill ships self-contained (a skill's scripts
 // must not reach outside its own folder — channels that copy only skills/ would dangle).
@@ -189,6 +208,192 @@ export function lintScopes(scopes, repoFiles) {
   return findings;
 }
 
+/** Text forms worth scanning; anything else in a committed tree is not a reference carrier. */
+const SCANNED = /\.(md|markdown|yml|yaml|json|txt)$/i;
+
+/** A machine-local board id. Strict on purpose: a committed tree has no reason to carry one at all. */
+const TASK_ID = /\bTASK-[A-Za-z0-9][\w.-]*/;
+
+/**
+ * Lint the WHOLE committed tree for references into the gitignored tier.
+ *
+ * WHY THIS IS NOT THE SAME RULE AS TIER-DIRECTION ABOVE. That one walks wikilinks inside `spec/`
+ * and one frontmatter key in `scopes/`. Neither of those is the form the violation actually takes.
+ * Measured across nine completed runs, the leak is a bare `TASK-004` in a table cell or a sentence,
+ * in seven committed artifact types — 264 of them in `spec/synthesis.md` alone, 183 in
+ * `scope-summary.md`, 136 in `scope-board.md` — plus paths into `.shapeup/` in nine more files.
+ * A rule that inspects two corners of the tree for two syntactic forms reported all of it clean.
+ *
+ * The template that motivates the strictness states the rule and then breaks it: `synthesis.tmpl.md`
+ * says "Record only the count + status — never task ids … spec-lint flags [[tasks/...]] here as a
+ * red TIER-DIRECTION finding" and then prints a dependency chain, a wave table and a critical path
+ * entirely in `TASK-NNN` ids, 110 lines later, in cells no wikilink check can see.
+ *
+ * SCOPE IS THE SLUG'S TREE. `shapeup/knowledge-base/` is a sibling of `shapeup/<slug>/`, not a
+ * child, so it is outside this walk by construction — which is right: those files are instructions
+ * telling a worker what to do at runtime, not references a reader is expected to resolve.
+ *
+ * @param {{cwd:string, slug:string}} opts - Working root and feature slug.
+ * @returns {Array<{rule:string, level:"red", detail:string}>} One finding per offending line; [] when clean.
+ */
+export function lintCommittedTier({ cwd, slug }) {
+  const root = sharedRoot(cwd, slug);
+  if (!existsSync(root)) return [];
+  // Built from the LOCAL constant, never a literal — the storage roots have exactly one home.
+  const localPath = new RegExp(`${LOCAL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/\\S`);
+  const findings = [];
+  for (const rel of walkFiles(root)) {
+    if (!SCANNED.test(rel)) continue;
+    let lines;
+    try { lines = readFileSync(join(root, rel), "utf8").split(/\r?\n/); } catch { continue; }
+    lines.forEach((line, i) => {
+      const at = `${relative(cwd, join(root, rel))}:${i + 1}`;
+      const task = line.match(TASK_ID);
+      if (task) {
+        findings.push({ rule: "TIER-DIRECTION", level: "red", detail:
+          `${at} names ${task[0]} — a committed file cannot carry a board id. Boards live in ${LOCAL}/ ` +
+          "(gitignored) and renumber on every regeneration, so this resolves on the machine that wrote it " +
+          "and nowhere else. Cite the use case or the scope_id, which are stable." });
+      }
+      if (localPath.test(line)) {
+        findings.push({ rule: "TIER-DIRECTION", level: "red", detail:
+          `${at} points into ${LOCAL}/ — a committed file cannot reference the gitignored tier; the path ` +
+          "dangles on every other clone. Name the committed artifact, or describe the tier without a path." });
+      }
+    });
+  }
+  return findings;
+}
+
+/**
+ * Lint the scope contract's anchor into the COMMITTED spec — the direction persisted links flow in.
+ *
+ * THE MIRROR OF UC-ANCHOR, for the other artifact that has to name what it builds. UC-ANCHOR makes
+ * every LOCAL task name a committed use case; nothing made the COMMITTED scope contract name one,
+ * and the field it carried instead was a list of LOCAL task ids. That is the exact shape
+ * TIER-DIRECTION reds a spec doc for — except TIER-DIRECTION walks wikilinks inside `spec/`, and a
+ * contract lives in `scopes/` and holds its pointer in frontmatter, so neither half of the existing
+ * rule could see it. Measured before this rule existed: a contract naming `TASK-004`, with no board
+ * anywhere in the tree, linted 0 red / 0 warn, and `compile` then wrote a build order carrying no
+ * tasks at all and exited 0.
+ *
+ * `tasks` is red rather than a warn because there is no reading of it that is safe to carry: on the
+ * machine that authored it the ids resolve and the contract looks correct, and on every other one
+ * they resolve to nothing without a single check going red. A field that is only wrong somewhere
+ * else is the kind this repo has been bitten by twice.
+ *
+ * @param {{scopes:Array<object>, specDir:string}} input - The parsed contracts and the SHARED spec dir.
+ * @returns {Array<{rule:string, level:("red"|"warn"), scope:string, detail:string}>} Findings; [] when clean.
+ */
+export function lintScopeAnchors({ scopes, specDir: specRoot, reqIds = null, tasks = [] }) {
+  const findings = [];
+  // SCOPE-PARTITION — dispatch has to assign each task to exactly ONE scope.
+  //
+  // The UC anchor is a spec link, not an assignment: a use case is routinely implemented by several
+  // scopes, which is what a vertical slice IS. On the corpus's four-scope / one-use-case cut every
+  // scope claimed every task, so each would build all four and be denied by the sandbox on three of
+  // them. Red rather than warn: a dispatch that is not a partition burns the attempt budget of every
+  // scope in the cut. The fix is a `scope_id:` on the task (LOCAL naming SHARED, the sanctioned
+  // direction) or a re-cut that gives each scope its own use cases.
+  for (const c of scopePartitionConflicts(tasks, scopes)) {
+    findings.push({ rule: "SCOPE-PARTITION", level: "red", scope: c.scopes.join("+"), detail:
+      `${c.task_id} is claimed by ${c.scopes.length} scopes (${c.scopes.join(", ")}) — they share a use case, so the ` +
+      "UC anchor cannot say who builds it. Stamp `scope_id:` on the task, or re-cut so each scope owns its own use cases." });
+  }
+  const ucDir = join(specRoot, "usecases");
+  const ucIds = new Set(
+    (existsSync(ucDir) ? readdirSync(ucDir) : []).filter((f) => /^UC-.*\.md$/.test(f)).map((f) => f.replace(/\.md$/, "")),
+  );
+  const ids = new Set(scopes.map((s) => s.scope_id).filter(Boolean));
+  for (const s of scopes) {
+    const where = s.scope_id || "(unnamed scope)";
+    if (Array.isArray(s.tasks) && s.tasks.length) {
+      findings.push({
+        rule: "TIER-DIRECTION", level: "red", scope: where,
+        detail: `contract names LOCAL task ids [${s.tasks.join(", ")}] — a committed contract cannot point into ` +
+          `.shapeup/ (gitignored, and boards renumber per machine), so these dangle on every other clone. ` +
+          "Anchor with use_cases: [UC-…] instead; the scope's tasks are re-derived from the board's own use_case_refs.",
+      });
+    }
+    const anchors = (s.use_cases || []).map(ucId).filter(Boolean);
+    if (!anchors.length) {
+      findings.push({
+        rule: "SCOPE-ANCHOR", level: "red", scope: where,
+        detail: "empty use_cases — every scope must anchor into the committed spec (LOCAL→SHARED, the same " +
+          "single-anchor rule tasks follow). Without it nothing can say which tasks, requirements or " +
+          "affordances this scope is answerable for.",
+      });
+    }
+    for (const uc of anchors) {
+      if (!ucIds.has(uc)) findings.push({ rule: "SCOPE-ANCHOR", level: "red", scope: where, detail: `use_cases "${uc}" does not resolve to usecases/${uc}.md` });
+    }
+    // `depends_on` carries the build ORDER now that task ids no longer do, so a dangling id is a
+    // silently-dropped edge in the scheduler (which fails open by design) — reported here instead.
+    for (const d of s.depends_on || []) {
+      const id = String(d).trim();
+      if (id === s.scope_id) findings.push({ rule: "SCOPE-DEPS", level: "red", scope: where, detail: `depends_on names itself — a scope cannot wait for its own completion` });
+      else if (id && !ids.has(id)) findings.push({ rule: "SCOPE-DEPS", level: "red", scope: where, detail: `depends_on "${id}" is not a scope in this run — the scheduler drops the edge, so this scope may build before its dependency` });
+    }
+    for (const r of s.covers || []) {
+      const req = String(r).trim();
+      if (!/^REQ-[A-Z0-9-]+$/i.test(req)) {
+        findings.push({ rule: "SCOPE-COVERS", level: "warn", scope: where, detail: `covers "${r}" is not a REQ-id — the requirement edge will not resolve` });
+        continue;
+      }
+      // CLOSURE, not just shape. Validating the format alone let a scope claim a requirement that
+      // does not exist — the field read as traceability while tracing to nothing. Checked only when
+      // a registry is on disk, so a pre-spine spec is unaffected (absent artifact ⇒ arm skipped).
+      if (reqIds && !reqIds.has(req.toUpperCase())) {
+        findings.push({ rule: "SCOPE-COVERS", level: "red", scope: where, detail: `covers "${req}" is not in requirements.md — a covers: link must resolve to a registered REQ, or the scope claims coverage of nothing` });
+      }
+    }
+  }
+
+  // SCOPE-DEPS cycles. `scopeWaves` guards a cycle by dumping the remainder into ONE wave and
+  // reporting nothing, so a cyclic cut silently degrades to the unscheduled fan-out the scheduler
+  // exists to replace. Now that build order lives on the contract, the cycle has to be reported
+  // where it can still be fixed.
+  for (const cyc of depCycles(scopes)) {
+    findings.push({ rule: "SCOPE-DEPS", level: "red", scope: cyc[0], detail:
+      `depends_on cycle: ${cyc.join(" → ")} → ${cyc[0]} — no build order satisfies it, so the scheduler drops to a single unordered wave` });
+  }
+  return findings;
+}
+
+/**
+ * Every dependency cycle among the scopes, each reported once from its lowest-sorting member.
+ * @param {Array<{scope_id:string, depends_on?:string[]}>} scopes - The contracts.
+ * @returns {string[][]} One id path per distinct cycle; [] when the relation is acyclic.
+ */
+function depCycles(scopes) {
+  const deps = new Map(scopes.map((s) => [s.scope_id, (s.depends_on || []).map((d) => String(d).trim())]));
+  const seen = new Set();
+  const cycles = [];
+  for (const start of deps.keys()) {
+    const stack = [];
+    /**
+     * Depth-first walk recording any cycle reached from `start`.
+     * @param {string} id - The scope currently being entered.
+     * @returns {void}
+     */
+    const walk = (id) => {
+      const at = stack.indexOf(id);
+      if (at !== -1) {
+        const cyc = stack.slice(at);
+        const key = [...cyc].sort().join("|");
+        if (!seen.has(key)) { seen.add(key); cycles.push(cyc); }
+        return;
+      }
+      if (!deps.has(id)) return;
+      stack.push(id);
+      for (const d of deps.get(id)) walk(d);
+      stack.pop();
+    };
+    walk(start);
+  }
+  return cycles;
+}
+
 // Match a heading-like line naming No-gos/Constraints/Edge-cases anywhere in the free-form raw
 // idea, any markdown heading level, case-insensitive.
 const CONSTRAINT_HEADING = /^#{1,6}\s*(no-?gos|constraints|edge[\s-]?cases)\b/im;
@@ -282,8 +487,8 @@ export function lintStructure({ specDir, tasks, intakeContent = "" }) {
       continue;
     }
     for (const r of refs) {
-      const ucId = r.replace(/^\[\[|\]\]$/g, "").replace(/^usecases\//, "");
-      if (!ucIds.has(ucId)) findings.push({ rule: "UC-ANCHOR", level: "red", detail: `${t.id} use_case_refs "${r}" does not resolve to usecases/${ucId}.md` });
+      const uc = ucId(r);
+      if (!ucIds.has(uc)) findings.push({ rule: "UC-ANCHOR", level: "red", detail: `${t.id} use_case_refs "${r}" does not resolve to usecases/${uc}.md` });
     }
   }
   return findings;
@@ -303,6 +508,11 @@ export function lint({ cwd, slug }) {
   const tasks = parseBoard(tasksDir(cwd, slug));
   const intakePath = intake(cwd, slug);
   const intakeContent = existsSync(intakePath) ? readFileSync(intakePath, "utf8") : "";
+  // The REQ registry, when the tree has one — absent means covers-closure simply cannot apply.
+  const reqFile = requirements(cwd, slug);
+  const reqIds = existsSync(reqFile)
+    ? new Set([...readFileSync(reqFile, "utf8").matchAll(/\bREQ-[A-Z0-9-]+/gi)].map((m) => m[0].toUpperCase()))
+    : null;
   const repoFiles = walkFiles(cwd);
   const findings = [
     // A contract whose table this parser cannot see reads as a contract that declared no
@@ -312,6 +522,8 @@ export function lint({ cwd, slug }) {
       .filter((x) => x.reason)
       .map((x) => ({ rule: "CONTRACT-UNREADABLE", level: "red", scope: x.scope, detail: `${x.reason} — the rules below could not check what they could not read` })),
     ...lintScopes(scopes, repoFiles),
+    ...lintScopeAnchors({ scopes, specDir: specRoot, reqIds, tasks }),
+    ...lintCommittedTier({ cwd, slug }),
     ...lintStructure({ specDir: specRoot, tasks, intakeContent }),
   ];
   return {

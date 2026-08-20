@@ -38,9 +38,14 @@ function w(root, rel, body) {
 }
 
 /**
- * Build one fixture project root: a single scope contract naming one task, and that task's file on
- * the board hand-set to `done`. `withDispatch` controls whether a matching order+result pair is
- * also written under `orders/`/`results/`.
+ * Build one fixture project root: a single scope contract anchored to one use case, and a board
+ * task naming that same use case, hand-set to `done`. `withDispatch` controls whether a matching
+ * order+result pair is also written under `orders/`/`results/`.
+ *
+ * The contract anchors a UC rather than naming `TASK-001` directly, because a committed contract
+ * holding a machine-local task id is what the tier rule forbids — the scope↔task relation these
+ * checks walk is re-derived from the board's own `use_case_refs`.
+ *
  * @param {boolean} withDispatch - When true, also write a dispatched-and-answered order for the scope.
  * @returns {string} The fixture's project root (`cwd`).
  */
@@ -49,10 +54,10 @@ function buildFixture(withDispatch) {
   w(cwd, `shapeup/${SLUG}/scopes/${SCOPE_ID}.json`, {
     schema_version: 1, scope_id: SCOPE_ID,
     allowed_file_substrate: ["src/board-demo/**"],
-    tasks: ["TASK-001"],
+    use_cases: ["UC-Board"],
   });
   w(cwd, `.shapeup/${SLUG}/tasks/TASK-001.md`,
-    `---\nid: TASK-001\nstatus: done\nestimated_hours: 1\n---\n\n# TASK-001 — demo task\n`);
+    `---\nid: TASK-001\nstatus: done\nestimated_hours: 1\nuse_case_refs: [UC-Board]\n---\n\n# TASK-001 — demo task\n`);
   if (withDispatch) {
     const orderId = "sc-board-r1-a1";
     w(cwd, `.shapeup/${SLUG}/orders/${orderId}.json`, {
