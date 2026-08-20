@@ -18,7 +18,12 @@ jobs:
           node-version: "22"
 
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          # Optional-dependency resolution for the platform-native binary can silently no-op —
+          # npm treats a failed optional dep as non-fatal, so the install step reports success
+          # with no binary underneath. Re-run the package's own postinstall to recover.
+          claude --version >/dev/null 2>&1 || node "$(npm root -g)/@anthropic-ai/claude-code/install.cjs"
 
       - name: Show CLI version
         run: claude --version
