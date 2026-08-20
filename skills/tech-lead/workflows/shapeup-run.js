@@ -75,9 +75,8 @@ if (typeof args === "string") { try { args = JSON.parse(args); } catch { args = 
 // model string is rejected outright — that is a missing model, not an unrecognized one.
 //
 // The cheap/fast Claude tier is matched by PATTERN, never spelled out as a literal string here —
-// a literal name in this file would trip its own D5 floor check a little further down in
-// workflows/ (tests/structural/16-workflows.mjs scans every workflow script for exactly that
-// spelling, deliberately phrased the same indirect way — see that module's own comment).
+// a literal name in this file would trip the structural suite's own floor check, which scans every
+// workflow script for exactly that spelling and is deliberately phrased the same indirect way.
 const BELOW_FLOOR_PATTERNS = [/ha[i1]ku/i, /\binstant\b/i, /\bmini\b/i, /\bnano\b/i, /\blite\b/i, /\bsmall\b/i];
 const belowFloor = (m) => {
   const s = String(m || "").trim();

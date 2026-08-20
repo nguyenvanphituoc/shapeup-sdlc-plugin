@@ -145,9 +145,9 @@ the documented kernel-only permission grant (`bin/lib/grant.mjs`) is **necessary
 sufficient** for a truly unattended run. It covers the kernel's own Bash invocation and the
 `Workflow` token; it does not cover the generic Write/Edit calls every worker skill makes
 constantly, and AGENTS.md's own text does not currently say a headless lane also needs a CLI
-permission mode (`--permission-mode acceptEdits` at minimum) on top of it. Full account — including
-the sandbox-guard denials that held throughout regardless of permission mode, and the EVAL-verdict
-defect that caused stall (b), found and fixed live: `docs/output/EXP-A-G2-G6.md`.
+permission mode (`--permission-mode acceptEdits` at minimum) on top of it. The sandbox-guard denials
+held throughout regardless of permission mode, and the EVAL-verdict defect that caused stall (b)
+was found and fixed live.
 
 **G6 — cost and wall-clock against a v1 baseline. MEASURED — v2.0 has a real number; the v1
 comparison was attempted live and found impossible to make, not merely unattempted.** The same live
@@ -155,8 +155,8 @@ run produced v2.0's first cost/wall-clock number: `examples/todo-cli/`, 2 rounds
 `sonnet`, **73m 30.8s / ~$34.50 combined pipeline wall-clock** (56m 6.2s / ~$22.95 for round 1
 through an incorrectly-aborted GATE H, plus 17m 24.6s / ~$11.55 for the fix round, to a genuine
 EVAL PASS and a real ship). A separate live run then drove the same fixture through the `v1.7.0` tag
-(`docs/output/BASELINE-v1.md`, Phase 0's own baseline artifact, had recorded only structural line
-counts and inventory, never a feature run) and found that v1's BUILD-through-ship pipeline **cannot
+(the v1 baseline artifact had recorded only structural line counts and inventory, never a feature
+run) and found that v1's BUILD-through-ship pipeline **cannot
 be started at all** against the current Claude Code CLI (2.1.235): v1.7.0's headless permission
 grant is a prefix rule keyed on the literal, unexpanded `${CLAUDE_PLUGIN_ROOT}` token, and the CLI's
 Bash tool now categorically rejects any command containing `${VAR}` expansion before permission-mode
@@ -171,10 +171,7 @@ all** — arguably a stronger signal in the direction probe 6 predicted than a s
 v1 number would have been, but a different claim, stated as such. Also worth noting: the harness's
 own economics tooling (`journal.jsonl`, meant to key `harness report export`/`harness probe stats
 --economics`) was never populated by the v2.0 run — the numbers above come from the coarser
-dispatch-attestation ledger instead, a real, separate, adjacent gap. Full derivation for both runs:
-`docs/output/EXP-A-G2-G6.md` (v2.0) and `.plan-runs/phase7-verification-gauntlet/ledger/S4-v1-baseline/SUMMARY.md`
-(v1.7.0; not shipped — a repo-only verification artifact, see that file for the full evidence
-pack).
+dispatch-attestation ledger instead, a real, separate, adjacent gap.
 
 ## There is no second tier beyond that
 
