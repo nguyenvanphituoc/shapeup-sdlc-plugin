@@ -3,9 +3,9 @@
 //
 // WHY THIS EXISTS (from the storage design, not from a preference for tooling).
 //
-// Every record this exports already exists. Orders, results, journal rows, trial rows, T0
-// verdicts, criterion verdicts and hook decisions are all written during a normal run, all as
-// JSON, all schema-registered. They live in `.shapeup/<slug>/` — the LOCAL tier, which ADR-0001
+// Every record this exports already exists. Orders, results, trial rows, T0 verdicts, criterion
+// verdicts and hook decisions are all written during a normal run, all as JSON, all
+// schema-registered. They live in `.shapeup/<slug>/` — the LOCAL tier, which ADR-0001
 // defines as gitignored, machine-local and REGENERABLE. That definition is correct for run state
 // and fatal for measurement: the trial-row contract says it out loud — a measurement left there
 // "answers the question exactly once and then deletes itself".
@@ -46,10 +46,10 @@ import { join, resolve } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
 import { splitFrontmatter } from "../lib/contract.mjs";
 import { runIdFromReceipt, readReceipt } from "../lib/paths.mjs";
-import { TABLES, runRow, agentCallRow, dispatchFacts, economics } from "./facts.mjs";
+import { TABLES, runRow, dispatchFacts } from "./facts.mjs";
 import {
   localDir, activeScope, receipt as receiptPath, harnessRun, ordersDir, resultsDir,
-  workflowRunDir, trials as trialsPath, verdictsDir, evaluationDir, decisions as decisionsPath,
+  trials as trialsPath, verdictsDir, evaluationDir, decisions as decisionsPath,
   exportsDir, exportRunDir,
 } from "../lib/paths.mjs";
 
@@ -174,8 +174,8 @@ function criterionRows(dir, runId, t) {
  *
  * @param {string} cwd - Project root.
  * @param {string} slug - The feature slug whose run to export.
- * @returns {(object|null)} `{run_id, slug, tables:{…}, economics, defects}` — or null when the
- *   slug has no readable receipt, which is the definition of "not a run".
+ * @returns {(object|null)} `{run_id, slug, tables:{…}, defects}` — or null when the slug has no
+ *   readable receipt, which is the definition of "not a run".
  */
 export function collectRun(cwd, slug) {
   const t = tally();
@@ -188,10 +188,8 @@ export function collectRun(cwd, slug) {
 
   const orders = readJsonDir(ordersDir(cwd, slug), t);
   const results = readJsonDir(resultsDir(cwd, slug), t);
-  const journal = readJsonl(join(workflowRunDir(cwd, slug), "journal.jsonl"), t);
 
-  const { dispatch, ac_result, discovery, file_touched } = dispatchFacts({ orders, results, journal, runId });
-  const agent_call = journal.map((j) => agentCallRow(j, runId));
+  const { dispatch, ac_result, discovery, file_touched } = dispatchFacts({ orders, results, runId });
   const run = runRow({ receipt: rec, ledger, runId });
 
   // Hook decisions are checkout-wide, so they are FILTERED to this run rather than read from a
@@ -205,13 +203,12 @@ export function collectRun(cwd, slug) {
     slug,
     tables: {
       run: run ? [run] : [],
-      dispatch, ac_result, discovery, file_touched, agent_call,
+      dispatch, ac_result, discovery, file_touched,
       trial: readJsonl(trialsPath(cwd, slug), t).map((r) => ({ ...r, run_id: r.run_id ?? runId ?? null })),
       t0_verdict: readJsonDir(verdictsDir(cwd, slug), t).map((a) => t0Row(a, runId)),
       criterion_verdict: criterionRows(evaluationDir(cwd, slug), runId, t),
       hook_decision,
     },
-    economics: economics({ agent_call, dispatch, run }),
     defects: { records_skipped: t.skipped },
   };
 }
@@ -246,7 +243,6 @@ export function writeRun(collected, outDir, format = "jsonl") {
     // The defect count is a first-class manifest field, not a log line. A short table with no
     // record of why is indistinguishable from a short run.
     records_skipped: collected.defects.records_skipped,
-    economics: collected.economics,
   };
   writeFileSync(join(outDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n", "utf8");
   return manifest;

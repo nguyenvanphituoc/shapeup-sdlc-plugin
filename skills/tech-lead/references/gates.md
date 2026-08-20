@@ -436,17 +436,19 @@ S.6  Harvest one signal row → append to `.shapeup/metrics/<machine-id>.jsonl`
 S.7  Export the run's records → one keyed dataset, before the trace is superseded.
        node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" report export --slug <slug>
      Same argument as S.6, applied to the records the harvest row does NOT carry: orders,
-     results, the agent-call journal, T0 verdicts, trial rows, criterion verdicts and this
-     run's hook decisions all live in the LOCAL tier, which is regenerable and gets wiped.
+     results, T0 verdicts, trial rows, criterion verdicts and this run's hook decisions all
+     live in the LOCAL tier, which is regenerable and gets wiped.
      The export freezes them as fact tables under `.shapeup/exports/<run_id>/` (JSONL, one
      object per line), keyed by run id so a second run of the same feature is a second
      dataset rather than an overwrite. `--out <dir>` sends it somewhere durable instead.
      It is READ-ONLY: it writes nothing into the trace, so it may be re-run at any time.
-     WHY IT IS NOT A HARVEST FIELD. Run economics — cost, wall clock, turns-to-first-write —
-     is DERIVED from this dataset (`harness probe stats --economics`), never copied into the metrics
-     shard, because that row's contract rejects clock fields on purpose (see
-     protocol.md "Rejected fields"). Preserving the trace keeps the figures available
-     without putting a velocity number in the signal feed.
+     NOT COST/WALL-CLOCK. This harness carries no run-economics record — the design once
+     called for one derived from a per-agent-call journal, but nothing in the pipeline ever
+     wrote that journal, so the derivation and its reporting command were removed rather than
+     left presenting nulls as measurements. Even a real cost record would not belong in the
+     harvest row's schema either way — that row's contract rejects clock fields on purpose
+     (see protocol.md "Rejected fields"), because a signal feed that carried a duration would
+     become a velocity feed on the next person who read it.
 ```
 
 ---

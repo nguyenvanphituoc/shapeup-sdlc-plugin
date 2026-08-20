@@ -37,25 +37,20 @@ least once in this project's history, and two of the rows exist because of it.
 | 1 | **Structure** | checks passing | **940 passing, 0 failing** (`npm test`, re-run 2026-08-13 with §53–55 added) | *Green structural means the guard works.* It means the file parses. An earlier audit found **26 enforcement points inert behind 610 green checks** — an unfired guard and an absent one look identical from outside, which is why every hook now records a decision (§3.2f). §55 is the same lesson again at the file level: a source file with a raw NUL is skipped by grep, so every content sweep silently reports on an unknown subset — and the first draft of that check, scoped to the shipped roots, could not see the NUL in its own source. | `tests/structural.mjs` |
 | 2 | **Build round** (product) | T0 green, seesaw, acceptance | T0/seesaw verdicts are produced per run; **no acceptance-vs-baseline comparison is maintained** | *Acceptance in one context window generalizes.* It says nothing about what happens across one. | `kernel/verify/t0.mjs`, `spec-evaluator` |
 | 3 | **Continuity / recovery** | gap closed across a handoff | **instrument partial, unfed** — the dispatch stream is now keyed and ordered, so *re-opened vs resumed* is derivable from the operations a run emits after a rehydrate; nothing yet computes it | *The reflex ran, so it helped.* The lifecycle hook this used to be was observed to fire every time and close none of the gap — it handed a **pointer** where state was needed. Running is a precondition for helping, never evidence of it, and the same trap applies to the `reduce graph --subgraph run` query that replaced it. | `harness report export` (records), **no derived metric yet — gap** |
-| 4 | **Run economics** | turns-to-first-write, $/session | **instrument exists, unfed** — `harness probe stats --economics` computes cost, wall clock, retries and turns-to-first-write from records the pipeline already writes. **No figure is reported here**, because no complete pipeline run has produced a dataset (§3.2g) | *More gates means more rigor.* More agents can increase activity without value. Cost must be read next to the acceptance delta it bought — and row 2 records no measured delta. | `kernel/probe/stats.mjs --economics` |
+| 4 | **Run economics** | turns-to-first-write, $/session | **no instrument** — a projection (`harness probe stats --economics`) was built to derive cost, wall clock, retries and turns-to-first-write from a per-agent-call journal the pipeline was supposed to write. Measured live twice, in two independent worktrees (2026-08-19): the journal was never written after a real run either time. The projection and its reporting command were removed 2026-08-21 rather than kept presenting nulls as measurements | *More gates means more rigor.* More agents can increase activity without value. Cost must be read next to the acceptance delta it bought — and row 2 records no measured delta. | — (removed) |
 
 Rows 3 and 4 — recovery and cost — were the two with no instrument at all, and that was the table's
 most useful output: **the two layers this harness had never been able to measure automatically were
-also the two where its observed behavior was weakest.** Row 4 now has one, and the reason it took
-so long is worth keeping: the data was never missing. Cost per agent call, wall clock, retries and
-model were all being written to the run journal, and orders, results, trial rows and hook decisions
-were all being written beside them. What was missing was a **key** — `order_id` identifies a
-dispatch within a run and repeats across every run of the same slug, so no record could be
-attributed to a run, and a question as basic as "what did this run cost" was unanswerable from data
-that was entirely present (§3.2g).
+also the two where its observed behavior was weakest.** Row 4 briefly had one. The `order_id`
+collision (§3.2g) was fixed first, because every other record — orders, results, trial rows, hook
+decisions — needed the run key to be attributable at all, and that fix stands regardless of row 4.
+Row 4's own instrument turned out to be built on a record that was never actually written:
+`journal.jsonl`, meant to carry one row per agent call with `cost_usd` and `wall_ms`, does not exist
+on disk after a real run. Row 4 is back to no instrument, and unlike row 3 there is no known path to
+one without instrumenting a runtime this repo does not own.
 
-Two things that have NOT changed, stated because a new instrument invites both misreadings:
+One thing that has NOT changed:
 
-- **Row 4 is unfed, and an unfed instrument is not a measurement.** The figures below the fold in
-  `--economics` are zero-row projections until a full pipeline run produces a trace, and none has:
-  the installer writes a permission prefix that ends mid-argument, so it grants nothing and the
-  pipeline stops at its first dispatch. This row says the instrument exists — it does not say
-  anything has been measured.
 - **Row 2 is untouched.** The export can hold per-run acceptance, but "versus baseline" needs a
   second arm and no baseline dataset exists. A read plane over one run's records cannot manufacture
   a comparison, and presenting one run's numbers as a delta would be exactly the misreading column

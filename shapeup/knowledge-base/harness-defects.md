@@ -10,14 +10,18 @@
   from prose while its own `substrate.allowed` names a directory that does not contain it. The
   workflow lane works around this by stating the path in the dispatch prompt and deriving the same
   one from the order; the port itself is unfixed.
-- **Cost/wall-clock instrumentation is dead.** `harness report export` and `harness probe stats
+- ~~**Cost/wall-clock instrumentation is dead.** `harness report export` and `harness probe stats
   --economics` are both keyed off a per-agent-call journal the Workflow runtime is supposed to
   stamp. Measured live 2026-08-19, twice, in two independent worktrees: it is never written — the
-  journal's own directory does not exist after a real run either time. Cost/wall-clock reporting has
-  to be reconstructed from the dispatch-attestation ledger instead — real, mechanically timestamped,
-  but coarser, with no per-phase cost split. Needs a Betting Table call: wire the runtime (or the
-  orchestrator itself) to write the journal for real, or delete the reporting commands that assume
-  it exists — a mechanism that looks like it works but doesn't is worse than no mechanism.
+  journal's own directory does not exist after a real run either time.~~ **FIXED 2026-08-21** — the
+  Betting Table call landed on this entry's second option: delete the reporting commands that
+  assumed the journal existed, rather than wire a runtime this repo does not own to write one.
+  `agentCallRow` and `economics` are gone from `kernel/report/facts.mjs`; `harness report export`
+  no longer emits an `agent_call` table or an `economics` block, and `harness probe stats
+  --economics` no longer exists as a flag. The other tables `report export` derives from real
+  records (dispatch, results, T0 verdicts, trials, hook decisions) are untouched. Pinned by
+  `tests/structural/19-run-records.mjs` §54(c), which asserts both exports stay undefined and
+  `TABLES` stays without `agent_call`.
 
 Cleared once already, 2026-08-14, to start the v2.0 work from a clean slate:
 

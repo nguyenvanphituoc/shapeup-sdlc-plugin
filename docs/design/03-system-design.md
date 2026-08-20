@@ -389,19 +389,21 @@ key reaches the result leg through a checked join rather than through a worker's
 
 ### The export, and what it does not do
 
-`harness report export` projects a run's records into ten flat fact tables (JSONL, one object per line)
-under `.shapeup/exports/<run_id>/`, plus a manifest carrying row counts, a skipped-record count and
-the economics block. The dispatch grain is the spine — one row per compiled order, joined to its
-result on `order_id` and to its agent call through the `result_path` the workflow's dispatch prompt
-requires. It is read-only over the trace and re-runnable at any time.
+`harness report export` projects a run's records into nine flat fact tables (JSONL, one object per line)
+under `.shapeup/exports/<run_id>/`, plus a manifest carrying row counts and a skipped-record count.
+The dispatch grain is the spine — one row per compiled order, joined to its result on `order_id`.
+It is read-only over the trace and re-runnable at any time. (An earlier revision also joined each
+dispatch to a per-agent-call journal for cost and wall-clock, through the `result_path` the
+workflow's dispatch prompt requires. The journal was never written by the runtime in any measured
+run, so that join, the `agent_call` table and `harness probe stats --economics` were removed rather
+than kept as a mechanism that looks like it works and doesn't.)
 
-Two properties are load-bearing rather than tidy:
+Load-bearing rather than tidy:
 
-- **It never fabricates a join.** The journal exists only on the workflow lane, so a `--tiny` or
-  prose-lane dispatch has no cost row. Those rows carry `cost_usd: null` and `agent_join: null`,
-  never `0` — an absent value and a zero value must not share a signature, which is the same defect
-  `hooks/lib/decision.mjs` exists to close one layer down. `--economics` reports attributed and
-  unattributed cost separately for the same reason.
+- **It never fabricates an outcome.** A dispatch with no matching result carries `answered: false`
+  and `result_status: null`, never a value that reads as done — an absent value and a real one must
+  not share a signature, which is the same defect `hooks/lib/decision.mjs` exists to close one
+  layer down.
 - **It does not cross a machine boundary on its own.** The default destination is LOCAL and
   gitignored. Making it SHARED would put per-run structured data and a machine name back into the
   repository, which is exactly what ADR-0001 moved the metrics shards out of git to prevent. What
