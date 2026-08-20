@@ -277,19 +277,22 @@ shapeup/<slug>/scopes/*.md exist — scope-architect's lint pass already ran;
 this is the orchestrator's own re-confirmation before committing to a build sequence):
   - Run `node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify spec --slug <slug>`: DISJOINT (a file in two
     scopes' `allowed_file_substrate` without BOTH declaring it `shared_substrate` — PA3
-    waiting to happen), PA1 (directory-aligned scope), PA2 (size cap). Any red → HARD STOP,
-    past a 🔴 at the architect's own checkpoint.
+    waiting to happen), PA1 (directory-aligned scope), PA2 (size cap), SCOPE-ANCHOR (a scope
+    naming no committed use case, or one that does not resolve), TIER-DIRECTION (a committed
+    contract naming LOCAL task ids), SCOPE-DEPS (a build-order id naming a scope that is not
+    in this run). Any red → HARD STOP, past a 🔴 at the architect's own checkpoint.
   - Lock the build SEQUENCE riskiest-first: order scopes by open-unknowns count (from
     hill/<scope-id>.yml if present, else the orient hill signal), not by file count or
     alphabetical — Shape Up's "solve in the right sequence" (step 10).
-    DEPENDENCIES CONSTRAIN THAT ORDER, and they are derived, not declared: each contract names
-    its `tasks`, each task carries `depends_on`, and scope A follows scope B when any task of A
-    depends on one of B. Risk orders the scopes; the dependencies decide when each one is
+    DEPENDENCIES CONSTRAIN THAT ORDER, and each contract declares its own: scope A follows scope
+    B when A names B in `depends_on`. The order lives in the same committed tier as the contracts
+    it orders, so it survives a clone. Risk orders the scopes; the dependencies decide when each one is
     RELEASED — a scope starts as soon as the scopes it consumes have settled, not when its whole
     level has, so a scope may well start while a sibling is still building. A scope that consumes
     the others' output (an entry point wiring up command modules) therefore cannot be scheduled
-    alongside them however low its unknowns count. Nothing here is authored: any missing or
-    unreadable input falls back to releasing a level at a time, and then to no constraint at all.
+    alongside them however low its unknowns count. It fails open: a contract declaring no
+    `depends_on`, or naming a scope that is not in this run, falls back to releasing a level at a
+    time, and then to no constraint at all (spec-lint SCOPE-DEPS reports the dangling id).
 
 Ask (max 2): scope cuts? lens correct? any SPIKE to resolve before build?
   Scope-hammer framing: reference the appetite from the pitch

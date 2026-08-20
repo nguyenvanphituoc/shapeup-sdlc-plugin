@@ -217,6 +217,8 @@ depends_on: []                   # other TASK IDs: [TASK-001, TASK-002] — the 
 unlocks: []                      # DERIVED — inverse of the board's depends_on graph, recomputed
                                  # on every board write; never hand-authored (v3.3)
 use_case_refs: []                # UC IDs this task implements: [UC-CreateOrder]
+scope_id: ""                     # optional disambiguator — the scope that builds this task.
+                                 # Needed only when >1 scope shares a use case (SCOPE-PARTITION).
 entities: []
 repositories: []
 linked_docs: []                  # [[usecase]], [[domain-model#section]]

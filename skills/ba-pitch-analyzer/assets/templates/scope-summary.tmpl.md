@@ -35,13 +35,14 @@ audit_score: 0
 
 The longest sequential chain — minimum time to complete if parallelized optimally.
 
-```
-TASK-NNN → TASK-NNN → TASK-NNN → TASK-NNN
-  Nh          Nh          Nh          Nh
-```
-
-**Critical path estimate:** Nh total
+**Critical path estimate:** Nh total, N steps
 *(All other work can happen in parallel alongside this chain)*
+
+<!-- Record the DERIVED numbers only — total hours and step count, both from
+     `harness reduce board`. The chain's task ids belong to the LOCAL board
+     (.shapeup/<slug>/tasks/), which is gitignored and renumbers per machine; this
+     document is committed, so an id written here dangles on every other clone
+     (spec-lint TIER-DIRECTION). Read the id-level chain off the board itself. -->
 
 ---
 
@@ -58,12 +59,16 @@ TASK-NNN → TASK-NNN → TASK-NNN → TASK-NNN
 
 ## Parallel Opportunities
 
-Tasks with no interdependency that can run simultaneously:
+How much of the board can run simultaneously — **counts and use cases, never task ids.** This file
+is COMMITTED; the board is not, and its ids renumber per machine (spec-lint TIER-DIRECTION).
 
-| Group | Tasks | Can start after |
-|-------|-------|----------------|
-| Group A | TASK-NNN, TASK-NNN | TASK-NNN completes |
-| Group B | TASK-NNN | TASK-NNN completes |
+| Group | Use cases | Tasks | Can start after |
+|-------|-----------|-------|-----------------|
+| Group A | UC-x, UC-y | N | nothing — no dependency |
+| Group B | UC-z | N | Group A |
+
+The per-scope release order is `scope-board.md`'s, keyed on `scope_id`. Cite it rather than
+restating it here.
 
 ---
 

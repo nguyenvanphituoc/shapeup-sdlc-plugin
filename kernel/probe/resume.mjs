@@ -63,7 +63,7 @@ import { splitFrontmatter } from "../lib/contract.mjs";
 import { globToRegExp } from "../verify/spec.mjs";
 import {
   intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir,
-  orientDir, activeOrder, usecasesDir, tasksDir,
+  orientDir, activeOrder, usecasesDir,
 } from "../lib/paths.mjs";
 
 /** The run-state values `references/protocol.md` (Part 4 — State) defines. A typo'd status is a rejection,
@@ -118,14 +118,20 @@ export function parseFrontmatter(text) {
  * were unreachable from the entry point. Five of six scopes went green; the sixth was the one that
  * had to go last, and it was scheduled second by alphabet.
  *
- * THE ORDER IS DERIVED, NEVER DECLARED. Each scope contract names its `tasks`, and each task file
- * carries `depends_on`. Scope A follows scope B when any task of A depends on a task of B. Nothing
- * new is authored, and nothing here can disagree with the board — the fan-out was discarding an
- * ordering its own inputs already hand it.
+ * THE ORDER LIVES IN THE SAME TIER AS THE THING IT ORDERS. Each scope contract declares
+ * `depends_on: [scope_id, …]`, and scope A follows scope B when A names B. This used to be derived
+ * instead — contract `tasks` → the board's task `depends_on` → back to the owning scope — which
+ * read an ordering off the LOCAL board while the contracts it ordered were COMMITTED. On a fresh
+ * clone the board is absent, every scope's task list resolved to nothing, and the whole relation
+ * collapsed to "no edges": the scheduler degraded to the unscheduled fan-out this exists to
+ * replace, and reported nothing, because an empty relation is the same value as no relation.
+ * `scope_id` is the stable cross-machine key, so an edge between two of them survives the clone
+ * that the two-hop join through renumbering task ids never could.
  *
- * NON-REGRESSION IS THE DEFAULT. Any missing or unreadable input — no board, no `tasks` in a
- * contract, a dependency cycle — falls back to one wave containing everything, which is exactly
- * today's behavior. A scheduler that refuses to run is worse than one that runs unscheduled.
+ * NON-REGRESSION IS THE DEFAULT. Any missing or unreadable input — no contract declaring
+ * `depends_on`, an id naming a scope that is not here, a dependency cycle — falls back to one wave
+ * containing everything, which is exactly the pre-scheduler behavior. A scheduler that refuses to
+ * run is worse than one that runs unscheduled.
  *
  * @param {string} cwd - Project root.
  * @param {string} slug - Feature slug.
@@ -136,7 +142,7 @@ export function parseFrontmatter(text) {
 export function scopeWaves(cwd, slug, scopes) {
   const all = scopes.map((s) => s.path);
   if (scopes.length < 2) return all.length ? [all] : [];
-  const deps = scopeDepGraph(cwd, slug, scopes);
+  const deps = scopeDepGraph(scopes);
   if (!deps) return [all];
 
   // Kahn, one wave per level. A cycle cannot stall the build: the remainder ships as one wave.
@@ -158,37 +164,26 @@ export function scopeWaves(cwd, slug, scopes) {
 /**
  * The dependency relation `scopeWaves` levels — parsed once, so the two answers cannot disagree.
  *
- * @param {string} cwd - Project root.
- * @param {string} slug - Feature slug.
  * @param {Array<{scope_id:string, path:string}>} scopes - The scopes, in their existing order.
  * @returns {(Map<string,Set<string>>|null)} scope_id → the scope_ids it waits for, or null when the
- *   inputs carry no usable relation at all (no `tasks`, no tasks directory, no cross-scope edge).
+ *   contracts carry no usable relation at all (none declares `depends_on`, or every id it names is
+ *   a scope that is not in this run).
  */
-function scopeDepGraph(cwd, slug, scopes) {
-  // task id → the scope that owns it, from each contract's `tasks` frontmatter list.
-  const owner = new Map();
-  for (const s of scopes) {
-    let tasks = [];
-    try { tasks = parseFrontmatter(readFileSync(s.path, "utf8")).tasks; } catch { tasks = []; }
-    if (!Array.isArray(tasks)) continue;
-    for (const t of tasks) owner.set(String(t).trim(), s.scope_id);
-  }
-  if (!owner.size) return null;
-
-  // scope → the scopes it depends on, via its tasks' `depends_on`.
+function scopeDepGraph(scopes) {
+  const present = new Set(scopes.map((s) => s.scope_id));
   const deps = new Map(scopes.map((s) => [s.scope_id, new Set()]));
   let sawEdge = false;
-  const tdir = tasksDir(cwd, slug);
-  let taskFiles = [];
-  try { taskFiles = readdirSync(tdir).filter((f) => /^TASK-[\w.-]+\.md$/i.test(f)); } catch { return null; }
-  for (const f of taskFiles) {
-    let fm;
-    try { fm = parseFrontmatter(readFileSync(join(tdir, f), "utf8")); } catch { continue; }
-    const mine = owner.get(String(fm.id ?? "").trim());
-    if (!mine || !Array.isArray(fm.depends_on)) continue;
-    for (const d of fm.depends_on) {
-      const from = owner.get(String(d).trim());
-      if (from && from !== mine) { deps.get(mine).add(from); sawEdge = true; }
+  for (const s of scopes) {
+    let declared;
+    try { declared = parseFrontmatter(readFileSync(s.path, "utf8")).depends_on; } catch { continue; }
+    if (!Array.isArray(declared)) continue;
+    for (const d of declared) {
+      const id = String(d).trim();
+      // An id naming a scope that is not in this run is DROPPED, not an error: a contract may
+      // legitimately name a scope superseded or cut since it was written, and a scheduler that
+      // stalls on a stale edge is worse than one that ignores it. spec-lint reports the dangling
+      // id — this is the scheduling path, and it fails open.
+      if (id && id !== s.scope_id && present.has(id)) { deps.get(s.scope_id).add(id); sawEdge = true; }
     }
   }
   return sawEdge ? deps : null;
@@ -260,7 +255,7 @@ export function scopeExclusions(cwd, slug, scopes) {
 
 export function scopeDeps(cwd, slug, scopes) {
   if (scopes.length < 2) return [];
-  const deps = scopeDepGraph(cwd, slug, scopes);
+  const deps = scopeDepGraph(scopes);
   if (!deps) return [];
   const pathOf = new Map(scopes.map((s) => [s.scope_id, s.path]));
   const out = [];

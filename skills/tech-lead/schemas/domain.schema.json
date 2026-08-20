@@ -4,6 +4,49 @@
   "description": "The CENTRAL domain registry of the pure-skill architecture. Every shared field that crosses a skill boundary is defined here exactly once, with its meaning, owner, and storage tier annotated — work-order.schema.json and work-result.schema.json $ref into $defs below instead of re-defining records inline, and no skill may introduce a cross-boundary field that is not registered here first. Annotation keys: x-tier = SHARED (committed under shapeup/, survives clone+crash) | LOCAL (gitignored under .shapeup/, regenerable run-trace) | EMBEDDED (a record type that only lives inside another entity); x-location = the canonical path; x-writer = the single component allowed to write it; x-readers = who consumes it. The x-erd block is the machine-readable entity-relationship map; x-payload-by-worker is the authoritative table of which WorkOrder payload fields each worker may rely on.",
   "x-erd": {
     "description": "Relationship map. Cardinality reads left-to-right (WorkOrder 1:1 WorkResult = every order has exactly one result). Join keys: <slug> (the feature) is the aggregate root every path is keyed off; scope_id is the STABLE cross-machine key (boards regenerate; hill shards, T0 history and branches join on it); TASK-NNN ids are machine-local and must never be joined across machines (board regeneration joins on scope, not task id).",
+    "external": {
+      "WorkOrder": "work-order.schema.json",
+      "WorkResult": "work-result.schema.json"
+    },
+    "projection": {
+      "description": "How `kernel/reduce/graph.mjs`'s node vocabulary maps onto this catalog. The projection uses short names on purpose — a graph is read by hand — so the mapping is declared rather than inferred. A `type` of null is a KNOWN GAP: the projection emits that node and this schema has never typed it. The structural suite asserts this map is TOTAL against the node types the projection actually emits, so a new node type cannot appear without either a type or an explicit gap.",
+      "nodes": {
+        "Run": {
+          "type": null,
+          "gap": "the run receipt's own record — emitted by reduce graph, never typed here"
+        },
+        "Order": {
+          "type": "WorkOrder",
+          "external": true
+        },
+        "Result": {
+          "type": "WorkResult",
+          "external": true
+        },
+        "Verdict": {
+          "type": "Verdict"
+        },
+        "Trial": {
+          "type": "TrialRow"
+        },
+        "GateDecision": {
+          "type": null,
+          "gap": "a gate decision row — emitted by reduce graph, never typed here"
+        },
+        "Scope": {
+          "type": "ScopeContract"
+        },
+        "UseCase": {
+          "type": "UseCase"
+        },
+        "Requirement": {
+          "type": "RequirementClause"
+        },
+        "Seam": {
+          "type": "Seam"
+        }
+      }
+    },
     "relationships": [
       {
         "from": "WorkOrder",
@@ -28,28 +71,35 @@
       },
       {
         "from": "TaskRef",
-        "to": "UseCase (SHARED spec doc)",
+        "to": "UseCase",
         "cardinality": "N:1..N",
         "via": "use_case_refs[]",
         "note": "the LOCAL→SHARED traceability anchor (single-anchor rule on reconcile) — spec-evaluator's traceability source. Tier direction: persisted links flow LOCAL→SHARED only; a committed spec doc never references a machine-local task id back (spec-lint TIER-DIRECTION/UC-ANCHOR)"
       },
       {
-        "from": "AcResult (LOCAL board AC)",
-        "to": "RequirementClause (SHARED registry)",
+        "from": "AcResult",
+        "to": "RequirementClause",
         "cardinality": "N:0..N",
         "via": "acceptance_criteria[].covers[]",
         "note": "the covers-closure anchor — same sanctioned LOCAL→SHARED direction as use_case_refs. trace-lint asserts every status:covered REQ-id is named by ≥1 AC's covers[]; a REQ neither covered nor CUT is red. REQ-ids are stable cross-machine keys (supersede-never-delete), never renumbered like TASK-NNN"
       },
       {
-        "from": "CriterionVerdict / Discovery",
-        "to": "RequirementClause (SHARED registry)",
+        "from": "CriterionVerdict",
+        "to": "RequirementClause",
         "cardinality": "N:0..N",
         "via": "traces_to[]",
-        "note": "optional finding→REQ back-link (LOCAL→SHARED) so an edge case maps to a business requirement by id, not by grepping the ledger; the lint only checks the id resolves in the registry — purely a navigation anchor"
+        "note": "optional finding→REQ back-link (LOCAL→SHARED) so an edge case maps to a business requirement by id, not by grepping the ledger; the lint only checks the id resolves in the registry — purely a navigation anchor split from a compound ERD node; CriterionVerdict carries its own traces_to[]"
+      },
+      {
+        "from": "Discovery",
+        "to": "RequirementClause",
+        "cardinality": "N:0..N",
+        "via": "traces_to[]",
+        "note": "optional finding→REQ back-link (LOCAL→SHARED) so an edge case maps to a business requirement by id, not by grepping the ledger; the lint only checks the id resolves in the registry — purely a navigation anchor split from a compound ERD node; Discovery carries its own traces_to[]"
       },
       {
         "from": "WiringMap",
-        "to": "UseCase (SHARED spec doc)",
+        "to": "UseCase",
         "cardinality": "1:N",
         "via": "entries[].use_case",
         "note": "reachability map: per UC engine → wiring seam → entry-point call site → player-visible affordance. trace-lint asserts each UC's engine reaches ProjectProfile.entry_point via the import graph; an unreachable engine (0 import sites) is red"
@@ -89,7 +139,7 @@
       },
       {
         "from": "TaskResult",
-        "to": "Task (LOCAL board file)",
+        "to": "TaskRef",
         "cardinality": "N:1",
         "via": "task_id",
         "note": "ingest ticks AC boxes, flips frontmatter status, appends the Execution Log"
@@ -138,9 +188,31 @@
       },
       {
         "from": "ScopeContract",
+        "to": "UseCase",
+        "cardinality": "1:N",
+        "via": "use_cases[]",
+        "note": "the scope's anchor into the committed spec — the SCOPE-ANCHOR mirror of a task's use_case_refs"
+      },
+      {
+        "from": "ScopeContract",
         "to": "TaskRef",
         "cardinality": "1:N",
-        "via": "tasks[] (scope_id is the stable key)"
+        "via": "DERIVED — the board tasks whose use_case_refs meet this scope's use_cases (lib/contract.mjs tasksForScope)",
+        "note": "never stored: task ids are machine-local and the contract is committed, so the relation is re-derived per machine from two artifacts that are each valid alone. scope_id is the stable key on this side"
+      },
+      {
+        "from": "ScopeContract",
+        "to": "RequirementClause",
+        "cardinality": "1:N",
+        "via": "covers[]",
+        "note": "REQ-ids, the same stable key an AC's covers: clause uses"
+      },
+      {
+        "from": "ScopeContract",
+        "to": "ScopeContract",
+        "cardinality": "N:N",
+        "via": "depends_on[]",
+        "note": "build order, in the same tier as the contracts it orders — what scope_waves/scope_deps level"
       },
       {
         "from": "ScopeContract",
@@ -217,6 +289,13 @@
         "cardinality": "1:N",
         "via": "scopes[].scope_id",
         "note": "every FINISHED scope's fixtures re-run on each later attempt"
+      },
+      {
+        "from": "UseCase",
+        "to": "Seam",
+        "cardinality": "1:N",
+        "via": "wiring-map entries[].wiring_seam",
+        "note": "projected by reduce graph as UseCase -DEPENDS_ON-> Seam. NOTE: the projection reads `row.seam`/`row.entry_point` while WiringEntry declares `wiring_seam`/`entry_call_site` — see harness-defects"
       }
     ]
   },
@@ -518,6 +597,10 @@
             "type": "string"
           },
           "description": "UC ids this task implements (e.g. UC-CreateOrder) — the task's LOCAL→SHARED anchor into the committed spec and spec-evaluator's traceability source. Links flow one direction: the LOCAL task cites the SHARED UC; a committed doc never links a task id back (ids are machine-local)."
+        },
+        "scope_id": {
+          "type": "string",
+          "description": "OPTIONAL: the scope that builds this task. The DISAMBIGUATOR, not the primary link — dispatch normally derives a scope's tasks by intersecting the contract's use_cases[] with this task's use_case_refs[], and that is a partition only while each scope owns its own use cases. When several scopes implement one use case (a four-scope, one-UC cut is ordinary) the UC anchor cannot say who builds what and every scope claims every task; spec-lint SCOPE-PARTITION reds that, and this field resolves it. Same sanctioned LOCAL→SHARED direction as use_case_refs: the volatile board names the stable scope_id, never the reverse."
         }
       }
     },
@@ -629,6 +712,34 @@
         }
       }
     },
+    "UseCase": {
+      "description": "One use case — the STABLE anchor both tiers name, and the only identifier the scope↔task relation is re-derived through. A UC id is assigned once and frozen: it behaves like scope_id and REQ-id, never like TASK-NNN. Referenced three ways across the tree (`UC-x`, `[[UC-x]]`, `[[usecases/UC-x]]`); `kernel/lib/contract.mjs` ucId() is the single normaliser, and both sides of any join must pass through it or they disagree about a UC they both hold.",
+      "x-tier": "SHARED",
+      "x-location": "shapeup/<slug>/spec/usecases/UC-*.md",
+      "x-writer": "ba-pitch-analyzer (operation: analyze; reconcile MAY append, never renumber)",
+      "x-readers": "scope-architect (use_cases[]), solution-architect (wiring-map entries), spec-evaluator (the grading criterion), harness verify spec (SCOPE-ANCHOR + UC-ANCHOR), harness reduce graph",
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "`UC-*`, matching the filename stem. Frozen once assigned — every use_cases[] and use_case_refs[] link rots if it is renumbered."
+        },
+        "title": {
+          "type": "string",
+          "description": "What the user can do."
+        },
+        "invariants": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "`[INV-NN]` markers declared in the body; the source of regression tasks and Test Surface rows."
+        }
+      }
+    },
     "ScopeContract": {
       "description": "A vertical scope as a committed, mechanically enforceable contract — Shape Up's 'map the scopes' as data. Sliced by business flow (one call chain: UI screen + API route + use case + repository), NEVER by directory (PA1). The sandbox hook enforces the substrate, t0-verify runs the fixtures, the evaluator asserts against the manifest. Superseded contracts are kept, never deleted (branch and T0 history stay attributable). ON-DISK FORMAT IS MARKDOWN (ADR-0001): frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `kernel/lib/contract.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
       "x-tier": "SHARED",
@@ -653,12 +764,26 @@
           ],
           "description": "LAYER_CAKE = thin balanced UI+backend · ICEBERG = complexity on one side · CHOWDER = true strays with no shared flow (the one deliberate exception to cross-layer slicing)."
         },
-        "tasks": {
+        "use_cases": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "Task ids this scope names (machine-local ids; the scope↔task grouping is re-derived on regeneration)."
+          "description": "The COMMITTED use cases this scope implements (`UC-*`, resolving to spec/usecases/UC-*.md) — the scope's anchor into the spec and the join the scope↔task relation is re-derived through. Mirrors the board's own `use_case_refs` in the sanctioned LOCAL→SHARED direction. This REPLACES the former `tasks[]` id list: a contract is committed and a board is not, so naming task ids put a pointer into a gitignored, per-machine tier that resolved to nothing on every other clone without a single check going red. spec-lint SCOPE-ANCHOR reds an empty or unresolvable anchor."
+        },
+        "covers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional REQ-ids from requirements.md this scope answers for — the same stable, never-renumbered key an AC's `covers:` clause uses. Projected as the Scope→Requirement COVERS edge in the run graph."
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "scope_ids this scope must build AFTER. Build order lives in the same tier as the contracts it orders: this was previously derived from the LOCAL board (contract tasks → task depends_on → owning scope), which collapsed to no edges whenever the board was absent and silently degraded the scheduler to an unscheduled fan-out. An id naming a scope not in the run is dropped by the scheduler (fail-open) and reported by spec-lint SCOPE-DEPS."
         },
         "allowed_file_substrate": {
           "type": "array",
@@ -712,6 +837,23 @@
         "business_goal": {
           "type": "string",
           "description": "What a user can do when this scope ships — the must-have trace scope-hammer's census checks against."
+        }
+      }
+    },
+    "ScopeBoard": {
+      "description": "The scope board — a HUMAN-READABLE PROJECTION of the contracts, not a source. Every column restates something `scopes/*.md` already declares, so it can be regenerated from them and deleting it loses nothing. It deliberately carries no `wave` column: waves are Kahn levels of `depends_on` and `probe resume` derives them, and a hand-authored copy of a derived value is the same defect as the hand-authored `unlocks` that `deriveUnlocks` exists to prevent. Nothing parses this file — that is only safe while it stays a view; the moment it holds a fact of its own it needs a reader and a lint like every other contract.",
+      "x-tier": "SHARED",
+      "x-location": "shapeup/<slug>/scope-board.md",
+      "x-writer": "scope-architect (regenerated whenever the contracts change)",
+      "x-readers": "humans, in a pull request. No code reads it — by design.",
+      "type": "object",
+      "properties": {
+        "rows": {
+          "type": "array",
+          "description": "One row per scope: scope_id · topology_type · use_cases · depends_on · substrate size · lint status. All projected from the contract.",
+          "items": {
+            "type": "object"
+          }
         }
       }
     },
@@ -1945,6 +2087,26 @@
         }
       }
     },
+    "Seam": {
+      "description": "How one use case's engine attaches to the entry point — the `wiring_seam` value of a WiringEntry, promoted to a first-class node by `reduce graph` so a verdict can be traced back through the seam to the objective. Not a file: it exists only as a cell in the committed wiring map and as a node in the derived run graph.",
+      "x-tier": "EMBEDDED (a WiringEntry.wiring_seam value; promoted to a node by reduce graph)",
+      "x-writer": "solution-architect (operation: wire), inside wiring-map.md",
+      "type": "object",
+      "properties": {
+        "seam": {
+          "type": "string",
+          "description": "The attachment mechanism — a route registration, an event handler, a direct call from the composition root."
+        },
+        "engine": {
+          "type": "string",
+          "description": "The repo-relative module the seam attaches."
+        },
+        "entry_point": {
+          "type": "string",
+          "description": "The call site the seam reaches from."
+        }
+      }
+    },
     "WiringMap": {
       "description": "The reachability map — per UC, the chain from engine to a player-visible affordance (spine v1.3). Written DIRECTLY by solution-architect at gate L1a.5 (precedent: ScopeContract is written directly by scope-architect, bypassing ingest-result). Its purpose: no engine ships orphaned from the running application. trace-lint folds reachability into its covers-closure pass — a UC whose engine does not reach ProjectProfile.entry_point via the import graph is red. A Mermaid view is auto-rendered from this map (a view of a checked graph, so it cannot drift). ON-DISK FORMAT IS MARKDOWN (ADR-0001): frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `kernel/lib/contract.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
       "x-tier": "SHARED",
@@ -2271,7 +2433,7 @@
         },
         "scope_waves": {
           "type": "array",
-          "description": "The same scopes as scope_files, grouped into dependency WAVES: no wave contains a scope that depends on one still in flight. Derived by `probe resume` from each contract's `tasks` list and the board's `depends_on` — never authored, so it cannot disagree with the board. Under the edge-released scheduler this is an ORDER and a cross-check rather than a barrier: the orchestrator trusts `scope_deps` only when Kahn-levelling it reproduces this field, so an edge lost crossing the sub-agent boundary degrades to wave release instead of starting a scope early. ADDITIVE: a consumer that ignores it, or a tree whose board is missing, taskless or cyclic, gets a single wave containing everything, which is the unscheduled fixed-width fan-out this replaced.",
+          "description": "The same scopes as scope_files, grouped into dependency WAVES: no wave contains a scope that depends on one still in flight. Levelled by `probe resume` from each contract's own `depends_on` — declared in the same COMMITTED tier as the contracts it orders, so it survives the clone that a join through machine-local task ids never could. Under the edge-released scheduler this is an ORDER and a cross-check rather than a barrier: the orchestrator trusts `scope_deps` only when Kahn-levelling it reproduces this field, so an edge lost crossing the sub-agent boundary degrades to wave release instead of starting a scope early. ADDITIVE: a consumer that ignores it, or a tree where no contract declares `depends_on`, every declared id names a scope not in the run, or the relation is cyclic, gets a single wave containing everything, which is the unscheduled fixed-width fan-out this replaced.",
           "items": {
             "type": "array",
             "items": {

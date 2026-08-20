@@ -352,7 +352,7 @@ Order B (the scope contracts):
   Agent (model: exec): Skill(shapeup-sdlc-plugin:scope-architect) --order <path>
   Writes (its substrate): shapeup/<slug>/scopes/*.md + scope-board.md — sole
     writer. Lint mechanically: node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify spec <slug> (PA1/PA2 +
-    substrate disjointness) before GATE L1b.
+    substrate disjointness + the spec anchor: SCOPE-ANCHOR/TIER-DIRECTION/SCOPE-DEPS) before GATE L1b.
 Read back: .shapeup/<slug>/tasks/_index.md (the board) + scope-summary.md (Done-when)
   + the spec-lint verdict.
 Pass-through rule: do not coach the planner to over-specify implementation — keep tech high-level.

@@ -21,7 +21,7 @@ the ship report's census table.
 |---|---|
 | `operation` | `map-scopes` — the only operation this skill has. It covers first slicing after the board exists, folding discovered items in, and re-slicing a stuck scope; the payload says which of those you are doing |
 | `payload.feature` / `payload.spec_folder` | Slug + committed spec (read ux-behavior.md for manifests; usecases for flows) |
-| `payload.tasks[]` | The board's tasks with their touched files — the slicing input |
+| `payload.tasks[]` | The board's tasks with their touched files — the slicing INPUT only. Each carries `use_case_refs`; those UC ids are what you write into the contract. Never copy a task id into a contract |
 | `substrate.allowed` | `scopes/*.md` + `scope-board.md` — your ONLY write surface |
 
 ## Core process
@@ -37,7 +37,23 @@ the ship report's census table.
            scalars and [a, b] lists, a `## Affordances` table for affordance_manifest, and a
            short `## Why this slice` paragraph. A reviewer must be able to read the substrate
            in a PR; regeneration preserves prose under headings you do not own.
-             scope_id, topology_type, tasks[]                — the stable join key is the scope
+             scope_id, topology_type                         — the stable join key is the scope
+             use_cases[]                                     — the UC ids this scope implements.
+                                                               THE ONLY LINK YOU WRITE TO THE
+                                                               WORK: never task ids. The contract
+                                                               is committed and the board is not,
+                                                               so a TASK-NNN here dangles on
+                                                               every other clone (spec-lint
+                                                               TIER-DIRECTION reds it). The
+                                                               scope's tasks are re-derived from
+                                                               the board's own use_case_refs
+             covers[]                                        — optional REQ-ids from
+                                                               requirements.md this scope answers
+                                                               for; stable, never renumbered
+             depends_on[]                                    — scope_ids this scope builds AFTER.
+                                                               This is the build ORDER — declare
+                                                               it whenever one scope consumes
+                                                               another's output, or the two race
              allowed_file_substrate[]                        — exact globs; the sandbox hook's
                                                                write-whitelist; wrong here =
                                                                a legitimate ESCALATE later
@@ -59,9 +75,22 @@ the ship report's census table.
                                                                T0/T1/seesaw facts later,
                                                                never authored
 4 LINT     node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify spec --slug <slug>
-           → PA1 (directory alignment), PA2 (>~15 files), DISJOINT (undeclared overlap).
+           → PA1 (directory alignment), PA2 (>~15 files), DISJOINT (undeclared overlap),
+           SCOPE-ANCHOR (empty/unresolvable use_cases), TIER-DIRECTION (a task id in a
+           committed contract), SCOPE-DEPS (depends_on naming a scope that isn't here).
            Fix reds by re-slicing, not by silencing.
-5 BOARD    regenerate scope-board.md (scope_id, topology, task count, substrate size, lint)
+5 BOARD    regenerate scope-board.md — a VIEW of the contracts, nothing more:
+
+             | scope_id | topology | use_cases | depends_on | files | lint |
+
+           Every column restates a field the contract already declares, so the board can be thrown
+           away and rebuilt. Do NOT add a `wave` column: waves are Kahn levels of `depends_on` and
+           `probe resume` derives them at dispatch — a hand-written copy of a derived value drifts,
+           which is exactly why `unlocks` stopped being authored. The BUILD ORDER lives in each
+           contract's `depends_on`; the board only shows it.
+
+           A `TASK-` id anywhere in a contract or the board — a column, a cell, or a sentence in
+           the prose — is spec-lint TIER-DIRECTION red. The board is committed; ids are not.
 ```
 
 **Folding in a discovered item:** it joins the nearest scope only if the flow matches (extend that
@@ -78,6 +107,9 @@ mark the old one `superseded_by: [ids]` — never delete (branch and T0 history 
 | "I'll widen the substrate a little so the doer stops escalating" | A wide substrate is no substrate. Split or add a shared_substrate entry, deliberately. |
 | "This scope looks downhill, I'll set the phase" | hill_phase is UPHILL_UNKNOWN at write, always. Facts move dots, not authors. |
 | "The old contract is superseded, delete it" | supersede-never-delete. History must stay attributable. |
+| "Both scopes implement that UC, the tasks will sort themselves out" | They will not — both scopes get every task of that UC and three of four writes get denied. Give each scope its own use cases, or say so in deviations[] so the board can be stamped. |
+| "I'll list the task ids so the contract says what it builds" | The board is gitignored and renumbers per machine; the contract is committed. Cite the UCs — the tasks are re-derived from them. |
+| "Build order is obvious from the slice, I'll leave depends_on empty" | Nothing infers it any more. An undeclared edge means the two scopes are released into the same wave and race. |
 | "Fixtures can come later, leave the field empty" | Fixture at contract time or an explicit TBD flag — silence is how T0 goes blind. |
 
 ## Output contract — the WorkResult
@@ -98,6 +130,8 @@ territory — and any lint warn left standing, with why). You never touch task f
 ## Verification checklist
 
 - [ ] Every scope crosses layers or is declared CHOWDER; spec-lint PA1 = 0 red
+- [ ] Every scope names ≥1 `use_cases` that resolves on disk, and NO contract carries a task id
+- [ ] Every scope that consumes another's output declares it in `depends_on`
 - [ ] Substrates disjoint except declared shared_substrate (DISJOINT = 0 red)
 - [ ] Every interactive element in scope screens appears in exactly one affordance_manifest
 - [ ] Every scope has fixtures or an explicit TBD flag

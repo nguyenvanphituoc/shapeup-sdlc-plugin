@@ -590,8 +590,12 @@ export async function run(ctx) {
   else fail(`verify skills did not catch a missing worker: exit ${vs.status}\n${vs.stdout}${vs.stderr}`);
 
   const vsOk = node("verify skills", ["--plugin-root", ROOT]);
-  if (vsOk.status === 0 && /2\.0\.0|version/.test(vsOk.stdout)) ok("verify skills passes on a complete root and prints the version that answered");
-  else fail(`verify skills failed on the real root: exit ${vsOk.status}\n${vsOk.stdout}${vsOk.stderr}`);
+  // The expected version is READ FROM THE MANIFEST, never written here. This assertion used to
+  // match the literal `2.0.0`, so it passed for exactly one release and turned every later version
+  // bump into a mystery failure in a test that has nothing to do with versioning.
+  const manifestVersion = JSON.parse(readFileSync(join(ROOT, ".claude-plugin/plugin.json"), "utf8")).version;
+  if (vsOk.status === 0 && vsOk.stdout.includes(manifestVersion)) ok(`verify skills passes on a complete root and prints the version that answered (${manifestVersion})`);
+  else fail(`verify skills failed on the real root: exit ${vsOk.status}, expected it to print ${manifestVersion}\n${vsOk.stdout}${vsOk.stderr}`);
 
   // (c) THE REFUSAL IS EXIT 3 — `init run` refused to open — and it happens before a run root is
   //     created, because refusing after writing state is not refusing.
@@ -657,21 +661,19 @@ export async function run(ctx) {
   const waveBox = mkdtempSync(join(tmpdir(), "scope-waves-"));
   try {
     const put = (rel, body) => { mkdirSync(dirname(join(waveBox, rel)), { recursive: true }); writeFileSync(join(waveBox, rel), body); };
-    const contract = (id, tasks) => [
-      "---", `scope_id: ${id}`, "topology_type: LAYER_CAKE", `tasks: [${tasks.join(", ")}]`,
+    // The order is declared on the CONTRACT, in the same committed tier as the contracts it orders.
+    // It used to be derived from the LOCAL board (contract `tasks` → task `depends_on` → owning
+    // scope), which meant this whole relation evaporated on any tree without a board — silently,
+    // because "no edges" and "no relation" are the same empty answer.
+    const contract = (id, deps = []) => [
+      "---", `scope_id: ${id}`, "topology_type: LAYER_CAKE", `use_cases: [UC-${id}]`,
+      `depends_on: [${deps.join(", ")}]`,
       "allowed_file_substrate: [src/x.js]", "hill_phase: UPHILL_UNKNOWN", "---", "", `# Scope: ${id}`, "",
     ].join("\n");
-    const task = (id, deps) => [
-      "---", `id: ${id}`, "title: t", "status: ready", "priority: 1",
-      `depends_on: [${deps.join(", ")}]`, "---", "", "- [ ] does the thing", "",
-    ].join("\n");
     // `aaa-wiring` sorts FIRST and depends on everything; `zzz-core` sorts LAST and depends on nothing.
-    put("shapeup/demo/scopes/aaa-wiring.md", contract("aaa-wiring", ["TASK-003"]));
-    put("shapeup/demo/scopes/mmm-feature.md", contract("mmm-feature", ["TASK-002"]));
-    put("shapeup/demo/scopes/zzz-core.md", contract("zzz-core", ["TASK-001"]));
-    put(".shapeup/demo/tasks/TASK-001-core.md", task("TASK-001", []));
-    put(".shapeup/demo/tasks/TASK-002-feature.md", task("TASK-002", ["TASK-001"]));
-    put(".shapeup/demo/tasks/TASK-003-wiring.md", task("TASK-003", ["TASK-002"]));
+    put("shapeup/demo/scopes/aaa-wiring.md", contract("aaa-wiring", ["mmm-feature"]));
+    put("shapeup/demo/scopes/mmm-feature.md", contract("mmm-feature", ["zzz-core"]));
+    put("shapeup/demo/scopes/zzz-core.md", contract("zzz-core"));
 
     const sdir = join(waveBox, "shapeup/demo/scopes");
     const scopes = ["aaa-wiring", "mmm-feature", "zzz-core"].map((id) => ({ scope_id: id, path: join(sdir, `${id}.md`) }));
@@ -689,12 +691,9 @@ export async function run(ctx) {
     const flat = mkdtempSync(join(tmpdir(), "scope-flat-"));
     try {
       const putf = (rel, body) => { mkdirSync(dirname(join(flat, rel)), { recursive: true }); writeFileSync(join(flat, rel), body); };
-      putf("shapeup/demo/scopes/core.md", contract("core", ["TASK-001"]));
-      putf("shapeup/demo/scopes/a.md", contract("a", ["TASK-002"]));
-      putf("shapeup/demo/scopes/b.md", contract("b", ["TASK-003"]));
-      putf(".shapeup/demo/tasks/TASK-001-core.md", task("TASK-001", []));
-      putf(".shapeup/demo/tasks/TASK-002-a.md", task("TASK-002", ["TASK-001"]));
-      putf(".shapeup/demo/tasks/TASK-003-b.md", task("TASK-003", ["TASK-001"]));
+      putf("shapeup/demo/scopes/core.md", contract("core"));
+      putf("shapeup/demo/scopes/a.md", contract("a", ["core"]));
+      putf("shapeup/demo/scopes/b.md", contract("b", ["core"]));
       const fdir = join(flat, "shapeup/demo/scopes");
       const fw = scopeWaves(flat, "demo", ["core", "a", "b"].map((id) => ({ scope_id: id, path: join(fdir, `${id}.md`) })));
       const shape = fw.map((w) => w.length);
@@ -706,18 +705,40 @@ export async function run(ctx) {
       }
     } finally { rmSync(flat, { recursive: true, force: true }); }
 
-    // Non-regression: no board at all → one wave, exactly today's behavior. A scheduler that
-    // refuses to run is worse than one that runs unscheduled.
+    // Non-regression: no contract declares an order → one wave, exactly the pre-scheduler behavior.
+    // A scheduler that refuses to run is worse than one that runs unscheduled.
     const bare = mkdtempSync(join(tmpdir(), "scope-bare-"));
     try {
       mkdirSync(join(bare, "shapeup/demo/scopes"), { recursive: true });
-      writeFileSync(join(bare, "shapeup/demo/scopes/only.md"), contract("only", ["TASK-001"]));
-      writeFileSync(join(bare, "shapeup/demo/scopes/other.md"), contract("other", ["TASK-002"]));
+      writeFileSync(join(bare, "shapeup/demo/scopes/only.md"), contract("only"));
+      writeFileSync(join(bare, "shapeup/demo/scopes/other.md"), contract("other"));
       const bdir = join(bare, "shapeup/demo/scopes");
       const bw = scopeWaves(bare, "demo", ["only", "other"].map((id) => ({ scope_id: id, path: join(bdir, `${id}.md`) })));
-      if (bw.length === 1 && bw[0].length === 2) ok("a tree with no board falls back to one wave — the ordering is additive, never a precondition");
-      else fail(`a boardless tree produced ${bw.length} wave(s) instead of falling back`);
+      if (bw.length === 1 && bw[0].length === 2) ok("a tree declaring no order falls back to one wave — the ordering is additive, never a precondition");
+      else fail(`an order-free tree produced ${bw.length} wave(s) instead of falling back`);
     } finally { rmSync(bare, { recursive: true, force: true }); }
+
+    // THE CLONE CASE, which is the whole reason the order moved tiers. Same three contracts, no
+    // `.shapeup/` anywhere: under the board-derived relation this collapsed to one flat wave and
+    // rebuilt the exact scheduling defect section 59 exists to prevent, on a tree whose committed
+    // artifacts said plainly what order to build in.
+    const cloned = mkdtempSync(join(tmpdir(), "scope-clone-"));
+    try {
+      mkdirSync(join(cloned, "shapeup/demo/scopes"), { recursive: true });
+      writeFileSync(join(cloned, "shapeup/demo/scopes/aaa-wiring.md"), contract("aaa-wiring", ["mmm-feature"]));
+      writeFileSync(join(cloned, "shapeup/demo/scopes/mmm-feature.md"), contract("mmm-feature", ["zzz-core"]));
+      writeFileSync(join(cloned, "shapeup/demo/scopes/zzz-core.md"), contract("zzz-core"));
+      const cdir = join(cloned, "shapeup/demo/scopes");
+      const cw = scopeWaves(cloned, "demo", ["aaa-wiring", "mmm-feature", "zzz-core"]
+        .map((id) => ({ scope_id: id, path: join(cdir, `${id}.md`) })))
+        .map((w) => w.map((p) => p.split("/").pop().replace(".md", "")));
+      if (JSON.stringify(cw) === JSON.stringify([["zzz-core"], ["mmm-feature"], ["aaa-wiring"]])) {
+        ok("the build order survives a fresh clone — it is read from the committed contracts, not from a gitignored board");
+      } else {
+        fail(`with no .shapeup/ on disk the fan-out lost its order: got ${JSON.stringify(cw)}. ` +
+          `The ordering is only worth having if it is in the same tier as the contracts it orders.`);
+      }
+    } finally { rmSync(cloned, { recursive: true, force: true }); }
 
     // SCOPES THAT MAY WRITE THE SAME PATH ARE NAMED AS A PAIR, and the naming has to happen HERE
     // because it is the only layer that can. `shared_substrate` is the declared escape hatch from
@@ -735,7 +756,7 @@ export async function run(ctx) {
       const { scopeExclusions } = await import(join(ROOT, "kernel/probe/resume.mjs"));
       const puts = (rel, body) => { mkdirSync(dirname(join(shared, rel)), { recursive: true }); writeFileSync(join(shared, rel), body); };
       const withSubstrate = (id, allowed, sharedGlobs) => [
-        "---", `scope_id: ${id}`, "topology_type: LAYER_CAKE", "tasks: [TASK-001]",
+        "---", `scope_id: ${id}`, "topology_type: LAYER_CAKE", "use_cases: [UC-01]",
         `allowed_file_substrate: [${allowed.join(", ")}]`,
         ...(sharedGlobs ? [`shared_substrate: [${sharedGlobs.join(", ")}]`] : []),
         "hill_phase: UPHILL_UNKNOWN", "---", "", `# ${id}`, "",

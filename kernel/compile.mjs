@@ -38,7 +38,7 @@ import {
   tasksDir, specDir as defaultSpecDir, roundLedger, trials, verdictsDir, ordersDir,
   relShared, globLocal, globShared, relKnowledgeBase, resultsDir, scopesDir,
 } from "./lib/paths.mjs";
-import { readContract, SCOPE_CONTRACT } from "./lib/contract.mjs";
+import { readContract, tasksForScope, SCOPE_CONTRACT } from "./lib/contract.mjs";
 import { writeActiveOrder } from "./probe/resume.mjs";
 // The SAME matcher the sandbox hook enforces with. "Is this cited file inside this scope's
 // substrate" has to mean exactly what the guard means, or a bug is addressed to a scope that is
@@ -76,7 +76,7 @@ export function frontmatter(md) {
  * Parse one TASK-NNN.md file into the task entry a WorkOrder carries.
  * @param {string} path - Absolute path to the task Markdown file.
  * @returns {{id:string, title:string, status:string, priority:number, depends_on:string[],
- *   use_case_refs:string[], body_path:string, acceptance_criteria:Array<string|{text:string,
+ *   use_case_refs:string[], scope_id:string, body_path:string, acceptance_criteria:Array<string|{text:string,
  *   covers:string[]}>}} The task entry. Each acceptance criterion is the checkbox text
  *   byte-identical (so ingest can tick it back); a trailing `(covers: REQ-…)` clause yields
  *   {text, covers} instead of a plain string. `priority` defaults to 999 when unset.
@@ -103,6 +103,7 @@ export function parseTaskFile(path) {
     priority: Number(fm.priority) || 999,
     depends_on: Array.isArray(fm.depends_on) ? fm.depends_on : [],
     use_case_refs: Array.isArray(fm.use_case_refs) ? fm.use_case_refs : [],
+    scope_id: fm.scope_id || "",
     body_path: path,
     acceptance_criteria,
   };
@@ -688,10 +689,18 @@ export async function cli(rawArgv) {
     tasks = board.filter((t) => t.status === "ready" && t.depends_on.every((d) => doneIds.has(d))).slice(0, 1);
     if (!tasks.length) { console.error("compile-order: no ready task with satisfied dependencies"); process.exit(2); }
   } else if (scope) {
-    // Scope attempt: the scope's own task list if the contract names one, else every
-    // not-done task on the board (the attempt loop owns sequencing, not the worker).
-    const named = new Set(scope.tasks || []);
-    tasks = board.filter((t) => (named.size ? named.has(t.id) : t.status !== "done"));
+    // Scope attempt: the board tasks anchored to this scope's use cases, else every not-done task
+    // on the board (the attempt loop owns sequencing, not the worker).
+    //
+    // The contract names USE CASES, never task ids: it is committed and the board is not, so a
+    // contract holding `TASK-004` pointed into a gitignored per-machine tier and resolved to
+    // nothing on a fresh clone — silently, because an empty filter and an absent board are the
+    // same empty array. A scope that anchors no use case still falls back to the whole open board
+    // rather than dispatching nothing; spec-lint's SCOPE-ANCHOR is what reports the missing anchor.
+    const anchored = tasksForScope(board, scope);
+    tasks = anchored.length || (scope.use_cases || []).length
+      ? anchored
+      : board.filter((t) => t.status !== "done");
   }
 
   // Ledger decisions for this scope.

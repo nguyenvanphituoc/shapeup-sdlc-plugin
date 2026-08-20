@@ -11,7 +11,7 @@
 //   • Appetite Guard arithmetic (--appetite-hours N → overflow flag; the HAMMER *pause* on
 //     overflow is an orchestrator gate, never resolved here)
 //   • board-vs-T0 drift check (a FINISHED scope whose tasks still read `ready`) when scope
-//     contracts name their tasks — flag, never fix
+//     contracts anchor use cases the board's tasks name back — flag, never fix
 //   • board-vs-dispatch reconciliation (BOARD-UNDISPATCHED, Phase 3.5 / S6): a scope with a
 //     done-marked task but no dispatched-and-answered order anywhere for it — a cut, never
 //     dispatched scope cannot read `done` — flag, never fix
@@ -25,7 +25,7 @@ import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
 import { tasksDir, scopesDir, hillDir, ordersDir, resultsDir } from "../lib/paths.mjs";
-import { readAllContracts, splitFrontmatter, SCOPE_CONTRACT } from "../lib/contract.mjs";
+import { readAllContracts, splitFrontmatter, tasksForScope, SCOPE_CONTRACT } from "../lib/contract.mjs";
 
 /**
  * Read a list field from a frontmatter string, inline `[a, b]` or YAML block sequence alike.
@@ -63,7 +63,7 @@ const listField = (fm, key) => {
  * Parse every TASK-*.md in a board directory into structured task records.
  * @param {string} tasksDir - Absolute path to the LOCAL tasks directory.
  * @returns {Array<{file:string, id:string, type:string, status:string, hours:number, pkg:string,
- *   depends_on:string[], unlocks:string[], use_case_refs:string[], body:string}>} One record per
+ *   depends_on:string[], unlocks:string[], use_case_refs:string[], scope_id:string, body:string}>} One record per
  *   task file; [] when the directory does not exist.
  */
 export function parseBoard(tasksDir) {
@@ -83,6 +83,7 @@ export function parseBoard(tasksDir) {
         depends_on: listField(fm, "depends_on"),
         unlocks: listField(fm, "unlocks"),
         use_case_refs: listField(fm, "use_case_refs"),
+        scope_id: (fm.match(/^scope_id:\s*(\S+)/im) || [, ""])[1].trim(),
         body,
       };
     });
@@ -138,19 +139,22 @@ export function criticalPath(tasks) {
 }
 
 /**
- * Flag board-vs-T0 drift: FINISHED scopes whose named tasks are not yet done (flag only, never fix).
- * @param {Array<{id:string, status:string}>} tasks - The parsed board.
- * @param {Array<{scope_id:string, tasks?:string[], finished?:boolean}>} scopes - Scope facts.
+ * Flag board-vs-T0 drift: FINISHED scopes whose tasks are not yet done (flag only, never fix).
+ *
+ * The scope's tasks are joined through its committed `use_cases`, not read off a task-id list the
+ * contract used to carry — see {@link tasksForScope}. A scope that anchors no use case contributes
+ * nothing here rather than a false clean bill: "no anchor" is SCOPE-ANCHOR's finding to report.
+ *
+ * @param {Array<{id:string, status:string, use_case_refs?:string[]}>} tasks - The parsed board.
+ * @param {Array<{scope_id:string, use_cases?:string[], finished?:boolean}>} scopes - Scope facts.
  * @returns {Array<{scope_id:string, task_id:string, status:string}>} One entry per drifting task; [] when none.
  */
 export function driftCheck(tasks, scopes) {
-  const byId = Object.fromEntries(tasks.map((t) => [t.id, t]));
   const drift = [];
   for (const s of scopes) {
-    if (!Array.isArray(s.tasks) || !s.finished) continue;
-    for (const id of s.tasks) {
-      const t = byId[id];
-      if (t && t.status !== "done") drift.push({ scope_id: s.scope_id, task_id: id, status: t.status });
+    if (!s.finished) continue;
+    for (const t of tasksForScope(tasks, s)) {
+      if (t.status !== "done") drift.push({ scope_id: s.scope_id, task_id: t.id, status: t.status });
     }
   }
   return drift;
@@ -192,8 +196,8 @@ function answeredScopeIds(orders, results) {
  * on disk. A sibling to {@link driftCheck} (a FINISHED scope whose tasks are NOT done) — this is
  * the opposite direction (done tasks, no dispatch trail) and both must keep running.
  *
- * @param {Array<{id:string, status:string}>} tasks - The parsed board.
- * @param {Array<{scope_id:string, tasks?:string[]}>} scopes - Scope contracts.
+ * @param {Array<{id:string, status:string, use_case_refs?:string[]}>} tasks - The parsed board.
+ * @param {Array<{scope_id:string, use_cases?:string[]}>} scopes - Scope contracts.
  * @param {string} orders - Absolute path to the run's `orders/` directory.
  * @param {string} results - Absolute path to the run's `results/` directory.
  * @returns {Array<{rule:string, level:string, scope_id:string, detail:string}>} One finding per
@@ -201,12 +205,12 @@ function answeredScopeIds(orders, results) {
  *   (`kernel/verify/spec.mjs`); [] when every done-marked scope has a dispatch trail.
  */
 export function undispatchedCheck(tasks, scopes, orders, results) {
-  const byId = Object.fromEntries(tasks.map((t) => [t.id, t]));
   const answered = answeredScopeIds(orders, results);
   const findings = [];
   for (const s of scopes) {
-    if (!Array.isArray(s.tasks) || !s.tasks.length) continue;
-    const doneTaskId = s.tasks.find((id) => byId[id]?.status === "done");
+    // Joined through the contract's committed `use_cases`, same as driftCheck — the two read the
+    // scope↔task relation from one function so they cannot disagree about which tasks a scope owns.
+    const doneTaskId = tasksForScope(tasks, s).find((t) => t.status === "done")?.id;
     if (doneTaskId && !answered.has(s.scope_id)) {
       findings.push({
         rule: "BOARD-UNDISPATCHED", level: "red", scope_id: s.scope_id,
@@ -234,7 +238,8 @@ export function derive({ cwd, slug, appetiteHours = null }) {
   const packages = {};
   for (const t of tasks) packages[t.pkg || "(none)"] = (packages[t.pkg || "(none)"] || 0) + 1;
 
-  // Scope facts for the drift check: contract `tasks` list + committed hill shard phase.
+  // Scope facts for the drift check: the contract (its `use_cases` carry the task join)
+  // + the committed hill shard's phase.
   const hillRoot = hillDir(cwd, slug);
   const scopes = readAllContracts(scopesDir(cwd, slug), SCOPE_CONTRACT).map(({ contract }) => {
     const shard = join(hillRoot, `${contract.scope_id}.yml`);

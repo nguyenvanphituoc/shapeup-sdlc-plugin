@@ -13,7 +13,8 @@ status: draft
 # Migration Plan: FEATURE TITLE
 
 > Generated only when feature modifies existing production schema.
-> Each migration task maps to a TASK-M0N in tasks/_index.md.
+> Each migration step anchors to a committed use case; the tasks that carry it are found
+> by inverting `use_case_refs` over the LOCAL board, never linked from here.
 
 ---
 
@@ -31,7 +32,7 @@ status: draft
 
 ## Migration Tasks
 
-### TASK-M01 — [description, e.g. Add nullable columns]
+### STEP-1 — [description, e.g. Add nullable columns]
 
 ```sql
 -- UP
@@ -46,7 +47,7 @@ Safe to run: during deploy / after deploy / off-hours only
 
 ---
 
-### TASK-M02 — [description, e.g. Backfill existing rows]
+### STEP-2 — [description, e.g. Backfill existing rows]
 
 ```sql
 -- UP (run in batches of 1000 to avoid lock escalation)
@@ -66,7 +67,7 @@ Estimated rows: ~N | Estimated time: ~Ns | Lock: none
 
 ---
 
-### TASK-M03 — [description, e.g. Enforce NOT NULL constraint]
+### STEP-3 — [description, e.g. Enforce NOT NULL constraint]
 
 ```sql
 -- UP — only run after M02 verified

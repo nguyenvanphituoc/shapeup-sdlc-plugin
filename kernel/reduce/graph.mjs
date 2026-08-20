@@ -32,7 +32,7 @@ import {
   localRoot, receipt as receiptPath, ordersDir, resultsDir, verdictsDir, trials as trialsPath,
   gates as gatesPath, scopesDir, usecasesDir, requirements as requirementsPath, wiringMap as wiringMapPath,
 } from "../lib/paths.mjs";
-import { readAllContracts, readContract, SCOPE_CONTRACT, WIRING_MAP } from "../lib/contract.mjs";
+import { readAllContracts, readContract, ucId, SCOPE_CONTRACT, WIRING_MAP } from "../lib/contract.mjs";
 import { runIdFromReceipt } from "../lib/paths.mjs";
 
 /** The graph's home — one file per feature, beside the run trace it projects. */
@@ -243,7 +243,14 @@ export function project(cwd, slug) {
         scope_id: contract.scope_id, title: contract.title ?? null,
         substrate: (contract.allowed_file_substrate || []).length,
       });
+      // The domain family's entry edges. Before scope contracts anchored into the committed spec
+      // these could not be drawn: `covers` had this reader and no writer, and there was no
+      // Scope→UseCase relation at all, so a Scope sat in the graph as an isolated node beside the
+      // UseCase nodes it was built from and `--trace` stopped there instead of reaching the
+      // objective. The contract now names both, so both are projectable.
+      for (const uc of contract.use_cases || []) edge(id, "IMPLEMENTS", `uc:${slug}:${ucId(uc)}`);
       for (const req of contract.covers || []) edge(id, "COVERS", `req:${slug}:${req}`);
+      for (const dep of contract.depends_on || []) edge(id, "DEPENDS_ON", `scope:${slug}:${dep}`);
     }
   }
 
@@ -266,14 +273,21 @@ export function project(cwd, slug) {
   // entry-point call site → affordance. Reading it back as edges is the whole reason it is a table.
   const wPath = wiringMapPath(cwd, slug);
   if (existsSync(wPath)) {
+    // READ THE FIELDS THE SPEC ACTUALLY PRODUCES. This loop asked for `contract.wiring` while
+    // WIRING_MAP names the field `entries`, and for `row.seam`/`row.entry_point` while WiringEntry
+    // declares `wiring_seam`/`entry_call_site` — three name mismatches stacked on a parser that was
+    // returning nothing anyway. Every one of them independently yields an empty domain half, and
+    // none of them can fail loudly: an absent field and an absent wiring map look identical here.
+    // The legacy spellings stay as fallbacks so a map written either way still projects.
     const found = readContract(wPath, WIRING_MAP);
-    for (const row of found?.contract?.wiring || found?.contract?.rows || []) {
+    for (const row of found?.contract?.entries || found?.contract?.wiring || found?.contract?.rows || []) {
       const uc = row.use_case || row.uc;
-      const seam = row.seam;
+      const seam = row.wiring_seam || row.seam;
+      const entryPoint = row.entry_call_site ?? row.entry_point ?? null;
       if (!uc || !seam) continue;
       const seamId = `seam:${slug}:${seam}`;
-      node(seamId, "Seam", { seam, engine: row.engine ?? null, entry_point: row.entry_point ?? null });
-      edge(`uc:${slug}:${uc}`, "DEPENDS_ON", seamId);
+      node(seamId, "Seam", { seam, engine: row.engine ?? null, entry_point: entryPoint });
+      edge(`uc:${slug}:${ucId(uc)}`, "DEPENDS_ON", seamId);
     }
   }
 

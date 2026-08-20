@@ -70,8 +70,23 @@ guessed `main.js` would make the later oracle certify nothing.
                                the import graph, it does not parse this field)
              affordance        the player-visible thing this UC exposes once wired (the human
                                end of the chain — what a user can DO, not an internal call)
-3 WRITE    shapeup/<slug>/wiring-map.md (WiringMap): {schema_version:1, feature,
-           entry_point (echo of the profile), entries[]}. One entry per use case. A UC whose
+3 WRITE    shapeup/<slug>/wiring-map.md (WiringMap): frontmatter for schema_version, feature
+           and entry_point (echo of the profile), then entries[] as ONE MARKDOWN TABLE under a
+           `## Wiring` heading — this exact shape, because it is the only one the reader parses:
+
+             ## Wiring
+
+             | use_case | engine | wiring_seam | entry_call_site | affordance |
+             |---|---|---|---|---|
+             | UC-01 | src/parsing.mjs | argv dispatch calls parseEnv | bin/envlint.mjs | envlint <file> |
+
+           One ROW per use case + engine pair — a UC carried by two engines gets two rows, never
+           one cell naming both. `engine` is a bare repo-relative path and nothing else: the
+           oracle resolves that cell against disk, and a cell like "`a.mjs` and `b.mjs` — two pure
+           modules" resolves to no file and is reported unverifiable. Put the explanation in the
+           `## Deviations` prose, never in the cell.
+
+           A UC whose
            engine has no attachment path is exactly the gap this artifact exists to surface —
            write the entry with the seam you INTEND and raise it in deviations[], so
            the build knows the wiring it must close. Your craft ends here: WRITE, then return the

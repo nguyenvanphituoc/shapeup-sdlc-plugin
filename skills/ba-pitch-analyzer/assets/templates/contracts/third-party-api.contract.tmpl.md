@@ -5,7 +5,9 @@ feature: "[feature-slug]"
 repository: "[RepoName]"
 service: "[ServiceName]"
 feasibility_ref: "API-[NN]"
-spike_task: "[[TASK-NNN-spike-[api]]]"
+spike_status: open       # open | done — STATUS, never a task id: this contract is
+                         # committed and board ids renumber per machine. The spike is
+                         # reached through feasibility_ref above.
 status: speculative      # → confirmed after SPIKE done
 skill_version: "2.3"
 ---
@@ -14,13 +16,14 @@ skill_version: "2.3"
 
 ## Source Type: `third-party-api`
 ## Service: [ServiceName] ([REST API / SDK])
-## Feasibility: ⏳ UNVERIFIED → see [[api-feasibility#API-NN]] + [[TASK-NNN-spike-[api]]]
+## Feasibility: ⏳ UNVERIFIED → see [[api-feasibility#API-NN]]
 
 ---
 
 > ⚠️ **SPECULATIVE CONTRACT**
 > Fields marked `⏳ TBD` are derived from pitch assumptions and community references.
-> All `⏳ TBD` entries MUST be confirmed and replaced during [[TASK-NNN-spike-[api]]].
+> All `⏳ TBD` entries MUST be confirmed and replaced by the spike tracked at
+> [[api-feasibility#API-NN]].
 > Implementation tasks depending on this repository are **blocked** until no `⏳ TBD` remains.
 
 ---

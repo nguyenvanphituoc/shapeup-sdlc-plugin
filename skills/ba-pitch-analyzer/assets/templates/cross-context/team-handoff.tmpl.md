@@ -21,19 +21,29 @@ status: draft
 
 | From Team | To Team | Artifact | Ready When | Blocker Risk |
 |-----------|---------|----------|-----------|-------------|
-| [Team A] (API) | [Team B] (Mobile) | [[contracts/[repo].contract.md]] | TASK-00N done | 🔴 blocks Mobile TASK-00N |
-| [Team B] (API) | [Team A] (API) | `EventName` schema | TASK-00N done | 🟡 blocks integration test |
-| [Team B] (Mobile) | QA | E2E test cases | TASK-00N done | 🟡 blocks QA sprint entry |
+| [Team A] (API) | [Team B] (Mobile) | [[contracts/[repo].contract.md]] | [[usecases/UC-Name]] green | 🔴 blocks Mobile [[usecases/UC-Name]] |
+| [Team B] (API) | [Team A] (API) | `EventName` schema | [[usecases/UC-Name]] green | 🟡 blocks integration test |
+| [Team B] (Mobile) | QA | E2E test cases | [[usecases/UC-Name]] green | 🟡 blocks QA sprint entry |
+
+<!-- Readiness is stated against a committed UC (or a scope_id), never a task id: this
+     register is committed and shared across teams, and board ids are per-machine. -->
 
 ---
 
 ## Blocking Dependencies
 
+<!--
+  Key every row on a USE CASE or a scope_id, never a task id. This document is committed and
+  crosses a team boundary; board ids live in the gitignored tier and each team's board numbers
+  its own, so one board id names a different piece of work on every machine that reads this.
+  spec-lint reds a board id anywhere in the committed tree (TIER-DIRECTION).
+-->
+
 ```
-[Team B] CANNOT start TASK-00N ([description])
-  until [Team A] completes TASK-00N ([description])
+[Team B] CANNOT start [UC-x] ([description])
+  until [Team A] completes [UC-y] ([description])
   Mitigation: use contract stub from [[contracts/[repo].contract.md]]
-  Stub ready: TASK-00N (unblocked — no dependency)
+  Ready now: [UC-z] (unblocked — no dependency)
 
 [Team C] CANNOT start integration tests
   until [Team A] EventName schema is stable
@@ -46,12 +56,12 @@ status: draft
 
 ```
 Wave 1 — No cross-team dependencies (start immediately):
-  [Team A]: TASK-001, TASK-002, TASK-003
-  [Team B]: TASK-004, TASK-005 (using contract stub)
+  [Team A]: [UC-a], [UC-b], [UC-c]
+  [Team B]: [UC-d], [UC-e] (using contract stub)
 
-Wave 2 — After Team A TASK-003 done:
-  [Team B]: TASK-006 (replace stub with real contract)
-  [Team C]: TASK-007 (integration tests — real contract available)
+Wave 2 — After Team A [UC-c] done:
+  [Team B]: [UC-f] (replace stub with real contract)
+  [Team C]: integration tests (real contract available)
 
 Wave 3 — After Wave 2 complete:
   QA: E2E test suite
@@ -64,7 +74,7 @@ Wave 3 — After Wave 2 complete:
 | Trigger | Owner | Notify | Channel |
 |---------|-------|--------|---------|
 | Contract changes after stub distributed | [Team A] | [Team B], QA | [channel] |
-| TASK-00N delayed > 1 day | [Team A] | [Team B] | [channel] |
+| A wave-1 use case delayed > 1 day | [Team A] | [Team B] | [channel] |
 | Schema breaking change detected | Any | All teams | [channel] |
 
 ---
@@ -72,7 +82,7 @@ Wave 3 — After Wave 2 complete:
 ## Definition of Done (Cross-Context)
 
 Feature is complete when ALL of the following are true:
-- [ ] All TASK-MNN migrations run and verified in staging
+- [ ] Every migration STEP run and verified in staging
 - [ ] All contracts have no remaining ⏳ TBD fields
 - [ ] Event choreography happy path verified end-to-end
 - [ ] All dead-letter scenarios have runbooks

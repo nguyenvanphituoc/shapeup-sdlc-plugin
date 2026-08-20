@@ -166,50 +166,29 @@ Derived from: `_index.md` rabbit holes + `api-feasibility.md` SPIKE blocks + `in
 
 | Cut | At | Reason | Traded for (if any) |
 |-----|-----|-------|---------------------|
-| ~~[cut capability]~~ | GATE-N | appetite overflow — saved for a later bet | TASK-NNN |
+| ~~[cut capability]~~ | GATE-N | appetite overflow — saved for a later bet | [UC or scope it was traded for] |
 
 *A Cut is a healthy shaping signal, not debt. Revisit it at the betting table next cycle.*
 
 ---
 
-## S-03 — Dependency Graph
+## S-03 — Dependency Shape
 
-> Open this section when **Dependency** is 🟡 or 🔴, or when planning parallel work.
+> Open this section when **Dependency** is 🟡 or 🔴.
 
-Derived from: `depends_on` and `unlocks` in every task frontmatter + `estimated_hours`.
+Derived from: `depends_on` in every task frontmatter. **Counts and shape only — no task ids.**
+This document is COMMITTED and the board is not: ids live in the gitignored tier and renumber on
+every regeneration, so an id written here resolves on the machine that wrote it and nowhere else.
+spec-lint reds a `TASK-` id anywhere in the committed tree (TIER-DIRECTION).
 
-### Critical Path
+| Metric | Value |
+|---|---|
+| Critical path | N tasks · NN hours · NN% of total estimated hours |
+| Widest parallel wave | N tasks |
+| Tasks with no dependency | N |
+| Single points of failure (block > 2 downstream) | N |
 
-```
-Critical path: N tasks · NN hours · NN% of total estimated hours
-
-TASK-001 [SPIKE]  spike-[api]-feasibility         2h
-  └─ blocks ──► TASK-004, TASK-005, TASK-006
-TASK-002 [TASK]   shared-schema                   3h  ← parallel (no dependency on 001)
-TASK-003 [TASK]   contract-stub                   2h  ← parallel
-TASK-004 [FEAT]   implement-[repo]               ⏳ blocked by TASK-001   4h
-  └─ blocks ──► TASK-005
-TASK-005 [FEAT]   [use-case]-service             ⏳ blocked by TASK-004   6h
-  └─ blocks ──► TASK-006, TASK-007
-TASK-006 [FEAT]   [feature]-ui                   ⏳ blocked by TASK-005   8h
-TASK-007 [FEAT]   [feature]-ui-edge-cases        ⏳ blocked by TASK-005   4h
-```
-
-### Parallel Opportunities
-
-Tasks at the same dependency depth with no interdependency — can be executed in parallel:
-
-| Wave | Tasks | Total Hours | Can Parallelize |
-|------|-------|-------------|-----------------|
-| Wave 1 (no deps) | TASK-001, TASK-002, TASK-003 | Nh | ✅ yes — 3 agents |
-| Wave 2 (after 001) | TASK-004 | Nh | — single task |
-| Wave 3 (after 004) | TASK-005 | Nh | — single task |
-| Wave 4 (after 005) | TASK-006, TASK-007 | Nh | ✅ yes — 2 agents |
-
-### Single Points of Failure
-
-Tasks whose delay cascades to > 2 downstream tasks:
-
-| Task | Blocks | Cascaded Hours at Risk |
-|------|--------|----------------------|
-| TASK-NNN | TASK-NNN, TASK-NNN, TASK-NNN | Nh |
+**The per-scope build order — which scopes go in which wave, and what each waits on — lives in
+`scope-board.md`, not here.** `scope-architect` writes that board and is the only worker that knows
+the scope ids; it runs after this document, so the ordering cannot be expressed here in a key that
+survives a clone. Cite the board, never restate it.
