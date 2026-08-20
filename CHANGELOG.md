@@ -3,7 +3,108 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] — becomes 2.0.0 at cut · the native runtime
+## [3.0.0] — 2026-08-20 · the tier boundary, enforced
+
+**BREAKING.** Every committed artifact written before this release fails GATE L1b until it is
+regenerated. `ScopeContract.tasks` is gone; `SCOPE-ANCHOR` requires a `use_cases[]` anchor no
+existing contract has; and the tier lint now scans the whole committed tree instead of two corners
+of it — 438 findings across the nine-run trace corpus, all of which previously reported clean. The
+fix on a live project is to re-run `map-scopes` and `analyze`, which regenerate the contracts and
+the spec docs in the new shape. Nothing auto-migrates, deliberately: a rule that silently rewrote
+committed artifacts to make itself pass would be the same class of defect it exists to catch.
+
+**Removing `tasks[]` traded a declared partition for a derived ambiguity.** The contract's task-id
+list was wrong about the tier, but it was right about one thing: it assigned each task to exactly
+one scope. `use_cases[]` cannot do that job. A use case is routinely implemented by several scopes —
+that is what a vertical slice is — so on the corpus's real shape, four scopes over a single use
+case, **every scope claimed every task**. It corrupts nothing, because the sandbox denies a scope
+writing outside its substrate; the cost lands as three denied writes and a burnt attempt budget per
+scope. One field was answering two questions: *what is this scope answerable for* (a spec link,
+N:N, correct) and *who builds this* (an assignment, which must be a partition). Dispatch now prefers
+an explicit `scope_id:` on the LOCAL task — the same sanctioned local-names-committed direction as
+`use_case_refs` — and falls back to the UC join, which is already a partition whenever the cut gives
+each scope its own use cases. A half-stamped board still resolves. `SCOPE-PARTITION` reds a
+contested task rather than letting the dispatch quietly duplicate.
+
+**Four smaller things found in the same pass.** A `depends_on` cycle was answered by `scopeWaves`
+dumping every remaining scope into one unordered wave and reporting nothing — the exact fan-out the
+ordering exists to replace, arrived at silently; it is red now. `covers[]` was validated for shape
+only, so a scope could claim a requirement that did not exist; it is closure-checked against
+`requirements.md` when one is present. The wiring map's migration reader announced nothing, which is
+how a temporary fallback becomes a permanent second format — a map read through it now warns to
+converge. And `scope-board.md`, which briefly gained a hand-authored `wave` column, is typed as what
+it is: a projection of the contracts that restates no derived value, because a hand-written copy of
+a Kahn level is the hand-authored-`unlocks` drift `deriveUnlocks` already removed once.
+
+**The tier rule was enforced in two corners of a tree it had to cover whole.** `TIER-DIRECTION`
+walked `[[tasks/...]]` wikilinks inside `spec/` and one frontmatter key in `scopes/`. Neither is
+the form the violation takes. Measured across nine completed runs, in seven committed artifact
+types: 264 board ids in `spec/synthesis.md`, 183 in `spec/scope-summary.md`, 142 in `scopes/*.md`
+prose, 136 in `scope-board.md`, plus paths into the gitignored tier in nine more files — every one
+a bare id in a table cell or a sentence, and every one reported clean. The template that caused the
+largest share stated the rule and then broke it: `synthesis.tmpl.md` said "Record only the count +
+status — never task ids" and, 110 lines later, printed a dependency chain, a wave table and a
+critical path entirely in board ids. The lint now scans the whole `shapeup/<slug>/` tree and reds
+a board id or a local path wherever it appears, with file and line. Naming the tier without a path
+is still fine — a committed doc has to be able to explain the storage model — and
+`shapeup/knowledge-base/` sits outside the walk by construction, since those files instruct workers
+rather than cite artifacts. The build order moved to where it can be expressed in a key that
+survives a clone: `synthesis.md` keeps counts and shape (it is written before scopes exist and
+cannot name them), and `scope-board.md` gained the per-scope waves, keyed on `scope_id` and
+`depends_on`, replacing the board id column that was its own largest leak. `team-handoff.tmpl.md`
+was the sharpest case — it coordinated two teams across a committed document using ids from two
+independently-numbered boards. A second structural check now asserts no template owning a committed
+artifact teaches a board id at all, which is what would have caught `synthesis.tmpl.md` on the day
+it was written.
+
+**The wiring map had never been read.** `wiring-map.md` is the only artifact stating how each use
+case's engine attaches to the entry point, and three independent name mismatches were stacked on
+it, each sufficient alone to yield nothing. `solution-architect` was told to write a
+`{schema_version, feature, entry_point, entries[]}` **object** and never told the markdown layout,
+so every run invented one — a `## Entries` section with a vertical `| Field | Value |` table per
+use case — where the reader expected a horizontal table under `## Wiring`. `reduce graph` then
+asked for `contract.wiring` where the spec produces `entries`, and for `row.seam`/`row.entry_point`
+where `WiringEntry` declares `wiring_seam`/`entry_call_site`. None of the three can fail loudly: an
+absent field and an absent wiring map are the same empty array to every reader, and the vertical
+layout carries no `use_case` header cell, so the signature detector added for exactly this failure
+could not see it either. Measured across every completed run: **9 of 9 committed wiring maps parsed
+to zero entries while reporting readable**, `reduce graph` had never emitted a single `Seam` node,
+and `trace-lint` certified `🟢 green · 0/0 engines reach bin/envlint.mjs` against a deliverable
+whose engines were on disk — the gate whose whole purpose is that no engine ships orphaned,
+reporting success for having checked nothing. The horizontal table is now specified in the skill
+and stays canonical (regeneration converges on it); a migration reader keeps the already-committed
+maps resolving; the projection reads the fields the spec produces; and a map whose sections cannot
+be read is loud rather than empty. The same run now reports `0/1 · unreachable [UC-01]`.
+
+**The domain catalog did not resolve.** `x-erd.relationships` named 29 entities of which 9 were not
+types — display strings with a parenthetical baked into the identifier, a compound
+`CriterionVerdict / Discovery` node that is not an entity, and aliases for types that already
+existed. `UseCase`, the anchor the scope↔task join was rebuilt onto, had no definition at all while
+three other types referenced it. The projection emitted `Seam` — a node type in no relationship —
+and named its nodes Scope/Trial/Order/Result where the schema said ScopeContract/TrialRow/
+WorkOrder/WorkResult. Node keys are identifiers again, `UseCase` and `Seam` are typed, externals
+and the projection's aliases are declared, and the structural suite now checks all three
+expressions against each other — including the tier rule itself, asserted at the catalog level so
+no SHARED type can store a LOCAL key again.
+
+**A committed contract's only link to its work pointed into a gitignored directory.** The scope
+contract carried `tasks: [TASK-004]`, and task ids live on the LOCAL board — regenerated per machine,
+renumbered every time, never cloned. Every committed contract in the trace corpus carried one and
+none carried any committed anchor. The rule against it already existed and could not see it:
+spec-lint's TIER-DIRECTION reds a committed doc that links the board and says to cite the UC instead,
+but it walks wikilinks inside `spec/` while a contract lives in `scopes/` and holds its pointer in
+frontmatter. Measured: a contract naming `TASK-004` with no board anywhere in the tree linted 0 red /
+0 warn, and `compile` then wrote a build order carrying no tasks and exited 0 — a dispatch with
+nothing in it being indistinguishable from a dispatch with nothing to do. Contracts now anchor
+`use_cases[]` into the committed spec, optionally `covers[]` REQ-ids, and declare build order in
+`depends_on[]`; the scope↔task relation is re-derived through the board's own `use_case_refs` by one
+function both `compile` and `reduce board` call. TIER-DIRECTION now reds a task id in a contract,
+SCOPE-ANCHOR requires the anchor to exist and resolve, and SCOPE-DEPS reports an order edge naming a
+scope that is not in the run. The run graph gained the edges this made drawable: `covers` had had a
+reader and no writer since it was added, so a Scope sat in the graph as an isolated node beside the
+UseCase nodes it was built from.
+
+## [2.0.0] — 2026-08-20 · the native runtime
 
 v2 moves the orchestrator onto the native Dynamic Workflow runtime, and then makes it run. The
 first half is the strip-down (last section below); the rest is what executing it turned up.
@@ -276,6 +377,7 @@ entry-point scope in the first wave alongside the command scopes its own contrac
 Scopes are now grouped into dependency waves derived from each contract's `tasks` and each task's
 `depends_on` — nothing new is authored, and any missing input falls back to one wave containing
 everything.
+
 
 **A result could claim an order it was not answering.** `order_id` is the only join in the record
 set, so a result echoing the wrong id is detached from its run rather than mislabelled. `harness
