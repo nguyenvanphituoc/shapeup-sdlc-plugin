@@ -3,6 +3,22 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.0.2] — 2026-08-21 · breadboard.md gets its missing template, shaping docs wikilink their slug
+
+**`breadboard.md` was the only shaping-family artifact with no output template.**
+`resources/shaping.md`, `framing-doc.md`, `kickoff-doc.md` and `spike.md` each specify an exact
+write path and a `shaping: true` / `feature:` frontmatter block; `resources/breadboarding.md` — the
+resource `/shapeup breadboarding` actually loads — never did. `breadboard.md` could therefore ship
+with no slug tag at all, down to whatever the model improvised that session. It now carries the same
+Output File section as its four siblings.
+
+**`feature: [feature-slug]` was a plain YAML string, so Obsidian's Graph View never drew an edge
+from a shaping doc to its slug** — Graph View follows `[[wikilink]]` syntax only, never folder
+nesting or a bare string match. The field is now `feature: "[[feature-slug]]"` across all five
+templates. This is a prompt-only convention with no code reader — `kernel/compile.mjs` threads the
+slug into a WorkOrder independently via `payloadExtra.feature` — so nothing structural pins it; it
+stands on the same footing as the existing `shaping: true` ripple-check convention.
+
 ## [3.0.1] — 2026-08-21 · WIRE fails fast, dead economics reporting removed
 
 **WIRE checks its own precondition instead of paying a worker to discover it.**
