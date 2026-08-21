@@ -816,10 +816,10 @@ fixtures run in isolation and do not consume it.
   drives both toward 0 — measured from the build trace, no manual grading.
 - **Rejected fields:** `time_spent` / velocity (no clock; Shape Up forbids counting hours
   — `round_count` is the legitimate effort proxy) and `run_quality_score` (second judge).
-  This rejection is **unchanged** by the run-economics measurement (`harness probe stats
-  --economics`): cost and wall-clock are properties of a machine run, derived on demand
-  from the exported trace, and they deliberately do not enter this row. A signal feed that
-  carried a duration would become a velocity feed on the next person who read it.
+  Even a real cost or wall-clock record would not belong here: a signal feed that carried a
+  duration would become a velocity feed on the next person who read it. This harness does not
+  currently carry one — the design called for one derived from a per-agent-call journal, but
+  nothing in the pipeline ever writes it, so there is no such record to reject or admit.
 
 ### Row template
 ```json

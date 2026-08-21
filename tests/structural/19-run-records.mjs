@@ -3,13 +3,12 @@
 //
 // THE DEFECT THIS MODULE EXISTS FOR, measured against the records the pipeline writes.
 //
-// Every boundary already emitted JSON — orders in, results out, a journal row per agent call with
-// `cost_usd` and `wall_ms`, a decision row per hook evaluation, a trial row per T0 run. None of it
-// was joinable. The nearest thing to a key was `order_id`, which is `<slug>/r<N>-a<M>`: unique
-// WITHIN a run and IDENTICAL across every run of the same slug. So the harness held a complete
-// dataset and could not answer either question you would ask it first — "compare this run to the
-// last one" and "what did this run cost" — because the cost rows and the verdict rows had no
-// field in common.
+// Every boundary already emitted JSON — orders in, results out, a decision row per hook
+// evaluation, a trial row per T0 run. None of it was joinable. The nearest thing to a key was
+// `order_id`, which is `<slug>/r<N>-a<M>`: unique WITHIN a run and IDENTICAL across every run of
+// the same slug. So the harness held a complete dataset and could not answer the question you
+// would ask it first — "compare this run to the last one" — because the rows had no field in
+// common until every writer stamped `run_id`.
 //
 // WHAT THIS MODULE ASSERTS, by EXECUTING the shipped writers rather than reading their source:
 //
@@ -19,11 +18,15 @@
 //        collision `order_id` alone still has is PINNED — a later "simplification" back onto it
 //        must fail here rather than silently unpick the join.
 //
-//   §54  The projection never invents. A dispatch with no agent call must report `cost_usd: null`
-//        and `agent_join: null`, never `0` — a zero that means "absent" is the same
+//   §54  The projection never invents. A dispatch with no result must report `answered: false` and
+//        `result_status: null`, never a value that reads as a real outcome — the same
 //        indistinguishability that let 26 enforcement points sit inert behind green checks, one
 //        layer up. And the export must be READ-ONLY over the trace it reads, because a measurement
-//        step that mutates its subject is not a measurement.
+//        step that mutates its subject is not a measurement. §54 also pins that `agentCallRow` and
+//        `economics` — the journal-shaped cost/wall-clock projection — STAY REMOVED: the Workflow
+//        runtime never wrote `journal.jsonl` (measured live, twice, in two independent worktrees),
+//        so both were a table that could never hold a row and a report whose fields read null in
+//        every real run — a mechanism that looks like it works and doesn't.
 
 import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, readdirSync, mkdirSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -183,9 +186,9 @@ export async function run(ctx) {
   // =============================================================================
 
   const facts = await import(join(ROOT, "kernel/report/facts.mjs"));
-  const { dispatchFacts, economics, agentCallRow, parseOrderStem, TABLES } = facts;
+  const { dispatchFacts, parseOrderStem, TABLES } = facts;
 
-  // (a) The join, and the two shapes it must keep distinguishable.
+  // (a) The projection never invents an outcome for a dispatch with no result.
   {
     const orders = [
       { order_id: "budgets/sc-01-r1-a1", run_id: "budgets-20260813T113537Z-c714ea8d", worker: "task-executor", operation: "execute", payload: { tasks: [{ id: "TASK-001" }] } },
@@ -197,21 +200,13 @@ export async function run(ctx) {
       files_touched: [{ path: "src/a.ts", change: "modified", lines: 10 }],
       discoveries: [{ marker: "~", line: "tz edge", repro: "TZ=UTC+13" }],
     }];
-    const journal = [{ seq: 3, label: "execute", model: "claude-opus-5", wall_ms: 1000, attempts: 2, ok: true, sessions: [{ cost_usd: 0.3 }, { cost_usd: 1.2 }], result: { result_path: ".shapeup/budgets/results/sc-01-r1-a1.json" } }];
 
-    const f = dispatchFacts({ orders, results, journal });
+    const f = dispatchFacts({ orders, results });
     const build = f.dispatch.find((d) => d.order_id === "budgets/sc-01-r1-a1");
     const analyze = f.dispatch.find((d) => d.order_id === "budgets/analyze");
 
-    if (build.cost_usd === 1.5 && build.agent_join === "result_path" && build.model === "claude-opus-5") {
-      ok("a dispatch joins to its agent call through result_path — cost and model reach the fact row");
-    } else fail(`the agent-call join failed: ${JSON.stringify({ cost: build.cost_usd, join: build.agent_join })}`);
-
-    // THE CENTRAL ASSERTION of this section: an absent cost is null, never zero.
-    if (analyze.cost_usd === null && analyze.agent_join === null) {
-      ok("a dispatch with no agent call reports cost_usd:null and agent_join:null — absent and zero stay distinguishable");
-    } else fail(`an unjoined dispatch reported cost ${analyze.cost_usd} / join ${analyze.agent_join} — a fabricated zero`);
-
+    // THE CENTRAL ASSERTION of this section: a dispatch with no result is answered:false, never a
+    // value that reads as a real outcome.
     if (analyze.answered === false && analyze.result_status === null) ok("a dispatch with no result is answered:false — the row you most need is filterable as an absence");
     else fail("an unanswered dispatch was not marked as such");
 
@@ -240,33 +235,18 @@ export async function run(ctx) {
     } else fail(`operation stems mis-parsed: ${JSON.stringify(o)} / ${JSON.stringify(r)}`);
   }
 
-  // (c) Absence must survive summation. A run whose journal recorded no cost at all must report
-  //     null — a $0.0000 total reads as "this run was free", which is a measurement, and a false one.
+  // (c) THE DEAD MECHANISM MUST STAY DEAD. `agentCallRow` and `economics` existed only to project
+  //     `journal.jsonl`, and the Workflow runtime never wrote it (measured live, twice, in two
+  //     independent worktrees — the journal's own directory never existed after a real run
+  //     either time). A table that can never hold a row, and a report whose fields read null in
+  //     every real run, is a mechanism that looks like it works and doesn't — worse than no
+  //     mechanism, because it reads as evidence. Both were deleted; this pins the removal.
   {
-    const noCost = [agentCallRow({ seq: 1, model: "m", sessions: [{ session_id: "s" }] })];
-    const e = economics({ agent_call: noCost, dispatch: [] });
-    if (e.cost_usd === null) ok("a run whose sessions recorded no cost reports null, not $0 — absence is not a measurement");
-    else fail(`economics manufactured a cost total of ${e.cost_usd} from rows that carried none`);
-  }
-
-  // (d) Row 4 of the measurement table: the figures the design doc says have no instrument.
-  {
-    const dispatch = [
-      { order_id: "s/analyze", stem: "analyze", files_touched: 0, answered: true, cost_usd: 0.5 },
-      { order_id: "s/x-r1-a1", stem: "x-r1-a1", files_touched: 2, answered: true, cost_usd: 1.5 },
-    ];
-    const agent_call = [
-      agentCallRow({ seq: 1, model: "m", started_at: "2026-08-13T00:00:10.000Z", wall_ms: 10, sessions: [{ cost_usd: 0.004 }] }),
-      agentCallRow({ seq: 2, model: "m", started_at: "2026-08-13T00:00:20.000Z", wall_ms: 20, sessions: [{ cost_usd: 0.5 }], result: { result_path: "a/analyze.json" } }),
-      agentCallRow({ seq: 3, model: "m", started_at: "2026-08-13T00:01:00.000Z", wall_ms: 30, sessions: [{ cost_usd: 1.5 }], result: { result_path: "a/x-r1-a1.json" } }),
-    ];
-    const e = economics({ agent_call, dispatch, run: { started_at: "2026-08-13T00:00:00.000Z" } });
-    if (e.calls_to_first_write === 3 && e.seconds_to_first_write === 60) {
-      ok("turns-to-first-write is measured in agent calls AND seconds — a chatty run and a slow one stay separable");
-    } else fail(`first-write measure wrong: ${e.calls_to_first_write} calls / ${e.seconds_to_first_write}s`);
-    if (e.cost_attributed_usd === 2 && e.cost_unattributed_usd === 0.004) {
-      ok("attributed and unattributed cost are reported separately — a partial total cannot pass as a full one");
-    } else fail(`cost partition wrong: ${e.cost_attributed_usd} / ${e.cost_unattributed_usd}`);
+    if (facts.agentCallRow === undefined && facts.economics === undefined) {
+      ok("agentCallRow and economics are gone — no journal-shaped cost/wall-clock projection to fabricate a report from");
+    } else fail("agentCallRow or economics is still exported — the dead journal-cost mechanism is back");
+    if (!TABLES.includes("agent_call")) ok("TABLES no longer declares agent_call — no table exists that can never hold a row");
+    else fail("TABLES still declares agent_call — a table sourced from a journal nothing writes");
   }
 
   // (e) THE EXPORT. It must write every declared table, count what it could not parse, and — the
@@ -306,8 +286,8 @@ export async function run(ctx) {
         else fail(`records_skipped is ${manifest.records_skipped}, expected 1 for the torn record`);
         if (manifest.tables.find((t) => t.name === "dispatch").rows === 1) ok("the torn record is skipped while the readable one still exports");
         else fail("the export lost a readable record alongside the torn one");
-        if (manifest.economics && "cost_usd" in manifest.economics) ok("the manifest carries the run's economics block — row 4 without a second tool");
-        else fail("manifest has no economics block");
+        if (!("economics" in manifest)) ok("the manifest carries no economics block — the field was deleted along with the mechanism it reported");
+        else fail("manifest still carries an economics block — the dead mechanism is back");
       }
 
       const after = fingerprint(runRoot);

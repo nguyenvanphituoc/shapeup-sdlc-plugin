@@ -992,6 +992,20 @@ if (!rs.has_spec_tree) {
 // ---- WIRE + GATE L1a.5 ------------------------------------------------------------------------
 phase("Wire");
 if (!rs.has_wiring_map) {
+  // FAIL FAST, at the orchestrator: `rs` already carries has_project_profile from the resume
+  // snapshot taken before ORIENT — the SAME fact solution-architect would have to discover for
+  // itself. Dispatching without it spends a full worker turn only for the worker to hit its own
+  // documented rule ("profile absent ⇒ ESCALATE, do not invent an entry point" — solution-
+  // architect/SKILL.md) and escalate; an escalation writes no wiring-map.md, so `has_wiring_map`
+  // stays false and every relaunch re-dispatches and re-escalates identically. The orchestrator
+  // holds the state a gate needs; it should not hand the check to the LLM it is about to pay for.
+  if (!rs.has_project_profile) {
+    return withWarnings(aborted("WIRE",
+      `missing SHARED project-profile.md at ${rs.project_profile_path} — GATE L0 writes it ` +
+      `({schema_version:1, archetype, entry_point}; references/gates.md GATE L0 §PROFILE) before ` +
+      `this workflow launches. WIRE cannot resolve an entry_call_site without an entry_point to ` +
+      `resolve against. Write the profile, then relaunch.`));
+  }
   log(`WIRE — dispatching (slug ${slug})`);
   const w = await worker({
     skill: "solution-architect", operation: "wire", schema: PHASE_OK, phase: "Wire", label: "wire",

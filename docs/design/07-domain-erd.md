@@ -275,45 +275,35 @@ erDiagram
     HarnessRun ||--o{ WorkOrder : "run_id — the temporal key"
     WorkOrder ||--o| DispatchFact : "one row per order"
     WorkResult }o--|| DispatchFact : "joined on order_id"
-    JournalRow }o--o| DispatchFact : "joined on result_path stem — NULL when absent"
     DispatchFact ||--o{ AcResult : "ac_result table"
     DispatchFact ||--o{ Discovery : "discovery table"
     DispatchFact ||--o{ FileTouched : "file_touched table"
-    DispatchFact ||--o{ EconomicsReport : "cost · wall · turns-to-first-write"
     MetricsRow }o--|| HarnessRun : "run_id — harvest joins its own trace"
 
-    JournalRow {
-        int seq PK "LOCAL <slug>/workflow-run/journal.jsonl"
-        string run_id FK
-        string model "the ONLY record carrying cost_usd + wall_ms"
-        json[] sessions "cost_usd per session; retries are separate rows"
-    }
     DispatchFact {
         string order_id PK "the grain: one compiled order"
         string run_id FK
         string worker "with operation, scope_id, round, attempt"
         int ac_pass "with ac_fail, ac_skipped, files_touched, lines_touched"
         bool answered "false = dispatched, never came back"
-        number cost_usd "NULL when unjoined — never 0"
-        string agent_join "result_path | NULL — HOW it joined, or that it did not"
-    }
-    EconomicsReport {
-        number cost_attributed_usd "reported apart from cost_unattributed_usd"
-        int calls_to_first_write "with seconds_to_first_write"
-        int retried_calls "with failed_calls, killed_calls"
+        string result_status "NULL when unanswered — never a value that reads as done"
     }
 ```
 
 | Entity | Tier | Location | Sole writer | Readers |
 |---|---|---|---|---|
-| `JournalRow` | LOCAL | `<slug>/workflow-run/journal.jsonl` | the Workflow runtime (append-only) | harness report export, human |
 | `DispatchFact` + children | LOCAL | `.shapeup/exports/<run_id>/*.jsonl` | harness report export (read-only over the trace) | any warehouse tool, human |
-| `EconomicsReport` | EMBEDDED | the export manifest, and stdout from `harness probe stats --economics` | lib/facts.mjs (pure projection) | human / CLI / CI |
 
-**The null discipline.** A dispatch with no agent call carries `cost_usd: null` and
-`agent_join: null`, never `0`; a run whose sessions recorded no cost totals to `null`, never
-`$0.0000`. An absent measurement and a measured zero must not share a representation — the same
-rule `hooks/lib/decision.mjs` applies to `allow`, at the read plane instead of the write plane.
+**The null discipline.** A dispatch with no matching result carries `answered: false` and
+`result_status: null`, never a value that reads as done. An absent record and a real one must not
+share a representation — the same rule `hooks/lib/decision.mjs` applies to `allow`, at the read
+plane instead of the write plane.
+
+(An earlier revision of this diagram also carried a `JournalRow` entity — one row per agent call,
+joined to `DispatchFact` on the `result_path` stem — and an `EconomicsReport` entity projecting
+cost and wall-clock from it. The journal was never written by the Workflow runtime in any measured
+run, so both entities, the join, and `harness probe stats --economics` were removed 2026-08-21
+rather than kept as a mechanism that looks like it works and doesn't.)
 
 ## 7.5 — Vocabulary enums
 

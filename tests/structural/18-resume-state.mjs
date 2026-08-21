@@ -482,6 +482,31 @@ export async function run(ctx) {
           + `kernel actually printed, so the disagreement is invisible until the coercion drops a value:\n    ${clashes.join("\n    ")}`);
       }
     }
+    // --- (n) WIRE dispatches only when its own precondition (has_project_profile) already holds -
+    //
+    // THE DEFECT THIS ARM IS WRITTEN AGAINST. `probe resume` computes `has_project_profile` and
+    // this file's own RESUME schema types it, but nothing branched on it: solution-architect was
+    // dispatched with `project_profile: rs.project_profile_path` (possibly null) and left to
+    // discover a missing profile itself, per its own documented rule ("profile absent ⇒ ESCALATE,
+    // do not invent an entry point" — solution-architect/SKILL.md). An escalation writes no
+    // wiring-map.md, so the phase re-dispatches — and re-escalates — on every relaunch. The
+    // orchestrator already held the fact the gate needs; this checks the gate moved to where the
+    // fact already is, instead of being left to the LLM worker it was about to pay for.
+    if (resumeVar && new RegExp(`if\\s*\\(\\s*!\\s*${resumeVar}\\.has_project_profile\\s*\\)`).test(wfCode)) {
+      ok(`shapeup-run.js gates WIRE's dispatch on ${resumeVar}.has_project_profile before calling solution-architect`);
+    } else {
+      fail("shapeup-run.js dispatches solution-architect for WIRE without first checking has_project_profile — a missing project-profile.md is discovered by the LLM worker instead of the orchestrator that already knows");
+    }
+
+    // The check must precede the dispatch, not merely exist — a check that fires after the worker
+    // call still pays for the turn it exists to save.
+    const iProfileCheck = wfCode.search(new RegExp(`if\\s*\\(\\s*!\\s*${resumeVar}\\.has_project_profile\\s*\\)`));
+    const iWireDispatch = wfCode.indexOf('skill: "solution-architect", operation: "wire"');
+    if (iProfileCheck > -1 && iWireDispatch > -1 && iProfileCheck < iWireDispatch) {
+      ok("the has_project_profile check runs before solution-architect is dispatched, not after — the worker turn is actually saved");
+    } else {
+      fail(`the has_project_profile check (@${iProfileCheck}) does not precede the solution-architect dispatch (@${iWireDispatch}) — a check that fires afterward still pays for the LLM call it exists to avoid`);
+    }
   } finally {
     rmSync(ws, { recursive: true, force: true });
   }
