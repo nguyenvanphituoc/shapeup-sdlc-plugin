@@ -3,6 +3,28 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.0.1] — 2026-08-21 · WIRE fails fast, dead economics reporting removed
+
+**WIRE checks its own precondition instead of paying a worker to discover it.**
+`shapeup-run.js` derived `has_project_profile` from its opening resume-state probe but never
+branched on it, so a missing `project-profile.md` was dispatched to `solution-architect` anyway —
+the worker escalates per its own documented rule, writing no `wiring-map.md`, and every relaunch
+re-dispatches and re-escalates identically. The orchestrator now aborts at WIRE with the missing
+path named, before the dispatch. Live-tested against a real project consuming the plugin directory
+via `--plugin-dir`: with the profile absent, the run aborts at WIRE with zero orders, zero results
+and no dispatch receipt for `solution-architect` anywhere in the run trace; with it present, WIRE
+dispatches for real (hook-attested) and writes a correct wiring map. Pinned by
+`tests/structural/18-resume-state.mjs` 52(n).
+
+**`harness report export`'s `agent_call` table and `economics` block, and `harness probe stats
+--economics` entirely, are gone.** Both were keyed off `journal.jsonl`, a per-agent-call record the
+Workflow runtime never wrote in any measured run (confirmed live, twice, in two independent
+worktrees — `shapeup/knowledge-base/harness-defects.md`). A mechanism that always reports nulls
+dressed as measurements is worse than no mechanism, so it's deleted rather than kept. `report
+export`'s other nine tables (run, dispatch, ac_result, discovery, file_touched, trial, t0_verdict,
+criterion_verdict, hook_decision) are untouched — they're sourced from real records. Pinned by
+`tests/structural/19-run-records.mjs` 54(c).
+
 ## [3.0.0] — 2026-08-20 · the tier boundary, enforced
 
 **BREAKING.** Every committed artifact written before this release fails GATE L1b until it is
