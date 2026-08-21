@@ -3,6 +3,28 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.1.0] — 2026-08-21 · new `hill-chart` skill, and the FINISHED phase it can now actually reach
+
+**`hill.mjs` read a verdict-ledger filename `reduce ingest` never writes, so no scope could ever
+reach `FINISHED`.** The T1 check looked for `.verdicts-run.jsonl`; the real writer names it
+`.verdicts-<target>.jsonl` (e.g. `.verdicts-evaluate-r1.jsonl`), keyed off the order id. `t1Pass`
+was therefore always `false`, silently capping every scope below `FINISHED` regardless of what
+the run actually produced — an invariant this repo's own `AGENTS.md` already claimed
+("Hill phase is mechanical ... derived only from T0/T1/seesaw artifacts") without ever having
+delivered on the T1 half. Fixed by reusing `probe/eval.mjs`'s `evalVerdict()` — the same read
+GATE L3's own pass/fail branch already trusts — instead of re-parsing a ledger by hand. Verified
+live: a fixture that reached only `DOWNHILL_EXECUTION` on the old code reaches `FINISHED` on the
+fixed code, from the exact same on-disk evidence.
+
+**New skill: `hill-chart` (`/hill`).** Renders a self-contained dashboard from committed hill
+shards and each pitch's local run graph — a portfolio card per pitch (health, phase, a mini Hill
+Chart) and, per pitch, a full interactive Hill Chart plus an attention list, a scope board, round
+history and the run graph one click deeper. A pitch whose local run trace was cleaned up after
+shipping still renders — marked Archived — from its committed hill shards alone; the skill never
+recomputes a hill shard it can't see local evidence for, so a real historical `FINISHED` is never
+silently regressed to a fabricated `UPHILL_SOLVED`. Not a pipeline worker — invoked directly, like
+`shapeup`.
+
 ## [3.0.2] — 2026-08-21 · breadboard.md gets its missing template, shaping docs wikilink their slug
 
 **`breadboard.md` was the only shaping-family artifact with no output template.**

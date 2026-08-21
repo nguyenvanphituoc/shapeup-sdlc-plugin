@@ -6,7 +6,7 @@
 
 ```
 .claude-plugin/          plugin.json · marketplace.json
-skills/<name>/SKILL.md   the 12 harness skills (+ references/)
+skills/<name>/SKILL.md   the 13 harness skills (+ references/)
 skills/tech-lead/        schemas/ (WorkOrder · WorkResult · gate-answers · domain registry)
                          workflows/shapeup-run.js — the whole pipeline as one launchable script
 kernel/harness.mjs       the deterministic half behind ONE entry point (and therefore one
@@ -22,8 +22,8 @@ kernel/harness.mjs       the deterministic half behind ONE entry point (and ther
                           gate    — the gate answer set
                           lib/    — argv · contract · paths
 bin/init.mjs             `npx shapeup-sdlc init` — pure-Node scaffolding + permission grant
-commands/*.md            10 slash commands (/shape /orient /scopes /wire /build /eval /qa
-                         /hammer /ship /retro)
+commands/*.md            11 slash commands (/shape /orient /scopes /wire /build /eval /qa
+                         /hammer /ship /retro /hill)
 hooks/                   hooks.json + PreToolUse: safety-spine · gate-intake ·
                          sandbox-guard (+ the kernel's harness verify envelope) ·
                          PostToolUse: dispatch-receipt (records only, no deny path) ·

@@ -2,7 +2,7 @@
 
 [← Back to index](README.md)
 
-## 4.1 — The twelve skills
+## 4.1 — The thirteen skills
 
 | Skill | Role | Behavior |
 |---|---|---|
@@ -18,6 +18,7 @@
 | `scope-hammer` | Ship arbiter | GATE H: must-have census → baseline comparison (never against a perfect ideal) → cut list + ship verdict. Proposes only; a human promotes or ships. |
 | `coach` | RLHF loop | Turns PO feedback at ship sign-off into knowledge-base rules, filed by skill after asking the PO to categorize each one — never assumed. |
 | `tech-lead` | Orchestrator | Sequences all of the above through GATE L0–L4, owns the round loop, and is the sole writer of run-state. |
+| `hill-chart` | Dashboard | Not a pipeline worker — invoked directly, like `shapeup`. Renders a portfolio + per-pitch Hill Chart from committed hill shards (`shapeup/<slug>/hill/*.yml`) and the local run graph; read-only, never dispatched. |
 
 ## 4.2 — The build round, in detail
 

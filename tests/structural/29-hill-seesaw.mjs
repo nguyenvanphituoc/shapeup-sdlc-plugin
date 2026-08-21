@@ -49,8 +49,10 @@ function buildFixture(seesaw) {
     schema_version: 1, scope_id: "SC-HILL",
     allowed_file_substrate: ["src/hill/**"],
   });
-  w(cwd, `.shapeup/${slug}/evaluation/.verdicts-run.jsonl`,
-    JSON.stringify({ run: 1, dimension: "spec-conformance", verdict: "PASS" }) + "\n");
+  w(cwd, `.shapeup/${slug}/results/evaluate-r1.json`, {
+    schema_version: 1, order_id: `${slug}/evaluate-r1`, worker: "spec-evaluator", status: "done",
+    verdict: { overall: "PASS", bugs: [] },
+  });
   w(cwd, `.shapeup/${slug}/t0/verdicts/r1-a1-t1.json`, {
     schema_version: 2, round: 1, attempt: 1, trial: 1, scope_id: "SC-HILL",
     fixtures_green: true, db_probe_green: true, seesaw_green: seesaw.ran ? seesaw.pass : true,

@@ -6,8 +6,9 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
-import { scopesDir, hillDir, verdictsDir, evaluationDir, discoveryLedger } from "../lib/paths.mjs";
+import { scopesDir, hillDir, verdictsDir, resultsDir, discoveryLedger } from "../lib/paths.mjs";
 import { readAllContracts, SCOPE_CONTRACT } from "../lib/contract.mjs";
+import { evalVerdict } from "../probe/eval.mjs";
 
 /**
  * Derive and write the hill phase for all scopes mechanically based on T0, T1, and ledger facts.
@@ -26,30 +27,27 @@ import { readAllContracts, SCOPE_CONTRACT } from "../lib/contract.mjs";
 export function deriveHill(cwd, slug) {
   const scopes = readAllContracts(scopesDir(cwd, slug), SCOPE_CONTRACT).map((x) => x.contract);
   const vDir = verdictsDir(cwd, slug);
-  const evalDir = evaluationDir(cwd, slug);
   const ledgerPath = discoveryLedger(cwd, slug);
   const hDir = hillDir(cwd, slug);
-  
+
   if (!existsSync(hDir)) mkdirSync(hDir, { recursive: true });
-  
-  // 1. Check if T1 Evaluation passed (spec-conformance === PASS for the most recent run)
+
+  // 1. Check if T1 Evaluation passed — the LATEST evaluate round's verdict, read the same way
+  // GATE L3's own pass/fail branch does (`probe/eval.mjs`'s `evalVerdict()`), not by re-parsing a
+  // ledger filename (`.verdicts-run.jsonl`) that `reduce ingest` never actually writes (it writes
+  // `.verdicts-<target>.jsonl`, keyed off the order id). That mismatch made `t1Pass` always false,
+  // so FINISHED was unreachable through this path regardless of what the run actually produced.
   let t1Pass = false;
-  const evalFile = join(evalDir, ".verdicts-run.jsonl");
-  if (existsSync(evalFile)) {
-    const lines = readFileSync(evalFile, "utf8").trim().split(/\n/).filter(Boolean);
-    let maxRun = 0;
-    for (const line of lines) {
-      try {
-        const parsed = JSON.parse(line);
-        if (parsed.run >= maxRun) {
-          maxRun = parsed.run;
-          if (parsed.dimension === "spec-conformance") {
-            t1Pass = (parsed.verdict === "PASS");
-          }
-        }
-      } catch (e) {
-        // ignore parse errors
-      }
+  const rDir = resultsDir(cwd, slug);
+  if (existsSync(rDir)) {
+    let maxRound = 0;
+    for (const f of readdirSync(rDir)) {
+      const m = f.match(/^evaluate-r(\d+)\.json$/);
+      if (m) maxRound = Math.max(maxRound, Number(m[1]));
+    }
+    if (maxRound > 0) {
+      const v = evalVerdict(cwd, slug, maxRound);
+      t1Pass = v.found && v.overall === "PASS";
     }
   }
 

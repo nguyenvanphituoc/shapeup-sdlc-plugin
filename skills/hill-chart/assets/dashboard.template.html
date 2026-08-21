@@ -1,0 +1,1432 @@
+<meta charset="utf-8">
+<title>Hill Chart</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --bg: #f2f5f8;
+    --canvas: #f7f9fb;
+    --canvas-dot: #dbe2e9;
+    --surface: #ffffff;
+    --surface-2: #edf1f5;
+    --border: #dde3ea;
+    --border-soft: #e8edf2;
+    --text: #1a222c;
+    --text-dim: #5c6b7c;
+    --text-faint: #8f9dac;
+    --accent: #e35a37;
+    --accent-strong: #c8481f;
+    --accent-soft: #fce4da;
+    --good: #1f9d57;
+    --good-soft: #e0f4e8;
+    --bad: #d1402f;
+    --bad-soft: #fbe4e0;
+    --warn: #c98411;
+    --warn-soft: #faedd3;
+    --pending: #8f9dac;
+    --pending-soft: #e9edf2;
+    --focus: #2563eb;
+
+    --font-display: 'Plus Jakarta Sans', system-ui, sans-serif;
+    --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+    --n-run: #0e7490;
+    --n-order: #1d4ed8;
+    --n-result: #4f46e5;
+    --n-verdict: #7c3aed;
+    --n-trial: #0369a1;
+    --n-gate: #0f766e;
+    --n-scope: #c2410c;
+    --n-usecase: #b45309;
+    --n-requirement: #be185d;
+    --n-seam: #a16207;
+    --n-other: #52606d;
+
+    --hill-uphill-unknown: #94a3b8;
+    --hill-uphill-solved: #eab308;
+    --hill-downhill-execution: #3b82f6;
+    --hill-finished: #1f9d57;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12161d;
+      --canvas: #0f131a;
+      --canvas-dot: #1e2530;
+      --surface: #1a1f28;
+      --surface-2: #212733;
+      --border: #313a47;
+      --border-soft: #262e3a;
+      --text: #eef1f5;
+      --text-dim: #9aa7b6;
+      --text-faint: #5f6b7a;
+      --accent: #ff7d52;
+      --accent-strong: #ff9873;
+      --accent-soft: #3a2418;
+      --good: #46c982;
+      --good-soft: #163425;
+      --bad: #f0685c;
+      --bad-soft: #3a1e1c;
+      --warn: #e6ac3d;
+      --warn-soft: #3a2e12;
+      --pending: #7c8aa0;
+      --pending-soft: #232a35;
+      --focus: #60a5fa;
+
+      --n-run: #22d3ee; --n-order: #60a5fa; --n-result: #a5b4fc; --n-verdict: #c4b5fd;
+      --n-trial: #38bdf8; --n-gate: #2dd4bf; --n-scope: #fb923c; --n-usecase: #fbbf24;
+      --n-requirement: #f472b6; --n-seam: #eab308; --n-other: #94a3b8;
+
+      --hill-uphill-unknown: #64748b; --hill-uphill-solved: #eab308;
+      --hill-downhill-execution: #60a5fa; --hill-finished: #46c982;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12161d; --canvas: #0f131a; --canvas-dot: #1e2530;
+    --surface: #1a1f28; --surface-2: #212733; --border: #313a47; --border-soft: #262e3a;
+    --text: #eef1f5; --text-dim: #9aa7b6; --text-faint: #5f6b7a;
+    --accent: #ff7d52; --accent-strong: #ff9873; --accent-soft: #3a2418;
+    --good: #46c982; --good-soft: #163425; --bad: #f0685c; --bad-soft: #3a1e1c;
+    --warn: #e6ac3d; --warn-soft: #3a2e12; --pending: #7c8aa0; --pending-soft: #232a35;
+    --focus: #60a5fa;
+    --n-run: #22d3ee; --n-order: #60a5fa; --n-result: #a5b4fc; --n-verdict: #c4b5fd;
+    --n-trial: #38bdf8; --n-gate: #2dd4bf; --n-scope: #fb923c; --n-usecase: #fbbf24;
+    --n-requirement: #f472b6; --n-seam: #eab308; --n-other: #94a3b8;
+    --hill-uphill-unknown: #64748b; --hill-uphill-solved: #eab308;
+    --hill-downhill-execution: #60a5fa; --hill-finished: #46c982;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: var(--font-body); font-size: 14.5px; line-height: 1.5;
+    display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+  }
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; }
+  ::selection { background: var(--accent-soft); }
+  button, input, textarea { font-family: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--focus); outline-offset: 2px;
+  }
+  code { font-family: var(--font-mono); background: var(--surface-2); border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ---------- topbar ---------- */
+  header#topbar {
+    flex: 0 0 auto; display: flex; align-items: center; gap: 16px;
+    padding: 14px 22px; border-bottom: 1px solid var(--border); background: var(--surface);
+  }
+  .brand { display: flex; align-items: center; gap: 9px; }
+  .brand .mark {
+    width: 26px; height: 26px; border-radius: 8px; background: var(--accent);
+    display: flex; align-items: center; justify-content: center; color: #fff; font-size: 13px; flex: none;
+  }
+  .brand h1 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
+  #crumb { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--text-dim); min-width: 0; overflow: hidden; }
+  #crumb b { color: var(--text); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #crumb .sep { color: var(--text-faint); }
+  .toolbar { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 7px 13px; font-size: 13px; font-weight: 600; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--text-faint); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+  .btn.icon { padding: 7px 9px; }
+  .btn.ghost { background: transparent; border-color: transparent; }
+  .btn.ghost:hover { background: var(--surface-2); }
+  #file-input { display: none; }
+  .link-back {
+    background: none; border: none; color: var(--text-dim); font-size: 13.5px; font-weight: 600;
+    padding: 6px 2px; margin: 14px 0 4px;
+  }
+  .link-back:hover { color: var(--accent); }
+
+  /* ---------- screens ---------- */
+  .screen { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  main.screen { padding: 0 26px 40px; }
+  [hidden] { display: none !important; }
+
+  /* ---------- portfolio ---------- */
+  .portfolio-head { max-width: 1180px; margin: 26px auto 6px; }
+  .portfolio-head h2 { margin: 0 0 4px; font-size: 22px; }
+  .portfolio-head p { margin: 0; color: var(--text-dim); font-size: 13.5px; max-width: 66ch; }
+  .filter-row { max-width: 1180px; margin: 18px auto 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .pill-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    padding: 6px 13px; font-size: 12.5px; font-weight: 600; color: var(--text-dim);
+  }
+  .pill-toggle .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .pill-toggle.active { background: var(--text); border-color: var(--text); color: var(--bg); }
+  .pill-toggle.active .dot { background: var(--bg) !important; }
+  .search-inline {
+    margin-left: auto; display: flex; align-items: center; gap: 6px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    padding: 6px 12px; width: 210px;
+  }
+  .search-inline input { border: none; background: none; outline: none; font-size: 13px; width: 100%; }
+  .search-inline svg { opacity: .55; flex: none; }
+
+  .portfolio-grid {
+    max-width: 1180px; margin: 14px auto 0;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;
+  }
+  .pitch-card {
+    display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    overflow: hidden; text-align: left; box-shadow: 0 1px 2px rgba(20,25,35,.04);
+    padding: 0; margin: 0; appearance: none; -webkit-appearance: none; font: inherit;
+  }
+  .pitch-card:hover { border-color: var(--text-faint); }
+  .pitch-card .stripe { width: 5px; flex: none; }
+  .pitch-card .body { flex: 1 1 auto; padding: 16px 18px; min-width: 0; }
+  .pitch-card .top-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .pitch-card h3 { margin: 0; font-size: 16px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .health-pill {
+    flex: none; font-size: 10.5px; font-weight: 700; letter-spacing: .02em; border-radius: 999px;
+    padding: 3px 9px; text-transform: uppercase;
+  }
+  .health-pill.on-track { background: var(--good-soft); color: var(--good); }
+  .health-pill.progress { background: var(--warn-soft); color: var(--warn); }
+  .health-pill.attention { background: var(--bad-soft); color: var(--bad); }
+  .health-pill.archived { background: var(--pending-soft); color: var(--pending); }
+  .phase-line { font-size: 12.5px; color: var(--text-dim); margin-top: 3px; }
+  .card-stats { display: flex; gap: 16px; margin-top: 10px; }
+  .card-stats div { font-size: 11.5px; color: var(--text-faint); }
+  .card-stats b { display: block; font-size: 15px; color: var(--text); font-weight: 700; }
+  .card-foot { margin-top: 10px; font-size: 11px; color: var(--text-faint); font-family: var(--font-mono); }
+  .card-hill { margin-top: 10px; }
+  .card-hill .hill-empty-note { font-size: 11px; color: var(--text-faint); padding: 4px 0; }
+
+  .empty-state {
+    max-width: 520px; margin: 60px auto; text-align: center; color: var(--text-dim);
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .empty-state .glyph { font-size: 30px; }
+  .empty-state h3 { margin: 0; color: var(--text); }
+  .empty-state p { margin: 0; font-size: 13px; }
+
+  /* ---------- detail ---------- */
+  .detail-wrap { max-width: 980px; margin: 4px auto 0; }
+  .detail-hero {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 22px 24px; display: flex; flex-direction: column; gap: 12px;
+  }
+  .detail-hero .hero-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .detail-hero h2 { margin: 0; font-size: 24px; }
+  .meta-line { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-faint); display: flex; gap: 14px; flex-wrap: wrap; }
+  .meta-line b { color: var(--text-dim); font-weight: 500; }
+  .hero-stats { display: flex; gap: 26px; margin-top: 4px; flex-wrap: wrap; }
+  .hero-stats div { font-size: 12px; color: var(--text-faint); }
+  .hero-stats b { display: block; font-size: 21px; color: var(--text); font-weight: 800; }
+
+  .section { margin-top: 26px; }
+  .section h3 { margin: 0; font-size: 14.5px; }
+  .section .sub { margin: 2px 0 12px; font-size: 12px; color: var(--text-faint); }
+  .section-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; }
+
+  .archived-note {
+    display: flex; gap: 10px; align-items: flex-start; font-size: 13px;
+    background: var(--pending-soft); color: var(--text-dim); border-radius: 12px; padding: 14px 16px;
+  }
+  .archived-note b { color: var(--text); }
+
+  .attention-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .attention-list li {
+    display: flex; gap: 9px; align-items: flex-start; font-size: 13px;
+    background: var(--bad-soft); color: var(--bad); border-radius: 10px; padding: 9px 12px;
+  }
+  .attention-list li.info { background: var(--warn-soft); color: var(--warn); }
+  .attention-list li span.icon { flex: none; }
+
+  /* ---------- hill chart ---------- */
+  .hill-wrap { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .hill-svg { width: 100%; max-width: 300px; height: auto; display: block; overflow: visible; }
+  .hill-wrap.hero { align-items: stretch; }
+  .hill-wrap.hero .hill-svg { max-width: 520px; margin: 0 auto; }
+  .hill-svg .ground { fill: var(--surface-2); }
+  .hill-svg .ridge { fill: none; stroke: var(--border); stroke-width: 1.2; }
+  .hill-svg .tick-line { stroke: var(--border-soft); stroke-width: .6; }
+  .hill-svg .tick-label { font-family: var(--font-mono); fill: var(--text-faint); font-size: 2.3px; }
+  .hill-svg .hill-dot { stroke: var(--surface); stroke-width: .6; cursor: pointer; }
+  .hill-svg .hill-dot.mini { cursor: default; }
+  .hill-svg .hill-count { font-family: var(--font-mono); font-size: 2.3px; fill: var(--surface); font-weight: 700; }
+  .hill-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--text-dim); }
+  .hill-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .hill-legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .hill-empty-note { font-size: 12.5px; color: var(--text-faint); }
+  .hill-empty-note code { font-size: 11px; }
+
+  /* stepper (collapsed gate history) */
+  details.gate-history { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 4px 20px; }
+  details.gate-history summary {
+    padding: 14px 0; font-family: var(--font-display); font-size: 14.5px; font-weight: 700; cursor: pointer;
+    list-style: none;
+  }
+  details.gate-history summary::-webkit-details-marker { display: none; }
+  details.gate-history summary::after { content: '▸'; float: right; color: var(--text-faint); transition: transform .12s; }
+  details.gate-history[open] summary::after { transform: rotate(90deg); }
+  details.gate-history .sub { margin: -8px 0 12px; font-size: 12px; color: var(--text-faint); }
+  .stepper { display: flex; align-items: flex-start; overflow-x: auto; padding: 6px 4px 16px; }
+  .step { display: flex; flex-direction: column; align-items: center; gap: 7px; min-width: 92px; position: relative; flex: none; }
+  .step .connector { position: absolute; top: 14px; left: -50%; width: 100%; height: 2px; background: var(--border); z-index: 0; }
+  .step:first-child .connector { display: none; }
+  .step .node {
+    width: 29px; height: 29px; border-radius: 50%; z-index: 1;
+    display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 800;
+    border: 2px solid var(--border); background: var(--surface); color: var(--text-faint);
+  }
+  .step.ok .node { background: var(--good); border-color: var(--good); color: #fff; }
+  .step.warn .node { background: var(--warn); border-color: var(--warn); color: #3a2600; }
+  .step.bad .node { background: var(--bad); border-color: var(--bad); color: #fff; }
+  .step.ok .connector { background: color-mix(in srgb, var(--good) 55%, var(--border)); }
+  .step.warn .connector { background: color-mix(in srgb, var(--warn) 55%, var(--border)); }
+  .step.bad .connector { background: color-mix(in srgb, var(--bad) 55%, var(--border)); }
+  .step .label { font-size: 11px; font-weight: 700; color: var(--text-dim); white-space: nowrap; }
+  .step .sub-label { font-size: 10px; color: var(--text-faint); font-family: var(--font-mono); }
+  .step button.hit { position: absolute; inset: -6px -20px; background: none; border: none; }
+  #gate-detail {
+    margin: -8px 0 12px; padding: 12px 14px; border-radius: 10px; background: var(--surface-2);
+    font-size: 12.5px; color: var(--text-dim); display: none;
+  }
+  #gate-detail.show { display: block; }
+  #gate-detail b { color: var(--text); }
+
+  /* scope board */
+  .board { display: flex; gap: 14px; flex-wrap: wrap; }
+  .board-col { flex: 1 1 220px; min-width: 220px; }
+  .board-col-head { display: flex; align-items: center; gap: 7px; margin-bottom: 9px; }
+  .board-col-head .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .board-col-head span { font-size: 12px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; }
+  .board-col-head b { font-family: var(--font-mono); color: var(--text-faint); font-weight: 500; }
+  .scope-card {
+    background: var(--surface-2); border: 1px solid var(--border-soft); border-radius: 10px;
+    padding: 10px 12px; margin-bottom: 8px; transition: box-shadow .3s, background .3s;
+  }
+  .scope-card.flash { box-shadow: 0 0 0 2px var(--accent); background: var(--accent-soft); }
+  .scope-card .name { font-weight: 700; font-size: 13px; word-break: break-word; }
+  .scope-card .sub { font-size: 11.5px; color: var(--text-faint); margin-top: 3px; font-family: var(--font-mono); }
+  .board-empty { font-size: 12px; color: var(--text-faint); padding: 8px 2px; }
+
+  /* round matrix */
+  .matrix-scroll { overflow-x: auto; }
+  table.matrix { border-collapse: collapse; width: 100%; min-width: 420px; }
+  table.matrix th, table.matrix td { padding: 7px 10px; text-align: center; font-size: 12.5px; border-bottom: 1px solid var(--border-soft); }
+  table.matrix th.rowhead, table.matrix td.rowhead { text-align: left; font-family: var(--font-mono); font-size: 11.5px; color: var(--text-dim); white-space: nowrap; }
+  table.matrix thead th { color: var(--text-faint); font-weight: 700; font-size: 11px; text-transform: uppercase; }
+  .verdict-chip { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 7px; font-size: 12px; font-weight: 800; }
+  .verdict-chip.green { background: var(--good-soft); color: var(--good); }
+  .verdict-chip.red { background: var(--bad-soft); color: var(--bad); }
+  .verdict-chip.na { color: var(--text-faint); }
+
+  .raw-launch { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .raw-launch p { margin: 0; font-size: 12.5px; color: var(--text-faint); max-width: 48ch; }
+
+  /* ---------- raw graph screen ---------- */
+  .raw-layout { display: flex; height: calc(100vh - 128px); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-top: 6px; }
+  .legend-rail { flex: 0 0 168px; border-right: 1px solid var(--border); background: var(--surface); overflow-y: auto; padding: 14px 12px; }
+  .legend-rail h2 { font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--text-faint); margin: 0 0 8px; font-weight: 700; }
+  .legend-group + .legend-group { margin-top: 16px; }
+  .chip { display: flex; align-items: center; gap: 7px; width: 100%; background: none; border: none; padding: 5px 6px; border-radius: 6px; font-size: 12px; text-align: left; color: var(--text); }
+  .chip:hover { background: var(--surface-2); }
+  .chip .swatch { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .chip .label { flex: 1 1 auto; }
+  .chip .count { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-faint); min-width: 1.4em; text-align: right; }
+  .chip.off { opacity: .4; }
+  .canvas-wrap { flex: 1 1 auto; position: relative; background: radial-gradient(var(--canvas-dot) 1px, transparent 1.4px) 0 0/22px 22px, var(--canvas); min-width: 0; }
+  svg#graph-svg { width: 100%; height: 100%; display: block; cursor: grab; }
+  svg#graph-svg.panning { cursor: grabbing; }
+  .node-g { cursor: pointer; }
+  .node-g circle.halo { fill: none; stroke: var(--accent); stroke-width: 2.5px; opacity: 0; }
+  .node-g.selected circle.halo { opacity: 1; }
+  .node-g.hovered circle.node-dot { filter: brightness(1.15); }
+  .node-g text { font-family: var(--font-mono); font-size: 9.5px; fill: var(--text-dim); pointer-events: none; }
+  .node-g.dim { opacity: .16; }
+  .node-g.dim text { display: none; }
+  .node-g circle.status-ring { fill: none; stroke-width: 2px; }
+  line.edge { stroke: var(--text-faint); stroke-width: 1.1px; opacity: .55; }
+  line.edge.active { stroke: var(--accent); stroke-width: 1.8px; opacity: .95; }
+  line.edge.dim { opacity: .08; }
+  line.edge.t-SUPERSEDES { stroke-dasharray: 1 3; stroke-linecap: round; }
+  line.edge.t-DEPENDS_ON { stroke-dasharray: 5 3; }
+  line.edge.t-COVERS, line.edge.t-IMPLEMENTS { stroke-dasharray: 2 2; }
+  .zoom-controls { position: absolute; right: 14px; bottom: 14px; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,.12); }
+  .zoom-controls button { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; background: var(--surface); border: none; color: var(--text); font-size: 15px; }
+  .zoom-controls button + button { border-top: 1px solid var(--border); }
+  .zoom-controls button:hover { background: var(--surface-2); }
+  .inspector { flex: 0 0 290px; border-left: 1px solid var(--border); background: var(--surface); overflow-y: auto; padding: 14px; }
+  .inspector h2 { font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--text-faint); margin: 0 0 8px; font-weight: 700; }
+  .insp-empty { color: var(--text-dim); font-size: 12px; line-height: 1.6; }
+  .insp-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .insp-head .swatch { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  .insp-head .type { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-dim); font-weight: 700; }
+  .insp-id { font-family: var(--font-mono); font-size: 12px; word-break: break-all; margin: 4px 0 12px; }
+  .kv { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+  .kv tr + tr td, .kv tr + tr th { border-top: 1px solid var(--border-soft); }
+  .kv th, .kv td { text-align: left; padding: 5px 0; font-size: 11.5px; vertical-align: top; }
+  .kv th { color: var(--text-faint); font-weight: 500; width: 38%; }
+  .kv td { font-family: var(--font-mono); font-size: 11px; word-break: break-word; }
+  .conn-group h4 { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-faint); margin: 12px 0 6px; font-weight: 700; }
+  .conn-row { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 6px; font-size: 11.5px; cursor: pointer; }
+  .conn-row:hover { background: var(--surface-2); }
+  .conn-row .swatch { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .conn-row .edge-t { font-family: var(--font-mono); font-size: 9.5px; color: var(--text-faint); flex: none; }
+  .conn-row .id { font-family: var(--font-mono); font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .empty-hint { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: var(--text-faint); font-size: 13px; text-align: center; padding: 20px; }
+  .empty-hint.show { display: flex; }
+
+  /* overlay */
+  .overlay { position: fixed; inset: 0; background: rgba(10,14,20,.5); display: none; align-items: center; justify-content: center; z-index: 20; }
+  .overlay.show { display: flex; }
+  .overlay-card { width: min(680px, 92vw); background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; box-shadow: 0 16px 44px rgba(0,0,0,.24); }
+  .overlay-card h2 { margin: 0 0 4px; font-size: 15px; }
+  .overlay-card p { margin: 0 0 12px; font-size: 12px; color: var(--text-dim); }
+  .overlay-card input[type=text] { width: 100%; margin-bottom: 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; font-size: 12.5px; }
+  .overlay-card textarea { width: 100%; height: 200px; resize: vertical; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: var(--font-mono); font-size: 11.5px; }
+  .overlay-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+
+  @media (max-width: 720px) {
+    .raw-layout { flex-direction: column; height: auto; }
+    .legend-rail, .inspector { flex: none; width: 100%; max-height: 220px; }
+    .canvas-wrap { height: 60vh; }
+  }
+</style>
+
+<header id="topbar">
+  <div class="brand"><span class="mark">▲</span><h1>Hill Chart</h1></div>
+  <div id="crumb"></div>
+  <div class="toolbar">
+    <button class="btn" id="btn-paste">Paste one</button>
+    <label class="btn primary" for="file-input">Load .jsonl files</label>
+    <input id="file-input" type="file" accept=".jsonl,.json,.txt,text/plain" multiple>
+  </div>
+</header>
+
+<main id="screen-portfolio" class="screen">
+  <div class="portfolio-head">
+    <h2>Your pitches, at a glance</h2>
+    <p>One card per pitch that has reached kickoff — projected from its committed hill shards
+      (<code>shapeup/&lt;slug&gt;/hill/*.yml</code>) and, while the local run trace survives, its run graph
+      (<code>.shapeup/&lt;slug&gt;/graph.jsonl</code>). A pitch still in Shaping or at the Betting Table has no
+      run yet, so it won't appear here. One whose local trace was cleaned up after shipping still
+      appears — marked Archived — from its hill shards alone.</p>
+  </div>
+  <div class="filter-row" id="filter-row">
+    <div id="health-chips" style="display:contents"></div>
+    <div class="search-inline">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.6" y2="16.6"/></svg>
+      <input type="text" id="portfolio-search-input" placeholder="Find a pitch…" autocomplete="off" spellcheck="false">
+    </div>
+  </div>
+  <div class="portfolio-grid" id="portfolio-grid"></div>
+  <div class="empty-state" id="portfolio-empty">
+    <div class="glyph">⛰️</div>
+    <h3>No pitches yet</h3>
+    <p>Run <code>/shapeup</code> to shape one, or load a <code>graph.jsonl</code> to explore another
+      project's pitch.</p>
+  </div>
+</main>
+
+<main id="screen-detail" class="screen" hidden>
+  <button class="link-back" id="back-to-portfolio">← All pitches</button>
+  <div class="detail-wrap" id="detail-body"></div>
+</main>
+
+<main id="screen-raw" class="screen" hidden>
+  <button class="link-back" id="back-to-detail">← Back to pitch</button>
+  <div class="raw-layout">
+    <nav class="legend-rail" id="legend-rail" aria-label="Node type filters"></nav>
+    <div class="canvas-wrap" id="canvas-wrap">
+      <svg id="graph-svg">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--text-faint)"></path>
+          </marker>
+        </defs>
+        <g id="viewport">
+          <g id="edges-layer"></g>
+          <g id="nodes-layer"></g>
+        </g>
+      </svg>
+      <div class="zoom-controls">
+        <button id="zoom-in" aria-label="Zoom in">+</button>
+        <button id="zoom-out" aria-label="Zoom out">–</button>
+        <button id="zoom-reset" aria-label="Reset zoom">⦿</button>
+      </div>
+      <div class="empty-hint" id="empty-hint"><div>No nodes to show — clear a filter.</div></div>
+    </div>
+    <aside class="inspector" id="inspector">
+      <h2>Inspector</h2>
+      <div id="inspector-body" class="insp-empty">Click a node or edge to inspect it.</div>
+    </aside>
+  </div>
+</main>
+
+<div class="overlay" id="overlay">
+  <div class="overlay-card">
+    <h2>Paste a pitch's graph.jsonl</h2>
+    <p>One JSON object per line. The slug is read from the file's <code>Run</code> node when present —
+      override it below if you'd like. A pasted file carries no hill data (that lives in a separate
+      committed shard), so its Hill Chart shows as not yet available.</p>
+    <input type="text" id="paste-label" placeholder="Pitch name (optional — inferred from the file otherwise)">
+    <textarea id="paste-area" placeholder='{"k":"node","id":"run:…","t":"Run",…}'></textarea>
+    <div class="overlay-actions">
+      <button class="btn" id="paste-cancel">Cancel</button>
+      <button class="btn primary" id="paste-apply">Add pitch</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ============================================================================================
+  // Shared graph model — mirrors kernel/reduce/graph.mjs's WORK_NODES / DOMAIN_NODES / readGraph.
+  // ============================================================================================
+  var NODE_META = {
+    Run: { family: 'work', color: 'var(--n-run)' }, Order: { family: 'work', color: 'var(--n-order)' },
+    Result: { family: 'work', color: 'var(--n-result)' }, Verdict: { family: 'work', color: 'var(--n-verdict)' },
+    Trial: { family: 'work', color: 'var(--n-trial)' }, GateDecision: { family: 'work', color: 'var(--n-gate)' },
+    Scope: { family: 'domain', color: 'var(--n-scope)' }, UseCase: { family: 'domain', color: 'var(--n-usecase)' },
+    Requirement: { family: 'domain', color: 'var(--n-requirement)' }, Seam: { family: 'domain', color: 'var(--n-seam)' }
+  };
+  var TYPE_ORDER = ['Run', 'Order', 'Result', 'Verdict', 'Trial', 'GateDecision', 'Scope', 'UseCase', 'Requirement', 'Seam'];
+  function metaFor(t) { return NODE_META[t] || { family: 'other', color: 'var(--n-other)' }; }
+
+  function parseGraph(text) {
+    var nodes = new Map(), edges = new Map(), lines = 0, malformed = 0;
+    String(text || '').split('\n').forEach(function (raw) {
+      var line = raw.trim();
+      if (!line) return;
+      var row;
+      try { row = JSON.parse(line); } catch (e) { malformed++; return; }
+      lines++;
+      if (row && row.k === 'node' && row.id) {
+        var prev = nodes.get(row.id) || {}, merged = {};
+        for (var k1 in prev) merged[k1] = prev[k1];
+        for (var k2 in row) merged[k2] = row[k2];
+        nodes.set(row.id, merged);
+      } else if (row && row.k === 'edge' && row.from && row.to && row.t) {
+        edges.set(row.from + '|' + row.t + '|' + row.to, row);
+      }
+    });
+    return { nodes: nodes, edges: edges, lines: lines, malformed: malformed };
+  }
+
+  function buildModel(parsed) {
+    var nodeList = [], byId = new Map(), idx = 0;
+    parsed.nodes.forEach(function (raw, id) {
+      var t = raw.t || 'Unknown', meta = metaFor(t);
+      var n = { id: id, t: t, family: meta.family, attrs: raw, x: 0, y: 0, vx: 0, vy: 0, pinned: false, degree: 0, seedIndex: idx++ };
+      nodeList.push(n); byId.set(id, n);
+    });
+    var linkList = [], dangling = 0;
+    parsed.edges.forEach(function (raw, key) {
+      var from = byId.get(raw.from), to = byId.get(raw.to);
+      if (!from || !to) { dangling++; return; }
+      from.degree++; to.degree++;
+      linkList.push({ from: from, to: to, t: raw.t, key: key });
+    });
+    return { nodeList: nodeList, linkList: linkList, byId: byId, dangling: dangling };
+  }
+
+  function fmtVal(v) {
+    if (v === null || v === undefined) return '—';
+    if (typeof v === 'object') return JSON.stringify(v);
+    return String(v);
+  }
+
+  function slugFor(parsed, fallback) {
+    var run = null;
+    parsed.nodes.forEach(function (n) { if (!run && n.t === 'Run' && n.slug) run = n; });
+    if (run) return run.slug;
+    var scopeMatch = null;
+    parsed.nodes.forEach(function (n) {
+      if (!scopeMatch && typeof n.id === 'string') {
+        var m = /^scope:([^:]+):/.exec(n.id);
+        if (m) scopeMatch = m[1];
+      }
+    });
+    return scopeMatch || fallback || ('pitch-' + Math.floor(1 + Math.random() * 900));
+  }
+
+  // ============================================================================================
+  // Embedded data — filled in by the hill-chart skill's authoring step. Left as the literal
+  // placeholder, this stays a valid (if inert) JS string; the portfolio then boots empty, same as
+  // a project with no pitches yet. See SKILL.md's "Injection contract" for the exact replacement.
+  // ============================================================================================
+  var EMBEDDED_DATA_JSON = "__HILL_CHART_EMBEDDED_DATA__";
+
+  // ============================================================================================
+  // Hill Chart geometry — ONE function decides where a phase sits on the curve, and the same
+  // function draws the curve. The phase is a 4-value discrete enum (kernel/reduce/hill.mjs), never
+  // a continuous position — nothing here may interpolate between stations or invent a "62% up
+  // the hill." Every dot snaps to exactly one of four fixed x positions.
+  // ============================================================================================
+  var HILL_STATIONS = {
+    UPHILL_UNKNOWN: { x: 12, label: 'Unknown', color: 'var(--hill-uphill-unknown)' },
+    UPHILL_SOLVED: { x: 40, label: 'Solved', color: 'var(--hill-uphill-solved)' },
+    DOWNHILL_EXECUTION: { x: 62, label: 'Executing', color: 'var(--hill-downhill-execution)' },
+    FINISHED: { x: 92, label: 'Finished', color: 'var(--hill-finished)' }
+  };
+  var HILL_ORDER = ['UPHILL_UNKNOWN', 'UPHILL_SOLVED', 'DOWNHILL_EXECUTION', 'FINISHED'];
+
+  function hillY(x) { return 36 - 32 * Math.sin(Math.PI * Math.max(0, Math.min(100, x)) / 100); }
+  function hillStation(phase) {
+    var s = HILL_STATIONS[phase];
+    if (!s) return null;
+    return { x: s.x, y: hillY(s.x) };
+  }
+  function hillPathD() {
+    var pts = [], step = 4;
+    for (var x = 0; x <= 100; x += step) pts.push([x, hillY(x)]);
+    if (pts[pts.length - 1][0] !== 100) pts.push([100, hillY(100)]);
+    var d = 'M' + pts[0][0] + ',' + pts[0][1].toFixed(2);
+    for (var i = 1; i < pts.length; i++) d += ' L' + pts[i][0] + ',' + pts[i][1].toFixed(2);
+    return d;
+  }
+  var HILL_GROUND_D = hillPathD() + ' L100,40 L0,40 Z';
+  var HILL_RIDGE_D = hillPathD();
+
+  var STATUS_COLOR = { green: 'var(--good)', red: 'var(--bad)', building: 'var(--pending)', queued: 'var(--pending)' };
+  function dotColorFor(status) { return STATUS_COLOR[status] || 'var(--pending)'; }
+
+  /**
+   * Render one Hill Chart. `mode` is 'mini' (portfolio card, no interaction, small stack cap) or
+   * 'hero' (pitch detail, clickable dots, larger stack cap). Both paths call `hillStation()` for
+   * placement — a mini chart is a literal miniature of the hero one, not a different rendering.
+   */
+  function renderHillSVG(scopeStatusList, mode) {
+    var cap = mode === 'hero' ? 8 : 4;
+    var byStation = {};
+    HILL_ORDER.forEach(function (p) { byStation[p] = []; });
+    scopeStatusList.forEach(function (s) {
+      var p = HILL_STATIONS[s.hillPhase] ? s.hillPhase : 'UPHILL_UNKNOWN';
+      byStation[p].push(s);
+    });
+
+    var svg = '<svg class="hill-svg" viewBox="0 0 100 40" role="img" aria-label="Hill chart">';
+    svg += '<path class="ground" d="' + HILL_GROUND_D + '"></path>';
+    svg += '<path class="ridge" d="' + HILL_RIDGE_D + '"></path>';
+    if (mode === 'hero') {
+      // Labels always sit on one fixed baseline, never near the curve itself — a station near
+      // the crest stacks its dots upward from the ridge, and a label placed by curve height would
+      // collide with exactly the dots it is meant to identify.
+      HILL_ORDER.forEach(function (p) {
+        var st = HILL_STATIONS[p];
+        svg += '<line class="tick-line" x1="' + st.x + '" y1="' + hillY(st.x) + '" x2="' + st.x + '" y2="39"></line>';
+        svg += '<text class="tick-label" x="' + st.x + '" y="38.5" text-anchor="middle">' + st.label + '</text>';
+      });
+    }
+    // Radius and font-size are the SAME numbers in both modes — the mini card and the hero view
+    // are the same drawing at a different final CSS size (controlled by `.hill-svg` max-width),
+    // never two differently-tuned charts. Only the hero view draws tick labels/lines and accepts
+    // clicks (`data-scope`) — a mini card is a glance, not a control.
+    HILL_ORDER.forEach(function (p) {
+      var items = byStation[p];
+      if (!items.length) return;
+      var shown = items.slice(0, cap);
+      var extra = items.length - shown.length;
+      var st = HILL_STATIONS[p];
+      shown.forEach(function (s, i) {
+        var dy = hillY(st.x) - 4 - i * 4.2;
+        var color = mode === 'hero' ? dotColorFor(s.status) : st.color;
+        var titleText = s.scopeId + ' — ' + st.label + (mode === 'hero' && s.status ? ' (' + s.status + ')' : '');
+        svg += '<circle class="hill-dot' + (mode === 'mini' ? ' mini' : '') + '"' +
+          (mode === 'hero' ? ' data-scope="' + String(s.scopeId).replace(/"/g, '&quot;') + '"' : '') +
+          ' cx="' + st.x + '" cy="' + dy + '" r="2.1" fill="' + color + '"><title>' + titleText + '</title></circle>';
+      });
+      if (extra > 0) {
+        var dy2 = hillY(st.x) - 4 - shown.length * 4.2;
+        svg += '<circle class="hill-dot' + (mode === 'mini' ? ' mini' : '') + '" cx="' + st.x + '" cy="' + dy2 + '" r="2.6" fill="' + st.color + '"><title>+' + extra + ' more at ' + st.label + '</title></circle>';
+        svg += '<text class="hill-count" x="' + st.x + '" y="' + (dy2 + 1) + '" text-anchor="middle">+' + extra + '</text>';
+      }
+    });
+    svg += '</svg>';
+    return svg;
+  }
+
+  // ============================================================================================
+  // Pitch model — one per discovered pitch. Scope identity is the UNION of what the run graph
+  // knows (has orders/verdicts — local tier) and what the committed hill shards know (survives a
+  // cleaned-up local trace) — a scope can be present in only one of the two.
+  // ============================================================================================
+  function buildPitch(entry) {
+    var hasLocal = !!entry.hasLocal;
+    var hasCommitted = !!entry.hasCommitted;
+    var hillList = Array.isArray(entry.hill) ? entry.hill : [];
+    var hillMap = new Map();
+    hillList.forEach(function (h) { if (h && h.scope_id) hillMap.set(h.scope_id, h.phase); });
+    var hillAvailable = hillMap.size > 0;
+
+    var parsed = parseGraph(hasLocal ? (entry.graphJsonl || '') : '');
+    var model = buildModel(parsed);
+    var run = model.nodeList.find(function (n) { return n.t === 'Run'; }) || null;
+    var graphScopes = model.nodeList.filter(function (n) { return n.t === 'Scope'; });
+    var verdicts = model.nodeList.filter(function (n) { return n.t === 'Verdict'; });
+    var gates = model.nodeList.filter(function (n) { return n.t === 'GateDecision'; });
+    var orders = model.nodeList.filter(function (n) { return n.t === 'Order'; });
+
+    function verdictsFor(scopeId) {
+      return verdicts.filter(function (v) { return v.attrs.scope_id === scopeId; })
+        .sort(function (a, b) { return (a.attrs.round - b.attrs.round) || (a.attrs.attempt - b.attrs.attempt); });
+    }
+
+    var scopeIds = [], seenIds = new Set();
+    graphScopes.forEach(function (s) { if (!seenIds.has(s.attrs.scope_id)) { seenIds.add(s.attrs.scope_id); scopeIds.push(s.attrs.scope_id); } });
+    hillList.forEach(function (h) { if (h.scope_id && !seenIds.has(h.scope_id)) { seenIds.add(h.scope_id); scopeIds.push(h.scope_id); } });
+
+    var scopeStatus = scopeIds.map(function (scopeId) {
+      var vs = verdictsFor(scopeId);
+      var latest = vs.length ? vs[vs.length - 1] : null;
+      var hasOrder = orders.some(function (o) { return o.attrs.scope_id === scopeId; });
+      var status = !hasLocal ? null : (!hasOrder ? 'queued' : (!latest ? 'building' : (latest.attrs.overall === 'green' ? 'green' : 'red')));
+      // A scope the graph knows but the hill shards don't yet (freshly cut, hill not derived for
+      // it this round) reads as UPHILL_UNKNOWN when this pitch has ANY hill data at all — that is
+      // exactly deriveHill()'s own starting default before any evidence promotes it. A pitch with
+      // no hill data at all (e.g. a manually-loaded graph.jsonl with no shard file) gets no
+      // fabricated phase — see hillAvailable below.
+      var hillPhase = hillMap.has(scopeId) ? hillMap.get(scopeId) : (hillAvailable ? 'UPHILL_UNKNOWN' : null);
+      return { scopeId: scopeId, latest: latest, attempts: vs.length, status: status, hillPhase: hillPhase };
+    });
+
+    var roundSet = {};
+    verdicts.forEach(function (v) { if (v.attrs.round != null) roundSet[v.attrs.round] = true; });
+    gates.forEach(function (g) { if (g.attrs.round != null) roundSet[g.attrs.round] = true; });
+    var rounds = Object.keys(roundSet).map(Number).sort(function (a, b) { return a - b; });
+
+    var gateNames = gates.map(function (g) { return g.attrs.gate; });
+    var builtScopes = scopeStatus.filter(function (s) { return s.status != null; });
+    var allGreen = builtScopes.length > 0 && builtScopes.every(function (s) { return s.status === 'green'; });
+    var phase = !hasLocal ? 'Archived'
+      : gateNames.indexOf('L4') !== -1 ? 'Shipped'
+      : (verdicts.length && allGreen) ? 'Building · Round complete'
+      : verdicts.length ? 'Building · Verify'
+      : gateNames.indexOf('L1b') !== -1 ? 'Building · Scoped'
+      : gateNames.indexOf('L1a.5') !== -1 ? 'Building · Wired'
+      : gateNames.indexOf('L1a') !== -1 ? 'Building · Oriented'
+      : 'Building · Kickoff';
+
+    var anyRed = scopeStatus.some(function (s) { return s.status === 'red'; });
+    var anyInFlight = scopeStatus.some(function (s) { return s.status === 'building' || s.status === 'queued'; });
+    var anyStuckUnknown = hasLocal && scopeStatus.some(function (s) { return s.status != null && s.hillPhase === 'UPHILL_UNKNOWN'; });
+    var health = !hasLocal ? 'archived'
+      : (anyRed || model.dangling > 0 || anyStuckUnknown) ? 'attention'
+      : anyInFlight ? 'progress'
+      : (builtScopes.length && allGreen) ? 'on-track' : 'progress';
+
+    var greenCount = scopeStatus.filter(function (s) { return s.status === 'green'; }).length;
+    var finishedCount = scopeStatus.filter(function (s) { return s.hillPhase === 'FINISHED'; }).length;
+
+    return {
+      slug: entry.slug, hasLocal: hasLocal, hasCommitted: hasCommitted, hillAvailable: hillAvailable,
+      model: model, run: run, scopeStatus: scopeStatus,
+      verdicts: verdicts, gates: gates, orders: orders,
+      rounds: rounds, phase: phase, health: health,
+      greenCount: greenCount, finishedCount: finishedCount, totalScopes: scopeStatus.length,
+      parsedMeta: { lines: parsed.lines, malformed: parsed.malformed }
+    };
+  }
+
+  // ============================================================================================
+  // App state
+  // ============================================================================================
+  var pitches = new Map();    // slug -> pitch
+  var currentSlug = null;
+  var healthFilter = 'all';
+  var portfolioSearch = '';
+
+  var screenPortfolio = document.getElementById('screen-portfolio');
+  var screenDetail = document.getElementById('screen-detail');
+  var screenRaw = document.getElementById('screen-raw');
+  var crumb = document.getElementById('crumb');
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function showScreen(name) {
+    screenPortfolio.hidden = name !== 'portfolio';
+    screenDetail.hidden = name !== 'detail';
+    screenRaw.hidden = name !== 'raw';
+    window.scrollTo(0, 0);
+    renderCrumb(name);
+  }
+
+  function renderCrumb(name) {
+    if (name === 'portfolio' || !currentSlug) { crumb.innerHTML = ''; return; }
+    var p = pitches.get(currentSlug);
+    var label = p ? p.slug : currentSlug;
+    crumb.innerHTML = '<span class="sep">/</span><b>' + label + '</b>' + (name === 'raw' ? '<span class="sep">/</span><b>raw graph</b>' : '');
+  }
+
+  function addPitch(entry) {
+    var pitch = buildPitch(entry);
+    pitches.set(pitch.slug, pitch);
+    return pitch;
+  }
+
+  function loadEmbedded() {
+    var entries = [];
+    if (EMBEDDED_DATA_JSON !== '__HILL_CHART_EMBEDDED_DATA__') {
+      try {
+        var parsed = JSON.parse(EMBEDDED_DATA_JSON);
+        if (Array.isArray(parsed)) entries = parsed;
+      } catch (e) { entries = []; }
+    }
+    pitches.clear();
+    entries.forEach(function (e) { if (e && e.slug) addPitch(e); });
+    renderPortfolio();
+    showScreen('portfolio');
+  }
+
+  // ============================================================================================
+  // Portfolio screen
+  // ============================================================================================
+  var HEALTH_LABEL = { 'on-track': 'On track', progress: 'In progress', attention: 'Needs attention', archived: 'Archived' };
+  var HEALTH_COLOR_VAR = { 'on-track': '--good', progress: '--warn', attention: '--bad', archived: '--pending' };
+
+  function renderFilterRow() {
+    var row = document.getElementById('health-chips');
+    var counts = { all: pitches.size, 'on-track': 0, progress: 0, attention: 0, archived: 0 };
+    pitches.forEach(function (p) { counts[p.health]++; });
+    var defs = [['all', 'All'], ['on-track', 'On track'], ['progress', 'In progress'], ['attention', 'Needs attention'], ['archived', 'Archived']];
+    row.innerHTML = '';
+    defs.forEach(function (d) {
+      var btn = document.createElement('button');
+      btn.className = 'pill-toggle' + (healthFilter === d[0] ? ' active' : '');
+      var dotColor = d[0] === 'all' ? 'var(--text-faint)' : 'var(' + HEALTH_COLOR_VAR[d[0]] + ')';
+      btn.innerHTML = '<span class="dot" style="background:' + dotColor + '"></span>' + d[1] + ' <span class="num">(' + counts[d[0]] + ')</span>';
+      btn.addEventListener('click', function () { healthFilter = d[0]; renderPortfolio(); });
+      row.appendChild(btn);
+    });
+  }
+
+  var searchInputEl = document.getElementById('portfolio-search-input');
+  searchInputEl.addEventListener('input', function (ev) { portfolioSearch = ev.target.value; renderGrid(); });
+
+  function renderPortfolio() { renderFilterRow(); renderGrid(); }
+
+  function renderGrid() {
+    var grid = document.getElementById('portfolio-grid');
+    var emptyState = document.getElementById('portfolio-empty');
+    grid.innerHTML = '';
+    var term = portfolioSearch.trim().toLowerCase();
+    var list = Array.from(pitches.values()).filter(function (p) {
+      if (healthFilter !== 'all' && p.health !== healthFilter) return false;
+      if (term && p.slug.toLowerCase().indexOf(term) === -1 && p.phase.toLowerCase().indexOf(term) === -1) return false;
+      return true;
+    });
+    emptyState.style.display = pitches.size === 0 ? 'flex' : 'none';
+    if (pitches.size > 0 && list.length === 0) {
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="glyph">🔍</div><h3>No pitches match</h3><p>Try a different filter or search term.</p></div>';
+      return;
+    }
+    list.forEach(function (p) {
+      var total = p.totalScopes;
+      var statLabel = p.hasLocal ? 'scopes green' : 'scopes finished';
+      var statValue = p.hasLocal ? p.greenCount : p.finishedCount;
+      var card = document.createElement('button');
+      card.className = 'pitch-card';
+      var hillMarkup = p.hillAvailable
+        ? renderHillSVG(p.scopeStatus, 'mini')
+        : '<div class="hill-empty-note">Hill not yet computed</div>';
+      card.innerHTML =
+        '<span class="stripe" style="background:var(' + HEALTH_COLOR_VAR[p.health] + ')"></span>' +
+        '<div class="body">' +
+        '<div class="top-row"><h3>' + p.slug + '</h3><span class="health-pill ' + p.health + '">' + HEALTH_LABEL[p.health] + '</span></div>' +
+        '<div class="phase-line">' + p.phase + '</div>' +
+        '<div class="card-hill">' + hillMarkup + '</div>' +
+        '<div class="card-stats">' +
+        '<div><b class="num">' + statValue + '/' + total + '</b>' + statLabel + '</div>' +
+        (p.hasLocal ? '<div><b class="num">' + (p.rounds.length || 1) + '</b>round' + (p.rounds.length === 1 ? '' : 's') + '</div>' : '') +
+        (p.model.dangling ? '<div><b class="num" style="color:var(--bad)">' + p.model.dangling + '</b>dangling</div>' : '') +
+        '</div>' +
+        '<div class="card-foot">' + (p.run ? fmtVal(p.run.attrs.started_at) : (p.hasLocal ? 'no run node' : 'local trace not present')) + '</div>' +
+        '</div>';
+      card.addEventListener('click', function () { openDetail(p.slug); });
+      grid.appendChild(card);
+    });
+  }
+
+  // ============================================================================================
+  // Detail screen
+  // ============================================================================================
+  function openDetail(slug) {
+    currentSlug = slug;
+    renderDetail();
+    showScreen('detail');
+  }
+
+  function gateStatusClass(g) {
+    if (!g) return 'pending';
+    if (g.attrs.decision === 'loop' || (g.attrs.status && g.attrs.status !== 'ok')) return 'warn';
+    return 'ok';
+  }
+
+  function buildSteps(pitch) {
+    var steps = [];
+    ['L0', 'L1a', 'L1a.5', 'L1b'].forEach(function (name) {
+      var g = pitch.gates.filter(function (x) { return x.attrs.gate === name; }).pop();
+      steps.push({ label: name, sub: null, gate: g });
+    });
+    var rounds = pitch.rounds.length ? pitch.rounds : [1];
+    rounds.forEach(function (r) {
+      ['L2', 'L3'].forEach(function (name) {
+        var g = pitch.gates.filter(function (x) { return x.attrs.gate === name && x.attrs.round === r; }).pop();
+        steps.push({ label: name, sub: 'round ' + r, gate: g });
+      });
+    });
+    var l4 = pitch.gates.filter(function (x) { return x.attrs.gate === 'L4'; }).pop();
+    steps.push({ label: 'L4', sub: 'ship', gate: l4 });
+    return steps;
+  }
+
+  function shortenMid(s, n) { return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+
+  function renderDetail() {
+    var pitch = pitches.get(currentSlug);
+    var body = document.getElementById('detail-body');
+    if (!pitch) { body.innerHTML = ''; return; }
+
+    var total = pitch.totalScopes;
+    var html = '';
+
+    // ---- 1. hero / stat strip ----
+    html += '<div class="detail-hero">';
+    html += '<div class="hero-top"><h2>' + pitch.slug + '</h2><span class="health-pill ' + pitch.health + '">' + HEALTH_LABEL[pitch.health] + '</span></div>';
+    html += '<div class="phase-line" style="font-size:13.5px">' + pitch.phase + '</div>';
+    if (pitch.run) {
+      html += '<div class="meta-line">' +
+        '<span><b>run</b> ' + fmtVal(pitch.run.attrs.run_id) + '</span>' +
+        '<span><b>level</b> ' + fmtVal(pitch.run.attrs.auto_level) + '</span>' +
+        '<span><b>started</b> ' + fmtVal(pitch.run.attrs.started_at) + '</span></div>';
+    }
+    html += '<div class="hero-stats">' +
+      '<div><b class="num">' + total + '</b>scopes</div>' +
+      '<div><b class="num">' + pitch.finishedCount + '</b>finished</div>' +
+      (pitch.hasLocal ? '<div><b class="num">' + (pitch.rounds.length || 1) + '</b>round' + (pitch.rounds.length === 1 ? '' : 's') + '</div>' : '') +
+      (pitch.hasLocal ? '<div><b class="num" style="' + (pitch.model.dangling ? 'color:var(--bad)' : '') + '">' + pitch.model.dangling + '</b>dangling edges</div>' : '') +
+      '</div>';
+    html += '</div>';
+
+    // ---- 2. hill chart (headline) ----
+    html += '<div class="section"><h3>Hill Chart</h3><div class="sub">Where each scope sits between figuring it out and getting it done — mechanical, derived only from T0/T1/seesaw evidence, never self-reported. Position is how derisked a scope has ever been; dot color is its current-round health, so a scope can sit downhill and still show red if its latest attempt regressed.</div>';
+    html += '<div class="section-card"><div class="hill-wrap hero">';
+    if (pitch.hillAvailable) {
+      html += renderHillSVG(pitch.scopeStatus, 'hero');
+      html += '<div class="hill-legend">' +
+        '<span><i style="background:var(--good)"></i>Latest attempt green</span>' +
+        '<span><i style="background:var(--bad)"></i>Latest attempt red</span>' +
+        '<span><i style="background:var(--pending)"></i>No local status (archived/queued)</span>' +
+        '</div>';
+    } else {
+      html += '<div class="hill-empty-note">No hill data yet for this pitch — run <code>harness reduce hill --slug ' + pitch.slug + '</code> after a build round.</div>';
+    }
+    html += '</div></div></div>';
+
+    if (!pitch.hasLocal) {
+      html += '<div class="section"><div class="archived-note"><span>📦</span><span><b>Archived.</b> This pitch\'s local run trace (<code>.shapeup/' + pitch.slug + '/</code>) isn\'t present — likely cleaned up after shipping. The Hill Chart above still reflects its committed <code>hill/*.yml</code> shards, but current-round health, the scope board, round history and the raw graph all need the local trace and aren\'t available.</span></div></div>';
+      body.innerHTML = html;
+      return;
+    }
+
+    // ---- 3. attention callouts ----
+    var callouts = [];
+    pitch.scopeStatus.filter(function (s) { return s.status === 'red'; }).forEach(function (s) {
+      callouts.push({ level: 'bad', text: '<b>' + s.scopeId + '</b> is red on its latest verdict (round ' + (s.latest ? s.latest.attrs.round : '?') + ').' });
+    });
+    pitch.scopeStatus.filter(function (s) { return s.status != null && s.hillPhase === 'UPHILL_UNKNOWN'; }).forEach(function (s) {
+      callouts.push({ level: 'bad', text: '<b>' + s.scopeId + '</b> is still UPHILL_UNKNOWN despite build activity — an unresolved unknown may be blocking derisking.' });
+    });
+    pitch.verdicts.filter(function (v) { return v.attrs.regression; }).forEach(function (v) {
+      callouts.push({ level: 'bad', text: 'Regression flagged on <b>' + (v.attrs.scope_id || '?') + '</b> (' + v.id + ').' });
+    });
+    pitch.gates.filter(function (g) { return g.attrs.decision === 'loop'; }).forEach(function (g) {
+      callouts.push({ level: 'info', text: '<b>' + g.attrs.gate + '</b>' + (g.attrs.round != null ? ' · round ' + g.attrs.round : '') + ' looped back for another round.' });
+    });
+    if (pitch.model.dangling) callouts.push({ level: 'info', text: pitch.model.dangling + ' edge(s) point at an artifact not present in this file — likely still in flight.' });
+
+    if (callouts.length) {
+      html += '<div class="section"><h3>Needs attention</h3><div class="sub">Surfaced automatically from red verdicts, stuck unknowns, regressions, loop decisions and dangling references.</div>';
+      html += '<ul class="attention-list">' + callouts.map(function (c) {
+        return '<li class="' + (c.level === 'info' ? 'info' : '') + '"><span class="icon">' + (c.level === 'info' ? '↻' : '⚠') + '</span><span>' + c.text + '</span></li>';
+      }).join('') + '</ul></div>';
+    }
+
+    // ---- 4. scope board ----
+    var buckets = { queued: [], building: [], green: [], red: [] };
+    pitch.scopeStatus.forEach(function (s) { if (buckets[s.status]) buckets[s.status].push(s); });
+    var colDefs = [
+      ['queued', 'Queued', '--pending'], ['building', 'Building', '--warn'],
+      ['green', 'Green', '--good'], ['red', 'Needs fix', '--bad']
+    ];
+    html += '<div class="section"><h3>Scopes</h3><div class="sub">One card per unit of work this build cut — the substrate the scope architect handed to task-executor.</div><div class="section-card"><div class="board">';
+    colDefs.forEach(function (d) {
+      var items = buckets[d[0]];
+      html += '<div class="board-col"><div class="board-col-head"><span class="dot" style="background:var(' + d[2] + ')"></span><span>' + d[1] + '</span><b class="num">' + items.length + '</b></div>';
+      if (!items.length) html += '<div class="board-empty">None</div>';
+      items.forEach(function (s) {
+        html += '<div class="scope-card" id="scope-card-' + s.scopeId + '"><div class="name">' + s.scopeId + '</div><div class="sub">' +
+          (s.latest ? ('r' + s.latest.attrs.round + ' · a' + s.latest.attrs.attempt) : 'not yet built') +
+          (s.attempts > 1 ? ' · ' + s.attempts + ' attempts' : '') + '</div></div>';
+      });
+      html += '</div>';
+    });
+    html += '</div></div></div>';
+
+    // ---- 5. round matrix ----
+    if (pitch.rounds.length && pitch.scopeStatus.length) {
+      html += '<div class="section"><h3>Round history</h3><div class="sub">Each cell is that scope\'s last T0 verdict for the round — a quick read on which rounds needed a retry.</div><div class="section-card"><div class="matrix-scroll"><table class="matrix"><thead><tr><th class="rowhead">Round</th>';
+      pitch.scopeStatus.forEach(function (s) { html += '<th title="' + s.scopeId + '">' + shortenMid(s.scopeId, 12) + '</th>'; });
+      html += '</tr></thead><tbody>';
+      pitch.rounds.forEach(function (r) {
+        html += '<tr><td class="rowhead">Round ' + r + '</td>';
+        pitch.scopeStatus.forEach(function (s) {
+          var vs = pitch.verdicts.filter(function (v) { return v.attrs.scope_id === s.scopeId && v.attrs.round === r; })
+            .sort(function (a, b) { return a.attrs.attempt - b.attrs.attempt; });
+          if (!vs.length) { html += '<td><span class="verdict-chip na">·</span></td>'; return; }
+          var last = vs[vs.length - 1];
+          var ok = last.attrs.overall === 'green';
+          html += '<td><span class="verdict-chip ' + (ok ? 'green' : 'red') + '" title="' + last.id + '">' + (ok ? '✓' : '✕') + '</span>' +
+            (vs.length > 1 ? '<div style="font-size:9.5px;color:var(--text-faint)">×' + vs.length + '</div>' : '') + '</td>';
+        });
+        html += '</tr>';
+      });
+      html += '</tbody></table></div></div></div>';
+    }
+
+    // ---- 6. gate history (collapsed — demoted now that the hill carries the headline) ----
+    html += '<div class="section"><details class="gate-history"><summary>Gate history</summary>';
+    html += '<div class="sub">Every checkpoint this build has crossed, or is waiting on.</div>';
+    if (pitch.gates.length) {
+      html += '<div class="stepper" id="stepper"></div><div id="gate-detail"></div>';
+    } else {
+      html += '<div class="board-empty">No gate decisions recorded in this file — this trace didn\'t carry a gate ledger, even though the build above completed.</div>';
+    }
+    html += '</details></div>';
+
+    // ---- 7. raw graph launch ----
+    html += '<div class="section"><div class="section-card raw-launch">' +
+      '<div><h3 style="margin-bottom:4px">Explore the full graph</h3><p>Every node and edge this file carries — trace a verdict back to its order, scope and requirements.</p></div>' +
+      '<button class="btn primary" id="open-raw">Open raw graph →</button></div></div>';
+
+    body.innerHTML = html;
+    renderStepper(pitch);
+    wireHillDots();
+    document.getElementById('open-raw').addEventListener('click', function () { openRaw(pitch.slug); });
+  }
+
+  function wireHillDots() {
+    document.querySelectorAll('#detail-body .hill-svg .hill-dot[data-scope]').forEach(function (dot) {
+      dot.addEventListener('click', function () {
+        var id = dot.getAttribute('data-scope');
+        var card = document.getElementById('scope-card-' + id);
+        if (!card) return;
+        card.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+        card.classList.add('flash');
+        setTimeout(function () { card.classList.remove('flash'); }, 900);
+      });
+    });
+  }
+
+  function renderStepper(pitch) {
+    var el = document.getElementById('stepper');
+    if (!el) return;
+    el.innerHTML = '';
+    buildSteps(pitch).forEach(function (step, i) {
+      var cls = step.gate ? gateStatusClass(step.gate) : 'pending';
+      var div = document.createElement('div');
+      div.className = 'step ' + cls;
+      div.innerHTML = '<span class="connector"></span>' +
+        '<span class="node">' + (cls === 'ok' ? '✓' : cls === 'warn' ? '↻' : (i + 1)) + '</span>' +
+        '<span class="label">' + step.label + '</span>' +
+        (step.sub ? '<span class="sub-label">' + step.sub + '</span>' : '') +
+        '<button class="hit" aria-label="Details for ' + step.label + '"></button>';
+      div.querySelector('.hit').addEventListener('click', function () { showGateDetail(step); });
+      el.appendChild(div);
+    });
+  }
+
+  function showGateDetail(step) {
+    var box = document.getElementById('gate-detail');
+    if (!step.gate) {
+      box.innerHTML = '<b>' + step.label + '</b> — not reached yet.';
+    } else {
+      var g = step.gate.attrs;
+      box.innerHTML = '<b>' + step.label + (step.sub ? ' · ' + step.sub : '') + '</b> — ' + fmtVal(g.decision) + ' (' + fmtVal(g.status) + ') via <code>' + fmtVal(g.source) + '</code>' +
+        (g.note ? '<br>' + g.note : '');
+    }
+    box.classList.add('show');
+  }
+
+  document.getElementById('back-to-portfolio').addEventListener('click', function () { showScreen('portfolio'); });
+
+  // ============================================================================================
+  // Raw graph screen — the force-directed node/edge explorer, scoped to one pitch's model.
+  // ============================================================================================
+  var svg = document.getElementById('graph-svg');
+  var viewport = document.getElementById('viewport');
+  var edgesLayer = document.getElementById('edges-layer');
+  var nodesLayer = document.getElementById('nodes-layer');
+  var canvasWrap = document.getElementById('canvas-wrap');
+  var emptyHint = document.getElementById('empty-hint');
+  var legendRail = document.getElementById('legend-rail');
+  var inspectorBody = document.getElementById('inspector-body');
+
+  var rawModel = { nodeList: [], linkList: [], byId: new Map(), dangling: 0 };
+  var activeTypes = new Set(TYPE_ORDER.concat(['Unknown']));
+  var selected = null, hoveredEl = null;
+  var width = 800, height = 600, tf = { x: 0, y: 0, k: 1 }, alpha = 1, raf = null;
+  var nodeEls = new Map(), edgeEls = new Map();
+
+  function openRaw(slug) {
+    var pitch = pitches.get(slug);
+    if (!pitch || !pitch.hasLocal) return;
+    rawModel = pitch.model;
+    activeTypes = new Set(TYPE_ORDER.concat(['Unknown']));
+    buildLegend();
+    handleResize();
+    seedPositions(rawModel.nodeList);
+    selected = null;
+    rebuildDOM();
+    runSimulation(true);
+    setTimeout(fitToView, reduceMotion ? 60 : 450);
+    showScreen('raw');
+  }
+  document.getElementById('back-to-detail').addEventListener('click', function () { showScreen('detail'); });
+
+  function seedPositions(nodeList) {
+    var workTypes = TYPE_ORDER.filter(function (t) { return NODE_META[t].family === 'work'; });
+    var domainTypes = TYPE_ORDER.filter(function (t) { return NODE_META[t].family === 'domain'; });
+    var laneX = {};
+    workTypes.forEach(function (t, i) { laneX[t] = width * 0.24 + i * (width * 0.09); });
+    domainTypes.forEach(function (t, i) { laneX[t] = width * 0.66 + i * (width * 0.10); });
+    var counters = {};
+    nodeList.forEach(function (n) {
+      var baseX = laneX[n.t] != null ? laneX[n.t] : width * 0.5;
+      var c = (counters[n.t] = (counters[n.t] || 0) + 1);
+      n.x = baseX + (Math.random() - 0.5) * 50;
+      n.y = 70 + ((c * 52) % Math.max(height - 140, 120)) + (Math.random() - 0.5) * 30;
+      n.vx = 0; n.vy = 0; n.pinned = false;
+    });
+  }
+
+  function tick(a) {
+    var nodes = rawModel.nodeList;
+    for (var i = 0; i < nodes.length; i++) {
+      var A = nodes[i];
+      for (var j = i + 1; j < nodes.length; j++) {
+        var B = nodes[j];
+        var dx = A.x - B.x, dy = A.y - B.y, d2 = dx * dx + dy * dy;
+        if (d2 < 1) { dx = (Math.random() - 0.5) || 0.1; dy = (Math.random() - 0.5) || 0.1; d2 = 1; }
+        var dist = Math.sqrt(d2), f = (2200 / d2) * a;
+        var fx = (dx / dist) * f, fy = (dy / dist) * f;
+        if (!A.pinned) { A.vx += fx; A.vy += fy; }
+        if (!B.pinned) { B.vx -= fx; B.vy -= fy; }
+      }
+    }
+    for (var e = 0; e < rawModel.linkList.length; e++) {
+      var L = rawModel.linkList[e], A2 = L.from, B2 = L.to;
+      var dx2 = B2.x - A2.x, dy2 = B2.y - A2.y, dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2) || 0.01;
+      var fs = (dist2 - 100) * 0.028 * a, fx2 = (dx2 / dist2) * fs, fy2 = (dy2 / dist2) * fs;
+      if (!A2.pinned) { A2.vx += fx2; A2.vy += fy2; }
+      if (!B2.pinned) { B2.vx -= fx2; B2.vy -= fy2; }
+    }
+    var cx = width / 2, cy = height / 2;
+    for (var n = 0; n < nodes.length; n++) {
+      var N = nodes[n];
+      if (N.pinned) { N.vx = 0; N.vy = 0; continue; }
+      N.vx += (cx - N.x) * 0.0006 * a; N.vy += (cy - N.y) * 0.0006 * a;
+      N.vx *= 0.82; N.vy *= 0.82; N.x += N.vx; N.y += N.vy;
+      N.x = Math.max(26, Math.min(width - 26, N.x)); N.y = Math.max(26, Math.min(height - 26, N.y));
+    }
+  }
+
+  function runSimulation(resetAlpha) {
+    if (resetAlpha) alpha = 1;
+    if (raf) cancelAnimationFrame(raf);
+    var maxTicks = reduceMotion ? 90 : 420, count = 0;
+    function frame() {
+      if (alpha > 0.006 && count < maxTicks) {
+        tick(alpha); alpha *= 0.985; count++; updatePositions();
+        raf = requestAnimationFrame(frame);
+      } else { updatePositions(); raf = null; }
+    }
+    frame();
+  }
+
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs) { var e = document.createElementNS(SVG_NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); return e; }
+  function shortLabel(id) { var idx = id.indexOf(':'); var s = idx >= 0 ? id.slice(idx + 1) : id; if (s.length > 26) s = s.slice(0, 12) + '…' + s.slice(-11); return s; }
+  function radiusFor(n) { return 9 + Math.min(n.degree, 9) * 0.85; }
+  function ringColor(n) { if (n.t !== 'Verdict') return null; if (n.attrs.overall === 'green') return 'var(--good)'; if (n.attrs.overall != null) return 'var(--bad)'; return null; }
+
+  function rebuildDOM() {
+    edgesLayer.innerHTML = ''; nodesLayer.innerHTML = ''; nodeEls.clear(); edgeEls.clear();
+    rawModel.linkList.forEach(function (L) {
+      var line = el('line', { class: 'edge t-' + L.t, 'marker-end': 'url(#arrow)' });
+      line.addEventListener('click', function (ev) { ev.stopPropagation(); selectEdge(L); });
+      edgesLayer.appendChild(line); edgeEls.set(L.key, line);
+    });
+    rawModel.nodeList.forEach(function (n) {
+      var meta = metaFor(n.t), g = el('g', { class: 'node-g' }), r = radiusFor(n);
+      var halo = el('circle', { class: 'halo', r: r + 5 });
+      var ring = el('circle', { class: 'status-ring', r: r + 2.5, stroke: ringColor(n) || 'none' });
+      var dot = el('circle', { class: 'node-dot', r: r, fill: meta.color });
+      var label = el('text', { y: r + 12, 'text-anchor': 'middle' }); label.textContent = shortLabel(n.id);
+      var titleEl = el('title', {}); titleEl.textContent = n.t + ' · ' + n.id;
+      g.appendChild(halo); if (ringColor(n)) g.appendChild(ring); g.appendChild(dot); g.appendChild(titleEl); g.appendChild(label);
+      g.addEventListener('pointerenter', function () { setHover(n.id); });
+      g.addEventListener('pointerleave', function () { setHover(null); });
+      g.addEventListener('click', function (ev) { ev.stopPropagation(); selectNode(n); });
+      attachDrag(g, n);
+      nodesLayer.appendChild(g); nodeEls.set(n.id, { g: g });
+    });
+    applyFiltersAndSearch(); updatePositions();
+  }
+
+  function updatePositions() {
+    rawModel.linkList.forEach(function (L) {
+      var line = edgeEls.get(L.key); if (!line) return;
+      line.setAttribute('x1', L.from.x); line.setAttribute('y1', L.from.y);
+      line.setAttribute('x2', L.to.x); line.setAttribute('y2', L.to.y);
+    });
+    rawModel.nodeList.forEach(function (n) {
+      var rec = nodeEls.get(n.id); if (!rec) return;
+      rec.g.setAttribute('transform', 'translate(' + n.x + ',' + n.y + ')');
+    });
+  }
+
+  function rootPoint(clientX, clientY) {
+    var pt = svg.createSVGPoint(); pt.x = clientX; pt.y = clientY;
+    var ctm = svg.getScreenCTM(); if (!ctm) return { x: 0, y: 0 };
+    var p = pt.matrixTransform(ctm.inverse()); return { x: p.x, y: p.y };
+  }
+  function applyTransform() { viewport.setAttribute('transform', 'translate(' + tf.x + ',' + tf.y + ') scale(' + tf.k + ')'); }
+
+  function attachDrag(g, n) {
+    var dragging = false, offX = 0, offY = 0;
+    g.addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation(); dragging = true; g.setPointerCapture(ev.pointerId);
+      var rp = rootPoint(ev.clientX, ev.clientY);
+      offX = (rp.x - tf.x) / tf.k - n.x; offY = (rp.y - tf.y) / tf.k - n.y;
+    });
+    g.addEventListener('pointermove', function (ev) {
+      if (!dragging) return; n.pinned = true;
+      var rp = rootPoint(ev.clientX, ev.clientY);
+      n.x = (rp.x - tf.x) / tf.k - offX; n.y = (rp.y - tf.y) / tf.k - offY;
+      n.vx = 0; n.vy = 0; updatePositions();
+    });
+    function end(ev) { if (dragging) { dragging = false; try { g.releasePointerCapture(ev.pointerId); } catch (e) {} } }
+    g.addEventListener('pointerup', end); g.addEventListener('pointercancel', end);
+  }
+
+  var panning = false, panStart = null, tfStart = null;
+  svg.addEventListener('pointerdown', function (ev) {
+    if (ev.target !== svg) return;
+    panning = true; svg.classList.add('panning'); svg.setPointerCapture(ev.pointerId);
+    panStart = { x: ev.clientX, y: ev.clientY }; tfStart = { x: tf.x, y: tf.y };
+    clearSelection();
+  });
+  svg.addEventListener('pointermove', function (ev) {
+    if (!panning) return;
+    var r0 = rootPoint(panStart.x, panStart.y), r1 = rootPoint(ev.clientX, ev.clientY);
+    tf.x = tfStart.x + (r1.x - r0.x); tf.y = tfStart.y + (r1.y - r0.y); applyTransform();
+  });
+  function panEnd(ev) { if (panning) { panning = false; svg.classList.remove('panning'); try { svg.releasePointerCapture(ev.pointerId); } catch (e) {} } }
+  svg.addEventListener('pointerup', panEnd); svg.addEventListener('pointercancel', panEnd);
+  svg.addEventListener('wheel', function (ev) {
+    ev.preventDefault();
+    var rp = rootPoint(ev.clientX, ev.clientY), factor = Math.exp(-ev.deltaY * 0.0016);
+    var newK = Math.max(0.15, Math.min(4, tf.k * factor));
+    tf.x = rp.x - (rp.x - tf.x) * (newK / tf.k); tf.y = rp.y - (rp.y - tf.y) * (newK / tf.k); tf.k = newK;
+    applyTransform();
+  }, { passive: false });
+  function zoomBy(factor) {
+    var cx = width / 2, cy = height / 2, newK = Math.max(0.15, Math.min(4, tf.k * factor));
+    tf.x = cx - (cx - tf.x) * (newK / tf.k); tf.y = cy - (cy - tf.y) * (newK / tf.k); tf.k = newK; applyTransform();
+  }
+  document.getElementById('zoom-in').addEventListener('click', function () { zoomBy(1.25); });
+  document.getElementById('zoom-out').addEventListener('click', function () { zoomBy(0.8); });
+  document.getElementById('zoom-reset').addEventListener('click', function () { tf = { x: 0, y: 0, k: 1 }; applyTransform(); });
+
+  function fitToView() {
+    var visible = rawModel.nodeList.filter(function (n) { return activeTypes.has(n.t); });
+    if (!visible.length) { tf = { x: 0, y: 0, k: 1 }; applyTransform(); return; }
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    visible.forEach(function (n) { minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x); minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y); });
+    var pad = 60, gw = Math.max(maxX - minX, 1) + pad * 2, gh = Math.max(maxY - minY, 1) + pad * 2;
+    var k = Math.max(0.15, Math.min(2.4, Math.min(width / gw, height / gh)));
+    var cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+    tf.k = k; tf.x = width / 2 - cx * k; tf.y = height / 2 - cy * k; applyTransform();
+  }
+
+  function setHover(id) {
+    if (hoveredEl) { var prev = nodeEls.get(hoveredEl); if (prev) prev.g.classList.remove('hovered'); }
+    hoveredEl = id;
+    if (id) { var rec = nodeEls.get(id); if (rec) rec.g.classList.add('hovered'); }
+  }
+  function clearSelection() {
+    selected = null;
+    nodeEls.forEach(function (rec) { rec.g.classList.remove('selected', 'dim'); });
+    edgeEls.forEach(function (line) { line.classList.remove('active', 'dim'); });
+    applyFiltersAndSearch();
+    inspectorBody.className = 'insp-empty'; inspectorBody.textContent = 'Click a node or edge to inspect it.';
+  }
+  svg.addEventListener('click', function (ev) { if (ev.target === svg) clearSelection(); });
+
+  function neighborSetOf(n) {
+    var ids = new Set([n.id]), edgeKeys = new Set();
+    rawModel.linkList.forEach(function (L) { if (L.from === n || L.to === n) { ids.add(L.from.id); ids.add(L.to.id); edgeKeys.add(L.key); } });
+    return { ids: ids, edgeKeys: edgeKeys };
+  }
+  function selectNode(n) {
+    selected = { kind: 'node', ref: n };
+    var neigh = neighborSetOf(n);
+    nodeEls.forEach(function (rec, id) { rec.g.classList.toggle('selected', id === n.id); rec.g.classList.toggle('dim', !neigh.ids.has(id)); });
+    edgeEls.forEach(function (line, key) { line.classList.toggle('active', neigh.edgeKeys.has(key)); line.classList.toggle('dim', !neigh.edgeKeys.has(key)); });
+    applyTypeVisibility(); renderInspectorNode(n);
+  }
+  function selectEdge(L) {
+    selected = { kind: 'edge', ref: L };
+    nodeEls.forEach(function (rec, id) { rec.g.classList.remove('selected'); rec.g.classList.toggle('dim', id !== L.from.id && id !== L.to.id); });
+    edgeEls.forEach(function (line, key) { line.classList.toggle('active', key === L.key); line.classList.toggle('dim', key !== L.key); });
+    applyTypeVisibility(); renderInspectorEdge(L);
+  }
+  function jumpChip(id) {
+    var row = document.createElement('div'); row.className = 'conn-row';
+    var n = rawModel.byId.get(id), meta = n ? metaFor(n.t) : { color: 'var(--n-other)' };
+    row.innerHTML = '<span class="swatch" style="background:' + meta.color + '"></span><span class="edge-t">' + (n ? n.t : '?') + '</span><span class="id">' + id + '</span>';
+    row.addEventListener('click', function () { if (n) { selectNode(n); centerOn(n); } });
+    return row;
+  }
+  function centerOn(n) { tf.x = width / 2 - n.x * tf.k; tf.y = height / 2 - n.y * tf.k; applyTransform(); }
+
+  function renderInspectorNode(n) {
+    inspectorBody.className = '';
+    var meta = metaFor(n.t), html = '';
+    html += '<div class="insp-head"><span class="swatch" style="background:' + meta.color + '"></span><span class="type">' + n.t + '</span></div>';
+    html += '<div class="insp-id">' + n.id + '</div><table class="kv"><tbody>';
+    Object.keys(n.attrs).sort().forEach(function (k) {
+      if (k === 'k' || k === 'id' || k === 't') return;
+      html += '<tr><th>' + k + '</th><td>' + fmtVal(n.attrs[k]) + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    inspectorBody.innerHTML = html;
+    var incoming = rawModel.linkList.filter(function (L) { return L.to === n; });
+    var outgoing = rawModel.linkList.filter(function (L) { return L.from === n; });
+    if (incoming.length) {
+      var h1 = document.createElement('div'); h1.className = 'conn-group'; h1.innerHTML = '<h4>Incoming (' + incoming.length + ')</h4>';
+      incoming.forEach(function (L) { var row = jumpChip(L.from.id); row.querySelector('.edge-t').textContent = L.t; h1.appendChild(row); });
+      inspectorBody.appendChild(h1);
+    }
+    if (outgoing.length) {
+      var h2 = document.createElement('div'); h2.className = 'conn-group'; h2.innerHTML = '<h4>Outgoing (' + outgoing.length + ')</h4>';
+      outgoing.forEach(function (L) { var row = jumpChip(L.to.id); row.querySelector('.edge-t').textContent = L.t; h2.appendChild(row); });
+      inspectorBody.appendChild(h2);
+    }
+  }
+  function renderInspectorEdge(L) {
+    inspectorBody.className = '';
+    inspectorBody.innerHTML = '<div class="insp-head"><span class="type">Edge · ' + L.t + '</span></div><table class="kv"><tbody>' +
+      '<tr><th>from</th><td>' + L.from.id + '</td></tr><tr><th>type</th><td>' + L.t + '</td></tr><tr><th>to</th><td>' + L.to.id + '</td></tr></tbody></table>';
+    inspectorBody.appendChild(jumpChip(L.from.id)); inspectorBody.appendChild(jumpChip(L.to.id));
+  }
+
+  function buildLegend() {
+    legendRail.innerHTML = '';
+    ['work', 'domain'].forEach(function (fam) {
+      var group = document.createElement('div'); group.className = 'legend-group';
+      var h = document.createElement('h2'); h.textContent = fam === 'work' ? 'Work lineage' : 'Domain'; group.appendChild(h);
+      TYPE_ORDER.filter(function (t) { return NODE_META[t].family === fam; }).forEach(function (t) { group.appendChild(chipFor(t)); });
+      legendRail.appendChild(group);
+    });
+  }
+  function chipFor(t) {
+    var btn = document.createElement('button'); btn.className = 'chip'; btn.dataset.type = t;
+    var meta = metaFor(t);
+    btn.innerHTML = '<span class="swatch" style="background:' + meta.color + '"></span><span class="label">' + t + '</span><span class="count">0</span>';
+    btn.addEventListener('click', function () {
+      if (activeTypes.has(t)) activeTypes.delete(t); else activeTypes.add(t);
+      btn.classList.toggle('off', !activeTypes.has(t)); applyFiltersAndSearch();
+    });
+    return btn;
+  }
+  function refreshLegendCounts() {
+    var counts = {};
+    rawModel.nodeList.forEach(function (n) { counts[n.t] = (counts[n.t] || 0) + 1; });
+    legendRail.querySelectorAll('.chip').forEach(function (chip) {
+      var t = chip.dataset.type;
+      chip.querySelector('.count').textContent = counts[t] || 0;
+      chip.classList.toggle('off', !activeTypes.has(t));
+    });
+  }
+  function applyTypeVisibility() {
+    rawModel.nodeList.forEach(function (n) { var rec = nodeEls.get(n.id); if (rec) rec.g.style.display = activeTypes.has(n.t) ? '' : 'none'; });
+    rawModel.linkList.forEach(function (L) { var line = edgeEls.get(L.key); if (line) line.style.display = (activeTypes.has(L.from.t) && activeTypes.has(L.to.t)) ? '' : 'none'; });
+    var anyVisible = rawModel.nodeList.some(function (n) { return activeTypes.has(n.t); });
+    emptyHint.classList.toggle('show', rawModel.nodeList.length === 0 || !anyVisible);
+  }
+  function applyFiltersAndSearch() { applyTypeVisibility(); refreshLegendCounts(); }
+
+  function handleResize() {
+    var w = canvasWrap.clientWidth, h = canvasWrap.clientHeight;
+    if (!w || !h) return;
+    width = w; height = h; svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+  }
+  if (window.ResizeObserver) new ResizeObserver(handleResize).observe(canvasWrap);
+  else window.addEventListener('resize', handleResize);
+
+  // ============================================================================================
+  // Manual loading (multi-file, paste) — an escape hatch for comparing another project's
+  // graph.jsonl. Manually-loaded pitches carry no hill data (that lives in a separate committed
+  // shard this file can't see), so their Hill Chart shows as not yet available rather than
+  // guessing a position for it.
+  // ============================================================================================
+  document.getElementById('file-input').addEventListener('change', function (ev) {
+    var files = Array.prototype.slice.call(ev.target.files || []);
+    if (!files.length) return;
+    var pending = files.length;
+    files.forEach(function (file) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        var text = String(reader.result || '');
+        var label = file.name.replace(/\.[^.]+$/, '');
+        var slug = slugFor(parseGraph(text), label);
+        addPitch({ slug: slug, hasLocal: true, hasCommitted: false, hill: [], graphJsonl: text });
+        pending--;
+        if (pending === 0) { renderPortfolio(); showScreen('portfolio'); }
+      };
+      reader.readAsText(file);
+    });
+    ev.target.value = '';
+  });
+
+  var overlay = document.getElementById('overlay');
+  var pasteArea = document.getElementById('paste-area');
+  var pasteLabel = document.getElementById('paste-label');
+  document.getElementById('btn-paste').addEventListener('click', function () { overlay.classList.add('show'); pasteArea.focus(); });
+  document.getElementById('paste-cancel').addEventListener('click', function () { overlay.classList.remove('show'); });
+  document.getElementById('paste-apply').addEventListener('click', function () {
+    if (pasteArea.value.trim()) {
+      var text = pasteArea.value;
+      var slug = slugFor(parseGraph(text), pasteLabel.value.trim() || null);
+      addPitch({ slug: slug, hasLocal: true, hasCommitted: false, hill: [], graphJsonl: text });
+      renderPortfolio(); showScreen('portfolio');
+    }
+    overlay.classList.remove('show'); pasteArea.value = ''; pasteLabel.value = '';
+  });
+  overlay.addEventListener('click', function (ev) { if (ev.target === overlay) overlay.classList.remove('show'); });
+
+  // ============================================================================================
+  // Boot
+  // ============================================================================================
+  loadEmbedded();
+})();
+</script>

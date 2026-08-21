@@ -16,7 +16,7 @@ cannot talk past, rather than conventions it is asked to remember.
 1. [Objective & Product Value](01-objective-and-product-value.md) — why this exists, what problem it removes
 2. [High-Level Design](02-high-level-design.md) — the three-phase Shape Up loop
 3. [System Design](03-system-design.md) — envelope port, hooks, storage roots, distribution
-4. [Functional Design](04-functional-design.md) — the 12 skills, the build round, the circuit breaker, the gates
+4. [Functional Design](04-functional-design.md) — the 13 skills, the build round, the circuit breaker, the gates
 5. [Verification & Quality Strategy](05-verification-and-quality-strategy.md) — how the harness proves itself
 6. [Appendix — File Layout & Invariants](06-appendix.md)
 7. [Domain ERD](07-domain-erd.md) — the entity-relationship map generated from `skills/tech-lead/schemas/domain.schema.json`

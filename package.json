@@ -1,6 +1,6 @@
 {
   "name": "shapeup-sdlc",
-  "version": "3.0.2",
+  "version": "3.1.0",
   "description": "Shape Up for coding agents \u2014 with gates the agent can't talk its way past. Harness for Claude Code.",
   "bin": {
     "shapeup-sdlc": "bin/init.mjs"
