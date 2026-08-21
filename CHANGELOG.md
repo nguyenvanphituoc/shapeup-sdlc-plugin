@@ -25,6 +25,20 @@ recomputes a hill shard it can't see local evidence for, so a real historical `F
 silently regressed to a fabricated `UPHILL_SOLVED`. Not a pipeline worker — invoked directly, like
 `shapeup`.
 
+**`shapeup-run.js`'s `--require`/`--set-status` completion checks could report a false
+"phase produced no artifact."** `requirePhase`/`fastForward` treated any non-zero exit code from
+the mechanical courier as `probe resume --require`'s own exit-6 predicate ("artifact genuinely
+absent"), asserting a fixed "the worker most likely escalated" diagnosis and discarding the
+courier's own detail. Measured live: Claude Code's auto-mode classifier — a layer above this
+plugin's own hooks and `permissions.allow` grant — can deny the courier's Bash call outright, and
+that denial produced the identical false narrative as a real predicate failure, aborting a run
+whose phase had actually completed. Now only exit 6 gets that message; the courier reports `-1`
+instead of fabricating a code when its call is refused, and any other exit surfaces the courier's
+own detail and names the classifier as the likely cause (`protocol.md` §3b.1). The classifier
+itself is a Claude Code product-level layer this plugin cannot see or suppress — the fix stops the
+false diagnosis, not the underlying denial; recorded as an open item in
+`shapeup/knowledge-base/harness-defects.md`.
+
 ## [3.0.2] — 2026-08-21 · breadboard.md gets its missing template, shaping docs wikilink their slug
 
 **`breadboard.md` was the only shaping-family artifact with no output template.**
