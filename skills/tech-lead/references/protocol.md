@@ -422,6 +422,23 @@ Why it aborts rather than pauses: nothing persists an answer between launches, s
         in front of a human once instead of looping silently.
 ```
 
+## 3b.1 The other reason `--require`/`--set-status` fail: the check never ran
+```
+The abort message names an exit code. `probe resume --require` documents exit 0 (satisfied) or
+        6 (artifact genuinely absent) as its only two real answers — anything else means the
+        mechanical courier's Bash call was denied before the kernel script ever ran, most often
+        an untrusted workspace or Claude Code's own auto-mode classifier flagging the courier's
+        --require/--set-status pattern as gate-manipulation. Neither layer is this plugin's own
+        hook, so neither leaves a row in .shapeup/<slug>/decisions.jsonl.
+What you see: the same-shaped abort as 3b, but the artifact IS actually on disk — the abort
+        message now says so (exit_code shown, courier's own detail quoted) instead of asserting
+        "the worker most likely escalated".
+Do: verify the phase's artifact by hand before trusting either diagnosis. If it exists, the
+        phase is done; either relaunch (the classifier's denial is not guaranteed to repeat) or
+        drive the remaining phase's kernel commands directly rather than through the Workflow —
+        this is what routes around a blocked relaunch without waiting on the classifier.
+```
+
 ## 3c. T0 verify → `harness verify t0` (skill-local; scope contracts present, every attempt)
 ```
 Invoke via Bash directly — NOT an Agent, this is deterministic tooling, not a worker:

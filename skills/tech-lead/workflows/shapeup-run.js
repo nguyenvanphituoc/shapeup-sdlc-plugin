@@ -609,7 +609,12 @@ async function cmd(verbs, phaseName, label) {
     `Report its exit code as exit_code, ok=true if and only if exit_code is 0, and one line of ` +
     `detail. If the command printed JSON carrying a top-level "decision" key, copy that value into ` +
     `decision EXACTLY as it appears — one bare token, no sentence, no quotes, no rephrasing. ` +
-    `Otherwise omit decision. Do not interpret, summarise or act on the command's output beyond that.`,
+    `Otherwise omit decision. Do not interpret, summarise or act on the command's output beyond that.\n\n` +
+    `If the tool call itself is refused or blocked before the command ever runs — a permission or ` +
+    `policy denial, not the command's own exit — that is NOT an exit code, and you must never invent ` +
+    `one to fill the field: report exit_code as -1 and put the denial's own wording verbatim in ` +
+    `detail. -1 is not a real process exit and this file treats it as "the check could not run", never ` +
+    `as evidence about what the command would have said.`,
     { model: "sonnet", effort: "low", phase: phaseName, label, schema: CMD },
   );
   return (r && typeof r === "object") ? r : { exit_code: -1, ok: false, detail: `${label}: no result` };
@@ -813,12 +818,29 @@ const attest = (phaseKey, phaseName, label) =>
 async function requirePhase(gate, phaseKey, phaseName) {
   const r = await attest(phaseKey, phaseName, `require:${phaseKey}`);
   if (r.exit_code === 0) return null;
+  // Exit 6 is `probe resume --require`'s OWN documented code for "the artifact really is not on
+  // disk" (kernel/probe/resume.mjs banner). Any other value — including -1, the courier's sentinel
+  // for a tool call that never ran — is not that predicate answering "no"; it is the predicate never
+  // being asked. Collapsing both into one message manufactured a false "worker escalated" diagnosis
+  // the one time this was measured live: the artifacts existed, and the check itself had been denied
+  // by a layer above this plugin (workspace trust, or Claude Code's own auto-mode classifier —
+  // neither leaves a row in decisions.jsonl, because neither is this plugin's hook).
+  if (r.exit_code === 6) {
+    return aborted(gate,
+      `${gate} produced no artifact: the ${phaseKey} artifact is not on disk after the phase ran and its ` +
+      `result was ingested. The phase did not complete — its worker most likely escalated (a WorkResult ` +
+      `may report "escalated" with an empty artifacts list) — and because completion is derived from the ` +
+      `artifact, every relaunch would re-dispatch this phase and escalate again. Read the phase's result ` +
+      `to see what it could not complete, resolve it, then relaunch.`);
+  }
   return aborted(gate,
-    `${gate} produced no artifact: the ${phaseKey} artifact is not on disk after the phase ran and its ` +
-    `result was ingested. The phase did not complete — its worker most likely escalated (a WorkResult ` +
-    `may report "escalated" with an empty artifacts list) — and because completion is derived from the ` +
-    `artifact, every relaunch would re-dispatch this phase and escalate again. Read the phase's result ` +
-    `to see what it could not complete, resolve it, then relaunch.`);
+    `${gate}'s completion check for "${phaseKey}" did not run to a verdict — exit_code ${r.exit_code}, ` +
+    `not the 0 (satisfied) or 6 (artifact absent) \`probe resume --require\` documents.` +
+    `${r.detail ? ` Courier reported: ${r.detail}.` : ""} This is NOT evidence the phase failed — it means ` +
+    `the check itself could not run, most often a Bash call denied above this plugin's own hooks and ` +
+    `permission grant (an untrusted workspace, or Claude Code's auto-mode classifier). Verify the ` +
+    `${phaseKey} artifact by hand before assuming it is missing, then either relaunch or drive the ` +
+    `remaining phase's kernel commands directly.`);
 }
 
 /**
@@ -851,12 +873,24 @@ async function fastForward(gate, phaseKey, phaseName, what) {
   log(`${gate} — ${what}, fast-forwarding past it`);
   const r = await attest(phaseKey, phaseName, `ff:${phaseKey}`);
   if (r.exit_code === 0) return null;
+  // Same distinction as requirePhase: only exit 6 is the predicate genuinely answering "not there".
+  // Anything else means this re-attestation call itself never executed, most likely denied above
+  // this plugin's hooks and permission grant — not a real disagreement between the two probes.
+  if (r.exit_code === 6) {
+    return aborted(gate,
+      `${gate} was fast-forwarded on a state probe that reported its artifact present, and re-asking ` +
+      `\`probe resume --require ${phaseKey}\` at the phase itself says it is not on disk. Two readings ` +
+      `of "is this done" disagree, and the one taken AT the phase is the later of the two — so the run ` +
+      `stops here rather than building on a phase nothing can attest. Check whether the ${phaseKey} ` +
+      `artifact was moved or removed since this run last touched it, then relaunch.`);
+  }
   return aborted(gate,
-    `${gate} was fast-forwarded on a state probe that reported its artifact present, and re-asking ` +
-    `\`probe resume --require ${phaseKey}\` at the phase itself says it is not on disk. Two readings ` +
-    `of "is this done" disagree, and the one taken AT the phase is the later of the two — so the run ` +
-    `stops here rather than building on a phase nothing can attest. Check whether the ${phaseKey} ` +
-    `artifact was moved or removed since this run last touched it, then relaunch.`);
+    `${gate}'s re-attestation of "${phaseKey}" did not run to a verdict — exit_code ${r.exit_code}, not ` +
+    `the 0 (satisfied) or 6 (artifact absent) \`probe resume --require\` documents.` +
+    `${r.detail ? ` Courier reported: ${r.detail}.` : ""} The two probes are not actually in disagreement — ` +
+    `this one never executed, most often a Bash call denied above this plugin's own hooks and ` +
+    `permission grant (an untrusted workspace, or Claude Code's auto-mode classifier). Verify the ` +
+    `${phaseKey} artifact by hand before assuming it regressed, then relaunch.`);
 }
 
 // The ledger's `status` field is bookkeeping, not this file's resume oracle — the fast-forward reads

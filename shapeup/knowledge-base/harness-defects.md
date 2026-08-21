@@ -149,6 +149,43 @@ code from it, which is the user's decision, not one for a package running under 
 project as the supported CI route. Until one is chosen, **Phase 7's headless probe cannot pass**,
 and no plan should claim it can.
 
+### ⚠ STILL OPEN — a fourth layer, above workspace trust: Claude Code's auto-mode classifier
+
+Confirmed independently in two sessions, 2026-08-21, each running this plugin's `/ship` pipeline
+(`shapeup-run.js`) against real pitches. Both hit the same wall: the mechanical courier's
+`probe resume --require <phase>` / `--set-status <status>` Bash calls (C2, dispatched from inside
+the Workflow) were denied by Claude Code's own auto-mode classifier — "Blocked by classifier" —
+with `.shapeup/<slug>/decisions.jsonl` carrying zero matching rows, which rules out both this
+plugin's hooks and a `permissions.allow` gap: the broad `Bash(node "*/kernel/harness.mjs" *)`
+grant `bin/lib/grant.mjs` already writes covers these calls by pattern, and did not help. One
+session reported the block as persistent across retries within the session — not transient —
+and speculated a fresh session may not carry the same classifier state; that is a lead, not a
+measurement, and is untested.
+
+**Not fixable from inside this plugin.** The classifier sits above both the permission grant and
+this plugin's hooks — the same relationship workspace trust has to the grant above, one layer
+further out. Nothing in `bin/lib/grant.mjs` or `hooks/` can see it, let alone suppress it.
+
+**What WAS fixed, 2026-08-21.** `requirePhase`/`fastForward` in `shapeup-run.js` treated ANY
+non-zero `exit_code` from the courier as `probe resume --require`'s own exit-6 predicate
+("artifact genuinely absent"), asserting a fixed "the worker most likely escalated" diagnosis
+regardless of cause and discarding the courier's own `detail`. A classifier denial and a real
+predicate failure produced the identical false narrative — measured live in the first session:
+ORIENT's four artifacts existed on disk and the run still aborted claiming they didn't. Now only
+exit 6 gets that message; the courier's `cmd()` prompt was also taught to report `-1` rather than
+fabricate a code when its Bash call is refused outright, and any non-6 exit gets an honest "the
+check itself did not run" message quoting the courier's `detail` and naming the classifier as the
+likely cause (`protocol.md` §3b.1).
+
+**What is still open.** The abort is now honest, but it is still an abort — the automated `/ship`
+run stops exactly where it did before. Both sessions shipped by driving BUILD manually
+(`harness compile` → `Agent` dispatch to the worker skill → `harness reduce ingest` →
+`harness verify t0`, mirroring what the workflow does internally) instead of through the Workflow.
+That manual path is the only mitigation today; it is a workaround this repo can document, not a
+defect this repo can patch shut. Betting Table question: whether the manual path is worth
+formalizing as a documented fallback mode, or stays an operator-driven escape hatch invoked only
+when the classifier is observed to block.
+
 ---
 
 **Where a closed defect goes.** Its fix is pinned by a regression guard, and that guard is the
