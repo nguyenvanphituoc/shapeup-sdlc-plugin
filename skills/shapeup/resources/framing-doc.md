@@ -45,7 +45,7 @@ Write `shapeup/[feature-slug]/shaping/frame.md`
 ```markdown
 ---
 shaping: true
-feature: [feature-slug]
+feature: "[[feature-slug]]"
 doc_type: frame
 status: draft
 ---

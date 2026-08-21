@@ -136,7 +136,7 @@ Write `shapeup/[feature-slug]/shaping/shaping.md`
 ```markdown
 ---
 shaping: true
-feature: [feature-slug]
+feature: "[[feature-slug]]"
 status: shaped
 appetite: [~1 week | ~2 weeks | ~6 weeks | TBD (uncapped)]
 ---

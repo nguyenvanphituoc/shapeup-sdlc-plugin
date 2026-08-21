@@ -43,7 +43,7 @@ Write `shapeup/[feature-slug]/shaping/kickoff.md`
 ```markdown
 ---
 shaping: true
-feature: [feature-slug]
+feature: "[[feature-slug]]"
 doc_type: kickoff
 status: active
 ---

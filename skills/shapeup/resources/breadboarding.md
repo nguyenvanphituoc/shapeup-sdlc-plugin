@@ -325,6 +325,42 @@ Slicing groups affordances into **vertical implementation slices** — each demo
 
 ---
 
+## Output File: breadboard.md
+
+Write `shapeup/[feature-slug]/shaping/breadboard.md`
+
+```markdown
+---
+shaping: true
+feature: "[[feature-slug]]"
+status: breadboarded
+---
+
+# [Feature Name] — Breadboard
+
+## Places
+[P1..PN with one-line descriptions]
+
+## UI Affordances
+| ID | Place | Description | Wires Out | Returns To |
+|----|-------|--------------|-----------|------------|
+
+## Code Affordances
+| ID | Description | Wires Out | Returns To |
+|----|--------------|-----------|------------|
+
+## Wiring Diagram
+[optional Mermaid — see Mermaid Visualization above]
+
+## Slicing
+| # | Slice | Mechanism | Demo |
+|---|-------|-----------|------|
+```
+
+**Note:** This file is the second half of the kicked-off pitch (with `shaping.md`). `/ba-pitch-analyzer` and `/tech-lead` consume it as-is — affordance IDs (U[N], N[N]) are the traceability anchors downstream tasks and commits reference.
+
+---
+
 ## Handoff to High-Fidelity Design
 
 Once the breadboard is completed, verified, and sliced, it serves as the wireframe blueprint for the **Product Designer**:

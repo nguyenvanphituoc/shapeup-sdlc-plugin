@@ -43,7 +43,7 @@ A spike is a **time-boxed investigation** — not a prototype, not a full implem
 ```markdown
 ---
 shaping: true
-feature: [feature-slug]
+feature: "[[feature-slug]]"
 doc_type: spike
 part: A[N]
 status: resolved | open
