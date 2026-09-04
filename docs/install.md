@@ -8,7 +8,7 @@ a whole team. If you just want to try it, use **Plugin install** and stop there.
 > to npm; until then, run it from a clone: `node bin/init.mjs -d <target> -y`.*
 
 - [Plugin install (Claude Code)](#plugin-install-claude-code)
-- [The Playwright dependency](#the-playwright-dependency)
+- [The browser dependency](#the-browser-dependency)
 - [Install for the whole team](#install-for-the-whole-team)
 - [Local scaffolding](#local-scaffolding)
 - [Troubleshooting](#troubleshooting)
@@ -55,27 +55,33 @@ Pin to a released version:
 > `spec-evaluator`); the installer additionally writes the double-quoted spelling of each prefix,
 > which is the form the skills' own invocation lines use.
 
-## The Playwright dependency
+## The browser dependency
 
-The plugin depends on the official **Playwright** plugin
-(`playwright@claude-plugins-official`) — the QA and evaluation skills drive the running app
-to verify `[ui]` acceptance criteria. On a normal `/plugin install`, Claude Code resolves
-the dependency automatically (adding the `claude-plugins-official` marketplace if needed).
-
-Those skills drive the browser through the Playwright **CLI** by default (it is far more
-token-efficient than the MCP server).
-
-**The browser is a lazy dependency.** A run whose spec contains no `[ui]` acceptance criterion
-completes on a machine with no browser installed. The eval skill checks for the browser at the
-moment it reaches the first `[ui]` criterion, and if it is missing, fails *that probe* with the
-fix spelled out:
+**The plugin depends on no other plugin.** `.claude-plugin/plugin.json` declares no
+dependencies, and nothing in a run resolves one. What `[ui]` grading needs is the **Playwright
+CLI in the project under test** — the same `@playwright/test` a web project generally already
+has — driven as a subprocess by the `ui` oracle. Nothing is installed into your Claude Code
+session, and the harness itself stays dependency-free.
 
 ```bash
-npx playwright install chromium
+npm i -D @playwright/test && npx playwright install chromium
 ```
 
-For MCP mode (sandboxed environments only), additionally
-`claude plugin install playwright@claude-plugins-official`.
+**It is a lazy dependency.** A run whose spec contains no `[ui]` criterion completes on a machine
+with no browser at all — the check happens at the moment the first `[ui]` criterion is actually
+graded, never at install time. When the CLI or the browser binary is missing, the oracle FAILs
+*that probe* and names the command above. It never auto-installs (a grading run must not reach
+the network), and it never silently skips: a `[ui]` criterion nobody could verify is a FAIL
+reading "unverifiable: no browser", not a pass.
+
+The oracle resolves the CLI from the project's own `node_modules/.bin/playwright` first, then
+`npx --no-install playwright`, so a monorepo's hoisted install works without configuration.
+
+> **If you want MCP mode**, note that `mcp` is a subcommand of that same CLI
+> (`npx playwright mcp`) — it has not needed a separate Claude Code plugin since Playwright
+> folded the server into the package. The `ui` oracle does not use it: an MCP session streams the
+> whole accessibility tree into context every step, and the point of the oracle is a verdict that
+> costs no model tokens and can be re-run byte-identically by the regression check.
 
 ## Install for the whole team
 
@@ -134,20 +140,18 @@ The installer configures:
 
 ## Troubleshooting
 
-### `Dependency "playwright@claude-plugins-official" is not installed`
+### A `[ui]` criterion FAILs with "the Playwright CLI is not available"
 
-The Playwright plugin is missing *or installed-but-disabled*. Install and/or enable it, then
-reload:
+Not a plugin problem — the harness declares no plugin dependencies. The project under test has no
+Playwright CLI the oracle can reach. Install it *in that project*:
 
 ```bash
-claude plugin install playwright@claude-plugins-official   # if missing
-claude plugin enable  playwright@claude-plugins-official   # if disabled
+npm i -D @playwright/test && npx playwright install chromium
 ```
 
-In a session, `/reload-plugins` picks up the change.
-
-Note that the dependency gate is also checked when loading a working copy with
-`claude --plugin-dir .`, so enable Playwright before dev-loading this plugin.
+The same verdict with "the browser binary is missing" means the CLI resolved but its browser was
+never downloaded; the second half of that command is the fix. Both are graded as FAILs on purpose
+— an unverifiable acceptance criterion is not a passing one.
 
 ### The remote installer exits immediately without doing anything
 

@@ -5,9 +5,10 @@
 // differences that were the point of porting it:
 //   • no bash, no jq, no python3 — Node parses JSON natively, so the settings.json merge
 //     that needed a jq→python3→give-up fallback chain is just JSON.parse. Works on Windows.
-//   • no Playwright prerequisite — the browser is a lazy dependency, checked by the eval
-//     skill at the moment a [ui] criterion is actually probed (see
-//     skills/spec-evaluator/references/probing.md), never at install time.
+//   • no browser prerequisite — Playwright is a lazy dependency of the PROJECT UNDER TEST,
+//     resolved by the `ui` oracle at the moment a [ui] criterion is actually probed (see
+//     skills/spec-evaluator/references/probing.md), never at install time, and never a
+//     Claude Code plugin dependency.
 //
 // The bash installers remain the stable curl-able entrypoints for existing bookmarks;
 // this is the `npx` front door. Both produce the same layout, and drift between them is
@@ -181,8 +182,9 @@ for (const [srcRel, note] of [
 
 console.log("\n✅ Harness installation and scaffolding completed.");
 console.log("   Next: open a Claude Code session in this directory and run /ship \"<your idea>\".");
-console.log("   ([ui] evaluation needs a browser — `npx playwright install chromium` — but only");
-console.log("   when a run actually reaches a [ui] criterion; nothing else requires it.)");
+console.log("   ([ui] evaluation needs a browser in the project under test —");
+console.log("   `npm i -D @playwright/test && npx playwright install chromium` — but only when a run");
+console.log("   actually reaches a [ui] criterion; nothing else requires it.)");
 
 // ---- helpers ----------------------------------------------------------------
 function rel(p) { return p.startsWith(target) ? p.slice(target.length + 1) || "." : p; }

@@ -3,6 +3,49 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased] — `ui` becomes a real oracle, and the Playwright plugin dependency is gone
+
+**`ui` was the DEFAULT oracle and the only one in the registry with no runner behind it.** A row
+or acceptance criterion that omits an `oracle:` tag is treated as `ui`, so the most-used grading
+path was the one where the judge drove a browser and then reported on itself. Three properties
+every other oracle had, that the default one did not: its evidence could not be **cited** (a T0
+citation is a sha256 recomputed from an artifact, and a narrated probe leaves none), it could not
+be **replayed** (the seesaw regression check re-runs fixture *commands*, so UI regressions were
+structurally invisible to the ratchet), and its "affordance-only, never colour/font/pixel" rule
+was prose addressed to the same model `anti-leniency.md` exists to distrust.
+
+`oracles/ui-oracle.mjs` closes all three. It starts the app on a free port, drives the
+**Playwright CLI of the project under test** as a subprocess, and returns the registry's ordinary
+`{id, pass, evidence}` rows. The affordance rule is now enforced by construction: the contract
+grammar has no key for a colour, a font, a pixel box or a screenshot comparison, so a styling
+assertion cannot be written, let alone rationalised into one — `expect` accepts `testid`, `role`,
+`name`, `state`, `data_state`, `text`, `absent`, `url`, `console_clean` and nothing else. There is
+no code generation: the driver spec is written out verbatim and the contract reaches it as JSON on
+a separate channel. Proven to discriminate the way §§9–11 prove the others — `examples/ui-counter`
+PASSes 5/5 on the correct build and FAILs 5/5 on a negative control that renders identically.
+
+**No plugin dependency, and there never was one in the manifest.** `.claude-plugin/plugin.json`
+has declared no dependencies since v1.4.0, but `docs/install.md` still described
+`playwright@claude-plugins-official` as required and carried a troubleshooting section for a
+`Dependency … is not installed` error the shipped manifest cannot produce. That is corrected
+rather than restated: what `[ui]` grading needs is a Playwright CLI in the project under test,
+resolved from its own `node_modules/.bin/playwright` first and `npx --no-install playwright`
+second. The `--browser mcp` escape hatch is retired — `mcp` has been a subcommand of that same CLI
+(`npx playwright mcp`) since Playwright folded the server into the package, so it never needed a
+Claude Code plugin either.
+
+**New subcommand `harness verify oracle`.** Every oracle already had a `node <name>-oracle.mjs`
+entry point, and every one of them sat outside the permission grant, which covers exactly one
+executable. Interactively that is an approval prompt; unattended it is fatal in the way the
+kernel's own header describes — the evaluator cannot take the step and grades from a source read
+instead, which is the substitution the anti-leniency protocol exists to prevent. The registry now
+routes through the granted entry point, for all five oracles rather than only the new one.
+
+The browser stays a lazy dependency: a run with no `[ui]` criterion still completes on a machine
+with no browser, the check happens when the first `[ui]` criterion is actually graded, nothing is
+ever auto-installed (a grading run must not reach the network), and a criterion nobody could
+verify FAILs naming the fix rather than skipping.
+
 ## [3.1.0] — 2026-08-21 · new `hill-chart` skill, and the FINISHED phase it can now actually reach
 
 **`hill.mjs` read a verdict-ledger filename `reduce ingest` never writes, so no scope could ever

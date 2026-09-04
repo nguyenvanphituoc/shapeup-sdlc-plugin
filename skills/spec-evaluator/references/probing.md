@@ -3,45 +3,69 @@
 How to collect evidence by criterion `probe` type and by task variant. Default to the
 running app over reading source.
 
-## Browser mode: prefer CLI over MCP
-For `[ui]` criteria, drive the browser via the Playwright **CLI**, not the MCP server, by
-default. The CLI saves accessibility snapshots as files on disk and the agent reads them
-on demand; MCP streams the full accessibility tree into context every step. The CLI path
-uses roughly 4x fewer tokens for the same work, and the Playwright team recommends it for
-coding agents specifically. Use `--browser mcp` only in a sandboxed environment where the
-CLI's filesystem access isn't available.
+## `[ui]` criteria: run the oracle, do not drive the browser yourself
 
-Both paths read the browser's **accessibility tree**, not screenshots — structured
-role/label/state per element, no vision model needed. That is what makes the verdict
-localizable: a missing or dead element shows up as a tree node, then read the source to
-pin file:line.
+**You do not perform the browser loop. `ui` is a registered oracle with a runner behind it, and
+you dispatch to it exactly as you dispatch `process` or `http`.**
 
-**Lazy preflight — run this check only when the spec actually contains a `[ui]` criterion,
-at the moment you reach the first one.** Playwright is NOT an install-time prerequisite of the
-harness; a run with no `[ui]` criteria must complete on a machine with no browser installed.
-
-```
-npx --no-install playwright --version || <missing>
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify oracle --contract <contract.json>
 ```
 
-If the CLI or the chromium binary is missing, FAIL the probe (not the whole run) with an
-actionable message that names the criterion that needed it and the fix:
+It starts the app on a free port, drives the **Playwright CLI** in the project under test,
+and returns one `{id, pass, evidence}` row per criterion. Three things follow, and they are the
+reason the loop is no longer yours to run:
 
-> `[ui]` criterion <UC/AC id> requires a browser to verify. Run `npx playwright install chromium`,
-> then re-run the eval. (For MCP mode, also `claude plugin install playwright@claude-plugins-official`.)
+- **The verdict is re-runnable.** It is a command with an exit code, so the same probe can be
+  replayed byte-identically by the seesaw regression check and cited by hash the way T0 artifacts
+  are. A probe you narrate is evidence only you saw.
+- **Affordance-only is enforced, not requested.** The contract grammar has no key for a colour, a
+  font, a pixel box or a screenshot comparison, so a styling assertion cannot be written, let
+  alone rationalised into one. Assertions address `testid`, `role`+`name`, `state`
+  (visible/hidden/enabled/disabled), `data_state`, `text`, `absent`, `url`, `console_clean` —
+  nothing else. Ugly-but-correct PASSes; pretty-but-wrong-`data-state` FAILs.
+- **It costs no model tokens.** The accessibility tree never enters your context; the evidence
+  string does.
 
-Never auto-install a browser mid-eval, and never silently skip the criterion — a `[ui]` AC
-without a probe is a FAIL with reason "unverifiable: no browser", not a PASS.
+Assertions read the browser's **accessibility tree**, not screenshots — structured role/label/
+state per element, no vision model needed. That is what keeps the verdict localizable: a missing
+or dead element comes back as `getByTestId('x') expected: 0 received: 1`, and you then read the
+source to pin file:line for the bug entry.
 
+**Authoring the contract** — one row per criterion, mirroring its Test Surface row:
+
+```json
+{ "oracle": "ui",
+  "server": { "cmd": "<payload.run_cmd>", "ready_path": "/", "ready_timeout_ms": 6000 },
+  "criteria": [
+    { "id": "UC-04/TS-INV-01", "desc": "over-limit withdrawal is refused",
+      "probe": { "path": "/account", "steps": [ { "fill": "amount", "value": "999999" },
+                                                { "click": "withdraw" } ] },
+      "expect": { "testid": "error", "text": "/INSUFFICIENT_FUNDS/", "console_clean": true } },
+    { "id": "UC-04/TS-NOGO-02", "desc": "no export affordance (pitch no-go)",
+      "probe": { "path": "/account" },
+      "expect": { "testid": "export", "absent": true } } ] }
 ```
-The probe loop per [ui] criterion:
-  1. navigate to the screen under test
-  2. snapshot the accessibility tree → save to evaluation/.evidence/<task>-<crit>.txt
-  3. perform the action the criterion describes (click/type/submit)
-  4. snapshot again; diff state; capture any console error
-  5. record: element observed, state before/after, console output, and — if broken —
-     the source file:line where the handler/wiring fails
-```
+
+The server is spawned with `PORT` set to a port the oracle picks, so the app must read
+`process.env.PORT` — identical to the `http` oracle, and the same fixture works under both.
+
+**Lazy preflight is the oracle's job, not a step you perform.** Playwright is NOT an install-time
+prerequisite of the harness, and a run with no `[ui]` criteria completes on a machine with no
+browser. When the CLI or the browser binary is missing, the oracle FAILs every criterion in that
+contract with the fix named:
+
+> NO EVIDENCE — the Playwright CLI is not available from <root>; install it in the project under
+> test: `npm i -D @playwright/test && npx playwright install chromium`
+
+Carry that verbatim into the criterion's evidence. It never auto-installs (a grading run must not
+reach the network) and never silently skips — a `[ui]` AC without a probe is a FAIL with reason
+"unverifiable: no browser", never a PASS. `payload.browser` selects the engine
+(`chromium` default | `firefox` | `webkit`); there is no MCP mode, and none is needed — the
+harness drives the CLI the project already has.
+
+Write the returned rows to `evaluation/.evidence/<task>-<crit>.txt` as for any other oracle; the
+oracle also leaves its generated run workspace and Playwright report under the local tier.
 
 ## Oracle dispatch (evaluation contract)
 
@@ -59,13 +83,15 @@ place of running it. A probe that throws, cannot spawn, or cannot reach the deli
 
 | `oracle` | Deliverable | Probe procedure — run it, cite the observed output | Evidence to record |
 |---|---|---|---|
-| `ui` *(default)* | running web app | Playwright CLI loop (above) | a11y-tree node, state before/after, console |
+| `ui` *(default)* | running web app | `ui` oracle — starts the app, drives the Playwright CLI, grades affordances (above) | affordance + assertion observed, console |
 | `process` | CLI / script | spawn the binary with the criterion's `argv` in a **throwaway temp dir** (never the real cwd), seeded with any required store/fixture via env; read exit + stdout/stderr | exit code + stdout/stderr + crash check |
 | `test` | library / module | run the project's own test command; parse the summary line | suite exit + executed-test count + failing-test names |
 | `snapshot` | generator / pure refactor | run the deliverable, capture stdout, diff it against the agreed golden output | unified diff (empty = PASS) |
 | `http` | service / API | start the server on a free port, wait until it answers, send the request, assert; tear it down | status code + response body/JSON |
 
 **Per-oracle `probe`/`expect` shape (author it inline, one row per criterion):**
+- `ui` — `server: { cmd, ready_path }` + `probe: { path, steps }`, `expect` from the affordance
+  grammar above. An app that never becomes reachable FAILs **every** criterion.
 - `process` — `probe: { argv, store }`, `expect: { exit, stdout, no_crash }`. Sandbox in a temp
   dir + controlled env + a timeout so corrupted-input / missing-file probes cannot touch user data.
 - `test` — `probe: { cmd }`, `expect: { exit, min_tests, no_failures }`. **A suite that runs zero
@@ -90,7 +116,7 @@ exist.
   `curl` against a running endpoint, `migration up && migration down`). Capture stdout,
   stderr, exit code. Non-zero exit or failing assertion = evidence of FAIL. (Backs the `test`,
   `snapshot`, and `http` oracles.)
-- `ui` — Playwright CLI loop above. (Backs the `ui` oracle.)
+- `ui` — dispatch the `ui` oracle above; never drive a browser by hand.
 - `data` — query the DB / inspect storage after the action; capture the actual row/state
   and compare to what the criterion expects.
 - `static` — read the diff / changed files (for `SC-NONGO`, `SC-LAYER`, secret scans,
@@ -178,8 +204,8 @@ every access assertion above it is a false positive. Report each distinct bypass
   transcripts + test output.
 - `.shared` — usually `cmd` only: typecheck + unit tests on the shared package; verify
   contract types compile and match the tables.
-- `.web` — Playwright CLI against the running web app for `SC-AC` and `SC-DONE-WHEN`.
-- `.mobile` — Playwright does not drive a native RN app. Options: probe via the platform's
+- `.web` — the `ui` oracle against the running web app for `SC-AC` and `SC-DONE-WHEN`.
+- `.mobile` — the `ui` oracle does not drive a native RN app. Options: probe via the platform's
   e2e tool (Detox / Maestro) if present; otherwise mark the `[ui]` criteria `[manual]` at
   GATE V1 and require an explicit user check (or `--strict` to FAIL them). Do not fake UI
   evidence for native screens.

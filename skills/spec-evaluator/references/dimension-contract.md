@@ -48,7 +48,7 @@ A list. Each criterion is the atomic unit the evaluator grades. Schema per crite
 
 `probe` values map directly to Phase A handlers:
 - `cmd`    → run a shell command, capture output + exit code
-- `ui`     → drive the running app (Playwright CLI by default)
+- `ui`     → dispatch the `ui` oracle (it drives the Playwright CLI against the running app)
 - `data`   → query DB / inspect storage state
 - `static` → read code/files (use sparingly; prefer probing the running app)
 

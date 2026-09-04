@@ -99,8 +99,9 @@ Want to see a full run before installing anything? **[docs/quickstart.md](docs/q
 walks one small feature end to end — including what the hooks do to a premature eval, a FAIL round
 with real evaluator output, and the fix that turns it green.
 
-<sub>No prerequisites for non-UI work — a browser (`npx playwright install chromium`) is needed
-only when a run actually reaches a `[ui]` acceptance criterion. Team installs, the scaffolding
+<sub>No prerequisites for non-UI work, and no dependency on any other plugin — a browser in the
+project under test (`npm i -D @playwright/test && npx playwright install chromium`) is needed only
+when a run actually reaches a `[ui]` acceptance criterion. Team installs, the scaffolding
 installer, and troubleshooting are in
 **[docs/install.md](docs/install.md)**; upgrading is **[docs/upgrading.md](docs/upgrading.md)**.</sub>
 

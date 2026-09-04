@@ -18,10 +18,19 @@ self-suite and every AC box ticked. Tier 0 proves each *grader* discriminates ag
 control. Nothing proves the *judge* does.
 
 The oracle registry behind Tier 0 (`oracles/`) is itself proven to
-discriminate, not just to run: each of the `test`, `snapshot`, and `http` oracles is checked
+discriminate, not just to run: each of the `test`, `snapshot`, `http` and `ui` oracles is checked
 against both a correct fixture and a negative control (`examples/lib-mathx`,
-`examples/refactor-greet`, `examples/http-ping`) — a grader that rubber-stamps everything would
-fail its own test.
+`examples/refactor-greet`, `examples/http-ping`, `examples/ui-counter`) — a grader that
+rubber-stamps everything would fail its own test.
+
+`ui` joined that list last and is the only one whose discrimination check is **conditional on the
+machine**: it drives the Playwright CLI of the project under test, and this repo has zero
+dependencies, so CI has no browser. The check therefore branches, and both branches assert
+something. With a CLI reachable it is the full §§9–11 shape — PASS the correct counter fixture,
+FAIL the broken one on all five criteria. Without one it asserts the rule that matters more often:
+a `[ui]` criterion nobody could verify FAILs, naming the install command, rather than skipping.
+The branch is stated here rather than left to be discovered, because "the ui oracle is covered in
+CI" is true of the preflight path and not of the grading path.
 
 ---
 

@@ -38,7 +38,7 @@ Invoked as `--order <path>`. Fields you may rely on (absent = unknown, never inf
 | `payload.dimensions[]` | The active dimension set (the caller resolved precedence). Absent → `[spec-conformance]` + the auto-enable rules below |
 | `payload.run_cmd` | How to start the running app. Absent standalone → ask; absent orchestrated → ESCALATE, do not guess |
 | `payload.t0_artifacts[]` | Per-scope T0 verdict paths for this round (scoped specs). An artifact listed but missing/red on disk, or a scoped spec with none listed → the round is NOT gradeable: return `status: failed` naming the scope — a structural precondition, not a criterion |
-| `payload.browser` | `cli` (default, ~4x cheaper) \| `mcp` \| `none` |
+| `payload.browser` | Engine for the `ui` oracle: `chromium` (default) \| `firefox` \| `webkit` \| `none` (no `[ui]` grading) |
 | `payload.tasks[]` | Traceability only (which UCs a task claims): NEVER a grading source — the committed UC text is the criterion, a paraphrase mismatch is a finding |
 | `substrate.allowed` | Your only write surface: `.shapeup/<slug>/evaluation/**` (the report + evidence) |
 
@@ -75,10 +75,13 @@ Done-when statements; `_index.md` Non-Go list. Which UCs are in scope comes from
 
 **PROBE (evidence, not grades)** — `references/probing.md`:
 - `[cmd]`: run it, capture stdout/stderr + exit code.
-- `[ui]`: drive the app (Playwright CLI preferred). **Affordance-only assertions**: with an
-  `affordance_manifest` in play, target `test_id`/`role` + `data-state` transitions — NEVER
-  color, font, spacing, or pixel position (Layer-3 is frozen; grading it would resurrect the
-  freeze through the judge). Ugly-but-correct PASSes; pretty-but-wrong-`data-state` FAILs.
+- `[ui]`: dispatch the **`ui` oracle** (`harness verify oracle`) — it starts the app and drives
+  the Playwright CLI in the project under test; you never drive a browser by hand.
+  **Affordance-only assertions** are enforced by the contract grammar itself, which has no key for
+  color, font, spacing or pixel position (Layer-3 is frozen; grading it would resurrect the freeze
+  through the judge). Target `testid`/`role` + `data-state` transitions. Ugly-but-correct PASSes;
+  pretty-but-wrong-`data-state` FAILs. Missing CLI or browser binary ⇒ that probe FAILs naming the
+  fix, never a skip, never an auto-install.
 - `[data]`: query the DB/storage, capture actual state.
 - Contract work: send real requests, compare field-by-field.
 - No evidence collected = recorded "NO EVIDENCE" → FAILs at verdict.
@@ -227,4 +230,4 @@ summary — standalone has no orchestrator to ingest for you.
 | Re-probe every FAIL; flip ⇒ confidence low | A single snapshot lies; the ledger makes it visible |
 | Verdict-ledger lines are returned, appended by ingest, never rewritten | Verdict history is how a single-snapshot judge becomes measurable |
 | A verdict on a scoped spec without a T0 citation is structurally invalid | T0 is a machine fact the generator cannot fabricate |
-| UI assertions target affordances only (test_id/role/data-state) | Layer-3 styling is frozen; grading it resurrects the freeze through the judge |
+| UI assertions target affordances only (test_id/role/data-state) | Layer-3 styling is frozen; grading it resurrects the freeze through the judge — the `ui` contract grammar has no word for a color, so this rule cannot be argued past |

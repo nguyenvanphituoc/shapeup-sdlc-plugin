@@ -57,7 +57,7 @@ gathered, never *who* decides.
 
 | `oracle` | When the deliverable is… | Evidence the evaluator cites |
 |---|---|---|
-| `ui` *(default)* | a running web app | accessibility-tree node, state before/after, console |
+| `ui` *(default)* | a running web app | the affordance asserted (test id / role), its state or `data-state`, console |
 | `process` | a CLI / script | spawned exit code + stdout/stderr + crash check |
 | `test` | a library / module | the project's own test suite (exit + failing-test names) |
 | `snapshot` | a generator / pure refactor | unified diff vs a golden file (empty = PASS) |

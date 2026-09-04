@@ -37,9 +37,9 @@ A `spec-evaluator` run on the built CLI must emit a report that:
       `$ todo done 99  → exit 1, stderr "no item 99"  ⇒ PASS (graceful, non-zero, no stack trace)`
 - [ ] FAILs any criterion where evidence is absent (absence of evidence = FAIL)
 
-> Note: a CLI has no browser, so the evaluator does not drive Playwright here. Each criterion carries
-> an `oracle` tag and the evaluator dispatches on it via the registry `oracles/index.mjs`
-> (`process`/`test`/`snapshot`/`http`, with `ui` handled in-skill). For this CLI the oracle is
+> Note: a CLI has no browser, so the evaluator does not reach the `ui` oracle here. Each criterion
+> carries an `oracle` tag and the evaluator dispatches on it via the registry `oracles/index.mjs`
+> (`process`/`test`/`snapshot`/`http`/`ui`). For this CLI the oracle is
 > **`process`** — the shared runner
 > `oracles/process-oracle.mjs` spawns the deliverable and grades exit code + stdout.
 > Run it directly (the deliverable path must be **absolute** — the oracle spawns it inside a
