@@ -1,0 +1,1531 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Two Probes Per Use Case</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --ground:      #EFF0F2;
+    --surface:     #FBFBFC;
+    --sunk:        #E2E4E8;
+    --ink:         #14161B;
+    --ink-soft:    #3E434D;
+    --muted:       #6B707B;
+    --rule:        #D0D3DA;
+    --rule-strong: #A6ABB6;
+    --accent:      #2A3A75;
+    --accent-wash: #E2E6F2;
+    --block:       #9C4221;
+    --block-wash:  #F6E8E1;
+    --ready:       #3B6539;
+    --ready-wash:  #E4EDE3;
+
+    --measure: 66ch;
+    --s--1: 0.8rem;
+    --s-0:  1rem;
+    --s-1:  1.19rem;
+    --s-2:  1.5rem;
+    --s-4:  2.8rem;
+
+    --disp: "Spectral", ui-serif, Georgia, "Times New Roman", serif;
+    --sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0E1013; --surface:#171A20; --sunk:#090B0E;
+      --ink:#E6E8EC; --ink-soft:#B2B7C0; --muted:#808693;
+      --rule:#282D36; --rule-strong:#3D444F;
+      --accent:#8FA3E0; --accent-wash:#171E38;
+      --block:#E0906A; --block-wash:#2B1A12;
+      --ready:#86B981; --ready-wash:#162415;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0E1013; --surface:#171A20; --sunk:#090B0E;
+    --ink:#E6E8EC; --ink-soft:#B2B7C0; --muted:#808693;
+    --rule:#282D36; --rule-strong:#3D444F;
+    --accent:#8FA3E0; --accent-wash:#171E38;
+    --block:#E0906A; --block-wash:#2B1A12;
+    --ready:#86B981; --ready-wash:#162415;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: var(--s-0);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 82ch;
+    margin: 0 auto;
+    padding: clamp(1.8rem, 5vw, 4rem) clamp(1rem, 4vw, 2.4rem) 6rem;
+    display: flex; flex-direction: column; gap: 3rem;
+  }
+
+  .masthead { display: flex; flex-direction: column; gap: 0.9rem; }
+  .eyebrow {
+    font-family: var(--mono); font-size: var(--s--1);
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent);
+  }
+  h1 {
+    font-family: var(--disp); font-weight: 700;
+    font-size: clamp(2rem, 6vw, var(--s-4));
+    line-height: 1.03; letter-spacing: -0.02em; margin: 0; text-wrap: balance;
+  }
+  .dek {
+    font-family: var(--disp); font-size: var(--s-1); line-height: 1.5;
+    color: var(--ink-soft); max-width: var(--measure); margin: 0;
+  }
+
+  section { display: flex; flex-direction: column; gap: 1rem; }
+  h2 {
+    font-family: var(--disp); font-weight: 600; font-size: var(--s-2);
+    line-height: 1.18; margin: 0; padding-bottom: 0.4rem;
+    border-bottom: 2px solid var(--ink); text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--sans); font-weight: 600; font-size: var(--s-1);
+    line-height: 1.3; margin: 0; text-wrap: balance;
+  }
+  p { margin: 0; max-width: var(--measure); }
+  .soft { color: var(--ink-soft); }
+  code {
+    font-family: var(--mono); font-size: 0.85em;
+    background: var(--sunk); border-radius: 2px; padding: 0.08em 0.3em;
+  }
+  strong { font-weight: 600; }
+
+  .thesis {
+    background: var(--accent-wash); border-left: 3px solid var(--accent);
+    padding: 1.2rem 1.4rem; font-family: var(--disp);
+    font-size: var(--s-1); line-height: 1.55;
+  }
+  .thesis p { max-width: none; }
+  .thesis strong { font-weight: 700; }
+
+  /* argument beats */
+  .beat {
+    display: grid; grid-template-columns: max-content 1fr; gap: 0.4rem 1.1rem;
+    padding: 1rem 0; border-bottom: 1px solid var(--rule);
+  }
+  .beat:last-of-type { border-bottom: none; }
+  .beat__tag {
+    font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase;
+    letter-spacing: 0.08em; padding-top: 0.35rem; white-space: nowrap;
+  }
+  .beat--concede .beat__tag { color: var(--ready); }
+  .beat--counter .beat__tag { color: var(--block); }
+  .beat--synth .beat__tag { color: var(--accent); }
+  .beat__body { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+  .beat__title { font-weight: 600; font-size: var(--s-1); }
+  @media (max-width: 34rem) {
+    .beat { grid-template-columns: 1fr; gap: 0.25rem; }
+    .beat__tag { padding-top: 0; }
+  }
+
+  .scroller { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: var(--s--1); }
+  th, td { text-align: left; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th {
+    font-family: var(--mono); font-size: 0.67rem; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--muted); font-weight: 500;
+    background: var(--sunk); white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.k { font-weight: 600; white-space: nowrap; }
+  td code { white-space: nowrap; }
+  .row-new { background: var(--accent-wash); }
+  .row-warn { background: var(--block-wash); }
+  .pill {
+    display: inline-block; font-family: var(--mono); font-size: 0.66rem;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    padding: 0.16rem 0.45rem; border-radius: 2px; white-space: nowrap;
+  }
+  .pill--ready { background: var(--ready-wash); color: var(--ready); border: 1px solid var(--ready); }
+  .pill--code  { background: var(--block-wash); color: var(--block); border: 1px solid var(--block); }
+  .pill--no    { background: var(--sunk); color: var(--muted); border: 1px solid var(--rule-strong); }
+  .pill--yes   { background: var(--accent-wash); color: var(--accent); border: 1px solid var(--accent); }
+
+  .layers { display: flex; flex-direction: column; border: 1px solid var(--rule); }
+  .layer {
+    display: grid; grid-template-columns: 4.4rem 1fr; gap: 1rem;
+    padding: 0.9rem 1rem; background: var(--surface); border-bottom: 1px solid var(--rule);
+  }
+  .layer:last-child { border-bottom: none; }
+  .layer__n { font-family: var(--mono); font-size: var(--s--1); color: var(--muted); }
+  .layer__body { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+  .layer__title { font-weight: 600; }
+  .layer__note { font-size: var(--s--1); color: var(--ink-soft); }
+  .layer--precond { background: var(--block-wash); }
+  .layer--precond .layer__n { color: var(--block); }
+  @media (max-width: 32rem) { .layer { grid-template-columns: 1fr; gap: 0.2rem; } }
+
+  .phase {
+    display: grid; grid-template-columns: 3.4rem 1fr max-content;
+    gap: 0.4rem 1rem; align-items: baseline;
+    padding: 1rem 0; border-bottom: 1px solid var(--rule);
+  }
+  .phase:last-of-type { border-bottom: none; }
+  .phase__id { font-family: var(--mono); font-weight: 500; color: var(--accent); white-space: nowrap; }
+  .phase__cost { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+  .phase__body { grid-column: 2 / -1; display: flex; flex-direction: column; gap: 0.45rem; }
+  .phase__body p { max-width: var(--measure); }
+  .phase__title { font-weight: 600; font-size: var(--s-1); }
+  .unlocks {
+    font-family: var(--mono); font-size: 0.72rem; color: var(--ready);
+    background: var(--ready-wash); border-left: 2px solid var(--ready);
+    padding: 0.35rem 0.6rem; max-width: var(--measure);
+  }
+  @media (max-width: 34rem) {
+    .phase { grid-template-columns: 1fr; }
+    .phase__body { grid-column: 1; }
+  }
+
+  ul.tight { margin: 0; padding-left: 1.15rem; display: flex; flex-direction: column; gap: 0.4rem; max-width: var(--measure); }
+  ul.tight li::marker { color: var(--rule-strong); }
+
+  pre {
+    font-family: var(--mono); font-size: 0.76rem; line-height: 1.5;
+    background: var(--sunk); border: 1px solid var(--rule);
+    padding: 0.8rem 0.95rem; overflow-x: auto; margin: 0;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+
+  .callout {
+    border: 1px solid var(--block); border-left: 4px solid var(--block);
+    background: var(--surface); padding: 1rem 1.2rem;
+    display: flex; flex-direction: column; gap: 0.5rem;
+  }
+  .callout__tag {
+    font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--block);
+  }
+
+  footer {
+    border-top: 1px solid var(--rule-strong); padding-top: 1.1rem;
+    font-size: var(--s--1); color: var(--muted);
+    display: flex; flex-direction: column; gap: 0.4rem;
+  }
+
+  /* verdict beats — what rev. 4 retracts, holds, adds */
+  .status {
+    display: grid; grid-template-columns: max-content 1fr; gap: 0.4rem 1.1rem;
+    padding: 0.9rem 0; border-bottom: 1px solid var(--rule);
+  }
+  .status:last-of-type { border-bottom: none; }
+  .status__v {
+    font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase;
+    letter-spacing: 0.08em; padding-top: 0.3rem; white-space: nowrap;
+  }
+  .v-retract { color: var(--block); }
+  .v-hold    { color: var(--ready); }
+  .v-new     { color: var(--accent); }
+  .status__b { display: flex; flex-direction: column; gap: 0.45rem; min-width: 0; }
+  .status__b b { font-weight: 600; }
+  .status__b p { max-width: var(--measure); }
+  @media (max-width: 34rem) {
+    .status { grid-template-columns: 1fr; gap: 0.2rem; }
+    .status__v { padding-top: 0; }
+  }
+
+  figure { margin: 0; display: flex; flex-direction: column; gap: 0.7rem; }
+  figure svg {
+    width: 100%; max-width: 100%; height: auto; display: block;
+    background: var(--surface); border: 1px solid var(--rule);
+  }
+  figcaption { font-size: var(--s--1); color: var(--ink-soft); max-width: var(--measure); }
+  figcaption b { font-weight: 600; color: var(--ink); }
+  .dg-box  { fill: var(--surface); stroke: currentColor; stroke-width: 1; }
+  .dg-ok   { stroke: var(--ready); stroke-width: 1.5; }
+  .dg-gap  { stroke: var(--block); stroke-width: 1.5; stroke-dasharray: 5 3; }
+  .dg-t    { fill: var(--ink); font-family: var(--sans); font-size: 12px; font-weight: 600; }
+  .dg-s    { fill: var(--ink-soft); font-family: var(--sans); font-size: 10.5px; }
+  .dg-m    { fill: var(--muted); font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.06em; }
+  .dg-w    { stroke: currentColor; stroke-width: 1; fill: none; }
+  .dg-wg   { stroke: var(--block); stroke-width: 1; fill: none; stroke-dasharray: 5 3; }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+<style>
+  /* Standalone-only reset. The Artifact host normally supplies these. */
+  html { color-scheme: light dark; }
+  body { margin: 0; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <div class="eyebrow">shapeup-sdlc · EVAL + QA edge on mobile · rev. 4 · 4 Sep 2026 · checked against the shipped plugin</div>
+    <h1>Most of a mobile test surface should never touch the UI</h1>
+    <p class="dek">
+      Grading a use case needs exactly two probes: one that proves a user can reach it, and one that
+      proves it happened. Everything the planner derives about validation belongs at the API layer —
+      and mobile is simply the platform that makes you notice. Rev. 4 is the implementation form: the
+      argument checked against the harness that has to run it, the mobile route's exception replaced by a
+      directive, and the whole of it organised into skills that already exist.
+    </p>
+  </header>
+
+  <!-- ===== THE ARGUMENT ===== -->
+  <section>
+    <h2>Why two probes, and not one</h2>
+    <p>
+      Grade "did the use case happen" by side effect alone and this passes: a checkout screen whose
+      <strong>Pay button is wired to nothing</strong>, while the payment engine works correctly and gets
+      exercised through a deep link. Order row present, payment call correct, verdict green — and no user
+      can ever pay. That is the <strong>orphaned engine</strong>: the defect the wiring map and
+      <code>solution-architect</code>'s entire remit exist to prevent, and the most common shape of
+      machine-written code — engine correct, call site missing.
+    </p>
+    <p>
+      So outcome and affordance are not substitutes. <strong>Outcome grades the engine; affordance grades
+      the wiring.</strong> The affordance evidence needed to close the hole is far smaller than "validate
+      the screen" — it is one id:
+    </p>
+    <div class="thesis">
+      <p>
+        <strong>drive the entry affordance</strong> (one id per UC — proof of reachability)
+        <strong> → assert the outcome</strong> (data / network / log — proof of behaviour)
+      </p>
+    </div>
+    <p>
+      The wiring map already carries exactly this shape, one row per use case:
+      <code>use_case | engine | wiring_seam | entry_call_site | affordance</code>, and the
+      <code>affordance</code> column is already singular. The ask on a Flutter or native team is therefore
+      <strong>one stable id per use case</strong>, not an instrumented UI.
+    </p>
+    <p class="soft">
+      The wiring map carries the shape; the <em>evaluation contract does not</em>. A criterion carries one
+      <code>oracle</code> and each runner's expectation grammar is closed, so "drive here, assert there" has
+      nowhere to live on a row today. That gap is phase B′, below.
+    </p>
+  </section>
+
+  <!-- ===== ROUTING ===== -->
+  <section>
+    <h2>The routing rule</h2>
+    <p class="thesis" style="font-size:var(--s-0)">
+      <strong>Pick the oracle from where the behaviour is decided, not from what the user touches.</strong>
+    </p>
+    <p>
+      The rule it replaces — pick from the deliverable type — routes <strong>every</strong> derived row on a
+      mobile deliverable to <code>ui</code>, which is also the default when the tag is absent. But D3 derives
+      missing-field, type-violation and boundary rows: <em>validation</em>, decided at the API, not the
+      screen. You do not drive a phone to prove that <code>amount: -1</code> is rejected; you send the
+      request, and the <code>http</code> oracle answers in milliseconds instead of walking an accessibility
+      tree that measured <strong>~4,700&nbsp;ms per dump</strong> on a warm Android emulator.
+    </p>
+
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr><th>Source</th><th>What it derives</th><th>Where the behaviour is decided</th><th>Oracle</th><th>Touches UI</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="k">D1</td><td>Invariant violation attempts</td>
+            <td>Domain / persistence</td><td><code>http</code> <span class="pill pill--no">not <code>data</code></span></td>
+            <td><span class="pill pill--no">no</span></td>
+          </tr>
+          <tr>
+            <td class="k">D2</td><td>One row per error code</td>
+            <td>API</td><td><code>http</code>, plus one <code>ui</code> row <em>only</em> when the UC's Steps say the user must see it</td>
+            <td><span class="pill pill--no">rarely</span></td>
+          </tr>
+          <tr>
+            <td class="k">D3</td><td>Missing field · type violation · boundary</td>
+            <td>API validation</td><td><code>http</code> — always</td>
+            <td><span class="pill pill--no">never</span></td>
+          </tr>
+          <tr>
+            <td class="k">D4</td><td>No-go breach probes</td>
+            <td>Both surfaces</td><td><code>ui</code> for absence + <code>http</code> for the endpoint</td>
+            <td><span class="pill pill--yes">partly</span></td>
+          </tr>
+          <tr class="row-new">
+            <td class="k">D5 <span class="pill pill--yes">new</span></td>
+            <td><strong>Reachability</strong> — the entry affordance drives the UC end to end</td>
+            <td>The app's wiring</td><td><code>ui</code> / <code>mobile</code> <span class="pill pill--code">unregistered</span></td>
+            <td><span class="pill pill--yes">yes — one per UC</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="soft">
+      Two cells carry a rev. 4 warning. <code>data</code> is <strong>not</strong> a dispatch key —
+      D1's persistence assertion rides inside the <code>http</code> row's evidence until a runner is
+      registered. <code>mobile</code> is named here for where phase D lands it; writing it on a row
+      <em>before</em> the runner exists produces an exception at grading time, not a FAIL, so the tag
+      is a plan, not an instruction.
+    </p>
+
+    <p>
+      <strong>D5 is a real gap, not a re-labelling</strong> — with one qualification rev. 3 skipped.
+      D1–D4 derive from invariants, error tables, contract shapes and no-gos — <em>none of which can
+      express "the user can actually get here"</em>. The wiring map holds that fact and the Test
+      Surface never consumes it. The qualification: <code>harness verify trace</code> already runs a
+      reachability oracle at L1b that proves each engine is reached from <code>entry_point</code>
+      through the import graph. So the orphaned engine is half-caught already, statically. D5 is the
+      runtime half — the half that notices a live import path behind a dead button.
+    </p>
+
+    <p>
+      <strong>D5 also has a sequencing problem.</strong> Its source is <code>wiring-map.md</code>,
+      whose sole writer is <code>solution-architect</code> at GATE L1a.5. The Test Surface is derived
+      by <code>ba-pitch-analyzer</code>'s <code>analyze</code> operation, which runs at L1a —
+      <em>before</em> wiring, because wiring needs its use cases. At the generation point where D1–D4
+      are written, D5's source is guaranteed absent. Either D5 belongs to a
+      <code>retrofit-surface</code> pass after L1a.5, or it needs the harness's standing
+      absent-artifact rule stated on it: no wiring map ⇒ the arm is skipped, never silently empty.
+      And the id needs a discriminator — <code>TS-REACH-&lt;UC&gt;</code>, since every other rule
+      carries one and "one per use case" otherwise collides on the first two.
+    </p>
+    <p class="soft">
+      The web case hid this design question because the DOM is cheap, so nobody noticed that API validation
+      was being asserted through a browser. Mobile charges you for the tree and the mis-routing becomes
+      visible. Fixing it improves the web contract too — those rows are slower and flakier through Playwright
+      than through <code>fetch</code> as well.
+    </p>
+    <p>
+      Where this does <strong>not</strong> reach: a use case whose point <em>is</em> visual — a control that
+      must be disabled, an error the user must read. Those still need tree assertions. The UC's own
+      <code>## Steps</code> say which, so it is a per-UC judgement, not a ratio worth inventing.
+    </p>
+  </section>
+
+  <!-- ===== THE DISPATCH MECHANISM ===== -->
+  <section>
+    <h2>How a row actually gets graded</h2>
+    <p>
+      The routing rule decides which <em>tag</em> a row carries. What happens next is a single
+      mechanism, and it is worth drawing, because two of this document's problems are visible in it
+      and invisible in prose: where the mobile lane terminates, and where a citable artifact comes
+      from.
+    </p>
+
+    <figure>
+      <svg viewBox="0 0 840 490" role="img"
+           aria-label="A Test Surface row's oracle tag dispatches through one registry to one runner. The ui lane drives the project's own Playwright CLI and the non-UI lanes spawn the deliverable, both producing citable evidence; the mobile lane has no registered runner and terminates in an exception, producing no artifact. QA sits outside the registry entirely.">
+        <defs>
+          <marker id="f1a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+          <marker id="f1b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--block)"/>
+          </marker>
+        </defs>
+
+        <rect class="dg-box" x="250" y="14" width="340" height="46" rx="2"/>
+        <text class="dg-t" x="420" y="34" text-anchor="middle">Test Surface row / acceptance criterion</text>
+        <text class="dg-s" x="420" y="50" text-anchor="middle">carries one oracle: tag — the dispatch key</text>
+        <line class="dg-w" x1="420" y1="60" x2="420" y2="84" marker-end="url(#f1a)"/>
+
+        <rect class="dg-box" x="250" y="86" width="340" height="46" rx="2"/>
+        <text class="dg-t" x="420" y="106" text-anchor="middle">harness verify oracle → oracles/index.mjs</text>
+        <text class="dg-s" x="420" y="122" text-anchor="middle">the registry is the only list of what exists</text>
+
+        <line class="dg-w" x1="420" y1="132" x2="420" y2="152"/>
+        <line class="dg-w" x1="140" y1="152" x2="680" y2="152"/>
+        <line class="dg-w" x1="140" y1="152" x2="140" y2="182" marker-end="url(#f1a)"/>
+        <line class="dg-w" x1="410" y1="152" x2="410" y2="182" marker-end="url(#f1a)"/>
+        <line class="dg-wg" x1="680" y1="152" x2="680" y2="182" marker-end="url(#f1b)"/>
+
+        <rect class="dg-box dg-ok" x="30" y="184" width="220" height="46" rx="2"/>
+        <text class="dg-t" x="140" y="204" text-anchor="middle">ui — running web app</text>
+        <text class="dg-s" x="140" y="220" text-anchor="middle">the only registered UI runner</text>
+
+        <rect class="dg-box dg-ok" x="300" y="184" width="220" height="46" rx="2"/>
+        <text class="dg-t" x="410" y="204" text-anchor="middle">four non-UI runners</text>
+        <text class="dg-s" x="410" y="220" text-anchor="middle">http · test · process · snapshot</text>
+
+        <rect class="dg-box dg-gap" x="570" y="184" width="220" height="46" rx="2"/>
+        <text class="dg-t" x="680" y="204" text-anchor="middle">mobile — today</text>
+        <text class="dg-s" x="680" y="220" text-anchor="middle">in the prose, not the registry</text>
+
+        <line class="dg-w" x1="140" y1="230" x2="140" y2="262" marker-end="url(#f1a)"/>
+        <line class="dg-w" x1="410" y1="230" x2="410" y2="262" marker-end="url(#f1a)"/>
+        <line class="dg-wg" x1="680" y1="230" x2="680" y2="262" marker-end="url(#f1b)"/>
+
+        <rect class="dg-box dg-ok" x="30" y="264" width="220" height="58" rx="2"/>
+        <text class="dg-t" x="140" y="284" text-anchor="middle">the project's own Playwright CLI</text>
+        <text class="dg-s" x="140" y="300" text-anchor="middle">a subprocess, resolved lazily</text>
+        <text class="dg-s" x="140" y="314" text-anchor="middle">missing ⇒ NO EVIDENCE + fix line</text>
+
+        <rect class="dg-box dg-ok" x="300" y="264" width="220" height="58" rx="2"/>
+        <text class="dg-t" x="410" y="284" text-anchor="middle">spawn / request the deliverable</text>
+        <text class="dg-s" x="410" y="300" text-anchor="middle">D1–D3 land here after the routing fix</text>
+        <text class="dg-s" x="410" y="314" text-anchor="middle">registered and green today</text>
+
+        <rect class="dg-box dg-gap" x="570" y="264" width="220" height="58" rx="2"/>
+        <text class="dg-t" x="680" y="284" text-anchor="middle">runOracle() throws</text>
+        <text class="dg-s" x="680" y="300" text-anchor="middle">unknown oracle "mobile"</text>
+        <text class="dg-s" x="680" y="314" text-anchor="middle">an exception, not a verdict</text>
+
+        <line class="dg-w" x1="140" y1="322" x2="140" y2="352" marker-end="url(#f1a)"/>
+        <line class="dg-w" x1="410" y1="322" x2="410" y2="352" marker-end="url(#f1a)"/>
+        <line class="dg-wg" x1="680" y1="322" x2="680" y2="352" marker-end="url(#f1b)"/>
+
+        <rect class="dg-box dg-ok" x="30" y="354" width="490" height="46" rx="2"/>
+        <text class="dg-t" x="275" y="374" text-anchor="middle">{ id, pass, evidence } — one row per criterion</text>
+        <text class="dg-s" x="275" y="390" text-anchor="middle">the T0 artifact: sha256-citable, seesaw-replayable</text>
+
+        <rect class="dg-box dg-gap" x="570" y="354" width="220" height="46" rx="2"/>
+        <text class="dg-t" x="680" y="374" text-anchor="middle">no artifact, no citation</text>
+        <text class="dg-s" x="680" y="390" text-anchor="middle">invisible to the ratchet + seesaw</text>
+
+        <line class="dg-w" x1="275" y1="400" x2="275" y2="424" marker-end="url(#f1a)"/>
+
+        <rect class="dg-box" x="150" y="426" width="250" height="46" rx="2"/>
+        <text class="dg-t" x="275" y="446" text-anchor="middle">EVAL verdict — one judge</text>
+        <text class="dg-s" x="275" y="462" text-anchor="middle">spec-evaluator, once per round</text>
+
+        <line class="dg-w" x1="400" y1="449" x2="446" y2="449" marker-end="url(#f1a)"/>
+        <text class="dg-m" x="423" y="441" text-anchor="middle">PASS</text>
+
+        <rect class="dg-box" x="450" y="426" width="340" height="46" rx="2"/>
+        <text class="dg-t" x="620" y="446" text-anchor="middle">QA Edge Hunter — outside the registry</text>
+        <text class="dg-s" x="620" y="462" text-anchor="middle">no runner, no verdict ⇒ every stack works today</text>
+      </svg>
+      <figcaption>
+        <b>One dispatch key, one registry, one runner per row.</b> The two solid lanes reach a
+        <code>{id, pass, evidence}</code> row, which is what a T0 citation is recomputed from. The
+        dashed lane does not: a row tagged with an unregistered oracle raises rather than fails, so a
+        mobile row today is not merely ungraded — it is invisible to the ratchet and unreplayable by
+        the seesaw. QA hangs off the verdict rather than the registry, which is why it needs no runner
+        and works on any stack the moment its techniques are written. The dashed lane is what the next
+        section replaces: an exception is the one outcome the harness never permits anywhere else.
+      </figcaption>
+    </figure>
+
+    <h3>The row shape the two-probe thesis needs</h3>
+    <p>
+      Follow the diagram back up and the contract problem is obvious: the fan-out is one-per-row.
+      "Drive the affordance, assert the outcome elsewhere" wants two runners under one verdict, and
+      the cheapest way to say that is a second, subordinate assertion on the same row — the affordance
+      half proves reachability, the assert half proves behaviour, and the pair grades as one:
+    </p>
+<pre><code>{ "id": "TS-REACH-UC-03", "oracle": "ui",
+  "probe":  { "path": "/cart", "steps": [ { "click": "checkout-submit" } ] },
+  "expect": { "url": "/checkout/success" },
+
+  "then_assert": {                        // ← phase B′: the second probe, a different runner
+    "oracle":  "http",
+    "probe":   { "path": "/api/orders?last=1" },
+    "expect":  { "status": 200, "json": { "state": "created" } }
+  } }</code></pre>
+    <p>
+      This keeps every property the registry already has — each half is graded by its own runner
+      through the same <code>{fails, results}</code> interface, each half's grammar stays closed, and
+      the row still yields exactly one verdict and one citation. It is also what makes D5 affordable
+      on mobile: the expensive half stays one tap, and the assertion never touches the device.
+    </p>
+  </section>
+
+  <!-- ===== THE DIRECTIVE ===== -->
+  <section>
+    <h2>The mobile route returns a plan, not an exception</h2>
+    <p>
+      Throwing is indefensible on its own terms: everywhere else in this harness a missing tool is a
+      <code>NO EVIDENCE</code> row naming the fix, and only the mobile lane crashes. But the tempting
+      repair — hand the judge the row and let it work out how to verify — is worse than the crash,
+      because it reinstates exactly what the <code>ui</code> oracle was built to end: a verdict
+      narrated by the model, with no artifact to hash, nothing for the seesaw to replay, and the
+      affordance rule reduced to prose addressed to the same model the anti-leniency protocol exists
+      to distrust.
+    </p>
+    <div class="thesis">
+      <p>
+        The judge may choose <strong>how to look</strong>. It may never say <strong>what it saw</strong>.
+      </p>
+    </div>
+    <p>
+      So the mobile route degrades into a <strong>probe plan</strong>: a directive carrying facts read
+      off the machine, and a response schema whose output is a list of <em>actions</em> — each one
+      executed by a runner that is already in the registry. The model picks the probes; the runners
+      produce the evidence; the verdict is derived from that evidence exactly as it is for every other
+      oracle. Nothing about the single judge, the T0 citation or the ratchet changes.
+    </p>
+
+    <figure>
+      <svg viewBox="0 0 840 470" role="img"
+           aria-label="When a mobile row is met, a deterministic preflight branches three ways: driver and affordance both resolve, so the flow runs and yields a cited artifact; the affordance is absent, so the row fails with a localised fix line; or no driver exists, in which case a directive is written and the evaluator returns a probe plan whose actions are dispatched back through the already-registered runners.">
+        <defs>
+          <marker id="f4a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+          <marker id="f4n" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/>
+          </marker>
+        </defs>
+
+        <rect class="dg-box" x="300" y="14" width="240" height="44" rx="2"/>
+        <text class="dg-t" x="420" y="36" text-anchor="middle">a mobile row is met</text>
+        <text class="dg-s" x="420" y="52" text-anchor="middle">oracle: mobile — registered, so no throw</text>
+        <line class="dg-w" x1="420" y1="58" x2="420" y2="82" marker-end="url(#f4a)"/>
+
+        <rect class="dg-box" x="270" y="84" width="300" height="46" rx="2"/>
+        <text class="dg-t" x="420" y="104" text-anchor="middle">deterministic preflight — no model</text>
+        <text class="dg-s" x="420" y="120" text-anchor="middle">driver? affordance? device? web target?</text>
+
+        <line class="dg-w" x1="420" y1="130" x2="420" y2="150"/>
+        <line class="dg-w" x1="140" y1="150" x2="700" y2="150"/>
+        <line class="dg-w" x1="140" y1="150" x2="140" y2="176" marker-end="url(#f4a)"/>
+        <line class="dg-w" x1="420" y1="150" x2="420" y2="176" marker-end="url(#f4a)"/>
+        <line class="dg-w" x1="700" y1="150" x2="700" y2="176" marker-end="url(#f4n)"/>
+
+        <rect class="dg-box dg-ok" x="30" y="178" width="220" height="46" rx="2"/>
+        <text class="dg-t" x="140" y="198" text-anchor="middle">driver + affordance resolve</text>
+        <text class="dg-s" x="140" y="214" text-anchor="middle">run the flow, grade the exit</text>
+        <line class="dg-w" x1="140" y1="224" x2="140" y2="252" marker-end="url(#f4a)"/>
+        <rect class="dg-box dg-ok" x="30" y="254" width="220" height="46" rx="2"/>
+        <text class="dg-t" x="140" y="274" text-anchor="middle">a cited T0 artifact</text>
+        <text class="dg-s" x="140" y="290" text-anchor="middle">re-hashed, seesaw-replayable</text>
+
+        <rect class="dg-box" x="310" y="178" width="220" height="46" rx="2"/>
+        <text class="dg-t" x="420" y="198" text-anchor="middle">the affordance is absent</text>
+        <text class="dg-s" x="420" y="214" text-anchor="middle">FAIL this row, name the fix</text>
+        <line class="dg-w" x1="420" y1="224" x2="420" y2="252" marker-end="url(#f4a)"/>
+        <rect class="dg-box" x="310" y="254" width="220" height="46" rx="2"/>
+        <text class="dg-t" x="420" y="274" text-anchor="middle">a verdict, not a gap</text>
+        <text class="dg-s" x="420" y="290" text-anchor="middle">the wiring defect D5 exists for</text>
+
+        <rect class="dg-box" x="590" y="178" width="220" height="46" rx="2" style="stroke:var(--accent);stroke-width:1.5"/>
+        <text class="dg-t" x="700" y="198" text-anchor="middle">no driver on this machine</text>
+        <text class="dg-s" x="700" y="214" text-anchor="middle">a directive, not an exception</text>
+        <line class="dg-w" x1="700" y1="224" x2="700" y2="252" marker-end="url(#f4n)"/>
+
+        <rect class="dg-box" x="590" y="254" width="220" height="58" rx="2" style="stroke:var(--accent);stroke-width:1.5"/>
+        <text class="dg-t" x="700" y="274" text-anchor="middle">DIRECTIVE</text>
+        <text class="dg-s" x="700" y="290" text-anchor="middle">facts read off disk, exhaustive</text>
+        <text class="dg-s" x="700" y="304" text-anchor="middle">+ prompt + forced schema</text>
+        <line class="dg-w" x1="700" y1="312" x2="700" y2="330" marker-end="url(#f4n)"/>
+
+        <rect class="dg-box" x="590" y="332" width="220" height="58" rx="2" style="stroke:var(--accent);stroke-width:1.5"/>
+        <text class="dg-t" x="700" y="352" text-anchor="middle">PROBE PLAN</text>
+        <text class="dg-s" x="700" y="368" text-anchor="middle">actions only — no pass field</text>
+        <text class="dg-s" x="700" y="382" text-anchor="middle">is declared in the schema</text>
+
+        <line class="dg-w" x1="700" y1="390" x2="700" y2="422"/>
+        <line class="dg-w" x1="700" y1="422" x2="674" y2="422" marker-end="url(#f4n)"/>
+
+        <rect class="dg-box" x="170" y="400" width="500" height="44" rx="2"/>
+        <text class="dg-t" x="420" y="420" text-anchor="middle">back through the registered runners — http · test · process · ui</text>
+        <text class="dg-s" x="420" y="436" text-anchor="middle">the plan chooses how to look; the runner says what was seen</text>
+      </svg>
+      <figcaption>
+        <b>Three branches, and only one of them involves a model at all.</b> The branch is decided by
+        a preflight that reads the filesystem and the environment, so which path a row takes is a
+        fact, not a judgement. The right-hand lane loops back into the same dispatch as figure 1 —
+        that loop is the whole design: a plan is admissible only if it can be expressed in runners
+        that already exist.
+      </figcaption>
+    </figure>
+
+    <h3>The facts block is what makes the plan honest</h3>
+    <p>
+      A prompt asking a model to "find a way to verify this" gets a plausible answer whether or not a
+      way exists. The directive removes that degree of freedom by stating, exhaustively, what is
+      present — stack detected from the files that identify it, resolvable CLIs with versions, booted
+      devices, the project's own test command, whether a web target exists — and declaring the list
+      closed. An action naming anything outside it is rejected by a check, not by good intentions.
+    </p>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>Signal on disk</th><th>Stack</th><th>What that unlocks in the plan</th></tr></thead>
+        <tbody>
+          <tr><td><code>expo</code> dep + <code>app.json</code> / <code>app.config.*</code></td><td class="k">expo</td><td>the web target — <code>ui_web</code> actions become admissible</td></tr>
+          <tr><td><code>react-native</code> dep, no <code>expo</code>, <code>ios/</code> + <code>android/</code></td><td class="k">rn-bare</td><td><code>http</code> + <code>test</code>; web target only if configured</td></tr>
+          <tr><td><code>pubspec.yaml</code> declaring <code>flutter:</code></td><td class="k">flutter</td><td><code>flutter test</code> as a <code>test</code> action; web target subject to the canvas guard</td></tr>
+          <tr><td><code>*.xcodeproj</code> with neither of the above</td><td class="k">ios-native</td><td><code>xcodebuild test</code> / <code>xcrun simctl</code> as <code>process</code> actions</td></tr>
+          <tr><td><code>settings.gradle</code> with none of the above</td><td class="k">android-native</td><td><code>gradlew connectedAndroidTest</code> / <code>adb</code> as <code>process</code> actions</td></tr>
+          <tr class="row-warn"><td>none match</td><td class="k">unknown</td><td>still a directive — the profile's <code>archetype</code> is carried and the mismatch is stated, rather than crashed on</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>The response schema, and the four things it forces</h3>
+    <p>
+      The plan is one JSON object. Every action maps onto a runner's <em>existing</em> contract shape,
+      so nothing needs translating on the way in:
+    </p>
+<pre><code>{ "row_id": "TS-REACH-UC-03", "stack": "expo",
+  "actions": [
+    { "id": "web-affordance", "kind": "ui_web", "tier": 2, "proves": "reachability",
+      "why": "Drives the checkout entry affordance on the web target.",
+      "target_note": "Expo web target only — not evidence about the native build.",
+      "server": { "cmd": "npm run web", "ready_path": "/" },
+      "probe":  { "path": "/cart", "steps": [ { "click": "checkout-submit" } ] },
+      "expect": { "url": "/checkout/success" } },
+
+    { "id": "order-created", "kind": "http", "tier": 1, "proves": "outcome",
+      "why": "Asserts the outcome where it is decided — the order row.",
+      "server": { "cmd": "npm run api", "ready_path": "/health" },
+      "probe":  { "method": "GET", "path": "/api/orders?last=1" },
+      "expect": { "status": 200, "json": { "state": "created" } } } ],
+
+  "coverage": { "reachability": "web-affordance", "outcome": "order-created" },
+  "rejected_cheaper_tiers": [
+    { "action": "web-affordance", "skipped_tier": 1,
+      "reason": "No tier-1 probe can observe whether the entry control is wired." } ] }</code></pre>
+
+    <div class="layers">
+      <div class="layer">
+        <div class="layer__n">1</div>
+        <div class="layer__body">
+          <div class="layer__title">A verdict cannot be expressed</div>
+          <div class="layer__note">
+            No <code>pass</code>, <code>fail</code>, <code>score</code> or <code>confidence</code>
+            property is declared anywhere, and <code>additionalProperties</code> is <code>false</code>
+            at every level — so the model cannot smuggle one in, and the check reports the exact path
+            when it tries.
+          </div>
+        </div>
+      </div>
+      <div class="layer">
+        <div class="layer__n">2</div>
+        <div class="layer__body">
+          <div class="layer__title">Both probes must be answered for</div>
+          <div class="layer__note">
+            <code>coverage</code> is required and has both keys. A <code>null</code> obliges a
+            <code>reachability_gap_reason</code> naming what is missing. This is the schema enforcing
+            the one rule this document says must never be quietly dropped — outcome-only grading.
+          </div>
+        </div>
+      </div>
+      <div class="layer">
+        <div class="layer__n">3</div>
+        <div class="layer__body">
+          <div class="layer__title">There is no <code>mobile</code> action kind</div>
+          <div class="layer__note">
+            A resolvable mobile driver is precisely the condition under which no directive is written,
+            so the plan is expressed entirely in runners that exist today. The consequence is the
+            useful one: <strong>a Maestro or Argent flow reaches the harness as a <code>process</code>
+            action</strong> — it exits with a status code, which <code>process</code> already grades
+            and the ratchet already cites. Phase D stops being a precondition and becomes an
+            optimisation.
+          </div>
+        </div>
+      </div>
+      <div class="layer layer--precond">
+        <div class="layer__n">4</div>
+        <div class="layer__body">
+          <div class="layer__title"><code>manual</code> is an admissible answer, and that is the point</div>
+          <div class="layer__note">
+            The pressure that makes a model invent a command is having no legal way to say "there
+            isn't one". A <code>manual</code> action carrying a reason and repeatable steps is
+            schema-valid and surfaces at sign-off. Two rejected plans in a row collapse the row to
+            <code>NO EVIDENCE — no admissible probe plan</code>, which is the same honest shape as a
+            missing browser.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p>
+      Three rules the schema cannot express are applied after it passes, and they are the teeth:
+      every id named in <code>coverage</code> must exist in <code>actions</code>; <code>stack</code>
+      must echo what was detected; and <strong>the head of every command is cross-checked against the
+      resolvable-CLI list</strong>. That last one is what a plausible-sounding invented tool dies on.
+    </p>
+    <p class="soft">
+      The template, the schema, a worked Expo plan and three negative controls are drafted alongside
+      this document, with a zero-dependency checker that runs them: the worked plan is accepted, a
+      plan omitting reachability is rejected for the missing gap reason, a plan carrying a
+      <code>pass</code> field is rejected at that property, and a plan invoking <code>maestro</code>
+      on a machine without it is rejected by name. A checker that accepts everything would be worse
+      than none, so it ships its own controls.
+    </p>
+  </section>
+
+  <!-- ===== PRECONDITION ===== -->
+  <section>
+    <h2>The precondition is a probe, not a taxonomy</h2>
+    <p>
+      Argent drives an <em>installed app</em> through the OS — its own agent docs classify a project as React
+      Native, Expo, Flutter, native iOS or native Android and state it "provides environment context
+      regardless." So the driving layer is source-agnostic, and an earlier revision's four-stack governance
+      machinery — a schema field, a wiring-map contract and a spec-lint rule per stack — was the wrong shape.
+    </p>
+    <p>
+      What varies is not the stack. It is whether <em>this build</em> exposes what the wiring map claims. Ask
+      the running app, not the schema:
+    </p>
+<pre><code>launch → resolve each entry affordance the wiring map names
+
+  none resolve      → every D5 row FAILs: "unverifiable — the build exposes no
+                       addressable entry affordance", plus the stack's fix line.
+                       A wiring defect, which is how the harness already treats
+                       an untestable AC.
+
+  this UC's absent  → that UC's D5 row FAILs, localised to the missing id.
+
+  resolves          → drive it, then assert the outcome.</code></pre>
+    <p>
+      This is stronger than a spec-lint rule for a reason that matters: <strong>a wiring map can claim an
+      identifier the built app does not expose.</strong> The probe reads the app. And what remains
+      stack-specific is four strings — the fix line: <code>Semantics(identifier:)</code> for Flutter,
+      <code>accessibilityIdentifier</code> for iOS native, <code>testID</code> for RN/Expo,
+      <code>android:id</code> for Android native.
+    </p>
+
+    <div class="scroller">
+      <table>
+        <thead><tr><th>Stack</th><th>Identifier into the a11y tree</th><th>Fix line when the probe finds nothing</th></tr></thead>
+        <tbody>
+          <tr><td class="k">React Native / Expo</td><td><span class="pill pill--ready">automatic</span> <code>testID</code></td><td>add <code>testID</code> to the entry control</td></tr>
+          <tr><td class="k">Android native</td><td><span class="pill pill--ready">automatic</span> <code>android:id</code> → resource-id</td><td>give the view an id or a <code>contentDescription</code></td></tr>
+          <tr><td class="k">iOS native</td><td><span class="pill pill--code">must be set</span> <code>accessibilityIdentifier</code></td><td>set <code>accessibilityIdentifier</code></td></tr>
+          <tr><td class="k">Flutter</td><td><span class="pill pill--code">product code</span> <code>Semantics(identifier:)</code>, stable since <strong>3.19</strong>. <strong><code>Key</code> does not work.</strong></td><td>wrap the entry control in <code>Semantics(identifier:)</code></td></tr>
+          <tr class="row-warn"><td class="k">Flutter Web</td><td><span class="pill pill--code">off by default</span> <code>&lt;canvas&gt;</code>, no DOM semantics</td><td>enable the semantics overlay, or grade via D1–D4 only</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <div class="callout__tag">Phase E — landed, and not yet correct</div>
+      <p>
+        The <code>ui</code> oracle queries the DOM; a Flutter Web app renders into one
+        <code>&lt;canvas&gt;</code>, so <code>getByTestId</code> matches <strong>nothing</strong> and the
+        result is a wall of plausible FAILs whose real cause is that there is no DOM to query. The guard that
+        landed is wrong twice: it <code>throw</code>s inside the per-criterion driver, so it reports as a
+        behavioural FAIL and sends the fixer at application code that is fine — where the missing-browser
+        path it was told to copy returns <code>failAll(criteria, "NO EVIDENCE — …")</code>; and its test,
+        <code>body.children.length === 1</code>, is defeated by a <code>&lt;script&gt;</code> in the body,
+        which Flutter's own web template puts there. Rework: the refusal path the oracle already has, keyed
+        on <em>no addressable semantics anywhere plus a canvas host at any depth</em>, with the canvas-only
+        fixture that turns "it works" into something a suite asserts.
+      </p>
+    </div>
+
+    <div class="callout">
+      <div class="callout__tag">The one cell to test before relying on it — 30 minutes</div>
+      <p>
+        Argent's reference says its <strong>iOS-simulator runner resolves against the native UIView
+        hierarchy</strong> ("the runner derives the role from the view class"), while its
+        <code>describe</code> tool reads the accessibility tree. A Flutter app on iOS is essentially
+        <em>one</em> UIView; its semantics live as accessibility elements, not views. So
+        <strong>Flutter + iOS simulator is the single cell where source-agnosticism may not hold</strong> — on
+        Android it should, because there the runner reads the full accessibility hierarchy, which is where
+        <code>Semantics(identifier:)</code> lands.
+      </p>
+      <p>
+        A risk, not a finding: I did not run it. One Flutter screen with a
+        <code>Semantics(identifier:)</code>, one <code>assert</code> step, both platforms. If iOS fails,
+        Maestro covers that cell and the <code>driver</code> field exists so the swap costs nothing.
+      </p>
+    </div>
+  </section>
+
+  <!-- ===== EXPO TODAY ===== -->
+  <section>
+    <h2>What the harness already copes with, before a mobile oracle exists</h2>
+    <p>
+      "Can it grade a mobile project today?" has a better answer than no, and Expo is the clearest
+      case. An Expo codebase does not present one ungradeable surface; it presents <strong>four</strong>,
+      and three of them are already covered by runners that ship. The routing rule is what makes that
+      true — once validation stops being asserted through a screen, most of the surface stops caring
+      which platform draws the screen.
+    </p>
+
+    <figure>
+      <svg viewBox="0 0 840 346" role="img"
+           aria-label="An Expo project exposes four surfaces. The web target renders real DOM and is graded by the existing ui oracle through the Playwright CLI; the API is graded by the http oracle; the jest-expo suite by the test oracle. Only the native simulator build has no runner, and that is exactly the D5 reachability row.">
+        <defs>
+          <marker id="f2a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+          <marker id="f2b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--block)"/>
+          </marker>
+        </defs>
+
+        <text class="dg-m" x="375" y="26" text-anchor="middle">SURFACE</text>
+        <text class="dg-m" x="684" y="26" text-anchor="middle">RUNNER THAT ALREADY SHIPS</text>
+
+        <rect class="dg-box" x="20" y="156" width="170" height="54" rx="2"/>
+        <text class="dg-t" x="105" y="180" text-anchor="middle">Expo project</text>
+        <text class="dg-s" x="105" y="197" text-anchor="middle">one codebase</text>
+        <line class="dg-w" x1="190" y1="183" x2="212" y2="183"/>
+        <line class="dg-w" x1="212" y1="67" x2="212" y2="299"/>
+
+        <line class="dg-w" x1="212" y1="67"  x2="246" y2="67"  marker-end="url(#f2a)"/>
+        <line class="dg-w" x1="212" y1="143" x2="246" y2="143" marker-end="url(#f2a)"/>
+        <line class="dg-w" x1="212" y1="219" x2="246" y2="219" marker-end="url(#f2a)"/>
+        <line class="dg-wg" x1="212" y1="299" x2="246" y2="299" marker-end="url(#f2b)"/>
+
+        <rect class="dg-box" x="250" y="44" width="250" height="46" rx="2"/>
+        <text class="dg-t" x="375" y="64" text-anchor="middle">expo start --web</text>
+        <text class="dg-s" x="375" y="80" text-anchor="middle">react-native-web → real DOM</text>
+        <line class="dg-w" x1="500" y1="67" x2="544" y2="67" marker-end="url(#f2a)"/>
+        <rect class="dg-box dg-ok" x="548" y="44" width="272" height="46" rx="2"/>
+        <text class="dg-t" x="684" y="64" text-anchor="middle">ui oracle — the Playwright CLI</text>
+        <text class="dg-s" x="684" y="80" text-anchor="middle">testID → data-testid (verify once)</text>
+
+        <rect class="dg-box" x="250" y="120" width="250" height="46" rx="2"/>
+        <text class="dg-t" x="375" y="140" text-anchor="middle">the API the app calls</text>
+        <text class="dg-s" x="375" y="156" text-anchor="middle">where D1 · D2 · D3 are decided</text>
+        <line class="dg-w" x1="500" y1="143" x2="544" y2="143" marker-end="url(#f2a)"/>
+        <rect class="dg-box dg-ok" x="548" y="120" width="272" height="46" rx="2"/>
+        <text class="dg-t" x="684" y="140" text-anchor="middle">http oracle</text>
+        <text class="dg-s" x="684" y="156" text-anchor="middle">registered, and green today</text>
+
+        <rect class="dg-box" x="250" y="196" width="250" height="46" rx="2"/>
+        <text class="dg-t" x="375" y="216" text-anchor="middle">jest-expo — the project's suite</text>
+        <text class="dg-s" x="375" y="232" text-anchor="middle">unit + component tests</text>
+        <line class="dg-w" x1="500" y1="219" x2="544" y2="219" marker-end="url(#f2a)"/>
+        <rect class="dg-box dg-ok" x="548" y="196" width="272" height="46" rx="2"/>
+        <text class="dg-t" x="684" y="216" text-anchor="middle">test oracle</text>
+        <text class="dg-s" x="684" y="232" text-anchor="middle">exit code + failing-test names</text>
+
+        <rect class="dg-box dg-gap" x="250" y="272" width="250" height="58" rx="2"/>
+        <text class="dg-t" x="375" y="292" text-anchor="middle">iOS / Android simulator build</text>
+        <text class="dg-s" x="375" y="308" text-anchor="middle">the only surface left over</text>
+        <text class="dg-s" x="375" y="322" text-anchor="middle">— and it is exactly the D5 row</text>
+        <line class="dg-wg" x1="500" y1="299" x2="544" y2="299" marker-end="url(#f2b)"/>
+        <rect class="dg-box dg-gap" x="548" y="272" width="272" height="58" rx="2"/>
+        <text class="dg-t" x="684" y="292" text-anchor="middle">no runner — phases C and D</text>
+        <text class="dg-s" x="684" y="308" text-anchor="middle">until then: QA hunt, exploratory</text>
+        <text class="dg-s" x="684" y="322" text-anchor="middle">or an honest [manual] row with a reason</text>
+      </svg>
+      <figcaption>
+        <b>Three of an Expo project's four surfaces are already gradeable.</b> The gap is one row per
+        use case, not the test surface. Note what this buys and what it does not: a green web target
+        does not prove the native build wires the same button, so the Expo path grades D1–D4 honestly
+        and grades D5 <em>on the web target only</em> — the row should say which target it drove.
+      </figcaption>
+    </figure>
+
+    <p>
+      The <code>ui</code> oracle needs no change for the first lane. <code>expo start --web</code>
+      renders through react-native-web into an ordinary DOM served over HTTP, which is precisely the
+      shape the oracle already starts on a free port and drives. React Native's <code>testID</code> is
+      forwarded by react-native-web as <code>data-testid</code> — the attribute
+      <code>page.getByTestId</code> reads — so the affordance grammar carries over unchanged.
+      <strong>That last sentence is the one cell to check before leaning on it:</strong> one Expo screen,
+      one <code>testID</code>, one <code>ui</code> contract, thirty minutes — the same discipline this
+      document already applies to Flutter on the iOS simulator, and for the same reason.
+    </p>
+    <p class="soft">
+      The same reasoning degrades gracefully rather than uniquely for Expo. A bare React Native project
+      loses the web lane but keeps <code>http</code> and <code>test</code>. A Flutter project keeps both
+      too, and its web target is the canvas case phase E exists for. What varies across stacks is one
+      lane out of four — which is the strongest argument in this document for building phase B before
+      phase D, and for not building a second evaluator at all.
+    </p>
+  </section>
+
+  <!-- ===== WHERE ARGENT GOES ===== -->
+  <section>
+    <h2>Where a driver slots in</h2>
+    <p>
+      <strong>QA needs no driver at all.</strong> The hunter is exploratory and model-in-the-loop and issues
+      no verdict — findings are born <code>~</code> with a repro — so it needs no stable selectors.
+      "I backgrounded the app mid-save and the record duplicated" is a valid finding on Flutter, RN and
+      native alike. What it does need is an order it can accept: GATE Q0's hard check is a request at
+      <code>app_url</code> or an invocation of the entry point, and a phone is neither.
+    </p>
+    <p>
+      <strong>EVAL needs one, and only for D5.</strong> A driver taps one entry affordance per use case; it
+      carries none of the validation rows, because those went to <code>http</code>. That is why the mobile
+      oracle can be small — launch, resolve one id, tap, hand off to the outcome probe.
+    </p>
+    <p class="soft">
+      Argent's <code>flow run</code> and Maestro's <code>test</code> both replay YAML without an LLM in the
+      loop and exit with a status code, so a flow is a valid T0 fixture: hash-citable, seesaw-replayable, and
+      it moves the ratchet's score. That property is what makes either an oracle candidate at all — and it is
+      also why a flow needs no oracle to be useful, since <code>process</code> already grades an exit code.
+    </p>
+  </section>
+
+  <!-- ===== ONE JUDGE ===== -->
+  <section>
+    <h2>One judge, many oracles — not one skill per platform</h2>
+    <p>
+      The obvious-looking alternative is a <code>spec-evaluator</code> and a <code>qa-edge-hunter</code>
+      per platform, each detecting its own stack. It is the wrong seam, and the diagram above already
+      shows why: the fan-out belongs <em>below</em> the judge, in a registry built for it, not above the
+      judge in the skill roster.
+    </p>
+
+    <figure>
+      <svg viewBox="0 0 840 350" role="img"
+           aria-label="Two options compared. Splitting the evaluator per platform produces two judges, two knowledge bases and two roster entries. Keeping one evaluator and fanning out through the oracle registry produces one verdict, one knowledge base, and makes a new stack one new file in the oracles directory.">
+        <defs>
+          <marker id="f3a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <line x1="420" y1="16" x2="420" y2="340" stroke="currentColor" stroke-width="1"
+              stroke-dasharray="3 4" opacity="0.35"/>
+
+        <text class="dg-m" x="210" y="32" text-anchor="middle" style="fill:var(--block)">ONE SKILL PER PLATFORM</text>
+        <rect class="dg-box" x="110" y="48" width="200" height="38" rx="2"/>
+        <text class="dg-t" x="210" y="72" text-anchor="middle">ba — Test Surface</text>
+        <line class="dg-w" x1="210" y1="86" x2="210" y2="102"/>
+        <line class="dg-w" x1="115" y1="102" x2="305" y2="102"/>
+        <line class="dg-w" x1="115" y1="102" x2="115" y2="124" marker-end="url(#f3a)"/>
+        <line class="dg-w" x1="305" y1="102" x2="305" y2="124" marker-end="url(#f3a)"/>
+        <rect class="dg-box" x="30" y="126" width="170" height="38" rx="2"/>
+        <text class="dg-t" x="115" y="150" text-anchor="middle">spec-evaluator-web</text>
+        <rect class="dg-box" x="220" y="126" width="170" height="38" rx="2"/>
+        <text class="dg-t" x="305" y="150" text-anchor="middle">spec-evaluator-mobile</text>
+        <line class="dg-w" x1="115" y1="164" x2="115" y2="186" marker-end="url(#f3a)"/>
+        <line class="dg-w" x1="305" y1="164" x2="305" y2="186" marker-end="url(#f3a)"/>
+        <rect class="dg-box" x="30" y="188" width="170" height="34" rx="2"/>
+        <text class="dg-t" x="115" y="210" text-anchor="middle">verdict</text>
+        <rect class="dg-box" x="220" y="188" width="170" height="34" rx="2"/>
+        <text class="dg-t" x="305" y="210" text-anchor="middle">verdict</text>
+        <text class="dg-s" x="210" y="254" text-anchor="middle" style="fill:var(--block)">✗ two judges — the single-judge invariant breaks</text>
+        <text class="dg-s" x="210" y="272" text-anchor="middle" style="fill:var(--block)">✗ knowledge-base/&lt;skill&gt;.md forks in two</text>
+        <text class="dg-s" x="210" y="290" text-anchor="middle" style="fill:var(--block)">✗ roster ×2: SKILL.md + schema enum + compile + ingest</text>
+        <text class="dg-s" x="210" y="308" text-anchor="middle" style="fill:var(--block)">✗ ~90% duplicate — D1–D4 are platform-independent</text>
+
+        <text class="dg-m" x="630" y="32" text-anchor="middle" style="fill:var(--ready)">ONE SKILL, N RUNNERS</text>
+        <rect class="dg-box" x="530" y="48" width="200" height="38" rx="2"/>
+        <text class="dg-t" x="630" y="72" text-anchor="middle">ba — row carries oracle:</text>
+        <line class="dg-w" x1="630" y1="86" x2="630" y2="108" marker-end="url(#f3a)"/>
+        <rect class="dg-box dg-ok" x="530" y="110" width="200" height="34" rx="2"/>
+        <text class="dg-t" x="630" y="132" text-anchor="middle">spec-evaluator — one judge</text>
+        <line class="dg-w" x1="630" y1="144" x2="630" y2="164" marker-end="url(#f3a)"/>
+        <rect class="dg-box" x="530" y="166" width="200" height="30" rx="2"/>
+        <text class="dg-t" x="630" y="186" text-anchor="middle">oracles/index.mjs</text>
+        <line class="dg-w" x1="630" y1="196" x2="630" y2="208"/>
+        <line class="dg-w" x1="475" y1="208" x2="785" y2="208"/>
+        <line class="dg-w" x1="475" y1="208" x2="475" y2="214"/>
+        <line class="dg-w" x1="537" y1="208" x2="537" y2="214"/>
+        <line class="dg-w" x1="599" y1="208" x2="599" y2="214"/>
+        <line class="dg-w" x1="661" y1="208" x2="661" y2="214"/>
+        <line class="dg-w" x1="723" y1="208" x2="723" y2="214"/>
+        <line class="dg-w" x1="785" y1="208" x2="785" y2="214"/>
+        <rect class="dg-box" x="448" y="214" width="54" height="24" rx="2"/>
+        <text class="dg-m" x="475" y="230" text-anchor="middle">ui</text>
+        <rect class="dg-box" x="510" y="214" width="54" height="24" rx="2"/>
+        <text class="dg-m" x="537" y="230" text-anchor="middle">http</text>
+        <rect class="dg-box" x="572" y="214" width="54" height="24" rx="2"/>
+        <text class="dg-m" x="599" y="230" text-anchor="middle">test</text>
+        <rect class="dg-box" x="634" y="214" width="54" height="24" rx="2"/>
+        <text class="dg-m" x="661" y="230" text-anchor="middle">process</text>
+        <rect class="dg-box" x="696" y="214" width="54" height="24" rx="2"/>
+        <text class="dg-m" x="723" y="230" text-anchor="middle">snapshot</text>
+        <rect class="dg-box dg-gap" x="758" y="214" width="54" height="24" rx="2"/>
+        <text class="dg-m" x="785" y="230" text-anchor="middle">mobile</text>
+        <line class="dg-w" x1="475" y1="238" x2="475" y2="248"/>
+        <line class="dg-w" x1="537" y1="238" x2="537" y2="248"/>
+        <line class="dg-w" x1="599" y1="238" x2="599" y2="248"/>
+        <line class="dg-w" x1="661" y1="238" x2="661" y2="248"/>
+        <line class="dg-w" x1="723" y1="238" x2="723" y2="248"/>
+        <line class="dg-w" x1="785" y1="238" x2="785" y2="248"/>
+        <line class="dg-w" x1="475" y1="248" x2="785" y2="248"/>
+        <line class="dg-w" x1="630" y1="248" x2="630" y2="264" marker-end="url(#f3a)"/>
+        <rect class="dg-box dg-ok" x="530" y="266" width="200" height="32" rx="2"/>
+        <text class="dg-t" x="630" y="287" text-anchor="middle">one verdict</text>
+        <text class="dg-s" x="630" y="320" text-anchor="middle" style="fill:var(--ready)">✓ one judge, one knowledge base, one roster entry</text>
+        <text class="dg-s" x="630" y="338" text-anchor="middle" style="fill:var(--ready)">✓ a new stack = one new file in oracles/</text>
+      </svg>
+      <figcaption>
+        <b>The difference is where the platform fan-out sits.</b> Above the judge it multiplies the
+        roster, the knowledge base and the verdict; below it, the registry absorbs it — which is the
+        same design that already lets one evaluator grade a CLI, a library, a generator, a service and
+        a web app without five skills.
+      </figcaption>
+    </figure>
+
+    <p>
+      Two costs the left panel understates, both structural rather than stylistic:
+    </p>
+    <ul class="tight">
+      <li>
+        <strong>Two judges is a broken invariant, not a duplicated file.</strong> "The verdict belongs
+        to <code>spec-evaluator</code>" is what makes the verdict ledger mean anything; a second
+        evaluator is a second opinion with equal standing, and nothing in the harness arbitrates.
+      </li>
+      <li>
+        <strong>Coaching forks silently.</strong> The retro writes committed rules to
+        <code>knowledge-base/&lt;skill&gt;.md</code>, keyed by skill. A rule the PO teaches the web
+        hunter never reaches the mobile one — divergence in exactly the artifact built to accumulate.
+      </li>
+    </ul>
+    <p>
+      The next section is this claim made checkable: the whole of this document, organised into the skills
+      that ship, and what the roster does when you apply it.
+    </p>
+  </section>
+
+  <!-- ===== SKILLS ===== -->
+  <section>
+    <h2>How the skills reorganise to carry this</h2>
+    <p>
+      One rule decides where every piece of platform knowledge lands, and it falls straight out of the
+      precondition argument above:
+    </p>
+    <div class="thesis">
+      <p>
+        <strong>A declared archetype steers the skills. A detected stack steers the oracle.</strong>
+        Neither is ever a branch inside a <code>SKILL.md</code>.
+      </p>
+    </div>
+    <p>
+      The archetype is written at GATE L0 into <code>project-profile.md</code> and validated against a
+      five-value enum — a typo must FAIL rather than silently disable reachability — so planning-time choices
+      key off it. The stack is a fact about <em>this build on this machine</em>, so probe-time choices key off
+      detection instead, inside the oracle where no model is involved.
+    </p>
+
+    <figure>
+      <svg viewBox="0 0 840 346" role="img"
+           aria-label="Two axes. The declared archetype from project-profile.md steers which oracle the planner tags a row with and which technique file the QA hunter loads. The detected stack, read from the running build by the oracle, steers the fix line, the CLI facts and the directive. Neither axis changes the worker or operation enums.">
+        <defs>
+          <marker id="f5a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <line x1="420" y1="30" x2="420" y2="270" stroke="currentColor" stroke-width="1" stroke-dasharray="3 4" opacity="0.35"/>
+
+        <text class="dg-m" x="205" y="34" text-anchor="middle" style="fill:var(--accent)">DECLARED — STEERS THE SKILLS</text>
+        <rect class="dg-box" x="80" y="52" width="250" height="44" rx="2"/>
+        <text class="dg-t" x="205" y="74" text-anchor="middle">project-profile.md · archetype</text>
+        <text class="dg-s" x="205" y="90" text-anchor="middle">declared at GATE L0, enum-validated</text>
+        <line class="dg-w" x1="205" y1="96" x2="205" y2="118" marker-end="url(#f5a)"/>
+        <rect class="dg-box" x="80" y="120" width="250" height="54" rx="2"/>
+        <text class="dg-t" x="205" y="140" text-anchor="middle">five values, validated hard</text>
+        <text class="dg-s" x="205" y="156" text-anchor="middle">client-only-game · web-service</text>
+        <text class="dg-s" x="205" y="170" text-anchor="middle">mobile · library · data-pipeline</text>
+        <line class="dg-w" x1="205" y1="174" x2="205" y2="180"/>
+        <line class="dg-w" x1="110" y1="180" x2="300" y2="180"/>
+        <line class="dg-w" x1="110" y1="180" x2="110" y2="192" marker-end="url(#f5a)"/>
+        <line class="dg-w" x1="300" y1="180" x2="300" y2="192" marker-end="url(#f5a)"/>
+        <rect class="dg-box dg-ok" x="25" y="194" width="170" height="60" rx="2"/>
+        <text class="dg-t" x="110" y="214" text-anchor="middle">ba-pitch-analyzer</text>
+        <text class="dg-s" x="110" y="230" text-anchor="middle">which oracle a row gets</text>
+        <text class="dg-s" x="110" y="244" text-anchor="middle">by decision site</text>
+        <rect class="dg-box dg-ok" x="215" y="194" width="170" height="60" rx="2"/>
+        <text class="dg-t" x="300" y="214" text-anchor="middle">qa-edge-hunter</text>
+        <text class="dg-s" x="300" y="230" text-anchor="middle">which technique file</text>
+        <text class="dg-s" x="300" y="244" text-anchor="middle">loads for this hunt</text>
+
+        <text class="dg-m" x="625" y="34" text-anchor="middle" style="fill:var(--ready)">DETECTED — STEERS THE ORACLE</text>
+        <rect class="dg-box" x="500" y="52" width="250" height="44" rx="2"/>
+        <text class="dg-t" x="625" y="74" text-anchor="middle">the running build</text>
+        <text class="dg-s" x="625" y="90" text-anchor="middle">read at probe time, not declared</text>
+        <line class="dg-w" x1="625" y1="96" x2="625" y2="118" marker-end="url(#f5a)"/>
+        <rect class="dg-box" x="500" y="120" width="250" height="54" rx="2"/>
+        <text class="dg-t" x="625" y="140" text-anchor="middle">oracles/mobile/detect.mjs</text>
+        <text class="dg-s" x="625" y="156" text-anchor="middle">expo · rn-bare · flutter</text>
+        <text class="dg-s" x="625" y="170" text-anchor="middle">ios-native · android-native</text>
+        <line class="dg-w" x1="625" y1="174" x2="625" y2="192" marker-end="url(#f5a)"/>
+        <rect class="dg-box dg-ok" x="515" y="194" width="220" height="60" rx="2"/>
+        <text class="dg-t" x="625" y="214" text-anchor="middle">the directive's facts block</text>
+        <text class="dg-s" x="625" y="230" text-anchor="middle">fix line · CLIs · devices</text>
+        <text class="dg-s" x="625" y="244" text-anchor="middle">no skill edit, ever</text>
+
+        <line x1="20" y1="290" x2="820" y2="290" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+        <text class="dg-t" x="420" y="312" text-anchor="middle">worker enum 10 → 10    ·    operation enum 15 → 15    ·    gates, commands and lenses unchanged</text>
+        <text class="dg-s" x="420" y="330" text-anchor="middle">a new platform adds files; it never adds a roster entry</text>
+      </svg>
+      <figcaption>
+        <b>Applying this whole document adds no worker and no operation.</b> That is the checkable form of
+        the previous section's claim: if the platform fan-out belonged above the judge, both enums would have
+        to grow. They do not move, and the structural suite derives the roster from the enum, so the claim
+        cannot quietly become false.
+      </figcaption>
+    </figure>
+
+    <h3>The tree, before and after</h3>
+<pre><code>skills/
+├── ba-pitch-analyzer/
+│   ├── SKILL.md                                    ~ D1–D4 → D1–D5 (two lines)
+│   └── references/test-surface.md                  ~ amended in place — no new file
+├── qa-edge-hunter/
+│   ├── SKILL.md                                    ~ 349 → ~250; GATE Q0 gains a third form
+│   └── references/                                 + NEW DIRECTORY (this skill has none)
+│       ├── lenses.md                               + the six-lens toolbox, archetype-neutral
+│       └── archetypes/
+│           ├── _registry.md                        + which archetype loads which file
+│           ├── web-service.md                      + today's DevTools bullets, moved out
+│           └── mobile.md                           + the six mobile techniques, moved out
+├── spec-evaluator/
+│   ├── SKILL.md                                    ~ two lines pointing at probe-plan.md
+│   └── references/
+│       ├── probing.md                              ~ a `mobile` row in the dispatch table
+│       ├── probe-plan.md                           + NEW — how to answer a directive
+│       └── dimensions/test-surface-conformance.md  ~ D1–D4 → D1–D5
+└── tech-lead/schemas/domain.schema.json            ~ one payload field; both enums untouched
+
+oracles/                                            (ships; not a skill)
+├── index.mjs                                       ~ register `mobile` → the tag becomes legal
+├── ui-oracle.mjs                                   ~ canvas guard onto the failAll refusal path
+├── mobile-oracle.mjs                               + NEW — preflight: run | FAIL | directive
+└── mobile/
+    ├── detect.mjs                                  + stack from disk
+    ├── directive.mjs                               + fill the template, write it to the local tier
+    ├── probe-plan.schema.json                      + the forced response shape
+    ├── plan-check.mjs                              + schema subset + three post-rules + controls
+    └── fix-lines.json                              + the five per-stack fix strings</code></pre>
+
+    <h3>Why each placement, and not somewhere else</h3>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>Change</th><th>The reason it goes there</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="k">qa-edge-hunter gets a <code>references/</code></td>
+            <td>It is the <strong>largest worker skill at 349 lines</strong> — 2.4× the orchestrator, which sits at 148 under a ratchet — and the largest with no references directory. The rule is already written in that ratchet's own justification: <em>new logic goes into scripts or references/, not SKILL.md prose.</em> Today every hunt pays context for mobile bullets even when grading a CLI.</td>
+          </tr>
+          <tr>
+            <td class="k"><code>archetypes/</code> + <code>_registry.md</code></td>
+            <td>The exact pattern <code>spec-evaluator</code> already uses for dimensions, whose SKILL.md says adding one means writing the file and flipping the registry. Adding a platform becomes adding a file, never editing the craft.</td>
+          </tr>
+          <tr>
+            <td class="k">Keyed by archetype, not by stack</td>
+            <td>The hunter's techniques are archetype-level — background/foreground is true of every mobile stack — and the archetype is already declared and validated. Stack granularity is only needed at probe time, which is <code>detect.mjs</code>.</td>
+          </tr>
+          <tr>
+            <td class="k"><code>probe-plan.md</code> under the evaluator</td>
+            <td>The oracle <em>writes</em> the directive (code, no model); the evaluator <em>answers</em> it (craft). "Choose how to look, never say what you saw" is an anti-leniency rule, so it belongs beside <code>anti-leniency.md</code>, where the judge's discipline already lives.</td>
+          </tr>
+          <tr>
+            <td class="k">Directive code under <code>oracles/</code></td>
+            <td>Zero-dependency executable with no model in it, exactly like its five siblings; <code>oracles/</code> is in the shipped allowlist; and a skill doc may legally cite it, which is why <code>probing.md</code> can already name the oracle entry point.</td>
+          </tr>
+          <tr class="row-warn">
+            <td class="k">No shared oracle-catalogue file</td>
+            <td>Deliberately <em>not</em> created. Two tables exist because two readers need different columns — the planner needs "when the deliverable is…", the judge needs "how to probe it". The defect was never the duplication; it was that the guard meant to keep them in sync <strong>walks one direction only</strong>. Fix the guard rather than adding a third place to drift.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>The schema change, in full</h3>
+<pre><code>x-payload-by-worker:
+  qa-edge-hunter: ["feature","spec_folder","eval_report","app_url","ledger","kb_rules_path"]
++                  "device_target"     // nullable {binary, device_id}; archetype comes from the profile
+  spec-evaluator: [ … ]                // UNCHANGED — a directive is returned by the oracle, not carried in
+
+x-result-by-worker:                    // UNCHANGED, and this is the load-bearing part
+  spec-evaluator: ["verdict", …]       // "the sole judge, and only it may return a verdict"</code></pre>
+    <p>
+      A probe plan is not a WorkResult field. It is an oracle artifact under the gitignored tier —
+      <code>.shapeup/&lt;feature&gt;/eval/directives/</code> — alongside the directive that asked for it. So
+      the single-judge invariant is held <strong>by the schema</strong> rather than by convention: no worker
+      can return a verdict through the directive channel, because <code>x-result-by-worker</code> declares no
+      such field for anyone but the evaluator.
+    </p>
+
+    <h3>The guards, without which none of this is worth landing</h3>
+    <ul class="tight">
+      <li>The registry↔prose parity check becomes <strong>bidirectional</strong>, and lands <em>first</em>, red — so it demonstrably catches the two phantom oracles before the runner that legitimises one of them exists.</li>
+      <li><code>plan-check.mjs</code> runs its own negative controls in CI: a plan omitting reachability, a plan carrying a <code>pass</code> field, a plan invoking a CLI the facts block does not list.</li>
+      <li>A canvas-only fixture the Flutter Web guard must catch, paired with a normal DOM page it must not.</li>
+      <li>The new <code>references/</code> files inherit the dangling-path check for free — it already walks every skill's references directory.</li>
+      <li>A line ratchet on <code>qa-edge-hunter</code> once it is cut, lowered <strong>with the reason inlined in the check</strong>, the way the orchestrator's was — a lowered ratchet whose justification lives elsewhere is indistinguishable from one somebody weakened.</li>
+    </ul>
+  </section>
+
+  <!-- ===== PLAN ===== -->
+  <section>
+    <h2>The plan</h2>
+    <p class="soft">
+      Ordered so the cheapest thing that changes an outcome comes first. Rev. 1 proposed 9–12 days across six
+      phases, half of it schema and lint work; routing the validation rows away from the UI removes most of it.
+      Rev. 4 re-costs A, B and E against what landing them actually cost, and splits out B′, which rev. 3
+      did not know it needed.
+    </p>
+
+    <div class="phase">
+      <div class="phase__id">A</div>
+      <div class="phase__cost">1 day · ½ landed</div>
+      <div class="phase__body">
+        <div class="phase__title">QA Edge Hunter reaches a phone <span class="pill pill--ready">techniques landed</span></div>
+        <p>
+          A per-oracle technique table in the hunter's skill. Background/foreground mid-mutation for
+          concurrency; incoming call, process kill, rotation mid-form for interruption; app data after logout
+          and the app-switcher snapshot for residue; deep links and exported activities for the no-go lens.
+          The six lenses stay fixed — only the techniques are new. <strong>Six technique bullets are in the
+          skill; the order that would let it use them is not.</strong>
+        </p>
+        <p>
+          Remaining: GATE Q0's reachability check learns a third form (a device + an installed build, beside
+          a URL and an entry point); the WorkOrder payload gains the field that carries it; and the driver
+          gets a preflight with a fix line, the way the <code>ui</code> oracle handles a missing Playwright
+          rather than assuming one. Until then the bullets name moves the skill has no sanctioned way to make.
+        </p>
+        <div class="unlocks">unlocks: exploratory QA on any mobile deliverable, every stack, today</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase__id">B</div>
+      <div class="phase__cost">1½ days · rule landed</div>
+      <div class="phase__body">
+        <div class="phase__title">Amend the derivation rule — oracle by decision site, add D5 <span class="pill pill--ready">rule landed</span></div>
+        <p>
+          The rule itself is a prose change and it is written. <strong>The cheapest phase and the one with the
+          widest effect:</strong> it cuts most of the mobile UI surface before a line of oracle code is
+          written, and it improves the web contract at the same time. What rev. 3 mispriced is that the rule
+          is <em>stated</em> in one file and <em>enforced</em> in four more.
+        </p>
+        <p>
+          Remaining, and none of it optional: finish the D1–D4 → D1–D5 sweep (five stale sites, including the
+          planner's own audit hook, which still demands "cites D1–D4"); amend the evaluator's
+          <code>test-surface-conformance</code> statement, which currently marks a correct D5 row wrong;
+          drop <code>data</code> and <code>mobile</code> from the oracle table until runners exist; give D5 a
+          per-UC id and a generation point after L1a.5, since its source does not exist at L1a; and make the
+          registry↔prose parity check bidirectional, because it walks only one way today and is the reason
+          two phantom oracles passed a green suite.
+        </p>
+        <div class="unlocks">unlocks: D1–D4 gradeable on mobile through <code>http</code>, which already works</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase__id">B′</div>
+      <div class="phase__cost">1 day</div>
+      <div class="phase__body">
+        <div class="phase__title">The two-oracle row — <code>then_assert</code> <span class="pill pill--yes">new in rev. 4</span></div>
+        <p>
+          Without this the thesis is unrepresentable: a row carries one oracle and each grammar is closed, so
+          "drive the affordance, assert the outcome elsewhere" cannot be written down. A subordinate
+          assertion on the row, graded by a second registered runner and folded into the same verdict and the
+          same citation, is the whole change — no new oracle, no new skill, one field and one fold.
+        </p>
+        <p class="soft">
+          Do this before C and D, not after. C's probe and D's driver both exist to feed the first half of a
+          row whose second half has nowhere to go yet.
+        </p>
+        <div class="unlocks">unlocks: D5 expressible at all — on web first, mobile later, same shape</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase__id">C</div>
+      <div class="phase__cost">½ day</div>
+      <div class="phase__body">
+        <div class="phase__title">The entry-affordance probe</div>
+        <p>
+          Inside the oracle's preflight: resolve each entry affordance the wiring map names, FAIL the D5 row
+          with the stack's fix line when it is absent. Replaces the whole four-stack precondition apparatus.
+          These are the first two branches of the preflight; the third is C′.
+        </p>
+        <div class="unlocks">unlocks: honest degradation instead of a wall of misleading FAILs</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase__id">C′</div>
+      <div class="phase__cost">1½ days</div>
+      <div class="phase__body">
+        <div class="phase__title">The directive and the probe plan <span class="pill pill--yes">new in rev. 4</span></div>
+        <p>
+          Register a <code>mobile</code> runner whose <em>first</em> job is not to drive anything: detect the
+          stack from disk, resolve the driver and the affordances, and — when no driver exists — write a
+          directive carrying the exhaustive facts and take back a schema-forced probe plan whose actions
+          dispatch through <code>http</code>, <code>test</code>, <code>process</code> and <code>ui</code>.
+          The moment this lands, <code>mobile</code> is a legal tag and the exception is gone, which is what
+          unblocks B's remaining work: the planner's table can name the oracle because the oracle exists.
+        </p>
+        <p class="soft">
+          Includes the plan checker and its negative controls — the three teeth are the schema's whole value,
+          and an unchecked schema is a suggestion.
+        </p>
+        <div class="unlocks">unlocks: every mobile row reaches a verdict or an honest <code>[manual]</code>, on any stack, with no mobile driver installed</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase__id">D</div>
+      <div class="phase__cost">2 days</div>
+      <div class="phase__body">
+        <div class="phase__title">The <code>mobile</code> oracle — smaller than rev. 1 assumed</div>
+        <p>
+          Shares the <code>ui</code> oracle's affordance grammar; a <code>driver</code> field
+          (<code>argent</code> or <code>maestro</code>); a small device block, because an Argent or Maestro
+          flow launches the app itself — the harness only boots a device and installs a binary. Two refusals
+          compiled in: <strong>no snapshot steps</strong> (grading pixels resurrects the frozen styling layer
+          through the judge) and <strong>no coordinate taps</strong> (a tap with no selector is how a driver
+          reports a pass it cannot prove).
+        </p>
+        <p class="soft">
+          <strong>C′ demotes this phase from a precondition to an optimisation.</strong> Once a plan can
+          express a driver flow as a <code>process</code> action — <code>maestro test flow.yaml</code> exits
+          with a status code, which <code>process</code> already grades and the ratchet already cites — a
+          native D5 row is gradeable without this oracle. What D buys after that is a shared affordance
+          grammar, the two compiled-in refusals, and a device block the plan no longer has to describe by
+          hand. Real value, no longer blocking.
+        </p>
+        <div class="unlocks">unlocks: D5 reachability graded on all four stacks</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase__id">E</div>
+      <div class="phase__cost">½ day · landed, needs rework</div>
+      <div class="phase__body">
+        <div class="phase__title">Flutter Web guard in the <code>ui</code> oracle <span class="pill pill--code">wrong failure class</span></div>
+        <p>
+          Detect a canvas-only document and FAIL naming the semantics fix, instead of "element not found"
+          across the board. Independent of everything above, and it closes a defect that exists today.
+        </p>
+        <p>
+          The guard that landed throws inside the per-criterion driver, so it reports as a behavioural FAIL
+          and sends the fixer at application code that is fine; and its test —
+          <code>body.children.length === 1</code> — is defeated by a <code>&lt;script&gt;</code> in the body,
+          which Flutter's own web template puts there. Rework: move the detection into the refusal path the
+          oracle already has (<code>failAll</code>, <code>NO EVIDENCE</code>, one message, the fix named),
+          key it on <em>no addressable semantics anywhere plus a canvas host at any depth</em>, and add the
+          canvas-only fixture that turns "it works" into something a suite can assert.
+        </p>
+        <div class="unlocks">unlocks: honest verdicts on Flutter Web instead of misleading ones</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase__id">F</div>
+      <div class="phase__cost">2 days</div>
+      <div class="phase__body">
+        <div class="phase__title">Fixtures and negative controls</div>
+        <p>
+          Two apps, not four — one RN/Expo and one Flutter, since those bracket the identifier question and
+          native sits between them. Each with a correct build and one broken behaviourally rather than
+          visibly, including <strong>one built specifically with a dead entry affordance</strong>, because
+          that is the defect D5 exists for and an untested D5 is worth nothing.
+        </p>
+        <div class="unlocks">unlocks: "mobile grading works" becomes checkable rather than asserted</div>
+      </div>
+    </div>
+
+    <p style="margin-top:0.7rem">
+      <strong>≈9 engineer-days remaining</strong> — ½ to finish A, 1 to finish B, 1 for B′, ½ for C,
+      1½ for C′, 2 for D, ½ to rework E, 2 for F. Roughly two days are already spent, and they bought a real
+      routing rule, six real technique bullets and a guard in the wrong place.
+    </p>
+    <p>
+      <strong>The useful cut is now ≈5 of those days</strong> — A, B, B′, C, C′ and E. At the end of it every
+      mobile row terminates in a verdict, an honest <code>[manual]</code> or a <code>NO EVIDENCE</code> that
+      names its fix; the two-probe shape is expressible; the routing rule is enforced rather than merely
+      stated; and Flutter Web fails truthfully. <strong>D and F — four days and the most interesting
+      work — become deferrable rather than blocking</strong>, which is the opposite of where rev. 1 put them.
+    </p>
+    <p>
+      <strong>The early cut is landed and not yet green</strong>, which is a different state from either
+      "done" or "not started" and the one worth naming. Its first day of remaining work is not new capability
+      at all: it is the sweep that stops the evaluator penalising the rows the new rule tells the planner to
+      write, and the parity check that would have caught two oracles being named before they existed. Ship
+      that before anything on this page is measured.
+    </p>
+  </section>
+
+  <!-- ===== NOT DOING ===== -->
+  <section>
+    <h2>What deliberately not to do</h2>
+    <ul class="tight">
+      <li>
+        <strong>Do not grade a use case by outcome alone.</strong> It is the tempting simplification and it
+        silently retires the orphaned-engine check. One reachability probe per UC is the price of keeping it.
+      </li>
+      <li>
+        <strong>Do not assert API validation through the UI</strong>, on mobile or on the web. It is slower,
+        flakier, and it tests the form rather than the rule.
+      </li>
+      <li>
+        <strong>Do not let a Flutter team use <code>Key</code> for test targeting.</strong> It is invisible to
+        the accessibility bridge and therefore to every external driver — and the entry-affordance probe is
+        what catches it, on the running build, with no declaration to trust.
+      </li>
+      <li>
+        <strong>Do not add either tool's MCP server to the harness.</strong> Same shape as the Playwright MCP
+        dependency already removed: streams the tree into context, costs tokens per probe, narrates a verdict
+        instead of exiting with one. It belongs to the developer's own agent session.
+      </li>
+      <li>
+        <strong>Do not enable visual regression on any stack</strong>, however good the tooling. Layer-3
+        styling is frozen; a judge grading typography drift resurrects the freeze through the back door.
+      </li>
+      <li>
+        <strong>Do not build one oracle per stack.</strong> One grammar, one <code>driver</code> field.
+      </li>
+      <li>
+        <strong>Do not build one evaluator or one hunter per platform either.</strong> The platform fan-out
+        belongs in the registry, below the judge. Above it, it breaks the single-judge invariant, forks the
+        coached knowledge base, and doubles a roster entry to buy a D5 lane.
+      </li>
+      <li>
+        <strong>Do not let the directive return a verdict.</strong> The moment a probe plan is allowed to
+        carry a <code>pass</code>, the mobile lane becomes the one place in the harness where the judge
+        grades its own narration — which is the property the <code>ui</code> oracle was built to remove, and
+        it would be removed by accident rather than by argument. The schema must have no such field to
+        declare, and the checker must report the path when one appears.
+      </li>
+      <li>
+        <strong>Do not let the plan invent a tool.</strong> An action naming a CLI absent from the
+        directive's facts block is rejected by name, not tolerated and retried. The pressure that produces
+        an invented command is having no legal way to say "there is no way to do this" — which is exactly
+        why <code>manual</code> is schema-valid and why removing it would make the plans worse, not stricter.
+      </li>
+      <li>
+        <strong>Do not name an oracle in the prose before its runner is registered.</strong> The parity check
+        walks registry → prose only, so the reverse passes a green suite and the first thing to meet the
+        phantom tag is the evaluator, at grading time, with an exception where a verdict should be. Land the
+        runner and the row in the same change, or neither.
+      </li>
+      <li>
+        <strong>Do not read an Expo web-target pass as evidence about the native build.</strong> It is a
+        genuine, cheap grade of D1–D4 and of D5 <em>on that target</em>. react-native-web and the native
+        renderer can wire the same screen differently, so the row must say which target it drove.
+      </li>
+      <li>
+        <strong>Do not start at D.</strong> It is the most interesting phase and has the worst cost-to-value
+        before B has cut the surface — a well-built oracle grading rows that should have gone to
+        <code>http</code>.
+      </li>
+      <li>
+        <strong>HarmonyOS is out of scope here</strong>, deliberately. The same lens applies and the blocking
+        question is the same one — whether the stack exports stable identifiers a driver can resolve — but it
+        deserves a look at ArkUI's accessibility surface directly rather than by analogy.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ===== FALSIFIERS ===== -->
+  <section>
+    <h2>What would change this</h2>
+    <ul class="tight">
+      <li><strong>Argent cannot resolve a Flutter id on an iOS simulator.</strong> The UIView-hierarchy risk. Half an hour to settle; if it holds, phase D ships with <code>maestro</code> as the default driver on that cell.</li>
+      <li><strong>The use cases have no API layer.</strong> An offline-first or fully local app has nowhere to route D1–D3, and the UI surface stays large. Then the tree cost is unavoidable and phase D matters more than phase B.</li>
+      <li><strong>The wiring map is not populated.</strong> D5 derives from it; without it there is no entry affordance to probe and reachability goes back to being an assumption.</li>
+      <li><strong>A team refuses the one identifier per use case.</strong> Then that use case is genuinely ungradeable for reachability by any tool, and the honest answer is <code>[manual]</code> for that row with the reason stated — not coordinate taps dressed as evidence.</li>
+      <li><strong>No mobile pitch arrives.</strong> Phases B and E are still worth doing on their own: one improves every archetype's routing, the other closes a live defect.</li>
+      <li><strong>react-native-web does not forward <code>testID</code> as <code>data-testid</code>.</strong> Then the Expo shortcut collapses to D1–D4 through <code>http</code> and <code>test</code>, the web lane stops carrying D5, and phase D moves ahead of F. Thirty minutes to settle, and worth settling before anyone plans around the web target.</li>
+      <li><strong>Probe plans come back consistently unusable.</strong> If a schema-valid plan routinely names the wrong tier, covers only the outcome, or degrades to <code>manual</code> where an executable action existed, the directive is doing less than a fixed per-stack action table would — and a fixed table is the cheaper answer. The falsifier is measurable from the plan checker's own rejection log, which is why the log is part of C′ rather than an afterthought.</li>
+      <li><strong>A <code>data</code> runner gets registered.</strong> Then D1 legitimately splits again — persistence assertions leave the <code>http</code> row's evidence and become their own probe. Until that runner exists, writing the tag produces an exception, not a verdict.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <div>Measured on this machine: iOS 26.4 simulator and Android 16 arm64 emulator, headless and concurrent, on macOS arm64 with Xcode 26.6; Android accessibility hierarchy readable via <code>uiautomator dump</code> (14,447 bytes, <code>resource-id</code> and <code>content-desc</code> present); ~4,700 ms per warm dump.</div>
+    <div>Read, not recalled: Argent at <code>main</code> (CLI source, flow-YAML reference, features docs, LICENSE); serve-sim package README; Expo CLI and EAS CLI references; Expo's Maestro E2E guide; Flutter <code>SemanticsProperties.identifier</code> (stable 3.19, Feb 2024) and the fact that <code>Key</code> is not exposed to the accessibility bridge. Maestro's CLI facts are secondary — docs, not a run.</div>
+    <div>Rev. 4 provenance — read off the working tree at plugin <code>3.1.0</code>, not recalled: the oracle registry and its five runners; the <code>ui</code> oracle's expectation grammar, lazy preflight and <code>failAll</code> refusal paths; the evaluator's dispatch table and its <code>test-surface-conformance</code> statement; the planner's derivation reference and the spec-lint hooks at the foot of it; the <code>project-profile</code> archetype enum; the phase ordering that puts <code>analyze</code> before <code>wire</code>; and the structural suite <em>executed</em> — <code>npm test</code>, 1,255 checks green, including the registry↔prose parity check that walks one direction and is why two unregistered oracles passed. Not run, and flagged as such: the Playwright CLI is not installed on this machine, so the Flutter Web guard was read rather than exercised, and the react-native-web <code>testID</code> mapping is documented behaviour rather than a measurement.</div>
+    <div>Revision history: rev. 1 proposed a four-stack precondition apparatus (retracted — the driving layer is source-agnostic and the identifier question belongs to the build, not the stack). Rev. 2 replaced it with a probe. Rev. 3 adds the routing rule and D5, which is what removes most of the remaining UI surface. Rev. 4 checks the whole argument against the shipped plugin and retracts three of rev. 3's claims — that <code>data</code> is a working oracle, that phase B is a prose-only half-day, and that the two-probe shape needs no contract change — then adds B′, which makes the thesis expressible at all, and C′, which replaces the mobile route's exception with a directive and a schema-forced probe plan. The directive template, the plan schema, a worked Expo plan and three negative controls are drafted alongside this page under <code>research/mobile-directive/</code>; its checker is zero-dependency and was run — the worked plan accepted, all three controls rejected by name. Rev. 4 also carries the skill organisation, and drops the section that narrated the verification: those findings are now folded into the sections they change, which is where a reader needs them, rather than restated as a review of a document by the document. serve-sim was evaluated and ruled out for grading: no assertions, no exit codes, Apple-silicon and Apple-simulator only.</div>
+  </footer>
+
+</div>
+</body>
+</html>
