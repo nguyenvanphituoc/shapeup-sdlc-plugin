@@ -21,9 +21,13 @@
 //
 //   verify   t0 · budget · envelope ·        Measured, not claimed. A model verifying itself is
 //            trace · spec · skills ·          claiming; these read artifacts and re-hash them.
-//            dispatch                         `skills` reads the roster off disk; `dispatch` reads
+//            dispatch · oracle                `skills` reads the roster off disk; `dispatch` reads
 //                                             the hook layer's evidence that a skill really resolved
 //                                             in this session — the half a file check cannot answer.
+//                                             `oracle` runs an evaluation contract through the
+//                                             registry, so grading a criterion is a step an
+//                                             unattended run can take rather than an approval
+//                                             prompt the judge routes around by reading source.
 //   reduce   ingest · hill · snapshot ·       Single writer. Shared state has exactly one author.
 //            ship · board · verdict · graph
 //   gate                                      An answer file with a source, not a vibe.
@@ -64,7 +68,7 @@ export const ROUTES = {
   verify: {
     t0: "./verify/t0.mjs", budget: "./verify/budget.mjs", envelope: "./verify/envelope.mjs",
     trace: "./verify/trace.mjs", spec: "./verify/spec.mjs", skills: "./verify/skills.mjs",
-    dispatch: "./verify/dispatch.mjs",
+    dispatch: "./verify/dispatch.mjs", oracle: "./verify/oracle.mjs",
   },
   reduce: {
     ingest: "./reduce/ingest.mjs", hill: "./reduce/hill.mjs", snapshot: "./reduce/snapshot.mjs",

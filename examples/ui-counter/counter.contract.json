@@ -1,0 +1,41 @@
+{
+  "oracle": "ui",
+  "server": {
+    "cmd": "node examples/ui-counter/server.mjs",
+    "ready_path": "/",
+    "ready_timeout_ms": 6000
+  },
+  "browser": "chromium",
+  "criteria": [
+    {
+      "id": "U1",
+      "desc": "the readout starts at zero, marked clean",
+      "probe": { "path": "/" },
+      "expect": { "testid": "count", "text": "/^0$/", "data_state": "clean" }
+    },
+    {
+      "id": "U2",
+      "desc": "one increment advances the readout and flips it to dirty",
+      "probe": { "path": "/", "steps": [{ "click": "inc" }] },
+      "expect": { "testid": "count", "text": "/^1$/", "data_state": "dirty" }
+    },
+    {
+      "id": "U3",
+      "desc": "Reset is disabled until there is something to reset",
+      "probe": { "path": "/", "steps": [{ "click": "inc" }] },
+      "expect": { "testid": "reset", "state": "enabled" }
+    },
+    {
+      "id": "U4",
+      "desc": "the increment flow raises no console error",
+      "probe": { "path": "/", "steps": [{ "click": "inc" }, { "click": "inc" }] },
+      "expect": { "testid": "count", "text": "/^2$/", "console_clean": true }
+    },
+    {
+      "id": "U5",
+      "desc": "no export affordance exists (pitch no-go: no export in v1)",
+      "probe": { "path": "/" },
+      "expect": { "testid": "export", "absent": true }
+    }
+  ]
+}

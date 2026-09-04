@@ -31,38 +31,11 @@
 //               exit 0 = all PASS, 1 = ≥1 FAIL, 2 = usage/contract error.
 
 import { spawn } from "node:child_process";
-import { createServer } from "node:net";
 import { readFileSync } from "node:fs";
-import { matchNum, toRegExp, formatReport } from "./_shared.mjs";
+import { matchNum, toRegExp, formatReport, freePort, waitForHttp } from "./_shared.mjs";
 import { isMain } from "../kernel/lib/argv.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const srv = createServer();
-    srv.unref();
-    srv.on("error", reject);
-    srv.listen(0, "127.0.0.1", () => {
-      const { port } = srv.address();
-      srv.close(() => resolve(port));
-    });
-  });
-}
-
-async function reachable(base, path, timeoutMs) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    try {
-      const ctrl = AbortSignal.timeout(500);
-      await fetch(base + path, { signal: ctrl });
-      return true; // any HTTP response (even 404) means the port is serving
-    } catch {
-      await sleep(100);
-    }
-  }
-  return false;
-}
 
 async function probe(base, p) {
   const init = { method: p.method || "GET", headers: { ...(p.headers || {}) } };
@@ -105,7 +78,7 @@ export async function runContract({ server, criteria }) {
   });
 
   try {
-    const up = await reachable(base, server.ready_path || "/", server.ready_timeout_ms || 4000);
+    const up = await waitForHttp(base, server.ready_path || "/", server.ready_timeout_ms || 4000);
     if (!up) {
       // Absence of evidence = FAIL for every criterion: an unreachable service does not pass.
       for (const c of criteria) {

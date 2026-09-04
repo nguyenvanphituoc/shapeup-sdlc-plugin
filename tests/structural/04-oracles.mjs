@@ -93,19 +93,37 @@ export async function run(ctx) {
     test: "oracles/test-oracle.mjs",
     snapshot: "oracles/snapshot-oracle.mjs",
     http: "oracles/http-oracle.mjs",
+    ui: "oracles/ui-oracle.mjs",
   };
   for (const [name, rel] of Object.entries(EXPECTED_RUNNERS)) {
     if (!ORACLES[name]) fail(`oracle "${name}" not registered in oracles/index.mjs`);
     else if (!existsSync(join(ROOT, rel))) fail(`oracle "${name}" runner missing: ${rel}`);
     else ok(`oracle "${name}" registered with runner ${rel}`);
   }
-  // The eval-contract spec table and the ba/test-surface registry must name exactly these oracles.
-  const specPath = join(ROOT, "docs/audit/evaluation-contract-spec.md");
-  if (existsSync(specPath)) {
-    const spec = read(specPath);
+  // EVERY REGISTERED ORACLE MUST BE DOCUMENTED IN PROSE THE USER ACTUALLY RECEIVES.
+  //
+  // This check was previously gated on `docs/audit/evaluation-contract-spec.md`, which does not
+  // exist and — under `docs/` — would not ship even if it did. `existsSync` was therefore always
+  // false and the whole block never executed: a doc-parity assertion that had never once run,
+  // sitting inside a green suite, which is this repo's own documented pathology (an unfired guard
+  // and an absent one look identical from outside).
+  //
+  // Re-pointed at the SUBSTANCE rather than deleted, and at the two shipped files that carry the
+  // oracle tables for real — the evaluator's dispatch table and the planner's `Oracle` column.
+  // Strictly stronger than the original: it runs, and it covers both sides of the contract (the
+  // BA tags a row, the evaluator dispatches on the tag), so an oracle registered without a row in
+  // either is caught rather than assumed.
+  const ORACLE_PROSE = [
+    "skills/spec-evaluator/references/probing.md",
+    "skills/ba-pitch-analyzer/references/test-surface.md",
+  ];
+  for (const rel of ORACLE_PROSE) {
+    const abs = join(ROOT, rel);
+    if (!existsSync(abs)) { fail(`oracle prose missing: ${rel}`); continue; }
+    const prose = read(abs);
     for (const name of ORACLE_NAMES) {
-      if (spec.includes("`" + name + "`")) ok(`spec documents oracle "${name}"`);
-      else fail(`evaluation-contract-spec.md does not document registered oracle "${name}"`);
+      if (prose.includes("`" + name + "`")) ok(`${rel} documents oracle "${name}"`);
+      else fail(`${rel} does not document registered oracle "${name}" — a dispatch key the evaluator will meet with no instructions`);
     }
   }
 
@@ -167,6 +185,103 @@ export async function run(ctx) {
     else fail(`http oracle did not FAIL a broken server (${bad.fails}/${bad.results.length}) — grader may be a rubber stamp`);
   } else {
     console.log("  (http oracle/fixture not found — skipping)");
+  }
+
+
+  // =============================================================================
+  section("82. `ui` oracle — the affordance grammar is enforced, and the runner discriminates");
+  // =============================================================================
+  // `ui` is the DEFAULT oracle, and until now it was the only one in the registry with no runner:
+  // an agent drove a browser and reported on itself, so nothing here could hold it to the standard
+  // §§9–11 hold `test`/`snapshot`/`http` to. Three claims, in the order of how much they depend on
+  // the machine having a browser — the first two hold everywhere, including CI.
+
+  const uiOraclePath = join(ROOT, "oracles/ui-oracle.mjs");
+  const uiContractPath = join(ROOT, "examples/ui-counter/counter.contract.json");
+  if (existsSync(uiOraclePath) && existsSync(uiContractPath)) {
+    const ui = await import(uiOraclePath);
+    const uiContract = readJSON(uiContractPath);
+
+    // --- (1) THE AFFORDANCE RULE IS MECHANICAL, NOT PROSE ---------------------------------
+    // "UI assertions target affordances only (test_id/role/data-state)" is a Hard Rule addressed
+    // to the same model the anti-leniency protocol exists to distrust. It is enforced here by a
+    // vocabulary that has no word for a colour, so the rule cannot be rationalised past.
+    for (const smuggled of [{ color: "#00f" }, { css: ".btn" }, { screenshot: "a.png" }, { bounding_box: [0, 0] }]) {
+      const why = ui.validateCriterion({ id: "X", expect: { testid: "inc", ...smuggled } });
+      const key = Object.keys(smuggled)[0];
+      if (why && why.includes(key)) ok(`ui contract rejects a styling assertion (expect.${key})`);
+      else fail(`ui contract ACCEPTED expect.${key} — the frozen styling layer is gradeable through the judge again`);
+    }
+    if (ui.validateCriterion({ id: "U1", probe: { path: "/" }, expect: { testid: "count", text: "/^0$/" } }) === null)
+      ok("ui contract accepts a conforming affordance assertion (the rule discriminates, it is not a blanket no)");
+    else fail("ui contract rejected a conforming affordance assertion — the grammar is over-tight");
+
+    // Every shipped fixture criterion must survive the same validator, or the worked example is
+    // one the runner would refuse to execute.
+    const badRows = uiContract.criteria.map((c) => [c.id, ui.validateCriterion(c)]).filter(([, w]) => w);
+    if (badRows.length === 0) ok(`counter.contract.json conforms to the affordance grammar (${uiContract.criteria.length} criteria)`);
+    else fail(`counter.contract.json has criteria the runner would refuse: ${badRows.map(([id, w]) => id + ": " + w).join("; ")}`);
+
+    // --- (2) A CRITERION WITH NO RESULT IS A FAIL, NEVER A SKIP ---------------------------
+    // The registry-wide rule ("absence of evidence = FAIL") applied to report parsing: a spec that
+    // vanished from the run — file failed to load, browser died, suite never started — must not
+    // fall through as an untested pass.
+    {
+      const synthetic = {
+        suites: [{ specs: [
+          { title: "A", ok: true, tests: [{ results: [{ status: "passed" }] }] },
+          { title: "B", ok: false, tests: [{ results: [{ status: "failed", error: { message: "boom" } }] }] },
+        ] }],
+        errors: [],
+      };
+      const parsed = ui.parseReport(synthetic, [{ id: "A" }, { id: "B" }, { id: "C" }]);
+      const byId = Object.fromEntries(parsed.results.map((r) => [r.id, r]));
+      if (byId.A.pass && !byId.B.pass) ok("parseReport maps a passed spec to PASS and a failed one to FAIL");
+      else fail(`parseReport mis-mapped the report: ${JSON.stringify(parsed.results)}`);
+      if (!byId.C.pass && /NO EVIDENCE/.test(byId.C.evidence)) ok("parseReport FAILs a criterion the run produced no result for (no silent skip)");
+      else fail("parseReport let a criterion with no result through as anything but a NO EVIDENCE FAIL");
+      if (parsed.fails === 2) ok("parseReport counts exactly the two non-passing criteria");
+      else fail(`parseReport fails count = ${parsed.fails}, expected 2`);
+    }
+
+    // --- (2b) THE NEGATIVE CONTROL IS ACTUALLY BROKEN --------------------------------------
+    // A control that drifts into a copy of the correct fixture silently converts §(3) from a
+    // discrimination proof into a tautology, and both files would still be "present".
+    const goodPage = join(ROOT, "examples/ui-counter/server.mjs");
+    const badPage = join(ROOT, "examples/ui-counter/broken-server.mjs");
+    if (existsSync(goodPage) && existsSync(badPage)) {
+      const good = read(goodPage), bad = read(badPage);
+      if (!/data-testid="export"/.test(good) && /data-testid="export"/.test(bad))
+        ok("the ui negative control breaches the no-go the correct fixture honours (they have not converged)");
+      else fail("examples/ui-counter: the negative control no longer differs from the correct fixture on the no-go affordance");
+    }
+
+    // --- (3) THE RUNNER ITSELF ------------------------------------------------------------
+    // Branches on what this machine actually has, and BOTH branches assert something real. With a
+    // Playwright CLI reachable, the full §§9–11 discrimination: PASS the correct build, FAIL the
+    // broken one. Without one — the CI case, since this plugin has zero dependencies and installs
+    // no browser — the claim under test is the lazy-preflight rule: a `[ui]` criterion that cannot
+    // be verified is a FAIL naming the fix, never a skip and never an auto-install.
+    const cli = ui.resolveCli(ROOT);
+    if (cli) {
+      const good = await ui.runContract({ server: { ...uiContract.server, cwd: ROOT }, criteria: uiContract.criteria, browser: uiContract.browser, cwd: ROOT });
+      if (good.fails === 0) ok(`ui oracle PASSes the correct counter fixture (${good.results.length} criteria, via ${cli.source})`);
+      else fail(`ui oracle did not PASS its correct fixture (${good.fails} fail)\n${good.results.map((r) => r.id + ": " + r.evidence).join("\n")}`);
+
+      const broken = await ui.runContract({ server: { ...uiContract.server, cmd: "node examples/ui-counter/broken-server.mjs", cwd: ROOT }, criteria: uiContract.criteria, browser: uiContract.browser, cwd: ROOT });
+      if (broken.fails === broken.results.length && broken.results.length > 0) ok("ui oracle FAILs the broken counter fixture on every criterion (discriminates)");
+      else fail(`ui oracle did not FAIL the broken fixture (${broken.fails}/${broken.results.length}) — grader may be a rubber stamp`);
+    } else {
+      const noBrowser = await ui.runContract({ server: { ...uiContract.server, cwd: ROOT }, criteria: uiContract.criteria, cwd: ROOT });
+      if (noBrowser.fails === noBrowser.results.length) ok("with no Playwright CLI reachable, the ui oracle FAILs every criterion (absence of evidence = FAIL, never a skip)");
+      else fail(`ui oracle passed ${noBrowser.results.length - noBrowser.fails} criteria with no browser available — a [ui] AC was graded without a probe`);
+      if (noBrowser.results.every((r) => r.evidence.includes("playwright install chromium")))
+        ok("the no-browser FAIL names the fix (`npx playwright install chromium`), so the operator can act on it");
+      else fail("the no-browser FAIL does not name the install command — an unactionable verdict");
+      console.log("  (no Playwright CLI on this machine — the ui oracle's PASS/FAIL discrimination is unproven here; the preflight path above is)");
+    }
+  } else {
+    console.log("  (ui oracle/fixture not found — skipping)");
   }
 
 
