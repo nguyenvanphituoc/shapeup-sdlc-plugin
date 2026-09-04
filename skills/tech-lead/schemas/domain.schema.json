@@ -351,6 +351,7 @@
       "spec_folder",
       "eval_report",
       "app_url",
+      "device_target",
       "ledger",
       "kb_rules_path"
     ],
@@ -669,6 +670,21 @@
             "type": "string"
           },
           "description": "Env var names the command needs."
+        }
+      }
+    },
+    "DeviceTarget": {
+      "description": "The third form of QA reachability: an installed build on a booted device, beside a URL and an entry point. Both halves are facts about THIS machine at THIS moment — a build already installed on a simulator/emulator/handset — so neither is committed anywhere and neither is derivable from the spec tree; the order is the only place they can arrive. What the deliverable IS (archetype: mobile) comes from project-profile.md; this says which build, on which device. Absent = no device form was offered, which is an ordinary order: Q0 falls back to app_url or the entry point.",
+      "x-tier": "EMBEDDED",
+      "type": "object",
+      "properties": {
+        "binary": {
+          "type": "string",
+          "description": "Path to the build to drive (.app / .apk / .ipa), already built and already installed — the harness never builds, installs or signs one."
+        },
+        "device_id": {
+          "type": "string",
+          "description": "The booted device the build is installed on: an `xcrun simctl` UDID, an `adb` serial, a physical handset id."
         }
       }
     },
@@ -2318,6 +2334,10 @@
             "null"
           ],
           "description": "qa-edge-hunter: the running app to hunt (one real request at Q0, not a ping). NULL for a deliverable that is not served over HTTP — a CLI, a library, a batch job — where Q0 drives the binary instead. It was a bare string, so the first genuinely non-UI run could not compile a QA order at all: the payload carries null, the order fails its own schema, and the hunt is skipped for a reason that looks nothing like 'this deliverable has no URL'."
+        },
+        "device_target": {
+          "$ref": "#/$defs/DeviceTarget",
+          "description": "qa-edge-hunter: an installed build on a booted device — the third form GATE Q0's reachability check accepts. Absent, not null, when the deliverable offers no device form: unknown is an ABSENT key everywhere in this payload, and the orchestrator's compact step drops a null before it reaches an order."
         },
         "ledger": {
           "type": "string",

@@ -3,7 +3,7 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] — `ui` becomes a real oracle, and the Playwright plugin dependency is gone
+## [Unreleased] — `ui` becomes a real oracle, the Playwright plugin dependency is gone, and QA's preflight reaches a phone
 
 **`ui` was the DEFAULT oracle and the only one in the registry with no runner behind it.** A row
 or acceptance criterion that omits an `oracle:` tag is treated as `ui`, so the most-used grading
@@ -45,6 +45,25 @@ The browser stays a lazy dependency: a run with no `[ui]` criterion still comple
 with no browser, the check happens when the first `[ui]` criterion is actually graded, nothing is
 ever auto-installed (a grading run must not reach the network), and a criterion nobody could
 verify FAILs naming the fix rather than skipping.
+
+**GATE Q0's reachability check had no form a mobile deliverable could satisfy.** The hard check
+accepted one real request at `payload.app_url`, or one real invocation of the built entry point
+when that is null — and an installed build on a booted device is neither, so an order for a phone
+either stopped at the preflight or was answered by improvising past it. Q0 now accepts a third
+form, carried by a registered payload field: `device_target` (`{binary, device_id}`, defined once
+in `domain.schema.json` and absent rather than null when no device is offered — the compiled order
+validates, and a malformed one is refused through the `$ref` chain by name). It is satisfied the
+same way as the other two: one real exercise, never a ping — resolve one affordance the wiring map
+names, on that device.
+
+The driver is **resolved, never assumed**. `argent` else `maestro` on PATH, named in the Q0 output;
+neither resolving STOPs the device hunt with the install line, which is the shape a missing browser
+toolchain already gives a `[ui]` probe rather than a hunt that quietly degrades into reading source
+and narrating a repro it never ran. The harness installs no driver, builds no binary and boots no
+device — the same lazy-dependency rule the browser follows. Six per-lens mobile techniques
+(background/foreground mid-mutation, incoming call and process kill, app-switcher residue, deep
+links and exported activities) were already written into the skill; this is the order that lets it
+make those moves. The six lenses are unchanged, and QA still returns no verdict and no score.
 
 ## [3.1.0] — 2026-08-21 · new `hill-chart` skill, and the FINISHED phase it can now actually reach
 

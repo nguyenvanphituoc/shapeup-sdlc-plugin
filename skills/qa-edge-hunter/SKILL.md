@@ -3,7 +3,7 @@ name: qa-edge-hunter
 description: "Use this skill for the post-PASS exploratory QA pass — Shape Up's \"QA is for the edges\", made explicit for the harness. Triggers on: \"hunt edge cases\", \"QA pass on this feature\", \"exploratory test the running app\", \"edge hunt before ship\", \"run qa-edge-hunter\", \"the evaluator passed — what did it miss?\". tech-lead invokes it after the run's first PASS at GATE L3, before SHIP; it also runs standalone given a spec folder, a PASS EVAL report, and a running app, or on a tech-lead --order dispatch. It charters edges OUTSIDE what the evaluator probed and hunts them through six fixed lenses. NOT for checking AC (spec-evaluator), deriving test cases (ba), or fixing bugs (task-executor)."
 ---
 
-# QA Edge Hunter — the post-PASS edge pass (v1.1)
+# QA Edge Hunter — the post-PASS edge pass
 
 Shape Up, Ch. 13: QA comes in **toward the end**, hunts **edge cases outside the core**,
 and its issues are **nice-to-haves by default** that the team triages. This skill is that
@@ -39,11 +39,13 @@ tech-lead: ... GATE L2 → EVAL → GATE L3 PASS ──► QA EDGE HUNT (you) �
 
 Pure worker (harness rule: stateless workers, one stateful orchestrator). Its WorkOrder
 carries `payload.feature`, `payload.spec_folder`, `payload.eval_report`, `payload.app_url`,
-`payload.kb_rules_path`, and `payload.ledger` (the discovery ledger, READ-ONLY — covered-territory
-context so a hunt does not re-report what is already known). **`app_url` is null when the
-deliverable is not served over HTTP** — a CLI, a library, a batch job. That is a normal order, not a
-malformed one: drive the built entry point instead, exactly as the Test Surface's process rows do.
-Do not refuse the hunt, and do not invent a URL. Its write surface is
+`payload.device_target`, `payload.kb_rules_path`, and `payload.ledger` (the discovery ledger,
+READ-ONLY — covered-territory context so a hunt does not re-report what is already known).
+**`app_url` is null when the deliverable is not served over HTTP** — a CLI, a library, a batch job,
+a phone. That is a normal order, not a malformed one: drive the built entry point instead, exactly
+as the Test Surface's process rows do. **`device_target` is `{binary, device_id}`** — an installed
+build on a booted device, absent unless the order offers one. Do not refuse the hunt, do not invent
+a URL, and do not invent a device. Its write surface is
 `.shapeup/<feature>/qa/**` only. The Hunter never touches the discovery ledger itself —
 ingest appends its `discoveries[]` under a `## Discovered` section, preserving single-writer
 mechanically.
@@ -53,8 +55,9 @@ mechanically.
 ## Workflow
 
 ```
-⏸ GATE Q0 │ Preflight ────► hard: deliverable reachable (one real request at `app_url`, or one
-          │                 real invocation of the entry point when it is null)? EVAL PASS? ledger?
+⏸ GATE Q0 │ Preflight ────► hard: deliverable reachable (one real request at `app_url`, one real
+          │                 invocation of the entry point, or one real probe of the installed build
+          │                 on `device_target`)? EVAL PASS? ledger?
           │                 soft: Test Surface present? absent → DEGRADED MODE offer
 Phase Q1  │ Charter Map ──► 6 lenses × UC tree − covered territory (EVAL-probed rows/AC)
 ⏸ GATE Q1 │ Charter Review► PO/TL hammer the charter list (QA's own appetite is fixed too)
@@ -68,10 +71,22 @@ Phase Q3  │ Report ───────► qa/hunt-report.md — no score, no
 
 ```
 HARD (any miss → STOP, report which):
-  ✅ app reachable at the given URL (one real request, not a ping)
+  ✅ deliverable reachable — ONE real exercise, never a ping, in whichever form the order offers:
+       `app_url` present    → one real request against it
+       `device_target`      → one real probe of the installed build: resolve ONE affordance the
+                              wiring map names, on `device_id`, through the driver preflight below
+       neither              → one real invocation of the built entry point (CLI, library, batch job)
   ✅ EVAL-FEATURE-<slug>.md exists with verdict: PASS
   ✅ if discovery/ledger.md exists: ledger.feature == <feature> (read-only context check —
      a missing ledger is fine; ingest creates it when your findings land)
+DRIVER PREFLIGHT (device form only — resolve it, never assume it):
+  ✅ a driver CLI resolves on PATH: `argent`, else `maestro`. Name the resolved one in the output.
+     Neither → STOP with the fix line, the same shape a missing browser toolchain gives a `ui` probe:
+       "NO DRIVER — no mobile driver CLI resolves on PATH; install one in the project under test
+        (argent or maestro) and re-run the hunt."
+  The harness never installs a driver, never builds the binary and never boots the device. A missing
+  driver STOPS the device hunt — it never degrades into reading source or narrating a repro, because
+  a finding without a live repro is not a finding here.
 SOFT:
   ⚠️ any usecases/UC-*.md has `## Test Surface`?
      NO → DEGRADED MODE:
@@ -89,7 +104,8 @@ from charters and listed in the report, never silently skipped.
 **Output:**
 ```
 ⏸ GATE Q0 — Preflight
-App       : [url] ✅ reachable
+App       : [url | entry point | binary @ device_id] ✅ reachable ([how it was exercised])
+Driver    : [argent | maestro — resolved | n/a, not a device hunt]
 EVAL      : EVAL-FEATURE-[slug].md — PASS (dims: [...])
 Ledger    : [✅ feature match | absent — ingest will create it]
 Surface   : [present | ABSENT → degraded mode]
@@ -216,6 +232,7 @@ in ways a spec author wouldn't think to write down.
   the stated limit and size+1 byte above it
 - API: send the field missing entirely vs. `null` vs. `""` — three different cases even
   if the UI treats them the same
+- **Mobile**: paste-bombs into native inputs, large images from camera roll, extreme font scaling/accessibility text sizes.
 
 **② Concurrency** — same action, twice, at once
 - Open two tabs or two browsers sharing the same session; navigate both to the same
@@ -225,6 +242,7 @@ in ways a spec author wouldn't think to write down.
   return — was state lost, duplicated, or correctly reconciled?
 - Two different roles editing the same aggregate simultaneously — last-write-wins vs.
   conflict detection
+- **Mobile**: Background/foreground the app mid-mutation (e.g. during a save or fetch).
 
 **③ State interruption** — break the flow mid-stride
 - Browser Back after submitting step N of a multi-step wizard; then Forward again —
@@ -236,6 +254,7 @@ in ways a spec author wouldn't think to write down.
 - Session expiry mid-form: delete the session cookie (DevTools → Application →
   Cookies → Delete) then attempt to submit — graceful redirect or silent failure?
 - Tab sleep: leave the tab idle for 10–15 minutes, return, and try a mutation
+- **Mobile**: Incoming call overlay, process kill (swipe away), or device rotation mid-form.
 
 **④ Cross-UC journey** — chain UCs end-to-end
 - Create → Edit → Delete → Re-create the same entity with the same name/ID — does
@@ -244,6 +263,7 @@ in ways a spec author wouldn't think to write down.
   does UC-B's display truncate, wrap, or break layout?
 - Partial completion of UC-A → switch to UC-B → return to UC-A — is the partial state
   saved, cleared, or corrupted?
+- **Mobile**: Navigate deep into a hierarchy, switch tabs in the bottom nav, then return—is the navigation stack preserved?
 
 **⑤ No-go probing** — is the excluded path truly absent?
 - Direct URL: type a protected route into the address bar while unauthenticated or as a
@@ -254,6 +274,7 @@ in ways a spec author wouldn't think to write down.
   `element.style.display = 'block'` in the console, submit — does the server validate
   server-side?
 - Path traversal in URL params (`../`, `%2F..`) for file/export endpoints
+- **Mobile**: Trigger deep links to restricted screens, or launch exported Android activities directly.
 
 **⑥ Data residue** — what survives that shouldn't?
 - Delete an entity, then navigate to its detail URL via browser history — 404, redirect,
@@ -264,6 +285,7 @@ in ways a spec author wouldn't think to write down.
   is sensitive data cleared?
 - Re-download a previously generated export URL after the source data was deleted —
   does the export still serve the old data?
+- **Mobile**: Check app-switcher snapshot for sensitive data, or inspect local app data after logout.
 
 ---
 

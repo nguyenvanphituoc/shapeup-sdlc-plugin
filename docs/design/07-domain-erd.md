@@ -325,7 +325,7 @@ Which `WorkOrderPayload` fields each worker may rely on — anything absent from
 | solution-architect | `feature`, `spec_folder`, `project_profile` |
 | spec-evaluator | `spec_folder`, `feature`, `dimensions`, `run_cmd`, `t0_artifacts`, `browser`, `tasks` |
 | orient | `pitch`, `stack`, `spec_folder`, `feature` |
-| qa-edge-hunter | `feature`, `spec_folder`, `eval_report`, `app_url`, `ledger`, `kb_rules_path` |
+| qa-edge-hunter | `feature`, `spec_folder`, `eval_report`, `app_url`, `device_target`, `ledger`, `kb_rules_path` |
 | translator | `intake`, `glossary` |
 | scope-hammer | `feature`, `baseline`, `breaker`, `scope_id` |
 | coach | `feedback` |
