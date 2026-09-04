@@ -84,21 +84,29 @@ interface [UseCaseName]Output {
 
 <!--
   DERIVED section — generated mechanically from Invariants (D1) + Error Cases (D2) +
-  Contract/Input shape (D3) + pitch No-gos touching this UC (D4).
+  Contract/Input shape (D3) + pitch No-gos touching this UC (D4) + the wiring map's
+  affordance for this UC (D5).
   Rules → references/test-surface.md. Never hand-author rows; never invent behaviors.
   Regenerable via a retrofit-surface order. Appended-to (TS-INV rows) by the reconcile operation when
   a new invariant lands. Exploratory/edge tests do NOT live here (qa-edge-hunter owns those).
-  If all four sources are empty, replace the table with:
+  If all five sources are empty, replace the table with:
   _No derivable surface — sources empty. Exploratory coverage only (see qa-edge-hunter)._
   Oracle = how the evaluator verifies the row (ui|process|test|snapshot|http); default ui.
-  Non-ui when this UC's deliverable has no browser (CLI/library/service). See references/test-surface.md.
+  Chosen from WHERE THE BEHAVIOUR IS DECIDED, not from what the user touches: D1/D2/D3 are
+  decided below the UI, so they take this deliverable's non-ui runner (http for a service,
+  process for a CLI, test for a library) — you do not drive a screen to prove a field is
+  rejected. D4 takes both; D5 is the one arm that is ui by nature.
+  D5 needs wiring-map.md, which is written AFTER this operation runs (GATE L1a.5) — so on a
+  fresh spec the TS-REACH row is absent, and a retrofit-surface order appends it later. Absent
+  map = skipped arm, never an invented row. See references/test-surface.md.
 -->
 | ID | Oracle | Probe | Expect | Source |
 |---|---|---|---|---|
-| TS-INV-01 | ui | [action that would violate INV-01] | [rejection + state unchanged] | D1: INV-01 |
+| TS-INV-01 | http | [action that would violate INV-01] | [rejection + state unchanged] | D1: INV-01 |
 | TS-ERR-[CODE] | http | [trigger the Condition] | [error code + HTTP status] | D2 |
 | TS-REQ-[field]-missing | http | [omit required field] | [400 validation, no side effect] | D3 |
 | TS-NOGO-[NN] | ui | [attempt the excluded behavior] | [blocked/absent] | D4 |
+| TS-REACH-[UC-NN] | ui | [drive this UC's entry affordance, per the wiring map] | [this UC's own exit is reached] | D5: [UC-NN] |
 
 ## Integration Points
 - → [[integration#[service-section]]] — [what flows out]

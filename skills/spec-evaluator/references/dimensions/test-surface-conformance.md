@@ -47,8 +47,10 @@ reported as a finding and routed back to the planner's retrofit-surface operatio
   probe: ui
   evidence_required: true
   pass_rule: >
-    For each TS-* row across usecases/: execute the Probe via the handler its phrasing
-    implies (API/data probes → cmd/data; screen-level → ui) and compare observed behavior
+    For each TS-* row across usecases/: execute the Probe via the row's own `Oracle` tag — the
+    dispatch key, and the planner sets it from where the behaviour is decided — falling back to the
+    handler its phrasing implies only when the column is absent (API/data probes → cmd/data;
+    screen-level → ui). Compare observed behavior
     to Expect. Side-effect clauses ("no side effect", "state unchanged") MUST be verified
     by a data probe, not assumed from the response code. Zero failing rows → PASS. Any
     failing row → FAIL at `critical` (a derived case the spec itself implies is broken).
@@ -57,12 +59,17 @@ reported as a finding and routed back to the planner's retrofit-surface operatio
   source: code
 
 - id: TSC-2
-  statement: "The Test Surface is internally complete against its own sources: every [INV-NN] has a TS-INV-NN row; every Error Cases code has a TS-ERR-* row; rows cite D1–D4."
+  statement: "The Test Surface is internally complete against its own sources: every [INV-NN] has a TS-INV-NN row; every Error Cases code has a TS-ERR-* row; every wired use case has a TS-REACH-<UC> row; rows cite D1–D5."
   probe: static
   evidence_required: true
   pass_rule: >
     Cross-check each UC: Invariants ↔ TS-INV rows, Error Cases codes ↔ TS-ERR rows, and
-    every row's Source cites D1–D4. A UC with `## Test Surface` whose own sources are
+    every row's Source cites D1–D5 — **D5 is a source like any other, and a row citing it is
+    correct, not malformed**. Reachability is checked only when `wiring-map.md` exists: then every
+    UC whose `affordance` cell is populated needs one `TS-REACH-<UC>` row. No wiring map ⇒ that
+    arm is SKIPPED, never a finding — an absent artifact disarms its own check rather than
+    manufacturing a FAIL against a planner that could not have derived the rows.
+    A UC with `## Test Surface` whose own sources are
     uncovered → FAIL at `major` with `next: retrofit-surface order (ba)` (judge surfaces the gap;
     generator fills it — this dimension NEVER authors rows). A UC carrying the explicit
     empty-sources line passes TSC-2 vacuously. A v2.9+ spec UC with NO `## Test Surface`

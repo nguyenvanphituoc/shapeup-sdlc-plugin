@@ -3,7 +3,7 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] — `ui` becomes a real oracle, the Playwright plugin dependency is gone, and QA's preflight reaches a phone
+## [Unreleased] — `ui` becomes a real oracle, the oracle is picked by decision site, and QA's preflight reaches a phone
 
 **`ui` was the DEFAULT oracle and the only one in the registry with no runner behind it.** A row
 or acceptance criterion that omits an `oracle:` tag is treated as `ui`, so the most-used grading
@@ -64,6 +64,47 @@ device — the same lazy-dependency rule the browser follows. Six per-lens mobil
 (background/foreground mid-mutation, incoming call and process kill, app-switcher residue, deep
 links and exported activities) were already written into the skill; this is the order that lets it
 make those moves. The six lenses are unchanged, and QA still returns no verdict and no score.
+
+**The derivation rule routed API validation through a browser.** "Pick the oracle from the
+deliverable type" sent *every* derived row on a UI deliverable to `ui` — which is also the default
+when the tag is absent — including D3's missing-field, type-violation and boundary rows. Those are
+decided at API validation, not at the screen: you do not drive a form to prove `amount: -1` is
+rejected. The rule is now **pick from where the behaviour is decided, not from what the user
+touches**, resolved in two steps — which layer decides this (D1/D2/D3 below the UI, D4 both
+surfaces, D5 the wiring), then which runner reaches that layer for *this* deliverable. The second
+step is not decoration: a CLI has no endpoint, so its validation rows are `process`, and a rule
+that said "D3 → `http` always" would be wrong for half the archetypes this harness grades. The web
+contract improves too — those rows were slower and flakier through a browser than through `fetch`.
+
+**New derivation source D5 — reachability.** D1–D4 derive from invariants, error tables, contract
+shapes and no-gos, and none of them can express *the user can actually get here*. Grade a use case
+by outcome alone and a Pay button wired to nothing passes, while the payment engine works correctly
+and is exercised by some other path: the orphaned engine, which is the most common shape of
+machine-written code and the defect the wiring map exists to prevent. `harness verify trace` already
+catches half of it statically at L1b; D5 is the runtime half — one `TS-REACH-<UC>` row per use case
+driving the entry affordance the map names. Its source is written by `solution-architect` at GATE
+L1a.5, *after* the analyze operation that derives the surface, so D5 is not derivable at Phase 4: a
+`retrofit-surface` order appends the rows once the map exists, and no wiring map means the arm is
+SKIPPED, never emitted empty. A D5 row asserts reachability and stops there — a row carries one
+`Oracle`, so "drive the affordance, assert the outcome elsewhere" is not yet expressible and must
+not be written; the outcome half is already covered by that UC's own D1–D3 rows.
+
+**The registry↔prose parity check walked one direction, and that is how two phantom oracles passed
+a green suite.** It asserted that every *registered* oracle appears in the two shipped tables, and
+nothing asserted the reverse — so a table could name a dispatch key with no runner behind it and
+the suite stayed green. The first thing to meet such a tag is `runOracle` at grading time, which
+*throws*: a row so tagged is not merely ungraded, it produces no `{id, pass, evidence}` artifact at
+all, so it is invisible to the T0 ratchet and unreplayable by the seesaw — the one outcome this
+harness never permits anywhere else, where a missing tool is a `NO EVIDENCE` row naming its fix.
+The check is now bidirectional, scoped to each file's `oracle` table (not the whole file, because
+`probing.md` also lists *probe types* — `cmd`, `data`, `static` — which describe how evidence is
+gathered, not which runner is dispatched), fails rather than passing when that table is missing,
+and ships a negative control proving it names both phantoms. Verified red before green: a table
+carrying `mobile` and `data` is rejected by name. Neither tag is written anywhere in the shipped
+prose — the rule is that the runner and the row land in the same change, or neither.
+
+`test-surface-conformance` was amended in the same pass: TSC-2 demanded every row cite `D1–D4`, so
+a correct reachability row read as malformed to the only judge that grades it.
 
 ## [3.1.0] — 2026-08-21 · new `hill-chart` skill, and the FINISHED phase it can now actually reach
 

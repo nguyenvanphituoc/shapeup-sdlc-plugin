@@ -127,6 +127,57 @@ export async function run(ctx) {
     }
   }
 
+  // AND THE OTHER DIRECTION, which is the one that was missing.
+  //
+  // The loop above walks registry → prose: an oracle with a runner and no documentation is caught.
+  // Prose → registry was checked by nothing, so a table could name a dispatch key that has no
+  // runner and the suite stayed green — and the first thing to meet the phantom tag is `runOracle`
+  // at grading time, which THROWS on an unknown name. That is the one outcome this harness never
+  // permits anywhere else: a missing tool is a `NO EVIDENCE` row naming its fix, never an
+  // exception. A row so tagged is worse than ungraded — it produces no {id, pass, evidence}
+  // artifact at all, so it is invisible to the T0 ratchet and unreplayable by the seesaw.
+  //
+  // Scope is the ORACLE TABLE, not the whole file, and deliberately: `probing.md` also carries a
+  // "By probe type" list (`cmd`, `data`, `static`) which describes HOW evidence is gathered, not
+  // which runner is dispatched. Those are not claims that a runner exists; the table's first
+  // column is. Reading the table also makes the check non-vacuous by construction — a file whose
+  // table is gone fails rather than passing with nothing to compare.
+  /**
+   * The oracle tags a prose file CLAIMS: the first cell of every row in its `oracle` table.
+   * @param {string} md - The file's text.
+   * @returns {string[]|null} Claimed names, or null when the file carries no such table.
+   */
+  const claimedOracles = (md) => {
+    const lines = md.split("\n");
+    const head = lines.findIndex((l) => /^\|\s*`oracle`\s*\|/.test(l));
+    if (head === -1) return null;
+    const out = [];
+    for (const line of lines.slice(head + 2)) {
+      if (!line.trimStart().startsWith("|")) break;
+      const cell = line.split("|")[1] || "";
+      const m = cell.match(/`([^`]+)`/);
+      if (m) out.push(m[1]);
+    }
+    return out;
+  };
+  for (const rel of ORACLE_PROSE) {
+    const abs = join(ROOT, rel);
+    if (!existsSync(abs)) continue;               // already failed above
+    const claimed = claimedOracles(read(abs));
+    if (claimed === null) { fail(`${rel} carries no \`oracle\` table — the prose→registry check has nothing to compare, which reads identical to agreement`); continue; }
+    const phantom = claimed.filter((n) => !ORACLE_NAMES.includes(n));
+    if (phantom.length === 0) ok(`${rel} claims ${claimed.length} oracles, all registered`);
+    else fail(`${rel} names ${phantom.map((n) => `"${n}"`).join(", ")} in its oracle table, and ${phantom.length === 1 ? "it is" : "they are"} not in oracles/index.mjs — a row tagged that way raises at grading time instead of failing, so it yields no artifact for the ratchet to cite. Land the runner and the row in the same change, or neither.`);
+  }
+  // Negative control: the extractor must actually catch a phantom, or the two `ok`s above are a
+  // rubber stamp — the same reason every oracle below ships one.
+  const control = ["| `oracle` | When the deliverable is… | Evidence |", "|---|---|---|",
+    "| `ui` *(default)* | a running web app | affordances |", "| `mobile` | a running mobile app | semantics |",
+    "| `data` | persistence / state | queried rows |", ""].join("\n");
+  const caught = (claimedOracles(control) || []).filter((n) => !ORACLE_NAMES.includes(n));
+  if (caught.join(",") === "mobile,data") ok("the prose→registry check discriminates: it names both phantom tags in a control table and passes the registered one");
+  else fail(`the prose→registry check does not discriminate — a control table naming "mobile" and "data" yielded [${caught}]`);
+
 
   // =============================================================================
   section("9. `test` oracle PASSes its green fixture and FAILs a red suite (discriminates)");

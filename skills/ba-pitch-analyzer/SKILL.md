@@ -107,7 +107,7 @@ second path to green.
 
 | Excuse | Reality |
 |---|---|
-| "This test idea is obviously worth a row" | No D1–D4 source = no row. Raise it as a spec gap; inventing rows is how the judge ends up grading fiction. |
+| "This test idea is obviously worth a row" | No D1–D5 source = no row. Raise it as a spec gap; inventing rows is how the judge ends up grading fiction. |
 | "The discovered item obviously fits UC-03" | Run the actor/action match. 'Obviously' is how UCs silently widen — no match → ESCALATE. |
 | "I'll fix the UC steps while reconciling" | Steps are frozen in your substrate. A step change is re-shaping — the PO's call, not yours. |
 | "My output looks complete, score it 92" | You don't grade yourself. spec-lint reports facts; the judge judges. |
@@ -152,7 +152,7 @@ status flips for built work (ingest's job), scope contracts (scope-architect's),
 - [ ] Every task has `use_case_refs`, explicit `depends_on`, command-verifiable AC
 - [ ] No hand-authored `unlocks`; board-derive ran `--write` after the last board change
 - [ ] spec-lint reports 0 red (or each remaining red is explained in `deviations[]`)
-- [ ] Test Surface rows all cite a D1–D4 source; gaps raised, not filled
+- [ ] Test Surface rows all cite a D1–D5 source; gaps raised, not filled (D5 only when a wiring map exists — no map, no reachability rows, and that is the skip, not a gap)
 - [ ] Appetite overflow (if any) reported as a discovery, not self-resolved
 - [ ] The WorkResult validates against `work-result.schema.json`
 

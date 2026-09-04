@@ -28,7 +28,7 @@ Betting Table: PO decides; rejected pitches loop back to raw idea.
 |------|------|--------|
 | Kick-off | ⏸ **L0** — Intake & Config (L0.8 model/budget matrix) + worker roster ✧ | `/translator` if non-English |
 | Orient (Scout) | ⏸ **L1a** — Orient Review | `/orient` |
-| Analyze | — (reviewed at L1b) | `/ba-pitch-analyzer` (`analyze`): spec tree + board (UC + Invariants + Test Surface ★); before Wire (needs its use cases) |
+| Analyze | — (reviewed at L1b) | `/ba-pitch-analyzer` (`analyze`): spec tree + board (UC + Invariants + Test Surface ★); before Wire (needs its use cases) — so the surface's **reachability** rows, which derive from the wiring map, are not derivable here: a `retrofit-surface` order appends them after L1a.5, and no wiring map means the arm is skipped, never guessed |
 | Wire | ⏸ **L1a.5** — Wiring Review ✚ | `/solution-architect` (`wire`): sole writer of committed `wiring-map.md` — per-UC engine → seam → entry-point call site → affordance, per `project-profile.md` |
 | Map Scopes | ⏸ **L1b** — Board Review (+ substrate disjointness lint) | `/scope-architect` (scope contracts ✦ — sole writer); traceability oracle advisory ✚ |
 | Build Vertically | ⏸ **L2** — Board 100% ✅ + T0-green ✦ | per dispatch: compile order → `/task-executor` (--order) → ingest result; T0-verified per attempt (fixtures + DB probe + seesaw ✦), substrate-sandboxed ✦. Scopes build **concurrently** ✦ — `--parallel-scopes N` caps it (default 4), a scope is released the moment its own dependencies are green, and a scope green in this round is skipped rather than rebuilt |
