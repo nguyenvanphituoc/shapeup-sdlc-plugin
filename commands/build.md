@@ -21,7 +21,7 @@ it belongs to the orchestrator:
 
 ```
 Workflow({
-  scriptPath: "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js",
+  scriptPath: ".shapeup/workflows/shapeup-run.js",
   args: <the RunArgs object>
 })
 ```

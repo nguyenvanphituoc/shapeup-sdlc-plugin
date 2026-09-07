@@ -85,20 +85,20 @@ export async function run(ctx) {
     fail("a named shapeup-run launch is invisible to the gate");
   }
 
-  // --- (a2) the SECOND surface: the Bash launch HD-007 made the shipped front door -------------
+  // --- (a2) the SECOND surface: the orchestrator's own script, run from a shell ----------------
   //
-  // WHY THIS EXISTS. `Workflow({scriptPath})` cannot be granted and is denied in every headless
-  // session, so `SKILL.md` Step 2 now launches the same script through
-  // `node "…/kernel/harness.mjs" run "…/workflows/shapeup-run.js"`. A gate that knew only the
-  // tool spelling would be blind on the lane users actually run — the same hole the arm above was
-  // written to close, one surface over, and the reason this check is here the same day the launch
-  // moved rather than the day somebody notices.
+  // WHY THIS EXISTS. The shipped front door is the Workflow tool — but it has not always been. For
+  // one release `SKILL.md` Step 2 launched the same script through
+  // `node "…/kernel/harness.mjs" run "…/workflows/shapeup-run.js"`, while the tool form could not
+  // be granted headlessly. A gate that knows only the tool spelling goes blind the moment the
+  // launcher moves — the same hole the arm above was written to close, one surface over — and is
+  // blind meanwhile to anyone running the script by hand. Both spellings arm it.
   const LAUNCHER = '${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs';
   const BASH_LAUNCH = `node "${LAUNCHER}" run "${RUN_SCRIPT}" --args-file .shapeup/x/run-args.json`;
   if (dispatchedOrchestrator([toolUse("Bash", { command: BASH_LAUNCH })])) {
     ok("the Bash launch (harness run …/shapeup-run.js) counts as dispatching the orchestrator");
   } else {
-    fail("SKILL.md's shipped launch is invisible to the gate — the post-HD-007 lane has no zero-work detector");
+    fail("running the orchestrator's script from a shell is invisible to the gate — that lane has no zero-work detector");
   }
 
   // Both halves are required, and each negative below is a way the predicate could go wrong.

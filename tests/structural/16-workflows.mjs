@@ -82,12 +82,15 @@ export async function run(ctx) {
   // there (the same class inverted, which is what deleting the wrong file would produce).
   //
   // ⟐ TWO LAUNCH SPELLINGS ARE RECOGNISED, and the second one is why this check nearly went the
-  // wrong way. HD-007's fix moved SKILL.md's front door from `Workflow({scriptPath})` to a Bash
-  // call — `node "…/kernel/harness.mjs" run "…/workflows/shapeup-run.js"` — because the tool form
-  // cannot be granted headlessly. Against the old `scriptPath:`-only regex that lands as
+  // wrong way. For one release the front door moved off `Workflow({scriptPath})` and onto a Bash
+  // call — `node "…/kernel/harness.mjs" run "…/workflows/shapeup-run.js"` — while the tool form
+  // could not be granted headlessly. Against the old `scriptPath:`-only regex that landed as
   // "launches no workflow script at all: the dispatch surface is gone", i.e. the instrument
-  // reporting a deletion at the moment the launcher moved. The INVARIANT is reachability, not a
-  // spelling, so both spellings count and the failure modes below still fail in both directions.
+  // reporting a deletion at the moment the launcher moved. The tool is the front door again, now
+  // naming the project-local copy `init run` stages — being GRANTED the tool and being allowed to
+  // READ the script are two different gates, and only the first was ever the reason it moved. The
+  // INVARIANT is reachability, not a spelling, so both count and the failures below still fail in
+  // both directions.
   const SKILL_MD = "skills/tech-lead/SKILL.md";
   const skillSrc = existsSync(join(ROOT, SKILL_MD)) ? readFileSync(join(ROOT, SKILL_MD), "utf8") : "";
   const launched = new Set([

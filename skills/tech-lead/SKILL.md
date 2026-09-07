@@ -68,11 +68,11 @@ check the lane:
   `.shapeup/<slug>/run-args.json` before launching**, fresh on every launch and relaunch: the flags
   reach the workflow as a value in memory, so it is the run's only evidence of what it was launched
   with, and a run that cannot state its own configuration cannot have a claim about it checked.
-  Then launch the run script with the **`Workflow` tool**:
+  Then launch with the **`Workflow` tool** — naming `init run`'s staged copy, never the install path:
 
 ```
 Workflow({
-  scriptPath: "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js",
+  scriptPath: ".shapeup/workflows/shapeup-run.js",
   args: <the RunArgs object>
 })
 ```
@@ -90,6 +90,12 @@ not only this one — so an install may decline it with `--no-native-workflow`, 
 launch prompts for approval once per session and the unattended lane is unavailable. If the launch
 comes back "requires approval" in a headless session, stop and say so — do not hand-build the
 feature instead.
+
+**Why a project-local `scriptPath`.** The tool loads a script only from a directory the session may
+already read, and the plugin installs outside your project, so the shipped path is refused before the
+run begins — no permission rule repairs it. `init run` re-copies the scripts to `.shapeup/workflows/`
+on every open, never on a relaunch, so a run finishes on the orchestrator it started with. If staging
+failed, launch from the install path and have the operator `/add-dir` the plugin directory.
 
 ## Step 3 — the pause protocol: branch on `RunReturn.status`
 

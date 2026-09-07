@@ -122,13 +122,44 @@ export async function run(ctx) {
       fail("--force deleted the abandoned order file — the dispatch record is lost, not just resolved");
     }
 
+    // `--force` also retires the pointer the abandoned run left behind. It named a run that is
+    // being forced over, so leaving it is a claim on disk that stopped being true.
+    if (!existsSync(join(ws, ".shapeup/active-order"))) {
+      ok("--force retires the run pointer the abandoned run left behind");
+    } else {
+      fail("--force left `.shapeup/active-order` naming the run it just forced over");
+    }
+
     // (b) After --force: the exact same hook, same fixture, same probe path — but the abandoned
     // order is no longer counted live.
+    //
+    // RE-ARM FIRST, and the reason is exactly the failure mode this module exists for. `--force`
+    // resolves every unanswered order and retires the pointer, so a just-forced checkout has
+    // NOTHING live to enforce — which is correct, and which makes the guard defer on every path.
+    // Probing in that state would report "cleared" whatever `liveOrders()` did: a check that cannot
+    // fail. So publish what the next dispatch publishes — one fresh order, and the pointer beside
+    // it — and ask again. `src/parse/**` is inside no live substrate now, so a deny here means legA
+    // really did stop counting, rather than that the guard stopped looking.
+    const nextPath = w(ws, `.shapeup/${SLUG}/orders/legD.json`, {
+      schema_version: 1, order_id: `${SLUG}/legD`, worker: "task-executor", operation: "execute",
+      compiled_at: new Date().toISOString(),
+      substrate: { allowed: ["src/other/**"] },
+    });
+    w(ws, ".shapeup/active-order", { slug: SLUG, order_path: nextPath });
+
     const after = ask(probePath);
     if (after.denied) {
       ok("sandbox-guard's liveOrders() no longer counts the order live after --force — the wedge is cleared");
     } else {
       fail(`the order is still live after --force — --force did not actually unwedge it\n${after.out}`);
+    }
+
+    // And the re-armed order is genuinely enforcing, not merely present: its own substrate is open.
+    const armed = ask(join(ws, "src/other/thing.js"));
+    if (!armed.denied) {
+      ok("the re-armed order's own substrate is honoured — the probe above ran against a live guard");
+    } else {
+      fail(`the re-armed order did not authorise its own substrate — the deny above proves nothing\n${armed.out}`);
     }
   } finally {
     rmSync(ws, { recursive: true, force: true });

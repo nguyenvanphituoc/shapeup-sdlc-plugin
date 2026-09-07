@@ -13,14 +13,34 @@
 // and the contract the hook enforces the same object, for every operation, with no per-operation
 // code here.
 //
-// IT READS EVERY LIVE ORDER, NOT A POINTER TO ONE. `.shapeup/active-order` still names the run and
-// seeds the search — `harness compile` publishes it as it writes each order, which is what fences
-// the lanes that never reach the workflow (`--tiny`, the prose round loop, a standalone `/build`).
-// But a single pointer cannot survive concurrency: with scopes building side by side the last
-// compile wins the pointer, and a write from scope A is then judged against scope B's contract —
-// a false block or a false permit depending on which way the race fell. So the candidate set is
-// every order under `orders/` with no matching file under `results/` (compiled, not yet ingested),
-// and a write is permitted when SOME live contract covers it.
+// IT READS EVERY LIVE ORDER, NOT A POINTER TO ONE. `.shapeup/active-order` names the run and
+// nothing more — `harness compile` publishes it as it writes each order, which is what fences the
+// lanes that never reach the workflow (`--tiny`, the prose round loop, a standalone `/build`).
+// A single pointer cannot survive concurrency: with scopes building side by side the last compile
+// wins the pointer, and a write from scope A would be judged against scope B's contract — a false
+// block or a false permit depending on which way the race fell. So the candidate set is every
+// order under `orders/` that is not yet ANSWERED, and a write is permitted when SOME live contract
+// covers it.
+//
+// THE POINTER IS NOT A LIVENESS SIGNAL, and it used to be one: the order it names was counted live
+// unconditionally, "so the single-order lane behaves as it did before concurrency existed". The arm
+// bought nothing — an order that is genuinely in flight has no result yet and is already live by
+// the rule below — and it cost the checkout permanently. The pointer has one writer and no eraser,
+// so the LAST dispatch of a FINISHED run stayed live for good and fenced everything to that one
+// substrate: after a ship, an ordinary edit anywhere in the repo was denied, and the next feature
+// could not write even its own run trace, because the carve-out below is keyed to the slug the
+// stale pointer names. The documented fail-open state ("no pointer — not inside a dispatch") became
+// unreachable after the first run, and the only way out was to delete a file nothing documents.
+// The arm is gone; `reduce ship` and ``harness init run --force`` retire the pointer as well, so a
+// leftover one is untidy rather than load-bearing.
+//
+// ANSWERED IS A COMPARISON, NOT A PRESENCE TEST, and the difference is a hole the removal above
+// would otherwise open. Order filenames for the run-level operations carry no round (`hammer.json`,
+// `wire.json`, `analyze.json`), so re-dispatching one inside the same run rewrites the order beside
+// the PREVIOUS dispatch's result — and a presence test reads that as finished and runs the new
+// dispatch unfenced. An order counts as answered only when its result file is at least as new as
+// the order's own `compiled_at`, the stamp the compiler writes INTO the order, which a copy or a
+// touch cannot perturb. An order carrying no stamp falls back to presence, which is all it ever had.
 //
 // That is the same question as "the writer's own contract" because scope substrates are disjoint by
 // construction — `harness verify spec`'s DISJOINT rule fails a spec where two scopes claim the same
@@ -50,10 +70,10 @@
 // Contract: PreToolUse stdin JSON { tool_name, tool_input:{file_path | edits[].file_path}, cwd }.
 // Deny via { hookSpecificOutput: { hookEventName, permissionDecision:"deny", permissionDecisionReason } }.
 
-import { readFileSync, existsSync, appendFileSync, mkdirSync, readdirSync } from "node:fs";
+import { readFileSync, existsSync, appendFileSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { resolve, join, relative, dirname, sep } from "node:path";
 import { isMain } from "../kernel/lib/argv.mjs";
-import { LOCAL, activeOrder, ordersDir, resultsDir, metricsShard } from "../kernel/lib/paths.mjs";
+import { LOCAL, SHARED, activeOrder, ordersDir, resultsDir, metricsShard } from "../kernel/lib/paths.mjs";
 import { runHook, readStdin, settle } from "./lib/decision.mjs";
 
 // --- tiny glob matcher: supports *, **, ? — enough for substrate globs, zero dependencies ---
@@ -89,28 +109,48 @@ function readJSON(p) {
 }
 
 /**
- * Every order for this run that has been compiled and not yet ingested.
+ * Has this order been answered — i.e. has a result for THIS dispatch landed?
  *
- * "Not yet ingested" is read off the filesystem — an order with a same-named file under `results/`
- * has finished — because that is the only signal that survives a killed session. The pointer's own
- * order is always included, even when its result has landed, so the single-order lane behaves
- * exactly as it did before concurrency existed.
+ * Filesystem-only, because that is the one signal that survives a killed session. See the banner's
+ * "ANSWERED IS A COMPARISON" note for why a same-named result file is not on its own an answer.
+ *
+ * @param {string} resultPath - Where this order's result would be.
+ * @param {object} order - The parsed order, for its `compiled_at` stamp.
+ * @returns {boolean} True when the result belongs to this dispatch rather than an earlier one.
+ */
+function answered(resultPath, order) {
+  let mtimeMs;
+  try { mtimeMs = statSync(resultPath).mtimeMs; } catch { return false; }
+  const compiledAt = Date.parse(order?.compiled_at ?? "");
+  if (Number.isNaN(compiledAt)) return true;    // no stamp to compare against — presence is the answer
+  // WHOLE SECONDS, because that is all some filesystems keep of an mtime — HFS+ among them, which
+  // this plugin's own development volume uses. The stamp carries milliseconds; compared raw against
+  // a truncated mtime, a result written in the same second as its compile reads as OLDER than the
+  // order and the order stays live. Flooring the stamp costs a one-second window the other way — a
+  // re-dispatch inside the same second as the previous result reads as answered — which no real
+  // dispatch is fast enough to hit.
+  return mtimeMs >= Math.floor(compiledAt / 1000) * 1000;
+}
+
+/**
+ * Every order for this run that has been compiled and not yet answered.
  *
  * @param {string} cwd - Project root.
- * @param {string} slug - The active run's slug.
- * @param {string} pointerOrder - Absolute path of the order the pointer names.
+ * @param {string} slug - The run named by the pointer.
  * @returns {object[]} Parsed orders; unreadable files are skipped, never treated as permissive.
  */
-function liveOrders(cwd, slug, pointerOrder) {
+function liveOrders(cwd, slug) {
   const dir = ordersDir(cwd, slug);
-  const done = new Set(existsSync(resultsDir(cwd, slug)) ? readdirSync(resultsDir(cwd, slug)) : []);
-  const paths = new Set(existsSync(pointerOrder) ? [pointerOrder] : []);
-  if (existsSync(dir)) {
-    for (const f of readdirSync(dir)) {
-      if (f.endsWith(".json") && !done.has(f)) paths.add(join(dir, f));
-    }
+  if (!existsSync(dir)) return [];
+  const rDir = resultsDir(cwd, slug);
+  const live = [];
+  for (const f of readdirSync(dir)) {
+    if (!f.endsWith(".json")) continue;
+    const order = readJSON(join(dir, f));
+    if (!order) continue;
+    if (!answered(join(rDir, f), order)) live.push(order);
   }
-  return [...paths].map(readJSON).filter(Boolean);
+  return live;
 }
 
 function extractPaths(toolInput) {
@@ -159,9 +199,10 @@ async function main() {
   // writer's own contract" are the same question — and only the first can be asked without a
   // shared mutable pointer.
   //
-  // Live = compiled and not yet ingested. An order whose result is on disk has finished; leaving it
-  // in the candidate set would keep a finished scope's substrate open for the rest of the run.
-  const orders = liveOrders(cwd, active.slug, resolve(cwd, active.order_path));
+  // Live = compiled and not yet answered. An order whose result is on disk has finished; leaving it
+  // in the candidate set would keep a finished scope's substrate open for the rest of the run — and
+  // leaving the POINTER's own order in unconditionally kept a finished RUN's substrate open forever.
+  const orders = liveOrders(cwd, active.slug);
   if (orders.length === 0) defer(`no live order for ${active.slug}`, "no-order");
 
   const withSubstrate = orders.filter((o) => o.substrate);
@@ -219,6 +260,18 @@ async function main() {
     defer(`${targetPaths.length} path(s) inside a live order's substrate (${contracts.length} live) — permitted`, "in-substrate");
   }
 
+  // THE REMEDY DIFFERS BY TIER, and naming the wrong one costs a session real time. A product-code
+  // path outside every substrate is a scope-cut question, and widening the order is the honest fix.
+  // A path under the COMMITTED tier is not: no build scope may own the run's own governance and
+  // spec artifacts, so widening a substrate to reach one is the wrong move in a plausible-looking
+  // direction. Those files belong to the orchestrator, whose write window is a phase boundary —
+  // no dispatch in flight — and never the middle of somebody else's dispatch.
+  const committed = violations.filter((v) => v.split(/[\\/]/)[0] === SHARED);
+  const hint = committed.length === violations.length
+    ? `${SHARED}/ is committed tier: these belong to the orchestrator, not to a worker substrate. `
+      + "Write them at a phase boundary, with no dispatch in flight — do not widen an order to reach one."
+    : "If this write legitimately crosses scopes, the order's substrate needs to be expanded (e.g. via ba --remap).";
+
   logPathology(metricsPath, {
     schema_version: 1,
     at: new Date().toISOString(),
@@ -240,7 +293,7 @@ async function main() {
         permissionDecisionReason:
           `Sandbox guard (PA3) — no live order's substrate covers these writes:\n` +
           `${blockReasons.join("\n")}\n` +
-          `If this write legitimately crosses scopes, the order's substrate needs to be expanded (e.g. via ba --remap).`,
+          hint,
       },
     },
   };

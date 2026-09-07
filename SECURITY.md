@@ -69,7 +69,7 @@ sitting, and reading them is the recommended review.
 | [`safety-spine.mjs`](hooks/safety-spine.mjs) | PreToolUse (`Bash\|Read\|Write\|Edit\|MultiEdit`) | The proposed command/path; `.shapeup/safety-overrides.json` | Yes — provably destructive ops only: `rm -rf` on unrecoverable targets, `git push --force` / push to main, `git reset --hard`, `git clean -fdx`, `DROP TABLE`/`TRUNCATE`, reads of `.env`/keys/cloud credentials, and any write to its own overrides file | Never blocks an unmatched command; `--force-with-lease` stays allowed |
 | [`gate-intake.mjs`](hooks/gate-intake.mjs) | PreToolUse (`Skill`) | The `tech-lead` dispatch's own arguments | Yes — an orchestrator dispatch carrying no resolvable intake (no pitch, spec, resume or requirement text) | Fails open on `--order` and on any ambiguous arg shape |
 | [`harness verify envelope`](kernel/verify/envelope.mjs) | PreToolUse (`Skill\|Agent`) | The `--order` file named in the dispatch; the JSON schemas | Yes — a worker dispatch whose order file is missing or schema-invalid | Never gates a dispatch that carries no `--order` (standalone skill use stays free) |
-| [`sandbox-guard.mjs`](hooks/sandbox-guard.mjs) | PreToolUse (`Edit\|Write\|MultiEdit`) | The target path; the `substrate` block of every LIVE order (compiled, not yet ingested) | Yes — any write no live order permits: outside every `allowed`/`shared`, inside any `frozen`, or a `Write` to an `append_only` path | No-op unless an order is live; the active feature's own `.shapeup/<slug>/` run-trace is always writable. Appends denials to the local pathology log |
+| [`sandbox-guard.mjs`](hooks/sandbox-guard.mjs) | PreToolUse (`Edit\|Write\|MultiEdit`) | The target path; the `substrate` block of every LIVE order — compiled, with no result at least as new as the order's own `compiled_at` | Yes — any write no live order permits: outside every `allowed`/`shared`, inside any `frozen`, or a `Write` to an `append_only` path | No-op unless an order is live, which a finished run no longer is: the pointer names the run, never a dispatch. The active feature's own `.shapeup/<slug>/` run-trace is always writable. Appends denials to the local pathology log |
 | [`dispatch-receipt.mjs`](hooks/dispatch-receipt.mjs) | PostToolUse (`Skill\|Agent`) | The `--order` file named in the dispatch; the tool result's own report of which skill ran | **No — it has no deny path at all.** It records that the shipped skill ran, so `harness reduce ingest` can refuse a result no dispatch produced | Never writes an attestation for a result that does not name a resolved skill; never fails the call it observes (every write is inside `try`/`catch`) |
 | [`gate-zerowork.mjs`](hooks/gate-zerowork.mjs) | Stop | Run receipts on disk; the session transcript; the decision ledger | **Yes — the one blocking hook.** Returns `decision:"block"` when the session dispatched the orchestrator and produced no run receipt | Defers the moment any receipt exists; `stop_hook_active` caps it at one block per stop chain |
 
@@ -83,6 +83,11 @@ sitting, and reading them is the recommended review.
   any kind.
 - **The safety-spine actively blocks secret reads** (`.env`, `*.pem`, `*.key`, ssh/cloud
   credentials) rather than merely not making them.
+- **The script the run executes is a copy, and the copy is the shipped file.** Opening a run
+  copies the plugin's own workflow scripts into the gitignored `.shapeup/workflows/`, because the
+  Workflow tool loads a script only from a directory the session may already read and the plugin
+  installs outside your project. They are copied byte for byte — never generated, templated or
+  rewritten — so what you review in the plugin is what runs, and nothing else is added to your tree.
 - The installer (`scripts/install-harness.sh`) writes only into the target project
   (`.claude/`, `shapeup/`, `.gitignore`) and tells you what it
   is going to do first; the `curl | bash` form requires an explicit `--yes` for exactly that

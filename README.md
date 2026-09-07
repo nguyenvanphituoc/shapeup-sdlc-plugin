@@ -219,8 +219,9 @@ the layer that carries it, and the three layers here fail differently:
 - `PreToolUse` (`Skill|Agent`) — **`harness verify envelope` denies any worker dispatch whose order
   file is missing or fails the WorkOrder schema.** A malformed envelope never reaches a worker.
 - `PreToolUse` (`Edit|Write|MultiEdit`) — **`hooks/sandbox-guard.mjs` blocks a write that no LIVE
-  order's substrate permits.** It reads every compiled-but-not-yet-ingested order rather than a
-  pointer to one, so scopes building concurrently are each held to their own contract; `frozen`
+  order's substrate permits.** It reads every order that is compiled and not yet answered — a result
+  at least as new as the order itself — rather than a pointer to one, so scopes building
+  concurrently are each held to their own contract and a finished run fences nothing; `frozen`
   outranks everything, across all of them.
 - `PreToolUse` (`Bash|Read|Write|Edit|MultiEdit`) — **`hooks/safety-spine.mjs` denies destructive
   commands** (`rm -rf` on unrecoverable targets, force-push/push-to-main, `git reset --hard`,

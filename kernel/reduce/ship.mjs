@@ -26,12 +26,13 @@
 //
 // Exit: 0 written (path on stdout), 2 usage error.
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
 import {
   report as reportPath, tasksDir, verdictsDir, trials, evaluationDir, qaDir,
   roundLedger, discoveryLedger, receipt as receiptPath, harnessRun, relShared, resultsDir,
+  activeOrder,
 } from "../lib/paths.mjs";
 import { readTrials } from "../verify/t0.mjs";
 import { ratchetReport } from "../probe/stats.mjs";
@@ -349,6 +350,15 @@ export async function cli(rawArgv) {
   } else {
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, markdown, "utf8");
+
+    // THE RUN IS OVER, SO RETIRE ITS POINTER. `harness compile` publishes `.shapeup/active-order`
+    // as it writes each order and nothing ever erased it, so the pointer outlived every run that
+    // produced one. That is harmless to the guard now — liveness comes from the order set, and a
+    // shipped run has no unanswered orders — but a pointer naming a finished run is a fact on disk
+    // that is no longer true, and the next reader to trust it inherits the same class of bug.
+    // Only on the writing path: `--stdout` is a preview of the report, not the end of the run.
+    rmSync(activeOrder(cwd), { force: true });
+
     console.log(relShared(args.slug, "REPORT.md"));
   }
 }

@@ -68,7 +68,7 @@
 // that takes a phase, not an init-run flag that takes a slug: the one instruction available at the
 // one moment it mattered named a mechanism that does not parse.
 
-import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, copyFileSync, rmSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { createHash } from "node:crypto";
 import { decideLane, treeSize } from "./fit.mjs";
@@ -76,7 +76,10 @@ import { runArgs } from "../lib/argv.mjs";
 import { uncoerce } from "../lib/contract.mjs";
 import { deriveSnapshot } from "../reduce/snapshot.mjs";
 import { mintRunId } from "../lib/paths.mjs";
-import { localRoot, activeScope, globLocal, globShared, ordersDir, resultsDir } from "../lib/paths.mjs";
+import {
+  localRoot, activeScope, activeOrder, globLocal, globShared, ordersDir, resultsDir,
+  workflowsStage, globWorkflowsStage,
+} from "../lib/paths.mjs";
 import { resolveWorkers } from "../verify/skills.mjs";
 
 export const RECEIPT_VERSION = 1;
@@ -257,6 +260,58 @@ export function resolveAbandonedOrders(cwd, slug) {
   return resolved;
 }
 
+/**
+ * Copy the plugin's run scripts into the project so the launch can actually read them.
+ *
+ * WHY A COPY, AND WHY HERE. `Workflow({scriptPath})` loads a script only from somewhere the session
+ * is already allowed to read — the working directory, or a directory the operator added. The plugin
+ * is installed OUTSIDE the project (a version-stamped cache directory on a marketplace install), so
+ * naming the shipped path fails the launch outright, and no permission rule fixes it: the grant that
+ * authorises the Workflow tool says nothing about where it may read from. The failure is invisible
+ * in development, where the plugin root and the working directory are the same tree, and total for
+ * everybody else. A project-local copy is inside the working directory by construction, so it loads
+ * in every permission mode without widening what the session may read.
+ *
+ * Opening a run is the right moment: it is the one step every lane passes through before a launch,
+ * and it already knows which copy of the plugin answered.
+ *
+ * `refresh` is what keeps an upgrade from arriving mid-round. Opening a run (or forcing over one)
+ * overwrites the staged copies, so a plugin upgrade reaches the NEXT run. A call that finds a run
+ * already open only fills in what is missing: that run should finish on the orchestrator it started
+ * with, and swapping the script under a resumed round is a different build than the one the gates
+ * were answered for — but a relaunch with no script at all is a dead end, so a copy that is gone
+ * (a cleaned run workspace, a run opened by a version that never staged) is written back.
+ *
+ * Best-effort by design: a project that cannot be written to still opens its run and can still be
+ * launched from the install path by an operator who adds that directory. Reporting beats refusing.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} pluginRoot - The plugin copy that answered this call.
+ * @param {object} [opts] - Options.
+ * @param {boolean} [opts.refresh] - Overwrite an existing copy (true) or only fill gaps (false).
+ * @returns {{ok: boolean, dir: string, staged: string[], reason?: string}} Outcome, for the caller to report.
+ */
+export function stageWorkflows(cwd, pluginRoot, { refresh = true } = {}) {
+  const src = join(pluginRoot, "skills", "tech-lead", "workflows");
+  const dir = workflowsStage(cwd);
+  let names;
+  try {
+    names = readdirSync(src).filter((f) => f.endsWith(".js")).sort();
+  } catch (e) {
+    return { ok: false, dir, staged: [], reason: `no workflow scripts at ${src}: ${e.message}` };
+  }
+  try {
+    mkdirSync(dir, { recursive: true });
+    for (const f of names) {
+      const dst = join(dir, f);
+      if (refresh || !existsSync(dst)) copyFileSync(join(src, f), dst);
+    }
+  } catch (e) {
+    return { ok: false, dir, staged: [], reason: `could not stage into ${dir}: ${e.message}` };
+  }
+  return { ok: true, dir, staged: names };
+}
+
 // ---- CLI -------------------------------------------------------------------
 
 /** The typed argv contract (see `./lib/argv.mjs`). */
@@ -398,6 +453,19 @@ export function cli(rawArgv) {
 
   const runRoot = localRoot(cwd, slug);
   const receiptPath = join(runRoot, "receipt.json");
+
+  // STAGE THE RUN SCRIPTS BEFORE THE ALREADY-OPEN REFUSAL, not after: a session resuming a paused
+  // run reaches that refusal and nothing else, and it still needs a `scriptPath` it can name. What
+  // it does NOT get is a swapped orchestrator — see stageWorkflows() for why `refresh` is false
+  // exactly when a run is already open and is not being forced over.
+  // `Boolean(...)`, not the bare flag: an absent `--force` is `undefined`, and `false || undefined`
+  // is `undefined`, which a destructured default reads as "not passed" and turns back into `true`.
+  const staged = stageWorkflows(cwd, plugin.root, { refresh: !existsSync(receiptPath) || Boolean(args.force) });
+  if (!staged.ok) {
+    console.error(`⚠ init-run: could not stage the run scripts — ${staged.reason}`);
+    console.error(`  Launch from the install path instead, and add ${plugin.root} to the session's`);
+    console.error("  readable directories (/add-dir) if the Workflow tool refuses to load it.");
+  }
   // A RUN IS ALREADY OPEN. This is the resume path, and it used to be a dead end.
   //
   // The refusal is right: silently re-initialising would discard the round history the circuit
@@ -437,6 +505,10 @@ export function cli(rawArgv) {
       "To re-derive this at any time:",
       "  node <plugin>/kernel/harness.mjs reduce snapshot --cwd <dir>",
       "To abandon the open run and start over, deliberately: --force",
+      "",
+      staged.ok
+        ? `Relaunch the same run with: Workflow({scriptPath: "${globWorkflowsStage("shapeup-run.js")}", args: <the same RunArgs>})`
+        : "The run scripts are NOT staged in this project — see the warning above before relaunching.",
     ].join("\n"));
   }
 
@@ -453,6 +525,10 @@ export function cli(rawArgv) {
         `⚠ init-run --force: resolved ${abandoned.length} dispatched-but-unanswered order(s) as abandoned — ${abandoned.join(", ")}`,
       );
     }
+    // And the pointer the abandoned run left behind. It names a run that is being forced over, so
+    // the next compile republishes it within the second; retiring it here means a `--force` that
+    // resolves nothing still leaves no stale claim about which run is open.
+    rmSync(activeOrder(cwd), { force: true });
   }
 
   const startedAt = new Date().toISOString();
@@ -483,6 +559,8 @@ export function cli(rawArgv) {
     intake_sha256: receipt.intake_sha256,
     intake_chars: receipt.intake_chars,
     config,
+    // What the launch names. Project-local by necessity, not by preference — see stageWorkflows().
+    workflow_script: staged.ok ? globWorkflowsStage("shapeup-run.js") : null,
     next: "GATE L0 — pin the run config, emit the gate block, then ORIENT.",
   }, null, 2));
 }

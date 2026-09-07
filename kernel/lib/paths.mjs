@@ -258,8 +258,34 @@ export const workingDir = (cwd, slug) => join(localRoot(cwd, slug), "working");
  * rows, above all, which without it are written unjoinable to any run.
  */
 export const activeScope = (cwd) => join(localDir(cwd), "active-scope");
-/** The pointer the sandbox guard reads to answer "which order is executing?". */
+/**
+ * The pointer that tells the sandbox guard WHICH RUN it is fencing.
+ *
+ * It names a run, not a live dispatch. `harness compile` republishes it as it writes each order —
+ * the one place every lane passes through — and the guard uses the `slug` in it to find the run's
+ * order set; liveness is then derived from that set, never from this file. That separation is
+ * deliberate: this pointer has one writer and no natural eraser, so a run that ends leaves it
+ * behind, and anything that treated it as "a dispatch is in flight" kept a finished run's last
+ * substrate armed over an idle checkout. `reduce ship` and ``harness init run --force`` retire it
+ * so it does not outlive its run, and the guard is correct either way.
+ */
 export const activeOrder = (cwd) => join(localDir(cwd), "active-order");
+
+/**
+ * Where the run scripts are staged for launch, inside the project.
+ *
+ * The orchestrator's Workflow scripts ship with the plugin, which lives OUTSIDE the project — and
+ * the Workflow tool will only load a script it is already allowed to read, meaning the working
+ * directory or a directory the operator added. An install path therefore fails the launch outright,
+ * with no permission rule that can fix it: the grant that authorises the tool does not widen where
+ * it may read from. So ``harness init run`` copies the shipped scripts here, and the launch names
+ * this project-local path. LOCAL, because a staged copy is a build artifact of the run, not a
+ * source file anybody should review or commit.
+ */
+export const workflowsStage = (cwd) => join(localDir(cwd), "workflows");
+
+/** The staged run script as the LAUNCH names it — project-relative, `/`-joined on every platform. */
+export const globWorkflowsStage = (...parts) => [LOCAL, "workflows", ...parts].join("/");
 /** Hook receipts — one row per evaluation, so `allow` carries evidence. */
 export const decisions = (cwd) => join(localDir(cwd), "decisions.jsonl");
 /** Human-authored safety escape hatch. LOCAL so no PR can widen another machine's envelope. */

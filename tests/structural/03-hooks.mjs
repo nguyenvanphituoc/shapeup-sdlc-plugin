@@ -215,7 +215,7 @@ export async function run(ctx) {
   // exists to make impossible.
   const sandboxGuardPath = join(ROOT, "hooks/sandbox-guard.mjs");
   if (existsSync(sandboxGuardPath)) {
-    const { mkdtempSync, writeFileSync, mkdirSync, rmSync } = await import("node:fs");
+    const { mkdtempSync, writeFileSync, mkdirSync, rmSync, utimesSync } = await import("node:fs");
     const { tmpdir } = await import("node:os");
     const makeCheckout = (withOrder) => {
       const dir = mkdtempSync(join(tmpdir(), "sandbox-guard-"));
@@ -358,6 +358,78 @@ export async function run(ctx) {
       const par3 = ask(scoped, join(scoped, "apps/web/checkout/Checkout.tsx"));
       if (par3.denied) ok("sandbox guard DENIES a write to an INGESTED order's substrate — a finished scope stops authorising writes");
       else fail("sandbox guard still honoured an order whose result has landed — every finished scope would stay open for the rest of the run");
+
+      // 11. A FINISHED RUN FENCES NOTHING, and this is the arm that was missing. The pointer has one
+      //     writer (compile) and no eraser, and the order it named used to be counted live whatever
+      //     its result said — so the LAST dispatch of a shipped run kept the whole checkout fenced
+      //     to that one substrate, forever, and the documented "no dispatch in progress" fail-open
+      //     was unreachable after the first run. The only escape was deleting a file nothing
+      //     documents. Every order answered now means nothing live, whatever the pointer still says.
+      writeFileSync(join(resultsDirPath, "r1-a1.json"), JSON.stringify({ order_id: "demo/r1-a1" }));
+      const fin1 = ask(scoped, join(scoped, "apps/api/payments/handler.ts"));
+      if (!fin1.denied) ok("sandbox guard DEFERS once every order is answered, even with the pointer still on disk (a finished run does not fence the checkout)");
+      else fail(`sandbox guard still fenced the checkout after every order was answered — the wedge is back\n${fin1.out}`);
+      const fin2 = ask(scoped, join(scoped, ".shapeup/other-feature/tasks/_index.md"));
+      if (!fin2.denied) ok("sandbox guard lets the NEXT feature write its own run trace once the previous run is answered");
+      else fail("a finished run's leftover pointer still blocked another feature's run trace — the carve-out is keyed to a dead slug");
+
+      // 12. …and the freshness rule that keeps arm 11 from opening a hole of its own. Order files
+      //     for the run-level operations carry no round in their name (`hammer.json`, `wire.json`),
+      //     so re-dispatching one inside the same run rewrites the order beside the PREVIOUS
+      //     dispatch's result. Presence alone would read that as finished and run the new dispatch
+      //     unfenced; the order's own `compiled_at` is what distinguishes the two.
+      writeFileSync(join(scoped, ".shapeup", "demo", "orders", "r1-a1.json"), JSON.stringify({
+        schema_version: 1, order_id: "demo/r1-a1", worker: "task-executor", mode: "orchestrated",
+        operation: "execute", compiled_at: new Date(Date.now() + 60_000).toISOString(),
+        substrate: { allowed: ["apps/web/cart/*.tsx"], shared: [], append_only: [], frozen: [] },
+        payload: { feature: "demo" },
+      }, null, 2));
+      const re1 = ask(scoped, join(scoped, "apps/web/cart/Cart.tsx"));
+      if (!re1.denied) ok("a RE-COMPILED order is live again — its own substrate reopens");
+      else fail(`a re-compiled order was treated as finished by its predecessor's result\n${re1.out}`);
+      const re2 = ask(scoped, join(scoped, "apps/api/payments/handler.ts"));
+      if (re2.denied) ok("a RE-COMPILED order fences again — a re-dispatch is not silently unguarded");
+      else fail("a re-dispatched order ran unfenced: a stale result from an earlier dispatch counted as this one's answer");
+
+      // 13. THE REMEDY NAMES THE TIER. A denial under `shapeup/` used to point at `ba --remap`, which
+      //     widens a build scope's substrate — and no build scope may own the run's own governance
+      //     and spec artifacts, so the hint sent a session the wrong way in a plausible direction.
+      //     The committed tier belongs to the orchestrator at a phase boundary; a product path
+      //     outside every substrate is still a scope-cut question. Read off the hook's own output.
+      const tierHint = ask(scoped, join(scoped, "shapeup/demo/spec/usecases/UC-02.md"));
+      if (tierHint.denied && tierHint.out.includes("committed tier") && !tierHint.out.includes("ba --remap")) {
+        ok("a denial under the committed tier says the files belong to the orchestrator, not that the substrate should widen");
+      } else {
+        fail(`a committed-tier denial did not name the tier remedy (or still pointed at ba --remap)\n${tierHint.out}`);
+      }
+      const cutHint = ask(scoped, join(scoped, "apps/api/payments/handler.ts"));
+      if (cutHint.denied && cutHint.out.includes("ba --remap")) {
+        ok("a denial on a product path outside every substrate still points at widening the order");
+      } else {
+        fail(`a product-path denial lost its scope-cut remedy\n${cutHint.out}`);
+      }
+
+      // 14. ANSWERED IS READ AT WHOLE-SECOND PRECISION. Some filesystems keep an mtime only to the
+      //     second (HFS+ does, and this plugin has been developed on one) while `compiled_at` carries
+      //     milliseconds. Compared raw, a result written in the same second as its compile reads as
+      //     OLDER than the order, and the order never stops being live. The mtimes are set explicitly
+      //     here so the check is the same on every filesystem, in both directions.
+      writeFileSync(join(scoped, ".shapeup", "demo", "orders", "r1-a1.json"), JSON.stringify({
+        schema_version: 1, order_id: "demo/r1-a1", worker: "task-executor", mode: "orchestrated",
+        operation: "execute", compiled_at: "2026-08-15T12:00:00.750Z",
+        substrate: { allowed: ["apps/web/cart/*.tsx"], shared: [], append_only: [], frozen: [] },
+        payload: { feature: "demo" },
+      }, null, 2));
+      const sameSecond = new Date("2026-08-15T12:00:00.000Z");
+      utimesSync(join(resultsDirPath, "r1-a1.json"), sameSecond, sameSecond);
+      const fl1 = ask(scoped, join(scoped, "apps/api/payments/handler.ts"));
+      if (!fl1.denied) ok("a result whose truncated mtime falls in the order's own compile second counts as its answer (whole-second comparison)");
+      else fail(`a same-second result was read as older than its order — on a coarse-mtime filesystem the order never stops being live\n${fl1.out}`);
+      const secondBefore = new Date("2026-08-15T11:59:59.000Z");
+      utimesSync(join(resultsDirPath, "r1-a1.json"), secondBefore, secondBefore);
+      const fl2 = ask(scoped, join(scoped, "apps/api/payments/handler.ts"));
+      if (fl2.denied) ok("a result one second older than the compile stamp is still a predecessor's — the order stays live");
+      else fail("the whole-second tolerance widened into accepting a genuinely older result as this dispatch's answer");
     } finally {
       rmSync(scoped, { recursive: true, force: true });
       rmSync(unscoped, { recursive: true, force: true });

@@ -771,17 +771,17 @@ export async function cli(rawArgv) {
   // through.
   //
   // `hooks/sandbox-guard.mjs` enforces the order's own `substrate` block — allowed/shared,
-  // append_only, frozen — and it finds the order through `.shapeup/active-order`. Until this
-  // write existed the pointer had exactly one author, the workflow script, so the guard fenced
-  // the workflow lane and DEFERRED everywhere else: `--tiny`, the prose round loop, and a
-  // standalone `/build` all compiled an order carrying a write contract that nothing enforced.
-  // A substrate that is only enforced on the lane that also happens to be the most supervised
-  // one is the wrong way round.
+  // append_only, frozen — and it finds the RUN through `.shapeup/active-order`. Until this write
+  // existed the pointer had exactly one author, the workflow script, so the guard fenced the
+  // workflow lane and DEFERRED everywhere else: `--tiny`, the prose round loop, and a standalone
+  // `/build` all compiled an order carrying a write contract that nothing enforced. A substrate
+  // that is only enforced on the lane that also happens to be the most supervised one is the wrong
+  // way round. This is now the pointer's ONLY author.
   //
-  // Compiling an order is the moment the write contract comes into existence, so it is the
-  // correct moment to publish it. The workflow script still sets the pointer explicitly before
-  // dispatch (it interleaves phases and must be exact about which order is live); this write
-  // makes the SAME mechanism cover callers that never reach that code.
+  // Compiling an order is the moment the write contract comes into existence, so it is the correct
+  // moment to publish it. What the pointer supplies is the run's slug; which of that run's orders
+  // are LIVE is derived from the order set (compiled, not yet answered), never from this file — so
+  // republishing it on every compile costs nothing and a stale one fences nothing.
   //
   // Best-effort, on stderr, and never fatal: a compiled order that cannot publish its pointer is
   // still a valid order, and stdout belongs to the order path the caller consumes. The guard

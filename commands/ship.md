@@ -20,7 +20,7 @@ launch and does not drive it turn by turn:
 
 ```
 Workflow({
-  scriptPath: "${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js",
+  scriptPath: ".shapeup/workflows/shapeup-run.js",
   args: <the RunArgs object>
 })
 ```

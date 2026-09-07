@@ -63,3 +63,10 @@ Two traps it exists to catch, both of which have bitten this repo:
 - A stale measured number. Trigger and acceptance rates belong to a run with a model and a date.
   If the dataset changed, say the measurement predates it — do not rescale the figure to match a
   count you just derived, which silently manufactures a measurement.
+
+And one the audit cannot catch, because nothing run from this checkout can. Running the repo as its
+own plugin puts the plugin root inside the working directory, and every experiment ends with its run
+trace deleted, so two whole classes of defect are invisible here: anything gated on where the plugin
+is installed, and anything that happens *after* a run ships. Before tagging a release, soak the
+candidate in a persistent consumer project installed from the marketplace, not `--plugin-dir`,
+across two consecutive features, without cleaning `.shapeup/` in between.

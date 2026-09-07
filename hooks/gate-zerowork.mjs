@@ -56,7 +56,7 @@
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { isMain } from "../kernel/lib/argv.mjs";
-import { localDir, globLocal } from "../kernel/lib/paths.mjs";
+import { localDir, globLocal, globWorkflowsStage } from "../kernel/lib/paths.mjs";
 import { runHook, readStdin, settle, decisionsPath } from "./lib/decision.mjs";
 
 const MAX_TRANSCRIPT_BYTES = 20 * 1024 * 1024;
@@ -255,7 +255,7 @@ export function buildReason({ narration, census, enforcement }) {
     "it needs, unless --no-native-workflow was given, in which case approve the launch once):",
     "",
     "  Workflow({",
-    "    scriptPath: \"${CLAUDE_PLUGIN_ROOT}/skills/tech-lead/workflows/shapeup-run.js\",",
+    `    scriptPath: "${globWorkflowsStage("shapeup-run.js")}",  // staged by \`init run\`, above`,
     "    args: <the RunArgs object>",
     "  })",
     "",

@@ -186,6 +186,28 @@ defect this repo can patch shut. Betting Table question: whether the manual path
 formalizing as a documented fallback mode, or stays an operator-driven escape hatch invoked only
 when the classifier is observed to block.
 
+### ⚠ STILL OPEN — two states the development checkout cannot reach
+
+Both 3.1.1 defects — the launch refused on a marketplace install, and a shipped run fencing the
+checkout to its last dispatch's substrate — lived for three weeks in geometries this repo never has
+when it runs itself. Under `--plugin-dir .` the plugin root and the working directory are one tree,
+so the Workflow tool's read gate never fired; and every experiment ran in a worktree or had its run
+trace deleted afterwards, which removed the order file the stale pointer named and, with it, the
+wedge. This checkout's own decision ledger holds no sandbox-guard row at all. The second defect was
+even observed once, on 2026-08-19, and attributed to the abandoned-order cause — real, and fixed —
+whose check then passed for the wrong reason: after that fix nothing was live, so it could not tell
+"the pointer arm is gone" from "nothing left to enforce".
+
+Neither state is reachable from the structural suite: one is a Claude Code tool's own read gate,
+the other is what happens *after* a run, and every fixture is deleted in its cleanup. What would
+have caught both is the live soak the release process now names in `CLAUDE.md`: a persistent
+consumer project installed from the marketplace rather than `--plugin-dir`, carried across two
+consecutive features without cleaning `.shapeup/` between them.
+
+**Open for the Betting Table:** whether that soak can be made mechanical — a fixture project kept
+across suite runs, or a CI job that installs the packed tarball into a scratch project and drives
+one `init run` → launch through the real CLI — or stays a documented manual gate before each tag.
+
 ---
 
 **Where a closed defect goes.** Its fix is pinned by a regression guard, and that guard is the
