@@ -3,6 +3,51 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.1.1] — 2026-09-07 · the run could not launch from an installed plugin, and a finished run fenced the checkout forever
+
+**`Workflow({scriptPath})` naming the installed plugin is refused before the run begins.** The tool
+loads a script only from a directory the session may already read — the working directory, or one
+the operator added — so every marketplace install stalled at step one with `scriptPath must be a
+script path this tool returned, or a file you can already read`. No permission rule repairs it: the
+`"Workflow"` grant `npx shapeup-sdlc init` writes authorises the tool, not what it may read. The
+failure is invisible in development, where the plugin root and the working directory are the same
+tree, and total everywhere else. `harness init run` now re-copies the run scripts to
+`.shapeup/workflows/` on every open and reports the path as `workflow_script`; the tech-lead skill,
+both commands and the zero-work hook's remediation text all name that copy. A run already in flight
+keeps the copy it started with, so an upgrade reaches the next run rather than the current round.
+The consumer-install suite, which already opened a run from a project whose working directory is NOT
+the plugin root — the geometry every install has — now asserts what no check had: that the staged
+script exists there, byte-identical to the shipped one, and that a resume leaves it alone.
+
+**A finished run kept the whole checkout fenced to its last dispatch's substrate.** `harness compile`
+publishes `.shapeup/active-order` with every order and nothing ever erased it, while `sandbox-guard`
+counted the order that pointer named as live regardless of its result — "so the single-order lane
+behaves as it did before concurrency existed". That arm bought nothing (an order genuinely in flight
+has no result yet, and was already live by the other rule) and cost everything after a ship: an
+ordinary edit anywhere was denied against a substrate as narrow as `REPORT.md` + `reports/**`, and
+the next feature could not write even its own run trace, because the run-trace carve-out is keyed to
+the slug the stale pointer names. The guard's documented fail-open state — "no dispatch in progress"
+— was unreachable after a checkout's first run, and the only way out was deleting a file nothing
+documents. Liveness now comes from the run's order set alone; `reduce ship` and `init run --force`
+retire the pointer so it does not outlive its run.
+
+**An order is answered when its result is at least as new as the order, not merely when one exists.**
+Dropping the arm above on its own would have opened a hole of its own: order filenames for the
+run-level operations carry no round (`hammer.json`, `wire.json`, `analyze.json`), so re-dispatching
+one inside the same run rewrites the order beside the PREVIOUS dispatch's result — which a presence
+test reads as finished, running the new dispatch unfenced. The comparison is against the order's own
+`compiled_at`, the stamp the compiler writes into it, which a copy or a touch cannot perturb — read at
+whole-second precision, because that is all some filesystems keep of an mtime (HFS+ among them), and
+compared raw a result written in the same second as its compile would count as older than the order
+and stay live. The `--force` unwedge check was passing for the wrong reason and now re-arms the guard before probing:
+once every order is resolved there is nothing left to enforce, so the old assertion could not fail.
+
+**A denial under the committed tier named the wrong remedy.** `ba --remap` widens a build scope's
+substrate, and no build scope may own the run's own governance and spec artifacts, so the hint
+pointed plausibly in the wrong direction. When every blocked path is under `shapeup/`, the denial now
+says what is true: those files belong to the orchestrator, whose write window is a phase boundary
+rather than the middle of somebody else's dispatch.
+
 ## [3.1.0] — 2026-08-21 · new `hill-chart` skill, and the FINISHED phase it can now actually reach
 
 **`hill.mjs` read a verdict-ledger filename `reduce ingest` never writes, so no scope could ever
