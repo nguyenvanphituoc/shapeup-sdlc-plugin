@@ -19,12 +19,35 @@ import { runArgs } from "../lib/argv.mjs";
 import { verdictsDir } from "../lib/paths.mjs";
 
 /**
+ * Verdict filenames, newest first by their NUMERIC address.
+ *
+ * A string sort files `r1-a1-t10.json` before `r1-a1-t9.json`, and the trial ordinal is shared by
+ * every scope verified at one (round, attempt) — ten scopes on their first attempt are enough to
+ * make an older verdict read as the newest. Names that carry no address sort last.
+ *
+ * @param {string[]} names - Filenames from the verdicts directory.
+ * @returns {string[]} A new array, newest first: round, then attempt, then trial, descending.
+ */
+export function newestFirst(names) {
+  const key = (f) => {
+    const m = f.match(/^r(\d+)-a(\d+)(?:-t(\d+))?\.json$/);
+    return m ? [Number(m[1]), Number(m[2]), Number(m[3] ?? 0)] : [-1, -1, -1];
+  };
+  return [...names].sort((a, b) => {
+    const ka = key(a), kb = key(b);
+    for (let i = 0; i < 3; i++) if (ka[i] !== kb[i]) return kb[i] - ka[i];
+    return b.localeCompare(a);
+  });
+}
+
+/**
  * The newest green T0 verdict for one scope in one round.
  *
  * @param {string} cwd - Project root.
  * @param {string} slug - Feature slug.
  * @param {string} scopeId - Scope contract id.
- * @param {number} round - Build round.
+ * @param {number} [round] - Build round. Omitted, the newest green verdict of ANY round — what an
+ *   evaluation with no round (a standalone single pass) has to cite.
  * @returns {{green: boolean, path: (string|null)}} `path` is the artifact a later EVAL can cite.
  */
 export function greenVerdict(cwd, slug, scopeId, round) {
@@ -32,11 +55,11 @@ export function greenVerdict(cwd, slug, scopeId, round) {
   if (!existsSync(dir)) return { green: false, path: null };
   // Newest first: an attempt retried after a red one writes a higher trial ordinal at the same
   // (round, attempt) address, and the LAST verdict is the one that stands.
-  for (const f of readdirSync(dir).filter((x) => x.endsWith(".json")).sort().reverse()) {
+  for (const f of newestFirst(readdirSync(dir).filter((x) => x.endsWith(".json")))) {
     const p = join(dir, f);
     try {
       const b = JSON.parse(readFileSync(p, "utf8"));
-      if (b.scope_id === scopeId && b.round === round && b.overall === "green") return { green: true, path: p };
+      if (b.scope_id === scopeId && (round == null || b.round === round) && b.overall === "green") return { green: true, path: p };
     } catch { /* a torn artifact proves nothing; keep looking */ }
   }
   return { green: false, path: null };

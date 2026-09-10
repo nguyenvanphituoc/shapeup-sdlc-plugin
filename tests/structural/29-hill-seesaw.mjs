@@ -51,7 +51,12 @@ function buildFixture(seesaw) {
   });
   w(cwd, `.shapeup/${slug}/results/evaluate-r1.json`, {
     schema_version: 1, order_id: `${slug}/evaluate-r1`, worker: "spec-evaluator", status: "done",
-    verdict: { overall: "PASS", bugs: [] },
+    // Scoped (SC-HILL above), so the PASS cites its T0 artifact: a scoped verdict citing none is not
+    // a round's judgement, and the hill rightly refuses to call T1 passed on one.
+    verdict: {
+      overall: "PASS", bugs: [],
+      t0_citations: [{ scope_id: "SC-HILL", path: `.shapeup/${slug}/t0/verdicts/r1-a1-t1.json`, sha256: "0".repeat(64) }],
+    },
   });
   w(cwd, `.shapeup/${slug}/t0/verdicts/r1-a1-t1.json`, {
     schema_version: 2, round: 1, attempt: 1, trial: 1, scope_id: "SC-HILL",

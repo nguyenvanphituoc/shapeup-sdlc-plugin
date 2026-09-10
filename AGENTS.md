@@ -58,7 +58,7 @@ Everything discovered funnels into `.shapeup/<slug>/discovery/ledger.md` (Orient
 - **Ledger = single source of truth** — every discovery flow writes only its own section.
 - **QA is a level-up, not a gate** — `--no-qa` skips it; circuit breaker outranks the Hunter.
 - **Role separation** — Evaluator grades, task-executor fixes, QA discovers.
-- **Hill phase is mechanical ✦** — derived only from T0/T1/seesaw artifacts, never self-reported; the evaluator cites a T0 artifact it re-hashes itself.
+- **Hill phase is mechanical ✦** — derived only from T0/T1/seesaw artifacts, never self-reported; the evaluator cites a T0 artifact it re-hashes itself, from the list its order carries. A scoped verdict citing none is refused: its round stays open and is evaluated again, never advanced.
 - **Envelope port (v1.0)** — every dispatch is WorkOrder in / WorkResult out; shared state has exactly one writer (the ingest step); malformed envelopes are hook-denied. Workers: stateless, craft-only, pipeline-blind.
 
 ## Setup & Execution

@@ -496,7 +496,10 @@ export async function run(ctx) {
           // placeholder this used to carry ("broke") is precisely the unactionable finding the
           // constraint exists to reject, so the fixture states a real one.
           criteria: [{ criterion: "first criterion", verdict: "FAIL", confidence: "high", evidence: "throws on click — src/app/Pay.tsx:84" }],
-          refuted: [{ task_id: "TASK-001", ac: "first criterion" }] },
+          refuted: [{ task_id: "TASK-001", ac: "first criterion" }],
+          // The fixture is SCOPED (`scopes/cart.md`), and ingest refuses a scoped verdict that cites
+          // no T0 artifact — so the judge's fixture cites one, as a real judge must.
+          t0_citations: [{ scope_id: "cart", path: ".shapeup/demo/t0/verdicts/r1-a1-t1.json", sha256: "0".repeat(64) }] },
       };
       w(".shapeup/demo/results/evaluate-r1.json", JSON.stringify(evalResult));
       const rv = spawnSync("node", [...K("reduce ingest"), join(d, ".shapeup/demo/results/evaluate-r1.json"), "--cwd", d], { encoding: "utf8" });

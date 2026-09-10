@@ -2512,7 +2512,7 @@
           "items": {
             "type": "integer"
           },
-          "description": "Round numbers with an evaluate-r<n>.json result — the resumed run's round counter starts one past the maximum."
+          "description": "Round numbers whose evaluate-r<n>.json holds a verdict the run may act on (PASS/FAIL, citing T0 artifacts when the spec is scoped) — the resumed run's round counter starts one past the maximum. A refused or uncited round is not done: the relaunch re-enters it."
         },
         "next_phase": {
           "type": "string",

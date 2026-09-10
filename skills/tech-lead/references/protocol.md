@@ -465,7 +465,9 @@ Read back: the stdout JSON — {path, sha256, trial, overall, regression, score,
 ## 4. EVAL → spec-evaluator (once per round)
 ```
 compile-order --operation evaluate --slug <slug> --worker spec-evaluator --round <r>
-  --payload '{"dimensions": ["spec-conformance"], "run_cmd": "<cmd>", "t0_artifacts": [...]}'
+  --payload '{"dimensions": ["spec-conformance"], "run_cmd": "<cmd>"}'
+  t0_artifacts is compiled from each scope's green T0 verdict for round <r> — pass it only to
+  override. A scope with no green verdict is named on stderr: the judge has nothing to cite for it.
 Invoke via Agent (model: eval), ONCE, after GATE L2:
   Skill(shapeup-sdlc-plugin:spec-evaluator) --order <path>
 Effect: one feature-level pass over the running app against all AC + Done-when; writes
@@ -473,6 +475,8 @@ Effect: one feature-level pass over the running app against all AC + Done-when; 
         verdicts, refuted boxes, T0 citations). It touches NO task file and NO board.
 ingest-result <results/evaluate-r<r>.json>: appends the .verdicts JSONL ledger, un-ticks the
         refuted AC boxes, sets eval_verdict frontmatter — the judge returns data, ingest writes.
+        A verdict on a scoped spec that cites no T0 artifact is refused and the round stays
+        open: re-dispatch the evaluator, do not advance the round.
 Read back: EVAL-FEATURE-<slug>.md → verdict (pass|fail) + the bug list (each bug has
         task ref, severity, file:line, expected vs actual).
 ```

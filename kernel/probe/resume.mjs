@@ -65,6 +65,7 @@ import {
   intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir,
   orientDir, activeOrder, usecasesDir,
 } from "../lib/paths.mjs";
+import { evalVerdict } from "./eval.mjs";
 
 /** The run-state values `references/protocol.md` (Part 4 — State) defines. A typo'd status is a rejection,
  *  not a write — the whole point of this file is that a write nobody validates is a write nobody
@@ -405,9 +406,15 @@ export function deriveResumeState(cwd, slug) {
     // that permits the overlap is the same one that makes it invisible to the disjointness lint.
     scope_exclusions: scopeExclusions(cwd, slug, scope_files),
     pending_orders: orderFiles.filter((f) => f.endsWith(".json") && !resultFiles.includes(f)),
+    // A round is DONE when it was graded, not when its result file exists. An evaluator that
+    // refused the round — no PASS/FAIL, or a scoped verdict citing no T0 artifact — still writes
+    // `evaluate-r<N>.json`; counted, the relaunch opened round N+1 over a round nobody judged, with
+    // no bugs to route, and rebuilt every scope. Left open, it re-enters round N, skips the scopes
+    // already green there, and evaluates again.
     eval_rounds_done: resultFiles
       .filter((f) => /^evaluate-r\d+\.json$/.test(f))
-      .map((f) => Number(f.match(/\d+/)[0])),
+      .map((f) => Number(f.match(/\d+/)[0]))
+      .filter((n) => evalVerdict(cwd, slug, n).found),
   };
   return { ...facts, next_phase: nextPhase(facts) };
 }

@@ -560,6 +560,10 @@ const EVAL_VERDICT = {
     bug_count: nullable("integer"),
     report_path: nullable("string"),
     round: { type: "integer" },
+    // Why the round holds no verdict it may act on — the evaluator's own first deviation when it
+    // refused, or what is structurally wrong with the verdict it returned. Null when `ok`.
+    status: nullable("string"),
+    reason: nullable("string"),
   },
   required: ["ok", "round"],
 };
@@ -1358,14 +1362,22 @@ while (verdict !== "pass" && round <= maxRounds) {
     const e = await worker({
       skill: "spec-evaluator", operation: "evaluate", schema: EVAL, phase: "Eval", label: `eval:r${round}`,
       model: evalModel, round,
+      // No `t0_artifacts` here, deliberately: `harness compile` derives them from the round's green
+      // T0 verdicts on disk, for every lane — this script could only name paths it was told about.
       payload: { dimensions: evalDims, run_cmd: rs.run_cmd, round },
-      extra: "Evaluate the running feature against every acceptance criterion and Done-when. One feature-level pass; cite the T0 artifact you re-hash yourself.",
+      extra: "Evaluate the running feature against every acceptance criterion and Done-when. One feature-level pass; cite every artifact the order lists under t0_artifacts, re-hashing each yourself.",
     });
     if (e.__failed) return diedAt("L3", e);
     // The pass/fail branch is decided from the WorkResult on disk, not from the dispatching
     // agent's own summary of it (`e.overall`) — see EVAL_VERDICT's comment for why.
     const ev = await query(`probe eval --slug ${slug} --round ${round}`, EVAL_VERDICT, "Eval", `verdict:r${round}`);
-    if (!ev || !ev.ok || !ev.overall) return diedAt("L3", nullFail(`verdict:r${round}`));
+    if (!ev) return diedAt("L3", nullFail(`verdict:r${round}`));
+    // A round with no verdict to act on is NOT a dead worker. An evaluator that refused the round
+    // wrote a result saying why, and `probe eval` carries it as `reason`; reported as "died after
+    // retries", the one sentence naming the cause stayed in a file nobody was pointed at.
+    if (!ev.ok || !ev.overall) {
+      return diedAt("L3", { __failed: `verdict:r${round}: no verdict this round can act on — ${ev.reason || `status ${ev.status || "unknown"}`}` });
+    }
     verdict = ev.overall === "PASS" ? "pass" : "fail";
     findings = e.findings || [];
   }

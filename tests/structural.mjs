@@ -153,6 +153,11 @@ const MODULE_FILES = [
   // for a derived N:N — on a four-scope/one-use-case cut every scope claimed every task. Also holds
   // the depends_on cycle check and the rule that the board restates no derived value.
   "38-scope-partition.mjs",
+  // 51-eval-t0-artifacts.mjs: the judge is handed the T0 artifacts it must cite, and a round it
+  // could not grade stays open. Its own module because the defect crossed three writers — compile,
+  // the resume derivation and ingest — and each looked correct alone: no order listed an artifact,
+  // a refused round counted as done, and a verdict citing nothing was ledgered like any other.
+  "51-eval-t0-artifacts.mjs",
   "08-docs.mjs",
 ];
 

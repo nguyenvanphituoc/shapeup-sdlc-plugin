@@ -245,7 +245,7 @@ on launch, before phase 1:
   state     = mech(probe resume --slug <slug>)  — one derivation, every field read off disk
     orient/ complete? · usecases/*.md? · wiring-map.md? · scopes/*.md?
     orders/ minus results/    — never re-dispatch an order that already has a result
-    evaluate-r<N>.json        — which rounds have been judged
+    evaluate-r<N>.json        — which rounds were judged (a refused or uncited verdict leaves its round open)
   status    — REPORTED, never consulted: a stored claim is what pinned a run at "orienting"
               across two complete legs while every relaunch re-ran ORIENT from scratch
   jump to the first phase whose artifacts are incomplete; a round whose EVAL already

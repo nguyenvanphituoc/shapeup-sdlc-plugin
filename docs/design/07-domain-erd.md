@@ -134,7 +134,10 @@ erDiagram
 ## 7.2 — The judge and the evidence chain (Verdict → T0)
 
 A verdict on a scoped spec is structurally invalid without a T0 citation; the sha256 is
-recomputed from disk — content-addressed evidence the generator cannot fabricate.
+recomputed from disk — content-addressed evidence the generator cannot fabricate. Both ends are
+mechanical: `harness compile` hands the evaluator the artifacts to cite (`t0_artifacts`, each
+scope's green verdict for the round), and `harness probe eval` and `harness reduce ingest` refuse a
+scoped PASS/FAIL that cites none.
 
 ```mermaid
 erDiagram

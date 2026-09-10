@@ -37,7 +37,7 @@ Invoked as `--order <path>`. Fields you may rely on (absent = unknown, never inf
 | `payload.feature` | Feature slug — scopes the probe and names the report |
 | `payload.dimensions[]` | The active dimension set (the caller resolved precedence). Absent → `[spec-conformance]` + the auto-enable rules below |
 | `payload.run_cmd` | How to start the running app. Absent standalone → ask; absent orchestrated → ESCALATE, do not guess |
-| `payload.t0_artifacts[]` | Per-scope T0 verdict paths for this round (scoped specs). An artifact listed but missing/red on disk, or a scoped spec with none listed → the round is NOT gradeable: return `status: failed` naming the scope — a structural precondition, not a criterion |
+| `payload.t0_artifacts[]` | Per-scope T0 verdict paths for this round (scoped specs), compiled from each scope's green verdict. An artifact listed but missing/red on disk, or a scoped spec with none listed → the round is NOT gradeable: return `status: failed` with the reason, naming the scope, as your FIRST deviation — a structural precondition, not a criterion |
 | `payload.browser` | `cli` (default, ~4x cheaper) \| `mcp` \| `none` |
 | `payload.tasks[]` | Traceability only (which UCs a task claims): NEVER a grading source — the committed UC text is the criterion, a paraphrase mismatch is a finding |
 | `substrate.allowed` | Your only write surface: `.shapeup/<slug>/evaluation/**` (the report + evidence) |

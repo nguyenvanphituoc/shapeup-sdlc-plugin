@@ -36,10 +36,11 @@ import { readRunId } from "./lib/paths.mjs";
 // --spec-overridden directory, and the import is the convention-derived default.
 import {
   tasksDir, specDir as defaultSpecDir, roundLedger, trials, verdictsDir, ordersDir,
-  relShared, globLocal, globShared, relKnowledgeBase, resultsDir, scopesDir,
+  relShared, relLocal, globLocal, globShared, relKnowledgeBase, resultsDir, scopesDir,
 } from "./lib/paths.mjs";
-import { readContract, tasksForScope, SCOPE_CONTRACT } from "./lib/contract.mjs";
+import { readContract, readAllContracts, tasksForScope, SCOPE_CONTRACT } from "./lib/contract.mjs";
 import { writeActiveOrder } from "./probe/resume.mjs";
+import { greenVerdict } from "./probe/t0.mjs";
 // The SAME matcher the sandbox hook enforces with. "Is this cited file inside this scope's
 // substrate" has to mean exactly what the guard means, or a bug is addressed to a scope that is
 // then denied the write that fixes it.
@@ -482,6 +483,43 @@ export function scopeSubstrates(cwd, slug) {
   return out;
 }
 
+// --- the T0 artifacts the judge must cite ----------------------------------------------------
+//
+// WHY THE KERNEL DERIVES THEM. spec-evaluator treats a scoped spec whose order lists no T0 artifact
+// as NOT gradeable and returns `failed` without grading a criterion. The precondition is right —
+// its verdict must cite a T0 artifact it re-hashed itself — and nothing met it: the list was once
+// assembled by an orchestrator courier from the paths each scope reported, and was lost when the
+// orchestrator became a workflow script that passes only `{dimensions, run_cmd, round}`. Evaluators
+// that went looking on disk graded anyway; one that followed its contract refused, and the run
+// aborted at L3 over a round whose every scope was green.
+//
+// Derived here for the reason `bugs` is: this is the one line every lane compiles through, and the
+// evidence is already on disk. A caller could not rebuild the list from filenames in any case —
+// verdict files are addressed by round, attempt and trial, never by scope, so the scope lives only
+// inside each body, which is what `probe t0` reads.
+
+/**
+ * The green T0 verdict each scope contract holds for a round — an evaluate order's `t0_artifacts`.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {number} [round] - The round being evaluated. Omitted, each scope's newest green verdict
+ *   of any round — a standalone evaluation has no round.
+ * @returns {{artifacts: string[], missing: string[]}} Repo-relative verdict paths in scope-id
+ *   order, one per scope that has one; and the scopes that have none. Both empty on an unscoped spec.
+ */
+export function t0ArtifactsFor(cwd, slug, round) {
+  const artifacts = [];
+  const missing = [];
+  for (const { contract, id } of readAllContracts(scopesDir(cwd, slug))) {
+    const scopeId = contract?.scope_id || id;
+    const { green, path } = greenVerdict(cwd, slug, scopeId, round);
+    if (green) artifacts.push(relLocal(slug, "t0", "verdicts", basename(path)));
+    else missing.push(scopeId);
+  }
+  return { artifacts, missing };
+}
+
 /**
  * Assemble a WorkOrder envelope. Pure given its inputs — the CLI wrapper does the disk reads.
  * @param {object} opts - The order inputs (destructured):
@@ -743,6 +781,17 @@ export async function cli(rawArgv) {
   let payloadExtra = flag("payload") || {};
   if (specDir && !payloadExtra.spec_folder) payloadExtra.spec_folder = specDir;
   if (!payloadExtra.feature) payloadExtra.feature = slug;
+  // The judge's citations, for every lane (see t0ArtifactsFor). An explicit `--payload` list still
+  // wins, as it does for `bugs`: an operator naming the evidence outranks the derivation.
+  if (operation === "evaluate" && payloadExtra.t0_artifacts === undefined) {
+    const { artifacts, missing } = t0ArtifactsFor(cwd, slug, round);
+    if (artifacts.length) payloadExtra.t0_artifacts = artifacts;
+    // On stderr, never stdout: stdout is the order path the caller consumes.
+    if (missing.length) {
+      console.error(`compile-order: warning — no green T0 verdict${round ? ` in round ${round}` : ""} for ` +
+        `${missing.join(", ")}; the evaluator has nothing to cite for ${missing.length === 1 ? "that scope" : "those scopes"}`);
+    }
+  }
 
   const order = compileOrder({
     slug, worker, operation, round, attempt, scope, tasks, decisions, digestedErrors, trialHistory, bugs,
