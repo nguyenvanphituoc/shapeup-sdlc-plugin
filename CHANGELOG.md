@@ -3,6 +3,50 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.1.2] — 2026-09-10 · EVAL could refuse every scoped round, and a refused round counted as done
+
+**The evaluator was never handed the T0 artifacts it must cite.** spec-evaluator's input contract
+makes `payload.t0_artifacts` mandatory for a scoped spec: with none listed the round is not
+gradeable, and it returns `status: failed` without grading a criterion. Since 2.0.0 nothing supplied
+the field — the orchestrator courier that assembled it was deleted when the run moved onto the
+Workflow runtime, and the workflow's evaluate dispatch passes only `{dimensions, run_cmd, round}`.
+Every scoped evaluate order since then went out without it. Evaluators that went looking on disk
+graded anyway, so the gap stayed invisible until one followed its contract to the letter and the run
+aborted at GATE L3 over a round whose every scope was green. `harness compile` now derives the list
+for every evaluate order — each scope's newest green T0 verdict for the round (of any round, for a
+standalone pass), repo-relative — and names on stderr any scope with nothing to cite. An explicit
+`--payload` list still wins. The derivation lives in the compile step rather than the workflow
+because that is the one line every lane passes through, and because verdict files are addressed by
+round, attempt and trial, never by scope: a caller could not rebuild the list from filenames.
+
+**A refused EVAL round counted as done.** `probe resume` read any `evaluate-r<N>.json` as a graded
+round, so relaunching after a refusal opened round N+1 with no bugs to route, rebuilt every scope,
+and was refused again. `eval_rounds_done` now counts only rounds whose result holds a verdict the
+run may act on; a refused round stays open, and the relaunch re-enters it, skips the scopes already
+green there, and evaluates again. A refused result left on disk no longer has to be moved aside.
+
+**A scoped verdict citing no T0 artifact was accepted.** The evaluator's own contract calls such a
+verdict structurally invalid, but the rule lived only in its prose: ingest ledgered it and the round
+loop branched on it. `probe eval` and `reduce ingest` now refuse a scoped PASS or FAIL with no
+`t0_citations`, for one shared reason, so the round loop, the resume derivation, the hill and the
+verdict ledger agree. Presence is checked, not digests — a slip transcribing a hash is not evidence
+that the verdict is wrong.
+
+**The L3 abort blamed a dead sub-agent.** A refused round aborted with `sub-agent skipped, blocked,
+or died after retries` while the evaluator's actual reason sat in its result. `probe eval` now
+reports the result's `status` and a `reason` — the evaluator's first deviation, or what is wrong
+with the verdict it returned — and the L3 abort carries it. The evaluator's contract now asks for the
+refusal reason as its first deviation, the channel `probe eval` reads.
+
+**Verdict files sorted as strings.** `probe t0` ordered `t0/verdicts/` lexically, so
+`r1-a1-t10.json` read as older than `r1-a1-t9.json` — and ten scopes on their first attempt share
+one (round, attempt), so a single wide fan-out reaches `t10`. They now sort by numeric address.
+
+**Upgrading a run stopped by this.** The kernel is resolved from the plugin root on every launch,
+so a run already stopped at L3 picks up the fixed compile and resume logic on its first relaunch
+after the upgrade. The staged workflow copy it started with keeps the old L3 message until the next
+run opens.
+
 ## [3.1.1] — 2026-09-07 · the run could not launch from an installed plugin, and a finished run fenced the checkout forever
 
 **`Workflow({scriptPath})` naming the installed plugin is refused before the run begins.** The tool
