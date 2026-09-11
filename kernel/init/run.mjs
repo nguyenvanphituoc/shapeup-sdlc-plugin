@@ -142,8 +142,8 @@ export function digest(text) {
  * @param {string} o.startedAt - ISO start time.
  * @param {(object|null)} [o.plugin] - The plugin copy that answered.
  * @param {(string|null)} [o.intakeSource] - Repo-relative `--intake-file` path, or "text" / "stdin".
- * @param {({source: string, path: (string|null), text: string}|null)} [o.breadboard] - The
- *   resolved breadboard, `path` repo-relative (null when embedded in the intake), or null.
+ * @param {({source: string, path: (string|null), text: string, translated?: boolean}|null)} [o.breadboard] -
+ *   The resolved breadboard, `path` repo-relative (null when embedded in the intake), or null.
  * @returns {object} The receipt.
  */
 export function buildReceipt({ slug, intake, config, startedAt, plugin = null, intakeSource = null, breadboard = null }) {
@@ -183,6 +183,7 @@ export function buildReceipt({ slug, intake, config, startedAt, plugin = null, i
           sha256: digest(breadboard.text),
           chars: String(breadboard.text ?? "").length,
           ids: idCounts(parseBreadboard(breadboard.text)),
+          ...(typeof breadboard.translated === "boolean" ? { translated: breadboard.translated } : {}),
         }
       : null,
     // The single fact that separates "the harness ran" from "the harness described itself".
@@ -358,34 +359,47 @@ export function stageWorkflows(cwd, pluginRoot, { refresh = true } = {}) {
  * the staged copy is this function's OUTPUT, and re-opening a run from its staged intake must not
  * inherit the breadboard of the run it replaces.
  *
+ * A TRANSLATED PITCH GETS ITS TRANSLATED BREADBOARD. When the intake is a translator output
+ * (`<name>.en.md`), each folder is tried for `breadboard.en.md` before `breadboard.md`, and the
+ * result says whether it is translated — an English spec planned from a source-language breadboard
+ * is a mismatch the caller reports, not one it may silently stage.
+ *
  * @param {object} o - Inputs (destructured).
  * @param {string} o.cwd - Project root.
  * @param {string} o.slug - Feature slug.
  * @param {(string|null)} [o.intakeFile] - The `--intake-file` value as given ("-" = stdin).
  * @param {(string|null)} [o.flag] - The `--breadboard` value as given.
  * @param {string} [o.intake] - The intake text, for the embedded case.
- * @returns {({source: string, path: (string|null), text: string}|null)} The breadboard, its
- *   absolute path (null when embedded), and its text; or null when the pitch has none.
+ * @returns {({source: string, path: (string|null), text: string, translated?: boolean}|null)} The
+ *   breadboard, its absolute path (null when embedded), and its text — plus `translated` when the
+ *   intake is a `.en.md` translation; or null when the pitch has none.
  * @throws {Error} If `--breadboard` names a file that does not exist.
  */
 export function resolveBreadboard({ cwd, slug, intakeFile = null, flag = null, intake = "" }) {
+  const self = intakeFile && intakeFile !== "-" ? resolve(cwd, intakeFile) : null;
+  const english = Boolean(self && self.endsWith(".en.md"));
+  /** Tag a hit with whether it is translated — only meaningful when the intake is. */
+  const hit = (source, p, text) => ({ source, path: p, text, ...(english ? { translated: p === null || p.endsWith(".en.md") } : {}) });
   if (flag) {
     const p = resolve(cwd, flag);
     if (!existsSync(p) || !statSync(p).isFile()) throw new Error(`--breadboard not found: ${p}`);
-    return { source: "flag", path: p, text: readFileSync(p, "utf8") };
+    return hit("flag", p, readFileSync(p, "utf8"));
   }
-  const self = intakeFile && intakeFile !== "-" ? resolve(cwd, intakeFile) : null;
   const staged = stagedBreadboard(cwd, slug);
-  const candidates = [
-    ...(self ? [["sibling", join(dirname(self), "breadboard.md")]] : []),
-    ["shaping-dir", join(shapingDir(cwd, slug), "breadboard.md")],
-    ["shared-root", join(sharedRoot(cwd, slug), "breadboard.md")],
+  const names = english ? ["breadboard.en.md", "breadboard.md"] : ["breadboard.md"];
+  const folders = [
+    ...(self ? [["sibling", dirname(self)]] : []),
+    ["shaping-dir", shapingDir(cwd, slug)],
+    ["shared-root", sharedRoot(cwd, slug)],
   ];
-  for (const [source, p] of candidates) {
-    if (p === self || p === staged) continue;
-    if (existsSync(p) && statSync(p).isFile()) return { source, path: p, text: readFileSync(p, "utf8") };
+  for (const [source, dir] of folders) {
+    for (const n of names) {
+      const p = join(dir, n);
+      if (p === self || p === staged) continue;
+      if (existsSync(p) && statSync(p).isFile()) return hit(source, p, readFileSync(p, "utf8"));
+    }
   }
-  if (hasBreadboardTables(intake)) return { source: "embedded", path: null, text: String(intake) };
+  if (hasBreadboardTables(intake)) return hit("embedded", null, String(intake));
   return null;
 }
 
@@ -509,6 +523,10 @@ export function cli(rawArgv) {
   let bb = null;
   try { bb = resolveBreadboard({ cwd, slug, intakeFile, flag: args.breadboard ?? null, intake }); }
   catch (e) { fail(2, e.message); }
+  if (bb?.translated === false) {
+    console.error(`⚠ init-run: the intake is a translation but its breadboard is not — staging ${repoRel(cwd, bb.path)} as found.`);
+    console.error("  Translate the breadboard too (translator), and name the .en.md with --breadboard, or the spec is planned from two languages.");
+  }
   const intakeSource = args.intakeStdin || intakeFile === "-" ? "stdin" : intakeFile ? repoRel(cwd, resolve(cwd, intakeFile)) : "text";
 
   const config = {

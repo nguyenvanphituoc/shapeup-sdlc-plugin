@@ -311,14 +311,15 @@ workers keep only their own product-idempotency key and emit domain artifacts.
 
 ## 0. LANGUAGE GATE → translator (GATE L0, only if non-English)
 ```
-Invoke via Agent (model: exec): Skill(shapeup-sdlc-plugin:translator) --check "<intake path>"
+Invoke via Agent (model: exec), BEFORE init run: Skill(shapeup-sdlc-plugin:translator) --check "<intake path>" "<breadboard path>"
                  # detect-only, writes nothing
   English      → skip; ORIENT against the original.
-  non-English  → Agent (model: exec): Skill(shapeup-sdlc-plugin:translator) "<intake path>" [--auto]
-                 # full pass
-                 Writes: <name>.en.md (English copy; original untouched) + glossary.md
+  non-English  → Agent (model: exec): Skill(shapeup-sdlc-plugin:translator) "<intake path>" "<breadboard path>" [--auto]
+                 # full pass — the pitch AND its breadboard, before init run
+                 Writes: <name>.en.md per file (English copy; original untouched) + glossary.md
                          + translation-report.md.
-                 ORIENT against the <name>.en.md copy.
+                 Open the run on the .en.md pitch: init run stages breadboard.en.md beside it,
+                 and every planning worker reads what init run pinned — never a later copy.
 Read back: the detect table (--check) / the .en.md path + residual scan result (full pass).
 Authority: translator normalizes language only — it does not orient/plan/build/judge. The tech
 lead never translates itself; it only detects and sequences this step before ORIENT.

@@ -35,11 +35,15 @@ Collect (explicit — never inferred):
           beside it (or in `shaping/`) or takes from `--breadboard`; a `pitch.md` may carry the
           breadboard inline. Already shaped + bet by PO.
           Not a raw idea — shaping (1-4) / betting (5) / kick-off (6) are PO-personal, upstream.
-  L0.1a Language gate: Agent (model: exec) → Skill(shapeup-sdlc-plugin:translator) --check <intake>.
-          English      → use intake as-is.
-          non-English  → Agent (model: exec) → Skill(shapeup-sdlc-plugin:translator) <intake>
-                         (--auto under auto/unattended), then use the produced <name>.en.md as
-                         the ORIENT/MAP-SCOPES input. Log in ledger.
+  L0.1a Language gate, BEFORE init run: Agent (model: exec) → Skill(shapeup-sdlc-plugin:translator)
+          --check over the pitch AND its breadboard.
+          English      → use both as-is.
+          non-English  → Agent (model: exec) → Skill(shapeup-sdlc-plugin:translator) <pitch> <breadboard>
+                         (--auto under auto/unattended), then open the run on the produced
+                         <name>.en.md — init run prefers a breadboard.en.md beside it, and warns
+                         when it can find only the untranslated breadboard. The run's intake is
+                         what every planning worker reads, so a translation made after the run
+                         opened reaches nobody: re-open with --force naming the .en.md. Log in ledger.
   L0.1b Appetite: read the `appetite` field from the pitch's YAML frontmatter (set by /shapeup).
           Surface it in the gate output. Use it to:
             - Contextualise the scope at L1b (right-size cuts to the budget).

@@ -43,11 +43,11 @@ counts.
 plugin and need a one-time permission grant (`npx shapeup-sdlc init` writes it). Do not route
 around it, and do not silently hand-build the feature instead.
 
-**Language gate (delegated to `translator`, not this skill):** at GATE L0, before Step 2, dispatch
-an Agent (model: exec) that calls `Skill(shapeup-sdlc-plugin:translator) --check <intake>`.
-English → proceed as-is. Non-English → dispatch a second Agent (`--auto` under auto/unattended)
-and orchestrate against the produced `<name>.en.md`. The tech lead detects and sequences; it never
-translates itself.
+**Language gate (delegated to `translator`, not this skill):** before Step 1 opens the run, dispatch
+an Agent (model: exec) calling `Skill(shapeup-sdlc-plugin:translator) --check` on the pitch *and* its
+breadboard. English → proceed as-is. Non-English → a second Agent translates both (`--auto` under
+auto/unattended); Step 1 then names the `.en.md` files (a run already open on the original: re-open
+it with `--force` — nothing is dispatched yet). The tech lead detects and sequences; never translates.
 
 **Step 2 — pin GATE L0, then launch.** Collect the L0.1–L0.9 config (spec folder, lens, stack,
 eval dims, max_rounds, the model/budget matrix — see `references/gates.md` GATE L0 for the full

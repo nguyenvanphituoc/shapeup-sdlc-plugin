@@ -268,6 +268,29 @@ export async function run(ctx) {
     else fail("(f) hasBreadboardTables misclassifies a shaping doc or a breadboard");
   }
 
+  // --- (i) a translated pitch stages its translated breadboard ------------------------------
+  {
+    const en = BB_ID_LAYOUT.replace("# Demo", "# Demo (EN)");
+    const ws = project({
+      "shapeup/demo/shaping.md": SHAPING, "shapeup/demo/shaping.en.md": SHAPING,
+      "shapeup/demo/breadboard.md": BB_HASH_LAYOUT, "shapeup/demo/breadboard.en.md": en,
+    });
+    try {
+      initRun(ws, ["--intake-file", "shapeup/demo/shaping.en.md"]);
+      const rec = receiptOf(ws);
+      if (existsSync(stagedAt(ws)) && readFileSync(stagedAt(ws), "utf8") === en && rec?.breadboard?.translated === true)
+        ok("(i) an intake opened from shaping.en.md stages breadboard.en.md over breadboard.md");
+      else fail(`(i) translated intake staged ${rec?.breadboard?.path} (translated=${rec?.breadboard?.translated})`);
+    } finally { rmSync(ws, { recursive: true, force: true }); }
+    const ws2 = project({ "shapeup/demo/shaping.en.md": SHAPING, "shapeup/demo/breadboard.md": BB_HASH_LAYOUT });
+    try {
+      const r = initRun(ws2, ["--intake-file", "shapeup/demo/shaping.en.md"]);
+      if (receiptOf(ws2)?.breadboard?.translated === false && /not/.test(r.stderr) && /breadboard/.test(r.stderr))
+        ok("(i) an untranslated breadboard beside a translated intake is staged, marked translated:false, and warned about");
+      else fail(`(i) untranslated breadboard: translated=${receiptOf(ws2)?.breadboard?.translated}, stderr=${r.stderr.trim()}`);
+    } finally { rmSync(ws2, { recursive: true, force: true }); }
+  }
+
   // --- (h) THE PRODUCER SIDE: the four planning dispatches actually send it ------------------
   //
   // §50 checks the registry against each worker's prose, and §24 the registry against the schema;
