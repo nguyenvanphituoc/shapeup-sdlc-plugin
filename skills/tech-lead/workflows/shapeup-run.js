@@ -400,6 +400,7 @@ const RESUME = {
   type: "object",
   properties: {
     intake_path: nullable("string"), spec_folder: nullable("string"), orient_dir: nullable("string"),
+    breadboard_path: nullable("string"), breadboard_source: nullable("string"),
     project_profile_path: nullable("string"), status: nullable("string"),
     lens: nullable("string"), stack: nullable("string"),
     run_cmd: nullable("string"), app_url: nullable("string"),

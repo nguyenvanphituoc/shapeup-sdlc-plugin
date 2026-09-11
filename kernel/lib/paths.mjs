@@ -91,7 +91,7 @@ export const localRoot = (cwd, slug) => join(cwd, LOCAL, slug);
 export const specDir = (cwd, slug) => join(sharedRoot(cwd, slug), "spec");
 /** Use-case directory inside the spec tree. */
 export const usecasesDir = (cwd, slug) => join(specDir(cwd, slug), "usecases");
-/** Shaping artifacts — pitch, framing, breadboard, baseline, glossary. */
+/** Shaping artifacts — pitch, framing, breadboard, baseline, glossary. `init run` looks here for a breadboard. */
 export const shapingDir = (cwd, slug) => join(sharedRoot(cwd, slug), "shaping");
 // The three contracts are markdown on disk and JSON on the wire (ADR-0001) — see
 // `lib/contract.mjs`. `readContract()` accepts either extension, so a project mid-migration
@@ -138,6 +138,8 @@ export const RECEIPT_FILE = "receipt.json";
 export const receipt = (cwd, slug) => join(localRoot(cwd, slug), RECEIPT_FILE);
 /** The intake, verbatim, next to its digest in the receipt. */
 export const intake = (cwd, slug) => join(localRoot(cwd, slug), "intake.md");
+/** The breadboard the pitch was shaped with, verbatim, next to its digest in the receipt. */
+export const breadboard = (cwd, slug) => join(localRoot(cwd, slug), "breadboard.md");
 /** The run ledger — rounds, decisions, status frontmatter. */
 export const harnessRun = (cwd, slug) => join(localRoot(cwd, slug), "harness-run.md");
 /** File-derived mid-run digest, frozen by `reduce snapshot --write` as an audit anchor. */

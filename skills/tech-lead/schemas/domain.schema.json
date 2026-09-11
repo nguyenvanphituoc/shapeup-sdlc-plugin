@@ -2379,6 +2379,20 @@
           "type": "string",
           "description": "Resolved path to the run's intake — the pitch a fresh ORIENT dispatch is compiled against."
         },
+        "breadboard_path": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Resolved path to the run's staged breadboard (`.shapeup/<slug>/breadboard.md`), the pitch's second half, handed to the four planning dispatches as payload.breadboard. Null when the pitch had no separate breadboard file."
+        },
+        "breadboard_source": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "How `init run` found the breadboard — flag | sibling | shaping-dir | shared-root | embedded — read from the receipt. Null when there was none or the receipt is unreadable."
+        },
         "spec_folder": {
           "type": [
             "string",

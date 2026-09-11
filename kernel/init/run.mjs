@@ -54,6 +54,7 @@
 //   --spec-folder   SHARED spec deliverable path      (default: shapeup/<slug>/spec/)
 //   --dimensions    comma-separated eval dimensions   (default: spec-conformance)
 //   --gate-answers  path | preset name                (see `harness gate`; recorded, not read)
+//   --breadboard    path to the pitch's breadboard     (default: found — see resolveBreadboard())
 //   --wall-clock-budget N  deadline breaker, seconds  (off by default; see `harness verify budget`)
 //   --cwd           project root                      (default: process.cwd())
 //   --force         re-init over an existing run receipt
@@ -68,8 +69,8 @@
 // that takes a phase, not an init-run flag that takes a slug: the one instruction available at the
 // one moment it mattered named a mechanism that does not parse.
 
-import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, copyFileSync, rmSync } from "node:fs";
-import { join, dirname, resolve } from "node:path";
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, copyFileSync, rmSync, statSync } from "node:fs";
+import { join, dirname, resolve, relative, sep } from "node:path";
 import { createHash } from "node:crypto";
 import { decideLane, treeSize } from "./fit.mjs";
 import { runArgs } from "../lib/argv.mjs";
@@ -78,8 +79,9 @@ import { deriveSnapshot } from "../reduce/snapshot.mjs";
 import { mintRunId } from "../lib/paths.mjs";
 import {
   localRoot, activeScope, activeOrder, globLocal, globShared, ordersDir, resultsDir,
-  workflowsStage, globWorkflowsStage,
+  workflowsStage, globWorkflowsStage, sharedRoot, shapingDir, breadboard as stagedBreadboard,
 } from "../lib/paths.mjs";
+import { parseBreadboard, hasBreadboardTables, idCounts } from "../lib/breadboard.mjs";
 import { resolveWorkers } from "../verify/skills.mjs";
 
 export const RECEIPT_VERSION = 1;
@@ -132,8 +134,19 @@ export function digest(text) {
 /**
  * Build the receipt record. Pure — takes resolved inputs, returns the object that gets written.
  * Kept separate from I/O so the structural tests can assert its shape without a filesystem.
+ *
+ * @param {object} o - Resolved inputs (destructured).
+ * @param {string} o.slug - Feature slug.
+ * @param {string} o.intake - The intake text, verbatim.
+ * @param {object} o.config - The pinned run config.
+ * @param {string} o.startedAt - ISO start time.
+ * @param {(object|null)} [o.plugin] - The plugin copy that answered.
+ * @param {(string|null)} [o.intakeSource] - Repo-relative `--intake-file` path, or "text" / "stdin".
+ * @param {({source: string, path: (string|null), text: string}|null)} [o.breadboard] - The
+ *   resolved breadboard, `path` repo-relative (null when embedded in the intake), or null.
+ * @returns {object} The receipt.
  */
-export function buildReceipt({ slug, intake, config, startedAt, plugin = null }) {
+export function buildReceipt({ slug, intake, config, startedAt, plugin = null, intakeSource = null, breadboard = null }) {
   const intakeText = String(intake ?? "");
   const intakeSha256 = digest(intakeText);
   return {
@@ -156,6 +169,22 @@ export function buildReceipt({ slug, intake, config, startedAt, plugin = null })
     intake_sha256: intakeSha256,
     intake_chars: intakeText.length,
     intake_lines: intakeText ? intakeText.split("\n").length : 0,
+    // WHERE THE INTAKE CAME FROM. The copy above is all the run reads, so without its origin nothing
+    // on disk says which file the pitch was — or that it had a second half beside it.
+    intake_source: intakeSource,
+    // THE PITCH'S OTHER HALF. A `/shapeup` pitch is shaping.md + breadboard.md, and a Place that only
+    // the breadboard names reaches no planning worker unless the run carries it. Recorded here, at
+    // t=0, rather than left to a worker to note: the kernel knows whether a breadboard exists before
+    // anything is dispatched, and a worker's prose rule for exactly this case did not hold.
+    breadboard: breadboard
+      ? {
+          source: breadboard.source,
+          path: breadboard.path ?? null,
+          sha256: digest(breadboard.text),
+          chars: String(breadboard.text ?? "").length,
+          ids: idCounts(parseBreadboard(breadboard.text)),
+        }
+      : null,
     // The single fact that separates "the harness ran" from "the harness described itself".
     // Written before any gate, so its ABSENCE at Stop is unambiguous.
     started: true,
@@ -312,6 +341,57 @@ export function stageWorkflows(cwd, pluginRoot, { refresh = true } = {}) {
   return { ok: true, dir, staged: names };
 }
 
+/**
+ * Find the breadboard that belongs to this run's pitch. First hit wins:
+ *
+ *   1. `flag`        — `--breadboard <path>`, resolved against cwd; a missing file is an error.
+ *   2. `sibling`     — `breadboard.md` in the folder of `--intake-file` (not for text or stdin).
+ *   3. `shaping-dir` — `shapeup/<slug>/shaping/breadboard.md`, the documented location.
+ *   4. `shared-root` — `shapeup/<slug>/breadboard.md`, the flat layout real projects use.
+ *   5. `embedded`    — the intake itself, when it carries Places and UI tables; nothing is staged.
+ *
+ * THE INTAKE'S OWN FOLDER COMES FIRST, not the documented location, because the only consumer that
+ * hit this keeps its pitch flat in `shapeup/<slug>/`: a lookup that reads only the shaping folder
+ * passes every fixture built to the documented layout and misses the real one.
+ *
+ * A discovered candidate that is the intake file itself, or the run's own staged copy, is skipped:
+ * the staged copy is this function's OUTPUT, and re-opening a run from its staged intake must not
+ * inherit the breadboard of the run it replaces.
+ *
+ * @param {object} o - Inputs (destructured).
+ * @param {string} o.cwd - Project root.
+ * @param {string} o.slug - Feature slug.
+ * @param {(string|null)} [o.intakeFile] - The `--intake-file` value as given ("-" = stdin).
+ * @param {(string|null)} [o.flag] - The `--breadboard` value as given.
+ * @param {string} [o.intake] - The intake text, for the embedded case.
+ * @returns {({source: string, path: (string|null), text: string}|null)} The breadboard, its
+ *   absolute path (null when embedded), and its text; or null when the pitch has none.
+ * @throws {Error} If `--breadboard` names a file that does not exist.
+ */
+export function resolveBreadboard({ cwd, slug, intakeFile = null, flag = null, intake = "" }) {
+  if (flag) {
+    const p = resolve(cwd, flag);
+    if (!existsSync(p) || !statSync(p).isFile()) throw new Error(`--breadboard not found: ${p}`);
+    return { source: "flag", path: p, text: readFileSync(p, "utf8") };
+  }
+  const self = intakeFile && intakeFile !== "-" ? resolve(cwd, intakeFile) : null;
+  const staged = stagedBreadboard(cwd, slug);
+  const candidates = [
+    ...(self ? [["sibling", join(dirname(self), "breadboard.md")]] : []),
+    ["shaping-dir", join(shapingDir(cwd, slug), "breadboard.md")],
+    ["shared-root", join(sharedRoot(cwd, slug), "breadboard.md")],
+  ];
+  for (const [source, p] of candidates) {
+    if (p === self || p === staged) continue;
+    if (existsSync(p) && statSync(p).isFile()) return { source, path: p, text: readFileSync(p, "utf8") };
+  }
+  if (hasBreadboardTables(intake)) return { source: "embedded", path: null, text: String(intake) };
+  return null;
+}
+
+/** A path relative to the project root, `/`-joined on every platform — the form a receipt records. */
+const repoRel = (cwd, p) => relative(cwd, p).split(sep).join("/");
+
 // ---- CLI -------------------------------------------------------------------
 
 /** The typed argv contract (see `./lib/argv.mjs`). */
@@ -319,7 +399,7 @@ export const ARGV_SPEC = {
   usage: 'harness.mjs init run (--intake-file <path> | --intake-text "<req>" | --intake-stdin) ' +
          "[--slug <slug>] [--auto-level interactive|auto|unattended] [--lens <lens>] " +
          "[--max-rounds N] [--attempts N] [--spec-folder <dir>] [--dimensions <a,b>] " +
-         "[--gate-answers <preset|path>] " +
+         "[--gate-answers <preset|path>] [--breadboard <path>] " +
          "[--lane full|tiny] [--tiny] [--wall-clock-budget <seconds>] [--cwd <dir>] " +
          "[--plugin-root <dir>] [--force]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
@@ -335,6 +415,7 @@ export const ARGV_SPEC = {
   "spec-folder": { type: "path" },
   dimensions: { type: "str" },
   "gate-answers": { type: "str" },
+  breadboard: { type: "path" },
   lane: { type: "str" },
   tiny: { type: "flag" },
   "wall-clock-budget": { type: "int", min: 1 },
@@ -423,6 +504,12 @@ export function cli(rawArgv) {
   let eval_dimensions;
   try { eval_dimensions = parseDimensions(args.dimensions ?? null); }
   catch (e) { fail(2, e.message); }
+  // The pitch's second half, resolved before anything is written so a bad `--breadboard` is a usage
+  // error that ran nothing. Read-only here; staged below, once the run is actually opened.
+  let bb = null;
+  try { bb = resolveBreadboard({ cwd, slug, intakeFile, flag: args.breadboard ?? null, intake }); }
+  catch (e) { fail(2, e.message); }
+  const intakeSource = args.intakeStdin || intakeFile === "-" ? "stdin" : intakeFile ? repoRel(cwd, resolve(cwd, intakeFile)) : "text";
 
   const config = {
     auto_level,
@@ -532,7 +619,10 @@ export function cli(rawArgv) {
   }
 
   const startedAt = new Date().toISOString();
-  const receipt = buildReceipt({ slug, intake, config, startedAt, plugin });
+  const receipt = buildReceipt({
+    slug, intake, config, startedAt, plugin, intakeSource,
+    breadboard: bb ? { ...bb, path: bb.path ? repoRel(cwd, bb.path) : null } : null,
+  });
 
   mkdirSync(runRoot, { recursive: true });
   mkdirSync(join(runRoot, "orders"), { recursive: true });
@@ -541,6 +631,10 @@ export function cli(rawArgv) {
 
   // The intake, verbatim. So "the spec was dropped on the hand-off" is a checkable claim.
   writeFileSync(join(runRoot, "intake.md"), intake.endsWith("\n") ? intake : intake + "\n", "utf8");
+  // The breadboard, verbatim — byte for byte, so the receipt's digest is the file's. A copy left by a
+  // run this one replaces goes first: a re-open without a breadboard must not inherit the last one.
+  rmSync(stagedBreadboard(cwd, slug), { force: true });
+  if (bb?.path) writeFileSync(stagedBreadboard(cwd, slug), bb.text, "utf8");
   writeFileSync(receiptPath, JSON.stringify(receipt, null, 2) + "\n", "utf8");
   writeFileSync(join(runRoot, "harness-run.md"), runFrontmatter({ slug, config, startedAt }), "utf8");
 
@@ -558,6 +652,10 @@ export function cli(rawArgv) {
     receipt: globLocal(slug, "receipt.json"),
     intake_sha256: receipt.intake_sha256,
     intake_chars: receipt.intake_chars,
+    // The staged breadboard the planning dispatches are handed, or null when the pitch has none
+    // separate (`breadboard_source` then says "embedded" or null).
+    breadboard: bb?.path ? globLocal(slug, "breadboard.md") : null,
+    breadboard_source: bb?.source ?? null,
     config,
     // What the launch names. Project-local by necessity, not by preference — see stageWorkflows().
     workflow_script: staged.ok ? globWorkflowsStage("shapeup-run.js") : null,
