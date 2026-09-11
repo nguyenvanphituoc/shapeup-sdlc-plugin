@@ -23,7 +23,7 @@ turns fighting shell quoting):
 node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" init run \
   --slug <slug-from-the-request> --intake-file <path/to/the/requirement.md> \
   --auto-level <interactive|auto|unattended> \
-  [--dimensions <a,b>] [--gate-answers <ci|guarded|path.json>] [--wall-clock-budget <seconds>] [--max-rounds 3]
+  [--dimensions <a,b>] [--gate-answers <ci|guarded|path.json>] [--wall-clock-budget <seconds>] [--max-rounds 3] [--breadboard <path>]
 ```
 
 **After a compaction, or in a fresh session over an open run, re-derive before you act.** One

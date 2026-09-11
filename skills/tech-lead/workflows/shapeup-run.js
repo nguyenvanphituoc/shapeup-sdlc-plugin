@@ -999,8 +999,10 @@ if (!rs.has_orient_artifacts) {
 }
 
 {
+  // `breadboard` travels in the block because a missing one is invisible anywhere later: every
+  // downstream artifact reads the same whether or not the pitch's second half reached the run.
   const g = await crossGate("L1a", "Orient", ["proceed", "ask", "abort"],
-    { spiked_area: spikedArea, spike_result: spikeResult, riskiest_unknowns: riskiest });
+    { breadboard: rs.breadboard_source ?? "none", spiked_area: spikedArea, spike_result: spikeResult, riskiest_unknowns: riskiest });
   if (g.stop) return withWarnings(g.stop);
 }
 

@@ -826,7 +826,7 @@ fixtures run in isolation and do not consume it.
 | `spike_unresolved_count` | `SPIKE-UNRESOLVED` markers at bet | shaping quality — open risk into bet |
 | `scope_cut_count` | `~` items cut at SHIP S.0 | appetite pressure / scope hammer |
 | `qa_findings` | `.shapeup/<slug>/qa/hunt-report.md` + triage → `{total, promoted, held}` | edge quality |
-| `slice_count` | breadboard B5 (≤9) | **normalizer / denominator** |
+| `slice_count` | `receipt.json` → `breadboard.ids.V` (the V# slices init run counted in the staged breadboard; omit the field when `breadboard` is null) | **normalizer / denominator** |
 | `sources` | path to each **SHARED** source artifact — never a LOCAL `.shapeup/` path (the run-trace is superseded run by run, so a LOCAL path dangles by the time anyone reads the row; SHARED paths resolve on any clone — tier-direction rule) | auditability |
 
 - `slice_count` is the **denominator**: `round_count=4` on a 2-slice feature is alarming,

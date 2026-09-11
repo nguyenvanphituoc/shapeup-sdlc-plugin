@@ -31,7 +31,9 @@ escalates, writes nothing, and every relaunch re-dispatches it.
 
 ```
 Collect (explicit — never inferred):
-  L0.1  Kicked-off pitch source: path to a shaping.md / pitch.md (already shaped + bet by PO).
+  L0.1  Kicked-off pitch source: `shaping.md` — and its `breadboard.md`, which the run finds
+          beside it (or in `shaping/`) or takes from `--breadboard`; a `pitch.md` may carry the
+          breadboard inline. Already shaped + bet by PO.
           Not a raw idea — shaping (1-4) / betting (5) / kick-off (6) are PO-personal, upstream.
   L0.1a Language gate: Agent (model: exec) → Skill(shapeup-sdlc-plugin:translator) --check <intake>.
           English      → use intake as-is.
@@ -167,8 +169,9 @@ committing to a scope map. This is the first Hill read (area-level — slices do
 ```
 Read .shapeup/<slug>/orient/. Render the 🗻 Hill from hill-signal.md (see protocol.md "Hill report"):
   - each suspected area → uphill (open unknowns) | crest (approach proven by the spike) | downhill
-Print: the code-surface headline (where it lands), the spiked area + result, the riskiest
-       open unknowns going into mapping.
+Print: `Breadboard: <source> | none` (how init run found the pitch's breadboard — flag, sibling,
+       shaping-dir, shared-root, embedded — or none), the code-surface headline (where it lands),
+       the spiked area + result, the riskiest open unknowns going into mapping.
 Ask (max 2): is the riskiest area the right one to have spiked? any unknown that must be
              resolved (another spike) before we map scopes?
 ```
@@ -265,6 +268,8 @@ Scope contracts present:
     - scope board: scope_id, topology_type, substrate file count (scopes/*.md / scope-board.md)
     - any SPIKE blockers (scope-summary.md)
     - scope-summary "Done when" headline statements
+    - the Deferred Places from ux-behavior.md (breadboard Places this shape will not build) —
+      each one needs the PO's yes; a rejected deferral goes back to the planner as a screen
 No scope contracts (pre-v0.3.0, unchanged from v0.2.6):
   Read tasks/_index.md (LOCAL root). Print:
     - task count by package/variant (.shared / .be / .web / .mobile / .e2e)
@@ -418,7 +423,8 @@ S.6  Harvest one signal row → append to `.shapeup/metrics/<machine-id>.jsonl`
      deliberately without colliding on one filename. The read plane is
      `harness probe stats`, or `cat .shapeup/metrics/*.jsonl`).
      Copy fields that ALREADY exist as structured output (run-state, final EVAL report,
-     discovery ledger, qa/hunt-report, breadboard B5). Two hard rules:
+     discovery ledger, qa/hunt-report, and the receipt's `breadboard.ids.V` for `slice_count` —
+     the slices init run counted in the staged breadboard, never a hand copy). Two hard rules:
        1. Harvest only fields that already exist at ship time — never evaluate something new.
        2. Record facts, never compute a new verdict (no `run_quality_score` — that would be
           a second judge behind spec-evaluator). The eval suite interprets; harvest records.

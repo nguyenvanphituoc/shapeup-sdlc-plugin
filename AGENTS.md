@@ -18,7 +18,7 @@ Skills and commands are named short throughout this file; every one of them reso
 1. Set Boundaries → `/shapeup shaping`
 2. Find the Elements → `/shapeup breadboarding`
 3. Risks & Rabbit Holes → `/shapeup spike`
-(The completed pitch is formed by `shaping.md` + `breadboard.md`)
+(The completed pitch is formed by `shaping.md` + `breadboard.md`. A run takes both: `/ship` finds the breadboard beside the pitch or in `shaping/`, takes one named with `--breadboard`, or reads it inline in a single pitch file, and hands it to every planning worker. Each breadboard Place with UI affordances becomes its own screen in the spec — spec-lint stops the run at L1b when one is missing or folded into another screen — and a Place the shape will not build is deferred there, with the PO's yes.)
 
 ### Phase 2 — Betting (PO governance, no skill)
 Betting Table: PO decides; rejected pitches loop back to raw idea.
