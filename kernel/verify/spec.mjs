@@ -42,6 +42,16 @@
 //             Edge-cases heading with real content under it) but no usecases/UC-*.md declares
 //             a single [INV-NN] anywhere — a criteria-count check can't tell a healthy small
 //             tree from one that silently derived nothing from the pitch
+//   BREADBOARD-PLACE (red) a breadboard Place that owns UI affordances has no ux-behavior.md
+//             `## Screen: … (P#)` section and is not under `## Deferred Places`
+//   BREADBOARD-UI (red) a UI affordance (U#) not cited inside the screen section of any Place the
+//             breadboard puts it in. CITING IS NOT PLACING: a U# specified under another Place's
+//             screen passes a presence check and is exactly the defect this rule exists for
+//   BREADBOARD-TRACE (warn) N#/S# cited nowhere in the spec, V# slices no scope board records,
+//             U# the spec places that no manifest entry names as its `source`
+//   BREADBOARD-UNPARSED (warn) a staged breadboard this reader finds no ids in — a layout it
+//             cannot read must never become a hard stop
+//   All four are silent when the run has no breadboard (staged, or inline in the intake).
 //
 // Zero dependencies (glob matcher inlined from hooks/sandbox-guard.mjs). Judgment stays in the skill
 // (gap severity, lens choice); this script only reports facts.
@@ -56,6 +66,8 @@ import { runArgs } from "../lib/argv.mjs";
 import { LOCAL } from "../lib/paths.mjs";
 import { specDir, scopesDir, tasksDir, intake, sharedRoot, requirements } from "../lib/paths.mjs";
 import { readAllContracts, unreadableReason, ucId, scopePartitionConflicts, SCOPE_CONTRACT } from "../lib/contract.mjs";
+import { breadboard as stagedBreadboard } from "../lib/paths.mjs";
+import { parseBreadboard, hasBreadboardTables, idCounts } from "../lib/breadboard.mjs";
 
 // Inlined from hooks/sandbox-guard.mjs so this skill ships self-contained (a skill's scripts
 // must not reach outside its own folder — channels that copy only skills/ would dangle).
@@ -494,12 +506,169 @@ export function lintStructure({ specDir, tasks, intakeContent = "" }) {
   return findings;
 }
 
+/** Every Place id inside a heading's parentheses — `## Screen: Sheet (P2)`, `(P1, P3)`. */
+const PLACE_IN_PARENS = /\(([^)]*)\)/g;
+const PLACE_ID = /\bP\d+(?:\.\d+)*\b/g;
+
+/**
+ * Cut ux-behavior.md into the screen sections a breadboard's Places are checked against.
+ *
+ * A section runs from its `Screen:` heading to the next heading at the same level or higher, so
+ * a screen's `### States` table and behavior rules belong to it. Its Places are the P# ids in the
+ * heading's parentheses; a screen with none is kept (its citations are still "somewhere") but can
+ * place nothing.
+ *
+ * @param {string} uxText - ux-behavior.md, verbatim ("" when absent).
+ * @returns {{screens: {heading: string, places: string[], body: string}[], deferred: Set<string>}}
+ *   The screen sections, and the Place ids listed first-cell under `## Deferred Places`.
+ */
+export function uxScreens(uxText) {
+  const lines = String(uxText ?? "").split(/\r?\n/);
+  const screens = [];
+  const deferred = new Set();
+  let cur = null; // { level, heading, places, body[] } for a screen, or { level, deferred: true }
+  for (const line of lines) {
+    const h = line.match(/^(#{1,6})\s+(.*)$/);
+    if (h) {
+      const level = h[1].length;
+      if (cur && level <= cur.level) cur = null;
+      if (!cur) {
+        const text = h[2].trim();
+        if (/^screen\s*:/i.test(text)) {
+          const places = [...text.matchAll(PLACE_IN_PARENS)].flatMap((m) => m[1].match(PLACE_ID) ?? []);
+          cur = { level, heading: text, places, body: [] };
+          screens.push(cur);
+          continue;
+        }
+        if (/^deferred places\b/i.test(text)) { cur = { level, deferred: true }; continue; }
+      }
+    }
+    if (!cur) continue;
+    if (cur.deferred) {
+      const row = line.match(/^\s*\|\s*([^|]*)\|/);
+      const id = row ? row[1].replace(/[*`\[\]]/g, "").match(/^\s*(P\d+(?:\.\d+)*)\b/) : null;
+      if (id) deferred.add(id[1]);
+    } else cur.body.push(line);
+  }
+  return {
+    screens: screens.map((s) => ({ heading: s.heading, places: s.places, body: s.body.join("\n") })),
+    deferred,
+  };
+}
+
+/**
+ * Lint the spec against the pitch's breadboard: every Place with UI affordances has a screen, and
+ * every UI affordance is specified on a screen of a Place the breadboard puts it in.
+ *
+ * PLACEMENT, NOT CITATION. The loss this exists for did not drop a new sheet's affordances — they
+ * were all in the spec, inside the composer's state table. What was lost was the Place. A rule that
+ * only asks "is U2 cited?" passes that spec; this one asks "is U2 cited under P2?". It checks WHICH
+ * screen, never where on the screen: layout inside a Place stays the designer's.
+ *
+ * Absent breadboard ⇒ zero findings, the same "absent artifact ⇒ arm skipped" rule INV-FLOOR and
+ * SCOPE-COVERS follow — every pre-breadboard spec and every run without one is untouched.
+ *
+ * @param {object} input - What to lint (destructured).
+ * @param {string} input.uxText - ux-behavior.md, verbatim ("" when absent).
+ * @param {string} input.specText - Every markdown file under the spec tree, concatenated.
+ * @param {Array<object>} [input.scopes] - Parsed scope contracts ([] before MAP SCOPES).
+ * @param {(string|null)} [input.scopeSummaryText] - scope-summary.md, or null when absent.
+ * @param {(string|null)} [input.scopeBoardText] - scope-board.md, or null when absent — the scope
+ *   architect's own write surface, where it records which scopes deliver each slice.
+ * @param {(string|null)} input.bbText - The breadboard, or null when the run has none.
+ * @returns {Array<{rule:string, level:("red"|"warn"), detail:string}>} Findings; [] when clean or
+ *   when there is no breadboard.
+ */
+export function lintBreadboard({ uxText = "", specText = "", scopes = [], scopeSummaryText = null, scopeBoardText = null, bbText = null }) {
+  if (!bbText) return [];
+  const findings = [];
+  const bb = parseBreadboard(bbText);
+  const counts = idCounts(bb);
+  if (Object.values(counts).every((n) => n === 0)) {
+    findings.push({ rule: "BREADBOARD-UNPARSED", level: "warn", detail: "the run has a breadboard but no P#/U#/N#/S#/V# ids could be read from its tables — placement was not checked. A `#` or `ID` first column holding the id, and a `Place` column on affordance rows, is the layout this reads" });
+    return findings;
+  }
+
+  const { screens, deferred } = uxScreens(uxText);
+  /**
+   * A Place as a finding names it — id and breadboard name.
+   * @param {string} p - Place id.
+   * @returns {string} e.g. `P2 Payment Sheet`.
+   */
+  const name = (p) => {
+    const n = bb.places.find((x) => x.id === p)?.name;
+    return n ? `${p} ${n}` : p;
+  };
+  /**
+   * Does the text cite this exact id — `U2` but not `U21` or `U2a`?
+   * @param {string} text - Markdown to search.
+   * @param {string} id - A breadboard id.
+   * @returns {boolean} True when the id appears as a whole word.
+   */
+  const cites = (text, id) => new RegExp(`\\b${id.replace(/\./g, "\\.")}\\b`).test(text);
+
+  // BREADBOARD-PLACE — a Place with something to place needs a screen of its own.
+  const owners = new Map(); // Place → the U# it owns
+  for (const u of bb.ui) for (const p of u.places) (owners.get(p) ?? owners.set(p, []).get(p)).push(u.id);
+  for (const [p, us] of owners) {
+    if (deferred.has(p)) continue;
+    if (screens.some((s) => s.places.includes(p))) continue;
+    findings.push({ rule: "BREADBOARD-PLACE", level: "red", detail: `${name(p)} owns ${us.join(", ")} but ux-behavior.md has no "## Screen: … (${p})" section — add the screen or defer the Place under "## Deferred Places"; never fold it into another screen` });
+  }
+
+  // BREADBOARD-UI — each U# is specified on a screen of a Place the breadboard puts it in.
+  const unplaceable = [];
+  for (const u of bb.ui) {
+    if (!u.places.length) { unplaceable.push(u.id); continue; }
+    const live = u.places.filter((p) => !deferred.has(p));
+    if (!live.length) continue;
+    if (screens.some((s) => s.places.some((p) => live.includes(p)) && cites(s.body, u.id))) continue;
+    const elsewhere = [...new Set(screens.filter((s) => cites(s.body, u.id)).flatMap((s) => s.places.length ? s.places : [`"${s.heading}"`]))];
+    const where = elsewhere.length
+      ? `is cited only under ${elsewhere.join(", ")}`
+      : cites(uxText, u.id) ? "is cited in ux-behavior.md but on no screen" : "is cited on no screen";
+    findings.push({ rule: "BREADBOARD-UI", level: "red", detail: `${u.id} (${live.map(name).join(" / ")}) ${where} — specify it in the screen section of its own Place` });
+  }
+
+  // BREADBOARD-TRACE — the rest of the breadboard, reported and never blocking.
+  const trace = [];
+  const lost = [...bb.code, ...bb.stores].map((x) => x.id).filter((id) => !cites(specText, id));
+  if (lost.length) trace.push(`N#/S# cited nowhere in the spec: ${lost.join(", ")}`);
+  const slicesText = [scopeSummaryText, scopeBoardText].filter((t) => t !== null && t !== undefined).join("\n");
+  if (scopeSummaryText !== null || scopeBoardText !== null) {
+    const unsliced = bb.slices.map((v) => v.id).filter((id) => !cites(slicesText, id));
+    if (unsliced.length) trace.push(`V# slices no scope board or scope summary records: ${unsliced.join(", ")}`);
+  }
+  if (scopes.length) {
+    const sourced = new Set(scopes.flatMap((s) => (s.affordance_manifest ?? []).map((a) => String(a?.source ?? "").trim())));
+    const unsourced = bb.ui.map((u) => u.id).filter((id) => cites(uxText, id) && !sourced.has(id));
+    if (unsourced.length) trace.push(`U# the spec places but no manifest entry names as its source: ${unsourced.join(", ")}`);
+  }
+  if (unplaceable.length) trace.push(`U# with no Place column to check placement against: ${unplaceable.join(", ")}`);
+  if (trace.length) findings.push({ rule: "BREADBOARD-TRACE", level: "warn", detail: trace.join("; ") });
+  return findings;
+}
+
+/**
+ * The breadboard a run's spec is linted against: the staged copy, else the intake when it carries
+ * one inline, else null — and null switches every BREADBOARD-* rule off.
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {string} intakeContent - The run's intake, verbatim ("" when absent).
+ * @returns {(string|null)} The breadboard text, or null when the run has none.
+ */
+export function runBreadboard(cwd, slug, intakeContent) {
+  const p = stagedBreadboard(cwd, slug);
+  if (existsSync(p)) return readFileSync(p, "utf8");
+  return hasBreadboardTables(intakeContent) ? intakeContent : null;
+}
+
 /**
  * Run the full spec lint (scopes + structure) for a slug.
  * @param {{cwd:string, slug:string}} opts - Working root and feature slug.
  * @returns {{slug:string, scopes:number, tasks:number, red:number, warn:number,
- *   findings:Array<object>}} Counts and the combined findings from {@link lintScopes} and
- *   {@link lintStructure}.
+ *   findings:Array<object>}} Counts and the combined findings from {@link lintScopes},
+ *   {@link lintStructure} and, when the run has a breadboard, {@link lintBreadboard}.
  */
 export function lint({ cwd, slug }) {
   const specRoot = specDir(cwd, slug);
@@ -525,6 +694,25 @@ export function lint({ cwd, slug }) {
     ...lintScopeAnchors({ scopes, specDir: specRoot, reqIds, tasks }),
     ...lintCommittedTier({ cwd, slug }),
     ...lintStructure({ specDir: specRoot, tasks, intakeContent }),
+    ...(() => {
+      const bbText = runBreadboard(cwd, slug, intakeContent);
+      if (!bbText) return [];
+      /**
+       * A file's text, or null when it does not exist.
+       * @param {string} p - Absolute path.
+       * @returns {(string|null)} The contents, or null.
+       */
+      const readOr = (p) => (existsSync(p) ? readFileSync(p, "utf8") : null);
+      const specFiles = existsSync(specRoot) ? walkFiles(specRoot).filter((f) => f.endsWith(".md")) : [];
+      return lintBreadboard({
+        uxText: readOr(join(specRoot, "ux-behavior.md")) ?? "",
+        specText: specFiles.map((f) => readFileSync(join(specRoot, f), "utf8")).join("\n"),
+        scopes,
+        scopeSummaryText: readOr(join(specRoot, "scope-summary.md")),
+        scopeBoardText: readOr(join(sharedRoot(cwd, slug), "scope-board.md")),
+        bbText,
+      });
+    })(),
   ];
   return {
     slug,

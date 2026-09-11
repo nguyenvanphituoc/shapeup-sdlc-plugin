@@ -162,6 +162,9 @@ const MODULE_FILES = [
   // defect was an absence — no reader anywhere — and a feature nothing exercises is one no
   // existing section could notice going missing.
   "52-breadboard-intake.mjs",
+  // 53-breadboard-lint.mjs: spec-lint checks where the breadboard's Places landed, not only that
+  // its ids were cited — the lost Place was fully cited, on the wrong screen.
+  "53-breadboard-lint.mjs",
   "08-docs.mjs",
 ];
 

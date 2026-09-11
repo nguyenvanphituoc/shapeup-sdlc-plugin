@@ -1164,11 +1164,13 @@ if (waves.length > 1 || excluded.added || ceiling < maxParallelScopes) {
       `${ceiling < maxParallelScopes ? ` (the window is ${maxParallelScopes}; the substrate the contracts declared is what caps it, not the dial)` : ""}`);
 }
 
-// Advisory lints at L1b. spec-lint is hard — a substrate overlap makes parallel builds unsafe;
-// trace-lint stays advisory until `covers:` is populated; hill-derive is a projection.
+// Advisory lints at L1b. spec-lint is hard — a substrate overlap makes parallel builds unsafe, and
+// a breadboard Place with no screen builds the wrong thing; trace-lint stays advisory until
+// `covers:` is populated; hill-derive is a projection. The abort names no cause of its own: spec-lint
+// has more than one kind of red, and the detail says which.
 const specLint = await cmd(`verify spec --slug ${slug}`, "MapScopes", "spec-lint");
 if (!specLint.ok) {
-  return aborted("L1b", `spec-lint reported a disjointness or size problem before BUILD: ${specLint.detail || `exit ${specLint.exit_code}`}`);
+  return aborted("L1b", `spec-lint reported red findings before BUILD: ${specLint.detail || `exit ${specLint.exit_code}`}`);
 }
 await advisory(`verify trace --slug ${slug} --quiet`, "MapScopes", "trace-lint");
 await advisory(`reduce hill --slug ${slug}`, "MapScopes", "hill-derive");

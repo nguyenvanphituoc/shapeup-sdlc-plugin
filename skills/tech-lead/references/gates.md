@@ -280,7 +280,11 @@ this is the orchestrator's own re-confirmation before committing to a build sequ
     waiting to happen), PA1 (directory-aligned scope), PA2 (size cap), SCOPE-ANCHOR (a scope
     naming no committed use case, or one that does not resolve), TIER-DIRECTION (a committed
     contract naming LOCAL task ids), SCOPE-DEPS (a build-order id naming a scope that is not
-    in this run). Any red → HARD STOP, past a 🔴 at the architect's own checkpoint.
+    in this run), BREADBOARD-PLACE (a breadboard Place with UI affordances has no
+    `## Screen: … (P#)` in ux-behavior.md and is not deferred), BREADBOARD-UI (a U# not
+    specified on a screen of its own Place). Any red → HARD STOP, past a 🔴 at the
+    architect's own checkpoint. The breadboard reds are the planner's to fix — add the screen
+    or defer the Place; never fold it into another screen.
   - Lock the build SEQUENCE riskiest-first: order scopes by open-unknowns count (from
     hill/<scope-id>.yml if present, else the orient hill signal), not by file count or
     alphabetical — Shape Up's "solve in the right sequence" (step 10).

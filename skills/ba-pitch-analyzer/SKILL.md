@@ -74,7 +74,8 @@ its phase; templates live in `assets/templates/`.
                   overflow is a fact you REPORT for the caller's HAMMER gate, never resolve)
                node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify spec --slug <slug>
                  (structure, wikilinks, edge symmetry — fix reds, then re-run; you never
-                  self-grade with a hand-walked checklist)
+                  self-grade with a hand-walked checklist. BREADBOARD-PLACE / BREADBOARD-UI:
+                  add the screen or defer the Place; never fold it into another screen)
                → scope-summary.md + synthesis.md (traceability matrix, risk register,
                  dependency graph — the JUDGMENT layers over board-derive's numbers)
 8  INDEX       _index.md (pitch digest + document map) + feedback.md template
