@@ -314,6 +314,7 @@
     ],
     "ba-pitch-analyzer": [
       "pitch",
+      "breadboard",
       "lens",
       "orient_dir",
       "spec_folder",
@@ -324,12 +325,14 @@
     "scope-architect": [
       "feature",
       "spec_folder",
-      "tasks"
+      "tasks",
+      "breadboard"
     ],
     "solution-architect": [
       "feature",
       "spec_folder",
-      "project_profile"
+      "project_profile",
+      "breadboard"
     ],
     "spec-evaluator": [
       "spec_folder",
@@ -342,6 +345,7 @@
     ],
     "orient": [
       "pitch",
+      "breadboard",
       "stack",
       "spec_folder",
       "feature"
@@ -2247,6 +2251,10 @@
         "pitch": {
           "type": "string",
           "description": "ba-pitch-analyzer (analyze) / orient: the kicked-off pitch path (shaped + bet; frontmatter appetite/status/bet)."
+        },
+        "breadboard": {
+          "type": "string",
+          "description": "orient / ba-pitch-analyzer (analyze) / solution-architect / scope-architect: the run's staged breadboard — Places (P#), UI and code affordances (U#, N#), stores (S#), slices (V#). Absent = the pitch has no separate breadboard (it may carry one inline); never inferred from the pitch's folder."
         },
         "lens": {
           "type": "string",

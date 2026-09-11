@@ -973,7 +973,7 @@ if (!rs.has_orient_artifacts) {
   await setRunStatus("orienting", "Orient");
   const o = await worker({
     skill: "orient", operation: "orient", schema: ORIENT, phase: "Orient", label: "orient",
-    payload: { pitch: rs.intake_path, spec_folder: specFolder, feature: slug, stack: rs.stack },
+    payload: { pitch: rs.intake_path, breadboard: rs.breadboard_path, spec_folder: specFolder, feature: slug, stack: rs.stack },
     // NAME THE FILES. "write the orient/ artifacts" was the whole instruction, while completion is
     // decided by four exact filenames — so a leg that did the work and called its output
     // `code-surface-map.md` and `discovered-tasks.md` aborted the run at the post-condition, having
@@ -1016,7 +1016,7 @@ if (!rs.has_spec_tree) {
   await setRunStatus("mapping", "Analyze");
   const a = await worker({
     skill: "ba-pitch-analyzer", operation: "analyze", schema: PHASE_OK, phase: "Analyze", label: "analyze",
-    payload: { pitch: rs.intake_path, spec_folder: specFolder, feature: slug, lens: rs.lens, orient_dir: rs.orient_dir },
+    payload: { pitch: rs.intake_path, breadboard: rs.breadboard_path, spec_folder: specFolder, feature: slug, lens: rs.lens, orient_dir: rs.orient_dir },
     extra: "Write the spec tree and the board from the orient artifacts — do not re-scan the code.",
   });
   if (a.__failed) return diedAt("ANALYZE", a);
@@ -1048,7 +1048,7 @@ if (!rs.has_wiring_map) {
   log(`WIRE — dispatching (slug ${slug})`);
   const w = await worker({
     skill: "solution-architect", operation: "wire", schema: PHASE_OK, phase: "Wire", label: "wire",
-    payload: { feature: slug, spec_folder: specFolder, project_profile: rs.project_profile_path },
+    payload: { feature: slug, spec_folder: specFolder, project_profile: rs.project_profile_path, breadboard: rs.breadboard_path },
     extra: "Write the wiring map: per use case, engine → seam → entry-point call site → affordance.",
   });
   if (w.__failed) return diedAt("WIRE", w);
@@ -1079,7 +1079,7 @@ if (scopes.length === 0) {
   log(`MAP SCOPES — dispatching (slug ${slug})`);
   const m = await worker({
     skill: "scope-architect", operation: "map-scopes", schema: MAPSCOPES, phase: "MapScopes", label: "map-scopes",
-    payload: { feature: slug },
+    payload: { feature: slug, breadboard: rs.breadboard_path },
     // SAY THE PASS RULE, for the same reason ORIENT's filenames are named above: the rule lives in
     // `verify t0` (a fixture passes iff it exits 0) and the architect never saw it. Given a contract
     // that said only "commands that drive this scope end-to-end", it wrote the scope's error paths

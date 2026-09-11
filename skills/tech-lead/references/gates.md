@@ -186,7 +186,7 @@ Do NOT enter MAP SCOPES until Orient is accepted.
    mobile|library|data-pipeline}; entry_point is the reachability seam (a game's main.js is NOT a
    service's src/server.ts). Validate the enum — a typo must fail, not silently disable the check.
 2. WIRE — compile-order --operation wire --slug <slug> (worker→solution-architect), payload
-   {project_profile}. Sole writer of committed wiring-map.md (per-UC engine → seam → entry-point
+   {project_profile, breadboard?}. Sole writer of committed wiring-map.md (per-UC engine → seam → entry-point
    call site → affordance). ⏸ GATE L1a.5: confirm each UC has a declared seam before slicing.
    ⟐ PRECONDITION: MAP SCOPES step 1 (ANALYZE) has already run and usecases/ is
    populated. WIRE writes one entry per use case, so dispatching it against an empty spec folder
@@ -212,7 +212,7 @@ against the seams WIRE declared. Sequence: ORIENT → L1a → **ANALYZE** → **
 ```
 Two orders, two workers, one step (both model: exec — see references/protocol.md):
 1. ANALYZE + BOARD — compile-order --operation analyze --slug <slug> --worker ba-pitch-analyzer
-     --payload '{"pitch": "<path>", "lens": "<lens>", "orient_dir": ".shapeup/<slug>/orient/"}'
+     --payload '{"pitch": "<path>", "breadboard": "<the path init run printed, when it printed one>", "lens": "<lens>", "orient_dir": ".shapeup/<slug>/orient/"}'
    dispatch: Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) --order <path>. The order hands it
    code-surface.md (Phase-1 ingest consumes the map, does not re-scan), discovered-seed.md
    (task gen starts from reality), spike-<area>.md (feasibility/contracts).

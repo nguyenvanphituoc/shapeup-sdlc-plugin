@@ -26,6 +26,7 @@ Invoked as `--order <path>`. Fields you may rely on (absent = unknown; surface i
 |---|---|
 | `operation` | `analyze` (pitch → full spec tree + board) · `reconcile` (fold discovered-ledger items into the board + UC invariants) · `retrofit-surface` (append `## Test Surface` to a pre-surface spec) · `coverage` (extract atomic requirement clauses → the SHARED `requirements.md` registry) |
 | `payload.pitch` | The pitch/PRD path (analyze) |
+| `payload.breadboard` | The breadboard (analyze): its Places are your screens; its U# and N# are the affordances you place and cite. Absent = none separate; never inferred |
 | `payload.requirements` | (coverage) the REQ source to extract atomic clauses from — pitch / a customer-requirements doc / the use-case bodies. Absent → default to the pitch and record the choice in `assumptions[]` |
 | `payload.lens` | `lite` \| `standard` \| `cross-context`. Absent → judge it: LITE for ≤2-week appetite, no third-party, ≤3 user-facing actions; STANDARD for multi-team, third-party, or bigger appetite; genuinely unclear → one binary question, or `status: "escalated"` with the question in `deviations[]` |
 | `payload.orient_dir` | The Scout's artifacts — `code-surface.md` IS your codebase map (do not re-scan), `discovered-seed.md` seeds task gen, `spike-*.md` feeds feasibility |

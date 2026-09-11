@@ -42,6 +42,7 @@ return as a WorkResult.
 |---|---|
 | `operation` | `wire` (author/refresh the wiring map after `analyze`, before `map-scopes`) |
 | `payload.feature` / `payload.spec_folder` | Slug + committed spec — read `usecases/` for the UCs and the engine each one needs, `domain-model.md`/`synthesis.md` for the module surface |
+| `payload.breadboard` | When present, name each UC's `affordance` by its U# and Place |
 | `payload.project_profile` | Path to the SHARED `project-profile.md`. Its `entry_point` is the composition root every engine must attach to — **archetype-specific** (a client-only game's `main.js` is not a web-service's `src/server.ts`). Read it; never guess the entry point |
 | `substrate.allowed` | `wiring-map.md` — your ONLY write surface (the spec core, scopes, and the profile are frozen) |
 

@@ -340,7 +340,7 @@ Authority: pure worker — no code, no board, no run-state, no reporting.
 ```
 Order A (the spec tree + board):
   compile-order --operation analyze --slug <slug> --worker ba-pitch-analyzer
-    --payload '{"pitch": "<path>", "lens": "<lens>", "orient_dir": ".shapeup/<slug>/orient/"}'
+    --payload '{"pitch": "<path>", "breadboard": "<the path init run printed, when it printed one>", "lens": "<lens>", "orient_dir": ".shapeup/<slug>/orient/"}'
   Agent (model: exec): Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) --order <path>
   The order hands it code-surface.md (Phase-1 ingest, no re-scan), discovered-seed.md (task
   gen from reality), spike-<area>.md (feasibility/contracts).

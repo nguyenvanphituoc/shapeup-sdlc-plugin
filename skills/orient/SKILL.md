@@ -42,7 +42,8 @@ from `tech-lead`; it never reads or writes a shared run-state file.
 ## Input contract (pure worker)
 
 Orchestrated, you are invoked as `--order <path>` (a WorkOrder): `payload.pitch` (the
-kicked-off pitch path), `payload.stack` (sweep hint), `payload.spec_folder` (the SHARED spec
+kicked-off pitch path), `payload.breadboard` (the pitch's breadboard — Places, affordances, slices;
+absent = none separate), `payload.stack` (sweep hint), `payload.spec_folder` (the SHARED spec
 deliverable dir) and `payload.feature` (the run slug), plus `substrate.allowed` naming your one
 write surface — the orient output dir. Anything absent = unknown: confirm at GATE O-A
 (standalone) or report it in the result's `deviations`, never guess. Standalone, the
@@ -104,7 +105,8 @@ Confirm (do not guess):
       Shaped signal: frontmatter status: shaped AND bet: <S1|S2|...> (or equivalent).
       If the pitch lacks appetite AND solution boundaries → STOP and tell tech-lead:
         "Orient runs on a kicked-off pitch, not a raw idea. Shape/bet first (PO upstream)."
-  - breadboard.md path — read it if it exists; record "no breadboard" if absent
+  - breadboard — read `payload.breadboard` when present; absent means the pitch has no separate
+    breadboard — look for Places and affordance tables in the pitch itself
   - spec folder target (create orient/ if absent)
   - codebase root
 ```
@@ -136,7 +138,8 @@ Useful sweeps (adapt to the stack arg):
 ```
 
 Write `code-surface.md`: one row per pitch element → `file:line` it touches (or "NEW — no
-existing home"), the seam it extends, and whether it's new vs. existing. Flag every place the
+existing home"), the seam it extends, and whether it's new vs. existing. With a breadboard, each row
+carries the P#, U# or N# of the element it locates — a Place with no existing home is a NEW screen. Flag every place the
 map is uncertain — uncertainty is signal for Phase 3, not something to hide.
 
 > **Output location.** All four orient artifacts are run-trace (recon scratch), so they
@@ -257,7 +260,7 @@ Tech-lead uses this to render the GATE L1a Hill and confirm the spike before han
 ### Flags
 | Flag | Effect |
 |------|--------|
-| `--pitch <path>` | The kicked-off pitch (+ sibling `breadboard.md` if present) |
+| `--pitch <path>` | The kicked-off pitch. Read `payload.breadboard` when present; absent means the pitch has no separate breadboard — look for Places and affordance tables in the pitch itself |
 | `--spec <path>` | SHARED spec deliverable dir (shapeup/<feat>/spec/); orient *artifacts* are written to the LOCAL root `.shapeup/<feat>/orient/` |
 | `--stack <hint>` | Stack hint to aim the code-surface sweeps |
 | `--auto` | Auto-confirm O-A and O-B; run straight through |

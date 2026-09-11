@@ -267,4 +267,48 @@ export async function run(ctx) {
     if (!bbLib.hasBreadboardTables(SHAPING) && bbLib.hasBreadboardTables(BB_HASH_LAYOUT)) ok("(f) a shaping doc's R#/A# tables are not a breadboard");
     else fail("(f) hasBreadboardTables misclassifies a shaping doc or a breadboard");
   }
+
+  // --- (h) THE PRODUCER SIDE: the four planning dispatches actually send it ------------------
+  //
+  // §50 checks the registry against each worker's prose, and §24 the registry against the schema;
+  // neither reads the workflow. A field registered, declared and described — and never written by
+  // the one file that builds the payload — reads as delivered in all three places. So read the four
+  // dispatch sites themselves.
+  {
+    const wf = readFileSync(join(ROOT, "skills/tech-lead/workflows/shapeup-run.js"), "utf8");
+    /** The payload object literal of the `worker({ skill, operation, … })` call for that pair. */
+    const payloadOf = (skill, op) => {
+      const at = wf.indexOf(`skill: "${skill}", operation: "${op}"`);
+      if (at < 0) return null;
+      const p = wf.indexOf("payload:", at);
+      const open = wf.indexOf("{", p);
+      if (p < 0 || open < 0) return null;
+      let depth = 0;
+      for (let i = open; i < wf.length; i++) {
+        if (wf[i] === "{") depth++;
+        else if (wf[i] === "}" && --depth === 0) return wf.slice(open, i + 1);
+      }
+      return null;
+    };
+    const sites = [["orient", "orient"], ["ba-pitch-analyzer", "analyze"], ["solution-architect", "wire"], ["scope-architect", "map-scopes"]];
+    const missing = sites.filter(([s, o]) => !(payloadOf(s, o) ?? "").includes("breadboard: rs.breadboard_path"));
+    if (missing.length === 0) ok("(h) orient, analyze, wire and map-scopes each send `breadboard: rs.breadboard_path`");
+    else fail(`(h) these dispatches do not send the breadboard: ${missing.map(([s, o]) => `${s}/${o}`).join(", ")}`);
+
+    // And an order compiled with it carries it, schema-valid.
+    const ws = project({ "shapeup/demo/shaping.md": SHAPING, "shapeup/demo/breadboard.md": BB_HASH_LAYOUT });
+    try {
+      initRun(ws, ["--intake-file", "shapeup/demo/shaping.md"]);
+      const co = node("compile", ["--operation", "analyze", "--slug", "demo", "--cwd", ws,
+        "--payload", JSON.stringify({ pitch: "x", breadboard: ".shapeup/demo/breadboard.md" })], { cwd: ws });
+      const orderPath = join(ws, ".shapeup", "demo", "orders", "analyze.json");
+      let order = null; try { order = JSON.parse(readFileSync(orderPath, "utf8")); } catch { /* reported below */ }
+      const { validate } = await import(join(ROOT, "kernel/verify/envelope.mjs"));
+      const schema = JSON.parse(readFileSync(join(ROOT, "skills/tech-lead/schemas/work-order.schema.json"), "utf8"));
+      const v = order ? validate(order, schema) : { valid: false, errors: [co.stderr || co.stdout] };
+      if (co.status === 0 && order?.payload?.breadboard === ".shapeup/demo/breadboard.md" && v.valid)
+        ok("(h) a compiled analyze order carries payload.breadboard and validates against work-order.schema.json");
+      else fail(`(h) compiled analyze order: exit ${co.status}, payload.breadboard=${order?.payload?.breadboard}, valid=${v.valid} ${JSON.stringify(v.errors)}`);
+    } finally { rmSync(ws, { recursive: true, force: true }); }
+  }
 }

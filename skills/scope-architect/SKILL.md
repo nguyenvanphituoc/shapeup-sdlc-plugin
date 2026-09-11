@@ -21,6 +21,7 @@ the ship report's census table.
 |---|---|
 | `operation` | `map-scopes` — the only operation this skill has. It covers first slicing after the board exists, folding discovered items in, and re-slicing a stuck scope; the payload says which of those you are doing |
 | `payload.feature` / `payload.spec_folder` | Slug + committed spec (read ux-behavior.md for manifests; usecases for flows) |
+| `payload.breadboard` | When present, every U# the spec places is one manifest entry's `source`; record which scopes deliver each V# slice in `scope-summary.md` |
 | `payload.tasks[]` | The board's tasks with their touched files — the slicing INPUT only. Each carries `use_case_refs`; those UC ids are what you write into the contract. Never copy a task id into a contract |
 | `substrate.allowed` | `scopes/*.md` + `scope-board.md` — your ONLY write surface |
 
