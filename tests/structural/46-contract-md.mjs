@@ -80,6 +80,20 @@ export async function run(ctx) {
   if (pipedBack.affordance_manifest?.[0]?.test_id === "a|b") ok("a `|` inside a cell survives the table round-trip");
   else fail(`a pipe in a cell broke the row: ${JSON.stringify(pipedBack.affordance_manifest)}`);
 
+  // --- (f) a breadboard `source` column ---------------------------------------
+  // The optional AffordanceEntry.source names the breadboard U# each element implements. The table
+  // reader keeps any column it is given; this pins that it keeps THIS one, both ways.
+  const SOURCED = [
+    "---", "scope_id: SC-04", "---", "", "## Affordances",
+    "| test_id | role | required_states | source |", "|---|---|---|---|",
+    "| pay-button | button | [idle, loading] | U2 |", "| cancel-link | link | [idle] | U3 |", "",
+  ].join("\n");
+  const sourced = C.parseContract(SOURCED, C.SCOPE_CONTRACT);
+  const sourcedBack = C.parseContract(C.renderContract(sourced, C.SCOPE_CONTRACT), C.SCOPE_CONTRACT);
+  if (sourced.affordance_manifest?.map((a) => a.source).join() === "U2,U3" && JSON.stringify(sourced) === JSON.stringify(sourcedBack)) {
+    ok("an affordance table's breadboard `source` column round-trips");
+  } else fail(`the source column did not round-trip: ${JSON.stringify(sourced.affordance_manifest)} → ${JSON.stringify(sourcedBack.affordance_manifest)}`);
+
   // --- (c)/(d) on-disk resolution --------------------------------------------
   const dir = mkdtempSync(join(tmpdir(), "contract-md-"));
   try {

@@ -400,6 +400,7 @@ const RESUME = {
   type: "object",
   properties: {
     intake_path: nullable("string"), spec_folder: nullable("string"), orient_dir: nullable("string"),
+    breadboard_path: nullable("string"), breadboard_source: nullable("string"),
     project_profile_path: nullable("string"), status: nullable("string"),
     lens: nullable("string"), stack: nullable("string"),
     run_cmd: nullable("string"), app_url: nullable("string"),
@@ -972,7 +973,7 @@ if (!rs.has_orient_artifacts) {
   await setRunStatus("orienting", "Orient");
   const o = await worker({
     skill: "orient", operation: "orient", schema: ORIENT, phase: "Orient", label: "orient",
-    payload: { pitch: rs.intake_path, spec_folder: specFolder, feature: slug, stack: rs.stack },
+    payload: { pitch: rs.intake_path, breadboard: rs.breadboard_path, spec_folder: specFolder, feature: slug, stack: rs.stack },
     // NAME THE FILES. "write the orient/ artifacts" was the whole instruction, while completion is
     // decided by four exact filenames — so a leg that did the work and called its output
     // `code-surface-map.md` and `discovered-tasks.md` aborted the run at the post-condition, having
@@ -998,8 +999,10 @@ if (!rs.has_orient_artifacts) {
 }
 
 {
+  // `breadboard` travels in the block because a missing one is invisible anywhere later: every
+  // downstream artifact reads the same whether or not the pitch's second half reached the run.
   const g = await crossGate("L1a", "Orient", ["proceed", "ask", "abort"],
-    { spiked_area: spikedArea, spike_result: spikeResult, riskiest_unknowns: riskiest });
+    { breadboard: rs.breadboard_source ?? "none", spiked_area: spikedArea, spike_result: spikeResult, riskiest_unknowns: riskiest });
   if (g.stop) return withWarnings(g.stop);
 }
 
@@ -1015,7 +1018,7 @@ if (!rs.has_spec_tree) {
   await setRunStatus("mapping", "Analyze");
   const a = await worker({
     skill: "ba-pitch-analyzer", operation: "analyze", schema: PHASE_OK, phase: "Analyze", label: "analyze",
-    payload: { pitch: rs.intake_path, spec_folder: specFolder, feature: slug, lens: rs.lens, orient_dir: rs.orient_dir },
+    payload: { pitch: rs.intake_path, breadboard: rs.breadboard_path, spec_folder: specFolder, feature: slug, lens: rs.lens, orient_dir: rs.orient_dir },
     extra: "Write the spec tree and the board from the orient artifacts — do not re-scan the code.",
   });
   if (a.__failed) return diedAt("ANALYZE", a);
@@ -1047,7 +1050,7 @@ if (!rs.has_wiring_map) {
   log(`WIRE — dispatching (slug ${slug})`);
   const w = await worker({
     skill: "solution-architect", operation: "wire", schema: PHASE_OK, phase: "Wire", label: "wire",
-    payload: { feature: slug, spec_folder: specFolder, project_profile: rs.project_profile_path },
+    payload: { feature: slug, spec_folder: specFolder, project_profile: rs.project_profile_path, breadboard: rs.breadboard_path },
     extra: "Write the wiring map: per use case, engine → seam → entry-point call site → affordance.",
   });
   if (w.__failed) return diedAt("WIRE", w);
@@ -1078,7 +1081,7 @@ if (scopes.length === 0) {
   log(`MAP SCOPES — dispatching (slug ${slug})`);
   const m = await worker({
     skill: "scope-architect", operation: "map-scopes", schema: MAPSCOPES, phase: "MapScopes", label: "map-scopes",
-    payload: { feature: slug },
+    payload: { feature: slug, breadboard: rs.breadboard_path },
     // SAY THE PASS RULE, for the same reason ORIENT's filenames are named above: the rule lives in
     // `verify t0` (a fixture passes iff it exits 0) and the architect never saw it. Given a contract
     // that said only "commands that drive this scope end-to-end", it wrote the scope's error paths
@@ -1163,11 +1166,13 @@ if (waves.length > 1 || excluded.added || ceiling < maxParallelScopes) {
       `${ceiling < maxParallelScopes ? ` (the window is ${maxParallelScopes}; the substrate the contracts declared is what caps it, not the dial)` : ""}`);
 }
 
-// Advisory lints at L1b. spec-lint is hard — a substrate overlap makes parallel builds unsafe;
-// trace-lint stays advisory until `covers:` is populated; hill-derive is a projection.
+// Advisory lints at L1b. spec-lint is hard — a substrate overlap makes parallel builds unsafe, and
+// a breadboard Place with no screen builds the wrong thing; trace-lint stays advisory until
+// `covers:` is populated; hill-derive is a projection. The abort names no cause of its own: spec-lint
+// has more than one kind of red, and the detail says which.
 const specLint = await cmd(`verify spec --slug ${slug}`, "MapScopes", "spec-lint");
 if (!specLint.ok) {
-  return aborted("L1b", `spec-lint reported a disjointness or size problem before BUILD: ${specLint.detail || `exit ${specLint.exit_code}`}`);
+  return aborted("L1b", `spec-lint reported red findings before BUILD: ${specLint.detail || `exit ${specLint.exit_code}`}`);
 }
 await advisory(`verify trace --slug ${slug} --quiet`, "MapScopes", "trace-lint");
 await advisory(`reduce hill --slug ${slug}`, "MapScopes", "hill-derive");

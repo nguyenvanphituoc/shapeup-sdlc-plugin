@@ -71,6 +71,11 @@ Only run headless/auto if the user explicitly asks for it in their message:
   tiny, it will say so and recommend the full lane.
 
 Additional flags, pass through to `tech-lead` only when the user names them:
+- `--breadboard <path>` → the pitch's breadboard, when it is not beside the pitch. A pitch shaped
+  with `/shapeup` is `shaping.md` + `breadboard.md`; the run finds a `breadboard.md` in the same
+  folder (or in `shaping/`) on its own, and reads one written inline in a single `pitch.md`. Name
+  it only when it lives somewhere else. Its Places become the spec's screens, and spec-lint stops
+  the run at GATE L1b when one is missing or folded into another screen.
 - `--gate-answers <ci|guarded|interactive|path.json>` → the pre-recorded PO decisions this run
   crosses its gates with. Gates still emit their blocks and still record a decision; the
   decision's **source** becomes the answer set instead of a live human, and the ledger says so.

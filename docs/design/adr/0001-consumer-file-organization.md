@@ -85,7 +85,7 @@ shapeup/
 ```
 .shapeup/
 ├── <slug>/
-│   ├── receipt.json  intake.md  harness-run.md  run-snapshot.json
+│   ├── receipt.json  intake.md  breadboard.md  harness-run.md  run-snapshot.json
 │   ├── tasks/TASK-*.md  _index.md          the board
 │   ├── working/                            spec working notes
 │   │   synthesis.md  assess-report.md  feedback.md

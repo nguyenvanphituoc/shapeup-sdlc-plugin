@@ -311,14 +311,15 @@ workers keep only their own product-idempotency key and emit domain artifacts.
 
 ## 0. LANGUAGE GATE → translator (GATE L0, only if non-English)
 ```
-Invoke via Agent (model: exec): Skill(shapeup-sdlc-plugin:translator) --check "<intake path>"
+Invoke via Agent (model: exec), BEFORE init run: Skill(shapeup-sdlc-plugin:translator) --check "<intake path>" "<breadboard path>"
                  # detect-only, writes nothing
   English      → skip; ORIENT against the original.
-  non-English  → Agent (model: exec): Skill(shapeup-sdlc-plugin:translator) "<intake path>" [--auto]
-                 # full pass
-                 Writes: <name>.en.md (English copy; original untouched) + glossary.md
+  non-English  → Agent (model: exec): Skill(shapeup-sdlc-plugin:translator) "<intake path>" "<breadboard path>" [--auto]
+                 # full pass — the pitch AND its breadboard, before init run
+                 Writes: <name>.en.md per file (English copy; original untouched) + glossary.md
                          + translation-report.md.
-                 ORIENT against the <name>.en.md copy.
+                 Open the run on the .en.md pitch: init run stages breadboard.en.md beside it,
+                 and every planning worker reads what init run pinned — never a later copy.
 Read back: the detect table (--check) / the .en.md path + residual scan result (full pass).
 Authority: translator normalizes language only — it does not orient/plan/build/judge. The tech
 lead never translates itself; it only detects and sequences this step before ORIENT.
@@ -340,7 +341,7 @@ Authority: pure worker — no code, no board, no run-state, no reporting.
 ```
 Order A (the spec tree + board):
   compile-order --operation analyze --slug <slug> --worker ba-pitch-analyzer
-    --payload '{"pitch": "<path>", "lens": "<lens>", "orient_dir": ".shapeup/<slug>/orient/"}'
+    --payload '{"pitch": "<path>", "breadboard": "<the path init run printed, when it printed one>", "lens": "<lens>", "orient_dir": ".shapeup/<slug>/orient/"}'
   Agent (model: exec): Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) --order <path>
   The order hands it code-surface.md (Phase-1 ingest, no re-scan), discovered-seed.md (task
   gen from reality), spike-<area>.md (feasibility/contracts).
@@ -826,7 +827,7 @@ fixtures run in isolation and do not consume it.
 | `spike_unresolved_count` | `SPIKE-UNRESOLVED` markers at bet | shaping quality — open risk into bet |
 | `scope_cut_count` | `~` items cut at SHIP S.0 | appetite pressure / scope hammer |
 | `qa_findings` | `.shapeup/<slug>/qa/hunt-report.md` + triage → `{total, promoted, held}` | edge quality |
-| `slice_count` | breadboard B5 (≤9) | **normalizer / denominator** |
+| `slice_count` | `receipt.json` → `breadboard.ids.V` (the V# slices init run counted in the staged breadboard; omit the field when `breadboard` is null) | **normalizer / denominator** |
 | `sources` | path to each **SHARED** source artifact — never a LOCAL `.shapeup/` path (the run-trace is superseded run by run, so a LOCAL path dangles by the time anyone reads the row; SHARED paths resolve on any clone — tier-direction rule) | auditability |
 
 - `slice_count` is the **denominator**: `round_count=4` on a 2-slice feature is alarming,

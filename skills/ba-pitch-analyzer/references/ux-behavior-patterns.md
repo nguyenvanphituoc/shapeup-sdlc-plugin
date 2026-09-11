@@ -15,6 +15,15 @@ From the pitch breadboarding and fat marker sketches, identify:
 
 Each decision point is typically a screen boundary.
 
+> **With a breadboard, the screens are its Places.** Write one `## Screen:` section per Place that
+> owns at least one UI affordance, with the Place id in the heading — `## Screen: Payment Sheet (P2)`.
+> Cite each UI affordance's id (`U3`) in the state-table row or behavior rule that specifies it,
+> inside the section of the Place the breadboard puts it in. A Place is a screen boundary: a sheet or
+> modal the breadboard names as its own Place is never folded into its parent's state table, even
+> when the pitch's prose describes it as part of the parent. A Place with no UI affordances (a
+> backend, a store) needs no screen. A Place this shape will not build goes in `## Deferred Places`
+> with the reason; it surfaces at GATE L1b, where the PO accepts or rejects the deferral.
+
 ---
 
 ## State Machine per Screen

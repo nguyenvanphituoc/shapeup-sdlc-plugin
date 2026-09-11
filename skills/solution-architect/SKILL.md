@@ -42,6 +42,7 @@ return as a WorkResult.
 |---|---|
 | `operation` | `wire` (author/refresh the wiring map after `analyze`, before `map-scopes`) |
 | `payload.feature` / `payload.spec_folder` | Slug + committed spec — read `usecases/` for the UCs and the engine each one needs, `domain-model.md`/`synthesis.md` for the module surface |
+| `payload.breadboard` | When present, name each UC's `affordance` by its U# and Place |
 | `payload.project_profile` | Path to the SHARED `project-profile.md`. Its `entry_point` is the composition root every engine must attach to — **archetype-specific** (a client-only game's `main.js` is not a web-service's `src/server.ts`). Read it; never guess the entry point |
 | `substrate.allowed` | `wiring-map.md` — your ONLY write surface (the spec core, scopes, and the profile are frozen) |
 
@@ -69,7 +70,9 @@ guessed `main.js` would make the later oracle certify nothing.
                                file:line is a build-time fact (the oracle proves reachability by
                                the import graph, it does not parse this field)
              affordance        the player-visible thing this UC exposes once wired (the human
-                               end of the chain — what a user can DO, not an internal call)
+                               end of the chain — what a user can DO, not an internal call);
+                               with a breadboard, name it by U# and Place —
+                               `U1 Pay (P1) → P2 Payment Sheet`
 3 WRITE    shapeup/<slug>/wiring-map.md (WiringMap): frontmatter for schema_version, feature
            and entry_point (echo of the profile), then entries[] as ONE MARKDOWN TABLE under a
            `## Wiring` heading — this exact shape, because it is the only one the reader parses:

@@ -21,6 +21,7 @@ the ship report's census table.
 |---|---|
 | `operation` | `map-scopes` — the only operation this skill has. It covers first slicing after the board exists, folding discovered items in, and re-slicing a stuck scope; the payload says which of those you are doing |
 | `payload.feature` / `payload.spec_folder` | Slug + committed spec (read ux-behavior.md for manifests; usecases for flows) |
+| `payload.breadboard` | When present, every U# the spec places is one manifest entry's `source`; record which scopes deliver each V# slice in `scope-board.md` (your write surface — `scope-summary.md` is the planner's) |
 | `payload.tasks[]` | The board's tasks with their touched files — the slicing INPUT only. Each carries `use_case_refs`; those UC ids are what you write into the contract. Never copy a task id into a contract |
 | `substrate.allowed` | `scopes/*.md` + `scope-board.md` — your ONLY write surface |
 
@@ -65,6 +66,8 @@ the ship report's census table.
                                                                element as {test_id, role} +
                                                                required_states [idle, loading,
                                                                success, error, empty]
+                                                               + `source` — the U# the
+                                                               ux-behavior row cites
              e2e_verification_fixtures[]                     — the command(s)/spec file(s)
                                                                that drive this scope
                                                                end-to-end (T0 layer); too
@@ -134,6 +137,7 @@ territory — and any lint warn left standing, with why). You never touch task f
 - [ ] Every scope that consumes another's output declares it in `depends_on`
 - [ ] Substrates disjoint except declared shared_substrate (DISJOINT = 0 red)
 - [ ] Every interactive element in scope screens appears in exactly one affordance_manifest
+- [ ] Every U# the spec places is some manifest entry's `source`
 - [ ] Every scope has fixtures or an explicit TBD flag
 - [ ] Every hill_phase written is UPHILL_UNKNOWN; superseded contracts kept
 - [ ] The WorkResult validates against `work-result.schema.json`

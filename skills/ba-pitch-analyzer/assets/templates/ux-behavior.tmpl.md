@@ -29,7 +29,7 @@ status: draft
 
 ---
 
-## Screen: [ScreenName]
+## Screen: [ScreenName] ([P#] — omit without a breadboard)
 
 ### States
 
@@ -54,7 +54,7 @@ status: draft
 
 ---
 
-<!-- Repeat "Screen: [Name]" section for each screen -->
+<!-- Repeat "Screen: [Name]" section for each screen — one per breadboard Place with UI affordances -->
 
 ---
 
@@ -63,3 +63,13 @@ status: draft
 | Behavior | Mobile | Web |
 |---|---|---|
 | [behavior] | [mobile treatment] | [web treatment] |
+
+---
+
+## Deferred Places
+
+<!-- Breadboard Places with UI affordances this shape will not build. Each needs the PO's yes at GATE L1b. Omit the section when there are none. -->
+
+| Place | Reason |
+|---|---|
+| [P#] [Place name] | [why this shape does not build it] |

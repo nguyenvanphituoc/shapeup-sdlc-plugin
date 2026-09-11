@@ -31,13 +31,19 @@ escalates, writes nothing, and every relaunch re-dispatches it.
 
 ```
 Collect (explicit — never inferred):
-  L0.1  Kicked-off pitch source: path to a shaping.md / pitch.md (already shaped + bet by PO).
+  L0.1  Kicked-off pitch source: `shaping.md` — and its `breadboard.md`, which the run finds
+          beside it (or in `shaping/`) or takes from `--breadboard`; a `pitch.md` may carry the
+          breadboard inline. Already shaped + bet by PO.
           Not a raw idea — shaping (1-4) / betting (5) / kick-off (6) are PO-personal, upstream.
-  L0.1a Language gate: Agent (model: exec) → Skill(shapeup-sdlc-plugin:translator) --check <intake>.
-          English      → use intake as-is.
-          non-English  → Agent (model: exec) → Skill(shapeup-sdlc-plugin:translator) <intake>
-                         (--auto under auto/unattended), then use the produced <name>.en.md as
-                         the ORIENT/MAP-SCOPES input. Log in ledger.
+  L0.1a Language gate, BEFORE init run: Agent (model: exec) → Skill(shapeup-sdlc-plugin:translator)
+          --check over the pitch AND its breadboard.
+          English      → use both as-is.
+          non-English  → Agent (model: exec) → Skill(shapeup-sdlc-plugin:translator) <pitch> <breadboard>
+                         (--auto under auto/unattended), then open the run on the produced
+                         <name>.en.md — init run prefers a breadboard.en.md beside it, and warns
+                         when it can find only the untranslated breadboard. The run's intake is
+                         what every planning worker reads, so a translation made after the run
+                         opened reaches nobody: re-open with --force naming the .en.md. Log in ledger.
   L0.1b Appetite: read the `appetite` field from the pitch's YAML frontmatter (set by /shapeup).
           Surface it in the gate output. Use it to:
             - Contextualise the scope at L1b (right-size cuts to the budget).
@@ -167,8 +173,9 @@ committing to a scope map. This is the first Hill read (area-level — slices do
 ```
 Read .shapeup/<slug>/orient/. Render the 🗻 Hill from hill-signal.md (see protocol.md "Hill report"):
   - each suspected area → uphill (open unknowns) | crest (approach proven by the spike) | downhill
-Print: the code-surface headline (where it lands), the spiked area + result, the riskiest
-       open unknowns going into mapping.
+Print: `Breadboard: <source> | none` (how init run found the pitch's breadboard — flag, sibling,
+       shaping-dir, shared-root, embedded — or none), the code-surface headline (where it lands),
+       the spiked area + result, the riskiest open unknowns going into mapping.
 Ask (max 2): is the riskiest area the right one to have spiked? any unknown that must be
              resolved (another spike) before we map scopes?
 ```
@@ -186,7 +193,7 @@ Do NOT enter MAP SCOPES until Orient is accepted.
    mobile|library|data-pipeline}; entry_point is the reachability seam (a game's main.js is NOT a
    service's src/server.ts). Validate the enum — a typo must fail, not silently disable the check.
 2. WIRE — compile-order --operation wire --slug <slug> (worker→solution-architect), payload
-   {project_profile}. Sole writer of committed wiring-map.md (per-UC engine → seam → entry-point
+   {project_profile, breadboard?}. Sole writer of committed wiring-map.md (per-UC engine → seam → entry-point
    call site → affordance). ⏸ GATE L1a.5: confirm each UC has a declared seam before slicing.
    ⟐ PRECONDITION: MAP SCOPES step 1 (ANALYZE) has already run and usecases/ is
    populated. WIRE writes one entry per use case, so dispatching it against an empty spec folder
@@ -212,7 +219,7 @@ against the seams WIRE declared. Sequence: ORIENT → L1a → **ANALYZE** → **
 ```
 Two orders, two workers, one step (both model: exec — see references/protocol.md):
 1. ANALYZE + BOARD — compile-order --operation analyze --slug <slug> --worker ba-pitch-analyzer
-     --payload '{"pitch": "<path>", "lens": "<lens>", "orient_dir": ".shapeup/<slug>/orient/"}'
+     --payload '{"pitch": "<path>", "breadboard": "<the path init run printed, when it printed one>", "lens": "<lens>", "orient_dir": ".shapeup/<slug>/orient/"}'
    dispatch: Skill(shapeup-sdlc-plugin:ba-pitch-analyzer) --order <path>. The order hands it
    code-surface.md (Phase-1 ingest consumes the map, does not re-scan), discovered-seed.md
    (task gen starts from reality), spike-<area>.md (feasibility/contracts).
@@ -265,6 +272,8 @@ Scope contracts present:
     - scope board: scope_id, topology_type, substrate file count (scopes/*.md / scope-board.md)
     - any SPIKE blockers (scope-summary.md)
     - scope-summary "Done when" headline statements
+    - the Deferred Places from ux-behavior.md (breadboard Places this shape will not build) —
+      each one needs the PO's yes; a rejected deferral goes back to the planner as a screen
 No scope contracts (pre-v0.3.0, unchanged from v0.2.6):
   Read tasks/_index.md (LOCAL root). Print:
     - task count by package/variant (.shared / .be / .web / .mobile / .e2e)
@@ -280,7 +289,11 @@ this is the orchestrator's own re-confirmation before committing to a build sequ
     waiting to happen), PA1 (directory-aligned scope), PA2 (size cap), SCOPE-ANCHOR (a scope
     naming no committed use case, or one that does not resolve), TIER-DIRECTION (a committed
     contract naming LOCAL task ids), SCOPE-DEPS (a build-order id naming a scope that is not
-    in this run). Any red → HARD STOP, past a 🔴 at the architect's own checkpoint.
+    in this run), BREADBOARD-PLACE (a breadboard Place with UI affordances has no
+    `## Screen: … (P#)` in ux-behavior.md and is not deferred), BREADBOARD-UI (a U# not
+    specified on a screen of its own Place). Any red → HARD STOP, past a 🔴 at the
+    architect's own checkpoint. The breadboard reds are the planner's to fix — add the screen
+    or defer the Place; never fold it into another screen.
   - Lock the build SEQUENCE riskiest-first: order scopes by open-unknowns count (from
     hill/<scope-id>.yml if present, else the orient hill signal), not by file count or
     alphabetical — Shape Up's "solve in the right sequence" (step 10).
@@ -414,7 +427,8 @@ S.6  Harvest one signal row → append to `.shapeup/metrics/<machine-id>.jsonl`
      deliberately without colliding on one filename. The read plane is
      `harness probe stats`, or `cat .shapeup/metrics/*.jsonl`).
      Copy fields that ALREADY exist as structured output (run-state, final EVAL report,
-     discovery ledger, qa/hunt-report, breadboard B5). Two hard rules:
+     discovery ledger, qa/hunt-report, and the receipt's `breadboard.ids.V` for `slice_count` —
+     the slices init run counted in the staged breadboard, never a hand copy). Two hard rules:
        1. Harvest only fields that already exist at ship time — never evaluate something new.
        2. Record facts, never compute a new verdict (no `run_quality_score` — that would be
           a second judge behind spec-evaluator). The eval suite interprets; harvest records.

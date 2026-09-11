@@ -158,6 +158,13 @@ const MODULE_FILES = [
   // the resume derivation and ingest — and each looked correct alone: no order listed an artifact,
   // a refused round counted as done, and a verdict citing nothing was ledgered like any other.
   "51-eval-t0-artifacts.mjs",
+  // 52-breadboard-intake.mjs: the pitch's second half is a run input. Its own module because the
+  // defect was an absence — no reader anywhere — and a feature nothing exercises is one no
+  // existing section could notice going missing.
+  "52-breadboard-intake.mjs",
+  // 53-breadboard-lint.mjs: spec-lint checks where the breadboard's Places landed, not only that
+  // its ids were cited — the lost Place was fully cited, on the wrong screen.
+  "53-breadboard-lint.mjs",
   "08-docs.mjs",
 ];
 

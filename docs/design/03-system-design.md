@@ -274,7 +274,9 @@ Both follow the same rule as the hooks: move the invariant out of the prompt and
 
 **`harness init run` — the run receipt (GATE L0.1).** The orchestrator's first tool call, before any
 prose. It writes `receipt.json`, `intake.md` (the requirement verbatim, plus its SHA-256),
-`harness-run.md`, and `active-scope`. It supplies the fact that was missing from the system: *a
+`breadboard.md` (the pitch's breadboard verbatim, when it has a separate one — found beside the
+intake, in `shaping/`, in the feature root, or named with `--breadboard` — with its SHA-256, its
+source and its P/U/N/S/V id counts in the receipt), `harness-run.md`, and `active-scope`. It supplies the fact that was missing from the system: *a
 run started*. Every prior guard could only observe what a run **did**, so a run that did nothing
 was invisible to all of them; the receipt makes starting observable independently of progress.
 Recording the intake digest also makes "the spec was dropped on the hand-off" a checkable claim

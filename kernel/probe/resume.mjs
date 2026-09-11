@@ -63,7 +63,7 @@ import { splitFrontmatter } from "../lib/contract.mjs";
 import { globToRegExp } from "../verify/spec.mjs";
 import {
   intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir,
-  orientDir, activeOrder, usecasesDir,
+  orientDir, activeOrder, usecasesDir, breadboard, receipt, readReceipt,
 } from "../lib/paths.mjs";
 import { evalVerdict } from "./eval.mjs";
 
@@ -378,6 +378,12 @@ export function deriveResumeState(cwd, slug) {
 
   const facts = {
     intake_path: intake(cwd, slug),
+    // The pitch's other half, staged by `init run` beside the intake. Null when the pitch had no
+    // separate breadboard — the planning dispatches then carry no `breadboard` key at all.
+    breadboard_path: existsSync(breadboard(cwd, slug)) ? breadboard(cwd, slug) : null,
+    // How it was found (flag | sibling | shaping-dir | shared-root | embedded), from the receipt;
+    // null when there was none or the receipt cannot be read.
+    breadboard_source: readReceipt(receipt(cwd, slug))?.breadboard?.source ?? null,
     spec_folder: hr.spec_folder || null,
     status: hr.status || null,
     lens: hr.lens || null,

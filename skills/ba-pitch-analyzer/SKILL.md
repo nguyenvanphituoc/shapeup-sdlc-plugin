@@ -26,6 +26,7 @@ Invoked as `--order <path>`. Fields you may rely on (absent = unknown; surface i
 |---|---|
 | `operation` | `analyze` (pitch → full spec tree + board) · `reconcile` (fold discovered-ledger items into the board + UC invariants) · `retrofit-surface` (append `## Test Surface` to a pre-surface spec) · `coverage` (extract atomic requirement clauses → the SHARED `requirements.md` registry) |
 | `payload.pitch` | The pitch/PRD path (analyze) |
+| `payload.breadboard` | The breadboard (analyze): its Places are your screens; its U# and N# are the affordances you place and cite. Absent = none separate; never inferred |
 | `payload.requirements` | (coverage) the REQ source to extract atomic clauses from — pitch / a customer-requirements doc / the use-case bodies. Absent → default to the pitch and record the choice in `assumptions[]` |
 | `payload.lens` | `lite` \| `standard` \| `cross-context`. Absent → judge it: LITE for ≤2-week appetite, no third-party, ≤3 user-facing actions; STANDARD for multi-team, third-party, or bigger appetite; genuinely unclear → one binary question, or `status: "escalated"` with the question in `deviations[]` |
 | `payload.orient_dir` | The Scout's artifacts — `code-surface.md` IS your codebase map (do not re-scan), `discovered-seed.md` seeds task gen, `spike-*.md` feeds feasibility |
@@ -43,8 +44,11 @@ Phases, each with a checkpoint (pause only per `interaction`). Read the referenc
 its phase; templates live in `assets/templates/`.
 
 ```
-1  INGEST      pitch + orient artifacts + KB. Extract slug, appetite, in/out boundaries,
-               rabbit holes, third-party mentions. No files written yet.
+1  INGEST      pitch + breadboard (`payload.breadboard`, or tables inline in the pitch) +
+               orient artifacts + KB. Extract slug, appetite, in/out boundaries, rabbit
+               holes, third-party mentions. With a breadboard, list every Place (P#) and UI
+               affordance (U#) first — they are the screens and interactive elements Phase 3
+               must place. No files written yet.
 1b FEASIBILITY (third-party/API/SDK/webhook mentioned) verification questions + fallback
                scope per API-NN → api-feasibility.md
 2  DDD         bounded contexts, aggregates (new vs extended), value objects, domain events,
@@ -52,8 +56,9 @@ its phase; templates live in `assets/templates/`.
 2b CONTRACTS   (standard lens) typed Request/Response/Error per repository; two-pass rule:
                unresolvable at spec time → `⏳ TBD — verify in the [UC-x] spike`, resolved
                post-SPIKE with citation → contracts/            [references/contract-patterns.md]
-3  UX          per screen: state table (idle→loading→error→success), error cases with
-               message+action, ASCII flows → ux-behavior.md     [references/ux-behavior-patterns.md]
+3  UX          per screen — with a breadboard, one screen per Place that owns UI affordances:
+               state table (idle→loading→error→success), error cases with message+action,
+               ASCII flows → ux-behavior.md                     [references/ux-behavior-patterns.md]
 4  USE CASES   one file per actor+action: typed Input/Output, numbered Steps, all error
                cases with codes, ## System Flow (UI→API→UC→Repo→DB), ## Test Surface
                (DERIVED ONLY from D1 Invariants · D2 Error Cases · D3 Contract shape ·
@@ -69,7 +74,8 @@ its phase; templates live in `assets/templates/`.
                   overflow is a fact you REPORT for the caller's HAMMER gate, never resolve)
                node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify spec --slug <slug>
                  (structure, wikilinks, edge symmetry — fix reds, then re-run; you never
-                  self-grade with a hand-walked checklist)
+                  self-grade with a hand-walked checklist. BREADBOARD-PLACE / BREADBOARD-UI:
+                  add the screen or defer the Place; never fold it into another screen)
                → scope-summary.md + synthesis.md (traceability matrix, risk register,
                  dependency graph — the JUDGMENT layers over board-derive's numbers)
 8  INDEX       _index.md (pitch digest + document map) + feedback.md template
