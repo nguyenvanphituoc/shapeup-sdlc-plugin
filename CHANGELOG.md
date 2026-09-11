@@ -3,6 +3,54 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.2.0] — 2026-09-11 · The breadboard never reached the run
+
+**The pitch is two files and the run read one.** `/shapeup` writes a pitch as `shaping.md` and
+`breadboard.md`, and `AGENTS.md` has always said the completed pitch is both. `harness init run` took
+one: it copied `--intake-file` and dropped the path it came from, every planning order pointed at
+that copy, and nothing in the kernel, the hooks or the workflow had ever read a breadboard. So its
+Places, affordances and slices reached no planning worker. A Place only the breadboard named — a new
+blocking sheet, in the consumer run that found this — was planned as a bar inside another screen,
+and every later step was faithful to a spec that had never heard of it. Its affordances were in the
+spec, cited under the wrong screen, and spec-lint was green (#15).
+
+- **`init run` pins the breadboard beside the intake.** It takes `--breadboard <path>`, or finds
+  `breadboard.md` beside the intake, in `shapeup/<slug>/shaping/`, or in `shapeup/<slug>/`, or reads
+  one written inline in a single pitch file. The intake's own folder comes first, because the
+  documented location is not the one real projects use. A file is staged byte for byte to
+  `.shapeup/<slug>/breadboard.md`; the receipt records `intake_source` and a `breadboard` record
+  (source, path, sha256, P/U/N/S/V id counts). `probe resume` reports `breadboard_path` and
+  `breadboard_source`. A run with no breadboard behaves exactly as before.
+- **The four planning workers are handed it.** `payload.breadboard` is a declared WorkOrder field for
+  orient, ba-pitch-analyzer, solution-architect and scope-architect, and the workflow sends it at all
+  four dispatch sites; a run without one compiles the same orders as before. Orient's rule to look for
+  a sibling `breadboard.md` beside the pitch is gone — the pitch it read was the run's copy, which
+  never had one.
+- **With a breadboard, the screens are its Places.** ba-pitch-analyzer writes one
+  `## Screen: … (P#)` section per Place that owns UI affordances and cites each U# inside its own
+  Place's section; a Place the shape will not build goes under `## Deferred Places`, which GATE L1b
+  prints for the PO's ruling. A scope contract's affordance entry may name the U# it implements as
+  an optional `source`, and scope-architect records which scopes deliver each slice in
+  `scope-board.md`.
+- **spec-lint checks placement, not citation.** `BREADBOARD-PLACE` (red) fires when a Place with UI
+  affordances has no screen and is not deferred; `BREADBOARD-UI` (red) when a U# is not specified on
+  a screen of its own Place, and says where it was cited instead. `BREADBOARD-TRACE` warns on
+  uncited N#/S#, unrecorded V# slices and unsourced manifest entries; `BREADBOARD-UNPARSED` warns
+  when a breadboard yields no ids, so a layout the reader cannot parse never becomes a hard stop.
+  All four are silent when a run has no breadboard. The L1b abort no longer calls every spec-lint
+  red "a disjointness or size problem".
+- **The gates show it.** The L1a block names how the breadboard was found, or `none`; `/ship` and
+  tech-lead accept `--breadboard`; `slice_count` is harvested from the receipt's slice count rather
+  than copied by hand.
+- **A translated pitch gets its translated breadboard.** Opened from `<name>.en.md`, `init run`
+  prefers `breadboard.en.md` in each folder it searches, records whether the staged breadboard is
+  translated, and warns when only the untranslated one exists. The language gate now runs before the
+  run opens, over the pitch and its breadboard: every planning worker reads what `init run` pinned,
+  so a translation made afterwards reached nobody.
+
+Also: the design ERD's payload-by-worker table, a hand copy of the registry that had drifted for
+several releases, is regenerated from it.
+
 ## [3.1.2] — 2026-09-10 · EVAL could refuse every scoped round, and a refused round counted as done
 
 **The evaluator was never handed the T0 artifacts it must cite.** spec-evaluator's input contract
