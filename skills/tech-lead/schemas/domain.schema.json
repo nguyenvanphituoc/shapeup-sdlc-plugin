@@ -713,6 +713,10 @@
             "type": "string"
           },
           "description": "Subset of [idle, loading, success, error, empty] the element must express via data-state."
+        },
+        "source": {
+          "type": "string",
+          "description": "The breadboard UI affordance (U#) this element implements; absent without a breadboard."
         }
       }
     },

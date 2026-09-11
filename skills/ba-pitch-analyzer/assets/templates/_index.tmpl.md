@@ -29,7 +29,8 @@ audit_rules_version: "2.5"
 ## Solution Elements
 
 ### Breadboarding
-<!-- Text-based flow showing the key interaction path, no images needed -->
+<!-- Text-based flow showing the key interaction path, no images needed. With a breadboard,
+     name Places and affordances by id: P1 Cart ──U1──► P2 Payment Sheet -->
 ```
 [Screen A] ──action──► [Screen B] ──action──► [Outcome]
                │

@@ -44,8 +44,11 @@ Phases, each with a checkpoint (pause only per `interaction`). Read the referenc
 its phase; templates live in `assets/templates/`.
 
 ```
-1  INGEST      pitch + orient artifacts + KB. Extract slug, appetite, in/out boundaries,
-               rabbit holes, third-party mentions. No files written yet.
+1  INGEST      pitch + breadboard (`payload.breadboard`, or tables inline in the pitch) +
+               orient artifacts + KB. Extract slug, appetite, in/out boundaries, rabbit
+               holes, third-party mentions. With a breadboard, list every Place (P#) and UI
+               affordance (U#) first — they are the screens and interactive elements Phase 3
+               must place. No files written yet.
 1b FEASIBILITY (third-party/API/SDK/webhook mentioned) verification questions + fallback
                scope per API-NN → api-feasibility.md
 2  DDD         bounded contexts, aggregates (new vs extended), value objects, domain events,
@@ -53,8 +56,9 @@ its phase; templates live in `assets/templates/`.
 2b CONTRACTS   (standard lens) typed Request/Response/Error per repository; two-pass rule:
                unresolvable at spec time → `⏳ TBD — verify in the [UC-x] spike`, resolved
                post-SPIKE with citation → contracts/            [references/contract-patterns.md]
-3  UX          per screen: state table (idle→loading→error→success), error cases with
-               message+action, ASCII flows → ux-behavior.md     [references/ux-behavior-patterns.md]
+3  UX          per screen — with a breadboard, one screen per Place that owns UI affordances:
+               state table (idle→loading→error→success), error cases with message+action,
+               ASCII flows → ux-behavior.md                     [references/ux-behavior-patterns.md]
 4  USE CASES   one file per actor+action: typed Input/Output, numbered Steps, all error
                cases with codes, ## System Flow (UI→API→UC→Repo→DB), ## Test Surface
                (DERIVED ONLY from D1 Invariants · D2 Error Cases · D3 Contract shape ·

@@ -66,6 +66,8 @@ the ship report's census table.
                                                                element as {test_id, role} +
                                                                required_states [idle, loading,
                                                                success, error, empty]
+                                                               + `source` — the U# the
+                                                               ux-behavior row cites
              e2e_verification_fixtures[]                     — the command(s)/spec file(s)
                                                                that drive this scope
                                                                end-to-end (T0 layer); too
@@ -135,6 +137,7 @@ territory — and any lint warn left standing, with why). You never touch task f
 - [ ] Every scope that consumes another's output declares it in `depends_on`
 - [ ] Substrates disjoint except declared shared_substrate (DISJOINT = 0 red)
 - [ ] Every interactive element in scope screens appears in exactly one affordance_manifest
+- [ ] Every U# the spec places is some manifest entry's `source`
 - [ ] Every scope has fixtures or an explicit TBD flag
 - [ ] Every hill_phase written is UPHILL_UNKNOWN; superseded contracts kept
 - [ ] The WorkResult validates against `work-result.schema.json`

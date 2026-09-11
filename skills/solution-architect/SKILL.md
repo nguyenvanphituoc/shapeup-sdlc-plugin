@@ -70,7 +70,9 @@ guessed `main.js` would make the later oracle certify nothing.
                                file:line is a build-time fact (the oracle proves reachability by
                                the import graph, it does not parse this field)
              affordance        the player-visible thing this UC exposes once wired (the human
-                               end of the chain — what a user can DO, not an internal call)
+                               end of the chain — what a user can DO, not an internal call);
+                               with a breadboard, name it by U# and Place —
+                               `U1 Pay (P1) → P2 Payment Sheet`
 3 WRITE    shapeup/<slug>/wiring-map.md (WiringMap): frontmatter for schema_version, feature
            and entry_point (echo of the profile), then entries[] as ONE MARKDOWN TABLE under a
            `## Wiring` heading — this exact shape, because it is the only one the reader parses:

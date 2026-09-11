@@ -126,6 +126,9 @@ Required sections: Screen Flow (ASCII diagram), one section per Screen with:
 - **Visual & Layout Specs**: Flex/Grid structure, spacing, alignment rules, and desktop/mobile responsiveness
 - **Design Tokens**: Specific CSS variables or Tailwind classes used for background, borders, fonts, and actions
 - **States table**, **Behavior Rules list**, **Error States table**
+- Screen headings carry the breadboard Place id when a breadboard exists — `## Screen: Payment Sheet (P2)`, one screen per Place that owns UI affordances, each U# cited inside its own Place's section
+
+Plus **Deferred Places**, when any: a `Place | Reason` table of breadboard Places this shape will not build.
 
 
 ---
