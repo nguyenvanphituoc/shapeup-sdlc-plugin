@@ -91,7 +91,7 @@ L1a.5 is a traceability-spine gate ✚ — present only when the spine artifacts
 
 ```
 ⏸ GATE L0 — Intake & Run Config
-Feature      : [slug]   (kicked-off pitch: [path])
+Feature      : [slug]   (kicked-off pitch: [path] + its breadboard, when it has one)
 Intake lang  : [English | translated via /translator]
 Appetite     : [~1 week | ~2 weeks | ~6 weeks | ⚠ missing]
 Spec folder  : [path]   (lens: [lite|standard])
@@ -101,6 +101,7 @@ Budgets      : round_budget=[N] (outer)   attempt_budget=[N] (inner, per scope)
 
 ```
 ⏸ GATE L1a — Orient Review
+Breadboard   : [flag | sibling | shaping-dir | shared-root | embedded | none]
 🗻 area-level Hill: what's uphill / crest / downhill going into mapping
 Spiked area + result — confirm before a single scope is cut
 ```
@@ -114,7 +115,8 @@ Committed wiring-map.md checked against project-profile.md entry_point — no or
 ```
 ⏸ GATE L1b — Board Review
 UC count + actors · scope board (topology, substrate size) · SPIKE blockers
-Substrate-disjointness re-asserted via harness verify spec — any red is a hard stop
+Deferred Places (breadboard Places this shape will not build) — each needs the PO's yes
+Substrate-disjointness and breadboard placement re-asserted via harness verify spec — any red is a hard stop
 ```
 
 ```

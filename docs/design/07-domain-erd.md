@@ -228,6 +228,7 @@ erDiagram
         string test_id "data-testid the element binds to"
         string role "semantic/ARIA role"
         string[] required_states "subset of idle loading success error empty"
+        string source "optional: the breadboard U# it implements"
     }
     HillShard {
         string scope_id PK "SHARED hill/scope-id.yml"
@@ -323,12 +324,12 @@ Which `WorkOrderPayload` fields each worker may rely on — anything absent from
 
 | Worker | Payload fields |
 |---|---|
-| task-executor | `tasks`, `scope_contract`, `decisions`, `digested_errors`, `verify`, `kb_rules_path`, `constraints`, `bugs` |
-| ba-pitch-analyzer | `pitch`, `lens`, `orient_dir`, `spec_folder`, `feature`, `discovered_ledger`, `kb_rules_path`, `requirements` |
-| scope-architect | `feature`, `spec_folder`, `tasks`, `discovered_ledger`, `scope_id` |
-| solution-architect | `feature`, `spec_folder`, `project_profile` |
+| task-executor | `tasks`, `scope_contract`, `decisions`, `digested_errors`, `trial_history`, `verify`, `kb_rules_path`, `constraints`, `bugs` |
+| ba-pitch-analyzer | `pitch`, `breadboard`, `lens`, `orient_dir`, `spec_folder`, `feature`, `discovered_ledger`, `kb_rules_path` |
+| scope-architect | `feature`, `spec_folder`, `tasks`, `breadboard` |
+| solution-architect | `feature`, `spec_folder`, `project_profile`, `breadboard` |
 | spec-evaluator | `spec_folder`, `feature`, `dimensions`, `run_cmd`, `t0_artifacts`, `browser`, `tasks` |
-| orient | `pitch`, `stack`, `spec_folder`, `feature` |
+| orient | `pitch`, `breadboard`, `stack`, `spec_folder`, `feature` |
 | qa-edge-hunter | `feature`, `spec_folder`, `eval_report`, `app_url`, `ledger`, `kb_rules_path` |
 | translator | `intake`, `glossary` |
 | scope-hammer | `feature`, `baseline`, `breaker`, `scope_id` |
