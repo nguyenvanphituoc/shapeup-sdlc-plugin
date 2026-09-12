@@ -45,7 +45,10 @@ test against machines you don't own.
    (override channel fails closed), and every exercised override is logged. The same principle
    covers `.shapeup/active-order`, which `sandbox-guard` reads to find the run whose orders fence
    a worker's writes: it sits outside the run-trace carve-out, so a worker cannot repoint its own
-   sandbox.
+   sandbox. Every hook resolves that pointer, the decision ledger and the substrate globs against
+   the project root it finds above the tool call's working directory (a run pointer, the committed
+   tier, or a git boundary) — a worker that `cd`s into a sub-folder is fenced exactly as one at the
+   top, and its receipts land in the same ledger.
 5. **Exactly one hook can block, and only on a mechanical absence.** `gate-zerowork` returns
    `decision: "block"` in one state: the session dispatched the orchestrator and left no run
    receipt on disk. It makes no judgement about quality — it reports that there is no work to

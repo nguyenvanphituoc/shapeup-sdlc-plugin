@@ -20,7 +20,7 @@
 // Usage: node `harness probe stats` [--cwd <dir>] [--metrics-dir <dir>] [--slug <slug>] [--format json|table]
 
 import { readFileSync, readdirSync, existsSync } from "node:fs";
-import { resolve, join } from "node:path";
+import { resolve, join, relative, sep } from "node:path";
 import { validate } from "../verify/envelope.mjs";
 import { runArgs } from "../lib/argv.mjs";
 import { localDir, decisions as decisionsPath, metricsDir as metricsDirPath, SHARED } from "../lib/paths.mjs";
@@ -284,6 +284,49 @@ export function readDecisions(cwd) {
 }
 
 /**
+ * Decision ledgers that landed OUTSIDE the project root — the trace a hook left when it filed
+ * under the shell's working directory instead of the project's.
+ *
+ * The hooks now resolve the root themselves, so a stray is either history from before that fix or
+ * evidence the resolver missed a layout; either way the rows in it are missing from the ledger
+ * `--hooks` reads, and a count that silently omits them is the inert-layer signature this report
+ * exists to expose. Bounded walk: depth-limited, skipping dependency and VCS directories.
+ *
+ * @param {string} cwd - Project root.
+ * @param {number} [maxDepth=8] - How deep to look.
+ * @returns {Array<{path:string, rows:number}>} Each stray ledger and its row count.
+ */
+export function strayLedgers(cwd, maxDepth = 8) {
+  const SKIP = new Set(["node_modules", ".git", ".hg", ".svn", ".hvigor", ".idea", "dist", "build", "target", ".next", ".cache"]);
+  const out = [];
+  const home = decisionsPath(cwd);
+  /**
+   * Visit one directory level.
+   * @param {string} dir - Directory to scan.
+   * @param {number} depth - Its depth below `cwd`.
+   * @returns {void}
+   */
+  const walk = (dir, depth) => {
+    if (depth > maxDepth) return;
+    let entries;
+    try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      if (!e.isDirectory() || SKIP.has(e.name)) continue;
+      const sub = join(dir, e.name);
+      const candidate = decisionsPath(sub);
+      if (candidate !== home && existsSync(candidate)) {
+        let rows = 0;
+        try { rows = readFileSync(candidate, "utf8").split("\n").filter((l) => l.trim()).length; } catch { /* unreadable */ }
+        out.push({ path: relative(cwd, candidate).split(sep).join("/"), rows });
+      }
+      walk(sub, depth + 1);
+    }
+  };
+  walk(cwd, 1);
+  return out;
+}
+
+/**
  * Render a StatsReport as a human-readable fixed-width table.
  * @param {object} report - A validated StatsReport (see {@link aggregate}).
  * @returns {string} The multi-line table text (header + one row per slug + optional trend line).
@@ -382,6 +425,10 @@ function renderHooks(r) {
     lines.push("", "(zero rows: either no hook has run in this checkout, or the enforcement layer is inert —");
     lines.push(" and that distinction is exactly what this ledger exists to make.)");
   }
+  if (Array.isArray(r.stray_ledgers) && r.stray_ledgers.length) {
+    lines.push("", `stray ledgers: ${r.stray_ledgers.length} decisions.jsonl outside the project root — rows not counted above:`);
+    for (const s of r.stray_ledgers) lines.push(`  ${s.path}  (${s.rows} row(s))`);
+  }
   return lines.join("\n");
 }
 
@@ -403,7 +450,7 @@ export async function cli(rawArgv) {
   if (args.ratchet || args.hooks) {
     const out = {};
     if (args.ratchet) out.ratchet = ratchetReport(readAllTrials(cwd, args.slug ?? null));
-    if (args.hooks) out.hooks = hooksReport(readDecisions(cwd));
+    if (args.hooks) out.hooks = { ...hooksReport(readDecisions(cwd)), stray_ledgers: strayLedgers(cwd) };
     if (format === "table") {
       const parts = [];
       if (out.ratchet) parts.push(renderRatchet(out.ratchet));

@@ -36,7 +36,7 @@ import { globToRegExp, logPathology } from "./sandbox-guard.mjs";
 import { isMain } from "../kernel/lib/argv.mjs";
 import { LOCAL, safetyOverrides, metricsShard } from "../kernel/lib/paths.mjs";
 
-import { runHook, readStdin, settle } from "./lib/decision.mjs";
+import { runHook, readStdin, settle, projectRoot } from "./lib/decision.mjs";
 
 // --- overrides ---------------------------------------------------------------
 
@@ -225,9 +225,12 @@ async function main() {
 
   if (!HOOK_TOOLS.has(p.tool_name)) defer(`${p.tool_name ?? "no tool_name"} is not a guarded tool — out of scope`);
 
+  // The envelope and the telemetry shard live at the project root; the shell may be anywhere below
+  // it (see `projectRoot`). A relative tool path still means "relative to the shell".
   const cwd = p.cwd || process.cwd();
-  const overrides = loadOverrides(cwd);
-  const metricsPath = metricsShard(cwd);
+  const root = projectRoot(cwd);
+  const overrides = loadOverrides(root);
+  const metricsPath = metricsShard(root);
 
   const deny = (category, reason, detail) => {
     logPathology(metricsPath, {
@@ -240,7 +243,7 @@ async function main() {
       ...detail,
     });
     settle({
-      verdict: "deny", event: "PreToolUse", tool: p.tool_name, cwd, rule: category,
+      verdict: "deny", event: "PreToolUse", tool: p.tool_name, cwd: root, rule: category,
       subject: detail?.path ?? detail?.command ?? null, reason,
       payload: {
         hookSpecificOutput: {
@@ -282,7 +285,7 @@ async function main() {
   }
 
   // Write | Edit | MultiEdit — only the self-protect rule; substrates stay sandbox-guard's job.
-  const overridesAbs = resolve(safetyOverrides(cwd));
+  const overridesAbs = resolve(safetyOverrides(root));
   const hit = extractPaths(p.tool_input).find((raw) => resolve(cwd, raw) === overridesAbs);
   if (hit) {
     deny("self-protect", `The safety-overrides file is human-authored only — the session must never widen (or remove) its own safety envelope. Ask the PO to edit ${LOCAL}/safety-overrides.json.`, { path: hit });
