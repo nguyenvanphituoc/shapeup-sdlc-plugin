@@ -21,14 +21,17 @@
 //
 //   verify   t0 · budget · envelope ·        Measured, not claimed. A model verifying itself is
 //            trace · spec · skills ·          claiming; these read artifacts and re-hash them.
-//            dispatch                         `skills` reads the roster off disk; `dispatch` reads
+//            dispatch · build                 `skills` reads the roster off disk; `dispatch` reads
 //                                             the hook layer's evidence that a skill really resolved
 //                                             in this session — the half a file check cannot answer.
+//                                             `build` runs the feature's build and launch probes once
+//                                             per round before EVAL — T0 is per scope and proves
+//                                             nothing about whether the whole compiles or starts.
 //   reduce   ingest · hill · snapshot ·       Single writer. Shared state has exactly one author.
 //            ship · board · verdict · graph
 //   gate                                      An answer file with a source, not a vibe.
 //   probe    resume · t0 · stats · digest ·   Read-only queries over run state. `concurrency`
-//            concurrency · leg · eval          answers how many legs ran at once and what the
+//            concurrency · leg · eval · owner  answers how many legs ran at once and what the
 //                                              fan-out bought, and refuses a figure the record set
 //                                              cannot support rather than printing a plausible one.
 //                                              `leg` answers whether a scope's work reached the
@@ -39,7 +42,10 @@
 //                                              `eval` answers what an EVAL round's WorkResult
 //                                              actually said, mechanically — the round-loop branch
 //                                              reads this instead of trusting a dispatching agent's
-//                                              own end-of-turn summary of its own verdict.
+//                                              own end-of-turn summary of its own verdict. `owner`
+//                                              answers which scope may write a path, elected from
+//                                              the contracts — so a census cites it instead of
+//                                              asserting ownership from memory.
 //   init     run · fit                        Opens a run, or refuses it (exit 3).
 //   report   export                           Projects the run's records as fact tables.
 //   compile                                   The WorkOrder: schema-valid or nothing is dispatched.
@@ -64,7 +70,7 @@ export const ROUTES = {
   verify: {
     t0: "./verify/t0.mjs", budget: "./verify/budget.mjs", envelope: "./verify/envelope.mjs",
     trace: "./verify/trace.mjs", spec: "./verify/spec.mjs", skills: "./verify/skills.mjs",
-    dispatch: "./verify/dispatch.mjs",
+    dispatch: "./verify/dispatch.mjs", build: "./verify/build.mjs",
   },
   reduce: {
     ingest: "./reduce/ingest.mjs", hill: "./reduce/hill.mjs", snapshot: "./reduce/snapshot.mjs",
@@ -74,7 +80,7 @@ export const ROUTES = {
   probe: {
     resume: "./probe/resume.mjs", t0: "./probe/t0.mjs", stats: "./probe/stats.mjs",
     digest: "./probe/digest.mjs", concurrency: "./probe/concurrency.mjs",
-    leg: "./probe/leg.mjs", eval: "./probe/eval.mjs",
+    leg: "./probe/leg.mjs", eval: "./probe/eval.mjs", owner: "./probe/owner.mjs",
   },
   init: { run: "./init/run.mjs", fit: "./init/fit.mjs" },
   report: { export: "./report/export.mjs", _default: "export" },

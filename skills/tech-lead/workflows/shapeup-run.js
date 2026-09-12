@@ -2,7 +2,7 @@
 //
 // WHAT THIS FILE OWNS.
 //   ORIENT → GATE L1a → ANALYZE → WIRE → GATE L1a.5 → MAP SCOPES → GATE L1b →
-//   rounds of (BUILD → GATE L2 → EVAL → GATE L3) bounded by budgets.maxRounds →
+//   rounds of (BUILD → build gate → GATE L2 → EVAL → GATE L3) bounded by budgets.maxRounds →
 //   QA → GATE H → ship report → RunReturn.
 //
 // THE THREE PLANES THIS FILE RESPECTS, because collapsing them is what the previous version cost:
@@ -1350,17 +1350,54 @@ while (verdict !== "pass" && round <= maxRounds) {
     return withWarnings({ status: "gate_h", breaker: "inner", hammer_proposals: allHammer, green_scopes: allGreen });
   }
 
+  // ---- ROUND BUILD GATE — the feature builds and launches, measured before anyone is asked --------
+  //
+  // T0 is per scope and inside the scope's substrate; nothing in it proves the FEATURE compiles or
+  // starts. Measured on a live mobile run: 30/30 T0 trials green on the first try (TypeScript
+  // stand-ins, structural greps, a suite wrapper that never compiled its sources) while the
+  // ledger's own `run_cmd` failed, and three rounds of EVAL then graded a blank screen because
+  // nothing in the loop had ever installed or launched the app. `verify build` runs the ledger's
+  // `run_cmd`, then the profile's `build_probe` and `launch_probe`, and writes one artifact
+  // `reduce hill` and `harness compile` both read — so a red gate moves no dot downhill and becomes
+  // the next round's bug list without this script carrying anything across the round boundary.
+  //
+  // Exit 3 is "nothing declared" — the honest state of a run whose L0 pinned no run command and
+  // whose profile names no probe — and it is logged, not treated as green. Any other non-0/1 exit
+  // means the gate itself did not run, and the run says so rather than inferring a verdict.
+  const gate = await cmd(`verify build --slug ${slug} --round ${round}`, "Build", `build-gate:r${round}`);
+  let buildGate = "green";
+  if (gate.exit_code === 1) {
+    buildGate = "red";
+    log(`BUILD GATE r${round} — RED${gate.detail ? `: ${gate.detail}` : ""}. EVAL will not run over a feature ` +
+        `that does not build or launch; the failing step is compiled into round ${round + 1}'s orders as bugs.`);
+  } else if (gate.exit_code === 3) {
+    buildGate = "undeclared";
+    log(`BUILD GATE r${round} — nothing declared: no run_cmd in the run ledger and no build_probe or ` +
+        `launch_probe in project-profile.md. EVAL runs over an unproven build; pin them at GATE L0.`);
+  } else if (gate.exit_code !== 0) {
+    buildGate = "unknown";
+    log(`BUILD GATE r${round} — the gate itself did not run (exit ${gate.exit_code}` +
+        `${gate.detail ? `: ${gate.detail}` : ""}). Treated as undeclared, not as green.`);
+  }
+
   await advisory(`reduce hill --slug ${slug}`, "Build", "hill-derive");
   {
     const g = await crossGate("L2", "Build", ["proceed", "ask", "abort"],
-      { round, green_scopes: roundGreen, hammer_proposals: roundHammer });
+      { round, green_scopes: roundGreen, hammer_proposals: roundHammer, build_gate: buildGate });
     if (g.stop) return withWarnings(g.stop);
   }
 
   // ---- EVAL — exactly one feature-level pass per round (the single-judge invariant) ------------
   phase("Eval");
   await setRunStatus("evaluating", "Eval");
-  if (args.noEval) {
+  if (buildGate === "red") {
+    // A red gate outranks --no-eval: skipping the judge is the operator's call, but the build failing
+    // is a measured fact, and a round that does not compile has nothing for anyone to pass.
+    verdict = "fail";
+    findings = [];
+    log(`EVAL r${round} — not dispatched: the round build gate is red. The judge grades a running ` +
+        `feature; this one does not build or launch. Round ${round + 1} fixes the gate's failing step.`);
+  } else if (args.noEval) {
     log("EVAL — skipped (--no-eval)");
     verdict = "pass";
   } else {
@@ -1410,7 +1447,7 @@ while (verdict !== "pass" && round <= maxRounds) {
 
   await advisory(`reduce graph --slug ${slug}`, "Eval", `graph:eval-r${round}`);
   await advisory(`reduce hill --slug ${slug}`, "Eval", "hill-derive");
-  const g3 = await crossGate("L3", "Eval", ["loop", "stop", "ask"], { round, verdict });
+  const g3 = await crossGate("L3", "Eval", ["loop", "stop", "ask"], { round, verdict, build_gate: buildGate });
   if (g3.stop) return withWarnings(g3.stop);
 
   if (verdict === "pass") break;                                  // → QA → GATE H → ship

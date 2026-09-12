@@ -140,7 +140,8 @@ Intake lang  : [English | translated via /translator → <name>.en.md]
 Appetite     : [~1 week | ~2 weeks | ~6 weeks | ⚠️ missing — scope uncapped]
 Spec folder  : [path]   (lens: [lite|standard])
 Eval dims    : [spec-conformance]   max_rounds: [N, appetite-informed]   auto: [interactive|auto|unattended]
-Run commands : [web: ... | api: ... | mobile: ...]
+Run commands : [web: ... | api: ... | mobile: ...]   (run_cmd → the round build gate, every round before EVAL)
+Build gate   : build_probe [set | —]   launch_probe [set | — ⚠ mobile: the install/launch risk has no owner]
 Model matrix : orch=[model] exec=[model] eval=[model] qa=[model] digester=[script|sonnet]  (source: [flags|settings.local|settings.json|default])
 Budgets      : round_budget=[N] (outer)   attempt_budget=[N] (inner, per scope)
 ```
@@ -189,9 +190,15 @@ Do NOT enter MAP SCOPES until Orient is accepted.
 
 ```
 1. PROFILE (you write it at L0 — compile-order stays pipeline-blind): SHARED project-profile.md
-   = {schema_version:1, archetype, entry_point}. archetype ∈ {client-only-game|web-service|
-   mobile|library|data-pipeline}; entry_point is the reachability seam (a game's main.js is NOT a
-   service's src/server.ts). Validate the enum — a typo must fail, not silently disable the check.
+   = {schema_version:1, archetype, entry_point, build_probe?, launch_probe?}. archetype ∈
+   {client-only-game|web-service|mobile|library|data-pipeline}; entry_point is the reachability
+   seam (a game's main.js is NOT a service's src/server.ts). Validate the enum — a typo must fail,
+   not silently disable the check. The two probes feed the round build gate (`harness verify
+   build`, every round before EVAL): build_probe asserts the BUILT ARTIFACT covers what the run
+   wrote (a green exit code is not proof the feature compiled when the toolchain compiles only what
+   an entry point reaches); launch_probe installs, starts and asserts the first screen. A `mobile`
+   profile without a launch_probe is warned about every round — nothing else in the loop launches
+   the app.
 2. WIRE — compile-order --operation wire --slug <slug> (worker→solution-architect), payload
    {project_profile, breadboard?}. Sole writer of committed wiring-map.md (per-UC engine → seam → entry-point
    call site → affordance). ⏸ GATE L1a.5: confirm each UC has a declared seam before slicing.
@@ -328,7 +335,15 @@ Do NOT enter BUILD until the board is accepted.
 Feature   : [slug]
 Round     : [r]
 Scopes    : [N] green, [M] queued for hammer
+Build gate: [green | red — <failing step> | undeclared]
 ```
+
+The build gate is `harness verify build --slug <slug> --round <r>` — the ledger's `run_cmd`, then
+the profile's `build_probe` and `launch_probe`, stopping at the first failure. It runs before this
+gate so the block shows it; `red` means EVAL is NOT dispatched this round (the judge grades a running
+feature) and the failing step is compiled into round r+1's orders as `payload.bugs`. `undeclared`
+means L0 pinned no run command and the profile names no probe — the round proceeds over an
+unproven build, and the block says so.
 
 Under `--interactive` / `--auto`, the hook warns if the board is not truly green (advisory) and requires explicit PO approval to proceed. Under `--unattended`, it automatically aborts on a red board or proceeds on a green one.
 
@@ -357,6 +372,10 @@ PASS:
   → --no-qa or skill absent: proceed straight to SHIP; ledger records `qa: skipped`.
 
 FAIL:
+  → a round whose build gate was red never reached the judge: the block carries `build_gate: red`,
+    the "bug list" is the gate's failing step (its command, exit and output tail), and round r+1
+    is a fix round over exactly that. Nothing the evaluator would have said is missing — it was
+    never asked.
   → print the bug list grouped by task/severity. For each bug: task ID + failed Done-when criterion + repro.
     DO NOT prescribe fix options or root cause hypotheses — that is the implementer's job.
     The tech lead names scope; the implementer diagnoses and fixes.
@@ -391,6 +410,9 @@ S.0  GATE H — delegate to scope-hammer (this IS Shape Up's "Decide When to Sto
              (no --breaker flag)              normal stop — all scopes FINISHED, post-QA-hunt
      Feeds it: qa/hunt-report.md findings (when present), discovery/ledger.md open items,
                the hammer-proposal queue from BUILD (attempt-budget exhaustions).
+     Ownership facts in its census — "no scope owns X", "X belongs to scope Y" — come from
+       node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe owner --slug <slug> [--path <p>]...
+       which elects the owner from the committed contracts' substrates, never from prose.
      Reads back: its GATE H0/H1/H2 output — census, baseline comparison, cut list + verdict.
      Authority: scope-hammer proposes; the tech lead records the PO's decision in
        round-ledger.md and performs the actual close (S.1 onward). It never ships on its own.

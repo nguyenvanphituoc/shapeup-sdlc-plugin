@@ -296,6 +296,27 @@
         "cardinality": "1:N",
         "via": "wiring-map entries[].wiring_seam",
         "note": "projected by reduce graph as UseCase -DEPENDS_ON-> Seam. NOTE: the projection reads `row.seam`/`row.entry_point` while WiringEntry declares `wiring_seam`/`entry_call_site` — see harness-defects"
+      },
+      {
+        "from": "RoundBuildVerdict",
+        "to": "ProjectProfile",
+        "cardinality": "N:1",
+        "via": "build_probe + launch_probe",
+        "note": "the gate runs the probes the profile declares; run_cmd comes from the run ledger"
+      },
+      {
+        "from": "RoundBuildVerdict",
+        "to": "AegisTriple",
+        "cardinality": "1:N",
+        "via": "discovered_tasks[]",
+        "note": "a red gate's output, digested — surfaces as payload.bugs on the next round's orders"
+      },
+      {
+        "from": "RoundBuildVerdict",
+        "to": "HillShard",
+        "cardinality": "1:N",
+        "via": "round",
+        "note": "a red gate withholds DOWNHILL_EXECUTION from every T0-green verdict of that round"
       }
     ]
   },
@@ -1442,6 +1463,116 @@
         "status"
       ]
     },
+    "RoundBuildVerdict": {
+      "description": "The round build gate's verdict — did the FEATURE build and launch this round, measured before the judge is asked. A T0Artifact is one scope's fixtures inside its own substrate; this is the whole feature's run_cmd (from the run ledger), then the profile's build_probe and launch_probe, run in that order and stopping at the first failure. Zero LLM tokens. Two readers act on it: reduce hill withholds DOWNHILL_EXECUTION from every T0-green verdict of a round whose gate is red (a green fixture in a round the app did not compile is evidence about the fixture, not the scope), and harness compile turns each failing step into a `bug` for the next round's fix orders, addressed by the files the tool's output names. Immutable per gate run (`wx`, next ordinal); readers take the latest artifact for a round.",
+      "x-tier": "LOCAL",
+      "x-location": ".shapeup/<slug>/build/r<N>-t<T>.json",
+      "x-writer": "harness verify build",
+      "x-readers": "harness reduce hill (red rounds move no dot), harness compile (next round's payload.bugs), tech-lead (GATE L2 block: build gate state)",
+      "type": "object",
+      "required": [
+        "schema_version",
+        "round",
+        "trial",
+        "at",
+        "overall",
+        "steps"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "enum": [
+            1
+          ]
+        },
+        "round": {
+          "type": "integer"
+        },
+        "trial": {
+          "type": "integer",
+          "description": "Ordinal of this gate run within the round — a re-run after a hand fix lands beside its predecessor, never over it."
+        },
+        "run_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$"
+        },
+        "at": {
+          "type": "string",
+          "description": "ISO timestamp."
+        },
+        "archetype": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The profile's archetype, for the reader deciding whether a missing launch_probe matters."
+        },
+        "overall": {
+          "type": "string",
+          "enum": [
+            "green",
+            "red"
+          ]
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "run_cmd",
+                  "build_probe",
+                  "launch_probe"
+                ]
+              },
+              "cmd": {
+                "type": "string"
+              },
+              "exit": {
+                "type": "integer"
+              },
+              "pass": {
+                "type": "boolean"
+              },
+              "skipped": {
+                "type": "boolean",
+                "description": "true when an earlier step failed and this one was not run."
+              },
+              "stdout_tail": {
+                "type": "string"
+              },
+              "stderr_tail": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string",
+                "description": "Spawn failure or timeout — the command did not run to completion, which is not the same fact as a non-zero exit."
+              }
+            },
+            "required": [
+              "kind",
+              "cmd"
+            ]
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "What the gate could not check and why — a launch-required archetype with no launch_probe, a ledger with no run_cmd."
+        },
+        "discovered_tasks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AegisTriple"
+          },
+          "description": "The failing steps' output digested; populated only on red."
+        }
+      }
+    },
     "SeesawRegistry": {
       "description": "The fixture registry of every FINISHED scope — what seesawCheck re-runs on each later attempt so a new scope cannot silently break a shipped one — a regression mistaken for progress is the pathology the seesaw exists for.",
       "x-tier": "LOCAL",
@@ -2155,7 +2286,7 @@
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/project-profile.md",
       "x-writer": "tech-lead (GATE L0 — not harness compile, which stays pipeline-blind)",
-      "x-readers": "harness verify trace (reachability entry_point), solution-architect (wire), tech-lead",
+      "x-readers": "harness verify trace (reachability entry_point), harness verify build (build_probe + launch_probe, once per round before EVAL), solution-architect (wire), tech-lead",
       "type": "object",
       "required": [
         "schema_version",
@@ -2187,6 +2318,14 @@
         "note": {
           "type": "string",
           "description": "Optional context on the archetype/entry-point choice."
+        },
+        "build_probe": {
+          "type": "string",
+          "description": "OPTIONAL — a command that asserts the BUILT ARTIFACT, not the build's exit code, and exits 0 only when it holds. Exists because a green build is not proof the feature compiled: some toolchains compile only the files reachable from an entry point, so a scope's new files can sit outside the compiled set while the build stays green (measured: an app package holding 3 compiled files, 58 errors once the rest became reachable). Archetype-specific by construction — e.g. 'the compiled source map lists every file under each scope's substrate'. Run by harness verify build after run_cmd, once per round before EVAL; absent = no such step, never a failure."
+        },
+        "launch_probe": {
+          "type": "string",
+          "description": "OPTIONAL for most archetypes, EXPECTED for `mobile` — a command that installs the built artifact, starts it, asserts the first screen (ids, text, a screenshot diff) and fails on fatal runtime log patterns. Exists because nothing else in the loop launches the app: a blank first screen survived three EVAL rounds on a run whose every T0 fixture was green. Run by harness verify build after run_cmd and build_probe; a mobile profile without one is warned about on every round so the 'on-device install unverified' risk has a named owner. Absent = no such step."
         }
       }
     },
