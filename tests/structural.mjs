@@ -165,6 +165,9 @@ const MODULE_FILES = [
   // 53-breadboard-lint.mjs: spec-lint checks where the breadboard's Places landed, not only that
   // its ids were cited — the lost Place was fully cited, on the wrong screen.
   "53-breadboard-lint.mjs",
+  // 54-round-build-gate.mjs: the loop builds and launches the feature before EVAL, hooks file
+  // under the project root rather than the shell's cwd, and ownership is a query over contracts.
+  "54-round-build-gate.mjs",
   "08-docs.mjs",
 ];
 

@@ -68,7 +68,9 @@ approval of the new tasks and estimates before resuming the BUILD loop.
 
 ## The EVAL timing rule (the core constraint)
 
-EVAL fires **once** per round and **only** when GATE L2 has confirmed the board is 100% done.
+EVAL fires **once** per round and **only** when GATE L2 has confirmed the board is 100% done
+and the round build gate (§3d) is not red — a feature that does not build or launch has nothing
+for a judge to grade, and the gate's failing step is what round r+1 fixes.
 It is never:
 - called per task,
 - called inside the BUILD loop,
@@ -463,6 +465,27 @@ Read back: the stdout JSON — {path, sha256, trial, overall, regression, score,
         (harness verify t0 calls its sibling harness probe digest internally on failure).
 ```
 
+## 3d. Round build gate → `harness verify build` (once per round, before EVAL)
+```
+Invoke via Bash directly — deterministic tooling, not a worker:
+  node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify build --slug <slug> --round <N>
+Effect: runs, in order and stopping at the first failure, the ledger's `run_cmd` (the build), then
+        project-profile.md's `build_probe` (the built artifact covers what the run wrote — a green
+        exit code is not proof the feature compiled when the toolchain compiles only what an entry
+        point reaches) and `launch_probe` (install, start, assert the first screen, fail on fatal
+        logs). Writes .shapeup/<slug>/build/r<N>-t<T>.json, immutable per run of the gate.
+Read back: stdout JSON — {overall: green|red, steps[], warnings[], failed_step?, stderr_tail?}.
+        Exit 0 green · 1 red · 3 nothing declared (no run_cmd, no probes — logged, never green).
+        A `mobile` profile with no launch_probe is warned about on stderr every round, and so is
+        every scope none of whose fixtures invoke the tool run_cmd builds with — advisory, because a
+        green T0 from such fixtures is not evidence the scope compiles.
+Consequences, both mechanical and both read off the artifact, never off this prose:
+        red → EVAL is not dispatched this round; `harness compile` turns each failing step into a
+              `payload.bugs` entry for round N+1, addressed to the scope whose substrate holds the
+              files the tool's output names (unowned → every scope, marked).
+        red → `reduce hill` withholds DOWNHILL_EXECUTION from every T0-green verdict of round N.
+```
+
 ## 4. EVAL → spec-evaluator (once per round)
 ```
 compile-order --operation evaluate --slug <slug> --worker spec-evaluator --round <r>
@@ -527,6 +550,7 @@ Read back: the proposed cut list + verdict (SHIP now | SHIP after fixing ship-bl
 | `harness-run.md` | **tech lead (sole writer)** | tech lead (round ledger + Hill + run-state), PO (audit) |
 | `scopes/<scope-id>.md` | `scope-architect` (sole writer) | tech lead (substrate/sequence), sandbox hook (write-whitelist), compile-order (inlined into orders) |
 | `t0/verdicts/r<N>-a<M>-t<T>.json` | `harness verify t0` (skill-local, mechanical — not a worker) | spec-evaluator (required citation), tech lead (hill derivation), compile-order (digested errors) |
+| `build/r<N>-t<T>.json` (the round build gate) | `harness verify build` (mechanical — run_cmd + build_probe + launch_probe, once per round before EVAL) | tech lead (GATE L2 block), `harness reduce hill` (a red round moves no dot), compile-order (`payload.bugs` for round N+1) |
 | `t0/trials.jsonl` (the ratchet ledger, append-only, `baseline_trial` as the parent link) | `harness verify t0` (one row per attempt: score, status, delta, tree_ref) | compile-order (`trial_history` into the next order), ship-report (T0 + Ratchet sections), `harness probe stats --ratchet` |
 | `round-ledger.md` | **tech lead (sole writer)** | compile-order (decisions into every order), PO (audit) |
 | `hill/<scope-id>.yml` + `hill-chart.md` | **tech lead (sole writer)** | PO ("status without asking"), scope-hammer (H0 census) |

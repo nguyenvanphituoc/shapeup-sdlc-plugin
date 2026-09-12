@@ -80,7 +80,7 @@ disk, per scope, at each round boundary:
 |---|---|
 | `UPHILL_UNKNOWN` | Open unknowns > 0 in the ledger for this scope |
 | `UPHILL_SOLVED` | Unknowns resolved, but no T0-green attempt recorded yet |
-| `DOWNHILL_EXECUTION` | At least one T0-green attempt; final PASS or seesaw still pending |
+| `DOWNHILL_EXECUTION` | At least one T0-green attempt in a round whose build gate is not red; final PASS or seesaw still pending |
 | `FINISHED` | Evaluator PASS *and* seesaw green *and* merged to main |
 
 ## 4.5 — Gate walkthrough
@@ -123,7 +123,8 @@ Substrate-disjointness and breadboard placement re-asserted via harness verify s
 ⏸ GATE L2 — Build Round Complete
 Board        : [N]/[N] tasks ✅   (derived from the board, advisory)
 T0           : [k]/[k] touched scopes T0-green
-Ready to EVAL: yes
+Build gate   : [green | red — <failing step> | undeclared]   (harness verify build: run_cmd → build_probe → launch_probe)
+Ready to EVAL: yes   (a red build gate ends the round with no EVAL; the failing step is round r+1's bug list)
 ```
 
 ```

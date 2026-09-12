@@ -3,6 +3,40 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased] · The loop never built or launched the feature
+
+Five findings from one consumer run (a HarmonyOS phone app, fourteen scopes, three rounds), each
+traced to a mechanism rather than a worker, and each closed by a change the structural suite pins.
+
+- **The round build gate.** `harness verify build --slug <slug> --round <N>` runs, once per round
+  before EVAL and stopping at the first failure, the run ledger's `run_cmd`, then two new optional
+  `project-profile.md` fields: `build_probe` (the built artifact covers what the run wrote — a green
+  exit code is not proof the feature compiled when the toolchain compiles only what an entry point
+  reaches) and `launch_probe` (install, start, assert the first screen, fail on fatal logs). It writes
+  `.shapeup/<slug>/build/r<N>-t<T>.json`, immutable per run of the gate. A red gate ends the round
+  with no EVAL dispatch, `harness compile` turns each failing step into `payload.bugs` for the next
+  round's orders (addressed by the files the tool's output names, unowned → every scope, marked),
+  and `reduce hill` withholds DOWNHILL_EXECUTION from every T0-green verdict of that round. A
+  `mobile` profile with no `launch_probe` is warned about every round, and so is every scope none
+  of whose fixtures invoke the tool `run_cmd` builds with (advisory). Nothing declared exits 3 and
+  is logged as undeclared, never as green. The workflow shows the gate's state in the L2 and L3
+  blocks. Why: 30 of 30 T0 trials went green on a run whose build failed, three EVAL rounds graded
+  a blank screen, and all fourteen committed hill shards read DOWNHILL_EXECUTION.
+- **Hooks file under the project root, not the shell's cwd.** Every hook now resolves the project
+  root by walking up from the payload's `cwd` to the nearest run pointer, committed tier or git
+  boundary. Before, a worker that `cd`ed into a sub-folder started a fresh `decisions.jsonl` there
+  (nine on the measured run, one inside the committed tier, two inside the run trace), every row in
+  it carried `run_id: null`, and — the part that mattered — `sandbox-guard` deferred at `no-round`
+  on every write from that shell because the active-order pointer was not beside it. A relative
+  tool path still resolves against the shell. `probe stats --hooks` now lists stray ledgers.
+- **`harness probe owner`.** Which scope owns a path, elected from the committed contracts'
+  substrates — the same election `harness compile` uses to address a cited bug. With no `--path` it
+  answers for every engine and entry call site the wiring map names plus the profile's entry point;
+  `writers: []` is an unowned seam and `missing` lists seams the wiring names that are not on disk.
+  scope-hammer's census must cite it for every ownership claim
+  (H0.0). Why: a ship report told the PO no scope owned the app's page files while a committed
+  contract listed that directory in plain sight.
+
 ## [3.2.0] — 2026-09-11 · The breadboard never reached the run
 
 **The pitch is two files and the run read one.** `/shapeup` writes a pitch as `shaping.md` and

@@ -16,7 +16,7 @@ it.
 | **substrate** | The exact list of files one dispatch is allowed to write, stamped into its work order. A hook blocks anything outside it — and anything the order marks frozen. |
 | **scope contract** | The file defining one vertical slice: its substrate, its fixtures, its affordances. |
 | **affordance** | The thing a user can actually click, type or call. UI is graded on affordances, not on looks. |
-| **hill / hill phase** | How much of a scope is still *unknown* versus merely *unfinished*. Derived from T0 facts — never self-reported. |
+| **hill / hill phase** | How much of a scope is still *unknown* versus merely *unfinished*. Derived from T0 facts and the round build gate — never self-reported; a T0-green in a round whose build failed moves nothing. |
 | **gate (L0–L4)** | A numbered checkpoint in a run. Most pause for you; GATE L2 is the one a hook observes and reports on. |
 | **covers-closure** | Every requirement clause has at least one task claiming to cover it. Nothing silently drops. |
 | **wiring reachability** | Every engine has a call site reachable from the app's real entry point. Catches "built, but never wired up". |

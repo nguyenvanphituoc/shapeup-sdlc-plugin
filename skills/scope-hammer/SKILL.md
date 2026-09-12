@@ -56,6 +56,14 @@ INPUT: run's finished/unfinished scopes + baseline + census sources
 piecemeal — a partial view produces a wrong cut.
 
 ```
+H0.0  Ownership is DERIVED, never stated. Before the census says "no scope owns X" or "X is
+      scope Y's", run
+        node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe owner --slug <slug> [--path <p>]...
+      and cite its row. With no --path it answers for every engine and entry call site the wiring
+      map names plus the profile's entry point; `writers: []` is an unowned seam and `missing`
+      lists seams the wiring names that are not on disk — owned but never written. A census that
+      narrated ownership from memory once told the PO no scope owned a screen directory that a
+      committed contract listed in plain sight — and pointed the ship decision at the wrong gap.
 H0.1  Unresolved scopes (breaker cases only):
         - uphill/downhill scopes when round_budget hit 0 → CARRY candidates (their own hill
           phase + open unknowns, from hill/<scope-id>.yml)
@@ -160,6 +168,10 @@ The WorkResult may carry only `files_touched`, `artifacts`, `assumptions`, `devi
 
 # Headless — no PO available; still refuses to auto-ship a ship-blocking item
 /scope-hammer --slug checkout-vnpay --unattended
+
+# The ownership query every census claim cites (H0.0)
+node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe owner --slug checkout-vnpay --format table
+node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe owner --slug checkout-vnpay --path src/pages/Cart.ets
 ```
 
 ### Flags
@@ -181,6 +193,7 @@ The WorkResult may carry only `files_touched`, `artifacts`, `assumptions`, `devi
 | Default classification is NICE-TO-HAVE unless traced to a pitch boundary or business_goal | A generous must-have list defeats the point of hammering |
 | A MUST-HAVE that fails H1.2 is never cut silently | The one case where scope-hammer refuses to make the run "look" shippable |
 | Cuts are proposals; the PO confirms every one | This skill never overrides the human at the ship gate |
+| Every ownership claim in the census cites `harness probe owner` | Ownership is what the contracts' substrates say — the same election `harness compile` uses to address a bug — never what the report remembers |
 | Cut items are carried to the discovery ledger, never silently dropped | Cool-down must stay debt-free — an idea deferred is still recorded |
 | Never sets status: done, never deploys, never ships unilaterally | Judge/doer/advisor separation holds even at the very last gate |
 | An overridden ship-blocking item is logged explicitly in the ship report | "Shipped" must never quietly mean "shipped with a known must-have gap" |

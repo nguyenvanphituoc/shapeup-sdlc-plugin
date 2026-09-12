@@ -208,6 +208,16 @@ export const trials = (cwd, slug) => join(t0Dir(cwd, slug), "trials.jsonl");
 export const gates = (cwd, slug) => join(localRoot(cwd, slug), "gates.jsonl");
 /** Finished-scope fixture registry for the seesaw regression check. */
 export const seesawRegistry = (cwd, slug) => join(localRoot(cwd, slug), "seesaw", "registry.json");
+/**
+ * The round build gate's verdicts — one immutable artifact per gate run, `r<N>-t<T>.json`.
+ *
+ * A separate directory from `t0/`, on purpose. A T0 verdict is one scope's fixtures inside that
+ * scope's substrate; this is the FEATURE's build, launched the way the ledger's `run_cmd` and the
+ * profile's probes say a user would, and it belongs to no scope. Written by `harness verify build`,
+ * read by `reduce hill` (a green T0 in a round whose build is red moves no dot) and by
+ * `harness compile` (a red gate is the next round's bug list).
+ */
+export const roundBuildDir = (cwd, slug) => join(localRoot(cwd, slug), "build");
 /** Evaluator output — report, evidence, verdict ledger. */
 export const evaluationDir = (cwd, slug) => join(localRoot(cwd, slug), "evaluation");
 /** The workflow launcher's run directory — `journal.jsonl` and the launch `result.json`. */

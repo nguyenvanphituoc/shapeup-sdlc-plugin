@@ -49,7 +49,7 @@ import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { isMain } from "../kernel/lib/argv.mjs";
 import { dispatchReceipts } from "../kernel/lib/paths.mjs";
-import { runHook, readStdin, settle } from "./lib/decision.mjs";
+import { runHook, readStdin, settle, projectRoot } from "./lib/decision.mjs";
 
 /**
  * The `--order` matcher, character-for-character the one the PreToolUse order gate uses
@@ -173,7 +173,10 @@ export async function main() {
       defer("dispatch result names no resolved skill — nothing to attest", "no-skill-named");
     }
 
+    // The order path is relative to the shell; the receipt file is relative to the project root
+    // (see `projectRoot`) — the same ledger whichever folder the dispatch was issued from.
     const cwd = p.cwd || process.cwd();
+    const root = projectRoot(cwd);
     const orderPath = resolve(cwd, cited);
     let order;
     try { order = JSON.parse(readFileSync(orderPath, "utf8")); }
@@ -181,9 +184,9 @@ export async function main() {
     if (!order?.order_id) defer("order carries no order_id — nothing to key a receipt by", "order-unkeyed");
 
     const row = receiptRow(order, skillInvoked, p);
-    const written = writeReceipt(row, cwd);
+    const written = writeReceipt(row, root);
     return {
-      verdict: "allow", event: "PostToolUse", tool: p.tool_name, cwd, subject: row.order_id,
+      verdict: "allow", event: "PostToolUse", tool: p.tool_name, cwd: root, subject: row.order_id,
       rule: written ? "receipt-written" : "receipt-write-failed",
       reason: written
         ? `dispatch receipt: ${row.order_id} ran ${skillInvoked} (declared ${row.worker_declared}, ok=${row.dispatch_ok})`

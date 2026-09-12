@@ -26,7 +26,7 @@
 // pretty-printed envelope, colocated so audits can read it). Prints the path on stdout.
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
-import { resolve, join, dirname, basename } from "node:path";
+import { resolve, join, dirname, basename, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validate } from "./verify/envelope.mjs";
 import { readTrials } from "./verify/t0.mjs";
@@ -41,6 +41,7 @@ import {
 import { readContract, readAllContracts, tasksForScope, SCOPE_CONTRACT } from "./lib/contract.mjs";
 import { writeActiveOrder } from "./probe/resume.mjs";
 import { greenVerdict } from "./probe/t0.mjs";
+import { latestRoundBuild } from "./verify/build.mjs";
 // The SAME matcher the sandbox hook enforces with. "Is this cited file inside this scope's
 // substrate" has to mean exactly what the guard means, or a bug is addressed to a scope that is
 // then denied the write that fixes it.
@@ -380,6 +381,80 @@ export function verdictBugs(cwd, slug, round) {
 }
 
 /**
+ * The previous round's RED BUILD GATE, as bug entries the fix round can act on.
+ *
+ * THE JUDGE IS NOT THE ONLY SOURCE OF A FAIL. `verify build` runs the feature's build and its
+ * launch probe once per round, before EVAL, and a red gate ends the round with no verdict — there is
+ * nothing to grade in an app that does not compile or start. But a round that ends without a
+ * verdict left the next round with no `payload.bugs`, so it compiled as a plain `execute`, every
+ * worker re-ran its fixtures, found them green (they never tested the build) and reported done —
+ * the identical loop the ledgered verdict was threaded through {@link verdictBugs} to break.
+ *
+ * So a failing step becomes a bug: the criterion is the command that must exit 0, the locator is
+ * every file the tool's own output names that exists in the tree, and the evidence is the output's
+ * tail. Addressed by {@link bugsForScope} exactly like a judged defect — the scope whose substrate
+ * holds the cited file gets it, and a failure citing no file goes to every scope marked `unowned`.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {number} [round] - The round being compiled; round 1 has no predecessor.
+ * @returns {Array<object>} One entry per failing step of the previous round's latest gate
+ *   artifact; empty when the gate did not run, was green, or this is round 1.
+ */
+export function buildBugs(cwd, slug, round) {
+  if (!round || round < 2) return [];
+  const gate = latestRoundBuild(cwd, slug, round - 1);
+  if (!gate || gate.overall !== "red") return [];
+  const out = [];
+  for (const step of gate.steps || []) {
+    if (step.skipped || step.pass) continue;
+    const text = `${step.stdout_tail || ""}\n${step.stderr_tail || ""}`;
+    const files = outputPaths(text, cwd);
+    out.push({
+      id: `BUILD-r${round - 1}-${step.kind}`,
+      severity: "blocker",
+      source: "verify build",
+      criterion: `${step.kind} exits 0: ${step.cmd}`,
+      location: files.join(", "),
+      expected: "exit 0",
+      actual: step.error ? `did not run: ${step.error}` : `exit ${step.exit}`,
+      evidence: (step.stderr_tail || step.stdout_tail || "").slice(-2000),
+      digest: Array.isArray(gate.discovered_tasks) ? gate.discovered_tasks.slice(0, 8) : [],
+    });
+  }
+  return out;
+}
+
+/**
+ * The project files a build or launch log names, repo-relative and de-duplicated.
+ *
+ * Wider than {@link bugLocations} in one way and narrower in another: it accepts absolute paths
+ * (compilers print them) and strips the project root off; and it keeps only paths that EXIST under
+ * the project, because a tool's own stack frames and cache paths look exactly like file citations
+ * and would address the bug to nobody. First-seen order.
+ *
+ * @param {string} text - Raw log text.
+ * @param {string} cwd - Project root.
+ * @returns {string[]} Repo-relative POSIX paths.
+ */
+export function outputPaths(text, cwd) {
+  const out = [];
+  const root = resolve(cwd);
+  for (const m of String(text || "").matchAll(/(?:^|[\s(,\[:"'`])((?:\/|\.\/)?[\w@][\w.\/-]*\.[A-Za-z][A-Za-z0-9]{0,5})(?::\d+)?/gm)) {
+    let p = m[1].replace(/^\.\//, "");
+    if (p.startsWith("/")) {
+      const rel = relative(root, p);
+      if (!rel || rel.startsWith("..")) continue;
+      p = rel.split(sep).join("/");
+    }
+    if (out.includes(p)) continue;
+    if (!existsSync(join(root, p))) continue;
+    out.push(p);
+  }
+  return out;
+}
+
+/**
  * Every repo-relative file a bug is cited against.
  *
  * A LOCATOR NAMES MORE THAN ONE SITE, ROUTINELY. The judge writes what it found, and what it finds
@@ -695,7 +770,10 @@ export async function cli(rawArgv) {
   // The fix round's inbound evidence. Derived here, from the ledgered verdict, for every lane —
   // the workflow, `--tiny`, the prose round loop and a standalone `/build` all compile through
   // this line, and none of them can pass a payload to a build order (see the banner above).
-  const bugs = scope ? bugsForScope(verdictBugs(cwd, slug, round), scope.scope_id, scopeSubstrates(cwd, slug)) : [];
+  // Two sources, one channel: the judge's cited defects and the build gate's failing steps.
+  const bugs = scope
+    ? bugsForScope([...verdictBugs(cwd, slug, round), ...buildBugs(cwd, slug, round)], scope.scope_id, scopeSubstrates(cwd, slug))
+    : [];
 
   // A ROUND CARRYING CITED DEFECTS IS A `fix`, AND THE ORDER HAS TO SAY SO.
   //

@@ -74,7 +74,7 @@ import { readFileSync, existsSync, appendFileSync, mkdirSync, readdirSync, statS
 import { resolve, join, relative, dirname, sep } from "node:path";
 import { isMain } from "../kernel/lib/argv.mjs";
 import { LOCAL, SHARED, activeOrder, ordersDir, resultsDir, metricsShard } from "../kernel/lib/paths.mjs";
-import { runHook, readStdin, settle } from "./lib/decision.mjs";
+import { runHook, readStdin, settle, projectRoot } from "./lib/decision.mjs";
 
 // --- tiny glob matcher: supports *, **, ? — enough for substrate globs, zero dependencies ---
 export function globToRegExp(glob) {
@@ -184,8 +184,15 @@ async function main() {
     defer(`${p.tool_name ?? "no tool_name"} is not a write tool — out of scope`);
   }
 
+  // WHERE THE SHELL IS versus WHERE THE PROJECT IS. `p.cwd` follows the worker's shell — a leg that
+  // `cd`s into a sub-folder fires this hook from there — and the pointer, the order set and the
+  // substrate globs all live at the project root. Read from the sub-folder, the pointer was simply
+  // absent and this guard deferred at `no-round` on every write from that shell: a substrate fence
+  // that switches off whenever the worker changes directory. Raw tool paths still resolve against
+  // the shell's own cwd, because that is what a relative path in the tool input means.
   const cwd = p.cwd || process.cwd();
-  const activeOrderPath = activeOrder(cwd);
+  const root = projectRoot(cwd);
+  const activeOrderPath = activeOrder(root);
   if (!existsSync(activeOrderPath)) defer("no active-order pointer — no tracked task running", "no-round");
 
   const active = readJSON(activeOrderPath);
@@ -202,7 +209,7 @@ async function main() {
   // Live = compiled and not yet answered. An order whose result is on disk has finished; leaving it
   // in the candidate set would keep a finished scope's substrate open for the rest of the run — and
   // leaving the POINTER's own order in unconditionally kept a finished RUN's substrate open forever.
-  const orders = liveOrders(cwd, active.slug);
+  const orders = liveOrders(root, active.slug);
   if (orders.length === 0) defer(`no live order for ${active.slug}`, "no-order");
 
   const withSubstrate = orders.filter((o) => o.substrate);
@@ -220,14 +227,14 @@ async function main() {
   const targetPaths = extractPaths(p.tool_input);
   if (targetPaths.length === 0) defer("no writable path in the tool input", "no-target");
 
-  const metricsPath = metricsShard(cwd);
+  const metricsPath = metricsShard(root);
   const runTracePrefix = join(LOCAL, active.slug) + sep;
   const violations = [];
   const blockReasons = [];
 
   for (const raw of targetPaths) {
     const abs = resolve(cwd, raw);
-    const rel = relative(cwd, abs);
+    const rel = relative(root, abs);
     if (rel.startsWith(runTracePrefix)) continue;
 
     // Frozen takes absolute precedence, and it is checked across EVERY live contract: a path one
@@ -283,7 +290,7 @@ async function main() {
   });
 
   return {
-    verdict: "deny", event: "PreToolUse", tool: p.tool_name, subject: active.order_path, cwd,
+    verdict: "deny", event: "PreToolUse", tool: p.tool_name, subject: active.order_path, cwd: root,
     rule: "outside-substrate",
     reason: `${violations.length} write(s) rejected by substrate boundaries: ${blockReasons.join("; ")}`,
     payload: {

@@ -46,10 +46,51 @@
 // failed tool call: a receipt that can break a run would get the whole layer disabled, which is
 // the exact outcome this file exists to prevent. Every write here is inside a try/catch.
 
-import { appendFileSync, mkdirSync } from "node:fs";
-import { dirname } from "node:path";
-import { decisions } from "../../kernel/lib/paths.mjs";
+import { appendFileSync, mkdirSync, existsSync, statSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { decisions, activeScope, sharedDir } from "../../kernel/lib/paths.mjs";
 import { resolveRunId } from "../../kernel/lib/paths.mjs";
+
+/**
+ * The project root a hook should file under, from wherever the tool call happened to fire.
+ *
+ * THE HOOK PAYLOAD'S `cwd` FOLLOWS THE SHELL, NOT THE PROJECT. A worker that `cd`s into a
+ * sub-folder — a mobile app's module directory, a package in a monorepo, even the run trace
+ * itself while it inspects an artifact — fires every later hook with that folder as `cwd`. Read
+ * as the project root, that started a fresh `.shapeup/decisions.jsonl` in the sub-folder (nine of
+ * them on one measured run, one inside the committed tier and two inside the run trace), left
+ * every row there with `run_id: null` because the active-scope pointer was not beside it, and —
+ * the part that matters more than a split audit log — made `sandbox-guard` fail open on every
+ * write from that shell, since the active-order pointer it fences from was not beside it either.
+ *
+ * So the root is FOUND, not assumed: walk up from `cwd` to the nearest ancestor that carries a
+ * run pointer, the committed tier, or a git boundary. The order is the order of specificity — a
+ * live run outranks a repo boundary, so a project nested inside a larger repository still files
+ * under its own root — and a bare `.shapeup/` directory is deliberately NOT a marker, because the
+ * stray ledgers this fixes are exactly what would create one.
+ *
+ * Fail-open: no marker anywhere up the tree returns `cwd` unchanged, which is the pre-fix
+ * behaviour. Never throws.
+ *
+ * @param {string} cwd - Where the hook fired (`payload.cwd`, else the process cwd).
+ * @returns {string} The nearest project root at or above `cwd`, or `cwd` itself.
+ */
+export function projectRoot(cwd) {
+  let dir;
+  try { dir = resolve(cwd || process.cwd()); } catch { return cwd; }
+  const isDir = (p) => { try { return statSync(p).isDirectory(); } catch { return false; } };
+  for (let i = 0; i < 64; i++) {
+    try {
+      if (existsSync(activeScope(dir))) return dir;
+      if (isDir(sharedDir(dir))) return dir;
+      if (existsSync(resolve(dir, ".git"))) return dir;
+    } catch { /* unreadable ancestor — keep climbing */ }
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return cwd;
+}
 
 /**
  * Where the receipts land.
@@ -60,12 +101,14 @@ import { resolveRunId } from "../../kernel/lib/paths.mjs";
  * they were evaluations from a real run. A measurement instrument that its own test suite
  * contaminates is not an instrument.
  *
- * @param {string} [cwd] - Project root; defaults to the process cwd.
+ * @param {string} [cwd] - Where the hook fired; defaults to the process cwd. Resolved to the
+ *   project root through {@link projectRoot} — a hook fired from a sub-folder files under the
+ *   same ledger as one fired from the top.
  * @returns {string} The ledger path — `SHAPEUP_DECISIONS_PATH` when set, else the LOCAL root's
  *   `decisions.jsonl`, resolved through `lib/paths.mjs`.
  */
 export function decisionsPath(cwd) {
-  return process.env.SHAPEUP_DECISIONS_PATH || decisions(cwd || process.cwd());
+  return process.env.SHAPEUP_DECISIONS_PATH || decisions(projectRoot(cwd || process.cwd()));
 }
 
 /**
@@ -178,7 +221,7 @@ export async function runHook(name, fn) {
     // run, and recording that is what lets the export tier partition ambient decisions from run
     // ones. Resolution reads two small files and swallows every error — a receipt must never be
     // able to fail a tool call.
-    run_id: (() => { try { return resolveRunId(d.cwd || process.cwd()); } catch { return null; } })(),
+    run_id: (() => { try { return resolveRunId(projectRoot(d.cwd || process.cwd())); } catch { return null; } })(),
     event: d.event ?? null,
     tool: d.tool ?? null,
     subject: d.subject ?? null,

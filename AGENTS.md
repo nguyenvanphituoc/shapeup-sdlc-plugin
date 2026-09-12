@@ -31,8 +31,8 @@ Betting Table: PO decides; rejected pitches loop back to raw idea.
 | Analyze | — (reviewed at L1b) | `/ba-pitch-analyzer` (`analyze`): spec tree + board (UC + Invariants + Test Surface ★); before Wire (needs its use cases) |
 | Wire | ⏸ **L1a.5** — Wiring Review ✚ | `/solution-architect` (`wire`): sole writer of committed `wiring-map.md` — per-UC engine → seam → entry-point call site → affordance, per `project-profile.md` |
 | Map Scopes | ⏸ **L1b** — Board Review (+ substrate disjointness lint) | `/scope-architect` (scope contracts ✦ — sole writer); traceability oracle advisory ✚ |
-| Build Vertically | ⏸ **L2** — Board 100% ✅ + T0-green ✦ | per dispatch: compile order → `/task-executor` (--order) → ingest result; T0-verified per attempt (fixtures + DB probe + seesaw ✦), substrate-sandboxed ✦. Scopes build **concurrently** ✦ — `--parallel-scopes N` caps it (default 4), a scope is released the moment its own dependencies are green, and a scope green in this round is skipped rather than rebuilt |
-| EVAL (once per round) | ⏸ **L3** — Verdict | `/spec-evaluator` (--order): spec- + test-surface-conformance ★, T0 citation ✦; refuted boxes/verdict applied by ingest |
+| Build Vertically | ⏸ **L2** — Board 100% ✅ + T0-green ✦ | per dispatch: compile order → `/task-executor` (--order) → ingest result; T0-verified per attempt (fixtures + DB probe + seesaw ✦), substrate-sandboxed ✦. Scopes build **concurrently** ✦ — `--parallel-scopes N` caps it (default 4), a scope is released the moment its own dependencies are green, and a scope green in this round is skipped rather than rebuilt. Then the **round build gate** ⚙: the ledger's run command, then the profile's `build_probe` and `launch_probe`, run once per round before EVAL — a red gate ends the round with no verdict and its failing step is compiled into the next round's orders as bugs; a `mobile` profile with no `launch_probe` is warned about every round, so the install/launch risk has an owner |
+| EVAL (once per round) | ⏸ **L3** — Verdict | `/spec-evaluator` (--order), only over a round whose build gate ⚙ is not red: spec- + test-surface-conformance ★, T0 citation ✦; refuted boxes/verdict applied by ingest |
 | FAIL → round r+1 | — | regression rule ★: bugs + full Test Surface of touched UC |
 
 ✦ = requires scope contracts (`shapeup/<slug>/scopes/*.md`); ✚ = requires the spine artifacts (`requirements.md`, `wiring-map.md`, `project-profile.md`). Traceability stays advisory until `covers:` is populated. Absent artifact ⇒ arm skipped (non-regression).
@@ -44,7 +44,7 @@ Betting Table: PO decides; rejected pitches loop back to raw idea.
 **Q0** Preflight → **Q1** Charter (6 lenses − EVAL-covered) → **Hunt** (repro required, findings `~` → ledger) → report (no verdict, no score). Skip with `--no-qa`.
 
 ### Ship & Triage
-- **SHIP S.0 / GATE H** — `/scope-hammer`: census (QA findings + discovered ledger + attempt-budget proposals ✦) → baseline comparison (never the ideal) → cut list; TL/PO promotes selected items only.
+- **SHIP S.0 / GATE H** — `/scope-hammer`: census (QA findings + discovered ledger + attempt-budget proposals ✦; every "no scope owns X" cites `probe owner`, which derives ownership from the contracts) → baseline comparison (never the ideal) → cut list; TL/PO promotes selected items only.
 - ⏸ **L4** — Ship Sign-off (shows QA status ★).
 - **Coach retro** — L4 feedback → `/coach`; GATE COACH-1 asks the PO which skill owns each rule (never assumes) → committed `shapeup/knowledge-base/<skill>.md` (team inherits on pull). Coachable: `/task-executor`, `/ba-pitch-analyzer`, `/qa-edge-hunter`; `/spec-evaluator` is not (single judge). Mechanism defects file to `knowledge-base/harness-defects.md` as Betting Table raw ideas, never worker steering.
 - Post-fix: `eval --single-pass` → remaining `~` + new feedback → new raw idea.
@@ -58,7 +58,7 @@ Everything discovered funnels into `.shapeup/<slug>/discovery/ledger.md` (Orient
 - **Ledger = single source of truth** — every discovery flow writes only its own section.
 - **QA is a level-up, not a gate** — `--no-qa` skips it; circuit breaker outranks the Hunter.
 - **Role separation** — Evaluator grades, task-executor fixes, QA discovers.
-- **Hill phase is mechanical ✦** — derived only from T0/T1/seesaw artifacts, never self-reported; the evaluator cites a T0 artifact it re-hashes itself, from the list its order carries. A scoped verdict citing none is refused: its round stays open and is evaluated again, never advanced.
+- **Hill phase is mechanical ✦** — derived only from T0/T1/seesaw artifacts, never self-reported, and a T0-green from a round whose build gate ⚙ is red moves no dot (a green fixture in a round the feature did not build is evidence about the fixture); the evaluator cites a T0 artifact it re-hashes itself, from the list its order carries. A scoped verdict citing none is refused: its round stays open and is evaluated again, never advanced.
 - **Envelope port (v1.0)** — every dispatch is WorkOrder in / WorkResult out; shared state has exactly one writer (the ingest step); malformed envelopes are hook-denied. Workers: stateless, craft-only, pipeline-blind.
 
 ## Setup & Execution
@@ -79,5 +79,6 @@ Everything discovered funnels into `.shapeup/<slug>/discovery/ledger.md` (Orient
 - `/hill-chart` (skill `hill-chart`, not a pipeline worker — invoked directly, like `shapeup`) renders both the committed hill shards (`shapeup/<slug>/hill/<scope-id>.yml`, the mechanical phase from the invariant above) and the local run graph as one dashboard: a portfolio card per pitch, and per-pitch a Hill Chart, an attention list, a scope board, round history, and the run graph one click deeper. A pitch whose local run trace was cleaned up after shipping still renders — marked Archived — from its committed hill shards alone.
 - Contracts: markdown on disk, JSON on the wire; a single library reads/writes the file form.
 - Never hard-code a storage root — generated paths resolve through the shared path resolver.
+- Hooks file under the project root they find above the shell's working directory (a run pointer, the committed tier, or a git boundary), never under the folder a worker happened to `cd` into — so a sub-folder shell neither splits the decision ledger nor slips the substrate fence. `probe stats --hooks` lists any stray ledger it still finds.
 - The traceability oracle emits `.shapeup/<slug>/trace/report.json` from the spine artifacts.
 <!-- HARNESS_END -->

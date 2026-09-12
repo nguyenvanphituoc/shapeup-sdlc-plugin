@@ -57,7 +57,7 @@ import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { isMain } from "../kernel/lib/argv.mjs";
 import { localDir, globLocal, globWorkflowsStage } from "../kernel/lib/paths.mjs";
-import { runHook, readStdin, settle, decisionsPath } from "./lib/decision.mjs";
+import { runHook, readStdin, settle, decisionsPath, projectRoot } from "./lib/decision.mjs";
 
 const MAX_TRANSCRIPT_BYTES = 20 * 1024 * 1024;
 
@@ -287,7 +287,10 @@ async function main() {
   // (read-only cwd, missing node) would be held open forever.
   if (p.stop_hook_active) defer("stop_hook_active — at most one block per stop chain", "loop-guard");
 
-  const cwd = p.cwd || process.cwd();
+  // Receipts and the decision ledger sit at the project root, wherever the session's shell ended
+  // up (see `projectRoot`); a run started from the top must not read as "never started" because
+  // the last command `cd`ed somewhere.
+  const cwd = projectRoot(p.cwd || process.cwd());
   const events = readEvents(p.transcript_path);
   // no transcript → no facts → fail open
   if (!events || events.length === 0) defer("no readable transcript — no facts to assert", "no-transcript");

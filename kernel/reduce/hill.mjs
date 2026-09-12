@@ -9,6 +9,7 @@ import { runArgs } from "../lib/argv.mjs";
 import { scopesDir, hillDir, verdictsDir, resultsDir, discoveryLedger } from "../lib/paths.mjs";
 import { readAllContracts, SCOPE_CONTRACT } from "../lib/contract.mjs";
 import { evalVerdict } from "../probe/eval.mjs";
+import { redBuildRounds } from "../verify/build.mjs";
 
 /**
  * Derive and write the hill phase for all scopes mechanically based on T0, T1, and ledger facts.
@@ -16,7 +17,7 @@ import { evalVerdict } from "../probe/eval.mjs";
  * The derived phase follows these progression rules (facts move dots, not authors):
  * - UPHILL_UNKNOWN: open unknowns > 0 in the ledger for this scope
  * - UPHILL_SOLVED: unknowns 0, no T0-green yet
- * - DOWNHILL_EXECUTION: ≥1 T0-green; T1/seesaw pending
+ * - DOWNHILL_EXECUTION: ≥1 T0-green in a round whose build gate is not red; T1/seesaw pending
  * - FINISHED: T1 PASS ∧ seesaw green
  *
  * @param {string} cwd - The project root directory.
@@ -52,6 +53,15 @@ export function deriveHill(cwd, slug) {
   }
 
   // 2. T0 facts per scope: has it achieved a green overall verdict? was seesaw also green?
+  //
+  // MINUS THE ROUNDS WHOSE BUILD GATE IS RED. A T0 verdict is one scope's fixtures inside its own
+  // substrate; the round build gate (`verify build`) is the feature's build and launch. Measured on
+  // a live run, all fourteen committed shards read DOWNHILL_EXECUTION off T0 verdicts from rounds in
+  // which the app never compiled and never launched — the dashboard showed a feature going downhill
+  // that had not started. A green fixture in a round the gate failed is not evidence the scope
+  // works; it is evidence the fixture does not test the build. No gate artifact at all leaves every
+  // verdict counting exactly as before.
+  const redRounds = redBuildRounds(cwd, slug);
   const t0Facts = {};
   if (existsSync(vDir)) {
     for (const f of readdirSync(vDir)) {
@@ -59,7 +69,7 @@ export function deriveHill(cwd, slug) {
       try {
         const b = JSON.parse(readFileSync(join(vDir, f), "utf8"));
         if (!t0Facts[b.scope_id]) t0Facts[b.scope_id] = { hasGreen: false, seesawGreen: false };
-        if (b.overall === "green") {
+        if (b.overall === "green" && !redRounds.has(Number(b.round))) {
           t0Facts[b.scope_id].hasGreen = true;
           // Read the REAL seesaw result off the verdict artifact (`t0.mjs`'s `writeArtifact()`
           // already persists the full `{ran, pass, scopes_checked, failing}` object), rather than
