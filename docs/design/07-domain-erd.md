@@ -316,7 +316,7 @@ rather than kept as a mechanism that looks like it works and doesn't.)
 | Enum | Values |
 |---|---|
 | `WorkerName` (10) | task-executor · spec-evaluator · ba-pitch-analyzer · scope-architect · solution-architect · orient · qa-edge-hunter · translator · scope-hammer · coach |
-| `Operation` (16) | execute, fix, spike · analyze, reconcile, retrofit-surface, coverage · map-scopes · wire · evaluate · orient · hunt · translate · hammer · coach, scan |
+| `Operation` (17) | execute, fix, spike · analyze, reconcile, retrofit-surface, coverage · map-scopes · wire · evaluate · orient · hunt · translate · hammer · coach, scan, research |
 
 ## 7.6 — Payload fields by worker (`x-payload-by-worker`)
 
@@ -334,7 +334,7 @@ Which `WorkOrderPayload` fields each worker may rely on — anything absent from
 | qa-edge-hunter | `feature`, `spec_folder`, `eval_report`, `app_url`, `ledger`, `kb_rules_path` |
 | translator | `intake`, `glossary` |
 | scope-hammer | `feature`, `baseline`, `breaker`, `scope_id` |
-| coach | `feedback` |
+| coach | `feedback`, `stack` (research) |
 
 ## 7.7 — Result fields by worker (`x-result-by-worker`)
 

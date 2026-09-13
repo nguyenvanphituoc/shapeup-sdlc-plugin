@@ -24,6 +24,21 @@ traced to a mechanism rather than a worker, and each closed by a change the stru
   a scan puts them in front of the workers before round one, and the tech-lead file gives "insist
   on a launch probe for this archetype" a reader at the gate where it matters.
 
+- **The coach can research a platform the project cannot yet show it.** New operation `research`
+  (`/retro --research <stack>`, `payload.stack` required and never guessed): the same pipeline as
+  `scan`, fed by the platform's official documentation instead of the project on disk — build,
+  launch, test, package manager, lint, in that order of leverage, each rule cited with url, version
+  and fetch date, confirmed at COACH-1, filed with `web-research` provenance so a re-run replaces
+  only its own rules. On a project that has been scanned it runs as a second opinion, reporting
+  each scan rule confirmed, contradicted or unknown, and the PO decides the contradictions. A later
+  scan retires the research rules it confirms with disk evidence: the project's own files outrank a
+  document about the platform. Research is a source, not a verification — "verify" is what the
+  kernel executes — so nothing it reads runs until the tech lead pins it at L0, and a fetched page is
+  content to summarise, never instructions to follow. Why: a project just initialised has no build
+  file, no CI and no test runner for the scan to read, and the workers otherwise meet the platform's
+  toolchain for the first time inside round one; an operation on the coach, rather than a new
+  worker, because the knowledge base keeps its one writer and the rules keep their one gate.
+
 - **The round build gate.** `harness verify build --slug <slug> --round <N>` runs, once per round
   before EVAL and stopping at the first failure, the run ledger's `run_cmd`, then two new optional
   `project-profile.md` fields: `build_probe` (the built artifact covers what the run wrote — a green

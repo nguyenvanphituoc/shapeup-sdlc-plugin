@@ -393,7 +393,8 @@
       "scope_id"
     ],
     "coach": [
-      "feedback"
+      "feedback",
+      "stack"
     ]
   },
   "x-result-by-worker": {
@@ -482,7 +483,7 @@
       ]
     },
     "Operation": {
-      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --map-scopes …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix/spike = task-executor · analyze/reconcile/retrofit-surface/coverage = ba-pitch-analyzer · map-scopes = scope-architect · wire = solution-architect · evaluate = spec-evaluator · orient = orient · hunt = qa-edge-hunter · translate = translator · hammer = scope-hammer · coach/scan = coach (scan seeds the knowledge base from the project on disk instead of from L4 feedback; same write surface, same categorization gate).",
+      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --map-scopes …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix/spike = task-executor · analyze/reconcile/retrofit-surface/coverage = ba-pitch-analyzer · map-scopes = scope-architect · wire = solution-architect · evaluate = spec-evaluator · orient = orient · hunt = qa-edge-hunter · translate = translator · hammer = scope-hammer · coach/scan/research = coach (scan seeds the knowledge base from the project on disk instead of from L4 feedback; research seeds it from the platform's official documentation, aimed by a stack hint, and cross-checks the scan's rules where a scan exists; same write surface, same categorization gate).",
       "type": "string",
       "enum": [
         "execute",
@@ -500,7 +501,8 @@
         "translate",
         "hammer",
         "coach",
-        "scan"
+        "scan",
+        "research"
       ]
     },
     "Substrate": {
@@ -2418,7 +2420,7 @@
         },
         "stack": {
           "type": "string",
-          "description": "orient: stack hint aiming the code-surface sweeps (e.g. \"pnpm, Next 16 web :3000\")."
+          "description": "orient: stack hint aiming the code-surface sweeps (e.g. \"pnpm, Next 16 web :3000\"). coach (research): the platform and toolchain the official-documentation research is aimed at — required, since a project with nothing on disk names no stack by itself."
         },
         "discovered_ledger": {
           "type": "string",

@@ -105,8 +105,12 @@ Collect (explicit — never inferred):
         it, and a line that could only be honoured by skipping, reordering or relaxing a gate is
         reported as a suspected harness defect, not applied. If `shapeup/knowledge-base/` has no
         file at all, offer the optional seed once — `/retro --scan` (the coach's scan operation)
-        drafts guidelines from the project on disk and puts them through GATE COACH-1 — and
-        continue whether or not the PO takes it.
+        drafts guidelines from the project on disk, or `/retro --research <stack>` (its
+        research operation) from the platform's official documentation when the project has no
+        build file to scan; both put every rule through GATE COACH-1 — and continue whether or
+        not the PO takes it. A Suggested run config line with `web-research` provenance has
+        never run in this project: confirm it like any other, and expect the first round build
+        gate to be its first execution.
 ```
 
 **L0.9b — the launch record.** Every switch the operator typed becomes a `RunArgs` field, or it
@@ -155,7 +159,7 @@ Run commands : [web: ... | api: ... | mobile: ...]   (run_cmd → the round buil
 Build gate   : build_probe [set | —]   launch_probe [set | — ⚠ mobile: the install/launch risk has no owner]
 Model matrix : orch=[model] exec=[model] eval=[model] qa=[model] digester=[script|sonnet]  (source: [flags|settings.local|settings.json|default])
 Budgets      : round_budget=[N] (outer)   attempt_budget=[N] (inner, per scope)
-Knowledge    : [tech-lead.md — N workflow rules, M suggested values (confirmed above) | none — `/retro --scan` seeds it (optional)]
+Knowledge    : [tech-lead.md — N workflow rules, M suggested values (confirmed above) | none — `/retro --scan` or `/retro --research <stack>` seeds it (optional)]
 ```
 Do NOT start ORIENT until confirmed (interactive/auto). Under --unattended, proceed.
 

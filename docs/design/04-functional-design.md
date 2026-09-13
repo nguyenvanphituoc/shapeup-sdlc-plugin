@@ -16,7 +16,7 @@
 | `spec-evaluator` | Single judge | Verifies the running app against the committed spec. Skeptical by default; requires a T0 artifact citation on scoped specs; verdict returns as data, never edits anything. |
 | `qa-edge-hunter` | Explorer | Post-PASS exploratory hunt through six fixed lenses, outside what the evaluator already probed. Findings go to the ledger as `~`; never blocks ship, never issues a verdict. |
 | `scope-hammer` | Ship arbiter | GATE H: must-have census → baseline comparison (never against a perfect ideal) → cut list + ship verdict. Proposes only; a human promotes or ships. |
-| `coach` | RLHF loop | Turns PO feedback at ship sign-off (or, with `scan`, the project on disk) into knowledge-base rules, filed by skill after asking the PO to categorize each one — never assumed. Seven categories: six coachable workers plus `tech-lead` workflow guidance. Guidance never decides a gate. |
+| `coach` | RLHF loop | Turns PO feedback at ship sign-off (or, with `scan`, the project on disk; or, with `research`, the platform's official documentation — a source, never a verification) into knowledge-base rules, filed by skill after asking the PO to categorize each one — never assumed. Seven categories: six coachable workers plus `tech-lead` workflow guidance. Guidance never decides a gate. |
 | `tech-lead` | Orchestrator | Sequences all of the above through GATE L0–L4, owns the round loop, and is the sole writer of run-state. |
 | `hill-chart` | Dashboard | Not a pipeline worker — invoked directly, like `shapeup`. Renders a portfolio + per-pitch Hill Chart from committed hill shards (`shapeup/<slug>/hill/*.yml`) and the local run graph; read-only, never dispatched. |
 

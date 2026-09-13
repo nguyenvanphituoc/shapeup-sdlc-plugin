@@ -182,7 +182,8 @@ for (const [srcRel, note] of [
 console.log("\n✅ Harness installation and scaffolding completed.");
 console.log("   Next: open a Claude Code session in this directory and run /ship \"<your idea>\".");
 console.log("   Optional: /retro --scan first seeds the team knowledge base from this project's");
-console.log("   build files (every drafted rule is confirmed by you before it is filed).");
+console.log("   build files, or /retro --research \"<stack>\" seeds it from the platform's official");
+console.log("   docs when there is nothing on disk yet (every drafted rule is confirmed by you).");
 console.log("   ([ui] evaluation needs a browser — `npx playwright install chromium` — but only");
 console.log("   when a run actually reaches a [ui] criterion; nothing else requires it.)");
 

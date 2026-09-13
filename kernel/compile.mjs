@@ -178,17 +178,20 @@ export const OP_OWNER = {
   wire: "solution-architect", evaluate: "spec-evaluator", orient: "orient",
   hunt: "qa-edge-hunter", translate: "translator",
   hammer: "scope-hammer", coach: "coach",
-  // `scan` is the coach reading the project instead of L4 feedback: same worker, same write
-  // surface, same categorization gate. An operation the schema enumerates but this table does not
-  // route compiles no order at all, so the suite checks the two the other way round as well.
+  // `scan` is the coach reading the project instead of L4 feedback, and `research` the coach
+  // reading the platform's official documentation instead of the project — a project with nothing
+  // on disk has nothing to scan. Same worker, same write surface, same categorization gate. An
+  // operation the schema enumerates but this table does not route compiles no order at all, so the
+  // suite checks the two the other way round as well.
   scan: "coach",
+  research: "coach",
 };
 
 /**
  * Resolve the write-contract (sandbox substrate) for an operation — one whitelist template per
  * operation, so mode/flag differences are enforced by the sandbox hook reading the order's substrate, not trusted to prose.
  * @param {string} operation - The order's operation (execute|fix|spike|analyze|reconcile|
- *   retrofit-surface|coverage|map-scopes|wire|evaluate|orient|hunt|translate|hammer|coach|scan).
+ *   retrofit-surface|coverage|map-scopes|wire|evaluate|orient|hunt|translate|hammer|coach|scan|research).
  * @param {{slug?:string, specDir?:string, scope?:object}} [ctx] - slug (names LOCAL/SHARED roots),
  *   specDir (overrides the default spec path), scope (contract supplying allowed/shared substrates).
  * @returns {{allowed:string[], shared?:string[], frozen?:string[], append_only?:string[]}} The
@@ -252,9 +255,12 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
       return { allowed: [globShared(slug, "REPORT.md"), `${local}/reports/**`] };
     case "coach":
     case "scan":
-      // `scan` seeds the same files from the project on disk instead of from L4 feedback; both
-      // write only the knowledge base, and the profile the scan suggests probes for stays the
-      // tech lead's to write (single writer of the committed tier).
+    case "research":
+      // `scan` seeds the same files from the project on disk and `research` from the platform's
+      // official documentation, instead of from L4 feedback; all three write only the knowledge
+      // base, and the profile they suggest probes for stays the tech lead's to write (single
+      // writer of the committed tier). Research is a source, not a verification: what it reads
+      // is still a claim until the tech lead pins it at L0 and the kernel runs it.
       return { allowed: [relKnowledgeBase("*")] };
     default:
       return { allowed: [`${local}/**`] };

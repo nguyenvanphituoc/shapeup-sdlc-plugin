@@ -228,7 +228,8 @@ responsible skill in `shapeup/knowledge-base/<skill>.md`, committed, and the coa
 skills read it back on their next run — including `tech-lead`, whose file holds workflow
 guidance it reads at the next GATE L0 (what to ask, what to pin; never how to answer a gate).
 Before a first run on a new codebase, `/retro --scan` can seed those files from the project's
-own build files, with every drafted rule confirmed by you.
+own build files, and on an empty project `/retro --research "<stack>"` from the platform's
+official documentation, with every drafted rule confirmed by you.
 
 ## What just happened
 
