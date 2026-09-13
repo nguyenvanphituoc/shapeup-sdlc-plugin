@@ -3,7 +3,7 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] · The loop never built or launched the feature
+## [3.3.0] — 2026-09-14 · The loop never built or launched the feature
 
 Five findings from one consumer run (a HarmonyOS phone app, fourteen scopes, three rounds), each
 traced to a mechanism rather than a worker, and each closed by a change the structural suite pins.
