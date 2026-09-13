@@ -1,6 +1,6 @@
 ---
 name: coach
-description: "Use this skill to turn raw Product Owner / Tech Lead feedback at the Ship Sign-off (L4 Gate) into structured, team-shared guidelines that future harness runs read back. Triggers on: \"coach this feedback\", \"record this for next sprint\", \"update the knowledge base\", \"RLHF the harness\", and Vietnamese \"ghi lại cho sprint sau\", \"cập nhật knowledge base\". tech-lead invokes it automatically at GATE L4 when the PO gives substantive feedback instead of a bare 'y'. NOT for grading work (spec-evaluator), fixing bugs (task-executor), or filing discovered tasks (the ledger)."
+description: "Use this skill to turn raw Product Owner / Tech Lead feedback at the Ship Sign-off (L4 Gate) into structured, team-shared guidelines that future harness runs read back, or (--scan) to seed those guidelines from the project on disk before the first run. Triggers on: \"coach this feedback\", \"record this for next sprint\", \"update the knowledge base\", \"RLHF the harness\", \"scan the project for guidelines\", \"seed the knowledge base\", and Vietnamese \"ghi lại cho sprint sau\", \"cập nhật knowledge base\", \"quét dự án\". tech-lead invokes it automatically at GATE L4 when the PO gives substantive feedback instead of a bare 'y', and offers the scan at GATE L0 when the knowledge base is empty. NOT for grading work (spec-evaluator), fixing bugs (task-executor), or filing discovered tasks (the ledger)."
 ---
 
 # Coach Skill — RLHF for the harness
@@ -18,38 +18,64 @@ Two properties make this useful and were missing before:
    there would never reach a teammate). A `git pull` is all a team member needs to inherit the
    harness's accumulated judgment.
 2. **Read back, not write-only.** Each guideline is filed under the **one skill that will act on
-   it**, in that skill's own file, so the consumer loads only its own rules. `task-executor`,
-   `ba-pitch-analyzer`, and `qa-edge-hunter` each read their file at the top of their run.
+   it**, in that skill's own file, so the consumer loads only its own rules. Six workers read
+   their file at the top of their run, and the tech lead reads its own at GATE L0.
+
+A third property is an invariant, not a feature, and every category below is shaped by it:
+
+3. **Guidance never decides a gate.** A rule may add a question, a check or a warning line to a
+   gate block, tell a worker what to look at first, or name a spike worth running. It may never
+   answer, skip, reorder or relax a gate, change how the answer set resolves, widen a substrate,
+   alter a mechanical field (a probe, a fixture, `done_when`), or move a hill dot. The gates,
+   the hooks and the single judge are the harness's word; the knowledge base is the team's
+   advice on how to work inside it. A rule that would only work by overriding one of those is a
+   `harness-defect` — the mechanism is wrong, and steering someone around it hides that.
 
 ```
-PO feedback at L4 ─► /coach ─► [parse into candidate rules] ─► ⏸ GATE COACH-1 (categorize, ask — never assume)
-                                                                          │
-                          shapeup/knowledge-base/<skill>.md ◄───┤  (one file per coachable skill, committed)
-                                                                          │
-                  next run: task-executor / ba-pitch-analyzer / qa-edge-hunter reads its own file
-                                                                          │
-              shapeup/knowledge-base/harness-defects.md ◄───────┘  (mechanism at fault →
-                  drafted raw idea for the Betting Table — read by no worker, committed)
+PO feedback at L4 ──┐
+                    ├─► /coach ─► [candidate rules] ─► ⏸ GATE COACH-1 (categorize, ask — never assume)
+project on disk ────┘  (--scan)                                       │
+                                                                      │
+                     shapeup/knowledge-base/<skill>.md ◄──────────────┤  (one file per coachable skill, committed)
+                     shapeup/knowledge-base/tech-lead.md ◄────────────┤  (workflow guidance + suggested run config)
+                                                                      │
+        next run: each coachable worker reads its own file; tech-lead reads its file at GATE L0
+                                                                      │
+                     shapeup/knowledge-base/harness-defects.md ◄──────┘  (mechanism at fault →
+                         drafted raw idea for the Betting Table — read by no worker, committed)
 ```
 
 ---
 
 ## Coachable skills (the only valid categories)
 
-A guideline is only useful if a worker reads it back. These three workers have a read-side hook;
-they are the **complete** set of categories the gate may offer:
+A guideline is only useful if someone reads it back. Six workers and the orchestrator have a
+read-side hook; they are the **complete** set of categories the gate may offer:
 
-| Category | File | The worker reads it at | Good for |
-|----------|------|------------------------|----------|
-| `task-executor`     | `shapeup/knowledge-base/task-executor.md`     | PLAN (context load) | implementation discipline, code style, surgical-change habits, recurring over/under-engineering |
-| `ba-pitch-analyzer` | `shapeup/knowledge-base/ba-pitch-analyzer.md` | Phase 1 (INGEST) | scoping, task decomposition, DDD/spec habits, missed test-surface patterns |
+| Category | File | Read at | Good for |
+|----------|------|---------|----------|
+| `task-executor`     | `shapeup/knowledge-base/task-executor.md`     | PLAN (context load) | implementation discipline, code style, surgical-change habits, platform idioms the model gets wrong, what to run before reporting done |
+| `ba-pitch-analyzer` | `shapeup/knowledge-base/ba-pitch-analyzer.md` | Phase 1 (INGEST) | scoping, task decomposition, DDD/spec habits, missed test-surface patterns, test APIs the platform lacks |
 | `qa-edge-hunter`    | `shapeup/knowledge-base/qa-edge-hunter.md`    | Phase Q1 (Charter Map) | recurring edge classes, lenses that keep finding bugs, areas worth probing |
+| `orient`            | `shapeup/knowledge-base/orient.md`            | Phase 1 (Read the shape) | where the code surface hides in this repo, areas that always deserve the spike, platform constraints to check before any spec exists |
+| `scope-architect`   | `shapeup/knowledge-base/scope-architect.md`   | step 1 (SLICE) | slicing habits for this codebase, config files that must have exactly one owner, fixtures that have proved vacuous |
+| `solution-architect`| `shapeup/knowledge-base/solution-architect.md`| step 1 (READ) | the seams this codebase actually wires through, entry points that are not where the template says |
+| `tech-lead`         | `shapeup/knowledge-base/tech-lead.md`         | GATE L0 (before the launch) | **workflow guidance**: what to pin at L0 for this project (stack hint, probes, dimensions), which spike to insist on at L1a, which question to add at a gate — never how to answer one |
+
+The `tech-lead` file has a second section the others do not: **Suggested run config**, a short
+list of the concrete L0 values the coach believes this project needs (`archetype`,
+`entry_point`, `build_probe`, `launch_probe`, `run_cmd`, `stack`). The tech lead reads them as
+proposals it confirms at GATE L0 and writes into `project-profile.md` itself; the coach never
+writes the profile — the committed tier has one writer per file, and the coach's is the knowledge
+base.
 
 **Not coachable.** `spec-evaluator` is deliberately excluded — the harness has a **single-judge**
 rule and the knowledge base is guidance, never an invariant; routing rules into the evaluator would
-turn advice into a second grader. `orient`, `shapeup`, `tech-lead`, and `translator` have no
-read-side hook, so a rule filed there would never be read. If feedback truly targets one of these,
-say so plainly — do **not** force-fit it into a coachable category.
+turn advice into a second grader. `scope-hammer` is excluded for the same reason from the other
+side: its census must cite `probe owner` for every ownership claim, and a steered census is prose
+again. `shapeup`, `translator`, `hill-chart` and the coach itself have no read-side hook, so a rule
+filed there would never be read. If feedback truly targets one of these, say so plainly — do
+**not** force-fit it into a coachable category.
 
 **Harness defect ≠ worker steering.** When the feedback's root cause is the *mechanism itself* —
 a hook that fail-opens, a gate that reads the wrong file, two skill contracts that contradict
@@ -65,13 +91,14 @@ never lands in any worker's KB.
 ## Envelope contract — the domain layer
 
 Orchestrated, this skill is dispatched like every worker: a **WorkOrder** in (`--order <path>`,
-operation `coach`), a **WorkResult** out. Standalone, the raw feedback is passed directly; it
-maps onto the one payload field registered for this worker in the central domain registry
-(`skills/tech-lead/schemas/domain.schema.json`, `x-payload-by-worker`):
+operation `coach` or `scan`), a **WorkResult** out. Standalone, the raw feedback is passed
+directly; it maps onto the one payload field registered for this worker in the central domain
+registry (`skills/tech-lead/schemas/domain.schema.json`, `x-payload-by-worker`):
 
 | Payload field | Standalone form | Meaning |
 |---|---|---|
-| `payload.feedback` | positional text | The PO's raw L4 feedback to distill and categorize at GATE COACH-1 |
+| `payload.feedback` | positional text | The PO's raw L4 feedback to distill and categorize at GATE COACH-1. Absent under `scan`, where the project itself is the source |
+| `operation` | `--scan` | `coach` (default): feedback in. `scan`: read the project on disk and draft the candidate rules from it — see "Operation: scan" below. Both run the same gate and write the same files |
 
 The WorkResult may carry only `files_touched`, `artifacts`, `assumptions`, `deviations`
 (`x-result-by-worker`): the knowledge-base files written under
@@ -97,6 +124,8 @@ candidate rule and ask the PO to assign each one. Emit this block, then stop and
 ⏸ GATE COACH-1 — Categorize feedback
 For each candidate rule, which skill should act on it?
 Valid: [task-executor] [ba-pitch-analyzer] [qa-edge-hunter]
+       [orient] [scope-architect] [solution-architect]
+       [tech-lead — workflow guidance or a suggested L0 value; never a gate answer]
        [harness-defect — mechanism at fault, file as raw idea] [skip — not coachable]
 
   R1. "<generalized rule>"   (why: <reason>)        → ?
@@ -114,7 +143,13 @@ Rules to honor at this gate:
   with no general lesson, is recorded as skipped in your summary and **not** written anywhere.
 - **Respect the single-judge rule.** If the PO tries to assign a rule to `spec-evaluator`,
   surface that it isn't coachable (guidance ≠ invariant) and offer the nearest real target
-  (usually `ba-pitch-analyzer`, which owns the spec/test-surface) or `skip`.
+  (usually `ba-pitch-analyzer`, which owns the spec/test-surface) or `skip`. The same for
+  `scope-hammer`: offer `tech-lead` (what to ask at GATE H) or `harness-defect`.
+- **A `tech-lead` rule is guidance about the workflow, never an answer to a gate.** Before
+  offering the category, read the rule against the invariant above: "always insist on a
+  launch probe for a mobile project at L0" is workflow guidance; "cross L2 when the build is
+  green even if a scope has no fixture" answers a gate, and the gate is not the PO's to
+  pre-answer through the KB — say so and offer `harness-defect` or `skip`.
 - **Recommend `harness-defect` when the mechanism is at fault.** If a candidate rule's "why"
   blames a gate, hook, script, or a contradiction between skill contracts (rather than a
   worker's judgment), say so and recommend `harness-defect` — but the PO still decides. The
@@ -130,13 +165,18 @@ For each `<skill>` that received at least one rule:
    - **Deduplicate** — if the lesson is already captured, reinforce/sharpen it rather than adding a
      near-duplicate. Bump nothing silently; note the merge in your summary.
    - **Generalize** a specific incident into a reusable guideline.
-3. Assign each new rule a stable id `KB-<SKILL-INITIALS>-NNN` (e.g. `KB-TE-001`, `KB-BA-004`,
-   `KB-QA-002`) and stamp it with the originating feature slug + date so a future reader can trace
-   it back.
+3. Assign each new rule a stable id `KB-<SKILL-INITIALS>-NNN` (`KB-TE-001`, `KB-BA-004`,
+   `KB-QA-002`, `KB-OR-001`, `KB-SA-001` for scope-architect, `KB-SOL-001` for
+   solution-architect, `KB-TL-001`) and stamp it with its provenance so a future reader can
+   trace it back: `from \`<feature-slug>\` (<date>)` for feedback, `from project-scan @ <short
+   sha>` for a scanned rule.
 4. Rewrite the file. Keep it tight — the consumer loads it every run, so prune stale or
-   contradicted rules rather than letting it grow unboundedly. A rule whose premise the current
-   skill contracts contradict is a `harness-defect` in disguise — move it to the register
-   (Step 3b) and note the reclassification, don't keep re-teaching a misdiagnosis.
+   contradicted rules rather than letting it grow unboundedly; **15 rules per file is the
+   ceiling**, and reaching it means consolidating, not appending. A rule whose premise the
+   current skill contracts contradict is a `harness-defect` in disguise — move it to the register
+   (Step 3b) and note the reclassification, don't keep re-teaching a misdiagnosis. For the
+   `tech-lead` file, a rule that names a concrete L0 value goes under **Suggested run config**
+   (one line per value, with the evidence), and everything else under **Workflow guidance**.
 
 ### Step 3b — File `harness-defect` rules to the defect register (raw ideas, not steering)
 
@@ -164,28 +204,97 @@ the one spot that is both durable and inert.
 ### Step 4 — Report back
 Summarize: which rules went to which file (with ids), which were consolidated into existing rules,
 which were filed as harness defects (HD ids — remind the PO these await a Betting Table decision,
-nothing acts on them automatically), and which were skipped (and why). Remind the PO that these are **guidelines** the named workers read
-on their next run — they steer `task-executor`, `ba-pitch-analyzer`, and `qa-edge-hunter`, but they
-are **not invariants** and the `spec-evaluator` verdict is unaffected (single-judge rule). Note that
-the files are committed, so a teammate inherits them on `git pull`.
+nothing acts on them automatically), and which were skipped (and why). Remind the PO that these are **guidelines** the named readers load
+on their next run — they steer the six coachable workers and the tech lead's gate conversations,
+but they are **not invariants**: no gate resolves differently, no substrate widens, and the
+`spec-evaluator` verdict is unaffected (single-judge rule). Note that the files are committed, so a
+teammate inherits them on `git pull`.
 
 ---
 
-## Knowledge-base file template
+## Operation: scan — seed the knowledge base from the project
+
+`--scan` (orchestrated: `operation: scan`) runs before the first feature, or again after the
+project's toolchain changes. It replaces the feedback source with the repository itself; every
+other step is the same, including the gate. The point is to reach the first run with the
+platform's habits already in the workers' files instead of learning them across three rounds.
+
+```
+S1  READ    what the project says about itself, in this order and no further:
+            build/toolchain files (package.json, pyproject.toml, build-profile.json5, *.gradle,
+            Package.swift, Cargo.toml, go.mod, …), CI config, the project's CLAUDE.md /
+            AGENTS.md / README, an existing project-profile.md, the test runner's config,
+            and the language of the entry point. Do not read the feature code: the scan seeds
+            habits, it does not review work.
+S2  DRAFT   candidate rules, each with the evidence line (`file:line` or the command you ran)
+            that produced it. Draft against the categories, never against a wish list:
+              task-executor      the real build/check command; idioms this language rejects
+                                 that its nearest popular relative allows; what "done" must
+                                 run before a result is reported
+              ba-pitch-analyzer  test APIs the toolchain lacks or forbids; invariants that a
+                                 platform API silently contradicts (self-persisting settings)
+              qa-edge-hunter     cold-start, reinstall, offline or permission edges the
+                                 platform makes likely
+              orient             constraints worth a spike before any spec exists
+              scope-architect    config files that wire code in (a route map, a module
+                                 manifest, package.json's bin/exports) and must have one owner
+              solution-architect where the entry point really is when the template lies
+              tech-lead          Suggested run config: archetype, entry_point, run_cmd,
+                                 build_probe, launch_probe, stack hint — each with evidence
+            Cap the draft at 15 per category before the gate; fewer, sharper rules survive.
+S3  GATE    ⏸ GATE COACH-1 exactly as for feedback. Every scanned rule is a claim the model
+            made by reading files, so the PO confirms each one; nothing is filed on a scan's
+            authority alone. Under --auto the scan writes NOTHING and returns the draft in
+            `assumptions[]` for the tech lead to put to the PO at GATE L0.
+S4  WRITE   Steps 3 and 3b, with provenance `from project-scan @ <short sha>`. A rescan
+            replaces only the rules that carry scan provenance and leaves every feedback rule
+            in place — the two lineages never overwrite each other.
+S5  REPORT  Step 4, plus: which Suggested run config lines are new, so the tech lead can pin
+            them at the next GATE L0 (it confirms and writes the profile; the scan does not).
+```
+
+What the scan is not: it is not a gate and cannot make one pass. A project whose scan says
+"the build is `hvigorw assembleHap`" still has to declare it as `run_cmd` at L0 for the round
+build gate to run it — the scan proposes, the tech lead pins, the kernel runs. That chain is
+deliberate: a rule the model wrote by reading a file is not evidence the command works.
+
+---
+
+## Knowledge-base file templates
 
 When creating `shapeup/knowledge-base/<skill>.md` for the first time:
 
 ```markdown
 # Knowledge Base — <skill>
 
-> Team-shared guidelines distilled from PO/TL feedback at the Ship Gate (L4) by `/coach`.
-> Read by `<skill>` at the top of its run. **Guidelines, not invariants** — they steer the
-> worker; they never override a spec or change the spec-evaluator verdict (single-judge rule).
-> Committed on purpose: a teammate inherits these on `git pull`.
+> Team-shared guidelines distilled from PO/TL feedback at the Ship Gate (L4) or from a project
+> scan, by `/coach`. Read by `<skill>` at the top of its run. **Guidelines, not invariants** —
+> they steer the worker; they never override a spec, widen a substrate, resolve a gate or change
+> the spec-evaluator verdict (single-judge rule). Committed on purpose: a teammate inherits these
+> on `git pull`.
 
 ## Guidelines
 - **KB-<XX>-001** — <generalized rule>. _(why: <reason>)_  ·  from `<feature-slug>` (<date>)
-- **KB-<XX>-002** — <generalized rule>. _(why: <reason>)_  ·  from `<feature-slug>` (<date>)
+- **KB-<XX>-002** — <generalized rule>. _(why: <reason>)_  ·  from project-scan @ <sha>
+```
+
+The `tech-lead` file carries two sections, and the second is what makes a scan reach the kernel:
+
+```markdown
+# Knowledge Base — tech-lead
+
+> Workflow guidance for the orchestrator, read at GATE L0 before the launch. **Guidance, never a
+> gate answer**: a rule here may add a question, a check or a warning to a gate block and may name
+> a spike to insist on; it never answers, skips, reorders or relaxes a gate, and the answer set
+> (`ci`/`guarded`/`interactive`) resolves exactly as it would without this file.
+
+## Workflow guidance
+- **KB-TL-001** — <rule about what to pin, ask or insist on, and at which gate>. _(why: <reason>)_  ·  from `<feature-slug>` (<date>)
+
+## Suggested run config
+Proposals for GATE L0. The tech lead confirms each with the PO and writes the profile itself.
+- `archetype: mobile` — <evidence: file:line or command>  ·  from project-scan @ <sha>
+- `launch_probe: python3 app/entry/src/ohosTest/device-smoke.py` — <evidence>  ·  from project-scan @ <sha>
 ```
 
 ---
@@ -194,9 +303,13 @@ When creating `shapeup/knowledge-base/<skill>.md` for the first time:
 | Rule | Rationale |
 |------|-----------|
 | Never assume a category — GATE COACH-1 asks the PO for every rule | A miscategorized rule reaches the wrong reader or none; the PO's intent is authoritative |
-| Only `task-executor`, `ba-pitch-analyzer`, `qa-edge-hunter` are valid worker categories | They are the only workers with a read-side hook; a rule elsewhere is never read |
+| Only the six coachable workers and `tech-lead` are valid categories | They are the only readers with a read-side hook; a rule elsewhere is never read |
+| Guidance never decides a gate | A rule may add a question, check or warning to a gate block; it never answers, skips, reorders or relaxes one, never widens a substrate, never edits a probe, fixture or hill. A rule that only works by overriding the mechanism is a `harness-defect` |
+| `scope-hammer` is never a category | Its ownership claims must come from `probe owner`; a steered census is prose again |
+| A scanned rule is a claim, not evidence | It is confirmed at GATE COACH-1 like feedback, filed with `project-scan @ <sha>` provenance, and a rescan replaces only scan-provenance rules |
+| The coach never writes `project-profile.md` | Suggested run config is a proposal in the tech-lead file; the tech lead confirms at L0 and writes the profile (one writer per committed file) |
 | A mechanism-at-fault rule goes to the defect register (`harness-defect`), never a worker KB | Steering a worker to compensate for a broken gate/hook misdiagnoses a defect as a habit and hides it from the Betting Table |
 | `spec-evaluator` is never a category | Single-judge rule: the KB is guidance, not an invariant — routing rules into the judge creates a second grader |
 | Write only under `shapeup/knowledge-base/` (committed) | The `.shapeup/` run-trace is gitignored; guidelines there never reach the team |
 | Guidelines, not invariants | The consumer weighs them; they don't gate, score, or override the spec |
-| Keep each file tight — prune as you merge | Consumers load it every run; unbounded growth becomes token cost and noise |
+| Keep each file tight — 15 rules per file, prune as you merge | Consumers load it every run; unbounded growth becomes token cost and noise |

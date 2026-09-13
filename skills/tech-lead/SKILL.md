@@ -49,7 +49,7 @@ breadboard. English → proceed as-is. Non-English → a second Agent translates
 auto/unattended); Step 1 then names the `.en.md` files (a run already open on the original: re-open
 it with `--force` — nothing is dispatched yet). The tech lead detects and sequences; never translates.
 
-**Step 2 — pin GATE L0, then launch.** Collect the L0.1–L0.9 config (spec folder, lens, stack,
+**Step 2 — pin GATE L0, then launch.** Collect the L0.1–L0.10 config (spec folder, lens, stack,
 eval dims, max_rounds, the model/budget matrix — see `references/gates.md` GATE L0 for the full
 collect-list), write the SHARED `project-profile.md` yourself (`{schema_version:1, archetype,
 entry_point}` — `shapeup-run.js` has no filesystem of its own), emit the `⏸ GATE L0` block, then

@@ -168,6 +168,9 @@ const MODULE_FILES = [
   // 54-round-build-gate.mjs: the loop builds and launches the feature before EVAL, hooks file
   // under the project root rather than the shell's cwd, and ownership is a query over contracts.
   "54-round-build-gate.mjs",
+  // 55-coach-parity.mjs: the coachable set is one set in three places (kernel, registry, coach
+  // categories), every reader actually reads, and the knowledge base never decides a gate.
+  "55-coach-parity.mjs",
   "08-docs.mjs",
 ];
 

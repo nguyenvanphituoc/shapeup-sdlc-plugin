@@ -316,7 +316,7 @@ rather than kept as a mechanism that looks like it works and doesn't.)
 | Enum | Values |
 |---|---|
 | `WorkerName` (10) | task-executor · spec-evaluator · ba-pitch-analyzer · scope-architect · solution-architect · orient · qa-edge-hunter · translator · scope-hammer · coach |
-| `Operation` (15) | execute, fix, spike · analyze, reconcile, retrofit-surface, coverage · map-scopes · wire · evaluate · orient · hunt · translate · hammer · coach |
+| `Operation` (16) | execute, fix, spike · analyze, reconcile, retrofit-surface, coverage · map-scopes · wire · evaluate · orient · hunt · translate · hammer · coach, scan |
 
 ## 7.6 — Payload fields by worker (`x-payload-by-worker`)
 
@@ -327,10 +327,10 @@ Which `WorkOrderPayload` fields each worker may rely on — anything absent from
 |---|---|
 | task-executor | `tasks`, `scope_contract`, `decisions`, `digested_errors`, `trial_history`, `verify`, `kb_rules_path`, `constraints`, `bugs` |
 | ba-pitch-analyzer | `pitch`, `breadboard`, `lens`, `orient_dir`, `spec_folder`, `feature`, `discovered_ledger`, `kb_rules_path` |
-| scope-architect | `feature`, `spec_folder`, `tasks`, `breadboard` |
-| solution-architect | `feature`, `spec_folder`, `project_profile`, `breadboard` |
+| scope-architect | `feature`, `spec_folder`, `tasks`, `breadboard`, `kb_rules_path` |
+| solution-architect | `feature`, `spec_folder`, `project_profile`, `breadboard`, `kb_rules_path` |
 | spec-evaluator | `spec_folder`, `feature`, `dimensions`, `run_cmd`, `t0_artifacts`, `browser`, `tasks` |
-| orient | `pitch`, `breadboard`, `stack`, `spec_folder`, `feature` |
+| orient | `pitch`, `breadboard`, `stack`, `spec_folder`, `feature`, `kb_rules_path` |
 | qa-edge-hunter | `feature`, `spec_folder`, `eval_report`, `app_url`, `ledger`, `kb_rules_path` |
 | translator | `intake`, `glossary` |
 | scope-hammer | `feature`, `baseline`, `breaker`, `scope_id` |

@@ -44,7 +44,9 @@ from `tech-lead`; it never reads or writes a shared run-state file.
 Orchestrated, you are invoked as `--order <path>` (a WorkOrder): `payload.pitch` (the
 kicked-off pitch path), `payload.breadboard` (the pitch's breadboard — Places, affordances, slices;
 absent = none separate), `payload.stack` (sweep hint), `payload.spec_folder` (the SHARED spec
-deliverable dir) and `payload.feature` (the run slug), plus `substrate.allowed` naming your one
+deliverable dir), `payload.feature` (the run slug) and `payload.kb_rules_path` (team guidelines
+for this repo — read if the file exists; steering, never spec, and never a reason to skip a
+gate or a phase), plus `substrate.allowed` naming your one
 write surface — the orient output dir. Anything absent = unknown: confirm at GATE O-A
 (standalone) or report it in the result's `deviations`, never guess. Standalone, the
 `--pitch/--spec/--stack` flags below carry the same fields; the output dir derives from the
@@ -114,6 +116,11 @@ Confirm (do not guess):
 ---
 
 ## Phase 1 — Read the shape
+
+First read the team guidelines at `payload.kb_rules_path` if the file exists (absent field or
+file = none recorded). They tell you where this repo hides its code surface, which areas have
+always deserved the spike, and which platform constraints to check before any spec exists; use
+them to aim Phases 2–4, never to skip O-A/O-B or to declare an area risk-free unread.
 
 Read the pitch and breadboard (if present). Extract the concrete things to find in code:
 

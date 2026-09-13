@@ -43,6 +43,7 @@ return as a WorkResult.
 | `operation` | `wire` (author/refresh the wiring map after `analyze`, before `map-scopes`) |
 | `payload.feature` / `payload.spec_folder` | Slug + committed spec — read `usecases/` for the UCs and the engine each one needs, `domain-model.md`/`synthesis.md` for the module surface |
 | `payload.breadboard` | When present, name each UC's `affordance` by its U# and Place |
+| `payload.kb_rules_path` | Team guidelines (read if the file exists) — the seams this codebase actually wires through, entry points that are not where the template says. Steering, never spec: the profile's `entry_point` still wins, and a guideline that disagrees with it is reported in `deviations`, not applied |
 | `payload.project_profile` | Path to the SHARED `project-profile.md`. Its `entry_point` is the composition root every engine must attach to — **archetype-specific** (a client-only game's `main.js` is not a web-service's `src/server.ts`). Read it; never guess the entry point |
 | `substrate.allowed` | `wiring-map.md` — your ONLY write surface (the spec core, scopes, and the profile are frozen) |
 
@@ -53,7 +54,8 @@ guessed `main.js` would make the later oracle certify nothing.
 ## Core process
 
 ```
-1 READ     the project profile → entry_point + archetype. Read every use case in usecases/.
+1 READ     the team guidelines at payload.kb_rules_path if the file exists (absent = none),
+           then the project profile → entry_point + archetype. Read every use case in usecases/.
            For each UC, identify the engine module that carries its core logic (the file that
            WILL exist, named from the domain model / synthesis surface — not a guess at a folder).
 2 DESIGN   for each UC, design the integration path from the entry_point inward:

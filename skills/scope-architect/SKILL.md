@@ -23,11 +23,14 @@ the ship report's census table.
 | `payload.feature` / `payload.spec_folder` | Slug + committed spec (read ux-behavior.md for manifests; usecases for flows) |
 | `payload.breadboard` | When present, every U# the spec places is one manifest entry's `source`; record which scopes deliver each V# slice in `scope-board.md` (your write surface — `scope-summary.md` is the planner's) |
 | `payload.tasks[]` | The board's tasks with their touched files — the slicing INPUT only. Each carries `use_case_refs`; those UC ids are what you write into the contract. Never copy a task id into a contract |
+| `payload.kb_rules_path` | Team guidelines (read if the file exists) — slicing habits for this codebase, config files that must have exactly one owner, fixtures that have proved vacuous. Steering, never spec: a guideline cannot widen a substrate or stand in for the lint; conflict → the spec and the lint win, noted in `deviations` |
 | `substrate.allowed` | `scopes/*.md` + `scope-board.md` — your ONLY write surface |
 
 ## Core process
 
 ```
+0 READ     the team guidelines at payload.kb_rules_path, if the file exists — they aim the
+           slicing and name the config seams that must have one owner; absent = none recorded.
 1 SLICE    build an import/business-flow graph over the tasks' touched files (grep heuristic
            is fine; AST is an optimization). One scope = one call chain: the UI screen + the
            API route + the use case + the repository it drives. Scopes aligning 1:1 with a

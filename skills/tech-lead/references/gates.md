@@ -96,6 +96,17 @@ Collect (explicit — never inferred):
         same GATE H proposal. attempt_budget counts ATTEMPTS and cannot see that the last two
         produced nothing; this term can, and on a flailing scope it saves three of five
         attempts. Set per scope (`no_progress_k` on the contract) or per run in the payload.
+  L0.10 knowledge base (read, never obeyed): if `shapeup/knowledge-base/tech-lead.md` exists,
+        read it now. Its **Workflow guidance** may add a question, a check or a warning line to
+        any gate block below and may name the spike to insist on at L1a; its **Suggested run
+        config** lines are PROPOSALS for L0.2–L0.9 and the profile — confirm each with the PO
+        before pinning it, and record `(source: knowledge-base)` beside a value taken from there.
+        Nothing in that file answers a gate: the answer set resolves exactly as it would without
+        it, and a line that could only be honoured by skipping, reordering or relaxing a gate is
+        reported as a suspected harness defect, not applied. If `shapeup/knowledge-base/` has no
+        file at all, offer the optional seed once — `/retro --scan` (the coach's scan operation)
+        drafts guidelines from the project on disk and puts them through GATE COACH-1 — and
+        continue whether or not the PO takes it.
 ```
 
 **L0.9b — the launch record.** Every switch the operator typed becomes a `RunArgs` field, or it
@@ -144,6 +155,7 @@ Run commands : [web: ... | api: ... | mobile: ...]   (run_cmd → the round buil
 Build gate   : build_probe [set | —]   launch_probe [set | — ⚠ mobile: the install/launch risk has no owner]
 Model matrix : orch=[model] exec=[model] eval=[model] qa=[model] digester=[script|sonnet]  (source: [flags|settings.local|settings.json|default])
 Budgets      : round_budget=[N] (outer)   attempt_budget=[N] (inner, per scope)
+Knowledge    : [tech-lead.md — N workflow rules, M suggested values (confirmed above) | none — `/retro --scan` seeds it (optional)]
 ```
 Do NOT start ORIENT until confirmed (interactive/auto). Under --unattended, proceed.
 
@@ -501,7 +513,7 @@ Ledger    : harness-run.md
 ```
 Question (max 1): "Anything to record before I close the run? (y/n) or provide feedback for the next sprint."
 On confirm:
-- If the PO provides substantive feedback (not just 'y' or empty) → automatically delegate via Agent (model: exec — see references/protocol.md "Invocation mechanism"): Skill(shapeup-sdlc-plugin:coach) with the provided feedback for RLHF. The coach runs its own GATE COACH-1 to have the PO categorize each rule, then files it under the responsible skill in `shapeup/knowledge-base/<skill>.md` (committed → team-shared). Coachable skills: `task-executor`, `ba-pitch-analyzer`, `qa-edge-hunter`; each reads its own file at the top of its next run. The tech lead does not categorize the feedback itself — that is the coach's gate, by design (no assumptions).
+- If the PO provides substantive feedback (not just 'y' or empty) → automatically delegate via Agent (model: exec — see references/protocol.md "Invocation mechanism"): Skill(shapeup-sdlc-plugin:coach) with the provided feedback for RLHF. The coach runs its own GATE COACH-1 to have the PO categorize each rule, then files it under the responsible skill in `shapeup/knowledge-base/<skill>.md` (committed → team-shared). Coachable: `task-executor`, `ba-pitch-analyzer`, `qa-edge-hunter`, `orient`, `scope-architect`, `solution-architect` (each reads its own file at the top of its next run) and `tech-lead` (workflow guidance, read at the next GATE L0). Guidance never decides a gate: a filed rule may add a question or a check to a gate block, never an answer. The tech lead does not categorize the feedback itself — that is the coach's gate, by design (no assumptions).
 - Then output → `✅ [slug] [shipped & deployed | built & verified, deploy pending] — [r] rounds, verdict PASS.`
 
 ---

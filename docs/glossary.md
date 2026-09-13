@@ -55,7 +55,7 @@ mechanically true rather than aspirational.
 | **substrate disjointness** | The lint asserting no two scopes may write the same file — what makes parallel building safe. |
 | **circuit breaker** | Two nested retry budgets — an outer one on rounds, an inner one on per-scope T0 attempts — plus an opt-in wall-clock budget for the whole run. An exhausted scope queues a cut proposal rather than blocking the round; every other exhaustion routes to the ship gate so whatever is green still ships. |
 | **discovered task** | Anything found mid-run that is not in the current spec. It goes to the ledger, never silently into the build. |
-| **knowledge base** | Committed per-skill guideline files written by `/coach` from your feedback, read back by the coachable skills on their next run. |
+| **knowledge base** | Committed per-skill guideline files written by `/coach` from your feedback (or by `/retro --scan` from the project on disk, every rule confirmed by you), read back by the six coachable workers on their next run and by `tech-lead` at GATE L0. Guidance only: it never decides a gate. |
 
 ## Naming conventions
 

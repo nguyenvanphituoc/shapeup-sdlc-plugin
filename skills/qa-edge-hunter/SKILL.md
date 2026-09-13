@@ -128,8 +128,9 @@ A charter is a license to deviate within a hunting ground; a test case is a scri
 ```
 Q1.0  Read team guidelines: the file at `payload.kb_rules_path` (if present; absent field = none).
       `/coach`-distilled edge classes that kept biting past features (e.g. "session-expiry
-      mid-form keeps surfacing"). Use them to PRIORITIZE charters within the six fixed lenses —
-      never to add a seventh lens or skip covered-territory subtraction. Absent = none recorded.
+      mid-form keeps surfacing"). Steering, never spec and never a verdict: use them to
+      PRIORITIZE charters within the six fixed lenses — never to add a seventh lens, skip
+      covered-territory subtraction, or promote a finding on their say-so. Absent = none recorded.
 Q1.1  Parse EVAL-*.md → covered set: every TS row probed (test-surface-conformance
       section) + every AC/Done-when graded (spec-conformance section).
 Q1.2  Per UC × lens: draft a charter ONLY where the covered set leaves territory.

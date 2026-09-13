@@ -111,7 +111,7 @@ export const requirements = (cwd, slug) => join(sharedRoot(cwd, slug), "requirem
 export const hillDir = (cwd, slug) => join(sharedRoot(cwd, slug), "hill");
 /** The frozen ship report, written once at GATE L4. */
 export const report = (cwd, slug) => join(sharedRoot(cwd, slug), "REPORT.md");
-/** Team-shared coaching rules, read back by the three coachable workers. */
+/** Team-shared coaching rules, read back by the coachable workers and by the tech lead at GATE L0. */
 export const knowledgeBaseDir = (cwd) => join(sharedDir(cwd), "knowledge-base");
 /** One worker's coaching file. */
 export const knowledgeBase = (cwd, skill) => join(knowledgeBaseDir(cwd), `${skill}.md`);
@@ -395,7 +395,7 @@ export const globShared = (slug, ...parts) => [SHARED, slug, ...parts].join("/")
 
 /**
  * The coaching file a coachable worker reads, as a repo-relative path for the WorkOrder payload.
- * @param {string} skill - Worker name (task-executor | ba-pitch-analyzer | qa-edge-hunter).
+ * @param {string} skill - A coachable worker name (`COACHABLE` in compile.mjs), or `tech-lead`.
  * @returns {string} e.g. `shapeup/knowledge-base/task-executor.md`.
  */
 export const relKnowledgeBase = (skill) => [SHARED, "knowledge-base", `${skill}.md`].join("/");

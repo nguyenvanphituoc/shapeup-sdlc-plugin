@@ -573,6 +573,24 @@ export async function run(ctx) {
   if (!strays.length) ok(`all ${Object.keys(OP_OWNER).length} routed operations name a worker WorkerName declares`);
   else fail(`operations routed to non-workers: ${strays.map(([o, w]) => `${o}→${w}`).join(", ")}`);
 
+  // AND THE OTHER WAY ROUND. The check above lets an operation the schema enumerates but the table
+  // never routes pass green: `scan` shipped with an enum entry, a substrate and a structural test,
+  // and `compile --operation scan` still exited 2 with "could not resolve --worker/--operation",
+  // because nothing asked whether every enumerated operation has an owner. The task-executor
+  // family is the one legitimate gap — `execute`/`fix`/`spike` resolve their worker from the
+  // scope/task/--next address, not from this table (compile.mjs, the `worker` derivation).
+  const opEnum = JSON.parse(readFileSync(join(ROOT, "skills/tech-lead/schemas/domain.schema.json"), "utf8"))
+    .$defs.Operation.enum;
+  const ADDRESSED_BY_SCOPE = new Set(["execute", "fix", "spike"]);
+  const unrouted = opEnum.filter((op) => !ADDRESSED_BY_SCOPE.has(op) && !OP_OWNER[op]);
+  const unlisted = Object.keys(OP_OWNER).filter((op) => !opEnum.includes(op));
+  if (!unrouted.length && !unlisted.length) {
+    ok(`Operation enum ↔ OP_OWNER agree both ways (${opEnum.length} operations; execute/fix/spike addressed by scope)`);
+  } else {
+    if (unrouted.length) fail(`Operation enum carries ${unrouted.join(", ")} but OP_OWNER routes no worker for it — \`compile --operation <op> --slug <slug>\` exits 2`);
+    if (unlisted.length) fail(`OP_OWNER routes ${unlisted.join(", ")} which the Operation enum does not carry — the order fails its own schema`);
+  }
+
   // (b) THE CHECK IS NOT INERT. A fixture root describes a broken installation without touching
   //     the installation under test — the reason `--plugin-root` exists at all.
   const brokenRoot = mkdtempSync(join(tmpdir(), "broken-plugin-"));

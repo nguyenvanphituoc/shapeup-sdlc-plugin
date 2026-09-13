@@ -347,13 +347,15 @@
       "feature",
       "spec_folder",
       "tasks",
-      "breadboard"
+      "breadboard",
+      "kb_rules_path"
     ],
     "solution-architect": [
       "feature",
       "spec_folder",
       "project_profile",
-      "breadboard"
+      "breadboard",
+      "kb_rules_path"
     ],
     "spec-evaluator": [
       "spec_folder",
@@ -369,7 +371,8 @@
       "breadboard",
       "stack",
       "spec_folder",
-      "feature"
+      "feature",
+      "kb_rules_path"
     ],
     "qa-edge-hunter": [
       "feature",
@@ -479,7 +482,7 @@
       ]
     },
     "Operation": {
-      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --map-scopes …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix/spike = task-executor · analyze/reconcile/retrofit-surface/coverage = ba-pitch-analyzer · map-scopes = scope-architect · wire = solution-architect · evaluate = spec-evaluator · orient = orient · hunt = qa-edge-hunter · translate = translator · hammer = scope-hammer · coach = coach.",
+      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --map-scopes …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix/spike = task-executor · analyze/reconcile/retrofit-surface/coverage = ba-pitch-analyzer · map-scopes = scope-architect · wire = solution-architect · evaluate = spec-evaluator · orient = orient · hunt = qa-edge-hunter · translate = translator · hammer = scope-hammer · coach/scan = coach (scan seeds the knowledge base from the project on disk instead of from L4 feedback; same write surface, same categorization gate).",
       "type": "string",
       "enum": [
         "execute",
@@ -496,7 +499,8 @@
         "hunt",
         "translate",
         "hammer",
-        "coach"
+        "coach",
+        "scan"
       ]
     },
     "Substrate": {
@@ -2369,7 +2373,7 @@
         },
         "kb_rules_path": {
           "type": "string",
-          "description": "Coachable workers (task-executor, ba-pitch-analyzer, qa-edge-hunter): shapeup/knowledge-base/<skill>.md — steering, never spec; conflict → the AC wins, noted in deviations."
+          "description": "Coachable workers (task-executor, ba-pitch-analyzer, qa-edge-hunter, orient, scope-architect, solution-architect): shapeup/knowledge-base/<skill>.md — steering, never spec and never a gate; conflict → the AC, the contract or the gate wins, noted in deviations. The judge and the census are not coachable."
         },
         "verify": {
           "$ref": "#/$defs/VerifySpec",

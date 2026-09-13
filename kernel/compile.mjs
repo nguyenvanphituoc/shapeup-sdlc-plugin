@@ -47,6 +47,16 @@ import { latestRoundBuild } from "./verify/build.mjs";
 // then denied the write that fixes it.
 import { matchesAny } from "../hooks/sandbox-guard.mjs";
 
+/**
+ * Workers that read a coaching file. Kept beside the compile step because this is the only place
+ * the file is handed over: a worker not in this set never sees `payload.kb_rules_path`, however
+ * many rules the coach files for it. Mirrored by the coach skill's category list (structural test).
+ */
+export const COACHABLE = new Set([
+  "task-executor", "ba-pitch-analyzer", "qa-edge-hunter",
+  "orient", "scope-architect", "solution-architect",
+]);
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ORDER_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "./../skills/tech-lead/schemas/work-order.schema.json"), "utf8"));
 
@@ -168,13 +178,17 @@ export const OP_OWNER = {
   wire: "solution-architect", evaluate: "spec-evaluator", orient: "orient",
   hunt: "qa-edge-hunter", translate: "translator",
   hammer: "scope-hammer", coach: "coach",
+  // `scan` is the coach reading the project instead of L4 feedback: same worker, same write
+  // surface, same categorization gate. An operation the schema enumerates but this table does not
+  // route compiles no order at all, so the suite checks the two the other way round as well.
+  scan: "coach",
 };
 
 /**
  * Resolve the write-contract (sandbox substrate) for an operation — one whitelist template per
  * operation, so mode/flag differences are enforced by the sandbox hook reading the order's substrate, not trusted to prose.
  * @param {string} operation - The order's operation (execute|fix|spike|analyze|reconcile|
- *   retrofit-surface|coverage|map-scopes|wire|evaluate|orient|hunt|translate|hammer|coach).
+ *   retrofit-surface|coverage|map-scopes|wire|evaluate|orient|hunt|translate|hammer|coach|scan).
  * @param {{slug?:string, specDir?:string, scope?:object}} [ctx] - slug (names LOCAL/SHARED roots),
  *   specDir (overrides the default spec path), scope (contract supplying allowed/shared substrates).
  * @returns {{allowed:string[], shared?:string[], frozen?:string[], append_only?:string[]}} The
@@ -237,6 +251,10 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
     case "hammer":
       return { allowed: [globShared(slug, "REPORT.md"), `${local}/reports/**`] };
     case "coach":
+    case "scan":
+      // `scan` seeds the same files from the project on disk instead of from L4 feedback; both
+      // write only the knowledge base, and the profile the scan suggests probes for stays the
+      // tech lead's to write (single writer of the committed tier).
       return { allowed: [relKnowledgeBase("*")] };
     default:
       return { allowed: [`${local}/**`] };
@@ -618,7 +636,7 @@ export function t0ArtifactsFor(cwd, slug, round) {
  * @param {string} [opts.compiledAt] - ISO compile time; omitted rather than invented.
  * @returns {object} A WorkOrder: {schema_version, order_id ("<slug>/<suffix>"), run_id?,
  *   compiled_at?, worker, mode, operation?, interaction?, substrate (from {@link substrateFor}),
- *   payload{…}}. A coachable worker also gets payload.kb_rules_path. Not validated here — the CLI
+ *   payload{…}}. A coachable worker ({@link COACHABLE}) also gets payload.kb_rules_path. Not validated here — the CLI
  *   validates before writing.
  */
 export function compileOrder({
@@ -695,8 +713,12 @@ export function compileOrder({
       ...(payloadExtra || {}),
     },
   };
-  const kbByWorker = { "task-executor": "task-executor", "ba-pitch-analyzer": "ba-pitch-analyzer", "qa-edge-hunter": "qa-edge-hunter" };
-  if (kbByWorker[worker]) order.payload.kb_rules_path = relKnowledgeBase(kbByWorker[worker]);
+  // The coachable set — every worker that reads `shapeup/knowledge-base/<worker>.md` at the top
+  // of its run. Guidance only: a rule here steers craft and never resolves, skips or reorders a
+  // gate, and never widens a substrate (the sandbox hook reads the order, not the KB). The judge
+  // (spec-evaluator) and the census (scope-hammer) are excluded on purpose: coaching the judge
+  // makes a second grader, and the hammer's ownership claims must come from `probe owner`.
+  if (COACHABLE.has(worker)) order.payload.kb_rules_path = relKnowledgeBase(worker);
   return order;
 }
 

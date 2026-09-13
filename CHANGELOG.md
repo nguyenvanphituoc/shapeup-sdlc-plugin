@@ -8,6 +8,22 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 Five findings from one consumer run (a HarmonyOS phone app, fourteen scopes, three rounds), each
 traced to a mechanism rather than a worker, and each closed by a change the structural suite pins.
 
+- **The knowledge base coaches the workflow, and never a gate.** `/retro` (the coach) now offers
+  seven categories at GATE COACH-1: `orient`, `scope-architect` and `solution-architect` read
+  their own `shapeup/knowledge-base/<skill>.md` at the top of a run like the three workers that
+  already did, and `tech-lead` reads `knowledge-base/tech-lead.md` at GATE L0 — workflow
+  guidance (which question, check or spike to insist on at a gate) and suggested L0 values it
+  confirms with the PO before pinning. The rule every category obeys is now stated and tested:
+  guidance may add a question or a check to a gate block and may never answer, skip, reorder or
+  relax one, widen a substrate, edit a probe or a fixture, or move a hill dot; `spec-evaluator`
+  and `scope-hammer` are never coachable. New operation `scan` (`/retro --scan`, optional,
+  suggested once by `init` and at an empty-KB L0): the same pipeline fed by the project on disk
+  instead of L4 feedback, every drafted rule carrying its evidence and confirmed at COACH-1, filed
+  with `project-scan @ <sha>` provenance so a rescan replaces only its own rules. Why: the
+  platform habits that cost the measured run three rounds were filed as team feedback after L4;
+  a scan puts them in front of the workers before round one, and the tech-lead file gives "insist
+  on a launch probe for this archetype" a reader at the gate where it matters.
+
 - **The round build gate.** `harness verify build --slug <slug> --round <N>` runs, once per round
   before EVAL and stopping at the first failure, the run ledger's `run_cmd`, then two new optional
   `project-profile.md` fields: `build_probe` (the built artifact covers what the run wrote — a green
