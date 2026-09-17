@@ -28,10 +28,16 @@ export async function run(ctx) {
   // exhaustion a queued GATE H proposal. Accumulated only in memory, the PO's cut list came back
   // EMPTY after they answered a paused gate — in the `interactive` lane, the first census they ever
   // see. Unattended runs never pause, which is why no archived trace shows it.
-  const derives = /greenEver|green_scopes_by_round\s*\|\|\s*\{\}/.test(src)
+  // THE REGEX MUST NAME THE DERIVATION, NOT THE LOOP THAT CONSUMES IT.
+  //
+  // The first version tested for the presence of the `for (const sid of (g?.scopes || []))` loop and
+  // for the identifier `greenEver` — and both survive gutting the derivation to `new Set()`, which
+  // is precisely the defect. It matched a source file in which the census was once again empty. So
+  // this pins the SOURCE the set is built from: the graph's own green_scopes_by_round, flattened.
+  const derives = /new Set\(\s*Object\.values\(\s*g\?\.green_scopes_by_round[\s\S]{0,40}?\)\.flat\(\)\s*\)/.test(src)
     && /for \(const sid of \(g\?\.scopes \|\| \[\]\)\)/.test(src);
-  if (derives) ok("the GATE H census is rebuilt from the run graph at each launch, not carried only in a variable");
-  else fail("allGreen/allHammer are accumulated in memory with no disk re-derivation — a relaunch after a paused gate hands the PO an empty cut list");
+  if (derives) ok("the GATE H census is rebuilt from the run graph's own green_scopes_by_round at each launch, not carried only in a variable");
+  else fail("allGreen/allHammer are not re-derived from the graph — a relaunch after a paused gate hands the PO an empty cut list");
 
   // A census that is only ever appended to double-counts across launches, and a scope that goes
   // green later must LEAVE the cut list rather than sit on both.

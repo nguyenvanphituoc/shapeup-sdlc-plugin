@@ -10,7 +10,7 @@
 // rather than by key set. That last distinction is the whole reason the existing rebuild check
 // missed two of these — it compared `nodes.keys()`, and the drift was in the attributes and edges.
 
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -113,12 +113,39 @@ export async function run(ctx) {
     } finally { rmSync(ws, { recursive: true, force: true }); }
   }
 
-  // --- (e) THE BOARD READ IS ORDER-INVARIANT ----------------------------------------------------
-  // THE BOUNDARY: a different filesystem. `criticalPath` breaks ties on strict `>`, keeping the
-  // FIRST equal-hours chain it meets, and its input was an unsorted readdir — so a derived value
-  // depended on directory order. APFS returns sorted and hides it; ext4's hash order does not.
+  // --- (e) THE DERIVED CHAIN IS ORDER-INVARIANT --------------------------------------------------
+  // THE BOUNDARY: a different filesystem. `criticalPath` iterates `for (const t of tasks)` and keeps
+  // a chain only on strict `c.hours > best.hours`, so among EQUAL-hours chains it keeps whichever it
+  // meets FIRST — which is input order. Its input was an unsorted readdir, so a derived value rode
+  // on directory order: APFS returns sorted names and hides it, ext4's hash order does not.
+  //
+  // ASSERTED ON `criticalPath` DIRECTLY, over permutations of one task list. An earlier version of
+  // this check compared `parseBoard`'s output against a sorted copy of itself, which on APFS is true
+  // whether or not the code sorts — it asserted a property of this filesystem rather than of the
+  // code, and stayed green against the very defect it was written for. Permuting the list in memory
+  // reproduces on every machine what only some filesystems would produce on disk.
   {
     const board = await import(join(ROOT, "kernel/reduce/board.mjs"));
+    const mk = (id, deps, hours) => ({ id, depends_on: deps, hours, status: "pending" });
+    // Two disjoint chains of IDENTICAL summed hours (5) — exactly the tie the strict `>` resolves
+    // by arrival order, and the shape a single-ordering fixture can never surface.
+    const tasks = [
+      mk("TASK-A1", [], 2), mk("TASK-A2", ["TASK-A1"], 3),
+      mk("TASK-B1", [], 1), mk("TASK-B2", ["TASK-B1"], 4),
+    ];
+    const perms = [
+      [0, 1, 2, 3], [3, 2, 1, 0], [2, 3, 0, 1], [1, 0, 3, 2], [0, 2, 1, 3],
+    ].map((ix) => ix.map((i) => tasks[i]));
+    const answers = [...new Set(perms.map((t) => JSON.stringify(board.criticalPath(t))))];
+    if (answers.length === 1) {
+      ok(`criticalPath returns one answer across ${perms.length} permutations of an equal-hours board — no derived value rides on input order`);
+    } else {
+      fail(`criticalPath returned ${answers.length} different chains for the same board, by input order alone: ${answers.join("  vs  ")}`);
+    }
+
+    // And the reader that feeds it must impose an order of its own rather than pass the directory's
+    // through. On a filesystem that already returns sorted names this cannot discriminate, so it
+    // SKIPS with a note instead of reporting a green it did not earn — or burning red forever.
     const ws = mkdtempSync(join(tmpdir(), "db-board-"));
     try {
       const dir = join(ws, "tasks");
@@ -126,9 +153,16 @@ export async function run(ctx) {
       for (const id of ["TASK-004", "TASK-001", "TASK-003", "TASK-002"]) {
         writeFileSync(join(dir, `${id}.md`), `---\nid: ${id}\nstatus: pending\nhours: 2\n---\n`);
       }
+      const raw = readdirSync(dir).filter((f) => f.endsWith(".md")).map((f) => f.replace(/\.md$/, ""));
       const ids = board.parseBoard(dir).map((t) => t.id);
-      if (JSON.stringify(ids) === JSON.stringify([...ids].sort())) ok(`parseBoard returns tasks in a stable sorted order (${ids.join(", ")}) — no derived value rides on readdir order`);
-      else fail(`parseBoard returned ${ids.join(", ")} — directory order reaches a derived value, so criticalPath can differ between machines`);
+      const sorted = [...ids].sort();
+      if (JSON.stringify(ids) !== JSON.stringify(sorted)) {
+        fail(`parseBoard returned ${ids.join(", ")} — unsorted, so the tie-break above rides on directory order`);
+      } else if (JSON.stringify(raw) === JSON.stringify(sorted)) {
+        ok("parseBoard returns sorted tasks (this filesystem returns readdir sorted, so the permutation check above is what carries this property here)");
+      } else {
+        ok(`parseBoard sorts (${ids.join(", ")}) where readdir handed back ${raw.join(", ")} — directory order does not reach the board`);
+      }
     } finally { rmSync(ws, { recursive: true, force: true }); }
   }
 

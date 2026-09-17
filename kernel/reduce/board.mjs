@@ -134,10 +134,30 @@ export function criticalPath(tasks) {
     }
     return (memo[id] = { hours: best.hours + t.hours, chain: [...best.chain, id] });
   };
+  // TIES BREAK ON CONTENT, NOT ON ARRIVAL. `>` alone keeps whichever equal-hours chain is MET
+  // FIRST, which is input order — so this function returned a different critical path for the same
+  // board depending only on how its task list happened to be ordered. Measured: two disjoint
+  // 5-hour chains, five permutations of one list, two different answers.
+  //
+  // Sorting the reader that feeds it (`parseBoard`) makes the input stable and therefore hides this
+  // on any one machine, but it leaves the ORDER-DEPENDENCE in place one call up — a caller with its
+  // own ordering, or a future second reader, re-opens it. A derived value has to be a function of
+  // the board, not of the walk that produced it, so the tie is resolved here: same hours, then the
+  // lexicographically smaller chain. Deterministic on every machine and for every caller.
+  /**
+   * Is chain `c` a better critical path than the incumbent `b`?
+   * @param {{hours:number, chain:string[]}} c - The candidate chain.
+   * @param {{hours:number, chain:string[]}} b - The incumbent best.
+   * @returns {boolean} True when `c` has more hours, or ties on hours and sorts first by chain
+   *   content — so the answer is a function of the board rather than of the iteration order.
+   */
+  const better = (c, b) => c.hours > b.hours
+    || (c.hours === b.hours && c.chain.length > 0
+        && (b.chain.length === 0 || c.chain.join("\u0000") < b.chain.join("\u0000")));
   let best = { hours: 0, chain: [] };
   for (const t of tasks) {
     const c = longest(t.id);
-    if (c.hours > best.hours) best = c;
+    if (better(c, best)) best = c;
   }
   return best;
 }
