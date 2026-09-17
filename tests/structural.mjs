@@ -171,6 +171,22 @@ const MODULE_FILES = [
   // 55-coach-parity.mjs: the coachable set is one set in three places (kernel, registry, coach
   // categories), every reader actually reads, and the knowledge base never decides a gate.
   "55-coach-parity.mjs",
+  // 56-hook-decision-table.mjs: the enforcement cases as DATA, each pinning the host answer
+  // AND the ledger record. Its own module because the property is a method, not a case:
+  // sandbox-guard (tested by decisions) killed 8/8 planted mutants; safety-spine (tested by a
+  // fixed list of command strings) killed 1/4, and every survivor kept the listed strings
+  // denied while widening the hole to an adjacent spelling.
+  "56-hook-decision-table.mjs",
+  // 57-derivation-boundaries.mjs: the derived tier, checked ACROSS the boundaries it must
+  // survive — a second projection pass, a second run of one slug, a rebuild, a rewrite. Its own
+  // module because eight live defects shared one shape (a fact projected or remembered rather
+  // than re-derived) and every one was invisible to a single-pass fixture. The existing rebuild
+  // check missed two of them by comparing node KEYS; these compare by VALUE.
+  "57-derivation-boundaries.mjs",
+  // 58-relaunch-memory.mjs: orchestration state a relaunch must not lose. Source-level, because
+  // shapeup-run.js is a Workflow body that cannot be imported — which is itself why in-memory
+  // orchestration state was reachable by no assertion in the suite, and why two defects lived there.
+  "58-relaunch-memory.mjs",
   "08-docs.mjs",
 ];
 

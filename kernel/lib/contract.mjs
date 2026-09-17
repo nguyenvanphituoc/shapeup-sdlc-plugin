@@ -172,7 +172,16 @@ export function coerce(raw) {
   // A LIST IS TESTED BEFORE THE QUOTES ARE STRIPPED. `"[a, b]"` is a quoted STRING; stripping first
   // would turn it into a list and change its type on a round-trip.
   if (/^\[.*\]$/.test(trimmed)) return splitList(trimmed.slice(1, -1));
+  // A QUOTED SCALAR IS A STRING, VERBATIM — the same rule the list test above already applies, one
+  // step further in. Unquoting FIRST and then testing the bareword literals meant the quotes bought
+  // nothing: `"false"` unwrapped to `false` and then matched the boolean test, so a cell whose value
+  // is genuinely the word "false" re-read as the boolean. Same for `"true"`, `"123"`, `"~"` and `""`
+  // — a string changed TYPE on a round trip, silently, the first time its contract was rewritten.
+  // Quoting is how an author says "this is text"; honouring that is what makes the round trip total.
+  const quoted = trimmed.length >= 2 && (trimmed[0] === '"' || trimmed[0] === "'")
+    && trimmed[trimmed.length - 1] === trimmed[0];
   const v = unquote(trimmed);
+  if (quoted) return v;
   if (v === "true") return true;
   if (v === "false") return false;
   if (v === "~" || v === "null" || v === "") return null;
@@ -192,10 +201,17 @@ export function uncoerce(v) {
   // side instead of the reader's.
   if (Array.isArray(v)) return `[${v.map((x) => (/[,"]/.test(String(x)) ? JSON.stringify(String(x)) : String(x))).join(", ")}]`;
   const s = String(v);
-  // A scalar that itself begins AND ends with a quote is indistinguishable, once written, from a
-  // quoted scalar — so emit it in the JSON form the reader unwraps exactly. Without this the round
-  // trip loses the value's own outer quotes, which is the same shredding as the reader's half.
-  if (s.length >= 2 && (s[0] === '"' || s[0] === "'") && s[s.length - 1] === s[0]) return JSON.stringify(s);
+  // THE READER IS THE ORACLE. Anything whose plain text would come back as a DIFFERENT VALUE goes
+  // out quoted — and the only honest test of that is to ask `coerce` itself.
+  //
+  // This subsumes the older rule (a scalar that begins AND ends with a quote) and closes the family
+  // it missed: a string whose text is a bareword literal changed TYPE on a round trip. The string
+  // "false" re-read as the boolean false, "123" as the number 123, "[a, b]" as a two-member list,
+  // "~" as null. Each is a value an author can legitimately write in a cell, and each silently
+  // became something else the first time the contract was rewritten. `coerce(s) !== v` catches all
+  // of them at once and leaves every value that already round-trips untouched — a path, a sentence,
+  // a real boolean, a real number.
+  if (coerce(s) !== v) return JSON.stringify(s);
   return s;
 }
 

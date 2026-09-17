@@ -3,6 +3,106 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.4.0] — 2026-09-17 · State that does not survive a boundary
+
+Ten defects, found by pointing four independent methods at the harness itself — property-based
+falsification of the algebraic laws the code claims in its own comments, bounded model checking of
+the round loop, mutation testing of the structural suite, and a survey of how comparable products
+verify themselves. Nine are fixed here; one was examined and confirmed to be intended behaviour.
+
+**The measurement that started it.** The structural suite was green at 1419 checks and scored
+**67.9% against mutation** (55 of 81 planted mutants killed): 26 semantically meaningful changes to
+the kernel, the hooks and the oracles passed the entire suite without turning a single check red.
+Of those 1419 checks, 424 (29.9%) asserted only that a file *contains* a string. A suite can be
+thorough and still not be sensitive, and the two are easy to confuse from the outside.
+
+**Eight of the ten defects were one shape** — a fact *projected* or *remembered* instead of
+re-derived, then crossing a boundary it was not built to survive: a second projection pass, a
+second run of one slug, a relaunch, a rewrite. None is visible to a single-pass fixture, which is
+why a large green suite held all of them. This repo had already fixed that class three times, by
+its own comments, and each fix was local to the instance.
+
+- **The run graph could drift from the artifacts it projects.** `reduce graph` promises it can be
+  deleted and rebuilt byte-identically. It could not. A gate's `DEPENDS_ON` edge chose its TARGET
+  from what happened to be on disk at projection time, and gates are crossed *before* the round's
+  verdict artifact lands — so the first pass minted a fallback edge to the Run, a later pass added
+  the verdict edges beside it, and an append-only log has no tombstone to retract the first. The
+  run edge is now unconditional and the condition is gone; a gate does depend on its run. The trial
+  node key carried scope but not run, while trial ordinals restart per run and `trials.jsonl` is
+  append-only, so one key named two rows and the earlier run's execution record was silently
+  overwritten in the projection. The fold MERGED repeated nodes while the file's own banner promises
+  last-line-wins and the edge branch one line below it replaces — so an attribute removed from an
+  artifact could never be forgotten. And `EDGES` was a dead constant nothing imported, while the
+  projection emitted `IMPLEMENTS`, which it did not declare.
+
+- **A derived value rode on directory order, and then on argument order.** `parseBoard` read its
+  directory unsorted, so `criticalPath`'s strict-`>` tie-break kept whichever equal-hours chain it
+  met first. Sorting the reader was the obvious fix and it was not enough: the order-dependence
+  lived one call up, where any caller with its own ordering re-opens it. `criticalPath` now breaks
+  ties on chain content, so the answer is a function of the board rather than of the walk that
+  produced it. Measured: two disjoint 5-hour chains, five permutations of one list, two different
+  answers before, one after.
+
+- **A contract value could change TYPE on a round trip.** `coerce(uncoerce(v))` was not an identity.
+  A string whose text is a bareword literal — `"false"`, `"true"`, `"123"`, `"~"`, `""` — came back
+  as a boolean, a number or null the first time its contract was rewritten. Both halves were wrong:
+  the writer did not quote such values, and the reader unquoted *before* testing the literals, so
+  quoting bought nothing. The reader now treats a quoted scalar as text verbatim — the same rule it
+  already applied to lists, one step further in — and the writer asks `coerce` itself whether a
+  value needs quoting. Asserted as a law over every type the dialect carries, not at one example.
+
+- **GATE H's census was emptied by the event that most needs it.** `allGreen`/`allHammer` were
+  in-memory accumulators, and a gate pause is a `return` — so the PO's answer starts a *fresh
+  launch* whose accumulators begin empty while the round loop fast-forwards past the rounds that
+  filled them. The PO was handed an empty cut list for a run with genuinely exhausted scopes.
+  Unattended (`ci`) runs never pause, which is why no archived trace showed it. Both lists are now
+  re-derived from the run graph at every launch, from a query the round already makes.
+
+- **A resumed scope skipped both of its completion checks.** `resumed` short-circuited the T0
+  re-read *and* the leg check — but a relaunch happens because the previous launch died, and a leg
+  that died between writing its result and running `reduce ingest` leaves exactly the state the leg
+  check exists to find: green T0 on disk, result never applied, board still `pending`. The one scope
+  class known to be at risk was the one class nobody asked, and the late-ingest repair below could
+  never fire for it. Only the T0 re-read is gated on `resumed` now.
+
+**Examined and left alone:** a `Result` edge whose `Order` was never projected. `trace()` reports
+dangling edges rather than dropping them, so guarding it would hide the orphan rather than fix it.
+Intended behaviour, recorded as such rather than counted as a fix.
+
+**The enforcement cases are data now.** `tests/fixtures/hook-decisions.json` holds one row per
+decision and `tests/structural/56-hook-decision-table.mjs` runs them; adding a case is a row, not a
+new assertion. Every row pins BOTH halves — what the host was told (`permissionDecision`) and what
+the ledger recorded (`verdict` + `rule`). Pinning only the first cannot see a guard that stopped
+being consulted; pinning only a deny cannot see an ALLOW that stopped being *inspected*.
+`hooks/lib/decision.mjs` has separated `inspected-and-permitted` / `no-rule-matched` / `threw` /
+`never ran` since v1.5 and exactly one check in the suite read it. The table covers all five
+safety-spine deny categories at more than one spelling each and all eight rungs of the substrate
+fence's ladder, and it immediately killed two mutants the old suite let through — a narrowed `.env`
+pattern that stopped protecting `.env.local`, and a `git reset` check that stopped catching
+`git reset HEAD~3 --hard`. `safety-spine` went from 1-of-4 to 3-of-4 under mutation.
+
+**Why that hook and not its neighbour.** `sandbox-guard` killed 8 of 8 planted mutants;
+`safety-spine` killed 1 of 4. Same directory, same author, same care. The difference is method:
+sandbox-guard is tested by *decisions over varied paths*, safety-spine was tested by a *fixed list
+of command strings*, and every surviving mutant kept those exact strings denied while widening the
+hole to an adjacent spelling. That contrast is the most useful thing the measurement produced.
+
+**Two new modules, because the fixes needed checks that cross the boundary they failed at.**
+`57-derivation-boundaries.mjs` runs the projection twice, writes two runs into one slug, rebuilds
+the graph and compares by VALUE — the pre-existing rebuild check compared `nodes.keys()`, which is
+precisely why it held two of these defects. `58-relaunch-memory.mjs` is source-level, because
+`shapeup-run.js` is a Workflow body over injected globals and cannot be imported; that limitation
+is itself why in-memory orchestration state was reachable by no assertion in the suite.
+
+**Each fix was reverted alone on a clean tree to confirm its check goes red.** Nine of ten do. The
+`parseBoard` sort does not: APFS returns `readdirSync` already sorted, so no fixture on this machine
+can distinguish it — it is pinned by reasoning and by the `criticalPath` check one call downstream,
+and is recorded that way rather than counted as proven. Two checks written during this work did not
+discriminate either and were repaired: one asserted a property of the filesystem rather than of the
+code, the other matched an identifier that survives gutting the logic it names.
+
+1419 → 1530 checks, green.
+
 ## [3.3.0] — 2026-09-14 · The loop never built or launched the feature
 
 Five findings from one consumer run (a HarmonyOS phone app, fourteen scopes, three rounds), each
