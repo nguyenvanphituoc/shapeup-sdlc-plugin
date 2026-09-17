@@ -29,6 +29,9 @@ order and the docs module (`08-docs.mjs`) is last so the floor sees every check:
 | `structural/23-concurrency.mjs` | §63, 64, 68 the leg-completion record, the instrument over it, and whether a scope's work reached the board |
 | `structural/24-parallel-isolation.mjs` | §65, 66 what survives scopes building at the same time — half of it RACES, because an uncontended lock and a working one look identical |
 | `structural/25-scheduler.mjs` | §69 BUILD's fan-out, executed against fixtures on a virtual clock |
+| `structural/56-hook-decision-table.mjs` | §90 every enforcement decision as DATA — host answer AND ledger record |
+| `structural/57-derivation-boundaries.mjs` | §91 derived state across a second pass, a second run, a rebuild, a rewrite |
+| `structural/58-relaunch-memory.mjs` | §92 orchestration state a relaunch must not lose (source-level) |
 | `structural/08-docs.mjs` | §5, 7, 25, 26 AGENT.md guard, migrations, ratchets, doc-drift |
 
 A **new check lands in the module matching its owner** (a tech-lead script check → `05-tech-lead.mjs`,
@@ -109,6 +112,43 @@ The numbered sections below are the checks themselves, in section order:
    works — so the module is kept honest by mutation: breaking the purge, the opt-out, or the
    one-entry-point rule each turns it red.
 
+
+90. **Hook decision table (`structural/56-hook-decision-table.mjs`, fixtures in
+   `fixtures/hook-decisions.json`):** every enforcement decision is a row of DATA, and each row pins
+   BOTH halves — what the host was told (`permissionDecision`) and what the ledger recorded
+   (`verdict` + `rule`). Pinning only the first cannot see a guard that stopped being consulted;
+   pinning only a deny cannot see an ALLOW that stopped being *inspected*. `hooks/lib/decision.mjs`
+   has separated `inspected-and-permitted` / `no-rule-matched` / `threw` / `never ran` since v1.5 and
+   exactly one check read it. Covers all five safety-spine deny categories at more than one spelling
+   each, and all eight rungs of the substrate fence's ladder (one deny plus every fail-open), because
+   a fail-open exit that starts firing for the wrong reason moves no verdict and breaks no test.
+   The module asserts its own table is non-vacuous before looping, and asserts category and rung
+   coverage after it — a case list that silently failed to load would otherwise pass by running nothing.
+
+91. **Derived state across a boundary (`structural/57-derivation-boundaries.mjs`):** nine live
+   defects were found by two independent methods and eight shared one shape — a fact *projected* or
+   *remembered* instead of re-derived, then crossing a boundary it was not built to survive. So these
+   checks do the crossing: the projection runs TWICE (a gate is crossed before its round's verdict
+   lands, and an append-only log has no tombstone, so a conditional edge target minted a permanent
+   phantom); TWO runs are written into one slug (trial ordinals restart per run while `trials.jsonl`
+   is append-only, so one key named two rows and the earlier run's execution record vanished); the
+   fold is checked for last-line-wins rather than merge; `parseBoard` is checked for order-invariance;
+   and `coerce(uncoerce(v)) === v` is asserted as a LAW over a value set spanning every type the
+   dialect carries, not at the one point a fixture named. Edge types are checked for vocabulary
+   closure — `EDGES` was a dead constant nothing imported while the projection emitted `IMPLEMENTS`.
+   **The rebuild comparison is by VALUE**; the pre-existing one compared `nodes.keys()` and therefore
+   could not see drift in attributes or edges, which is where two of these defects lived.
+92. **Orchestration state a relaunch must not lose (`structural/58-relaunch-memory.mjs`):**
+   source-level, because `shapeup-run.js` is a Workflow function body over injected globals and
+   cannot be imported — a limitation that is itself the reason in-memory orchestration state was
+   reachable by no assertion in the suite. A gate pause is a `return`, so the PO's answer starts a
+   fresh launch with empty accumulators while the round loop fast-forwards past the rounds that
+   filled them: GATE H's census came back empty in the `interactive` lane, which is the first census
+   a PO ever sees. The rule encoded here is not "declare it outside the loop" — that was the previous
+   fix for this same class, twice, and it is insufficient. It is **re-derive it from disk at every
+   launch**. Also pins that a resumed scope still gets its leg check: only the T0 re-read may be
+   gated on `resumed`, since a relaunch happens because the previous launch died, and a leg that died
+   between writing its result and ingesting it is exactly the state the leg check exists to find.
 
 Exit 0 = pass, 1 = fail (the docs state a floor, section #26 asserts it against the real total).
 This is the cheapest, highest-ROI guard and the one the project lacked. Sections #8–#11 prove the

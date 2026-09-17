@@ -1,0 +1,581 @@
+{
+  "$comment": "The hook decision table. One row per enforcement decision, as DATA. Adding a case is one object, not one more hand-written assertion. Every row pins BOTH halves of the decision: what the host was told (permissionDecision) AND what the ledger recorded (verdict + rule). Pinning only the first is how a guard that stops firing goes unnoticed; pinning only a deny is how an allow that stops being INSPECTED goes unnoticed. The `rule` on an allow row is the load-bearing part: it proves the hook looked and cleared, rather than never having run. A row may carry `setup`: files written into the workspace before the hook fires, which is what lets one table walk an entire defer ladder rung by rung instead of testing only its outermost rung. NOTE: projectRoot() accepts .shapeup/active-scope, a committed shapeup/ tier, or .git as a root marker — a bare .shapeup/ directory is deliberately NOT one, so every setup that wants the workspace treated as the project root must create active-scope.",
+  "hooks": {
+    "safety-spine": {
+      "argv": [
+        "hooks/safety-spine.mjs"
+      ],
+      "event": "PreToolUse"
+    },
+    "sandbox-guard": {
+      "argv": [
+        "hooks/sandbox-guard.mjs"
+      ],
+      "event": "PreToolUse"
+    },
+    "gate-intake": {
+      "argv": [
+        "hooks/gate-intake.mjs"
+      ],
+      "event": "PreToolUse"
+    },
+    "validate-envelope": {
+      "argv": [
+        "kernel/harness.mjs",
+        "verify",
+        "envelope"
+      ],
+      "event": "PreToolUse"
+    },
+    "dispatch-receipt": {
+      "argv": [
+        "hooks/dispatch-receipt.mjs"
+      ],
+      "event": "PostToolUse"
+    },
+    "gate-zerowork": {
+      "argv": [
+        "hooks/gate-zerowork.mjs"
+      ],
+      "event": "Stop"
+    }
+  },
+  "rows": [
+    {
+      "id": "fs-root",
+      "hook": "safety-spine",
+      "why": "the canonical case",
+      "tool": "Bash",
+      "input": {
+        "command": "rm -rf /"
+      },
+      "expect": {
+        "decision": "deny",
+        "verdict": "deny",
+        "rule": "destructive-fs"
+      }
+    },
+    {
+      "id": "fs-home-tilde",
+      "hook": "safety-spine",
+      "why": "family: ~ is as unrecoverable as /",
+      "tool": "Bash",
+      "input": {
+        "command": "rm -rf ~/"
+      },
+      "expect": {
+        "decision": "deny",
+        "verdict": "deny",
+        "rule": "destructive-fs"
+      }
+    },
+    {
+      "id": "fs-parent-chained",
+      "hook": "safety-spine",
+      "why": "family: the target hides behind &&",
+      "tool": "Bash",
+      "input": {
+        "command": "cd /tmp && rm -rf .."
+      },
+      "expect": {
+        "decision": "deny",
+        "verdict": "deny",
+        "rule": "destructive-fs"
+      }
+    },
+    {
+      "id": "fs-git-clean",
+      "hook": "safety-spine",
+      "why": "family: a different verb, same loss",
+      "tool": "Bash",
+      "input": {
+        "command": "git clean -fdx"
+      },
+      "expect": {
+        "decision": "deny",
+        "verdict": "deny",
+        "rule": "destructive-fs"
+      }
+    },
+    {
+      "id": "git-force",
+      "hook": "safety-spine",
+      "why": "the canonical case",
+      "tool": "Bash",
+      "input": {
+        "command": "git push --force origin main"
+      },
+      "expect": {
+        "decision": "deny",
+        "verdict": "deny",
+        "rule": "git-destructive"
+      }
+    },
+    {
+      "id": "git-main",
+      "hook": "safety-spine",
+      "why": "family: no flag, still rewrites shared history",
+      "tool": "Bash",
+      "input": {
+        "command": "git push origin main"
+      },
+      "expect": {
+        "decision": "deny",
+        "verdict": "deny",
+        "rule": "git-destructive"
+      }
+    },
+    {
+      "id": "git-hard-before",
+      "hook": "safety-spine",
+      "why": "the spelling the suite already covers",
+      "tool": "Bash",
+      "input": {
+        "command": "git reset --hard HEAD~3"
+      },
+      "expect": {
+        "decision": "deny",
+        "verdict": "deny",
+        "rule": "git-destructive"
+      }
+    },
+    {
+      "id": "git-hard-after",
+      "hook": "safety-spine",
+      "why": "NEW — flag AFTER the ref. A surviving mutant moved this check to ts[2] === '--hard', which permits exactly this spelling while every existing fixture stayed green.",
+      "tool": "Bash",
+      "input": {
+        "command": "git reset HEAD~3 --hard"
+      },
+      "expect": {
+        "decision": "deny",
+        "verdict": "deny",
+        "rule": "git-destructive"
+      }
+    },
+    {
+      "id": "sql-drop-table",
+      "hook": "safety-spine",
+      "why": "the canonical case",
+      "tool": "Bash",
+      "input": {
+        "command": "psql -c \"DROP TABLE users;\""
+      },
+      "expect": {
+        "decision": "deny",
+        "verdict": "deny",
+        "rule": "sql-destructive"
+      }
+    },
+    {
+      "id": "sql-truncate",
+      "hook": "safety-spine",
+      "why": "family: TRUNCATE loses rows just as finally",
+      "tool": "Bash",
+      "input": {
+        "command": "psql -c \"TRUNCATE orders;\""
+      },
+      "expect": {
+        "decision": "deny",
+        "verdict": "deny",
+        "rule": "sql-destructive"
+      }
+    },
+    {
+      "id": "sql-drop-database",
+      "hook": "safety-spine",
+      "why": "family: the largest blast radius of the three",
+      "tool": "Bash",
+      "input": {
+        "command": "mysql -e \"DROP DATABASE prod;\""
+      },
+      "expect": {
+        "decision": "deny",
+        "verdict": "deny",
+        "rule": "sql-destructive"
+      }
+    },
+    {
+      "id": "secret-env",
+      "hook": "safety-spine",
+      "why": "the canonical case",
+      "tool": "Bash",
+      "input": {
+        "command": "cat .env"
+      },
+      "expect": {
+        "decision": "deny",
+        "verdict": "deny",
+        "rule": "secret-read"
+      }
+    },
+    {
+      "id": "secret-env-local",
+      "hook": "safety-spine",
+      "why": "NEW — .env.local is where real credentials actually live. A surviving mutant narrowed the pattern to bare .env; both existing fixtures stayed green.",
+      "tool": "Bash",
+      "input": {
+        "command": "cat .env.local"
+      },
+      "expect": {
+        "decision": "deny",
+        "verdict": "deny",
+        "rule": "secret-read"
+      }
+    },
+    {
+      "id": "secret-env-prod",
+      "hook": "safety-spine",
+      "why": "NEW — same family, same surviving mutant",
+      "tool": "Bash",
+      "input": {
+        "command": "cat .env.production"
+      },
+      "expect": {
+        "decision": "deny",
+        "verdict": "deny",
+        "rule": "secret-read"
+      }
+    },
+    {
+      "id": "secret-ssh",
+      "hook": "safety-spine",
+      "why": "family: a different reader, a different secret",
+      "tool": "Bash",
+      "input": {
+        "command": "grep KEY ~/.ssh/id_rsa"
+      },
+      "expect": {
+        "decision": "deny",
+        "verdict": "deny",
+        "rule": "secret-read"
+      }
+    },
+    {
+      "id": "self-redirect",
+      "hook": "safety-spine",
+      "why": "the session must not widen its own envelope",
+      "tool": "Bash",
+      "input": {
+        "command": "echo '{}' > .shapeup/safety-overrides.json"
+      },
+      "expect": {
+        "decision": "deny",
+        "verdict": "deny",
+        "rule": "self-protect"
+      }
+    },
+    {
+      "id": "allow-build-dir",
+      "hook": "safety-spine",
+      "why": "look-alike: relative multi-segment is recoverable",
+      "tool": "Bash",
+      "input": {
+        "command": "rm -rf ./build"
+      },
+      "expect": {
+        "decision": null,
+        "verdict": "allow",
+        "rule": "bash-clean"
+      }
+    },
+    {
+      "id": "allow-push-plain",
+      "hook": "safety-spine",
+      "why": "look-alike: the working branch, not main",
+      "tool": "Bash",
+      "input": {
+        "command": "git push"
+      },
+      "expect": {
+        "decision": null,
+        "verdict": "allow",
+        "rule": "bash-clean"
+      }
+    },
+    {
+      "id": "allow-lease",
+      "hook": "safety-spine",
+      "why": "look-alike: --force-with-lease is the sanctioned form",
+      "tool": "Bash",
+      "input": {
+        "command": "git push --force-with-lease origin feat-x"
+      },
+      "expect": {
+        "decision": null,
+        "verdict": "allow",
+        "rule": "bash-clean"
+      }
+    },
+    {
+      "id": "allow-soft",
+      "hook": "safety-spine",
+      "why": "look-alike: --soft keeps the work",
+      "tool": "Bash",
+      "input": {
+        "command": "git reset --soft HEAD~1"
+      },
+      "expect": {
+        "decision": null,
+        "verdict": "allow",
+        "rule": "bash-clean"
+      }
+    },
+    {
+      "id": "allow-env-example",
+      "hook": "safety-spine",
+      "why": "look-alike: the template carries no secret",
+      "tool": "Bash",
+      "input": {
+        "command": "cat .env.example"
+      },
+      "expect": {
+        "decision": null,
+        "verdict": "allow",
+        "rule": "bash-clean"
+      }
+    },
+    {
+      "id": "allow-npm-test",
+      "hook": "safety-spine",
+      "why": "the overwhelmingly common case must stay cheap",
+      "tool": "Bash",
+      "input": {
+        "command": "npm test"
+      },
+      "expect": {
+        "decision": null,
+        "verdict": "allow",
+        "rule": "bash-clean"
+      }
+    },
+    {
+      "id": "receipt-not-dispatch",
+      "hook": "dispatch-receipt",
+      "why": "a non-dispatch tool call earns no receipt",
+      "tool": "Bash",
+      "input": {
+        "command": "ls"
+      },
+      "response": {
+        "success": true
+      },
+      "expect": {
+        "decision": null,
+        "verdict": "allow",
+        "rule": "not-a-dispatch"
+      }
+    },
+    {
+      "id": "guard-no-round",
+      "hook": "sandbox-guard",
+      "why": "outermost fail-open: no run at all, so there is nothing to fence — the documented window in which a finished run fences nothing",
+      "tool": "Write",
+      "input": {
+        "file_path": "src/a.js",
+        "content": "x"
+      },
+      "expect": {
+        "decision": null,
+        "verdict": "allow",
+        "rule": "no-round"
+      }
+    },
+    {
+      "id": "guard-bad-pointer",
+      "hook": "sandbox-guard",
+      "why": "a CORRUPT pointer must fail open AND say so. Failing open is correct; failing open silently is the state the ledger exists to separate.",
+      "tool": "Write",
+      "input": {
+        "file_path": "src/a.js",
+        "content": "x"
+      },
+      "expect": {
+        "decision": null,
+        "verdict": "allow",
+        "rule": "bad-pointer"
+      },
+      "setup": {
+        ".shapeup/active-scope": "",
+        ".shapeup/active-order": "{ not json"
+      }
+    },
+    {
+      "id": "guard-no-order",
+      "hook": "sandbox-guard",
+      "why": "pointer present, no live order — a finished run fences nothing, and the reason must say which emptiness it was",
+      "tool": "Write",
+      "input": {
+        "file_path": "src/a.js",
+        "content": "x"
+      },
+      "expect": {
+        "decision": null,
+        "verdict": "allow",
+        "rule": "no-order"
+      },
+      "setup": {
+        ".shapeup/active-scope": "",
+        ".shapeup/active-order": {
+          "slug": "demo",
+          "order_path": ".shapeup/demo/orders/o1.json"
+        }
+      }
+    },
+    {
+      "id": "guard-no-substrate",
+      "hook": "sandbox-guard",
+      "why": "a live order that declares no substrate block at all",
+      "tool": "Write",
+      "input": {
+        "file_path": "src/a.js",
+        "content": "x"
+      },
+      "expect": {
+        "decision": null,
+        "verdict": "allow",
+        "rule": "no-substrate"
+      },
+      "setup": {
+        ".shapeup/active-scope": "",
+        ".shapeup/active-order": {
+          "slug": "demo",
+          "order_path": ".shapeup/demo/orders/o1.json"
+        },
+        ".shapeup/demo/orders/o1.json": {
+          "schema_version": 1,
+          "order_id": "demo/o1",
+          "worker": "task-executor"
+        }
+      }
+    },
+    {
+      "id": "guard-no-whitelist",
+      "hook": "sandbox-guard",
+      "why": "a substrate block present but empty — declaring nothing is not the same as declaring everything",
+      "tool": "Write",
+      "input": {
+        "file_path": "src/a.js",
+        "content": "x"
+      },
+      "expect": {
+        "decision": null,
+        "verdict": "allow",
+        "rule": "no-whitelist"
+      },
+      "setup": {
+        ".shapeup/active-scope": "",
+        ".shapeup/active-order": {
+          "slug": "demo",
+          "order_path": ".shapeup/demo/orders/o1.json"
+        },
+        ".shapeup/demo/orders/o1.json": {
+          "schema_version": 1,
+          "order_id": "demo/o1",
+          "worker": "task-executor",
+          "substrate": {
+            "allowed": [],
+            "shared": [],
+            "append_only": [],
+            "frozen": []
+          }
+        }
+      }
+    },
+    {
+      "id": "guard-no-target",
+      "hook": "sandbox-guard",
+      "why": "a real substrate, but the tool input names no writable path",
+      "tool": "Write",
+      "input": {
+        "content": "x"
+      },
+      "expect": {
+        "decision": null,
+        "verdict": "allow",
+        "rule": "no-target"
+      },
+      "setup": {
+        ".shapeup/active-scope": "",
+        ".shapeup/active-order": {
+          "slug": "demo",
+          "order_path": ".shapeup/demo/orders/o1.json"
+        },
+        ".shapeup/demo/orders/o1.json": {
+          "schema_version": 1,
+          "order_id": "demo/o1",
+          "worker": "task-executor",
+          "substrate": {
+            "allowed": [
+              "src/**"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "guard-in-substrate",
+      "hook": "sandbox-guard",
+      "why": "THE REASONED ALLOW — the rung that proves the fence looked and cleared. Today the only evidence separating this from 'the guard never ran' is this rule string.",
+      "tool": "Write",
+      "input": {
+        "file_path": "src/a.js",
+        "content": "x"
+      },
+      "expect": {
+        "decision": null,
+        "verdict": "allow",
+        "rule": "in-substrate"
+      },
+      "setup": {
+        ".shapeup/active-scope": "",
+        ".shapeup/active-order": {
+          "slug": "demo",
+          "order_path": ".shapeup/demo/orders/o1.json"
+        },
+        ".shapeup/demo/orders/o1.json": {
+          "schema_version": 1,
+          "order_id": "demo/o1",
+          "worker": "task-executor",
+          "substrate": {
+            "allowed": [
+              "src/**"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "guard-outside-substrate",
+      "hook": "sandbox-guard",
+      "why": "the fence itself: a write the live contract does not cover",
+      "tool": "Write",
+      "input": {
+        "file_path": "other/b.js",
+        "content": "x"
+      },
+      "expect": {
+        "decision": "deny",
+        "verdict": "deny",
+        "rule": "outside-substrate"
+      },
+      "setup": {
+        ".shapeup/active-scope": "",
+        ".shapeup/active-order": {
+          "slug": "demo",
+          "order_path": ".shapeup/demo/orders/o1.json"
+        },
+        ".shapeup/demo/orders/o1.json": {
+          "schema_version": 1,
+          "order_id": "demo/o1",
+          "worker": "task-executor",
+          "substrate": {
+            "allowed": [
+              "src/**"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1193,6 +1193,17 @@ await advisory(`reduce hill --slug ${slug}`, "MapScopes", "hill-derive");
 const lastEval = rs.eval_rounds_done?.length ? Math.max(...rs.eval_rounds_done) : 0;
 let round = lastEval + 1;
 let verdict = null;
+// DERIVED FROM DISK AT EVERY LAUNCH, never accumulated only in memory. These two lists ARE GATE H's
+// census: `scope-hammer` is dispatched with `hammer_proposals`, and AGENTS.md makes a scope that
+// exhausted its attempt budget a queued GATE H proposal. As bare `const []` they were emptied by the
+// one event that most needs them intact — a gate PAUSE is a `return`, so the PO's answer is followed
+// by a FRESH LAUNCH whose accumulators start empty and whose round loop is then fast-forwarded past
+// the rounds that filled them. The PO was handed an empty cut list for a run that had genuinely
+// exhausted scopes. Unattended (`ci`) runs never pause, which is why no archived trace shows it.
+//
+// This file has now paid for the same class three times — `findings` in the temporal dead zone and
+// `payload.bugs` "lived in a variable, which a relaunch between two rounds resets to empty" are the
+// other two. The cure is the same each time and it is not a bigger variable: re-derive the fact.
 const allGreen = [];
 const allHammer = [];
 // OUTSIDE the loop, because its whole purpose is to cross a round boundary: round r's verdict is
@@ -1248,6 +1259,16 @@ while (verdict !== "pass" && round <= maxRounds) {
   const alreadyGreen = new Set(g?.green_scopes_by_round?.[String(round)] || []);
   if (alreadyGreen.size) log(`BUILD r${round} — ${alreadyGreen.size} scope(s) already green in the graph, skipping them`);
 
+  // REBUILD THE CENSUS FROM THE GRAPH THIS QUERY JUST RETURNED. Everything a prior launch learned is
+  // already on disk: a scope green in ANY round is green work, and a scope the run has touched but
+  // never got green is what GATE H has to be shown. One query, already made, re-read — so a relaunch
+  // after a paused gate carries the same census the launch that paused it would have.
+  const greenEver = new Set(Object.values(g?.green_scopes_by_round || {}).flat());
+  for (const sid of greenEver) if (!allGreen.includes(sid)) allGreen.push(sid);
+  for (const sid of (g?.scopes || [])) {
+    if (!greenEver.has(sid) && !allHammer.includes(sid) && scopes.some((x) => x.scope_id === sid)) allHammer.push(sid);
+  }
+
   // SCOPES FAN OUT. A scope contract is the definition of an independent subtask — disjoint
   // substrate, own fixtures, own ratchet — so the loop that ran them one at a time was leaving the
   // whole point of the contract on the floor. `pipeline()` has NO barrier between its stages: a
@@ -1281,13 +1302,25 @@ while (verdict !== "pass" && round <= maxRounds) {
       async (pre, s) => (pre?.pending ? buildScope(s, round) : pre),
       async (res, s) => {
         if (!res || res.__failed) return res;
-        if (res.resumed || !res.green) return res;
-        const confirmed = await query(`probe t0 --slug ${slug} --scope ${s.scope_id} --round ${round}`,
-          T0CHECK, "Build", `t0confirm:${s.scope_id}-r${round}`);
-        if (!confirmed?.green) {
-          log(`BUILD r${round} — ${s.scope_id} reported green but no T0 verdict is on disk for this ` +
-              `round; treating it as not green (the evaluator cites that artifact, and it is not there).`);
-          return { ...res, green: false, reason: "reported green with no T0 verdict artifact on disk" };
+        if (!res.green) return res;
+        // THE T0 RE-READ IS SKIPPED FOR A RESUMED SCOPE; THE LEG CHECK BELOW IS NOT.
+        //
+        // `resumed` means the graph already reported this scope green for this round, so re-reading
+        // its T0 artifact would only confirm what the resume derivation just read. But these two
+        // stages answer DIFFERENT questions, and the second one is precisely the question a resumed
+        // scope is most likely to fail: a relaunch happens because the previous launch DIED, and a
+        // leg that died between writing its result and running `reduce ingest` leaves exactly this
+        // state — green T0 on disk, result never applied, board still `pending`. The short-circuit
+        // used to cover both stages, so the one scope class known to be at risk was the one class
+        // nobody asked, and the late-ingest repair nine lines below could never fire for it.
+        if (!res.resumed) {
+          const confirmed = await query(`probe t0 --slug ${slug} --scope ${s.scope_id} --round ${round}`,
+            T0CHECK, "Build", `t0confirm:${s.scope_id}-r${round}`);
+          if (!confirmed?.green) {
+            log(`BUILD r${round} — ${s.scope_id} reported green but no T0 verdict is on disk for this ` +
+                `round; treating it as not green (the evaluator cites that artifact, and it is not there).`);
+            return { ...res, green: false, reason: "reported green with no T0 verdict artifact on disk" };
+          }
         }
         // AND ITS RESULT HAS TO HAVE REACHED THE BOARD. A green T0 says the worker's fixtures ran and
         // passed; it says nothing about whether the WorkResult was applied, and this stage used to ask
@@ -1341,8 +1374,10 @@ while (verdict !== "pass" && round <= maxRounds) {
     }
   }
 
-  allGreen.push(...roundGreen);
-  allHammer.push(...roundHammer);
+  for (const sid of roundGreen) if (!allGreen.includes(sid)) allGreen.push(sid);
+  // A scope that went green this round is no longer a cut candidate, however it was queued earlier.
+  for (const sid of roundGreen) { const i = allHammer.indexOf(sid); if (i !== -1) allHammer.splice(i, 1); }
+  for (const sid of roundHammer) if (!allHammer.includes(sid) && !allGreen.includes(sid)) allHammer.push(sid);
 
   // INNER breaker: nothing green and something queued → GATE H. The census is scope-hammer's job.
   if (roundGreen.length === 0 && roundHammer.length > 0) {

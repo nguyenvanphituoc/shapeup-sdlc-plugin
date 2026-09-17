@@ -68,7 +68,11 @@ const listField = (fm, key) => {
  */
 export function parseBoard(tasksDir) {
   if (!existsSync(tasksDir)) return [];
-  return readdirSync(tasksDir)
+  // SORTED, because `criticalPath` breaks ties on strict `>` and therefore keeps the FIRST chain it
+  // meets among equal-hours chains. Directory order is a filesystem detail (APFS happens to return
+  // sorted; ext4's hash order does not, and neither does a rename), so an unsorted read made a
+  // derived value depend on which machine ran it. Every sibling reader in the kernel already sorts.
+  return readdirSync(tasksDir).sort()
     .filter((f) => /^TASK-[\w.-]+\.md$/i.test(f))
     .map((f) => {
       const body = readFileSync(join(tasksDir, f), "utf8");

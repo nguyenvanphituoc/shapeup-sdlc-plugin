@@ -43,7 +43,7 @@ export const WORK_NODES = ["Run", "Order", "Result", "Verdict", "Trial", "GateDe
 export const DOMAIN_NODES = ["Scope", "UseCase", "Requirement", "Seam"];
 
 /** Edge types. Each names a direction that is meaningful to read backwards. */
-export const EDGES = ["PRODUCED", "EVALUATES", "SUPERSEDES", "COVERS", "DEPENDS_ON", "DERIVED_FROM"];
+export const EDGES = ["PRODUCED", "EVALUATES", "SUPERSEDES", "COVERS", "DEPENDS_ON", "DERIVED_FROM", "IMPLEMENTS"];
 
 /**
  * Read the graph as a log and fold it into nodes and edges.
@@ -63,7 +63,10 @@ export function readGraph(cwd, slug) {
     let row;
     try { row = JSON.parse(line); } catch { continue; }   // a torn line proves nothing; skip it
     lines++;
-    if (row.k === "node" && row.id) nodes.set(row.id, { ...(nodes.get(row.id) || {}), ...row });
+    // LAST LINE WINS, as the banner says — a REPLACE, not a merge. Merging kept attributes from
+    // superseded lines alive forever, so an attribute removed from an artifact survived in the
+    // projection and a rebuilt graph stopped matching the maintained one.
+    if (row.k === "node" && row.id) nodes.set(row.id, row);
     else if (row.k === "edge" && row.from && row.to && row.t) edges.set(`${row.from}|${row.t}|${row.to}`, row);
   }
   return { nodes, edges, lines };
@@ -194,16 +197,19 @@ export function project(cwd, slug) {
         source: g.source ?? null, note: g.note ?? null, round: g.round ?? null,
         run_id: g.run_id ?? runId ?? null,
       });
-      // A round-scoped gate's decision depends on that round's T0 verdict(s) — the most honest
-      // shape, since that is the evidence the decision was made against. Every other gate (and a
-      // round-scoped one with no verdict yet on disk) depends on the Run instead, so no
-      // `GateDecision` node is ever orphaned.
+      // EVERY gate depends on the Run, UNCONDITIONALLY — and a round-scoped one ALSO depends on that
+      // round's T0 verdict(s), the evidence it was decided against.
+      //
+      // The Run edge used to be an `else` FALLBACK, and a conditional edge TARGET cannot survive an
+      // append-only log. Gates are crossed BEFORE the round's verdict artifact lands, so the first
+      // projection minted `DEPENDS_ON run` and a later one added the verdict edges beside it —
+      // and `appendGraph` has no tombstone, so the fallback became permanent. The incremental graph
+      // then carried an edge a rebuild does not imply, breaking the one property this file exists to
+      // promise: that it can be deleted and rebuilt identically. Unconditional is also truer — a gate
+      // does depend on its run. The fix is not a guard; it is removing the condition.
+      if (runNode) edge(id, "DEPENDS_ON", runNode);
       const roundVerdicts = (g.gate === "L2" || g.gate === "L3") ? verdictIdsByRound.get(g.round) : null;
-      if (roundVerdicts?.length) {
-        for (const vid of roundVerdicts) edge(id, "DEPENDS_ON", vid);
-      } else if (runNode) {
-        edge(id, "DEPENDS_ON", runNode);
-      }
+      for (const vid of roundVerdicts || []) edge(id, "DEPENDS_ON", vid);
     }
   }
 
@@ -221,7 +227,15 @@ export function project(cwd, slug) {
       // projected to two nodes. `--trace` is supposed to reach "the execution record"; it reached
       // whichever scope happened to be written last. `baseline_trial` is chosen from the same
       // scope's prior rows, so the SUPERSEDES edge resolves inside the same partition.
-      const trialKey = (n) => `trial:${slug}:${t.scope_id ? `${t.scope_id}:` : ""}${n}`;
+      //
+      // AND THE RUN IS PART OF THE KEY TOO, for the same reason one step out. A trial ordinal
+      // restarts at 1 in the next run while `trials.jsonl` is APPEND-ONLY, so both runs' rows live
+      // on disk together and `trial:<slug>:<scope>:1` named two of them — the second run silently
+      // overwrote the first run's execution record, which is the identical defect the paragraph
+      // above records fixing once already, one key component short. `baseline_trial` is chosen from
+      // the same run's rows, so SUPERSEDES still resolves inside the partition.
+      const trialRun = t.run_id ?? runId ?? "norun";
+      const trialKey = (n) => `trial:${slug}:${trialRun}:${t.scope_id ? `${t.scope_id}:` : ""}${n}`;
       const id = trialKey(t.trial);
       node(id, "Trial", {
         trial: t.trial, round: t.round ?? null, attempt: t.attempt ?? null,
