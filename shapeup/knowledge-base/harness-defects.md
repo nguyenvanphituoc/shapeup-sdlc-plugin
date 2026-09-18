@@ -6,6 +6,32 @@
 
 ## Defects
 
+- **A scope contract can pass GATE L1b and then be silently undispatchable.** The frontmatter reader
+  parses a nested YAML flow sequence as a scalar: in an `affordance_manifest` entry,
+  `required_states: [idle]` is read as the **string** `"idle"`. The WorkOrder schema requires an
+  array, so `harness compile` refuses to write the order — *"produced an order that fails its own
+  schema — refusing to write: $.payload.scope_contract.affordance_manifest[0].required_states:
+  expected array, got string"*. Measured 2026-09-18 on a real run: exactly the contracts with a
+  non-empty `affordance_manifest` are refused, and those are the UI scopes where most of a pitch
+  lives. Reproduced directly against `readContract()` on the shipped contract file. **The reason it
+  is worse than a red check:** `spec-lint` passes the contract, the build leg reports `state: "done",
+  error: null`, and there is no order, no result, no T0 trial, no ledger row and no hook decision —
+  the scope simply never happens, identically every round, until EVAL refuses to grade a round whose
+  scopes were never dispatched. Writer and reader are both shipped code (`scope-architect` produces
+  the file, `compile` consumes it) and the round-trip is never exercised by a test. Strong candidate
+  for what stopped an earlier soak after round 1.
+
+- **The requirement edge is produced and checked, and the check is a warning.** Scope contracts carry
+  a `covers:` frontmatter field and `scope-architect` populates it — measured 2026-09-18 on a real
+  run: 8 of 9 contracts, 20 of 21 pitch requirements. They carry the pitch's own `R<n>` keys, while
+  the schema's pattern wants `REQ-<n>`, so `verify spec` emits **23 `SCOPE-COVERS` warnings** on that
+  run, each reading *"covers \"R17\" is not a REQ-id — the requirement edge will not resolve"*. The
+  harness has therefore been reporting this defect at the gate where it matters, on every run, and
+  the severity swallows it. The two id spaces differ by a prefix; nothing writes the registry that
+  would let the edge resolve. Filed as a raw idea rather than a fix because the choice — teach the
+  producer to emit `REQ-<n>`, normalise `R<n>` on read, or write the registry first and promote the
+  closure half of `SCOPE-COVERS` — changes what a gate does, which is a bet.
+
 - **The staged pitch is fenced against every operation that reads it, and against none that builds.**
   `substrateFor`'s `FROZEN_INTAKE` (`.shapeup/<slug>/intake.md`, `breadboard.md`) reaches `coverage`,
   `analyze`, `map-scopes`, `wire`, `evaluate` and `hunt`, but not `execute`, `fix` or `spike`. The
