@@ -66,6 +66,8 @@ import { runArgs } from "../lib/argv.mjs";
 import { LOCAL } from "../lib/paths.mjs";
 import { specDir, scopesDir, tasksDir, intake, sharedRoot, requirements } from "../lib/paths.mjs";
 import { readAllContracts, unreadableReason, ucId, scopePartitionConflicts, SCOPE_CONTRACT } from "../lib/contract.mjs";
+import { UNREADABLE, LEGACY_LAYOUT } from "../lib/contract.mjs";
+import { validate as validateAgainstSchema, SCHEMAS_DIR } from "./envelope.mjs";
 import { breadboard as stagedBreadboard } from "../lib/paths.mjs";
 import { parseBreadboard, hasBreadboardTables, idCounts } from "../lib/breadboard.mjs";
 
@@ -664,6 +666,51 @@ export function runBreadboard(cwd, slug, intakeContent) {
 }
 
 /**
+ * Every scope contract whose PARSED shape fails `$defs/ScopeContract`.
+ *
+ * `kernel/lib/contract.mjs`'s own banner promised this check — "spec-lint re-validates every parsed
+ * contract against domain.schema.json, so a hand-edit that breaks the shape fails loudly instead of
+ * silently widening a sandbox" — and it did not exist. `compile` validated, spec-lint did not, so a
+ * contract could pass GATE L1b green and then be refused at dispatch by the one reader that checked.
+ *
+ * Measured 2026-09-19 on a real run: a planner wrote every `required_states` table cell bare
+ * (`loading, error, ready`) where the dialect wants `[loading, error, ready]`, so all 32 manifest
+ * rows across the six UI scopes parsed as strings. `verify spec` reported `red=0`; `compile` then
+ * refused all six with `expected array, got string`, and those scopes were never dispatched — no
+ * order, no leg, no T0 trial. The round reached EVAL with six of eighteen scopes missing and the
+ * evaluator escalated rather than grading. This arm turns that into a red at the gate, naming the
+ * scope and the field, with the message the compiler would otherwise produce an hour later.
+ *
+ * The validator is the one `compile` already uses; there is no second implementation here.
+ *
+ * @param {Array<{contract:object, path:string}>} contracts - Parsed contracts with their paths.
+ * @param {object} domainSchema - The parsed `domain.schema.json`.
+ * @returns {Array<{rule:string, level:string, scope:string, detail:string}>} One red per invalid
+ *   contract; [] when the schema cannot be read (absent artifact ⇒ arm skipped).
+ */
+export function lintContractSchema(contracts, domainSchema) {
+  const def = domainSchema?.$defs?.ScopeContract;
+  if (!def) return [];
+  const schema = { ...def, $defs: domainSchema.$defs };
+  const out = [];
+  for (const { contract, path } of contracts) {
+    const c = { ...contract };
+    delete c[UNREADABLE];
+    delete c[LEGACY_LAYOUT];
+    let res;
+    try { res = validateAgainstSchema(c, schema); } catch { continue; }  // fail open, never closed
+    if (res?.valid) continue;
+    out.push({
+      rule: "CONTRACT-SCHEMA", level: "red", scope: contract.scope_id || path,
+      detail: `the contract parses, but not into the shape a WorkOrder carries — ${(res.errors || [])[0] || "schema validation failed"}. ` +
+        `compile refuses an order that fails its own schema, so as written this scope would be silently undispatched. ` +
+        `A list in a table cell is written [a, b], brackets and all.`,
+    });
+  }
+  return out;
+}
+
+/**
  * Run the full spec lint (scopes + structure) for a slug.
  * @param {{cwd:string, slug:string}} opts - Working root and feature slug.
  * @returns {{slug:string, scopes:number, tasks:number, red:number, warn:number,
@@ -683,6 +730,12 @@ export function lint({ cwd, slug }) {
     ? new Set([...readFileSync(reqFile, "utf8").matchAll(/\bREQ-[A-Z0-9-]+/gi)].map((m) => m[0].toUpperCase()))
     : null;
   const repoFiles = walkFiles(cwd);
+  // Loaded HERE, not at module scope. `spec → trace → compile → probe/resume → spec` is a live
+  // import ring, and a top-level dereference of an imported binding is what would break it.
+  // Unreadable schema ⇒ the arm skips itself, like every other absent-artifact arm.
+  let domainSchema = null;
+  try { domainSchema = JSON.parse(readFileSync(join(SCHEMAS_DIR, "domain.schema.json"), "utf8")); } catch { /* arm skipped */ }
+
   const findings = [
     // A contract whose table this parser cannot see reads as a contract that declared no
     // table, and every rule below then passes for the part it could not read. Loud, not empty.
@@ -690,6 +743,7 @@ export function lint({ cwd, slug }) {
       .map(({ contract, path }) => ({ reason: unreadableReason(contract), scope: contract.scope_id || path }))
       .filter((x) => x.reason)
       .map((x) => ({ rule: "CONTRACT-UNREADABLE", level: "red", scope: x.scope, detail: `${x.reason} — the rules below could not check what they could not read` })),
+    ...lintContractSchema(contracts, domainSchema),
     ...lintScopes(scopes, repoFiles),
     ...lintScopeAnchors({ scopes, specDir: specRoot, reqIds, tasks }),
     ...lintCommittedTier({ cwd, slug }),

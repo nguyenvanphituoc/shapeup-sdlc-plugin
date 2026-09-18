@@ -13,7 +13,7 @@
 //   (d) markdown beats a stale `.json` sibling, so a leftover cannot resurrect an old substrate;
 //   (e) a `|` inside a value survives the table round-trip rather than splitting the row.
 
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -434,5 +434,36 @@ export async function run(ctx) {
     const rs = goodParsed.affordance_manifest?.[0]?.required_states;
     if (!C.unreadableReason(goodParsed) && Array.isArray(rs)) ok("the canonical form parses silently and keeps `required_states` an array");
     else fail(`canonical contract: reason=${JSON.stringify(C.unreadableReason(goodParsed))} required_states=${JSON.stringify(rs)}`);
+  }
+
+  {
+    ctx.section("46g. A contract that parses but fails its own schema is red at the gate, not at dispatch");
+
+    // `kernel/lib/contract.mjs`'s banner promised exactly this check and it did not exist: compile
+    // validated, spec-lint did not. MEASURED 2026-09-19 — a planner wrote every `required_states`
+    // cell bare where the dialect wants `[a, b]`, so 32 manifest rows across six UI scopes parsed as
+    // strings. `verify spec` said red=0; `compile` then refused all six with "expected array, got
+    // string", and those scopes were never dispatched. The round reached EVAL six scopes short and
+    // the evaluator escalated instead of grading.
+    const S = await import("../../kernel/verify/spec.mjs");
+    const dom = JSON.parse(readFileSync(join(process.cwd(), "skills/tech-lead/schemas/domain.schema.json"), "utf8"));
+
+    const bare = { scope_id: "SC-BARE", affordance_manifest: [{ test_id: "a", role: "text", required_states: "idle", source: "U1" }] };
+    const bracketed = { scope_id: "SC-OK", affordance_manifest: [{ test_id: "a", role: "text", required_states: ["idle"], source: "U1" }] };
+
+    const bad = S.lintContractSchema([{ contract: bare, path: "SC-BARE.md" }], dom);
+    if (bad.length === 1 && bad[0].rule === "CONTRACT-SCHEMA" && bad[0].level === "red") ok("a bare list cell is CONTRACT-SCHEMA red");
+    else fail(`expected one CONTRACT-SCHEMA red, got ${JSON.stringify(bad)}`);
+    if (bad[0] && /expected array, got string/.test(bad[0].detail)) ok("and the detail names the field and the shape, as compile would");
+    else fail(`detail did not carry the schema error: ${bad[0] && bad[0].detail}`);
+
+    const good = S.lintContractSchema([{ contract: bracketed, path: "SC-OK.md" }], dom);
+    if (good.length === 0) ok("a well-formed contract produces no CONTRACT-SCHEMA finding");
+    else fail(`a valid contract was flagged: ${JSON.stringify(good)}`);
+
+    // ABSENT ARTIFACT ⇒ ARM SKIPPED, the same rule every other arm in this file follows.
+    const noSchema = S.lintContractSchema([{ contract: bare, path: "SC-BARE.md" }], null);
+    if (noSchema.length === 0) ok("with no readable schema the arm skips itself rather than failing closed");
+    else fail(`the arm fired with no schema to check against: ${JSON.stringify(noSchema)}`);
   }
 }
