@@ -55,6 +55,32 @@ key. 2 of 103 ACs name one at all, both `R15`, in prose. `covers-closure` report
 for want of a registry nothing writes. The chain still does not close; it is shorter than this plan
 thought.
 
+> ### §0a is itself qualified — a second run, 2026-09-19
+>
+> §0a above was written on **one run**. A second run of the same pitch on the same build
+> (`…190736Z-1f60c60c`) cut **18** scopes instead of 9 and populated `covers:` on **none** of them —
+> 0 of 21 requirements reaching a scope contract, against 20 of 21 the day before. `verify spec`:
+> `red=0 warn=1`, no `SCOPE-COVERS` at all.
+>
+> The cause is in the craft: `skills/scope-architect/SKILL.md` marks `covers[]` **optional**. A
+> planner may write it or not, and across two runs it did both, at the extremes. (Not an artefact of
+> this plan's own fixes: `1931a7d` touches the string `covers` zero times.)
+>
+> **So "the producer exists" is too strong, and "there is no producer" is still wrong.** The field,
+> the oracle and the closure rule all exist, and one real run populated 20 of 21 links. What does not
+> exist is any obligation to use them. Stage 3R's payoff — 20 links resolving instead of warning — is
+> real on run A and vacuous on run B.
+>
+> **The correction this implies is not a third rewrite of §0a.** It is that `covers[]` being optional
+> is the same failure shape as `SCOPE-COVERS` firing at warn: the mechanism is present and nothing
+> obliges anyone to use it. A stage that makes the registry exist and leaves the link optional
+> reproduces this plan's own central complaint one level down. Treat "does a planner emit `covers:`"
+> as an **open measurement**, not a settled fact in either direction, and do not build a stage whose
+> value depends on the answer until a third run has been seen.
+>
+> The findings measured **twice** are the ones to build on: 0 `(covers: …)` clauses on any acceptance
+> criterion, both runs; and severe run-to-run variance in the scope cut and in requirement coverage.
+
 **What this does to the stages.** §3's decision table never considers promoting the rule that is
 already firing, and §6's Stages 3–4 budget ~8 h to build a producer that exists. Both need rewriting
 before either is built. §4's cost line should be treated as void, not adjusted.
