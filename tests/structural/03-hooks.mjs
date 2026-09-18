@@ -443,6 +443,25 @@ export async function run(ctx) {
     else fail("globToRegExp single-star wrongly crossed a path segment");
     if (matchesAny("apps/api/cart/route.ts", ["apps/web/cart/*.tsx", "apps/api/cart/*.ts"])) ok("matchesAny finds a match across multiple globs");
     else fail("matchesAny failed to find a match across multiple globs");
+
+    // THE DECLARATION, not just the enforcement. The rows in the decision table prove the guard
+    // denies a write to a path an order's `frozen` list names; this asserts that the COMPILER puts
+    // the staged pitch on that list in the first place, for every operation that reads it and could
+    // otherwise rewrite the question it is about to be graded on. Split across the two files, each
+    // half can pass while the pair enforces nothing: a substrate nobody declares is a fence with
+    // nothing behind it, and a fence with nothing behind it is what a green run looks like.
+    const { substrateFor } = await import(join(ROOT, "kernel/compile.mjs"));
+    const stagedPitch = ".shapeup/demo/intake.md";
+    for (const op of ["coverage", "analyze", "map-scopes", "wire", "evaluate", "hunt"]) {
+      const frozen = substrateFor(op, { slug: "demo" }).frozen || [];
+      if (matchesAny(stagedPitch, frozen)) ok(`substrateFor("${op}") freezes the staged pitch`);
+      else fail(`substrateFor("${op}") does not freeze ${stagedPitch} — the worker can rewrite its own grading input: ${JSON.stringify(frozen)}`);
+    }
+    // `translate` is the one operation that legitimately rewrites a pitch, and it writes the
+    // COMMITTED copy — so it must not be swept up by the rule above.
+    const translate = substrateFor("translate", { slug: "demo" });
+    if (!matchesAny(stagedPitch, translate.frozen || [])) ok('substrateFor("translate") leaves the pitch alone — it writes the committed copy, not the staged one');
+    else fail("translate froze the staged pitch — the one operation whose job is to rewrite a pitch cannot");
   } else {
     console.log("  (sandbox-guard.mjs not found — skipping)");
   }

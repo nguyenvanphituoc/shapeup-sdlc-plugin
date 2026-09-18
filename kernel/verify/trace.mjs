@@ -211,8 +211,16 @@ export function traceLint(slug, { cwd, gate = false }) {
   const findings = [];
 
   // 1. Covers-closure.
+  //
+  // THE WHOLE ARM IS GATED ON THE REGISTRY EXISTING — both halves of it, and the second half is the
+  // one that was missing. With no `requirements.md` there are no clauses, so `REQ-UNCOVERED` cannot
+  // fire; but `dangling` is derived from the BOARD, which needs no registry to carry a `covers:`
+  // clause, so a tree with no registry reported "covers-closure not applicable" in the same breath
+  // as a red finding for every `covers:` on the board. An arm that reports itself skipped and emits
+  // findings anyway is not skipped, and the report says the opposite of what the findings do.
   const reqPath = join(shared, "requirements.md");
-  const clauses = existsSync(reqPath) ? parseRequirements(readFileSync(reqPath, "utf8")) : [];
+  const closureChecked = existsSync(reqPath);
+  const clauses = closureChecked ? parseRequirements(readFileSync(reqPath, "utf8")) : [];
   const board = readBoard(cwd, slug);
   const covered = coveredReqIds(board);
   const knownIds = new Set(clauses.map((c) => c.id));
@@ -227,12 +235,13 @@ export function traceLint(slug, { cwd, gate = false }) {
     findings.push({ severity: "red", code: "REQ-UNCOVERED", req: id,
       message: `${id} (status: covered) is named by no AC's covers: — the clause "${(c?.clause || "").slice(0, 60)}" would silently vanish. Cover it with an AC, or mark it CUT (PO-approved).` });
   }
-  for (const id of dangling) {
-    findings.push({ severity: "red", code: "COVERS-DANGLING", req: id,
-      message: `an AC declares (covers: ${id}) but ${id} is not in requirements.md — a covers: link must resolve to a registered REQ.` });
+  if (closureChecked) {
+    for (const id of dangling) {
+      findings.push({ severity: "red", code: "COVERS-DANGLING", req: id,
+        message: `an AC declares (covers: ${id}) but ${id} is not in requirements.md — a covers: link must resolve to a registered REQ.` });
+    }
   }
 
-  const closureChecked = existsSync(reqPath);
   const coversClosure = {
     checked: closureChecked,
     requirements_total: clauses.length,
@@ -240,8 +249,8 @@ export function traceLint(slug, { cwd, gate = false }) {
     cut_status: cut.length,
     covered_by_ac: [...covered].filter((id) => knownIds.has(id)).length,
     uncovered,
-    dangling_covers: dangling,
-    pass: uncovered.length === 0 && dangling.length === 0,
+    dangling_covers: closureChecked ? dangling : [],
+    pass: uncovered.length === 0 && (!closureChecked || dangling.length === 0),
     skipped_reason: closureChecked ? null : "no requirements.md registry — covers-closure not applicable (non-regression on pre-spine specs).",
   };
 

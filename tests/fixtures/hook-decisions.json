@@ -576,6 +576,212 @@
           }
         }
       }
+    },
+    {
+      "id": "guard-frozen-outranks-carveout",
+      "hook": "sandbox-guard",
+      "why": "THE FENCE THAT WAS NOT FENCING. A live evaluation freezes the board, and the run-trace carve-out used to be applied first — so every `frozen` glob naming a path under the active feature's own run trace was inert, a declaration the compiler stamped and nothing enforced. This is the exact write that returned ALLOW.",
+      "tool": "Write",
+      "input": {
+        "file_path": ".shapeup/demo/tasks/TASK-001.md",
+        "content": "x"
+      },
+      "expect": {
+        "decision": "deny",
+        "verdict": "deny",
+        "rule": "frozen"
+      },
+      "setup": {
+        ".shapeup/active-scope": "",
+        ".shapeup/active-order": {
+          "slug": "demo",
+          "order_path": ".shapeup/demo/orders/evaluate-r1.json"
+        },
+        ".shapeup/demo/orders/evaluate-r1.json": {
+          "schema_version": 1,
+          "order_id": "demo/evaluate-r1",
+          "worker": "spec-evaluator",
+          "operation": "evaluate",
+          "compiled_at": "2026-09-17T10:00:00.000Z",
+          "substrate": {
+            "allowed": [
+              ".shapeup/demo/evaluation/**"
+            ],
+            "frozen": [
+              "shapeup/demo/spec/**",
+              ".shapeup/demo/intake.md",
+              ".shapeup/demo/breadboard.md",
+              ".shapeup/demo/tasks/**"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "guard-carveout-still-carves",
+      "hook": "sandbox-guard",
+      "why": "the carve-out's own documented job, unchanged: the discovery ledger sits under the active run trace and NO live contract's `allowed` globs name it, so only the carve-out can permit it. Deliberately not `evaluation/report.json` — `evaluate`'s own allowed glob covers that with or without the carve-out, so it would discriminate nothing.",
+      "tool": "Write",
+      "input": {
+        "file_path": ".shapeup/demo/discovery/ledger.md",
+        "content": "x"
+      },
+      "expect": {
+        "decision": null,
+        "verdict": "allow",
+        "rule": "in-substrate"
+      },
+      "setup": {
+        ".shapeup/active-scope": "",
+        ".shapeup/active-order": {
+          "slug": "demo",
+          "order_path": ".shapeup/demo/orders/evaluate-r1.json"
+        },
+        ".shapeup/demo/orders/evaluate-r1.json": {
+          "schema_version": 1,
+          "order_id": "demo/evaluate-r1",
+          "worker": "spec-evaluator",
+          "operation": "evaluate",
+          "compiled_at": "2026-09-17T10:00:00.000Z",
+          "substrate": {
+            "allowed": [
+              ".shapeup/demo/evaluation/**"
+            ],
+            "frozen": [
+              "shapeup/demo/spec/**",
+              ".shapeup/demo/intake.md",
+              ".shapeup/demo/breadboard.md",
+              ".shapeup/demo/tasks/**"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "guard-frozen-staged-pitch",
+      "hook": "sandbox-guard",
+      "why": "the staged pitch is the question the run is being measured on, so every planning and evaluating operation freezes it. A worker that could rewrite it could rewrite its own grading input — and the receipt's digest would stop describing the file beside it. This row tests the substrate declaration, not the ordering.",
+      "tool": "Write",
+      "input": {
+        "file_path": ".shapeup/demo/intake.md",
+        "content": "x"
+      },
+      "expect": {
+        "decision": "deny",
+        "verdict": "deny",
+        "rule": "frozen"
+      },
+      "setup": {
+        ".shapeup/active-scope": "",
+        ".shapeup/active-order": {
+          "slug": "demo",
+          "order_path": ".shapeup/demo/orders/evaluate-r1.json"
+        },
+        ".shapeup/demo/orders/evaluate-r1.json": {
+          "schema_version": 1,
+          "order_id": "demo/evaluate-r1",
+          "worker": "spec-evaluator",
+          "operation": "evaluate",
+          "compiled_at": "2026-09-17T10:00:00.000Z",
+          "substrate": {
+            "allowed": [
+              ".shapeup/demo/evaluation/**"
+            ],
+            "frozen": [
+              "shapeup/demo/spec/**",
+              ".shapeup/demo/intake.md",
+              ".shapeup/demo/breadboard.md",
+              ".shapeup/demo/tasks/**"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "guard-build-leg-writes-its-own-trace",
+      "hook": "sandbox-guard",
+      "why": "the other direction of the same ordering: a build leg freezes nothing under the run trace, so its own envelope stays writable. Frozen-before-carve-out must not turn the carve-out off.",
+      "tool": "Write",
+      "input": {
+        "file_path": ".shapeup/demo/orders/ORDER-1.json",
+        "content": "x"
+      },
+      "expect": {
+        "decision": null,
+        "verdict": "allow",
+        "rule": "in-substrate"
+      },
+      "setup": {
+        ".shapeup/active-scope": "",
+        ".shapeup/active-order": {
+          "slug": "demo",
+          "order_path": ".shapeup/demo/orders/sc-01-r2-a1.json"
+        },
+        ".shapeup/demo/orders/sc-01-r2-a1.json": {
+          "schema_version": 1,
+          "order_id": "demo/sc-01-r2-a1",
+          "worker": "task-executor",
+          "operation": "execute",
+          "compiled_at": "2026-09-17T11:00:00.000Z",
+          "substrate": {
+            "allowed": [
+              "src/**"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "guard-phase-boundary-retires-the-eval",
+      "hook": "sandbox-guard",
+      "why": "the regression guard for the trade the reorder would otherwise make. An evaluation that was killed leaves an order with no result, which is live forever under a presence rule — and now freezes the board for the rest of the run, so the next round's doer cannot tick its own acceptance criteria and the run wedges with nothing in flight. Round 2's build leg is compiled, which is the phase boundary: evaluate-r1 stops fencing.",
+      "tool": "Write",
+      "input": {
+        "file_path": ".shapeup/demo/tasks/TASK-001.md",
+        "content": "x"
+      },
+      "expect": {
+        "decision": null,
+        "verdict": "allow",
+        "rule": "in-substrate"
+      },
+      "setup": {
+        ".shapeup/active-scope": "",
+        ".shapeup/active-order": {
+          "slug": "demo",
+          "order_path": ".shapeup/demo/orders/sc-01-r2-a1.json"
+        },
+        ".shapeup/demo/orders/evaluate-r1.json": {
+          "schema_version": 1,
+          "order_id": "demo/evaluate-r1",
+          "worker": "spec-evaluator",
+          "operation": "evaluate",
+          "compiled_at": "2026-09-17T10:00:00.000Z",
+          "substrate": {
+            "allowed": [
+              ".shapeup/demo/evaluation/**"
+            ],
+            "frozen": [
+              "shapeup/demo/spec/**",
+              ".shapeup/demo/intake.md",
+              ".shapeup/demo/breadboard.md",
+              ".shapeup/demo/tasks/**"
+            ]
+          }
+        },
+        ".shapeup/demo/orders/sc-01-r2-a1.json": {
+          "schema_version": 1,
+          "order_id": "demo/sc-01-r2-a1",
+          "worker": "task-executor",
+          "operation": "execute",
+          "compiled_at": "2026-09-17T11:00:00.000Z",
+          "substrate": {
+            "allowed": [
+              "src/**"
+            ]
+          }
+        }
+      }
     }
   ]
 }

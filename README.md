@@ -221,8 +221,12 @@ the layer that carries it, and the three layers here fail differently:
 - `PreToolUse` (`Edit|Write|MultiEdit`) — **`hooks/sandbox-guard.mjs` blocks a write that no LIVE
   order's substrate permits.** It reads every order that is compiled and not yet answered — a result
   at least as new as the order itself — rather than a pointer to one, so scopes building
-  concurrently are each held to their own contract and a finished run fences nothing; `frozen`
-  outranks everything, across all of them.
+  concurrently are each held to their own contract and a finished run fences nothing. A phase
+  dispatch the run has already moved past stops fencing too: once a later phase compiles its order,
+  an evaluation or a QA leg that never returned a result no longer holds the board. `frozen` is
+  checked first and outranks everything, across every live contract — including the carve-out that
+  otherwise keeps the active feature's own run trace writable, so a path a live order froze stays
+  frozen wherever it lives.
 - `PreToolUse` (`Bash|Read|Write|Edit|MultiEdit`) — **`hooks/safety-spine.mjs` denies destructive
   commands** (`rm -rf` on unrecoverable targets, force-push/push-to-main, `git reset --hard`,
   `DROP TABLE`) and secret-file reads. A machine guard, not a pipeline guard; the escape hatch is
