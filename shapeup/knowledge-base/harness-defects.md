@@ -6,6 +6,25 @@
 
 ## Defects
 
+- **The staged pitch is fenced against every operation that reads it, and against none that builds.**
+  `substrateFor`'s `FROZEN_INTAKE` (`.shapeup/<slug>/intake.md`, `breadboard.md`) reaches `coverage`,
+  `analyze`, `map-scopes`, `wire`, `evaluate` and `hunt`, but not `execute`, `fix` or `spike`. The
+  substrate fence checks `frozen` first and then waves through any unfrozen path inside the run
+  trace, so a build leg may overwrite the run's own input truth. Measured 2026-09-18 by executing
+  `hooks/sandbox-guard.mjs` against a fixture carrying one live `execute` order: `intake.md` and
+  `breadboard.md` both **permitted**, while the committed `spec/domain-model.md` was denied.
+  Build legs are the most numerous and longest-lived dispatches in a run, so this is the widest
+  window, not the narrowest. The harm is the one the freeze exists to prevent: the receipt digests
+  the intake, and a rewritten intake leaves that digest describing a file that no longer exists —
+  and any operation deriving a requirement registry from the pitch would measure a question the run
+  was not asked. Not a regression: before the frozen check was reordered ahead of the run-trace
+  carve-out, *every* `frozen` declaration over a LOCAL path was inert and the pitch was writable by
+  everybody. The apparent fix is one line — `...FROZEN_INTAKE` in the `execute`/`fix`/`spike` case —
+  and it denies a write no legitimate worker makes (`init run` stages the pitch before any order is
+  live; `translate` writes the committed copy). It is filed rather than applied because the choice
+  between that and lifting the two paths out of the carve-out at the hook level, where no operation
+  has to remember to declare them, is a Betting Table call.
+
 - The WorkOrder carries no field naming where the WorkResult goes, so each worker derives the path
   from prose while its own `substrate.allowed` names a directory that does not contain it. The
   workflow lane works around this by stating the path in the dispatch prompt and deriving the same
