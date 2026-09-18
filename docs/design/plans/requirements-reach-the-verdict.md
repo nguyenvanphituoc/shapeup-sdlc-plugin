@@ -19,8 +19,54 @@ load-bearing ones were executed against fixtures rather than read. Medium on the
 pitch, and its board was not retained, so an acceptance criterion silently covering R12/R15 cannot be
 ruled out. **That is exactly what Stage 2 exists to settle, and it blocks the feature stages.**
 Low on the effort estimates.
-**Status:** Recommended. Stages 0–1 are unblocked; Stages 3–6 are gated on Stage 2's exit; Stage 7 is
-conditional on Stage 5. Nothing implemented.
+**Status:** Stage 0 and Stage 1 are **implemented and verified** (`f9310f2`, branch
+`plan/requirements-reach-the-verdict`). Stage 2 **ran and did not reach L4**; Stages 3–6 are
+**re-opened for revision** rather than ready to build — see the correction below. Stage 7 is
+untouched: its trigger is neither fired nor cleared.
+
+---
+
+## 0a. Measured correction — 2026-09-18, and it reaches the central claim
+
+A hero-todo soak ran on `proj-harmony-os-sample` (run `hero-todo-20260918T130708Z-baa7c551`, plugin
+`ef8b43b` = v3.4.0 + Stage 1). It stopped at GATE L3 with no verdict, so it could not answer its own
+gate. It did falsify the premise the rest of this plan is built on.
+
+**This plan says there is no producer. There is one, and the checker for it fires on every run.**
+
+| this plan says | measured 2026-09-18 |
+|---|---|
+| no producer of requirement links exists | `scope-architect` writes `covers:` into scope-contract frontmatter — **8 of 9 contracts, 20 of 21 requirements** |
+| the only checker is `REQ-UNCOVERED`, advisory, with nothing to check | **`verify spec` emits 23 `SCOPE-COVERS` warnings** on that run, each reading *"covers \"R17\" is not a REQ-id — the requirement edge will not resolve"* |
+| the missing part is a dispatch | the missing parts are **a registry** and **agreement between two id spaces**: contracts carry `R13`, the schema wants `REQ-13` |
+
+So §3's diagnosis is right one level up from where it was aimed. The harness has been reporting this
+defect, at the gate this plan wants to stop at, on every run — as a warning nobody acts on. That is
+this plan's own account of `REQ-UNCOVERED` ("advisory-with-no-producer is precisely how it has sat
+inert") applied to a rule that *does* have a producer and *is* firing.
+
+A second R-keyed channel exists too: `/shapeup` writes the Fit Check as a fixed-shape table mapping
+every `R<n>` to affordance ids (verified identical on two independent pitches), and on hero-todo all
+20 board tasks carry those ids in their `tags:`. §0's "enters the run as prose and never comes back"
+is true of the table and false of what it maps to.
+
+**Unchanged and confirmed twice:** no acceptance criterion carries a machine-checkable requirement
+key. 2 of 103 ACs name one at all, both `R15`, in prose. `covers-closure` reports itself *skipped*
+for want of a registry nothing writes. The chain still does not close; it is shorter than this plan
+thought.
+
+**What this does to the stages.** §3's decision table never considers promoting the rule that is
+already firing, and §6's Stages 3–4 budget ~8 h to build a producer that exists. Both need rewriting
+before either is built. §4's cost line should be treated as void, not adjusted.
+
+**Blocking the re-measurement:** a defect this soak found and reproduced —
+`kernel/lib/contract.mjs`'s `readContract()` parses a nested YAML flow sequence as a scalar, so
+`required_states: [idle]` reads as the string `"idle"`; `compile` then refuses the order as failing
+its own schema, and the scope is **never dispatched** while spec-lint passes it and the build leg
+reports `state: "done", error: null`. Exactly the contracts with a non-empty `affordance_manifest`
+are lost — on hero-todo, 4 of 9, and the UI scopes at that. EVAL then refused to grade a round whose
+scopes never ran. Filed in `shapeup/knowledge-base/harness-defects.md`; no Stage 2 re-run can reach
+L4 until it is fixed.
 
 ---
 
@@ -34,10 +80,15 @@ run as prose and never comes back. `analyze`'s INGEST extracts slug, appetite, b
 holes, third-party mentions, Places and affordances, and no R
 (`skills/ba-pitch-analyzer/SKILL.md:47-51`). The `coverage` operation that would build the registry
 exists in the compiler (`kernel/compile.mjs:228`) and **the run dispatches it zero times** —
-`grep -c coverage skills/tech-lead/workflows/shapeup-run.js` returns 0. With no producer, no
+`grep -c coverage skills/tech-lead/workflows/shapeup-run.js` returns 0. With no registry, no
 acceptance criterion ever carries a `(covers: REQ-…)` clause, so the one oracle that checks the
 chain, `REQ-UNCOVERED` (`kernel/verify/trace.mjs:227-228`), is permanently advisory *by its own
 header's admission* — "it goes ~100% red on a board with no covers: yet" (`:22`).
+*(**Superseded 2026-09-18, see §0a**: "with no producer" was wrong. Scope contracts carry a `covers:`
+field and `scope-architect` populates it — 20 of 21 requirements on a real run — in the pitch's `R<n>`
+keys rather than `REQ-<n>`. `SCOPE-COVERS` reports the mismatch 23 times per run, as a warn. What is
+absent is the registry and the agreement between the two id spaces, not the producer. The claim about
+acceptance criteria stands: 2 of 103 name a key, both in prose.)*
 `payload.requirements` is documented in the worker's own contract
 (`skills/ba-pitch-analyzer/SKILL.md:30`) but is **in no `x-payload-by-worker` list**, so the schema
 registry declares no worker to receive it. `traces_to` is carried into the judge's result and then
@@ -156,6 +207,14 @@ schema fields and the CLI flag that would gate it — all shipped. The single mi
 dispatch. `verify trace --gate` is one flag away and turning it on is the obvious move; it is also
 the wrong one, and §5 says why.
 
+> **Superseded 2026-09-18 (§0a).** Measured on a real run: there *is* a producer at the scope level.
+> `scope-architect` populates `covers:` on 8 of 9 contracts, covering 20 of 21 requirements, and
+> `SCOPE-COVERS` — an **already-red-capable rule that fires today as a warn** — reports 23 times per
+> run that the edge does not resolve. The missing parts are the registry and one decision about the
+> key space. The paragraph remains true of **acceptance criteria**, which is the level the rest of
+> this plan works at: no AC carries a machine-checkable key. Read "no producer" as "no producer *of
+> the AC-level link*" and the argument below survives; read it as written and it is false.
+
 **Second: the closure a `covers:` link proves is weaker than it reads.** Covers-closure proves *a
 pointer existed at planning time*. It does not prove the product satisfies the requirement, and it
 does not prove the AC tests the right thing. Fixture, executed 2026-09-17: two requirements, one
@@ -180,6 +239,13 @@ The design choices, scored against §1:
 | Where the L4 matrix comes from | a new `reduce` subcommand · a `probe` query · a section in `reduce ship` | **`probe` + a REPORT section** | Single-writer discipline, and the precedent is exact: `kernel/probe/owner.mjs:4-12` exists *because a census narrated ownership from memory and was wrong in the way that looks most authoritative*. A requirements census has the same failure mode |
 | The matrix's authoritative join | the board's `covers:` · the verdict's `traces_to` · their intersection | **`covers:`** *(maintainer, 2026-09-18)* | Mechanical evidence (0.25): `covers:` is what L1b already gates on, and `traces_to` is documented as "a navigation aid, never a grading input" (`domain.schema.json:1103`). A criterion whose `traces_to` names a REQ no AC covers is an inconsistency the probe reports, never evidence it counts |
 | What the matrix does at GATE H | blocks ship · enters the census as a must-have candidate | **Census** | The Ship Gate compares against the baseline, never the ideal (`skills/scope-hammer/SKILL.md:94`). A requirement with no PASS evidence is an input to that comparison, not a veto over it |
+| **The scope-level edge** *(added 2026-09-18)* | teach `scope-architect` to emit `REQ-<n>` · normalise `R<n> → REQ-<n>` where `covers:` is read · leave it warn | **open — decide before Stage 3** | Not considered when this table was written, because the table assumed nothing produced the edge. Measured: 20 of 21 requirements already have one, and `SCOPE-COVERS` already says it does not resolve, 23 times a run. Whichever option wins, the closure half of `SCOPE-COVERS` is then a candidate for red — which is a gate change, so it is a decision, not an implementation detail |
+
+> **The row above is why §3's framing needs redoing, not just extending.** This section is built on
+> "a pointer is not a verdict, and nothing makes the pointer". The second clause is false at the
+> scope level: something makes 20 pointers per run and an oracle already grades them. The first
+> clause — a pointer proves a pointer, not satisfaction — is untouched and still decides where the
+> evidence question lives (§3's L1b/L4 split stands).
 
 ## 4. Argued from the numbers
 
@@ -193,6 +259,7 @@ The design choices, scored against §1:
 | `requirements.md` | does not exist | `git ls-tree` @ `efe72c7` |
 | Requirements absent from **everything the judge grades** (`usecases/`, `ux-behavior.md`, `scopes/`) | R12, R15. Both still appear elsewhere — R12 in `spec/_index.md` (risk table), `spec/integration.md` and `spec/synthesis.md`; R15 in `spec/_index.md` (a *boundaries* line), `spec/integration.md`, and cited in product code at `shared/uikit/AppText.ets:4` | `git grep` over spec + scopes + app |
 | Times the run dispatches `coverage` | **0** | `grep -c coverage skills/tech-lead/workflows/shapeup-run.js` |
+| *(correction, 2026-09-18)* Requirements absent from everything the judge grades, **re-measured on the same tree** | **R8, R12, R14 and R15 — four, not two.** The row above understates it. Confirmed two ways: a derivation over the tree, and `grep -rn "\bR<n>\b" spec/usecases/ spec/ux-behavior.md scopes/` returning 0 hits for each. All four are cross-cutting with no natural use-case home — the shape §3.6 diagnoses | re-measured @ `efe72c7` |
 | EVAL dimensions graded against a pitch requirement | **0 of 7** | `shapeup-run.js` dimension list |
 | Workers declared in `x-payload-by-worker` to receive `payload.requirements` | **0** — though the worker's own contract documents it (`skills/ba-pitch-analyzer/SKILL.md:30`) | `domain.schema.json` `x-payload-by-worker` |
 | trace-lint over a fixture with no product code | `overall: green`, exit 0 | fixture, executed 2026-09-17 |
@@ -203,6 +270,31 @@ The R12/R15 row is deliberately narrower than "they appear only in `_index.md`",
 report's claim and is false: both reach several spec documents, and R15 reached product code. The
 mechanism claim is the one that survives measurement — **neither requirement reaches any artifact the
 judge grades**, and zero `covers:` links exist to check either way.
+
+**The hero-todo measurement, 2026-09-18** (run `hero-todo-20260918T130708Z-baa7c551`, plugin
+`ef8b43b`, models exec=sonnet / eval=opus, gate answers `ci`). It reached GATE L3 and stopped: the
+evaluator refused to grade a round in which 4 of 9 scopes were never dispatched, so **no verdict
+exists** and classes (b), (c) and (d) are not assessable. Not extrapolated.
+
+| Measure | Value |
+|---|---|
+| Requirements in the pitch | 21 (R0–R20) |
+| **class (a)** — no acceptance criterion grades it | **0 of 21**. Every requirement has at least one AC touching it |
+| classes (b) / (c) / (d) | **not assessable** — the run produced no PASS evidence of any kind |
+| Acceptance criteria on the board | 103 across 20 tasks |
+| ACs carrying a `(covers: …)` clause | **0** |
+| ACs naming any requirement key at all | **2 of 103** — both `R15`, in prose |
+| Scope contracts with a populated `covers:` | **8 of 9**, covering **20 of 21** requirements, in `R<n>` keys |
+| `SCOPE-COVERS` warnings from `verify spec` | **23** (`red: 0, warn: 24`) |
+| Requirements reaching no artifact the judge grades | **1 — R15**, which is also the one requirement no scope `covers:` and which `spec/synthesis.md` marks "cross-cutting" |
+| Hook decisions · denials | **928 · 2**, both `outside-substrate` on one `/tmp` path; **0 `frozen`-rule denials** — Stage 1's newly-armed fences wedged nothing across a full planning lane and concurrent build legs |
+
+Two facts from this run bear on the plan's confidence rather than its mechanism. **The gap is
+stochastic**: an earlier attempt on the same pitch and build (`…125240Z-c45a5c60`) orphaned seven
+requirements where this one orphaned two, because its spec carried 8 use cases against this one's 14.
+And **the run was contaminated by two operator interventions**, both disclosed: a hand-written
+`project-profile.md` (the unattended lane cannot produce one, and nothing warns at L0 — the cost
+lands at WIRE, 26 minutes later) and an `ohpm install`.
 
 **What is not measured, and why Stage 2 blocks:** the soak's board (`.shapeup/retro-todo/tasks/`) is
 gitignored and was not retained, so an acceptance criterion covering R12 or R15 *without naming the
@@ -470,7 +562,19 @@ The hero-todo soak is already planned. This stage adds two requirements to it an
 **Acceptance:** none automatable. The deliverable is the classified table, the retained board, and the
 eval report, committed under `docs/design/plans/` beside this plan or linked from it.
 
-### Stage 3 — A producer and a key · ~4 h · *gated on Stage 2*
+> **Stage 2 ran on 2026-09-18 and did not close. Read §0a before Stage 3 or Stage 4.**
+> Outcome: reached GATE L3, evaluator refused to grade, **no verdict**. class (a) = **0 of 21**;
+> (b)/(c)/(d) not assessable. The gate's own exit condition is therefore **not met** — no requirement
+> is ungraded by every AC — but the run answered a sharper question the gate did not ask: the
+> requirement edge is **produced** (20 of 21, in scope `covers:`) and **already reported** as
+> unresolvable (`SCOPE-COVERS`, 23 warns), and what is missing is the registry and the id space.
+> Stages 3 and 4 below are written against the superseded premise and **must be rewritten before
+> they are built**; their ~8 h estimate is void, not merely stale.
+>
+> A re-run cannot reach L4 until `readContract()`'s flow-sequence parse is fixed — 4 of 9 scopes are
+> silently never dispatched, which is what made the round ungradeable.
+
+### Stage 3 — A producer and a key · ~4 h · *gated on Stage 2* · **REWRITE PENDING (§0a)**
 
 1. **Declare the field.** `skills/tech-lead/schemas/domain.schema.json`: add `"requirements"` to
    `x-payload-by-worker["ba-pitch-analyzer"]`. The property already exists in
@@ -557,7 +661,12 @@ node -e "const fs=require('fs'),f='skills/tech-lead/workflows/shapeup-run.js',s=
   && ! npm test >/dev/null 2>&1; r=$?; git checkout -- skills/tech-lead/workflows/shapeup-run.js; [ $r -eq 0 ]   # exit 0
 ```
 
-### Stage 4 — Red at L1b · ~4 h · *gated on Stage 2*
+### Stage 4 — Red at L1b · ~4 h · *gated on Stage 2* · **REWRITE PENDING (§0a)**
+
+> The arm this stage adds is not the only candidate any more. `SCOPE-COVERS` already reaches L1b,
+> already emits a closure finding, and is already red-capable (`kernel/verify/spec.mjs:358-359`) —
+> it is the *shape* half that fires as a warn, 23 times on a real run. Decide whether Stage 4 adds a
+> rule or promotes one before writing either.
 
 1. `kernel/verify/spec.mjs`: export `lintRequirements({ reqText, board })` with a JSDoc block.
    - **`board` is `readBoard(cwd, slug)` from `kernel/compile.mjs:131` — not `lint()`'s existing
@@ -794,6 +903,26 @@ longer open: Stage 1's D-e makes it arm-skipped, which removes the case that mad
 
 ## 7. What would change this answer
 
+**Three of these fired on 2026-09-18. Recorded here rather than rewritten away, because a falsifier
+that fires is the section working.**
+
+- **"If hero-todo shows every requirement already has an AC…"** — it did, on its own terms:
+  **class (a) = 0 of 21**. The bullet's conclusion ("the gap is *reporting*, not *grading*; drop
+  Stage 4's red rule") does **not** follow, because the run produced no verdict, so (b) and (c) were
+  never testable. What it does establish is that the AC-level gap is about the **key**, not about
+  coverage: every requirement is graded by something, and nothing can prove which.
+- **"If most pitches do not come through `/shapeup`…"** — the opposite fired. Two pitches, identical
+  Fit Check shape, and every board task carrying the affordance ids it maps to. The `source` cells
+  §3.5 worries about are more derivable than assumed, not less.
+- **"If `REQ-UNCOVERED` turns out to be noisy at red"** — the live analogue already is: 23
+  `SCOPE-COVERS` warns per run, all correct, none acted on. The lesson is the one this bullet draws
+  in reverse: the fix is in the producer and the key space, and demoting is what has already
+  happened by default.
+- **Still not observed:** a full run to L4. Two attempts, neither reached EVAL with a gradeable
+  round. Everything this plan says about the EVAL → L4 half remains read from code.
+
+### Original falsifiers, as written
+
 - **If hero-todo shows every requirement already has an AC with PASS evidence** — that is, R12 and R15
   had hidden acceptance criteria all along — then the gap is *reporting*, not *grading*. Drop Stage 4's
   red rule entirely and ship only Stage 5's L4 line. This is the Stage 2 exit, and it is the single
@@ -882,6 +1011,23 @@ Plugin evidence is at `b49d24d`, v3.4.0, read 2026-09-18. Consumer evidence is o
 | F8 | After the reorder, a live unanswered `evaluate` order denies `tasks/TASK-001.md` and `tasks/_index.md`, and still allows `intake.md` | fixture, executed in a temp clone |
 | F9 | `verify trace --gate` with no registry: covers-closure `skipped`, `COVERS-DANGLING` still fires, exit 1 | fixture, executed |
 | F10 | `verify trace --gate` over the soak tree: covers-closure `skipped`, 6 × `UC-UNREACHABLE`, exit 1 | executed @ `efe72c7` |
+
+**Added 2026-09-18 — the hero-todo soak and the re-measurements it prompted.** Consumer evidence:
+`proj-harmony-os-sample`, branch `soak/hero-todo`, run `hero-todo-20260918T130708Z-baa7c551`, plugin
+`ef8b43b`. Retained under `.soak-evidence/hero-todo/<run_id>/`, 209 files, one directory per run.
+
+| # | Fact | Source |
+|---|---|---|
+| H1 | Scope contracts carry a populated `covers:` — 8 of 9 contracts, 20 of 21 requirements, in `R<n>` keys | the nine `scopes/*.md` frontmatter blocks |
+| H2 | `verify spec` over that tree: `red: 0, warn: 24` — **23 × `SCOPE-COVERS`**, each "covers \"R17\" is not a REQ-id — the requirement edge will not resolve" | `harness verify spec --slug hero-todo`, executed |
+| H3 | `readContract()` parses `required_states: [idle]` as the **string** `"idle"`; `compile` then refuses the order against its own schema and the scope is never dispatched, while spec-lint passes it and the leg reports `state: "done", error: null` | executed against the shipped contract file |
+| H4 | 0 ACs carry `(covers: …)`; 2 of 103 name a requirement key at all, both `R15`, in prose | board `TASK-*.md` |
+| H5 | R15 is dropped by all three channels — no use case (`synthesis.md`: "cross-cutting"), no scope `covers:`, no graded artifact | `git grep`, executed |
+| H6 | 928 hook decisions, 2 denials, both `outside-substrate` on one `/tmp` path, **0 `frozen`-rule denials** across the planning lane and concurrent build legs | `.shapeup/decisions.jsonl` |
+| H7 | Two runs of one pitch and build produced 8 vs 14 use cases and 7 vs 2 orphaned requirements — the gap is stochastic | frozen at `.plan-runs/requirements-reach-the-verdict/freeze/attempt{1,2}-*` |
+| H8 | `/shapeup`'s Fit Check is a fixed-shape `\| R# \| Requirement \| Covered by \| Status \|` table mapping every `R<n>` to affordance ids — identical on two independent pitches; all 20 hero-todo board tasks carry those ids in `tags:` | both `shaping.md` files; board frontmatter |
+| H9 | retro-todo re-measured: **four** requirements (R8, R12, R14, R15) reach nothing the judge grades, not two | `grep -rn` over `usecases/`, `ux-behavior.md`, `scopes/` @ `efe72c7` |
+| H10 | The unattended lane produces no `project-profile.md`; nothing warns at L0 and the run aborts at WIRE ~26 min later | run return, `aborted_at: "WIRE"` |
 
 **Looked for and not found:**
 
