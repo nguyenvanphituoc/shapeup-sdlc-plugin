@@ -6,6 +6,22 @@
 
 ## Defects
 
+- **`budgets.wallClockS` is documented by the workflow and read by nothing.** `shapeup-run.js`
+  names `budgets {maxRounds, attemptBudget, wallClockS?}` in its own RunArgs contract (`:36`) and
+  then reads only `maxRounds` (`:116`) and `attemptBudget` (`:117`). Measured 2026-09-19: a run
+  launched with `wallClockS: 10800` reported *"wall-clock budget is off (no budget configured)"* and
+  its receipt carried `wall_clock_budget_s: null`. Only `harness init run --wall-clock-budget` sets
+  the field the budget check actually reads. So a caller following the workflow's own documented
+  argument shape gets no wall-clock breaker **and no warning that it asked for one** — which is the
+  part that makes it worse than an absent feature. Either read it, or stop naming it in RunArgs.
+
+- **An abort at GATE L3 leaves a run trace that reads as still running.** Measured 2026-09-19: after
+  the evaluator escalated and the run aborted, `harness-run.md` still said `status: evaluating`,
+  `rounds_used: 0`, `final_verdict: ~`, `closed_at: ~`, with no cause recorded anywhere under
+  `.shapeup/`. From the run trace alone a live EVAL and a dead one are indistinguishable; the only
+  thing that tells them apart is the launcher's terminal event, which is not part of the trace. An
+  operator watching the tier the harness owns cannot tell that the run is over.
+
 - **A scope contract can pass GATE L1b and then be silently undispatchable.** Measured 2026-09-18 on
   a real run: exactly the contracts with a non-empty `affordance_manifest` are refused by
   `harness compile` — *"produced an order that fails its own schema — refusing to write:
@@ -35,6 +51,18 @@
   `unreadableReason` exists to report, and it reports nothing; **(2)** a compile refusal is invisible
   to the leg that caused it. Plus a craft fix: `scope-architect` must not write table fields into
   frontmatter, and must write a list cell as `[a, b]`.
+
+  **It reproduced by a second path, 2026-09-19 — and that is the more important half.** After both
+  fixes landed, a fresh run wrote no duplicate at all (0 of 18 contracts; `unreadableReason()` null
+  on every one) — the craft change worked. But the planner wrote every `required_states` table cell
+  **bare**: `| todoList.countText | text | ready | U2 |`. `coerce()` returns an array only for a
+  bracketed value, so all **32** manifest rows across the six UI scopes parsed as strings, `compile`
+  refused all six orders, and the same six scopes were never dispatched. `verify spec` passed them
+  **green at L1b**. Same outcome, different path, and the guard added for the first path could not
+  see it. Fixed at the level both paths share: spec-lint now validates each parsed contract against
+  `$defs/ScopeContract`, which reports exactly those six. The lesson worth keeping is that the first
+  fix addressed the mechanism observed rather than the class — "a contract can be wrong in a way only
+  the compiler checks" — and the class is what bit twice.
 
 - **The requirement edge is produced and checked, and the check is a warning.** Scope contracts carry
   a `covers:` frontmatter field and `scope-architect` populates it — measured 2026-09-18 on a real
