@@ -388,4 +388,51 @@ export async function run(ctx) {
 
     if (!lost) ok("no value containing a quote is silently truncated by the contract reader");
   }
+
+  {
+    ctx.section("46f. A table field declared in the frontmatter too is reported, not discarded in silence");
+
+    // MEASURED, 2026-09-18. A planner wrote `affordance_manifest` in BOTH places: the frontmatter
+    // copy carried `required_states: [idle]`, the table cell a bare `idle`. `renderContract` never
+    // writes a table field into frontmatter, so the table wins — the value became a string where the
+    // schema wants an array, `compile` refused the order, and the scope was NEVER DISPATCHED while
+    // spec-lint passed the contract and the build leg reported `state: "done", error: null`. Four of
+    // nine scopes vanished that way, every round, until EVAL refused to grade a round whose scopes
+    // had never run. The parser is right about which side wins; the silence is the defect.
+    const both = [
+      "---", "scope_id: SC-BOTH", "affordance_manifest:",
+      "  - test_id: a", "    role: text", "    required_states: [idle]", "    source: U1",
+      "---", "", "## Affordances", "",
+      "| test_id | role | required_states | source |", "|---|---|---|---|",
+      "| a | text | idle | U1 |", "",
+    ].join("\n");
+    const reason = C.unreadableReason(C.parseContract(both, C.SCOPE_CONTRACT));
+    if (reason && /frontmatter/i.test(reason)) ok("a table field also present in frontmatter is reported as a discarded declaration");
+    else fail(`unreadableReason() returned ${JSON.stringify(reason)} — the copy the parser threw away was thrown away quietly`);
+
+    // NO FALSE POSITIVE ON THE EMPTY DECLARATION. With no rows under the heading the frontmatter
+    // value is what the field becomes, and `affordance_manifest: []` meaning "none" is current
+    // practice — five of the nine contracts on that same run do it and are correct. An earlier cut
+    // of this rule fired on all nine and turned a working run red.
+    const emptyFm = [
+      "---", "scope_id: SC-EMPTY", "affordance_manifest: []", "---", "",
+      "## Affordances", "", "None — this slice draws no affordances.", "",
+    ].join("\n");
+    const emptyParsed = C.parseContract(emptyFm, C.SCOPE_CONTRACT);
+    if (!C.unreadableReason(emptyParsed)) ok("`affordance_manifest: []` with no table rows stays legal and silent");
+    else fail(`unreadableReason() fired on a contract declaring no affordances: ${C.unreadableReason(emptyParsed)}`);
+    if (Array.isArray(emptyParsed.affordance_manifest) && emptyParsed.affordance_manifest.length === 0) ok("and the empty declaration still parses to []");
+    else fail(`affordance_manifest read back as ${JSON.stringify(emptyParsed.affordance_manifest)}, not []`);
+
+    // A well-formed contract — table only, list cell written `[a, b]` — is silent AND keeps the array.
+    const good = [
+      "---", "scope_id: SC-GOOD", "covers: [R1]", "---", "", "## Affordances", "",
+      "| test_id | role | required_states | source |", "|---|---|---|---|",
+      "| a | text | [idle] | U1 |", "",
+    ].join("\n");
+    const goodParsed = C.parseContract(good, C.SCOPE_CONTRACT);
+    const rs = goodParsed.affordance_manifest?.[0]?.required_states;
+    if (!C.unreadableReason(goodParsed) && Array.isArray(rs)) ok("the canonical form parses silently and keeps `required_states` an array");
+    else fail(`canonical contract: reason=${JSON.stringify(C.unreadableReason(goodParsed))} required_states=${JSON.stringify(rs)}`);
+  }
 }

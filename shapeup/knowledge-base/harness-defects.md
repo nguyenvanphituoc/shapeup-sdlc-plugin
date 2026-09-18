@@ -6,20 +6,35 @@
 
 ## Defects
 
-- **A scope contract can pass GATE L1b and then be silently undispatchable.** The frontmatter reader
-  parses a nested YAML flow sequence as a scalar: in an `affordance_manifest` entry,
-  `required_states: [idle]` is read as the **string** `"idle"`. The WorkOrder schema requires an
-  array, so `harness compile` refuses to write the order — *"produced an order that fails its own
-  schema — refusing to write: $.payload.scope_contract.affordance_manifest[0].required_states:
-  expected array, got string"*. Measured 2026-09-18 on a real run: exactly the contracts with a
-  non-empty `affordance_manifest` are refused, and those are the UI scopes where most of a pitch
-  lives. Reproduced directly against `readContract()` on the shipped contract file. **The reason it
-  is worse than a red check:** `spec-lint` passes the contract, the build leg reports `state: "done",
+- **A scope contract can pass GATE L1b and then be silently undispatchable.** Measured 2026-09-18 on
+  a real run: exactly the contracts with a non-empty `affordance_manifest` are refused by
+  `harness compile` — *"produced an order that fails its own schema — refusing to write:
+  $.payload.scope_contract.affordance_manifest[0].required_states: expected array, got string"* — and
+  those are the UI scopes where most of a pitch lives (4 of 9 on that run). **The reason it is worse
+  than a red check:** `spec-lint` passes the contract, the build leg reports `state: "done",
   error: null`, and there is no order, no result, no T0 trial, no ledger row and no hook decision —
   the scope simply never happens, identically every round, until EVAL refuses to grade a round whose
-  scopes were never dispatched. Writer and reader are both shipped code (`scope-architect` produces
-  the file, `compile` consumes it) and the round-trip is never exercised by a test. Strong candidate
-  for what stopped an earlier soak after round 1.
+  scopes were never dispatched. Strong candidate for what stopped an earlier soak after round 1.
+
+  **Root cause, corrected 2026-09-19** *(the first filing of this entry blamed the frontmatter
+  reader for parsing a YAML flow sequence as a scalar; that is wrong, and the correction matters
+  because it points at a different fix)*. `affordance_manifest` is a **table** field —
+  `SCOPE_CONTRACT.tables` maps it to the `## Affordances` heading — and `renderContract` deliberately
+  **excludes table fields from the frontmatter it writes**. The table is the source by construction
+  and the parser is right to prefer it. What happened is that `scope-architect` wrote the field in
+  **both** places: the frontmatter copy carries the correct `required_states: [idle]`, the table cell
+  carries a bare `idle`, and `parseContract` silently takes the table. The contract file even
+  captions the table *"See frontmatter `affordance_manifest` (rendered here for reviewers)"* — the
+  author's model is the exact inverse of the parser's. Verified: the plugin's own round-trip is
+  lossless (`uncoerce(["idle"])` → `[idle]`, `coerce("[idle]")` → `["idle"]`,
+  `renderTable`→`parseTables` returns the array), and `unreadableReason()` returns **null** on a
+  contract whose two copies disagree.
+
+  So there are two silences to close, and neither is a parser bug: **(1)** a table field that also
+  appears in frontmatter is data the author put where the parser does not look — precisely what
+  `unreadableReason` exists to report, and it reports nothing; **(2)** a compile refusal is invisible
+  to the leg that caused it. Plus a craft fix: `scope-architect` must not write table fields into
+  frontmatter, and must write a list cell as `[a, b]`.
 
 - **The requirement edge is produced and checked, and the check is a warning.** Scope contracts carry
   a `covers:` frontmatter field and `scope-architect` populates it — measured 2026-09-18 on a real
