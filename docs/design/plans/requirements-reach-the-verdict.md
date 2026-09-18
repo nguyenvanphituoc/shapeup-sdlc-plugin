@@ -574,7 +574,50 @@ eval report, committed under `docs/design/plans/` beside this plan or linked fro
 > A re-run cannot reach L4 until `readContract()`'s flow-sequence parse is fixed — 4 of 9 scopes are
 > silently never dispatched, which is what made the round ungradeable.
 
-### Stage 3 — A producer and a key · ~4 h · *gated on Stage 2* · **REWRITE PENDING (§0a)**
+### Stage 3 — A registry and one key space · ~3 h · **REVISED 2026-09-19**
+
+*Was "A producer and a key". The producer is not what is missing.* Measured: `scope-architect`
+populates `covers:` on 8 of 9 contracts, 20 of 21 requirements, in the pitch's `R<n>` keys; the
+schema wants `REQ-<n>`; `verify spec` says so 23 times a run as a warn. So this stage writes the
+registry and makes the two key spaces agree — after which those 20 links **resolve instead of
+warning**, with no new craft taught to anyone.
+
+**3R.1 — Registry.** Dispatch `coverage` once, after ORIENT, before ANALYZE, writing
+`shapeup/<slug>/requirements.md` with `REQ-<n>` ids and a `source` cell naming `shaping.md R<n>`.
+Steps 1, 2, 4 and 5 of the original list below are unchanged and still correct: declare the payload
+field, dispatch with `fastForward()` (never `requirePhase()`, never a `PHASE_ARTIFACT` entry),
+add `has_requirements`, and keep the numbering rules. **Original step 3 is superseded** — it asked
+`coverage` to register "every `REQ-id` the contracts already cite" so a first registry would not arm
+`SCOPE-COVERS`. Measured, the contracts cite `R<n>`, not `REQ-<n>`, so nothing would have matched
+and every one would have gone red the moment the registry appeared. Register the ids from the
+**pitch**, then let 3R.2 make the contract links resolve against them.
+
+**3R.2 — One key space.** `R<n>` and `REQ-<n>` must stop being two id spaces. Two options, and the
+choice belongs to the maintainer:
+
+| option | cost | risk |
+|---|---|---|
+| **Normalise on read** — where scope `covers:` is parsed, accept `R<n>` and map it to `REQ-<n>` | one function, no worker behaviour change, the 20 existing links resolve immediately, every already-committed contract converges | the file keeps a key the schema does not name, so a reader of the raw contract still sees `R13` |
+| **Teach the producer** — `scope-architect` emits `REQ-<n>` | the file and the schema finally agree | a behaviour change in a worker, which nothing can force; every existing contract keeps warning until regenerated |
+
+Recommended: **normalise on read**, and say in `scope-architect`'s craft that `REQ-<n>` is preferred
+going forward. It is the option that makes the measured 20 links work today rather than after every
+project re-plans. Note the guardrail "never widen `^REQ-[0-9]+$`" still holds — normalising is a
+mapping performed before the pattern is applied, not a loosening of it.
+
+**3R.3 — The AC-level link.** Unchanged from original step 6, and it is now the *only* part of this
+stage that asks a worker to do something new: an acceptance criterion that grades a requirement ends
+with `(covers: REQ-…)`, and a non-functional requirement with no use-case home becomes a task with an
+AC rather than a line in the risk table. Measured need: 2 of 103 ACs name a key, both `R15`, in prose
+— and `R15` is the one requirement no scope covers either.
+
+**3R.4 — Tests.** The original step-7 list stands, minus (e) which tested the superseded step 3.
+Add: a scope contract carrying `covers: [R13]` resolves against a registry holding `REQ-13`, and
+`SCOPE-COVERS` emits nothing for it.
+
+---
+
+*Original Stage 3 steps, retained because 1, 2, 4, 5 and 6 are unchanged and 3 is the one superseded:*
 
 1. **Declare the field.** `skills/tech-lead/schemas/domain.schema.json`: add `"requirements"` to
    `x-payload-by-worker["ba-pitch-analyzer"]`. The property already exists in
@@ -661,12 +704,38 @@ node -e "const fs=require('fs'),f='skills/tech-lead/workflows/shapeup-run.js',s=
   && ! npm test >/dev/null 2>&1; r=$?; git checkout -- skills/tech-lead/workflows/shapeup-run.js; [ $r -eq 0 ]   # exit 0
 ```
 
-### Stage 4 — Red at L1b · ~4 h · *gated on Stage 2* · **REWRITE PENDING (§0a)**
+### Stage 4 — Red at L1b · ~2 h · **REVISED 2026-09-19**
 
-> The arm this stage adds is not the only candidate any more. `SCOPE-COVERS` already reaches L1b,
-> already emits a closure finding, and is already red-capable (`kernel/verify/spec.mjs:358-359`) —
-> it is the *shape* half that fires as a warn, 23 times on a real run. Decide whether Stage 4 adds a
-> rule or promotes one before writing either.
+*Was ~4 h to build a new arm. Most of the arm is already there.* `SCOPE-COVERS` reaches L1b, emits a
+closure finding, and is **already red** when the registry exists (`kernel/verify/spec.mjs:358-359`).
+Once Stage 3R lands, those 20 measured links resolve and that half starts doing real work with no
+change at all. What remains is genuinely new, and it is one rule, not two.
+
+**4R.1 — The one new arm: a requirement no scope and no AC covers.** After 3R the scope layer
+carries most of the closure. The gap it cannot see is a requirement that **no scope claims and no
+acceptance criterion grades** — on the measured run that is exactly `R15`, one row, which is what a
+low-noise red looks like. Emit it as `REQ-UNCOVERED`, red, from `verify spec`, with `rule` and
+`level` as adjacent literals on one line (the mutation check targets that).
+
+Everything the original step 1 says about **`readBoard` versus `parseBoard`** still applies and is
+still the easiest way to ship a rule that reds every requirement on every board: `lint()`'s `tasks`
+comes from `parseBoard`, whose records carry no `acceptance_criteria` at all, and `coveredReqIds`
+reads exactly that field. Verified again 2026-09-19: `kernel/verify/spec.mjs` imports only
+`parseBoard, deriveUnlocks` from `board.mjs`; `readBoard` is not imported there at all.
+
+**4R.2 — Decide the `SCOPE-COVERS` shape half.** It warns 23 times a run today. After 3R.2 it should
+warn **zero** times, because every key resolves. If it still warns, something is emitting a key
+neither space recognises and that is worth a red — but make that call *after* measuring, not now.
+
+**4R.3 — The L1b table.** Unchanged from original step 4: print a `REQ → AC` table beside the
+Deferred Places lines. It is a printed artifact, not an answer.
+
+**4R.4 — Tests.** The original step-5 list stands. Replace case (a)'s framing: the case that catches
+the `parseBoard` mistake is still "a covered requirement must NOT be reported as uncovered", and it
+is still the one clause without which the test passes on the broken implementation.
+
+**What this stage no longer does.** It does not add a second `COVERS-DANGLING`. Stage 1 arm-skipped
+the existing one (`f9310f2`), and after 3R the scope layer is where a dangling key surfaces first.
 
 1. `kernel/verify/spec.mjs`: export `lintRequirements({ reqText, board })` with a JSDoc block.
    - **`board` is `readBoard(cwd, slug)` from `kernel/compile.mjs:131` — not `lint()`'s existing
