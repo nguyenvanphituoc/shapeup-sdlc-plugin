@@ -63,7 +63,12 @@ the ship report's census table.
                                                                the board's own use_case_refs
              covers[]                                        — optional REQ-ids from
                                                                requirements.md this scope answers
-                                                               for; stable, never renumbered
+                                                               for; stable, never renumbered.
+                                                               WRITE THE REGISTRY'S OWN KEY:
+                                                               `REQ-12`, not the pitch's `R12`.
+                                                               Both resolve — readers normalise —
+                                                               but one spelling in the committed
+                                                               contract is one thing to read
              depends_on[]                                    — scope_ids this scope builds AFTER.
                                                                This is the build ORDER — declare
                                                                it whenever one scope consumes

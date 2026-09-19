@@ -187,6 +187,13 @@ const MODULE_FILES = [
   // shapeup-run.js is a Workflow body that cannot be imported — which is itself why in-memory
   // orchestration state was reachable by no assertion in the suite, and why two defects lived there.
   "58-relaunch-memory.mjs",
+  // 59-requirements-registry.mjs: the requirements registry is produced, and every link to it lands
+  // in ONE key space. Its own module because the two halves fail as a pair and each looks fine
+  // alone: nothing ever dispatched the producer, so the registry was a file the schema described
+  // and no run wrote; and the contracts that did claim a requirement claimed it in the pitch's
+  // `R<n>`, against a registry keyed `REQ-<n>` — an edge produced on the board and severed by
+  // spelling, reported 23 times a run as a warning indistinguishable from noise.
+  "59-requirements-registry.mjs",
   "08-docs.mjs",
 ];
 

@@ -65,7 +65,7 @@ import { parseBoard, deriveUnlocks } from "../reduce/board.mjs";
 import { runArgs } from "../lib/argv.mjs";
 import { LOCAL } from "../lib/paths.mjs";
 import { specDir, scopesDir, tasksDir, intake, sharedRoot, requirements } from "../lib/paths.mjs";
-import { readAllContracts, unreadableReason, ucId, scopePartitionConflicts, SCOPE_CONTRACT } from "../lib/contract.mjs";
+import { readAllContracts, unreadableReason, ucId, reqId, scopePartitionConflicts, SCOPE_CONTRACT } from "../lib/contract.mjs";
 import { UNREADABLE, LEGACY_LAYOUT } from "../lib/contract.mjs";
 import { validate as validateAgainstSchema, SCHEMAS_DIR } from "./envelope.mjs";
 import { breadboard as stagedBreadboard } from "../lib/paths.mjs";
@@ -349,7 +349,11 @@ export function lintScopeAnchors({ scopes, specDir: specRoot, reqIds = null, tas
       else if (id && !ids.has(id)) findings.push({ rule: "SCOPE-DEPS", level: "red", scope: where, detail: `depends_on "${id}" is not a scope in this run — the scheduler drops the edge, so this scope may build before its dependency` });
     }
     for (const r of s.covers || []) {
-      const req = String(r).trim();
+      // ONE KEY SPACE. A pitch numbers its requirements `R<n>` and the registry keys off
+      // `REQ-<n>`; `reqId` maps the first onto the second BEFORE the pattern below, so a link the
+      // planner actually wrote resolves instead of reading as a shape warning nobody can act on.
+      // A reference neither space recognises comes back verbatim and still fails the pattern.
+      const req = reqId(r);
       if (!/^REQ-[A-Z0-9-]+$/i.test(req)) {
         findings.push({ rule: "SCOPE-COVERS", level: "warn", scope: where, detail: `covers "${r}" is not a REQ-id — the requirement edge will not resolve` });
         continue;

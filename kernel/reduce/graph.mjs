@@ -32,7 +32,7 @@ import {
   localRoot, receipt as receiptPath, ordersDir, resultsDir, verdictsDir, trials as trialsPath,
   gates as gatesPath, scopesDir, usecasesDir, requirements as requirementsPath, wiringMap as wiringMapPath,
 } from "../lib/paths.mjs";
-import { readAllContracts, readContract, ucId, SCOPE_CONTRACT, WIRING_MAP } from "../lib/contract.mjs";
+import { readAllContracts, readContract, ucId, reqId, SCOPE_CONTRACT, WIRING_MAP } from "../lib/contract.mjs";
 import { runIdFromReceipt } from "../lib/paths.mjs";
 
 /** The graph's home — one file per feature, beside the run trace it projects. */
@@ -263,7 +263,10 @@ export function project(cwd, slug) {
       // UseCase nodes it was built from and `--trace` stopped there instead of reaching the
       // objective. The contract now names both, so both are projectable.
       for (const uc of contract.use_cases || []) edge(id, "IMPLEMENTS", `uc:${slug}:${ucId(uc)}`);
-      for (const req of contract.covers || []) edge(id, "COVERS", `req:${slug}:${req}`);
+      // Normalised to the registry's key space on the way in, the same mapping spec-lint applies:
+      // a contract citing the pitch's `R<n>` and a Requirement node keyed `REQ-<n>` are one node,
+      // and an edge drawn to the other spelling is an edge to a node the graph does not hold.
+      for (const req of contract.covers || []) edge(id, "COVERS", `req:${slug}:${reqId(req)}`);
       for (const dep of contract.depends_on || []) edge(id, "DEPENDS_ON", `scope:${slug}:${dep}`);
     }
   }
