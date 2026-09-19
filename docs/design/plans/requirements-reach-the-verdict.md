@@ -588,7 +588,24 @@ The hero-todo soak is already planned. This stage adds two requirements to it an
 **Acceptance:** none automatable. The deliverable is the classified table, the retained board, and the
 eval report, committed under `docs/design/plans/` beside this plan or linked from it.
 
-> **Stage 2 ran on 2026-09-18 and did not close. Read §0a before Stage 3 or Stage 4.**
+> **Stage 2 CLOSED on 2026-09-19 — the gate is met. Stages 3–6 are open.**
+> A re-dispatch of `evaluate-r1` under a recorded PO waiver produced the first verdict any hero-todo
+> run has made: FAIL, 97 criteria, 9 PASS. **Class (c) is present — R11 and R17 — so Stage 7's
+> trigger has fired** (note it; do not act on it until Stage 5 ships). class (b) is 18 of 21.
+> Full measurement, with its three caveats, in
+> `requirements-reach-the-verdict-stage2-measurement.md` beside this file.
+>
+> **The headline is not the gate's question.** All 21 requirements have an acceptance criterion on
+> the board; only **11 reach any criterion the judge grades**, and not one passing criterion tests a
+> behavioural requirement — the 9 PASSes are 8 `Non-Go` rows and one layering row, all static scans.
+> The requirement edge is produced on the board and **severed before the judge**. And a board-only AC
+> can never clear class (c), because the judge reaches board ACs through `refuted[]` alone: it can
+> produce a FAIL signal from one and never a PASS.
+>
+> **E15 is confirmed on live data**: 85 of 97 `CriterionVerdict` rows carry `traces_to`; 0 of 97
+> survive into `.verdicts-evaluate-r1.jsonl`, whose key set carries no `traces_to` and no `run_id`.
+>
+> **Stage 2 ran on 2026-09-18 and did not close on its own. Read §0a before Stage 3 or Stage 4.**
 > Outcome: reached GATE L3, evaluator refused to grade, **no verdict**. class (a) = **0 of 21**;
 > (b)/(c)/(d) not assessable. The gate's own exit condition is therefore **not met** — no requirement
 > is ungraded by every AC — but the run answered a sharper question the gate did not ask: the
