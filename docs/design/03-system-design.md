@@ -68,7 +68,7 @@ routing key**: `compile-order` resolves the owning worker from the operation alo
 `OP_OWNER` map, mirroring `domain.schema.json`'s `$defs/Operation` ownership), so a dispatch
 never carries a redundant `--worker`, and each operation stamps a fixed `substrate` write
 contract (from `substrateFor`) that the sandbox hook then enforces. One compiled order therefore
-*is* the dataflow across the skill set — the 15 operations fan out to the 10 worker skills by
+*is* the dataflow across the skill set — the 17 operations fan out to the 10 worker skills by
 pipeline stage:
 
 ```mermaid

@@ -321,6 +321,11 @@ this is the orchestrator's own re-confirmation before committing to a build sequ
     in this run), REQ-UNCOVERED (a requirement in requirements.md that no acceptance criterion
     grades and no scope claims — the PO's two ways out are an AC carrying `(covers: REQ-…)` or
     `CUT (PO-approved)` in the registry; silent on a run with no registry),
+    CONTRACT-SCHEMA (a scope contract that parses but not into the shape a WorkOrder carries —
+    most often a list written bare in a table cell where the dialect wants `[a, b]`; without
+    this the compiler refuses the order later and the scope is never dispatched at all, with
+    the board green and the leg reporting done), CONTRACT-UNREADABLE (a table the parser could
+    not see, or a table field also declared in frontmatter where nothing reads it),
     BREADBOARD-PLACE (a breadboard Place with UI affordances has no
     `## Screen: … (P#)` in ux-behavior.md and is not deferred), BREADBOARD-UI (a U# not
     specified on a screen of its own Place). Any red → HARD STOP, past a 🔴 at the

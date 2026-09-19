@@ -65,7 +65,7 @@ erDiagram
         string order_id PK "slug/rN-aM | slug/operation[-rN]"
         enum worker "WorkerName (10 workers)"
         enum mode "orchestrated | standalone"
-        enum operation "Operation (15 operations)"
+        enum operation "Operation (17 operations)"
         json interaction "pause_gates, max_questions"
         json substrate "allowed[], shared[], append_only[], frozen[]"
         json payload "WorkOrderPayload — see 7.4"
