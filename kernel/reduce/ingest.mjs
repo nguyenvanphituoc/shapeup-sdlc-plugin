@@ -8,7 +8,9 @@
 //   task_results[]      → tick AC boxes, flip task frontmatter status, append Execution Log,
 //                         update tasks/_index.md row, propagate unblocks (old P3.1–P3.6)
 //   discoveries[]       → append to .shapeup/<slug>/discovery/ledger.md (old P3.7 / QA H.3)
-//   verdict.criteria[]  → append evaluation/.verdicts-<target>.jsonl (old evaluator B.0)
+//   verdict.criteria[]  → append evaluation/.verdicts-<target>.jsonl (old evaluator B.0), every
+//                         row keyed by run_id and carrying the judge's traces_to[] anchor back to
+//                         the requirement — see step 4 for why neither may be dropped here
 //   verdict.refuted[]   → un-tick refuted AC boxes + set eval_verdict frontmatter (old B.2/B.2b)
 //   (the leg itself)    → append one leg-completion row to .shapeup/<slug>/legs.jsonl
 //
@@ -286,21 +288,32 @@ function applyResultLocked(result, { cwd, slug }) {
   }
 
   // 4. Verdict bookkeeping (old evaluator B.0/B.2/B.2b) — judge returns data, ingest writes.
+  //
+  // THE PROJECTION KEEPS THE TWO KEYS A LATER READER CANNOT RE-DERIVE. Measured on the first real
+  // verdict of a spined run: 85 of 97 criteria carried `traces_to` in the WorkResult and 0 of 97
+  // survived into this file, so the anchor from a criterion back to the requirement it grades was
+  // written by the judge and discarded one step later. And the row carried only the monotonic `run`
+  // counter, which restarts per ledger file and repeats across runs of one slug — `run_id` is the
+  // only key that separates them, so a projection over this file silently mixed two runs without
+  // it. A WorkResult carries no run key; it is read off the run's own receipt, the same derivation
+  // every other writer here uses.
   if (result.verdict) {
     const evalDir = join(local, "evaluation");
     mkdirSync(evalDir, { recursive: true });
     if (result.verdict.criteria?.length) {
       const target = result.order_id.split("/")[1] || "run";
       const ledger = join(evalDir, `.verdicts-${target}.jsonl`);
+      const runId = readRunId(cwd, slug);
       let run = 1;
       if (existsSync(ledger)) {
         const prior = readFileSync(ledger, "utf8").trim().split(/\n/).filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
         run = prior.reduce((mx, r) => Math.max(mx, r.run || 0), 0) + 1;
       }
       const lines = result.verdict.criteria.map((c) => JSON.stringify({
-        run, dimension: c.dimension || "spec-conformance", criterion: c.criterion,
+        run, run_id: runId, dimension: c.dimension || "spec-conformance", criterion: c.criterion,
         verdict: c.verdict, confidence: c.confidence, reprobed: !!c.reprobed,
-        evidence: c.evidence || "", at: new Date().toISOString(),
+        evidence: c.evidence || "", traces_to: Array.isArray(c.traces_to) ? c.traces_to : [],
+        at: new Date().toISOString(),
       })).join("\n");
       appendFileSync(ledger, lines + "\n");
       summary.verdict_lines = result.verdict.criteria.length;

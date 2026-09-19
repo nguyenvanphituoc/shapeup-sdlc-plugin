@@ -72,6 +72,14 @@ H0.1  Unresolved scopes (breaker cases only):
 H0.2  QA findings (qa-edge-hunter's hunt-report.md, when present) — all `~` by default.
 H0.3  Discovered-task ledger entries still open (discovery/ledger.md, `[+]`/`~` unresolved).
 H0.4  Attempt-budget hammer proposals (scopes that exhausted their T0 attempts during BUILD).
+H0.4b Requirements with no PASS evidence — the pitch clauses the run never showed working. Run
+        node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe requirements --slug <slug> --format table
+      and take its `no evidence` rows; cite the row, the same way H0.0 cites ownership. Each is a
+      census item carrying its source clause (`REQ-12 ← shaping.md R12`). A `cut` row is an answer
+      the PO already gave — not an item. An inconsistency row (a criterion anchored to a
+      requirement no acceptance criterion covers) is reported to the PO as a reconciliation, never
+      counted as evidence and never promoted as a finding. No registry on disk → this input is
+      empty and the census is unchanged (absent artifact ⇒ arm skipped).
 H0.5  Classify every item: MUST-HAVE (the pitch's core problem is unsolved without it) vs
       NICE-TO-HAVE (`~`, improves but doesn't block the core promise). Default to NICE-TO-HAVE
       unless the item traces directly to a pitch boundary or a scope's business_goal — a
@@ -81,7 +89,8 @@ H0.5  Classify every item: MUST-HAVE (the pitch's core problem is unsolved witho
 **GATE H0 Output:**
 ```
 ⏸ GATE H0 — Census
-Must-have (unresolved)  : [N] — [list, each with source: scope | QA | discovered | advisor-overflow]
+Must-have (unresolved)  : [N] — [list, each with source: scope | QA | discovered | requirement |
+                                 advisor-overflow]
 Nice-to-have (~)        : [M]
 Carry candidates        : [scopes still uphill/downhill, or exhausted attempt budget]
 ```

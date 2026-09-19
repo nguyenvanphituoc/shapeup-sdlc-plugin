@@ -31,7 +31,8 @@
 //            ship · board · verdict · graph
 //   gate                                      An answer file with a source, not a vibe.
 //   probe    resume · t0 · stats · digest ·   Read-only queries over run state. `concurrency`
-//            concurrency · leg · eval · owner  answers how many legs ran at once and what the
+//            concurrency · leg · eval ·        answers how many legs ran at once and what the
+//            owner · requirements
 //                                              fan-out bought, and refuses a figure the record set
 //                                              cannot support rather than printing a plausible one.
 //                                              `leg` answers whether a scope's work reached the
@@ -45,7 +46,10 @@
 //                                              own end-of-turn summary of its own verdict. `owner`
 //                                              answers which scope may write a path, elected from
 //                                              the contracts — so a census cites it instead of
-//                                              asserting ownership from memory.
+//                                              asserting ownership from memory. `requirements`
+//                                              answers which pitch clause a verdict reached, joined
+//                                              through the plan's own covers: edge — the L4 line and
+//                                              GATE H's census cite it for the same reason.
 //   init     run · fit                        Opens a run, or refuses it (exit 3).
 //   report   export                           Projects the run's records as fact tables.
 //   compile                                   The WorkOrder: schema-valid or nothing is dispatched.
@@ -81,6 +85,7 @@ export const ROUTES = {
     resume: "./probe/resume.mjs", t0: "./probe/t0.mjs", stats: "./probe/stats.mjs",
     digest: "./probe/digest.mjs", concurrency: "./probe/concurrency.mjs",
     leg: "./probe/leg.mjs", eval: "./probe/eval.mjs", owner: "./probe/owner.mjs",
+    requirements: "./probe/requirements.mjs",
   },
   init: { run: "./init/run.mjs", fit: "./init/fit.mjs" },
   report: { export: "./report/export.mjs", _default: "export" },

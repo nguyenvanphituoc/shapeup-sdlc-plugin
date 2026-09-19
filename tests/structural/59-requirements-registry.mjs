@@ -457,4 +457,286 @@ export async function run(ctx) {
     if (/REQ\s*→\s*AC/.test(l1b)) ok("(i) GATE L1b prints the REQ → AC table beside the Deferred Places — the PO sees which requirement nothing grades before signing off");
     else fail("(i) GATE L1b prints no REQ → AC table — the PO is asked to accept a plan without being shown which requirements it drops");
   }
+
+  // --- (j) THE WAY BACK: verdict → REQ → L4 → census ------------------------------------------
+  // L1b asks whether the plan reaches every requirement. This half asks the opposite question at
+  // the other end of the run: which requirement did a verdict actually reach? Measured on the first
+  // verdict any run of this spine produced — 97 criteria, 85 of them carrying a `traces_to` anchor
+  // in the WorkResult, and ZERO of them in the file ingest wrote. The judge recorded the edge and
+  // the projection dropped it, so nothing downstream could join a verdict to a pitch clause even
+  // when the judge had said which one. The same row carried only the per-file `run` counter, which
+  // repeats across runs of one slug, so any projection over it silently mixed two runs.
+  {
+    const K = join(ROOT, "kernel/harness.mjs");
+    const RUN_A = "reqdemo-20260919T101112Z-abcdef01";
+    const RUN_B = "reqdemo-20260918T090000Z-11111111";
+    const HASH = "9".repeat(64);
+
+    /** A verdict-ledger line. @param {object} o Row fields. @returns {string} One JSONL line. */
+    const vrow = (o) => JSON.stringify({ run: 1, dimension: "spec-conformance", confidence: "high", reprobed: false, evidence: "probe output", at: "2026-09-19T10:00:00Z", ...o });
+
+    /**
+     * A finished run: a registry, a board whose ACs carry `covers:`, a receipt naming the run, an
+     * EVAL result carrying its T0 citation, and the verdict ledger ingest projects.
+     * @param {{rows?:(string[]|null), acs?:string[], ledger?:string[]}} parts - Registry rows
+     *   (null = no registry at all), the board's AC lines, and the verdict-ledger lines.
+     * @returns {string} The fixture root.
+     */
+    const ran = ({ rows = null, acs = [], ledger = [] }) => {
+      const cwd = mkdtempSync(join(tmpdir(), "struct-req-probe-"));
+      if (rows) w(cwd, `shapeup/${SLUG}/requirements.md`, ["# Requirements", "", "| REQ-id | clause | source | status | note |", "|---|---|---|---|---|", ...rows, ""].join("\n"));
+      w(cwd, `.shapeup/${SLUG}/tasks/TASK-001.md`, ["---", "id: TASK-001", "title: the one task", "status: done", "priority: 1", "---", "", "## Acceptance criteria", "", ...acs.map((a) => `- [x] ${a}`), ""].join("\n"));
+      w(cwd, `.shapeup/${SLUG}/receipt.json`, JSON.stringify({ run_id: RUN_A, slug: SLUG }));
+      w(cwd, `.shapeup/${SLUG}/results/evaluate-r1.json`, JSON.stringify({
+        schema_version: 1, order_id: `${SLUG}/evaluate-r1`, worker: "spec-evaluator", status: "done",
+        verdict: { overall: "FAIL", t0_citations: [{ scope_id: "SC-1", path: `.shapeup/${SLUG}/t0/verdicts/r1-a1-t1.json`, sha256: HASH }] },
+      }));
+      if (ledger.length) w(cwd, `.shapeup/${SLUG}/evaluation/.verdicts-evaluate-r1.jsonl`, ledger.join("\n") + "\n");
+      return cwd;
+    };
+
+    /** Run the probe over a fixture. @param {string} cwd Fixture root. @param {string[]} extra Extra argv. @returns {object} spawnSync result plus the parsed report. */
+    const probe = (cwd, extra = []) => {
+      const r = spawnSync("node", [K, "probe", "requirements", "--slug", SLUG, "--cwd", cwd, ...extra], { encoding: "utf8" });
+      let json = null;
+      try { json = JSON.parse(r.stdout); } catch { /* reported by the caller */ }
+      return { r, json };
+    };
+
+    const REG = [
+      "| REQ-1 | the list survives a restart | shaping.md R1 | covered | |",
+      "| REQ-2 | it is reachable by keyboard | shaping.md R2 | covered | |",
+      "| REQ-3 | it exports to csv | shaping.md R3 | CUT (PO-approved) | |",
+    ];
+    const ACS = ["the list survives a restart (covers: REQ-1)", "tab reaches every control (covers: REQ-2)"];
+
+    // (j1) THE PROJECTION INGEST WRITES. Executed, not read: the two fields have to survive the
+    // real reducer, because the measured defect was that the judge wrote them and this step did not.
+    {
+      const cwd = mkdtempSync(join(tmpdir(), "struct-req-ingest-"));
+      try {
+        w(cwd, `.shapeup/${SLUG}/receipt.json`, JSON.stringify({ run_id: RUN_A, slug: SLUG }));
+        const resultPath = join(cwd, ".shapeup", SLUG, "results", "evaluate-r1.json");
+        w(cwd, `.shapeup/${SLUG}/results/evaluate-r1.json`, JSON.stringify({
+          schema_version: 1, order_id: `${SLUG}/evaluate-r1`, worker: "spec-evaluator", status: "done",
+          verdict: { overall: "PASS", criteria: [
+            { criterion: "UC-01 step 3", dimension: "spec-conformance", verdict: "PASS", confidence: "high", evidence: "ran it", traces_to: ["REQ-1"] },
+            { criterion: "UC-01 step 4", dimension: "spec-conformance", verdict: "PASS", confidence: "high", evidence: "ran it" },
+          ] },
+        }));
+        const r = spawnSync("node", [K, "reduce", "ingest", resultPath, "--cwd", cwd], { encoding: "utf8" });
+        const lines = (readFileSync(join(cwd, ".shapeup", SLUG, "evaluation", ".verdicts-evaluate-r1.jsonl"), "utf8"))
+          .trim().split("\n").map((l) => JSON.parse(l));
+        if (r.status === 0 && lines.length === 2) ok("(j) ingest projected both criteria into the verdict ledger");
+        else fail(`(j) ingest exited ${r.status} and wrote ${lines.length} ledger rows: ${r.stderr.slice(0, 300)}`);
+        if (lines.every((l) => l.run_id === RUN_A)) {
+          ok("(j) every projected row carries the run key read off the receipt — `run` alone repeats across runs of one slug");
+        } else {
+          fail(`(j) the verdict ledger rows carry run_id=${JSON.stringify(lines.map((l) => l.run_id))} — without the run key any projection over this file mixes two runs of one feature`);
+        }
+        if (JSON.stringify(lines[0].traces_to) === JSON.stringify(["REQ-1"]) && JSON.stringify(lines[1].traces_to) === JSON.stringify([])) {
+          ok("(j) the judge's traces_to anchor survives the projection, and a criterion with none reads as an empty list, not an absent field");
+        } else {
+          fail(`(j) traces_to did not survive ingest: ${JSON.stringify(lines.map((l) => l.traces_to))} — the judge records which requirement its criterion maps to and the projection throws it away`);
+        }
+      } catch (e) { fail(`(j) the ingest projection check threw: ${e.message}`); }
+      finally { rmSync(cwd, { recursive: true, force: true }); }
+    }
+
+    // (j2) THE QUERY, over a run with a registry, a covered board and one graded criterion.
+    {
+      const cwd = ran({ rows: REG, acs: ACS, ledger: [
+        vrow({ run_id: RUN_A, criterion: "UC-01 step 3 persists", verdict: "PASS", traces_to: ["REQ-1"] }),
+        vrow({ run_id: RUN_A, criterion: "keyboard reach", verdict: "FAIL", evidence: "src/a.ts:3", traces_to: ["REQ-2"] }),
+      ] });
+      try {
+        const { r, json } = probe(cwd);
+        if (r.status === 0 && json) ok("(j) probe requirements answers from disk and exits 0");
+        else fail(`(j) probe requirements exited ${r.status}: ${r.stderr.slice(0, 300)}`);
+        const byId = Object.fromEntries((json?.rows || []).map((x) => [x.id, x]));
+        if (json?.rows?.length === 3 && byId["REQ-1"]?.evidence === "PASS") {
+          ok("(j) a requirement an AC covers and a passing criterion names is reported as PASS");
+        } else {
+          fail(`(j) the matrix did not report REQ-1 as PASS: ${JSON.stringify(json?.rows?.map((x) => [x.id, x.evidence]))}`);
+        }
+        if (byId["REQ-1"]?.source === "shaping.md R1" && byId["REQ-1"]?.covering_acs?.[0]?.task_id === "TASK-001"
+          && byId["REQ-1"]?.criteria?.[0]?.criterion === "UC-01 step 3 persists") {
+          ok("(j) the row carries the pitch clause it came from, the AC that covers it and the criterion that graded it");
+        } else {
+          fail(`(j) the REQ-1 row is missing its source, its covering AC or its criterion: ${JSON.stringify(byId["REQ-1"])}`);
+        }
+        // The T0 hash is what makes a PASS a machine fact rather than a sentence, and it lives in
+        // the EVAL result rather than the ledger — a row that cannot reach it is a row whose
+        // evidence cannot be re-verified.
+        if (byId["REQ-1"]?.t0?.[0] === HASH) ok("(j) the row cites the T0 artifact hash the EVAL round that graded it re-hashed");
+        else fail(`(j) the REQ-1 row cites no T0 hash: ${JSON.stringify(byId["REQ-1"]?.t0)} — the evidence behind a PASS cannot be re-checked from the matrix`);
+        // (b) covered, graded, and the grade was not a PASS.
+        if (byId["REQ-2"]?.evidence === "no evidence" && byId["REQ-2"]?.criteria?.[0]?.verdict === "FAIL") {
+          ok("(j) a requirement whose covering AC was graded FAIL reads as `no evidence`, with the failing criterion beside it");
+        } else {
+          fail(`(j) REQ-2 was reported as ${byId["REQ-2"]?.evidence} — a criterion that did not pass is not evidence the requirement holds`);
+        }
+        // (c) CUT is counted separately, never as a gap and never as a pass.
+        if (byId["REQ-3"]?.evidence === "cut" && json.totals.cut === 1 && json.totals.pass === 1 && json.totals.no_evidence === 1) {
+          ok("(j) a CUT (PO-approved) requirement is counted as cut — separately from PASS and from the gaps");
+        } else {
+          fail(`(j) the totals fold CUT into another class: ${JSON.stringify(json?.totals)}`);
+        }
+        // The L4 line is transcribed from this, so its shape is part of the contract.
+        const { summaryLine } = await import(join(ROOT, "kernel/probe/requirements.mjs"));
+        const line = summaryLine(json);
+        if (/1\/3 PASS/.test(line) && /1 CUT \(PO\)/.test(line) && /REQ-2 ← shaping\.md R2/.test(line)) {
+          ok(`(j) the summary line GATE L4 transcribes names the gap and where it came from: "${line}"`);
+        } else {
+          fail(`(j) the summary line is not the L4 shape: "${line}"`);
+        }
+      } finally { rmSync(cwd, { recursive: true, force: true }); }
+    }
+
+    // (j3) THE EMPTY JOIN READS AS CLEARLY AS THE FULL ONE. No registry is the state every run was
+    // in before this stage, and it is the state a pre-spine run stays in forever; the probe answers
+    // it rather than failing on it.
+    {
+      const cwd = ran({ acs: ACS });
+      try {
+        const { r, json } = probe(cwd);
+        if (r.status === 0 && json?.registry === false && json?.rows?.length === 0 && json?.totals?.total === 0) {
+          ok("(j) with no registry the probe exits 0 with an empty projection — an answer, not an error");
+        } else {
+          fail(`(j) the probe over a registry-less run exited ${r.status} with ${JSON.stringify(json?.totals)} — an absent artifact must read as empty, never as a failure`);
+        }
+      } finally { rmSync(cwd, { recursive: true, force: true }); }
+    }
+
+    // (j4) `covers:` IS THE AUTHORITATIVE JOIN. An anchor pointing at a requirement no AC covers is
+    // a claim the plan never made. Counting it would derive the L4 line from two unreconciled
+    // sources — the exact failure `probe owner` exists to prevent — so it is printed and not counted.
+    {
+      // REQ-4 is LIVE and uncovered, which is what makes this case discriminate: an implementation
+      // that trusted the anchor alone would report it PASS on the judge's say-so, with no
+      // acceptance criterion anywhere claiming the requirement.
+      const cwd = ran({ rows: [...REG, "| REQ-4 | it is themeable | shaping.md R4 | covered | |"], acs: ACS, ledger: [
+        vrow({ run_id: RUN_A, criterion: "theme switch works", verdict: "PASS", traces_to: ["REQ-4"] }),
+      ] });
+      try {
+        const { json } = probe(cwd);
+        const inc = json?.inconsistencies || [];
+        if (inc.length === 1 && inc[0].requirement === "REQ-4" && inc[0].verdict === "PASS") {
+          ok("(j) a criterion anchored to a requirement no AC covers is printed as an inconsistency row");
+        } else {
+          fail(`(j) the unreconciled anchor was not reported: ${JSON.stringify(inc)}`);
+        }
+        const req4 = (json?.rows || []).find((x) => x.id === "REQ-4");
+        if (json?.totals?.pass === 0 && req4?.evidence === "no evidence") {
+          ok("(j) …and is counted as nothing — a PASS anchored to a requirement the plan never claimed is not evidence for it");
+        } else {
+          fail(`(j) an unreconciled anchor was counted as evidence: totals=${JSON.stringify(json?.totals)} REQ-4=${req4?.evidence}`);
+        }
+      } finally { rmSync(cwd, { recursive: true, force: true }); }
+    }
+
+    // (j5) ONE RUN, NAMED. `order_id`, round and attempt all repeat; the run key is the only thing
+    // that separates two runs of one feature, and rows written before it existed are reported as
+    // unknown rather than folded into the run being read.
+    {
+      const cwd = ran({ rows: REG, acs: ACS, ledger: [
+        vrow({ run_id: RUN_A, criterion: "UC-01 step 3 persists", verdict: "PASS", traces_to: ["REQ-1"] }),
+        vrow({ run_id: RUN_B, criterion: "an older run's pass", verdict: "PASS", traces_to: ["REQ-2"] }),
+        vrow({ criterion: "a row written before the key existed", verdict: "PASS", traces_to: ["REQ-2"] }),
+      ] });
+      try {
+        const { json } = probe(cwd);
+        const byId = Object.fromEntries((json?.rows || []).map((x) => [x.id, x]));
+        if (json?.run_id === RUN_A && json?.ledger?.rows_projected === 1 && json?.ledger?.rows_other_run === 1) {
+          ok("(j) the probe projects only the run its receipt names, and says how many rows belonged to another");
+        } else {
+          fail(`(j) the projection did not isolate one run: run_id=${json?.run_id} ledger=${JSON.stringify(json?.ledger)}`);
+        }
+        if (json?.ledger?.rows_unknown_run === 1 && byId["REQ-2"]?.evidence === "no evidence") {
+          ok("(j) an unkeyed row is reported as unknown and not folded into the current run — REQ-2 stays without evidence");
+        } else {
+          fail(`(j) an unkeyed or foreign row leaked into this run's evidence: REQ-2=${byId["REQ-2"]?.evidence} ledger=${JSON.stringify(json?.ledger)}`);
+        }
+        // The other run's own key answers for its own rows.
+        const other = probe(cwd, ["--run-id", RUN_B]);
+        if (other.json?.rows?.find((x) => x.id === "REQ-2")?.evidence === "PASS") {
+          ok("(j) …and naming the other run projects that run instead — the rows were isolated, not discarded");
+        } else {
+          fail(`(j) --run-id did not project the named run: ${JSON.stringify(other.json?.totals)}`);
+        }
+      } finally { rmSync(cwd, { recursive: true, force: true }); }
+    }
+
+    // (j6) FROZEN IN THE REPORT. The matrix is derived from the LOCAL tier, which is gitignored and
+    // is cleaned up after a run; GATE L4 is the one moment it can be written down where a teammate
+    // will find it on `git pull`.
+    {
+      const SR = await import(join(ROOT, "kernel/reduce/ship.mjs"));
+      const full = ran({ rows: REG, acs: ACS, ledger: [
+        vrow({ run_id: RUN_A, criterion: "UC-01 step 3 persists", verdict: "PASS", traces_to: ["REQ-1"] }),
+      ] });
+      const bare = ran({ acs: ACS });
+      try {
+        const md = SR.generate({ cwd: full, slug: SLUG }).markdown;
+        if (/^## Requirements$/m.test(md) && /REQ-1/.test(md) && /shaping\.md R1/.test(md)) {
+          ok("(j) reduce ship freezes a ## Requirements section naming each clause and where it came from");
+        } else {
+          fail("(j) the ship report has no ## Requirements section — the matrix dies with the gitignored tier it was derived from");
+        }
+        if (/1\/3 PASS/.test(md)) ok("(j) …carrying the same summary the L4 line transcribed, derived by the same probe");
+        else fail(`(j) the report's requirement summary does not match the probe's: ${(md.match(/\*\*[^*]*PASS[^*]*\*\*/) || ["(none)"])[0]}`);
+        const bareMd = SR.generate({ cwd: bare, slug: SLUG }).markdown;
+        if (!/## Requirements/.test(bareMd)) {
+          ok("(j) a run with no registry gets no Requirements section — an empty table reads as “no requirements”, which is a different claim");
+        } else {
+          fail("(j) the ship report printed a Requirements section for a run with no registry — an empty table asserts something the run never measured");
+        }
+      } finally {
+        rmSync(full, { recursive: true, force: true });
+        rmSync(bare, { recursive: true, force: true });
+      }
+    }
+
+    // (j7) THE TWO READERS CITE THE QUERY. A figure narrated from memory at a gate is
+    // indistinguishable from a measured one, which is why ownership already works this way.
+    {
+      const gates = read(join(ROOT, "skills/tech-lead/references/gates.md"));
+      const l4 = gates.slice(gates.indexOf("## GATE L4 — Ship Sign-Off"));
+      if (/^Requirements\s*:/m.test(l4)) ok("(j) GATE L4's block prints a Requirements line");
+      else fail("(j) GATE L4 prints no Requirements line — the run signs off without saying which pitch clauses have evidence");
+      if (/probe requirements/.test(l4)) ok("(j) …and says to transcribe it from `probe requirements`, not to compose it");
+      else fail("(j) GATE L4's Requirements line cites no query — a line composed at the gate is a claim, not a measurement");
+
+      const hammer = read(join(ROOT, "skills/scope-hammer/SKILL.md"));
+      const h0 = hammer.slice(hammer.indexOf("## GATE H0"), hammer.indexOf("## GATE H1"));
+      if (/probe requirements/.test(h0) && /no (PASS )?evidence/i.test(h0)) {
+        ok("(j) GATE H0's census takes requirements with no PASS evidence from the probe, and cites it");
+      } else {
+        fail("(j) GATE H0 never censuses requirements with no evidence — the clause nothing verified is invisible exactly where the ship decision is made");
+      }
+      // §5 of the plan this came from: the matrix informs the baseline comparison, it never vetoes.
+      if (/never block|never a ship blocker|does not block|not a ship blocker|decides nothing/i.test(l4.slice(0, 1400))) {
+        ok("(j) …and L4 says the line decides nothing — the matrix is a projection, never a verdict");
+      } else {
+        fail("(j) nothing at L4 says the requirement line is not a gate — a printed matrix beside a sign-off reads as a blocker");
+      }
+    }
+
+    // (j8) THE JUDGE FILLS THE FIELD IT ALREADY HAD. The schema has carried `traces_to` as an
+    // optional navigation anchor all along; what was missing was any instruction to populate it,
+    // and a field nobody fills is indistinguishable from a field that does not exist.
+    {
+      const judge = read(join(ROOT, "skills/spec-evaluator/SKILL.md"));
+      if (/traces_to/.test(judge) && /covers:/.test(judge)) {
+        ok("(j) spec-evaluator's craft says to fill traces_to from the graded ACs' covers: clauses");
+      } else {
+        fail("(j) spec-evaluator is never told to populate traces_to — the anchor stays empty and the matrix has nothing to join on");
+      }
+      if (/never a grading input|not a grading input|navigation/i.test(judge)) {
+        ok("(j) …and that it changes nothing it grades — the anchor is navigation, exactly what the schema calls it");
+      } else {
+        fail("(j) the craft does not say traces_to is not a grading input — a judge that reads it as one is grading against a key instead of the spec");
+      }
+    }
+  }
 }

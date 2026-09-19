@@ -522,8 +522,15 @@ Feature   : [slug] — [SHIPPED (deployed) | BUILT & VERIFIED — deploy pending
 Rounds    : [r] (build+eval cycles)
 Verdict   : PASS (dims: [spec-conformance]; not evaluated: [security, performance])
 QA        : [hunt done — N findings, M promoted+fixed, rest ~ | skipped (--no-qa) | n/a (pre-QA spec)]
+Requirements: [15/17 PASS · 1 CUT (PO) · 1 no evidence (REQ-12 ← R12) | n/a (no registry)]
 Ledger    : harness-run.md
 ```
+The Requirements line is TRANSCRIBED, never composed — run
+`node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe requirements --slug <slug> --format table`
+and copy its `Requirements:` summary. It joins each registered clause to the acceptance criterion
+that covers it and to the criterion the judge graded, over the run named in its own output. It
+decides nothing here: a requirement with no PASS evidence is a fact GATE H's census and the
+baseline comparison weigh, not a ship blocker.
 Question (max 1): "Anything to record before I close the run? (y/n) or provide feedback for the next sprint."
 On confirm:
 - If the PO provides substantive feedback (not just 'y' or empty) → automatically delegate via Agent (model: exec — see references/protocol.md "Invocation mechanism"): Skill(shapeup-sdlc-plugin:coach) with the provided feedback for RLHF. The coach runs its own GATE COACH-1 to have the PO categorize each rule, then files it under the responsible skill in `shapeup/knowledge-base/<skill>.md` (committed → team-shared). Coachable: `task-executor`, `ba-pitch-analyzer`, `qa-edge-hunter`, `orient`, `scope-architect`, `solution-architect` (each reads its own file at the top of its next run) and `tech-lead` (workflow guidance, read at the next GATE L0). Guidance never decides a gate: a filed rule may add a question or a check to a gate block, never an answer. The tech lead does not categorize the feedback itself — that is the coach's gate, by design (no assumptions).
