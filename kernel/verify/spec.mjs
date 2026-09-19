@@ -34,6 +34,11 @@
 //   SCOPE-COVERS  a contract's covers entry that is not a REQ-id (warn), or names a REQ that
 //             is not in requirements.md (red, when a registry exists) — shape alone let a scope
 //             claim coverage of a requirement that does not exist
+//   REQ-UNCOVERED  the other direction of the same edge: a registered requirement still marked
+//             covered that NO acceptance criterion grades and NO scope claims. SCOPE-COVERS asks
+//             whether a link resolves; this asks whether a requirement has one at all. Red here
+//             and only advisory in trace-lint, because a requirement nothing reaches is a plan
+//             defect the PO can still answer at L1b — cover it, or cut it on the record
 //   SCOPE-PARTITION  a task claimed by more than one scope. The UC anchor is a SPEC link, not an
 //             assignment: one use case is routinely implemented by several scopes, so on a
 //             four-scope/one-UC cut every scope claimed every task and would build all of them.
@@ -70,6 +75,13 @@ import { UNREADABLE, LEGACY_LAYOUT } from "../lib/contract.mjs";
 import { validate as validateAgainstSchema, SCHEMAS_DIR } from "./envelope.mjs";
 import { breadboard as stagedBreadboard } from "../lib/paths.mjs";
 import { parseBreadboard, hasBreadboardTables, idCounts } from "../lib/breadboard.mjs";
+// ONE implementation of covers-closure, two reporters: trace-lint narrates it, spec-lint gates it.
+// Re-deriving either here is how the advisory report and the gate start disagreeing about which
+// requirement is covered. This closes the import ring spec → trace → compile → probe/resume → spec,
+// which holds only while no module in it dereferences an imported binding at module-evaluation
+// time — do NOT add a top-level `const x = someImportedFn()` to any of the four.
+import { parseRequirements, coveredReqIds } from "./trace.mjs";
+import { readBoard } from "../compile.mjs";
 
 // Inlined from hooks/sandbox-guard.mjs so this skill ships self-contained (a skill's scripts
 // must not reach outside its own folder — channels that copy only skills/ would dangle).
@@ -374,6 +386,55 @@ export function lintScopeAnchors({ scopes, specDir: specRoot, reqIds = null, tas
   for (const cyc of depCycles(scopes)) {
     findings.push({ rule: "SCOPE-DEPS", level: "red", scope: cyc[0], detail:
       `depends_on cycle: ${cyc.join(" → ")} → ${cyc[0]} — no build order satisfies it, so the scheduler drops to a single unordered wave` });
+  }
+  return findings;
+}
+
+/**
+ * REQ-UNCOVERED — a live requirement that nothing in the plan reaches.
+ *
+ * THE OTHER DIRECTION OF THE COVERS EDGE. `SCOPE-COVERS` walks the links that exist and asks
+ * whether each one resolves; a requirement with no link at all satisfies it perfectly. Measured on
+ * a full run of one pitch: twenty-one requirements, every one of them with an acceptance criterion
+ * somewhere, and only eleven reaching a criterion the judge grades — the board is the last place a
+ * requirement can be dropped without anything going red, because after L1b nobody re-reads the
+ * pitch.
+ *
+ * WHY THE BOARD HERE IS `readBoard`, NOT `lint()`'s `tasks`. `parseBoard` (`kernel/reduce/board.mjs`)
+ * builds the scheduling view and its records carry no `acceptance_criteria` field at all, while
+ * `coveredReqIds` reads exactly that field — feed it the wrong board and the covered set is empty
+ * and EVERY requirement reds on EVERY run. `readBoard` (`kernel/compile.mjs`) is the parser that
+ * carries the criteria, and it is the only other one there may be: a second parser of the task file
+ * is explicitly ruled out where the first one lives.
+ *
+ * A SCOPE'S CLAIM COUNTS. The arm is about requirements nothing reaches, not about which layer
+ * reaches them: a clause claimed by a contract's `covers:` has an owner who answers for it at L1b,
+ * even before the criterion that grades it is written. `CUT (PO-approved)` is likewise an answer
+ * already given, not a defect — which is why `status` is read rather than assumed.
+ *
+ * @param {{clauses:Array<{id:string, clause:string, source:string, status:string}>,
+ *   board:Array<object>, scopes:Array<{covers?:string[]}>}} input - The registry clauses
+ *   (`parseRequirements`), the board `readBoard` parsed, and the scope contracts. An empty
+ *   `clauses` (no registry on disk) yields no findings — absent artifact ⇒ arm skipped.
+ * @returns {Array<{rule:string, level:("red"|"warn"), scope:string, detail:string}>} One red per
+ *   uncovered live requirement; [] when every one is graded, claimed or cut.
+ */
+export function lintRequirementCoverage({ clauses = [], board = [], scopes = [] }) {
+  const findings = [];
+  const graded = coveredReqIds(board);
+  // The contracts speak the pitch's numbering as readily as the registry's; `reqId` lands both in
+  // the one key space before the comparison, exactly as SCOPE-COVERS does above.
+  const claimed = new Set();
+  for (const s of scopes) for (const r of s.covers || []) claimed.add(reqId(r).toUpperCase());
+  for (const c of clauses) {
+    if (c.status !== "covered") continue; // CUT (PO-approved) — an answer on the record, not a gap
+    const id = c.id.toUpperCase();
+    if (graded.has(c.id) || claimed.has(id)) continue;
+    const from = c.source ? ` ← ${c.source}` : "";
+    findings.push({ rule: "REQ-UNCOVERED", level: "red", scope: c.id, detail:
+      `${c.id}${from} is graded by no acceptance criterion and claimed by no scope — "${(c.clause || "").slice(0, 60)}" ` +
+      "would ship unverified and nothing downstream would say so. Cover it with an AC carrying " +
+      `(covers: ${c.id}), or mark it CUT (PO-approved) in requirements.md.` });
   }
   return findings;
 }
@@ -730,9 +791,14 @@ export function lint({ cwd, slug }) {
   const intakeContent = existsSync(intakePath) ? readFileSync(intakePath, "utf8") : "";
   // The REQ registry, when the tree has one — absent means covers-closure simply cannot apply.
   const reqFile = requirements(cwd, slug);
-  const reqIds = existsSync(reqFile)
-    ? new Set([...readFileSync(reqFile, "utf8").matchAll(/\bREQ-[A-Z0-9-]+/gi)].map((m) => m[0].toUpperCase()))
+  const reqText = existsSync(reqFile) ? readFileSync(reqFile, "utf8") : null;
+  const reqIds = reqText !== null
+    ? new Set([...reqText.matchAll(/\bREQ-[A-Z0-9-]+/gi)].map((m) => m[0].toUpperCase()))
     : null;
+  // Table rows only, and with the status/source cells REQ-UNCOVERED reports from — the id set
+  // above is deliberately looser (it also sees ids named in the registry's prose) and stays that
+  // way, because the two arms ask different questions of the same file.
+  const reqClauses = reqText !== null ? parseRequirements(reqText) : [];
   const repoFiles = walkFiles(cwd);
   // Loaded HERE, not at module scope. `spec → trace → compile → probe/resume → spec` is a live
   // import ring, and a top-level dereference of an imported binding is what would break it.
@@ -750,6 +816,8 @@ export function lint({ cwd, slug }) {
     ...lintContractSchema(contracts, domainSchema),
     ...lintScopes(scopes, repoFiles),
     ...lintScopeAnchors({ scopes, specDir: specRoot, reqIds, tasks }),
+    // `readBoard`, not the `tasks` above: only the compile-order parser carries acceptance_criteria.
+    ...lintRequirementCoverage({ clauses: reqClauses, board: readBoard(cwd, slug), scopes }),
     ...lintCommittedTier({ cwd, slug }),
     ...lintStructure({ specDir: specRoot, tasks, intakeContent }),
     ...(() => {

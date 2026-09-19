@@ -307,4 +307,154 @@ export async function run(ctx) {
       fail("(g) the analyze craft does not say where a non-functional requirement goes — it lands in the risk register, which nothing grades");
     }
   }
+
+  // --- (h) THE GATE: a requirement nothing reaches is red at L1b ------------------------------
+  // SCOPE-COVERS walks the links that exist and asks whether each resolves; a requirement with no
+  // link at all satisfies it perfectly. REQ-UNCOVERED is the other direction of the same edge, and
+  // L1b is the last place it can be answered cheaply — after it nobody re-reads the pitch.
+  //
+  // (h1) IS THE ONE THAT CATCHES THE IMPLEMENTATION MISTAKE, and it is the reason the covered
+  // requirement is asserted about at all. `parseBoard` (the scheduling view lint() already holds)
+  // carries no acceptance_criteria field, so an arm fed that board sees an empty covered set and
+  // reds EVERY requirement on EVERY run. A test that only checks "REQ-2 is reported" passes on
+  // exactly that implementation. Only `readBoard` carries the criteria, and a second parser of the
+  // task file is ruled out where the first one lives.
+  {
+    const { lint } = await import(join(ROOT, "kernel/verify/spec.mjs"));
+
+    /** A registry row. @param {string} id REQ id. @param {string} status Status cell. @returns {string} The table row. */
+    const row = (id, status) => `| ${id} | the clause for ${id} | shaping.md R${id.replace(/^REQ-/, "")} | ${status} | |`;
+
+    /**
+     * A schema-valid tree whose only possible red is the one under test: one scope, one board task,
+     * and a registry written row by row. The contract's topology_type is a real enum member here
+     * because these cases assert on the EXIT CODE, which any other red would also set.
+     * @param {{rows?:(string[]|null), acs?:string[], covers?:string}} parts - Registry rows (null =
+     *   no registry), the board's acceptance-criteria lines, and the contract's covers[] literal.
+     * @returns {string} The fixture root.
+     */
+    const reqTree = ({ rows = null, acs = [], covers = "[]" }) => {
+      const cwd = mkdtempSync(join(tmpdir(), "struct-req-uncovered-"));
+      w(cwd, `shapeup/${SLUG}/spec/domain-model.md`, "# Domain model\n\n## Entities\n- Todo\n");
+      w(cwd, `shapeup/${SLUG}/spec/usecases/UC-AddTodo.md`, "---\nid: UC-AddTodo\n---\n\n# UC-AddTodo\n\n## Steps\n1. [INV-01] text is non-empty\n");
+      // A real `TopologyType` member, whatever the shared helper above happens to use: these cases
+      // assert on the EXIT CODE, and a contract that fails its own schema reds for CONTRACT-SCHEMA
+      // instead — which would make every one of them pass without the new arm existing at all.
+      w(cwd, `shapeup/${SLUG}/scopes/SC-1.md`, contract("SC-1", covers).replace(/^topology_type:.*$/m, "topology_type: ICEBERG"));
+      if (rows) w(cwd, `shapeup/${SLUG}/requirements.md`, ["# Requirements", "", "| REQ-id | clause | source | status | note |", "|---|---|---|---|---|", ...rows, ""].join("\n"));
+      w(cwd, `.shapeup/${SLUG}/tasks/TASK-001.md`, ["---", "id: TASK-001", "title: the one task", "status: todo", "priority: 1",
+        "use_case_refs: [UC-AddTodo]", "scope_id: SC-1", "---", "", "## Acceptance criteria", "",
+        ...acs.map((a) => `- [ ] ${a}`), ""].join("\n"));
+      return cwd;
+    };
+
+    /** Lint a fixture and return its REQ-UNCOVERED findings and totals. @param {string} cwd Fixture root. @returns {object} The report plus the filtered findings. */
+    const uncovered = (cwd) => {
+      const rep = lint({ cwd, slug: SLUG });
+      return { rep, hits: rep.findings.filter((f) => f.rule === "REQ-UNCOVERED") };
+    };
+
+    const BOTH = [row("REQ-1", "covered"), row("REQ-2", "covered")];
+    const AC1 = ["the list survives a restart (covers: REQ-1)"];
+
+    // (h1) one graded, one not.
+    {
+      const cwd = reqTree({ rows: BOTH, acs: AC1 });
+      try {
+        const { rep, hits } = uncovered(cwd);
+        if (hits.length === 1 && hits[0].scope === "REQ-2" && hits[0].level === "red") {
+          ok("(h) a requirement no AC grades and no scope claims is red under REQ-UNCOVERED");
+        } else {
+          fail(`(h) expected exactly one red REQ-UNCOVERED naming REQ-2, got ${JSON.stringify(hits)}`);
+        }
+        // THE DISCRIMINATOR. REQ-1 is graded by an AC on the board, and an arm reading the wrong
+        // parser cannot see that — it would red this one too, and the assertion above would still
+        // pass. This is what says the criteria were actually read.
+        if (!hits.some((f) => /REQ-1\b/.test(f.scope))) {
+          ok("(h) …and REQ-1, graded by an AC carrying (covers: REQ-1), is NOT reported — the arm reads the board parser that carries acceptance_criteria");
+        } else {
+          fail("(h) REQ-1 is graded by an AC on the board and was still reported uncovered — the arm is reading a board parser with no acceptance_criteria field, so it reds every requirement on every run");
+        }
+        // The detail has to be actionable by the PO alone: which clause, where it came from, and
+        // the two ways out. An id on its own sends them back to the pitch to find out what broke.
+        const d = hits[0]?.detail || "";
+        if (/shaping\.md R2/.test(d) && /the clause for REQ-2/.test(d) && /covers: REQ-2/.test(d) && /CUT \(PO-approved\)/.test(d)) {
+          ok("(h) the finding carries the source cell, the clause text and both ways out — cover it, or cut it on the record");
+        } else {
+          fail(`(h) the REQ-UNCOVERED detail does not name the source, the clause and both remedies: "${d}"`);
+        }
+        if (rep.red === 1) ok("(h) the uncovered requirement is the tree's only red — nothing else in a clean plan is disturbed by the new arm");
+        else fail(`(h) a tree whose only defect is one uncovered requirement linted red=${rep.red}: ${JSON.stringify(rep.findings.map((f) => f.rule))}`);
+      } finally { rmSync(cwd, { recursive: true, force: true }); }
+    }
+
+    // (h2) CUT is an answer already given, not a gap. The PO's way out has to actually work, or the
+    // gate is unpassable on any pitch with a requirement this shape deliberately drops.
+    {
+      const cwd = reqTree({ rows: [row("REQ-1", "covered"), row("REQ-2", "CUT (PO-approved)")], acs: AC1 });
+      try {
+        const { rep, hits } = uncovered(cwd);
+        if (hits.length === 0 && rep.red === 0) ok("(h) a requirement marked CUT (PO-approved) is not uncovered — the gate goes green on the PO's recorded answer");
+        else fail(`(h) a CUT requirement still fired: red=${rep.red} ${JSON.stringify(hits.map((f) => f.detail))}`);
+      } finally { rmSync(cwd, { recursive: true, force: true }); }
+    }
+
+    // (h3) The arm is about requirements NOTHING reaches, not about which layer reaches them. A
+    // clause a contract claims has an owner who answers for it at L1b, even before the criterion
+    // that grades it is written — and the claim is read in the one key space, so `R2` counts.
+    {
+      const cwd = reqTree({ rows: BOTH, acs: AC1, covers: "[R2]" });
+      try {
+        const { rep, hits } = uncovered(cwd);
+        if (hits.length === 0 && rep.red === 0) ok("(h) a requirement claimed by a scope's covers: is not REQ-UNCOVERED — the arm asks whether anything reaches it, not which layer does");
+        else fail(`(h) a scope claiming R2 did not answer for REQ-2: red=${rep.red} ${JSON.stringify(hits.map((f) => f.detail))}`);
+      } finally { rmSync(cwd, { recursive: true, force: true }); }
+    }
+
+    // (h4) ABSENT ARTIFACT ⇒ ARM SKIPPED — the same non-regression rule INV-FLOOR and SCOPE-COVERS
+    // follow. The board here carries a covers: clause with no registry to resolve it against, which
+    // is the exact shape that made trace-lint emit findings out of an arm it reported as skipped.
+    {
+      const cwd = reqTree({ acs: AC1 });
+      try {
+        const { rep } = uncovered(cwd);
+        const reqFindings = rep.findings.filter((f) => /^REQ-/.test(f.rule));
+        if (reqFindings.length === 0 && rep.red === 0) ok("(h) a run with no requirements.md emits no REQ-* finding at all — absent artifact ⇒ arm skipped");
+        else fail(`(h) REQ-* findings fired with no registry on disk: ${JSON.stringify(reqFindings)}`);
+        // 4R.4: the dangling half stays where it already lives. A second COVERS-DANGLING here would
+        // re-report, at a gate, a finding stage 1 deliberately arm-skipped in the oracle.
+        if (!rep.findings.some((f) => f.rule === "COVERS-DANGLING")) ok("(h) spec-lint adds no second COVERS-DANGLING — the scope layer surfaces a dangling key first, and the oracle owns the board-side one");
+        else fail("(h) spec-lint emitted COVERS-DANGLING — a second implementation of a finding that already has one");
+      } finally { rmSync(cwd, { recursive: true, force: true }); }
+    }
+
+    // (h5) END TO END, because the exit code is the gate. `lint()` returning a red finding and the
+    // CLI exiting 1 are different claims, and L1b reads the second one.
+    {
+      const red = reqTree({ rows: BOTH, acs: AC1 });
+      const green = reqTree({ rows: BOTH, acs: [...AC1, "it is reachable by keyboard (covers: REQ-2)"] });
+      try {
+        /** Run the verify spec CLI over a fixture. @param {string} cwd Fixture root. @returns {object} spawnSync result. */
+        const cli = (cwd) => spawnSync("node", [join(ROOT, "kernel/harness.mjs"), "verify", "spec", "--slug", SLUG, "--cwd", cwd], { encoding: "utf8" });
+        const a = cli(red), b = cli(green);
+        if (a.status === 1 && /REQ-UNCOVERED/.test(a.stdout)) ok("(h) `verify spec` exits 1 and prints REQ-UNCOVERED when a live requirement is graded by nothing");
+        else fail(`(h) verify spec exited ${a.status} on an uncovered requirement (REQ-UNCOVERED printed: ${/REQ-UNCOVERED/.test(a.stdout)}) — the gate reads the exit code, so the finding alone changes nothing`);
+        if (b.status === 0 && !/REQ-UNCOVERED/.test(b.stdout)) ok("(h) …and exits 0 once a second AC covers it — the gate is passable by doing the thing it asks for");
+        else fail(`(h) verify spec exited ${b.status} after every requirement was covered by an AC: ${b.stdout.slice(0, 400)}`);
+      } finally {
+        rmSync(red, { recursive: true, force: true });
+        rmSync(green, { recursive: true, force: true });
+      }
+    }
+  }
+
+  // --- (i) THE GATE BLOCK NAMES IT, because a red nobody is told to read is a red nobody reads ---
+  {
+    const gates = read(join(ROOT, "skills/tech-lead/references/gates.md"));
+    const l1b = gates.slice(gates.indexOf("## GATE L1b"), gates.indexOf("## GATE L2"));
+    if (/REQ-UNCOVERED/.test(l1b)) ok("(i) GATE L1b lists REQ-UNCOVERED among the reds that hard-stop the plan");
+    else fail("(i) GATE L1b's red list never names REQ-UNCOVERED — the orchestrator would print an exit-1 lint and read no instruction about it");
+    if (/REQ\s*→\s*AC/.test(l1b)) ok("(i) GATE L1b prints the REQ → AC table beside the Deferred Places — the PO sees which requirement nothing grades before signing off");
+    else fail("(i) GATE L1b prints no REQ → AC table — the PO is asked to accept a plan without being shown which requirements it drops");
+  }
 }
