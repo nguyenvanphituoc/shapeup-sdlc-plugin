@@ -68,7 +68,7 @@ routing key**: `compile-order` resolves the owning worker from the operation alo
 `OP_OWNER` map, mirroring `domain.schema.json`'s `$defs/Operation` ownership), so a dispatch
 never carries a redundant `--worker`, and each operation stamps a fixed `substrate` write
 contract (from `substrateFor`) that the sandbox hook then enforces. One compiled order therefore
-*is* the dataflow across the skill set — the 15 operations fan out to the 10 worker skills by
+*is* the dataflow across the skill set — the 17 operations fan out to the 10 worker skills by
 pipeline stage:
 
 ```mermaid
@@ -457,6 +457,21 @@ not something the leg can assert about itself — the same reason a dispatch rec
 hook layer rather than by the sub-agent making the call. Finished work whose leg failed to apply it is
 ingested by the round rather than re-built, because re-running the leg would pay a whole attempt again
 for work already on disk.
+
+A fourth asks the question the *deliverable* is judged on, and it is a query for the same reason
+`harness probe owner` is one: `harness probe requirements` projects one row per registered
+requirement — the clause, the pitch line it came from, the acceptance criteria that cover it, the
+criterion that graded them, the verdict and the T0 artifact hash behind it. The matrix is read at
+GATE L4 and cited by GATE H's census, both places where a narrated figure is indistinguishable from
+a measured one, so every column is derived from files on disk and nothing is written. `covers:` is
+the authoritative join — a criterion whose `traces_to` anchor names a requirement no acceptance
+criterion covers is printed as an inconsistency row and counted as nothing, because an L4 line
+derived from two unreconciled sources is exactly the failure `probe owner` exists to prevent. It
+projects **one run**, resolved from the run key, since `order_id`, round and attempt all repeat
+across runs of one feature; rows written before that key reached the verdict ledger report as
+unknown rather than being folded into the run being projected. A tree with no registry, a board with
+no `covers:` and a run with no verdict are all legitimate states that answer "no evidence" — an
+empty projection is the answer, never an error.
 
 **Why a command rather than the lifecycle hooks this used to be.** The pair that preceded it
 fired at two moments the platform chose, and the commonest continuity event in practice was

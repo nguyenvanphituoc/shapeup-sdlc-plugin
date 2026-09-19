@@ -13,7 +13,7 @@
 //   (d) markdown beats a stale `.json` sibling, so a leftover cannot resurrect an old substrate;
 //   (e) a `|` inside a value survives the table round-trip rather than splitting the row.
 
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -387,5 +387,83 @@ export async function run(ctx) {
     else fail(`db_probe read back as ${JSON.stringify(parsed.db_probe)}, not ${JSON.stringify(withQuote)} — the fixture the verifier runs is not the one the author wrote`);
 
     if (!lost) ok("no value containing a quote is silently truncated by the contract reader");
+  }
+
+  {
+    ctx.section("46f. A table field declared in the frontmatter too is reported, not discarded in silence");
+
+    // MEASURED, 2026-09-18. A planner wrote `affordance_manifest` in BOTH places: the frontmatter
+    // copy carried `required_states: [idle]`, the table cell a bare `idle`. `renderContract` never
+    // writes a table field into frontmatter, so the table wins — the value became a string where the
+    // schema wants an array, `compile` refused the order, and the scope was NEVER DISPATCHED while
+    // spec-lint passed the contract and the build leg reported `state: "done", error: null`. Four of
+    // nine scopes vanished that way, every round, until EVAL refused to grade a round whose scopes
+    // had never run. The parser is right about which side wins; the silence is the defect.
+    const both = [
+      "---", "scope_id: SC-BOTH", "affordance_manifest:",
+      "  - test_id: a", "    role: text", "    required_states: [idle]", "    source: U1",
+      "---", "", "## Affordances", "",
+      "| test_id | role | required_states | source |", "|---|---|---|---|",
+      "| a | text | idle | U1 |", "",
+    ].join("\n");
+    const reason = C.unreadableReason(C.parseContract(both, C.SCOPE_CONTRACT));
+    if (reason && /frontmatter/i.test(reason)) ok("a table field also present in frontmatter is reported as a discarded declaration");
+    else fail(`unreadableReason() returned ${JSON.stringify(reason)} — the copy the parser threw away was thrown away quietly`);
+
+    // NO FALSE POSITIVE ON THE EMPTY DECLARATION. With no rows under the heading the frontmatter
+    // value is what the field becomes, and `affordance_manifest: []` meaning "none" is current
+    // practice — five of the nine contracts on that same run do it and are correct. An earlier cut
+    // of this rule fired on all nine and turned a working run red.
+    const emptyFm = [
+      "---", "scope_id: SC-EMPTY", "affordance_manifest: []", "---", "",
+      "## Affordances", "", "None — this slice draws no affordances.", "",
+    ].join("\n");
+    const emptyParsed = C.parseContract(emptyFm, C.SCOPE_CONTRACT);
+    if (!C.unreadableReason(emptyParsed)) ok("`affordance_manifest: []` with no table rows stays legal and silent");
+    else fail(`unreadableReason() fired on a contract declaring no affordances: ${C.unreadableReason(emptyParsed)}`);
+    if (Array.isArray(emptyParsed.affordance_manifest) && emptyParsed.affordance_manifest.length === 0) ok("and the empty declaration still parses to []");
+    else fail(`affordance_manifest read back as ${JSON.stringify(emptyParsed.affordance_manifest)}, not []`);
+
+    // A well-formed contract — table only, list cell written `[a, b]` — is silent AND keeps the array.
+    const good = [
+      "---", "scope_id: SC-GOOD", "covers: [R1]", "---", "", "## Affordances", "",
+      "| test_id | role | required_states | source |", "|---|---|---|---|",
+      "| a | text | [idle] | U1 |", "",
+    ].join("\n");
+    const goodParsed = C.parseContract(good, C.SCOPE_CONTRACT);
+    const rs = goodParsed.affordance_manifest?.[0]?.required_states;
+    if (!C.unreadableReason(goodParsed) && Array.isArray(rs)) ok("the canonical form parses silently and keeps `required_states` an array");
+    else fail(`canonical contract: reason=${JSON.stringify(C.unreadableReason(goodParsed))} required_states=${JSON.stringify(rs)}`);
+  }
+
+  {
+    ctx.section("46g. A contract that parses but fails its own schema is red at the gate, not at dispatch");
+
+    // `kernel/lib/contract.mjs`'s banner promised exactly this check and it did not exist: compile
+    // validated, spec-lint did not. MEASURED 2026-09-19 — a planner wrote every `required_states`
+    // cell bare where the dialect wants `[a, b]`, so 32 manifest rows across six UI scopes parsed as
+    // strings. `verify spec` said red=0; `compile` then refused all six with "expected array, got
+    // string", and those scopes were never dispatched. The round reached EVAL six scopes short and
+    // the evaluator escalated instead of grading.
+    const S = await import("../../kernel/verify/spec.mjs");
+    const dom = JSON.parse(readFileSync(join(process.cwd(), "skills/tech-lead/schemas/domain.schema.json"), "utf8"));
+
+    const bare = { scope_id: "SC-BARE", affordance_manifest: [{ test_id: "a", role: "text", required_states: "idle", source: "U1" }] };
+    const bracketed = { scope_id: "SC-OK", affordance_manifest: [{ test_id: "a", role: "text", required_states: ["idle"], source: "U1" }] };
+
+    const bad = S.lintContractSchema([{ contract: bare, path: "SC-BARE.md" }], dom);
+    if (bad.length === 1 && bad[0].rule === "CONTRACT-SCHEMA" && bad[0].level === "red") ok("a bare list cell is CONTRACT-SCHEMA red");
+    else fail(`expected one CONTRACT-SCHEMA red, got ${JSON.stringify(bad)}`);
+    if (bad[0] && /expected array, got string/.test(bad[0].detail)) ok("and the detail names the field and the shape, as compile would");
+    else fail(`detail did not carry the schema error: ${bad[0] && bad[0].detail}`);
+
+    const good = S.lintContractSchema([{ contract: bracketed, path: "SC-OK.md" }], dom);
+    if (good.length === 0) ok("a well-formed contract produces no CONTRACT-SCHEMA finding");
+    else fail(`a valid contract was flagged: ${JSON.stringify(good)}`);
+
+    // ABSENT ARTIFACT ⇒ ARM SKIPPED, the same rule every other arm in this file follows.
+    const noSchema = S.lintContractSchema([{ contract: bare, path: "SC-BARE.md" }], null);
+    if (noSchema.length === 0) ok("with no readable schema the arm skips itself rather than failing closed");
+    else fail(`the arm fired with no schema to check against: ${JSON.stringify(noSchema)}`);
   }
 }

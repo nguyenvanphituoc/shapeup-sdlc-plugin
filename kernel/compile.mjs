@@ -207,6 +207,15 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
   // `feedback.md`, `api-feasibility.md` and `integration.md` are analysis, not contract.
   const working = `${local}/working`;
   const FROZEN_SPEC_CORE = [`${spec}/domain-model.md`, `${spec}/usecases/*.md#Steps`, `${spec}/contracts/**`, `${spec}/ux-behavior.md`];
+  // THE STAGED PITCH IS THE RUN'S OWN INPUT TRUTH, and it is a separate constant from the spec core
+  // on purpose: the spec core is what a planner PRODUCES and a judge grades against, while these two
+  // are what the run was asked for. `init run` stages them beside the receipt that digests them, and
+  // every planning and evaluating operation reads them — so a worker that can rewrite either can
+  // rewrite the question it is about to be measured on, and the receipt's digest stops describing
+  // the file next to it. Frozen, not merely unlisted: `analyze` already carries the whole run trace
+  // in its `allowed` globs, so only a `frozen` entry denies the write. `translate` is the one
+  // operation that legitimately rewrites a pitch, and it writes the COMMITTED copy, not this one.
+  const FROZEN_INTAKE = [`${local}/intake.md`, `${local}/breadboard.md`];
   switch (operation) {
     case "execute": case "fix": case "spike":
       return {
@@ -214,7 +223,7 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
         shared: scope?.shared_substrate || [],
       };
     case "analyze":
-      return { allowed: [`${spec}/**`, `${local}/**`], frozen: [] };
+      return { allowed: [`${spec}/**`, `${local}/**`], frozen: [...FROZEN_INTAKE] };
 
     case "reconcile":
       return {
@@ -229,24 +238,24 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
       // The covers-closure input truth. Writes ONLY the derived registry: the REQ source it
       // extracts from is frozen alongside the spec core, because a planner that may edit the
       // requirements it is being measured against is not measuring anything.
-      return { allowed: [globShared(slug, "requirements.md")], frozen: FROZEN_SPEC_CORE };
+      return { allowed: [globShared(slug, "requirements.md")], frozen: [...FROZEN_SPEC_CORE, ...FROZEN_INTAKE] };
 
     case "map-scopes":
       return {
         allowed: [`${scopesDir}/*.md`, globShared(slug, "scope-board.md")],
-        frozen: [...FROZEN_SPEC_CORE, `${local}/tasks/**`],
+        frozen: [...FROZEN_SPEC_CORE, ...FROZEN_INTAKE, `${local}/tasks/**`],
       };
     case "wire":
       // solution-architect writes the SHARED wiring map DIRECTLY (precedent: scope-architect
       // writes scopes/*.md). The spec core, the scopes, and the profile stay frozen.
       return {
         allowed: [globShared(slug, "wiring-map.md")],
-        frozen: [...FROZEN_SPEC_CORE, `${scopesDir}/**`, globShared(slug, "project-profile.md")],
+        frozen: [...FROZEN_SPEC_CORE, ...FROZEN_INTAKE, `${scopesDir}/**`, globShared(slug, "project-profile.md")],
       };
     case "evaluate":
-      return { allowed: [`${local}/evaluation/**`], frozen: [`${spec}/**`, `${local}/tasks/**`] };
+      return { allowed: [`${local}/evaluation/**`], frozen: [`${spec}/**`, ...FROZEN_INTAKE, `${local}/tasks/**`] };
     case "hunt":
-      return { allowed: [`${local}/qa/**`], frozen: [`${spec}/**`, `${local}/tasks/**`] };
+      return { allowed: [`${local}/qa/**`], frozen: [`${spec}/**`, ...FROZEN_INTAKE, `${local}/tasks/**`] };
     case "orient":
       return { allowed: [`${local}/orient/**`], frozen: [`${spec}/**`] };
     case "translate":

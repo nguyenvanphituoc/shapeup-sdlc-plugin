@@ -297,6 +297,12 @@ Scope contracts present:
     - scope-summary "Done when" headline statements
     - the Deferred Places from ux-behavior.md (breadboard Places this shape will not build) —
       each one needs the PO's yes; a rejected deferral goes back to the planner as a screen
+    - the REQ → AC table from requirements.md, one row per registered requirement: REQ-id, the
+      source clause it came from (`REQ-12 ← shaping.md R12`), and the acceptance criterion that
+      grades it — or the scope that claims it, or CUT (PO-approved). Omitted entirely when the run
+      has no registry. A requirement with none of the three is already a red below; this table is
+      what the PO reads to answer it — cover it, or cut it on the record. Printed, never asked:
+      the table decides nothing at this gate
 No scope contracts (pre-v0.3.0, unchanged from v0.2.6):
   Read tasks/_index.md (LOCAL root). Print:
     - task count by package/variant (.shared / .be / .web / .mobile / .e2e)
@@ -312,7 +318,15 @@ this is the orchestrator's own re-confirmation before committing to a build sequ
     waiting to happen), PA1 (directory-aligned scope), PA2 (size cap), SCOPE-ANCHOR (a scope
     naming no committed use case, or one that does not resolve), TIER-DIRECTION (a committed
     contract naming LOCAL task ids), SCOPE-DEPS (a build-order id naming a scope that is not
-    in this run), BREADBOARD-PLACE (a breadboard Place with UI affordances has no
+    in this run), REQ-UNCOVERED (a requirement in requirements.md that no acceptance criterion
+    grades and no scope claims — the PO's two ways out are an AC carrying `(covers: REQ-…)` or
+    `CUT (PO-approved)` in the registry; silent on a run with no registry),
+    CONTRACT-SCHEMA (a scope contract that parses but not into the shape a WorkOrder carries —
+    most often a list written bare in a table cell where the dialect wants `[a, b]`; without
+    this the compiler refuses the order later and the scope is never dispatched at all, with
+    the board green and the leg reporting done), CONTRACT-UNREADABLE (a table the parser could
+    not see, or a table field also declared in frontmatter where nothing reads it),
+    BREADBOARD-PLACE (a breadboard Place with UI affordances has no
     `## Screen: … (P#)` in ux-behavior.md and is not deferred), BREADBOARD-UI (a U# not
     specified on a screen of its own Place). Any red → HARD STOP, past a 🔴 at the
     architect's own checkpoint. The breadboard reds are the planner's to fix — add the screen
@@ -513,8 +527,15 @@ Feature   : [slug] — [SHIPPED (deployed) | BUILT & VERIFIED — deploy pending
 Rounds    : [r] (build+eval cycles)
 Verdict   : PASS (dims: [spec-conformance]; not evaluated: [security, performance])
 QA        : [hunt done — N findings, M promoted+fixed, rest ~ | skipped (--no-qa) | n/a (pre-QA spec)]
+Requirements: [15/17 PASS · 1 CUT (PO) · 1 no evidence (REQ-12 ← R12) | n/a (no registry)]
 Ledger    : harness-run.md
 ```
+The Requirements line is TRANSCRIBED, never composed — run
+`node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe requirements --slug <slug> --format table`
+and copy its `Requirements:` summary. It joins each registered clause to the acceptance criterion
+that covers it and to the criterion the judge graded, over the run named in its own output. It
+decides nothing here: a requirement with no PASS evidence is a fact GATE H's census and the
+baseline comparison weigh, not a ship blocker.
 Question (max 1): "Anything to record before I close the run? (y/n) or provide feedback for the next sprint."
 On confirm:
 - If the PO provides substantive feedback (not just 'y' or empty) → automatically delegate via Agent (model: exec — see references/protocol.md "Invocation mechanism"): Skill(shapeup-sdlc-plugin:coach) with the provided feedback for RLHF. The coach runs its own GATE COACH-1 to have the PO categorize each rule, then files it under the responsible skill in `shapeup/knowledge-base/<skill>.md` (committed → team-shared). Coachable: `task-executor`, `ba-pitch-analyzer`, `qa-edge-hunter`, `orient`, `scope-architect`, `solution-architect` (each reads its own file at the top of its next run) and `tech-lead` (workflow guidance, read at the next GATE L0). Guidance never decides a gate: a filed rule may add a question or a check to a gate block, never an answer. The tech lead does not categorize the feedback itself — that is the coach's gate, by design (no assumptions).

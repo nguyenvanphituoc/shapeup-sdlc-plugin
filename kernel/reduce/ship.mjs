@@ -36,6 +36,7 @@ import {
 } from "../lib/paths.mjs";
 import { readTrials } from "../verify/t0.mjs";
 import { ratchetReport } from "../probe/stats.mjs";
+import { projectRequirements, summaryLine } from "../probe/requirements.mjs";
 import { collectDiff, scanDiff, summarize } from "./leftovers.mjs";
 
 /** @returns {string} Today as `YYYY-MM-DD` (UTC). */
@@ -167,7 +168,7 @@ export function section(md, heading) {
 export function buildReport(facts) {
   const {
     slug, at, verdict, qa, rounds, board, t0, artifacts, ratchet,
-    evalCriteria, evalBugs, qaFindings, decisions, discovered, intakeSha, leftovers,
+    evalCriteria, evalBugs, qaFindings, decisions, discovered, intakeSha, leftovers, requirements,
   } = facts;
 
   const L = [];
@@ -212,6 +213,40 @@ export function buildReport(facts) {
       L.push(`| ${s.scope_id} | ${f} | ${r} | ${s.trials} | ${s.status} | ${s.delta || "—"} |`);
     }
     L.push("");
+  }
+
+  // The requirement matrix — the way back from a verdict to the clause the pitch asked for, frozen
+  // at the one moment the run's local evidence still exists. Omitted entirely when the run has no
+  // registry: a table of nothing reads as "no requirements", which is a different claim from "this
+  // run predates the registry". Derived like every other figure here, by the same probe the L4 line
+  // and GATE H's census read, so the three cannot disagree.
+  if (requirements?.registry && requirements.rows.length) {
+    L.push("## Requirements", "");
+    L.push("One row per registered clause. A requirement has evidence when an acceptance criterion",
+      "covers it AND a criterion grading it passed — `covers:` is the join, the judge's anchor is the",
+      "path back. This is a projection, never a verdict: it never blocked this ship.", "");
+    L.push(`**${summaryLine(requirements)}** · run \`${requirements.run_id ?? "unknown"}\``, "");
+    // A clause, an AC and a criterion are all free prose, and a literal pipe in any of them breaks
+    // the row into columns nobody wrote — a frozen report that misrenders its own evidence.
+    /**
+     * Escape a free-prose value for a Markdown table cell.
+     * @param {string} s - The value.
+     * @returns {string} The value with every literal pipe escaped.
+     */
+    const cell = (s) => String(s).replace(/\|/g, "\\|");
+    L.push("| REQ | source | evidence | covering AC | criterion | T0 |", "|---|---|---|---|---|---|");
+    for (const r of requirements.rows) {
+      const ac = r.covering_acs.length ? `${r.covering_acs[0].task_id}: ${r.covering_acs[0].ac}${r.covering_acs.length > 1 ? ` (+${r.covering_acs.length - 1})` : ""}` : "—";
+      const crit = r.criteria.length ? `${r.criteria[0].criterion}${r.criteria.length > 1 ? ` (+${r.criteria.length - 1})` : ""} → ${r.criteria.map((c) => c.verdict).join(",")}` : "—";
+      const t0h = r.t0.length ? r.t0.map((h) => String(h).slice(0, 12)).join(", ") : "—";
+      L.push(`| ${r.id} | ${cell(r.source || "—")} | ${r.evidence} | ${cell(ac)} | ${cell(crit)} | ${t0h} |`);
+    }
+    L.push("");
+    if (requirements.inconsistencies.length) {
+      L.push("Anchored to a requirement no acceptance criterion covers — reconcile, do not count as evidence:", "");
+      for (const i of requirements.inconsistencies) L.push(`- ${i.requirement} ← "${i.criterion}" (${i.verdict})`);
+      L.push("");
+    }
   }
 
   // The ratchet aggregate is derived, ~10 scalars that do not grow with the run, which is why it
@@ -306,6 +341,7 @@ export function generate({ cwd, slug, verdict, qa }) {
     board: boardCensus(cwd, slug),
     t0: t0Summary(cwd, slug),
     ratchet: ratchetReport(readTrials(trials(cwd, slug))),
+    requirements: projectRequirements({ cwd, slug }),
     artifacts: verdictArtifactCount(cwd, slug),
     evalCriteria: section(evalReport, /^#+\s.*criteria/i) || section(evalReport, /^#+\s*spec-conformance/i),
     evalBugs: section(evalReport, /^#+\s*Bugs?\b/i),

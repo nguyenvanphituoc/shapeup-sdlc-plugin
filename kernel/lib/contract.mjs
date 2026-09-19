@@ -94,6 +94,9 @@ export const PROJECT_PROFILE = { tables: {} };
  */
 export const UNREADABLE = "$unreadable_tables";
 
+/** `found_under` marker: a table field that was also declared in the frontmatter, where nothing reads it. */
+export const FRONTMATTER_COPY = "the frontmatter, where it is silently discarded";
+
 /**
  * Marks a contract that parsed only via a MIGRATION reader — readable, but not in the canonical
  * shape. Without it the fallback is permanent by silence: the file works, nothing says it is the
@@ -440,7 +443,34 @@ export function parseContract(md, spec = SCOPE_CONTRACT) {
   const unreadable = [...(meta[UNREADABLE] || [])];
   delete out[UNREADABLE];
   for (const [field, heading] of Object.entries(spec.tables || {})) {
-    if (tables[heading]) { out[field] = tables[heading]; continue; }
+    // A TABLE FIELD DECLARED IN THE FRONTMATTER TOO IS A DISCARDED DECLARATION, and it has to be
+    // loud. `renderContract` writes table fields ONLY as a table — it filters them out of the
+    // frontmatter it emits — so the table is the source by construction and the line below is right
+    // to prefer it. What the old code did not say is that the frontmatter copy was then dropped
+    // without a word, and `splitFrontmatter` cannot even represent this shape: a block sequence of
+    // MAPPINGS flattens to a list of strings, so the copy is usually garbage as well as ignored.
+    //
+    // Measured: a planner wrote `affordance_manifest` in both places, the frontmatter copy carrying
+    // the correct `required_states: [idle]` and the table cell a bare `idle`. The parser took the
+    // table, the value was a string where the schema wants an array, `compile` refused the order,
+    // and the scope was NEVER DISPATCHED — spec-lint passing the contract, the build leg reporting
+    // `state: "done", error: null`, four of nine scopes gone every round, until EVAL refused to
+    // grade a round whose scopes had never run. The contract even captioned its own table "rendered
+    // here for reviewers": the author's model was the exact inverse of the parser's. That
+    // disagreement is the defect; which side wins is not.
+    //
+    // ONLY WHEN A TABLE ACTUALLY WINS. With no rows under the heading the frontmatter value is what
+    // the field becomes, and `affordance_manifest: []` meaning "none" is legal and current — five of
+    // those nine contracts do exactly that and are correct. An earlier cut of this rule fired on all
+    // nine and turned a working run red, which is the opposite of the fix.
+    if (tables[heading]) {
+      if (field in meta) {
+        unreadable.push({ field, expected_heading: heading, found_under: FRONTMATTER_COPY,
+          rows: Array.isArray(meta[field]) ? meta[field].length : 1 });
+      }
+      out[field] = tables[heading];
+      continue;
+    }
     // The field is absent — but is it absent because nobody declared it, or because the
     // author declared it somewhere this parser does not look? Those are opposite facts and the
     // old code returned the same thing for both. A table carrying this field's signature columns,
@@ -533,6 +563,14 @@ export function unreadableReason(contract) {
       if (x.rows === 0 && String(x.found_under).includes("markdown section")) {
         return `\`${x.field}\` was written as a \`## ${x.field}\` markdown section, which this dialect reads as prose — ` +
           `it must be a FRONTMATTER key (a \`- \` block list or an inline [a, b] list), so as written the field parsed as ABSENT`;
+      }
+      // A table field ALSO declared in the frontmatter. Its own case because the fix is "delete the
+      // frontmatter copy", not "move the table" — and because the copy is not merely redundant: the
+      // parser takes the table, so whatever the copy said was discarded without a word.
+      if (x.found_under === FRONTMATTER_COPY) {
+        return `\`${x.field}\` is a TABLE field and was also declared in the frontmatter, ` +
+          `where it is read by nothing and silently discarded — the \`## ${x.expected_heading}\` table is the only source. ` +
+          `Delete the frontmatter copy, and check the table says what it said: a list cell is written \`[a, b]\``;
       }
       return `\`${x.field}\` must be a table under a \`## ${x.expected_heading}\` heading; found ${x.rows} matching row(s) under "${x.found_under}" instead, so the field parsed as ABSENT`;
     })
@@ -650,6 +688,35 @@ export function readAllContracts(dir, spec = SCOPE_CONTRACT) {
  */
 export function ucId(ref) {
   return String(ref ?? "").trim().replace(/^\[\[|\]\]$/g, "").replace(/^usecases\//, "").replace(/\.md$/, "").trim();
+}
+
+/**
+ * Normalise one requirement reference to the registry's key space (`REQ-<n>`).
+ *
+ * TWO KEY SPACES FOR ONE THING, and the measurement is what decided this. A pitch numbers its
+ * requirements `R1…R21`; the registry, every AC's `covers:` clause and every `traces_to[]` key off
+ * `REQ-<n>`. Measured across two runs of one pitch, the scope contracts cited `R<n>` — 20 of 21
+ * requirements had a scope claiming them, and every one of those links resolved to nothing,
+ * reported 23 times a run as a shape warning nobody could act on. So the edge WAS produced; it was
+ * severed by spelling alone.
+ *
+ * Normalising here rather than teaching the planner to emit `REQ-<n>` is deliberate: `covers[]` is
+ * an OPTIONAL contract field, so a fix that depends on a planner choosing to comply converts
+ * whatever links the next run happens to write, while this converts the links on contracts already
+ * committed, with no worker behaviour change. The craft still asks for `REQ-<n>` going forward.
+ *
+ * THIS IS A MAPPING PERFORMED BEFORE THE PATTERN, NOT A LOOSENING OF IT. `^REQ-[0-9]+$` is
+ * unchanged everywhere it appears; a reference this function does not recognise is returned
+ * verbatim, so it still fails that pattern and is still reported.
+ *
+ * @param {string} ref - A requirement reference (`REQ-12`, `R12`, `R-12`, `[[REQ-12]]`, any case).
+ * @returns {string} The canonical `REQ-<n>` id, or the trimmed input unchanged when it is not a
+ *   numbered requirement reference at all.
+ */
+export function reqId(ref) {
+  const s = String(ref ?? "").trim().replace(/^\[\[|\]\]$/g, "").trim();
+  const m = s.match(/^(?:REQ|R)-?([0-9]+)$/i);
+  return m ? `REQ-${m[1]}` : s;
 }
 
 /**

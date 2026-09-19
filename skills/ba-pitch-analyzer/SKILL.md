@@ -98,6 +98,21 @@ its phase; templates live in `assets/templates/`.
 (red). An invariant-backed regression task still anchors to its owning UC — there is no
 second path to green.
 
+**The requirement edge is written on the AC line, or it does not exist.** An acceptance
+criterion that grades a registry requirement ends with `(covers: REQ-…)` — the trailing clause,
+in the checkbox text, not a mention in prose. Measured on two runs of one pitch: every
+requirement had an acceptance criterion somewhere on the board and only half reached a criterion
+the judge grades, because a board AC reaches the judge through the refuted list alone — it can
+yield a FAIL and can never yield a PASS. An AC nothing cites by id produces no evidence for the
+requirement it was written for.
+
+**A requirement with no natural use-case home still becomes a task.** Contrast, localisation, a
+performance ceiling, a test surface — a non-functional clause has no actor+action and so no UC of
+its own, and the habit is to record it in the risk register, where nothing grades it. Give it a
+task whose AC reaches the committed spec (the invariant, the contract field or the Test Surface
+row that states it) and carries its `(covers: REQ-…)`. A line in the risk table is a note; a
+covered AC is a requirement the run can be measured against.
+
 ---
 
 ## The other three operations — same craft, different payload + whitelist
@@ -106,7 +121,7 @@ second path to green.
 |---|---|---|
 | `reconcile` | Verify `ledger.feature == payload.feature` (mismatch → STOP). Map each `[+]` Keep item → its owning UC; new task continues numbering (never renumber); `~`/Cut → synthesis "Hammered Out" row, no file. A Keep item asserting a new invariant → APPEND `[INV-NN]` + TS-INV row to that UC (append-only sections in your substrate). A new actor/action with no UC → `status: "escalated"` + a `deviations[]` spec-ambiguity entry: spawning a UC mid-cycle is silent re-shaping, the PO decides. Finish with board-derive (appetite overflow → report) + spec-lint | re-run phases 1–5; edit UC Steps; resolve the appetite HAMMER yourself |
 | `retrofit-surface` | Append `## Test Surface` (derived rows only, after Error Cases) to each UC of a pre-surface spec; an all-sources-empty UC gets the explicit empty-sources line | touch anything else — append-only substrate |
-| `coverage` | Extract **atomic** customer requirement clauses from `payload.requirements` (default: the pitch) and write the SHARED `shapeup/<slug>/requirements.md` registry: one `\| REQ-id \| clause (verbatim) \| source \| status \| note \|` row per clause. Split compound sentences into one testable clause each — a clause lost *inside* a bigger sentence is a requirement nothing can be traced to. **Assign REQ-ids ONCE and freeze them** (they behave like scope_id, never TASK-NNN — every `covers:` link rots otherwise): re-running, append new clauses with fresh ids, mark a removed clause `CUT (PO-approved)`, never renumber or delete. Status starts `covered` (a live requirement); only the PO sets `CUT`. The REQ source itself is frozen — the registry is a separate derived file | edit the REQ source; renumber existing REQ-ids; delete a dropped clause instead of marking it CUT; invent a requirement not in the source |
+| `coverage` | Extract **atomic** customer requirement clauses from `payload.requirements` (default: the pitch) and write the SHARED `shapeup/<slug>/requirements.md` registry: one `\| REQ-id \| clause (verbatim) \| source \| status \| note \|` row per clause. Split compound sentences into one testable clause each — a clause lost *inside* a bigger sentence is a requirement nothing can be traced to. **Assign REQ-ids ONCE and freeze them** (they behave like scope_id, never TASK-NNN — every `covers:` link rots otherwise): re-running, append new clauses with fresh ids, mark a removed clause `CUT (PO-approved)`, never renumber or delete. Status starts `covered` (a live requirement); only the PO sets `CUT`. The REQ source itself is frozen — the registry is a separate derived file. **Numbering.** A source clause already carrying an `R<n>` keeps its number — `R12` → `REQ-12` — and its `source` cell records where it came from verbatim (`shaping.md R12`), because that cell is the only thing that survives a re-run. A clause with no R-id takes the next free number ABOVE the highest `R<n>` in the source, so it can never collide with one added later. Splitting a compound clause keeps `REQ-12` for the first atomic part and records `shaping.md R12 (split 2/3)` for the rest — a requirement graded in parts is why splitting matters at all. On a re-run, match an existing id by its frozen `source` cell and clause text, **never** by re-deriving the number from the source's current order | edit the REQ source; renumber existing REQ-ids; delete a dropped clause instead of marking it CUT; invent a requirement not in the source; re-point an existing REQ-id because the source's R-numbers shifted |
 ---
 
 ## Anti-rationalization table

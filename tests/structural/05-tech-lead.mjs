@@ -888,8 +888,29 @@ export async function run(ctx) {
       if (legacy.report?.covers_closure?.checked === false && legacy.report?.reachability?.checked === false) ok("both spine arms self-skip when their artifacts are absent");
       else fail("legacy run did not self-skip the spine arms");
 
+      // Fixture C: ABSENT ARTIFACT ⇒ ARM SKIPPED, and the dangling half is the one that broke it.
+      // `uncovered` cannot fire with no registry — there are no clauses to be uncovered — but
+      // `dangling` is derived from the BOARD, which needs no registry to carry a `covers:` clause.
+      // So a tree with no requirements.md reported "covers-closure not applicable" and a red finding
+      // for every covers: on the board, in the same report. The rule is the same one INV-FLOOR and
+      // SCOPE-COVERS already follow; an arm that says it skipped and emits findings anyway did not.
+      const C = mkdtempSync(join(tmpdir(), "tracelint-dangling-"));
+      mkdirSync(join(C, ".shapeup/noreg/tasks"), { recursive: true });
+      writeFileSync(join(C, ".shapeup/noreg/tasks/TASK-001.md"),
+        "---\nid: TASK-001\nstatus: ready\npriority: 1\n---\n- [ ] payment works (covers: REQ-1)\n");
+      const noReg = run("noreg", C, ["--gate"]);
+      const ccC = noReg.report?.covers_closure;
+      const dangFindings = (noReg.report?.findings || []).filter((f) => f.code === "COVERS-DANGLING");
+      if (ccC?.checked === false) ok("covers-closure reports itself skipped when no requirements.md exists");
+      else fail(`covers-closure claimed checked=${ccC?.checked} with no registry on disk`);
+      if (dangFindings.length === 0) ok("a board carrying covers: with NO registry emits no COVERS-DANGLING — the arm is skipped, not half-run");
+      else fail(`COVERS-DANGLING fired with no requirements.md on disk: ${JSON.stringify(dangFindings)}`);
+      if (noReg.status === 0 && noReg.report?.overall === "green") ok("…and the run stays green even under --gate (absent artifact ⇒ arm skipped)");
+      else fail(`a registry-less tree went red: status=${noReg.status} overall=${noReg.report?.overall}`);
+
       rmSync(A, { recursive: true, force: true });
       rmSync(B, { recursive: true, force: true });
+      rmSync(C, { recursive: true, force: true });
     }
 
     // Schema registration surface the plan mandates (§2, §5) — guard against half-wired drift.

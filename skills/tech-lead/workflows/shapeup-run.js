@@ -407,6 +407,9 @@ const RESUME = {
     eval_dimensions: { type: "array", items: { type: "string" } },
     has_orient_artifacts: { type: "boolean" },
     has_spec_tree: { type: "boolean" },
+    // The requirements registry — a fact, not a phase. See the COVERAGE block below for why it is
+    // guarded on this bare boolean and never asked about through `probe resume --require`.
+    has_requirements: { type: "boolean" },
     has_wiring_map: { type: "boolean" },
     has_project_profile: { type: "boolean" },
     // THE SHAPE THE KERNEL WRITES, not a convenient one. `probe resume` emits `{scope_id, path}` per
@@ -488,7 +491,7 @@ const ORIENT = {
   required: ["ok", "artifact_written", "spiked_area", "spike_result"],
 };
 
-/** analyze / wire — "did the artifact land?" is all a gate needs from them. */
+/** coverage / analyze / wire — "did the artifact land?" is all a gate needs from them. */
 const PHASE_OK = {
   type: "object",
   properties: { ok: { type: "boolean" }, artifact_written: { type: "boolean" }, detail: { type: "string" } },
@@ -1006,8 +1009,47 @@ if (!rs.has_orient_artifacts) {
   if (g.stop) return withWarnings(g.stop);
 }
 
-// ---- ANALYZE (spec tree + board) — ahead of WIRE, which reads its use cases -------------------
+// ---- COVERAGE (the requirements registry) — ahead of ANALYZE, whose ACs cite its ids ----------
+//
+// WHY IT RUNS AT ALL, and why here. The pitch's own requirement list is the one statement of what
+// the run was asked for, and until it is extracted into `shapeup/<slug>/requirements.md` there is
+// no stable key an acceptance criterion, a scope contract or a verdict can point back to. Measured
+// on a full run: the planner produced the requirement edge on the board and the judge never saw
+// it, because nothing on either side shared a key space. So the registry is written BEFORE the
+// board, not beside it — ANALYZE's acceptance criteria cite `REQ-<n>` ids, which have to exist
+// before they can be cited.
+//
+// IT IS NOT A PHASE, AND THAT IS THE WHOLE DESIGN OF THIS BLOCK.
+//   · No `phase("Coverage")`: the dispatch belongs to the planning stretch the Analyze group
+//     already covers (`setRunStatus("mapping")` spans it), so it never renders as an empty group
+//     on a relaunch — the failure a per-phase progress box would otherwise have to pay a leg to
+//     avoid, and there is no leg to spend here (see the next point).
+//   · No `requirePhase()` / no `fastForward()`: both route to `probe resume --require`, whose
+//     `--require` is an ENUM over `PHASE_ARTIFACT`'s keys. `coverage` is not one, so the call exits
+//     2, and this file reads any exit other than 6 as "the predicate was never asked" — a dispatch
+//     that worked would abort the run. The skip is therefore narrated, and guarded on the bare
+//     `has_requirements` boolean the resume state carries.
+//   · Not in `PHASE_ARTIFACT` either: that map is also `nextPhase()`'s ordered list, so adding it
+//     would fast-forward every pre-registry run to the registry instead of to `build`.
 phase("Analyze");
+if (!rs.has_requirements) {
+  log(`COVERAGE — dispatching (slug ${slug})`);
+  await setRunStatus("mapping", "Analyze");
+  const c = await worker({
+    skill: "ba-pitch-analyzer", operation: "coverage", schema: PHASE_OK, phase: "Analyze", label: "coverage",
+    payload: { requirements: rs.intake_path, feature: slug },
+    extra:
+      "Extract the pitch's requirement clauses into the SHARED requirements registry, one atomic " +
+      "clause per row. A clause carrying an R-id keeps its number as REQ-<n> and records the R-id " +
+      "verbatim in its source cell; ids are assigned once and never renumbered.",
+  });
+  if (c.__failed) return diedAt("COVERAGE", c);
+  await advisory(`reduce graph --slug ${slug}`, "Analyze", "graph:coverage");
+} else {
+  log(`COVERAGE — a requirements registry is already on disk; not re-dispatching it`);
+}
+
+// ---- ANALYZE (spec tree + board) — ahead of WIRE, which reads its use cases -------------------
 if (!rs.has_spec_tree) {
   log(`ANALYZE — dispatching (slug ${slug})`);
   // "mapping", not "analyzing": the kernel's RUN_STATUSES enum is deliberately COARSER than this

@@ -41,6 +41,16 @@ the ship report's census table.
            scalars and [a, b] lists, a `## Affordances` table for affordance_manifest, and a
            short `## Why this slice` paragraph. A reviewer must be able to read the substrate
            in a PR; regeneration preserves prose under headings you do not own.
+           ► affordance_manifest lives in the TABLE and NOWHERE ELSE. Do not also write it in
+             the frontmatter: nothing reads it there, so the copy is discarded — and a run has
+             been lost to exactly that. The frontmatter copy said required_states: [idle], the
+             table cell said a bare idle, the table won, the value was a string where an array
+             was required, and four scopes were never dispatched — the board green, the contract
+             lint-clean, each leg reporting done with no error, every round, until EVAL refused
+             to grade a round whose scopes had never run. A contract declaring no affordances
+             writes `affordance_manifest: []` in frontmatter and no table.
+           ► A LIST INSIDE A TABLE CELL IS WRITTEN `[a, b]`, brackets and all — `[idle]`, never
+             `idle`. A bare word in that cell is a string, and required_states is an array.
              scope_id, topology_type                         — the stable join key is the scope
              use_cases[]                                     — the UC ids this scope implements.
                                                                THE ONLY LINK YOU WRITE TO THE
@@ -53,7 +63,12 @@ the ship report's census table.
                                                                the board's own use_case_refs
              covers[]                                        — optional REQ-ids from
                                                                requirements.md this scope answers
-                                                               for; stable, never renumbered
+                                                               for; stable, never renumbered.
+                                                               WRITE THE REGISTRY'S OWN KEY:
+                                                               `REQ-12`, not the pitch's `R12`.
+                                                               Both resolve — readers normalise —
+                                                               but one spelling in the committed
+                                                               contract is one thing to read
              depends_on[]                                    — scope_ids this scope builds AFTER.
                                                                This is the build ORDER — declare
                                                                it whenever one scope consumes

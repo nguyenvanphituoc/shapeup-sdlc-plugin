@@ -6,6 +6,94 @@
 
 ## Defects
 
+- **`budgets.wallClockS` is documented by the workflow and read by nothing.** `shapeup-run.js`
+  names `budgets {maxRounds, attemptBudget, wallClockS?}` in its own RunArgs contract (`:36`) and
+  then reads only `maxRounds` (`:116`) and `attemptBudget` (`:117`). Measured 2026-09-19: a run
+  launched with `wallClockS: 10800` reported *"wall-clock budget is off (no budget configured)"* and
+  its receipt carried `wall_clock_budget_s: null`. Only `harness init run --wall-clock-budget` sets
+  the field the budget check actually reads. So a caller following the workflow's own documented
+  argument shape gets no wall-clock breaker **and no warning that it asked for one** — which is the
+  part that makes it worse than an absent feature. Either read it, or stop naming it in RunArgs.
+
+- **An abort at GATE L3 leaves a run trace that reads as still running.** Measured 2026-09-19: after
+  the evaluator escalated and the run aborted, `harness-run.md` still said `status: evaluating`,
+  `rounds_used: 0`, `final_verdict: ~`, `closed_at: ~`, with no cause recorded anywhere under
+  `.shapeup/`. From the run trace alone a live EVAL and a dead one are indistinguishable; the only
+  thing that tells them apart is the launcher's terminal event, which is not part of the trace. An
+  operator watching the tier the harness owns cannot tell that the run is over.
+
+- **A scope contract can pass GATE L1b and then be silently undispatchable.** Measured 2026-09-18 on
+  a real run: exactly the contracts with a non-empty `affordance_manifest` are refused by
+  `harness compile` — *"produced an order that fails its own schema — refusing to write:
+  $.payload.scope_contract.affordance_manifest[0].required_states: expected array, got string"* — and
+  those are the UI scopes where most of a pitch lives (4 of 9 on that run). **The reason it is worse
+  than a red check:** `spec-lint` passes the contract, the build leg reports `state: "done",
+  error: null`, and there is no order, no result, no T0 trial, no ledger row and no hook decision —
+  the scope simply never happens, identically every round, until EVAL refuses to grade a round whose
+  scopes were never dispatched. Strong candidate for what stopped an earlier soak after round 1.
+
+  **Root cause, corrected 2026-09-19** *(the first filing of this entry blamed the frontmatter
+  reader for parsing a YAML flow sequence as a scalar; that is wrong, and the correction matters
+  because it points at a different fix)*. `affordance_manifest` is a **table** field —
+  `SCOPE_CONTRACT.tables` maps it to the `## Affordances` heading — and `renderContract` deliberately
+  **excludes table fields from the frontmatter it writes**. The table is the source by construction
+  and the parser is right to prefer it. What happened is that `scope-architect` wrote the field in
+  **both** places: the frontmatter copy carries the correct `required_states: [idle]`, the table cell
+  carries a bare `idle`, and `parseContract` silently takes the table. The contract file even
+  captions the table *"See frontmatter `affordance_manifest` (rendered here for reviewers)"* — the
+  author's model is the exact inverse of the parser's. Verified: the plugin's own round-trip is
+  lossless (`uncoerce(["idle"])` → `[idle]`, `coerce("[idle]")` → `["idle"]`,
+  `renderTable`→`parseTables` returns the array), and `unreadableReason()` returns **null** on a
+  contract whose two copies disagree.
+
+  So there are two silences to close, and neither is a parser bug: **(1)** a table field that also
+  appears in frontmatter is data the author put where the parser does not look — precisely what
+  `unreadableReason` exists to report, and it reports nothing; **(2)** a compile refusal is invisible
+  to the leg that caused it. Plus a craft fix: `scope-architect` must not write table fields into
+  frontmatter, and must write a list cell as `[a, b]`.
+
+  **It reproduced by a second path, 2026-09-19 — and that is the more important half.** After both
+  fixes landed, a fresh run wrote no duplicate at all (0 of 18 contracts; `unreadableReason()` null
+  on every one) — the craft change worked. But the planner wrote every `required_states` table cell
+  **bare**: `| todoList.countText | text | ready | U2 |`. `coerce()` returns an array only for a
+  bracketed value, so all **32** manifest rows across the six UI scopes parsed as strings, `compile`
+  refused all six orders, and the same six scopes were never dispatched. `verify spec` passed them
+  **green at L1b**. Same outcome, different path, and the guard added for the first path could not
+  see it. Fixed at the level both paths share: spec-lint now validates each parsed contract against
+  `$defs/ScopeContract`, which reports exactly those six. The lesson worth keeping is that the first
+  fix addressed the mechanism observed rather than the class — "a contract can be wrong in a way only
+  the compiler checks" — and the class is what bit twice.
+
+- **The requirement edge is produced and checked, and the check is a warning.** Scope contracts carry
+  a `covers:` frontmatter field and `scope-architect` populates it — measured 2026-09-18 on a real
+  run: 8 of 9 contracts, 20 of 21 pitch requirements. They carry the pitch's own `R<n>` keys, while
+  the schema's pattern wants `REQ-<n>`, so `verify spec` emits **23 `SCOPE-COVERS` warnings** on that
+  run, each reading *"covers \"R17\" is not a REQ-id — the requirement edge will not resolve"*. The
+  harness has therefore been reporting this defect at the gate where it matters, on every run, and
+  the severity swallows it. The two id spaces differ by a prefix; nothing writes the registry that
+  would let the edge resolve. Filed as a raw idea rather than a fix because the choice — teach the
+  producer to emit `REQ-<n>`, normalise `R<n>` on read, or write the registry first and promote the
+  closure half of `SCOPE-COVERS` — changes what a gate does, which is a bet.
+
+- **The staged pitch is fenced against every operation that reads it, and against none that builds.**
+  `substrateFor`'s `FROZEN_INTAKE` (`.shapeup/<slug>/intake.md`, `breadboard.md`) reaches `coverage`,
+  `analyze`, `map-scopes`, `wire`, `evaluate` and `hunt`, but not `execute`, `fix` or `spike`. The
+  substrate fence checks `frozen` first and then waves through any unfrozen path inside the run
+  trace, so a build leg may overwrite the run's own input truth. Measured 2026-09-18 by executing
+  `hooks/sandbox-guard.mjs` against a fixture carrying one live `execute` order: `intake.md` and
+  `breadboard.md` both **permitted**, while the committed `spec/domain-model.md` was denied.
+  Build legs are the most numerous and longest-lived dispatches in a run, so this is the widest
+  window, not the narrowest. The harm is the one the freeze exists to prevent: the receipt digests
+  the intake, and a rewritten intake leaves that digest describing a file that no longer exists —
+  and any operation deriving a requirement registry from the pitch would measure a question the run
+  was not asked. Not a regression: before the frozen check was reordered ahead of the run-trace
+  carve-out, *every* `frozen` declaration over a LOCAL path was inert and the pitch was writable by
+  everybody. The apparent fix is one line — `...FROZEN_INTAKE` in the `execute`/`fix`/`spike` case —
+  and it denies a write no legitimate worker makes (`init run` stages the pitch before any order is
+  live; `translate` writes the committed copy). It is filed rather than applied because the choice
+  between that and lifting the two paths out of the carve-out at the hook level, where no operation
+  has to remember to declare them, is a Betting Table call.
+
 - The WorkOrder carries no field naming where the WorkResult goes, so each worker derives the path
   from prose while its own `substrate.allowed` names a directory that does not contain it. The
   workflow lane works around this by stating the path in the dispatch prompt and deriving the same

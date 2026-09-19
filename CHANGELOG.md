@@ -3,6 +3,99 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.5.0] — 2026-09-19 · The run checks what the pitch forbids, not what it asks
+
+The loop graded the build against the spec it had written itself. The pitch's own list of what the
+feature must do went in at GATE L1b and was never seen again: nothing produced it as an artifact,
+nothing went red when a clause reached no acceptance criterion at all, and no verdict could say
+which clause it answered. Every gate could be green over a feature missing half of what was asked
+for, and each gate would be right about the question it was asking.
+
+**The measurement this release was opened by, and what it belongs to.** One `hero-todo` run in a
+consumer project, dispatched 2026-09-18 and graded 2026-09-19, against plugin **3.4.0** on branch
+`plan/requirements-reach-the-verdict`; exec `sonnet`, eval `opus`, `ci` gate answers; it reached
+GATE L3 and not L4. Twenty-one pitch requirements, 19 tasks, 112 acceptance criteria, and a first
+verdict of 97 criteria with 9 PASS. Every requirement had an acceptance criterion somewhere on the
+board; **11 of 21 reached any criterion the judge graded**, and not one passing criterion tested a
+behavioural requirement — the nine PASSes were eight static `Non-Go` scans and one layering check.
+Zero `(covers: …)` clauses existed on any acceptance criterion, the third consecutive run with
+none, and no requirements registry existed at all. Two qualifications travel with those figures:
+43 of the 97 criteria were failed by a PO waiver rather than by measurement, so the verdict is a
+floor; and the judge could read the plan that classified it, so the anchors the classification
+rests on are partly an artifact of that access. This is a figure from that run, that consumer,
+those models and that date. Nothing below rescales it, and the harness in general is not described
+by it.
+
+- **The producer was declared everywhere and dispatched nowhere.** `shapeup/<slug>/requirements.md`
+  was named by the schema, fenced by the substrate and documented in the worker's craft, and no run
+  ever wrote one. The run now dispatches `coverage` once, after ORIENT and before ANALYZE — before,
+  because ANALYZE's acceptance criteria are what cite its ids. It is a **fact, not a phase**:
+  `has_requirements` guards the single dispatch and `coverage` stays out of `PHASE_ARTIFACT`, which
+  doubles as the ordered phase list, so every run planned before the registry existed still resumes
+  at `build` instead of being sent back to re-plan.
+
+- **The edge was produced and then severed on a spelling.** Measured across two runs of one pitch,
+  the scope contracts claimed 20 of 21 requirements — in the pitch's `R<n>`, against a registry
+  keyed `REQ-<n>` — and the mismatch was reported 23 times a run as a warning nobody could act on.
+  Readers normalise `R<n>` onto `REQ-<n>` **before** the pattern, never instead of it: a key neither
+  space knows is still red, and a tree with no registry still claims nothing. Normalising on read
+  rather than teaching the planner to spell it differently is deliberate — `covers[]` is optional,
+  and it went from 8 of 9 contracts to 0 of 18 between those two runs. A fix that depends on a
+  planner choosing to comply is a fix whose value is a coin flip.
+
+- **A requirement nothing reaches is red where the plan can still change.** Covers-closure only ever
+  walked the links that existed and asked whether each resolved; a requirement with no link at all
+  satisfied it perfectly, and that is the case the measurement found. `REQ-UNCOVERED` walks the
+  other direction — over the registry rather than over the links — and reds a live clause that no
+  acceptance criterion grades and no scope claims, at GATE L1b, with both ways out in the finding:
+  cover it with an AC, or cut it on the record. The board it reads is the compile-order parser, the
+  only one carrying `acceptance_criteria`; the scheduling view has no such field, and feeding the
+  arm that board would red every requirement on every run while every obvious test still passed —
+  so the guard asserts the COVERED requirement is **absent** from the findings, not merely that the
+  uncovered one is present. The arm is silent when no registry is on disk.
+
+- **The way back: verdict → requirement → L4 → census.** 85 of 97 criterion rows carried the judge's
+  `traces_to` anchor in the WorkResult and **0 of 97** survived into the file `reduce ingest` wrote,
+  whose rows also carried only a per-file counter that repeats across runs of one feature. The
+  projection now keeps both keys, and `harness probe requirements` answers the matrix from disk for
+  one named run — registry, board, verdict ledger, EVAL citation. `covers:` is the authoritative
+  join: a criterion anchored to a requirement no acceptance criterion covers is printed for
+  reconciliation and counted as nothing, rather than deriving one L4 line from two sources that were
+  never reconciled. GATE L4 transcribes the summary, GATE H's census takes the clauses with no
+  evidence, and `REPORT.md` freezes the table before the gitignored tier it came from is cleaned up.
+  **None of it blocks a ship** — it is a projection the baseline comparison weighs, not a verdict.
+
+- **The substrate fence read its carve-out before its freeze, so `frozen` was inert.** Every
+  `frozen` glob naming a path under the run trace — the board an evaluation froze, the staged pitch
+  a planner is graded against — was declared read-only by the compiler and enforced by nobody.
+  Frozen is checked first now, across every live contract, wherever the path lives. The reorder
+  alone trades one defect for another: liveness is "compiled, no result yet", so a phase dispatch
+  whose worker never returned would hold the board frozen for the rest of the run, which is why a
+  run-level order stops being live once a later phase compiles its own. The staged pitch and
+  breadboard join the frozen set of every operation that reads them, because a worker that can
+  rewrite the question can rewrite what it is about to be measured on. `SECURITY.md` and `README.md`
+  each asserted the fence in the old order and were corrected in the same commit — a security page
+  describing a deny the hook does not have is a wrong answer to a security question.
+
+- **Two ways one contract could be wrong that only the compiler checked.** A planner wrote
+  `affordance_manifest` in both the frontmatter and the table; the table wins by construction and
+  the frontmatter copy was discarded without a word, the two disagreed, the cell parsed as a string
+  where the schema wants an array, `compile` refused the order, and four of nine scopes were never
+  dispatched with spec-lint green and the build leg reporting done. Separately, a planner wrote
+  every `required_states` cell bare where the dialect wants a list: 32 rows across six UI scopes
+  parsed as strings, `verify spec` reported red=0, and those six were never dispatched either. Both
+  reach GATE L1b now — the duplicate is reported rather than dropped, and spec-lint re-validates
+  every parsed contract against the schema its own banner already promised it did. Against the
+  measured trees each reports exactly the scopes that vanished, and no others.
+
+**What was deliberately not built.** No Product Owner skill: sign-off is a file and the PO is a
+human responsibility, and an agent PO either manufactures a signature or is a second QA pass. No
+`verify trace --gate`, which would have gated a check that returns green on zero lines of product
+code. The judge still may not read `shaping.md` — criteria invented at grading time are criteria
+nobody approved — and the requirements matrix still cannot block a ship.
+
+1530 → 1635 checks, green.
+
 ## [3.4.0] — 2026-09-17 · State that does not survive a boundary
 
 Ten defects, found by pointing four independent methods at the harness itself — property-based

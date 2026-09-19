@@ -152,12 +152,22 @@ round. Write it so someone without your context can answer it in one reply.
     "t0_citations": [ { "scope_id": "cart", "path": "…/t0/verdicts/r2-a3.json", "sha256": "…" } ],
     "criteria": [ { "criterion": "UC-01 step 3", "dimension": "spec-conformance",
                     "verdict": "FAIL", "confidence": "high", "reprobed": true,
-                    "evidence": "Pay click throws — apps/web/checkout/Pay.tsx:84" } ],
+                    "evidence": "Pay click throws — apps/web/checkout/Pay.tsx:84",
+                    "traces_to": ["REQ-4"] } ],
     "refuted": [ { "task_id": "TASK-007", "ac": "<the checkbox text your evidence disproves>" } ],
     "bugs": [ /* report-schema bug entries */ ]
   }
 }
 ```
+
+**`traces_to` is copied, not invented.** Fill it from the `(covers: REQ-…)` clause of the
+acceptance criteria your criterion grades: the AC already carries the link, written when the plan
+was reviewed, and you record which requirement your criterion maps back to. An AC with no `covers:`
+clause yields no anchor — leave the array empty rather than guessing, and never read the pitch to
+supply one. This changes nothing you grade: the anchor is a navigation path, never a grading input,
+and a criterion passes or fails on its evidence exactly as before. It matters downstream because
+the requirement matrix at GATE L4 and the census at GATE H are projected from these anchors; a
+verdict that drops them grades the build and says nothing about what the pitch asked for.
 
 **Every FAIL criterion's `evidence` MUST carry a `file:line` locator** — schema-enforced, not
 advice: the envelope is validated against `work-result.schema.json` at ingest and a locatorless
@@ -175,6 +185,7 @@ separation is the whole point of the architecture.
 ## Verification checklist
 
 - [ ] Every criterion traces to committed spec text (UC/domain-model/contract/Done-when/Non-Go)
+- [ ] `traces_to` copied from the graded ACs' `covers:` clauses — empty where they carry none
 - [ ] Every PASS cites a confirming probe; every FAIL cites evidence or "NO EVIDENCE"
 - [ ] Every FAIL was re-probed once; confidence assigned per the ledger rule
 - [ ] Scoped spec → T0 citations present with recomputed sha256 (else the run returned `failed`)

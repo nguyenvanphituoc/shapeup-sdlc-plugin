@@ -63,7 +63,7 @@ import { splitFrontmatter } from "../lib/contract.mjs";
 import { globToRegExp } from "../verify/spec.mjs";
 import {
   intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir,
-  orientDir, activeOrder, usecasesDir, breadboard, receipt, readReceipt,
+  orientDir, activeOrder, usecasesDir, breadboard, receipt, readReceipt, requirements,
 } from "../lib/paths.mjs";
 import { evalVerdict } from "./eval.mjs";
 
@@ -394,6 +394,12 @@ export function deriveResumeState(cwd, slug) {
     orient_dir: `.shapeup/${slug}/orient/`,
     has_orient_artifacts: hasOrientArtifacts(cwd, slug),
     has_spec_tree: hasSpecTree(cwd, slug, hr.spec_folder || null),
+    // A PLAIN FACT, DELIBERATELY NOT A PHASE. The requirements registry is dispatched once, before
+    // ANALYZE, and the orchestrator guards that one dispatch on this boolean. It is NOT an entry in
+    // PHASE_ARTIFACT, and adding it there would be a migration hazard rather than a tidier shape:
+    // that map is also `nextPhase()`'s ordered list, so every run recorded before the registry
+    // existed would fast-forward to the registry instead of to `build` on its next relaunch.
+    has_requirements: existsSync(requirements(cwd, slug)),
     has_wiring_map: existsSync(wiringMap(cwd, slug)),
     project_profile_path: projectProfile(cwd, slug),
     has_project_profile: existsSync(projectProfile(cwd, slug)),

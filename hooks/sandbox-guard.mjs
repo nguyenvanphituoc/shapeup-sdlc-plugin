@@ -42,6 +42,21 @@
 // the order's own `compiled_at`, the stamp the compiler writes INTO the order, which a copy or a
 // touch cannot perturb. An order carrying no stamp falls back to presence, which is all it ever had.
 //
+// A RUN-LEVEL ORDER RETIRES AT ITS PHASE BOUNDARY, which is the other half of that same question.
+// Liveness is "compiled, no result yet", so a PHASE dispatch whose worker never returned — a killed
+// evaluation, a QA leg that escalated without a result, a failed scope mapping — would stay live for
+// the rest of the run, and everything its `frozen` list names (the board, the spec tree) would be
+// fenced from then on. The board is the one that bites: the next round's doer cannot tick its own
+// acceptance criteria, and the run wedges with no dispatch actually in flight. The orchestrator has
+// long since moved on by the time that matters, and the move itself is the signal: the next phase
+// compiles its own order. So an order for a RUN-LEVEL operation stops being live once an order for a
+// DIFFERENT operation has been compiled after it — the window the committed tier already has, a
+// phase boundary rather than the middle of somebody else's dispatch. Build legs are exempt: they run
+// concurrently, finish out of order, and an abandoned one is resolved by ``harness init run --force``
+// rather than by a sibling's compile stamp. Two concurrent legs of the SAME operation never retire
+// each other, for that same reason. An order carrying no operation or no `compiled_at` keeps
+// fencing — an unreadable claim is not a retired one.
+//
 // That is the same question as "the writer's own contract" because scope substrates are disjoint by
 // construction — `harness verify spec`'s DISJOINT rule fails a spec where two scopes claim the same
 // path, and it runs at GATE L1b before any build starts. `frozen` is checked across all of them, so
@@ -133,7 +148,37 @@ function answered(resultPath, order) {
 }
 
 /**
- * Every order for this run that has been compiled and not yet answered.
+ * Operations whose order is a BUILD leg — one scope, one attempt, dispatched alongside its siblings.
+ *
+ * Everything else the compiler emits is a RUN-LEVEL phase dispatch, and only those retire at a phase
+ * boundary (see the banner). The distinction is by operation rather than by "does it carry a scope",
+ * because the single-task lane compiles an `execute` order with no scope contract on it and that leg
+ * is still a build.
+ */
+const BUILD_OPERATIONS = new Set(["execute", "fix", "spike"]);
+
+/**
+ * Has the run moved past this order's phase — i.e. did a LATER order for a different operation get
+ * compiled while this one was still unanswered?
+ *
+ * Conservative in both directions it cannot read: an order with no `operation`, a build leg, or an
+ * order with no parseable `compiled_at` keeps fencing.
+ *
+ * @param {object} order - The parsed, unanswered order.
+ * @param {Array<{operation:(string|undefined), at:number}>} stamps - Every compiled order's
+ *   operation and parsed `compiled_at`, unparseable stamps excluded.
+ * @returns {boolean} True when this order's phase is over and it should stop being enforced.
+ */
+function pastItsPhase(order, stamps) {
+  const op = order?.operation;
+  if (!op || BUILD_OPERATIONS.has(op)) return false;
+  const at = Date.parse(order?.compiled_at ?? "");
+  if (Number.isNaN(at)) return false;
+  return stamps.some((s) => s.at > at && s.operation !== op);
+}
+
+/**
+ * Every order for this run that has been compiled, not yet answered, and whose phase is still open.
  *
  * @param {string} cwd - Project root.
  * @param {string} slug - The run named by the pointer.
@@ -143,14 +188,17 @@ function liveOrders(cwd, slug) {
   const dir = ordersDir(cwd, slug);
   if (!existsSync(dir)) return [];
   const rDir = resultsDir(cwd, slug);
-  const live = [];
+  const unanswered = [];
+  const stamps = [];
   for (const f of readdirSync(dir)) {
     if (!f.endsWith(".json")) continue;
     const order = readJSON(join(dir, f));
     if (!order) continue;
-    if (!answered(join(rDir, f), order)) live.push(order);
+    const at = Date.parse(order.compiled_at ?? "");
+    if (!Number.isNaN(at)) stamps.push({ operation: order.operation, at });
+    if (!answered(join(rDir, f), order)) unanswered.push(order);
   }
-  return live;
+  return unanswered.filter((o) => !pastItsPhase(o, stamps));
 }
 
 function extractPaths(toolInput) {
@@ -231,21 +279,32 @@ async function main() {
   const runTracePrefix = join(LOCAL, active.slug) + sep;
   const violations = [];
   const blockReasons = [];
+  let frozenHits = 0;
 
   for (const raw of targetPaths) {
     const abs = resolve(cwd, raw);
     const rel = relative(root, abs);
-    if (rel.startsWith(runTracePrefix)) continue;
 
     // Frozen takes absolute precedence, and it is checked across EVERY live contract: a path one
     // scope froze stays frozen while another scope is in flight, which is the whole point of
     // declaring it.
+    //
+    // IT IS CHECKED BEFORE THE RUN-TRACE CARVE-OUT, and that order is load-bearing. The carve-out
+    // below exists so the doer can keep its own bookkeeping current; it was never a licence to
+    // overwrite a file a live contract declared read-only. Checked after it, every `frozen` glob
+    // naming a path inside the run trace was inert — the board an evaluation froze, the staged pitch
+    // a planner is graded against — so the compiler emitted a declaration with no enforcer, which is
+    // the exact state this hook exists to end. A path a live contract freezes is a violation
+    // wherever it lives.
     const freezer = contracts.find((c) => matchesAny(rel, c.frozen));
     if (freezer) {
       violations.push(rel);
+      frozenHits++;
       blockReasons.push(`${rel} is frozen by ${freezer.order_id}`);
       continue;
     }
+
+    if (rel.startsWith(runTracePrefix)) continue;
 
     if (contracts.some((c) => matchesAny(rel, c.allowed))) continue;      // inside a live contract
 
@@ -291,7 +350,11 @@ async function main() {
 
   return {
     verdict: "deny", event: "PreToolUse", tool: p.tool_name, subject: active.order_path, cwd: root,
-    rule: "outside-substrate",
+    // THE LEDGER NAMES THE CAUSE, not just the verdict. A write refused because a live contract
+    // FROZE the path and a write refused because no contract covers it are different facts with
+    // different remedies, and a single rule string cannot tell the reader which one happened —
+    // which is how a frozen declaration can stop being enforced without a single row moving.
+    rule: frozenHits === violations.length ? "frozen" : "outside-substrate",
     reason: `${violations.length} write(s) rejected by substrate boundaries: ${blockReasons.join("; ")}`,
     payload: {
       hookSpecificOutput: {
