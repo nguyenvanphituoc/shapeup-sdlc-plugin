@@ -113,11 +113,13 @@ Collect (explicit — never inferred):
         gate to be its first execution.
 ```
 
-**L0.9b — the launch record.** Every switch the operator typed becomes a `RunArgs` field, or it
-does nothing at all: the workflow cannot read a config file and cannot ask a follow-up, so a flag
-that stops at the skill boundary was accepted and ignored. That is not hypothetical — `--no-qa` was
-documented in seven places across the shipped set and inert in all of them, because no line of this
-protocol ever put `noQa` into the record.
+**L0.9b — the launch record.** Every switch the operator typed to *this launch* becomes a `RunArgs`
+field, or it does nothing at all: the workflow cannot read a config file and cannot ask a follow-up,
+so a flag that stops at the skill boundary was accepted and ignored. That is not hypothetical —
+`--no-qa` was documented in seven places across the shipped set and inert in all of them, because no
+line of this protocol ever put `noQa` into the record. `--wall-clock-budget` is the one flag below
+that is not a counter-example and not a `RunArgs` field either — it is consumed earlier, at `init
+run` itself, and never needed to reach this launch at all; see its row for where it actually lands.
 
 | Flag | `RunArgs` field |
 |---|---|
@@ -125,8 +127,9 @@ protocol ever put `noQa` into the record.
 | `--no-qa` | `noQa: true` |
 | `--parallel-scopes N` | `maxParallelScopes: N` — how many scopes build at once (default 4; `1` = sequential) |
 | `--adversarial-verify` | `adversarialVerify: true` |
-| `--rounds N` / `--attempts N` / `--wall-clock-budget S` | `budgets.{maxRounds,attemptBudget,wallClockS}` |
+| `--rounds N` / `--attempts N` | `budgets.{maxRounds,attemptBudget}` |
 | `--gate-answers <set>` | `answers` |
+| `--wall-clock-budget S` | *(not read from `RunArgs` at all)* — typed once, on the `harness init run` command line itself, not on this launch, it lands straight in the run receipt as `wall_clock_budget_s`; the deadline breaker reads that receipt field directly and never sees this launch's `RunArgs`. `budgets` still declares a `wallClockS` member — in the schema, in `SKILL.md`'s own RunArgs contract line, and in this script's own header comment — and nothing reads it; removing it is pending |
 | `--orch-model/--exec-model/--eval-model/--qa-model` | `models.{…}` (L0.8) |
 
 The assembled object is written to `.shapeup/<slug>/run-args.json` before the launch, fresh on every

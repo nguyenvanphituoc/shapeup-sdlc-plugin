@@ -194,6 +194,11 @@ const MODULE_FILES = [
   // `R<n>`, against a registry keyed `REQ-<n>` — an edge produced on the board and severed by
   // spelling, reported 23 times a run as a warning indistinguishable from noise.
   "59-requirements-registry.mjs",
+  // 60-fence-lifecycle.mjs: the substrate fence's close-time lifecycle, per AGENTS.md's own claim
+  // (defect sweep Stage 1 rework). Its own module because a rework pass found two of that
+  // paragraph's three sentences false by inspection, and inverting one to its opposite in a scratch
+  // copy still left the whole suite green — a check the prose had no reader that could fail.
+  "60-fence-lifecycle.mjs",
   "08-docs.mjs",
 ];
 
