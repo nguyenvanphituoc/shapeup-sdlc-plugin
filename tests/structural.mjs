@@ -15,7 +15,7 @@
 
 import { dirname, resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { makeCtx } from "./lib/harness.mjs";
 
@@ -254,6 +254,41 @@ const MODULE_FILES = [
   "69-terminal-wrapping.mjs",
   "08-docs.mjs",
 ];
+
+// =============================================================================
+// Every module on disk runs, and every module that runs is on disk.
+// =============================================================================
+// MODULE_FILES is explicit and has NO auto-discovery, deliberately: order is load-bearing (08 runs
+// last so the checks floor sees the full total) and where a module sits is a decision someone
+// makes. The price of that decision is this failure mode — a file can be written, land on disk,
+// be imported by nothing, and never run.
+//
+// That is strictly worse than having no guard at all. An absent guard is visibly absent; an
+// unregistered one reads as coverage, passes review, and can never go red no matter what breaks
+// underneath it. Measured in this repo: a module written for a real defect sat unregistered
+// through a whole stage while the suite reported green, and nothing in the suite could say so.
+//
+// Checked here in the runner rather than in a module of its own, because a module that policed
+// registration could itself be the unregistered one.
+{
+  const onDisk = readdirSync(join(HERE, "structural")).filter((f) => f.endsWith(".mjs"));
+  const orphaned = onDisk.filter((f) => !MODULE_FILES.includes(f)).sort();
+  const dangling = MODULE_FILES.filter((f) => !onDisk.includes(f)).sort();
+  const dupes = MODULE_FILES.filter((f, i) => MODULE_FILES.indexOf(f) !== i).sort();
+
+  if (orphaned.length === 0) ctx.ok(`every module in tests/structural/ is registered and runs (${onDisk.length} files)`);
+  else ctx.fail(`module(s) on disk that no run reaches — an unregistered guard can never go red, ` +
+                `so it reads as coverage it does not provide: ${orphaned.join(", ")}`);
+
+  // A registration with no file would throw at import and be caught as one module failure, which
+  // names the file but reads as a broken test rather than a missing one. Say which it is.
+  if (dangling.length === 0) ctx.ok("every registered module exists on disk");
+  else ctx.fail(`MODULE_FILES names file(s) that are not on disk: ${dangling.join(", ")}`);
+
+  // A duplicate runs its checks twice, inflating the total the floor is measured against.
+  if (dupes.length === 0) ctx.ok("no module is registered twice");
+  else ctx.fail(`module(s) registered more than once — their checks are counted twice: ${dupes.join(", ")}`);
+}
 
 for (const file of MODULE_FILES) {
   const mod = await import(join(HERE, "structural", file));
