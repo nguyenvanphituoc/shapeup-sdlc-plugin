@@ -4,100 +4,98 @@
 > GATE COACH-1. **Read by no worker** — these are drafted raw ideas for the Betting Table
 > (the debt-free path), not guidelines. Remove an entry when its fix ships or its pitch is bet.
 
+## Index
+
+Ids are stable handles: a plan, a commit subject and an acceptance pass all name the same row.
+Tier comes from `docs/design/plans/which-defect-first.md`; an entry leaves this file when its fix
+is pinned by a guard, never when it is merely believed done.
+
+| id | defect | tier |
+|---|---|---|
+| HD-013 | the WorkOrder names no result path | P3 |
+| HD-014 | an escalated close keeps fencing (doc half shipped; code half open) | P0 |
+| HD-021 | a per-scope "it compiles" fixture proves nothing | P3 |
+| HD-022 | work for consumer-measured defects sits on a tag, not on main | decision |
+| HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
+| HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
+| HD-025 | two run geometries this checkout cannot reach | process |
+
 ## Defects
 
-- **`budgets.wallClockS` is documented by the workflow and read by nothing.** `shapeup-run.js`
-  names `budgets {maxRounds, attemptBudget, wallClockS?}` in its own RunArgs contract (`:36`) and
-  then reads only `maxRounds` (`:116`) and `attemptBudget` (`:117`). Measured 2026-09-19: a run
-  launched with `wallClockS: 10800` reported *"wall-clock budget is off (no budget configured)"* and
-  its receipt carried `wall_clock_budget_s: null`. Only `harness init run --wall-clock-budget` sets
-  the field the budget check actually reads. So a caller following the workflow's own documented
-  argument shape gets no wall-clock breaker **and no warning that it asked for one** — which is the
-  part that makes it worse than an absent feature. Either read it, or stop naming it in RunArgs.
-
-- **An abort at GATE L3 leaves a run trace that reads as still running.** Measured 2026-09-19: after
-  the evaluator escalated and the run aborted, `harness-run.md` still said `status: evaluating`,
-  `rounds_used: 0`, `final_verdict: ~`, `closed_at: ~`, with no cause recorded anywhere under
-  `.shapeup/`. From the run trace alone a live EVAL and a dead one are indistinguishable; the only
-  thing that tells them apart is the launcher's terminal event, which is not part of the trace. An
-  operator watching the tier the harness owns cannot tell that the run is over.
-
-- **A scope contract can pass GATE L1b and then be silently undispatchable.** Measured 2026-09-18 on
-  a real run: exactly the contracts with a non-empty `affordance_manifest` are refused by
-  `harness compile` — *"produced an order that fails its own schema — refusing to write:
-  $.payload.scope_contract.affordance_manifest[0].required_states: expected array, got string"* — and
-  those are the UI scopes where most of a pitch lives (4 of 9 on that run). **The reason it is worse
-  than a red check:** `spec-lint` passes the contract, the build leg reports `state: "done",
-  error: null`, and there is no order, no result, no T0 trial, no ledger row and no hook decision —
-  the scope simply never happens, identically every round, until EVAL refuses to grade a round whose
-  scopes were never dispatched. Strong candidate for what stopped an earlier soak after round 1.
-
-  **Root cause, corrected 2026-09-19** *(the first filing of this entry blamed the frontmatter
-  reader for parsing a YAML flow sequence as a scalar; that is wrong, and the correction matters
-  because it points at a different fix)*. `affordance_manifest` is a **table** field —
-  `SCOPE_CONTRACT.tables` maps it to the `## Affordances` heading — and `renderContract` deliberately
-  **excludes table fields from the frontmatter it writes**. The table is the source by construction
-  and the parser is right to prefer it. What happened is that `scope-architect` wrote the field in
-  **both** places: the frontmatter copy carries the correct `required_states: [idle]`, the table cell
-  carries a bare `idle`, and `parseContract` silently takes the table. The contract file even
-  captions the table *"See frontmatter `affordance_manifest` (rendered here for reviewers)"* — the
-  author's model is the exact inverse of the parser's. Verified: the plugin's own round-trip is
-  lossless (`uncoerce(["idle"])` → `[idle]`, `coerce("[idle]")` → `["idle"]`,
-  `renderTable`→`parseTables` returns the array), and `unreadableReason()` returns **null** on a
-  contract whose two copies disagree.
-
-  So there are two silences to close, and neither is a parser bug: **(1)** a table field that also
-  appears in frontmatter is data the author put where the parser does not look — precisely what
-  `unreadableReason` exists to report, and it reports nothing; **(2)** a compile refusal is invisible
-  to the leg that caused it. Plus a craft fix: `scope-architect` must not write table fields into
-  frontmatter, and must write a list cell as `[a, b]`.
-
-  **It reproduced by a second path, 2026-09-19 — and that is the more important half.** After both
-  fixes landed, a fresh run wrote no duplicate at all (0 of 18 contracts; `unreadableReason()` null
-  on every one) — the craft change worked. But the planner wrote every `required_states` table cell
-  **bare**: `| todoList.countText | text | ready | U2 |`. `coerce()` returns an array only for a
-  bracketed value, so all **32** manifest rows across the six UI scopes parsed as strings, `compile`
-  refused all six orders, and the same six scopes were never dispatched. `verify spec` passed them
-  **green at L1b**. Same outcome, different path, and the guard added for the first path could not
-  see it. Fixed at the level both paths share: spec-lint now validates each parsed contract against
-  `$defs/ScopeContract`, which reports exactly those six. The lesson worth keeping is that the first
-  fix addressed the mechanism observed rather than the class — "a contract can be wrong in a way only
-  the compiler checks" — and the class is what bit twice.
-
-- **The requirement edge is produced and checked, and the check is a warning.** Scope contracts carry
-  a `covers:` frontmatter field and `scope-architect` populates it — measured 2026-09-18 on a real
-  run: 8 of 9 contracts, 20 of 21 pitch requirements. They carry the pitch's own `R<n>` keys, while
-  the schema's pattern wants `REQ-<n>`, so `verify spec` emits **23 `SCOPE-COVERS` warnings** on that
-  run, each reading *"covers \"R17\" is not a REQ-id — the requirement edge will not resolve"*. The
-  harness has therefore been reporting this defect at the gate where it matters, on every run, and
-  the severity swallows it. The two id spaces differ by a prefix; nothing writes the registry that
-  would let the edge resolve. Filed as a raw idea rather than a fix because the choice — teach the
-  producer to emit `REQ-<n>`, normalise `R<n>` on read, or write the registry first and promote the
-  closure half of `SCOPE-COVERS` — changes what a gate does, which is a bet.
-
-- **The staged pitch is fenced against every operation that reads it, and against none that builds.**
-  `substrateFor`'s `FROZEN_INTAKE` (`.shapeup/<slug>/intake.md`, `breadboard.md`) reaches `coverage`,
-  `analyze`, `map-scopes`, `wire`, `evaluate` and `hunt`, but not `execute`, `fix` or `spike`. The
-  substrate fence checks `frozen` first and then waves through any unfrozen path inside the run
-  trace, so a build leg may overwrite the run's own input truth. Measured 2026-09-18 by executing
-  `hooks/sandbox-guard.mjs` against a fixture carrying one live `execute` order: `intake.md` and
-  `breadboard.md` both **permitted**, while the committed `spec/domain-model.md` was denied.
-  Build legs are the most numerous and longest-lived dispatches in a run, so this is the widest
-  window, not the narrowest. The harm is the one the freeze exists to prevent: the receipt digests
-  the intake, and a rewritten intake leaves that digest describing a file that no longer exists —
-  and any operation deriving a requirement registry from the pitch would measure a question the run
-  was not asked. Not a regression: before the frozen check was reordered ahead of the run-trace
-  carve-out, *every* `frozen` declaration over a LOCAL path was inert and the pitch was writable by
-  everybody. The apparent fix is one line — `...FROZEN_INTAKE` in the `execute`/`fix`/`spike` case —
-  and it denies a write no legitimate worker makes (`init run` stages the pitch before any order is
-  live; `translate` writes the committed copy). It is filed rather than applied because the choice
-  between that and lifting the two paths out of the carve-out at the hook level, where no operation
-  has to remember to declare them, is a Betting Table call.
-
-- The WorkOrder carries no field naming where the WorkResult goes, so each worker derives the path
+- **HD-013** — The WorkOrder carries no field naming where the WorkResult goes, so each worker derives the path
   from prose while its own `substrate.allowed` names a directory that does not contain it. The
   workflow lane works around this by stating the path in the dispatch prompt and deriving the same
   one from the order; the port itself is unfixed.
+
+### Filed 2026-09-19 — measured in the consumer soak, never filed here
+
+Nine findings came out of the HarmonyOS soak (2026-09-15→17, two consecutive features on a project
+installed from the marketplace). Six were fixed on a branch that was archived rather than merged —
+see the stranded-branch entry below — and these carried no fix at all. Every one re-checked against
+3.5.0 on the date of this filing, from the artifact rather than from the soak's own notes.
+
+- **HD-014 · A run closed as `escalated` keeps fencing the consumer's checkout, and the shipped doc says it
+  does not.** `liveOrders()` (`hooks/sandbox-guard.mjs:187`) derives liveness from the orders/results
+  diff alone; neither it nor `kernel/lib/paths.mjs` consults `closed_at` or the ledger's status. An
+  order abandoned in flight never gets a result, so a run closed through the documented sequence
+  still returns the same live dispatches and the hook still denies. Measured in both directions
+  during the soak and again 2026-09-19 on a fresh fixture — in-substrate permit, `README.md` deny —
+  after `probe resume --set-status escalated` had exited 0. **`AGENTS.md:72` promises the opposite**:
+  *"a finished run fences nothing"*. That is true of a **ship** close only
+  (`kernel/reduce/ship.mjs:396` retires the pointer, and a shipped run has no unanswered orders by
+  construction); for an escalated or aborted close it is false.
+
+  Two corrections to the first filing of this entry, both from a falsification pass, both narrowing
+  it. **Nothing stamps `closed_at`** — `setRunStatus` (`kernel/probe/resume.mjs:444`) replaces the
+  `status:` line and nothing else, and `closed_at` is written once as the literal `~` by `init run`
+  (`kernel/init/run.mjs:226`) and read by `facts.mjs:89`. So a closed run is not merely still fenced;
+  it carries no close timestamp for anything to key off — which rules out the obvious first fix and
+  is why the fence entry below is sequenced after the close-out one. And the fence stops **the
+  agent's edit path**, not the project: `sandbox-guard.mjs:231` fences `Edit`, `Write` and
+  `MultiEdit` only, so `Bash`, `git` and any editor still write. "A project that cannot be edited"
+  was too strong; "the assistant cannot edit this project and the documented remedy does not say so"
+  is the accurate claim, and it is still the sharpest operational finding here. A remedy already ships —
+  `resolveAbandonedOrders()` (`kernel/init/run.mjs:270`) writes synthetic abandoned results, reachable
+  via `init run --force` — but it is documented as "abandon the open run and start over", never as
+  "release a stuck fence". Operationally this is the sharpest one: a killed session leaves a project
+  that cannot be edited, and the operator's obvious remedy does nothing. The doc correction is owed
+  whichever way the code bet lands.
+
+  **Closed when:** `AGENTS.md` states the post-close behaviour and names the release (doc half), and the hook permits an out-of-substrate write after a close that retired its orders (code half). The two halves ship separately.
+
+- **HD-021 · A per-scope "it compiles" fixture can be green while the scope's code is unreachable.** Measured
+  on a stack whose build compiles only what the entry point reaches: three scopes were T0-green on an
+  `assembleHap` fixture while their own files did not compile, and the errors surfaced only when a
+  fourth scope wired the screens in — a scope that may not write those files. The round build gate
+  (3.3.0) is what caught it, which is the design working; what is missing is attribution, and that
+  lands on the same two entries above. Filed as craft, not mechanism: a scope's build fixture proves
+  nothing until the scope's code is reachable, and the knowledge base is where that rule belongs.
+
+- **HD-022 · ⚠ Work for defects measured on a real consumer sits on a tag, not on main.**
+  `archive/lesson-loop-g0-k` carries 22 commits; `git cherry main archive/lesson-loop-g0-k` marks
+  every one `+`. **It is a tag, not a branch** — the local branch `plan/lesson-loop-g0-k` points at
+  `e511b7e` (3.3.0) and is an ancestor of main, so anyone reaching for the branch name finds nothing
+  stranded. Checked by content rather than by commit id: the scope-contract schema lint re-landed on
+  main as `9a8641e` and the permission-grant correction arrived by another route, while
+  `report harvest`/`closeOut`, the own-substrate attempt scoring, the hvigor/ArkTS digester, the YAML
+  block-scalar reader, the `gate`/`build_gate` export tables, the EVAL all-scopes-green precondition
+  and the dependency hold did not. 3.4.0 and 3.5.0 shipped from two other workstreams meanwhile.
+
+  **What a port actually buys, checked per entry rather than assumed** — the first filing of this
+  entry claimed six and that was not measured: `01aea8f`+`6301eca` resolve the abort-trace entry in
+  full; `29cf0be` resolves half of the gate-records entry (the tables, not the missing rows);
+  `9da0f14` resolves the unrecognised-output half of the digester entry and not the weld; and
+  **`rounds_used` gets no fix at all** — the branch's `harvest.mjs` calls the same `roundsUsed()` with
+  the same fallback, so porting the close-out adds a second consumer of that defect. `a5ce8af`,
+  `5574f0c` and `8673baa` are improvements whose premises need re-checking first: 3.4.0 rewrote
+  round-loop state derivation underneath them, and `a5ce8af` introduces the axis the digester entry
+  above would weld. Any doc-touching commit there (`01aea8f`, `0ffc133`, `12a38ef`) predates 3.5.0's
+  requirements work and would revert shipped text.
+
+  So the call is real but smaller than it looked: **one entry closed, two halves, one made worse.**
+  Cherry-pick what still applies, or declare the tag abandoned and keep each finding filed here.
+  Leaving it as it stands is the one option that costs on both sides — the fix exists, the defect is
+  open, and neither fact is visible from the other.
 - ~~**Cost/wall-clock instrumentation is dead.** `harness report export` and `harness probe stats
   --economics` are both keyed off a per-agent-call journal the Workflow runtime is supposed to
   stamp. Measured live 2026-08-19, twice, in two independent worktrees: it is never written — the
@@ -300,7 +298,43 @@ one `init run` → launch through the real CLI — or stays a documented manual 
 
 **Where a closed defect goes.** Its fix is pinned by a regression guard, and that guard is the
 durable record — a defect whose test fires on reversion cannot come back silently, which is more
-than a paragraph in this file could ever promise. The guards standing today cover the committed
+than a paragraph in this file could ever promise.
+
+Nine entries left this file on 2026-09-20 under that rule, in a sweep where every stage was accepted
+by a fresh adversary that drove the behaviour rather than read the diff, and where every guard below
+was mutation-tested in both directions — broken until it reddened, restored until it greened. The
+guard is the record; what each defect cost is recoverable from the test that now fails on reversion.
+
+| was | pinned by |
+|---|---|
+| the staged pitch writable by every build leg | `61-execute-leg-frozen-pitch.mjs` — calls the real substrate resolver rather than restating it, so a revert reds instead of passing beside it |
+| a run argument named by one tier and read by none | `62-run-args-surface.mjs` — the surface is DERIVED from each entry point's own argv spec, the domain schema and the operator's flag table, so a flag added to one tier reds on its own |
+| the launch record with no writer | `63-run-args-writer.mjs` — driven end to end from opening a run, with the fan-out dial read back off exactly what the writer emitted |
+| a locationless diagnostic losing its file | `65-digest-locationless.mjs` — plus a non-regression corpus diffed against the pre-fix module, because the risk was never the new case |
+| a shared-only path reported ownerless, its bugs fanned to every scope | `66-shared-ownership.mjs` — pinned in BOTH directions: an exclusive writer still wins, and a path nobody declares is still unowned |
+| an abort leaving a trace that reads as still running | `67-terminal-closeout.mjs` |
+| a run reporting zero rounds having built two | `67-terminal-closeout.mjs` — two fields, and the old number survives verbatim as the second |
+| a worker's ESCALATE reaching nothing | `67-terminal-closeout.mjs` — one channel, written by ingest and read back by the ship report |
+| three gates never resolved, no gate data exported | `68-gate-coverage.mjs` — cross-references every declared gate id against every call site that can emit one, both directions |
+
+One guard in that set exists because of the sweep rather than because of a defect in the product:
+`69-terminal-wrapping.mjs` asserts that every top-level terminal return in the orchestrator passes
+through the close-out path. It was written after an acceptance pass found two returns that bypassed
+close-out entirely while an existing check had been relaxed to tolerate the new call shape without
+ever requiring it — both holes green. A check that tolerates is not a check.
+
+Two entries left this file on 2026-09-19 under that rule, both verified fixed against 3.5.0 before
+deletion. **A scope contract passing L1b and then being undispatchable**: `lintContractSchema`
+validates every parsed contract against the `$defs/ScopeContract` the compiler applies, with the
+same validator and no second implementation, pinned by `46-contract-md.mjs` (a bare list cell is one
+`CONTRACT-SCHEMA` red; a well-formed contract produces none) and by the `unreadableReason` arms that
+report a table field also written into frontmatter. **The requirement edge reported only as a
+warning**: `reqId` folds every spelling onto one key space before the pattern test, the `coverage`
+operation produces the registry the edge resolves against, and `REQ-UNCOVERED` is red at L1b — pinned
+by `59-requirements-registry.mjs` §93(a)–(j), which asserts both directions, the absent-artifact skip
+and the gate's exit codes.
+
+The guards standing today also cover the committed
 contract format failing silent (structural §46(f)(g)(h)(i) for the parser, §23 for the two call
 sites §46 does not reach) and `gate-zerowork`'s work-by-other-means fail-open (the assertion that
 used to license it is inverted in place in `tests/structural/10-run-receipt.mjs`, with the

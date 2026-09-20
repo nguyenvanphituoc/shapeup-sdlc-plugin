@@ -9,13 +9,57 @@ its three triggers fires — and excludes HD-013 and HD-021, which are P3.
 lifted from what this session measured, not invented — see §2.
 **Confidence:** High that each stage is separately shippable and separately reversible. Medium on the
 stage ordering after Stage 5. Low on duration: one maintainer, and the constraint is wall-clock.
-**Status:** Stage 0 run 2026-09-20 at HEAD `78d3c6e`. `npm test` = **1635 checks** green at that sha
-in a fresh clone; **1638** in that day's working tree — the +3 are three `cited path exists:` checks
-contributed by the then-untracked `docs/design/` plan files, and no clone of any sha can reconstruct
-them. `npm run demo` regenerates `docs/assets/demo-gate.svg` byte-identical, md5
-`2c97a1e532845ccf33178d1492606a9d`, and was proved executed rather than replayed (mutating the hook's
-denial wording moved the rendered SVG's md5; flipping its decision to `allow` made the recorder exit 1).
-Stages 1 and 2 are accepted and committed. Stage 3's packet is written and corrected. Stages 4-9 open.
+**Status:** Executed 2026-09-20 from baseline HEAD `78d3c6e`. Stages 0-8 are complete and committed
+on `plan/defect-sweep`; **Stage 9 has NOT run** and could not be run from this checkout (see below).
+
+*Stage 0, corrected by its own auditor.* The baseline first recorded here paired **1638 checks** with
+`78d3c6e`, and that sha does not produce it: a fresh clone prints **1635**, the +3 being doc-drift
+checks contributed by then-untracked plan files. The count is not sha-invariant — it carries one
+check per unique path cited anywhere under `docs/` — so every comparison below is clone-to-clone at a
+named sha. `npm run demo` was proved *executed* rather than replayed: mutating the hook's denial
+wording moved the rendered SVG's md5, and flipping its decision to `allow` made the recorder exit 1.
+
+| stage | closes | verdict | commit | checks |
+|---|---|---|---|---|
+| 1 Docs | HD-014 (doc half), HD-010 (doc half), HD-023, HD-024 | accepted, 2nd pass | `3a335fa` | 1642 |
+| 2 Fence | HD-012 | accepted, 1st pass | `0d9e1f5` | 1663 |
+| 3 Evidence | HD-022 (evidence only — the call is the PO's) | 3 rejections, then corrected here | `c6b56ef` | 1671 |
+| 4 Schemas | — (unblocks 5) | accepted, 1st pass | `8cb684c` | 1671 |
+| 5 Seam contract | HD-010 (code half), HD-020 | accepted, 3rd pass | `7fa4968` | 1736 |
+| 6 Digester | HD-016 | accepted, 2nd pass | `8c77460` | 1760 |
+| 7 Ownership | HD-015 | accepted, 1st pass | `6b99048` | 1774 |
+| 8 Thin orchestrator | HD-011, HD-017, HD-018, HD-019 | accepted, 3rd pass | `4caf2ec` | 1838 |
+
+Every stage commit is independently green — verified by checking each one out into a fresh clone, not
+asserted — so the per-stage rollback this plan promises is tested. Nine defects left the register
+under its own rule (a guard pins the fix), each guard mutation-tested in both directions.
+
+*What the acceptance contract actually bought.* Eleven of nineteen acceptance passes returned
+REJECTED, and the rejections were not cosmetic: Stage 5's first fix reproduced HD-020's own defect one
+level up (a writer that only prose invoked); Stage 8's first fix left two terminal returns bypassing
+close-out while an existing check had been relaxed to tolerate the new shape without requiring it —
+both holes green; Stage 8's second fix over-corrected into a guard that broke the relaunch case. None
+of those would have been caught by reading a diff, and each was found by executing the behaviour.
+
+*Two corrections this execution owes the plan itself.* §3 Stage 7 instructs the executor to answer
+whether `ownErrors()` should widen to shared substrate. **That function does not exist at HEAD** — it
+lives only on `archive/lesson-loop-g0-k`, and `score()` here has no "mine"-scoped axis to widen. The
+question is contingent on the Stage 3 port decision and was deliberately left unanswered. And §3
+Stage 4's exit condition, "green at the Stage 0 count or above", rode on a count that any documentation
+edit moves; it is pinned to a number and to a fresh clone above.
+
+*Stage 9 is not done, and saying otherwise would be the failure this plan names.* It requires a
+persistent consumer project installed from the marketplace, two consecutive features, `.shapeup/` not
+cleaned between them. Nothing run from this checkout can stand in for it: running the repo as its own
+plugin puts the plugin root inside the working directory, which is precisely why the two defect
+classes HD-025 names are invisible here. So the four propositions Stage 9 exists to test — that a run
+reaches EVAL, reaches QA, runs GATE H's census, and runs the close-out path — are **untested outside
+this checkout**, and the close-out path is new code from Stage 8 that has never run in a real
+consumer.
+
+*Open, and belonging to the PO:* HD-022's port/cherry-pick/abandon call (evidence in
+`stranded-tag-evidence.md`), HD-014's code half, HD-013 and HD-021 (P3, still in the register), and
+S4 of the architecture split (NO-GO until one of its three triggers fires).
 
 ---
 
