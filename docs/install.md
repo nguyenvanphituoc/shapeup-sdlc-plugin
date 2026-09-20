@@ -4,8 +4,8 @@ Three ways in, depending on whether you want the harness for yourself, for a rep
 a whole team. If you just want to try it, use **Plugin install** and stop there.
 
 > **One-command scaffolding:** `npx shapeup-sdlc init` — pure Node, no bash, no jq, works on
-> Windows (same layout as the shell installer below). *Requires the package to be published
-> to npm; until then, run it from a clone: `node bin/init.mjs -d <target> -y`.*
+> Windows (same layout as the shell installer below). The package is published, so this runs
+> without a clone; from a clone the equivalent is `node bin/init.mjs -d <target> -y`.
 
 - [Plugin install (Claude Code)](#plugin-install-claude-code)
 - [The Playwright dependency](#the-playwright-dependency)
@@ -30,7 +30,7 @@ register.
 Pin to a released version:
 
 ```
-/plugin marketplace add nguyenvanphituoc/shapeup-sdlc-plugin@v1.7.0
+/plugin marketplace add nguyenvanphituoc/shapeup-sdlc-plugin@v3.6.0
 ```
 
 > **This path installs the plugin and nothing else — in particular, no permission grant.**
