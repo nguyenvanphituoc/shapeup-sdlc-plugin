@@ -60,9 +60,18 @@ export async function run(ctx) {
   // as the fill-in-the-blank example row (`<symptom observed at ship>` beside it makes the
   // placeholder-ness explicit to a reader) — that is taught craft, not a citation of this repo's
   // own defect ledger, and is the one standing exception.
+  //
+  // SCOPE, WIDER THAN `files` BY EXACTLY ONE ENTRY AND DELIBERATELY SO. npm publishes `README.md`,
+  // `LICENSE` and `package.json` whether or not the allowlist names them — `npm pack --dry-run`
+  // reports the README as the single largest published file, while `files` says nothing about it.
+  // A scope derived from the allowlist alone therefore has a blind spot precisely where the
+  // densest prose ships. This section covers it; section 102 deliberately does NOT, for the reason
+  // recorded there.
   const ID = /\bHD-\d{3}\b/g;
+  const npmImplicit = ["README.md"].filter((f) => existsSync(join(ROOT, f)));
+  const idScope = [...files, ...npmImplicit];
   const hits = [];
-  for (const rel of files) {
+  for (const rel of idScope) {
     const text = readFileSync(join(ROOT, rel), "utf8");
     let m;
     while ((m = ID.exec(text))) {
@@ -71,7 +80,8 @@ export async function run(ctx) {
     }
   }
   if (hits.length === 0) {
-    ok(`none of ${files.length} shipped files cite an internal defect id`);
+    ok(`none of ${idScope.length} shipped files cite an internal defect id (the allowlist plus the ` +
+       `files npm publishes implicitly)`);
   } else {
     fail(`shipped file(s) cite an internal defect id — a consumer cannot open the ledger these ` +
          `name; keep the operative rationale, drop the id:\n    ${hits.join("\n    ")}`);
@@ -80,6 +90,12 @@ export async function run(ctx) {
   // =============================================================================
   section("102. The shipped set cites no path into tests/, docs/, tools/ or evals/");
   // =============================================================================
+  // SCOPE: the allowlist only — this section does NOT extend to `README.md`, and that is a decision
+  // rather than an oversight. The README is read on the repository page, where a link into `docs/`
+  // resolves and is doing deliberate work; that those same links 404 on the npm package page is a
+  // positioning question for the product, not a hygiene defect for a test to adjudicate. Section
+  // 101 covers the README because an internal defect id is wrong in EITHER venue.
+  //
   // Each pattern is scoped to what this repo has actually hit, not a blanket directory-name match:
   // consumer-facing skill prose legitimately shows a CONSUMER's own `docs/pitch.md` or
   // `docs/glossary.md` as an example CLI argument, and `kernel/verify/build.mjs` legitimately

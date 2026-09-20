@@ -20,7 +20,17 @@ plan that quietly absorbs its own refutation teaches nothing.
 load-bearing ones executed, and the contested ones re-executed by a second reader. High on the tier
 boundaries as now stated. Medium on ordering within a tier. Low on landing cost for anything marked
 *bet*.
-**Status:** Proposed. Nothing here is implemented.
+**Status:** Acted on 2026-09-20. **Nine of the defects ranked here are closed** — HD-010, HD-011,
+HD-012, HD-015, HD-016, HD-017, HD-018, HD-019 and HD-020 — each pinned by a guard and each accepted
+by an adversary that drove the behaviour rather than read the diff; see
+`defect-sweep-execution.md` for the stage-by-stage record and the register for the guard that holds
+each one. HD-014's doc half shipped and its code half did not. HD-013 and HD-021 (P3) and HD-022 (a
+PO decision, with evidence now in `stranded-tag-evidence.md`) are untouched.
+
+The ranking itself is left as it was argued. One of its premises did not survive execution and is
+worth reading with that in mind: the `own_errors` coupling it describes turns on a function that does
+not exist on `main` at all, so the question is contingent on the HD-022 port decision rather than
+open today.
 
 ---
 

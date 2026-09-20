@@ -13,7 +13,18 @@ open defects catalogued in `shapeup/knowledge-base/harness-defects.md` and ranke
 the artifacts, and each defect's declaring and consuming tier read in code. Medium on the staging in
 §6. Low on anything resembling an effort estimate; this repo has one maintainer and the constraint
 is wall-clock, not money.
-**Status:** Analysis. No decision taken, nothing implemented.
+**Status:** Analysis, and now partly acted on. **Stages 1-3 of §6 were implemented on 2026-09-20**
+as stages 4, 5 and 8 of `plans/defect-sweep-execution.md`: the schemas are kernel-owned (and the move
+found a fourth kernel importer this document did not know about), the seam contract is written and
+derived rather than transcribed, and close-out, gate emission and round counting have moved into the
+kernel. **Stage 4 — the package split — remains NO-GO**, and none of its three triggers in §7 has
+fired: there is still no second consumer, the runtime still has no first-class way for a plugin to
+depend on an external binary, and no soak has failed on run geometry (none has been run since).
+
+§2's as-built table and diagram are deliberately left describing the pre-move state. They are the
+evidence the recommendation was argued from — the inverted dependency they show is the defect §3
+identifies and §6 Stage 1 fixes — so rewriting them to match today would erase the argument rather
+than update it. Read them as dated, not as current.
 
 ---
 
