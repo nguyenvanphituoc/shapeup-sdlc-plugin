@@ -220,6 +220,12 @@ const MODULE_FILES = [
   // and both invisible to every check above). Scopes itself off `package.json`'s own `files`
   // allowlist rather than a hand-kept root list, so it drifts with the shipped set, not beside it.
   "64-shipped-set-hygiene.mjs",
+  // 65-digest-locationless.mjs: HD-016. A diagnostic naming a file with no line number now
+  // yields that file (line kept null, never invented) — executed against a real log corpus,
+  // with a non-regression pass over every shape the digester already extracted run first. Also
+  // executes `verify t0`'s score() and asserts its actual axes, since the register's own severity
+  // note for this defect depends on which axes exist there.
+  "65-digest-locationless.mjs",
   "08-docs.mjs",
 ];
 
