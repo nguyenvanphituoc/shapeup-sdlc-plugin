@@ -46,8 +46,11 @@ import { matchesAny } from "../../hooks/sandbox-guard.mjs";
  */
 export function ownership(path, scopes, cwd = null) {
   const rel = String(path).replace(/^\.\//, "");
-  const writers = (scopes || []).filter((s) => matchesAny(rel, s.allowed)).map((s) => s.scope_id).sort();
   const shared = (scopes || []).filter((s) => matchesAny(rel, s.shared || [])).map((s) => s.scope_id).sort();
+  // `writers` is admits-the-path, the same union the sandbox fence composes (allowed ++ shared) —
+  // a path declared only in a contract's `shared` list is still a scope this path may write, and
+  // must read as owned rather than UNOWNED. `shared_with` (below) stays the narrower subset.
+  const writers = (scopes || []).filter((s) => matchesAny(rel, s.allowed) || matchesAny(rel, s.shared || [])).map((s) => s.scope_id).sort();
   return { path: rel, owner: electOwner(rel, scopes), writers, shared_with: shared, exists: cwd ? existsSync(join(cwd, rel)) : null };
 }
 

@@ -226,6 +226,13 @@ const MODULE_FILES = [
   // executes `verify t0`'s score() and asserts its actual axes, since the register's own severity
   // note for this defect depends on which axes exist there.
   "65-digest-locationless.mjs",
+  // 66-shared-ownership.mjs: HD-015, the defect-sweep Stage 7 fix. `electOwner` and `probe
+  // owner`'s `ownership()` now elect from `allowed ∪ shared` — the same union the sandbox fence
+  // composes — so a path declared only in a contract's `shared_substrate` reports a writer
+  // instead of UNOWNED, and `bugsForScope` addresses it to the elected scope rather than fanning
+  // it out to every scope in the run. Its own module because no existing test drove `electOwner`
+  // or `probe owner` against a shared-only-declared path at all.
+  "66-shared-ownership.mjs",
   "08-docs.mjs",
 ];
 
