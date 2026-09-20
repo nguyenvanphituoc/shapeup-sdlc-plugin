@@ -55,7 +55,7 @@ behaviour. Do not hand-edit `docs/assets/demo-gate.svg`.
 skills/<name>/SKILL.md    one skill = one craft. Markdown. This is most of the project.
 skills/*/scripts/         mechanics belonging to one skill, co-located with it
 skills/tech-lead/         the orchestrator: compile-order, ingest-result, t0-verify, trace-lint
-skills/tech-lead/schemas/ domain.schema.json + the envelope schemas
+kernel/schemas/           domain.schema.json + the envelope schemas
 hooks/                    seven .mjs hooks; hooks.json wires them
 tests/structural.mjs      the test entrypoint
 ```
@@ -76,7 +76,7 @@ highest friction today (we know; help welcome):
 
 1. Write `skills/<name>/SKILL.md`. Craft only — no pipeline knowledge, no shared-state writes.
 2. Declare the fields it needs in the central registry
-   `skills/tech-lead/schemas/domain.schema.json`. Every cross-boundary field is defined there
+   `kernel/schemas/domain.schema.json`. Every cross-boundary field is defined there
    **once**, annotated with its tier, location, writer and readers. No skill defines its own.
 3. Teach `harness compile` how to build its order and `harness reduce ingest` how to apply its
    result.

@@ -12,7 +12,7 @@
 //   #/$defs/Name                       — a definition in the SAME schema document
 //   domain.schema.json#/$defs/Name     — a definition in a SIBLING file (the central domain
 //                                        registry; resolved against the schema's own dir,
-//                                        falling back to skills/tech-lead/schemas/)
+//                                        falling back to kernel/schemas/)
 //
 // Usage (CLI):    node kernel/harness.mjs verify envelope <envelope.json> <schema.json>
 //                 exit 0 = valid, 1 = invalid (errors printed one per line)
@@ -28,7 +28,7 @@ import { runArgs } from "../lib/argv.mjs";
 import { runHook, readStdin, settle } from "../../hooks/lib/decision.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-export const SCHEMAS_DIR = resolve(HERE, "../../skills/tech-lead/schemas");
+export const SCHEMAS_DIR = resolve(HERE, "../schemas");
 
 /**
  * Validate a value against the JSON-Schema subset the envelope schemas use (type, required,

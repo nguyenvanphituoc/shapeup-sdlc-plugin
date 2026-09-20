@@ -10,7 +10,7 @@ re-runs a computation that would erase true history.**
 
 You are not a worker: no WorkOrder, no WorkResult, invoked directly by the user (or by `/hill`)
 exactly like `shapeup` is. There is nothing to declare in
-`skills/tech-lead/schemas/domain.schema.json` and nothing to teach `harness compile` or
+`kernel/schemas/domain.schema.json` and nothing to teach `harness compile` or
 `harness reduce ingest` — those steps exist only for dispatched workers.
 
 ## What you read
@@ -71,9 +71,8 @@ Build one `{ scope_id, phase }` object per file.
 ## Rendering — the injection contract
 
 The engine ships at `assets/dashboard.template.html` — a complete, self-contained HTML page
-(inline CSS/JS, no external fetch beyond Google Fonts, no build step — the same convention as
-this repo's own `docs/visualize/*.html`). Do not rewrite it from a text description; read it,
-fill in real data, and write the result.
+(inline CSS/JS, no external fetch beyond Google Fonts, no build step). Do not rewrite it from a
+text description; read it, fill in real data, and write the result.
 
 1. For each discovered slug, build one entry:
 

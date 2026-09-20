@@ -225,8 +225,9 @@ An earlier reading of this evidence claimed rows 18 (`a5ce8af`), 9 (`5574f0c`) a
 "touch no code any other commit here or on `main` has rewritten." False at file level — re-derived
 directly:
 
-- `a5ce8af` shares `skills/tech-lead/schemas/domain.schema.json` with rows 1, 2, 5 and 7, and
-  `tests/structural/05-tech-lead.mjs` with row 14.
+- `a5ce8af` shares the central domain schema with rows 1, 2, 5 and 7, and
+  `tests/structural/05-tech-lead.mjs` with row 14. Was `skills/tech-lead/schemas/domain.schema.json`;
+  this repo's Stage 4 (schema ownership) has since moved it to `kernel/schemas/domain.schema.json`.
 - `5574f0c` shares `AGENTS.md`, `skills/tech-lead/references/gates.md` and
   `skills/tech-lead/workflows/shapeup-run.js` with several other rows in this set.
 - `dd028ae` shares `skills/tech-lead/SKILL.md` with row 1, among others. It is, among the 22, the

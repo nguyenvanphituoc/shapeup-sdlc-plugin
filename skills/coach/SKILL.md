@@ -93,7 +93,7 @@ never lands in any worker's KB.
 Orchestrated, this skill is dispatched like every worker: a **WorkOrder** in (`--order <path>`,
 operation `coach` or `scan`), a **WorkResult** out. Standalone, the raw feedback is passed
 directly; it maps onto the one payload field registered for this worker in the central domain
-registry (`skills/tech-lead/schemas/domain.schema.json`, `x-payload-by-worker`):
+registry (`kernel/schemas/domain.schema.json`, `x-payload-by-worker`):
 
 | Payload field | Standalone form | Meaning |
 |---|---|---|

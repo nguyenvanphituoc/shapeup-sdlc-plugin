@@ -150,7 +150,7 @@ the harness (this is neither the generator nor the evaluator).
 Orchestrated, this skill is dispatched like every worker: a **WorkOrder** in (`--order <path>`,
 operation `hammer`), a **WorkResult** out. The standalone flags below map 1:1 onto the payload
 fields registered for this worker in the central domain registry
-(`skills/tech-lead/schemas/domain.schema.json`, `x-payload-by-worker`):
+(`kernel/schemas/domain.schema.json`, `x-payload-by-worker`):
 
 | Payload field | Standalone flag | Meaning |
 |---|---|---|

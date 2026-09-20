@@ -188,7 +188,7 @@ shared vocabulary → write it to `shapeup/<slug>/shaping/glossary.md`.
 Orchestrated, this skill is dispatched like every worker: a **WorkOrder** in (`--order <path>`,
 operation `translate`), a **WorkResult** out. The standalone arguments below map 1:1 onto the
 payload fields registered for this worker in the central domain registry
-(`skills/tech-lead/schemas/domain.schema.json`, `x-payload-by-worker`):
+(`kernel/schemas/domain.schema.json`, `x-payload-by-worker`):
 
 | Payload field | Standalone form | Meaning |
 |---|---|---|

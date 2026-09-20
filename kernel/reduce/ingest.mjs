@@ -33,7 +33,7 @@ import { tasksDir, localRoot, dispatchReceipts, legLedger, readRunId } from "../
 import { citationProblem } from "../probe/eval.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const RESULT_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../../skills/tech-lead/schemas/work-result.schema.json"), "utf8"));
+const RESULT_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../schemas/work-result.schema.json"), "utf8"));
 
 /**
  * @returns {string} Today's date as an ISO `YYYY-MM-DD` string (UTC), for log/frontmatter stamps.

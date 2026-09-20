@@ -40,12 +40,12 @@ directories, nor a top-level `evals/` — that whole layer was removed.)
 
 ## Enums: the vocabulary the runtime enforces
 
-The central registry is `skills/tech-lead/schemas/domain.schema.json`. Everything downstream —
+The central registry is `kernel/schemas/domain.schema.json`. Everything downstream —
 which workers exist, which operations are dispatchable — is defined there and nowhere else.
 
 ```bash
 node -e "
-const s=require('./skills/tech-lead/schemas/domain.schema.json');
+const s=require('./kernel/schemas/domain.schema.json');
 console.log('WorkerName  (%d):', s.\$defs.WorkerName.enum.length, s.\$defs.WorkerName.enum.join(', '));
 console.log('Operation   (%d):', s.\$defs.Operation.enum.length, s.\$defs.Operation.enum.join(', '));
 "
@@ -61,7 +61,7 @@ Two traps:
 
 ```bash
 node -e "
-const s=require('./skills/tech-lead/schemas/domain.schema.json');
+const s=require('./kernel/schemas/domain.schema.json');
 console.log(s.\$defs.Operation.description);
 "
 ```

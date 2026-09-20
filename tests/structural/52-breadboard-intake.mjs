@@ -327,7 +327,7 @@ export async function run(ctx) {
       const orderPath = join(ws, ".shapeup", "demo", "orders", "analyze.json");
       let order = null; try { order = JSON.parse(readFileSync(orderPath, "utf8")); } catch { /* reported below */ }
       const { validate } = await import(join(ROOT, "kernel/verify/envelope.mjs"));
-      const schema = JSON.parse(readFileSync(join(ROOT, "skills/tech-lead/schemas/work-order.schema.json"), "utf8"));
+      const schema = JSON.parse(readFileSync(join(ROOT, "kernel/schemas/work-order.schema.json"), "utf8"));
       const v = order ? validate(order, schema) : { valid: false, errors: [co.stderr || co.stdout] };
       if (co.status === 0 && order?.payload?.breadboard === ".shapeup/demo/breadboard.md" && v.valid)
         ok("(h) a compiled analyze order carries payload.breadboard and validates against work-order.schema.json");

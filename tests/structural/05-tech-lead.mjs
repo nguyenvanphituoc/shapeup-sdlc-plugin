@@ -255,8 +255,8 @@ export async function run(ctx) {
   // must PASS a well-formed order, FAIL a malformed one, and as a PreToolUse hook DENY a dispatch
   // whose --order file is invalid while deferring on everything else (fail-open for standalone).
   const vePath = join(ROOT, "kernel/verify/envelope.mjs");
-  const orderSchemaPath = join(ROOT, "skills/tech-lead/schemas/work-order.schema.json");
-  const resultSchemaPath = join(ROOT, "skills/tech-lead/schemas/work-result.schema.json");
+  const orderSchemaPath = join(ROOT, "kernel/schemas/work-order.schema.json");
+  const resultSchemaPath = join(ROOT, "kernel/schemas/work-result.schema.json");
   if (existsSync(vePath) && existsSync(orderSchemaPath)) {
     const { validate: veValidate } = await import(vePath);
     const orderSchema = readJSON(orderSchemaPath);
@@ -628,19 +628,41 @@ export async function run(ctx) {
   section("24. domain.schema.json is the central registry: every $ref resolves, the payload map is consistent, and validation discriminates through the ref chain");
   // =============================================================================
   // The definition layer (central-domain-registry): every record type and payload field the
-  // envelopes carry is defined ONCE in skills/tech-lead/schemas/domain.schema.json; the two
+  // envelopes carry is defined ONCE in kernel/schemas/domain.schema.json; the two
   // envelope schemas only $ref it. This section guards the registry the way #3 guards SKILL
   // references: a dangling $ref, a payload field named in x-payload-by-worker but not defined,
   // or a worker listed that isn't in the WorkerName enum is drift between the registry and
   // reality — exactly the "each skill defines its own fields" failure the registry exists to end.
-  const domainSchemaPath = join(ROOT, "skills/tech-lead/schemas/domain.schema.json");
+  //
+  // The schemas used to live in the skill tier while the kernel reached up into it — an inverted
+  // dependency, since the kernel is what every skill and hook depends on, never the reverse. That
+  // defect is closed by moving the schemas here, under kernel/, and this is its regression guard:
+  // every .mjs file under kernel/ is scanned for the literal path the old, wrong location had, so
+  // a future edit that reintroduces a kernel→skill-tree reach for its own contract goes red.
+  const kernelMjsFiles = [];
+  (function collectMjs(dir) {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (e.name === "node_modules" || e.name === ".git") continue;
+      const p = join(dir, e.name);
+      if (e.isDirectory()) collectMjs(p);
+      else if (e.name.endsWith(".mjs")) kernelMjsFiles.push(p);
+    }
+  })(join(ROOT, "kernel"));
+  const reachesUpIntoSkills = kernelMjsFiles.filter((f) => /skills\/tech-lead\/schemas/.test(readFileSync(f, "utf8")));
+  if (kernelMjsFiles.length > 0 && reachesUpIntoSkills.length === 0) {
+    ok(`no kernel/*.mjs file reaches into skills/tech-lead/schemas/ (${kernelMjsFiles.length} kernel files scanned)`);
+  } else {
+    fail(`kernel reaches back into the skill tree for its own schemas: ${reachesUpIntoSkills.map((f) => f.replace(ROOT + "/", "")).join(", ") || "(no kernel .mjs files found at all)"}`);
+  }
+
+  const domainSchemaPath = join(ROOT, "kernel/schemas/domain.schema.json");
   if (existsSync(domainSchemaPath) && existsSync(vePath)) {
     let domain;
     try { domain = readJSON(domainSchemaPath); ok("domain.schema.json parses"); }
     catch (e) { fail(`domain.schema.json does not parse: ${e.message}`); }
     if (domain) {
       // Every $ref anywhere in the three schema files must resolve to a real definition.
-      const schemasDir = join(ROOT, "skills/tech-lead/schemas");
+      const schemasDir = join(ROOT, "kernel/schemas");
       const docs = {};
       for (const f of readdirSync(schemasDir).filter((x) => x.endsWith(".json"))) docs[f] = readJSON(join(schemasDir, f));
       const collectRefs = (node, acc) => {
@@ -914,7 +936,7 @@ export async function run(ctx) {
     }
 
     // Schema registration surface the plan mandates (§2, §5) — guard against half-wired drift.
-    const domain = readJSON(join(ROOT, "skills/tech-lead/schemas/domain.schema.json"));
+    const domain = readJSON(join(ROOT, "kernel/schemas/domain.schema.json"));
     const wn = new Set(domain.$defs?.WorkerName?.enum || []);
     const ops = new Set(domain.$defs?.Operation?.enum || []);
     if (wn.has("solution-architect")) ok("WorkerName enum registers solution-architect");
@@ -1257,7 +1279,7 @@ export async function runLaunchRecord(ctx) {
   // Scoped to entries whose `x-location` names a concrete file. The EMBEDDED ones legitimately have
   // no path (`Lane` rides in frontmatter, `HillShard` is a projection), and demanding a filename of
   // them would be demanding the schema lie.
-  const domain = readJSON(join(ROOT, "skills/tech-lead/schemas/domain.schema.json"));
+  const domain = readJSON(join(ROOT, "kernel/schemas/domain.schema.json"));
   const instructions = [
     read(join(ROOT, "skills/tech-lead/SKILL.md")),
     ...readdirSync(join(ROOT, "skills/tech-lead/references"))

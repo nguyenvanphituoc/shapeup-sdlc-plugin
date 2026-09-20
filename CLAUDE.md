@@ -31,7 +31,7 @@ never `.mjs` paths.
 - A version bump touches both `package.json` and `.claude-plugin/plugin.json`;
   release CI fails on mismatch.
 - A new worker skill takes 3 steps: `SKILL.md` → declare fields in
-  `skills/tech-lead/schemas/domain.schema.json` → teach `harness compile` and
+  `kernel/schemas/domain.schema.json` → teach `harness compile` and
   `harness reduce ingest`. Step 1 alone yields a skill the orchestrator can't dispatch.
 - `tools/` is repo-only and never ships; what ships is the `files` allowlist in `package.json`.
 - Commit subjects: `type(scope): lowercase declarative`.
@@ -42,7 +42,7 @@ This repo is both a product and its own blueprint, and the two drift apart silen
 saying "11 workers" over a 10-member enum reads perfectly. Two standing rules:
 
 - **Derive facts from artifacts, never from prose.** Enums come from
-  `skills/tech-lead/schemas/domain.schema.json`, counts from the filesystem, and hook behavior
+  `kernel/schemas/domain.schema.json`, counts from the filesystem, and hook behavior
   from *executing the hook* against a fixture. A doc, a glossary and a screenshot can all agree
   with each other and all be wrong; reading any one of them just confirms the others.
 - **Nothing in the shipped set may reference something the user did not receive.** No benchmark

@@ -65,7 +65,7 @@ Everything discovered funnels into `.shapeup/<slug>/discovery/ledger.md` (Orient
 
 ## Setup & Execution
 
-- Orders/results live in `.shapeup/<slug>/orders|results/`; the envelope schemas ship inside the tech-lead skill.
+- Orders/results live in `.shapeup/<slug>/orders|results/`; the envelope schemas ship with the plugin runtime, not with any individual skill, so every worker validates against the same copy.
 - The plugin's run entry points need a one-time permission grant — `npx shapeup-sdlc init` writes it into `.claude/settings.json` (`permissions.allow`); without it a headless run stalls at step one. That grant is necessary, not sufficient: it covers the run's own deterministic entry points, not the generic file edits every worker skill makes constantly, or any command a worker reaches for beyond the grant's own exact shape. A truly unattended run also needs a Claude Code permission mode that covers those (`acceptEdits` at minimum) — the plugin cannot grant that on your behalf.
 - The grant is necessary but sits under two more layers this plugin cannot reach either. A fresh
   checkout is an **untrusted workspace**, and Claude Code discards the whole permission grant — every

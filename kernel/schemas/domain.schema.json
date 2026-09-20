@@ -668,14 +668,14 @@
             "string",
             "null"
           ],
-          "description": "Source file of the failure; null/absent when the log line carried no location (raw triple — never invented)."
+          "description": "Source file of the failure; null/absent when the log line named no file at all (raw triple — never invented)."
         },
         "line": {
           "type": [
             "integer",
             "null"
           ],
-          "description": "Line of the failure; null/absent when the log line carried no location. Paired with `file` — a triple has both or neither, and neither is ever invented to satisfy a shape."
+          "description": "Line of the failure; null/absent when the diagnostic carried no line number — independently of `file`, since a diagnostic can name a file with no line (a resource-compiler error, for example). Never invented to satisfy a shape."
         },
         "core_message": {
           "type": "string",
@@ -2704,10 +2704,10 @@
       }
     },
     "RunArgs": {
-      "description": "C1 — the launch half of the workflow's only conversation. Compiled ONCE by tech-lead at GATE L0 from harness init run output + the L0.8 model matrix + budgets, written to .shapeup/<slug>/run-args.json and handed to the harness run launch as one JSON literal — the workflow cannot ask follow-ups and cannot read config files itself, so everything a run will ever need travels in this one record. A workflow script validates its own subset of this shape in code (no runtime schema check at the C1 boundary itself); this entry is the central-registry definition the workflow script and the tech-lead skill both read as the one true shape.",
+      "description": "C1 — the launch half of the workflow's only conversation. Resolved ONCE at GATE L0 from harness init run output + the L0.8 model matrix + budgets, then built by `harness init run-args`, which writes it to .shapeup/<slug>/run-args.json AND prints it — tech-lead passes that printed value to the harness run launch as one JSON literal, never a second, hand-typed copy of it. The workflow cannot ask follow-ups and cannot read config files itself, so everything a run will ever need travels in this one record. A workflow script validates its own subset of this shape in code (no runtime schema check at the C1 boundary itself); this entry is the central-registry definition the workflow script, `harness init run-args` and the tech-lead skill all read as the one true shape.",
       "x-tier": "EMBEDDED",
-      "x-location": ".shapeup/<slug>/run-args.json — written fresh by tech-lead on every launch and relaunch; the workflow receives it as its args and never reads other config",
-      "x-writer": "tech-lead (GATE L0, on every launch AND every relaunch after a paused gate)",
+      "x-location": ".shapeup/<slug>/run-args.json — written fresh on every launch and relaunch by `harness init run-args`; the workflow receives it as its args and never reads other config",
+      "x-writer": "harness init run-args (kernel), invoked by tech-lead at GATE L0 on every launch AND every relaunch after a paused gate",
       "x-readers": "the Workflow runtime (shapeup-run, and shapeup-run's own inner round dispatch)",
       "x-not-here": "Run config the LEDGER already carries does NOT get a second home in RunArgs — eval_dimensions, lens, spec_folder, stack, run_cmd, app_url are read off harness-run.md frontmatter by resume-state on every launch AND every relaunch, so a copy here would be a second source that can disagree with the first. RunArgs carries what a workflow cannot derive from disk (identity, budgets, the model matrix, pluginRoot, startedAt) plus noEval, which no frontmatter line holds.",
       "type": "object",
@@ -2759,15 +2759,12 @@
         },
         "budgets": {
           "type": "object",
-          "description": "The three-level circuit breaker's own limits (AGENTS.md) — outer round_budget, inner attempt_budget, and the opt-in wall-clock breaker.",
+          "description": "The two RunArgs-level circuit breakers (AGENTS.md) — outer round_budget, inner attempt_budget. The third, opt-in DEADLINE breaker (the wall-clock budget) is NOT a RunArgs field: it is typed once, at `harness init run --wall-clock-budget`, and lands in the run receipt's `wall_clock_budget_s` — `harness verify budget` reads that receipt field directly and never sees this launch's RunArgs at all, so it has no member here to declare.",
           "properties": {
             "maxRounds": {
               "type": "integer"
             },
             "attemptBudget": {
-              "type": "integer"
-            },
-            "wallClockS": {
               "type": "integer"
             }
           }

@@ -2,7 +2,7 @@
 
 [← Back to index](README.md)
 
-> **Generated from** [`skills/tech-lead/schemas/domain.schema.json`](../../skills/tech-lead/schemas/domain.schema.json)
+> **Generated from** [`kernel/schemas/domain.schema.json`](../../kernel/schemas/domain.schema.json)
 > — the central domain registry (`$defs` = entities, `x-erd` = relationships,
 > `x-payload-by-worker` = worker→field map). The schema is the source of truth; when it
 > changes, regenerate this page. Structural test #24 guards the schema's internal consistency.

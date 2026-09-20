@@ -16,7 +16,7 @@ Verify the clean copy is green (1364 checks at time of writing), then plant:
 
 | # | Defect | File | Visible to `npm test`? |
 |---|---|---|---|
-| D1 | Remove `"coverage"` from the `Operation` enum, leaving `skills/ba-pitch-analyzer/SKILL.md` still advertising it | `skills/tech-lead/schemas/domain.schema.json` | no |
+| D1 | Remove `"coverage"` from the `Operation` enum, leaving `skills/ba-pitch-analyzer/SKILL.md` still advertising it | `kernel/schemas/domain.schema.json` | no |
 | D2 | Change `Operation (15)` → `(18)` and add `generate-board, recheck, adjudicate` to the list | `docs/design/07-domain-erd.md` | no |
 | D3 | Inject a benchmark citation into the header comment (`n=3`, `1800 s`, `29%`, a `docs/migration/` path) | `hooks/gate-deadline.mjs` | no |
 | D4 | Add a `docs/migration/stage-a3-plan.md` citation and a `Stage A3` phase name | `skills/tech-lead/references/gates.md` | no |

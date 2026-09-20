@@ -332,11 +332,11 @@ claude --plugin-dir .                # load this working copy without installing
   plugin.json         # plugin manifest
   marketplace.json    # marketplace listing (points at this repo)
 skills/<name>/SKILL.md # the 13 harness skills (+ references/ and assets/)
-skills/tech-lead/schemas/                # the envelope port: WorkOrder, WorkResult, domain registry
 skills/tech-lead/workflows/shapeup-run.js # the BUILD-phase pipeline, on the native Workflow runtime
 kernel/harness.mjs    # ONE entry point for every deterministic step; the whole permission grant
 kernel/{verify,reduce,probe,init,report}/ #   its subcommands, plus compile and gate at the root
 kernel/lib/           # argv (the typed CLI boundary), paths (+ the run key), contract (shape)
+kernel/schemas/       # the envelope port: WorkOrder, WorkResult, domain registry
 commands/*.md         # slash commands (/ship + the 9 phase commands)
 hooks/                # hooks.json + the four walls: safety-spine, gate-intake, sandbox-guard
                       #   (PreToolUse) + gate-zerowork (Stop, the one blocking hook)

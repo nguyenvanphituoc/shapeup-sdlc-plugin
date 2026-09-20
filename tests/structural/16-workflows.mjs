@@ -829,7 +829,7 @@ export async function run(ctx) {
   // and `lane` are carried for the record layer and for tech-lead's own use — so asserting the
   // reverse would fail on a correct contract.
   {
-    const domain = JSON.parse(readFileSync(join(ROOT, "skills/tech-lead/schemas/domain.schema.json"), "utf8"));
+    const domain = JSON.parse(readFileSync(join(ROOT, "kernel/schemas/domain.schema.json"), "utf8"));
     const declared = new Set(Object.keys(domain?.$defs?.RunArgs?.properties || {}));
     if (declared.size === 0) {
       fail("domain.schema.json declares no $defs/RunArgs.properties — the launch contract has no fields at all");

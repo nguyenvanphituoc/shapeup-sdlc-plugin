@@ -557,7 +557,7 @@ export async function run(ctx) {
   //     exists to prevent: the two names an eight-name literal would have omitted (`translator`,
   //     `coach`) are exactly the ones a short run never reaches, so the omission surfaces months
   //     later on the one run that did.
-  const schemaEnum = JSON.parse(readFileSync(join(ROOT, "skills/tech-lead/schemas/domain.schema.json"), "utf8"))
+  const schemaEnum = JSON.parse(readFileSync(join(ROOT, "kernel/schemas/domain.schema.json"), "utf8"))
     .$defs.WorkerName.enum;
   if (JSON.stringify(roster(ROOT)) === JSON.stringify(schemaEnum)) {
     ok(`verify skills derives its roster from domain.schema.json#/$defs/WorkerName (${schemaEnum.length} workers), never a literal`);
@@ -579,7 +579,7 @@ export async function run(ctx) {
   // because nothing asked whether every enumerated operation has an owner. The task-executor
   // family is the one legitimate gap — `execute`/`fix`/`spike` resolve their worker from the
   // scope/task/--next address, not from this table (compile.mjs, the `worker` derivation).
-  const opEnum = JSON.parse(readFileSync(join(ROOT, "skills/tech-lead/schemas/domain.schema.json"), "utf8"))
+  const opEnum = JSON.parse(readFileSync(join(ROOT, "kernel/schemas/domain.schema.json"), "utf8"))
     .$defs.Operation.enum;
   const ADDRESSED_BY_SCOPE = new Set(["execute", "fix", "spike"]);
   const unrouted = opEnum.filter((op) => !ADDRESSED_BY_SCOPE.has(op) && !OP_OWNER[op]);
@@ -594,10 +594,10 @@ export async function run(ctx) {
   // (b) THE CHECK IS NOT INERT. A fixture root describes a broken installation without touching
   //     the installation under test — the reason `--plugin-root` exists at all.
   const brokenRoot = mkdtempSync(join(tmpdir(), "broken-plugin-"));
-  mkdirSync(join(brokenRoot, "skills/tech-lead/schemas"), { recursive: true });
+  mkdirSync(join(brokenRoot, "kernel/schemas"), { recursive: true });
   mkdirSync(join(brokenRoot, ".claude-plugin"), { recursive: true });
-  writeFileSync(join(brokenRoot, "skills/tech-lead/schemas/domain.schema.json"),
-    readFileSync(join(ROOT, "skills/tech-lead/schemas/domain.schema.json")));
+  writeFileSync(join(brokenRoot, "kernel/schemas/domain.schema.json"),
+    readFileSync(join(ROOT, "kernel/schemas/domain.schema.json")));
   writeFileSync(join(brokenRoot, ".claude-plugin/plugin.json"), JSON.stringify({ name: "shapeup-sdlc-plugin", version: "1.6.3" }));
   for (const w of schemaEnum.filter((x) => x !== "orient")) {
     mkdirSync(join(brokenRoot, "skills", w), { recursive: true });

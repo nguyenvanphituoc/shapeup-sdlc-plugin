@@ -630,7 +630,7 @@ trace. See `references/gates.md` — GATE L0.1.
 ## Central domain registry
 
 Every record type and payload field that crosses a skill boundary is defined exactly once in
-`skills/tech-lead/schemas/domain.schema.json` — the envelope schemas (`work-order.schema.json`,
+`kernel/schemas/domain.schema.json` — the envelope schemas (`work-order.schema.json`,
 `work-result.schema.json`) only `$ref` it. The registry annotates each entity's tier
 (SHARED/LOCAL), location, sole writer, and readers, carries the machine-readable ERD (`x-erd`),
 and maps which payload fields each worker may rely on (`x-payload-by-worker`).

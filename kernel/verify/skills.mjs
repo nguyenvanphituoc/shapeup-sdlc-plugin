@@ -45,7 +45,7 @@ export const PLUGIN_ROOT = resolve(HERE, "../..");
  *   its own domain registry has a broken installation, which is the very thing being checked.
  */
 export function roster(root = PLUGIN_ROOT) {
-  const schemaPath = join(root, "skills/tech-lead/schemas/domain.schema.json");
+  const schemaPath = join(root, "kernel/schemas/domain.schema.json");
   const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
   const names = schema?.$defs?.WorkerName?.enum;
   if (!Array.isArray(names) || !names.length) {
