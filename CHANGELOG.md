@@ -3,6 +3,79 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.6.0] — 2026-09-21 · Nine defects close, and every guard was broken on purpose before it counted
+
+Seven of the eleven open defects were the same shape: a fact declared in one tier and consumed in
+another, with nothing enforcing the join. An operator typed a wall-clock flag, the workflow named a
+field it never read, and the kernel read a different field off the receipt — so a run reported
+itself as having no budget while its caller believed it had asked for one. The absent warning was
+the worse half. A markdown file called `run-args.json` the only record of what a run was configured
+with, a kernel module read it and admitted in its own comment that it was absent from every run so
+far, and nothing outside tests wrote it. An abort left a trace reading as still running. Three of
+ten gates, one of them the Ship Sign-off, were never resolved at all.
+
+**How this release was accepted, and what that is worth.** Each stage was executed by one agent and
+accepted by a second, given *propositions to test* and the diff, never the executor's reasoning;
+the acceptance agent could not edit, and every guard it accepted it first broke and watched go red.
+Measured across this work, 2026-09-20 to 2026-09-21, exec `sonnet` / accept `opus`, in this
+checkout: **11 of 19 acceptance passes returned REJECTED**, and the rejections were structural
+rather than cosmetic — the first fix for the missing launch-record writer reproduced that same
+defect one level up, since the writer existed but only prose invoked it; the first close-out fix
+left two terminal returns bypassing close-out while an existing check had been relaxed to *tolerate*
+the new call shape without requiring it, so both holes were green; its own correction then
+over-corrected into a guard that broke the relaunch case. Two qualifications travel with that
+figure: it is a property of this plan, these models and this checkout, and it counts passes rather
+than defects, since one pass can carry several. Nothing below rescales it.
+
+- **A run argument now has one declared surface, and it is derived rather than typed.** Every run
+  argument, its spelling per tier, the artifact it lands in and its reader, read at runtime from
+  each entry point's own argv spec, the domain schema and the operator's flag table. A documented
+  flag that reaches no reader is red; so is a reader of a flag nothing documents, and a field
+  renamed on one side only. A hand-maintained list would have passed every one of those checks,
+  which is why the acceptance tested growth: add an argument to the source spec and the surface
+  grows with no list edited.
+- **The launch record has a kernel writer, wired into opening a run.** Not a separate command that
+  prose remembers to call — that was the first attempt, and it was the defect wearing a new address.
+- **A terminal close is one write:** status, cause and timestamp together, under the run's own tier
+  and carried into the export. Nothing stamped a close timestamp before, which is why the cause had
+  nowhere to hang. Worker-death aborts go through the same path.
+- **Rounds are two numbers.** Rounds built derives from the highest round carrying an order, a T0
+  verdict, a build-gate artifact or a verdict; rounds judged stays its own field. The old number
+  survives verbatim as the second, so the only run whose figure moves is the one that was reporting
+  itself as having done nothing.
+- **A build worker's escalation lands in the discovery ledger** — one channel, not three, because
+  the defect was evidence that exists and is read by nobody, and three half-read channels is that
+  defect wearing a wider hat. The ship report reads it back.
+- **Gate decisions and build gates are fact tables**, and a check cross-references every declared
+  gate id against every call site that can emit one, in both directions.
+- **A build leg can no longer rewrite the pitch it is measured on.** The `execute`/`fix`/`spike`
+  substrate declared nothing frozen while every planning operation froze the staged intake — the
+  widest window in a run, not the narrowest.
+- **A path declared only as shared substrate has a writer.** The fence composed allowed and shared
+  together while the census counted writers from allowed alone, so a bug in a shared file was tagged
+  ownerless and handed to every scope. Election now draws from the same union the fence composes,
+  with an exclusive writer still preferred.
+- **A diagnostic that names a file without a line keeps its file**, and the line stays null rather
+  than being invented. Sequenced deliberately before any port of the archived attempt-scoring work.
+- **The kernel owns the schemas it validates against.** The move found a fourth importer nobody had
+  named — the worker-roster preflight read the domain schema straight out of the skill tree.
+- **A test module on disk that no run reaches is now red.** `MODULE_FILES` is explicit and stays
+  explicit, but a module could land on disk, be imported by nothing, and never run — which happened
+  during this work. An unregistered guard reads as coverage it does not provide. A registered
+  duplicate is red too: the planted one inflated the check total by seven.
+
+Structural suite **1635 → 1841 checks**, green in a fresh clone at every stage commit — each was
+checked out separately rather than the per-stage rollback being asserted.
+
+**What this release does not include, said plainly.** The soak has not run. It needs a consumer
+project installed from the marketplace, two consecutive features, and its run trace kept between
+them; nothing run from this checkout substitutes, which is precisely why the two run-geometry defect
+classes are invisible here. **The close-out path above is new code that has never run in a real
+consumer.** Open and belonging to the Betting Table: the stranded tag's port-or-abandon call, the
+code half of the fence-after-close entry, and a newly filed idea — that a run does not check whether
+the baseline it is about to build on exists in any commit, measured on a real consumer where 45
+files of engine lived in a working tree and no commit for three days.
+
 ## [3.5.0] — 2026-09-19 · The run checks what the pitch forbids, not what it asks
 
 The loop graded the build against the spec it had written itself. The pitch's own list of what the
