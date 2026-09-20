@@ -59,7 +59,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
-import { splitFrontmatter } from "../lib/contract.mjs";
+import { splitFrontmatter, uncoerce } from "../lib/contract.mjs";
 import { globToRegExp } from "../verify/spec.mjs";
 import {
   intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir,
@@ -69,8 +69,17 @@ import { evalVerdict } from "./eval.mjs";
 
 /** The run-state values `references/protocol.md` (Part 4 — State) defines. A typo'd status is a rejection,
  *  not a write — the whole point of this file is that a write nobody validates is a write nobody
- *  can trust. */
-export const RUN_STATUSES = ["orienting", "mapping", "building", "evaluating", "shipped", "escalated"];
+ *  can trust. `aborted` is the terminal counterpart `escalated` already was: a gate
+ *  resolving "abort", or a hard stop, ends the run the same way an operator-declared escalation
+ *  does — neither resumes on relaunch — so both are TERMINAL_STATUSES below. */
+export const RUN_STATUSES = ["orienting", "mapping", "building", "evaluating", "shipped", "escalated", "aborted"];
+
+/**
+ * The statuses a run does not come back from. `closeRun` refuses every other member of
+ * {@link RUN_STATUSES} — `orienting`/`mapping`/`building`/`evaluating` are mid-flight, and writing
+ * a close over one of those would stamp `closed_at` on a run a relaunch is still meant to resume.
+ */
+export const TERMINAL_STATUSES = ["shipped", "aborted", "escalated"];
 
 /** ORIENT's four artifacts (skills/orient/SKILL.md §Outputs): three by exact name, plus a spike
  *  whose filename carries the area it spiked (`spike-<area>.md`, or `spike-not-needed.md` when
@@ -463,6 +472,166 @@ export function setRunStatus(cwd, slug, status) {
 }
 
 /**
+ * Rewrite `status:`, `closed_at:`, `closed_status:` and `close_cause:` together, in one pass,
+ * appending any of the last three that a pre-migration ledger carries no line for yet (the same
+ * tolerant-of-old-ledgers discipline `close_cause` itself shipped under).
+ *
+ * @param {string} body - The ledger's current text.
+ * @param {{status:string, closedAt:string, cause:(string|null)}} o - What to write. `cause` is
+ *   already normalized prose (newlines collapsed, truncated) — this function only `uncoerce`s it.
+ * @returns {string} The rewritten text.
+ */
+function writeCloseLines(body, { status, closedAt, cause }) {
+  const causeLine = `close_cause: ${uncoerce(cause || null)}`;
+  const closedStatusLine = `closed_status: ${status}`;
+  let out = body
+    .replace(/^status:.*$/m, `status: ${status}`)
+    .replace(/^closed_at:.*$/m, `closed_at: ${closedAt}`);
+  out = /^closed_status:.*$/m.test(out)
+    ? out.replace(/^closed_status:.*$/m, closedStatusLine)
+    // A ledger written before this field existed carries no line to replace — appended right after
+    // `closed_at:`, the one line every TERMINAL_STATUSES write also touches.
+    : out.replace(/^closed_at:.*$/m, (m) => `${m}\n${closedStatusLine}`);
+  out = /^close_cause:.*$/m.test(out)
+    ? out.replace(/^close_cause:.*$/m, causeLine)
+    : out.replace(/^closed_at:.*$/m, (m) => `${m}\n${causeLine}`);
+  return out;
+}
+
+/**
+ * Close the run: a terminal status, its cause, and a close timestamp, written together in ONE
+ * pass.
+ *
+ * Measured: after an EVAL worker escalated and the run aborted, `harness-run.md` still read
+ * `status: evaluating`, `closed_at: ~`, with no cause recorded anywhere — a live EVAL and a dead
+ * one were indistinguishable from the trace alone. Two writers made that possible: `setRunStatus`
+ * above replaces the `status:` line and NOTHING ELSE, and `closed_at` was written exactly once, as
+ * the literal `~`, by `init run` — nothing ever replaced it. This function is the one call site
+ * that closes a run, so a terminal RunReturn cannot leave one of the three facts behind.
+ *
+ * Refuses rather than silently no-ops, the same discipline as `setRunStatus`: an absent ledger, one
+ * missing the lines this writes, or a non-terminal `status` (closing a run still `building` would
+ * stamp a live run as done) is a fact to act on, not a write to skip quietly.
+ *
+ * THE ONCE-ONLY GUARD READS `closed_status`, NEVER `status`. REWORK (round 2): the guard used to key
+ * on `before.status`, and `status:` is a LIVE field every phase rewrites via `setRunStatus` —
+ * including the product's own ship path, which stamps `status: shipped`
+ * (`skills/tech-lead/workflows/shapeup-run.js`'s Ship phase) immediately before this call runs. So a
+ * run closed `aborted` at Preflight on one launch, relaunched, and carried through to a `shipped`
+ * RunReturn on a later one had its `status:` line rewritten to `shipped` by that ordinary phase
+ * traffic BEFORE `closeIfTerminal` ever called this function — the guard read `before.status ===
+ * "shipped"`, matched the very close it was about to perform, and treated a run that was actually
+ * closed `aborted` as already closed `shipped`: `ok:true`, an "idempotent no-op" that silently kept
+ * the abort's own `closed_at`/`close_cause` under a `status:` line now reading `shipped`. `closed_status`
+ * is written ONLY here, exactly once per distinct close-writing call, so nothing between two calls to
+ * this function can move it — it is the one field that actually answers "has this run been closed,
+ * and to what" regardless of how many times `status:` has been rewritten since.
+ *
+ * WHAT A SECOND CLOSE MEANS, decided explicitly rather than left implicit. `run_id` is reused across
+ * relaunches by design (AGENTS.md), so "the run's close" and "this launch's own close" are two
+ * different facts a single `closed_at`/`close_cause` pair cannot both hold:
+ *   - The IDENTICAL status and the IDENTICAL cause is the ordinary case a retried or duplicated call
+ *     produces (the same `withWarnings` call, or a relaunch that re-executes an already-applied
+ *     close) — a true no-op, `ok:true`, nothing rewritten.
+ *   - The SAME terminal status but a DIFFERENT cause is a SECOND, real close — most often a later
+ *     relaunch aborting again for its own reason, or shipping again after an earlier ship's close
+ *     record was never superseded. Discarding it (the pre-rework behavior) silently drops the later
+ *     launch's own reason with no trace of the loss. It is recorded instead: this call's cause
+ *     becomes the ledger's `close_cause`, folded together with the prior cause it is superseding —
+ *     the earlier fact survives inside the new line rather than the ledger simply losing it — and the
+ *     return carries `superseded:true` so a caller (`closeIfTerminal`) can flag the trace as degraded
+ *     rather than reporting a clean success.
+ *   - A DIFFERENT terminal status altogether (aborted vs. shipped) is refused outright — flipping the
+ *     actual OUTCOME of a run after the fact is not a fact a later launch gets to silently overwrite,
+ *     so the original `closed_status`/`closed_at`/`close_cause` are left completely untouched and
+ *     handed back to the caller.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {{status:string, cause:(string|null)}} o - The terminal status (one of
+ *   {@link TERMINAL_STATUSES}) and why the run ended there. `cause` travels through `uncoerce` (the
+ *   one dialect `harness-run.md`'s frontmatter is read and written in), so free prose — quotes and
+ *   colons included — round-trips as one frontmatter line; an embedded newline is collapsed to a
+ *   space first, because this dialect is line-based and could not carry one either way.
+ * @returns {{ok:boolean, path:string, status:string, closed_at?:string, cause?:(string|null),
+ *   reason?:string, closed_status?:string, superseded?:boolean, decision?:string,
+ *   prior_cause?:(string|null), prior_closed_at?:string}} Outcome. A refused overwrite (already
+ *   closed with a DIFFERENT terminal status) carries `closed_status`/`closed_at`/`cause` naming what
+ *   is actually on disk. A successful supersede (same status, different cause) carries
+ *   `superseded:true`, `decision:"superseded"` (the one-token signal the courier boundary in
+ *   `shapeup-run.js` relays verbatim — see its own `cmd()` banner) and the prior close it folded in.
+ */
+export function closeRun(cwd, slug, { status, cause = null } = {}) {
+  const p = harnessRun(cwd, slug);
+  if (!TERMINAL_STATUSES.includes(status)) {
+    return { ok: false, path: p, status, reason: `closeRun: "${status}" is not terminal — expected one of ${TERMINAL_STATUSES.join(" | ")}` };
+  }
+  if (!existsSync(p)) {
+    return { ok: false, path: p, status, reason: `no harness-run.md for slug "${slug}" — open the run with harness init run (GATE L0.1) before closing it` };
+  }
+  let body = readFileSync(p, "utf8");
+  if (!/^status:.*$/m.test(body) || !/^closed_at:.*$/m.test(body)) {
+    return { ok: false, path: p, status, reason: `harness-run.md carries no "status:"/"closed_at:" line to replace — the ledger's frontmatter is malformed (references/protocol.md)` };
+  }
+
+  // Truncated, not elided: a cause this long has already done its job in the run's own log — the
+  // ledger line is a pointer back to it, not the full transcript. Newlines are collapsed to spaces
+  // FIRST — this dialect is line-based, so a raw embedded newline would split one field into a value
+  // line and a stray, unparsed one.
+  const normCause = String(cause ?? "").replace(/\r?\n/g, " ").trim().slice(0, 4000) || null;
+
+  const before = parseFrontmatter(body);
+  const priorClosedStatus = before.closed_status && before.closed_status !== "~" ? before.closed_status : null;
+  const priorClosedAt = before.closed_at && before.closed_at !== "~" ? before.closed_at : null;
+  const priorCause = before.close_cause && before.close_cause !== "~" ? before.close_cause : null;
+
+  if (priorClosedStatus && priorClosedAt) {
+    if (priorClosedStatus === status && normCause === priorCause) {
+      // The identical fact, restated — a retried or duplicated call costs nothing.
+      return { ok: true, path: p, status, closed_at: priorClosedAt, cause: priorCause, decision: "idempotent", reason: `already closed as "${status}" at ${priorClosedAt} — idempotent no-op` };
+    }
+    if (priorClosedStatus !== status) {
+      // A DIFFERENT terminal status over an already-closed run — refused outright, the original
+      // close left completely untouched so the caller can see what it was refused permission to
+      // destroy, rather than losing it silently.
+      return {
+        ok: false, path: p, status,
+        reason: `closeRun: this run is already closed as "${priorClosedStatus}" at ${priorClosedAt} (cause: ${JSON.stringify(priorCause)}) — refusing to overwrite it with "${status}". A terminal close is a once-only fact; the first cause is not destroyed.`,
+        closed_status: priorClosedStatus, closed_at: priorClosedAt, cause: priorCause,
+      };
+    }
+    // SAME terminal status, a DIFFERENT cause — a second, real close (see the function banner's
+    // "what a second close means"). Superseded, not discarded: the prior cause is folded into the
+    // new line rather than lost, and the return says so explicitly.
+    const closedAt = new Date().toISOString();
+    const foldedCause = `${normCause || "no reason recorded"} — supersedes an earlier close recorded ${priorClosedAt} (cause: ${JSON.stringify(priorCause)})`.slice(0, 4000);
+    body = writeCloseLines(body, { status, closedAt, cause: foldedCause });
+    try { writeFileSync(p, body); } catch (e) {
+      return { ok: false, path: p, status, reason: `could not write the ledger: ${e.message}` };
+    }
+    const afterSup = parseFrontmatter(readFileSync(p, "utf8"));
+    if (afterSup.status !== status || !afterSup.closed_at || afterSup.closed_at === "~") {
+      return { ok: false, path: p, status, reason: `wrote the superseding close but the ledger reads back status="${afterSup.status}" closed_at="${afterSup.closed_at}" — the write did not take` };
+    }
+    return {
+      ok: true, path: p, status, closed_at: afterSup.closed_at, cause: afterSup.close_cause ?? null,
+      superseded: true, decision: "superseded", prior_cause: priorCause, prior_closed_at: priorClosedAt,
+    };
+  }
+
+  const closedAt = new Date().toISOString();
+  body = writeCloseLines(body, { status, closedAt, cause: normCause });
+  try { writeFileSync(p, body); } catch (e) {
+    return { ok: false, path: p, status, reason: `could not write the ledger: ${e.message}` };
+  }
+  const after = parseFrontmatter(readFileSync(p, "utf8"));
+  if (after.status !== status || !after.closed_at || after.closed_at === "~") {
+    return { ok: false, path: p, status, reason: `wrote the close but the ledger reads back status="${after.status}" closed_at="${after.closed_at}" — the write did not take` };
+  }
+  return { ok: true, path: p, status, closed_at: after.closed_at, cause: after.close_cause ?? null, decision: "closed" };
+}
+
+/**
  * Point the substrate pointer at the order about to be executed.
  *
  * @param {string} cwd - Project root.
@@ -488,13 +657,17 @@ export function writeActiveOrder(cwd, slug, orderPath) {
 
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "harness.mjs probe resume --slug <slug> [--cwd <dir>] [--require <phase> | --set-status <status> | --set-active-order <path>]",
+  usage: "harness.mjs probe resume --slug <slug> [--cwd <dir>] " +
+         "[--require <phase> | --set-status <status> | --set-active-order <path> | --close <status> [--cause <text>]]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   slug: { type: "str", required: true },
   cwd: { type: "path" },
   require: { type: "enum", values: PHASES },
   "set-status": { type: "enum", values: RUN_STATUSES },
   "set-active-order": { type: "str" },
+  // The one call site that stamps a terminal status, its cause and closed_at together.
+  close: { type: "enum", values: TERMINAL_STATUSES },
+  cause: { type: "str" },
 };
 
 /**
@@ -508,9 +681,13 @@ export function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = args.cwd || process.cwd();
 
-  const ops = [args.require && "--require", args.setStatus && "--set-status", args.setActiveOrder && "--set-active-order"].filter(Boolean);
+  const ops = [args.require && "--require", args.setStatus && "--set-status", args.setActiveOrder && "--set-active-order", args.close && "--close"].filter(Boolean);
   if (ops.length > 1) {
     process.stderr.write(JSON.stringify({ error: "conflicting_flags", flags: ops, expected: "one operation per invocation" }) + "\n");
+    process.exit(2);
+  }
+  if (args.cause !== undefined && !args.close) {
+    process.stderr.write(JSON.stringify({ error: "conflicting_flags", flags: ["--cause"], expected: "--cause is only meaningful with --close" }) + "\n");
     process.exit(2);
   }
 
@@ -537,6 +714,12 @@ export function cli(rawArgv) {
 
   if (args.setActiveOrder) {
     const r = writeActiveOrder(cwd, args.slug, args.setActiveOrder);
+    console.log(JSON.stringify(r));
+    process.exit(r.ok ? 0 : 3);
+  }
+
+  if (args.close) {
+    const r = closeRun(cwd, args.slug, { status: args.close, cause: args.cause ?? null });
     console.log(JSON.stringify(r));
     process.exit(r.ok ? 0 : 3);
   }

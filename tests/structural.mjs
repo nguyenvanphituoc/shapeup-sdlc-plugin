@@ -233,6 +233,25 @@ const MODULE_FILES = [
   // it out to every scope in the run. Its own module because no existing test drove `electOwner`
   // or `probe owner` against a shared-only-declared path at all.
   "66-shared-ownership.mjs",
+  // 67-terminal-closeout.mjs: HD-011, HD-017, HD-018 — the defect-sweep Stage 8 "thin orchestrator"
+  // fixes with the shape "the run was supposed to tell the kernel something, and nothing made it".
+  // Its own module because each fix is a pure kernel derivation (closeRun, deriveRounds, an ingest
+  // routing step) executed end to end against a real fixture, plus the second reader that proves a
+  // written channel is actually READ — none of which the orchestrator script itself can be tested
+  // for directly (see 58-relaunch-memory.mjs's own banner).
+  "67-terminal-closeout.mjs",
+  // 68-gate-coverage.mjs: HD-019 — every GATE_IDS entry has a call site (the workflow script's own
+  // range, or the orchestrating skill's prose for the three gates outside it), and the mechanism
+  // those call sites now invoke — `harness gate --resolve`, the export's gate_decision and
+  // build_gate tables — is executed end to end. Its own module because a structural suite cannot
+  // execute prose, so what it pins is the roster/call-site cross-check and the kernel mechanism the
+  // prose calls, not the prose being followed.
+  "68-gate-coverage.mjs",
+  // 69-terminal-wrapping.mjs: REWORK, Stage 8 round 1 — every terminal RunReturn shapeup-run.js's
+  // own top-level flow constructs must pass through `withWarnings` (HD-011's close), pinned at the
+  // source level (the script cannot be imported — 58-relaunch-memory.mjs's own banner) and
+  // mutation-tested in both directions so the exact hole Round 1 found cannot reopen silently.
+  "69-terminal-wrapping.mjs",
   "08-docs.mjs",
 ];
 

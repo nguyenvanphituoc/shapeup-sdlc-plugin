@@ -958,7 +958,57 @@ async function setRunStatus(status, phaseName) {
     stateWarnings.push(`status="${status}" did not take: ${why}`);
   }
 }
-const withWarnings = (ret) => (stateWarnings.length ? { ...ret, state_warnings: stateWarnings } : ret);
+
+// A free-text reason, made safe to spell into a sub-agent's shell instruction: no quotes, no
+// newlines, no backticks or `$` — every one of those risks breaking the command the sub-agent
+// itself constructs from this file's own instruction text (see `cmd()`'s banner: every kernel call
+// in this script is spelled into a prompt, not spawned directly). Truncated, not elided: the exit
+// code and the ledger's own close_cause line are still the source of record — this is only what
+// crosses the prompt boundary.
+const causeArg = (s) => (String(s ?? "").replace(/[`"'$\\\n\r]/g, " ").replace(/\s+/g, " ").trim().slice(0, 300) || "no reason recorded");
+
+// A terminal RunReturn closes the run's own ledger — a terminal status, its cause, and a close
+// timestamp, in one write (`probe resume --close`). `aborted` and `shipped` are the two statuses
+// this script itself ends a run on; `paused` resumes on relaunch and `gate_h` hands the rest of the
+// run to the tech-lead skill's own orchestration (GATE H's census, then Ship) — neither is this
+// script's close to make. Best-effort, the same discipline as `setRunStatus` above: a lost write
+// degrades the trace's own record of why the run ended, it does not change what this return reports.
+//
+// A close can also come back `ok:true` and still be a degraded outcome: `closeRun`
+// (kernel/probe/resume.mjs) refuses a DIFFERENT terminal status outright (that failure already hits
+// the `!r.ok` branch below, exit 3), but the SAME status with a DIFFERENT cause — a run_id closed
+// more than once across relaunches, e.g. `aborted` at Preflight then `aborted` again for a different
+// reason after a later relaunch — is *superseded* rather than refused: `ok:true`, the new cause
+// folded together with the old one on disk, and `decision:"superseded"` (the one bare token `cmd()`
+// relays verbatim across the courier boundary — see its own banner) naming that outcome. Reporting
+// that as a clean, silent success would be a state fact the trace needs with nothing surfacing it —
+// the same shape as leaving a run's ledger open after it ended. It costs nothing this return itself
+// reports — the ledger already folded the prior cause in — but the run's own RunReturn must say the
+// trace is degraded.
+async function closeIfTerminal(ret) {
+  if (ret.status !== "aborted" && ret.status !== "shipped") return;
+  const cause = ret.status === "aborted"
+    ? `${ret.aborted_at || "?"}: ${ret.reason || "no reason recorded"}`
+    : `verdict=${ret.verdict ?? "?"} rounds=${ret.rounds_used ?? "?"} qa_findings=${ret.qa_findings ?? "?"}`;
+  const r = await cmd(`probe resume --slug ${slug} --close ${ret.status} --cause "${causeArg(cause)}"`, "Ship", `close:${ret.status}`);
+  if (!r.ok) {
+    const why = (r.detail || `exit ${r.exit_code}`).trim();
+    log(`RUN STATE — close(${ret.status}) did not take: ${why}. This return's own status and reason still ` +
+        `stand; only the ledger's own closed_at/close_cause record is degraded.`);
+    stateWarnings.push(`close(${ret.status}) did not take: ${why}`);
+    return;
+  }
+  if (String(r.decision ?? "").trim() === "superseded") {
+    log(`RUN STATE — close(${ret.status}) superseded an earlier close recorded under the same status ` +
+        `but a different cause — this run_id was closed more than once. Both causes are on the ledger's ` +
+        `own close_cause line; this return's trace is degraded, not corrupted.`);
+    stateWarnings.push(`close(${ret.status}) superseded an earlier close of this run_id — see harness-run.md's close_cause for both reasons`);
+  }
+}
+const withWarnings = async (ret) => {
+  await closeIfTerminal(ret);
+  return stateWarnings.length ? { ...ret, state_warnings: stateWarnings } : ret;
+};
 
 // =============================================================================================
 // THE RUN
@@ -991,17 +1041,17 @@ await agent(
 );
 const canary = await cmd(`verify dispatch --skill ${canarySkill} --within 900`, "Preflight", "canary-evidence");
 if (!canary.ok) {
-  return aborted("preflight",
+  return await withWarnings(aborted("preflight",
     `the ${canarySkill} skill did not resolve in this session — no dispatch reached the hook layer. ` +
     `A run would report phases completing while the sub-agents improvised every worker's craft. ` +
     `Load the plugin (\`claude --plugin-dir <repo>\`, or install and enable it) and relaunch. ` +
-    `(${canary.detail || `exit ${canary.exit_code}`})`);
+    `(${canary.detail || `exit ${canary.exit_code}`})`));
 }
 
 // GATE L0.9b's launch record must exist before anything past Preflight dispatches; see
 // requireLaunchRecord()'s own banner for why this cannot be left to Step 2's prose alone.
 const launchRecordAbort = await requireLaunchRecord();
-if (launchRecordAbort) return withWarnings(launchRecordAbort);
+if (launchRecordAbort) return await withWarnings(launchRecordAbort);
 
 phase("Orient");
 
@@ -1009,7 +1059,7 @@ const rs = await query(`probe resume --slug ${slug}`, RESUME, "Orient", "resume-
 // A probe that produced nothing is not an EMPTY run — it is an unknown one. Treating it as empty
 // would re-dispatch every phase from the top, over a run that may be in progress.
 if (!rs) {
-  return aborted("probe", "the fast-forward derivation returned no state — refusing to re-dispatch a run that may already be in progress");
+  return await withWarnings(aborted("probe", "the fast-forward derivation returned no state — refusing to re-dispatch a run that may already be in progress"));
 }
 
 const specFolder = rs.spec_folder || `shapeup/${slug}/spec/`;
@@ -1037,14 +1087,14 @@ if (!rs.has_orient_artifacts) {
       "when the risk scan came back rank 0). Any other filename leaves the phase incomplete and " +
       "the run aborts, however good the contents are.",
   });
-  if (o.__failed) return diedAt("ORIENT", o);
+  if (o.__failed) return await withWarnings(diedAt("ORIENT", o));
   const post = await requirePhase("ORIENT", "orient", "Orient");
-  if (post) return withWarnings(post);
+  if (post) return await withWarnings(post);
   await advisory(`reduce graph --slug ${slug}`, "Orient", "graph:orient");
   spikedArea = o.spiked_area; spikeResult = o.spike_result; riskiest = o.riskiest_unknowns || [];
 } else {
   const post = await fastForward("ORIENT", "orient", "Orient", "artifacts already on disk");
-  if (post) return withWarnings(post);
+  if (post) return await withWarnings(post);
 }
 
 {
@@ -1052,7 +1102,7 @@ if (!rs.has_orient_artifacts) {
   // downstream artifact reads the same whether or not the pitch's second half reached the run.
   const g = await crossGate("L1a", "Orient", ["proceed", "ask", "abort"],
     { breadboard: rs.breadboard_source ?? "none", spiked_area: spikedArea, spike_result: spikeResult, riskiest_unknowns: riskiest });
-  if (g.stop) return withWarnings(g.stop);
+  if (g.stop) return await withWarnings(g.stop);
 }
 
 // ---- COVERAGE (the requirements registry) — ahead of ANALYZE, whose ACs cite its ids ----------
@@ -1089,7 +1139,7 @@ if (!rs.has_requirements) {
       "clause per row. A clause carrying an R-id keeps its number as REQ-<n> and records the R-id " +
       "verbatim in its source cell; ids are assigned once and never renumbered.",
   });
-  if (c.__failed) return diedAt("COVERAGE", c);
+  if (c.__failed) return await withWarnings(diedAt("COVERAGE", c));
   await advisory(`reduce graph --slug ${slug}`, "Analyze", "graph:coverage");
 } else {
   log(`COVERAGE — a requirements registry is already on disk; not re-dispatching it`);
@@ -1109,13 +1159,13 @@ if (!rs.has_spec_tree) {
     payload: { pitch: rs.intake_path, breadboard: rs.breadboard_path, spec_folder: specFolder, feature: slug, lens: rs.lens, orient_dir: rs.orient_dir },
     extra: "Write the spec tree and the board from the orient artifacts — do not re-scan the code.",
   });
-  if (a.__failed) return diedAt("ANALYZE", a);
+  if (a.__failed) return await withWarnings(diedAt("ANALYZE", a));
   const post = await requirePhase("ANALYZE", "analyze", "Analyze");
-  if (post) return withWarnings(post);
+  if (post) return await withWarnings(post);
   await advisory(`reduce graph --slug ${slug}`, "Analyze", "graph:analyze");
 } else {
   const post = await fastForward("ANALYZE", "analyze", "Analyze", "spec tree already on disk");
-  if (post) return withWarnings(post);
+  if (post) return await withWarnings(post);
 }
 
 // ---- WIRE + GATE L1a.5 ------------------------------------------------------------------------
@@ -1129,7 +1179,7 @@ if (!rs.has_wiring_map) {
   // stays false and every relaunch re-dispatches and re-escalates identically. The orchestrator
   // holds the state a gate needs; it should not hand the check to the LLM it is about to pay for.
   if (!rs.has_project_profile) {
-    return withWarnings(aborted("WIRE",
+    return await withWarnings(aborted("WIRE",
       `missing SHARED project-profile.md at ${rs.project_profile_path} — GATE L0 writes it ` +
       `({schema_version:1, archetype, entry_point}; references/gates.md GATE L0 §PROFILE) before ` +
       `this workflow launches. WIRE cannot resolve an entry_call_site without an entry_point to ` +
@@ -1141,18 +1191,18 @@ if (!rs.has_wiring_map) {
     payload: { feature: slug, spec_folder: specFolder, project_profile: rs.project_profile_path, breadboard: rs.breadboard_path },
     extra: "Write the wiring map: per use case, engine → seam → entry-point call site → affordance.",
   });
-  if (w.__failed) return diedAt("WIRE", w);
+  if (w.__failed) return await withWarnings(diedAt("WIRE", w));
   const post = await requirePhase("WIRE", "wire", "Wire");
-  if (post) return withWarnings(post);
+  if (post) return await withWarnings(post);
   await advisory(`reduce graph --slug ${slug}`, "Wire", "graph:wire");
 } else {
   const post = await fastForward("WIRE", "wire", "Wire", "wiring map already on disk");
-  if (post) return withWarnings(post);
+  if (post) return await withWarnings(post);
 }
 
 {
   const g = await crossGate("L1a.5", "Wire", ["proceed", "ask", "abort"], { wiring_map: "written" });
-  if (g.stop) return withWarnings(g.stop);
+  if (g.stop) return await withWarnings(g.stop);
 }
 
 // ---- MAP SCOPES + GATE L1b --------------------------------------------------------------------
@@ -1187,15 +1237,15 @@ if (scopes.length === 0) {
       "with prose appended to it is not runnable. A scope whose fixtures do not parse has nothing " +
       "to verify it and is refused at the board review.",
   });
-  if (m.__failed) return diedAt("MAP SCOPES", m);
+  if (m.__failed) return await withWarnings(diedAt("MAP SCOPES", m));
   const post = await requirePhase("MAP SCOPES", "map-scopes", "MapScopes");
-  if (post) return withWarnings(post);
+  if (post) return await withWarnings(post);
   await advisory(`reduce graph --slug ${slug}`, "MapScopes", "graph:map-scopes");
   scopes = m.scopes;
 } else {
   const post = await fastForward("MAP SCOPES", "map-scopes", "MapScopes",
     `${scopes.length} scope contract(s) already on disk`);
-  if (post) return withWarnings(post);
+  if (post) return await withWarnings(post);
 }
 
 // DEPENDENCY ORDER — a scope is never built beside a scope it consumes.
@@ -1260,14 +1310,14 @@ if (waves.length > 1 || excluded.added || ceiling < maxParallelScopes) {
 // has more than one kind of red, and the detail says which.
 const specLint = await cmd(`verify spec --slug ${slug}`, "MapScopes", "spec-lint");
 if (!specLint.ok) {
-  return aborted("L1b", `spec-lint reported red findings before BUILD: ${specLint.detail || `exit ${specLint.exit_code}`}`);
+  return await withWarnings(aborted("L1b", `spec-lint reported red findings before BUILD: ${specLint.detail || `exit ${specLint.exit_code}`}`));
 }
 await advisory(`verify trace --slug ${slug} --quiet`, "MapScopes", "trace-lint");
 await advisory(`reduce hill --slug ${slug}`, "MapScopes", "hill-derive");
 
 {
   const g = await crossGate("L1b", "MapScopes", ["proceed", "ask", "abort"], { scopes: scopes.map((s) => s.scope_id) });
-  if (g.stop) return withWarnings(g.stop);
+  if (g.stop) return await withWarnings(g.stop);
 }
 
 // =============================================================================================
@@ -1334,7 +1384,7 @@ while (verdict !== "pass" && round <= maxRounds) {
   const budget = await cmd(`verify budget --slug ${slug} --strict`, "Build", `budget:r${round}`);
   if (budget.exit_code === 6) {
     await advisory(`reduce hill --slug ${slug}`, "Build", "hill-derive");
-    return withWarnings({ status: "gate_h", breaker: "deadline", hammer_proposals: allHammer, green_scopes: allGreen });
+    return await withWarnings({ status: "gate_h", breaker: "deadline", hammer_proposals: allHammer, green_scopes: allGreen });
   }
 
   log(`BUILD round ${round} — ${scopes.length} scope(s), up to ${maxParallelScopes} at once, attempt budget ${attemptBudget}`);
@@ -1470,7 +1520,7 @@ while (verdict !== "pass" && round <= maxRounds) {
   // INNER breaker: nothing green and something queued → GATE H. The census is scope-hammer's job.
   if (roundGreen.length === 0 && roundHammer.length > 0) {
     await advisory(`reduce hill --slug ${slug}`, "Build", "hill-derive");
-    return withWarnings({ status: "gate_h", breaker: "inner", hammer_proposals: allHammer, green_scopes: allGreen });
+    return await withWarnings({ status: "gate_h", breaker: "inner", hammer_proposals: allHammer, green_scopes: allGreen });
   }
 
   // ---- ROUND BUILD GATE — the feature builds and launches, measured before anyone is asked --------
@@ -1507,7 +1557,7 @@ while (verdict !== "pass" && round <= maxRounds) {
   {
     const g = await crossGate("L2", "Build", ["proceed", "ask", "abort"],
       { round, green_scopes: roundGreen, hammer_proposals: roundHammer, build_gate: buildGate });
-    if (g.stop) return withWarnings(g.stop);
+    if (g.stop) return await withWarnings(g.stop);
   }
 
   // ---- EVAL — exactly one feature-level pass per round (the single-judge invariant) ------------
@@ -1532,16 +1582,16 @@ while (verdict !== "pass" && round <= maxRounds) {
       payload: { dimensions: evalDims, run_cmd: rs.run_cmd, round },
       extra: "Evaluate the running feature against every acceptance criterion and Done-when. One feature-level pass; cite every artifact the order lists under t0_artifacts, re-hashing each yourself.",
     });
-    if (e.__failed) return diedAt("L3", e);
+    if (e.__failed) return await withWarnings(diedAt("L3", e));
     // The pass/fail branch is decided from the WorkResult on disk, not from the dispatching
     // agent's own summary of it (`e.overall`) — see EVAL_VERDICT's comment for why.
     const ev = await query(`probe eval --slug ${slug} --round ${round}`, EVAL_VERDICT, "Eval", `verdict:r${round}`);
-    if (!ev) return diedAt("L3", nullFail(`verdict:r${round}`));
+    if (!ev) return await withWarnings(diedAt("L3", nullFail(`verdict:r${round}`)));
     // A round with no verdict to act on is NOT a dead worker. An evaluator that refused the round
     // wrote a result saying why, and `probe eval` carries it as `reason`; reported as "died after
     // retries", the one sentence naming the cause stayed in a file nobody was pointed at.
     if (!ev.ok || !ev.overall) {
-      return diedAt("L3", { __failed: `verdict:r${round}: no verdict this round can act on — ${ev.reason || `status ${ev.status || "unknown"}`}` });
+      return await withWarnings(diedAt("L3", { __failed: `verdict:r${round}: no verdict this round can act on — ${ev.reason || `status ${ev.status || "unknown"}`}` }));
     }
     verdict = ev.overall === "PASS" ? "pass" : "fail";
     findings = e.findings || [];
@@ -1571,24 +1621,24 @@ while (verdict !== "pass" && round <= maxRounds) {
   await advisory(`reduce graph --slug ${slug}`, "Eval", `graph:eval-r${round}`);
   await advisory(`reduce hill --slug ${slug}`, "Eval", "hill-derive");
   const g3 = await crossGate("L3", "Eval", ["loop", "stop", "ask"], { round, verdict, build_gate: buildGate });
-  if (g3.stop) return withWarnings(g3.stop);
+  if (g3.stop) return await withWarnings(g3.stop);
 
   if (verdict === "pass") break;                                  // → QA → GATE H → ship
   if (g3.decision === "stop" || round >= maxRounds) {
-    return withWarnings({ status: "gate_h", breaker: "outer", hammer_proposals: allHammer, green_scopes: allGreen });
+    return await withWarnings({ status: "gate_h", breaker: "outer", hammer_proposals: allHammer, green_scopes: allGreen });
   }
   round += 1;
 }
 
 if (verdict !== "pass") {
-  return withWarnings({ status: "gate_h", breaker: "outer", hammer_proposals: allHammer, green_scopes: allGreen });
+  return await withWarnings({ status: "gate_h", breaker: "outer", hammer_proposals: allHammer, green_scopes: allGreen });
 }
 
 // ---- QA (post-PASS, pre-ship) — a level-up, never a gate. `--no-qa` answers it "skip". --------
 phase("QA");
 let qaFindings = 0;
 const qaG = await crossGate("QA", "QA", ["run", "skip", "ask"], { round, verdict });
-if (qaG.stop) return withWarnings(qaG.stop);
+if (qaG.stop) return await withWarnings(qaG.stop);
 const qaRan = !args.noQa && qaG.decision === "run";
 if (qaRan) {
   const q = await worker({
@@ -1608,14 +1658,14 @@ const h = await worker({
   payload: { feature: slug, qa_findings: qaFindings, hammer_proposals: allHammer },
   extra: "Run the census, compare against the BASELINE and never the ideal, and produce the cut list.",
 });
-if (h.__failed) return diedAt("H", h);
+if (h.__failed) return await withWarnings(diedAt("H", h));
 if (h.verdict === "cannot-ship") {
-  return withWarnings(aborted("H", `scope-hammer: CANNOT SHIP — ${h.cut_list.join(", ") || "a must-have failed"}`));
+  return await withWarnings(aborted("H", `scope-hammer: CANNOT SHIP — ${h.cut_list.join(", ") || "a must-have failed"}`));
 }
 
 {
   const g = await crossGate("H", "Ship", ["accept-cut-list", "ship-all", "ask"], { verdict: h.verdict, cut_list: h.cut_list });
-  if (g.stop) return withWarnings(g.stop);
+  if (g.stop) return await withWarnings(g.stop);
 }
 
 const ship = await cmd(`reduce ship --slug ${slug} --verdict PASS --qa ${qaRan ? "run" : "skipped"}`, "Ship", "ship-report");
@@ -1631,7 +1681,7 @@ await setRunStatus("shipped", "Ship");
 const ALL_DIMS = ["spec-conformance", "tdd-surface", "integration", "completeness",
                   "test-surface-conformance", "security", "performance"];
 
-return withWarnings({
+return await withWarnings({
   status: "shipped",
   verdict: "pass",
   rounds_used: round,

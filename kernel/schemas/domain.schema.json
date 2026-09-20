@@ -1891,9 +1891,10 @@
             "building",
             "evaluating",
             "shipped",
-            "escalated"
+            "escalated",
+            "aborted"
           ],
-          "description": "Mirrors harness-run.md frontmatter status."
+          "description": "Mirrors harness-run.md frontmatter status — kernel/probe/resume.mjs's RUN_STATUSES is the source enum this one must not drift from."
         },
         "round": {
           "type": "integer",
@@ -1904,7 +1905,12 @@
           "description": "From the latest t0/verdicts/r<N>-a<M>.json filename."
         },
         "rounds_used": {
-          "type": "integer"
+          "type": "integer",
+          "description": "Highest round carrying any build evidence (an order, a T0 verdict, a round build-gate artifact, or an EVAL result) — kernel/probe/rounds.mjs's deriveRounds(), the same derivation the ship report and the export use. Falls back to harness-run.md's literal frontmatter value only when no such evidence exists on disk."
+        },
+        "rounds_judged": {
+          "type": "integer",
+          "description": "Highest round EVAL actually returned a verdict for (an evaluate-r<N>.json result on disk) — its own field, never folded into rounds_used: a round built is not a round judged. Omitted when no round has been judged yet."
         },
         "max_rounds": {
           "type": "integer"

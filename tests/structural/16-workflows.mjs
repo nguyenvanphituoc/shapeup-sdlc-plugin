@@ -495,8 +495,15 @@ export async function run(ctx) {
     if (!/--within \d+/.test(src)) {
       problems.push("the evidence query is unbounded in time — a checkout that once loaded the plugin passes forever");
     }
-    if (!/if \(!canary\.ok\)[\s\S]{0,400}?return aborted\("preflight"/.test(src)) {
-      problems.push("a failed canary does not abort the run — the preflight is advisory, which is the defect it exists to catch");
+    // REQUIRES the wrapped form — `return await withWarnings(aborted("preflight", …))` — not merely
+    // TOLERATES it. This regex used to accept either shape ("wrapped, or unwrapped — the run's own
+    // close-out still runs either way"), which is exactly how an unwrapped top-level abort passed
+    // this module while it left the ledger open (HD-011's own signature): the one test that touches
+    // this call site was relaxed instead of strengthened when `withWarnings` was introduced. A
+    // canary abort is a terminal RunReturn like any other now — see 69-terminal-wrapping.mjs for the
+    // general rule this pins the one named instance of.
+    if (!/if \(!canary\.ok\)[\s\S]{0,400}?return await withWarnings\(aborted\("preflight"/.test(src)) {
+      problems.push("a failed canary's abort is not wrapped in withWarnings — the preflight would leave the ledger open exactly like HD-011's own measured signature");
     }
     // The canary must dispatch with NO order: a compiled order with no result would sit in
     // `orders/`, where three readers enumerate, and a preflight that perturbs the run it clears is

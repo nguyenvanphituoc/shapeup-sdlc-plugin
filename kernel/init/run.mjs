@@ -224,6 +224,16 @@ export function runFrontmatter({ slug, config, startedAt }) {
     "deploy: ~",
     `started_at: ${startedAt}`,
     "closed_at: ~",
+    // The cause a terminal status ended on, written alongside `closed_at` by
+    // `probe resume --close` (kernel/probe/resume.mjs's closeRun) — the two land in one write, so a
+    // closed run's ledger never carries a timestamp with no reason beside it.
+    "close_cause: ~",
+    // The once-only guard's OWN record of what closed this run — deliberately separate from
+    // `status:` above, which every phase rewrites (`setRunStatus`) for the life of the run,
+    // including the product's own ship path immediately before `probe resume --close` runs. Only
+    // `closeRun` ever writes this line, so it is the one field an intervening `status:` rewrite
+    // cannot move (kernel/probe/resume.mjs's closeRun docblock has the measured scenario).
+    "closed_status: ~",
     "---",
     "",
     `# Harness run — ${slug}`,

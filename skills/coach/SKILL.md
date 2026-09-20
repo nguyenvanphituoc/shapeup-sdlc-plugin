@@ -117,7 +117,13 @@ fields nobody used" → "Prefer the minimum DTO that satisfies the AC; don't add
 fields"). Keep the originating why — a rule without its reason gets ignored or misapplied.
 
 ### Step 2 — ⏸ GATE COACH-1: Categorize (ASK, never assume)
-This is the load-bearing gate. **Do not infer which skill a rule belongs to** — a
+This is the load-bearing gate. **Resolve it first** — `node
+"${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" gate --resolve COACH-1 --slug <slug>
+[--file <path>|--preset <name>]` — so the ledger carries a row for the decision this gate makes,
+same as every other gate in the run. Exit 0 (`decision=skip`) — an unattended lane with no live PO;
+record nothing and stop here, the same outcome the CI preset's own note already documents. Exit 4
+(`ask`) — proceed with the categorization below, which IS the PO conversation this decision opens.
+**Do not infer which skill a rule belongs to** — a
 miscategorized rule lands in a file the wrong worker reads (or no worker reads). Present every
 candidate rule and ask the PO to assign each one. Emit this block, then stop and wait:
 

@@ -168,7 +168,14 @@ Model matrix : orch=[model] exec=[model] eval=[model] qa=[model] digester=[scrip
 Budgets      : round_budget=[N] (outer)   attempt_budget=[N] (inner, per scope)
 Knowledge    : [tech-lead.md — N workflow rules, M suggested values (confirmed above) | none — `/retro --scan` or `/retro --research <stack>` seeds it (optional)]
 ```
-Do NOT start ORIENT until confirmed (interactive/auto). Under --unattended, proceed.
+**Resolve it** — this gate is this skill's own (the workflow never sees it), so it is this skill
+that runs the same tool every other gate resolves through, not a paragraph read as a stand-in for
+one: `node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" gate --resolve L0 --slug <slug>
+[--file <path>|--preset <name>]`. Exit 4 (`ask`) is the confirmation this block already asks for —
+put it to the PO and wait, same as the paragraph above always meant. Exit 0 (`decision=proceed`) —
+continue straight to ORIENT, which is what `--unattended`'s pre-answered set resolves to. Exit 5
+(`abort`) — stop; do not launch. Either way, the gate's own ledger row is what lets a later reader
+see the decision that opened the run, not only the decisions that closed it.
 
 ---
 
@@ -547,6 +554,29 @@ Question (max 1): "Anything to record before I close the run? (y/n) or provide f
 On confirm:
 - If the PO provides substantive feedback (not just 'y' or empty) → automatically delegate via Agent (model: exec — see references/protocol.md "Invocation mechanism"): Skill(shapeup-sdlc-plugin:coach) with the provided feedback for RLHF. The coach runs its own GATE COACH-1 to have the PO categorize each rule, then files it under the responsible skill in `shapeup/knowledge-base/<skill>.md` (committed → team-shared). Coachable: `task-executor`, `ba-pitch-analyzer`, `qa-edge-hunter`, `orient`, `scope-architect`, `solution-architect` (each reads its own file at the top of its next run) and `tech-lead` (workflow guidance, read at the next GATE L0). Guidance never decides a gate: a filed rule may add a question or a check to a gate block, never an answer. The tech lead does not categorize the feedback itself — that is the coach's gate, by design (no assumptions).
 - Then output → `✅ [slug] [shipped & deployed | built & verified, deploy pending] — [r] rounds, verdict PASS.`
+
+**Resolve the gate itself before any of the above** — this is the decision that shipped the run,
+and without it the trace holds no record of that decision at all: `node
+"${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" gate --resolve L4 --slug <slug>
+[--file <path>|--preset <name>]`. Exit 0 (`decision=ship|hold`) — render the block above and close
+the run: `node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe resume --slug <slug> --close shipped
+--cause "verdict=<verdict> rounds=<r> decision=<ship|hold>"`. Always issue this call — a `gate_h`
+close is the ordinary case where `shapeup-run.js` handed off without closing the run, and the
+GATE H → L4 path (scope-hammer's census, then this gate) is the one this instruction exists for.
+The close itself is a once-only fact IN THE KERNEL (`closeRun`'s own guard reads a `closed_status:`
+line that only `closeRun` ever writes — never the mutable `status:` line every phase rewrites, this
+call included), not a conditional this instruction has to get right: if this run_id was NOT already
+closed, this call performs the close, fresh. If it was already closed `shipped` (or `aborted`) and
+the cause text is byte-identical to what is already on the ledger, this call is a true idempotent
+no-op. If it was already closed with the SAME status but a genuinely different cause — a run closed
+more than once across relaunches, the ordinary shape a `gate_h` hand-off after an earlier abort takes
+— this call SUPERSEDES it: the new cause is written, the prior one is folded into the same
+`close_cause` line rather than lost, and the kernel call itself still exits 0 (only the RunReturn a
+launch's own `withWarnings` wraps carries the resulting `state_warning` — a prose-driven close like
+this one has no RunReturn to attach it to, so read `close_cause` by hand if this branch matters to
+you). If it was already closed with a DIFFERENT status altogether, this call is refused outright —
+cause intact, never silently flipped. Exit 4 (`ask`) — the block above IS that stop; put it to the
+PO and wait, same as always. L4's answer set carries no `abort`.
 
 ---
 

@@ -114,7 +114,7 @@ did not actually receive from the PO — an unattended lane with no answer for a
 
 FIRST freeze the evidence — run state is gitignored, so `shapeup/<slug>/REPORT.md` (already
 written by `shapeup-run.js` via `harness reduce ship`, or write it now on a `gate_h` close) is all a
-teammate sees. Then emit:
+teammate sees. Then RESOLVE the gate — `references/gates.md` GATE L4 has the call — and emit:
 
 ```
 ⏸ GATE L4 — Ship Sign-Off

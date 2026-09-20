@@ -31,12 +31,13 @@ import { join, dirname } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
 import {
   report as reportPath, tasksDir, verdictsDir, trials, evaluationDir, qaDir,
-  roundLedger, discoveryLedger, receipt as receiptPath, harnessRun, relShared, resultsDir,
+  roundLedger, discoveryLedger, receipt as receiptPath, harnessRun, relShared,
   activeOrder,
 } from "../lib/paths.mjs";
 import { readTrials } from "../verify/t0.mjs";
 import { ratchetReport } from "../probe/stats.mjs";
 import { projectRequirements, summaryLine } from "../probe/requirements.mjs";
+import { deriveRounds } from "../probe/rounds.mjs";
 import { collectDiff, scanDiff, summarize } from "./leftovers.mjs";
 
 /** @returns {string} Today as `YYYY-MM-DD` (UTC). */
@@ -167,13 +168,13 @@ export function section(md, heading) {
  */
 export function buildReport(facts) {
   const {
-    slug, at, verdict, qa, rounds, board, t0, artifacts, ratchet,
+    slug, at, verdict, qa, rounds, roundsJudged, board, t0, artifacts, ratchet,
     evalCriteria, evalBugs, qaFindings, decisions, discovered, intakeSha, leftovers, requirements,
   } = facts;
 
   const L = [];
   L.push("---", "type: ship-report", `feature: ${slug}`, `date: ${at}`,
-    `verdict: ${verdict}`, `rounds_used: ${rounds ?? "~"}`, `qa: ${qa}`,
+    `verdict: ${verdict}`, `rounds_used: ${rounds ?? "~"}`, `rounds_judged: ${roundsJudged ?? "~"}`, `qa: ${qa}`,
     `intake_sha256: ${intakeSha ?? "~"}`, "---", "");
   L.push(`# ${slug} — ship report`, "");
   L.push("Frozen at GATE L4. Every figure below is derived from run artifacts on disk — the trial",
@@ -183,6 +184,10 @@ export function buildReport(facts) {
   L.push("| | |", "|---|---|");
   L.push(`| Verdict | **${verdict}** |`);
   L.push(`| Rounds used | ${rounds ?? "—"} |`);
+  // A round built and a round judged are different facts — a round can die before EVAL ever sees
+  // it, so this row is its own line rather than folded into "Rounds used" above. Omitted when EVAL
+  // never ran at all, the same way the sections below it are.
+  if (roundsJudged != null) L.push(`| Rounds judged | ${roundsJudged} |`);
   L.push(`| Board | ${board.done}/${board.total} tasks done |`);
   L.push(`| T0 artifacts | ${artifacts} |`);
   L.push(`| QA | ${qa} |`);
@@ -292,32 +297,6 @@ export function buildReport(facts) {
 }
 
 /**
- * How many BUILD/EVAL rounds this run actually completed.
- *
- * `harness-run.md`'s `rounds_used` frontmatter field is written ONCE, at GATE L0.1 (`init run`),
- * as `0` — nothing in the round loop ever rewrites it as rounds complete. The orchestrator's own
- * `RunReturn` carries the real count (`shapeup-run.js`'s `rounds_used: round`), but that value
- * never reaches `reduce ship`, so every real run's report printed "Rounds used | 0" beside its own
- * `results/evaluate-r1.json` — a claim the frontmatter makes about the run, contradicted by the
- * artifact sitting next to it. Derived instead, the same way `probe resume`'s `eval_rounds_done`
- * already does: the highest `evaluate-r<N>.json` result on disk. Falls back to the frontmatter
- * value only when no EVAL round ever ran (the `--tiny` lane has no round concept at all), so a
- * bare or tiny run's reporting is unchanged.
- * @param {string} cwd - Project root.
- * @param {string} slug - Feature slug.
- * @param {(string|undefined)} fallback - `run.rounds_used` from the frontmatter.
- * @returns {(number|string|undefined)} The derived round count, or the fallback.
- */
-function roundsUsed(cwd, slug, fallback) {
-  const dir = resultsDir(cwd, slug);
-  const done = (existsSync(dir) ? readdirSync(dir) : [])
-    .map((f) => f.match(/^evaluate-r(\d+)\.json$/))
-    .filter(Boolean)
-    .map((m) => Number(m[1]));
-  return done.length ? Math.max(...done) : fallback;
-}
-
-/**
  * Gather every fact from disk and render the report.
  * @param {{cwd:string, slug:string, verdict?:string, qa?:string}} opts - Inputs.
  * @returns {{markdown:string, path:string, facts:object}} The document, its destination, the facts.
@@ -331,12 +310,18 @@ export function generate({ cwd, slug, verdict, qa }) {
   const ledger = readIf(roundLedger(cwd, slug));
   const discovery = readIf(discoveryLedger(cwd, slug));
 
+  // Two numbers, not one: `rounds` (built — an order, a T0 verdict, a build-gate artifact or an
+  // EVAL result) and `roundsJudged` (EVAL actually returned a verdict for), kept separate so a run
+  // whose later rounds never reached EVAL still reports the rounds it built.
+  const derivedRounds = deriveRounds(cwd, slug, run.rounds_used);
+
   const facts = {
     slug,
     at: today(),
     verdict: verdict || run.final_verdict || "not-evaluated",
     qa: qa || (huntReport ? "run" : "skipped"),
-    rounds: roundsUsed(cwd, slug, run.rounds_used),
+    rounds: derivedRounds.rounds_used,
+    roundsJudged: derivedRounds.rounds_judged,
     intakeSha: receipt.intake_sha256,
     board: boardCensus(cwd, slug),
     t0: t0Summary(cwd, slug),
