@@ -199,6 +199,12 @@ const MODULE_FILES = [
   // paragraph's three sentences false by inspection, and inverting one to its opposite in a scratch
   // copy still left the whole suite green — a check the prose had no reader that could fail.
   "60-fence-lifecycle.mjs",
+  // 61-execute-leg-frozen-pitch.mjs: HD-012, the defect-sweep Stage 2 fix. `substrateFor`'s
+  // `execute`/`fix`/`spike` arm declared no `frozen` key, so the widest, longest-lived dispatch in a
+  // run could overwrite the staged pitch it was measured against. Its own module because the check
+  // has to call the real `substrateFor`, not restate its output — a hand-typed substrate would stay
+  // green through a revert of the fix, which is the one failure this module exists to catch.
+  "61-execute-leg-frozen-pitch.mjs",
   "08-docs.mjs",
 ];
 

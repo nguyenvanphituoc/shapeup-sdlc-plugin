@@ -218,9 +218,15 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
   const FROZEN_INTAKE = [`${local}/intake.md`, `${local}/breadboard.md`];
   switch (operation) {
     case "execute": case "fix": case "spike":
+      // Build legs are the widest window on FROZEN_INTAKE, not an exemption from it: they are the
+      // most numerous and longest-lived dispatches in a run, so a doer that can rewrite the staged
+      // pitch can rewrite the run's own input truth mid-build. `init run` stages these before any
+      // order is live (no live contract yet — nothing to violate) and `translate` writes the
+      // COMMITTED copy, not this one, so neither legitimate write is touched by this line.
       return {
         allowed: [...(scope?.allowed_file_substrate || []), `${local}/spikes/**`],
         shared: scope?.shared_substrate || [],
+        frozen: [...FROZEN_INTAKE],
       };
     case "analyze":
       return { allowed: [`${spec}/**`, `${local}/**`], frozen: [...FROZEN_INTAKE] };
