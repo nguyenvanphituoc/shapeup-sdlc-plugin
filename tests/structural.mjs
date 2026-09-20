@@ -205,6 +205,21 @@ const MODULE_FILES = [
   // has to call the real `substrateFor`, not restate its output — a hand-typed substrate would stay
   // green through a revert of the fix, which is the one failure this module exists to catch.
   "61-execute-leg-frozen-pitch.mjs",
+  // 62-run-args-surface.mjs: HD-010, the defect-sweep Stage 5 fix. The run-argument surface —
+  // every RunArgs field gates.md's L0.9b table documents, cross-checked against the schema and
+  // against what shapeup-run.js actually reads — derived at runtime from all three artifacts, never
+  // from a hand-kept list, so a flag added to one tier and not the others reds on its own.
+  "62-run-args-surface.mjs",
+  // 63-run-args-writer.mjs: HD-020, and HD-010's executed half. `run-args.json` gets a kernel
+  // writer (`harness init run-args`), executed end to end against a real run root, with
+  // `probe concurrency`'s dialFrom() read back against exactly what that writer emitted — plus the
+  // deadline breaker proven to trip off the receipt alone, independent of RunArgs entirely.
+  "63-run-args-writer.mjs",
+  // 64-shipped-set-hygiene.mjs: the acceptance-review guard for this same stage's own two
+  // violations (an internal defect id and a tests/ citation, both landed inside shipped files
+  // and both invisible to every check above). Scopes itself off `package.json`'s own `files`
+  // allowlist rather than a hand-kept root list, so it drifts with the shipped set, not beside it.
+  "64-shipped-set-hygiene.mjs",
   "08-docs.mjs",
 ];
 

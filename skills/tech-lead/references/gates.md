@@ -118,8 +118,8 @@ field, or it does nothing at all: the workflow cannot read a config file and can
 so a flag that stops at the skill boundary was accepted and ignored. That is not hypothetical —
 `--no-qa` was documented in seven places across the shipped set and inert in all of them, because no
 line of this protocol ever put `noQa` into the record. `--wall-clock-budget` is the one flag below
-that is not a counter-example and not a `RunArgs` field either — it is consumed earlier, at `init
-run` itself, and never needed to reach this launch at all; see its row for where it actually lands.
+that is not a `RunArgs` field at all — it is consumed earlier, at `init run` itself, and never
+needed to reach this launch; see its row for where it actually lands.
 
 | Flag | `RunArgs` field |
 |---|---|
@@ -129,13 +129,17 @@ run` itself, and never needed to reach this launch at all; see its row for where
 | `--adversarial-verify` | `adversarialVerify: true` |
 | `--rounds N` / `--attempts N` | `budgets.{maxRounds,attemptBudget}` |
 | `--gate-answers <set>` | `answers` |
-| `--wall-clock-budget S` | *(not read from `RunArgs` at all)* — typed once, on the `harness init run` command line itself, not on this launch, it lands straight in the run receipt as `wall_clock_budget_s`; the deadline breaker reads that receipt field directly and never sees this launch's `RunArgs`. `budgets` still declares a `wallClockS` member — in the schema, in `SKILL.md`'s own RunArgs contract line, and in this script's own header comment — and nothing reads it; removing it is pending |
+| `--wall-clock-budget S` | *(not a `RunArgs` field)* — typed once, on the `harness init run` command line itself, not on this launch; it lands straight in the run receipt as `wall_clock_budget_s`, and the deadline breaker reads that receipt field directly — consumed by `kernel/verify/budget.mjs` as `wall_clock_budget_s`. `budgets` declares only `maxRounds`/`attemptBudget` — the schema, `SKILL.md`'s own RunArgs contract line and this script's own header comment all agree there is no third member |
 | `--orch-model/--exec-model/--eval-model/--qa-model` | `models.{…}` (L0.8) |
 
-The assembled object is written to `.shapeup/<slug>/run-args.json` before the launch, fresh on every
-launch and relaunch. It is the only artifact that records what a run was configured with; the ship
-report, a resumed session and any later measurement all read it, and none of them can recover a
-value that only ever existed as an argument.
+`harness init run-args` (invoked at Step 2 of `SKILL.md`) is the sole writer of the assembled
+object: it takes the resolved values above, writes `.shapeup/<slug>/run-args.json` fresh on every
+launch and relaunch, and prints the same object back so the launch never re-assembles it by hand. It
+is the only artifact that records what a run was configured with; the ship report, a resumed session
+and any later measurement all read it, and none of them can recover a value that only ever existed
+as an argument. Step 2 is not merely advisory: `shapeup-run.js`'s own Preflight refuses to dispatch
+ORIENT (or anything past it) when this file is missing at the run's local root — a launch that
+skipped this step aborts there rather than proceeding on a silent default.
 
 **L0.0 — intake precondition (before any other L0 collection):**
 ```

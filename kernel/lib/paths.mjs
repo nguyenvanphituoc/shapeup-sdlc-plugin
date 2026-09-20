@@ -140,6 +140,16 @@ export const receipt = (cwd, slug) => join(localRoot(cwd, slug), RECEIPT_FILE);
 export const intake = (cwd, slug) => join(localRoot(cwd, slug), "intake.md");
 /** The breadboard the pitch was shaped with, verbatim, next to its digest in the receipt. */
 export const breadboard = (cwd, slug) => join(localRoot(cwd, slug), "breadboard.md");
+/**
+ * The launch record's filename, as a constant rather than a literal at each call site — the
+ * writer (`harness init run-args`) and every reader (`probe concurrency`'s `dialFrom()`) resolve
+ * the same path through this constant, the same way {@link runIdFromRoot} resolves `RECEIPT_FILE`
+ * against a bare run root rather than through {@link receipt}'s `(cwd, slug)` form: a caller that
+ * already holds the run root (an archived trace, `--run-root <dir>`) has no slug to reconstruct.
+ */
+export const RUN_ARGS_FILE = "run-args.json";
+/** The launch record — the RunArgs object a run was launched with (GATE L0.9b), kernel-written. */
+export const runArgsPath = (cwd, slug) => join(localRoot(cwd, slug), RUN_ARGS_FILE);
 /** The run ledger — rounds, decisions, status frontmatter. */
 export const harnessRun = (cwd, slug) => join(localRoot(cwd, slug), "harness-run.md");
 /** File-derived mid-run digest, frozen by `reduce snapshot --write` as an audit anchor. */

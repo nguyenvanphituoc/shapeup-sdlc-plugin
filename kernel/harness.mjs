@@ -50,7 +50,8 @@
 //                                              answers which pitch clause a verdict reached, joined
 //                                              through the plan's own covers: edge — the L4 line and
 //                                              GATE H's census cite it for the same reason.
-//   init     run · fit                        Opens a run, or refuses it (exit 3).
+//   init     run · fit · run-args              Opens a run, or refuses it (exit 3). `run-args`
+//                                              writes GATE L0.9b's launch record and echoes it.
 //   report   export                           Projects the run's records as fact tables.
 //   compile                                   The WorkOrder: schema-valid or nothing is dispatched.
 //
@@ -87,7 +88,7 @@ export const ROUTES = {
     leg: "./probe/leg.mjs", eval: "./probe/eval.mjs", owner: "./probe/owner.mjs",
     requirements: "./probe/requirements.mjs",
   },
-  init: { run: "./init/run.mjs", fit: "./init/fit.mjs" },
+  init: { run: "./init/run.mjs", fit: "./init/fit.mjs", "run-args": "./init/run-args.mjs" },
   report: { export: "./report/export.mjs", _default: "export" },
   gate: "./gate.mjs",
   compile: "./compile.mjs",

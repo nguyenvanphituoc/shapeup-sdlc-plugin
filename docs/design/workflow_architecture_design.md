@@ -96,7 +96,7 @@ follow-ups and cannot read config files itself:
   "autoLevel": "unattended",            // interactive | auto | unattended
   "answers": "ci",                       // preset name or path to gate-answers.json
   "models":  { "exec": "sonnet", "eval": "sonnet", "qa": "sonnet" }, // L0.8 matrix — floor: sonnet, no haiku (PO decision)
-  "budgets": { "maxRounds": 3, "attemptBudget": 5, "wallClockS": 1800 },
+  "budgets": { "maxRounds": 3, "attemptBudget": 5 },
   "pluginRoot": "/…/plugins/shapeup-sdlc",
   "startedAt": "2026-08-06T09:14:00Z",   // Date.now() is unavailable in-script — passed in
   "lane": "full"                          // fit-check verdict: full | tiny

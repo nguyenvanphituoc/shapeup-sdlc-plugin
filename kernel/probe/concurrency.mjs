@@ -30,13 +30,16 @@
 //
 // Usage: node kernel/harness.mjs probe concurrency --slug <slug> [--cwd <dir>] [--run-root <dir>]
 //                                                  [--round N] [--gap-s N] [--format json|table]
+//                                                  [--require-run-args]
 // Exit:  0 = a report was produced with at least one usable leg · 1 = ran, and no leg in scope had
 //        a usable interval (the report still prints, and says why) · 2 = malformed argv.
+//        With --require-run-args the report is skipped: 0 = run-args.json exists at this run root ·
+//        6 = it does not (mirrors `probe resume --require`'s "artifact absent" convention).
 
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
-import { localRoot, runIdFromRoot, RECEIPT_FILE } from "../lib/paths.mjs";
+import { localRoot, runIdFromRoot, RECEIPT_FILE, RUN_ARGS_FILE } from "../lib/paths.mjs";
 
 /** The round-addressed order id forms `<scope>-r<N>-a<M>` and `<phase>-r<N>`. */
 const ROUND_SUFFIX = /^(.*?)-r(\d+)(?:-a(\d+))?$/;
@@ -301,16 +304,18 @@ export function summarise(index, legs) {
 /**
  * Which fan-out width the run was launched with — read, never assumed.
  *
- * The dial is written into `run-args.json` by the launcher. It is absent from every run recorded so
- * far, so the honest answer is the effective default WITH the fact that it is a default: reporting
- * `4` unqualified would assert an operator choice nobody made.
+ * The dial is written into `run-args.json` by `harness init run-args` (GATE L0.9b), the kernel
+ * writer tech-lead invokes right before the launch. A run opened before that writer existed, or one
+ * whose launcher never passed `--parallel-scopes`, still has no file or no key — so the honest
+ * answer stays the effective default WITH the fact that it is a default: reporting `4` unqualified
+ * would assert an operator choice nobody made.
  *
  * @param {string} runRoot - The run's LOCAL root.
  * @returns {{max_parallel_scopes:number, source:string}} The value and where it came from.
  */
 export function dialFrom(runRoot) {
   try {
-    const a = JSON.parse(readFileSync(join(runRoot, "run-args.json"), "utf8"));
+    const a = JSON.parse(readFileSync(join(runRoot, RUN_ARGS_FILE), "utf8"));
     const n = Number(a?.maxParallelScopes);
     if (Number.isFinite(n) && n >= 1) return { max_parallel_scopes: n, source: "run-args" };
     return { max_parallel_scopes: DEFAULT_MAX_PARALLEL_SCOPES, source: "default (run-args.json declares none)" };
@@ -474,7 +479,7 @@ export function table(r) {
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
   usage: "harness.mjs probe concurrency (--slug <slug> | --run-root <dir>) [--cwd <dir>] [--round N] " +
-         "[--gap-s N] [--format json|table]",
+         "[--gap-s N] [--format json|table] [--require-run-args]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   slug: { type: "str" },
   // The archived-trace and post-export cases, and the same escape `verify t0 --out` has: a caller
@@ -484,6 +489,10 @@ export const ARGV_SPEC = {
   round: { type: "int", min: 1 },
   "gap-s": { type: "int", min: 1, default: DEFAULT_GAP_S },
   format: { type: "enum", values: ["json", "table"], default: "json" },
+  // The positive enforcer for the launch record (see the banner below). Skips the concurrency
+  // report entirely — this is a presence check, not a measurement, and the two must not be
+  // confused by sharing an exit code.
+  "require-run-args": { type: "flag" },
 };
 
 /**
@@ -492,6 +501,14 @@ export const ARGV_SPEC = {
  * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
  * @returns {void} Exits 0 when at least one leg had a usable interval, 1 when none did — and the
  *   report prints either way, because "nothing was measurable" is the answer, not an error.
+ *
+ *   `--require-run-args` is a different question with its own exit convention, mirroring
+ *   `probe resume --require`'s 0 (satisfied) / 6 (artifact absent): it never reaches the report at
+ *   all. The launch record had exactly one reader (`dialFrom()`, below) and zero enforcers — a
+ *   run missing it proceeded green with a silently substituted default, "indistinguishable from an
+ *   operator choice" (`gates.md` L0.9b). This flag is what `shapeup-run.js` calls at Preflight, before
+ *   ORIENT, so that state stops being invisible: this module already owns run-root resolution and the
+ *   file's path, so the check is a few lines here rather than a new kernel entry point.
  */
 export function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
@@ -503,6 +520,14 @@ export function cli(rawArgv) {
   const runRoot = args.runRoot
     ? resolve(args.runRoot)
     : localRoot(resolve(args.cwd || process.cwd()), args.slug);
+
+  if (args.requireRunArgs) {
+    const path = join(runRoot, RUN_ARGS_FILE);
+    const present = existsSync(path);
+    console.log(JSON.stringify({ ok: present, run_root: runRoot, run_args_path: path,
+      reason: present ? null : "no run-args.json at this run root — GATE L0.9b's launch record was never written before this launch" }));
+    process.exit(present ? 0 : 6);
+  }
 
   const r = report(runRoot, { round: args.round ?? null, gapS: args.gapS });
   console.log(args.format === "table" ? table(r) : JSON.stringify(r));

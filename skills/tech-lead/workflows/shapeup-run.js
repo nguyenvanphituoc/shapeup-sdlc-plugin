@@ -33,7 +33,7 @@
 //
 // args — RunArgs (domain.schema.json $defs/RunArgs):
 //   slug, autoLevel (interactive|auto|unattended), answers (preset name or path),
-//   models {exec, eval, qa?}, budgets {maxRounds, attemptBudget, wallClockS?}, pluginRoot,
+//   models {exec, eval, qa?}, budgets {maxRounds, attemptBudget}, pluginRoot,
 //   startedAt, and the optional switches noEval / noQa / adversarialVerify /
 //   maxParallelScopes (default 4).
 //
@@ -901,6 +901,47 @@ async function fastForward(gate, phaseKey, phaseName, what) {
     `${phaseKey} artifact by hand before assuming it regressed, then relaunch.`);
 }
 
+/**
+ * The positive enforcer for GATE L0.9b's launch record: the RunArgs object this run was
+ * configured with, kernel-written to the run's own local root, is on disk before this file
+ * dispatches anything past Preflight.
+ *
+ * Nothing upstream of this call can be trusted to have written it. `SKILL.md` Step 2 tells the
+ * orchestrating session to run `harness init run-args` right before `Workflow(...)` is invoked, but
+ * that is prose the session reads, not a check anything runs — and a session that launches this
+ * script without having done it left no trace anywhere else: the receipt, `intake.md` and
+ * `harness-run.md` all exist regardless, and `dialFrom()` (`kernel/probe/concurrency.mjs`) answers
+ * every reader with a silent default rather than an error. So the record's existence would depend
+ * entirely on whether a prior step of prose was followed — exactly the shape this file's own header
+ * exists to retire (no rule with no enforcer). `probe concurrency --require-run-args` is a presence
+ * check, not a measurement: it shares `dialFrom()`'s run-root resolution and file path so there is
+ * one definition of where the record lives, not two.
+ *
+ * @returns {Promise<(object|null)>} An aborted RunReturn, or null when the record is there.
+ */
+async function requireLaunchRecord() {
+  const r = await cmd(`probe concurrency --slug ${slug} --require-run-args`, "Preflight", "launch-record");
+  if (r.exit_code === 0) return null;
+  // Same distinction requirePhase/fastForward draw: only exit 6 is the predicate genuinely
+  // answering "not there". Anything else means the check itself did not run.
+  if (r.exit_code === 6) {
+    return aborted("preflight",
+      `the run's launch record does not exist — GATE L0.9b's RunArgs (the model matrix, budgets and ` +
+      `every operator switch this run was typed with) was never written to disk before this launch, ` +
+      `so nothing downstream can be attested against what the operator actually configured. Run ` +
+      `\`harness init run-args\` (references/gates.md L0.9b names every flag it resolves — \`SKILL.md\` ` +
+      `Step 2 runs it right before this workflow launches) and relaunch.`);
+  }
+  return aborted("preflight",
+    `the launch-record check did not run to a verdict — exit_code ${r.exit_code}, not the 0 (present) ` +
+    `or 6 (absent) \`probe concurrency --require-run-args\` documents.` +
+    `${r.detail ? ` Courier reported: ${r.detail}.` : ""} This is NOT evidence the record is missing — ` +
+    `most often a Bash call denied above this plugin's own hooks and permission grant (an untrusted ` +
+    `workspace, or Claude Code's auto-mode classifier). Verify the run's launch record by hand — ` +
+    `\`harness probe concurrency --slug ${slug} --require-run-args\` — before assuming it is absent, ` +
+    `then relaunch.`);
+}
+
 // The ledger's `status` field is bookkeeping, not this file's resume oracle — the fast-forward reads
 // artifacts. It survives because `reduce snapshot` and the the ship report's census hook read it to tell
 // a run in flight from a finished one. A lost write is a degraded digest, not a corrupted build, so
@@ -956,6 +997,11 @@ if (!canary.ok) {
     `Load the plugin (\`claude --plugin-dir <repo>\`, or install and enable it) and relaunch. ` +
     `(${canary.detail || `exit ${canary.exit_code}`})`);
 }
+
+// GATE L0.9b's launch record must exist before anything past Preflight dispatches; see
+// requireLaunchRecord()'s own banner for why this cannot be left to Step 2's prose alone.
+const launchRecordAbort = await requireLaunchRecord();
+if (launchRecordAbort) return withWarnings(launchRecordAbort);
 
 phase("Orient");
 
