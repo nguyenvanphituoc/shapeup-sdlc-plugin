@@ -117,6 +117,32 @@ Cleared once already, 2026-08-14, to start the v2.0 work from a clean slate:
   correction is recorded because acting on the claim would have caused a needless rewrite of every
   call site in the plugin.
 
+### Raw idea, not yet a pitch — a run does not check whether its baseline exists in any commit
+
+Not a defect in shipped behaviour: a gap nothing looks for, measured on a real consumer 2026-09-20.
+
+A run was about to be shaped and built on top of a previous feature's output — an engine, a UI kit,
+a route map and two resource bundles, 45 files. **None of it was in any commit.** The previous run
+built it and stopped before it landed, so the working tree held a working engine and a clone of the
+same repository held a template. Three days passed and nothing noticed: the build gate was green
+because the tree compiles, the spec artifacts were consistent because they describe the tree, and
+the pitch's own baseline section was accurate *about the tree*.
+
+The harm is not that the code is uncommitted. It is that **there is nothing to roll back to.** A
+round that breaks the baseline has no prior state to compare against or return to, the per-scope
+ratchet's notion of "worse than before" has no before, and a `probe resume` after a kill resumes
+against whatever the tree happens to hold.
+
+Worth noting this is the same shape as an error made *inside* this project on the same day: a
+recorded check count paired with a sha that does not produce it, because the number was a property
+of the working tree. One instance is a mistake; two instances in two repositories in one day is a
+class nothing in either project detects.
+
+The bet, if it becomes one: L0 already pins the run's config and digests the intake. It could also
+report whether the paths the profile and wiring map name are tracked and clean, and say so in the
+gate block — a line, not a veto. A PO who knowingly builds on an uncommitted tree should be able to
+say yes; a PO who did not know should not find out at the first revert.
+
 ### Raw idea, not yet a pitch — QA lens fan-out
 
 Not a defect: a real, measured opportunity, filed here per this file's own "raw ideas for the
