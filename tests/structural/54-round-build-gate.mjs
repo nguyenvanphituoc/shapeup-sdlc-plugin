@@ -310,7 +310,7 @@ export async function run(ctx) {
     const hammer = readFileSync(join(ROOT, "skills/scope-hammer/SKILL.md"), "utf8");
     if (/probe owner/.test(hammer) && /H0\.0/.test(hammer)) ok("scope-hammer's census rule H0.0 cites `probe owner` for every ownership claim");
     else fail("scope-hammer SKILL.md does not require `probe owner` for ownership claims");
-    const schema = JSON.parse(readFileSync(join(ROOT, "skills/tech-lead/schemas/domain.schema.json"), "utf8"));
+    const schema = JSON.parse(readFileSync(join(ROOT, "kernel/schemas/domain.schema.json"), "utf8"));
     const pp = schema.$defs.ProjectProfile.properties;
     if (pp.build_probe && pp.launch_probe && schema.$defs.RoundBuildVerdict) ok("the domain registry types build_probe, launch_probe and RoundBuildVerdict");
     else fail("domain.schema.json lacks the profile probes or RoundBuildVerdict");

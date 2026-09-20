@@ -30,7 +30,7 @@ export async function run(ctx) {
   section("50. Every payload field a worker is handed is declared in its own input contract");
   // =============================================================================
 
-  const domain = readJSON(join(ROOT, "skills/tech-lead/schemas/domain.schema.json"));
+  const domain = readJSON(join(ROOT, "kernel/schemas/domain.schema.json"));
   const registry = domain["x-payload-by-worker"];
   if (!registry) {
     fail("domain.schema.json has no x-payload-by-worker registry");

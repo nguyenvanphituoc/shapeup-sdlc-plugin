@@ -344,7 +344,7 @@ verbatim, hashed into the receipt, reported by `probe resume`.
 4. `kernel/probe/resume.mjs` `deriveResumeState` (`:362`): add `breadboard_path` (`breadboard(cwd, slug)`
    when that file exists, else null) and `breadboard_source` (`receipt.breadboard?.source ?? null`;
    an unreadable receipt gives null).
-5. `skills/tech-lead/schemas/domain.schema.json` `$defs/ResumeState` (`:2359`): add both as nullable
+5. `kernel/schemas/domain.schema.json` `$defs/ResumeState` (`:2359`): add both as nullable
    strings. `skills/tech-lead/workflows/shapeup-run.js` `RESUME` (`:399-410`, inside the SCHEMA
    REGION markers): add `breadboard_path: nullable("string"), breadboard_source: nullable("string")`
    — 18-resume-state §52(m) requires every `RESUME` property in `ResumeState` with a matching type.
@@ -429,7 +429,7 @@ breadboard carries `payload.breadboard`, and each of those four workers' contrac
 ```bash
 npm test   # exit 0; prints "structural tests passed"
 grep -c "breadboard: rs.breadboard_path" skills/tech-lead/workflows/shapeup-run.js   # exit 0; prints 4
-node -e "const s=require('./skills/tech-lead/schemas/domain.schema.json'),r=s['x-payload-by-worker'];process.exit(s.\$defs.WorkOrderPayload.properties.breadboard&&['orient','ba-pitch-analyzer','solution-architect','scope-architect'].every(w=>r[w].includes('breadboard'))?0:1)"
+node -e "const s=require('./kernel/schemas/domain.schema.json'),r=s['x-payload-by-worker'];process.exit(s.\$defs.WorkOrderPayload.properties.breadboard&&['orient','ba-pitch-analyzer','solution-architect','scope-architect'].every(w=>r[w].includes('breadboard'))?0:1)"
 grep -n 'sibling `breadboard.md`' skills/orient/SKILL.md   # exit 1: the sibling rule is gone
 # The producer check must bite: drop the field from the analyze dispatch and the suite must go red.
 node -e "const fs=require('fs'),f='skills/tech-lead/workflows/shapeup-run.js',s=fs.readFileSync(f,'utf8'),i=s.indexOf('skill: \"ba-pitch-analyzer\", operation: \"analyze\"'),k='breadboard: rs.breadboard_path',j=s.indexOf(k,i);if(i<0||j<0)process.exit(3);fs.writeFileSync(f,s.slice(0,j)+'bb_dropped: null'+s.slice(j+k.length))" && ! npm test >/dev/null 2>&1   # exit 0
@@ -484,7 +484,7 @@ npm test   # exit 0; prints "structural tests passed"
 grep -q "## Deferred Places" skills/ba-pitch-analyzer/assets/templates/ux-behavior.tmpl.md   # exit 0
 grep -qE "^## Screen: .*\(\[P#\]" skills/ba-pitch-analyzer/assets/templates/ux-behavior.tmpl.md   # exit 0
 grep -q "the screens are its Places" skills/ba-pitch-analyzer/references/ux-behavior-patterns.md   # exit 0
-node -e "const d=require('./skills/tech-lead/schemas/domain.schema.json').\$defs.AffordanceEntry;process.exit(d.properties.source&&!(d.required||[]).includes('source')?0:1)"   # exit 0
+node -e "const d=require('./kernel/schemas/domain.schema.json').\$defs.AffordanceEntry;process.exit(d.properties.source&&!(d.required||[]).includes('source')?0:1)"   # exit 0
 ```
 
 ### Stage 4 — Fail the spec that drops or misplaces a Place · ~4 h

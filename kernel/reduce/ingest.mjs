@@ -8,6 +8,13 @@
 //   task_results[]      → tick AC boxes, flip task frontmatter status, append Execution Log,
 //                         update tasks/_index.md row, propagate unblocks (old P3.1–P3.6)
 //   discoveries[]       → append to .shapeup/<slug>/discovery/ledger.md (old P3.7 / QA H.3)
+//   deviations[] (when  → append to the SAME discovery ledger, tagged distinctly. A worker's
+//     status:"escalated")  protocol names deviations[] as the only channel a blocked worker has —
+//                         there is no escalates[] field — and until now nothing routed it anywhere:
+//                         a worker that correctly stopped rather than guessed produced a number and
+//                         silence. Landing here reaches a reader that already exists — the census
+//                         reads this ledger's open entries, and the ship report's own "Discovered,
+//                         not built" section is generated from it.
 //   verdict.criteria[]  → append evaluation/.verdicts-<target>.jsonl (old evaluator B.0), every
 //                         row keyed by run_id and carrying the judge's traces_to[] anchor back to
 //                         the requirement — see step 4 for why neither may be dropped here
@@ -33,7 +40,7 @@ import { tasksDir, localRoot, dispatchReceipts, legLedger, readRunId } from "../
 import { citationProblem } from "../probe/eval.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const RESULT_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../../skills/tech-lead/schemas/work-result.schema.json"), "utf8"));
+const RESULT_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../schemas/work-result.schema.json"), "utf8"));
 
 /**
  * @returns {string} Today's date as an ISO `YYYY-MM-DD` string (UTC), for log/frontmatter stamps.
@@ -195,7 +202,7 @@ export function updateBoardRow(indexBody, taskId, done) {
  *   verdict{criteria[],refuted[]}).
  * @param {{cwd:string}} opts - cwd: working-directory root every LOCAL path resolves against.
  * @returns {{slug:string, tasks_updated:string[], acs_ticked:number, unblocked:string[],
- *   discoveries_appended:number, refuted_unticked:number, verdict_lines:number}} A summary of every write performed.
+ *   discoveries_appended:number, escalations_appended:number, refuted_unticked:number, verdict_lines:number}} A summary of every write performed.
  * @throws {Error} If a task/board/ledger file it must write is not writable (fs error propagates).
  *   `evaluation/.verdicts-*.jsonl` under `.shapeup/<slug>/`.
  */
@@ -213,7 +220,7 @@ export function applyResult(result, { cwd }) {
  */
 function applyResultLocked(result, { cwd, slug }) {
   const local = localRoot(cwd, slug);
-  const summary = { slug, tasks_updated: [], acs_ticked: 0, unblocked: [], discoveries_appended: 0, refuted_unticked: 0, verdict_lines: 0 };
+  const summary = { slug, tasks_updated: [], acs_ticked: 0, unblocked: [], discoveries_appended: 0, escalations_appended: 0, refuted_unticked: 0, verdict_lines: 0 };
 
   // 1. Task results → task files + board (old task-executor P3.1/P3.2/P3.6).
   const boardIndex = join(local, "tasks", "_index.md");
@@ -273,18 +280,52 @@ function applyResultLocked(result, { cwd, slug }) {
     }
   }
 
-  // 3. Discoveries → the ledger (old P3.7 / QA H.3). Single writer: this script.
-  if (result.discoveries?.length) {
+  // 3. Discoveries → the ledger (old P3.7 / QA H.3), plus an ESCALATE's deviations, tagged the same
+  //    way and landed under the same heading. Single writer: this script. A worker's protocol names
+  //    `deviations[]` as the only channel a blocked worker has — there is no `escalates[]` field —
+  //    and routing it into THIS ledger is what makes it reach a reader that already exists: the
+  //    ship report's own "Discovered, not built" section, and the census a scope's own worker reads
+  //    before proposing a cut, both read this file's unresolved `+`/`~` entries.
+  const escalations = result.status === "escalated" ? (result.deviations || []) : [];
+  if (result.discoveries?.length || escalations.length) {
     const ledgerDir = join(local, "discovery");
     mkdirSync(ledgerDir, { recursive: true });
     const ledger = join(ledgerDir, "ledger.md");
     if (!existsSync(ledger)) writeFileSync(ledger, `---\nfeature: ${slug}\n---\n# Discovery Ledger — ${slug}\n`);
-    const lines = result.discoveries.map((d) => {
-      const tags = [d.lens ? `[lens:${d.lens}]` : "", d.severity_hint ? `severity-hint: ${d.severity_hint}` : "", d.test_gap ? `test-gap: ${d.test_gap}` : "", d.contradicts ? `contradicts: ${d.contradicts}` : "", d.traces_to?.length ? `traces_to: ${d.traces_to.join(", ")}` : ""].filter(Boolean);
-      return `${d.marker} ${d.lens ? tags[0] + " " : ""}${d.line}${d.repro ? `\n    repro: ${d.repro}` : ""}${tags.slice(d.lens ? 1 : 0).map((t) => `\n    ${t}`).join("")}`;
-    }).join("\n");
-    appendFileSync(ledger, `\n## Discovered — ${result.order_id} (${today()})\n${lines}\n`);
-    summary.discoveries_appended = result.discoveries.length;
+    // IDEMPOTENT ON THE ORDER, not merely append-only. `reduce ingest` is the single writer, but
+    // nothing stops the SAME order/result pair from being applied twice — a replayed ingest over an
+    // already-applied result, never a fresh attempt (a real re-attempt earns its own order_id,
+    // `r<N>-a<N+1>`). Measured: replaying one identical escalated WorkResult doubled its
+    // `[ESCALATE]` line in this ledger, and both GATE H's census and the ship report's "Discovered,
+    // not built" section count this file's open entries — so a replay silently inflated the count
+    // for a WorkResult that ran exactly once. A block heading names its order verbatim, so a second
+    // ingest of the same order recognises its own prior write and skips the append rather than
+    // duplicating it.
+    const existingLedger = readFileSync(ledger, "utf8");
+    /**
+     * The ledger heading one order's block is filed under — the idempotency key: a second ingest
+     * of the SAME order recognises its own prior write by this string, verbatim.
+     * @param {string} oid - `result.order_id` this block belongs to.
+     * @returns {string} The heading prefix (open-ended — the date suffix varies, the order id does not).
+     */
+    const headingFor = (oid) => `## Discovered — ${oid} (`;
+    const alreadyLogged = existingLedger.includes(headingFor(result.order_id));
+    if (alreadyLogged) {
+      summary.discoveries_appended = 0;
+      summary.escalations_appended = 0;
+    } else {
+      const discoveryLines = (result.discoveries || []).map((d) => {
+        const tags = [d.lens ? `[lens:${d.lens}]` : "", d.severity_hint ? `severity-hint: ${d.severity_hint}` : "", d.test_gap ? `test-gap: ${d.test_gap}` : "", d.contradicts ? `contradicts: ${d.contradicts}` : "", d.traces_to?.length ? `traces_to: ${d.traces_to.join(", ")}` : ""].filter(Boolean);
+        return `${d.marker} ${d.lens ? tags[0] + " " : ""}${d.line}${d.repro ? `\n    repro: ${d.repro}` : ""}${tags.slice(d.lens ? 1 : 0).map((t) => `\n    ${t}`).join("")}`;
+      });
+      // `+` (candidate work), matching the schema's own reading of that marker — an ESCALATE is
+      // exactly that: work a worker could not safely do without a decision only the census can make.
+      const escalateLines = escalations.map((d) => `+ [ESCALATE] ${d}`);
+      const lines = [...discoveryLines, ...escalateLines].join("\n");
+      appendFileSync(ledger, `\n${headingFor(result.order_id)}${today()})\n${lines}\n`);
+      summary.discoveries_appended = (result.discoveries || []).length;
+      summary.escalations_appended = escalations.length;
+    }
   }
 
   // 4. Verdict bookkeeping (old evaluator B.0/B.2/B.2b) — judge returns data, ingest writes.
@@ -657,5 +698,5 @@ export async function cli(rawArgv) {
     }
   }
 
-  console.log(`✅ ingested ${result.order_id} — tasks: [${s.tasks_updated.join(", ")}] · ACs ticked: ${s.acs_ticked} · unblocked: [${s.unblocked.join(", ")}] · discoveries: ${s.discoveries_appended} · verdict lines: ${s.verdict_lines} · refuted un-ticked: ${s.refuted_unticked}`);
+  console.log(`✅ ingested ${result.order_id} — tasks: [${s.tasks_updated.join(", ")}] · ACs ticked: ${s.acs_ticked} · unblocked: [${s.unblocked.join(", ")}] · discoveries: ${s.discoveries_appended} · escalations: ${s.escalations_appended} · verdict lines: ${s.verdict_lines} · refuted un-ticked: ${s.refuted_unticked}`);
 }

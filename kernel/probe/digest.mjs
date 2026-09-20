@@ -6,7 +6,9 @@
 // Script-first by design: regex over known log formats is free (no model tokens); an
 // unrecognized line becomes a "raw" triple (file/line unknown) rather than being silently
 // dropped, so a Sonnet fallback (or a human) still has something to look at — this module never
-// invents a file:line it didn't find in the text.
+// invents a file:line it didn't find in the text. `file` and `line` are independent: a
+// diagnostic that names a file but no line number (a resource-compiler error, for example)
+// still yields its file — `line` stays null rather than being guessed at.
 //
 // Zero dependencies, zero network — same discipline as oracles/*.
 
@@ -19,6 +21,18 @@ const PATTERNS = [
   { re: /^(?:✗|not ok\b.*?)[^()]*\((.+?):(\d+)\)\s*$/, kind: "test-failure" },
   // ESLint/tsc style: "path/to/file.ts:12:34 - error TS2345: message"
   { re: /^(.+?):(\d+):\d+\s*[-–]\s*(?:error|warning)\b.*$/, kind: "compiler-diagnostic" },
+  // File-level diagnostic with NO line number: "resource.xml: error: message" or
+  // "resource.xml - fatal error: message" (resource compilers and linkers report this way —
+  // the failure is the whole file, so there is no line to cite). The file must look like a
+  // path (ends in a dotted extension, no embedded whitespace/colon) so this stays anchored to
+  // real diagnostics rather than matching arbitrary prose that happens to contain "error:".
+  { re: /^([^\s:]+?\.[A-Za-z0-9]{1,10})\s*[:\-–—]\s*(?:fatal\s+error|error|warning)\b.*$/i, kind: "compiler-diagnostic" },
+  // Bundler style: "ERROR in ./src/components/Foo.tsx" (webpack et al.) — file, no line. The
+  // captured token must look like a path — leads with "./"/"../", or ends in a dotted extension
+  // of 1-10 alnum chars (same anchor the sibling pattern above uses) — so prose after "ERROR in"
+  // ("ERROR in the build pipeline", "ERROR in test suite failed to run") is left unmatched
+  // instead of handing back a fabricated file.
+  { re: /^(?:ERROR|WARNING)\s+in\s+(\.{1,2}\/[^\s:]*|[^\s:]+\.[A-Za-z0-9]{1,10})\b/i, kind: "compiler-diagnostic" },
   // Generic "Error: message" line followed later by a stack — capture the message alone.
   { re: /^\s*(?:Error|TypeError|ReferenceError|AssertionError)\s*:\s*(.+)$/, kind: "error-message" },
 ];

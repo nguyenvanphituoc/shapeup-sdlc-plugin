@@ -7,8 +7,7 @@
 ```
 .claude-plugin/          plugin.json · marketplace.json
 skills/<name>/SKILL.md   the 13 harness skills (+ references/)
-skills/tech-lead/        schemas/ (WorkOrder · WorkResult · gate-answers · domain registry)
-                         workflows/shapeup-run.js — the whole pipeline as one launchable script
+skills/tech-lead/        workflows/shapeup-run.js — the whole pipeline as one launchable script
 kernel/harness.mjs       the deterministic half behind ONE entry point (and therefore one
                          permission prefix). Subcommands:
                           compile — the envelope port's order compiler
@@ -21,6 +20,7 @@ kernel/harness.mjs       the deterministic half behind ONE entry point (and ther
                           init    — run · fit
                           gate    — the gate answer set
                           lib/    — argv · contract · paths
+kernel/schemas/          WorkOrder · WorkResult · gate-answers · domain registry
 bin/init.mjs             `npx shapeup-sdlc init` — pure-Node scaffolding + permission grant
 commands/*.md            11 slash commands (/shape /orient /scopes /wire /build /eval /qa
                          /hammer /ship /retro /hill)
@@ -35,7 +35,7 @@ oracles/                 the evaluation-contract oracle registry (test · snapsh
                          process), proven to discriminate against negative controls
 tools/                   repo-only, never shipped — demo/
 tests/structural.mjs     Tier 0 runner — threads tests/lib/ helpers through the per-domain
-tests/{lib,structural}/  suites in tests/structural/*.mjs; 1000+ checks, zero LLM calls (a
+tests/{lib,structural}/  suites in tests/structural/*.mjs; 1800+ checks, zero LLM calls (a
                          FLOOR, deliberately not the exact count — this line is where the suite
                          parses it, and pinning it to the running total would fail on every
                          legitimate removal. It may only grow EXCEPT when checks are deliberately

@@ -2,7 +2,7 @@
   "skill_name": "harness-maintenance-audit",
   "notes": "Runs against a fixture repo carrying five planted defects. Four of the five are invisible to `npm test` — that asymmetry is the point of the skill, so assertions reward finding those, not the one the suite already reports.",
   "answer_key": {
-    "D1": "skills/tech-lead/schemas/domain.schema.json — `coverage` removed from the Operation enum, while skills/ba-pitch-analyzer/SKILL.md still advertises it as a valid operation (unsatisfiable published contract).",
+    "D1": "kernel/schemas/domain.schema.json — `coverage` removed from the Operation enum, while skills/ba-pitch-analyzer/SKILL.md still advertises it as a valid operation (unsatisfiable published contract).",
     "D2": "docs/design/07-domain-erd.md — claims `Operation (18)` and lists generate-board / recheck / adjudicate, none of which exist. Live enum has 14 members after D1.",
     "D3": "hooks/gate-deadline.mjs — benchmark citation leaked into a shipped file (n=3, 1800 s, 29%, docs/migration path).",
     "D4": "skills/tech-lead/references/gates.md — cites docs/migration/stage-a3-plan.md and a `Stage A3` migration phase from a shipped file.",

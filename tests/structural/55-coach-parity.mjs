@@ -50,7 +50,7 @@ export async function run(ctx) {
     return;
   }
 
-  const domain = readJSON(join(ROOT, "skills/tech-lead/schemas/domain.schema.json"));
+  const domain = readJSON(join(ROOT, "kernel/schemas/domain.schema.json"));
   const registry = domain["x-payload-by-worker"] || {};
   const registered = new Set(
     Object.entries(registry)

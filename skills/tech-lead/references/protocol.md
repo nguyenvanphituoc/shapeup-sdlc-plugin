@@ -630,7 +630,7 @@ trace. See `references/gates.md` — GATE L0.1.
 ## Central domain registry
 
 Every record type and payload field that crosses a skill boundary is defined exactly once in
-`skills/tech-lead/schemas/domain.schema.json` — the envelope schemas (`work-order.schema.json`,
+`kernel/schemas/domain.schema.json` — the envelope schemas (`work-order.schema.json`,
 `work-result.schema.json`) only `$ref` it. The registry annotates each entity's tier
 (SHARED/LOCAL), location, sole writer, and readers, carries the machine-readable ERD (`x-erd`),
 and maps which payload fields each worker may rely on (`x-payload-by-worker`).
@@ -686,13 +686,15 @@ lens: lite | standard | cross-context
 eval_dimensions: [spec-conformance]   # the set from GATE L0.5 (init-run --dimensions); every EVAL order is compiled from THIS line
 max_rounds: 3
 auto_level: interactive | auto | unattended
-status: orienting | mapping | building | evaluating | shipped | escalated
+status: orienting | mapping | building | evaluating | shipped | escalated | aborted
 final_verdict: ~ | pass | fail | not-evaluated
 rounds_used: [N]
 discovered_rounds: [N]
 deploy: ~ | deployed | pending-po
 started_at: [ISO]
 closed_at: ~ | [ISO]
+close_cause: ~ | [why the run ended at that terminal status — `probe resume --close` writes this and closed_at together]
+closed_status: ~ | [the terminal status actually closed — written ONLY by `probe resume --close`, never by `--set-status`, so it is immune to `status:` above being rewritten by ordinary phase traffic after the close]
 ---
 ```
 

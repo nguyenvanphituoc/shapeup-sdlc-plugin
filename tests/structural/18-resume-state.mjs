@@ -448,7 +448,7 @@ export async function run(ctx) {
     // every defect the tier pass closed. This is the comparison, made against the SHIPPED bytes of
     // both halves rather than a description of either.
     const { loadResumeSchema } = await import("../lib/resume-schema-region.mjs");
-    const domain = JSON.parse(readFileSync(join(ROOT, "skills/tech-lead/schemas/domain.schema.json"), "utf8"));
+    const domain = JSON.parse(readFileSync(join(ROOT, "kernel/schemas/domain.schema.json"), "utf8"));
     const declared = domain?.$defs?.ResumeState?.properties;
     let wfResume = null;
     try { wfResume = loadResumeSchema(ROOT); } catch (e) { fail(String(e.message)); }

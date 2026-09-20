@@ -60,15 +60,15 @@ check the lane:
   legacy loop instead — `references/protocol.md` (BUILD(r)/EVAL) + `references/protocol.md`
   carry the full step-by-step for both the tiny lane and a scope-less BUILD loop, verbatim, non-
   regression. Stop reading this file here for that run.
-- **Otherwise** (the common case — a scoped spec, any auto level): build `RunArgs`
-  (`domain.schema.json` `$defs/RunArgs` — `{slug, runId, autoLevel, answers, lane,
-  models:{exec,eval,qa}, budgets:{maxRounds,attemptBudget,wallClockS}, pluginRoot, startedAt}`,
-  plus every switch the operator typed — `references/gates.md` GATE L0.9 has the flag→field table,
-  and a flag that stops here is a flag that was accepted and ignored). **Write that exact object to
-  `.shapeup/<slug>/run-args.json` before launching**, fresh on every launch and relaunch: the flags
-  reach the workflow as a value in memory, so it is the run's only evidence of what it was launched
-  with, and a run that cannot state its own configuration cannot have a claim about it checked.
-  Then launch with the **`Workflow` tool** — naming `init run`'s staged copy, never the install path:
+- **Otherwise** (the common case — a scoped spec, any auto level): resolve every switch the
+  operator typed (`references/gates.md` GATE L0.9b has the flag→field table) and run the kernel's
+  sole `RunArgs` writer: `node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" init run-args --slug
+  <slug> --auto-level <level> --exec-model <n> [--eval-model <n>] [--qa-model <n>] --max-rounds <N>
+  --attempts <N> --plugin-root "${CLAUDE_PLUGIN_ROOT}" [--answers <a>] [--lane <l>] [--no-eval]
+  [--no-qa] [--adversarial-verify] [--parallel-scopes <N>]`. It writes `.shapeup/<slug>/run-args.json`
+  fresh on every launch/relaunch and prints that identical object — **pass it to `Workflow`
+  verbatim, never re-type it**. Then launch with the **`Workflow` tool** — naming `init run`'s
+  staged copy, never the install path:
 
 ```
 Workflow({
@@ -114,7 +114,7 @@ did not actually receive from the PO — an unattended lane with no answer for a
 
 FIRST freeze the evidence — run state is gitignored, so `shapeup/<slug>/REPORT.md` (already
 written by `shapeup-run.js` via `harness reduce ship`, or write it now on a `gate_h` close) is all a
-teammate sees. Then emit:
+teammate sees. Then RESOLVE the gate — `references/gates.md` GATE L4 has the call — and emit:
 
 ```
 ⏸ GATE L4 — Ship Sign-Off

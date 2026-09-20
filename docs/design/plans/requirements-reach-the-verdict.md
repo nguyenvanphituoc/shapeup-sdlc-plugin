@@ -416,7 +416,7 @@ Copy these and every §5 entry into the contract's Guardrails.
   skipped" rule as `INV-FLOOR` and `SCOPE-COVERS` (`kernel/verify/spec.mjs:357`). D-e is that rule
   being broken today; do not copy it forward.
 - Never widen the `^REQ-[0-9]+$` pattern. It appears five times in
-  `skills/tech-lead/schemas/domain.schema.json` (`:601`, `:1027`, `:1101`, `:1150`, `:2179`) and once
+  `kernel/schemas/domain.schema.json` (`:601`, `:1027`, `:1101`, `:1150`, `:2179`) and once
   as `/^REQ-\d+$/` in `kernel/compile.mjs:108`; the maintainer decided the key stays `REQ-N`.
 - One implementation of covers-closure, not two. `kernel/verify/spec.mjs` imports `parseRequirements`
   and `coveredReqIds` from `kernel/verify/trace.mjs`; it must not re-implement either. **And it must
@@ -662,7 +662,7 @@ Add: a scope contract carrying `covers: [R13]` resolves against a registry holdi
 
 *Original Stage 3 steps, retained because 1, 2, 4, 5 and 6 are unchanged and 3 is the one superseded:*
 
-1. **Declare the field.** `skills/tech-lead/schemas/domain.schema.json`: add `"requirements"` to
+1. **Declare the field.** `kernel/schemas/domain.schema.json`: add `"requirements"` to
    `x-payload-by-worker["ba-pitch-analyzer"]`. The property already exists in
    `$defs/WorkOrderPayload.properties` and the worker's own contract already documents it
    (`skills/ba-pitch-analyzer/SKILL.md:30`), so `tests/structural/50-payload-contract-parity.mjs`
@@ -740,7 +740,7 @@ npm test                                            # exit 0
 npm test 2>&1 | grep -iE "^▸ .*requirements"        # exit 0: the new section ran
 npm test 2>&1 | grep -c "^▸ " | node -e "process.exit(+require('fs').readFileSync(0,'utf8')>=105?0:1)"   # exit 0: 104 + this stage's section
 grep -c 'operation: "coverage"' skills/tech-lead/workflows/shapeup-run.js   # exit 0; prints 1
-node -e "const s=require('./skills/tech-lead/schemas/domain.schema.json');process.exit(s['x-payload-by-worker']['ba-pitch-analyzer'].includes('requirements')?0:1)"   # exit 0
+node -e "const s=require('./kernel/schemas/domain.schema.json');process.exit(s['x-payload-by-worker']['ba-pitch-analyzer'].includes('requirements')?0:1)"   # exit 0
 node -e "const s=require('fs').readFileSync('kernel/probe/resume.mjs','utf8'),i=s.indexOf('PHASE_ARTIFACT');process.exit(/coverage/.test(s.slice(i,i+400))?1:0)"   # exit 0: coverage is NOT a phase
 # The dispatch must be load-bearing: remove it and the suite must go red. Restores the file either way.
 node -e "const fs=require('fs'),f='skills/tech-lead/workflows/shapeup-run.js',s=fs.readFileSync(f,'utf8'),t=s.replace('operation: \"coverage\"','operation: \"analyze\"');if(t===s)process.exit(3);fs.writeFileSync(f,t)" \

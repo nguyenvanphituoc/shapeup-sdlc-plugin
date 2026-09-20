@@ -70,7 +70,7 @@ export async function run(ctx) {
   section("78. The type catalog, the relationship catalog and the running projection agree");
   // =============================================================================
 
-  const schema = JSON.parse(readFileSync(join(ROOT, "skills/tech-lead/schemas/domain.schema.json"), "utf8"));
+  const schema = JSON.parse(readFileSync(join(ROOT, "kernel/schemas/domain.schema.json"), "utf8"));
   const defs = new Set(Object.keys(schema.$defs || {}));
   const erd = schema["x-erd"] || {};
   const rels = erd.relationships || [];

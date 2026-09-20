@@ -47,10 +47,11 @@ import { runArgs } from "../lib/argv.mjs";
 import { splitFrontmatter } from "../lib/contract.mjs";
 import { runIdFromReceipt, readReceipt } from "../lib/paths.mjs";
 import { TABLES, runRow, dispatchFacts } from "./facts.mjs";
+import { deriveRounds } from "../probe/rounds.mjs";
 import {
   localDir, activeScope, receipt as receiptPath, harnessRun, ordersDir, resultsDir,
   trials as trialsPath, verdictsDir, evaluationDir, decisions as decisionsPath,
-  exportsDir, exportRunDir,
+  gates as gatesPath, roundBuildDir, exportsDir, exportRunDir,
 } from "../lib/paths.mjs";
 
 export const EXPORT_SCHEMA_VERSION = 1;
@@ -164,6 +165,51 @@ function criterionRows(dir, runId, t) {
   return out;
 }
 
+/**
+ * Flatten one gate-crossing ledger row (`gates.jsonl`, `kernel/gate.mjs`'s sole writer) into a
+ * flat `gate_decision` fact row. The row on disk already carries exactly these fields
+ * (see `appendGateLedger`), so this is a pass-through with a stamped `run_id` fallback rather than
+ * a re-derivation: two readers of "what did this gate decide" must not compute the answer twice.
+ * @param {object} g - One parsed line of `gates.jsonl`.
+ * @param {(string|null)} runId - Run key for a row written before it carried its own.
+ * @returns {object} A flat `gate_decision` row.
+ */
+function gateDecisionRow(g, runId) {
+  return {
+    run_id: g?.run_id ?? runId ?? null,
+    gate: g?.gate ?? null,
+    decision: g?.decision ?? null,
+    status: g?.status ?? null,
+    source: g?.source ?? null,
+    round: g?.round ?? null,
+    has_note: !!(g?.note && String(g.note).trim()),
+  };
+}
+
+/**
+ * Flatten one round build-gate artifact (`kernel/verify/build.mjs`'s `writeRoundBuild`) into a flat
+ * `build_gate` fact row. The gate ends a round exactly as EVAL does (AGENTS.md's round
+ * build gate ⚙), and until now had no fact table at all.
+ * @param {object} a - A parsed round-build artifact.
+ * @param {(string|null)} runId - Run key for an artifact written before it carried its own.
+ * @returns {object} A flat `build_gate` row.
+ */
+function buildGateRow(a, runId) {
+  const steps = Array.isArray(a?.steps) ? a.steps : [];
+  return {
+    run_id: a?.run_id ?? runId ?? null,
+    round: a?.round ?? null,
+    trial: a?.trial ?? null,
+    at: a?.at ?? null,
+    overall: a?.overall ?? null,
+    archetype: a?.archetype ?? null,
+    steps_total: steps.length,
+    steps_failed: steps.filter((s) => !s?.skipped && s?.pass === false).length,
+    warnings: Array.isArray(a?.warnings) ? a.warnings.length : 0,
+    discovered_tasks: Array.isArray(a?.discovered_tasks) ? a.discovered_tasks.length : 0,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // The export itself
 // ---------------------------------------------------------------------------
@@ -190,7 +236,10 @@ export function collectRun(cwd, slug) {
   const results = readJsonDir(resultsDir(cwd, slug), t);
 
   const { dispatch, ac_result, discovery, file_touched } = dispatchFacts({ orders, results, runId });
-  const run = runRow({ receipt: rec, ledger, runId });
+  // Computed here, once, from the same trace this whole function reads, and handed to
+  // runRow rather than re-derived by it: runRow stays pure (no I/O), this function already has cwd.
+  const rounds = deriveRounds(cwd, slug, ledger.rounds_used);
+  const run = runRow({ receipt: rec, ledger, runId, rounds });
 
   // Hook decisions are checkout-wide, so they are FILTERED to this run rather than read from a
   // per-run file. Rows with a null key belong to no run (a hook that fired outside one) and are
@@ -208,6 +257,9 @@ export function collectRun(cwd, slug) {
       t0_verdict: readJsonDir(verdictsDir(cwd, slug), t).map((a) => t0Row(a, runId)),
       criterion_verdict: criterionRows(evaluationDir(cwd, slug), runId, t),
       hook_decision,
+      // The decision that crossed each gate, and the round build gate's own artifact.
+      gate_decision: readJsonl(gatesPath(cwd, slug), t).map((g) => gateDecisionRow(g, runId)),
+      build_gate: readJsonDir(roundBuildDir(cwd, slug), t).map((a) => buildGateRow(a, runId)),
     },
     defects: { records_skipped: t.skipped },
   };

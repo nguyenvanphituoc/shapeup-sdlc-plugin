@@ -15,7 +15,7 @@
 
 import { dirname, resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { makeCtx } from "./lib/harness.mjs";
 
@@ -194,8 +194,101 @@ const MODULE_FILES = [
   // `R<n>`, against a registry keyed `REQ-<n>` — an edge produced on the board and severed by
   // spelling, reported 23 times a run as a warning indistinguishable from noise.
   "59-requirements-registry.mjs",
+  // 60-fence-lifecycle.mjs: the substrate fence's close-time lifecycle, per AGENTS.md's own claim
+  // (defect sweep Stage 1 rework). Its own module because a rework pass found two of that
+  // paragraph's three sentences false by inspection, and inverting one to its opposite in a scratch
+  // copy still left the whole suite green — a check the prose had no reader that could fail.
+  "60-fence-lifecycle.mjs",
+  // 61-execute-leg-frozen-pitch.mjs: HD-012, the defect-sweep Stage 2 fix. `substrateFor`'s
+  // `execute`/`fix`/`spike` arm declared no `frozen` key, so the widest, longest-lived dispatch in a
+  // run could overwrite the staged pitch it was measured against. Its own module because the check
+  // has to call the real `substrateFor`, not restate its output — a hand-typed substrate would stay
+  // green through a revert of the fix, which is the one failure this module exists to catch.
+  "61-execute-leg-frozen-pitch.mjs",
+  // 62-run-args-surface.mjs: HD-010, the defect-sweep Stage 5 fix. The run-argument surface —
+  // every RunArgs field gates.md's L0.9b table documents, cross-checked against the schema and
+  // against what shapeup-run.js actually reads — derived at runtime from all three artifacts, never
+  // from a hand-kept list, so a flag added to one tier and not the others reds on its own.
+  "62-run-args-surface.mjs",
+  // 63-run-args-writer.mjs: HD-020, and HD-010's executed half. `run-args.json` gets a kernel
+  // writer (`harness init run-args`), executed end to end against a real run root, with
+  // `probe concurrency`'s dialFrom() read back against exactly what that writer emitted — plus the
+  // deadline breaker proven to trip off the receipt alone, independent of RunArgs entirely.
+  "63-run-args-writer.mjs",
+  // 64-shipped-set-hygiene.mjs: the acceptance-review guard for this same stage's own two
+  // violations (an internal defect id and a tests/ citation, both landed inside shipped files
+  // and both invisible to every check above). Scopes itself off `package.json`'s own `files`
+  // allowlist rather than a hand-kept root list, so it drifts with the shipped set, not beside it.
+  "64-shipped-set-hygiene.mjs",
+  // 65-digest-locationless.mjs: HD-016. A diagnostic naming a file with no line number now
+  // yields that file (line kept null, never invented) — executed against a real log corpus,
+  // with a non-regression pass over every shape the digester already extracted run first. Also
+  // executes `verify t0`'s score() and asserts its actual axes, since the register's own severity
+  // note for this defect depends on which axes exist there.
+  "65-digest-locationless.mjs",
+  // 66-shared-ownership.mjs: HD-015, the defect-sweep Stage 7 fix. `electOwner` and `probe
+  // owner`'s `ownership()` now elect from `allowed ∪ shared` — the same union the sandbox fence
+  // composes — so a path declared only in a contract's `shared_substrate` reports a writer
+  // instead of UNOWNED, and `bugsForScope` addresses it to the elected scope rather than fanning
+  // it out to every scope in the run. Its own module because no existing test drove `electOwner`
+  // or `probe owner` against a shared-only-declared path at all.
+  "66-shared-ownership.mjs",
+  // 67-terminal-closeout.mjs: HD-011, HD-017, HD-018 — the defect-sweep Stage 8 "thin orchestrator"
+  // fixes with the shape "the run was supposed to tell the kernel something, and nothing made it".
+  // Its own module because each fix is a pure kernel derivation (closeRun, deriveRounds, an ingest
+  // routing step) executed end to end against a real fixture, plus the second reader that proves a
+  // written channel is actually READ — none of which the orchestrator script itself can be tested
+  // for directly (see 58-relaunch-memory.mjs's own banner).
+  "67-terminal-closeout.mjs",
+  // 68-gate-coverage.mjs: HD-019 — every GATE_IDS entry has a call site (the workflow script's own
+  // range, or the orchestrating skill's prose for the three gates outside it), and the mechanism
+  // those call sites now invoke — `harness gate --resolve`, the export's gate_decision and
+  // build_gate tables — is executed end to end. Its own module because a structural suite cannot
+  // execute prose, so what it pins is the roster/call-site cross-check and the kernel mechanism the
+  // prose calls, not the prose being followed.
+  "68-gate-coverage.mjs",
+  // 69-terminal-wrapping.mjs: REWORK, Stage 8 round 1 — every terminal RunReturn shapeup-run.js's
+  // own top-level flow constructs must pass through `withWarnings` (HD-011's close), pinned at the
+  // source level (the script cannot be imported — 58-relaunch-memory.mjs's own banner) and
+  // mutation-tested in both directions so the exact hole Round 1 found cannot reopen silently.
+  "69-terminal-wrapping.mjs",
   "08-docs.mjs",
 ];
+
+// =============================================================================
+// Every module on disk runs, and every module that runs is on disk.
+// =============================================================================
+// MODULE_FILES is explicit and has NO auto-discovery, deliberately: order is load-bearing (08 runs
+// last so the checks floor sees the full total) and where a module sits is a decision someone
+// makes. The price of that decision is this failure mode — a file can be written, land on disk,
+// be imported by nothing, and never run.
+//
+// That is strictly worse than having no guard at all. An absent guard is visibly absent; an
+// unregistered one reads as coverage, passes review, and can never go red no matter what breaks
+// underneath it. Measured in this repo: a module written for a real defect sat unregistered
+// through a whole stage while the suite reported green, and nothing in the suite could say so.
+//
+// Checked here in the runner rather than in a module of its own, because a module that policed
+// registration could itself be the unregistered one.
+{
+  const onDisk = readdirSync(join(HERE, "structural")).filter((f) => f.endsWith(".mjs"));
+  const orphaned = onDisk.filter((f) => !MODULE_FILES.includes(f)).sort();
+  const dangling = MODULE_FILES.filter((f) => !onDisk.includes(f)).sort();
+  const dupes = MODULE_FILES.filter((f, i) => MODULE_FILES.indexOf(f) !== i).sort();
+
+  if (orphaned.length === 0) ctx.ok(`every module in tests/structural/ is registered and runs (${onDisk.length} files)`);
+  else ctx.fail(`module(s) on disk that no run reaches — an unregistered guard can never go red, ` +
+                `so it reads as coverage it does not provide: ${orphaned.join(", ")}`);
+
+  // A registration with no file would throw at import and be caught as one module failure, which
+  // names the file but reads as a broken test rather than a missing one. Say which it is.
+  if (dangling.length === 0) ctx.ok("every registered module exists on disk");
+  else ctx.fail(`MODULE_FILES names file(s) that are not on disk: ${dangling.join(", ")}`);
+
+  // A duplicate runs its checks twice, inflating the total the floor is measured against.
+  if (dupes.length === 0) ctx.ok("no module is registered twice");
+  else ctx.fail(`module(s) registered more than once — their checks are counted twice: ${dupes.join(", ")}`);
+}
 
 for (const file of MODULE_FILES) {
   const mod = await import(join(HERE, "structural", file));

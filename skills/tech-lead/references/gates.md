@@ -113,11 +113,13 @@ Collect (explicit — never inferred):
         gate to be its first execution.
 ```
 
-**L0.9b — the launch record.** Every switch the operator typed becomes a `RunArgs` field, or it
-does nothing at all: the workflow cannot read a config file and cannot ask a follow-up, so a flag
-that stops at the skill boundary was accepted and ignored. That is not hypothetical — `--no-qa` was
-documented in seven places across the shipped set and inert in all of them, because no line of this
-protocol ever put `noQa` into the record.
+**L0.9b — the launch record.** Every switch the operator typed to *this launch* becomes a `RunArgs`
+field, or it does nothing at all: the workflow cannot read a config file and cannot ask a follow-up,
+so a flag that stops at the skill boundary was accepted and ignored. That is not hypothetical —
+`--no-qa` was documented in seven places across the shipped set and inert in all of them, because no
+line of this protocol ever put `noQa` into the record. `--wall-clock-budget` is the one flag below
+that is not a `RunArgs` field at all — it is consumed earlier, at `init run` itself, and never
+needed to reach this launch; see its row for where it actually lands.
 
 | Flag | `RunArgs` field |
 |---|---|
@@ -125,14 +127,19 @@ protocol ever put `noQa` into the record.
 | `--no-qa` | `noQa: true` |
 | `--parallel-scopes N` | `maxParallelScopes: N` — how many scopes build at once (default 4; `1` = sequential) |
 | `--adversarial-verify` | `adversarialVerify: true` |
-| `--rounds N` / `--attempts N` / `--wall-clock-budget S` | `budgets.{maxRounds,attemptBudget,wallClockS}` |
+| `--rounds N` / `--attempts N` | `budgets.{maxRounds,attemptBudget}` |
 | `--gate-answers <set>` | `answers` |
+| `--wall-clock-budget S` | *(not a `RunArgs` field)* — typed once, on the `harness init run` command line itself, not on this launch; it lands straight in the run receipt as `wall_clock_budget_s`, and the deadline breaker reads that receipt field directly — consumed by `kernel/verify/budget.mjs` as `wall_clock_budget_s`. `budgets` declares only `maxRounds`/`attemptBudget` — the schema, `SKILL.md`'s own RunArgs contract line and this script's own header comment all agree there is no third member |
 | `--orch-model/--exec-model/--eval-model/--qa-model` | `models.{…}` (L0.8) |
 
-The assembled object is written to `.shapeup/<slug>/run-args.json` before the launch, fresh on every
-launch and relaunch. It is the only artifact that records what a run was configured with; the ship
-report, a resumed session and any later measurement all read it, and none of them can recover a
-value that only ever existed as an argument.
+`harness init run-args` (invoked at Step 2 of `SKILL.md`) is the sole writer of the assembled
+object: it takes the resolved values above, writes `.shapeup/<slug>/run-args.json` fresh on every
+launch and relaunch, and prints the same object back so the launch never re-assembles it by hand. It
+is the only artifact that records what a run was configured with; the ship report, a resumed session
+and any later measurement all read it, and none of them can recover a value that only ever existed
+as an argument. Step 2 is not merely advisory: `shapeup-run.js`'s own Preflight refuses to dispatch
+ORIENT (or anything past it) when this file is missing at the run's local root — a launch that
+skipped this step aborts there rather than proceeding on a silent default.
 
 **L0.0 — intake precondition (before any other L0 collection):**
 ```
@@ -161,7 +168,14 @@ Model matrix : orch=[model] exec=[model] eval=[model] qa=[model] digester=[scrip
 Budgets      : round_budget=[N] (outer)   attempt_budget=[N] (inner, per scope)
 Knowledge    : [tech-lead.md — N workflow rules, M suggested values (confirmed above) | none — `/retro --scan` or `/retro --research <stack>` seeds it (optional)]
 ```
-Do NOT start ORIENT until confirmed (interactive/auto). Under --unattended, proceed.
+**Resolve it** — this gate is this skill's own (the workflow never sees it), so it is this skill
+that runs the same tool every other gate resolves through, not a paragraph read as a stand-in for
+one: `node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" gate --resolve L0 --slug <slug>
+[--file <path>|--preset <name>]`. Exit 4 (`ask`) is the confirmation this block already asks for —
+put it to the PO and wait, same as the paragraph above always meant. Exit 0 (`decision=proceed`) —
+continue straight to ORIENT, which is what `--unattended`'s pre-answered set resolves to. Exit 5
+(`abort`) — stop; do not launch. Either way, the gate's own ledger row is what lets a later reader
+see the decision that opened the run, not only the decisions that closed it.
 
 ---
 
@@ -540,6 +554,29 @@ Question (max 1): "Anything to record before I close the run? (y/n) or provide f
 On confirm:
 - If the PO provides substantive feedback (not just 'y' or empty) → automatically delegate via Agent (model: exec — see references/protocol.md "Invocation mechanism"): Skill(shapeup-sdlc-plugin:coach) with the provided feedback for RLHF. The coach runs its own GATE COACH-1 to have the PO categorize each rule, then files it under the responsible skill in `shapeup/knowledge-base/<skill>.md` (committed → team-shared). Coachable: `task-executor`, `ba-pitch-analyzer`, `qa-edge-hunter`, `orient`, `scope-architect`, `solution-architect` (each reads its own file at the top of its next run) and `tech-lead` (workflow guidance, read at the next GATE L0). Guidance never decides a gate: a filed rule may add a question or a check to a gate block, never an answer. The tech lead does not categorize the feedback itself — that is the coach's gate, by design (no assumptions).
 - Then output → `✅ [slug] [shipped & deployed | built & verified, deploy pending] — [r] rounds, verdict PASS.`
+
+**Resolve the gate itself before any of the above** — this is the decision that shipped the run,
+and without it the trace holds no record of that decision at all: `node
+"${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" gate --resolve L4 --slug <slug>
+[--file <path>|--preset <name>]`. Exit 0 (`decision=ship|hold`) — render the block above and close
+the run: `node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe resume --slug <slug> --close shipped
+--cause "verdict=<verdict> rounds=<r> decision=<ship|hold>"`. Always issue this call — a `gate_h`
+close is the ordinary case where `shapeup-run.js` handed off without closing the run, and the
+GATE H → L4 path (scope-hammer's census, then this gate) is the one this instruction exists for.
+The close itself is a once-only fact IN THE KERNEL (`closeRun`'s own guard reads a `closed_status:`
+line that only `closeRun` ever writes — never the mutable `status:` line every phase rewrites, this
+call included), not a conditional this instruction has to get right: if this run_id was NOT already
+closed, this call performs the close, fresh. If it was already closed `shipped` (or `aborted`) and
+the cause text is byte-identical to what is already on the ledger, this call is a true idempotent
+no-op. If it was already closed with the SAME status but a genuinely different cause — a run closed
+more than once across relaunches, the ordinary shape a `gate_h` hand-off after an earlier abort takes
+— this call SUPERSEDES it: the new cause is written, the prior one is folded into the same
+`close_cause` line rather than lost, and the kernel call itself still exits 0 (only the RunReturn a
+launch's own `withWarnings` wraps carries the resulting `state_warning` — a prose-driven close like
+this one has no RunReturn to attach it to, so read `close_cause` by hand if this branch matters to
+you). If it was already closed with a DIFFERENT status altogether, this call is refused outright —
+cause intact, never silently flipped. Exit 4 (`ask`) — the block above IS that stop; put it to the
+PO and wait, same as always. L4's answer set carries no `abort`.
 
 ---
 

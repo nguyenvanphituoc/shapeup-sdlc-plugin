@@ -25,6 +25,7 @@ import { resolve, join } from "node:path";
 import { validate } from "../verify/envelope.mjs";
 import { runArgs } from "../lib/argv.mjs";
 import { localDir, localRoot, relLocal, globLocal, runSnapshot as runSnapshotPath } from "../lib/paths.mjs";
+import { deriveRounds } from "../probe/rounds.mjs";
 
 /**
  * Read a JSON file, tolerating absence/parse errors.
@@ -126,8 +127,28 @@ export function deriveSnapshot(cwd) {
   if (existsSync(runPath)) {
     try {
       const fm = frontmatter(readFileSync(runPath, "utf8"));
-      if (MID_RUN.has(fm.status) || ["shipped", "escalated"].includes(fm.status)) snapshot.status = fm.status;
-      if (/^\d+$/.test(fm.rounds_used || "")) snapshot.rounds_used = Number(fm.rounds_used);
+      // The terminal allowlist mirrors kernel/probe/resume.mjs's TERMINAL_STATUSES, not just the two
+      // members it used to carry — a schema/allowlist that disagrees with RUN_STATUSES is silent on
+      // both sides here (findRun only ever surfaces a MID_RUN run today, so this whole branch is
+      // unreachable in practice), but is exactly the divergence class this file's own imports exist
+      // to close elsewhere (deriveRounds, above). "aborted" is a real RUN_STATUSES member.
+      if (MID_RUN.has(fm.status) || ["shipped", "escalated", "aborted"].includes(fm.status)) snapshot.status = fm.status;
+      // MIGRATED to the same mechanical derivation `reduce ship` and `report export` already use
+      // (kernel/probe/rounds.mjs), rather than reading `harness-run.md`'s `rounds_used` literally.
+      // That frontmatter line is written ONCE, as 0, by `init run`, and nothing in the round loop
+      // ever rewrites it — so the third mechanical reader of "how many rounds did this run build"
+      // was the one still reporting the pre-fix number. Measured on a two-round, no-EVAL fixture:
+      // this line alone reported `rounds_used: 0` beside its own `round: 2` a few lines below,
+      // the exact disagreement `deriveRounds` exists to close. `fm.rounds_used` still travels in as
+      // the fallback for a run neither this fix nor deriveRounds can see evidence for (a `--tiny`
+      // lane, or a run from before any of these artifacts existed).
+      const derivedRounds = deriveRounds(cwd, run.slug, fm.rounds_used);
+      if (Number.isFinite(Number(derivedRounds.rounds_used))) snapshot.rounds_used = Number(derivedRounds.rounds_used);
+      // Kept as its OWN field, never folded into rounds_used — a round built is not a round judged,
+      // and collapsing the two into one number is exactly the ambiguity this migration removes.
+      // null (no EVAL result on disk yet) is a real answer and is not written at all, the same
+      // optional-field discipline every other snapshot field here follows.
+      if (Number.isFinite(derivedRounds.rounds_judged)) snapshot.rounds_judged = derivedRounds.rounds_judged;
       if (/^\d+$/.test(fm.max_rounds || "")) snapshot.max_rounds = Number(fm.max_rounds);
       if (fm.auto_level) snapshot.auto_level = fm.auto_level;
       if (fm.spec_folder) snapshot.spec_folder = fm.spec_folder;

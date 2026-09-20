@@ -446,7 +446,7 @@ export async function run(ctx) {
     // string", and those scopes were never dispatched. The round reached EVAL six scopes short and
     // the evaluator escalated instead of grading.
     const S = await import("../../kernel/verify/spec.mjs");
-    const dom = JSON.parse(readFileSync(join(process.cwd(), "skills/tech-lead/schemas/domain.schema.json"), "utf8"));
+    const dom = JSON.parse(readFileSync(join(process.cwd(), "kernel/schemas/domain.schema.json"), "utf8"));
 
     const bare = { scope_id: "SC-BARE", affordance_manifest: [{ test_id: "a", role: "text", required_states: "idle", source: "U1" }] };
     const bracketed = { scope_id: "SC-OK", affordance_manifest: [{ test_id: "a", role: "text", required_states: ["idle"], source: "U1" }] };

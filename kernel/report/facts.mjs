@@ -27,6 +27,11 @@
 export const TABLES = [
   "run", "dispatch", "ac_result", "discovery", "file_touched",
   "trial", "t0_verdict", "criterion_verdict", "hook_decision",
+  // The decision that shipped a run (or any other gate) had a ledger row (`gates.jsonl`)
+  // and no table — a reader had to open the LOCAL trace itself, which the export exists so nobody
+  // has to. `build_gate` is the round build gate's own artifact (kernel/verify/build.mjs), on the
+  // same terms: it ends a round exactly as EVAL does, and had no table either.
+  "gate_decision", "build_gate",
 ];
 
 /** Coerce anything to a finite number, or null. Keeps `0` and rejects `NaN`/`""`/undefined. */
@@ -76,9 +81,14 @@ export function parseOrderStem(orderId) {
  * @param {(object|null)} o.receipt - Parsed `receipt.json`.
  * @param {(object|null)} [o.ledger] - Parsed `harness-run.md` frontmatter (a flat scalar map).
  * @param {(string|null)} [o.runId] - The run key, when already resolved.
+ * @param {({rounds_used:*, rounds_judged:(number|null)}|null)} [o.rounds] - The two-number
+ *   derivation (`probe/rounds.mjs`'s `deriveRounds`), computed by the caller because it needs the
+ *   filesystem and this function stays pure. Falls back to the ledger's own (unreliable — see
+ *   `deriveRounds`) `rounds_used` line when the caller has not derived one, so an existing caller
+ *   is unaffected rather than broken.
  * @returns {(object|null)} The run row, or null when there is no receipt to describe.
  */
-export function runRow({ receipt, ledger = null, runId = null }) {
+export function runRow({ receipt, ledger = null, runId = null, rounds = null }) {
   if (!receipt) return null;
   const c = receipt.config || {};
   const fm = ledger || {};
@@ -87,6 +97,9 @@ export function runRow({ receipt, ledger = null, runId = null }) {
     slug: receipt.slug ?? null,
     started_at: receipt.started_at ?? null,
     closed_at: fm.closed_at && fm.closed_at !== "~" ? fm.closed_at : null,
+    // Why the run ended at a terminal status, written by `probe resume --close` alongside
+    // `closed_at` — the two facts a trace needs to tell a live run from a dead one apart.
+    close_cause: fm.close_cause && fm.close_cause !== "~" ? fm.close_cause : null,
     intake_sha256: receipt.intake_sha256 ?? null,
     intake_chars: num(receipt.intake_chars),
     intake_lines: num(receipt.intake_lines),
@@ -101,8 +114,17 @@ export function runRow({ receipt, ledger = null, runId = null }) {
     // Copied from the ledger, never re-derived: the run's own status line is the harness's answer,
     // and a read plane that recomputed it would be asserting a second one.
     status: fm.status ?? null,
+    // The terminal status `closeRun` alone writes, carried BESIDE `status` rather than instead of
+    // it. `status:` is ordinary phase traffic and a later phase may move it, so an export that
+    // carried only that line could show a run wearing another close's cause. These two disagreeing
+    // is itself the fact worth exporting: it says the ledger was written after the close.
+    closed_status: fm.closed_status && fm.closed_status !== "~" ? fm.closed_status : null,
     final_verdict: fm.final_verdict && fm.final_verdict !== "~" ? fm.final_verdict : null,
-    rounds_used: num(Number(fm.rounds_used)),
+    // Two fields, not one: `rounds_used` is the highest round carrying ANY build evidence,
+    // `rounds_judged` the highest round EVAL actually returned a verdict for. A caller that has not
+    // derived `rounds` falls back to the ledger's own (pre-fix, unreliable) line, non-regression.
+    rounds_used: rounds ? num(Number(rounds.rounds_used)) : num(Number(fm.rounds_used)),
+    rounds_judged: rounds ? num(rounds.rounds_judged) : null,
   };
 }
 

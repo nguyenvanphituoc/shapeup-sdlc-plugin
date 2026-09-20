@@ -10,8 +10,8 @@ or writes the run's shared files directly.
 
 ## 3.1 — The envelope port
 
-Every worker dispatch is two JSON documents and three scripts, all living beside the
-orchestrator skill (`kernel/`, schemas in `skills/tech-lead/schemas/`):
+Every worker dispatch is two JSON documents and three scripts, all living inside the
+kernel (`kernel/`, schemas in `kernel/schemas/`):
 
 ```mermaid
 sequenceDiagram
@@ -294,7 +294,7 @@ invariant still living in a prompt, and it failed in both directions:
   sign-off for every gate"). It worked on one model and was re-summarised instead of acted on
   by another. Consent carried in prose is consent that can be paraphrased.
 
-The answer set is a schema-validated file (`schemas/gate-answers.schema.json`) mapping each gate
+The answer set is a schema-validated file (`kernel/schemas/gate-answers.schema.json`) mapping each gate
 id to a decision, with presets `ci` / `guarded` / `interactive`. The orchestrator **resolves**
 each gate through the script and branches on its exit code — `0` cross, `4` stop and put the
 block to the PO, `5` abort — so a crossing is produced by a tool, not by the model's reading of a

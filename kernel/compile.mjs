@@ -58,7 +58,7 @@ export const COACHABLE = new Set([
 ]);
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ORDER_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "./../skills/tech-lead/schemas/work-order.schema.json"), "utf8"));
+const ORDER_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "./schemas/work-order.schema.json"), "utf8"));
 
 // --- tiny frontmatter reader (scalar keys + [a, b] inline lists) --------------------------
 /**
@@ -218,9 +218,15 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
   const FROZEN_INTAKE = [`${local}/intake.md`, `${local}/breadboard.md`];
   switch (operation) {
     case "execute": case "fix": case "spike":
+      // Build legs are the widest window on FROZEN_INTAKE, not an exemption from it: they are the
+      // most numerous and longest-lived dispatches in a run, so a doer that can rewrite the staged
+      // pitch can rewrite the run's own input truth mid-build. `init run` stages these before any
+      // order is live (no live contract yet — nothing to violate) and `translate` writes the
+      // COMMITTED copy, not this one, so neither legitimate write is touched by this line.
       return {
         allowed: [...(scope?.allowed_file_substrate || []), `${local}/spikes/**`],
         shared: scope?.shared_substrate || [],
+        frozen: [...FROZEN_INTAKE],
       };
     case "analyze":
       return { allowed: [`${spec}/**`, `${local}/**`], frozen: [...FROZEN_INTAKE] };
@@ -518,24 +524,30 @@ export function bugLocations(bug) {
  *
  * OWNERSHIP IS BY SUBSTRATE, because that is what the sandbox enforces: a scope is exactly the set
  * of files its worker may write, so a scope whose substrate excludes the cited line cannot fix it
- * however well it understands the bug.
+ * however well it understands the bug. The substrate a scope may write is `allowed ∪ shared` — the
+ * same union `sandbox-guard` composes at the fence — so a path declared ONLY in a contract's
+ * `shared` list is a file that scope may legitimately write, and the election must see it too —
+ * filtering on `allowed` alone elects no one for a shared-only path, and `bugsForScope` then reads
+ * that null as "no scope owns this" and fans the bug out to every scope instead of the one or two
+ * that declared it.
  *
  * BUT A MATCH IS NOT AN ELECTION. An entry point is routinely SHARED — on the measured run
  * `bin/todo.js` sits in five scopes' substrate at once — so "address it to every scope that
  * matches" hands the same one-line fix to five workers building concurrently against one file.
  * That is a write race the harness sets up itself, and four of the five fixes are waste even when
  * it resolves. So: prefer a scope that owns the file EXCLUSIVELY (allowed, not shared), and among
- * equals take the lowest scope id — a rule that needs no coordination to agree with itself, since
- * each leg compiles its own order in its own process.
+ * equals — every remaining candidate declares it shared, exclusive or not — take the lowest scope
+ * id: a rule that needs no coordination to agree with itself, since each leg compiles its own
+ * order in its own process.
  *
  * @param {string} path - Repo-relative file the bug cites.
  * @param {Array<{scope_id:string, allowed:string[], shared:string[]}>} scopes - Every scope.
  * @returns {string|null} The elected scope id, or null when no scope may write that file.
  */
 export function electOwner(path, scopes) {
-  const can = (scopes || []).filter((s) => matchesAny(path, s.allowed));
+  const can = (scopes || []).filter((s) => matchesAny(path, s.allowed) || matchesAny(path, s.shared || []));
   if (!can.length) return null;
-  const exclusive = can.filter((s) => !matchesAny(path, s.shared || []));
+  const exclusive = can.filter((s) => matchesAny(path, s.allowed) && !matchesAny(path, s.shared || []));
   return (exclusive.length ? exclusive : can).map((s) => s.scope_id).sort()[0];
 }
 

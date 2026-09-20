@@ -93,7 +93,7 @@ export async function run(ctx) {
   // hands over `payload.requirements` without this entry is handing over a field the craft is
   // entitled to ignore.
   {
-    const domain = readJSON(join(ROOT, "skills/tech-lead/schemas/domain.schema.json"));
+    const domain = readJSON(join(ROOT, "kernel/schemas/domain.schema.json"));
     const fields = domain["x-payload-by-worker"]?.["ba-pitch-analyzer"] || [];
     if (fields.includes("requirements")) ok("(a) x-payload-by-worker registers `requirements` for ba-pitch-analyzer — the coverage dispatch's payload is a declared input, not an inference");
     else fail("(a) x-payload-by-worker['ba-pitch-analyzer'] does not list `requirements` — the worker's contract entitles it to ignore the field the coverage dispatch hands over");
@@ -199,7 +199,7 @@ export async function run(ctx) {
       let order = null;
       try { order = JSON.parse(readFileSync(orderPath, "utf8")); } catch { /* reported below */ }
       const { validate } = await import(join(ROOT, "kernel/verify/envelope.mjs"));
-      const schema = readJSON(join(ROOT, "skills/tech-lead/schemas/work-order.schema.json"));
+      const schema = readJSON(join(ROOT, "kernel/schemas/work-order.schema.json"));
       const v = order ? validate(order, schema) : { valid: false, errors: [r.stderr || r.stdout] };
       if (r.status === 0 && order?.payload?.requirements === `.shapeup/${SLUG}/intake.md` && v.valid) {
         ok("(d) a compiled coverage order carries payload.requirements and validates against work-order.schema.json");
