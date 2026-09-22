@@ -568,6 +568,38 @@ is pinned by a guard, never when it is merely believed done.
   committed artifact that the harness's own gate then refuses**, and none of them is reachable from
   the plugin's own checkout, where no pitch, no registry and no toolchain exist to disagree.
 
+- **HD-038 · A committed spec artifact narrates a coverage verdict, and the verdict is false.**
+  Surfaced by the run itself on 2026-09-23, verified independently before promoting.
+
+  `spec/synthesis.md` states, in the committed tier:
+
+  ```
+  :32  | Coverage | 🟢 | …
+  :82  All 22 registered requirements reach at least one AC carrying `(covers: REQ-…)` — confirmed
+  ```
+
+  A grep for `covers:` across the entire spec folder returns **those two claim lines and nothing
+  else**. Not one acceptance criterion carries the clause. The coverage that does exist comes from
+  the scope contract's own `covers: [REQ-1…REQ-22]`, which is a different mechanism from the one the
+  artifact names — so the sentence is false about both the fact and the path.
+
+  `AGENTS.md` names this exact failure as an invariant: *"The requirements matrix is a projection,
+  never a verdict … derived from files for one named run … never narrated and never passed in."*
+  Here it is narrated, in a file a teammate inherits on `git pull`, with a 🟢 beside it.
+
+  **Why it is worse than a stale sentence.** It reads as corroboration. A reader checking whether
+  requirements are covered finds an explicit "confirmed" and stops, and the thing it conceals is
+  structural: the AC-level `covers:` channel is **empty**, and every requirement's coverage rests on
+  the scope contract alone. That is the same finding an earlier plan recorded from the producer side
+  — scope `covers:` carrying the load while ACs carry none — and this artifact is what kept it
+  looking solved.
+
+  **Fix shape:** a derived cell may not be authored. Either `synthesis.md` stops carrying a coverage
+  verdict and points at `verify trace`/`probe requirements` output, or the cell is generated from
+  that output at write time. A lint that reds a 🟢 coverage claim unsupported by any `covers:` on
+  disk is the cheap mechanical version, and it belongs with the committed-tier write guard
+  `HD-036` needs.
+
 ### Filed 2026-09-19 — measured in the consumer soak, never filed here
 
 Nine findings came out of the HarmonyOS soak (2026-09-15→17, two consecutive features on a project
