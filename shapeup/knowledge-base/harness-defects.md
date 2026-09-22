@@ -531,6 +531,43 @@ is pinned by a guard, never when it is merely believed done.
 
   Cost per occurrence, measured: roughly 12 minutes and a full L0 pass, twice, before BUILD.
 
+- **HD-037 · `coverage` registers the pitch's NO-GOS as requirements, marked `covered`, and L1b
+  reds every one of them.** Measured 2026-09-23 on the rc.2 soak, third abort of the same run.
+
+  The committed registry held `REQ-1`…`REQ-22`. This run's `coverage` dispatch appended seven more,
+  every one lifted from the pitch's **No-gos** section, every one with status `covered`:
+
+  ```
+  + | REQ-24 | "No persistence. The in-memory repository is the repository" | intake.md § No-gos | covered |
+  + | REQ-25 | "No sort, no filter-by-done, no sections. Insertion order is the order" | … | covered |
+  + | REQ-27 | "No debounce or async search. …" | … | covered |
+  ```
+
+  L1b then refused the run with seven `REQ-UNCOVERED` findings — *"graded by no acceptance criterion
+  and claimed by no scope"* — which is exactly right and unavoidable: **a no-go is a constraint, not
+  a deliverable.** Nothing can grade "do not build a settings screen", so marking it `covered`
+  asserts something that cannot be true, and the gate is correct to red it.
+
+  The registry's own header names the vocabulary that should have been used: *"a removed clause is
+  marked `CUT (PO-approved)`, never renumbered or deleted."* A no-go belongs in that family — a
+  clause deliberately not built — not in the covered family.
+
+  **There is a second defect in the same diff.** `AGENTS.md` says a registry already on disk is not
+  re-dispatched, and that ids are *"assigned once and frozen"*. This registry was committed and
+  complete at 22 rows; a later run extended it mid-flight, which moves the run's own measuring stick
+  after planning was fast-forwarded past the phase that owns it. Whatever is decided about no-gos,
+  appending to a frozen registry is its own bug.
+
+  **Fix shape:** `coverage` must not extract the No-gos section as coverable clauses. Either skip
+  that section, or register its clauses with a status the coverage lint exempts — the `CUT` family
+  already exists and already means "deliberately not built". And the registry-on-disk check needs to
+  cover extension, not only regeneration.
+
+  Third distinct producer/artifact defect this soak surfaced, after `HD-034` (fixture shape) and
+  `HD-036` (committed file citing the local tier). All three share a shape: **a worker writing a
+  committed artifact that the harness's own gate then refuses**, and none of them is reachable from
+  the plugin's own checkout, where no pitch, no registry and no toolchain exist to disagree.
+
 ### Filed 2026-09-19 — measured in the consumer soak, never filed here
 
 Nine findings came out of the HarmonyOS soak (2026-09-15→17, two consecutive features on a project
