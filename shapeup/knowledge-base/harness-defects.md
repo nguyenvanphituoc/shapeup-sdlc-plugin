@@ -12,6 +12,7 @@ is pinned by a guard, never when it is merely believed done.
 
 | id | defect | tier |
 |---|---|---|
+| HD-026 | a `gate_h` exit leaves no terminal close — the close-out covers two of four returns | P1 |
 | HD-013 | the WorkOrder names no result path | P3 |
 | HD-014 | an escalated close keeps fencing (doc half shipped; code half open) | P0 |
 | HD-021 | a per-scope "it compiles" fixture proves nothing | P3 |
@@ -21,6 +22,31 @@ is pinned by a guard, never when it is merely believed done.
 | HD-025 | two run geometries this checkout cannot reach | process |
 
 ## Defects
+
+- **HD-026 · A run that ends at GATE H leaves no terminal close, because the close-out covers two of
+  the four returns.** `closeIfTerminal` (`skills/tech-lead/workflows/shapeup-run.js:988`) opens with
+  `if (ret.status !== "aborted" && ret.status !== "shipped") return;`, but the RunReturn union has
+  four arms: `shipped`, `paused`, `aborted` and **`gate_h`** (the script's own header documents all
+  four). `paused` is correctly not terminal — it resumes. `gate_h` is: it is where a tripped
+  circuit breaker lands, and `AGENTS.md` makes it the *designed* outcome for a run that cannot pass
+  — *"Budget trips route to GATE H — ship what's green, never kill the run from outside."* So the
+  most likely non-passing ending is the one arm that records nothing.
+
+  Measured 2026-09-22 in a consumer project installed from the marketplace, plugin 3.6.0: a run
+  crossed GATE H and L4, both gates left rows in `gates.jsonl`, `REPORT.md` was written and frozen
+  — and the ledger still read `status: building`, `closed_at: ~`, `close_cause: ~`,
+  `closed_status: ~`. The same run's earlier launch aborted at L1b and closed correctly, which is
+  what makes the gap precise rather than general: the abort path works, the breaker path does not.
+
+  **How it survived its own acceptance.** The fix's acceptance pass drove a forced abort and a
+  direct `probe resume --close shipped`, and confirmed both. Neither exercised the `gate_h` return,
+  because reaching it needs a build that fails a whole round — which is exactly what a real
+  consumer produces and a fixture does not. The propositions tested the two arms someone thought to
+  name.
+
+  **Closed when:** A run that ends at `gate_h` leaves a terminal status, a cause and a timestamp,
+  and a check asserts the close-out's arms against the RunReturn union rather than against a
+  hand-written pair — the same derivation rule the run-argument surface already follows.
 
 - **HD-013** — The WorkOrder carries no field naming where the WorkResult goes, so each worker derives the path
   from prose while its own `substrate.allowed` names a directory that does not contain it. The
