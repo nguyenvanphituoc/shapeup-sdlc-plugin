@@ -690,6 +690,42 @@ appeared immediately — state carried between runs hides defects as readily as 
 
 Stage 2's export fired again on this aborted close, which is now four endings across three runs.
 
+**Then the orchestrator repaired its own file and carried on.** It rewrote the offending section to
+carry the evidence inline — `verify spec` back to `red: 0` — relaunched, and reached BUILD. Worth
+recording as the correct behaviour it is; the ledger it left behind (`status: building` alongside
+`closed_status: aborted`) is `HD-029`'s mechanism showing up in its commonest form, a recoverable
+abort made permanent by the close `HD-026` added.
+
+**What this run settled, and it is the thing the soak existed to settle.** With the toolchain grant
+active, BUILD dispatched, and the first trial graded, the verdict artifact recorded:
+
+```
+cmd : out=$( ( cd app && … hvigorw assembleHap … ) 2>&1 ); rc=$?; …
+exit: 1   pass: false   — no build output captured   digest: 0 rows
+```
+
+The fixtures were **refused, not run** — again, with the grant in place. The grant works (a plain
+env-prefixed invocation and `cd app && … hvigorw <target>` both execute in a headless session); the
+shape the scope contract uses does not, because a subshell and a command substitution are rejected
+before any permission is consulted. `HD-034` now carries that as measured fact rather than
+inference: **the blocker is the fixture format, not the permission.**
+
+**Two further things this run named, neither of them the harness's fault:**
+
+- The fast-forward behaved exactly as asked — `ff:analyze`, `ff:wire`, `ff:map-scopes` skipped,
+  ORIENT re-run because its artifacts were in the tier that was deleted, preceded by the live
+  canary dispatch that proves the worker skills resolve.
+- A baseline project defect (`configEntry: ""`) reds every hvigor target and **sits outside every
+  scope's substrate** while `build_probe` is declared anyway. So even with runnable fixtures this
+  round's build gate would red on something no scope can reach — which routes to GATE H with a
+  census that can say "no scope owns this", which is the harness working, not failing.
+
+**A soak-method lesson worth more than one run.** `claude -p` terminated the launch's background
+task at **600 s** ("Background tasks still running after 600s; terminating"), orphaning the run
+mid-BUILD with an unanswered order and a live fence. Any unattended soak longer than ten minutes
+needs `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0`, or it is measuring the launcher's patience rather
+than the harness.
+
 **Seven soaks have now stopped before the judge, and the reason has changed every time** — a missing
 toolchain, a naming rule, a stale script, a lint collision, a cross-run streak, a fixture
 the sandbox refused, and the orchestrator's own profile failing the orchestrator's own gate. Each fix moved the run further, and this one is the shallowest yet: unblocking
