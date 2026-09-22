@@ -607,6 +607,47 @@ Targets, and the rule they are read under: **P1** the run reaches EVAL, **P2** i
 P3's census, P4's close-out and Stage 2's export. *A soak that stops early is reported as not having
 exercised the thing it exists to exercise, never as a run with findings.*
 
+#### Launch 6 — the first valid soak of the candidate, and what it did and did not prove
+
+`run find-my-todos-20260922T150616Z-a61b921c`, plugin **3.7.1-rc.2** confirmed from the run's own
+freshly minted receipt (`plugin.version`), marketplace install, `.shapeup/` not cleaned.
+
+**Proved live, on rc.2:**
+
+| | evidence |
+|---|---|
+| `HD-032` | the run **dispatched a worker** — launch 4 dispatched none because it inherited an earlier run's stagnation streak. One receipt and one leg, both carrying *this* run's key, and the stagnation breaker fired on this run's **own** two trials |
+| `HD-026` | `closed_status: escalated`, `close_cause: breaker=inner green_scopes=0 hammer_proposals=1` |
+| durability | `.shapeup/exports/…150616Z-a61b921c/` written on a non-shipping ending, run row carrying `closed_status` and `close_cause` |
+
+**Not exercised, and not claimed:** `HD-030`. This run escalated at GATE H without regenerating the
+ship report — `REPORT.md` still carries the retrofit wording and its pre-run mtime — so the fix
+remains fixture-verified only. Launch 4 *did* regenerate it and re-bricked the slug, which is how
+the defect was found; nothing since has re-run that path with the fix present.
+
+**P1 and P2 still not reached — sixth attempt — and this time it is not a harness defect.** The run
+built, graded its own tree twice, and both trials came back `reverted` at **0/2 fixtures**:
+
+```
+15:09:46  trial4  a1  reverted  0/2
+15:11:52  trial5  a1  reverted  0/2
+```
+
+Two consecutive non-kept trials meet `no_progress_k: 2`, so the stagnation term ended the scope; the
+pitch is a single `CHOWDER` scope, so ending it ended the run with `rounds_used: 1` and GATE H
+queued. **The feature does not compile its fixtures, and until it does, EVAL is unreachable by
+construction** — the judge grades a tree that has to exist first.
+
+Worth stating because it changes what the remaining budget means: the stagnation term dominates the
+other two. `attempt_budget: 5` and `max_rounds: 3` were never approached, and cannot be while two
+bad trials close a single-scope pitch. That is the configuration behaving as designed, not a defect,
+but it is the reason a soak of this pitch stops in minutes rather than hours.
+
+**Six soaks have now stopped before the judge, and the reason has changed every time** — a missing
+toolchain, a naming rule, a stale script, a lint collision, a cross-run streak, and now the
+feature's own fixtures. Each fix moved the run further. The remaining blocker is the consumer's
+code, not the harness.
+
 ### A defect in the acceptance instrument, found by smoke-testing it
 
 Recorded here because §2 rule 6 says an acceptance that cannot fail did not happen, and this was one.
