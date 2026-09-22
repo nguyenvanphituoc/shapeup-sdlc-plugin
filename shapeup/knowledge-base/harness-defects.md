@@ -214,6 +214,20 @@ is pinned by a guard, never when it is merely believed done.
   they differ, naming both versions — a warning, never a block, since a run in flight keeping its
   copy is the correct behaviour. A soak of an upgrade must open a new run.
 
+  **A second, worse face of the same problem, measured 2026-09-22.** Opening a new run is necessary
+  and not sufficient. After `claude plugin update` reported `3.7.0 → 3.7.1-rc.1` ("Restart to apply
+  changes"), a freshly opened run still recorded
+  `pluginRoot: …/shapeup-sdlc-plugin/3.7.0` in its own `run-args.json`, and behaved as 3.7.0
+  throughout — `reduce ship` rewrote the committed report with the board ids the candidate exists to
+  remove. The installed-plugins record said `3.7.1-rc.1`; the run resolved the previous version
+  anyway.
+
+  The lesson for anyone soaking a candidate: **the only trustworthy version check is the run's own
+  `run-args.json` `pluginRoot`, read after the run opens.** A marker grepped out of the staged
+  script is not enough — a marker that distinguishes 3.6.0 from 3.7.x says nothing about 3.7.0 vs
+  3.7.1, and using one to clear the other is a probe answering a different question than the one
+  asked.
+
 - **HD-032 · The attested-attempt census counts a PREVIOUS run's work as this run's.** Found by the
   consumer soak on 2026-09-22, in the fix for `HD-028` itself, one release after it shipped.
 
@@ -246,11 +260,36 @@ is pinned by a guard, never when it is merely believed done.
   The compile guard inherits it: it asks the same question before opening attempt N, so a stale
   attestation for attempt N−1 lets it through — the exact interleaving the guard exists to refuse.
 
-  **Fix:** filter every attested channel by the run's own `run_id` (receipts and legs both carry
-  it), and treat a row with no `run_id` as belonging to no run rather than to this one. A
+  **THREE readers, not one — and the third is what actually stopped the run.** The same soak showed
+  the stagnation breaker doing it too, and that one is load-bearing: it fired during *compile*,
+  before any attempt was dispatched, with `streak=2, no_progress_k=2`. Verified against
+  `t0/trials.jsonl` rather than the run's narration — it holds **3 rows, from two earlier runs**
+  (`…b80de580`, `…9036e2b6`) and **none from the run that tripped**:
+
+  ```
+  2026-09-21T15:05:37Z run=b80de580  r1-a1  0/2 fixtures
+  2026-09-22T02:16:23Z run=9036e2b6  r1-a1  0/2 fixtures
+  2026-09-22T02:22:50Z run=9036e2b6  r1-a2  0/2 fixtures   ← HD-028's invalid trial
+  ```
+
+  Every row carries a `run_id`; the reader ignores it. So two gradings of a half-written tree, one
+  of them already documented as invalid, read as a stagnation streak that **every future run of
+  this scope trips on** — and the tree they graded was fixed seven hours before the run that
+  escalated on them. The breaker escalated on evidence that predates its own fix.
+
+  So the affected readers are: the attempt census, the compile guard that consults it, and the
+  stagnation breaker. All three treat per-slug append-only ledgers as if they were per-run.
+
+  **Fix:** filter every attested channel by the run's own `run_id` — receipts, legs and trials all
+  carry it — and treat a row with no `run_id` as belonging to no run rather than to this one. A
   `WorkResult` carries none and reaches it through `order_id`, so the result channel needs the join
   rather than a field read. Add a fixture with two runs' rows in one ledger — the case no
-  single-run fixture can hold, which is what let this ship.
+  single-run fixture can hold, which is exactly what let this ship.
+
+  **Note what this does NOT license.** Clearing the history to unstick a run discards append-only
+  T0 evidence in response to a breaker saying stop, and `init run --force` resets the breaker as a
+  side effect of merely lifting the fence. The run that hit this refused to pull that lever and
+  said so. Scoping the read to the run is the fix; deleting the evidence is not.
 
 ### Filed 2026-09-19 — measured in the consumer soak, never filed here
 
