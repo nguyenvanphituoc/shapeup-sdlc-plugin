@@ -327,7 +327,7 @@ suite nobody has run is an assumption rather than a baseline.
 | **S1** | `HD-026` — derive the close-out from the union | 8 rows, incl. a mutation that adds an unmapped arm | ✅ **verified 8/8** at `39ff7a7` |
 | **S2** | durability — export on every ending | 7 rows, incl. the driver's own falsifier | ✅ **verified 7/7** at `50919e1` |
 | **S3** | `HD-2` — count attested work, not writable artifacts | 8 rows, incl. one that drives the pipeline | ✅ **verified 8/8** at `a1e58ae` |
-| **S4** | the soak | — | ⛔ out of scope this run (PO) |
+| **S4** | the soak | P1 EVAL · P2 QA · P3 census · P4 close-out · export | 🔵 **launch 3 running** on 3.7.0 |
 
 #### S0 — verified ✅
 
@@ -517,6 +517,40 @@ questions of this shape, and the acceptance agent may not resolve them.
 **Filed as `HD-029`**, with the driven transcript and the three candidate resolutions, to be decided
 once alongside `HD-014`'s fence question rather than rediscovered by the next run that trips a
 breaker and then ships. No code was changed for it.
+
+#### `HD-028` validated on the defect's own data, before the soak launched
+
+The strongest evidence this release produced, and it is not a fixture. The consumer still carries
+launch 2's trace, and the defect's artifact is sitting in it: `orders/` holds
+`find-my-todos-screen-r1-a2.json` with **no matching result** — the attempt that was compiled,
+graded, counted, and never dispatched.
+
+Running the release's own new census over that untouched trace:
+
+| attempt | receipt | leg | result | state |
+|---|---|---|---|---|
+| `r1-a1` | ✓ | ✓ | ✓ | **spent** |
+| `r1-a2` | ✗ | ✗ | ✗ | **unattested** |
+| `r1-a3…a5` | ✗ | ✗ | ✗ | unattested |
+
+`spent: 1`, `tripped: false`.
+
+Launch 2, on 3.6.0, read that same directory as **4 of 5 attempts spent** and tripped its inner
+breaker to GATE H with roughly 2.4 of 3 hours unspent. 3.7.0 reads it as **one** attempt spent and
+does not trip. Same bytes on disk, same question, opposite answer — and the new answer is the one
+the attested channels support.
+
+#### Launch 3 — the soak, resumed rather than restarted
+
+Plugin updated in the persistent consumer **from the marketplace** (3.6.0 → 3.7.0), not
+`--plugin-dir`, and `.shapeup/` deliberately not cleaned. The run resumes at `next_phase: build`
+with every planning artifact already committed, so it re-enters exactly where launch 2 died and
+nothing before BUILD is re-dispatched. Same flags, same pitch, same budgets: the only variable is
+the plugin version.
+
+Targets, and the rule they are read under: **P1** the run reaches EVAL, **P2** it reaches QA, plus
+P3's census, P4's close-out and Stage 2's export. *A soak that stops early is reported as not having
+exercised the thing it exists to exercise, never as a run with findings.*
 
 ### A defect in the acceptance instrument, found by smoke-testing it
 
