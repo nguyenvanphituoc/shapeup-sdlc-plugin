@@ -323,11 +323,34 @@ suite nobody has run is an assumption rather than a baseline.
 
 | stage | goal | acceptance | state |
 |---|---|---|---|
-| **S0** | `HD-1` — the producer/lint collision; promote `HD-1`/`HD-2` | 7 rows, 2 of them inline anti-gaming guards | 🔵 in execution |
-| **S1** | `HD-026` — derive the close-out from the union | 7 rows, incl. a mutation that adds an unmapped arm | ⚪ queued |
+| **S0** | `HD-1` — the producer/lint collision; promote `HD-1`/`HD-2` | 7 rows, 2 of them inline anti-gaming guards | ✅ **verified 7/7** at `52fedc2` |
+| **S1** | `HD-026` — derive the close-out from the union | 7 rows, incl. a mutation that adds an unmapped arm | 🔵 in execution |
 | **S2** | durability — export on every ending | 6 rows, incl. the driver's own falsifier | ⚪ queued |
 | **S3** | `HD-2` — count attested work, not writable artifacts | 7 rows, incl. "a real exhaustion still trips" | ⚪ queued |
 | **S4** | the soak | — | ⛔ out of scope this run (PO) |
+
+#### S0 — verified ✅
+
+Commit `52fedc2`, *fix(ba-pitch-analyzer): teach the bare-path form TIER-DIRECTION already reds*.
+Acceptance re-run by the operator in a clone that had never seen the working tree: **7 of 7 green**,
+suite **1847 checks** (1843 + 4).
+
+What actually turned out to be wrong is narrower than the stage brief assumed, and the difference is
+worth keeping. The lint was never the defect: `lintCommittedTier` already scanned the **whole**
+committed tree for any `.shapeup/` reference, not just `requirements.md`, so the plan's third
+proposition — *no other committed artifact any worker writes cites a `.shapeup/` path* — was already
+structurally guaranteed rather than newly established. The gap was entirely in what the docs taught:
+the Tier-direction rule was stated purely in wikilink terms, so a worker following the documentation
+had no way to learn that a **bare path in a prose sentence** reds too. The fix extends that section
+to the non-wikilink case and points `coverage` at the committed pitch.
+
+- `HD-1` → **`HD-027`**, `HD-2` → **`HD-028`**, promoted into `shapeup/knowledge-base/harness-defects.md`
+  with the consumer's evidence tables intact. That file ships nowhere — `npm pack` carries 0 entries
+  under `shapeup/` — so the internal ids are correctly placed.
+- Both anti-gaming guards still green: `TIER-DIRECTION` still reds a real `.shapeup/` path, and the
+  compliant-provenance row still passes. The stage did not buy its green by weakening the lint.
+- The falsifier runs in both directions — the parity fixture passes on the fixed doc and goes red
+  when the doc is restored to its pre-fix wording.
 
 Every Exit was executed at `96f760c` before the run opened, and **every stage is red today**, as §4
 requires. The two rows that are *green* today are guards, not progress: TIER-DIRECTION still reds a
@@ -348,6 +371,33 @@ prose. Both were read out of `domain.schema.json` before Stage 1 was briefed.
    the plan never names and the workflow never constructs. An arm nobody thought to name, found in
    the plan written to close exactly that class of defect. It is now an explicit non-terminal row in
    the map rather than an omission, and Stage 1's acceptance reads `ALL 5 ARMS MAPPED`.
+
+### A defect in the acceptance instrument, found by smoke-testing it
+
+Recorded here because §2 rule 6 says an acceptance that cannot fail did not happen, and this was one.
+
+Four rows in the compiled contract had a pass condition of the form *"this command fails"* —
+S0's doc falsifier, S1's sixth-arm mutation, S2's disabled-export falsifier, S3's revert check. Every
+one of them scored **green** while the fixture it named did not exist yet: `node <missing-file>`
+exits non-zero, `!` inverts that to success, and the row passed having measured nothing. It is the
+same shape as rule 3's four near-misses — a probe answering a different question than the one asked
+— and the fifth instance in this work, the first inside the instrument rather than the subject.
+
+All four now assert **both directions in one command**: the check must be shown to pass in its
+normal mode before it is allowed to fail in its mutated one, so a missing fixture fails at the first
+call. S1's variant leads with a green suite, so the mutation cannot score over an already-broken one.
+
+Two things are worth noting about how it surfaced. First, it was found by running the verification
+harness against the *unfinished* tree on purpose — a harness that passes before the work is done is
+worthless, so it was run precisely to watch it fail. Second, the run's own verifier reached the same
+verdict independently, minutes later, against the un-hardened contract and with no knowledge of the
+operator's pass: *"SPURIOUS PASS, downgraded to FAIL: exit 0 came from `!` negating node's own
+'Cannot find module' error … not from a driven falsifier check."*
+
+That same verifier supplied the measurement that justifies Stage 1, by reproducing `HD-026`'s defect
+class on demand: **a sixth unmapped arm injected into the schema leaves all 1843 checks green.** The
+schema gains an arm nobody mapped and nothing goes red. That sentence is the falsifier Stage 1 has
+to overturn.
 
 ### Operator decisions taken before execution
 
