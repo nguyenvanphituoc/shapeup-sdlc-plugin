@@ -326,7 +326,7 @@ suite nobody has run is an assumption rather than a baseline.
 | **S0** | `HD-1` — the producer/lint collision; promote `HD-1`/`HD-2` | 7 rows, 2 of them inline anti-gaming guards | ✅ **verified 7/7** at `52fedc2` |
 | **S1** | `HD-026` — derive the close-out from the union | 8 rows, incl. a mutation that adds an unmapped arm | ✅ **verified 8/8** at `39ff7a7` |
 | **S2** | durability — export on every ending | 7 rows, incl. the driver's own falsifier | ✅ **verified 7/7** at `50919e1` |
-| **S3** | `HD-2` — count attested work, not writable artifacts | 7 rows, incl. "a real exhaustion still trips" | 🔵 in execution |
+| **S3** | `HD-2` — count attested work, not writable artifacts | 7 rows, incl. "a real exhaustion still trips" | ⚠️ **half done** at `449c249` — acceptance 7/7, defect **not fixed** |
 | **S4** | the soak | — | ⛔ out of scope this run (PO) |
 
 #### S0 — verified ✅
@@ -439,6 +439,63 @@ of its own — so the claim is tested, not merely intended.
 That is the whole gap closed: against the question *must facts survive the run?*, the harness used to
 answer yes for a run that ships and no for one that does not. The runs whose records are worth most
 are the ones that never reach the exporter, and those now leave fact tables.
+
+#### S3 — acceptance green, defect not fixed ⚠️
+
+Commit `449c249`. **All 7 acceptance rows pass** in a clean clone; suite **1882 checks**. And `HD-2`
+is **not closed**. Both of those sentences are true, which is the finding.
+
+What landed is correct and worth keeping. `kernel/probe/attempts.mjs` classifies every attempt slot
+`unattested` / `in-flight` / `spent` — spent only when a dispatch receipt attests it **and** either a
+leg row or a WorkResult does — and trips only when every slot within budget is genuinely spent with
+none green, so an attempt still in flight holds the breaker open. That is exactly the derivation the
+stage asked for.
+
+**Nothing calls it.** `kernel/compile.mjs` is untouched, so nothing refuses to compile `-aN` while
+`-a(N-1)` is unanswered. `shapeup-run.js`'s inner breaker is untouched, still
+`roundGreen.length === 0 && roundHammer.length > 0`, consulting no attested channel at all.
+`scope-hammer`'s census cites the new probe in **prose**, in a `SKILL.md`. So the run that measured
+`HD-2` would measure it identically today: the loop would still open attempt 2 against a scope whose
+first had not returned, and still count it.
+
+The stage's executor was lost to a network failure (`ENOTFOUND`) partway through, which is *why* the
+second half is missing — but not why nothing noticed.
+
+**Why the acceptance did not catch it, which is the part worth keeping.** Every row drives
+`scopeAttempts` directly. Not one drives the *loop*. So the rows measure the derivation's
+correctness and are blind to whether anything consults it — a correct function with no call site
+passes all seven. That is **rule 7 again, one level up**: the rule says a guard asserting a call must
+also assert its effect, and here the guard asserts an *effect* while never asserting the call. The
+plan's own Exit line has the same shape: *"the first and third propositions together"* names two
+properties of the derivation and nothing about integration, while the Executor brief above it says
+*"then stop the loop opening an attempt while the previous one is unanswered."* The Exit does not
+cover its own brief.
+
+Third instance of §2's boundary in this run, and the first one inside the contract compiled to
+guard against it: **a proposition can only test a state someone thought to name.** Scoring this
+stage green on 7/7 would have been the exact failure the plan was written to prevent, reproduced by
+the plan's own machinery.
+
+#### Discovered by S1, verified separately: a documented flow now refuses
+
+Not a stage, not in any acceptance row, and surfaced by the S1 executor rather than by a check.
+`skills/tech-lead/references/gates.md:562` has GATE L4 call `probe resume --close shipped`
+unconditionally after a GATE H → L4 ship decision. Since S1, `gate_h` closes the ledger as
+`escalated` immediately, and `closeRun` refuses a *different* terminal status over an existing close.
+Driven end to end rather than reasoned about:
+
+```
+1) gate_h close                → ok=true  status=escalated
+2) then --close shipped        → ok=false
+   closeRun: this run is already closed as "escalated" … refusing to overwrite it with "shipped".
+3) ledger now says closed_status=escalated
+```
+
+So a run that trips a breaker, goes to GATE H, and is then shipped at L4 records `escalated` and has
+its ship close refused. The once-only close invariant is behaving exactly as designed; what is new
+is that `gate_h` now takes that slot first. Whether a later ship should supersede an `escalated`
+close, or L4 should stop closing a run that is already closed, is a **PO call** — the plan reserves
+questions of this shape, and the acceptance agent may not resolve them.
 
 ### A defect in the acceptance instrument, found by smoke-testing it
 
