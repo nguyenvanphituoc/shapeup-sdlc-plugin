@@ -267,6 +267,13 @@ const MODULE_FILES = [
   // which the Ship phase's own pre-existing export call already covers; a blocked export degrades
   // the close's return with export_warning rather than failing the close itself.
   "72-export-on-close.mjs",
+  // 73-attested-attempts.mjs: HD-2, defect-plan-3.7 Stage 3 — a scope's spent-attempt count is
+  // derived only from attested channels (a dispatch receipt plus a leg-completion row or a
+  // WorkResult), never from the order set or the T0 verdict set alone; a receipted attempt with
+  // neither a leg nor a result is IN-FLIGHT and holds the breaker open, and scope-hammer's GATE H0
+  // census now cites the same probe the round loop would, so the two readers cannot disagree about
+  // the same exhaustion again.
+  "73-attested-attempts.mjs",
   "08-docs.mjs",
 ];
 
