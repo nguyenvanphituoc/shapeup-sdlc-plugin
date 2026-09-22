@@ -371,6 +371,52 @@ is pinned by a guard, never when it is merely believed done.
   back-dated before the run's start — the `run_id`-based two-run fixture cannot express this one,
   because the channel that carries the defect has no `run_id` to differ on.
 
+- **HD-034 · A fixture the sandbox refuses to run is recorded as a fixture that failed.** Promoted
+  from the consumer's own register (filed there as `HD-4`, 2026-09-22) by the run that hit it.
+
+  A T0 fixture that shells out to a command the session's permission grant does not cover is
+  **denied, not executed**. The harness records that identically to a fixture that ran and failed:
+  a non-zero exit and a `0/N` score. Measured on the rc.2 soak, and the trial ledger is what
+  separates the two cases:
+
+  ```
+  2026-09-21  trial1  digest_len=8   ← a real failure: diagnostics into the project's enforce rules
+  2026-09-22  trial4  digest_len=0   ← empty
+  2026-09-22  trial5  digest_len=0   ← empty
+  ```
+
+  A compile that fails produces diagnostics; an empty digest is what a command that never ran leaves
+  behind. The executor confirmed it directly — the toolchain binary returned *"This command requires
+  approval"*. Every downstream number was then correct arithmetic over an input that meant something
+  other than what it said: `0/2` propagated into the hill phase, the frozen report and GATE H's
+  census as a measured verdict on the tree, and two such trials met `no_progress_k`, ending a
+  single-scope pitch's run.
+
+  This is rule 3 of the acceptance contract as a **product** defect rather than an authoring habit:
+  *"I cannot verify this here" and "this is wrong" are different findings*, and the T0 layer
+  currently cannot say the first. It misreports any denied probe on any project, and it is
+  structurally invisible from this checkout, where everything the fixtures reach is already
+  permitted.
+
+  **Fix shape:** distinguish a denial from a failure at the point the fixture runs — a refused
+  command is not evidence about the tree — and surface it as a preflight at L0, where a fixture
+  naming a binary the grant does not cover can be reported before a run spends anything on it.
+  Until then the operator-visible workaround is a grant rule covering the toolchain, which is a
+  permission decision and therefore the PO's, never the harness's to take for them.
+
+- **HD-035 · `reduce ship` does not retire the run pointer on a no-verdict close.** Promoted from
+  the consumer's register (filed there as `HD-5`, 2026-09-22).
+
+  `AGENTS.md` states that retiring the pointer "is the one lever every close needs pulled, and
+  `reduce ship` pulls it for you". Measured on a run that closed `escalated` with no verdict: the
+  ship report was frozen and `.shapeup/active-scope` was **still on disk** afterwards, so the next
+  `init run` on that slug exits 3 and needs `--force` — which the register already notes is not a
+  clean reset, because it also resets the stagnation breaker as a side effect of lifting the fence.
+
+  The documented behaviour and the observed behaviour disagree, and the doc is the one making the
+  stronger claim. Either `reduce ship` retires the pointer on every close it writes a report for,
+  or `AGENTS.md` stops promising it does; deciding which is a design call, not a doc fix.
+
 ### Filed 2026-09-19 — measured in the consumer soak, never filed here
 
 Nine findings came out of the HarmonyOS soak (2026-09-15→17, two consecutive features on a project

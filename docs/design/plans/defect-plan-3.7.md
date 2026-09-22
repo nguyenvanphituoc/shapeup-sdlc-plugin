@@ -620,23 +620,39 @@ freshly minted receipt (`plugin.version`), marketplace install, `.shapeup/` not 
 | `HD-026` | `closed_status: escalated`, `close_cause: breaker=inner green_scopes=0 hammer_proposals=1` |
 | durability | `.shapeup/exports/…150616Z-a61b921c/` written on a non-shipping ending, run row carrying `closed_status` and `close_cause` |
 
-**Not exercised, and not claimed:** `HD-030`. This run escalated at GATE H without regenerating the
-ship report — `REPORT.md` still carries the retrofit wording and its pre-run mtime — so the fix
-remains fixture-verified only. Launch 4 *did* regenerate it and re-bricked the slug, which is how
-the defect was found; nothing since has re-run that path with the fix present.
+**`HD-030`, live — and the first reading of it here was wrong.** This entry originally said the fix
+was not exercised, because `REPORT.md` still showed its pre-run mtime when I looked. I looked while
+the session was still running: the ship report is frozen *after* the close, and the file was
+rewritten at `22:23`, minutes later. It came back **0 board ids** and in the producer's new form —
+`> **4 task(s) did not finish** — use cases: UC-SearchTodos, UC-ViewTodoList, UC-ToggleTodo.` —
+where launch 4 on 3.7.0 regenerated the same file with 23 of them and re-bricked the slug. Same
+path, same command, opposite outcome: the fix holds in a live run, and shipping this pitch no longer
+makes its successor un-plannable.
 
-**P1 and P2 still not reached — sixth attempt — and this time it is not a harness defect.** The run
-built, graded its own tree twice, and both trials came back `reverted` at **0/2 fixtures**:
+Sampling a process that has not finished and reporting the sample as the result is the same error
+shape as every other instrument miss recorded here; it simply pointed the other way this time.
+
+**P1 and P2 still not reached — sixth attempt — and the reason is not what the scores say.** Both
+trials came back `reverted` at `0/2 fixtures`, which reads as "the feature does not compile". It is
+not what happened, and the trial ledger says so:
 
 ```
-15:09:46  trial4  a1  reverted  0/2
-15:11:52  trial5  a1  reverted  0/2
+2026-09-21  trial1  digest_len=8   ← a real failure, diagnostics pointing into the enforce rules
+2026-09-22  trial4  digest_len=0   ← empty
+2026-09-22  trial5  digest_len=0   ← empty
 ```
 
-Two consecutive non-kept trials meet `no_progress_k: 2`, so the stagnation term ended the scope; the
-pitch is a single `CHOWDER` scope, so ending it ended the run with `rounds_used: 1` and GATE H
-queued. **The feature does not compile its fixtures, and until it does, EVAL is unreachable by
-construction** — the judge grades a tree that has to exist first.
+A compile that fails produces diagnostics. An empty digest is what a command that never ran leaves
+behind. The scope's T0 fixtures shell out to DevEco's `hvigorw`, this session's grant covers the
+harness entry points and the Workflow tool and nothing else, and the executor tested it directly:
+`hvigorw --version` came back **"This command requires approval"**. The fixtures were **refused,
+not run** — and the harness records a refusal exactly as it records a failure, so `0/2` propagated
+into the hill, the report and the census as though the tree had been measured and found wanting.
+**Nobody has asked this tree to compile.**
+
+Two consecutive non-kept trials still meet `no_progress_k: 2`, so the stagnation term ended the
+scope and, this being a single `CHOWDER` scope, the run. Every downstream number is correct
+arithmetic over an input that means something other than what it says.
 
 Worth stating because it changes what the remaining budget means: the stagnation term dominates the
 other two. `attempt_budget: 5` and `max_rounds: 3` were never approached, and cannot be while two
@@ -644,9 +660,12 @@ bad trials close a single-scope pitch. That is the configuration behaving as des
 but it is the reason a soak of this pitch stops in minutes rather than hours.
 
 **Six soaks have now stopped before the judge, and the reason has changed every time** — a missing
-toolchain, a naming rule, a stale script, a lint collision, a cross-run streak, and now the
-feature's own fixtures. Each fix moved the run further. The remaining blocker is the consumer's
-code, not the harness.
+toolchain, a naming rule, a stale script, a lint collision, a cross-run streak, and now a fixture
+the sandbox refused. Each fix moved the run further, and this one is the shallowest yet: unblocking
+it is a permission change, not a code change. The run filed it into the consumer's register as a
+defect in its own right — **a fixture the sandbox refuses to run is recorded as a fixture that
+failed** — which is the more valuable finding, because that conflation would misreport any denied
+probe on any project, and it is invisible from a checkout where everything is permitted.
 
 ### A defect in the acceptance instrument, found by smoke-testing it
 
