@@ -39,7 +39,7 @@ export async function run(ctx) {
     };
 
     w(".shapeup/demo/tasks/TASK-001-a.md", "---\nid: TASK-001\nstatus: done\n---\n");
-    w(".shapeup/demo/tasks/TASK-002-b.md", "---\nid: TASK-002\nstatus: in-progress\n---\n");
+    w(".shapeup/demo/tasks/TASK-002-b.md", "---\nid: TASK-002\nstatus: in-progress\nuse_case_refs: [UC-Checkout]\n---\n");
     w(".shapeup/demo/harness-run.md", "---\ntype: harness-run\nrounds_used: 2\nfinal_verdict: PASS\n---\n");
     w(".shapeup/demo/receipt.json", JSON.stringify({ intake_sha256: "deadbeef" }));
     w(".shapeup/demo/t0/verdicts/r1-a1-t1.json", "{}");
@@ -73,10 +73,26 @@ export async function run(ctx) {
     if (facts.board.total === 2 && facts.board.done === 1) ok("board census derives 1/2 done from task frontmatter");
     else fail(`board census wrong: ${JSON.stringify(facts.board)}`);
 
-    if (/did not finish/.test(markdown) && markdown.includes("TASK-002")) {
-      ok("report states plainly that a task did not finish, and names it");
-    } else {
+    // RE-POINTED AT THE SUBSTANCE, and deliberately: this used to require the report to NAME the
+    // board id ("TASK-002"). That expectation became wrong rather than merely outdated — a board id
+    // in the COMMITTED report is what reds the NEXT run of the same pitch at L1b, measured on a
+    // consumer whose shipped report carried 23 of them and whose successor aborted with
+    // `rounds_used: 0`. The thing this check exists to defend is unchanged and is asserted below:
+    // a report that prints a verdict must not quietly drop the unfinished work. What changed is the
+    // form the disclosure takes — a count plus the committed anchor (`use_case_refs`), never the id.
+    // Strictly stronger than the version it replaces: it still requires the disclosure, now also
+    // requires the anchor, and additionally forbids the id.
+    const disclosed = /did not finish/.test(markdown);
+    const anchored = markdown.includes("UC-Checkout");
+    const carriesBoardId = /\bTASK-\d/.test(markdown);
+    if (disclosed && anchored && !carriesBoardId) {
+      ok("report discloses unfinished work and anchors it on the committed use case, with no board id");
+    } else if (!disclosed) {
       fail("report printed a verdict without disclosing unfinished tasks — that reads as 'the feature is done'");
+    } else if (carriesBoardId) {
+      fail("report discloses unfinished work but names a board id — a committed report carrying one reds the next run of this pitch at L1b");
+    } else {
+      fail("report discloses unfinished work but cites no committed anchor — the reader is told something is missing and given nothing that resolves");
     }
 
     // --- derivation, not assertion --------------------------------------------

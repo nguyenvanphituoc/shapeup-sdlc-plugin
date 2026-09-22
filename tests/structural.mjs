@@ -274,6 +274,12 @@ const MODULE_FILES = [
   // census now cites the same probe the round loop would, so the two readers cannot disagree about
   // the same exhaustion again.
   "73-attested-attempts.mjs",
+  // 74-ship-report-tier.mjs: a run that ships must not make the next run of the same pitch
+  // un-plannable. `reduce ship` freezes REPORT.md into the committed tier, and a board id in it
+  // reds the successor at L1b — measured on a consumer, 23 findings, `rounds_used: 0`. Drives the
+  // real `reduce ship` and lints the file it wrote, because the renderer being clean and the
+  // command writing a clean file are different claims.
+  "74-ship-report-tier.mjs",
   "08-docs.mjs",
 ];
 

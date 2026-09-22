@@ -78,7 +78,7 @@ export function frontmatter(text) {
  */
 export function boardCensus(cwd, slug) {
   const dir = tasksDir(cwd, slug);
-  const out = { total: 0, done: 0, unfinished: [] };
+  const out = { total: 0, done: 0, unfinished: [], anchors: {} };
   if (!existsSync(dir)) return out;
   for (const f of readdirSync(dir)) {
     if (!/^TASK-[\w.-]+\.md$/i.test(f)) continue;
@@ -86,11 +86,42 @@ export function boardCensus(cwd, slug) {
     const fm = frontmatter(body);
     const id = fm.id || f.replace(/\.md$/, "");
     out.total++;
+    // The COMMITTED anchor for this board id. `use_case_refs` is the tier-direction rule's own
+    // sanctioned direction (LOCAL names SHARED), and it is what the frozen report cites instead of
+    // the id — boards renumber per machine, use cases do not.
+    const ucs = String(fm.use_case_refs ?? "").replace(/^\[|\]$/g, "")
+      .split(",").map((x) => x.trim()).filter(Boolean);
+    out.anchors[id] = ucs;
     if (fm.status === "done") out.done++;
     else out.unfinished.push(id);
   }
   out.unfinished.sort();
   return out;
+}
+
+/**
+ * Replace every board id in free prose with its committed anchor.
+ *
+ * THE WRITE BOUNDARY, not the column, and that is the whole point. Board ids reached the frozen
+ * report three different ways — the unfinished-task callout, the covering-AC column's own prefix,
+ * and INSIDE acceptance-criterion prose a planner wrote ("given the seeded todos (TASK-006)"). The
+ * third is upstream free text, so a fix that only changes what the columns interpolate still
+ * commits a file the next run's spec-lint reds. Everything written into the committed report passes
+ * through here.
+ *
+ * An id with no resolvable use case becomes a neutral phrase rather than the id: the report loses a
+ * pointer that never resolved off this machine anyway, and keeps the sentence around it.
+ *
+ * @param {*} text - Any value destined for the committed report.
+ * @param {Record<string, string[]>} anchors - Board id → its `use_case_refs`.
+ * @returns {string} The text with every `TASK-…` replaced by a stable anchor.
+ */
+export function deboard(text, anchors = {}) {
+  return String(text ?? "").replace(/\bTASK-[A-Za-z0-9][\w.-]*/g, (id) => {
+    const ucs = anchors[id];
+    if (ucs && ucs.length) return ucs.join("/");
+    return "a board task";
+  });
 }
 
 /**
@@ -194,7 +225,10 @@ export function buildReport(facts) {
   L.push("");
 
   if (board.unfinished.length) {
-    L.push(`> **${board.unfinished.length} task(s) did not finish:** ${board.unfinished.join(", ")}.`,
+    // Anchored, never enumerated by board id: the ids renumber per machine, and a committed file
+    // carrying one reds the NEXT run of this pitch at L1b.
+    const unfinishedAnchors = [...new Set(board.unfinished.flatMap((id) => board.anchors?.[id] ?? []))];
+    L.push(`> **${board.unfinished.length} task(s) did not finish**${unfinishedAnchors.length ? ` — use cases: ${unfinishedAnchors.join(", ")}` : ""}.`,
       "> The verdict above grades what was built, not what was planned.", "");
   }
 
@@ -241,7 +275,9 @@ export function buildReport(facts) {
     const cell = (s) => String(s).replace(/\|/g, "\\|");
     L.push("| REQ | source | evidence | covering AC | criterion | T0 |", "|---|---|---|---|---|---|");
     for (const r of requirements.rows) {
-      const ac = r.covering_acs.length ? `${r.covering_acs[0].task_id}: ${r.covering_acs[0].ac}${r.covering_acs.length > 1 ? ` (+${r.covering_acs.length - 1})` : ""}` : "—";
+      const ac = r.covering_acs.length
+        ? `${deboard(r.covering_acs[0].task_id, facts.board?.anchors)}: ${deboard(r.covering_acs[0].ac, facts.board?.anchors)}${r.covering_acs.length > 1 ? ` (+${r.covering_acs.length - 1})` : ""}`
+        : "—";
       const crit = r.criteria.length ? `${r.criteria[0].criterion}${r.criteria.length > 1 ? ` (+${r.criteria.length - 1})` : ""} → ${r.criteria.map((c) => c.verdict).join(",")}` : "—";
       const t0h = r.t0.length ? r.t0.map((h) => String(h).slice(0, 12)).join(", ") : "—";
       L.push(`| ${r.id} | ${cell(r.source || "—")} | ${r.evidence} | ${cell(ac)} | ${cell(crit)} | ${t0h} |`);

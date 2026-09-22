@@ -179,10 +179,22 @@ is pinned by a guard, never when it is merely believed done.
   The lint's reach and the producers' compliance are different properties, and only the first was
   ever checked.
 
-  **Blocks re-soaking this pitch**: any new run of a slug whose `REPORT.md` is committed aborts at
-  L1b. Candidate fixes: have `reduce ship` cite use cases and `scope_id`s rather than board ids in
-  the committed report (the tier-direction rule's own sanctioned anchors); or write the id-bearing
-  detail to the LOCAL tier and keep the committed report anchored. Not yet scheduled.
+  **FIXED in 3.7.1-rc.1.** `reduce ship` now sanitises at the write boundary rather than at the
+  column: every board id destined for the committed report is replaced by that task's
+  `use_case_refs` — the tier-direction rule's own sanctioned anchor — and an id with no resolvable
+  use case becomes a neutral phrase instead. The boundary, not the column, is the point: a board id
+  also reached the report **inside acceptance-criterion prose** a planner wrote ("given the seeded
+  todos (TASK-006)"), which no per-column fix touches.
+
+  The unfinished-task callout now reads `**N task(s) did not finish** — use cases: …` rather than a
+  list of ids; the caveat survives the sanitising, which is asserted separately, because trading the
+  disclosure for tier-cleanliness would swap one silent failure for another.
+
+  `47-ship-report.mjs` asserted the report must NAME the board id. That expectation was not merely
+  outdated, it was the defect, so it was re-pointed at the substance — disclosure plus the committed
+  anchor, and the id now forbidden — and is strictly stronger than before. `74-ship-report-tier.mjs`
+  drives the real `reduce ship` and lints the file it wrote, because a clean renderer and a clean
+  committed file are different claims.
 
 - **HD-031 · A resumed run cannot soak a plugin upgrade, and nothing says so at launch.** Measured
   2026-09-22 while attempting exactly that.
