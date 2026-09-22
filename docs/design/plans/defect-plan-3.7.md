@@ -327,7 +327,7 @@ suite nobody has run is an assumption rather than a baseline.
 | **S1** | `HD-026` — derive the close-out from the union | 8 rows, incl. a mutation that adds an unmapped arm | ✅ **verified 8/8** at `39ff7a7` |
 | **S2** | durability — export on every ending | 7 rows, incl. the driver's own falsifier | ✅ **verified 7/7** at `50919e1` |
 | **S3** | `HD-2` — count attested work, not writable artifacts | 8 rows, incl. one that drives the pipeline | ✅ **verified 8/8** at `a1e58ae` |
-| **S4** | the soak | P1 EVAL · P2 QA · P3 census · P4 close-out · export | 🔵 **launch 3 running** on 3.7.0 |
+| **S4** | the soak | P1 EVAL · P2 QA · P3 census · P4 close-out · export | ❌ **launch 3 did not exercise 3.7.0** — invalid, re-soak needed |
 
 #### S0 — verified ✅
 
@@ -540,7 +540,62 @@ breaker to GATE H with roughly 2.4 of 3 hours unspent. 3.7.0 reads it as **one**
 does not trip. Same bytes on disk, same question, opposite answer — and the new answer is the one
 the attested channels support.
 
-#### Launch 3 — the soak, resumed rather than restarted
+#### Launch 3 — INVALID: it ran the previous version's script
+
+**Retracted, and the retraction is the finding.** The paragraph below describes what launch 3 was
+designed to be. It is not what ran, and the claim that "the only variable is the plugin version" was
+false when it was written.
+
+A run stages its own copy of the workflow script into the LOCAL tier when it is **opened**, and
+`AGENTS.md` says so in as many words: *"A run in flight keeps the copy it started with: an upgrade
+reaches the next run, not the current round."* Resuming a run does not re-open it, so nothing
+re-copies. Measured after the abort:
+
+| | |
+|---|---|
+| staged `shapeup-run.js` in the consumer | written `09:02:29`, the moment the run was opened |
+| `--close-arm` occurrences in that staged copy | **0** |
+| `--close-arm` occurrences in 3.7.0's shipped script | **3** |
+| 3.7.0 published | `19:46`, more than ten hours later |
+
+So the resumed run executed the **3.6.0** orchestrator against the 3.6.0 kernel it names. Every
+3.7.0 behaviour the soak existed to exercise — the derived close-out, the export on a non-shipping
+ending, the attempt guard — was never reached. The `closed_status: aborted` it recorded is 3.6.0
+behaviour, which already closed that one status, and `.shapeup/exports/` was absent afterwards for
+exactly the same reason: 3.6.0's close does not export. Neither observation says anything about this
+release.
+
+**The mistake was mine, and it was avoidable.** The plan says *don't clean `.shapeup/`*, and I read
+that as *resume the existing run*. They are different instructions: not cleaning preserves the
+trace, while resuming preserves the **code**. The sentence that says so is in `AGENTS.md`, which I
+had already read in this session. A soak of an upgrade must open a **new** run.
+
+#### The soak's one real result — a third instance of the producer/lint collision
+
+Worth more than the invalid launch, and it is the reason the run stopped. It aborted at L1b with
+**23 red `TIER-DIRECTION` findings**, all of them in `shapeup/find-my-todos/REPORT.md`:
+
+> `REPORT.md:27 names TASK-001 — a committed file cannot carry a board id.`
+
+`reduce ship` freezes `REPORT.md` into the **committed** tier at L4, and it cites board ids. The
+committed-tier lint reds a `TASK-` id anywhere in that tree. So a run that ships makes the *next*
+run of the same pitch un-plannable — the report a successful run writes is the thing that hard-aborts
+its successor at L1b. Launch 2 never saw it only because the report was committed at `09:41`, after
+that launch had already crossed L1b.
+
+Same shape as `HD-027`: a producer writing a committed artifact its own lint then reds. Different
+producer, different half of the rule — board ids rather than `.shapeup/` paths.
+
+**And it falsifies something recorded above.** The S0 entry says the plan's third proposition —
+*no other committed artifact any worker writes cites a forbidden reference* — was "structurally
+guaranteed rather than newly established", because the lint scans the whole committed tree. That
+conflated two different claims: the lint's **reach** and the producers' **compliance**. The lint does
+scan everything; `reduce ship` still writes a violation into it. The proposition was never
+established, and a stage that thought it had covered the class had covered one producer.
+
+#### What launch 3 was designed to be
+
+
 
 Plugin updated in the persistent consumer **from the marketplace** (3.6.0 → 3.7.0), not
 `--plugin-dir`, and `.shapeup/` deliberately not cleaned. The run resumes at `next_phase: build`

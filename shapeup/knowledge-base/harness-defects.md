@@ -152,6 +152,56 @@ is pinned by a guard, never when it is merely believed done.
   Not scheduled. Filed with the evidence so the decision is made once, with `HD-014`, rather than
   discovered again by the next run that trips a breaker and then ships.
 
+- **HD-030 · A run that ships makes the next run of the same pitch un-plannable.** Measured
+  2026-09-22 in the consumer, on a real launch that hard-aborted at L1b.
+
+  `reduce ship` freezes `REPORT.md` into the COMMITTED tier at GATE L4, and the report cites board
+  ids (`TASK-001`, `TASK-004`, …). The committed-tier lint reds a `TASK-` id anywhere in that tree,
+  correctly — boards live in the gitignored tier and renumber per machine. So the artifact a
+  successful run writes is the thing that stops its successor:
+
+  ```
+  close_cause: L1b: spec-lint reported red findings before BUILD
+               (23 red TIER-DIRECTION findings about board ids cited in a committed file)
+  ```
+
+  All 23 findings are in `shapeup/<slug>/REPORT.md`. The run reached L1b with every planning
+  artifact committed and complete, and stopped there with `rounds_used: 0`.
+
+  **Same class as `HD-027`, different producer and different half of the rule.** `HD-027` was
+  `ba-pitch-analyzer` writing a `.shapeup/` path into `requirements.md`; this is `reduce ship`
+  writing board ids into `REPORT.md`. The fix for `HD-027` taught one producer a rule; it did not
+  enumerate the others, and the enumeration is what the class needs — which is the same lesson
+  `HD-026` carried about the close-out.
+
+  It also falsifies a claim the 3.7.0 work recorded: that "no committed artifact any worker writes
+  cites a forbidden reference" was structurally guaranteed because the lint scans the whole tree.
+  The lint's reach and the producers' compliance are different properties, and only the first was
+  ever checked.
+
+  **Blocks re-soaking this pitch**: any new run of a slug whose `REPORT.md` is committed aborts at
+  L1b. Candidate fixes: have `reduce ship` cite use cases and `scope_id`s rather than board ids in
+  the committed report (the tier-direction rule's own sanctioned anchors); or write the id-bearing
+  detail to the LOCAL tier and keep the committed report anchored. Not yet scheduled.
+
+- **HD-031 · A resumed run cannot soak a plugin upgrade, and nothing says so at launch.** Measured
+  2026-09-22 while attempting exactly that.
+
+  A run stages its own copy of the workflow script into the LOCAL tier when it is **opened**, and
+  keeps it for the run's life — documented, deliberate, and the right call for a run in flight.
+  The consequence is not documented anywhere a person about to soak an upgrade would look: relaunching
+  an existing run after installing a new version executes the **old** orchestrator. Measured: the
+  staged copy carried `0` occurrences of a call the new version makes `3` times, and was written at
+  the run's open time, hours before the new version existed.
+
+  Nothing in the relaunch path notices. The run reports normally, closes normally, and every
+  observation made of it is an observation of the previous release — which is worse than a failed
+  soak, because it produces confident evidence about the wrong artifact.
+
+  Candidate fix: at launch, compare the staged script against the installed plugin's and warn when
+  they differ, naming both versions — a warning, never a block, since a run in flight keeping its
+  copy is the correct behaviour. A soak of an upgrade must open a new run.
+
 ### Filed 2026-09-19 — measured in the consumer soak, never filed here
 
 Nine findings came out of the HarmonyOS soak (2026-09-15→17, two consecutive features on a project
