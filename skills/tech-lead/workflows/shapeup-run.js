@@ -391,6 +391,10 @@ const CMD = {
     // from `detail` on purpose: `detail` is prose for a human to read, this is a token the control
     // plane branches on, and collapsing the two is what made every gate comparison silently false.
     decision: { type: "string" },
+    // A close's own advisory failure (kernel/probe/resume.mjs's `exportOnClose`, defect-plan-3.7
+    // Stage 2) — copied verbatim, the same discipline as `decision`, so "the export failed" is a
+    // fact `closeIfTerminal` can act on rather than a line buried inside free-text `detail`.
+    export_warning: { type: "string" },
   },
   required: ["exit_code", "ok"],
 };
@@ -617,7 +621,9 @@ async function cmd(verbs, phaseName, label) {
     `Report its exit code as exit_code, ok=true if and only if exit_code is 0, and one line of ` +
     `detail. If the command printed JSON carrying a top-level "decision" key, copy that value into ` +
     `decision EXACTLY as it appears — one bare token, no sentence, no quotes, no rephrasing. ` +
-    `Otherwise omit decision. Do not interpret, summarise or act on the command's output beyond that.\n\n` +
+    `Otherwise omit decision. If the command printed JSON carrying a top-level "export_warning" ` +
+    `key with a non-empty string value, copy that string into export_warning verbatim. Otherwise ` +
+    `omit export_warning. Do not interpret, summarise or act on the command's output beyond that.\n\n` +
     `If the tool call itself is refused or blocked before the command ever runs — a permission or ` +
     `policy denial, not the command's own exit — that is NOT an exit code, and you must never invent ` +
     `one to fill the field: report exit_code as -1 and put the denial's own wording verbatim in ` +
@@ -1014,6 +1020,14 @@ async function closeIfTerminal(ret) {
         `but a different cause — this run_id was closed more than once. Both causes are on the ledger's ` +
         `own close_cause line; this return's trace is degraded, not corrupted.`);
     stateWarnings.push(`close(${ret.status}) superseded an earlier close of this run_id — see harness-run.md's close_cause for both reasons`);
+  }
+  // The close itself took (r.ok above) — an export_warning here is `exportOnClose`
+  // (kernel/probe/resume.mjs, defect-plan-3.7 Stage 2) reporting it could not project this run's
+  // fact tables. Advisory, same as every other line in this function: the close stands, the run's
+  // own return says the trace is short one export rather than swallowing the fact.
+  if (r.export_warning) {
+    log(`RUN STATE — close(${ret.status}) took, but its export did not: ${r.export_warning}`);
+    stateWarnings.push(`close(${ret.status}): ${r.export_warning}`);
   }
 }
 const withWarnings = async (ret) => {

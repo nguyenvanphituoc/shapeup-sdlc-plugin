@@ -262,6 +262,11 @@ const MODULE_FILES = [
   // hand-typed pair; gate_h now closes the run as escalated (operator decision 1); the orchestrator
   // script's own call site is pinned at the source level, since it cannot be executed here.
   "71-runreturn-closeout.mjs",
+  // 72-export-on-close.mjs: defect-plan-3.7 Stage 2 — a run's own close-out (kernel/probe/
+  // resume.mjs's closeRun) now exports fact tables for every terminal ending except "shipped",
+  // which the Ship phase's own pre-existing export call already covers; a blocked export degrades
+  // the close's return with export_warning rather than failing the close itself.
+  "72-export-on-close.mjs",
   "08-docs.mjs",
 ];
 
