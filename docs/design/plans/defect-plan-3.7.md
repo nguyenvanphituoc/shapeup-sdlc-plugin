@@ -12,9 +12,9 @@ Stage 9 propositions still unproven after four soak attempts. Excludes `HD-013` 
 marketplace, 2026-09-21→22; `docs/design/orchestration-evidence-and-next.md`.
 **Confidence:** High that every Exit below is red today — each was executed. High on the
 Stage 0 → Stage 4 ordering. Low on duration: one maintainer, wall-clock is the constraint.
-**Status:** **In execution** on branch `plan/defect-3.7`, Stages 0–3. Stage 4 is deliberately out of
-this run's scope and remains a PO decision — see §8, which is the live per-stage record and the only
-place in this document that reports progress.
+**Status:** **Stages 0–3 complete and verified** on branch `plan/defect-3.7` — 30 of 30 acceptance
+rows green in clones that never saw the working tree. Stage 4 is deliberately out of this run's
+scope and remains a PO decision. §8 is the per-stage record.
 
 **Baseline, measured not remembered:** `npm test` = **1843 checks** green at `b04d285` — the sha that
 carries this document — identically in a fresh clone. It read 1841 at `865ec79`, one commit earlier;
@@ -326,7 +326,7 @@ suite nobody has run is an assumption rather than a baseline.
 | **S0** | `HD-1` — the producer/lint collision; promote `HD-1`/`HD-2` | 7 rows, 2 of them inline anti-gaming guards | ✅ **verified 7/7** at `52fedc2` |
 | **S1** | `HD-026` — derive the close-out from the union | 8 rows, incl. a mutation that adds an unmapped arm | ✅ **verified 8/8** at `39ff7a7` |
 | **S2** | durability — export on every ending | 7 rows, incl. the driver's own falsifier | ✅ **verified 7/7** at `50919e1` |
-| **S3** | `HD-2` — count attested work, not writable artifacts | 7 rows, incl. "a real exhaustion still trips" | ⚠️ **half done** at `449c249` — acceptance 7/7, defect **not fixed** |
+| **S3** | `HD-2` — count attested work, not writable artifacts | 8 rows, incl. one that drives the pipeline | ✅ **verified 8/8** at `a1e58ae` |
 | **S4** | the soak | — | ⛔ out of scope this run (PO) |
 
 #### S0 — verified ✅
@@ -440,7 +440,7 @@ That is the whole gap closed: against the question *must facts survive the run?*
 answer yes for a run that ships and no for one that does not. The runs whose records are worth most
 are the ones that never reach the exporter, and those now leave fact tables.
 
-#### S3 — acceptance green, defect not fixed ⚠️
+#### S3 — verified ✅, but only after the acceptance was fixed
 
 Commit `449c249`. **All 7 acceptance rows pass** in a clean clone; suite **1882 checks**. And `HD-2`
 is **not closed**. Both of those sentences are true, which is the finding.
@@ -476,6 +476,23 @@ guard against it: **a proposition can only test a state someone thought to name.
 stage green on 7/7 would have been the exact failure the plan was written to prevent, reproduced by
 the plan's own machinery.
 
+**Closed at `a1e58ae`, and the order of operations is the point.** The missing acceptance row was
+written *first* and shown red: it spawns the real `harness compile` over the consumer run's own
+interleaving — attempt 1 dispatched and unanswered — and requires a refusal. Only then was the guard
+built. `compile` now reads the previous attempt off the attested channels and exits 3 when it is
+unanswered.
+
+It **fails open, never closed**, per this repo's own hook discipline. The proof required is the
+receipts ledger *existing* while carrying no row for that attempt; a lane that does not attest
+dispatches at all has no ledger and is waved through, so `--tiny`, a prose round loop and a
+standalone build are untouched. That distinction was not theoretical — the first draft of the
+fixture modelled attempt 1 with no ledger at all, the guard correctly declined to fire, and the
+fixture had to be corrected to HD-2's actual state before it tested the defect rather than the
+exemption.
+
+Verified both directions: red with the guard reverted, green with it restored. Final acceptance
+**8/8**, suite **1884 checks**.
+
 #### Discovered by S1, verified separately: a documented flow now refuses
 
 Not a stage, not in any acceptance row, and surfaced by the S1 executor rather than by a check.
@@ -496,6 +513,10 @@ its ship close refused. The once-only close invariant is behaving exactly as des
 is that `gate_h` now takes that slot first. Whether a later ship should supersede an `escalated`
 close, or L4 should stop closing a run that is already closed, is a **PO call** — the plan reserves
 questions of this shape, and the acceptance agent may not resolve them.
+
+**Filed as `HD-029`**, with the driven transcript and the three candidate resolutions, to be decided
+once alongside `HD-014`'s fence question rather than rediscovered by the next run that trips a
+breaker and then ships. No code was changed for it.
 
 ### A defect in the acceptance instrument, found by smoke-testing it
 
