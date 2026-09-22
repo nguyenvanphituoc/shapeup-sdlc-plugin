@@ -214,6 +214,44 @@ is pinned by a guard, never when it is merely believed done.
   they differ, naming both versions — a warning, never a block, since a run in flight keeping its
   copy is the correct behaviour. A soak of an upgrade must open a new run.
 
+- **HD-032 · The attested-attempt census counts a PREVIOUS run's work as this run's.** Found by the
+  consumer soak on 2026-09-22, in the fix for `HD-028` itself, one release after it shipped.
+
+  `attemptEvidence` matches attestation on `order_id` alone:
+
+  ```
+  const hasReceipt = receipts.some((r) => r?.order_id === orderId);
+  const hasLeg     = legs.some((r) => r?.order_id === orderId);
+  ```
+
+  `AGENTS.md` states the problem with that in as many words: *"`run_id` … is the only key that
+  separates two runs of the same feature: everything else (`order_id`, round/attempt) repeats."*
+  The module carries **no** `run_id` reference at all, and `receipts/dispatch.jsonl` and
+  `legs.jsonl` are per-slug and append-only, so they accumulate across every run of a pitch.
+
+  Measured: a new run (`…T132805Z-7d89f1ed`) compiled `find-my-todos-screen-r1-a1` and dispatched
+  **no** worker — `receipts/dispatch.jsonl` carries rows for two *earlier* runs and none for this
+  one. Asked about that scope, the census answered:
+
+  ```
+  a1 spent  receipt=true leg=true result=true      ← all three from a run two launches ago
+  spent: 1  in_flight: 0  unattested: 4  tripped: false
+  ```
+
+  So the reader built to stop the breaker counting work nobody did now counts work **another run**
+  did. It is `HD-028`'s own failure mode displaced by one level: `HD-028` was an attempt attested by
+  channels a scope could write without a worker; this is an attempt attested by a worker that ran in
+  a different run. Both answer "was this attempt spent?" with evidence about something else.
+
+  The compile guard inherits it: it asks the same question before opening attempt N, so a stale
+  attestation for attempt N−1 lets it through — the exact interleaving the guard exists to refuse.
+
+  **Fix:** filter every attested channel by the run's own `run_id` (receipts and legs both carry
+  it), and treat a row with no `run_id` as belonging to no run rather than to this one. A
+  `WorkResult` carries none and reaches it through `order_id`, so the result channel needs the join
+  rather than a field read. Add a fixture with two runs' rows in one ledger — the case no
+  single-run fixture can hold, which is what let this ship.
+
 ### Filed 2026-09-19 — measured in the consumer soak, never filed here
 
 Nine findings came out of the HarmonyOS soak (2026-09-15→17, two consecutive features on a project
