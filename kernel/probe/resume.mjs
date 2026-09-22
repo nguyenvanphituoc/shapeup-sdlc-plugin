@@ -122,8 +122,8 @@ export const RUN_RETURN_CLOSE = {
  * @param {string} arm - A `RunReturn.status` value.
  * @param {(string|null)} [cause] - Why the run ended there; only used when `arm` is terminal.
  * @param {boolean} [withExport] - Forwarded to {@link closeRun} — defaults true. The one caller
- *   that ever passes `false` is a test fixture proving the export assertion is real (defect-plan-3.7
- *   Stage 2's falsifier row): production call sites never set this.
+ *   that ever passes `false` is a test fixture proving the export assertion is real — a check that
+ *   cannot fail did not happen; production call sites never set this.
  * @returns {({ok:true, arm:string, terminal:false, reason:string} |
  *   {ok:false, arm:string, reason:string} |
  *   ({ok:boolean, arm:string, terminal:true} & ReturnType<typeof closeRun>))} `terminal:false` when
@@ -561,7 +561,7 @@ function writeCloseLines(body, { status, closedAt, cause }) {
 }
 
 /**
- * Export a just-closed run's own records into fact tables, best-effort — defect-plan-3.7 Stage 2
+ * Export a just-closed run's own records into fact tables, best-effort
  * (`report export`, `kernel/report/export.mjs`). {@link closeRun} calls this for every terminal
  * status except `"shipped"`: the Ship phase (`skills/tech-lead/workflows/shapeup-run.js`) already
  * calls `report export` itself, several lines before this file's own close-out runs, and that call
@@ -651,7 +651,7 @@ function exportOnClose(cwd, slug) {
  *   a space first, because this dialect is line-based and could not carry one either way.
  *   `withExport` (default true) gates {@link exportOnClose} — every status except `"shipped"` runs
  *   it on a successful close; `false` exists only for a test fixture proving the export assertion
- *   is real (defect-plan-3.7 Stage 2's falsifier row), never for a production call site.
+ *   is real, never for a production call site.
  * @returns {{ok:boolean, path:string, status:string, closed_at?:string, cause?:(string|null),
  *   reason?:string, closed_status?:string, superseded?:boolean, decision?:string,
  *   prior_cause?:(string|null), prior_closed_at?:string, export_warning?:string}} Outcome. A refused

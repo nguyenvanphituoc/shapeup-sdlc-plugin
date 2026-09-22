@@ -12,12 +12,13 @@ kernel/harness.mjs       the deterministic half behind ONE entry point (and ther
                          permission prefix). Subcommands:
                           compile — the envelope port's order compiler
                           verify  — t0 · spec · envelope · dispatch · skills · budget ·
-                                    ratchet-tree · trace
+                                    build · trace
                           reduce  — ingest (the single writer) · board · verdict · hill ·
-                                    graph · snapshot · ship · leftovers
-                          probe   — resume · t0 · stats · digest
-                          report  — export · facts (read-only fact tables keyed by run id)
-                          init    — run · fit
+                                    graph · snapshot · ship
+                          probe   — resume · t0 · stats · digest · concurrency · leg ·
+                                    eval · owner · requirements · attempts
+                          report  — export (read-only fact tables keyed by run id)
+                          init    — run · fit · run-args
                           gate    — the gate answer set
                           lib/    — argv · contract · paths
 kernel/schemas/          WorkOrder · WorkResult · gate-answers · domain registry

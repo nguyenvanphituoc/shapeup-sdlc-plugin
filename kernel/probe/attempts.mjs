@@ -6,9 +6,9 @@
 // tripped, attempts}` on stdout; exits 0 when the breaker holds, 1 when it has tripped, 2 on a bad
 // argv. Writes nothing.
 //
-// WHY IT EXISTS (HD-2). Measured in run `find-my-todos-20260922T020229Z-9036e2b6`: `r1-a2` was
-// compiled at 02:21:00Z and T0-verified at 02:22:50Z, both BEFORE `r1-a1` ingested at 02:25:46Z —
-// while attempt 1 was still in flight. No worker was ever dispatched for attempt 2:
+// WHY IT EXISTS. Measured on a real run: attempt 2 of a scope was compiled and T0-verified
+// several minutes BEFORE attempt 1 ingested — while attempt 1 was still in flight. No worker was
+// ever dispatched for attempt 2:
 // `receipts/dispatch.jsonl`, `legs.jsonl` and `results/` carried no row for it. A derivation keyed
 // off the order set (`orders/`) or the T0 verdict set (`t0/verdicts/`) alone counts a compiled
 // order or a green trial as a spent attempt regardless of whether a worker ever ran — both are
@@ -16,7 +16,8 @@
 // SPENT only when a dispatch receipt attests it started AND either a leg-completion row or a
 // WorkResult on disk attests it closed. Neither channel alone is enough: a receipt with no result
 // is a leg still in flight (open, not spent — the breaker must not trip on unanswered work), and a
-// result or verdict with no receipt is unattested (no worker ran — HD-2's own shape).
+// result or verdict with no receipt is unattested — no worker ran, which is the shape that
+// produced this module.
 //
 // WHY THE SAME FUNCTION SERVES THE BREAKER AND THE CENSUS. Before this module, the round loop's
 // inner breaker and `scope-hammer`'s GATE H0 census read different evidence for the same question
@@ -75,7 +76,7 @@ export function attemptEvidence(cwd, slug, scopeId, round, attempt, receipts, le
 /**
  * A scope's attempt census for one round, derived ONLY from attested channels — the function both
  * the round loop's inner breaker and scope-hammer's GATE H0 census call, so they cannot drift apart
- * again the way HD-2 measured.
+ * again the way a measured run found them.
  *
  * @param {string} cwd - Project root.
  * @param {string} slug - Feature slug.
