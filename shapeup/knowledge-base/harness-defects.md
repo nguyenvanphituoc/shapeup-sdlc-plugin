@@ -512,6 +512,25 @@ is pinned by a guard, never when it is merely believed done.
   defect appeared immediately — a reminder that state carried between runs hides defects as readily
   as it causes them.
 
+  **DETERMINISTIC, not a one-off: 2 of 2 fresh runs, an hour apart.** The next fresh-state run wrote
+  the same class of violation at a different line (`project-profile.md:92`) and aborted at L1b the
+  same way — *after* the same session had already repaired the first occurrence and seen its own
+  lint go green. An L0 that re-derives the profile reliably cites the run tier as its evidence,
+  because that is genuinely where the evidence lives; the committed file is simply not allowed to
+  say so.
+
+  That settles the fix's shape. Teaching the producer does not hold: this producer was taught by its
+  own gate, complied, and then a fresh instance of it did the same thing an hour later — a worker
+  cannot carry a lesson across runs, and prose in a skill file is the only place the lesson could
+  live. **The enforcement has to be mechanical and at the write boundary.** `reduce ship`'s
+  sanitiser is not reusable here, because the orchestrator writes `project-profile.md` directly
+  rather than through a kernel function, so the choke point is a PreToolUse hook refusing a write
+  into the committed tier whose content carries a local-tier path — the shape `sandbox-guard`
+  already implements for substrate. A hook can also do what a taught rule never can: say *why* at
+  the moment of the write, while the writer still has the context to rephrase.
+
+  Cost per occurrence, measured: roughly 12 minutes and a full L0 pass, twice, before BUILD.
+
 ### Filed 2026-09-19 — measured in the consumer soak, never filed here
 
 Nine findings came out of the HarmonyOS soak (2026-09-15→17, two consecutive features on a project
