@@ -320,7 +320,9 @@ is pinned by a guard, never when it is merely believed done.
   breaker un-tripped and the round continues, where an over-count stops work that was never done.
   A `WorkResult` still has no run key, so it stays a file check that can only turn an
   already-run-scoped receipt into `spent` — a result left by an earlier run cannot attest an attempt
-  this run never dispatched.
+  this run never dispatched. **That reasoning was incomplete and the soak falsified it the same
+  day**: a stale result cannot invent an attempt, but it can close one that is still running. See
+  `HD-033`.
 
   `75-cross-run-attestation.mjs` plants two runs' rows in one set of ledgers — the case no
   single-run fixture can hold — and asserts **both** directions: the prior run's work is invisible,
@@ -333,6 +335,41 @@ is pinned by a guard, never when it is merely believed done.
   ever writes. They now open a real run and stamp its key. That unfaithfulness is the direct cause
   of this shipping: a fixture that models a state the pipeline never produces cannot fail on a
   defect the pipeline has.
+
+- **HD-033 · A stale WorkResult closes an attempt that is still running.** Found 2026-09-22 during
+  the rc.2 soak, watching the fix for `HD-032` work — this is the half of that defect the fix did
+  not reach, and the filing for `HD-032` overstated the mitigation.
+
+  `HD-032` scoped the receipt and leg channels to the run. The **result** channel could not be
+  scoped the same way: a `WorkResult` carries no `run_id` and reaches one only through its
+  `order_id`, which repeats. The reasoning recorded at the time was that this is harmless because a
+  stale result "can only turn an already run-scoped receipt into `spent`". That is true and it is
+  not the whole risk: it cannot attest an attempt this run never dispatched, but it **can close one
+  this run did dispatch and is still running**.
+
+  Measured live, mid-soak:
+
+  ```
+  results/<scope>-r1-a1.json   mtime 09:25:40   ← a different run's, 13 hours old
+  this run opened 22:06, dispatched r1-a1 at 22:09, no leg yet
+  census → hasReceipt:true  hasLeg:false  hasResult:true  ⇒ state: "spent"
+  ```
+
+  The attempt was in flight at the moment the census called it spent.
+
+  **Why it matters more than an off-by-one in a count.** The compile guard asks exactly this
+  question before opening attempt N: it refuses while N−1 is not `spent`. A stale result makes N−1
+  look finished, so the guard permits attempt 2 against a scope whose first attempt is still
+  writing — which is `HD-028`'s original interleaving, reachable through the guard built to prevent
+  it.
+
+  **Fix:** a result counts for this run only when it is newer than the run's own `started_at` (the
+  receipt carries it). A file written before the run began cannot be this run's, whatever its
+  `order_id` says. Dropping the result channel from the `spent` condition entirely is the wrong fix:
+  a result on disk pending ingest is a real state the round already handles with a late ingest, and
+  calling it `in-flight` would re-dispatch work that is done. The fixture needs a result file
+  back-dated before the run's start — the `run_id`-based two-run fixture cannot express this one,
+  because the channel that carries the defect has no `run_id` to differ on.
 
 ### Filed 2026-09-19 — measured in the consumer soak, never filed here
 
