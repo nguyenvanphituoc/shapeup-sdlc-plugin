@@ -13,6 +13,8 @@ is pinned by a guard, never when it is merely believed done.
 | id | defect | tier |
 |---|---|---|
 | HD-026 | a `gate_h` exit leaves no terminal close — the close-out covers two of four returns | P1 |
+| HD-027 | two harness rules collide and hard-abort planning at L1b — citing the pitch's real source reds `TIER-DIRECTION` | P1 |
+| HD-028 | the inner circuit breaker trips on an attempt that was never dispatched | P1 |
 | HD-013 | the WorkOrder names no result path | P3 |
 | HD-014 | an escalated close keeps fencing (doc half shipped; code half open) | P0 |
 | HD-021 | a per-scope "it compiles" fixture proves nothing | P3 |
@@ -47,6 +49,69 @@ is pinned by a guard, never when it is merely believed done.
   **Closed when:** A run that ends at `gate_h` leaves a terminal status, a cause and a timestamp,
   and a check asserts the close-out's arms against the RunReturn union rather than against a
   hand-written pair — the same derivation rule the run-argument surface already follows.
+
+- **HD-027 · Two harness rules collide, and the collision hard-aborts a run at L1b.** Promoted from
+  a consumer register (`proj-harmony-os-sample`, filed there as `HD-1`, 2026-09-21). `harness init
+  run` normalizes the pitch into the **gitignored** run tier at `.shapeup/<slug>/intake.md`, and
+  that is the path `ba-pitch-analyzer` is handed and actually reads. `requirements.md` is a
+  **committed** artifact, and spec-lint's `TIER-DIRECTION` rule forbids a committed file from
+  naming a `.shapeup/` path — correctly, because the path dangles on every other clone. A worker
+  that cites its real source produces a registry its own lint reds.
+
+  Measured in run `find-my-todos-20260921T142815Z-b80de580`, unattended lane: ORIENT, ANALYZE,
+  WIRE and MAP SCOPES all completed — 25 agent dispatches, ~28 minutes, ~1.17M subagent tokens —
+  and the run then aborted at GATE L1b on a single `TIER-DIRECTION` red, over one sentence of
+  provenance prose: *"Atomic requirement clauses extracted from `.shapeup/find-my-todos/intake.md`."*
+  The abort lands after the whole planning stretch is already paid for, and on the unattended lane
+  there is no human present to spend ten seconds fixing a sentence.
+
+  **Why this is not a rule for `ba-pitch-analyzer` alone.** A rule telling the analyzer "never
+  write a `.shapeup/` path into a committed file" would suppress this one instance, but the
+  analyzer still has no *correct* path to name — it does not necessarily know which committed
+  artifact the intake was copied from (`shaping.md`, a `pitch.md`, or a `--breadboard`-named file
+  elsewhere). The fix belongs upstream of the worker's prose, not in guidance to it.
+
+  Also measured: the craft docs teach the rule more narrowly than the lint enforces it —
+  `skills/ba-pitch-analyzer/references/doc-schemas.md` stated tier-direction purely in wikilink
+  terms (`never [[tasks/...]]`), while the lint reds *any* line naming a `.shapeup/` path. A
+  worker following only the docs had no way to know a plain provenance sentence would red.
+
+  **Closed when:** the taught rule and the enforced rule state the same constraint — a committed
+  doc may not name a `.shapeup/` path in any form, wikilink or bare prose — and a `coverage`
+  dispatch over a pitch staged in the run tier produces a `requirements.md` clean of
+  `TIER-DIRECTION` findings, driven end to end rather than inferred from the worker's prose.
+
+- **HD-028 · The inner circuit breaker trips on an attempt that was never dispatched.** Promoted
+  from a consumer register (`proj-harmony-os-sample`, filed there as `HD-2`, 2026-09-22). Measured
+  in run `find-my-todos-20260922T020229Z-9036e2b6`, unattended lane, `attempt_budget: 5`: the
+  pipeline returned `{"status":"gate_h","breaker":"inner",...}` after **one** attempt, with 4
+  attempts and roughly 2.4h of a 3h wall-clock budget still unspent — the documented meaning of
+  which is that the scope exhausted its per-scope T0 attempts. It had not.
+
+  | record | `r1-a1` | `r1-a2` |
+  |---|---|---|
+  | `orders/<id>.json` compiled | 02:10:49Z | 02:21:00Z |
+  | `receipts/dispatch.jsonl` | present, `dispatch_ok: true` | **absent** |
+  | `legs.jsonl`, `attested: true` | present, 894 341 ms | **absent** |
+  | `results/<id>.json` | present | **absent** |
+  | `t0/verdicts/` trial | `r1-a1-t1`, `r1-a1-t2` | `r1-a2-t1` at 02:22:50Z |
+
+  `r1-a2` was compiled and T0-verified at 02:21:00Z and 02:22:50Z — **both before `r1-a1`
+  ingested at 02:25:46Z**, i.e. while attempt 1 was still in flight. No worker was ever dispatched
+  for it. The three channels the harness uses to attest work — the dispatch receipt, the leg, the
+  WorkResult — unanimously say attempt 2 never happened, while the two that feed the breaker — the
+  order set and the T0 verdict set — say it did. The breaker reads the channels that can be
+  written without a worker.
+
+  **What it cost.** The run stopped at GATE H with `green_scopes: []` after one attempt, budget and
+  wall-clock both mostly unspent. `scope-hammer`'s own census independently caught the discrepancy
+  and declined to treat it as exhaustion, which is the only reason it surfaced at all — a census
+  that trusted the breaker's own framing would have reported a scope that fought five times and
+  lost.
+
+  **Closed when:** the attempt count is derived from the attested channels — a dispatch receipt, a
+  leg, a WorkResult — never from the order set or the T0 verdict set alone, and the loop cannot
+  open attempt *n+1* while attempt *n* is still unanswered.
 
 - **HD-013** — The WorkOrder carries no field naming where the WorkResult goes, so each worker derives the path
   from prose while its own `substrate.allowed` names a directory that does not contain it. The

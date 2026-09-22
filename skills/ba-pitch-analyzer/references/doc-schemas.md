@@ -275,6 +275,12 @@ Always use wikilinks (double brackets), never relative paths like `../domain-mod
   `.shapeup/` is gitignored, so a committed task link dangles on every fresh clone.
   spec-lint flags it as a red `TIER-DIRECTION` finding. Coverage views (synthesis
   traceability) record derived counts/status, not task ids.
+- **The rule is not only about wikilinks.** `TIER-DIRECTION` reds *any* line in a SHARED
+  doc that names a `.shapeup/` path — a bare path cited in a sentence or a table cell,
+  not only a `[[tasks/...]]` link. A provenance sentence that names its real source
+  (`"extracted from .shapeup/<slug>/intake.md"`) reds for the same reason a task
+  wikilink does: the path dangles on every other clone. Cite the committed pitch or
+  shaping doc instead, or describe the run tier without a path.
 - `[[tasks/...]]` wikilinks are valid only inside LOCAL documents (task files, the board,
   EVAL reports), where they resolve against the LOCAL root (`.shapeup/<slug>/`);
   every wikilink in a SHARED doc stays `spec_folder`-relative.

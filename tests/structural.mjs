@@ -252,6 +252,11 @@ const MODULE_FILES = [
   // source level (the script cannot be imported — 58-relaunch-memory.mjs's own banner) and
   // mutation-tested in both directions so the exact hole Round 1 found cannot reopen silently.
   "69-terminal-wrapping.mjs",
+  // 70-tier-direction-producer.mjs: HD-1/HD-027, defect-plan-3.7 Stage 0 — the taught
+  // TIER-DIRECTION rule (doc-schemas.md) now covers the bare-path-in-prose form the lint actually
+  // enforces, not only wikilinks, and lintCommittedTier's whole-tree scan is proven against
+  // several committed filenames, not only requirements.md, the one that bit.
+  "70-tier-direction-producer.mjs",
   "08-docs.mjs",
 ];
 
