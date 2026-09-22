@@ -257,6 +257,11 @@ const MODULE_FILES = [
   // enforces, not only wikilinks, and lintCommittedTier's whole-tree scan is proven against
   // several committed filenames, not only requirements.md, the one that bit.
   "70-tier-direction-producer.mjs",
+  // 71-runreturn-closeout.mjs: HD-026, defect-plan-3.7 Stage 1 — every RunReturn arm the schema
+  // carries is mapped to a close outcome by a derived kernel map (RUN_RETURN_CLOSE), not a
+  // hand-typed pair; gate_h now closes the run as escalated (operator decision 1); the orchestrator
+  // script's own call site is pinned at the source level, since it cannot be executed here.
+  "71-runreturn-closeout.mjs",
   "08-docs.mjs",
 ];
 

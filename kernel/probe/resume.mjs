@@ -81,6 +81,63 @@ export const RUN_STATUSES = ["orienting", "mapping", "building", "evaluating", "
  */
 export const TERMINAL_STATUSES = ["shipped", "aborted", "escalated"];
 
+/**
+ * The RunReturn union (`kernel/schemas/domain.schema.json` `$defs/RunReturn.properties.status.enum`)
+ * mapped to what closing the run means for each arm — the derivation `closeIfTerminal`
+ * (`skills/tech-lead/workflows/shapeup-run.js`) now reads instead of a hand-typed
+ * `status !== "aborted" && status !== "shipped"` pair that referenced {@link TERMINAL_STATUSES}
+ * zero times and so could not see when a new arm went unhandled.
+ *
+ * A lookup answers one of three ways, and the distinction is load-bearing for what this map must
+ * catch: an arm ABSENT from this object (never listed as a key) returns `undefined` — an arm the
+ * schema carries that nobody has mapped, which a caller must treat as a defect, never as "fine to
+ * skip". An arm mapped to a terminal status closes the run as that status. An arm mapped to `null`
+ * is EXPLICITLY non-terminal — `paused` resumes on relaunch and `ok` is one inner round finishing,
+ * not the run — so it is a key with a falsy value, not an omission a reader could mistake for "not
+ * decided yet".
+ *
+ * `gate_h` → `escalated`: the breaker that tripped (`outer`/`inner`/`deadline`) travels in
+ * `close_cause`, never as a new member of {@link TERMINAL_STATUSES} or {@link RUN_STATUSES} — a
+ * circuit breaker tripping is not a new way a run ends, it is the reason an existing one
+ * (`escalated`) fires this time.
+ *
+ * @type {Object<string, (string|null)>}
+ */
+export const RUN_RETURN_CLOSE = {
+  shipped: "shipped",
+  aborted: "aborted",
+  gate_h: "escalated",
+  paused: null,
+  ok: null,
+};
+
+/**
+ * Resolve one RunReturn arm to a close outcome and, when the arm is terminal, perform the close —
+ * the single call `closeIfTerminal` makes instead of deciding locally which arms are terminal.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {string} arm - A `RunReturn.status` value.
+ * @param {(string|null)} [cause] - Why the run ended there; only used when `arm` is terminal.
+ * @returns {({ok:true, arm:string, terminal:false, reason:string} |
+ *   {ok:false, arm:string, reason:string} |
+ *   ({ok:boolean, arm:string, terminal:true} & ReturnType<typeof closeRun>))} `terminal:false` when
+ *   `arm` maps to `null` (nothing closed, not an error). `ok:false` with no `terminal` field when
+ *   `arm` is not a key of {@link RUN_RETURN_CLOSE} at all — a schema arm this map has not been
+ *   taught, which must never be silently treated as non-terminal. Otherwise the {@link closeRun}
+ *   outcome, tagged with the arm that produced it.
+ */
+export function closeArm(cwd, slug, arm, cause = null) {
+  if (!Object.hasOwn(RUN_RETURN_CLOSE, arm)) {
+    return { ok: false, arm, reason: `closeArm: "${arm}" is not a RunReturn arm this kernel maps — known arms: ${Object.keys(RUN_RETURN_CLOSE).join(", ")}` };
+  }
+  const status = RUN_RETURN_CLOSE[arm];
+  if (!status) {
+    return { ok: true, arm, terminal: false, reason: `"${arm}" is explicitly non-terminal — no close` };
+  }
+  return { ...closeRun(cwd, slug, { status, cause }), arm, terminal: true };
+}
+
 /** ORIENT's four artifacts (skills/orient/SKILL.md §Outputs): three by exact name, plus a spike
  *  whose filename carries the area it spiked (`spike-<area>.md`, or `spike-not-needed.md` when
  *  the risk scan came back rank 0 — both count, because both are ORIENT having finished). */
@@ -658,7 +715,8 @@ export function writeActiveOrder(cwd, slug, orderPath) {
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
   usage: "harness.mjs probe resume --slug <slug> [--cwd <dir>] " +
-         "[--require <phase> | --set-status <status> | --set-active-order <path> | --close <status> [--cause <text>]]",
+         "[--require <phase> | --set-status <status> | --set-active-order <path> | " +
+         "--close <status> | --close-arm <RunReturn.status> [--cause <text>]]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   slug: { type: "str", required: true },
   cwd: { type: "path" },
@@ -667,6 +725,9 @@ export const ARGV_SPEC = {
   "set-active-order": { type: "str" },
   // The one call site that stamps a terminal status, its cause and closed_at together.
   close: { type: "enum", values: TERMINAL_STATUSES },
+  // Not `--close`: the caller (shapeup-run.js's closeIfTerminal) hands over a RunReturn arm, never
+  // a status it decided was terminal itself — RUN_RETURN_CLOSE/closeArm above make that call.
+  "close-arm": { type: "str" },
   cause: { type: "str" },
 };
 
@@ -681,13 +742,13 @@ export function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = args.cwd || process.cwd();
 
-  const ops = [args.require && "--require", args.setStatus && "--set-status", args.setActiveOrder && "--set-active-order", args.close && "--close"].filter(Boolean);
+  const ops = [args.require && "--require", args.setStatus && "--set-status", args.setActiveOrder && "--set-active-order", args.close && "--close", args.closeArm && "--close-arm"].filter(Boolean);
   if (ops.length > 1) {
     process.stderr.write(JSON.stringify({ error: "conflicting_flags", flags: ops, expected: "one operation per invocation" }) + "\n");
     process.exit(2);
   }
-  if (args.cause !== undefined && !args.close) {
-    process.stderr.write(JSON.stringify({ error: "conflicting_flags", flags: ["--cause"], expected: "--cause is only meaningful with --close" }) + "\n");
+  if (args.cause !== undefined && !args.close && !args.closeArm) {
+    process.stderr.write(JSON.stringify({ error: "conflicting_flags", flags: ["--cause"], expected: "--cause is only meaningful with --close or --close-arm" }) + "\n");
     process.exit(2);
   }
 
@@ -720,6 +781,17 @@ export function cli(rawArgv) {
 
   if (args.close) {
     const r = closeRun(cwd, args.slug, { status: args.close, cause: args.cause ?? null });
+    console.log(JSON.stringify(r));
+    process.exit(r.ok ? 0 : 3);
+  }
+
+  // The arm-derived close: the caller hands a RunReturn arm and this kernel decides — via
+  // RUN_RETURN_CLOSE/closeArm above — whether it is terminal and, if so, what status it closes as.
+  // Exit 0 for both a real close AND a correctly-declined non-terminal arm (`terminal:false`) —
+  // neither is an error the caller (shapeup-run.js's closeIfTerminal) should treat as failed; only
+  // an arm this map does not recognize at all, or a close `closeRun` itself refuses, exits non-zero.
+  if (args.closeArm) {
+    const r = closeArm(cwd, args.slug, args.closeArm, args.cause ?? null);
     console.log(JSON.stringify(r));
     process.exit(r.ok ? 0 : 3);
   }

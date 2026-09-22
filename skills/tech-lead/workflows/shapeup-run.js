@@ -968,11 +968,18 @@ async function setRunStatus(status, phaseName) {
 const causeArg = (s) => (String(s ?? "").replace(/[`"'$\\\n\r]/g, " ").replace(/\s+/g, " ").trim().slice(0, 300) || "no reason recorded");
 
 // A terminal RunReturn closes the run's own ledger — a terminal status, its cause, and a close
-// timestamp, in one write (`probe resume --close`). `aborted` and `shipped` are the two statuses
-// this script itself ends a run on; `paused` resumes on relaunch and `gate_h` hands the rest of the
-// run to the tech-lead skill's own orchestration (GATE H's census, then Ship) — neither is this
-// script's close to make. Best-effort, the same discipline as `setRunStatus` above: a lost write
-// degrades the trace's own record of why the run ended, it does not change what this return reports.
+// timestamp, in one write. WHICH arms are terminal, and what status each closes as, is no longer
+// decided here: `probe resume --close-arm <ret.status>` hands the kernel the RunReturn arm itself
+// and it answers from `RUN_RETURN_CLOSE` (kernel/probe/resume.mjs), derived from the schema's own
+// enum rather than a pair of statuses this file used to compare `ret.status` against by hand — a
+// literal comparison that could not see a new arm go unhandled, because it never consulted the
+// kernel's own list of terminal statuses at all. `gate_h` now closes the run as `escalated` — the
+// breaker that tripped travels in the close's cause text, never as a status of its own; the
+// tech-lead skill's own GATE H → L4 orchestration still runs the census and the ship decision, it
+// just no longer finds the ledger's close fields unset when it gets there. `paused` and `ok` remain
+// explicitly non-terminal — the kernel says so, this call site no longer needs to know why.
+// Best-effort, the same discipline as `setRunStatus` above: a lost write degrades the trace's own
+// record of why the run ended, it does not change what this return reports.
 //
 // A close can also come back `ok:true` and still be a degraded outcome: `closeRun`
 // (kernel/probe/resume.mjs) refuses a DIFFERENT terminal status outright (that failure already hits
@@ -986,11 +993,15 @@ const causeArg = (s) => (String(s ?? "").replace(/[`"'$\\\n\r]/g, " ").replace(/
 // reports — the ledger already folded the prior cause in — but the run's own RunReturn must say the
 // trace is degraded.
 async function closeIfTerminal(ret) {
-  if (ret.status !== "aborted" && ret.status !== "shipped") return;
   const cause = ret.status === "aborted"
     ? `${ret.aborted_at || "?"}: ${ret.reason || "no reason recorded"}`
+    : ret.status === "gate_h"
+    ? `breaker=${ret.breaker ?? "?"} green_scopes=${Array.isArray(ret.green_scopes) ? ret.green_scopes.length : "?"} hammer_proposals=${Array.isArray(ret.hammer_proposals) ? ret.hammer_proposals.length : "?"}`
     : `verdict=${ret.verdict ?? "?"} rounds=${ret.rounds_used ?? "?"} qa_findings=${ret.qa_findings ?? "?"}`;
-  const r = await cmd(`probe resume --slug ${slug} --close ${ret.status} --cause "${causeArg(cause)}"`, "Ship", `close:${ret.status}`);
+  // `--close-arm` hands the kernel the arm itself (not a status this file decided was terminal) —
+  // a non-terminal arm (`paused`, `ok`) still exits 0 with no "decision" key, so the branches below
+  // stay silent for it exactly as they did when this file's own guard returned early.
+  const r = await cmd(`probe resume --slug ${slug} --close-arm ${ret.status} --cause "${causeArg(cause)}"`, "Ship", `close:${ret.status}`);
   if (!r.ok) {
     const why = (r.detail || `exit ${r.exit_code}`).trim();
     log(`RUN STATE — close(${ret.status}) did not take: ${why}. This return's own status and reason still ` +
