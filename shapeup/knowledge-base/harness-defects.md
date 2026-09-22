@@ -152,6 +152,27 @@ is pinned by a guard, never when it is merely believed done.
   Not scheduled. Filed with the evidence so the decision is made once, with `HD-014`, rather than
   discovered again by the next run that trips a breaker and then ships.
 
+  **Observed live 2026-09-22, in its commoner form: a recoverable abort.** A run aborted at L1b on a
+  red lint, the orchestrator repaired the offending file, relaunched, and BUILD proceeded — correct
+  behaviour throughout, and exactly what a relaunch is for. The ledger afterwards:
+
+  ```
+  status:        building
+  closed_status: aborted
+  close_cause:   L1b: spec-lint reported red findings before BUILD …
+  ```
+
+  Both true, and together wrong. A terminal close is once-only by design, so the run that went on to
+  build still reads `aborted` as its terminal fact, and any later close — including a ship — meets
+  the same refusal this entry describes. The close-on-abort that `HD-026` added is what made an
+  ordinary recoverable abort permanent, which is a consequence nobody chose: closing every terminal
+  ending was the right fix for endings that are actually terminal, and an abort a relaunch recovers
+  from is not one of them.
+
+  This widens the decision rather than changing it. Whatever resolves `gate_h`-then-ship has to
+  answer the same question for abort-then-recover: either a close is retired when a relaunch resumes
+  the run, or a run that resumes was never terminal and should not have been closed.
+
 - **HD-030 · A run that ships makes the next run of the same pitch un-plannable.** Measured
   2026-09-22 in the consumer, on a real launch that hard-aborted at L1b.
 
