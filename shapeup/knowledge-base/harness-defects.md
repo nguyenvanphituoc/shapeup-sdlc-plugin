@@ -419,11 +419,39 @@ is pinned by a guard, never when it is merely believed done.
   structurally invisible from this checkout, where everything the fixtures reach is already
   permitted.
 
-  **Fix shape:** distinguish a denial from a failure at the point the fixture runs — a refused
-  command is not evidence about the tree — and surface it as a preflight at L0, where a fixture
-  naming a binary the grant does not cover can be reported before a run spends anything on it.
-  Until then the operator-visible workaround is a grant rule covering the toolchain, which is a
-  permission decision and therefore the PO's, never the harness's to take for them.
+  **The grant is not the blocker — the fixture's SHELL SHAPE is.** Established 2026-09-22 on a
+  fresh-state soak with an explicit toolchain grant in place, by direct experiment rather than
+  inference. Three shapes were tried in real headless sessions:
+
+  | shape | outcome |
+  |---|---|
+  | `Bash(…/hvigorw:*)` | denied — the command begins `DEVECO_SDK_HOME=`, so the prefix never matches |
+  | `Bash(DEVECO_SDK_HOME=… …/hvigorw:*)` | **runs** |
+  | `cd app && DEVECO_SDK_HOME=… hvigorw <target>` | **runs** |
+  | `out=$( ( cd app && … ) 2>&1 ); rc=$?; …` — what the contract actually uses | **refused**: a subshell and a command substitution cannot be statically analysed, and that refusal happens *before* any permission is consulted, so no grant reaches it |
+
+  With the grant active, the run's own verdict artifact then recorded:
+
+  ```
+  cmd : out=$( ( cd app && … hvigorw assembleHap … ) 2>&1 ); rc=$?; …
+  exit: 1   pass: false   — and no build output captured at all
+  ```
+
+  `digest_len: 0`, against `8` for the one genuine build failure on record. The command never ran.
+
+  **So the fix has two halves.** (1) The harness must distinguish a denial from a failure at the
+  point the fixture runs — a refused command is not evidence about the tree — and surface it as a
+  preflight at L0, before a run spends anything. (2) Fixtures must be *expressible in a shape the
+  executing environment permits*, which the current contract format does not guarantee: the natural
+  way to write one (capture output, check the exit code, grep it for `ERROR:`) is exactly the shape
+  that is refused. The clean form is a committed script invoked as a single grantable command —
+  `cd app && ./scripts/t0-build.sh` — with the subshell, the capture and the `grep` living inside a
+  real shell where they run normally. That keeps every assertion the fixture makes; weakening it to
+  a bare exit-code check would trade a refusal for a false green, since the toolchain can exit 0
+  over an error.
+
+  Note what is invisible from the plugin's own checkout: there, every command a fixture reaches is
+  already permitted, so a fixture format that cannot survive a grant reads as working.
 
 - **HD-035 · `reduce ship` does not retire the run pointer on a no-verdict close.** Promoted from
   the consumer's register (filed there as `HD-5`, 2026-09-22).
