@@ -232,4 +232,78 @@ export async function run(ctx) {
       ok("(b) scope-hammer's SKILL.md cites `probe attempts` for its GATE H0 census, instead of reading t0/verdicts directly");
     } else fail("(b) scope-hammer's SKILL.md does not cite probe attempts — the census can still read exhaustion off writable T0 verdicts alone");
   }
+
+  // ===============================================================================================
+  section("125. The pipeline REFUSES an attempt opened over an unanswered one — driven, not read");
+  // ===============================================================================================
+  //
+  // THE SECTION THIS MODULE WAS MISSING, and the reason it is worth having. Every check above
+  // drives `scopeAttempts` directly, so all of them pass over a derivation nothing consults — which
+  // is exactly the state this stage was first accepted in: a correct function, no call site, seven
+  // green rows and the defect still live. Rule 7 says a guard asserting a call must also assert its
+  // effect; these assert the effect and must also assert the call.
+  //
+  // So this spawns the real `harness compile` and asks whether the PIPELINE refuses.
+  {
+    const ws = mkdtempSync(join(tmpdir(), "attested-125-"));
+    try {
+      const slug = "guard73";
+      const scopeId = "widget";
+      openRun(ROOT, ws, slug, "Drive the compile-time attempt guard");
+      const contract = scopeContract(ws, slug, scopeId);
+
+      const orderId = `${slug}/${scopeId}-r1-a1`;
+      mkdirSync(join(ws, ".shapeup", slug, "orders"), { recursive: true });
+      writeFileSync(join(ws, ".shapeup", slug, "orders", `${scopeId}-r1-a1.json`),
+        JSON.stringify({ schema_version: 1, order_id: orderId, scope_id: scopeId, round: 1, attempt: 1 }, null, 2));
+      mkdirSync(verdictsDir(ws, slug), { recursive: true });
+      writeFileSync(join(verdictsDir(ws, slug), "r1-a1.json"),
+        JSON.stringify({ schema_version: 1, scope_id: scopeId, round: 1, attempt: 1, overall: "red" }, null, 2));
+
+      // Attempt 1 was DISPATCHED and has not come back: a receipt, no leg row, no WorkResult.
+      // That is the consumer run's own state when it opened attempt 2.
+      mkdirSync(dirname(dispatchReceipts(ws, slug)), { recursive: true });
+      writeFileSync(dispatchReceipts(ws, slug), JSON.stringify({
+        at: new Date().toISOString(), order_id: orderId, worker_declared: "task-executor",
+        skill_invoked: "task-executor", dispatch_ok: true, tool: "Skill",
+      }) + "\n");
+
+      const r = spawnSync(process.execPath, [
+        join(ROOT, "kernel/harness.mjs"), "compile",
+        "--scope", contract, "--round", "1", "--attempt", "2", "--cwd", ws,
+      ], { cwd: ws, encoding: "utf8", timeout: 60_000 });
+      const said = `${r.stdout || ""}${r.stderr || ""}`;
+
+      if (r.status !== 0 && /unanswered/i.test(said)) {
+        ok("(a) compile refuses --attempt 2 while attempt 1 is dispatched-but-unanswered");
+      } else if (r.status === 0) {
+        fail("(a) compile OPENED attempt 2 over an unanswered attempt 1 — the derivation exists but " +
+             `nothing consults it; the order was written to ${(r.stdout || "").trim()}`);
+      } else {
+        fail(`(a) compile failed for a different reason than the guard (exit ${r.status}): ${said.trim().slice(0, 300)}`);
+      }
+
+      // FAILS OPEN where the bad state cannot be proven: a lane that never attests dispatches has
+      // no receipts ledger, and must not be blocked by a rule it cannot satisfy.
+      const ws2 = mkdtempSync(join(tmpdir(), "attested-125b-"));
+      try {
+        const slug2 = "guard73b";
+        openRun(ROOT, ws2, slug2, "A lane that does not attest dispatches");
+        const contract2 = scopeContract(ws2, slug2, scopeId);
+        mkdirSync(join(ws2, ".shapeup", slug2, "orders"), { recursive: true });
+        writeFileSync(join(ws2, ".shapeup", slug2, "orders", `${scopeId}-r1-a1.json`),
+          JSON.stringify({ schema_version: 1, order_id: `${slug2}/${scopeId}-r1-a1`, scope_id: scopeId, round: 1, attempt: 1 }, null, 2));
+        const r2 = spawnSync(process.execPath, [
+          join(ROOT, "kernel/harness.mjs"), "compile",
+          "--scope", contract2, "--round", "1", "--attempt", "2", "--cwd", ws2,
+        ], { cwd: ws2, encoding: "utf8", timeout: 60_000 });
+        if (r2.status === 0) {
+          ok("(b) with no receipts ledger on disk the guard waves the attempt through — fails open, never closed");
+        } else {
+          fail(`(b) the guard blocked a lane that never attests dispatches (exit ${r2.status}): ` +
+               `${`${r2.stdout || ""}${r2.stderr || ""}`.trim().slice(0, 300)}`);
+        }
+      } finally { rmSync(ws2, { recursive: true, force: true }); }
+    } finally { rmSync(ws, { recursive: true, force: true }); }
+  }
 }

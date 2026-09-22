@@ -40,7 +40,7 @@ import { spawnSync } from "node:child_process";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const mode = process.argv[2];
-const KNOWN = ["unattested", "in-flight", "exhausted", "agree", "revert-check"];
+const KNOWN = ["unattested", "in-flight", "exhausted", "agree", "revert-check", "compile-guard"];
 
 if (!mode || !KNOWN.includes(mode)) {
   console.error(`usage: node tests/fixtures/s3-attempts.mjs <${KNOWN.join("|")}>`);
@@ -159,6 +159,72 @@ try {
     console.error(`FALSIFIER FAILED — the naive order/T0-derived count (${naiveSpent}) matched the ` +
       `attested count (${real.spent}), which means this fixture cannot tell the two derivations apart.`);
     process.exit(0);
+  }
+
+  // compile-guard — THE ROW THAT DRIVES THE MECHANISM, not the derivation.
+  //
+  // Every other mode here calls `scopeAttempts` directly, so all of them pass over a derivation
+  // nothing consults — which is exactly how this stage first scored 7/7 while the defect it exists
+  // to close was still live. This mode spawns the real `harness compile` and asks whether the
+  // PIPELINE refuses, so a correct function with no call site fails it.
+  //
+  // The scenario is HD-2's own, reduced: attempt 1 has an order and a green-shaped T0 verdict —
+  // both writable by the scope being judged — and no dispatch receipt, no leg row and no
+  // WorkResult. Attempt 1 is therefore UNANSWERED, and opening attempt 2 against it is the exact
+  // interleaving the consumer run recorded.
+  if (mode === "compile-guard") {
+    const specDir = join(ws, "shapeup", SLUG, "scopes");
+    w(join(specDir, `${SCOPE}.md`), [
+      "---",
+      `scope_id: ${SCOPE}`,
+      "topology_type: LAYER_CAKE",
+      "allowed_file_substrate: [apps/web/widget/*.tsx]",
+      "shared_substrate: []",
+      "---",
+      "## Why this slice",
+      "The widget is the riskiest flow.",
+      "",
+      "## Affordances",
+      "| test_id | role | required_states |",
+      "|---|---|---|",
+      "| use-widget | button | [empty, one-item] |",
+      "",
+    ].join("\n"));
+    w(join(ws, ".shapeup", SLUG, "tasks", "_index.md"), "| ID | Title | Status |\n|---|---|---|\n");
+
+    // HD-2's own state, reproduced exactly. Attempt 1 WAS dispatched — the receipts ledger exists
+    // and carries its row — and has simply not come back: no leg-completion row, no WorkResult.
+    // That is "in-flight", and it is the state the consumer run was in when it opened attempt 2.
+    //
+    // Modelling attempt 1 as having no receipts ledger AT ALL would be a different and weaker
+    // scenario: the guard deliberately fails open there, because a lane that never attests
+    // dispatches cannot be judged by this rule. Writing the receipt is what makes this fixture
+    // test the defect rather than the exemption.
+    writeOrder(1);
+    writeVerdict(1, "red");   // an order and a verdict: the two channels a scope can write alone.
+    writeReceipt(1);          // dispatched…
+    // …and deliberately NOT closed: no writeLeg(1), no writeResult(1). Still unanswered.
+
+    const r = spawnSync(process.execPath, [
+      join(ROOT, "kernel/harness.mjs"), "compile",
+      "--scope", join("shapeup", SLUG, "scopes", `${SCOPE}.md`),
+      "--round", String(ROUND), "--attempt", "2", "--cwd", ws,
+    ], { cwd: ws, encoding: "utf8", timeout: 60_000 });
+
+    const said = `${r.stdout || ""}${r.stderr || ""}`;
+    if (r.status !== 0 && /unanswered|unattested|attest/i.test(said)) {
+      console.log("COMPILE REFUSED an attempt opened over an unanswered one");
+      process.exit(0);
+    }
+    if (r.status !== 0) {
+      console.error(`compile failed, but NOT for this reason — the probe is answering a different ` +
+        `question than the one asked (exit ${r.status}): ${said.trim().slice(0, 400)}`);
+      process.exit(2);
+    }
+    console.error("COMPILE OPENED ATTEMPT 2 while attempt 1 was unanswered — no receipt, no leg, " +
+      "no WorkResult for r1-a1. This is HD-2's interleaving, and the pipeline still permits it: " +
+      `the order was written to ${(r.stdout || "").trim()}`);
+    process.exit(1);
   }
 
   if (mode === "in-flight") {

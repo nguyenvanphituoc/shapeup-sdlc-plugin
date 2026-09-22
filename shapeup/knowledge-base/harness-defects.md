@@ -118,6 +118,40 @@ is pinned by a guard, never when it is merely believed done.
   workflow lane works around this by stating the path in the dispatch prompt and deriving the same
   one from the order; the port itself is unfixed.
 
+- **HD-029 · A run that went through GATE H cannot record a later ship.** Discovered 2026-09-22
+  while implementing `HD-026`'s fix, by the stage's own executor rather than by any check — no
+  acceptance row covered it, which is the same boundary `HD-026` and `HD-028` sit on.
+
+  `skills/tech-lead/references/gates.md` has GATE L4 call `probe resume --close shipped`
+  unconditionally after a GATE H → L4 ship decision. Since the close-out derives its status from
+  the RunReturn arm, `gate_h` closes the ledger as `escalated` **immediately**, and `closeRun`
+  refuses a *different* terminal status over an existing close — by design, because a terminal
+  close is a once-only fact and the first cause must not be destroyed.
+
+  Driven end to end, not reasoned about:
+
+  ```
+  1) gate_h close          → ok=true  status=escalated
+  2) then --close shipped  → ok=false
+     closeRun: this run is already closed as "escalated" … refusing to overwrite it with "shipped".
+  3) ledger now says closed_status=escalated
+  ```
+
+  So the documented flow — trip a breaker, hand to GATE H, ship what is green at L4 — now leaves a
+  ledger reading `escalated` and a refused ship close. Nothing is corrupted and no cause is lost;
+  the run's own report still says what shipped. What is wrong is that the ledger's terminal fact
+  disagrees with the outcome, and the L4 step believes it closed a run it did not.
+
+  Three ways out, and the choice is the PO's because it is adjacent to `HD-014`'s question of what
+  an `escalated` close should release: **(a)** L4 checks for an existing close and reports
+  "shipped after escalation" instead of calling `--close shipped`; **(b)** `closeRun` lets
+  `shipped` supersede `escalated` — the later, stronger fact — folding the prior cause in the way
+  a same-status supersede already does; **(c)** `gate_h` stops closing immediately and leaves the
+  close to whoever ends the run, which gives back the gap `HD-026` was filed to close.
+
+  Not scheduled. Filed with the evidence so the decision is made once, with `HD-014`, rather than
+  discovered again by the next run that trips a breaker and then ships.
+
 ### Filed 2026-09-19 — measured in the consumer soak, never filed here
 
 Nine findings came out of the HarmonyOS soak (2026-09-15→17, two consecutive features on a project

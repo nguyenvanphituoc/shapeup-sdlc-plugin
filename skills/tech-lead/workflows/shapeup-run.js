@@ -1764,11 +1764,15 @@ async function buildScope(scope, roundNo) {
           `and keep T0 green. An entry marked \`unowned\` cites no file any scope owns — fix it only ` +
           `if it falls inside your substrate. `
         : "") +
-      `Re-compile the order for every attempt after the first, with --attempt <n>. ` +
+      `Re-compile the order for every attempt after the first, with --attempt <n>. An attempt will ` +
+      `be REFUSED (exit 3) while the previous one is unanswered — dispatched with no leg row and no ` +
+      `WorkResult — because grading a tree the previous attempt may still be writing counts an ` +
+      `attempt nobody ran. Let it come back rather than opening the next one. ` +
       `Run the attempt ratchet for THIS scope only: up to ${attemptBudget} attempts of implement → ` +
       `\`node "${KERNEL}" verify t0 "${scope.path}" --round ${roundNo} --attempt <n>\`, each scored against ` +
       `the last kept trial. Stop on the first green T0, or when the attempt budget or the stagnation ` +
       `breaker trips. Write only inside this scope's substrate whitelist — the sandbox hook enforces it. ` +
-      `Report green, attempts_used, which breaker (if any) tripped, and the T0 artifact path.`,
+      `Report green, attempts_used, which breaker (if any) tripped, and the T0 artifact path — ` +
+      `attempts_used is what the attested channels carry, not a count of the orders you compiled.`,
   });
 }

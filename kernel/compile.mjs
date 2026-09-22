@@ -31,7 +31,7 @@ import { fileURLToPath } from "node:url";
 import { validate } from "./verify/envelope.mjs";
 import { readTrials } from "./verify/t0.mjs";
 import { runArgs } from "./lib/argv.mjs";
-import { readRunId } from "./lib/paths.mjs";
+import { readRunId, dispatchReceipts, legLedger } from "./lib/paths.mjs";
 // `specDir` is aliased: this module has a local `let specDir` holding the resolved, possibly
 // --spec-overridden directory, and the import is the convention-derived default.
 import {
@@ -41,6 +41,8 @@ import {
 import { readContract, readAllContracts, tasksForScope, SCOPE_CONTRACT } from "./lib/contract.mjs";
 import { writeActiveOrder } from "./probe/resume.mjs";
 import { greenVerdict } from "./probe/t0.mjs";
+import { attemptEvidence, readReceipts } from "./probe/attempts.mjs";
+import { readLegs } from "./probe/leg.mjs";
 import { latestRoundBuild } from "./verify/build.mjs";
 // The SAME matcher the sandbox hook enforces with. "Is this cited file inside this scope's
 // substrate" has to mean exactly what the guard means, or a bug is addressed to a scope that is
@@ -815,6 +817,40 @@ export async function cli(rawArgv) {
 
   const round = flag("round");
   const attempt = flag("attempt");
+
+  // AN ATTEMPT MAY NOT OPEN OVER AN UNANSWERED ONE — the write half of the attested-channel rule.
+  //
+  // `--attempt` is a flag: the CALLER picks the number, and nothing here used to check that the
+  // previous one had come back. Measured on a consumer run: attempt 2 was compiled and T0-verified
+  // while attempt 1 was still in flight, so the round graded the tree attempt 1 was still writing,
+  // counted the attempt, and stopped at GATE H with most of its budget and clock unspent. An order
+  // and a T0 verdict are both writable by the very scope being judged; only a dispatch receipt, a
+  // leg row or a WorkResult attests that work actually happened.
+  //
+  // FAILS OPEN, NEVER CLOSED, unless the bad state is positively proven. The proof required is the
+  // receipts ledger EXISTING while carrying no row for the previous attempt: a lane that does not
+  // attest dispatches at all (no ledger on disk) cannot be judged by this rule and is waved
+  // through, so `--tiny`, a prose round loop and a standalone build are untouched.
+  if (scope?.scope_id && round && attempt > 1) {
+    const receiptsPath = dispatchReceipts(cwd, slug);
+    if (existsSync(receiptsPath)) {
+      const prev = attemptEvidence(
+        cwd, slug, scope.scope_id, round, attempt - 1,
+        readReceipts(receiptsPath), readLegs(legLedger(cwd, slug)),
+      );
+      if (prev.state !== "spent") {
+        const why = prev.state === "unattested"
+          ? "no dispatch receipt was ever written for it"
+          : "it was dispatched but has neither a leg-completion row nor a WorkResult";
+        console.error(
+          `compile-order: refusing to open attempt ${attempt} for "${scope.scope_id}" in round ${round} — ` +
+          `attempt ${attempt - 1} (${prev.orderId}) is unanswered: ${why}. Grading a tree the previous ` +
+          `attempt may still be writing counts an attempt that never ran, and spends a budget on work ` +
+          `nobody did. Wait for it to return, or record its outcome, before opening the next one.`);
+        process.exit(3);
+      }
+    }
+  }
 
   // The fix round's inbound evidence. Derived here, from the ledgered verdict, for every lane —
   // the workflow, `--tiny`, the prose round loop and a standalone `/build` all compile through
