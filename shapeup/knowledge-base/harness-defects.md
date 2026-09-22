@@ -453,6 +453,36 @@ is pinned by a guard, never when it is merely believed done.
   Note what is invisible from the plugin's own checkout: there, every command a fixture reaches is
   already permitted, so a fixture format that cannot survive a grant reads as working.
 
+  **CONFIRMED FIXED 2026-09-23, and the confirmation exposed the mechanism half.** With the fixtures
+  rewritten as committed scripts, a soak's first trial recorded `exit 1` on
+  `./scripts/t0-assemble.sh`, and the script run directly returns **2 009 characters** of real
+  hvigor output failing on `00303018` — the genuine open blocker. The refusal mode is closed: the
+  fixtures execute.
+
+  **But the verdict artifact still cannot tell the two apart, and that is a defect in its own
+  right.** `runCommand` (`kernel/verify/t0.mjs`) deliberately captures `stdout`, `stderr`, and an
+  `error` field precisely because *"a spawn failure or a timeout is NOT the same fact as 'the
+  command ran and failed'"* — its own comment. The verdict then persists only:
+
+  ```
+  {"cmd":"./scripts/t0-assemble.sh","exit":1,"pass":false}
+  ```
+
+  `stdout`, `stderr` and `error` are dropped, and `exit: r.status ?? 1` maps a spawn failure onto the
+  same `1` a real failure returns. So downstream — the digest, the hill, the report, anyone reading
+  the trace afterwards — a refused command and a failing build are byte-identical. The kernel
+  computes the distinction and throws it away one step later.
+
+  **A corollary that cost an hour here: an empty diagnostic digest does not mean the command was
+  refused.** It means the digester found no `file:line` to extract, and a configuration error
+  (`00303018`, which names a path but no line) produces exactly that while the build genuinely ran.
+  Using digest length as a refusal signal is a heuristic that happens to hold for refusals and is
+  not specific to them.
+
+  **Fix:** persist `error` on the fixture record, and keep at least a bounded tail of `stdout`/
+  `stderr`. A verdict that records `exit 1` with no captured output and no error field is an
+  assertion nobody can audit afterwards.
+
 - **HD-035 · `reduce ship` does not retire the run pointer on a no-verdict close.** Promoted from
   the consumer's register (filed there as `HD-5`, 2026-09-22).
 
