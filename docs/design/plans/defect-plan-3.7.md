@@ -14,8 +14,9 @@ marketplace, 2026-09-21→22; `docs/design/orchestration-evidence-and-next.md`.
 Stage 0 → Stage 4 ordering. Low on duration: one maintainer, wall-clock is the constraint.
 **Status:** Proposed. Nothing here has run.
 
-**Baseline, measured not remembered:** `npm test` = **1841 checks** green at `865ec79`, identically
-in a fresh clone; `npm run demo` regenerates `docs/assets/demo-gate.svg` byte-identical, md5
+**Baseline, measured not remembered:** `npm test` = **1843 checks** green at `b04d285` — the sha that
+carries this document — identically in a fresh clone. It read 1841 at `865ec79`, one commit earlier;
+the +2 are doc-drift checks this file's own citations created, which is the caveat below in action. `npm run demo` regenerates `docs/assets/demo-gate.svg` byte-identical, md5
 `2c97a1e532845ccf33178d1492606a9d`. The count is **not sha-invariant** — it carries one check per
 unique path cited anywhere under `docs/`, so this document's own existence moves it. Compare
 clone-to-clone at a named sha.
