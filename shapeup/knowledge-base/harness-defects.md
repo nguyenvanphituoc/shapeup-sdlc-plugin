@@ -222,11 +222,33 @@ is pinned by a guard, never when it is merely believed done.
   remove. The installed-plugins record said `3.7.1-rc.1`; the run resolved the previous version
   anyway.
 
-  The lesson for anyone soaking a candidate: **the only trustworthy version check is the run's own
-  `run-args.json` `pluginRoot`, read after the run opens.** A marker grepped out of the staged
-  script is not enough — a marker that distinguishes 3.6.0 from 3.7.x says nothing about 3.7.0 vs
-  3.7.1, and using one to clear the other is a probe answering a different question than the one
-  asked.
+  **The mechanism, characterised 2026-09-22 — it is a per-project version pin, not a cache or a
+  restart.** `installed_plugins.json` carries one entry per project that ever installed the plugin
+  (26 of them here), each pinning its own version, plus one user-scope entry. `claude plugin update`
+  and `install` write to **user** scope by default whatever directory they are run from, so the
+  update reports success while the project keeps resolving its own pin. Confirmed against launch
+  evidence: at the run's open the project pin read `3.7.0`, and `3.7.0` is exactly what the run used.
+
+  The supported fix is **`--scope project`**, which `--help` does not list and the tool names only
+  in its own "already installed" message:
+
+  ```
+  claude plugin update <plugin>@<marketplace> --scope project
+  ```
+
+  `disable`/`enable` act at project scope but do not re-resolve the version, and `uninstall` targets
+  the user entry first, so neither is a substitute.
+
+  **Checking which version a run actually used — and the trap in the obvious check.** Read
+  `plugin.version` from the run's own `receipt.json`: the receipt is minted when the run opens and
+  carries the plugin identity. `run-args.json` also carries `pluginRoot`, but it is written later,
+  at the launch-record step, so between a run opening and that step the file on disk still belongs
+  to the PREVIOUS run — it carries a `runId` to prove it. Reading `pluginRoot` without first
+  checking `runId` against the receipt's `run_id` reports the last run's version as this one's, and
+  measured here it did: a soak on the right version was nearly killed on that reading. A marker
+  grepped out of the staged workflow script is weaker still — one that distinguishes 3.6.0 from
+  3.7.x says nothing about 3.7.0 versus 3.7.1, and using it to clear the other is a probe answering
+  a different question than the one asked.
 
 - **HD-032 · The attested-attempt census counts a PREVIOUS run's work as this run's.** Found by the
   consumer soak on 2026-09-22, in the fix for `HD-028` itself, one release after it shipped.
