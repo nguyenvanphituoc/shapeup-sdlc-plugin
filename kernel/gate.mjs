@@ -53,7 +53,7 @@
 import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { runArgs } from "./lib/argv.mjs";
-import { gateAnswerCandidates, gates as gatesPath, LOCAL } from "./lib/paths.mjs";
+import { gateAnswerCandidates, gates as gatesPath, LOCAL, resultsDir } from "./lib/paths.mjs";
 
 export const GATE_IDS = ["L0", "L1a", "L1a.5", "L1b", "L2", "L3", "QA", "H", "L4", "COACH-1"];
 
@@ -168,6 +168,71 @@ export function validate(set) {
  * Returns { gate, decision, source, note, status } where status ∈ ok | ask | abort.
  * Pure: the CLI turns `status` into the exit code, nothing here exits.
  */
+/** The three verdicts `scope-hammer` may return (shapeup-run.js's HAMMER schema). */
+export const HAMMER_VERDICTS = ["ship-now", "ship-after-fixes", "cannot-ship"];
+
+/**
+ * The census verdict on disk for one run, or null when no census has run.
+ *
+ * Derived from the hammer's own WorkResult rather than taken from a caller: the verdict is the
+ * product of a dispatch, and a gate that accepts it as an argument accepts whatever the caller
+ * believes. `null` is a real answer here — "scope-hammer has not run" — and is the state a run that
+ * returned `gate_h` from a circuit breaker is in, because the breaker returns long before the
+ * hammer is dispatched.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {(string|null)} The verdict, or null when there is no readable census.
+ */
+export function censusVerdict(cwd, slug) {
+  if (!slug) return null;
+  try {
+    const p = join(resultsDir(cwd, slug), "hammer.json");
+    if (!existsSync(p)) return null;
+    const r = JSON.parse(readFileSync(p, "utf8"));
+    const v = r?.payload?.verdict ?? r?.verdict ?? null;
+    return HAMMER_VERDICTS.includes(v) ? v : null;
+  } catch { return null; }
+}
+
+/**
+ * Narrow a resolved gate answer to what the run's own evidence supports.
+ *
+ * THE RULE, and it is about answers rather than callers. An answer set chooses among the answers a
+ * gate ALLOWS; it can never supply the evidence that makes one allowed. `ship` at L4 asserts the
+ * census cleared the run, so `ship` is only on the menu when a census exists and did clear it.
+ *
+ * Measured on a consumer: a run whose dispatch receipts carried `orient` and `task-executor` and
+ * nothing else — `scope-hammer` never dispatched — recorded `H → accept-cut-list` and `L4 → ship`
+ * from the `ci` preset, while its own ledger read `status: escalated`, `final_verdict: ~`, every
+ * requirement at `no evidence`. `shapeup-run.js` does guard this, but only after the hammer
+ * dispatch, so a run that returns `gate_h` from a breaker reaches L4 by a route the guard does not
+ * cover. A check on one call site is not a property.
+ *
+ * Absence of a census disqualifies `ship` on its own: "no one looked" and "someone looked and it
+ * was fine" are different facts, and only the second warrants a ship.
+ *
+ * @param {object} r - A resolved gate result from {@link resolve}.
+ * @param {string} cwd - Project root.
+ * @param {(string|null)} slug - Feature slug, when the gate is being resolved inside a run.
+ * @returns {object} The result, or an `ask` carrying why `ship` was not available.
+ */
+export function narrowToEvidence(r, cwd, slug) {
+  if (r?.gate !== "L4" || r?.status !== "ok" || r?.decision !== "ship") return r;
+  const verdict = censusVerdict(cwd, slug);
+  if (verdict === "ship-now" || verdict === "ship-after-fixes") return r;
+  const why = verdict === "cannot-ship"
+    ? "scope-hammer's census returned CANNOT SHIP"
+    : "scope-hammer has not run, so no census exists";
+  return {
+    gate: r.gate, status: "ask", source: r.source, decision: "ask", note: r.note,
+    refused: "ship", census: verdict,
+    reason: `GATE L4 cannot be answered "ship": ${why}. An answer set chooses among the answers a ` +
+            `gate allows; it cannot supply the evidence that makes one allowed. Put the block to the ` +
+            `PO, or run the census first.`,
+  };
+}
+
 export function resolve(set, gate, source) {
   if (!GATE_IDS.includes(gate)) {
     return { gate, status: "error", reason: `unknown gate "${gate}" — known: ${GATE_IDS.join(", ")}` };
@@ -362,7 +427,7 @@ export function cli(rawArgv) {
   const gate = args.resolve ?? null;
   if (!gate) die("nothing to do — pass --init, --list, --verify, or --resolve <gate-id>");
 
-  const r = resolve(found.set, gate, found.source);
+  const r = narrowToEvidence(resolve(found.set, gate, found.source), cwd, args.slug ?? null);
   if (r.status === "error") die(r.reason);
   // A gate with no `--slug` (e.g. `--file` used ad hoc, outside any run) has nowhere to file a
   // per-run ledger row — the same reasoning `resolveRunId` uses for "no run is active": absence is

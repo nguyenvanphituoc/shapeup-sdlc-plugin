@@ -91,6 +91,18 @@ export async function run(ctx) {
       ], { cwd: ws, encoding: "utf8", timeout: 30_000 });
       if (init.status !== 0) throw new Error(`init run failed: ${init.stderr || init.stdout}`);
 
+      // L4 ASKS FOR THE CENSUS BEFORE IT WILL SHIP, so a faithful fixture has to have run one.
+      // This fixture used to resolve L4 on a bare `init run` workspace and assert `ship`, which is
+      // the defect measured on a consumer: a run whose receipts carried `orient` and
+      // `task-executor` and nothing else recorded `L4 → ship` from the preset while its own ledger
+      // read `escalated` with no verdict. `ship` asserts a census cleared the run, so the fixture
+      // writes the census it is asserting about. The negative case is checked below.
+      mkdirSync(join(ws, ".shapeup", "widgets", "results"), { recursive: true });
+      writeFileSync(join(ws, ".shapeup", "widgets", "results", "hammer.json"), JSON.stringify({
+        schema_version: 1, order_id: "widgets/hammer", worker: "scope-hammer",
+        status: "done", payload: { verdict: "ship-now", cut_list: [] },
+      }));
+
       // Exactly the call the prose now spells for L0 and L4 — --preset ci resolves both to
       // "proceed"/"ship" without a human, same as a real unattended lane.
       for (const gid of ["L0", "L4", "COACH-1"]) {
@@ -142,6 +154,31 @@ export async function run(ctx) {
       const bgTable = manifest2.tables.find((t) => t.name === "build_gate");
       if (bgTable?.rows === 1) ok("(c) a round build-gate artifact on disk becomes one build_gate export row");
       else fail(`(c) the round build-gate artifact did not reach the export: ${JSON.stringify(bgTable)}`);
+    
+      // THE NEGATIVE, and it is the property the positive one cannot show: with no census on disk
+      // the same preset must NOT answer ship. An answer set chooses among the answers a gate
+      // allows; it cannot supply the evidence that makes one allowed.
+      {
+        const ws2 = mkdtempSync(join(tmpdir(), "gate-nocensus-"));
+        try {
+          const i2 = spawnSync(process.execPath, [
+            join(ROOT, "kernel/harness.mjs"), "init", "run",
+            "--slug", "widgets", "--intake-text", "No census has run", "--auto-level", "unattended", "--cwd", ws2,
+          ], { cwd: ws2, encoding: "utf8", timeout: 30_000 });
+          if (i2.status !== 0) throw new Error(`init run failed: ${i2.stderr || i2.stdout}`);
+          const r2 = spawnSync(process.execPath, [
+            join(ROOT, "kernel/harness.mjs"), "gate", "--resolve", "L4",
+            "--slug", "widgets", "--preset", "ci", "--cwd", ws2,
+          ], { cwd: ws2, encoding: "utf8", timeout: 15_000 });
+          let out = null; try { out = JSON.parse(r2.stdout || "null"); } catch { /* below */ }
+          if (out && out.status === "ask" && out.decision !== "ship") {
+            ok("(c) with no census on disk the ci preset does NOT answer L4 ship — it asks instead");
+          } else {
+            fail(`(c) L4 answered without a census: ${JSON.stringify(out).slice(0, 200)}`);
+          }
+        } finally { rmSync(ws2, { recursive: true, force: true }); }
+      }
+
     } finally { rmSync(ws, { recursive: true, force: true }); }
   }
 

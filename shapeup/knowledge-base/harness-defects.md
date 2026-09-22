@@ -679,11 +679,53 @@ is pinned by a guard, never when it is merely believed done.
   reason this is a recorded contradiction rather than a false ship. **The harness should not depend
   on a worker declining to believe its own gate ledger.**
 
-  **Fix shape:** L4's resolver must read GATE H's verdict, and a preset must not be able to answer
-  `ship` over `CANNOT SHIP` — the answer set resolves *which* answer a gate takes, never whether the
-  precondition holds. `AGENTS.md`'s own framing already says a gate answer may never widen what a
-  gate permits; this is that rule unenforced at the one gate where it decides whether a release
-  happened.
+  **SHARPENED after tracing it: there was no census at all.** The run's dispatch receipts carry
+  exactly two entries — `orient` and `task-executor`. **`scope-hammer` was never dispatched.** So
+  `H → accept-cut-list` and `L4 → ship` were both resolved from the preset with no cut list, no
+  baseline comparison and no verdict in existence. The defect is not "L4 ignored H's verdict"; it is
+  that **both gates resolved over a census that never ran**.
+
+  The workflow is not where this leaks. `shapeup-run.js` already guards it:
+
+  ```js
+  if (h.verdict === "cannot-ship") return await withWarnings(aborted("H", "scope-hammer: CANNOT SHIP — …"));
+  ```
+
+  That line sits *after* the hammer dispatch, and this run returned `gate_h` from the inner breaker
+  long before reaching it. GATE H and L4 were then resolved by the orchestrator skill's own
+  prose-driven path, which has no equivalent check. So the guard exists on one route to L4 and not
+  the other, which is the shape `69-terminal-wrapping.mjs` was written about in a different corner:
+  a check on the call site rather than on the outcome.
+
+  **Therefore the rule has to be a precondition on the answer, not a branch in one caller:** `ship`
+  is not a valid L4 answer unless a hammer verdict exists on disk and is not `cannot-ship`. Absence
+  of a census disqualifies `ship` on its own — a gate answer set chooses among valid answers and can
+  never supply the evidence that makes one valid.
+
+  **FIXED in 3.7.1-rc.3.** `narrowToEvidence` (`kernel/gate.mjs`) narrows a resolved answer to what
+  the run's evidence supports, applied in the gate CLI so **every** route to L4 passes through it —
+  the workflow's own branch and the orchestrator skill's prose path alike. `ship` survives only when
+  `censusVerdict` finds a hammer WorkResult on disk reading `ship-now` or `ship-after-fixes`;
+  `cannot-ship` and **no census at all** both resolve to `ask`, carrying `refused: "ship"` and the
+  reason. The verdict is read off the hammer's own result rather than accepted as an argument,
+  because a gate that takes the verdict from its caller accepts whatever the caller believes.
+
+  Absence is treated as disqualifying on purpose: *"no one looked"* and *"someone looked and it was
+  fine"* are different facts, and only the second warrants a ship.
+
+  Verified in both directions, and the third case is the one that matters — the fix narrows the
+  answer without disarming the gate:
+
+  ```
+  no-census    -> ask   (refused)
+  cannot-ship  -> ask   (refused)
+  ship-now     -> ship  (still allowed)
+  ```
+
+  `68-gate-coverage.mjs` §110 asserted `L4 → ship` on a bare workspace with no census — the defect
+  encoded as an expectation. Its fixture now writes the census it is asserting about, so it tests
+  the real ship path, and a new negative case asserts that the same preset does **not** ship without
+  one. Mutation-verified: reverting the fix turns the suite red on that negative.
 
 ### Filed 2026-09-19 — measured in the consumer soak, never filed here
 
