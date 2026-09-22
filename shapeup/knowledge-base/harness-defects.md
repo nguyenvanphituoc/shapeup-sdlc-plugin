@@ -630,6 +630,61 @@ is pinned by a guard, never when it is merely believed done.
   disk is the cheap mechanical version, and it belongs with the committed-tier write guard
   `HD-036` needs.
 
+- **HD-039 · A hill dot outlives the evidence that moved it.** Promoted from the consumer's register
+  (`HD-8`, 2026-09-23), verified against the artifacts before promoting.
+
+  Two committed files disagree about the same scope:
+
+  ```
+  shapeup/<slug>/hill/<scope>.yml   phase: UPHILL_SOLVED
+  shapeup/<slug>/scopes/<scope>.md  hill_phase: UPHILL_UNKNOWN
+  ```
+
+  …on a branch that has **never compiled**. `reduce hill` returns `changed: false` rather than
+  moving the dot back, because the derivation is monotonic forward: it can advance a phase on new
+  evidence and has no path to retract one when the evidence is gone. A prior run's dot therefore
+  survives a fresh state, a reverted tree and a red build.
+
+  `AGENTS.md` states the invariant this breaks: *"Hill phase is mechanical — derived only from
+  T0/T1/seesaw artifacts, never self-reported, and a T0-green from a round whose build gate is red
+  moves no dot."* The second clause is enforced; the first is not, because "derived" is only true
+  going forward. A derived value that cannot go down is not derived, it is a high-water mark — and
+  the dashboard renders it as current status.
+
+  **Fix shape:** derive the phase from the run's own artifacts each time and write what that derives,
+  including backwards; or, if monotonicity is deliberate, say so in the artifact — a `UPHILL_SOLVED`
+  that means "was solved once, on evidence no longer present" must not render identically to one
+  that holds now. The contract and the shard disagreeing is the cheap mechanical detector.
+
+- **HD-040 · The `ci` answer set signs `L4 | ship` over a run that shipped nothing.** Promoted from
+  the consumer's register (`HD-9`, 2026-09-23). The most serious finding of the soak, because it
+  corrupts the audit trail a headless run exists to leave.
+
+  Measured, seconds apart, in one run:
+
+  ```
+  gates.jsonl   {"gate":"H",  "decision":"accept-cut-list", "source":"preset:ci"}
+  gates.jsonl   {"gate":"L4", "decision":"ship",            "source":"preset:ci",
+                 "note":"Ship sign-off pre-approved. THIS is the one a reviewer should look at
+                         first when auditing a headless run."}
+  harness-run.md  status: escalated   final_verdict: ~   closed_status: escalated
+  ```
+
+  GATE H's census had returned **CANNOT SHIP** with an empty cut list. EVAL never ran; all 22 live
+  requirements read `no evidence`. The resolver answered L4 from the preset without reading the
+  hammer's verdict, so the ledger and the gate ledger now contradict each other — and the row that
+  contradicts is the one whose own note nominates it as the first thing an auditor should trust.
+
+  The orchestrator did not act on it: it refused to report a ship and escalated. That is the only
+  reason this is a recorded contradiction rather than a false ship. **The harness should not depend
+  on a worker declining to believe its own gate ledger.**
+
+  **Fix shape:** L4's resolver must read GATE H's verdict, and a preset must not be able to answer
+  `ship` over `CANNOT SHIP` — the answer set resolves *which* answer a gate takes, never whether the
+  precondition holds. `AGENTS.md`'s own framing already says a gate answer may never widen what a
+  gate permits; this is that rule unenforced at the one gate where it decides whether a release
+  happened.
+
 ### Filed 2026-09-19 — measured in the consumer soak, never filed here
 
 Nine findings came out of the HarmonyOS soak (2026-09-15→17, two consecutive features on a project
