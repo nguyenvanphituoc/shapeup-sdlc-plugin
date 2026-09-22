@@ -324,8 +324,8 @@ suite nobody has run is an assumption rather than a baseline.
 | stage | goal | acceptance | state |
 |---|---|---|---|
 | **S0** | `HD-1` — the producer/lint collision; promote `HD-1`/`HD-2` | 7 rows, 2 of them inline anti-gaming guards | ✅ **verified 7/7** at `52fedc2` |
-| **S1** | `HD-026` — derive the close-out from the union | 7 rows, incl. a mutation that adds an unmapped arm | 🔵 in execution |
-| **S2** | durability — export on every ending | 6 rows, incl. the driver's own falsifier | ⚪ queued |
+| **S1** | `HD-026` — derive the close-out from the union | 8 rows, incl. a mutation that adds an unmapped arm | ✅ **verified 8/8** at `39ff7a7` |
+| **S2** | durability — export on every ending | 6 rows, incl. the driver's own falsifier | 🔵 in execution |
 | **S3** | `HD-2` — count attested work, not writable artifacts | 7 rows, incl. "a real exhaustion still trips" | ⚪ queued |
 | **S4** | the soak | — | ⛔ out of scope this run (PO) |
 
@@ -371,6 +371,44 @@ prose. Both were read out of `domain.schema.json` before Stage 1 was briefed.
    the plan never names and the workflow never constructs. An arm nobody thought to name, found in
    the plan written to close exactly that class of defect. It is now an explicit non-terminal row in
    the map rather than an omission, and Stage 1's acceptance reads `ALL 5 ARMS MAPPED`.
+
+#### S1 — verified ✅
+
+Commit `39ff7a7`, *feat(close-out): derive gate_h's ending from the schema, not a typed pair*.
+**8 of 8 green**, re-verified in a clean clone. Suite **1861 checks** (1847 + 14).
+
+`RUN_RETURN_CLOSE` now lives in the kernel, where it can be imported and executed against a fixture
+— the move that matters, because `shapeup-run.js` is a Workflow body that cannot be imported, which
+is *why* rule 7's failure happened there. It maps every arm the schema carries:
+
+| arm | closes as |
+|---|---|
+| `shipped` | `shipped` |
+| `aborted` | `aborted` |
+| `gate_h` | `escalated` |
+| `paused` | *(non-terminal, by design)* |
+| `ok` | *(non-terminal, never constructed)* |
+
+`paused` and `ok` are explicit `null` entries rather than absences, so the two cases are
+distinguishable: *deliberately not closed* and *nobody mapped this yet* no longer look identical.
+
+**The rule-7 row, driven end to end and read back off disk** — not a call site, an artifact:
+
+```
+closed_status=escalated close_cause=driven by s1-drive-close.mjs (arm=gate_h) closed_at=2026-09-22T07:32:02.533Z
+```
+
+and `paused` prints `NO CLOSE`, as designed.
+
+**The falsifier flipped.** Before this stage, injecting a sixth unmapped arm into the schema left all
+1843 checks green — `HD-026`'s defect class, reproducible on demand. It now turns the suite **red**,
+in both directions: green first, then red under mutation. This is the stage's real result. Writing a
+proposition for `gate_h` alone would have closed the instance and left the next unnamed arm exactly
+as exposed; deriving the arms closes the class, which is what §6 asked for.
+
+`TERMINAL_STATUSES` is still `[shipped, aborted, escalated]` — the guard held, and the stage did not
+buy its green by widening a kernel enum. `HD-014`'s code half is now unblocked: a close exists to
+key off. Whether an `escalated` close *should* release the sandbox fence remains a PO call.
 
 ### A defect in the acceptance instrument, found by smoke-testing it
 
