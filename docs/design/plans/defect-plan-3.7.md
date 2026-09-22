@@ -325,8 +325,8 @@ suite nobody has run is an assumption rather than a baseline.
 |---|---|---|---|
 | **S0** | `HD-1` — the producer/lint collision; promote `HD-1`/`HD-2` | 7 rows, 2 of them inline anti-gaming guards | ✅ **verified 7/7** at `52fedc2` |
 | **S1** | `HD-026` — derive the close-out from the union | 8 rows, incl. a mutation that adds an unmapped arm | ✅ **verified 8/8** at `39ff7a7` |
-| **S2** | durability — export on every ending | 6 rows, incl. the driver's own falsifier | 🔵 in execution |
-| **S3** | `HD-2` — count attested work, not writable artifacts | 7 rows, incl. "a real exhaustion still trips" | ⚪ queued |
+| **S2** | durability — export on every ending | 7 rows, incl. the driver's own falsifier | ✅ **verified 7/7** at `50919e1` |
+| **S3** | `HD-2` — count attested work, not writable artifacts | 7 rows, incl. "a real exhaustion still trips" | 🔵 in execution |
 | **S4** | the soak | — | ⛔ out of scope this run (PO) |
 
 #### S0 — verified ✅
@@ -409,6 +409,36 @@ as exposed; deriving the arms closes the class, which is what §6 asked for.
 `TERMINAL_STATUSES` is still `[shipped, aborted, escalated]` — the guard held, and the stage did not
 buy its green by widening a kernel enum. `HD-014`'s code half is now unblocked: a close exists to
 key off. Whether an `escalated` close *should* release the sandbox fence remains a PO call.
+
+#### S2 — verified ✅
+
+Commit `50919e1`, *feat(close-out): export a run's records on every terminal ending, not only the one
+that ships*. **7 of 7 green**, re-verified in a clean clone. Suite **1870 checks** (1861 + 9).
+
+The export now hangs off Stage 1's close-out — which is why the ordering was load-bearing and why
+this stage was nearly free once S1 existed. Driven, artifacts read back:
+
+```
+aborted     → EXPORT OK closed_status=aborted
+gate_h      → EXPORT OK closed_status=escalated
+fail-export → CLOSE INTACT export on close: ENOTDIR … mkdir '…/.shapeup/exports/…'
+```
+
+The last line is the one worth reading twice. The export was **made to fail**, and the close still
+stands: the failure surfaces as an `export_warning` copied verbatim into the run's state warnings
+rather than being swallowed. A failed export degrades the trace; it does not turn a close into a
+non-close.
+
+**On the non-regression proposition.** The plan asks that *a shipped run's export be unchanged*, and
+the acceptance table encoded that only weakly — so it was checked directly rather than assumed.
+`exportOnClose` covers every terminal ending **except** `shipped`, deliberately: the Ship phase
+already had its own `report export` call, and adding a second would double-export the one ending
+that was never broken. Module 72 §119 asserts exactly that — `closeRun("shipped")` writes no export
+of its own — so the claim is tested, not merely intended.
+
+That is the whole gap closed: against the question *must facts survive the run?*, the harness used to
+answer yes for a run that ships and no for one that does not. The runs whose records are worth most
+are the ones that never reach the exporter, and those now leave fact tables.
 
 ### A defect in the acceptance instrument, found by smoke-testing it
 
