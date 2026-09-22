@@ -726,9 +726,50 @@ mid-BUILD with an unanswered order and a live fence. Any unattended soak longer 
 needs `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0`, or it is measuring the launcher's patience rather
 than the harness.
 
+#### Launch 8 — the fixture blocker closed, and two more producers caught
+
+Fresh state, rc.2, the T0 fixtures rewritten as committed scripts, and the launcher's 600 s
+background ceiling lifted. It aborted at L1b **twice**, for two different reasons, and never reached
+BUILD — so the predicted red build gate was never exercised.
+
+**The fixture rewrite works, which was the point of the launch.** `./scripts/t0-assemble.sh` runs
+headlessly and returns real hvigor diagnostics with a real exit code, where the inline form returned
+nothing at all. `HD-034`'s mode — a refusal recorded indistinguishably from a failing build — is
+closed, verified in both my own shell and a nested session.
+
+**Abort 1: `HD-036` again**, at a different line of the same file, an hour after the same session had
+repaired the first occurrence and watched its own lint go green. That makes it deterministic, 2 of 2
+fresh runs, and settles the fix's shape: a worker cannot carry a lesson across runs, so the
+enforcement has to be a write-boundary guard rather than a taught rule.
+
+**Abort 2: `HD-037`, new.** The run's `coverage` dispatch appended `REQ-23`…`REQ-29` to a committed,
+frozen registry — every clause of the pitch's **No-gos** section, each marked `covered`. L1b then
+red all seven as uncovered, correctly and unavoidably: nothing can grade *"no persistence"*. Two
+defects in one diff, since `AGENTS.md` also says a registry on disk is not re-dispatched and its ids
+are frozen.
+
+The run refused to resolve it by writing `CUT (PO-approved)` for a PO who had approved nothing —
+the right call, and the gate's whole purpose. **The PO subsequently gave that sign-off explicitly**,
+it is recorded as theirs in the consumer's history, and launch 9 proceeds from there.
+
+**`HD-038`, surfaced by the run and verified independently before promoting.** `spec/synthesis.md`
+carries a 🟢 and the sentence *"All 22 registered requirements reach at least one AC carrying
+`(covers: REQ-…)` — confirmed"*. A grep for `covers:` across the whole spec folder returns **that
+claim and one other claim line, and nothing else**. No acceptance criterion carries it; the coverage
+that exists comes from the scope contract, a different mechanism entirely. A committed artifact
+narrating a derived verdict, which is the precise thing the *projection, never a verdict* invariant
+forbids — and it reads as corroboration, which is what let the empty AC channel look solved.
+
+**An error of my own, recorded because it cost real work.** Reverting `app/` for a clean state also
+undid the previous run's `~TL-L0-001` repair, so the build began dying on an earlier config error
+that had already been fixed once, masking the genuine blocker. Restored before launch 9. A "fresh
+state" that reverts by path takes legitimate repairs with it; the run tier and the working tree are
+not the same kind of state.
+
 **Seven soaks have now stopped before the judge, and the reason has changed every time** — a missing
 toolchain, a naming rule, a stale script, a lint collision, a cross-run streak, a fixture
-the sandbox refused, and the orchestrator's own profile failing the orchestrator's own gate. Each fix moved the run further, and this one is the shallowest yet: unblocking
+the sandbox refused, the orchestrator's own profile failing the orchestrator's own gate, and a
+registry extended mid-run with clauses nothing can grade. Each fix moved the run further, and this one is the shallowest yet: unblocking
 it is a permission change, not a code change. The run filed it into the consumer's register as a
 defect in its own right — **a fixture the sandbox refuses to run is recorded as a fixture that
 failed** — which is the more valuable finding, because that conflation would misreport any denied
