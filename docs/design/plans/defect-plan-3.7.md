@@ -659,9 +659,40 @@ other two. `attempt_budget: 5` and `max_rounds: 3` were never approached, and ca
 bad trials close a single-scope pitch. That is the configuration behaving as designed, not a defect,
 but it is the reason a soak of this pitch stops in minutes rather than hours.
 
-**Six soaks have now stopped before the judge, and the reason has changed every time** — a missing
-toolchain, a naming rule, a stale script, a lint collision, a cross-run streak, and now a fixture
-the sandbox refused. Each fix moved the run further, and this one is the shallowest yet: unblocking
+#### Launch 7 — fresh state, and the class reopens
+
+`.shapeup/` deleted outright, the executors' code reverted, the committed plan kept, the toolchain
+granted, `3.7.1-rc.2` confirmed from the receipt. The cleanest run yet: no trial history, no
+orphaned order, no implementation on disk.
+
+It aborted at L1b in fifteen minutes, on a file **its own L0 had written eight minutes earlier**:
+
+```
+project-profile.md:74   `.shapeup/find-my-todos/discovery/ledger.md` for the full evidence
+close_cause: L1b: spec-lint … red=1 TIER-DIRECTION (project-profile.md:74 points into
+             gitignored .shapeup/ from a committed file)
+```
+
+A **third** producer writing a committed artifact its own lint rejects — after `ba-pitch-analyzer`
+(`HD-027`) and `reduce ship` (`HD-030`). Filed as `HD-036`, and the third instance is the finding:
+fixing these one producer at a time has not closed the class, and the argument used to call it
+closed — *the lint scans the whole tree, so nothing else can be producing violations* — confuses
+the lint's **reach** with the producers' **compliance**. §8's S0 entry recorded that argument as
+settled. The consumer has now falsified it twice.
+
+The fix belongs at one choke point: sanitise, or refuse, at the committed-tier write path, so the
+violation cannot be written rather than being caught a gate later by whichever worker was taught
+last.
+
+**What the nuke bought.** Every earlier soak carried `project-profile.md` forward on disk and never
+re-derived it, so this never fired. Deleting the run tier made L0 do real work and the defect
+appeared immediately — state carried between runs hides defects as readily as it causes them.
+
+Stage 2's export fired again on this aborted close, which is now four endings across three runs.
+
+**Seven soaks have now stopped before the judge, and the reason has changed every time** — a missing
+toolchain, a naming rule, a stale script, a lint collision, a cross-run streak, a fixture
+the sandbox refused, and the orchestrator's own profile failing the orchestrator's own gate. Each fix moved the run further, and this one is the shallowest yet: unblocking
 it is a permission change, not a code change. The run filed it into the consumer's register as a
 defect in its own right — **a fixture the sandbox refuses to run is recorded as a fixture that
 failed** — which is the more valuable finding, because that conflation would misreport any denied

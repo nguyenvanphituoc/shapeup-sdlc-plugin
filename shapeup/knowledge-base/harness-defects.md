@@ -417,6 +417,52 @@ is pinned by a guard, never when it is merely believed done.
   stronger claim. Either `reduce ship` retires the pointer on every close it writes a report for,
   or `AGENTS.md` stops promising it does; deciding which is a design call, not a doc fix.
 
+- **HD-036 · A THIRD producer writes a committed artifact its own lint reds — and the pattern of
+  fixing them one at a time is the defect.** Measured 2026-09-22 on a deliberately fresh-state soak,
+  which is what surfaced it.
+
+  `tech-lead` writes `project-profile.md` at GATE L0. This run's L0 re-derived the profile from
+  scratch (the run tier had been deleted, so nothing was carried forward) and recorded two toolchain
+  defects it had just found, citing its evidence:
+
+  ```
+  project-profile.md:74   `.shapeup/find-my-todos/discovery/ledger.md` for the full evidence
+  ```
+
+  Fifteen minutes later its own L1b refused the run:
+
+  ```
+  close_cause: L1b: spec-lint reported red findings before BUILD … red=1 TIER-DIRECTION
+               (project-profile.md:74 points into gitignored .shapeup/ from a committed file)
+  ```
+
+  The orchestrator wrote a file at L0 that its own gate rejected at L1b. `rounds_used: 0`.
+
+  **This is the third instance of one class, and the third is the finding.** `HD-027` was
+  `ba-pitch-analyzer` citing a `.shapeup/` path in `requirements.md`, fixed by teaching the docs what
+  the lint enforces. `HD-030` was `reduce ship` citing board ids in `REPORT.md`, fixed by sanitising
+  at that producer's write boundary. Each fix closed its own instance and left the class open, and
+  each time the closing argument was that the lint scans the whole committed tree so nothing else
+  could be producing violations. **That argument confuses the lint's reach with the producers'
+  compliance**, it was recorded as settled in the 3.7 work, and the consumer has now falsified it
+  twice.
+
+  There is no reason to expect `tech-lead` is the last one. Every worker that writes into the
+  committed tier is a candidate, and nothing structurally prevents the next.
+
+  **Fix shape — stop teaching producers and make the violation unwritable.** One sanitiser at the
+  committed-tier write path, the way `reduce ship` now does it for board ids, applied to every
+  committed write regardless of which worker made it: a local-tier reference resolves to a durable
+  anchor, or to prose naming the tier without a path. A pre-write guard that refuses the write
+  outright is the stronger form and is closer to this repo's own hook discipline — a violation that
+  cannot be written cannot red a gate fifteen minutes later. Either way the rule belongs at one
+  choke point, not in N sets of worker instructions.
+
+  **What the fresh state bought.** Earlier soaks carried a `project-profile.md` forward on disk and
+  never re-derived it, so this never fired. Deleting the run tier made L0 do real work, and the
+  defect appeared immediately — a reminder that state carried between runs hides defects as readily
+  as it causes them.
+
 ### Filed 2026-09-19 — measured in the consumer soak, never filed here
 
 Nine findings came out of the HarmonyOS soak (2026-09-15→17, two consecutive features on a project
