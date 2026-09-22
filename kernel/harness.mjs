@@ -32,7 +32,7 @@
 //   gate                                      An answer file with a source, not a vibe.
 //   probe    resume · t0 · stats · digest ·   Read-only queries over run state. `concurrency`
 //            concurrency · leg · eval ·        answers how many legs ran at once and what the
-//            owner · requirements
+//            owner · requirements · attempts
 //                                              fan-out bought, and refuses a figure the record set
 //                                              cannot support rather than printing a plausible one.
 //                                              `leg` answers whether a scope's work reached the
@@ -50,6 +50,12 @@
 //                                              answers which pitch clause a verdict reached, joined
 //                                              through the plan's own covers: edge — the L4 line and
 //                                              GATE H's census cite it for the same reason.
+//                                              `attempts` answers how many of a scope's attempts are
+//                                              ATTESTED (a dispatch receipt AND a leg row or a
+//                                              WorkResult), never the order set or the T0 verdict
+//                                              set alone — the round loop's inner breaker and
+//                                              scope-hammer's census both cite it, so they cannot
+//                                              disagree about the same exhaustion again.
 //   init     run · fit · run-args              Opens a run, or refuses it (exit 3). `run-args`
 //                                              writes GATE L0.9b's launch record and echoes it.
 //   report   export                           Projects the run's records as fact tables.
@@ -86,7 +92,7 @@ export const ROUTES = {
     resume: "./probe/resume.mjs", t0: "./probe/t0.mjs", stats: "./probe/stats.mjs",
     digest: "./probe/digest.mjs", concurrency: "./probe/concurrency.mjs",
     leg: "./probe/leg.mjs", eval: "./probe/eval.mjs", owner: "./probe/owner.mjs",
-    requirements: "./probe/requirements.mjs",
+    requirements: "./probe/requirements.mjs", attempts: "./probe/attempts.mjs",
   },
   init: { run: "./init/run.mjs", fit: "./init/fit.mjs", "run-args": "./init/run-args.mjs" },
   report: { export: "./report/export.mjs", _default: "export" },

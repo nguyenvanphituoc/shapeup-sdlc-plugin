@@ -67,8 +67,16 @@ H0.0  Ownership is DERIVED, never stated. Before the census says "no scope owns 
 H0.1  Unresolved scopes (breaker cases only):
         - uphill/downhill scopes when round_budget hit 0 → CARRY candidates (their own hill
           phase + open unknowns, from hill/<scope-id>.yml)
-        - scopes with hammer_proposals (attempt_budget exhausted) → CARRY candidates, tagged
-          with the T0 failure that stalled them (from the last red t0/verdicts/*.json)
+        - scopes with hammer_proposals (attempt_budget exhausted) → CARRY candidates. Exhaustion
+          is DERIVED, never read off `t0/verdicts/*.json` directly — a compiled order or a T0
+          verdict is writable by the very scope being judged and proves nothing on its own. Run
+            node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe attempts --slug <slug> \
+              --scope <scope-id> --round <n> --attempt-budget <n>
+          and cite its `spent`/`tripped` fields (exit 1 = tripped) — an attempt counts only when a
+          dispatch receipt AND either a leg-completion row or a WorkResult attest it, so a leg still
+          in flight holds it open rather than reading as exhausted. This is the SAME derivation the
+          round loop's own inner breaker reads, so the census and the breaker cannot disagree about
+          the same exhaustion the way a live run once measured.
 H0.2  QA findings (qa-edge-hunter's hunt-report.md, when present) — all `~` by default.
 H0.3  Discovered-task ledger entries still open (discovery/ledger.md, `[+]`/`~` unresolved).
 H0.4  Attempt-budget hammer proposals (scopes that exhausted their T0 attempts during BUILD).

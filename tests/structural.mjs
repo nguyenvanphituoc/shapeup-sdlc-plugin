@@ -252,6 +252,28 @@ const MODULE_FILES = [
   // source level (the script cannot be imported — 58-relaunch-memory.mjs's own banner) and
   // mutation-tested in both directions so the exact hole Round 1 found cannot reopen silently.
   "69-terminal-wrapping.mjs",
+  // 70-tier-direction-producer.mjs: HD-1/HD-027, defect-plan-3.7 Stage 0 — the taught
+  // TIER-DIRECTION rule (doc-schemas.md) now covers the bare-path-in-prose form the lint actually
+  // enforces, not only wikilinks, and lintCommittedTier's whole-tree scan is proven against
+  // several committed filenames, not only requirements.md, the one that bit.
+  "70-tier-direction-producer.mjs",
+  // 71-runreturn-closeout.mjs: HD-026, defect-plan-3.7 Stage 1 — every RunReturn arm the schema
+  // carries is mapped to a close outcome by a derived kernel map (RUN_RETURN_CLOSE), not a
+  // hand-typed pair; gate_h now closes the run as escalated (operator decision 1); the orchestrator
+  // script's own call site is pinned at the source level, since it cannot be executed here.
+  "71-runreturn-closeout.mjs",
+  // 72-export-on-close.mjs: defect-plan-3.7 Stage 2 — a run's own close-out (kernel/probe/
+  // resume.mjs's closeRun) now exports fact tables for every terminal ending except "shipped",
+  // which the Ship phase's own pre-existing export call already covers; a blocked export degrades
+  // the close's return with export_warning rather than failing the close itself.
+  "72-export-on-close.mjs",
+  // 73-attested-attempts.mjs: HD-2, defect-plan-3.7 Stage 3 — a scope's spent-attempt count is
+  // derived only from attested channels (a dispatch receipt plus a leg-completion row or a
+  // WorkResult), never from the order set or the T0 verdict set alone; a receipted attempt with
+  // neither a leg nor a result is IN-FLIGHT and holds the breaker open, and scope-hammer's GATE H0
+  // census now cites the same probe the round loop would, so the two readers cannot disagree about
+  // the same exhaustion again.
+  "73-attested-attempts.mjs",
   "08-docs.mjs",
 ];
 

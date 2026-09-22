@@ -64,8 +64,10 @@ import { globToRegExp } from "../verify/spec.mjs";
 import {
   intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir,
   orientDir, activeOrder, usecasesDir, breadboard, receipt, readReceipt, requirements,
+  exportRunDir,
 } from "../lib/paths.mjs";
 import { evalVerdict } from "./eval.mjs";
+import { collectRun, writeRun } from "../report/export.mjs";
 
 /** The run-state values `references/protocol.md` (Part 4 — State) defines. A typo'd status is a rejection,
  *  not a write — the whole point of this file is that a write nobody validates is a write nobody
@@ -80,6 +82,66 @@ export const RUN_STATUSES = ["orienting", "mapping", "building", "evaluating", "
  * a close over one of those would stamp `closed_at` on a run a relaunch is still meant to resume.
  */
 export const TERMINAL_STATUSES = ["shipped", "aborted", "escalated"];
+
+/**
+ * The RunReturn union (`kernel/schemas/domain.schema.json` `$defs/RunReturn.properties.status.enum`)
+ * mapped to what closing the run means for each arm — the derivation `closeIfTerminal`
+ * (`skills/tech-lead/workflows/shapeup-run.js`) now reads instead of a hand-typed
+ * `status !== "aborted" && status !== "shipped"` pair that referenced {@link TERMINAL_STATUSES}
+ * zero times and so could not see when a new arm went unhandled.
+ *
+ * A lookup answers one of three ways, and the distinction is load-bearing for what this map must
+ * catch: an arm ABSENT from this object (never listed as a key) returns `undefined` — an arm the
+ * schema carries that nobody has mapped, which a caller must treat as a defect, never as "fine to
+ * skip". An arm mapped to a terminal status closes the run as that status. An arm mapped to `null`
+ * is EXPLICITLY non-terminal — `paused` resumes on relaunch and `ok` is one inner round finishing,
+ * not the run — so it is a key with a falsy value, not an omission a reader could mistake for "not
+ * decided yet".
+ *
+ * `gate_h` → `escalated`: the breaker that tripped (`outer`/`inner`/`deadline`) travels in
+ * `close_cause`, never as a new member of {@link TERMINAL_STATUSES} or {@link RUN_STATUSES} — a
+ * circuit breaker tripping is not a new way a run ends, it is the reason an existing one
+ * (`escalated`) fires this time.
+ *
+ * @type {Object<string, (string|null)>}
+ */
+export const RUN_RETURN_CLOSE = {
+  shipped: "shipped",
+  aborted: "aborted",
+  gate_h: "escalated",
+  paused: null,
+  ok: null,
+};
+
+/**
+ * Resolve one RunReturn arm to a close outcome and, when the arm is terminal, perform the close —
+ * the single call `closeIfTerminal` makes instead of deciding locally which arms are terminal.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {string} arm - A `RunReturn.status` value.
+ * @param {(string|null)} [cause] - Why the run ended there; only used when `arm` is terminal.
+ * @param {boolean} [withExport] - Forwarded to {@link closeRun} — defaults true. The one caller
+ *   that ever passes `false` is a test fixture proving the export assertion is real — a check that
+ *   cannot fail did not happen; production call sites never set this.
+ * @returns {({ok:true, arm:string, terminal:false, reason:string} |
+ *   {ok:false, arm:string, reason:string} |
+ *   ({ok:boolean, arm:string, terminal:true} & ReturnType<typeof closeRun>))} `terminal:false` when
+ *   `arm` maps to `null` (nothing closed, not an error). `ok:false` with no `terminal` field when
+ *   `arm` is not a key of {@link RUN_RETURN_CLOSE} at all — a schema arm this map has not been
+ *   taught, which must never be silently treated as non-terminal. Otherwise the {@link closeRun}
+ *   outcome, tagged with the arm that produced it.
+ */
+export function closeArm(cwd, slug, arm, cause = null, withExport = true) {
+  if (!Object.hasOwn(RUN_RETURN_CLOSE, arm)) {
+    return { ok: false, arm, reason: `closeArm: "${arm}" is not a RunReturn arm this kernel maps — known arms: ${Object.keys(RUN_RETURN_CLOSE).join(", ")}` };
+  }
+  const status = RUN_RETURN_CLOSE[arm];
+  if (!status) {
+    return { ok: true, arm, terminal: false, reason: `"${arm}" is explicitly non-terminal — no close` };
+  }
+  return { ...closeRun(cwd, slug, { status, cause, withExport }), arm, terminal: true };
+}
 
 /** ORIENT's four artifacts (skills/orient/SKILL.md §Outputs): three by exact name, plus a spike
  *  whose filename carries the area it spiked (`spike-<area>.md`, or `spike-not-needed.md` when
@@ -499,6 +561,40 @@ function writeCloseLines(body, { status, closedAt, cause }) {
 }
 
 /**
+ * Export a just-closed run's own records into fact tables, best-effort
+ * (`report export`, `kernel/report/export.mjs`). {@link closeRun} calls this for every terminal
+ * status except `"shipped"`: the Ship phase (`skills/tech-lead/workflows/shapeup-run.js`) already
+ * calls `report export` itself, several lines before this file's own close-out runs, and that call
+ * site is left untouched on purpose — the shipped path's export stays byte-comparable to what it
+ * wrote before Stage 2. `aborted`, `escalated` and `gate_h` (which closes as `escalated`, see
+ * {@link RUN_RETURN_CLOSE}) never reached that call site at all, because it sits inside a phase
+ * those endings never enter — so a run ending any of them left its whole trace (orders, results,
+ * T0 verdicts, hook decisions, `graph.jsonl`) in the gitignored LOCAL tier with nothing durable
+ * surviving the next `init run`'s wipe. This is the read that was missing for those endings, run at
+ * the one point every one of them passes through: the close itself.
+ *
+ * FAIL-OPEN, the hook discipline (CLAUDE.md) extended to a write that is not a hook: an export that
+ * cannot write — a blocked or missing exports directory, a full disk — must never turn a close that
+ * DID take into one that looks like it did not. The three facts {@link closeRun} just wrote
+ * (`closed_status`/`close_cause`/`closed_at`) are never touched by this function; a failure here is
+ * handed back to the caller as a warning string, never thrown.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {(string|null)} A one-line warning when the export did not complete; `null` on success.
+ */
+function exportOnClose(cwd, slug) {
+  try {
+    const collected = collectRun(cwd, slug);
+    if (!collected) return `export on close: no readable receipt for "${slug}" — nothing to export`;
+    writeRun(collected, exportRunDir(cwd, collected.run_id ?? slug));
+    return null;
+  } catch (e) {
+    return `export on close: ${e.message}`;
+  }
+}
+
+/**
  * Close the run: a terminal status, its cause, and a close timestamp, written together in ONE
  * pass.
  *
@@ -548,20 +644,26 @@ function writeCloseLines(body, { status, closedAt, cause }) {
  *
  * @param {string} cwd - Project root.
  * @param {string} slug - Feature slug.
- * @param {{status:string, cause:(string|null)}} o - The terminal status (one of
- *   {@link TERMINAL_STATUSES}) and why the run ended there. `cause` travels through `uncoerce` (the
- *   one dialect `harness-run.md`'s frontmatter is read and written in), so free prose — quotes and
- *   colons included — round-trips as one frontmatter line; an embedded newline is collapsed to a
- *   space first, because this dialect is line-based and could not carry one either way.
+ * @param {{status:string, cause:(string|null), withExport?:boolean}} o - The terminal status (one
+ *   of {@link TERMINAL_STATUSES}) and why the run ended there. `cause` travels through `uncoerce`
+ *   (the one dialect `harness-run.md`'s frontmatter is read and written in), so free prose — quotes
+ *   and colons included — round-trips as one frontmatter line; an embedded newline is collapsed to
+ *   a space first, because this dialect is line-based and could not carry one either way.
+ *   `withExport` (default true) gates {@link exportOnClose} — every status except `"shipped"` runs
+ *   it on a successful close; `false` exists only for a test fixture proving the export assertion
+ *   is real, never for a production call site.
  * @returns {{ok:boolean, path:string, status:string, closed_at?:string, cause?:(string|null),
  *   reason?:string, closed_status?:string, superseded?:boolean, decision?:string,
- *   prior_cause?:(string|null), prior_closed_at?:string}} Outcome. A refused overwrite (already
- *   closed with a DIFFERENT terminal status) carries `closed_status`/`closed_at`/`cause` naming what
- *   is actually on disk. A successful supersede (same status, different cause) carries
- *   `superseded:true`, `decision:"superseded"` (the one-token signal the courier boundary in
- *   `shapeup-run.js` relays verbatim — see its own `cmd()` banner) and the prior close it folded in.
+ *   prior_cause?:(string|null), prior_closed_at?:string, export_warning?:string}} Outcome. A refused
+ *   overwrite (already closed with a DIFFERENT terminal status) carries
+ *   `closed_status`/`closed_at`/`cause` naming what is actually on disk. A successful supersede
+ *   (same status, different cause) carries `superseded:true`, `decision:"superseded"` (the
+ *   one-token signal the courier boundary in `shapeup-run.js` relays verbatim — see its own
+ *   `cmd()` banner) and the prior close it folded in. Any successful, non-`"shipped"` close carries
+ *   `export_warning` when {@link exportOnClose} could not write the run's fact tables — the close
+ *   itself still stands; this is advisory only.
  */
-export function closeRun(cwd, slug, { status, cause = null } = {}) {
+export function closeRun(cwd, slug, { status, cause = null, withExport = true } = {}) {
   const p = harnessRun(cwd, slug);
   if (!TERMINAL_STATUSES.includes(status)) {
     return { ok: false, path: p, status, reason: `closeRun: "${status}" is not terminal — expected one of ${TERMINAL_STATUSES.join(" | ")}` };
@@ -573,6 +675,15 @@ export function closeRun(cwd, slug, { status, cause = null } = {}) {
   if (!/^status:.*$/m.test(body) || !/^closed_at:.*$/m.test(body)) {
     return { ok: false, path: p, status, reason: `harness-run.md carries no "status:"/"closed_at:" line to replace — the ledger's frontmatter is malformed (references/protocol.md)` };
   }
+
+  // The Ship phase (`shapeup-run.js`) already exports a shipped run itself, before this call ever
+  // runs — Stage 2 adds the endings that wrote nothing, and leaves that path untouched.
+  const shouldExport = withExport && status !== "shipped";
+  const withExportWarning = (result) => {
+    if (!shouldExport) return result;
+    const warning = exportOnClose(cwd, slug);
+    return warning ? { ...result, export_warning: warning } : result;
+  };
 
   // Truncated, not elided: a cause this long has already done its job in the run's own log — the
   // ledger line is a pointer back to it, not the full transcript. Newlines are collapsed to spaces
@@ -588,7 +699,7 @@ export function closeRun(cwd, slug, { status, cause = null } = {}) {
   if (priorClosedStatus && priorClosedAt) {
     if (priorClosedStatus === status && normCause === priorCause) {
       // The identical fact, restated — a retried or duplicated call costs nothing.
-      return { ok: true, path: p, status, closed_at: priorClosedAt, cause: priorCause, decision: "idempotent", reason: `already closed as "${status}" at ${priorClosedAt} — idempotent no-op` };
+      return withExportWarning({ ok: true, path: p, status, closed_at: priorClosedAt, cause: priorCause, decision: "idempotent", reason: `already closed as "${status}" at ${priorClosedAt} — idempotent no-op` });
     }
     if (priorClosedStatus !== status) {
       // A DIFFERENT terminal status over an already-closed run — refused outright, the original
@@ -613,10 +724,10 @@ export function closeRun(cwd, slug, { status, cause = null } = {}) {
     if (afterSup.status !== status || !afterSup.closed_at || afterSup.closed_at === "~") {
       return { ok: false, path: p, status, reason: `wrote the superseding close but the ledger reads back status="${afterSup.status}" closed_at="${afterSup.closed_at}" — the write did not take` };
     }
-    return {
+    return withExportWarning({
       ok: true, path: p, status, closed_at: afterSup.closed_at, cause: afterSup.close_cause ?? null,
       superseded: true, decision: "superseded", prior_cause: priorCause, prior_closed_at: priorClosedAt,
-    };
+    });
   }
 
   const closedAt = new Date().toISOString();
@@ -628,7 +739,7 @@ export function closeRun(cwd, slug, { status, cause = null } = {}) {
   if (after.status !== status || !after.closed_at || after.closed_at === "~") {
     return { ok: false, path: p, status, reason: `wrote the close but the ledger reads back status="${after.status}" closed_at="${after.closed_at}" — the write did not take` };
   }
-  return { ok: true, path: p, status, closed_at: after.closed_at, cause: after.close_cause ?? null, decision: "closed" };
+  return withExportWarning({ ok: true, path: p, status, closed_at: after.closed_at, cause: after.close_cause ?? null, decision: "closed" });
 }
 
 /**
@@ -658,7 +769,8 @@ export function writeActiveOrder(cwd, slug, orderPath) {
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
   usage: "harness.mjs probe resume --slug <slug> [--cwd <dir>] " +
-         "[--require <phase> | --set-status <status> | --set-active-order <path> | --close <status> [--cause <text>]]",
+         "[--require <phase> | --set-status <status> | --set-active-order <path> | " +
+         "--close <status> | --close-arm <RunReturn.status> [--cause <text>]]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   slug: { type: "str", required: true },
   cwd: { type: "path" },
@@ -667,6 +779,9 @@ export const ARGV_SPEC = {
   "set-active-order": { type: "str" },
   // The one call site that stamps a terminal status, its cause and closed_at together.
   close: { type: "enum", values: TERMINAL_STATUSES },
+  // Not `--close`: the caller (shapeup-run.js's closeIfTerminal) hands over a RunReturn arm, never
+  // a status it decided was terminal itself — RUN_RETURN_CLOSE/closeArm above make that call.
+  "close-arm": { type: "str" },
   cause: { type: "str" },
 };
 
@@ -681,13 +796,13 @@ export function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = args.cwd || process.cwd();
 
-  const ops = [args.require && "--require", args.setStatus && "--set-status", args.setActiveOrder && "--set-active-order", args.close && "--close"].filter(Boolean);
+  const ops = [args.require && "--require", args.setStatus && "--set-status", args.setActiveOrder && "--set-active-order", args.close && "--close", args.closeArm && "--close-arm"].filter(Boolean);
   if (ops.length > 1) {
     process.stderr.write(JSON.stringify({ error: "conflicting_flags", flags: ops, expected: "one operation per invocation" }) + "\n");
     process.exit(2);
   }
-  if (args.cause !== undefined && !args.close) {
-    process.stderr.write(JSON.stringify({ error: "conflicting_flags", flags: ["--cause"], expected: "--cause is only meaningful with --close" }) + "\n");
+  if (args.cause !== undefined && !args.close && !args.closeArm) {
+    process.stderr.write(JSON.stringify({ error: "conflicting_flags", flags: ["--cause"], expected: "--cause is only meaningful with --close or --close-arm" }) + "\n");
     process.exit(2);
   }
 
@@ -720,6 +835,17 @@ export function cli(rawArgv) {
 
   if (args.close) {
     const r = closeRun(cwd, args.slug, { status: args.close, cause: args.cause ?? null });
+    console.log(JSON.stringify(r));
+    process.exit(r.ok ? 0 : 3);
+  }
+
+  // The arm-derived close: the caller hands a RunReturn arm and this kernel decides — via
+  // RUN_RETURN_CLOSE/closeArm above — whether it is terminal and, if so, what status it closes as.
+  // Exit 0 for both a real close AND a correctly-declined non-terminal arm (`terminal:false`) —
+  // neither is an error the caller (shapeup-run.js's closeIfTerminal) should treat as failed; only
+  // an arm this map does not recognize at all, or a close `closeRun` itself refuses, exits non-zero.
+  if (args.closeArm) {
+    const r = closeArm(cwd, args.slug, args.closeArm, args.cause ?? null);
     console.log(JSON.stringify(r));
     process.exit(r.ok ? 0 : 3);
   }

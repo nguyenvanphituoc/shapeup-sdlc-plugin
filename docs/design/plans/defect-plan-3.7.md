@@ -12,7 +12,9 @@ Stage 9 propositions still unproven after four soak attempts. Excludes `HD-013` 
 marketplace, 2026-09-21→22; `docs/design/orchestration-evidence-and-next.md`.
 **Confidence:** High that every Exit below is red today — each was executed. High on the
 Stage 0 → Stage 4 ordering. Low on duration: one maintainer, wall-clock is the constraint.
-**Status:** Proposed. Nothing here has run.
+**Status:** **Stages 0–3 complete and verified** on branch `plan/defect-3.7` — 30 of 30 acceptance
+rows green in clones that never saw the working tree. Stage 4 is deliberately out of this run's
+scope and remains a PO decision. §8 is the per-stage record.
 
 **Baseline, measured not remembered:** `npm test` = **1843 checks** green at `b04d285` — the sha that
 carries this document — identically in a fresh clone. It read 1841 at `865ec79`, one commit earlier;
@@ -293,3 +295,263 @@ built**; the last three are simply not this plan's work.
   it to fixing what writes it.
 - **If a second consumer appears**, the split's S4 moves ahead of everything here, because the
   install-geometry defect class becomes reachable by a test for the first time.
+
+## 8. Progress — per stage, derived not claimed
+
+**The rule this section follows.** A stage is green here because acceptance was re-run in a clone
+that had never seen the working tree, not because the work was reported done. A stage with work
+committed but acceptance unverified reads **committed, unverified** — which is not the same fact and
+is not rounded up to one.
+
+**Run:** branch `plan/defect-3.7`, baseline `96f760c`, opened 2026-09-22. Stages 0–3.
+**Excluded by operator decision:** Stage 4 (the consumer soak). It needs Stages 0–3 landed and
+released first, it runs outside this repository against a marketplace install, and its value depends
+on staying the one-variable experiment launch 2 was. Handed back to the PO, not silently dropped.
+
+### Baseline, re-measured rather than trusted
+
+Both figures §Baseline states were re-derived in a fresh clone before anything was edited, because a
+suite nobody has run is an assumption rather than a baseline.
+
+| check | stated | measured at `96f760c` | |
+|---|---|---|---|
+| structural suite | 1843 at `b04d285` | **1843**, clone and working tree alike | ✅ holds |
+| `npm run demo` md5 | `2c97a1e532845ccf33178d1492606a9d` | identical, byte-for-byte | ✅ holds |
+| dependencies | zero, load-bearing | `{}` | ✅ holds |
+
+### Stage status
+
+| stage | goal | acceptance | state |
+|---|---|---|---|
+| **S0** | `HD-1` — the producer/lint collision; promote `HD-1`/`HD-2` | 7 rows, 2 of them inline anti-gaming guards | ✅ **verified 7/7** at `52fedc2` |
+| **S1** | `HD-026` — derive the close-out from the union | 8 rows, incl. a mutation that adds an unmapped arm | ✅ **verified 8/8** at `39ff7a7` |
+| **S2** | durability — export on every ending | 7 rows, incl. the driver's own falsifier | ✅ **verified 7/7** at `50919e1` |
+| **S3** | `HD-2` — count attested work, not writable artifacts | 8 rows, incl. one that drives the pipeline | ✅ **verified 8/8** at `a1e58ae` |
+| **S4** | the soak | — | ⛔ out of scope this run (PO) |
+
+#### S0 — verified ✅
+
+Commit `52fedc2`, *fix(ba-pitch-analyzer): teach the bare-path form TIER-DIRECTION already reds*.
+Acceptance re-run by the operator in a clone that had never seen the working tree: **7 of 7 green**,
+suite **1847 checks** (1843 + 4).
+
+What actually turned out to be wrong is narrower than the stage brief assumed, and the difference is
+worth keeping. The lint was never the defect: `lintCommittedTier` already scanned the **whole**
+committed tree for any `.shapeup/` reference, not just `requirements.md`, so the plan's third
+proposition — *no other committed artifact any worker writes cites a `.shapeup/` path* — was already
+structurally guaranteed rather than newly established. The gap was entirely in what the docs taught:
+the Tier-direction rule was stated purely in wikilink terms, so a worker following the documentation
+had no way to learn that a **bare path in a prose sentence** reds too. The fix extends that section
+to the non-wikilink case and points `coverage` at the committed pitch.
+
+- `HD-1` → **`HD-027`**, `HD-2` → **`HD-028`**, promoted into `shapeup/knowledge-base/harness-defects.md`
+  with the consumer's evidence tables intact. That file ships nowhere — `npm pack` carries 0 entries
+  under `shapeup/` — so the internal ids are correctly placed.
+- Both anti-gaming guards still green: `TIER-DIRECTION` still reds a real `.shapeup/` path, and the
+  compliant-provenance row still passes. The stage did not buy its green by weakening the lint.
+- The falsifier runs in both directions — the parity fixture passes on the fixed doc and goes red
+  when the doc is restored to its pre-fix wording.
+
+Every Exit was executed at `96f760c` before the run opened, and **every stage is red today**, as §4
+requires. The two rows that are *green* today are guards, not progress: TIER-DIRECTION still reds a
+real `.shapeup/` path, and `TERMINAL_STATUSES` is still the three members it should stay. Both must
+still be green at the end; the cheap wrong fix to S0 is to weaken the first, and to S1 to widen the
+second.
+
+### Two corrections this plan's own discipline caught in this plan
+
+Recorded because §1 says *derive facts from artifacts, never from prose*, and this document is
+prose. Both were read out of `domain.schema.json` before Stage 1 was briefed.
+
+1. **The union is enumerable today.** §Stage 1 says `$defs/RunReturn` carries "no `oneOf`/`anyOf`,
+   so no derived check is possible today". The first clause is true and the conclusion does not
+   follow: `properties.status.enum` exists and is machine-readable. Stage 1 keys off it, and no
+   schema restructuring is needed.
+2. **There are five arms, not four.** `shipped`, `paused`, `aborted`, `gate_h` — and **`ok`**, which
+   the plan never names and the workflow never constructs. An arm nobody thought to name, found in
+   the plan written to close exactly that class of defect. It is now an explicit non-terminal row in
+   the map rather than an omission, and Stage 1's acceptance reads `ALL 5 ARMS MAPPED`.
+
+#### S1 — verified ✅
+
+Commit `39ff7a7`, *feat(close-out): derive gate_h's ending from the schema, not a typed pair*.
+**8 of 8 green**, re-verified in a clean clone. Suite **1861 checks** (1847 + 14).
+
+`RUN_RETURN_CLOSE` now lives in the kernel, where it can be imported and executed against a fixture
+— the move that matters, because `shapeup-run.js` is a Workflow body that cannot be imported, which
+is *why* rule 7's failure happened there. It maps every arm the schema carries:
+
+| arm | closes as |
+|---|---|
+| `shipped` | `shipped` |
+| `aborted` | `aborted` |
+| `gate_h` | `escalated` |
+| `paused` | *(non-terminal, by design)* |
+| `ok` | *(non-terminal, never constructed)* |
+
+`paused` and `ok` are explicit `null` entries rather than absences, so the two cases are
+distinguishable: *deliberately not closed* and *nobody mapped this yet* no longer look identical.
+
+**The rule-7 row, driven end to end and read back off disk** — not a call site, an artifact:
+
+```
+closed_status=escalated close_cause=driven by s1-drive-close.mjs (arm=gate_h) closed_at=2026-09-22T07:32:02.533Z
+```
+
+and `paused` prints `NO CLOSE`, as designed.
+
+**The falsifier flipped.** Before this stage, injecting a sixth unmapped arm into the schema left all
+1843 checks green — `HD-026`'s defect class, reproducible on demand. It now turns the suite **red**,
+in both directions: green first, then red under mutation. This is the stage's real result. Writing a
+proposition for `gate_h` alone would have closed the instance and left the next unnamed arm exactly
+as exposed; deriving the arms closes the class, which is what §6 asked for.
+
+`TERMINAL_STATUSES` is still `[shipped, aborted, escalated]` — the guard held, and the stage did not
+buy its green by widening a kernel enum. `HD-014`'s code half is now unblocked: a close exists to
+key off. Whether an `escalated` close *should* release the sandbox fence remains a PO call.
+
+#### S2 — verified ✅
+
+Commit `50919e1`, *feat(close-out): export a run's records on every terminal ending, not only the one
+that ships*. **7 of 7 green**, re-verified in a clean clone. Suite **1870 checks** (1861 + 9).
+
+The export now hangs off Stage 1's close-out — which is why the ordering was load-bearing and why
+this stage was nearly free once S1 existed. Driven, artifacts read back:
+
+```
+aborted     → EXPORT OK closed_status=aborted
+gate_h      → EXPORT OK closed_status=escalated
+fail-export → CLOSE INTACT export on close: ENOTDIR … mkdir '…/.shapeup/exports/…'
+```
+
+The last line is the one worth reading twice. The export was **made to fail**, and the close still
+stands: the failure surfaces as an `export_warning` copied verbatim into the run's state warnings
+rather than being swallowed. A failed export degrades the trace; it does not turn a close into a
+non-close.
+
+**On the non-regression proposition.** The plan asks that *a shipped run's export be unchanged*, and
+the acceptance table encoded that only weakly — so it was checked directly rather than assumed.
+`exportOnClose` covers every terminal ending **except** `shipped`, deliberately: the Ship phase
+already had its own `report export` call, and adding a second would double-export the one ending
+that was never broken. Module 72 §119 asserts exactly that — `closeRun("shipped")` writes no export
+of its own — so the claim is tested, not merely intended.
+
+That is the whole gap closed: against the question *must facts survive the run?*, the harness used to
+answer yes for a run that ships and no for one that does not. The runs whose records are worth most
+are the ones that never reach the exporter, and those now leave fact tables.
+
+#### S3 — verified ✅, but only after the acceptance was fixed
+
+Commit `449c249`. **All 7 acceptance rows pass** in a clean clone; suite **1882 checks**. And `HD-2`
+is **not closed**. Both of those sentences are true, which is the finding.
+
+What landed is correct and worth keeping. `kernel/probe/attempts.mjs` classifies every attempt slot
+`unattested` / `in-flight` / `spent` — spent only when a dispatch receipt attests it **and** either a
+leg row or a WorkResult does — and trips only when every slot within budget is genuinely spent with
+none green, so an attempt still in flight holds the breaker open. That is exactly the derivation the
+stage asked for.
+
+**Nothing calls it.** `kernel/compile.mjs` is untouched, so nothing refuses to compile `-aN` while
+`-a(N-1)` is unanswered. `shapeup-run.js`'s inner breaker is untouched, still
+`roundGreen.length === 0 && roundHammer.length > 0`, consulting no attested channel at all.
+`scope-hammer`'s census cites the new probe in **prose**, in a `SKILL.md`. So the run that measured
+`HD-2` would measure it identically today: the loop would still open attempt 2 against a scope whose
+first had not returned, and still count it.
+
+The stage's executor was lost to a network failure (`ENOTFOUND`) partway through, which is *why* the
+second half is missing — but not why nothing noticed.
+
+**Why the acceptance did not catch it, which is the part worth keeping.** Every row drives
+`scopeAttempts` directly. Not one drives the *loop*. So the rows measure the derivation's
+correctness and are blind to whether anything consults it — a correct function with no call site
+passes all seven. That is **rule 7 again, one level up**: the rule says a guard asserting a call must
+also assert its effect, and here the guard asserts an *effect* while never asserting the call. The
+plan's own Exit line has the same shape: *"the first and third propositions together"* names two
+properties of the derivation and nothing about integration, while the Executor brief above it says
+*"then stop the loop opening an attempt while the previous one is unanswered."* The Exit does not
+cover its own brief.
+
+Third instance of §2's boundary in this run, and the first one inside the contract compiled to
+guard against it: **a proposition can only test a state someone thought to name.** Scoring this
+stage green on 7/7 would have been the exact failure the plan was written to prevent, reproduced by
+the plan's own machinery.
+
+**Closed at `a1e58ae`, and the order of operations is the point.** The missing acceptance row was
+written *first* and shown red: it spawns the real `harness compile` over the consumer run's own
+interleaving — attempt 1 dispatched and unanswered — and requires a refusal. Only then was the guard
+built. `compile` now reads the previous attempt off the attested channels and exits 3 when it is
+unanswered.
+
+It **fails open, never closed**, per this repo's own hook discipline. The proof required is the
+receipts ledger *existing* while carrying no row for that attempt; a lane that does not attest
+dispatches at all has no ledger and is waved through, so `--tiny`, a prose round loop and a
+standalone build are untouched. That distinction was not theoretical — the first draft of the
+fixture modelled attempt 1 with no ledger at all, the guard correctly declined to fire, and the
+fixture had to be corrected to HD-2's actual state before it tested the defect rather than the
+exemption.
+
+Verified both directions: red with the guard reverted, green with it restored. Final acceptance
+**8/8**, suite **1884 checks**.
+
+#### Discovered by S1, verified separately: a documented flow now refuses
+
+Not a stage, not in any acceptance row, and surfaced by the S1 executor rather than by a check.
+`skills/tech-lead/references/gates.md:562` has GATE L4 call `probe resume --close shipped`
+unconditionally after a GATE H → L4 ship decision. Since S1, `gate_h` closes the ledger as
+`escalated` immediately, and `closeRun` refuses a *different* terminal status over an existing close.
+Driven end to end rather than reasoned about:
+
+```
+1) gate_h close                → ok=true  status=escalated
+2) then --close shipped        → ok=false
+   closeRun: this run is already closed as "escalated" … refusing to overwrite it with "shipped".
+3) ledger now says closed_status=escalated
+```
+
+So a run that trips a breaker, goes to GATE H, and is then shipped at L4 records `escalated` and has
+its ship close refused. The once-only close invariant is behaving exactly as designed; what is new
+is that `gate_h` now takes that slot first. Whether a later ship should supersede an `escalated`
+close, or L4 should stop closing a run that is already closed, is a **PO call** — the plan reserves
+questions of this shape, and the acceptance agent may not resolve them.
+
+**Filed as `HD-029`**, with the driven transcript and the three candidate resolutions, to be decided
+once alongside `HD-014`'s fence question rather than rediscovered by the next run that trips a
+breaker and then ships. No code was changed for it.
+
+### A defect in the acceptance instrument, found by smoke-testing it
+
+Recorded here because §2 rule 6 says an acceptance that cannot fail did not happen, and this was one.
+
+Four rows in the compiled contract had a pass condition of the form *"this command fails"* —
+S0's doc falsifier, S1's sixth-arm mutation, S2's disabled-export falsifier, S3's revert check. Every
+one of them scored **green** while the fixture it named did not exist yet: `node <missing-file>`
+exits non-zero, `!` inverts that to success, and the row passed having measured nothing. It is the
+same shape as rule 3's four near-misses — a probe answering a different question than the one asked
+— and the fifth instance in this work, the first inside the instrument rather than the subject.
+
+All four now assert **both directions in one command**: the check must be shown to pass in its
+normal mode before it is allowed to fail in its mutated one, so a missing fixture fails at the first
+call. S1's variant leads with a green suite, so the mutation cannot score over an already-broken one.
+
+Two things are worth noting about how it surfaced. First, it was found by running the verification
+harness against the *unfinished* tree on purpose — a harness that passes before the work is done is
+worthless, so it was run precisely to watch it fail. Second, the run's own verifier reached the same
+verdict independently, minutes later, against the un-hardened contract and with no knowledge of the
+operator's pass: *"SPURIOUS PASS, downgraded to FAIL: exit 0 came from `!` negating node's own
+'Cannot find module' error … not from a driven falsifier check."*
+
+That same verifier supplied the measurement that justifies Stage 1, by reproducing `HD-026`'s defect
+class on demand: **a sixth unmapped arm injected into the schema leaves all 1843 checks green.** The
+schema gains an arm nobody mapped and nothing goes red. That sentence is the falsifier Stage 1 has
+to overturn.
+
+### Operator decisions taken before execution
+
+Both resolve ambiguity the plan left open. The executing agent may not re-decide them, and the first
+is enforced by an acceptance row rather than by instruction.
+
+1. **`gate_h` closes as `escalated`.** `TERMINAL_STATUSES` stays `[shipped, aborted, escalated]`;
+   the breaker (`outer`/`inner`/`deadline`) travels in `close_cause`, not in the status. The cost is
+   real and accepted: the ledger can no longer distinguish a breaker trip from a worker escalation
+   by status alone. Revisit if `HD-014`'s fence decision needs that distinction.
+2. **`ok` is non-terminal** — mapped explicitly, never left out.

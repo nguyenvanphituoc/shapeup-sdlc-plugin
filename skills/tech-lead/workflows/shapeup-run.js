@@ -391,6 +391,9 @@ const CMD = {
     // from `detail` on purpose: `detail` is prose for a human to read, this is a token the control
     // plane branches on, and collapsing the two is what made every gate comparison silently false.
     decision: { type: "string" },
+    // A close's own advisory failure (kernel/probe/resume.mjs's `exportOnClose`) — copied verbatim, the same discipline as `decision`, so "the export failed" is a
+    // fact `closeIfTerminal` can act on rather than a line buried inside free-text `detail`.
+    export_warning: { type: "string" },
   },
   required: ["exit_code", "ok"],
 };
@@ -617,7 +620,9 @@ async function cmd(verbs, phaseName, label) {
     `Report its exit code as exit_code, ok=true if and only if exit_code is 0, and one line of ` +
     `detail. If the command printed JSON carrying a top-level "decision" key, copy that value into ` +
     `decision EXACTLY as it appears — one bare token, no sentence, no quotes, no rephrasing. ` +
-    `Otherwise omit decision. Do not interpret, summarise or act on the command's output beyond that.\n\n` +
+    `Otherwise omit decision. If the command printed JSON carrying a top-level "export_warning" ` +
+    `key with a non-empty string value, copy that string into export_warning verbatim. Otherwise ` +
+    `omit export_warning. Do not interpret, summarise or act on the command's output beyond that.\n\n` +
     `If the tool call itself is refused or blocked before the command ever runs — a permission or ` +
     `policy denial, not the command's own exit — that is NOT an exit code, and you must never invent ` +
     `one to fill the field: report exit_code as -1 and put the denial's own wording verbatim in ` +
@@ -968,11 +973,18 @@ async function setRunStatus(status, phaseName) {
 const causeArg = (s) => (String(s ?? "").replace(/[`"'$\\\n\r]/g, " ").replace(/\s+/g, " ").trim().slice(0, 300) || "no reason recorded");
 
 // A terminal RunReturn closes the run's own ledger — a terminal status, its cause, and a close
-// timestamp, in one write (`probe resume --close`). `aborted` and `shipped` are the two statuses
-// this script itself ends a run on; `paused` resumes on relaunch and `gate_h` hands the rest of the
-// run to the tech-lead skill's own orchestration (GATE H's census, then Ship) — neither is this
-// script's close to make. Best-effort, the same discipline as `setRunStatus` above: a lost write
-// degrades the trace's own record of why the run ended, it does not change what this return reports.
+// timestamp, in one write. WHICH arms are terminal, and what status each closes as, is no longer
+// decided here: `probe resume --close-arm <ret.status>` hands the kernel the RunReturn arm itself
+// and it answers from `RUN_RETURN_CLOSE` (kernel/probe/resume.mjs), derived from the schema's own
+// enum rather than a pair of statuses this file used to compare `ret.status` against by hand — a
+// literal comparison that could not see a new arm go unhandled, because it never consulted the
+// kernel's own list of terminal statuses at all. `gate_h` now closes the run as `escalated` — the
+// breaker that tripped travels in the close's cause text, never as a status of its own; the
+// tech-lead skill's own GATE H → L4 orchestration still runs the census and the ship decision, it
+// just no longer finds the ledger's close fields unset when it gets there. `paused` and `ok` remain
+// explicitly non-terminal — the kernel says so, this call site no longer needs to know why.
+// Best-effort, the same discipline as `setRunStatus` above: a lost write degrades the trace's own
+// record of why the run ended, it does not change what this return reports.
 //
 // A close can also come back `ok:true` and still be a degraded outcome: `closeRun`
 // (kernel/probe/resume.mjs) refuses a DIFFERENT terminal status outright (that failure already hits
@@ -986,11 +998,15 @@ const causeArg = (s) => (String(s ?? "").replace(/[`"'$\\\n\r]/g, " ").replace(/
 // reports — the ledger already folded the prior cause in — but the run's own RunReturn must say the
 // trace is degraded.
 async function closeIfTerminal(ret) {
-  if (ret.status !== "aborted" && ret.status !== "shipped") return;
   const cause = ret.status === "aborted"
     ? `${ret.aborted_at || "?"}: ${ret.reason || "no reason recorded"}`
+    : ret.status === "gate_h"
+    ? `breaker=${ret.breaker ?? "?"} green_scopes=${Array.isArray(ret.green_scopes) ? ret.green_scopes.length : "?"} hammer_proposals=${Array.isArray(ret.hammer_proposals) ? ret.hammer_proposals.length : "?"}`
     : `verdict=${ret.verdict ?? "?"} rounds=${ret.rounds_used ?? "?"} qa_findings=${ret.qa_findings ?? "?"}`;
-  const r = await cmd(`probe resume --slug ${slug} --close ${ret.status} --cause "${causeArg(cause)}"`, "Ship", `close:${ret.status}`);
+  // `--close-arm` hands the kernel the arm itself (not a status this file decided was terminal) —
+  // a non-terminal arm (`paused`, `ok`) still exits 0 with no "decision" key, so the branches below
+  // stay silent for it exactly as they did when this file's own guard returned early.
+  const r = await cmd(`probe resume --slug ${slug} --close-arm ${ret.status} --cause "${causeArg(cause)}"`, "Ship", `close:${ret.status}`);
   if (!r.ok) {
     const why = (r.detail || `exit ${r.exit_code}`).trim();
     log(`RUN STATE — close(${ret.status}) did not take: ${why}. This return's own status and reason still ` +
@@ -1003,6 +1019,14 @@ async function closeIfTerminal(ret) {
         `but a different cause — this run_id was closed more than once. Both causes are on the ledger's ` +
         `own close_cause line; this return's trace is degraded, not corrupted.`);
     stateWarnings.push(`close(${ret.status}) superseded an earlier close of this run_id — see harness-run.md's close_cause for both reasons`);
+  }
+  // The close itself took (r.ok above) — an export_warning here is `exportOnClose`
+  // (kernel/probe/resume.mjs) reporting it could not project this run's
+  // fact tables. Advisory, same as every other line in this function: the close stands, the run's
+  // own return says the trace is short one export rather than swallowing the fact.
+  if (r.export_warning) {
+    log(`RUN STATE — close(${ret.status}) took, but its export did not: ${r.export_warning}`);
+    stateWarnings.push(`close(${ret.status}): ${r.export_warning}`);
   }
 }
 const withWarnings = async (ret) => {
@@ -1739,11 +1763,15 @@ async function buildScope(scope, roundNo) {
           `and keep T0 green. An entry marked \`unowned\` cites no file any scope owns — fix it only ` +
           `if it falls inside your substrate. `
         : "") +
-      `Re-compile the order for every attempt after the first, with --attempt <n>. ` +
+      `Re-compile the order for every attempt after the first, with --attempt <n>. An attempt will ` +
+      `be REFUSED (exit 3) while the previous one is unanswered — dispatched with no leg row and no ` +
+      `WorkResult — because grading a tree the previous attempt may still be writing counts an ` +
+      `attempt nobody ran. Let it come back rather than opening the next one. ` +
       `Run the attempt ratchet for THIS scope only: up to ${attemptBudget} attempts of implement → ` +
       `\`node "${KERNEL}" verify t0 "${scope.path}" --round ${roundNo} --attempt <n>\`, each scored against ` +
       `the last kept trial. Stop on the first green T0, or when the attempt budget or the stagnation ` +
       `breaker trips. Write only inside this scope's substrate whitelist — the sandbox hook enforces it. ` +
-      `Report green, attempts_used, which breaker (if any) tripped, and the T0 artifact path.`,
+      `Report green, attempts_used, which breaker (if any) tripped, and the T0 artifact path — ` +
+      `attempts_used is what the attested channels carry, not a count of the orders you compiled.`,
   });
 }
