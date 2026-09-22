@@ -12,7 +12,9 @@ Stage 9 propositions still unproven after four soak attempts. Excludes `HD-013` 
 marketplace, 2026-09-21→22; `docs/design/orchestration-evidence-and-next.md`.
 **Confidence:** High that every Exit below is red today — each was executed. High on the
 Stage 0 → Stage 4 ordering. Low on duration: one maintainer, wall-clock is the constraint.
-**Status:** Proposed. Nothing here has run.
+**Status:** **In execution** on branch `plan/defect-3.7`, Stages 0–3. Stage 4 is deliberately out of
+this run's scope and remains a PO decision — see §8, which is the live per-stage record and the only
+place in this document that reports progress.
 
 **Baseline, measured not remembered:** `npm test` = **1843 checks** green at `b04d285` — the sha that
 carries this document — identically in a fresh clone. It read 1841 at `865ec79`, one commit earlier;
@@ -293,3 +295,67 @@ built**; the last three are simply not this plan's work.
   it to fixing what writes it.
 - **If a second consumer appears**, the split's S4 moves ahead of everything here, because the
   install-geometry defect class becomes reachable by a test for the first time.
+
+## 8. Progress — per stage, derived not claimed
+
+**The rule this section follows.** A stage is green here because acceptance was re-run in a clone
+that had never seen the working tree, not because the work was reported done. A stage with work
+committed but acceptance unverified reads **committed, unverified** — which is not the same fact and
+is not rounded up to one.
+
+**Run:** branch `plan/defect-3.7`, baseline `96f760c`, opened 2026-09-22. Stages 0–3.
+**Excluded by operator decision:** Stage 4 (the consumer soak). It needs Stages 0–3 landed and
+released first, it runs outside this repository against a marketplace install, and its value depends
+on staying the one-variable experiment launch 2 was. Handed back to the PO, not silently dropped.
+
+### Baseline, re-measured rather than trusted
+
+Both figures §Baseline states were re-derived in a fresh clone before anything was edited, because a
+suite nobody has run is an assumption rather than a baseline.
+
+| check | stated | measured at `96f760c` | |
+|---|---|---|---|
+| structural suite | 1843 at `b04d285` | **1843**, clone and working tree alike | ✅ holds |
+| `npm run demo` md5 | `2c97a1e532845ccf33178d1492606a9d` | identical, byte-for-byte | ✅ holds |
+| dependencies | zero, load-bearing | `{}` | ✅ holds |
+
+### Stage status
+
+| stage | goal | acceptance | state |
+|---|---|---|---|
+| **S0** | `HD-1` — the producer/lint collision; promote `HD-1`/`HD-2` | 7 rows, 2 of them inline anti-gaming guards | 🔵 in execution |
+| **S1** | `HD-026` — derive the close-out from the union | 7 rows, incl. a mutation that adds an unmapped arm | ⚪ queued |
+| **S2** | durability — export on every ending | 6 rows, incl. the driver's own falsifier | ⚪ queued |
+| **S3** | `HD-2` — count attested work, not writable artifacts | 7 rows, incl. "a real exhaustion still trips" | ⚪ queued |
+| **S4** | the soak | — | ⛔ out of scope this run (PO) |
+
+Every Exit was executed at `96f760c` before the run opened, and **every stage is red today**, as §4
+requires. The two rows that are *green* today are guards, not progress: TIER-DIRECTION still reds a
+real `.shapeup/` path, and `TERMINAL_STATUSES` is still the three members it should stay. Both must
+still be green at the end; the cheap wrong fix to S0 is to weaken the first, and to S1 to widen the
+second.
+
+### Two corrections this plan's own discipline caught in this plan
+
+Recorded because §1 says *derive facts from artifacts, never from prose*, and this document is
+prose. Both were read out of `domain.schema.json` before Stage 1 was briefed.
+
+1. **The union is enumerable today.** §Stage 1 says `$defs/RunReturn` carries "no `oneOf`/`anyOf`,
+   so no derived check is possible today". The first clause is true and the conclusion does not
+   follow: `properties.status.enum` exists and is machine-readable. Stage 1 keys off it, and no
+   schema restructuring is needed.
+2. **There are five arms, not four.** `shipped`, `paused`, `aborted`, `gate_h` — and **`ok`**, which
+   the plan never names and the workflow never constructs. An arm nobody thought to name, found in
+   the plan written to close exactly that class of defect. It is now an explicit non-terminal row in
+   the map rather than an omission, and Stage 1's acceptance reads `ALL 5 ARMS MAPPED`.
+
+### Operator decisions taken before execution
+
+Both resolve ambiguity the plan left open. The executing agent may not re-decide them, and the first
+is enforced by an acceptance row rather than by instruction.
+
+1. **`gate_h` closes as `escalated`.** `TERMINAL_STATUSES` stays `[shipped, aborted, escalated]`;
+   the breaker (`outer`/`inner`/`deadline`) travels in `close_cause`, not in the status. The cost is
+   real and accepted: the ledger can no longer distinguish a breaker trip from a worker escalation
+   by status alone. Revisit if `HD-014`'s fence decision needs that distinction.
+2. **`ok` is non-terminal** — mapped explicitly, never left out.
