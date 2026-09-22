@@ -280,6 +280,13 @@ const MODULE_FILES = [
   // real `reduce ship` and lints the file it wrote, because the renderer being clean and the
   // command writing a clean file are different claims.
   "74-ship-report-tier.mjs",
+  // 75-cross-run-attestation.mjs: the receipt/leg/trial ledgers are per-slug and append-only while
+  // order_id and round/attempt repeat, so a reader that ignores run_id answers "did THIS run do
+  // this?" with another run's evidence. Measured on a consumer: a run that dispatched nothing was
+  // told its first attempt was spent, and the stagnation breaker escalated it on two trials from
+  // earlier runs. The case no single-run fixture can hold, which is why three readers shipped
+  // with it.
+  "75-cross-run-attestation.mjs",
   "08-docs.mjs",
 ];
 

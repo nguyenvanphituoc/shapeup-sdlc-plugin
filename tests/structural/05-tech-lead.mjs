@@ -406,7 +406,14 @@ export async function run(ctx) {
       }
       trialRows.push({ schema_version: 1, trial: 11, round: 2, attempt: 11, scope_id: "other", score: { regressions: 0, fixtures_passed: 1, fixtures_total: 1, db_probe: null }, status: "kept", digest: [] });
       trialRows.push({ schema_version: 1, trial: 12, round: 9, attempt: 1, scope_id: "cart", score: { regressions: 0, fixtures_passed: 1, fixtures_total: 12, db_probe: null }, status: "kept", digest: [] });
-      w(".shapeup/demo/t0/trials.jsonl", trialRows.map((r) => JSON.stringify(r)).join("\n") + "\n");
+      // The trial ledger is per-slug and append-only, so a streak outlives the run that produced
+      // it and the breaker reads only THIS run's rows. The fixture therefore needs a run to belong
+      // to: without the receipt below every row here belongs to no run, and the breaker correctly
+      // ignores all of them — which would make this check pass over an empty query.
+      const DEMO_RUN = "demo-20260101T000000Z-abcdef01";
+      w(".shapeup/demo/receipt.json", JSON.stringify({ run_id: DEMO_RUN, slug: "demo" }));
+      w(".shapeup/demo/t0/trials.jsonl",
+        trialRows.map((r) => JSON.stringify({ ...r, run_id: DEMO_RUN })).join("\n") + "\n");
 
       const rh = spawnSync("node", [...K("compile"), "--scope", "shapeup/demo/scopes/cart.md", "--round", "2", "--attempt", "3", "--cwd", d], { encoding: "utf8" });
       const hOrder = rh.status === 0 ? readJSON((rh.stdout || "").trim()) : null;
@@ -435,12 +442,14 @@ export async function run(ctx) {
         else fail(`compile-order polluted stdout: ${rh.stdout}`);
       }
 
-      // The stagnation breaker fires on consecutive non-kept trials and only advises.
+      // The stagnation breaker fires on consecutive non-kept trials and only advises. Every row
+      // carries this run's key: the ledger is per-slug and append-only, so the breaker reads only
+      // the rows belonging to the run asking — a streak must not outlive the run that produced it.
       w(".shapeup/demo/t0/trials.jsonl", [
         { schema_version: 1, trial: 1, round: 2, attempt: 1, scope_id: "cart", score: { regressions: 0, fixtures_passed: 2, fixtures_total: 5, db_probe: null }, status: "kept", digest: [] },
         { schema_version: 1, trial: 2, round: 2, attempt: 2, scope_id: "cart", score: { regressions: 0, fixtures_passed: 2, fixtures_total: 5, db_probe: null }, status: "reverted", digest: [] },
         { schema_version: 1, trial: 3, round: 2, attempt: 3, scope_id: "cart", score: { regressions: 0, fixtures_passed: 2, fixtures_total: 5, db_probe: null }, status: "reverted", digest: [] },
-      ].map((r) => JSON.stringify(r)).join("\n") + "\n");
+      ].map((r) => JSON.stringify({ ...r, run_id: "demo-20260101T000000Z-abcdef01" })).join("\n") + "\n");
       const rs = spawnSync("node", [...K("compile"), "--scope", "shapeup/demo/scopes/cart.md", "--round", "2", "--attempt", "4", "--cwd", d], { encoding: "utf8" });
       if (rs.status === 0 && /"breaker":"stagnation"/.test(rs.stderr || "")) ok("the stagnation breaker fires after no_progress_k consecutive non-kept trials");
       else fail(`stagnation breaker did not fire: exit ${rs.status}, stderr ${(rs.stderr || "").slice(0, 120)}`);

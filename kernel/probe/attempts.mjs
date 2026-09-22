@@ -30,7 +30,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
-import { dispatchReceipts, legLedger, resultsDir } from "../lib/paths.mjs";
+import { dispatchReceipts, legLedger, resultsDir, readRunId } from "../lib/paths.mjs";
 import { readLegs } from "./leg.mjs";
 import { greenVerdict } from "./t0.mjs";
 
@@ -64,10 +64,26 @@ export function readReceipts(path) {
  * @param {object[]} legs - Pre-read `legs.jsonl` rows.
  * @returns {{orderId:string, hasReceipt:boolean, hasResult:boolean, hasLeg:boolean, state:("unattested"|"in-flight"|"spent")}}
  */
-export function attemptEvidence(cwd, slug, scopeId, round, attempt, receipts, legs) {
+export function attemptEvidence(cwd, slug, scopeId, round, attempt, receipts, legs, runId = null) {
   const orderId = `${slug}/${scopeId}-r${round}-a${attempt}`;
-  const hasReceipt = receipts.some((r) => r?.order_id === orderId);
-  const hasLeg = legs.some((r) => r?.order_id === orderId);
+  // SCOPED TO THIS RUN, and that qualifier is the whole correction. `receipts/dispatch.jsonl` and
+  // `legs.jsonl` are per-slug and append-only, so they accumulate across every run of a pitch,
+  // while `order_id` repeats — the run key is the only thing that separates two runs of one
+  // feature. Matching on `order_id` alone answered "was this attempt spent?" with a PREVIOUS run's
+  // receipt: measured on a consumer, a run that dispatched nothing was told its first attempt was
+  // spent, complete with leg and result, by rows two launches old.
+  //
+  // A row carrying no run key belongs to NO run rather than to this one, and an unresolvable
+  // current run (no receipt on disk) matches nothing. Both directions under-count rather than
+  // over-count, which is the safe way to be wrong here: an under-count leaves a breaker un-tripped
+  // and the round continues, where an over-count stops work that was never done.
+  const mine = (r) => r?.order_id === orderId && runId != null && r?.run_id === runId;
+  const hasReceipt = receipts.some(mine);
+  const hasLeg = legs.some(mine);
+  // A WorkResult carries no run key and reaches one only through its `order_id`, which repeats —
+  // so this stays a file check and is deliberately NOT sufficient on its own. It can only turn an
+  // already run-scoped receipt into `spent`; a result left behind by an earlier run cannot attest
+  // an attempt this run never dispatched.
   const hasResult = existsSync(join(resultsDir(cwd, slug), `${scopeId}-r${round}-a${attempt}.json`));
   const state = !hasReceipt ? "unattested" : (hasResult || hasLeg) ? "spent" : "in-flight";
   return { orderId, hasReceipt, hasResult, hasLeg, state };
@@ -91,10 +107,11 @@ export function attemptEvidence(cwd, slug, scopeId, round, attempt, receipts, le
 export function scopeAttempts(cwd, slug, scopeId, round, attemptBudget) {
   const receipts = readReceipts(dispatchReceipts(cwd, slug));
   const legs = readLegs(legLedger(cwd, slug));
+  const runId = readRunId(cwd, slug);
   const attempts = [];
   let spent = 0, inFlight = 0, unattested = 0;
   for (let a = 1; a <= attemptBudget; a++) {
-    const ev = attemptEvidence(cwd, slug, scopeId, round, a, receipts, legs);
+    const ev = attemptEvidence(cwd, slug, scopeId, round, a, receipts, legs, runId);
     if (ev.state === "spent") spent++;
     else if (ev.state === "in-flight") inFlight++;
     else unattested++;

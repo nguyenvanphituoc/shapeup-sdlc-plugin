@@ -86,7 +86,7 @@ export async function run(ctx) {
   const { ROOT, ok, fail, section } = ctx;
 
   const { scopeAttempts, readReceipts } = await import(join(ROOT, "kernel/probe/attempts.mjs"));
-  const { dispatchReceipts, legLedger, resultsDir, verdictsDir } = await import(join(ROOT, "kernel/lib/paths.mjs"));
+  const { dispatchReceipts, legLedger, resultsDir, verdictsDir, readRunId } = await import(join(ROOT, "kernel/lib/paths.mjs"));
 
   // ===============================================================================================
   section("121. Attempts are counted from attested channels, driven through the real dispatch pipeline");
@@ -183,6 +183,11 @@ export async function run(ctx) {
     try {
       const slug = "f";
       mkdirSync(join(ws, "shapeup", slug), { recursive: true });
+      // A REAL run, so the attested rows below carry a real run key. Attestation is scoped to the
+      // run that produced it — rows belonging to no run attest nothing — so a hand-built ledger
+      // with `run_id: null` would exercise evidence no dispatch ever writes.
+      openRun(ROOT, ws, slug, "A genuinely exhausted budget must still trip");
+      const runId = readRunId(ws, slug);
       const ordersDirPath = join(ws, ".shapeup", slug, "orders");
       mkdirSync(ordersDirPath, { recursive: true });
       writeFileSync(join(ordersDirPath, "sole-r1-a1.json"), JSON.stringify({
@@ -208,8 +213,8 @@ export async function run(ctx) {
       // scope with attempt_budget=1 and one closed, red attempt cannot be reported "held" just
       // because nobody asked for a second slot.
       mkdirSync(dirname(dispatchReceipts(ws, slug)), { recursive: true });
-      writeFileSync(dispatchReceipts(ws, slug), JSON.stringify({ at: new Date().toISOString(), order_id: `${slug}/sole-r1-a1`, run_id: null, worker_declared: "task-executor", skill_invoked: "task-executor", dispatch_ok: true, tool: "Skill", agent_id: null, agent_type: null }) + "\n");
-      writeFileSync(legLedger(ws, slug), JSON.stringify({ schema_version: 1, run_id: null, order_id: `${slug}/sole-r1-a1`, worker: "task-executor", operation: "execute", mode: "orchestrated", scope_id: "sole", round: 1, attempt: 1, compiled_at: new Date().toISOString(), dispatched_at: new Date().toISOString(), ingested_at: new Date().toISOString(), started_from: "dispatch-receipt", duration_ms: 1, attested: true }) + "\n");
+      writeFileSync(dispatchReceipts(ws, slug), JSON.stringify({ at: new Date().toISOString(), order_id: `${slug}/sole-r1-a1`, run_id: runId, worker_declared: "task-executor", skill_invoked: "task-executor", dispatch_ok: true, tool: "Skill", agent_id: null, agent_type: null }) + "\n");
+      writeFileSync(legLedger(ws, slug), JSON.stringify({ schema_version: 1, run_id: runId, order_id: `${slug}/sole-r1-a1`, worker: "task-executor", operation: "execute", mode: "orchestrated", scope_id: "sole", round: 1, attempt: 1, compiled_at: new Date().toISOString(), dispatched_at: new Date().toISOString(), ingested_at: new Date().toISOString(), started_from: "dispatch-receipt", duration_ms: 1, attested: true }) + "\n");
       const exhausted = scopeAttempts(ws, slug, "sole", 1, 1);
       if (exhausted.spent === 1 && exhausted.tripped === true) {
         ok("(b) a genuinely exhausted budget (1 of 1, closed, never green) trips — the cheapest wrong fix to this stage disarms the breaker entirely, and does not here");

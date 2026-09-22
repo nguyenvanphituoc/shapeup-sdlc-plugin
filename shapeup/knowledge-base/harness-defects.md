@@ -291,6 +291,27 @@ is pinned by a guard, never when it is merely believed done.
   side effect of merely lifting the fence. The run that hit this refused to pull that lever and
   said so. Scoping the read to the run is the fix; deleting the evidence is not.
 
+  **FIXED in 3.7.1-rc.2.** All three readers now match on the run key: the census filters receipts
+  and legs, and the stagnation breaker filters trials. A row carrying no run key belongs to no run
+  rather than to this one, and an unresolvable current run matches nothing — both directions
+  under-count rather than over-count, which is the safe way to be wrong: an under-count leaves a
+  breaker un-tripped and the round continues, where an over-count stops work that was never done.
+  A `WorkResult` still has no run key, so it stays a file check that can only turn an
+  already-run-scoped receipt into `spent` — a result left by an earlier run cannot attest an attempt
+  this run never dispatched.
+
+  `75-cross-run-attestation.mjs` plants two runs' rows in one set of ledgers — the case no
+  single-run fixture can hold — and asserts **both** directions: the prior run's work is invisible,
+  and the run's OWN receipt and leg still count, so scoping narrows the read without disarming it.
+  Mutation-verified: reverting the fix turns the suite red naming exactly this defect.
+
+  **Three existing fixtures were unfaithful in the way that hid it**, and were corrected rather than
+  the code weakened: `s3-attempts`, `73-attested-attempts` §123 and `05-tech-lead`'s stagnation
+  check all wrote `run_id: null` rows into hand-built ledgers, exercising evidence no real dispatch
+  ever writes. They now open a real run and stamp its key. That unfaithfulness is the direct cause
+  of this shipping: a fixture that models a state the pipeline never produces cannot fail on a
+  defect the pipeline has.
+
 ### Filed 2026-09-19 — measured in the consumer soak, never filed here
 
 Nine findings came out of the HarmonyOS soak (2026-09-15→17, two consecutive features on a project

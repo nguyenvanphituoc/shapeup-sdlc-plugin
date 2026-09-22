@@ -57,9 +57,28 @@ const SCOPE = "widget";
 const ROUND = 1;
 
 try {
-  const { ordersDir, verdictsDir, dispatchReceipts, legLedger, resultsDir } =
+  const { ordersDir, verdictsDir, dispatchReceipts, legLedger, resultsDir, readRunId } =
     await import(join(ROOT, "kernel/lib/paths.mjs"));
   const { scopeAttempts } = await import(join(ROOT, "kernel/probe/attempts.mjs"));
+
+  // A REAL RUN, so the attested rows below can carry a real run key.
+  //
+  // This fixture used to build the ledgers by hand with `run_id: null`, which made every mode here
+  // pass over evidence no real dispatch ever writes — and that unfaithfulness is exactly what hid
+  // the cross-run defect: attestation is scoped to the run that produced it, and rows belonging to
+  // no run attest nothing. Opening the run makes the fixture answer the same question the pipeline
+  // does.
+  const opened = spawnSync(process.execPath, [
+    join(ROOT, "kernel/harness.mjs"), "init", "run",
+    "--slug", SLUG, "--intake-text", "Drive the attested-attempt derivation",
+    "--auto-level", "unattended", "--cwd", ws,
+  ], { cwd: ws, encoding: "utf8", timeout: 60_000 });
+  if (opened.status !== 0) {
+    console.error(`CANNOT OPEN FIXTURE RUN (exit ${opened.status}): ${opened.stderr || opened.stdout}`);
+    process.exit(2);
+  }
+  const RUN_ID = readRunId(ws, SLUG);
+  if (!RUN_ID) { console.error("broken probe: no run_id after init run"); process.exit(2); }
 
   /** Write a file, creating its directory. */
   const w = (path, body) => {
@@ -94,7 +113,7 @@ try {
   /** A dispatch receipt row — the START a PostToolUse hook attests, never the leg's own claim. */
   function writeReceipt(attempt) {
     append(dispatchReceipts(ws, SLUG), {
-      at: new Date().toISOString(), order_id: orderId(attempt), run_id: null,
+      at: new Date().toISOString(), order_id: orderId(attempt), run_id: RUN_ID,
       worker_declared: "task-executor", skill_invoked: "task-executor",
       dispatch_ok: true, tool: "Skill", agent_id: null, agent_type: null,
     });
@@ -103,7 +122,7 @@ try {
   /** A leg-completion row — the END `reduce ingest` attests, never invented for a leg still running. */
   function writeLeg(attempt) {
     append(legLedger(ws, SLUG), {
-      schema_version: 1, run_id: null, order_id: orderId(attempt), worker: "task-executor",
+      schema_version: 1, run_id: RUN_ID, order_id: orderId(attempt), worker: "task-executor",
       operation: attempt > 1 ? "fix" : "execute", mode: "orchestrated", scope_id: SCOPE, round: ROUND, attempt,
       compiled_at: new Date().toISOString(), dispatched_at: new Date().toISOString(),
       ingested_at: new Date().toISOString(), started_from: "dispatch-receipt", duration_ms: 1000, attested: true,

@@ -1007,7 +1007,21 @@ export async function cli(rawArgv) {
   // than the flailing it detects. It advises; the orchestrator queues the GATE H proposal.
   if (scope?.scope_id) {
     const k = Number(scope.no_progress_k ?? payloadExtra.no_progress_k ?? 2);
-    const st = stagnation(allTrials.filter((t) => t.scope_id === scope.scope_id), k);
+    // SCOPED TO THIS RUN, for the same reason the attempt census is. `t0/trials.jsonl` is per-slug
+    // and append-only, so a streak survives the run that produced it. Measured on a consumer: two
+    // non-kept trials from earlier runs — one of them graded against an order no worker was ever
+    // dispatched for — read as a stagnation streak that every later run of that scope tripped on,
+    // seven hours after the tree they graded had been fixed. The breaker escalated on evidence that
+    // predated its own fix, and no attempt of the tripping run had been dispatched at all.
+    //
+    // A trial with no run key counts for no run; an unresolvable current run matches nothing. Both
+    // leave the breaker un-tripped, which is the fail-open direction this repo's guards take when
+    // the bad state cannot be positively proven.
+    const myRunId = readRunId(cwd, slug);
+    const st = stagnation(
+      allTrials.filter((t) => t.scope_id === scope.scope_id && myRunId != null && t.run_id === myRunId),
+      k,
+    );
     if (st.stagnant) {
       console.error(JSON.stringify({
         breaker: "stagnation", scope_id: scope.scope_id, streak: st.streak, no_progress_k: st.k,
