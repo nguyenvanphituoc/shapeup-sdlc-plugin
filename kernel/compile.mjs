@@ -227,11 +227,23 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
   // runs the fixtures. A build leg reaching for `Edit`/`Write` on any of them is not doing its job
   // by another route — it is handing itself the grade — so freezing them costs a well-behaved leg
   // nothing and removes the one channel through which it could attest work it did not do. The
-  // result envelope belongs on the same list for the same reason: it is the leg's own claim about
-  // what it did, and a claim is no stronger for being filed by the party it is about. The run-trace
   // carve-out below still covers everything else under this root — the doer's own task board and
-  // discovery ledger — because neither lives under any of these four.
-  const FROZEN_ATTESTATION = [`${local}/receipts/**`, `${local}/legs.jsonl`, `${local}/t0/verdicts/**`, `${local}/results/**`];
+  // discovery ledger — because neither lives under any of these three.
+  //
+  // THE RESULT ENVELOPE IS DELIBERATELY NOT ON THIS LIST, and the reasoning is worth keeping because
+  // it looks like it belongs. It is the leg's own claim about its own work, so on the argument above
+  // it is the first thing you would freeze. But a result is not evidence ABOUT the leg, it is the
+  // leg's PRODUCT — the other half of the envelope port, and the thing that answers the order. The
+  // order is unanswered at that moment by construction, so freezing the path would deny every build
+  // leg its documented last step, every time, on the first round: measured end to end against a
+  // compiled order, with the denial telling the worker to widen a substrate that cannot lift a
+  // frozen entry. Nothing else writes an ordinary result either, so there is no fallback. The census
+  // that reads it is already built for this: a result alone attests nothing, and can only turn an
+  // ALREADY-receipted attempt into a spent one, which spends the forger's own budget. What that does
+  // not cover is a leg forging a SIBLING's result, which is a real hole with a different fix — the
+  // glob form here cannot say "every result except this order's own", so closing it needs a
+  // mechanism rather than one more entry on this list.
+  const FROZEN_ATTESTATION = [`${local}/receipts/**`, `${local}/legs.jsonl`, `${local}/t0/verdicts/**`];
   switch (operation) {
     case "execute": case "fix": case "spike":
       // Build legs are the widest window on FROZEN_INTAKE, not an exemption from it: they are the

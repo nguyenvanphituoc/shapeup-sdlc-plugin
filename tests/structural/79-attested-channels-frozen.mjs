@@ -72,11 +72,18 @@ export async function run(ctx) {
       // The four attested channels HD-044 names. Each must be DENIED, and denied specifically as
       // FROZEN (not merely "outside every live order's allowed scopes") — the guard names the two
       // differently on purpose, and only the frozen path is checked ahead of the carve-out.
+      // PROBE PATHS THAT ARE NOT THE GLOBS' OWN TEXT. An earlier version of this module probed
+      // `t0/verdicts/r1-a1.json` — a filename no run produces, since the verifier writes
+      // `r<N>-a<M>-t<T>.json` — and every probe was spellable as a literal. Both together let a
+      // fix narrowed to exactly these four strings pass. Each path below is now a REAL shape the
+      // pipeline writes, and two of them (a second receipt file, a later trial) exist only to be
+      // covered by the `**` rather than by a literal.
       const attestedChannels = [
         [".shapeup/demo/receipts/dispatch.jsonl", "dispatch receipt ledger"],
+        [".shapeup/demo/receipts/canary.jsonl", "a second receipt file, covered only by the glob"],
         [".shapeup/demo/legs.jsonl", "leg-completion ledger"],
-        [".shapeup/demo/t0/verdicts/r1-a1.json", "T0 verdict"],
-        [".shapeup/demo/results/execute.json", "the leg's own WorkResult"],
+        [".shapeup/demo/t0/verdicts/r1-a1-t1.json", "T0 verdict (the real filename shape)"],
+        [".shapeup/demo/t0/verdicts/r2-a3-t7.json", "a later trial's verdict, covered only by the glob"],
       ];
       for (const [relPath, label] of attestedChannels) {
         const r = ask(ws, relPath);
@@ -88,6 +95,17 @@ export async function run(ctx) {
           fail(`sandbox guard ALLOWED a build leg to write its own ${label} (${relPath}) — the attested channel is forgeable by the party it is about\n${r.out || "(no output — deferred/allowed)"}`);
         }
       }
+
+      // THE LEG MUST STILL BE ABLE TO ANSWER ITS OWN ORDER, and this arm is why the result
+      // envelope is NOT on the list above. It looks like it belongs there — it is the leg's own
+      // claim about its own work — and freezing it was tried and measured: the guard denies the
+      // documented last step of every build leg, on the first round, unconditionally, because the
+      // order is unanswered at exactly that moment by construction. Nothing else writes an ordinary
+      // result, so the leg has no other way to finish. Pinned as a check rather than left as a
+      // comment, because the next reader to notice the asymmetry will reach for the same edit.
+      const ownResult = ask(ws, ".shapeup/demo/results/execute.json");
+      if (!ownResult.denied) ok("sandbox guard ALLOWS a build leg to write its OWN WorkResult — the product that answers its order, not evidence about it");
+      else fail(`freezing the attested channels also denied the leg its own WorkResult — every build leg's documented last step now fails\n${ownResult.out}`);
 
       // THE CARVE-OUT'S REAL PURPOSE MUST SURVIVE. Board status/AC ticks (task-executor P3) and the
       // P3.7 discovery ledger are the reason the run-trace carve-out exists at all (test #17, arm
@@ -123,8 +141,7 @@ export async function run(ctx) {
   const attestedGlobPaths = [
     ".shapeup/demo/receipts/dispatch.jsonl",
     ".shapeup/demo/legs.jsonl",
-    ".shapeup/demo/t0/verdicts/r1-a1.json",
-    ".shapeup/demo/results/fix.json",
+    ".shapeup/demo/t0/verdicts/r1-a1-t1.json",
   ];
   for (const op of ["fix", "spike"]) {
     const frozen = substrateFor(op, { slug: "demo" }).frozen || [];

@@ -18,7 +18,8 @@
 // exercising both the fixed direction (not-evaluated) and the pre-existing one (a real PASS),
 // because a fix that only proves the new state does not regress the old one is half a fix.
 
-import { readFileSync, mkdtempSync, rmSync } from "node:fs";
+import { readFileSync, mkdtempSync, rmSync, existsSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -168,5 +169,57 @@ export async function run(ctx) {
     ok("protocol.md's ledger Rules still forbid silently upgrading not-evaluated to pass");
   } else {
     fail("protocol.md's ledger Rules no longer state the never-silently-upgraded promise this defect was named for");
+  }
+
+  // --- (h) THE GUARANTEE, AT THE WRITER OF THE ARTIFACT ---------------------------------------
+  // Everything above this line is a source-level reading of a file this suite cannot execute, and
+  // an acceptance pass proved exactly what that is worth: with one assignment reinserted DOWNSTREAM
+  // of the branch — `if (args.noEval) verdict = "pass";` just above the loop's break — the whole
+  // defect came back and every check in this suite stayed green. A regex can pin the shape of the
+  // code it was shown; it cannot pin the shape of code nobody thought to look at.
+  //
+  // So the promise moved to where it can be enforced: `reduce ship` is the hand that freezes the
+  // committed report, it can read the run's own recorded arguments, and it now refuses to write a
+  // PASS over a run whose record says nothing graded it. A future orchestrator edit cannot reach
+  // past that — the worst it can do is make the ship fail loudly, which is the opposite of the
+  // failure this defect was: a report that quietly said PASS.
+  //
+  // Driven through the real CLI, with the fixture built by the real CLI too — a hand-written
+  // run-args record would prove the guard reads JSON, not that the pipeline produces what it reads.
+  {
+    const K = join(ROOT, "kernel/harness.mjs");
+    const ws = mkdtempSync(join(tmpdir(), "struct-no-eval-ship-"));
+    const run = (...a) => spawnSync("node", [K, ...a, "--cwd", ws], { cwd: ws, encoding: "utf8" });
+    try {
+      spawnSync("git", ["init", "-q"], { cwd: ws });
+      spawnSync("git", ["commit", "-q", "--allow-empty", "-m", "base"], { cwd: ws });
+      const common = ["--auto-level", "unattended", "--exec-model", "claude-opus-5",
+        "--max-rounds", "1", "--attempts", "2", "--plugin-root", join(ws, "plugin")];
+
+      run("init", "run", "--slug", "skipped", "--intake-text", "a run that grades nothing");
+      const argsSkipped = run("init", "run-args", "--slug", "skipped", ...common, "--no-eval");
+      run("init", "run", "--slug", "graded", "--intake-text", "a run that grades");
+      const argsGraded = run("init", "run-args", "--slug", "graded", ...common, "--eval-model", "claude-opus-5");
+      if (argsSkipped.status !== 0 || argsGraded.status !== 0) {
+        fail(`could not record run arguments through the CLI (skipped=${argsSkipped.status} graded=${argsGraded.status}) — the fixture cannot measure the guard: ${(argsSkipped.stderr || argsGraded.stderr || "").slice(0, 200)}`);
+      } else {
+        const refused = run("reduce", "ship", "--slug", "skipped", "--verdict", "PASS");
+        const wroteReport = existsSync(join(ws, "shapeup/skipped/REPORT.md"));
+        if (refused.status !== 0 && !wroteReport) ok("reduce ship REFUSES to freeze a PASS report for a run whose own record says --no-eval, and writes nothing");
+        else fail(`reduce ship froze a PASS report over a run that graded nothing (exit ${refused.status}, report written: ${wroteReport}) — the artifact a teammate inherits is the one that lies`);
+        if (/no-eval/.test(refused.stderr || "") && /not-evaluated/.test(refused.stderr || "")) ok("the refusal names the cause and the verdict to ship instead");
+        else fail(`the refusal does not tell the caller what to do instead: ${JSON.stringify((refused.stderr || "").slice(0, 200))}`);
+
+        const honest = run("reduce", "ship", "--slug", "skipped", "--verdict", "not-evaluated");
+        if (honest.status === 0 && /not-evaluated/.test(readFileSync(join(ws, "shapeup/skipped/REPORT.md"), "utf8"))) ok("the same run ships freely as not-evaluated — the guard refuses a claim, not the ship");
+        else fail(`a --no-eval run could not ship as not-evaluated (exit ${honest.status}) — the guard is blocking the honest path too`);
+
+        const graded = run("reduce", "ship", "--slug", "graded", "--verdict", "PASS");
+        if (graded.status === 0 && /\*\*PASS\*\*/.test(readFileSync(join(ws, "shapeup/graded/REPORT.md"), "utf8"))) ok("a run that DID evaluate still ships PASS — the guard reads the record, not the verb");
+        else fail(`a graded run was refused its PASS (exit ${graded.status}) — the guard is firing on runs it has no business refusing`);
+      }
+    } finally {
+      rmSync(ws, { recursive: true, force: true });
+    }
   }
 }
