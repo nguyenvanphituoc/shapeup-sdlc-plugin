@@ -282,6 +282,56 @@ export async function run(ctx) {
         fail(`(F) the dot did not move back down when its evidence was removed: ${JSON.stringify(down)}, shard ${JSON.stringify(shard(cwd, "sc-a"))} — a monotonic derivation is not a derivation`);
       }
     }
+
+    // =========================================================================================
+    // (G) THE TIER ROOT IS NOT THE SLUG'S ROOT. Every fixture above puts exactly ONE slug in the
+    //     tmp dir, so "`.shapeup/` exists" and "`.shapeup/<slug>/` exists" always happen to agree —
+    //     a guard that checks the TIER root (`.shapeup/`) instead of THIS SLUG's own local root
+    //     (`.shapeup/<slug>/`, what `localRoot(cwd, slug)` resolves to) would pass every case above
+    //     unnoticed. A real repository always has a `.shapeup/` — other features' run traces, the
+    //     run pointer, `metrics/`, `workflows/` — so that mutation would clobber committed hill
+    //     shards on every pull that lands beside ANY other feature's in-flight run, not only on a
+    //     pristine checkout. Here a SIBLING slug's own local trace is genuinely on disk (a second,
+    //     unrelated feature mid-run in the same repo) while the slug under test has none at all.
+    // =========================================================================================
+    {
+      const cwd = box();
+      scope(cwd, "sc-a");
+      w(cwd, `shapeup/${SLUG}/hill/sc-a.yml`, "scope_id: sc-a\nphase: FINISHED\n");
+      const before = readFileSync(join(cwd, "shapeup", SLUG, "hill", "sc-a.yml"), "utf8");
+
+      // A different feature, genuinely mid-run, sharing nothing with SLUG but the tier root.
+      const SIBLING = "hill-absence-sibling";
+      w(cwd, `.shapeup/${SIBLING}/receipt.json`, {
+        schema_version: 1, run_id: `${SIBLING}-20260924T000000Z-0badc0de`, slug: SIBLING,
+      });
+
+      if (existsSync(join(cwd, ".shapeup")) && !existsSync(join(cwd, ".shapeup", SLUG))) {
+        ok("(G) fixture actually separates the two roots: the tier root `.shapeup/` exists (a sibling slug's trace) while this slug's own `.shapeup/<slug>/` does not");
+      } else {
+        fail("(G) fixture built wrong — the tier root and this slug's own root do not actually differ, so this case cannot distinguish them");
+      }
+
+      const r = spawnSync(process.execPath, [KERNEL, "reduce", "hill", "--slug", SLUG, "--cwd", cwd],
+        { cwd, encoding: "utf8", timeout: 60_000 });
+
+      const after = readFileSync(join(cwd, "shapeup", SLUG, "hill", "sc-a.yml"), "utf8");
+      if (after === before) {
+        ok("(G) a sibling slug's local trace does not make `reduce hill` derive for THIS slug — the committed shard survives byte-identical");
+      } else {
+        fail(`(G) A SIBLING SLUG'S TRACE WAS ENOUGH TO TRIGGER DERIVATION — sc-a ${JSON.stringify(before)} → ${JSON.stringify(after)}; the guard is reading the tier root, not this slug's own`);
+      }
+
+      let rows = null;
+      try { rows = JSON.parse(r.stdout); } catch { /* reported below */ }
+      if (Array.isArray(rows) && rows.length === 1 && rows[0].derived === false && rows[0].changed === false) {
+        ok("(G) the report marks the row underived even with a sibling slug's trace present on disk");
+      } else {
+        fail(`(G) the report does not mark the row underived with a sibling trace present (exit ${r.status}): ${String(r.stdout).slice(0, 400)}`);
+      }
+      if (r.status === 0) ok("(G) the refusal exits 0 with a sibling's trace on disk, same as with no `.shapeup/` at all");
+      else fail(`(G) refusal exited ${r.status}: ${String(r.stderr).slice(0, 300)}`);
+    }
   } catch (e) {
     fail(`hill-absence checks threw: ${e && e.stack ? e.stack : e}`);
   } finally {

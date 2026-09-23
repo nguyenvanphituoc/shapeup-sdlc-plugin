@@ -26,6 +26,17 @@
 //       same ambiguity.
 //   (f) the same pipeline accepts an HONEST citation — a real green artifact, the correct hash —
 //       so the check is a lock with a key, not a check that only ever denies.
+//   (g)-(i) a MULTI-citation verdict — a real scoped run cites one artifact PER SCOPE, so three or
+//       four is normal — is refused when a LATER citation is forged: missing, hash-mismatched, or
+//       red, the same three shapes (a)-(c) already pin, now hiding behind an honest first citation.
+//       A loop that reads only `t0_citations[0]` (every fixture above cites exactly one, so nothing
+//       above would notice) would accept all three.
+//   (j) the same multi-citation verdict, with every citation honest, still passes — the walk over
+//       every citation is not one-directional either.
+//   (k)-(m) a citation to a real, correctly-hashed artifact whose own `overall` is "amber", `null`,
+//       or absent entirely is refused — pinning the actual proposition ("refused unless positively
+//       green") against a narrowing that only ever checks `overall === "red"`, which would accept
+//       all three.
 
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -179,6 +190,147 @@ export async function run(ctx) {
       if (i.status === 0 && existsSync(ledgerPath(d))) {
         ok("(f) reduce ingest applies the same honestly-cited verdict and writes the verdict ledger");
       } else fail(`(f) reduce ingest refused an honest citation (exit ${i.status})\n${i.stdout}${i.stderr}`);
+    }
+
+    // --- (g) MULTI-CITATION, FORGED LATER: a real scoped run cites one artifact PER SCOPE — three
+    // or four is normal — so a loop that only reads `t0_citations[0]` (every fixture above cites
+    // exactly one, so nothing above would notice) accepts a forged SECOND citation whenever the
+    // first happens to be honest. Here the later citation names an artifact that was never written.
+    {
+      const d = fixture("multi-missing");
+      contract(d, "alpha");
+      contract(d, "beta");
+      const good = t0(d, "r1-a1-t1.json", { scope_id: "alpha", overall: "green" });
+      evalResult(d, { overall: "PASS", t0_citations: [
+        { scope_id: "alpha", path: good.rel, sha256: good.sha256 },
+        { scope_id: "beta", path: ".shapeup/demo/t0/verdicts/ghost-beta.json", sha256: "0".repeat(64) },
+      ] });
+      const { r, json } = probeEval(d);
+      if (r.status === 1 && json.ok === false && /does not exist/.test(json.reason || "")) {
+        ok("(g) probe eval refuses a PASS whose FIRST citation resolves honestly but whose SECOND names a nonexistent artifact — a loop stopping at index 0 would miss this");
+      } else fail(`(g) probe eval accepted a multi-citation PASS with a nonexistent later citation: exit ${r.status}, ${JSON.stringify(json)}`);
+      const ing = ingest(d);
+      if (ing.status === 1 && /does not exist/.test(ing.stderr) && !existsSync(ledgerPath(d))) {
+        ok("(g) reduce ingest refuses the same multi-citation forgery before writing the verdict ledger");
+      } else fail(`(g) reduce ingest accepted a multi-citation PASS with a nonexistent later citation (exit ${ing.status})\n${ing.stderr}`);
+    }
+
+    // --- (h) MULTI-CITATION, FORGED LATER: the second citation's sha256 does not match its bytes,
+    // hiding behind an honest first citation the same way (g) hides a missing artifact.
+    {
+      const d = fixture("multi-mismatch");
+      contract(d, "alpha");
+      contract(d, "beta");
+      const good = t0(d, "r1-a1-t1.json", { scope_id: "alpha", overall: "green" });
+      const bad = t0(d, "r1-b1-t1.json", { scope_id: "beta", overall: "green" });
+      const wrongHash = bad.sha256.slice(0, 63) + (bad.sha256.slice(63) === "0" ? "1" : "0");
+      evalResult(d, { overall: "PASS", t0_citations: [
+        { scope_id: "alpha", path: good.rel, sha256: good.sha256 },
+        { scope_id: "beta", path: bad.rel, sha256: wrongHash },
+      ] });
+      const { r, json } = probeEval(d);
+      if (r.status === 1 && json.ok === false && /hashes to/.test(json.reason || "")) {
+        ok("(h) probe eval refuses a PASS whose FIRST citation resolves honestly but whose SECOND sha256 does not match — a loop stopping at index 0 would miss this");
+      } else fail(`(h) probe eval accepted a multi-citation PASS with a hash-mismatched later citation: exit ${r.status}, ${JSON.stringify(json)}`);
+      const ing = ingest(d);
+      if (ing.status === 1 && /hashes to/.test(ing.stderr) && !existsSync(ledgerPath(d))) {
+        ok("(h) reduce ingest refuses the same multi-citation hash mismatch before writing the verdict ledger");
+      } else fail(`(h) reduce ingest accepted a multi-citation PASS with a hash-mismatched later citation (exit ${ing.status})\n${ing.stderr}`);
+    }
+
+    // --- (i) MULTI-CITATION, FORGED LATER: the second citation resolves and hashes correctly, but
+    // its OWN verdict is red — the exact HD-043 shape, now hiding behind an honest first citation.
+    {
+      const d = fixture("multi-red");
+      contract(d, "alpha");
+      contract(d, "beta");
+      const good = t0(d, "r1-a1-t1.json", { scope_id: "alpha", overall: "green" });
+      const red = t0(d, "r1-b1-t1.json", { scope_id: "beta", overall: "red" });
+      evalResult(d, { overall: "PASS", t0_citations: [
+        { scope_id: "alpha", path: good.rel, sha256: good.sha256 },
+        { scope_id: "beta", path: red.rel, sha256: red.sha256 },
+      ] });
+      const { r, json } = probeEval(d);
+      if (r.status === 1 && json.ok === false && /not green/.test(json.reason || "")) {
+        ok("(i) probe eval refuses a PASS whose FIRST citation resolves honestly but whose SECOND cites a red T0 artifact — a loop stopping at index 0 would miss this");
+      } else fail(`(i) probe eval accepted a multi-citation PASS with a red later citation: exit ${r.status}, ${JSON.stringify(json)}`);
+      const ing = ingest(d);
+      if (ing.status === 1 && /not green/.test(ing.stderr) && !existsSync(ledgerPath(d))) {
+        ok("(i) reduce ingest refuses the same multi-citation red-artifact forgery before writing the verdict ledger");
+      } else fail(`(i) reduce ingest accepted a multi-citation PASS with a red later citation (exit ${ing.status})\n${ing.stderr}`);
+    }
+
+    // --- (j) MULTI-CITATION, HONEST: several real, correctly-hashed, green citations all resolve —
+    // the walk over every citation is not one-directional either.
+    {
+      const d = fixture("multi-honest");
+      contract(d, "alpha");
+      contract(d, "beta");
+      const a = t0(d, "r1-a1-t1.json", { scope_id: "alpha", overall: "green" });
+      const b = t0(d, "r1-b1-t1.json", { scope_id: "beta", overall: "green" });
+      const criteria = [{ criterion: "UC-01 step 1", dimension: "spec-conformance", verdict: "PASS", confidence: "high", evidence: "ran it" }];
+      evalResult(d, { overall: "PASS", criteria, t0_citations: [
+        { scope_id: "alpha", path: a.rel, sha256: a.sha256 },
+        { scope_id: "beta", path: b.rel, sha256: b.sha256 },
+      ] });
+      const { r, json } = probeEval(d);
+      if (r.status === 0 && json.ok === true && json.overall === "PASS") {
+        ok("(j) probe eval accepts a PASS whose several T0 citations all actually resolve");
+      } else fail(`(j) probe eval refused an honest multi-citation PASS: exit ${r.status}, ${JSON.stringify(json)}`);
+      const ing = ingest(d);
+      if (ing.status === 0 && existsSync(ledgerPath(d))) {
+        ok("(j) reduce ingest applies the same honestly multi-cited verdict and writes the verdict ledger");
+      } else fail(`(j) reduce ingest refused an honest multi-citation PASS (exit ${ing.status})\n${ing.stdout}${ing.stderr}`);
+    }
+
+    // --- (k) NOT GREEN, NOT RED: a real, correctly-hashed artifact whose own verdict is "amber" —
+    // pinning the actual proposition ("refused unless positively green") against a narrowing that
+    // only ever checks `overall === "red"`, which would let this ride through unrefused.
+    {
+      const d = fixture("amber");
+      contract(d, "alpha");
+      const amber = t0(d, "r1-a1-t1.json", { scope_id: "alpha", overall: "amber" });
+      evalResult(d, { overall: "PASS", t0_citations: [{ scope_id: "alpha", path: amber.rel, sha256: amber.sha256 }] });
+      const { r, json } = probeEval(d);
+      if (r.status === 1 && json.ok === false && /not green/.test(json.reason || "")) {
+        ok('(k) probe eval refuses a PASS citing a T0 artifact whose own verdict is "amber" — the standard is positively green, not merely "not red"');
+      } else fail(`(k) probe eval accepted a PASS citing an amber T0 artifact: exit ${r.status}, ${JSON.stringify(json)}`);
+      const ing = ingest(d);
+      if (ing.status === 1 && /not green/.test(ing.stderr) && !existsSync(ledgerPath(d))) {
+        ok("(k) reduce ingest refuses the same amber-artifact citation before writing the verdict ledger");
+      } else fail(`(k) reduce ingest accepted a citation to an amber T0 artifact (exit ${ing.status})\n${ing.stderr}`);
+    }
+
+    // --- (l) NOT GREEN, NOT RED: the cited artifact's `overall` is explicitly null.
+    {
+      const d = fixture("null-overall");
+      contract(d, "alpha");
+      const nul = t0(d, "r1-a1-t1.json", { scope_id: "alpha", overall: null });
+      evalResult(d, { overall: "PASS", t0_citations: [{ scope_id: "alpha", path: nul.rel, sha256: nul.sha256 }] });
+      const { r, json } = probeEval(d);
+      if (r.status === 1 && json.ok === false && /not green/.test(json.reason || "")) {
+        ok("(l) probe eval refuses a PASS citing a T0 artifact whose `overall` is explicitly null");
+      } else fail(`(l) probe eval accepted a PASS citing a null-overall T0 artifact: exit ${r.status}, ${JSON.stringify(json)}`);
+      const ing = ingest(d);
+      if (ing.status === 1 && /not green/.test(ing.stderr) && !existsSync(ledgerPath(d))) {
+        ok("(l) reduce ingest refuses the same null-overall citation before writing the verdict ledger");
+      } else fail(`(l) reduce ingest accepted a citation to a null-overall T0 artifact (exit ${ing.status})\n${ing.stderr}`);
+    }
+
+    // --- (m) NOT GREEN, NOT RED: the cited artifact carries no `overall` field at all.
+    {
+      const d = fixture("absent-overall");
+      contract(d, "alpha");
+      const absent = t0(d, "r1-a1-t1.json", { scope_id: "alpha" });
+      evalResult(d, { overall: "PASS", t0_citations: [{ scope_id: "alpha", path: absent.rel, sha256: absent.sha256 }] });
+      const { r, json } = probeEval(d);
+      if (r.status === 1 && json.ok === false && /not green/.test(json.reason || "")) {
+        ok("(m) probe eval refuses a PASS citing a T0 artifact with no `overall` field at all");
+      } else fail(`(m) probe eval accepted a PASS citing an overall-absent T0 artifact: exit ${r.status}, ${JSON.stringify(json)}`);
+      const ing = ingest(d);
+      if (ing.status === 1 && /not green/.test(ing.stderr) && !existsSync(ledgerPath(d))) {
+        ok("(m) reduce ingest refuses the same overall-absent citation before writing the verdict ledger");
+      } else fail(`(m) reduce ingest accepted a citation to an overall-absent T0 artifact (exit ${ing.status})\n${ing.stderr}`);
     }
   } finally {
     for (const d of roots) rmSync(d, { recursive: true, force: true });
