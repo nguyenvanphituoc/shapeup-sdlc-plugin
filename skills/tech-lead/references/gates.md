@@ -389,7 +389,7 @@ feature) and the failing step is compiled into round r+1's orders as `payload.bu
 means L0 pinned no run command and the profile names no probe — the round proceeds over an
 unproven build, and the block says so.
 
-Under `--interactive` / `--auto`, the hook warns if the board is not truly green (advisory) and requires explicit PO approval to proceed. Under `--unattended`, it automatically aborts on a red board or proceeds on a green one.
+Under `--interactive` / `--auto`, the gate block carries the board facts — `green_scopes`, `hammer_proposals` — and requires explicit PO approval to proceed. Under `--unattended` the answer set resolves it. **There is no hook behind this gate**: the `PreToolUse` warning it used to carry was retired into the block in v2.0, so what an unfinished board costs you here is a human reading the numbers, not a machine refusing the call.
 
 ---
 

@@ -41,9 +41,14 @@ runs over unfinished tasks rather than denying it. The board is local to the mac
 harness — see [ADR-0001](docs/design/adr/0001-consumer-file-organization.md).)
 
 **2. Progress is measured, not claimed.** A scope counts as built only when `t0-verify` runs
-its fixtures, a DB probe, and the seesaw, and writes an artifact to disk. The evaluator must
-cite that artifact and re-hashes it itself; hill phase is derived from those facts, so no
-worker can self-report confidence.
+its fixtures and its DB probe and writes an artifact to disk — with each command's exit code,
+its captured output, and whether it ran at all. The evaluator must cite that artifact, and the
+hill phase is derived from artifacts rather than from a worker's own account of its progress.
+Two limits, stated here because the point of this section is that a claim without a mechanism
+behind it is the thing this harness exists to prevent: the **seesaw** regression arm is declared
+and not yet wired (no run writes its registry — wiring it is an open Betting Table decision), and
+nothing in the runtime **re-hashes** the citation the evaluator is instructed to re-hash. Both
+are open items in `shapeup/knowledge-base/harness-defects.md`, not shipped guarantees.
 → *Prevents: "done" asserted with nothing behind it.*
 
 **3. Parallel work can't corrupt shared state.** Each scope gets a write-whitelist of files
@@ -300,7 +305,9 @@ These hold across the harness and are the reason it stays predictable:
   count events and neither can notice a single round running for half an hour — tripping it routes
   to GATE H, so a run out of time ships what is green instead of being killed and shipping nothing.
 - **Hill phase is mechanical, never self-reported** — derived only from T0/T1/seesaw facts, closing
-  the self-reported-confidence risk outright.
+  the self-reported-confidence risk — with one gap on record: a scope with no discovery
+  ledger derives the same phase as one whose unknowns are all closed, so absence still reads
+  as progress on that one arm.
 - **One writer per shared file** — every board/ledger/verdict write goes through
   `harness reduce ingest`; workers return data and never touch shared state.
 - **Traceability is oracle-checked, opt-in** — `harness verify trace` verifies covers-closure and

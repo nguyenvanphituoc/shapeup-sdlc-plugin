@@ -62,10 +62,13 @@ The numbered sections below are the checks themselves, in section order:
    `skills/**/references/*.md`) references a repo-only path (`scripts/`, `examples/`,
    `docs/audit|plan|research/`, `tests/`) that would be absent at install. Runtime project paths
    the harness creates (`shapeup/`, `.shapeup/`) are allowed.
-14. **GATE L2 enforcement (Stage E1):** the `PreToolUse` hook (`hooks/gate-l2.mjs`) DENIES the
-   once-per-round EVAL on a partial board (naming the unfinished task) and ALLOWS it on a green
-   board, while never gating per-task evals, other skills, or non-`Skill` tools. Driven against
-   temp board fixtures — proves the gate actually enforces, not just that it parses.
+14. **The retired GATE L2 hook stays retired:** `hooks/gate-l2.mjs` was moved into the gate block
+   in v2.0, so this section asserts its absence and that the facts it used to warn with
+   (`green_scopes`, `hammer_proposals`) still reach the block a human answers. It previously drove
+   the hook through board fixtures and, after the retirement, skipped silently behind an
+   `existsSync` — zero checks, printed as a passing line, for several releases. Kept as a guard
+   rather than deleted: an unregistered hook file returning would enforce nothing, and the trade
+   the retirement made is only honoured while those facts are still in the block.
 15. **Verdict-ledger calibration (Stage D1):** `kernel/reduce/verdict.mjs` flags a PASS→FAIL flip
    across runs, forces that criterion's confidence to `low`, leaves stable criteria untouched, and
    exits non-zero on a flipping ledger / zero on a stable one. Proves the judge-calibration grammar

@@ -52,152 +52,28 @@ export async function run(ctx) {
 
 
   // =============================================================================
-  section("14. GATE L2 PreToolUse hook WARNS on a red board and stays quiet on a green one");
+  section("14. The retired GATE L2 hook stays retired — and the facts it warned with still travel");
   // =============================================================================
-  // ADVISORY SINCE ADR-0001. This hook used to hard-deny the once-per-round EVAL on a partial
-  // board; it now permits the dispatch and emits a systemMessage naming the unfinished tasks.
+  // WHAT USED TO BE HERE, and why it had to go. This section drove `hooks/gate-l2.mjs` through a
+  // board fixture. That hook was retired into the gate block in v2.0 (`keep the walls, move the
+  // rest into the runtime`), and the section was left behind wrapped in `if (existsSync(gatePath))`
+  // — so it skipped silently, contributed ZERO checks, and printed "(gate-l2 hook not found —
+  // skipping)" into a passing run for several releases. A test that cannot fail is not a weaker
+  // test, it is a comment that costs a fixture; and this one read as coverage of a gate that has
+  // no machine behind it at all.
   //
-  // WHAT THESE CASES STILL PROVE, and why they are worth as much as they were when the verdict was
-  // a denial: every one of them exercises the DETECTION, which is unchanged. The island-escape
-  // regression (case 6 — a board under the LOCAL root that a spec-dir-only hook cannot see) and the
-  // envelope-shape regression (case 10 — the pure-skill `--order` dispatch bypassing the read) are
-  // both defects of *finding the board*, not of *what to do about it*. Downgrading the verdict does
-  // not retire either guard.
-  //
-  // Case 0 is new and pins the downgrade itself: the hook must never emit a denial again, or the
-  // ADR silently reverts the moment someone restores the old return block.
-  const gatePath = join(ROOT, "hooks/gate-l2.mjs");
-  if (existsSync(gatePath)) {
-    const { mkdtempSync, writeFileSync, mkdirSync, rmSync } = await import("node:fs");
-    const { tmpdir } = await import("node:os");
-    // Build a board fixture; `done` flips TASK-002 between done and in-progress.
-    const makeSpec = (secondDone) => {
-      const dir = mkdtempSync(join(tmpdir(), "gate-l2-"));
-      const tasks = join(dir, "spec", "tasks");
-      mkdirSync(tasks, { recursive: true });
-      const mark = secondDone ? "✅ done" : "🔄 in-progress";
-      writeFileSync(join(tasks, "_index.md"),
-        `---\ntype: task-board\n---\n| ID | Title | Status |\n|---|---|---|\n| TASK-001 | A | ✅ done |\n| TASK-002 | B | ${mark} |\n`);
-      writeFileSync(join(tasks, "TASK-001-a.md"), `---\nid: TASK-001\nstatus: done\n---\n`);
-      writeFileSync(join(tasks, "TASK-002-b.md"), `---\nid: TASK-002\nstatus: ${secondDone ? "done" : "in-progress"}\n---\n`);
-      return dir;
-    };
-    const ask = (cwd, skillArgs, skillName = "spec-evaluator", toolName = "Skill") => {
-      const payload = JSON.stringify({ tool_name: toolName, cwd, tool_input: { skill_name: skillName, skill_args: skillArgs } });
-      const r = spawnSync("node", [gatePath], { encoding: "utf8", input: payload });
-      const out = r.stdout || "";
-      // `warned` is the advisory verdict; `denied` must now be false everywhere (case 0).
-      const denied = out.includes('"permissionDecision":"deny"');
-      const warned = out.includes("systemMessage") && out.includes("GATE L2");
-      return { denied, warned, out };
-    };
-    // v0.4.0 Local Tasks Architecture fixture: committed spec dir is boardless; the board lives
-    // under the LOCAL gitignored root .shapeup/<slug>/tasks/. `withBoard: false` models a
-    // teammate's machine that pulled the spec but never generated a local board (must fail-open —
-    // spec-evaluator v0.9 grades from the committed spec there).
-    const makeLocalSpec = (secondDone, withBoard = true) => {
-      const dir = mkdtempSync(join(tmpdir(), "gate-l2-local-"));
-      mkdirSync(join(dir, "shapeup", "demo", "spec", "usecases"), { recursive: true });
-      if (withBoard) {
-        const tasks = join(dir, ".shapeup", "demo", "tasks");
-        mkdirSync(tasks, { recursive: true });
-        const mark = secondDone ? "✅ done" : "🔄 in-progress";
-        writeFileSync(join(tasks, "_index.md"),
-          `---\ntype: task-board\n---\n| ID | Title | Status |\n|---|---|---|\n| TASK-001 | A | ✅ done |\n| TASK-002 | B | ${mark} |\n`);
-        writeFileSync(join(tasks, "TASK-001-a.md"), `---\nid: TASK-001\nstatus: done\n---\n`);
-        writeFileSync(join(tasks, "TASK-002-b.md"), `---\nid: TASK-002\nstatus: ${secondDone ? "done" : "in-progress"}\n---\n`);
-      }
-      return dir;
-    };
-    const green = makeSpec(true), red = makeSpec(false);
-    const lGreen = makeLocalSpec(true), lRed = makeLocalSpec(false), lBoardless = makeLocalSpec(true, false);
-    try {
-      // 0. THE DOWNGRADE ITSELF (ADR-0001). Not one of these payloads may produce a denial —
-      //    including the reddest board we can build. Restoring the old return block fails here.
-      const everyShape = [
-        ask(red, "--spec spec --feature demo --single-pass"),
-        ask(lRed, "--spec shapeup/demo/spec --feature demo --single-pass"),
-        ask(red, "--spec spec --task TASK-001"),
-      ];
-      if (everyShape.every((r) => !r.denied)) ok("gate NEVER denies — the L2 downgrade to advisory holds (ADR-0001)");
-      else fail("gate emitted permissionDecision:deny — GATE L2 is meant to be advisory since ADR-0001");
+  // Re-pointed at the substance rather than deleted. Two things must stay true: the hook does not
+  // come back by accident (a file on disk that `hooks.json` never registers enforces nothing — §26
+  // catches the inverse), and the facts the hook used to carry still reach the human who answers
+  // the gate, which is what the retirement traded for.
+  {
+    if (!existsSync(join(ROOT, "hooks/gate-l2.mjs"))) ok("gate-l2.mjs is absent, as v2.0 retired it");
+    else fail("hooks/gate-l2.mjs is back on disk — either register it in hooks.json or delete it; an unregistered hook enforces nothing");
 
-      // 1. Red board + round mode → WARN, naming the unfinished task.
-      const a = ask(red, "--spec spec --feature demo --single-pass");
-      if (a.warned && a.out.includes("TASK-002")) ok("gate WARNS on a partial board (names TASK-002)");
-      else fail(`gate said nothing about a red-board round EVAL — the board read is broken\n${a.out}`);
-
-      // 2. Green board + round mode → silent (defer, no message).
-      const b = ask(green, "--spec spec --feature demo --single-pass");
-      if (!b.warned) ok("gate is SILENT on a fully-green board");
-      else fail(`gate warned about a green board — false positive\n${b.out}`);
-
-      // 3. Red board but per-task eval (--task) → silent (not in scope).
-      const c = ask(red, "--spec spec --task TASK-001");
-      if (!c.warned) ok("gate does NOT warn on a per-task eval (--task)");
-      else fail("gate warned on a per-task eval — the board rule is round-only");
-
-      // 4. Other skill → silent.
-      const d = ask(red, "--spec spec --single-pass", "task-executor");
-      if (!d.warned) ok("gate ignores non-spec-evaluator skills");
-      else fail("gate spoke about a non-spec-evaluator skill");
-
-      // 5. Non-Skill tool → silent.
-      const e = ask(red, "--spec spec --single-pass", "spec-evaluator", "Bash");
-      if (!e.warned) ok("gate ignores non-Skill tool calls");
-      else fail("gate spoke about a non-Skill tool call");
-
-      // 6. v0.4.0 layout, red LOCAL board → WARN. The island-escape regression: the board is not
-      //    in <spec>/tasks/, and a hook that only looks there sees a green board that isn't.
-      const f = ask(lRed, "--spec shapeup/demo/spec --feature demo --single-pass");
-      if (f.warned && f.out.includes("TASK-002")) ok("gate WARNS on a red LOCAL board (LOCAL <slug>/tasks/ layout)");
-      else fail(`gate missed a red LOCAL board — the island-escape hole is back\n${f.out}`);
-
-      // 7. v0.4.0 layout, green LOCAL board → silent.
-      const g = ask(lGreen, "--spec shapeup/demo/spec --feature demo --single-pass");
-      if (!g.warned) ok("gate is SILENT on a green LOCAL board");
-      else fail(`gate warned about a green LOCAL board — false positive\n${g.out}`);
-
-      // 8. No --feature → slug derived from the spec path convention (<shared>/<slug>/spec).
-      const h = ask(lRed, "--spec shapeup/demo/spec --single-pass");
-      if (h.warned && h.out.includes("TASK-002")) ok("gate derives <slug> from the spec path when --feature is absent");
-      else fail(`gate did not find the LOCAL board without --feature — slug derivation broken\n${h.out}`);
-
-      // 9. Committed spec present but NO local board anywhere → silent (fail-open). A grading
-      //    machine that never generated a board is legitimate (spec-evaluator v0.9).
-      const i = ask(lBoardless, "--spec shapeup/demo/spec --feature demo --single-pass");
-      if (!i.warned) ok("gate is silent when no board exists on this machine (boardless grading is legitimate)");
-      else fail("gate warned on a boardless machine — breaks the remote-grading flow");
-
-      // 10. Pure-skill envelope shape (v1.0): the round EVAL dispatches as
-      //     `spec-evaluator --order <WorkOrder operation:evaluate>` — the gate must read the
-      //     order and warn on a red board just like the legacy flag shape, and stay quiet for
-      //     a non-evaluate order (some other worker's dispatch).
-      const mkOrder = (dir, operation, worker = "spec-evaluator") => {
-        const op = join(dir, ".shapeup", "demo", "orders");
-        mkdirSync(op, { recursive: true });
-        const pth = join(op, `${operation}-r1.json`);
-        writeFileSync(pth, JSON.stringify({
-          schema_version: 1, order_id: `demo/${operation}-r1`, worker, mode: "orchestrated",
-          operation, payload: { feature: "demo", spec_folder: "shapeup/demo/spec" },
-        }));
-        return pth;
-      };
-      const jr = ask(lRed, `--order ${mkOrder(lRed, "evaluate")}`);
-      if (jr.warned && jr.out.includes("TASK-002")) ok("gate WARNS on an --order round EVAL over a red board (envelope shape read)");
-      else fail(`gate missed an --order eval dispatch — the pure-skill port bypasses the board read\n${jr.out}`);
-      const jg = ask(lGreen, `--order ${mkOrder(lGreen, "evaluate")}`);
-      if (!jg.warned) ok("gate is SILENT on an --order round EVAL over a green board");
-      else fail(`gate warned on a green-board --order eval — false positive\n${jg.out}`);
-    } finally {
-      rmSync(green, { recursive: true, force: true });
-      rmSync(red, { recursive: true, force: true });
-      rmSync(lGreen, { recursive: true, force: true });
-      rmSync(lRed, { recursive: true, force: true });
-      rmSync(lBoardless, { recursive: true, force: true });
-    }
-  } else {
-    console.log("  (gate-l2 hook not found — skipping)");
+    const gateSrc = read(join(ROOT, "kernel/gate.mjs"));
+    const carries = ["green_scopes", "hammer_proposals"].filter((f) => gateSrc.includes(f));
+    if (carries.length === 2) ok("the L2 gate block still carries the board facts the hook used to warn with (green_scopes, hammer_proposals)");
+    else fail(`the gate block no longer carries ${["green_scopes", "hammer_proposals"].filter((f) => !carries.includes(f)).join(", ")} — the retirement traded a warning for these facts, and they are what is left`);
   }
 
 

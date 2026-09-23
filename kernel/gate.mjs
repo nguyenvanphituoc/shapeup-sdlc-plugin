@@ -110,7 +110,7 @@ export const PRESETS = {
       "L1a": { decision: "proceed", note: "Orient review — advisory read." },
       "L1a.5": { decision: "proceed", note: "Wiring review — checked by trace-lint." },
       "L1b": { decision: "ask", note: "Board review is where scope is actually decided. Not pre-approvable." },
-      "L2": { decision: "proceed", note: "Board-green is verified by hook, not by opinion." },
+      "L2": { decision: "proceed", note: "The board facts travel in the gate block itself — green_scopes and hammer_proposals — so a preset answering here is not answering blind. Note there is no board check behind this: the L2 hook was retired into the gate block in v2.0." },
       "L3": { decision: "loop", max_rounds: 3, note: "Loop on FAIL; the breaker ends it." },
       "QA": { decision: "run" },
       "H": { decision: "ask", note: "The cut list changes what ships." },
