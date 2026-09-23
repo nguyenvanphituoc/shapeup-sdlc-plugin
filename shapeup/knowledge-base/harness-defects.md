@@ -67,6 +67,22 @@ is pinned by a guard, never when it is merely believed done.
   a `requirements.md` with no `TIER-DIRECTION` findings. That is a consumer run, not a fixture, and
   it is deliberately the last thing holding this row open.
 
+  **Measured 2026-09-23 on the consumer, rc.5 installed from the marketplace — the collision fired
+  and the run did not notice.** A fresh pitch (`about-screen`), a real run, planning dispatched for
+  real. At 07:17:11 the analyzer tried to write a committed `spec/_index.md` citing the breadboard
+  by its staged run-tier path — the exact HD-027 shape, from a different worker and a different
+  artifact than the one that was taught. The write was refused. At 07:17:29 the same worker wrote a
+  committed file that linted clean, and four more clean committed writes followed at 07:17:46,
+  07:18:07, 07:18:14. One denial, eighteen seconds, no retry loop; across the whole run the guard
+  answered thirteen times, twelve of them permits carrying a rule.
+
+  That settles the recovery question, which was the real risk in fronting a gate with a hook — a
+  guard that denies correctly but wedges the run would be worse than the L1b abort it replaces. It
+  does NOT settle this entry: the run was killed by the launcher's background-wait ceiling with
+  ANALYZE in flight, so no `requirements.md` ever completed a full planning phase end to end. The
+  registry it did write cites the pitch by section name and names no gitignored path, which is
+  the outcome this entry asks for — from the coverage dispatch alone, not from the whole leg.
+
 - **HD-013 · The WorkOrder names no result path.** P3, and carried here without its original
   write-up: the entry body was lost in an earlier cleanup while the index row survived, which is why
   this one is short. What is certain is the id, the tier and the subject — the plan record
