@@ -80,6 +80,69 @@ function runCommand(cmd, cwd) {
 }
 
 /**
+ * How much of each stream the persisted record keeps, per command.
+ *
+ * A bound rather than the whole stream, because one chatty fixture would otherwise make every
+ * reader of the run trace pay for it — and a bound at the END rather than the start, because that
+ * is where a stack trace, an assertion diff and a test summary all land.
+ */
+export const EVIDENCE_TAIL_CHARS = 4000;
+
+/**
+ * The last `limit` characters of a stream, marked when anything was dropped.
+ *
+ * THE MARKER IS NOT DECORATION. A truncated tail that does not say so is a partial stream that
+ * reads as a complete one, which is the same class of defect as the one this whole change fixes:
+ * a record that overstates what it actually holds.
+ *
+ * @param {(string|null|undefined)} text - The captured stream.
+ * @param {number} [limit] - Characters to keep.
+ * @returns {(string|null)} The kept tail, or null when the stream was empty (the field is then
+ *   omitted rather than stored as "", so "nothing was printed" stays visibly different from
+ *   "nothing was kept").
+ */
+export function boundedTail(text, limit = EVIDENCE_TAIL_CHARS) {
+  const s = String(text ?? "");
+  if (!s) return null;
+  if (s.length <= limit) return s;
+  return `[truncated: kept the last ${limit} of ${s.length} characters]\n${s.slice(-limit)}`;
+}
+
+/**
+ * One command's outcome as the verdict artifact stores it — the evidence, not just the score.
+ *
+ * WHAT THIS FIXES. The artifact used to keep `{cmd, exit, pass}`, and `runCommand` maps a command
+ * that never started onto `exit: 1` — the same number a genuine failure returns. So a refused or
+ * timed-out command and a broken build were the SAME RECORD everywhere downstream: the digest, the
+ * hill, the report, the evaluator's citation and anyone reading the trace back afterwards. The
+ * kernel computed the difference (`error`, which the ratchet grades as `crash`) and discarded it
+ * one line later.
+ *
+ * `exit` is deliberately left as it is. Mapping a crash to some other number would change what the
+ * ratchet compares and what every existing reader parses; the distinction travels in `error`, which
+ * is the field that actually means "this never ran", and which the crash branch already reads.
+ *
+ * Output is kept for PASSING commands too, and that direction is not an afterthought: a fixture
+ * that exits 0 having run zero tests is the false green this evidence layer exists to catch, and
+ * its stdout is the only place that shows.
+ *
+ * @param {({cmd:string, exit:number, pass:boolean, stdout?:string, stderr?:string, error?:string}|null)} r
+ *   A `runCommand` result, or null when no command was declared.
+ * @returns {(object|null)} The record to persist; null passes through unchanged.
+ */
+export function commandEvidence(r) {
+  if (!r) return null;
+  const stdout = boundedTail(r.stdout);
+  const stderr = boundedTail(r.stderr);
+  return {
+    cmd: r.cmd, exit: r.exit, pass: r.pass,
+    ...(r.error ? { error: r.error } : {}),
+    ...(stdout ? { stdout_tail: stdout } : {}),
+    ...(stderr ? { stderr_tail: stderr } : {}),
+  };
+}
+
+/**
  * Run every e2e fixture command for a scope.
  * @param {string[]} fixtures - Fixture command lines (null/empty → no commands).
  * @param {string} cwd - Working directory.
@@ -513,8 +576,10 @@ export async function cli(rawArgv) {
   const { path, sha256: hash, trial } = writeArtifact(outDir, round, attempt, {
     ...(runId ? { run_id: runId } : {}),
     scope_id: contract.scope_id,
-    fixtures: fixtures.results.map(({ cmd, exit, pass }) => ({ cmd, exit, pass })),
-    db_probe: dbProbe && { cmd: dbProbe.cmd, exit: dbProbe.exit, pass: dbProbe.pass },
+    // The evidence, not just the score — see `commandEvidence` for what the three-field record
+    // could not tell apart, and why `exit` still reads the way it always did.
+    fixtures: fixtures.results.map((r) => commandEvidence(r)),
+    db_probe: commandEvidence(dbProbe),
     seesaw,
     ...verdict,
     score: s,

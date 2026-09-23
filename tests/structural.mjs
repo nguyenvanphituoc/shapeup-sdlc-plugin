@@ -294,6 +294,12 @@ const MODULE_FILES = [
   // corpus in both directions: narrower and the defect reaches L1b, wider and the guard gets
   // switched off.
   "76-committed-tier-write-guard.mjs",
+  // 77-t0-evidence.mjs: HD-034's mechanism half — `runCommand` measures whether a fixture ran at
+  // all, and the verdict artifact used to store only {cmd, exit, pass}, mapping a command that
+  // never started onto the same `exit 1` a real failure returns. The record now keeps `error` and a
+  // bounded tail of both streams, and the module drives the real `verify t0` entry point rather
+  // than the mapper, so "the pipeline persists it" is what is actually under test.
+  "77-t0-evidence.mjs",
   "08-docs.mjs",
 ];
 

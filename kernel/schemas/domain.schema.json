@@ -1215,7 +1215,7 @@
       }
     },
     "CommandResult": {
-      "description": "One executed command's outcome inside a T0 artifact — produced by actually running the command; no agent can fabricate it.",
+      "description": "One executed command's outcome inside a T0 artifact — produced by actually running the command; no agent can fabricate it. It carries the EVIDENCE, not only the score: `exit` maps a command that never started onto the same 1 a real failure returns, so without `error` a refused or timed-out command and a broken build are the same record everywhere downstream, and without the output a verdict asserting `exit 1` is an assertion nobody can check.",
       "x-tier": "EMBEDDED",
       "type": "object",
       "properties": {
@@ -1223,10 +1223,23 @@
           "type": "string"
         },
         "exit": {
-          "type": "integer"
+          "type": "integer",
+          "description": "The process exit code, or 1 when the command never produced one. Not a discriminator on its own — read `error` to tell a crash from a failure."
         },
         "pass": {
           "type": "boolean"
+        },
+        "error": {
+          "type": "string",
+          "description": "Present ONLY when the command did not run to completion — a spawn failure, a maxBuffer overflow, or the 10-minute timeout. Its presence is the fact the ratchet grades as `crash` (tree restored, never counted as a reverted attempt); its absence means the command ran and the exit code is its own."
+        },
+        "stdout_tail": {
+          "type": "string",
+          "description": "The last 4000 characters of stdout, omitted when nothing was printed. Kept for passing commands too: a fixture that exits 0 having run zero tests is the false green this layer exists to catch. A truncated tail carries a leading `[truncated: kept the last N of M characters]` line, so a partial stream never reads as a complete one."
+        },
+        "stderr_tail": {
+          "type": "string",
+          "description": "The last 4000 characters of stderr, same bound and same truncation marker as `stdout_tail`."
         }
       }
     },

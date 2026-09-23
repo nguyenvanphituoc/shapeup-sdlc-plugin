@@ -483,6 +483,20 @@ is pinned by a guard, never when it is merely believed done.
   `stderr`. A verdict that records `exit 1` with no captured output and no error field is an
   assertion nobody can audit afterwards.
 
+  **MECHANISM HALF FIXED 2026-09-23 (3.7.1-rc.4).** `commandEvidence` (`kernel/verify/t0.mjs`) is
+  now what the artifact stores: `error` when the command never ran, plus a 4000-character tail of
+  each stream, marked when truncated, and omitted entirely when a stream was empty. `exit` is
+  deliberately unchanged — moving a crash off `1` would change what the ratchet compares and what
+  every existing reader parses, and the fact that means "this never ran" is `error`, which the crash
+  branch already reads. Output is kept for PASSING commands too: a fixture that exits 0 having run
+  zero tests is the false green this layer exists to catch, and stdout is the only place it shows.
+  Guarded by `tests/structural/77-t0-evidence.mjs`, which drives the real `verify t0` CLI rather
+  than the mapper (a fixture that calls your own function cannot see whether the pipeline calls it)
+  and states the defect as a property: from the artifact alone, a refused command and a broken build
+  must classify differently. Five mutations were run and all five went red — record reverted to
+  `{cmd, exit, pass}`, `error` dropped, bound removed, truncation marker removed, head kept instead
+  of tail.
+
 - **HD-035 · `reduce ship` does not retire the run pointer on a no-verdict close.** Promoted from
   the consumer's register (filed there as `HD-5`, 2026-09-22).
 
