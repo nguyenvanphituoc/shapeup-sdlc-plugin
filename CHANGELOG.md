@@ -3,48 +3,62 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [3.7.1-rc.5] — 2026-09-23 · A finished run stops fencing the checkout
+## [3.7.1] — 2026-09-23 · Three rules the harness could only state, it now enforces
 
-**A terminal close retires the run's pointers.** The substrate fence holds while an order is
-compiled and unanswered, and a run that ends any way other than shipping leaves exactly that behind
-— so after a close that exited 0 and recorded its status, cause and timestamp correctly, an ordinary
-write anywhere in the project was still denied, with no dispatch in flight. The operator's obvious
-remedy did not help: `init run --force` is documented as "abandon the open run and start over",
-never as "release a stuck fence", so the one command that lifted it is the one nobody reaches for.
-Reproduced on rc.4 before anything was changed, then closed for every terminal status the kernel
-declares.
+Three defects the live consumer measured, all one shape: the harness computed the right answer and
+then spoke too late, threw it away, or never let go.
 
-Retiring is not answering, and the fix does only the first: the pointer says a run is in flight, the
-missing result says nobody came back, and an order left open stays genuinely unresolved until
-`--force` writes it a synthetic result. A close that answered its own orders would spend an attempt
-budget on work nobody did.
+### A committed file that cites the local tier is refused at the write
 
-## [3.7.1-rc.4] — 2026-09-23 · The rules the harness could only state, it now refuses
+Four producers wrote a committed artifact that this harness's own spec-lint reds — the requirements
+registry, the ship report, the project profile, the coverage clauses — and each time the lint caught
+it at GATE L1b, a whole phase after the sentence was written. Teaching did not hold: one producer
+re-offended an hour later, in the same session, in the same file it had just repaired, because a
+worker carries no lesson across a dispatch.
 
-Two defects the HarmonyOS soak measured, both of the same shape: the harness computed the right
-answer and then spoke too late, or threw it away.
+`tier-guard` is a fifth PreToolUse wall. It quotes the offending token back and says why while the
+writer can still rephrase, and it imports spec-lint's own scanner rather than restating the rule, so
+the two enforcement points cannot drift apart. The knowledge base stays outside it. A PreToolUse
+hook sees the assistant's edit path only, so a kernel write still answers at its own writer — what
+closed is the route every measured recurrence took.
 
-**A committed file that cites the local tier is refused at the write.** Four producers wrote a
-committed artifact that this harness's own spec-lint reds — the requirements registry, the ship
-report, the project profile, the coverage clauses — and each time the lint caught it at GATE L1b, a
-whole phase after the sentence was written. Teaching did not hold: one producer re-offended an hour
-later, in the same session, in the same file it had just repaired, because a worker carries no
-lesson across a dispatch. `tier-guard` is a fifth PreToolUse wall. It quotes the offending token
-back and says why while the writer can still rephrase, and it imports spec-lint's own scanner
-rather than restating the rule, so the two enforcement points cannot drift apart. The knowledge
-base stays outside it. A PreToolUse hook sees the assistant's edit path only, so a kernel write
-still answers at its own writer — what closed is the route every measured recurrence took.
+Measured on the consumer the day it shipped, with the plugin installed from the marketplace: the
+analyzer cited a staged run-tier path in a committed spec file and was refused; eighteen seconds
+later the same worker wrote a committed file that linted clean, and four more followed. One denial,
+no retry loop — which was the real risk in fronting a gate with a hook, since a guard that denies
+correctly but wedges the run would be worse than the abort it replaces.
 
-**A T0 verdict keeps the evidence it measured.** `exit: r.status ?? 1` maps a command that never
-started onto the same `1` a real failure returns, and the artifact stored nothing else — so a
-refused command and a broken build were one record in the digest, the hill, the report and the
-judge's citation. The record now carries `error` when the command did not run, plus a bounded,
-truncation-marked tail of each stream, kept for passing commands too: a fixture that exits 0 having
-run zero tests is the false green this layer exists to catch.
+### A T0 verdict keeps the evidence it measured
 
-Both guards were broken on purpose before they counted — five mutations each, every one red, and
-the write boundary was then driven end to end through a real session with the plugin loaded: the
-tool call denied, the file never written, the decision on the ledger.
+`exit: r.status ?? 1` maps a command that never started onto the same `1` a real failure returns,
+and the artifact stored nothing else — so a refused command and a broken build were one record in
+the digest, the hill, the report and the judge's citation. The record now carries `error` when the
+command did not run, plus a bounded, truncation-marked tail of each stream, kept for passing
+commands too: a fixture that exits 0 having run zero tests is the false green this layer exists to
+catch.
+
+### A finished run stops fencing the checkout
+
+The substrate fence holds while an order is compiled and unanswered, and a run that ends any way
+other than shipping leaves exactly that behind — so after a close that exited 0 and recorded its
+status, cause and timestamp correctly, an ordinary write anywhere in the project was still denied,
+with no dispatch in flight. The operator's obvious remedy did not help: `init run --force` is
+documented as "abandon the open run and start over", never as "release a stuck fence". Every
+terminal close now retires the run's pointers, and a pointer it cannot remove degrades the close
+with a warning rather than failing it.
+
+Retiring is not answering, and the fix does only the first: an order left open stays genuinely
+unresolved until `--force` writes it a synthetic result. A close that answered its own orders would
+spend an attempt budget on work nobody did.
+
+### How this release was checked
+
+Every guard was broken on purpose before it counted — five mutations each on the first two, four on
+the third, every one red and restored. One belief did not survive that pass and is recorded rather
+than preserved: the close's export does not read the pointers it retires, so the ordering between
+them is a defensive default, not a guard. The write boundary was then driven end to end through a
+real session with the plugin loaded, and the close-out on the live consumer: fence denying, close,
+fence released, fact tables exported, the abandoned order still unanswered.
 
 ## [3.7.0] — 2026-09-22 · An attempt is spent only when the attested channels say so
 
