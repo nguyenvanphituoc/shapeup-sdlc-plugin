@@ -307,6 +307,13 @@ const MODULE_FILES = [
   // terminal status the kernel declares, and it pins the two distinctions the fix must not blur:
   // un-fencing is not resolving, and the export reads the pointer it retires.
   "78-close-retires-the-fence.mjs",
+  // 79-attested-channels-frozen.mjs: HD-044 — the run-trace carve-out permitted a build leg to
+  // Edit/Write its own dispatch receipt, leg-completion row, T0 verdict and WorkResult, exactly the
+  // channels `probe attempts` treats as admissible BECAUSE they are not writable by the leg being
+  // judged. Its own module because no existing test drives the guard over a compiled `execute`
+  // order and asserts denial on any of the four — #17 asserts the carve-out's board/ledger side,
+  // never the attestation side it was never asked to fence.
+  "79-attested-channels-frozen.mjs",
   "08-docs.mjs",
 ];
 

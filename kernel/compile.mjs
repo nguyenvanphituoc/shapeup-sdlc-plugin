@@ -218,6 +218,20 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
   // in its `allowed` globs, so only a `frozen` entry denies the write. `translate` is the one
   // operation that legitimately rewrites a pitch, and it writes the COMMITTED copy, not this one.
   const FROZEN_INTAKE = [`${local}/intake.md`, `${local}/breadboard.md`];
+  // THE LEG'S OWN ATTESTATION. A dispatch receipt, a leg-completion row and a T0 verdict exist to
+  // answer "did a worker actually run, and what did it measure" from evidence the leg being judged
+  // does not control — the whole reason to prefer them over a compiled order, which is writable by
+  // that same hand. None of the three is ever produced by this assistant's own edit tool in normal
+  // operation: a receipt is stamped by the dispatch hook reacting to the call itself, a
+  // leg-completion row by the step that reads a landed result, and a verdict by the command that
+  // runs the fixtures. A build leg reaching for `Edit`/`Write` on any of them is not doing its job
+  // by another route — it is handing itself the grade — so freezing them costs a well-behaved leg
+  // nothing and removes the one channel through which it could attest work it did not do. The
+  // result envelope belongs on the same list for the same reason: it is the leg's own claim about
+  // what it did, and a claim is no stronger for being filed by the party it is about. The run-trace
+  // carve-out below still covers everything else under this root — the doer's own task board and
+  // discovery ledger — because neither lives under any of these four.
+  const FROZEN_ATTESTATION = [`${local}/receipts/**`, `${local}/legs.jsonl`, `${local}/t0/verdicts/**`, `${local}/results/**`];
   switch (operation) {
     case "execute": case "fix": case "spike":
       // Build legs are the widest window on FROZEN_INTAKE, not an exemption from it: they are the
@@ -228,7 +242,7 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
       return {
         allowed: [...(scope?.allowed_file_substrate || []), `${local}/spikes/**`],
         shared: scope?.shared_substrate || [],
-        frozen: [...FROZEN_INTAKE],
+        frozen: [...FROZEN_INTAKE, ...FROZEN_ATTESTATION],
       };
     case "analyze":
       return { allowed: [`${spec}/**`, `${local}/**`], frozen: [...FROZEN_INTAKE] };
