@@ -42,7 +42,7 @@ export async function run(ctx) {
   const { ROOT, ok, fail, section } = ctx;
 
   // =============================================================================
-  section("133. a T0 citation is re-hashed, not merely present — forged shapes refused, an honest one still passes (HD-043)");
+  section("134. A T0 citation is re-hashed, not merely present — forged shapes refused, an honest one still passes");
   // =============================================================================
 
   const K = (verb) => [join(ROOT, "kernel/harness.mjs"), ...verb.split(" ")];

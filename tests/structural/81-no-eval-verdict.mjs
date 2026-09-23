@@ -26,7 +26,7 @@ export async function run(ctx) {
   const { ROOT, ok, fail, section, readJSON } = ctx;
 
   // =============================================================================
-  section("133. A --no-eval run says `not-evaluated`, never a silently upgraded `pass`");
+  section("135. A --no-eval run says `not-evaluated`, never a silently upgraded `pass`");
   // =============================================================================
 
   const src = readFileSync(join(ROOT, "skills/tech-lead/workflows/shapeup-run.js"), "utf8");
