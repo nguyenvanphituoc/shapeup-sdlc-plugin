@@ -218,6 +218,32 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
   // in its `allowed` globs, so only a `frozen` entry denies the write. `translate` is the one
   // operation that legitimately rewrites a pitch, and it writes the COMMITTED copy, not this one.
   const FROZEN_INTAKE = [`${local}/intake.md`, `${local}/breadboard.md`];
+  // THE LEG'S OWN ATTESTATION. A dispatch receipt, a leg-completion row and a T0 verdict exist to
+  // answer "did a worker actually run, and what did it measure" from evidence the leg being judged
+  // does not control — the whole reason to prefer them over a compiled order, which is writable by
+  // that same hand. None of the three is ever produced by this assistant's own edit tool in normal
+  // operation: a receipt is stamped by the dispatch hook reacting to the call itself, a
+  // leg-completion row by the step that reads a landed result, and a verdict by the command that
+  // runs the fixtures. A build leg reaching for `Edit`/`Write` on any of them is not doing its job
+  // by another route — it is handing itself the grade — so freezing them costs a well-behaved leg
+  // nothing and removes the one channel through which it could attest work it did not do. The
+  // carve-out below still covers everything else under this root — the doer's own task board and
+  // discovery ledger — because neither lives under any of these three.
+  //
+  // THE RESULT ENVELOPE IS DELIBERATELY NOT ON THIS LIST, and the reasoning is worth keeping because
+  // it looks like it belongs. It is the leg's own claim about its own work, so on the argument above
+  // it is the first thing you would freeze. But a result is not evidence ABOUT the leg, it is the
+  // leg's PRODUCT — the other half of the envelope port, and the thing that answers the order. The
+  // order is unanswered at that moment by construction, so freezing the path would deny every build
+  // leg its documented last step, every time, on the first round: measured end to end against a
+  // compiled order, with the denial telling the worker to widen a substrate that cannot lift a
+  // frozen entry. Nothing else writes an ordinary result either, so there is no fallback. The census
+  // that reads it is already built for this: a result alone attests nothing, and can only turn an
+  // ALREADY-receipted attempt into a spent one, which spends the forger's own budget. What that does
+  // not cover is a leg forging a SIBLING's result, which is a real hole with a different fix — the
+  // glob form here cannot say "every result except this order's own", so closing it needs a
+  // mechanism rather than one more entry on this list.
+  const FROZEN_ATTESTATION = [`${local}/receipts/**`, `${local}/legs.jsonl`, `${local}/t0/verdicts/**`];
   switch (operation) {
     case "execute": case "fix": case "spike":
       // Build legs are the widest window on FROZEN_INTAKE, not an exemption from it: they are the
@@ -228,7 +254,7 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
       return {
         allowed: [...(scope?.allowed_file_substrate || []), `${local}/spikes/**`],
         shared: scope?.shared_substrate || [],
-        frozen: [...FROZEN_INTAKE],
+        frozen: [...FROZEN_INTAKE, ...FROZEN_ATTESTATION],
       };
     case "analyze":
       return { allowed: [`${spec}/**`, `${local}/**`], frozen: [...FROZEN_INTAKE] };

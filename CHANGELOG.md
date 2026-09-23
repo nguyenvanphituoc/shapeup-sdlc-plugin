@@ -3,6 +3,64 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.7.2] — 2026-09-24 · The floor under the judge, and what an adversary found in it
+
+Four defects under the mechanical evidence layer — the half of this harness with the least live
+evidence behind it, because until now no run had reached the judge on the current build. Each was
+written by a separate engineer working blind to the others, then accepted by an adversary that was
+given the claims and never the reasoning, with a mandate to break rather than to read.
+
+### A build leg cannot write its own attestation
+
+A dispatch receipt, a leg-completion row and a T0 verdict answer "did a worker run, and what did it
+measure" from evidence the leg being judged does not control — and the substrate fence's run-trace
+carve-out left all three writable by that leg. They are frozen to the build operations now.
+
+The result envelope is deliberately **not** on that list, and the reasoning is in the code because
+it looks like it belongs there. Freezing it denies every build leg its documented last step, on the
+first round, unconditionally — the order is unanswered at exactly that moment by construction.
+Measured, not supposed. What that leaves open — a leg forging a *sibling's* result — is filed rather
+than half-closed, because the glob form cannot say "every result except this order's own".
+
+### A T0 citation is re-hashed, not merely present
+
+The schema has always said the evaluator recomputes the digest from disk and never trusts a handed
+one. Nothing did. A PASS citing a nonexistent artifact with a hash of sixty-four zeros was accepted,
+and so was one citing a real artifact whose own verdict was red. The kernel now refuses a citation
+whose artifact is missing, whose recomputed digest does not match, or whose verdict is not green —
+and fails open when the file cannot be read for an unrelated reason, because that proves nothing.
+Its ceiling is filed too: the re-hash proves self-consistency, not provenance.
+
+### A run that graded nothing cannot freeze a report that says PASS
+
+`--no-eval` set the verdict to `pass` and shipped with `PASS` hardcoded, against a protocol that
+promises `not-evaluated` "recorded plainly — never silently upgraded" twice over. The gate block
+told the human the truth; the committed report a teammate inherits did not. The refusal now lives in
+`reduce ship`, the hand that writes that artifact — because the first fix lived in the
+orchestrator's control flow, and reinstating the defect one line downstream of the branch left every
+check in the suite green.
+
+### A hill phase is never derived from an absence
+
+`reduce hill` writes the committed tier and reads the gitignored one, and an absent ledger counted
+as zero unknowns — so a developer who pulled a branch mid-run, a state the design documents as
+supported, flattened every committed shard on their first launch. A derivation that cannot read the
+run trace now writes nothing at all, and a missing ledger is distinguishable from an answered zero.
+The derivation stays non-monotonic: a dot must still be able to move back down.
+
+Underneath it, a parse that had never once matched: the ledger heading was scanned for a colon
+between slug and order id, the pipeline writes a slash, and the order-id schema forbids a colon
+outright. Every scope on every project had read zero unknowns since the arm was written.
+
+### What the acceptance pass changed
+
+Two findings blocked the batch and are fixed above. Three more were holes in the *tests* rather than
+the code — a citation loop pinned only at its first element, a not-green check pinned only for
+`red`, an absence guard whose fixtures could not tell a tier root from a slug root — each proven by
+a mutation that left the whole suite green, and each now red. Six further findings are filed. The
+four pre-existing fixtures these fixes had to edit were audited one by one: three had been citing a
+digest for a file they never created, which is to say they had been encoding the defect.
+
 ## [3.7.1] — 2026-09-23 · Three rules the harness could only state, it now enforces
 
 Three defects the live consumer measured, all one shape: the harness computed the right answer and

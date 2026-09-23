@@ -307,6 +307,37 @@ const MODULE_FILES = [
   // terminal status the kernel declares, and it pins the two distinctions the fix must not blur:
   // un-fencing is not resolving, and the export reads the pointer it retires.
   "78-close-retires-the-fence.mjs",
+  // 79-attested-channels-frozen.mjs: HD-044 — the run-trace carve-out permitted a build leg to
+  // Edit/Write its own dispatch receipt, leg-completion row, T0 verdict and WorkResult, exactly the
+  // channels `probe attempts` treats as admissible BECAUSE they are not writable by the leg being
+  // judged. Its own module because no existing test drives the guard over a compiled `execute`
+  // order and asserts denial on any of the four — #17 asserts the carve-out's board/ledger side,
+  // never the attestation side it was never asked to fence.
+  "79-attested-channels-frozen.mjs",
+  // 80-citation-rehash.mjs: HD-043 — a T0 citation was a presence check, and the schema has always
+  // promised a re-hash. Its own module because no existing test drives `probe eval`/`reduce ingest`
+  // against a FORGED citation (a nonexistent path, a real-but-red artifact, a hash mismatch, a
+  // directory) — every prior fixture that carried a `t0_citations[]` entry used a placeholder hash
+  // pointing nowhere, which is what made the presence-only bug invisible to the suite that already
+  // existed.
+  "80-citation-rehash.mjs",
+  // 81-no-eval-verdict.mjs: HD-045 — a `--no-eval` run hardcoded verdict = "pass" and dispatched
+  // `reduce ship --verdict PASS` unconditionally, so the frozen shapeup/<slug>/REPORT.md a
+  // teammate inherits on `git pull` claimed PASS over a feature nobody evaluated, even though
+  // protocol.md promises `not-evaluated` "recorded plainly — never silently upgraded" twice over.
+  // Pins the source-level wiring in shapeup-run.js (which cannot be executed by this suite) and
+  // drives `reduce ship` for real in both directions — a --no-eval-shaped report says
+  // not-evaluated, and a genuine PASS still says PASS.
+  "81-no-eval-verdict.mjs",
+  // 82-hill-absence.mjs: HD-042 — `deriveHill()` reads the LOCAL tier and writes the COMMITTED one,
+  // and nothing checked that the tier it read from was there. A checkout with the committed shards
+  // present and `.shapeup/` absent flattened FINISHED and DOWNHILL_EXECUTION to UPHILL_SOLVED and
+  // reported `changed: true` — committed history lost, not merely misreported. Its own module
+  // because §29 and §54 both hand `deriveHill()` a populated local tier, so neither can see a
+  // derivation performed over no tier at all, and neither drives the `reduce hill` CLI the run
+  // actually invokes. It also pins the two traps the fix must not fall into: a first run with no
+  // ledger yet must still write, and the dot must still move DOWN when its evidence is removed.
+  "82-hill-absence.mjs",
   "08-docs.mjs",
 ];
 

@@ -23,13 +23,16 @@ is pinned by a guard, never when it is merely believed done.
 | HD-021 | a per-scope "it compiles" fixture can be green while the scope's code is unreachable | P3 |
 | HD-022 | ⚠ Work for defects measured on a real consumer sits on a tag, not on main | decision |
 | HD-041 | the run key is a FIELD, not an ADDRESS — a second run of a slug inherits the first run's evidence | P0 (class) |
-| HD-042 | `reduce hill` overwrites the COMMITTED tier from the ABSENCE of the gitignored tier | P0 |
-| HD-043 | the T0 citation is a presence check, and the schema promises a re-hash | — (filed after the tiering pass) |
-| HD-044 | the substrate fence leaves the attested channels writable by the leg being judged | — (filed after the tiering pass) |
-| HD-045 | `--no-eval` freezes a committed report that says PASS | — (filed after the tiering pass) |
 | HD-046 | three key spaces for one REQ id, and the folding helper is not called at the one place that grad… | — (filed after the tiering pass) |
 | HD-047 | the judge's verdict is never recomputed from its own criteria, and a PASS may carry no evidence | — (filed after the tiering pass) |
 | HD-048 | the seesaw regression arm is declared everywhere and wired nowhere | — (filed after the tiering pass) |
+| HD-050 | a case-variant path walks straight through `frozen` | P1 |
+| HD-051 | a build leg can forge a SIBLING leg's WorkResult | P1 |
+| HD-052 | four attested channels were named; the same class has at least five more | P2 |
+| HD-053 | the T0 citation re-hash proves self-consistency, not provenance | P1 |
+| HD-054 | the hill's absence guard is re-armed by the command on the same page | P2 |
+| HD-055 | the run ledger's own verdict field is never written, and the ship report will print any string | P3 |
+| HD-056 | seven shipped files cite artifacts a user does not receive | P3 |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
 | HD-025 | two run geometries this checkout cannot reach | process |
@@ -689,79 +692,6 @@ else needs to survive for the fix to hold.
   gate or graph edge from a prior run answers a question about this one — and a two-run fixture
   pins it (`tests/structural/75-cross-run-attestation.mjs` already builds the fixture shape).
 
-- **HD-042 · `reduce hill` overwrites the COMMITTED tier from the ABSENCE of the gitignored tier.**
-  Found 2026-09-24. The most destructive entry in this file: it loses committed history rather than
-  misreporting it.
-
-  `hillDir` resolves to `shapeup/<slug>/hill/` — the committed tier. `deriveHill`
-  (`kernel/reduce/hill.mjs`) reads the T0 verdicts and the discovery ledger — both LOCAL and
-  gitignored — and writes whatever it derives. `unknowns = scopeUnknowns[id] || 0`, so **no ledger
-  and zero unknowns are the same signature**, and with no green T0 the fallback is the optimistic
-  one: `UPHILL_SOLVED`. Driven: a checkout with the committed shards present and `.shapeup/` wiped
-  re-derived every scope to `UPHILL_SOLVED` and reported `changed: true` — it overwrote the record.
-
-  The triggering state is one the design documents as supported: a second developer who pulls a
-  branch mid-run has the SHARED spec and no LOCAL board. Their first launch flattens the shards,
-  and `reduce hill` runs five times per run starting at MapScopes. The hill dashboard renders an
-  Archived pitch *entirely* from those shards — the record the archived view exists to show is the
-  record this erases.
-
-  A third signature collapses into the same phase: the ledger heading is matched with an em dash
-  (`/^## Discovered — /`), so a heading written with a plain hyphen parses as zero unknowns. "No
-  ledger", "not parseable" and "all unknowns closed" are one answer, and it is the flattering one —
-  the repo's own stated cardinal sin, that an absent value and a real one must not share a
-  signature.
-
-  **Closed when:** no phase is derived from an absence (a missing ledger returns `null`, not `0`),
-  a derivation that cannot read the local tier refuses to write the committed one, and a fixture
-  drives the pull-mid-run state and asserts the shards survive.
-
-- **HD-043 · The T0 citation is a presence check, and the schema promises a re-hash.** Found
-  2026-09-24, driven.
-
-  `$defs.T0Citation` states the evaluator "RECOMPUTES sha256 from disk — a handed hash is never
-  trusted". `kernel/probe/eval.mjs` states the opposite in its own comment ("PRESENCE, NOT
-  HASHES") and there is **no `createHash` in that file at all**. Driven: a PASS citing
-  `r9-a9-DOES-NOT-EXIST.json` with a sha256 of sixty-four zeros returns `{"ok":true,
-  "overall":"PASS"}`, and so does a PASS citing a real artifact whose own `overall` is `red`.
-
-  Nothing re-hashes, checks existence, checks that the cited verdict is green, or checks membership
-  in the order's own `payload.t0_artifacts`. The re-hash lives only in the judge's prompt — which is
-  the one place this project's whole thesis says a rule is worthless.
-
-  **Closed when:** a verdict citing an artifact that does not exist, does not hash to the cited
-  value, is not green, or is not in the order's own list, is refused by the kernel — not by the
-  judge grading itself.
-
-- **HD-044 · The substrate fence leaves the attested channels writable by the leg being judged.**
-  Found 2026-09-24, driven against the shipped hook.
-
-  `hooks/sandbox-guard.mjs`'s run-trace carve-out permits any write under `.shapeup/<slug>/`
-  unconditionally, and `substrateFor("execute")` (`kernel/compile.mjs`) freezes only the staged
-  intake. So an `execute` leg may write `t0/verdicts/`, `receipts/`, `legs.jsonl` and `results/` —
-  the exact three channels `probe attempts` accepts *because* orders and T0 verdicts "are WRITABLE
-  by the very leg whose exhaustion is being judged". The principle is stated correctly and then the
-  fence hands the subject its own replacements.
-
-  The mechanism to close it is already here and already ordered correctly: `frozen` is checked
-  BEFORE the carve-out, deliberately. Adding those four globs to the build operations' frozen list
-  denies all four writes while the carve-out's real purpose — the doer updating its own board —
-  still passes. Driven both ways.
-
-  **Closed when:** a build leg's own attestation channels are frozen to it, and a fixture drives a
-  leg writing each one and sees a denial, while the board write it legitimately needs still passes.
-
-- **HD-045 · `--no-eval` freezes a committed report that says PASS.** Found 2026-09-24.
-
-  `references/protocol.md` promises twice that a run with no evaluation records `not-evaluated`,
-  "recorded plainly — never silently upgraded". The shipped orchestrator sets `verdict = "pass"` on
-  that path and calls `reduce ship --verdict PASS` with the value hardcoded. The L4 gate block does
-  carry `dims_not_evaluated`, so a human answering the gate sees the truth; the committed
-  `REPORT.md` a teammate inherits on `git pull` does not.
-
-  **Closed when:** a `--no-eval` run's report and ledger both read `not-evaluated`, and a fixture
-  drives the flag and asserts the committed artifact never says PASS.
-
 - **HD-046 · Three key spaces for one REQ id, and the folding helper is not called at the one place
   that grades.** Found 2026-09-24.
 
@@ -811,5 +741,127 @@ else needs to survive for the fix to hold.
 
   **Closed when:** either a run writes the registry and a fixture proves a regression in a finished
   scope turns a green attempt red, or the arm, the flag and every mention of it are gone.
+
+- **HD-050 · A case-variant path walks straight through `frozen`.** Found 2026-09-24 by the
+  acceptance pass on the attestation freeze, and driven end to end.
+
+  `globToRegExp` matches case-sensitively; the substrate fence's run-trace carve-out is a case-blind
+  prefix test. So `.shapeup/<slug>/RESULTS/x.json` misses every `frozen` glob, reaches the carve-out,
+  and is permitted — and on a case-insensitive filesystem the write lands in the real directory.
+  Measured: `receipts/` denied, `Receipts/` allowed, and `receipts/dispatch.jsonl` existed
+  afterwards; `legs.jsonl` denied, `Legs.jsonl` allowed and its content forged.
+
+  The class predates the freeze — `intake.md` and `breadboard.md` have always been bypassable the
+  same way — but it is newly load-bearing, because a frozen glob is now the only thing between a
+  build leg and its own attestation. macOS and Windows are both affected, which is to say the
+  platform this plugin is developed and soaked on.
+
+  **Closed when:** path matching is case-folded wherever the filesystem is, or the guard compares
+  resolved real paths rather than spellings, and a fixture drives a case-variant of each frozen
+  glob and sees a denial.
+
+- **HD-051 · A build leg can forge a SIBLING leg's WorkResult.** Filed 2026-09-24 as the hole left
+  open, deliberately, when the attestation freeze was cut back.
+
+  Freezing `results/**` for build operations closed this — and denied every build leg its own
+  documented last step, because the order is unanswered at exactly the moment the result is written.
+  The batch chose the certain universal break over the conditional hole. This row is the other half
+  of that decision.
+
+  What the hole permits, driven: scope A's leg writes `results/<scope-B's-order>.json`. Three things
+  follow that the attempt census cannot undo — B's order reads as answered, so B's substrate fence
+  drops mid-dispatch; B's genuine dispatch receipt plus this file flips B from `in-flight` to
+  `spent`, the premature breaker trip the census exists to prevent; and `reduce ingest` will tick
+  acceptance criteria and apply verdicts out of a fabricated envelope. Forging your OWN result stays
+  harmless — it can only spend your own budget — which is why the narrow reading of the census is
+  true and not sufficient.
+
+  The glob form cannot express what is wanted, "every result except this order's own", because
+  `frozen` outranks `allowed` and there is no exception form. So this needs a mechanism: an
+  order-scoped carve-out the fence understands, or moving the result write out of the worker
+  entirely and into the ingest step that already resolves its path.
+
+  **Closed when:** a leg writing a result for an order that is not its own is refused, while its own
+  result still lands, and a fixture drives both with two live orders.
+
+- **HD-052 · Four attested channels were named; the same class has at least five more.** Found
+  2026-09-24, each verified writable by a live build leg through the assistant's edit path.
+
+  `build/r<N>-t<T>.json` (the round build-gate verdict — `reduce hill` reads it to decide whether a
+  T0-green may move a dot, and `compile` reads it to build the next round's bug list, so a leg can
+  forge its own round's build-green), `t0/trials.jsonl` (the ratchet's ledger), the run
+  `receipt.json` (which mints `run_id`), `gates.jsonl` (the gate-crossing ledger), and
+  `seesaw/registry.json`. `orders/**` is writable too, and that one is deliberate and documented.
+
+  The freeze named the channels one defect pointed at. The rule underneath it — a record nobody
+  reads as the leg's own claim must not be writable by the leg — has a wider membership than that.
+
+  **Closed when:** the list is derived from what the record IS rather than from which defect named
+  it, and a fixture walks every local-tier record a build leg does not author.
+
+- **HD-053 · The T0 citation re-hash proves self-consistency, not provenance.** Found 2026-09-24 by
+  the acceptance pass on the re-hash itself; the mechanism it adds is real and this is its ceiling.
+
+  Every one of these is accepted: a green artifact the judge wrote in the source tree, one outside
+  the project reached by `../`, one by absolute path, a symlink in the verdicts directory pointing
+  at a forged file, and a verdict naming a scope that does not exist. The round is unchecked too, so
+  a round-5 PASS may cite a round-1 green artifact.
+
+  The compounding fact is that `substrateFor("evaluate")` freezes the spec tree, the intake, the
+  breadboard and the board — **not** `t0/verdicts/**`. So the judge may write a green verdict
+  artifact into the canonical directory under the run-trace carve-out and then cite it, correctly
+  hashed. The re-hash holds against a careless judge — a stale path, a red artifact, a hallucinated
+  digest. It is not a floor against a dishonest one.
+
+  Two cheap narrowings exist and neither needs the order: refuse a citation whose path is not under
+  the run's own verdicts directory, and refuse one whose round does not match the verdict's. The
+  membership check against the order's own artifact list is the complete answer but is only
+  available on the ingest path.
+
+  **Closed when:** a citation is constrained to an artifact this run's own verifier wrote, and the
+  channel the judge could write it through is closed or the check no longer depends on that.
+
+- **HD-054 · The hill's absence guard is re-armed by the command on the same page.** Found
+  2026-09-24, driven.
+
+  `reduce hill` now refuses to write when the slug's local run trace is absent. The condition is the
+  existence of that root, which any single file satisfies — and `reduce graph` creates
+  `graph.jsonl` under it. So: committed-only checkout, `reduce graph` (exit 0), then `reduce hill`
+  clobbers the committed `FINISHED` shard to `UPHILL_UNKNOWN`, exit 0, no warning. The same exposure
+  follows any partially-cleaned trace.
+
+  The skill page tells the model not to call either command on a committed-only slug, and the new
+  code calls the runtime guard a backstop. A backstop whose condition another command satisfies as a
+  side effect is a backstop only in the order nobody varied.
+
+  **Closed when:** the guard keys on evidence the derivation actually needs — the run's own receipt,
+  or the verdicts directory — rather than on the root's existence, and a fixture drives
+  `reduce graph` before `reduce hill` on a committed-only slug and sees the shards survive.
+
+- **HD-055 · The run ledger's own verdict field is never written, and the ship report will print
+  any string.** Found 2026-09-24; two halves of one gap.
+
+  `final_verdict` is born as the literal `~` when the run opens, and nothing in the kernel ever
+  writes it again: `reduce ship` reads it as a fallback and `facts.mjs` maps the placeholder to
+  null. The protocol documents its value space and promises a `--no-eval` run records
+  `not-evaluated` "in the ledger" — the report now carries it, the ledger still does not.
+
+  Separately, `reduce ship --verdict` accepts any string: `--verdict TOTALLY-GREEN` freezes a
+  committed report saying exactly that, exit 0. The `--no-eval` refusal narrows what the orchestrator
+  can send; it does not constrain the flag.
+
+  **Closed when:** a terminal close writes the run's own verdict into its ledger, and the ship
+  report refuses a verdict outside the documented set.
+
+- **HD-056 · Seven shipped files cite artifacts a user does not receive.** Found 2026-09-24 by a
+  scan of the shipped set against the delivery allowlist; all predate this batch.
+
+  Four cite structural test modules by number — a reader of the installed plugin has no `tests/`
+  directory to resolve them in. Two cite an installer script that is not in the allowlist, and one
+  cites a pitch document under `docs/`. Each is the same small harm: a citation that resolves for
+  the author and 404s for the reader.
+
+  **Closed when:** the shipped set cites only what it ships, and the scan that found these runs as a
+  check rather than as an audit pass somebody remembers to do.
 
 This file stays short on purpose. It is a queue, not an archive.

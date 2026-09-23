@@ -32,7 +32,7 @@ import { runArgs } from "../lib/argv.mjs";
 import {
   report as reportPath, tasksDir, verdictsDir, trials, evaluationDir, qaDir,
   roundLedger, discoveryLedger, receipt as receiptPath, harnessRun, relShared,
-  activeOrder,
+  activeOrder, runArgsPath, readReceipt, runIdFromReceipt,
 } from "../lib/paths.mjs";
 import { readTrials } from "../verify/t0.mjs";
 import { ratchetReport } from "../probe/stats.mjs";
@@ -398,9 +398,51 @@ export const ARGV_SPEC = {
  * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
  *   call `process.exit()` with the subcommand's documented code rather than returning.
  */
+/**
+ * Did THIS run skip evaluation? Read from the run's own recorded arguments, and believed only when
+ * the record can be shown to belong to this run.
+ *
+ * WHY THE KERNEL ASKS AT ALL. A run launched with `--no-eval` verified nothing, and the protocol
+ * has always said such a run ships as `not-evaluated`, "recorded plainly — never silently
+ * upgraded". That promise lived entirely inside the orchestrator's control flow, where one
+ * assignment downstream of the branch restores the old behaviour with every check still green —
+ * measured, not supposed. The gate block tells the human the truth either way; the committed report
+ * a teammate inherits on `git pull` is the artifact that was lying, so the refusal belongs at the
+ * writer of that artifact, where a future orchestrator edit cannot reach it.
+ *
+ * POSITIVELY PROVEN OR NOT AT ALL. The record is written at launch, later than the receipt that
+ * mints the run key, so a freshly opened run can still find the PREVIOUS run's record on disk. A
+ * stale flag would refuse a ship that verified everything — a worse failure than the one this
+ * closes. The flag therefore counts only when the record names the same run the receipt does;
+ * a missing, unreadable or differently-keyed record proves nothing and permits.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {boolean} True only when this run's own record says evaluation was skipped.
+ */
+function evalWasSkipped(cwd, slug) {
+  try {
+    const record = JSON.parse(readFileSync(runArgsPath(cwd, slug), "utf8"));
+    if (record?.noEval !== true) return false;
+    const mine = runIdFromReceipt(readReceipt(receiptPath(cwd, slug)));
+    return Boolean(mine) && record.runId === mine;
+  } catch { return false; }
+}
+
+/** The verdict values that assert the feature was graded and passed. */
+const PASSING = new Set(["PASS", "pass"]);
+
 export async function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = args.cwd || process.cwd();
+  if (PASSING.has(String(args.verdict ?? "")) && evalWasSkipped(cwd, args.slug)) {
+    console.error(
+      "✋ reduce ship: this run was launched with --no-eval, so nothing graded it — refusing to freeze a report " +
+      `that says ${args.verdict}. Ship it as --verdict not-evaluated, which the report, the ledger and the ` +
+      "sign-off block all carry.",
+    );
+    process.exit(3);
+  }
   const { markdown, path } = generate({ cwd, slug: args.slug, verdict: args.verdict, qa: args.qa });
   if (args.stdout) {
     process.stdout.write(markdown);

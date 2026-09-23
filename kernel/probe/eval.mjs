@@ -33,6 +33,7 @@
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { createHash } from "node:crypto";
 import { runArgs } from "../lib/argv.mjs";
 import { resultsDir, scopesDir } from "../lib/paths.mjs";
 
@@ -60,6 +61,58 @@ export function isScoped(cwd, slug) {
 }
 
 /**
+ * Why one T0 citation does not resolve, or null when the kernel can positively confirm it does.
+ *
+ * Re-checks the two facts a citation can lie about and the schema promises are enforced
+ * (`T0Citation`: "the evaluator RECOMPUTES sha256 from disk — a handed hash is never trusted"):
+ * that the bytes at `path` hash to the cited `sha256`, and that what those bytes actually say is a
+ * green T0 verdict — a PASS/FAIL cannot ride on an artifact that itself recorded red. NOT checked:
+ * whether `path` is one of the order's own `payload.t0_artifacts` (see the note on
+ * {@link citationProblem} for why that is left to the operator rather than enforced here).
+ *
+ * FAILS OPEN ON "CANNOT TELL", CLOSED ON "PROVEN WRONG" — and the two are not the same fact. A read
+ * that fails for a reason that says something DEFINITE about what is (or isn't) at `path` is proof,
+ * same as a hash mismatch: `ENOENT` (nothing there) and `EISDIR` (a directory, never a file — T0
+ * verdicts are always files, per `writeArtifact`) both mean no such artifact was ever produced, so
+ * both refuse. `verify t0` writes verdict artifacts immutably and never deletes one
+ * (`writeArtifact`'s `wx` flag — see kernel/verify/t0.mjs), so that absence or shape mismatch is a
+ * positive fact about the citation, not a guess. Anything else a read can fail with — permission
+ * denied, a symlink loop, a transient I/O error — says nothing about the citation's honesty, only
+ * that THIS MACHINE could not check it just now, so it is not refused on that ground alone: the
+ * fail-open discipline this repo's guards already use elsewhere for an unproven bad state.
+ *
+ * @param {string} cwd - Project root.
+ * @param {object} citation - One `T0Citation` (`scope_id`, `path`, `sha256`). Read defensively:
+ *   `reduce ingest` only reaches this after the enclosing WorkResult passed schema validation, but
+ *   `probe eval` reaches it over a result file it merely `JSON.parse`s, so a malformed citation must
+ *   fail this check rather than throw.
+ * @returns {(string|null)} A reason phrased for an operator, or null when the file at `path` exists,
+ *   hashes to the cited `sha256`, and its own `overall` reads "green".
+ */
+function unresolvedCitation(cwd, citation) {
+  const rel = typeof citation?.path === "string" ? citation.path : "";
+  if (!rel) return "names no artifact path";
+  let text;
+  try {
+    text = readFileSync(resolve(cwd, rel), "utf8");
+  } catch (e) {
+    if (e.code === "ENOENT") return `cites ${rel}, which does not exist on disk`;
+    if (e.code === "EISDIR") return `cites ${rel}, which is a directory, not a T0 verdict file`;
+    // EACCES, ELOOP, EIO, EMFILE… — this machine failing to look, not evidence against the
+    // citation, so it is not refused on that ground.
+    return null;
+  }
+  const actual = createHash("sha256").update(text).digest("hex");
+  const claimed = typeof citation.sha256 === "string" ? citation.sha256.toLowerCase() : "";
+  if (actual !== claimed) return `cites ${rel} with sha256 ${citation.sha256}, but the file on disk hashes to ${actual}`;
+  let body;
+  try { body = JSON.parse(text); }
+  catch { return `cites ${rel}, whose bytes match the hash but do not read as a T0 verdict`; }
+  if (body?.overall !== "green") return `cites ${rel}, whose own verdict is "${body?.overall ?? "unknown"}", not green`;
+  return null;
+}
+
+/**
  * Why a verdict cannot stand as its round's judgement on T0 grounds, or null when it can.
  *
  * A PASS or FAIL on a scoped spec that cites no T0 artifact is structurally invalid — the
@@ -68,21 +121,40 @@ export function isScoped(cwd, slug) {
  * and branched on like any other. It is checked here so the round loop, the resume derivation, the
  * hill and ingest all refuse the same verdict for the same reason.
  *
- * PRESENCE, NOT HASHES. The evaluator re-hashes what it cites; a slip transcribing a digest is not
- * evidence the verdict is wrong, and refusing a round over one would cost a whole re-evaluation.
+ * RESOLVES, NOT JUST PRESENT. A citation naming a path and a hash used to be taken on faith: any
+ * non-empty `t0_citations[]` passed, whatever it pointed at. Measured live: a PASS citing a path
+ * that does not exist on disk, and a PASS citing a real artifact whose own verdict was red, both
+ * ingested clean — presence stood in for a re-hash the schema had already promised. Each citation is
+ * now re-checked through {@link unresolvedCitation}.
+ *
+ * WHAT THIS DOES NOT CHECK: whether a citation is drawn from the order's own `payload.t0_artifacts`
+ * list. That would need the compiled order, which this function's callers do not equally have —
+ * `reduce ingest` holds it, but `probe eval` (and the round-loop/resume/hill readers behind it)
+ * knows only (cwd, slug, round), and a scope's T0 attempt can legitimately go green again LATER than
+ * whatever list was frozen at compile time (`greenVerdict` already treats "newest green" as
+ * authoritative for exactly this reason — see kernel/probe/t0.mjs). Enforcing membership only where
+ * the order happens to be on hand would let one channel refuse a citation the other accepts, for
+ * evidence that may simply be fresher than the order — worse than leaving it unenforced.
  *
  * @param {string} cwd - Project root.
  * @param {string} slug - Feature slug.
  * @param {object} verdict - The WorkResult's `verdict` block.
- * @returns {(string|null)} The problem, phrased for an operator; null for a cited verdict, an
- *   unscoped spec, or a block with no PASS/FAIL in it (there is no judgement to invalidate).
+ * @returns {(string|null)} The problem, phrased for an operator; null for a verdict whose every
+ *   citation resolves, an unscoped spec, or a block with no PASS/FAIL in it (there is no judgement
+ *   to invalidate).
  */
 export function citationProblem(cwd, slug, verdict) {
   if (verdict?.overall !== "PASS" && verdict?.overall !== "FAIL") return null;
-  if (Array.isArray(verdict.t0_citations) && verdict.t0_citations.length) return null;
   if (!isScoped(cwd, slug)) return null;
-  return `the ${verdict.overall} verdict cites no T0 artifact, and a verdict on a scoped spec must ` +
-    "cite the T0 verdict it re-hashed (the order lists them under payload.t0_artifacts)";
+  if (!Array.isArray(verdict.t0_citations) || !verdict.t0_citations.length) {
+    return `the ${verdict.overall} verdict cites no T0 artifact, and a verdict on a scoped spec must ` +
+      "cite the T0 verdict it re-hashed (the order lists them under payload.t0_artifacts)";
+  }
+  for (const citation of verdict.t0_citations) {
+    const reason = unresolvedCitation(cwd, citation);
+    if (reason) return `the ${verdict.overall} verdict ${reason} — a T0 citation is re-hashed from disk, never taken on the handed word`;
+  }
+  return null;
 }
 
 /**

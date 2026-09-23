@@ -22,6 +22,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 
 /**
  * Run the EVAL T0-artifact checks.
@@ -41,7 +42,6 @@ export async function run(ctx) {
   const { evalVerdict } = await import(join(ROOT, "kernel/probe/eval.mjs"));
   const { deriveResumeState } = await import(join(ROOT, "kernel/probe/resume.mjs"));
 
-  const HASH = "0".repeat(64);
   const roots = [];
   const fixture = (name) => { const d = mkdtempSync(join(tmpdir(), `eval-t0-${name}-`)); roots.push(d); return d; };
   const w = (root, rel, body) => {
@@ -52,7 +52,14 @@ export async function run(ctx) {
   };
   const contract = (root, id) => w(root, `shapeup/demo/scopes/${id}.json`,
     { schema_version: 1, scope_id: id, allowed_file_substrate: [`src/${id}/**`] });
-  const t0 = (root, file, body) => w(root, `.shapeup/demo/t0/verdicts/${file}`, { schema_version: 2, ...body });
+  // Writes the verdict artifact AND returns its re-hashable identity ({path, sha256}) — a citation
+  // is no longer accepted on presence alone (HD-043), so every fixture that cites one now has to
+  // hand back the real digest of the exact bytes it wrote, not a fixed placeholder.
+  const t0 = (root, file, body) => {
+    const full = { schema_version: 2, ...body };
+    const p = w(root, `.shapeup/demo/t0/verdicts/${file}`, full);
+    return { path: p, sha256: createHash("sha256").update(JSON.stringify(full, null, 2)).digest("hex") };
+  };
   const evalResult = (root, body) => w(root, ".shapeup/demo/results/evaluate-r1.json",
     { schema_version: 1, order_id: "demo/evaluate-r1", worker: "spec-evaluator", ...body });
   // Exactly the payload the workflow's evaluate dispatch sends — the compile line under test is the
@@ -148,8 +155,11 @@ export async function run(ctx) {
       ok("an uncited scoped verdict leaves its round open");
     } else fail("an uncited scoped verdict was counted as a graded round");
 
+    // The T0 artifact itself must exist and re-hash green — HD-043: a citation is now resolved, not
+    // merely present. alpha is scoped by contract(s, "alpha") above; its round-1 attempt is green.
+    const alphaGreenS = t0(s, "r1-a1-t1.json", { round: 1, attempt: 1, trial: 1, scope_id: "alpha", overall: "green" });
     evalResult(s, { status: "done", verdict: { overall: "FAIL", bugs: [],
-      t0_citations: [{ scope_id: "alpha", path: ".shapeup/demo/t0/verdicts/r1-a1-t1.json", sha256: HASH }] } });
+      t0_citations: [{ scope_id: "alpha", path: ".shapeup/demo/t0/verdicts/r1-a1-t1.json", sha256: alphaGreenS.sha256 }] } });
     const cited = evalVerdict(s, "demo", 1);
     if (cited.found && cited.overall === "FAIL" && JSON.stringify(deriveResumeState(s, "demo").eval_rounds_done) === "[1]") {
       ok("a cited scoped verdict is found, and its round counts as done");
@@ -170,8 +180,9 @@ export async function run(ctx) {
     if (i1.status === 1 && /cites no T0 artifact/.test(i1.stderr) && !existsSync(ledger)) {
       ok("ingest refuses a scoped verdict citing no T0 artifact, before writing the verdict ledger");
     } else fail(`ingest accepted an uncited scoped verdict (exit ${i1.status}, ledger written: ${existsSync(ledger)})\n${i1.stderr}`);
+    const alphaGreenG = t0(g, "r1-a1-t1.json", { round: 1, attempt: 1, trial: 1, scope_id: "alpha", overall: "green" });
     evalResult(g, { status: "done", verdict: { overall: "PASS", criteria,
-      t0_citations: [{ scope_id: "alpha", path: ".shapeup/demo/t0/verdicts/r1-a1-t1.json", sha256: HASH }] } });
+      t0_citations: [{ scope_id: "alpha", path: ".shapeup/demo/t0/verdicts/r1-a1-t1.json", sha256: alphaGreenG.sha256 }] } });
     const i2 = spawnSync("node", [...K("reduce ingest"), resultPath, "--cwd", g], { encoding: "utf8" });
     if (i2.status === 0 && existsSync(ledger)) ok("ingest applies the same verdict once it cites its T0 artifact");
     else fail(`ingest refused a cited scoped verdict (exit ${i2.status})\n${i2.stdout}${i2.stderr}`);

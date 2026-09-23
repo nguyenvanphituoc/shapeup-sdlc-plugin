@@ -6,30 +6,202 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
-import { scopesDir, hillDir, verdictsDir, resultsDir, discoveryLedger } from "../lib/paths.mjs";
+import { scopesDir, hillDir, verdictsDir, resultsDir, discoveryLedger, localRoot } from "../lib/paths.mjs";
 import { readAllContracts, SCOPE_CONTRACT } from "../lib/contract.mjs";
 import { evalVerdict } from "../probe/eval.mjs";
 import { redBuildRounds } from "../verify/build.mjs";
+
+// ---------------------------------------------------------------------------------------------
+// THE DISCOVERY LEDGER, AND WHY ITS ABSENCE IS NOT A ZERO.
+//
+// The ledger arm is the only thing that promotes a scope from UPHILL_UNKNOWN to UPHILL_SOLVED —
+// "the open questions are closed". It used to be read as `scopeUnknowns[id] || 0`, which made
+// "nobody has filed a ledger yet" and "every unknown is closed" the same value, and that value
+// selects the FLATTERING phase. An absent value and a real one must not share a signature; when
+// they do, the run reports progress it has no evidence for. So the count is `null` — not `0` —
+// whenever the ledger could not actually be read and understood, and `null` promotes nothing.
+//
+// THE HEADING IS THE ATTRIBUTION KEY, and it has to match what the ingest step really writes:
+// `## Discovered — <order_id> (<date>)`, where `order_id` is `<slug>/<suffix>`. Two ways that
+// parse used to fail silently, both ending in the same false zero:
+//   * It required a COLON between the slug and the suffix. The order-envelope schema pins
+//     `order_id` to a slug, a SLASH, and a suffix drawn from `[a-z0-9.-]` — a colon cannot appear
+//     in a schema-valid order id at all, so the scope was never captured from any real ledger and
+//     every scope on every project read zero unknowns regardless of what was open.
+//   * It matched the em dash only, so a heading typed with a plain hyphen contributed nothing.
+// Both are fixed by matching the dash as a class and splitting the order id on its "/", and by
+// resolving the scope against the CONTRACTS ON DISK rather than guessing at the suffix's shape: a
+// build suffix is `<scope>-r<N>-a<M>` and a scoped operation's is `<operation>-<scope>[-r<N>]`, so
+// a pattern that tried to carve the scope out positionally captured the round suffix along with it.
+// ---------------------------------------------------------------------------------------------
+
+/** A ledger block heading, naming the order it files: `## Discovered — <slug>/<suffix> (<date>)`. */
+const LEDGER_HEADING = /^##\s+Discovered\s+[—–-]\s+(\S+)/;
+
+/**
+ * Index the scopes by the filename-safe form `harness compile` puts in an order suffix, so a
+ * heading is matched against ids that actually exist rather than parsed speculatively.
+ *
+ * @param {Array<object>} scopes - Parsed scope contracts.
+ * @returns {Map<string,string>} Compile's suffix form → the contract's own `scope_id`.
+ */
+function scopeSuffixIndex(scopes) {
+  const ix = new Map();
+  for (const s of scopes) {
+    const id = String(s?.scope_id || "");
+    if (!id) continue;
+    // Mirrors `harness compile`'s own normalisation of a scope id into an order suffix.
+    const key = id.toLowerCase().replace(/[^a-z0-9.-]/g, "-").replace(/^[^a-z0-9]+/, "");
+    if (key) ix.set(key, id);
+  }
+  return ix;
+}
+
+/**
+ * The scope a ledger heading's order belongs to, or `null` when it belongs to none.
+ *
+ * Operation-level dispatches (orient, analyze, wire, evaluate, hunt, hammer) carry no scope in
+ * their order id by construction, so "no scope" is a real and common answer here, not a parse
+ * failure — their rows are feature-wide and are deliberately credited to nobody.
+ *
+ * @param {string} orderId - The order id as the heading names it (`<slug>/<suffix>`).
+ * @param {Map<string,string>} ix - The index from `scopeSuffixIndex`.
+ * @returns {string|null} The owning contract's `scope_id`, or null.
+ */
+function scopeOfHeading(orderId, ix) {
+  const slash = orderId.indexOf("/");
+  const suffix = slash === -1 ? orderId : orderId.slice(slash + 1);
+  const core = suffix.replace(/-r\d+(?:-a\d+)?$/, "");
+  // Longest match wins, so a project holding both `pages` and `pages-admin` attributes each
+  // heading to the scope it actually names rather than to whichever was indexed first.
+  let best = null;
+  let bestLen = -1;
+  for (const [key, id] of ix) {
+    if ((core === key || core.endsWith(`-${key}`)) && key.length > bestLen) { best = id; bestLen = key.length; }
+  }
+  return best;
+}
+
+/**
+ * Open unknowns (`~` rows) per scope, read from the discovery ledger.
+ *
+ * @param {string} ledgerPath - Path to the run's discovery ledger.
+ * @param {Array<object>} scopes - Parsed scope contracts, used to attribute each block.
+ * @returns {Object<string,number>|null} Counts per `scope_id` — a scope with a block and no open
+ *   row is a genuine `0`. `null` means the ledger was NOT read: it is absent, unreadable, or
+ *   nothing in it could be attributed to a scope. `null` is never treated as zero, because "we
+ *   understood none of this file" is not evidence that nothing is open.
+ */
+function ledgerUnknowns(ledgerPath, scopes) {
+  if (!existsSync(ledgerPath)) return null;
+  let text;
+  try { text = readFileSync(ledgerPath, "utf8"); } catch { return null; }
+
+  const ix = scopeSuffixIndex(scopes);
+  const counts = {};
+  let headings = 0;
+  let attributed = 0;
+  let current = null;
+
+  for (const line of text.split("\n")) {
+    if (line.startsWith("## ")) {
+      // Reset on EVERY heading, matched or not. Carrying the previous block's scope across an
+      // unrecognised heading would credit one scope's open rows to another.
+      current = null;
+      const m = line.match(LEDGER_HEADING);
+      if (!m) continue;
+      headings++;
+      const id = scopeOfHeading(m[1], ix);
+      if (id) { attributed++; current = id; counts[id] = counts[id] || 0; }
+      continue;
+    }
+    if (current && line.startsWith("~ ")) counts[current]++;
+  }
+
+  // A ledger whose blocks we could not attribute to a single scope tells us nothing per scope.
+  // Reporting that as all-zero is the same false signature the colon-vs-slash bug produced.
+  if (headings === 0 || attributed === 0) return null;
+  return counts;
+}
+
+/**
+ * The phase currently recorded in a committed hill shard.
+ *
+ * @param {string} hDir - The committed hill directory.
+ * @param {string} id - Scope id.
+ * @returns {string|null} The recorded phase, or null when no shard exists for that scope.
+ */
+function committedPhase(hDir, id) {
+  const p = join(hDir, `${id}.yml`);
+  if (!existsSync(p)) return null;
+  try { return readFileSync(p, "utf8").match(/^phase:\s*(\S+)/m)?.[1] ?? null; } catch { return null; }
+}
 
 /**
  * Derive and write the hill phase for all scopes mechanically based on T0, T1, and ledger facts.
  * 
  * The derived phase follows these progression rules (facts move dots, not authors):
- * - UPHILL_UNKNOWN: open unknowns > 0 in the ledger for this scope
- * - UPHILL_SOLVED: unknowns 0, no T0-green yet
+ * - UPHILL_UNKNOWN: open unknowns > 0 in the ledger for this scope — and the floor the scope sits
+ *   at whenever the ledger has not answered at all, which is where every run legitimately begins
+ * - UPHILL_SOLVED: the ledger was read and reports zero open unknowns, no T0-green yet
  * - DOWNHILL_EXECUTION: ≥1 T0-green in a round whose build gate is not red; T1/seesaw pending
  * - FINISHED: T1 PASS ∧ seesaw green
  *
  * @param {string} cwd - The project root directory.
  * @param {string} slug - The feature slug being built.
- * @returns {Array<{scope_id: string, phase: string, changed: boolean}>} A report of all scopes processed, their derived phase, and whether the hill shard on disk was modified.
- *   Side effects: writes to `shapeup/<slug>/hill/<scope-id>.yml` for each scope.
+ * @returns {Array<{scope_id: string, phase: (string|null), changed: boolean, derived: boolean,
+ *   unknowns: (number|null), reason?: string}>} A report of all scopes processed. `derived` says
+ *   whether the phase was computed from run evidence at all: when it is false the phase is
+ *   whatever the committed shard already records (or null when there is none), nothing was
+ *   written, and `reason` names why. `unknowns` is the ledger count behind the phase, or null
+ *   when the ledger could not be read — the two are deliberately distinguishable in the output as
+ *   well as in the derivation.
+ *   Side effects: writes to `shapeup/<slug>/hill/<scope-id>.yml` for each scope, EXCEPT on the
+ *   refusal path below, which writes nothing at all.
  */
 export function deriveHill(cwd, slug) {
   const scopes = readAllContracts(scopesDir(cwd, slug), SCOPE_CONTRACT).map((x) => x.contract);
   const vDir = verdictsDir(cwd, slug);
   const ledgerPath = discoveryLedger(cwd, slug);
   const hDir = hillDir(cwd, slug);
+
+  // -------------------------------------------------------------------------------------------
+  // A DERIVATION THAT CANNOT SEE THE RUN TRACE MUST NOT WRITE THE DELIVERABLE.
+  //
+  // This function reads one tier and writes the other. Every input below — T0 verdicts, the EVAL
+  // results, the round build gates, the discovery ledger — lives in the gitignored run trace,
+  // while the shards it writes are committed and outlive it: after a ship the run trace is cleaned
+  // up and the shards are the ONLY surviving record of where the work got to. So when the run
+  // trace for this slug is not on disk, every input is provably absent, and anything derived from
+  // that is derived from nothing.
+  //
+  // This is not a hypothetical. Pulling a branch mid-run is a supported state: the puller gets the
+  // committed spec, scopes and shards and no run trace of their own. Their first launch used to
+  // re-derive every scope from the empty set and overwrite the shards with the result — losing
+  // committed history rather than misreporting it.
+  //
+  // WHY REFUSE RATHER THAN WRITE AN "UNKNOWN" PHASE. Writing anything here destroys the record
+  // just as thoroughly; a shard that says "I could not look" has still replaced the one that said
+  // FINISHED, and the phase enum is a committed data format that a reader parses as current
+  // status. Not writing already expresses "no opinion" exactly, and it needs no new enum value.
+  //
+  // WHY THE CONDITION IS THE TIER'S EXISTENCE AND NOT "the phase would go down". Moving a dot
+  // backwards is correct and must stay possible — this is a pure function of the artifacts present
+  // and reports what they currently support, in both directions. A guard phrased as "never lower a
+  // phase" would quietly turn a derived value into a high-water mark, which is a different defect
+  // wearing this one's clothes. The condition is the narrowest one that is positively provable:
+  // the tier holding every input is not there.
+  // -------------------------------------------------------------------------------------------
+  if (!existsSync(localRoot(cwd, slug))) {
+    return scopes.map((s) => ({
+      scope_id: s.scope_id,
+      phase: committedPhase(hDir, s.scope_id),
+      changed: false,
+      derived: false,
+      unknowns: null,
+      reason: "local-run-trace-absent",
+    }));
+  }
 
   if (!existsSync(hDir)) mkdirSync(hDir, { recursive: true });
 
@@ -95,28 +267,20 @@ export function deriveHill(cwd, slug) {
     }
   }
   
-  // 3. Ledger unknowns per scope
-  const scopeUnknowns = {};
-  if (existsSync(ledgerPath)) {
-    const lines = readFileSync(ledgerPath, "utf8").split("\n");
-    let currentScope = null;
-    for (const line of lines) {
-      const m = line.match(/^## Discovered — .*?:([\w.-]+)-a\d+/);
-      if (m) {
-        currentScope = m[1];
-      }
-      if (currentScope && line.startsWith("~ ")) {
-        scopeUnknowns[currentScope] = (scopeUnknowns[currentScope] || 0) + 1;
-      }
-    }
-  }
-  
+  // 3. Ledger unknowns per scope — `null` for every scope when the ledger itself was not readable
+  //    or nothing in it named a scope (see `ledgerUnknowns`). Only a real count can promote.
+  const scopeUnknowns = ledgerUnknowns(ledgerPath, scopes);
+
   const report = [];
   for (const s of scopes) {
     const id = s.scope_id;
     const t0 = t0Facts[id] || { hasGreen: false, seesawGreen: false };
-    const unknowns = scopeUnknowns[id] || 0;
-    
+    // `null` = the ledger did not answer; a number = it did. `|| 0` collapsed the two.
+    const unknowns = scopeUnknowns === null ? null : (scopeUnknowns[id] || 0);
+
+    // UPHILL_UNKNOWN is the floor, and the honest answer whenever nothing has promoted a scope off
+    // it — including before Orient has filed anything, which is where every run legitimately
+    // starts. Only an ANSWERED count of zero promotes to UPHILL_SOLVED; `null` never does.
     let phase = "UPHILL_UNKNOWN";
     if (t1Pass && t0.hasGreen && t0.seesawGreen) {
       phase = "FINISHED";
@@ -125,7 +289,7 @@ export function deriveHill(cwd, slug) {
     } else if (unknowns === 0) {
       phase = "UPHILL_SOLVED";
     }
-    
+
     const yaml = `scope_id: ${id}\nphase: ${phase}\n`;
     const out = join(hDir, `${id}.yml`);
     let changed = false;
@@ -133,7 +297,7 @@ export function deriveHill(cwd, slug) {
       writeFileSync(out, yaml);
       changed = true;
     }
-    report.push({ scope_id: id, phase, changed });
+    report.push({ scope_id: id, phase, changed, derived: true, unknowns });
   }
   return report;
 }
@@ -156,5 +320,16 @@ export async function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = resolve(args.cwd || process.cwd());
   const report = deriveHill(cwd, args.slug);
+  // A refusal that is visible only as a missing write reads exactly like a derivation that
+  // happened to agree with what was already on disk, so say it out loud. It is not an error —
+  // the caller runs this advisorily several times a run, and declining to derive from nothing is
+  // the correct outcome, not a failure — so the exit code stays 0 and the warning goes to stderr.
+  const underived = report.filter((r) => r.derived === false);
+  if (underived.length) {
+    console.error(
+      `hill: derived nothing for ${underived.length} scope(s) (${underived[0].reason}) — ` +
+      `the run trace this phase is derived from is not on disk, so the committed shards were left as they are.`,
+    );
+  }
   console.log(JSON.stringify(report, null, 2));
 }

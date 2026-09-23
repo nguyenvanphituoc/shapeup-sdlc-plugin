@@ -4,6 +4,7 @@ import { readFileSync, readdirSync, existsSync, statSync, mkdtempSync, mkdirSync
 import { join, dirname, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { assertJsdocCoverage } from "../lib/jsdoc.mjs";
 
 /**
@@ -498,6 +499,15 @@ export async function run(ctx) {
       else fail("ingest did not append the discovery");
 
       // Verdict path: refuted box un-ticked + verdict JSONL appended.
+      // The fixture is SCOPED (`scopes/cart.md`), and ingest refuses a scoped verdict that cites no
+      // T0 artifact — so the judge's fixture cites one, as a real judge must. HD-043: the citation is
+      // now re-hashed from disk, not taken on the handed word, so the artifact has to actually exist
+      // and hash to what is cited (note this is a DIFFERENT address than `r1-a1.json` written above,
+      // which is round 1 attempt 2's digest source and carries `overall: "red"`).
+      const cartT0Body = { schema_version: 2, round: 1, attempt: 1, trial: 1, scope_id: "cart", overall: "green" };
+      const cartT0Text = JSON.stringify(cartT0Body, null, 2);
+      w(".shapeup/demo/t0/verdicts/r1-a1-t1.json", cartT0Text);
+      const cartT0Hash = createHash("sha256").update(cartT0Text).digest("hex");
       const evalResult = {
         schema_version: 1, order_id: "demo/evaluate-r1", worker: "spec-evaluator", status: "done",
         verdict: { overall: "FAIL",
@@ -506,9 +516,7 @@ export async function run(ctx) {
           // constraint exists to reject, so the fixture states a real one.
           criteria: [{ criterion: "first criterion", verdict: "FAIL", confidence: "high", evidence: "throws on click — src/app/Pay.tsx:84" }],
           refuted: [{ task_id: "TASK-001", ac: "first criterion" }],
-          // The fixture is SCOPED (`scopes/cart.md`), and ingest refuses a scoped verdict that cites
-          // no T0 artifact — so the judge's fixture cites one, as a real judge must.
-          t0_citations: [{ scope_id: "cart", path: ".shapeup/demo/t0/verdicts/r1-a1-t1.json", sha256: "0".repeat(64) }] },
+          t0_citations: [{ scope_id: "cart", path: ".shapeup/demo/t0/verdicts/r1-a1-t1.json", sha256: cartT0Hash }] },
       };
       w(".shapeup/demo/results/evaluate-r1.json", JSON.stringify(evalResult));
       const rv = spawnSync("node", [...K("reduce ingest"), join(d, ".shapeup/demo/results/evaluate-r1.json"), "--cwd", d], { encoding: "utf8" });
