@@ -12,43 +12,21 @@ is pinned by a guard, never when it is merely believed done.
 
 | id | defect | tier |
 |---|---|---|
-| HD-026 | a `gate_h` exit leaves no terminal close — the close-out covers two of four returns | P1 |
-| HD-027 | two harness rules collide and hard-abort planning at L1b — citing the pitch's real source reds `TIER-DIRECTION` | P1 |
-| HD-028 | the inner circuit breaker trips on an attempt that was never dispatched | P1 |
+| HD-027 | two harness rules collide, and the collision hard-aborts a run at L1b | P1 |
 | HD-013 | the WorkOrder names no result path | P3 |
-| HD-014 | an escalated close keeps fencing (doc half shipped; code half open) | P0 |
-| HD-021 | a per-scope "it compiles" fixture proves nothing | P3 |
-| HD-022 | work for consumer-measured defects sits on a tag, not on main | decision |
+| HD-029 | a run that went through GATE H cannot record a later ship | — (filed after the tiering pass) |
+| HD-031 | a resumed run cannot soak a plugin upgrade, and nothing says so at launch | — (filed after the tiering pass) |
+| HD-033 | a stale WorkResult closes an attempt that is still running | — (filed after the tiering pass) |
+| HD-037 | `coverage` registers the pitch's NO-GOS as requirements, marked `covered`, and L1b reds every on… | — (filed after the tiering pass) |
+| HD-038 | a committed spec artifact narrates a coverage verdict, and the verdict is false | — (filed after the tiering pass) |
+| HD-039 | a hill dot outlives the evidence that moved it | — (filed after the tiering pass) |
+| HD-021 | a per-scope "it compiles" fixture can be green while the scope's code is unreachable | P3 |
+| HD-022 | ⚠ Work for defects measured on a real consumer sits on a tag, not on main | decision |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
 | HD-025 | two run geometries this checkout cannot reach | process |
 
 ## Defects
-
-- **HD-026 · A run that ends at GATE H leaves no terminal close, because the close-out covers two of
-  the four returns.** `closeIfTerminal` (`skills/tech-lead/workflows/shapeup-run.js:988`) opens with
-  `if (ret.status !== "aborted" && ret.status !== "shipped") return;`, but the RunReturn union has
-  four arms: `shipped`, `paused`, `aborted` and **`gate_h`** (the script's own header documents all
-  four). `paused` is correctly not terminal — it resumes. `gate_h` is: it is where a tripped
-  circuit breaker lands, and `AGENTS.md` makes it the *designed* outcome for a run that cannot pass
-  — *"Budget trips route to GATE H — ship what's green, never kill the run from outside."* So the
-  most likely non-passing ending is the one arm that records nothing.
-
-  Measured 2026-09-22 in a consumer project installed from the marketplace, plugin 3.6.0: a run
-  crossed GATE H and L4, both gates left rows in `gates.jsonl`, `REPORT.md` was written and frozen
-  — and the ledger still read `status: building`, `closed_at: ~`, `close_cause: ~`,
-  `closed_status: ~`. The same run's earlier launch aborted at L1b and closed correctly, which is
-  what makes the gap precise rather than general: the abort path works, the breaker path does not.
-
-  **How it survived its own acceptance.** The fix's acceptance pass drove a forced abort and a
-  direct `probe resume --close shipped`, and confirmed both. Neither exercised the `gate_h` return,
-  because reaching it needs a build that fails a whole round — which is exactly what a real
-  consumer produces and a fixture does not. The propositions tested the two arms someone thought to
-  name.
-
-  **Closed when:** A run that ends at `gate_h` leaves a terminal status, a cause and a timestamp,
-  and a check asserts the close-out's arms against the RunReturn union rather than against a
-  hand-written pair — the same derivation rule the run-argument surface already follows.
 
 - **HD-027 · Two harness rules collide, and the collision hard-aborts a run at L1b.** Promoted from
   a consumer register (`proj-harmony-os-sample`, filed there as `HD-1`, 2026-09-21). `harness init
@@ -81,43 +59,20 @@ is pinned by a guard, never when it is merely believed done.
   dispatch over a pitch staged in the run tier produces a `requirements.md` clean of
   `TIER-DIRECTION` findings, driven end to end rather than inferred from the worker's prose.
 
-- **HD-028 · The inner circuit breaker trips on an attempt that was never dispatched.** Promoted
-  from a consumer register (`proj-harmony-os-sample`, filed there as `HD-2`, 2026-09-22). Measured
-  in run `find-my-todos-20260922T020229Z-9036e2b6`, unattended lane, `attempt_budget: 5`: the
-  pipeline returned `{"status":"gate_h","breaker":"inner",...}` after **one** attempt, with 4
-  attempts and roughly 2.4h of a 3h wall-clock budget still unspent — the documented meaning of
-  which is that the scope exhausted its per-scope T0 attempts. It had not.
+  **Half of that is done; the half that keeps this entry open is evidence, not code.** The taught
+  and enforced rules agree (pinned by a guard), and since 3.7.1-rc.4 the collision is no longer
+  writable at all — the write is refused at the boundary with the offending token quoted back, so a
+  worker cannot produce the file that reds. What has still never been driven is the end-to-end leg
+  the criterion asks for: a real `coverage` dispatch over a pitch staged in the run tier, producing
+  a `requirements.md` with no `TIER-DIRECTION` findings. That is a consumer run, not a fixture, and
+  it is deliberately the last thing holding this row open.
 
-  | record | `r1-a1` | `r1-a2` |
-  |---|---|---|
-  | `orders/<id>.json` compiled | 02:10:49Z | 02:21:00Z |
-  | `receipts/dispatch.jsonl` | present, `dispatch_ok: true` | **absent** |
-  | `legs.jsonl`, `attested: true` | present, 894 341 ms | **absent** |
-  | `results/<id>.json` | present | **absent** |
-  | `t0/verdicts/` trial | `r1-a1-t1`, `r1-a1-t2` | `r1-a2-t1` at 02:22:50Z |
-
-  `r1-a2` was compiled and T0-verified at 02:21:00Z and 02:22:50Z — **both before `r1-a1`
-  ingested at 02:25:46Z**, i.e. while attempt 1 was still in flight. No worker was ever dispatched
-  for it. The three channels the harness uses to attest work — the dispatch receipt, the leg, the
-  WorkResult — unanimously say attempt 2 never happened, while the two that feed the breaker — the
-  order set and the T0 verdict set — say it did. The breaker reads the channels that can be
-  written without a worker.
-
-  **What it cost.** The run stopped at GATE H with `green_scopes: []` after one attempt, budget and
-  wall-clock both mostly unspent. `scope-hammer`'s own census independently caught the discrepancy
-  and declined to treat it as exhaustion, which is the only reason it surfaced at all — a census
-  that trusted the breaker's own framing would have reported a scope that fought five times and
-  lost.
-
-  **Closed when:** the attempt count is derived from the attested channels — a dispatch receipt, a
-  leg, a WorkResult — never from the order set or the T0 verdict set alone, and the loop cannot
-  open attempt *n+1* while attempt *n* is still unanswered.
-
-- **HD-013** — The WorkOrder carries no field naming where the WorkResult goes, so each worker derives the path
-  from prose while its own `substrate.allowed` names a directory that does not contain it. The
-  workflow lane works around this by stating the path in the dispatch prompt and deriving the same
-  one from the order; the port itself is unfixed.
-
+- **HD-013 · The WorkOrder names no result path.** P3, and carried here without its original
+  write-up: the entry body was lost in an earlier cleanup while the index row survived, which is why
+  this one is short. What is certain is the id, the tier and the subject — the plan record
+  (`docs/design/plans/which-defect-first.md`, `defect-sweep-execution.md`) ranks it P3 and states it
+  is untouched. Re-measure before betting it rather than trusting this paragraph: a defect entry
+  that cannot show its own evidence is a lead, not a finding.
 - **HD-029 · A run that went through GATE H cannot record a later ship.** Discovered 2026-09-22
   while implementing `HD-026`'s fix, by the stage's own executor rather than by any check — no
   acceptance row covered it, which is the same boundary `HD-026` and `HD-028` sit on.
@@ -173,50 +128,6 @@ is pinned by a guard, never when it is merely believed done.
   answer the same question for abort-then-recover: either a close is retired when a relaunch resumes
   the run, or a run that resumes was never terminal and should not have been closed.
 
-- **HD-030 · A run that ships makes the next run of the same pitch un-plannable.** Measured
-  2026-09-22 in the consumer, on a real launch that hard-aborted at L1b.
-
-  `reduce ship` freezes `REPORT.md` into the COMMITTED tier at GATE L4, and the report cites board
-  ids (`TASK-001`, `TASK-004`, …). The committed-tier lint reds a `TASK-` id anywhere in that tree,
-  correctly — boards live in the gitignored tier and renumber per machine. So the artifact a
-  successful run writes is the thing that stops its successor:
-
-  ```
-  close_cause: L1b: spec-lint reported red findings before BUILD
-               (23 red TIER-DIRECTION findings about board ids cited in a committed file)
-  ```
-
-  All 23 findings are in `shapeup/<slug>/REPORT.md`. The run reached L1b with every planning
-  artifact committed and complete, and stopped there with `rounds_used: 0`.
-
-  **Same class as `HD-027`, different producer and different half of the rule.** `HD-027` was
-  `ba-pitch-analyzer` writing a `.shapeup/` path into `requirements.md`; this is `reduce ship`
-  writing board ids into `REPORT.md`. The fix for `HD-027` taught one producer a rule; it did not
-  enumerate the others, and the enumeration is what the class needs — which is the same lesson
-  `HD-026` carried about the close-out.
-
-  It also falsifies a claim the 3.7.0 work recorded: that "no committed artifact any worker writes
-  cites a forbidden reference" was structurally guaranteed because the lint scans the whole tree.
-  The lint's reach and the producers' compliance are different properties, and only the first was
-  ever checked.
-
-  **FIXED in 3.7.1-rc.1.** `reduce ship` now sanitises at the write boundary rather than at the
-  column: every board id destined for the committed report is replaced by that task's
-  `use_case_refs` — the tier-direction rule's own sanctioned anchor — and an id with no resolvable
-  use case becomes a neutral phrase instead. The boundary, not the column, is the point: a board id
-  also reached the report **inside acceptance-criterion prose** a planner wrote ("given the seeded
-  todos (TASK-006)"), which no per-column fix touches.
-
-  The unfinished-task callout now reads `**N task(s) did not finish** — use cases: …` rather than a
-  list of ids; the caveat survives the sanitising, which is asserted separately, because trading the
-  disclosure for tier-cleanliness would swap one silent failure for another.
-
-  `47-ship-report.mjs` asserted the report must NAME the board id. That expectation was not merely
-  outdated, it was the defect, so it was re-pointed at the substance — disclosure plus the committed
-  anchor, and the id now forbidden — and is strictly stronger than before. `74-ship-report-tier.mjs`
-  drives the real `reduce ship` and lints the file it wrote, because a clean renderer and a clean
-  committed file are different claims.
-
 - **HD-031 · A resumed run cannot soak a plugin upgrade, and nothing says so at launch.** Measured
   2026-09-22 while attempting exactly that.
 
@@ -271,92 +182,6 @@ is pinned by a guard, never when it is merely believed done.
   3.7.x says nothing about 3.7.0 versus 3.7.1, and using it to clear the other is a probe answering
   a different question than the one asked.
 
-- **HD-032 · The attested-attempt census counts a PREVIOUS run's work as this run's.** Found by the
-  consumer soak on 2026-09-22, in the fix for `HD-028` itself, one release after it shipped.
-
-  `attemptEvidence` matches attestation on `order_id` alone:
-
-  ```
-  const hasReceipt = receipts.some((r) => r?.order_id === orderId);
-  const hasLeg     = legs.some((r) => r?.order_id === orderId);
-  ```
-
-  `AGENTS.md` states the problem with that in as many words: *"`run_id` … is the only key that
-  separates two runs of the same feature: everything else (`order_id`, round/attempt) repeats."*
-  The module carries **no** `run_id` reference at all, and `receipts/dispatch.jsonl` and
-  `legs.jsonl` are per-slug and append-only, so they accumulate across every run of a pitch.
-
-  Measured: a new run (`…T132805Z-7d89f1ed`) compiled `find-my-todos-screen-r1-a1` and dispatched
-  **no** worker — `receipts/dispatch.jsonl` carries rows for two *earlier* runs and none for this
-  one. Asked about that scope, the census answered:
-
-  ```
-  a1 spent  receipt=true leg=true result=true      ← all three from a run two launches ago
-  spent: 1  in_flight: 0  unattested: 4  tripped: false
-  ```
-
-  So the reader built to stop the breaker counting work nobody did now counts work **another run**
-  did. It is `HD-028`'s own failure mode displaced by one level: `HD-028` was an attempt attested by
-  channels a scope could write without a worker; this is an attempt attested by a worker that ran in
-  a different run. Both answer "was this attempt spent?" with evidence about something else.
-
-  The compile guard inherits it: it asks the same question before opening attempt N, so a stale
-  attestation for attempt N−1 lets it through — the exact interleaving the guard exists to refuse.
-
-  **THREE readers, not one — and the third is what actually stopped the run.** The same soak showed
-  the stagnation breaker doing it too, and that one is load-bearing: it fired during *compile*,
-  before any attempt was dispatched, with `streak=2, no_progress_k=2`. Verified against
-  `t0/trials.jsonl` rather than the run's narration — it holds **3 rows, from two earlier runs**
-  (`…b80de580`, `…9036e2b6`) and **none from the run that tripped**:
-
-  ```
-  2026-09-21T15:05:37Z run=b80de580  r1-a1  0/2 fixtures
-  2026-09-22T02:16:23Z run=9036e2b6  r1-a1  0/2 fixtures
-  2026-09-22T02:22:50Z run=9036e2b6  r1-a2  0/2 fixtures   ← HD-028's invalid trial
-  ```
-
-  Every row carries a `run_id`; the reader ignores it. So two gradings of a half-written tree, one
-  of them already documented as invalid, read as a stagnation streak that **every future run of
-  this scope trips on** — and the tree they graded was fixed seven hours before the run that
-  escalated on them. The breaker escalated on evidence that predates its own fix.
-
-  So the affected readers are: the attempt census, the compile guard that consults it, and the
-  stagnation breaker. All three treat per-slug append-only ledgers as if they were per-run.
-
-  **Fix:** filter every attested channel by the run's own `run_id` — receipts, legs and trials all
-  carry it — and treat a row with no `run_id` as belonging to no run rather than to this one. A
-  `WorkResult` carries none and reaches it through `order_id`, so the result channel needs the join
-  rather than a field read. Add a fixture with two runs' rows in one ledger — the case no
-  single-run fixture can hold, which is exactly what let this ship.
-
-  **Note what this does NOT license.** Clearing the history to unstick a run discards append-only
-  T0 evidence in response to a breaker saying stop, and `init run --force` resets the breaker as a
-  side effect of merely lifting the fence. The run that hit this refused to pull that lever and
-  said so. Scoping the read to the run is the fix; deleting the evidence is not.
-
-  **FIXED in 3.7.1-rc.2.** All three readers now match on the run key: the census filters receipts
-  and legs, and the stagnation breaker filters trials. A row carrying no run key belongs to no run
-  rather than to this one, and an unresolvable current run matches nothing — both directions
-  under-count rather than over-count, which is the safe way to be wrong: an under-count leaves a
-  breaker un-tripped and the round continues, where an over-count stops work that was never done.
-  A `WorkResult` still has no run key, so it stays a file check that can only turn an
-  already-run-scoped receipt into `spent` — a result left by an earlier run cannot attest an attempt
-  this run never dispatched. **That reasoning was incomplete and the soak falsified it the same
-  day**: a stale result cannot invent an attempt, but it can close one that is still running. See
-  `HD-033`.
-
-  `75-cross-run-attestation.mjs` plants two runs' rows in one set of ledgers — the case no
-  single-run fixture can hold — and asserts **both** directions: the prior run's work is invisible,
-  and the run's OWN receipt and leg still count, so scoping narrows the read without disarming it.
-  Mutation-verified: reverting the fix turns the suite red naming exactly this defect.
-
-  **Three existing fixtures were unfaithful in the way that hid it**, and were corrected rather than
-  the code weakened: `s3-attempts`, `73-attested-attempts` §123 and `05-tech-lead`'s stagnation
-  check all wrote `run_id: null` rows into hand-built ledgers, exercising evidence no real dispatch
-  ever writes. They now open a real run and stamp its key. That unfaithfulness is the direct cause
-  of this shipping: a fixture that models a state the pipeline never produces cannot fail on a
-  defect the pipeline has.
-
 - **HD-033 · A stale WorkResult closes an attempt that is still running.** Found 2026-09-22 during
   the rc.2 soak, watching the fix for `HD-032` work — this is the half of that defect the fix did
   not reach, and the filing for `HD-032` overstated the mitigation.
@@ -391,216 +216,6 @@ is pinned by a guard, never when it is merely believed done.
   calling it `in-flight` would re-dispatch work that is done. The fixture needs a result file
   back-dated before the run's start — the `run_id`-based two-run fixture cannot express this one,
   because the channel that carries the defect has no `run_id` to differ on.
-
-- **HD-034 · A fixture the sandbox refuses to run is recorded as a fixture that failed.** Promoted
-  from the consumer's own register (filed there as `HD-4`, 2026-09-22) by the run that hit it.
-
-  A T0 fixture that shells out to a command the session's permission grant does not cover is
-  **denied, not executed**. The harness records that identically to a fixture that ran and failed:
-  a non-zero exit and a `0/N` score. Measured on the rc.2 soak, and the trial ledger is what
-  separates the two cases:
-
-  ```
-  2026-09-21  trial1  digest_len=8   ← a real failure: diagnostics into the project's enforce rules
-  2026-09-22  trial4  digest_len=0   ← empty
-  2026-09-22  trial5  digest_len=0   ← empty
-  ```
-
-  A compile that fails produces diagnostics; an empty digest is what a command that never ran leaves
-  behind. The executor confirmed it directly — the toolchain binary returned *"This command requires
-  approval"*. Every downstream number was then correct arithmetic over an input that meant something
-  other than what it said: `0/2` propagated into the hill phase, the frozen report and GATE H's
-  census as a measured verdict on the tree, and two such trials met `no_progress_k`, ending a
-  single-scope pitch's run.
-
-  This is rule 3 of the acceptance contract as a **product** defect rather than an authoring habit:
-  *"I cannot verify this here" and "this is wrong" are different findings*, and the T0 layer
-  currently cannot say the first. It misreports any denied probe on any project, and it is
-  structurally invisible from this checkout, where everything the fixtures reach is already
-  permitted.
-
-  **The grant is not the blocker — the fixture's SHELL SHAPE is.** Established 2026-09-22 on a
-  fresh-state soak with an explicit toolchain grant in place, by direct experiment rather than
-  inference. Three shapes were tried in real headless sessions:
-
-  | shape | outcome |
-  |---|---|
-  | `Bash(…/hvigorw:*)` | denied — the command begins `DEVECO_SDK_HOME=`, so the prefix never matches |
-  | `Bash(DEVECO_SDK_HOME=… …/hvigorw:*)` | **runs** |
-  | `cd app && DEVECO_SDK_HOME=… hvigorw <target>` | **runs** |
-  | `out=$( ( cd app && … ) 2>&1 ); rc=$?; …` — what the contract actually uses | **refused**: a subshell and a command substitution cannot be statically analysed, and that refusal happens *before* any permission is consulted, so no grant reaches it |
-
-  With the grant active, the run's own verdict artifact then recorded:
-
-  ```
-  cmd : out=$( ( cd app && … hvigorw assembleHap … ) 2>&1 ); rc=$?; …
-  exit: 1   pass: false   — and no build output captured at all
-  ```
-
-  `digest_len: 0`, against `8` for the one genuine build failure on record. The command never ran.
-
-  **So the fix has two halves.** (1) The harness must distinguish a denial from a failure at the
-  point the fixture runs — a refused command is not evidence about the tree — and surface it as a
-  preflight at L0, before a run spends anything. (2) Fixtures must be *expressible in a shape the
-  executing environment permits*, which the current contract format does not guarantee: the natural
-  way to write one (capture output, check the exit code, grep it for `ERROR:`) is exactly the shape
-  that is refused. The clean form is a committed script invoked as a single grantable command —
-  `cd app && ./scripts/t0-build.sh` — with the subshell, the capture and the `grep` living inside a
-  real shell where they run normally. That keeps every assertion the fixture makes; weakening it to
-  a bare exit-code check would trade a refusal for a false green, since the toolchain can exit 0
-  over an error.
-
-  Note what is invisible from the plugin's own checkout: there, every command a fixture reaches is
-  already permitted, so a fixture format that cannot survive a grant reads as working.
-
-  **CONFIRMED FIXED 2026-09-23, and the confirmation exposed the mechanism half.** With the fixtures
-  rewritten as committed scripts, a soak's first trial recorded `exit 1` on
-  `./scripts/t0-assemble.sh`, and the script run directly returns **2 009 characters** of real
-  hvigor output failing on `00303018` — the genuine open blocker. The refusal mode is closed: the
-  fixtures execute.
-
-  **But the verdict artifact still cannot tell the two apart, and that is a defect in its own
-  right.** `runCommand` (`kernel/verify/t0.mjs`) deliberately captures `stdout`, `stderr`, and an
-  `error` field precisely because *"a spawn failure or a timeout is NOT the same fact as 'the
-  command ran and failed'"* — its own comment. The verdict then persists only:
-
-  ```
-  {"cmd":"./scripts/t0-assemble.sh","exit":1,"pass":false}
-  ```
-
-  `stdout`, `stderr` and `error` are dropped, and `exit: r.status ?? 1` maps a spawn failure onto the
-  same `1` a real failure returns. So downstream — the digest, the hill, the report, anyone reading
-  the trace afterwards — a refused command and a failing build are byte-identical. The kernel
-  computes the distinction and throws it away one step later.
-
-  **A corollary that cost an hour here: an empty diagnostic digest does not mean the command was
-  refused.** It means the digester found no `file:line` to extract, and a configuration error
-  (`00303018`, which names a path but no line) produces exactly that while the build genuinely ran.
-  Using digest length as a refusal signal is a heuristic that happens to hold for refusals and is
-  not specific to them.
-
-  **Fix:** persist `error` on the fixture record, and keep at least a bounded tail of `stdout`/
-  `stderr`. A verdict that records `exit 1` with no captured output and no error field is an
-  assertion nobody can audit afterwards.
-
-  **MECHANISM HALF FIXED 2026-09-23 (3.7.1-rc.4).** `commandEvidence` (`kernel/verify/t0.mjs`) is
-  now what the artifact stores: `error` when the command never ran, plus a 4000-character tail of
-  each stream, marked when truncated, and omitted entirely when a stream was empty. `exit` is
-  deliberately unchanged — moving a crash off `1` would change what the ratchet compares and what
-  every existing reader parses, and the fact that means "this never ran" is `error`, which the crash
-  branch already reads. Output is kept for PASSING commands too: a fixture that exits 0 having run
-  zero tests is the false green this layer exists to catch, and stdout is the only place it shows.
-  Guarded by `tests/structural/77-t0-evidence.mjs`, which drives the real `verify t0` CLI rather
-  than the mapper (a fixture that calls your own function cannot see whether the pipeline calls it)
-  and states the defect as a property: from the artifact alone, a refused command and a broken build
-  must classify differently. Five mutations were run and all five went red — record reverted to
-  `{cmd, exit, pass}`, `error` dropped, bound removed, truncation marker removed, head kept instead
-  of tail.
-
-- **HD-035 · `reduce ship` does not retire the run pointer on a no-verdict close.** Promoted from
-  the consumer's register (filed there as `HD-5`, 2026-09-22).
-
-  `AGENTS.md` states that retiring the pointer "is the one lever every close needs pulled, and
-  `reduce ship` pulls it for you". Measured on a run that closed `escalated` with no verdict: the
-  ship report was frozen and `.shapeup/active-scope` was **still on disk** afterwards, so the next
-  `init run` on that slug exits 3 and needs `--force` — which the register already notes is not a
-  clean reset, because it also resets the stagnation breaker as a side effect of lifting the fence.
-
-  The documented behaviour and the observed behaviour disagree, and the doc is the one making the
-  stronger claim. Either `reduce ship` retires the pointer on every close it writes a report for,
-  or `AGENTS.md` stops promising it does; deciding which is a design call, not a doc fix.
-
-  **FIXED 2026-09-23 (3.7.1-rc.5), at the close rather than at the ship.** The design call went to
-  the first option, and one lever answers both this and HD-014: `closeRun` retires `active-order`
-  and `active-scope` on every terminal close, so a no-verdict close leaves no pointer behind
-  whichever path wrote it. `reduce ship`'s own retirement stays where it is — it runs on the report
-  path, before any close, and removing it would change when a shipped run stops fencing.
-
-- **HD-036 · A THIRD producer writes a committed artifact its own lint reds — and the pattern of
-  fixing them one at a time is the defect.** Measured 2026-09-22 on a deliberately fresh-state soak,
-  which is what surfaced it.
-
-  `tech-lead` writes `project-profile.md` at GATE L0. This run's L0 re-derived the profile from
-  scratch (the run tier had been deleted, so nothing was carried forward) and recorded two toolchain
-  defects it had just found, citing its evidence:
-
-  ```
-  project-profile.md:74   `.shapeup/find-my-todos/discovery/ledger.md` for the full evidence
-  ```
-
-  Fifteen minutes later its own L1b refused the run:
-
-  ```
-  close_cause: L1b: spec-lint reported red findings before BUILD … red=1 TIER-DIRECTION
-               (project-profile.md:74 points into gitignored .shapeup/ from a committed file)
-  ```
-
-  The orchestrator wrote a file at L0 that its own gate rejected at L1b. `rounds_used: 0`.
-
-  **This is the third instance of one class, and the third is the finding.** `HD-027` was
-  `ba-pitch-analyzer` citing a `.shapeup/` path in `requirements.md`, fixed by teaching the docs what
-  the lint enforces. `HD-030` was `reduce ship` citing board ids in `REPORT.md`, fixed by sanitising
-  at that producer's write boundary. Each fix closed its own instance and left the class open, and
-  each time the closing argument was that the lint scans the whole committed tree so nothing else
-  could be producing violations. **That argument confuses the lint's reach with the producers'
-  compliance**, it was recorded as settled in the 3.7 work, and the consumer has now falsified it
-  twice.
-
-  There is no reason to expect `tech-lead` is the last one. Every worker that writes into the
-  committed tier is a candidate, and nothing structurally prevents the next.
-
-  **Fix shape — stop teaching producers and make the violation unwritable.** One sanitiser at the
-  committed-tier write path, the way `reduce ship` now does it for board ids, applied to every
-  committed write regardless of which worker made it: a local-tier reference resolves to a durable
-  anchor, or to prose naming the tier without a path. A pre-write guard that refuses the write
-  outright is the stronger form and is closer to this repo's own hook discipline — a violation that
-  cannot be written cannot red a gate fifteen minutes later. Either way the rule belongs at one
-  choke point, not in N sets of worker instructions.
-
-  **What the fresh state bought.** Earlier soaks carried a `project-profile.md` forward on disk and
-  never re-derived it, so this never fired. Deleting the run tier made L0 do real work, and the
-  defect appeared immediately — a reminder that state carried between runs hides defects as readily
-  as it causes them.
-
-  **DETERMINISTIC, not a one-off: 2 of 2 fresh runs, an hour apart.** The next fresh-state run wrote
-  the same class of violation at a different line (`project-profile.md:92`) and aborted at L1b the
-  same way — *after* the same session had already repaired the first occurrence and seen its own
-  lint go green. An L0 that re-derives the profile reliably cites the run tier as its evidence,
-  because that is genuinely where the evidence lives; the committed file is simply not allowed to
-  say so.
-
-  That settles the fix's shape. Teaching the producer does not hold: this producer was taught by its
-  own gate, complied, and then a fresh instance of it did the same thing an hour later — a worker
-  cannot carry a lesson across runs, and prose in a skill file is the only place the lesson could
-  live. **The enforcement has to be mechanical and at the write boundary.** `reduce ship`'s
-  sanitiser is not reusable here, because the orchestrator writes `project-profile.md` directly
-  rather than through a kernel function, so the choke point is a PreToolUse hook refusing a write
-  into the committed tier whose content carries a local-tier path — the shape `sandbox-guard`
-  already implements for substrate. A hook can also do what a taught rule never can: say *why* at
-  the moment of the write, while the writer still has the context to rephrase.
-
-  **FIXED 2026-09-23 (3.7.1-rc.4), as the class rather than the instance.** `hooks/tier-guard.mjs`
-  is a PreToolUse hook on `Edit|Write|MultiEdit`: a write into `shapeup/<slug>/` whose CONTENT
-  carries a `.shapeup/` path or a `TASK-NNN` id is refused, with the file, the line, the offending
-  token quoted back, why it cannot travel, and what to write instead. It imports spec-lint's own
-  scanner (`tierLeaks`, extracted from `lintCommittedTier` for exactly this) rather than restating
-  the rule, so the write-time guard cannot become narrower than the gate it fronts — which would let
-  the defect reach L1b unchanged — nor wider, which is how a guard earns being switched off.
-  `shapeup/knowledge-base/` is outside it, as it is outside the lint's own walk.
-
-  It closes the CHANNEL, not every producer, and the boundary is worth stating: a PreToolUse hook
-  sees this assistant's edit path only. A kernel subcommand writing a committed file (`reduce ship`
-  → `REPORT.md`, HD-030's route) writes straight through it and is still answered at its own writer.
-  What is closed is the route all four measured recurrences actually took.
-
-  Guarded by `tests/structural/76-committed-tier-write-guard.mjs`: registration is asserted
-  separately from behaviour (a hook nothing wires enforces nothing), every behavioural check spawns
-  the real script, and a corpus is run through BOTH the guard and `lintCommittedTier` with agreement
-  required in both directions. Five mutations, all five red — predicate gutted, registration
-  removed, matcher narrowed to `Write`, guard made wider than the lint, and the shared predicate's
-  board-id arm removed.
-
-  Cost per occurrence, measured: roughly 12 minutes and a full L0 pass, twice, before BUILD.
 
 - **HD-037 · `coverage` registers the pitch's NO-GOS as requirements, marked `covered`, and L1b
   reds every one of them.** Measured 2026-09-23 on the rc.2 soak, third abort of the same run.
@@ -696,135 +311,6 @@ is pinned by a guard, never when it is merely believed done.
   including backwards; or, if monotonicity is deliberate, say so in the artifact — a `UPHILL_SOLVED`
   that means "was solved once, on evidence no longer present" must not render identically to one
   that holds now. The contract and the shard disagreeing is the cheap mechanical detector.
-
-- **HD-040 · The `ci` answer set signs `L4 | ship` over a run that shipped nothing.** Promoted from
-  the consumer's register (`HD-9`, 2026-09-23). The most serious finding of the soak, because it
-  corrupts the audit trail a headless run exists to leave.
-
-  Measured, seconds apart, in one run:
-
-  ```
-  gates.jsonl   {"gate":"H",  "decision":"accept-cut-list", "source":"preset:ci"}
-  gates.jsonl   {"gate":"L4", "decision":"ship",            "source":"preset:ci",
-                 "note":"Ship sign-off pre-approved. THIS is the one a reviewer should look at
-                         first when auditing a headless run."}
-  harness-run.md  status: escalated   final_verdict: ~   closed_status: escalated
-  ```
-
-  GATE H's census had returned **CANNOT SHIP** with an empty cut list. EVAL never ran; all 22 live
-  requirements read `no evidence`. The resolver answered L4 from the preset without reading the
-  hammer's verdict, so the ledger and the gate ledger now contradict each other — and the row that
-  contradicts is the one whose own note nominates it as the first thing an auditor should trust.
-
-  The orchestrator did not act on it: it refused to report a ship and escalated. That is the only
-  reason this is a recorded contradiction rather than a false ship. **The harness should not depend
-  on a worker declining to believe its own gate ledger.**
-
-  **SHARPENED after tracing it: there was no census at all.** The run's dispatch receipts carry
-  exactly two entries — `orient` and `task-executor`. **`scope-hammer` was never dispatched.** So
-  `H → accept-cut-list` and `L4 → ship` were both resolved from the preset with no cut list, no
-  baseline comparison and no verdict in existence. The defect is not "L4 ignored H's verdict"; it is
-  that **both gates resolved over a census that never ran**.
-
-  The workflow is not where this leaks. `shapeup-run.js` already guards it:
-
-  ```js
-  if (h.verdict === "cannot-ship") return await withWarnings(aborted("H", "scope-hammer: CANNOT SHIP — …"));
-  ```
-
-  That line sits *after* the hammer dispatch, and this run returned `gate_h` from the inner breaker
-  long before reaching it. GATE H and L4 were then resolved by the orchestrator skill's own
-  prose-driven path, which has no equivalent check. So the guard exists on one route to L4 and not
-  the other, which is the shape `69-terminal-wrapping.mjs` was written about in a different corner:
-  a check on the call site rather than on the outcome.
-
-  **Therefore the rule has to be a precondition on the answer, not a branch in one caller:** `ship`
-  is not a valid L4 answer unless a hammer verdict exists on disk and is not `cannot-ship`. Absence
-  of a census disqualifies `ship` on its own — a gate answer set chooses among valid answers and can
-  never supply the evidence that makes one valid.
-
-  **FIXED in 3.7.1-rc.3.** `narrowToEvidence` (`kernel/gate.mjs`) narrows a resolved answer to what
-  the run's evidence supports, applied in the gate CLI so **every** route to L4 passes through it —
-  the workflow's own branch and the orchestrator skill's prose path alike. `ship` survives only when
-  `censusVerdict` finds a hammer WorkResult on disk reading `ship-now` or `ship-after-fixes`;
-  `cannot-ship` and **no census at all** both resolve to `ask`, carrying `refused: "ship"` and the
-  reason. The verdict is read off the hammer's own result rather than accepted as an argument,
-  because a gate that takes the verdict from its caller accepts whatever the caller believes.
-
-  Absence is treated as disqualifying on purpose: *"no one looked"* and *"someone looked and it was
-  fine"* are different facts, and only the second warrants a ship.
-
-  Verified in both directions, and the third case is the one that matters — the fix narrows the
-  answer without disarming the gate:
-
-  ```
-  no-census    -> ask   (refused)
-  cannot-ship  -> ask   (refused)
-  ship-now     -> ship  (still allowed)
-  ```
-
-  `68-gate-coverage.mjs` §110 asserted `L4 → ship` on a bare workspace with no census — the defect
-  encoded as an expectation. Its fixture now writes the census it is asserting about, so it tests
-  the real ship path, and a new negative case asserts that the same preset does **not** ship without
-  one. Mutation-verified: reverting the fix turns the suite red on that negative.
-
-### Filed 2026-09-19 — measured in the consumer soak, never filed here
-
-Nine findings came out of the HarmonyOS soak (2026-09-15→17, two consecutive features on a project
-installed from the marketplace). Six were fixed on a branch that was archived rather than merged —
-see the stranded-branch entry below — and these carried no fix at all. Every one re-checked against
-3.5.0 on the date of this filing, from the artifact rather than from the soak's own notes.
-
-- **HD-014 · A run closed as `escalated` keeps fencing the consumer's checkout, and the shipped doc says it
-  does not.** `liveOrders()` (`hooks/sandbox-guard.mjs:187`) derives liveness from the orders/results
-  diff alone; neither it nor `kernel/lib/paths.mjs` consults `closed_at` or the ledger's status. An
-  order abandoned in flight never gets a result, so a run closed through the documented sequence
-  still returns the same live dispatches and the hook still denies. Measured in both directions
-  during the soak and again 2026-09-19 on a fresh fixture — in-substrate permit, `README.md` deny —
-  after `probe resume --set-status escalated` had exited 0. **`AGENTS.md:72` promises the opposite**:
-  *"a finished run fences nothing"*. That is true of a **ship** close only
-  (`kernel/reduce/ship.mjs:396` retires the pointer, and a shipped run has no unanswered orders by
-  construction); for an escalated or aborted close it is false.
-
-  Two corrections to the first filing of this entry, both from a falsification pass, both narrowing
-  it. **Nothing stamps `closed_at`** — `setRunStatus` (`kernel/probe/resume.mjs:444`) replaces the
-  `status:` line and nothing else, and `closed_at` is written once as the literal `~` by `init run`
-  (`kernel/init/run.mjs:226`) and read by `facts.mjs:89`. So a closed run is not merely still fenced;
-  it carries no close timestamp for anything to key off — which rules out the obvious first fix and
-  is why the fence entry below is sequenced after the close-out one. And the fence stops **the
-  agent's edit path**, not the project: `sandbox-guard.mjs:231` fences `Edit`, `Write` and
-  `MultiEdit` only, so `Bash`, `git` and any editor still write. "A project that cannot be edited"
-  was too strong; "the assistant cannot edit this project and the documented remedy does not say so"
-  is the accurate claim, and it is still the sharpest operational finding here. A remedy already ships —
-  `resolveAbandonedOrders()` (`kernel/init/run.mjs:270`) writes synthetic abandoned results, reachable
-  via `init run --force` — but it is documented as "abandon the open run and start over", never as
-  "release a stuck fence". Operationally this is the sharpest one: a killed session leaves a project
-  that cannot be edited, and the operator's obvious remedy does nothing. The doc correction is owed
-  whichever way the code bet lands.
-
-  **Closed when:** `AGENTS.md` states the post-close behaviour and names the release (doc half), and the hook permits an out-of-substrate write after a close that retired its orders (code half). The two halves ship separately.
-
-  **CODE HALF FIXED 2026-09-23 (3.7.1-rc.5).** Reproduced first, on rc.4, with a fixture built
-  entirely by the CLI (`init run` → `compile` → close): before the close the fence denied an
-  unrelated write, `probe resume --close escalated` exited 0 and stamped all four ledger lines, both
-  pointers stayed on disk, and the fence still denied. `closeRun` now retires `active-order` and
-  `active-scope` after its export, on every terminal status the kernel declares — derived from
-  `TERMINAL_STATUSES`, not a typed pair — and reports a `pointer_warning` rather than failing when
-  one cannot be removed.
-
-  **The criterion above conflated two things, and the fix deliberately does only one of them.**
-  "A close that retired its orders" reads as though the close should answer them; it does not. The
-  pointer says a run is in flight and the missing result says nobody came back — only the first
-  stops being true at a close, and a close that wrote synthetic results would spend an attempt
-  budget on work nobody did, which is the same side effect this register already complains about in
-  `init run --force`. `78-close-retires-the-fence.mjs` pins the distinction explicitly: after the
-  close the order is still unanswered, and `--force` is still what answers it. Four mutations red
-  (each pointer separately, the close's own record, and the rejected resolve-on-close behaviour).
-
-  **One belief this fix was written on turned out to be false**, and is recorded because the comment
-  would otherwise have preserved it: the export does NOT read the pointers it retires — it is handed
-  the slug and keys by the receipt's `run_id`. Swapping the two survived as a mutant, which is how
-  it was caught. Export-before-teardown is now documented as a defensive default, not a guard.
 
 - **HD-021 · A per-scope "it compiles" fixture can be green while the scope's code is unreachable.** Measured
   on a stack whose build compiles only what the entry point reaches: three scopes were T0-green on an
