@@ -22,6 +22,14 @@ is pinned by a guard, never when it is merely believed done.
 | HD-039 | a hill dot outlives the evidence that moved it | — (filed after the tiering pass) |
 | HD-021 | a per-scope "it compiles" fixture can be green while the scope's code is unreachable | P3 |
 | HD-022 | ⚠ Work for defects measured on a real consumer sits on a tag, not on main | decision |
+| HD-041 | the run key is a FIELD, not an ADDRESS — a second run of a slug inherits the first run's evidence | P0 (class) |
+| HD-042 | `reduce hill` overwrites the COMMITTED tier from the ABSENCE of the gitignored tier | P0 |
+| HD-043 | the T0 citation is a presence check, and the schema promises a re-hash | — (filed after the tiering pass) |
+| HD-044 | the substrate fence leaves the attested channels writable by the leg being judged | — (filed after the tiering pass) |
+| HD-045 | `--no-eval` freezes a committed report that says PASS | — (filed after the tiering pass) |
+| HD-046 | three key spaces for one REQ id, and the folding helper is not called at the one place that grad… | — (filed after the tiering pass) |
+| HD-047 | the judge's verdict is never recomputed from its own criteria, and a PASS may carry no evidence | — (filed after the tiering pass) |
+| HD-048 | the seesaw regression arm is declared everywhere and wired nowhere | — (filed after the tiering pass) |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
 | HD-025 | two run geometries this checkout cannot reach | process |
@@ -328,6 +336,27 @@ is pinned by a guard, never when it is merely believed done.
   that means "was solved once, on evidence no longer present" must not render identically to one
   that holds now. The contract and the shard disagreeing is the cheap mechanical detector.
 
+  **Both halves of this filing were falsified 2026-09-24, independently, by two reviewers who drove
+  the code.** (1) The entry says `reduce hill` "returns `changed: false` rather than moving the dot
+  back, because the derivation is monotonic forward". It is not monotonic: `deriveHill` is a pure
+  function of the artifacts present and writes whatever it derives, in both directions — delete a
+  round's green verdict and the shard goes back with `changed: true`. (2) The entry proposes "the
+  contract and the shard disagreeing" as a cheap mechanical detector. They are **supposed** to
+  disagree: `hill_phase` in a scope contract is always authored `UPHILL_UNKNOWN` by design and
+  nothing ever updates it, so that detector fires on every scope that has ever moved. Implementing
+  it would ship a lint that is red on correct behaviour.
+
+  What is underneath is real and split across two new rows: the phase derived from an absence, and
+  the committed tier overwritten from the local tier's absence — both now in `HD-042`. A third
+  reading, not yet confirmed here, is that the verdict scan has no per-round recency filter, so
+  green-in-r1 plus red-in-r2 still reads as progress; that is a one-line fix if it holds and should
+  be checked while `HD-042` is open.
+
+  **This row now carries no mechanism of its own.** Keep it only as the pointer to `HD-042`, or
+  retire it there — deciding that is a minute's work at the table, and it is worth doing, because a
+  row whose diagnosis is wrong costs more than a row that does not exist.
+
+
 - **HD-021 · A per-scope "it compiles" fixture can be green while the scope's code is unreachable.** Measured
   on a stack whose build compiles only what the entry point reaches: three scopes were T0-green on an
   `assembleHap` fixture while their own files did not compile, and the errors surfaced only when a
@@ -633,5 +662,154 @@ Bash-launch dispatch arm the deletion depends on pinned in `17-gate-zerowork-wor
 one mutation-verified in both directions. Those guards are the whole write-up that still matters:
 what a closed defect cost is recoverable from the tests that now fail on reversion, and nothing
 else needs to survive for the fix to hold.
+
+- **HD-041 · The run key is a FIELD, not an ADDRESS — a second run of a slug inherits the first
+  run's evidence.** Found 2026-09-24 by a three-way review; the class, of which `HD-033` is the
+  narrowest member.
+
+  Every path helper in `kernel/lib/paths.mjs` is `(cwd, slug)` — `resultsDir`, `verdictsDir`,
+  `roundBuildDir`, `ordersDir`, `hillDir`. **No path carries a run dimension**, and the artifacts
+  are append-only by design, so accumulation across runs is guaranteed rather than incidental.
+  `run_id` was added later as a record field: stamped by seven writers, filtered by four readers.
+  Everywhere else the stamp is decorative.
+
+  Driven on a two-run fixture (`init run --force` is the only supported way to open a second run
+  over a slug). Run 2, having dispatched nothing, was told: `reduce graph --subgraph run` reports
+  run 1's scope in `green_scopes_by_round`; `probe t0` reports green; `probe eval` reports PASS;
+  `probe resume` reports the round evaluated; `reduce hill` moves the dot. Only `probe attempts`
+  refused. The first is the one with teeth — the round loop opens every BUILD round with exactly
+  that query and **skips the scope**. `--subgraph run` is in fact `--subgraph slug`.
+
+  **The fix already exists in this repo, one directory away.** `hooks/sandbox-guard.mjs`'s
+  `answered()` compares a result's mtime against the order's own `compiled_at`, with a comment
+  about filesystem second-granularity; `probe/eval.mjs`, `probe/attempts.mjs`, `gate.mjs` and
+  `reduce/hill.mjs` all do a bare `existsSync` instead.
+
+  **Closed when:** a second run over a slug re-derives its own greens — no verdict, result, build
+  gate or graph edge from a prior run answers a question about this one — and a two-run fixture
+  pins it (`tests/structural/75-cross-run-attestation.mjs` already builds the fixture shape).
+
+- **HD-042 · `reduce hill` overwrites the COMMITTED tier from the ABSENCE of the gitignored tier.**
+  Found 2026-09-24. The most destructive entry in this file: it loses committed history rather than
+  misreporting it.
+
+  `hillDir` resolves to `shapeup/<slug>/hill/` — the committed tier. `deriveHill`
+  (`kernel/reduce/hill.mjs`) reads the T0 verdicts and the discovery ledger — both LOCAL and
+  gitignored — and writes whatever it derives. `unknowns = scopeUnknowns[id] || 0`, so **no ledger
+  and zero unknowns are the same signature**, and with no green T0 the fallback is the optimistic
+  one: `UPHILL_SOLVED`. Driven: a checkout with the committed shards present and `.shapeup/` wiped
+  re-derived every scope to `UPHILL_SOLVED` and reported `changed: true` — it overwrote the record.
+
+  The triggering state is one the design documents as supported: a second developer who pulls a
+  branch mid-run has the SHARED spec and no LOCAL board. Their first launch flattens the shards,
+  and `reduce hill` runs five times per run starting at MapScopes. The hill dashboard renders an
+  Archived pitch *entirely* from those shards — the record the archived view exists to show is the
+  record this erases.
+
+  A third signature collapses into the same phase: the ledger heading is matched with an em dash
+  (`/^## Discovered — /`), so a heading written with a plain hyphen parses as zero unknowns. "No
+  ledger", "not parseable" and "all unknowns closed" are one answer, and it is the flattering one —
+  the repo's own stated cardinal sin, that an absent value and a real one must not share a
+  signature.
+
+  **Closed when:** no phase is derived from an absence (a missing ledger returns `null`, not `0`),
+  a derivation that cannot read the local tier refuses to write the committed one, and a fixture
+  drives the pull-mid-run state and asserts the shards survive.
+
+- **HD-043 · The T0 citation is a presence check, and the schema promises a re-hash.** Found
+  2026-09-24, driven.
+
+  `$defs.T0Citation` states the evaluator "RECOMPUTES sha256 from disk — a handed hash is never
+  trusted". `kernel/probe/eval.mjs` states the opposite in its own comment ("PRESENCE, NOT
+  HASHES") and there is **no `createHash` in that file at all**. Driven: a PASS citing
+  `r9-a9-DOES-NOT-EXIST.json` with a sha256 of sixty-four zeros returns `{"ok":true,
+  "overall":"PASS"}`, and so does a PASS citing a real artifact whose own `overall` is `red`.
+
+  Nothing re-hashes, checks existence, checks that the cited verdict is green, or checks membership
+  in the order's own `payload.t0_artifacts`. The re-hash lives only in the judge's prompt — which is
+  the one place this project's whole thesis says a rule is worthless.
+
+  **Closed when:** a verdict citing an artifact that does not exist, does not hash to the cited
+  value, is not green, or is not in the order's own list, is refused by the kernel — not by the
+  judge grading itself.
+
+- **HD-044 · The substrate fence leaves the attested channels writable by the leg being judged.**
+  Found 2026-09-24, driven against the shipped hook.
+
+  `hooks/sandbox-guard.mjs`'s run-trace carve-out permits any write under `.shapeup/<slug>/`
+  unconditionally, and `substrateFor("execute")` (`kernel/compile.mjs`) freezes only the staged
+  intake. So an `execute` leg may write `t0/verdicts/`, `receipts/`, `legs.jsonl` and `results/` —
+  the exact three channels `probe attempts` accepts *because* orders and T0 verdicts "are WRITABLE
+  by the very leg whose exhaustion is being judged". The principle is stated correctly and then the
+  fence hands the subject its own replacements.
+
+  The mechanism to close it is already here and already ordered correctly: `frozen` is checked
+  BEFORE the carve-out, deliberately. Adding those four globs to the build operations' frozen list
+  denies all four writes while the carve-out's real purpose — the doer updating its own board —
+  still passes. Driven both ways.
+
+  **Closed when:** a build leg's own attestation channels are frozen to it, and a fixture drives a
+  leg writing each one and sees a denial, while the board write it legitimately needs still passes.
+
+- **HD-045 · `--no-eval` freezes a committed report that says PASS.** Found 2026-09-24.
+
+  `references/protocol.md` promises twice that a run with no evaluation records `not-evaluated`,
+  "recorded plainly — never silently upgraded". The shipped orchestrator sets `verdict = "pass"` on
+  that path and calls `reduce ship --verdict PASS` with the value hardcoded. The L4 gate block does
+  carry `dims_not_evaluated`, so a human answering the gate sees the truth; the committed
+  `REPORT.md` a teammate inherits on `git pull` does not.
+
+  **Closed when:** a `--no-eval` run's report and ledger both read `not-evaluated`, and a fixture
+  drives the flag and asserts the committed artifact never says PASS.
+
+- **HD-046 · Three key spaces for one REQ id, and the folding helper is not called at the one place
+  that grades.** Found 2026-09-24.
+
+  `coveredReqIds` (`kernel/verify/trace.mjs`) tests `/^REQ-\d+$/` against the raw string.
+  `reqId()` (`kernel/lib/contract.mjs`) exists precisely to fold `R-<n>`, `[[…]]` and case onto one
+  space, and is cited by name in two sibling arms — and is not called here. So `R-2`, `[[REQ-5]]`
+  and `req-4` all count as nothing, while the sibling rule accepts them.
+
+  `coveredReqIds` is the sole producer of "graded" for the `REQ-UNCOVERED` red at L1b, for
+  `probe requirements` (the L4 matrix, GATE H's census, `REPORT.md`) and for `verify trace`. An
+  author who writes a criterion in a spelling the neighbouring rule accepts is told at L1b to cover
+  the requirement with an AC carrying `(covers: REQ-…)` — which is what they did. This is a strong
+  candidate cause for `HD-038`: the measured corpus carries R-keys, and this drops every one.
+
+  **Closed when:** every reader of a `covers:` clause folds through one helper, and a fixture drives
+  all four spellings through the L1b lint and the requirements matrix and gets the same answer.
+
+- **HD-047 · The judge's verdict is never recomputed from its own criteria, and a PASS may carry no
+  evidence.** Found 2026-09-24.
+
+  Nothing in `kernel/` or `hooks/` recomputes `overall` from `criteria[]`; the kernel transcribes
+  the judge's own field and the round loop branches on it. Every dimension's pass rule and the halo
+  ban are enforced by the judge on itself. `$defs.CriterionVerdict` compounds it: its first `anyOf`
+  branch requires only `criterion` and `verdict`, while its own description says a FAIL
+  "additionally REQUIRES an evidence locator (file:line)". For a skill whose first rule is that
+  absence of evidence is a FAIL, the schema is asymmetric in exactly the wrong direction:
+  `{"criterion":"UC-01 step 3","verdict":"PASS"}` validates, ingests and ledgers.
+
+  **Closed when:** `overall` is derived from the criteria the verdict carries — by the kernel, on
+  ingest — and a PASS with no evidence is refused at the same boundary a FAIL without a locator
+  already is.
+
+- **HD-048 · The seesaw regression arm is declared everywhere and wired nowhere.** Filed 2026-09-24
+  so that the README's newly honest pointer resolves to something.
+
+  `seesawCheck` (`kernel/verify/t0.mjs`) returns `{ran:false, pass:true}` when the registry is
+  absent — **absence read as clean**. The orchestrator's call template does pass
+  `--seesaw-registry`, but nothing in the repo ever writes that file: a grep across `kernel/`,
+  `skills/` and `commands/` finds the flag's parser, the path resolver, the reader and the schema,
+  and no writer. `reduce/hill.mjs` records the consequence in its own comment — "'not asked' was
+  being read as 'clean,' letting a scope reach FINISHED on a regression check that had never
+  executed" — and, two lines down, that wiring it is a deferred Betting Table decision.
+
+  That deferral is legitimate; carrying it while the README sold the seesaw as part of what makes a
+  scope built was not. The README is fixed. This row is the decision itself: wire it, or delete the
+  arm and the flag.
+
+  **Closed when:** either a run writes the registry and a fixture proves a regression in a finished
+  scope turns a green attempt red, or the arm, the flag and every mention of it are gone.
 
 This file stays short on purpose. It is a queue, not an archive.
