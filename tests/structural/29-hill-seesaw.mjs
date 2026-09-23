@@ -27,6 +27,7 @@
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
+import { createHash } from "node:crypto";
 
 /** Write a file (JSON object or raw string), creating its directory. */
 function w(root, rel, body) {
@@ -49,16 +50,7 @@ function buildFixture(seesaw) {
     schema_version: 1, scope_id: "SC-HILL",
     allowed_file_substrate: ["src/hill/**"],
   });
-  w(cwd, `.shapeup/${slug}/results/evaluate-r1.json`, {
-    schema_version: 1, order_id: `${slug}/evaluate-r1`, worker: "spec-evaluator", status: "done",
-    // Scoped (SC-HILL above), so the PASS cites its T0 artifact: a scoped verdict citing none is not
-    // a round's judgement, and the hill rightly refuses to call T1 passed on one.
-    verdict: {
-      overall: "PASS", bugs: [],
-      t0_citations: [{ scope_id: "SC-HILL", path: `.shapeup/${slug}/t0/verdicts/r1-a1-t1.json`, sha256: "0".repeat(64) }],
-    },
-  });
-  w(cwd, `.shapeup/${slug}/t0/verdicts/r1-a1-t1.json`, {
+  const t0Body = {
     schema_version: 2, round: 1, attempt: 1, trial: 1, scope_id: "SC-HILL",
     fixtures_green: true, db_probe_green: true, seesaw_green: seesaw.ran ? seesaw.pass : true,
     overall: "green",
@@ -67,7 +59,21 @@ function buildFixture(seesaw) {
     // it is NOT a discriminator between the two fixtures, which is exactly why reading it was wrong.
     regression: false,
     seesaw,
+  };
+  const t0Path = `.shapeup/${slug}/t0/verdicts/r1-a1-t1.json`;
+  // HD-043: the evaluator's citation is now re-hashed from disk, not taken on the handed word — so
+  // the fixture has to cite the REAL digest of the bytes it is about to write, not a placeholder.
+  const t0Hash = createHash("sha256").update(JSON.stringify(t0Body, null, 2)).digest("hex");
+  w(cwd, `.shapeup/${slug}/results/evaluate-r1.json`, {
+    schema_version: 1, order_id: `${slug}/evaluate-r1`, worker: "spec-evaluator", status: "done",
+    // Scoped (SC-HILL above), so the PASS cites its T0 artifact: a scoped verdict citing none is not
+    // a round's judgement, and the hill rightly refuses to call T1 passed on one.
+    verdict: {
+      overall: "PASS", bugs: [],
+      t0_citations: [{ scope_id: "SC-HILL", path: t0Path, sha256: t0Hash }],
+    },
   });
+  w(cwd, t0Path, t0Body);
   return { cwd, slug };
 }
 
