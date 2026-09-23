@@ -1596,7 +1596,11 @@ while (verdict !== "pass" && round <= maxRounds) {
         `feature; this one does not build or launch. Round ${round + 1} fixes the gate's failing step.`);
   } else if (args.noEval) {
     log("EVAL — skipped (--no-eval)");
-    verdict = "pass";
+    // references/protocol.md's own words for this, twice: a run --no-eval ships records
+    // `not-evaluated` — "recorded plainly — never silently upgraded [to `pass`]". Nothing verified
+    // the feature beyond task-executor's own per-AC evidence checks, and the report this run
+    // freezes at GATE L4 has to say that as plainly as the gate block already does.
+    verdict = "not-evaluated";
   } else {
     const e = await worker({
       skill: "spec-evaluator", operation: "evaluate", schema: EVAL, phase: "Eval", label: `eval:r${round}`,
@@ -1647,14 +1651,16 @@ while (verdict !== "pass" && round <= maxRounds) {
   const g3 = await crossGate("L3", "Eval", ["loop", "stop", "ask"], { round, verdict, build_gate: buildGate });
   if (g3.stop) return await withWarnings(g3.stop);
 
-  if (verdict === "pass") break;                                  // → QA → GATE H → ship
+  // "not-evaluated" (--no-eval) ships exactly like "pass" — protocol.md: the run "goes straight to
+  // SHIP" once EVAL is skipped, never spends another round waiting on a verdict nobody is producing.
+  if (verdict === "pass" || verdict === "not-evaluated") break;   // → QA → GATE H → ship
   if (g3.decision === "stop" || round >= maxRounds) {
     return await withWarnings({ status: "gate_h", breaker: "outer", hammer_proposals: allHammer, green_scopes: allGreen });
   }
   round += 1;
 }
 
-if (verdict !== "pass") {
+if (verdict !== "pass" && verdict !== "not-evaluated") {
   return await withWarnings({ status: "gate_h", breaker: "outer", hammer_proposals: allHammer, green_scopes: allGreen });
 }
 
@@ -1692,7 +1698,12 @@ if (h.verdict === "cannot-ship") {
   if (g.stop) return await withWarnings(g.stop);
 }
 
-const ship = await cmd(`reduce ship --slug ${slug} --verdict PASS --qa ${qaRan ? "run" : "skipped"}`, "Ship", "ship-report");
+// The frozen report's own verdict line has to say what actually happened — a `--no-eval` run
+// verified nothing beyond task-executor's per-AC checks, and `reduce ship` already accepts
+// "not-evaluated" as a real verdict (its own usage string, and `generate()`'s no-artifact
+// default). Hardcoding PASS here is exactly the silent upgrade protocol.md's Rules forbid.
+const shipVerdict = verdict === "not-evaluated" ? "not-evaluated" : "PASS";
+const ship = await cmd(`reduce ship --slug ${slug} --verdict ${shipVerdict} --qa ${qaRan ? "run" : "skipped"}`, "Ship", "ship-report");
 await advisory(`report export --slug ${slug}`, "Ship", "export-run");
 // The run's own concurrency, printed once where the records are complete and before the next run
 // supersedes the trace. It is a projection over `receipts/dispatch.jsonl` and `legs.jsonl`, so it
@@ -1707,7 +1718,10 @@ const ALL_DIMS = ["spec-conformance", "tdd-surface", "integration", "completenes
 
 return await withWarnings({
   status: "shipped",
-  verdict: "pass",
+  // The real verdict this run reached — "pass" or, over a --no-eval run, "not-evaluated". GATE L4's
+  // own sign-off block reads this field verbatim (SKILL.md Step 4); hardcoding "pass" here told a
+  // human answering that gate the run was graded when it never was.
+  verdict,
   rounds_used: round,
   dims_not_evaluated: ALL_DIMS.filter((d) => !evalDims.includes(d)),
   qa_findings: qaFindings,

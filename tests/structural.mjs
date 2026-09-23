@@ -307,6 +307,14 @@ const MODULE_FILES = [
   // terminal status the kernel declares, and it pins the two distinctions the fix must not blur:
   // un-fencing is not resolving, and the export reads the pointer it retires.
   "78-close-retires-the-fence.mjs",
+  // 81-no-eval-verdict.mjs: HD-045 — a `--no-eval` run hardcoded verdict = "pass" and dispatched
+  // `reduce ship --verdict PASS` unconditionally, so the frozen shapeup/<slug>/REPORT.md a
+  // teammate inherits on `git pull` claimed PASS over a feature nobody evaluated, even though
+  // protocol.md promises `not-evaluated` "recorded plainly — never silently upgraded" twice over.
+  // Pins the source-level wiring in shapeup-run.js (which cannot be executed by this suite) and
+  // drives `reduce ship` for real in both directions — a --no-eval-shaped report says
+  // not-evaluated, and a genuine PASS still says PASS.
+  "81-no-eval-verdict.mjs",
   "08-docs.mjs",
 ];
 
