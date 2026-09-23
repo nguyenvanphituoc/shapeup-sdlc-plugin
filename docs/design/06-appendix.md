@@ -26,7 +26,7 @@ bin/init.mjs             `npx shapeup-sdlc init` — pure-Node scaffolding + per
 commands/*.md            11 slash commands (/shape /orient /scopes /wire /build /eval /qa
                          /hammer /ship /retro /hill)
 hooks/                   hooks.json + PreToolUse: safety-spine · gate-intake ·
-                         sandbox-guard (+ the kernel's harness verify envelope) ·
+                         sandbox-guard · tier-guard (+ the kernel's harness verify envelope) ·
                          PostToolUse: dispatch-receipt (records only, no deny path) ·
                          Stop: gate-zerowork (the one blocking hook)
                          + lib/decision.mjs (every hook records allow / deny / error)

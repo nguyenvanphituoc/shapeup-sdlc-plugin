@@ -450,7 +450,7 @@ pre.mermaid[data-processed] {
         <div class="planes">
           <div class="plane">
             <div class="who">Policy</div>
-            <div class="what">12 registrations on <em>PreToolUse · Stop · SessionStart · PreCompact</em>.
+            <div class="what">8 registrations on <em>SessionStart · PreToolUse · PostToolUse · Stop</em>.
               Deny a dispatch, block a stop, inject state. Cannot be argued with because they
               run outside the conversation.</div>
             <div class="cost">0 tokens</div>
@@ -694,6 +694,12 @@ better(next, current)
             <td>Edit/Write targets a path outside the active scope's substrate</td>
             <td><span class="chip deny">deny</span></td>
             <td>Two parallel executors overwriting each other</td>
+          </tr>
+          <tr>
+            <td>PreToolUse</td><td class="mono">tier-guard</td>
+            <td>A committed-tier write whose text names a <code>.shapeup/</code> path or a board id</td>
+            <td><span class="chip deny">deny</span></td>
+            <td>A committed artifact that only resolves on the machine that wrote it</td>
           </tr>
           <tr>
             <td>PreToolUse</td><td class="mono">safety-spine</td>

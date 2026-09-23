@@ -26,7 +26,8 @@ scales down, its *verification floor* does not.
   ingest-result dispatch. Tiny never means "just edit the file inline".
 - **T0 verification.** A tiny change still proves itself by running — never by claim. If there
   is no runnable check at all, that is a fit-check failure, not a reason to skip T0.
-- **The safety-spine and sandbox hooks.** Machine guards do not scale down.
+- **The machine guards — safety spine, substrate sandbox, tier guard.** They do not scale down,
+  and a tiny lane is where a committed file is most likely to be written by hand.
 - **The discovery ledger.** `lane: tiny` is recorded, so a later reader knows exactly what was
   NOT checked (no EVAL verdict, no QA charter, no wiring assertion).
 
