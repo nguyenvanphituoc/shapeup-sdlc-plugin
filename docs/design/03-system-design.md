@@ -129,8 +129,8 @@ except for the three operations whose product IS a committed design document (`w
 
 ## 3.2 — Runtime-enforced guardrails (hooks)
 
-Four `PreToolUse` hooks turn the harness's load-bearing rules from things the model is asked
-to respect into things it cannot get past. All four deny:
+Five `PreToolUse` hooks turn the harness's load-bearing rules from things the model is asked
+to respect into things it cannot get past. All five deny:
 
 | Hook | Fires on | Enforces |
 |---|---|---|
@@ -138,8 +138,9 @@ to respect into things it cannot get past. All four deny:
 | `gate-intake.mjs` | `Skill → tech-lead` | Denies an orchestrator dispatch with no resolvable intake — no `--pitch`, no `--spec`, no `--from` resume, and no free requirement text. Closes the harness's own front door: a `tech-lead` reached as `args:"--unattended"` loses the requirement text on the hand-off and, with nothing to orchestrate, prints the gate names and a confident plan while writing no code — the same "claims done" pathology the harness exists to prevent, at its own entry point. Fails open on `--order` (the envelope port owns that path) and on any ambiguous arg shape. |
 | `harness verify envelope` | `Skill` / `Agent` | Denies any worker dispatch whose `--order` file is missing or fails the WorkOrder schema — a malformed envelope never reaches a worker. |
 | `sandbox-guard.mjs` | `Edit` / `Write` / `MultiEdit` | Denies a write that no **live order's `substrate` block** permits. The `.shapeup/active-order` pointer (republished by `harness compile` with every order) names the RUN; liveness is derived from that run's order set — compiled, with no result at least as new as the order's own `compiled_at` — so a finished run fences nothing and a re-dispatch is fenced again. It enforces all three surfaces: `allowed` + `shared` permit, `append_only` permits `Edit` but denies `Write` (which would overwrite), and `frozen` denies outright and takes precedence over everything. Carve-out: the active feature's own local run-trace root, so a worker can still update its own board. |
+| `tier-guard.mjs` | `Edit` / `Write` / `MultiEdit` | Denies a committed-tier write whose **content** carries a reference that cannot leave this machine — a path into the gitignored `.shapeup/` tier, or a `TASK-NNN` board id. It is spec-lint's own `TIER-DIRECTION` predicate (imported, never restated) moved forward from GATE L1b to the write itself: the lint caught all four measured producers and taught none of them, because by the time it speaks the dispatch that wrote the line is over — one producer re-offended an hour later in the same session, in the same file it had just fixed. Fails open outside `shapeup/<slug>/`, on unscanned file forms, and on `shapeup/knowledge-base/`, which the lint's own walk also excludes. |
 
-All four are deliberately **fail-open** when there's nothing to verify (no active order, no
+All five are deliberately **fail-open** when there's nothing to verify (no active order, no
 board, unparseable input) and **fail-closed** the instant they can prove a violation. A guard that broke legitimate standalone runs would just get
 disabled, defeating the point of having it. (The safety spine adds one asymmetry: a *malformed
 overrides file* fails **closed** — treated as absent — because a parse error must never disable

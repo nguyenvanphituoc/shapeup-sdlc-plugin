@@ -281,6 +281,10 @@ Always use wikilinks (double brackets), never relative paths like `../domain-mod
   (`"extracted from .shapeup/<slug>/intake.md"`) reds for the same reason a task
   wikilink does: the path dangles on every other clone. Cite the committed pitch or
   shaping doc instead, or describe the run tier without a path.
+- **You will be stopped at the write, not at the gate.** The same rule is enforced as a
+  refusal on the Write/Edit itself, quoting the offending token back. There is nothing to
+  appeal: rephrase the line and write it again. Waiting for spec-lint to tell you at Board
+  Review costs the whole phase, which is what it used to cost every time.
 - `[[tasks/...]]` wikilinks are valid only inside LOCAL documents (task files, the board,
   EVAL reports), where they resolve against the LOCAL root (`.shapeup/<slug>/`);
   every wikilink in a SHARED doc stays `spec_folder`-relative.

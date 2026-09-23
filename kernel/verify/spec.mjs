@@ -235,10 +235,55 @@ export function lintScopes(scopes, repoFiles) {
 }
 
 /** Text forms worth scanning; anything else in a committed tree is not a reference carrier. */
-const SCANNED = /\.(md|markdown|yml|yaml|json|txt)$/i;
+export const SCANNED = /\.(md|markdown|yml|yaml|json|txt)$/i;
 
 /** A machine-local board id. Strict on purpose: a committed tree has no reason to carry one at all. */
 const TASK_ID = /\bTASK-[A-Za-z0-9][\w.-]*/;
+
+/**
+ * The tier-direction violations one piece of text carries — the whole rule, on a string.
+ *
+ * EXPORTED BECAUSE IT HAS TWO ENFORCEMENT POINTS NOW, and they must not be allowed to drift.
+ * `lintCommittedTier` below walks files at GATE L1b; `hooks/tier-guard.mjs` refuses the same text
+ * at the moment a tool writes it, minutes earlier, while the writer still holds the context needed
+ * to rephrase. Four producers wrote committed files this rule reds and none of them learned from
+ * the lint, because by the time it speaks the dispatch that wrote the line is over. A second
+ * enforcement point is only worth having if it enforces the SAME predicate, so both call this.
+ *
+ * The detail strings are the message the writer reads, so they carry the remedy, not just the
+ * verdict: a board id resolves on the machine that wrote it and nowhere else, and a path into the
+ * gitignored tier dangles on every clone.
+ *
+ * @param {string} text - The file body, or the fragment a tool is about to write.
+ * @returns {Array<{kind:("board-id"|"local-path"), token:string, line:number, detail:string}>}
+ *   One entry per offending line and form, in file order; [] when clean.
+ */
+export function tierLeaks(text) {
+  // Built from the LOCAL constant, never a literal — the storage roots have exactly one home.
+  const esc = LOCAL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // `\S+` where the walk's own rule is `\S`: the same LINES match either way (a path with one
+  // non-space character after the slash has at least one), and the longer form yields the token to
+  // quote back at the writer. Trailing punctuation the prose wrapped it in is trimmed off the
+  // quote only — never off the test.
+  const localPath = new RegExp(`${esc}/\\S+`);
+  const leaks = [];
+  String(text ?? "").split(/\r?\n/).forEach((line, i) => {
+    const task = line.match(TASK_ID);
+    if (task) {
+      leaks.push({ kind: "board-id", token: task[0], line: i + 1, detail:
+        `names ${task[0]} — a committed file cannot carry a board id. Boards live in ${LOCAL}/ ` +
+        "(gitignored) and renumber on every regeneration, so this resolves on the machine that wrote it " +
+        "and nowhere else. Cite the use case or the scope_id, which are stable." });
+    }
+    const path = line.match(localPath);
+    if (path) {
+      leaks.push({ kind: "local-path", token: path[0].replace(/[`)\]},.;:'"]+$/, ""), line: i + 1, detail:
+        `points into ${LOCAL}/ — a committed file cannot reference the gitignored tier; the path ` +
+        "dangles on every other clone. Name the committed artifact, or describe the tier without a path." });
+    }
+  });
+  return leaks;
+}
 
 /**
  * Lint the WHOLE committed tree for references into the gitignored tier.
@@ -265,28 +310,15 @@ const TASK_ID = /\bTASK-[A-Za-z0-9][\w.-]*/;
 export function lintCommittedTier({ cwd, slug }) {
   const root = sharedRoot(cwd, slug);
   if (!existsSync(root)) return [];
-  // Built from the LOCAL constant, never a literal — the storage roots have exactly one home.
-  const localPath = new RegExp(`${LOCAL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/\\S`);
   const findings = [];
   for (const rel of walkFiles(root)) {
     if (!SCANNED.test(rel)) continue;
-    let lines;
-    try { lines = readFileSync(join(root, rel), "utf8").split(/\r?\n/); } catch { continue; }
-    lines.forEach((line, i) => {
-      const at = `${relative(cwd, join(root, rel))}:${i + 1}`;
-      const task = line.match(TASK_ID);
-      if (task) {
-        findings.push({ rule: "TIER-DIRECTION", level: "red", detail:
-          `${at} names ${task[0]} — a committed file cannot carry a board id. Boards live in ${LOCAL}/ ` +
-          "(gitignored) and renumber on every regeneration, so this resolves on the machine that wrote it " +
-          "and nowhere else. Cite the use case or the scope_id, which are stable." });
-      }
-      if (localPath.test(line)) {
-        findings.push({ rule: "TIER-DIRECTION", level: "red", detail:
-          `${at} points into ${LOCAL}/ — a committed file cannot reference the gitignored tier; the path ` +
-          "dangles on every other clone. Name the committed artifact, or describe the tier without a path." });
-      }
-    });
+    let text;
+    try { text = readFileSync(join(root, rel), "utf8"); } catch { continue; }
+    for (const leak of tierLeaks(text)) {
+      findings.push({ rule: "TIER-DIRECTION", level: "red",
+        detail: `${relative(cwd, join(root, rel))}:${leak.line} ${leak.detail}` });
+    }
   }
   return findings;
 }

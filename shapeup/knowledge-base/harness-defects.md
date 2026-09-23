@@ -559,6 +559,27 @@ is pinned by a guard, never when it is merely believed done.
   already implements for substrate. A hook can also do what a taught rule never can: say *why* at
   the moment of the write, while the writer still has the context to rephrase.
 
+  **FIXED 2026-09-23 (3.7.1-rc.4), as the class rather than the instance.** `hooks/tier-guard.mjs`
+  is a PreToolUse hook on `Edit|Write|MultiEdit`: a write into `shapeup/<slug>/` whose CONTENT
+  carries a `.shapeup/` path or a `TASK-NNN` id is refused, with the file, the line, the offending
+  token quoted back, why it cannot travel, and what to write instead. It imports spec-lint's own
+  scanner (`tierLeaks`, extracted from `lintCommittedTier` for exactly this) rather than restating
+  the rule, so the write-time guard cannot become narrower than the gate it fronts — which would let
+  the defect reach L1b unchanged — nor wider, which is how a guard earns being switched off.
+  `shapeup/knowledge-base/` is outside it, as it is outside the lint's own walk.
+
+  It closes the CHANNEL, not every producer, and the boundary is worth stating: a PreToolUse hook
+  sees this assistant's edit path only. A kernel subcommand writing a committed file (`reduce ship`
+  → `REPORT.md`, HD-030's route) writes straight through it and is still answered at its own writer.
+  What is closed is the route all four measured recurrences actually took.
+
+  Guarded by `tests/structural/76-committed-tier-write-guard.mjs`: registration is asserted
+  separately from behaviour (a hook nothing wires enforces nothing), every behavioural check spawns
+  the real script, and a corpus is run through BOTH the guard and `lintCommittedTier` with agreement
+  required in both directions. Five mutations, all five red — predicate gutted, registration
+  removed, matcher narrowed to `Write`, guard made wider than the lint, and the shared predicate's
+  board-id arm removed.
+
   Cost per occurrence, measured: roughly 12 minutes and a full L0 pass, twice, before BUILD.
 
 - **HD-037 · `coverage` registers the pitch's NO-GOS as requirements, marked `covered`, and L1b

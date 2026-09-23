@@ -210,7 +210,7 @@ the layer that carries it, and the three layers here fail differently:
 | **Runtime** — the kernel and the run script | When the run goes through the harness. A schema rejection or a non-zero exit stops the step. | A lane that never calls the kernel is never checked — which is why the hooks below cover the doors, not the steps. |
 | **Advisory** — a report section | When somebody reads the artifact. | Silently, if nobody does. It is a cleanup list, never a verdict. |
 
-**Four walls.** These are hooks because nothing in the runtime can substitute for them:
+**Five walls.** These are hooks because nothing in the runtime can substitute for them:
 
 - `PreToolUse` (`Skill`) — **`hooks/gate-intake.mjs` denies a `tech-lead` dispatch that carries no
   pitch, no spec folder, and no requirement text.** Observed, not theorized: when the requirement
@@ -227,6 +227,13 @@ the layer that carries it, and the three layers here fail differently:
   checked first and outranks everything, across every live contract — including the carve-out that
   otherwise keeps the active feature's own run trace writable, so a path a live order froze stays
   frozen wherever it lives.
+- `PreToolUse` (`Edit|Write|MultiEdit`) — **`hooks/tier-guard.mjs` refuses a committed-tier write
+  whose content names a path into the local run trace or a board id.** Same rule spec-lint reds at
+  GATE L1b, asked at the moment of writing: four different producers wrote a committed file their
+  own lint then rejected, and one of them did it twice in one session, an hour apart, after fixing
+  the first occurrence itself. A worker carries no lesson across a dispatch, so the remedy is a
+  refusal the writer can act on while it still knows what it meant to say. The knowledge base is
+  outside it — those files are instructions, not references a reader has to resolve.
 - `PreToolUse` (`Bash|Read|Write|Edit|MultiEdit`) — **`hooks/safety-spine.mjs` denies destructive
   commands** (`rm -rf` on unrecoverable targets, force-push/push-to-main, `git reset --hard`,
   `DROP TABLE`) and secret-file reads. A machine guard, not a pipeline guard; the escape hatch is
@@ -265,7 +272,7 @@ the layer that carries it, and the three layers here fail differently:
 | `anti-rationalization` (claims the facts contradict) | The ship report's census, derived from the board and the T0 artifacts | The facts are in an artifact a teammate finds on `git pull`, not in a transcript nobody re-reads. |
 | `slop-cleaner` (TODO/`console.log` leftovers) | The ship report's **Leftovers** section | Same scan, same added-lines-only rule; it lands somewhere checkable. |
 
-**Nothing load-bearing depends on permission mode.** The four walls plus the zero-work gate run
+**Nothing load-bearing depends on permission mode.** The five walls plus the zero-work gate run
 under every mode. The kernel needs a grant to be *invoked* — two Bash lines `npx shapeup-sdlc init`
 writes — but a session that never gets that grant is a session that cannot run the pipeline at all,
 not one that runs it unguarded.
@@ -338,8 +345,8 @@ kernel/{verify,reduce,probe,init,report}/ #   its subcommands, plus compile and 
 kernel/lib/           # argv (the typed CLI boundary), paths (+ the run key), contract (shape)
 kernel/schemas/       # the envelope port: WorkOrder, WorkResult, domain registry
 commands/*.md         # slash commands (/ship + the 9 phase commands)
-hooks/                # hooks.json + the four walls: safety-spine, gate-intake, sandbox-guard
-                      #   (PreToolUse) + gate-zerowork (Stop, the one blocking hook)
+hooks/                # hooks.json + the five walls: safety-spine, gate-intake, sandbox-guard,
+                      #   tier-guard (PreToolUse) + gate-zerowork (Stop, the one blocking hook)
                       #   + dispatch-receipt (PostToolUse, denies nothing, attests which skill ran)
                       #   + lib/decision.mjs (every hook records allow / deny / error)
 oracles/              # the evaluation-contract oracle registry (test · snapshot · http · process)

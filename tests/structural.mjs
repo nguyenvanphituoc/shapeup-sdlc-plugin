@@ -287,6 +287,13 @@ const MODULE_FILES = [
   // earlier runs. The case no single-run fixture can hold, which is why three readers shipped
   // with it.
   "75-cross-run-attestation.mjs",
+  // 76-committed-tier-write-guard.mjs: HD-036 and its layer (HD-027/030/037) — four producers wrote
+  // committed files the harness's own spec-lint reds, and HD-036 recurred inside one session an hour
+  // after its own author fixed it, so the remedy is a precondition rather than a rule. The guard is
+  // executed through its real entry point and cross-checked against `lintCommittedTier` over one
+  // corpus in both directions: narrower and the defect reaches L1b, wider and the guard gets
+  // switched off.
+  "76-committed-tier-write-guard.mjs",
   "08-docs.mjs",
 ];
 
