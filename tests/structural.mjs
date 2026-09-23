@@ -314,6 +314,14 @@ const MODULE_FILES = [
   // order and asserts denial on any of the four — #17 asserts the carve-out's board/ledger side,
   // never the attestation side it was never asked to fence.
   "79-attested-channels-frozen.mjs",
+  // 81-no-eval-verdict.mjs: HD-045 — a `--no-eval` run hardcoded verdict = "pass" and dispatched
+  // `reduce ship --verdict PASS` unconditionally, so the frozen shapeup/<slug>/REPORT.md a
+  // teammate inherits on `git pull` claimed PASS over a feature nobody evaluated, even though
+  // protocol.md promises `not-evaluated` "recorded plainly — never silently upgraded" twice over.
+  // Pins the source-level wiring in shapeup-run.js (which cannot be executed by this suite) and
+  // drives `reduce ship` for real in both directions — a --no-eval-shaped report says
+  // not-evaluated, and a genuine PASS still says PASS.
+  "81-no-eval-verdict.mjs",
   "08-docs.mjs",
 ];
 

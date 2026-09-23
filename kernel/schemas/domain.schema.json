@@ -2846,9 +2846,10 @@
           "type": "string",
           "enum": [
             "pass",
-            "fail"
+            "fail",
+            "not-evaluated"
           ],
-          "description": "shipped | ok: the round or run's EVAL verdict, lowercased from spec-evaluator's PASS|FAIL."
+          "description": "shipped | ok: the round or run's EVAL verdict, lowercased from spec-evaluator's PASS|FAIL — or `not-evaluated` when a `shipped` return closed a `--no-eval` run, which reaches SHIP without ever dispatching the judge. Recorded plainly, never upgraded to `pass` (references/protocol.md)."
         },
         "rounds_used": {
           "type": "integer"
