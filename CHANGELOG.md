@@ -3,6 +3,46 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.7.1-rc.4] — 2026-09-23 · The rules the harness could only state, it now refuses
+
+Two defects the HarmonyOS soak measured, both of the same shape: the harness computed the right
+answer and then spoke too late, or threw it away.
+
+**A committed file that cites the local tier is refused at the write.** Four producers wrote a
+committed artifact that this harness's own spec-lint reds — the requirements registry, the ship
+report, the project profile, the coverage clauses — and each time the lint caught it at GATE L1b, a
+whole phase after the sentence was written. Teaching did not hold: one producer re-offended an hour
+later, in the same session, in the same file it had just repaired, because a worker carries no
+lesson across a dispatch. `tier-guard` is a fifth PreToolUse wall. It quotes the offending token
+back and says why while the writer can still rephrase, and it imports spec-lint's own scanner
+rather than restating the rule, so the two enforcement points cannot drift apart. The knowledge
+base stays outside it. A PreToolUse hook sees the assistant's edit path only, so a kernel write
+still answers at its own writer — what closed is the route every measured recurrence took.
+
+**A T0 verdict keeps the evidence it measured.** `exit: r.status ?? 1` maps a command that never
+started onto the same `1` a real failure returns, and the artifact stored nothing else — so a
+refused command and a broken build were one record in the digest, the hill, the report and the
+judge's citation. The record now carries `error` when the command did not run, plus a bounded,
+truncation-marked tail of each stream, kept for passing commands too: a fixture that exits 0 having
+run zero tests is the false green this layer exists to catch.
+
+Both guards were broken on purpose before they counted — five mutations each, every one red, and
+the write boundary was then driven end to end through a real session with the plugin loaded: the
+tool call denied, the file never written, the decision on the ledger.
+
+## [3.7.0] — 2026-09-22 · An attempt is spent only when the attested channels say so
+
+- **Attempt accounting moves onto attested channels.** A scope's spent attempts are derived from a
+  dispatch receipt plus a leg row or a WorkResult — never from the order set or a T0 verdict, both
+  of which the scope being judged can write. An attempt still in flight holds the breaker open
+  instead of tripping it, and opening a new attempt over an unanswered one is refused outright.
+- **Every terminal ending records a close, and exports its records.** `gate_h` is derived from the
+  RunReturn union rather than a hand-typed pair, so an ending nobody enumerated cannot silently
+  record nothing; a run that aborts or escalates now exports its fact tables too, because the runs
+  worth most as evidence are the ones that never reach Ship.
+- **The tier-direction rule is taught the way it is enforced** — a bare path in prose, not only a
+  wikilink.
+
 ## [3.6.0] — 2026-09-21 · Nine defects close, and every guard was broken on purpose before it counted
 
 Seven of the eleven open defects were the same shape: a fact declared in one tier and consumed in

@@ -67,6 +67,18 @@ Two traps it exists to catch, both of which have bitten this repo:
 And one the audit cannot catch, because nothing run from this checkout can. Running the repo as its
 own plugin puts the plugin root inside the working directory, and every experiment ends with its run
 trace deleted, so two whole classes of defect are invisible here: anything gated on where the plugin
-is installed, and anything that happens *after* a run ships. Before tagging a release, soak the
-candidate in a persistent consumer project installed from the marketplace, not `--plugin-dir`,
-across two consecutive features, without cleaning `.shapeup/` in between.
+is installed, and anything that happens *after* a run ships.
+
+**The soak is how you find those, and it is not a release gate.** Calling it one was a promise the
+instrument cannot keep: on the live consumer a soak validates through BUILD and stops there, so
+"soaked across two consecutive features" is evidence about the phases it reached and silence about
+the rest. Run it to find defects — it has produced most of the register — and read a clean soak as
+"nothing surfaced in BUILD", never as "the candidate is fit to ship".
+
+What a release candidate *can* be held to, because it is cheap and it caught the class that worried
+us: fire the changed hook from a plain `git archive` copy of the tree at some other path, with a
+different project as `cwd` (this is what a marketplace clone is, and it proves a cross-directory
+import resolves where the plugin actually lands), then drive one real nested session —
+`claude -p --plugin-dir <repo> --permission-mode acceptEdits` — and confirm the decision reached
+`decisions.jsonl`. An enforcement layer that fails to load fails OPEN and silently: exit 1, no
+stdout, no ledger row, and the tool call proceeds. A missing row is the signal.
