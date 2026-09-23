@@ -48,12 +48,16 @@ node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" reduce graph --slug <slug>
 ```
 
 **For a committed-only slug (`hasCommitted && !hasLocal`), NEVER call `reduce hill`.**
-`deriveHill()` folds whatever T0 verdicts currently exist on disk; a committed-only pitch has
-none (the local trace was cleaned up after shipping), so re-running it would silently regress a
-true historical `FINISHED` down to a fabricated `UPHILL_SOLVED` — reading absence of evidence as
-evidence of absence. Read `shapeup/<slug>/hill/*.yml` for those slugs exactly as committed, and
-render them with the archived state the template already implements (see below). Same reasoning
-applies to `reduce graph` — there is no local trace to append from.
+`deriveHill()` folds whatever T0 verdicts, evaluation results and ledger rows exist in the LOCAL
+run trace; a committed-only pitch has none, because that trace was cleaned up after shipping.
+
+The runtime no longer takes that silence for an answer: a derivation whose run trace is absent
+declines to write anything and reports every scope as underived (`derived: false`), so the
+committed shards survive a call made in error. Treat that as a backstop, not a licence — an
+underived report is not a refresh, and rendering it as one would show a pitch's true `FINISHED`
+as freshly confirmed when nothing confirmed it. Read `shapeup/<slug>/hill/*.yml` for those slugs
+exactly as committed, and render them with the archived state the template already implements
+(see below). Same reasoning applies to `reduce graph` — there is no local trace to append from.
 
 ## Reading the hill shards
 

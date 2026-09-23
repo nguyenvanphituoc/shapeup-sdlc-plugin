@@ -329,6 +329,15 @@ const MODULE_FILES = [
   // pointing nowhere, which is what made the presence-only bug invisible to the suite that already
   // existed.
   "80-citation-rehash.mjs",
+  // 82-hill-absence.mjs: HD-042 — `deriveHill()` reads the LOCAL tier and writes the COMMITTED one,
+  // and nothing checked that the tier it read from was there. A checkout with the committed shards
+  // present and `.shapeup/` absent flattened FINISHED and DOWNHILL_EXECUTION to UPHILL_SOLVED and
+  // reported `changed: true` — committed history lost, not merely misreported. Its own module
+  // because §29 and §54 both hand `deriveHill()` a populated local tier, so neither can see a
+  // derivation performed over no tier at all, and neither drives the `reduce hill` CLI the run
+  // actually invokes. It also pins the two traps the fix must not fall into: a first run with no
+  // ledger yet must still write, and the dot must still move DOWN when its evidence is removed.
+  "82-hill-absence.mjs",
   "08-docs.mjs",
 ];
 

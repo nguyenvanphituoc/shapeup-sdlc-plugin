@@ -256,7 +256,14 @@ export async function run(ctx) {
     });
     t0(red, 1);
     const hillRed = deriveHill(red, SLUG).find((s) => s.scope_id === "pages");
-    if (hillRed?.phase === "UPHILL_SOLVED") ok("reduce hill: a T0-green in a round whose build gate is red stays UPHILL (the fixture did not test the build)");
+    // CORRECTED EXPECTATION, and the reason it is not a weakening. This check's subject is the
+    // build gate: a T0-green in a red round must not go DOWNHILL. It used to pin the exact value
+    // `UPHILL_SOLVED`, which this fixture reached only because `deriveHill` read a MISSING
+    // discovery ledger as "zero open unknowns" and promoted off the floor on the strength of it —
+    // `project()` above writes no ledger at all. That promotion was itself the defect, so the old
+    // expectation was pinning it. The honest derivation for a fixture with no ledger is the floor,
+    // `UPHILL_UNKNOWN`; the assertion stays exact, and still fails on any DOWNHILL/FINISHED.
+    if (hillRed?.phase === "UPHILL_UNKNOWN") ok("reduce hill: a T0-green in a round whose build gate is red stays UPHILL (the fixture did not test the build)");
     else fail(`hill over a red round: ${JSON.stringify(hillRed)}`);
     t0(green, 1);
     const hillGreen = deriveHill(green, SLUG).find((s) => s.scope_id === "pages");
