@@ -307,6 +307,13 @@ const MODULE_FILES = [
   // terminal status the kernel declares, and it pins the two distinctions the fix must not blur:
   // un-fencing is not resolving, and the export reads the pointer it retires.
   "78-close-retires-the-fence.mjs",
+  // 80-citation-rehash.mjs: HD-043 — a T0 citation was a presence check, and the schema has always
+  // promised a re-hash. Its own module because no existing test drives `probe eval`/`reduce ingest`
+  // against a FORGED citation (a nonexistent path, a real-but-red artifact, a hash mismatch, a
+  // directory) — every prior fixture that carried a `t0_citations[]` entry used a placeholder hash
+  // pointing nowhere, which is what made the presence-only bug invisible to the suite that already
+  // existed.
+  "80-citation-rehash.mjs",
   "08-docs.mjs",
 ];
 
