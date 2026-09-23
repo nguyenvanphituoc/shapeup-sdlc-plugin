@@ -300,6 +300,13 @@ const MODULE_FILES = [
   // bounded tail of both streams, and the module drives the real `verify t0` entry point rather
   // than the mapper, so "the pipeline persists it" is what is actually under test.
   "77-t0-evidence.mjs",
+  // 78-close-retires-the-fence.mjs: HD-014's code half — a run that ends any way other than
+  // shipping leaves an unanswered order by construction, and the close retired nothing, so the
+  // substrate fence stayed up over a finished run while the operator's documented remedy ("abandon
+  // and start over") said nothing about releasing it. Driven through the real CLI, over every
+  // terminal status the kernel declares, and it pins the two distinctions the fix must not blur:
+  // un-fencing is not resolving, and the export reads the pointer it retires.
+  "78-close-retires-the-fence.mjs",
   "08-docs.mjs",
 ];
 

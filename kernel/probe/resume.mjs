@@ -56,14 +56,14 @@
 // Exit: 0 ok · 2 malformed argv (nothing ran) · 3 the target the operation needs is not on disk ·
 //       6 the required phase's artifact is NOT on disk (the phase did not complete).
 
-import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
 import { splitFrontmatter, uncoerce } from "../lib/contract.mjs";
 import { globToRegExp } from "../verify/spec.mjs";
 import {
   intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir,
-  orientDir, activeOrder, usecasesDir, breadboard, receipt, readReceipt, requirements,
+  orientDir, activeOrder, activeScope, usecasesDir, breadboard, receipt, readReceipt, requirements,
   exportRunDir,
 } from "../lib/paths.mjs";
 import { evalVerdict } from "./eval.mjs";
@@ -679,10 +679,46 @@ export function closeRun(cwd, slug, { status, cause = null, withExport = true } 
   // The Ship phase (`shapeup-run.js`) already exports a shipped run itself, before this call ever
   // runs — Stage 2 adds the endings that wrote nothing, and leaves that path untouched.
   const shouldExport = withExport && status !== "shipped";
-  const withExportWarning = (result) => {
-    if (!shouldExport) return result;
-    const warning = exportOnClose(cwd, slug);
-    return warning ? { ...result, export_warning: warning } : result;
+
+  /**
+   * Everything a close owes the checkout once the ledger line is written: export the run's
+   * records, then retire its pointers.
+   *
+   * The export runs FIRST, but not because it has to: `exportOnClose` is handed the slug and keys
+   * its output by the receipt's `run_id`, so it never reads the pointers this retires. (The bare
+   * `reduce export` CLI does read `active-scope` — only to work out which run the operator meant
+   * when they named none.) Reporting before teardown is a defensive default, not a correctness
+   * requirement, and it is recorded as such so the next reader does not defend an ordering that
+   * carries nothing. Measured: swapping the two leaves every check green.
+   *
+   * WHY RETIRE AT ALL. The substrate fence is enforced while an order is compiled and unanswered,
+   * and a run that ends any way other than shipping leaves exactly that by construction. Until this
+   * ran, the fence outlived the run: after a close that exited 0 and recorded everything, an
+   * ordinary write anywhere in the project was still denied, with no dispatch in flight. The
+   * operator's obvious remedy did not help either — `init run --force` is documented as "abandon
+   * the open run and start over", never as "release a stuck fence".
+   *
+   * AND RETIRING IS NOT ANSWERING. The pointer says "a run is in flight"; the order's missing
+   * result says "nobody came back". Only the first is untrue after a close. The abandoned order
+   * stays unanswered, the attempt census still sees nothing spent on it, and `init run --force`
+   * remains the one thing that writes a synthetic result — because a close that quietly claimed the
+   * work was answered would spend an attempt budget on work nobody did.
+   *
+   * Best-effort, like the export: a pointer that cannot be removed degrades the close and is
+   * reported in its return, but never turns a close into a non-close.
+   */
+  const finishClose = (result) => {
+    const warning = shouldExport ? exportOnClose(cwd, slug) : null;
+    const stuck = [];
+    for (const pointer of [activeOrder(cwd), activeScope(cwd)]) {
+      try { rmSync(pointer, { force: true }); } catch { /* fall through to the check below */ }
+      if (existsSync(pointer)) stuck.push(pointer);
+    }
+    return {
+      ...result,
+      ...(warning ? { export_warning: warning } : {}),
+      ...(stuck.length ? { pointer_warning: `could not retire ${stuck.join(", ")} — the substrate fence may still deny writes until it is removed by hand` } : {}),
+    };
   };
 
   // Truncated, not elided: a cause this long has already done its job in the run's own log — the
@@ -699,7 +735,7 @@ export function closeRun(cwd, slug, { status, cause = null, withExport = true } 
   if (priorClosedStatus && priorClosedAt) {
     if (priorClosedStatus === status && normCause === priorCause) {
       // The identical fact, restated — a retried or duplicated call costs nothing.
-      return withExportWarning({ ok: true, path: p, status, closed_at: priorClosedAt, cause: priorCause, decision: "idempotent", reason: `already closed as "${status}" at ${priorClosedAt} — idempotent no-op` });
+      return finishClose({ ok: true, path: p, status, closed_at: priorClosedAt, cause: priorCause, decision: "idempotent", reason: `already closed as "${status}" at ${priorClosedAt} — idempotent no-op` });
     }
     if (priorClosedStatus !== status) {
       // A DIFFERENT terminal status over an already-closed run — refused outright, the original
@@ -724,7 +760,7 @@ export function closeRun(cwd, slug, { status, cause = null, withExport = true } 
     if (afterSup.status !== status || !afterSup.closed_at || afterSup.closed_at === "~") {
       return { ok: false, path: p, status, reason: `wrote the superseding close but the ledger reads back status="${afterSup.status}" closed_at="${afterSup.closed_at}" — the write did not take` };
     }
-    return withExportWarning({
+    return finishClose({
       ok: true, path: p, status, closed_at: afterSup.closed_at, cause: afterSup.close_cause ?? null,
       superseded: true, decision: "superseded", prior_cause: priorCause, prior_closed_at: priorClosedAt,
     });
@@ -739,7 +775,7 @@ export function closeRun(cwd, slug, { status, cause = null, withExport = true } 
   if (after.status !== status || !after.closed_at || after.closed_at === "~") {
     return { ok: false, path: p, status, reason: `wrote the close but the ledger reads back status="${after.status}" closed_at="${after.closed_at}" — the write did not take` };
   }
-  return withExportWarning({ ok: true, path: p, status, closed_at: after.closed_at, cause: after.close_cause ?? null, decision: "closed" });
+  return finishClose({ ok: true, path: p, status, closed_at: after.closed_at, cause: after.close_cause ?? null, decision: "closed" });
 }
 
 /**

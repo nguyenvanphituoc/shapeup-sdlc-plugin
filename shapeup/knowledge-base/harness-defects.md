@@ -510,6 +510,12 @@ is pinned by a guard, never when it is merely believed done.
   stronger claim. Either `reduce ship` retires the pointer on every close it writes a report for,
   or `AGENTS.md` stops promising it does; deciding which is a design call, not a doc fix.
 
+  **FIXED 2026-09-23 (3.7.1-rc.5), at the close rather than at the ship.** The design call went to
+  the first option, and one lever answers both this and HD-014: `closeRun` retires `active-order`
+  and `active-scope` on every terminal close, so a no-verdict close leaves no pointer behind
+  whichever path wrote it. `reduce ship`'s own retirement stays where it is — it runs on the report
+  path, before any close, and removing it would change when a shipped run stops fencing.
+
 - **HD-036 · A THIRD producer writes a committed artifact its own lint reds — and the pattern of
   fixing them one at a time is the defect.** Measured 2026-09-22 on a deliberately fresh-state soak,
   which is what surfaced it.
@@ -797,6 +803,28 @@ see the stranded-branch entry below — and these carried no fix at all. Every o
   whichever way the code bet lands.
 
   **Closed when:** `AGENTS.md` states the post-close behaviour and names the release (doc half), and the hook permits an out-of-substrate write after a close that retired its orders (code half). The two halves ship separately.
+
+  **CODE HALF FIXED 2026-09-23 (3.7.1-rc.5).** Reproduced first, on rc.4, with a fixture built
+  entirely by the CLI (`init run` → `compile` → close): before the close the fence denied an
+  unrelated write, `probe resume --close escalated` exited 0 and stamped all four ledger lines, both
+  pointers stayed on disk, and the fence still denied. `closeRun` now retires `active-order` and
+  `active-scope` after its export, on every terminal status the kernel declares — derived from
+  `TERMINAL_STATUSES`, not a typed pair — and reports a `pointer_warning` rather than failing when
+  one cannot be removed.
+
+  **The criterion above conflated two things, and the fix deliberately does only one of them.**
+  "A close that retired its orders" reads as though the close should answer them; it does not. The
+  pointer says a run is in flight and the missing result says nobody came back — only the first
+  stops being true at a close, and a close that wrote synthetic results would spend an attempt
+  budget on work nobody did, which is the same side effect this register already complains about in
+  `init run --force`. `78-close-retires-the-fence.mjs` pins the distinction explicitly: after the
+  close the order is still unanswered, and `--force` is still what answers it. Four mutations red
+  (each pointer separately, the close's own record, and the rejected resolve-on-close behaviour).
+
+  **One belief this fix was written on turned out to be false**, and is recorded because the comment
+  would otherwise have preserved it: the export does NOT read the pointers it retires — it is handed
+  the slug and keys by the receipt's `run_id`. Swapping the two survived as a mutant, which is how
+  it was caught. Export-before-teardown is now documented as a defensive default, not a guard.
 
 - **HD-021 · A per-scope "it compiles" fixture can be green while the scope's code is unreachable.** Measured
   on a stack whose build compiles only what the entry point reaches: three scopes were T0-green on an

@@ -3,6 +3,22 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.7.1-rc.5] — 2026-09-23 · A finished run stops fencing the checkout
+
+**A terminal close retires the run's pointers.** The substrate fence holds while an order is
+compiled and unanswered, and a run that ends any way other than shipping leaves exactly that behind
+— so after a close that exited 0 and recorded its status, cause and timestamp correctly, an ordinary
+write anywhere in the project was still denied, with no dispatch in flight. The operator's obvious
+remedy did not help: `init run --force` is documented as "abandon the open run and start over",
+never as "release a stuck fence", so the one command that lifted it is the one nobody reaches for.
+Reproduced on rc.4 before anything was changed, then closed for every terminal status the kernel
+declares.
+
+Retiring is not answering, and the fix does only the first: the pointer says a run is in flight, the
+missing result says nobody came back, and an order left open stays genuinely unresolved until
+`--force` writes it a synthetic result. A close that answered its own orders would spend an attempt
+budget on work nobody did.
+
 ## [3.7.1-rc.4] — 2026-09-23 · The rules the harness could only state, it now refuses
 
 Two defects the HarmonyOS soak measured, both of the same shape: the harness computed the right
