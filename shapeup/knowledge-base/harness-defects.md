@@ -33,6 +33,9 @@ is pinned by a guard, never when it is merely believed done.
 | HD-054 | the hill's absence guard is re-armed by the command on the same page | P2 |
 | HD-055 | the run ledger's own verdict field is never written, and the ship report will print any string | P3 |
 | HD-056 | seven shipped files cite artifacts a user does not receive | P3 |
+| HD-057 | a build round dispatches, gets a well-formed result, and then skips its own verification | P1 |
+| HD-058 | two gates print their block and leave no row | P2 |
+| HD-059 | a T0 verdict is evidence about a machine, and records only the tree | P1 |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
 | HD-025 | two run geometries this checkout cannot reach | process |
@@ -863,5 +866,64 @@ else needs to survive for the fix to hold.
 
   **Closed when:** the shipped set cites only what it ships, and the scan that found these runs as a
   check rather than as an audit pass somebody remembers to do.
+
+- **HD-057 · A build round dispatches, gets a well-formed result, and then skips its own
+  verification.** Measured 2026-09-24 on the consumer, run `about-screen-20260924T032732Z-7fe0bef6`,
+  plugin 3.7.1, unattended.
+
+  The leg ran. `orders/` and `results/` both hold five files including `about-screen-r1-a1.json`,
+  and that result is well formed — six tasks, per-criterion evidence. Then nothing verified it:
+  the run trace has **no `t0/`, no `build/` and no `evaluation/` directory at all**, and
+  `legs.jsonl` carries three rows — orient, wire, map-scopes — and none for the build.
+
+  With no T0 verdict there is no green scope, so the round loop read `green_scopes=0` and closed the
+  run `escalated` with `close_cause: breaker=inner`. That cause is false: the attempt census reports
+  one attempt spent against a budget of five, and `tripped: false`. The operator is told the scope
+  exhausted its attempts when it used one.
+
+  The distinguishing state, which the three earlier occurrences of this class did not have:
+  `hasReceipt: true, hasResult: true, hasLeg: false`. The missing channel is the ingest step itself,
+  not a raced second order.
+
+  **Closed when:** a round that receives a result either verifies it or ends with a cause naming
+  what did not run, and no close reports a breaker the census says did not trip.
+
+- **HD-058 · Two gates print their block and leave no row.** Same run, same day.
+
+  The run's terminal output carries a `GATE H` census and a `⏸ GATE L4 — Ship Sign-Off` block.
+  `gates.jsonl` holds three rows: `L1a`, `L1a.5`, `L1b`, each `proceed` from the `ci` preset. There
+  is no row for H and none for L4.
+
+  So the two gates that decide whether a feature ships were narrated to the operator and recorded
+  nowhere. A reader of the trace afterwards is told the run never reached them — the opposite of
+  what happened — and the gate ledger cannot be used to answer "was this ship signed off", which is
+  the one question it exists for. This is the shape `HD-019` closed for the gates that had no call
+  site at all; these have a call site and no ledger write.
+
+  **Closed when:** every gate a run emits a block for leaves a row, and a check asserts the
+  emitted-block set against the ledgered set rather than either against a list.
+
+- **HD-059 · A T0 verdict is evidence about a machine, and records only the tree.** Found
+  2026-09-24 while trying to verify a consumer build in a clean clone — which turned out to be
+  impossible, three times in a row.
+
+  The harness's central claim is that progress is measured rather than claimed, and the T0 artifact
+  is where the measurement lands: `exit 0`, `pass: true`, a captured tail. What the artifact does
+  not record is that the command's outcome depended on state outside the tree. Measured on the
+  consumer, whose toolchain resolves its build plugins through a cache keyed by the project's
+  **absolute path**: the working tree builds green; a clone of the same commit at a different path
+  re-resolves and fails on a registry 404; a clone with a hand-seeded cache compiles a different
+  plugin set and produces two errors the original never sees. Three environments, three outcomes,
+  one tree.
+
+  The consequence is not that the consumer's build is badly configured — that is the consumer's
+  problem. It is that a green T0 artifact is portable evidence in appearance only, and nothing in it
+  says so. Two machines can honestly disagree about a verdict this harness treats as fact, and the
+  release discipline this repo runs on — verify in a clean clone before shipping — cannot be applied
+  to such a project at all.
+
+  **Closed when:** a T0 artifact carries enough about where it ran that a disagreeing re-run can be
+  told from a regression, or the harness states plainly, where the verdict is read, that its
+  evidence is machine-local.
 
 This file stays short on purpose. It is a queue, not an archive.
