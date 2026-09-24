@@ -47,7 +47,7 @@ saying "11 workers" over a 10-member enum reads perfectly. Two standing rules:
   with each other and all be wrong; reading any one of them just confirms the others.
 - **Nothing in the shipped set may reference something the user did not receive.** No benchmark
   results, internal defect IDs (`HD-00x`), migration stage names, audit codenames, or paths into
-  `docs/`, `tests/`, `tools/`, `evals/`. Keep the operative rationale, drop the evidence: a
+  `docs/`, `tests/`, `tools/`. Keep the operative rationale, drop the evidence: a
   comment should explain *why* the code is shaped that way without citing an artifact the reader
   cannot open.
 

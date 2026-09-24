@@ -47,8 +47,11 @@ hill phase is derived from artifacts rather than from a worker's own account of 
 Two limits, stated here because the point of this section is that a claim without a mechanism
 behind it is the thing this harness exists to prevent: the **seesaw** regression arm is declared
 and not yet wired (no run writes its registry — wiring it is an open Betting Table decision), and
-nothing in the runtime **re-hashes** the citation the evaluator is instructed to re-hash. Both
-are open items in `shapeup/knowledge-base/harness-defects.md`, not shipped guarantees.
+the citation **re-hash** the kernel performs proves self-consistency, not provenance — the digest
+and the cited verdict are checked, the scope, round and run the artifact belongs to are not. A T0
+artifact is also evidence about the machine that produced it: it records the tree and nothing
+about the toolchain or caches the commands resolved through. All three are open items in
+`shapeup/knowledge-base/harness-defects.md`, not shipped guarantees.
 → *Prevents: "done" asserted with nothing behind it.*
 
 **3. Parallel work can't corrupt shared state.** Each scope gets a write-whitelist of files
@@ -127,8 +130,8 @@ rest of this README after this table and nothing will be a surprise.
 |---|---|
 | **board** | The round's task list. "Green" means every task is done. GATE L2's hook reads this before an evaluation and warns if it is not green. |
 | **round** | One build → evaluate cycle. A FAIL verdict starts round *r+1*. |
-| **T0** | The smoke test a scope must pass before it counts as built: its fixtures + a DB probe + the seesaw. Writes an artifact to disk that the evaluator must cite. |
-| **seesaw** | The part of T0 that re-runs *other* scopes' fixtures — so a regression is never mistaken for progress. |
+| **T0** | The smoke test a scope must pass before it counts as built: its fixtures + a DB probe (the seesaw arm is declared and not yet wired — see §2 above). Writes an artifact to disk that the evaluator must cite. |
+| **seesaw** | The regression arm of T0, meant to re-run *other* scopes' fixtures so a regression is never mistaken for progress. Declared, not yet wired: no run writes its registry, so no run has executed it. |
 | **substrate** | The exact list of files one dispatch is allowed to write, stamped into its work order. A hook blocks anything outside it — and anything the order marks frozen. |
 | **scope contract** | The file defining one vertical slice: its substrate, its fixtures, its affordances. |
 | **affordance** | The thing a user can actually click, type or call. UI is graded on affordances, not on looks. |
@@ -183,7 +186,7 @@ every arm is skipped when its artifact is absent, so older specs are unaffected.
 | QA (post-PASS) | `qa-edge-hunter` | v1.1 | Exploratory edge hunt on the running app through six fixed lenses, charting edges *outside* what the evaluator probed. Findings go to the ledger as `~`; never blocks ship. |
 | Stop (11) | `scope-hammer` | v0.1 | GATE H: must-have census → baseline comparison (never vs. the ideal) → cut list + ship verdict. Handles the normal stop and both circuit-breaker triggers. |
 | Retro (post-L4) | `coach` | — | RLHF for the harness: turns raw PO/TL feedback at Ship Sign-off into per-skill guidelines under committed `shapeup/knowledge-base/<skill>.md`, read back by six coachable workers on their next run and by `tech-lead` at GATE L0 (workflow guidance, never a gate answer). `--scan` seeds the same files from the project on disk before the first run; `--research <stack>` seeds them from the platform's official documentation when the project has nothing to scan, and cross-checks a scan's rules when it has. GATE COACH-1 asks the PO which skill owns each rule — never assumes; mechanism defects are filed to the harness-defect register instead. |
-| Orchestrator | `tech-lead` | v1.0 | Owns the run end-to-end: PLAN once → BUILD all tasks → EVAL once per round, looping on FAIL. Three-level circuit breaker (rounds / T0 attempts / wall clock), T0/seesaw-verified build rounds, mechanical hill derivation. Sole writer of run-state. |
+| Orchestrator | `tech-lead` | v1.0 | Owns the run end-to-end: PLAN once → BUILD all tasks → EVAL once per round, looping on FAIL. Three-level circuit breaker (rounds / T0 attempts / wall clock), T0-verified build rounds, mechanical hill derivation. Sole writer of run-state. |
 
 ### Commands
 
@@ -304,10 +307,10 @@ These hold across the harness and are the reason it stays predictable:
   of blocking the round. An opt-in third breaker bounds the **wall clock**, because the other two
   count events and neither can notice a single round running for half an hour — tripping it routes
   to GATE H, so a run out of time ships what is green instead of being killed and shipping nothing.
-- **Hill phase is mechanical, never self-reported** — derived only from T0/T1/seesaw facts, closing
-  the self-reported-confidence risk — with one gap on record: a scope with no discovery
-  ledger derives the same phase as one whose unknowns are all closed, so absence still reads
-  as progress on that one arm.
+- **Hill phase is mechanical, never self-reported** — derived only from T0/T1 facts (the seesaw
+  arm is declared, not yet wired), closing the self-reported-confidence risk. A scope with no
+  discovery ledger derives no phase rather than a solved one, so absence no longer reads as
+  progress on that arm.
 - **One writer per shared file** — every board/ledger/verdict write goes through
   `harness reduce ingest`; workers return data and never touch shared state.
 - **Traceability is oracle-checked, opt-in** — `harness verify trace` verifies covers-closure and

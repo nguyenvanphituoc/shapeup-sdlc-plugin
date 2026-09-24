@@ -26,16 +26,19 @@ is pinned by a guard, never when it is merely believed done.
 | HD-046 | three key spaces for one REQ id, and the folding helper is not called at the one place that grad… | — (filed after the tiering pass) |
 | HD-047 | the judge's verdict is never recomputed from its own criteria, and a PASS may carry no evidence | — (filed after the tiering pass) |
 | HD-048 | the seesaw regression arm is declared everywhere and wired nowhere | — (filed after the tiering pass) |
-| HD-050 | a case-variant path walks straight through `frozen` | P1 |
+| HD-050 | a case-variant path — or a symlink — walks straight through `frozen`, and 3.7.2's attestation freeze with it | P0 |
 | HD-051 | a build leg can forge a SIBLING leg's WorkResult | P1 |
 | HD-052 | four attested channels were named; the same class has at least five more | P2 |
 | HD-053 | the T0 citation re-hash proves self-consistency, not provenance | P1 |
 | HD-054 | the hill's absence guard is re-armed by the command on the same page | P2 |
 | HD-055 | the run ledger's own verdict field is never written, and the ship report will print any string | P3 |
 | HD-056 | seven shipped files cite artifacts a user does not receive | P3 |
-| HD-057 | a build round dispatches, gets a well-formed result, and then skips its own verification | P1 |
+| HD-057 | a build leg reports green with no T0, the late-ingest repair sits behind the check that fails, and the close names a breaker the protocol defines differently | P1 |
 | HD-058 | two gates print their block and leave no row | P2 |
 | HD-059 | a T0 verdict is evidence about a machine, and records only the tree | P1 |
+| HD-060 | a result with no leg row passes a planning phase — the single writer is never asked, and the graph cannot see it | P1 |
+| HD-061 | after a terminal close, every hook decision loses its `run_id` — GATE H's own census included | P2 |
+| HD-062 | three run-blind readers reach durable artifacts: the committed report's round count, the exported gate decisions, and the citation check | P1 (HD-041 member) |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
 | HD-025 | two run geometries this checkout cannot reach | process |
@@ -759,9 +762,22 @@ else needs to survive for the fix to hold.
   build leg and its own attestation. macOS and Windows are both affected, which is to say the
   platform this plugin is developed and soaked on.
 
-  **Closed when:** path matching is case-folded wherever the filesystem is, or the guard compares
-  resolved real paths rather than spellings, and a fixture drives a case-variant of each frozen
-  glob and sees a denial.
+  Re-measured 2026-09-24 after 3.7.2 shipped, by two reviewers independently and again by hand,
+  against a real compiled order: `Receipts/dispatch.jsonl`, `LEGS.jsonl` and `T0/verdicts/…` are
+  all permitted, and a write through `Receipts/` overwrote the canonical file. So the first sentence
+  of the 3.7.2 changelog — a build leg cannot write its own attestation — is false as shipped on the
+  platform the plugin is developed and soaked on. That is why this row moved to P0: a shipped
+  guarantee that is silently untrue outranks a known gap left open.
+
+  The same measurement found a second spelling. The guard resolves `..` but does not follow links,
+  so a leg whose substrate legitimately allows `src/**` can create `src/x → ../.shapeup/<slug>/legs.jsonl`
+  and write through it: permitted. Case, symlink, hardlink, Unicode normalisation — the deny list is
+  defined over spellings, and the thing it protects is a file. No list of globs closes that; comparing
+  resolved real paths does, in one place, for every frozen glob at once.
+
+  **Closed when:** the guard compares resolved real paths (case-folded where the filesystem is)
+  rather than spellings, and a fixture drives a case-variant and a symlink of each frozen glob and
+  sees a denial for both.
 
 - **HD-051 · A build leg can forge a SIBLING leg's WorkResult.** Filed 2026-09-24 as the hole left
   open, deliberately, when the attestation freeze was cut back.
@@ -867,26 +883,44 @@ else needs to survive for the fix to hold.
   **Closed when:** the shipped set cites only what it ships, and the scan that found these runs as a
   check rather than as an audit pass somebody remembers to do.
 
-- **HD-057 · A build round dispatches, gets a well-formed result, and then skips its own
-  verification.** Measured 2026-09-24 on the consumer, run `about-screen-20260924T032732Z-7fe0bef6`,
-  plugin 3.7.1, unattended.
+- **HD-057 · A build leg reports green with no T0, the late-ingest repair sits behind the check
+  that fails, and the close names a breaker the protocol defines differently.** Measured
+  2026-09-24 on the consumer, run `about-screen-20260924T032732Z-7fe0bef6`, plugin 3.7.1,
+  unattended. First filed as "the round skipped its verification"; corrected the same day from the
+  run's own progress log, which settles what the trace alone cannot.
 
-  The leg ran. `orders/` and `results/` both hold five files including `about-screen-r1-a1.json`,
-  and that result is well formed — six tasks, per-criterion evidence. Then nothing verified it:
-  the run trace has **no `t0/`, no `build/` and no `evaluation/` directory at all**, and
-  `legs.jsonl` carries three rows — orient, wire, map-scopes — and none for the build.
+  What the leg did: 31 edits, 40 writes, a well-formed WorkResult with six tasks and per-criterion
+  evidence — and then reported `green: true, attempts_used: 1, breaker: none`, naming the *result
+  file* as its `t0_artifact` and stating in its own words that it had verified through the profile's
+  `build_probe` script and that ingest "belongs to the outer orchestrator". `verify t0` never ran
+  once: there is no `t0/` directory and no `trials.jsonl`, and the trial writer records every
+  outcome including a crash, so one row would exist had the ratchet started. The leg's script names
+  `reduce ingest` as its third step; the worker chose not to take it.
 
-  With no T0 verdict there is no green scope, so the round loop read `green_scopes=0` and closed the
-  run `escalated` with `close_cause: breaker=inner`. That cause is false: the attempt census reports
-  one attempt spent against a budget of five, and `tripped: false`. The operator is told the scope
-  exhausted its attempts when it used one.
+  What the round loop did with that: the T0 re-read correctly found no verdict on disk and returned
+  the scope as not green — and returned *before* the leg check. The late-ingest repair, written for
+  "a leg wrote its code, a green verdict and its WorkResult, then skipped step 3", sits behind two
+  early returns and the T0 confirmation, so it is reachable only for a scope that is already fully
+  green. The state it exists to repair — result on disk, nothing applied — is the state it cannot
+  reach when the leg also skipped T0. `probe leg` against the trace answers correctly today:
+  `applied_total: 0`, one unapplied order. Nobody asked it. The two discoveries the result carried,
+  one of them a pre-existing compile break in the consumer, went nowhere: `discovery/` is empty.
 
-  The distinguishing state, which the three earlier occurrences of this class did not have:
-  `hasReceipt: true, hasResult: true, hasLeg: false`. The missing channel is the ingest step itself,
-  not a raced second order.
+  Then the close: `close_cause: breaker=inner green_scopes=0 hammer_proposals=1`, while the attempt
+  census over the same bytes says one attempt spent of five, `tripped: false`. That is not a stale
+  label; it is one word with two meanings. The protocol defines the INNER breaker as the per-scope
+  attempt budget and states it *never blocks the round*; the run loop's `inner` is a literal on the
+  branch "zero green this round and something queued", which *does* block the round. `probe
+  attempts` — the one shared derivation built so the census and the breaker cannot disagree — has
+  exactly one call site in the plugin, inside the scope-hammer skill, and is never an input to a
+  close. The hammer is then dispatched `--breaker inner`, so the census is framed by the same
+  falsehood.
 
-  **Closed when:** a round that receives a result either verifies it or ends with a cause naming
-  what did not run, and no close reports a breaker the census says did not trip.
+  **Closed when:** every settled scope is asked `probe leg` before any early return, and a result
+  on disk that no leg applied is named in the close cause rather than folded into "not green";
+  application stays gated on a green T0, because ingest ticks acceptance boxes and must not mark
+  work green that T0 never measured; the round loop's breaker vocabulary matches the protocol's, and
+  a close cannot name a breaker that `probe attempts` denies.
 
 - **HD-058 · Two gates print their block and leave no row.** Same run, same day.
 
@@ -900,8 +934,19 @@ else needs to survive for the fix to hold.
   the one question it exists for. This is the shape `HD-019` closed for the gates that had no call
   site at all; these have a call site and no ledger write.
 
-  **Closed when:** every gate a run emits a block for leaves a row, and a check asserts the
-  emitted-block set against the ledgered set rather than either against a list.
+  Re-read 2026-09-24: this is two defects with different fixes. `gate.mjs` declares ten gates; the
+  run loop crosses seven through its deterministic call, and L0, L4 and COACH-1 have no call site at
+  all — their only `gate --resolve` is a line of prose a model is asked to act on, and L4's is
+  emphatic and was still dropped. GATE H's block never names `gate --resolve H` in the first place,
+  so the model could not have complied; and the loop's `crossGate("H")` lies on the ship path only —
+  a run that returns at the inner breaker closes without ever reaching it, which is exactly the run
+  whose GATE H census the operator most needs ledgered. The prose half recurs until it has a call
+  site; the code half is a branch.
+
+  **Closed when:** every gate a run emits a block for leaves a row. The criterion as first written —
+  assert the emitted-block set against the ledgered set — is not yet implementable, because the
+  emitted-block set exists nowhere as data: closing this means the kernel renders the block in the
+  same call that writes the row, so a block the operator sees is a block the ledger already holds.
 
 - **HD-059 · A T0 verdict is evidence about a machine, and records only the tree.** Found
   2026-09-24 while trying to verify a consumer build in a clean clone — which turned out to be
@@ -925,5 +970,62 @@ else needs to survive for the fix to hold.
   **Closed when:** a T0 artifact carries enough about where it ran that a disagreeing re-run can be
   told from a regression, or the harness states plainly, where the verdict is read, that its
   evidence is machine-local.
+
+- **HD-060 · A result with no leg row passes a planning phase — the single writer is never asked,
+  and the graph cannot see it.** Same run as HD-057, 2026-09-24; generalises it.
+
+  Five dispatches, five receipts, five results, three leg rows. The build leg is HD-057. The other
+  missing row is `analyze`: a receipt, a WorkResult naming seventeen artifacts, and no leg row — the
+  run walked on to WIRE, because a phase's post-condition checks the artifact the worker writes
+  directly (`spec/usecases/*.md`), never whether the ingest step applied the envelope. `reduce
+  ingest` is the sole writer of `legs.jsonl`, the shipped contract calls it the one writer of shared
+  state, and nothing in a planning phase asserts that writer ran. `probe leg` is called from exactly
+  one place, inside the build round, behind the returns HD-057 describes.
+
+  The record is invisible where it would be cheapest to notice. The run graph's work nodes are Run,
+  Order, Result, Verdict, Trial and GateDecision — no Leg — and neither the graph nor the export
+  reads `legs.jsonl`, so the consumer's graph knows five orders produced five results and cannot know
+  only three were ever read. The one record that separates "work landed" from "work was applied" is
+  in neither projection.
+
+  **Closed when:** every phase post-condition and every settled scope asks `probe leg`; `Leg` is a
+  node in the run graph and a table in the export, so a Result with no inbound ingest edge is a
+  one-hop query; and a close with open legs reports how many were left unanswered instead of a
+  breaker.
+
+- **HD-061 · After a terminal close, every hook decision loses its `run_id` — GATE H's own census
+  included.** Same run, 2026-09-24. A consequence of the 3.7.1 pointer retirement, not noticed.
+
+  The hooks resolve `run_id` for a decision row by reading the run pointer. Every terminal close now
+  removes that pointer — correctly, so a finished run stops fencing the checkout — and the close
+  lands *before* the scope-hammer census and the ship phase run. Measured: every row after
+  `closed_at` carries `run_id: null`, including the `Skill(scope-hammer)` dispatch and its receipt.
+  So the most decision-dense stretch of a failing run — the stretch the shipped contract says is
+  worth the most — is orphaned from its own key in the one ledger that survives the trace.
+
+  **Closed when:** a decision row resolves its `run_id` from the newest receipt on disk when the
+  pointer is gone, or the close leaves a breadcrumb the hooks read; and a fixture closes a run,
+  dispatches once more, and sees the key on the row.
+
+- **HD-062 · Three run-blind readers reach durable artifacts: the committed report's round count,
+  the exported gate decisions, and the citation check.** Found 2026-09-24 by the second review;
+  members of `HD-041`, filed separately because none of them is on that row's closing criterion and
+  two of them reach artifacts that outlive the trace.
+
+  `deriveRounds` walks the orders, verdicts and build-gate directories for the whole slug with no
+  run filter, though every order carries the key. Driven on a two-run fixture: run 2, having
+  dispatched nothing, reports `rounds_used: 3` — and that value is what `reduce ship` writes into the
+  committed `REPORT.md`. The gate ledger row carries no `run_id` at all; the export stamps the
+  current run's key onto every row it finds, under a comment describing that as a fallback for rows
+  "written before they carried their own", which is every row ever written. Driven: run 1 resolves
+  L1a and L4, run 2 resolves L1b, and run 2's `gate_decision` table lists all three as its own — a
+  fabricated sign-off in the one table that answers "was this ship signed off". And the citation
+  check 3.7.2 added — new code, written after the class was named — compares the digest and the
+  cited verdict and nothing else: `scope_id` is a required field of the citation and is compared to
+  nothing, and round and run go unchecked with it.
+
+  **Closed when:** each of the three carries and filters `run_id`, and a two-run fixture shows run 2
+  reporting only its own rounds, its own gate decisions, and refusing a citation whose scope, round
+  or run is not the verdict's.
 
 This file stays short on purpose. It is a queue, not an archive.
