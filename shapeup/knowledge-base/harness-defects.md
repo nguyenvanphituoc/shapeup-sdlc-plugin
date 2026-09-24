@@ -26,7 +26,6 @@ is pinned by a guard, never when it is merely believed done.
 | HD-046 | three key spaces for one REQ id, and the folding helper is not called at the one place that grad… | — (filed after the tiering pass) |
 | HD-047 | the judge's verdict is never recomputed from its own criteria, and a PASS may carry no evidence | — (filed after the tiering pass) |
 | HD-048 | the seesaw regression arm is declared everywhere and wired nowhere | — (filed after the tiering pass) |
-| HD-050 | a case-variant path — or a symlink — walks straight through `frozen`, and 3.7.2's attestation freeze with it | P0 |
 | HD-051 | a build leg can forge a SIBLING leg's WorkResult | P1 |
 | HD-052 | four attested channels were named; the same class has at least five more | P2 |
 | HD-053 | the T0 citation re-hash proves self-consistency, not provenance | P1 |
@@ -747,37 +746,6 @@ else needs to survive for the fix to hold.
 
   **Closed when:** either a run writes the registry and a fixture proves a regression in a finished
   scope turns a green attempt red, or the arm, the flag and every mention of it are gone.
-
-- **HD-050 · A case-variant path walks straight through `frozen`.** Found 2026-09-24 by the
-  acceptance pass on the attestation freeze, and driven end to end.
-
-  `globToRegExp` matches case-sensitively; the substrate fence's run-trace carve-out is a case-blind
-  prefix test. So `.shapeup/<slug>/RESULTS/x.json` misses every `frozen` glob, reaches the carve-out,
-  and is permitted — and on a case-insensitive filesystem the write lands in the real directory.
-  Measured: `receipts/` denied, `Receipts/` allowed, and `receipts/dispatch.jsonl` existed
-  afterwards; `legs.jsonl` denied, `Legs.jsonl` allowed and its content forged.
-
-  The class predates the freeze — `intake.md` and `breadboard.md` have always been bypassable the
-  same way — but it is newly load-bearing, because a frozen glob is now the only thing between a
-  build leg and its own attestation. macOS and Windows are both affected, which is to say the
-  platform this plugin is developed and soaked on.
-
-  Re-measured 2026-09-24 after 3.7.2 shipped, by two reviewers independently and again by hand,
-  against a real compiled order: `Receipts/dispatch.jsonl`, `LEGS.jsonl` and `T0/verdicts/…` are
-  all permitted, and a write through `Receipts/` overwrote the canonical file. So the first sentence
-  of the 3.7.2 changelog — a build leg cannot write its own attestation — is false as shipped on the
-  platform the plugin is developed and soaked on. That is why this row moved to P0: a shipped
-  guarantee that is silently untrue outranks a known gap left open.
-
-  The same measurement found a second spelling. The guard resolves `..` but does not follow links,
-  so a leg whose substrate legitimately allows `src/**` can create `src/x → ../.shapeup/<slug>/legs.jsonl`
-  and write through it: permitted. Case, symlink, hardlink, Unicode normalisation — the deny list is
-  defined over spellings, and the thing it protects is a file. No list of globs closes that; comparing
-  resolved real paths does, in one place, for every frozen glob at once.
-
-  **Closed when:** the guard compares resolved real paths (case-folded where the filesystem is)
-  rather than spellings, and a fixture drives a case-variant and a symlink of each frozen glob and
-  sees a denial for both.
 
 - **HD-051 · A build leg can forge a SIBLING leg's WorkResult.** Filed 2026-09-24 as the hole left
   open, deliberately, when the attestation freeze was cut back.

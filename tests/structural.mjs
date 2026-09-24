@@ -338,6 +338,12 @@ const MODULE_FILES = [
   // actually invokes. It also pins the two traps the fix must not fall into: a first run with no
   // ledger yet must still write, and the dot must still move DOWN when its evidence is removed.
   "82-hill-absence.mjs",
+  // 83-frozen-real-path.mjs: a substrate glob is a spelling and the thing it protects is a file.
+  // Measured: `Receipts/dispatch.jsonl` walked through a `receipts/**` freeze and overwrote the real
+  // file on a case-insensitive filesystem, and a symlink inside an allowed `src/**` reached
+  // `legs.jsonl` because `..` was resolved but links were not followed. Drives both spellings of
+  // every frozen channel through the real hook and expects a denial for each.
+  "83-frozen-real-path.mjs",
   "08-docs.mjs",
 ];
 

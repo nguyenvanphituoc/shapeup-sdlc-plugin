@@ -85,8 +85,8 @@
 // Contract: PreToolUse stdin JSON { tool_name, tool_input:{file_path | edits[].file_path}, cwd }.
 // Deny via { hookSpecificOutput: { hookEventName, permissionDecision:"deny", permissionDecisionReason } }.
 
-import { readFileSync, existsSync, appendFileSync, mkdirSync, readdirSync, statSync } from "node:fs";
-import { resolve, join, relative, dirname, sep } from "node:path";
+import { readFileSync, existsSync, appendFileSync, mkdirSync, readdirSync, statSync, realpathSync, lstatSync, readlinkSync } from "node:fs";
+import { resolve, join, relative, dirname, basename, sep } from "node:path";
 import { isMain } from "../kernel/lib/argv.mjs";
 import { LOCAL, SHARED, activeOrder, ordersDir, resultsDir, metricsShard } from "../kernel/lib/paths.mjs";
 import { runHook, readStdin, settle, projectRoot } from "./lib/decision.mjs";
@@ -115,8 +115,69 @@ export function globToRegExp(glob) {
   return new RegExp(`^${re}$`);
 }
 
-export function matchesAny(relPath, globs) {
-  return (globs || []).some((g) => globToRegExp(g).test(relPath));
+/**
+ * Does `relPath` match any of `globs`? With `fold` set, both sides are compared case-folded — the
+ * caller passes it when the filesystem underneath does not distinguish case, so that a glob
+ * declared as `receipts/**` also covers the spelling `Receipts/**`, which on that filesystem is the
+ * same directory.
+ */
+export function matchesAny(relPath, globs, fold = false) {
+  const path = fold ? relPath.toLowerCase() : relPath;
+  return (globs || []).some((g) => globToRegExp(fold ? g.toLowerCase() : g).test(path));
+}
+
+// --- the path a write actually lands on ---------------------------------------------------------
+//
+// A substrate glob is a SPELLING; what it protects is a FILE. Measured against a real compiled
+// order: `.shapeup/<slug>/receipts/dispatch.jsonl` was denied as frozen, `Receipts/dispatch.jsonl`
+// was permitted, and on this machine's case-insensitive filesystem the second spelling overwrote
+// the first file. A symlink was the same hole from another side: `src/x -> ../.shapeup/<slug>/legs.jsonl`
+// sits inside an allowed `src/**` and resolves `..` without following the link, so the write went
+// through. No list of globs can close either — case, links, Unicode forms are all further spellings
+// of one target — so the comparison is made on the resolved real path instead, and case-folded when
+// the filesystem itself folds case. The globs stay exactly as the compiler wrote them.
+
+/**
+ * Resolve `abs` through the filesystem: symlinks in any existing ancestor are followed (a dangling
+ * link is followed by reading it), and the part that does not exist yet is re-attached to the real
+ * path of the deepest ancestor that does. A path nothing on disk can resolve is returned as given.
+ *
+ * @param {string} abs - Absolute path as the tool named it.
+ * @param {number} [depth] - Recursion guard for link chains.
+ * @returns {string} The path the write would actually reach.
+ */
+export function realPathOf(abs, depth = 0) {
+  if (depth > 40) return abs;
+  let cur = abs;
+  const tail = [];
+  for (let i = 0; i < 128; i++) {
+    try { return join(realpathSync.native(cur), ...[...tail].reverse()); } catch { /* not yet resolvable as a whole */ }
+    try {
+      if (lstatSync(cur).isSymbolicLink()) {
+        const target = resolve(dirname(cur), readlinkSync(cur));
+        return realPathOf(join(target, ...[...tail].reverse()), depth + 1);
+      }
+    } catch { /* does not exist at all — climb */ }
+    const parent = dirname(cur);
+    if (parent === cur) return abs;
+    tail.push(basename(cur));
+    cur = parent;
+  }
+  return abs;
+}
+
+/**
+ * Does the filesystem under `dir` fold case? Decided by asking it: the directory's own real path,
+ * with every letter's case swapped, exists and resolves back to the same real path only where the
+ * filesystem does not distinguish case. A path with no letters to swap answers "no".
+ *
+ * @param {string} dir - An existing directory (the project root).
+ * @returns {boolean} True on a case-insensitive filesystem.
+ */
+export function fsFoldsCase(dir) {
+  const swapped = dir.replace(/[a-zA-Z]/g, (c) => (c === c.toLowerCase() ? c.toUpperCase() : c.toLowerCase()));
+  if (swapped === dir) return false;
+  try { return existsSync(swapped) && realpathSync.native(swapped) === realpathSync.native(dir); } catch { return false; }
 }
 
 function readJSON(p) {
@@ -281,9 +342,15 @@ async function main() {
   const blockReasons = [];
   let frozenHits = 0;
 
+  // Compare where the write lands, not how it was spelled (see `realPathOf`). The root is resolved
+  // the same way so a checkout reached through a linked directory still yields a relative path.
+  const realRoot = realPathOf(resolve(root));
+  const fold = fsFoldsCase(realRoot);
+  const under = (rel, prefix) => (fold ? rel.toLowerCase().startsWith(prefix.toLowerCase()) : rel.startsWith(prefix));
+
   for (const raw of targetPaths) {
-    const abs = resolve(cwd, raw);
-    const rel = relative(root, abs);
+    const abs = realPathOf(resolve(cwd, raw));
+    const rel = relative(realRoot, abs);
 
     // Frozen takes absolute precedence, and it is checked across EVERY live contract: a path one
     // scope froze stays frozen while another scope is in flight, which is the whole point of
@@ -296,7 +363,7 @@ async function main() {
     // a planner is graded against — so the compiler emitted a declaration with no enforcer, which is
     // the exact state this hook exists to end. A path a live contract freezes is a violation
     // wherever it lives.
-    const freezer = contracts.find((c) => matchesAny(rel, c.frozen));
+    const freezer = contracts.find((c) => matchesAny(rel, c.frozen, fold));
     if (freezer) {
       violations.push(rel);
       frozenHits++;
@@ -304,11 +371,11 @@ async function main() {
       continue;
     }
 
-    if (rel.startsWith(runTracePrefix)) continue;
+    if (under(rel, runTracePrefix)) continue;
 
-    if (contracts.some((c) => matchesAny(rel, c.allowed))) continue;      // inside a live contract
+    if (contracts.some((c) => matchesAny(rel, c.allowed, fold))) continue;      // inside a live contract
 
-    if (contracts.some((c) => matchesAny(rel, c.appendOnly))) {
+    if (contracts.some((c) => matchesAny(rel, c.appendOnly, fold))) {
       if (p.tool_name === "Write") {
         violations.push(rel);
         blockReasons.push(`${rel} is append-only (Write overwrites, use Edit)`);
@@ -332,7 +399,7 @@ async function main() {
   // spec artifacts, so widening a substrate to reach one is the wrong move in a plausible-looking
   // direction. Those files belong to the orchestrator, whose write window is a phase boundary —
   // no dispatch in flight — and never the middle of somebody else's dispatch.
-  const committed = violations.filter((v) => v.split(/[\\/]/)[0] === SHARED);
+  const committed = violations.filter((v) => (fold ? v.split(/[\\/]/)[0].toLowerCase() === SHARED.toLowerCase() : v.split(/[\\/]/)[0] === SHARED));
   const hint = committed.length === violations.length
     ? `${SHARED}/ is committed tier: these belong to the orchestrator, not to a worker substrate. `
       + "Write them at a phase boundary, with no dispatch in flight — do not widen an order to reach one."

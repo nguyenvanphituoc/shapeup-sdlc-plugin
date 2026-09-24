@@ -3,6 +3,24 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### A frozen path is denied under every spelling
+
+The substrate fence compared the spelling a tool named against the globs an order declared, and
+the thing a glob protects is a file. Measured against a real compiled order on a case-insensitive
+filesystem: `receipts/dispatch.jsonl` was denied as frozen, `Receipts/dispatch.jsonl` was
+permitted, and the second spelling overwrote the first file — so the attestation freeze 3.7.2
+shipped was one keystroke wide on the platform this plugin is developed on. A symlink was the
+same hole from the other side: `src/x → ../.shapeup/<slug>/legs.jsonl` inside an allowed `src/**`
+resolved `..` without following the link.
+
+The hook now compares the path a write actually lands on: symlinks in any existing ancestor are
+followed (a dangling link by reading it), the unborn tail is re-attached to the real ancestor, and
+the comparison is case-folded where the filesystem itself folds case — decided by asking the
+filesystem, not by platform name. The globs stay exactly as the compiler wrote them, and a
+structural check drives a case variant and a symlink of every frozen channel through the real hook.
+
 ## [3.7.2] — 2026-09-24 · The floor under the judge, and what an adversary found in it
 
 Four defects under the mechanical evidence layer — the half of this harness with the least live
