@@ -61,11 +61,7 @@ import { dirname, join, resolve } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
 import { splitFrontmatter, uncoerce } from "../lib/contract.mjs";
 import { globToRegExp } from "../verify/spec.mjs";
-import {
-  intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir,
-  orientDir, activeOrder, activeScope, usecasesDir, breadboard, receipt, readReceipt, requirements,
-  exportRunDir,
-} from "../lib/paths.mjs";
+import { intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir, orientDir, activeOrder, activeScope, usecasesDir, breadboard, receipt, readReceipt, requirements, exportRunDir, lastRun, readRunId } from "../lib/paths.mjs";
 import { evalVerdict } from "./eval.mjs";
 import { collectRun, writeRun } from "../report/export.mjs";
 
@@ -709,6 +705,15 @@ export function closeRun(cwd, slug, { status, cause = null, withExport = true } 
    */
   const finishClose = (result) => {
     const warning = shouldExport ? exportOnClose(cwd, slug) : null;
+    // The breadcrumb goes down before the pointers come up: the hooks that fire next — the
+    // scope-hammer census, the ship phase — resolve their run through whichever of the two exists,
+    // and there must be no instant in which neither does. Best-effort like the rest of this close.
+    try {
+      mkdirSync(dirname(lastRun(cwd)), { recursive: true });
+      writeFileSync(lastRun(cwd), JSON.stringify({
+        slug, run_id: readRunId(cwd, slug), closed_status: status, closed_at: new Date().toISOString(),
+      }) + "\n");
+    } catch { /* a missing breadcrumb costs the post-close rows their key, never the close */ }
     const stuck = [];
     for (const pointer of [activeOrder(cwd), activeScope(cwd)]) {
       try { rmSync(pointer, { force: true }); } catch { /* fall through to the check below */ }

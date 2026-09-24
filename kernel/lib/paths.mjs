@@ -294,6 +294,19 @@ export const activeScope = (cwd) => join(localDir(cwd), "active-scope");
 export const activeOrder = (cwd) => join(localDir(cwd), "active-order");
 
 /**
+ * The run a terminal close just ended — `{slug, run_id, closed_at, closed_status}`, written by the
+ * close in the same act that retires the run pointers, and superseded by the next close.
+ *
+ * Why it exists: retiring the pointers is right (a finished run must stop fencing the checkout),
+ * but the close lands BEFORE the stretch that decides the most — the scope-hammer census, the ship
+ * phase, the export — and every hook decision in that stretch resolved its run through the pointer
+ * that was just removed. Measured on a live run: every decision row after `closed_at` carried
+ * `run_id: null`, the census dispatch included. The breadcrumb keeps that join without keeping the
+ * fence: it names a run, it never arms anything, and a row keyed through it says so.
+ */
+export const lastRun = (cwd) => join(localDir(cwd), "last-run");
+
+/**
  * Where the run scripts are staged for launch, inside the project.
  *
  * The orchestrator's Workflow scripts ship with the plugin, which lives OUTSIDE the project — and
@@ -531,9 +544,31 @@ export function readRunId(cwd, slug) {
  * @returns {(string|null)} The run key, or null when no run is active or readable.
  */
 export function resolveRunId(cwd, slug = null) {
-  if (slug) return readRunId(cwd, slug);
+  return resolveRun(cwd, slug).run_id;
+}
+
+/**
+ * The run key AND where it came from — the shape a ledger row needs when the distinction matters.
+ *
+ * Resolution order: the slug the caller knows (`slug`); else the `active-scope` pointer a live run
+ * publishes (`pointer`); else the breadcrumb the last terminal close left (`closed`), so the census
+ * and ship phase that follow a close still key to the run they belong to; else `null`, which is
+ * "no run" and a real answer. A key resolved through the breadcrumb is a key to a run that is
+ * OVER: the caller records that alongside it rather than presenting the two the same way.
+ *
+ * @param {string} cwd - Project root.
+ * @param {(string|null)} [slug=null] - Feature slug when the caller already knows it.
+ * @returns {{run_id:(string|null), source:("slug"|"pointer"|"closed"|null)}}
+ */
+export function resolveRun(cwd, slug = null) {
+  if (slug) return { run_id: readRunId(cwd, slug), source: "slug" };
   try {
     const ptr = JSON.parse(readFileSync(activeScope(cwd), "utf8"));
-    return ptr?.slug ? readRunId(cwd, ptr.slug) : null;
-  } catch { return null; }
+    if (ptr?.slug) return { run_id: readRunId(cwd, ptr.slug), source: "pointer" };
+  } catch { /* no live run — fall through to the breadcrumb */ }
+  try {
+    const crumb = JSON.parse(readFileSync(lastRun(cwd), "utf8"));
+    if (typeof crumb?.run_id === "string" && crumb.run_id) return { run_id: crumb.run_id, source: "closed" };
+  } catch { /* no close on record either */ }
+  return { run_id: null, source: null };
 }

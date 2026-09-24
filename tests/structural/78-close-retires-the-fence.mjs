@@ -105,6 +105,23 @@ export async function run(ctx) {
       if (!after.denied) ok(`[${status}] the fence is DOWN after the close — an ordinary write is permitted again`);
       else fail(`[${status}] the fence still denies an ordinary write after a close that exited 0 — the run is over and the project is still fenced\n${after.out}`);
 
+      // THE ROWS AFTER THE CLOSE STILL NAME THE RUN. Retiring the pointer used to cost every later
+      // hook decision its key — measured live: the census dispatch and the ship phase all logged
+      // `run_id: null` — because the hooks resolved the run through the pointer alone.
+      {
+        const runId = JSON.parse(readFileSync(join(ws, ".shapeup/fencetest/receipt.json"), "utf8")).run_id;
+        const rows = readFileSync(join(ws, "dec.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+        const first = rows[0];
+        const last = rows[rows.length - 1];
+        if (first?.run_id === runId && !first.run_closed) ok(`[${status}] a decision inside the run carries its key, unmarked`);
+        else fail(`[${status}] the pre-close decision row is keyed wrong: ${JSON.stringify({ run_id: first?.run_id, run_closed: first?.run_closed })} vs ${runId}`);
+        if (last?.run_id === runId && last.run_closed === true) ok(`[${status}] a decision AFTER the close still carries the run's key, and is marked as taken over a closed run`);
+        else fail(`[${status}] the post-close decision row lost its key or its marker: ${JSON.stringify({ run_id: last?.run_id, run_closed: last?.run_closed })} vs ${runId} — the census and ship phase that follow a close are orphaned from the run`);
+        const crumb = join(ws, ".shapeup/last-run");
+        if (existsSync(crumb) && JSON.parse(readFileSync(crumb, "utf8")).run_id === runId) ok(`[${status}] the close left a breadcrumb naming the run it ended`);
+        else fail(`[${status}] no breadcrumb at ${crumb} — nothing after the close can name the run`);
+      }
+
       const pointers = readdirSync(join(ws, ".shapeup")).filter((f) => f.startsWith("active"));
       if (pointers.length === 0) ok(`[${status}] both run pointers are retired`);
       else fail(`[${status}] the close left ${pointers.join(", ")} on disk — a pointer naming a finished run is a fact that is no longer true`);

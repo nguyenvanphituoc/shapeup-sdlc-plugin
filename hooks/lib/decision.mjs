@@ -49,7 +49,7 @@
 import { appendFileSync, mkdirSync, existsSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { decisions, activeScope, sharedDir } from "../../kernel/lib/paths.mjs";
-import { resolveRunId } from "../../kernel/lib/paths.mjs";
+import { resolveRun } from "../../kernel/lib/paths.mjs";
 
 /**
  * The project root a hook should file under, from wherever the tool call happened to fire.
@@ -221,7 +221,15 @@ export async function runHook(name, fn) {
     // run, and recording that is what lets the export tier partition ambient decisions from run
     // ones. Resolution reads two small files and swallows every error — a receipt must never be
     // able to fail a tool call.
-    run_id: (() => { try { return resolveRunId(projectRoot(d.cwd || process.cwd())); } catch { return null; } })(),
+    // A row written after the run's terminal close still keys to that run — the close leaves a
+    // breadcrumb for exactly this stretch — and says so, because a decision taken over a closed run
+    // is a different fact from one taken inside it.
+    ...(() => {
+      try {
+        const { run_id, source } = resolveRun(projectRoot(d.cwd || process.cwd()));
+        return source === "closed" ? { run_id, run_closed: true } : { run_id };
+      } catch { return { run_id: null }; }
+    })(),
     event: d.event ?? null,
     tool: d.tool ?? null,
     subject: d.subject ?? null,

@@ -382,7 +382,7 @@ yields the id it would have been given.
 | `harness compile` | WorkOrder | `run_id` + `compiled_at`, at the one point every lane passes through |
 | `harness verify t0` | T0Artifact, TrialRow | read off the receipt in the run root it was pointed at |
 | the Workflow runtime | journal row | resolved once at launch, from `RunArgs.runId` or the receipt |
-| `hooks/lib/decision.mjs` | decision row | best-effort via `active-scope`; `null` outside a run |
+| `hooks/lib/decision.mjs` | decision row | best-effort via `active-scope`, else the `last-run` breadcrumb a terminal close leaves (row marked `run_closed`); `null` outside any run |
 | tech-lead (SHIP S.6) | MetricsRow | copied — the harvest row's only link to its own trace |
 
 **WorkResult deliberately gets no stamp.** It is written by the worker, and a field a worker must

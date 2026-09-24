@@ -36,7 +36,6 @@ is pinned by a guard, never when it is merely believed done.
 | HD-058 | two gates print their block and leave no row | P2 |
 | HD-059 | a T0 verdict is evidence about a machine, and records only the tree | P1 |
 | HD-060 | a result with no leg row passes a planning phase — the single writer is never asked, and the graph cannot see it | P1 |
-| HD-061 | after a terminal close, every hook decision loses its `run_id` — GATE H's own census included | P2 |
 | HD-062 | three run-blind readers reach durable artifacts: the committed report's round count, the exported gate decisions, and the citation check | P1 (HD-041 member) |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
@@ -960,20 +959,6 @@ else needs to survive for the fix to hold.
   node in the run graph and a table in the export, so a Result with no inbound ingest edge is a
   one-hop query; and a close with open legs reports how many were left unanswered instead of a
   breaker.
-
-- **HD-061 · After a terminal close, every hook decision loses its `run_id` — GATE H's own census
-  included.** Same run, 2026-09-24. A consequence of the 3.7.1 pointer retirement, not noticed.
-
-  The hooks resolve `run_id` for a decision row by reading the run pointer. Every terminal close now
-  removes that pointer — correctly, so a finished run stops fencing the checkout — and the close
-  lands *before* the scope-hammer census and the ship phase run. Measured: every row after
-  `closed_at` carries `run_id: null`, including the `Skill(scope-hammer)` dispatch and its receipt.
-  So the most decision-dense stretch of a failing run — the stretch the shipped contract says is
-  worth the most — is orphaned from its own key in the one ledger that survives the trace.
-
-  **Closed when:** a decision row resolves its `run_id` from the newest receipt on disk when the
-  pointer is gone, or the close leaves a breadcrumb the hooks read; and a fixture closes a run,
-  dispatches once more, and sees the key on the row.
 
 - **HD-062 · Three run-blind readers reach durable artifacts: the committed report's round count,
   the exported gate decisions, and the citation check.** Found 2026-09-24 by the second review;

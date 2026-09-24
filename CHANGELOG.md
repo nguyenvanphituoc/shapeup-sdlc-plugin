@@ -21,6 +21,17 @@ the comparison is case-folded where the filesystem itself folds case — decided
 filesystem, not by platform name. The globs stay exactly as the compiler wrote them, and a
 structural check drives a case variant and a symlink of every frozen channel through the real hook.
 
+### A close no longer orphans what follows it
+
+Every terminal close retires the run pointers, correctly — and the close lands before the
+scope-hammer census, the ship phase and the export, all of which resolved their run through the
+pointer just removed. Measured on a live run: every hook decision after `closed_at` carried
+`run_id: null`, the census dispatch included, in the one ledger that survives the trace. The close
+now leaves a `last-run` breadcrumb naming the run it ended, written before the pointers come down;
+the hooks resolve the pointer first and the breadcrumb second, and a row keyed through the
+breadcrumb carries `run_closed: true`, because a decision taken over a closed run is a different
+fact from one taken inside it. The breadcrumb names a run and arms nothing.
+
 ## [3.7.2] — 2026-09-24 · The floor under the judge, and what an adversary found in it
 
 Four defects under the mechanical evidence layer — the half of this harness with the least live
