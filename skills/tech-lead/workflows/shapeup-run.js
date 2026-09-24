@@ -41,7 +41,8 @@
 //   { status: "shipped", verdict, rounds_used, dims_not_evaluated, qa_findings, report }
 //   { status: "paused",  paused_at, block, valid_decisions, context }
 //   { status: "aborted", aborted_at, reason }
-//   { status: "gate_h",  breaker: "outer"|"inner"|"deadline", hammer_proposals, green_scopes }
+//   { status: "gate_h",  breaker: "outer"|"attempt_budget"|"none"|"deadline", hammer_proposals, green_scopes,
+//                        tripped_scopes?, unapplied_results? }
 
 // meta must be a PURE LITERAL — the runtime parses it statically, before the body ever runs, and
 // rejects the whole script on anything it has to evaluate. A `+`-joined description is a
@@ -471,6 +472,32 @@ const T0CHECK = {
   required: ["green"],
 };
 
+/** `probe leg --order` — did one named order's result reach the single writer? Any phase. */
+const ORDERLEG = {
+  type: "object",
+  properties: {
+    closed: { type: "boolean" },
+    found: { type: "boolean" },
+    order: nullable("string"),
+    has_result: { type: "boolean" },
+    applied: { type: "boolean" },
+  },
+  required: ["closed", "found", "has_result", "applied"],
+};
+
+/** `probe attempts` — the attested census: what was spent, and whether the breaker really tripped. */
+const ATTEMPTS = {
+  type: "object",
+  properties: {
+    scope_id: { type: "string" },
+    spent: { type: "integer" },
+    in_flight: { type: "integer" },
+    green: { type: "boolean" },
+    tripped: { type: "boolean" },
+  },
+  required: ["scope_id", "spent", "tripped"],
+};
+
 /** `probe leg` — did this scope's result reach the board, or is it finished work nothing applied? */
 const LEGCHECK = {
   type: "object",
@@ -818,6 +845,42 @@ const attest = (phaseKey, phaseName, label) =>
   cmd(`probe resume --slug ${slug} --require ${phaseKey}`, phaseName, label);
 
 /**
+ * The other half of a phase post-condition: the single writer ran.
+ *
+ * The artifact check asks whether the worker wrote its product. It cannot ask whether the
+ * WorkResult was applied — the leg row, the discoveries, the board — because the product is written
+ * by the worker directly and the envelope is applied by `reduce ingest`, a separate act the leg's
+ * script names as its last step. Measured on a live run: a planning phase landed a result naming
+ * seventeen artifacts and no leg row, the artifact check passed, and the run walked on with the
+ * result's discoveries never reaching the ledger. So this asks the leg ledger by order name. A
+ * result on disk that nothing applied is ingested here — the same repair the build round makes,
+ * for the same reason: the single writer is the invariant, not which step invokes it — and if it
+ * still is not applied after that, the run stops with a cause naming the writer that did not run,
+ * rather than folding the gap into a phase that "completed".
+ *
+ * @param {string} gate - The gate name to report the abort under.
+ * @param {string} phaseKey - The phase, which is also its order's file stem.
+ * @param {string} phaseName - Progress group.
+ * @returns {Promise<(object|null)>} An aborted RunReturn, or null when the leg closed (or the
+ *   question could not be asked — a probe that did not run proves nothing, and is logged as such).
+ */
+async function requireLeg(gate, phaseKey, phaseName) {
+  const ask = () => query(`probe leg --slug ${slug} --order "${phaseKey}"`, ORDERLEG, phaseName, `legcheck:${phaseKey}`);
+  let leg = await ask();
+  if (!leg || !leg.found) { log(`${gate} — could not ask the leg ledger about "${phaseKey}" (probe returned ${leg ? "no order" : "nothing"}); proceeding on the artifact alone.`); return null; }
+  if (!leg.has_result || leg.applied) return null;
+  log(`${gate} — "${phaseKey}" came back with a result nothing applied (no leg row). Ingesting it here: ${leg.order}.`);
+  await advisory(`reduce ingest --order "${leg.order}"`, phaseName, `late-ingest:${phaseKey}`);
+  leg = await ask();
+  if (leg?.applied) return null;
+  return aborted(gate,
+    `${gate}: the single writer did not run for "${phaseKey}" — its WorkResult is on disk and no leg row ` +
+    `records it being applied, and a late \`reduce ingest\` did not take either. The phase's product exists; ` +
+    `what it discovered and reported never reached the ledger or the board. Read the result, run ` +
+    `\`reduce ingest --order "${leg?.order ?? "<its order>"}"\` by hand to see why it refuses, then relaunch.`);
+}
+
+/**
  * The phase post-condition: the artifact is on disk, or the run stops here.
  *
  * Deliberately the SAME derivation the fast-forward uses, asked about one phase. Two readings of
@@ -830,7 +893,7 @@ const attest = (phaseKey, phaseName, label) =>
  */
 async function requirePhase(gate, phaseKey, phaseName) {
   const r = await attest(phaseKey, phaseName, `require:${phaseKey}`);
-  if (r.exit_code === 0) return null;
+  if (r.exit_code === 0) return await requireLeg(gate, phaseKey, phaseName);
   // Exit 6 is `probe resume --require`'s OWN documented code for "the artifact really is not on
   // disk" (kernel/probe/resume.mjs banner). Any other value — including -1, the courier's sentinel
   // for a tool call that never ran — is not that predicate answering "no"; it is the predicate never
@@ -1001,7 +1064,11 @@ async function closeIfTerminal(ret) {
   const cause = ret.status === "aborted"
     ? `${ret.aborted_at || "?"}: ${ret.reason || "no reason recorded"}`
     : ret.status === "gate_h"
-    ? `breaker=${ret.breaker ?? "?"} green_scopes=${Array.isArray(ret.green_scopes) ? ret.green_scopes.length : "?"} hammer_proposals=${Array.isArray(ret.hammer_proposals) ? ret.hammer_proposals.length : "?"}`
+    ? (ret.stalled ? `stalled=${ret.stalled} ` : "")
+      + `breaker=${ret.breaker ?? "?"} green_scopes=${Array.isArray(ret.green_scopes) ? ret.green_scopes.length : "?"} hammer_proposals=${Array.isArray(ret.hammer_proposals) ? ret.hammer_proposals.length : "?"}`
+      + (Array.isArray(ret.tripped_scopes) ? ` tripped_scopes=${ret.tripped_scopes.length}` : "")
+      // A result the single writer never applied is named at the close, not folded into "not green".
+      + (Array.isArray(ret.unapplied_results) && ret.unapplied_results.length ? ` unapplied_results=${ret.unapplied_results.length}` : "")
     : `verdict=${ret.verdict ?? "?"} rounds=${ret.rounds_used ?? "?"} qa_findings=${ret.qa_findings ?? "?"}`;
   // `--close-arm` hands the kernel the arm itself (not a status this file decided was terminal) —
   // a non-terminal arm (`paused`, `ok`) still exits 0 with no "decision" key, so the branches below
@@ -1368,6 +1435,7 @@ let verdict = null;
 // other two. The cure is the same each time and it is not a bigger variable: re-derive the fact.
 const allGreen = [];
 const allHammer = [];
+const allUnapplied = [];   // results on disk the single writer never applied, run-wide
 // OUTSIDE the loop, because its whole purpose is to cross a round boundary: round r's verdict is
 // what round r+1 has to act on. Declared inside, it was in the temporal dead zone at the BUILD that
 // needed it — a runtime error no static check can see, since nothing but a real second round ever
@@ -1408,7 +1476,7 @@ while (verdict !== "pass" && round <= maxRounds) {
   const budget = await cmd(`verify budget --slug ${slug} --strict`, "Build", `budget:r${round}`);
   if (budget.exit_code === 6) {
     await advisory(`reduce hill --slug ${slug}`, "Build", "hill-derive");
-    return await withWarnings({ status: "gate_h", breaker: "deadline", hammer_proposals: allHammer, green_scopes: allGreen });
+    return await withWarnings({ status: "gate_h", breaker: "deadline", unapplied_results: allUnapplied, hammer_proposals: allHammer, green_scopes: allGreen });
   }
 
   log(`BUILD round ${round} — ${scopes.length} scope(s), up to ${maxParallelScopes} at once, attempt budget ${attemptBudget}`);
@@ -1463,8 +1531,22 @@ while (verdict !== "pass" && round <= maxRounds) {
         : { scope_id: s.scope_id, pending: true }),   // not green yet → stage 2 builds it
       async (pre, s) => (pre?.pending ? buildScope(s, round) : pre),
       async (res, s) => {
-        if (!res || res.__failed) return res;
-        if (!res.green) return res;
+        if (!res) return res;
+        // THE SINGLE WRITER IS ASKED FIRST, WHATEVER THE LEG SAID. This question used to sit behind
+        // the green checks below, and the state it exists to catch — a result on disk that nothing
+        // applied — was reachable only for a scope that was already fully green. Measured live: a
+        // leg reported green with no T0 verdict at all, the T0 re-read correctly returned "not
+        // green", the round returned before this line, and the result — six tasks, two discoveries
+        // — was never read by anyone. A dead leg (`__failed`) can have left a result too. So every
+        // settled scope is asked, and what it answers travels on the result to the close, where an
+        // unapplied result is named rather than folded into "not green". Application stays gated
+        // on the green checks: ingest ticks acceptance boxes, and a result T0 never measured must
+        // not mark work green — the repair below is for a scope that IS green.
+        const applied = await query(`probe leg --slug ${slug} --scope ${s.scope_id} --round ${round}`,
+          LEGCHECK, "Build", `legcheck:${s.scope_id}-r${round}`);
+        const unapplied = applied?.closed ? [] : (applied?.unapplied || []);
+        if (res.__failed) return unapplied.length ? { ...res, unapplied } : res;
+        if (!res.green) return unapplied.length ? { ...res, unapplied } : res;
         // THE T0 RE-READ IS SKIPPED FOR A RESUMED SCOPE; THE LEG CHECK BELOW IS NOT.
         //
         // `resumed` means the graph already reported this scope green for this round, so re-reading
@@ -1481,7 +1563,7 @@ while (verdict !== "pass" && round <= maxRounds) {
           if (!confirmed?.green) {
             log(`BUILD r${round} — ${s.scope_id} reported green but no T0 verdict is on disk for this ` +
                 `round; treating it as not green (the evaluator cites that artifact, and it is not there).`);
-            return { ...res, green: false, reason: "reported green with no T0 verdict artifact on disk" };
+            return { ...res, green: false, reason: "reported green with no T0 verdict artifact on disk", ...(unapplied.length ? { unapplied } : {}) };
           }
         }
         // AND ITS RESULT HAS TO HAVE REACHED THE BOARD. A green T0 says the worker's fixtures ran and
@@ -1494,9 +1576,7 @@ while (verdict !== "pass" && round <= maxRounds) {
         //
         // The evidence is the leg-completion row, because `reduce ingest` writes it: its presence
         // proves the writer ran, and it is not something the leg can assert about itself.
-        const applied = await query(`probe leg --slug ${slug} --scope ${s.scope_id} --round ${round}`,
-          LEGCHECK, "Build", `legcheck:${s.scope_id}-r${round}`);
-        for (const orderPath of (applied?.closed ? [] : applied?.unapplied || [])) {
+        for (const orderPath of unapplied) {
           // INGESTED HERE RATHER THAN FAILED. The result is on disk and valid — re-running the leg
           // would pay a whole attempt again for work already done. Only the single writer writes
           // shared state, and that writer is this command; which step invokes it is not the invariant.
@@ -1524,6 +1604,10 @@ while (verdict !== "pass" && round <= maxRounds) {
 
   for (const [i, res] of settled.entries()) {
     const scopeId = buildOrder[i].scope_id;
+    for (const p of (res?.unapplied || [])) {
+      if (!allUnapplied.includes(p)) allUnapplied.push(p);
+      log(`BUILD r${round} — ${scopeId} has a result on disk nothing applied: ${p}`);
+    }
     // A dead builder is a SPENT ATTEMPT, not a dead run: the scope goes to GATE H's census and
     // the round continues. Killing the run here would discard every other scope's green work.
     if (!res || res.__failed) {
@@ -1541,10 +1625,26 @@ while (verdict !== "pass" && round <= maxRounds) {
   for (const sid of roundGreen) { const i = allHammer.indexOf(sid); if (i !== -1) allHammer.splice(i, 1); }
   for (const sid of roundHammer) if (!allHammer.includes(sid) && !allGreen.includes(sid)) allHammer.push(sid);
 
-  // INNER breaker: nothing green and something queued → GATE H. The census is scope-hammer's job.
+  // NOTHING GREEN AND SOMETHING QUEUED → GATE H. This used to return the literal `inner` as its breaker, and the
+  // protocol's INNER breaker is the per-scope attempt budget, which "queues a proposal, never blocks
+  // the round" — so the close named a breaker the attested census flatly denied (one attempt spent
+  // of five, `tripped: false`), and the operator was told a scope had exhausted its attempts after
+  // it used one. The word is now earned: `probe attempts` — the one derivation built so the census
+  // and the breaker cannot disagree — is asked for every queued scope, and the return names
+  // `attempt_budget` only for the scopes it says tripped, `none` when the round simply stalled.
   if (roundGreen.length === 0 && roundHammer.length > 0) {
+    const tripped = [];
+    for (const sid of roundHammer) {
+      const census = await query(`probe attempts --slug ${slug} --scope "${sid}" --round ${round} --attempt-budget ${attemptBudget}`,
+        ATTEMPTS, "Build", `census:${sid}-r${round}`);
+      if (census?.tripped) tripped.push(sid);
+    }
     await advisory(`reduce hill --slug ${slug}`, "Build", "hill-derive");
-    return await withWarnings({ status: "gate_h", breaker: "inner", hammer_proposals: allHammer, green_scopes: allGreen });
+    return await withWarnings({
+      status: "gate_h", breaker: tripped.length ? "attempt_budget" : "none", stalled: "no_green",
+      tripped_scopes: tripped, unapplied_results: allUnapplied,
+      hammer_proposals: allHammer, green_scopes: allGreen,
+    });
   }
 
   // ---- ROUND BUILD GATE — the feature builds and launches, measured before anyone is asked --------
@@ -1655,13 +1755,13 @@ while (verdict !== "pass" && round <= maxRounds) {
   // SHIP" once EVAL is skipped, never spends another round waiting on a verdict nobody is producing.
   if (verdict === "pass" || verdict === "not-evaluated") break;   // → QA → GATE H → ship
   if (g3.decision === "stop" || round >= maxRounds) {
-    return await withWarnings({ status: "gate_h", breaker: "outer", hammer_proposals: allHammer, green_scopes: allGreen });
+    return await withWarnings({ status: "gate_h", breaker: "outer", unapplied_results: allUnapplied, hammer_proposals: allHammer, green_scopes: allGreen });
   }
   round += 1;
 }
 
 if (verdict !== "pass" && verdict !== "not-evaluated") {
-  return await withWarnings({ status: "gate_h", breaker: "outer", hammer_proposals: allHammer, green_scopes: allGreen });
+  return await withWarnings({ status: "gate_h", breaker: "outer", unapplied_results: allUnapplied, hammer_proposals: allHammer, green_scopes: allGreen });
 }
 
 // ---- QA (post-PASS, pre-ship) — a level-up, never a gate. `--no-qa` answers it "skip". --------

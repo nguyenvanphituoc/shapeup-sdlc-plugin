@@ -32,6 +32,32 @@ the hooks resolve the pointer first and the breadcrumb second, and a row keyed t
 breadcrumb carries `run_closed: true`, because a decision taken over a closed run is a different
 fact from one taken inside it. The breadcrumb names a run and arms nothing.
 
+### The single writer is asked, never assumed
+
+A run dispatched five legs. Five results landed. Three leg rows were written, and nothing
+noticed: the leg ledger — the one record that separates "the result landed" from "the single
+writer applied it" — was read in one place, behind the checks that decide a scope is green, and
+appeared in neither the run graph nor the export. The build leg had reported green with no T0
+verdict at all, the T0 re-read correctly said not green, the round returned before the leg
+question, and its result — six tasks, two discoveries — was never read by anyone. The planning
+phase before it had done the same, and passed, because a phase post-condition checked the
+artifact the worker wrote and never asked whether the writer ran.
+
+Now every settled build scope and every planning phase asks the leg ledger before any early
+return. A result nothing applied is ingested there when the scope is green — application stays
+gated on the green checks, because ingest ticks acceptance boxes and must not apply work T0 never
+measured — and otherwise travels to the close and is named: `unapplied_results=N`. `probe leg`
+answers by order (`--order analyze`) and across the run (`--open`); the graph carries a `Leg` node
+with an `INGESTED` edge from its `Result`, so a result nobody read is `unapplied_results` in
+`--subgraph run`; the export carries a `leg` table.
+
+And the close stops naming a breaker the census denies. The protocol's INNER breaker is the
+per-scope attempt budget, which never blocks a round; the loop was using the word for "nothing
+green this round", which does — so a run reported `breaker=inner` beside a census that said one
+attempt spent of five. A stalled round now asks `probe attempts` for every queued scope and names
+`attempt_budget` only for the scopes it says tripped, `none` otherwise, with `stalled=no_green`
+in the cause.
+
 ## [3.7.2] — 2026-09-24 · The floor under the judge, and what an adversary found in it
 
 Four defects under the mechanical evidence layer — the half of this harness with the least live

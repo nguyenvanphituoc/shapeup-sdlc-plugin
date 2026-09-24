@@ -344,6 +344,11 @@ const MODULE_FILES = [
   // `legs.jsonl` because `..` was resolved but links were not followed. Drives both spellings of
   // every frozen channel through the real hook and expects a denial for each.
   "83-frozen-real-path.mjs",
+  // 84-single-writer-asked.mjs: five dispatches, five results, three leg rows, and nothing noticed —
+  // the leg ledger was read in one place, behind the green checks, and was in neither the graph nor
+  // the export. Pins `probe leg --order/--open`, the Leg node + INGESTED edge, the leg table, and
+  // the run loop asking before any early return, in planning and build, with an honest close cause.
+  "84-single-writer-asked.mjs",
   "08-docs.mjs",
 ];
 

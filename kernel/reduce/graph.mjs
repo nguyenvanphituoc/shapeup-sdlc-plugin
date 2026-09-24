@@ -26,11 +26,11 @@
 // appended again and the LAST line wins on read, so the file is a log and the projection is a fold.
 
 import { existsSync, readdirSync, readFileSync, appendFileSync, mkdirSync } from "node:fs";
+import { readLegs } from "../probe/leg.mjs";
 import { join, dirname, basename, resolve } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
 import {
-  localRoot, receipt as receiptPath, ordersDir, resultsDir, verdictsDir, trials as trialsPath,
-  gates as gatesPath, scopesDir, usecasesDir, requirements as requirementsPath, wiringMap as wiringMapPath,
+  localRoot, receipt as receiptPath, ordersDir, resultsDir, verdictsDir, trials as trialsPath, gates as gatesPath, scopesDir, usecasesDir, requirements as requirementsPath, wiringMap as wiringMapPath, legLedger,
 } from "../lib/paths.mjs";
 import { readAllContracts, readContract, ucId, reqId, SCOPE_CONTRACT, WIRING_MAP } from "../lib/contract.mjs";
 import { runIdFromReceipt } from "../lib/paths.mjs";
@@ -39,11 +39,11 @@ import { runIdFromReceipt } from "../lib/paths.mjs";
 export const graphPath = (cwd, slug) => join(localRoot(cwd, slug), "graph.jsonl");
 
 /** Node types, by family. A type outside these sets is a bug, not an extension point. */
-export const WORK_NODES = ["Run", "Order", "Result", "Verdict", "Trial", "GateDecision"];
+export const WORK_NODES = ["Run", "Order", "Result", "Leg", "Verdict", "Trial", "GateDecision"];
 export const DOMAIN_NODES = ["Scope", "UseCase", "Requirement", "Seam"];
 
 /** Edge types. Each names a direction that is meaningful to read backwards. */
-export const EDGES = ["PRODUCED", "EVALUATES", "SUPERSEDES", "COVERS", "DEPENDS_ON", "DERIVED_FROM", "IMPLEMENTS"];
+export const EDGES = ["PRODUCED", "INGESTED", "EVALUATES", "SUPERSEDES", "COVERS", "DEPENDS_ON", "DERIVED_FROM", "IMPLEMENTS"];
 
 /**
  * Read the graph as a log and fold it into nodes and edges.
@@ -146,6 +146,22 @@ export function project(cwd, slug) {
       });
       edge(`order:${r.order_id}`, "PRODUCED", id);
     }
+  }
+
+  // Leg-completion rows — the record that separates "the result landed" from "the single writer
+  // applied it". It was in neither this graph nor the export, so a run could show five orders
+  // producing five results and nobody could see that only three were ever read. A Result with no
+  // INGESTED edge leaving it is finished work the board never saw, and `--subgraph run` names it.
+  for (const l of readLegs(legLedger(cwd, slug))) {
+    if (!l?.order_id) continue;
+    const id = `leg:${l.order_id}`;
+    node(id, "Leg", {
+      order_id: l.order_id, worker: l.worker ?? null, operation: l.operation ?? null,
+      scope_id: l.scope_id ?? null, round: l.round ?? null, attempt: l.attempt ?? null,
+      dispatched_at: l.dispatched_at ?? null, ingested_at: l.ingested_at ?? null,
+      attested: l.attested ?? null, run_id: l.run_id ?? runId ?? null,
+    });
+    edge(`result:${l.order_id}`, "INGESTED", id);
   }
 
   // T0 verdicts — the artifact the evaluator is required to cite, and the reason the lineage half
@@ -370,6 +386,7 @@ export function runSubgraph(cwd, slug) {
   const of = (t) => [...nodes.values()].filter((n) => n.t === t);
   const orders = of("Order"), results = of("Result"), verdicts = of("Verdict");
   const resultIds = new Set(results.map((r) => r.order_id));
+  const ingestedFrom = new Set([...edges.values()].filter((e) => e.t === "INGESTED").map((e) => e.from));
   const greenByRound = {};
   for (const v of verdicts) {
     if (v.overall !== "green" || v.round == null || !v.scope_id) continue;
@@ -384,6 +401,8 @@ export function runSubgraph(cwd, slug) {
     seams: of("Seam").map((s) => s.seam).sort(),
     orders: orders.length,
     pending_orders: orders.filter((o) => !resultIds.has(o.order_id)).map((o) => o.order_id).sort(),
+    // Results the single writer never applied — a leg that came back and was not read.
+    unapplied_results: results.filter((r) => !ingestedFrom.has(`result:${r.order_id}`)).map((r) => r.order_id).sort(),
     rounds_with_green: Object.keys(greenByRound).map(Number).sort((a, b) => a - b),
     green_scopes_by_round: Object.fromEntries(Object.entries(greenByRound).map(([r, s]) => [r, [...s].sort()])),
     trials: of("Trial").length,

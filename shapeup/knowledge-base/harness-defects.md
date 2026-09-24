@@ -32,10 +32,8 @@ is pinned by a guard, never when it is merely believed done.
 | HD-054 | the hill's absence guard is re-armed by the command on the same page | P2 |
 | HD-055 | the run ledger's own verdict field is never written, and the ship report will print any string | P3 |
 | HD-056 | seven shipped files cite artifacts a user does not receive | P3 |
-| HD-057 | a build leg reports green with no T0, the late-ingest repair sits behind the check that fails, and the close names a breaker the protocol defines differently | P1 |
 | HD-058 | two gates print their block and leave no row | P2 |
 | HD-059 | a T0 verdict is evidence about a machine, and records only the tree | P1 |
-| HD-060 | a result with no leg row passes a planning phase — the single writer is never asked, and the graph cannot see it | P1 |
 | HD-062 | three run-blind readers reach durable artifacts: the committed report's round count, the exported gate decisions, and the citation check | P1 (HD-041 member) |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
@@ -850,45 +848,6 @@ else needs to survive for the fix to hold.
   **Closed when:** the shipped set cites only what it ships, and the scan that found these runs as a
   check rather than as an audit pass somebody remembers to do.
 
-- **HD-057 · A build leg reports green with no T0, the late-ingest repair sits behind the check
-  that fails, and the close names a breaker the protocol defines differently.** Measured
-  2026-09-24 on the consumer, run `about-screen-20260924T032732Z-7fe0bef6`, plugin 3.7.1,
-  unattended. First filed as "the round skipped its verification"; corrected the same day from the
-  run's own progress log, which settles what the trace alone cannot.
-
-  What the leg did: 31 edits, 40 writes, a well-formed WorkResult with six tasks and per-criterion
-  evidence — and then reported `green: true, attempts_used: 1, breaker: none`, naming the *result
-  file* as its `t0_artifact` and stating in its own words that it had verified through the profile's
-  `build_probe` script and that ingest "belongs to the outer orchestrator". `verify t0` never ran
-  once: there is no `t0/` directory and no `trials.jsonl`, and the trial writer records every
-  outcome including a crash, so one row would exist had the ratchet started. The leg's script names
-  `reduce ingest` as its third step; the worker chose not to take it.
-
-  What the round loop did with that: the T0 re-read correctly found no verdict on disk and returned
-  the scope as not green — and returned *before* the leg check. The late-ingest repair, written for
-  "a leg wrote its code, a green verdict and its WorkResult, then skipped step 3", sits behind two
-  early returns and the T0 confirmation, so it is reachable only for a scope that is already fully
-  green. The state it exists to repair — result on disk, nothing applied — is the state it cannot
-  reach when the leg also skipped T0. `probe leg` against the trace answers correctly today:
-  `applied_total: 0`, one unapplied order. Nobody asked it. The two discoveries the result carried,
-  one of them a pre-existing compile break in the consumer, went nowhere: `discovery/` is empty.
-
-  Then the close: `close_cause: breaker=inner green_scopes=0 hammer_proposals=1`, while the attempt
-  census over the same bytes says one attempt spent of five, `tripped: false`. That is not a stale
-  label; it is one word with two meanings. The protocol defines the INNER breaker as the per-scope
-  attempt budget and states it *never blocks the round*; the run loop's `inner` is a literal on the
-  branch "zero green this round and something queued", which *does* block the round. `probe
-  attempts` — the one shared derivation built so the census and the breaker cannot disagree — has
-  exactly one call site in the plugin, inside the scope-hammer skill, and is never an input to a
-  close. The hammer is then dispatched `--breaker inner`, so the census is framed by the same
-  falsehood.
-
-  **Closed when:** every settled scope is asked `probe leg` before any early return, and a result
-  on disk that no leg applied is named in the close cause rather than folded into "not green";
-  application stays gated on a green T0, because ingest ticks acceptance boxes and must not mark
-  work green that T0 never measured; the round loop's breaker vocabulary matches the protocol's, and
-  a close cannot name a breaker that `probe attempts` denies.
-
 - **HD-058 · Two gates print their block and leave no row.** Same run, same day.
 
   The run's terminal output carries a `GATE H` census and a `⏸ GATE L4 — Ship Sign-Off` block.
@@ -937,28 +896,6 @@ else needs to survive for the fix to hold.
   **Closed when:** a T0 artifact carries enough about where it ran that a disagreeing re-run can be
   told from a regression, or the harness states plainly, where the verdict is read, that its
   evidence is machine-local.
-
-- **HD-060 · A result with no leg row passes a planning phase — the single writer is never asked,
-  and the graph cannot see it.** Same run as HD-057, 2026-09-24; generalises it.
-
-  Five dispatches, five receipts, five results, three leg rows. The build leg is HD-057. The other
-  missing row is `analyze`: a receipt, a WorkResult naming seventeen artifacts, and no leg row — the
-  run walked on to WIRE, because a phase's post-condition checks the artifact the worker writes
-  directly (`spec/usecases/*.md`), never whether the ingest step applied the envelope. `reduce
-  ingest` is the sole writer of `legs.jsonl`, the shipped contract calls it the one writer of shared
-  state, and nothing in a planning phase asserts that writer ran. `probe leg` is called from exactly
-  one place, inside the build round, behind the returns HD-057 describes.
-
-  The record is invisible where it would be cheapest to notice. The run graph's work nodes are Run,
-  Order, Result, Verdict, Trial and GateDecision — no Leg — and neither the graph nor the export
-  reads `legs.jsonl`, so the consumer's graph knows five orders produced five results and cannot know
-  only three were ever read. The one record that separates "work landed" from "work was applied" is
-  in neither projection.
-
-  **Closed when:** every phase post-condition and every settled scope asks `probe leg`; `Leg` is a
-  node in the run graph and a table in the export, so a Result with no inbound ingest edge is a
-  one-hop query; and a close with open legs reports how many were left unanswered instead of a
-  breaker.
 
 - **HD-062 · Three run-blind readers reach durable artifacts: the committed report's round count,
   the exported gate decisions, and the citation check.** Found 2026-09-24 by the second review;

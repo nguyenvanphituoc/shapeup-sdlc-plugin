@@ -45,7 +45,9 @@ import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync, statSy
 import { join, resolve } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
 import { splitFrontmatter } from "../lib/contract.mjs";
-import { runIdFromReceipt, readReceipt } from "../lib/paths.mjs";
+import {
+  runIdFromReceipt, readReceipt, legLedger,
+} from "../lib/paths.mjs";
 import { TABLES, runRow, dispatchFacts } from "./facts.mjs";
 import { deriveRounds } from "../probe/rounds.mjs";
 import {
@@ -260,6 +262,9 @@ export function collectRun(cwd, slug) {
       // The decision that crossed each gate, and the round build gate's own artifact.
       gate_decision: readJsonl(gatesPath(cwd, slug), t).map((g) => gateDecisionRow(g, runId)),
       build_gate: readJsonDir(roundBuildDir(cwd, slug), t).map((a) => buildGateRow(a, runId)),
+      leg: readJsonl(legLedger(cwd, slug), t)
+        .filter((r) => !runId || !r?.run_id || r.run_id === runId)
+        .map((r) => ({ ...r, run_id: r.run_id ?? runId ?? null })),
     },
     defects: { records_skipped: t.skipped },
   };

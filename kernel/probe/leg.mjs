@@ -59,6 +59,65 @@ export function readLegs(path) {
  *   result exists that was never ingested; a scope with no results at all reports `closed: false`
  *   with an empty `orders` list, so a caller can tell "nothing ran" from "nothing was applied".
  */
+/**
+ * Every order the run compiled, with whether its result landed and whether the single writer
+ * applied it — planning orders (`analyze.json`) and build orders (`alpha-r1-a1.json`) alike.
+ *
+ * Why the generic form exists: the per-scope reading below was the only reader of the leg ledger
+ * in the run loop, and it was asked in one place, behind the checks that decide a scope is green.
+ * Measured on a live run: five dispatches, five results, three leg rows — and the planning phase
+ * whose result nobody applied walked on, because its post-condition checked the artifact the
+ * worker wrote directly and never asked whether the writer ran. This is the question, asked of any
+ * order by name.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {{order:string, name:string, order_id:(string|null), has_result:boolean, applied:boolean}[]}
+ */
+export function legsOf(cwd, slug) {
+  const oDir = ordersDir(cwd, slug);
+  const rDir = resultsDir(cwd, slug);
+  const ingested = new Set(readLegs(legLedger(cwd, slug))
+    .filter((r) => r.ingested_at)
+    .map((r) => String(r.order_id)));
+  const out = [];
+  for (const f of (existsSync(oDir) ? readdirSync(oDir) : []).filter((x) => x.endsWith(".json")).sort()) {
+    let orderId = null;
+    try { orderId = JSON.parse(readFileSync(join(oDir, f), "utf8")).order_id ?? null; } catch { /* unreadable — reported as unapplied */ }
+    out.push({
+      order: join(oDir, f),
+      name: f.replace(/\.json$/, ""),
+      order_id: orderId,
+      has_result: existsSync(join(rDir, f)),
+      applied: orderId !== null && ingested.has(orderId),
+    });
+  }
+  return out;
+}
+
+/**
+ * One order by its file stem — `analyze`, `wire`, `alpha-r1-a1` — and whether its leg closed.
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {string} name - The order file's stem.
+ * @returns {{closed:boolean, found:boolean, order:(string|null), order_id:(string|null), has_result:boolean, applied:boolean}}
+ */
+export function orderLegState(cwd, slug, name) {
+  const o = legsOf(cwd, slug).find((x) => x.name === name);
+  if (!o) return { closed: false, found: false, order: null, order_id: null, has_result: false, applied: false };
+  return { closed: o.applied, found: true, ...o };
+}
+
+/**
+ * The results on disk that no leg row applied — finished work the board never saw.
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {{order:string, name:string, order_id:(string|null)}[]}
+ */
+export function openLegs(cwd, slug) {
+  return legsOf(cwd, slug).filter((o) => o.has_result && !o.applied);
+}
+
 export function legState(cwd, slug, scopeId, round) {
   const oDir = ordersDir(cwd, slug);
   const rDir = resultsDir(cwd, slug);
@@ -89,11 +148,13 @@ export function legState(cwd, slug, scopeId, round) {
 }
 
 export const ARGV_SPEC = {
-  usage: "harness.mjs probe leg --slug <slug> --scope <scope-id> --round N [--cwd <dir>]",
+  usage: "harness.mjs probe leg --slug <slug> (--scope <scope-id> --round N | --order <stem> | --open) [--cwd <dir>]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   slug: { type: "str", required: true },
-  scope: { type: "str", required: true },
-  round: { type: "int", min: 1, required: true },
+  scope: { type: "str" },
+  round: { type: "int", min: 1 },
+  order: { type: "str" },
+  open: { type: "flag" },
   cwd: { type: "path" },
 };
 
@@ -107,6 +168,22 @@ export const ARGV_SPEC = {
 export function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = resolve(args.cwd || process.cwd());
+  // `--open`: every result nothing applied, across the whole run, any phase. Exit 0 when none.
+  if (args.open) {
+    const open = openLegs(cwd, args.slug);
+    console.log(JSON.stringify({ closed: open.length === 0, open_total: open.length, open: open.map((o) => o.order), open_ids: open.map((o) => o.order_id) }));
+    process.exit(open.length === 0 ? 0 : 1);
+  }
+  // `--order <stem>`: one order by file stem (`analyze`, `alpha-r1-a1`). Exit 0 when its leg closed.
+  if (args.order) {
+    const s = orderLegState(cwd, args.slug, args.order);
+    console.log(JSON.stringify(s));
+    process.exit(s.closed ? 0 : 1);
+  }
+  if (!args.scope || !args.round) {
+    console.error("probe leg: pass --scope <id> --round N, or --order <stem>, or --open");
+    process.exit(2);
+  }
   const s = legState(cwd, args.slug, args.scope, args.round);
   console.log(JSON.stringify({
     closed: s.closed,

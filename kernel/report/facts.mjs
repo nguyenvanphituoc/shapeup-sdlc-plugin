@@ -32,6 +32,9 @@ export const TABLES = [
   // has to. `build_gate` is the round build gate's own artifact (kernel/verify/build.mjs), on the
   // same terms: it ends a round exactly as EVAL does, and had no table either.
   "gate_decision", "build_gate",
+  // The leg-completion ledger — one row per order the single writer applied. Without it the
+  // warehouse could join an order to its result and never say whether anyone read the result.
+  "leg",
 ];
 
 /** Coerce anything to a finite number, or null. Keeps `0` and rejects `NaN`/`""`/undefined. */

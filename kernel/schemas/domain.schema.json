@@ -33,6 +33,10 @@
           "type": null,
           "gap": "a gate decision row — emitted by reduce graph, never typed here"
         },
+        "Leg": {
+          "type": null,
+          "gap": "a leg-completion row (reduce ingest's record that a result was applied) — emitted by reduce graph, never typed here"
+        },
         "Scope": {
           "type": "ScopeContract"
         },
