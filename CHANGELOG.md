@@ -3,7 +3,11 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [3.7.3] — 2026-09-25 · The single writer is asked, and the fence compares files
+
+Three defects from a second three-way review of the register after 3.7.2, each re-measured on
+the live consumer's own trace before it was worked, each pinned by a structural check that was
+mutation-tested before it was trusted.
 
 ### A frozen path is denied under every spelling
 
