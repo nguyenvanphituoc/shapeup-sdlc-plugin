@@ -3,6 +3,20 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### The attempt gate asks with the run key
+
+`compile` refuses to open attempt *n+1* while attempt *n* is unanswered, and it decides that with
+the same derivation the attempt census uses — which matches a receipt by order **and run key**, so
+a previous run over the same slug cannot answer for this one. The gate omitted the key. Nothing
+matched, every previous attempt read as unattested, and every attempt 2 was refused as unanswered,
+on every run since the gate shipped, with the receipt, the leg row and the result all on disk.
+Measured on the 3.7.3 soak: one attempt spent of five, the census reading it spent, the gate
+refusing three times. The ratchet was one attempt deep. It asks with the key now, waves through a
+run with no readable receipt, and the check that pins it drives an attested attempt 1 through the
+real census and the real compile and expects both to agree.
+
 ## [3.7.3] — 2026-09-25 · The single writer is asked, and the fence compares files
 
 Three defects from a second three-way review of the register after 3.7.2, each re-measured on

@@ -28,9 +28,7 @@
 // durable regression pin: it runs on every `npm test`, forever, the same discipline 70 through 72
 // already apply to their own defects.
 
-import {
-  existsSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, readdirSync,
-} from "node:fs";
+import { existsSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
@@ -267,9 +265,13 @@ export async function run(ctx) {
 
       // Attempt 1 was DISPATCHED and has not come back: a receipt, no leg row, no WorkResult.
       // That is the consumer run's own state when it opened attempt 2.
+      // The receipt carries THIS run's key, as a real dispatch-receipt hook writes it. A receipt
+      // without one used to make this case pass for the wrong reason: the gate read every attempt
+      // as unattested, so it refused here — and refused an answered attempt just the same.
+      const runId = JSON.parse(readFileSync(join(ws, ".shapeup", slug, "receipt.json"), "utf8")).run_id;
       mkdirSync(dirname(dispatchReceipts(ws, slug)), { recursive: true });
       writeFileSync(dispatchReceipts(ws, slug), JSON.stringify({
-        at: new Date().toISOString(), order_id: orderId, worker_declared: "task-executor",
+        at: new Date().toISOString(), order_id: orderId, run_id: runId, worker_declared: "task-executor",
         skill_invoked: "task-executor", dispatch_ok: true, tool: "Skill",
       }) + "\n");
 
@@ -309,6 +311,35 @@ export async function run(ctx) {
                `${`${r2.stdout || ""}${r2.stderr || ""}`.trim().slice(0, 300)}`);
         }
       } finally { rmSync(ws2, { recursive: true, force: true }); }
+
+      // (c) THE ANSWERED ATTEMPT OPENS THE NEXT ONE. Measured on a live run (3.7.3): receipt, leg
+      // row and result all on disk for attempt 1, the census reading it spent, and compile refusing
+      // attempt 2 three times as "no dispatch receipt was ever written" — because the gate asked
+      // without the run key and nothing could match. The ratchet was one attempt deep.
+      mkdirSync(dirname(legLedger(ws, slug)), { recursive: true });
+      writeFileSync(legLedger(ws, slug), JSON.stringify({
+        schema_version: 1, run_id: runId, order_id: orderId, worker: "task-executor", operation: "execute",
+        scope_id: scopeId, round: 1, attempt: 1, dispatched_at: new Date().toISOString(),
+        ingested_at: new Date().toISOString(), attested: true,
+      }) + "\n");
+      mkdirSync(join(ws, ".shapeup", slug, "results"), { recursive: true });
+      writeFileSync(join(ws, ".shapeup", slug, "results", `${scopeId}-r1-a1.json`),
+        JSON.stringify({ schema_version: 1, order_id: orderId, worker: "task-executor", status: "done" }));
+      const census = spawnSync(process.execPath, [
+        join(ROOT, "kernel/harness.mjs"), "probe", "attempts", "--slug", slug, "--scope", scopeId,
+        "--round", "1", "--attempt-budget", "5", "--cwd", ws,
+      ], { cwd: ws, encoding: "utf8", timeout: 60_000 });
+      const spent = /"spent":1/.test(census.stdout || "");
+      const r3 = spawnSync(process.execPath, [
+        join(ROOT, "kernel/harness.mjs"), "compile",
+        "--scope", contract, "--round", "1", "--attempt", "2", "--cwd", ws,
+      ], { cwd: ws, encoding: "utf8", timeout: 60_000 });
+      if (spent && r3.status === 0 && existsSync(join(ws, ".shapeup", slug, "orders", `${scopeId}-r1-a2.json`))) {
+        ok("(c) once attempt 1 is attested (receipt + leg row + result), the census reads it spent AND compile opens attempt 2 — the two readers of one channel agree");
+      } else {
+        fail(`(c) attempt 1 is attested on every channel, yet compile ${r3.status === 0 ? "opened attempt 2 without an order file" : `refused attempt 2 (exit ${r3.status})`} while the census says ${spent ? "spent" : "NOT spent"}: ` +
+             `${`${r3.stdout || ""}${r3.stderr || ""}`.trim().slice(0, 300)}`);
+      }
     } finally { rmSync(ws, { recursive: true, force: true }); }
   }
 }

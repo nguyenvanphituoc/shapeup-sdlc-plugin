@@ -34,6 +34,7 @@ is pinned by a guard, never when it is merely believed done.
 | HD-056 | seven shipped files cite artifacts a user does not receive | P3 |
 | HD-058 | two gates print their block and leave no row | P2 |
 | HD-059 | a T0 verdict is evidence about a machine, and records only the tree | P1 |
+| HD-063 | GATE L4 demands a census artifact, and nothing in the plugin writes one — a headless lane can only record `ask` | P2 |
 | HD-062 | three run-blind readers reach durable artifacts: the committed report's round count, the exported gate decisions, and the citation check | P1 (HD-041 member) |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
@@ -896,6 +897,25 @@ else needs to survive for the fix to hold.
   **Closed when:** a T0 artifact carries enough about where it ran that a disagreeing re-run can be
   told from a regression, or the harness states plainly, where the verdict is read, that its
   evidence is machine-local.
+
+- **HD-063 · GATE L4 demands a census artifact, and nothing in the plugin writes one — a headless
+  lane can only record `ask`.** Measured 2026-09-25 on the consumer, run
+  `about-screen-20260924T175105Z-5c21bab4`, plugin 3.7.3, unattended; the consumer filed it first.
+
+  The L4 resolver refuses `ship` from a preset when no census exists on disk — correctly, since an
+  answer set chooses among allowed answers and cannot supply the evidence that makes one allowed.
+  On this run scope-hammer *had* run, a full H0/H1/H2 census with a CANNOT SHIP verdict, returned
+  as the worker's report — and the resolver was right that nothing on disk says so. The worker then
+  established, by probing rather than assuming, that nothing can: the scope-hammer skill names no
+  artifact path or schema for its census, the kernel has no `reduce hammer`, and `gate --file` is
+  an answer set, not a census input. GATE H itself resolved from the preset without reading a census
+  either. So the refusal that closed one inversion — a preset signing `ship` blind — leaves its
+  complement: an unattended lane can never record `L4 | ship`, whatever the census concluded. On this
+  run the outcome happened to match; the same refusal fires over a green census.
+
+  **Closed when:** the census is an artifact with one writer — the hammer's WorkResult applied by
+  ingest, or a `reduce hammer` — at a path the L4 resolver reads, and a fixture drives a green
+  census through `gate --resolve L4 --preset ci` to a recorded `ship`.
 
 - **HD-062 · Three run-blind readers reach durable artifacts: the committed report's round count,
   the exported gate decisions, and the citation check.** Found 2026-09-24 by the second review;

@@ -857,12 +857,22 @@ export async function cli(rawArgv) {
   // receipts ledger EXISTING while carrying no row for the previous attempt: a lane that does not
   // attest dispatches at all (no ledger on disk) cannot be judged by this rule and is waved
   // through, so `--tiny`, a prose round loop and a standalone build are untouched.
-  if (scope?.scope_id && round && attempt > 1) {
+  //
+  // THE RUN KEY IS PART OF THE QUESTION. `attemptEvidence` matches a receipt to an attempt by
+  // `order_id` AND `run_id` — deliberately, so a previous run's receipt over the same slug cannot
+  // answer for this one — and this call used to omit the key. With no key nothing matches, so every
+  // previous attempt read "unattested" and every attempt 2 was refused as unanswered, on every run,
+  // with the receipt, the leg row and the result all on disk. Measured on a live run: one attempt
+  // spent of five, the census reading it spent, and the gate refusing to open the next one three
+  // times over. The ratchet was one attempt deep for as long as the gate has existed. A run with no
+  // readable receipt has no key to ask with and is waved through, like a lane with no ledger.
+  const myRunId = (scope?.scope_id && round && attempt > 1) ? readRunId(cwd, slug) : null;
+  if (scope?.scope_id && round && attempt > 1 && myRunId) {
     const receiptsPath = dispatchReceipts(cwd, slug);
     if (existsSync(receiptsPath)) {
       const prev = attemptEvidence(
         cwd, slug, scope.scope_id, round, attempt - 1,
-        readReceipts(receiptsPath), readLegs(legLedger(cwd, slug)),
+        readReceipts(receiptsPath), readLegs(legLedger(cwd, slug)), myRunId,
       );
       if (prev.state !== "spent") {
         const why = prev.state === "unattested"
