@@ -3,7 +3,10 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [3.7.4] — 2026-09-25 · The ratchet is five attempts deep again
+
+One defect the 3.7.3 soak measured on the live consumer, reproduced on a copy of its trace and
+pinned by the check whose fixture had let it through.
 
 ### The attempt gate asks with the run key
 
