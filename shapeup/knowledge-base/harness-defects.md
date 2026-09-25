@@ -12,6 +12,7 @@ is pinned by a guard, never when it is merely believed done.
 
 | id | defect | tier |
 |---|---|---|
+| HD-067 | the board's `covers:` clauses are instructed and not enforced — a regenerated board can carry none, and the matrix then reads no evidence for everything | P2 |
 | HD-027 | two harness rules collide, and the collision hard-aborts a run at L1b | P1 |
 | HD-021 | a per-scope "it compiles" fixture can be green while the scope's code is unreachable | P3 |
 | HD-022 | ⚠ Work for defects measured on a real consumer sits on a tag, not on main | decision |
@@ -22,6 +23,32 @@ is pinned by a guard, never when it is merely believed done.
 | HD-025 | two run geometries this checkout cannot reach | process |
 
 ## Defects
+
+- **HD-067 · The board's `covers:` clauses are instructed and not enforced.** Measured 2026-09-25
+  across two consecutive runs of one pitch, same spec, same plugin line.
+
+  The `board` operation's own brief says to regenerate the board "every acceptance criterion
+  carrying its `(covers: REQ-…)` clause". One run's board carried **thirty** such clauses and its
+  frozen report read `4/11 PASS`; the next run's board carried **zero**, and the report read
+  `0/11 PASS · 7 no evidence` over a run whose static criteria passed exactly as before. Nothing
+  went red in between: L1b's `REQ-UNCOVERED` is satisfied by the scope contract's own
+  `covers: [REQ-…]` list, which is a different mechanism from the one the matrix reads, so a board
+  with no clauses at all crosses the gate.
+
+  So the harness has two bars for one question. The gate asks "does anything in the plan claim this
+  requirement" and a scope claim answers it; the projection asks "did a criterion a judge graded
+  cover it" and only an AC clause answers that. A plan can satisfy the first and be silent to the
+  second, and the difference is invisible until the report prints "no evidence" for everything.
+
+  The instruction is not the fix: a worker carries no lesson across a dispatch, and this one was
+  followed on Tuesday and not on Wednesday. Candidate shapes, unranked: warn at L1b when a registry
+  exists and the board carries no `covers:` clause at all, naming what the matrix will read; have
+  `reduce ingest` refuse a board result whose tasks carry none while a registry exists; or make the
+  scope-claim path feed the matrix too, so the two bars become one.
+
+  **Closed when:** a board with no `covers:` clause cannot reach BUILD unremarked while a
+  requirements registry is on disk, and a fixture drives both boards — one with clauses, one
+  without — through the same gate.
 
 - **HD-027 · Two harness rules collide, and the collision hard-aborts a run at L1b.** Promoted from
   a consumer register (`proj-harmony-os-sample`, filed there as `HD-1`, 2026-09-21). `harness init
