@@ -12,6 +12,7 @@ is pinned by a guard, never when it is merely believed done.
 
 | id | defect | tier |
 |---|---|---|
+| HD-068 | the reachability oracle cannot walk the consumer's language, and reports `checked: true` with every engine unreachable | P1 |
 | HD-067 | the board's `covers:` clauses are instructed and not enforced — a regenerated board can carry none, and the matrix then reads no evidence for everything | P2 |
 | HD-027 | two harness rules collide, and the collision hard-aborts a run at L1b | P1 |
 | HD-021 | a per-scope "it compiles" fixture can be green while the scope's code is unreachable | P3 |
@@ -22,6 +23,30 @@ is pinned by a guard, never when it is merely believed done.
 | HD-025 | two run geometries this checkout cannot reach | process |
 
 ## Defects
+
+- **HD-068 · The reachability oracle cannot walk the consumer's language, and says it checked.**
+  Measured 2026-09-25 against the live consumer's own trace reports, both features.
+
+  `reachableFrom` resolves an import by trying the path as written and then appending each of
+  `.js .mjs .cjs .jsx .ts .tsx`. The consumer is an ArkTS project: its modules are `.ets`, and one
+  `.ets` importing another resolves to nothing. Driven from the profile's own `entry_point`, the
+  reachable set is **2 files** — the entry itself and the single `.ts` it imports — out of 40 `.ets`
+  sources in the app.
+
+  Every engine the wiring map names is therefore reported unreachable, and the oracle says so with
+  `checked: true, pass: false`: `about-screen` 6 of 6, `find-my-todos` 3 of 3, one `UC-UNREACHABLE`
+  red apiece. A check that is red for every input on a stack carries no information, and this one
+  does worse than carry none — it claims to have looked. The reports are advisory, so nothing was
+  blocked; what was produced is nine findings that read like evidence and are an artefact of the
+  extension list.
+
+  Two other stacks would fail the same way (`.vue`, `.svelte`), and any stack whose imports are not
+  relative paths (bare module specifiers, path aliases, `@kit.*`) already resolves to nothing here —
+  which is why the entry file's four imports yielded one edge.
+
+  **Closed when:** the walker either resolves the stack's own module extensions — taken from the
+  project profile, which already declares the stack — or reports `checked: false` with the reason,
+  so "cannot be walked here" stops being spelled the same way as "nothing reaches the entry point".
 
 - **HD-067 · The board's `covers:` clauses are instructed and not enforced.** Measured 2026-09-25
   across two consecutive runs of one pitch, same spec, same plugin line.
