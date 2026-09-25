@@ -20,8 +20,7 @@ is pinned by a guard, never when it is merely believed done.
 | HD-021 | a per-scope "it compiles" fixture can be green while the scope's code is unreachable | P3 |
 | HD-022 | ⚠ Work for defects measured on a real consumer sits on a tag, not on main | decision |
 | HD-048 | the seesaw regression arm is declared everywhere and wired nowhere | — (filed after the tiering pass) |
-| HD-051 | a build leg can forge a SIBLING leg's WorkResult | P1 |
-| HD-052 | four attested channels were named; the same class has at least five more | P2 |
+| HD-051 | a build leg can forge a CONCURRENTLY-LIVE sibling's WorkResult — narrowed, and the guard cannot see who writes | P2 |
 | HD-053 | the T0 citation re-hash proves self-consistency, not provenance | P1 |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
@@ -530,44 +529,25 @@ else needs to survive for the fix to hold.
   **Closed when:** either a run writes the registry and a fixture proves a regression in a finished
   scope turns a green attempt red, or the arm, the flag and every mention of it are gone.
 
-- **HD-051 · A build leg can forge a SIBLING leg's WorkResult.** Filed 2026-09-24 as the hole left
-  open, deliberately, when the attestation freeze was cut back.
+- **HD-051 · A build leg can forge a concurrently-live sibling's WorkResult.** Filed 2026-09-24 by
+  the acceptance pass on the attestation freeze; narrowed and re-measured 2026-09-25.
 
-  Freezing `results/**` for build operations closed this — and denied every build leg its own
-  documented last step, because the order is unanswered at exactly the moment the result is written.
-  The batch chose the certain universal break over the conditional hole. This row is the other half
-  of that decision.
+  The window is smaller than it was. A build order now freezes the whole run trace and carves out
+  what the leg authors — its own result, its task files, the discovery ledger, its spikes — so a
+  leg can no longer write a result for an order that is not live at all, nor any of the kernel's
+  records. What remains is exactly the concurrent case: while a sibling's order is live, that
+  sibling's contract claims its own result path, and the guard fires on a tool call without knowing
+  which leg made it. Driven with two live build orders: the write lands.
 
-  What the hole permits, driven: scope A's leg writes `results/<scope-B's-order>.json`. Three things
-  follow that the attempt census cannot undo — B's order reads as answered, so B's substrate fence
-  drops mid-dispatch; B's genuine dispatch receipt plus this file flips B from `in-flight` to
-  `spent`, the premature breaker trip the census exists to prevent; and `reduce ingest` will tick
-  acceptance criteria and apply verdicts out of a fabricated envelope. Forging your OWN result stays
-  harmless — it can only spend your own budget — which is why the narrow reading of the census is
-  true and not sufficient.
+  This is a limit of the primitive, not a missing glob. The hook sees a path and a working
+  directory; nothing in a `Write` identifies the dispatch behind it, so an exception granted to one
+  order answers for anyone while both are live. Two ways out, and both move the pen rather than
+  widen the list: have `reduce ingest` write the envelope from what the leg hands it, so no leg
+  writes into `results/` at all; or give the ingest step the chain it already has the material for,
+  so a row nobody minted fails verification wherever it is read.
 
-  The glob form cannot express what is wanted, "every result except this order's own", because
-  `frozen` outranks `allowed` and there is no exception form. So this needs a mechanism: an
-  order-scoped carve-out the fence understands, or moving the result write out of the worker
-  entirely and into the ingest step that already resolves its path.
-
-  **Closed when:** a leg writing a result for an order that is not its own is refused, while its own
-  result still lands, and a fixture drives both with two live orders.
-
-- **HD-052 · Four attested channels were named; the same class has at least five more.** Found
-  2026-09-24, each verified writable by a live build leg through the assistant's edit path.
-
-  `build/r<N>-t<T>.json` (the round build-gate verdict — `reduce hill` reads it to decide whether a
-  T0-green may move a dot, and `compile` reads it to build the next round's bug list, so a leg can
-  forge its own round's build-green), `t0/trials.jsonl` (the ratchet's ledger), the run
-  `receipt.json` (which mints `run_id`), `gates.jsonl` (the gate-crossing ledger), and
-  `seesaw/registry.json`. `orders/**` is writable too, and that one is deliberate and documented.
-
-  The freeze named the channels one defect pointed at. The rule underneath it — a record nobody
-  reads as the leg's own claim must not be writable by the leg — has a wider membership than that.
-
-  **Closed when:** the list is derived from what the record IS rather than from which defect named
-  it, and a fixture walks every local-tier record a build leg does not author.
+  **Closed when:** a leg writing a result for an order that is not its own is refused WITH a sibling
+  order concurrently live, while its own result still lands, and a fixture drives both.
 
 - **HD-053 · The T0 citation re-hash proves self-consistency, not provenance.** Found 2026-09-24 by
   the acceptance pass on the re-hash itself; the mechanism it adds is real and this is its ceiling.

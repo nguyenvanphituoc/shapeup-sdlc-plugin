@@ -3,6 +3,24 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### The run trace is the kernel's, except the four things a build leg authors
+
+The freeze on a build leg was a list of channels a defect had named — the staged pitch, then the
+receipts, the leg ledger and the T0 verdicts, then the board index — and each review found more of
+the same class: the trial ledger, the gate ledger, the round build gates, the graph, the run args,
+the run ledger itself. A list that grows one defect at a time is not a boundary. The boundary is
+inverted now: a build order freezes the whole run trace, and a new `own` field carries the short
+list the compiler derives from the order's own identity — its WorkResult, its task files, the
+discovery ledger, its spikes. `own` is checked before `frozen`, is the compiler's to grant and
+never a worker's to request, and a check walks every entry an archived run trace holds to assert
+each falls on the right side of the line.
+
+What that does not close, recorded rather than claimed: while a sibling build order is live, its
+own exception answers for anyone, because the guard sees a tool call and never which leg made it.
+The register carries the narrowed row and the two ways out, both of which move the pen.
+
 ## [3.7.9] — 2026-09-25 · A verdict says where it was measured, and a launch says what it is running
 
 ### A launch says when the orchestrator it runs is not the installed one

@@ -211,13 +211,17 @@ export const OP_OWNER = {
  * operation, so mode/flag differences are enforced by the sandbox hook reading the order's substrate, not trusted to prose.
  * @param {string} operation - The order's operation (execute|fix|spike|analyze|reconcile|
  *   retrofit-surface|coverage|map-scopes|wire|evaluate|orient|hunt|translate|hammer|coach|scan|research).
- * @param {{slug?:string, specDir?:string, scope?:object}} [ctx] - slug (names LOCAL/SHARED roots),
- *   specDir (overrides the default spec path), scope (contract supplying allowed/shared substrates).
- * @returns {{allowed:string[], shared?:string[], frozen?:string[], append_only?:string[]}} The
- *   substrate contract: globs the worker may write (`allowed`), shared-write globs, read-only
- *   `frozen` globs, and `append_only` globs. An unknown operation returns a LOCAL-only default.
+ * @param {{slug?:string, specDir?:string, scope?:object, ownStem?:string}} [ctx] - slug (names
+ *   LOCAL/SHARED roots), specDir (overrides the default spec path), scope (contract supplying
+ *   allowed/shared substrates), ownStem (this order's own file stem, so a build leg may write its
+ *   own WorkResult and no one else's).
+ * @returns {{allowed:string[], shared?:string[], frozen?:string[], append_only?:string[], own?:string[]}}
+ *   The substrate contract: globs the worker may write (`allowed`), shared-write globs, read-only
+ *   `frozen` globs, `append_only` globs, and `own` — the paths this order may write DESPITE a
+ *   broader freeze, derived by the compiler from the order's own identity and never requested.
+ *   An unknown operation returns a LOCAL-only default.
  */
-export function substrateFor(operation, { slug, specDir, scope } = {}) {
+export function substrateFor(operation, { slug, specDir, scope, ownStem = null } = {}) {
   const local = globLocal(slug);
   const spec = specDir || globShared(slug, "spec");
   const scopesDir = globShared(slug, "scopes");
@@ -266,15 +270,30 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
   const FROZEN_ATTESTATION = [`${local}/receipts/**`, `${local}/legs.jsonl`, `${local}/t0/verdicts/**`, `${local}/tasks/_index.md`];
   switch (operation) {
     case "execute": case "fix": case "spike":
-      // Build legs are the widest window on FROZEN_INTAKE, not an exemption from it: they are the
-      // most numerous and longest-lived dispatches in a run, so a doer that can rewrite the staged
-      // pitch can rewrite the run's own input truth mid-build. `init run` stages these before any
-      // order is live (no live contract yet — nothing to violate) and `translate` writes the
-      // COMMITTED copy, not this one, so neither legitimate write is touched by this line.
+      // THE RUN TRACE IS THE KERNEL'S, EXCEPT WHAT THIS LEG AUTHORS. The freeze used to be a list of
+      // channels a defect had named — the staged pitch, the receipts, the leg ledger, the T0
+      // verdicts, the board index — and each review found more of the same class: the trial ledger,
+      // the gate ledger, the round build gates, the graph, the run args, the run ledger itself. A
+      // list that grows one defect at a time is not a boundary. So the boundary is inverted here:
+      // everything under the run trace is frozen for a build leg, and `own` carries the short,
+      // derived list of what such a leg actually writes. Everything else under there is written by
+      // the kernel in its own process or by the hook layer, and neither goes through this guard —
+      // so freezing it costs no legitimate write. `${local}/**` subsumes FROZEN_INTAKE and
+      // FROZEN_ATTESTATION for this operation, and a check asserts that rather than restating them.
       return {
         allowed: [...(scope?.allowed_file_substrate || []), `${local}/spikes/**`],
         shared: scope?.shared_substrate || [],
-        frozen: [...FROZEN_INTAKE, ...FROZEN_ATTESTATION],
+        frozen: [`${local}/**`],
+        own: [
+          // The result this order answers with, and no sibling's: a leg that can write another
+          // leg's WorkResult can report work nobody did, and ingest would have no way to tell.
+          // With no stem the caller is asking about the operation in general, not about one order,
+          // and the honest answer is the whole directory rather than a guess at which file.
+          ...(ownStem ? [`${local}/results/${ownStem}.json`] : [`${local}/results/**`]),
+          `${local}/tasks/TASK-*.md`,
+          `${local}/discovery/**`,
+          `${local}/spikes/**`,
+        ],
       };
     case "analyze":
       return { allowed: [`${spec}/**`, `${local}/**`], frozen: [...FROZEN_INTAKE] };
@@ -782,7 +801,7 @@ export function compileOrder({
     mode,
     ...(operation ? { operation } : {}),
     ...(interaction ? { interaction } : {}),
-    substrate: substrateFor(operation, { slug, specDir, scope }),
+    substrate: substrateFor(operation, { slug, specDir, scope, ownStem: suffix }),
     payload: {
       ...(scope ? { scope_contract: scope } : {}),
       ...(tasks?.length ? { tasks } : {}),

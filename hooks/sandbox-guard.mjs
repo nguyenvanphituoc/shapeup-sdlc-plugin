@@ -329,6 +329,11 @@ async function main() {
     allowed: [...(o.substrate.allowed || []), ...(o.substrate.shared || [])],
     appendOnly: o.substrate.append_only || [],
     frozen: o.substrate.frozen || [],
+    // The one exception to "frozen outranks everything", and it is the compiler's to grant, never
+    // the worker's to request: the paths THIS order authors, named from its own identity. A build
+    // leg's substrate freezes the whole run trace, so without this its own WorkResult — its
+    // documented last step — would be denied along with every channel it must not touch.
+    own: o.substrate.own || [],
   })).filter((c) => c.allowed.length || c.appendOnly.length || c.frozen.length);
 
   if (contracts.length === 0) defer("no live order declares write/append/frozen boundaries", "no-whitelist");
@@ -363,6 +368,10 @@ async function main() {
     // a planner is graded against — so the compiler emitted a declaration with no enforcer, which is
     // the exact state this hook exists to end. A path a live contract freezes is a violation
     // wherever it lives.
+    // `own` first, and only against the contract that declared it: another live order's exception
+    // never licenses this write. A path no contract claims as its own falls through to the freeze.
+    if (contracts.some((c) => matchesAny(rel, c.own, fold))) continue;
+
     const freezer = contracts.find((c) => matchesAny(rel, c.frozen, fold));
     if (freezer) {
       violations.push(rel);

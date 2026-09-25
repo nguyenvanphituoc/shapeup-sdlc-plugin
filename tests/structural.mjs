@@ -395,6 +395,10 @@ const MODULE_FILES = [
   // 95-staged-orchestrator.mjs: a run keeps the workflow copy it opened with, so a relaunch after
   // an upgrade measures the previous release and says nothing. The state probe compares and warns.
   "95-staged-orchestrator.mjs",
+  // 96-run-trace-is-the-kernels.mjs: the build leg's freeze was a list of channels a defect had
+  // named, and each review found more of the same class. Inverted: the run trace is frozen and
+  // `own` carries what a leg authors. Walks every entry an archived trace holds, both ways.
+  "96-run-trace-is-the-kernels.mjs",
   "08-docs.mjs",
 ];
 

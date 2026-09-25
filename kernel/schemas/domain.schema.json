@@ -542,7 +542,14 @@
           "items": {
             "type": "string"
           },
-          "description": "Explicitly untouchable paths (spec core: domain-model, UC Steps, contracts, ux-behavior)."
+          "description": "Explicitly untouchable paths (spec core: domain-model, UC Steps, contracts, ux-behavior). A build leg's order freezes the whole run trace here and carves out what it authors through `own`: a freeze that lists the channels a defect happened to name grows one defect at a time and is not a boundary."
+        },
+        "own": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Paths this order may write DESPITE a broader freeze — the compiler's grant, derived from the order's own identity and never requested by a worker. For a build leg: its own WorkResult (no sibling's — a leg that can write another's can report work nobody did), its task files, the discovery ledger, its spikes. Checked BEFORE `frozen`, and only against the contract that declared it, so another live order's exception never licenses this write."
         }
       }
     },
