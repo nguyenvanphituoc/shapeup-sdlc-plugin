@@ -482,6 +482,7 @@ const ORDERLEG = {
     closed: { type: "boolean" },
     found: { type: "boolean" },
     order: nullable("string"),
+    has_receipt: { type: "boolean" },
     has_result: { type: "boolean" },
     applied: { type: "boolean" },
   },
@@ -936,7 +937,18 @@ async function requireLeg(gate, phaseKey, phaseName, orderStem = phaseKey) {
   const ask = () => query(`probe leg --slug ${slug} --order "${orderStem}"`, ORDERLEG, phaseName, `legcheck:${orderStem}`);
   let leg = await ask();
   if (!leg || !leg.found) { log(`${gate} — could not ask the leg ledger about "${phaseKey}" (probe returned ${leg ? "no order" : "nothing"}); proceeding on the artifact alone.`); return null; }
-  if (!leg.has_result || leg.applied) return null;
+  if (!leg.has_result) {
+    // The artifact is on disk and the envelope never came back. Measured live: the first dispatch of
+    // a run wrote its four artifacts and no WorkResult, every later phase read the artifacts, and
+    // the run closed `shipped` over an order still open by construction. The phase stands on its
+    // artifact — that is what the post-condition checks — but the order is named at the close, and
+    // the next run over this slug will find it unanswered rather than be surprised by it.
+    log(`${gate} — "${phaseKey}" ${leg.has_receipt ? "was dispatched (receipt on disk) and" : "has an order but no receipt, and"} never answered: no WorkResult at all. ` +
+        `Its artifacts are on disk and the phase proceeds on them; the order stays unanswered and is named at the close.`);
+    if (leg.order && !unansweredOrders.includes(leg.order)) unansweredOrders.push(leg.order);
+    return null;
+  }
+  if (leg.applied) return null;
   log(`${gate} — "${phaseKey}" came back with a result nothing applied (no leg row). Ingesting it here: ${leg.order}.`);
   await advisory(`reduce ingest --order "${leg.order}"`, phaseName, `late-ingest:${phaseKey}`);
   leg = await ask();
@@ -1084,6 +1096,9 @@ async function requireLaunchRecord() {
 // it warns and continues — and the warning travels in the RunReturn, because a headless stdout
 // carries only the final message and a diagnostic on a channel nobody reads is not a diagnostic.
 const stateWarnings = [];
+// Orders a receipt says were dispatched and no WorkResult ever answered — a leg that did its craft
+// and never came back. Named at every close, whatever the close; never folded into "complete".
+const unansweredOrders = [];
 async function setRunStatus(status, phaseName) {
   const r = await cmd(`probe resume --slug ${slug} --set-status ${status}`, phaseName, `status:${status}`);
   if (!r.ok) {
@@ -1143,7 +1158,8 @@ async function closeIfTerminal(ret) {
   // `--close-arm` hands the kernel the arm itself (not a status this file decided was terminal) —
   // a non-terminal arm (`paused`, `ok`) still exits 0 with no "decision" key, so the branches below
   // stay silent for it exactly as they did when this file's own guard returned early.
-  const r = await cmd(`probe resume --slug ${slug} --close-arm ${ret.status} --cause "${causeArg(cause)}"`, "Ship", `close:${ret.status}`);
+  const unanswered = unansweredOrders.length ? ` unanswered_orders=${unansweredOrders.length}` : "";
+  const r = await cmd(`probe resume --slug ${slug} --close-arm ${ret.status} --cause "${causeArg(cause + unanswered)}"`, "Ship", `close:${ret.status}`);
   if (!r.ok) {
     const why = (r.detail || `exit ${r.exit_code}`).trim();
     log(`RUN STATE — close(${ret.status}) did not take: ${why}. This return's own status and reason still ` +

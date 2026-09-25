@@ -360,6 +360,10 @@ const MODULE_FILES = [
   // row, a refused `--close shipped`. Pins the census artifact L4's resolver reads, and the
   // workflow routing every breaker return through the census, H, the report and L4 before a close.
   "86-gate-h-in-the-run.mjs",
+  // 87-unanswered-order-named.mjs: a leg wrote its artifacts and no envelope; the phase stood on the
+  // artifact, and the run closed `shipped` over an order still open by construction. Pins `probe leg
+  // --open` listing dispatched-but-unanswered orders, and the workflow naming them at every close.
+  "87-unanswered-order-named.mjs",
   "08-docs.mjs",
 ];
 

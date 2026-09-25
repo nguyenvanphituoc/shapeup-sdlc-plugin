@@ -3,6 +3,18 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### A dispatched order that never answered is named, not forgotten
+
+A leg wrote its four artifacts and never its envelope. The phase post-condition stood on the
+artifact — correctly — the run went on, and it closed `shipped` over an order still open by
+construction: the export's own dispatch row said `answered: false`, and nothing upstream had
+noticed. `probe leg --open` now lists dispatched-but-unanswered orders beside the results nobody
+applied, scoped to the run's receipts so a prior run's dispatch over the same slug does not count;
+the phase post-condition records one when it finds it; and every close — `shipped` included —
+carries `unanswered_orders=N` in its cause.
+
 ## [3.7.5] — 2026-09-25 · The board survives a clone, and a breaker ships what is green
 
 Two defects the first run to reach the judge exposed, both in what happens around the round loop

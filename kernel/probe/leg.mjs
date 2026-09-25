@@ -27,7 +27,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
-import { ordersDir, resultsDir, legLedger } from "../lib/paths.mjs";
+import { ordersDir, resultsDir, legLedger, dispatchReceipts, readRunId } from "../lib/paths.mjs";
 
 /** `<scope>-r<round>-a<attempt>.json` — the only address a build order is written under. */
 const BUILD_ORDER = /^(.+)-r(\d+)-a(\d+)\.json$/;
@@ -80,6 +80,12 @@ export function legsOf(cwd, slug) {
   const ingested = new Set(readLegs(legLedger(cwd, slug))
     .filter((r) => r.ingested_at)
     .map((r) => String(r.order_id)));
+  // Dispatch receipts are the hook layer's record that a Skill was invoked against an order —
+  // scoped to this run, since receipts over one slug accumulate across runs and order ids repeat.
+  const runId = readRunId(cwd, slug);
+  const receipted = new Set(readLegs(dispatchReceipts(cwd, slug))
+    .filter((r) => r?.order_id && (!runId || !r.run_id || r.run_id === runId))
+    .map((r) => String(r.order_id)));
   const out = [];
   for (const f of (existsSync(oDir) ? readdirSync(oDir) : []).filter((x) => x.endsWith(".json")).sort()) {
     let orderId = null;
@@ -88,6 +94,7 @@ export function legsOf(cwd, slug) {
       order: join(oDir, f),
       name: f.replace(/\.json$/, ""),
       order_id: orderId,
+      has_receipt: orderId !== null && receipted.has(orderId),
       has_result: existsSync(join(rDir, f)),
       applied: orderId !== null && ingested.has(orderId),
     });
@@ -104,8 +111,23 @@ export function legsOf(cwd, slug) {
  */
 export function orderLegState(cwd, slug, name) {
   const o = legsOf(cwd, slug).find((x) => x.name === name);
-  if (!o) return { closed: false, found: false, order: null, order_id: null, has_result: false, applied: false };
+  if (!o) return { closed: false, found: false, order: null, order_id: null, has_receipt: false, has_result: false, applied: false };
   return { closed: o.applied, found: true, ...o };
+}
+
+/**
+ * Orders that were dispatched — a receipt says a Skill ran against them — and never answered:
+ * no WorkResult on disk. Measured on a live run: the first dispatch wrote its four artifacts and
+ * no envelope, every later phase read the artifacts, and the run closed `shipped` with the order
+ * still open by construction — the export's own dispatch row said `answered: false` and nothing
+ * upstream of it had noticed. Distinct from {@link openLegs}: that is work nobody applied; this is
+ * a leg that never came back.
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {{order:string, name:string, order_id:(string|null)}[]}
+ */
+export function unansweredOrders(cwd, slug) {
+  return legsOf(cwd, slug).filter((o) => o.has_receipt && !o.has_result);
 }
 
 /**
@@ -171,8 +193,13 @@ export function cli(rawArgv) {
   // `--open`: every result nothing applied, across the whole run, any phase. Exit 0 when none.
   if (args.open) {
     const open = openLegs(cwd, args.slug);
-    console.log(JSON.stringify({ closed: open.length === 0, open_total: open.length, open: open.map((o) => o.order), open_ids: open.map((o) => o.order_id) }));
-    process.exit(open.length === 0 ? 0 : 1);
+    const unanswered = unansweredOrders(cwd, args.slug);
+    console.log(JSON.stringify({
+      closed: open.length === 0 && unanswered.length === 0,
+      open_total: open.length, open: open.map((o) => o.order), open_ids: open.map((o) => o.order_id),
+      unanswered_total: unanswered.length, unanswered: unanswered.map((o) => o.order), unanswered_ids: unanswered.map((o) => o.order_id),
+    }));
+    process.exit(open.length === 0 && unanswered.length === 0 ? 0 : 1);
   }
   // `--order <stem>`: one order by file stem (`analyze`, `alpha-r1-a1`). Exit 0 when its leg closed.
   if (args.order) {

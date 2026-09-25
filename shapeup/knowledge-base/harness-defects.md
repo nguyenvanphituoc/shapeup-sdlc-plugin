@@ -33,6 +33,7 @@ is pinned by a guard, never when it is merely believed done.
 | HD-056 | seven shipped files cite artifacts a user does not receive | P3 |
 | HD-058 | two gates still have no deterministic call site — L0 and COACH-1 are resolved by prose alone | P3 |
 | HD-059 | a T0 verdict is evidence about a machine, and records only the tree | P1 |
+| HD-066 | the board index's status column is written by the leg being judged, and the census reads the index | P1 |
 | HD-062 | three run-blind readers reach durable artifacts: the committed report's round count, the exported gate decisions, and the citation check | P1 (HD-041 member) |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
@@ -828,6 +829,30 @@ else needs to survive for the fix to hold.
   **Closed when:** a T0 artifact carries enough about where it ran that a disagreeing re-run can be
   told from a regression, or the harness states plainly, where the verdict is read, that its
   evidence is machine-local.
+
+- **HD-066 · The board index's status column is written by the leg being judged, and the census
+  reads the index.** Measured 2026-09-25 on the consumer, run
+  `about-screen-20260925T011514Z-a4094924`, plugin 3.7.5; the consumer filed it first.
+
+  The build leg's attested WorkResult says `TASK-005` is `skipped` — its substrate has no
+  `app/entry/src/test/**`, the sandbox denied the files it needed, the escalation is in the ledger —
+  and the result's own status is `escalated`. The frozen report projects that correctly:
+  `Board 5/6`, one task did not finish. The per-machine board index under `tasks/` shows all six
+  tasks ✅ done. The build order's substrate lists no `tasks/**`; the leg wrote the index through the
+  run-trace carve-out, the one that exists so a doer can keep its own bookkeeping current. So the
+  index has two writers — the worker, and `reduce ingest`, which ticks a row `done` only for a task
+  the WorkResult says is done — and the worker's optimism wins on the row ingest does not touch.
+  Scope-hammer then read the index, called the ledger's escalation "stale/superseded", and censused
+  nothing for the task; its cut list landed on the same work by another route, so the outcome was
+  not wrong this time. The census was fed the one projection that was.
+
+  Same class as the attestation freeze: a record the harness reads as evidence, writable by the
+  party it is evidence about. The task files themselves are the executor's to tick (acceptance
+  boxes); the index's status column is not.
+
+  **Closed when:** the index's status column is derived at ingest from `task_results[].status` —
+  `skipped` and `escalated` rendered as what they are — and is frozen for build legs like the other
+  attested channels; and scope-hammer's census reads the WorkResult, never the index.
 
 - **HD-062 · Three run-blind readers reach durable artifacts: the committed report's round count,
   the exported gate decisions, and the citation check.** Found 2026-09-24 by the second review;
