@@ -3,6 +3,17 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### The no-control warning stops implying a fix that may not exist
+
+Measured on the ArkTS consumer after 3.9.0 landed: no entry point roots an import walk on that
+project at all. The navigation host imports nothing, and every screen arrives through a route-map
+manifest — so the warning's advice to "declare the module that does the wiring" named a JSON file.
+The warning now says both halves: declare the composing module where one exists, and where the
+screens come from a manifest, unchecked is the correct end state rather than a profile to keep
+re-declaring. GATE L0's profile guidance says the same.
+
 ## [3.9.0] — 2026-09-25 · The reachability oracle stops answering questions it cannot ask
 
 ### Reachability walks the project's own language, and says so when it cannot

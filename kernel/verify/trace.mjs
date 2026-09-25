@@ -491,7 +491,8 @@ export function traceLint(slug, { cwd, gate = false }) {
               skipped_reason: `no engine is reachable from entry_point "${entryPoint}", which reaches ${reachable.size} file(s) — with no reachable engine as a control this walk cannot tell an orphaned module from an entry point that is not the runtime root (declarative routing, a manifest, a string-loaded screen). Reachability skipped.` };
             findings.push({ severity: "warn", code: "REACH-NO-CONTROL", message:
               `reachability did not run: all ${engines.length} engine(s) are unreachable from entry_point "${entryPoint}", which reaches ${reachable.size} file(s). ` +
-              "Every engine orphaned is the one result this arm cannot distinguish from a wrong root — if this project wires its screens by name rather than by import, declare the module that does the wiring as the entry point." });
+              "Every engine orphaned is the one result this arm cannot distinguish from a wrong root. If some module does compose the app, declare that one as the entry point. " +
+              "If the screens are registered in a manifest instead — a route map, a plugin table — then no entry point roots this walk and unchecked is the correct end state for this project, not a profile to fix." });
           } else {
             for (const u of unreachable) {
               findings.push({ severity: "red", code: "UC-UNREACHABLE", uc: u.use_case,

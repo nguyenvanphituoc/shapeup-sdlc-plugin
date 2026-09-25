@@ -224,10 +224,12 @@ Do NOT enter MAP SCOPES until Orient is accepted.
    archetype ∈ {client-only-game|web-service|mobile|library|data-pipeline}; entry_point is the
    reachability seam (a game's main.js is NOT a service's src/server.ts). Validate the enum — a
    typo must fail, not silently disable the check. entry_point is also the root reachability walks
-   the import graph from, so pick the module the app's screens hang off, not merely the file the
-   platform starts: a framework that registers screens by name (a route map, a manifest, a
-   string-loaded page) leaves its start file importing nothing the feature touches, and the arm
-   then reports that it could not check rather than calling every engine orphaned.
+   the import graph from, so where some module does compose the app, name that one rather than the
+   file the platform happens to start. Where the screens are registered in a MANIFEST instead (a
+   route map, a plugin table, a string-loaded page), no entry point roots an import walk at all —
+   measured on a real ArkTS app, where the navigation host imports nothing and every screen arrives
+   through route_map.json. The arm then reports that it could not check, and that is the correct
+   end state for such a project rather than a profile to keep re-declaring.
    source_extensions is optional and only needed when the project's modules end in something the
    entry point does not (e.g. [".ets"] when the entry is a .ts file); leaving it out costs a
    skipped arm, never a false red. The two probes feed the round build gate (`harness verify
