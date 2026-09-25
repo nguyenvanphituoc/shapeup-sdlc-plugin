@@ -410,6 +410,11 @@ const MODULE_FILES = [
   // so a scope's substrate became a string, the order failed its own schema, and the scope could
   // not be dispatched. Drives the parse through the compiler and the hook.
   "98-flow-sequence-spans-lines.mjs",
+  // 99-eval-launch-evidence.mjs: a `[ui]` row is graded on the running app, but an evaluate order
+  // carried no way to start it and no record that the gate had — the ledger's `run_cmd` is the build
+  // and a green launch was forwarded only when red. The kernel now derives `build_gate` and
+  // `launch_cmd`, and `probe t0` prints the digest a T0 citation needs.
+  "99-eval-launch-evidence.mjs",
   "08-docs.mjs",
 ];
 

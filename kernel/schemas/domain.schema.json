@@ -302,6 +302,13 @@
         "note": "a red gate's output, digested — surfaces as payload.bugs on the next round's orders"
       },
       {
+        "from": "WorkOrder",
+        "to": "RoundBuildVerdict",
+        "cardinality": "N:1",
+        "via": "payload.build_gate",
+        "note": "an evaluate order names this run's newest gate artifact for its round, green or red, so the judge knows the build ran and the app launched before grading a [ui] row; payload.launch_cmd carries the profile's launch_probe beside it"
+      },
+      {
         "from": "RoundBuildVerdict",
         "to": "HillShard",
         "cardinality": "1:N",
@@ -353,6 +360,8 @@
       "feature",
       "dimensions",
       "run_cmd",
+      "launch_cmd",
+      "build_gate",
       "t0_artifacts",
       "browser",
       "tasks"
@@ -2415,6 +2424,14 @@
         "run_cmd": {
           "type": "string",
           "description": "spec-evaluator: how to start the running app. Absent orchestrated → ESCALATE, never guess."
+        },
+        "launch_cmd": {
+          "type": "string",
+          "description": "spec-evaluator: the project profile's launch probe — installs the built artifact, starts it and asserts the first screen. Derived by `harness compile` from project-profile.md, absent when the profile declares none. Where `run_cmd` is only a build, this is how the app is brought up; a non-zero exit is a finding, not a reason to guess another way."
+        },
+        "build_gate": {
+          "type": "string",
+          "description": "spec-evaluator: this run's newest round build gate artifact (build/r<N>-t<T>.json) — each step's exit code and output tail, the record that the build ran and the app launched. Derived by `harness compile`, absent when the gate never ran. Read it before grading a [ui] row NO EVIDENCE."
         },
         "t0_artifacts": {
           "type": "array",

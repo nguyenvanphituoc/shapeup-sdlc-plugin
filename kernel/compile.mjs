@@ -44,7 +44,7 @@ import { writeActiveOrder } from "./probe/resume.mjs";
 import { greenVerdict } from "./probe/t0.mjs";
 import { attemptEvidence, readReceipts } from "./probe/attempts.mjs";
 import { readLegs } from "./probe/leg.mjs";
-import { latestRoundBuild } from "./verify/build.mjs";
+import { latestRoundBuild, latestRoundBuildFile, launchProbeFor } from "./verify/build.mjs";
 // The SAME matcher the sandbox hook enforces with. "Is this cited file inside this scope's
 // substrate" has to mean exactly what the guard means, or a bug is addressed to a scope that is
 // then denied the write that fixes it.
@@ -748,6 +748,42 @@ export function t0ArtifactsFor(cwd, slug, round) {
   return { artifacts, missing };
 }
 
+// --- the launch evidence the judge grades `[ui]` rows against ---------------------------------
+//
+// WHY THE KERNEL DERIVES IT. A `[ui]` criterion is graded on the RUNNING app, and the evaluator's
+// contract for getting one is `payload.run_cmd`; absent, an orchestrated evaluator escalates rather
+// than guess. The ledger's `run_cmd` is what the round build gate runs FIRST, as the build — on a
+// toolchain where building and launching are different acts it is a build, and the ledger carries
+// none at all when nobody pinned one. Meanwhile the gate had already run the project's launch probe
+// (install, start, assert the first screen) moments earlier, recorded its output, and left the
+// app up. None of that reached the order: the gate's artifact was forwarded only when RED, as the
+// next round's bug list, so a green launch was proven and then unavailable to the one reader who
+// needed it. Every `[ui]` row was graded "no evidence on the running app" over a build that launched.
+//
+// Two fields, both derived from disk, both optional, both absent when there is nothing to say —
+// the same non-regression rule as `t0_artifacts`: a project that declares no launch probe compiles
+// exactly the order it always did.
+
+/**
+ * What an evaluate order should carry about launching the app.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {number} [round] - The round being evaluated. Omitted, the newest gate artifact of any
+ *   round — a standalone evaluation has no round.
+ * @returns {{build_gate?: string, launch_cmd?: string}} `build_gate`: repo-relative path of this
+ *   run's newest round build gate artifact (each step's exit and output tail). `launch_cmd`: the
+ *   profile's launch probe. A key is omitted, never null, when its source is absent.
+ */
+export function launchEvidenceFor(cwd, slug, round) {
+  const out = {};
+  const gate = latestRoundBuildFile(cwd, slug, round);
+  if (gate) out.build_gate = relLocal(slug, "build", basename(gate.path));
+  const cmd = launchProbeFor(cwd, slug);
+  if (cmd) out.launch_cmd = cmd;
+  return out;
+}
+
 /**
  * Assemble a WorkOrder envelope. Pure given its inputs — the CLI wrapper does the disk reads.
  * @param {object} opts - The order inputs (destructured):
@@ -1092,6 +1128,13 @@ export async function cli(rawArgv) {
       console.error(`compile-order: warning — no green T0 verdict${round ? ` in round ${round}` : ""} for ` +
         `${missing.join(", ")}; the evaluator has nothing to cite for ${missing.length === 1 ? "that scope" : "those scopes"}`);
     }
+  }
+  // The launch evidence, for every lane (see launchEvidenceFor). Same rule as above: an explicit
+  // `--payload` value outranks the derivation.
+  if (operation === "evaluate") {
+    const ev = launchEvidenceFor(cwd, slug, round);
+    if (ev.build_gate !== undefined && payloadExtra.build_gate === undefined) payloadExtra.build_gate = ev.build_gate;
+    if (ev.launch_cmd !== undefined && payloadExtra.launch_cmd === undefined) payloadExtra.launch_cmd = ev.launch_cmd;
   }
 
   const order = compileOrder({

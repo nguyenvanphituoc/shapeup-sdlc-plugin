@@ -1,8 +1,16 @@
 // probe t0 — "has this scope already reached T0-green in this round?"
 //
 // CONTRACT. A bounded, read-only query over the verdict artifacts on disk. Prints
-// `{green, path, round, scope_id}` on stdout; exits 0 when green, 1 when not, 2 on a bad argv.
-// Writes nothing.
+// `{green, path, sha256?, round, scope_id}` on stdout; exits 0 when green, 1 when not, 2 on a bad
+// argv. Writes nothing.
+//
+// WHY IT PRINTS A DIGEST. A verdict on a scoped spec must cite a T0 artifact with the sha256 of the
+// file as it is on disk now, and the judge is asked to obtain that itself rather than accept one it
+// was handed. Some sessions have no shell hasher they may run, and a grant that covers this entry
+// point and not `shasum` is the ordinary case, not an oversight. The digest here is computed from
+// the bytes at the moment of the call, with the same reading the ingest step re-checks it against,
+// so a judge that asks for it is asking the file, not a caller. `sha256` is present only when the
+// verdict is green and readable; absent — never null — otherwise.
 //
 // WHY IT IS A SUBCOMMAND AND NOT AN INLINE SNIPPET. The control plane has no filesystem of its
 // own, so the alternative is a `node -e` blob assembled inside the workflow script. Such a blob is
@@ -14,6 +22,7 @@
 // the only durable evidence of that is the verdict artifact the evaluator is required to cite.
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
 import { verdictsDir, readRunId } from "../lib/paths.mjs";
@@ -89,6 +98,18 @@ export function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = resolve(args.cwd || process.cwd());
   const { green, path } = greenVerdict(cwd, args.slug, args.scope, args.round);
-  console.log(JSON.stringify({ green, path, scope_id: args.scope, round: args.round }));
+  const sha256 = green ? digestOf(path) : null;
+  console.log(JSON.stringify({ green, path, ...(sha256 ? { sha256 } : {}), scope_id: args.scope, round: args.round }));
   process.exit(green ? 0 : 1);
+}
+
+/**
+ * The sha256 of a verdict artifact, read as `reduce ingest` re-reads it (utf8 text, then hashed) so
+ * the two can never disagree about the same bytes.
+ * @param {string} path - Absolute path of the verdict file.
+ * @returns {(string|null)} Lowercase hex digest, or null when the file cannot be read.
+ */
+function digestOf(path) {
+  try { return createHash("sha256").update(readFileSync(path, "utf8")).digest("hex"); }
+  catch { return null; }
 }

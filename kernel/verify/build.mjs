@@ -221,6 +221,62 @@ export function latestRoundBuild(cwd, slug, round) {
 }
 
 /**
+ * The gate artifact an evaluate order should name — the newest one THIS run wrote, with the file it
+ * lives in.
+ *
+ * {@link latestRoundBuild} answers "what did the gate say about round N" and hands back a body; an
+ * order has to point at a file, so the path travels with it here. Scoped to the current run when a
+ * receipt is readable: a prior run over the same slug leaves its own `r1-t1.json` on disk, and the
+ * judge must not be pointed at another run's launch evidence. Scoped to one round when given; with
+ * no round it is the newest of any round — a standalone evaluation has none, the same reading
+ * `t0ArtifactsFor` uses for the T0 verdicts.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {number} [round] - The round being evaluated.
+ * @returns {({path:string, body:object}|null)} null when the gate never ran, or nothing readable
+ *   belongs to this run. Never throws: an order must compile without it.
+ */
+export function latestRoundBuildFile(cwd, slug, round) {
+  let files;
+  const dir = roundBuildDir(cwd, slug);
+  try { files = readdirSync(dir); } catch { return null; }
+  const runId = readRunId(cwd, slug);
+  let best = null;
+  for (const f of files) {
+    const m = f.match(/^r(\d+)-t(\d+)\.json$/);
+    if (!m) continue;
+    const r = Number(m[1]), t = Number(m[2]);
+    if (round != null && r !== Number(round)) continue;
+    let body;
+    try { body = JSON.parse(readFileSync(join(dir, f), "utf8")); } catch { continue; }
+    if (runId && body?.run_id && body.run_id !== runId) continue;
+    if (!best || r > best.r || (r === best.r && t > best.t)) best = { r, t, path: join(dir, f), body };
+  }
+  return best && { path: best.path, body: best.body };
+}
+
+/**
+ * The command the project declared for bringing the built app up — `launch_probe` in the committed
+ * profile: install the artifact, start it, assert the first screen. Read on its own rather than
+ * through {@link declaredSteps}, which also reads the ledger and computes warnings an order has no
+ * use for.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {(string|null)} The command, or null when the profile is absent or declares none.
+ *   Never throws.
+ */
+export function launchProbeFor(cwd, slug) {
+  try {
+    const pp = projectProfile(cwd, slug);
+    if (!existsSync(pp)) return null;
+    const v = readContract(pp, PROJECT_PROFILE)?.contract?.launch_probe;
+    return typeof v === "string" && v.trim() ? v.trim() : null;
+  } catch { return null; }
+}
+
+/**
  * The rounds whose latest gate artifact is red — the set `reduce hill` subtracts from.
  * @param {string} cwd - Project root.
  * @param {string} slug - Feature slug.
