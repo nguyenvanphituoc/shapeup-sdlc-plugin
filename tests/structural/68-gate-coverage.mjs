@@ -197,4 +197,34 @@ export async function run(ctx) {
       ok("L0, L4 and COACH-1 each have a real VALID_BY_GATE decision set — resolving them is not a special case bolted on beside the other seven");
     } else fail(`VALID_BY_GATE is missing a decision set for: ${missingFromSchema.join(", ")}`);
   }
+
+  // ===============================================================================================
+  section("112. L0 is crossed by the run's opening and COACH-1 by the coach dispatch — deterministic calls, not prose");
+  // ===============================================================================================
+  {
+    const { mkdtempSync, rmSync, readFileSync, existsSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { spawnSync } = await import("node:child_process");
+    const ws = mkdtempSync(join(tmpdir(), "gate-callsites-"));
+    try {
+      spawnSync("git", ["init", "-q", "-b", "main"], { cwd: ws });
+      const kernel = (...a) => spawnSync(process.execPath, [join(ROOT, "kernel/harness.mjs"), ...a, "--cwd", ws], { cwd: ws, encoding: "utf8" });
+      const rows = (slug) => { const p = join(ws, ".shapeup", slug, "gates.jsonl"); return existsSync(p) ? readFileSync(p, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)) : []; };
+      const ci = kernel("init", "run", "--slug", "ci-run", "--intake-text", "Add a cart badge", "--gate-answers", "ci");
+      const l0 = rows("ci-run").find((r) => r.gate === "L0");
+      if (ci.status === 0 && l0 && l0.decision === "proceed" && /preset:ci/.test(l0.source) && l0.run_id) ok("(c) `init run` records the L0 row itself — decision, source and run key — before any worker runs");
+      else fail(`(c) init run left no usable L0 row: exit ${ci.status} ${JSON.stringify(l0)}`);
+      const coachCi = kernel("compile", "--operation", "coach", "--slug", "ci-run");
+      const c1 = rows("ci-run").find((r) => r.gate === "COACH-1");
+      if (coachCi.status === 3 && c1 && c1.decision === "skip" && !existsSync(join(ws, ".shapeup/ci-run/orders/coach.json"))) ok("(d) compiling a coach order in a ci run resolves COACH-1 to skip, records the row, and refuses the order — no coach nobody will answer");
+      else fail(`(d) coach compile in a ci run: exit ${coachCi.status}, row ${JSON.stringify(c1)}, order ${existsSync(join(ws, ".shapeup/ci-run/orders/coach.json"))}`);
+      const it = kernel("init", "run", "--slug", "it-run", "--intake-text", "Add a cart badge", "--gate-answers", "interactive", "--force");
+      const coachIt = kernel("compile", "--operation", "coach", "--slug", "it-run");
+      const c2 = rows("it-run").find((r) => r.gate === "COACH-1");
+      if (it.status === 0 && coachIt.status === 0 && c2 && c2.decision === "ask" && existsSync(join(ws, ".shapeup/it-run/orders/coach.json"))) ok("(d) in an interactive run COACH-1 resolves ask, the row is recorded, and the coach order compiles — the categorization conversation is the answer");
+      else fail(`(d) coach compile in an interactive run: init ${it.status}, compile ${coachIt.status}, row ${JSON.stringify(c2)}`);
+    } finally {
+      rmSync(ws, { recursive: true, force: true });
+    }
+  }
 }
