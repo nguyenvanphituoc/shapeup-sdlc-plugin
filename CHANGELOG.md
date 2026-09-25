@@ -3,7 +3,7 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [3.9.0] — 2026-09-25 · The reachability oracle stops answering questions it cannot ask
 
 ### Reachability walks the project's own language, and says so when it cannot
 
