@@ -38,7 +38,7 @@
 //       green") against a narrowing that only ever checks `overall === "red"`, which would accept
 //       all three.
 
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, chmodSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, chmodSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -339,5 +339,59 @@ export async function run(ctx) {
     }
   } finally {
     for (const d of roots) rmSync(d, { recursive: true, force: true });
+  }
+
+  // --- the citation's HOME: this run's own verdicts directory -----------------------------------
+  // A digest says the bytes are the file's; it says nothing about which file it should have been.
+  // Accepted before this: a green artifact the judge wrote in the source tree, one outside the
+  // project reached by `../`, one by absolute path, and a symlink in the verdicts directory
+  // pointing at a forged file.
+  {
+    const d = fixture("home");
+    contract(d, "alpha");
+    const green = t0(d, "r1-a1-t1.json", { scope_id: "alpha", overall: "green" });
+    const outside = join(d, "forged-verdict.json");
+    const body0 = readFileSync(join(d, green.rel), "utf8");
+    writeFileSync(outside, body0);
+    const sha = createHash("sha256").update(body0).digest("hex");
+    for (const [label, path] of [
+      ["a sibling of the project root, by relative path", "forged-verdict.json"],
+      ["an absolute path outside the verdicts directory", outside],
+    ]) {
+      evalResult(d, { overall: "PASS", t0_citations: [{ scope_id: "alpha", path, sha256: sha }] });
+      const { r, json } = probeEval(d);
+      if (r.status !== 0 && /outside this run's own verdicts directory/.test(json.reason || "")) {
+        ok(`(h) a citation naming ${label} is refused, correctly hashed though it is`);
+      } else fail(`(h) ${label} was accepted: exit ${r.status} ${JSON.stringify(json).slice(0, 200)}`);
+    }
+    // A symlink INSIDE the verdicts directory pointing at a forged file resolves out of it.
+    const link = join(d, ".shapeup/demo/t0/verdicts/r9-a9-t9.json");
+    try { symlinkSync(outside, link); } catch { /* a filesystem without links skips this case */ }
+    if (existsSync(link)) {
+      evalResult(d, { overall: "PASS", t0_citations: [{ scope_id: "alpha", path: ".shapeup/demo/t0/verdicts/r9-a9-t9.json", sha256: sha }] });
+      const { r, json } = probeEval(d);
+      if (r.status !== 0 && /outside this run's own verdicts directory/.test(json.reason || "")) ok("(h) a symlink inside the verdicts directory pointing at a forged file is refused — the path is resolved, not spelled");
+      else fail(`(h) a symlinked citation was accepted: exit ${r.status} ${JSON.stringify(json).slice(0, 200)}`);
+    }
+    // And the honest one still passes.
+    evalResult(d, { overall: "PASS", t0_citations: [{ scope_id: "alpha", path: green.rel, sha256: green.sha256 }] });
+    const okCase = probeEval(d);
+    if (okCase.r.status === 0) ok("(h) a citation of this run's own green verdict still passes");
+    else fail(`(h) the honest citation was refused: ${JSON.stringify(okCase.json).slice(0, 200)}`);
+  }
+
+  // --- and the judge cannot write into the directory it cites -----------------------------------
+  {
+    const { substrateFor } = await import(join(ROOT, "kernel/compile.mjs"));
+    const { matchesAny } = await import(join(ROOT, "hooks/sandbox-guard.mjs"));
+    const s = substrateFor("evaluate", { slug: "demo", ownStem: "evaluate-r1" });
+    const verdict = ".shapeup/demo/t0/verdicts/r1-a1-t1.json";
+    const own = ".shapeup/demo/results/evaluate-r1.json";
+    const report = ".shapeup/demo/evaluation/EVAL-FEATURE-demo.md";
+    if (matchesAny(verdict, s.frozen || []) && !matchesAny(verdict, s.own || [])) {
+      ok("(h) substrateFor(\"evaluate\") freezes the verdicts directory — a judge may not write the evidence it cites");
+    } else fail(`(h) the judge may still write into t0/verdicts: frozen=${JSON.stringify(s.frozen)} own=${JSON.stringify(s.own)}`);
+    if (matchesAny(own, s.own || []) && matchesAny(report, s.own || [])) ok("(h) and it still authors its own report and the envelope that answers its order");
+    else fail(`(h) the judge lost its own write surface: own=${JSON.stringify(s.own)}`);
   }
 }

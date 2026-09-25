@@ -194,13 +194,17 @@ export function runDbProbe(dbProbeCmd, cwd) {
  */
 export function seesawCheck(registryPath, cwd) {
   if (!registryPath || !existsSync(registryPath)) {
-    return { ran: false, pass: true, scopes_checked: [], failing: [] };
+    // `pass: null`, not `pass: true`: a check that did not run has no result, and recording one as
+    // clean is how "not asked" came to read as "nothing regressed". The verdict below still treats
+    // an absent seesaw as non-blocking — that part is deliberate while the arm is unwired — but the
+    // artifact now says which of the two it was.
+    return { ran: false, pass: null, scopes_checked: [], failing: [] };
   }
   let registry;
   try {
     registry = JSON.parse(readFileSync(registryPath, "utf8"));
   } catch {
-    return { ran: false, pass: true, scopes_checked: [], failing: [], error: "registry unparsable" };
+    return { ran: false, pass: null, scopes_checked: [], failing: [], error: "registry unparsable" };
   }
   const scopes = registry.scopes || [];
   const failing = [];
@@ -222,7 +226,12 @@ export function seesawCheck(registryPath, cwd) {
 export function computeVerdict({ fixtures, dbProbe, seesaw }) {
   const fixturesGreen = fixtures.pass;
   const dbGreen = dbProbe === null || dbProbe.pass;
-  const seesawGreen = !seesaw.ran || seesaw.pass;
+  // A seesaw that did not run does not hold the verdict red — the arm is declared and unwired, and
+  // blocking every build on it would be a different defect. It does not make it green either: the
+  // hill requires `ran && pass` before a scope may reach FINISHED, and `seesaw_green` here means
+  // "nothing this check found is wrong", which is true of a check that found nothing because it
+  // never looked.
+  const seesawGreen = seesaw.ran ? seesaw.pass === true : true;
   return {
     fixtures_green: fixturesGreen,
     db_probe_green: dbGreen,

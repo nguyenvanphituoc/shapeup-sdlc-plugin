@@ -5,6 +5,26 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### A citation names an artifact this run's own verifier wrote
+
+The re-hash proved the bytes were the file's and nothing about which file it should have been.
+Accepted before this: a green artifact the judge wrote in the source tree, one outside the project
+reached by `../`, one by absolute path, and a symlink in the verdicts directory pointing at a
+forged file — every one correctly hashed. A citation is now resolved and must land inside this
+run's own verdicts directory, on top of the scope, round and run checks added in 3.7.8. And the
+compounding fact is gone with it: the judge's substrate froze the spec, the pitch and the board but
+not the verdicts directory, so it could write the evidence it cited. The judge and the QA hunter
+get the same inversion as a build leg — the run trace is the kernel's, and `own` names what each
+authors: its report and the envelope that answers its order.
+
+### A seesaw that did not run records no result
+
+`seesawCheck` returned `pass: true` when no registry existed, which is how "not asked" came to read
+as "nothing regressed" — the hill's own comment records the consequence. It records `pass: null`
+now. The behaviour is unchanged and deliberate: an unwired arm does not hold a green build red, and
+the hill still requires `ran && pass` before a scope may reach FINISHED. Only the artifact is
+honest about which of the two happened.
+
 ### The run trace is the kernel's, except the four things a build leg authors
 
 The freeze on a build leg was a list of channels a defect had named — the staged pitch, then the

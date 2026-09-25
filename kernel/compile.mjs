@@ -334,9 +334,22 @@ export function substrateFor(operation, { slug, specDir, scope, ownStem = null }
         frozen: [...FROZEN_SPEC_CORE, ...FROZEN_INTAKE, `${scopesDir}/**`, globShared(slug, "project-profile.md")],
       };
     case "evaluate":
-      return { allowed: [`${local}/evaluation/**`], frozen: [`${spec}/**`, ...FROZEN_INTAKE, `${local}/tasks/**`] };
+      // THE JUDGE MAY NOT WRITE THE EVIDENCE IT CITES. Its substrate froze the spec, the pitch and
+      // the board — and not `t0/verdicts/**`, so a judge could write a green verdict artifact into
+      // the canonical directory under the run-trace carve-out and then cite it, correctly hashed.
+      // Same inversion as a build leg: the run trace is the kernel's, and `own` names what the
+      // judge authors — its report and the envelope that answers its order.
+      return {
+        allowed: [],
+        frozen: [`${spec}/**`, `${local}/**`],
+        own: [`${local}/evaluation/**`, ...(ownStem ? [`${local}/results/${ownStem}.json`] : [`${local}/results/**`])],
+      };
     case "hunt":
-      return { allowed: [`${local}/qa/**`], frozen: [`${spec}/**`, ...FROZEN_INTAKE, `${local}/tasks/**`] };
+      return {
+        allowed: [],
+        frozen: [`${spec}/**`, `${local}/**`],
+        own: [`${local}/qa/**`, ...(ownStem ? [`${local}/results/${ownStem}.json`] : [`${local}/results/**`])],
+      };
     case "orient":
       return { allowed: [`${local}/orient/**`], frozen: [`${spec}/**`] };
     case "translate":

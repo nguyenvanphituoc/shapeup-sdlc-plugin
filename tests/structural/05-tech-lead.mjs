@@ -159,9 +159,18 @@ export async function run(ctx) {
       const s = seesawCheck(regPath, ROOT);
       if (s.ran && !s.pass && s.failing.includes("checkout")) ok("t0-verify seesawCheck detects a regressed FINISHED scope");
       else fail(`t0-verify seesawCheck did not detect the seeded regression: ${JSON.stringify(s)}`);
+      // A CHECK THAT DID NOT RUN HAS NO RESULT. This used to expect `pass: true` for an absent
+      // registry — "no-op-green" — which is how "not asked" came to read as "nothing regressed" in
+      // the hill's own comment. The substance the case protects is unchanged and still asserted
+      // below: an absent registry must not turn a build red while the arm is unwired.
       const none = seesawCheck(join(regDir, "does-not-exist.json"), ROOT);
-      if (none.ran === false && none.pass === true) ok("t0-verify seesawCheck is a no-op-green when the registry doesn't exist yet (first FINISHED scope)");
-      else fail("t0-verify seesawCheck should default to ran:false, pass:true with no registry");
+      if (none.ran === false && none.pass === null) ok("t0-verify seesawCheck records ran:false, pass:null with no registry — an unrun check reports no result, not a clean one");
+      else fail(`t0-verify seesawCheck reported ${JSON.stringify(none)} for an absent registry — an unrun check must not claim a pass`);
+      const { computeVerdict } = await import(join(ROOT, "kernel/verify/t0.mjs"));
+      const unrun = computeVerdict({ fixtures: { pass: true }, dbProbe: null, seesaw: none });
+      if (unrun.overall === "green" && unrun.seesaw_green === true && unrun.regression === false) {
+        ok("and an absent seesaw still does not hold a green build red — the arm is declared and unwired, and blocking every build on it would be a different defect");
+      } else fail(`an absent seesaw changed the verdict: ${JSON.stringify(unrun)}`);
     } finally {
       rmSync(regDir, { recursive: true, force: true });
     }

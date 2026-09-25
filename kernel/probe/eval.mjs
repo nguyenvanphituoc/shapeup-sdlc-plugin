@@ -31,11 +31,11 @@
 // cause as its first deviation. A bare `ok: false` reached the operator as a sub-agent that died
 // after retries, while the one sentence naming the actual cause sat in a file nobody was pointed at.
 
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, readFileSync, readdirSync, realpathSync } from "node:fs";
+import { join, resolve, resolve as resolvePath, sep } from "node:path";
 import { createHash } from "node:crypto";
 import { runArgs } from "../lib/argv.mjs";
-import { resultsDir, scopesDir, readRunId } from "../lib/paths.mjs";
+import { resultsDir, scopesDir, readRunId, verdictsDir } from "../lib/paths.mjs";
 
 /** Longest `reason` reported. A deviation is prose written by a worker and can run to paragraphs. */
 const REASON_MAX = 400;
@@ -89,7 +89,7 @@ export function isScoped(cwd, slug) {
  * @returns {(string|null)} A reason phrased for an operator, or null when the file at `path` exists,
  *   hashes to the cited `sha256`, and its own `overall` reads "green".
  */
-function unresolvedCitation(cwd, citation, { round = null, runId = null } = {}) {
+function unresolvedCitation(cwd, citation, { round = null, runId = null, verdicts = null } = {}) {
   const rel = typeof citation?.path === "string" ? citation.path : "";
   if (!rel) return "names no artifact path";
   let text;
@@ -109,6 +109,19 @@ function unresolvedCitation(cwd, citation, { round = null, runId = null } = {}) 
   try { body = JSON.parse(text); }
   catch { return `cites ${rel}, whose bytes match the hash but do not read as a T0 verdict`; }
   if (body?.overall !== "green") return `cites ${rel}, whose own verdict is "${body?.overall ?? "unknown"}", not green`;
+  // INSIDE THIS RUN'S OWN VERDICTS DIRECTORY, resolved — asked of a file that exists, so "does not
+  // exist" and "resolves somewhere else" stay different answers. Accepted before this check: a
+  // green artifact in the source tree, one outside the project reached by `../`, one by absolute
+  // path, and a symlink in the verdicts directory pointing at a forged file. Every one hashed
+  // correctly, because a digest says the bytes are the file's and nothing about which file it
+  // should have been.
+  if (verdicts) {
+    const real = (() => { try { return realpathSync.native(resolvePath(cwd, rel)); } catch { return resolvePath(cwd, rel); } })();
+    const home = (() => { try { return realpathSync.native(verdicts); } catch { return verdicts; } })();
+    if (!real.startsWith(home.endsWith(sep) ? home : home + sep)) {
+      return `cites ${rel}, which resolves outside this run's own verdicts directory (${home}) — a verdict cites what this run's own verifier wrote, not a file the judge can reach`;
+    }
+  }
   // THE ARTIFACT HAS TO BE THE ONE THE CITATION SAYS IT IS. A re-hash proves the bytes are the
   // file's; it says nothing about whose verdict the file holds. A PASS citing scope alpha's green
   // artifact while declaring scope beta, or a prior round's, or a prior run's over the same slug,
@@ -198,8 +211,9 @@ export function citationProblem(cwd, slug, verdict, { round = null } = {}) {
       "cite the T0 verdict it re-hashed (the order lists them under payload.t0_artifacts)";
   }
   const runId = readRunId(cwd, slug);
+  const verdicts = verdictsDir(cwd, slug);
   for (const citation of verdict.t0_citations) {
-    const reason = unresolvedCitation(cwd, citation, { round, runId });
+    const reason = unresolvedCitation(cwd, citation, { round, runId, verdicts });
     if (reason) return `the ${verdict.overall} verdict ${reason} — a T0 citation is re-hashed from disk, never taken on the handed word`;
   }
   return null;

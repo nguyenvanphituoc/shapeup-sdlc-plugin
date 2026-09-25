@@ -19,9 +19,8 @@ is pinned by a guard, never when it is merely believed done.
 | HD-039 | a hill dot outlives the evidence that moved it | — (filed after the tiering pass) |
 | HD-021 | a per-scope "it compiles" fixture can be green while the scope's code is unreachable | P3 |
 | HD-022 | ⚠ Work for defects measured on a real consumer sits on a tag, not on main | decision |
-| HD-048 | the seesaw regression arm is declared everywhere and wired nowhere | — (filed after the tiering pass) |
+| HD-048 | DECIDE: wire the seesaw regression arm or delete it — the absence no longer reads as a pass | decision |
 | HD-051 | a build leg can forge a CONCURRENTLY-LIVE sibling's WorkResult — narrowed, and the guard cannot see who writes | P2 |
-| HD-053 | the T0 citation re-hash proves self-consistency, not provenance | P1 |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
 | HD-025 | two run geometries this checkout cannot reach | process |
@@ -511,23 +510,25 @@ one mutation-verified in both directions. Those guards are the whole write-up th
 what a closed defect cost is recoverable from the tests that now fail on reversion, and nothing
 else needs to survive for the fix to hold.
 
-- **HD-048 · The seesaw regression arm is declared everywhere and wired nowhere.** Filed 2026-09-24
-  so that the README's newly honest pointer resolves to something.
+- **HD-048 · DECIDE: wire the seesaw regression arm, or delete it.** Filed 2026-09-24 so the
+  README's newly honest pointer resolves to something; narrowed 2026-09-25 to the decision itself.
 
-  `seesawCheck` (`kernel/verify/t0.mjs`) returns `{ran:false, pass:true}` when the registry is
-  absent — **absence read as clean**. The orchestrator's call template does pass
-  `--seesaw-registry`, but nothing in the repo ever writes that file: a grep across `kernel/`,
-  `skills/` and `commands/` finds the flag's parser, the path resolver, the reader and the schema,
-  and no writer. `reduce/hill.mjs` records the consequence in its own comment — "'not asked' was
-  being read as 'clean,' letting a scope reach FINISHED on a regression check that had never
-  executed" — and, two lines down, that wiring it is a deferred Betting Table decision.
+  Nothing writes the registry the arm reads. The orchestrator's call template passes
+  `--seesaw-registry`, and a grep across the kernel, the skills and the commands finds the flag's
+  parser, the path resolver, the reader and the schema — no writer. Every mention in the shipped
+  docs now says "declared, not yet wired", so no reader is told they have a regression arm they do
+  not have.
 
-  That deferral is legitimate; carrying it while the README sold the seesaw as part of what makes a
-  scope built was not. The README is fixed. This row is the decision itself: wire it, or delete the
-  arm and the flag.
+  **What is no longer part of this row.** A check that did not run recorded `pass: true`, which is
+  how "not asked" came to read as "nothing regressed" — the hill's own comment says so. It records
+  `pass: null` now, and the verdict treats an unrun arm as non-blocking rather than as green, which
+  is the same behaviour stated honestly: a build is not held red by an arm nobody wired, and the
+  hill still requires `ran && pass` before a scope may reach FINISHED.
 
-  **Closed when:** either a run writes the registry and a fixture proves a regression in a finished
-  scope turns a green attempt red, or the arm, the flag and every mention of it are gone.
+  **Closed when:** the PO decides. Either a run writes the registry and a fixture proves a
+  regression in a finished scope turns a green attempt red, or the arm, the flag and every mention
+  of it are gone. This is a Betting Table call, not an engineering one: it adds a measurement or it
+  removes a promise.
 
 - **HD-051 · A build leg can forge a concurrently-live sibling's WorkResult.** Filed 2026-09-24 by
   the acceptance pass on the attestation freeze; narrowed and re-measured 2026-09-25.
@@ -548,27 +549,5 @@ else needs to survive for the fix to hold.
 
   **Closed when:** a leg writing a result for an order that is not its own is refused WITH a sibling
   order concurrently live, while its own result still lands, and a fixture drives both.
-
-- **HD-053 · The T0 citation re-hash proves self-consistency, not provenance.** Found 2026-09-24 by
-  the acceptance pass on the re-hash itself; the mechanism it adds is real and this is its ceiling.
-
-  Every one of these is accepted: a green artifact the judge wrote in the source tree, one outside
-  the project reached by `../`, one by absolute path, a symlink in the verdicts directory pointing
-  at a forged file, and a verdict naming a scope that does not exist. The round is unchecked too, so
-  a round-5 PASS may cite a round-1 green artifact.
-
-  The compounding fact is that `substrateFor("evaluate")` freezes the spec tree, the intake, the
-  breadboard and the board — **not** `t0/verdicts/**`. So the judge may write a green verdict
-  artifact into the canonical directory under the run-trace carve-out and then cite it, correctly
-  hashed. The re-hash holds against a careless judge — a stale path, a red artifact, a hallucinated
-  digest. It is not a floor against a dishonest one.
-
-  Two cheap narrowings exist and neither needs the order: refuse a citation whose path is not under
-  the run's own verdicts directory, and refuse one whose round does not match the verdict's. The
-  membership check against the order's own artifact list is the complete answer but is only
-  available on the ingest path.
-
-  **Closed when:** a citation is constrained to an artifact this run's own verifier wrote, and the
-  channel the judge could write it through is closed or the check no longer depends on that.
 
 This file stays short on purpose. It is a queue, not an archive.
