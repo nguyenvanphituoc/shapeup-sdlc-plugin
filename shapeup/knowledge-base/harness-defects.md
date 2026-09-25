@@ -14,7 +14,6 @@ is pinned by a guard, never when it is merely believed done.
 |---|---|---|
 | HD-027 | two harness rules collide, and the collision hard-aborts a run at L1b | P1 |
 | HD-013 | the WorkOrder names no result path | P3 |
-| HD-029 | a run that went through GATE H cannot record a later ship | — (filed after the tiering pass) |
 | HD-031 | a resumed run cannot soak a plugin upgrade, and nothing says so at launch | — (filed after the tiering pass) |
 | HD-033 | a stale WorkResult closes an attempt that is still running | — (filed after the tiering pass) |
 | HD-037 | `coverage` registers the pitch's NO-GOS as requirements, marked `covered`, and L1b reds every on… | — (filed after the tiering pass) |
@@ -32,9 +31,8 @@ is pinned by a guard, never when it is merely believed done.
 | HD-054 | the hill's absence guard is re-armed by the command on the same page | P2 |
 | HD-055 | the run ledger's own verdict field is never written, and the ship report will print any string | P3 |
 | HD-056 | seven shipped files cite artifacts a user does not receive | P3 |
-| HD-058 | two gates print their block and leave no row | P2 |
+| HD-058 | two gates still have no deterministic call site — L0 and COACH-1 are resolved by prose alone | P3 |
 | HD-059 | a T0 verdict is evidence about a machine, and records only the tree | P1 |
-| HD-063 | GATE L4 demands a census artifact, and nothing in the plugin writes one — a headless lane can only record `ask` | P2 |
 | HD-062 | three run-blind readers reach durable artifacts: the committed report's round count, the exported gate decisions, and the citation check | P1 (HD-041 member) |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
@@ -103,61 +101,6 @@ is pinned by a guard, never when it is merely believed done.
   (`docs/design/plans/which-defect-first.md`, `defect-sweep-execution.md`) ranks it P3 and states it
   is untouched. Re-measure before betting it rather than trusting this paragraph: a defect entry
   that cannot show its own evidence is a lead, not a finding.
-- **HD-029 · A run that went through GATE H cannot record a later ship.** Discovered 2026-09-22
-  while implementing `HD-026`'s fix, by the stage's own executor rather than by any check — no
-  acceptance row covered it, which is the same boundary `HD-026` and `HD-028` sit on.
-
-  `skills/tech-lead/references/gates.md` has GATE L4 call `probe resume --close shipped`
-  unconditionally after a GATE H → L4 ship decision. Since the close-out derives its status from
-  the RunReturn arm, `gate_h` closes the ledger as `escalated` **immediately**, and `closeRun`
-  refuses a *different* terminal status over an existing close — by design, because a terminal
-  close is a once-only fact and the first cause must not be destroyed.
-
-  Driven end to end, not reasoned about:
-
-  ```
-  1) gate_h close          → ok=true  status=escalated
-  2) then --close shipped  → ok=false
-     closeRun: this run is already closed as "escalated" … refusing to overwrite it with "shipped".
-  3) ledger now says closed_status=escalated
-  ```
-
-  So the documented flow — trip a breaker, hand to GATE H, ship what is green at L4 — now leaves a
-  ledger reading `escalated` and a refused ship close. Nothing is corrupted and no cause is lost;
-  the run's own report still says what shipped. What is wrong is that the ledger's terminal fact
-  disagrees with the outcome, and the L4 step believes it closed a run it did not.
-
-  Three ways out, and the choice is the PO's because it is adjacent to `HD-014`'s question of what
-  an `escalated` close should release: **(a)** L4 checks for an existing close and reports
-  "shipped after escalation" instead of calling `--close shipped`; **(b)** `closeRun` lets
-  `shipped` supersede `escalated` — the later, stronger fact — folding the prior cause in the way
-  a same-status supersede already does; **(c)** `gate_h` stops closing immediately and leaves the
-  close to whoever ends the run, which gives back the gap `HD-026` was filed to close.
-
-  Not scheduled. Filed with the evidence so the decision is made once, with `HD-014`, rather than
-  discovered again by the next run that trips a breaker and then ships.
-
-  **Observed live 2026-09-22, in its commoner form: a recoverable abort.** A run aborted at L1b on a
-  red lint, the orchestrator repaired the offending file, relaunched, and BUILD proceeded — correct
-  behaviour throughout, and exactly what a relaunch is for. The ledger afterwards:
-
-  ```
-  status:        building
-  closed_status: aborted
-  close_cause:   L1b: spec-lint reported red findings before BUILD …
-  ```
-
-  Both true, and together wrong. A terminal close is once-only by design, so the run that went on to
-  build still reads `aborted` as its terminal fact, and any later close — including a ship — meets
-  the same refusal this entry describes. The close-on-abort that `HD-026` added is what made an
-  ordinary recoverable abort permanent, which is a consequence nobody chose: closing every terminal
-  ending was the right fix for endings that are actually terminal, and an abort a relaunch recovers
-  from is not one of them.
-
-  This widens the decision rather than changing it. Whatever resolves `gate_h`-then-ship has to
-  answer the same question for abort-then-recover: either a close is retired when a relaunch resumes
-  the run, or a run that resumes was never terminal and should not have been closed.
-
 - **HD-031 · A resumed run cannot soak a plugin upgrade, and nothing says so at launch.** Measured
   2026-09-22 while attempting exactly that.
 
@@ -849,31 +792,19 @@ else needs to survive for the fix to hold.
   **Closed when:** the shipped set cites only what it ships, and the scan that found these runs as a
   check rather than as an audit pass somebody remembers to do.
 
-- **HD-058 · Two gates print their block and leave no row.** Same run, same day.
+- **HD-058 · Two gates still have no deterministic call site — L0 and COACH-1 are resolved by
+  prose alone.** First filed 2026-09-24 as "two gates print their block and leave no row" (H and
+  L4); narrowed 2026-09-25 once the run itself started crossing H and L4 on both the PASS path and
+  the breaker path.
 
-  The run's terminal output carries a `GATE H` census and a `⏸ GATE L4 — Ship Sign-Off` block.
-  `gates.jsonl` holds three rows: `L1a`, `L1a.5`, `L1b`, each `proceed` from the `ci` preset. There
-  is no row for H and none for L4.
+  What remains: `gate.mjs` declares ten gates; the run loop crosses eight through its deterministic
+  call. L0 and COACH-1 are resolved only where a line of prose asks a model to run `gate --resolve`,
+  and a prose instruction holds intermittently — the same run that ledgered L0 once left it out the
+  next time. The rest of the original filing is closed: GATE H crosses on the breaker path, L4 has
+  a call site, and the census is an artifact the L4 resolver reads.
 
-  So the two gates that decide whether a feature ships were narrated to the operator and recorded
-  nowhere. A reader of the trace afterwards is told the run never reached them — the opposite of
-  what happened — and the gate ledger cannot be used to answer "was this ship signed off", which is
-  the one question it exists for. This is the shape `HD-019` closed for the gates that had no call
-  site at all; these have a call site and no ledger write.
-
-  Re-read 2026-09-24: this is two defects with different fixes. `gate.mjs` declares ten gates; the
-  run loop crosses seven through its deterministic call, and L0, L4 and COACH-1 have no call site at
-  all — their only `gate --resolve` is a line of prose a model is asked to act on, and L4's is
-  emphatic and was still dropped. GATE H's block never names `gate --resolve H` in the first place,
-  so the model could not have complied; and the loop's `crossGate("H")` lies on the ship path only —
-  a run that returns at the inner breaker closes without ever reaching it, which is exactly the run
-  whose GATE H census the operator most needs ledgered. The prose half recurs until it has a call
-  site; the code half is a branch.
-
-  **Closed when:** every gate a run emits a block for leaves a row. The criterion as first written —
-  assert the emitted-block set against the ledgered set — is not yet implementable, because the
-  emitted-block set exists nowhere as data: closing this means the kernel renders the block in the
-  same call that writes the row, so a block the operator sees is a block the ledger already holds.
+  **Closed when:** L0 and COACH-1 are crossed by a deterministic call — L0 by the run's opening, and
+  COACH-1 by the coach dispatch — and a check asserts every gate the run can reach has one.
 
 - **HD-059 · A T0 verdict is evidence about a machine, and records only the tree.** Found
   2026-09-24 while trying to verify a consumer build in a clean clone — which turned out to be
@@ -897,25 +828,6 @@ else needs to survive for the fix to hold.
   **Closed when:** a T0 artifact carries enough about where it ran that a disagreeing re-run can be
   told from a regression, or the harness states plainly, where the verdict is read, that its
   evidence is machine-local.
-
-- **HD-063 · GATE L4 demands a census artifact, and nothing in the plugin writes one — a headless
-  lane can only record `ask`.** Measured 2026-09-25 on the consumer, run
-  `about-screen-20260924T175105Z-5c21bab4`, plugin 3.7.3, unattended; the consumer filed it first.
-
-  The L4 resolver refuses `ship` from a preset when no census exists on disk — correctly, since an
-  answer set chooses among allowed answers and cannot supply the evidence that makes one allowed.
-  On this run scope-hammer *had* run, a full H0/H1/H2 census with a CANNOT SHIP verdict, returned
-  as the worker's report — and the resolver was right that nothing on disk says so. The worker then
-  established, by probing rather than assuming, that nothing can: the scope-hammer skill names no
-  artifact path or schema for its census, the kernel has no `reduce hammer`, and `gate --file` is
-  an answer set, not a census input. GATE H itself resolved from the preset without reading a census
-  either. So the refusal that closed one inversion — a preset signing `ship` blind — leaves its
-  complement: an unattended lane can never record `L4 | ship`, whatever the census concluded. On this
-  run the outcome happened to match; the same refusal fires over a green census.
-
-  **Closed when:** the census is an artifact with one writer — the hammer's WorkResult applied by
-  ingest, or a `reduce hammer` — at a path the L4 resolver reads, and a fixture drives a green
-  census through `gate --resolve L4 --preset ci` to a recorded `ship`.
 
 - **HD-062 · Three run-blind readers reach durable artifacts: the committed report's round count,
   the exported gate decisions, and the citation check.** Found 2026-09-24 by the second review;

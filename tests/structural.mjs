@@ -355,6 +355,11 @@ const MODULE_FILES = [
   // a round whose static criteria all passed. Pins the board fact, the board-only operation and its
   // substrate, the L2 refusal over an empty board, and the workflow's board-only branch.
   "85-board-after-fast-forward.mjs",
+  // 86-gate-h-in-the-run.mjs: a breaker used to end the run at the close-out, and the census, GATE
+  // H, the ship report and GATE L4 all happened after it in prose — no census artifact, no H or L4
+  // row, a refused `--close shipped`. Pins the census artifact L4's resolver reads, and the
+  // workflow routing every breaker return through the census, H, the report and L4 before a close.
+  "86-gate-h-in-the-run.mjs",
   "08-docs.mjs",
 ];
 

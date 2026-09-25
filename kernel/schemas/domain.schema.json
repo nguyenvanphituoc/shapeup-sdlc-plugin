@@ -2537,6 +2537,22 @@
         }
       }
     },
+    "HammerCensus": {
+      "description": "Scope-hammer's census as data — the proposal GATE L4's resolver reads before it lets an answer set say `ship`. Written by the hammer at `.shapeup/<slug>/reports/hammer-census.json`, the only path its order's substrate permits besides the committed report. A proposal, never a decision: promotion and shipping stay the PO's call, and ingest never acts on it.",
+      "x-tier": "LOCAL",
+      "x-location": ".shapeup/<slug>/reports/hammer-census.json",
+      "type": "object",
+      "required": ["schema_version", "verdict", "cut_list"],
+      "properties": {
+        "schema_version": { "const": 1 },
+        "order_id": { "type": "string" },
+        "verdict": { "type": "string", "enum": ["ship-now", "ship-after-fixes", "cannot-ship"] },
+        "cut_list": { "type": "array", "items": { "type": "string" } },
+        "ship_blocking": { "type": "array", "items": { "type": "string" }, "description": "Must-have items that failed the baseline comparison — non-empty exactly when the verdict is cannot-ship." },
+        "breaker": { "type": ["string", "null"] },
+        "baseline": { "type": ["string", "null"], "description": "The baseline the comparison ran against, or null when the pitch's problem statement stood in for it." }
+      }
+    },
     "ResumeState": {
       "description": "The fast-forward derivation: which phase a launch resumes at, derived from artifacts on disk and NEVER from stored state or conversation memory. Produced by kernel/probe/resume.mjs on stdout and consumed by shapeup-run.js's preamble on every launch, fresh or relaunch alike. Every phase predicate is an artifact test — `has_orient_artifacts` exists because the ORIENT branch was once gated on the ledger's stored `status` instead, which a silent courier failure left stale, and a completed ORIENT phase was re-dispatched on resume. `next_phase` is a convenience derived from the same booleans, which all travel too: a caller is never forced to trust a summary it cannot re-derive.",
       "x-tier": "EMBEDDED",

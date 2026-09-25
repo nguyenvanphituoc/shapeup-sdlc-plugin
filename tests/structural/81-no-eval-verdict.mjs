@@ -63,7 +63,9 @@ export async function run(ctx) {
   } else {
     fail("the round loop's break condition does not treat \"not-evaluated\" as shippable — a --no-eval run would spend another BUILD/EVAL round instead of going straight to SHIP");
   }
-  if (/if\s*\(verdict !== "pass" && verdict !== "not-evaluated"\)\s*\{\s*\n\s*return await withWarnings\(\{ status: "gate_h"/.test(src)) {
+  // The breaker return is routed through `settleAtGateH` since the census moved inside the run;
+  // the substance pinned here is unchanged — "not-evaluated" must not read as a failed round.
+  if (/if\s*\(verdict !== "pass" && verdict !== "not-evaluated"\)\s*\{\s*\n\s*return await (withWarnings|settleAtGateH)\(\{ status: "gate_h"/.test(src)) {
     ok("the post-loop fallback does not route a \"not-evaluated\" run to GATE H as if it had failed");
   } else {
     fail("the post-loop verdict check was not widened to admit \"not-evaluated\" — a --no-eval run falling through here would be misreported as a circuit-breaker trip");

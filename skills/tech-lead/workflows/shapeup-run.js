@@ -42,7 +42,9 @@
 //   { status: "paused",  paused_at, block, valid_decisions, context }
 //   { status: "aborted", aborted_at, reason }
 //   { status: "gate_h",  breaker: "outer"|"attempt_budget"|"none"|"deadline", hammer_proposals, green_scopes,
-//                        tripped_scopes?, unapplied_results? }
+//                        tripped_scopes?, unapplied_results?, census?, cut_list?, l4? }
+//     — returned only when the census said cannot-ship, L4 said hold, or the ship report was
+//       refused; a breaker whose census clears the run ends as `shipped` with `after: "gate_h"`.
 
 // meta must be a PURE LITERAL — the runtime parses it statically, before the body ever runs, and
 // rejects the whole script on anything it has to evaluate. A `+`-joined description is a
@@ -625,6 +627,69 @@ const HAMMER = {
   required: ["ok", "verdict", "cut_list"],
 };
 
+/** What every hammer dispatch is told, on the PASS path and the breaker path alike. */
+const HAMMER_EXTRA =
+  "Run the census, compare against the BASELINE and never the ideal, and produce the cut list. " +
+  "Write the census as data to `reports/hammer-census.json` under the run's local root — the " +
+  "`reports/**` entry in your order's substrate names the directory — with schema_version 1, " +
+  "order_id, verdict (ship-now | ship-after-fixes | cannot-ship), cut_list, ship_blocking, breaker, " +
+  "baseline — beside the human-readable report. GATE L4's resolver reads that file and nothing " +
+  "else before it lets any answer set say `ship`; a census that lives only in your printed blocks " +
+  "cannot be read by a gate.";
+
+/**
+ * A breaker routed the run to GATE H. This used to be a terminal return: the loop handed back
+ * `{status: "gate_h"}`, the close-out stamped the ledger `escalated` and retired the pointers, and
+ * the census, GATE H, the ship report and GATE L4 all happened AFTER the close, in the tech
+ * lead's prose — so the census reached no artifact, `gates.jsonl` held no H and no L4, and a later
+ * `--close shipped` was refused over the `escalated` fact already on the ledger. Measured on three
+ * consumer runs. AGENTS.md has always said what a breaker means: "ship what's green, never kill the
+ * run from outside". So the run does that itself, in this launch: the hammer census (an artifact),
+ * GATE H (a row), the ship report (with the verdict as it is, FAIL or not-evaluated included), and
+ * GATE L4 (a row) — and only then a close, `shipped` or `escalated`, that names the census.
+ *
+ * QA never ran on this path (it sits after a PASS), so the census is told so plainly. `qaFindings`
+ * is declared after the round loop and must not be read from here.
+ *
+ * @param {object} ret - The gate_h return the round loop built.
+ * @returns {Promise<object>} The RunReturn that actually ends the run.
+ */
+async function settleAtGateH(ret) {
+  phase("Ship");
+  const h = await worker({
+    skill: "scope-hammer", operation: "hammer", schema: HAMMER, phase: "Ship", label: "hammer",
+    payload: { feature: slug, qa_findings: 0, hammer_proposals: ret.hammer_proposals || [], breaker: ret.breaker ?? null },
+    extra: HAMMER_EXTRA,
+  });
+  if (h.__failed) return await withWarnings(diedAt("H", h));
+  {
+    const g = await crossGate("H", "Ship", ["accept-cut-list", "ship-all", "ask"],
+      { verdict: h.verdict, cut_list: h.cut_list, breaker: ret.breaker ?? null, green_scopes: ret.green_scopes, hammer_proposals: ret.hammer_proposals });
+    if (g.stop) return await withWarnings(g.stop);
+  }
+  if (h.verdict === "cannot-ship") {
+    return await withWarnings({ ...ret, census: "cannot-ship", cut_list: h.cut_list });
+  }
+  const hVerdict = verdict === "pass" ? "PASS" : verdict === "fail" ? "FAIL" : "not-evaluated";
+  const ship = await cmd(`reduce ship --slug ${slug} --verdict ${hVerdict} --qa skipped`, "Ship", "ship-report");
+  if (!ship.ok) {
+    return await withWarnings({ ...ret, census: h.verdict, cut_list: h.cut_list, ship_report: `refused: ${ship.detail || `exit ${ship.exit_code}`}` });
+  }
+  {
+    const g = await crossGate("L4", "Ship", ["ship", "hold", "ask"], { verdict: hVerdict, census: h.verdict, cut_list: h.cut_list, breaker: ret.breaker ?? null });
+    if (g.stop) return await withWarnings(g.stop);
+    if (g.decision === "hold") return await withWarnings({ ...ret, census: h.verdict, cut_list: h.cut_list, l4: "hold" });
+  }
+  await advisory(`report export --slug ${slug}`, "Ship", "export-run");
+  await setRunStatus("shipped", "Ship");
+  return await withWarnings({
+    status: "shipped", verdict, rounds_used: round, after: "gate_h", breaker: ret.breaker ?? null,
+    census: h.verdict, cut_list: h.cut_list, green_scopes: ret.green_scopes,
+    unapplied_results: ret.unapplied_results || [], qa_findings: 0,
+    report: ship.detail || `shapeup/${slug}/REPORT.md`,
+  });
+}
+
 // ---------------------------------------------------------------------------------------------
 // DISPATCH — three shapes, and none of them parses text.
 //
@@ -1072,7 +1137,9 @@ async function closeIfTerminal(ret) {
       + (Array.isArray(ret.tripped_scopes) ? ` tripped_scopes=${ret.tripped_scopes.length}` : "")
       // A result the single writer never applied is named at the close, not folded into "not green".
       + (Array.isArray(ret.unapplied_results) && ret.unapplied_results.length ? ` unapplied_results=${ret.unapplied_results.length}` : "")
-    : `verdict=${ret.verdict ?? "?"} rounds=${ret.rounds_used ?? "?"} qa_findings=${ret.qa_findings ?? "?"}`;
+      + (ret.census ? ` census=${ret.census}` : "") + (ret.l4 ? ` l4=${ret.l4}` : "") + (ret.ship_report ? ` ship_report=${ret.ship_report}` : "")
+    : `verdict=${ret.verdict ?? "?"} rounds=${ret.rounds_used ?? "?"} qa_findings=${ret.qa_findings ?? "?"}`
+      + (ret.after ? ` after=${ret.after} breaker=${ret.breaker ?? "?"} census=${ret.census ?? "?"} cut_list=${Array.isArray(ret.cut_list) ? ret.cut_list.length : "?"}` : "");
   // `--close-arm` hands the kernel the arm itself (not a status this file decided was terminal) —
   // a non-terminal arm (`paused`, `ok`) still exits 0 with no "decision" key, so the branches below
   // stay silent for it exactly as they did when this file's own guard returned early.
@@ -1499,7 +1566,7 @@ while (verdict !== "pass" && round <= maxRounds) {
   const budget = await cmd(`verify budget --slug ${slug} --strict`, "Build", `budget:r${round}`);
   if (budget.exit_code === 6) {
     await advisory(`reduce hill --slug ${slug}`, "Build", "hill-derive");
-    return await withWarnings({ status: "gate_h", breaker: "deadline", unapplied_results: allUnapplied, hammer_proposals: allHammer, green_scopes: allGreen });
+    return await settleAtGateH({ status: "gate_h", breaker: "deadline", unapplied_results: allUnapplied, hammer_proposals: allHammer, green_scopes: allGreen });
   }
 
   log(`BUILD round ${round} — ${scopes.length} scope(s), up to ${maxParallelScopes} at once, attempt budget ${attemptBudget}`);
@@ -1663,7 +1730,7 @@ while (verdict !== "pass" && round <= maxRounds) {
       if (census?.tripped) tripped.push(sid);
     }
     await advisory(`reduce hill --slug ${slug}`, "Build", "hill-derive");
-    return await withWarnings({
+    return await settleAtGateH({
       status: "gate_h", breaker: tripped.length ? "attempt_budget" : "none", stalled: "no_green",
       tripped_scopes: tripped, unapplied_results: allUnapplied,
       hammer_proposals: allHammer, green_scopes: allGreen,
@@ -1778,13 +1845,13 @@ while (verdict !== "pass" && round <= maxRounds) {
   // SHIP" once EVAL is skipped, never spends another round waiting on a verdict nobody is producing.
   if (verdict === "pass" || verdict === "not-evaluated") break;   // → QA → GATE H → ship
   if (g3.decision === "stop" || round >= maxRounds) {
-    return await withWarnings({ status: "gate_h", breaker: "outer", unapplied_results: allUnapplied, hammer_proposals: allHammer, green_scopes: allGreen });
+    return await settleAtGateH({ status: "gate_h", breaker: "outer", unapplied_results: allUnapplied, hammer_proposals: allHammer, green_scopes: allGreen });
   }
   round += 1;
 }
 
 if (verdict !== "pass" && verdict !== "not-evaluated") {
-  return await withWarnings({ status: "gate_h", breaker: "outer", unapplied_results: allUnapplied, hammer_proposals: allHammer, green_scopes: allGreen });
+  return await settleAtGateH({ status: "gate_h", breaker: "outer", unapplied_results: allUnapplied, hammer_proposals: allHammer, green_scopes: allGreen });
 }
 
 // ---- QA (post-PASS, pre-ship) — a level-up, never a gate. `--no-qa` answers it "skip". --------
@@ -1809,7 +1876,7 @@ phase("Ship");
 const h = await worker({
   skill: "scope-hammer", operation: "hammer", schema: HAMMER, phase: "Ship", label: "hammer",
   payload: { feature: slug, qa_findings: qaFindings, hammer_proposals: allHammer },
-  extra: "Run the census, compare against the BASELINE and never the ideal, and produce the cut list.",
+  extra: HAMMER_EXTRA,
 });
 if (h.__failed) return await withWarnings(diedAt("H", h));
 if (h.verdict === "cannot-ship") {
@@ -1827,6 +1894,14 @@ if (h.verdict === "cannot-ship") {
 // default). Hardcoding PASS here is exactly the silent upgrade protocol.md's Rules forbid.
 const shipVerdict = verdict === "not-evaluated" ? "not-evaluated" : "PASS";
 const ship = await cmd(`reduce ship --slug ${slug} --verdict ${shipVerdict} --qa ${qaRan ? "run" : "skipped"}`, "Ship", "ship-report");
+// GATE L4 HAS A CALL SITE. It used to be a line of prose in the tech lead's references — "resolve
+// the gate itself before any of the above" — and a run reached its ship decision with no ledger row
+// for it. The resolver narrows `ship` on the census artifact the hammer just wrote.
+{
+  const g = await crossGate("L4", "Ship", ["ship", "hold", "ask"], { verdict: shipVerdict, census: h.verdict, cut_list: h.cut_list });
+  if (g.stop) return await withWarnings(g.stop);
+  if (g.decision === "hold") return await withWarnings({ status: "aborted", aborted_at: "L4", reason: `GATE L4 answered "hold" (census ${h.verdict}, verdict ${shipVerdict})` });
+}
 await advisory(`report export --slug ${slug}`, "Ship", "export-run");
 // The run's own concurrency, printed once where the records are complete and before the next run
 // supersedes the trace. It is a projection over `receipts/dispatch.jsonl` and `legs.jsonl`, so it

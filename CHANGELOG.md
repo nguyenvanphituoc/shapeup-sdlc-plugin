@@ -21,6 +21,23 @@ analyze, where the run dispatches the new `board` operation — same worker, the
 board with zero tasks the way L4 refuses `ship` without a census: an answer set chooses among
 allowed answers and cannot supply the evidence that makes one allowed.
 
+### A breaker ships what is green, inside the run
+
+A breaker used to end the run at the close-out: the loop handed back `gate_h`, the ledger was
+stamped `escalated`, the pointers were retired — and the census, GATE H, the ship report and GATE
+L4 all happened afterwards, in the tech lead's prose. So the census reached no artifact,
+`gates.jsonl` held no H and no L4, and a later `--close shipped` was refused over the `escalated`
+fact already on the ledger. Measured on three consumer runs.
+
+The run now does what the contract always said a breaker means. Every breaker return dispatches
+the census, crosses GATE H, writes the ship report with the verdict as it is — FAIL and
+not-evaluated included, never upgraded — crosses GATE L4, and only then closes: `shipped` with the
+cut list when the census and L4 clear it, `escalated` naming the census when they do not. GATE L4
+has a call site on the PASS path too. And the census is an artifact: scope-hammer writes
+`reports/hammer-census.json` beside its report, inside its own substrate, and the L4 resolver reads
+that file — and nothing else — before it lets any answer set say `ship`. A green census returned
+only as a worker's report could previously be recorded as nothing but `ask`.
+
 ## [3.7.4] — 2026-09-25 · The ratchet is five attempts deep again
 
 One defect the 3.7.3 soak measured on the live consumer, reproduced on a copy of its trace and

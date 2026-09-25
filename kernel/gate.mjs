@@ -54,7 +54,7 @@ import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync } fr
 import { parseBoard } from "./reduce/board.mjs";
 import { join, dirname } from "node:path";
 import { runArgs } from "./lib/argv.mjs";
-import { gateAnswerCandidates, gates as gatesPath, LOCAL, resultsDir, tasksDir } from "./lib/paths.mjs";
+import { gateAnswerCandidates, gates as gatesPath, LOCAL, resultsDir, tasksDir, hammerCensus } from "./lib/paths.mjs";
 
 export const GATE_IDS = ["L0", "L1a", "L1a.5", "L1b", "L2", "L3", "QA", "H", "L4", "COACH-1"];
 
@@ -187,6 +187,17 @@ export const HAMMER_VERDICTS = ["ship-now", "ship-after-fixes", "cannot-ship"];
  */
 export function censusVerdict(cwd, slug) {
   if (!slug) return null;
+  // The census artifact — written by the hammer at a path its order's substrate permits. The
+  // WorkResult fallback below is kept for a lane that wrote one the old way; a WorkResult may not
+  // carry a verdict under the schema, so in practice the artifact is the only source.
+  try {
+    const c = hammerCensus(cwd, slug);
+    if (existsSync(c)) {
+      const r = JSON.parse(readFileSync(c, "utf8"));
+      const v = r?.verdict ?? null;
+      if (HAMMER_VERDICTS.includes(v)) return v;
+    }
+  } catch { /* unreadable census proves nothing — fall through */ }
   try {
     const p = join(resultsDir(cwd, slug), "hammer.json");
     if (!existsSync(p)) return null;

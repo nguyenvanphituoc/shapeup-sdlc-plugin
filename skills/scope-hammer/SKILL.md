@@ -171,6 +171,19 @@ The WorkResult may carry only `files_touched`, `artifacts`, `assumptions`, `devi
 (`x-result-by-worker`): the census, cut list, and ship verdict live in the report artifact as a
 **proposal** — promotion and shipping stay a human call, never envelope data ingest acts on.
 
+**The census is also written as data**, at `.shapeup/<slug>/reports/hammer-census.json` (inside
+this operation's substrate), shape `HammerCensus` in the domain registry:
+
+```json
+{ "schema_version": 1, "order_id": "<the order>", "verdict": "ship-now | ship-after-fixes | cannot-ship",
+  "cut_list": ["…"], "ship_blocking": ["…"], "breaker": "outer | inner | deadline | null", "baseline": "<path or null>" }
+```
+
+GATE L4's resolver reads this file — and nothing else — before it lets any answer set say `ship`.
+It is the same proposal as the H2 block, written by the same hand, in a shape a gate can read:
+a census that lives only in printed blocks cannot be read by a gate, and a run that reached L4
+with a green census could only be recorded as `ask`. Still a proposal: the file grants nothing.
+
 ---
 
 ## Invocation

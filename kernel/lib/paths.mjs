@@ -307,6 +307,16 @@ export const activeOrder = (cwd) => join(localDir(cwd), "active-order");
 export const lastRun = (cwd) => join(localDir(cwd), "last-run");
 
 /**
+ * Scope-hammer's census as DATA — `{verdict, cut_list, …}` — the one artifact GATE L4's resolver
+ * reads before it lets an answer set say `ship`. The hammer's WorkResult may not carry a verdict
+ * (its census is a proposal, never envelope data ingest acts on), and its printed H0/H1/H2 blocks
+ * are prose; this file is the same proposal, written by the same hand, in a shape a gate can read.
+ * Measured before it existed: a green census returned as the worker's report, and L4 could only
+ * record `ask`, because nothing on disk said so.
+ */
+export const hammerCensus = (cwd, slug) => join(localRoot(cwd, slug), "reports", "hammer-census.json");
+
+/**
  * Where the run scripts are staged for launch, inside the project.
  *
  * The orchestrator's Workflow scripts ship with the plugin, which lives OUTSIDE the project — and

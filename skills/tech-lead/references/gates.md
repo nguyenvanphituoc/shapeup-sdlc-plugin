@@ -560,9 +560,12 @@ and without it the trace holds no record of that decision at all: `node
 "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" gate --resolve L4 --slug <slug>
 [--file <path>|--preset <name>]`. Exit 0 (`decision=ship|hold`) — render the block above and close
 the run: `node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe resume --slug <slug> --close shipped
---cause "verdict=<verdict> rounds=<r> decision=<ship|hold>"`. Always issue this call — a `gate_h`
-close is the ordinary case where `shapeup-run.js` handed off without closing the run, and the
-GATE H → L4 path (scope-hammer's census, then this gate) is the one this instruction exists for.
+--cause "verdict=<verdict> rounds=<r> decision=<ship|hold>"`. **This applies to the prose lane
+only.** A launched run (`shapeup-run.js`) resolves L4 itself, on both the PASS path and a breaker
+path: it dispatches the census, crosses GATE H, writes the ship report with the verdict as it is,
+crosses L4, and only then closes — `shipped` when the census and L4 clear it, `escalated` naming
+the census when they do not. A run that returned `{status: "shipped"}` or `{status: "gate_h"}` is
+already closed; do not close it again, and do not run the census by hand after it.
 The close itself is a once-only fact IN THE KERNEL (`closeRun`'s own guard reads a `closed_status:`
 line that only `closeRun` ever writes — never the mutable `status:` line every phase rewrites, this
 call included), not a conditional this instruction has to get right: if this run_id was NOT already
