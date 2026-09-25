@@ -32,6 +32,21 @@ The cost is named rather than hidden: a wiring map with a single engine can no l
 its only engine being unreachable is exactly the case the arm cannot distinguish. The defect the
 arm exists for — one dead module among reachable siblings — is untouched and still red.
 
+### A scope whose code the app never reaches is named
+
+The same walk now answers a second question the per-scope build fixture cannot. On a toolchain that
+compiles only what the entry point reaches, a scope can be T0-green on an assemble fixture while
+its own files never compile — measured on three scopes at once, with the errors surfacing only when
+a fourth scope, one that may not write those files, wired the screens in. The fixture was honest
+about what it ran; nothing asked whether what it ran included the scope's work.
+
+`verify trace` now reports per scope how many of its own source files the app reaches, and warns
+when the answer is none. Deliberately narrow in three ways. It warns, never reds: wiring a scope in
+may legitimately be a later scope's job, which is a plan the PO made rather than a defect an oracle
+found. It fires on **none** reached, not on any unreached, because every scope owns tests, fixtures
+and helpers no import graph touches. And it runs only when reachability itself ran, so a walk that
+could not be rooted produces no per-scope claim either.
+
 ## [3.8.0] — 2026-09-25 · The seesaw arm is removed, and the hill's top phase is reachable again
 
 ### Removed: the seesaw regression check

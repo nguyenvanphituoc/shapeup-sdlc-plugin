@@ -14,7 +14,6 @@ is pinned by a guard, never when it is merely believed done.
 |---|---|---|
 | HD-067 | the board's `covers:` clauses are instructed and not enforced — a regenerated board can carry none, and the matrix then reads no evidence for everything | P2 |
 | HD-027 | two harness rules collide, and the collision hard-aborts a run at L1b | P1 |
-| HD-021 | a per-scope "it compiles" fixture can be green while the scope's code is unreachable | P3 |
 | HD-051 | a build leg can forge a CONCURRENTLY-LIVE sibling's WorkResult — narrowed, and the guard cannot see who writes | P2 |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
@@ -102,14 +101,6 @@ is pinned by a guard, never when it is merely believed done.
   ANALYZE in flight, so no `requirements.md` ever completed a full planning phase end to end. The
   registry it did write cites the pitch by section name and names no gitignored path, which is
   the outcome this entry asks for — from the coverage dispatch alone, not from the whole leg.
-
-- **HD-021 · A per-scope "it compiles" fixture can be green while the scope's code is unreachable.** Measured
-  on a stack whose build compiles only what the entry point reaches: three scopes were T0-green on an
-  `assembleHap` fixture while their own files did not compile, and the errors surfaced only when a
-  fourth scope wired the screens in — a scope that may not write those files. The round build gate
-  (3.3.0) is what caught it, which is the design working; what is missing is attribution, and that
-  lands on the same two entries above. Filed as craft, not mechanism: a scope's build fixture proves
-  nothing until the scope's code is reachable, and the knowledge base is where that rule belongs.
 
 - **HD-051 · A build leg can forge a concurrently-live sibling's WorkResult.** Filed 2026-09-24 by
   the acceptance pass on the attestation freeze; narrowed and re-measured 2026-09-25.

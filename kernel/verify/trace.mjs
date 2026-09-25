@@ -43,8 +43,9 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSy
 import { resolve, join, dirname, relative, isAbsolute } from "node:path";
 import { readBoard } from "../compile.mjs";
 import { runArgs } from "../lib/argv.mjs";
-import { sharedRoot, traceDir, relLocal } from "../lib/paths.mjs";
-import { readContract, unreadableReason, LEGACY_LAYOUT, WIRING_MAP, PROJECT_PROFILE, reqId } from "../lib/contract.mjs";
+import { sharedRoot, traceDir, relLocal, scopesDir } from "../lib/paths.mjs";
+import { globToRegExp } from "./spec.mjs";
+import { readContract, readAllContracts, unreadableReason, LEGACY_LAYOUT, WIRING_MAP, PROJECT_PROFILE, SCOPE_CONTRACT, reqId } from "../lib/contract.mjs";
 
 // --- requirements.md registry parser -----------------------------------------
 // A committed markdown table: | REQ-id | clause (verbatim) | source | status | note |
@@ -257,6 +258,76 @@ export function wiringMermaid(wiringMap, unreachableSet) {
   return lines.join("\n");
 }
 
+// --- per-scope reachability ---------------------------------------------------
+//
+// A SCOPE'S BUILD FIXTURE PROVES NOTHING UNTIL THE SCOPE'S CODE IS REACHABLE, and on a toolchain
+// that compiles only what the entry point reaches, the two come apart in the worst direction:
+// three scopes were T0-green on an assemble fixture while their own files did not compile at all,
+// and the errors surfaced only once a fourth scope — one that may not write those files — wired
+// the screens in. The fixture was honest about what it ran. Nothing asked whether what it ran
+// included the scope's work.
+//
+// This arm asks, and only ever warns. A scope legitimately owns resources, route maps, manifests,
+// tests and files a later scope will wire, so *some* of its substrate sitting outside the import
+// graph is the normal case and says nothing. What is worth a word is a scope with source files on
+// disk and NOT ONE of them reachable: everything that scope contributes is outside the running
+// app, which is the shape the defect had. Red would be wrong even then — the wiring may be the
+// next scope's job by design, which is a plan the PO made, not a defect the oracle found.
+const SKIP_DIRS = new Set([".git", "node_modules", "oh_modules", ".shapeup", "build", "dist", "out", ".idea", "coverage"]);
+
+/**
+ * List the repo-relative source files under a root, by module extension.
+ * @param {string} root - Repo root; results are relative to it.
+ * @param {string[]} exts - The module extensions that make a file a source file.
+ * @returns {string[]} Repo-relative paths, build and dependency directories skipped.
+ */
+function sourceFilesUnder(root, exts) {
+  const out = [];
+  /**
+   * Walk one directory, recursing into its subdirectories.
+   * @param {string} dir - Absolute directory to walk.
+   * @returns {void}
+   */
+  const walk = (dir) => {
+    let entries;
+    try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      if (e.name.startsWith(".") && e.name !== ".") { if (SKIP_DIRS.has(e.name)) continue; }
+      if (SKIP_DIRS.has(e.name)) continue;
+      const abs = join(dir, e.name);
+      if (e.isDirectory()) walk(abs);
+      else if (exts.some((x) => e.name.endsWith(x))) out.push(relative(root, abs).split("\\").join("/"));
+    }
+  };
+  walk(root);
+  return out;
+}
+
+/**
+ * For each scope contract, how much of its own source substrate the app actually reaches.
+ *
+ * @param {Array<{id?:string, contract?:object}>} contracts - Scope contracts as `readAllContracts`
+ *   returns them.
+ * @param {Set<string>} reachable - The repo-relative files reachable from the entry point.
+ * @param {string[]} sources - Every repo-relative source file on disk.
+ * @returns {Array<{scope_id:string, source_files:number, reachable_files:number}>} One row per
+ *   scope that owns at least one source file on disk; scopes owning none are left out entirely,
+ *   because a scope with nothing to reach is not a finding.
+ */
+export function scopeReachability(contracts, reachable, sources) {
+  const rows = [];
+  for (const found of contracts) {
+    const c = found?.contract || found || {};
+    const id = c.scope_id || found?.id;
+    const globs = (c.allowed_file_substrate || []).map(globToRegExp);
+    if (!globs.length) continue;
+    const owned = sources.filter((f) => globs.some((r) => r.test(f)));
+    if (!owned.length) continue;
+    rows.push({ scope_id: id, source_files: owned.length, reachable_files: owned.filter((f) => reachable.has(f)).length });
+  }
+  return rows;
+}
+
 // --- the oracle --------------------------------------------------------------
 /**
  * Run the covers-closure + reachability oracle for a slug.
@@ -320,6 +391,10 @@ export function traceLint(slug, { cwd, gate = false }) {
   const wiringPath = join(shared, "wiring-map.md");
   const profilePath = join(shared, "project-profile.md");
   let reachability = { checked: false, pass: true, unreachable: [], skipped_reason: "no wiring-map — reachability not applicable." };
+  // Hoisted so the per-scope arm below can reuse the walk this one already paid for. Both stay
+  // null unless reachability actually ran, which is what gates the second arm on the first.
+  let reachableSet = null;
+  let walkExts = null;
   let wiringMap = null;
 
   let wiringFound = null;
@@ -422,12 +497,35 @@ export function traceLint(slug, { cwd, gate = false }) {
               findings.push({ severity: "red", code: "UC-UNREACHABLE", uc: u.use_case,
                 message: `${u.use_case}: engine "${u.engine}" is ${u.reason === "engine file not on disk" ? "missing under" : "never imported from"} entry_point "${entryPoint}" — the module ships orphaned from the running app, while ${engines.length - unreachable.length} other engine(s) reach it.` });
             }
+            reachableSet = reachable;
+            walkExts = exts;
             reachability = { checked: true, entry_point: entryPoint, entry_resolved: entryResolved,
               module_extensions: exts, reachable_files: reachable.size,
               engines_total: engines.length, engines_reachable: engines.length - unreachable.length,
               unreachable, pass: unreachable.length === 0 };
           }
         }
+      }
+    }
+  }
+
+  // --- per-scope reachability, gated on the first arm having actually run ---------------------
+  let scopeReach = { checked: false, scopes: [], orphaned: [],
+    skipped_reason: "reachability did not run, so there is no graph to measure a scope against." };
+  if (reachableSet) {
+    const contracts = readAllContracts(scopesDir(cwd, slug), SCOPE_CONTRACT);
+    if (!contracts.length) {
+      scopeReach = { checked: false, scopes: [], orphaned: [], skipped_reason: "no scope contracts on disk." };
+    } else {
+      const rows = scopeReachability(contracts, reachableSet, sourceFilesUnder(cwd, walkExts));
+      const orphaned = rows.filter((r) => r.reachable_files === 0);
+      scopeReach = { checked: true, scopes: rows, orphaned: orphaned.map((r) => r.scope_id) };
+      for (const r of orphaned) {
+        findings.push({ severity: "warn", code: "SCOPE-UNREACHABLE", scope: r.scope_id, message:
+          `scope ${r.scope_id}: none of its ${r.source_files} source file(s) is reached from the entry point. ` +
+          "A build fixture that compiles only what the entry point reaches can be green while this scope's own " +
+          "code never compiles — the errors then surface in whichever scope wires the screens in. Warn, not red: " +
+          "the wiring may legitimately be a later scope's job." });
       }
     }
   }
@@ -441,6 +539,7 @@ export function traceLint(slug, { cwd, gate = false }) {
     advisory: !gate,
     covers_closure: coversClosure,
     reachability,
+    scope_reachability: scopeReach,
     findings,
     overall,
   };

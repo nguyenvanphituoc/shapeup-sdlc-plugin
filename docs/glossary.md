@@ -50,7 +50,7 @@ mechanically true rather than aspirational.
 | **single writer** | `harness reduce ingest` performs *every* board/ledger/verdict write, so parallel scopes cannot corrupt shared state. |
 | **pure worker** | A skill containing craft only, with zero pipeline knowledge — it cannot know or care where it sits in a run. |
 | **zero-memory handoff** | Each build attempt is a fresh subagent that sees only what the order put in the envelope, never prior chat. |
-| **traceability spine** | The three committed artifacts (`requirements.md`, `wiring-map.md`, `project-profile.md`) that `harness verify trace` reads to check covers-closure and reachability. |
+| **traceability spine** | The three committed artifacts (`requirements.md`, `wiring-map.md`, `project-profile.md`) that `harness verify trace` reads to check covers-closure and reachability — per engine, and per scope. |
 | **substrate disjointness** | The lint asserting no two scopes may write the same file — what makes parallel building safe. |
 | **circuit breaker** | Two nested retry budgets — an outer one on rounds, an inner one on per-scope T0 attempts — plus an opt-in wall-clock budget for the whole run. An exhausted scope queues a cut proposal rather than blocking the round; every other exhaustion routes to the ship gate so whatever is green still ships. |
 | **discovered task** | Anything found mid-run that is not in the current spec. It goes to the ledger, never silently into the build. |

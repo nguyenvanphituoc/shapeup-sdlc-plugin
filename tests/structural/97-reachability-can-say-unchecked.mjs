@@ -24,6 +24,13 @@
 //
 // What must NOT change: a genuinely orphaned module among reachable siblings is still red. That is
 // the defect the arm exists for, and every relaxation above is written so it survives.
+//
+// SECTION TWO asks the same graph a second question, for a defect the first arm cannot see. A
+// per-scope build fixture can be green while the scope's own code never compiles, on any toolchain
+// that compiles only what the entry point reaches: three scopes were T0-green on an assemble
+// fixture while their files were outside the compiled set, and the errors surfaced only when a
+// later scope wired the screens in. The oracle now reports, per scope, how much of its own source
+// substrate the app reaches — and warns, never reds, when the answer is none.
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
@@ -40,8 +47,9 @@ function w(root, rel, body) {
  * Build a project fixture and run the shipped oracle over it.
  *
  * @param {{files:Record<string,string>, entry:string, exts?:string[],
- *   engines:Array<[string,string]>}} spec - Source files, the declared entry point, an optional
- *   `source_extensions` declaration, and the wiring map's [use_case, engine] rows.
+ *   engines:Array<[string,string]>, scopes?:Array<[string,string[]]>}} spec - Source files, the
+ *   declared entry point, an optional `source_extensions` declaration, the wiring map's
+ *   [use_case, engine] rows, and optional [scope_id, substrate globs] contracts.
  * @param {string} ROOT - The plugin checkout root.
  * @returns {object} The parsed trace report.
  */
@@ -58,6 +66,11 @@ function traceOver(spec, ROOT) {
         "| use_case | engine | seam | entry_point_call_site | affordance |",
         "|---|---|---|---|---|",
         ...spec.engines.map(([uc, eng]) => `| ${uc} | ${eng} | S | ${spec.entry} | a |`), ""].join("\n"));
+    for (const [id, globs] of spec.scopes || []) {
+      w(cwd, `shapeup/demo/scopes/${id}.md`,
+        ["---", "schema_version: 1", `scope_id: ${id}`, `title: ${id}`,
+          `allowed_file_substrate: [${globs.map((g) => `"${g}"`).join(", ")}]`, "---", "", `# ${id}`, ""].join("\n"));
+    }
     spawnSync(process.execPath, [join(ROOT, "kernel/harness.mjs"), "verify", "trace", "--slug", "demo", "--cwd", cwd, "--quiet"],
       { cwd, encoding: "utf8" });
     return JSON.parse(readFileSync(join(cwd, ".shapeup/demo/trace/report.json"), "utf8"));
@@ -198,5 +211,69 @@ export async function run(ctx) {
     const prop = schema.$defs?.ProjectProfile?.properties?.source_extensions;
     if (prop && prop.type === "array") ok("ProjectProfile declares source_extensions, so the way out of an incomplete graph is a documented field rather than folklore");
     else fail("source_extensions is not in the ProjectProfile schema — the warning tells the operator to declare a field the contract does not have");
+  }
+
+  // =============================================================================
+  section("150. A scope whose code the app never reaches is named, and only ever warned about");
+  // =============================================================================
+
+  // One graph, three scopes, and the three answers that matter: a scope the app partly reaches, a
+  // scope it reaches none of, and a scope that owns no source at all. The fixture is the defect's
+  // own shape — a build fixture compiling only what the entry point reaches is green for all three.
+  {
+    const r = traceOver({
+      entry: "src/main.js",
+      files: {
+        "src/main.js": "import { A } from './wired/a';\nexport const m = 1;\n",
+        "src/wired/a.js": "export const A = 1;\n",
+        "src/wired/a.test.js": "export const t = 1;\n",   // owned, never imported: the normal case
+        "src/orphan/b.js": "export const B = 2;\n",
+        "src/res/strings.json": "{}\n",
+      },
+      engines: [["UC-01", "src/wired/a.js"]],
+      scopes: [["wired", ["src/wired/**"]], ["orphan", ["src/orphan/**"]], ["res", ["src/res/**"]]],
+    }, ROOT);
+    const sr = r.scope_reachability;
+    const by = Object.fromEntries((sr.scopes || []).map((x) => [x.scope_id, x]));
+
+    if (sr.checked && by.wired?.source_files === 2 && by.wired?.reachable_files === 1 && by.orphan?.reachable_files === 0) {
+      ok("the report says per scope how much of its own substrate the app reaches — the fact a per-scope build fixture cannot produce");
+    } else fail(`per-scope reachability is wrong or absent: ${JSON.stringify(sr)}`);
+
+    // THE THRESHOLD IS "NONE", NOT "ANY", and that is the whole difference between a signal and
+    // noise. Every scope owns files no import graph reaches — a test, a fixture, a helper a later
+    // scope will call — so warning on any unreached file would warn on every scope ever cut.
+    if (!r.findings.some((f) => f.code === "SCOPE-UNREACHABLE" && f.scope === "wired")) {
+      ok("a scope with one reached file and one unreached is not warned about — owning a file the app does not import is the normal case, not a finding");
+    } else fail("a partly-reached scope was warned about, which would fire on essentially every scope ever cut");
+
+    const warned = r.findings.filter((f) => f.code === "SCOPE-UNREACHABLE");
+    if (warned.length === 1 && warned[0].scope === "orphan" && warned[0].severity === "warn") {
+      ok("exactly the scope with no reachable file is named, and as a warn — everything that scope contributes sits outside the running app");
+    } else fail(`expected one warn naming "orphan", got ${JSON.stringify(warned.map((f) => [f.scope, f.severity]))}`);
+
+    if (r.overall !== "red") ok("and it does not red: wiring a scope in may legitimately be a later scope's job, which is a plan the PO made and not a defect an oracle found");
+    else fail("SCOPE-UNREACHABLE turned the report red — a scope awaiting its wiring scope would block every board that cuts that way");
+
+    if (!by.res) ok("a scope owning only non-source files is left out entirely rather than reported as unreachable — resources, route maps and manifests are not import-graph nodes");
+    else fail(`the resource-only scope was measured as if it held code: ${JSON.stringify(by.res)}`);
+  }
+
+  // The second arm rests on the first. When reachability cannot root its walk there is no graph to
+  // measure a scope against, and a per-scope claim derived from an empty set would be the same
+  // false red this module exists to remove — one row per scope instead of one per engine.
+  {
+    const r = traceOver({
+      entry: "src/EntryAbility.ets",
+      files: {
+        "src/EntryAbility.ets": "export class A { onWindowStageCreate(s){ s.loadContent('pages/Index'); } }\n",
+        "src/pages/Index.ets": "export struct Index {}\n",
+      },
+      engines: [["UC-01", "src/pages/Index.ets"]],
+      scopes: [["pages", ["src/pages/**"]]],
+    }, ROOT);
+    if (r.scope_reachability.checked === false && !codes(r).includes("SCOPE-UNREACHABLE")) {
+      ok("with reachability unchecked the per-scope arm is skipped too, with its own reason — a scope is not orphaned by a walk that never ran");
+    } else fail(`the per-scope arm ran over a graph the first arm refused to publish: ${JSON.stringify(r.scope_reachability)}`);
   }
 }

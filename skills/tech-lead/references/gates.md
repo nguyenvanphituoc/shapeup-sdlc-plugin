@@ -252,7 +252,10 @@ Do NOT enter MAP SCOPES until Orient is accepted.
    checked:false with a reason rather than a verdict in two cases, both warns: an import it could
    not follow (the graph is incomplete) and no engine reachable at all (nothing controls the walk,
    so an orphan and a wrong root look identical). Read either as "re-declare the profile", never
-   as a clean arm.
+   as a clean arm. When it does run it also reports, per scope, how many of that scope's own source
+   files the app reaches, and warns (SCOPE-UNREACHABLE) on a scope it reaches none of — a scope's
+   build fixture can be green while its code never compiles, on any toolchain that compiles only
+   what the entry point reaches. Warn only: the wiring may be a later scope's job by design.
 ```
 
 ---
