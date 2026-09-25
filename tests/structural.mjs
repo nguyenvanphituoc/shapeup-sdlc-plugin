@@ -377,6 +377,10 @@ const MODULE_FILES = [
   // (the committed report's round count), the gate ledger (exported under the current run's key),
   // and the citation check (digest and verdict only). A two-run fixture: run 2 reports only its own.
   "90-run-scoped-records.mjs",
+  // 91-verdict-recomputed.mjs: `overall` was the judge's field and nothing recomputed it — a PASS
+  // over a failing criterion, or over none, ingested and the round branched on it. Derived from the
+  // criteria now, on ingest and on read; a PASS criterion with no evidence is no evidence.
+  "91-verdict-recomputed.mjs",
   "08-docs.mjs",
 ];
 

@@ -26,7 +26,7 @@ export async function run(ctx) {
     mkdirSync(verdictsDir(ws, "f"), { recursive: true }); mkdirSync(roundBuildDir(ws, "f"), { recursive: true });
     writeFileSync(join(ordersDir(ws, "f"), "alpha-r1-a1.json"), JSON.stringify({ schema_version: 1, order_id: "f/alpha-r1-a1", run_id: RUN1, worker: "task-executor", operation: "execute" }));
     writeFileSync(join(ordersDir(ws, "f"), "evaluate-r1.json"), JSON.stringify({ schema_version: 1, order_id: "f/evaluate-r1", run_id: RUN1, worker: "spec-evaluator", operation: "evaluate" }));
-    writeFileSync(join(resultsDir(ws, "f"), "evaluate-r1.json"), JSON.stringify({ schema_version: 1, order_id: "f/evaluate-r1", worker: "spec-evaluator", status: "done", verdict: { overall: "PASS", criteria: [] } }));
+    writeFileSync(join(resultsDir(ws, "f"), "evaluate-r1.json"), JSON.stringify({ schema_version: 1, order_id: "f/evaluate-r1", worker: "spec-evaluator", status: "done", verdict: { overall: "PASS", criteria: [{ criterion: "UC-01 step 1", verdict: "PASS", evidence: "src/a.ts:1" }] } }));
     const verdictPath = join(verdictsDir(ws, "f"), "r1-a1-t1.json");
     writeFileSync(verdictPath, JSON.stringify({ schema_version: 2, run_id: RUN1, scope_id: "alpha", round: 1, attempt: 1, trial: 1, overall: "green" }));
     writeFileSync(join(roundBuildDir(ws, "f"), "r1-t1.json"), JSON.stringify({ run_id: RUN1, round: 1, overall: "green" }));
@@ -58,14 +58,14 @@ export async function run(ctx) {
     writeFileSync(join(ws, "shapeup/f/scopes/alpha.md"), "---\nscope_id: alpha\n---\n# alpha\n");
     const sha = createHash("sha256").update(readFileSync(verdictPath)).digest("hex");
     const rel = verdictPath.slice(ws.length + 1);
-    const cite = (scope) => ({ overall: "PASS", criteria: [], t0_citations: [{ scope_id: scope, path: rel, sha256: sha }] });
+    const cite = (scope) => ({ overall: "PASS", criteria: [{ criterion: "UC-01 step 1", verdict: "PASS", evidence: "src/a.ts:1" }], t0_citations: [{ scope_id: scope, path: rel, sha256: sha }] });
     const otherRun = citationProblem(ws, "f", cite("alpha"), { round: 1 });
     if (otherRun && /an artifact of run /.test(otherRun)) ok("a citation of a prior run's artifact is refused, naming the run");
     else fail(`a prior run's artifact was accepted as this run's evidence: ${otherRun}`);
     // Re-key the artifact to run 2 to isolate the scope and round checks.
     writeFileSync(verdictPath, JSON.stringify({ schema_version: 2, run_id: RUN2, scope_id: "alpha", round: 1, attempt: 1, trial: 1, overall: "green" }));
     const sha2 = createHash("sha256").update(readFileSync(verdictPath)).digest("hex");
-    const cite2 = (scope) => ({ overall: "PASS", criteria: [], t0_citations: [{ scope_id: scope, path: rel, sha256: sha2 }] });
+    const cite2 = (scope) => ({ overall: "PASS", criteria: [{ criterion: "UC-01 step 1", verdict: "PASS", evidence: "src/a.ts:1" }], t0_citations: [{ scope_id: scope, path: rel, sha256: sha2 }] });
     const wrongScope = citationProblem(ws, "f", cite2("beta"), { round: 1 });
     const wrongRound = citationProblem(ws, "f", cite2("alpha"), { round: 2 });
     const right = citationProblem(ws, "f", cite2("alpha"), { round: 1 });

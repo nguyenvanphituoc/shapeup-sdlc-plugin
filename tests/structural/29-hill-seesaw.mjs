@@ -70,6 +70,8 @@ function buildFixture(seesaw) {
     // a round's judgement, and the hill rightly refuses to call T1 passed on one.
     verdict: {
       overall: "PASS", bugs: [],
+      // Derived from its criteria: one honest PASS with evidence, so the PASS stands on its own.
+      criteria: [{ criterion: "UC-01 step 1", verdict: "PASS", evidence: "src/a.ts:1 measured" }],
       t0_citations: [{ scope_id: "SC-HILL", path: t0Path, sha256: t0Hash }],
     },
   });

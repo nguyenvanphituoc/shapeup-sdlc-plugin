@@ -157,6 +157,39 @@ function unresolvedCitation(cwd, citation, { round = null, runId = null } = {}) 
  *   citation resolves, an unscoped spec, or a block with no PASS/FAIL in it (there is no judgement
  *   to invalidate).
  */
+/**
+ * Why a verdict cannot stand on its own criteria, or null when it can.
+ *
+ * `overall` is the judge's field, and nothing recomputed it from the criteria the judge graded: a
+ * PASS over a failing criterion, or over no criterion at all, validated and ingested, and the
+ * round loop branched on it. The evaluator's own first rule is that absence of evidence is a FAIL,
+ * so a PASS criterion with no evidence is no evidence either. Recomputed here, on ingest and on
+ * read alike: PASS means every graded criterion passed with evidence and at least one was graded;
+ * FAIL means at least one graded criterion failed.
+ *
+ * @param {object} verdict - The WorkResult's `verdict`.
+ * @returns {(string|null)} A reason phrased for an operator, or null.
+ */
+export function verdictProblem(verdict) {
+  const overall = verdict?.overall;
+  if (overall !== "PASS" && overall !== "FAIL") return null;
+  const criteria = Array.isArray(verdict.criteria) ? verdict.criteria : [];
+  const fails = criteria.filter((c) => c?.verdict === "FAIL");
+  const passes = criteria.filter((c) => c?.verdict === "PASS");
+  const other = criteria.length - fails.length - passes.length;
+  if (overall === "PASS") {
+    if (criteria.length === 0) return "the PASS verdict grades no criterion at all — a PASS with no evidence is a claim";
+    if (fails.length) return `the verdict says PASS while ${fails.length} of its ${criteria.length} criteria read FAIL — overall is derived from the criteria, never declared over them`;
+    if (other) return `the verdict says PASS while ${other} of its criteria carry no PASS/FAIL verdict`;
+    const bare = passes.filter((c) => !(typeof c?.evidence === "string" && c.evidence.trim()));
+    if (bare.length) return `the PASS verdict has ${bare.length} criterion(s) marked PASS with no evidence — absence of evidence is a FAIL by the evaluator's own first rule`;
+    return null;
+  }
+  if (criteria.length === 0) return "the FAIL verdict grades no criterion at all — a FAIL must name what failed";
+  if (!fails.length) return `the verdict says FAIL while every one of its ${criteria.length} graded criteria reads PASS — a FAIL must cite the criterion it failed`;
+  return null;
+}
+
 export function citationProblem(cwd, slug, verdict, { round = null } = {}) {
   if (verdict?.overall !== "PASS" && verdict?.overall !== "FAIL") return null;
   if (!isScoped(cwd, slug)) return null;
@@ -200,7 +233,7 @@ export function evalVerdict(cwd, slug, round) {
       ? `the evaluator returned ${status || "no status"}: ${first}`
       : `status ${status || "unknown"} with no PASS/FAIL verdict`), status);
   }
-  const problem = citationProblem(cwd, slug, v, { round });
+  const problem = verdictProblem(v) || citationProblem(cwd, slug, v, { round });
   if (problem) return unfit(problem, status, overall);
   return {
     found: true,

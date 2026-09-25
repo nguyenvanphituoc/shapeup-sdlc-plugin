@@ -75,8 +75,13 @@ export async function run(ctx) {
     w(root, rel, full);
     return { rel, sha256: createHash("sha256").update(JSON.stringify(full, null, 2)).digest("hex") };
   };
+  // `overall` is derived from the criteria now, so a fixture verdict carries one honest criterion
+  // unless the case supplies its own — this module is about citations, not verdict arithmetic.
+  const honest = (v) => (v && !Array.isArray(v.criteria) && (v.overall === "PASS" || v.overall === "FAIL")
+    ? { ...v, criteria: [{ criterion: "UC-01 step 1", verdict: v.overall, evidence: "src/a.ts:1 measured" }] }
+    : v);
   const evalResult = (root, verdict) => w(root, ".shapeup/demo/results/evaluate-r1.json",
-    { schema_version: 1, order_id: "demo/evaluate-r1", worker: "spec-evaluator", status: "done", verdict });
+    { schema_version: 1, order_id: "demo/evaluate-r1", worker: "spec-evaluator", status: "done", verdict: honest(verdict) });
   const probeEval = (root) => {
     const r = spawnSync("node", [...K("probe eval"), "--slug", "demo", "--round", "1", "--cwd", root], { encoding: "utf8" });
     let json = {};

@@ -5,6 +5,16 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### A verdict's overall is derived from its criteria
+
+`overall` was the judge's own field, and nothing recomputed it from the criteria the judge graded:
+a PASS over a failing criterion, or over no criterion at all, validated, ingested, and the round
+loop branched on it. The kernel derives it now, on ingest and on read: PASS means every graded
+criterion passed with evidence and at least one was graded; FAIL means at least one graded
+criterion failed. A PASS criterion with no evidence is no evidence — absence of evidence is a FAIL
+by the evaluator's own first rule. (The schema already required evidence on a FAIL; the gap was on
+the PASS side and above the criteria.)
+
 ### Three readers stop reaching across runs
 
 Orders, verdicts, build gates and gate decisions over one slug accumulate across runs and carry the

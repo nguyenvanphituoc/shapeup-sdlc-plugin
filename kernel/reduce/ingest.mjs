@@ -37,7 +37,7 @@ import { fileURLToPath } from "node:url";
 import { validate } from "../verify/envelope.mjs";
 import { runArgs } from "../lib/argv.mjs";
 import { tasksDir, localRoot, dispatchReceipts, legLedger, readRunId } from "../lib/paths.mjs";
-import { citationProblem } from "../probe/eval.mjs";
+import { citationProblem, verdictProblem } from "../probe/eval.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RESULT_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../schemas/work-result.schema.json"), "utf8"));
@@ -698,7 +698,7 @@ export async function cli(rawArgv) {
   // keeps the verdict ledger from recording a verdict the loop will never branch on.
   if (result.verdict) {
     const evalRound = Number((String(result.order_id).match(/-r(\d+)$/) || [])[1]) || null;
-    const problem = citationProblem(cwd, String(result.order_id).split("/")[0], result.verdict, { round: evalRound });
+    const problem = verdictProblem(result.verdict) || citationProblem(cwd, String(result.order_id).split("/")[0], result.verdict, { round: evalRound });
     if (problem) {
       console.error(`ingest-result: result refused — ${problem}.`);
       console.error(`  The round stays open: re-dispatch the evaluator against its order, which lists`);

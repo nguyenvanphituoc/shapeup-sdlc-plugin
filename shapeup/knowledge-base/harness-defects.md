@@ -23,7 +23,6 @@ is pinned by a guard, never when it is merely believed done.
 | HD-022 | ⚠ Work for defects measured on a real consumer sits on a tag, not on main | decision |
 | HD-041 | the run key is a FIELD, not an ADDRESS — a second run of a slug inherits the first run's evidence | P0 (class) |
 | HD-046 | three key spaces for one REQ id, and the folding helper is not called at the one place that grad… | — (filed after the tiering pass) |
-| HD-047 | the judge's verdict is never recomputed from its own criteria, and a PASS may carry no evidence | — (filed after the tiering pass) |
 | HD-048 | the seesaw regression arm is declared everywhere and wired nowhere | — (filed after the tiering pass) |
 | HD-051 | a build leg can forge a SIBLING leg's WorkResult | P1 |
 | HD-052 | four attested channels were named; the same class has at least five more | P2 |
@@ -652,21 +651,6 @@ else needs to survive for the fix to hold.
 
   **Closed when:** every reader of a `covers:` clause folds through one helper, and a fixture drives
   all four spellings through the L1b lint and the requirements matrix and gets the same answer.
-
-- **HD-047 · The judge's verdict is never recomputed from its own criteria, and a PASS may carry no
-  evidence.** Found 2026-09-24.
-
-  Nothing in `kernel/` or `hooks/` recomputes `overall` from `criteria[]`; the kernel transcribes
-  the judge's own field and the round loop branches on it. Every dimension's pass rule and the halo
-  ban are enforced by the judge on itself. `$defs.CriterionVerdict` compounds it: its first `anyOf`
-  branch requires only `criterion` and `verdict`, while its own description says a FAIL
-  "additionally REQUIRES an evidence locator (file:line)". For a skill whose first rule is that
-  absence of evidence is a FAIL, the schema is asymmetric in exactly the wrong direction:
-  `{"criterion":"UC-01 step 3","verdict":"PASS"}` validates, ingests and ledgers.
-
-  **Closed when:** `overall` is derived from the criteria the verdict carries — by the kernel, on
-  ingest — and a PASS with no evidence is refused at the same boundary a FAIL without a locator
-  already is.
 
 - **HD-048 · The seesaw regression arm is declared everywhere and wired nowhere.** Filed 2026-09-24
   so that the README's newly honest pointer resolves to something.
