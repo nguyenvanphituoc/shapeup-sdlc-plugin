@@ -5,6 +5,22 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### One key space for a covers: clause
+
+`coveredReqIds` — the sole producer of "graded" for the L1b red, the requirements matrix and the
+trace oracle — tested the raw token against `/^REQ-\d+$/`, while the folding helper that turns
+`R-2`, `[[REQ-5]]` and `req-4` into one key existed one import away and was cited by the sibling
+rule. An author told at L1b to cover a requirement with an AC, who had, stayed red. Every spelling
+folds through the one helper now.
+
+### A frozen report names no board id, anywhere
+
+Board ids were anchored in three places and leaked through a fourth: a discovery-ledger entry
+copied verbatim into "Discovered, not built" carried `[TASK-005]`, `reduce ship` wrote it straight
+to the committed tier past the hook that guards the model's edits, and the next run's L1b lint
+red'd the report the previous run had frozen — the slug was bricked until a human edited the
+file. The rule is applied to the finished text once, so no section can leak it.
+
 ### A verdict's overall is derived from its criteria
 
 `overall` was the judge's own field, and nothing recomputed it from the criteria the judge graded:

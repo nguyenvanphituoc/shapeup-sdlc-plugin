@@ -22,7 +22,6 @@ is pinned by a guard, never when it is merely believed done.
 | HD-021 | a per-scope "it compiles" fixture can be green while the scope's code is unreachable | P3 |
 | HD-022 | ⚠ Work for defects measured on a real consumer sits on a tag, not on main | decision |
 | HD-041 | the run key is a FIELD, not an ADDRESS — a second run of a slug inherits the first run's evidence | P0 (class) |
-| HD-046 | three key spaces for one REQ id, and the folding helper is not called at the one place that grad… | — (filed after the tiering pass) |
 | HD-048 | the seesaw regression arm is declared everywhere and wired nowhere | — (filed after the tiering pass) |
 | HD-051 | a build leg can forge a SIBLING leg's WorkResult | P1 |
 | HD-052 | four attested channels were named; the same class has at least five more | P2 |
@@ -634,23 +633,6 @@ else needs to survive for the fix to hold.
   **Closed when:** a second run over a slug re-derives its own greens — no verdict, result, build
   gate or graph edge from a prior run answers a question about this one — and a two-run fixture
   pins it (`tests/structural/75-cross-run-attestation.mjs` already builds the fixture shape).
-
-- **HD-046 · Three key spaces for one REQ id, and the folding helper is not called at the one place
-  that grades.** Found 2026-09-24.
-
-  `coveredReqIds` (`kernel/verify/trace.mjs`) tests `/^REQ-\d+$/` against the raw string.
-  `reqId()` (`kernel/lib/contract.mjs`) exists precisely to fold `R-<n>`, `[[…]]` and case onto one
-  space, and is cited by name in two sibling arms — and is not called here. So `R-2`, `[[REQ-5]]`
-  and `req-4` all count as nothing, while the sibling rule accepts them.
-
-  `coveredReqIds` is the sole producer of "graded" for the `REQ-UNCOVERED` red at L1b, for
-  `probe requirements` (the L4 matrix, GATE H's census, `REPORT.md`) and for `verify trace`. An
-  author who writes a criterion in a spelling the neighbouring rule accepts is told at L1b to cover
-  the requirement with an AC carrying `(covers: REQ-…)` — which is what they did. This is a strong
-  candidate cause for `HD-038`: the measured corpus carries R-keys, and this drops every one.
-
-  **Closed when:** every reader of a `covers:` clause folds through one helper, and a fixture drives
-  all four spellings through the L1b lint and the requirements matrix and gets the same answer.
 
 - **HD-048 · The seesaw regression arm is declared everywhere and wired nowhere.** Filed 2026-09-24
   so that the README's newly honest pointer resolves to something.

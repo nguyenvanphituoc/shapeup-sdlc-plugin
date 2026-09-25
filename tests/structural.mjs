@@ -381,6 +381,10 @@ const MODULE_FILES = [
   // over a failing criterion, or over none, ingested and the round branched on it. Derived from the
   // criteria now, on ingest and on read; a PASS criterion with no evidence is no evidence.
   "91-verdict-recomputed.mjs",
+  // 92-covers-one-key-space.mjs: `coveredReqIds` tested the raw covers: token against /^REQ-\d+$/ while
+  // the folding helper existed one import away — R-2, [[REQ-5]] and req-4 counted as nothing at the
+  // one place that grades. All four spellings through the real readers now agree.
+  "92-covers-one-key-space.mjs",
   "08-docs.mjs",
 ];
 

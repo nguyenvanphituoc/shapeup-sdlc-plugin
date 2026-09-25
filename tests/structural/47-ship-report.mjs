@@ -56,6 +56,9 @@ export async function run(ctx) {
     w(".shapeup/demo/evaluation/EVAL-FEATURE-demo.md", "# EVAL\n\n## Bugs\n### BUG-1 — minor\nrounding off by one\n");
     w(".shapeup/demo/qa/hunt-report.md", "# Hunt\n\n## Findings\n- ~ empty-cart badge flickers\n");
     w(".shapeup/demo/round-ledger.md", "## Decisions\n| ID | Scope | A |\n|---|---|---|\n| ESC-1 | cart | use idempotency key |\n");
+    // A discovery-ledger entry naming a board id, copied into "Discovered, not built" — the fourth
+    // leak path, measured live: the previous run's frozen report red'd the next run's L1b lint.
+    w(".shapeup/demo/discovery/ledger.md", "---\nfeature: demo\n---\n# Discovery Ledger — demo\n\n## Discovered — demo/demo-r1-a1\n+ [ESCALATE] substrate-expansion [TASK-002]\nCan TASK-002's tests be added under src/test/?\n");
 
     const { markdown, facts, path } = SR.generate({ cwd: dir, slug: "demo" });
 

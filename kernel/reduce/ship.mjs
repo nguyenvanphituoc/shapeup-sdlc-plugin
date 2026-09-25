@@ -329,7 +329,13 @@ export function buildReport(facts) {
     "*Run state (board, orders, results, T0 artifacts, evaluation and QA reports) stays in the",
     "gitignored local tier (ADR-0001). This report",
     "is the frozen conclusion of it.*", "");
-  return L.join("\n");
+  // THE WHOLE REPORT, ONCE. Board ids were anchored in three places and leaked through a fourth: a
+  // discovery-ledger entry copied verbatim into "Discovered, not built" carried `[TASK-005]`, this
+  // kernel wrote it straight to the committed tier past the hook that guards the model's edits, and
+  // the next run's L1b lint red'd the file the previous run had frozen. A committed report may not
+  // name a board id anywhere, so the rule is applied to the finished text rather than section by
+  // section.
+  return deboard(L.join("\n"), board.anchors);
 }
 
 /**

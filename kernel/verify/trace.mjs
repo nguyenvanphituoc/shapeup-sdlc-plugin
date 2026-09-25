@@ -40,7 +40,7 @@ import { resolve, join, dirname, relative, isAbsolute } from "node:path";
 import { readBoard } from "../compile.mjs";
 import { runArgs } from "../lib/argv.mjs";
 import { sharedRoot, traceDir, relLocal } from "../lib/paths.mjs";
-import { readContract, unreadableReason, LEGACY_LAYOUT, WIRING_MAP, PROJECT_PROFILE } from "../lib/contract.mjs";
+import { readContract, unreadableReason, LEGACY_LAYOUT, WIRING_MAP, PROJECT_PROFILE, reqId } from "../lib/contract.mjs";
 
 // --- requirements.md registry parser -----------------------------------------
 // A committed markdown table: | REQ-id | clause (verbatim) | source | status | note |
@@ -87,7 +87,10 @@ export function coveredReqIds(board) {
   for (const task of board) {
     for (const ac of task.acceptance_criteria || []) {
       const covers = typeof ac === "object" && Array.isArray(ac.covers) ? ac.covers : [];
-      for (const id of covers) if (/^REQ-\d+$/.test(id)) covered.add(id);
+      // ONE KEY SPACE. `R-2`, `[[REQ-5]]` and `req-4` are the same clause spelled three ways, and the
+      // sibling rule accepts all of them; testing the raw string here counted every one as nothing, so
+      // an author told at L1b to cover a requirement with an AC — which they had — stayed red.
+      for (const raw of covers) { const id = reqId(raw); if (/^REQ-\d+$/.test(id)) covered.add(id); }
     }
   }
   return covered;
