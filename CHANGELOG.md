@@ -5,6 +5,19 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Measured, not changed: the tier-direction collision is closed
+
+The rule that a committed file may not name a gitignored run-trace path once collided with the fact
+that the analyzer reads the pitch from exactly such a path, and a run paid for its whole planning
+stretch before aborting at Board Review over one sentence of provenance. The write has been refused
+at the boundary since 3.7.1, with the offending token quoted back, so the file that reds cannot be
+produced. What had never been driven was the leg itself.
+
+Driven now, on a fresh pitch through a real unattended run: the coverage dispatch produced a
+committed requirements registry that cites the shaped pitch by description, names no run-trace path,
+and draws zero tier-direction findings from spec-lint. No code changed for this entry — it is the
+evidence that was missing.
+
 ### The no-control warning stops implying a fix that may not exist
 
 Measured on the ArkTS consumer after 3.9.0 landed: no entry point roots an import walk on that

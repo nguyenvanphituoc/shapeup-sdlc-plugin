@@ -292,7 +292,6 @@ function sourceFilesUnder(root, exts) {
     let entries;
     try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
     for (const e of entries) {
-      if (e.name.startsWith(".") && e.name !== ".") { if (SKIP_DIRS.has(e.name)) continue; }
       if (SKIP_DIRS.has(e.name)) continue;
       const abs = join(dir, e.name);
       if (e.isDirectory()) walk(abs);

@@ -13,7 +13,6 @@ is pinned by a guard, never when it is merely believed done.
 | id | defect | tier |
 |---|---|---|
 | HD-067 | the board's `covers:` clauses are instructed and not enforced — a regenerated board can carry none, and the matrix then reads no evidence for everything | P2 |
-| HD-027 | two harness rules collide, and the collision hard-aborts a run at L1b | P1 |
 | HD-051 | a build leg can forge a CONCURRENTLY-LIVE sibling's WorkResult — narrowed, and the guard cannot see who writes | P2 |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
@@ -46,61 +45,6 @@ is pinned by a guard, never when it is merely believed done.
   **Closed when:** a board with no `covers:` clause cannot reach BUILD unremarked while a
   requirements registry is on disk, and a fixture drives both boards — one with clauses, one
   without — through the same gate.
-
-- **HD-027 · Two harness rules collide, and the collision hard-aborts a run at L1b.** Promoted from
-  a consumer register (`proj-harmony-os-sample`, filed there as `HD-1`, 2026-09-21). `harness init
-  run` normalizes the pitch into the **gitignored** run tier at `.shapeup/<slug>/intake.md`, and
-  that is the path `ba-pitch-analyzer` is handed and actually reads. `requirements.md` is a
-  **committed** artifact, and spec-lint's `TIER-DIRECTION` rule forbids a committed file from
-  naming a `.shapeup/` path — correctly, because the path dangles on every other clone. A worker
-  that cites its real source produces a registry its own lint reds.
-
-  Measured in run `find-my-todos-20260921T142815Z-b80de580`, unattended lane: ORIENT, ANALYZE,
-  WIRE and MAP SCOPES all completed — 25 agent dispatches, ~28 minutes, ~1.17M subagent tokens —
-  and the run then aborted at GATE L1b on a single `TIER-DIRECTION` red, over one sentence of
-  provenance prose: *"Atomic requirement clauses extracted from `.shapeup/find-my-todos/intake.md`."*
-  The abort lands after the whole planning stretch is already paid for, and on the unattended lane
-  there is no human present to spend ten seconds fixing a sentence.
-
-  **Why this is not a rule for `ba-pitch-analyzer` alone.** A rule telling the analyzer "never
-  write a `.shapeup/` path into a committed file" would suppress this one instance, but the
-  analyzer still has no *correct* path to name — it does not necessarily know which committed
-  artifact the intake was copied from (`shaping.md`, a `pitch.md`, or a `--breadboard`-named file
-  elsewhere). The fix belongs upstream of the worker's prose, not in guidance to it.
-
-  Also measured: the craft docs teach the rule more narrowly than the lint enforces it —
-  `skills/ba-pitch-analyzer/references/doc-schemas.md` stated tier-direction purely in wikilink
-  terms (`never [[tasks/...]]`), while the lint reds *any* line naming a `.shapeup/` path. A
-  worker following only the docs had no way to know a plain provenance sentence would red.
-
-  **Closed when:** the taught rule and the enforced rule state the same constraint — a committed
-  doc may not name a `.shapeup/` path in any form, wikilink or bare prose — and a `coverage`
-  dispatch over a pitch staged in the run tier produces a `requirements.md` clean of
-  `TIER-DIRECTION` findings, driven end to end rather than inferred from the worker's prose.
-
-  **Half of that is done; the half that keeps this entry open is evidence, not code.** The taught
-  and enforced rules agree (pinned by a guard), and since 3.7.1-rc.4 the collision is no longer
-  writable at all — the write is refused at the boundary with the offending token quoted back, so a
-  worker cannot produce the file that reds. What has still never been driven is the end-to-end leg
-  the criterion asks for: a real `coverage` dispatch over a pitch staged in the run tier, producing
-  a `requirements.md` with no `TIER-DIRECTION` findings. That is a consumer run, not a fixture, and
-  it is deliberately the last thing holding this row open.
-
-  **Measured 2026-09-23 on the consumer, rc.5 installed from the marketplace — the collision fired
-  and the run did not notice.** A fresh pitch (`about-screen`), a real run, planning dispatched for
-  real. At 07:17:11 the analyzer tried to write a committed `spec/_index.md` citing the breadboard
-  by its staged run-tier path — the exact HD-027 shape, from a different worker and a different
-  artifact than the one that was taught. The write was refused. At 07:17:29 the same worker wrote a
-  committed file that linted clean, and four more clean committed writes followed at 07:17:46,
-  07:18:07, 07:18:14. One denial, eighteen seconds, no retry loop; across the whole run the guard
-  answered thirteen times, twelve of them permits carrying a rule.
-
-  That settles the recovery question, which was the real risk in fronting a gate with a hook — a
-  guard that denies correctly but wedges the run would be worse than the L1b abort it replaces. It
-  does NOT settle this entry: the run was killed by the launcher's background-wait ceiling with
-  ANALYZE in flight, so no `requirements.md` ever completed a full planning phase end to end. The
-  registry it did write cites the pitch by section name and names no gitignored path, which is
-  the outcome this entry asks for — from the coverage dispatch alone, not from the whole leg.
 
 - **HD-051 · A build leg can forge a concurrently-live sibling's WorkResult.** Filed 2026-09-24 by
   the acceptance pass on the attestation freeze; narrowed and re-measured 2026-09-25.
