@@ -60,6 +60,36 @@ export async function run(ctx) {
     else fail(`the members were also reported unreadable: ${JSON.stringify(m[UNREADABLE])}`);
   }
 
+  // --- (1b) THE SCAN STOPS AT THE CLOSING BRACKET. A consuming loop that overruns eats every key
+  //          after it, which would be a far worse defect than the one being fixed: the contract
+  //          would parse, with fields silently missing. Asked on both a closed and an open form. ---
+  {
+    const { meta: m } = splitFrontmatter(
+      ["---", "schema_version: 1", 'allowed_file_substrate: [', '  "a/**",', '  "b/**"', ']',
+        'shared_substrate: ["s/**"]', "hill_phase: UPHILL_UNKNOWN", "---", "", "# x", ""].join("\n"));
+    if (Array.isArray(m.allowed_file_substrate) && m.shared_substrate?.[0] === "s/**" && m.hill_phase === "UPHILL_UNKNOWN") {
+      ok("the scan stops at the closing bracket — every key after a multi-line sequence still parses, so the fix cannot silently swallow fields");
+    } else fail(`keys after the sequence were lost: ${JSON.stringify({ shared: m.shared_substrate, hill: m.hill_phase })}`);
+  }
+
+  // --- (1c) The variants a writer actually produces, none of which may change type. --------------
+  {
+    const variants = [
+      ["members beginning on the opening line", 'allowed_file_substrate: ["x/**",\n  "y/**"]', ["x/**", "y/**"]],
+      ["a trailing comma before the close", 'allowed_file_substrate: [\n  "x/**",\n  "y/**",\n]', ["x/**", "y/**"]],
+      ["an empty sequence", "allowed_file_substrate: []", []],
+    ];
+    for (const [label, body, want] of variants) {
+      const v = meta(body).meta.allowed_file_substrate;
+      if (Array.isArray(v) && JSON.stringify(v) === JSON.stringify(want)) ok(`${label} parses to ${JSON.stringify(want)}`);
+      else fail(`${label} parsed to ${JSON.stringify(v)}, wanted ${JSON.stringify(want)}`);
+    }
+    // And a bracket that opens PROSE is not a sequence at all — the value is the prose.
+    const prose = meta("note: [draft] rewrite before betting").meta.note;
+    if (prose === "[draft] rewrite before betting") ok("a line whose bracket closes mid-prose stays the prose — the fix reads sequences, not any line starting with a bracket");
+    else fail(`bracketed prose was mangled: ${JSON.stringify(prose)}`);
+  }
+
   // --- (2) The two forms that already worked keep working, byte for byte. ------------------------
   {
     const inline = meta('allowed_file_substrate: ["a/**", "b/**"]').meta.allowed_file_substrate;
