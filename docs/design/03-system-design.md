@@ -324,7 +324,7 @@ malformed order. Every entry point exports its `ARGV_SPEC`, which is what makes 
 inspectable by `tests/structural/13-argv-contract.mjs` rather than guessable.
 
 **`kernel/verify/ratchet-tree.mjs` — `keep` and `revert`.** The attempt loop
-branched a red T0 two ways and only one of them reverted anything: a seesaw regression got
+branched a red T0 two ways and only one of them reverted anything: a cross-scope regression got
 `git stash push -u`, while a red on the scope's *own* fixtures got "loop to the next attempt" and
 no revert at all — so attempt N+1's fresh, zero-memory subagent began from code it did not write
 and could not see the history of. `snapshot()` publishes the working tree as a `git stash create`

@@ -77,8 +77,8 @@ the ship report's census table.
                                                                write-whitelist; wrong here =
                                                                a legitimate ESCALATE later
              shared_substrate[]                              — files ≥2 scopes both touch;
-                                                               every write there forces a full
-                                                               seesaw run at the next gate
+                                                               declaring one costs concurrency:
+                                                               they build one at a time
              affordance_manifest                             — from ux-behavior.md state
                                                                tables: every interactive
                                                                element as {test_id, role} +
@@ -93,7 +93,7 @@ the ship report's census table.
                                                                TBD and flag it, never invent
                                                                a fixture for unbuilt behavior
              hill_phase: "UPHILL_UNKNOWN"                    — ALWAYS; phase is derived from
-                                                               T0/T1/seesaw facts later,
+                                                               T0/T1 facts later,
                                                                never authored
 4 LINT     node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify spec --slug <slug>
            → PA1 (directory alignment), PA2 (>~15 files), DISJOINT (undeclared overlap),

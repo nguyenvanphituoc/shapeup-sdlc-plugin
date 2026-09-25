@@ -90,7 +90,7 @@ Collect (explicit — never inferred):
         attempts a single scope gets inside one round before its attempt loop trips and
         queues a hammer PROPOSAL for GATE H rather than blocking the round. Only meaningful
         when the spec folder has scope contracts; a spec with none skips the attempt loop
-        entirely and BUILD behaves exactly as in v0.2.6 (task-executor --next, no T0/seesaw).
+        entirely and BUILD behaves exactly as in v0.2.6 (task-executor --next, no T0).
         no_progress_k (v1.5): the STAGNATION term of the same inner breaker. Default 2 — the
         number of consecutive non-`kept` trials after which a scope ends early and queues the
         same GATE H proposal. attempt_budget counts ATTEMPTS and cannot see that the last two

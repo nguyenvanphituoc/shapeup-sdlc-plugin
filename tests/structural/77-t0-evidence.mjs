@@ -74,7 +74,7 @@ export async function run(ctx) {
         e2e_verification_fixtures: fixtures,
       }, null, 2));
       const cli = spawnSync("node", [KERNEL, "verify", "t0", contractPath,
-        "--round", "1", "--attempt", "1", "--cwd", ws, "--out", outDir, "--no-seesaw", "--no-ratchet"],
+        "--round", "1", "--attempt", "1", "--cwd", ws, "--out", outDir, "--no-ratchet"],
         { cwd: ws, encoding: "utf8" });
       const vDir = join(outDir, "t0", "verdicts");
       const f = existsSync(vDir) ? readdirSync(vDir).filter((x) => x.endsWith(".json")).sort().pop() : null;

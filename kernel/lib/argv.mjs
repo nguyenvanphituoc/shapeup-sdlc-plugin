@@ -8,11 +8,11 @@
 //     const SPEC = {
 //       _:           { arity: 1, name: "scope-contract.json" },
 //       round:       { type: "int", min: 1, required: true },
-//       "no-seesaw": { type: "flag" },
+//       "no-ratchet": { type: "flag" },
 //     };
-//     const args = runArgs(SPEC, argv);   // args.round, args.noSeesaw, args._
+//     const args = runArgs(SPEC, argv);   // args.round, args.noRatchet, args._
 //
-// Flag names reach the caller camelCased (`--no-seesaw` → `noSeesaw`). Unknown flags are rejected
+// Flag names reach the caller camelCased (`--no-ratchet` → `noRatchet`). Unknown flags are rejected
 // rather than swallowed as positionals: a typo'd `--rounds 2` landing in `_` is the same defect
 // wearing a different hat. Untyped coercion is the failure this guards — `Number(undefined)` is
 // `NaN`, `??` does not catch `NaN`, and a verdict written to `r NaN-a1.json` with exit 0 is
@@ -35,7 +35,7 @@ export class ArgvError extends Error {
   }
 }
 
-/** `--seesaw-registry` → `seesawRegistry`. */
+/** `--attempt-budget` → `attemptBudget`. */
 function camel(name) {
   return name.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
 }

@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 // T0 mechanical verification layer.
 //
-// Runs a scope's e2e fixtures + DB probe (zero LLM tokens), then — on green — the seesaw
-// regression check (re-runs every FINISHED scope's fixtures from the registry). Writes one
+// Runs a scope's e2e fixtures and its DB probe (zero LLM tokens). Writes one
 // verdict artifact per attempt that spec-evaluator (T1) must cite; a verdict without it is
 // structurally invalid. No agent can fabricate this file's contents
 // because it is produced by actually running the commands.
@@ -30,7 +29,7 @@
 //
 // Usage:
 //   node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify t0 <scope-contract.json> \
-//        --round N --attempt M [--cwd <dir>] [--out <dir>] [--seesaw-registry <path>] [--no-seesaw]
+//        --round N --attempt M [--cwd <dir>] [--out <dir>]
 //        [--no-ratchet]
 //
 // Exit code: 0 = overall green, 1 = overall red (mirrors the oracle convention), 2 = bad argv.
@@ -185,80 +184,45 @@ export function runDbProbe(dbProbeCmd, cwd) {
 }
 
 /**
- * Re-run every FINISHED scope's fixtures from the seesaw registry (regression guard).
- * @param {(string|null)} registryPath - Path to the seesaw registry JSON (absent/unreadable → skipped).
- * @param {string} cwd - Working directory.
- * @returns {{ran:boolean, pass:boolean, scopes_checked:string[], failing:string[], error?:string}}
- *   ran=false/pass=true when skipped; otherwise pass=true iff no prior scope regressed, with the
- *   scope ids checked and those now failing.
+ * Combine the fixtures and the DB probe into the overall T0 verdict.
+ *
+ * THE SEESAW ARM IS GONE (3.8.0), by a Betting Table decision rather than by neglect. It was
+ * declared in the schema, the docs and this function, and nothing ever wrote the registry it read,
+ * so it never ran once in any recorded run — while its absence held the hill's top phase shut:
+ * FINISHED required `seesaw.ran && seesaw.pass`, and the 38 committed hill shards across the live
+ * consumer's features contain no FINISHED at all. A cross-scope regression is still caught by the
+ * round build gate, which builds and launches the whole feature once per round; what the arm would
+ * have added is attribution and an earlier signal, at the price of re-running every finished
+ * scope's fixtures on every attempt — minutes per attempt on an eighteen-scope feature.
+ *
+ * @param {{fixtures:{pass:boolean}, dbProbe:({pass:boolean}|null)}} parts - The two sub-results.
+ * @returns {{fixtures_green:boolean, db_probe_green:boolean, overall:("green"|"red")}} Per-arm
+ *   greens and the overall verdict, green iff both.
  */
-export function seesawCheck(registryPath, cwd) {
-  if (!registryPath || !existsSync(registryPath)) {
-    // `pass: null`, not `pass: true`: a check that did not run has no result, and recording one as
-    // clean is how "not asked" came to read as "nothing regressed". The verdict below still treats
-    // an absent seesaw as non-blocking — that part is deliberate while the arm is unwired — but the
-    // artifact now says which of the two it was.
-    return { ran: false, pass: null, scopes_checked: [], failing: [] };
-  }
-  let registry;
-  try {
-    registry = JSON.parse(readFileSync(registryPath, "utf8"));
-  } catch {
-    return { ran: false, pass: null, scopes_checked: [], failing: [], error: "registry unparsable" };
-  }
-  const scopes = registry.scopes || [];
-  const failing = [];
-  for (const s of scopes) {
-    const { pass } = runFixtures(s.fixtures, cwd);
-    if (!pass) failing.push(s.scope_id);
-  }
-  return { ran: true, pass: failing.length === 0, scopes_checked: scopes.map((s) => s.scope_id), failing };
-}
-
-/**
- * Combine fixtures + DB probe + seesaw into the overall T0 verdict.
- * @param {{fixtures:{pass:boolean}, dbProbe:({pass:boolean}|null),
- *   seesaw:{ran:boolean,pass:boolean}}} parts - The three sub-results.
- * @returns {{fixtures_green:boolean, db_probe_green:boolean, seesaw_green:boolean,
- *   overall:("green"|"red"), regression:boolean}} Per-arm greens, the overall verdict (green iff
- *   all three), and `regression` = fixtures+db green but seesaw red (the rollback-and-retry case).
- */
-export function computeVerdict({ fixtures, dbProbe, seesaw }) {
+export function computeVerdict({ fixtures, dbProbe }) {
   const fixturesGreen = fixtures.pass;
   const dbGreen = dbProbe === null || dbProbe.pass;
-  // A seesaw that did not run does not hold the verdict red — the arm is declared and unwired, and
-  // blocking every build on it would be a different defect. It does not make it green either: the
-  // hill requires `ran && pass` before a scope may reach FINISHED, and `seesaw_green` here means
-  // "nothing this check found is wrong", which is true of a check that found nothing because it
-  // never looked.
-  const seesawGreen = seesaw.ran ? seesaw.pass === true : true;
   return {
     fixtures_green: fixturesGreen,
     db_probe_green: dbGreen,
-    seesaw_green: seesawGreen,
-    overall: fixturesGreen && dbGreen && seesawGreen ? "green" : "red",
-    // A regression is specifically fixtures/db green but seesaw red — the case that should
-    // trigger rollback+retry (spec §3.5) rather than "go fix the new scope's own bug".
-    regression: fixturesGreen && dbGreen && !seesawGreen,
+    overall: fixturesGreen && dbGreen ? "green" : "red",
   };
 }
 
 /**
- * The comparable T0 outcome — a VECTOR, not a float, because the three arms are not fungible.
+ * The comparable T0 outcome — a VECTOR, not a float, because the arms are not fungible.
  *
  * Every number here is a reduce over data `writeArtifact` already persists (`fixtures:
  * [{cmd, exit, pass}]`). Nothing new is measured; a number that has always been on disk is
  * finally counted.
  *
- * @param {{fixtures:{results:Array<{pass:boolean}>}, dbProbe:({pass:boolean}|null),
- *   seesaw:{ran:boolean, failing:string[]}}} parts - The three T0 sub-results.
- * @returns {{regressions:number, fixtures_passed:number, fixtures_total:number,
- *   db_probe:(0|1|null)}} The score vector. `db_probe` is null when no probe is declared, which
- *   is never a failure — only an absence.
+ * @param {{fixtures:{results:Array<{pass:boolean}>}, dbProbe:({pass:boolean}|null)}} parts - The
+ *   two T0 sub-results.
+ * @returns {{fixtures_passed:number, fixtures_total:number, db_probe:(0|1|null)}} The score vector.
+ *   `db_probe` is null when no probe is declared, which is never a failure — only an absence.
  */
-export function score({ fixtures, dbProbe, seesaw }) {
+export function score({ fixtures, dbProbe }) {
   return {
-    regressions: seesaw?.ran ? (seesaw.failing || []).length : 0,
     fixtures_passed: fixtures.results.filter((r) => r.pass).length,
     fixtures_total: fixtures.results.length,
     db_probe: dbProbe === null || dbProbe === undefined ? null : (dbProbe.pass ? 1 : 0),
@@ -271,23 +235,19 @@ export function score({ fixtures, dbProbe, seesaw }) {
  * Three decisions worth defending:
  *   • A TIE IS NOT BETTER. A tie that counted as an improvement would make a sawtooth look like a
  *     ratchet, and the whole point of the Day-1 measurement is to tell those two apart.
- *   • REGRESSIONS DOMINATE. Breaking a previously-finished scope is never an improvement, whatever
- *     the new scope's fixtures did. This is what lets the old seesaw branch collapse into the
- *     general rule rather than needing a special case.
  *   • DIFFERENT `fixtures_total` IS INCOMPARABLE, not worse. A re-slice changes the
  *     denominator; comparing across it is a category error, so the ratchet treats it as a baseline
  *     reset (`rebased`) rather than issuing a false verdict.
  *
- * @param {{regressions:number, fixtures_passed:number, fixtures_total:number,
+ * @param {{fixtures_passed:number, fixtures_total:number,
  *   db_probe:(0|1|null)}} next - The candidate score.
- * @param {({regressions:number, fixtures_passed:number, fixtures_total:number,
+ * @param {({fixtures_passed:number, fixtures_total:number,
  *   db_probe:(0|1|null)}|null)} current - The incumbent score, or null for the first trial.
  * @returns {(boolean|null)} true = strictly better · false = not better · null = incomparable.
  */
 export function better(next, current) {
   if (current === null || current === undefined) return true; // baseline
   if (next.fixtures_total !== current.fixtures_total) return null; // the contract changed
-  if (next.regressions !== current.regressions) return next.regressions < current.regressions;
   if (next.fixtures_passed !== current.fixtures_passed) return next.fixtures_passed > current.fixtures_passed;
   if (next.db_probe !== current.db_probe) return (next.db_probe ?? 0) > (current.db_probe ?? 0);
   // EVERY COMPONENT TIES. What that means depends entirely on whether the incumbent was green.
@@ -314,17 +274,17 @@ export function better(next, current) {
 }
 
 /**
- * Is this score a clean pass — every fixture passing, none of them absent, no outstanding regression?
+ * Is this score a clean pass — every fixture passing, and none of them absent?
  *
  * `fixtures_total > 0` is load-bearing: a scope with no fixtures has nothing to be green ABOUT, and
  * treating its empty score as a pass is the same absence-reads-as-success mistake `runFixtures`
  * made one function above.
  *
- * @param {{regressions:number, fixtures_passed:number, fixtures_total:number}} s - A trial score.
+ * @param {{fixtures_passed:number, fixtures_total:number}} s - A trial score.
  * @returns {boolean} True when the score represents a real, complete pass.
  */
 function isGreenScore(s) {
-  return s.regressions === 0 && s.fixtures_total > 0 && s.fixtures_passed === s.fixtures_total;
+  return s.fixtures_total > 0 && s.fixtures_passed === s.fixtures_total;
 }
 
 /**
@@ -352,7 +312,7 @@ export function decideStatus(verdict, crashed) {
  * Human-readable one-line summary of a score change, for the trial row's `delta` field.
  * @param {object} next - The candidate score.
  * @param {(object|null)} current - The incumbent score, or null.
- * @returns {string} e.g. "+2 fixtures", "+1 regression", "baseline", "no change".
+ * @returns {string} e.g. "+2 fixtures", "-1 db_probe", "baseline", "no change".
  */
 export function describeDelta(next, current) {
   if (!current) return "baseline";
@@ -360,10 +320,8 @@ export function describeDelta(next, current) {
     return `denominator ${current.fixtures_total} → ${next.fixtures_total}`;
   }
   const parts = [];
-  const dr = next.regressions - current.regressions;
   const df = next.fixtures_passed - current.fixtures_passed;
   const dp = (next.db_probe ?? 0) - (current.db_probe ?? 0);
-  if (dr) parts.push(`${dr > 0 ? "+" : ""}${dr} regression${Math.abs(dr) === 1 ? "" : "s"}`);
   if (df) parts.push(`${df > 0 ? "+" : ""}${df} fixture${Math.abs(df) === 1 ? "" : "s"}`);
   if (dp) parts.push(`${dp > 0 ? "+" : ""}${dp} db_probe`);
   return parts.length ? parts.join(", ") : "no change";
@@ -458,7 +416,7 @@ function sha256(text) {
  * every superseded object remains addressable).
  *
  * WHAT THIS REPLACED, and why the remedy is `wx` rather than a guard. The address used to be
- * `r<round>-a<attempt>.json`, written with a bare `writeFileSync` — and on a seesaw regression the
+ * `r<round>-a<attempt>.json`, written with a bare `writeFileSync` — and on a revert-and-retry the
  * protocol says stash, then RETRY THIS ATTEMPT, same attempt number. The address had no term for
  * the retry, so the artifact recording the regression was silently replaced by the one recording
  * the recovery, at the same path. Reproduced against the shipped script: two runs at
@@ -506,14 +464,12 @@ export function writeArtifact(outDir, round, attempt, verdictBody) {
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
   usage: "harness.mjs verify t0 <scope-contract.json> --round N --attempt M [--cwd <dir>] [--out <dir>] " +
-         "[--seesaw-registry <path>] [--no-seesaw] [--no-ratchet]",
+         "[--no-ratchet]",
   _: { arity: 1, max: 1, name: "scope-contract.json" },
   round: { type: "int", min: 1, required: true },
   attempt: { type: "int", min: 1, required: true },
   cwd: { type: "path" },
   out: { type: "path" },
-  "seesaw-registry": { type: "path" },
-  "no-seesaw": { type: "flag" },
   "no-ratchet": { type: "flag" },
 };
 
@@ -556,14 +512,7 @@ export async function cli(rawArgv) {
 
   const fixtures = runFixtures(contract.e2e_verification_fixtures, cwd);
   const dbProbe = runDbProbe(contract.db_probe, cwd);
-  // --seesaw-registry is expected explicitly (tech-lead always passes it, protocol.md 3c);
-  // standalone CLI use without it simply skips the seesaw check rather than guessing a path.
-  const seesawRegistry = args.noSeesaw ? null : args.seesawRegistry || null;
-  const seesaw = args.noSeesaw || fixtures.pass === false
-    ? { ran: false, pass: true, scopes_checked: [], failing: [] } // don't seesaw on an already-red attempt
-    : seesawCheck(seesawRegistry, cwd);
-
-  const verdict = computeVerdict({ fixtures, dbProbe, seesaw });
+  const verdict = computeVerdict({ fixtures, dbProbe });
   const discovered = verdict.overall === "red" ? digestFailures({ fixtures, dbProbe }) : [];
 
   // ---- the ratchet ---------------------------------------------------------------------
@@ -573,7 +522,7 @@ export async function cli(rawArgv) {
   const trialsPath = join(outDir, "t0", "trials.jsonl");
   const priorTrials = readTrials(trialsPath).filter((t) => t.scope_id === contract.scope_id);
   const baseline = [...priorTrials].reverse().find((t) => t.status === "kept" || t.status === "rebased") || null;
-  const s = score({ fixtures, dbProbe, seesaw });
+  const s = score({ fixtures, dbProbe });
   const verdictBetter = better(s, baseline ? baseline.score : null);
   const crashed = fixtures.results.some((r) => r.error) || !!dbProbe?.error;
   const { status, action } = decideStatus(verdictBetter, crashed);
@@ -598,7 +547,6 @@ export async function cli(rawArgv) {
     // could not tell apart, and why `exit` still reads the way it always did.
     fixtures: fixtures.results.map((r) => commandEvidence(r)),
     db_probe: commandEvidence(dbProbe),
-    seesaw,
     ...verdict,
     score: s,
     discovered_tasks: discovered,
@@ -654,7 +602,7 @@ export async function cli(rawArgv) {
   appendTrial(trialsPath, row);
 
   console.log(JSON.stringify({
-    path, sha256: hash, trial, overall: verdict.overall, regression: verdict.regression,
+    path, sha256: hash, trial, overall: verdict.overall,
     score: s, status, baseline_trial: row.baseline_trial, delta: row.delta,
     tree_ref: row.tree_ref ?? keptRef(contract.scope_id),
   }, null, 2));

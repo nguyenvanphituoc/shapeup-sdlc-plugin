@@ -106,7 +106,8 @@ function treeState(cwd) {
  * path, which is exactly the mechanism that made one tree build three ways.
  *
  * `null` means the profile declared nothing — NOT that there are none. "Not asked" and "none" are
- * different facts, and collapsing them is the mistake the seesaw arm already makes elsewhere.
+ * different facts, and collapsing them is the mistake that kept the hill's top phase shut for the
+ * life of the seesaw arm: "not asked" was recorded the same way as "nothing wrong".
  *
  * @param {(string|null)} profilePath - `shapeup/<slug>/project-profile.md`, when the caller knows it.
  * @returns {(object[]|null)} One entry per declared cache, or null when none is declared.

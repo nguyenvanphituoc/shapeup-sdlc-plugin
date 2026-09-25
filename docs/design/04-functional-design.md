@@ -31,7 +31,7 @@ flowchart TD
     subgraph LOOP["attempt 1 .. attempt_budget (default 5)"]
       A1["harness compile\n(scope contract + tasks + prior decisions\n+ last attempt's digested errors)"] --> A2["task-executor\n(fresh Agent — zero prior chat history)"]
       A2 --> A3["harness reduce ingest\n(board + ledger writes)"]
-      A3 --> A6["harness verify t0\nfixtures + DB probe + seesaw"]
+      A3 --> A6["harness verify t0\nfixtures + DB probe"]
       A6 --> A7{"T0 result"}
     end
     A7 -- green --> DONE["scope → DOWNHILL_EXECUTION"]
@@ -42,12 +42,12 @@ flowchart TD
 
 Two facts make this loop safe to run unattended: **zero-memory handoff** — each attempt is a
 fresh subagent that only ever sees what `harness compile` chose to put in the envelope, never
-prior chat — and the **seesaw check** inside T0, which re-runs other scopes' fixtures to catch a
-regression before it's mistaken for progress.
+prior chat — and the **round build gate**, which builds and launches the whole feature once per
+round, so a scope that broke its neighbour cannot be mistaken for progress.
 
 > This round is row **2** of the measurement table
 > ([§5.1](05-verification-and-quality-strategy.md#51--the-measurement-table)). Its verdicts are
-> per-run T0/seesaw facts; no acceptance-vs-baseline comparison is maintained. And any acceptance
+> per-run T0 facts; no acceptance-vs-baseline comparison is maintained. And any acceptance
 > observed in an uninterrupted round is a statement about a single context window — it says
 > nothing about what survives across one (row 3).
 
@@ -80,8 +80,8 @@ disk, per scope, at each round boundary:
 |---|---|
 | `UPHILL_UNKNOWN` | Open unknowns > 0 in the ledger for this scope |
 | `UPHILL_SOLVED` | Unknowns resolved, but no T0-green attempt recorded yet |
-| `DOWNHILL_EXECUTION` | At least one T0-green attempt in a round whose build gate is not red; final PASS or seesaw still pending |
-| `FINISHED` | Evaluator PASS *and* seesaw green *and* merged to main |
+| `DOWNHILL_EXECUTION` | At least one T0-green attempt in a round whose build gate is not red; the judge's final PASS still pending |
+| `FINISHED` | Evaluator PASS *and* a T0-green from a round that built |
 
 ## 4.5 — Gate walkthrough
 

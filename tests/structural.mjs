@@ -105,10 +105,11 @@ const MODULE_FILES = [
   // `ScopeContract` — every prior probe called `restore()` directly, which cannot see a caller-side
   // field-name bug or a fallback gated on the wrong condition.
   "28-t0-ratchet-fallback.mjs",
-  // 29-hill-seesaw.mjs: hill.mjs no longer infers a seesaw regression check as clean from
-  // `regression === false` when the check never ran (Phase 3.5 / S4). Its own module because no
-  // existing test drives `deriveHill()` against a T0 verdict artifact at all.
-  "29-hill-seesaw.mjs",
+  // 29-hill-finished.mjs: the hill's top phase was unreachable for the life of the seesaw arm —
+  // FINISHED required `seesaw.ran && seesaw.pass`, nothing ever wrote the registry that arm read,
+  // and no shard in any recorded run held it. The arm was removed by decision in 3.8.0; this pins
+  // what outlives it: FINISHED derives from a T1 pass and a T0 green from a round that built.
+  "29-hill-finished.mjs",
   // 30-order-id-collision.mjs: every operation, not only BUILD, now gets a per-leg discriminator
   // (Phase 3.5 / S5). Its own module because no existing test drives `compileOrder()` directly at
   // all — the collision only shows up when two non-BUILD calls for different scopes are compared.

@@ -11,8 +11,7 @@ it.
 |---|---|
 | **board** | The round's task list. "Green" means every task is done. GATE L2's hook reads this before an evaluation and warns if it is not green. |
 | **round** | One build → evaluate cycle. A FAIL verdict starts round *r+1*. |
-| **T0** | The smoke test a scope must pass before it counts as built: its fixtures + a DB probe + the seesaw. Writes an artifact to disk that the evaluator must cite. |
-| **seesaw** | The part of T0 that re-runs *other* scopes' fixtures — so a regression is never mistaken for progress. |
+| **T0** | The smoke test a scope must pass before it counts as built: its fixtures + a DB probe. Writes an artifact to disk that the evaluator must cite. |
 | **substrate** | The exact list of files one dispatch is allowed to write, stamped into its work order. A hook blocks anything outside it — and anything the order marks frozen. |
 | **scope contract** | The file defining one vertical slice: its substrate, its fixtures, its affordances. |
 | **affordance** | The thing a user can actually click, type or call. UI is graded on affordances, not on looks. |

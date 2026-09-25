@@ -172,7 +172,7 @@ export async function run(ctx) {
 
   // The unit-level truth table for the parser itself, including the exact reproduced case.
   const { parseArgs, ArgvError } = await import(join(ROOT, "kernel/lib/argv.mjs"));
-  const SPEC = { _: { arity: 1, name: "contract" }, round: { type: "int", min: 1, required: true }, "no-seesaw": { type: "flag" } };
+  const SPEC = { _: { arity: 1, name: "contract" }, round: { type: "int", min: 1, required: true }, "no-ratchet": { type: "flag" } };
   const reject = (argv, wantError, label) => {
     try {
       parseArgs(SPEC, argv);
@@ -184,7 +184,7 @@ export async function run(ctx) {
     }
   };
   // THE reproduced case: `--round --attempt 1` consumed the next FLAG as the value.
-  reject(["c.json", "--round", "--no-seesaw"], "invalid_flag", "a flag whose value is another flag");
+  reject(["c.json", "--round", "--no-ratchet"], "invalid_flag", "a flag whose value is another flag");
   reject(["c.json", "--round"], "missing_value", "a flag at the end of argv with no value");
   reject(["c.json", "--round", "abc"], "invalid_value", "a non-numeric int");
   reject(["c.json", "--round", "0"], "invalid_value", "an int below its declared minimum");
@@ -193,8 +193,8 @@ export async function run(ctx) {
   reject(["c.json", "--rounds", "1"], "unknown_flag", "an unknown flag");
   reject(["c.json"], "missing_required", "a missing required flag");
 
-  const good = parseArgs(SPEC, ["c.json", "--round", "3", "--no-seesaw"]);
-  if (good.round === 3 && good.noSeesaw === true && good._[0] === "c.json") ok("parseArgs coerces a valid argv, camelCasing flag names (--no-seesaw → noSeesaw)");
+  const good = parseArgs(SPEC, ["c.json", "--round", "3", "--no-ratchet"]);
+  if (good.round === 3 && good.noRatchet === true && good._[0] === "c.json") ok("parseArgs coerces a valid argv, camelCasing flag names (--no-ratchet → noRatchet)");
   else fail(`parseArgs mis-parsed a valid argv: ${JSON.stringify(good)}`);
 
   const eq = parseArgs(SPEC, ["c.json", "--round=4"]);

@@ -86,7 +86,7 @@ export async function run(ctx) {
         e2e_verification_fixtures: ["node -e \"process.stdout.write('x'.repeat(2*1024*1024))\""],
       });
       const r = spawnSync("node", [KERNEL, "verify", "t0", contractPath,
-        "--round", "1", "--attempt", "1", "--cwd", ws, "--out", outDir, "--no-seesaw"],
+        "--round", "1", "--attempt", "1", "--cwd", ws, "--out", outDir],
         { cwd: ws, encoding: "utf8" });
       const rows = trialRows(join(outDir, "t0", "trials.jsonl"));
       const row = rows.find((t) => t.scope_id === "SC-CRASH");
@@ -135,7 +135,7 @@ export async function run(ctx) {
         e2e_verification_fixtures: ["node -e \"process.exit(1)\""], // worse than baseline's 1/1
       });
       const r = spawnSync("node", [KERNEL, "verify", "t0", contractPath,
-        "--round", "1", "--attempt", "2", "--cwd", ws, "--out", outDir, "--no-seesaw"],
+        "--round", "1", "--attempt", "2", "--cwd", ws, "--out", outDir],
         { cwd: ws, encoding: "utf8" });
       const rows = trialRows(trialsPath);
       const row = rows.find((t) => t.scope_id === "SC-EXIST" && t.trial !== 1) || rows[rows.length - 1];
@@ -164,7 +164,7 @@ export async function run(ctx) {
         e2e_verification_fixtures: ["node -e \"process.exit(0)\""], // trial 1: green → kept
       });
       const r1 = spawnSync("node", [KERNEL, "verify", "t0", contractPath,
-        "--round", "1", "--attempt", "1", "--cwd", ws, "--out", outDir, "--no-seesaw"],
+        "--round", "1", "--attempt", "1", "--cwd", ws, "--out", outDir],
         { cwd: ws, encoding: "utf8" });
       const rows1 = trialRows(join(outDir, "t0", "trials.jsonl"));
       const kept = rows1.find((t) => t.scope_id === "SC-ROLL");
@@ -180,7 +180,7 @@ export async function run(ctx) {
           e2e_verification_fixtures: ["node -e \"process.exit(1)\""],
         });
         const r2 = spawnSync("node", [KERNEL, "verify", "t0", contractPath2,
-          "--round", "1", "--attempt", "2", "--cwd", ws, "--out", outDir, "--no-seesaw"],
+          "--round", "1", "--attempt", "2", "--cwd", ws, "--out", outDir],
           { cwd: ws, encoding: "utf8" });
         const rows2 = trialRows(join(outDir, "t0", "trials.jsonl"));
         const reverted = rows2[rows2.length - 1];

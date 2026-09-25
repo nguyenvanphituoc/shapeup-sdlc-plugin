@@ -236,7 +236,7 @@
         "to": "HillShard",
         "cardinality": "1:0..1",
         "via": "scope_id",
-        "note": "phase derived from T0/T1/seesaw facts, never authored"
+        "note": "phase derived from T0/T1 facts, never authored"
       },
       {
         "from": "ScopeContract",
@@ -251,13 +251,6 @@
         "cardinality": "1:N",
         "via": "fixtures[] + db_probe",
         "note": "produced by actually running the commands — no agent can fabricate them"
-      },
-      {
-        "from": "T0Artifact",
-        "to": "SeesawCheck",
-        "cardinality": "1:1",
-        "via": "seesaw",
-        "note": "the regression half of T0 — every FINISHED scope's fixtures re-run"
       },
       {
         "from": "T0Artifact",
@@ -286,13 +279,6 @@
         "cardinality": "1:N",
         "via": "payload.trial_history[]",
         "note": "inspect(): the loop reads its own recent history, across the round boundary"
-      },
-      {
-        "from": "SeesawRegistry",
-        "to": "ScopeContract",
-        "cardinality": "1:N",
-        "via": "scopes[].scope_id",
-        "note": "every FINISHED scope's fixtures re-run on each later attempt"
       },
       {
         "from": "UseCase",
@@ -528,7 +514,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Globs ≥2 scopes both touch — every write here forces a full seesaw run at the next gate."
+          "description": "Globs ≥2 scopes both touch — an edit here is read-modify-write, so two scopes that both declare one never build at the same time."
         },
         "append_only": {
           "type": "array",
@@ -844,7 +830,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Files ≥2 scopes both touch — must be declared in BOTH scopes' lists (spec-lint DISJOINT) and every write forces a full seesaw run."
+          "description": "Files ≥2 scopes both touch — must be declared in BOTH scopes' lists (spec-lint DISJOINT); declaring one costs concurrency, since two scopes that share a path build one at a time."
         },
         "affordance_manifest": {
           "type": "array",
@@ -872,7 +858,7 @@
             "DOWNHILL_EXECUTION",
             "FINISHED"
           ],
-          "description": "ALWAYS authored as UPHILL_UNKNOWN — self-reported confidence is the risk this closes. The live phase is DERIVED from T0/T1/seesaw facts into hill/<scope-id>.yml — facts move dots, not authors."
+          "description": "ALWAYS authored as UPHILL_UNKNOWN — self-reported confidence is the risk this closes. The live phase is DERIVED from T0/T1 facts into hill/<scope-id>.yml — facts move dots, not authors."
         },
         "superseded_by": {
           "type": "array",
@@ -1254,35 +1240,8 @@
         }
       }
     },
-    "SeesawCheck": {
-      "description": "The regression half of T0: every FINISHED scope's fixtures re-run from the SeesawRegistry. fixtures/db green + seesaw red = a REGRESSION (the new scope broke a finished one) → git stash rollback + retry, not 'fix the new scope's bug'.",
-      "x-tier": "EMBEDDED",
-      "type": "object",
-      "properties": {
-        "ran": {
-          "type": "boolean",
-          "description": "false when no registry was passed or the attempt was already red (don't seesaw a red attempt)."
-        },
-        "pass": {
-          "type": "boolean"
-        },
-        "scopes_checked": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "failing": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "scope_ids whose fixtures broke."
-        }
-      }
-    },
-    "T0Artifact": {
-      "description": "The mechanical verification verdict for one build attempt — the evidence layer under the LLM judge. Written by harness verify t0 from actually running the scope's fixtures + DB probe + seesaw; zero LLM tokens. spec-evaluator must cite it (sha256) on scoped specs. Red artifacts carry AEGIS triples that become the next attempt's digested_errors.",
+"T0Artifact": {
+      "description": "The mechanical verification verdict for one build attempt — the evidence layer under the LLM judge. Written by harness verify t0 from actually running the scope's fixtures and DB probe; zero LLM tokens. spec-evaluator must cite it (sha256) on scoped specs. Red artifacts carry AEGIS triples that become the next attempt's digested_errors.",
       "x-tier": "LOCAL",
       "x-location": ".shapeup/<slug>/t0/verdicts/r<N>-a<M>-t<T>.json (schema_version 2; the unsuffixed r<N>-a<M>.json of schema_version 1 is still readable)",
       "x-writer": "harness verify t0",
@@ -1327,9 +1286,6 @@
         "db_probe": {
           "$ref": "#/$defs/CommandResult"
         },
-        "seesaw": {
-          "$ref": "#/$defs/SeesawCheck"
-        },
         "fixtures_green": {
           "type": "boolean"
         },
@@ -1337,19 +1293,12 @@
           "type": "boolean",
           "description": "true when no probe declared (null probe never counts as failure)."
         },
-        "seesaw_green": {
-          "type": "boolean"
-        },
         "overall": {
           "type": "string",
           "enum": [
             "green",
             "red"
           ]
-        },
-        "regression": {
-          "type": "boolean",
-          "description": "fixtures+db green but seesaw red — the rollback+retry case."
         },
         "score": {
           "$ref": "#/$defs/T0Score",
@@ -1384,11 +1333,6 @@
       "x-tier": "EMBEDDED",
       "type": "object",
       "properties": {
-        "regressions": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Previously-FINISHED scopes now failing (seesaw). Dominates: breaking a shipped scope is never an improvement."
-        },
         "fixtures_passed": {
           "type": "integer",
           "minimum": 0
@@ -1412,7 +1356,6 @@
         }
       },
       "required": [
-        "regressions",
         "fixtures_passed",
         "fixtures_total"
       ]
@@ -1619,34 +1562,7 @@
         }
       }
     },
-    "SeesawRegistry": {
-      "description": "The fixture registry of every FINISHED scope — what seesawCheck re-runs on each later attempt so a new scope cannot silently break a shipped one — a regression mistaken for progress is the pathology the seesaw exists for.",
-      "x-tier": "LOCAL",
-      "x-location": ".shapeup/<slug>/seesaw/registry.json",
-      "x-writer": "tech-lead (when a scope reaches FINISHED)",
-      "x-readers": "harness verify t0",
-      "type": "object",
-      "properties": {
-        "scopes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "scope_id": {
-                "type": "string"
-              },
-              "fixtures": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "VerdictLedgerLine": {
+"VerdictLedgerLine": {
       "description": "One appended line of judge history (JSONL). Never rewritten — flips across runs are detected here and force confidence low. run auto-increments per append batch.",
       "x-tier": "LOCAL",
       "x-location": ".shapeup/<slug>/evaluation/.verdicts-<target>.jsonl",
@@ -1690,7 +1606,7 @@
       }
     },
     "HillShard": {
-      "description": "One scope's hill position — DERIVED, never self-reported: UPHILL_UNKNOWN (open unknowns > 0) → UPHILL_SOLVED (unknowns 0, no T0-green yet) → DOWNHILL_EXECUTION (≥1 T0-green; T1/seesaw pending) → FINISHED (T1 PASS ∧ seesaw green ∧ merged). Single-writer = whoever holds that scope's branch. Progress is reported by hill position, never task counts.",
+      "description": "One scope's hill position — DERIVED, never self-reported: UPHILL_UNKNOWN (open unknowns > 0) → UPHILL_SOLVED (unknowns 0, no T0-green yet) → DOWNHILL_EXECUTION (≥1 T0-green from a round that built; T1 pending) → FINISHED (T1 PASS ∧ that T0-green). Single-writer = whoever holds that scope's branch. Progress is reported by hill position, never task counts.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/hill/<scope-id>.yml",
       "x-writer": "tech-lead (GATE L2 derivation)",

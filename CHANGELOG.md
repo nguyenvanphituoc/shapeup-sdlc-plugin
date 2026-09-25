@@ -3,6 +3,46 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.8.0] — 2026-09-25 · The seesaw arm is removed, and the hill's top phase is reachable again
+
+### Removed: the seesaw regression check
+
+An arm that never ran is not a safety net, it is a closed door with a sign on it. `verify t0`
+carried a third check that was meant to re-run finished scopes' fixtures so a neighbour broken by
+one scope's work surfaced at the next attempt instead of at ship. It read a registry, and nothing
+in the plugin ever wrote one — not the orchestrator, not the compiler, not any worker. It therefore
+returned "did not run" on every attempt of every run.
+
+That silence was load-bearing in two places. The hill's top phase required the arm to have run and
+passed, so **FINISHED was unreachable by construction**: across thirty-eight committed hill shards
+from real features, not one holds it. And the attempt ratchet's score vector led with a
+`regressions` axis that was permanently zero, so the first key the ratchet ordered attempts by
+never discriminated between any two of them.
+
+The Betting Table call was wire it or delete it, and the answer was delete. Wiring it would have
+bought a real signal at a real price — every finished scope's fixtures re-run on every attempt of
+every later scope, which on a wide feature is minutes per attempt — for a risk that has one other
+mitigation already: substrates are disjoint, so a correct worker has no reason to reach a
+neighbour's files.
+
+What goes, in full: `seesawCheck()`, the `--seesaw-registry` and `--no-seesaw` flags, the
+`seesaw`/`seesaw_green`/`regression` fields on the T0 verdict artifact, the `regressions` axis on
+the score vector and the ranking key that read it, the two schema entities, and every mention in
+the shipped docs. What stays is the question the arm was asked: a T0 verdict still carries its
+fixtures and its DB probe, and the hill still refuses to move a dot on evidence that is not there.
+
+### FINISHED now means what it says
+
+A scope reaches the hill's top phase when the judge's T1 verdict passes and the scope holds a T0
+green from a round whose build gate is not red. Both halves are required and each is refused
+separately, so the phase is a derivation from evidence that exists rather than a slot held open by
+a check nobody wired.
+
+**Upgrading.** Nothing to do. A verdict artifact written by an earlier version keeps its extra
+fields and is read for the two arms that remain; a hill shard recorded before this release
+re-derives on the next run. If you passed `--seesaw-registry` or `--no-seesaw` to `verify t0` in
+your own tooling, both flags are now unknown and the call is rejected rather than ignored.
+
 ## [3.7.12] — 2026-09-25 · The release 3.7.10 and 3.7.11 could not ship
 
 Those two tags failed their own suite in CI and never published: a check written on a

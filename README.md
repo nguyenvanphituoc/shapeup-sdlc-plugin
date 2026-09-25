@@ -45,11 +45,11 @@ its fixtures and its DB probe and writes an artifact to disk — with each comma
 its captured output, and whether it ran at all. The evaluator must cite that artifact, and the
 hill phase is derived from artifacts rather than from a worker's own account of its progress.
 Two limits, stated here because the point of this section is that a claim without a mechanism
-behind it is the thing this harness exists to prevent: the **seesaw** regression arm is declared
-and not yet wired (no run writes its registry — wiring it is an open Betting Table decision), and
-the citation **re-hash** the kernel performs proves self-consistency, not provenance — the digest
-and the cited verdict are checked, the scope, round and run the artifact belongs to are not. Both are
-open items in `shapeup/knowledge-base/harness-defects.md`, not shipped guarantees. A T0 artifact is
+behind it is the thing this harness exists to prevent: a citation is re-hashed from disk, checked
+against the scope, round and run the artifact records, and refused unless it names a file this
+run's own verifier wrote — what that does NOT prove is that a judge with a dishonest hand could
+not have arranged the artifact first, which is why the judge's own substrate freezes the verdicts
+directory. A T0 artifact is
 also evidence about the machine that produced it, and now says so: each verdict carries where it
 ran — the absolute path, the git tree, the resolved toolchain, lockfile digests, declared cache
 directories and a digest over an allowlist of environment values — so a disagreeing re-run can be
@@ -132,8 +132,7 @@ rest of this README after this table and nothing will be a surprise.
 |---|---|
 | **board** | The round's task list. "Green" means every task is done. GATE L2's hook reads this before an evaluation and warns if it is not green. |
 | **round** | One build → evaluate cycle. A FAIL verdict starts round *r+1*. |
-| **T0** | The smoke test a scope must pass before it counts as built: its fixtures + a DB probe (the seesaw arm is declared and not yet wired — see §2 above). Writes an artifact to disk that the evaluator must cite. |
-| **seesaw** | The regression arm of T0, meant to re-run *other* scopes' fixtures so a regression is never mistaken for progress. Declared, not yet wired: no run writes its registry, so no run has executed it. |
+| **T0** | The smoke test a scope must pass before it counts as built: its fixtures and a DB probe. Writes an artifact to disk that the evaluator must cite. |
 | **substrate** | The exact list of files one dispatch is allowed to write, stamped into its work order. A hook blocks anything outside it — and anything the order marks frozen. |
 | **scope contract** | The file defining one vertical slice: its substrate, its fixtures, its affordances. |
 | **affordance** | The thing a user can actually click, type or call. UI is graded on affordances, not on looks. |
@@ -309,8 +308,8 @@ These hold across the harness and are the reason it stays predictable:
   of blocking the round. An opt-in third breaker bounds the **wall clock**, because the other two
   count events and neither can notice a single round running for half an hour — tripping it routes
   to GATE H, so a run out of time ships what is green instead of being killed and shipping nothing.
-- **Hill phase is mechanical, never self-reported** — derived only from T0/T1 facts (the seesaw
-  arm is declared, not yet wired), closing the self-reported-confidence risk. A scope with no
+- **Hill phase is mechanical, never self-reported** — derived only from T0/T1 facts, closing the
+  self-reported-confidence risk. A scope with no
   discovery ledger derives no phase rather than a solved one, so absence no longer reads as
   progress on that arm.
 - **One writer per shared file** — every board/ledger/verdict write goes through

@@ -614,7 +614,7 @@ or entirely `apps/api/**` with no cross-layer flow is the PA1 failure mode — r
 }
 ```
 `hill_phase` is always written `UPHILL_UNKNOWN` at generation time — it is derived later from
-mechanical T0/T1/seesaw facts, never declared by `ba`. `superseded_by` stays
+mechanical T0/T1 facts, never declared by `ba`. `superseded_by` stays
 `null` until a scope-architect `map-scopes` order retires this contract in favor of its replacements.
 
 **PA2 size lint:** a scope whose `allowed_file_substrate` glob set resolves to more than ~15

@@ -205,7 +205,7 @@ ingest-result <result>             → board/ledger writes
                                       fails, and the run ABORTS naming the phase. Resolve it
                                       yourself and record the answer in round-ledger.md, which
                                       the NEXT attempt's fresh context reads back.
-harness verify t0                      → fixtures + DB probe + (on green) seesaw, then scores the
+harness verify t0                      → fixtures + DB probe, then scores the
                                       attempt against the baseline trial and snapshots or
                                       restores the tree. Branch on `status` from its stdout
                                       JSON — the tree action has ALREADY happened:
@@ -217,9 +217,8 @@ harness verify t0                      → fixtures + DB probe + (on green) sees
               KEEPS, because a spec-conformance fix cannot raise a score that is already at
               full marks, and reverting it would discard exactly the work a fix round exists
               to do. Tree already restored from the last kept
-              snapshot. Subsumes the retired stash-and-retry branch: a FINISHED scope's broken
-              fixture raises score.regressions and reverts through this same rule, which
-              is why seesaw runs before anything is declared green.
+              snapshot. Subsumes the retired stash-and-retry branch: an attempt that scores
+              worse than the incumbent reverts through this same rule.
               rather than the code. Tree kept, baseline reset. Not a verdict, not a failure.
   crash     a fixture command failed to spawn or timed out; tree restored. Fix the fixture,
               not the code.
@@ -446,9 +445,8 @@ Do: verify the phase's artifact by hand before trusting either diagnosis. If it 
 ```
 Invoke via Bash directly — NOT an Agent, this is deterministic tooling, not a worker:
   node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify t0 shapeup/<slug>/scopes/<scope-id>.md
-        --round <N> --attempt <M> --seesaw-registry .shapeup/<slug>/seesaw/registry.json
-Effect: runs the scope's e2e fixtures + DB probe, then (on green) the seesaw regression check
-        over every FINISHED scope's fixtures. Writes the verdict artifact spec-evaluator's
+        --round <N> --attempt <M>
+Effect: runs the scope's e2e fixtures and DB probe. Writes the verdict artifact spec-evaluator's
         T0-citation rule will require a citation to, appends one row to t0/trials.jsonl, and — this
         is the ratchet — scores the attempt against the last kept trial and snapshots or
         restores the working tree ITSELF. Zero LLM tokens — deterministic tooling, not a
@@ -592,7 +590,7 @@ guarantee lives in the script and, where noted, in a hook.
 | Three-level circuit breaker: attempt_budget (inner, per scope) nests inside round_budget (outer), with an opt-in wall_clock_budget_s deadline | An exhausted scope queues a GATE H hammer proposal, it never blocks the round; only round_budget hitting 0 stops the whole run; the deadline breaker (checked every round boundary in `shapeup-run.js`) routes to GATE H so a run out of clock still ships what is green instead of being killed from outside |
 | The tech lead never hand-edits a scope contract | scope-architect is its sole writer (single-writer-per-file) |
 | Substrate-disjointness + PA1/PA2 lints are re-asserted at GATE L1b (harness verify spec) even when scope-architect already checked them | A human may have hand-approved past a 🔴 at the architect's checkpoint; `shapeup-run.js` runs spec-lint itself, in code, before resolving L1b |
-| Hill phase is read from mechanical facts (T0/T1/seesaw), never declared by a worker | Closes the self-reported-confidence risk outright — facts move dots, not authors |
+| Hill phase is read from mechanical facts (T0/T1), never declared by a worker | Closes the self-reported-confidence risk outright — facts move dots, not authors |
 | GATE H is delegated to scope-hammer, never adjudicated inline by the tech lead | Keeps the orchestrator thin; census/baseline-comparison/cut-list logic has one owner |
 
 ---

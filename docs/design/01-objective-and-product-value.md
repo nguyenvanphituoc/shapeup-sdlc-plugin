@@ -20,7 +20,7 @@ session drives.
 | Problem in unmanaged agent coding | What the harness does instead |
 |---|---|
 | The agent that writes the code also decides it's correct. | A dedicated `spec-evaluator` — skeptical by default, absence of evidence is a FAIL — runs exactly once per round, after the board is fully green. Single judge, never the builder. |
-| "It works" is a claim, not a fact. | Scoped builds require a **T0** mechanical artifact — fixtures, a DB probe, and a cross-scope regression check (*seesaw*) — before a verdict may even cite the work as done. |
+| "It works" is a claim, not a fact. | Scoped builds require a **T0** mechanical artifact — fixtures and a DB probe — before a verdict may even cite the work as done. |
 | A stuck agent either loops forever or silently gives up. | A **two-level circuit breaker**: an outer round budget and an inner per-scope attempt budget. An exhausted scope is queued as a proposal for a human decision — it never blocks the run and never loops silently. |
 | Parallel or multi-scope work steps on itself. | Each vertical scope gets a write-whitelisted file substrate, mechanically enforced by a `PreToolUse` hook — one scope's generator physically cannot edit another's files. |
 | Lessons learned in one sprint evaporate by the next. | PO feedback at ship sign-off is filed, by a categorization gate, into a committed **knowledge base** that the relevant skill reads back on its next run — team-shared on `git pull`, not trapped in one session. |

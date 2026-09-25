@@ -251,8 +251,7 @@ export async function run(ctx) {
     const { deriveHill } = await import(join(ROOT, "kernel/reduce/hill.mjs"));
     const t0 = (cwd, round) => w(cwd, `.shapeup/${SLUG}/t0/verdicts/r${round}-a1-t1.json`, {
       schema_version: 2, round, attempt: 1, trial: 1, scope_id: "pages", overall: "green",
-      fixtures_green: true, db_probe_green: true, seesaw_green: true, regression: false,
-      seesaw: { ran: false, pass: true, scopes_checked: [], failing: [] },
+      fixtures_green: true, db_probe_green: true,
     });
     t0(red, 1);
     const hillRed = deriveHill(red, SLUG).find((s) => s.scope_id === "pages");

@@ -85,8 +85,7 @@ const block = (scopeId, rows, dash = "—") =>
 function greenT0(cwd, scopeId, round = 1) {
   return w(cwd, `.shapeup/${SLUG}/t0/verdicts/r${round}-a1-t1.json`, {
     schema_version: 2, round, attempt: 1, trial: 1, scope_id: scopeId, overall: "green",
-    fixtures_green: true, db_probe_green: true, seesaw_green: true, regression: false,
-    seesaw: { ran: false, pass: true, scopes_checked: [], failing: [] },
+    fixtures_green: true, db_probe_green: true,
   });
 }
 

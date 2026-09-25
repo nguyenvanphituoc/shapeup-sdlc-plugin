@@ -216,8 +216,6 @@ export const trials = (cwd, slug) => join(t0Dir(cwd, slug), "trials.jsonl");
  * {@link decisions}, one small file with one writer.
  */
 export const gates = (cwd, slug) => join(localRoot(cwd, slug), "gates.jsonl");
-/** Finished-scope fixture registry for the seesaw regression check. */
-export const seesawRegistry = (cwd, slug) => join(localRoot(cwd, slug), "seesaw", "registry.json");
 /**
  * The round build gate's verdicts — one immutable artifact per gate run, `r<N>-t<T>.json`.
  *

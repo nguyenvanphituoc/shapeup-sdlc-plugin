@@ -7,6 +7,13 @@
 | **Decision** | Concurrent build legs share one working tree. Per-leg git worktrees are **declined**, and the isolation they were meant to provide is supplied by three narrower controls named below. |
 | **Affects** | the BUILD fan-out, `kernel/verify/ratchet-tree.mjs`, `kernel/verify/t0.mjs`, `hooks/sandbox-guard.mjs` |
 
+> **Amendment, 2026-09-25 (v3.8.0).** One of the three controls this record leans on — the seesaw
+> re-run of finished scopes' fixtures — has been removed. Nothing ever wrote the registry it read,
+> so it never ran on any recorded run; it was deleted rather than wired, by a Betting Table
+> decision. The decision below stands and the other two controls are unchanged, but the residual
+> risk named under **Accepted risk** is now larger by exactly that arm: a neighbour broken by an
+> unfenced Bash call surfaces at the next attempt only if that scope's own fixtures catch it.
+
 ## Context
 
 Scopes build concurrently. The plan that introduced the fan-out also called for running each build

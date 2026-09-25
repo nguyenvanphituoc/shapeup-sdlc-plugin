@@ -16,9 +16,10 @@
 // unchanged, before asserting the new locationless extraction at all.
 //
 // SEVERITY, READ CORRECTLY: this closes a signal-loss defect for the next attempt. It does NOT
-// by itself touch `verify t0`'s `score()` — that function scores `regressions`, `fixtures_passed`,
+// by itself touch `verify t0`'s `score()` — that function scores `fixtures_passed`,
 // `fixtures_total` and `db_probe` only (asserted below, read out of the shipped module rather than
-// asserted from memory), and this module makes no scoring claim.
+// asserted from memory), and this module makes no scoring claim. The vector carried a fourth axis,
+// `regressions`, until 3.8.0 removed the seesaw arm that was its only source.
 
 import { join } from "node:path";
 
@@ -45,10 +46,9 @@ export async function run(ctx) {
     const vec = t0.score({
       fixtures: { results: [{ pass: true }, { pass: false }] },
       dbProbe: { pass: true },
-      seesaw: { ran: false, failing: [] },
     });
     const axes = Object.keys(vec).sort();
-    const expected = ["db_probe", "fixtures_passed", "fixtures_total", "regressions"].sort();
+    const expected = ["db_probe", "fixtures_passed", "fixtures_total"].sort();
     if (JSON.stringify(axes) === JSON.stringify(expected)) {
       ok(`verify t0's score() carries exactly the documented axes (${axes.join(", ")}) — no own_errors axis exists at this HEAD`);
     } else {

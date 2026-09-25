@@ -16,7 +16,6 @@ is pinned by a guard, never when it is merely believed done.
 | HD-067 | the board's `covers:` clauses are instructed and not enforced — a regenerated board can carry none, and the matrix then reads no evidence for everything | P2 |
 | HD-027 | two harness rules collide, and the collision hard-aborts a run at L1b | P1 |
 | HD-021 | a per-scope "it compiles" fixture can be green while the scope's code is unreachable | P3 |
-| HD-048 | DECIDE: wire the seesaw regression arm or delete it — the absence no longer reads as a pass | decision |
 | HD-051 | a build leg can forge a CONCURRENTLY-LIVE sibling's WorkResult — narrowed, and the guard cannot see who writes | P2 |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
@@ -136,26 +135,6 @@ is pinned by a guard, never when it is merely believed done.
   (3.3.0) is what caught it, which is the design working; what is missing is attribution, and that
   lands on the same two entries above. Filed as craft, not mechanism: a scope's build fixture proves
   nothing until the scope's code is reachable, and the knowledge base is where that rule belongs.
-
-- **HD-048 · DECIDE: wire the seesaw regression arm, or delete it.** Filed 2026-09-24 so the
-  README's newly honest pointer resolves to something; narrowed 2026-09-25 to the decision itself.
-
-  Nothing writes the registry the arm reads. The orchestrator's call template passes
-  `--seesaw-registry`, and a grep across the kernel, the skills and the commands finds the flag's
-  parser, the path resolver, the reader and the schema — no writer. Every mention in the shipped
-  docs now says "declared, not yet wired", so no reader is told they have a regression arm they do
-  not have.
-
-  **What is no longer part of this row.** A check that did not run recorded `pass: true`, which is
-  how "not asked" came to read as "nothing regressed" — the hill's own comment says so. It records
-  `pass: null` now, and the verdict treats an unrun arm as non-blocking rather than as green, which
-  is the same behaviour stated honestly: a build is not held red by an arm nobody wired, and the
-  hill still requires `ran && pass` before a scope may reach FINISHED.
-
-  **Closed when:** the PO decides. Either a run writes the registry and a fixture proves a
-  regression in a finished scope turns a green attempt red, or the arm, the flag and every mention
-  of it are gone. This is a Betting Table call, not an engineering one: it adds a measurement or it
-  removes a promise.
 
 - **HD-051 · A build leg can forge a concurrently-live sibling's WorkResult.** Filed 2026-09-24 by
   the acceptance pass on the attestation freeze; narrowed and re-measured 2026-09-25.

@@ -7,6 +7,11 @@
 | **Supersedes** | the two-root layout introduced in v0.3.0 (`docs/shapeup-sdlc/` + `.shapeup-sdlc/`) |
 | **Affects** | every skill, hook and script that names a generated path; existing installs (migration `0006`) |
 
+> **Amendment, 2026-09-25 (v3.8.0).** The tree below no longer lists `t0/seesaw/registry.json`. The
+> seesaw arm that would have written it was removed before it ever ran, so the path never existed on
+> any install; keeping it in the layout would describe a file a reader cannot find. The tiering
+> decision this record makes is unaffected.
+
 ## Context
 
 The harness generates ~90 distinct artifacts inside a user's repository across six lifecycles,
@@ -92,7 +97,7 @@ shapeup/
 │   │   api-feasibility.md  integration.md  digest.md  run-summary.md
 │   ├── round-ledger.md                     was shared; mid-run churn
 │   ├── orders/*.json  results/*.json
-│   ├── t0/verdicts/*.json  t0/trials.jsonl  seesaw/registry.json
+│   ├── t0/verdicts/*.json  t0/trials.jsonl
 │   ├── evaluation/  qa/  trace/  orient/  spikes/
 │   └── discovery/ledger.md  escalates/*.json
 ├── active-scope  decisions.jsonl

@@ -130,7 +130,7 @@ export async function run(ctx) {
       const t0 = spawnSync(process.execPath, [
         join(ROOT, "kernel/harness.mjs"), "verify", "t0", contract,
         "--round", "1", "--attempt", "1", "--cwd", ws,
-        "--out", join(ws, ".shapeup", "budgets"), "--no-seesaw", "--no-ratchet",
+        "--out", join(ws, ".shapeup", "budgets"), "--no-ratchet",
       ], { cwd: ws, encoding: "utf8", timeout: 60_000 });
       const verdictDir = join(ws, ".shapeup", "budgets", "t0", "verdicts");
       const artifacts = existsSync(verdictDir) ? readdirSync(verdictDir) : [];

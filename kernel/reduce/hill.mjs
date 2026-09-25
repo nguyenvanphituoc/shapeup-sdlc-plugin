@@ -144,8 +144,8 @@ function committedPhase(hDir, id) {
  * - UPHILL_UNKNOWN: open unknowns > 0 in the ledger for this scope — and the floor the scope sits
  *   at whenever the ledger has not answered at all, which is where every run legitimately begins
  * - UPHILL_SOLVED: the ledger was read and reports zero open unknowns, no T0-green yet
- * - DOWNHILL_EXECUTION: ≥1 T0-green in a round whose build gate is not red; T1/seesaw pending
- * - FINISHED: T1 PASS ∧ seesaw green
+ * - DOWNHILL_EXECUTION: ≥1 T0-green in a round whose build gate is not red; T1 pending
+ * - FINISHED: T1 PASS ∧ a T0-green that a red round did not invalidate
  *
  * @param {string} cwd - The project root directory.
  * @param {string} slug - The feature slug being built.
@@ -230,18 +230,16 @@ export function deriveHill(cwd, slug) {
     }
   }
 
-  // 2. T0 facts per scope: has it achieved a green overall verdict? was seesaw also green?
+  // 2. T0 facts per scope: has it achieved a green overall verdict this run?
   //
-  // MINUS THE ROUNDS WHOSE BUILD GATE IS RED. A T0 verdict is one scope's fixtures inside its own
-  // substrate; the round build gate (`verify build`) is the feature's build and launch. Measured on
-  // a live run, all fourteen committed shards read DOWNHILL_EXECUTION off T0 verdicts from rounds in
-  // which the app never compiled and never launched — the dashboard showed a feature going downhill
-  // that had not started. A green fixture in a round the gate failed is not evidence the scope
-  // works; it is evidence the fixture does not test the build. No gate artifact at all leaves every
-  // verdict counting exactly as before.
+  // FINISHED USED TO WAIT ON AN ARM THAT NEVER RAN. The phase required `seesaw.ran && seesaw.pass`,
+  // nothing in the codebase ever wrote the registry that arm read, and so no scope in any recorded
+  // run reached FINISHED — 38 committed shards on the live consumer, not one of them. The arm was
+  // removed in 3.8.0 by decision; the precondition goes with it, and the top phase is reachable
+  // again on the evidence that does exist: T1 passed, and a T0 green from a round the build gate
+  // did not red.
   const redRounds = redBuildRounds(cwd, slug);
   const t0Facts = {};
-  // This run's verdicts only — a prior run's green over the same slug moved this run's dot.
   const hillRunId = readRunId(cwd, slug);
   if (existsSync(vDir)) {
     for (const f of readdirSync(vDir)) {
@@ -249,41 +247,21 @@ export function deriveHill(cwd, slug) {
       try {
         const b = JSON.parse(readFileSync(join(vDir, f), "utf8"));
         if (hillRunId && b.run_id && b.run_id !== hillRunId) continue;
-        if (!t0Facts[b.scope_id]) t0Facts[b.scope_id] = { hasGreen: false, seesawGreen: false };
-        if (b.overall === "green" && !redRounds.has(Number(b.round))) {
-          t0Facts[b.scope_id].hasGreen = true;
-          // Read the REAL seesaw result off the verdict artifact (`t0.mjs`'s `writeArtifact()`
-          // already persists the full `{ran, pass, scopes_checked, failing}` object), rather than
-          // inferring it from a false `regression` flag. That inference was vacuously true on every
-          // green T0 whether or not a seesaw check ever ran: nothing in this codebase currently
-          // passes `--seesaw-registry` to `verify t0`, so `seesaw.ran` is always `false` today and
-          // `regression` is always `false` too — "not asked" was being read as "clean," letting a
-          // scope reach FINISHED on a regression check that had never executed.
-          //
-          // Betting Table decision (Phase 3.5 / S4): wiring the seesaw registry for real is a
-          // genuine feature with a real running cost (re-running every finished scope's fixtures
-          // on every later attempt) and is out of proportion to a certification-gap fix. Deferred,
-          // not silently dropped — a scope with no registry wired simply cannot reach FINISHED via
-          // this path today, which is the honest state of the system: this check was never really
-          // gating FINISHED before either.
-          if (b.seesaw?.ran && b.seesaw?.pass) {
-            t0Facts[b.scope_id].seesawGreen = true;
-          }
-        }
-      } catch (e) {
-        // ignore parse errors
+        if (!t0Facts[b.scope_id]) t0Facts[b.scope_id] = { hasGreen: false };
+        if (b.overall === "green" && !redRounds.has(Number(b.round))) t0Facts[b.scope_id].hasGreen = true;
+      } catch {
+        // A torn or unreadable verdict proves nothing about the scope — skip it rather than let it
+        // decide a phase.
       }
     }
   }
-  
-  // 3. Ledger unknowns per scope — `null` for every scope when the ledger itself was not readable
-  //    or nothing in it named a scope (see `ledgerUnknowns`). Only a real count can promote.
+
   const scopeUnknowns = ledgerUnknowns(ledgerPath, scopes);
 
   const report = [];
   for (const s of scopes) {
     const id = s.scope_id;
-    const t0 = t0Facts[id] || { hasGreen: false, seesawGreen: false };
+    const t0 = t0Facts[id] || { hasGreen: false };
     // `null` = the ledger did not answer; a number = it did. `|| 0` collapsed the two.
     const unknowns = scopeUnknowns === null ? null : (scopeUnknowns[id] || 0);
 
@@ -291,7 +269,7 @@ export function deriveHill(cwd, slug) {
     // it — including before Orient has filed anything, which is where every run legitimately
     // starts. Only an ANSWERED count of zero promotes to UPHILL_SOLVED; `null` never does.
     let phase = "UPHILL_UNKNOWN";
-    if (t1Pass && t0.hasGreen && t0.seesawGreen) {
+    if (t1Pass && t0.hasGreen) {
       phase = "FINISHED";
     } else if (t0.hasGreen) {
       phase = "DOWNHILL_EXECUTION";

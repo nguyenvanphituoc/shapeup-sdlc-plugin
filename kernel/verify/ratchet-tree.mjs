@@ -4,7 +4,7 @@
 //
 // The attempt loop branched a red T0 two ways, and only one of them reverted anything:
 //
-//   • a SEESAW regression (a previously-finished scope broke) → `git stash push -u`;
+//   • a trial that scored worse than the incumbent → `git stash push -u`;
 //   • a red on the scope's OWN fixtures → "loop to the next attempt", and no revert at all.
 //
 // So the failing tree stayed on the branch, and attempt N+1's fresh, zero-memory subagent began

@@ -122,7 +122,7 @@ export async function run(ctx) {
 
       const r = spawnSync("node", [KERNEL, "verify", "t0", join(ws, `shapeup/${SLUG}/scopes/SC-A.json`),
         "--round", "1", "--attempt", "2", "--cwd", ws, "--out", join(ws, ".shapeup", SLUG),
-        "--no-seesaw", "--no-ratchet"], { cwd: ws, encoding: "utf8" });
+        "--no-ratchet"], { cwd: ws, encoding: "utf8" });
       const rows = lines(join(ws, `.shapeup/${SLUG}/t0/trials.jsonl`)).map((l) => JSON.parse(l));
       const mine = rows.filter((t) => t.scope_id === "SC-A");
       const fresh = mine[mine.length - 1];
@@ -183,7 +183,7 @@ export async function run(ctx) {
       }
       const res = await race(ids.map((id) => [KERNEL, "verify", "t0", join(ws, `shapeup/${SLUG}/scopes/${id}.json`),
         "--round", "1", "--attempt", "1", "--cwd", ws, "--out", join(ws, ".shapeup", SLUG),
-        "--no-seesaw", "--no-ratchet"]), ws);
+        "--no-ratchet"]), ws);
       const crashed = res.filter((r) => r.code !== 0 && r.code !== 1);
       if (crashed.length === 0) ok("four concurrent `verify t0` processes all completed");
       else fail(`${crashed.length}/4 concurrent verify t0 processes failed: ${crashed[0].err.slice(0, 200)}`);

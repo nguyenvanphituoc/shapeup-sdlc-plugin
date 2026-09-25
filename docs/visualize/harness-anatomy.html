@@ -520,7 +520,7 @@ flowchart TD
     TE --> SG{{"sandbox-guard.mjs<br/>on every Edit/Write"}}
     SG -->|"outside substrate"| DENY3[DENY write]
     SG -->|"inside substrate"| ING(["ingest-result.mjs<br/>SOLE WRITER"])
-    ING --> T0(["t0-verify.mjs<br/>fixtures + probe + seesaw"])
+    ING --> T0(["t0-verify.mjs<br/>fixtures + probe"])
     T0 -->|"kept / rebased"| NEXT([next attempt builds on this tree])
     T0 -->|"reverted / crash"| REST([restore last kept tree])
     NEXT --> CO
@@ -604,7 +604,7 @@ sequenceDiagram
   IN-->>TL: summary of every write performed
 
   TL->>T0: t0-verify SC-02.json --round 2 --attempt 3
-  T0->>T0: run fixtures · db probe · seesaw
+  T0->>T0: run fixtures · db probe
   T0->>T0: score() → better() → decideStatus()
   T0->>T0: snapshot or restore the working tree
   T0-->>TL: {status, score, delta, sha256, tree_ref}

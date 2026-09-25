@@ -146,9 +146,7 @@ erDiagram
     Verdict ||--o{ T0Citation : "t0_citations[] (required on scoped specs)"
     T0Citation }o--|| T0Artifact : "path + recomputed sha256"
     T0Artifact ||--o{ CommandResult : "fixtures[] + db_probe"
-    T0Artifact ||--|| SeesawCheck : "seesaw"
     T0Artifact ||--o{ AegisTriple : "discovered_tasks[] (red only) → next order"
-    SeesawRegistry ||--o{ ScopeContract : "scopes[].scope_id — FINISHED fixtures re-run"
 
     Verdict {
         enum overall "PASS | FAIL — all dimensions must pass (halo banned)"
@@ -179,30 +177,19 @@ erDiagram
         string scope_id FK
         bool fixtures_green
         bool db_probe_green "true when no probe declared"
-        bool seesaw_green
         enum overall "green | red"
-        bool regression "green fixtures + red seesaw → rollback + retry"
     }
     CommandResult {
         string cmd
         int exit
         bool pass "produced by actually running it"
     }
-    SeesawCheck {
-        bool ran "false on an already-red attempt"
-        bool pass
-        string[] scopes_checked
-        string[] failing "scope_ids whose fixtures broke"
-    }
-    SeesawRegistry {
-        json[] scopes "LOCAL seesaw/registry.json — scope_id + fixtures[]"
-    }
 ```
 
 ## 7.3 — Scope contracts and derived state
 
 `scope-architect` is the sole writer of ScopeContract; hill phase is derived from
-T0/T1/seesaw facts, never authored (DD-10). Superseded contracts are kept, never deleted.
+T0/T1 facts, never authored. Superseded contracts are kept, never deleted.
 
 ```mermaid
 erDiagram
@@ -241,7 +228,6 @@ erDiagram
 | Entity | Tier | Location | Sole writer | Readers |
 |---|---|---|---|---|
 | `VerdictLedgerLine` | LOCAL | `evaluation/.verdicts-<target>.jsonl` | harness reduce ingest | spec-evaluator (flip detection), harness reduce verdict |
-| `SeesawRegistry` | LOCAL | `seesaw/registry.json` | tech-lead (scope FINISHED) | harness verify t0 |
 | `MetricsRow` | SHARED | `metrics/<machine-id>.jsonl` | tech-lead (SHIP S.6) | harness probe stats (v1.2: optional `at` + `attempt_exhaustions` fields) |
 | `ActiveScopePointer` | LOCAL | `.shapeup/active-scope` | harness init run (GATE L0) — write-once per run, not writable by any worker | harness report export, harness reduce snapshot, harness verify budget. **No hook reads it**: the advisory hooks that once did were retired with the hook diet, and `sandbox-guard` never read it |
 | `ActiveOrderPointer` | LOCAL | `.shapeup/active-order` | harness compile (published as it writes each order); retired by harness reduce ship and harness init run --force | sandbox-guard hook. It names the RUN and nothing more: the guard enforces the substrate of *every* live order for that run — compiled, with no result at least as new as the order's own `compiled_at` — because with scopes building concurrently the writer may not be the order the pointer happens to name, and because an order the pointer named is not thereby still executing |

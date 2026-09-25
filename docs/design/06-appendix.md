@@ -63,7 +63,7 @@ examples/                worked fixtures + negative controls for the oracle regi
 - **Three circuit breakers, one exit.** An exhausted scope queues a proposal and never blocks the
   round; the outer round budget and the opt-in wall-clock budget both end the loop. All three
   route to GATE H — the run's ending is a ship decision made against what is green, never a kill.
-- **Hill phase is mechanical.** Derived only from T0 / T1 / seesaw facts — never self-reported
+- **Hill phase is mechanical.** Derived only from T0 / T1 facts — never self-reported
   by a worker.
 - **Envelope port.** Every dispatch is WorkOrder in / WorkResult out; shared state is written
   only by `harness reduce ingest`. A malformed envelope is denied before it reaches a worker.

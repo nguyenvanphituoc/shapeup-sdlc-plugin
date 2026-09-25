@@ -29,7 +29,7 @@ export async function run(ctx) {
   const t0Path = join(ROOT, "kernel/verify/t0.mjs");
   if (existsSync(t0Path)) {
     const {
-      runFixtures, runDbProbe, seesawCheck, computeVerdict, writeArtifact,
+      runFixtures, runDbProbe, computeVerdict, writeArtifact,
       score, better, decideStatus, readTrials, appendTrial, nextTrialNo,
     } = await import(t0Path);
 
@@ -44,16 +44,20 @@ export async function run(ctx) {
     if (runDbProbe(null, ROOT) === null) ok("t0-verify runDbProbe is a no-op (null) when no db_probe is declared — never a false failure");
     else fail("t0-verify runDbProbe should return null when no db_probe command is given");
 
-    const verdictGreen = computeVerdict({ fixtures: green, dbProbe: null, seesaw: { ran: false, pass: true } });
-    if (verdictGreen.overall === "green" && !verdictGreen.regression) ok("t0-verify computeVerdict is green + non-regression when fixtures pass and seesaw didn't run");
+    // THE ARM THIS USED TO ALSO TEST IS GONE (3.8.0, by decision — see the register). What the
+    // verdict is made of now is the fixtures and the DB probe, and the cases below are the same
+    // three questions asked of the two arms that exist.
+    const verdictGreen = computeVerdict({ fixtures: green, dbProbe: null });
+    if (verdictGreen.overall === "green") ok("t0-verify computeVerdict is green when the fixtures pass and no DB probe is declared");
     else fail(`t0-verify computeVerdict wrong on an all-green input: ${JSON.stringify(verdictGreen)}`);
 
-    const verdictRegression = computeVerdict({ fixtures: green, dbProbe: null, seesaw: { ran: true, pass: false } });
-    if (verdictRegression.overall === "red" && verdictRegression.regression) ok("t0-verify computeVerdict flags a seesaw failure as a regression (own fixtures green, seesaw red)");
-    else fail(`t0-verify computeVerdict did not flag the seesaw-red case as a regression: ${JSON.stringify(verdictRegression)}`);
+    const verdictDbFail = computeVerdict({ fixtures: green, dbProbe: { pass: false } });
+    if (verdictDbFail.overall === "red" && verdictDbFail.fixtures_green === true && verdictDbFail.db_probe_green === false) {
+      ok("t0-verify computeVerdict reds on a failing DB probe and still records which arm passed");
+    } else fail(`t0-verify computeVerdict did not red a failing DB probe: ${JSON.stringify(verdictDbFail)}`);
 
-    const verdictOwnFail = computeVerdict({ fixtures: red, dbProbe: null, seesaw: { ran: false, pass: true } });
-    if (verdictOwnFail.overall === "red" && !verdictOwnFail.regression) ok("t0-verify computeVerdict distinguishes an own-fixture failure from a regression");
+    const verdictOwnFail = computeVerdict({ fixtures: red, dbProbe: null });
+    if (verdictOwnFail.overall === "red" && verdictOwnFail.fixtures_green === false) ok("t0-verify computeVerdict reds on the scope's own failing fixtures");
     else fail(`t0-verify computeVerdict wrongly classified an own-fixture failure: ${JSON.stringify(verdictOwnFail)}`);
 
     // Artifact write + citation hash — what spec-evaluator's GATE V0.7 will read and re-verify.
@@ -88,13 +92,15 @@ export async function run(ctx) {
     }
 
     // ---- the pawl: score() / better() / decideStatus() -----------------------------------
-    const sc = score({ fixtures: { results: [{ pass: true }, { pass: true }, { pass: false }] }, dbProbe: { pass: true }, seesaw: { ran: true, failing: ["checkout"] } });
-    if (sc.fixtures_passed === 2 && sc.fixtures_total === 3 && sc.db_probe === 1 && sc.regressions === 1) ok("t0-verify score() reduces the already-persisted fixture results into a comparable vector");
+    const sc = score({ fixtures: { results: [{ pass: true }, { pass: true }, { pass: false }] }, dbProbe: { pass: true } });
+    if (sc.fixtures_passed === 2 && sc.fixtures_total === 3 && sc.db_probe === 1) ok("t0-verify score() reduces the already-persisted fixture results into a comparable vector");
     else fail(`t0-verify score() wrong: ${JSON.stringify(sc)}`);
-    if (score({ fixtures: { results: [] }, dbProbe: null, seesaw: { ran: false, failing: [] } }).db_probe === null) ok("t0-verify score() reports db_probe null (an absence) when no probe is declared — never a 0");
+    if (score({ fixtures: { results: [] }, dbProbe: null }).db_probe === null) ok("t0-verify score() reports db_probe null (an absence) when no probe is declared — never a 0");
     else fail("t0-verify score() turned an undeclared db_probe into a failure");
 
-    const S = (r, p, t, d) => ({ regressions: r, fixtures_passed: p, fixtures_total: t, db_probe: d });
+    // The first argument was the regression count until 3.8.0 removed the arm that produced it; the
+    // helper keeps its shape so every case below reads as it did, and ignores it.
+    const S = (_r, p, t, d) => ({ fixtures_passed: p, fixtures_total: t, db_probe: d });
     const truth = [
       ["baseline (no incumbent) is always better", better(S(0, 0, 5, null), null), true],
       // The whole ratchet: RED BUT IMPROVED is kept. 2/5 → 4/5 is progress, and the loop must
@@ -109,10 +115,7 @@ export async function run(ctx) {
       // the fix away. Measured: round 2 produced 6 trials, 0 kept, 6 reverted, the entry point
       // byte-for-byte unchanged, all three cited bugs still reproducing.
       ["a tie on a GREEN scope KEEPS (else EVAL's findings can never be fixed)", better(S(0, 5, 5, 1), S(0, 5, 5, 1)), true],
-      ["a green tie with an outstanding regression is still not better", better(S(1, 5, 5, 1), S(1, 5, 5, 1)), false],
       ["a zero-fixture 'tie' is not green and does not keep", better(S(0, 0, 0, null), S(0, 0, 0, null)), false],
-      ["a new regression dominates a fixture gain", better(S(1, 5, 5, null), S(0, 2, 5, null)), false],
-      ["clearing a regression is better even with fewer fixtures", better(S(0, 1, 5, null), S(1, 4, 5, null)), true],
       ["a db_probe recovery is better when all else ties", better(S(0, 2, 5, 1), S(0, 2, 5, 0)), true],
       ["a changed denominator is incomparable (null), not worse", better(S(0, 4, 6, null), S(0, 2, 5, null)), null],
       ["a changed denominator is null even when it looks like a win", better(S(0, 9, 9, null), S(0, 1, 5, null)), null],
@@ -151,30 +154,6 @@ export async function run(ctx) {
       rmSync(ledgerDir, { recursive: true, force: true });
     }
 
-    // Seesaw over a registry with one always-failing scope.
-    const regDir = mkdtempSync(join(tmpdir(), "t0-seesaw-"));
-    try {
-      const regPath = join(regDir, "registry.json");
-      writeFileSync(regPath, JSON.stringify({ scopes: [{ scope_id: "checkout", fixtures: ["node -e \"process.exit(1)\""] }] }));
-      const s = seesawCheck(regPath, ROOT);
-      if (s.ran && !s.pass && s.failing.includes("checkout")) ok("t0-verify seesawCheck detects a regressed FINISHED scope");
-      else fail(`t0-verify seesawCheck did not detect the seeded regression: ${JSON.stringify(s)}`);
-      // A CHECK THAT DID NOT RUN HAS NO RESULT. This used to expect `pass: true` for an absent
-      // registry — "no-op-green" — which is how "not asked" came to read as "nothing regressed" in
-      // the hill's own comment. The substance the case protects is unchanged and still asserted
-      // below: an absent registry must not turn a build red while the arm is unwired.
-      const none = seesawCheck(join(regDir, "does-not-exist.json"), ROOT);
-      if (none.ran === false && none.pass === null) ok("t0-verify seesawCheck records ran:false, pass:null with no registry — an unrun check reports no result, not a clean one");
-      else fail(`t0-verify seesawCheck reported ${JSON.stringify(none)} for an absent registry — an unrun check must not claim a pass`);
-      const { computeVerdict } = await import(join(ROOT, "kernel/verify/t0.mjs"));
-      const unrun = computeVerdict({ fixtures: { pass: true }, dbProbe: null, seesaw: none });
-      if (unrun.overall === "green" && unrun.seesaw_green === true && unrun.regression === false) {
-        ok("and an absent seesaw still does not hold a green build red — the arm is declared and unwired, and blocking every build on it would be a different defect");
-      } else fail(`an absent seesaw changed the verdict: ${JSON.stringify(unrun)}`);
-    } finally {
-      rmSync(regDir, { recursive: true, force: true });
-    }
-
     // ---- the writer and the reader must agree on WHERE ------------------------------------
     //
     // Everything above tests T0's functions in process. None of it asks the question that actually
@@ -201,7 +180,7 @@ export async function run(ctx) {
         "hill_phase: UPHILL_UNKNOWN", "---", "", "# Scope: sc-01", "",
       ].join("\n"));
       const rv = spawnSync("node", [...K("verify t0"), join(t0box, "shapeup/demo/scopes/sc-01.md"),
-        "--round", "1", "--attempt", "1", "--cwd", t0box, "--no-seesaw", "--no-ratchet"], { encoding: "utf8" });
+        "--round", "1", "--attempt", "1", "--cwd", t0box, "--no-ratchet"], { encoding: "utf8" });
       const rp = spawnSync("node", [...K("probe t0"), "--slug", "demo", "--scope", "sc-01", "--round", "1", "--cwd", t0box], { encoding: "utf8" });
       let seen = null;
       try { seen = JSON.parse(rp.stdout); } catch { /* asserted below */ }
@@ -1073,7 +1052,7 @@ export async function run(ctx) {
   // evaluator is required to cite. Both directions are checked, because refusing everything would
   // be just as wrong as certifying everything.
   const { runFixtures, computeVerdict } = await import(join(ROOT, "kernel/verify/t0.mjs"));
-  const verdictFor = (fx) => computeVerdict({ fixtures: runFixtures(fx, ROOT), dbProbe: null, seesaw: { ran: false, pass: true } });
+  const verdictFor = (fx) => computeVerdict({ fixtures: runFixtures(fx, ROOT), dbProbe: null });
   for (const [label, fx] of [["absent", undefined], ["empty", []]]) {
     const r = runFixtures(fx, ROOT);
     if (!r.pass && r.ran === false && verdictFor(fx).overall === "red") {
