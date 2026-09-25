@@ -26,12 +26,13 @@
 // pretty-printed envelope, colocated so audits can read it). Prints the path on stdout.
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
+import { discover, resolve as resolveGate, appendGateLedger, PRESETS } from "./gate.mjs";
 import { resolve, join, dirname, basename, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validate } from "./verify/envelope.mjs";
 import { readTrials } from "./verify/t0.mjs";
 import { runArgs } from "./lib/argv.mjs";
-import { readRunId, dispatchReceipts, legLedger } from "./lib/paths.mjs";
+import { readRunId, dispatchReceipts, legLedger, readReceipt, receipt } from "./lib/paths.mjs";
 // `specDir` is aliased: this module has a local `let specDir` holding the resolved, possibly
 // --spec-overridden directory, and the import is the convention-derived default.
 import {
@@ -928,6 +929,28 @@ export async function cli(rawArgv) {
     || (scopePath || flag("task") || has("next") ? "task-executor" : null)
     || (operation ? OP_OWNER[operation] : null);
   if (!worker || !operation) { console.error("compile-order: could not resolve --worker/--operation"); process.exit(2); }
+
+  // GATE COACH-1 HAS A DETERMINISTIC CALL SITE: THE COACH DISPATCH. The gate asks whether a PO is
+  // present to categorize feedback; its answer used to be a prose instruction inside the coach
+  // skill, so an unattended lane could dispatch a coach nobody would answer and no row recorded the
+  // decision. Compiling the coach order resolves it with the run's own answer set and records the
+  // row; `skip` refuses the order, which is what "no live PO" means. `ask` compiles it — the
+  // categorization conversation the coach then holds IS the answer.
+  if (operation === "coach") {
+    const ga = readReceipt(receipt(cwd, slug))?.config?.gate_answers ?? null;
+    const presetName = ga && PRESETS[ga] ? ga : null;
+    let found = discover({ cwd, slug, preset: presetName, file: ga && !presetName ? ga : null });
+    if (found.error) found = { set: PRESETS.interactive, source: "preset:interactive (no answer set on disk)" };
+    const r = resolveGate(found.set, "COACH-1", found.source);
+    appendGateLedger(cwd, slug, {
+      at: new Date().toISOString(), run_id: readRunId(cwd, slug), gate: "COACH-1", status: r.status,
+      decision: r.decision ?? null, source: r.source ?? found.source, note: r.note ?? r.reason ?? null, round: null,
+    });
+    if (r.decision === "skip") {
+      console.error(`compile-order: GATE COACH-1 resolved "skip" (${r.source ?? found.source}) — no live PO to categorize feedback, so no coach order is compiled. The decision is on the gate ledger.`);
+      process.exit(3);
+    }
+  }
 
   // Task selection.
   let tasks;

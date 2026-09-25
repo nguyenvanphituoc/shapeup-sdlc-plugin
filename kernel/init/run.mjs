@@ -70,6 +70,7 @@
 // one moment it mattered named a mechanism that does not parse.
 
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, copyFileSync, rmSync, statSync } from "node:fs";
+import { discover, resolve as resolveGate, appendGateLedger, PRESETS } from "../gate.mjs";
 import { join, dirname, resolve, relative, sep } from "node:path";
 import { createHash } from "node:crypto";
 import { decideLane, treeSize } from "./fit.mjs";
@@ -670,6 +671,29 @@ export function cli(rawArgv) {
   const pointer = activeScope(cwd);
   mkdirSync(dirname(pointer), { recursive: true });
   writeFileSync(pointer, JSON.stringify({ slug, started_at: startedAt }, null, 2) + "\n", "utf8");
+
+  // GATE L0 HAS A DETERMINISTIC CALL SITE: THE RUN'S OPENING. It used to be a line of prose the
+  // tech lead was asked to act on, and the same consumer ledgered L0 on one run and not the next.
+  // The intake conversation is the L0 decision; opening the run is the act that records it, with
+  // the answer set the run was configured with (a preset name or a file), else the interactive
+  // defaults. Best-effort: a row that cannot be written must not fail the opening.
+  try {
+    const ga = config.gate_answers ?? null;
+    const presetName = ga && PRESETS[ga] ? ga : null;
+    const found = discover({ cwd, slug, preset: presetName, file: ga && !presetName ? ga : null });
+    // A preset or file answers L0 for the run; a run with neither — the interactive lane, where the
+    // tech lead held the intake conversation before opening it — has that conversation as its L0
+    // decision, and the opening records it as such. An answer set that says `ask` is recorded as
+    // `ask`: the row states what the set said, and the intake note says what happened.
+    const r = found.error
+      ? { status: "ok", decision: "proceed", source: "intake (no answer set on disk)", note: "the intake conversation is the L0 decision" }
+      : resolveGate(found.set, "L0", found.source);
+    appendGateLedger(cwd, slug, {
+      at: startedAt, run_id: receipt.run_id, gate: "L0", status: r.status, decision: r.decision ?? null,
+      source: r.source ?? found.source, note: `${r.note ?? r.reason ?? ""} — run opened: intake recorded, receipt written`.replace(/^ — /, ""),
+      round: null,
+    });
+  } catch { /* the ledger row is a record of the opening, never a condition of it */ }
 
   console.log(JSON.stringify({
     ok: true,

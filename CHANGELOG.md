@@ -5,6 +5,17 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Every gate the run can reach has a deterministic call site
+
+L0 and COACH-1 were resolved only where a line of prose asked a model to run `gate --resolve`,
+and a prose instruction holds intermittently — the same consumer ledgered L0 on one run and not
+the next. The run's opening now records L0 itself, with the answer set the run was configured
+with, or the intake conversation as the decision when there is none. Compiling a coach order
+crosses COACH-1 with the run's own answer set and records the row; `skip` refuses the order, which
+is what "no live PO" means, and `ask` compiles it — the categorization conversation the coach then
+holds is the answer. With H and L4 crossed inside the run since 3.7.5, all ten gates now leave a
+row through a call the run cannot skip.
+
 ### The hill's absence guard keys on the run, not on a directory
 
 `reduce hill` refuses to write when the run trace it derives from is absent, and the condition

@@ -27,7 +27,6 @@ is pinned by a guard, never when it is merely believed done.
 | HD-052 | four attested channels were named; the same class has at least five more | P2 |
 | HD-053 | the T0 citation re-hash proves self-consistency, not provenance | P1 |
 | HD-056 | seven shipped files cite artifacts a user does not receive | P3 |
-| HD-058 | two gates still have no deterministic call site — L0 and COACH-1 are resolved by prose alone | P3 |
 | HD-059 | a T0 verdict is evidence about a machine, and records only the tree | P1 |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
@@ -722,20 +721,6 @@ else needs to survive for the fix to hold.
 
   **Closed when:** the shipped set cites only what it ships, and the scan that found these runs as a
   check rather than as an audit pass somebody remembers to do.
-
-- **HD-058 · Two gates still have no deterministic call site — L0 and COACH-1 are resolved by
-  prose alone.** First filed 2026-09-24 as "two gates print their block and leave no row" (H and
-  L4); narrowed 2026-09-25 once the run itself started crossing H and L4 on both the PASS path and
-  the breaker path.
-
-  What remains: `gate.mjs` declares ten gates; the run loop crosses eight through its deterministic
-  call. L0 and COACH-1 are resolved only where a line of prose asks a model to run `gate --resolve`,
-  and a prose instruction holds intermittently — the same run that ledgered L0 once left it out the
-  next time. The rest of the original filing is closed: GATE H crosses on the breaker path, L4 has
-  a call site, and the census is an artifact the L4 resolver reads.
-
-  **Closed when:** L0 and COACH-1 are crossed by a deterministic call — L0 by the run's opening, and
-  COACH-1 by the coach dispatch — and a check asserts every gate the run can reach has one.
 
 - **HD-059 · A T0 verdict is evidence about a machine, and records only the tree.** Found
   2026-09-24 while trying to verify a consumer build in a clean clone — which turned out to be

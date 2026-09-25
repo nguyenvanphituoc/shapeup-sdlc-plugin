@@ -132,8 +132,10 @@ export async function run(ctx) {
       if (exp.status !== 0) throw new Error(`report export failed: ${exp.stderr || exp.stdout}`);
       const manifest = JSON.parse(exp.stdout);
       const gateTable = manifest.tables.find((t) => t.name === "gate_decision");
-      if (gateTable && gateTable.rows === 3) {
-        ok("(b) the export's gate_decision table carries all three rows — L0, L4 and COACH-1 included");
+      // `init run` records L0 itself now, and this section resolves L0 again by hand — four rows,
+      // every one of them this run's.
+      if (gateTable && gateTable.rows === 4) {
+        ok("(b) the export's gate_decision table carries all four rows — the opening's L0, the hand-resolved L0, L4 and COACH-1");
       } else fail(`(b) gate_decision table wrong: ${JSON.stringify(gateTable)}`);
       if (manifest.tables.find((t) => t.name === "build_gate")) {
         ok("(b) the export declares a build_gate table too — the round build gate ends a round exactly as EVAL does, and had none");

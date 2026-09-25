@@ -117,7 +117,7 @@ fields nobody used" → "Prefer the minimum DTO that satisfies the AC; don't add
 fields"). Keep the originating why — a rule without its reason gets ignored or misapplied.
 
 ### Step 2 — ⏸ GATE COACH-1: Categorize (ASK, never assume)
-This is the load-bearing gate. **Resolve it first** — `node
+This is the load-bearing gate. Dispatched with an order, it is already resolved and on the gate ledger: compiling a coach order crosses COACH-1 with the run's answer set and refuses the order on `skip`, so an order in your hands means `ask`. Invoked standalone, **resolve it first** — `node
 "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" gate --resolve COACH-1 --slug <slug>
 [--file <path>|--preset <name>]` — so the ledger carries a row for the decision this gate makes,
 same as every other gate in the run. Exit 0 (`decision=skip`) — an unattended lane with no live PO;
