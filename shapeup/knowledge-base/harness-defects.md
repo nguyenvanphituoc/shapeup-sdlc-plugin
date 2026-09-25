@@ -15,13 +15,11 @@ is pinned by a guard, never when it is merely believed done.
 | HD-027 | two harness rules collide, and the collision hard-aborts a run at L1b | P1 |
 | HD-013 | the WorkOrder names no result path | P3 |
 | HD-031 | a resumed run cannot soak a plugin upgrade, and nothing says so at launch | — (filed after the tiering pass) |
-| HD-033 | a stale WorkResult closes an attempt that is still running | — (filed after the tiering pass) |
 | HD-037 | `coverage` registers the pitch's NO-GOS as requirements, marked `covered`, and L1b reds every on… | — (filed after the tiering pass) |
 | HD-038 | a committed spec artifact narrates a coverage verdict, and the verdict is false | — (filed after the tiering pass) |
 | HD-039 | a hill dot outlives the evidence that moved it | — (filed after the tiering pass) |
 | HD-021 | a per-scope "it compiles" fixture can be green while the scope's code is unreachable | P3 |
 | HD-022 | ⚠ Work for defects measured on a real consumer sits on a tag, not on main | decision |
-| HD-041 | the run key is a FIELD, not an ADDRESS — a second run of a slug inherits the first run's evidence | P0 (class) |
 | HD-048 | the seesaw regression arm is declared everywhere and wired nowhere | — (filed after the tiering pass) |
 | HD-051 | a build leg can forge a SIBLING leg's WorkResult | P1 |
 | HD-052 | four attested channels were named; the same class has at least five more | P2 |
@@ -148,41 +146,6 @@ is pinned by a guard, never when it is merely believed done.
   grepped out of the staged workflow script is weaker still — one that distinguishes 3.6.0 from
   3.7.x says nothing about 3.7.0 versus 3.7.1, and using it to clear the other is a probe answering
   a different question than the one asked.
-
-- **HD-033 · A stale WorkResult closes an attempt that is still running.** Found 2026-09-22 during
-  the rc.2 soak, watching the fix for `HD-032` work — this is the half of that defect the fix did
-  not reach, and the filing for `HD-032` overstated the mitigation.
-
-  `HD-032` scoped the receipt and leg channels to the run. The **result** channel could not be
-  scoped the same way: a `WorkResult` carries no `run_id` and reaches one only through its
-  `order_id`, which repeats. The reasoning recorded at the time was that this is harmless because a
-  stale result "can only turn an already run-scoped receipt into `spent`". That is true and it is
-  not the whole risk: it cannot attest an attempt this run never dispatched, but it **can close one
-  this run did dispatch and is still running**.
-
-  Measured live, mid-soak:
-
-  ```
-  results/<scope>-r1-a1.json   mtime 09:25:40   ← a different run's, 13 hours old
-  this run opened 22:06, dispatched r1-a1 at 22:09, no leg yet
-  census → hasReceipt:true  hasLeg:false  hasResult:true  ⇒ state: "spent"
-  ```
-
-  The attempt was in flight at the moment the census called it spent.
-
-  **Why it matters more than an off-by-one in a count.** The compile guard asks exactly this
-  question before opening attempt N: it refuses while N−1 is not `spent`. A stale result makes N−1
-  look finished, so the guard permits attempt 2 against a scope whose first attempt is still
-  writing — which is `HD-028`'s original interleaving, reachable through the guard built to prevent
-  it.
-
-  **Fix:** a result counts for this run only when it is newer than the run's own `started_at` (the
-  receipt carries it). A file written before the run began cannot be this run's, whatever its
-  `order_id` says. Dropping the result channel from the `spent` condition entirely is the wrong fix:
-  a result on disk pending ingest is a real state the round already handles with a late ingest, and
-  calling it `in-flight` would re-dispatch work that is done. The fixture needs a result file
-  back-dated before the run's start — the `run_id`-based two-run fixture cannot express this one,
-  because the channel that carries the defect has no `run_id` to differ on.
 
 - **HD-037 · `coverage` registers the pitch's NO-GOS as requirements, marked `covered`, and L1b
   reds every one of them.** Measured 2026-09-23 on the rc.2 soak, third abort of the same run.
@@ -605,32 +568,6 @@ Bash-launch dispatch arm the deletion depends on pinned in `17-gate-zerowork-wor
 one mutation-verified in both directions. Those guards are the whole write-up that still matters:
 what a closed defect cost is recoverable from the tests that now fail on reversion, and nothing
 else needs to survive for the fix to hold.
-
-- **HD-041 · The run key is a FIELD, not an ADDRESS — a second run of a slug inherits the first
-  run's evidence.** Found 2026-09-24 by a three-way review; the class, of which `HD-033` is the
-  narrowest member.
-
-  Every path helper in `kernel/lib/paths.mjs` is `(cwd, slug)` — `resultsDir`, `verdictsDir`,
-  `roundBuildDir`, `ordersDir`, `hillDir`. **No path carries a run dimension**, and the artifacts
-  are append-only by design, so accumulation across runs is guaranteed rather than incidental.
-  `run_id` was added later as a record field: stamped by seven writers, filtered by four readers.
-  Everywhere else the stamp is decorative.
-
-  Driven on a two-run fixture (`init run --force` is the only supported way to open a second run
-  over a slug). Run 2, having dispatched nothing, was told: `reduce graph --subgraph run` reports
-  run 1's scope in `green_scopes_by_round`; `probe t0` reports green; `probe eval` reports PASS;
-  `probe resume` reports the round evaluated; `reduce hill` moves the dot. Only `probe attempts`
-  refused. The first is the one with teeth — the round loop opens every BUILD round with exactly
-  that query and **skips the scope**. `--subgraph run` is in fact `--subgraph slug`.
-
-  **The fix already exists in this repo, one directory away.** `hooks/sandbox-guard.mjs`'s
-  `answered()` compares a result's mtime against the order's own `compiled_at`, with a comment
-  about filesystem second-granularity; `probe/eval.mjs`, `probe/attempts.mjs`, `gate.mjs` and
-  `reduce/hill.mjs` all do a bare `existsSync` instead.
-
-  **Closed when:** a second run over a slug re-derives its own greens — no verdict, result, build
-  gate or graph edge from a prior run answers a question about this one — and a two-run fixture
-  pins it (`tests/structural/75-cross-run-attestation.mjs` already builds the fixture shape).
 
 - **HD-048 · The seesaw regression arm is declared everywhere and wired nowhere.** Filed 2026-09-24
   so that the README's newly honest pointer resolves to something.

@@ -5,6 +5,18 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### A second run over a slug re-derives its own greens
+
+The run key was a field, not an address: every path is `(cwd, slug)`, the artifacts are
+append-only by design, and a second run over a slug inherited the first run's evidence wherever a
+reader did not filter on the key. The remaining readers do now. The T0 probe answers a scope's
+green from this run's verdicts; the run subgraph names this run and aggregates only its verdicts
+and results; the hill moves this run's dot on this run's greens and reds; and the attempt census
+lets a WorkResult answer an attempt only through this run's order of the same name, so a stale
+result from a prior run no longer closes an attempt this run never opened. A record with no key
+predates the key and is kept. With rounds, gate decisions and citations scoped in 3.7.7, the
+class filed as HD-041 is closed, HD-033 with it.
+
 ### Every gate the run can reach has a deterministic call site
 
 L0 and COACH-1 were resolved only where a line of prose asked a model to run `gate --resolve`,

@@ -6,7 +6,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
-import { scopesDir, hillDir, verdictsDir, resultsDir, discoveryLedger, receipt } from "../lib/paths.mjs";
+import { scopesDir, hillDir, verdictsDir, resultsDir, discoveryLedger, receipt, readRunId } from "../lib/paths.mjs";
 import { readAllContracts, SCOPE_CONTRACT } from "../lib/contract.mjs";
 import { evalVerdict } from "../probe/eval.mjs";
 import { redBuildRounds } from "../verify/build.mjs";
@@ -241,11 +241,14 @@ export function deriveHill(cwd, slug) {
   // verdict counting exactly as before.
   const redRounds = redBuildRounds(cwd, slug);
   const t0Facts = {};
+  // This run's verdicts only — a prior run's green over the same slug moved this run's dot.
+  const hillRunId = readRunId(cwd, slug);
   if (existsSync(vDir)) {
     for (const f of readdirSync(vDir)) {
       if (!f.endsWith(".json")) continue;
       try {
         const b = JSON.parse(readFileSync(join(vDir, f), "utf8"));
+        if (hillRunId && b.run_id && b.run_id !== hillRunId) continue;
         if (!t0Facts[b.scope_id]) t0Facts[b.scope_id] = { hasGreen: false, seesawGreen: false };
         if (b.overall === "green" && !redRounds.has(Number(b.round))) {
           t0Facts[b.scope_id].hasGreen = true;

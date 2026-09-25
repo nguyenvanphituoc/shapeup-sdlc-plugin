@@ -42,7 +42,7 @@ import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { runArgs, isMain } from "../lib/argv.mjs";
-import { harnessRun, projectProfile, roundBuildDir, localRoot, runIdFromRoot } from "../lib/paths.mjs";
+import { harnessRun, projectProfile, roundBuildDir, localRoot, runIdFromRoot, readRunId } from "../lib/paths.mjs";
 import { readContract, readAllContracts, PROJECT_PROFILE, SCOPE_CONTRACT, splitFrontmatter } from "../lib/contract.mjs";
 import { scopesDir } from "../lib/paths.mjs";
 import { digest } from "../probe/digest.mjs";
@@ -231,9 +231,15 @@ export function redBuildRounds(cwd, slug) {
   const latest = new Map();
   let files;
   try { files = readdirSync(roundBuildDir(cwd, slug)); } catch { return new Set(); }
+  // This run's gates only: a prior run's red round over the same slug must not hold this run's dot.
+  const runId = readRunId(cwd, slug);
   for (const f of files) {
     const m = f.match(/^r(\d+)-t(\d+)\.json$/);
     if (!m) continue;
+    if (runId) {
+      try { const g = JSON.parse(readFileSync(join(roundBuildDir(cwd, slug), f), "utf8")); if (g?.run_id && g.run_id !== runId) continue; }
+      catch { continue; }
+    }
     const round = Number(m[1]), trial = Number(m[2]);
     if (!latest.has(round) || latest.get(round).trial < trial) latest.set(round, { trial, file: f });
   }

@@ -16,7 +16,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
-import { verdictsDir } from "../lib/paths.mjs";
+import { verdictsDir, readRunId } from "../lib/paths.mjs";
 
 /**
  * Verdict filenames, newest first by their NUMERIC address.
@@ -55,10 +55,15 @@ export function greenVerdict(cwd, slug, scopeId, round) {
   if (!existsSync(dir)) return { green: false, path: null };
   // Newest first: an attempt retried after a red one writes a higher trial ordinal at the same
   // (round, attempt) address, and the LAST verdict is the one that stands.
+  // THIS RUN'S VERDICTS. Verdicts over one slug accumulate across runs and carry the run's key; a
+  // second run used to be told its scope was green on the first run's artifact, and the round loop
+  // skipped building it. A verdict with no key at all predates the key and is kept.
+  const runId = readRunId(cwd, slug);
   for (const f of newestFirst(readdirSync(dir).filter((x) => x.endsWith(".json")))) {
     const p = join(dir, f);
     try {
       const b = JSON.parse(readFileSync(p, "utf8"));
+      if (runId && b.run_id && b.run_id !== runId) continue;
       if (b.scope_id === scopeId && (round == null || b.round === round) && b.overall === "green") return { green: true, path: p };
     } catch { /* a torn artifact proves nothing; keep looking */ }
   }

@@ -30,7 +30,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
-import { dispatchReceipts, legLedger, resultsDir, readRunId } from "../lib/paths.mjs";
+import { dispatchReceipts, legLedger, resultsDir, readRunId, ordersDir } from "../lib/paths.mjs";
 import { readLegs } from "./leg.mjs";
 import { greenVerdict } from "./t0.mjs";
 
@@ -84,7 +84,16 @@ export function attemptEvidence(cwd, slug, scopeId, round, attempt, receipts, le
   // so this stays a file check and is deliberately NOT sufficient on its own. It can only turn an
   // already run-scoped receipt into `spent`; a result left behind by an earlier run cannot attest
   // an attempt this run never dispatched.
-  const hasResult = existsSync(join(resultsDir(cwd, slug), `${scopeId}-r${round}-a${attempt}.json`));
+  // A WorkResult carries no run key of its own; it answers THIS run's attempt only through the
+  // order of the same name, which this run's compile rewrote. A result left by a prior run over the
+  // same slug used to close an attempt this run had not even opened.
+  const stem = `${scopeId}-r${round}-a${attempt}.json`;
+  let orderIsMine = true;
+  if (runId != null) {
+    try { const o = JSON.parse(readFileSync(join(ordersDir(cwd, slug), stem), "utf8")); orderIsMine = !o?.run_id || o.run_id === runId; }
+    catch { orderIsMine = false; }
+  }
+  const hasResult = orderIsMine && existsSync(join(resultsDir(cwd, slug), stem));
   const state = !hasReceipt ? "unattested" : (hasResult || hasLeg) ? "spent" : "in-flight";
   return { orderId, hasReceipt, hasResult, hasLeg, state };
 }

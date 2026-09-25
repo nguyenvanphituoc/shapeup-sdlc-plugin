@@ -33,7 +33,7 @@ import {
   localRoot, receipt as receiptPath, ordersDir, resultsDir, verdictsDir, trials as trialsPath, gates as gatesPath, scopesDir, usecasesDir, requirements as requirementsPath, wiringMap as wiringMapPath, legLedger,
 } from "../lib/paths.mjs";
 import { readAllContracts, readContract, ucId, reqId, SCOPE_CONTRACT, WIRING_MAP } from "../lib/contract.mjs";
-import { runIdFromReceipt } from "../lib/paths.mjs";
+import { runIdFromReceipt, readRunId } from "../lib/paths.mjs";
 
 /** The graph's home — one file per feature, beside the run trace it projects. */
 export const graphPath = (cwd, slug) => join(localRoot(cwd, slug), "graph.jsonl");
@@ -384,7 +384,16 @@ export function appendGraph(cwd, slug) {
 export function runSubgraph(cwd, slug) {
   const { nodes, edges, lines } = readGraph(cwd, slug);
   const of = (t) => [...nodes.values()].filter((n) => n.t === t);
-  const orders = of("Order"), results = of("Result"), verdicts = of("Verdict");
+  // ONE RUN'S SUBGRAPH. The graph is append-only over a slug and every run of it lands there; this
+  // query used to aggregate every run's verdicts into `green_scopes_by_round` and report the FIRST
+  // run ever recorded as `run`, so a relaunch skipped scopes a prior run had built. Work nodes carry
+  // the run key and are filtered on it; a node with no key predates the key and is kept; a Result
+  // has no key of its own and belongs to the run its Order does.
+  const runId = readRunId(cwd, slug);
+  const mine = (n) => !runId || !n.run_id || n.run_id === runId;
+  const orders = of("Order").filter(mine), verdicts = of("Verdict").filter(mine);
+  const orderIds = new Set(orders.map((o) => o.order_id));
+  const results = of("Result").filter((r) => !runId || orderIds.has(r.order_id));
   const resultIds = new Set(results.map((r) => r.order_id));
   const ingestedFrom = new Set([...edges.values()].filter((e) => e.t === "INGESTED").map((e) => e.from));
   const greenByRound = {};
@@ -394,7 +403,7 @@ export function runSubgraph(cwd, slug) {
   }
   return {
     graph_lines: lines,
-    run: of("Run")[0]?.run_id ?? null,
+    run: runId ?? of("Run")[0]?.run_id ?? null,
     scopes: of("Scope").map((s) => s.scope_id).sort(),
     use_cases: of("UseCase").map((u) => u.use_case).sort(),
     requirements: of("Requirement").map((r) => r.req_id).sort(),

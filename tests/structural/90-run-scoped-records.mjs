@@ -3,7 +3,7 @@
 // only its own — none of run 1's rounds, none of its gate decisions, and no citation of its verdict.
 import { mkdtempSync, rmSync, writeFileSync, readFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 
@@ -30,6 +30,11 @@ export async function run(ctx) {
     const verdictPath = join(verdictsDir(ws, "f"), "r1-a1-t1.json");
     writeFileSync(verdictPath, JSON.stringify({ schema_version: 2, run_id: RUN1, scope_id: "alpha", round: 1, attempt: 1, trial: 1, overall: "green" }));
     writeFileSync(join(roundBuildDir(ws, "f"), "r1-t1.json"), JSON.stringify({ run_id: RUN1, round: 1, overall: "green" }));
+    // Run 1 also answered a build attempt: a receipt and a WorkResult for alpha-r1-a1.
+    const { dispatchReceipts } = await import(join(ROOT, "kernel/lib/paths.mjs"));
+    mkdirSync(dirname(dispatchReceipts(ws, "f")), { recursive: true });
+    writeFileSync(dispatchReceipts(ws, "f"), JSON.stringify({ at: "2026-01-01T00:00:00.000Z", order_id: "f/alpha-r1-a1", run_id: RUN1, skill_invoked: "task-executor", dispatch_ok: true }) + "\n");
+    writeFileSync(join(resultsDir(ws, "f"), "alpha-r1-a1.json"), JSON.stringify({ schema_version: 1, order_id: "f/alpha-r1-a1", worker: "task-executor", status: "done" }));
     for (const g of ["L1a", "L4"]) spawnSync("node", [KERNEL, "gate", "--resolve", g, "--slug", "f", "--preset", "ci"], { cwd: ws, encoding: "utf8" });
     const rows1 = readFileSync(gates(ws, "f"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
     if (rows1.length >= 1 && rows1.every((r) => r.run_id === RUN1)) ok("gate ledger rows carry the run key they were written under");
@@ -41,6 +46,10 @@ export async function run(ctx) {
     const RUN2 = JSON.parse(readFileSync(receipt(ws, "f"), "utf8")).run_id;
     if (RUN2 === RUN1) { fail("run 2 reused run 1's key — fixture cannot measure"); return; }
 
+    const att = kernel("probe", "attempts", "--slug", "f", "--scope", "alpha", "--round", "1", "--attempt-budget", "5");
+    const aj = (() => { try { return JSON.parse(att.stdout); } catch { return null; } })();
+    if (aj && aj.spent === 0 && aj.attempts?.[0]?.hasResult === false && aj.attempts?.[0]?.hasReceipt === false) ok("probe attempts over run 1's receipt and result reports run 2's attempt 1 as unattested — a prior run's WorkResult does not close this run's attempt");
+    else fail(`the attempt census read run 1's evidence as run 2's: ${att.stdout.slice(0, 200)}`);
     const { deriveRounds } = await import(join(ROOT, "kernel/probe/rounds.mjs"));
     const r2 = deriveRounds(ws, "f", null);
     if (r2.rounds_used === null && r2.rounds_judged === null) ok("deriveRounds over run 2 reports no rounds — run 1's order, verdict, build gate and evaluation are another run's");
@@ -64,6 +73,19 @@ export async function run(ctx) {
     const otherRun = citationProblem(ws, "f", cite("alpha"), { round: 1 });
     if (otherRun && /an artifact of run /.test(otherRun)) ok("a citation of a prior run's artifact is refused, naming the run");
     else fail(`a prior run's artifact was accepted as this run's evidence: ${otherRun}`);
+    // The other readers of that same run-1 verdict, asked from run 2: the T0 probe, the run subgraph, the hill.
+    const t0 = kernel("probe", "t0", "--slug", "f", "--scope", "alpha", "--round", "1");
+    if (t0.status === 1 && /"green":false/.test(t0.stdout)) ok("probe t0 over run 1's green verdict answers run 2 with not-green");
+    else fail(`probe t0 read run 1's verdict as run 2's: exit ${t0.status} ${t0.stdout.slice(0, 120)}`);
+    kernel("reduce", "graph", "--slug", "f");
+    const { runSubgraph } = await import(join(ROOT, "kernel/reduce/graph.mjs"));
+    const sub = runSubgraph(ws, "f");
+    if (sub.run === RUN2 && Object.keys(sub.green_scopes_by_round).length === 0) ok("`--subgraph run` names run 2 and carries none of run 1's greens");
+    else fail(`the run subgraph aggregated across runs: run=${sub.run} greens=${JSON.stringify(sub.green_scopes_by_round)}`);
+    const hill = kernel("reduce", "hill", "--slug", "f");
+    const hrow = (() => { try { return JSON.parse(hill.stdout).find((r) => r.scope_id === "alpha"); } catch { return null; } })();
+    if (hrow && hrow.phase !== "DOWNHILL_EXECUTION" && hrow.phase !== "FINISHED") ok(`reduce hill derives run 2's alpha from run 2's evidence (${hrow.phase}), not from run 1's green`);
+    else fail(`the hill moved run 2's dot on run 1's verdict: ${JSON.stringify(hrow)}`);
     // Re-key the artifact to run 2 to isolate the scope and round checks.
     writeFileSync(verdictPath, JSON.stringify({ schema_version: 2, run_id: RUN2, scope_id: "alpha", round: 1, attempt: 1, trial: 1, overall: "green" }));
     const sha2 = createHash("sha256").update(readFileSync(verdictPath)).digest("hex");
