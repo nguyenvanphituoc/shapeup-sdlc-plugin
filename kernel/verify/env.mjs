@@ -52,6 +52,16 @@ const UNSET = "<unset>";
  * @param {string} cmd - A shell command line.
  * @returns {string[]} Invoked tokens, in order, without duplicates.
  */
+export function cdTargets(cmd) {
+  const out = [];
+  for (const seg of String(cmd || "").split(/&&|;|\|\|/).map((s) => s.trim()).filter(Boolean)) {
+    const m = seg.match(/^cd\s+(?:"([^"]+)"|'([^']+)'|(\S+))/);
+    const dir = m && (m[1] || m[2] || m[3]);
+    if (dir && !dir.startsWith("-") && !out.includes(dir)) out.push(dir);
+  }
+  return out;
+}
+
 export function invokedTokens(cmd) {
   const out = [];
   for (const seg of String(cmd || "").split(/&&|;|\|\|/).map((s) => s.trim()).filter(Boolean)) {
@@ -162,12 +172,19 @@ export function environmentFingerprint(rawCwd, { commands = [], profilePath = nu
     cwd,
     tree: treeState(cwd),
     toolchain: tokens.map((bin) => ({ bin, path: resolveBin(bin, cwd) })),
-    lockfiles: LOCKFILES
-      .filter((f) => existsSync(join(cwd, f)))
-      .map((f) => {
-        try { return { file: f, sha256: sha256(readFileSync(join(cwd, f))) }; }
-        catch { return { file: f, sha256: null }; }
-      }),
+    // The root AND wherever the commands actually run. Measured on a consumer whose fixtures are
+    // `cd app && …`: the lockfile that decides what the build resolves lives in `app/`, and a scan
+    // of the project root alone recorded an empty list beside a build whose dependencies were the
+    // whole question.
+    lockfiles: [...new Set(["", ...commands.flatMap((c) => cdTargets(c))])]
+      .flatMap((sub) => LOCKFILES
+        .map((f) => (sub ? `${sub.replace(/\/+$/, "")}/${f}` : f))
+        .filter((rel) => existsSync(join(cwd, rel)))
+        .map((rel) => {
+          try { return { file: rel, sha256: sha256(readFileSync(join(cwd, rel))) }; }
+          catch { return { file: rel, sha256: null }; }
+        }))
+      .filter((l, i, all) => all.findIndex((x) => x.file === l.file) === i),
     caches: declaredCaches(profilePath),
     env: {
       allowlist: ENV_ALLOWLIST,

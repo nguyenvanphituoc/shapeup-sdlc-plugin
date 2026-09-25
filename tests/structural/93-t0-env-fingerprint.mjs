@@ -59,6 +59,16 @@ export async function run(ctx) {
       ok("a lockfile at the root is digested — what was declared, though never what is installed");
     } else fail(`lockfiles: ${JSON.stringify(f.lockfiles)}`);
 
+    // Where the command actually runs, not only where the project starts: a consumer whose fixtures
+    // are `cd app && …` keeps the lockfile that decides the build one level down, and a root-only
+    // scan recorded an empty list beside a build whose dependencies were the whole question.
+    mkdirSync(join(ws, "app"), { recursive: true });
+    writeFileSync(join(ws, "app/oh-package-lock.json5"), "{ lockfileVersion: 3 }");
+    const sub = environmentFingerprint(ws, { commands: ["cd app && ./hvigorw assembleHap"] });
+    if (sub.lockfiles.some((l) => l.file === "app/oh-package-lock.json5" && /^[0-9a-f]{64}$/.test(l.sha256))) {
+      ok("a lockfile in the directory the command cds into is digested too, named by its path");
+    } else fail(`a cd target's lockfile was missed: ${JSON.stringify(sub.lockfiles)}`);
+
     if (f.toolchain.some((t) => t.bin === "npm")) ok("the invoked binary is recorded with where it resolved on this machine");
     else fail(`toolchain: ${JSON.stringify(f.toolchain)}`);
 
