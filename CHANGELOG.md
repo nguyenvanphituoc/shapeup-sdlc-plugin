@@ -3,6 +3,53 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.10.0] — 2026-09-26 · The judge is told the app was launched
+
+### A `[ui]` row was graded "no evidence" over a build that had launched
+
+A `[ui]` criterion is graded on the running app, and the evaluator's way to reach one was
+`payload.run_cmd`. The workflow forwards only the run ledger's `run_cmd` — the command the round
+build gate runs **first, as the build** — and a run whose tech lead pinned none has no `run_cmd` at
+all. On a toolchain where building and launching are different acts, that left the evaluator nothing
+to start the app with.
+
+The gate had already done it. It runs the project's `launch_probe` (install, start, assert the first
+screen) once per round before EVAL and records each step's exit and output — but that artifact
+reached an order only when **red**, as the next round's bug list. A green launch was proven and then
+unavailable to the one reader who needed it.
+
+Measured on a live unattended run, same code, same T0 evidence, same model: an order without launch
+evidence graded 6 of 35 criteria PASS with all fifteen `[ui]` rows ungraded; the same order carrying
+a way to start the app graded 28 of 35, every `[ui]` row evidenced from the driven app.
+
+**`harness compile` now derives two optional fields for every evaluate order:**
+
+- `build_gate` — this run's newest round build gate artifact for the round. Scoped to the run (a
+  prior run's artifact over the same slug is not handed over), to the round, and ordered by trial as
+  a number.
+- `launch_cmd` — the project profile's `launch_probe`.
+
+Both are absent, never null, when their source is; an explicit `--payload` value outranks either,
+as it already did for `t0_artifacts`. `run_cmd` is untouched and stays the ledger's field, so a
+build-only `run_cmd` and a `launch_cmd` ride together. A project that declares no `launch_probe`
+compiles exactly the order it did before — and still gets no on-device grade.
+
+### `probe t0` prints the digest a citation needs
+
+A verdict on a scoped spec must cite its T0 artifact with the sha256 of the file as it is now, which
+the judge obtains itself. A session whose grant covers the harness and no shell hasher could only
+leave the digest empty, and ingest rightly refused it — aborting L3 over a round whose every scope
+was green. `probe t0` now prints `sha256` for a green verdict, computed from the bytes with the same
+reading ingest re-checks it against; nothing for a scope that is not green. The evaluator's contract
+names it as the hasher of last resort, and treats a digest from any other place — a ledger line, an
+earlier report, an error message — as a handed hash.
+
+### Docs
+
+The spec-evaluator input contract, the tech-lead protocol, the domain ERD (field list, the gate's
+readers, and a `WorkOrder → RoundBuildVerdict` relationship) and the EVAL row in `AGENTS.md` describe
+both fields.
+
 ## [3.9.2] — 2026-09-25 · A list too long for one line is still a list
 
 ### A flow sequence that spans lines parsed to the character "["
