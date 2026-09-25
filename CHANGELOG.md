@@ -3,7 +3,11 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [3.7.5] — 2026-09-25 · The board survives a clone, and a breaker ships what is green
+
+Two defects the first run to reach the judge exposed, both in what happens around the round loop
+rather than inside it: the half of ANALYZE a clone loses, and the half of a breaker the run left to
+prose.
 
 ### A committed spec with no board is not a finished ANALYZE
 
