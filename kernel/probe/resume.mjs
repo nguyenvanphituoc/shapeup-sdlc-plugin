@@ -62,8 +62,9 @@ import { runArgs } from "../lib/argv.mjs";
 import { splitFrontmatter, uncoerce } from "../lib/contract.mjs";
 import { globToRegExp } from "../verify/spec.mjs";
 import { parseBoard } from "../reduce/board.mjs";
-import { intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir, orientDir, activeOrder, activeScope, usecasesDir, breadboard, receipt, readReceipt, requirements, exportRunDir, lastRun, readRunId, tasksDir } from "../lib/paths.mjs";
+import { intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir, orientDir, activeOrder, activeScope, usecasesDir, breadboard, receipt, readReceipt, requirements, exportRunDir, lastRun, readRunId, tasksDir, gates, verdictsDir, roundBuildDir } from "../lib/paths.mjs";
 import { evalVerdict } from "./eval.mjs";
+import { deriveRounds } from "./rounds.mjs";
 import { collectRun, writeRun } from "../report/export.mjs";
 
 /** The run-state values `references/protocol.md` (Part 4 — State) defines. A typo'd status is a rejection,
@@ -560,7 +561,83 @@ export function setRunStatus(cwd, slug, status) {
  *   already normalized prose (newlines collapsed, truncated) — this function only `uncoerce`s it.
  * @returns {string} The rewritten text.
  */
-function writeCloseLines(body, { status, closedAt, cause }) {
+/**
+ * What the ledger's front matter and tables should say at a close, derived from the run's own
+ * records — the same ones the export reads. The counters (`final_verdict`, `rounds_used`) and the
+ * Rounds/Decisions tables used to be hand-shaped placeholders nothing filled: a run closed
+ * `shipped` beside `final_verdict: ~`, `rounds_used: 0`, an empty Decisions table and seven rows in
+ * `gates.jsonl`. A reader who trusted the counters concluded no round ran. Measured live.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {{final_verdict:string, rounds_used:(number|null), decisions:object[], roundRows:string[]}}
+ */
+export function deriveLedgerFacts(cwd, slug) {
+  const readJson = (p) => { try { return JSON.parse(readFileSync(p, "utf8")); } catch { return null; } };
+  const evalRows = [];
+  const rDir = resultsDir(cwd, slug);
+  if (existsSync(rDir)) {
+    for (const f of readdirSync(rDir)) {
+      const m = f.match(/^evaluate-r(\d+)\.json$/);
+      if (!m) continue;
+      const r = readJson(join(rDir, f));
+      const overall = r?.verdict?.overall;
+      if (overall) evalRows.push({ round: Number(m[1]), overall: String(overall), criteria: Array.isArray(r.verdict.criteria) ? r.verdict.criteria : [] });
+    }
+  }
+  evalRows.sort((a, b) => a.round - b.round);
+  const finalVerdict = evalRows.length ? evalRows[evalRows.length - 1].overall : "not-evaluated";
+  const decisions = [];
+  const gp = gates(cwd, slug);
+  if (existsSync(gp)) {
+    for (const line of readFileSync(gp, "utf8").split("\n")) {
+      if (!line.trim()) continue;
+      try { decisions.push(JSON.parse(line)); } catch { /* a torn line proves nothing */ }
+    }
+  }
+  const t0ByRound = {};
+  const vDir = verdictsDir(cwd, slug);
+  if (existsSync(vDir)) {
+    for (const f of readdirSync(vDir).filter((x) => x.endsWith(".json")).sort()) {
+      const v = readJson(join(vDir, f));
+      if (typeof v?.round !== "number") continue;
+      const t = (t0ByRound[v.round] ||= { green: 0, red: 0 });
+      if (v.overall === "green") t.green++; else t.red++;
+    }
+  }
+  const gateByRound = {};
+  const bDir = roundBuildDir(cwd, slug);
+  if (existsSync(bDir)) {
+    for (const f of readdirSync(bDir).sort()) {
+      const m = f.match(/^r(\d+)-t\d+\.json$/);
+      if (m) gateByRound[Number(m[1])] = readJson(join(bDir, f))?.overall ?? "?";
+    }
+  }
+  const roundNums = [...new Set([...Object.keys(t0ByRound), ...Object.keys(gateByRound), ...evalRows.map((e) => e.round)].map(Number))].sort((a, b) => a - b);
+  const roundRows = [];
+  for (const r of roundNums) {
+    const t0 = t0ByRound[r], bg = gateByRound[r], ev = evalRows.find((e) => e.round === r);
+    roundRows.push(`| Build | ${r} | ${t0 ? `T0 ${t0.green} green / ${t0.red} red` : "no T0 verdict"} | — | round build gate: ${bg ?? "not run"} |`);
+    if (ev) {
+      const p = ev.criteria.filter((c) => c?.verdict === "PASS").length, f = ev.criteria.filter((c) => c?.verdict === "FAIL").length;
+      roundRows.push(`| Eval | ${r} | ${ev.overall} | — | ${p} PASS / ${f} FAIL criteria |`);
+    }
+  }
+  let roundsUsed = null;
+  try { roundsUsed = deriveRounds(cwd, slug, null)?.rounds_used ?? null; } catch { roundsUsed = null; }
+  if (roundsUsed == null && roundNums.length) roundsUsed = roundNums[roundNums.length - 1];
+  return { final_verdict: finalVerdict, rounds_used: roundsUsed, decisions, roundRows };
+}
+
+/** Replace the rows of one markdown table (identified by its header line) with `rows`, keeping the header, the separator and any row the caller marks as kept. */
+function rewriteTable(body, headerRe, rows, keepRow = null) {
+  return body.replace(headerRe, (m, header, sep, oldRows) => {
+    const kept = keepRow && oldRows ? oldRows.split("\n").filter((l) => l.startsWith(keepRow)) : [];
+    return header + sep + [...kept, ...rows].map((l) => `${l}\n`).join("");
+  });
+}
+
+function writeCloseLines(body, { status, closedAt, cause, derived = null }) {
   const causeLine = `close_cause: ${uncoerce(cause || null)}`;
   const closedStatusLine = `closed_status: ${status}`;
   let out = body
@@ -574,6 +651,15 @@ function writeCloseLines(body, { status, closedAt, cause }) {
   out = /^close_cause:.*$/m.test(out)
     ? out.replace(/^close_cause:.*$/m, causeLine)
     : out.replace(/^closed_at:.*$/m, (m) => `${m}\n${causeLine}`);
+  if (derived) {
+    // THE COUNTERS AND TABLES ARE DERIVED, IN THE SAME PASS AS THE CLOSE LINE. Written from the
+    // run's own records so they cannot disagree with the export that reads the same records.
+    if (/^final_verdict:.*$/m.test(out)) out = out.replace(/^final_verdict:.*$/m, `final_verdict: ${derived.final_verdict}`);
+    if (typeof derived.rounds_used === "number" && /^rounds_used:.*$/m.test(out)) out = out.replace(/^rounds_used:.*$/m, `rounds_used: ${derived.rounds_used}`);
+    out = rewriteTable(out, /(\| Phase \| Round \| Result \| Duration \| Notes \|\n)(\|[-| ]+\|\n)((?:\|[^\n]*\n)*)/, derived.roundRows, "| Init");
+    const decisionRows = derived.decisions.map((g) => `| ${g.gate ?? "?"} | ${g.decision ?? g.status ?? "?"} | ${g.source ?? "?"} | ${String(g.note ?? "").replace(/\|/g, "\\|").replace(/\s+/g, " ").slice(0, 160)} |`);
+    out = rewriteTable(out, /(\| Gate \| Decision \| Source \| Note \|\n)(\|[-| ]+\|\n)((?:\|[^\n]*\n)*)/, decisionRows);
+  }
   return out;
 }
 
@@ -696,6 +782,9 @@ export function closeRun(cwd, slug, { status, cause = null, withExport = true } 
   // The Ship phase (`shapeup-run.js`) already exports a shipped run itself, before this call ever
   // runs — Stage 2 adds the endings that wrote nothing, and leaves that path untouched.
   const shouldExport = withExport && status !== "shipped";
+  // Derived once, from the run's own records, and written with the close line (see deriveLedgerFacts).
+  let derived = null;
+  try { derived = deriveLedgerFacts(cwd, slug); } catch { derived = null; }
 
   /**
    * Everything a close owes the checkout once the ledger line is written: export the run's
@@ -778,7 +867,7 @@ export function closeRun(cwd, slug, { status, cause = null, withExport = true } 
     // new line rather than lost, and the return says so explicitly.
     const closedAt = new Date().toISOString();
     const foldedCause = `${normCause || "no reason recorded"} — supersedes an earlier close recorded ${priorClosedAt} (cause: ${JSON.stringify(priorCause)})`.slice(0, 4000);
-    body = writeCloseLines(body, { status, closedAt, cause: foldedCause });
+    body = writeCloseLines(body, { status, closedAt, cause: foldedCause, derived });
     try { writeFileSync(p, body); } catch (e) {
       return { ok: false, path: p, status, reason: `could not write the ledger: ${e.message}` };
     }
@@ -793,7 +882,7 @@ export function closeRun(cwd, slug, { status, cause = null, withExport = true } 
   }
 
   const closedAt = new Date().toISOString();
-  body = writeCloseLines(body, { status, closedAt, cause: normCause });
+  body = writeCloseLines(body, { status, closedAt, cause: normCause, derived });
   try { writeFileSync(p, body); } catch (e) {
     return { ok: false, path: p, status, reason: `could not write the ledger: ${e.message}` };
   }

@@ -364,6 +364,10 @@ const MODULE_FILES = [
   // artifact, and the run closed `shipped` over an order still open by construction. Pins `probe leg
   // --open` listing dispatched-but-unanswered orders, and the workflow naming them at every close.
   "87-unanswered-order-named.mjs",
+  // 88-ledger-derived-at-close.mjs: the run ledger's front matter and tables were hand-shaped
+  // placeholders nothing filled, so a shipped run read `final_verdict: ~`, `rounds_used: 0`, and an
+  // empty Decisions table beside seven ledgered gates. The close derives them from the run's records.
+  "88-ledger-derived-at-close.mjs",
   "08-docs.mjs",
 ];
 

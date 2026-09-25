@@ -29,7 +29,6 @@ is pinned by a guard, never when it is merely believed done.
 | HD-052 | four attested channels were named; the same class has at least five more | P2 |
 | HD-053 | the T0 citation re-hash proves self-consistency, not provenance | P1 |
 | HD-054 | the hill's absence guard is re-armed by the command on the same page | P2 |
-| HD-055 | the run ledger's own verdict field is never written, and the ship report will print any string | P3 |
 | HD-056 | seven shipped files cite artifacts a user does not receive | P3 |
 | HD-058 | two gates still have no deterministic call site — L0 and COACH-1 are resolved by prose alone | P3 |
 | HD-059 | a T0 verdict is evidence about a machine, and records only the tree | P1 |
@@ -766,21 +765,6 @@ else needs to survive for the fix to hold.
   **Closed when:** the guard keys on evidence the derivation actually needs — the run's own receipt,
   or the verdicts directory — rather than on the root's existence, and a fixture drives
   `reduce graph` before `reduce hill` on a committed-only slug and sees the shards survive.
-
-- **HD-055 · The run ledger's own verdict field is never written, and the ship report will print
-  any string.** Found 2026-09-24; two halves of one gap.
-
-  `final_verdict` is born as the literal `~` when the run opens, and nothing in the kernel ever
-  writes it again: `reduce ship` reads it as a fallback and `facts.mjs` maps the placeholder to
-  null. The protocol documents its value space and promises a `--no-eval` run records
-  `not-evaluated` "in the ledger" — the report now carries it, the ledger still does not.
-
-  Separately, `reduce ship --verdict` accepts any string: `--verdict TOTALLY-GREEN` freezes a
-  committed report saying exactly that, exit 0. The `--no-eval` refusal narrows what the orchestrator
-  can send; it does not constrain the flag.
-
-  **Closed when:** a terminal close writes the run's own verdict into its ledger, and the ship
-  report refuses a verdict outside the documented set.
 
 - **HD-056 · Seven shipped files cite artifacts a user does not receive.** Found 2026-09-24 by a
   scan of the shipped set against the delivery allowlist; all predate this batch.

@@ -5,6 +5,16 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### The run ledger says what happened
+
+`harness-run.md` is the artifact the L4 block names as the ledger and the one a teammate opens
+first. Its close line was derived and right; its counters and tables were hand-shaped placeholders
+nothing filled — a run closed `shipped` beside `final_verdict: ~`, `rounds_used: 0`, an empty
+Decisions table and seven rows in `gates.jsonl`. The close now derives the verdict from the newest
+evaluation, the round count from the round artifacts, the Decisions table from `gates.jsonl` and
+the Rounds table from the T0 verdicts, build gates and evaluations, in the same pass that writes
+the close line and from the same records the export reads.
+
 ### A dispatched order that never answered is named, not forgotten
 
 A leg wrote its four artifacts and never its envelope. The phase post-condition stood on the
