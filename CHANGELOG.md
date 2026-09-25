@@ -3,7 +3,11 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [3.7.6] — 2026-09-25 · The records a teammate reads first say what happened
+
+Three defects the first shipped run exposed, all in records a reader trusts without opening the
+trace: the unanswered order nobody named, the ledger whose counters contradicted its close line,
+and the board row ticked by contagion.
 
 ### A board row is matched by its id, not by any mention of it
 
