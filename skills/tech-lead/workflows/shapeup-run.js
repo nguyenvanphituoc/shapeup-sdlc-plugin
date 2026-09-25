@@ -1837,6 +1837,9 @@ while (verdict !== "pass" && round <= maxRounds) {
       model: evalModel, round,
       // No `t0_artifacts` here, deliberately: `harness compile` derives them from the round's green
       // T0 verdicts on disk, for every lane — this script could only name paths it was told about.
+      // The same goes for `build_gate` and `launch_cmd`: compile reads them off the round's gate
+      // artifact and the project profile, so the judge gets the launch evidence without this script
+      // having to carry it.
       payload: { dimensions: evalDims, run_cmd: rs.run_cmd, round },
       extra: "Evaluate the running feature against every acceptance criterion and Done-when. One feature-level pass; cite every artifact the order lists under t0_artifacts, re-hashing each yourself.",
     });

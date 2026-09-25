@@ -490,6 +490,9 @@ compile-order --operation evaluate --slug <slug> --worker spec-evaluator --round
   --payload '{"dimensions": ["spec-conformance"], "run_cmd": "<cmd>"}'
   t0_artifacts is compiled from each scope's green T0 verdict for round <r> — pass it only to
   override. A scope with no green verdict is named on stderr: the judge has nothing to cite for it.
+  build_gate and launch_cmd are compiled too: this run's newest round build gate artifact, and the
+  profile's launch_probe. Neither is passed here — a `[ui]` row is graded on the running app, and
+  these are how the judge finds out the app was launched and how to bring it up again.
 Invoke via Agent (model: eval), ONCE, after GATE L2:
   Skill(shapeup-sdlc-plugin:spec-evaluator) --order <path>
 Effect: one feature-level pass over the running app against all AC + Done-when; writes
@@ -548,7 +551,7 @@ Read back: the proposed cut list + verdict (SHIP now | SHIP after fixing ship-bl
 | `harness-run.md` | **tech lead (sole writer)** | tech lead (round ledger + Hill + run-state), PO (audit) |
 | `scopes/<scope-id>.md` | `scope-architect` (sole writer) | tech lead (substrate/sequence), sandbox hook (write-whitelist), compile-order (inlined into orders) |
 | `t0/verdicts/r<N>-a<M>-t<T>.json` | `harness verify t0` (skill-local, mechanical — not a worker) | spec-evaluator (required citation), tech lead (hill derivation), compile-order (digested errors) |
-| `build/r<N>-t<T>.json` (the round build gate) | `harness verify build` (mechanical — run_cmd + build_probe + launch_probe, once per round before EVAL) | tech lead (GATE L2 block), `harness reduce hill` (a red round moves no dot), compile-order (`payload.bugs` for round N+1) |
+| `build/r<N>-t<T>.json` (the round build gate) | `harness verify build` (mechanical — run_cmd + build_probe + launch_probe, once per round before EVAL) | tech lead (GATE L2 block), `harness reduce hill` (a red round moves no dot), compile-order (`payload.bugs` for round N+1 when red; `payload.build_gate` on the same round's evaluate order) |
 | `t0/trials.jsonl` (the ratchet ledger, append-only, `baseline_trial` as the parent link) | `harness verify t0` (one row per attempt: score, status, delta, tree_ref) | compile-order (`trial_history` into the next order), ship-report (T0 + Ratchet sections), `harness probe stats --ratchet` |
 | `round-ledger.md` | **tech lead (sole writer)** | compile-order (decisions into every order), PO (audit) |
 | `hill/<scope-id>.yml` + `hill-chart.md` | **tech lead (sole writer)** | PO ("status without asking"), scope-hammer (H0 census) |

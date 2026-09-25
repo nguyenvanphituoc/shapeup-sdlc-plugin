@@ -136,7 +136,8 @@ erDiagram
 A verdict on a scoped spec is structurally invalid without a T0 citation; the sha256 is
 recomputed from disk — content-addressed evidence the generator cannot fabricate. Both ends are
 mechanical: `harness compile` hands the evaluator the artifacts to cite (`t0_artifacts`, each
-scope's green verdict for the round), and `harness probe eval` and `harness reduce ingest` refuse a
+scope's green verdict for the round) and the launch evidence for `[ui]` rows (`build_gate`, the
+round's build gate artifact; `launch_cmd`, the profile's launch probe), and `harness probe eval` and `harness reduce ingest` refuse a
 scoped PASS/FAIL that cites none.
 
 ```mermaid
@@ -240,7 +241,7 @@ erDiagram
 | `RequirementClause` (spine v1.3) | SHARED | `<slug>/requirements.md` | ba-pitch-analyzer (`coverage` — extraction only; a `CUT` is a PO governance edit) | harness verify trace (covers-closure), tech-lead, human |
 | `WiringMap` (spine v1.3) | SHARED | `<slug>/wiring-map.md` | solution-architect (SOLE writer, direct — like `scopes/*.md`); `entries[]` are `WiringEntry` | harness verify trace (reachability), scope-architect (seam), tech-lead |
 | `ProjectProfile` (spine v1.3) | SHARED | `<slug>/project-profile.md` | tech-lead (GATE L0 — not harness compile, which stays pipeline-blind) | harness verify trace (`entry_point`, `source_extensions`), harness verify build (`build_probe` + `launch_probe`), solution-architect (`wire`), tech-lead |
-| `RoundBuildVerdict` | LOCAL | `<slug>/build/r<N>-t<T>.json` | harness verify build (once per round before EVAL: the ledger's `run_cmd`, then the profile's probes, stopping at the first failure; immutable per gate run) | harness reduce hill (a red round's T0-greens move no dot), harness compile (each failing step → `payload.bugs` for round N+1), tech-lead (GATE L2 block) |
+| `RoundBuildVerdict` | LOCAL | `<slug>/build/r<N>-t<T>.json` | harness verify build (once per round before EVAL: the ledger's `run_cmd`, then the profile's probes, stopping at the first failure; immutable per gate run) | harness reduce hill (a red round's T0-greens move no dot), harness compile (each failing step → `payload.bugs` for round N+1; the newest artifact → the same round's evaluate order as `payload.build_gate`), tech-lead (GATE L2 block) |
 | `Lane` (v1.2 · design draft) | EMBEDDED | (when implemented) `harness-run.md` frontmatter `lane:` — never a payload field | tech-lead (GATE L0) | tech-lead only — see design §4.7 |
 
 ## 7.4b — Telemetry & resilience read-plane (v1.2)
@@ -315,7 +316,7 @@ Which `WorkOrderPayload` fields each worker may rely on — anything absent from
 | ba-pitch-analyzer | `pitch`, `breadboard`, `lens`, `orient_dir`, `spec_folder`, `feature`, `discovered_ledger`, `kb_rules_path` |
 | scope-architect | `feature`, `spec_folder`, `tasks`, `breadboard`, `kb_rules_path` |
 | solution-architect | `feature`, `spec_folder`, `project_profile`, `breadboard`, `kb_rules_path` |
-| spec-evaluator | `spec_folder`, `feature`, `dimensions`, `run_cmd`, `t0_artifacts`, `browser`, `tasks` |
+| spec-evaluator | `spec_folder`, `feature`, `dimensions`, `run_cmd`, `launch_cmd`, `build_gate`, `t0_artifacts`, `browser`, `tasks` |
 | orient | `pitch`, `breadboard`, `stack`, `spec_folder`, `feature`, `kb_rules_path` |
 | qa-edge-hunter | `feature`, `spec_folder`, `eval_report`, `app_url`, `ledger`, `kb_rules_path` |
 | translator | `intake`, `glossary` |

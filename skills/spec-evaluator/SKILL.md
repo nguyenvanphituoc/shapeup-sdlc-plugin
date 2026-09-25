@@ -36,7 +36,9 @@ Invoked as `--order <path>`. Fields you may rely on (absent = unknown, never inf
 | `payload.spec_folder` | The committed grading truth: `usecases/` + `domain-model.md` (+ `contracts/`, `scope-summary.md`, `_index.md`). No `usecases/` → HARD STOP, nothing to grade against |
 | `payload.feature` | Feature slug — scopes the probe and names the report |
 | `payload.dimensions[]` | The active dimension set (the caller resolved precedence). Absent → `[spec-conformance]` + the auto-enable rules below |
-| `payload.run_cmd` | How to start the running app. Absent standalone → ask; absent orchestrated → ESCALATE, do not guess |
+| `payload.run_cmd` | How to start the running app. On a stack where building and launching are different acts it is only the build — prefer `payload.launch_cmd` when the order carries one. Absent standalone → ask; absent orchestrated with no `launch_cmd` either → ESCALATE, do not guess |
+| `payload.launch_cmd` | The project profile's launch probe: installs the built artifact, starts it and asserts the first screen. This is how the app is brought up for `[ui]` probing. A non-zero exit is a finding to cite, not a reason to try another way. Absent → the profile declares none; fall back to `run_cmd` |
+| `payload.build_gate` | This run's newest round build gate artifact — each step's exit code and output tail. It records that the build ran and whether the app launched, and the launch step's output names what it captured. Read it before grading any `[ui]` row NO EVIDENCE: a launch that succeeded is evidence the app can be probed, and the row is graded on the app, not on its absence. Absent → the gate never ran |
 | `payload.t0_artifacts[]` | Per-scope T0 verdict paths for this round (scoped specs), compiled from each scope's green verdict. An artifact listed but missing/red on disk, or a scoped spec with none listed → the round is NOT gradeable: return `status: failed` with the reason, naming the scope, as your FIRST deviation — a structural precondition, not a criterion |
 | `payload.browser` | `cli` (default, ~4x cheaper) \| `mcp` \| `none` |
 | `payload.tasks[]` | Traceability only (which UCs a task claims): NEVER a grading source — the committed UC text is the criterion, a paraphrase mismatch is a finding |
@@ -94,7 +96,10 @@ Done-when statements; `_index.md` Non-Go list. Which UCs are in scope comes from
   contract triplet + Non-Go). Overall PASS only if ALL active dimensions pass — the halo
   effect is banned; a strong dimension never lifts a failing one.
 - **T0 citation (scoped specs).** Recompute each cited artifact's sha256 from disk — never
-  trust a handed hash. A verdict on a scoped spec without a T0 citation is structurally
+  trust a handed hash. Use any hasher you may run; when none is available to you,
+  `harness probe t0 --slug <slug> --scope <scope_id> --round <r>` prints the digest of that
+  scope's green verdict as the file is at that moment. A digest from any other place — a ledger
+  line, an earlier report, an error message — is a handed hash, however correct it looks. A verdict on a scoped spec without a T0 citation is structurally
   invalid, regardless of how convincing your own probing looked; generator prose ("tests
   pass", "verified locally") is never admissible evidence.
 - **When a criterion names a command, run THAT command.** Not the one that works, not the
