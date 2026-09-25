@@ -259,6 +259,19 @@ export async function run(ctx) {
     else fail(`the resource-only scope was measured as if it held code: ${JSON.stringify(by.res)}`);
   }
 
+  // AND THE ARM HAS TO RUN WHERE IT CAN SEE SOMETHING. At Board Review the scopes' files do not
+  // exist yet, so the per-scope measurement is over an empty set and its warning cannot fire — the
+  // defect it answers is a post-build fact. The orchestrator therefore runs the oracle a second
+  // time, after the round's build gate, and this pins both call sites: a check wired only where it
+  // is blind is decoration, and a single grep for the verb would pass with either one missing.
+  {
+    const wf = readFileSync(join(ROOT, "skills/tech-lead/workflows/shapeup-run.js"), "utf8");
+    const calls = [...wf.matchAll(/advisory\(`verify trace [^`]*`,\s*"([A-Za-z]+)"/g)].map((m) => m[1]);
+    if (calls.includes("MapScopes") && calls.includes("Build")) {
+      ok(`the run lints the trace twice — at Board Review, and again after the round's build gate where the scopes' code exists (${calls.join(", ")})`);
+    } else fail(`verify trace is dispatched from ${JSON.stringify(calls)} — the post-build pass is where per-scope reachability can measure anything at all`);
+  }
+
   // The second arm rests on the first. When reachability cannot root its walk there is no graph to
   // measure a scope against, and a per-scope claim derived from an empty set would be the same
   // false red this module exists to remove — one row per scope instead of one per engine.

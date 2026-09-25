@@ -18,6 +18,16 @@ committed requirements registry that cites the shaped pitch by description, name
 and draws zero tier-direction findings from spec-lint. No code changed for this entry — it is the
 evidence that was missing.
 
+### The trace oracle runs a second time, where it can see the code
+
+Per-scope reachability shipped wired only to Board Review, which is before BUILD — so the scopes'
+files did not exist yet, the measurement was over an empty set, and the warning could never fire on
+the defect it was written for. The run now lints the trace again after each round's build gate,
+where the code is on disk and "this scope's fixture is green and none of its code is in the
+compiled set" is a checkable fact. Advisory at both call sites; the later pass overwrites the same
+projection with a better-informed one. Both call sites are pinned by the suite, because a check
+wired only where it is blind is decoration.
+
 ### The no-control warning stops implying a fix that may not exist
 
 Measured on the ArkTS consumer after 3.9.0 landed: no entry point roots an import walk on that

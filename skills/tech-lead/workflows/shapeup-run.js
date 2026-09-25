@@ -1800,6 +1800,13 @@ while (verdict !== "pass" && round <= maxRounds) {
         `${gate.detail ? `: ${gate.detail}` : ""}). Treated as undeclared, not as green.`);
   }
 
+  // Trace-lint runs a SECOND time here, and this is the pass that can see anything. At L1b the
+  // scopes' files do not exist yet, so per-scope reachability measures an empty set and its warning
+  // cannot fire. After the round's build gate the code is on disk, which is exactly when "this
+  // scope's fixture is green and none of its code is in the compiled set" becomes a checkable fact
+  // — the shape that once left three scopes green while their files never compiled. Advisory, like
+  // the L1b pass: it overwrites the same projection with a later and better-informed one.
+  await advisory(`verify trace --slug ${slug} --quiet`, "Build", `trace-lint:r${round}`);
   await advisory(`reduce hill --slug ${slug}`, "Build", "hill-derive");
   {
     const g = await crossGate("L2", "Build", ["proceed", "ask", "abort"],
