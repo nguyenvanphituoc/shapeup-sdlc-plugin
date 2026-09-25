@@ -239,7 +239,7 @@ erDiagram
 | `StatsReport` (v1.2) | EMBEDDED | stdout only — never persisted | harness probe stats (read-only projection) | human / CLI / CI |
 | `RequirementClause` (spine v1.3) | SHARED | `<slug>/requirements.md` | ba-pitch-analyzer (`coverage` — extraction only; a `CUT` is a PO governance edit) | harness verify trace (covers-closure), tech-lead, human |
 | `WiringMap` (spine v1.3) | SHARED | `<slug>/wiring-map.md` | solution-architect (SOLE writer, direct — like `scopes/*.md`); `entries[]` are `WiringEntry` | harness verify trace (reachability), scope-architect (seam), tech-lead |
-| `ProjectProfile` (spine v1.3) | SHARED | `<slug>/project-profile.md` | tech-lead (GATE L0 — not harness compile, which stays pipeline-blind) | harness verify trace (entry_point), harness verify build (`build_probe` + `launch_probe`), solution-architect (`wire`), tech-lead |
+| `ProjectProfile` (spine v1.3) | SHARED | `<slug>/project-profile.md` | tech-lead (GATE L0 — not harness compile, which stays pipeline-blind) | harness verify trace (`entry_point`, `source_extensions`), harness verify build (`build_probe` + `launch_probe`), solution-architect (`wire`), tech-lead |
 | `RoundBuildVerdict` | LOCAL | `<slug>/build/r<N>-t<T>.json` | harness verify build (once per round before EVAL: the ledger's `run_cmd`, then the profile's probes, stopping at the first failure; immutable per gate run) | harness reduce hill (a red round's T0-greens move no dot), harness compile (each failing step → `payload.bugs` for round N+1), tech-lead (GATE L2 block) |
 | `Lane` (v1.2 · design draft) | EMBEDDED | (when implemented) `harness-run.md` frontmatter `lane:` — never a payload field | tech-lead (GATE L0) | tech-lead only — see design §4.7 |
 
