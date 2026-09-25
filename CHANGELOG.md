@@ -3,7 +3,7 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [3.7.10] — 2026-09-25 · Who may write what, derived instead of listed
 
 ### A citation names an artifact this run's own verifier wrote
 
