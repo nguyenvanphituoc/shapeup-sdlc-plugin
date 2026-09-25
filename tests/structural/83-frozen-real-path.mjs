@@ -21,6 +21,12 @@ export async function run(ctx) {
     return { denied: (r.stdout || "").includes('"permissionDecision":"deny"'), frozen: /frozen/i.test(r.stdout || ""), out: r.stdout || "" };
   };
 
+  // WHAT THIS MODULE CAN AND CANNOT DISCRIMINATE, since the freeze was inverted. `realPathOf` now
+  // does most of the work for a file that EXISTS — it resolves the spelling away before any glob is
+  // consulted — so the case-fold flag is load-bearing only for a path that does not exist yet,
+  // where the filesystem cannot be asked what the name means. For those the answer is a platform
+  // fact and not a derivable one, so the fold is pinned at the matcher (below) rather than through
+  // an assertion about an unborn file that would encode one platform's behaviour as the rule.
   // Pure helpers first — these hold on every platform.
   if (matchesAny("Receipts/dispatch.jsonl", ["receipts/**"], true) && !matchesAny("Receipts/dispatch.jsonl", ["receipts/**"], false)) {
     ok("matchesAny folds case only when asked — the glob stays as the compiler wrote it");
@@ -57,16 +63,16 @@ export async function run(ctx) {
         if (a.denied && a.frozen && b.denied && b.frozen) ok(`DENIES the ${label} under both spellings (${c} and ${variant})`);
         else fail(`the ${label} is denied as "${c}" (${a.denied ? "deny" : "allow"}) but its spelling "${variant}" is ${b.denied ? "denied, not as frozen" : "ALLOWED"} — the freeze is one keystroke wide\n${b.out}`);
       }
-      // The variant must also not be an over-deny of an unrelated file: a differently-named path
-      // under the run trace is still the doer's to write.
-      const board = ask(ws, ".shapeup/demo/Tasks/TASK-001.md");
-      if (!board.denied) ok("still ALLOWS a case variant of a path nothing froze (the doer's board write)");
-      else fail(`case folding over-denied the board write\n${board.out}`);
     } else {
       ok("this filesystem distinguishes case — a case variant is a different file here, and the fold is exercised where the filesystem folds (macOS, Windows)");
-      const b = ask(ws, canon[0][1]);
-      if (!b.frozen) ok("and on it a case variant is NOT reported as the frozen file (no false denial from folding)");
-      else fail(`case-sensitive filesystem, yet the variant spelling was denied as frozen\n${b.out}`);
+      // WHAT THIS BRANCH CANNOT PROVE ANY MORE, and why the case below replaces it. A build order
+      // freezes the whole run trace, so a case variant of a frozen channel is frozen on BOTH
+      // filesystems — here because it is another file under that same trace, not because anything
+      // folded. The property the fold must not break is asked outside the trace, below, where both
+      // filesystems can be asked the same question and answer differently for the right reason.
+      if (!matchesAny("receipts/dispatch.jsonl", ["Receipts/**"], false) && matchesAny("receipts/dispatch.jsonl", ["Receipts/**"], true)) {
+        ok("the matcher folds only when asked — the fold is a filesystem fact, never a default");
+      } else fail("matchesAny folds when it was not asked to, or refuses to when it was");
     }
 
     // --- symlinks: an allowed substrate must not be a door into a frozen file ------------------
@@ -80,6 +86,18 @@ export async function run(ctx) {
     const plain = ask(ws, "src/plain.ets");
     if (!plain.denied) ok("ALLOWS an ordinary write inside the allowed substrate (src/plain.ets)");
     else fail(`the allowed substrate itself is denied — the real-path comparison broke the happy path\n${plain.out}`);
+
+    // THE FOLD FOLLOWS THE FILESYSTEM, NEVER A PLATFORM GUESS — and this is the one question both
+    // filesystems can be asked, because the answer is derived rather than assumed: `SRC/app.ts` is
+    // permitted exactly when it IS `src/app.ts`, which the filesystem decides and `realPathOf`
+    // reports. Asserting a fixed answer here would encode one platform's behaviour as the rule;
+    // this compares the guard's answer against the identity the filesystem itself gives.
+    writeFileSync(join(ws, "src", "app.ts"), "x");
+    const sameFile = realPathOf(join(ws, "SRC", "app.ts")) === realPathOf(join(ws, "src", "app.ts"));
+    const variantSrc = ask(ws, "SRC/app.ts");
+    if (sameFile && !variantSrc.denied) ok("this filesystem calls SRC/app.ts the same file as src/app.ts, and the guard permits it — the fold reaches the substrate, not only the freeze");
+    else if (!sameFile && variantSrc.denied && !variantSrc.frozen) ok("this filesystem calls SRC/app.ts a different file, and the guard denies it as out of substrate rather than as frozen");
+    else fail(`the guard disagrees with the filesystem about SRC/app.ts: same_file=${sameFile} denied=${variantSrc.denied} frozen=${variantSrc.frozen}\n${variantSrc.out}`);
 
     const viaLink = ask(ws, "src/legs.jsonl");
     if (viaLink.denied && viaLink.frozen) ok("DENIES a write through a file symlink inside src/** that lands on the frozen leg ledger");

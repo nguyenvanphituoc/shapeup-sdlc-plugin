@@ -3,6 +3,15 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.7.12] — 2026-09-25 · The release 3.7.10 and 3.7.11 could not ship
+
+Those two tags failed their own suite in CI and never published: a check written on a
+case-insensitive filesystem asserted that a case variant of a frozen channel is NOT denied there,
+and inverting the freeze to the whole run trace made that false on every platform — the variant is
+another file under the same frozen trace. The check now asks what both filesystems can answer: the
+guard's verdict on a variant path must agree with the identity the filesystem itself reports.
+Everything 3.7.10 and 3.7.11 carried ships here.
+
 ## [3.7.11] — 2026-09-25 · The envelope says where the answer goes, and two rules the gate used to learn the hard way
 
 ### A no-go is a constraint, and a committed file does not state the projection
