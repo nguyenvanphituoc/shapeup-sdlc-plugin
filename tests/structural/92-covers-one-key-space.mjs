@@ -28,4 +28,32 @@ export async function run(ctx) {
     if (/coveredReqIds\(/.test(readFileSync(join(ROOT, f), "utf8"))) ok(`${f} grades through coveredReqIds`);
     else fail(`${f} no longer grades through coveredReqIds — a second key space`);
   }
+
+  // The parser that BUILDS `ac.covers` from a task file reads the whole bullet and folds too — a
+  // clause on an indented continuation line, or spelled R-2, used to vanish before grading began.
+  const { mkdtempSync, rmSync, writeFileSync, mkdirSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const ws = mkdtempSync(join(tmpdir(), "covers-parse-"));
+  try {
+    const { readBoard } = await import(join(ROOT, "kernel/compile.mjs"));
+    mkdirSync(join(ws, ".shapeup/f/tasks"), { recursive: true });
+    writeFileSync(join(ws, ".shapeup/f/tasks/TASK-001.md"), [
+      "---", "id: TASK-001", "status: ready", "---", "", "## Acceptance Criteria", "",
+      "- [ ] the badge renders the count (TS-INV-01)",
+      "      and hides at zero (TS-INV-02) (covers: REQ-1)",
+      "- [ ] tapping opens the list (covers: R-2, [[REQ-3]])",
+      "- [ ] a bullet with no clause at all",
+      "",
+    ].join("\n"));
+    const acs = readBoard(ws, "f")[0]?.acceptance_criteria || [];
+    const c0 = typeof acs[0] === "object" ? acs[0].covers : [], c1 = typeof acs[1] === "object" ? acs[1].covers : [];
+    if (JSON.stringify(c0) === JSON.stringify(["REQ-1"]) && typeof acs[0] === "object" && acs[0].text === "the badge renders the count (TS-INV-01)") ok("a clause on the bullet's continuation line is read, and the AC text stays the checkbox line");
+    else fail(`continuation-line clause not read: ${JSON.stringify(acs[0])}`);
+    if (JSON.stringify(c1) === JSON.stringify(["REQ-2", "REQ-3"])) ok("R-2 and [[REQ-3]] fold to REQ-2, REQ-3 at parse time");
+    else fail(`the parser did not fold: ${JSON.stringify(acs[1])}`);
+    if (typeof acs[2] === "string") ok("a bullet with no clause stays a plain string");
+    else fail(`a clause-less bullet became ${JSON.stringify(acs[2])}`);
+  } finally {
+    rmSync(ws, { recursive: true, force: true });
+  }
 }

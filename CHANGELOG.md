@@ -5,6 +5,14 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### A covers: clause is read across the whole acceptance-criterion bullet
+
+The task-file parser scanned `(covers: …)` on the checkbox line alone and filtered the raw token.
+A regenerated board whose every AC carried a clause on its indented continuation line projected as
+a board carrying none: the requirements matrix printed "no evidence" for clauses that had a PASS
+criterion anchored to them, and the census took its "clauses with no evidence" from that. The
+parser reads the whole bullet now and folds each token through the one key helper.
+
 ### A second run over a slug re-derives its own greens
 
 The run key was a field, not an address: every path is `(cwd, slug)`, the artifacts are

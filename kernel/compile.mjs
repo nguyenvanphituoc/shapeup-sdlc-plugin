@@ -39,7 +39,7 @@ import {
   tasksDir, specDir as defaultSpecDir, roundLedger, trials, verdictsDir, ordersDir,
   relShared, relLocal, globLocal, globShared, relKnowledgeBase, resultsDir, scopesDir,
 } from "./lib/paths.mjs";
-import { readContract, readAllContracts, tasksForScope, SCOPE_CONTRACT } from "./lib/contract.mjs";
+import { readContract, readAllContracts, tasksForScope, SCOPE_CONTRACT, reqId } from "./lib/contract.mjs";
 import { writeActiveOrder } from "./probe/resume.mjs";
 import { greenVerdict } from "./probe/t0.mjs";
 import { attemptEvidence, readReceipts } from "./probe/attempts.mjs";
@@ -101,14 +101,27 @@ export function parseTaskFile(path) {
   const body = readFileSync(path, "utf8");
   const fm = frontmatter(body);
   const acceptance_criteria = [];
-  for (const line of body.split(/\r?\n/)) {
-    const m = line.match(/^\s*- \[[ x]\]\s+(.*)$/);
+  // A `(covers: …)` clause is read across the WHOLE bullet — the checkbox line and the indented
+  // continuation lines under it — and each token folds through the one key helper. The clause was
+  // scanned on the checkbox line alone, so a board whose every AC carried one on its continuation
+  // line projected as a board carrying none: the requirements matrix printed "no evidence" for
+  // clauses that had a PASS criterion anchored to them. Measured live. `text` stays byte-identical
+  // to the checkbox line, because ingest ticks the box by matching it back.
+  const lines = body.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^\s*- \[[ x]\]\s+(.*)$/);
     if (!m) continue;
-    const text = m[1].trim(); // byte-identical to the checkbox — ingest ticks by matching it back
-    // Additive covers-closure anchor (spine v1.3): a trailing `(covers: REQ-3, REQ-7)` clause on
-    // the AC line yields {text, covers}; a plain line stays a string (non-regression on legacy boards).
-    const cov = text.match(/\(covers:\s*([^)]*)\)/i);
-    const covers = cov ? cov[1].split(",").map((s) => s.trim()).filter((s) => /^REQ-\d+$/.test(s)) : [];
+    const text = m[1].trim();
+    let block = text;
+    for (let j = i + 1; j < lines.length; j++) {
+      const l = lines[j];
+      if (!l.trim() || /^\s*[-*+]\s/.test(l) || /^#/.test(l) || !/^\s/.test(l)) break;
+      block += "\n" + l;
+    }
+    const covers = [];
+    for (const cov of block.matchAll(/\(covers:\s*([^)]*)\)/gi)) {
+      for (const raw of cov[1].split(",")) { const id = reqId(raw); if (/^REQ-\d+$/.test(id) && !covers.includes(id)) covers.push(id); }
+    }
     acceptance_criteria.push(covers.length ? { text, covers } : text);
   }
   return {
