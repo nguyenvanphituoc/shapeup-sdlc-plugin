@@ -187,11 +187,48 @@ export function setCheckbox(body, ac, checked) {
  * @param {boolean} done - When true, rewrite the row's status emoji/word to done; false is a no-op.
  * @returns {string} The board text with the matching row updated (unchanged when no row matches).
  */
-export function updateBoardRow(indexBody, taskId, done) {
+/**
+ * Is this index line the row FOR `taskId` — its first cell — rather than a row that merely
+ * mentions it? A task id appears in other rows' `Depends On` column, and matching by substring
+ * anywhere in the line flipped every dependent of a finished task to done along with it. Measured
+ * on a live run: the executor reported one task `skipped`, its task file still said `ready`, and
+ * the index showed it ✅ because the task it depended on had just been ticked. The census read the
+ * index.
+ * @param {string} line - One line of `tasks/_index.md`.
+ * @param {string} taskId - `TASK-NNN`.
+ * @returns {boolean}
+ */
+export function rowIs(line, taskId) {
+  const id = taskId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`^\\|\\s*(?:\\[\\[)?${id}(?:\\\\\\|${id}\\]\\])?\\s*\\|`).test(line);
+}
+
+/**
+ * The status cell for one TaskResult status, or null when the index should not change.
+ * @param {(string|boolean)} status - A TaskResult status (`true` is accepted as `done` for callers written before skipped existed).
+ * @returns {({icon:string, word:string}|null)} The icon and word the index row should carry.
+ */
+export function boardCell(status) {
+  if (status === true || status === "done") return { icon: "✅", word: "done" };
+  if (status === "skipped") return { icon: "⏭", word: "skipped" };
+  if (status === "partial" || status === "failed") return { icon: "🔄", word: "in-progress" };
+  return null;
+}
+
+/**
+ * Rewrite one task's status cell in `tasks/_index.md` — the row whose id cell is `taskId`, never a
+ * row that merely mentions it in `Depends On`.
+ * @param {string} indexBody - The index file's text.
+ * @param {string} taskId - `TASK-NNN`.
+ * @param {(string|boolean)} status - A TaskResult status; statuses the index does not render leave it unchanged.
+ * @returns {string} The rewritten index text.
+ */
+export function updateBoardRow(indexBody, taskId, status) {
+  const cell = boardCell(status);
+  if (!cell) return indexBody;
   return indexBody.split(/\r?\n/).map((line) => {
-    if (!line.includes(taskId) || !line.includes("|")) return line;
-    if (done) return line.replace(/⬜|🔄|⏳|🚫/g, "✅").replace(/\b(ready|in-progress|blocked)\b/gi, "done");
-    return line;
+    if (!rowIs(line, taskId)) return line;
+    return line.replace(/⬜|🔄|⏳|🚫|✅|⏭/g, cell.icon).replace(/\b(ready|in-progress|blocked|done|skipped)\b/gi, cell.word);
   }).join("\n");
 }
 
@@ -240,14 +277,18 @@ function applyResultLocked(result, { cwd, slug }) {
       body = setFrontmatter(body, "completed_at", today());
     } else if (tr.status === "partial" || tr.status === "failed") {
       body = setFrontmatter(body, "status", "in-progress");
+    } else if (tr.status === "skipped") {
+      // Rendered as what it is. A skipped task used to leave its file at `ready` and, through the
+      // substring match above, could show ✅ on the index — the census read the index.
+      body = setFrontmatter(body, "status", "skipped");
     }
     // Execution Log (append; the checkbox list must never disagree with it).
     const logLines = (tr.ac_results || []).map((a) => `- ${a.ac}: ${a.result}${a.evidence ? ` (${a.evidence})` : ""}`).join("\n");
     body += `\n\n## Execution Log — ${today()} (${result.order_id})\n- executor: ${result.worker || "task-executor"} via ingest-result\n- status: ${tr.status}\n${logLines}${tr.notes ? `\n- notes: ${tr.notes}` : ""}\n`;
     writeFileSync(path, body);
     summary.tasks_updated.push(tr.task_id);
-    if (tr.status === "done" && existsSync(boardIndex)) {
-      writeFileSync(boardIndex, updateBoardRow(readFileSync(boardIndex, "utf8"), tr.task_id, true));
+    if (existsSync(boardIndex) && boardCell(tr.status)) {
+      writeFileSync(boardIndex, updateBoardRow(readFileSync(boardIndex, "utf8"), tr.task_id, tr.status));
     }
   }
 
@@ -271,7 +312,7 @@ function applyResultLocked(result, { cwd, slug }) {
         summary.unblocked.push(t.id);
         if (existsSync(boardIndex)) {
           const idx = readFileSync(boardIndex, "utf8").split(/\r?\n/).map((line) =>
-            line.includes(t.id) && line.includes("|")
+            rowIs(line, t.id)
               ? line.replace(/🚫|⏳/g, "⬜").replace(/\bblocked\b/gi, "ready")
               : line).join("\n");
           writeFileSync(boardIndex, idx);

@@ -5,6 +5,17 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### A board row is matched by its id, not by any mention of it
+
+The executor reported one task `skipped`; its task file still said `ready`; the board index showed
+it ✅ done, and the census read the index. Not the worker's optimism — the consumer filed it that
+way, and it was a fair guess — but `reduce ingest`: it matched an index row by the task id
+appearing anywhere in the line, and a finished task's id sits in every dependent's `Depends On`
+column, so ticking the dependency ticked the dependent. Rows now match by their id cell alone, on
+both the completion and the unblock paths; `skipped` and `failed` render as what they are in the
+index and the task file; and `tasks/_index.md` is frozen for build legs, as the executor's contract
+already said and the hook now enforces.
+
 ### The run ledger says what happened
 
 `harness-run.md` is the artifact the L4 block names as the ledger and the one a teammate opens

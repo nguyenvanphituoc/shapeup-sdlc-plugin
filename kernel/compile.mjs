@@ -246,7 +246,10 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
   // not cover is a leg forging a SIBLING's result, which is a real hole with a different fix — the
   // glob form here cannot say "every result except this order's own", so closing it needs a
   // mechanism rather than one more entry on this list.
-  const FROZEN_ATTESTATION = [`${local}/receipts/**`, `${local}/legs.jsonl`, `${local}/t0/verdicts/**`];
+  // The board index is ingest's projection of the task results, not the doer's bookkeeping — the
+  // task files are. The executor's contract already forbids editing it; the freeze makes that a
+  // denial rather than a rule, on the same terms as the attestation channels.
+  const FROZEN_ATTESTATION = [`${local}/receipts/**`, `${local}/legs.jsonl`, `${local}/t0/verdicts/**`, `${local}/tasks/_index.md`];
   switch (operation) {
     case "execute": case "fix": case "spike":
       // Build legs are the widest window on FROZEN_INTAKE, not an exemption from it: they are the

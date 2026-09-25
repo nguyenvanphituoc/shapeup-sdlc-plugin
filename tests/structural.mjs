@@ -368,6 +368,11 @@ const MODULE_FILES = [
   // placeholders nothing filled, so a shipped run read `final_verdict: ~`, `rounds_used: 0`, and an
   // empty Decisions table beside seven ledgered gates. The close derives them from the run's records.
   "88-ledger-derived-at-close.mjs",
+  // 89-board-row-by-id.mjs: ingest matched an index row by substring anywhere in the line, so a
+  // finished task's id in another row's Depends On column flipped that dependent to ✅ — a task the
+  // executor reported skipped showed done, and the census read the index. Rows match by id cell,
+  // skipped renders as skipped, and the index is frozen for build legs.
+  "89-board-row-by-id.mjs",
   "08-docs.mjs",
 ];
 

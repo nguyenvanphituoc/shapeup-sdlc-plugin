@@ -84,6 +84,7 @@ export async function run(ctx) {
         [".shapeup/demo/legs.jsonl", "leg-completion ledger"],
         [".shapeup/demo/t0/verdicts/r1-a1-t1.json", "T0 verdict (the real filename shape)"],
         [".shapeup/demo/t0/verdicts/r2-a3-t7.json", "a later trial's verdict, covered only by the glob"],
+        [".shapeup/demo/tasks/_index.md", "board index (ingest's projection of the task results, not the doer's bookkeeping)"],
       ];
       for (const [relPath, label] of attestedChannels) {
         const r = ask(ws, relPath);
@@ -142,6 +143,7 @@ export async function run(ctx) {
     ".shapeup/demo/receipts/dispatch.jsonl",
     ".shapeup/demo/legs.jsonl",
     ".shapeup/demo/t0/verdicts/r1-a1-t1.json",
+    ".shapeup/demo/tasks/_index.md",
   ];
   for (const op of ["fix", "spike"]) {
     const frozen = substrateFor(op, { slug: "demo" }).frozen || [];

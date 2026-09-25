@@ -119,7 +119,12 @@ export async function run(ctx) {
       expect("the scope's own allowed_file_substrate", "src/scopeA/Widget.tsx", "allow", "in-substrate");
       expect("the scope's declared shared_substrate", "packages/shared/http.ts", "allow", "in-substrate");
       expect("this leg's own spikes/** scratch space", `.shapeup/${SLUG}/spikes/notes.md`, "allow", "in-substrate");
-      expect("the task board (task-executor P3 status/AC ticks)", `.shapeup/${SLUG}/tasks/_index.md`, "allow", "in-substrate");
+      // The doer's bookkeeping is the TASK FILE (P3 status/AC ticks). The index is ingest's projection
+      // of the task results, which the executor's own contract forbids it to edit — and since a
+      // substring match on the index once ticked a skipped task's row ✅ through its Depends On
+      // column, the hook enforces that rule rather than the contract merely stating it.
+      expect("the task board (task-executor P3 status/AC ticks)", `.shapeup/${SLUG}/tasks/TASK-001.md`, "allow", "in-substrate");
+      expect("the board index (ingest's projection, never the doer's)", `.shapeup/${SLUG}/tasks/_index.md`, "deny", "frozen");
       expect("the P3.7 discovery ledger", `.shapeup/${SLUG}/discovery/ledger.md`, "allow", "in-substrate");
     } finally {
       rmSync(ws, { recursive: true, force: true });
