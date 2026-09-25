@@ -697,7 +697,8 @@ export async function cli(rawArgv) {
   // on (see `citationProblem`). `probe eval` refuses it to the round loop; refusing it here as well
   // keeps the verdict ledger from recording a verdict the loop will never branch on.
   if (result.verdict) {
-    const problem = citationProblem(cwd, String(result.order_id).split("/")[0], result.verdict);
+    const evalRound = Number((String(result.order_id).match(/-r(\d+)$/) || [])[1]) || null;
+    const problem = citationProblem(cwd, String(result.order_id).split("/")[0], result.verdict, { round: evalRound });
     if (problem) {
       console.error(`ingest-result: result refused — ${problem}.`);
       console.error(`  The round stays open: re-dispatch the evaluator against its order, which lists`);

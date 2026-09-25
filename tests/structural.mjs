@@ -373,6 +373,10 @@ const MODULE_FILES = [
   // executor reported skipped showed done, and the census read the index. Rows match by id cell,
   // skipped renders as skipped, and the index is frozen for build legs.
   "89-board-row-by-id.mjs",
+  // 90-run-scoped-records.mjs: three readers reached durable artifacts run-blind — deriveRounds
+  // (the committed report's round count), the gate ledger (exported under the current run's key),
+  // and the citation check (digest and verdict only). A two-run fixture: run 2 reports only its own.
+  "90-run-scoped-records.mjs",
   "08-docs.mjs",
 ];
 

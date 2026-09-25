@@ -22,7 +22,7 @@
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { ordersDir, verdictsDir, roundBuildDir, resultsDir } from "../lib/paths.mjs";
+import { ordersDir, verdictsDir, roundBuildDir, resultsDir, readRunId } from "../lib/paths.mjs";
 
 /** Parse a JSON file, returning null rather than throwing — every reader here is best-effort. */
 function readJson(p) {
@@ -59,12 +59,22 @@ const maxOf = (nums) => (nums.length ? Math.max(...nums) : null);
  * @returns {{rounds_used:*, rounds_judged:(number|null)}} Both counts.
  */
 export function deriveRounds(cwd, slug, fallback) {
+  // THIS RUN'S RECORDS ONLY. Orders, verdicts and build gates over one slug accumulate across runs
+  // and carry their run key; walking the directories unfiltered handed a run that had dispatched
+  // nothing a prior run's round count — into the committed report. A record with no key at all was
+  // written before the key existed and is kept; one with a different key is another run's.
+  const runId = readRunId(cwd, slug);
+  const mine = (rec) => !runId || !rec?.run_id || rec.run_id === runId;
   const orderRounds = [];
   const oDir = ordersDir(cwd, slug);
+  const orderOf = {};
   if (existsSync(oDir)) {
     for (const f of readdirSync(oDir)) {
       if (!f.endsWith(".json")) continue;
-      const r = orderRound(readJson(join(oDir, f))?.order_id);
+      const o = readJson(join(oDir, f));
+      orderOf[f] = o;
+      if (!mine(o)) continue;
+      const r = orderRound(o?.order_id);
       if (r !== null) orderRounds.push(r);
     }
   }
@@ -74,7 +84,7 @@ export function deriveRounds(cwd, slug, fallback) {
   if (existsSync(vDir)) {
     for (const f of readdirSync(vDir).filter((x) => x.endsWith(".json"))) {
       const v = readJson(join(vDir, f));
-      if (typeof v?.round === "number") verdictRounds.push(v.round);
+      if (mine(v) && typeof v?.round === "number") verdictRounds.push(v.round);
     }
   }
 
@@ -83,7 +93,7 @@ export function deriveRounds(cwd, slug, fallback) {
   if (existsSync(bDir)) {
     for (const f of readdirSync(bDir)) {
       const m = f.match(/^r(\d+)-t\d+\.json$/);
-      if (m) buildGateRounds.push(Number(m[1]));
+      if (m && mine(readJson(join(bDir, f)))) buildGateRounds.push(Number(m[1]));
     }
   }
 
@@ -92,7 +102,8 @@ export function deriveRounds(cwd, slug, fallback) {
   if (existsSync(rDir)) {
     for (const f of readdirSync(rDir)) {
       const m = f.match(/^evaluate-r(\d+)\.json$/);
-      if (m) evalRounds.push(Number(m[1]));
+      // A WorkResult carries no run key; it reaches one through its order of the same name.
+      if (m && mine(orderOf[f] ?? readJson(join(oDir, f)))) evalRounds.push(Number(m[1]));
     }
   }
 

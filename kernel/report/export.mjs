@@ -173,12 +173,14 @@ function criterionRows(dir, runId, t) {
  * (see `appendGateLedger`), so this is a pass-through with a stamped `run_id` fallback rather than
  * a re-derivation: two readers of "what did this gate decide" must not compute the answer twice.
  * @param {object} g - One parsed line of `gates.jsonl`.
- * @param {(string|null)} runId - Run key for a row written before it carried its own.
+ * @param {(string|null)} runId - The run being exported (unused for attribution — the row's own key is the only one exported).
  * @returns {object} A flat `gate_decision` row.
  */
 function gateDecisionRow(g, runId) {
   return {
-    run_id: g?.run_id ?? runId ?? null,
+    // The row's own key, never the current run's stamped on: a row that carries no key was written
+    // before the ledger did, and is exported as unattributed rather than claimed.
+    run_id: g?.run_id ?? null,
     gate: g?.gate ?? null,
     decision: g?.decision ?? null,
     status: g?.status ?? null,
@@ -260,7 +262,9 @@ export function collectRun(cwd, slug) {
       criterion_verdict: criterionRows(evaluationDir(cwd, slug), runId, t),
       hook_decision,
       // The decision that crossed each gate, and the round build gate's own artifact.
-      gate_decision: readJsonl(gatesPath(cwd, slug), t).map((g) => gateDecisionRow(g, runId)),
+      // Scoped to the run, like hook_decision one line up: gate rows over one slug accumulate across
+      // runs, and a prior run's L4 exported under this run's key is a fabricated sign-off.
+      gate_decision: readJsonl(gatesPath(cwd, slug), t).filter((g) => runId && g?.run_id === runId).map((g) => gateDecisionRow(g, runId)),
       build_gate: readJsonDir(roundBuildDir(cwd, slug), t).map((a) => buildGateRow(a, runId)),
       leg: readJsonl(legLedger(cwd, slug), t)
         .filter((r) => !runId || !r?.run_id || r.run_id === runId)

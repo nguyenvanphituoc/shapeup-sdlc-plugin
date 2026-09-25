@@ -32,7 +32,6 @@ is pinned by a guard, never when it is merely believed done.
 | HD-056 | seven shipped files cite artifacts a user does not receive | P3 |
 | HD-058 | two gates still have no deterministic call site — L0 and COACH-1 are resolved by prose alone | P3 |
 | HD-059 | a T0 verdict is evidence about a machine, and records only the tree | P1 |
-| HD-062 | three run-blind readers reach durable artifacts: the committed report's round count, the exported gate decisions, and the citation check | P1 (HD-041 member) |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
 | HD-025 | two run geometries this checkout cannot reach | process |
@@ -812,26 +811,5 @@ else needs to survive for the fix to hold.
   **Closed when:** a T0 artifact carries enough about where it ran that a disagreeing re-run can be
   told from a regression, or the harness states plainly, where the verdict is read, that its
   evidence is machine-local.
-
-- **HD-062 · Three run-blind readers reach durable artifacts: the committed report's round count,
-  the exported gate decisions, and the citation check.** Found 2026-09-24 by the second review;
-  members of `HD-041`, filed separately because none of them is on that row's closing criterion and
-  two of them reach artifacts that outlive the trace.
-
-  `deriveRounds` walks the orders, verdicts and build-gate directories for the whole slug with no
-  run filter, though every order carries the key. Driven on a two-run fixture: run 2, having
-  dispatched nothing, reports `rounds_used: 3` — and that value is what `reduce ship` writes into the
-  committed `REPORT.md`. The gate ledger row carries no `run_id` at all; the export stamps the
-  current run's key onto every row it finds, under a comment describing that as a fallback for rows
-  "written before they carried their own", which is every row ever written. Driven: run 1 resolves
-  L1a and L4, run 2 resolves L1b, and run 2's `gate_decision` table lists all three as its own — a
-  fabricated sign-off in the one table that answers "was this ship signed off". And the citation
-  check 3.7.2 added — new code, written after the class was named — compares the digest and the
-  cited verdict and nothing else: `scope_id` is a required field of the citation and is compared to
-  nothing, and round and run go unchecked with it.
-
-  **Closed when:** each of the three carries and filters `run_id`, and a two-run fixture shows run 2
-  reporting only its own rounds, its own gate decisions, and refusing a citation whose scope, round
-  or run is not the verdict's.
 
 This file stays short on purpose. It is a queue, not an archive.

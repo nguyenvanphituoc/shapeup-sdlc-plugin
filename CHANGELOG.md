@@ -3,6 +3,21 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Three readers stop reaching across runs
+
+Orders, verdicts, build gates and gate decisions over one slug accumulate across runs and carry the
+run's key; three readers ignored it. `deriveRounds` walked the directories unfiltered and handed a
+run that had dispatched nothing a prior run's round count — into the committed report. The gate
+ledger's rows carried no key at all, and the export stamped the current run's key onto every row it
+found, so a prior run's L4 sign-off became this run's in the one table that answers "was this ship
+signed off". And the citation check re-hashed the artifact and read its verdict, and compared
+nothing else — a PASS citing another scope's green artifact, or a prior round's, or a prior run's,
+passed unremarked. Each now carries and filters the key: the report counts this run's rounds, gate
+rows are written with their key and exported only under it, and a citation must name the scope,
+the round and the run the artifact records about itself.
+
 ## [3.7.6] — 2026-09-25 · The records a teammate reads first say what happened
 
 Three defects the first shipped run exposed, all in records a reader trusts without opening the

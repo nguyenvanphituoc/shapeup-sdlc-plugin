@@ -54,7 +54,7 @@ import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync } fr
 import { parseBoard } from "./reduce/board.mjs";
 import { join, dirname } from "node:path";
 import { runArgs } from "./lib/argv.mjs";
-import { gateAnswerCandidates, gates as gatesPath, LOCAL, resultsDir, tasksDir, hammerCensus } from "./lib/paths.mjs";
+import { gateAnswerCandidates, gates as gatesPath, LOCAL, resultsDir, tasksDir, hammerCensus, readRunId } from "./lib/paths.mjs";
 
 export const GATE_IDS = ["L0", "L1a", "L1a.5", "L1b", "L2", "L3", "QA", "H", "L4", "COACH-1"];
 
@@ -465,7 +465,11 @@ export function cli(rawArgv) {
   // per-run ledger row — the same reasoning `resolveRunId` uses for "no run is active": absence is
   // the correct answer, not an error, so the write is skipped rather than guessing a location.
   if (args.slug) {
+    // THE ROW CARRIES THE RUN KEY. It did not, and the export stamped the current run's key onto
+    // every row it found — a prior run's sign-off became this run's in the one table that answers
+    // "was this ship signed off". Driven on a two-run fixture before it was fixed.
     appendGateLedger(cwd, args.slug, {
+      at: new Date().toISOString(), run_id: readRunId(cwd, args.slug),
       gate: r.gate, status: r.status, decision: r.decision ?? null,
       source: r.source ?? found.source, note: r.note ?? r.reason ?? null,
       round: args.round ?? null,

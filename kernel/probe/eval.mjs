@@ -35,7 +35,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
 import { runArgs } from "../lib/argv.mjs";
-import { resultsDir, scopesDir } from "../lib/paths.mjs";
+import { resultsDir, scopesDir, readRunId } from "../lib/paths.mjs";
 
 /** Longest `reason` reported. A deviation is prose written by a worker and can run to paragraphs. */
 const REASON_MAX = 400;
@@ -89,7 +89,7 @@ export function isScoped(cwd, slug) {
  * @returns {(string|null)} A reason phrased for an operator, or null when the file at `path` exists,
  *   hashes to the cited `sha256`, and its own `overall` reads "green".
  */
-function unresolvedCitation(cwd, citation) {
+function unresolvedCitation(cwd, citation, { round = null, runId = null } = {}) {
   const rel = typeof citation?.path === "string" ? citation.path : "";
   if (!rel) return "names no artifact path";
   let text;
@@ -109,6 +109,20 @@ function unresolvedCitation(cwd, citation) {
   try { body = JSON.parse(text); }
   catch { return `cites ${rel}, whose bytes match the hash but do not read as a T0 verdict`; }
   if (body?.overall !== "green") return `cites ${rel}, whose own verdict is "${body?.overall ?? "unknown"}", not green`;
+  // THE ARTIFACT HAS TO BE THE ONE THE CITATION SAYS IT IS. A re-hash proves the bytes are the
+  // file's; it says nothing about whose verdict the file holds. A PASS citing scope alpha's green
+  // artifact while declaring scope beta, or a prior round's, or a prior run's over the same slug,
+  // passed the digest check unremarked. The citation's own required `scope_id`, the round being
+  // judged and the run's key are compared to what the artifact records about itself.
+  if (typeof citation.scope_id === "string" && body?.scope_id && body.scope_id !== citation.scope_id) {
+    return `cites ${rel} for scope "${citation.scope_id}", but the artifact records scope "${body.scope_id}"`;
+  }
+  if (round != null && typeof body?.round === "number" && body.round !== round) {
+    return `cites ${rel}, a round ${body.round} artifact, as evidence for round ${round}`;
+  }
+  if (runId && body?.run_id && body.run_id !== runId) {
+    return `cites ${rel}, an artifact of run ${body.run_id}, as evidence for run ${runId}`;
+  }
   return null;
 }
 
@@ -143,15 +157,16 @@ function unresolvedCitation(cwd, citation) {
  *   citation resolves, an unscoped spec, or a block with no PASS/FAIL in it (there is no judgement
  *   to invalidate).
  */
-export function citationProblem(cwd, slug, verdict) {
+export function citationProblem(cwd, slug, verdict, { round = null } = {}) {
   if (verdict?.overall !== "PASS" && verdict?.overall !== "FAIL") return null;
   if (!isScoped(cwd, slug)) return null;
   if (!Array.isArray(verdict.t0_citations) || !verdict.t0_citations.length) {
     return `the ${verdict.overall} verdict cites no T0 artifact, and a verdict on a scoped spec must ` +
       "cite the T0 verdict it re-hashed (the order lists them under payload.t0_artifacts)";
   }
+  const runId = readRunId(cwd, slug);
   for (const citation of verdict.t0_citations) {
-    const reason = unresolvedCitation(cwd, citation);
+    const reason = unresolvedCitation(cwd, citation, { round, runId });
     if (reason) return `the ${verdict.overall} verdict ${reason} — a T0 citation is re-hashed from disk, never taken on the handed word`;
   }
   return null;
@@ -185,7 +200,7 @@ export function evalVerdict(cwd, slug, round) {
       ? `the evaluator returned ${status || "no status"}: ${first}`
       : `status ${status || "unknown"} with no PASS/FAIL verdict`), status);
   }
-  const problem = citationProblem(cwd, slug, v);
+  const problem = citationProblem(cwd, slug, v, { round });
   if (problem) return unfit(problem, status, overall);
   return {
     found: true,
