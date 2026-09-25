@@ -3,7 +3,7 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [3.7.9] — 2026-09-25 · A verdict says where it was measured, and a launch says what it is running
 
 ### A launch says when the orchestrator it runs is not the installed one
 
