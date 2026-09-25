@@ -3,7 +3,10 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [3.7.8] — 2026-09-25 · One run's records answer for that run
+
+The run-key class closed, both remaining gates given a call site, the hill's guard re-keyed, and a
+`covers:` clause read wherever an author can legibly write one.
 
 ### A covers: clause is read across the whole acceptance-criterion bullet
 
