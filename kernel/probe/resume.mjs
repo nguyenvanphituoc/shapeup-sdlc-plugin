@@ -65,6 +65,7 @@ import { parseBoard } from "../reduce/board.mjs";
 import { intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir, orientDir, activeOrder, activeScope, usecasesDir, breadboard, receipt, readReceipt, requirements, exportRunDir, lastRun, readRunId, tasksDir, gates, verdictsDir, roundBuildDir } from "../lib/paths.mjs";
 import { evalVerdict } from "./eval.mjs";
 import { deriveRounds } from "./rounds.mjs";
+import { stagedWorkflowDrift, driftWarning } from "./staged.mjs";
 import { collectRun, writeRun } from "../report/export.mjs";
 
 /** The run-state values `references/protocol.md` (Part 4 — State) defines. A typo'd status is a rejection,
@@ -445,9 +446,11 @@ export function nextPhase(f) {
  *
  * @param {string} cwd - Project root.
  * @param {string} slug - Feature slug.
+ * @param {object} [opts] - `pluginRoot`, when the caller knows where the plugin it is running from
+ *   lives: the state then also reports whether the staged orchestrator is the installed one.
  * @returns {object} The ResumeState record (domain.schema.json $defs/ResumeState).
  */
-export function deriveResumeState(cwd, slug) {
+export function deriveResumeState(cwd, slug, { pluginRoot = null } = {}) {
   const hrPath = harnessRun(cwd, slug);
   const hr = existsSync(hrPath) ? parseFrontmatter(readFileSync(hrPath, "utf8")) : {};
 
@@ -517,7 +520,22 @@ export function deriveResumeState(cwd, slug) {
       .map((f) => Number(f.match(/\d+/)[0]))
       .filter((n) => evalVerdict(cwd, slug, n).found),
   };
-  return { ...facts, next_phase: nextPhase(facts) };
+  // WHICH ORCHESTRATOR THIS LAUNCH WILL RUN. A run keeps the workflow copy it opened with — right,
+  // and invisible: a relaunch after an upgrade executes the old one and reports normally, so every
+  // observation is of the previous release. Reported, never enforced (see probe/staged.mjs).
+  const staged = stagedWorkflowDrift(cwd, pluginRoot, slug);
+  const warning = driftWarning(staged);
+  return {
+    ...facts,
+    staged_workflow: {
+      checked: staged.checked,
+      drift: staged.drift.map((d) => d.file),
+      installed_version: staged.installed_version,
+      run_version: staged.run_version,
+      ...(warning ? { warning } : {}),
+    },
+    next_phase: nextPhase(facts),
+  };
 }
 
 /**
@@ -933,6 +951,9 @@ export const ARGV_SPEC = {
   // Not `--close`: the caller (shapeup-run.js's closeIfTerminal) hands over a RunReturn arm, never
   // a status it decided was terminal itself — RUN_RETURN_CLOSE/closeArm above make that call.
   "close-arm": { type: "str" },
+  // The launch hands its own plugin root so the state probe can say whether the orchestrator about
+  // to run is the installed one. Optional: a caller that does not know it gets `checked: false`.
+  "plugin-root": { type: "path" },
   cause: { type: "str" },
 };
 
@@ -1001,7 +1022,7 @@ export function cli(rawArgv) {
     process.exit(r.ok ? 0 : 3);
   }
 
-  console.log(JSON.stringify(deriveResumeState(cwd, args.slug)));
+  console.log(JSON.stringify(deriveResumeState(cwd, args.slug, { pluginRoot: args.pluginRoot ?? null })));
   process.exit(0);
 }
 

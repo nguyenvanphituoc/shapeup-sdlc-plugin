@@ -388,6 +388,13 @@ const MODULE_FILES = [
   // 93-t0-env-fingerprint.mjs: a T0 verdict recorded the tree and nothing about the machine, so one
   // commit that built three ways on three machines produced three verdicts that read the same.
   "93-t0-env-fingerprint.mjs",
+  // 94-shipped-citations.mjs: seven shipped files pointed their reader at test modules, a repo-only
+  // tool and this repo's own design docs — found by an audit somebody remembered to run. This is
+  // that scan as a check, bounded by the delivery allowlist, blind to a user's own docs/<file>.
+  "94-shipped-citations.mjs",
+  // 95-staged-orchestrator.mjs: a run keeps the workflow copy it opened with, so a relaunch after
+  // an upgrade measures the previous release and says nothing. The state probe compares and warns.
+  "95-staged-orchestrator.mjs",
   "08-docs.mjs",
 ];
 

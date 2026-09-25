@@ -414,6 +414,16 @@ const RESUME = {
     has_orient_artifacts: { type: "boolean" },
     has_spec_tree: { type: "boolean" },
     has_board: { type: "boolean" },
+    staged_workflow: {
+      type: "object",
+      properties: {
+        checked: { type: "boolean" },
+        drift: { type: "array", items: { type: "string" } },
+        installed_version: nullable("string"),
+        run_version: nullable("string"),
+        warning: { type: "string" },
+      },
+    },
     // The requirements registry — a fact, not a phase. See the COVERAGE block below for why it is
     // guarded on this bare boolean and never asked about through `probe resume --require`.
     has_requirements: { type: "boolean" },
@@ -1232,7 +1242,14 @@ if (launchRecordAbort) return await withWarnings(launchRecordAbort);
 
 phase("Orient");
 
-const rs = await query(`probe resume --slug ${slug}`, RESUME, "Orient", "resume-state");
+const rs = await query(`probe resume --slug ${slug} --plugin-root "${args.pluginRoot}"`, RESUME, "Orient", "resume-state");
+// WHICH ORCHESTRATOR IS RUNNING. A run keeps the workflow copy it opened with — correct for a run
+// in flight, and silent: a relaunch after an upgrade executes the old script, reports normally and
+// closes normally, so every observation is of the previous release. Said out loud, never enforced.
+if (rs.staged_workflow?.warning) {
+  log(`RUN STATE — ${rs.staged_workflow.warning}`);
+  stateWarnings.push(rs.staged_workflow.warning);
+}
 // A probe that produced nothing is not an EMPTY run — it is an unknown one. Treating it as empty
 // would re-dispatch every phase from the top, over a run that may be in progress.
 if (!rs) {

@@ -14,7 +14,6 @@ is pinned by a guard, never when it is merely believed done.
 |---|---|---|
 | HD-027 | two harness rules collide, and the collision hard-aborts a run at L1b | P1 |
 | HD-013 | the WorkOrder names no result path | P3 |
-| HD-031 | a resumed run cannot soak a plugin upgrade, and nothing says so at launch | — (filed after the tiering pass) |
 | HD-037 | `coverage` registers the pitch's NO-GOS as requirements, marked `covered`, and L1b reds every on… | — (filed after the tiering pass) |
 | HD-038 | a committed spec artifact narrates a coverage verdict, and the verdict is false | — (filed after the tiering pass) |
 | HD-039 | a hill dot outlives the evidence that moved it | — (filed after the tiering pass) |
@@ -24,7 +23,6 @@ is pinned by a guard, never when it is merely believed done.
 | HD-051 | a build leg can forge a SIBLING leg's WorkResult | P1 |
 | HD-052 | four attested channels were named; the same class has at least five more | P2 |
 | HD-053 | the T0 citation re-hash proves self-consistency, not provenance | P1 |
-| HD-056 | seven shipped files cite artifacts a user does not receive | P3 |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
 | HD-025 | two run geometries this checkout cannot reach | process |
@@ -92,60 +90,6 @@ is pinned by a guard, never when it is merely believed done.
   (`docs/design/plans/which-defect-first.md`, `defect-sweep-execution.md`) ranks it P3 and states it
   is untouched. Re-measure before betting it rather than trusting this paragraph: a defect entry
   that cannot show its own evidence is a lead, not a finding.
-- **HD-031 · A resumed run cannot soak a plugin upgrade, and nothing says so at launch.** Measured
-  2026-09-22 while attempting exactly that.
-
-  A run stages its own copy of the workflow script into the LOCAL tier when it is **opened**, and
-  keeps it for the run's life — documented, deliberate, and the right call for a run in flight.
-  The consequence is not documented anywhere a person about to soak an upgrade would look: relaunching
-  an existing run after installing a new version executes the **old** orchestrator. Measured: the
-  staged copy carried `0` occurrences of a call the new version makes `3` times, and was written at
-  the run's open time, hours before the new version existed.
-
-  Nothing in the relaunch path notices. The run reports normally, closes normally, and every
-  observation made of it is an observation of the previous release — which is worse than a failed
-  soak, because it produces confident evidence about the wrong artifact.
-
-  Candidate fix: at launch, compare the staged script against the installed plugin's and warn when
-  they differ, naming both versions — a warning, never a block, since a run in flight keeping its
-  copy is the correct behaviour. A soak of an upgrade must open a new run.
-
-  **A second, worse face of the same problem, measured 2026-09-22.** Opening a new run is necessary
-  and not sufficient. After `claude plugin update` reported `3.7.0 → 3.7.1-rc.1` ("Restart to apply
-  changes"), a freshly opened run still recorded
-  `pluginRoot: …/shapeup-sdlc-plugin/3.7.0` in its own `run-args.json`, and behaved as 3.7.0
-  throughout — `reduce ship` rewrote the committed report with the board ids the candidate exists to
-  remove. The installed-plugins record said `3.7.1-rc.1`; the run resolved the previous version
-  anyway.
-
-  **The mechanism, characterised 2026-09-22 — it is a per-project version pin, not a cache or a
-  restart.** `installed_plugins.json` carries one entry per project that ever installed the plugin
-  (26 of them here), each pinning its own version, plus one user-scope entry. `claude plugin update`
-  and `install` write to **user** scope by default whatever directory they are run from, so the
-  update reports success while the project keeps resolving its own pin. Confirmed against launch
-  evidence: at the run's open the project pin read `3.7.0`, and `3.7.0` is exactly what the run used.
-
-  The supported fix is **`--scope project`**, which `--help` does not list and the tool names only
-  in its own "already installed" message:
-
-  ```
-  claude plugin update <plugin>@<marketplace> --scope project
-  ```
-
-  `disable`/`enable` act at project scope but do not re-resolve the version, and `uninstall` targets
-  the user entry first, so neither is a substitute.
-
-  **Checking which version a run actually used — and the trap in the obvious check.** Read
-  `plugin.version` from the run's own `receipt.json`: the receipt is minted when the run opens and
-  carries the plugin identity. `run-args.json` also carries `pluginRoot`, but it is written later,
-  at the launch-record step, so between a run opening and that step the file on disk still belongs
-  to the PREVIOUS run — it carries a `runId` to prove it. Reading `pluginRoot` without first
-  checking `runId` against the receipt's `run_id` reports the last run's version as this one's, and
-  measured here it did: a soak on the right version was nearly killed on that reading. A marker
-  grepped out of the staged workflow script is weaker still — one that distinguishes 3.6.0 from
-  3.7.x says nothing about 3.7.0 versus 3.7.1, and using it to clear the other is a probe answering
-  a different question than the one asked.
-
 - **HD-037 · `coverage` registers the pitch's NO-GOS as requirements, marked `covered`, and L1b
   reds every one of them.** Measured 2026-09-23 on the rc.2 soak, third abort of the same run.
 
@@ -646,16 +590,5 @@ else needs to survive for the fix to hold.
 
   **Closed when:** a citation is constrained to an artifact this run's own verifier wrote, and the
   channel the judge could write it through is closed or the check no longer depends on that.
-
-- **HD-056 · Seven shipped files cite artifacts a user does not receive.** Found 2026-09-24 by a
-  scan of the shipped set against the delivery allowlist; all predate this batch.
-
-  Four cite structural test modules by number — a reader of the installed plugin has no `tests/`
-  directory to resolve them in. Two cite an installer script that is not in the allowlist, and one
-  cites a pitch document under `docs/`. Each is the same small harm: a citation that resolves for
-  the author and 404s for the reader.
-
-  **Closed when:** the shipped set cites only what it ships, and the scan that found these runs as a
-  check rather than as an audit pass somebody remembers to do.
 
 This file stays short on purpose. It is a queue, not an archive.

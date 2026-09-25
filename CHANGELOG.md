@@ -5,6 +5,27 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### A launch says when the orchestrator it runs is not the installed one
+
+A run stages its own copy of the workflow scripts when it is opened and keeps them for its life —
+right for a run in flight, and silent. Relaunching an existing run after installing a new version
+executes the old orchestrator, reports normally and closes normally, so every observation made of
+it is an observation of the previous release: worse than a failed soak, because it is confident
+evidence about the wrong artifact. The state probe every launch already calls now compares the
+staged scripts against the installed plugin's and carries a warning naming both versions into the
+run's state warnings, where the close records it. A warning, never a block — keeping the copy is
+the correct behaviour, and opening a new run is how an upgrade is soaked. A comparison that could
+not be made reports itself as such rather than as agreement.
+
+### The audit that finds unshipped citations runs as a check
+
+Seven shipped files pointed their reader at something the reader did not receive: four cited
+structural test modules by number, two an installer script outside the delivery allowlist, one a
+document in this repo's own docs tree. They were fixed by an audit somebody remembered to run.
+That scan is a structural check now, bounded by the delivery allowlist rather than a hard-coded
+list, and deliberately blind to a flat `docs/<file>` in an invocation example — that is the user's
+own document, and a rule that keyed on "a path that resolves here" reddened exactly that.
+
 ### A T0 verdict records the machine it was measured on
 
 The artifact recorded `exit 0`, `pass: true` and a captured tail, and nothing about where the
