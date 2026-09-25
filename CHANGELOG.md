@@ -3,7 +3,11 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [3.7.7] — 2026-09-25 · What a record is allowed to say
+
+Four defects in what the harness writes down: three readers that reached across runs, a verdict
+that was declared rather than derived, a covers: clause graded in one spelling, and a frozen report
+that named a board id and bricked its own slug.
 
 ### One key space for a covers: clause
 
