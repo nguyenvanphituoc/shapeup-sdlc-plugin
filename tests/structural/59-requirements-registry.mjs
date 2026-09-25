@@ -741,4 +741,50 @@ export async function run(ctx) {
       }
     }
   }
+
+  // --- REQ-NOGO: a constraint is not a deliverable ----------------------------------------------
+  // Measured on a consumer: a coverage dispatch lifted seven clauses out of the pitch's No-gos
+  // section, registered each `covered`, and L1b refused the run with seven REQ-UNCOVERED findings —
+  // correctly, and unavoidably, because nothing grades "do not build a settings screen".
+  {
+    const { lintRequirementCoverage, lintNarratedCoverage } = await import(join(ROOT, "kernel/verify/spec.mjs"));
+    const clauses = [
+      { id: "REQ-1", clause: "Show the version", source: "intake.md § Success", status: "covered" },
+      { id: "REQ-24", clause: "No persistence", source: "intake.md § No-gos", status: "covered" },
+      { id: "REQ-25", clause: "No sort", source: "intake.md § Non-goals", status: "covered" },
+      { id: "REQ-26", clause: "No settings screen", source: "pitch.md § Out-of-scope", status: "covered" },
+      { id: "REQ-27", clause: "No debounce", source: "intake.md § No-gos", status: "CUT (PO-approved)" },
+    ];
+    const f = lintRequirementCoverage({ clauses, board: [], scopes: [] });
+    const nogo = f.filter((x) => x.rule === "REQ-NOGO").map((x) => x.scope).sort();
+    if (JSON.stringify(nogo) === JSON.stringify(["REQ-24", "REQ-25", "REQ-26"])) {
+      ok("(e) a no-go registered as covered reds as REQ-NOGO — No-gos, Non-goals and Out-of-scope all recognised");
+    } else fail(`(e) REQ-NOGO fired on ${JSON.stringify(nogo)}`);
+    if (!f.some((x) => x.rule === "REQ-UNCOVERED" && x.scope.startsWith("REQ-2"))) {
+      ok("(e) and those rows do not ALSO red as uncovered — one cause, not seven symptoms");
+    } else fail("(e) a no-go row reported both REQ-NOGO and REQ-UNCOVERED");
+    if (f.some((x) => x.rule === "REQ-UNCOVERED" && x.scope === "REQ-1")) ok("(e) a genuine requirement nothing grades still reds as uncovered");
+    else fail("(e) REQ-NOGO swallowed the real coverage gap");
+    if (!f.some((x) => x.scope === "REQ-27")) ok("(e) a no-go already marked CUT (PO-approved) is silent — that is the family that means deliberately-not-built");
+    else fail("(e) a CUT no-go was reported");
+    const detail = f.find((x) => x.rule === "REQ-NOGO").detail;
+    if (/CUT \(PO-approved\)/.test(detail) && /TS-NOGO/.test(detail)) ok("(e) the finding names both ways out: the CUT family, or a Test Surface row that does grade a breach");
+    else fail(`(e) the finding does not say what to do: ${detail.slice(0, 160)}`);
+
+    // --- REQ-NARRATED: a committed file may not state the projection --------------------------
+    const ws = mkdtempSync(join(tmpdir(), "narrated-"));
+    try {
+      mkdirSync(join(ws, "shapeup/demo/spec"), { recursive: true });
+      const dash = (signal) => ["| Indicator | Status | Signal |", "|---|---|---|", `| Coverage | 🟢 | ${signal} |`, "| Risk | 🟢 | none |", ""].join("\n");
+      writeFileSync(join(ws, "shapeup/demo/spec/synthesis.md"), dash("every registered non-CUT REQ-id (REQ-1, REQ-2, REQ-7) reaches an AC carrying `(covers: REQ-…)`"));
+      const red = lintNarratedCoverage({ cwd: ws, slug: "demo" });
+      if (red.length === 1 && red[0].rule === "REQ-NARRATED" && /REQ-1/.test(red[0].detail)) ok("(f) a committed Coverage row stating the requirement verdict reds, naming the ids it claimed");
+      else fail(`(f) the narrated verdict was not caught: ${JSON.stringify(red).slice(0, 200)}`);
+      writeFileSync(join(ws, "shapeup/demo/spec/synthesis.md"), dash("2/2 use cases carry at least one task (UC-Add, UC-List)"));
+      if (lintNarratedCoverage({ cwd: ws, slug: "demo" }).length === 0) ok("(f) the row's legitimate signal — use cases and tasks — is untouched");
+      else fail("(f) the rule reds the UC × Task signal it exists to protect");
+    } finally {
+      rmSync(ws, { recursive: true, force: true });
+    }
+  }
 }

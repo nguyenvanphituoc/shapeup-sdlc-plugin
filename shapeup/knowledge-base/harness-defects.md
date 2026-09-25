@@ -13,8 +13,6 @@ is pinned by a guard, never when it is merely believed done.
 | id | defect | tier |
 |---|---|---|
 | HD-027 | two harness rules collide, and the collision hard-aborts a run at L1b | P1 |
-| HD-037 | `coverage` registers the pitch's NO-GOS as requirements, marked `covered`, and L1b reds every on… | — (filed after the tiering pass) |
-| HD-038 | a committed spec artifact narrates a coverage verdict, and the verdict is false | — (filed after the tiering pass) |
 | HD-021 | a per-scope "it compiles" fixture can be green while the scope's code is unreachable | P3 |
 | HD-022 | ⚠ Work for defects measured on a real consumer sits on a tag, not on main | decision |
 | HD-048 | DECIDE: wire the seesaw regression arm or delete it — the absence no longer reads as a pass | decision |
@@ -79,75 +77,6 @@ is pinned by a guard, never when it is merely believed done.
   ANALYZE in flight, so no `requirements.md` ever completed a full planning phase end to end. The
   registry it did write cites the pitch by section name and names no gitignored path, which is
   the outcome this entry asks for — from the coverage dispatch alone, not from the whole leg.
-
-- **HD-037 · `coverage` registers the pitch's NO-GOS as requirements, marked `covered`, and L1b
-  reds every one of them.** Measured 2026-09-23 on the rc.2 soak, third abort of the same run.
-
-  The committed registry held `REQ-1`…`REQ-22`. This run's `coverage` dispatch appended seven more,
-  every one lifted from the pitch's **No-gos** section, every one with status `covered`:
-
-  ```
-  + | REQ-24 | "No persistence. The in-memory repository is the repository" | intake.md § No-gos | covered |
-  + | REQ-25 | "No sort, no filter-by-done, no sections. Insertion order is the order" | … | covered |
-  + | REQ-27 | "No debounce or async search. …" | … | covered |
-  ```
-
-  L1b then refused the run with seven `REQ-UNCOVERED` findings — *"graded by no acceptance criterion
-  and claimed by no scope"* — which is exactly right and unavoidable: **a no-go is a constraint, not
-  a deliverable.** Nothing can grade "do not build a settings screen", so marking it `covered`
-  asserts something that cannot be true, and the gate is correct to red it.
-
-  The registry's own header names the vocabulary that should have been used: *"a removed clause is
-  marked `CUT (PO-approved)`, never renumbered or deleted."* A no-go belongs in that family — a
-  clause deliberately not built — not in the covered family.
-
-  **There is a second defect in the same diff.** `AGENTS.md` says a registry already on disk is not
-  re-dispatched, and that ids are *"assigned once and frozen"*. This registry was committed and
-  complete at 22 rows; a later run extended it mid-flight, which moves the run's own measuring stick
-  after planning was fast-forwarded past the phase that owns it. Whatever is decided about no-gos,
-  appending to a frozen registry is its own bug.
-
-  **Fix shape:** `coverage` must not extract the No-gos section as coverable clauses. Either skip
-  that section, or register its clauses with a status the coverage lint exempts — the `CUT` family
-  already exists and already means "deliberately not built". And the registry-on-disk check needs to
-  cover extension, not only regeneration.
-
-  Third distinct producer/artifact defect this soak surfaced, after `HD-034` (fixture shape) and
-  `HD-036` (committed file citing the local tier). All three share a shape: **a worker writing a
-  committed artifact that the harness's own gate then refuses**, and none of them is reachable from
-  the plugin's own checkout, where no pitch, no registry and no toolchain exist to disagree.
-
-- **HD-038 · A committed spec artifact narrates a coverage verdict, and the verdict is false.**
-  Surfaced by the run itself on 2026-09-23, verified independently before promoting.
-
-  `spec/synthesis.md` states, in the committed tier:
-
-  ```
-  :32  | Coverage | 🟢 | …
-  :82  All 22 registered requirements reach at least one AC carrying `(covers: REQ-…)` — confirmed
-  ```
-
-  A grep for `covers:` across the entire spec folder returns **those two claim lines and nothing
-  else**. Not one acceptance criterion carries the clause. The coverage that does exist comes from
-  the scope contract's own `covers: [REQ-1…REQ-22]`, which is a different mechanism from the one the
-  artifact names — so the sentence is false about both the fact and the path.
-
-  `AGENTS.md` names this exact failure as an invariant: *"The requirements matrix is a projection,
-  never a verdict … derived from files for one named run … never narrated and never passed in."*
-  Here it is narrated, in a file a teammate inherits on `git pull`, with a 🟢 beside it.
-
-  **Why it is worse than a stale sentence.** It reads as corroboration. A reader checking whether
-  requirements are covered finds an explicit "confirmed" and stops, and the thing it conceals is
-  structural: the AC-level `covers:` channel is **empty**, and every requirement's coverage rests on
-  the scope contract alone. That is the same finding an earlier plan recorded from the producer side
-  — scope `covers:` carrying the load while ACs carry none — and this artifact is what kept it
-  looking solved.
-
-  **Fix shape:** a derived cell may not be authored. Either `synthesis.md` stops carrying a coverage
-  verdict and points at `verify trace`/`probe requirements` output, or the cell is generated from
-  that output at write time. A lint that reds a 🟢 coverage claim unsupported by any `covers:` on
-  disk is the cheap mechanical version, and it belongs with the committed-tier write guard
-  `HD-036` needs.
 
 - **HD-021 · A per-scope "it compiles" fixture can be green while the scope's code is unreachable.** Measured
   on a stack whose build compiles only what the entry point reaches: three scopes were T0-green on an

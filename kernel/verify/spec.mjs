@@ -422,6 +422,9 @@ export function lintScopeAnchors({ scopes, specDir: specRoot, reqIds = null, tas
   return findings;
 }
 
+/** Registry sources that name the pitch's own out-of-scope section, in the spellings pitches use. */
+const NOGO_SOURCE = /\bno[-\s]?gos?\b|\bnon[-\s]?goals?\b|\bout[-\s]of[-\s]scope\b|\bwill not build\b/i;
+
 /**
  * REQ-UNCOVERED — a live requirement that nothing in the plan reaches.
  *
@@ -451,6 +454,57 @@ export function lintScopeAnchors({ scopes, specDir: specRoot, reqIds = null, tas
  * @returns {Array<{rule:string, level:("red"|"warn"), scope:string, detail:string}>} One red per
  *   uncovered live requirement; [] when every one is graded, claimed or cut.
  */
+/**
+ * REQ-NARRATED — a committed spec file stating the requirement-coverage verdict as fact.
+ *
+ * The Health Dashboard's `Coverage` row is about USE CASES and tasks, derived by inverting each
+ * task's `use_case_refs` over the local board. Measured on a consumer, a worker filled its Signal
+ * cell with a different claim entirely — *"every registered non-CUT REQ-id (REQ-1 … REQ-7) reaches
+ * an AC carrying `(covers: REQ-…)`"*, with a 🟢 beside it — while a grep for `covers:` across the
+ * whole spec folder returned that sentence and nothing else. Not one acceptance criterion carried
+ * the clause, and the run's own derived report said `0/11 PASS`.
+ *
+ * `AGENTS.md` names the invariant this breaks: the requirements matrix is a projection, never a
+ * verdict, derived from files for one named run and never narrated. The rule is the narrow,
+ * checkable form of it — a dashboard Coverage row in a committed file may not name a REQ id — and
+ * it cannot fire on the legitimate signal, which counts use cases and tasks.
+ *
+ * @param {{cwd:string, slug:string}} opts - Working root and feature slug.
+ * @returns {object[]} Findings, one per offending line.
+ */
+export function lintNarratedCoverage({ cwd, slug }) {
+  const findings = [];
+  const dir = join(sharedRoot(cwd, slug), "spec");
+  let files;
+  try { files = readdirSync(dir).filter((f) => f.endsWith(".md")); } catch { return findings; }
+  for (const f of files) {
+    let lines;
+    try { lines = readFileSync(join(dir, f), "utf8").split(/\r?\n/); } catch { continue; }
+    lines.forEach((line, i) => {
+      if (!/^\|\s*Coverage\s*\|/i.test(line.trim())) return;
+      const named = [...line.matchAll(/\bREQ-\d+/g)].map((m) => m[0]);
+      if (!named.length) return;
+      findings.push({ rule: "REQ-NARRATED", level: "red", scope: `${f}:${i + 1}`, detail:
+        `${f}:${i + 1} states the requirement-coverage verdict in a committed file, naming ${named.slice(0, 3).join(", ")}` +
+        `${named.length > 3 ? ` (+${named.length - 3})` : ""}. That row is the UC × Task indicator; the ` +
+        "REQ → AC → criterion → verdict state is a projection derived per run (probe requirements), " +
+        "never a claim a committed artifact may make — a reader who checks the file finds corroboration " +
+        "for something no run measured. Say what the use cases and tasks show, and leave the requirement " +
+        "matrix to the run that derives it." });
+    });
+  }
+  return findings;
+}
+
+/**
+ * REQ-UNCOVERED and REQ-NOGO — the registry's two ways of being wrong about what ships.
+ *
+ * @param {{clauses:object[], board:object[], scopes:object[]}} opts - The parsed registry, the
+ *   board `readBoard` produced (its acceptance criteria carry the covers clauses), and the scope
+ *   contracts.
+ * @returns {object[]} Findings, most specific first: a no-go registered as covered is reported as
+ *   itself rather than as the coverage gap it inevitably becomes.
+ */
 export function lintRequirementCoverage({ clauses = [], board = [], scopes = [] }) {
   const findings = [];
   const graded = coveredReqIds(board);
@@ -459,6 +513,21 @@ export function lintRequirementCoverage({ clauses = [], board = [], scopes = [] 
   const claimed = new Set();
   for (const s of scopes) for (const r of s.covers || []) claimed.add(reqId(r).toUpperCase());
   for (const c of clauses) {
+    // A NO-GO IS A CONSTRAINT, NOT A DELIVERABLE, and marking one `covered` asserts something that
+    // cannot be true: nothing grades "do not build a settings screen". Measured on a consumer — a
+    // coverage dispatch lifted seven clauses out of the pitch's No-gos section, registered each as
+    // covered, and L1b then refused the run with seven REQ-UNCOVERED findings, correctly and
+    // unavoidably. Reported here as itself, so the operator reads one cause instead of seven
+    // symptoms, and named before REQ-UNCOVERED can fire on the same row.
+    if (c.status === "covered" && NOGO_SOURCE.test(c.source || "")) {
+      findings.push({ rule: "REQ-NOGO", level: "red", scope: c.id, detail:
+        `${c.id} ← ${c.source} registers a NO-GO as a covered requirement — "${(c.clause || "").slice(0, 60)}". ` +
+        "A no-go is a constraint the shape deliberately does not build, so no acceptance criterion can " +
+        "grade it and nothing downstream can ever turn it green. Mark it CUT (PO-approved) in " +
+        "requirements.md — the family that already means deliberately-not-built — or drop the row and give " +
+        "the breach a Test Surface row (TS-NOGO-NN) instead, which is the channel that does grade one." });
+      continue;
+    }
     if (c.status !== "covered") continue; // CUT (PO-approved) — an answer on the record, not a gap
     const id = c.id.toUpperCase();
     if (graded.has(c.id) || claimed.has(id)) continue;
@@ -851,6 +920,7 @@ export function lint({ cwd, slug }) {
     // `readBoard`, not the `tasks` above: only the compile-order parser carries acceptance_criteria.
     ...lintRequirementCoverage({ clauses: reqClauses, board: readBoard(cwd, slug), scopes }),
     ...lintCommittedTier({ cwd, slug }),
+    ...lintNarratedCoverage({ cwd, slug }),
     ...lintStructure({ specDir: specRoot, tasks, intakeContent }),
     ...(() => {
       const bbText = runBreadboard(cwd, slug, intakeContent);

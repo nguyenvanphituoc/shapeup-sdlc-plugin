@@ -26,6 +26,11 @@ depends_on:
 
 | Indicator | Status | Signal |
 |-----------|--------|--------|
+<!-- Coverage here is USE CASES × TASKS, derived by inverting each task's use_case_refs over the
+     local board. It is NOT requirement coverage: whether every REQ-id reaches an acceptance
+     criterion that a judge graded is a projection derived per run (`probe requirements`), and a
+     committed file that states it is corroborating something no run measured. Name REQ ids in this
+     row and spec-lint reds it (REQ-NARRATED). Count use cases and tasks; say nothing about REQ. -->
 | Coverage | COVERAGE_STATUS | COVERAGE_SIGNAL |
 | Risk | RISK_STATUS | RISK_SIGNAL |
 | Dependency | DEPENDENCY_STATUS | DEPENDENCY_SIGNAL |

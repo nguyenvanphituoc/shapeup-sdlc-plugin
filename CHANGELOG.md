@@ -5,6 +5,22 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### A no-go is a constraint, and a committed file does not state the projection
+
+Two rules, both from one consumer run that aborted three times. A `coverage` dispatch lifted seven
+clauses out of the pitch's No-gos section and registered each as a covered requirement; L1b then
+refused the run with seven `REQ-UNCOVERED` findings — correctly and unavoidably, because nothing
+grades "do not build a settings screen". Spec-lint reports that as itself now (`REQ-NOGO`), one
+cause instead of seven symptoms, and names both ways out: the `CUT (PO-approved)` family that
+already means deliberately-not-built, or a `TS-NOGO` Test Surface row, which is the channel that
+does grade a breach. The analyzer's contract says the same.
+
+And a committed spec file stated the requirement-coverage verdict as fact — *"every registered
+REQ-id reaches an AC carrying `(covers: …)`"*, with a green marker, in a run whose own derived
+report read `0/11 PASS`. The dashboard row that carried it is the use-case × task indicator; the
+REQ → AC state is a projection derived per run. A Coverage row naming a REQ id now reds
+(`REQ-NARRATED`), and the template says what that row is for.
+
 ### Every order names the result it answers with
 
 The one file every dispatch must write was the one thing its envelope did not say: a worker
