@@ -6,7 +6,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
-import { scopesDir, hillDir, verdictsDir, resultsDir, discoveryLedger, localRoot } from "../lib/paths.mjs";
+import { scopesDir, hillDir, verdictsDir, resultsDir, discoveryLedger, receipt } from "../lib/paths.mjs";
 import { readAllContracts, SCOPE_CONTRACT } from "../lib/contract.mjs";
 import { evalVerdict } from "../probe/eval.mjs";
 import { redBuildRounds } from "../verify/build.mjs";
@@ -190,9 +190,15 @@ export function deriveHill(cwd, slug) {
   // and reports what they currently support, in both directions. A guard phrased as "never lower a
   // phase" would quietly turn a derived value into a high-water mark, which is a different defect
   // wearing this one's clothes. The condition is the narrowest one that is positively provable:
-  // the tier holding every input is not there.
+  // the RUN is not there — its receipt, the record every run's first act writes. The condition used
+  // to be the local root's existence, and any single file satisfies that: `reduce graph` creates
+  // `graph.jsonl` under it as a side effect, so a committed-only checkout that ran graph and then
+  // hill had its FINISHED shards flattened to UPHILL_UNKNOWN, exit 0, no warning. A backstop whose
+  // condition another command satisfies is a backstop only in the order nobody varied.
   // -------------------------------------------------------------------------------------------
-  if (!existsSync(localRoot(cwd, slug))) {
+  // Evidence the derivation actually needs: the run's receipt, or the T0 verdicts it reads. A
+  // `graph.jsonl` alone is neither.
+  if (!existsSync(receipt(cwd, slug)) && !existsSync(verdictsDir(cwd, slug))) {
     return scopes.map((s) => ({
       scope_id: s.scope_id,
       phase: committedPhase(hDir, s.scope_id),

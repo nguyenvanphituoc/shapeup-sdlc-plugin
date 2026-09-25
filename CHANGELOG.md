@@ -3,6 +3,17 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### The hill's absence guard keys on the run, not on a directory
+
+`reduce hill` refuses to write when the run trace it derives from is absent, and the condition
+was the local root's existence — which any single file satisfies. `reduce graph` creates
+`graph.jsonl` under that root as a side effect, so a committed-only checkout that ran graph and
+then hill had its FINISHED shards flattened to UPHILL_UNKNOWN, exit 0, no warning. The guard now
+keys on evidence the derivation actually needs — the run's receipt, or its T0 verdicts — and the
+graph-then-hill order is driven by a check.
+
 ## [3.7.7] — 2026-09-25 · What a record is allowed to say
 
 Four defects in what the harness writes down: three readers that reached across runs, a verdict

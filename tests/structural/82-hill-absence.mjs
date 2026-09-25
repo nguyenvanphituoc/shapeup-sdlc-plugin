@@ -166,6 +166,20 @@ export async function run(ctx) {
       // workflow calls this advisorily and a non-zero exit here would be noise on every pull.
       if (r.status === 0) ok("(A) the refusal exits 0 — deriving nothing from nothing is a correct no-op, not a failure");
       else fail(`(A) refusal exited ${r.status}: ${String(r.stderr).slice(0, 300)}`);
+
+      // (A2) THE GUARD IS NOT RE-ARMED BY THE COMMAND ON THE SAME PAGE. `reduce graph` creates
+      // `graph.jsonl` under the local root as a side effect; a guard keyed on the root's existence
+      // was satisfied by that file alone, and `reduce hill` then flattened the committed shards.
+      const g = spawnSync(process.execPath, [KERNEL, "reduce", "graph", "--slug", SLUG, "--cwd", cwd], { cwd, encoding: "utf8", timeout: 60_000 });
+      const rootNow = existsSync(join(cwd, ".shapeup", SLUG));
+      const r2 = spawnSync(process.execPath, [KERNEL, "reduce", "hill", "--slug", SLUG, "--cwd", cwd], { cwd, encoding: "utf8", timeout: 60_000 });
+      const afterA2 = readFileSync(join(cwd, "shapeup", SLUG, "hill", "sc-a.yml"), "utf8");
+      if (afterA2 === before["sc-a"]) ok(`(A2) after \`reduce graph\` (exit ${g.status}, local root ${rootNow ? "now exists" : "still absent"}) \`reduce hill\` still leaves the FINISHED shard byte-identical — the guard keys on the run's receipt, not on the root`);
+      else fail(`(A2) \`reduce graph\` re-armed the hill: FINISHED → ${JSON.stringify(afterA2)} (root exists: ${rootNow}, hill exit ${r2.status})`);
+      let rows2 = null;
+      try { rows2 = JSON.parse(r2.stdout); } catch { /* reported below */ }
+      if (Array.isArray(rows2) && rows2.every((x) => x.derived === false && x.reason === "local-run-trace-absent")) ok("(A2) the refusal still names its reason after the graph wrote under the root");
+      else fail(`(A2) the report after graph-then-hill: ${String(r2.stdout).slice(0, 300)}`);
     }
 
     // =========================================================================================

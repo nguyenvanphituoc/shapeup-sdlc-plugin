@@ -26,7 +26,6 @@ is pinned by a guard, never when it is merely believed done.
 | HD-051 | a build leg can forge a SIBLING leg's WorkResult | P1 |
 | HD-052 | four attested channels were named; the same class has at least five more | P2 |
 | HD-053 | the T0 citation re-hash proves self-consistency, not provenance | P1 |
-| HD-054 | the hill's absence guard is re-armed by the command on the same page | P2 |
 | HD-056 | seven shipped files cite artifacts a user does not receive | P3 |
 | HD-058 | two gates still have no deterministic call site — L0 and COACH-1 are resolved by prose alone | P3 |
 | HD-059 | a T0 verdict is evidence about a machine, and records only the tree | P1 |
@@ -712,23 +711,6 @@ else needs to survive for the fix to hold.
 
   **Closed when:** a citation is constrained to an artifact this run's own verifier wrote, and the
   channel the judge could write it through is closed or the check no longer depends on that.
-
-- **HD-054 · The hill's absence guard is re-armed by the command on the same page.** Found
-  2026-09-24, driven.
-
-  `reduce hill` now refuses to write when the slug's local run trace is absent. The condition is the
-  existence of that root, which any single file satisfies — and `reduce graph` creates
-  `graph.jsonl` under it. So: committed-only checkout, `reduce graph` (exit 0), then `reduce hill`
-  clobbers the committed `FINISHED` shard to `UPHILL_UNKNOWN`, exit 0, no warning. The same exposure
-  follows any partially-cleaned trace.
-
-  The skill page tells the model not to call either command on a committed-only slug, and the new
-  code calls the runtime guard a backstop. A backstop whose condition another command satisfies as a
-  side effect is a backstop only in the order nobody varied.
-
-  **Closed when:** the guard keys on evidence the derivation actually needs — the run's own receipt,
-  or the verdicts directory — rather than on the root's existence, and a fixture drives
-  `reduce graph` before `reduce hill` on a committed-only slug and sees the shards survive.
 
 - **HD-056 · Seven shipped files cite artifacts a user does not receive.** Found 2026-09-24 by a
   scan of the shipped set against the delivery allowlist; all predate this batch.
