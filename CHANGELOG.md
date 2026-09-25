@@ -3,7 +3,7 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [3.9.1] — 2026-09-25 · The second look, and the evidence that closed an old row
 
 ### Measured, not changed: the tier-direction collision is closed
 
