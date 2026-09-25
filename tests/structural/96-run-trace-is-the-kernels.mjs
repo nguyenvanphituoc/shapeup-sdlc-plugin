@@ -64,6 +64,19 @@ export async function run(ctx) {
     else fail(`the derived freeze lost: ${missed.join(", ")}`);
   }
 
+  // EVERY ORDER NAMES THE RESULT IT ANSWERS WITH. A worker used to infer that path from its order's
+  // filename — the one file every dispatch must write was the one thing the envelope did not say.
+  const { OP_OWNER } = await import(join(ROOT, "kernel/compile.mjs"));
+  const unnamed = Object.keys(OP_OWNER).concat(["execute", "fix", "spike"]).filter((op) => {
+    const own = substrateFor(op, { slug: "demo", ownStem: `stem-${op}` }).own || [];
+    return !own.includes(`.shapeup/demo/results/stem-${op}.json`);
+  });
+  if (!unnamed.length) ok(`every operation's order names its own result path (${Object.keys(OP_OWNER).length + 3} checked) — the envelope says where the answer goes`);
+  else fail(`these operations compile an order that does not name its result: ${unnamed.join(", ")}`);
+  if (!(substrateFor("execute", { slug: "demo" }).own || []).some((g) => /results\/stem/.test(g))) {
+    ok("asked about an operation with no order in hand, the contract names no particular result — a template is not an order");
+  } else fail("substrateFor invented a result path for an operation asked about in general");
+
   // --- through the real hook, against a real compiled order -------------------------------------
   const ws = mkdtempSync(join(tmpdir(), "run-trace-"));
   try {

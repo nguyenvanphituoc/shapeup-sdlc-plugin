@@ -13,10 +13,8 @@ is pinned by a guard, never when it is merely believed done.
 | id | defect | tier |
 |---|---|---|
 | HD-027 | two harness rules collide, and the collision hard-aborts a run at L1b | P1 |
-| HD-013 | the WorkOrder names no result path | P3 |
 | HD-037 | `coverage` registers the pitch's NO-GOS as requirements, marked `covered`, and L1b reds every on… | — (filed after the tiering pass) |
 | HD-038 | a committed spec artifact narrates a coverage verdict, and the verdict is false | — (filed after the tiering pass) |
-| HD-039 | a hill dot outlives the evidence that moved it | — (filed after the tiering pass) |
 | HD-021 | a per-scope "it compiles" fixture can be green while the scope's code is unreachable | P3 |
 | HD-022 | ⚠ Work for defects measured on a real consumer sits on a tag, not on main | decision |
 | HD-048 | DECIDE: wire the seesaw regression arm or delete it — the absence no longer reads as a pass | decision |
@@ -82,12 +80,6 @@ is pinned by a guard, never when it is merely believed done.
   registry it did write cites the pitch by section name and names no gitignored path, which is
   the outcome this entry asks for — from the coverage dispatch alone, not from the whole leg.
 
-- **HD-013 · The WorkOrder names no result path.** P3, and carried here without its original
-  write-up: the entry body was lost in an earlier cleanup while the index row survived, which is why
-  this one is short. What is certain is the id, the tier and the subject — the plan record
-  (`docs/design/plans/which-defect-first.md`, `defect-sweep-execution.md`) ranks it P3 and states it
-  is untouched. Re-measure before betting it rather than trusting this paragraph: a defect entry
-  that cannot show its own evidence is a lead, not a finding.
 - **HD-037 · `coverage` registers the pitch's NO-GOS as requirements, marked `covered`, and L1b
   reds every one of them.** Measured 2026-09-23 on the rc.2 soak, third abort of the same run.
 
@@ -156,53 +148,6 @@ is pinned by a guard, never when it is merely believed done.
   that output at write time. A lint that reds a 🟢 coverage claim unsupported by any `covers:` on
   disk is the cheap mechanical version, and it belongs with the committed-tier write guard
   `HD-036` needs.
-
-- **HD-039 · A hill dot outlives the evidence that moved it.** Promoted from the consumer's register
-  (`HD-8`, 2026-09-23), verified against the artifacts before promoting.
-
-  Two committed files disagree about the same scope:
-
-  ```
-  shapeup/<slug>/hill/<scope>.yml   phase: UPHILL_SOLVED
-  shapeup/<slug>/scopes/<scope>.md  hill_phase: UPHILL_UNKNOWN
-  ```
-
-  …on a branch that has **never compiled**. `reduce hill` returns `changed: false` rather than
-  moving the dot back, because the derivation is monotonic forward: it can advance a phase on new
-  evidence and has no path to retract one when the evidence is gone. A prior run's dot therefore
-  survives a fresh state, a reverted tree and a red build.
-
-  `AGENTS.md` states the invariant this breaks: *"Hill phase is mechanical — derived only from
-  T0/T1/seesaw artifacts, never self-reported, and a T0-green from a round whose build gate is red
-  moves no dot."* The second clause is enforced; the first is not, because "derived" is only true
-  going forward. A derived value that cannot go down is not derived, it is a high-water mark — and
-  the dashboard renders it as current status.
-
-  **Fix shape:** derive the phase from the run's own artifacts each time and write what that derives,
-  including backwards; or, if monotonicity is deliberate, say so in the artifact — a `UPHILL_SOLVED`
-  that means "was solved once, on evidence no longer present" must not render identically to one
-  that holds now. The contract and the shard disagreeing is the cheap mechanical detector.
-
-  **Both halves of this filing were falsified 2026-09-24, independently, by two reviewers who drove
-  the code.** (1) The entry says `reduce hill` "returns `changed: false` rather than moving the dot
-  back, because the derivation is monotonic forward". It is not monotonic: `deriveHill` is a pure
-  function of the artifacts present and writes whatever it derives, in both directions — delete a
-  round's green verdict and the shard goes back with `changed: true`. (2) The entry proposes "the
-  contract and the shard disagreeing" as a cheap mechanical detector. They are **supposed** to
-  disagree: `hill_phase` in a scope contract is always authored `UPHILL_UNKNOWN` by design and
-  nothing ever updates it, so that detector fires on every scope that has ever moved. Implementing
-  it would ship a lint that is red on correct behaviour.
-
-  What is underneath is real and split across two new rows: the phase derived from an absence, and
-  the committed tier overwritten from the local tier's absence — both now in `HD-042`. A third
-  reading, not yet confirmed here, is that the verdict scan has no per-round recency filter, so
-  green-in-r1 plus red-in-r2 still reads as progress; that is a one-line fix if it holds and should
-  be checked while `HD-042` is open.
-
-  **This row now carries no mechanism of its own.** Keep it only as the pointer to `HD-042`, or
-  retire it there — deciding that is a minute's work at the table, and it is worth doing, because a
-  row whose diagnosis is wrong costs more than a row that does not exist.
-
 
 - **HD-021 · A per-scope "it compiles" fixture can be green while the scope's code is unreachable.** Measured
   on a stack whose build compiles only what the entry point reaches: three scopes were T0-green on an

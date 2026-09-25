@@ -3,6 +3,16 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Every order names the result it answers with
+
+The one file every dispatch must write was the one thing its envelope did not say: a worker
+inferred the path from its order's own filename, by convention. Every operation's substrate now
+carries it in `own` — derived by the compiler from the order's identity, which is also what keeps a
+leg from writing somebody else's. Asked about an operation with no order in hand, the contract
+still names no particular result: a template is not an order.
+
 ## [3.7.10] — 2026-09-25 · Who may write what, derived instead of listed
 
 ### A citation names an artifact this run's own verifier wrote

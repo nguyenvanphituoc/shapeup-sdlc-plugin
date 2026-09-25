@@ -221,7 +221,27 @@ export const OP_OWNER = {
  *   broader freeze, derived by the compiler from the order's own identity and never requested.
  *   An unknown operation returns a LOCAL-only default.
  */
-export function substrateFor(operation, { slug, specDir, scope, ownStem = null } = {}) {
+export function substrateFor(operation, ctx = {}) {
+  // EVERY ORDER NAMES THE RESULT IT ANSWERS WITH. A worker used to infer that path from its order's
+  // own filename — the one thing in the envelope that was convention rather than contract — so the
+  // one file every dispatch must write was the one the order did not mention. It is `own` for every
+  // operation now: the compiler derives it from the order's identity, which is also what keeps a leg
+  // from writing somebody else's.
+  const base = substrateTemplate(operation, ctx);
+  if (!ctx.ownStem) return base;
+  const ownResult = `${globLocal(ctx.slug)}/results/${ctx.ownStem}.json`;
+  return { ...base, own: [...new Set([...(base.own || []), ownResult])] };
+}
+
+/**
+ * The per-operation template {@link substrateFor} builds on.
+ *
+ * @param {string} operation - The order's operation.
+ * @param {object} [ctx] - As {@link substrateFor}: slug, specDir, scope, ownStem.
+ * @returns {{allowed:string[], shared?:string[], frozen?:string[], append_only?:string[], own?:string[]}}
+ *   The operation's write contract before the result path every order names is merged in.
+ */
+function substrateTemplate(operation, { slug, specDir, scope, ownStem = null } = {}) {
   const local = globLocal(slug);
   const spec = specDir || globShared(slug, "spec");
   const scopesDir = globShared(slug, "scopes");
