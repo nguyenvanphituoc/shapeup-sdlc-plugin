@@ -126,7 +126,9 @@ const IMPORT_RE = /(?:\bimport\b[^'"]*?from\s*|\bimport\s*|\bexport\b[^'"]*?from
  *   walk uses, plus what each widening contributed (reported, so a reader can see why it resolved).
  */
 export function sourceExtensions(profile, entryPoint) {
-  const raw = profile?.source_extensions ?? profile?.module_extensions ?? null;
+  // One spelling, the one the schema declares. A silent alias is a field nobody documented and
+  // nobody can be told to write.
+  const raw = profile?.source_extensions ?? null;
   const list = Array.isArray(raw) ? raw : typeof raw === "string" ? raw.split(/[,\s]+/) : [];
   const declared = list
     .map((e) => String(e).trim())
@@ -334,8 +336,10 @@ export function scopeReachability(contracts, reachable, sources) {
  * @param {{cwd:string, gate?:boolean}} opts - cwd (root the SHARED/LOCAL paths resolve against),
  *   gate (records mode; the CLI, not this function, turns gate+red into a non-zero exit).
  * @returns {{report:object, mermaid:(string|null)}} The trace report (covers_closure, reachability,
- *   findings[], overall "green"|"red") and a Mermaid view when a wiring map exists. Each arm
- *   self-skips (checked=false) when its artifact is absent — non-regression on pre-spine specs.
+ *   scope_reachability, findings[], overall "green"|"red") and a Mermaid view when a wiring map
+ *   exists. Each arm self-skips (checked=false) when its artifact is absent — non-regression on
+ *   pre-spine specs — and reachability also self-skips when it cannot root its walk, which is what
+ *   skips the per-scope arm with it.
  */
 export function traceLint(slug, { cwd, gate = false }) {
   const shared = sharedRoot(cwd, slug);
