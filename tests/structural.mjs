@@ -349,6 +349,12 @@ const MODULE_FILES = [
   // the export. Pins `probe leg --order/--open`, the Leg node + INGESTED edge, the leg table, and
   // the run loop asking before any early return, in planning and build, with an honest close cause.
   "84-single-writer-asked.mjs",
+  // 85-board-after-fast-forward.mjs: ANALYZE writes a committed spec tree and a gitignored board, and
+  // the fast-forward keyed on the committed half alone — every run after the first on a machine built
+  // over no board, GATE L2 crossed 0/0 tasks, and the requirements projection said "no evidence" on
+  // a round whose static criteria all passed. Pins the board fact, the board-only operation and its
+  // substrate, the L2 refusal over an empty board, and the workflow's board-only branch.
+  "85-board-after-fast-forward.mjs",
   "08-docs.mjs",
 ];
 

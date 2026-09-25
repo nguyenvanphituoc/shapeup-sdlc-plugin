@@ -93,10 +93,10 @@ export async function run(ctx) {
 
   // --- the run loop: asked before any early return, in planning and build, and honest at the close
   const src = readFileSync(WORKFLOW, "utf8");
-  if (/async function requireLeg\(/.test(src) && /if \(r\.exit_code === 0\) return await requireLeg\(gate, phaseKey, phaseName\);/.test(src)) {
+  if (/async function requireLeg\(/.test(src) && /if \(r\.exit_code === 0\) return await requireLeg\(gate, phaseKey, phaseName(, orderStem)?\);/.test(src)) {
     ok("requirePhase asks the single writer (requireLeg) once the artifact check passes — a planning phase cannot complete with its result unread");
   } else fail("requirePhase does not ask the leg ledger — a planning result nothing applied still passes its post-condition");
-  if (/probe leg --slug \$\{slug\} --order "\$\{phaseKey\}"/.test(src) && /late-ingest:\$\{phaseKey\}/.test(src)) ok("the planning leg check names the order by phase and repairs it with the same late ingest the build round uses");
+  if (/probe leg --slug \$\{slug\} --order "\$\{orderStem\}"/.test(src) && /late-ingest:\$\{phaseKey\}/.test(src)) ok("the planning leg check names the order by phase and repairs it with the same late ingest the build round uses");
   else fail("the planning leg check does not query by order or does not attempt the late ingest");
   if (!/breaker: "inner"/.test(src)) ok('the run loop no longer returns `breaker: "inner"` — a word the protocol defines as the per-scope attempt budget');
   else fail('the run loop still returns `breaker: "inner"` for a round that merely stalled');

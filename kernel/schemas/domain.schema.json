@@ -494,7 +494,7 @@
         "execute",
         "fix",
         "spike",
-        "analyze",
+        "analyze", "board",
         "reconcile",
         "retrofit-surface",
         "coverage",
@@ -2635,6 +2635,7 @@
           "type": "boolean",
           "description": "ANALYZE finished: the spec folder's usecases/ carries at least one use case that is not _index.md. WIRE reads these — one wiring-map entry per use case — which is why ANALYZE precedes WIRE in the phase chain: dispatched against an empty spec folder, WIRE escalates on every launch."
         },
+        "has_board": { "type": "boolean", "description": "The per-machine board (tasks/TASK-*.md) holds at least one task. ANALYZE is complete only with both the committed spec tree and this; a committed tree with no board resumes at analyze, where the board-only operation regenerates it." },
         "has_requirements": {
           "type": "boolean",
           "description": "The requirements registry is on disk: shapeup/<slug>/requirements.md exists. A PLAIN FACT, not a phase — the orchestrator guards its single `coverage` dispatch on this boolean, and it is deliberately absent from kernel/probe/resume.mjs's PHASE_ARTIFACT map, which doubles as nextPhase()'s ordered list: an entry there would fast-forward every run recorded before the registry existed to the registry instead of to build."

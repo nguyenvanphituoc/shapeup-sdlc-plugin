@@ -411,6 +411,7 @@ const RESUME = {
     eval_dimensions: { type: "array", items: { type: "string" } },
     has_orient_artifacts: { type: "boolean" },
     has_spec_tree: { type: "boolean" },
+    has_board: { type: "boolean" },
     // The requirements registry — a fact, not a phase. See the COVERAGE block below for why it is
     // guarded on this bare boolean and never asked about through `probe resume --require`.
     has_requirements: { type: "boolean" },
@@ -859,13 +860,15 @@ const attest = (phaseKey, phaseName, label) =>
  * rather than folding the gap into a phase that "completed".
  *
  * @param {string} gate - The gate name to report the abort under.
- * @param {string} phaseKey - The phase, which is also its order's file stem.
+ * @param {string} phaseKey - The phase.
  * @param {string} phaseName - Progress group.
+ * @param {string} [orderStem=phaseKey] - The order's file stem, when the phase was dispatched
+ *   under a different operation (a board-only ANALYZE compiles `board.json`).
  * @returns {Promise<(object|null)>} An aborted RunReturn, or null when the leg closed (or the
  *   question could not be asked — a probe that did not run proves nothing, and is logged as such).
  */
-async function requireLeg(gate, phaseKey, phaseName) {
-  const ask = () => query(`probe leg --slug ${slug} --order "${phaseKey}"`, ORDERLEG, phaseName, `legcheck:${phaseKey}`);
+async function requireLeg(gate, phaseKey, phaseName, orderStem = phaseKey) {
+  const ask = () => query(`probe leg --slug ${slug} --order "${orderStem}"`, ORDERLEG, phaseName, `legcheck:${orderStem}`);
   let leg = await ask();
   if (!leg || !leg.found) { log(`${gate} — could not ask the leg ledger about "${phaseKey}" (probe returned ${leg ? "no order" : "nothing"}); proceeding on the artifact alone.`); return null; }
   if (!leg.has_result || leg.applied) return null;
@@ -891,9 +894,9 @@ async function requireLeg(gate, phaseKey, phaseName) {
  * @param {string} phaseName - Progress group.
  * @returns {Promise<(object|null)>} An aborted RunReturn, or null when the artifact is there.
  */
-async function requirePhase(gate, phaseKey, phaseName) {
+async function requirePhase(gate, phaseKey, phaseName, orderStem = phaseKey) {
   const r = await attest(phaseKey, phaseName, `require:${phaseKey}`);
-  if (r.exit_code === 0) return await requireLeg(gate, phaseKey, phaseName);
+  if (r.exit_code === 0) return await requireLeg(gate, phaseKey, phaseName, orderStem);
   // Exit 6 is `probe resume --require`'s OWN documented code for "the artifact really is not on
   // disk" (kernel/probe/resume.mjs banner). Any other value — including -1, the courier's sentinel
   // for a tool call that never ran — is not that predicate answering "no"; it is the predicate never
@@ -1254,8 +1257,28 @@ if (!rs.has_spec_tree) {
   const post = await requirePhase("ANALYZE", "analyze", "Analyze");
   if (post) return await withWarnings(post);
   await advisory(`reduce graph --slug ${slug}`, "Analyze", "graph:analyze");
+} else if (!rs.has_board) {
+  // THE HALF THAT DOES NOT SURVIVE. The spec tree is committed; the board is per-machine and
+  // gitignored, and ANALYZE writes both. A run after the first on a machine — and every run in a
+  // fresh checkout — used to fast-forward on the committed half alone and build over no board:
+  // GATE L2 crossed 0/0 tasks, the evaluator could read no `covers:` clause, and the requirements
+  // projection said "no evidence" for a round whose static criteria all passed. The board-only
+  // operation regenerates it from the tree without re-deriving the tree.
+  log(`ANALYZE — spec tree on disk, no board: dispatching the board-only operation (slug ${slug})`);
+  await setRunStatus("mapping", "Analyze");
+  const b = await worker({
+    skill: "ba-pitch-analyzer", operation: "board", schema: PHASE_OK, phase: "Analyze", label: "board",
+    payload: { spec_folder: specFolder, feature: slug, lens: rs.lens },
+    extra: "The spec tree is committed and FROZEN for this dispatch. Regenerate the per-machine board " +
+           "under the run's tasks/ directory from the use cases on disk — every acceptance criterion " +
+           "carrying its `(covers: REQ-…)` clause — and write nothing under the spec folder.",
+  });
+  if (b.__failed) return await withWarnings(diedAt("ANALYZE", b));
+  const post = await requirePhase("ANALYZE", "analyze", "Analyze", "board");
+  if (post) return await withWarnings(post);
+  await advisory(`reduce graph --slug ${slug}`, "Analyze", "graph:board");
 } else {
-  const post = await fastForward("ANALYZE", "analyze", "Analyze", "spec tree already on disk");
+  const post = await fastForward("ANALYZE", "analyze", "Analyze", "spec tree and board already on disk");
   if (post) return await withWarnings(post);
 }
 

@@ -175,6 +175,9 @@ export function ledgerDecisions(ledgerText, scopeId) {
  */
 export const OP_OWNER = {
   analyze: "ba-pitch-analyzer", reconcile: "ba-pitch-analyzer",
+  // `board` regenerates the per-machine board from a committed spec tree without re-deriving the
+  // tree — the half of ANALYZE that does not survive a clone. Same worker, narrower write surface.
+  board: "ba-pitch-analyzer",
   "retrofit-surface": "ba-pitch-analyzer", coverage: "ba-pitch-analyzer",
   "map-scopes": "scope-architect",
   wire: "solution-architect", evaluate: "spec-evaluator", orient: "orient",
@@ -258,6 +261,14 @@ export function substrateFor(operation, { slug, specDir, scope } = {}) {
       };
     case "analyze":
       return { allowed: [`${spec}/**`, `${local}/**`], frozen: [...FROZEN_INTAKE] };
+
+    case "board":
+      // The spec is READ, never written: this operation exists because the tree is already on disk
+      // and the board is not. Task ids renumber per machine by design, so nothing here is committed.
+      return {
+        allowed: [`${local}/tasks/**`, `${working}/**`],
+        frozen: [...FROZEN_SPEC_CORE, ...FROZEN_INTAKE, `${spec}/usecases/*.md`, `${spec}/scope-summary.md`],
+      };
 
     case "reconcile":
       return {

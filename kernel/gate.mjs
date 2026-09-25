@@ -51,9 +51,10 @@
 //   2  usage / validation error
 
 import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync } from "node:fs";
+import { parseBoard } from "./reduce/board.mjs";
 import { join, dirname } from "node:path";
 import { runArgs } from "./lib/argv.mjs";
-import { gateAnswerCandidates, gates as gatesPath, LOCAL, resultsDir } from "./lib/paths.mjs";
+import { gateAnswerCandidates, gates as gatesPath, LOCAL, resultsDir, tasksDir } from "./lib/paths.mjs";
 
 export const GATE_IDS = ["L0", "L1a", "L1a.5", "L1b", "L2", "L3", "QA", "H", "L4", "COACH-1"];
 
@@ -110,7 +111,7 @@ export const PRESETS = {
       "L1a": { decision: "proceed", note: "Orient review — advisory read." },
       "L1a.5": { decision: "proceed", note: "Wiring review — checked by trace-lint." },
       "L1b": { decision: "ask", note: "Board review is where scope is actually decided. Not pre-approvable." },
-      "L2": { decision: "proceed", note: "The board facts travel in the gate block itself — green_scopes and hammer_proposals — so a preset answering here is not answering blind. Note there is no board check behind this: the L2 hook was retired into the gate block in v2.0." },
+      "L2": { decision: "proceed", note: "The board facts travel in the gate block itself — green_scopes and hammer_proposals — so a preset answering here is not answering blind. A board with zero tasks is refused here regardless of the answer — the resolver narrows `proceed` to `ask` over an empty board." },
       "L3": { decision: "loop", max_rounds: 3, note: "Loop on FAIL; the breaker ends it." },
       "QA": { decision: "run" },
       "H": { decision: "ask", note: "The cut list changes what ships." },
@@ -218,6 +219,26 @@ export function censusVerdict(cwd, slug) {
  * @returns {object} The result, or an `ask` carrying why `ship` was not available.
  */
 export function narrowToEvidence(r, cwd, slug) {
+  // GATE L2's question is "is the board done", and a preset used to answer it over a board with
+  // zero tasks — 100% of nothing. Measured on a consumer: a committed spec fast-forwarded ANALYZE,
+  // the per-machine board was never regenerated, L2 crossed `proceed` from the `ci` preset and the
+  // frozen report printed `Board 0/0 tasks done`. Same rule as L4 below: an answer set chooses
+  // among allowed answers and cannot supply the evidence that makes one allowed.
+  if (r?.gate === "L2" && r?.status === "ok" && r?.decision === "proceed" && slug) {
+    let tasks = 0;
+    try { tasks = parseBoard(tasksDir(cwd, slug)).length; } catch { tasks = 0; }
+    if (tasks === 0) {
+      return {
+        gate: r.gate, status: "ask", source: r.source, decision: "ask", note: r.note,
+        refused: "proceed", board_tasks: 0,
+        reason: `GATE L2 cannot be answered "proceed": the board has no tasks, so "board 100%" is a ` +
+                `hundred percent of nothing. A committed spec with no per-machine board needs the board ` +
+                `regenerated (operation \`board\`) before this gate means anything. Put the block to ` +
+                `the PO, or regenerate the board first.`,
+      };
+    }
+    return r;
+  }
   if (r?.gate !== "L4" || r?.status !== "ok" || r?.decision !== "ship") return r;
   const verdict = censusVerdict(cwd, slug);
   if (verdict === "ship-now" || verdict === "ship-after-fixes") return r;

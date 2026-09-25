@@ -61,7 +61,8 @@ import { dirname, join, resolve } from "node:path";
 import { runArgs } from "../lib/argv.mjs";
 import { splitFrontmatter, uncoerce } from "../lib/contract.mjs";
 import { globToRegExp } from "../verify/spec.mjs";
-import { intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir, orientDir, activeOrder, activeScope, usecasesDir, breadboard, receipt, readReceipt, requirements, exportRunDir, lastRun, readRunId } from "../lib/paths.mjs";
+import { parseBoard } from "../reduce/board.mjs";
+import { intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir, orientDir, activeOrder, activeScope, usecasesDir, breadboard, receipt, readReceipt, requirements, exportRunDir, lastRun, readRunId, tasksDir } from "../lib/paths.mjs";
 import { evalVerdict } from "./eval.mjs";
 import { collectRun, writeRun } from "../report/export.mjs";
 
@@ -371,6 +372,21 @@ export function usecasesPath(cwd, slug, specFolder) {
  * @param {string|null} specFolder - The ledger's `spec_folder`, if it names one.
  * @returns {boolean} True when at least one use case (not the index) is on disk.
  */
+/**
+ * Is the per-machine board on disk with at least one task? ANALYZE writes two artifacts in two
+ * tiers — the spec tree, committed, and the board, gitignored — and a fast-forward that asked only
+ * about the committed half walked every later run on a machine, and every run in a fresh checkout,
+ * into a build with a spec and no board: GATE L2 crossed over 0/0 tasks, the evaluator could read no
+ * `covers:` clause, and the requirements projection printed "no evidence" on a round whose static
+ * criteria all passed. Measured on a live consumer, fourth run of one pitch.
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {boolean} True when the board directory holds at least one task file.
+ */
+export function hasBoard(cwd, slug) {
+  try { return parseBoard(tasksDir(cwd, slug)).length > 0; } catch { return false; }
+}
+
 export function hasSpecTree(cwd, slug, specFolder) {
   const dir = usecasesPath(cwd, slug, specFolder);
   if (!existsSync(dir)) return false;
@@ -385,7 +401,10 @@ export function hasSpecTree(cwd, slug, specFolder) {
  */
 export const PHASE_ARTIFACT = {
   orient: { fact: "has_orient_artifacts", artifact: "orient/{code-surface,discovered-seed,hill-signal}.md + spike-*.md" },
-  analyze: { fact: "has_spec_tree", artifact: "spec/usecases/*.md" },
+  // BOTH HALVES. The spec tree is committed and survives a clone; the board is per-machine and does
+  // not. A phase is complete only when both are on disk — a committed spec with no board resumes AT
+  // analyze, where the workflow dispatches the board-only operation rather than the whole phase.
+  analyze: { fact: "has_spec_tree", also: "has_board", artifact: "spec/usecases/*.md + tasks/TASK-*.md" },
   wire: { fact: "has_wiring_map", artifact: "wiring-map.md" },
   "map-scopes": { fact: "scope_files", artifact: "scopes/*.md" },
 };
@@ -399,8 +418,9 @@ export const PHASES = Object.keys(PHASE_ARTIFACT);
  * @returns {boolean} True when the phase's artifact exists.
  */
 export function phaseSatisfied(state, phase) {
-  const v = state[PHASE_ARTIFACT[phase].fact];
-  return Array.isArray(v) ? v.length > 0 : Boolean(v);
+  const present = (k) => { const v = state[k]; return Array.isArray(v) ? v.length > 0 : Boolean(v); };
+  const p = PHASE_ARTIFACT[phase];
+  return present(p.fact) && (!p.also || present(p.also));
 }
 
 /**
@@ -461,6 +481,7 @@ export function deriveResumeState(cwd, slug) {
     orient_dir: `.shapeup/${slug}/orient/`,
     has_orient_artifacts: hasOrientArtifacts(cwd, slug),
     has_spec_tree: hasSpecTree(cwd, slug, hr.spec_folder || null),
+    has_board: hasBoard(cwd, slug),
     // A PLAIN FACT, DELIBERATELY NOT A PHASE. The requirements registry is dispatched once, before
     // ANALYZE, and the orchestrator guards that one dispatch on this boolean. It is NOT an entry in
     // PHASE_ARTIFACT, and adding it there would be a migration hazard rather than a tidier shape:

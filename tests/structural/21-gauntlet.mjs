@@ -81,6 +81,9 @@ export async function run(ctx) {
       const { ORIENT_REQUIRED } = await import(join(ROOT, "kernel/probe/resume.mjs"));
       for (const f of [...ORIENT_REQUIRED, "spike-cart.md"]) writeFileSync(join(local, "orient", f), "# orient\n");
       writeFileSync(join(shared, "spec", "usecases", "UC-01.md"), "# UC-01\n");
+      // ANALYZE's other half — the per-machine board — or the derivation resumes at analyze by design.
+      mkdirSync(join(local, "tasks"), { recursive: true });
+      writeFileSync(join(local, "tasks", "TASK-001.md"), "---\nid: TASK-001\nstatus: pending\nscope_id: sc-a\n---\n\n# task\n");
       writeFileSync(join(shared, "spec", "domain-model.md"), "# domain\n");
       writeFileSync(join(shared, "wiring-map.md"), "---\nschema_version: 1\n---\n\n# wiring\n");
       for (const id of ["sc-a", "sc-b"]) {

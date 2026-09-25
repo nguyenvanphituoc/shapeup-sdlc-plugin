@@ -3,6 +3,24 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### A committed spec with no board is not a finished ANALYZE
+
+ANALYZE writes two artifacts in two tiers: the spec tree, committed, and the board, per-machine
+and gitignored. The fast-forward asked about the committed half alone, so every run after the first
+on a machine — and every run in a fresh checkout, the lane the unattended mode exists for — built
+over no board: GATE L2 crossed `proceed` from a preset over 0/0 tasks, the evaluator could read no
+`covers:` clause, and the requirements projection printed "no evidence" for a round whose static
+criteria all passed. Measured on the fourth run of one pitch on the live consumer, the first to
+reach the judge.
+
+The resume derivation now asks about both halves: a committed tree with no board resumes AT
+analyze, where the run dispatches the new `board` operation — same worker, the tree frozen, only
+`tasks/**` writable — and attests the phase against that order. GATE L2 refuses `proceed` over a
+board with zero tasks the way L4 refuses `ship` without a census: an answer set chooses among
+allowed answers and cannot supply the evidence that makes one allowed.
+
 ## [3.7.4] — 2026-09-25 · The ratchet is five attempts deep again
 
 One defect the 3.7.3 soak measured on the live consumer, reproduced on a copy of its trace and

@@ -51,7 +51,7 @@ const SLUG = "resume-fixture";
  * @param {string[]} [opts.results] - Result filenames to create.
  * @returns {string} The tree root, for chaining.
  */
-function plant(root, { status = null, orient = [], usecases = [], wiringMap = false, scopes = [], results = [] }) {
+function plant(root, { status = null, orient = [], usecases = [], board = null, wiringMap = false, scopes = [], results = [] }) {
   const local = join(root, ".shapeup", SLUG);
   const shared = join(root, "shapeup", SLUG);
   mkdirSync(local, { recursive: true });
@@ -72,6 +72,14 @@ function plant(root, { status = null, orient = [], usecases = [], wiringMap = fa
     const ucDir = join(status !== null ? shared : join(shared, "spec"), "usecases");
     mkdirSync(ucDir, { recursive: true });
     for (const f of usecases) writeFileSync(join(ucDir, f), "planted\n");
+  }
+  // THE HALF A CLONE LOSES. ANALYZE writes the spec tree (committed) AND the board (per-machine,
+  // gitignored), and the phase is complete only with both. A "complete spec tree" fixture therefore
+  // plants a board too, unless a case says `board: false` to model the fresh-checkout state.
+  const wantBoard = board === null ? usecases.some((f) => f !== "_index.md") : board;
+  if (wantBoard) {
+    mkdirSync(join(local, "tasks"), { recursive: true });
+    writeFileSync(join(local, "tasks", "TASK-001.md"), "---\nid: TASK-001\nstatus: pending\nscope_id: SC-1\n---\n\n# planted\n");
   }
   if (wiringMap) writeFileSync(join(shared, "wiring-map.md"), "planted\n");
   if (scopes.length) {
@@ -144,6 +152,11 @@ export async function run(ctx) {
       // ⟐ Stage A3, and the boundary the whole stage turns on: a wiring map is written one entry
       // PER use case, so WIRE is not reachable until the use cases exist. The pipeline used to
       // dispatch it here anyway, and solution-architect escalated on every launch.
+      // A committed spec tree with no per-machine board is the fresh-checkout state, and the fourth
+      // run of one pitch on a live consumer: the fast-forward used to key on the committed half alone
+      // and build over no board (L2 crossed 0/0 tasks). The derivation resumes AT analyze, where the
+      // workflow dispatches the board-only operation rather than the whole phase.
+      ["analyze", { status: "mapping", orient: FULL_ORIENT, usecases: FULL_SPEC, board: false }, "spec tree complete, no per-machine board"],
       ["wire", { status: "mapping", orient: FULL_ORIENT, usecases: FULL_SPEC }, "spec tree complete, no wiring map"],
       ["map-scopes", { status: "building", orient: FULL_ORIENT, usecases: FULL_SPEC, wiringMap: true }, "wiring map present, no scope contracts"],
       ["build", { status: "orienting", ...COMPLETE }, "every upstream artifact present"],

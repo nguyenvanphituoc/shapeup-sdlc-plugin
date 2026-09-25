@@ -171,6 +171,8 @@ export async function run(ctx) {
         w(legacy, `.shapeup/${SLUG}/orient/hill-signal.md`, "planted\n");
         w(legacy, `.shapeup/${SLUG}/orient/spike-persistence.md`, "planted\n");
         w(legacy, `shapeup/${SLUG}/spec/usecases/UC-01.md`, "planted\n");
+        // ANALYZE's per-machine half — a pre-registry run on its own machine had its board too.
+        w(legacy, `.shapeup/${SLUG}/tasks/TASK-001.md`, "---\nid: TASK-001\nstatus: pending\n---\n\n# planted\n");
         w(legacy, `shapeup/${SLUG}/wiring-map.md`, "planted\n");
         w(legacy, `shapeup/${SLUG}/scopes/SC-1.md`, "planted\n");
         const st = resume(legacy);

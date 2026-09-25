@@ -34,7 +34,6 @@ is pinned by a guard, never when it is merely believed done.
 | HD-056 | seven shipped files cite artifacts a user does not receive | P3 |
 | HD-058 | two gates print their block and leave no row | P2 |
 | HD-059 | a T0 verdict is evidence about a machine, and records only the tree | P1 |
-| HD-064 | a committed spec fast-forwards ANALYZE, and the board it needs lives in the tier that does not survive — L2 crosses over 0/0 tasks | P1 |
 | HD-063 | GATE L4 demands a census artifact, and nothing in the plugin writes one — a headless lane can only record `ask` | P2 |
 | HD-062 | three run-blind readers reach durable artifacts: the committed report's round count, the exported gate decisions, and the citation check | P1 (HD-041 member) |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
@@ -898,29 +897,6 @@ else needs to survive for the fix to hold.
   **Closed when:** a T0 artifact carries enough about where it ran that a disagreeing re-run can be
   told from a regression, or the harness states plainly, where the verdict is read, that its
   evidence is machine-local.
-
-- **HD-064 · A committed spec fast-forwards ANALYZE, and the board it needs lives in the tier that
-  does not survive — GATE L2 crosses over 0/0 tasks.** Measured 2026-09-25 on the consumer, run
-  `about-screen-20260924T193808Z-6b9ab0f2`, plugin 3.7.4, the fourth run of that pitch on one
-  machine and the first on the current build to reach the judge; the consumer filed it first.
-
-  ANALYZE has two outputs in two tiers: the spec tree, committed, and the board, per-machine and
-  gitignored. The fast-forward keys on the committed half alone — `has_spec_tree: true` — so on
-  every run after the first on a machine, and on every run in a fresh checkout, which is the lane
-  the unattended mode exists for, no `ba-pitch-analyzer` is dispatched and nothing regenerates the
-  board. GATE L2, whose whole question is "is the board done", then crossed `proceed` over a board
-  with zero tasks and the frozen report printed `Board 0/0 tasks done`. The evaluator could read no
-  `covers:` clause and left `traces_to` empty on every criterion rather than guess, so the
-  requirements projection printed `0/11 PASS · 7 no evidence` for a round whose static criteria
-  all passed — and has printed that on every run of the pitch. The worker was right not to invent a
-  board: it is ANALYZE's artifact, and a grader that writes its own grader is the inversion this
-  harness exists to refuse.
-
-  **Closed when:** the fast-forward asks about both halves — a committed spec with no board
-  dispatches the analyzer in a board-only mode that regenerates the board from the committed tree
-  without re-deriving it — and GATE L2 refuses a board with zero tasks rather than reading 0/0 as
-  complete; a fixture with a committed spec and an empty run tier drives one round and sees a board
-  and a populated `REQ → AC` table.
 
 - **HD-063 · GATE L4 demands a census artifact, and nothing in the plugin writes one — a headless
   lane can only record `ask`.** Measured 2026-09-25 on the consumer, run
