@@ -405,6 +405,11 @@ const MODULE_FILES = [
   // that it had checked. The walk now takes the project's own extensions, and refuses to publish a
   // verdict over a graph with a missing edge or with no reachable engine to control it.
   "97-reachability-can-say-unchecked.mjs",
+  // 98-flow-sequence-spans-lines.mjs: the contract dialect read `field: [a, b]` and an indented
+  // `- item` block, but a flow sequence broken across lines parsed to the single character "[" —
+  // so a scope's substrate became a string, the order failed its own schema, and the scope could
+  // not be dispatched. Drives the parse through the compiler and the hook.
+  "98-flow-sequence-spans-lines.mjs",
   "08-docs.mjs",
 ];
 

@@ -3,6 +3,40 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.9.2] — 2026-09-25 · A list too long for one line is still a list
+
+### A flow sequence that spans lines parsed to the character "["
+
+The contract dialect read two list forms — `field: [a, b]` on one line, and an indented `- item`
+block — and not the third one a writer reaches for the moment the members stop fitting:
+
+```
+allowed_file_substrate: [
+  "app/.../ui/**",
+  "app/.../profile/route_map.json"
+]
+```
+
+Only the text after the colon was taken, so the value became the single character `[`, the members
+were counted as unreadable strays, and every reader downstream saw a string where an array was
+declared.
+
+That is not a cosmetic parse. A scope contract's substrate **is** the build leg's write permission,
+and the compiler refuses to write an order that fails its own envelope schema — so a scope written
+this way could not be dispatched at all. Measured on a live unattended run: three of five scope
+contracts came back in that form from one scope-mapping dispatch, which would have reached BUILD
+with three of its five scopes uncompilable.
+
+Fixed at the parser, not in guidance to the worker: the correct value was on disk the whole time,
+and a worker carries no lesson across a dispatch. The lines are now joined until the brackets
+balance and coerced as the list they are, with quoting tracked so a bracket inside a quoted glob is
+a character rather than structure. A sequence that never closes still yields null **and** a
+diagnostic naming the field — unreadable and read-as-something stay different facts.
+
+Hardened alongside it: the per-scope reachability arm skips a contract whose substrate is not a
+list of globs instead of throwing over it. The whole oracle runs advisory, so one malformed
+contract used to take covers-closure down with it.
+
 ## [3.9.1] — 2026-09-25 · The second look, and the evidence that closed an old row
 
 ### Measured, not changed: the tier-direction collision is closed

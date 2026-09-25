@@ -263,6 +263,28 @@ function splitList(body) {
  * @returns {{meta:Object<string,*>, body:string}} Parsed scalars/lists and the remaining body
  *   ({}/whole document when there is no leading `---` block).
  */
+/**
+ * Whether a flow sequence is closed: every `[` outside a quoted run has met its `]`.
+ *
+ * Quotes are tracked because a bracket inside a quoted path is a character, not structure — and a
+ * scope substrate glob is exactly the kind of value that can carry one.
+ *
+ * @param {string} text - The accumulated text, starting at the opening bracket.
+ * @returns {boolean} True once depth returns to zero, i.e. the sequence is complete.
+ */
+function flowClosed(text) {
+  let depth = 0;
+  let quote = null;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quote) { if (ch === quote && text[i - 1] !== "\\") quote = null; continue; }
+    if (ch === '"' || ch === "'") { quote = ch; continue; }
+    if (ch === "[") depth++;
+    else if (ch === "]") { depth--; if (depth === 0) return true; }
+  }
+  return false;
+}
+
 export function splitFrontmatter(md) {
   const m = String(md ?? "").match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!m) return { meta: {}, body: String(md ?? "") };
@@ -275,7 +297,29 @@ export function splitFrontmatter(md) {
     const c = line.indexOf(":");
     if (c === -1) continue;
     const key = line.slice(0, c).trim();
-    const inline = line.slice(c + 1).trim();
+    let inline = line.slice(c + 1).trim();
+
+    // A FLOW SEQUENCE MAY SPAN LINES, and it used to parse as the single character "[".
+    //
+    // `field: [` followed by one quoted member per line and a closing `]` is the form a model
+    // reaches for the moment a list is too long to read on one line, and this dialect took only
+    // the text after the colon — so the value became the string "[", the members were counted as
+    // unreadable strays, and every reader downstream saw a string where an array was declared.
+    // Measured on a live run: three of five scope contracts were written this way, and each one
+    // then failed its own envelope schema at compile — the run could not dispatch those scopes at
+    // all. Accepted now: the lines are joined until the brackets balance and the whole thing is
+    // coerced as the list it is. A sequence that never closes is still reported, never guessed at.
+    if (inline.startsWith("[") && !flowClosed(inline)) {
+      let buf = inline;
+      let k = i + 1;
+      for (; k < lines.length && !flowClosed(buf); k++) buf += " " + lines[k].trim();
+      i = k - 1;
+      if (flowClosed(buf)) { meta[key] = coerce(buf); continue; }
+      meta[key] = null;
+      unreadable.push({ field: key, expected_heading: `${key}: [a, b]  (or an indented \`- item\` list)`,
+        found_under: "a flow sequence that is never closed", rows: k - (i + 1) });
+      continue;
+    }
 
     // An indented run beneath a key is a YAML BLOCK SEQUENCE, and it used to be skipped
     // entirely — so `e2e_verification_fixtures:` followed by two `- "node …"` lines parsed to

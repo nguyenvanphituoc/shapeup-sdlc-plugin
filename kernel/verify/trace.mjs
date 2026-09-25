@@ -320,7 +320,13 @@ export function scopeReachability(contracts, reachable, sources) {
   for (const found of contracts) {
     const c = found?.contract || found || {};
     const id = c.scope_id || found?.id;
-    const globs = (c.allowed_file_substrate || []).map(globToRegExp);
+    // A CONTRACT THIS CANNOT READ IS SKIPPED, NEVER THROWN OVER. The whole oracle runs advisory, so
+    // a throw here takes out covers-closure too and the run gets no report at all — one malformed
+    // contract silencing every arm. A substrate that is not a list of globs is simply a scope this
+    // arm has nothing to say about.
+    const declared = c.allowed_file_substrate;
+    if (!Array.isArray(declared) || !declared.length) continue;
+    const globs = declared.filter((g) => typeof g === "string").map(globToRegExp);
     if (!globs.length) continue;
     const owned = sources.filter((f) => globs.some((r) => r.test(f)));
     if (!owned.length) continue;
