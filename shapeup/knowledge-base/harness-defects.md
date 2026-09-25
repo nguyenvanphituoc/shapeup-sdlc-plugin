@@ -25,7 +25,6 @@ is pinned by a guard, never when it is merely believed done.
 | HD-052 | four attested channels were named; the same class has at least five more | P2 |
 | HD-053 | the T0 citation re-hash proves self-consistency, not provenance | P1 |
 | HD-056 | seven shipped files cite artifacts a user does not receive | P3 |
-| HD-059 | a T0 verdict is evidence about a machine, and records only the tree | P1 |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
 | HD-025 | two run geometries this checkout cannot reach | process |
@@ -658,28 +657,5 @@ else needs to survive for the fix to hold.
 
   **Closed when:** the shipped set cites only what it ships, and the scan that found these runs as a
   check rather than as an audit pass somebody remembers to do.
-
-- **HD-059 · A T0 verdict is evidence about a machine, and records only the tree.** Found
-  2026-09-24 while trying to verify a consumer build in a clean clone — which turned out to be
-  impossible, three times in a row.
-
-  The harness's central claim is that progress is measured rather than claimed, and the T0 artifact
-  is where the measurement lands: `exit 0`, `pass: true`, a captured tail. What the artifact does
-  not record is that the command's outcome depended on state outside the tree. Measured on the
-  consumer, whose toolchain resolves its build plugins through a cache keyed by the project's
-  **absolute path**: the working tree builds green; a clone of the same commit at a different path
-  re-resolves and fails on a registry 404; a clone with a hand-seeded cache compiles a different
-  plugin set and produces two errors the original never sees. Three environments, three outcomes,
-  one tree.
-
-  The consequence is not that the consumer's build is badly configured — that is the consumer's
-  problem. It is that a green T0 artifact is portable evidence in appearance only, and nothing in it
-  says so. Two machines can honestly disagree about a verdict this harness treats as fact, and the
-  release discipline this repo runs on — verify in a clean clone before shipping — cannot be applied
-  to such a project at all.
-
-  **Closed when:** a T0 artifact carries enough about where it ran that a disagreeing re-run can be
-  told from a regression, or the harness states plainly, where the verdict is read, that its
-  evidence is machine-local.
 
 This file stays short on purpose. It is a queue, not an archive.

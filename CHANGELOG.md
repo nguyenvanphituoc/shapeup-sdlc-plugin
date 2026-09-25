@@ -3,6 +3,23 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### A T0 verdict records the machine it was measured on
+
+The artifact recorded `exit 0`, `pass: true` and a captured tail, and nothing about where the
+command ran. Measured on a consumer whose toolchain resolves through a cache keyed by the
+project's absolute path: the working tree built green, a clone of the same commit at another path
+failed on a registry 404, and a clone with a seeded cache produced two errors the original never
+saw — three environments, three outcomes, one tree, three verdicts that read the same. Each
+verdict now carries an environment block: host and node, the absolute working directory, the git
+head with a dirty flag, every invoked binary and where it resolved, a digest per lockfile at the
+root, the cache directories the project profile declares (null when it declares none, which is not
+the same fact as none), and one digest over an allowlist of environment variable values — names in
+the clear, values hashed. `env_sha256` digests the block, so a reader compares one field and a
+human diffs the rest, and the export carries it beside the tree head. The block measures and
+judges nothing: no field in it makes a verdict green or red.
+
 ## [3.7.8] — 2026-09-25 · One run's records answer for that run
 
 The run-key class closed, both remaining gates given a call site, the hill's guard re-keyed, and a

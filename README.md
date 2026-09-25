@@ -48,10 +48,12 @@ Two limits, stated here because the point of this section is that a claim withou
 behind it is the thing this harness exists to prevent: the **seesaw** regression arm is declared
 and not yet wired (no run writes its registry — wiring it is an open Betting Table decision), and
 the citation **re-hash** the kernel performs proves self-consistency, not provenance — the digest
-and the cited verdict are checked, the scope, round and run the artifact belongs to are not. A T0
-artifact is also evidence about the machine that produced it: it records the tree and nothing
-about the toolchain or caches the commands resolved through. All three are open items in
-`shapeup/knowledge-base/harness-defects.md`, not shipped guarantees.
+and the cited verdict are checked, the scope, round and run the artifact belongs to are not. Both are
+open items in `shapeup/knowledge-base/harness-defects.md`, not shipped guarantees. A T0 artifact is
+also evidence about the machine that produced it, and now says so: each verdict carries where it
+ran — the absolute path, the git tree, the resolved toolchain, lockfile digests, declared cache
+directories and a digest over an allowlist of environment values — so a disagreeing re-run can be
+told from a regression. That block measures and judges nothing.
 → *Prevents: "done" asserted with nothing behind it.*
 
 **3. Parallel work can't corrupt shared state.** Each scope gets a write-whitelist of files

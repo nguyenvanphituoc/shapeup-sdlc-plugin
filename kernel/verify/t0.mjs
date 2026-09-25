@@ -40,10 +40,11 @@ import { join, dirname } from "node:path";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { digest } from "../probe/digest.mjs";
+import { environmentFingerprint } from "./env.mjs";
 import { runArgs } from "../lib/argv.mjs";
 import { snapshot, restore, keptRef } from "./ratchet-tree.mjs";
 import { readContract, SCOPE_CONTRACT } from "../lib/contract.mjs";
-import { runIdFromRoot, localRoot, SHARED } from "../lib/paths.mjs";
+import { runIdFromRoot, localRoot, SHARED, projectProfile } from "../lib/paths.mjs";
 
 /**
  * The feature slug a scope contract belongs to, from its path.
@@ -576,6 +577,14 @@ export async function cli(rawArgv) {
   const { path, sha256: hash, trial } = writeArtifact(outDir, round, attempt, {
     ...(runId ? { run_id: runId } : {}),
     scope_id: contract.scope_id,
+    // WHERE IT RAN, beside what it measured. A verdict that records only the tree is portable
+    // evidence in appearance only: the same commit built three ways on three machines because the
+    // toolchain resolved through a path-keyed cache. This block does not judge — it is what lets a
+    // disagreeing re-run be told from a regression (see verify/env.mjs).
+    env: environmentFingerprint(cwd, {
+      commands: [...fixtures.results.map((r) => r.cmd), ...(dbProbe?.cmd ? [dbProbe.cmd] : [])],
+      profilePath: projectProfile(cwd, slugFromContractPath(contractPath)),
+    }),
     // The evidence, not just the score — see `commandEvidence` for what the three-field record
     // could not tell apart, and why `exit` still reads the way it always did.
     fixtures: fixtures.results.map((r) => commandEvidence(r)),

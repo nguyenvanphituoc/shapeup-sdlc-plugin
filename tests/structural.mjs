@@ -385,6 +385,9 @@ const MODULE_FILES = [
   // the folding helper existed one import away — R-2, [[REQ-5]] and req-4 counted as nothing at the
   // one place that grades. All four spellings through the real readers now agree.
   "92-covers-one-key-space.mjs",
+  // 93-t0-env-fingerprint.mjs: a T0 verdict recorded the tree and nothing about the machine, so one
+  // commit that built three ways on three machines produced three verdicts that read the same.
+  "93-t0-env-fingerprint.mjs",
   "08-docs.mjs",
 ];
 

@@ -130,6 +130,11 @@ function t0Row(a, runId) {
     fixtures_green: a?.fixtures_green ?? null,
     db_probe_green: a?.db_probe_green ?? null,
     seesaw_green: a?.seesaw_green ?? null,
+    // One field a reader compares, and the block itself stays in the artifact for a human to diff:
+    // two rows with the same tree and different env digests are two machines, not a regression.
+    env_sha256: a?.env?.env_sha256 ?? null,
+    tree_head: a?.env?.tree?.head ?? null,
+    tree_dirty: a?.env?.tree?.dirty ?? null,
     fixtures_total: fixtures.length,
     fixtures_passed: fixtures.filter((f) => f?.pass === true).length,
     seesaw_ran: a?.seesaw?.ran ?? null,

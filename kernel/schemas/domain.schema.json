@@ -1354,6 +1354,21 @@
             "$ref": "#/$defs/AegisTriple"
           },
           "description": "Populated only on red; feeds the next order."
+        },
+        "env": {
+          "type": "object",
+          "description": "Where the fixtures ran — host, cwd, git tree, resolved toolchain paths, lockfile digests, profile-declared cache dirs, and a digest over an allowlist of environment variable VALUES (names in the clear, values never stored). `env_sha256` digests the whole block, so a reader compares one field and a human diffs the rest: two verdicts with the same tree and different digests were measured on different machines, which is a fact about portability rather than a regression. Written by kernel/verify/env.mjs, which judges nothing — no field here makes a verdict green or red.",
+          "properties": {
+            "schema_version": { "const": 1 },
+            "env_sha256": { "type": "string" },
+            "host": { "type": "object", "description": "platform, arch, os_release, node, hostname_sha256 (hashed — equality is all a reader needs)." },
+            "cwd": { "type": "string", "description": "Absolute: a path-keyed toolchain cache is identified by this." },
+            "tree": { "type": "object", "description": "git head, branch, and a dirty flag — which says something differs, never what." },
+            "toolchain": { "type": "array", "description": "Each invoked binary as written, and where it resolved on this machine (null when nothing resolved it)." },
+            "lockfiles": { "type": "array", "description": "Digest per lockfile present at the root. Says what was declared, never what is installed." },
+            "caches": { "type": ["array", "null"], "description": "Cache dirs the project profile declares, resolved. null means the profile declared none — NOT that there are none." },
+            "env": { "type": "object", "description": "The allowlist of variable names, and one digest over their values." }
+          }
         }
       }
     },
