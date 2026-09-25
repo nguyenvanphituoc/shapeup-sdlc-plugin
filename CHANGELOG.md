@@ -3,7 +3,7 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [3.7.11] — 2026-09-25 · The envelope says where the answer goes, and two rules the gate used to learn the hard way
 
 ### A no-go is a constraint, and a committed file does not state the projection
 
