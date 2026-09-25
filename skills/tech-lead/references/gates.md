@@ -220,10 +220,17 @@ Do NOT enter MAP SCOPES until Orient is accepted.
 
 ```
 1. PROFILE (you write it at L0 — compile-order stays pipeline-blind): SHARED project-profile.md
-   = {schema_version:1, archetype, entry_point, build_probe?, launch_probe?}. archetype ∈
-   {client-only-game|web-service|mobile|library|data-pipeline}; entry_point is the reachability
-   seam (a game's main.js is NOT a service's src/server.ts). Validate the enum — a typo must fail,
-   not silently disable the check. The two probes feed the round build gate (`harness verify
+   = {schema_version:1, archetype, entry_point, source_extensions?, build_probe?, launch_probe?}.
+   archetype ∈ {client-only-game|web-service|mobile|library|data-pipeline}; entry_point is the
+   reachability seam (a game's main.js is NOT a service's src/server.ts). Validate the enum — a
+   typo must fail, not silently disable the check. entry_point is also the root reachability walks
+   the import graph from, so pick the module the app's screens hang off, not merely the file the
+   platform starts: a framework that registers screens by name (a route map, a manifest, a
+   string-loaded page) leaves its start file importing nothing the feature touches, and the arm
+   then reports that it could not check rather than calling every engine orphaned.
+   source_extensions is optional and only needed when the project's modules end in something the
+   entry point does not (e.g. [".ets"] when the entry is a .ts file); leaving it out costs a
+   skipped arm, never a false red. The two probes feed the round build gate (`harness verify
    build`, every round before EVAL): build_probe asserts the BUILT ARTIFACT covers what the run
    wrote (a green exit code is not proof the feature compiled when the toolchain compiles only what
    an entry point reaches); launch_probe installs, starts and asserts the first screen. A `mobile`
@@ -241,7 +248,11 @@ Do NOT enter MAP SCOPES until Orient is accepted.
    requirements.md registry (atomic REQ clauses, frozen ids).
 4. trace-lint — node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify trace --slug <slug>. ADVISORY at L1b:
    covers-closure (every covered REQ named by ≥1 AC's covers:) + reachability (every UC engine
-   reaches entry_point). Promote to --gate only once covers: is populated.
+   reaches entry_point). Promote to --gate only once covers: is populated. Reachability reports
+   checked:false with a reason rather than a verdict in two cases, both warns: an import it could
+   not follow (the graph is incomplete) and no engine reachable at all (nothing controls the walk,
+   so an orphan and a wrong root look identical). Read either as "re-declare the profile", never
+   as a clean arm.
 ```
 
 ---

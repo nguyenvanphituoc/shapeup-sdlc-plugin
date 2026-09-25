@@ -139,7 +139,7 @@ rest of this README after this table and nothing will be a surprise.
 | **hill / hill phase** | How much of a scope is still *unknown* versus merely *unfinished*. Derived from T0 facts — never self-reported. |
 | **gate (L0–L4)** | A numbered checkpoint in a run. Most pause for you; GATE L2 is the one a hook observes and reports on. |
 | **covers-closure** | Every requirement clause has at least one task claiming to cover it. Nothing silently drops. |
-| **wiring reachability** | Every engine has a call site reachable from the app's real entry point. Catches "built, but never wired up". |
+| **wiring reachability** | Every engine has a call site reachable from the app's real entry point. Catches "built, but never wired up". Reports itself unchecked, with a reason, when the import walk cannot be rooted — an unfollowable import, or no reachable engine to control it. |
 | **discovery ledger** | The one file everything found mid-run gets written to, so nothing is lost between rounds. |
 
 A longer version, including the internals, is in [docs/glossary.md](docs/glossary.md).
@@ -316,7 +316,10 @@ These hold across the harness and are the reason it stays predictable:
   `harness reduce ingest`; workers return data and never touch shared state.
 - **Traceability is oracle-checked, opt-in** — `harness verify trace` verifies covers-closure and
   wiring reachability from the committed spine artifacts; it ships advisory (warn-only) and every
-  arm is skipped when its artifact is absent, so older specs are non-regressed.
+  arm is skipped when its artifact is absent, so older specs are non-regressed. Reachability also
+  skips when it cannot root its walk — an import it cannot follow, or no reachable engine to
+  control the result — because "every engine is orphaned" and "this is the wrong entry point" are
+  the same evidence, and a check that cannot tell them apart must say so rather than pick.
 
 ## Known rough edges
 

@@ -3,6 +3,35 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Reachability walks the project's own language, and says so when it cannot
+
+The import walker knew six suffixes — the JS/TS family — so on a stack whose modules end in
+anything else it followed no relative import at all. The walk stopped at the entry file, every
+use-case engine came back "never imported from the entry point", and the report said `checked:
+true`. Measured on a live ArkTS consumer: two files reachable out of fifty-three, every engine
+orphaned, red on every run of every feature. A check that is red for every input carries no
+information, and this one did worse than carry none — it claimed to have looked.
+
+Three changes, and the third is the one that matters:
+
+- The walk takes the extensions the **project** declares. `project-profile.md` gains an optional
+  `source_extensions`, and the entry point's own suffix is always a module extension of this
+  project by construction — so an `.ets` entry makes `.ets` walkable with nothing declared.
+- A relative import that resolves to no file is an **edge the walk could not follow**. The arm
+  reports `checked: false` and warns instead of reporting the destination orphaned: nothing about a
+  module follows from a walk that never got there. An import of a non-module asset (`./styles.css`)
+  is not such an edge, so a project that imports one keeps its verdict.
+- The arm needs **one positive control**. With no engine reachable at all, "every engine is dead"
+  and "I am walking the wrong tree" are byte-identical evidence — and whole archetypes wire screens
+  by name at runtime, so their start file imports no engine and the import graph is complete and
+  beside the point. The arm reports unchecked and names the entry point to re-declare.
+
+The cost is named rather than hidden: a wiring map with a single engine can no longer red, because
+its only engine being unreachable is exactly the case the arm cannot distinguish. The defect the
+arm exists for — one dead module among reachable siblings — is untouched and still red.
+
 ## [3.8.0] — 2026-09-25 · The seesaw arm is removed, and the hill's top phase is reachable again
 
 ### Removed: the seesaw regression check

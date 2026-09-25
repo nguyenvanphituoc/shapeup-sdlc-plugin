@@ -12,7 +12,11 @@
 //      `entry_point` via the import graph (0 import sites) is RED. This catches the *dead module*
 //      (631 lines, 26 passing tests, zero call sites), not a *dead data-path* (§2 honest boundary
 //      → §4.4). Entry point is PROFILE-GATED, never hardcoded (main.js for a game is not the seam
-//      for a web-service).
+//      for a web-service). It reports `checked: false` with a reason rather than a verdict when it
+//      cannot root the walk: an import it could not follow (the graph is missing edges, so nothing
+//      about a destination follows from not arriving there), or no reachable engine at all (with
+//      no positive control, an orphaned module and a wrong entry point are the same evidence —
+//      and a framework that registers screens by name produces the second on every run).
 //
 // Governing rule: if a script can't check it, it's decoration. This script checks a deletion and
 // an orphan — both provable from files, zero LLM tokens. What it deliberately does NOT assert:
@@ -97,37 +101,81 @@ export function coveredReqIds(board) {
 }
 
 // --- import-graph reachability -----------------------------------------------
-const SOURCE_EXTS = [".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx"];
+//
+// THE RESOLVER KNOWS ONE FAMILY OF LANGUAGES, AND IT MUST SAY SO. This list is the JS/TS family and
+// nothing else, which is correct for the stacks it was written against and silently wrong for any
+// other: a stack whose modules end in something else resolves no relative import at all, the walk
+// stops at the entry file, and every engine then looks "never imported from the entry point" — a
+// red verdict on every input, reported as a check that ran. Two things keep that from happening:
+// the extension set is widened from what the project actually declares (below), and a walk that
+// could not follow an edge reports itself unchecked instead of reporting the destination missing.
+const DEFAULT_SOURCE_EXTS = [".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx"];
 const IMPORT_RE = /(?:\bimport\b[^'"]*?from\s*|\bimport\s*|\bexport\b[^'"]*?from\s*|\brequire\s*\(\s*|\bimport\s*\()\s*['"]([^'"]+)['"]/g;
 
 /**
+ * The module extensions this project's import graph is walked with.
+ *
+ * Widened two ways, both from declarations rather than from a guess: the project profile may state
+ * `source_extensions` outright, and the entry point's own suffix is always a module extension of
+ * this project by construction — it is the one file the profile names and the walk starts from.
+ *
+ * @param {(object|null)} profile - The parsed ProjectProfile, or null.
+ * @param {(string|null)} entryPoint - The declared entry-point path, or null.
+ * @returns {{exts:string[], declared:string[], from_entry:(string|null)}} The extension set the
+ *   walk uses, plus what each widening contributed (reported, so a reader can see why it resolved).
+ */
+export function sourceExtensions(profile, entryPoint) {
+  const raw = profile?.source_extensions ?? profile?.module_extensions ?? null;
+  const list = Array.isArray(raw) ? raw : typeof raw === "string" ? raw.split(/[,\s]+/) : [];
+  const declared = list
+    .map((e) => String(e).trim())
+    .filter(Boolean)
+    .map((e) => (e.startsWith(".") ? e : "." + e));
+  const m = /(\.[A-Za-z0-9]+)$/.exec(entryPoint || "");
+  const fromEntry = m ? m[1] : null;
+  const exts = [...new Set([...DEFAULT_SOURCE_EXTS, ...declared, ...(fromEntry ? [fromEntry] : [])])];
+  return { exts, declared, from_entry: fromEntry };
+}
+
+/**
  * Resolve a relative import specifier to a repo-relative source file.
+ *
+ * The three answers are kept apart on purpose. A bare specifier is out of the app graph by design;
+ * a relative specifier carrying a non-module suffix (`./styles.css`, `./data.json`) is an asset,
+ * which imports nothing and can never be an engine; and a relative specifier that looks like a
+ * module but resolves to no file is an edge the walk could not follow — the one case that makes
+ * the resulting graph incomplete, and the caller has to be able to see it.
+ *
  * @param {string} fromFileAbs - Absolute path of the importing file.
  * @param {string} spec - The import specifier string.
  * @param {string} cwd - Repo root the result is made relative to.
- * @returns {(string|null)} The repo-relative source path (trying source extensions and `/index`),
- *   or null for a bare specifier (node_modules) or an unresolved path.
+ * @param {string[]} exts - The module extensions of this project (see `sourceExtensions`).
+ * @returns {{file:(string|null), kind:("bare"|"asset"|"resolved"|"unresolved")}} The repo-relative
+ *   source path when one was found, and which of the four answers this was.
  */
-function resolveSpecifier(fromFileAbs, spec, cwd) {
-  if (!spec.startsWith(".")) return null; // bare specifier → node_modules, out of the app graph
+function resolveSpecifier(fromFileAbs, spec, cwd, exts) {
+  if (!spec.startsWith(".")) return { file: null, kind: "bare" }; // node_modules, out of the app graph
+  const suffix = /(\.[A-Za-z0-9]+)$/.exec(spec);
   const baseAbs = resolve(dirname(fromFileAbs), spec);
-  const candidates = [baseAbs, ...SOURCE_EXTS.map((e) => baseAbs + e), ...SOURCE_EXTS.map((e) => join(baseAbs, "index" + e))];
+  const candidates = [baseAbs, ...exts.map((e) => baseAbs + e), ...exts.map((e) => join(baseAbs, "index" + e))];
   for (const c of candidates) {
-    if (existsSync(c) && statSync(c).isFile()) return relative(cwd, c).split("\\").join("/");
+    if (existsSync(c) && statSync(c).isFile()) return { file: relative(cwd, c).split("\\").join("/"), kind: "resolved" };
   }
-  return null;
+  if (suffix && !exts.includes(suffix[1])) return { file: null, kind: "asset" };
+  return { file: null, kind: "unresolved" };
 }
 
 /**
  * Normalize a declared path (entry_point / engine) to an existing repo-relative source file.
  * @param {string} p - The declared path (absolute or cwd-relative).
  * @param {string} cwd - Repo root the result is made relative to.
+ * @param {string[]} [exts] - The module extensions to try (defaults to the JS/TS family).
  * @returns {(string|null)} The repo-relative source path (trying source extensions and `/index`),
  *   or null when nothing on disk matches.
  */
-function resolveFile(p, cwd) {
+function resolveFile(p, cwd, exts = DEFAULT_SOURCE_EXTS) {
   const abs = isAbsolute(p) ? p : resolve(cwd, p);
-  const candidates = [abs, ...SOURCE_EXTS.map((e) => abs + e), ...SOURCE_EXTS.map((e) => join(abs, "index" + e))];
+  const candidates = [abs, ...exts.map((e) => abs + e), ...exts.map((e) => join(abs, "index" + e))];
   for (const c of candidates) {
     if (existsSync(c) && statSync(c).isFile()) return relative(cwd, c).split("\\").join("/");
   }
@@ -149,27 +197,37 @@ function importsOf(fileAbs) {
 
 /**
  * BFS the import graph from an entry point.
+ *
+ * Reports the edges it could NOT follow alongside the set it built. "This module is never imported"
+ * is only a supportable claim over a graph with every edge in it; over a graph missing edges it is
+ * indistinguishable from "the walker could not read this language", and the second must not be
+ * published as the first.
+ *
  * @param {string} entryRel - The entry-point path (declared form; resolved on disk).
  * @param {string} cwd - Repo root.
- * @returns {{reachable:Set<string>, entryResolved:(string|null)}} The set of repo-relative files
- *   reachable from the entry, and the resolved entry path (null when the entry is not on disk, in
- *   which case `reachable` is empty).
+ * @param {string[]} [exts] - The module extensions of this project (defaults to the JS/TS family).
+ * @returns {{reachable:Set<string>, entryResolved:(string|null), unresolved:Array<{from:string,
+ *   spec:string}>}} The set of repo-relative files reachable from the entry, the resolved entry
+ *   path (null when the entry is not on disk, in which case `reachable` is empty), and every
+ *   module-shaped relative specifier that resolved to no file.
  */
-export function reachableFrom(entryRel, cwd) {
+export function reachableFrom(entryRel, cwd, exts = DEFAULT_SOURCE_EXTS) {
   const reachable = new Set();
-  const start = resolveFile(entryRel, cwd);
-  if (!start) return { reachable, entryResolved: null };
+  const unresolved = [];
+  const start = resolveFile(entryRel, cwd, exts);
+  if (!start) return { reachable, entryResolved: null, unresolved };
   const queue = [start];
   reachable.add(start);
   while (queue.length) {
     const cur = queue.shift();
     const curAbs = resolve(cwd, cur);
     for (const spec of importsOf(curAbs)) {
-      const dep = resolveSpecifier(curAbs, spec, cwd);
+      const { file: dep, kind } = resolveSpecifier(curAbs, spec, cwd, exts);
+      if (kind === "unresolved") unresolved.push({ from: cur, spec });
       if (dep && !reachable.has(dep)) { reachable.add(dep); queue.push(dep); }
     }
   }
-  return { reachable, entryResolved: start };
+  return { reachable, entryResolved: start, unresolved };
 }
 
 // --- Mermaid view (a view of the checked graph, so it cannot drift — §2) ------
@@ -308,24 +366,67 @@ export function traceLint(slug, { cwd, gate = false }) {
       if (!entryPoint) {
         reachability = { checked: false, pass: true, unreachable: [], skipped_reason: "project-profile has no entry_point." };
       } else {
-        const { reachable, entryResolved } = reachableFrom(entryPoint, cwd);
+        const { exts, declared, from_entry: fromEntry } = sourceExtensions(profile, entryPoint);
+        const { reachable, entryResolved, unresolved } = reachableFrom(entryPoint, cwd, exts);
         if (!entryResolved) {
           reachability = { checked: false, pass: true, unreachable: [], entry_point: entryPoint,
             skipped_reason: `entry_point "${entryPoint}" does not resolve to a source file on disk — reachability skipped.` };
           findings.push({ severity: "warn", code: "ENTRY-MISSING", message: `project-profile.md entry_point "${entryPoint}" is not on disk — reachability cannot run.` });
+        } else if (unresolved.length) {
+          // AN INCOMPLETE GRAPH GRADES NOTHING. Every module-shaped relative import the walker could
+          // not follow is a missing edge, and a module is "unreachable" only in the sense that this
+          // walk did not get there. Publishing that as red produces a check that is red for every
+          // input on a stack the resolver cannot read, while reporting that it looked.
+          const sample = unresolved.slice(0, 3).map((u) => `${u.spec} (from ${u.from})`);
+          reachability = { checked: false, pass: true, unreachable: [], entry_point: entryPoint,
+            entry_resolved: entryResolved, reachable_files: reachable.size,
+            module_extensions: exts, unresolved_imports: unresolved.length, unresolved_sample: sample,
+            skipped_reason: `${unresolved.length} relative import(s) from the entry point resolve to no file with the extensions this project declares (${exts.join(", ")}) — the import graph is incomplete, so "never imported" is not a claim this walk can support.` };
+          findings.push({ severity: "warn", code: "GRAPH-INCOMPLETE", message:
+            `reachability did not run: ${unresolved.length} relative import(s) could not be resolved (e.g. ${sample.join("; ")}). ` +
+            `The walker tried ${exts.join(", ")}${declared.length ? "" : " — the project profile declares no `source_extensions`, so the set is the JS/TS family plus the entry point's own suffix" + (fromEntry ? ` (${fromEntry})` : "")}. ` +
+            "Declare `source_extensions` in project-profile.md to let this arm run." });
         } else {
+          const engines = wiringMap.entries || [];
           const unreachable = [];
-          for (const e of wiringMap.entries || []) {
-            const engResolved = resolveFile(e.engine, cwd);
-            const ok = engResolved ? reachable.has(engResolved) : false;
-            if (!ok) {
+          for (const e of engines) {
+            const engResolved = resolveFile(e.engine, cwd, exts);
+            if (!(engResolved && reachable.has(engResolved))) {
               unreachable.push({ use_case: e.use_case, engine: e.engine, reason: engResolved ? "not imported from the entry point" : "engine file not on disk" });
-              findings.push({ severity: "red", code: "UC-UNREACHABLE", uc: e.use_case,
-                message: `${e.use_case}: engine "${e.engine}" is ${engResolved ? "never imported from" : "missing under"} entry_point "${entryPoint}" — the module ships orphaned from the running app.` });
             }
           }
-          reachability = { checked: true, entry_point: entryPoint, entry_resolved: entryResolved,
-            reachable_files: reachable.size, engines_total: (wiringMap.entries || []).length, unreachable, pass: unreachable.length === 0 };
+          // THE ARM NEEDS ONE POSITIVE CONTROL, AND EVERY-ENGINE-ORPHANED IS NOT ONE. What this
+          // check was built to catch is the dead module: one engine with no call site among
+          // siblings that have them. When NO engine is reachable, nothing demonstrates that this
+          // entry point is the root the app actually runs from — and for whole archetypes it is
+          // not. A framework that registers screens declaratively reaches them by name at runtime
+          // (`loadContent("pages/Index")`, a route map, a manifest), so its entry file imports a
+          // handful of modules and no engine, and the import graph is complete and beside the
+          // point. "Every engine is dead" and "I am walking the wrong tree" produce identical
+          // evidence, so the arm reports that it could not check rather than picking one.
+          //
+          // THE COST, NAMED: a wiring map with a single engine can no longer red, because its only
+          // engine being unreachable is exactly the indistinguishable case. A genuinely orphaned
+          // module in a one-use-case feature is therefore reported as unchecked, not as dead. That
+          // is the price of never being red for every input on a stack this walk cannot root.
+          if (engines.length && unreachable.length === engines.length) {
+            reachability = { checked: false, pass: true, unreachable: [], entry_point: entryPoint,
+              entry_resolved: entryResolved, module_extensions: exts, reachable_files: reachable.size,
+              engines_total: engines.length, engines_reachable: 0,
+              skipped_reason: `no engine is reachable from entry_point "${entryPoint}", which reaches ${reachable.size} file(s) — with no reachable engine as a control this walk cannot tell an orphaned module from an entry point that is not the runtime root (declarative routing, a manifest, a string-loaded screen). Reachability skipped.` };
+            findings.push({ severity: "warn", code: "REACH-NO-CONTROL", message:
+              `reachability did not run: all ${engines.length} engine(s) are unreachable from entry_point "${entryPoint}", which reaches ${reachable.size} file(s). ` +
+              "Every engine orphaned is the one result this arm cannot distinguish from a wrong root — if this project wires its screens by name rather than by import, declare the module that does the wiring as the entry point." });
+          } else {
+            for (const u of unreachable) {
+              findings.push({ severity: "red", code: "UC-UNREACHABLE", uc: u.use_case,
+                message: `${u.use_case}: engine "${u.engine}" is ${u.reason === "engine file not on disk" ? "missing under" : "never imported from"} entry_point "${entryPoint}" — the module ships orphaned from the running app, while ${engines.length - unreachable.length} other engine(s) reach it.` });
+            }
+            reachability = { checked: true, entry_point: entryPoint, entry_resolved: entryResolved,
+              module_extensions: exts, reachable_files: reachable.size,
+              engines_total: engines.length, engines_reachable: engines.length - unreachable.length,
+              unreachable, pass: unreachable.length === 0 };
+          }
         }
       }
     }

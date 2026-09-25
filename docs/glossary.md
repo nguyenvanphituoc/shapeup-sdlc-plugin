@@ -18,7 +18,7 @@ it.
 | **hill / hill phase** | How much of a scope is still *unknown* versus merely *unfinished*. Derived from T0 facts and the round build gate — never self-reported; a T0-green in a round whose build failed moves nothing. |
 | **gate (L0–L4)** | A numbered checkpoint in a run. Most pause for you; GATE L2 is the one a hook observes and reports on. |
 | **covers-closure** | Every requirement clause has at least one task claiming to cover it. Nothing silently drops. |
-| **wiring reachability** | Every engine has a call site reachable from the app's real entry point. Catches "built, but never wired up". |
+| **wiring reachability** | Every engine has a call site reachable from the app's real entry point. Catches "built, but never wired up". Reports itself unchecked, with a reason, when the import walk cannot be rooted — an unfollowable import, or no reachable engine to control it. |
 | **discovery ledger** | The one file everything found mid-run gets written to, so nothing is lost between rounds. |
 
 ## Shape Up terms

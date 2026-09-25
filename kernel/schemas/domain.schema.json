@@ -2287,6 +2287,11 @@
           "type": "string",
           "description": "Optional context on the archetype/entry-point choice."
         },
+        "source_extensions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "OPTIONAL — the file extensions this project's modules use, for the import walk that reachability runs. Absent means the JS/TS family plus the entry point's own suffix, which is right for most stacks and wrong for any stack whose engines end in something the entry point does not. Declare it when they differ (e.g. [\".ets\"] for ArkTS, [\".vue\", \".ts\"] for a Vue app): a walk that cannot follow an edge reports itself unchecked rather than reporting every engine orphaned, so the cost of leaving this absent is a skipped arm, never a false red."
+        },
         "build_probe": {
           "type": "string",
           "description": "OPTIONAL — a command that asserts the BUILT ARTIFACT, not the build's exit code, and exits 0 only when it holds. Exists because a green build is not proof the feature compiled: some toolchains compile only the files reachable from an entry point, so a scope's new files can sit outside the compiled set while the build stays green (measured: an app package holding 3 compiled files, 58 errors once the rest became reachable). Archetype-specific by construction — e.g. 'the compiled source map lists every file under each scope's substrate'. Run by harness verify build after run_cmd, once per round before EVAL; absent = no such step, never a failure."
