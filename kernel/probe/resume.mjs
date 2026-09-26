@@ -633,10 +633,21 @@ export function deriveLedgerFacts(cwd, slug) {
   const readJson = (p) => { try { return JSON.parse(readFileSync(p, "utf8")); } catch { return null; } };
   const evalRows = [];
   const rDir = resultsDir(cwd, slug);
+  // THIS RUN'S VERDICTS ONLY. A run opened afresh over a slug that already ran keeps the earlier
+  // run's `evaluate-r<N>.json` beside its own, and a later-numbered one from the earlier run was read
+  // as this run's final verdict: measured, a run whose last round PASSed closed as `final_verdict:
+  // FAIL` from a previous run's round 3. A result carries no run key; its order does.
+  const runId = readRunId(cwd, slug);
+  const thisRun = (n) => {
+    if (!runId) return true;
+    const o = readJson(join(ordersDir(cwd, slug), `evaluate-r${n}.json`));
+    return !o?.run_id || o.run_id === runId;
+  };
   if (existsSync(rDir)) {
     for (const f of readdirSync(rDir)) {
       const m = f.match(/^evaluate-r(\d+)\.json$/);
       if (!m) continue;
+      if (!thisRun(m[1])) continue;
       const r = readJson(join(rDir, f));
       const overall = r?.verdict?.overall;
       if (overall) evalRows.push({ round: Number(m[1]), overall: String(overall), criteria: Array.isArray(r.verdict.criteria) ? r.verdict.criteria : [] });
@@ -649,7 +660,11 @@ export function deriveLedgerFacts(cwd, slug) {
   if (existsSync(gp)) {
     for (const line of readFileSync(gp, "utf8").split("\n")) {
       if (!line.trim()) continue;
-      try { decisions.push(JSON.parse(line)); } catch { /* a torn line proves nothing */ }
+      try {
+        const g = JSON.parse(line);
+        // Gate rows carry the run key; a row from an earlier run over the same slug is its history.
+        if (!runId || !g?.run_id || g.run_id === runId) decisions.push(g);
+      } catch { /* a torn line proves nothing */ }
     }
   }
   const t0ByRound = {};
@@ -658,6 +673,7 @@ export function deriveLedgerFacts(cwd, slug) {
     for (const f of readdirSync(vDir).filter((x) => x.endsWith(".json")).sort()) {
       const v = readJson(join(vDir, f));
       if (typeof v?.round !== "number") continue;
+      if (runId && v.run_id && v.run_id !== runId) continue;
       const t = (t0ByRound[v.round] ||= { green: 0, red: 0 });
       if (v.overall === "green") t.green++; else t.red++;
     }
@@ -667,7 +683,10 @@ export function deriveLedgerFacts(cwd, slug) {
   if (existsSync(bDir)) {
     for (const f of readdirSync(bDir).sort()) {
       const m = f.match(/^r(\d+)-t\d+\.json$/);
-      if (m) gateByRound[Number(m[1])] = readJson(join(bDir, f))?.overall ?? "?";
+      if (!m) continue;
+      const g = readJson(join(bDir, f));
+      if (runId && g?.run_id && g.run_id !== runId) continue;
+      gateByRound[Number(m[1])] = g?.overall ?? "?";
     }
   }
   const roundNums = [...new Set([...Object.keys(t0ByRound), ...Object.keys(gateByRound), ...evalRows.map((e) => e.round)].map(Number))].sort((a, b) => a - b);
