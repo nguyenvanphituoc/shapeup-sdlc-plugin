@@ -557,14 +557,53 @@ export function setRunStatus(cwd, slug, status) {
   if (!/^status:.*$/m.test(body)) {
     return { ok: false, path: p, status, reason: `harness-run.md carries no "status:" line to replace — the ledger's frontmatter is malformed (references/protocol.md)` };
   }
+  // A CLOSED RUN THAT MOVES AGAIN IS REOPENED, AND SAYS SO. A relaunch resumes the same run by
+  // design, so a run closed `aborted` can be carried on to a later ship. Its close was written once
+  // and the once-only guard in closeRun refuses to flip an outcome, which is right for a close
+  // nobody took back — but here somebody did, by resuming it. Leaving the old close in place made
+  // the ledger read `status: shipped` over `closed_status: aborted`, and every reader of the close
+  // reported an abort for a run that shipped. The move to a live status is the one act that takes a
+  // close back, so it is recorded here: the prior close joins `prior_closes`, the three close
+  // fields return to `~`, and the next terminal close is written as the run's own. Nothing is lost
+  // and nothing is flipped silently — the abort stays on the record beside the outcome that
+  // replaced it.
+  const fm = parseFrontmatter(body);
+  const priorStatus = fm.closed_status && fm.closed_status !== "~" ? String(fm.closed_status) : null;
+  let next = body.replace(/^status:.*$/m, `status: ${status}`);
+  let reopened = null;
+  if (priorStatus && TERMINAL_STATUSES.includes(priorStatus) && !TERMINAL_STATUSES.includes(status)) {
+    const priorAt = fm.closed_at && fm.closed_at !== "~" ? String(fm.closed_at) : null;
+    const priorCause = fm.close_cause && fm.close_cause !== "~" ? String(fm.close_cause) : null;
+    const reopenedAt = new Date().toISOString();
+    reopened = { closed_status: priorStatus, closed_at: priorAt, cause: priorCause, reopened_at: reopenedAt };
+    const entry = `${priorStatus} at ${priorAt ?? "?"} (reopened ${reopenedAt}): ${priorCause ?? "no cause recorded"}`;
+    const history = fm.prior_closes && fm.prior_closes !== "~" ? `${fm.prior_closes} | ${entry}` : entry;
+    const historyLine = `prior_closes: ${uncoerce(history)}`;
+    next = next
+      .replace(/^closed_at:.*$/m, "closed_at: ~")
+      .replace(/^closed_status:.*$/m, "closed_status: ~")
+      .replace(/^close_cause:.*$/m, "close_cause: ~");
+    next = /^prior_closes:.*$/m.test(next)
+      ? next.replace(/^prior_closes:.*$/m, historyLine)
+      : next.replace(/^closed_at:.*$/m, (m) => `${m}\n${historyLine}`);
+  }
   try {
-    writeFileSync(p, body.replace(/^status:.*$/m, `status: ${status}`));
+    writeFileSync(p, next);
   } catch (e) {
     return { ok: false, path: p, status, reason: `could not write the ledger: ${e.message}` };
   }
-  const after = parseFrontmatter(readFileSync(p, "utf8")).status;
-  if (after !== status) {
-    return { ok: false, path: p, status, reason: `wrote "status: ${status}" but the ledger reads "${after}" — the write did not take` };
+  const after = parseFrontmatter(readFileSync(p, "utf8"));
+  if (after.status !== status) {
+    return { ok: false, path: p, status, reason: `wrote "status: ${status}" but the ledger reads "${after.status}" — the write did not take` };
+  }
+  if (reopened) {
+    // The breadcrumb names a run that is OVER; this one no longer is. Removed only when it names
+    // this run, so another run's close is left alone.
+    try {
+      const crumb = JSON.parse(readFileSync(lastRun(cwd), "utf8"));
+      if (crumb?.run_id && crumb.run_id === readRunId(cwd, slug)) rmSync(lastRun(cwd), { force: true });
+    } catch { /* no breadcrumb, or unreadable — nothing to retire */ }
+    return { ok: true, path: p, status, reopened, decision: "reopened" };
   }
   return { ok: true, path: p, status };
 }

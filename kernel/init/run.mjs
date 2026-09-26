@@ -75,12 +75,12 @@ import { join, dirname, resolve, relative, sep } from "node:path";
 import { createHash } from "node:crypto";
 import { decideLane, treeSize } from "./fit.mjs";
 import { runArgs } from "../lib/argv.mjs";
-import { uncoerce } from "../lib/contract.mjs";
+import { uncoerce, splitFrontmatter } from "../lib/contract.mjs";
 import { deriveSnapshot } from "../reduce/snapshot.mjs";
 import { mintRunId } from "../lib/paths.mjs";
 import {
   localRoot, activeScope, activeOrder, globLocal, globShared, ordersDir, resultsDir,
-  workflowsStage, globWorkflowsStage, sharedRoot, shapingDir, breadboard as stagedBreadboard,
+  workflowsStage, globWorkflowsStage, sharedRoot, shapingDir, breadboard as stagedBreadboard, harnessRun,
 } from "../lib/paths.mjs";
 import { parseBreadboard, hasBreadboardTables, idCounts } from "../lib/breadboard.mjs";
 import { resolveWorkers } from "../verify/skills.mjs";
@@ -603,8 +603,22 @@ export function cli(rawArgv) {
   if (existsSync(receiptPath) && !args.force) {
     let resume = null;
     try { resume = deriveSnapshot(cwd); } catch { /* a broken run must still produce the refusal */ }
+    // A receipt says a run EXISTS, not that it is open: a terminal close leaves the receipt in place.
+    // Calling a closed run "open" hid the one fact that changes what resuming it means.
+    let closed = null;
+    try {
+      const fm = splitFrontmatter(readFileSync(harnessRun(cwd, slug), "utf8")).meta || {};
+      if (fm.closed_status && fm.closed_status !== "~") closed = { status: fm.closed_status, at: fm.closed_at, cause: fm.close_cause };
+    } catch { /* no ledger — the receipt alone decides, as before */ }
     fail(3, [
-      `✋ init-run: a run is ALREADY OPEN — receipt exists at ${receiptPath}.`,
+      closed
+        ? `✋ init-run: this run is CLOSED as "${closed.status}" at ${closed.at ?? "?"} — receipt exists at ${receiptPath}.`
+        : `✋ init-run: a run is ALREADY OPEN — receipt exists at ${receiptPath}.`,
+      ...(closed ? [
+        `   Its close: ${closed.cause && closed.cause !== "~" ? closed.cause : "no cause recorded"}`,
+        "   Resuming it REOPENS it: the first phase that runs moves the ledger off the closed state, keeps",
+        "   this close under prior_closes, and the run's next terminal close is recorded as its own.",
+      ] : []),
       "",
       "Do NOT re-initialise and do NOT restart the pipeline from phase 1. Re-opening would discard",
       "the round history the circuit breaker counts against, and the board, ledger and receipt below",

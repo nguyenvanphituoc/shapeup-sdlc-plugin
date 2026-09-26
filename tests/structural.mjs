@@ -415,6 +415,11 @@ const MODULE_FILES = [
   // and a green launch was forwarded only when red. The kernel now derives `build_gate` and
   // `launch_cmd`, and `probe t0` prints the digest a T0 citation needs.
   "99-eval-launch-evidence.mjs",
+  // 100-closed-run-reopens.mjs: a run closed aborted, resumed and shipped could not record its
+  // close — the ledger read shipped over closed_status aborted. The move to a live status now reopens
+  // the run on the record (the earlier close kept under prior_closes), and init run names a closed
+  // run as closed rather than open.
+  "100-closed-run-reopens.mjs",
   "08-docs.mjs",
 ];
 

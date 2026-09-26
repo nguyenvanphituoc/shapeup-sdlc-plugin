@@ -1117,6 +1117,11 @@ async function setRunStatus(status, phaseName) {
         `artifacts, not from this field), but the snapshot and the the ship report's census hook will read ` +
         `this run as unfinished.`);
     stateWarnings.push(`status="${status}" did not take: ${why}`);
+  } else if (r.decision === "reopened") {
+    // The ledger now carries the earlier close under `prior_closes`; say so where a reader of the
+    // run's own log will see it, because resuming a closed run changes what its close will say.
+    log(`RUN STATE — this run had been closed; moving it to "${status}" reopened it. The earlier close is ` +
+        `kept in the ledger under prior_closes, and the run's next terminal close is recorded as its own.`);
   }
 }
 
