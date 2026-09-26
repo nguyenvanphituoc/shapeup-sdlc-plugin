@@ -3,6 +3,37 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.12.0] — 2026-09-26 · A failure by name reaches the fixer, and a permitted command says what it ran
+
+### A red fixture that names its failing case handed the next attempt nothing
+
+Some runners report a failing case as one line and nothing else — `FAIL <name> <why>` — with no
+file:line: an end-to-end script, or a flow that drives an app from outside it because the platform
+refuses in-app UI tests. The digester that turns a red fixture into the next attempt's
+`digested_errors` kept only lines it could anchor to a file, so a red fixture of that kind produced an
+empty list and the executor was told nothing about what failed. Such a line is now kept whole, with
+the name as the file only when it looks like a path — an id like `TS-05-05` is not invented into one.
+
+### A fixture that names a Test Surface row is evidence for that row
+
+Measured on a live run: across three fix rounds the judge graded every device row past the first
+screen "no evidence", returned no bugs, and the fix rounds had nothing to fix — while a top-level
+session with the same evaluator drove the app and graded every row. The evaluator's contract now says
+that output naming a row by id — `PASS TS-05-05`, or `FAIL TS-05-05 step 4: …` — in a T0 artifact it
+cites, or in the build gate, is evidence for that row: a named PASS confirms, a named FAIL is a FAIL
+whose bug is that line. That lets a project put its device checks in a fixture that runs every round
+without depending on the judge to drive the app — and it is never a reason not to drive it when the
+judge can.
+
+### A permitted command's ledger row names the programs it ran
+
+Every allowed Bash call was recorded with no subject, so "did this worker call the device tool, and
+was it refused?" had no answer in the decision ledger: a worker that never tried and one stopped
+above the hook left the same rows. The safety spine's allow row now names the program of each
+segment, by basename (`hdc`, `curl | jq`), read past environment assignments and wrappers. Arguments
+are never recorded — that is where a secret, a token or a private path would be — and a denied
+call's row keeps the first 200 characters of its command, as before.
+
 ## [3.11.0] — 2026-09-26 · A resumed run says it was closed, and a run says what it cannot do before it starts
 
 ### A run that aborted, was resumed and then shipped recorded an abort
