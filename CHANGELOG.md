@@ -3,6 +3,36 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.14.0] — 2026-09-26 · A failed row always reaches the fixer, and a rewritten check reaches the judge
+
+### Fix rounds starved over a FAIL verdict
+
+A verdict carries two lists — the criteria it graded and the bugs it filed — and only the filed bugs
+reached the next round. A criterion graded FAIL with no matching bug ("no evidence: no check names
+this row") handed the fix round nothing to do. Measured on live runs: three fix rounds in a row
+compiled with no bugs over FAIL verdicts, and on a from-scratch run every round-2 order carried zero
+bugs while two rows were still failing for lack of a check. Each uncovered FAIL criterion now becomes
+a bug carrying the judge's evidence, addressed to the scope whose contract lists the use case the
+criterion names. A criterion the judge already filed a bug for, or withdrew, is not doubled.
+
+### A check rewritten to pass is on the record
+
+Scopes write their own per-row checks. On a live run a row failed on attempt 1 — the check renamed a
+list and found the old name still on screen — and passed on attempt 2 because the check had been
+rewritten to stop renaming, with the code unchanged; the judge took the PASS line on its own word.
+T0 now records, on every verdict, the digests of the checks a fixture read and the rows it named. A
+row that turned FAIL→PASS while its own check file (named by the row id) changed is listed as a
+revised check; the evaluate order carries every revised check from any trial of the round, and the
+evaluator reads each against its row before the pass counts. Recorded, never refused — rewriting a
+check that overreached is legitimate, and only the judge can tell which it was.
+
+### An ArkTS compile error reaches the next attempt
+
+hvigor prints an ArkTS compiler error as one line, message and location together
+(`Error Message: … At File: <path>:<line>:<col>`), and no pattern anchored it — so every red compile
+on that toolchain handed the next attempt an empty error list. It now yields its file, line and
+message.
+
 ## [3.13.0] — 2026-09-26 · Workers can reach the kernel, and a named pass has to be earned
 
 ### Every worker's kernel query was refused in a headless run
