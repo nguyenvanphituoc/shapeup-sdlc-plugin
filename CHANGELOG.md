@@ -3,6 +3,59 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.11.0] — 2026-09-26 · A resumed run says it was closed, and a run says what it cannot do before it starts
+
+### A run that aborted, was resumed and then shipped recorded an abort
+
+A relaunch resumes the same run by design, so a run closed `aborted` can be carried on to a ship. Its
+close was written once, and the close rightly refuses to flip an outcome that nobody took back — while
+`init run` described any run with a receipt as "ALREADY OPEN". The resumed run shipped, its close was
+refused, and the ledger read `status: shipped` over `closed_status: aborted` with the abort's cause.
+Every reader of the close — the export, the trace, the next resume — reported an abort for a run that
+shipped.
+
+Moving a closed run back to a live status is the one act that takes a close back, and it is now
+recorded there: the earlier close joins a `prior_closes` line (its status, when it closed, when it was
+reopened, and its cause), the close fields return to `~`, the breadcrumb naming the run as over is
+retired, and the run's next ending is recorded as its own. The status write reports
+`decision: reopened` and the run's log says so. A terminal status still cannot flip a close, and
+opening a run over one that closed now names it **closed**, with its close, and says that resuming
+reopens it.
+
+### Preflight runs the project's build and launch probes before anything is planned
+
+Every environment fault a run has died of was discoverable in seconds and discovered after most of an
+hour: a checkout missing its package install or its local SDK pointer fails the build in about a
+second, a probe outside the session's grant is refused, a device that is not attached leaves every
+`[ui]` row ungraded. Each surfaced at the first round build gate, after planning had been paid for.
+
+`harness verify build --preflight` runs the profile's declared steps once and **writes nothing** — a
+preflight read back as round 0's gate would reach round 1's orders as bugs. It tells a probe that
+could not run (it exited 2 — no device, no artifact; exit 4) apart from a red step (exit 1). The
+workflow runs it straight after the skill canary, from a sub-agent through the session's own grant,
+and warns rather than aborts: a baseline can be red for a reason the feature is meant to fix.
+
+The tech-lead skill now says that a permission is known by running the command and never by reading
+a settings file. An orchestrator that read `.claude/settings.json`, found no rule it recognised and
+refused to launch had in fact been granted the command another way — a launch spent to report a
+blocker that did not exist.
+
+### A regenerated board gets its mechanical fields from the kernel
+
+Regenerating the per-machine board from a committed spec once produced tasks with `depends_on` and
+neither `unlocks` nor `status`, and spec-lint failed every task at L1b with nobody present to add a
+line the worker's own template prescribes. `reduce board --write` now adds `status: todo` wherever a
+task has no status line — never overwriting one — alongside the `unlocks` it already derived, and
+the workflow runs it after the board operation.
+
+### A shipped FAIL says so on its first line
+
+A run whose verdict failed can still ship: GATE H compares against the baseline, and a cut list can
+clear it. Its report put the verdict in a table cell below the title, so a reader who stopped at the
+title took a shipped FAIL for a passing build. The ship report now opens with a line naming the
+verdict, the census and how many items were cut — or, when there was no verdict, that no criterion
+was graded at all. A PASS report is unchanged.
+
 ## [3.10.0] — 2026-09-26 · The judge is told the app was launched
 
 ### A `[ui]` row was graded "no evidence" over a build that had launched
