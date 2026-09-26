@@ -440,6 +440,10 @@ const MODULE_FILES = [
   // node "${CLAUDE_PLUGIN_ROOT}/…", which a headless session refuses ("Contains expansion") before any
   // rule is read. Orders carry the absolute path; worker skills run node "<kernel>".
   "105-orders-carry-the-kernel-path.mjs",
+  // 106-a-failed-criterion-is-a-bug.mjs: only a verdict's filed bugs reached the next round, so a
+  // criterion graded FAIL with no bug — "no evidence" — gave the fix round nothing to fix. Each such
+  // criterion is now a bug for the scope owning its use case.
+  "106-a-failed-criterion-is-a-bug.mjs",
   "08-docs.mjs",
 ];
 

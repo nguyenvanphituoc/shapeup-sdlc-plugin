@@ -528,6 +528,57 @@ export function verdictBugs(cwd, slug, round) {
 }
 
 /**
+ * The previous round's FAILED CRITERIA that the judge filed no bug for, as bug entries.
+ *
+ * A verdict carries two lists: the criteria it graded and the bugs it filed. Only the second
+ * reached the next round, so a criterion graded FAIL — "no evidence: no check names this row", a
+ * device row the judge could not observe — with no matching bug handed the fix round nothing to do.
+ * Measured: three fix rounds in a row compiled with no bugs over a FAIL verdict, and the run ended
+ * where it started. Every failed criterion is a thing the round must address, so each one without a
+ * bug becomes one, addressed to the scope whose contract lists the use case the criterion names.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {number} [round] - The round being compiled.
+ * @returns {Array<object>} `{criterion, severity, expected, actual, source:"criterion", scope_id?}`
+ *   per uncovered FAIL criterion; [] for round 1, a PASS, or an unreadable result.
+ */
+export function criteriaBugs(cwd, slug, round) {
+  if (!round || round < 2) return [];
+  const p = join(resultsDir(cwd, slug), `evaluate-r${round - 1}.json`);
+  if (!existsSync(p)) return [];
+  let v;
+  try { v = JSON.parse(readFileSync(p, "utf8"))?.verdict; } catch { return []; }
+  if (v?.overall !== "FAIL" || !Array.isArray(v.criteria)) return [];
+  const filed = (Array.isArray(v.bugs) ? v.bugs : []).map((b) => String(b?.criterion ?? ""));
+  const refuted = new Set((Array.isArray(v.refuted) ? v.refuted : [])
+    .flatMap((r) => [r?.id, r?.ac_id, r?.criterion, typeof r === "string" ? r : null]).filter(Boolean).map(String));
+  const owners = new Map();
+  for (const { contract, id } of readAllContracts(scopesDir(cwd, slug))) {
+    const sid = contract?.scope_id || id;
+    for (const uc of Array.isArray(contract?.use_cases) ? contract.use_cases : []) if (!owners.has(uc)) owners.set(uc, sid);
+  }
+  const out = [];
+  for (const c of v.criteria) {
+    if (c?.verdict !== "FAIL" || typeof c.criterion !== "string") continue;
+    const name = c.criterion;
+    if (refuted.has(name)) continue;
+    if (filed.some((f) => f && (f === name || f.includes(name) || name.includes(f)))) continue;
+    const uc = (name.match(/\bUC-[A-Za-z0-9_-]+/) || [])[0];
+    const owner = uc ? owners.get(uc) : undefined;
+    out.push({
+      criterion: name,
+      severity: "major",
+      expected: "the criterion is met, with evidence the judge can cite",
+      actual: String(c.evidence ?? "graded FAIL").slice(0, 400),
+      source: "criterion",
+      ...(owner ? { scope_id: owner } : {}),
+    });
+  }
+  return out;
+}
+
+/**
  * The previous round's RED BUILD GATE, as bug entries the fix round can act on.
  *
  * THE JUDGE IS NOT THE ONLY SOURCE OF A FAIL. `verify build` runs the feature's build and its
@@ -1016,7 +1067,7 @@ export async function cli(rawArgv) {
   // this line, and none of them can pass a payload to a build order (see the banner above).
   // Two sources, one channel: the judge's cited defects and the build gate's failing steps.
   const bugs = scope
-    ? bugsForScope([...verdictBugs(cwd, slug, round), ...buildBugs(cwd, slug, round)], scope.scope_id, scopeSubstrates(cwd, slug))
+    ? bugsForScope([...verdictBugs(cwd, slug, round), ...criteriaBugs(cwd, slug, round), ...buildBugs(cwd, slug, round)], scope.scope_id, scopeSubstrates(cwd, slug))
     : [];
 
   // A ROUND CARRYING CITED DEFECTS IS A `fix`, AND THE ORDER HAS TO SAY SO.
