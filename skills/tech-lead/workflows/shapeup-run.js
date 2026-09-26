@@ -54,7 +54,7 @@ export const meta = {
   name: "shapeup-run",
   description: "BUILD-phase pipeline: ORIENT → ANALYZE → WIRE → MAP SCOPES → rounds of BUILD/EVAL → QA → GATE H → ship. Gates resolve by the kernel's exit code; every dispatch is WorkOrder in / WorkResult out; the fast-forward is derived from artifacts on disk.",
   phases: [
-    { title: "Preflight", detail: "one canary dispatch — can this session resolve a worker skill" },
+    { title: "Preflight", detail: "one canary dispatch — can this session resolve a worker skill; then the project's build and launch probes, run once and recorded nowhere" },
     { title: "Orient" }, { title: "Analyze" }, { title: "Wire" }, { title: "MapScopes" },
     { title: "Build" }, { title: "Eval" }, { title: "Refute" }, { title: "QA" }, { title: "Ship" },
   ],
@@ -1240,6 +1240,33 @@ if (!canary.ok) {
     `(${canary.detail || `exit ${canary.exit_code}`})`));
 }
 
+// ENVIRONMENT CANARY — do the project's own build and launch probes run in THIS session?
+//
+// The skill canary proves the workers resolve; it says nothing about whether the commands the round
+// gate will run can. A missing package install or local SDK pointer fails the build in a second, a
+// probe outside the grant is refused, a device that is not attached leaves every `[ui]` row
+// ungraded — and each used to surface only at the first round gate, after planning was paid for.
+// `verify build --preflight` runs the same declared steps from a sub-agent, through the same grant,
+// and writes nothing. It WARNS rather than aborts: a baseline can be red for a reason the feature is
+// meant to fix, and an unattended run should still say so up front rather than stop.
+//
+// The evidence is this command's exit code. Whether a grant "looks present" in a settings file is
+// not evidence of anything: a grant can arrive by other routes, and one in the file can still be
+// refused above it.
+const envCanary = await cmd(`verify build --slug ${slug} --preflight`, "Preflight", "canary-env");
+if (envCanary.exit_code === 1 || envCanary.exit_code === 4) {
+  const kind = envCanary.exit_code === 4 ? "a probe could not run (exit 2 — typically no device attached, or a missing artifact)" : "a declared step is red";
+  const msg = `ENVIRONMENT — preflight: ${kind}${envCanary.detail ? `: ${envCanary.detail}` : ""}. The same step runs in every ` +
+    `round's build gate, so fix the environment now if it is not the feature's to fix.`;
+  log(msg);
+  stateWarnings.push(msg);
+} else if (envCanary.exit_code !== 0 && envCanary.exit_code !== 3) {
+  const msg = `ENVIRONMENT — preflight did not run (exit ${envCanary.exit_code}${envCanary.detail ? `: ${envCanary.detail}` : ""}); ` +
+    `nothing is known about the build or launch probes until the first round gate.`;
+  log(msg);
+  stateWarnings.push(msg);
+}
+
 // GATE L0.9b's launch record must exist before anything past Preflight dispatches; see
 // requireLaunchRecord()'s own banner for why this cannot be left to Step 2's prose alone.
 const launchRecordAbort = await requireLaunchRecord();
@@ -1379,6 +1406,10 @@ if (!rs.has_spec_tree) {
            "carrying its `(covers: REQ-…)` clause — and write nothing under the spec folder.",
   });
   if (b.__failed) return await withWarnings(diedAt("ANALYZE", b));
+  // The board a worker writes carries `depends_on`; its inverse (`unlocks`) and a new task's
+  // `status: todo` are mechanical, so the kernel writes them rather than trusting every regeneration
+  // to remember — a board that came back without both failed spec-lint on every task at L1b.
+  await advisory(`reduce board --slug ${slug} --write`, "Analyze", "board:derive");
   const post = await requirePhase("ANALYZE", "analyze", "Analyze", "board");
   if (post) return await withWarnings(post);
   await advisory(`reduce graph --slug ${slug}`, "Analyze", "graph:board");

@@ -293,7 +293,15 @@ export function derive({ cwd, slug, appetiteHours = null }) {
 }
 
 /**
- * Persist derived `unlocks` into task frontmatter — the ONE write this script makes.
+ * Persist derived `unlocks` into task frontmatter — and give a task with NO status the one status a
+ * task on a freshly written board can have.
+ *
+ * `unlocks` is derived, so writing it is safe by construction. `status: todo` is the other field a
+ * board is written with, and it is added only where the line is absent — an existing status is never
+ * touched, so a task in progress or done is never reset. A regenerated board once came back with
+ * `depends_on` and neither field on every task; spec-lint failed all of them at L1b and an unattended
+ * run had nobody to add a line the worker's own template already prescribes.
+ *
  * @param {{_tasks:Array<object>, unlocks:Object<string,string[]>}} report - A {@link derive} report.
  * @returns {string[]} The ids of task files actually rewritten (unchanged files are skipped).
  *   Side effect: writes those task files.
@@ -305,7 +313,8 @@ export function writeUnlocks(report) {
     const fmMatch = t.body.match(/^---\r?\n([\s\S]*?)\r?\n---/);
     if (!fmMatch) continue;
     const fm = fmMatch[1];
-    const next = /^unlocks:.*$/m.test(fm) ? fm.replace(/^unlocks:.*$/m, `unlocks: ${want}`) : `${fm}\nunlocks: ${want}`;
+    let next = /^unlocks:.*$/m.test(fm) ? fm.replace(/^unlocks:.*$/m, `unlocks: ${want}`) : `${fm}\nunlocks: ${want}`;
+    if (!/^status:/m.test(next)) next = `${next}\nstatus: todo`;
     if (next !== fm) {
       writeFileSync(t.file, t.body.replace(fm, next));
       written.push(t.id);

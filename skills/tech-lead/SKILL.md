@@ -39,9 +39,9 @@ derived RESUME STATE (slug, status, round, board counts) — read it and go stra
 this session's memory. `--force` re-opens deliberately and discards the round history the breaker
 counts.
 
-**If this command comes back "requires approval", stop and say so.** These scripts ship with the
-plugin and need a one-time permission grant (`npx shapeup-sdlc init` writes it). Do not route
-around it, and do not silently hand-build the feature instead.
+**If this command comes back "requires approval", stop and say so** — the scripts need a one-time grant
+(`npx shapeup-sdlc init`); never route around it or hand-build the feature. Know a grant by running the
+command, never by reading `.claude/settings.json` — Preflight runs the project's probes and reports.
 
 **Language gate (delegated to `translator`, not this skill):** before Step 1 opens the run, dispatch
 an Agent (model: exec) calling `Skill(shapeup-sdlc-plugin:translator) --check` on the pitch *and* its

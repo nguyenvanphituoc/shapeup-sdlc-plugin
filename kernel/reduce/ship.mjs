@@ -32,7 +32,7 @@ import { runArgs } from "../lib/argv.mjs";
 import {
   report as reportPath, tasksDir, verdictsDir, trials, evaluationDir, qaDir,
   roundLedger, discoveryLedger, receipt as receiptPath, harnessRun, relShared,
-  activeOrder, runArgsPath, readReceipt, runIdFromReceipt,
+  activeOrder, runArgsPath, readReceipt, runIdFromReceipt, hammerCensus,
 } from "../lib/paths.mjs";
 import { readTrials } from "../verify/t0.mjs";
 import { ratchetReport } from "../probe/stats.mjs";
@@ -192,6 +192,31 @@ export function section(md, heading) {
 }
 
 /**
+ * The report's opening line when the ship is not a passing one — null for a PASS.
+ *
+ * @param {string} verdict - The run's final verdict (`PASS`, `FAIL`, `not-evaluated`, …).
+ * @param {({verdict?:string, cut_list?:Array}|null)} census - GATE H's census as data, or null.
+ * @returns {(string|null)} One markdown line naming the verdict, and the cut list that cleared it
+ *   when a census is on record; null when the verdict is PASS.
+ */
+export function shipHeadline(verdict, census) {
+  if (verdict === "PASS") return null;
+  const cuts = Array.isArray(census?.cut_list) ? census.cut_list.length : null;
+  const why = census
+    ? `GATE H's baseline comparison cleared it${census.verdict ? ` (census: ${census.verdict})` : ""}` +
+      (cuts != null ? ` with ${cuts} item${cuts === 1 ? "" : "s"} cut` : "")
+    : "no GATE H census was on record when it shipped";
+  // A FAIL is a judgement that some criterion failed; anything else here means no judgement was
+  // made at all, and the line must not claim criteria failed that nobody graded.
+  if (verdict === "FAIL") {
+    return `> **Shipped with a FAIL verdict.** Not every criterion passed; ${why}. Read the failed ` +
+      "criteria and the cut list below before treating this feature as done.";
+  }
+  return `> **Shipped without a passing verdict (${verdict}).** No criterion was graded as passing; ${why}. ` +
+    "Nothing below is evidence that this feature works.";
+}
+
+/**
  * Assemble the report. Pure given its inputs, so the structural tests can assert its shape
  * without a filesystem.
  * @param {object} facts - Derived facts (slug, verdict, board, t0, decisions, findings, …).
@@ -201,6 +226,7 @@ export function buildReport(facts) {
   const {
     slug, at, verdict, qa, rounds, roundsJudged, board, t0, artifacts, ratchet,
     evalCriteria, evalBugs, qaFindings, decisions, discovered, intakeSha, leftovers, requirements,
+    census = null,
   } = facts;
 
   const L = [];
@@ -208,6 +234,12 @@ export function buildReport(facts) {
     `verdict: ${verdict}`, `rounds_used: ${rounds ?? "~"}`, `rounds_judged: ${roundsJudged ?? "~"}`, `qa: ${qa}`,
     `intake_sha256: ${intakeSha ?? "~"}`, "---", "");
   L.push(`# ${slug} — ship report`, "");
+  // A SHIP IS NOT A PASS, AND THE FIRST LINE SAYS WHICH ONE THIS IS. A run whose verdict FAILed can
+  // still ship — GATE H compares against the baseline, not the ideal, and a cut list can clear it —
+  // and its status then reads `shipped` like any other. The verdict sat in a table cell below the
+  // fold, so a reader who stopped at the title took a shipped FAIL for a passing build.
+  const headline = shipHeadline(verdict, census);
+  if (headline) L.push(headline, "");
   L.push("Frozen at GATE L4. Every figure below is derived from run artifacts on disk — the trial",
     "ledger, the verdict artifacts, the board — never from a summary of the run.", "");
 
@@ -361,6 +393,7 @@ export function generate({ cwd, slug, verdict, qa }) {
     slug,
     at: today(),
     verdict: verdict || run.final_verdict || "not-evaluated",
+    census: (() => { try { return JSON.parse(readIf(hammerCensus(cwd, slug)) || "null"); } catch { return null; } })(),
     qa: qa || (huntReport ? "run" : "skipped"),
     rounds: derivedRounds.rounds_used,
     roundsJudged: derivedRounds.rounds_judged,

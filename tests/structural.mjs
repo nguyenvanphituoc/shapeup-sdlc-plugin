@@ -420,6 +420,10 @@ const MODULE_FILES = [
   // the run on the record (the earlier close kept under prior_closes), and init run names a closed
   // run as closed rather than open.
   "100-closed-run-reopens.mjs",
+  // 101-preflight-and-ship-headline.mjs: environment faults surfaced only at the first round gate,
+  // after planning — a write-nothing preflight now runs the declared probes first; and a shipped
+  // FAIL's report opened like a pass — it now names the verdict and the cut list first.
+  "101-preflight-and-ship-headline.mjs",
   "08-docs.mjs",
 ];
 

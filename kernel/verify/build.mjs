@@ -331,12 +331,39 @@ export function writeRoundBuild(cwd, slug, round, body) {
 }
 
 export const ARGV_SPEC = {
-  usage: "harness.mjs verify build --slug <slug> --round <N> [--cwd <dir>]",
+  usage: "harness.mjs verify build --slug <slug> (--round <N> | --preflight) [--cwd <dir>]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   slug: { type: "str", required: true },
-  round: { type: "int", min: 1, required: true },
+  round: { type: "int", min: 1 },
+  preflight: { type: "flag" },
   cwd: { type: "path" },
 };
+
+/**
+ * Classify a preflight: the declared steps run, nothing is written.
+ *
+ * WHY A PREFLIGHT, AND WHY IT WRITES NOTHING. Every environment fault a run has died of was
+ * discoverable in seconds and discovered after most of an hour: a checkout missing its package
+ * install or its local SDK pointer fails the build in about a second, a probe outside the session's
+ * grant is refused, a device that is not attached leaves every `[ui]` row ungraded. Each surfaced
+ * only at the first round gate, after planning had been paid for. The same commands, run once before
+ * anything is dispatched, turn that into one report up front. It is not a round, so it writes no
+ * round artifact: a red preflight read back as round 0's gate would reach round 1's orders as bugs,
+ * handing a feature worker an environment fault it cannot fix.
+ *
+ * A step that exits 2 is a probe that COULD NOT RUN — the fixture convention, e.g. no device
+ * attached — which is a gap in the environment rather than a red build, and is reported apart.
+ *
+ * @param {{overall:string, steps:Array<{kind:string, exit?:number, pass?:boolean, skipped?:boolean}>}} gate
+ *   What {@link runGate} returned.
+ * @returns {{status:("green"|"red"|"cannot-run"), failed_step:(string|null)}} `cannot-run` when the
+ *   first failing step exited 2.
+ */
+export function classifyPreflight(gate) {
+  const failing = gate.steps.find((s) => !s.skipped && !s.pass);
+  if (!failing) return { status: "green", failed_step: null };
+  return { status: failing.exit === 2 ? "cannot-run" : "red", failed_step: failing.kind };
+}
 
 /**
  * Run the round build gate and write its artifact.
@@ -348,8 +375,28 @@ export async function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = resolve(args.cwd || process.cwd());
   const { slug, round } = args;
+  if (Boolean(args.preflight) === (round != null)) {
+    console.error("verify build: pass exactly one of --round <N> (the round gate, writes its artifact) or --preflight (runs the same steps, writes nothing)");
+    process.exit(2);
+  }
   const { archetype, steps, warnings } = declaredSteps(cwd, slug);
   for (const w of warnings) console.error(`build-gate: ${w}`);
+
+  if (args.preflight) {
+    if (steps.length === 0) {
+      console.log(JSON.stringify({ preflight: true, status: "undeclared", steps: [], warnings }, null, 2));
+      process.exit(3);
+    }
+    const gate = runGate(steps, cwd);
+    const { status, failed_step } = classifyPreflight(gate);
+    const failing = gate.steps.find((s) => s.kind === failed_step);
+    console.log(JSON.stringify({
+      preflight: true, status, archetype, warnings,
+      steps: gate.steps.map((s) => (s.skipped ? { kind: s.kind, skipped: true } : { kind: s.kind, exit: s.exit, pass: s.pass })),
+      ...(failing ? { failed_step, stderr_tail: `${failing.stdout_tail || ""}\n${failing.stderr_tail || ""}`.trim().slice(-1200) } : {}),
+    }, null, 2));
+    process.exit(status === "green" ? 0 : status === "cannot-run" ? 4 : 1);
+  }
 
   if (steps.length === 0) {
     console.log(JSON.stringify({ round, overall: "skipped", steps: [], warnings,
