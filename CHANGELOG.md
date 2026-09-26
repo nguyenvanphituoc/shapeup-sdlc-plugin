@@ -3,6 +3,43 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.13.0] — 2026-09-26 · Workers can reach the kernel, and a named pass has to be earned
+
+### Every worker's kernel query was refused in a headless run
+
+Worker skills ran the kernel as `node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" …`. In a headless
+session that variable is not expanded for a dispatched sub-agent, and a command carrying an unexpanded
+variable is refused before any permission rule is read — measured on a live consumer as "Contains
+expansion", while the same command with the absolute path ran under the same grant. Every kernel query
+a worker's contract requires was therefore refused and reported as "not permitted": the scope-hammer
+census could not ask who owns a path or what the requirements matrix says, and the judge could not
+re-run the checks it was meant to.
+
+`harness compile` now stamps every order with `kernel`, the absolute path of the kernel of the plugin
+copy that compiled it; the envelope schema declares the field; and the six dispatched workers run
+`node "<kernel>" …`, defined once in each skill. AGENTS.md now says how grants reach a run's workers:
+through the project's settings file, not through flags given to the launching session.
+
+### A named pass has to assert what its row asks
+
+3.12.0 let a fixture line that names a Test Surface row — `PASS TS-02-04` — count as evidence for that
+row. On the first run that used it, a device check for "the rename dialog opens pre-filled with the
+current name" opened and cancelled the dialog, printed PASS, and the judge graded the row PASS on the
+line alone. A check written by the generator and taken on its own word is the generator grading
+itself. The judge now reads the check that printed the line and grades PASS only when it asserts the
+row's Expect.
+
+### Two records that contradicted their run
+
+- A T0 score carries a regression count only when there was a baseline to regress against, and the
+  ratchet required an explicit zero — so a run whose every scope went green reported "no scope
+  reached green", and the ship report printed the missing count as `undefined`. An absent count now
+  means not measured, and prints as a dash.
+- GATE L3's preset answers are written before any verdict exists, and the row recorded the answer's
+  note whatever happened, so a round that passed left "FAIL → fix round r+1" in the gate ledger. The
+  round's verdict now travels to the gate and is recorded on the row, and an L3 row crossed over a PASS
+  says so.
+
 ## [3.12.0] — 2026-09-26 · A failure by name reaches the fixer, and a permitted command says what it ran
 
 ### A red fixture that names its failing case handed the next attempt nothing
