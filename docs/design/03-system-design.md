@@ -223,6 +223,14 @@ session resolved it, and the sub-agent that made the call cannot write that row 
 not its account of what happened. The window is required rather than optional: without one, a
 checkout that had the plugin loaded once passes forever.
 
+The skill canary proves the workers resolve and nothing about the commands the round gate will run.
+So Preflight's second leg is `harness verify build --preflight`: the profile's `build_probe` and
+`launch_probe`, run once from a sub-agent through the session's own grant, with no artifact
+written. Environment faults — a missing package install or local SDK pointer, a probe outside the
+grant, no device attached (a probe exiting 2) — are reported before planning is paid for rather than
+at the first round gate. It warns and does not abort, because a baseline can be red for a reason the
+feature itself is meant to fix.
+
 ## 3.2b — The zero-work block (Stop, blocking)
 
 One `Stop`-event hook may block, and its predicate is why the invariant survives intact.

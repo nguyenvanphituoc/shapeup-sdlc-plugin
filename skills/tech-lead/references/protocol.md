@@ -477,6 +477,13 @@ Read back: stdout JSON — {overall: green|red, steps[], warnings[], failed_step
         A `mobile` profile with no launch_probe is warned about on stderr every round, and so is
         every scope none of whose fixtures invoke the tool run_cmd builds with — advisory, because a
         green T0 from such fixtures is not evidence the scope compiles.
+Preflight form — the same steps, run once before anything is dispatched, WRITING NOTHING:
+  node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify build --slug <slug> --preflight
+        stdout JSON {preflight: true, status: green|red|cannot-run|undeclared, steps[], failed_step?,
+        stderr_tail?}. Exit 0 green · 1 a step red · 4 a probe could not run (it exited 2 — no
+        device, no artifact) · 3 nothing declared. No round artifact: a red preflight read back as
+        round 0's gate would reach round 1's orders as bugs. The workflow warns on 1 and 4, never
+        aborts.
 Consequences, both mechanical and both read off the artifact, never off this prose:
         red → EVAL is not dispatched this round; `harness compile` turns each failing step into a
               `payload.bugs` entry for round N+1, addressed to the scope whose substrate holds the
