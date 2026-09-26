@@ -58,7 +58,10 @@ test against machines you don't own.
 6. **Every hook decision is recorded.** `hooks/lib/decision.mjs` is the only exit path a hook
    has, so allow, deny, block and error each leave a row in `.shapeup/decisions.jsonl`. An
    inert hook and a permitting hook are therefore distinguishable — which matters, because
-   "exit 0, no output" is what both used to look like.
+   "exit 0, no output" is what both used to look like. A permitted Bash call's row names the
+   programs the command runs, by basename (`hdc`, `curl | jq`) — never the arguments, which is
+   where a secret, a token or a private path would be. A denied call's row keeps the first 200
+   characters of the command, as it always has, because a denial must be reviewable.
 
 If you find any of these to be false, that is a vulnerability — report it as claim #ⁿ.
 

@@ -96,6 +96,32 @@ function tokens(segment) {
     .map((t) => t.replace(/^['"]|['"]$/g, ""));
 }
 
+/**
+ * The programs a command runs — the executable of each `&&`/`;`/`|` segment, by basename, and
+ * nothing else.
+ *
+ * WHY AN ALLOW ROW NAMES THE PROGRAM. Every permitted Bash call used to be recorded with no subject,
+ * so "did this worker ever call the device tool, and was it refused?" had no answer in the ledger:
+ * a sub-agent that never tried and one whose call was stopped above this hook left the same rows.
+ * The program names answer it. Arguments are never recorded — they are where a secret, a token or a
+ * private path would be — and a basename says which tool ran without saying where it lives.
+ *
+ * @param {string} command - The raw Bash command.
+ * @returns {(string|null)} Program basenames joined by " | ", in order, duplicates kept; null when
+ *   no segment yields one.
+ */
+export function programsOf(command) {
+  if (!command || typeof command !== "string") return null;
+  const names = [];
+  for (const segment of command.split(/\s*(?:\|\||&&|;|\||\n)\s*/).filter(Boolean)) {
+    const first = commandTokens(segment)[0];
+    if (!first) continue;
+    const base = first.replace(/^["']|["']$/g, "").split("/").pop();
+    if (base && !/^[({]$/.test(base)) names.push(base.slice(0, 64));
+  }
+  return names.length ? names.join(" | ") : null;
+}
+
 /** Strip leading env assignments and privilege/no-op wrappers to find the real command. */
 function commandTokens(segment) {
   const ts = tokens(segment);
@@ -217,8 +243,9 @@ async function main() {
   const raw = await readStdin();
   let p;
   /** Fail-open, with the reason on the record (hooks/lib/decision.mjs). */
-  const defer = (reason, rule) => settle({
+  const defer = (reason, rule, subject = null) => settle({
     verdict: "allow", event: "PreToolUse", tool: p?.tool_name ?? null, cwd: p?.cwd, reason, rule,
+    ...(subject ? { subject } : {}),
   });
   try { p = JSON.parse(raw || "{}"); }
   catch (e) { settle({ verdict: "error", event: "PreToolUse", reason: `unparseable payload: ${e.message}` }); }
@@ -258,7 +285,7 @@ async function main() {
   if (p.tool_name === "Bash") {
     const command = p.tool_input?.command || "";
     const verdict = classifyCommand(command, overrides);
-    if (!verdict.deny) defer("command matched no destructive rule — inspected and permitted", "bash-clean");
+    if (!verdict.deny) defer("command matched no destructive rule — inspected and permitted", "bash-clean", programsOf(command));
     if (commandOverridden(command, overrides)) {
       // Exercised override: allowed, but never invisible.
       logPathology(metricsPath, {

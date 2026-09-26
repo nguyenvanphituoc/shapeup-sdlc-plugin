@@ -424,6 +424,10 @@ const MODULE_FILES = [
   // after planning — a write-nothing preflight now runs the declared probes first; and a shipped
   // FAIL's report opened like a pass — it now names the verdict and the cut list first.
   "101-preflight-and-ship-headline.mjs",
+  // 102-ledger-names-the-program.mjs: a permitted Bash call was recorded with no subject, so the
+  // ledger could not tell a worker that never ran a tool from one stopped when it did. Allow rows now
+  // name the programs by basename, never their arguments.
+  "102-ledger-names-the-program.mjs",
   "08-docs.mjs",
 ];
 
