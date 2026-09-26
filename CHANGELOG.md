@@ -3,6 +3,16 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.15.1] — 2026-09-27 · A hunt that drove nothing no longer reads as QA run
+
+The hunt order carried the launch evidence, and the hunter still looked for the device tool on PATH,
+found nothing, and returned `done` with `charters: 0/0`. It never ran `launch_cmd`, and it reads the
+knowledge base, which names the tool by its full path, only after its preflight. The ship report
+took the dispatch for the hunt and printed `QA: run` over no findings, which reads as a clean app.
+The report now takes the hunt's own charter count: zero charters run is `not-hunted`. The hunter's
+preflight reads the knowledge base's tool paths first and runs `launch_cmd` before concluding
+anything, and a hunt that reached nothing returns `failed`, never `done`.
+
 ## [3.15.0] — 2026-09-27 · The QA hunt can reach a mobile app, and a close reads its own run
 
 ### The QA hunt hunted nothing on a mobile deliverable
