@@ -38,6 +38,8 @@ return as a WorkResult.
 
 ## Input contract — the WorkOrder
 
+**Kernel commands.** `<kernel>` below is the absolute path in your order's `kernel` field: run every kernel command as `node "<kernel>" …`. Never spell it `${CLAUDE_PLUGIN_ROOT}` — a command carrying a variable is refused in a headless session before any permission rule is read, and the query your contract requires never runs. With no order (invoked by hand), the kernel is `kernel/harness.mjs` two directories above this skill's base directory.
+
 | Field | What it is |
 |---|---|
 | `operation` | `wire` (author/refresh the wiring map after `analyze`, before `map-scopes`) |
@@ -152,5 +154,5 @@ seam, or an engine with no attachment path, and why). You never touch spec docs,
 # The reachability oracle is the ORCHESTRATOR's, run advisory at L1b — not part of your craft.
 # Standalone, you MAY preview it after writing the map (it self-skips arms whose artifacts are
 # absent, and is near-vacuous pre-build since the engine code does not exist yet):
-#   node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify trace --slug checkout-vnpay
+#   node "<kernel>" verify trace --slug checkout-vnpay
 ```

@@ -29,6 +29,8 @@ criterion with no collected evidence is a **FAIL**, never a pass-by-assumption.
 
 ## Input contract — the WorkOrder
 
+**Kernel commands.** `<kernel>` below is the absolute path in your order's `kernel` field: run every kernel command as `node "<kernel>" …`. Never spell it `${CLAUDE_PLUGIN_ROOT}` — a command carrying a variable is refused in a headless session before any permission rule is read, and the query your contract requires never runs. With no order (invoked by hand), the kernel is `kernel/harness.mjs` two directories above this skill's base directory.
+
 Invoked as `--order <path>`. Fields you may rely on (absent = unknown, never inferred):
 
 | Field | What it is |
@@ -224,7 +226,7 @@ bug_template). Adding one (e.g. security) = write `references/dimensions/securit
 /spec-evaluator --order .shapeup/checkout-vnpay/orders/evaluate-r2.json
 
 # Standalone — the preamble shim compiles a minimal order, then the single code path runs:
-#   node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" compile --operation evaluate --slug <slug> \
+#   node "<kernel>" compile --operation evaluate --slug <slug> \
 #        --worker spec-evaluator [--payload '{"dimensions": [...], "run_cmd": "..."}']
 /spec-evaluator --spec shapeup/checkout-vnpay/spec/ --task TASK-007
 /spec-evaluator --spec shapeup/checkout-vnpay/spec/ --feature checkout-vnpay --single-pass
@@ -232,7 +234,7 @@ bug_template). Adding one (e.g. security) = write `references/dimensions/securit
 
 Standalone keeps `--task` (per-task check, not round-gated) and `--single-pass` (feature-level)
 — the shim maps them onto the order's payload; missing run command → ask. After writing the
-WorkResult, run `node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" reduce ingest <result path>` and show its
+WorkResult, run `node "<kernel>" reduce ingest <result path>` and show its
 summary — standalone has no orchestrator to ingest for you.
 
 ---

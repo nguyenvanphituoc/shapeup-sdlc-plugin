@@ -52,13 +52,15 @@ INPUT: run's finished/unfinished scopes + baseline + census sources
 
 ## GATE H0 — Census
 
+**Kernel commands.** `<kernel>` below is the absolute path in your order's `kernel` field: run every kernel command as `node "<kernel>" …`. Never spell it `${CLAUDE_PLUGIN_ROOT}` — a command carrying a variable is refused in a headless session before any permission rule is read, and the query your contract requires never runs. With no order (invoked by hand), the kernel is `kernel/harness.mjs` two directories above this skill's base directory.
+
 **Purpose:** Gather every open item into one list before judging any of them. Never judge
 piecemeal — a partial view produces a wrong cut.
 
 ```
 H0.0  Ownership is DERIVED, never stated. Before the census says "no scope owns X" or "X is
       scope Y's", run
-        node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe owner --slug <slug> [--path <p>]...
+        node "<kernel>" probe owner --slug <slug> [--path <p>]...
       and cite its row. With no --path it answers for every engine and entry call site the wiring
       map names plus the profile's entry point; `writers: []` is an unowned seam and `missing`
       lists seams the wiring names that are not on disk — owned but never written. A census that
@@ -70,7 +72,7 @@ H0.1  Unresolved scopes (breaker cases only):
         - scopes with hammer_proposals (attempt_budget exhausted) → CARRY candidates. Exhaustion
           is DERIVED, never read off `t0/verdicts/*.json` directly — a compiled order or a T0
           verdict is writable by the very scope being judged and proves nothing on its own. Run
-            node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe attempts --slug <slug> \
+            node "<kernel>" probe attempts --slug <slug> \
               --scope <scope-id> --round <n> --attempt-budget <n>
           and cite its `spent`/`tripped` fields (exit 1 = tripped) — an attempt counts only when a
           dispatch receipt AND either a leg-completion row or a WorkResult attest it, so a leg still
@@ -81,7 +83,7 @@ H0.2  QA findings (qa-edge-hunter's hunt-report.md, when present) — all `~` by
 H0.3  Discovered-task ledger entries still open (discovery/ledger.md, `[+]`/`~` unresolved).
 H0.4  Attempt-budget hammer proposals (scopes that exhausted their T0 attempts during BUILD).
 H0.4b Requirements with no PASS evidence — the pitch clauses the run never showed working. Run
-        node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe requirements --slug <slug> --format table
+        node "<kernel>" probe requirements --slug <slug> --format table
       and take its `no evidence` rows; cite the row, the same way H0.0 cites ownership. Each is a
       census item carrying its source clause (`REQ-12 ← shaping.md R12`). A `cut` row is an answer
       the PO already gave — not an item. An inconsistency row (a criterion anchored to a
@@ -200,8 +202,8 @@ with a green census could only be recorded as `ask`. Still a proposal: the file 
 /scope-hammer --slug checkout-vnpay --unattended
 
 # The ownership query every census claim cites (H0.0)
-node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe owner --slug checkout-vnpay --format table
-node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe owner --slug checkout-vnpay --path src/pages/Cart.ets
+node "<kernel>" probe owner --slug checkout-vnpay --format table
+node "<kernel>" probe owner --slug checkout-vnpay --path src/pages/Cart.ets
 ```
 
 ### Flags

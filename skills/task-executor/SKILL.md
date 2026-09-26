@@ -16,6 +16,8 @@ it does not exist for you.
 
 ## Input contract — the WorkOrder
 
+**Kernel commands.** `<kernel>` below is the absolute path in your order's `kernel` field: run every kernel command as `node "<kernel>" …`. Never spell it `${CLAUDE_PLUGIN_ROOT}` — a command carrying a variable is refused in a headless session before any permission rule is read, and the query your contract requires never runs. With no order (invoked by hand), the kernel is `kernel/harness.mjs` two directories above this skill's base directory.
+
 You are invoked as `--order <path>` pointing at a schema-valid WorkOrder. Fields you may
 rely on (anything absent = **unknown**; never invent it):
 
@@ -194,8 +196,8 @@ orchestrator's `harness reduce ingest` does all of that from your envelope.
 
 # Standalone — the preamble shim compiles a minimal WorkOrder from the flags, then the
 # single code path above runs. Requires the harness scripts (plugin install):
-#   node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" compile --task TASK-003 --slug checkout-vnpay
-#   node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" compile --next --slug checkout-vnpay
+#   node "<kernel>" compile --task TASK-003 --slug checkout-vnpay
+#   node "<kernel>" compile --next --slug checkout-vnpay
 /task-executor --spec shapeup/checkout-vnpay/spec/ --task TASK-003
 /task-executor --spec shapeup/checkout-vnpay/spec/ --next
 ```
@@ -203,6 +205,6 @@ orchestrator's `harness reduce ingest` does all of that from your envelope.
 Standalone shim: derive `<slug>` from the `--spec` path (`shapeup/<slug>/spec`),
 run `harness compile` with the matching flags (mode becomes `standalone`), then proceed
 against the compiled order exactly as if dispatched. After writing the WorkResult, run
-`node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" reduce ingest <result path>` yourself and show the user its
+`node "<kernel>" reduce ingest <result path>` yourself and show the user its
 summary — standalone has no orchestrator to ingest for you. One code path inside; two entry
 points outside.

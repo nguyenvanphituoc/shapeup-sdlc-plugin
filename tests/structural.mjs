@@ -436,6 +436,10 @@ const MODULE_FILES = [
   // counted green (the report said no scope reached green, over four green scopes), and L3 recorded
   // its preset's "FAIL → fix round" note over a round that passed.
   "104-green-is-green-and-a-pass-is-a-pass.mjs",
+  // 105-orders-carry-the-kernel-path.mjs: worker skills ran the kernel as
+  // node "${CLAUDE_PLUGIN_ROOT}/…", which a headless session refuses ("Contains expansion") before any
+  // rule is read. Orders carry the absolute path; worker skills run node "<kernel>".
+  "105-orders-carry-the-kernel-path.mjs",
   "08-docs.mjs",
 ];
 

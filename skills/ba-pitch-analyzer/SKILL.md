@@ -20,6 +20,8 @@ same artifacts out.
 
 ## Input contract — the WorkOrder
 
+**Kernel commands.** `<kernel>` below is the absolute path in your order's `kernel` field: run every kernel command as `node "<kernel>" …`. Never spell it `${CLAUDE_PLUGIN_ROOT}` — a command carrying a variable is refused in a headless session before any permission rule is read, and the query your contract requires never runs. With no order (invoked by hand), the kernel is `kernel/harness.mjs` two directories above this skill's base directory.
+
 Invoked as `--order <path>`. Fields you may rely on (absent = unknown; surface it, never guess):
 
 | Field | What it is |
@@ -69,10 +71,10 @@ its phase; templates live in `assets/templates/`.
 6  TASKS       atomic, ordered, executable → tasks/ (LOCAL root; the one uncommitted branch
                of the tree — regenerable, machine-local)        [references/task-generation.md]
 7  DERIVE+LINT mechanical, not yours to grade:
-               node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" reduce board --slug <slug> --write
+               node "<kernel>" reduce board --slug <slug> --write
                  (unlocks = depends_on inverse; Σ hours; critical path; appetite arithmetic —
                   overflow is a fact you REPORT for the caller's HAMMER gate, never resolve)
-               node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify spec --slug <slug>
+               node "<kernel>" verify spec --slug <slug>
                  (structure, wikilinks, edge symmetry — fix reds, then re-run; you never
                   self-grade with a hand-walked checklist. BREADBOARD-PLACE / BREADBOARD-UI:
                   add the screen or defer the Place; never fold it into another screen)
@@ -187,7 +189,7 @@ status flips for built work (ingest's job), scope contracts (scope-architect's),
 /ba-pitch-analyzer --order .shapeup/checkout-vnpay/orders/analyze.json
 
 # Standalone — the preamble shim compiles the order (mode: standalone, pause_gates: true):
-#   node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" compile --operation analyze --slug <slug> \
+#   node "<kernel>" compile --operation analyze --slug <slug> \
 #        --worker ba-pitch-analyzer --payload '{"pitch": "docs/pitch.md", "lens": "standard"}'
 /ba-pitch-analyzer docs/pitch.md                      # operation: analyze, lens judged
 /ba-pitch-analyzer --lens standard docs/pitch.md      # lens pinned

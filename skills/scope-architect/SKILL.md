@@ -17,6 +17,8 @@ the ship report's census table.
 
 ## Input contract — the WorkOrder
 
+**Kernel commands.** `<kernel>` below is the absolute path in your order's `kernel` field: run every kernel command as `node "<kernel>" …`. Never spell it `${CLAUDE_PLUGIN_ROOT}` — a command carrying a variable is refused in a headless session before any permission rule is read, and the query your contract requires never runs. With no order (invoked by hand), the kernel is `kernel/harness.mjs` two directories above this skill's base directory.
+
 | Field | What it is |
 |---|---|
 | `operation` | `map-scopes` — the only operation this skill has. It covers first slicing after the board exists, folding discovered items in, and re-slicing a stuck scope; the payload says which of those you are doing |
@@ -95,7 +97,7 @@ the ship report's census table.
              hill_phase: "UPHILL_UNKNOWN"                    — ALWAYS; phase is derived from
                                                                T0/T1 facts later,
                                                                never authored
-4 LINT     node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" verify spec --slug <slug>
+4 LINT     node "<kernel>" verify spec --slug <slug>
            → PA1 (directory alignment), PA2 (>~15 files), DISJOINT (undeclared overlap),
            SCOPE-ANCHOR (empty/unresolvable use_cases), TIER-DIRECTION (a task id in a
            committed contract), SCOPE-DEPS (depends_on naming a scope that isn't here).

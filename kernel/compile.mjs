@@ -851,6 +851,13 @@ export function compileOrder({
   const order = {
     schema_version: 1,
     order_id: `${slug}/${suffix}`,
+    // WHERE THE KERNEL IS, AS A PATH A PERMISSION RULE CAN MATCH. Workers were told to run
+    // `node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" …`. In a headless session that variable is not
+    // expanded for them, and a command carrying an unexpanded variable is refused before any rule is
+    // consulted ("Contains expansion") — so every kernel query a worker's contract requires was
+    // refused, and workers reported it as "not permitted". The absolute path of this very file's
+    // kernel is known here, and quoted it matches the grant `init` writes.
+    kernel: join(HERE, "harness.mjs"),
     // THE TWO ANALYTIC FIELDS, and why they are on the ORDER rather than the result.
     //
     // `order_id` identifies a dispatch within a run and repeats across runs of the same slug, so
