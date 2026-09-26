@@ -448,6 +448,9 @@ const MODULE_FILES = [
   // the code unchanged, and nothing recorded it. T0 now digests the checks it reads and lists a row
   // that turned FAIL→PASS with its check changed; the evaluate order carries the list.
   "107-a-check-rewritten-to-pass.mjs",
+  // 108-this-runs-records-only.mjs: a run opened over an earlier run's tier closed with the earlier
+  // run's final verdict and rows; and the QA hunt got no way into a mobile app. Both fixed.
+  "108-this-runs-records-only.mjs",
   "08-docs.mjs",
 ];
 

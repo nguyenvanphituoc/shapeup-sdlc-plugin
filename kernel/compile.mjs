@@ -1279,7 +1279,10 @@ export async function cli(rawArgv) {
     const revised = revisedChecksFor(cwd, slug, round);
     if (revised.length) payloadExtra.revised_checks = revised;
   }
-  if (operation === "evaluate") {
+  // The QA hunt drives the same running app the judge grades, so it needs the same way in. A mobile
+  // deliverable has no URL, and a hunt order carrying only `app_url: null` reported "no reachable
+  // deliverable" and hunted nothing over a build the round gate had just launched.
+  if (operation === "evaluate" || operation === "hunt") {
     const ev = launchEvidenceFor(cwd, slug, round);
     if (ev.build_gate !== undefined && payloadExtra.build_gate === undefined) payloadExtra.build_gate = ev.build_gate;
     if (ev.launch_cmd !== undefined && payloadExtra.launch_cmd === undefined) payloadExtra.launch_cmd = ev.launch_cmd;

@@ -380,6 +380,8 @@
       "spec_folder",
       "eval_report",
       "app_url",
+      "launch_cmd",
+      "build_gate",
       "ledger",
       "kb_rules_path"
     ],
@@ -2428,7 +2430,7 @@
         },
         "launch_cmd": {
           "type": "string",
-          "description": "spec-evaluator: the project profile's launch probe — installs the built artifact, starts it and asserts the first screen. Derived by `harness compile` from project-profile.md, absent when the profile declares none. Where `run_cmd` is only a build, this is how the app is brought up; a non-zero exit is a finding, not a reason to guess another way."
+          "description": "spec-evaluator, qa-edge-hunter: the project profile's launch probe — installs the built artifact, starts it and asserts the first screen. Derived by `harness compile` from project-profile.md, absent when the profile declares none. Where `run_cmd` is only a build, this is how the app is brought up; a non-zero exit is a finding, not a reason to guess another way."
         },
         "revised_checks": {
           "type": "array",
@@ -2445,7 +2447,7 @@
         },
         "build_gate": {
           "type": "string",
-          "description": "spec-evaluator: this run's newest round build gate artifact (build/r<N>-t<T>.json) — each step's exit code and output tail, the record that the build ran and the app launched. Derived by `harness compile`, absent when the gate never ran. Read it before grading a [ui] row NO EVIDENCE."
+          "description": "spec-evaluator, qa-edge-hunter: this run's newest round build gate artifact (build/r<N>-t<T>.json) — each step's exit code and output tail, the record that the build ran and the app launched. Derived by `harness compile`, absent when the gate never ran. Read it before grading a [ui] row NO EVIDENCE."
         },
         "t0_artifacts": {
           "type": "array",

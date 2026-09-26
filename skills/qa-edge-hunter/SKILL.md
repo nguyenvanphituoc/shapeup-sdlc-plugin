@@ -39,10 +39,13 @@ tech-lead: ... GATE L2 → EVAL → GATE L3 PASS ──► QA EDGE HUNT (you) �
 
 Pure worker (harness rule: stateless workers, one stateful orchestrator). Its WorkOrder
 carries `payload.feature`, `payload.spec_folder`, `payload.eval_report`, `payload.app_url`,
-`payload.kb_rules_path`, and `payload.ledger` (the discovery ledger, READ-ONLY — covered-territory
+`payload.launch_cmd`, `payload.build_gate`, `payload.kb_rules_path`, and `payload.ledger` (the discovery ledger, READ-ONLY — covered-territory
 context so a hunt does not re-report what is already known). **`app_url` is null when the
-deliverable is not served over HTTP** — a CLI, a library, a batch job. That is a normal order, not a
-malformed one: drive the built entry point instead, exactly as the Test Surface's process rows do.
+deliverable is not served over HTTP** — a CLI, a library, a batch job, a mobile app. That is a normal
+order, not a malformed one: drive the built entry point instead, exactly as the Test Surface's process
+rows do. When the order carries `launch_cmd`, that is how the app is brought up — run it, and treat a
+zero exit as the deliverable reached; `build_gate` records that the round's gate already launched it.
+Drive it with the tools the project's knowledge base names, by the path it gives.
 Do not refuse the hunt, and do not invent a URL. Its write surface is
 `.shapeup/<feature>/qa/**` only. The Hunter never touches the discovery ledger itself —
 ingest appends its `discoveries[]` under a `## Discovered` section, preserving single-writer
@@ -68,7 +71,8 @@ Phase Q3  │ Report ───────► qa/hunt-report.md — no score, no
 
 ```
 HARD (any miss → STOP, report which):
-  ✅ app reachable at the given URL (one real request, not a ping)
+  ✅ deliverable reachable: one real request at `app_url`, or `launch_cmd` run and exit 0, or one
+     real invocation of the entry point (not a ping, not a guess that a tool is missing)
   ✅ EVAL-FEATURE-<slug>.md exists with verdict: PASS
   ✅ if discovery/ledger.md exists: ledger.feature == <feature> (read-only context check —
      a missing ledger is fine; ingest creates it when your findings land)
