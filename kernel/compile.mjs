@@ -37,7 +37,7 @@ import { readRunId, dispatchReceipts, legLedger, readReceipt, receipt } from "./
 // --spec-overridden directory, and the import is the convention-derived default.
 import {
   tasksDir, specDir as defaultSpecDir, roundLedger, trials, verdictsDir, ordersDir,
-  relShared, relLocal, globLocal, globShared, relKnowledgeBase, resultsDir, scopesDir,
+  relShared, relLocal, globLocal, globShared, relKnowledgeBase, resultsDir, scopesDir, localRoot,
 } from "./lib/paths.mjs";
 import { readContract, readAllContracts, tasksForScope, SCOPE_CONTRACT, reqId } from "./lib/contract.mjs";
 import { writeActiveOrder } from "./probe/resume.mjs";
@@ -799,6 +799,38 @@ export function t0ArtifactsFor(cwd, slug, round) {
   return { artifacts, missing };
 }
 
+// --- checks a scope rewrote between a failing trial and a passing one --------------------------
+
+/**
+ * Every revised check any trial of the round recorded, with the scope it belongs to.
+ *
+ * Read across all of the round's trials rather than off the cited verdict alone: a check rewritten
+ * on attempt 2 and re-run unchanged on attempt 3 leaves no mark on attempt 3's verdict, which is the
+ * one the judge cites.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {number} [round] - The round being evaluated; omitted, every round.
+ * @returns {Array<{scope_id:string, id:string, file:string}>} Deduplicated by scope, id and file.
+ */
+export function revisedChecksFor(cwd, slug, round) {
+  const seen = new Set();
+  const out = [];
+  for (const tr of readTrials(trials(cwd, slug))) {
+    if (round != null && tr.round !== round) continue;
+    if (!tr.artifact) continue;
+    let v;
+    try { v = JSON.parse(readFileSync(join(localRoot(cwd, slug), tr.artifact), "utf8")); } catch { continue; }
+    for (const r of Array.isArray(v?.revised_checks) ? v.revised_checks : []) {
+      const key = `${tr.scope_id}\u0000${r.id}\u0000${r.file}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ scope_id: tr.scope_id, id: r.id, file: r.file });
+    }
+  }
+  return out;
+}
+
 // --- the launch evidence the judge grades `[ui]` rows against ---------------------------------
 //
 // WHY THE KERNEL DERIVES IT. A `[ui]` criterion is graded on the RUNNING app, and the evaluator's
@@ -1189,6 +1221,10 @@ export async function cli(rawArgv) {
   }
   // The launch evidence, for every lane (see launchEvidenceFor). Same rule as above: an explicit
   // `--payload` value outranks the derivation.
+  if (operation === "evaluate" && payloadExtra.revised_checks === undefined) {
+    const revised = revisedChecksFor(cwd, slug, round);
+    if (revised.length) payloadExtra.revised_checks = revised;
+  }
   if (operation === "evaluate") {
     const ev = launchEvidenceFor(cwd, slug, round);
     if (ev.build_gate !== undefined && payloadExtra.build_gate === undefined) payloadExtra.build_gate = ev.build_gate;

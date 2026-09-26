@@ -34,8 +34,8 @@
 //
 // Exit code: 0 = overall green, 1 = overall red (mirrors the oracle convention), 2 = bad argv.
 
-import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync, readdirSync, statSync } from "node:fs";
+import { join, dirname, basename, extname, resolve as resolvePath, relative } from "node:path";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { digest } from "../probe/digest.mjs";
@@ -389,6 +389,97 @@ export function nextTrialNo(dir, round, attempt) {
   return max + 1;
 }
 
+// --- a check rewritten to pass ----------------------------------------------------------------
+//
+// A fixture that names Test Surface rows (`PASS TS-02-04`, `FAIL TS-02-04 step 10: …`) reads its
+// checks from files the scope itself writes. Measured on a live run: a row FAILed on attempt 1 —
+// the check renamed a list and found the old name still on screen — and went green on attempt 2
+// because the check had been rewritten to stop renaming, while the code was unchanged. Nothing
+// recorded that the evidence had moved. So each verdict records the checks it read, by digest, and
+// the named results they printed; a row that failed in this scope's previous trial and passes now,
+// whose own check file changed in between, is a REVISED check — a pass the judge must read against
+// its row before it can count. Recorded, never refused: rewriting a check that overreached is
+// legitimate, and only a person or the judge can tell which it was.
+
+/**
+ * The files a fixture's arguments name, with their digests — a named directory contributes its
+ * direct children. Paths resolve against the project root and are recorded relative to it.
+ *
+ * @param {string[]} commands - The fixture command lines.
+ * @param {string} cwd - Project root.
+ * @returns {Object<string,string>} Relative path → sha256 of its bytes. Empty when no argument names
+ *   an existing path.
+ */
+export function checkFiles(commands, cwd) {
+  const out = {};
+  /**
+   * Record one file's digest under its project-relative path.
+   * @param {string} abs - Absolute path of the file.
+   * @returns {void} Nothing; an unreadable file is skipped, since it is not evidence.
+   */
+  const add = (abs) => {
+    try { out[relative(cwd, abs)] = createHash("sha256").update(readFileSync(abs)).digest("hex"); } catch { /* unreadable — not evidence */ }
+  };
+  for (const cmd of commands || []) {
+    const tokens = String(cmd).match(/"[^"]*"|'[^']*'|\S+/g) || [];
+    for (const raw of tokens.slice(1)) {
+      const tok = raw.replace(/^["']|["']$/g, "");
+      if (!tok || tok.startsWith("-")) continue;
+      const abs = resolvePath(cwd, tok);
+      let st; try { st = statSync(abs); } catch { continue; }
+      if (st.isFile()) add(abs);
+      else if (st.isDirectory()) {
+        for (const f of readdirSync(abs).sort()) {
+          const child = join(abs, f);
+          try { if (statSync(child).isFile()) add(child); } catch { /* skip */ }
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * The rows a fixture's output names, and how each came out.
+ *
+ * @param {Array<{stdout?:string}>} results - Fixture results with their full stdout.
+ * @returns {Object<string,("PASS"|"FAIL")>} Row id → its result; a FAIL anywhere wins over a PASS.
+ */
+export function namedResults(results) {
+  const out = {};
+  for (const r of results || []) {
+    for (const line of String(r?.stdout || "").split(/\r?\n/)) {
+      const m = line.match(/^(PASS|FAIL)\s+(\S+)/);
+      if (!m) continue;
+      if (m[1] === "FAIL" || out[m[2]] !== "FAIL") out[m[2]] = m[1];
+    }
+  }
+  return out;
+}
+
+/**
+ * Rows that failed in the previous trial and pass now while their own check file changed.
+ *
+ * A row's check is the file whose name, without extension, is the row id — the convention a
+ * per-row check follows. A row with no such file is not reported: nothing can be said about it.
+ *
+ * @param {({check_files?:Object<string,string>, named_results?:Object<string,string>}|null)} prev
+ *   The scope's previous verdict in this round, or null.
+ * @param {{check_files:Object<string,string>, named_results:Object<string,string>}} curr - This one.
+ * @returns {Array<{id:string, file:string}>} One entry per revised check.
+ */
+export function revisedChecks(prev, curr) {
+  if (!prev?.named_results || !prev?.check_files) return [];
+  const out = [];
+  for (const [id, now] of Object.entries(curr.named_results || {})) {
+    if (now !== "PASS" || prev.named_results[id] !== "FAIL") continue;
+    const file = Object.keys(curr.check_files || {}).find((f) => basename(f, extname(f)) === id);
+    if (!file) continue;
+    if (prev.check_files[file] !== curr.check_files[file]) out.push({ id, file });
+  }
+  return out;
+}
+
 /**
  * Distill every failing command's output into AEGIS {file,line,core_message} triples.
  * @param {{fixtures:{results:Array<{pass:boolean,stdout:string,stderr:string}>},
@@ -514,6 +605,10 @@ export async function cli(rawArgv) {
   const dbProbe = runDbProbe(contract.db_probe, cwd);
   const verdict = computeVerdict({ fixtures, dbProbe });
   const discovered = verdict.overall === "red" ? digestFailures({ fixtures, dbProbe }) : [];
+  const checks = {
+    check_files: checkFiles(fixtures.results.map((r) => r.cmd), cwd),
+    named_results: namedResults(fixtures.results),
+  };
 
   // ---- the ratchet ---------------------------------------------------------------------
   // `current` is the incumbent: the score of the most recent trial whose TREE is the one on disk
@@ -526,6 +621,11 @@ export async function cli(rawArgv) {
   const verdictBetter = better(s, baseline ? baseline.score : null);
   const crashed = fixtures.results.some((r) => r.error) || !!dbProbe?.error;
   const { status, action } = decideStatus(verdictBetter, crashed);
+  // The scope's previous trial in this round, read back for the checks it recorded.
+  const prevTrial = [...priorTrials].reverse().find((tr) => tr.round === round);
+  let prevVerdict = null;
+  if (prevTrial?.artifact) { try { prevVerdict = JSON.parse(readFileSync(join(outDir, prevTrial.artifact), "utf8")); } catch { /* none */ } }
+  const revised = revisedChecks(prevVerdict, checks);
 
   // The run key, read from the receipt that lives in the run root this script was pointed at.
   // `--out` IS that root, so identity comes from the receipt rather than from parsing a slug back
@@ -550,6 +650,9 @@ export async function cli(rawArgv) {
     ...verdict,
     score: s,
     discovered_tasks: discovered,
+    ...(Object.keys(checks.check_files).length ? { check_files: checks.check_files } : {}),
+    ...(Object.keys(checks.named_results).length ? { named_results: checks.named_results } : {}),
+    ...(revised.length ? { revised_checks: revised } : {}),
   });
 
   // The tree operation. `--no-ratchet` leaves the working tree exactly as the attempt left it —

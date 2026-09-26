@@ -444,6 +444,10 @@ const MODULE_FILES = [
   // criterion graded FAIL with no bug — "no evidence" — gave the fix round nothing to fix. Each such
   // criterion is now a bug for the scope owning its use case.
   "106-a-failed-criterion-is-a-bug.mjs",
+  // 107-a-check-rewritten-to-pass.mjs: a scope that rewrote its own failing check went green with
+  // the code unchanged, and nothing recorded it. T0 now digests the checks it reads and lists a row
+  // that turned FAIL→PASS with its check changed; the evaluate order carries the list.
+  "107-a-check-rewritten-to-pass.mjs",
   "08-docs.mjs",
 ];
 

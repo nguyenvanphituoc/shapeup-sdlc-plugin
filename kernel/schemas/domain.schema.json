@@ -362,6 +362,7 @@
       "run_cmd",
       "launch_cmd",
       "build_gate",
+      "revised_checks",
       "t0_artifacts",
       "browser",
       "tasks"
@@ -2428,6 +2429,19 @@
         "launch_cmd": {
           "type": "string",
           "description": "spec-evaluator: the project profile's launch probe — installs the built artifact, starts it and asserts the first screen. Derived by `harness compile` from project-profile.md, absent when the profile declares none. Where `run_cmd` is only a build, this is how the app is brought up; a non-zero exit is a finding, not a reason to guess another way."
+        },
+        "revised_checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "scope_id": { "type": "string" },
+              "id": { "type": "string" },
+              "file": { "type": "string" }
+            },
+            "required": ["id", "file"]
+          },
+          "description": "spec-evaluator: rows that FAILed in one of the round's T0 trials and PASS in a later one whose own check file (named by the row id) changed in between. Derived by harness compile. Each must be read against its row before its PASS counts; absent when none."
         },
         "build_gate": {
           "type": "string",
