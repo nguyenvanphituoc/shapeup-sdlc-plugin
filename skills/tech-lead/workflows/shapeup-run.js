@@ -898,7 +898,7 @@ async function crossGate(gateId, phaseName, validDecisions, ctx) {
   // The gate ledger keys a per-round crossing (L2, L3) on gate id + round, so it needs the round
   // whenever the caller already has one to show in the block — the same value `ctx.round` carries
   // for display, threaded through rather than re-derived.
-  const roundFlag = ctx?.round != null ? ` --round ${ctx.round}` : "";
+  const roundFlag = (ctx?.round != null ? ` --round ${ctx.round}` : "") + (ctx?.verdict ? ` --verdict ${ctx.verdict}` : "");
   const g = await cmd(`gate --resolve ${gateId} --slug ${slug}${roundFlag} ${answersFlag(args.answers)}`.trim(), phaseName, `gate:${gateId}`);
   if (g.exit_code === 4) return { stop: paused(gateId, validDecisions, ctx) };
   if (g.exit_code === 5) return { stop: aborted(gateId, g.detail || `GATE ${gateId} aborted`) };

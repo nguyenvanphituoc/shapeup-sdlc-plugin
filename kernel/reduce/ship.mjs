@@ -280,7 +280,7 @@ export function buildReport(facts) {
     L.push("| scope | fixtures | regressions | trials | last status | delta |", "|---|---|---|---|---|---|");
     for (const s of t0) {
       const f = s.score ? `${s.score.fixtures_passed}/${s.score.fixtures_total}` : "—";
-      const r = s.score ? String(s.score.regressions) : "—";
+      const r = s.score?.regressions != null ? String(s.score.regressions) : "—";
       L.push(`| ${s.scope_id} | ${f} | ${r} | ${s.trials} | ${s.status} | ${s.delta || "—"} |`);
     }
     L.push("");

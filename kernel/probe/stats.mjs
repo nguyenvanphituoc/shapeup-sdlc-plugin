@@ -194,7 +194,10 @@ export function ratchetReport(trials) {
       }
       if (scopeMonotone) monotone++;
     }
-    const greenAt = seq.findIndex((t) => t.score && t.score.fixtures_total > 0 && t.score.fixtures_passed === t.score.fixtures_total && t.score.regressions === 0);
+    // A score with no `regressions` field was not measured for regressions — T0 writes one only when
+    // it has a baseline to regress against — which is not the same as having some. Requiring an
+    // explicit 0 reported "no scope reached green" over a run whose every scope was green.
+    const greenAt = seq.findIndex((t) => t.score && t.score.fixtures_total > 0 && t.score.fixtures_passed === t.score.fixtures_total && (t.score.regressions ?? 0) === 0);
     if (greenAt !== -1) toGreen.push(greenAt + 1);
     per_scope.push({
       scope_id, trials: seq.length,

@@ -364,7 +364,7 @@ export function discover({ cwd = process.cwd(), file = null, preset = null, slug
 export const ARGV_SPEC = {
   usage: "harness.mjs gate (--init | --list | --verify | --resolve <gate-id>) [--preset <name>] " +
          "[--file <path>] [--slug <slug>] [--cwd <dir>] [--out <path>] [--by <who>] " +
-         "[--auto-level <level>] [--tiny] [--no-qa] [--round <n>]",
+         "[--auto-level <level>] [--tiny] [--no-qa] [--round <n>] [--verdict <pass|fail|…>]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   cwd: { type: "path" },
   init: { type: "flag" },
@@ -383,7 +383,31 @@ export const ARGV_SPEC = {
   // ledger row needs it to key a `GateDecision` node uniquely per crossing. Round-independent gates
   // (L0, L1a, …) simply omit it and the row carries `round: null`.
   round: { type: "int", min: 1 },
+  // The verdict the round being crossed actually reached, when there is one. A preset answers L3
+  // before any verdict exists — "loop" on a FAIL — and its note says so; recorded without the
+  // verdict, a PASS round's row read "FAIL → fix round", the opposite of what happened.
+  verdict: { type: "str" },
 };
+
+/**
+ * The note a gate row carries — the answer's own, unless the verdict it was crossed over makes that
+ * note false.
+ *
+ * L3's answers are written for a verdict that has not happened yet: `loop` means "on a FAIL, run
+ * the next round". Crossed over a PASS, nothing loops, and the preset's "FAIL → fix round" note
+ * would put a failed round on the record for a round that passed.
+ *
+ * @param {{gate:string, decision?:string, note?:string, reason?:string}} r - The resolved answer.
+ * @param {(string|null)} verdict - The round's verdict, lower-cased, or null when none was given.
+ * @returns {(string|null)} The note to record.
+ */
+export function gateNote(r, verdict) {
+  const own = r.note ?? r.reason ?? null;
+  if (r.gate === "L3" && verdict === "pass") {
+    return `verdict PASS — the "${r.decision}" answer applies only to a failed round; the run goes on to QA and GATE H`;
+  }
+  return own;
+}
 
 function out(obj, code = 0) {
   console.log(JSON.stringify(obj, null, 2));
@@ -468,11 +492,13 @@ export function cli(rawArgv) {
     // THE ROW CARRIES THE RUN KEY. It did not, and the export stamped the current run's key onto
     // every row it found — a prior run's sign-off became this run's in the one table that answers
     // "was this ship signed off". Driven on a two-run fixture before it was fixed.
+    const verdict = args.verdict ? String(args.verdict).toLowerCase() : null;
     appendGateLedger(cwd, args.slug, {
       at: new Date().toISOString(), run_id: readRunId(cwd, args.slug),
       gate: r.gate, status: r.status, decision: r.decision ?? null,
-      source: r.source ?? found.source, note: r.note ?? r.reason ?? null,
+      source: r.source ?? found.source, note: gateNote(r, verdict),
       round: args.round ?? null,
+      ...(verdict ? { verdict } : {}),
     });
   }
   if (r.status === "ask") out({ ...r, ok: false }, 4);

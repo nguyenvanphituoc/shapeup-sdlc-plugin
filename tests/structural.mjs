@@ -432,6 +432,10 @@ const MODULE_FILES = [
   // `FAIL <name> <why>` with no file:line, and the digester dropped it — the next attempt of a red
   // fixture was handed no errors. Such a line is now kept, with no file invented for an id.
   "103-named-test-failures-digest.mjs",
+  // 104-green-is-green-and-a-pass-is-a-pass.mjs: a score with no regressions field was never
+  // counted green (the report said no scope reached green, over four green scopes), and L3 recorded
+  // its preset's "FAIL → fix round" note over a round that passed.
+  "104-green-is-green-and-a-pass-is-a-pass.mjs",
   "08-docs.mjs",
 ];
 
