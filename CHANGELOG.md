@@ -3,6 +3,25 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.15.0] — 2026-09-27 · The QA hunt can reach a mobile app, and a close reads its own run
+
+### The QA hunt hunted nothing on a mobile deliverable
+
+A mobile app has no URL, and the hunt order carried only `app_url: null`. The hunter's preflight
+wanted one real request at a URL or a guess at an entry point, reported "no reachable deliverable",
+and hunted nothing — twice, over builds the round gate had just installed and launched on a device.
+Hunt orders now carry `launch_cmd` and `build_gate`, derived exactly as they are for evaluate orders,
+and the hunter's preflight counts a `launch_cmd` that exits 0 as the deliverable reached.
+
+### A close read an earlier run's records
+
+A run opened afresh over a slug that already ran keeps the earlier run's evaluate results, gate rows,
+T0 verdicts and build gates beside its own, and the close derived the ledger from all of them.
+Measured: a run whose last round passed closed with `final_verdict: FAIL` — taken from the earlier
+run's round 3 — beside its own `close_cause: verdict=pass`, and its Rounds and Decisions tables carried
+the earlier run's rows. A result now counts when its order carries this run's key; gate rows, T0
+verdicts and build gates when they do.
+
 ## [3.14.1] — 2026-09-27 · A bug about a row reaches the row's owner
 
 A verdict bug names a code location, and its owner was elected from that location. Screens are
