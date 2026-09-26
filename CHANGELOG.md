@@ -3,6 +3,17 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.14.1] — 2026-09-27 · A bug about a row reaches the row's owner
+
+A verdict bug names a code location, and its owner was elected from that location. Screens are
+shared: on a live run two bugs about rows of two different use cases named screen files that three
+scopes could write, both were elected to a third scope that owned neither row, and that scope —
+unable to write the rows' checks — escalated, while the scopes that owned the rows received nothing.
+The row a bug names says which use case it belongs to — read from a use-case name, or from the spec
+use case whose Test Surface lists the row id — and that use case says which scope owns it. Bugs and
+failed criteria are now addressed to that scope; the file election remains the fallback when no row
+owner can be read.
+
 ## [3.14.0] — 2026-09-26 · A failed row always reaches the fixer, and a rewritten check reaches the judge
 
 ### Fix rounds starved over a FAIL verdict
