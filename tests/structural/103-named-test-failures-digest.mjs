@@ -34,6 +34,17 @@ export async function run(ctx) {
   if (out.length === 2) ok("PASS lines and the summary line are not errors");
   else fail(`expected exactly 2 triples, got ${out.length}: ${JSON.stringify(out)}`);
 
+  // hvigor/ArkTS puts message and location on one line; it is that toolchain's commonest failure.
+  const ark = digest([
+    "\u001b[31m1 ERROR: \u001b[31m10505001 ArkTS Compiler Error",
+    "Error Message: Expected 5 arguments, but got 3. At File: /p/app/entry/src/test/Repo.test.ets:75:33",
+    "COMPILE RESULT:FAIL {ERROR:1}",
+  ].join("\n"));
+  const a0 = ark.find((x) => x.kind === "arkts-compiler");
+  if (a0 && a0.file === "/p/app/entry/src/test/Repo.test.ets" && a0.line === 75 && a0.core_message === "Expected 5 arguments, but got 3.") {
+    ok("an ArkTS compiler error line yields its file, line and message");
+  } else fail(`ArkTS line digested as ${JSON.stringify(ark)}`);
+
   const quiet = digest(["> hvigor ERROR: BUILD FAILED in 3 s", "Tests run: 3, Failure: 0", "the FAIL case is handled elsewhere"].join("\n"));
   if (!quiet.some((t) => t.kind === "named-test-failure")) ok("prose containing FAIL mid-line, and hvigor's prefixed build line, are not read as a named test");
   else fail(`a non-test line was read as a named failure: ${JSON.stringify(quiet)}`);

@@ -33,6 +33,11 @@ const PATTERNS = [
   // ("ERROR in the build pipeline", "ERROR in test suite failed to run") is left unmatched
   // instead of handing back a fabricated file.
   { re: /^(?:ERROR|WARNING)\s+in\s+(\.{1,2}\/[^\s:]*|[^\s:]+\.[A-Za-z0-9]{1,10})\b/i, kind: "compiler-diagnostic" },
+  // hvigor / ArkTS compiler: the message and the location arrive on ONE line,
+  //   "Error Message: Expected 5 arguments, but got 3. At File: /abs/path/Foo.test.ets:75:33"
+  // — the commonest failure on that toolchain, and one no other pattern here anchored, so every red
+  // compile handed the next attempt an empty error list.
+  { re: /^\s*Error Message:\s*(.+?)\s+At File:\s*(.+?):(\d+):\d+\s*$/, kind: "arkts-compiler" },
   // A test that FAILED BY NAME, with no file:line: "FAIL TS-05-05 step 4: no text 'Bread' on screen"
   // or jest's "FAIL src/cart.test.js". Runners that drive an app from outside it (a device flow, an
   // end-to-end script) report a case this way and nothing else, and the line is the whole signal —
@@ -76,6 +81,11 @@ export function digest(rawText) {
       if (kind === "error-message") {
         pendingMessage = coreMessage(m[1]);
         continue; // wait for the stack frame that follows to get a file:line
+      }
+      if (kind === "arkts-compiler") {
+        triples.push({ file: m[2].trim(), line: Number(m[3]), core_message: coreMessage(m[1]), kind });
+        pendingMessage = null;
+        break;
       }
       const named = kind === "named-test-failure";
       const file = named ? (/[\\/]|\.[A-Za-z0-9]{1,10}$/.test(m[1]) ? m[1] : null) : m[1]?.trim();
