@@ -371,6 +371,21 @@ export function buildReport(facts) {
 }
 
 /**
+ * The QA line the report may print. The run says whether it dispatched the hunt; the hunt's own
+ * report says whether anything was hunted. A hunter that could not reach the app still returns, and
+ * a report opening `charters: 0/…` over a dispatched hunt read as "QA: run" with no findings — which
+ * a reader takes for an app with nothing wrong, not for an app nobody drove.
+ * @param {string|undefined} passed - What the caller recorded (`run`, `skipped`), if anything.
+ * @param {string|null} huntReport - The hunt report's text, or null when there is none.
+ * @returns {string} `skipped`, `not-hunted` (dispatched, zero charters run), or `run`.
+ */
+export function qaStatus(passed, huntReport) {
+  if (passed === "skipped" || (!passed && !huntReport)) return passed || "skipped";
+  if (huntReport && /^charters:\s*0\s*\//m.test(huntReport)) return "not-hunted";
+  return passed || "run";
+}
+
+/**
  * Gather every fact from disk and render the report.
  * @param {{cwd:string, slug:string, verdict?:string, qa?:string}} opts - Inputs.
  * @returns {{markdown:string, path:string, facts:object}} The document, its destination, the facts.
@@ -394,7 +409,7 @@ export function generate({ cwd, slug, verdict, qa }) {
     at: today(),
     verdict: verdict || run.final_verdict || "not-evaluated",
     census: (() => { try { return JSON.parse(readIf(hammerCensus(cwd, slug)) || "null"); } catch { return null; } })(),
-    qa: qa || (huntReport ? "run" : "skipped"),
+    qa: qaStatus(qa, huntReport),
     rounds: derivedRounds.rounds_used,
     roundsJudged: derivedRounds.rounds_judged,
     intakeSha: receipt.intake_sha256,

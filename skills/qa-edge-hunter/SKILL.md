@@ -70,9 +70,13 @@ Phase Q3  │ Report ───────► qa/hunt-report.md — no score, no
 ## GATE Q0 — Preflight
 
 ```
+FIRST: read `payload.kb_rules_path` for the tool paths it names — a device tool that is not on PATH is
+  named there by its full path, and a bare-name lookup (`which`, a bare call) proves nothing.
 HARD (any miss → STOP, report which):
   ✅ deliverable reachable: one real request at `app_url`, or `launch_cmd` run and exit 0, or one
-     real invocation of the entry point (not a ping, not a guess that a tool is missing)
+     real invocation of the entry point (not a ping, not a guess that a tool is missing). When the
+     order carries `launch_cmd`, run it before concluding anything; the report names the command
+     and its exit. A hunt that reached nothing returns `status: failed`, never `done`.
   ✅ EVAL-FEATURE-<slug>.md exists with verdict: PASS
   ✅ if discovery/ledger.md exists: ledger.feature == <feature> (read-only context check —
      a missing ledger is fine; ingest creates it when your findings land)

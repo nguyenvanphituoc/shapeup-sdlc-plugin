@@ -451,6 +451,9 @@ const MODULE_FILES = [
   // 108-this-runs-records-only.mjs: a run opened over an earlier run's tier closed with the earlier
   // run's final verdict and rows; and the QA hunt got no way into a mobile app. Both fixed.
   "108-this-runs-records-only.mjs",
+  // 109-a-hunt-that-drove-nothing.mjs: a hunt that reached no app returned `charters: 0/0` and the
+  // ship report said QA ran. The report's charter count now decides.
+  "109-a-hunt-that-drove-nothing.mjs",
   "08-docs.mjs",
 ];
 
