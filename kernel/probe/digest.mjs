@@ -33,6 +33,12 @@ const PATTERNS = [
   // ("ERROR in the build pipeline", "ERROR in test suite failed to run") is left unmatched
   // instead of handing back a fabricated file.
   { re: /^(?:ERROR|WARNING)\s+in\s+(\.{1,2}\/[^\s:]*|[^\s:]+\.[A-Za-z0-9]{1,10})\b/i, kind: "compiler-diagnostic" },
+  // A test that FAILED BY NAME, with no file:line: "FAIL TS-05-05 step 4: no text 'Bread' on screen"
+  // or jest's "FAIL src/cart.test.js". Runners that drive an app from outside it (a device flow, an
+  // end-to-end script) report a case this way and nothing else, and the line is the whole signal —
+  // dropping it handed the next attempt an empty error list over a red fixture. The name is kept as
+  // the file only when it looks like a path; an id like TS-05-05 is not one.
+  { re: /^(?:FAIL|FAILED)\s+(\S+)(?:\s+.*)?$/, kind: "named-test-failure" },
   // Generic "Error: message" line followed later by a stack — capture the message alone.
   { re: /^\s*(?:Error|TypeError|ReferenceError|AssertionError)\s*:\s*(.+)$/, kind: "error-message" },
 ];
@@ -71,8 +77,9 @@ export function digest(rawText) {
         pendingMessage = coreMessage(m[1]);
         continue; // wait for the stack frame that follows to get a file:line
       }
-      const file = m[1]?.trim();
-      const lineNo = m[2] ? Number(m[2]) : null;
+      const named = kind === "named-test-failure";
+      const file = named ? (/[\\/]|\.[A-Za-z0-9]{1,10}$/.test(m[1]) ? m[1] : null) : m[1]?.trim();
+      const lineNo = !named && m[2] ? Number(m[2]) : null;
       triples.push({
         file: file || null,
         line: lineNo,

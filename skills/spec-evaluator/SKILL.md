@@ -83,6 +83,11 @@ Done-when statements; `_index.md` Non-Go list. Which UCs are in scope comes from
   freeze through the judge). Ugly-but-correct PASSes; pretty-but-wrong-`data-state` FAILs.
 - `[data]`: query the DB/storage, capture actual state.
 - Contract work: send real requests, compare field-by-field.
+- **A fixture that names a row is evidence for that row.** When a T0 artifact you cite, or the
+  build gate, carries output that names a Test Surface row by id — `PASS TS-05-05`, or
+  `FAIL TS-05-05 step 4: …` — grade that row on it: a named PASS confirms, a named FAIL is a
+  FAIL whose bug is that line. This is how a device row is evidenced when you cannot drive the
+  app yourself; it is never a reason to skip driving it when you can.
 - No evidence collected = recorded "NO EVIDENCE" → FAILs at verdict.
 
 **VERDICT.**

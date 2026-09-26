@@ -428,6 +428,10 @@ const MODULE_FILES = [
   // ledger could not tell a worker that never ran a tool from one stopped when it did. Allow rows now
   // name the programs by basename, never their arguments.
   "102-ledger-names-the-program.mjs",
+  // 103-named-test-failures-digest.mjs: a runner driving an app from outside reports a failure as
+  // `FAIL <name> <why>` with no file:line, and the digester dropped it — the next attempt of a red
+  // fixture was handed no errors. Such a line is now kept, with no file invented for an id.
+  "103-named-test-failures-digest.mjs",
   "08-docs.mjs",
 ];
 
