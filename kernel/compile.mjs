@@ -528,6 +528,44 @@ export function verdictBugs(cwd, slug, round) {
 }
 
 /**
+ * Who owns the row a bug or a failed criterion is about — by use case, not by file.
+ *
+ * A bug names a code location, and electing its owner from that location is right when one scope
+ * writes the file. Screens are shared: on a live run two bugs about rows of UC-05 and UC-07 both
+ * named screen files that three scopes could write, both were elected to a third scope that owned
+ * neither row, and that scope could not write the row's check and escalated. The criterion says
+ * which row it is; the row's use case says which scope owns it. Read from the name directly
+ * (`UC-05 …`), else from the spec's use-case file whose Test Surface lists the row id.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {function(string): (string|undefined)} Criterion text → owning scope_id, or undefined
+ *   when no use case can be read off it or no scope lists that use case.
+ */
+export function rowOwner(cwd, slug) {
+  const owners = new Map();
+  for (const { contract, id } of readAllContracts(scopesDir(cwd, slug))) {
+    const sid = contract?.scope_id || id;
+    for (const uc of Array.isArray(contract?.use_cases) ? contract.use_cases : []) if (!owners.has(uc)) owners.set(uc, sid);
+  }
+  const rowUc = new Map();
+  const ucDir = join(defaultSpecDir(cwd, slug), "usecases");
+  let files = [];
+  try { files = readdirSync(ucDir).filter((f) => /^UC-.*\.md$/.test(f)); } catch { /* no spec tree */ }
+  for (const f of files) {
+    const uc = f.replace(/\.md$/, "");
+    let text = "";
+    try { text = readFileSync(join(ucDir, f), "utf8"); } catch { continue; }
+    for (const m of text.matchAll(/^\|\s*(TS-[A-Za-z0-9_-]+)\s*\|/gm)) if (!rowUc.has(m[1])) rowUc.set(m[1], uc);
+  }
+  return (criterion) => {
+    const s = String(criterion ?? "");
+    const uc = (s.match(/\bUC-[A-Za-z0-9_-]+/) || [])[0] || rowUc.get((s.match(/\bTS-[A-Za-z0-9_-]+/) || [])[0]);
+    return uc ? owners.get(uc) : undefined;
+  };
+}
+
+/**
  * The previous round's FAILED CRITERIA that the judge filed no bug for, as bug entries.
  *
  * A verdict carries two lists: the criteria it graded and the bugs it filed. Only the second
@@ -576,6 +614,22 @@ export function criteriaBugs(cwd, slug, round) {
     });
   }
   return out;
+}
+
+/**
+ * Stamp each verdict bug with the scope that owns the row it names, where one can be read. A bug
+ * that already carries a scope, or names no row a scope owns, is left to the file election.
+ *
+ * @param {Array<object>} bugs - Verdict and criterion bugs.
+ * @param {function(string): (string|undefined)} owner - From {@link rowOwner}.
+ * @returns {Array<object>} The same bugs, `scope_id` added where the row's owner is known.
+ */
+export function byRow(bugs, owner) {
+  return (bugs || []).map((b) => {
+    if (b?.scope_id) return b;
+    const sid = owner(b?.criterion);
+    return sid ? { ...b, scope_id: sid } : b;
+  });
 }
 
 /**
@@ -1099,7 +1153,7 @@ export async function cli(rawArgv) {
   // this line, and none of them can pass a payload to a build order (see the banner above).
   // Two sources, one channel: the judge's cited defects and the build gate's failing steps.
   const bugs = scope
-    ? bugsForScope([...verdictBugs(cwd, slug, round), ...criteriaBugs(cwd, slug, round), ...buildBugs(cwd, slug, round)], scope.scope_id, scopeSubstrates(cwd, slug))
+    ? bugsForScope(byRow([...verdictBugs(cwd, slug, round), ...criteriaBugs(cwd, slug, round)], rowOwner(cwd, slug)).concat(buildBugs(cwd, slug, round)), scope.scope_id, scopeSubstrates(cwd, slug))
     : [];
 
   // A ROUND CARRYING CITED DEFECTS IS A `fix`, AND THE ORDER HAS TO SAY SO.

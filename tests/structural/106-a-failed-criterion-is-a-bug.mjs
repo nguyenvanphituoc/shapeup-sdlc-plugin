@@ -63,4 +63,32 @@ export async function run(ctx) {
   } finally {
     rmSync(d, { recursive: true, force: true });
   }
+
+  // A filed bug about a row is routed to the row's owner, not to whoever the file election picks.
+  const { rowOwner, byRow } = await import(join(ROOT, "kernel/compile.mjs"));
+  const e = mkdtempSync(join(tmpdir(), "row-route-"));
+  const we = (rel, body) => { const p = join(e, rel); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, typeof body === "string" ? body : JSON.stringify(body, null, 2)); };
+  try {
+    // Both scopes can write the shared screen; only "toggle" owns UC-05, whose Test Surface lists TS-05-05.
+    we("shapeup/demo/scopes/aaa-delete.json", { schema_version: 1, scope_id: "aaa-delete", use_cases: ["UC-06"], allowed_file_substrate: ["src/screens/**"] });
+    we("shapeup/demo/scopes/toggle.json", { schema_version: 1, scope_id: "toggle", use_cases: ["UC-05"], allowed_file_substrate: ["src/screens/**", "flows/toggle/**"] });
+    we("shapeup/demo/spec/usecases/UC-05.md", "# UC-05\n\n| id | row | src | tier |\n|---|---|---|---|\n| TS-05-05 | done card is struck through | INV | device |\n");
+    we(".shapeup/demo/results/evaluate-r1.json", { schema_version: 1, order_id: "demo/evaluate-r1", worker: "spec-evaluator", status: "done",
+      verdict: { overall: "FAIL", criteria: [{ criterion: "TS-05-05", verdict: "FAIL", evidence: "no check" }],
+        bugs: [{ criterion: "TS-05-05", severity: "major", file: "src/screens/ItemCard.ets", line: 26, actual: "no check names it" }] } });
+    const own = rowOwner(e, "demo");
+    if (own("TS-05-05") === "toggle" && own("UC-05 anything") === "toggle" && own("TS-00-00") === undefined) ok("rowOwner reads a row's use case from its id through the spec, or from a UC name");
+    else fail(`rowOwner: ${own("TS-05-05")} / ${own("UC-05 anything")} / ${own("TS-00-00")}`);
+    if (byRow([{ criterion: "TS-05-05" }, { criterion: "x", scope_id: "kept" }], own).map((b) => b.scope_id).join(",") === "toggle,kept") ok("byRow stamps the row's owner and leaves an existing scope_id alone");
+    else fail("byRow did not stamp or overwrote a scope_id");
+    const compileE = (scope) => {
+      const r = spawnSync(process.execPath, [join(ROOT, "kernel/harness.mjs"), "compile", "--scope", join(e, `shapeup/demo/scopes/${scope}.json`), "--round", "2", "--attempt", "1", "--cwd", e], { encoding: "utf8" });
+      try { return (JSON.parse(readFileSync(r.stdout.trim(), "utf8")).payload?.bugs || []).map((b) => b.criterion); } catch { return [`ERR ${r.stderr.trim().slice(0, 120)}`]; }
+    };
+    const tog = compileE("toggle"), del = compileE("aaa-delete");
+    if (tog.includes("TS-05-05") && !del.includes("TS-05-05")) ok("a filed bug naming a shared screen reaches the scope that owns its row, not the file election's pick");
+    else fail(`toggle ${JSON.stringify(tog)} / aaa-delete ${JSON.stringify(del)}`);
+  } finally {
+    rmSync(e, { recursive: true, force: true });
+  }
 }
