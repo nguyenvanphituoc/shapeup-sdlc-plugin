@@ -3,6 +3,16 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.16.0] — 2026-09-27 · A PASS grades every Test Surface row by name
+
+A judge returned two criteria, "device rows" and "local rows", over a 42-row Test Surface. The PASS
+validated like any other and switched off everything that reads a verdict one row at a time: the
+requirements matrix read 0 of 28 though every acceptance criterion carried `covers:`, and a
+requirement the build had not met passed with the rest. A PASS now names each row's id in a
+criterion or its `traces_to`, or it is refused on ingest and on read alike, naming the rows it left
+ungraded. The run sends the judge back once with the refusal's reason, and only a second refusal
+ends the round. A FAIL is not held to it, since it sends the round back either way.
+
 ## [3.15.1] — 2026-09-27 · A hunt that drove nothing no longer reads as QA run
 
 The hunt order carried the launch evidence, and the hunter still looked for the device tool on PATH,
