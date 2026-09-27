@@ -32,7 +32,7 @@ import { runArgs } from "../lib/argv.mjs";
 import {
   report as reportPath, tasksDir, verdictsDir, trials, evaluationDir, qaDir,
   roundLedger, discoveryLedger, receipt as receiptPath, harnessRun, relShared,
-  activeOrder, runArgsPath, readReceipt, runIdFromReceipt, hammerCensus,
+  activeOrder, runArgsPath, readReceipt, runIdFromReceipt, hammerCensus, LOCAL,
 } from "../lib/paths.mjs";
 import { readTrials } from "../verify/t0.mjs";
 import { ratchetReport } from "../probe/stats.mjs";
@@ -112,16 +112,27 @@ export function boardCensus(cwd, slug) {
  * An id with no resolvable use case becomes a neutral phrase rather than the id: the report loses a
  * pointer that never resolved off this machine anyway, and keeps the sentence around it.
  *
+ * A path into the run trace is the same leak by another spelling: the QA findings section quotes
+ * the hunt report, which points at the discovery ledger by its local path, and the next run's
+ * spec-lint refused the report for it. The path becomes "the run trace", and the sentence stays.
+ *
  * @param {*} text - Any value destined for the committed report.
  * @param {Record<string, string[]>} anchors - Board id → its `use_case_refs`.
- * @returns {string} The text with every `TASK-…` replaced by a stable anchor.
+ * @returns {string} The text with every `TASK-…` replaced by a stable anchor and every run-trace
+ *   path by a phrase.
  */
 export function deboard(text, anchors = {}) {
-  return String(text ?? "").replace(/\bTASK-[A-Za-z0-9][\w.-]*/g, (id) => {
-    const ucs = anchors[id];
-    if (ucs && ucs.length) return ucs.join("/");
-    return "a board task";
-  });
+  const esc = LOCAL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return String(text ?? "")
+    .replace(/\bTASK-[A-Za-z0-9][\w.-]*/g, (id) => {
+      const ucs = anchors[id];
+      if (ucs && ucs.length) return ucs.join("/");
+      return "a board task";
+    })
+    .replace(new RegExp(`\`?${esc}/[^\\s\`]+\`?`, "g"), (m) => {
+      const tail = (m.replace(/`/g, "").match(/[)\]},.;:'"]+$/) || [""])[0];
+      return `the run trace${tail}`;
+    });
 }
 
 /**

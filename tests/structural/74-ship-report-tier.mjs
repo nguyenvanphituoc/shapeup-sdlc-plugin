@@ -69,9 +69,20 @@ export async function run(ctx) {
         "",
       ].join("\n"));
 
+      // (d) a path into the run trace, quoted by the sections the report copies: the QA hunt report
+      // points at the discovery ledger by path, and an evaluator row may cite a scratch artifact.
+      w(join(ws, ".shapeup", slug, "qa", "hunt-report.md"), [
+        "# Hunt Report", "charters: 1/1", "", "## Findings by lens", "| Lens | Findings |", "|---|---|", "| boundary | 1 |", "",
+        `→ details live in \`.shapeup/${slug}/discovery/ledger.md\` under the Discovered section.`, "",
+      ].join("\n"));
+      w(join(ws, ".shapeup", slug, "evaluation", `EVAL-FEATURE-${slug}.md`), [
+        "# EVAL", "", "## Criteria", "| Criterion | Verdict | Evidence |", "|---|---|---|",
+        `| TS-01-01 | PASS | screenshot .shapeup/${slug}/qa/tmp/a.png, layout checked |`, "",
+      ].join("\n"));
+
       const ship = spawnSync(process.execPath, [
         join(ROOT, "kernel/harness.mjs"), "reduce", "ship",
-        "--slug", slug, "--verdict", "not-evaluated", "--qa", "skipped", "--cwd", ws,
+        "--slug", slug, "--verdict", "not-evaluated", "--qa", "run", "--cwd", ws,
       ], { cwd: ws, encoding: "utf8", timeout: 60_000 });
       if (ship.status !== 0) {
         fail(`(setup) reduce ship failed: ${`${ship.stdout}${ship.stderr}`.slice(0, 200)}`);
@@ -87,9 +98,9 @@ export async function run(ctx) {
       const { lintCommittedTier } = await import(join(ROOT, "kernel/verify/spec.mjs"));
       const findings = lintCommittedTier({ cwd: ws, slug }).filter((f) => f.rule === "TIER-DIRECTION");
       if (!findings.length) {
-        ok("(a) the report `reduce ship` committed carries no board id — the next run of this pitch can still plan");
+        ok("(a) the report `reduce ship` committed carries no board id and no run-trace path — the next run of this pitch can still plan");
       } else {
-        const lines = readFileSync(reportPath, "utf8").split("\n").filter((l) => /\bTASK-/.test(l));
+        const lines = readFileSync(reportPath, "utf8").split("\n").filter((l) => /\bTASK-|\.shapeup\//.test(l));
         fail(`(a) the shipped report reds its own successor: ${findings.length} TIER-DIRECTION finding(s); ` +
              `offending line(s): ${lines.slice(0, 3).map((l) => l.trim().slice(0, 90)).join(" ⏎ ")}`);
       }
@@ -98,6 +109,9 @@ export async function run(ctx) {
       // trade one silent failure for another: a report that no longer says work is unfinished reads
       // as "the feature is done".
       const md = readFileSync(reportPath, "utf8");
+      if (/details live in the run trace under/.test(md) && /screenshot the run trace, layout checked/.test(md)) {
+        ok("(c) a copied run-trace path becomes a phrase, and the sentence around it survives");
+      } else fail("(c) the QA or EVAL section lost its sentence, or never reached the report");
       if (/did not finish/.test(md) && md.includes("UC-ViewList")) {
         ok("(b) unfinished work is still disclosed, now anchored on the committed use case");
       } else {
