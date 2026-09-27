@@ -54,7 +54,7 @@ import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync } fr
 import { parseBoard } from "./reduce/board.mjs";
 import { join, dirname } from "node:path";
 import { runArgs } from "./lib/argv.mjs";
-import { gateAnswerCandidates, gates as gatesPath, LOCAL, resultsDir, tasksDir, hammerCensus, readRunId } from "./lib/paths.mjs";
+import { gateAnswerCandidates, gates as gatesPath, LOCAL, resultsDir, tasksDir, hammerCensus, readRunId, harnessRun } from "./lib/paths.mjs";
 
 export const GATE_IDS = ["L0", "L1a", "L1a.5", "L1b", "L2", "L3", "QA", "H", "L4", "COACH-1"];
 
@@ -327,6 +327,34 @@ export function appendGateLedger(cwd, slug, row) {
   } catch { return false; }
 }
 
+/**
+ * This run's earlier ship sign-off, if it already has one.
+ *
+ * A launched run crosses L4 itself and then closes, and the orchestrator's own closing step resolved
+ * it again afterwards — a second `ship` row, after the close, for a decision already taken. Once the
+ * run is closed, its decided L4 row is returned instead of resolving again. An open run still
+ * re-resolves (the census it reads may have changed), a reopened run has no close, and a paused or
+ * aborted row is not a sign-off.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {string|null} runId - The run the resolve belongs to.
+ * @returns {(object|null)} The earlier L4 row, or null.
+ */
+export function priorSignOff(cwd, slug, runId) {
+  if (!runId) return null;
+  let ledger = "";
+  try { ledger = readFileSync(harnessRun(cwd, slug), "utf8"); } catch { return null; }
+  if (!/^closed_status:[ \t]*[^\s~]/m.test(ledger)) return null;
+  let text = "";
+  try { text = readFileSync(gatesPath(cwd, slug), "utf8"); } catch { return null; }
+  for (const line of text.split("\n")) {
+    let row; try { row = JSON.parse(line); } catch { continue; }
+    if (row?.gate === "L4" && row.run_id === runId && row.status === "ok") return row;
+  }
+  return null;
+}
+
 /** Gates this lane will actually hit — used by --verify to catch a set that stalls halfway. */
 export function requiredGates({ autoLevel = "unattended", tiny = false, qa = true } = {}) {
   if (tiny) return ["L0", "L4"];
@@ -483,6 +511,10 @@ export function cli(rawArgv) {
   const gate = args.resolve ?? null;
   if (!gate) die("nothing to do — pass --init, --list, --verify, or --resolve <gate-id>");
 
+  if (gate === "L4" && args.slug) {
+    const prior = priorSignOff(cwd, args.slug, readRunId(cwd, args.slug));
+    if (prior) out({ ok: true, gate: "L4", status: prior.status, decision: prior.decision, source: prior.source, already_resolved_at: prior.at }, 0);
+  }
   const r = narrowToEvidence(resolve(found.set, gate, found.source), cwd, args.slug ?? null);
   if (r.status === "error") die(r.reason);
   // A gate with no `--slug` (e.g. `--file` used ad hoc, outside any run) has nowhere to file a

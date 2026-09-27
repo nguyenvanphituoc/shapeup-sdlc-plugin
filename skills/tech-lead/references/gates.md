@@ -571,7 +571,9 @@ On confirm:
 - If the PO provides substantive feedback (not just 'y' or empty) → automatically delegate via Agent (model: exec — see references/protocol.md "Invocation mechanism"): Skill(shapeup-sdlc-plugin:coach) with the provided feedback for RLHF. The coach runs its own GATE COACH-1 to have the PO categorize each rule, then files it under the responsible skill in `shapeup/knowledge-base/<skill>.md` (committed → team-shared). Coachable: `task-executor`, `ba-pitch-analyzer`, `qa-edge-hunter`, `orient`, `scope-architect`, `solution-architect` (each reads its own file at the top of its next run) and `tech-lead` (workflow guidance, read at the next GATE L0). Guidance never decides a gate: a filed rule may add a question or a check to a gate block, never an answer. The tech lead does not categorize the feedback itself — that is the coach's gate, by design (no assumptions).
 - Then output → `✅ [slug] [shipped & deployed | built & verified, deploy pending] — [r] rounds, verdict PASS.`
 
-**Resolve the gate itself before any of the above** — this is the decision that shipped the run,
+**A launched run already crossed L4 — never resolve it again after a `shipped` or `escalated`
+return; a second row after the close is a second sign-off.** In the prose lane, **resolve the gate
+itself before any of the above** — this is the decision that shipped the run,
 and without it the trace holds no record of that decision at all: `node
 "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" gate --resolve L4 --slug <slug>
 [--file <path>|--preset <name>]`. Exit 0 (`decision=ship|hold`) — render the block above and close

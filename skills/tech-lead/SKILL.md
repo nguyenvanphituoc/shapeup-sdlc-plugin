@@ -110,11 +110,11 @@ failed, launch from the install path and have the operator `/add-dir` the plugin
 did not actually receive from the PO — an unattended lane with no answer for a gate is meant to
 `abort` (see `harness gate`'s `on_missing`), not silently proceed.
 
-## Step 4 — GATE L4 — Ship Sign-Off (this skill's own gate; the workflow never sees it)
+## Step 4 — GATE L4 — Ship Sign-Off
 
-FIRST freeze the evidence — run state is gitignored, so `shapeup/<slug>/REPORT.md` (already
-written by `shapeup-run.js` via `harness reduce ship`, or write it now on a `gate_h` close) is all a
-teammate sees. Then RESOLVE the gate — `references/gates.md` GATE L4 has the call — and emit:
+A `shipped`/`escalated` return already crossed L4 in the run and froze `REPORT.md`: never resolve it
+again (a row after the close is a second sign-off). A return that did not reach L4 freezes the report
+now and RESOLVES the gate (`references/gates.md` GATE L4). Either way, emit:
 
 ```
 ⏸ GATE L4 — Ship Sign-Off

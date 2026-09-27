@@ -457,6 +457,9 @@ const MODULE_FILES = [
   // 110-every-row-by-name.mjs: a PASS graded a 42-row Test Surface as two grouped criteria and the
   // requirements matrix read nothing. A PASS now names every row, or it is refused and re-asked once.
   "110-every-row-by-name.mjs",
+  // 111-one-sign-off.mjs: a launched run crossed L4 and the orchestrator crossed it again after the
+  // close. A second resolve now returns the first sign-off.
+  "111-one-sign-off.mjs",
   "08-docs.mjs",
 ];
 
