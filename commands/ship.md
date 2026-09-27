@@ -99,6 +99,8 @@ Additional flags, pass through to `tech-lead` only when the user names them:
 - `--rounds N` → override the outer circuit breaker (build+eval cycles, default 3).
 - `--attempts N` → override the inner circuit breaker (per-scope T0 attempts, default 5;
   no-op on specs without scope contracts).
-- `--orch-model / --exec-model / --eval-model / --qa-model <name>` → override GATE L0.8's
+- `--exec-model / --eval-model / --qa-model <name>` → override GATE L0.8's
   resolved model matrix for this run only (highest precedence over `.claude/settings.local.json`
-  / `.claude/settings.json` / skill defaults).
+  / `.claude/settings.json` / skill defaults). `--orch-model` is shown in the L0 block and changes
+  nothing: the orchestrator is the session already running this command, so its model is the one
+  that session was started with.
