@@ -37,7 +37,7 @@ import { fileURLToPath } from "node:url";
 import { validate } from "../verify/envelope.mjs";
 import { runArgs } from "../lib/argv.mjs";
 import { tasksDir, localRoot, dispatchReceipts, legLedger, readRunId } from "../lib/paths.mjs";
-import { citationProblem, verdictProblem } from "../probe/eval.mjs";
+import { citationProblem, coverageProblem, verdictProblem } from "../probe/eval.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RESULT_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../schemas/work-result.schema.json"), "utf8"));
@@ -692,17 +692,20 @@ export async function cli(rawArgv) {
     process.exit(1);
   }
 
-  // --- T0 citation gate -----------------------------------------------------------------------
-  // A PASS or FAIL on a scoped spec that cites no T0 artifact is not a judgement this run may act
-  // on (see `citationProblem`). `probe eval` refuses it to the round loop; refusing it here as well
-  // keeps the verdict ledger from recording a verdict the loop will never branch on.
+  // --- Verdict gate: structure, row coverage, T0 citation ---------------------------------------
+  // A PASS or FAIL on a scoped spec that cites no T0 artifact, or a PASS that does not grade every
+  // Test Surface row by name, is not a judgement this run may act on (see `citationProblem`,
+  // `coverageProblem`). `probe eval` refuses it to the round loop; refusing it here as well keeps
+  // the verdict ledger from recording a verdict the loop will never branch on.
   if (result.verdict) {
+    const evalSlug = String(result.order_id).split("/")[0];
     const evalRound = Number((String(result.order_id).match(/-r(\d+)$/) || [])[1]) || null;
-    const problem = verdictProblem(result.verdict) || citationProblem(cwd, String(result.order_id).split("/")[0], result.verdict, { round: evalRound });
+    const problem = verdictProblem(result.verdict) || coverageProblem(cwd, evalSlug, result.verdict)
+      || citationProblem(cwd, evalSlug, result.verdict, { round: evalRound });
     if (problem) {
       console.error(`ingest-result: result refused — ${problem}.`);
       console.error(`  The round stays open: re-dispatch the evaluator against its order, which lists`);
-      console.error(`  the T0 artifacts to cite. Nothing was written.`);
+      console.error(`  the T0 artifacts to cite and the spec whose rows it grades. Nothing was written.`);
       process.exit(1);
     }
   }

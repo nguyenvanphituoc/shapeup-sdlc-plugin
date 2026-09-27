@@ -35,7 +35,7 @@ import { existsSync, readFileSync, readdirSync, realpathSync } from "node:fs";
 import { join, resolve, resolve as resolvePath, sep } from "node:path";
 import { createHash } from "node:crypto";
 import { runArgs } from "../lib/argv.mjs";
-import { resultsDir, scopesDir, readRunId, verdictsDir } from "../lib/paths.mjs";
+import { resultsDir, scopesDir, readRunId, verdictsDir, specDir } from "../lib/paths.mjs";
 
 /** Longest `reason` reported. A deviation is prose written by a worker and can run to paragraphs. */
 const REASON_MAX = 400;
@@ -203,6 +203,56 @@ export function verdictProblem(verdict) {
   return null;
 }
 
+/**
+ * The Test Surface row ids the spec declares, in spec order.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {string[]} Every `TS-…` id that opens a table row in a use-case file; [] with no spec tree.
+ */
+export function surfaceRows(cwd, slug) {
+  const dir = join(specDir(cwd, slug), "usecases");
+  let files = [];
+  try { files = readdirSync(dir).filter((f) => /^UC-.*\.md$/.test(f)).sort(); } catch { return []; }
+  const rows = [];
+  for (const f of files) {
+    let text = "";
+    try { text = readFileSync(join(dir, f), "utf8"); } catch { continue; }
+    for (const m of text.matchAll(/^\|\s*(TS-[A-Za-z0-9_-]+)\s*\|/gm)) if (!rows.includes(m[1])) rows.push(m[1]);
+  }
+  return rows;
+}
+
+/**
+ * Whether a PASS grades every Test Surface row by name.
+ *
+ * A PASS that grades the surface as a whole — "device rows", "local rows" — validated like any other
+ * and switched off everything that reads a verdict row by row: the requirements matrix read no
+ * evidence under every covered requirement, a failed row had no criterion to become a bug, and a row
+ * nobody looked at passed with the rest. A row counts as graded when its id appears in a criterion's
+ * text or its `traces_to`. Only a PASS is held to it: a FAIL sends the round back either way.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {object} verdict - The WorkResult's `verdict`.
+ * @returns {(string|null)} A reason naming the rows no criterion graded, or null.
+ */
+export function coverageProblem(cwd, slug, verdict) {
+  if (verdict?.overall !== "PASS") return null;
+  const rows = surfaceRows(cwd, slug);
+  if (!rows.length) return null;
+  const named = new Set();
+  for (const c of Array.isArray(verdict.criteria) ? verdict.criteria : []) {
+    const text = [c?.criterion, ...(Array.isArray(c?.traces_to) ? c.traces_to : [])].map((x) => String(x ?? "")).join(" ");
+    for (const m of text.matchAll(/\bTS-[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)*/g)) named.add(m[0]);
+  }
+  const missing = rows.filter((r) => !named.has(r));
+  if (!missing.length) return null;
+  const shown = missing.slice(0, 8).join(", ") + (missing.length > 8 ? ` and ${missing.length - 8} more` : "");
+  return `the PASS verdict grades ${rows.length - missing.length} of ${rows.length} Test Surface rows by name — ` +
+    `each row is its own criterion, its id in the criterion or its traces_to; ungraded: ${shown}`;
+}
+
 export function citationProblem(cwd, slug, verdict, { round = null } = {}) {
   if (verdict?.overall !== "PASS" && verdict?.overall !== "FAIL") return null;
   if (!isScoped(cwd, slug)) return null;
@@ -247,7 +297,7 @@ export function evalVerdict(cwd, slug, round) {
       ? `the evaluator returned ${status || "no status"}: ${first}`
       : `status ${status || "unknown"} with no PASS/FAIL verdict`), status);
   }
-  const problem = verdictProblem(v) || citationProblem(cwd, slug, v, { round });
+  const problem = verdictProblem(v) || coverageProblem(cwd, slug, v) || citationProblem(cwd, slug, v, { round });
   if (problem) return unfit(problem, status, overall);
   return {
     found: true,

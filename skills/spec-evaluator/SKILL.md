@@ -175,6 +175,11 @@ round. Write it so someone without your context can answer it in one reply.
 }
 ```
 
+**Every Test Surface row is its own criterion.** Name the row's id (`TS-05-05`) in `criterion`, one
+row per entry — never a range (`TS-01-04/05`) and never a group ("device rows"). Ingest refuses a
+PASS that leaves any row of the spec unnamed, because the requirement matrix, the next round's bugs
+and the rewritten-check list all read the verdict one row at a time.
+
 **`traces_to` is copied, not invented.** Fill it from the `(covers: REQ-…)` clause of the
 acceptance criteria your criterion grades: the AC already carries the link, written when the plan
 was reviewed, and you record which requirement your criterion maps back to. An AC with no `covers:`
@@ -200,6 +205,7 @@ separation is the whole point of the architecture.
 ## Verification checklist
 
 - [ ] Every criterion traces to committed spec text (UC/domain-model/contract/Done-when/Non-Go)
+- [ ] Every Test Surface row is graded as its own criterion, by id
 - [ ] `traces_to` copied from the graded ACs' `covers:` clauses — empty where they carry none
 - [ ] Every PASS cites a confirming probe; every FAIL cites evidence or "NO EVIDENCE"
 - [ ] Every FAIL was re-probed once; confidence assigned per the ledger rule

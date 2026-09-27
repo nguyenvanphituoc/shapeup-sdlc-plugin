@@ -454,6 +454,9 @@ const MODULE_FILES = [
   // 109-a-hunt-that-drove-nothing.mjs: a hunt that reached no app returned `charters: 0/0` and the
   // ship report said QA ran. The report's charter count now decides.
   "109-a-hunt-that-drove-nothing.mjs",
+  // 110-every-row-by-name.mjs: a PASS graded a 42-row Test Surface as two grouped criteria and the
+  // requirements matrix read nothing. A PASS now names every row, or it is refused and re-asked once.
+  "110-every-row-by-name.mjs",
   "08-docs.mjs",
 ];
 

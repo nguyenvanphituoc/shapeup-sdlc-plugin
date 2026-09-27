@@ -1868,8 +1868,8 @@ while (verdict !== "pass" && round <= maxRounds) {
     // freezes at GATE L4 has to say that as plainly as the gate block already does.
     verdict = "not-evaluated";
   } else {
-    const e = await worker({
-      skill: "spec-evaluator", operation: "evaluate", schema: EVAL, phase: "Eval", label: `eval:r${round}`,
+    const evalOnce = (label, extraNote = "") => worker({
+      skill: "spec-evaluator", operation: "evaluate", schema: EVAL, phase: "Eval", label,
       model: evalModel, round,
       // No `t0_artifacts` here, deliberately: `harness compile` derives them from the round's green
       // T0 verdicts on disk, for every lane — this script could only name paths it was told about.
@@ -1877,12 +1877,22 @@ while (verdict !== "pass" && round <= maxRounds) {
       // artifact and the project profile, so the judge gets the launch evidence without this script
       // having to carry it.
       payload: { dimensions: evalDims, run_cmd: rs.run_cmd, round },
-      extra: "Evaluate the running feature against every acceptance criterion and Done-when. One feature-level pass; cite every artifact the order lists under t0_artifacts, re-hashing each yourself.",
+      extra: "Evaluate the running feature against every acceptance criterion and Done-when. One feature-level pass; cite every artifact the order lists under t0_artifacts, re-hashing each yourself." + extraNote,
     });
+    let e = await evalOnce(`eval:r${round}`);
     if (e.__failed) return await withWarnings(diedAt("L3", e));
     // The pass/fail branch is decided from the WorkResult on disk, not from the dispatching
     // agent's own summary of it (`e.overall`) — see EVAL_VERDICT's comment for why.
-    const ev = await query(`probe eval --slug ${slug} --round ${round}`, EVAL_VERDICT, "Eval", `verdict:r${round}`);
+    let ev = await query(`probe eval --slug ${slug} --round ${round}`, EVAL_VERDICT, "Eval", `verdict:r${round}`);
+    // A verdict the kernel refused — a PASS that grades the surface as a group, a missing citation —
+    // is a correctable answer, not a dead judge: the judge is sent back once with the refusal's own
+    // words, and only a second refusal ends the round.
+    if (ev && !ev.ok && ev.overall && ev.reason) {
+      log(`EVAL r${round} — verdict refused (${ev.reason}); the judge is sent back once`);
+      e = await evalOnce(`eval:r${round}:again`, ` Your previous verdict for this round was refused: ${ev.reason}. Grade again and correct that.`);
+      if (e.__failed) return await withWarnings(diedAt("L3", e));
+      ev = await query(`probe eval --slug ${slug} --round ${round}`, EVAL_VERDICT, "Eval", `verdict:r${round}:again`);
+    }
     if (!ev) return await withWarnings(diedAt("L3", nullFail(`verdict:r${round}`)));
     // A round with no verdict to act on is NOT a dead worker. An evaluator that refused the round
     // wrote a result saying why, and `probe eval` carries it as `reason`; reported as "died after
