@@ -112,6 +112,10 @@ const argProblems = validateArgs(args);
 if (argProblems.length) return { status: "aborted", aborted_at: "args", reason: argProblems.join("; ") };
 
 const slug          = args.slug;
+// The report's path, never the ship command's one-line `detail`: that is a sub-agent's sentence, and
+// it reached the RunReturn's `report` field in place of the path the orchestrator opens. The
+// committed root is a fixed name, so the path is known without reading anything.
+const REPORT_PATH = `shapeup/${slug}/REPORT.md`;
 const KERNEL        = `${args.pluginRoot}/kernel/harness.mjs`;
 const execModel     = args.models.exec;
 const evalModel     = args.models.eval;
@@ -697,7 +701,7 @@ async function settleAtGateH(ret) {
     status: "shipped", verdict, rounds_used: round, after: "gate_h", breaker: ret.breaker ?? null,
     census: h.verdict, cut_list: h.cut_list, green_scopes: ret.green_scopes,
     unapplied_results: ret.unapplied_results || [], qa_findings: 0,
-    report: ship.detail || `shapeup/${slug}/REPORT.md`,
+    report: REPORT_PATH,
   });
 }
 
@@ -2012,7 +2016,7 @@ return await withWarnings({
   rounds_used: round,
   dims_not_evaluated: ALL_DIMS.filter((d) => !evalDims.includes(d)),
   qa_findings: qaFindings,
-  report: ship.detail || `shapeup/${slug}/REPORT.md`,
+  report: REPORT_PATH,
 });
 
 // =============================================================================================
