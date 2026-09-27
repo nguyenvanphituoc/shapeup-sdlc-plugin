@@ -3,6 +3,19 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.16.1] — 2026-09-27 · A full defect re-check: one slug-bricking report, one double sign-off
+
+- **A run-trace path copied into the report no longer bricks the slug.** The first run whose QA hunt
+  had findings froze a report whose QA section quoted the hunt report's pointer to the discovery
+  ledger by its local path. The next run's spec-lint reds any committed file naming the gitignored
+  tier. The report's write boundary rewrote board ids only; it now rewrites run-trace paths as well.
+- **GATE L4 is signed once.** A launched run crosses L4 and closes, and the orchestrator's closing
+  step resolved it again afterwards. Over a closed run, resolving L4 now returns the sign-off on
+  record and writes nothing; an open or reopened run still re-resolves.
+- **The run's return names the report by path**, not by the ship command's one-line summary.
+- **`--orch-model` is documented as what it is:** shown in the L0 block, and changing nothing, since
+  the orchestrator is the session already running.
+
 ## [3.16.0] — 2026-09-27 · A PASS grades every Test Surface row by name
 
 A judge returned two criteria, "device rows" and "local rows", over a 42-row Test Surface. The PASS
