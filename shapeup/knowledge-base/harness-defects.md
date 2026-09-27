@@ -13,6 +13,7 @@ is pinned by a guard, never when it is merely believed done.
 | id | defect | tier |
 |---|---|---|
 | HD-067 | the board's `covers:` clauses are instructed and not enforced — a regenerated board can carry none, and the matrix then reads no evidence for everything | P2 |
+| HD-068 | a QA hunt over a reachable app can draft zero charters and return `done` | P2 |
 | HD-051 | a build leg can forge a CONCURRENTLY-LIVE sibling's WorkResult — narrowed, and the guard cannot see who writes | P2 |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
@@ -45,6 +46,20 @@ is pinned by a guard, never when it is merely believed done.
   **Closed when:** a board with no `covers:` clause cannot reach BUILD unremarked while a
   requirements registry is on disk, and a fixture drives both boards — one with clauses, one
   without — through the same gate.
+
+- **HD-068 · A hunt over a reachable app can draft zero charters.** Measured 2026-09-27 on the
+  HarmonyOS consumer. On 3.15.1 the hunter ran the launch command, reached the emulator and swept
+  the fault log clean, then drafted no charter and returned `done`. The ship report now reads
+  `not-hunted` from the charter count, so the gap is visible, but nothing prevents it. On 3.16.0
+  the same pitch hunted 3/3 charters and found two real defects, so the zero was the model's choice
+  and not a limit of the app.
+
+  Candidate shapes, unranked: ingest refuses a `done` hunt result with zero charters when the order
+  carried launch evidence, sending the hunter back once, as the evaluator is sent back; or the run
+  treats a zero-charter hunt as a QA gate `ask`.
+
+  **Closed when:** a hunt result with zero charters over an order carrying `launch_cmd` cannot be
+  ingested as `done`, and a fixture drives both a zero-charter and a charted result.
 
 - **HD-051 · A build leg can forge a concurrently-live sibling's WorkResult.** Filed 2026-09-24 by
   the acceptance pass on the attestation freeze; narrowed and re-measured 2026-09-25.
