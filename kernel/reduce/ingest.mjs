@@ -37,7 +37,7 @@ import { fileURLToPath } from "node:url";
 import { validate } from "../verify/envelope.mjs";
 import { runArgs } from "../lib/argv.mjs";
 import { tasksDir, localRoot, dispatchReceipts, legLedger, readRunId, qaDir } from "../lib/paths.mjs";
-import { citationProblem, coverageProblem, verdictProblem } from "../probe/eval.mjs";
+import { citationProblem, coverageProblem, tracesProblem, verdictProblem } from "../probe/eval.mjs";
 import { huntProblem } from "../probe/hunt.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -702,7 +702,7 @@ export async function cli(rawArgv) {
     const evalSlug = String(result.order_id).split("/")[0];
     const evalRound = Number((String(result.order_id).match(/-r(\d+)$/) || [])[1]) || null;
     const problem = verdictProblem(result.verdict) || coverageProblem(cwd, evalSlug, result.verdict)
-      || citationProblem(cwd, evalSlug, result.verdict, { round: evalRound });
+      || tracesProblem(cwd, evalSlug, result.verdict) || citationProblem(cwd, evalSlug, result.verdict, { round: evalRound });
     if (problem) {
       console.error(`ingest-result: result refused — ${problem}.`);
       console.error(`  The round stays open: re-dispatch the evaluator against its order, which lists`);

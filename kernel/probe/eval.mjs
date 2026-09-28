@@ -36,6 +36,8 @@ import { join, resolve, resolve as resolvePath, sep } from "node:path";
 import { createHash } from "node:crypto";
 import { runArgs } from "../lib/argv.mjs";
 import { resultsDir, scopesDir, readRunId, verdictsDir, specDir } from "../lib/paths.mjs";
+import { readBoard } from "../compile.mjs";
+import { coveringAcs } from "./requirements.mjs";
 
 /** Longest `reason` reported. A deviation is prose written by a worker and can run to paragraphs. */
 const REASON_MAX = 400;
@@ -253,6 +255,33 @@ export function coverageProblem(cwd, slug, verdict) {
     `each row is its own criterion, its id in the criterion or its traces_to; ungraded: ${shown}`;
 }
 
+/**
+ * Whether a verdict anchors any criterion to a requirement when the board says which ones it could.
+ *
+ * `traces_to` is copied from the `(covers: REQ-…)` clauses of the acceptance criteria a criterion
+ * grades, and the requirements matrix is joined along it. Two judges on the same spec and the same
+ * instruction differed: one anchored every row and the matrix read 5/5, the next anchored none and it
+ * read 0/5 over the same passes. Held only to the all-empty case: which requirement a criterion
+ * traces to is the judge's reading, but none at all, beside a board that covers some, is a copy
+ * step skipped.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {object} verdict - The WorkResult's `verdict`.
+ * @returns {(string|null)} A reason phrased for the judge, or null.
+ */
+export function tracesProblem(cwd, slug, verdict) {
+  if (verdict?.overall !== "PASS" && verdict?.overall !== "FAIL") return null;
+  const criteria = Array.isArray(verdict.criteria) ? verdict.criteria : [];
+  if (!criteria.length) return null;
+  if (criteria.some((c) => Array.isArray(c?.traces_to) && c.traces_to.length)) return null;
+  let covered = 0;
+  try { covered = coveringAcs(readBoard(cwd, slug)).size; } catch { return null; }
+  if (!covered) return null;
+  return `the verdict anchors none of its ${criteria.length} criteria to a requirement while the board's acceptance ` +
+    `criteria cover ${covered} — copy each graded AC's (covers: REQ-…) clause into that criterion's traces_to`;
+}
+
 export function citationProblem(cwd, slug, verdict, { round = null } = {}) {
   if (verdict?.overall !== "PASS" && verdict?.overall !== "FAIL") return null;
   if (!isScoped(cwd, slug)) return null;
@@ -297,7 +326,7 @@ export function evalVerdict(cwd, slug, round) {
       ? `the evaluator returned ${status || "no status"}: ${first}`
       : `status ${status || "unknown"} with no PASS/FAIL verdict`), status);
   }
-  const problem = verdictProblem(v) || coverageProblem(cwd, slug, v) || citationProblem(cwd, slug, v, { round });
+  const problem = verdictProblem(v) || coverageProblem(cwd, slug, v) || tracesProblem(cwd, slug, v) || citationProblem(cwd, slug, v, { round });
   if (problem) return unfit(problem, status, overall);
   return {
     found: true,

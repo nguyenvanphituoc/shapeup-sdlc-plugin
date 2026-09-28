@@ -466,6 +466,9 @@ const MODULE_FILES = [
   // 113-a-board-that-covers.mjs: one board carried thirty covers clauses and the next none, from the
   // same instruction. A board with none beside a registry sends its writer back once, then warns.
   "113-a-board-that-covers.mjs",
+  // 114-a-verdict-that-traces.mjs: two judges on one spec read the matrix 5/5 and 0/5 — the second
+  // anchored no criterion. A verdict with no anchor beside a covering board is sent back once.
+  "114-a-verdict-that-traces.mjs",
   "08-docs.mjs",
 ];
 

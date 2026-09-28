@@ -188,7 +188,7 @@ clause yields no anchor — leave the array empty rather than guessing, and neve
 supply one. This changes nothing you grade: the anchor is a navigation path, never a grading input,
 and a criterion passes or fails on its evidence exactly as before. It matters downstream because
 the requirement matrix at GATE L4 and the census at GATE H are projected from these anchors; a
-verdict that drops them grades the build and says nothing about what the pitch asked for.
+verdict that drops them grades the build and says nothing about what the pitch asked for. Ingest refuses a verdict that anchors no criterion at all while the board's ACs carry `covers:` clauses, and you are sent back once.
 
 **Every FAIL criterion's `evidence` MUST carry a `file:line` locator** — schema-enforced, not
 advice: the envelope is validated against `work-result.schema.json` at ingest and a locatorless
