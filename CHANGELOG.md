@@ -3,6 +3,15 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.17.2] — 2026-09-28 · A verdict that anchors no criterion is sent back once
+
+`traces_to` is copied from the `covers:` clauses of the acceptance criteria a criterion grades, and the
+requirements matrix is joined along it. Two judges on one spec and one instruction differed: one
+anchored every row and the matrix read 5/5, the next anchored none and it read 0/5 over the same passes.
+A verdict that anchors no criterion at all, beside a board whose ACs carry `covers:`, is refused on
+ingest and by `probe eval`, and the run sends the judge back once. Which requirement a row traces to
+stays the judge's reading; only the all-empty case is refused.
+
 ## [3.17.1] — 2026-09-28 · One red scope no longer aborts the round
 
 A round in which one of two scopes went green and the other did not was refused as a whole. The judge
