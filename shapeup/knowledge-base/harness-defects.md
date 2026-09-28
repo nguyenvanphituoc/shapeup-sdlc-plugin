@@ -12,54 +12,12 @@ is pinned by a guard, never when it is merely believed done.
 
 | id | defect | tier |
 |---|---|---|
-| HD-067 | the board's `covers:` clauses are instructed and not enforced — a regenerated board can carry none, and the matrix then reads no evidence for everything | P2 |
-| HD-068 | a QA hunt over a reachable app can draft zero charters and return `done` | P2 |
 | HD-051 | a build leg can forge a CONCURRENTLY-LIVE sibling's WorkResult — narrowed, and the guard cannot see who writes | P2 |
 | HD-023 | workspace trust discards the grant in a fresh clone | outside the plugin |
 | HD-024 | the auto-mode classifier blocks the courier's calls | outside the plugin |
 | HD-025 | two run geometries this checkout cannot reach | process |
 
 ## Defects
-
-- **HD-067 · The board's `covers:` clauses are instructed and not enforced.** Measured 2026-09-25
-  across two consecutive runs of one pitch, same spec, same plugin line.
-
-  The `board` operation's own brief says to regenerate the board "every acceptance criterion
-  carrying its `(covers: REQ-…)` clause". One run's board carried **thirty** such clauses and its
-  frozen report read `4/11 PASS`; the next run's board carried **zero**, and the report read
-  `0/11 PASS · 7 no evidence` over a run whose static criteria passed exactly as before. Nothing
-  went red in between: L1b's `REQ-UNCOVERED` is satisfied by the scope contract's own
-  `covers: [REQ-…]` list, which is a different mechanism from the one the matrix reads, so a board
-  with no clauses at all crosses the gate.
-
-  So the harness has two bars for one question. The gate asks "does anything in the plan claim this
-  requirement" and a scope claim answers it; the projection asks "did a criterion a judge graded
-  cover it" and only an AC clause answers that. A plan can satisfy the first and be silent to the
-  second, and the difference is invisible until the report prints "no evidence" for everything.
-
-  The instruction is not the fix: a worker carries no lesson across a dispatch, and this one was
-  followed on Tuesday and not on Wednesday. Candidate shapes, unranked: warn at L1b when a registry
-  exists and the board carries no `covers:` clause at all, naming what the matrix will read; have
-  `reduce ingest` refuse a board result whose tasks carry none while a registry exists; or make the
-  scope-claim path feed the matrix too, so the two bars become one.
-
-  **Closed when:** a board with no `covers:` clause cannot reach BUILD unremarked while a
-  requirements registry is on disk, and a fixture drives both boards — one with clauses, one
-  without — through the same gate.
-
-- **HD-068 · A hunt over a reachable app can draft zero charters.** Measured 2026-09-27 on the
-  HarmonyOS consumer. On 3.15.1 the hunter ran the launch command, reached the emulator and swept
-  the fault log clean, then drafted no charter and returned `done`. The ship report now reads
-  `not-hunted` from the charter count, so the gap is visible, but nothing prevents it. On 3.16.0
-  the same pitch hunted 3/3 charters and found two real defects, so the zero was the model's choice
-  and not a limit of the app.
-
-  Candidate shapes, unranked: ingest refuses a `done` hunt result with zero charters when the order
-  carried launch evidence, sending the hunter back once, as the evaluator is sent back; or the run
-  treats a zero-charter hunt as a QA gate `ask`.
-
-  **Closed when:** a hunt result with zero charters over an order carrying `launch_cmd` cannot be
-  ingested as `done`, and a fixture drives both a zero-charter and a charted result.
 
 - **HD-051 · A build leg can forge a concurrently-live sibling's WorkResult.** Filed 2026-09-24 by
   the acceptance pass on the attestation freeze; narrowed and re-measured 2026-09-25.
