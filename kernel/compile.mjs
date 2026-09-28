@@ -1267,6 +1267,11 @@ export async function cli(rawArgv) {
   if (operation === "evaluate" && payloadExtra.t0_artifacts === undefined) {
     const { artifacts, missing } = t0ArtifactsFor(cwd, slug, round);
     if (artifacts.length) payloadExtra.t0_artifacts = artifacts;
+    // A scope that did not go green leaves its rows ungraded, not the round: the judge refused a whole
+    // round over one such scope and the run aborted at L3, before the next round or GATE H's census
+    // could act on it. With at least one citation the round is gradeable, and the order names the
+    // scopes whose rows are FAILs for want of a green T0.
+    if (artifacts.length && missing.length) payloadExtra.scopes_without_t0 = missing;
     // On stderr, never stdout: stdout is the order path the caller consumes.
     if (missing.length) {
       console.error(`compile-order: warning — no green T0 verdict${round ? ` in round ${round}` : ""} for ` +

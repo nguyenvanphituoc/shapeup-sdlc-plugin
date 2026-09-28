@@ -363,6 +363,7 @@
       "launch_cmd",
       "build_gate",
       "revised_checks",
+      "scopes_without_t0",
       "t0_artifacts",
       "browser",
       "tasks"
@@ -2444,6 +2445,11 @@
             "required": ["id", "file"]
           },
           "description": "spec-evaluator: rows that FAILed in one of the round's T0 trials and PASS in a later one whose own check file (named by the row id) changed in between. Derived by harness compile. Each must be read against its row before its PASS counts; absent when none."
+        },
+        "scopes_without_t0": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "spec-evaluator: scopes whose contract exists but which hold no green T0 verdict for the round, while at least one other scope does. Derived by harness compile. The round is still gradeable: each row such a scope owns is a FAIL citing the scope contract, never a reason to refuse the round. Absent when every scope is green."
         },
         "build_gate": {
           "type": "string",

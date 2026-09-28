@@ -125,6 +125,19 @@ export async function run(ctx) {
       ok("compile names, on stderr, the scopes the judge has nothing to cite for");
     } else fail(`compile did not warn about the uncitable scopes; stderr was: ${c1.r.stderr.trim() || "(empty)"}`);
 
+    // One scope without a green T0 leaves its rows ungraded, not the round: the judge refused a whole
+    // round over such a scope and the run aborted at L3. The order names them as data.
+    if (JSON.stringify(c1.order?.payload?.scopes_without_t0) === JSON.stringify(["beta", "gamma"])) {
+      ok("the order names the scopes with no green T0 (scopes_without_t0), so the judge FAILs their rows instead of refusing the round");
+    } else fail(`scopes_without_t0 = ${JSON.stringify(c1.order?.payload?.scopes_without_t0)} — expected [beta, gamma]`);
+    const allRed = fixture("all-red");
+    contract(allRed, "beta");
+    t0(allRed, "r1-a1-t1.json", { round: 1, attempt: 1, trial: 1, scope_id: "beta", overall: "red" });
+    const c4 = compileEval(allRed, ["--round", "1", "--payload", WORKFLOW_PAYLOAD]);
+    if (c4.order && !("scopes_without_t0" in c4.order.payload) && !("t0_artifacts" in c4.order.payload)) {
+      ok("with no green scope at all there is nothing to cite, and no scopes_without_t0 — that round is still not gradeable");
+    } else fail(`all-red round compiled ${JSON.stringify(c4.order?.payload)} (exit ${c4.r.status})`);
+
     const c2 = compileEval(d, ["--round", "1", "--payload", JSON.stringify({ t0_artifacts: ["hand/picked.json"] })]);
     if (JSON.stringify(c2.order?.payload?.t0_artifacts) === JSON.stringify(["hand/picked.json"])) {
       ok("an explicit --payload t0_artifacts list outranks the derivation");
