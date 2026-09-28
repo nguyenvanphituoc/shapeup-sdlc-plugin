@@ -3,6 +3,14 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.17.1] — 2026-09-28 · One red scope no longer aborts the round
+
+A round in which one of two scopes went green and the other did not was refused as a whole. The judge
+read the T0-citation rule per scope, returned `failed`, and the run aborted at L3 before the next round
+or GATE H's census could act. With at least one citation the round is gradeable. The evaluate order
+now names the scopes with no green T0 this round (`scopes_without_t0`), and the judge grades their rows
+FAIL, citing the scope contract.
+
 ## [3.17.0] — 2026-09-28 · A result that is not what the run asked for is sent back once
 
 A worker's result can be well-formed and still not what the run asked for. The run now asks the
