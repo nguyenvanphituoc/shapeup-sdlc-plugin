@@ -269,12 +269,38 @@ export function renderTable(r) {
   return out.join("\n");
 }
 
+/**
+ * Whether a board that has tasks carries any `covers:` clause while a requirements registry exists.
+ *
+ * Two bars answer "is this requirement planned": L1b is satisfied by a scope contract's own covers
+ * list, while the matrix reads only the acceptance criteria's `(covers: REQ-…)` clauses. A board
+ * regenerated with none crossed every gate, and the matrix then read "no evidence" under every
+ * requirement of a run whose criteria had passed. Measured on two consecutive runs of one pitch:
+ * thirty clauses on one board, zero on the next, the same instruction both times.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {(string|null)} A reason phrased for the board's writer, or null when there is no
+ *   registry, no board yet, or at least one clause.
+ */
+export function boardCoversProblem(cwd, slug) {
+  const clauses = parseRequirements(readIf(requirementsFile(cwd, slug)) || "");
+  if (!clauses.length) return null;
+  const board = readBoard(cwd, slug);
+  if (!Array.isArray(board) || !board.length) return null;
+  if (coveringAcs(board).size) return null;
+  return `the board's ${board.length} tasks carry no \`(covers: REQ-…)\` clause while the registry holds ${clauses.length} ` +
+    "requirements — every acceptance criterion that grades a requirement carries its covers clause, or the requirements " +
+    "matrix reads no evidence for any of them";
+}
+
 export const ARGV_SPEC = {
-  usage: "harness.mjs probe requirements --slug <slug> [--run-id <id>] [--format json|table] [--cwd <dir>]",
+  usage: "harness.mjs probe requirements --slug <slug> [--run-id <id>] [--format json|table] [--board-check] [--cwd <dir>]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   slug: { type: "str", required: true },
   "run-id": { type: "str" },
   format: { type: "enum", values: ["json", "table"], default: "json" },
+  "board-check": { type: "flag" },
   cwd: { type: "path" },
 };
 
@@ -288,6 +314,12 @@ export const ARGV_SPEC = {
 export async function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = resolve(args.cwd || process.cwd());
+  if (args.boardCheck) {
+    // `--board-check` answers one question for the run's send-back: may this board stand?
+    const reason = boardCoversProblem(cwd, args.slug);
+    console.log(JSON.stringify({ ok: !reason, reason }));
+    process.exit(reason ? 1 : 0);
+  }
   const report = projectRequirements({ cwd, slug: args.slug, runId: args.runId ?? undefined });
   console.log(args.format === "table" ? renderTable(report) : JSON.stringify(report, null, 2));
   process.exit(0);

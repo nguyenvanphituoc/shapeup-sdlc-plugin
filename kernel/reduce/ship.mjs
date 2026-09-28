@@ -39,6 +39,7 @@ import { ratchetReport } from "../probe/stats.mjs";
 import { projectRequirements, summaryLine } from "../probe/requirements.mjs";
 import { deriveRounds } from "../probe/rounds.mjs";
 import { collectDiff, scanDiff, summarize } from "./leftovers.mjs";
+import { chartersRun } from "../probe/hunt.mjs";
 
 /** @returns {string} Today as `YYYY-MM-DD` (UTC). */
 const today = () => new Date().toISOString().slice(0, 10);
@@ -392,7 +393,7 @@ export function buildReport(facts) {
  */
 export function qaStatus(passed, huntReport) {
   if (passed === "skipped" || (!passed && !huntReport)) return passed || "skipped";
-  if (huntReport && /^charters:\s*0\s*\//m.test(huntReport)) return "not-hunted";
+  if (huntReport && chartersRun(huntReport) === 0) return "not-hunted";
   return passed || "run";
 }
 

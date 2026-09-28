@@ -60,7 +60,8 @@ export async function run(ctx) {
     } else fail(`probe eval: exit ${r.status} ${r.stdout}`);
 
     const wf = readFileSync(join(ROOT, "skills/tech-lead/workflows/shapeup-run.js"), "utf8");
-    if (/eval:r\$\{round\}:again/.test(wf) && /ev && !ev\.ok && ev\.overall && ev\.reason/.test(wf)) ok("the run sends a refused verdict back to the judge once, with the refusal's reason");
+    const evalBlock = wf.slice(wf.indexOf('skill: "spec-evaluator", operation: "evaluate"') - 200, wf.indexOf("verdict = ev.overall"));
+    if (/sendBackOnce\(/.test(evalBlock) && /probe eval --slug/.test(evalBlock) && /!v\.ok && !!v\.overall && !!v\.reason/.test(evalBlock)) ok("the run sends a refused verdict back to the judge once, with the refusal's reason");
     else fail("the workflow no longer re-dispatches a refused verdict");
   } finally {
     rmSync(d, { recursive: true, force: true });

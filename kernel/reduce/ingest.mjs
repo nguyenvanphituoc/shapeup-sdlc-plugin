@@ -36,8 +36,9 @@ import { resolve, join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validate } from "../verify/envelope.mjs";
 import { runArgs } from "../lib/argv.mjs";
-import { tasksDir, localRoot, dispatchReceipts, legLedger, readRunId } from "../lib/paths.mjs";
+import { tasksDir, localRoot, dispatchReceipts, legLedger, readRunId, qaDir } from "../lib/paths.mjs";
 import { citationProblem, coverageProblem, verdictProblem } from "../probe/eval.mjs";
+import { huntProblem } from "../probe/hunt.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RESULT_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../schemas/work-result.schema.json"), "utf8"));
@@ -706,6 +707,24 @@ export async function cli(rawArgv) {
       console.error(`ingest-result: result refused — ${problem}.`);
       console.error(`  The round stays open: re-dispatch the evaluator against its order, which lists`);
       console.error(`  the T0 artifacts to cite and the spec whose rows it grades. Nothing was written.`);
+      process.exit(1);
+    }
+  }
+
+  // --- Hunt gate: a `done` hunt over a reachable app ran at least one charter ---------------------
+  // A hunter that reached the app and drafted nothing returned `done`, and a `done` with no findings
+  // reads as a clean app. See `huntProblem`; `probe hunt` refuses the same result to the run.
+  if (result.worker === "qa-edge-hunter") {
+    const reportRel = (Array.isArray(result.artifacts) ? result.artifacts : []).find((a) => /hunt-report\.md$/.test(String(a)));
+    const reportAbs = reportRel ? (String(reportRel).startsWith("/") ? reportRel : join(cwd, reportRel)) : null;
+    let report = null;
+    for (const p of [reportAbs, join(qaDir(cwd, String(result.order_id).split("/")[0]), "hunt-report.md")]) {
+      if (!report && p && existsSync(p)) report = readFileSync(p, "utf8");
+    }
+    const problem = huntProblem(result, order.payload || {}, report);
+    if (problem) {
+      console.error(`ingest-result: result refused — ${problem}.`);
+      console.error(`  Re-dispatch the hunter against its order. Nothing was written.`);
       process.exit(1);
     }
   }

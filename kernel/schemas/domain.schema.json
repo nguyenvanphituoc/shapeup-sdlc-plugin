@@ -2871,6 +2871,11 @@
         "qa_findings": {
           "type": "integer"
         },
+        "qa": {
+          "type": "string",
+          "enum": ["run", "not-hunted", "skipped"],
+          "description": "What QA amounted to: run (at least one charter ran), not-hunted (the hunt returned and ran no charter), skipped (--no-qa or the QA gate answered skip). qa_findings is 0 in the last two for different reasons."
+        },
         "report": {
           "type": "string",
           "description": "shipped: shapeup/<slug>/REPORT.md path."

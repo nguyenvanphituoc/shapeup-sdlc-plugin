@@ -76,7 +76,9 @@ HARD (any miss → STOP, report which):
   ✅ deliverable reachable: one real request at `app_url`, or `launch_cmd` run and exit 0, or one
      real invocation of the entry point (not a ping, not a guess that a tool is missing). When the
      order carries `launch_cmd`, run it before concluding anything; the report names the command
-     and its exit. A hunt that reached nothing returns `status: failed`, never `done`.
+     and its exit. A hunt that reached nothing returns `status: failed`, never `done`. A hunt that
+     reached the app runs at least one charter: ingest refuses a `done` whose report says
+     `charters: 0/…` while the order carried `launch_cmd` or `app_url`.
   ✅ EVAL-FEATURE-<slug>.md exists with verdict: PASS
   ✅ if discovery/ledger.md exists: ledger.feature == <feature> (read-only context check —
      a missing ledger is fine; ingest creates it when your findings land)

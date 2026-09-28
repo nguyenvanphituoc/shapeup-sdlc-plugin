@@ -32,7 +32,8 @@
 //   gate                                      An answer file with a source, not a vibe.
 //   probe    resume · t0 · stats · digest ·   Read-only queries over run state. `concurrency`
 //            concurrency · leg · eval ·        answers how many legs ran at once and what the
-//            owner · requirements · attempts
+//            owner · requirements · attempts ·
+//            hunt
 //                                              fan-out bought, and refuses a figure the record set
 //                                              cannot support rather than printing a plausible one.
 //                                              `leg` answers whether a scope's work reached the
@@ -92,7 +93,7 @@ export const ROUTES = {
     resume: "./probe/resume.mjs", t0: "./probe/t0.mjs", stats: "./probe/stats.mjs",
     digest: "./probe/digest.mjs", concurrency: "./probe/concurrency.mjs",
     leg: "./probe/leg.mjs", eval: "./probe/eval.mjs", owner: "./probe/owner.mjs",
-    requirements: "./probe/requirements.mjs", attempts: "./probe/attempts.mjs",
+    requirements: "./probe/requirements.mjs", attempts: "./probe/attempts.mjs", hunt: "./probe/hunt.mjs",
   },
   init: { run: "./init/run.mjs", fit: "./init/fit.mjs", "run-args": "./init/run-args.mjs" },
   report: { export: "./report/export.mjs", _default: "export" },

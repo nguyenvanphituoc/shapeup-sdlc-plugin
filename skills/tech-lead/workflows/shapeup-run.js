@@ -38,7 +38,7 @@
 //   maxParallelScopes (default 4).
 //
 // return — RunReturn (domain.schema.json $defs/RunReturn), the full union:
-//   { status: "shipped", verdict, rounds_used, dims_not_evaluated, qa_findings, report }
+//   { status: "shipped", verdict, rounds_used, dims_not_evaluated, qa_findings, qa, report }
 //   { status: "paused",  paused_at, block, valid_decisions, context }
 //   { status: "aborted", aborted_at, reason }
 //   { status: "gate_h",  breaker: "outer"|"attempt_budget"|"none"|"deadline", hammer_proposals, green_scopes,
@@ -632,6 +632,22 @@ const QA_REPORT = {
   required: ["ok", "findings_count"],
 };
 
+const BOARD_CHECK = {
+  type: "object",
+  properties: { ok: { type: "boolean" }, reason: { type: ["string", "null"] } },
+  required: ["ok"],
+};
+
+const HUNT_OUTCOME = {
+  type: "object",
+  properties: {
+    ok: { type: "boolean" }, status: { type: ["string", "null"] },
+    qa: { type: "string", enum: ["run", "not-hunted", "missing"] },
+    charters_run: { type: ["integer", "null"] }, findings: { type: "integer" }, reason: { type: ["string", "null"] },
+  },
+  required: ["ok", "qa"],
+};
+
 const HAMMER = {
   type: "object",
   properties: {
@@ -854,6 +870,58 @@ async function worker({ skill, operation, payload, schema, phase: phaseName, lab
     { model, phase: phaseName, label, schema, effort: "medium" },
   );
   return (r && typeof r === "object") ? r : nullFail(label);
+}
+
+/**
+ * Dispatch a worker, check its result mechanically, and send it back ONCE with the refusal.
+ *
+ * A worker's result can be well-formed and still not what the run asked for — a verdict that grades
+ * the surface as a group, a hunt that reached the app and ran no charter. The kernel says so; this
+ * turns that into one more dispatch carrying the kernel's own reason, and only a second refusal
+ * stands. Measured: a rule in the skill made the judge grade row by row on its first dispatch, and
+ * the refusal is what holds when the model takes the loose path anyway.
+ *
+ * @param {function(string): Promise<object>} dispatch - Dispatches the worker; takes a note to append.
+ * @param {function(string): Promise<(object|null)>} check - Runs the kernel's check; takes a label suffix.
+ * @param {function(object): boolean} refused - Whether a check's answer is a correctable refusal.
+ * @param {string} what - What is being checked, for the log line.
+ * @returns {Promise<{r: object, v: (object|null)}>} The last dispatch and the last check.
+ */
+async function sendBackOnce(dispatch, check, refused, what) {
+  let r = await dispatch("");
+  if (r.__failed) return { r, v: null };
+  let v = await check("");
+  if (v && refused(v)) {
+    log(`${what} — refused (${v.reason}); sent back once`);
+    r = await dispatch(` Your previous result was refused: ${v.reason}. Correct that and return again.`);
+    if (r.__failed) return { r, v: null };
+    v = await check(":again");
+  }
+  return { r, v };
+}
+
+/**
+ * Dispatch a board writer (analyze, or the board-only regeneration) and send it back once when the
+ * board carries no `covers:` clause while a requirements registry exists.
+ *
+ * Advisory past the second dispatch: the requirements matrix never blocks a ship, so a board that
+ * still carries none continues with a state warning naming what the matrix will read, rather than
+ * aborting a run whose plan is otherwise sound.
+ *
+ * @param {function(string): Promise<object>} dispatch - The board writer's dispatch; takes a note.
+ * @param {string} what - The operation, for the log and the warning.
+ * @returns {Promise<{r: object, v: (object|null)}>} The last dispatch and the last check.
+ */
+async function boardSentBack(dispatch, what) {
+  const out = await sendBackOnce(dispatch,
+    (suffix) => query(`probe requirements --slug ${slug} --board-check`, BOARD_CHECK, "Analyze", `board-covers${suffix}`),
+    (v) => !v.ok && !!v.reason, `ANALYZE ${what}`);
+  if (!out.r.__failed && out.v && !out.v.ok && out.v.reason) {
+    const msg = `ANALYZE ${what}: ${out.v.reason} (after one send-back; the requirements matrix will read no evidence)`;
+    log(msg);
+    stateWarnings.push(msg);
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1172,7 +1240,7 @@ async function closeIfTerminal(ret) {
       // A result the single writer never applied is named at the close, not folded into "not green".
       + (Array.isArray(ret.unapplied_results) && ret.unapplied_results.length ? ` unapplied_results=${ret.unapplied_results.length}` : "")
       + (ret.census ? ` census=${ret.census}` : "") + (ret.l4 ? ` l4=${ret.l4}` : "") + (ret.ship_report ? ` ship_report=${ret.ship_report}` : "")
-    : `verdict=${ret.verdict ?? "?"} rounds=${ret.rounds_used ?? "?"} qa_findings=${ret.qa_findings ?? "?"}`
+    : `verdict=${ret.verdict ?? "?"} rounds=${ret.rounds_used ?? "?"} qa_findings=${ret.qa_findings ?? "?"}` + (ret.qa ? ` qa=${ret.qa}` : "")
       + (ret.after ? ` after=${ret.after} breaker=${ret.breaker ?? "?"} census=${ret.census ?? "?"} cut_list=${Array.isArray(ret.cut_list) ? ret.cut_list.length : "?"}` : "");
   // `--close-arm` hands the kernel the arm itself (not a status this file decided was terminal) —
   // a non-terminal arm (`paused`, `ok`) still exits 0 with no "decision" key, so the branches below
@@ -1384,11 +1452,11 @@ if (!rs.has_spec_tree) {
   // single run since the cutover. It is advisory, so nothing stopped; the ledger simply stayed on
   // the previous phase and the snapshot under-reported where the run had got to.
   await setRunStatus("mapping", "Analyze");
-  const a = await worker({
-    skill: "ba-pitch-analyzer", operation: "analyze", schema: PHASE_OK, phase: "Analyze", label: "analyze",
+  const { r: a } = await boardSentBack((note) => worker({
+    skill: "ba-pitch-analyzer", operation: "analyze", schema: PHASE_OK, phase: "Analyze", label: note ? "analyze:again" : "analyze",
     payload: { pitch: rs.intake_path, breadboard: rs.breadboard_path, spec_folder: specFolder, feature: slug, lens: rs.lens, orient_dir: rs.orient_dir },
-    extra: "Write the spec tree and the board from the orient artifacts — do not re-scan the code.",
-  });
+    extra: "Write the spec tree and the board from the orient artifacts — do not re-scan the code." + note,
+  }), "analyze");
   if (a.__failed) return await withWarnings(diedAt("ANALYZE", a));
   const post = await requirePhase("ANALYZE", "analyze", "Analyze");
   if (post) return await withWarnings(post);
@@ -1402,13 +1470,13 @@ if (!rs.has_spec_tree) {
   // operation regenerates it from the tree without re-deriving the tree.
   log(`ANALYZE — spec tree on disk, no board: dispatching the board-only operation (slug ${slug})`);
   await setRunStatus("mapping", "Analyze");
-  const b = await worker({
-    skill: "ba-pitch-analyzer", operation: "board", schema: PHASE_OK, phase: "Analyze", label: "board",
+  const { r: b } = await boardSentBack((note) => worker({
+    skill: "ba-pitch-analyzer", operation: "board", schema: PHASE_OK, phase: "Analyze", label: note ? "board:again" : "board",
     payload: { spec_folder: specFolder, feature: slug, lens: rs.lens },
     extra: "The spec tree is committed and FROZEN for this dispatch. Regenerate the per-machine board " +
            "under the run's tasks/ directory from the use cases on disk — every acceptance criterion " +
-           "carrying its `(covers: REQ-…)` clause — and write nothing under the spec folder.",
-  });
+           "carrying its `(covers: REQ-…)` clause — and write nothing under the spec folder." + note,
+  }), "board");
   if (b.__failed) return await withWarnings(diedAt("ANALYZE", b));
   // The board a worker writes carries `depends_on`; its inverse (`unlocks`) and a new task's
   // `status: todo` are mechanical, so the kernel writes them rather than trusting every regeneration
@@ -1872,31 +1940,26 @@ while (verdict !== "pass" && round <= maxRounds) {
     // freezes at GATE L4 has to say that as plainly as the gate block already does.
     verdict = "not-evaluated";
   } else {
-    const evalOnce = (label, extraNote = "") => worker({
-      skill: "spec-evaluator", operation: "evaluate", schema: EVAL, phase: "Eval", label,
-      model: evalModel, round,
-      // No `t0_artifacts` here, deliberately: `harness compile` derives them from the round's green
-      // T0 verdicts on disk, for every lane — this script could only name paths it was told about.
-      // The same goes for `build_gate` and `launch_cmd`: compile reads them off the round's gate
-      // artifact and the project profile, so the judge gets the launch evidence without this script
-      // having to carry it.
-      payload: { dimensions: evalDims, run_cmd: rs.run_cmd, round },
-      extra: "Evaluate the running feature against every acceptance criterion and Done-when. One feature-level pass; cite every artifact the order lists under t0_artifacts, re-hashing each yourself." + extraNote,
-    });
-    let e = await evalOnce(`eval:r${round}`);
+    const { r: e, v: ev } = await sendBackOnce(
+      (note) => worker({
+        skill: "spec-evaluator", operation: "evaluate", schema: EVAL, phase: "Eval",
+        label: note ? `eval:r${round}:again` : `eval:r${round}`, model: evalModel, round,
+        // No `t0_artifacts` here, deliberately: `harness compile` derives them from the round's green
+        // T0 verdicts on disk, for every lane — this script could only name paths it was told about.
+        // The same goes for `build_gate` and `launch_cmd`: compile reads them off the round's gate
+        // artifact and the project profile, so the judge gets the launch evidence without this script
+        // having to carry it.
+        payload: { dimensions: evalDims, run_cmd: rs.run_cmd, round },
+        extra: "Evaluate the running feature against every acceptance criterion and Done-when. One feature-level pass; cite every artifact the order lists under t0_artifacts, re-hashing each yourself." + note,
+      }),
+      // The pass/fail branch is decided from the WorkResult on disk, not from the dispatching
+      // agent's own summary of it (`e.overall`) — see EVAL_VERDICT's comment for why.
+      (suffix) => query(`probe eval --slug ${slug} --round ${round}`, EVAL_VERDICT, "Eval", `verdict:r${round}${suffix}`),
+      // A verdict the kernel refused — grouped rows, a missing citation — is correctable, not a dead judge.
+      (v) => !v.ok && !!v.overall && !!v.reason,
+      `EVAL r${round}`,
+    );
     if (e.__failed) return await withWarnings(diedAt("L3", e));
-    // The pass/fail branch is decided from the WorkResult on disk, not from the dispatching
-    // agent's own summary of it (`e.overall`) — see EVAL_VERDICT's comment for why.
-    let ev = await query(`probe eval --slug ${slug} --round ${round}`, EVAL_VERDICT, "Eval", `verdict:r${round}`);
-    // A verdict the kernel refused — a PASS that grades the surface as a group, a missing citation —
-    // is a correctable answer, not a dead judge: the judge is sent back once with the refusal's own
-    // words, and only a second refusal ends the round.
-    if (ev && !ev.ok && ev.overall && ev.reason) {
-      log(`EVAL r${round} — verdict refused (${ev.reason}); the judge is sent back once`);
-      e = await evalOnce(`eval:r${round}:again`, ` Your previous verdict for this round was refused: ${ev.reason}. Grade again and correct that.`);
-      if (e.__failed) return await withWarnings(diedAt("L3", e));
-      ev = await query(`probe eval --slug ${slug} --round ${round}`, EVAL_VERDICT, "Eval", `verdict:r${round}:again`);
-    }
     if (!ev) return await withWarnings(diedAt("L3", nullFail(`verdict:r${round}`)));
     // A round with no verdict to act on is NOT a dead worker. An evaluator that refused the round
     // wrote a result saying why, and `probe eval` carries it as `reason`; reported as "died after
@@ -1953,15 +2016,26 @@ let qaFindings = 0;
 const qaG = await crossGate("QA", "QA", ["run", "skip", "ask"], { round, verdict });
 if (qaG.stop) return await withWarnings(qaG.stop);
 const qaRan = !args.noQa && qaG.decision === "run";
+// What QA amounted to, from the hunt's own record: `run` only when a charter ran. The QA gate's `run`
+// is the decision to dispatch, and a dispatched hunt that drove nothing is `not-hunted`.
+let qaState = "skipped";
 if (qaRan) {
-  const q = await worker({
-    skill: "qa-edge-hunter", operation: "hunt", schema: QA_REPORT, phase: "QA", label: "hunt", model: qaModel,
-    payload: { feature: slug, spec_folder: specFolder, app_url: rs.app_url, round },
-    extra: "Exploratory hunt over the shipped feature. No verdict and no score — findings only, each with a repro.",
-  });
+  const { r: q, v: hv } = await sendBackOnce(
+    (note) => worker({
+      skill: "qa-edge-hunter", operation: "hunt", schema: QA_REPORT, phase: "QA", label: note ? "hunt:again" : "hunt", model: qaModel,
+      payload: { feature: slug, spec_folder: specFolder, app_url: rs.app_url, round },
+      extra: "Exploratory hunt over the shipped feature. No verdict and no score — findings only, each with a repro." + note,
+    }),
+    (suffix) => query(`probe hunt --slug ${slug}`, HUNT_OUTCOME, "QA", `hunt-outcome${suffix}`),
+    (v) => !v.ok && v.status === "done" && !!v.reason,
+    "QA hunt",
+  );
   // QA is a level-up: losing its worker costs the findings, not the run.
   if (q.__failed) log(`QA — the hunt lost its worker: ${q.__failed}. Shipping without QA findings.`);
-  else qaFindings = q.findings_count;
+  else {
+    qaFindings = hv && Number.isInteger(hv.findings) ? hv.findings : q.findings_count;
+    qaState = hv?.qa === "run" ? "run" : "not-hunted";
+  }
 }
 
 // ---- GATE H — delegated to scope-hammer (census, baseline comparison, cut list) ----------------
@@ -1986,7 +2060,7 @@ if (h.verdict === "cannot-ship") {
 // "not-evaluated" as a real verdict (its own usage string, and `generate()`'s no-artifact
 // default). Hardcoding PASS here is exactly the silent upgrade protocol.md's Rules forbid.
 const shipVerdict = verdict === "not-evaluated" ? "not-evaluated" : "PASS";
-const ship = await cmd(`reduce ship --slug ${slug} --verdict ${shipVerdict} --qa ${qaRan ? "run" : "skipped"}`, "Ship", "ship-report");
+const ship = await cmd(`reduce ship --slug ${slug} --verdict ${shipVerdict} --qa ${qaState}`, "Ship", "ship-report");
 // GATE L4 HAS A CALL SITE. It used to be a line of prose in the tech lead's references — "resolve
 // the gate itself before any of the above" — and a run reached its ship decision with no ledger row
 // for it. The resolver narrows `ship` on the census artifact the hammer just wrote.
@@ -2016,6 +2090,7 @@ return await withWarnings({
   rounds_used: round,
   dims_not_evaluated: ALL_DIMS.filter((d) => !evalDims.includes(d)),
   qa_findings: qaFindings,
+  qa: qaState,
   report: REPORT_PATH,
 });
 

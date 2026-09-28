@@ -16,7 +16,7 @@ kernel/harness.mjs       the deterministic half behind ONE entry point (and ther
                           reduce  — ingest (the single writer) · board · verdict · hill ·
                                     graph · snapshot · ship
                           probe   — resume · t0 · stats · digest · concurrency · leg ·
-                                    eval · owner · requirements · attempts
+                                    eval · owner · requirements · attempts · hunt
                           report  — export (read-only fact tables keyed by run id)
                           init    — run · fit · run-args
                           gate    — the gate answer set

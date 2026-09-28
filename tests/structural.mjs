@@ -460,6 +460,12 @@ const MODULE_FILES = [
   // 111-one-sign-off.mjs: a launched run crossed L4 and the orchestrator crossed it again after the
   // close. A second resolve now returns the first sign-off.
   "111-one-sign-off.mjs",
+  // 112-a-hunt-that-hunts.mjs: a hunt reached the app and ran no charter, and returned done. It is
+  // now refused and the hunter sent back once; QA's state comes from the hunt's own record.
+  "112-a-hunt-that-hunts.mjs",
+  // 113-a-board-that-covers.mjs: one board carried thirty covers clauses and the next none, from the
+  // same instruction. A board with none beside a registry sends its writer back once, then warns.
+  "113-a-board-that-covers.mjs",
   "08-docs.mjs",
 ];
 
