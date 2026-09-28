@@ -3,6 +3,22 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.17.0] — 2026-09-28 · A result that is not what the run asked for is sent back once
+
+A worker's result can be well-formed and still not what the run asked for. The run now asks the
+kernel whether each such result may stand, and sends the worker back once with the kernel's reason.
+Only a second refusal stands.
+
+- **A hunt that reached the app runs a charter.** A `done` hunt whose order carried `launch_cmd` or
+  `app_url`, and whose report says `charters: 0/…`, is refused on ingest and by the new
+  `probe hunt`. QA's state comes from the hunt's own record (`run`, `not-hunted`, `skipped`) and is
+  the same in the ship report, the run's return (`qa`) and the close line.
+- **A board carries its covers clauses.** A board with no `(covers: REQ-…)` clause beside a
+  requirements registry sends its writer back once (`probe requirements --board-check`). Because
+  the requirements matrix never blocks a ship, a board that still has none continues with a state
+  warning.
+- The evaluate send-back from 3.16.0 moves onto the same helper, unchanged.
+
 ## [3.16.1] — 2026-09-27 · A full defect re-check: one slug-bricking report, one double sign-off
 
 - **A run-trace path copied into the report no longer bricks the slug.** The first run whose QA hunt
