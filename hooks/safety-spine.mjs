@@ -106,14 +106,21 @@ function tokens(segment) {
  * The program names answer it. Arguments are never recorded — they are where a secret, a token or a
  * private path would be — and a basename says which tool ran without saying where it lives.
  *
+ * A `\`-continued line is joined to the one before it FIRST, before any segment split — a shell
+ * reads `cmd \<newline>  --flag x` as one logical line, and so must this. Splitting on the bare
+ * newline first (measured, live) read a multi-line `init run` as one "program" per physical line —
+ * `node`, then `--slug`, then `--auto-level`, each a flag misread as an executable — which is how
+ * a real dispatch and a garbled one produced the same "clean, permitted" shape in the ledger.
+ *
  * @param {string} command - The raw Bash command.
  * @returns {(string|null)} Program basenames joined by " | ", in order, duplicates kept; null when
  *   no segment yields one.
  */
 export function programsOf(command) {
   if (!command || typeof command !== "string") return null;
+  const joined = command.replace(/\\[ \t]*\n/g, " ");
   const names = [];
-  for (const segment of command.split(/\s*(?:\|\||&&|;|\||\n)\s*/).filter(Boolean)) {
+  for (const segment of joined.split(/\s*(?:\|\||&&|;|\||\n)\s*/).filter(Boolean)) {
     const first = commandTokens(segment)[0];
     if (!first) continue;
     const base = first.replace(/^["']|["']$/g, "").split("/").pop();

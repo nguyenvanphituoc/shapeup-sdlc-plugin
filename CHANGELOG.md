@@ -3,6 +3,18 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.18.2] — 2026-09-29 · The ledger reads a continued command as one program, not one per line
+
+`programsOf` (the safety spine's allow-row subject) split a Bash command on every newline before
+reading each segment's executable. A `\`-continued multi-line command — exactly the shape a shell
+reads as one logical line — was split at each physical line instead, and the first token of a
+continuation line is usually a flag, not a program: `node ... init run \` / `--slug demo \` /
+`--auto-level unattended` logged as `node | --slug | --auto-level`, three "programs" where there was
+one. That shape was indistinguishable in the ledger from a command that had actually run three
+different things, which cost real diagnosis time on a live soak. A `\`-continued line is now joined
+to the one before it before any segment split; a genuine bare newline between two commands still
+separates them, as `;` does.
+
 ## [3.18.1] — 2026-09-29 · A planning leg that returned no WorkResult is sent back once
 
 A planning leg could write its artifacts and skip its envelope: no WorkResult and no leg row. The phase

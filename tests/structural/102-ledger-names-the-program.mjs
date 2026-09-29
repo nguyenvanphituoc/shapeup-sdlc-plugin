@@ -27,6 +27,13 @@ export async function run(ctx) {
     ["cd app && FOO=1 hvigorw test | grep ERROR; echo ok", "cd | hvigorw | grep | echo"],
     ["sudo env A=1 node \"/p q/kernel/harness.mjs\" probe t0", "node"],
     ["", null],
+    // A `\`-continued line is one logical command: splitting on the bare newline first read a
+    // multi-line `init run` as three "programs" — node, then the flags on each following line,
+    // each a flag name misread as an executable. That garbled shape and a real dispatch of `node`
+    // alone produced the same "clean, permitted" row, so a diagnosis could not tell them apart.
+    ["node x.mjs init run \\\n  --slug demo \\\n  --auto-level unattended", "node"],
+    // A bare (non-continued) newline is still a real command separator, as `;` is.
+    ["echo a\necho b", "echo | echo"],
   ];
   const wrong = cases.filter(([c, want]) => programsOf(c) !== want).map(([c, want]) => `${JSON.stringify(c)} → ${programsOf(c)} (want ${want})`);
   if (!wrong.length) ok("programsOf reads each segment's executable past env assignments and wrappers, by basename");
