@@ -3,6 +3,29 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.18.0] — 2026-09-29 · The judge grades the dimensions the spec calls for
+
+**Changed.** A run opened without `--dimensions` records `eval_dimensions: auto`, and each evaluate
+order resolves the set from the spec with the judge's own rules: `spec-conformance` and `tdd-surface`
+always, `integration` for `.be`/`.e2e` tasks, `completeness` when a use case has Invariants,
+`test-surface-conformance` when one has a Test Surface. The old default travelled as an explicit
+`[spec-conformance]`, which switched the judge's auto-enable off, so every orchestrated run graded one
+dimension whatever the spec carried. A set named at L0.5 still wins. GATE L4 prints the dimensions the
+order named (`dims_evaluated`) beside the ones left out, and a PASS that grades no criterion under a
+named dimension is sent back once. Expect more criteria per verdict, and PASSes the old default hid
+may now FAIL.
+
+**Fixed.**
+- A relaunch over a closed run reopens it before its first gate, and restores the run pointer the
+  close retired, so the resumed run's hook decisions carry its key again. Gate rows signed after a
+  reopen are marked with their launch in the Decisions table.
+- An order's own paths, its WorkResult first, are writable only by the sub-agent its dispatch receipt
+  names, so one live build leg can no longer write a sibling's result. A write with no sub-agent id,
+  or an order with no receipt, keeps the path-only rule.
+- The orchestrator's `init run` example is one line: a `\`-continued copy came back "requires
+  approval" over a grant that covers it. The pause table no longer steers a relaunch of an aborted run
+  to `--force`; a relaunch resumes it.
+
 ## [3.17.2] — 2026-09-28 · A verdict that anchors no criterion is sent back once
 
 `traces_to` is copied from the `covers:` clauses of the acceptance criteria a criterion grades, and the
