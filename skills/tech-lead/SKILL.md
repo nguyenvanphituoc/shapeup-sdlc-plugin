@@ -16,14 +16,11 @@ what `harness init run` writes. Working around the harness is not an exemption: 
 switch this gate off and no longer does. Loading these instructions is not running them.
 
 **Step 1 — open the run.** Write the requirement to a file first, then pass the path — a
-multi-line requirement inlined into a shell argument is where this step goes wrong (measured: six
-turns fighting shell quoting):
+multi-line requirement inlined into a shell argument is where this step goes wrong. Keep the command
+on ONE line: a grant matches a single-line command, and a `\`-continued one comes back "requires approval":
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" init run \
-  --slug <slug-from-the-request> --intake-file <path/to/the/requirement.md> \
-  --auto-level <interactive|auto|unattended> \
-  [--dimensions <a,b>] [--gate-answers <ci|guarded|path.json>] [--wall-clock-budget <seconds>] [--max-rounds 3] [--breadboard <path>]
+node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" init run --slug <slug-from-the-request> --intake-file <path/to/the/requirement.md> --auto-level <interactive|auto|unattended> [--dimensions <a,b>] [--gate-answers <ci|guarded|path.json>] [--wall-clock-budget <seconds>] [--max-rounds 3] [--breadboard <path>]
 ```
 
 **After a compaction, or in a fresh session over an open run, re-derive before you act.** One

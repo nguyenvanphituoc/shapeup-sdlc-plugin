@@ -478,6 +478,9 @@ const MODULE_FILES = [
   // 117-a-leg-writes-its-own-result.mjs: with two build legs live, either could write the other's
   // WorkResult. An order's own paths now answer only to the agent its dispatch receipt names.
   "117-a-leg-writes-its-own-result.mjs",
+  // 118-one-line-kernel-commands.mjs: a relaunch copied the orchestrator's `\`-continued `init run`
+  // and came back "requires approval" over a grant that covers it. Shipped commands stay one line.
+  "118-one-line-kernel-commands.mjs",
   "08-docs.mjs",
 ];
 
