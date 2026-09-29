@@ -484,6 +484,10 @@ const MODULE_FILES = [
   // 119-envelope-sent-back-once.mjs: the orient leg wrote its artifacts and no WorkResult on three
   // runs. A phase with a receipt and no result is now dispatched again once, then named.
   "119-envelope-sent-back-once.mjs",
+  // 120-hunter-checks-occlusion-and-seed.mjs: two lens-3 findings, worded almost identically,
+  // both hand-falsified (an overlay read as "gone", a reseed read as "survived"). The hunter's
+  // own reproduction step now requires ruling out both before either counts as a finding.
+  "120-hunter-checks-occlusion-and-seed.mjs",
   "08-docs.mjs",
 ];
 

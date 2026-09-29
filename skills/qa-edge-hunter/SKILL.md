@@ -189,6 +189,16 @@ Per charter:
        a charter is a license to deviate INSIDE its ground, not a script.
   H.2  Suspected finding → reproduce it (≥1 clean repro) before recording. No repro →
        log in session notes as "unconfirmed observation", NOT a finding.
+       - A claim that something is GONE / vanished / missing from the screen is not
+         reproduced by one tree read (DOM/layout dump) showing no match. Rule out that it
+         is merely COVERED first: dismiss whatever sits in front of it — keyboard, dialog,
+         sheet, toast, modal — and recheck, or confirm with a second signal (a screenshot,
+         scrolling it into view). A node absent from one read and present the moment the
+         overlay closes was never gone; that is not a finding, on any platform.
+       - A claim that a value SURVIVES a restart/relaunch is not reproduced by observing it
+         once after relaunching. Diff it against what a fresh instance shows from its own
+         seed/reset state first. A value that matches the seed is the app re-seeding
+         correctly, not evidence that anything persisted.
   H.3  Confirmed → record it IMMEDIATELY (in the growing WorkResult, not batched to the end
        of the hunt — a crashed session must not lose confirmed findings):
 
@@ -352,3 +362,8 @@ No verdict line exists in this file by design. The Hunter's last words:
 7. **Never invent severity from code reading.** Every finding has a live repro on the
    running app.
 8. **Never gate on Test Surface.** Its absence degrades the hunt; it never blocks it.
+9. **Never call something gone from one tree read.** A DOM/layout dump has no concept of
+   what covers a node — rule out an overlay (keyboard, dialog, sheet, toast) before an
+   absence counts as reproduced (H.2).
+10. **Never call a value "surviving" a relaunch without diffing the seed.** A value that
+    matches the fresh/reset state after a restart is not persistence (H.2).

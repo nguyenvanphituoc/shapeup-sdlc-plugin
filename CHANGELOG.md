@@ -3,6 +3,19 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.18.3] — 2026-09-29 · The hunter rules out an overlay before "gone", and diffs the seed before "survives a relaunch"
+
+**Fixed (skill guidance, HD-071).** Two lens-③ (state interruption) findings on one consumer, worded
+almost identically, both hand-falsified: a badge that supposedly "survives a relaunch" (the store
+reseeds; the hunter never diffed against the known seed value) and an item that "vanished" (the
+soft keyboard covered it; a layout/DOM dump has no concept of an overlay). `skills/qa-edge-hunter/
+SKILL.md`'s H.2 (the reproduce-before-recording step) now requires ruling out an overlay — keyboard,
+dialog, sheet, toast — before an absence claim counts as reproduced, and a diff against the fresh
+seed/reset state before a cross-relaunch persistence claim does. Both are also stated as their own
+hard rules (9, 10). Prose-only: nothing in a WorkResult's shape distinguishes a correct absence
+finding from an occlusion-blind one, so this is not kernel-enforceable — the structural suite checks
+the guidance is present, not that a live hunt follows it.
+
 ## [3.18.2] — 2026-09-29 · The ledger reads a continued command as one program, not one per line
 
 `programsOf` (the safety spine's allow-row subject) split a Bash command on every newline before
