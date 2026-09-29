@@ -59,6 +59,14 @@ export async function run(ctx) {
     const firstGate = wf.search(/await\s+crossGate\(\s*"L1a"/);
     if (reopenAt > -1 && firstGate > -1 && reopenAt < firstGate) ok("shapeup-run.js reopens a closed run before it crosses L1a");
     else fail(`reopen at ${reopenAt}, first gate at ${firstGate} — the relaunch can sign a gate over a closed run again`);
+
+    // The orchestrator's own instruction for an aborted return must send a relaunch to the resume, not
+    // to --force: a relaunch that followed "--force if truly restarting" opened a fresh run and threw
+    // the reopen, and the history it keeps, away.
+    const skill = readFileSync(join(ROOT, "skills/tech-lead/SKILL.md"), "utf8");
+    const row = skill.split("\n").find((l) => l.startsWith("| `aborted` |")) || "";
+    if (/RESUMES/.test(row) && !/if truly restarting/.test(row)) ok("the aborted row tells a relaunch to resume, and leaves --force to the PO");
+    else fail(`the aborted row still steers a relaunch to --force: ${row.slice(0, 160)}`);
   } finally {
     rmSync(w, { recursive: true, force: true });
   }
