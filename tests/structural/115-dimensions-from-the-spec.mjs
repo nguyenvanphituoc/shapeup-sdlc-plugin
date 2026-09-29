@@ -72,6 +72,19 @@ export async function run(ctx) {
     if (Array.isArray(out.dimensions) && out.dimensions.includes("test-surface-conformance")) ok("probe eval returns the dimensions the round's order named");
     else fail(`probe eval: ${pe.stdout}`);
 
+    // A PASS that leaves a named dimension ungraded is refused: L4 prints the order's set as what the
+    // PASS covers. Measured: an order named four, the PASS graded three, and L4 listed all four.
+    const { dimensionsProblem } = await import(join(ROOT, "kernel/probe/eval.mjs"));
+    const crit = (dimension) => ({ criterion: `c-${dimension}`, dimension, verdict: "PASS", evidence: "e" });
+    const three = { overall: "PASS", criteria: ["spec-conformance", "completeness", "test-surface-conformance"].map(crit) };
+    const why = dimensionsProblem(a, "demo", three, { round: 1 });
+    if (/tdd-surface/.test(why || "")) ok("a PASS with no criterion under a dimension its order named is refused, naming the dimension");
+    else fail(`three of four dimensions graded: ${why}`);
+    if (dimensionsProblem(a, "demo", { overall: "PASS", criteria: full.map(crit) }, { round: 1 }) === null) ok("a PASS that grades every named dimension passes the check");
+    else fail("a PASS grading every named dimension was refused");
+    if (dimensionsProblem(a, "demo", { overall: "FAIL", criteria: [crit("spec-conformance")] }, { round: 1 }) === null) ok("a FAIL is not held to it — it already stops the ship");
+    else fail("a FAIL was refused for an ungraded dimension");
+
     if (parseDimensions(null) === "auto" && /^eval_dimensions: auto$/m.test(runFrontmatter({
       slug: "demo", startedAt: "2026-09-29T00:00:00Z",
       config: { lens: "standard", spec_folder: "shapeup/demo/spec/", max_rounds: 3, attempt_budget: 5, auto_level: "unattended", eval_dimensions: parseDimensions(null) },

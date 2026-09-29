@@ -282,6 +282,32 @@ export function tracesProblem(cwd, slug, verdict) {
     `criteria cover ${covered} — copy each graded AC's (covers: REQ-…) clause into that criterion's traces_to`;
 }
 
+/**
+ * A PASS that grades nothing under a dimension its order named.
+ *
+ * The order names the dimensions the judge grades, and GATE L4 prints them back as what "PASS"
+ * covers. Measured: an order named four, the PASS graded criteria under three, and L4 still listed
+ * the fourth as evaluated. A PASS must grade at least one criterion under every dimension its order
+ * named; a FAIL already stops the ship, so it is not held to this.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {object} verdict - The WorkResult's `verdict`.
+ * @param {{round:(number|null)}} [opts] - The EVAL round whose order names the set; null → no check.
+ * @returns {(string|null)} Why the verdict is refused, or null.
+ */
+export function dimensionsProblem(cwd, slug, verdict, { round = null } = {}) {
+  if (verdict?.overall !== "PASS" || round == null) return null;
+  const named = orderDimensions(cwd, slug, round);
+  if (!named?.length) return null;
+  const criteria = Array.isArray(verdict.criteria) ? verdict.criteria : [];
+  const graded = new Set(criteria.map((c) => c?.dimension).filter(Boolean));
+  const missing = named.filter((d) => !graded.has(d));
+  if (!missing.length) return null;
+  return `the PASS grades no criterion under ${missing.join(", ")}, which the order names — grade each named ` +
+    "dimension's criteria, or FAIL the one you cannot grade with the reason";
+}
+
 export function citationProblem(cwd, slug, verdict, { round = null } = {}) {
   if (verdict?.overall !== "PASS" && verdict?.overall !== "FAIL") return null;
   if (!isScoped(cwd, slug)) return null;
@@ -326,7 +352,8 @@ export function evalVerdict(cwd, slug, round) {
       ? `the evaluator returned ${status || "no status"}: ${first}`
       : `status ${status || "unknown"} with no PASS/FAIL verdict`), status);
   }
-  const problem = verdictProblem(v) || coverageProblem(cwd, slug, v) || tracesProblem(cwd, slug, v) || citationProblem(cwd, slug, v, { round });
+  const problem = verdictProblem(v) || coverageProblem(cwd, slug, v) || tracesProblem(cwd, slug, v)
+    || dimensionsProblem(cwd, slug, v, { round }) || citationProblem(cwd, slug, v, { round });
   if (problem) return unfit(problem, status, overall);
   return {
     found: true,
