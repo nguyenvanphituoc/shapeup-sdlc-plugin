@@ -235,7 +235,8 @@ the layer that carries it, and the three layers here fail differently:
   an evaluation or a QA leg that never returned a result no longer holds the board. `frozen` is
   checked first and outranks everything, across every live contract — including the carve-out that
   otherwise keeps the active feature's own run trace writable, so a path a live order froze stays
-  frozen wherever it lives.
+  frozen wherever it lives. An order's own result answers to the sub-agent that took its
+  dispatch, so with two legs live neither can write the other's.
 - `PreToolUse` (`Edit|Write|MultiEdit`) — **`hooks/tier-guard.mjs` refuses a committed-tier write
   whose content names a path into the local run trace or a board id.** Same rule spec-lint reds at
   GATE L1b, asked at the moment of writing: four different producers wrote a committed file their

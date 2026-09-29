@@ -411,7 +411,7 @@ const RESUME = {
   properties: {
     intake_path: nullable("string"), spec_folder: nullable("string"), orient_dir: nullable("string"),
     breadboard_path: nullable("string"), breadboard_source: nullable("string"),
-    project_profile_path: nullable("string"), status: nullable("string"),
+    project_profile_path: nullable("string"), status: nullable("string"), closed_status: nullable("string"),
     lens: nullable("string"), stack: nullable("string"),
     run_cmd: nullable("string"), app_url: nullable("string"),
     eval_dimensions: { type: "array", items: { type: "string" } },
@@ -612,6 +612,8 @@ const EVAL_VERDICT = {
     bug_count: nullable("integer"),
     report_path: nullable("string"),
     round: { type: "integer" },
+    // The dimensions round N's evaluate order named — what "PASS" actually covers.
+    dimensions: { type: ["array", "null"], items: { type: "string" } },
     // Why the round holds no verdict it may act on — the evaluator's own first deviation when it
     // refused, or what is structurally wrong with the verdict it returned. Null when `ok`.
     status: nullable("string"),
@@ -1360,8 +1362,19 @@ if (!rs) {
   return await withWarnings(aborted("probe", "the fast-forward derivation returned no state — refusing to re-dispatch a run that may already be in progress"));
 }
 
+// A RELAUNCH OVER A CLOSED RUN REOPENS IT FIRST. The first status write is what takes a close back,
+// and a launch that fast-forwards every planning phase made that write only at BUILD, so the gates
+// it crossed on the way were recorded against a run whose ledger still read closed. Bookkeeping,
+// not a phase decision: the phases below still branch on artifacts alone.
+if (rs.closed_status) await setRunStatus("orienting", "Orient");
+
 const specFolder = rs.spec_folder || `shapeup/${slug}/spec/`;
-const evalDims = rs.eval_dimensions?.length ? rs.eval_dimensions : ["spec-conformance"];
+// A set the PO named at L0.5, or null: `harness compile` then resolves it from the spec for each
+// evaluate order. A fixed fallback here would travel as an explicit list and switch off the judge's
+// own auto-enable, which is how every run once graded spec-conformance alone.
+const evalDims = rs.eval_dimensions?.length ? rs.eval_dimensions : null;
+// What the judge was actually asked to grade, read back off the newest evaluate order.
+let gradedDims = evalDims || [];
 
 // ---- ORIENT + GATE L1a ----------------------------------------------------------------------
 let spikedArea = "~", spikeResult = "~", riskiest = [];
@@ -1691,6 +1704,7 @@ if (lastEval) {
   const prior = await query(`probe eval --slug ${slug} --round ${lastEval}`, EVAL_VERDICT, "Eval", `ff:eval-r${lastEval}`);
   if (prior?.ok && prior.overall === "PASS") {
     verdict = "pass";
+    if (Array.isArray(prior.dimensions) && prior.dimensions.length) gradedDims = prior.dimensions;
     round = lastEval;
     log(`EVAL — round ${lastEval} already returned PASS on disk, fast-forwarding past the build/eval loop`);
   }
@@ -1949,7 +1963,7 @@ while (verdict !== "pass" && round <= maxRounds) {
         // The same goes for `build_gate` and `launch_cmd`: compile reads them off the round's gate
         // artifact and the project profile, so the judge gets the launch evidence without this script
         // having to carry it.
-        payload: { dimensions: evalDims, run_cmd: rs.run_cmd, round },
+        payload: { ...(evalDims ? { dimensions: evalDims } : {}), run_cmd: rs.run_cmd, round },
         extra: "Evaluate the running feature against every acceptance criterion and Done-when. One feature-level pass; cite every artifact the order lists under t0_artifacts, re-hashing each yourself." + note,
       }),
       // The pass/fail branch is decided from the WorkResult on disk, not from the dispatching
@@ -1968,6 +1982,7 @@ while (verdict !== "pass" && round <= maxRounds) {
       return await withWarnings(diedAt("L3", { __failed: `verdict:r${round}: no verdict this round can act on — ${ev.reason || `status ${ev.status || "unknown"}`}` }));
     }
     verdict = ev.overall === "PASS" ? "pass" : "fail";
+    if (Array.isArray(ev.dimensions) && ev.dimensions.length) gradedDims = ev.dimensions;
     findings = e.findings || [];
   }
 
@@ -2088,7 +2103,8 @@ return await withWarnings({
   // human answering that gate the run was graded when it never was.
   verdict,
   rounds_used: round,
-  dims_not_evaluated: ALL_DIMS.filter((d) => !evalDims.includes(d)),
+  dims_evaluated: gradedDims,
+  dims_not_evaluated: ALL_DIMS.filter((d) => !gradedDims.includes(d)),
   qa_findings: qaFindings,
   qa: qaState,
   report: REPORT_PATH,

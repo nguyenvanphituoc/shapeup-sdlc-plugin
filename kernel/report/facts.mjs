@@ -113,7 +113,7 @@ export function runRow({ receipt, ledger = null, runId = null, rounds = null }) 
     max_rounds: num(c.max_rounds),
     attempt_budget: num(c.attempt_budget),
     wall_clock_budget_s: num(c.wall_clock_budget_s),
-    eval_dimensions: Array.isArray(c.eval_dimensions) ? c.eval_dimensions.join(" ") : null,
+    eval_dimensions: Array.isArray(c.eval_dimensions) ? c.eval_dimensions.join(" ") : (typeof c.eval_dimensions === "string" ? c.eval_dimensions : null),
     // Copied from the ledger, never re-derived: the run's own status line is the harness's answer,
     // and a read plane that recomputed it would be asserting a second one.
     status: fm.status ?? null,

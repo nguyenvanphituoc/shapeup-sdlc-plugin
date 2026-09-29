@@ -35,7 +35,7 @@ import { existsSync, readFileSync, readdirSync, realpathSync } from "node:fs";
 import { join, resolve, resolve as resolvePath, sep } from "node:path";
 import { createHash } from "node:crypto";
 import { runArgs } from "../lib/argv.mjs";
-import { resultsDir, scopesDir, readRunId, verdictsDir, specDir } from "../lib/paths.mjs";
+import { resultsDir, ordersDir, scopesDir, readRunId, verdictsDir, specDir } from "../lib/paths.mjs";
 import { readBoard } from "../compile.mjs";
 import { coveringAcs } from "./requirements.mjs";
 
@@ -338,6 +338,22 @@ export function evalVerdict(cwd, slug, round) {
   };
 }
 
+/**
+ * The dimensions round N's evaluate order named — the set the judge was asked to grade.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {number} round - The EVAL round (`evaluate-r<N>.json`).
+ * @returns {(string[]|null)} The order's `payload.dimensions`; null when the order or the list is absent.
+ */
+export function orderDimensions(cwd, slug, round) {
+  try {
+    const o = JSON.parse(readFileSync(join(ordersDir(cwd, slug), `evaluate-r${round}.json`), "utf8"));
+    const d = o?.payload?.dimensions;
+    return Array.isArray(d) && d.every((x) => typeof x === "string") ? d : null;
+  } catch { return null; }
+}
+
 export const ARGV_SPEC = {
   usage: "harness.mjs probe eval --slug <slug> --round N [--cwd <dir>]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
@@ -356,6 +372,7 @@ export function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = resolve(args.cwd || process.cwd());
   const { found, overall, status, reason, bug_count, report_path } = evalVerdict(cwd, args.slug, args.round);
-  console.log(JSON.stringify({ ok: found, overall, bug_count, report_path, round: args.round, status, reason }));
+  const dimensions = orderDimensions(cwd, args.slug, args.round);
+  console.log(JSON.stringify({ ok: found, overall, bug_count, report_path, round: args.round, status, reason, dimensions }));
   process.exit(found ? 0 : 1);
 }

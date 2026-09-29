@@ -52,7 +52,7 @@
 //   --max-rounds N  outer circuit breaker             (default: 3)
 //   --attempts N    inner per-scope T0 budget         (default: 5)
 //   --spec-folder   SHARED spec deliverable path      (default: shapeup/<slug>/spec/)
-//   --dimensions    comma-separated eval dimensions   (default: spec-conformance)
+//   --dimensions    comma-separated eval dimensions   (default: auto — resolved from the spec per EVAL order)
 //   --gate-answers  path | preset name                (see `harness gate`; recorded, not read)
 //   --breadboard    path to the pitch's breadboard     (default: found — see resolveBreadboard())
 //   --wall-clock-budget N  deadline breaker, seconds  (off by default; see `harness verify budget`)
@@ -91,10 +91,13 @@ const AUTO_LEVELS = new Set(["interactive", "auto", "unattended"]);
 const LENSES = new Set(["lite", "standard", "cross-context"]);
 
 /**
- * The eval dimension set when the caller names none. Kept to the base correctness dimension so an
- * unconfigured run behaves exactly as it did before this flag existed.
+ * The eval dimension set when the caller names none: `auto`. The spec does not exist yet when a run
+ * opens, so the set cannot be resolved here; each evaluate order resolves it from the spec on disk
+ * (`harness compile`), with the judge's own auto-enable rules. A fixed default in this place made
+ * every orchestrated run grade `spec-conformance` alone, because an explicit list switches the
+ * judge's auto-enable off.
  */
-export const DEFAULT_DIMENSIONS = ["spec-conformance"];
+export const DEFAULT_DIMENSIONS = "auto";
 
 /**
  * Parse `--dimensions` into the set written to the ledger. Shape-validated only, NOT checked against
@@ -103,14 +106,14 @@ export const DEFAULT_DIMENSIONS = ["spec-conformance"];
  * unreachable. An id with no file behind it is skipped-with-a-warning at dimension resolution, which
  * is where that check belongs and where it can actually see the files.
  *
- * @param {(string|null|undefined)} raw - The comma-separated flag value; absent → the default set.
- * @returns {string[]} Trimmed, de-duplicated ids in the caller's order.
+ * @param {(string|null|undefined)} raw - The comma-separated flag value; absent → `auto`.
+ * @returns {(string[]|string)} Trimmed, de-duplicated ids in the caller's order, or `auto`.
  * @throws {Error} If the list is empty or an entry is not a kebab-case id.
  */
 export function parseDimensions(raw) {
-  if (raw === null || raw === undefined) return [...DEFAULT_DIMENSIONS];
+  if (raw === null || raw === undefined) return DEFAULT_DIMENSIONS;
   const ids = String(raw).split(",").map((s) => s.trim()).filter(Boolean);
-  if (!ids.length) throw new Error("--dimensions: empty list — omit the flag to use the default [spec-conformance]");
+  if (!ids.length) throw new Error("--dimensions: empty list — omit the flag to resolve the set from the spec");
   for (const id of ids) {
     if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(id)) {
       throw new Error(`--dimensions: "${id}" is not a dimension id (kebab-case, e.g. spec-conformance, tdd-surface, integration)`);

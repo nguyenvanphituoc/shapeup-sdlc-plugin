@@ -120,7 +120,7 @@ now and RESOLVES the gate (`references/gates.md` GATE L4). Either way, emit:
 ⏸ GATE L4 — Ship Sign-Off
 Feature   : [slug] — [SHIPPED (deployed) | BUILT & VERIFIED — deploy pending (PO)]
 Rounds    : [rounds_used]
-Verdict   : [verdict] (dims: [spec-conformance]; not evaluated: [dims_not_evaluated])
+Verdict   : [verdict] (dims: [dims_evaluated]; not evaluated: [dims_not_evaluated])
 QA        : [qa_findings] findings | skipped
 Ledger    : harness-run.md
 ```

@@ -692,7 +692,7 @@ type: harness-run
 feature: [slug]
 spec_folder: [path to SHARED spec deliverable, e.g. shapeup/<slug>/spec/]
 lens: lite | standard | cross-context
-eval_dimensions: [spec-conformance]   # the set from GATE L0.5 (init-run --dimensions); every EVAL order is compiled from THIS line
+eval_dimensions: auto   # or the list from GATE L0.5 (init-run --dimensions); `auto` → each EVAL order resolves the set from the spec
 max_rounds: 3
 auto_level: interactive | auto | unattended
 status: orienting | mapping | building | evaluating | shipped | escalated | aborted

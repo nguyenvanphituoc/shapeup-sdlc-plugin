@@ -37,7 +37,7 @@ Invoked as `--order <path>`. Fields you may rely on (absent = unknown, never inf
 |---|---|
 | `payload.spec_folder` | The committed grading truth: `usecases/` + `domain-model.md` (+ `contracts/`, `scope-summary.md`, `_index.md`). No `usecases/` → HARD STOP, nothing to grade against |
 | `payload.feature` | Feature slug — scopes the probe and names the report |
-| `payload.dimensions[]` | The active dimension set (the caller resolved precedence). Absent → `[spec-conformance]` + the auto-enable rules below |
+| `payload.dimensions[]` | The active dimension set. An orchestrated order always carries it: the set the PO named, or the one resolved from the spec with the auto-enable rules below. Grade exactly this set. Absent (standalone only) → apply the rules below yourself |
 | `payload.run_cmd` | How to start the running app. On a stack where building and launching are different acts it is only the build — prefer `payload.launch_cmd` when the order carries one. Absent standalone → ask; absent orchestrated with no `launch_cmd` either → ESCALATE, do not guess |
 | `payload.launch_cmd` | The project profile's launch probe: installs the built artifact, starts it and asserts the first screen. This is how the app is brought up for `[ui]` probing. A non-zero exit is a finding to cite, not a reason to try another way. Absent → the profile declares none; fall back to `run_cmd` |
 | `payload.build_gate` | This run's newest round build gate artifact — each step's exit code and output tail. It records that the build ran and whether the app launched, and the launch step's output names what it captured. Read it before grading any `[ui]` row NO EVIDENCE: a launch that succeeded is evidence the app can be probed, and the row is graded on the app, not on its absence. Absent → the gate never ran |
@@ -52,7 +52,7 @@ Invoked as `--order <path>`. Fields you may rely on (absent = unknown, never inf
 (Steps, Error Cases, Invariants, Test Surface) and `domain-model.md` — never against a task
 file's own AC paraphrase. Task boards are LOCAL, regenerable bookkeeping the judge never touches.
 
-**Dimension resolution (craft, kept).** Base `[spec-conformance]` + always-on `tdd-surface` +
+**Dimension resolution (standalone; an orchestrated order arrives resolved).** Base `[spec-conformance]` + always-on `tdd-surface` +
 `integration` (`.be`/`.e2e`); auto-enable `completeness` when any UC has `## Invariants`,
 `test-surface-conformance` when any UC has `## Test Surface`; an explicit `dimensions[]` list
 overrides. Each active dimension's file must satisfy `references/dimension-contract.md` — a

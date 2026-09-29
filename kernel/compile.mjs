@@ -921,6 +921,50 @@ export function launchEvidenceFor(cwd, slug, round) {
   return out;
 }
 
+// --- the dimensions the judge grades ------------------------------------------------------------
+//
+// WHY THE KERNEL RESOLVES THEM. The judge's own rule is that an explicit `dimensions` list overrides
+// its auto-enable, and every orchestrated order used to carry one: the ledger's default
+// `[spec-conformance]`, which nobody chose. So a spec whose every use case carried a Test Surface
+// was never graded by `test-surface-conformance`, `completeness` never ran over Invariants, and
+// `tdd-surface` — always-on in the judge's registry — was off in every orchestrated run. Resolving
+// the set here, from the spec, with the judge's rules, makes it a fact on the order rather than a
+// default: the order file is the record of what was graded, and GATE L4 reads it back.
+
+/** The shipped dimensions, in the judge's load order. Security and performance ship disabled. */
+export const SHIPPED_DIMENSIONS = ["spec-conformance", "tdd-surface", "integration", "completeness",
+  "test-surface-conformance", "security", "performance"];
+
+/**
+ * The dimension set an evaluate order grades when the run named none — the judge registry's rules,
+ * applied to the spec on disk.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug (reads the board for task variants).
+ * @param {(string|null)} specDir - The spec folder, relative to `cwd`; null → no use cases read.
+ * @returns {string[]} `spec-conformance` and `tdd-surface` always; `integration` when a board task is
+ *   a `.be`/`.e2e` variant; `completeness` when a use case has `## Invariants`; `test-surface-conformance`
+ *   when one has `## Test Surface`. In {@link SHIPPED_DIMENSIONS} order.
+ */
+export function resolveDimensions(cwd, slug, specDir) {
+  const on = new Set(["spec-conformance", "tdd-surface"]);
+  let tasks = [];
+  try { tasks = readBoard(cwd, slug); } catch { /* an unreadable board names no variant */ }
+  if (tasks.some((t) => /\.(be|e2e)$/i.test(String(t.id || "")))) on.add("integration");
+  if (specDir) {
+    const dir = join(resolve(cwd, specDir), "usecases");
+    let files = [];
+    try { files = readdirSync(dir).filter((f) => /^UC-.*\.md$/i.test(f)); } catch { /* no use cases */ }
+    for (const f of files) {
+      let body = "";
+      try { body = readFileSync(join(dir, f), "utf8"); } catch { continue; }
+      if (/^##\s+Invariants\b/m.test(body)) on.add("completeness");
+      if (/^##\s+Test Surface\b/m.test(body)) on.add("test-surface-conformance");
+    }
+  }
+  return SHIPPED_DIMENSIONS.filter((d) => on.has(d));
+}
+
 /**
  * Assemble a WorkOrder envelope. Pure given its inputs — the CLI wrapper does the disk reads.
  * @param {object} opts - The order inputs (destructured):
@@ -1277,6 +1321,11 @@ export async function cli(rawArgv) {
       console.error(`compile-order: warning — no green T0 verdict${round ? ` in round ${round}` : ""} for ` +
         `${missing.join(", ")}; the evaluator has nothing to cite for ${missing.length === 1 ? "that scope" : "those scopes"}`);
     }
+  }
+  // The graded dimensions (see resolveDimensions). A set the PO named at L0.5 travels in `--payload`
+  // and wins; an absent or empty list is resolved from the spec, never left to the judge's default.
+  if (operation === "evaluate" && !(Array.isArray(payloadExtra.dimensions) && payloadExtra.dimensions.length)) {
+    payloadExtra.dimensions = resolveDimensions(cwd, slug, payloadExtra.spec_folder || specDir);
   }
   // The launch evidence, for every lane (see launchEvidenceFor). Same rule as above: an explicit
   // `--payload` value outranks the derivation.

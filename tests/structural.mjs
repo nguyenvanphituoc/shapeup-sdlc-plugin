@@ -469,6 +469,15 @@ const MODULE_FILES = [
   // 114-a-verdict-that-traces.mjs: two judges on one spec read the matrix 5/5 and 0/5 — the second
   // anchored no criterion. A verdict with no anchor beside a covering board is sent back once.
   "114-a-verdict-that-traces.mjs",
+  // 115-dimensions-from-the-spec.mjs: every orchestrated run graded spec-conformance alone, because the
+  // ledger's default travelled as an explicit list. An unnamed set is now resolved from the spec.
+  "115-dimensions-from-the-spec.mjs",
+  // 116-relaunch-reopens-first.mjs: a relaunch re-signed three planning gates while its run still read
+  // closed. It now reopens first, and the Decisions table says which launch signed each row.
+  "116-relaunch-reopens-first.mjs",
+  // 117-a-leg-writes-its-own-result.mjs: with two build legs live, either could write the other's
+  // WorkResult. An order's own paths now answer only to the agent its dispatch receipt names.
+  "117-a-leg-writes-its-own-result.mjs",
   "08-docs.mjs",
 ];
 

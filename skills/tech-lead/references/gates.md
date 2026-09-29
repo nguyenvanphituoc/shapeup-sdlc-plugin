@@ -60,10 +60,12 @@ Collect (explicit — never inferred):
           spec_folder = shapeup/<slug>/spec/ (the deliverable arg passed to ba/eval/exec)
   L0.3  lens: lite | standard | cross-context   (passed to planner at step 8)
   L0.4  stack hint (e.g. "pnpm, Next 16 web :3000") — aims orient's code-surface sweeps + run commands
-  L0.5  eval dimensions: default [spec-conformance]; only add if user asks. An added dimension
-        must reach `harness init run --dimensions <a,b>` — it is recorded in the ledger's
-        `eval_dimensions:` line and every EVAL order is compiled from there, so a set agreed
-        in conversation and not passed to the flag grades nothing. Shipped ids:
+  L0.5  eval dimensions: default `auto` — each EVAL order resolves the set from the spec
+        (spec-conformance + tdd-surface always; integration for .be/.e2e tasks; completeness
+        when a UC has Invariants; test-surface-conformance when one has a Test Surface).
+        Name a set only if the user asks. It must reach `harness init run --dimensions <a,b>`
+        — it is recorded in the ledger's `eval_dimensions:` line and replaces the resolved
+        set, so a set agreed in conversation and not passed to the flag grades nothing. Shipped ids:
         spec-conformance, tdd-surface, integration, completeness, test-surface-conformance
         (security + performance ship disabled). Whatever is left out is reported at L4 as
         `dims_not_evaluated` — "shipped" never silently means "verified for all".
@@ -161,7 +163,7 @@ Feature      : [slug]   (kicked-off pitch: [path])
 Intake lang  : [English | translated via /translator → <name>.en.md]
 Appetite     : [~1 week | ~2 weeks | ~6 weeks | ⚠️ missing — scope uncapped]
 Spec folder  : [path]   (lens: [lite|standard])
-Eval dims    : [spec-conformance]   max_rounds: [N, appetite-informed]   auto: [interactive|auto|unattended]
+Eval dims    : [auto | the named set]   max_rounds: [N, appetite-informed]   auto: [interactive|auto|unattended]
 Run commands : [web: ... | api: ... | mobile: ...]   (run_cmd → the round build gate, every round before EVAL)
 Build gate   : build_probe [set | —]   launch_probe [set | — ⚠ mobile: the install/launch risk has no owner]
 Model matrix : orch=[model] exec=[model] eval=[model] qa=[model] digester=[script|sonnet]  (source: [flags|settings.local|settings.json|default])
@@ -555,7 +557,7 @@ S.7  Export the run's records → one keyed dataset, before the trace is superse
 ⏸ GATE L4 — Ship Sign-Off
 Feature   : [slug] — [SHIPPED (deployed) | BUILT & VERIFIED — deploy pending (PO)]
 Rounds    : [r] (build+eval cycles)
-Verdict   : PASS (dims: [spec-conformance]; not evaluated: [security, performance])
+Verdict   : PASS (dims: [dims_evaluated]; not evaluated: [dims_not_evaluated])
 QA        : [hunt done — N findings, M promoted+fixed, rest ~ | skipped (--no-qa) | n/a (pre-QA spec)]
 Requirements: [15/17 PASS · 1 CUT (PO) · 1 no evidence (REQ-12 ← R12) | n/a (no registry)]
 Ledger    : harness-run.md

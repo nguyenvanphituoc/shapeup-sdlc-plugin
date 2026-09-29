@@ -477,11 +477,16 @@ export function deriveResumeState(cwd, slug, { pluginRoot = null } = {}) {
     breadboard_source: readReceipt(receipt(cwd, slug))?.breadboard?.source ?? null,
     spec_folder: hr.spec_folder || null,
     status: hr.status || null,
+    // The terminal status of a close nobody has taken back yet. A relaunch reopens the run before its
+    // first gate on this fact, so no gate a relaunch crosses is recorded inside a closed window.
+    closed_status: hr.closed_status ? String(hr.closed_status) : null,
     lens: hr.lens || null,
     stack: hr.stack || null,
     run_cmd: hr.run_cmd || null,
     app_url: hr.app_url || null,
-    eval_dimensions: Array.isArray(hr.eval_dimensions) ? hr.eval_dimensions : ["spec-conformance"],
+    // A list the PO named at L0.5, or [] — `auto`, or a ledger with no line — which the evaluate order
+    // resolves from the spec at compile time.
+    eval_dimensions: Array.isArray(hr.eval_dimensions) ? hr.eval_dimensions : [],
     orient_dir: `.shapeup/${slug}/orient/`,
     has_orient_artifacts: hasOrientArtifacts(cwd, slug),
     has_spec_tree: hasSpecTree(cwd, slug, hr.spec_folder || null),
@@ -656,6 +661,15 @@ export function deriveLedgerFacts(cwd, slug) {
   evalRows.sort((a, b) => a.round - b.round);
   const finalVerdict = evalRows.length ? evalRows[evalRows.length - 1].overall : "not-evaluated";
   const decisions = [];
+  // WHICH LAUNCH TOOK EACH DECISION. A relaunch re-crosses the gates it fast-forwards, and the table
+  // listed each of them twice with nothing to tell a second launch from a double sign-off. Every
+  // reopen leaves its timestamp in `prior_closes`; a row taken after the n-th one is launch n+1's.
+  let reopens = [];
+  try {
+    const pc = parseFrontmatter(readFileSync(harnessRun(cwd, slug), "utf8")).prior_closes;
+    reopens = [...String(pc ?? "").matchAll(/\(reopened ([^)]+)\)/g)].map((m) => m[1]).sort();
+  } catch { /* no ledger, no reopen */ }
+  const launchOf = (at) => 1 + reopens.filter((t) => typeof at === "string" && at > t).length;
   const gp = gates(cwd, slug);
   if (existsSync(gp)) {
     for (const line of readFileSync(gp, "utf8").split("\n")) {
@@ -663,7 +677,7 @@ export function deriveLedgerFacts(cwd, slug) {
       try {
         const g = JSON.parse(line);
         // Gate rows carry the run key; a row from an earlier run over the same slug is its history.
-        if (!runId || !g?.run_id || g.run_id === runId) decisions.push(g);
+        if (!runId || !g?.run_id || g.run_id === runId) decisions.push(reopens.length ? { ...g, launch: launchOf(g.at) } : g);
       } catch { /* a torn line proves nothing */ }
     }
   }
@@ -733,7 +747,7 @@ function writeCloseLines(body, { status, closedAt, cause, derived = null }) {
     if (/^final_verdict:.*$/m.test(out)) out = out.replace(/^final_verdict:.*$/m, `final_verdict: ${derived.final_verdict}`);
     if (typeof derived.rounds_used === "number" && /^rounds_used:.*$/m.test(out)) out = out.replace(/^rounds_used:.*$/m, `rounds_used: ${derived.rounds_used}`);
     out = rewriteTable(out, /(\| Phase \| Round \| Result \| Duration \| Notes \|\n)(\|[-| ]+\|\n)((?:\|[^\n]*\n)*)/, derived.roundRows, "| Init");
-    const decisionRows = derived.decisions.map((g) => `| ${g.gate ?? "?"} | ${g.decision ?? g.status ?? "?"} | ${g.source ?? "?"} | ${String(g.note ?? "").replace(/\|/g, "\\|").replace(/\s+/g, " ").slice(0, 160)} |`);
+    const decisionRows = derived.decisions.map((g) => `| ${g.gate ?? "?"} | ${g.decision ?? g.status ?? "?"} | ${g.source ?? "?"} | ${g.launch > 1 ? `launch ${g.launch} (after a reopen) — ` : ""}${String(g.note ?? "").replace(/\|/g, "\\|").replace(/\s+/g, " ").slice(0, 160)} |`);
     out = rewriteTable(out, /(\| Gate \| Decision \| Source \| Note \|\n)(\|[-| ]+\|\n)((?:\|[^\n]*\n)*)/, decisionRows);
   }
   return out;

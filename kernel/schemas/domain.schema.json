@@ -2423,7 +2423,7 @@
           "items": {
             "type": "string"
           },
-          "description": "spec-evaluator: the active dimension set (caller-resolved precedence). Absent → [spec-conformance] + auto-enable rules."
+          "description": "spec-evaluator: the active dimension set. harness compile fills it on every evaluate order: the run's named set, or the set resolved from the spec with the judge's auto-enable rules. Absent only on a standalone order."
         },
         "run_cmd": {
           "type": "string",
@@ -2585,6 +2585,13 @@
             "null"
           ],
           "description": "The ledger's stored status, reported for the readers that legitimately hold a MID_RUN set over it (harness reduce snapshot, and the ship report's census). NOT a resume predicate: no phase decision in shapeup-run.js may branch on this field."
+        },
+        "closed_status": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The ledger's closed_status: the terminal status of a close nobody has taken back, null on a run that is open. A relaunch reads it once, to reopen the run before its first gate resolves. Not a phase predicate either."
         },
         "lens": {
           "type": [
@@ -2867,6 +2874,13 @@
         },
         "rounds_used": {
           "type": "integer"
+        },
+        "dims_evaluated": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The dimensions the last evaluate order named: the set the PO chose at L0.5, or the one resolved from the spec."
         },
         "dims_not_evaluated": {
           "type": "array",

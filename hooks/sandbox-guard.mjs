@@ -88,7 +88,7 @@
 import { readFileSync, existsSync, appendFileSync, mkdirSync, readdirSync, statSync, realpathSync, lstatSync, readlinkSync } from "node:fs";
 import { resolve, join, relative, dirname, basename, sep } from "node:path";
 import { isMain } from "../kernel/lib/argv.mjs";
-import { LOCAL, SHARED, activeOrder, ordersDir, resultsDir, metricsShard } from "../kernel/lib/paths.mjs";
+import { LOCAL, SHARED, activeOrder, ordersDir, resultsDir, metricsShard, dispatchReceipts } from "../kernel/lib/paths.mjs";
 import { runHook, readStdin, settle, projectRoot } from "./lib/decision.mjs";
 
 // --- tiny glob matcher: supports *, **, ? — enough for substrate globs, zero dependencies ---
@@ -262,6 +262,41 @@ function liveOrders(cwd, slug) {
   return unanswered.filter((o) => !pastItsPhase(o, stamps));
 }
 
+/**
+ * The agent that took each live order's dispatch, from the receipts the dispatch hook wrote.
+ *
+ * WHO WRITES, not only where. An order's own paths — its WorkResult above all — are carved out of
+ * the frozen run trace, and with two build legs live the carve-out answered for either of them: a
+ * leg could write its sibling's result. The host names the sub-agent behind every tool call
+ * (`agent_id`), and the dispatch receipt recorded the same id when that sub-agent invoked the
+ * worker skill, so the skill's writes carry the id of the receipt that aimed it. Only a receipt
+ * taken after the order was compiled counts, and the newest wins, so a re-dispatch of the same
+ * order binds to the agent that took it this time.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - The run named by the pointer.
+ * @param {object[]} orders - The live orders.
+ * @returns {Map<string,string>} order_id → agent_id; an order with no attributable receipt is absent.
+ */
+export function dispatchAgents(cwd, slug, orders) {
+  const out = new Map();
+  let text = "";
+  try { text = readFileSync(dispatchReceipts(cwd, slug), "utf8"); } catch { return out; }
+  const compiled = new Map(orders.map((o) => [o.order_id, Date.parse(o.compiled_at ?? "")]));
+  const newest = new Map();
+  for (const line of text.split("\n")) {
+    let r; try { r = JSON.parse(line); } catch { continue; }
+    if (!r?.order_id || !compiled.has(r.order_id) || typeof r.agent_id !== "string" || !r.agent_id) continue;
+    const at = Date.parse(r.at ?? "");
+    const c = compiled.get(r.order_id);
+    if (Number.isNaN(at) || (!Number.isNaN(c) && at < c)) continue;
+    const prev = newest.get(r.order_id);
+    if (!prev || at >= prev.at) newest.set(r.order_id, { at, agent: r.agent_id });
+  }
+  for (const [id, v] of newest) out.set(id, v.agent);
+  return out;
+}
+
 function extractPaths(toolInput) {
   const paths = [];
   if (toolInput?.file_path) paths.push(toolInput.file_path);
@@ -337,6 +372,7 @@ async function main() {
   })).filter((c) => c.allowed.length || c.appendOnly.length || c.frozen.length);
 
   if (contracts.length === 0) defer("no live order declares write/append/frozen boundaries", "no-whitelist");
+  const agents = dispatchAgents(root, active.slug, withSubstrate);
 
   const targetPaths = extractPaths(p.tool_input);
   if (targetPaths.length === 0) defer("no writable path in the tool input", "no-target");
@@ -370,7 +406,17 @@ async function main() {
     // wherever it lives.
     // `own` first, and only against the contract that declared it: another live order's exception
     // never licenses this write. A path no contract claims as its own falls through to the freeze.
-    if (contracts.some((c) => matchesAny(rel, c.own, fold))) continue;
+    // And only from the dispatch that took that order. A write from a sub-agent is refused when every
+    // live order claiming the path was taken by a different sub-agent; a write with no agent id (the
+    // operator's own session) or an order with no attributable receipt keeps today's permit.
+    const owners = contracts.filter((c) => matchesAny(rel, c.own, fold));
+    if (owners.length) {
+      const writer = typeof p.agent_id === "string" && p.agent_id ? p.agent_id : null;
+      if (!writer || owners.some((c) => !agents.has(c.order_id) || agents.get(c.order_id) === writer)) continue;
+      violations.push(rel);
+      blockReasons.push(`${rel} belongs to ${owners.map((c) => c.order_id).join(", ")}, whose dispatch is another agent's`);
+      continue;
+    }
 
     const freezer = contracts.find((c) => matchesAny(rel, c.frozen, fold));
     if (freezer) {
@@ -409,7 +455,9 @@ async function main() {
   // direction. Those files belong to the orchestrator, whose write window is a phase boundary —
   // no dispatch in flight — and never the middle of somebody else's dispatch.
   const committed = violations.filter((v) => (fold ? v.split(/[\\/]/)[0].toLowerCase() === SHARED.toLowerCase() : v.split(/[\\/]/)[0] === SHARED));
-  const hint = committed.length === violations.length
+  const hint = blockReasons.every((r) => r.endsWith("whose dispatch is another agent's"))
+    ? "Each leg writes only the paths of the order it was dispatched with. Return your own result, never a sibling's."
+    : committed.length === violations.length
     ? `${SHARED}/ is committed tier: these belong to the orchestrator, not to a worker substrate. `
       + "Write them at a phase boundary, with no dispatch in flight — do not widen an order to reach one."
     : "If this write legitimately crosses scopes, the order's substrate needs to be expanded (e.g. via ba --remap).";
@@ -430,7 +478,7 @@ async function main() {
     // FROZE the path and a write refused because no contract covers it are different facts with
     // different remedies, and a single rule string cannot tell the reader which one happened —
     // which is how a frozen declaration can stop being enforced without a single row moving.
-    rule: frozenHits === violations.length ? "frozen" : "outside-substrate",
+    rule: frozenHits === violations.length ? "frozen" : blockReasons.every((r) => r.endsWith("whose dispatch is another agent's")) ? "not-own-dispatch" : "outside-substrate",
     reason: `${violations.length} write(s) rejected by substrate boundaries: ${blockReasons.join("; ")}`,
     payload: {
       hookSpecificOutput: {
