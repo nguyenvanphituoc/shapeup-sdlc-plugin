@@ -3,6 +3,14 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.18.1] — 2026-09-29 · A planning leg that returned no WorkResult is sent back once
+
+A planning leg could write its artifacts and skip its envelope: no WorkResult and no leg row. The phase
+stood on its artifacts and the close named the order unanswered. ORIENT and WIRE now hand their dispatch
+to the phase post-condition, so a leg with a dispatch receipt and no result is dispatched again once and
+told that its artifacts stand. Only a second miss is named at the close. A leg with no receipt never ran
+the skill; that is a different failure and is not sent back.
+
 ## [3.18.0] — 2026-09-29 · The judge grades the dimensions the spec calls for
 
 **Changed.** A run opened without `--dimensions` records `eval_dimensions: auto`, and each evaluate
