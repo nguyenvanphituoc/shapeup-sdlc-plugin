@@ -93,7 +93,7 @@ export async function run(ctx) {
 
   // --- the run loop: asked before any early return, in planning and build, and honest at the close
   const src = readFileSync(WORKFLOW, "utf8");
-  if (/async function requireLeg\(/.test(src) && /if \(r\.exit_code === 0\) return await requireLeg\(gate, phaseKey, phaseName(, orderStem)?\);/.test(src)) {
+  if (/async function requireLeg\(/.test(src) && /if \(r\.exit_code === 0\) return await requireLeg\(gate, phaseKey, phaseName(, orderStem(, again)?)?\);/.test(src)) {
     ok("requirePhase asks the single writer (requireLeg) once the artifact check passes — a planning phase cannot complete with its result unread");
   } else fail("requirePhase does not ask the leg ledger — a planning result nothing applied still passes its post-condition");
   if (/probe leg --slug \$\{slug\} --order "\$\{orderStem\}"/.test(src) && /late-ingest:\$\{phaseKey\}/.test(src)) ok("the planning leg check names the order by phase and repairs it with the same late ingest the build round uses");

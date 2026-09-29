@@ -1017,10 +1017,22 @@ const attest = (phaseKey, phaseName, label) =>
  * @returns {Promise<(object|null)>} An aborted RunReturn, or null when the leg closed (or the
  *   question could not be asked — a probe that did not run proves nothing, and is logged as such).
  */
-async function requireLeg(gate, phaseKey, phaseName, orderStem = phaseKey) {
+async function requireLeg(gate, phaseKey, phaseName, orderStem = phaseKey, again = null) {
   const ask = () => query(`probe leg --slug ${slug} --order "${orderStem}"`, ORDERLEG, phaseName, `legcheck:${orderStem}`);
   let leg = await ask();
   if (!leg || !leg.found) { log(`${gate} — could not ask the leg ledger about "${phaseKey}" (probe returned ${leg ? "no order" : "nothing"}); proceeding on the artifact alone.`); return null; }
+  // SENT BACK ONCE FOR THE ENVELOPE. A dispatched leg that wrote its artifacts and no WorkResult has
+  // done the craft and skipped the last step, and it recurs on the same phase run after run. The
+  // worker is dispatched again with the reason, told its artifacts stand; only a second miss is named
+  // at the close.
+  if (!leg.has_result && leg.has_receipt && again) {
+    log(`${gate} — "${phaseKey}" was dispatched and returned no WorkResult; sending it back once for the envelope.`);
+    await again(` Your previous dispatch of this order wrote the phase's artifacts and returned NO WorkResult. ` +
+      `The artifacts are on disk and stand: do not redo them. Write the WorkResult the order names ` +
+      `(its substrate's own results path), then ingest it as the steps above say.`);
+    leg = await ask();
+    if (!leg || !leg.found) return null;
+  }
   if (!leg.has_result) {
     // The artifact is on disk and the envelope never came back. Measured live: the first dispatch of
     // a run wrote its four artifacts and no WorkResult, every later phase read the artifacts, and
@@ -1055,9 +1067,9 @@ async function requireLeg(gate, phaseKey, phaseName, orderStem = phaseKey) {
  * @param {string} phaseName - Progress group.
  * @returns {Promise<(object|null)>} An aborted RunReturn, or null when the artifact is there.
  */
-async function requirePhase(gate, phaseKey, phaseName, orderStem = phaseKey) {
+async function requirePhase(gate, phaseKey, phaseName, orderStem = phaseKey, again = null) {
   const r = await attest(phaseKey, phaseName, `require:${phaseKey}`);
-  if (r.exit_code === 0) return await requireLeg(gate, phaseKey, phaseName, orderStem);
+  if (r.exit_code === 0) return await requireLeg(gate, phaseKey, phaseName, orderStem, again);
   // Exit 6 is `probe resume --require`'s OWN documented code for "the artifact really is not on
   // disk" (kernel/probe/resume.mjs banner). Any other value — including -1, the courier's sentinel
   // for a tool call that never ran — is not that predicate answering "no"; it is the predicate never
@@ -1381,8 +1393,8 @@ let spikedArea = "~", spikeResult = "~", riskiest = [];
 if (!rs.has_orient_artifacts) {
   log(`ORIENT — dispatching (slug ${slug})`);
   await setRunStatus("orienting", "Orient");
-  const o = await worker({
-    skill: "orient", operation: "orient", schema: ORIENT, phase: "Orient", label: "orient",
+  const dispatchOrient = (note = "") => worker({
+    skill: "orient", operation: "orient", schema: ORIENT, phase: "Orient", label: note ? "orient:again" : "orient",
     payload: { pitch: rs.intake_path, breadboard: rs.breadboard_path, spec_folder: specFolder, feature: slug, stack: rs.stack },
     // NAME THE FILES. "write the orient/ artifacts" was the whole instruction, while completion is
     // decided by four exact filenames — so a leg that did the work and called its output
@@ -1396,10 +1408,11 @@ if (!rs.has_orient_artifacts) {
       "named exactly: `code-surface.md`, " +
       "`discovered-seed.md`, `hill-signal.md`, and one `spike-<area>.md` (or `spike-not-needed.md` " +
       "when the risk scan came back rank 0). Any other filename leaves the phase incomplete and " +
-      "the run aborts, however good the contents are.",
+      "the run aborts, however good the contents are." + note,
   });
+  const o = await dispatchOrient();
   if (o.__failed) return await withWarnings(diedAt("ORIENT", o));
-  const post = await requirePhase("ORIENT", "orient", "Orient");
+  const post = await requirePhase("ORIENT", "orient", "Orient", "orient", dispatchOrient);
   if (post) return await withWarnings(post);
   await advisory(`reduce graph --slug ${slug}`, "Orient", "graph:orient");
   spikedArea = o.spiked_area; spikeResult = o.spike_result; riskiest = o.riskiest_unknowns || [];
@@ -1521,13 +1534,14 @@ if (!rs.has_wiring_map) {
       `resolve against. Write the profile, then relaunch.`));
   }
   log(`WIRE — dispatching (slug ${slug})`);
-  const w = await worker({
-    skill: "solution-architect", operation: "wire", schema: PHASE_OK, phase: "Wire", label: "wire",
+  const dispatchWire = (note = "") => worker({
+    skill: "solution-architect", operation: "wire", schema: PHASE_OK, phase: "Wire", label: note ? "wire:again" : "wire",
     payload: { feature: slug, spec_folder: specFolder, project_profile: rs.project_profile_path, breadboard: rs.breadboard_path },
-    extra: "Write the wiring map: per use case, engine → seam → entry-point call site → affordance.",
+    extra: "Write the wiring map: per use case, engine → seam → entry-point call site → affordance." + note,
   });
+  const w = await dispatchWire();
   if (w.__failed) return await withWarnings(diedAt("WIRE", w));
-  const post = await requirePhase("WIRE", "wire", "Wire");
+  const post = await requirePhase("WIRE", "wire", "Wire", "wire", dispatchWire);
   if (post) return await withWarnings(post);
   await advisory(`reduce graph --slug ${slug}`, "Wire", "graph:wire");
 } else {

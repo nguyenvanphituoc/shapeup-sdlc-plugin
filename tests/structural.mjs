@@ -481,6 +481,9 @@ const MODULE_FILES = [
   // 118-one-line-kernel-commands.mjs: a relaunch copied the orchestrator's `\`-continued `init run`
   // and came back "requires approval" over a grant that covers it. Shipped commands stay one line.
   "118-one-line-kernel-commands.mjs",
+  // 119-envelope-sent-back-once.mjs: the orient leg wrote its artifacts and no WorkResult on three
+  // runs. A phase with a receipt and no result is now dispatched again once, then named.
+  "119-envelope-sent-back-once.mjs",
   "08-docs.mjs",
 ];
 
