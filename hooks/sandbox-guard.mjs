@@ -455,7 +455,8 @@ async function main() {
   // direction. Those files belong to the orchestrator, whose write window is a phase boundary —
   // no dispatch in flight — and never the middle of somebody else's dispatch.
   const committed = violations.filter((v) => (fold ? v.split(/[\\/]/)[0].toLowerCase() === SHARED.toLowerCase() : v.split(/[\\/]/)[0] === SHARED));
-  const hint = blockReasons.every((r) => r.endsWith("whose dispatch is another agent's"))
+  const notOwn = blockReasons.every((r) => r.endsWith("whose dispatch is another agent's"));
+  const hint = notOwn
     ? "Each leg writes only the paths of the order it was dispatched with. Return your own result, never a sibling's."
     : committed.length === violations.length
     ? `${SHARED}/ is committed tier: these belong to the orchestrator, not to a worker substrate. `
@@ -478,14 +479,14 @@ async function main() {
     // FROZE the path and a write refused because no contract covers it are different facts with
     // different remedies, and a single rule string cannot tell the reader which one happened —
     // which is how a frozen declaration can stop being enforced without a single row moving.
-    rule: frozenHits === violations.length ? "frozen" : blockReasons.every((r) => r.endsWith("whose dispatch is another agent's")) ? "not-own-dispatch" : "outside-substrate",
+    rule: frozenHits === violations.length ? "frozen" : notOwn ? "not-own-dispatch" : "outside-substrate",
     reason: `${violations.length} write(s) rejected by substrate boundaries: ${blockReasons.join("; ")}`,
     payload: {
       hookSpecificOutput: {
         hookEventName: "PreToolUse",
         permissionDecision: "deny",
         permissionDecisionReason:
-          `Sandbox guard (PA3) — no live order's substrate covers these writes:\n` +
+          `Sandbox guard (PA3) — ${notOwn ? "these paths belong to another live dispatch" : "no live order's substrate covers these writes"}:\n` +
           `${blockReasons.join("\n")}\n` +
           hint,
       },
