@@ -602,6 +602,16 @@ export function setRunStatus(cwd, slug, status) {
     return { ok: false, path: p, status, reason: `wrote "status: ${status}" but the ledger reads "${after.status}" — the write did not take` };
   }
   if (reopened) {
+    // THE RUN POINTER COMES BACK WITH THE RUN. The close retired it, and nothing but `init run` wrote
+    // it, so a resumed run ran to its next close with no pointer: every hook row it produced carried
+    // no run key, and the wall-clock budget had no run to read. Restored only when absent, so a
+    // pointer another run holds is left alone.
+    try {
+      if (!existsSync(activeScope(cwd))) {
+        mkdirSync(dirname(activeScope(cwd)), { recursive: true });
+        writeFileSync(activeScope(cwd), JSON.stringify({ slug, started_at: fm.started_at ?? null, reopened_at: reopened.reopened_at }, null, 2) + "\n");
+      }
+    } catch { /* the reopen stands; an unkeyed row is degraded, not wrong */ }
     // The breadcrumb names a run that is OVER; this one no longer is. Removed only when it names
     // this run, so another run's close is left alone.
     try {

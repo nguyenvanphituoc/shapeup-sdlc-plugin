@@ -44,6 +44,11 @@ export async function run(ctx) {
     const re = setRunStatus(w, "checkout", "orienting");
     if (re.decision === "reopened" && resumeState().closed_status === null) ok("the reopen clears it before anything else is signed");
     else fail(`reopen: ${JSON.stringify(re)}`);
+    // The close retired the run pointer; a resumed run without it keyed no hook row to itself.
+    const { resolveRun } = await import(join(ROOT, "kernel/lib/paths.mjs"));
+    const key = resolveRun(w);
+    if (key.source === "pointer" && key.run_id === readRunId(w, "checkout")) ok("the reopen restores the run pointer, so the resumed run's hook rows carry its key");
+    else fail(`after the reopen the hooks resolve ${JSON.stringify(key)}`);
 
     gateRow("L1a", new Date(Date.now() + 1000).toISOString());
     closeRun(w, "checkout", { status: "shipped", cause: "verdict=pass rounds=1", withExport: false });
