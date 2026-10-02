@@ -488,6 +488,11 @@ const MODULE_FILES = [
   // both hand-falsified (an overlay read as "gone", a reseed read as "survived"). The hunter's
   // own reproduction step now requires ruling out both before either counts as a finding.
   "120-hunter-checks-occlusion-and-seed.mjs",
+  // 121-relaunch-marks-and-qa-applies.mjs: three defects from one real soak (plugin 3.18.3) — a
+  // killed-and-resumed run re-signing gates with no launch marker, a QA leg nothing applied
+  // reading as "carried to ledger", and the L0 profile check costing a full planning pass before
+  // WIRE says it is missing.
+  "121-relaunch-marks-and-qa-applies.mjs",
   "08-docs.mjs",
 ];
 

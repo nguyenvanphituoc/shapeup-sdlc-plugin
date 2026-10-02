@@ -624,6 +624,36 @@ export function setRunStatus(cwd, slug, status) {
 }
 
 /**
+ * Mark the start of a new process's launch over a run that already has prior progress and was
+ * never closed — the gap `setRunStatus`'s `reopened` marker does not cover, because reopening is
+ * defined as a closed→open transition and this run's status never left a live one.
+ *
+ * Measured: a run killed mid-EVAL and resumed by a fresh process re-crossed L1a, L1a.5, L1b and L2
+ * a second time with nothing on the ledger to tell that crossing from the first. `deriveLedgerFacts`
+ * reads this field exactly as it reads `prior_closes`'s `(reopened …)` timestamps, so either kind of
+ * marker advances a gate row's `launch` number.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {{ok: boolean, path: string, at?: string, reason?: string}} Outcome record.
+ */
+export function markRelaunch(cwd, slug) {
+  const p = harnessRun(cwd, slug);
+  if (!existsSync(p)) return { ok: false, path: p, reason: `no harness-run.md for slug "${slug}"` };
+  const body = readFileSync(p, "utf8");
+  const fm = parseFrontmatter(body);
+  const at = new Date().toISOString();
+  const history = fm.relaunches && fm.relaunches !== "~" ? `${fm.relaunches} | ${at}` : at;
+  const line = `relaunches: ${uncoerce(history)}`;
+  const next = /^relaunches:.*$/m.test(body)
+    ? body.replace(/^relaunches:.*$/m, line)
+    : body.replace(/^status:.*$/m, (m) => `${m}\n${line}`);
+  try { writeFileSync(p, next); }
+  catch (e) { return { ok: false, path: p, reason: `could not write the ledger: ${e.message}` }; }
+  return { ok: true, path: p, at };
+}
+
+/**
  * Rewrite `status:`, `closed_at:`, `closed_status:` and `close_cause:` together, in one pass,
  * appending any of the last three that a pre-migration ledger carries no line for yet (the same
  * tolerant-of-old-ledgers discipline `close_cause` itself shipped under).
@@ -674,12 +704,24 @@ export function deriveLedgerFacts(cwd, slug) {
   // WHICH LAUNCH TOOK EACH DECISION. A relaunch re-crosses the gates it fast-forwards, and the table
   // listed each of them twice with nothing to tell a second launch from a double sign-off. Every
   // reopen leaves its timestamp in `prior_closes`; a row taken after the n-th one is launch n+1's.
+  // A run killed before it ever closed is never "reopened" — nothing stamps `prior_closes` for it —
+  // so `markRelaunch` leaves the same kind of timestamp in its own `relaunches` field, and a launch
+  // boundary is either kind of marker: a reopen, or a plain relaunch over a run still open.
   let reopens = [];
+  let relaunches = [];
   try {
-    const pc = parseFrontmatter(readFileSync(harnessRun(cwd, slug), "utf8")).prior_closes;
-    reopens = [...String(pc ?? "").matchAll(/\(reopened ([^)]+)\)/g)].map((m) => m[1]).sort();
-  } catch { /* no ledger, no reopen */ }
-  const launchOf = (at) => 1 + reopens.filter((t) => typeof at === "string" && at > t).length;
+    const fm = parseFrontmatter(readFileSync(harnessRun(cwd, slug), "utf8"));
+    reopens = [...String(fm.prior_closes ?? "").matchAll(/\(reopened ([^)]+)\)/g)].map((m) => m[1]);
+    relaunches = String(fm.relaunches ?? "").split("|").map((s) => s.trim()).filter(Boolean);
+  } catch { /* no ledger, no reopen, no relaunch */ }
+  // Tagged so a row can say WHICH kind of boundary it crossed, not only that it crossed one: a
+  // reopen took a closed run back; a plain relaunch found one still open and never closed at all.
+  const markers = [...reopens.map((t) => ({ t, via: "reopen" })), ...relaunches.map((t) => ({ t, via: "relaunch" }))]
+    .sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0));
+  const launchOf = (at) => {
+    const before = markers.filter((m) => typeof at === "string" && at > m.t);
+    return { launch: 1 + before.length, via: before.length ? before[before.length - 1].via : null };
+  };
   const gp = gates(cwd, slug);
   if (existsSync(gp)) {
     for (const line of readFileSync(gp, "utf8").split("\n")) {
@@ -687,7 +729,7 @@ export function deriveLedgerFacts(cwd, slug) {
       try {
         const g = JSON.parse(line);
         // Gate rows carry the run key; a row from an earlier run over the same slug is its history.
-        if (!runId || !g?.run_id || g.run_id === runId) decisions.push(reopens.length ? { ...g, launch: launchOf(g.at) } : g);
+        if (!runId || !g?.run_id || g.run_id === runId) decisions.push(markers.length ? { ...g, ...launchOf(g.at) } : g);
       } catch { /* a torn line proves nothing */ }
     }
   }
@@ -757,7 +799,7 @@ function writeCloseLines(body, { status, closedAt, cause, derived = null }) {
     if (/^final_verdict:.*$/m.test(out)) out = out.replace(/^final_verdict:.*$/m, `final_verdict: ${derived.final_verdict}`);
     if (typeof derived.rounds_used === "number" && /^rounds_used:.*$/m.test(out)) out = out.replace(/^rounds_used:.*$/m, `rounds_used: ${derived.rounds_used}`);
     out = rewriteTable(out, /(\| Phase \| Round \| Result \| Duration \| Notes \|\n)(\|[-| ]+\|\n)((?:\|[^\n]*\n)*)/, derived.roundRows, "| Init");
-    const decisionRows = derived.decisions.map((g) => `| ${g.gate ?? "?"} | ${g.decision ?? g.status ?? "?"} | ${g.source ?? "?"} | ${g.launch > 1 ? `launch ${g.launch} (after a reopen) — ` : ""}${String(g.note ?? "").replace(/\|/g, "\\|").replace(/\s+/g, " ").slice(0, 160)} |`);
+    const decisionRows = derived.decisions.map((g) => `| ${g.gate ?? "?"} | ${g.decision ?? g.status ?? "?"} | ${g.source ?? "?"} | ${g.launch > 1 ? `launch ${g.launch} (after a ${g.via === "relaunch" ? "relaunch" : "reopen"}) — ` : ""}${String(g.note ?? "").replace(/\|/g, "\\|").replace(/\s+/g, " ").slice(0, 160)} |`);
     out = rewriteTable(out, /(\| Gate \| Decision \| Source \| Note \|\n)(\|[-| ]+\|\n)((?:\|[^\n]*\n)*)/, decisionRows);
   }
   return out;
@@ -1020,13 +1062,16 @@ export function writeActiveOrder(cwd, slug, orderPath) {
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
   usage: "harness.mjs probe resume --slug <slug> [--cwd <dir>] " +
-         "[--require <phase> | --set-status <status> | --set-active-order <path> | " +
+         "[--require <phase> | --set-status <status> | --mark-relaunch | --set-active-order <path> | " +
          "--close <status> | --close-arm <RunReturn.status> [--cause <text>]]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   slug: { type: "str", required: true },
   cwd: { type: "path" },
   require: { type: "enum", values: PHASES },
   "set-status": { type: "enum", values: RUN_STATUSES },
+  // A launch over a run that already has prior progress and was never closed — the gap
+  // `--set-status`'s own `reopened` marker does not cover. See `markRelaunch`'s own banner.
+  "mark-relaunch": { type: "flag" },
   "set-active-order": { type: "str" },
   // The one call site that stamps a terminal status, its cause and closed_at together.
   close: { type: "enum", values: TERMINAL_STATUSES },
@@ -1050,7 +1095,7 @@ export function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = args.cwd || process.cwd();
 
-  const ops = [args.require && "--require", args.setStatus && "--set-status", args.setActiveOrder && "--set-active-order", args.close && "--close", args.closeArm && "--close-arm"].filter(Boolean);
+  const ops = [args.require && "--require", args.setStatus && "--set-status", args.markRelaunch && "--mark-relaunch", args.setActiveOrder && "--set-active-order", args.close && "--close", args.closeArm && "--close-arm"].filter(Boolean);
   if (ops.length > 1) {
     process.stderr.write(JSON.stringify({ error: "conflicting_flags", flags: ops, expected: "one operation per invocation" }) + "\n");
     process.exit(2);
@@ -1077,6 +1122,12 @@ export function cli(rawArgv) {
 
   if (args.setStatus) {
     const r = setRunStatus(cwd, args.slug, args.setStatus);
+    console.log(JSON.stringify(r));
+    process.exit(r.ok ? 0 : 3);
+  }
+
+  if (args.markRelaunch) {
+    const r = markRelaunch(cwd, args.slug);
     console.log(JSON.stringify(r));
     process.exit(r.ok ? 0 : 3);
   }

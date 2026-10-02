@@ -1255,6 +1255,10 @@ async function closeIfTerminal(ret) {
       + (Array.isArray(ret.unapplied_results) && ret.unapplied_results.length ? ` unapplied_results=${ret.unapplied_results.length}` : "")
       + (ret.census ? ` census=${ret.census}` : "") + (ret.l4 ? ` l4=${ret.l4}` : "") + (ret.ship_report ? ` ship_report=${ret.ship_report}` : "")
     : `verdict=${ret.verdict ?? "?"} rounds=${ret.rounds_used ?? "?"} qa_findings=${ret.qa_findings ?? "?"}` + (ret.qa ? ` qa=${ret.qa}` : "")
+      // Same rule as the gate_h branch above: a shipped run can carry a result nothing applied —
+      // the hunt's own leg, measured live — and "qa: run" must not read as "and it reached the
+      // ledger" when this is non-empty.
+      + (Array.isArray(ret.unapplied_results) && ret.unapplied_results.length ? ` unapplied_results=${ret.unapplied_results.length}` : "")
       + (ret.after ? ` after=${ret.after} breaker=${ret.breaker ?? "?"} census=${ret.census ?? "?"} cut_list=${Array.isArray(ret.cut_list) ? ret.cut_list.length : "?"}` : "");
   // `--close-arm` hands the kernel the arm itself (not a status this file decided was terminal) —
   // a non-terminal arm (`paused`, `ok`) still exits 0 with no "decision" key, so the branches below
@@ -1379,6 +1383,30 @@ if (!rs) {
 // it crossed on the way were recorded against a run whose ledger still read closed. Bookkeeping,
 // not a phase decision: the phases below still branch on artifacts alone.
 if (rs.closed_status) await setRunStatus("orienting", "Orient");
+// THE OTHER WAY A LAUNCH IS A SECOND ONE. A run killed mid-flight, never closed, skips the reopen
+// above entirely — its status never left a live one — and nothing told the Decisions table that
+// the gates this launch re-crosses (L1a, L1a.5, L1b, L2) are a second sign-off rather than a first
+// one. Measured live. Guarded on artifacts already existing and no close to reopen, so neither the
+// very first launch nor an actual reopen (handled above) ever double-marks itself.
+else if (rs.has_orient_artifacts) {
+  const mr = await cmd(`probe resume --slug ${slug} --mark-relaunch`, "Orient", "mark-relaunch");
+  if (!mr.ok) log(`RUN STATE — could not mark this launch as a relaunch: ${mr.detail || `exit ${mr.exit_code}`}. ` +
+      `Gates this launch re-crosses may read in the Decisions table as a first sign-off rather than a second.`);
+}
+
+// THE SAME PRECONDITION WIRE CHECKS, ASKED HERE INSTEAD — before ORIENT and ANALYZE are paid for,
+// not after. `rs` already carries `has_project_profile` from this same snapshot; WIRE used to read
+// it only once it got there, which let a run missing the GATE L0 profile burn a full planning pass
+// (ORIENT + coverage + ANALYZE) before saying so. Same condition WIRE itself guards with
+// (`!rs.has_wiring_map`) — a relaunch whose wiring map already exists never needed the profile this
+// early and is untouched. WIRE's own check stays as a defensive second read of the same fact.
+if (!rs.has_wiring_map && !rs.has_project_profile) {
+  return await withWarnings(aborted("WIRE",
+    `missing SHARED project-profile.md at ${rs.project_profile_path} — GATE L0 writes it ` +
+    `({schema_version:1, archetype, entry_point}; references/gates.md GATE L0 §PROFILE) before ` +
+    `this workflow launches. Checked before ORIENT so a missing profile costs nothing rather than a ` +
+    `full planning pass. Write the profile, then relaunch.`));
+}
 
 const specFolder = rs.spec_folder || `shapeup/${slug}/spec/`;
 // A set the PO named at L0.5, or null: `harness compile` then resolves it from the spec for each
@@ -2064,6 +2092,22 @@ if (qaRan) {
   else {
     qaFindings = hv && Number.isInteger(hv.findings) ? hv.findings : q.findings_count;
     qaState = hv?.qa === "run" ? "run" : "not-hunted";
+    // THE SAME QUESTION requirePhase/requireLeg ASK OF ORIENT/ANALYZE/WIRE/MAP-SCOPES, asked of the
+    // hunt. QA never gates — a still-unapplied leg is named at the close, never aborted — but a
+    // result nothing applied must not read as "carried to ledger" either: measured live, GATE H's
+    // census and the frozen report both said so over a discovery no leg row and no ledger section
+    // ever recorded.
+    const hunLeg = await query(`probe leg --slug ${slug} --order "hunt"`, ORDERLEG, "QA", "legcheck:hunt");
+    if (hunLeg && hunLeg.found && hunLeg.has_result && !hunLeg.applied) {
+      log(`QA — hunt came back with a result nothing applied (no leg row). Ingesting it here: ${hunLeg.order}.`);
+      await advisory(`reduce ingest --order "${hunLeg.order}"`, "QA", "late-ingest:hunt");
+      const reask = await query(`probe leg --slug ${slug} --order "hunt"`, ORDERLEG, "QA", "legcheck:hunt-2");
+      if (!reask || !reask.applied) {
+        log(`QA — hunt's result is still unapplied after a late ingest; naming it at the close instead ` +
+            `of letting "qa: ${qaState}" read as the discovery having reached the ledger.`);
+        if (hunLeg.order && !allUnapplied.includes(hunLeg.order)) allUnapplied.push(hunLeg.order);
+      }
+    }
   }
 }
 
@@ -2121,6 +2165,9 @@ return await withWarnings({
   dims_not_evaluated: ALL_DIMS.filter((d) => !gradedDims.includes(d)),
   qa_findings: qaFindings,
   qa: qaState,
+  // A shipped run can still carry a result nothing applied (the hunt leg, not only a build leg) —
+  // named here rather than folded into "qa: run" reading as "and it reached the ledger".
+  unapplied_results: allUnapplied,
   report: REPORT_PATH,
 });
 
