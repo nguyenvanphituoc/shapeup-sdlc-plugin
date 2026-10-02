@@ -115,7 +115,17 @@ against Pass 1. The recurring drift sites, in rough order of how often they are 
 documentation *about* the product, and a wrong sentence in either reaches the user directly:
 
 - **`AGENTS.md`** — spliced into consumer projects by `bin/init.mjs`. It must speak in skills,
-  commands and options, never in `.mjs` paths.
+  commands and options, never in `.mjs` paths. Its Gate Vocabulary & Symbol Legend section is a
+  claim about the rest of the file: every gate id (cross-check against `GATE_IDS` in
+  `kernel/gate.mjs` for the canonical list) and every custom notation symbol in the spirit of
+  `✦ ✚ ★ ✧ ⚙ ⏸ ~` used anywhere in `AGENTS.md` must have a row there, and every row must still be
+  used somewhere — a legend entry nothing cites is as wrong as a code with no entry. An ordinary
+  character like `✅` is not in scope; the legend decodes this repo's own shorthand, not every glyph
+  in the file. Check the embedded workflow diagram the same way: its node labels must match the
+  vocabulary table's plain names, not a third, diagram-only wording. `README.md` names several of
+  the same gates (glossary, the workflow diagram's alt text, the skills/commands tables) — it does
+  not carry its own copy of the legend, so a bare gate code there, or one glossed with a plain name
+  that does not match `AGENTS.md`'s table, is the same class of drift as a missing legend row.
 - **`SECURITY.md`** — the page a reviewer reads to decide whether to trust the hook surface. Audit
   its hook table against `hooks.json` *both ways*, and treat its numbered claims as assertions to
   falsify, because that is what they invite. This file has drifted the furthest in practice: it

@@ -36,6 +36,10 @@ never `.mjs` paths.
   `harness reduce ingest`. Step 1 alone yields a skill the orchestrator can't dispatch.
 - `tools/` is repo-only and never ships; what ships is the `files` allowlist in `package.json`.
 - Commit subjects: `type(scope): lowercase declarative`.
+- A gate code, or a new custom notation symbol in the spirit of `✦ ✚ ★ ✧ ⚙ ⏸ ~` (not an ordinary
+  character like `✅`), introduced in `AGENTS.md` needs a matching row in its Gate Vocabulary &
+  Symbol Legend section, in the same commit — `harness-maintenance-audit` checks this both ways (an
+  unglossed code/symbol, and a legend row nothing uses).
 
 ## Keeping the docs and the plugin honest
 
