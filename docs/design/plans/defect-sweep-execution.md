@@ -57,9 +57,9 @@ reaches EVAL, reaches QA, runs GATE H's census, and runs the close-out path — 
 this checkout**, and the close-out path is new code from Stage 8 that has never run in a real
 consumer.
 
-*Open, and belonging to the PO:* HD-022's port/cherry-pick/abandon call (evidence in
-`stranded-tag-evidence.md`), HD-014's code half, HD-013 and HD-021 (P3, still in the register), and
-S4 of the architecture split (NO-GO until one of its three triggers fires).
+*Open, and belonging to the PO:* HD-014's code half, HD-013 and HD-021 (P3, still in the register),
+and S4 of the architecture split (NO-GO until one of its three triggers fires). HD-022's
+port/cherry-pick/abandon call is no longer open — the PO decided abandon on 2026-09-25 (`b248682`).
 
 ---
 

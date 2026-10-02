@@ -1,6 +1,13 @@
 # Stage 2 measurement — hero-todo, 2026-09-19
 
-The blocking gate of `requirements-reach-the-verdict.md`. **The gate's exit condition is met.**
+> **The plan this measurement gated is removed** (it sat beside this file, under the same
+> `docs/design/plans/` directory, titled "The run checks what the pitch forbids, not what it asks").
+> Its recommended mechanism — covers-closure reading `parseRequirements`/`coveredReqIds` from one
+> place, `kernel/verify/trace.mjs`, imported by `kernel/verify/spec.mjs` — shipped through
+> 3.16.0-3.17.2. This record is kept as the measurement it is; a verbatim quote below still names the
+> removed plan's old path, which was real at the time this was graded (2026-09-19).
+
+The blocking gate of that since-removed plan. **The gate's exit condition is met.**
 
 ```
 date:            2026-09-18 (run) / 2026-09-19 (graded verdict)
@@ -50,7 +57,7 @@ unprovable on the plan's own join**, because that join has nothing to join on.
 **3. The judge read this plan.** The evaluator's own disclosed assumption, verbatim:
 
 > `traces_to` ids are derived from `shapeup/hero-todo/shaping/shaping.md` `R<n>` → `REQ-<n>` (1:1,
-> the maintainer decision recorded in the plugin's `docs/design/plans/requirements-reach-the-verdict.md`)
+> the maintainer decision recorded in the plugin's `docs/design/plans/requirements-reach-the-verdict.md`) — Superseded by 3.16.0-3.17.2; that path is gone.
 
 It could read that because the soak granted `Read(//<plugin>/**)` so the nested session could load
 the plugin at all. No grade is affected — `traces_to` is not a grading input — but **the `traces_to`

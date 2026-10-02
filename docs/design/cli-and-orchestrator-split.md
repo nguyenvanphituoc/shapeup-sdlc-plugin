@@ -7,8 +7,9 @@ what does that fix, what does it cost, and in what order?
 kernel's CLI surface from executing `node kernel/harness.mjs`, the permission grant from
 `bin/lib/grant.mjs`, hook registration from `hooks/hooks.json`, coupling from the import graph;
 `docs/design/adr/0002-plugin-repo-organization.md` (Accepted, 2026-08-02) as prior art; the eleven
-open defects catalogued in `shapeup/knowledge-base/harness-defects.md` and ranked in
-`docs/design/plans/which-defect-first.md`, both updated the same day.
+open defects catalogued in `shapeup/knowledge-base/harness-defects.md` and ranked that same day by
+a 5-axis rubric (harm, silence, doc-risk, reach, landing cost) in a plan now closed and removed —
+all eleven are since fixed or decided; see the register's current entries instead.
 **Confidence:** High on the as-built picture and on the defect classification — both derived from
 the artifacts, and each defect's declaring and consuming tier read in code. Medium on the staging in
 §6. Low on anything resembling an effort estimate; this repo has one maintainer and the constraint
@@ -289,6 +290,6 @@ and each is executable today inside one repo.
 | a hook already invokes the CLI | `hooks/hooks.json` PreToolUse `Skill\|Agent` |
 | kernel imports schemas from the skill tier | `kernel/compile.mjs:61`, `reduce/ingest.mjs:36`, `verify/envelope.mjs:31` |
 | the orchestrator is a scheduler | `skills/tech-lead/workflows/shapeup-run.js:237-284, 319-329` |
-| `run-args.json` read but never written | `kernel/probe/concurrency.mjs:304,313`; no writer outside `tests/` |
+| `run-args.json` read but never written — **fixed since**, `kernel/init/run-args.mjs` is now the writer | `kernel/probe/concurrency.mjs:304,313` (the read side; true when this doc was written) |
 | lifecycle-based organisation is an Accepted ADR | `docs/design/adr/0002-plugin-repo-organization.md` |
-| the eleven open defects and their ranking | `shapeup/knowledge-base/harness-defects.md`; `docs/design/plans/which-defect-first.md` |
+| the eleven open defects, since fixed or decided | `shapeup/knowledge-base/harness-defects.md` |
