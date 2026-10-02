@@ -21,6 +21,7 @@ never `.mjs` paths.
 - `claude plugin validate . --strict` (and the same for `./.claude-plugin/marketplace.json`) — CI parity.
 - `claude --plugin-dir .` — load the working copy without installing.
 - `npm run demo` — regenerates `docs/assets/demo-gate.svg` by running the real gate hook; never hand-edit the SVG.
+- `npm run verify:cross-dir` — the cheap release-candidate check below, as a script instead of a manual exercise: fires `hooks/sandbox-guard.mjs` from a `git archive` copy at a different path, against a scratch consumer project, and confirms the decision lands. Run before a release that touches `hooks/` or `kernel/lib/paths.mjs`.
 
 ## Rules that prevent breakage
 

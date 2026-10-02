@@ -35,7 +35,8 @@
   "scripts": {
     "test": "node tests/structural.mjs",
     "demo": "node tools/demo/record-demo.mjs",
-    "test:grant": "node tests/grant/executing-grant.mjs"
+    "test:grant": "node tests/grant/executing-grant.mjs",
+    "verify:cross-dir": "node tools/verify-cross-dir.mjs"
   },
   "keywords": [
     "shapeup",
