@@ -3,6 +3,30 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.18.4] — 2026-10-02 · A relaunch is marked, and a QA leg nothing applied stops reading as "carried to ledger"
+
+**Fixed.** Three defects measured on one real soak — two consecutive features on a marketplace
+install, one uncleaned run trace between them.
+
+- A QA hunt's result landed with a finding and nothing ingested it: the leg ledger carried a row for
+  every other order and none for the hunt, while GATE H's census and the frozen report both said the
+  finding was "carried to ledger." QA is now asked the same post-condition question ORIENT, ANALYZE,
+  WIRE and MAP SCOPES already are — late-ingest a result nothing applied — and, because QA never
+  gates, a still-unapplied result is named in `unapplied_results` at the close instead of being
+  folded into a verdict that read clean. A normal shipped close can carry `unapplied_results` now,
+  not only a circuit-breaker's.
+- The `project-profile.md` precondition WIRE requires was checked at WIRE, after ORIENT and ANALYZE
+  had already run — a full planning pass paid for before a one-file check said it was missing. The
+  same check now runs where the run's resume snapshot is first read, before ORIENT dispatches.
+- A run killed mid-flight and resumed by a fresh process — never closed, so the existing reopen
+  marker never applies — re-signed every planning gate with nothing to tell that second crossing
+  from the first. A relaunch over a run still open now leaves the same kind of marker a reopen
+  already does, and the Decisions table says "(after a relaunch)" where it used to say nothing.
+
+**Added.** `npm run verify:cross-dir` — the cross-directory half of a release candidate's check,
+scripted: fires `hooks/sandbox-guard.mjs` from a `git archive` copy at a different absolute path
+against a scratch consumer project, and confirms the decision lands. Previously a manual exercise.
+
 ## [3.18.3] — 2026-09-29 · The hunter rules out an overlay before "gone", and diffs the seed before "survives a relaunch"
 
 **Fixed (skill guidance, HD-071).** Two lens-③ (state interruption) findings on one consumer, worded
