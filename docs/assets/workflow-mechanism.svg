@@ -1,16 +1,19 @@
-<svg width="100%" viewBox="0 0 1160 791" role="img" xmlns="http://www.w3.org/2000/svg">
+<svg width="100%" viewBox="0 0 1160 820" role="img" xmlns="http://www.w3.org/2000/svg">
   <title>The shapeup-sdlc harness pipeline: idea to ship</title>
   <desc>
     A raw idea flows through Shaping into a Pitch, decided at the Betting Table: Bet
     continues to build, Reject loops back to raw idea. The tech-lead orchestrator then
-    runs Kick-off and Orient behind gates L0 and L1a, Wire behind gate L1a.5, Map Scopes
-    behind gate L1b, and Build Vertically, whose scopes build concurrently and are
-    T0-verified. Evaluate follows, advised by advisory gate L2 and gated by gate L3's
-    verdict: FAIL loops back to Build Vertically for round r+1, PASS continues to QA Edge
-    Hunt. A circuit breaker can route directly from the build/evaluate loop to Ship and
-    Triage at GATE H when the round budget or wall-clock budget runs out, bypassing QA
-    and shipping what is green. Ship and Triage passes through GATE H and then GATE L4
-    sign-off into Coach Retro, which records feedback in the team knowledge base.
+    runs Kick-off and Orient behind gates L0 (Intake &amp; Config) and L1a (Orient Review),
+    Wire behind gate L1a.5 (Wiring Review), Map Scopes behind gate L1b (Board Review), and
+    Build Vertically, whose scopes build concurrently and are T0-verified. Evaluate
+    follows, advised by the advisory gate L2 (Round Close), then judged at gate L3
+    (Verdict): FAIL loops back to Build Vertically for round r+1, PASS continues to QA
+    Edge Hunt. A circuit breaker can route directly from the build/evaluate loop to Ship
+    and Triage at GATE H (Cut-List Review) when the round budget or wall-clock budget
+    runs out, bypassing QA and shipping what is green. Ship and Triage passes through
+    GATE H (Cut-List Review) and then GATE L4 (Ship Sign-off) sign-off into Coach Retro,
+    which records feedback in the team knowledge base. The Gate key below the legend
+    spells out every gate pill's plain name.
   </desc>
 
   <defs>
@@ -296,4 +299,8 @@
     <rect class="gate-adv" x="932" y="745" width="40" height="16" rx="8"/>
     <text class="legend-text" font-size="12" x="980" y="753" dominant-baseline="central">L2 (advisory)</text>
   </g>
+
+  <!-- gate key: every pill's plain name, spelled out once, so the pills can stay compact -->
+  <text class="label-sm" font-size="11" x="60" y="782" dominant-baseline="central">Gate key — L0 Intake &amp; Config · L1a Orient Review · L1a.5 Wiring Review · L1b Board Review</text>
+  <text class="label-sm" font-size="11" x="60" y="800" dominant-baseline="central">L2 Round Close (advisory) · L3 Verdict · GATE H Cut-List Review · L4 Ship Sign-off</text>
 </svg>
