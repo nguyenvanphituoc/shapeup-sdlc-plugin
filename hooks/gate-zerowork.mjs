@@ -105,7 +105,7 @@ function launchedShapeupWorkflow(block) {
 
 /**
  * Did this session dispatch the orchestrator? Three surface spellings, all equivalent:
- * `Skill(tech-lead)`, a leading `/ship` slash command, and — since the workflow cutover (v1.7) —
+ * `Skill(tech-lead)` or `Skill(building)`, a leading `/ship` slash command, and — since the workflow cutover (v1.7) —
  * a `Workflow` tool_use launching one of the orchestrator's own `shapeup-*` scripts.
  *
  * The third arm is a correctness repair, not a new detector. `SKILL.md`'s Step 2 makes the
@@ -122,7 +122,8 @@ export function dispatchedOrchestrator(events) {
       if (launchedShapeupWorkflow(block)) return true;
       if (block.name !== "Skill") continue;
       const skill = String(block.input?.skill ?? block.input?.skill_name ?? "");
-      if (skill.split(":").pop() === "tech-lead") return true;
+      const named = skill.split(":").pop();
+      if (named === "tech-lead" || named === "building") return true;
     }
     // The slash command is the other front door: `/shapeup-sdlc-plugin:ship …` arrives as user
     // text, and reaches tech-lead through commands/ship.md.

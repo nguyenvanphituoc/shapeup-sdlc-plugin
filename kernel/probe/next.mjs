@@ -184,9 +184,12 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
   const statusPre = (phase) => (rs.status && rs.status !== STATUS_FOR[phase] && STATUS_FOR[phase]
     ? [{ command: K(`probe resume --slug ${slug} --set-status ${STATUS_FOR[phase]}`) }] : []);
 
+  /** The model tier a worker runs at, from the launch record: the judge at eval, the hunter at qa, the rest at exec. */
+  const modelFor = (skill) => (skill === "spec-evaluator" ? L.models.eval : skill === "qa-edge-hunter" ? (L.models.qa || L.models.exec) : L.models.exec);
+
   /** A worker dispatch: compile, invoke, ingest. */
   const dispatch = ({ step, skill, operation, stem, payload, round, note = "", reason, phase, then = [], extraPre = [] }) => ({
-    step, kind: "dispatch", reason, skill: `${SKILL_NS}:${skill}`, operation,
+    step, kind: "dispatch", reason, skill: `${SKILL_NS}:${skill}`, operation, model: modelFor(skill),
     order_path: join(ordersDir(cwd, slug), `${stem}.json`),
     compile: K(`compile --operation ${operation} --slug ${slug}${round != null ? ` --round ${round}` : ""} --payload ${quoted(payload)}`),
     ingest: K(`reduce ingest --order "${join(ordersDir(cwd, slug), `${stem}.json`)}"`),
@@ -436,7 +439,7 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
             "fix it only if it falls inside your substrate. "
           : "";
         return {
-          step: `build.r${round}`, kind: "build", round, width: dial,
+          step: `build.r${round}`, kind: "build", round, width: dial, model: L.models.exec,
           reason: `${open.length} scope(s) not yet settled in round ${round}`,
           release: release.map((s) => ({
             scope_id: s.scope_id, path: s.path, skill: `${SKILL_NS}:task-executor`,

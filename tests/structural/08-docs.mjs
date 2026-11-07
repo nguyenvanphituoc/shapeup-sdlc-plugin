@@ -80,7 +80,7 @@ export async function run(ctx) {
   // table to grow a row without immediately re-raising the ratchet, while still catching the class
   // of regression this ratchet exists for: new orchestration logic going back into SKILL.md prose
   // instead of the workflow script or a reference file.
-  const LINE_RATCHETS = { "skills/tech-lead/SKILL.md": 155 };
+  const LINE_RATCHETS = { "skills/tech-lead/SKILL.md": 155, "skills/building/SKILL.md": 155 };
   for (const [rel, limit] of Object.entries(LINE_RATCHETS)) {
     const p = join(ROOT, rel);
     if (!existsSync(p)) { fail(`ratcheted file missing: ${rel}`); continue; }

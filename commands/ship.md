@@ -1,106 +1,66 @@
 ---
 description: Run the full Shape Up harness on a pitch, with human sign-off at gates
 ---
-Use the **tech-lead** skill to run the full harness on $ARGUMENTS.
+Use the **building** skill to run the full harness on $ARGUMENTS.
 
 Default to **interactive** (`auto_level = interactive`): pause at every ⏸ gate and require PO
 sign-off — especially the Ship gate (L4). The harness's safety depends on the human being in the
 loop; do not skip gates by default.
 
-**Before anything else, dispatch `tech-lead` and let it open the run** — its first action is
+**Before anything else, dispatch `building` and let it open the run** — its first action is
 `harness init run`, which writes the run receipt. Do not summarise what the harness will do;
-a session that dispatches the orchestrator and leaves no receipt is blocked at `Stop` by
+a session that dispatches the loop and leaves no receipt is blocked at `Stop` by
 `hooks/gate-zerowork.mjs`.
 
-## How the run actually executes
+## How the run executes
 
-On a spec with committed `scopes/*.md` — the common case — `tech-lead` holds the L0 intake
-conversation, writes `project-profile.md`, then hands the whole pipeline to a single background
-launch and does not drive it turn by turn:
+`building` drives the run in this session. It opens the run, then asks the kernel `probe next` what
+comes next and does exactly that, over and over: dispatch a worker, build the released scopes in
+parallel, run a kernel command, cross a gate, close. Three things follow:
 
-```
-Workflow({
-  scriptPath: ".shapeup/workflows/shapeup-run.js",
-  args: <the RunArgs object>
-})
-```
+- **A gate is answered where it is reached.** The loop prints the gate block, asks the PO one
+  question with a recommendation, records the answer with the source `PO (live)`, and goes on. There
+  is no relaunch after an answer.
+- **A killed session loses nothing.** The next step is derived from artifacts on disk, never from
+  the conversation, so `/ship` again over an open run resumes it: a finished phase is not re-run.
+- **Every agent the run spawns is a worker** — `orient`, `task-executor`, `spec-evaluator`,
+  `qa-edge-hunter`, and the planning and census workers — and each leaves a row in the run's records.
 
-ORIENT → L1a → ANALYZE → WIRE → L1a.5 → MAP SCOPES → L1b → rounds of BUILD/L2/EVAL → QA → GATE H
-all run inside it. Three things follow, and they are the point of the cutover rather than trivia:
-
-- **A gate pause is a return value, not a stop.** The launch returns `{status: "paused", paused_at,
-  block}`; emit `block` **verbatim**, get the PO's decision, write it to
-  `.shapeup/<slug>/gate-answers.json`, and **relaunch the same call with the same args**. The
-  fast-forward re-derives position from disk and re-dispatches nothing already finished.
-- **A killed session loses nothing.** Resume state comes off disk, never from context, so a fresh
-  session picks the run up where it died — the property the whole launch shape exists to buy.
-- **The launch is the `Workflow` tool**, which is what gives the run resume-from-journal, worktree
-  isolation, and sub-agents that share the session's prompt cache instead of paying a cold start
-  each. `npx shapeup-sdlc init` writes the `"Workflow"` grant it needs. That grant is unscoped — it
-  authorises every dynamic workflow script in the project — so an install may decline it with
-  `--no-native-workflow`, in which case the launch asks for approval once per session and the
-  unattended lane is unavailable.
-
-`--tiny`, and any spec with no committed `scopes/*.md` yet, take the unchanged prose lane in
-`skills/tech-lead/references/protocol.md` instead — non-regression, by design.
+`--tiny` takes the small-change lane in the `tech-lead` skill instead: orient (light) → single-task
+board → build → T0 → done, only gates L0 and L4 pause. Its fit-check applies (≤ ~2 files, no new
+domain concept/dependency/flow); if the change isn't tiny it says so and recommends the full lane.
 
 Only run headless/auto if the user explicitly asks for it in their message:
 - `--auto` → advance low-risk gates automatically, still pause at L4 (Ship sign-off).
   Implies `--gate-answers guarded` unless a set is named.
 - `--unattended` → fully headless, `max_rounds 3`. Intended for CI, not day-to-day local runs.
-  Implies `--gate-answers ci` unless a set is named.
-  **In a `claude -p` invocation, set `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0` first.** Print mode
-  terminates a session's background tasks after 600 s, and the entire pipeline is one background
-  launch, so without it the run is killed roughly ten minutes in — mid-phase, with no error beyond
-  the CLI's own "background tasks still running; terminating". Resume state is on disk, so a
-  relaunch fast-forwards past whatever finished; the cost is a relaunch, not the run.
-  **Typing the flag IS the confirmation — do not stop to ask for another one.** Emit the warning
-  that no human will review the verdict before ship as the run's first line, then proceed straight
-  into GATE L0 in the same turn.
+  Implies `--gate-answers ci` unless a set is named. **Typing the flag IS the confirmation — do not
+  stop to ask for another one.** Emit the warning that no human will review the verdict before ship as
+  the run's first line, then proceed straight into GATE L0 in the same turn. (In a non-interactive
+  invocation there is no second turn in which to answer; a headless flag that waits for one cannot
+  complete a headless run.)
 
-  > Why this is spelled out: asking for confirmation here made `--unattended` unusable for the
-  > only job it has. In a non-interactive invocation (`claude -p …`, a CI step) there is no second
-  > turn in which to answer, so the run spent its turn requesting permission and
-  > exited having written nothing. A headless flag that cannot complete a headless run is a defect,
-  > not a safety feature — and the warning, which is the part that carries the safety value, is
-  > still printed. `--auto` remains the middle setting that pauses at L4.
-
-- `--tiny` → the small-change lane: orient (light) → single-task board → build → T0 → done.
-  Skips wiring, scope contracts, EVAL, and QA; only gates L0 and L4 pause. The tech-lead's L0
-  fit-check applies (≤ ~2 files, no new domain concept/dependency/flow) — if the change isn't
-  tiny, it will say so and recommend the full lane.
-
-Additional flags, pass through to `tech-lead` only when the user names them:
+Additional flags, pass through to `building` only when the user names them:
 - `--breadboard <path>` → the pitch's breadboard, when it is not beside the pitch. A pitch shaped
   with `/shapeup` is `shaping.md` + `breadboard.md`; the run finds a `breadboard.md` in the same
-  folder (or in `shaping/`) on its own, and reads one written inline in a single `pitch.md`. Name
-  it only when it lives somewhere else. Its Places become the spec's screens, and spec-lint stops
-  the run at GATE L1b when one is missing or folded into another screen.
+  folder (or in `shaping/`) on its own, and reads one written inline in a single `pitch.md`. Its
+  Places become the spec's screens, and spec-lint stops the run at GATE L1b when one is missing or
+  folded into another screen.
 - `--gate-answers <ci|guarded|interactive|path.json>` → the pre-recorded PO decisions this run
-  crosses its gates with. Gates still emit their blocks and still record a decision; the
-  decision's **source** becomes the answer set instead of a live human, and the ledger says so.
-  Generate one with `harness gate --init --preset ci --by "<name>"`. This is what makes a
-  headless lane finish: without it an unattended run waits at the first ⏸ until the wall-clock
-  budget expires, having built nothing.
+  crosses its gates with. Gates still emit their blocks and still record a decision; the decision's
+  **source** becomes the answer set instead of a live human, and the ledger says so. Generate one
+  with `harness gate --init --preset ci --by "<name>"`. Without one an unattended run waits at the
+  first ⏸ until the wall-clock budget expires, having built nothing.
 - `--wall-clock-budget <seconds>` → arm the deadline breaker. Off by default. Set it in any lane
-  with a hard clock (CI, an overnight run) and set it *below* the external kill, so
-  the harness trips its own breaker first: past the deadline `harness verify budget` denies new
-  `task-executor` work and routes to GATE H, where scope-hammer ships whatever is green. A run
-  killed from outside ships nothing — including the scopes that already passed T0.
-- `--parallel-scopes N` → how many scopes build at once (default 4). Concurrency is a cost
-  question before it is a speed one — every extra leg is another worker's full context — so this
-  is a dial rather than a constant. `1` builds scopes one at a time, which is the setting for a
-  project whose workers are not safe to run beside each other.
-- `--adversarial-verify` → before a FAIL finding costs a whole fix round, spend one independent
-  skeptic on it, prompted to refute and to default to "real" when it cannot. Off by default; it
-  does not touch the single-judge invariant, because a refutation retracts a finding rather than
-  issuing a verdict.
+  with a hard clock and *below* the external kill, so the harness trips its own breaker first: past
+  the deadline no new build round opens and the run routes to GATE H, where the census ships whatever
+  is green. A run killed from outside ships nothing.
+- `--parallel-scopes N` → how many scopes build at once (default 4). Concurrency is a cost question
+  before it is a speed one — every extra leg is another worker's full context. `1` builds scopes one
+  at a time.
 - `--no-qa` → skip the QA Edge Hunt. QA is a level-up, not a gate.
+- `--no-eval` → skip the evaluator; the run ships as not evaluated, and says so.
 - `--rounds N` → override the outer circuit breaker (build+eval cycles, default 3).
-- `--attempts N` → override the inner circuit breaker (per-scope T0 attempts, default 5;
-  no-op on specs without scope contracts).
-- `--exec-model / --eval-model / --qa-model <name>` → override GATE L0.8's
-  resolved model matrix for this run only (highest precedence over `.claude/settings.local.json`
-  / `.claude/settings.json` / skill defaults). `--orch-model` is shown in the L0 block and changes
-  nothing: the orchestrator is the session already running this command, so its model is the one
-  that session was started with.
+- `--attempts N` → override the inner circuit breaker (per-scope T0 attempts, default 5).
+- `--exec-model / --eval-model / --qa-model <name>` → override the resolved model matrix for this run
+  only (highest precedence over `.claude/settings.local.json` / `.claude/settings.json` / skill defaults).
