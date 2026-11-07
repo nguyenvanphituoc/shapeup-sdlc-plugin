@@ -7,6 +7,7 @@
 ```
 .claude-plugin/          plugin.json · marketplace.json
 skills/<name>/SKILL.md   the 7 harness skills (+ references/ and resources/)
+agents/<worker>.md       the 4 workers as plugin subagents; each preloads its skill
 kernel/harness.mjs       the deterministic half behind ONE entry point (and therefore one
                          permission prefix). Subcommands:
                           compile — the envelope port's order compiler

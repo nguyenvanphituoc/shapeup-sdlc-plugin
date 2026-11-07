@@ -852,10 +852,15 @@ export async function cli(rawArgv) {
   // dispatch, so it has no leg to close and inventing one would put a phantom interval in the
   // record set every later measurement reads.
   if (order) {
-    const row = legRow(order, att.ok ? att.receipt : null, cwd, undefined, {
+    // WHO REPORTED THE FIGURES. A session that was told a total passes it and says where it came
+    // from; otherwise the figure is the one the host measured for the dispatch and the receipt hook
+    // recorded, which no session had to copy. Nothing at all stays null — never an estimate.
+    const hostUsage = att.ok ? att.receipt?.usage : null;
+    const flagged = args.tokensTotal != null || args.tokensIn != null || args.tokensOut != null || args.costUsd != null;
+    const row = legRow(order, att.ok ? att.receipt : null, cwd, undefined, flagged || !hostUsage || hostUsage.tokens_total == null ? {
       tokens_in: args.tokensIn, tokens_out: args.tokensOut, tokens_total: args.tokensTotal,
       cost_usd: args.costUsd, source: args.usageSource,
-    });
+    } : { tokens_total: hostUsage.tokens_total, source: "agent-hook" });
     if (!appendLeg(row, cwd)) {
       console.error(`  ! leg-completion row could not be written for ${row.order_id} — this leg will ` +
                     `read as having no completion record.`);

@@ -33,6 +33,13 @@
 // because a future host that reports failures through this event must not be able to satisfy the
 // wall by firing at all.
 //
+// THE PLUGIN'S WORKERS ARE AGENT DEFINITIONS (`agents/<worker>.md`), and a dispatch of one is an
+// `Agent` call whose result names the AGENT that ran (`tool_response.agentType`). An agent type the
+// host cannot resolve is rejected upstream exactly as an unknown skill is, and the worker's skill is
+// preloaded by the definition, so no `Skill` call happens inside it — the agent's name is the
+// attestation, and the same result carries what the host measured (`totalTokens`, `totalDurationMs`,
+// `resolvedModel`), recorded on the row so no session has to copy a figure by hand.
+//
 // WHAT IT WILL NOT ATTEST. A receipt is written only when the tool result NAMES the skill that ran
 // (`tool_response.commandName`). An `Agent` dispatch whose prompt merely mentions `--order` gets no
 // receipt: the prompt is a plan to dispatch, not evidence of one, and minting attestation from it
@@ -87,6 +94,39 @@ export function skillInvokedFrom(toolResponse) {
 }
 
 /**
+ * Which worker an `Agent` dispatch ran, from the tool result.
+ *
+ * The host reports the agent NAMESPACED (`shapeup-sdlc-plugin:orient`); the bare name is compared
+ * against the WorkOrder's `worker`, so a general-purpose agent that merely had `--order` in its prompt
+ * attests as `general-purpose` and the ingest gate refuses it.
+ *
+ * @param {object} toolResponse - The `tool_response` block of an `Agent` call.
+ * @returns {string|null} The bare agent name, or null when the result names no agent.
+ */
+export function agentWorkerFrom(toolResponse) {
+  const name = toolResponse?.agentType;
+  if (typeof name !== "string" || !name) return null;
+  return name.slice(name.lastIndexOf(":") + 1) || null;
+}
+
+/**
+ * What the host measured for an `Agent` dispatch, as the leg row carries it.
+ *
+ * Absent figures stay null — a figure the host did not give is never inferred and never zero.
+ *
+ * @param {object} toolResponse - The `tool_response` block of an `Agent` call.
+ * @returns {{tokens_total:(number|null), duration_ms:(number|null), model:(string|null)}} The usage.
+ */
+export function usageFrom(toolResponse) {
+  const num = (v) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null);
+  return {
+    tokens_total: num(toolResponse?.totalTokens),
+    duration_ms: num(toolResponse?.totalDurationMs),
+    model: typeof toolResponse?.resolvedModel === "string" ? toolResponse.resolvedModel : null,
+  };
+}
+
+/**
  * Build the receipt row for one dispatch.
  *
  * Exported so the suite can assert the row's SHAPE without a live session — the hook body is
@@ -106,12 +146,14 @@ export function receiptRow(order, skillInvoked, payload) {
     skill_invoked: skillInvoked,
     // Corroboration, not the wall — see the header. `success` is absent on hosts that do not
     // report one, and an absent field must not read as a successful dispatch.
-    dispatch_ok: payload?.tool_response?.success === true,
+    dispatch_ok: payload?.tool_response?.success === true || payload?.tool_response?.status === "completed",
     tool: payload?.tool_name ?? null,
     // Present when the dispatch came from a sub-agent, absent when the operator called it directly.
     // That is the difference between an orchestrated leg and someone driving a skill by hand.
-    agent_id: payload?.agent_id ?? null,
-    agent_type: payload?.agent_type ?? null,
+    agent_id: payload?.agent_id ?? payload?.tool_response?.agentId ?? null,
+    agent_type: payload?.agent_type ?? payload?.tool_response?.agentType ?? null,
+    // What the host measured for an Agent dispatch; null for a Skill call, which reports none.
+    usage: payload?.tool_name === "Agent" ? usageFrom(payload.tool_response) : null,
   };
 }
 
@@ -166,11 +208,13 @@ export async function main() {
     const cited = orderPathFrom(p.tool_input);
     if (!cited) defer("no --order threaded — not an orchestrated dispatch", "no-order");
 
-    const skillInvoked = skillInvokedFrom(p.tool_response);
+    const skillInvoked = p.tool_name === "Agent"
+      ? (agentWorkerFrom(p.tool_response) ?? skillInvokedFrom(p.tool_response))
+      : skillInvokedFrom(p.tool_response);
     if (!skillInvoked) {
-      // The `Agent` case, and any host result that does not name what ran. Attesting here would
-      // mint the fact rather than record it.
-      defer("dispatch result names no resolved skill — nothing to attest", "no-skill-named");
+      // A host result that does not name what ran. Attesting here would mint the fact rather than
+      // record it.
+      defer("dispatch result names no resolved skill or agent — nothing to attest", "no-skill-named");
     }
 
     // The order path is relative to the shell; the receipt file is relative to the project root

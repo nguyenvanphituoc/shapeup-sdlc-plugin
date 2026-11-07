@@ -62,6 +62,30 @@ export async function run(ctx) {
     if (bad.status === 2) ok("a negative figure is refused at the argv, nothing written");
     else fail(`a negative token count exited ${bad.status}, not 2`);
 
+    // The host measured the dispatch and the receipt hook recorded it on the row, so a session that was
+    // told nothing still leaves the figure — and one that passes a figure keeps its own.
+    const plantReceipt = (stem, usage) => {
+      mkdirSync(local("receipts"), { recursive: true });
+      appendFileSync(local("receipts", "dispatch.jsonl"), JSON.stringify({
+        at: new Date().toISOString(), order_id: `${SLUG}/${stem}`, run_id: runId, worker_declared: "orient",
+        skill_invoked: "orient", dispatch_ok: true, tool: "Agent", agent_id: "a1",
+        agent_type: "shapeup-sdlc-plugin:orient", usage,
+      }) + "\n");
+    };
+    const d = answered("host-usage");
+    plantReceipt("host-usage", { tokens_total: 24497, duration_ms: 2430, model: "claude-opus-5-5" });
+    sh("reduce ingest", ["--order", d, "--cwd", ws]);
+    const fromHost = rows().find((r) => r.order_id === `${SLUG}/host-usage`);
+    if (fromHost?.tokens_total === 24497 && fromHost.usage_source === "agent-hook" && fromHost.cost_usd === null) {
+      ok("with no flags, the leg row carries the figure the host measured and names it as the agent hook's");
+    } else fail(`the leg row did not take the receipt's usage: ${JSON.stringify(fromHost)}`);
+    const e = answered("flag-wins");
+    plantReceipt("flag-wins", { tokens_total: 24497, duration_ms: 2430, model: "claude-opus-5-5" });
+    sh("reduce ingest", ["--order", e, "--cwd", ws, "--tokens-total", "900", "--usage-source", "operator"]);
+    const flagged = rows().find((r) => r.order_id === `${SLUG}/flag-wins`);
+    if (flagged?.tokens_total === 900 && flagged.usage_source === "operator") ok("a figure the session passes is kept over the receipt's");
+    else fail(`a passed figure was overwritten by the receipt: ${JSON.stringify(flagged)}`);
+
   } finally {
     try { rmSync(ws, { recursive: true, force: true }); } catch { /* best effort */ }
   }

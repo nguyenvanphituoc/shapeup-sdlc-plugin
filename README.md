@@ -326,6 +326,7 @@ claude --plugin-dir .                # load this working copy without installing
   plugin.json         # plugin manifest
   marketplace.json    # marketplace listing (points at this repo)
 skills/<name>/SKILL.md # the 7 harness skills (+ references/, resources/ and assets/)
+agents/<worker>.md    # the 4 workers as plugin subagents: each preloads its skill; a dispatch names the agent
 kernel/harness.mjs    # ONE entry point for every deterministic step; the whole permission grant
 kernel/{verify,reduce,probe,init,report}/ #   its subcommands, plus compile and gate at the root
 kernel/lib/           # argv (the typed CLI boundary), paths (+ the run key), contract (shape)
@@ -333,7 +334,7 @@ kernel/schemas/       # the envelope port: WorkOrder, WorkResult, domain registr
 commands/*.md         # slash commands (/ship + the 9 phase commands)
 hooks/                # hooks.json + the three walls: safety-spine, sandbox-guard (the substrate fence and the
                       #   committed-tier write check) — PreToolUse, beside the kernel's `verify envelope`
-                      #   + dispatch-receipt (PostToolUse, denies nothing, attests which skill ran)
+                      #   + dispatch-receipt (PostToolUse, denies nothing, attests which worker ran and what the host measured)
                       #   + lib/decision.mjs (every hook records allow / deny / error)
 oracles/              # the evaluation-contract oracle registry (test · snapshot · http · process)
 bin/init.mjs          # `npx shapeup-sdlc init` — scaffolds all three CLI targets

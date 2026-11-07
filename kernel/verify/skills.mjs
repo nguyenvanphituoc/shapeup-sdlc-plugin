@@ -55,10 +55,25 @@ export function roster(root = PLUGIN_ROOT) {
 }
 
 /**
+ * The skills an agent definition preloads, read from its `skills:` frontmatter list.
+ *
+ * @param {string} path - The `agents/<worker>.md` file.
+ * @returns {string[]} The listed skill names; [] when the file or the list is absent.
+ */
+export function preloadedSkills(path) {
+  let text;
+  try { text = readFileSync(path, "utf8"); } catch { return []; }
+  const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1] ?? "";
+  const block = /^skills:[ \t]*\r?\n((?:[ \t]+-[ \t]*\S+[ \t]*\r?\n?)+)/m.exec(fm + "\n")?.[1] ?? "";
+  return [...block.matchAll(/-[ \t]*(\S+)/g)].map((m) => m[1]);
+}
+
+/**
  * Resolve every worker in the roster against a plugin root.
  *
- * A worker is present when its `SKILL.md` is readable. That is the file the host loads to answer a
- * `Skill(...)` call, so its absence is the closest on-disk fact to "this dispatch will fail".
+ * A worker is present when its `SKILL.md` is readable AND its agent definition (`agents/<worker>.md`)
+ * is readable and preloads that skill. The agent is what a dispatch names, the skill is its craft, and
+ * either one missing is the closest on-disk fact to "this dispatch will fail".
  *
  * @param {string} [root=PLUGIN_ROOT] - Plugin root to check.
  * @returns {{root:string, version:(string|null), name:(string|null), workers:Array<{worker:string,
@@ -74,7 +89,9 @@ export function resolveWorkers(root = PLUGIN_ROOT) {
   } catch { /* an unreadable manifest is reported as null, never as a failure of its own */ }
   const workers = roster(root).map((worker) => {
     const path = join(root, "skills", worker, "SKILL.md");
-    return { worker, path, present: existsSync(path) };
+    const agent = join(root, "agents", `${worker}.md`);
+    const preloads = preloadedSkills(agent).includes(worker);
+    return { worker, path, agent, present: existsSync(path) && preloads, skill: existsSync(path), agent_preloads_skill: preloads };
   });
   return { root, version, name, workers, missing: workers.filter((w) => !w.present).map((w) => w.worker) };
 }
@@ -116,7 +133,9 @@ export function cli(rawArgv) {
   }
   if (report.missing.length) {
     console.error(`  ✗ verify skills: ${report.missing.length} worker skill(s) missing under ${report.root}:`);
-    for (const w of report.workers.filter((x) => !x.present)) console.error(`      ${w.worker} — no SKILL.md at ${w.path}`);
+    for (const w of report.workers.filter((x) => !x.present)) {
+      console.error(`      ${w.worker} — ${w.skill ? `${w.agent} does not preload the \`${w.worker}\` skill` : `no SKILL.md at ${w.path}`}`);
+    }
     console.error(`    This plugin copy cannot run the pipeline. Load the working copy with`);
     console.error(`    \`claude --plugin-dir <repo>\`, or install/enable the plugin, then retry.`);
     process.exit(1);

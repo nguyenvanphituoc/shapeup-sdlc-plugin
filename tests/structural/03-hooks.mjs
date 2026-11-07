@@ -616,6 +616,45 @@ export async function run(ctx) {
       fail(`an unreadable order was not handled: exit ${brokenFire.exit}, decision ${JSON.stringify(brokenFire.decision)}`);
     }
 
+    // (e) THE PLUGIN'S WORKERS ARE AGENT DEFINITIONS. The payload below is the one a nested session
+    //     produced (a plugin agent dispatched by name): the call is `Agent`, the result names the agent
+    //     that ran (`agentType`, namespaced) and carries what the host measured. No `Skill` call happens
+    //     inside the agent — its skill is preloaded — so the agent's name is the attestation.
+    const agentPost = (over = {}) => ({
+      hook_event_name: "PostToolUse", tool_name: "Agent", cwd: drBox,
+      tool_input: { description: "orient", subagent_type: "shapeup-sdlc-plugin:orient", prompt: `--order '${orderPath}'` },
+      tool_response: {
+        status: "completed", agentId: "adebac8a2d8f7dae2", agentType: "shapeup-sdlc-plugin:orient",
+        content: [{ type: "text", text: "READY" }], resolvedModel: "claude-opus-5-5",
+        totalDurationMs: 2430, totalTokens: 24497, totalToolUseCount: 0,
+      },
+      ...over,
+    });
+    const beforeAgent = rowsNow().length;
+    const agentFire = firePost(agentPost());
+    const arow = agentFire.rows[agentFire.rows.length - 1];
+    if (agentFire.rows.length === beforeAgent + 1 && arow.skill_invoked === "orient" && arow.worker_declared === "orient"
+        && arow.agent_id === "adebac8a2d8f7dae2" && arow.dispatch_ok === true) {
+      ok("an Agent dispatch of a plugin worker is attested by the agent's own name, reduced to the bare worker the order declares");
+    } else fail(`no usable receipt for an Agent dispatch: ${JSON.stringify(agentFire.rows.slice(beforeAgent))}`);
+    if (arow?.usage?.tokens_total === 24497 && arow.usage.duration_ms === 2430 && arow.usage.model === "claude-opus-5-5") {
+      ok("the receipt records what the host measured for the dispatch — tokens, duration, resolved model — so no session copies a figure by hand");
+    } else fail(`the receipt dropped the host's usage: ${JSON.stringify(arow?.usage)}`);
+
+    // (f) an agent that is NOT the worker attests as itself, and the ingest gate then refuses it —
+    //     a general-purpose agent with `--order` in its prompt did not run the shipped craft.
+    const gp = firePost(agentPost({ tool_response: { status: "completed", agentId: "g1", agentType: "general-purpose", totalTokens: 5 } }));
+    const grow = gp.rows[gp.rows.length - 1];
+    if (grow?.skill_invoked === "general-purpose" && grow.worker_declared === "orient") {
+      ok("a general-purpose agent attests as general-purpose, never as the worker — the ingest gate compares it with the order and refuses");
+    } else fail(`a non-worker agent was attested as ${JSON.stringify(grow?.skill_invoked)}`);
+
+    // (g) an Agent result that names no agent mints nothing.
+    const beforeNone = rowsNow().length;
+    const none = firePost(agentPost({ tool_response: { status: "completed" } }));
+    if (none.rows.length === beforeNone) ok("an Agent result naming no agent gets no receipt");
+    else fail(`an Agent result naming no agent produced a receipt: ${JSON.stringify(none.rows.slice(beforeNone))}`);
+
     rmSync(drBox, { recursive: true, force: true });
   }
 

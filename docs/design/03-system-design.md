@@ -174,9 +174,11 @@ the observed instance only by coincidence — the plugin was not loaded, so thes
 registered either. Repair the environment and a failing dispatch gets a pre-receipt written just
 before it fails: the fix would expire exactly when the thing it guards starts working.
 
-**What the boundary actually does**, measured in a live session with a sub-agent making the calls,
-because every dispatch here is a `Skill(...)` made by a workflow leg and a hook blind there is blind
-where it matters:
+**What the boundary actually does**, measured in a live session with a sub-agent making the calls.
+A worker is a plugin agent (`agents/<worker>.md`, preloading its skill), so a dispatch is an `Agent`
+call; the table below is the `Skill` call a hand-driven run still makes, and the `Agent` result names
+the agent that ran (`agentType`) and carries what the host measured — tokens, duration, resolved model —
+which the receipt records on its row:
 
 | Dispatch state | `PreToolUse` | `PostToolUse` |
 |---|---|---|
@@ -188,7 +190,9 @@ So a failed dispatch leaves **no row at all**, and the receipt's mere existence 
 `dispatch_ok` is corroboration recorded on top, so a future host that reports failures through this
 event cannot satisfy the gate merely by firing. The host names the skill namespaced
 (`shapeup-sdlc-plugin:orient`) where the order names it bare (`orient`), so the comparison is against
-the segment after the last `:`.
+the segment after the last `:`. For an `Agent` dispatch the name compared is the agent's, so a
+general-purpose agent that merely had `--order` in its prompt attests as `general-purpose` and the
+ingest gate refuses it.
 
 **Where it becomes a wall.** Nowhere in the hook — it has no deny path. `harness reduce ingest`
 refuses a result whose order declares `mode: "orchestrated"` and has no receipt matching on all three

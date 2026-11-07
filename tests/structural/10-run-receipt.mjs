@@ -409,6 +409,32 @@ export async function run(ctx) {
   if (vs.status === 1 && /orient/.test(vs.stderr)) ok("verify skills exits non-zero against a root with a worker missing, and names it");
   else fail(`verify skills did not catch a missing worker: exit ${vs.status}\n${vs.stdout}${vs.stderr}`);
 
+  // A worker whose SKILL.md is present but whose AGENT definition is absent, or does not preload that skill,
+  // is just as unreachable: a dispatch names the agent, and the agent carries the craft.
+  {
+    const agentRoot = mkdtempSync(join(tmpdir(), "broken-agent-"));
+    mkdirSync(join(agentRoot, "kernel/schemas"), { recursive: true });
+    mkdirSync(join(agentRoot, ".claude-plugin"), { recursive: true });
+    mkdirSync(join(agentRoot, "agents"), { recursive: true });
+    writeFileSync(join(agentRoot, "kernel/schemas/domain.schema.json"), readFileSync(join(ROOT, "kernel/schemas/domain.schema.json")));
+    writeFileSync(join(agentRoot, ".claude-plugin/plugin.json"), JSON.stringify({ name: "shapeup-sdlc-plugin", version: "1.6.3" }));
+    for (const w of schemaEnum) {
+      mkdirSync(join(agentRoot, "skills", w), { recursive: true });
+      writeFileSync(join(agentRoot, "skills", w, "SKILL.md"), "# stub\n");
+      writeFileSync(join(agentRoot, "agents", `${w}.md`),
+        w === "orient" ? `---\nname: ${w}\ndescription: x\n---\nbody\n` : `---\nname: ${w}\ndescription: x\nskills:\n  - ${w}\n---\nbody\n`);
+    }
+    const noPreload = node("verify skills", ["--plugin-root", agentRoot]);
+    if (noPreload.status === 1 && /orient/.test(noPreload.stderr) && /preload/.test(noPreload.stderr)) {
+      ok("verify skills exits non-zero when a worker's agent definition does not preload its skill, and names it");
+    } else fail(`verify skills passed an agent that preloads nothing: exit ${noPreload.status}\n${noPreload.stdout}${noPreload.stderr}`);
+    rmSync(join(agentRoot, "agents", "task-executor.md"));
+    const noAgent = node("verify skills", ["--plugin-root", agentRoot]);
+    if (noAgent.status === 1 && /task-executor/.test(noAgent.stderr)) ok("verify skills exits non-zero when a worker has no agent definition at all");
+    else fail(`verify skills passed a root missing an agent: exit ${noAgent.status}\n${noAgent.stdout}${noAgent.stderr}`);
+    rmSync(agentRoot, { recursive: true, force: true });
+  }
+
   const vsOk = node("verify skills", ["--plugin-root", ROOT]);
   // The expected version is READ FROM THE MANIFEST, never written here. This assertion used to
   // match the literal `2.0.0`, so it passed for exactly one release and turned every later version

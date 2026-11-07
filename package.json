@@ -11,6 +11,7 @@
     ".env.shapeup.example",
     "AGENTS.md",
     "SECURITY.md",
+    "agents/",
     "bin/",
     "commands/",
     "hooks/",

@@ -48,10 +48,10 @@ work, not work in flight. Surface every string in `warnings`. Then act on `kind`
 
 | `kind` | Do |
 |---|---|
-| `dispatch` | Run each `pre`, then `compile`. Spawn ONE sub-agent (model: `model`) told to invoke `Skill(<skill>) --order "<order_path>"` plus `note`, and to return a one-line summary. When it returns run `ingest` — add `--tokens-total <N> --usage-source agent-tool-result` when the result reported a total, and nothing when it did not; never estimate one — then each `then`. A failed `compile`, or a sub-agent that dies, runs `on_fail_close` and stops. A refused `ingest` is not a stop: ask again — the kernel sends the worker back once with the refusal, then stops with the real reason. |
+| `dispatch` | Run each `pre`, then `compile`. Spawn ONE sub-agent with the Agent tool: `subagent_type` `shapeup-sdlc-plugin:<skill>`, model `model`, and a prompt that is `--order "<order_path>"` plus `note`; it returns a one-line summary. The worker's craft is preloaded by its agent definition, so the prompt does not name a skill. When it returns run `ingest` as written: the dispatch receipt already holds the figures the host measured, so pass no usage flags and never estimate one. Then each `then`. A failed `compile`, or a sub-agent that dies, runs `on_fail_close` and stops. A refused `ingest` is not a stop: ask again — the kernel sends the worker back once with the refusal, then stops with the real reason. |
 | `plan` | One planning substep, done HERE — no sub-agent. Unless `order_open`, run `open`: it stamps the write fence (`payload.step`, `payload.mode`, `payload.feature`, `payload.spec_folder`, `payload.kb_rules_paths`). Read `resource` (`section` says where) and `guidance`; write ONLY what `produces` names, never outside the substep's substrate between `open` and `close`. Run each of `checks` (fix a red, run it again; `advisory` never stops). Run `close`, then ask again. A `close` over no artifact is recorded, not retried — the next step names what is missing. |
 | `stop` | The census, done HERE — no sub-agent. Run each `pre` (it records a refusal), then each command in `probes` (owner, requirements, one attempts probe per proposal scope) and cite what they print for every ownership, exhaustion and requirement claim. Read `resource` (`section` says where), compare against the BASELINE and never the ideal, write the census to `produces.path` with its `required` fields, run `close`. A refused census comes back once, with the reason in `note`; a second refusal is a stop. |
-| `build` | For every scope in `release`, in ONE message, spawn a sub-agent (model: `model`) for that scope exactly as for `dispatch`, using the item's own `compile`, `order_path`, `note` and `ingest` (usage flags included). When they return, ask again. |
+| `build` | For every scope in `release`, in ONE message, spawn a sub-agent (model: `model`) for that scope exactly as for `dispatch`, using the item's own `compile`, `order_path`, `note` and `ingest`. When they return, ask again. |
 | `command` | Run `pre`, then `command`; exit codes in `ok_exits` (default `[0]`) pass; any other runs `on_fail_close` when present. Then each `then`. |
 | `gate` | See below. |
 | `wait` | Nothing may open until an in-flight scope returns. Ask again once one does. |
@@ -61,7 +61,7 @@ work, not work in flight. Surface every string in `warnings`. Then act on `kind`
 
 A `pre` or `then` entry marked `advisory` is a projection: run it, log a failure, never stop on it.
 
-**A sub-agent is told only its skill, its order and its note.** It does not receive the run's history,
+**A sub-agent is told only its order and its note.** Its agent definition carries its skill. It does not receive the run's history,
 the other scopes, or your reading of the plan; the order is the whole brief.
 
 ### Gates
