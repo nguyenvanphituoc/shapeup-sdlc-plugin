@@ -58,8 +58,9 @@
 //                                              `next` answers what the run does next — one step, derived
 //                                              from artifacts and nothing else, so the loop that drives a
 //                                              run advances on a kernel answer and never on its own account.
-//   init     run · fit · run-args              Opens a run, or refuses it (exit 3). `run-args`
-//                                              writes GATE L0.9b's launch record and echoes it.
+//   init     run · fit                         Opens a run, or refuses it (exit 3). `run` also writes
+//                                              GATE L0.9b's launch record and refuses a model below
+//                                              the floor.
 //   report   export                           Projects the run's records as fact tables.
 //   compile                                   The WorkOrder: schema-valid or nothing is dispatched.
 //
@@ -96,7 +97,7 @@ export const ROUTES = {
     requirements: "./probe/requirements.mjs", attempts: "./probe/attempts.mjs", hunt: "./probe/hunt.mjs",
     next: "./probe/next.mjs",
   },
-  init: { run: "./init/run.mjs", fit: "./init/fit.mjs", "run-args": "./init/run-args.mjs" },
+  init: { run: "./init/run.mjs", fit: "./init/fit.mjs" },
   report: { export: "./report/export.mjs", _default: "export" },
   gate: "./gate.mjs",
   compile: "./compile.mjs",

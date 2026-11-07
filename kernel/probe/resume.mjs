@@ -65,7 +65,6 @@ import { parseBoard } from "../reduce/board.mjs";
 import { intake, harnessRun, wiringMap, projectProfile, scopesDir, resultsDir, ordersDir, orientDir, activeOrder, activeScope, usecasesDir, breadboard, receipt, readReceipt, requirements, exportRunDir, lastRun, readRunId, tasksDir, gates, verdictsDir, roundBuildDir } from "../lib/paths.mjs";
 import { evalVerdict } from "./eval.mjs";
 import { deriveRounds } from "./rounds.mjs";
-import { stagedWorkflowDrift, driftWarning } from "./staged.mjs";
 import { collectRun, writeRun } from "../report/export.mjs";
 
 /** The run-state values `references/protocol.md` (Part 4 — State) defines. A typo'd status is a rejection,
@@ -446,8 +445,7 @@ export function nextPhase(f) {
  *
  * @param {string} cwd - Project root.
  * @param {string} slug - Feature slug.
- * @param {object} [opts] - `pluginRoot`, when the caller knows where the plugin it is running from
- *   lives: the state then also reports whether the staged orchestrator is the installed one.
+ * @param {object} [opts] - Reserved; accepted so a caller that passes one keeps working.
  * @returns {object} The ResumeState record (domain.schema.json $defs/ResumeState).
  */
 export function deriveResumeState(cwd, slug, { pluginRoot = null } = {}) {
@@ -525,22 +523,7 @@ export function deriveResumeState(cwd, slug, { pluginRoot = null } = {}) {
       .map((f) => Number(f.match(/\d+/)[0]))
       .filter((n) => evalVerdict(cwd, slug, n).found),
   };
-  // WHICH ORCHESTRATOR THIS LAUNCH WILL RUN. A run keeps the workflow copy it opened with — right,
-  // and invisible: a relaunch after an upgrade executes the old one and reports normally, so every
-  // observation is of the previous release. Reported, never enforced (see probe/staged.mjs).
-  const staged = stagedWorkflowDrift(cwd, pluginRoot, slug);
-  const warning = driftWarning(staged);
-  return {
-    ...facts,
-    staged_workflow: {
-      checked: staged.checked,
-      drift: staged.drift.map((d) => d.file),
-      installed_version: staged.installed_version,
-      run_version: staged.run_version,
-      ...(warning ? { warning } : {}),
-    },
-    next_phase: nextPhase(facts),
-  };
+  return { ...facts, next_phase: nextPhase(facts) };
 }
 
 /**

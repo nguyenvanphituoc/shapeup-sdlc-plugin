@@ -25,6 +25,26 @@ export function belowFloor(m) {
 export const AUTO_LEVELS = ["interactive", "auto", "unattended"];
 
 /**
+ * The roles whose model sits below the floor, as sentences naming the role. `qa` is never checked, and
+ * `eval` is not under `--no-eval`: a run that skips evaluation never resolves a judge.
+ *
+ * @param {object} models - The role -> model matrix (`exec`, `eval`, `qa`).
+ * @param {{noEval?: boolean}} [opts] - Whether evaluation is skipped.
+ * @returns {string[]} One sentence per offending role; empty when the matrix clears the floor.
+ */
+export function floorProblems(models, { noEval = false } = {}) {
+  const out = [];
+  for (const role of ["exec", "eval"]) {
+    if (role === "eval" && noEval) continue;
+    if (belowFloor(models?.[role])) {
+      const m = String(models?.[role] ?? "").trim();
+      out.push(`models.${role} ${m ? `"${m}" ` : ""}is below the model floor (sonnet or above)`);
+    }
+  }
+  return out;
+}
+
+/**
  * Everything wrong with a launch record, as sentences. Empty means launchable.
  *
  * @param {object} a - The parsed launch record (`run-args.json`).
@@ -39,11 +59,6 @@ export function launchProblems(a) {
   if (a?.budgets && !(a.budgets.maxRounds && a.budgets.attemptBudget)) {
     problems.push("budgets must carry maxRounds and attemptBudget");
   }
-  if (a?.models) {
-    for (const role of ["exec", "eval"]) {
-      if (role === "eval" && a.noEval) continue;
-      if (belowFloor(a.models[role])) problems.push(`models.${role} is below the model floor (sonnet or above)`);
-    }
-  }
+  if (a?.models) problems.push(...floorProblems(a.models, { noEval: Boolean(a.noEval) }));
   return problems;
 }

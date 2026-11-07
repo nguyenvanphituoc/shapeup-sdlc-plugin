@@ -234,7 +234,7 @@ export async function run(ctx) {
       if (!/--from\s+<slug>/.test(out)) ok("the refusal no longer points at the non-existent `--from <slug>`");
       else fail("the refusal still tells the orchestrator to use `--from <slug>`, which init-run does not accept");
 
-      if (/RESUME STATE/.test(out) && /"status":\s*"building"/.test(out)) {
+      if (/RESUME FACTS/.test(out) && /"status":\s*"building"/.test(out)) {
         ok("the refusal carries the file-derived resume state (status, round) in the same call");
       } else {
         fail(`the refusal does not hand over resume state — the orchestrator has to go and find it:\n    ${out.slice(0, 300)}`);

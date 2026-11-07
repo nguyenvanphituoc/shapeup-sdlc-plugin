@@ -158,7 +158,7 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
 
   // ---- 0. preconditions -----------------------------------------------------------------------
   if (!L) {
-    return abort("preflight", "the run's launch record does not exist (run-args.json) — open the run with the launch record before driving it");
+    return abort("preflight", "the run's launch record does not exist (run-args.json) — `init run` writes it in the same act as the receipt; re-open the run with `init run --force`");
   }
   const problems = launchProblems(L);
   if (problems.length) return abort("args", problems.join("; "));

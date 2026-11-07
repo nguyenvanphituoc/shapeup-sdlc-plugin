@@ -74,22 +74,31 @@ Never inferred; ask for what the pitch does not say.
 | Eval dimensions | default `auto`: the order resolves the set from the spec. Name a set only on request; it must reach `init run --dimensions`, or it grades nothing. What is left out is reported at the ship gate as not evaluated. |
 | Rounds, attempts | default 3 rounds, 5 attempts per scope per round |
 | Auto level | `interactive` (default): pause at every gate · `auto`: low-risk gates pre-answered, still pause at the judgment gates and ship · `unattended`: headless, needs an answer set |
-| Models | resolve once: flags, then `.claude/settings.local.json`, then `.claude/settings.json`, then defaults. Exec and eval must be sonnet or above — the kernel refuses a cheaper tier. |
+| Models | resolve once: flags, then `.claude/settings.local.json`, then `.claude/settings.json`, then defaults, and pass the result as `--exec-model` / `--eval-model` / `--qa-model`. Exec and eval must be sonnet or above — `init run` refuses a cheaper tier. |
 | Run commands | the build command (`run_cmd`), and the profile's `build_probe` and `launch_probe`. A `mobile` profile with no launch probe has nobody owning the install and launch risk: say so. |
 | Knowledge base | read `shapeup/knowledge-base/building.md` and then `tech-lead.md` (the same guidance under its old name; `resources/guidance.md`) if they exist. It may add a question or a check to a gate block and may propose run values (confirm each with the PO and note `(source: knowledge-base)`). It never answers, skips or reorders a gate. With no file at all, offer `/retro --scan` once and go on whether or not the PO takes it. |
 
 ## 4. Open the run
 
 Write the requirement to a file first and pass the path; a multi-line requirement inlined into a shell
-argument is where this step goes wrong.
+argument is where this step goes wrong. **Every switch the operator typed goes on this one command**: `init
+run` writes the launch record (§7) in the same act as the receipt, so a switch left off it does nothing.
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" init run --slug <slug> --intake-file <path> --auto-level <interactive|auto|unattended> [--dimensions <a,b>] [--gate-answers <ci|guarded|path.json>] [--wall-clock-budget <seconds>] [--max-rounds 3] [--breadboard <path>]
+node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" init run --slug <slug> --intake-file <path> --auto-level <interactive|auto|unattended> [--dimensions <a,b>] [--gate-answers <ci|guarded|path.json>] [--wall-clock-budget <seconds>] [--max-rounds 3] [--attempts 5] [--exec-model <m>] [--eval-model <m>] [--qa-model <m>] [--no-eval] [--no-qa] [--parallel-scopes <N>] [--adversarial-verify] [--breadboard <path>]
 ```
 
-**Exit 3 means a run is already open.** Read the derived state it prints, run `probe resume --slug <slug>
---mark-relaunch`, and go to the loop with `--restart`. `--force` reopens deliberately and discards the
-round history the breaker counts; only the PO asks for it.
+Ask for every value in §3 *before* this command, so the record is right the first time; a change the PO asks
+for at the L0 gate (§6) re-opens the run with `--force` — nothing has been planned yet.
+
+**Exit 2 naming a role** means a model is below the floor (`exec` and `eval` must be sonnet or above; `qa` and,
+under `--no-eval`, `eval` are not checked): say which, and ask for another. **`--tiny` and `--lane tiny` exit 2
+too**: the small-change lane is no longer served. Run the full loop and set the pitch's appetite small.
+
+**Exit 3 means a run is already open.** The refusal prints the derived facts and the launch record it keeps —
+the switches typed to *this* call were not applied. Run `probe resume --slug <slug> --mark-relaunch`, and go to
+the loop with `--restart`. `--force` reopens deliberately and writes a fresh record, and discards the round
+history the breaker counts; only the PO asks for it.
 
 ## 5. The shared profile
 
@@ -120,14 +129,20 @@ Exit 4: put the block to the PO and wait. Exit 0 `proceed`: continue. Exit 5: st
 
 ## 7. The launch record
 
-Every switch typed to this launch becomes a field of the launch record, or it does nothing: the loop
-reads nothing but the record and the artifacts.
+`.shapeup/<slug>/run-args.json` is what this run was launched with, written by `init run` and read by the loop
+and by `reduce ship`; it is the only place a typed switch survives. The loop reads nothing but the record and
+the artifacts.
 
-```bash
-node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" init run-args --slug <slug> --auto-level <level> --exec-model <n> [--eval-model <n>] [--qa-model <n>] --max-rounds <N> --attempts <N> --plugin-root "${CLAUDE_PLUGIN_ROOT}" [--answers <a>] [--lane <l>] [--no-eval] [--no-qa] [--parallel-scopes <N>]
-```
+| Switch on `init run` | Field |
+|---|---|
+| `--auto-level` | `autoLevel` |
+| `--gate-answers <set>` | `answers` — the answer set the gates resolve through |
+| `--exec-model` `--eval-model` `--qa-model` | `models.{exec,eval,qa}` — a flag, else `SHAPEUP_EXEC_MODEL` / `SHAPEUP_EVAL_MODEL` / `SHAPEUP_QA_MODEL`, else `sonnet`; `qa` follows `exec` |
+| `--max-rounds` `--attempts` | `budgets.{maxRounds,attemptBudget}` |
+| `--no-eval` `--no-qa` | `noEval` `noQa`: skip those phases; a shipped report says so and never reads as verified. `reduce ship` refuses to freeze a PASS report over a run launched with `--no-eval` |
+| `--parallel-scopes N` | `maxParallelScopes` — how many scopes build at once (default 4; `1` = sequential) |
+| `--adversarial-verify` | `adversarialVerify` — recorded and reported as not carried by the loop |
+| `--lane full` | `lane` — the only lane served |
 
-`--no-eval` and `--no-qa` skip those phases (a shipped report says so; it never reads as verified).
-`--parallel-scopes N` caps scopes building at once (default 4; `1` = sequential). `--adversarial-verify` is
-recorded and reported as not carried by the loop. `--wall-clock-budget` is typed once, on `init run`.
-Then go to the loop.
+`--wall-clock-budget` lands in the receipt (`wall_clock_budget_s`), not the record: the deadline breaker reads
+it from there. Then go to the loop.

@@ -2474,12 +2474,12 @@
       }
     },
     "RunArgs": {
-      "description": "C1 — the launch half of the workflow's only conversation. Resolved ONCE at GATE L0 from harness init run output + the L0.8 model matrix + budgets, then built by `harness init run-args`, which writes it to .shapeup/<slug>/run-args.json AND prints it — tech-lead passes that printed value to the harness run launch as one JSON literal, never a second, hand-typed copy of it. The workflow cannot ask follow-ups and cannot read config files itself, so everything a run will ever need travels in this one record. A workflow script validates its own subset of this shape in code (no runtime schema check at the C1 boundary itself); this entry is the central-registry definition the workflow script, `harness init run-args` and the tech-lead skill all read as the one true shape.",
+      "description": "The launch record — what a run was launched with, resolved once and written to .shapeup/<slug>/run-args.json by `harness init run` in the same act as the receipt. Every switch the operator typed lands here or does nothing: the loop that drives the run reads nothing but this record and the artifacts, and `reduce ship` reads `noEval` to refuse a PASS report over a run launched with no evaluation. The model floor (sonnet or above for `exec` and, unless `noEval`, `eval`) is enforced when the record is written and again when the loop reads it.",
       "x-tier": "EMBEDDED",
-      "x-location": ".shapeup/<slug>/run-args.json — written fresh on every launch and relaunch by `harness init run-args`; the workflow receives it as its args and never reads other config",
-      "x-writer": "harness init run-args (kernel), invoked by tech-lead at GATE L0 on every launch AND every relaunch after a paused gate",
-      "x-readers": "the Workflow runtime (shapeup-run, and shapeup-run's own inner round dispatch)",
-      "x-not-here": "Run config the LEDGER already carries does NOT get a second home in RunArgs — eval_dimensions, lens, spec_folder, stack, run_cmd, app_url are read off harness-run.md frontmatter by resume-state on every launch AND every relaunch, so a copy here would be a second source that can disagree with the first. RunArgs carries what a workflow cannot derive from disk (identity, budgets, the model matrix, pluginRoot, startedAt) plus noEval, which no frontmatter line holds.",
+      "x-location": ".shapeup/<slug>/run-args.json — written fresh when a run is opened (and again by `init run --force`); an already-open run keeps the record it has",
+      "x-writer": "harness init run (kernel), from the same parsed argv as the receipt",
+      "x-readers": "harness probe next (the loop's state machine), harness reduce ship (the no-evaluation guard), harness probe resume",
+      "x-not-here": "Run config the LEDGER already carries does NOT get a second home in the record — eval_dimensions, lens, spec_folder, stack, run_cmd, app_url are read off harness-run.md frontmatter, so a copy here would be a second source that can disagree with the first. The record carries what no artifact on disk holds: identity, budgets, the model matrix, pluginRoot, startedAt, and the skip switches (noEval, noQa).",
       "type": "object",
       "required": [
         "slug",
@@ -2496,7 +2496,7 @@
         },
         "runId": {
           "type": "string",
-          "description": "OPTIONAL (v1.8) — the run key, COPIED from harness init run's `run_id` output. Carried here so harness run stamps every journal row without a receipt lookup per launch; a launch without it falls back to reading the receipt, so this is an optimisation, not the source of truth. This is identity, which x-not-here explicitly admits to RunArgs — it is not run config the ledger already carries.",
+          "description": "The run key, copied from the receipt `harness init run` wrote in the same act. Identity, not run config the ledger already carries; the receipt stays the source of truth.",
           "pattern": "^[a-z0-9][a-z0-9-]*-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$"
         },
         "autoLevel": {
@@ -2510,11 +2510,11 @@
         },
         "answers": {
           "type": "string",
-          "description": "A gate-answers preset name (ci|guarded|interactive) or a path to a gate-answers.json file — the ONLY thing that decides whether a gate crosses, pauses, or aborts."
+          "description": "A gate-answers preset name (ci|guarded|interactive) or a path to a gate-answers.json file (`init run --gate-answers`) — the ONLY thing that decides whether a gate crosses, pauses, or aborts. The same input the receipt's config records as gate_answers."
         },
         "models": {
           "type": "object",
-          "description": "The L0.8 role -> model matrix, resolved once. The model floor: sonnet or above on every role, including mechanical couriers — no exceptions.",
+          "description": "The L0.8 role -> model matrix, resolved once: a flag, else SHAPEUP_<ROLE>_MODEL, else sonnet; qa follows exec. The model floor: `exec` and `eval` are sonnet or above, refused at `init run`; `qa` is not checked, and `eval` is not under noEval.",
           "properties": {
             "exec": {
               "type": "string"
@@ -2529,7 +2529,7 @@
         },
         "budgets": {
           "type": "object",
-          "description": "The two RunArgs-level circuit breakers (AGENTS.md) — outer round_budget, inner attempt_budget. The third, opt-in DEADLINE breaker (the wall-clock budget) is NOT a RunArgs field: it is typed once, at `harness init run --wall-clock-budget`, and lands in the run receipt's `wall_clock_budget_s` — `harness verify budget` reads that receipt field directly and never sees this launch's RunArgs at all, so it has no member here to declare.",
+          "description": "The two record-level circuit breakers (AGENTS.md) — outer round_budget, inner attempt_budget. The third, opt-in DEADLINE breaker (the wall-clock budget) is NOT a record field: it is typed at `harness init run --wall-clock-budget` and lands in the run receipt's `wall_clock_budget_s`, which `harness verify budget` reads directly.",
           "properties": {
             "maxRounds": {
               "type": "integer"
@@ -2541,11 +2541,11 @@
         },
         "pluginRoot": {
           "type": "string",
-          "description": "${CLAUDE_PLUGIN_ROOT} — the only thing a workflow script may ever root a path in (a workflow has no filesystem of its own; every path it resolves is either rooted here or produced by a prior call's stdout)."
+          "description": "The plugin copy the run was opened against — the root every kernel path in an order is spelled from."
         },
         "startedAt": {
           "type": "string",
-          "description": "ISO timestamp, passed in because Date.now() is unavailable inside a workflow script by design — the deadline breaker (harness verify budget) computes elapsed time itself, in Node, where the clock lives."
+          "description": "ISO timestamp the run was opened at, the same instant as the receipt's started_at."
         },
         "lane": {
           "$ref": "#/$defs/Lane",

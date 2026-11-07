@@ -319,51 +319,27 @@ export async function run(ctx) {
       else if (body) fail("the receipt carries no run_id — nothing downstream can key to this run");
     }
 
-    // THE LAUNCH HAS TO BE READABLE FROM HERE, and this project is the only place that can be
-    // asked. Everything above proves the grant is written and the kernel runs; none of it touches
-    // the geometry that actually broke — a project whose working directory is NOT the plugin root,
-    // which is every install except a `--plugin-dir` checkout of this repo. The Workflow tool loads
-    // a `scriptPath` only from a directory the session may already read, so the shipped path is
-    // refused there and no permission rule helps. `init run` stages the scripts into the project;
-    // if that copy is missing or stale, the run cannot start and the failure is invisible in
-    // development. Bytes, not existence: a truncated or half-written copy loads and then misbehaves.
-    const stagedRun = join(ran.proj, ".shapeup", "workflows", "shapeup-run.js");
-    const shippedRun = join(ROOT, "skills", "tech-lead", "workflows", "shapeup-run.js");
-    if (!existsSync(stagedRun)) {
-      fail("init run staged no .shapeup/workflows/shapeup-run.js — the Workflow launch has no readable path in a consumer project");
-    } else if (readFileSync(stagedRun, "utf8") !== readFileSync(shippedRun, "utf8")) {
-      fail("the staged run script differs from the shipped one — the project would launch something other than what this plugin ships");
-    } else {
-      ok("init run stages the run script into the project, byte-identical to the shipped copy");
-    }
-    // …and a relaunch does not swap the orchestrator under a run that is already in flight. The
-    // flag deciding that is one `undefined` away from meaning its own opposite — `false || undefined`
-    // is `undefined`, which a destructured default reads as "not passed" and turns back into `true`
-    // — so it is asserted here rather than assumed. A MISSING copy is still written back, because a
-    // relaunch with no script to name is a dead end.
-    writeFileSync(stagedRun, readFileSync(stagedRun, "utf8") + "\n// pinned by the open run\n");
-    kernel(ROOT, ["init", "run", "--intake-text", "same feature", "--slug", "probe",
-                  "--auto-level", "unattended"], ran.proj);
-    if (readFileSync(stagedRun, "utf8").includes("pinned by the open run")) {
-      ok("a call against an ALREADY-OPEN run leaves the staged script alone — the run finishes on the orchestrator it started with");
-    } else {
-      fail("re-opening an existing run re-staged the script — a plugin upgrade would swap the orchestrator mid-round");
-    }
-    rmSync(stagedRun, { force: true });
-    kernel(ROOT, ["init", "run", "--intake-text", "same feature", "--slug", "probe",
-                  "--auto-level", "unattended"], ran.proj);
-    if (existsSync(stagedRun)) ok("a MISSING staged script is written back on the resume path — a relaunch is never left with no path to name");
-    else fail("the staged script stayed missing on the resume path — the relaunch has no scriptPath");
-
-    // And it says so, because the orchestrator names the path from this field rather than guessing.
+    // OPENING A RUN STAGES NOTHING. The run launches from the loop in the session, so there is no run
+    // script to copy into the project: the only files `init run` writes are the run's own trace, and
+    // the launch record is one of them. Asserted here because this is the only test that opens a run in
+    // a project whose working directory is NOT the plugin root, which is every install but a
+    // `--plugin-dir` checkout of this repo.
+    const stagedDir = join(ran.proj, ".shapeup", "workflows");
+    if (!existsSync(stagedDir)) ok("init run stages nothing into the project — no .shapeup/workflows");
+    else fail("init run staged a directory at .shapeup/workflows — the launch is the loop's own, and nothing should be copied");
+    const again = kernel(ROOT, ["init", "run", "--intake-text", "same feature", "--slug", "probe",
+                                "--auto-level", "unattended"], ran.proj);
+    if (again.status === 3 && !existsSync(stagedDir)) ok("a call against an already-open run (exit 3) stages nothing either");
+    else fail(`re-opening an open run exited ${again.status} or staged a directory — expected a plain refusal`);
     const opened = kernel(ROOT, ["init", "run", "--intake-text", "another feature", "--slug", "probe2",
                                  "--auto-level", "unattended"], ran.proj);
     let openedBody = null;
     try { openedBody = JSON.parse(opened.stdout); } catch { /* reported below */ }
-    if (openedBody?.workflow_script === ".shapeup/workflows/shapeup-run.js") {
-      ok("init run reports the staged path as `workflow_script` — the launch reads it instead of guessing");
+    const record = join(ran.proj, ".shapeup", "probe2", "run-args.json");
+    if (openedBody && !("workflow_script" in openedBody) && openedBody.launch_record === ".shapeup/probe2/run-args.json" && existsSync(record)) {
+      ok("init run names no launch script and writes the launch record in the same act as the receipt");
     } else {
-      fail(`init run did not report the staged launch path (workflow_script = ${JSON.stringify(openedBody?.workflow_script)})`);
+      fail(`init run still names a workflow_script or wrote no launch record (launch_record = ${JSON.stringify(openedBody?.launch_record)})`);
     }
   } finally { rmSync(ran.box, { recursive: true, force: true }); }
 

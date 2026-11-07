@@ -43,10 +43,9 @@ export async function run(ctx) {
   const ws = mkdtempSync(join(tmpdir(), "struct-drive-"));
   try {
     // ---- a project whose planning is already done --------------------------------------------------
-    const open = spawnSync("node", [KERNEL, "init", "run", "--slug", SLUG, "--intake-text", "Lint .env files against a schema", "--auto-level", "interactive", "--cwd", ws], { encoding: "utf8" });
-    const args = spawnSync("node", [KERNEL, "init", "run-args", "--slug", SLUG, "--auto-level", "interactive", "--exec-model", "sonnet", "--eval-model", "sonnet",
-      "--max-rounds", "2", "--attempts", "3", "--plugin-root", ROOT, "--cwd", ws], { encoding: "utf8" });
-    if (open.status !== 0 || args.status !== 0) { fail(`could not open the driver run: ${open.stderr}${args.stderr}`); return; }
+    const open = spawnSync("node", [KERNEL, "init", "run", "--slug", SLUG, "--intake-text", "Lint .env files against a schema", "--auto-level", "interactive",
+      "--exec-model", "sonnet", "--eval-model", "sonnet", "--max-rounds", "2", "--attempts", "3", "--cwd", ws], { encoding: "utf8" });
+    if (open.status !== 0) { fail(`could not open the driver run: ${open.stderr}`); return; }
     cpSync(join(ARCHIVE, "shapeup-committed", SLUG), join(ws, "shapeup", SLUG), { recursive: true });
     for (const d of ["tasks"]) cpSync(join(ARCHIVE, "shapeup-local", SLUG, d), join(ws, ".shapeup", SLUG, d), { recursive: true });
     rmSync(join(ws, "shapeup", SLUG, "REPORT.md"), { force: true });

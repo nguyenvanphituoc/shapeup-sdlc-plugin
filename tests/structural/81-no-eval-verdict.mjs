@@ -187,7 +187,8 @@ export async function run(ctx) {
   // failure this defect was: a report that quietly said PASS.
   //
   // Driven through the real CLI, with the fixture built by the real CLI too — a hand-written
-  // run-args record would prove the guard reads JSON, not that the pipeline produces what it reads.
+  // launch record would prove the guard reads JSON, not that the pipeline produces what it reads.
+  // `init run --no-eval` is what writes the record the guard reads.
   {
     const K = join(ROOT, "kernel/harness.mjs");
     const ws = mkdtempSync(join(tmpdir(), "struct-no-eval-ship-"));
@@ -195,15 +196,12 @@ export async function run(ctx) {
     try {
       spawnSync("git", ["init", "-q"], { cwd: ws });
       spawnSync("git", ["commit", "-q", "--allow-empty", "-m", "base"], { cwd: ws });
-      const common = ["--auto-level", "unattended", "--exec-model", "claude-opus-5",
-        "--max-rounds", "1", "--attempts", "2", "--plugin-root", join(ws, "plugin")];
+      const common = ["--auto-level", "unattended", "--exec-model", "claude-opus-5", "--max-rounds", "1", "--attempts", "2"];
 
-      run("init", "run", "--slug", "skipped", "--intake-text", "a run that grades nothing");
-      const argsSkipped = run("init", "run-args", "--slug", "skipped", ...common, "--no-eval");
-      run("init", "run", "--slug", "graded", "--intake-text", "a run that grades");
-      const argsGraded = run("init", "run-args", "--slug", "graded", ...common, "--eval-model", "claude-opus-5");
+      const argsSkipped = run("init", "run", "--slug", "skipped", "--intake-text", "a run that grades nothing", ...common, "--no-eval");
+      const argsGraded = run("init", "run", "--slug", "graded", "--intake-text", "a run that grades", ...common, "--eval-model", "claude-opus-5");
       if (argsSkipped.status !== 0 || argsGraded.status !== 0) {
-        fail(`could not record run arguments through the CLI (skipped=${argsSkipped.status} graded=${argsGraded.status}) — the fixture cannot measure the guard: ${(argsSkipped.stderr || argsGraded.stderr || "").slice(0, 200)}`);
+        fail(`could not record the launch through the CLI (skipped=${argsSkipped.status} graded=${argsGraded.status}) — the fixture cannot measure the guard: ${(argsSkipped.stderr || argsGraded.stderr || "").slice(0, 200)}`);
       } else {
         const refused = run("reduce", "ship", "--slug", "skipped", "--verdict", "PASS");
         const wroteReport = existsSync(join(ws, "shapeup/skipped/REPORT.md"));

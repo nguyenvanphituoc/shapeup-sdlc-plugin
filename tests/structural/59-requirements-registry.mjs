@@ -125,9 +125,8 @@ export async function run(ctx) {
     const ws = mkdtempSync(join(tmpdir(), "struct-req-next-"));
     try {
       const K = (...a) => spawnSync("node", [join(ROOT, "kernel/harness.mjs"), ...a], { encoding: "utf8" });
-      const opened = K("init", "run", "--slug", SLUG, "--intake-text", "R1. The list persists.", "--auto-level", "interactive", "--cwd", ws);
-      const rargs = K("init", "run-args", "--slug", SLUG, "--auto-level", "interactive", "--exec-model", "sonnet", "--eval-model", "sonnet", "--max-rounds", "2", "--attempts", "3", "--plugin-root", ROOT, "--cwd", ws);
-      if (opened.status !== 0 || rargs.status !== 0) { fail(`(b) could not open the fixture run: ${opened.stderr}${rargs.stderr}`); }
+      const opened = K("init", "run", "--slug", SLUG, "--intake-text", "R1. The list persists.", "--auto-level", "interactive", "--max-rounds", "2", "--attempts", "3", "--cwd", ws);
+      if (opened.status !== 0) { fail(`(b) could not open the fixture run: ${opened.stderr}`); }
       else {
         w(ws, `shapeup/${SLUG}/project-profile.md`, "---\nschema_version: 1\narchetype: cli\nentry_point: bin/x.js\n---\n");
         for (const f of ["code-surface.md", "discovered-seed.md", "hill-signal.md", "spike-not-needed.md"]) w(ws, `.shapeup/${SLUG}/orient/${f}`, "x\n");

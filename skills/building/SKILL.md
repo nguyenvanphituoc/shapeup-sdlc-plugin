@@ -31,10 +31,11 @@ comes back "requires approval", stop and say so — the scripts need a one-time 
 
 Resolve the intake and open it as `resources/intake.md` says: language check (a non-English pitch is made
 English by you, right there: `<name>.en.md` and the glossary, and the run opens on the copy), the L0 collect-list,
-`init run` (exit 3 = a run is already open — mark the relaunch with `probe resume --slug <slug>
---mark-relaunch` and go to the loop with `--restart`), the shared `project-profile.md`, the L0 gate,
-and `init run-args` (the launch record; every switch the operator typed lands there or does nothing).
-`--tiny` is not served here: it keeps the `tech-lead` skill's small-change lane.
+`init run` — with every switch the operator typed, because it writes the launch record in the same act
+as the receipt and refuses a model below the floor (exit 3 = a run is already open: its record is kept,
+mark the relaunch with `probe resume --slug <slug> --mark-relaunch` and go to the loop with `--restart`),
+the shared `project-profile.md`, and the L0 gate. `--tiny` is no longer served: say so, and run the full
+loop with the pitch's appetite small.
 
 ## The loop
 

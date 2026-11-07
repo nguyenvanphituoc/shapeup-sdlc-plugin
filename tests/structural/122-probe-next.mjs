@@ -38,10 +38,10 @@ export async function run(ctx) {
   // ---- one real, opened run, copied per case ------------------------------------------------------
   const base = mkdtempSync(join(tmpdir(), "struct-next-base-"));
   const cleanups = [base];
-  const open = sh("init run", ["--slug", SLUG, "--intake-text", "Add a todo list", "--auto-level", "interactive", "--cwd", base]);
-  const args = sh("init run-args", ["--slug", SLUG, "--auto-level", "interactive", "--exec-model", "sonnet", "--eval-model", "sonnet",
-    "--max-rounds", "2", "--attempts", "3", "--plugin-root", ROOT, "--cwd", base]);
-  if (open.status !== 0 || args.status !== 0) { fail(`could not open the fixture run: ${open.stderr}${args.stderr}`); return; }
+  // `init run` writes the launch record in the same act as the receipt: the dials ride on it.
+  const open = sh("init run", ["--slug", SLUG, "--intake-text", "Add a todo list", "--auto-level", "interactive",
+    "--exec-model", "sonnet", "--eval-model", "sonnet", "--max-rounds", "2", "--attempts", "3", "--cwd", base]);
+  if (open.status !== 0) { fail(`could not open the fixture run: ${open.stderr}`); return; }
 
   const receiptOf = (ws) => JSON.parse(readFileSync(join(ws, ".shapeup", SLUG, "receipt.json"), "utf8"));
   const RUN_ID = receiptOf(base).run_id;
@@ -100,7 +100,7 @@ export async function run(ctx) {
       (s) => is("terminal", "abort.preflight")(s) && /launch record/.test(s.reason));
     row("a below-floor exec model aborts at args", (ws) => {
       const f = local(ws, "run-args.json"); const a = JSON.parse(readFileSync(f, "utf8")); a.models.exec = "claude-haiku-4"; json(f, a);
-    }, (s) => is("terminal", "abort.args")(s) && /models\.exec is below the model floor/.test(s.reason));
+    }, (s) => is("terminal", "abort.args")(s) && /models\.exec "claude-haiku-4" is below the model floor/.test(s.reason));
     row("a below-floor eval model does not abort a --no-eval run", (ws) => {
       const f = local(ws, "run-args.json"); const a = JSON.parse(readFileSync(f, "utf8")); a.models.eval = "haiku"; a.noEval = true; json(f, a);
     }, (s) => s.step !== "abort.args");

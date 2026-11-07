@@ -304,8 +304,7 @@ export async function run(ctx) {
     // lane that is being retired, and its planning dispatches no longer compile.
     const ws = project({ "shapeup/demo/shaping.md": SHAPING, "shapeup/demo/breadboard.md": BB_HASH_LAYOUT });
     try {
-      initRun(ws, ["--intake-file", "shapeup/demo/shaping.md", "--auto-level", "interactive"]);
-      node("init run-args", ["--slug", "demo", "--auto-level", "interactive", "--exec-model", "sonnet", "--eval-model", "sonnet", "--max-rounds", "2", "--attempts", "3", "--plugin-root", ROOT, "--cwd", ws]);
+      initRun(ws, ["--intake-file", "shapeup/demo/shaping.md", "--auto-level", "interactive", "--max-rounds", "2", "--attempts", "3"]);
       const put = (rel, text) => { mkdirSync(dirname(join(ws, rel)), { recursive: true }); writeFileSync(join(ws, rel), text); };
       put("shapeup/demo/project-profile.md", "---\nschema_version: 1\narchetype: cli\nentry_point: bin/x.js\n---\n");
       const runId = receiptOf(ws)?.run_id;

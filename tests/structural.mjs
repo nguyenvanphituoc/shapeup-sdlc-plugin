@@ -213,11 +213,11 @@ const MODULE_FILES = [
   // against what shapeup-run.js actually reads — derived at runtime from all three artifacts, never
   // from a hand-kept list, so a flag added to one tier and not the others reds on its own.
   "62-run-args-surface.mjs",
-  // 63-run-args-writer.mjs: HD-020, and HD-010's executed half. `run-args.json` gets a kernel
-  // writer (`harness init run-args`), executed end to end against a real run root, and the
-  // deadline breaker proven to trip off the receipt alone, independent of RunArgs entirely. (The
-  // reader and the Preflight presence check it once covered went with the concurrency probe.)
-  "63-run-args-writer.mjs",
+  // 63-launch-record.mjs: `init run` writes the launch record in the same act as the receipt and
+  // enforces the model floor there. Executed end to end against a real run root: every switch typed
+  // lands in the record, a below-floor model is refused with the role named and nothing written, the
+  // deadline breaker proven to trip off the receipt alone.
+  "63-launch-record.mjs",
   // 64-shipped-set-hygiene.mjs: the acceptance-review guard for this same stage's own two
   // violations (an internal defect id and a tests/ citation, both landed inside shipped files
   // and both invisible to every check above). Scopes itself off `package.json`'s own `files`
@@ -395,9 +395,6 @@ const MODULE_FILES = [
   // tool and this repo's own design docs — found by an audit somebody remembered to run. This is
   // that scan as a check, bounded by the delivery allowlist, blind to a user's own docs/<file>.
   "94-shipped-citations.mjs",
-  // 95-staged-orchestrator.mjs: a run keeps the workflow copy it opened with, so a relaunch after
-  // an upgrade measures the previous release and says nothing. The state probe compares and warns.
-  "95-staged-orchestrator.mjs",
   // 96-run-trace-is-the-kernels.mjs: the build leg's freeze was a list of channels a defect had
   // named, and each review found more of the same class. Inverted: the run trace is frozen and
   // `own` carries what a leg authors. Walks every entry an archived trace holds, both ways.

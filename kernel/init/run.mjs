@@ -60,17 +60,29 @@
 //   --cwd           project root                      (default: process.cwd())
 //   --force         re-init over an existing run receipt
 //
-// Prints a JSON receipt on stdout. Exit 0 on success, 2 on a usage error, 3 when a live run
-// already exists and --force was not given.
+// THE LAUNCH RECORD. The same act that writes the receipt writes `.shapeup/<slug>/run-args.json`, the
+// record of what this run was launched with: every switch typed lands there or does nothing.
 //
-// EXIT 3 IS THE RESUME PATH, not a dead end. It prints the file-derived RunSnapshot for the run that
-// is already open — slug, status, round, attempt, board counts, pending orders — so the orchestrator
-// continues from the phase the files report instead of re-opening the run or restarting the pipeline
-// from phase 1. It previously said "Resume it (`--from <slug>`)", and `--from` is a /tech-lead flag
-// that takes a phase, not an init-run flag that takes a slug: the one instruction available at the
-// one moment it mattered named a mechanism that does not parse.
+//   --exec-model <m> --eval-model <m> --qa-model <m>   role -> model (flag, then SHAPEUP_<ROLE>_MODEL,
+//                                                      then `sonnet`; qa follows exec)
+//   --no-eval  --no-qa  --adversarial-verify           skip a phase / opt into the refutation wave
+//   --parallel-scopes N                                how many scopes build at once (default 4)
+//   --lane full                                        the only lane served; `tiny` is refused
+//
+// THE MODEL FLOOR is enforced here, before anything is written: an `exec` or `eval` model below the
+// floor refuses the launch (exit 2, naming the role). `qa` is not checked, and `eval` is not under
+// `--no-eval`. One predicate (kernel/lib/floor.mjs) serves this refusal and the loop that drives the run.
+//
+// Prints a JSON receipt on stdout. Exit 0 on success, 2 on a usage error, 3 when a live run
+// already exists and --force was not given. Stages nothing: no file is written outside the run's own
+// trace, and the launch is the loop's `probe next`, not a script copied into the project.
+//
+// EXIT 3 IS THE RESUME PATH, not a dead end. It prints the file-derived facts for the run that is
+// already open — slug, status, round, attempt, board counts, pending orders — and the launch record it
+// was opened with, so the loop continues from the phase the files report instead of re-opening the run
+// or restarting the pipeline from phase 1.
 
-import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, copyFileSync, rmSync, statSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, rmSync, statSync } from "node:fs";
 import { discover, resolve as resolveGate, appendGateLedger, PRESETS } from "../gate.mjs";
 import { join, dirname, resolve, relative, sep } from "node:path";
 import { createHash } from "node:crypto";
@@ -79,16 +91,16 @@ import { runArgs } from "../lib/argv.mjs";
 import { uncoerce, splitFrontmatter } from "../lib/contract.mjs";
 import { deriveSnapshot } from "../reduce/snapshot.mjs";
 import { mintRunId } from "../lib/paths.mjs";
+import { launchProblems, floorProblems, AUTO_LEVELS } from "../lib/floor.mjs";
 import {
-  localRoot, activeScope, activeOrder, globLocal, globShared, ordersDir, resultsDir,
-  workflowsStage, globWorkflowsStage, sharedRoot, shapingDir, breadboard as stagedBreadboard, harnessRun,
+  localRoot, activeScope, activeOrder, globLocal, globShared, ordersDir, resultsDir, runArgsPath,
+  sharedRoot, shapingDir, breadboard as stagedBreadboard, harnessRun,
 } from "../lib/paths.mjs";
 import { parseBreadboard, hasBreadboardTables, idCounts } from "../lib/breadboard.mjs";
 import { resolveWorkers } from "../verify/skills.mjs";
 
 export const RECEIPT_VERSION = 1;
 
-const AUTO_LEVELS = new Set(["interactive", "auto", "unattended"]);
 const LENSES = new Set(["lite", "standard", "cross-context"]);
 
 /**
@@ -204,6 +216,63 @@ export function buildReceipt({ slug, intake, config, startedAt, plugin = null, i
   };
 }
 
+/** The model a role runs on when neither a flag nor its environment knob names one. */
+export const DEFAULT_MODEL = "sonnet";
+
+/** Drop `undefined` leaves, one level deep, so the record never carries a literal `undefined`. */
+function pruned(o) {
+  const out = {};
+  for (const [k, v] of Object.entries(o)) {
+    if (v === undefined) continue;
+    if (v && typeof v === "object" && !Array.isArray(v)) {
+      const inner = pruned(v);
+      if (Object.keys(inner).length) out[k] = inner;
+      continue;
+    }
+    out[k] = v;
+  }
+  return out;
+}
+
+/**
+ * Resolve the role -> model matrix: the flag, else the role's environment knob
+ * (`SHAPEUP_EXEC_MODEL`, `SHAPEUP_EVAL_MODEL`, `SHAPEUP_QA_MODEL`), else `sonnet`; `qa` follows `exec`
+ * when nothing names it. `eval` is left unset under `--no-eval`: a run that skips evaluation never
+ * resolves a judge.
+ *
+ * @param {object} a - Parsed argv.
+ * @param {object} [env=process.env] - Environment, injectable for a test.
+ * @returns {{exec: string, eval?: string, qa: string}} The matrix.
+ */
+export function resolveModels(a, env = process.env) {
+  const pick = (flag, knob) => (flag ?? env[knob] ?? "").trim() || undefined;
+  const exec = pick(a.execModel, "SHAPEUP_EXEC_MODEL") ?? DEFAULT_MODEL;
+  const evalModel = a.noEval ? pick(a.evalModel, "SHAPEUP_EVAL_MODEL") : (pick(a.evalModel, "SHAPEUP_EVAL_MODEL") ?? DEFAULT_MODEL);
+  const qa = pick(a.qaModel, "SHAPEUP_QA_MODEL") ?? exec;
+  return pruned({ exec, eval: evalModel, qa });
+}
+
+/**
+ * Build the launch record (`RunArgs` in the domain registry) — pure, so a test can assert its shape
+ * without a filesystem. The one place the record is constructed: the receipt's config and the record
+ * come from the same parsed argv, so the two cannot disagree about the dials.
+ *
+ * @param {object} o - Resolved inputs (destructured).
+ * @returns {object} The record, pruned of unset optionals.
+ */
+export function buildLaunchRecord({
+  slug, runId, autoLevel, answers, lane, models, maxRounds, attemptBudget, pluginRoot, startedAt,
+  noEval, noQa, adversarialVerify, maxParallelScopes,
+}) {
+  return pruned({
+    slug, runId, autoLevel, answers, lane,
+    models, budgets: { maxRounds, attemptBudget },
+    pluginRoot, startedAt,
+    noEval: noEval || undefined, noQa: noQa || undefined, adversarialVerify: adversarialVerify || undefined,
+    maxParallelScopes,
+  });
+}
+
 /** The `harness-run.md` frontmatter block, per references/protocol.md Part 4 — State. */
 export function runFrontmatter({ slug, config, startedAt }) {
   return [
@@ -306,58 +375,6 @@ export function resolveAbandonedOrders(cwd, slug) {
 }
 
 /**
- * Copy the plugin's run scripts into the project so the launch can actually read them.
- *
- * WHY A COPY, AND WHY HERE. `Workflow({scriptPath})` loads a script only from somewhere the session
- * is already allowed to read — the working directory, or a directory the operator added. The plugin
- * is installed OUTSIDE the project (a version-stamped cache directory on a marketplace install), so
- * naming the shipped path fails the launch outright, and no permission rule fixes it: the grant that
- * authorises the Workflow tool says nothing about where it may read from. The failure is invisible
- * in development, where the plugin root and the working directory are the same tree, and total for
- * everybody else. A project-local copy is inside the working directory by construction, so it loads
- * in every permission mode without widening what the session may read.
- *
- * Opening a run is the right moment: it is the one step every lane passes through before a launch,
- * and it already knows which copy of the plugin answered.
- *
- * `refresh` is what keeps an upgrade from arriving mid-round. Opening a run (or forcing over one)
- * overwrites the staged copies, so a plugin upgrade reaches the NEXT run. A call that finds a run
- * already open only fills in what is missing: that run should finish on the orchestrator it started
- * with, and swapping the script under a resumed round is a different build than the one the gates
- * were answered for — but a relaunch with no script at all is a dead end, so a copy that is gone
- * (a cleaned run workspace, a run opened by a version that never staged) is written back.
- *
- * Best-effort by design: a project that cannot be written to still opens its run and can still be
- * launched from the install path by an operator who adds that directory. Reporting beats refusing.
- *
- * @param {string} cwd - Project root.
- * @param {string} pluginRoot - The plugin copy that answered this call.
- * @param {object} [opts] - Options.
- * @param {boolean} [opts.refresh] - Overwrite an existing copy (true) or only fill gaps (false).
- * @returns {{ok: boolean, dir: string, staged: string[], reason?: string}} Outcome, for the caller to report.
- */
-export function stageWorkflows(cwd, pluginRoot, { refresh = true } = {}) {
-  const src = join(pluginRoot, "skills", "tech-lead", "workflows");
-  const dir = workflowsStage(cwd);
-  let names;
-  try {
-    names = readdirSync(src).filter((f) => f.endsWith(".js")).sort();
-  } catch (e) {
-    return { ok: false, dir, staged: [], reason: `no workflow scripts at ${src}: ${e.message}` };
-  }
-  try {
-    mkdirSync(dir, { recursive: true });
-    for (const f of names) {
-      const dst = join(dir, f);
-      if (refresh || !existsSync(dst)) copyFileSync(join(src, f), dst);
-    }
-  } catch (e) {
-    return { ok: false, dir, staged: [], reason: `could not stage into ${dir}: ${e.message}` };
-  }
-  return { ok: true, dir, staged: names };
-}
-
-/**
  * Find the breadboard that belongs to this run's pitch. First hit wins:
  *
  *   1. `flag`        — `--breadboard <path>`, resolved against cwd; a missing file is an error.
@@ -429,8 +446,9 @@ export const ARGV_SPEC = {
          "[--slug <slug>] [--auto-level interactive|auto|unattended] [--lens <lens>] " +
          "[--max-rounds N] [--attempts N] [--spec-folder <dir>] [--dimensions <a,b>] " +
          "[--gate-answers <preset|path>] [--breadboard <path>] " +
-         "[--lane full|tiny] [--tiny] [--wall-clock-budget <seconds>] [--cwd <dir>] " +
-         "[--plugin-root <dir>] [--force]",
+         "[--exec-model <m>] [--eval-model <m>] [--qa-model <m>] [--no-eval] [--no-qa] " +
+         "[--adversarial-verify] [--parallel-scopes N] [--lane full] " +
+         "[--wall-clock-budget <seconds>] [--cwd <dir>] [--plugin-root <dir>] [--force]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   cwd: { type: "path" },
   "intake-text": { type: "str" },
@@ -446,7 +464,16 @@ export const ARGV_SPEC = {
   "gate-answers": { type: "str" },
   breadboard: { type: "path" },
   lane: { type: "str" },
+  // The small-change lane was retired with the skill that served it. The flag is still parsed so that
+  // typing it is refused with the reason, rather than rejected as an unknown option.
   tiny: { type: "flag" },
+  "exec-model": { type: "str" },
+  "eval-model": { type: "str" },
+  "qa-model": { type: "str" },
+  "no-eval": { type: "flag" },
+  "no-qa": { type: "flag" },
+  "adversarial-verify": { type: "flag" },
+  "parallel-scopes": { type: "int", min: 1 },
   "wall-clock-budget": { type: "int", min: 1 },
   // Which copy of the plugin this run is opened against. Defaults to the one this kernel is part
   // of, which is right for every ordinary invocation; it is nameable because a machine can carry
@@ -471,6 +498,33 @@ function fail(code, msg) {
 export function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = args.cwd || process.cwd();
+
+  // The small-change lane is gone with the skill that served it. A launch that asks for it is refused
+  // with the way forward, never run as a full run that quietly ignored the request.
+  if (args.tiny || args.lane === "tiny") {
+    fail(2, [
+      "✋ init-run: the tiny lane is no longer served — `--tiny` / `--lane tiny` are refused.",
+      "",
+      "Run the full loop and size it with the pitch's appetite: an appetite of ~1 week gives a two-round",
+      "budget, and a small shape yields one scope. The gates and the verification floor are the same.",
+    ].join("\n"));
+  }
+  if (args.lane && args.lane !== "full") fail(2, `--lane must be "full" (the only lane served), got "${args.lane}"`);
+
+  // THE MODEL FLOOR, before anything is written and before the already-open refusal: a launch that
+  // would run the roles that write code and grade it on a cheap tier never opens a run to be refused
+  // later. The matrix is resolved once here and goes into the launch record unchanged.
+  const models = resolveModels(args);
+  const belowFloor = floorProblems(models, { noEval: Boolean(args.noEval) });
+  if (belowFloor.length) {
+    fail(2, [
+      `✋ init-run: ${belowFloor.join("; ")}.`,
+      "",
+      "The roles that write code (exec) and grade it (eval) run on sonnet or above; a cheaper tier is",
+      "refused here, before a run is opened. Name a model with --exec-model / --eval-model, or set",
+      "SHAPEUP_EXEC_MODEL / SHAPEUP_EVAL_MODEL. `qa` is not checked, and `eval` is not under --no-eval.",
+    ].join("\n"));
+  }
 
   // GATE L0 — the worker roster, before any spend.
   //
@@ -524,7 +578,7 @@ export function cli(rawArgv) {
   const slug = (args.slug ?? null) || slugify(intake.split("\n").find((l) => l.trim()) || "run");
 
   const auto_level = args.autoLevel ?? "interactive";
-  if (!AUTO_LEVELS.has(auto_level)) fail(2, `--auto-level must be one of: ${[...AUTO_LEVELS].join(", ")}`);
+  if (!AUTO_LEVELS.includes(auto_level)) fail(2, `--auto-level must be one of: ${AUTO_LEVELS.join(", ")}`);
   const lens = args.lens ?? "standard";
   if (!LENSES.has(lens)) fail(2, `--lens must be one of: ${[...LENSES].join(", ")}`);
   // GATE L0.5 — the eval dimension set, resolved ONCE here and carried by the ledger. Before this
@@ -552,16 +606,14 @@ export function cli(rawArgv) {
     attempt_budget: args.attempts ?? 5,
     spec_folder: args.specFolder ?? `${globShared(slug, "spec")}/`,
     gate_answers: args.gateAnswers ?? null,
-    tiny_lane: !!args.tiny,
-    // GATE L0.3 — the lane, computed rather than judged (see `harness init fit`). Recorded with its
-    // evidence so a heavy lane on a small change is visible instead of accidental. An explicit
-    // --lane or --tiny is honoured and marked as an override, because a measured recommendation
-    // fitted on three features must not outrank a human who knows the codebase.
+    // GATE L0.3 — the fit check, computed rather than judged (see `harness init fit`). Recorded with
+    // its evidence. Only the full lane is served, so an explicit `--lane full` over a `tiny`
+    // recommendation is recorded as the override it is.
     fit: (() => {
       const auto = decideLane({ intake, files: treeSize(cwd) });
-      const forced = (args.lane ?? null) || (args.tiny ? "tiny" : null);
+      const forced = args.lane ?? null;
       return forced && forced !== auto.lane
-        ? { ...auto, lane: forced, overridden_from: auto.lane, override_source: args.tiny ? "--tiny" : "--lane" }
+        ? { ...auto, lane: forced, overridden_from: auto.lane, override_source: "--lane" }
         : auto;
     })(),
     // The third breaker (see `harness verify budget`). Null = off, which is the default and
@@ -574,36 +626,11 @@ export function cli(rawArgv) {
   const runRoot = localRoot(cwd, slug);
   const receiptPath = join(runRoot, "receipt.json");
 
-  // STAGE THE RUN SCRIPTS BEFORE THE ALREADY-OPEN REFUSAL, not after: a session resuming a paused
-  // run reaches that refusal and nothing else, and it still needs a `scriptPath` it can name. What
-  // it does NOT get is a swapped orchestrator — see stageWorkflows() for why `refresh` is false
-  // exactly when a run is already open and is not being forced over.
-  // `Boolean(...)`, not the bare flag: an absent `--force` is `undefined`, and `false || undefined`
-  // is `undefined`, which a destructured default reads as "not passed" and turns back into `true`.
-  const staged = stageWorkflows(cwd, plugin.root, { refresh: !existsSync(receiptPath) || Boolean(args.force) });
-  if (!staged.ok) {
-    console.error(`⚠ init-run: could not stage the run scripts — ${staged.reason}`);
-    console.error(`  Launch from the install path instead, and add ${plugin.root} to the session's`);
-    console.error("  readable directories (/add-dir) if the Workflow tool refuses to load it.");
-  }
-  // A RUN IS ALREADY OPEN. This is the resume path, and it used to be a dead end.
-  //
-  // The refusal is right: silently re-initialising would discard the round history the circuit
-  // breaker counts against. What was wrong was the instruction it gave — "Resume it (`--from
-  // <slug>`)". `--from` is not an init-run flag at all; it is a `/tech-lead` flag, and it takes a
-  // PHASE (`--from build`), not a slug. So at the one moment the orchestrator most needs a next
-  // step, the runtime named a mechanism that does not exist, on a script whose failure mode was
-  // already invisible — under a symlinked install an entry-point guard once skipped this whole body.
-  //
-  // Observed consequence on a handoff: a fresh session in a workspace with an open run burns most
-  // of its budget before its first write, largely on forensics against this step, and closes none
-  // of the gap.
-  //
-  // So the refusal now DOES the resume work instead of describing it. It emits the derived snapshot
-  // — the same file-only derivation `harness reduce graph --subgraph run` injects — so the orchestrator gets
-  // slug, status, round, attempt, board counts and pending orders in THIS tool call rather than
-  // needing to discover that it needs another one. Exit 3 still means "do not proceed as if you
-  // opened a run"; it now also means "here is the run you are actually in".
+  // A RUN IS ALREADY OPEN. This is the resume path, and the refusal does the resume work instead of
+  // describing it: silently re-initialising would discard the round history the circuit breaker counts
+  // against, so it exits 3 — and prints the facts the run's own artifacts report, so the next step is
+  // read off them in this tool call rather than needing another one. Exit 3 means "do not proceed as
+  // if you opened a run"; it also means "here is the run you are actually in".
   if (existsSync(receiptPath) && !args.force) {
     let resume = null;
     try { resume = deriveSnapshot(cwd); } catch { /* a broken run must still produce the refusal */ }
@@ -614,6 +641,8 @@ export function cli(rawArgv) {
       const fm = splitFrontmatter(readFileSync(harnessRun(cwd, slug), "utf8")).meta || {};
       if (fm.closed_status && fm.closed_status !== "~") closed = { status: fm.closed_status, at: fm.closed_at, cause: fm.close_cause };
     } catch { /* no ledger — the receipt alone decides, as before */ }
+    let kept = null;
+    try { kept = JSON.parse(readFileSync(runArgsPath(cwd, slug), "utf8")); } catch { /* no record on disk */ }
     fail(3, [
       closed
         ? `✋ init-run: this run is CLOSED as "${closed.status}" at ${closed.at ?? "?"} — receipt exists at ${receiptPath}.`
@@ -629,20 +658,21 @@ export function cli(rawArgv) {
       "already hold the run's real state. RESUME from the phase these files report.",
       "",
       resume
-        ? `RESUME STATE (derived from files, never from memory):\n${JSON.stringify(resume, null, 2)}`
+        ? `RESUME FACTS (derived from files, never from memory):\n${JSON.stringify(resume, null, 2)}`
         : [
             "The receipt exists but no run state could be derived, which means the run root is",
             "incomplete. Inspect it before deciding:",
             `  ls -R ${runRoot}`,
           ].join("\n"),
       "",
-      "To re-derive this at any time:",
-      "  node <plugin>/kernel/harness.mjs reduce snapshot --cwd <dir>",
-      "To abandon the open run and start over, deliberately: --force",
+      kept
+        ? `LAUNCH RECORD (kept — the switches typed to this call were NOT applied; --force re-opens with new ones):\n${JSON.stringify(kept, null, 2)}`
+        : "No launch record is on disk for this run — re-open it with --force to write one.",
       "",
-      staged.ok
-        ? `Relaunch the same run with: Workflow({scriptPath: "${globWorkflowsStage("shapeup-run.js")}", args: <the same RunArgs>})`
-        : "The run scripts are NOT staged in this project — see the warning above before relaunching.",
+      "To re-derive the state at any time:",
+      "  node <plugin>/kernel/harness.mjs reduce snapshot --cwd <dir>",
+      "To drive the run from where it stands: `probe next --slug <slug> --restart`.",
+      "To abandon the open run and start over, deliberately: --force",
     ].join("\n"));
   }
 
@@ -671,6 +701,17 @@ export function cli(rawArgv) {
     breadboard: bb ? { ...bb, path: bb.path ? repoRel(cwd, bb.path) : null } : null,
   });
 
+  const launch = buildLaunchRecord({
+    slug, runId: receipt.run_id, autoLevel: auto_level, answers: config.gate_answers ?? undefined,
+    lane: args.lane ?? undefined, models,
+    maxRounds: config.max_rounds, attemptBudget: config.attempt_budget,
+    pluginRoot: plugin.root, startedAt,
+    noEval: args.noEval, noQa: args.noQa, adversarialVerify: args.adversarialVerify,
+    maxParallelScopes: args.parallelScopes ?? undefined,
+  });
+  const unlaunchable = launchProblems(launch);
+  if (unlaunchable.length) fail(2, `✋ init-run: the launch record is not launchable — ${unlaunchable.join("; ")}`);
+
   mkdirSync(runRoot, { recursive: true });
   mkdirSync(join(runRoot, "orders"), { recursive: true });
   mkdirSync(join(runRoot, "results"), { recursive: true });
@@ -684,6 +725,10 @@ export function cli(rawArgv) {
   if (bb?.path) writeFileSync(stagedBreadboard(cwd, slug), bb.text, "utf8");
   writeFileSync(receiptPath, JSON.stringify(receipt, null, 2) + "\n", "utf8");
   writeFileSync(join(runRoot, "harness-run.md"), runFrontmatter({ slug, config, startedAt }), "utf8");
+  // THE LAUNCH RECORD, in the same act as the receipt and from the same parsed argv, so it cannot name a
+  // run the receipt does not. `reduce ship` reads it to refuse a PASS report over a run launched with no
+  // evaluation, and the loop reads it for the dials.
+  writeFileSync(runArgsPath(cwd, slug), JSON.stringify(launch, null, 2) + "\n", "utf8");
 
   // The pointer every downstream guard reads to answer "is a run active?".
   const pointer = activeScope(cwd);
@@ -716,20 +761,18 @@ export function cli(rawArgv) {
   console.log(JSON.stringify({
     ok: true,
     slug,
-    // Echoed so the orchestrator can put it in RunArgs without re-reading the receipt.
     run_id: receipt.run_id,
     run_root: globLocal(slug),
     receipt: globLocal(slug, "receipt.json"),
     intake_sha256: receipt.intake_sha256,
     intake_chars: receipt.intake_chars,
-    // The staged breadboard the planning dispatches are handed, or null when the pitch has none
+    // The staged breadboard the planning steps are handed, or null when the pitch has none
     // separate (`breadboard_source` then says "embedded" or null).
     breadboard: bb?.path ? globLocal(slug, "breadboard.md") : null,
     breadboard_source: bb?.source ?? null,
     config,
-    // What the launch names. Project-local by necessity, not by preference — see stageWorkflows().
-    workflow_script: staged.ok ? globWorkflowsStage("shapeup-run.js") : null,
-    next: "GATE L0 — pin the run config, emit the gate block, then ORIENT.",
+    launch_record: globLocal(slug, "run-args.json"),
+    launch,
+    next: "GATE L0 — confirm the run config with the PO, then `probe next`.",
   }, null, 2));
 }
-
