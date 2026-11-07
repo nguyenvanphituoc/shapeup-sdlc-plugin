@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Single Loop Before and After</title>
+<meta name="description" content="One interactive, one-round run of the shapeup-sdlc harness as it executes today and as the v4 single loop would execute it, with the measured numbers each change moves.">
+<style>
+/* Tokens shared with harness-anatomy.html: graphite grounds, layout-dye blue for the thing that
+   changes, oxide red for what the loop removes, verdigris for what it keeps. One page, two figures
+   side by side, a table of numbers under them. */
+:root {
+  --ground:     #f1f3f2;
+  --ground-2:   #e7eae8;
+  --ink:        #171c1e;
+  --ink-soft:   #454f52;
+  --ink-faint:  #798487;
+  --rule:       #c9cfcc;
+  --dye:        #0b6480;
+  --dye-wash:   #dceaef;
+  --deny:       #a3341c;
+  --deny-wash:  #f2ddd7;
+  --allow:      #2f6d4a;
+  --allow-wash: #dbe9e0;
+  --amber:      #93650a;
+  --f-display: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+  --f-body: Charter, "Bitstream Charter", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:#121618; --ground-2:#1a1f21; --ink:#dfe5e3; --ink-soft:#a4b0b0; --ink-faint:#6f7c7d;
+    --rule:#2c3436; --dye:#4fb4d4; --dye-wash:#12333e; --deny:#e0745a; --deny-wash:#3a201a;
+    --allow:#6fb98c; --allow-wash:#1b3327; --amber:#d5a03c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#121618; --ground-2:#1a1f21; --ink:#dfe5e3; --ink-soft:#a4b0b0; --ink-faint:#6f7c7d;
+  --rule:#2c3436; --dye:#4fb4d4; --dye-wash:#12333e; --deny:#e0745a; --deny-wash:#3a201a;
+  --allow:#6fb98c; --allow-wash:#1b3327; --amber:#d5a03c; color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--f-body); font-size: 17px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+.doc { max-width: 76rem; margin: 0 auto; padding: 2.5rem 1.25rem 5rem; }
+h1, h2, figcaption b, th, .chip, .k { font-family: var(--f-display); font-weight: 600; }
+h1 { font-size: clamp(1.7rem, 3.6vw, 2.6rem); line-height: 1.08; letter-spacing: -0.03em; margin: 0 0 .6rem; text-wrap: balance; }
+.lede { max-width: 62ch; color: var(--ink-soft); margin: 0 0 2rem; }
+h2 { font-size: .98rem; letter-spacing: .04em; text-transform: uppercase; margin: 2.6rem 0 1rem; padding-bottom: .45rem; border-bottom: 1.5px solid var(--ink); }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
+@media (max-width: 860px) { .pair { grid-template-columns: minmax(0, 1fr); } }
+figure { margin: 0; background: var(--ground-2); border: 1px solid var(--rule); border-radius: 6px; padding: 1rem 1rem .75rem; }
+figure svg { display: block; width: 100%; height: auto; }
+figcaption { font-size: .9rem; color: var(--ink-soft); margin-top: .7rem; line-height: 1.45; }
+figcaption b { font-size: .72rem; letter-spacing: .09em; text-transform: uppercase; color: var(--ink); display: block; margin-bottom: .2rem; }
+.legend { display: flex; flex-wrap: wrap; gap: .5rem 1.2rem; font-family: var(--f-display); font-size: .72rem; color: var(--ink-soft); margin: .9rem 0 0; }
+.legend span::before { content: ""; display: inline-block; width: .8em; height: .8em; border-radius: 2px; margin-right: .45em; vertical-align: -1px; border: 1px solid currentColor; }
+.legend .l-dye::before { background: var(--dye-wash); color: var(--dye); }
+.legend .l-deny::before { background: var(--deny-wash); color: var(--deny); }
+.legend .l-allow::before { background: var(--allow-wash); color: var(--allow); }
+.legend .l-plain::before { background: transparent; color: var(--ink-faint); }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+th, td { text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+td.n { font-family: var(--f-display); font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.n.before { color: var(--deny); }
+td.n.after { color: var(--dye); }
+.chip { display: inline-block; font-size: .68rem; letter-spacing: .06em; padding: .1rem .45rem; border-radius: 3px; border: 1px solid var(--rule); color: var(--ink-soft); margin-left: .3rem; }
+ul.solved { padding-left: 1.2rem; margin: 0; max-width: 70ch; }
+ul.solved li { margin: .45rem 0; }
+.k { font-size: .85em; background: var(--ground-2); border: 1px solid var(--rule); border-radius: 3px; padding: 0 .3em; }
+.amend { max-width: 70ch; font-size: .88rem; color: var(--ink-soft); background: var(--ground-2); border-left: 3px solid var(--amber); padding: .6rem .9rem; margin: 0 0 1.8rem; }
+.foot { margin-top: 2.5rem; font-size: .82rem; color: var(--ink-faint); max-width: 70ch; }
+</style>
+</head>
+<body>
+<main class="doc">
+  <h1>Single loop, before and after</h1>
+  <p class="lede">One interactive, one-round run of the harness: the way it executes today, and the way the v4 loop would execute the same pitch. Red is what the change removes. Blue is the one thing it adds: a control plane with a shell.</p>
+  <p class="amend"><b>Amended 2026-11-07.</b> A check of the repo's ADRs, hooks and tests corrected this page. The loop is a thin skill over a kernel <span class="k">probe next</span> verb, not prose; two guards the first version deleted stay; the kernel count is 29, not 26; hook scripts go 6 to 5; the line total is about 6,500. The PO confirmed all four decisions behind them on 2026-11-07. Details: <span class="k">constraints-2026-11-07.md</span>.</p>
+
+  <div class="pair">
+    <figure>
+      <svg viewBox="0 0 560 560" role="img" aria-label="Before: the PO's session dispatches the tech-lead skill, which opens the run and launches a Workflow script that has no shell. Each phase spawns one worker sub-agent and between one and nineteen courier agents that each run one kernel command. At each of eight gates the script returns paused, the PO answers, and the orchestrator relaunches the script, which re-runs its preflight canary and fast-forward before resuming." style="color: var(--ink);">
+        <defs>
+          <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--deny)"/></marker>
+        </defs>
+        <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5">
+          <!-- row 1: PO -> tech-lead -> init -->
+          <rect x="16" y="16" width="118" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="75" y="40" text-anchor="middle">PO · session</text>
+          <line x1="134" y1="36" x2="196" y2="36" stroke="currentColor" stroke-width="1.2" marker-end="url(#ab)"/>
+          <text x="165" y="30" text-anchor="middle" font-size="10" fill="var(--ink-soft)">/ship</text>
+          <rect x="198" y="16" width="130" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="263" y="40" text-anchor="middle">tech-lead (skill)</text>
+          <line x1="328" y1="36" x2="398" y2="36" stroke="currentColor" stroke-width="1.2" marker-end="url(#ab)"/>
+          <text x="363" y="30" text-anchor="middle" font-size="10" fill="var(--ink-soft)">bash</text>
+          <rect x="400" y="16" width="144" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="472" y="33" text-anchor="middle" font-size="10.5">init run · run-args</text>
+          <text x="472" y="47" text-anchor="middle" font-size="10.5">stage a script copy</text>
+          <!-- down to workflow -->
+          <line x1="472" y1="56" x2="472" y2="88" stroke="currentColor" stroke-width="1.2" marker-end="url(#ab)"/>
+          <text x="466" y="76" text-anchor="end" font-size="10" fill="var(--ink-soft)">Workflow tool · unscoped grant</text>
+
+          <!-- the workflow box -->
+          <rect x="16" y="92" width="528" height="330" rx="6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="5 4"/>
+          <text x="28" y="112" font-size="11.5" font-weight="600">shapeup-run.js — a script with no shell and no pause</text>
+
+          <!-- preflight -->
+          <rect x="28" y="124" width="500" height="34" rx="3" fill="var(--deny-wash)" stroke="var(--deny)" stroke-width="1"/>
+          <text x="40" y="145" font-size="11" fill="var(--deny)">Preflight, every launch: 1 canary agent + 2 courier agents</text>
+
+          <!-- phase rows: label | worker | couriers -->
+          <g font-size="10.5">
+            <text x="28" y="186" fill="var(--ink-soft)">Orient</text>
+            <rect x="130" y="170" width="96" height="24" rx="3" fill="var(--allow-wash)" stroke="var(--allow)"/><text x="178" y="186" text-anchor="middle">1 worker</text>
+            <rect x="238" y="170" width="290" height="24" rx="3" fill="var(--deny-wash)" stroke="var(--deny)"/><text x="383" y="186" text-anchor="middle" fill="var(--deny)">3 couriers · one kernel command each</text>
+
+            <text x="28" y="222" fill="var(--ink-soft)">Plan ×3 skills</text>
+            <rect x="130" y="206" width="96" height="24" rx="3" fill="var(--allow-wash)" stroke="var(--allow)"/><text x="178" y="222" text-anchor="middle">3 workers</text>
+            <rect x="238" y="206" width="290" height="24" rx="3" fill="var(--deny-wash)" stroke="var(--deny)"/><text x="383" y="222" text-anchor="middle" fill="var(--deny)">10 couriers · 2 handoffs between workers</text>
+
+            <text x="28" y="258" fill="var(--ink-soft)">Build round</text>
+            <rect x="130" y="242" width="96" height="24" rx="3" fill="var(--allow-wash)" stroke="var(--allow)"/><text x="178" y="258" text-anchor="middle">N workers</text>
+            <rect x="238" y="242" width="290" height="24" rx="3" fill="var(--deny-wash)" stroke="var(--deny)"/><text x="383" y="258" text-anchor="middle" fill="var(--deny)">11 couriers</text>
+
+            <text x="28" y="294" fill="var(--ink-soft)">Eval·QA·Ship</text>
+            <rect x="130" y="278" width="96" height="24" rx="3" fill="var(--allow-wash)" stroke="var(--allow)"/><text x="178" y="294" text-anchor="middle">3 workers</text>
+            <rect x="238" y="278" width="290" height="24" rx="3" fill="var(--deny-wash)" stroke="var(--deny)"/><text x="383" y="294" text-anchor="middle" fill="var(--deny)">25 couriers</text>
+          </g>
+
+          <!-- gate -->
+          <path d="M280 326 L358 356 L280 386 L202 356 Z" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="280" y="352" text-anchor="middle" font-size="10.5">gate ×8</text>
+          <text x="280" y="366" text-anchor="middle" font-size="10" fill="var(--ink-soft)">answer on file?</text>
+          <line x1="280" y1="302" x2="280" y2="324" stroke="currentColor" stroke-width="1.2" marker-end="url(#ab)"/>
+          <!-- yes -->
+          <line x1="350" y1="356" x2="430" y2="356" stroke="currentColor" stroke-width="1.2" marker-end="url(#ab)"/>
+          <text x="392" y="350" text-anchor="middle" font-size="10" fill="var(--ink-soft)">yes · preset</text>
+          <rect x="432" y="340" width="96" height="32" rx="3" fill="none" stroke="currentColor" stroke-width="1"/>
+          <text x="480" y="360" text-anchor="middle" font-size="10.5">next phase</text>
+          <!-- no -->
+          <line x1="280" y1="386" x2="280" y2="398" stroke="var(--deny)" stroke-width="1.2" marker-end="url(#ar)"/>
+          <rect x="196" y="400" width="168" height="18" rx="3" fill="var(--deny-wash)" stroke="var(--deny)"/>
+          <text x="280" y="413" text-anchor="middle" font-size="10.5" fill="var(--deny)">return {status: "paused"}</text>
+        </g>
+
+        <!-- relaunch loop -->
+        <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+          <path d="M196 409 L96 409 L96 438" fill="none" stroke="var(--deny)" stroke-width="1.2" marker-end="url(#ar)"/>
+          <rect x="16" y="440" width="300" height="52" rx="4" fill="var(--deny-wash)" stroke="var(--deny)" stroke-width="1"/>
+          <text x="166" y="459" text-anchor="middle" font-size="10.5" fill="var(--deny)">tech-lead prints the block · PO answers</text>
+          <text x="166" y="475" text-anchor="middle" font-size="10.5" fill="var(--deny)">gate-answers.json · relaunch, same args</text>
+          <path d="M316 466 L548 466 L548 36 L544 36" fill="none" stroke="var(--deny)" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+          <text x="552" y="260" text-anchor="middle" font-size="10" fill="var(--deny)" transform="rotate(90 552 260)">relaunch ×8 · preflight again · fast-forward again</text>
+          <!-- return -->
+          <line x1="480" y1="372" x2="480" y2="500" stroke="currentColor" stroke-width="1.2" marker-end="url(#ab)"/>
+          <rect x="400" y="502" width="144" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="472" y="519" text-anchor="middle" font-size="10.5">RunReturn → L4</text>
+          <text x="472" y="533" text-anchor="middle" font-size="10.5">→ coach</text>
+        </g>
+      </svg>
+      <figcaption><b>Before — 3.18.4</b>The control plane is a script that cannot run a command or wait for a person. Every kernel call becomes a courier agent, and every gate ends the launch. The numbers are call sites in the run script; the record cannot count executions, because a courier leaves no row.</figcaption>
+    </figure>
+
+    <figure>
+      <svg viewBox="0 0 560 560" role="img" aria-label="After: the PO's session runs the building skill, a loop that runs kernel commands itself and reads their exit codes, dispatches four kinds of worker sub-agent through the same order-and-result envelope, performs planning, census, ship and retro in its own context, and at each gate asks the PO one question in the same session, then records the answer with gate resolve. Resuming a killed run is running ship again, which reads the artifacts on disk." style="color: var(--ink);">
+        <defs>
+          <marker id="ab2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker>
+          <marker id="ad2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--dye)"/></marker>
+        </defs>
+        <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5">
+          <!-- PO -->
+          <rect x="16" y="16" width="118" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="75" y="40" text-anchor="middle">PO · session</text>
+          <line x1="134" y1="36" x2="196" y2="36" stroke="currentColor" stroke-width="1.2" marker-end="url(#ab2)"/>
+          <text x="165" y="30" text-anchor="middle" font-size="10" fill="var(--ink-soft)">/ship</text>
+
+          <!-- the loop box -->
+          <rect x="198" y="16" width="346" height="40" rx="4" fill="var(--dye-wash)" stroke="var(--dye)" stroke-width="1.4"/>
+          <text x="371" y="33" text-anchor="middle" font-size="11" fill="var(--dye)" font-weight="600">building — the loop, in this session</text>
+          <text x="371" y="47" text-anchor="middle" font-size="10" fill="var(--dye)">thin skill · asks the PO · kernel says what is next</text>
+
+          <rect x="16" y="92" width="528" height="330" rx="6" fill="none" stroke="var(--dye)" stroke-width="1.4"/>
+          <line x1="371" y1="56" x2="371" y2="90" stroke="var(--dye)" stroke-width="1.4" marker-end="url(#ad2)"/>
+
+          <!-- kernel column -->
+          <rect x="28" y="106" width="200" height="190" rx="3" fill="none" stroke="currentColor" stroke-width="1"/>
+          <text x="128" y="124" text-anchor="middle" font-size="11" font-weight="600">kernel · run by the loop</text>
+          <g font-size="10.5" fill="var(--ink-soft)">
+            <text x="40" y="146">init run · probe next</text>
+            <text x="40" y="162">compile · reduce ingest</text>
+            <text x="40" y="178">verify t0 · spec · build</text>
+            <text x="40" y="194">probe eval · owner · attempts</text>
+            <text x="40" y="210">gate --resolve</text>
+            <text x="40" y="226">reduce ship · report export</text>
+            <text x="40" y="250" fill="var(--dye)">one command → one exit code</text>
+            <text x="40" y="266" fill="var(--dye)">no courier in between</text>
+          </g>
+
+          <!-- workers column -->
+          <text x="384" y="124" text-anchor="middle" font-size="11" font-weight="600">4 workers · sub-agents</text>
+          <g font-size="10.5">
+            <rect x="248" y="134" width="272" height="26" rx="3" fill="var(--allow-wash)" stroke="var(--allow)"/><text x="384" y="151" text-anchor="middle">orient</text>
+            <rect x="248" y="168" width="272" height="26" rx="3" fill="var(--allow-wash)" stroke="var(--allow)"/><text x="384" y="185" text-anchor="middle">task-executor ×N · parallel · fenced</text>
+            <rect x="248" y="202" width="272" height="26" rx="3" fill="var(--allow-wash)" stroke="var(--allow)"/><text x="384" y="219" text-anchor="middle">spec-evaluator · once per round</text>
+            <rect x="248" y="236" width="272" height="26" rx="3" fill="var(--allow-wash)" stroke="var(--allow)"/><text x="384" y="253" text-anchor="middle">qa-edge-hunter</text>
+            <text x="384" y="284" text-anchor="middle" font-size="10" fill="var(--ink-soft)">order in → result out · receipt attests</text>
+          </g>
+
+          <!-- in-loop activities -->
+          <rect x="28" y="312" width="492" height="40" rx="3" fill="none" stroke="var(--dye)" stroke-width="1" stroke-dasharray="4 3"/>
+          <text x="40" y="329" font-size="10.5" fill="var(--dye)">in this context, no dispatch:</text>
+          <text x="40" y="344" font-size="10.5">plan (requirements → spec → wiring → scopes) · stop · ship · retro · intake</text>
+
+          <!-- gate -->
+          <rect x="28" y="366" width="492" height="44" rx="3" fill="var(--dye-wash)" stroke="var(--dye)" stroke-width="1"/>
+          <text x="40" y="384" font-size="10.5" fill="var(--dye)" font-weight="600">⏸ gate = one question to the PO, recommendation first, answered here</text>
+          <text x="40" y="400" font-size="10.5">gate --resolve writes the row with its source · no return, no relaunch</text>
+        </g>
+
+        <!-- PO <-> gate arrows -->
+        <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+          <path d="M22 56 L22 388 L26 388" fill="none" stroke="var(--dye)" stroke-width="1.2" marker-end="url(#ad2)"/>
+          <text x="34" y="78" font-size="10" fill="var(--dye)">⏸ the PO answers each gate here</text>
+          
+
+          <!-- end -->
+          <line x1="371" y1="422" x2="371" y2="456" stroke="currentColor" stroke-width="1.2" marker-end="url(#ab2)"/>
+          <rect x="196" y="458" width="348" height="34" rx="4" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          <text x="371" y="479" text-anchor="middle" font-size="10.5">REPORT.md · export (legs, tokens, cost) · close</text>
+          <text x="280" y="528" text-anchor="middle" font-size="10.5" fill="var(--ink-soft)">killed mid-run? run /ship again: the loop reads the artifacts and continues</text>
+        </g>
+      </svg>
+      <figcaption><b>After — the v4 loop</b>The session is the control plane. It runs the kernel, dispatches four kinds of worker through the unchanged envelope, does planning and the census in its own context, and asks the PO at each gate without ending anything. The gate ledger, the write fence, T0 and the single judge are untouched.</figcaption>
+    </figure>
+  </div>
+
+  <p class="legend"><span class="l-deny">removed by the change</span><span class="l-dye">added: a control plane with a shell</span><span class="l-allow">worker sub-agents, kept</span><span class="l-plain">kernel and gates, unchanged</span></p>
+
+  <h2>What each number moves</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Measure</th><th>Before</th><th>After</th><th>Problem it answers</th></tr></thead>
+    <tbody>
+      <tr><td>Courier call sites in the run script</td><td class="n before">51</td><td class="n after">0</td><td>agents that exist to type one command</td></tr>
+      <tr><td>Relaunches per interactive one-round run</td><td class="n before">up to 8</td><td class="n after">0</td><td>a gate that ends the run</td></tr>
+      <tr><td>Preflight canaries per run</td><td class="n before">1 per launch, up to 9</td><td class="n after">0</td><td>the first orient dispatch leaves the same receipt</td></tr>
+      <tr><td>Sub-agent kinds</td><td class="n before">10 + couriers</td><td class="n after">4</td><td>roles instead of activities</td></tr>
+      <tr><td>Skills · workers · operations</td><td class="n before">13 · 10 · 18</td><td class="n after">7 · 4 · 6</td><td>planning cut into three roles</td></tr>
+      <tr><td>Permission grant</td><td class="n before">2 Bash rules + unscoped Workflow</td><td class="n after">2 Bash rules written; an existing Workflow token left alone</td><td>the plugin stops asking for a token that authorises every script; it never deletes the user's</td></tr>
+      <tr><td>Resume mechanism</td><td class="n before">fast-forward over a 10 KB ResumeState, per launch</td><td class="n after">/ship again; <span class="k">probe next</span> reads the artifact predicates</td><td>state machinery that exists to survive relaunch</td></tr>
+      <tr><td>Kernel subcommands</td><td class="n before">32</td><td class="n after">29</td><td>four verbs go, one is added: probe next</td></tr>
+      <tr><td>Hook scripts · hooks.json entries</td><td class="n before">6 · 8</td><td class="n after">5 · 6</td><td>gate-intake goes; gate-zerowork is re-keyed, about 200 lines, not gutted</td></tr>
+      <tr><td>Lines removed, code and prose</td><td class="n before">—</td><td class="n after">≈ 6,500</td><td>≈ 3,200 of it in kernel and hooks; an estimate, not re-measured</td></tr>
+      <tr><td>Export, per leg</td><td class="n before">duration</td><td class="n after">duration · tokens · cost</td><td>the measurement the ablation rule needs</td></tr>
+      <tr><td>Hook denials on record (9 runs)</td><td class="n before">sandbox-guard 22 · others 0</td><td class="n after">the same hook, kept</td><td>what actually guards, stays</td></tr>
+      <tr><td>Guards that survive the cut</td><td class="n before">ship refuses a no-eval PASS · model floor · planning write fence · hook reader</td><td class="n after">all four kept</td><td>each was about to be deleted with the script it lived in</td></tr>
+      <tr><td>Invariants in AGENTS.md</td><td class="n before">7</td><td class="n after">7</td><td>nothing the gates promise is weakened</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>Problems this solves, and the evidence behind each</h2>
+  <ul class="solved">
+    <li><b>The run spawns agents to do nothing.</b> 51 courier sites and a canary on every launch, invisible to the export. The loop runs the command itself and reads the exit code. <span class="chip">review §3.2</span></li>
+    <li><b>A PO's answer costs a relaunch.</b> Eight pause points return <span class="k">paused</span>; each relaunch re-runs preflight and fast-forward. A gate becomes one question in the conversation; <span class="k">gate --resolve</span> still writes the row with its source. <span class="chip">plan P2</span></li>
+    <li><b>A fifth of the kernel exists for the relaunch.</b> Resume, run-args, staged copy, the launch and return records. One mechanism remains: artifact predicates read on entry. <span class="chip">plan A5</span></li>
+    <li><b>Roles hide the activity.</b> Eleven Building skills named after people; planning as three workers with two handoffs. Building takes the shape Shaping already has: one loop skill, sub-commands per activity, four workers. <span class="chip">proposal §2</span></li>
+    <li><b>Guards nobody can show guarding.</b> One hook with zero denials across nine runs goes and one is re-keyed; the fence with 22 stays. <span class="chip">review §3.3</span></li>
+    <li><b>No cost axis.</b> The leg row gains tokens and cost, so the next ablation has a number. <span class="chip">plan A6</span></li>
+  </ul>
+
+  <p class="foot">Figures are derived from the 3.18.4 tree and the nine archived run ledgers; the plan, review and proposal in the v4 design folder say how to re-run each. The agent counts for the "before" run are call sites, not executions: the record cannot count a courier, which is one of the problems. The line totals are arithmetic on the earlier estimate.</p>
+</main>
+</body>
+</html>
