@@ -176,3 +176,16 @@ Shipped executable set: 18,736 → 16,513 lines and 52 → 46 files; subcommands
    dashboard screen, a profile field) are breaking for anyone who named them, so this is not a patch release.
 4. The L1b defect the S1 gate hit again (the coverage step registers a pitch's No-gos as requirements, and an unattended run has no
    PO to mark them CUT) predates this plan and is still open.
+
+## Closing audit (`harness-maintenance-audit`)
+
+| Check | Result |
+|---|---|
+| `npm test` | green, 2,262 checks (baseline of this plan: 2,512) |
+| `npm run demo`, `npm run verify:cross-dir` | pass |
+| `claude plugin validate . --strict` and the marketplace manifest | pass |
+| version parity | `package.json` and `plugin.json` both 4.0.0 |
+| `npm run test:grant` | **not verifiable at the end of the session.** Four of nine cases read DENIED because a nested `claude` call is refused by the account's five-hour usage limit (a bare "say ok" is refused the same way); the five negative and pin cases pass trivially. It passed 9/9 at the S1 tree, and `bin/` has not changed since the baseline. Re-run it after the limit resets |
+| docs against the fact sheet | four drift sites fixed: the hill-chart row in `04-functional-design`, the local-tier listing in `03-system-design` (the `trace/` and `exports/` entries), and the SECURITY and README hook lists, done earlier with the hook cut |
+| shipped-set sweep | no new bookkeeping markers; `HD-001` in the retro template is a placeholder for a consumer's own id, and the `docs/pitch.md` paths are examples of a consumer's files |
+| stranded readers | the `traceDir` path helper the oracle left unused is removed; the dashboard template still carries unreachable JavaScript for the graph screens, left because it is a separate edit to a 1,400-line asset |

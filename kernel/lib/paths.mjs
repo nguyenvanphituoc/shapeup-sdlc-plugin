@@ -234,8 +234,6 @@ export const qaDir = (cwd, slug) => join(localRoot(cwd, slug), "qa");
 export const orientDir = (cwd, slug) => join(localRoot(cwd, slug), "orient");
 /** Time-boxed spike workspace. */
 export const spikesDir = (cwd, slug) => join(localRoot(cwd, slug), "spikes");
-/** Covers-closure + reachability run trace. */
-export const traceDir = (cwd, slug) => join(localRoot(cwd, slug), "trace");
 /** The discovered-task ledger every discovery flow appends to. */
 export const discoveryLedger = (cwd, slug) => join(localRoot(cwd, slug), "discovery", "ledger.md");
 /**

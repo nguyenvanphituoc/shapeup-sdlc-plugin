@@ -12,7 +12,7 @@
 | `task-executor` | Generator | Implements a WorkOrder's acceptance criteria exactly. Zero-memory (each attempt is a fresh subagent), substrate-sandboxed, never writes boards or ledgers. |
 | `spec-evaluator` | Single judge | Verifies the running app against the committed spec. Skeptical by default; requires a T0 artifact citation on scoped specs; verdict returns as data, never edits anything. |
 | `qa-edge-hunter` | Explorer | Post-PASS exploratory hunt through six fixed lenses, outside what the evaluator already probed. Findings go to the ledger as `~`; never blocks ship, never issues a verdict. |
-| `hill-chart` | Dashboard | Renders the committed hill shards and the local run graph as one dashboard; invoked directly, not a pipeline worker. |
+| `hill-chart` | Dashboard | Renders the committed hill shards as one dashboard; invoked directly, not a pipeline worker. |
 
 ## 4.2 — The build round, in detail
 
