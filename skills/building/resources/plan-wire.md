@@ -8,10 +8,10 @@ user-visible affordance — including how and where the engine attaches to the a
 
 You work at design time (GATE L1a.5), before any code exists. Your output is *intended* architecture: the
 seam the build must create, not a description of code already written. You do not verify reachability and
-you run no oracle; that is a build-time fact `verify trace` proves against real code at the board review.
-Your job is to make the seam explicit and buildable. Two payoffs from one artifact: reachability becomes
-checkable later (you supply the two anchors — each use case's `engine`, a real repo-relative module path,
-and the profile's `entry_point` — and the oracle does the proving), and the slicer gets its integration
+you run no oracle; whether the engine is wired into the running app is a build-time fact the round
+build gate and the evaluator measure. Your job is to make the seam explicit and buildable. Two payoffs
+from one artifact: the evaluator can check the wiring later (you supply the two anchors — each use
+case's `engine`, a real repo-relative module path, and the profile's `entry_point`), and the slicer gets its integration
 seam up front.
 
 This substep writes `wiring-map.md` and nothing else; the spec core, the scopes and the profile are frozen.

@@ -42,7 +42,7 @@
         "to": "RequirementClause",
         "cardinality": "N:0..N",
         "via": "acceptance_criteria[].covers[]",
-        "note": "the covers-closure anchor — same sanctioned LOCAL→SHARED direction as use_case_refs. trace-lint asserts every status:covered REQ-id is named by ≥1 AC's covers[]; a REQ neither covered nor CUT is red. REQ-ids are stable cross-machine keys (supersede-never-delete), never renumbered like TASK-NNN"
+        "note": "the covers-closure anchor — same sanctioned LOCAL→SHARED direction as use_case_refs. `verify spec` asserts every status:covered REQ-id is named by ≥1 AC's covers[]; a REQ neither covered nor CUT is red. REQ-ids are stable cross-machine keys (supersede-never-delete), never renumbered like TASK-NNN"
       },
       {
         "from": "CriterionVerdict",
@@ -63,14 +63,14 @@
         "to": "UseCase",
         "cardinality": "1:N",
         "via": "entries[].use_case",
-        "note": "reachability map: per UC engine → wiring seam → entry-point call site → player-visible affordance. trace-lint asserts each UC's engine reaches ProjectProfile.entry_point via the import graph; an unreachable engine (0 import sites) is red"
+        "note": "wiring map: per UC engine → wiring seam → entry-point call site → player-visible affordance, read by the scopes substep and the evaluator"
       },
       {
         "from": "WiringMap",
         "to": "ProjectProfile",
         "cardinality": "N:1",
         "via": "entry_point resolution",
-        "note": "reachability resolves entry_point from the profile (archetype-specific: main.js for a game is not the seam for a web-service) — never hardcoded"
+        "note": "the wire step resolves entry_point from the profile (archetype-specific: main.js for a game is not the seam for a web-service) — never hardcoded"
       },
       {
         "from": "WorkOrder",
@@ -465,7 +465,7 @@
         },
         "acceptance_criteria": {
           "type": "array",
-          "description": "The AC checkbox texts, verbatim — ingest ticks boxes by matching this text back. ADDITIVE union (spine v1.3): a plain `string` (legacy boards, unchanged) OR `{text, covers?}` when the board line carries a `(covers: REQ-…)` clause. `.text` stays BYTE-IDENTICAL to the checkbox so ingest-result's substring tick-back (AcResult.ac) is untouched; `covers[]` is the LOCAL→SHARED anchor trace-lint reads for covers-closure. A pre-covers board keeps parsing as string[] (the ✦ non-regression invariant).",
+          "description": "The AC checkbox texts, verbatim — ingest ticks boxes by matching this text back. ADDITIVE union (spine v1.3): a plain `string` (legacy boards, unchanged) OR `{text, covers?}` when the board line carries a `(covers: REQ-…)` clause. `.text` stays BYTE-IDENTICAL to the checkbox so ingest-result's substring tick-back (AcResult.ac) is untouched; `covers[]` is the LOCAL→SHARED anchor `verify spec` reads for covers-closure. A pre-covers board keeps parsing as string[] (the ✦ non-regression invariant).",
           "items": {
             "anyOf": [
               {
@@ -487,7 +487,7 @@
                       "type": "string",
                       "pattern": "^REQ-[0-9]+$"
                     },
-                    "description": "REQ-ids this AC covers — resolved against the SHARED requirements registry by trace-lint."
+                    "description": "REQ-ids this AC covers — resolved against the SHARED requirements registry by `verify spec`."
                   }
                 }
               }
@@ -913,7 +913,7 @@
             "type": "string",
             "pattern": "^REQ-[0-9]+$"
           },
-          "description": "OPTIONAL (spine v1.3) — REQ-ids this finding maps back to. The checkable back-link (LOCAL→SHARED) so an edge case maps to a business requirement by id instead of grepping ledger.md; trace-lint only checks the id resolves in the registry."
+          "description": "OPTIONAL (spine v1.3) — REQ-ids this finding maps back to. The checkable back-link (LOCAL→SHARED) so an edge case maps to a business requirement by id instead of grepping ledger.md; `verify spec` only checks the id resolves in the registry."
         }
       }
     },
@@ -987,7 +987,7 @@
                 "type": "string",
                 "pattern": "^REQ-[0-9]+$"
               },
-              "description": "OPTIONAL (spine v1.3) — REQ-ids this criterion maps back to. A checkable finding→requirement anchor (LOCAL→SHARED) so the judge's record maps to a business requirement by id; trace-lint only checks each id resolves in the registry. Navigation aid, never a grading input."
+              "description": "OPTIONAL (spine v1.3) — REQ-ids this criterion maps back to. A checkable finding→requirement anchor (LOCAL→SHARED) so the judge's record maps to a business requirement by id; `verify spec` only checks each id resolves in the registry. Navigation aid, never a grading input."
             }
           }
         },
@@ -1036,7 +1036,7 @@
                 "type": "string",
                 "pattern": "^REQ-[0-9]+$"
               },
-              "description": "OPTIONAL (spine v1.3) — REQ-ids this criterion maps back to. A checkable finding→requirement anchor (LOCAL→SHARED) so the judge's record maps to a business requirement by id; trace-lint only checks each id resolves in the registry. Navigation aid, never a grading input."
+              "description": "OPTIONAL (spine v1.3) — REQ-ids this criterion maps back to. A checkable finding→requirement anchor (LOCAL→SHARED) so the judge's record maps to a business requirement by id; `verify spec` only checks each id resolves in the registry. Navigation aid, never a grading input."
             }
           }
         }
@@ -1702,7 +1702,7 @@
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/requirements.md",
       "x-writer": "the loop's plan activity, requirements substep — extraction only; CUT status is a PO governance edit (same class as a round-ledger Decision)",
-      "x-readers": "harness verify trace (covers-closure oracle), the loop (the L1b REQ → AC table), human (coverage/cut audit)",
+      "x-readers": "harness verify spec (covers-closure), the loop (the L1b REQ → AC table), human (coverage/cut audit)",
       "type": "object",
       "required": [
         "id",
@@ -1729,7 +1729,7 @@
             "covered",
             "CUT (PO-approved)"
           ],
-          "description": "covered = must be named by ≥1 AC's covers[] or trace-lint goes red; CUT (PO-approved) = a Betting-Table decision to drop it, kept for audit (never deleted)."
+          "description": "covered = must be named by ≥1 AC's covers[] or `verify spec` goes red; CUT (PO-approved) = a Betting-Table decision to drop it, kept for audit (never deleted)."
         },
         "note": {
           "type": "string",
@@ -1752,7 +1752,7 @@
         },
         "engine": {
           "type": "string",
-          "description": "Repo-relative path of the module implementing the UC's core logic — the file reachability BFS must reach from the entry point (a dead module with 0 import sites is red)."
+          "description": "Repo-relative path of the module implementing the UC's core logic — the file the use case's affordance must reach from the entry point."
         },
         "wiring_seam": {
           "type": "string",
@@ -1760,7 +1760,7 @@
         },
         "entry_call_site": {
           "type": "string",
-          "description": "DESIGN INTENT (spine v1.3): the composition-root attachment this engine registers into, named from ProjectProfile.entry_point + the mechanism — e.g. 'src/server.ts — POST /checkout route', 'main.js — game-loop init hook'. Symbolic, authored at L1a.5 before the code exists; NEVER an invented file:line. The concrete coordinate is a build-time fact; the reachability oracle proves the seam via the import graph (engine reached from entry_point) and does not parse this field."
+          "description": "DESIGN INTENT (spine v1.3): the composition-root attachment this engine registers into, named from ProjectProfile.entry_point + the mechanism — e.g. 'src/server.ts — POST /checkout route', 'main.js — game-loop init hook'. Symbolic, authored at L1a.5 before the code exists; NEVER an invented file:line. The concrete coordinate is a build-time fact; the evaluator checks it against the running app and nothing parses this field."
         },
         "affordance": {
           "type": "string",
@@ -1789,11 +1789,11 @@
       }
     },
     "WiringMap": {
-      "description": "The reachability map — per UC, the chain from engine to a player-visible affordance (spine v1.3). Written DIRECTLY by the plan activity's wire substep before gate L1a.5 (precedent: ScopeContract is written directly by the scopes substep, bypassing ingest-result). Its purpose: no engine ships orphaned from the running application. trace-lint folds reachability into its covers-closure pass — a UC whose engine does not reach ProjectProfile.entry_point via the import graph is red. A Mermaid view is auto-rendered from this map (a view of a checked graph, so it cannot drift). ON-DISK FORMAT IS MARKDOWN (ADR-0001): frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `kernel/lib/contract.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
+      "description": "The reachability map — per UC, the chain from engine to a player-visible affordance (spine v1.3). Written DIRECTLY by the plan activity's wire substep before gate L1a.5 (precedent: ScopeContract is written directly by the scopes substep, bypassing ingest-result). Its purpose: no engine ships orphaned from the running application — the evaluator and the round build gate check that against the built app. ON-DISK FORMAT IS MARKDOWN (ADR-0001): frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `kernel/lib/contract.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/wiring-map.md",
       "x-writer": "the loop's plan activity, wire substep (SOLE writer, direct — like the scopes substep writes scopes/*.md)",
-      "x-readers": "harness verify trace (reachability oracle), the plan activity (scopes: integration seam at slicing time)",
+      "x-readers": "the plan activity (scopes: integration seam at slicing time), spec-evaluator",
       "type": "object",
       "required": [
         "schema_version",
@@ -1813,7 +1813,7 @@
         },
         "entry_point": {
           "type": "string",
-          "description": "OPTIONAL echo of ProjectProfile.entry_point at authoring time (informational — the profile stays the source of truth reachability resolves against)."
+          "description": "OPTIONAL echo of ProjectProfile.entry_point at authoring time (informational — the profile stays the source of truth)."
         },
         "entries": {
           "type": "array",
@@ -1824,11 +1824,11 @@
       }
     },
     "ProjectProfile": {
-      "description": "The archetype + entry-point declaration reachability depends on (spine v1.3). Exists for ONE load-bearing reason: reachability must know the entry point, and that is archetype-specific (main.js for a client-only game is not the seam for a web-service). SHARED — a declaration that must survive `rm -rf .shapeup/` + clone cannot live in the gitignored run-trace. Role-gating (skip SysRS/Auth/CI-CD) is explicitly OUT of scope — those roles are not workers; the profile is introduced only as the entry-point/archetype declaration. ON-DISK FORMAT IS MARKDOWN (ADR-0001): frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `kernel/lib/contract.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
+      "description": "The archetype + entry-point declaration the wiring map and the build probes depend on (spine v1.3). The entry point is archetype-specific (main.js for a client-only game is not the seam for a web-service). SHARED — a declaration that must survive `rm -rf .shapeup/` + clone cannot live in the gitignored run-trace. Role-gating (skip SysRS/Auth/CI-CD) is explicitly OUT of scope — those roles are not workers; the profile is introduced only as the entry-point/archetype declaration. ON-DISK FORMAT IS MARKDOWN (ADR-0001): frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `kernel/lib/contract.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/project-profile.md",
       "x-writer": "the loop, at the intake gate (not harness compile, which stays pipeline-blind)",
-      "x-readers": "harness verify trace (reachability entry_point), harness verify build (build_probe + launch_probe, once per round before EVAL), the plan activity (wire)",
+      "x-readers": "harness verify build (build_probe + launch_probe, once per round before EVAL), the plan activity (wire)",
       "type": "object",
       "required": [
         "schema_version",
@@ -1851,20 +1851,15 @@
             "library",
             "data-pipeline"
           ],
-          "description": "Validated against the enum — a typo must FAIL, never silently disable reachability."
+          "description": "Validated against the enum — a typo must FAIL, never silently disable a check."
         },
         "entry_point": {
           "type": "string",
-          "description": "The repo-relative seam trace-lint reachability resolves engines against (e.g. main.js, src/server.ts). Not hardcoded — archetype-specific."
+          "description": "The repo-relative seam the wiring map resolves engines against (e.g. main.js, src/server.ts). Not hardcoded — archetype-specific."
         },
         "note": {
           "type": "string",
           "description": "Optional context on the archetype/entry-point choice."
-        },
-        "source_extensions": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "OPTIONAL — the file extensions this project's modules use, for the import walk that reachability runs. Absent means the JS/TS family plus the entry point's own suffix, which is right for most stacks and wrong for any stack whose engines end in something the entry point does not. Declare it when they differ (e.g. [\".ets\"] for ArkTS, [\".vue\", \".ts\"] for a Vue app): a walk that cannot follow an edge reports itself unchecked rather than reporting every engine orphaned, so the cost of leaving this absent is a skipped arm, never a false red."
         },
         "build_probe": {
           "type": "string",

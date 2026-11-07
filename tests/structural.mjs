@@ -387,11 +387,6 @@ const MODULE_FILES = [
   // named, and each review found more of the same class. Inverted: the run trace is frozen and
   // `own` carries what a leg authors. Walks every entry an archived trace holds, both ways.
   "96-run-trace-is-the-kernels.mjs",
-  // 97-reachability-can-say-unchecked.mjs: the import walker knew six suffixes, so on a stack whose
-  // modules end in anything else it followed no edge, called every engine orphaned and reported
-  // that it had checked. The walk now takes the project's own extensions, and refuses to publish a
-  // verdict over a graph with a missing edge or with no reachable engine to control it.
-  "97-reachability-can-say-unchecked.mjs",
   // 98-flow-sequence-spans-lines.mjs: the contract dialect read `field: [a, b]` and an indented
   // `- item` block, but a flow sequence broken across lines parsed to the single character "[" —
   // so a scope's substrate became a string, the order failed its own schema, and the scope could

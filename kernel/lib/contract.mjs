@@ -12,7 +12,7 @@
 //
 //   • scalars and string arrays  → frontmatter, in the `key: value` / `key: [a, b]` dialect the
 //     repo already parses in `compile-order.frontmatter`;
-//   • arrays of objects          → markdown TABLES, which `trace-lint.parseRequirements` and
+//   • arrays of objects          → markdown TABLES, which `requirements.parseRequirements` and
 //     `compile-order.ledgerDecisions` already demonstrate reading;
 //   • everything else in the file is prose, and is preserved on round-trip.
 //
@@ -40,7 +40,7 @@ import { join } from "node:path";
 // `signatures` names the columns that identify a table as THAT field's, and it exists because of
 // The heading match is exact, so a table written under `# Wiring map — <slug>` instead of
 // `## Wiring` parsed as ABSENT, and every reader downstream treats absent as "none declared". The
-// observed consequence was `trace-lint` reporting `🟢 green · 0/0 engines reach src/cli/main.js`
+// observed consequence was a wiring check reporting green with 0/0 engines reached
 // for a committed map holding six correct rows — the gate whose whole purpose is that no engine
 // ships orphaned, failing OPEN.
 //
@@ -68,8 +68,8 @@ export const SCOPE_CONTRACT = {
  * reports as perfectly readable while yielding nothing.
  *
  * Measured across every completed run in the corpus: 9 of 9 committed wiring maps parsed to ZERO
- * entries with `unreadableReason() === null`, and `trace-lint` certified `🟢 green · 0/0 engines
- * reach <entry point>` against a deliverable whose engines were on disk — the exact failure quoted
+ * entries with `unreadableReason() === null`, and the wiring check certified green with 0/0 engines
+ * reached against a deliverable whose engines were on disk — the exact failure quoted
  * in the banner above, recurred in a shape its own fix could not detect.
  *
  * The horizontal `## Wiring` table stays canonical: it is what `renderContract` emits, so a map
@@ -161,7 +161,7 @@ export function coerce(raw) {
   // These contracts are MARKDOWN on disk, and a code span is the idiomatic way to write a path or
   // an identifier in one; this repo's own prose backticks every path it names. Read literally,
   // `` `src/capture/add.js` `` is a filename with two backticks in it, which is on no disk
-  // anywhere — so `trace-lint` reported "engine file not on disk" and then "reachability is not
+  // anywhere — so the wiring check reported "engine file not on disk" and then "reachability is not
   // demonstrated" for a wiring map whose engines all resolve AND all reach the entry point. The
   // gate that exists so no engine ships orphaned failing CLOSED, on a correct map, is the same
   // silent-format family as the parser defects above, arriving from the other direction.

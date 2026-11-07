@@ -200,8 +200,8 @@ export async function run(ctx) {
     row("…and after that one send-back it continues with a warning, never loops", (ws) => {
       uncovered(ws, 1); const f = local(ws, "legs.jsonl"); appendFileSync(f, readFileSync(f, "utf8").split("\n")[0] + "\n");
     }, (s) => s.step === "plan.wire" && s.warnings.some((w) => /ANALYZE plan-spec/.test(w) && /after one send-back/.test(w)));
-    row("a spec tree and a board with no wiring map opens the wire substep with the profile path and the advisory trace check", (ws) => { profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); },
-      (s) => isPlan("wire")(s) && /project-profile\.md$/.test(s.inputs.project_profile) && s.checks.length === 1 && s.checks[0].advisory === true && /verify trace/.test(s.checks[0].command));
+    row("a spec tree and a board with no wiring map opens the wire substep with the profile path", (ws) => { profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); },
+      (s) => isPlan("wire")(s) && /project-profile\.md$/.test(s.inputs.project_profile) && (s.checks || []).length === 0);
     row("a wire order open over a wiring map already on disk is closed, not redone", (ws) => {
       profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); wiring(ws); order(ws, "plan-wire", {});
     }, (s) => isPlan("wire")(s) && s.order_open === true && /open and has not been closed/.test(s.reason));

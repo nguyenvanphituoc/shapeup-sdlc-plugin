@@ -156,22 +156,4 @@ export async function run(ctx) {
     rmSync(ws, { recursive: true, force: true });
   }
 
-  // --- (6) The per-scope reachability arm skips a contract it cannot read rather than throwing
-  //         over it. The oracle is advisory, so one bad contract must not silence every arm. -------
-  {
-    const { scopeReachability } = await import(join(ROOT, "kernel/verify/trace.mjs"));
-    let rows;
-    try {
-      rows = scopeReachability(
-        [{ contract: { scope_id: "broken", allowed_file_substrate: "[" } },
-          { contract: { scope_id: "fine", allowed_file_substrate: ["src/**"] } }],
-        new Set(["src/a.js"]), ["src/a.js"]);
-    } catch (e) {
-      fail(`a malformed contract threw out of the per-scope arm (${e.message}) — the oracle runs advisory, so this loses covers-closure too`);
-      return;
-    }
-    if (rows.length === 1 && rows[0].scope_id === "fine") {
-      ok("a contract whose substrate is not a list of globs is skipped, and its readable sibling is still measured");
-    } else fail(`the arm mishandled a malformed contract: ${JSON.stringify(rows)}`);
-  }
 }

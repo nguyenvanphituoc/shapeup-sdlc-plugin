@@ -276,28 +276,6 @@ export async function run(ctx) {
     else fail(`HD-005 fix disturbed ${broke.length} existing coercion(s): ${JSON.stringify(broke.map(([i]) => [i, C.coerce(i)]))}`);
   }
 
-  // The oracle leg: trace-lint must go RED and must NOT claim reachability it never checked.
-  {
-    const { traceLint } = await import("../../kernel/verify/trace.mjs");
-    const dir = mkdtempSync(join(tmpdir(), "hd001-"));
-    try {
-      mkdirSync(join(dir, "shapeup", "demo"), { recursive: true });
-      mkdirSync(join(dir, "src"), { recursive: true });
-      writeFileSync(join(dir, "src", "main.js"), "export const main = () => {};\n");
-      writeFileSync(join(dir, "shapeup", "demo", "project-profile.md"), "---\nschema_version: 1\narchetype: cli\nentry_point: src/main.js\n---\n");
-      writeFileSync(join(dir, "shapeup", "demo", "wiring-map.md"), wrongHeading);
-      const { report } = traceLint("demo", { cwd: dir });
-      const red = report.findings.some((f) => f.code === "WIRING-UNREADABLE" && f.severity === "red");
-      if (report.overall === "red" && red) ok("HD-001: trace-lint reports RED on an unreadable wiring map (was: green, 0/0 engines)");
-      else fail(`HD-001 regression: trace-lint returned overall=${report.overall} for an unreadable wiring map — the reachability gate fails OPEN`);
-      if (report.reachability.checked === false && report.reachability.pass === false) {
-        ok("HD-001: trace-lint does not claim reachability it could not check");
-      } else fail(`HD-001 regression: reachability reported checked=${report.reachability.checked} pass=${report.reachability.pass} having walked nothing`);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  }
-
   // =============================================================================
   section("61. A frontmatter field written as a `## section` is reported ABSENT, loudly");
   // =============================================================================

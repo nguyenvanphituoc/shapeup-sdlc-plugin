@@ -11,7 +11,7 @@ kernel/harness.mjs       the deterministic half behind ONE entry point (and ther
                          permission prefix). Subcommands:
                           compile — the envelope port's order compiler
                           verify  — t0 · spec · envelope · dispatch · skills · budget ·
-                                    build · trace
+                                    build
                           reduce  — ingest (the single writer) · board · hill ·
                                     graph · ship
                           probe   — resume · t0 · digest · leg · eval ·

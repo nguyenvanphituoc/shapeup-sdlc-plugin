@@ -103,21 +103,18 @@ history the breaker counts; only the PO asks for it.
 ## 5. The shared profile
 
 Write `shapeup/<slug>/project-profile.md`: frontmatter `{schema_version: 1, archetype, entry_point}` plus,
-when the project has them, `source_extensions`, `build_probe` and `launch_probe`. Nothing downstream can be
+when the project has them, `build_probe` and `launch_probe`. Nothing downstream can be
 wired without it, and a typo in the `archetype` enum must fail rather than silently disable a check.
 
 | Field | Meaning |
 |---|---|
 | `archetype` | `client-only-game` · `web-service` · `mobile` · `library` · `data-pipeline` |
-| `entry_point` | the reachability seam: the root the import walk starts from. Where some module composes the app, name that one rather than the file the platform happens to start. Where screens are registered in a manifest instead (a route map, a plugin table, a string-loaded page) no entry point roots a walk at all, and the check reports that it could not check — the correct end state for such a project, not a profile to keep re-declaring |
-| `source_extensions` | only when modules end in something the entry point does not (`[".ets"]` under a `.ts` entry); leaving it out costs a skipped check, never a false red |
+| `entry_point` | the composition root the wiring map names its call sites against. Where some module composes the app, name that one rather than the file the platform happens to start |
 | `build_probe` | asserts the BUILT ARTIFACT covers what the run wrote — a green exit code is not proof the feature compiled when the toolchain compiles only what an entry point reaches |
 | `launch_probe` | installs, starts and asserts the first screen. A `mobile` profile without one is warned about every round, because nothing else launches the app |
 
-The two probes feed the round build gate. `verify trace` also reports, per scope, how many of its source files
-the app reaches, and warns (SCOPE-UNREACHABLE) on a scope it reaches none of: a scope's fixture can be green
-while its code never compiles, on any toolchain that compiles only what the entry point reaches. A warning only
-— the wiring may be a later scope's job by design.
+The two probes feed the round build gate: a scope's fixture can be green while its code never compiles, on any
+toolchain that compiles only what the entry point reaches, so `build_probe` asserts the built artifact.
 
 ## 6. The L0 gate
 

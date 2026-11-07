@@ -103,7 +103,7 @@ export const scopesDir = (cwd, slug) => join(sharedRoot(cwd, slug), "scopes");
 export const scopeContract = (cwd, slug, id) => join(scopesDir(cwd, slug), `${id}.md`);
 /** The wiring map — engine → seam → entry-point call site → affordance. */
 export const wiringMap = (cwd, slug) => join(sharedRoot(cwd, slug), "wiring-map.md");
-/** Archetype + entry_point; gates the reachability arm of trace-lint. */
+/** Archetype + entry_point + the build and launch probes. */
 export const projectProfile = (cwd, slug) => join(sharedRoot(cwd, slug), "project-profile.md");
 /** The REQ clause registry that covers-closure checks against. */
 export const requirements = (cwd, slug) => join(sharedRoot(cwd, slug), "requirements.md");

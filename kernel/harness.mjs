@@ -81,7 +81,7 @@ import { isMain } from "./lib/argv.mjs";
 export const ROUTES = {
   verify: {
     t0: "./verify/t0.mjs", budget: "./verify/budget.mjs", envelope: "./verify/envelope.mjs",
-    trace: "./verify/trace.mjs", spec: "./verify/spec.mjs", skills: "./verify/skills.mjs",
+    spec: "./verify/spec.mjs", skills: "./verify/skills.mjs",
     dispatch: "./verify/dispatch.mjs", build: "./verify/build.mjs",
   },
   reduce: {

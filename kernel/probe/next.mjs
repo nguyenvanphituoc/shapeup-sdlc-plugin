@@ -448,7 +448,6 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
       inputs: { project_profile: rs.project_profile_path, breadboard: rs.breadboard_path, spec_folder: specFolder },
       reason: open ? "the wire order is open and has not been closed" : "no wiring map on disk",
       note: `Write the wiring map: per use case, engine → seam → entry-point call site → affordance.${note}`,
-      checks: [{ command: K(`verify trace --slug ${slug} --quiet`), advisory: true, why: "the reachability oracle, advisory — there is no code to trace before the build" }],
     }),
   });
   if (wiring) return wiring;
@@ -482,7 +481,7 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
     }
     return gateStep("L1b", {
       ctx: { scopes: sched.scopes.map((s) => s.scope_id) },
-      pre: [{ command: K(`verify trace --slug ${slug} --quiet`), advisory: true }, { command: K(`reduce hill --slug ${slug}`), advisory: true }],
+      pre: [{ command: K(`reduce hill --slug ${slug}`), advisory: true }],
     });
   }
 
@@ -597,7 +596,7 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
             step: `build.r${round}.gate`, kind: "command", round,
             reason: `round ${round} is settled and its build gate has not run`,
             pre: lateIngest, command: K(`verify build --slug ${slug} --round ${round}`), ok_exits: [0, 1, 3, 4],
-            then: [{ command: K(`verify trace --slug ${slug} --quiet`), advisory: true }, { command: K(`reduce hill --slug ${slug}`), advisory: true }],
+            then: [{ command: K(`reduce hill --slug ${slug}`), advisory: true }],
             warnings,
           };
         }

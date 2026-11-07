@@ -37,8 +37,7 @@
 //   REQ-UNCOVERED  the other direction of the same edge: a registered requirement still marked
 //             covered that NO acceptance criterion grades and NO scope claims. SCOPE-COVERS asks
 //             whether a link resolves; this asks whether a requirement has one at all. Red here
-//             and only advisory in trace-lint, because a requirement nothing reaches is a plan
-//             defect the PO can still answer at L1b — cover it, or cut it on the record
+//             because a requirement nothing reaches is a plan defect the PO can still answer at L1b — cover it, or cut it on the record
 //   SCOPE-PARTITION  a task claimed by more than one scope. The UC anchor is a SPEC link, not an
 //             assignment: one use case is routinely implemented by several scopes, so on a
 //             four-scope/one-UC cut every scope claimed every task and would build all of them.
@@ -75,12 +74,12 @@ import { UNREADABLE, LEGACY_LAYOUT } from "../lib/contract.mjs";
 import { validate as validateAgainstSchema, SCHEMAS_DIR } from "./envelope.mjs";
 import { breadboard as stagedBreadboard } from "../lib/paths.mjs";
 import { parseBreadboard, hasBreadboardTables, idCounts } from "../lib/breadboard.mjs";
-// ONE implementation of covers-closure, two reporters: trace-lint narrates it, spec-lint gates it.
-// Re-deriving either here is how the advisory report and the gate start disagreeing about which
-// requirement is covered. This closes the import ring spec → trace → compile → probe/resume → spec,
+// ONE implementation of covers-closure, shared by spec-lint and the requirements probe.
+// Re-deriving it here is how the gate and the L4 table start disagreeing about which requirement
+// is covered. This closes the import ring spec → compile → probe/resume → spec,
 // which holds only while no module in it dereferences an imported binding at module-evaluation
-// time — do NOT add a top-level `const x = someImportedFn()` to any of the four.
-import { parseRequirements, coveredReqIds } from "./trace.mjs";
+// time — do NOT add a top-level `const x = someImportedFn()` to any of the three.
+import { parseRequirements, coveredReqIds } from "../lib/requirements.mjs";
 import { readBoard } from "../compile.mjs";
 
 // Inlined from hooks/sandbox-guard.mjs so this skill ships self-contained (a skill's scripts

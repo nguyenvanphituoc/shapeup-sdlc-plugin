@@ -157,10 +157,9 @@ the outlined <b>L2</b> (Round Close) is advisory, the rest block. The dashed reg
 Since v1.3 the pipeline carries a **traceability spine**: the plan activity's requirements
 substep writes a requirement registry (`requirements.md`), its wire substep commits a
 per-use-case wiring map (`wiring-map.md`, gate L1a.5 — Wiring Review) resolved against the L0
-(Intake & Config) `project-profile.md`, and the covers-closure + reachability oracle
-`kernel/verify/trace.mjs` checks that no engine ships orphaned. It runs
-advisory (warn-only) and is promoted to a blocking gate only once `covers:` is populated;
-every arm is skipped when its artifact is absent, so older specs are unaffected.
+(Intake & Config) `project-profile.md`, and the board review's covers-closure lint reds a
+registered requirement that no acceptance criterion grades. It is advisory until `covers:` is
+populated; every arm is skipped when its artifact is absent, so older specs are unaffected.
 
 ## What's included
 
@@ -171,7 +170,7 @@ every arm is skipped when its artifact is absent, so older specs are unaffected.
 | Shaping (1–4) | `shapeup` | — | Frame the problem, breadboard affordances, spike risks, write the pitch. Sub-commands: `full`, `shaping`, `spike`, `breadboarding`, `framing-doc`, `kickoff-doc`, `breadboard-reflection`. |
 | Intake (GATE L0) | `building` | v1.0 | The `intake` sub-command, done by the loop itself: a non-English intake (pitch/PRD/transcript) becomes a faithful English `<name>.en.md` plus a persisted glossary, verified (residual-language scan, structural diff) before the run opens on it. The harness is English-only downstream. |
 | Orient (7) | `orient` | — | Builder-led recon: reads the code, spikes the single riskiest area, emits a code-surface map, spike findings, discovered-task seed, and a hill signal. Writes no production code. |
-| Plan (GATE L1a.5, L1b) | `building` | v1.0 | The loop that drives a run in your session, asking the kernel (`probe next`) what comes next. Planning is its `plan` activity, done in the loop's own context — no sub-agent — under a write fence (a fence-only `plan` order the kernel answers): requirements registry (`requirements.md`) → linked DDD spec tree + board (use cases with BDD scenarios, a system flow and a derived `## Test Surface`) → the committed wiring map (`wiring-map.md`: per-UC engine → seam → entry-point call site → affordance, resolved against `project-profile.md`) → write-whitelisted scope contracts (`scopes/*.md`). Graph math and audits are the kernel's (`harness reduce board`, `harness verify spec`, `harness verify trace`). |
+| Plan (GATE L1a.5, L1b) | `building` | v1.0 | The loop that drives a run in your session, asking the kernel (`probe next`) what comes next. Planning is its `plan` activity, done in the loop's own context — no sub-agent — under a write fence (a fence-only `plan` order the kernel answers): requirements registry (`requirements.md`) → linked DDD spec tree + board (use cases with BDD scenarios, a system flow and a derived `## Test Surface`) → the committed wiring map (`wiring-map.md`: per-UC engine → seam → entry-point call site → affordance, resolved against `project-profile.md`) → write-whitelisted scope contracts (`scopes/*.md`). Graph math and audits are the kernel's (`harness reduce board`, `harness verify spec`). |
 | Build (9) | `task-executor` | v2.0 | Pure worker: work order in → code out. Assumption scan, minimum-code/surgical-change discipline, Layer 1/2/3 UI rules, substrate-sandboxed, zero-memory. Never writes boards/ledgers/run-state. |
 | Evaluate (GATE L3) | `spec-evaluator` | v1.0 | The single judge (pure worker). Verifies spec-conformance, TDD surface, and integration against the running app — skeptical, files `file:line` bugs, runs exactly once per build round. Requires a T0 artifact citation, grades UI affordance-only; verdict + refuted boxes return as data. |
 | QA (post-PASS) | `qa-edge-hunter` | v1.1 | Exploratory edge hunt on the running app through six fixed lenses, charting edges *outside* what the evaluator probed. Findings go to the ledger as `~`; never blocks ship. |
@@ -300,12 +299,11 @@ These hold across the harness and are the reason it stays predictable:
   progress on that arm.
 - **One writer per shared file** — every board/ledger/verdict write goes through
   `harness reduce ingest`; workers return data and never touch shared state.
-- **Traceability is oracle-checked, opt-in** — `harness verify trace` verifies covers-closure and
-  wiring reachability from the committed spine artifacts; it ships advisory (warn-only) and every
-  arm is skipped when its artifact is absent, so older specs are non-regressed. Reachability also
-  skips when it cannot root its walk — an import it cannot follow, or no reachable engine to
-  control the result — because "every engine is orphaned" and "this is the wrong entry point" are
-  the same evidence, and a check that cannot tell them apart must say so rather than pick.
+- **Traceability is lint-checked, opt-in** — the board review (`harness verify spec`) verifies
+  covers-closure from the committed spine artifacts; it ships advisory and every arm is skipped
+  when its artifact is absent, so older specs are non-regressed. Whether the built engine is wired
+  into the app is a build-time fact: the round build gate's `build_probe` and `launch_probe` measure
+  it, and the evaluator grades it on the running app.
 
 ## Known rough edges
 

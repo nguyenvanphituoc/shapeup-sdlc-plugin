@@ -36,7 +36,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { runArgs, isMain } from "../lib/argv.mjs";
 import { requirements as requirementsFile, evaluationDir, resultsDir, readRunId } from "../lib/paths.mjs";
-import { parseRequirements, coveredReqIds } from "../verify/trace.mjs";
+import { parseRequirements, coveredReqIds } from "../lib/requirements.mjs";
 import { readBoard } from "../compile.mjs";
 import { reqId } from "../lib/contract.mjs";
 
