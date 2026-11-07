@@ -44,7 +44,7 @@ An earlier tally in `analysis/03` and `analysis/04` counted only `deny` verdicts
 | `hooks/gate-zerowork.mjs` | deleted; no hook fires at `Stop` | 316 |
 | `hooks/tier-guard.mjs` | folded into `sandbox-guard` as `committedTierLeaks`; the denial text and the rule name are unchanged | 162 (net ≈ 100 after the fold) |
 
-Kernel and hooks: 18,736 → 15,935 lines (−2,801, 15 %). Structural suite: 2,512 → 2,295 checks, 115 → 111 files, and `npm test`,
+Kernel, hooks and bin: 18,736 → 16,513 lines (−2,223, 12 %), 52 → 46 files; `tests/structural/`: 21,872 → 20,230 lines, 115 → 111 files, 2,512 → 2,295 checks. The plan expected kernel and hooks −5,100 and tests −7,000; the import graph is why it fell short. `npm test`,
 `npm run demo`, `npm run verify:cross-dir`, `npm run test:grant` and `claude plugin validate . --strict` all pass at the S1 tree.
 
 Three things S1 removes that the plan did not name, so they are stated here:
