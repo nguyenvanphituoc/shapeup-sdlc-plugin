@@ -217,12 +217,8 @@ the layer that carries it, and the three layers here fail differently:
 | **Runtime** — the kernel and the run script | When the run goes through the harness. A schema rejection or a non-zero exit stops the step. | A lane that never calls the kernel is never checked — which is why the hooks below cover the doors, not the steps. |
 | **Advisory** — a report section | When somebody reads the artifact. | Silently, if nobody does. It is a cleanup list, never a verdict. |
 
-**Five walls.** These are hooks because nothing in the runtime can substitute for them:
+**Four walls.** These are hooks because nothing in the runtime can substitute for them:
 
-- `PreToolUse` (`Skill`) — **`hooks/gate-intake.mjs` denies a `tech-lead` dispatch that carries no
-  pitch, no spec folder, and no requirement text.** Observed, not theorized: when the requirement
-  text is dropped on the hand-off and only a flag survives, the run prints the gate list, builds
-  nothing, and reads like a success while leaving every defect in the deliverable.
 - `PreToolUse` (`Skill|Agent`) — **`harness verify envelope` denies any worker dispatch whose order
   file is missing or fails the WorkOrder schema.** A malformed envelope never reaches a worker.
 - `PreToolUse` (`Edit|Write|MultiEdit`) — **`hooks/sandbox-guard.mjs` blocks a write that no LIVE
@@ -263,8 +259,8 @@ the layer that carries it, and the three layers here fail differently:
 
 **One blocking Stop hook**, and it is the narrowest thing in the repo:
 
-- `Stop` — **`hooks/gate-zerowork.mjs` blocks a session that dispatched the orchestrator and left
-  no run receipt.** Its predicate is mechanical — orchestrator dispatched AND no
+- `Stop` — **`hooks/gate-zerowork.mjs` blocks a session that dispatched the `building` loop (or led
+  with `/ship`) and left no run receipt.** Its predicate is mechanical — loop dispatched AND no
   `.shapeup/<slug>/receipt.json` — so it never judges quality; it reports that no work exists to
   judge. It exists because this harness was repeatedly observed describing its own pipeline instead
   of running it: a narrated run that reads like a clean success. Fails open on everything
@@ -280,7 +276,7 @@ the layer that carries it, and the three layers here fail differently:
 | `anti-rationalization` (claims the facts contradict) | The ship report's census, derived from the board and the T0 artifacts | The facts are in an artifact a teammate finds on `git pull`, not in a transcript nobody re-reads. |
 | `slop-cleaner` (TODO/`console.log` leftovers) | The ship report's **Leftovers** section | Same scan, same added-lines-only rule; it lands somewhere checkable. |
 
-**Nothing load-bearing depends on permission mode.** The five walls plus the zero-work gate run
+**Nothing load-bearing depends on permission mode.** The four walls plus the zero-work gate run
 under every mode. The kernel needs a grant to be *invoked* — two Bash lines `npx shapeup-sdlc init`
 writes — but a session that never gets that grant is a session that cannot run the pipeline at all,
 not one that runs it unguarded.
@@ -358,8 +354,8 @@ kernel/{verify,reduce,probe,init,report}/ #   its subcommands, plus compile and 
 kernel/lib/           # argv (the typed CLI boundary), paths (+ the run key), contract (shape)
 kernel/schemas/       # the envelope port: WorkOrder, WorkResult, domain registry
 commands/*.md         # slash commands (/ship + the 9 phase commands)
-hooks/                # hooks.json + the five walls: safety-spine, gate-intake, sandbox-guard,
-                      #   tier-guard (PreToolUse) + gate-zerowork (Stop, the one blocking hook)
+hooks/                # hooks.json + the four walls: safety-spine, sandbox-guard, tier-guard
+                      #   (PreToolUse, beside the kernel's `verify envelope`) + gate-zerowork (Stop, the one blocking hook)
                       #   + dispatch-receipt (PostToolUse, denies nothing, attests which skill ran)
                       #   + lib/decision.mjs (every hook records allow / deny / error)
 oracles/              # the evaluation-contract oracle registry (test · snapshot · http · process)

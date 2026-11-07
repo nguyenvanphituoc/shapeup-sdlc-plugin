@@ -144,11 +144,6 @@ export async function run(ctx) {
   // (c) A DENY-TRIGGERING PAYLOAD — the deny must still reach stdout AND be recorded.
   const denyCases = [
     {
-      name: "gate-intake",
-      payload: { tool_name: "Skill", tool_input: { skill_name: "tech-lead", skill_args: "--unattended --gate-answers ci" } },
-      rule: "empty-intake",
-    },
-    {
       name: "safety-spine",
       payload: { tool_name: "Bash", tool_input: { command: "rm -rf /" } },
       rule: "destructive-fs",
@@ -179,10 +174,10 @@ export async function run(ctx) {
     try {
       // Occupy the LOCAL root with a FILE, so mkdir/append cannot succeed.
       writeFileSync(join(sandbox, ".shapeup"), "not a directory");
-      const probe = hooks.find((h) => h.name === "gate-intake");
+      const probe = hooks.find((h) => h.name === "safety-spine");
       const r = fire(probe.abs, { tool_name: "Read", cwd: sandbox }, sandbox);
       if (r.exit === 0) ok("an unwritable decisions.jsonl does not break the hook — the receipt is best-effort by design");
-      else fail(`gate-intake exited ${r.exit} when the decision ledger was unwritable — a receipt must never fail a run`);
+      else fail(`${probe.name} exited ${r.exit} when the decision ledger was unwritable — a receipt must never fail a run`);
     } finally {
       rmSync(sandbox, { recursive: true, force: true });
     }
@@ -202,7 +197,7 @@ export async function run(ctx) {
       if (none.rows === 0 && none.readable === false) ok("enforcementCensus reports an ABSENT ledger as unreadable — an absence proves nothing and must not sharpen the message");
       else fail(`enforcementCensus mis-read a missing ledger: ${JSON.stringify(none)}`);
       mkdirSync(join(sandbox, ".shapeup"), { recursive: true });
-      writeFileSync(join(sandbox, ".shapeup", "decisions.jsonl"), JSON.stringify({ hook: "gate-intake", verdict: "allow" }) + "\n");
+      writeFileSync(join(sandbox, ".shapeup", "decisions.jsonl"), JSON.stringify({ hook: "safety-spine", verdict: "allow" }) + "\n");
       const some = gz.enforcementCensus(sandbox);
       if (some.rows === 1 && some.readable) ok("enforcementCensus counts real decision rows — 'the gates didn't run' no longer depends on the gates running");
       else fail(`enforcementCensus mis-counted a populated ledger: ${JSON.stringify(some)}`);
@@ -216,12 +211,12 @@ export async function run(ctx) {
   {
     const { hooksReport } = await import(join(ROOT, "kernel/probe/stats.mjs"));
     const rep = hooksReport([
-      { hook: "gate-intake", verdict: "allow", rule: "intake-present" },
-      { hook: "gate-intake", verdict: "deny", rule: "no-intake" },
-      { hook: "gate-intake", verdict: "error" },
+      { hook: "sandbox-guard", verdict: "allow", rule: "no-round" },
+      { hook: "sandbox-guard", verdict: "deny", rule: "outside-substrate" },
+      { hook: "sandbox-guard", verdict: "error" },
       { hook: "compact-snapshot", verdict: "allow", rule: "snapshot-written" },
     ]);
-    const l2 = rep.per_hook.find((h) => h.hook === "gate-intake");
+    const l2 = rep.per_hook.find((h) => h.hook === "sandbox-guard");
     if (rep.evaluations === 4 && l2.evaluations === 3 && l2.deny === 1 && l2.error === 1 && l2.allow === 1) {
       ok("stats --hooks separates evaluations / denials / errors per hook — the Day-2 exit instrument");
     } else fail(`hooksReport mis-aggregated: ${JSON.stringify(rep)}`);

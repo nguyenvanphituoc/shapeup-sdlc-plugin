@@ -144,15 +144,15 @@ Always run the deny case **and** the permit case. A hook that denies everything 
 inert both produce a one-line result; only the pair distinguishes them.
 
 ```bash
-# GATE L0.0 — does gate-intake deny an orchestrator dispatch with nothing to orchestrate?
+# safety-spine — does it deny a destructive command and permit an ordinary one?
 mkdir -p /tmp/hb && cd /tmp/hb
-echo '{"tool_name":"Skill","tool_input":{"skill":"shapeup-sdlc-plugin:tech-lead","args":"--unattended"},"cwd":"'$PWD'"}' \
-  | node <repo>/hooks/gate-intake.mjs; echo "EXIT=$?"
+echo '{"tool_name":"Bash","tool_input":{"command":"rm -rf /"},"cwd":"'$PWD'"}' \
+  | node <repo>/hooks/safety-spine.mjs; echo "EXIT=$?"
 # → {"hookSpecificOutput":{...,"permissionDecision":"deny",...}}  EXIT=0
 
-# The permit half — same hook, resolvable intake.
-echo '{"tool_name":"Skill","tool_input":{"skill":"shapeup-sdlc-plugin:tech-lead","args":"--pitch idea.md"},"cwd":"'$PWD'"}' \
-  | node <repo>/hooks/gate-intake.mjs; echo "EXIT=$?"
+# The permit half — same hook, an ordinary command.
+echo '{"tool_name":"Bash","tool_input":{"command":"ls"},"cwd":"'$PWD'"}' \
+  | node <repo>/hooks/safety-spine.mjs; echo "EXIT=$?"
 # → empty stdout, EXIT=0
 ```
 

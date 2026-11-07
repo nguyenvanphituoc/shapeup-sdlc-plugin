@@ -9,7 +9,6 @@
 //     gate-zerowork      exit=0   stdout_len=0
 //     sandbox-guard      exit=0   stdout_len=0
 //     safety-spine       exit=0   stdout_len=0
-//     gate-intake        exit=0   stdout_len=0
 //     verify envelope    exit=0   stdout_len=0
 //
 // exit 0 + silence = allow. But that is ALSO what "inspected the board and deferred" looks like,

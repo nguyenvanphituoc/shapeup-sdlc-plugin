@@ -156,6 +156,5 @@ You piped it through `bash` without `--yes`. See the note under
 
 ### The plugin does not appear to be loaded
 
-The `SessionStart` hook prints a load confirmation. If you do not see it, check that the
-plugin is enabled (`claude plugin list`) and that `hooks/hooks.json` is present in the
-installed copy.
+The plugin prints nothing when it loads. Check that it is enabled (`claude plugin list`) and
+that `hooks/hooks.json` is present in the installed copy; `claude --plugin-dir .` loads a working copy.

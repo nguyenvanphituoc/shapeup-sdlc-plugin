@@ -3,7 +3,8 @@
 //
 // WHY THIS EXISTS (reproduced, not theorized).
 //
-// Dispatched with a valid spec, the orchestrator returned this, in full:
+// Dispatched with a valid spec, the orchestrator (then a skill named `tech-lead`; the failure is
+// the same under any orchestrator) returned this, in full:
 //
 //     TOOL   Skill(tech-lead, "--unattended --rounds 3\n\n# F2 — category budgets…")
 //     TEXT   "The tech-lead skill is orchestrating the full Shape Up harness. It will: 1. …"
@@ -56,7 +57,7 @@
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { isMain } from "../kernel/lib/argv.mjs";
-import { localDir, globLocal, globWorkflowsStage } from "../kernel/lib/paths.mjs";
+import { localDir, globLocal } from "../kernel/lib/paths.mjs";
 import { runHook, readStdin, settle, decisionsPath, projectRoot } from "./lib/decision.mjs";
 
 const MAX_TRANSCRIPT_BYTES = 20 * 1024 * 1024;
@@ -66,67 +67,28 @@ const MAX_TRANSCRIPT_BYTES = 20 * 1024 * 1024;
  *
  * The census these produce is now DESCRIPTIVE ONLY — it sharpens the block message and nothing
  * decides on it. Until v1.7.1 a count above two was a fail-open ("the session did work by other
- * means"), and it was retired for the reason spelled out at the `work-done` note below. `Workflow` stays absent because a launch is not work — it is the work this hook is
- * asking about — and it is a DISPATCH signal instead (`dispatchedOrchestrator`).
+ * means"), and it was retired for the reason spelled out at the `work-done` note below.
  */
 const WORK_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "Task", "Agent"]);
 
 /**
- * Is this block a launch of the orchestrator's own workflow script, by either surface?
+ * Did this session dispatch the orchestrator? Two surface spellings, both equivalent: a `Skill`
+ * dispatch of `building`, and a leading `/ship` slash command.
  *
- * The shipped front door is `Workflow({scriptPath})`; `npx shapeup-sdlc init` writes the grant it
- * needs. The Bash arm below is kept because a project that declined that grant, or one still on a
- * v1 install, launches the same script through a Bash runtime — a gate that knew only one surface
- * would go blind on the lane those users actually run, which is the same "the emptier the failure,
- * the less of it there is to detect" hole the banner above describes.
- *
- * Matched on the BASENAME, anchored. `CLAUDE_PLUGIN_ROOT` itself ends in `shapeup-sdlc-plugin/` on
- * a normal install — so a substring match on the whole path would count EVERY workflow script that
- * happens to live under the plugin root, including one a user wrote for something else. The
- * basename is the part the skill controls and the part `SKILL.md` names.
- *
- * @param {object} block - A `tool_use` content block.
- * @returns {boolean} True when the block launches a `shapeup-*` workflow.
- */
-function launchedShapeupWorkflow(block) {
-  if (block.name === "Bash") {
-    const cmd = String(block.input?.command ?? "");
-    // Both halves required: a node launcher AND an orchestrator script. A launcher carrying
-    // somebody else's workflow is not a harness dispatch, and neither is a bare mention of the
-    // script in an unrelated command (`ls`, `cat`).
-    return /\bnode\b/.test(cmd) && /[\\/]shapeup-[\w.-]*\.[cm]?js\b/.test(cmd);
-  }
-  if (block.name !== "Workflow") return false;
-  const scriptPath = String(block.input?.scriptPath ?? "");
-  const base = scriptPath.split(/[\\/]/).pop().replace(/\.[cm]?js$/, "");
-  const named = String(block.input?.name ?? "");
-  return /^shapeup-/.test(base) || /^shapeup-/.test(named);
-}
-
-/**
- * Did this session dispatch the orchestrator? Three surface spellings, all equivalent:
- * `Skill(tech-lead)` or `Skill(building)`, a leading `/ship` slash command, and — since the workflow cutover (v1.7) —
- * a `Workflow` tool_use launching one of the orchestrator's own `shapeup-*` scripts.
- *
- * The third arm is a correctness repair, not a new detector. `SKILL.md`'s Step 2 makes the
- * Workflow launch the scoped lane's front door, so a session can now reach the orchestrator
- * without ever emitting `Skill(tech-lead)` — and before this arm existed such a session was
- * invisible to the gate, exactly the "the emptier the failure, the less of it there is to detect"
- * hole the banner above describes. It is a TRIGGER, never an escape: a launch that left no
- * receipt is still a blocked stop, because a `Workflow` call that returned without starting a run
- * is precisely the narration case wearing a tool call.
+ * Both are DISPATCH signals, never escapes: a dispatch that left no receipt is still a blocked
+ * stop. A launch of some workflow script is deliberately NOT a dispatch any more — the loop runs in
+ * the session itself, so there is no script launch to watch, and counting one would arm this gate
+ * on a session that merely ran somebody else's workflow.
  */
 export function dispatchedOrchestrator(events) {
   for (const ev of events) {
     for (const block of toolUses(ev)) {
-      if (launchedShapeupWorkflow(block)) return true;
       if (block.name !== "Skill") continue;
       const skill = String(block.input?.skill ?? block.input?.skill_name ?? "");
-      const named = skill.split(":").pop();
-      if (named === "tech-lead" || named === "building") return true;
+      if (skill.split(":").pop() === "building") return true;
     }
     // The slash command is the other front door: `/shapeup-sdlc-plugin:ship …` arrives as user
-    // text, and reaches tech-lead through commands/ship.md.
+    // text and reaches the loop through commands/ship.md.
     //
     // ANCHORED TO THE START OF THE MESSAGE, deliberately. A slash command IS the message — the CLI
     // only dispatches one when it leads. Matching `/ship` anywhere in the text meant "how does
@@ -134,14 +96,23 @@ export function dispatchedOrchestrator(events) {
     // Stop block: the session refuses to end and the model is told to bootstrap a feature nobody
     // asked for. A gate that fires on a session merely TALKING about the harness is a gate users
     // turn off, and it takes the real zero-work block down with it.
+    //
+    // Two spellings of that leading command, because the host records a typed slash command in
+    // the transcript wrapped in tags (`<command-message>…</command-message>` then
+    // `<command-name>/ns:ship</command-name>`), while a headless prompt or a pasted line arrives as
+    // the bare `/ship`. Either way it must LEAD the message; the wrapped form is matched whole, so
+    // a message that merely quotes the tag mid-sentence is not a dispatch.
     if (ev?.type === "user") {
       const c = ev?.message?.content ?? ev?.content;
       const text = typeof c === "string" ? c : Array.isArray(c) ? c.map((b) => b?.text || "").join("\n") : "";
-      if (/^\s*\/(?:[\w-]+:)?ship\b/.test(text)) return true;
+      if (SHIP_COMMAND.test(text)) return true;
     }
   }
   return false;
 }
+
+/** A message that LEADS with `/ship` — bare, or in the host's tag-wrapped transcript form. */
+const SHIP_COMMAND = /^\s*(?:\/(?:[\w-]+:)?ship\b|(?:<command-message>[^<]*<\/command-message>\s*)?<command-name>\s*\/(?:[\w-]+:)?ship\s*<\/command-name>)/;
 
 function toolUses(ev) {
   const c = ev?.message?.content ?? ev?.content;
@@ -225,7 +196,7 @@ export function enforcementCensus(cwd) {
 
 export function buildReason({ narration, census, enforcement }) {
   return [
-    "✋ GATE Z — ZERO WORK. This session dispatched the tech-lead orchestrator and produced no run receipt.",
+    "✋ GATE Z — ZERO WORK. This session dispatched the building loop and produced no run receipt.",
     "",
     `Mechanical facts: ${census.tool_calls} tool call(s), ${census.work_calls} of them work calls, ` +
     `${census.writes} file write(s), and no \`${globLocal("<slug>", "receipt.json")}\`.`,
@@ -244,21 +215,16 @@ export function buildReason({ narration, census, enforcement }) {
     "prevent: it reads like a clean run and leaves escaped defects behind it.",
     "Loading the instructions is not running them.",
     "",
-    "Do the work now, starting with the first step of the runbook:",
+    "Do the work now, starting with the first step of the loop's Step 0 — opening the run:",
     "",
     "  # write the requirement to a file first — inlining multi-line text into a shell",
-    "  # argument is where this step goes wrong",
-    "  node \"${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs\" init run \\",
-    "       --slug <slug> --intake-file <path/to/requirement.md> \\",
-    "       --auto-level <interactive|auto|unattended> [--gate-answers <preset|path>]",
+    "  # argument is where this step goes wrong; keep the command on ONE line, a grant",
+    "  # matches a single-line command and a `\\`-continued one comes back \"requires approval\"",
+    "  node \"${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs\" init run --slug <slug> --intake-file <path/to/requirement.md> --auto-level <interactive|auto|unattended> [--gate-answers <preset|path>]",
     "",
-    "Then launch the lane itself with the Workflow tool (`npx shapeup-sdlc init` writes the grant",
-    "it needs, unless --no-native-workflow was given, in which case approve the launch once):",
+    "Then drive the loop itself: ask the kernel what comes next, do exactly that, and ask again.",
     "",
-    "  Workflow({",
-    `    scriptPath: "${globWorkflowsStage("shapeup-run.js")}",  // staged by \`init run\`, above`,
-    "    args: <the RunArgs object>",
-    "  })",
+    "  node \"${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs\" probe next --slug <slug>",
     "",
     "Resolve each gate the run pauses at with:",
     "",
@@ -312,7 +278,7 @@ async function main() {
   // The stated rationale was that a user may have run the harness steps by hand, or be on a
   // pre-receipt version of the plugin.
   //
-  // WHAT IT ACTUALLY DID, observed. `Skill(tech-lead)` was dispatched, the lane could not start,
+  // WHAT IT ACTUALLY DID, observed. the orchestrator skill was dispatched, the lane could not start,
   // the agent hand-built the whole feature, and the hook ALLOWED the Stop on `"37 work calls — the
   // session did work by other means"`. That session passed its own oracle and read like a clean
   // run, with no board, no T0, no verdict and no receipt. A busy session was the one thing that

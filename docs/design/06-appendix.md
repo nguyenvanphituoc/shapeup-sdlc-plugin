@@ -25,7 +25,7 @@ kernel/schemas/          WorkOrder · WorkResult · gate-answers · domain regis
 bin/init.mjs             `npx shapeup-sdlc init` — pure-Node scaffolding + permission grant
 commands/*.md            11 slash commands (/shape /orient /scopes /wire /build /eval /qa
                          /hammer /ship /retro /hill)
-hooks/                   hooks.json + PreToolUse: safety-spine · gate-intake ·
+hooks/                   hooks.json + PreToolUse: safety-spine ·
                          sandbox-guard · tier-guard (+ the kernel's harness verify envelope) ·
                          PostToolUse: dispatch-receipt (records only, no deny path) ·
                          Stop: gate-zerowork (the one blocking hook)

@@ -91,7 +91,7 @@ export async function run(ctx) {
         else fail(`${label} did not open a run (exit ${r2.status}): ${r2.stderr}`);
       }
 
-      // Same precondition as GATE L0.0, re-checked where the run actually opens.
+      // An empty intake is refused where the run actually opens.
       const empty = node(INIT, ["--slug", "x", "--cwd", ws]);
       if (empty.status === 2) ok("init-run refuses an empty intake (exit 2)");
       else fail(`empty intake should exit 2, got ${empty.status}`);
@@ -178,9 +178,9 @@ export async function run(ctx) {
         return p;
       };
       const dispatch = { type: "assistant", message: { content: [
-        { type: "tool_use", name: "Skill", input: { skill: "shapeup-sdlc-plugin:tech-lead", args: "--unattended" } },
+        { type: "tool_use", name: "Skill", input: { skill: "shapeup-sdlc-plugin:building", args: "--unattended" } },
       ] } };
-      const narrationText = "The tech-lead skill is orchestrating the full Shape Up harness. It will: 1. ...";
+      const narrationText = "The building skill is orchestrating the full Shape Up harness. It will: 1. ...";
       const narrated = jsonl([dispatch, { type: "assistant", message: { content: [{ type: "text", text: narrationText }] } }], "narrated.jsonl");
       const worked = jsonl([dispatch,
         { type: "assistant", message: { content: [{ type: "tool_use", name: "Write", input: {} }, { type: "tool_use", name: "Bash", input: {} }] } },
@@ -211,7 +211,7 @@ export async function run(ctx) {
       // ── HD-008. This assertion is INVERTED from what it was, and the inversion is the fix.
       //
       // It used to read: "defers when the session did real work by other means (fail-open)". That
-      // is the escape A7 candidate rep 1 walked through — `Skill(tech-lead)` dispatched, the lane
+      // is the escape A7 candidate rep 1 walked through — the orchestrator skill dispatched, the lane
       // unable to start (HD-007), the feature hand-built across 37 work calls, no receipt, and the
       // hook ALLOWED the Stop. The rep scored 14/14 and read like a clean run while the pipeline
       // had never executed. A busy session was the one thing that could switch this gate off.
@@ -317,63 +317,12 @@ export async function run(ctx) {
     }
   }
 
-  // =============================================================================
-  section("39. Every valued flag in ship.md is stripped by the intake gate");
-  // =============================================================================
-  // GATE L0.0 decides "is there any requirement text here?" by removing flags and their values
-  // and looking at what is left. A valued flag missing from its strip-list therefore leaves its
-  // VALUE behind, and the value reads as the spec — so the gate waves through the empty dispatch
-  // it exists to deny. Measured: adding `--gate-answers ci --wall-clock-budget 2400` did exactly
-  // that, and the next benchmark run reached tech-lead with no requirement text and was allowed.
-  // This test couples the two files so the next flag cannot repeat it.
-  {
-    const gatePath = join(ROOT, "hooks", "gate-intake.mjs");
-    const shipPath = join(ROOT, "commands", "ship.md");
-    if (!existsSync(gatePath) || !existsSync(shipPath)) {
-      fail("gate-intake.mjs or commands/ship.md is missing");
-    } else {
-      const gate = readFileSync(gatePath, "utf8");
-      const m = /const VALUED_FLAGS = \/--\(([^)]+)\)/.exec(gate);
-      if (!m) fail("could not find VALUED_FLAGS in gate-intake.mjs");
-      else {
-        const known = new Set(m[1].split("|"));
-        ok(`VALUED_FLAGS parses (${known.size} flags)`);
-        // Flags documented in ship.md as taking a value: `--flag <value>` or `--flag N`.
-        const ship = readFileSync(shipPath, "utf8");
-        const documented = new Set();
-        for (const line of ship.split("\n")) {
-          const d = /^-\s+`--([a-z0-9-]+)\s+[<\w]/.exec(line.trim());
-          if (d) documented.add(d[1]);
-        }
-        if (documented.size === 0) fail("parsed no valued flags out of commands/ship.md — the coupling is not being checked");
-        else ok(`commands/ship.md documents ${documented.size} valued flag(s)`);
-        for (const f of documented) {
-          if (known.has(f)) ok(`--${f} is stripped by the intake gate`);
-          else fail(`--${f} takes a value in commands/ship.md but is NOT in gate-intake.mjs VALUED_FLAGS — its value will read as requirement text and blind GATE L0.0`);
-        }
-      }
-    }
-  }
-
-  // The dispatch shape that actually slipped through, asserted end to end.
-  {
-    const gatePath = join(ROOT, "hooks", "gate-intake.mjs");
-    if (existsSync(gatePath)) {
-      const fire = (args) => spawnSync("node", [gatePath], {
-        encoding: "utf8",
-        input: JSON.stringify({ tool_name: "Skill", tool_input: { skill: "shapeup-sdlc-plugin:tech-lead", args } }),
-      });
-      const flagsOnly = fire("--unattended --gate-answers ci --wall-clock-budget 2400");
-      let out = null;
-      try { out = JSON.parse(flagsOnly.stdout || "{}"); } catch { /* not JSON */ }
-      if (out?.hookSpecificOutput?.permissionDecision === "deny") ok("denies a flags-only dispatch that carries the new v1.4 flags");
-      else fail("a flags-only dispatch with --gate-answers/--wall-clock-budget is NOT denied");
-
-      if (!fire("--unattended --gate-answers ci Add category budgets to the CLI").stdout.trim()) {
-        ok("still defers when real requirement text follows the flags");
-      } else fail("denied a dispatch that carried requirement text");
-    }
-  }
+  // Section 39 retired with the intake hook: it coupled `commands/ship.md`'s valued flags to the
+  // strip-list of the hook that denied an orchestrator dispatch carrying no requirement text, and
+  // asserted that hook's flags-only dispatch was denied. That hook is deleted — it keyed on a
+  // `Skill(tech-lead)` dispatch the loop never makes, and the loop reads the pitch in the session
+  // that was handed it, so an empty intake fails in view instead of in a hand-off. There is no
+  // strip-list left for a new flag to be missing from, so nothing survives to retarget.
 
   // =============================================================================
   section("40. The fit-check separates a small change from a large one, and defaults to full");
@@ -657,7 +606,7 @@ export async function run(ctx) {
   }
   // Only dispatch-receipt rows are evidence: the other hooks fire on tools whose names prove nothing
   // about skill resolution.
-  if (!dispatchEvidence([{ hook: "gate-intake", at: "2026-08-15T12:00:00.000Z", subject: "orient" }], "orient").resolved) {
+  if (!dispatchEvidence([{ hook: "safety-spine", at: "2026-08-15T12:00:00.000Z", subject: "orient" }], "orient").resolved) {
     ok("only dispatch-receipt rows count as evidence — another hook's row is not proof of resolution");
   } else {
     fail("any hook's row satisfies verify dispatch, so the evidence is not specific to a dispatch");

@@ -36,7 +36,7 @@ flowchart TB
     SHA[("shapeup/&lt;slug&gt;/ COMMITTED<br/>spec · scopes · wiring-map ·<br/>round-ledger · REPORT.md")]
   end
 
-  HK["ENFORCEMENT — hooks, cross-cutting<br/>verify envelope · sandbox-guard ·<br/>safety-spine · gate-intake · gate-zerowork"]
+  HK["ENFORCEMENT — hooks, cross-cutting<br/>verify envelope · sandbox-guard ·<br/>safety-spine · gate-zerowork"]
 
   PO <-->|"⏸ gate blocks / decisions"| TL
   TL -->|"C1: args (one JSON literal)"| WF

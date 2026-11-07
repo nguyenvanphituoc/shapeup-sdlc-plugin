@@ -50,9 +50,10 @@ const MODULE_FILES = [
   // 16-workflows.mjs: skills/tech-lead/workflows/*.js — the D5 model floor and the test-#45
   // path-literal discipline extended to Workflow scripts.
   "16-workflows.mjs",
-  // 17-gate-zerowork-workflow.mjs: the zero-work gate's Workflow arm (migration A5). Its own
-  // module rather than a section-37 addendum — the predicate is the cutover's, not the receipt's.
-  "17-gate-zerowork-workflow.mjs",
+  // 17-gate-zerowork-dispatch.mjs: what counts as dispatching the orchestrator for the zero-work
+  // gate — the loop's two front doors, and the spellings that no longer count. Its own module
+  // rather than a section-37 addendum: the dispatch detector is what keeps the gate non-vacuous.
+  "17-gate-zerowork-dispatch.mjs",
   // 18-resume-state.mjs: the fast-forward derivation (migration A2). The kill/resume probe found
   // ORIENT re-dispatched on every relaunch because its skip read stored status instead of its own
   // artifacts; this module is the seam that defect could not be caught through.

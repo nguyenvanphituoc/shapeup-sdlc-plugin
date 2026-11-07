@@ -128,9 +128,8 @@ be read as a complete one.
 > **The layers that do refuse.** Advisory is GATE L2's own choice, not the harness's posture.
 > `harness verify envelope` denies a worker dispatch whose order is missing or schema-invalid;
 > `sandbox-guard.mjs` denies a write no live order's substrate permits;
-> `gate-intake.mjs` denies an orchestrator dispatch with no requirement in it;
 > `safety-spine.mjs` denies `rm -rf ~`, force-push, `DROP TABLE` and secret reads; and
-> `gate-zerowork.mjs` blocks a session that reached the orchestrator and left no run receipt.
+> `gate-zerowork.mjs` blocks a session that reached the `building` loop and left no run receipt.
 > Those are `deny` decisions from hooks, and no amount of reasoning gets past them.
 
 ## 6. Evaluate — a FAIL round

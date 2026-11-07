@@ -56,7 +56,7 @@ skills/<name>/SKILL.md    one skill = one craft. Markdown. This is most of the p
 skills/*/scripts/         mechanics belonging to one skill, co-located with it
 skills/tech-lead/         the orchestrator: compile-order, ingest-result, t0-verify, trace-lint
 kernel/schemas/           domain.schema.json + the envelope schemas
-hooks/                    seven .mjs hooks; hooks.json wires them
+hooks/                    five .mjs hooks; hooks.json wires them
 tests/structural.mjs      the test entrypoint
 ```
 

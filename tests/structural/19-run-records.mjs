@@ -147,7 +147,7 @@ export async function run(ctx) {
       // cleared, because per-workspace resolution IS what carries the key here.
       const env = { ...process.env };
       delete env.SHAPEUP_DECISIONS_PATH;
-      spawnSync(process.execPath, [join(ROOT, "hooks/gate-intake.mjs")], {
+      spawnSync(process.execPath, [join(ROOT, "hooks/safety-spine.mjs")], {
         input: JSON.stringify({ tool_name: "Read", tool_input: { file_path: join(ws, "x.md") }, cwd: ws }),
         cwd: ws, encoding: "utf8", timeout: 30_000, env,
       });

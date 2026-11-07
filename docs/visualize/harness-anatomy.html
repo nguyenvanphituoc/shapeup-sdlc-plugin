@@ -494,9 +494,7 @@ pre.mermaid[data-processed] {
       <div class="plate-body">
 <pre class="mermaid">
 flowchart TD
-  U([user request]) --> GI{{"gate-intake.mjs<br/>PreToolUse"}}
-  GI -->|"no requirement text"| DENY1[DENY dispatch]
-  GI -->|"intake present"| TL[["/tech-lead"]]
+  U([user request]) --> TL[["/tech-lead"]]
 
   TL --> IR(["init-run.mjs — GATE L0.1"])
   IR --> REC[("receipt.json · intake.md<br/>harness-run.md · active-scope")]
@@ -543,17 +541,16 @@ flowchart TD
   classDef deny fill:#f4ddd6,stroke:#a3341c,stroke-width:2px,color:#7d2716;
   classDef hook fill:#e8eff2,stroke:#0b6480,stroke-width:1.5px,color:#0b4a5f;
   classDef script fill:#e4ece2,stroke:#3f6b4c,color:#26402f;
-  class DENY1,DENY2,DENY3,BLOCK deny;
+  class DENY2,DENY3,BLOCK deny;
   classDef warn fill:#f3ead6,stroke:#93650a,color:#6b4a08;
   class WARN4 warn;
-  class GI,VE,SG,GZ hook;
+  class VE,SG,GZ hook;
   class IR,GA,CO,ING,T0,RESUME script;
 </pre>
       </div>
     </div>
-    <p class="plate-note">Four denial points and one advisory, each closing a failure that was
-    observed rather than imagined. <code>gate-intake</code> exists because a hand-off once dropped
-    the requirement text and kept the flags. <code>gate-zerowork</code> exists because an
+    <p class="plate-note">Three denial points and one advisory, each closing a failure that was
+    observed rather than imagined. <code>gate-zerowork</code> exists because an
     orchestrator once printed its own pipeline in future tense and stopped — reading like a
     clean run while leaving every defect in the deliverable.</p>
   </div>
@@ -677,12 +674,6 @@ better(next, current)
           <tr><th>Event</th><th class="mono">Hook</th><th>Fires when</th><th>Effect</th><th>Closes</th></tr>
         </thead>
         <tbody>
-          <tr>
-            <td>PreToolUse</td><td class="mono">gate-intake</td>
-            <td>tech-lead dispatched with no pitch, spec folder or requirement text</td>
-            <td><span class="chip deny">deny</span></td>
-            <td>Flags survive a hand-off; requirement text doesn't</td>
-          </tr>
           <tr>
             <td>PreToolUse</td><td class="mono">harness verify envelope</td>
             <td><code>--order</code> is missing or fails the WorkOrder schema</td>

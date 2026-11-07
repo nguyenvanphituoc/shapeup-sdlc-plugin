@@ -124,18 +124,17 @@ except for the planning substeps whose product IS a committed design document (`
 
 ## 3.2 — Runtime-enforced guardrails (hooks)
 
-Five `PreToolUse` hooks turn the harness's load-bearing rules from things the model is asked
-to respect into things it cannot get past. All five deny:
+Four `PreToolUse` hooks turn the harness's load-bearing rules from things the model is asked
+to respect into things it cannot get past. All four deny:
 
 | Hook | Fires on | Enforces |
 |---|---|---|
 | `safety-spine.mjs` | `Bash` / `Read` / `Edit` / `Write` / `MultiEdit` | Denies the provably destructive operations no session ever legitimately needs: `rm -rf` on unrecoverable targets, force-push and push-to-main, `git reset --hard`, `DROP TABLE`/`TRUNCATE`, and secret-file reads (`.env`, `*.pem`, ssh keys, cloud credentials) via shell readers or the `Read` tool. Unlike the other three, it guards the **machine**, not the pipeline. The only escape hatch is the human-authored `.shapeup/safety-overrides.json` (schema: `SafetyOverrides`) — mechanically self-protected, and every exercised override is logged to the metrics shard as a `SAFETY-OVERRIDE` pathology row. |
-| `gate-intake.mjs` | `Skill → tech-lead` | Denies an orchestrator dispatch with no resolvable intake — no `--pitch`, no `--spec`, no `--from` resume, and no free requirement text. Closes the harness's own front door: a `tech-lead` reached as `args:"--unattended"` loses the requirement text on the hand-off and, with nothing to orchestrate, prints the gate names and a confident plan while writing no code — the same "claims done" pathology the harness exists to prevent, at its own entry point. Fails open on `--order` (the envelope port owns that path) and on any ambiguous arg shape. |
 | `harness verify envelope` | `Skill` / `Agent` | Denies any worker dispatch whose `--order` file is missing or fails the WorkOrder schema — a malformed envelope never reaches a worker. |
 | `sandbox-guard.mjs` | `Edit` / `Write` / `MultiEdit` | Denies a write that no **live order's `substrate` block** permits. The `.shapeup/active-order` pointer (republished by `harness compile` with every order) names the RUN; liveness is derived from that run's order set — compiled, with no result at least as new as the order's own `compiled_at` — so a finished run fences nothing and a re-dispatch is fenced again. It enforces all three surfaces: `allowed` + `shared` permit, `append_only` permits `Edit` but denies `Write` (which would overwrite), and `frozen` denies outright and takes precedence over everything. Carve-out: the active feature's own local run-trace root, so a worker can still update its own board. An order's own paths — its WorkResult first — answer to the sub-agent its dispatch receipt names (the host's `agent_id`), so a concurrently-live leg cannot write a sibling's result. |
 | `tier-guard.mjs` | `Edit` / `Write` / `MultiEdit` | Denies a committed-tier write whose **content** carries a reference that cannot leave this machine — a path into the gitignored `.shapeup/` tier, or a `TASK-NNN` board id. It is spec-lint's own `TIER-DIRECTION` predicate (imported, never restated) moved forward from GATE L1b to the write itself: the lint caught all four measured producers and taught none of them, because by the time it speaks the dispatch that wrote the line is over — one producer re-offended an hour later in the same session, in the same file it had just fixed. Fails open outside `shapeup/<slug>/`, on unscanned file forms, and on `shapeup/knowledge-base/`, which the lint's own walk also excludes. |
 
-All five are deliberately **fail-open** when there's nothing to verify (no active order, no
+All four are deliberately **fail-open** when there's nothing to verify (no active order, no
 board, unparseable input) and **fail-closed** the instant they can prove a violation. A guard that broke legitimate standalone runs would just get
 disabled, defeating the point of having it. (The safety spine adds one asymmetry: a *malformed
 overrides file* fails **closed** — treated as absent — because a parse error must never disable
@@ -232,7 +231,7 @@ One `Stop`-event hook may block, and its predicate is why the invariant survives
 
 | Hook | Fires on | Enforces |
 |---|---|---|
-| `gate-zerowork.mjs` | Session end | Blocks a session that **dispatched the orchestrator and left no run receipt** — no `.shapeup/<slug>/receipt.json`, which `harness init run` writes as the run's first act (§3.2d). |
+| `gate-zerowork.mjs` | Session end | Blocks a session that **dispatched the `building` loop (or led with `/ship`) and left no run receipt** — no `.shapeup/<slug>/receipt.json`, which `harness init run` writes as the run's first act (§3.2d). |
 
 **Why it exists.** Observed repeatedly, not theorized: given a
 *valid* spec, the orchestrator loaded a 450-line instruction file describing the gates and
@@ -243,7 +242,7 @@ like a successful run, with every defect left in the deliverable.
 **Why nothing already caught it.** Two guards existed and both missed it for independent
 structural reasons, which is the finding worth keeping:
 
-1. `gate-intake.mjs` fires on an *empty* intake. Intake was valid. Correct no-op.
+1. The intake check of the day (a dispatch-time hook, since removed) fired on an *empty* intake. Intake was valid. Correct no-op.
 2. The claim-versus-facts check of the day was scoped to an *active* run, and a run that never
    started produces none of the files it reads — it catches "claimed done on a half-green board"
    and misses "claimed done with no board at all". Its claim detector also matched only past-tense

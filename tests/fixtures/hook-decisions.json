@@ -13,12 +13,6 @@
       ],
       "event": "PreToolUse"
     },
-    "gate-intake": {
-      "argv": [
-        "hooks/gate-intake.mjs"
-      ],
-      "event": "PreToolUse"
-    },
     "validate-envelope": {
       "argv": [
         "kernel/harness.mjs",

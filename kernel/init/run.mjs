@@ -14,7 +14,8 @@
 // run, with every defect still in the deliverable.
 //
 // Two guards existed and neither could see it:
-//   • `gate-intake.mjs` (L0.0) fires on an EMPTY intake. Intake was valid here. Correct no-op.
+//   • the intake check (a dispatch-time hook, since removed) fired on an EMPTY intake. Intake was
+//     valid here. Correct no-op.
 //   • the ship report's census fires when a completion claim contradicts run facts. It is
 //     scoped to an ACTIVE run — and a run that never started produces none of the files it
 //     reads — and its claim detector matches past-tense completion ("done", "shipped"), while
@@ -514,9 +515,9 @@ export function cli(rawArgv) {
     fail(2, [
       "✋ init-run: no intake. Pass --intake-text \"<the requirement>\" or --intake-file <path>.",
       "",
-      "An orchestrator with no spec has nothing to orchestrate — this is the same precondition",
-      "GATE L0.0 (hooks/gate-intake.mjs) enforces at dispatch, re-checked here where the run is",
-      "actually opened.",
+      "An orchestrator with no spec has nothing to orchestrate: a run opened over no requirement",
+      "would plan nothing and read like a success. The precondition is enforced here, where the run",
+      "is actually opened.",
     ].join("\n"));
   }
 

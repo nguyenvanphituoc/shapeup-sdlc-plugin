@@ -177,7 +177,7 @@ the kit's `merge` and `fold` verdicts differ in what they cost.
 | `hooks/dispatch-receipt.mjs` + `kernel/verify/dispatch.mjs` + `kernel/verify/skills.mjs` | 437 | 260 receipts | **keep, shrink** to four skills |
 | `verify envelope` on `Skill` | 288 | 3 denials | **keep** for the four dispatches that remain |
 | `hooks/safety-spine.mjs` | 333 | 0 / 5,268 | **keep as insurance, mark as ablation candidate** at the next model upgrade (`analysis/01`'s rule) |
-| `hooks/gate-intake.mjs` | 109 | 0 / 243 | **cut** — in the loop the pitch is read by the session that was given it; an empty intake fails in view, not in a hand-off |
+| `gate-intake.mjs` (in `hooks/`) | 109 | 0 / 243 | **cut** — in the loop the pitch is read by the session that was given it; an empty intake fails in view, not in a hand-off |
 | `hooks/gate-zerowork.mjs` | 349 | 0 / 57 | **re-key**, about 200 lines *(amended; was: shrink to ~60)*. The predicate is "dispatched the orchestrator AND no receipt", so the dispatch detector stays; only the `Workflow` and Bash-launch arms and the `tech-lead` name go. The pathology it guards — a run narrated instead of run — gets *more* likely when the orchestrator is the model's own turn |
 
 ### E — the rest
