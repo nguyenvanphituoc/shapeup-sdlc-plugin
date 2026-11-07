@@ -29,11 +29,12 @@ reporting over a silent coverage claim.
 
 **QA** runs once, after the first PASS and never after a FAIL: a build that has not passed conformance is not
 worth edge-hunting. It discovers; it has no verdict and no score. Its findings stay `~` and carry over as raw
-ideas unless the PO promotes one to a must-have, which costs one focused fix round over those items only.
+ideas for the next cycle. The census at GATE H weighs them against the baseline; nothing in the loop turns a hunt finding
+back into a build round, so a finding the PO wants fixed now is a decision to stop the run and shape that fix.
 
-**`--no-eval`** skips the evaluator. The run goes from the round gate straight to the census, with the verdict
-`not-evaluated` recorded and a plain note that nothing was verified beyond each worker's own evidence checks.
-It is never upgraded to a pass, and the shipped report refuses to say PASS over it.
+**`--no-eval`** skips the evaluator: GATE L3 is crossed over the verdict `not-evaluated` with no judge dispatched, and a
+plain note says nothing was verified beyond each worker's own evidence checks. It is never upgraded to a pass,
+and the shipped report refuses to say PASS over it.
 
 ## The attempt loop, per scope
 
@@ -78,12 +79,8 @@ loop and the census read the same derivation so they cannot disagree.
 ## What a worker cannot do
 
 A worker has no port for "I cannot decide this": a WorkResult carries no escalation field. A phase that cannot
-finish leaves no artifact, the kernel's post-condition fails, and the loop sends it back once and then stops,
-naming the phase. Read the phase's result to find what it could not complete and resolve it yourself — amend the
-spec, widen the scope contract, answer the ambiguity with the PO — then ask `probe next` again; only the
-unfinished work is dispatched.
-
-When a post-condition abort names an exit code other than 0 or 6 for `probe resume --require`, the check never
-ran: an untrusted workspace or Claude Code's own permission classifier denied the call before the kernel
-started, and neither leaves a row in the hook ledger. Verify the phase's artifact by hand before trusting the
-abort. If it exists, the phase is done; run the remaining kernel commands one call at a time.
+finish leaves no artifact, and `probe next` stops the run at that phase, naming it. The send-back-once belongs to the
+opposite case: a worker that left its artifacts and no WorkResult is dispatched again once, told its artifacts
+stand, and a result the single writer refused goes back once with the refusal's reason. Read the phase's result to
+find what it could not complete and resolve it yourself — amend the spec, widen the scope contract, answer the
+ambiguity with the PO — then ask `probe next` again; only the unfinished work is dispatched.

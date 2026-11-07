@@ -7,10 +7,10 @@
 //
 // Usage: node tests/fixtures/s2-drive-export.mjs <mode>
 //   <mode> ∈ aborted | gate_h | escalated | fail-export | no-export-assert
-//     aborted / gate_h  — a RunReturn arm, closed through `closeArm`/`RUN_RETURN_CLOSE`, exactly
-//       as `shapeup-run.js`'s own `closeIfTerminal` would drive it.
-//     escalated         — NOT a RunReturn arm; the direct path an operator or the tech-lead skill's
-//       own prose-driven close takes, straight through `closeRun`. Proves both paths export.
+//     aborted / gate_h  — an arm, closed through `closeArm`/`CLOSE_ARM_STATUS`, exactly
+//       as a `probe next` close command would drive it.
+//     escalated         — NOT an arm; the direct path an operator's
+//       own close takes, straight through `closeRun`. Proves both paths export.
 //     fail-export       — drives an `aborted` close with `.shapeup/exports` pre-occupied by a plain
 //       FILE (not a directory), the cheapest close-write failure that does not depend on the
 //       process's own uid (a chmod-based read-only directory is silently bypassed when the fixture
@@ -78,7 +78,7 @@ try {
   }
 
   /**
-   * Drive one `aborted` close (through the RunReturn-arm path) and assert the exported run row —
+   * Drive one `aborted` close (through the arm path) and assert the exported run row —
    * shared by the `aborted` mode and the `no-export-assert` falsifier, which is the same drive with
    * export turned off.
    * @param {boolean} withExport

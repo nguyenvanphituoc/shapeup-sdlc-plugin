@@ -280,8 +280,11 @@ export async function run(ctx) {
       const cf = courierFindings({ legs, receipts, workers: workerRoster(ROOT) });
       if (cf.equal && cf.workerOrders.length >= 3) ok(`drive: no courier — ${cf.legs} leg rows = ${cf.workerOrders.length} worker dispatches + ${cf.planLegs} fence-only plan orders, every leg a worker or the loop`);
       else fail(`drive: the leg ledger does not close against the dispatches: ${JSON.stringify(cf)}`);
-      const rf = relaunchFindings({ gates, ledgerText: closed, runId });
-      if (rf.ok) ok(`drive: no relaunch — every one of ${gates.length} gate rows carries the one run id, the ledger carries no relaunch or reopen marker, and no row is dated after the close`);
+      // Re-read AFTER the retro gate ran: COACH-1 is resolved once the run has closed, by design, so the rows
+      // read before it would miss the one row the predicate has to exempt — and a stale array proves nothing.
+      const gatesNow = readJsonl(local("gates.jsonl"));
+      const rf = relaunchFindings({ gates: gatesNow, ledgerText: closed, runId });
+      if (rf.ok && rf.retroRowsAfterClose >= 1) ok(`drive: no relaunch — every one of ${gatesNow.length} gate rows carries the one run id, the ledger carries no relaunch or reopen marker, and the only row after the close is the retro gate's COACH-1 (exempt by design, still one run id)`);
       else fail(`drive: the run reads as relaunched: ${JSON.stringify(rf)}`);
     }
     const again = nextStep();

@@ -10,7 +10,9 @@
 //
 // NO RELAUNCH. A gate is answered in the session that reached it, so a run's gate rows carry one run id,
 // the ledger carries no relaunch marker, and no gate row is written after the ledger's close unless a reopen
-// stands between them.
+// stands between them. ONE GATE IS ALLOWED TO FOLLOW THE CLOSE, BY DESIGN: COACH-1, the retro's ownership
+// question, is handed out by the shipped step itself and resolved after the run has closed. It is not a
+// relaunch — it is exempt from the after-the-close count, named as such, and still held to the one run id.
 
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
@@ -57,8 +59,9 @@ export function courierFindings({ legs, receipts, workers }) {
  * What the gate ledger and the run ledger say about relaunches.
  *
  * @param {{gates: object[], ledgerText: string, runId: string}} o - The run's gate rows, `harness-run.md`, and its receipt's run id.
- * @returns {{runIds:string[], relaunchMarked:boolean, reopened:boolean, rowsAfterClose:number, closedAt:(string|null), ok:boolean}}
- *   `ok` is the property: one run id, no relaunch marker, no reopen, and no gate row dated after the close.
+ * @returns {{runIds:string[], relaunchMarked:boolean, reopened:boolean, rowsAfterClose:number, retroRowsAfterClose:number, closedAt:(string|null), ok:boolean}}
+ *   `ok` is the property: one run id (the retro gate's row included), no relaunch marker, no reopen, and no gate row
+ *   other than COACH-1 dated after the close; `retroRowsAfterClose` counts the exempt rows.
  */
 export function relaunchFindings({ gates, ledgerText, runId }) {
   const line = (k) => (ledgerText.match(new RegExp(`^${k}:\\s*(.*)$`, "m")) || [])[1]?.trim() ?? null;
@@ -67,8 +70,10 @@ export function relaunchFindings({ gates, ledgerText, runId }) {
   const relaunches = line("relaunches");
   const priorCloses = line("prior_closes");
   const runIds = [...new Set(gates.map((g) => g.run_id).filter(Boolean))];
-  const rowsAfterClose = closed ? gates.filter((g) => g.at && g.at > closed).length : 0;
+  const after = closed ? gates.filter((g) => g.at && g.at > closed) : [];
+  const rowsAfterClose = after.filter((g) => g.gate !== "COACH-1").length;
+  const retroRowsAfterClose = after.length - rowsAfterClose;
   const relaunchMarked = Boolean(relaunches && relaunches !== "~");
   const reopened = Boolean(priorCloses && priorCloses !== "~");
-  return { runIds, relaunchMarked, reopened, rowsAfterClose, closedAt: closed, ok: runIds.length === 1 && (!runId || runIds[0] === runId) && !relaunchMarked && !reopened && rowsAfterClose === 0 };
+  return { runIds, relaunchMarked, reopened, rowsAfterClose, retroRowsAfterClose, closedAt: closed, ok: runIds.length === 1 && (!runId || runIds[0] === runId) && !relaunchMarked && !reopened && rowsAfterClose === 0 };
 }

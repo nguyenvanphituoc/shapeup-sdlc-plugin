@@ -531,31 +531,52 @@ contract (`scripts/FROZEN.md`): they may never be renamed or moved.
 
 > **Superseded by [ADR-0004 — the single loop](adr/0004-single-loop.md).** The decision this section
 > recorded — drive a run as one launch of a Workflow script, with the orchestrator relaunching it after each
-> paused gate — was reversed in 4.0. What replaced it is kept short here and argued in the ADR; the history
-> below is kept so the reasoning is not lost.
+> paused gate — was reversed in 4.0. The original text is kept below, unedited but for the dead path prefixes,
+> so the reasoning is not lost.
 
 **What replaced it.** The run is driven by the `building` skill in the PO's own session, as a loop over one
 kernel verb: `harness probe next` derives the next step from the artifacts on disk (its command, and at a gate
 its block), the loop does it, and asks again. Every agent the run spawns is a worker with a row in the run's
 records; the loop runs every kernel command itself and branches on its exit code. A gate is answered in the
-session that reached it, and a killed session resumes with `/ship` again.
+session that reached it, and a killed session resumes with `/ship` again. What the design cost, and why it was
+reversed: the script had no shell, so every kernel command it needed was run by a courier sub-agent whose only
+job was to type one command and relay the exit code (51 call sites against 11 worker dispatches); every gate
+ended the launch and the next one re-paid a preflight canary; and the machinery that survived the relaunches
+(the fast-forward, the launch contract, the staged copy) was most of the resume module and a fifth of the
+domain schema.
 
-**What it was.** `tech-lead` held the GATE L0 intake conversation, wrote `project-profile.md`, compiled one
-`RunArgs` record and handed over to a Workflow script that ran ORIENT through GATE H. Three properties were
-the reason it was shaped that way, and each has a successor:
+### The original section (4.0 and earlier)
 
-| Property then | Why it held | What carries it now |
-|---|---|---|
-| A gate pause was a return value — the launch returned `paused` and was relaunched with the same args | a Workflow script had no shell and no way to ask | the gate is a step: the loop prints the block, asks the PO, records the answer with the source `PO (live)`, and goes on |
-| A killed session lost nothing — the script fast-forwarded past finished phases on every launch | the resume point was derived from artifacts on disk, never from stored status or the conversation | the same artifact predicates (`probe resume`) behind `probe next`; `/ship` again is the resume |
-| The launch surface was one an install granted explicitly — the unscoped `Workflow` permission, over a staged copy of the script | the tool loads a script only from a directory the session may already read | nothing: no launch, no staging, no `Workflow` token; the grant is the two kernel Bash rules |
+Everything above describes a single dispatch. The **run** that strings them together is not the
+orchestrator narrating steps in the conversation — it is one launch on the native Workflow runtime
+that owns the whole pipeline:
 
-What the design cost, and why it was reversed: the script had no shell, so every kernel command it needed was run
-by a courier sub-agent whose only job was to type one command and relay the exit code (51 call sites against 11
-worker dispatches); every gate ended the launch and the next one re-paid a preflight canary; and the machinery
-that survived the relaunches (the fast-forward, the launch contract, the staged copy) was most of the resume
-module and a fifth of the domain schema. The state machine moved into the kernel, where it is testable, and the
-couriers, the canary and the relaunch went with the transport.
+```
+Workflow({
+  scriptPath: ".shapeup/workflows/shapeup-run.js",
+  args: <the RunArgs object>
+})
+```
+
+`tech-lead` holds the GATE L0 intake conversation, writes `project-profile.md`, compiles one
+`RunArgs` record (`domain.schema.json#/$defs/RunArgs`) — and hands over. ORIENT → L1a → ANALYZE →
+WIRE → L1a.5 → MAP SCOPES → L1b → rounds of BUILD/L2/EVAL → QA → GATE H all run inside
+`shapeup-run.js`. Three properties follow, and they are the reason the run is shaped this way:
+
+| Property | Mechanism |
+|---|---|
+| **A gate pause is a return value, not a stop.** | The launch returns `{status: "paused", paused_at, block}`. The orchestrator emits `block` verbatim, gets the PO's decision, writes it to `.shapeup/<slug>/gate-answers.json`, and **relaunches the same call with the same args**. |
+| **A killed session loses nothing.** | `harness probe resume` derives the resume point from **artifacts on disk**, never from stored status or conversation memory — every phase predicate is an artifact test. `shapeup-run.js` fast-forwards past finished phases on every launch, fresh or resumed. The same table answers `--require <phase>`, checked after each dispatch as the post-condition and again before each SKIP, so a fast-forwarded phase is attested where it is acted on rather than inherited from the one probe at the top of the run — and *resume* and *completion* are one predicate by construction. A round whose EVAL already returned PASS fast-forwards on the same principle, from the verdict on disk rather than from a round counter. The converse holds too: a round whose EVAL was refused — no PASS/FAIL, or a scoped verdict citing no T0 artifact — was never judged, so the relaunch re-enters it and evaluates again rather than opening the next round. |
+| **The launch surface is one an install grants explicitly — and a path the session can already read.** | The `Workflow` tool is the launch path, and `npx shapeup-sdlc init` writes the `"Workflow"` grant it needs. That grant is unscoped — it authorises every dynamic workflow script in the project — so it is opt-out (`--no-native-workflow`), and an install that declines it approves the launch once per session instead. Being granted the tool is a different gate from being allowed to read the script: the tool loads a `scriptPath` only from the working directory or a directory the operator added, which no permission rule widens, so `harness init run` stages the run scripts into `.shapeup/workflows/` and the launch names that copy rather than the install path. |
+
+`RunArgs` is compiled **once** and passed as a single JSON literal: the workflow cannot ask
+follow-up questions and cannot read config files itself, so everything a run will ever need
+travels in that one record.
+
+**The lane boundary.** `shapeup-run.js` targets specs with committed `scopes/*.md`. A `--tiny`
+run, or any spec with no scope contracts yet, takes the unchanged prose loop in
+`tech-lead/references/protocol.md` — non-regression, by design, and the reason that
+file still carries the full step-by-step.
 
 ---
 [← High-Level Design](02-high-level-design.md) · [Back to index](README.md) · [Next: Functional Design →](04-functional-design.md)

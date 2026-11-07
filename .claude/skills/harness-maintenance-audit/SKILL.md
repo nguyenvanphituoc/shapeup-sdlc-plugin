@@ -33,7 +33,7 @@ because the person writing a code comment is holding all that context and it fee
 rationale at the time.
 
 The leak that matters most is not in a code comment. `skills/*/SKILL.md` and
-`skills/tech-lead/references/*.md` are **loaded by the model at runtime**, so a dangling
+`skills/*/resources/*.md` and `skills/*/references/*.md` are **loaded by the model at runtime**, so a dangling
 `docs/migration/...` pointer there is a broken instruction handed to the orchestrator mid-run —
 the file does not exist in an installed plugin. `references/forbidden-content.md` ranks the
 severity tiers and, importantly, defines what "shipped" means: there are **two delivery channels**,

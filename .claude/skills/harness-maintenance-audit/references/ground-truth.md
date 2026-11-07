@@ -32,7 +32,7 @@ ls oracles/*.mjs | xargs -n1 basename
 
 # Orchestrator scripts — docs routinely list a stale subset
 ls kernel/*.mjs kernel/*/*.mjs | xargs -n1 basename
-ls skills/tech-lead/workflows/
+ls skills/building/resources/
 ```
 
 A skill directory with a `SKILL.md` is a skill. (There are no longer any `skills/*/evals/`
@@ -53,7 +53,7 @@ console.log('Operation   (%d):', s.\$defs.Operation.enum.length, s.\$defs.Operat
 
 Two traps:
 
-- **`WorkerName` excludes `tech-lead` and `shapeup`** — they are not dispatchable workers. So the
+- **`WorkerName` excludes `building` and `shapeup`** — they are not dispatchable workers. So the
   worker count and the skill count are legitimately different numbers, and a doc that conflates
   them is wrong even when both figures appear correct in isolation.
 - **The enum's own `description` field carries a prose ownership list** that drifts independently

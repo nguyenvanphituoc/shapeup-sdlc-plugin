@@ -62,7 +62,7 @@ this paragraph sets.)
 Rank hits by what the reference does, not by which directory it sits in.
 
 1. **Runtime-loaded prose — the worst case.** `skills/*/SKILL.md` and
-   `skills/tech-lead/references/*.md` are read *by the model, during a run*. A dangling
+   `skills/*/resources/*.md` and `skills/*/references/*.md` are read *by the model, during a run*. A dangling
    `docs/migration/...` pointer here hands the orchestrator a path that does not exist in an
    installed plugin — it is a broken instruction, not just an odd comment. Fix these first.
 2. **Shipped code comments** — `hooks/*.mjs`, `skills/**/scripts/*.mjs`. Read by a human

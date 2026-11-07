@@ -90,7 +90,7 @@ export async function run(ctx) {
 
   // --- (g) the promise itself is still on the page — a code fix is not license to soften the doc -
   const rounds = readFileSync(join(ROOT, "skills/building/resources/rounds.md"), "utf8").replace(/\s+/g, " ");
-  if (/the verdict `not-evaluated` recorded/.test(rounds) && /never upgraded to a pass/.test(rounds)) {
+  if (/crossed over the verdict `not-evaluated`/.test(rounds) && /never upgraded to a pass/.test(rounds)) {
     ok("the rounds resource still promises `not-evaluated` for --no-eval, never a silent PASS");
   } else {
     fail("the rounds resource no longer promises `not-evaluated` for --no-eval — the doc drifted from the fix, or the fix drifted from the doc");

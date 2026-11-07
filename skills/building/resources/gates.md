@@ -45,9 +45,9 @@ never asked: it decides nothing at this gate.
 red. Any red is a hard stop; the reds are DISJOINT (a file in two scopes' substrate without both declaring it
 shared), PA1, SCOPE-ANCHOR, TIER-DIRECTION, SCOPE-DEPS, REQ-UNCOVERED, CONTRACT-SCHEMA, CONTRACT-UNREADABLE,
 BREADBOARD-PLACE and BREADBOARD-UI (PA2 is a warning). The two breadboard reds are planning's to fix — add the
-screen or defer the Place, never fold it into another screen. Scopes build riskiest-first; each is released the
-moment the scopes it declares in `depends_on` have settled, and a contract with no `depends_on` falls back to
-releasing a level at a time. Ask at most two: scope cuts? any spike to resolve before build? Frame cuts against
+screen or defer the Place, never fold it into another screen. Scopes are released in dependency order: a scope opens
+the moment the scopes it declares in `depends_on` have settled, up to the dial, and contracts declaring none are one
+wave, every scope eligible at once. Ask at most two: scope cuts? any spike to resolve before build? Frame cuts against
 the pitch's appetite, and surface the pitch's rabbit holes — a cut here is cheap, after round 1 it is expensive.
 
 **L2 — Round Close.** The block carries `green_scopes`, `hammer_proposals` and the build gate (`green`, `red —
@@ -68,12 +68,9 @@ bug? Past the round budget the answer is the census, with the residual bug list.
 
 **L4 — Ship Sign-Off.** Print the feature as `SHIPPED (deployed)` or `BUILT & VERIFIED — deploy pending (PO)`;
 rounds; the verdict with the dimensions evaluated **and** not evaluated, so "shipped" never reads as "verified
-for all"; QA findings, promoted and held, or skipped; and the `Requirements:` line **transcribed** from
+for all"; QA findings (all held as `~`) or skipped; and the `Requirements:` line **transcribed** from
 `probe requirements --slug <slug> --format table`, never composed (it decides nothing: a clause with no PASS
-evidence is a fact the census weighs, not a veto). Before asking, check the board for unchecked acceptance
-boxes: an unchecked box on a done task is either an unverified criterion (back to a round) or an ingest miss
-(route it back through the worker's result — nobody ticks boxes by hand), and a non-zero count is not shipped past
-without saying why. Deploy is outward-facing and the PO's: the loop stops at built and verified, records
+evidence is a fact the census weighs, not a veto). Deploy is outward-facing and the PO's: the loop stops at built and verified, records
 `deploy pending (PO)` unless the PO says to run the project's own deploy, and never deploys itself. Ask at most
 one: anything to record before closing? Substantive feedback goes to the retro (`resources/retro.md`), which
 asks the PO which rule belongs where; the loop never categorises feedback itself.
