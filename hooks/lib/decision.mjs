@@ -31,12 +31,12 @@
 // all four become distinguishable facts in the decisions ledger.
 //
 // TIER: LOCAL, and checkout-wide rather than per-slug — hooks fire outside any run, so there is
-// frequently no `<slug>` to file under. Pure run-trace; `probe stats --hooks` is its reader.
+// frequently no `<slug>` to file under. Pure run-trace: one JSON object per line, read directly.
 //
 // THE PATH IS RESOLVED, NEVER SPELLED. It comes from `lib/paths.mjs` — the same resolver
-// ``harness probe stats` --hooks` reads through. This file used to hardcode the pre-ADR-0001 root, so every
+// every reader goes through. This file used to hardcode the pre-ADR-0001 root, so every
 // hook wrote its receipts to `.shapeup-sdlc/` while the only reader looked in `.shapeup/`:
-// `stats --hooks` reported zero hook activity on every project, which is indistinguishable from
+// the ledger showed zero hook activity on every project, which is indistinguishable from
 // the inert-enforcement-layer failure this file exists to make visible. A telemetry channel with
 // a hardcoded root is a telemetry channel with a silent disconnect in it.
 //
@@ -95,7 +95,7 @@ export function projectRoot(cwd) {
  *
  * `SHAPEUP_DECISIONS_PATH` redirects the ledger. It exists because this project's OWN test suite
  * executes the real hooks, and without a redirect every `npm test` appended ~21 rows to the
- * developer's live `decisions.jsonl` — which would then be read back by `stats --hooks` as if
+ * developer's live `decisions.jsonl` — which would then be read back as if
  * they were evaluations from a real run. A measurement instrument that its own test suite
  * contaminates is not an instrument.
  *
@@ -243,7 +243,7 @@ export async function runHook(name, fn) {
   // encoding is `verdict: "allow"`. That would make "permitted because the rule was satisfied"
   // byte-identical to "permitted DESPITE the rule being broken" — the exact indistinguishability
   // this file exists to eliminate, reintroduced one level up. A gate that downgrades from deny to
-  // advisory must stay countable, or `stats --hooks` silently loses the measurement.
+  // advisory must stay countable, or the ledger silently loses the measurement.
   if (d.payload && (d.verdict === "deny" || d.verdict === "block" || d.verdict === "warn" || d.emit)) {
     process.stdout.write(JSON.stringify(d.payload));
   }

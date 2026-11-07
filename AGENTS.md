@@ -168,6 +168,6 @@ Everything discovered funnels into `.shapeup/<slug>/discovery/ledger.md` (Orient
 - `/hill-chart` (skill `hill-chart`, not a pipeline worker — invoked directly, like `shapeup`) renders both the committed hill shards (`shapeup/<slug>/hill/<scope-id>.yml`, the mechanical phase from the invariant above) and the local run graph as one dashboard: a portfolio card per pitch, and per-pitch a Hill Chart, an attention list, a scope board, round history, and the run graph one click deeper. A pitch whose local run trace was cleaned up after shipping still renders — marked Archived — from its committed hill shards alone.
 - Contracts: markdown on disk, JSON on the wire; a single library reads/writes the file form.
 - Never hard-code a storage root — generated paths resolve through the shared path resolver.
-- Hooks file under the project root they find above the shell's working directory (a run pointer, the committed tier, or a git boundary), never under the folder a worker happened to `cd` into — so a sub-folder shell neither splits the decision ledger nor slips the substrate fence. `probe stats --hooks` lists any stray ledger it still finds.
+- Hooks file under the project root they find above the shell's working directory (a run pointer, the committed tier, or a git boundary), never under the folder a worker happened to `cd` into — so a sub-folder shell neither splits the decision ledger nor slips the substrate fence.
 - The traceability oracle emits `.shapeup/<slug>/trace/report.json` from the spine artifacts.
 <!-- HARNESS_END -->

@@ -148,13 +148,6 @@ export async function run(ctx) {
     const allowOut = fire(ROOT, "sandbox-guard.mjs", { tool_name: "Edit", cwd: deep, tool_input: { file_path: join(cwd, "src/app/Entry.ets") } }, deep);
     if (!(allowOut.stdout || "").includes('"permissionDecision":"deny"')) ok("sandbox-guard fired from a sub-folder still ALLOWS an in-substrate write (globs match against the root, not the shell)");
     else fail(`sandbox-guard from a sub-folder denied an in-substrate write:\n${allowOut.stdout}`);
-
-    // stats --hooks reports the stray ledger that already exists.
-    const st = kernel(ROOT, ["probe", "stats", "--hooks", "--cwd", cwd, "--format", "json"], cwd);
-    let strays = null;
-    try { strays = JSON.parse(st.stdout).hooks?.stray_ledgers; } catch { /* fall through */ }
-    if (Array.isArray(strays) && strays.some((s) => s.path.includes("evidence"))) ok("probe stats --hooks lists a stray decisions.jsonl outside the root");
-    else fail(`probe stats --hooks did not report the stray ledger: ${st.stdout.slice(0, 300)} ${st.stderr.slice(0, 300)}`);
   } catch (e) { fail(`hook root resolution checks threw: ${e.stack || e}`); }
 
   section("86. The round build gate — run_cmd → build_probe → launch_probe, measured before EVAL");

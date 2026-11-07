@@ -29,9 +29,9 @@
 //   reduce   ingest · hill · ship ·            Single writer. Shared state has exactly one author.
 //            board · graph
 //   gate                                      An answer file with a source, not a vibe.
-//   probe    resume · t0 · stats · digest ·   Queries over run state (`resume` also closes a run). `stats --hooks`
-//            leg · eval · owner ·              reads the hook decision ledger: per hook, how often
-//            requirements · attempts ·         it fired and what it decided.
+//   probe    resume · t0 · digest ·           Queries over run state (`resume` also closes a run).
+//            leg · eval · owner ·
+//            requirements · attempts ·
 //            hunt · next
 //                                              `leg` answers whether a scope's work reached the
 //                                              board — a green T0 says its fixtures passed, not that
@@ -90,7 +90,7 @@ export const ROUTES = {
     ship: "./reduce/ship.mjs", board: "./reduce/board.mjs", graph: "./reduce/graph.mjs",
   },
   probe: {
-    resume: "./probe/resume.mjs", t0: "./probe/t0.mjs", stats: "./probe/stats.mjs",
+    resume: "./probe/resume.mjs", t0: "./probe/t0.mjs",
     digest: "./probe/digest.mjs",
     leg: "./probe/leg.mjs", eval: "./probe/eval.mjs", owner: "./probe/owner.mjs",
     requirements: "./probe/requirements.mjs", attempts: "./probe/attempts.mjs", hunt: "./probe/hunt.mjs",

@@ -207,21 +207,4 @@ export async function run(ctx) {
     }
   }
 
-  // stats --hooks is the Day-2 instrument: it must separate a fire count from a denial count.
-  {
-    const { hooksReport } = await import(join(ROOT, "kernel/probe/stats.mjs"));
-    const rep = hooksReport([
-      { hook: "sandbox-guard", verdict: "allow", rule: "no-round" },
-      { hook: "sandbox-guard", verdict: "deny", rule: "outside-substrate" },
-      { hook: "sandbox-guard", verdict: "error" },
-      { hook: "compact-snapshot", verdict: "allow", rule: "snapshot-written" },
-    ]);
-    const l2 = rep.per_hook.find((h) => h.hook === "sandbox-guard");
-    if (rep.evaluations === 4 && l2.evaluations === 3 && l2.deny === 1 && l2.error === 1 && l2.allow === 1) {
-      ok("stats --hooks separates evaluations / denials / errors per hook — the Day-2 exit instrument");
-    } else fail(`hooksReport mis-aggregated: ${JSON.stringify(rep)}`);
-    const empty = hooksReport([]);
-    if (empty.evaluations === 0 && empty.hooks === 0) ok("stats --hooks reports zero evaluations as a FACT (an inert layer), not as an error");
-    else fail("hooksReport did not handle an empty ledger");
-  }
 }

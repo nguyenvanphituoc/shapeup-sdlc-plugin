@@ -350,7 +350,7 @@ permitting decision now carries evidence. `runHook(name, fn)` is the only exit p
 no route out of one can skip the record. Two things fall out at no extra cost: `gate-zerowork`
 gains a second `Stop` condition — orchestrator dispatched, zero decision rows ⇒ the enforcement
 layer itself never ran, so the detector for "the gates didn't run" stops depending on the gates
-running — and `harness probe stats --hooks` can report evaluations, denials and errors per hook, which makes
+running — and the decision ledger can report evaluations, denials and errors per hook, which makes
 "never had to fire" and "never ran" separable facts for the first time.
 
 ## 3.2g — The run key, and the record plane (v1.8)

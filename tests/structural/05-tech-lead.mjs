@@ -787,62 +787,6 @@ export async function run(ctx) {
 
 
   // =============================================================================
-  section("30. `probe stats --hooks` is a read-only reader of the hook decision ledger");
-  // =============================================================================
-  // The metrics-shard aggregation this section used to pin — a schema-valid StatsReport with
-  // per-slug round counts, hammer-cut rates and a pathology histogram — retired with that aggregation:
-  // nothing called it, and the StatsReport definition went with it. What survives, and what is
-  // asserted here instead, is the one reader that does have callers: it counts a hook's evaluations
-  // by verdict, skips a torn row rather than dying on it, renders a table, never writes, and answers
-  // an absent ledger with a valid empty report rather than an error.
-  {
-    const d = mkdtempSync(join(tmpdir(), "stats-"));
-    const ledger = join(d, ".shapeup", "decisions.jsonl");
-    mkdirSync(join(d, ".shapeup"), { recursive: true });
-    writeFileSync(ledger, [
-      JSON.stringify({ hook: "sandbox-guard", verdict: "allow", rule: "no-round" }),
-      JSON.stringify({ hook: "sandbox-guard", verdict: "deny", rule: "outside-substrate" }),
-      JSON.stringify({ hook: "gate-zerowork", verdict: "block", rule: "no-receipt" }),
-      JSON.stringify({ hook: "gate-zerowork", verdict: "warn", rule: "over-unfinished-board" }),
-      "not json at all",
-    ].join("\n") + "\n");
-
-    const before = readFileSync(ledger, "utf8");
-    const r = spawnSync("node", [...K("probe stats"), "--hooks", "--cwd", d], { encoding: "utf8" });
-    let report = null;
-    try { report = JSON.parse(r.stdout)?.hooks; } catch { /* handled below */ }
-    if (r.status === 0 && report) ok("probe stats --hooks exits 0 and emits parseable JSON");
-    else fail(`probe stats --hooks failed: status=${r.status} ${r.stderr}`);
-
-    const sg = report?.per_hook?.find((h) => h.hook === "sandbox-guard");
-    const gz = report?.per_hook?.find((h) => h.hook === "gate-zerowork");
-    if (report?.evaluations === 4 && report?.hooks === 2 && sg?.allow === 1 && sg?.deny === 1 && gz?.block === 1 && sg?.rules?.["outside-substrate"] === 1) {
-      ok("counts are right per hook (4 evaluations over 2 hooks; allow, deny, block and the rules that fired) and the torn row is skipped");
-    } else fail(`hook aggregate wrong: ${JSON.stringify(report)}`);
-
-    const rTable = spawnSync("node", [...K("probe stats"), "--hooks", "--cwd", d, "--format", "table"], { encoding: "utf8" });
-    if (rTable.status === 0 && rTable.stdout.includes("sandbox-guard")) ok("--format table renders and names the hook");
-    else fail(`table render failed: ${rTable.stderr}`);
-
-    if (readFileSync(ledger, "utf8") === before) ok("the ledger is byte-identical after both runs (read-only proof)");
-    else fail("probe stats --hooks WROTE to the decision ledger");
-
-    const bare = spawnSync("node", [...K("probe stats"), "--cwd", d], { encoding: "utf8" });
-    if (bare.status === 2) ok("probe stats with no --hooks exits 2 — it reads one ledger and says so, rather than defaulting silently");
-    else fail(`probe stats with no --hooks exited ${bare.status}, expected 2`);
-
-    const emptyDir = mkdtempSync(join(tmpdir(), "statsempty-"));
-    const rEmpty = spawnSync("node", [...K("probe stats"), "--hooks", "--cwd", emptyDir], { encoding: "utf8" });
-    let emptyReport = null;
-    try { emptyReport = JSON.parse(rEmpty.stdout)?.hooks; } catch { /* handled below */ }
-    if (rEmpty.status === 0 && emptyReport?.evaluations === 0) ok("an absent ledger yields a valid empty report, exit 0");
-    else fail(`empty-dir case wrong: status=${rEmpty.status}`);
-    rmSync(d, { recursive: true, force: true });
-    rmSync(emptyDir, { recursive: true, force: true });
-  }
-
-
-  // =============================================================================
   section("31. trace-lint.mjs is the covers-closure + reachability oracle (spine v1.3)");
   // =============================================================================
   // The plan's governing rule: if a script can't check it, it's decoration. This section proves
@@ -1011,7 +955,6 @@ export async function run(ctx) {
     "kernel/verify/envelope.mjs",
     "kernel/verify/t0.mjs",
     "kernel/probe/resume.mjs",
-    "kernel/probe/stats.mjs",
     "kernel/probe/digest.mjs",
     "kernel/verify/trace.mjs",
     "tests/lib/harness.mjs",

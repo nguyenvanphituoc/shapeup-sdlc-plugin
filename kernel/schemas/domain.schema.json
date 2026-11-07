@@ -1661,7 +1661,7 @@
         },
         "hooks": {
           "type": "object",
-          "description": "OPTIONAL (v1.5) — the DAY-2 exit measurement, COPIED from `harness probe stats --hooks` over .shapeup/decisions.jsonl. Makes 'never had to fire' and 'never ran' separable across runs: before the decision ledger both produced exit 0 and empty stdout, which is why several enforcement tools were unscoreable.",
+          "description": "OPTIONAL (v1.5) — the DAY-2 exit measurement, COPIED from the hook decision ledger, .shapeup/decisions.jsonl. Makes 'never had to fire' and 'never ran' separable across runs: before the decision ledger both produced exit 0 and empty stdout, which is why several enforcement tools were unscoreable.",
           "properties": {
             "evaluations": {
               "type": "integer"

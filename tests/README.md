@@ -93,9 +93,6 @@ The numbered sections below are the checks themselves, in section order:
    pending-orders from files alone and the result validates against `RunSnapshot`; the PreCompact
    hook persists it mid-run and never blocks; the SessionStart(compact) hook injects the
    rehydrate hint as `additionalContext` and stays silent with no active run.
-30. **Hook-ledger reader:** `harness probe stats --hooks` counts a hook's evaluations by verdict, skips a torn row, renders `--format
-   table`, leaves the ledger byte-identical (read-only proof), and returns a valid empty report on a missing ledger. (The
-   metrics-shard aggregation and its `StatsReport` that this item once covered are retired.)
 56. **The installed project (`structural/22-consumer-install.mjs`):** §43 proves the grant matches
    the shipped call sites and that `bin/init.mjs` writes it; this runs the real installer into a
    temp project and asserts what the *user* is left holding. The allow-list is exactly what
