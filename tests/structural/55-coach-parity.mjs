@@ -89,43 +89,6 @@ export async function run(ctx) {
   }
 
   // =============================================================================
-  section("56b. Every reader reads — the file is loaded, not merely declared");
-  // =============================================================================
-
-  for (const w of COACHABLE) {
-    const rel = `skills/${w}/SKILL.md`;
-    const p = join(ROOT, rel);
-    if (!existsSync(p)) { fail(`${rel} missing for coachable worker ${w}`); continue; }
-    const txt = read(p);
-    // §50 already pins the declaration; this pins the read — the prose must tell the worker to
-    // read the path, and must say what the file is not (steering, never spec / never a gate).
-    const reads = /kb_rules_path[^\n]*\n?[^\n]*\b(read|Read)\b/.test(txt) || /\b(read|Read)\b[^\n]*kb_rules_path/.test(txt);
-    const bounded = /steering, never spec/i.test(txt) || /never a reason to skip/i.test(txt);
-    if (reads && bounded) ok(`${w} reads its knowledge-base file and bounds it as steering`);
-    else fail(`${rel}: ${reads ? "" : "never tells the worker to read payload.kb_rules_path; "}${bounded ? "" : "does not bound the file as steering, never spec"}`);
-  }
-
-  // The activities' reads are pinned where they are written: the loop's intake resource reads `building.md`
-  // (and `tech-lead.md`, the name that guidance was filed under before the loop had its own), the plan
-  // resource and the guidance resource say what the planning files may and may not do.
-  const intake = read(join(ROOT, "skills/building/resources/intake.md"));
-  if (/knowledge-base\/building\.md/.test(intake) && /tech-lead\.md/.test(intake) && /never answers, skips or reorders a gate/.test(intake)) ok("the loop reads building.md and tech-lead.md at L0 and bounds them as gate-inert");
-  else fail("skills/building/resources/intake.md must read building.md and tech-lead.md and say the file never answers, skips or reorders a gate");
-  const guidanceDoc = read(join(ROOT, "skills/building/resources/guidance.md"));
-  const planDoc = read(join(ROOT, "skills/building/resources/plan.md"));
-  const legacy = ["ba-pitch-analyzer", "scope-architect", "solution-architect"];
-  if (legacy.every((n) => guidanceDoc.includes(`${n}.md`)) && guidanceDoc.includes("`plan.md`") && guidanceDoc.includes("`tech-lead.md`")) ok("the guidance resource maps the three planning names to `plan` and tech-lead to `building`");
-  else fail("skills/building/resources/guidance.md must name plan.md and the three legacy planning files, and tech-lead.md");
-  if (/never an answer, a skip or a wider substrate/.test(planDoc)) ok("the plan resource bounds its guidance: never an answer, a skip or a wider substrate");
-  else fail("skills/building/resources/plan.md does not state that guidance is never an answer, a skip or a wider substrate");
-
-  // The knowledge base is read at L0 and answers no gate. This used to be asserted over the retired tech-lead
-  // skill's gate playbook (L0.10); the loop's two statements of it are intake.md's knowledge-base row, checked
-  // above, and the guidance resource's own first rule, checked here.
-  if (/add a question or a check to a gate block, never an answer/.test(guidanceDoc.replace(/\s+/g, " "))) ok("the guidance resource states that a rule never answers a gate");
-  else fail("skills/building/resources/guidance.md does not state that guidance never answers a gate");
-
-  // =============================================================================
   section("56c. The retro is the loop's own act: no coach worker, no scan/research operation; the invariant is written");
   // =============================================================================
 

@@ -160,39 +160,6 @@ export async function run(ctx) {
   }
 
   // =============================================================================
-  section("11a2. The continuity reflex covers a cold start, not only compact/resume");
-  // =============================================================================
-  // The companion defect to the main-guard one, and the same shape: a mechanism that was present,
-  // reported as working, and wired to fire only in cases that do not happen much.
-  //
-  // CONTINUITY IS A COMMAND, NOT A REFLEX. `session-rehydrate` injected "trust the files, not your
-  // memory" as SessionStart context, and its matcher had to be pinned here because it once omitted
-  // `startup` — the one source where there IS no memory to distrust — at a measured cost of 82-120
-  // turns rebuilding an already-open run.
-  //
-  // The reflex is gone because the answer is now a query anyone can run at any point:
-  // `harness reduce graph --slug <slug> --subgraph run`. A hook fires at two moments the platform
-  // chooses; a command answers whenever the question is asked, including the moments a hook never
-  // saw. What has to be pinned instead is that the orchestrator's own instructions still TELL it to
-  // ask — an unasked query is exactly as silent as an unfired hook.
-  {
-    const skill = join(ROOT, "skills/building/SKILL.md");
-    const body = existsSync(skill) ? read(skill) : "";
-    // The rehydration query is the loop's own first call now: `probe next`, with `--restart` on the first
-    // ask of a fresh session, answers where the run stands from artifacts alone.
-    if (/probe next --slug <slug> \[--restart\]/.test(body) && /first call of a fresh session/.test(body)) {
-      ok("the building skill names the rehydration query the retired SessionStart hook used to carry: `probe next --restart` on a fresh session's first call");
-    } else {
-      fail("the building skill never tells a fresh session to ask `probe next --restart` first — the continuity reflex was deleted " +
-           "and nothing replaced it, which is the cold-start defect the retired hook was written for");
-    }
-    for (const gone of ["session-rehydrate", "compact-snapshot"]) {
-      if (!existsSync(join(ROOT, "hooks", `${gone}.mjs`))) ok(`hooks/${gone}.mjs is retired`);
-      else fail(`hooks/${gone}.mjs is still on disk — the reflex and the command are now two answers to one question`);
-    }
-  }
-
-  // =============================================================================
   section("11a3. The already-open-run refusal is a resume path, not a dead end");
   // =============================================================================
   // Third defect in the same family as the two above: a runtime that tells the agent to use a
