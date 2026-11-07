@@ -32,3 +32,28 @@ Corrected expectation for S1: kernel and hooks −≈2,200 lines, not −5,100.
 An earlier tally in `analysis/03` and `analysis/04` counted only `deny` verdicts. The Stop hook records
 `block`; the recount (`grep '"verdict":"block"'` over the same ledgers) is zero, so the finding stands.
 
+## S1 — what was done
+
+| Target | Result | Lines removed |
+|---|---|---|
+| `probe stats` | deleted; the ledger is a JSONL file read directly | 158 |
+| `reduce graph` | deleted with its schema projection, its `probe next` step and its tests; `hill-chart` renders from the hill shards alone and labels a pitch "Finished" or "On the hill" instead of "Archived" | 482 |
+| `report export` + `report/facts` | deleted; `closeRun` no longer exports; V4-REQ-3 and V4-REQ-8 reworded to the leg ledger | 619 |
+| `verify trace` | the oracle (reachability, mermaid, `traceLint`) deleted; the two requirement parsers moved to `lib/requirements.mjs`; `source_extensions` dropped from the profile schema | ≈ 540 |
+| `probe digest` | verb dropped, module kept as the library `verify t0` and `verify build` call | 12 |
+| `hooks/gate-zerowork.mjs` | deleted; no hook fires at `Stop` | 316 |
+| `hooks/tier-guard.mjs` | folded into `sandbox-guard` as `committedTierLeaks`; the denial text and the rule name are unchanged | 162 (net ≈ 100 after the fold) |
+
+Kernel and hooks: 18,736 → 15,935 lines (−2,801, 15 %). Structural suite: 2,512 → 2,295 checks, 115 → 111 files, and `npm test`,
+`npm run demo`, `npm run verify:cross-dir`, `npm run test:grant` and `claude plugin validate . --strict` all pass at the S1 tree.
+
+Three things S1 removes that the plan did not name, so they are stated here:
+
+- **A narrated run is no longer stopped by the runtime.** The Stop hook never blocked on any ledger on file (58 `allow`, 0 `block`),
+  but a ledger of a guard that was present cannot show what its absence would let through. `building` still opens its run as its first
+  act, and every later guard reads the receipt, so the loss is the one session that claims a run and never opens one.
+- **The reachability oracle was a user-facing feature** (the README advertised it: "no engine ships orphaned"). It was advisory and
+  gated nothing; the round build gate's `build_probe` and `launch_probe` and the evaluator now carry that question alone.
+- **`hill-chart` loses its round history, scope board and run-graph screens.** They were drawn from the graph. The template's code for
+  them is still in the file and unreachable; deleting it is a separate edit to a 1,400-line asset.
+
