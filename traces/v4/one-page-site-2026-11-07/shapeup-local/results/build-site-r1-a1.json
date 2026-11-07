@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/build-site-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {"task_id": "TASK-001", "status": "done", "ac_results": [
+      {"ac": "`build.mjs` exists at the repo root, is ESM, and imports only `node:` builtins", "result": "pass", "evidence": "build.mjs imports node:fs, node:path; test 'source has no ... non-node imports' passes"},
+      {"ac": "`node build.mjs` with `CONTENT_FILE` pointing at a nonexistent file exits 1, prints exactly one line on stderr naming the problem, and creates no `index.html` in a fresh `OUT_DIR` (covers: REQ-15, REQ-16, REQ-17)", "result": "pass", "evidence": "build.test.mjs failure CONTENT_MISSING; node --test green via T0"},
+      {"ac": "Content file `{not json` and valid-JSON-wrong-shape inputs (`null`, `[]`, `{\"name\":\"x\",\"projects\":\"y\"}`) each exit 1 with one stderr line built from a fixed prefix, not raw `err.message` (covers: REQ-15, REQ-16, REQ-17)", "result": "pass", "evidence": "failure tests for CONTENT_INVALID_JSON and CONTENT_BAD_SHAPE pass"},
+      {"ac": "Valid JSON with `name` missing, empty or non-string exits 1 with one stderr line naming `name` and writes nothing (covers: REQ-18)", "result": "pass", "evidence": "NAME_MISSING tests pass"},
+      {"ac": "A valid content file with `name`, `tagline`, `about`, `projects[{title,summary,url}]`, `contact{email}` is accepted; absent `projects` is treated as empty (covers: REQ-4)", "result": "pass", "evidence": "layout test and absent-projects test pass"},
+      {"ac": "`node --test` exits 0", "result": "pass", "evidence": "T0 verdict green 1/1 fixtures: .shapeup/one-page-site/t0/verdicts/r1-a1-t1.json"}
+    ]},
+    {"task_id": "TASK-002", "status": "done", "ac_results": [
+      {"ac": "Rendered HTML has CSS inside a `<style>` element and no `<script>` element or external resource (covers: REQ-2, REQ-3, REQ-22)", "result": "pass", "evidence": "test 'no script, no external resource, inline style'"},
+      {"ac": "Rendered HTML has exactly one `<h1>` containing the name, the tagline directly after it, then About, Projects, Contact sections in that order (covers: REQ-5, REQ-6)", "result": "pass", "evidence": "test 'layout order...'"},
+      {"ac": "`<title>` equals the escaped name (covers: REQ-10)", "result": "pass", "evidence": "layout test asserts <title>Jane</title>"},
+      {"ac": "Each project renders as one card, in array order, and its title is an `<a href>` to its url when the url is an allowed http(s) url (covers: REQ-7, REQ-8)", "result": "pass", "evidence": "layout test: 3 cards in order, anchor to url"},
+      {"ac": "Contact section renders a `mailto:` link with the escaped email (covers: REQ-9)", "result": "pass", "evidence": "layout test asserts mailto href"},
+      {"ac": "All content text and attribute values are escaped for `& < > \" '` with `&` first; a title `<b>Rock & Roll</b>` appears as `&lt;b&gt;Rock &amp; Roll&lt;/b&gt;` (covers: REQ-14)", "result": "pass", "evidence": "test 'escaping'"},
+      {"ac": "`node --test` exits 0", "result": "pass", "evidence": "T0 green"}
+    ]},
+    {"task_id": "TASK-003", "status": "done", "ac_results": [
+      {"ac": "A project with no `url` renders its title as plain text; the output contains no `href=\"#\"` and no `href=\"\"` (covers: REQ-11)", "result": "pass", "evidence": "test 'url-less and non-http...'"},
+      {"ac": "A project whose url scheme is not http or https (for example `javascript:`) renders its title as plain text, never as an anchor", "result": "pass", "evidence": "same test asserts no javascript: in output"},
+      {"ac": "Zero or absent projects renders the sentence \"Projects are coming soon.\" in the Projects section (covers: REQ-12)", "result": "pass", "evidence": "test 'zero or absent projects'"},
+      {"ac": "Zero projects renders no `<ul>`, `<ol>` or `<li>` in the Projects section (covers: REQ-13)", "result": "pass", "evidence": "same test"},
+      {"ac": "`node --test` exits 0", "result": "pass", "evidence": "T0 green"}
+    ]},
+    {"task_id": "TASK-004", "status": "done", "ac_results": [
+      {"ac": "`node build.mjs` with defaults reads `content.json` and writes a single `dist/index.html` (covers: REQ-1, REQ-24)", "result": "pass", "evidence": "defaults in build.mjs: content.json / dist; real content.json builds OK in test (via env override, to keep dist untouched)"},
+      {"ac": "`CONTENT_FILE` overrides the input path and `OUT_DIR` the output dir, writing `<OUT_DIR>/index.html`; the default `dist/` is untouched in that case (covers: REQ-25)", "result": "pass", "evidence": "test 'env overrides' - OUT_DIR holds only index.html; tests run with cwd in a temp dir"},
+      {"ac": "Running the build twice against the same content produces byte-identical files; the source uses no `Date` and no `Math.random` (covers: REQ-19)", "result": "pass", "evidence": "tests 'determinism' and source check"},
+      {"ac": "`build.mjs` contains no write to the content file path (covers: REQ-23)", "result": "pass", "evidence": "only writeFileSync targets join(outDir,'index.html'); content.json hash test passes"},
+      {"ac": "`build.mjs` imports only `node:` builtins and makes no network call (covers: REQ-20, REQ-21)", "result": "pass", "evidence": "source check test"},
+      {"ac": "`node --test` exits 0", "result": "pass", "evidence": "T0 green"}
+    ]},
+    {"task_id": "TASK-005", "status": "done", "ac_results": [
+      {"ac": "`content.json` exists at the repo root and passes the validation in `build.mjs`", "result": "pass", "evidence": "test 'real content.json is valid' builds it with exit 0"},
+      {"ac": "`content.json` has a name, tagline, about, one project with a url, one project without a url, and a contact email", "result": "pass", "evidence": "content.json inspected"},
+      {"ac": "`node --test` exits 0", "result": "pass", "evidence": "T0 green"}
+    ]},
+    {"task_id": "TASK-006", "status": "done", "ac_results": [
+      {"ac": "`node --test` exits 0 with a test file that spawns `node build.mjs` against throwaway content files and asserts on HTML text, no browser (covers: REQ-26)", "result": "pass", "evidence": "build.test.mjs; T0 green"},
+      {"ac": "Tests cover the Test Surface rows of both use cases: determinism, escaping, url-less project, zero projects, layout order, env overrides, and each failure code with one stderr line and a fresh `OUT_DIR` holding no `index.html`", "result": "pass", "evidence": "build.test.mjs covers each listed row"},
+      {"ac": "Every test runs `node build.mjs` with `CONTENT_FILE` and `OUT_DIR` pointing at temp dirs, and one test asserts the real `content.json` hash is unchanged", "result": "pass", "evidence": "run() helper sets both env vars; hash test present"}
+    ]}
+  ],
+  "files_touched": [
+    {"path": "build.mjs", "change": "created"},
+    {"path": "content.json", "change": "created"},
+    {"path": "build.test.mjs", "change": "created"}
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "Render and validation live in build.mjs (not src/*.mjs) because the AC says build.mjs imports only node: builtins",
+    "Empty-string name is treated as NAME_MISSING; whitespace-only name also treated as missing",
+    "Only http(s) urls become anchors; others render as plain text"
+  ],
+  "deviations": []
+}

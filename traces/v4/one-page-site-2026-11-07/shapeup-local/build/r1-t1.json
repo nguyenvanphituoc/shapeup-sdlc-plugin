@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "round": 1,
+  "trial": 1,
+  "at": "2026-11-07T10:18:16.231Z",
+  "run_id": "one-page-site-20261107T095344Z-6c01fa6f",
+  "archetype": "cli",
+  "overall": "green",
+  "steps": [
+    {
+      "kind": "build_probe",
+      "cmd": "node --test",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ layout order, title, mailto, cards in order (36.811667ms)\n✔ no script, no external resource, inline style (32.210375ms)\n✔ escaping (32.564333ms)\n✔ determinism (62.3055ms)\n✔ url-less and non-http url projects are plain text (32.61475ms)\n✔ zero or absent projects (63.03425ms)\n✔ env overrides write only index.html into OUT_DIR (31.421333ms)\n✔ failure CONTENT_MISSING undefined (30.604334ms)\n✔ failure CONTENT_INVALID_JSON {not json (31.282ms)\n✔ failure CONTENT_BAD_SHAPE null (31.677667ms)\n✔ failure CONTENT_BAD_SHAPE [] (32.1085ms)\n✔ failure CONTENT_BAD_SHAPE {\"name\":\"x\",\"projects\":\"y\"} (30.736458ms)\n✔ failure NAME_MISSING {} (31.184417ms)\n✔ failure NAME_MISSING {\"name\":\"\"} (31.619458ms)\n✔ failure NAME_MISSING {\"name\":5} (32.076375ms)\n✔ real content.json is valid and never modified (32.31525ms)\n✔ source has no Date, Math.random, network or non-node imports (0.219625ms)\nℹ tests 17\nℹ suites 0\nℹ pass 17\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 634.772166\n",
+      "stderr_tail": ""
+    }
+  ],
+  "warnings": [
+    "the run ledger declares no run_cmd — the build itself is not part of this gate"
+  ],
+  "discovered_tasks": []
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/map-scopes",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.claude/shapeup-sdlc-plugin/kernel/harness.mjs",
+  "run_id": "one-page-site-20261107T095344Z-6c01fa6f",
+  "compiled_at": "2026-11-07T10:08:45.108Z",
+  "worker": "scope-architect",
+  "mode": "orchestrated",
+  "operation": "map-scopes",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "shapeup/one-page-site/scopes/*.md",
+      "shapeup/one-page-site/scope-board.md"
+    ],
+    "frozen": [
+      "shapeup/one-page-site/spec/domain-model.md",
+      "shapeup/one-page-site/spec/usecases/*.md#Steps",
+      "shapeup/one-page-site/spec/contracts/**",
+      "shapeup/one-page-site/spec/ux-behavior.md",
+      ".shapeup/one-page-site/intake.md",
+      ".shapeup/one-page-site/breadboard.md",
+      ".shapeup/one-page-site/tasks/**"
+    ],
+    "own": [
+      ".shapeup/one-page-site/results/map-scopes.json"
+    ]
+  },
+  "payload": {
+    "feature": "one-page-site",
+    "spec_folder": "shapeup/one-page-site/spec",
+    "kb_rules_path": "shapeup/knowledge-base/scope-architect.md"
+  }
+}

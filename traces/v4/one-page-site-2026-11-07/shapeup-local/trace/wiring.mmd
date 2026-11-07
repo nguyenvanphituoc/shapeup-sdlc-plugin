@@ -1,0 +1,9 @@
+flowchart LR
+  entry([entry point])
+  n_src_render_mjs["src/render.mjs"]
+  entry --> n_src_render_mjs
+  n_src_render_mjs --> n_UC_BuildSite_aff(["`node build.mjs` writes dist/index.html"])
+  n_src_content_mjs["src/content.mjs"]
+  entry --> n_src_content_mjs
+  n_src_content_mjs --> n_UC_RejectInvalidContent_aff(["`node build.mjs` on bad content exits 1 with one stderr line, nothing written"])
+  classDef dead stroke:#d33,stroke-width:2px,color:#d33;

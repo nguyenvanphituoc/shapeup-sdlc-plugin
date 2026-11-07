@@ -1,0 +1,62 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 1,
+  "at": "2026-11-07T10:17:47.864Z",
+  "run_id": "one-page-site-20261107T095344Z-6c01fa6f",
+  "scope_id": "build-site",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "037daca24d2a4afb60a13b59b8b59a253d6a5ce3",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "64d1487fe5e61c44d75a95f5ac6c9c96d934a2ae0075cbb0d0839c4a2e089c06"
+    },
+    "env_sha256": "fe4e75f0bbc8a895da978f7afc52e9d004ae6a6fff4d2f2148caf3567afafc0d"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --test",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ layout order, title, mailto, cards in order (38.267167ms)\n✔ no script, no external resource, inline style (33.750209ms)\n✔ escaping (31.372333ms)\n✔ determinism (63.561916ms)\n✔ url-less and non-http url projects are plain text (32.600625ms)\n✔ zero or absent projects (64.653084ms)\n✔ env overrides write only index.html into OUT_DIR (32.789709ms)\n✔ failure CONTENT_MISSING undefined (31.126458ms)\n✔ failure CONTENT_INVALID_JSON {not json (31.926709ms)\n✔ failure CONTENT_BAD_SHAPE null (32.230167ms)\n✔ failure CONTENT_BAD_SHAPE [] (31.977042ms)\n✔ failure CONTENT_BAD_SHAPE {\"name\":\"x\",\"projects\":\"y\"} (30.068417ms)\n✔ failure NAME_MISSING {} (32.835458ms)\n✔ failure NAME_MISSING {\"name\":\"\"} (33.465417ms)\n✔ failure NAME_MISSING {\"name\":5} (33.176042ms)\n✔ real content.json is valid and never modified (31.128917ms)\n✔ source has no Date, Math.random, network or non-node imports (0.212875ms)\nℹ tests 17\nℹ suites 0\nℹ pass 17\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 646.659042\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": []
+}

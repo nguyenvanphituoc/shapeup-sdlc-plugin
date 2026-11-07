@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/orient",
+  "worker": "orient",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/one-page-site/orient/code-surface.md",
+    ".shapeup/one-page-site/orient/spike-validate-before-write.md",
+    ".shapeup/one-page-site/orient/discovered-seed.md",
+    ".shapeup/one-page-site/orient/hill-signal.md"
+  ],
+  "assumptions": [
+    "Greenfield repo: only package.json and the project profile exist, so every element except the ESM setting is NEW."
+  ],
+  "deviations": [
+    "Spike was a code-reading spike; probe execution (node -e) was denied in this session, so findings rest on documented Node behavior, not an executed run.",
+    "No breadboard and no shapeup/knowledge-base/orient.md exist; the pitch was read from the intake file."
+  ]
+}

@@ -1,0 +1,115 @@
+{
+  "run": "one-page-site",
+  "date": "2026-11-07",
+  "plugin": "plan/single-loop at 2e70bc1 + the malformed-result send-back (the loop skill `building` over `probe next`)",
+  "pitch": "a one-page personal site built by a zero-dependency Node script (NOT the archived envlint pitch, so this is not a comparison with the fan-out arm)",
+  "model_note": "the session ran on the account default; workers on the launch record's `sonnet`",
+  "launches": 3,
+  "launch_note": "launch 1 aborted at WIRE (a worker result with status 'complete' was refused and the run closed \u2014 fixed: it is now sent back once); launch 2 aborted at GATE L1b (spec-lint REQ-NOGO: the pitch's No-gos were registered as requirements; the PO approved CUT for four and re-sourced two); launch 3 shipped, crossing every gate from L1b to L4 in one session without a relaunch",
+  "legs": 9,
+  "leg_rows_by_worker": {
+    "ba-pitch-analyzer": 2,
+    "orient": 1,
+    "qa-edge-hunter": 1,
+    "scope-architect": 1,
+    "solution-architect": 1,
+    "spec-evaluator": 2,
+    "task-executor": 1
+  },
+  "dispatch_receipts": 10,
+  "unanswered_orders": [
+    "hammer (the census artifact was written; no WorkResult envelope came back)"
+  ],
+  "gates": [
+    {
+      "gate": "L0",
+      "round": null,
+      "decision": "proceed",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L0",
+      "round": null,
+      "decision": "proceed",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L1a",
+      "round": null,
+      "decision": "proceed",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L1a.5",
+      "round": null,
+      "decision": "proceed",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L1b",
+      "round": null,
+      "decision": "proceed",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L2",
+      "round": 1,
+      "decision": "proceed",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L3",
+      "round": 1,
+      "decision": "loop",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "QA",
+      "round": 1,
+      "decision": "run",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "H",
+      "round": null,
+      "decision": "accept-cut-list",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L4",
+      "round": null,
+      "decision": "ship",
+      "source": "preset:ci"
+    }
+  ],
+  "sum_leg_duration_min": 11.1,
+  "wall_span_min": 29,
+  "session_active_min_per_launch": [
+    7,
+    3,
+    8
+  ],
+  "reported_cost_usd_per_launch": [
+    3.15,
+    1.6,
+    2.92
+  ],
+  "reported_cost_usd_total": 7.67,
+  "tokens_total_by_leg": {
+    "orient": 78136,
+    "coverage": 61388,
+    "analyze": 124778,
+    "wire": 56219,
+    "map-scopes": 76245,
+    "build-site-r1-a1": 80198,
+    "evaluate-r1*": null,
+    "evaluate-r1": 90095,
+    "hunt": 67548
+  },
+  "verdict": "PASS",
+  "rounds": 1,
+  "qa": "not-hunted",
+  "tests": "17 pass in the deliverable",
+  "hook_denials": "2 sandbox-guard denies over 390 hook rows",
+  "not_measured": "no pass^k, no with/without comparison, one pitch, one run; token totals are what the host reported to the dispatching session, a total only"
+}

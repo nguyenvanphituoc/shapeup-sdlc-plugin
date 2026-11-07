@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/map-scopes",
+  "status": "done",
+  "artifacts": ["shapeup/one-page-site/scopes/build-site.md", "shapeup/one-page-site/scope-board.md"],
+  "assumptions": ["Fixture is `node --test` (the profile build_probe); it exits 0 when the suite passes. build.test.mjs is created by this scope."],
+  "deviations": [
+    "Cut as ONE scope covering both use cases: the test-suite task anchors both UCs, so two scopes triggered SCOPE-PARTITION red and would serialize on build.mjs anyway. Internal order is validate, render, write, tests.",
+    "spec-lint still reports 6 REQ-NOGO reds in requirements.md (REQ-20..REQ-25 registered as covered requirements though they are pitch no-gos). That file is not this skill's surface; the PO should mark them CUT (PO-approved) or the planner drop them. Test Surface TS-NOGO rows already grade them."
+  ]
+}

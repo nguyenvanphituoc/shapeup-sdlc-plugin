@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/wire",
+  "status": "done",
+  "artifacts": ["shapeup/one-page-site/wiring-map.md"],
+  "assumptions": ["Engine paths src/content.mjs and src/render.mjs inferred from the System Flow; the spec names none"],
+  "deviations": ["Both UCs attach through build.mjs, so scopes writing it serialize; UC-BuildSite also uses src/content.mjs for loading"]
+}

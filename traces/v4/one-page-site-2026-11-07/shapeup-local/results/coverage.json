@@ -1,0 +1,1 @@
+{"schema_version":1,"order_id":"one-page-site/coverage","worker":"ba-pitch-analyzer","status":"done","artifacts":["shapeup/one-page-site/requirements.md"],"assumptions":["No R-ids in source; REQ-1..REQ-26 numbered in pitch order","Source is the staged pitch (no committed pitch exists); source cells name pitch sections only"],"deviations":[],"discoveries":[]}

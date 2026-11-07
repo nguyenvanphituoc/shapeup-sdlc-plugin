@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/coverage",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.claude/shapeup-sdlc-plugin/kernel/harness.mjs",
+  "run_id": "one-page-site-20261107T095344Z-6c01fa6f",
+  "compiled_at": "2026-11-07T09:55:20.363Z",
+  "worker": "ba-pitch-analyzer",
+  "mode": "orchestrated",
+  "operation": "coverage",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "shapeup/one-page-site/requirements.md"
+    ],
+    "frozen": [
+      "shapeup/one-page-site/spec/domain-model.md",
+      "shapeup/one-page-site/spec/usecases/*.md#Steps",
+      "shapeup/one-page-site/spec/contracts/**",
+      "shapeup/one-page-site/spec/ux-behavior.md",
+      ".shapeup/one-page-site/intake.md",
+      ".shapeup/one-page-site/breadboard.md"
+    ],
+    "own": [
+      ".shapeup/one-page-site/results/coverage.json"
+    ]
+  },
+  "payload": {
+    "requirements": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/one-page-site/intake.md",
+    "feature": "one-page-site",
+    "kb_rules_path": "shapeup/knowledge-base/ba-pitch-analyzer.md"
+  }
+}

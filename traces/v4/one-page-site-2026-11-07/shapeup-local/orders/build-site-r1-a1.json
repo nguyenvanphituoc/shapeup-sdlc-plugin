@@ -1,0 +1,322 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/build-site-r1-a1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.claude/shapeup-sdlc-plugin/kernel/harness.mjs",
+  "run_id": "one-page-site-20261107T095344Z-6c01fa6f",
+  "compiled_at": "2026-11-07T10:16:37.721Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "build.mjs",
+      "src/content.mjs",
+      "src/render.mjs",
+      "content.json",
+      "build.test.mjs",
+      ".shapeup/one-page-site/spikes/**"
+    ],
+    "shared": [],
+    "frozen": [
+      ".shapeup/one-page-site/**"
+    ],
+    "own": [
+      ".shapeup/one-page-site/results/build-site-r1-a1.json",
+      ".shapeup/one-page-site/tasks/TASK-*.md",
+      ".shapeup/one-page-site/discovery/**",
+      ".shapeup/one-page-site/spikes/**"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "build-site",
+      "topology_type": "CHOWDER",
+      "use_cases": [
+        "UC-RejectInvalidContent",
+        "UC-BuildSite"
+      ],
+      "covers": [
+        "REQ-1",
+        "REQ-2",
+        "REQ-3",
+        "REQ-4",
+        "REQ-5",
+        "REQ-6",
+        "REQ-7",
+        "REQ-8",
+        "REQ-9",
+        "REQ-10",
+        "REQ-11",
+        "REQ-12",
+        "REQ-13",
+        "REQ-14",
+        "REQ-15",
+        "REQ-16",
+        "REQ-17",
+        "REQ-18",
+        "REQ-19",
+        "REQ-20",
+        "REQ-21",
+        "REQ-22",
+        "REQ-23",
+        "REQ-24",
+        "REQ-25",
+        "REQ-26"
+      ],
+      "depends_on": [],
+      "allowed_file_substrate": [
+        "build.mjs",
+        "src/content.mjs",
+        "src/render.mjs",
+        "content.json",
+        "build.test.mjs"
+      ],
+      "shared_substrate": [],
+      "affordance_manifest": [],
+      "e2e_verification_fixtures": [
+        "node --test"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN"
+    },
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "title": "Load and validate the content file in build.mjs",
+        "status": "ready",
+        "priority": 1,
+        "depends_on": [],
+        "use_case_refs": [
+          "UC-RejectInvalidContent"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/one-page-site/tasks/TASK-001.md",
+        "acceptance_criteria": [
+          "`build.mjs` exists at the repo root, is ESM, and imports only `node:` builtins",
+          {
+            "text": "`node build.mjs` with `CONTENT_FILE` pointing at a nonexistent file exits 1, prints exactly one line on stderr naming the problem, and creates no `index.html` in a fresh `OUT_DIR` (covers: REQ-15, REQ-16, REQ-17)",
+            "covers": [
+              "REQ-15",
+              "REQ-16",
+              "REQ-17"
+            ]
+          },
+          {
+            "text": "Content file `{not json` and valid-JSON-wrong-shape inputs (`null`, `[]`, `{\"name\":\"x\",\"projects\":\"y\"}`) each exit 1 with one stderr line built from a fixed prefix, not raw `err.message` (covers: REQ-15, REQ-16, REQ-17)",
+            "covers": [
+              "REQ-15",
+              "REQ-16",
+              "REQ-17"
+            ]
+          },
+          {
+            "text": "Valid JSON with `name` missing, empty or non-string exits 1 with one stderr line naming `name` and writes nothing (covers: REQ-18)",
+            "covers": [
+              "REQ-18"
+            ]
+          },
+          {
+            "text": "A valid content file with `name`, `tagline`, `about`, `projects[{title,summary,url}]`, `contact{email}` is accepted; absent `projects` is treated as empty (covers: REQ-4)",
+            "covers": [
+              "REQ-4"
+            ]
+          },
+          "`node --test` exits 0"
+        ]
+      },
+      {
+        "id": "TASK-002",
+        "title": "Render the page layout with escaping and inline CSS",
+        "status": "ready",
+        "priority": 2,
+        "depends_on": [
+          "TASK-001"
+        ],
+        "use_case_refs": [
+          "UC-BuildSite"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/one-page-site/tasks/TASK-002.md",
+        "acceptance_criteria": [
+          {
+            "text": "Rendered HTML has CSS inside a `<style>` element and no `<script>` element or external resource (covers: REQ-2, REQ-3, REQ-22)",
+            "covers": [
+              "REQ-2",
+              "REQ-3",
+              "REQ-22"
+            ]
+          },
+          {
+            "text": "Rendered HTML has exactly one `<h1>` containing the name, the tagline directly after it, then About, Projects, Contact sections in that order (covers: REQ-5, REQ-6)",
+            "covers": [
+              "REQ-5",
+              "REQ-6"
+            ]
+          },
+          {
+            "text": "`<title>` equals the escaped name (covers: REQ-10)",
+            "covers": [
+              "REQ-10"
+            ]
+          },
+          {
+            "text": "Each project renders as one card, in array order, and its title is an `<a href>` to its url when the url is an allowed http(s) url (covers: REQ-7, REQ-8)",
+            "covers": [
+              "REQ-7",
+              "REQ-8"
+            ]
+          },
+          {
+            "text": "Contact section renders a `mailto:` link with the escaped email (covers: REQ-9)",
+            "covers": [
+              "REQ-9"
+            ]
+          },
+          {
+            "text": "All content text and attribute values are escaped for `& < > \" '` with `&` first; a title `<b>Rock & Roll</b>` appears as `&lt;b&gt;Rock &amp; Roll&lt;/b&gt;` (covers: REQ-14)",
+            "covers": [
+              "REQ-14"
+            ]
+          },
+          "`node --test` exits 0"
+        ]
+      },
+      {
+        "id": "TASK-003",
+        "title": "Render the project edge cases",
+        "status": "ready",
+        "priority": 3,
+        "depends_on": [
+          "TASK-002"
+        ],
+        "use_case_refs": [
+          "UC-BuildSite"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/one-page-site/tasks/TASK-003.md",
+        "acceptance_criteria": [
+          {
+            "text": "A project with no `url` renders its title as plain text; the output contains no `href=\"#\"` and no `href=\"\"` (covers: REQ-11)",
+            "covers": [
+              "REQ-11"
+            ]
+          },
+          "A project whose url scheme is not http or https (for example `javascript:`) renders its title as plain text, never as an anchor",
+          {
+            "text": "Zero or absent projects renders the sentence \"Projects are coming soon.\" in the Projects section (covers: REQ-12)",
+            "covers": [
+              "REQ-12"
+            ]
+          },
+          {
+            "text": "Zero projects renders no `<ul>`, `<ol>` or `<li>` in the Projects section (covers: REQ-13)",
+            "covers": [
+              "REQ-13"
+            ]
+          },
+          "`node --test` exits 0"
+        ]
+      },
+      {
+        "id": "TASK-004",
+        "title": "Write dist/index.html deterministically with env overrides",
+        "status": "ready",
+        "priority": 4,
+        "depends_on": [
+          "TASK-001",
+          "TASK-002",
+          "TASK-003"
+        ],
+        "use_case_refs": [
+          "UC-BuildSite"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/one-page-site/tasks/TASK-004.md",
+        "acceptance_criteria": [
+          {
+            "text": "`node build.mjs` with defaults reads `content.json` and writes a single `dist/index.html` (covers: REQ-1, REQ-24)",
+            "covers": [
+              "REQ-1",
+              "REQ-24"
+            ]
+          },
+          {
+            "text": "`CONTENT_FILE` overrides the input path and `OUT_DIR` the output dir, writing `<OUT_DIR>/index.html`; the default `dist/` is untouched in that case (covers: REQ-25)",
+            "covers": [
+              "REQ-25"
+            ]
+          },
+          {
+            "text": "Running the build twice against the same content produces byte-identical files; the source uses no `Date` and no `Math.random` (covers: REQ-19)",
+            "covers": [
+              "REQ-19"
+            ]
+          },
+          {
+            "text": "`build.mjs` contains no write to the content file path (covers: REQ-23)",
+            "covers": [
+              "REQ-23"
+            ]
+          },
+          {
+            "text": "`build.mjs` imports only `node:` builtins and makes no network call (covers: REQ-20, REQ-21)",
+            "covers": [
+              "REQ-20",
+              "REQ-21"
+            ]
+          },
+          "`node --test` exits 0"
+        ]
+      },
+      {
+        "id": "TASK-005",
+        "title": "Add a starter content.json",
+        "status": "ready",
+        "priority": 5,
+        "depends_on": [
+          "TASK-001"
+        ],
+        "use_case_refs": [
+          "UC-BuildSite"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/one-page-site/tasks/TASK-005.md",
+        "acceptance_criteria": [
+          "`content.json` exists at the repo root and passes the validation in `build.mjs`",
+          "`content.json` has a name, tagline, about, one project with a url, one project without a url, and a contact email",
+          "`node --test` exits 0"
+        ]
+      },
+      {
+        "id": "TASK-006",
+        "title": "Write the node --test suite",
+        "status": "ready",
+        "priority": 6,
+        "depends_on": [
+          "TASK-004"
+        ],
+        "use_case_refs": [
+          "UC-BuildSite",
+          "UC-RejectInvalidContent"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/one-page-site/tasks/TASK-006.md",
+        "acceptance_criteria": [
+          {
+            "text": "`node --test` exits 0 with a test file that spawns `node build.mjs` against throwaway content files and asserts on HTML text, no browser (covers: REQ-26)",
+            "covers": [
+              "REQ-26"
+            ]
+          },
+          "Tests cover the Test Surface rows of both use cases: determinism, escaping, url-less project, zero projects, layout order, env overrides, and each failure code with one stderr line and a fresh `OUT_DIR` holding no `index.html`",
+          "Every test runs `node build.mjs` with `CONTENT_FILE` and `OUT_DIR` pointing at temp dirs, and one test asserts the real `content.json` hash is unchanged"
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/one-page-site/spec",
+    "feature": "one-page-site",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

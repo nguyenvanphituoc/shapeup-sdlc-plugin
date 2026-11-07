@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "slug": "one-page-site",
+  "at": "2026-11-07T10:18:18.986Z",
+  "mode": "advisory",
+  "advisory": true,
+  "covers_closure": {
+    "checked": true,
+    "requirements_total": 26,
+    "covered_status": 22,
+    "cut_status": 4,
+    "covered_by_ac": 26,
+    "uncovered": [],
+    "dangling_covers": [],
+    "pass": true,
+    "skipped_reason": null
+  },
+  "reachability": {
+    "checked": false,
+    "pass": true,
+    "unreachable": [],
+    "entry_point": "build.mjs",
+    "entry_resolved": "build.mjs",
+    "module_extensions": [
+      ".js",
+      ".mjs",
+      ".cjs",
+      ".jsx",
+      ".ts",
+      ".tsx"
+    ],
+    "reachable_files": 1,
+    "engines_total": 2,
+    "engines_reachable": 0,
+    "skipped_reason": "no engine is reachable from entry_point \"build.mjs\", which reaches 1 file(s) — with no reachable engine as a control this walk cannot tell an orphaned module from an entry point that is not the runtime root (declarative routing, a manifest, a string-loaded screen). Reachability skipped."
+  },
+  "scope_reachability": {
+    "checked": false,
+    "scopes": [],
+    "orphaned": [],
+    "skipped_reason": "reachability did not run, so there is no graph to measure a scope against."
+  },
+  "findings": [
+    {
+      "severity": "warn",
+      "code": "REACH-NO-CONTROL",
+      "message": "reachability did not run: all 2 engine(s) are unreachable from entry_point \"build.mjs\", which reaches 1 file(s). Every engine orphaned is the one result this arm cannot distinguish from a wrong root. If some module does compose the app, declare that one as the entry point. If the screens are registered in a manifest instead — a route map, a plugin table — then no entry point roots this walk and unchecked is the correct end state for this project, not a profile to fix."
+    }
+  ],
+  "overall": "green"
+}

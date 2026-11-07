@@ -1,0 +1,10 @@
+{
+  "name": "Jane Doe",
+  "tagline": "Freelance designer and developer",
+  "about": "I build small, fast websites for small businesses.",
+  "projects": [
+    { "title": "Bakery Site", "summary": "A static site for a local bakery.", "url": "https://example.com/bakery" },
+    { "title": "Private Dashboard", "summary": "Internal tool, no public link." }
+  ],
+  "contact": { "email": "jane@example.com" }
+}

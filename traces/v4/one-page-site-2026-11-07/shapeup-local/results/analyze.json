@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/analyze",
+  "worker": "ba-pitch-analyzer",
+  "status": "partial",
+  "artifacts": [
+    "shapeup/one-page-site/spec/_index.md",
+    "shapeup/one-page-site/spec/domain-model.md",
+    "shapeup/one-page-site/spec/ux-behavior.md",
+    "shapeup/one-page-site/spec/integration.md",
+    "shapeup/one-page-site/spec/contracts/content-file.contract.md",
+    "shapeup/one-page-site/spec/usecases/_index.md",
+    "shapeup/one-page-site/spec/usecases/UC-BuildSite.md",
+    "shapeup/one-page-site/spec/usecases/UC-RejectInvalidContent.md",
+    "shapeup/one-page-site/spec/scope-summary.md",
+    "shapeup/one-page-site/spec/synthesis.md",
+    "shapeup/one-page-site/spec/feedback.md",
+    ".shapeup/one-page-site/tasks/TASK-001.md",
+    ".shapeup/one-page-site/tasks/TASK-002.md",
+    ".shapeup/one-page-site/tasks/TASK-003.md",
+    ".shapeup/one-page-site/tasks/TASK-004.md",
+    ".shapeup/one-page-site/tasks/TASK-005.md",
+    ".shapeup/one-page-site/tasks/TASK-006.md"
+  ],
+  "assumptions": [
+    "lens=standard as ordered; no third-party API so no api-feasibility.md; one contract file for the content file and CLI",
+    "No breadboard: CLI deliverable; screens are GeneratedPage and BuildOutcome",
+    "Test Surface oracle is process for all rows (CLI)",
+    "Stricter reading from the spike encoded: empty name counts as missing; only http(s) urls become links; absent projects treated as empty",
+    "Orient artifacts used as the code map; no code re-scan"
+  ],
+  "deviations": [
+    "OPEN spec-ambiguity (not blocking) — verify spec reds REQ-NOGO on REQ-20..REQ-25 in the committed requirements.md, which is outside this order's substrate. REQ-20/21/22/23 are no-gos (their breach is graded by TS-NOGO rows and by ACs I wrote carrying covers), REQ-24/25 are positive output-path and override requirements that the registry sourced from the No-gos section. Decision for the PO or the registry owner: mark REQ-20..REQ-23 CUT (PO-approved) or re-source REQ-24 and REQ-25 as positive clauses. Board ACs already carry (covers: REQ-…) for all of them."
+  ],
+  "discoveries": [
+    { "marker": "+", "line": "Open decision: should a failing build remove a stale dist/index.html from an earlier good run? Spec says no; tests use a fresh OUT_DIR." },
+    { "marker": "+", "line": "No appetite overflow: 8h total, critical path 7h, single build round." }
+  ]
+}

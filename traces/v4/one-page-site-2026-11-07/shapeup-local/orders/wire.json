@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/wire",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.claude/shapeup-sdlc-plugin/kernel/harness.mjs",
+  "run_id": "one-page-site-20261107T095344Z-6c01fa6f",
+  "compiled_at": "2026-11-07T10:08:11.798Z",
+  "worker": "solution-architect",
+  "mode": "orchestrated",
+  "operation": "wire",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "shapeup/one-page-site/wiring-map.md"
+    ],
+    "frozen": [
+      "shapeup/one-page-site/spec/domain-model.md",
+      "shapeup/one-page-site/spec/usecases/*.md#Steps",
+      "shapeup/one-page-site/spec/contracts/**",
+      "shapeup/one-page-site/spec/ux-behavior.md",
+      ".shapeup/one-page-site/intake.md",
+      ".shapeup/one-page-site/breadboard.md",
+      "shapeup/one-page-site/scopes/**",
+      "shapeup/one-page-site/project-profile.md"
+    ],
+    "own": [
+      ".shapeup/one-page-site/results/wire.json"
+    ]
+  },
+  "payload": {
+    "feature": "one-page-site",
+    "spec_folder": "shapeup/one-page-site/spec/",
+    "project_profile": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/shapeup/one-page-site/project-profile.md",
+    "kb_rules_path": "shapeup/knowledge-base/solution-architect.md"
+  }
+}

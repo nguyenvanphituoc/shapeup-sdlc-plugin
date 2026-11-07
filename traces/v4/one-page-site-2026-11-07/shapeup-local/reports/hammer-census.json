@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/hammer",
+  "verdict": "ship-now",
+  "cut_list": [
+    "REQ-4 (content.json field list): no direct PASS evidence row; behaviour exercised via REQ-1/5/7/9/10 and REQ-15..18 - safe to carry, not a ship blocker",
+    "QA edge hunt not run (NOT HUNTED: node invocation refused in session); carry .shapeup/one-page-site/qa/hunt.mjs to next cycle as a raw idea",
+    "Open decision: should a failing build remove a stale dist/index.html (spec says no) - carry as raw idea",
+    "Wiring map cites src/render.mjs and src/content.mjs which are not on disk (engine lives in build.mjs) - carry as wiring-map tidy"
+  ],
+  "ship_blocking": [],
+  "breaker": null,
+  "baseline": null
+}
