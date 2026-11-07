@@ -118,13 +118,19 @@ export async function run(ctx) {
       const f = local(ws, "harness-run.md"); writeFileSync(f, readFileSync(f, "utf8").replace(/^status:.*$/m, "status: building"));
     }, (s) => is("dispatch")(s) && s.pre.some((p) => /--set-status orienting/.test(p.command)));
     row("an orient result that was never applied is applied before anything else", (ws) => { profile(ws); order(ws, "orient", { receipts: 1, result: {} }); },
-      (s) => is("command", "ingest.orient")(s) && s.on_fail_close.includes("single writer did not run"));
+      (s) => is("command", "ingest.orient")(s) && s.on_fail_close.includes("single writer refused"));
     row("an orient that answered and left no artifact aborts at ORIENT", (ws) => { profile(ws); order(ws, "orient", { receipts: 1, result: {}, applied: true }); },
       (s) => is("terminal", "abort.ORIENT")(s) && /produced no artifact/.test(s.reason));
     row("an orient order dispatched and never answered is dispatched again (the session died)", (ws) => { profile(ws); order(ws, "orient", { receipts: 1 }); },
       is("dispatch", "orient.dispatch"));
     row("an orient dispatched three times with no answer is named dead, not dispatched a fourth time", (ws) => { profile(ws); order(ws, "orient", { receipts: 3 }); },
       (s) => is("terminal", "abort.ORIENT")(s) && /did not answer after 3/.test(s.reason));
+    row("a result that is not a WorkResult (status \"complete\") is sent back once with the reason, not applied and not a stop", (ws) => {
+      profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); wiring(ws); order(ws, "wire", { receipts: 1, result: { status: "complete" } });
+    }, (s) => is("dispatch", "wire.dispatch")(s) && /refused before it was applied/.test(s.note) && /status/.test(s.note) && /done \| partial \| escalated \| failed/.test(s.note));
+    row("a result still not a WorkResult after the send-back stops the run, naming what was refused", (ws) => {
+      profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); wiring(ws); order(ws, "wire", { receipts: 2, result: { status: "complete" } });
+    }, (s) => is("terminal", "abort.WIRE")(s) && /not a valid WorkResult after one send-back/.test(s.reason));
     row("orient artifacts with a receipt and no WorkResult send the envelope back once", (ws) => { profile(ws); orient(ws); order(ws, "orient", { receipts: 1 }); },
       (s) => is("dispatch", "orient.dispatch")(s) && /returned NO WorkResult/.test(s.note));
     row("an orient envelope already sent back once is not sent back again", (ws) => { profile(ws); orient(ws); order(ws, "orient", { receipts: 2 }); },

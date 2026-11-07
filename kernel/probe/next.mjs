@@ -53,6 +53,7 @@ import { deriveResumeState, parseFrontmatter } from "./resume.mjs";
 import { readLegs, legState } from "./leg.mjs";
 import { readReceipts, scopeAttempts } from "./attempts.mjs";
 import { greenVerdict } from "./t0.mjs";
+import { validate } from "../verify/envelope.mjs";
 import { evalVerdict } from "./eval.mjs";
 import { huntOutcome } from "./hunt.mjs";
 import { boardCoversProblem } from "./requirements.mjs";
@@ -62,6 +63,7 @@ import { evaluateBudget, findRun } from "../verify/budget.mjs";
 import { censusVerdict } from "../gate.mjs";
 
 const KERNEL = resolve(dirname(fileURLToPath(import.meta.url)), "../harness.mjs");
+const RESULT_SCHEMA = JSON.parse(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "../schemas/work-result.schema.json"), "utf8"));
 const SKILL_NS = "shapeup-sdlc-plugin";
 
 /** What each gate is called in the block the PO reads. L4 prints its own id. */
@@ -203,11 +205,35 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
     on_fail_close: failClose(step.split(".")[0].toUpperCase(), `${skill} ${operation} returned no result`),
     warnings,
   });
-  const ingestCmd = (os, at) => ({
-    step: `ingest.${os.stem}`, kind: "command", reason: `${os.stem} has a result on disk that the single writer never applied`,
-    command: K(`reduce ingest --order "${os.path}"`),
-    on_fail_close: failClose(at, `the single writer did not run for ${os.stem} — its result is on disk and was never applied`), warnings,
-  });
+  /** Why a result on disk would never be accepted as a WorkResult, or null when it is shaped right. */
+  const resultProblem = (os) => {
+    const r = readJson(join(resultsDir(cwd, slug), `${os.stem}.json`));
+    if (!r) return "the result file is not readable JSON";
+    const { valid, errors } = validate(r, RESULT_SCHEMA);
+    return valid ? null : errors.slice(0, 4).join("; ");
+  };
+  /**
+   * A result the single writer has not applied. A result that is not even a WorkResult is the
+   * worker's slip, and it is sent back once with the reason — a worker that has never seen the
+   * writer's refusal cannot correct it. A well-shaped result the writer still refuses (no receipt, a
+   * verdict it will not stand behind) goes to the writer's own command, and a second refusal stops
+   * the run with what was refused.
+   */
+  const ingestCmd = (os, at, rebuild = null) => {
+    const bad = resultProblem(os);
+    if (bad) {
+      if (rebuild && os.receipts < 2) {
+        return rebuild(` Your previous result was refused before it was applied: ${bad}. Write the WorkResult again exactly as the order's schema says ` +
+          `(status is one of done | partial | escalated | failed), keep any artifacts that already stand, and return again.`);
+      }
+      return abort(at, `${os.stem} returned a result that is not a valid WorkResult after one send-back: ${bad}`);
+    }
+    return {
+      step: `ingest.${os.stem}`, kind: "command", reason: `${os.stem} has a result on disk that the single writer never applied`,
+      command: K(`reduce ingest --order "${os.path}"`),
+      on_fail_close: failClose(at, `the single writer refused ${os.stem}'s result — it is on disk and was never applied (see the ingest output)`), warnings,
+    };
+  };
 
   // ---- gates ------------------------------------------------------------------------------------
   const crossed = (gate, round = null) => {
@@ -265,7 +291,7 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
   const planning = ({ key, stem, have, build, at, resend = false }) => {
     const o = orderState(stem);
     if (!have) {
-      if (o.has_result && !o.applied) return ingestCmd(o, at);
+      if (o.has_result && !o.applied) return ingestCmd(o, at, build);
       if (o.has_result) return abort(at, `${key} produced no artifact — the worker returned and the phase's artifact is not on disk`);
       if (o.receipts >= DISPATCH_CAP) return abort(at, `${key} did not answer after ${o.receipts} dispatches`);
       return build("");
@@ -276,7 +302,7 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
           "The artifacts are on disk and stand: do not redo them. Write the WorkResult the order names, then ingest it.");
       }
     }
-    if (o.has_result && !o.applied) return ingestCmd(o, at);
+    if (o.has_result && !o.applied) return ingestCmd(o, at, build);
     return null;
   };
 
@@ -304,16 +330,15 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
   // ---- 2. PLAN: coverage, analyze, wire, map-scopes ---------------------------------------------
   if (!rs.has_requirements) {
     const o = orderState("coverage");
-    if (o.has_result && !o.applied) return ingestCmd(o, "COVERAGE");
-    if (!(o.has_result && o.applied)) {
-      return dispatch({
-        step: "coverage.dispatch", skill: "ba-pitch-analyzer", operation: "coverage", stem: "coverage", phase: "plan",
-        payload: { requirements: rs.intake_path, feature: slug },
-        note: "Extract the pitch's requirement clauses into the SHARED requirements registry, one atomic clause per row. " +
-          "A clause carrying an R-id keeps its number as REQ-<n> and records the R-id verbatim in its source cell; ids are assigned once and never renumbered.",
-        reason: "no requirements registry on disk",
-      });
-    }
+    const buildCoverage = (note = "") => dispatch({
+      step: "coverage.dispatch", skill: "ba-pitch-analyzer", operation: "coverage", stem: "coverage", phase: "plan",
+      payload: { requirements: rs.intake_path, feature: slug },
+      note: "Extract the pitch's requirement clauses into the SHARED requirements registry, one atomic clause per row. " +
+        "A clause carrying an R-id keeps its number as REQ-<n> and records the R-id verbatim in its source cell; ids are assigned once and never renumbered." + note,
+      reason: note ? "the registry result was refused before it was applied — sent back once" : "no requirements registry on disk",
+    });
+    if (o.has_result && !o.applied) return ingestCmd(o, "COVERAGE", buildCoverage);
+    if (!(o.has_result && o.applied)) return buildCoverage("");
     warnings.push("COVERAGE: the registry worker returned and no requirements.md is on disk — the requirements matrix will read no evidence");
   }
 
@@ -341,14 +366,14 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
   });
   if (!rs.has_spec_tree) {
     const o = orderState("analyze");
-    if (o.has_result && !o.applied) return ingestCmd(o, "ANALYZE");
+    if (o.has_result && !o.applied) return ingestCmd(o, "ANALYZE", buildAnalyze);
     if (o.has_result) return abort("ANALYZE", "ANALYZE produced no artifact — the worker returned and the phase's artifact is not on disk");
     if (o.receipts >= DISPATCH_CAP) return abort("ANALYZE", `ANALYZE did not answer after ${o.receipts} dispatches`);
     return buildAnalyze("");
   }
   if (!rs.has_board) {
     const o = orderState("board");
-    if (o.has_result && !o.applied) return ingestCmd(o, "ANALYZE");
+    if (o.has_result && !o.applied) return ingestCmd(o, "ANALYZE", buildBoard);
     if (o.has_result) return abort("ANALYZE", "ANALYZE produced no artifact — the board is not on disk after the board-only dispatch");
     if (o.receipts >= DISPATCH_CAP) return abort("ANALYZE", `ANALYZE did not answer after ${o.receipts} dispatches`);
     return buildBoard("");
@@ -517,7 +542,7 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
             note: `Evaluate the running feature against every acceptance criterion and Done-when. One feature-level pass; cite every artifact the order lists under t0_artifacts, re-hashing each yourself.${note}`,
             reason: note ? "the verdict was refused — sent back once" : `round ${round} has no verdict`,
           });
-          if (o.has_result && !o.applied) return ingestCmd(o, "L3");
+          if (o.has_result && !o.applied) return ingestCmd(o, "L3", build);
           if (!o.has_result) {
             if (o.receipts >= DISPATCH_CAP) return abort("L3", `the evaluator did not answer after ${o.receipts} dispatches`);
             return build("");
@@ -579,17 +604,19 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
   const census = existsSync(censusFile) ? readJson(censusFile) : null;
   const hv = censusVerdict(cwd, slug);
   if (!hv) {
-    if (o.has_result && !o.applied) return ingestCmd(o, "H");
-    if (o.has_result && o.receipts >= 2) return abort("H", "scope-hammer returned and left no readable census");
-    return dispatch({
+    const buildHammer = (note = "") => dispatch({
       step: "stop.census", skill: "scope-hammer", operation: "hammer", stem: "hammer", phase: null,
       payload: { feature: slug, qa_findings: settle ? 0 : qaFindings, hammer_proposals: proposalsNow, breaker: settle ? settle.breaker : null },
       note: "Run the census, compare against the BASELINE and never the ideal, and produce the cut list. Write the census as data to `reports/hammer-census.json` under the run's local root — " +
         "the `reports/**` entry in your order's substrate names the directory — with schema_version 1, order_id, verdict (ship-now | ship-after-fixes | cannot-ship), cut_list, " +
         "ship_blocking, breaker, baseline — beside the human-readable report. GATE L4's resolver reads that file and nothing else before it lets any answer set say `ship`; " +
-        "a census that lives only in your printed blocks cannot be read by a gate.",
-      reason: settle ? `a breaker (${settle.breaker}) routed the run to GATE H and no census exists` : "the loop ended well and no census exists",
+        "a census that lives only in your printed blocks cannot be read by a gate." + note,
+      reason: note ? "the census result was refused before it was applied — sent back once"
+        : settle ? `a breaker (${settle.breaker}) routed the run to GATE H and no census exists` : "the loop ended well and no census exists",
     });
+    if (o.has_result && !o.applied) return ingestCmd(o, "H", buildHammer);
+    if (o.has_result && o.receipts >= 2) return abort("H", "scope-hammer returned and left no readable census");
+    return buildHammer("");
   }
   const cutList = Array.isArray(census?.cut_list) ? census.cut_list : [];
   const tail = (extra = "") => withSuffix(extra);
