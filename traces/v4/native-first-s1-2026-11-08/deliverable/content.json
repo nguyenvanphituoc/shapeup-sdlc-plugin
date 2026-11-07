@@ -1,0 +1,10 @@
+{
+  "name": "Ada Example",
+  "tagline": "Builder of small, useful things.",
+  "about": "I write software and keep this page as a plain static file.",
+  "projects": [
+    { "title": "Static Site", "summary": "This very page, built from one JSON file.", "url": "https://example.com/static-site" },
+    { "title": "Notes Tool", "summary": "A private project with no public link yet." }
+  ],
+  "contact": { "email": "ada@example.com" }
+}

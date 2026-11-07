@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/evaluate-r1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-s1d/kernel/harness.mjs",
+  "run_id": "one-page-site-20261107T180024Z-ab4341fb",
+  "compiled_at": "2026-11-07T18:07:17.146Z",
+  "worker": "spec-evaluator",
+  "mode": "orchestrated",
+  "operation": "evaluate",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [],
+    "frozen": [
+      "shapeup/one-page-site/spec/**",
+      ".shapeup/one-page-site/**"
+    ],
+    "own": [
+      ".shapeup/one-page-site/evaluation/**",
+      ".shapeup/one-page-site/results/evaluate-r1.json"
+    ]
+  },
+  "payload": {
+    "trial_history": [
+      {
+        "schema_version": 1,
+        "trial": 1,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "build-page",
+        "score": {
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      }
+    ],
+    "round": 1,
+    "spec_folder": "shapeup/one-page-site/spec",
+    "feature": "one-page-site",
+    "t0_artifacts": [
+      ".shapeup/one-page-site/t0/verdicts/r1-a1-t1.json"
+    ],
+    "dimensions": [
+      "spec-conformance",
+      "tdd-surface",
+      "completeness",
+      "test-surface-conformance"
+    ]
+  }
+}

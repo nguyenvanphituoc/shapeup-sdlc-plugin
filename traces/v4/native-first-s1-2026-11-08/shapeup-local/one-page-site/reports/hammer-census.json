@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "verdict": "ship-now",
+  "cut_list": [
+    "QA candidate (unrun): `url: \"javascript:...\"` emitted unfiltered as an href — carry as raw idea (pitch specifies no URL scheme filtering)",
+    "QA candidate (unrun): `projects: [null]` / non-object project likely throws an unhandled TypeError — carry as raw idea (pitch silent on malformed projects)",
+    "QA candidate (unrun): project without `title`, or non-string `name`, renders \"undefined\" / \"[object Object]\" — carry as raw idea (spec gap raised at planning)",
+    "QA candidate (unrun): stale files in a reused OUT_DIR survive beside index.html — carry as raw idea",
+    "QA candidate (unrun): UTF-8 BOM in content.json may give a misleading parse error — carry as raw idea",
+    "Spec gap: behaviour for absent tagline/about/contact/contact.email unspecified by the pitch — carry as raw idea"
+  ],
+  "ship_blocking": [],
+  "breaker": null,
+  "baseline": null,
+  "known_gaps": [
+    "REQ-2, REQ-4, REQ-5, REQ-7, REQ-8, REQ-9, REQ-10, REQ-12: `probe requirements` shows no anchored PASS criterion (ACs ticked by the executor, none refuted by EVAL) — evidence gap, not a failure",
+    "QA hunt status not-hunted: worker sandbox refused `node` execution; no charter ran",
+    "EVAL graded Test Surface rows on the re-hashed T0 artifact and code reading; the judge could not execute node itself"
+  ]
+}

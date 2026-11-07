@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/evaluate-r1",
+  "worker": "spec-evaluator",
+  "status": "done",
+  "verdict": {
+    "overall": "PASS",
+    "report_path": ".shapeup/one-page-site/evaluation/EVAL-FEATURE-one-page-site.md",
+    "t0_citations": [
+      { "scope_id": "build-page", "path": ".shapeup/one-page-site/t0/verdicts/r1-a1-t1.json", "sha256": "74c1df1b187b47230fa49263c01a552cfc7c9e2598c127d1e6657adcd2b94b18" }
+    ],
+    "criteria": [
+      { "criterion": "TS-INV-01", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "T0 r1-a1-t1 prints PASS TS-INV-01; check compares content file text before/after builds", "traces_to": ["REQ-13"] },
+      { "criterion": "TS-INV-02", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "T0 prints PASS TS-INV-02; byte compare of two builds", "traces_to": ["REQ-23"] },
+      { "criterion": "TS-INV-03", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "T0 prints PASS TS-INV-03; exit 1 and no index.html", "traces_to": ["REQ-21"] },
+      { "criterion": "TS-INV-04", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "T0 prints PASS TS-INV-04; escaped text asserted, raw <b>Rock absent", "traces_to": ["REQ-18"] },
+      { "criterion": "TS-INV-05", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "T0 prints PASS TS-INV-05; no <script in output", "traces_to": ["REQ-3"] },
+      { "criterion": "TS-INV-06", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "T0 prints PASS TS-INV-06; one <h1, title = name", "traces_to": ["REQ-6", "REQ-11"] },
+      { "criterion": "TS-INV-07", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "T0 prints PASS TS-INV-07; no href=# / empty href / anchor", "traces_to": ["REQ-16"] },
+      { "criterion": "TS-INV-08", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "T0 prints PASS TS-INV-08; coming-soon sentence and no ul/li", "traces_to": ["REQ-17"] },
+      { "criterion": "TS-ERR-CONTENT_MISSING", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "T0 prints PASS; exit 1, one stderr line naming the file, no output", "traces_to": ["REQ-19", "REQ-20", "REQ-21"] },
+      { "criterion": "TS-ERR-CONTENT_UNPARSEABLE", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "T0 prints PASS; exit 1, one line naming JSON problem, no output", "traces_to": ["REQ-19", "REQ-20", "REQ-21"] },
+      { "criterion": "TS-REQ-name-missing", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "T0 prints PASS; exit 1, one line naming name, no output", "traces_to": ["REQ-22"] },
+      { "criterion": "TS-NOGO-01", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "T0 prints PASS TS-NOGO-01; markdown literal, no strong/em", "traces_to": [] },
+      { "criterion": "TS-NOGO-02", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "T0 prints PASS TS-NOGO-02; out dir holds only index.html", "traces_to": [] },
+      { "criterion": "TS-NOGO-03", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "T0 prints PASS TS-NOGO-03; exit 0, no signal", "traces_to": [] },
+      { "criterion": "UC-BuildPage steps 1-7 and error cases", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "build.mjs:4-5,20-36,84-85 read against the UC; fixtures green", "traces_to": ["REQ-1", "REQ-14", "REQ-15"] },
+      { "criterion": "INV-01..INV-08 invariants", "dimension": "completeness", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "each invariant evidenced by its named TS row in T0 plus code reading", "traces_to": [] },
+      { "criterion": "node --test fixture green", "dimension": "tdd-surface", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "T0 r1-a1-t1.json: node --test exit 0, 14 pass 0 fail", "traces_to": ["REQ-24"] }
+    ],
+    "refuted": [],
+    "bugs": []
+  }
+}

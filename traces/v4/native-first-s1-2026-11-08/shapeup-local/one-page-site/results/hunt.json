@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/hunt",
+  "worker": "qa-edge-hunter",
+  "status": "failed",
+  "summary": "Deliverable not reached: every execution of build.mjs (and of the hunt driver script) was refused for approval in this sandbox, so no charter ran and no finding has a live repro. Report says not-hunted.",
+  "discoveries": [],
+  "artifacts": ["qa/hunt-report.md"]
+}

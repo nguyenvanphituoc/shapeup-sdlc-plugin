@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/plan-scopes",
+  "worker": "building",
+  "status": "done",
+  "artifacts": [
+    "shapeup/one-page-site/scopes/build-page.md",
+    "shapeup/one-page-site/scope-board.md"
+  ]
+}

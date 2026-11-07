@@ -1,0 +1,143 @@
+{
+  "run": "one-page-site",
+  "date": "2026-11-08",
+  "plugin": "f77e6c5",
+  "pitch": "pitch.gate.md — the personal-site pitch with its No-gos section folded into the Solution as plain statements",
+  "launches": 1,
+  "claude_cost_usd": 4.550717700000001,
+  "claude_turns": 79,
+  "duration_s": 672,
+  "closed": [
+    "final_verdict: PASS",
+    "rounds_used: 1",
+    "close_cause: verdict=PASS rounds=1 qa_findings=0 qa=not-hunted",
+    "closed_status: shipped"
+  ],
+  "gates": [
+    [
+      "L0",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L1a",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L1a.5",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L1b",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L2",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L3",
+      "loop",
+      "preset:ci"
+    ],
+    [
+      "QA",
+      "run",
+      "preset:ci"
+    ],
+    [
+      "H",
+      "accept-cut-list",
+      "preset:ci"
+    ],
+    [
+      "L4",
+      "ship",
+      "preset:ci"
+    ],
+    [
+      "COACH-1",
+      "skip",
+      "preset:ci"
+    ]
+  ],
+  "legs": 8,
+  "leg_rows": [
+    {
+      "order": "orient",
+      "worker": "orient",
+      "attested": true,
+      "tokens_total": 56316,
+      "usage_source": "agent-tool-result",
+      "duration_s": 32
+    },
+    {
+      "order": "plan-requirements",
+      "worker": "building",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 25
+    },
+    {
+      "order": "plan-spec",
+      "worker": "building",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 98
+    },
+    {
+      "order": "plan-wire",
+      "worker": "building",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 11
+    },
+    {
+      "order": "plan-scopes",
+      "worker": "building",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 17
+    },
+    {
+      "order": "build-page-r1-a1",
+      "worker": "task-executor",
+      "attested": true,
+      "tokens_total": 77772,
+      "usage_source": "agent-tool-result",
+      "duration_s": 75
+    },
+    {
+      "order": "evaluate-r1",
+      "worker": "spec-evaluator",
+      "attested": true,
+      "tokens_total": 81599,
+      "usage_source": "agent-tool-result",
+      "duration_s": 58
+    },
+    {
+      "order": "hunt",
+      "worker": "qa-edge-hunter",
+      "attested": true,
+      "tokens_total": 71591,
+      "usage_source": "agent-tool-result",
+      "duration_s": 61
+    }
+  ],
+  "hook_rows": {
+    "validate-envelope:allow": 11,
+    "dispatch-receipt:allow": 11,
+    "safety-spine:allow": 125,
+    "sandbox-guard:allow": 20,
+    "sandbox-guard:deny": 4
+  },
+  "note": "S1 gate: kernel and hooks after the deletions of reduce graph, report export, the trace oracle, probe stats, the Stop hook and tier-guard. One launch, shipped PASS in 1 round. The gate sequence matches the 4.0.0 run except that the opening L0 row appears once, not twice. QA ran as not-hunted: the nested session's workers were refused every node command except the kernel's, an environment limit of the consumer's grant that predates S1."
+}

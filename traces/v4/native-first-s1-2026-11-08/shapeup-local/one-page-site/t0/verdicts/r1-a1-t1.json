@@ -1,0 +1,62 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 1,
+  "at": "2026-11-07T18:06:45.110Z",
+  "run_id": "one-page-site-20261107T180024Z-ab4341fb",
+  "scope_id": "build-page",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b8a18120b78f8f6be5f13681f4f9b973729cff15",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "dc0eace7c5e3da7f037b00e808bcd889b46126ff64c006f38a911b24eadbe9ec"
+    },
+    "env_sha256": "7f1eec582893223bf742e348e6f2694150de0928ab2232c8d8ee0df9a4fb726a"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --test",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ TS-INV-01 content file untouched (67.450125ms)\n✔ TS-INV-02 deterministic (59.914459ms)\n✔ TS-INV-03 failed build writes nothing (30.386125ms)\n✔ TS-INV-04 escaping (32.062167ms)\n✔ TS-INV-05 no script (30.881959ms)\n✔ TS-INV-06 one h1 and title (30.412083ms)\n✔ TS-INV-07 url-less project is plain text (30.30225ms)\n✔ TS-INV-08 no projects (30.860167ms)\n✔ TS-ERR-CONTENT_MISSING (31.464042ms)\n✔ TS-ERR-CONTENT_UNPARSEABLE (32.237417ms)\n✔ TS-REQ-name-missing (32.238125ms)\n✔ TS-NOGO-01 no markdown (30.093167ms)\n✔ TS-NOGO-02 single page (31.020667ms)\n✔ TS-NOGO-03 exits on its own (29.95175ms)\nℹ tests 14\nℹ suites 0\nℹ pass 14\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 558.090833\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": []
+}

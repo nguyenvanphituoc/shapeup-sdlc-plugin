@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/orient",
+  "worker": "orient",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/one-page-site/orient/code-surface.md",
+    ".shapeup/one-page-site/orient/discovered-seed.md",
+    ".shapeup/one-page-site/orient/hill-signal.md",
+    ".shapeup/one-page-site/orient/spike-html-escape-and-determinism.md"
+  ],
+  "deviations": [
+    "Pitch is silent on absent optional fields (contact, tagline, about) and on non-array projects; see discovered-seed.md D-1..D-4."
+  ]
+}
