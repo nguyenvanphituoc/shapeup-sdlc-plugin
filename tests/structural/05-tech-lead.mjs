@@ -787,55 +787,55 @@ export async function run(ctx) {
 
 
   // =============================================================================
-  section("30. stats.mjs is a read-only, schema-valid projection over the metrics shards");
+  section("30. `probe stats --hooks` is a read-only reader of the hook decision ledger");
   // =============================================================================
+  // The metrics-shard aggregation this section used to pin — a schema-valid StatsReport with
+  // per-slug round counts, hammer-cut rates and a pathology histogram — retired with that aggregation:
+  // nothing called it, and the StatsReport definition went with it. What survives, and what is
+  // asserted here instead, is the one reader that does have callers: it counts a hook's evaluations
+  // by verdict, skips a torn row rather than dying on it, renders a table, never writes, and answers
+  // an absent ledger with a valid empty report rather than an error.
   {
-    const statsPath = join(ROOT, "kernel/probe/stats.mjs");
     const d = mkdtempSync(join(tmpdir(), "stats-"));
-    const mdir = join(d, ".shapeup/metrics");
-    mkdirSync(mdir, { recursive: true });
-    writeFileSync(join(mdir, "a.jsonl"), [
-      JSON.stringify({ schema_version: 1, feature_slug: "demo", terminal_state: "shipped", round_count: 2, scope_cut_count: 0, qa_findings: { total: 3, promoted: 1, held: 2 }, slice_count: 4, sources: [] }),
-      JSON.stringify({ schema_version: 1, at: "2026-07-10T00:00:00Z", feature_slug: "demo", terminal_state: "shipped", round_count: 3, scope_cut_count: 1, attempt_exhaustions: 1, qa_findings: { total: 2, promoted: 2, held: 0 }, slice_count: 4, sources: [] }),
-      JSON.stringify({ schema_version: 1, kind: "pathology", pathology: "PA3", slug: "demo" }),
+    const ledger = join(d, ".shapeup", "decisions.jsonl");
+    mkdirSync(join(d, ".shapeup"), { recursive: true });
+    writeFileSync(ledger, [
+      JSON.stringify({ hook: "sandbox-guard", verdict: "allow", rule: "no-round" }),
+      JSON.stringify({ hook: "sandbox-guard", verdict: "deny", rule: "outside-substrate" }),
+      JSON.stringify({ hook: "gate-zerowork", verdict: "block", rule: "no-receipt" }),
+      JSON.stringify({ hook: "gate-zerowork", verdict: "warn", rule: "over-unfinished-board" }),
       "not json at all",
-      "{}",
     ].join("\n") + "\n");
-    writeFileSync(join(mdir, "b.jsonl"), JSON.stringify({ schema_version: 1, feature_slug: "other", terminal_state: "escalated", round_count: 4, sources: [] }) + "\n");
 
-    const before = readdirSync(mdir).map((f) => `${f}:${statSync(join(mdir, f)).size}`).join(",");
-    const r = spawnSync("node", [...K("probe stats"), "--cwd", d], { encoding: "utf8" });
+    const before = readFileSync(ledger, "utf8");
+    const r = spawnSync("node", [...K("probe stats"), "--hooks", "--cwd", d], { encoding: "utf8" });
     let report = null;
-    try { report = JSON.parse(r.stdout); } catch { /* handled below */ }
-    if (r.status === 0 && report) ok("stats exits 0 and emits parseable JSON");
-    else fail(`stats failed: status=${r.status} ${r.stderr}`);
+    try { report = JSON.parse(r.stdout)?.hooks; } catch { /* handled below */ }
+    if (r.status === 0 && report) ok("probe stats --hooks exits 0 and emits parseable JSON");
+    else fail(`probe stats --hooks failed: status=${r.status} ${r.stderr}`);
 
-    const { validate: veValidateStats } = await import(join(ROOT, "kernel/verify/envelope.mjs"));
-    const repCheck = report ? veValidateStats(report, { $ref: "domain.schema.json#/$defs/StatsReport" }) : { valid: false, errors: ["no report"] };
-    if (repCheck.valid) ok("report validates against domain.schema.json#/$defs/StatsReport");
-    else fail(`report fails its own registry def: ${repCheck.errors.join("; ")}`);
+    const sg = report?.per_hook?.find((h) => h.hook === "sandbox-guard");
+    const gz = report?.per_hook?.find((h) => h.hook === "gate-zerowork");
+    if (report?.evaluations === 4 && report?.hooks === 2 && sg?.allow === 1 && sg?.deny === 1 && gz?.block === 1 && sg?.rules?.["outside-substrate"] === 1) {
+      ok("counts are right per hook (4 evaluations over 2 hooks; allow, deny, block and the rules that fired) and the torn row is skipped");
+    } else fail(`hook aggregate wrong: ${JSON.stringify(report)}`);
 
-    const demo = report?.per_slug?.find((s) => s.feature_slug === "demo");
-    if (demo?.runs === 2 && demo.rounds.avg === 2.5 && demo.hammer_cut_rate === 0.5 && demo.attempt_exhaustions === 1)
-      ok("aggregates are right (runs 2, rounds.avg 2.5, cut-rate 0.5, exhaustions 1)");
-    else fail(`demo aggregate wrong: ${JSON.stringify(demo)}`);
-    if (report?.rows_malformed === 2 && report?.rows_pathology === 1 && report?.pathologies?.PA3 === 1)
-      ok("malformed rows skipped+counted; pathology rows partitioned, not errors");
-    else fail(`row accounting wrong: malformed=${report?.rows_malformed} pathology=${report?.rows_pathology}`);
-
-    const rTable = spawnSync("node", [...K("probe stats"), "--cwd", d, "--format", "table"], { encoding: "utf8" });
-    if (rTable.status === 0 && rTable.stdout.includes("demo")) ok("--format table renders and names the slug");
+    const rTable = spawnSync("node", [...K("probe stats"), "--hooks", "--cwd", d, "--format", "table"], { encoding: "utf8" });
+    if (rTable.status === 0 && rTable.stdout.includes("sandbox-guard")) ok("--format table renders and names the hook");
     else fail(`table render failed: ${rTable.stderr}`);
 
-    const after = readdirSync(mdir).map((f) => `${f}:${statSync(join(mdir, f)).size}`).join(",");
-    if (before === after) ok("metrics dir is byte-identical after both runs (read-only proof)");
-    else fail(`stats WROTE to the metrics dir: before=${before} after=${after}`);
+    if (readFileSync(ledger, "utf8") === before) ok("the ledger is byte-identical after both runs (read-only proof)");
+    else fail("probe stats --hooks WROTE to the decision ledger");
+
+    const bare = spawnSync("node", [...K("probe stats"), "--cwd", d], { encoding: "utf8" });
+    if (bare.status === 2) ok("probe stats with no --hooks exits 2 — it reads one ledger and says so, rather than defaulting silently");
+    else fail(`probe stats with no --hooks exited ${bare.status}, expected 2`);
 
     const emptyDir = mkdtempSync(join(tmpdir(), "statsempty-"));
-    const rEmpty = spawnSync("node", [...K("probe stats"), "--cwd", emptyDir], { encoding: "utf8" });
+    const rEmpty = spawnSync("node", [...K("probe stats"), "--hooks", "--cwd", emptyDir], { encoding: "utf8" });
     let emptyReport = null;
-    try { emptyReport = JSON.parse(rEmpty.stdout); } catch { /* handled below */ }
-    if (rEmpty.status === 0 && emptyReport?.rows_total === 0) ok("missing metrics dir → valid empty report, exit 0");
+    try { emptyReport = JSON.parse(rEmpty.stdout)?.hooks; } catch { /* handled below */ }
+    if (rEmpty.status === 0 && emptyReport?.evaluations === 0) ok("an absent ledger yields a valid empty report, exit 0");
     else fail(`empty-dir case wrong: status=${rEmpty.status}`);
     rmSync(d, { recursive: true, force: true });
     rmSync(emptyDir, { recursive: true, force: true });

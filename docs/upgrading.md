@@ -56,8 +56,7 @@ language gate are now steps and sub-commands of `/ship`. `/hammer` and `/retro` 
 The metrics feed now lives at `.shapeup/metrics/<machine-id>.jsonl` — per-machine shards under
 the gitignored LOCAL root (ADR-0001: a committed shard keyed on a hostname only grows and puts a
 machine name in the repo). If you still carry a committed `shapeup/metrics.jsonl` or
-`shapeup/metrics/`, stop tracking it; new rows land under `.shapeup/metrics/` and `harness probe stats`
-reads them there.
+`shapeup/metrics/`, stop tracking it; new rows land under `.shapeup/metrics/`.
 
 ### The contract parsers were repaired; find what they now reject
 

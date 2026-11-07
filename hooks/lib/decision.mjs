@@ -31,8 +31,7 @@
 // all four become distinguishable facts in the decisions ledger.
 //
 // TIER: LOCAL, and checkout-wide rather than per-slug — hooks fire outside any run, so there is
-// frequently no `<slug>` to file under. Pure run-trace; the durable cross-machine record is the
-// committed metrics shard, which `stats --hooks` aggregates into.
+// frequently no `<slug>` to file under. Pure run-trace; `probe stats --hooks` is its reader.
 //
 // THE PATH IS RESOLVED, NEVER SPELLED. It comes from `lib/paths.mjs` — the same resolver
 // ``harness probe stats` --hooks` reads through. This file used to hardcode the pre-ADR-0001 root, so every

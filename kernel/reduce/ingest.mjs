@@ -858,7 +858,7 @@ export async function cli(rawArgv) {
     });
     if (!appendLeg(row, cwd)) {
       console.error(`  ! leg-completion row could not be written for ${row.order_id} — this leg will ` +
-                    `read as having no completion record (harness probe concurrency reports it as such).`);
+                    `read as having no completion record.`);
     }
   }
 

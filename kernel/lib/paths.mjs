@@ -142,7 +142,7 @@ export const intake = (cwd, slug) => join(localRoot(cwd, slug), "intake.md");
 export const breadboard = (cwd, slug) => join(localRoot(cwd, slug), "breadboard.md");
 /**
  * The launch record's filename, as a constant rather than a literal at each call site — the
- * writer (`harness init run-args`) and every reader (`probe concurrency`'s `dialFrom()`) resolve
+ * writer (`harness init run-args`) and every reader resolve
  * the same path through this constant, the same way {@link runIdFromRoot} resolves `RECEIPT_FILE`
  * against a bare run root rather than through {@link receipt}'s `(cwd, slug)` form: a caller that
  * already holds the run root (an archived trace, `--run-root <dir>`) has no slug to reconstruct.
@@ -344,7 +344,7 @@ export const safetyOverrides = (cwd) => join(localDir(cwd), "safety-overrides.js
  *
  * LOCAL since ADR-0001. Committed, they put `process.env.HOSTNAME` — a person's laptop name —
  * into the repository, and append-only JSONL in git only grows. The cost, stated plainly: with
- * these local, ``harness probe stats`` becomes a personal tool and "is the KB flywheel working across the
+ * these local, the shards are a personal record, and "is the KB flywheel working across the
  * team?" is no longer answerable from the repo.
  */
 export const metricsDir = (cwd) => join(localDir(cwd), "metrics");

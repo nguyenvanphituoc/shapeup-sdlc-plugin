@@ -1297,7 +1297,7 @@
       "x-tier": "LOCAL",
       "x-location": ".shapeup/<slug>/t0/trials.jsonl",
       "x-writer": "harness verify t0 (append-only)",
-      "x-readers": "harness compile (payload.trial_history — the paper's inspect()), harness probe stats --ratchet (improvement_rate, monotone_rate, sawtooth_count)",
+      "x-readers": "harness compile (payload.trial_history — the paper's inspect()), harness reduce ship (the ratchet block of the ship report: improvement_rate, monotone_rate, sawtooth_count)",
       "type": "object",
       "properties": {
         "schema_version": {
@@ -1499,7 +1499,7 @@
       "x-tier": "LOCAL",
       "x-location": ".shapeup/<slug>/evaluation/.verdicts-<target>.jsonl",
       "x-writer": "harness reduce ingest (from Verdict.criteria[])",
-      "x-readers": "spec-evaluator (read-only flip detection), harness reduce verdict",
+      "x-readers": "spec-evaluator (read-only flip detection)",
       "type": "object",
       "properties": {
         "run": {
@@ -1564,7 +1564,7 @@
       "x-tier": "LOCAL",
       "x-location": ".shapeup/metrics/<machine-id>.jsonl",
       "x-writer": "tech-lead (SHIP S.6)",
-      "x-readers": "harness probe stats (read-only projection), harness report export (the run dimension)",
+      "x-readers": "harness report export (the run dimension)",
       "type": "object",
       "properties": {
         "schema_version": {
@@ -1575,7 +1575,7 @@
         },
         "at": {
           "type": "string",
-          "description": "OPTIONAL (v1.2) — ISO harvest timestamp; enables real trend-over-time in harness probe stats. Older rows lack it and fall back to shard append order."
+          "description": "OPTIONAL (v1.2) — ISO harvest timestamp; enables a trend over time. Older rows lack it and fall back to shard append order."
         },
         "run_id": {
           "type": "string",
@@ -1608,7 +1608,7 @@
         },
         "attempt_exhaustions": {
           "type": "integer",
-          "description": "OPTIONAL (v1.2) — scopes whose inner attempt_budget tripped this run, COPIED at SHIP S.6 from the queued GATE H hammer proposals (a fact registered at the source; harness probe stats must never re-derive it)."
+          "description": "OPTIONAL (v1.2) — scopes whose inner attempt_budget tripped this run, COPIED at SHIP S.6 from the queued GATE H hammer proposals (a fact registered at the source; no reader may re-derive it)."
         },
         "qa_findings": {
           "type": "object",
@@ -1630,7 +1630,7 @@
         },
         "ratchet": {
           "type": "object",
-          "description": "OPTIONAL (v1.5) — the DAY-1 exit measurement, COPIED from `harness probe stats --ratchet` over this run's t0/trials.jsonl before the LOCAL trace is wiped. This is the only place the ratchet numbers survive the run, and the only reason they can be compared across machines: `.shapeup/` is gitignored, so a measurement left there answers the question exactly once and then deletes itself. Facts only — every field is a count or a ratio over recorded trial rows, never a grade.",
+          "description": "OPTIONAL (v1.5) — the DAY-1 exit measurement, COPIED from the ratchet report over this run's t0/trials.jsonl before the LOCAL trace is wiped. This is the only place the ratchet numbers survive the run, and the only reason they can be compared across machines: `.shapeup/` is gitignored, so a measurement left there answers the question exactly once and then deletes itself. Facts only — every field is a count or a ratio over recorded trial rows, never a grade.",
           "properties": {
             "trials": {
               "type": "integer"
@@ -1857,154 +1857,6 @@
         "rehydrate_hint": {
           "type": "string",
           "description": "The composed one-paragraph instruction for resuming after a context loss: re-read run-state, trust the files, not the summary."
-        }
-      }
-    },
-    "StatsReport": {
-      "description": "The telemetry read-plane's output — an aggregate projection over the MetricsRow shards. Aggregates COPIED facts only (counts, rates, trends over already-recorded fields); it never grades, so it can never become a second judge. Malformed rows are skipped fail-open and counted; pathology rows (sandbox-guard/safety-spine denials share the shards) are partitioned, not errors.",
-      "x-tier": "EMBEDDED (ephemeral projection — printed to stdout, never persisted; the metrics JSONL stays the only source of truth)",
-      "x-writer": "harness probe stats (read-only over metrics/ — writes nothing)",
-      "x-readers": "human / CLI / CI",
-      "type": "object",
-      "required": [
-        "schema_version",
-        "generated_at",
-        "rows_total",
-        "per_slug"
-      ],
-      "properties": {
-        "schema_version": {
-          "type": "integer",
-          "enum": [
-            1
-          ]
-        },
-        "generated_at": {
-          "type": "string"
-        },
-        "metrics_dir": {
-          "type": "string"
-        },
-        "sources": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Shard filenames read."
-        },
-        "rows_total": {
-          "type": "integer",
-          "description": "Valid harvest rows aggregated."
-        },
-        "rows_malformed": {
-          "type": "integer",
-          "description": "Lines skipped fail-open (unparseable, or missing feature_slug/terminal_state)."
-        },
-        "rows_pathology": {
-          "type": "integer",
-          "description": "kind:\"pathology\" rows (hook denials) — partitioned into the histogram, not aggregated as runs."
-        },
-        "pathologies": {
-          "type": "object",
-          "description": "Histogram keyed by pathology code, e.g. {\"PA3\": 2, \"SAFETY\": 1}."
-        },
-        "per_slug": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": [
-              "feature_slug",
-              "runs"
-            ],
-            "properties": {
-              "feature_slug": {
-                "type": "string"
-              },
-              "runs": {
-                "type": "integer"
-              },
-              "rounds": {
-                "type": "object",
-                "properties": {
-                  "min": {
-                    "type": "integer"
-                  },
-                  "max": {
-                    "type": "integer"
-                  },
-                  "avg": {
-                    "type": "number"
-                  }
-                }
-              },
-              "terminal_states": {
-                "type": "object",
-                "description": "Histogram of terminal_state values."
-              },
-              "hammer_cut_rate": {
-                "type": "number",
-                "description": "Share of runs with scope_cut_count > 0."
-              },
-              "scope_cuts_total": {
-                "type": "integer"
-              },
-              "attempt_exhaustions": {
-                "type": "integer",
-                "description": "Summed only where the optional MetricsRow field exists — never re-derived."
-              },
-              "qa": {
-                "type": "object",
-                "properties": {
-                  "total": {
-                    "type": "integer"
-                  },
-                  "promoted": {
-                    "type": "integer"
-                  },
-                  "held": {
-                    "type": "integer"
-                  },
-                  "promotion_rate": {
-                    "type": "number"
-                  }
-                }
-              },
-              "surprise_avg": {
-                "type": "number"
-              },
-              "rounds_per_slice_avg": {
-                "type": "number",
-                "description": "round_count/slice_count averaged over rows where slice_count > 0 — the normalized effort signal."
-              }
-            }
-          }
-        },
-        "trend": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": [
-              "feature_slug",
-              "seq",
-              "round_count"
-            ],
-            "properties": {
-              "feature_slug": {
-                "type": "string"
-              },
-              "seq": {
-                "type": "integer",
-                "description": "Append order within the shard — the fallback ordering for rows without `at`."
-              },
-              "at": {
-                "type": "string"
-              },
-              "round_count": {
-                "type": "integer"
-              }
-            }
-          },
-          "description": "round_count over time — the 'is the KB flywheel working' chart."
         }
       }
     },

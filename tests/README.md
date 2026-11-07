@@ -25,8 +25,7 @@ order and the docs module (`08-docs.mjs`) is last so the floor sees every check:
 | `structural/04-oracles.mjs` | §6, 8, 9, 10, 11, 13 oracle registry + discriminating fixtures |
 | `structural/05-tech-lead.mjs` | §18–22, 24, 30, 31, 67 orchestrator-owned scripts, domain registry, spine, launch-record parity |
 | `structural/06-ba-pitch-analyzer.mjs` | §23 board-derive + spec-lint (the planner it once guarded now lives in the loop's plan resources) |
-| `structural/07-spec-evaluator.mjs` | §15 verdict-ledger |
-| `structural/23-concurrency.mjs` | §63, 64, 68 the leg-completion record, the instrument over it, and whether a scope's work reached the board |
+| `structural/23-concurrency.mjs` | §63, 68 the leg-completion record and whether a scope's work reached the board (§64, the instrument over the record, retired with it) |
 | `structural/24-parallel-isolation.mjs` | §65, 66 what survives scopes building at the same time — half of it RACES, because an uncontended lock and a working one look identical |
 | `structural/25-scheduler.mjs` | §69 BUILD's fan-out, executed against fixtures on a virtual clock |
 | `structural/56-hook-decision-table.mjs` | §90 every enforcement decision as DATA — host answer AND ledger record |
@@ -69,10 +68,7 @@ The numbered sections below are the checks themselves, in section order:
    `existsSync` — zero checks, printed as a passing line, for several releases. Kept as a guard
    rather than deleted: an unregistered hook file returning would enforce nothing, and the trade
    the retirement made is only honoured while those facts are still in the block.
-15. **Verdict-ledger calibration (Stage D1):** `kernel/reduce/verdict.mjs` flags a PASS→FAIL flip
-   across runs, forces that criterion's confidence to `low`, leaves stable criteria untouched, and
-   exits non-zero on a flipping ledger / zero on a stable one. Proves the judge-calibration grammar
-   (`spec-evaluator/references/verdict-ledger.md`) discriminates an unstable judge from a stable one.
+15. *(retired)* Verdict-ledger calibration (Stage D1) drove `kernel/reduce/verdict.mjs`, a module with no caller, and went with it.
 17–24. Pure-skill architecture mechanics (v0.3–v1.1): sandbox-guard substrate enforcement,
    t0-verify verdict artifacts, aegis-digest triples, envelope schema discrimination,
    compile-order fact-only assembly, ingest-result single-writer behavior, board-derive +
@@ -97,10 +93,9 @@ The numbered sections below are the checks themselves, in section order:
    pending-orders from files alone and the result validates against `RunSnapshot`; the PreCompact
    hook persists it mid-run and never blocks; the SessionStart(compact) hook injects the
    rehydrate hint as `additionalContext` and stays silent with no active run.
-30. **Telemetry read-plane (v1.2):** `harness probe stats` emits a schema-valid `StatsReport`, aggregates
-   correctly, skips-and-counts malformed rows, partitions pathology rows, renders `--format
-   table`, leaves the metrics dir byte-identical (read-only proof), and returns a valid empty
-   report on a missing dir.
+30. **Hook-ledger reader:** `harness probe stats --hooks` counts a hook's evaluations by verdict, skips a torn row, renders `--format
+   table`, leaves the ledger byte-identical (read-only proof), and returns a valid empty report on a missing ledger. (The
+   metrics-shard aggregation and its `StatsReport` that this item once covered are retired.)
 56. **The installed project (`structural/22-consumer-install.mjs`):** §43 proves the grant matches
    the shipped call sites and that `bin/init.mjs` writes it; this runs the real installer into a
    temp project and asserts what the *user* is left holding. The allow-list is exactly what

@@ -28,14 +28,12 @@
 //                                             per round before EVAL — T0 is per scope and proves
 //                                             nothing about whether the whole compiles or starts.
 //   reduce   ingest · hill · snapshot ·       Single writer. Shared state has exactly one author.
-//            ship · board · verdict · graph
+//            ship · board · graph
 //   gate                                      An answer file with a source, not a vibe.
-//   probe    resume · t0 · stats · digest ·   Read-only queries over run state. `concurrency`
-//            concurrency · leg · eval ·        answers how many legs ran at once and what the
-//            owner · requirements · attempts ·
+//   probe    resume · t0 · stats · digest ·   Read-only queries over run state. `stats --hooks`
+//            leg · eval · owner ·              reads the hook decision ledger: per hook, how often
+//            requirements · attempts ·         it fired and what it decided.
 //            hunt · next
-//                                              fan-out bought, and refuses a figure the record set
-//                                              cannot support rather than printing a plausible one.
 //                                              `leg` answers whether a scope's work reached the
 //                                              board — a green T0 says its fixtures passed, not that
 //                                              its result was ever applied, and a leg that skipped
@@ -89,12 +87,11 @@ export const ROUTES = {
   },
   reduce: {
     ingest: "./reduce/ingest.mjs", hill: "./reduce/hill.mjs", snapshot: "./reduce/snapshot.mjs",
-    ship: "./reduce/ship.mjs", board: "./reduce/board.mjs", verdict: "./reduce/verdict.mjs",
-    graph: "./reduce/graph.mjs",
+    ship: "./reduce/ship.mjs", board: "./reduce/board.mjs", graph: "./reduce/graph.mjs",
   },
   probe: {
     resume: "./probe/resume.mjs", t0: "./probe/t0.mjs", stats: "./probe/stats.mjs",
-    digest: "./probe/digest.mjs", concurrency: "./probe/concurrency.mjs",
+    digest: "./probe/digest.mjs",
     leg: "./probe/leg.mjs", eval: "./probe/eval.mjs", owner: "./probe/owner.mjs",
     requirements: "./probe/requirements.mjs", attempts: "./probe/attempts.mjs", hunt: "./probe/hunt.mjs",
     next: "./probe/next.mjs",

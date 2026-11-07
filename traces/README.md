@@ -14,13 +14,13 @@ at a point in time, so a path they name is *supposed* to stop existing.
 **These are records, not documentation.** Nothing here is maintained. A trace is never edited to stay
 current; if it stops matching the repo, that is the trace doing its job.
 
-**One exception, and it is derived rather than authored.** `CONCURRENCY-BASELINE.json` is the output
-of `harness probe concurrency` over each trace above, frozen so a later fan-out has something to be
-compared against. It is not maintained by hand either: the structural suite re-derives it from these
-same traces and fails on any difference, so it is a checked projection of the archive rather than a
-second copy of it. Its `d3` block is deliberately empty — no archived run was executed sequentially,
-so there is nothing here for a parallel build to be measured against, and the record says that
-instead of carrying a number.
+**No derived artifact lives here any more.** This folder used to carry one: a frozen
+`CONCURRENCY-BASELINE.json`, the output of `harness probe concurrency` over each trace, which the
+structural suite re-derived and failed on any difference. The probe that produced it is deleted, so
+the artifact is retired with it rather than left as a projection nothing can verify — a stale
+baseline that still reads as measured is worse than none. Its `d3` slot was empty by design (no
+archived run was executed sequentially), so no comparison number is lost. A later fan-out measurement
+starts from the archived `legs.jsonl` and `receipts/dispatch.jsonl` of these traces, which stay.
 
 **They do not ship.** `package.json`'s `files` allowlist governs what users receive, and `traces/` is
 not in it.

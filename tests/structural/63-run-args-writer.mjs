@@ -1,9 +1,9 @@
 // 63 — HD-020 (and HD-010's executed half): `run-args.json` HAS A KERNEL WRITER, EXECUTED.
 //
 // THE DEFECT THIS CLOSES. `domain.schema.json` called `.shapeup/<slug>/run-args.json` "the only
-// artifact that records what a run was configured with", and `kernel/probe/concurrency.mjs`'s
-// `dialFrom()` read it for the fan-out dial while its own comment admitted "it is absent from every
-// run recorded so far". Outside a test fixture, nothing wrote it — the file was produced by prose
+// artifact that records what a run was configured with", and a concurrency
+// probe (since removed) read it for the fan-out dial while its own comment admitted "it is absent from
+// every run recorded so far". Outside a test fixture, nothing wrote it — the file was produced by prose
 // telling a session to `Write` a JSON object it assembled by hand, with no kernel writer and no
 // guard. This module executes the shipped CLI end to end: opens a real run, writes the launch
 // record through `harness init run-args`, and reads it back through the shipped reader — never
@@ -14,9 +14,8 @@
 // of RunArgs and of anything this module writes — proving the exemption is a working alternate
 // path, not just a documented excuse.
 
-// §99 is HD-020's positive enforcer: a run with no launch record cannot proceed unremarked, because
-// `probe concurrency --require-run-args` — the check `shapeup-run.js` calls at Preflight, before
-// ORIENT — reds on a real run root that genuinely has none. §100 is the sibling defect one level
+// §99 (HD-020's positive enforcer, a presence check on the launch record) is retired with the
+// concurrency probe that carried it — see the note where it sat. §100 is the sibling defect one level
 // down: `kernel/init/run-args.mjs`'s `autoLevel` enum is DERIVED from `domain.schema.json`, not
 // hand-typed beside it — proven the same way Stage 5's own decisive test proves §96's fields are
 // derived, by mutating the SOURCE and watching the result change with no line here touched.
@@ -110,10 +109,9 @@ export async function run(ctx) {
   }
 
   // =============================================================================
-  section("98. `run-args.json` has a kernel writer, executed, and the reader agrees with what it emits");
+  section("98. `run-args.json` has a kernel writer, executed");
   // =============================================================================
   {
-    const concurrency = await import(join(ROOT, "kernel/probe/concurrency.mjs"));
     const ws = mkdtempSync(join(tmpdir(), "hd020-runargs-"));
     try {
       // (a) Refusing to write with no run open — the file is meaningless without a receipt behind it.
@@ -171,15 +169,10 @@ export async function run(ctx) {
         fail("the writer emitted budgets.wallClockS — HD-010 chose removal and the writer was not updated to match");
       }
 
-      // (e) THE READER, EXECUTED: probe concurrency's dialFrom() against the run root this call
-      // actually wrote into — never a hand-typed fixture standing in for it.
+      // (e) retired with the concurrency probe: it executed that probe's `dialFrom()` against the
+      // run root this call wrote and asserted it read `maxParallelScopes=2` off the file. The reader
+      // is deleted; the writer's own output (stdout against file, above) is what remains to assert.
       const runRoot = join(ws, ".shapeup/fanout");
-      const dial = concurrency.dialFrom(runRoot);
-      if (dial.max_parallel_scopes === 2 && dial.source === "run-args") {
-        ok("probe concurrency's dialFrom() reads maxParallelScopes=2 straight off the file this writer just produced");
-      } else {
-        fail(`dialFrom() disagreed with the writer: expected {max_parallel_scopes:2, source:"run-args"}, got ${JSON.stringify(dial)}`);
-      }
 
       // (f) The absence case: no --parallel-scopes declared, the reader must say so rather than
       // asserting an operator choice nobody made.
@@ -194,77 +187,20 @@ export async function run(ctx) {
         } else {
           fail(`expected maxParallelScopes omitted when --parallel-scopes was not passed, got ${noDialObj.maxParallelScopes}`);
         }
-        const dialDefault = concurrency.dialFrom(runRoot);
-        if (dialDefault.max_parallel_scopes === 4 && dialDefault.source === "default (run-args.json declares none)") {
-          ok("dialFrom() falls back to the documented default and says so, over a run-args.json that declares no dial");
-        } else {
-          fail(`expected the "declares none" default, got ${JSON.stringify(dialDefault)}`);
-        }
+        // The "falls back to the documented default and says so" assertion that sat here read the
+        // same deleted `dialFrom()` and is retired with it.
       }
     } finally {
       rmSync(ws, { recursive: true, force: true });
     }
   }
 
-  // =============================================================================
-  section("99. HD-020's positive enforcer — a run with no launch record cannot proceed unremarked, executed");
-  // =============================================================================
-  {
-    // (a) STATIC — the enforcer is actually wired into the workflow, not just available as a kernel
-    // flag nobody calls. `shapeup-run.js` cannot be executed by this suite (its own header: no
-    // import seam — it runs only on the Workflow runtime), so this is the same kind of source
-    // assertion §96 already makes for wallClockS's non-regression.
-    const workflowSrc = read(join(ROOT, "skills/tech-lead/workflows/shapeup-run.js"));
-    if (/--require-run-args/.test(workflowSrc) && /requireLaunchRecord/.test(workflowSrc)) {
-      ok("shapeup-run.js calls probe concurrency --require-run-args (via requireLaunchRecord()) — the enforcer is wired into Preflight, not merely available");
-    } else {
-      fail("shapeup-run.js no longer calls --require-run-args — HD-020's enforcer exists in the kernel but nothing dispatches it, which is the exact prose-only defect this stage closed");
-    }
-    // It must run BEFORE Orient, not after — an enforcer checked once work is already underway is a
-    // diagnostic, not a gate.
-    const preflightIdx = workflowSrc.indexOf('phase("Preflight")');
-    // The CALL, not the declaration: "await requireLaunchRecord()" appears only at the call site —
-    // the function's own `async function requireLaunchRecord() {` line has no `await` before it.
-    const requireIdx = workflowSrc.indexOf("await requireLaunchRecord()");
-    const orientIdx = workflowSrc.indexOf('phase("Orient")');
-    if (preflightIdx !== -1 && requireIdx !== -1 && orientIdx !== -1 && preflightIdx < requireIdx && requireIdx < orientIdx) {
-      ok("requireLaunchRecord() is called inside Preflight, before phase(\"Orient\") — the record is required before any real work dispatches");
-    } else {
-      fail(`requireLaunchRecord()'s call site is not positioned between Preflight and Orient (preflight=${preflightIdx}, call=${requireIdx}, orient=${orientIdx})`);
-    }
-
-    // (b) EXECUTED — the kernel side of the enforcer, against a real run root with genuinely no
-    // launch record, then a real one after harness init run-args writes it.
-    const ws = mkdtempSync(join(tmpdir(), "hd020-enforcer-"));
-    try {
-      const opened = kernel(ROOT, ws, "init", "run", "--slug", "unrecorded",
-        "--intake-text", "prove a run with no launch record is caught", "--auto-level", "unattended", "--cwd", ws);
-      if (opened.status !== 0) {
-        fail(`init run did not open a run: exit ${opened.status} ${opened.stderr.slice(0, 200)}`);
-      } else {
-        const before = kernel(ROOT, ws, "probe", "concurrency", "--slug", "unrecorded", "--require-run-args", "--cwd", ws);
-        if (before.status === 6 && /"ok":false/.test(before.stdout)) {
-          ok("probe concurrency --require-run-args exits 6 (ok:false) on a real run root with no run-args.json — the exact state HD-020 named");
-        } else {
-          fail(`expected exit 6 / ok:false with no launch record, got exit ${before.status}\n${before.stdout}${before.stderr}`);
-        }
-
-        const wrote = kernel(ROOT, ws, "init", "run-args", "--slug", "unrecorded", ...RUN_ARGS_BASE, "--plugin-root", ROOT, "--cwd", ws);
-        if (wrote.status !== 0) {
-          fail(`init run-args did not write the record: exit ${wrote.status}\n${wrote.stderr}`);
-        } else {
-          const after = kernel(ROOT, ws, "probe", "concurrency", "--slug", "unrecorded", "--require-run-args", "--cwd", ws);
-          if (after.status === 0 && /"ok":true/.test(after.stdout)) {
-            ok("probe concurrency --require-run-args exits 0 (ok:true) once harness init run-args has written the record — the same run root, the same check, the opposite answer");
-          } else {
-            fail(`expected exit 0 / ok:true once the record was written, got exit ${after.status}\n${after.stdout}${after.stderr}`);
-          }
-        }
-      }
-    } finally {
-      rmSync(ws, { recursive: true, force: true });
-    }
-  }
+  // Section 99 retired with the concurrency probe. It asserted that a run with no launch record is
+  // caught: the legacy workflow script called `probe concurrency --require-run-args` at Preflight, and
+  // the section executed that flag (exit 6 on a run root with no `run-args.json`, exit 0 once the
+  // writer had produced one). The flag belonged to the deleted probe and the Preflight call to the
+  // script, so both halves of the enforcer are gone; the loop that replaces the script records the
+  // operator's switches through `init run-args` and reads them back itself.
 
   // =============================================================================
   section("100. `autoLevel` is derived from the schema inside run-args.mjs, not hand-typed beside it — proven by growth");

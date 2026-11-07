@@ -228,16 +228,15 @@ erDiagram
 
 | Entity | Tier | Location | Sole writer | Readers |
 |---|---|---|---|---|
-| `VerdictLedgerLine` | LOCAL | `evaluation/.verdicts-<target>.jsonl` | harness reduce ingest | spec-evaluator (flip detection), harness reduce verdict |
-| `MetricsRow` | SHARED | `metrics/<machine-id>.jsonl` | tech-lead (SHIP S.6) | harness probe stats (v1.2: optional `at` + `attempt_exhaustions` fields) |
+| `VerdictLedgerLine` | LOCAL | `evaluation/.verdicts-<target>.jsonl` | harness reduce ingest | spec-evaluator (flip detection) |
+| `MetricsRow` | SHARED | `metrics/<machine-id>.jsonl` | tech-lead (SHIP S.6) | harness report export |
 | `ActiveScopePointer` | LOCAL | `.shapeup/active-scope` | harness init run (GATE L0) — write-once per run, not writable by any worker | harness report export, harness reduce snapshot, harness verify budget. **No hook reads it**: the advisory hooks that once did were retired with the hook diet, and `sandbox-guard` never read it |
 | `ActiveOrderPointer` | LOCAL | `.shapeup/active-order` | harness compile (published as it writes each order); retired by harness reduce ship and harness init run --force | sandbox-guard hook. It names the RUN and nothing more: the guard enforces the substrate of *every* live order for that run — compiled, with no result at least as new as the order's own `compiled_at` — because with scopes building concurrently the writer may not be the order the pointer happens to name, and because an order the pointer named is not thereby still executing |
 | `WorkflowScriptStage` | LOCAL | `.shapeup/workflows/*.js` | harness init run (re-copied on every open, including `--force`) | the Workflow tool, as the launch's `scriptPath`. A copy because the tool loads a script only from a directory the session may already read, and the plugin is installed outside the project |
 | `DispatchReceipt` | LOCAL | `<slug>/receipts/dispatch.jsonl` | dispatch-receipt hook (PostToolUse, append-only) — a sub-agent cannot write its own attestation | harness reduce ingest (refuses an orchestrated result with no matching receipt), harness probe concurrency (a leg's start) |
-| `LegRow` | LOCAL | `<slug>/legs.jsonl` | harness reduce ingest (append-only, one row per closed leg) | harness probe concurrency (a leg's end), harness probe leg (whether a scope's result reached the board) |
+| `LegRow` | LOCAL | `<slug>/legs.jsonl` | harness reduce ingest (append-only, one row per closed leg) | harness probe leg (whether a scope's result reached the board) |
 | `SafetyOverrides` (v1.2) | LOCAL | `.shapeup/safety-overrides.json` | **human PO only** — outside the run-trace carve-out, so no worker can write it | safety-spine hook |
 | `RunSnapshot` (v1.2) | LOCAL | `<slug>/run-snapshot.json` | harness reduce snapshot `--write` (never a worker) | tech-lead, human |
-| `StatsReport` (v1.2) | EMBEDDED | stdout only — never persisted | harness probe stats (read-only projection) | human / CLI / CI |
 | `RequirementClause` (spine v1.3) | SHARED | `<slug>/requirements.md` | the plan activity's requirements substep (extraction only; a `CUT` is a PO governance edit) | harness verify trace (covers-closure), tech-lead, human |
 | `WiringMap` (spine v1.3) | SHARED | `<slug>/wiring-map.md` | the plan activity's wire substep (SOLE writer, direct — like `scopes/*.md`); `entries[]` are `WiringEntry` | harness verify trace (reachability), the scopes substep (seam), tech-lead |
 | `ProjectProfile` (spine v1.3) | SHARED | `<slug>/project-profile.md` | tech-lead (GATE L0 — not harness compile, which stays pipeline-blind) | harness verify trace (`entry_point`, `source_extensions`), harness verify build (`build_probe` + `launch_probe`), the plan activity (wire), tech-lead |
@@ -252,7 +251,6 @@ sole SHARED-state writer.
 
 ```mermaid
 erDiagram
-    MetricsRow ||--o{ StatsReport : "aggregated by harness probe stats (read-only)"
     HarnessRun ||--o| RunSnapshot : "derived from files by harness reduce snapshot"
     T0Artifact ||--o| RunSnapshot : "round/attempt from latest verdict filename"
     SafetyOverrides ||--o| MetricsRow : "exercised override → SAFETY-OVERRIDE pathology row"

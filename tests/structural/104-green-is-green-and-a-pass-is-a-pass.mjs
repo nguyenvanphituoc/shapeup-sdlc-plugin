@@ -19,7 +19,7 @@ import { spawnSync } from "node:child_process";
  */
 export async function run(ctx) {
   const { ROOT, ok, fail, section } = ctx;
-  const { ratchetReport } = await import(join(ROOT, "kernel/probe/stats.mjs"));
+  const { ratchetReport } = await import(join(ROOT, "kernel/lib/ratchet.mjs"));
   const { buildReport } = await import(join(ROOT, "kernel/reduce/ship.mjs"));
   const { gateNote } = await import(join(ROOT, "kernel/gate.mjs"));
 

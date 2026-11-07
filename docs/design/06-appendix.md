@@ -13,10 +13,10 @@ kernel/harness.mjs       the deterministic half behind ONE entry point (and ther
                           compile — the envelope port's order compiler
                           verify  — t0 · spec · envelope · dispatch · skills · budget ·
                                     build · trace
-                          reduce  — ingest (the single writer) · board · verdict · hill ·
+                          reduce  — ingest (the single writer) · board · hill ·
                                     graph · snapshot · ship
-                          probe   — resume · t0 · stats · digest · concurrency · leg ·
-                                    eval · owner · requirements · attempts · hunt
+                          probe   — resume · t0 · stats (--hooks) · digest · leg · eval ·
+                                    owner · requirements · attempts · hunt · next
                           report  — export (read-only fact tables keyed by run id)
                           init    — run · fit · run-args
                           gate    — the gate answer set

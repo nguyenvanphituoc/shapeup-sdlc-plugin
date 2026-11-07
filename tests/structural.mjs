@@ -41,7 +41,9 @@ const MODULE_FILES = [
   "04-oracles.mjs",
   "05-tech-lead.mjs",
   "06-ba-pitch-analyzer.mjs",
-  "07-spec-evaluator.mjs",
+  // 07-spec-evaluator.mjs retired with `kernel/reduce/verdict.mjs`: its only sections drove that
+  // module's flip/confidence functions and CLI and held it to JSDoc coverage. The module had no
+  // caller in the skills, hooks, commands or kernel, so deleting it leaves no behaviour to retarget.
   "10-run-receipt.mjs",
   "11-is-main.mjs",
   "13-argv-contract.mjs",
@@ -126,10 +128,9 @@ const MODULE_FILES = [
   // `intakeContent` parameter, nor `lint()`'s wiring of `intake(cwd, slug)` into it, at all.
   "32-spec-invariant-floor.mjs",
   // 33-probe-hygiene.mjs: verification hygiene on the measuring tools themselves (Phase 3.5 / S8) —
-  // the concurrency probe's leg-matching against a mechanical non-leg dispatch, and `resolveRunId`'s
-  // no-slug resolution against two run directories on disk at once. Its own module because no
-  // existing test drives `probe concurrency`'s `report()` over a fixture mixing build-leg and
-  // non-leg rows, nor `resolveRunId(cwd, null)` with more than one run directory present.
+  // `resolveRunId`'s no-slug resolution against two run directories on disk at once (its other
+  // claim, the concurrency probe's leg-matching, retired with that probe). Its own module because no
+  // existing test drives `resolveRunId(cwd, null)` with more than one run directory present.
   "33-probe-hygiene.mjs",
   // 34-scope-anchor.mjs: the scope contract anchors into the COMMITTED spec (use_cases) rather than
   // naming LOCAL task ids, and declares its own build order. Its own module because no existing test
@@ -213,9 +214,9 @@ const MODULE_FILES = [
   // from a hand-kept list, so a flag added to one tier and not the others reds on its own.
   "62-run-args-surface.mjs",
   // 63-run-args-writer.mjs: HD-020, and HD-010's executed half. `run-args.json` gets a kernel
-  // writer (`harness init run-args`), executed end to end against a real run root, with
-  // `probe concurrency`'s dialFrom() read back against exactly what that writer emitted — plus the
-  // deadline breaker proven to trip off the receipt alone, independent of RunArgs entirely.
+  // writer (`harness init run-args`), executed end to end against a real run root, and the
+  // deadline breaker proven to trip off the receipt alone, independent of RunArgs entirely. (The
+  // reader and the Preflight presence check it once covered went with the concurrency probe.)
   "63-run-args-writer.mjs",
   // 64-shipped-set-hygiene.mjs: the acceptance-review guard for this same stage's own two
   // violations (an internal defect id and a tests/ citation, both landed inside shipped files
