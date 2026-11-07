@@ -1,0 +1,49 @@
+// MODEL FLOOR AND LAUNCH-RECORD CHECK — what a run may be launched with, decided in code.
+//
+// The model floor is a denylist of cheap tiers refused for the roles that write code and grade it
+// (`exec`, `eval`). It is a denylist on purpose, and fails open: an id this list has never heard of
+// is allowed, because refusing an unknown future model would stop a run for a reason nobody can
+// act on. `qa` is not checked — a hunt discovers and never decides.
+//
+// WHY THE KERNEL OWNS IT. A rule that only a launch script applied was a rule a different launch
+// path never met. Here it is one function, read by whoever opens the run and by the loop that
+// drives it, so the two cannot disagree about what is below the floor.
+
+const BELOW_FLOOR = [/ha[i1]ku/i, /\binstant\b/i, /\bmini\b/i, /\bnano\b/i, /\blite\b/i, /\bsmall\b/i];
+
+/**
+ * Whether a model id names a tier below the floor.
+ * @param {*} m - A model id or alias.
+ * @returns {boolean} True for an empty value or a denylisted tier.
+ */
+export function belowFloor(m) {
+  const s = String(m ?? "").trim();
+  return s === "" || BELOW_FLOOR.some((re) => re.test(s));
+}
+
+/** The auto levels a launch may name. */
+export const AUTO_LEVELS = ["interactive", "auto", "unattended"];
+
+/**
+ * Everything wrong with a launch record, as sentences. Empty means launchable.
+ *
+ * @param {object} a - The parsed launch record (`run-args.json`).
+ * @returns {string[]} Problems, empty when the record may run.
+ */
+export function launchProblems(a) {
+  const problems = [];
+  for (const k of ["slug", "autoLevel", "models", "budgets"]) {
+    if (!a || a[k] === undefined || a[k] === null || a[k] === "") problems.push(`launch record is missing "${k}"`);
+  }
+  if (a?.autoLevel && !AUTO_LEVELS.includes(a.autoLevel)) problems.push(`autoLevel must be one of ${AUTO_LEVELS.join(" | ")}`);
+  if (a?.budgets && !(a.budgets.maxRounds && a.budgets.attemptBudget)) {
+    problems.push("budgets must carry maxRounds and attemptBudget");
+  }
+  if (a?.models) {
+    for (const role of ["exec", "eval"]) {
+      if (role === "eval" && a.noEval) continue;
+      if (belowFloor(a.models[role])) problems.push(`models.${role} is below the model floor (sonnet or above)`);
+    }
+  }
+  return problems;
+}

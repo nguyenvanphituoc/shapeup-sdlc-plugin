@@ -94,6 +94,7 @@ export const ROUTES = {
     digest: "./probe/digest.mjs", concurrency: "./probe/concurrency.mjs",
     leg: "./probe/leg.mjs", eval: "./probe/eval.mjs", owner: "./probe/owner.mjs",
     requirements: "./probe/requirements.mjs", attempts: "./probe/attempts.mjs", hunt: "./probe/hunt.mjs",
+    next: "./probe/next.mjs",
   },
   init: { run: "./init/run.mjs", fit: "./init/fit.mjs", "run-args": "./init/run-args.mjs" },
   report: { export: "./report/export.mjs", _default: "export" },

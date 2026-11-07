@@ -493,6 +493,9 @@ const MODULE_FILES = [
   // reading as "carried to ledger", and the L0 profile check costing a full planning pass before
   // WIRE says it is missing.
   "121-relaunch-marks-and-qa-applies.mjs",
+  // 122-probe-next.mjs: the run's state machine as a kernel verb, one planted tree per branch of the
+  // control flow the run script used to hold where no fixture could reach it.
+  "122-probe-next.mjs",
   "08-docs.mjs",
 ];
 

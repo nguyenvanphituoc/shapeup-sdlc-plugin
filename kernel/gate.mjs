@@ -415,6 +415,11 @@ export const ARGV_SPEC = {
   // before any verdict exists — "loop" on a FAIL — and its note says so; recorded without the
   // verdict, a PASS round's row read "FAIL → fix round", the opposite of what happened.
   verdict: { type: "str" },
+  // A decision the PO just gave in the session that reached the gate. It resolves THIS crossing with
+  // the source `PO (live)` and needs no answer file: the ledger row records who decided, and the
+  // evidence narrowing (`ship` needs a clearing census) still applies — an answer chooses among the
+  // answers a gate allows, never the evidence that makes one allowed.
+  answer: { type: "str" },
 };
 
 /**
@@ -472,7 +477,18 @@ export function cli(rawArgv) {
     out({ ok: true, wrote: dest, preset: presetName, authorized_by: set.authorized_by, gates: Object.keys(set.answers).length });
   }
 
-  const found = discover({ cwd, file: args.file ?? null, preset: args.preset ?? null, slug: args.slug ?? null });
+  // A live answer builds a one-gate set instead of discovering one. `ask` is not an answer.
+  let found;
+  if (args.answer !== undefined && args.resolve) {
+    const valid = VALID_BY_GATE[args.resolve];
+    if (!valid) die(`unknown gate "${args.resolve}" — known: ${GATE_IDS.join(", ")}`);
+    if (args.answer === "ask" || !valid.includes(args.answer)) {
+      die(`"${args.answer}" is not a decision GATE ${args.resolve} takes — valid: ${valid.filter((d) => d !== "ask").join(", ")}`);
+    }
+    found = { set: { version: 1, preset: "custom", answers: { [args.resolve]: { decision: args.answer, note: "answered live by the PO" } } }, source: "PO (live)" };
+  } else {
+    found = discover({ cwd, file: args.file ?? null, preset: args.preset ?? null, slug: args.slug ?? null });
+  }
   if (found.error) die(found.error);
   const errs = validate(found.set);
   if (errs.length) die(`invalid gate answer set (${found.source}):\n  - ${errs.join("\n  - ")}`);
