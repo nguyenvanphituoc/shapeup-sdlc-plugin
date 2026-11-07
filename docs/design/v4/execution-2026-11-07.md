@@ -6,7 +6,7 @@
 | **Plan** | [`plan-2026-11-07-single-loop.md`](plan-2026-11-07-single-loop.md) |
 | **Branch** | `plan/single-loop`, local commits only; nothing pushed, nothing tagged |
 | **Baseline** | 3.18.4 at `16eae5a`; `npm test` green (2392 checks) |
-| **Now** | version 4.0.0 in both files; `npm test` green (2491 checks); `npm run demo`, `npm run verify:cross-dir` and `npm run test:grant` pass; the marketplace manifest validates, and `claude plugin validate . --strict` fails on warnings that were there before (a root `CLAUDE.md`, a missing icon, Finder files) |
+| **Now** | version 4.0.0 in both files; `npm test` green (2495 checks); `npm run demo`, `npm run verify:cross-dir` and `npm run test:grant` pass; `claude plugin validate . --strict` passes (the repo's `CLAUDE.md` moved to `.claude/CLAUDE.md` because a plugin-root `CLAUDE.md` is not loaded as context, which was its only blocking warning; the missing-icon note remains and does not change the result) |
 | **Status** | every activity is done; the one thing left is yours: pushing the tag (a local tag `v4.0.0` exists) |
 
 ## The gate, and how it was met
