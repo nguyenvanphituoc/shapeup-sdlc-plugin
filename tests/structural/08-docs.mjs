@@ -206,6 +206,30 @@ export async function run(ctx) {
       else ok(`cited path exists: ${p}`);
     }
 
+    // (c2) Relative markdown links. The path pattern above only matches a citation that starts at
+    // the repo's top-level folder, so a doc linking its neighbour as `[x](sibling.md)` or
+    // `[x](../adr/0004.md)` was invisible to it — a folder of dead links read green. A link is
+    // resolved against the file that carries it. External URLs, mail links and bare anchors are not
+    // files; `#fragment` and `?query` are stripped before the lookup. Historical lines keep the
+    // same exemption as above, and a link inside a fenced block is an example, not a claim.
+    {
+      const linkRe = /\[[^\]]*\]\(([^)\s]+)\)/g;
+      for (const rel of docFiles) {
+        let fenced = false;
+        for (const line of read(join(ROOT, rel)).split("\n")) {
+          if (/^\s*```/.test(line)) { fenced = !fenced; continue; }
+          if (fenced || isHistoricalLine(line)) continue;
+          for (const m of line.matchAll(linkRe)) {
+            const target = m[1].split("#")[0].split("?")[0];
+            if (!target || /^[a-z][a-z0-9+.-]*:/i.test(target)) continue;
+            const abs = join(ROOT, rel, "..", target);
+            if (!existsSync(abs)) fail(`${rel} links to ${m[1]} — not on disk (relative-link drift)`);
+            else ok(`relative link resolves: ${rel} -> ${target}`);
+          }
+        }
+      }
+    }
+
     // (d) checks-floor: docs state a floor ("N+ checks"), never an exact count that drifts.
     const floorM = read(join(ROOT, "docs/design/06-appendix.md")).match(/(\d+)\+ checks/);
     if (!floorM) fail(`docs/design/06-appendix.md states no "N+ checks" floor`);

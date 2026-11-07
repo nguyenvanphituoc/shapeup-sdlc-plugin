@@ -101,7 +101,7 @@ pipeline falls on is the open part.
 | The kit's equivalent response shape | `skill/templates/subagent_response.schema.json` | `conclusion, evidence, actions_taken, confidence, caveats` — all required, no extras. `WorkResult` has no `confidence` field. |
 | Budget axes in the run | `RunArgs.properties.budgets` in `kernel/schemas/domain.schema.json` | `maxRounds`, `attemptBudget`; wall-clock is typed at `init run`. No token or cost axis in the schema. |
 | The export carries no cost; wall-clock is on the leg row | `kernel/report/facts.mjs:22–23`; `legRow` in `kernel/reduce/ingest.mjs` | The module's comment says "no cost or wall-clock instrumentation", but the leg row carries `dispatched_at`, `ingested_at` and `duration_ms`, and the export joins it (**corrected 2026-11-07**; the comment is stale). Tokens and cost have no source. Tables: `run, dispatch, ac_result, discovery, file_touched, trial, t0_verdict, criterion_verdict, hook_decision, gate_decision, build_gate, leg` |
-| An A/B exists on record | `traces/phase3/`, commits `5ebb6b6`, `c013325` | `--parallel-scopes` 4 vs 1 on one pitch, 2026-08-17, wave 1 −62.0%. A scheduling dial, not a component's value — but a first-party with/without, and the source of the plan-regeneration confound. See [`04`](04-planning-chain-ablation-plan.md) |
+| An A/B exists on record | `traces/phase3/`, commits `5ebb6b6`, `c013325` | `--parallel-scopes` 4 vs 1 on one pitch, 2026-08-17, wave 1 −62.0%. A scheduling dial, not a component's value — but a first-party with/without, and the source of the plan-regeneration confound. No planning-chain comparison file exists yet |
 | No token budget in code | `grep -rn -i -E "token_budget\|max_tokens\|token budget" kernel hooks skills` | no match |
 | No pass^k or ablation in code | `grep -rn -E "pass\^k\|pass_k\|passk\|ablation" kernel hooks skills` | no match (`docs/` and `tests/` not searched) |
 | Failure posture differs from the kit's | `hooks/sandbox-guard.mjs:66` vs `reference_loop/loop.py:122–125` | The hook "fail-OPEN whenever there is nothing to enforce"; the kit's `Agent.__init__` raises when a writing tool has no write gate. Different layer, opposite default. |
@@ -120,7 +120,7 @@ concurrent scope builds — are also where AGENTS.md puts its invariants. What i
 the sequential planning chain, and **it cannot be closed from this repo's records**: there is no
 behavioural eval of it, no ablation of a component and no cost axis on file (table above). One
 first-party A/B does exist, on a scheduling dial, and the confound it exposed shapes how a
-planning-chain comparison must be built ([`04`](04-planning-chain-ablation-plan.md)).
+planning-chain comparison must be built (no such comparison is written yet; it is an open question below).
 
 ### First reading of the roster against the kit's three criteria
 
@@ -133,7 +133,7 @@ From AGENTS.md prose only — which this repo's own rule says is not evidence. E
 | `task-executor` | (2) parallel: scopes build concurrently, default 4, in separate substrates | That concurrency needs a fresh context, not only a fresh write fence |
 | `qa-edge-hunter` | (2) independent exploration, six lenses | That the hunt finds what a pass inside the main loop would not |
 | `orient` | (1) reads far more than the planner needs afterwards | Tokens read per Orient call against the size of the map it returns |
-| `ba-pitch-analyzer`, `solution-architect`, `scope-architect` | none evident — they chain on one another's output and share the spec tree: the kit's `merge` or `fold` | A trace of what survives each handoff. Partly answered in [`03`](03-context-first-audit.md): handoffs are verbatim files, so the loss is omission at the consumer, not summary corruption |
+| `ba-pitch-analyzer`, `solution-architect`, `scope-architect` | none evident — they chain on one another's output and share the spec tree: the kit's `merge` or `fold` | A trace of what survives each handoff. Not yet done: the handoffs are files rather than summaries, but no trace of what the consumer omits is on record |
 | `scope-hammer`, `coach`, `translator` | none evident from prose | Read each skill and its call volume first |
 
 Two caveats that keep this from being a plan to fold:
@@ -146,8 +146,7 @@ Two caveats that keep this from being a plan to fold:
   writer, substrate fence, receipt), not to the sub-agent window. Folding two operations into one
   combined order, or running them hand-driven, drops that enforcement; letting one window run both
   orders in sequence keeps all of it. *(Corrected 2026-11-07 — this bullet first read "removes a
-  boundary those hooks are keyed to", which holds only for the first two. See
-  [`03`](03-context-first-audit.md).)*
+  boundary those hooks are keyed to", which holds only for the first two.)*
 
 ### What transfers regardless of any fold
 
@@ -175,8 +174,7 @@ before any row is written to `../requirements.md`.
    `ingested_at` and `duration_ms`, so criterion (2) has both ends. Criterion (1), tokens read, has
    no source: the export carries no cost, and no actual-read record exists. The local run trace is
    deleted when an experiment ends; what remains is the archived runs under `traces/`, all of one
-   small feature. Reframed as a context audit in [`03`](03-context-first-audit.md). Output: the
-   audit inventory, with the unanswerable cells marked as such.
+   small feature. Output, when it is written: the audit inventory, with the unanswerable cells marked as such.
 2. **Can one with/without comparison be run and held to the kit's rule?** The smallest case is the
    planning chain on a fixed pitch, one model, one date, ≥2 reps. This is the concrete form of
    `01`'s open question on ablations.
