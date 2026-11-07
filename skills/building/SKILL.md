@@ -55,7 +55,7 @@ work, not work in flight. Surface every string in `warnings`. Then act on `kind`
 | `gate` | See below. |
 | `wait` | Nothing may open until an in-flight scope returns. Ask again once one does. |
 | `need` | Something outside the kernel is missing (`need`). Create it with the PO (the profile: `resources/intake.md`), then ask again. |
-| `terminal` | Run `close_command`, report `status` and `reason`. `shipped` goes on to the retro (`retro`: `resources/retro.md`, and `retro.gate` is its GATE COACH-1 command). Stop. |
+| `terminal` | Run `close_command`, report `status` and `reason`. `shipped` goes on to the retro (`retro`: `resources/retro.md`) — run `retro.gate`, its GATE COACH-1 command, FIRST, before asking for feedback. Stop. |
 | `done` | Nothing to resume. Say so. |
 
 A `pre` or `then` entry marked `advisory` is a projection: run it, log a failure, never stop on it.

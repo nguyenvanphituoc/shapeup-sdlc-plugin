@@ -341,11 +341,12 @@ export async function run(ctx) {
       if (matchesAny(stagedPitch, frozen)) ok(`substrateFor("${label}") freezes the staged pitch`);
       else fail(`substrateFor("${label}") does not freeze ${stagedPitch} — the worker can rewrite its own grading input: ${JSON.stringify(frozen)}`);
     }
-    // `translate` is the one operation that legitimately rewrites a pitch, and it writes the
-    // COMMITTED copy — so it must not be swept up by the rule above.
-    const translate = substrateFor("translate", { slug: "demo" });
-    if (!matchesAny(stagedPitch, translate.frozen || [])) ok('substrateFor("translate") leaves the pitch alone — it writes the committed copy, not the staged one');
-    else fail("translate froze the staged pitch — the one operation whose job is to rewrite a pitch cannot");
+    // RETIRED: this arm asserted that `substrateFor("translate")` — the one operation that legitimately rewrote
+    // a pitch, writing the COMMITTED copy — was not swept up by the freeze above. The operation is gone (the
+    // intake's English copy is the loop's own act, with no order and so no substrate to freeze), and the call
+    // now falls to the LOCAL-only default, so the assertion would pass on nothing. What replaces it is the
+    // retirement itself, asserted in the retro/knowledge-base module: the Operation enum no longer carries
+    // `translate` and `compile --operation` of it exits 2.
   } else {
     console.log("  (sandbox-guard.mjs not found — skipping)");
   }

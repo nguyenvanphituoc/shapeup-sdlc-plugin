@@ -15,8 +15,8 @@
 // WHAT THIS MODULE PROVES, by calling the shipped `compileOrder()` directly:
 //   (1) two non-BUILD calls, same operation + round, no attempt, DIFFERENT scope objects, now
 //       compile to two DIFFERENT `order_id`s — the collision this stage exists to close.
-//   (2) every operation-level dispatch this repo actually makes (orient, analyze, wire, map-scopes,
-//       evaluate, hunt, hammer — none of which ever pass `scope`, confirmed by reading every
+//   (2) every operation-level dispatch this repo actually makes (orient,
+//       evaluate, hunt — none of which ever pass `scope`, confirmed by reading every
 //       `compile` call site in `skills/tech-lead/workflows/shapeup-run.js`) produces the EXACT SAME
 //       suffix shape as before this fix — a non-regression proof, not just a new-behavior proof.
 
@@ -62,7 +62,14 @@ export async function run(ctx) {
 
   // --- (2) every real operation-level (no-scope) call site in this repo must keep its EXACT
   //         pre-fix suffix shape ------------------------------------------------------------------
-  const operationLevelOps = ["orient", "analyze", "wire", "map-scopes", "evaluate", "hunt", "hammer"];
+  // DERIVED from the schema's Operation enum rather than listed: the build operations are addressed by
+  // scope/round/attempt, and `plan` by substep (`plan-<step>`, asserted in the plan-fence module), so what
+  // is left is exactly the scopeless operation-level dispatches. The list used to name seven operations,
+  // four of which no longer exist (analyze, wire, map-scopes, hammer) — a loop over a name nothing compiles
+  // is a check that passes on nothing.
+  const { readFileSync } = await import("node:fs");
+  const operationLevelOps = JSON.parse(readFileSync(join(ROOT, "kernel/schemas/domain.schema.json"), "utf8")).$defs.Operation.enum
+    .filter((op) => !["execute", "fix", "spike", "plan"].includes(op));
   for (const operation of operationLevelOps) {
     const withRound = compileOrder({ slug: "collision-demo", worker: "orient", operation, round: 3 });
     const expectedWithRound = `collision-demo/${operation}-r3`;

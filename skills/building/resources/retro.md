@@ -14,9 +14,12 @@ again: a second row after the close is a second sign-off.
    Report    : shapeup/<slug>/REPORT.md
    ```
 
-2. Ask once: "Anything to record before I close the run?" A bare "no" ends the retro; nothing is filed.
-3. Substantive feedback is distilled and filed by you, here (below). The run's `retro.gate` command is the
-   COACH-1 crossing: run it first, so the ledger carries the decision this gate makes.
+2. **Run the step's `retro.gate` command before asking anything** — it is the COACH-1 crossing, resolved with the
+   run's own answer set, and it leaves the ledger row whether or not anyone is there to answer. Exit 0 (`skip`):
+   an unattended lane — ask nothing, file nothing, go to step 4. Exit 4 (`ask`): a PO is present, go on.
+3. Ask once: "Anything to record before I close the run?" A bare "no" ends the retro; nothing is filed.
+   Substantive feedback is distilled and filed by you, here (below), and the PO's categorization at the gate
+   that follows is the answer COACH-1's `ask` opened.
 4. End with `✅ <slug> — <verdict>, <rounds> round(s)`.
 
 A run that ended `escalated` or `aborted` skips the retro: report where and why, and stop.
@@ -80,8 +83,8 @@ add speculative fields"). Keep the originating *why* — a rule without its reas
 
 ## Step 2 — ⏸ GATE COACH-1: categorize (ASK, never assume)
 
-This is the load-bearing gate. The run's `retro.gate` command crosses it with the run's own answer set and
-ledgers the row; outside a run, run `gate --resolve COACH-1 --slug <slug> [--file <path>|--preset <name>]`, or —
+This is the load-bearing gate. The run's `retro.gate` command (step 2 above, run before feedback is even
+asked for) crosses it with the run's own answer set and ledgers the row; outside a run, run `gate --resolve COACH-1 --slug <slug> [--file <path>|--preset <name>]`, or —
 with no run at all — hold the conversation below, which is the decision. **Exit 0 (`skip`)**: an unattended lane
 with no live PO — record nothing and stop. **Exit 4 (`ask`)**: the categorization below IS the PO conversation
 this decision opens. **Do not infer which reader a rule belongs to** — a miscategorized rule lands in a file the

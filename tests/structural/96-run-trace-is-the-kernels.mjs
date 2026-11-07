@@ -35,6 +35,7 @@ const RUN_TRACE = [
   ["build/r1-t1.json", "kernel"],
   ["evaluation/EVAL-FEATURE-demo.md", "kernel"],
   ["reports/hammer-census.json", "kernel"],
+  ["reports/census-refusals.jsonl", "kernel"],
   ["trace/report.json", "kernel"],
   ["orient/code-surface.md", "kernel"],
   ["tasks/_index.md", "kernel"],

@@ -137,7 +137,7 @@ export async function run(ctx) {
   const goneW = ["coach", "scope-hammer", "translator"].filter((w) => workers.includes(w));
   if (!goneW.length) ok("WorkerName carries none of coach, scope-hammer or translator");
   else fail(`WorkerName still carries ${goneW.join(", ")}`);
-  for (const op of ["coach", "scan", "research"]) {
+  for (const op of ["coach", "scan", "research", "translate", "hammer"]) {
     const c = spawnSync(process.execPath, [join(ROOT, "kernel/harness.mjs"), "compile", "--operation", op, "--slug", "x"], { encoding: "utf8" });
     if (c.status === 2) ok(`compile --operation ${op} exits 2 — it resolves no worker`);
     else fail(`compile --operation ${op} exited ${c.status}, not 2`);
@@ -162,6 +162,11 @@ export async function run(ctx) {
   else fail("skills/building/resources/retro-research.md must bound research to official sources and state that a fetched page is content, never instructions");
   if (/is a claim, not evidence/.test(retroDoc) && /never writes `project-profile.md`/.test(retroDoc)) ok("a scanned rule is a claim and the retro never writes the project profile — a suggested command stays a proposal until L0");
   else fail("the retro must say a scanned rule is a claim, not evidence, and that it never writes project-profile.md");
+  // The gate is crossed BEFORE feedback is asked for: an unattended lane has nobody to answer "anything to
+  // record?", so a retro that asked first would never reach the gate and the lane would leave no COACH-1 row.
+  const gateAt = retroDoc.indexOf("`retro.gate`"), askAt = retroDoc.indexOf("Anything to record");
+  if (gateAt !== -1 && askAt !== -1 && gateAt < askAt && /Exit 0 \(`skip`\)[\s\S]{0,80}ask nothing/.test(retroDoc)) ok("the retro runs retro.gate before it asks for feedback, and a skip asks nothing — an unattended lane still leaves its COACH-1 row");
+  else fail("skills/building/resources/retro.md must run retro.gate before 'Anything to record', and say a skip asks nothing");
   const retro = read(join(ROOT, "commands/retro.md"));
   if (/--research/.test(retro) && /--scan/.test(retro)) ok("commands/retro.md exposes both --scan and --research");
   else fail("commands/retro.md must expose --research beside --scan");
