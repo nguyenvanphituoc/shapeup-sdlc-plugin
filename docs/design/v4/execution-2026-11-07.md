@@ -4,10 +4,10 @@
 |---|---|
 | **Date** | 2026-11-07 |
 | **Plan** | [`plan-2026-11-07-single-loop.md`](plan-2026-11-07-single-loop.md) |
-| **Branch** | `plan/single-loop`, local commits only; nothing pushed, nothing tagged |
+| **Branch** | `plan/single-loop`, local commits only; nothing pushed. A local annotated tag `v4.0.0` sits on the last commit |
 | **Baseline** | 3.18.4 at `16eae5a`; `npm test` green (2392 checks) |
 | **Now** | version 4.0.0 in both files; `npm test` green (2495 checks); `npm run demo`, `npm run verify:cross-dir` and `npm run test:grant` pass; `claude plugin validate . --strict` passes (the repo's `CLAUDE.md` moved to `.claude/CLAUDE.md` because a plugin-root `CLAUDE.md` is not loaded as context, which was its only blocking warning; the missing-icon note remains and does not change the result) |
-| **Status** | every activity is done; the one thing left is yours: pushing the tag (a local tag `v4.0.0` exists) |
+| **Status** | every activity is done and has evidence. **One Done-when row, "Release", is left unmet by the PO's decision (2026-11-07): the tag stays local, so the release workflow has not run.** The goal that drove the execution was cleared by the PO the same day |
 
 ## The gate, and how it was met
 
@@ -61,7 +61,7 @@ two. That is one run set beside one run, not a rate, and it supports no claim ab
 1. **`resume.mjs` is not smaller than it was alone** (1161 to 1207 lines). Measured against what the plan
    merges into it, it is: `resume.mjs` and `snapshot.mjs` were 1452 lines together and are 1207 now. What
    remains is mostly the close and ledger derivation, which the loop needs.
-2. **The tag is local.** Pushing it fires the release workflow, which is yours to start.
+2. **The tag is local, by decision.** The plan's "Release" row (a tag matching both version files that passes the release workflow) needs the tag pushed. Pushing publishes a GitHub release and an npm package, so it was put to the PO, who chose to keep it local. The row is therefore unmet, not failed: everything the workflow checks before publishing passes in a fresh clone of the tag (strict validate, the tag-versus-version comparison, `npm test`).
 
 ## Deviations from the plan, each deliberate
 
@@ -76,6 +76,10 @@ two. That is one run set beside one run, not a rate, and it supports no claim ab
 7. `--close-arm paused` and `ok` now exit 3: `RunReturn` and its non-terminal arms are gone.
 
 ## What to do with it
+
+To publish 4.0.0 later: merge `plan/single-loop`, make sure the tag points at the merged commit
+(`git tag -f -a v4.0.0` if the merge was a squash), and `git push origin v4.0.0`. The workflow runs strict
+validation, the tag-versus-version check, creates the release and publishes to npm.
 
 The working record in this folder is retired by the release commit (ADR-0002, and ADR-0004 names the
 files). It is left in place because retiring it before the tag would delete the plan this record is
