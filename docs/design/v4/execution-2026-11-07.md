@@ -6,7 +6,7 @@
 | **Plan** | [`plan-2026-11-07-single-loop.md`](plan-2026-11-07-single-loop.md) |
 | **Branch** | `plan/single-loop`, local commits only; nothing pushed, nothing tagged |
 | **Baseline** | 3.18.4 at `16eae5a`; `npm test` green (2392 checks), `npm run demo` verified |
-| **Now** | `npm test` green (2583 checks), `npm run demo` verified, `npm run verify:cross-dir` passes |
+| **Now** | `npm test` green, `npm run demo` verified; `npm run verify:cross-dir` passes, but it exercises `sandbox-guard`, not the Stop hook this work changed |
 | **Status** | **stopped at the plan's own gate.** A0b, A0 and the additive parts of A1 and A6 are done; every activity that deletes something is blocked, and so are the ones that need a real run |
 
 ## What stopped it
@@ -85,3 +85,11 @@ Each is recorded so porting does not copy it. None was fixed in the script, whic
 2. If it ships, A2 to A6 proceed in the order the plan gives, each green before the next, with the 37
    script-reading files ported to `probe next`, the kernel or hook fixtures.
 3. A5's kill-and-resume probe, A8's measurement and A9's nested-session check each need a real session.
+
+## Not covered by any check yet
+
+- The release-candidate check for a change to `hooks/` has two halves. `verify:cross-dir` passed, and it
+  fires `sandbox-guard` from a copy at another path. The hook changed here is the Stop check, and the second
+  half — a nested session that leaves a row in the decision ledger — has not been run.
+- On `plan/single-loop`, `/ship` now routes to `building`, which has never had a real run. Nothing is pushed.
+  Whoever checks the branch out should know that before using `/ship`.

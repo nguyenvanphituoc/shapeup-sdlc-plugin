@@ -177,6 +177,8 @@ export async function run(ctx) {
     row("a crossed board gate opens round 1 and releases the scope, status line first", (ws) => planned(ws),
       (s) => is("build", "build.r1")(s) && s.release.length === 1 && s.release[0].compile.includes("--round 1 --attempt 1")
         && /attempt ratchet/.test(s.release[0].note) && !/FIX ROUND/.test(s.release[0].note));
+    row("every released scope carries its own ingest command, addressed to its first-attempt order", (ws) => planned(ws),
+      (s) => is("build")(s) && s.release.every((r) => r.ingest === `node "${KERNEL}" reduce ingest --order "${r.order_path}"` && r.order_path.endsWith("alpha-r1-a1.json")));
     row("two independent scopes release together, up to the dial", (ws) => planned(ws, { ids: ["alpha", "beta"] }),
       (s) => is("build")(s) && s.release.length === 2);
     row("a dependant scope is not released beside the scope it consumes", (ws) => {
@@ -301,6 +303,15 @@ export async function run(ctx) {
       is("gate", "gate.L1a"));
     row("a gate crossed in an earlier run is not this run's crossing", (ws) => { profile(ws); orient(ws); gate(ws, "L1a", { run_id: "other-20200101T000000Z-deadbeef" }); },
       is("gate", "gate.L1a"));
+    row("an unattended run with no answer set anywhere stops at preflight, naming the fix, instead of stalling at a gate", (ws) => {
+      profile(ws); orient(ws);
+      const f = local(ws, "run-args.json"); const a = JSON.parse(readFileSync(f, "utf8")); a.autoLevel = "unattended"; json(f, a);
+    }, (s) => is("terminal", "abort.preflight")(s) && /no gate answer set/.test(s.reason));
+    row("an unattended run whose ledger names an answer set resolves through it, though the launch record did not", (ws) => {
+      profile(ws); orient(ws);
+      const f = local(ws, "run-args.json"); const a = JSON.parse(readFileSync(f, "utf8")); a.autoLevel = "unattended"; json(f, a);
+      const h = local(ws, "harness-run.md"); writeFileSync(h, readFileSync(h, "utf8").replace(/^gate_answers:.*$/m, "gate_answers: ci"));
+    }, (s) => is("gate", "gate.L1a")(s) && s.command.includes("--preset ci"));
     row("every command a step carries is one line, and names the kernel by absolute path", (ws) => { profile(ws); orient(ws); },
       (s) => s.kind === "gate" && [s.command, s.answer_command, s.abort_close].every((c) => !c.includes("\n") && c.startsWith(`node "${KERNEL}"`)));
 

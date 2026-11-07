@@ -45,11 +45,11 @@ import { fileURLToPath } from "node:url";
 import { runArgs, isMain } from "../lib/argv.mjs";
 import {
   ordersDir, resultsDir, legLedger, dispatchReceipts, readRunId, gates as gatesPath,
-  runArgsPath, receipt as receiptPath, hammerCensus, report as reportPath, orientDir, gateAnswerCandidates,
+  runArgsPath, receipt as receiptPath, hammerCensus, report as reportPath, orientDir, gateAnswerCandidates, harnessRun,
 } from "../lib/paths.mjs";
 import { launchProblems } from "../lib/floor.mjs";
 import { scheduleFor, releasable } from "../lib/schedule.mjs";
-import { deriveResumeState } from "./resume.mjs";
+import { deriveResumeState, parseFrontmatter } from "./resume.mjs";
 import { readLegs, legState } from "./leg.mjs";
 import { readReceipts, scopeAttempts } from "./attempts.mjs";
 import { greenVerdict } from "./t0.mjs";
@@ -184,6 +184,10 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
   const statusPre = (phase) => (rs.status && rs.status !== STATUS_FOR[phase] && STATUS_FOR[phase]
     ? [{ command: K(`probe resume --slug ${slug} --set-status ${STATUS_FOR[phase]}`) }] : []);
 
+  /** Where a scope's first-attempt order for a round is written: the id compile derives, lower-cased and filename-safe. */
+  const buildOrderPath = (scopeId, round) => join(ordersDir(cwd, slug),
+    `${scopeId.toLowerCase().replace(/[^a-z0-9.-]/g, "-").replace(/^[^a-z0-9]+/, "")}-r${round}-a1.json`);
+
   /** The model tier a worker runs at, from the launch record: the judge at eval, the hunter at qa, the rest at exec. */
   const modelFor = (skill) => (skill === "spec-evaluator" ? L.models.eval : skill === "qa-edge-hunter" ? (L.models.qa || L.models.exec) : L.models.exec);
 
@@ -211,12 +215,24 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
     for (const r of gateRows) if (r.gate === gate && r.status === "ok" && (round == null || Number(r.round) === round)) hit = r;
     return hit;
   };
-  // The answer set a gate resolves through. A launch that named none and left no answer file anywhere
-  // the resolver looks would exit 2 at its first gate; the interactive preset is what "nobody
-  // pre-answered anything" means, so that is what such a run resolves through.
-  const answersFlag = L.answers
-    ? (["ci", "guarded", "interactive"].includes(L.answers) ? ` --preset ${L.answers}` : ` --file "${L.answers}"`)
-    : (gateAnswerCandidates(cwd, slug).some((p) => existsSync(p)) ? "" : " --preset interactive");
+  // The answer set a gate resolves through: the launch record's, else the one `init run` recorded in
+  // the ledger, else an answer file where the resolver looks. With none of those, an interactive run
+  // resolves through the interactive preset (nobody pre-answered anything), and an unattended run has
+  // no human to ask — it stops here, attributably, instead of stalling at its first gate.
+  const ledgerAnswers = (() => {
+    try {
+      const v = parseFrontmatter(readFileSync(harnessRun(cwd, slug), "utf8")).gate_answers;
+      return typeof v === "string" && v && v !== "~" ? v : null;
+    } catch { return null; }
+  })();
+  const answerSet = L.answers || ledgerAnswers;
+  const hasAnswerFile = gateAnswerCandidates(cwd, slug).some((p) => existsSync(p));
+  if (!answerSet && !hasAnswerFile && L.autoLevel === "unattended") {
+    return abort("preflight", "an unattended run has no gate answer set — name one (--gate-answers ci|guarded|<path>) at launch; with nobody to ask, the first gate would stall until the budget ran out");
+  }
+  const answersFlag = answerSet
+    ? (["ci", "guarded", "interactive"].includes(answerSet) ? ` --preset ${answerSet}` : ` --file "${answerSet}"`)
+    : (hasAnswerFile ? "" : " --preset interactive");
   const gateStep = (gate, { round = null, verdict = null, ctx = {}, pre = [], abortCause = null }) => {
     const flags = `${round != null ? ` --round ${round}` : ""}${verdict ? ` --verdict ${verdict}` : ""}`;
     const base = `gate --resolve ${gate} --slug ${slug}${flags}`;
@@ -449,7 +465,8 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
           release: release.map((s) => ({
             scope_id: s.scope_id, path: s.path, skill: `${SKILL_NS}:task-executor`,
             compile: K(`compile --scope "${s.path}" --round ${round} --attempt 1`),
-            order_path: join(ordersDir(cwd, slug), `${s.scope_id.toLowerCase().replace(/[^a-z0-9.-]/g, "-").replace(/^[^a-z0-9]+/, "")}-r${round}-a1.json`),
+            order_path: buildOrderPath(s.scope_id, round),
+            ingest: K(`reduce ingest --order "${buildOrderPath(s.scope_id, round)}"`),
             note: fixNote +
               `Re-compile the order for every attempt after the first, with --attempt <n>. An attempt will be REFUSED (exit 3) while the previous one is unanswered — ` +
               `dispatched with no leg row and no WorkResult — because grading a tree the previous attempt may still be writing counts an attempt nobody ran. Let it come back ` +

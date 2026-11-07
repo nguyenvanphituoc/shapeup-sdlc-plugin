@@ -154,7 +154,8 @@ export async function run(ctx) {
           for (const item of s.release) {
             const r = fakeBuild(item, s.round);
             if (r.error) { problem = `${s.step}: ${r.error}`; break; }
-            const ing = sh(`node "${KERNEL}" reduce ingest --order "${item.order_path}"`);
+            if (!item.ingest) { problem = `${s.step}: the release item for ${item.scope_id} carries no ingest command`; break; }
+            const ing = sh(item.ingest);
             if (ing.status !== 0) { problem = `ingest refused at ${s.step}: ${ing.stderr || ing.stdout}`; break; }
           }
           break;
