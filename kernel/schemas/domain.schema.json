@@ -406,7 +406,7 @@
   },
   "$defs": {
     "WorkerName": {
-      "description": "The complete worker roster — the only skills a dispatch may be addressed to. building (the loop), tech-lead and shapeup are deliberately absent (the orchestrator and PO-personal shaping are not workers); the loop appears in an order only as the `worker` of a fence-only `plan` order, which the order schema accepts beside this roster.",
+      "description": "The complete worker roster — the only skills a dispatch may be addressed to. building (the loop) and shapeup are deliberately absent (the orchestrator and PO-personal shaping are not workers); the loop appears in an order only as the `worker` of a fence-only `plan` order, which the order schema accepts beside this roster.",
       "type": "string",
       "enum": [
         "task-executor",
@@ -569,7 +569,7 @@
       "description": "One adjudicated ESCALATE answer as carried inside a WorkOrder — binding precedent the worker must apply. Compiled from the committed round-ledger.md Decisions table (columns: Round | Scope | Kind | Question | Answer | Resolved by) filtered to this scope. The full row lives in the ledger; the envelope carries the minimal {id, answer} projection.",
       "x-tier": "EMBEDDED (projection of the SHARED round-ledger.md Decisions row)",
       "x-location": ".shapeup/<slug>/round-ledger.md",
-      "x-writer": "tech-lead — promoted the instant the PO gives an answer",
+      "x-writer": "the operator — a PO answer to a blocked worker is filed here by hand, the instant it is given; no kernel step or loop step writes this file (harness compile reads it)",
       "type": "object",
       "required": [
         "id",
@@ -710,7 +710,7 @@
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/scopes/<scope-id>.md",
       "x-writer": "the loop's plan activity, scopes substep (SOLE writer — a hand-edit anywhere else is a defect)",
-      "x-readers": "harness compile, sandbox-guard hook, harness verify t0, harness verify spec, spec-evaluator, the stop census, tech-lead",
+      "x-readers": "harness compile, sandbox-guard hook, harness verify t0, harness verify spec, spec-evaluator, the stop census, the loop",
       "type": "object",
       "required": [
         "scope_id"
@@ -1177,7 +1177,7 @@
       "x-tier": "LOCAL",
       "x-location": ".shapeup/<slug>/t0/verdicts/r<N>-a<M>-t<T>.json (schema_version 2; the unsuffixed r<N>-a<M>.json of schema_version 1 is still readable)",
       "x-writer": "harness verify t0",
-      "x-readers": "harness compile (next attempt), spec-evaluator (citation), tech-lead (hill derivation, GATE L2.3), the stop census (stall census)",
+      "x-readers": "harness compile (next attempt), spec-evaluator (citation), harness reduce hill (hill derivation), the stop census (stall census)",
       "type": "object",
       "properties": {
         "schema_version": {
@@ -1389,7 +1389,7 @@
       "x-tier": "LOCAL",
       "x-location": ".shapeup/<slug>/build/r<N>-t<T>.json",
       "x-writer": "harness verify build",
-      "x-readers": "harness reduce hill (red rounds move no dot), harness compile (next round's payload.bugs), tech-lead (GATE L2 block: build gate state)",
+      "x-readers": "harness reduce hill (red rounds move no dot), harness compile (next round's payload.bugs), the loop (the GATE L2 block's build gate state)",
       "type": "object",
       "required": [
         "schema_version",
@@ -1541,8 +1541,8 @@
       "description": "One scope's hill position — DERIVED, never self-reported: UPHILL_UNKNOWN (open unknowns > 0) → UPHILL_SOLVED (unknowns 0, no T0-green yet) → DOWNHILL_EXECUTION (≥1 T0-green from a round that built; T1 pending) → FINISHED (T1 PASS ∧ that T0-green). Single-writer = whoever holds that scope's branch. Progress is reported by hill position, never task counts.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/hill/<scope-id>.yml",
-      "x-writer": "tech-lead (GATE L2 derivation)",
-      "x-readers": "tech-lead (GATE L3 hill report), the stop census, GATE L1b sequencing",
+      "x-writer": "harness reduce hill (derived from T0 and round-gate artifacts at GATE L2, never self-reported)",
+      "x-readers": "the loop (the GATE L3 hill report), the stop census, GATE L1b sequencing",
       "type": "object",
       "properties": {
         "scope_id": {
@@ -1563,8 +1563,8 @@
       "description": "One SHIP-time harvest row (facts only — copied from structured output that already exists; never a newly computed verdict/score, which would be a second judge behind spec-evaluator). Sharded per machine so concurrent runs never merge-conflict.",
       "x-tier": "LOCAL",
       "x-location": ".shapeup/metrics/<machine-id>.jsonl",
-      "x-writer": "tech-lead (SHIP S.6)",
-      "x-readers": "harness report export (the run dimension)",
+      "x-writer": "none — the ship-time harvest step retired with the run script's sequencing; rows an earlier release wrote under .shapeup/metrics/ keep this shape",
+      "x-readers": "none",
       "type": "object",
       "properties": {
         "schema_version": {
@@ -1691,7 +1691,7 @@
       "description": "What the sandbox hook reads to enforce the active scope's substrate on every Edit/Write this round. Written at branch checkout; NOT writable by any worker (a worker must never widen its own sandbox).",
       "x-tier": "LOCAL",
       "x-location": ".shapeup/active-scope",
-      "x-writer": "tech-lead (BUILD step 0)",
+      "x-writer": "harness init run (and probe resume --set-status when it reopens a closed run); never a worker",
       "x-readers": "sandbox-guard hook",
       "type": "object",
       "properties": {
@@ -1740,179 +1740,12 @@
         }
       }
     },
-    "RunSnapshot": {
-      "description": "Mechanical mid-run state digest, derived ONLY from files (active-scope pointer, harness-run.md frontmatter, board frontmatter, t0/verdicts filenames, orders/ vs results/) — never from conversation memory. The continuity reflex: after any context loss the orchestrator re-derives this from disk rather than trusting a lossy summary — or, on a cold startup, rather than re-opening a run that is already open.",
-      "x-tier": "LOCAL",
-      "x-location": ".shapeup/<slug>/run-snapshot.json (written by harness reduce snapshot --write; also emitted ephemerally on stdout by harness reduce snapshot)",
-      "x-writer": "harness reduce snapshot --write (never a worker; this is LOCAL derived cache, harness reduce ingest remains the sole writer of SHARED state)",
-      "x-readers": "tech-lead (--from resume aid), human",
-      "type": "object",
-      "required": [
-        "schema_version",
-        "at",
-        "slug"
-      ],
-      "properties": {
-        "schema_version": {
-          "type": "integer",
-          "enum": [
-            1
-          ]
-        },
-        "at": {
-          "type": "string",
-          "description": "ISO timestamp of derivation."
-        },
-        "slug": {
-          "type": "string"
-        },
-        "scope_id": {
-          "type": "string",
-          "description": "Present only while a scope is checked out (active-scope pointer exists)."
-        },
-        "status": {
-          "type": "string",
-          "enum": [
-            "orienting",
-            "mapping",
-            "building",
-            "evaluating",
-            "shipped",
-            "escalated",
-            "aborted"
-          ],
-          "description": "Mirrors harness-run.md frontmatter status — kernel/probe/resume.mjs's RUN_STATUSES is the source enum this one must not drift from."
-        },
-        "round": {
-          "type": "integer",
-          "description": "From the latest t0/verdicts/r<N>-a<M>.json filename; falls back to rounds_used."
-        },
-        "attempt": {
-          "type": "integer",
-          "description": "From the latest t0/verdicts/r<N>-a<M>.json filename."
-        },
-        "rounds_used": {
-          "type": "integer",
-          "description": "Highest round carrying any build evidence (an order, a T0 verdict, a round build-gate artifact, or an EVAL result) — kernel/probe/rounds.mjs's deriveRounds(), the same derivation the ship report and the export use. Falls back to harness-run.md's literal frontmatter value only when no such evidence exists on disk."
-        },
-        "rounds_judged": {
-          "type": "integer",
-          "description": "Highest round EVAL actually returned a verdict for (an evaluate-r<N>.json result on disk) — its own field, never folded into rounds_used: a round built is not a round judged. Omitted when no round has been judged yet."
-        },
-        "max_rounds": {
-          "type": "integer"
-        },
-        "auto_level": {
-          "type": "string"
-        },
-        "latest_t0": {
-          "type": "object",
-          "properties": {
-            "path": {
-              "type": "string"
-            },
-            "overall": {
-              "type": "string",
-              "enum": [
-                "green",
-                "red"
-              ]
-            },
-            "round": {
-              "type": "integer"
-            },
-            "attempt": {
-              "type": "integer"
-            }
-          }
-        },
-        "board": {
-          "type": "object",
-          "properties": {
-            "total": {
-              "type": "integer"
-            },
-            "done": {
-              "type": "integer"
-            },
-            "unfinished": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "description": "Task ids not yet done — capped at 10."
-            }
-          }
-        },
-        "pending_orders": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "orders/ files with no same-name file in results/ — dispatched but not ingested; re-dispatching one of these is the exact post-compaction mistake this record exists to prevent."
-        },
-        "spec_folder": {
-          "type": "string"
-        },
-        "rehydrate_hint": {
-          "type": "string",
-          "description": "The composed one-paragraph instruction for resuming after a context loss: re-read run-state, trust the files, not the summary."
-        }
-      }
-    },
-    "Lane": {
-      "description": "The run's lane (full|tiny), computed by harness init fit at GATE L0.3 and recorded in harness-run.md frontmatter `lane:` (with its evidence, and marked overridden when --lane/--tiny outranks the recommendation); RunArgs.lane carries it to the workflow launch. The lane is pipeline knowledge: the orchestrator compiles it away into existing registered knobs (lens, budgets, gate policy) — it NEVER rides in WorkOrderPayload, so workers stay pipeline-blind.",
-      "x-tier": "EMBEDDED (recorded in harness-run.md frontmatter `lane:` — never a WorkOrderPayload field)",
-      "x-writer": "tech-lead (GATE L0 lane selection)",
-      "x-readers": "tech-lead only",
-      "x-lane-policy": {
-        "tiny": {
-          "selection": "one-scope pitch AND appetite <= 2 weeks AND no third-party integration AND <= 3 user-facing actions — the same predicate the plan activity uses to judge lens: lite",
-          "skips": [
-            "orient",
-            "gate-l1a",
-            "full board ceremony at L1b (auto-generated lens:lite board, one merged confirmation gate)"
-          ],
-          "defaults": {
-            "qa": "--no-qa",
-            "round_budget": 2
-          },
-          "never_skips": [
-            "EVAL (single judge)",
-            "T0",
-            "hooks"
-          ]
-        },
-        "normal": {
-          "selection": "everything else — today's behavior, unchanged",
-          "skips": [],
-          "defaults": {
-            "round_budget": 3
-          }
-        },
-        "full": {
-          "selection": "cross-context lens OR appetite >= 6 weeks",
-          "skips": [],
-          "defaults": {
-            "lens": "cross-context",
-            "qa": "mandatory",
-            "round_budget": 4
-          }
-        }
-      },
-      "type": "string",
-      "enum": [
-        "tiny",
-        "normal",
-        "full"
-      ]
-    },
     "RequirementClause": {
       "description": "One atomic customer requirement, frozen with a STABLE id — the covers-closure input truth (spine v1.3). Extracted from the REQ source (pitch / customer-requirements doc / use-case bodies) by the planner — extraction is judgment (LLM), but ids are assigned ONCE and never renumber (they behave like scope_id, not TASK-NNN — every covers: link would rot otherwise). Supersede-never-delete: a dropped clause is marked CUT (PO-approved), never removed, so the registry stays auditable on a fresh clone. The original REQ source is never edited — the registry is a separate derived, committed file.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/requirements.md",
       "x-writer": "the loop's plan activity, requirements substep — extraction only; CUT status is a PO governance edit (same class as a round-ledger Decision)",
-      "x-readers": "harness verify trace (covers-closure oracle), tech-lead, human (coverage/cut audit)",
+      "x-readers": "harness verify trace (covers-closure oracle), the loop (the L1b REQ → AC table), human (coverage/cut audit)",
       "type": "object",
       "required": [
         "id",
@@ -2003,7 +1836,7 @@
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/wiring-map.md",
       "x-writer": "the loop's plan activity, wire substep (SOLE writer, direct — like the scopes substep writes scopes/*.md)",
-      "x-readers": "harness verify trace (reachability oracle), the plan activity (scopes: integration seam at slicing time), tech-lead",
+      "x-readers": "harness verify trace (reachability oracle), the plan activity (scopes: integration seam at slicing time)",
       "type": "object",
       "required": [
         "schema_version",
@@ -2037,8 +1870,8 @@
       "description": "The archetype + entry-point declaration reachability depends on (spine v1.3). Exists for ONE load-bearing reason: reachability must know the entry point, and that is archetype-specific (main.js for a client-only game is not the seam for a web-service). SHARED — a declaration that must survive `rm -rf .shapeup/` + clone cannot live in the gitignored run-trace. Role-gating (skip SysRS/Auth/CI-CD) is explicitly OUT of scope — those roles are not workers; the profile is introduced only as the entry-point/archetype declaration. ON-DISK FORMAT IS MARKDOWN (ADR-0001): frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `kernel/lib/contract.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/project-profile.md",
-      "x-writer": "tech-lead (GATE L0 — not harness compile, which stays pipeline-blind)",
-      "x-readers": "harness verify trace (reachability entry_point), harness verify build (build_probe + launch_probe, once per round before EVAL), the plan activity (wire), tech-lead",
+      "x-writer": "the loop, at the intake gate (not harness compile, which stays pipeline-blind)",
+      "x-readers": "harness verify trace (reachability entry_point), harness verify build (build_probe + launch_probe, once per round before EVAL), the plan activity (wire)",
       "type": "object",
       "required": [
         "schema_version",
@@ -2265,14 +2098,15 @@
         "baseline": { "type": ["string", "null"], "description": "The baseline the comparison ran against, or null when the pitch's problem statement stood in for it." }
       }
     },
-    "ResumeState": {
-      "description": "The fast-forward derivation: which phase a launch resumes at, derived from artifacts on disk and NEVER from stored state or conversation memory. Produced by kernel/probe/resume.mjs on stdout and consumed by shapeup-run.js's preamble on every launch, fresh or relaunch alike. Every phase predicate is an artifact test — `has_orient_artifacts` exists because the ORIENT branch was once gated on the ledger's stored `status` instead, which a silent courier failure left stale, and a completed ORIENT phase was re-dispatched on resume. `next_phase` is a convenience derived from the same booleans, which all travel too: a caller is never forced to trust a summary it cannot re-derive.",
+    "ResumeFacts": {
+      "description": "What the run's own artifacts say about where it stands, derived from files alone and never from stored state or conversation memory. Produced by kernel/probe/resume.mjs and read by `probe next` (which derives the next step from it), by a resumed session, and by `init run`'s already-open refusal. The artifact predicates are the whole of it: this record decides nothing, and every underlying boolean travels so a reader is never forced to trust the `next_step` summary.",
       "x-tier": "EMBEDDED",
       "x-location": "stdout of harness probe resume — never written to disk (the run's state IS the artifacts this record reports on)",
-      "x-writer": "harness probe resume (deriving; the same script's --set-status / --set-active-scope operations write, and report their own outcome record instead)",
-      "x-readers": "shapeup-run.js (the fast-forward preamble, one call per launch)",
+      "x-writer": "harness probe resume (deriving; the same script's --set-status, --mark-relaunch and --close operations write, and report their own outcome record instead)",
+      "x-readers": "harness probe next (the loop's state machine), harness init run (the already-open refusal), harness probe resume --require (the post-condition), a resumed session",
       "type": "object",
       "required": [
+        "slug",
         "intake_path",
         "status",
         "has_orient_artifacts",
@@ -2281,26 +2115,30 @@
         "scope_files",
         "pending_orders",
         "eval_rounds_done",
-        "next_phase"
+        "next_step"
       ],
       "properties": {
+        "slug": {
+          "type": "string",
+          "description": "The feature slug the facts are about."
+        },
         "intake_path": {
           "type": "string",
-          "description": "Resolved path to the run's intake — the pitch a fresh ORIENT dispatch is compiled against."
+          "description": "Resolved path to the run's intake — the pitch ORIENT is compiled against."
         },
         "breadboard_path": {
           "type": [
             "string",
             "null"
           ],
-          "description": "Resolved path to the run's staged breadboard (`.shapeup/<slug>/breadboard.md`), the pitch's second half, handed to the four planning dispatches as payload.breadboard. Null when the pitch had no separate breadboard file."
+          "description": "Resolved path to the run's staged breadboard (`.shapeup/<slug>/breadboard.md`), or null when the pitch had no separate breadboard."
         },
         "breadboard_source": {
           "type": [
             "string",
             "null"
           ],
-          "description": "How `init run` found the breadboard — flag | sibling | shaping-dir | shared-root | embedded — read from the receipt. Null when there was none or the receipt is unreadable."
+          "description": "How `init run` found the breadboard — flag | sibling | shaping-dir | shared-root | embedded — from the receipt; null when there was none."
         },
         "spec_folder": {
           "type": [
@@ -2314,92 +2152,98 @@
             "string",
             "null"
           ],
-          "description": "The ledger's stored status, reported for the readers that legitimately hold a MID_RUN set over it (harness reduce snapshot, and the ship report's census). NOT a resume predicate: no phase decision in shapeup-run.js may branch on this field."
+          "description": "The ledger's stored status, reported for readers that want it. Never a resume predicate: the artifacts decide, so a stale status cannot make a finished phase run again."
         },
         "closed_status": {
           "type": [
             "string",
             "null"
           ],
-          "description": "The ledger's closed_status: the terminal status of a close nobody has taken back, null on a run that is open. A relaunch reads it once, to reopen the run before its first gate resolves. Not a phase predicate either."
+          "description": "The ledger's closed_status: the terminal status of a close nobody has taken back. A resume reopens the run on this before it crosses a gate."
+        },
+        "auto_level": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "From harness-run.md frontmatter: interactive | auto | unattended."
+        },
+        "max_rounds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "From harness-run.md frontmatter: the outer round budget."
         },
         "lens": {
           "type": [
             "string",
             "null"
           ],
-          "description": "From harness-run.md frontmatter; forwarded to the analyze dispatch. Null when the ledger names none — an unknown value is an ABSENT key in the order, never a null."
+          "description": "From harness-run.md frontmatter; forwarded to the spec step."
         },
         "stack": {
           "type": [
             "string",
             "null"
           ],
-          "description": "From harness-run.md frontmatter; forwarded to the orient dispatch. Null when the ledger names none."
+          "description": "From harness-run.md frontmatter; forwarded to the orient order."
         },
         "run_cmd": {
           "type": [
             "string",
             "null"
           ],
-          "description": "How to run the feature, from harness-run.md frontmatter; forwarded to the evaluate dispatch so the judge exercises a running thing. Null when the ledger names none."
+          "description": "How to run the feature, from harness-run.md frontmatter; forwarded to the evaluate order."
         },
         "app_url": {
           "type": [
             "string",
             "null"
           ],
-          "description": "Where the feature answers, from harness-run.md frontmatter; forwarded to the QA hunt. Null when the ledger names none."
+          "description": "Where the feature answers, from harness-run.md frontmatter; forwarded to the evaluate and hunt orders."
         },
         "eval_dimensions": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "The dimensions this run's EVAL grades, from harness-run.md frontmatter. Defaults to [\"spec-conformance\"] rather than empty, so a ledger that names none still produces a graded run — and the ship sign-off reports the complement as the dimensions the run did NOT cover."
+          "description": "The dimensions this run's EVAL grades, from harness-run.md frontmatter. [] means `auto`: each evaluate order resolves the set from the spec at compile time."
         },
         "orient_dir": {
           "type": "string",
-          "description": "The run's LOCAL orient directory, resolved for the analyze dispatch: ORIENT's spike and code-surface notes are working artifacts, not deliverables, so they live in the gitignored tier (ADR-0001)."
+          "description": "The run's LOCAL orient directory, resolved for the spec step."
         },
         "has_orient_artifacts": {
           "type": "boolean",
-          "description": "ORIENT finished: orient/ carries code-surface.md, discovered-seed.md, hill-signal.md and at least one spike-*.md (skills/orient/SKILL.md §Outputs). The ORIENT skip gates on THIS."
+          "description": "ORIENT finished: orient/ carries code-surface.md, discovered-seed.md, hill-signal.md and at least one spike-*.md."
         },
         "has_spec_tree": {
           "type": "boolean",
-          "description": "ANALYZE finished: the spec folder's usecases/ carries at least one use case that is not _index.md. WIRE reads these — one wiring-map entry per use case — which is why ANALYZE precedes WIRE in the phase chain: dispatched against an empty spec folder, WIRE escalates on every launch."
+          "description": "The spec step's tree is on disk: the spec folder's usecases/ carries at least one use case (the index alone does not count)."
         },
-        "has_board": { "type": "boolean", "description": "The per-machine board (tasks/TASK-*.md) holds at least one task. ANALYZE is complete only with both the committed spec tree and this; a committed tree with no board resumes at analyze, where the board-only operation regenerates it." },
-        "staged_workflow": {
-          "type": "object",
-          "description": "Whether the orchestrator this launch will execute is the installed one. A run stages its own copy of the workflow scripts when it is OPENED and keeps them for its life — right for a run in flight, and silent: relaunching after an upgrade executes the OLD orchestrator, reports normally, and every observation is of the previous release. `checked: false` means the comparison could not be made (no plugin root, nothing staged), which is not the same fact as agreement. A warning, never a block: opening a new run is how an upgrade is soaked.",
-          "properties": {
-            "checked": { "type": "boolean" },
-            "drift": { "type": "array", "items": { "type": "string" }, "description": "Staged scripts whose bytes differ from the installed plugin's." },
-            "installed_version": { "type": ["string", "null"] },
-            "run_version": { "type": ["string", "null"], "description": "The plugin version the run's receipt records — what this run actually opened under." },
-            "warning": { "type": "string" }
-          }
+        "has_board": {
+          "type": "boolean",
+          "description": "The per-machine board (tasks/TASK-*.md) holds at least one task. The spec tree is committed and survives a clone; the board does not, so a tree with no board resumes at the board-only step."
         },
         "has_requirements": {
           "type": "boolean",
-          "description": "The requirements registry is on disk: shapeup/<slug>/requirements.md exists. A PLAIN FACT, not a phase — the orchestrator guards its single `coverage` dispatch on this boolean, and it is deliberately absent from kernel/probe/resume.mjs's PHASE_ARTIFACT map, which doubles as nextPhase()'s ordered list: an entry there would fast-forward every run recorded before the registry existed to the registry instead of to build."
+          "description": "The requirements registry is on disk. A plain fact, deliberately not a phase: adding it to the phase chain would send every run recorded before the registry existed to the registry instead of to build."
         },
         "has_wiring_map": {
           "type": "boolean",
-          "description": "WIRE finished: shapeup/<slug>/wiring-map.md exists."
+          "description": "The wiring step finished: shapeup/<slug>/wiring-map.md exists."
         },
         "project_profile_path": {
-          "type": "string"
+          "type": "string",
+          "description": "Where the shared project-profile.md lives (written at the intake gate, before the loop)."
         },
         "has_project_profile": {
           "type": "boolean",
-          "description": "tech-lead writes project-profile.md at GATE L0, before the launch; trace-lint resolves reachability by its archetype."
+          "description": "project-profile.md exists. A run with none is stopped before ORIENT, not at wiring after a planning pass has been paid for."
         },
         "scope_files": {
           "type": "array",
-          "description": "MAP SCOPES finished when non-empty. Each entry carries a RESOLVED path, never a bare filename — harness compile and harness verify t0 resolve --scope against cwd, and a bare id makes compile-order exit 2, which the attempt loop reads as the stagnation breaker.",
           "items": {
             "type": "object",
             "required": [
@@ -2414,53 +2258,125 @@
                 "type": "string"
               }
             }
-          }
+          },
+          "description": "The scope step finished when non-empty. Each entry carries a RESOLVED path, because compile and verify t0 resolve `--scope` against cwd and a bare id makes them exit 2, which the attempt loop would read as the stagnation breaker."
         },
         "scope_waves": {
           "type": "array",
-          "description": "The same scopes as scope_files, grouped into dependency WAVES: no wave contains a scope that depends on one still in flight. Levelled by `probe resume` from each contract's own `depends_on` — declared in the same COMMITTED tier as the contracts it orders, so it survives the clone that a join through machine-local task ids never could. Under the edge-released scheduler this is an ORDER and a cross-check rather than a barrier: the orchestrator trusts `scope_deps` only when Kahn-levelling it reproduces this field, so an edge lost crossing the sub-agent boundary degrades to wave release instead of starting a scope early. ADDITIVE: a consumer that ignores it, or a tree where no contract declares `depends_on`, every declared id names a scope not in the run, or the relation is cyclic, gets a single wave containing everything, which is the unscheduled fixed-width fan-out this replaced.",
           "items": {
             "type": "array",
             "items": {
               "type": "string"
             }
-          }
+          },
+          "description": "The same scopes grouped into dependency waves: no wave contains a scope that depends on one still in flight. Absent or unusable edges give one wave."
         },
         "scope_deps": {
           "type": "array",
-          "description": "The dependency edges the waves were levelled from, as `[dependant, dependency]` pairs, so a scope can be released the moment ITS OWN dependencies are green rather than when its whole wave finishes. Same parse as scope_waves; the two validate each other. ADDITIVE — absent, unusable or disagreeing with scope_waves, release falls back to the wave boundary.",
           "items": {
             "type": "array",
             "items": {
               "type": "string"
             }
-          }
+          },
+          "description": "The dependency edges the waves were levelled from, as [dependant_path, dependency_path] pairs. A wave says when a scope is definitely safe to start; an edge says when it became safe, so a scope is released the moment its own dependencies settle."
         },
         "scope_exclusions": {
           "type": "array",
-          "description": "Pairs of scopes that may not build AT THE SAME TIME because both declare a write to one path — `substrate.shared` is the sanctioned escape from the disjointness rule, so the lint passes it and the substrate wall permits that path to every live order. Measured: three concurrent writers to one entry point lost work in 20 of 20 trials, because an edit is read-modify-write and the later writer drops the earlier one silently. Unlike scope_deps these pairs are UNORDERED — neither scope waits for the other, they merely never overlap — and unlike a dependency they cost concurrency rather than buying correctness in sequence, which is why the release ceiling they imply is reported before a run spends anything.",
           "items": {
             "type": "array",
             "items": {
               "type": "string"
             }
-          }
+          },
+          "description": "Pairs of scopes that may not build at the same time because both may write one declared-shared path. An exclusion, not an ordering: concurrent writers to one shared entry point lose each other's work with every check green."
         },
         "pending_orders": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "Order files with no result beside them. Diagnostic only — build orders carry no scope id, so this set is not an audit trail of build dispatches (see harness compile's order-id note)."
+          "description": "Order files with no result beside them. Diagnostic only — a live order and a dead one look the same here; `probe next` says which."
         },
         "eval_rounds_done": {
           "type": "array",
           "items": {
             "type": "integer"
           },
-          "description": "Round numbers whose evaluate-r<n>.json holds a verdict the run may act on (PASS/FAIL, citing T0 artifacts when the spec is scoped) — the resumed run's round counter starts one past the maximum. A refused or uncited round is not done: the relaunch re-enters it."
+          "description": "Round numbers whose evaluate-r<n>.json holds a verdict the round can branch on. A round the judge refused to grade is not done: it is entered again."
         },
-        "next_phase": {
+        "rounds_used": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Rounds built, from the same mechanical derivation `reduce ship` and `report export` read — never the ledger's literal, which is written once, as 0."
+        },
+        "rounds_judged": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Rounds the judge graded. Its own field: a round built is not a round judged."
+        },
+        "round": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "The round the run is in: the latest T0 verdict's, else the rounds used."
+        },
+        "attempt": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "The latest T0 verdict's attempt number, or null with no verdict."
+        },
+        "latest_t0": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "round": {
+              "type": "integer"
+            },
+            "attempt": {
+              "type": "integer"
+            },
+            "overall": {
+              "type": "string",
+              "enum": [
+                "green",
+                "red"
+              ]
+            }
+          },
+          "description": "The latest T0 verdict by (round, attempt)."
+        },
+        "board": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "total": {
+              "type": "integer"
+            },
+            "done": {
+              "type": "integer"
+            },
+            "unfinished": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Board totals from the task files' frontmatter; null with no board. `unfinished` names at most ten."
+        },
+        "next_step": {
           "type": "string",
           "enum": [
             "orient",
@@ -2469,13 +2385,13 @@
             "map-scopes",
             "build"
           ],
-          "description": "The first phase whose artifacts are incomplete. Derived from the booleans above, in that order. The same table (harness probe resume PHASE_ARTIFACT) answers `--require <phase>`, the post-condition shapeup-run.js checks after every phase dispatch — resume and completion are ONE predicate by construction."
+          "description": "The first phase whose artifact is incomplete, in the vocabulary `--require` takes. The one table `--require` uses answers it, so the resume decision and the completion check cannot disagree."
         }
       }
     },
     "RunArgs": {
       "description": "The launch record — what a run was launched with, resolved once and written to .shapeup/<slug>/run-args.json by `harness init run` in the same act as the receipt. Every switch the operator typed lands here or does nothing: the loop that drives the run reads nothing but this record and the artifacts, and `reduce ship` reads `noEval` to refuse a PASS report over a run launched with no evaluation. The model floor (sonnet or above for `exec` and, unless `noEval`, `eval`) is enforced when the record is written and again when the loop reads it.",
-      "x-tier": "EMBEDDED",
+      "x-tier": "LOCAL",
       "x-location": ".shapeup/<slug>/run-args.json — written fresh when a run is opened (and again by `init run --force`); an already-open run keeps the record it has",
       "x-writer": "harness init run (kernel), from the same parsed argv as the receipt",
       "x-readers": "harness probe next (the loop's state machine), harness reduce ship (the no-evaluation guard), harness probe resume",
@@ -2548,8 +2464,11 @@
           "description": "ISO timestamp the run was opened at, the same instant as the receipt's started_at."
         },
         "lane": {
-          "$ref": "#/$defs/Lane",
-          "description": "The fit-check verdict (full|tiny) — compiles away into existing knobs; never rides in WorkOrderPayload."
+          "type": "string",
+          "enum": [
+            "full"
+          ],
+          "description": "The lane the launch asked for (`init run --lane full`). Only the full lane is served; the small-change lane retired and `tiny` is refused at the launch. Never rides in WorkOrderPayload."
         },
         "noEval": {
           "type": "boolean",
@@ -2557,7 +2476,7 @@
         },
         "noQa": {
           "type": "boolean",
-          "description": "If true, skips the QA Edge Hunt (`--no-qa`). Rides here for the same reason as noEval: no frontmatter line carries it. It is declared because the workflow reads it — an arg the script consumes and this record omits is a switch the launcher never learns to send, which is a documented flag that does nothing."
+          "description": "If true, skips the QA Edge Hunt (`--no-qa`). Rides here for the same reason as noEval: no frontmatter line carries it. It is declared because the loop reads it — a switch the record omits is a documented flag that does nothing."
         },
         "maxParallelScopes": {
           "type": "integer",
@@ -2568,128 +2487,6 @@
         "adversarialVerify": {
           "type": "boolean",
           "description": "If true, each FAIL finding gets one independent skeptic before it costs a whole fix round (`--adversarial-verify`). Off by default: it is a pure addition that spends one sub-agent per finding, and the single-judge invariant is unaffected — a refutation retracts a finding, it never issues a verdict."
-        }
-      }
-    },
-    "RunReturn": {
-      "description": "C1 — the return half of the workflow's only conversation. The ONLY way the workflow speaks back to tech-lead, so it is a tagged union keyed on `status` — the skill branches on the tag, never on prose (the same exit-code discipline harness gate already applies to gate sign-off, extended to the orchestrator's own return value). A gate resolved 'ask' (exit 4) always returns `paused`; a gate resolved 'abort' (exit 5) always returns `aborted`; any circuit breaker tripping (outer round_budget, inner attempt_budget, or the deadline breaker) returns `gate_h`; a full run whose final EVAL passes returns `shipped`. The union is written as a superset of what one inner round can itself produce (`paused`, `aborted`, `gate_h`, or a round-complete carrying a verdict) — `shipped` belongs only to a full run. It is deliberately NOT narrowed, because the round-scoped subset is what a `workflow()` child would return if the fan-out this design anticipates ever spends that nesting level.",
-      "x-tier": "EMBEDDED",
-      "x-location": "in-memory only — a Workflow return value, never written to disk",
-      "x-writer": "the workflow runtime (shapeup-run — the sole writer)",
-      "x-readers": "tech-lead (branches on `status`, emits `block` verbatim on a pause, never re-summarizes it)",
-      "type": "object",
-      "required": [
-        "status"
-      ],
-      "properties": {
-        "status": {
-          "type": "string",
-          "enum": [
-            "shipped",
-            "paused",
-            "aborted",
-            "gate_h",
-            "ok"
-          ],
-          "description": "shipped = the happy ending (outer run only) · paused = a gate resolved 'ask', relaunch after a recorded decision · aborted = a gate resolved 'abort', attributable stop · gate_h = a circuit breaker tripped, ship what is green · ok = one inner round completed (build+eval), not itself a ship — the outer loop decides whether to loop again."
-        },
-        "verdict": {
-          "type": "string",
-          "enum": [
-            "pass",
-            "fail",
-            "not-evaluated"
-          ],
-          "description": "shipped | ok: the round or run's EVAL verdict, lowercased from spec-evaluator's PASS|FAIL — or `not-evaluated` when a `shipped` return closed a `--no-eval` run, which reaches SHIP without ever dispatching the judge. Recorded plainly, never upgraded to `pass` (references/protocol.md)."
-        },
-        "rounds_used": {
-          "type": "integer"
-        },
-        "dims_evaluated": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "The dimensions the last evaluate order named: the set the PO chose at L0.5, or the one resolved from the spec."
-        },
-        "dims_not_evaluated": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "qa_findings": {
-          "type": "integer"
-        },
-        "qa": {
-          "type": "string",
-          "enum": ["run", "not-hunted", "skipped"],
-          "description": "What QA amounted to: run (at least one charter ran), not-hunted (the hunt returned and ran no charter), skipped (--no-qa or the QA gate answered skip). qa_findings is 0 in the last two for different reasons."
-        },
-        "report": {
-          "type": "string",
-          "description": "shipped: shapeup/<slug>/REPORT.md path."
-        },
-        "state_warnings": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "shipped | gate_h: bookkeeping writes that did not take (a ledger status that read back wrong), carried on the ONE channel a headless launch preserves. The workflow's own log() goes to the progress narrator and `claude -p` stdout carries only the final message, so a run that returned `shipped` over a ledger still reading `evaluating` could not be told from one that warned about it. Absent when every state write took. Diagnostic, never a status: a lost bookkeeping write is a degraded digest, not a corrupted build."
-        },
-        "round": {
-          "type": "integer",
-          "description": "ok: which round this return describes."
-        },
-        "paused_at": {
-          "type": "string",
-          "description": "paused: the gate id that resolved 'ask' (e.g. L1b, L2, L3)."
-        },
-        "block": {
-          "type": "string",
-          "description": "paused: the ⏸ gate block, emitted VERBATIM by the skill — the block is the handoff contract; re-phrasing it is the paraphrase channel this design exists to close."
-        },
-        "valid_decisions": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "paused: the decisions VALID_BY_GATE allows at this gate (harness gate)."
-        },
-        "context": {
-          "type": "object",
-          "description": "paused: whatever facts the paused gate needs the PO to see (round, scope counts, spec_lint status, …)."
-        },
-        "aborted_at": {
-          "type": "string",
-          "description": "aborted: the gate id that resolved 'abort'."
-        },
-        "reason": {
-          "type": "string",
-          "description": "aborted: the attributable reason (harness gate's own `reason` field, carried through verbatim)."
-        },
-        "breaker": {
-          "type": "string",
-          "enum": [
-            "outer",
-            "inner",
-            "deadline"
-          ],
-          "description": "gate_h: which of the three breakers fired (AGENTS.md's three-level circuit breaker)."
-        },
-        "hammer_proposals": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "gate_h | ok: scope ids queued for GATE H's census (the stop step) — an exhausted scope never blocks the round, it proposes."
-        },
-        "green_scopes": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "gate_h | ok: scope ids that reached T0-green this round."
         }
       }
     }

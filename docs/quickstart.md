@@ -224,7 +224,7 @@ not against an ideal todo app. That is what makes it possible to stop.
 
 ⏸ **GATE L4.** You sign off. Feedback you give here is not lost: `/retro` files it under the
 responsible skill in `shapeup/knowledge-base/<skill>.md`, committed, and the coachable
-skills read it back on their next run — including `tech-lead`, whose file holds workflow
+skills read it back on their next run — including the loop itself (`building`), whose file holds workflow
 guidance it reads at the next GATE L0 (what to ask, what to pin; never how to answer a gate).
 Before a first run on a new codebase, `/retro --scan` can seed those files from the project's
 own build files, and on an empty project `/retro --research "<stack>"` from the platform's

@@ -12,15 +12,12 @@
 // Only an empty/absent model string is rejected outright, because that is a missing model, not an
 // unrecognized one.
 //
-// WHY THIS EXECUTES THE SHIPPED BYTES RATHER THAN A REIMPLEMENTATION. `shapeup-run.js` is a
-// Workflow script — no module resolution, `args` arrives as a runtime global, and the file closes
-// with a top-level `return`, so it cannot be `import()`-ed as ordinary ESM. A hand-kept copy of
-// `belowFloor()` here would drift from the shipped predicate silently and pass forever regardless —
-// the exact class of defect this whole phase exists to close. tests/lib/model-floor-region.mjs
-// reads the shipped file and evaluates the delimited region directly, the same technique
-// tests/lib/scheduler-region.mjs already uses for the BUILD scheduler in the same file.
+// WHERE THE PREDICATE LIVES NOW. It used to sit inside the launch script, which has no module resolution, so
+// this module had to slice a delimited region out of the script and evaluate it. The kernel owns it —
+// `kernel/lib/floor.mjs` — and `init run` (which refuses a launch below it) and `probe next` (which refuses
+// to drive a record below it) both import the one function, so this module imports it too and runs it.
 
-import { loadBelowFloor } from "../lib/model-floor-region.mjs";
+import { join } from "node:path";
 
 /**
  * Run the structural checks for the model floor.
@@ -31,22 +28,24 @@ export async function run(ctx) {
   const { ROOT, ok, fail, section } = ctx;
 
   // =============================================================================
-  section("72. Model floor — the shipped belowFloor() predicate, executed against real ids");
+  section("72. Model floor — the kernel's belowFloor() predicate, executed against real ids");
   // =============================================================================
 
-  let belowFloor;
+  let floor;
   try {
-    belowFloor = loadBelowFloor(ROOT);
+    floor = await import(join(ROOT, "kernel/lib/floor.mjs"));
   } catch (e) {
-    fail(`could not load the shipped model-floor region: ${e.message}`);
+    fail(`could not load kernel/lib/floor.mjs: ${e.message}`);
     return;
   }
-  ok("the shipped model-floor region loads and defines belowFloor()");
+  const { belowFloor, floorProblems } = floor;
+  if (typeof belowFloor !== "function" || typeof floorProblems !== "function") { fail("kernel/lib/floor.mjs does not export belowFloor() and floorProblems()"); return; }
+  ok("kernel/lib/floor.mjs defines belowFloor() and floorProblems()");
 
   // (a) real model ids this repo ships with must pass — the false positive this stage closes.
   const mustPass = ["claude-opus-5", "claude-sonnet-4-5", "opusplan", "sonnet", "opus"];
   for (const m of mustPass) {
-    if (belowFloor(m)) fail(`belowFloor(${JSON.stringify(m)}) is truthy — a real model id is rejected before Preflight`);
+    if (belowFloor(m)) fail(`belowFloor(${JSON.stringify(m)}) is truthy — a real model id is rejected before a run can open`);
     else ok(`belowFloor(${JSON.stringify(m)}) is falsy — accepted, not aborted`);
   }
 
@@ -58,29 +57,20 @@ export async function run(ctx) {
     else ok(`belowFloor(${JSON.stringify(m)}) is truthy — correctly rejected`);
   }
 
-  // (c) THE GUARD HAS BITE: re-run the SAME assertion from (a) against the OLD allowlist shape, to
-  // prove this check would actually have failed against the defect it closes — a check that cannot
-  // distinguish the fix from the bug it fixes is decorative.
-  const { REGION_START, REGION_END } = await import("../lib/model-floor-region.mjs");
-  const OLD_ALLOWLIST_SOURCE = [
-    REGION_START,
-    'const MODEL_FLOOR = new Set(["sonnet", "opus"]);',
-    "const belowFloor = (m) => !MODEL_FLOOR.has(String(m || \"\").toLowerCase());",
-    REGION_END,
-  ].join("\n");
-  let oldBelowFloor;
-  try {
-    oldBelowFloor = loadBelowFloor(ROOT, { source: OLD_ALLOWLIST_SOURCE });
-  } catch (e) {
-    fail(`could not evaluate the old allowlist shape as a regression fixture: ${e.message}`);
-    oldBelowFloor = null;
+  // (c) THE GUARD HAS BITE: the SAME assertion from (a), run against the OLD allowlist shape, shows this check
+  // would have failed against the defect it closes — a check that cannot distinguish the fix from the bug it
+  // fixes is decorative. The old shape is a self-contained expression, so it is written here and executed.
+  const oldBelowFloor = (m) => !new Set(["sonnet", "opus"]).has(String(m || "").toLowerCase());
+  if (mustPass.some((m) => oldBelowFloor(m))) {
+    ok("the old exact-spelling allowlist shape falsely rejects a real model id — confirms this module's checks would have caught the defect it closes");
+  } else {
+    fail("the old allowlist shape did not falsely reject any real model id — the regression fixture is not representative of the defect this stage closes");
   }
-  if (oldBelowFloor) {
-    const oldFalselyRejects = mustPass.some((m) => oldBelowFloor(m));
-    if (oldFalselyRejects) {
-      ok("the old exact-spelling allowlist shape falsely rejects a real model id — confirms this module's checks would have caught the defect it closes (watched red before the fix landed)");
-    } else {
-      fail("the old allowlist shape did not falsely reject any real model id — the regression fixture is not representative of the defect this stage closes");
-    }
-  }
+
+  // (d) The roles the floor applies to: exec and eval, with eval released by --no-eval and qa never checked.
+  const names = (models, opts) => floorProblems(models, opts).map((p) => p.split(" ")[0]).join(",");
+  if (names({ exec: "haiku", eval: "haiku", qa: "haiku" }) === "models.exec,models.eval") ok("floorProblems names exec and eval when both are below the floor, and never qa");
+  else fail(`floorProblems(all three haiku) named ${names({ exec: "haiku", eval: "haiku", qa: "haiku" })}`);
+  if (names({ exec: "sonnet", eval: "haiku" }, { noEval: true }) === "") ok("floorProblems does not check eval under --no-eval");
+  else fail("floorProblems checked eval for a run that skips evaluation");
 }

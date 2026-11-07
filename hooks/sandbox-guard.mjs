@@ -15,7 +15,7 @@
 //
 // IT READS EVERY LIVE ORDER, NOT A POINTER TO ONE. `.shapeup/active-order` names the run and
 // nothing more — `harness compile` publishes it as it writes each order, which is what fences the
-// lanes that never reach the workflow (`--tiny`, the prose round loop, a standalone `/build`).
+// calls that never go through the loop (a hand-driven round, a standalone `/build`).
 // A single pointer cannot survive concurrency: with scopes building side by side the last compile
 // wins the pointer, and a write from scope A would be judged against scope B's contract — a false
 // block or a false permit depending on which way the race fell. So the candidate set is every

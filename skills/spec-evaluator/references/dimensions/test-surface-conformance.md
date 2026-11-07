@@ -90,7 +90,7 @@ ts_row: <the full row probed, verbatim>
 repro: <probe executed — command / UI steps>
 expected: <the Expect cell>
 actual: <observed evidence — response, state, screenshot ref>
-next: <TSC-1 → task-executor fix via tech-lead round r+1 | TSC-2 → retrofit-surface re-run>
+next: <TSC-1 → task-executor fix via the loop round r+1 | TSC-2 → retrofit-surface re-run>
 ```
 
 ## Report obligation (the QA handoff)

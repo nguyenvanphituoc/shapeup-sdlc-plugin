@@ -4,8 +4,8 @@ description: Implement a task's acceptance criteria exactly (minimum code, surgi
 Use the **task-executor** skill on $ARGUMENTS.
 
 Standalone build: implements one task (`TASK-NNN`) from a spec folder — assumption scan first,
-minimum code, surgical diffs, verified observable outcomes. Inside an orchestrated run the
-tech-lead dispatches this skill through the envelope port instead; this command is for picking
+minimum code, surgical diffs, verified observable outcomes. Inside a run the `building` loop
+dispatches this skill through the envelope port instead; this command is for picking
 up a single task directly.
 
 If no task ID was given, read the board (`.shapeup/<slug>/tasks/_index.md`) and take the
@@ -16,19 +16,14 @@ the harness working, not an error to route around.
 ## Building a whole scoped feature is not this command
 
 This command builds **one task**. A full BUILD round — every scope, the per-scope attempt loop,
-T0 verification, the inner circuit breaker, then the single EVAL — is a workflow-script launch, and
-it belongs to the orchestrator:
+T0 verification, the inner circuit breaker, then the single EVAL — belongs to the loop:
 
 ```
-Workflow({
-  scriptPath: ".shapeup/workflows/shapeup-run.js",
-  args: <the RunArgs object>
-})
+/ship <pitch>
 ```
 
-Reach it through `/ship` (or the `tech-lead` skill), which opens the run properly — `harness init run`
-first, so the receipt exists. Do not hand-roll the round by calling this command once per task: the
-attempt loop, the T0 ratchet and the breakers are branches in that script, not steps a caller can
-be trusted to reproduce, and a session that rebuilds them by hand is the prose lane the cutover
-replaced. On a `--tiny` run or a spec with no committed `scopes/*.md`, the prose loop in
-`skills/tech-lead/references/protocol.md` still applies, unchanged and by design.
+`/ship` opens the run properly — `harness init run` first, so the receipt and the launch record
+exist — and then asks the kernel (`probe next`) what comes next, over and over. Do not hand-roll the
+round by calling this command once per task: the attempt loop, the T0 ratchet and the breakers are
+branches of that state machine, not steps a caller can be trusted to reproduce, and a session that
+rebuilds them by hand is the prose lane the loop replaced.

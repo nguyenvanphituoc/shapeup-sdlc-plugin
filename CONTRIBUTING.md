@@ -54,7 +54,8 @@ behaviour. Do not hand-edit `docs/assets/demo-gate.svg`.
 ```
 skills/<name>/SKILL.md    one skill = one craft. Markdown. This is most of the project.
 skills/*/scripts/         mechanics belonging to one skill, co-located with it
-skills/tech-lead/         the orchestrator: compile-order, ingest-result, t0-verify, trace-lint
+skills/building/         the loop: a thin skill over the kernel's `probe next`
+kernel/                   the deterministic half: compile, ingest, t0-verify, trace, probe next
 kernel/schemas/           domain.schema.json + the envelope schemas
 hooks/                    five .mjs hooks; hooks.json wires them
 tests/structural.mjs      the test entrypoint

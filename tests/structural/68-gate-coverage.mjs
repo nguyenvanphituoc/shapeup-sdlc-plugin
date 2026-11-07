@@ -33,19 +33,21 @@ export async function run(ctx) {
   const { GATE_IDS, VALID_BY_GATE } = await import(join(ROOT, "kernel/gate.mjs"));
 
   // ===============================================================================================
-  section("109. Every GATE_ID resolves somewhere — the script's own range, or the skill's prose");
+  section("109. Every GATE_ID resolves somewhere — a `probe next` gate step, or the loop's instructions");
   // ===============================================================================================
   {
-    const workflowSrc = read(join(ROOT, "skills/tech-lead/workflows/shapeup-run.js"));
-    const scriptIds = new Set([...workflowSrc.matchAll(/crossGate\("([^"]+)"/g)].map((m) => m[1]));
+    // The gates the state machine hands out itself: every `gateStep("<id>", …)` call in `probe next`.
+    const nextSrc = read(join(ROOT, "kernel/probe/next.mjs"));
+    const scriptIds = new Set([...nextSrc.matchAll(/gateStep\("([^"]+)"/g)].map((m) => m[1]));
 
-    // Every prose file that may resolve a gate outside the script's own range — L0 pins the run
-    // before the script launches, L4/COACH-1 after it returns.
-    // `kernel/probe/next.mjs` is not prose, but it is the call site that matters most now: it hands the
-    // loop the exact `gate --resolve COACH-1` command on the shipped terminal step.
+    // Every file that may resolve a gate outside the state machine's own steps — L0 pins the run before
+    // the loop starts, COACH-1 after it ships. `kernel/probe/next.mjs` is not prose, but it is the call site
+    // that matters most: it hands the loop the exact `gate --resolve COACH-1` command on the shipped
+    // terminal step.
     const proseFiles = [
-      "skills/tech-lead/SKILL.md",
-      "skills/tech-lead/references/gates.md",
+      "skills/building/SKILL.md",
+      "skills/building/resources/intake.md",
+      "skills/building/resources/gates.md",
       "skills/building/resources/retro.md",
       "kernel/probe/next.mjs",
     ];
@@ -58,9 +60,9 @@ export async function run(ctx) {
     const allCovered = new Set([...scriptIds, ...proseIds]);
     const missing = GATE_IDS.filter((g) => !allCovered.has(g));
     if (!missing.length) {
-      ok(`every one of the ${GATE_IDS.length} GATE_IDS (kernel/gate.mjs) has a call site — ${scriptIds.size} in the workflow script, ${proseIds.size} in the orchestrating skill's own prose`);
+      ok(`every one of the ${GATE_IDS.length} GATE_IDS (kernel/gate.mjs) has a call site — ${scriptIds.size} handed out by probe next's own gate steps, ${proseIds.size} named in the loop's instructions and commands`);
     } else {
-      fail(`GATE_IDS names a gate no call site can emit: ${missing.join(", ")} — resolved by neither shapeup-run.js's crossGate nor any "gate --resolve" in ${proseFiles.join(", ")}`);
+      fail(`GATE_IDS names a gate no call site can emit: ${missing.join(", ")} — resolved by neither a probe next gate step nor any "gate --resolve" in ${proseFiles.join(", ")}`);
     }
 
     // The reverse direction: a call site naming an id GATE_IDS does not know about is a typo that
@@ -69,15 +71,15 @@ export async function run(ctx) {
     const unknownScript = [...scriptIds].filter((g) => !GATE_IDS.includes(g));
     const unknownProse = [...proseIds].filter((g) => !GATE_IDS.includes(g));
     if (!unknownScript.length && !unknownProse.length) {
-      ok("no call site (script or prose) names a gate id outside GATE_IDS — the roster and the call sites cannot drift apart silently");
+      ok("no call site (gate step or prose) names a gate id outside GATE_IDS — the roster and the call sites cannot drift apart silently");
     } else {
-      fail(`a call site names an id GATE_IDS does not declare: script=[${unknownScript.join(", ")}] prose=[${unknownProse.join(", ")}]`);
+      fail(`a call site names an id GATE_IDS does not declare: steps=[${unknownScript.join(", ")}] prose=[${unknownProse.join(", ")}]`);
     }
 
     // Specifically the three this stage closes — named so a regression here fails legibly rather
     // than as a generic "missing" entry in the list above.
     for (const gid of ["L0", "L4", "COACH-1"]) {
-      if (scriptIds.has(gid) || proseIds.has(gid)) ok(`${gid} — the gate the workflow never sees — now has a call site`);
+      if (scriptIds.has(gid) || proseIds.has(gid)) ok(`${gid} — the gate outside the build loop's own steps — has a call site`);
       else fail(`${gid} still has no call site anywhere — HD-019's own three`);
     }
   }

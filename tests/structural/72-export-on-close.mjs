@@ -1,29 +1,22 @@
-// 72 — defect-plan-3.7 Stage 2: a run exports on every terminal ending, not only the one that
-// ships. Sections: 118, 119, 120.
+// 72 — A RUN EXPORTS ON EVERY TERMINAL ENDING, `shipped` INCLUDED. Sections: 118, 119, 120.
 //
-// THE DEFECT. `report export` (kernel/report/export.mjs) was called exactly once,
-// `skills/tech-lead/workflows/shapeup-run.js`'s Ship phase, through `advisory(...)` — a call site
-// inside a phase that `aborted`, `escalated` and `gate_h` runs never reach. Every fact those
-// endings produced (orders, results, T0 verdicts, hook decisions, `graph.jsonl`) sat in the
-// gitignored LOCAL tier and was wiped by the next `init run`, with nothing durable surviving it —
-// and the runs whose records are worth most (the ones that never shipped) are exactly the ones the
-// exporter never saw.
+// THE DEFECT, originally. `report export` (kernel/report/export.mjs) was called from exactly one place, a
+// ship phase that `aborted`, `escalated` and `gate_h` runs never reach. Every fact those endings produced
+// (orders, results, T0 verdicts, hook decisions, `graph.jsonl`) sat in the gitignored LOCAL tier and was
+// wiped by the next `init run`, with nothing durable surviving it — and the runs whose records are worth
+// most (the ones that never shipped) are exactly the ones the exporter never saw.
 //
-// THE FIX. `closeRun` (kernel/probe/resume.mjs) — the ONE call site that writes
-// `closed_status`/`close_cause`/`closed_at` together, Stage 1's own close-out — now also runs the
-// export for every terminal status EXCEPT `"shipped"`, through a private `exportOnClose` helper.
-// `"shipped"` is deliberately excluded: the Ship phase's own `report export` call already covers
-// it, several lines before this close-out runs, and Stage 2's own deliverable is to leave that
-// path's output byte-comparable to before — add the endings that wrote nothing, change nothing
-// about the one that did. Fail-open: an export that cannot write degrades the return with an
+// THE FIX, and where it stands now. `closeRun` (kernel/probe/resume.mjs) — the ONE call site that writes
+// `closed_status`/`close_cause`/`closed_at` together — runs the export for every terminal status through a
+// private `exportOnClose` helper. It used to leave `shipped` out because the ship phase's own export call
+// covered it. That call lived in the retired run script and `probe next` makes none, so a `shipped` close
+// that skipped the export would be a run that ships and leaves no durable trace: the exception is gone,
+// and section 119(a) pins the new rule. Fail-open: an export that cannot write degrades the return with an
 // `export_warning`, never the close itself.
 //
-// WHY THIS MODULE DRIVES REAL RUNS RATHER THAN READING SOURCE ALONE. Rule 7 ("a guard that asserts
-// a call must also assert its effect") — proving `exportOnClose` is WIRED IN is only proof it
-// exists to call; proving the files land on disk, for a close that actually happened, is the
-// standard `tests/fixtures/s2-drive-export.mjs` (this stage's own acceptance driver) and this
-// module both hold to. Section 120 is the one exception, checking the orchestrator's own call site
-// at the source level — `shapeup-run.js` cannot be imported (58-relaunch-memory.mjs's own banner).
+// WHY THIS MODULE DRIVES REAL RUNS RATHER THAN READING SOURCE ALONE. A guard that asserts a call must also
+// assert its effect — proving `exportOnClose` is WIRED IN is only proof it exists to call; proving the files
+// land on disk, for a close that actually happened, is what this module holds to.
 
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -64,7 +57,7 @@ export async function run(ctx) {
       openRun(ROOT, ws, "checkout", "Add checkout flow");
       const runId = runIdOf(ws, "checkout");
 
-      // (a) aborted, via closeArm — the same path shapeup-run.js's closeIfTerminal drives.
+      // (a) aborted, via closeArm — the path every `probe next` close command takes.
       const aborted = closeArm(ws, "checkout", "aborted", "driven by 72-export-on-close.mjs");
       const abortedRow = exportedRunRow(ws, runId);
       if (aborted.ok && aborted.terminal && abortedRow?.closed_status === "aborted" && abortedRow?.close_cause) {
@@ -78,7 +71,7 @@ export async function run(ctx) {
       openRun(ROOT, ws, "checkout", "Add checkout flow");
       const runId = runIdOf(ws, "checkout");
 
-      // (b) gate_h, via closeArm — closes AS escalated (operator decision 1 from Stage 1).
+      // (b) gate_h, via closeArm — closes AS escalated.
       const gateH = closeArm(ws, "checkout", "gate_h", "breaker=outer driven by 72-export-on-close.mjs");
       const gateHRow = exportedRunRow(ws, runId);
       if (gateH.ok && gateH.terminal && gateHRow?.closed_status === "escalated" && gateHRow?.close_cause) {
@@ -92,34 +85,34 @@ export async function run(ctx) {
       openRun(ROOT, ws, "checkout", "Add checkout flow");
       const runId = runIdOf(ws, "checkout");
 
-      // (c) escalated, via closeRun DIRECTLY — the operator/tech-lead-skill path, never a
-      // RunReturn arm and never touching RUN_RETURN_CLOSE at all. Proves the export lives in the
-      // one shared close-out, not in the arm-derivation layer above it.
+      // (c) escalated, via closeRun DIRECTLY — the operator path, never an arm and never touching
+      // CLOSE_ARM_STATUS at all. Proves the export lives in the one shared close-out, not in the
+      // arm-derivation layer above it.
       const escalated = closeRun(ws, "checkout", { status: "escalated", cause: "operator escalation driven by 72-export-on-close.mjs" });
       const escalatedRow = exportedRunRow(ws, runId);
       if (escalated.ok && escalatedRow?.closed_status === "escalated" && escalatedRow?.close_cause) {
-        ok("(c) a direct closeRun(\"escalated\") call — never a RunReturn arm — exports on exactly the same terms");
+        ok("(c) a direct closeRun(\"escalated\") call — never an arm — exports on exactly the same terms");
       } else fail(`(c) direct escalated close did not export as expected: close=${JSON.stringify(escalated)} row=${JSON.stringify(escalatedRow)}`);
     } finally { rmSync(ws, { recursive: true, force: true }); }
   }
 
   // ===============================================================================================
-  section("119. The shipped path is untouched, a failed export is advisory, and the guard is real");
+  section("119. A shipped close exports too, a failed export is advisory, and the guard is real");
   // ===============================================================================================
   {
     const ws = mkdtempSync(join(tmpdir(), "export-close-119a-"));
     try {
       openRun(ROOT, ws, "checkout", "Add checkout flow");
 
-      // (a) NON-REGRESSION — the deliverable's own words: "do not change what a shipping run
-      // writes, only add the endings that wrote nothing." closeRun("shipped") must not itself
-      // create .shapeup/exports/ — that call site remains solely shapeup-run.js's own Ship-phase
-      // `report export`, run separately, before this close-out is ever reached.
+      // (a) `shipped` exports like every other ending. The ship phase that used to export for it is gone,
+      // so the close is the only call site left; a shipped close that wrote nothing would leave the
+      // runs that DID ship with no durable trace.
+      const runId = runIdOf(ws, "checkout");
       const shipped = closeRun(ws, "checkout", { status: "shipped", cause: "verdict=pass driven by 72-export-on-close.mjs" });
-      const exportsExists = existsSync(join(ws, ".shapeup", "exports"));
-      if (shipped.ok && shipped.export_warning === undefined && !exportsExists) {
-        ok("(a) closeRun(\"shipped\") writes no .shapeup/exports/ of its own — the Ship phase's existing export call is the only one for this ending");
-      } else fail(`(a) closeRun(\"shipped\") side-effects changed: close=${JSON.stringify(shipped)} exportsExists=${exportsExists}`);
+      const row = exportedRunRow(ws, runId);
+      if (shipped.ok && shipped.export_warning === undefined && row?.closed_status === "shipped" && row?.close_cause) {
+        ok("(a) closeRun(\"shipped\") writes .shapeup/exports/<run_id>/run.jsonl carrying closed_status=shipped — every ending exports, none is exempted by a call site that no longer exists");
+      } else fail(`(a) a shipped close did not export: close=${JSON.stringify(shipped)} row=${JSON.stringify(row)}`);
     } finally { rmSync(ws, { recursive: true, force: true }); }
   }
   {
@@ -160,33 +153,14 @@ export async function run(ctx) {
   }
 
   // ===============================================================================================
-  section("120. The orchestrator's own wiring — source-level, since shapeup-run.js cannot be executed here");
+  section("120. The loop makes no export call of its own — the close is the one call site");
   // ===============================================================================================
-  const runJs = read(join(ROOT, "skills/tech-lead/workflows/shapeup-run.js"));
-
-  // The Ship-phase export call site Stage 2 must leave untouched — same command, same phase label.
-  if (/await advisory\(`report export --slug \$\{slug\}`, "Ship", "export-run"\);/.test(runJs)) {
-    ok("(a) the Ship phase's own \"report export --slug\" call site is unchanged — the shipped path's export stays byte-comparable to before Stage 2");
-  } else {
-    fail("(a) the Ship phase's \"report export --slug\" call site has changed or gone missing — Stage 2 was only meant to add the endings that wrote nothing");
-  }
-
-  // closeIfTerminal must not have grown a SECOND explicit export call of its own — the export for
-  // aborted/escalated/gate_h is meant to arrive as a side effect of the existing
-  // `--close-arm` dispatch (kernel/probe/resume.mjs), not as new prose in this file.
-  const closeIfTerminalMatch = runJs.match(/async function closeIfTerminal\(ret\) \{([\s\S]*?)\n\}\n/);
-  if (closeIfTerminalMatch && !/report export/.test(closeIfTerminalMatch[1])) {
-    ok("(b) closeIfTerminal calls no \"report export\" of its own — the export for a non-shipped ending is the kernel close-out's own side effect, not duplicated prose here");
-  } else {
-    fail(`(b) closeIfTerminal appears to call "report export" directly: ${closeIfTerminalMatch ? closeIfTerminalMatch[1].slice(0, 200) : "function not found"}`);
-  }
-
-  // A failed export must surface, never be swallowed — closeIfTerminal reads it off the close
-  // command's own report and pushes it onto stateWarnings, the same channel every other
-  // close-degradation in this function already uses.
-  if (closeIfTerminalMatch && /r\.export_warning/.test(closeIfTerminalMatch[1]) && /stateWarnings\.push/.test(closeIfTerminalMatch[1])) {
-    ok("(c) closeIfTerminal reads export_warning off the close command's report and pushes it onto stateWarnings — not swallowed");
-  } else {
-    fail("(c) closeIfTerminal does not appear to surface an export_warning onto stateWarnings");
-  }
+  const next = read(join(ROOT, "kernel/probe/next.mjs"));
+  if (!/report export/.test(next)) {
+    ok("(a) `probe next` hands out no `report export` command: the export is the close's own side effect, so no step can skip it and none can run it twice");
+  } else fail("(a) probe next carries a `report export` command — the export must stay the close's side effect, not a step a session can skip");
+  const resume = read(join(ROOT, "kernel/probe/resume.mjs"));
+  if (/const shouldExport = withExport;/.test(resume) && !/status !== "shipped"/.test(resume.slice(resume.indexOf("const shouldExport") - 200, resume.indexOf("const shouldExport") + 200))) {
+    ok("(b) closeRun exports for every terminal status unless a test fixture passes withExport:false");
+  } else fail("(b) closeRun's export is gated on the status again");
 }

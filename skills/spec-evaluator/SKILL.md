@@ -1,6 +1,6 @@
 ---
 name: spec-evaluator
-description: "Use this skill whenever the user wants to evaluate, QA, or verify that an implemented task actually matches its spec and acceptance criteria — the judge in a planner→generator→evaluator harness. Trigger on: \"evaluate task TASK-NNN\", \"QA TASK-NNN\", \"verify against spec\", \"check acceptance criteria\", \"does this match the spec\", \"grade this build\", \"run evaluator\", or a tech-lead --order dispatch. Skeptical by default — absence of evidence is a FAIL; probes the running app and files file:line bugs."
+description: "Use this skill whenever the user wants to evaluate, QA, or verify that an implemented task actually matches its spec and acceptance criteria — the judge in a planner→generator→evaluator harness. Trigger on: \"evaluate task TASK-NNN\", \"QA TASK-NNN\", \"verify against spec\", \"check acceptance criteria\", \"does this match the spec\", \"grade this build\", \"run evaluator\", or a loop --order dispatch. Skeptical by default — absence of evidence is a FAIL; probes the running app and files file:line bugs."
 ---
 
 # Spec Evaluator (the single judge, pure worker v1.0)

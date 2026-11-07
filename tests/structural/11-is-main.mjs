@@ -180,12 +180,14 @@ export async function run(ctx) {
   // saw. What has to be pinned instead is that the orchestrator's own instructions still TELL it to
   // ask — an unasked query is exactly as silent as an unfired hook.
   {
-    const skill = join(ROOT, "skills/tech-lead/SKILL.md");
+    const skill = join(ROOT, "skills/building/SKILL.md");
     const body = existsSync(skill) ? read(skill) : "";
-    if (/reduce graph[\s\S]{0,80}subgraph run/.test(body) || /subgraph run/.test(body)) {
-      ok("tech-lead SKILL.md names the rehydration query the retired SessionStart hook used to carry");
+    // The rehydration query is the loop's own first call now: `probe next`, with `--restart` on the first
+    // ask of a fresh session, answers where the run stands from artifacts alone.
+    if (/probe next --slug <slug> \[--restart\]/.test(body) && /first call of a fresh session/.test(body)) {
+      ok("the building skill names the rehydration query the retired SessionStart hook used to carry: `probe next --restart` on a fresh session's first call");
     } else {
-      fail("tech-lead SKILL.md never names `reduce graph --subgraph run` — the continuity reflex was deleted " +
+      fail("the building skill never tells a fresh session to ask `probe next --restart` first — the continuity reflex was deleted " +
            "and nothing replaced it, which is the cold-start defect the retired hook was written for");
     }
     for (const gone of ["session-rehydrate", "compact-snapshot"]) {

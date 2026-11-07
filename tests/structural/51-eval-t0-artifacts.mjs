@@ -18,6 +18,7 @@
 // And the L3 abort said the sub-agent "died after retries" while the evaluator's own reason sat in
 // its result. Each property below is asserted by executing the kernel against a fixture.
 
+import { pinnedBy } from "../lib/pinned-row.mjs";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
@@ -40,7 +41,7 @@ export async function run(ctx) {
   const { newestFirst } = await import(join(ROOT, "kernel/probe/t0.mjs"));
   const { t0ArtifactsFor } = await import(join(ROOT, "kernel/compile.mjs"));
   const { evalVerdict } = await import(join(ROOT, "kernel/probe/eval.mjs"));
-  const { deriveResumeState } = await import(join(ROOT, "kernel/probe/resume.mjs"));
+  const { deriveResumeFacts } = await import(join(ROOT, "kernel/probe/resume.mjs"));
 
   const roots = [];
   const fixture = (name) => { const d = mkdtempSync(join(tmpdir(), `eval-t0-${name}-`)); roots.push(d); return d; };
@@ -159,9 +160,9 @@ export async function run(ctx) {
     if (pe.status === 1 && peOut.ok === false && peOut.status === "failed" && /NOT gradeable/.test(peOut.reason || "")) {
       ok("probe eval reports a refused round as not ok, with the evaluator's status and its own reason");
     } else fail(`probe eval over a refused round printed ${pe.stdout.trim()} (exit ${pe.status}) — the reason must reach the L3 abort`);
-    if (JSON.stringify(deriveResumeState(s, "demo").eval_rounds_done) === "[]") {
+    if (JSON.stringify(deriveResumeFacts(s, "demo").eval_rounds_done) === "[]") {
       ok("a refused EVAL round is not a done round — the relaunch re-enters it instead of opening the next");
-    } else fail(`eval_rounds_done counted a refused round: ${JSON.stringify(deriveResumeState(s, "demo").eval_rounds_done)}`);
+    } else fail(`eval_rounds_done counted a refused round: ${JSON.stringify(deriveResumeFacts(s, "demo").eval_rounds_done)}`);
 
     // --- (e) a scoped verdict citing nothing is not a judgement; a cited one is ---------------
     evalResult(s, { status: "done", verdict: { overall: "PASS" } });
@@ -169,7 +170,7 @@ export async function run(ctx) {
     if (!uncited.found && uncited.overall === "PASS" && /cites no T0 artifact/.test(uncited.reason || "")) {
       ok("a scoped PASS citing no T0 artifact is refused as a round's verdict, and the reason says so");
     } else fail(`a scoped, uncited PASS was accepted as a verdict: ${JSON.stringify(uncited)}`);
-    if (JSON.stringify(deriveResumeState(s, "demo").eval_rounds_done) === "[]") {
+    if (JSON.stringify(deriveResumeFacts(s, "demo").eval_rounds_done) === "[]") {
       ok("an uncited scoped verdict leaves its round open");
     } else fail("an uncited scoped verdict was counted as a graded round");
 
@@ -179,7 +180,7 @@ export async function run(ctx) {
     evalResult(s, { status: "done", verdict: { overall: "FAIL", bugs: [],
       t0_citations: [{ scope_id: "alpha", path: ".shapeup/demo/t0/verdicts/r1-a1-t1.json", sha256: alphaGreenS.sha256 }] } });
     const cited = evalVerdict(s, "demo", 1);
-    if (cited.found && cited.overall === "FAIL" && JSON.stringify(deriveResumeState(s, "demo").eval_rounds_done) === "[1]") {
+    if (cited.found && cited.overall === "FAIL" && JSON.stringify(deriveResumeFacts(s, "demo").eval_rounds_done) === "[1]") {
       ok("a cited scoped verdict is found, and its round counts as done");
     } else fail(`a cited scoped FAIL was not accepted: ${JSON.stringify(cited)}`);
 
@@ -206,14 +207,10 @@ export async function run(ctx) {
     else fail(`ingest refused a cited scoped verdict (exit ${i2.status})\n${i2.stdout}${i2.stderr}`);
 
     // --- (g) the L3 abort carries the reason instead of "died after retries" ------------------
-    const wf = readFileSync(join(ROOT, "skills/tech-lead/workflows/shapeup-run.js"), "utf8");
-    const schema = (wf.match(/const EVAL_VERDICT = \{[\s\S]*?\n\};/) || [""])[0];
-    if (/\breason:/.test(schema) && /\bstatus:/.test(schema) && /diedAt\("L3",[^\n]*ev\.reason/.test(wf)) {
-      ok("the workflow's L3 abort names the reason probe eval reports, not a dead sub-agent");
-    } else {
-      fail("shapeup-run.js does not carry probe eval's status/reason into its L3 abort — a refused round " +
-        "still reads as a sub-agent that died after retries");
-    }
+    // This used to read the retired run script's verdict schema and its abort call. The loop's L3 abort is
+    // `probe next`'s own step, with the reason in the step; both refusals are rows of the state-machine suite.
+    pinnedBy(ctx, ["a verdict refused twice aborts at L3", "a judge that refused to grade aborts at L3 naming the status"],
+      "(g) the L3 abort names the reason `probe eval` reports, not a dead sub-agent");
   } finally {
     for (const d of roots) rmSync(d, { recursive: true, force: true });
   }

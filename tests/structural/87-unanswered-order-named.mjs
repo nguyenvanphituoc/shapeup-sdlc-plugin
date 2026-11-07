@@ -3,6 +3,7 @@
 // the export's own dispatch row said `answered: false` and nothing upstream had noticed. Measured
 // on a live consumer run. This module pins the probe that lists such orders and the close that
 // names them.
+import { pinnedBy } from "../lib/pinned-row.mjs";
 import { mkdtempSync, rmSync, writeFileSync, readFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
@@ -11,7 +12,6 @@ import { spawnSync } from "node:child_process";
 export async function run(ctx) {
   const { ROOT, ok, fail, section } = ctx;
   const KERNEL = join(ROOT, "kernel/harness.mjs");
-  const WORKFLOW = join(ROOT, "skills/tech-lead/workflows/shapeup-run.js");
 
   section("139. A dispatched order that never answered is listed by the probe and named at the close");
 
@@ -51,9 +51,7 @@ export async function run(ctx) {
     rmSync(ws, { recursive: true, force: true });
   }
 
-  const src = readFileSync(WORKFLOW, "utf8");
-  if (/const unansweredOrders = \[\];/.test(src) && /unansweredOrders\.push\(leg\.order\)/.test(src)) ok("requireLeg records a dispatched-but-unanswered order instead of returning silently");
-  else fail("requireLeg still returns silently when the result is absent — the order is never named");
-  if (/unanswered_orders=\$\{unansweredOrders\.length\}/.test(src) && /causeArg\(cause \+ unanswered\)/.test(src)) ok("every close cause carries unanswered_orders=N when any order never answered — shipped included");
-  else fail("the close cause does not name unanswered orders");
+  // The close side used to read the retired run script's source (that it recorded a dispatched-but-unanswered
+  // order and put `unanswered_orders=N` into every close cause). It is `probe next`'s now.
+  pinnedBy(ctx, ["an unanswered order is named at every close"], "every close cause carries unanswered_orders=N when an order never answered");
 }

@@ -136,6 +136,8 @@ export async function run(ctx) {
     }, (s) => is("terminal", "abort.ORIENT")(s) && /not a valid WorkResult after one send-back/.test(s.reason));
     row("orient artifacts with a receipt and no WorkResult send the envelope back once", (ws) => { profile(ws); orient(ws); order(ws, "orient", { receipts: 1 }); },
       (s) => is("dispatch", "orient.dispatch")(s) && /returned NO WorkResult/.test(s.note));
+    row("orient artifacts with no receipt and no WorkResult are not sent back — the worker never ran", (ws) => { profile(ws); orient(ws); order(ws, "orient", { receipts: 0 }); },
+      (s) => is("gate", "gate.L1a")(s) && !/WorkResult/.test(JSON.stringify(s)));
     row("an orient envelope already sent back once is not sent back again", (ws) => { profile(ws); orient(ws); order(ws, "orient", { receipts: 2 }); },
       (s) => s.step === "gate.L1a");
     row("orient artifacts and a complete leg reach GATE L1a, with the spiked area", (ws) => { profile(ws); orient(ws); order(ws, "orient", { receipts: 1, result: {}, applied: true }); },
@@ -298,6 +300,14 @@ export async function run(ctx) {
       passed(ws); gate(ws, "QA", { round: 1, decision: "run", verdict: "pass" });
       order(ws, "hunt", { receipts: 1, body: { payload: { app_url: "http://localhost:1" } }, result: { status: "done" }, applied: true });
     }, (s) => is("dispatch", "qa.hunt")(s) && /Your previous result was refused/.test(s.note));
+    row("a hunt dispatched three times with no answer is given up on: QA is a level-up, so the run goes to the census", (ws) => {
+      passed(ws); gate(ws, "QA", { round: 1, decision: "run", verdict: "pass" });
+      order(ws, "hunt", { receipts: 3 });
+    }, (s) => is("stop", "stop.census")(s) && s.inputs.qa_findings === 0);
+    row("a hunt result that nothing applied is named in warnings and never stops the run (QA never gates)", (ws) => {
+      passed(ws); gate(ws, "QA", { round: 1, decision: "run", verdict: "pass" });
+      order(ws, "hunt", { receipts: 1, result: { status: "done" } });
+    }, (s) => is("stop", "stop.census")(s) && s.warnings.some((w) => /hunt's result was never applied/.test(w)));
     row("QA answered skip goes to the census with no hunt", (ws) => { passed(ws); gate(ws, "QA", { round: 1, decision: "skip", verdict: "pass" }); },
       (s) => is("stop", "stop.census")(s) && s.inputs.qa_findings === 0 && s.inputs.breaker === null);
     row("--no-qa skips the hunt even when the gate says run", (ws) => {
@@ -399,10 +409,14 @@ export async function run(ctx) {
       const f = local(ws, "run-args.json"); const a = JSON.parse(readFileSync(f, "utf8")); a.autoLevel = "unattended"; json(f, a);
       const h = local(ws, "harness-run.md"); writeFileSync(h, readFileSync(h, "utf8").replace(/^gate_answers:.*$/m, "gate_answers: ci"));
     }, (s) => is("gate", "gate.L1a")(s) && s.command.includes("--preset ci"));
+    row("a compiled payload carries no bare null — a field the run does not have is left out of it", profile,
+      (s) => is("dispatch", "orient.dispatch")(s) && /--payload '\{/.test(s.compile) && !/:null/.test(s.compile));
     row("every command a step carries is one line, and names the kernel by absolute path", (ws) => { profile(ws); orient(ws); },
       (s) => s.kind === "gate" && [s.command, s.answer_command, s.abort_close].every((c) => !c.includes("\n") && c.startsWith(`node "${KERNEL}"`)));
 
     // ---- run them ---------------------------------------------------------------------------------
+    const statefulRows = [], unclosed = [];
+    let terminals = 0;
     for (const c of cases) {
       const ws = fresh();
       let step;
@@ -411,7 +425,19 @@ export async function run(ctx) {
       try { good = Boolean(c.expect(step)); } catch { good = false; }
       if (good) ok(`next: ${c.name}`);
       else fail(`next: ${c.name} — got ${JSON.stringify(step).slice(0, 360)}`);
+      // EVERY ENDING RECORDS A CLOSE. A terminal step is closed through the kernel's arm map, so the step
+      // itself must carry the command that does it — the property a run script's "every terminal return is
+      // wrapped" guard used to protect, now checked over every planted row that reaches one.
+      if (step?.kind === "terminal") { terminals++; if (!/--close-arm (aborted|gate_h|shipped)\b/.test(step.close_command || "")) unclosed.push(c.name); }
+      // THE STATE MACHINE REMEMBERS NOTHING. Asked a second time over the same tree — what a relaunched
+      // session does — it answers identically; a census, a count or a green set held anywhere but the
+      // artifacts would make the second answer differ. Checked over every row, not a chosen few.
+      try { if (JSON.stringify(next(ws, c.extra || [])) !== JSON.stringify(step)) statefulRows.push(c.name); } catch { statefulRows.push(c.name); }
     }
+    if (!unclosed.length) ok(`next: every terminal step among the ${terminals} rows that reach one carries a close command (\`probe resume --close-arm\`) — no ending is left without a recorded close`);
+    else fail(`next: these terminal steps carry no close command: ${unclosed.join("; ")}`);
+    if (!statefulRows.length) ok(`next: asked twice over the same tree, every one of ${cases.length} rows answers identically — nothing is carried in memory between asks`);
+    else fail(`next: these rows answered differently the second time (state held outside the artifacts): ${statefulRows.join("; ")}`);
 
     // ---- the census refusal, driven through the real kernel -----------------------------------------
     // The rows above plant the refusal ledger by hand; this drives the three acts for real, because the

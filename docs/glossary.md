@@ -46,7 +46,7 @@ mechanically true rather than aspirational.
 |---|---|
 | **work order / work result** | The JSON envelope every worker receives and returns. Workers are stateless: everything they used to write into shared files, they now return as data. |
 | **envelope port** | The dispatch path — `harness compile` builds the order, a `PreToolUse` hook validates it against a schema, `harness reduce ingest` applies the result. |
-| **fast-forward** | How a relaunched run finds its place: the resume point is derived from artifacts on disk, never from stored status or the conversation, so a killed session picks up where it died. |
+| **resume** | How a run finds its place again: `/ship` over an open run derives the next step from artifacts on disk (`probe next`), never from stored status or the conversation, so a killed session picks up where it died. |
 | **single writer** | `harness reduce ingest` performs *every* board/ledger/verdict write, so parallel scopes cannot corrupt shared state. |
 | **pure worker** | A skill containing craft only, with zero pipeline knowledge — it cannot know or care where it sits in a run. |
 | **zero-memory handoff** | Each build attempt is a fresh subagent that sees only what the order put in the envelope, never prior chat. |

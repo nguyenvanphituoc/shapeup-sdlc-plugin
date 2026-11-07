@@ -3,7 +3,7 @@
 //
 // WHY THIS EXISTS (reproduced, not theorized).
 //
-// Dispatched with a valid spec, the orchestrator did this:
+// Dispatched with a valid spec, the orchestrator (then a skill named `tech-lead`) did this:
 //
 //     TOOL   Skill(tech-lead, "--unattended --rounds 3\n\n# the requirement…")
 //     TEXT   "The tech-lead skill is orchestrating the full Shape Up harness. It will: 1. …"
@@ -28,7 +28,7 @@
 //   • It is the orchestrator's FIRST action, stated in the first screen of SKILL.md. Everything
 //     emitted before a tool call is narration surface; this shrinks that surface to zero.
 //   • It writes `receipt.json` — the fact "this run started, with THIS intake, at THIS time".
-//     `gate-zerowork.mjs` (Stop) blocks a session that invoked tech-lead and produced no
+//     `gate-zerowork.mjs` (Stop) blocks a session that dispatched the loop and produced no
 //     receipt. Narration now has a detector that does not depend on what the narration says.
 //   • It writes `active-scope`, which is the precondition every downstream guard already
 //     assumed someone had established. Previously that someone was the model, deciding to.
@@ -89,7 +89,7 @@ import { createHash } from "node:crypto";
 import { decideLane, treeSize } from "./fit.mjs";
 import { runArgs } from "../lib/argv.mjs";
 import { uncoerce, splitFrontmatter } from "../lib/contract.mjs";
-import { deriveSnapshot } from "../reduce/snapshot.mjs";
+import { deriveResumeFacts } from "../probe/resume.mjs";
 import { mintRunId } from "../lib/paths.mjs";
 import { launchProblems, floorProblems, AUTO_LEVELS } from "../lib/floor.mjs";
 import {
@@ -528,16 +528,13 @@ export function cli(rawArgv) {
 
   // GATE L0 — the worker roster, before any spend.
   //
-  // HERE AND NOT IN THE WORKFLOW SCRIPT, for two reasons. This is what GATE L0 actually executes,
-  // and it covers both lanes rather than only the orchestrated one — the prose/`--tiny` lane opens
-  // its run through exactly this call. And it is genuinely before any spend: the workflow script's
-  // own helpers reach the kernel by spawning a sub-agent first, so a check placed there has already
-  // paid for a model call before it can refuse.
+  // HERE, in the one call every run is opened through: it is what GATE L0 actually executes, and it
+  // is genuinely before any spend — nothing has been compiled, dispatched or paid for when it refuses.
   //
   // What it can and cannot prove is stated in verify/skills.mjs and is worth repeating where it is
   // enforced: this says the files exist at this root at this version. It does not say the SESSION
-  // will resolve that copy. The orchestrator's canary dispatch answers that, and its receipt is the
-  // evidence; this refusal is the cheap half that costs nothing to run on every single run.
+  // will resolve that copy. The first orient dispatch's receipt answers that, and `verify dispatch`
+  // reads it; this refusal is the cheap half that costs nothing to run on every single run.
   const plugin = resolveWorkers(args.pluginRoot ? resolve(args.pluginRoot) : undefined);
   if (plugin.missing.length) {
     fail(3, [
@@ -633,7 +630,7 @@ export function cli(rawArgv) {
   // if you opened a run"; it also means "here is the run you are actually in".
   if (existsSync(receiptPath) && !args.force) {
     let resume = null;
-    try { resume = deriveSnapshot(cwd); } catch { /* a broken run must still produce the refusal */ }
+    try { resume = deriveResumeFacts(cwd, slug); } catch { /* a broken run must still produce the refusal */ }
     // A receipt says a run EXISTS, not that it is open: a terminal close leaves the receipt in place.
     // Calling a closed run "open" hid the one fact that changes what resuming it means.
     let closed = null;
@@ -669,8 +666,8 @@ export function cli(rawArgv) {
         ? `LAUNCH RECORD (kept — the switches typed to this call were NOT applied; --force re-opens with new ones):\n${JSON.stringify(kept, null, 2)}`
         : "No launch record is on disk for this run — re-open it with --force to write one.",
       "",
-      "To re-derive the state at any time:",
-      "  node <plugin>/kernel/harness.mjs reduce snapshot --cwd <dir>",
+      "To re-derive the facts at any time:",
+      "  node <plugin>/kernel/harness.mjs probe resume --slug <slug>",
       "To drive the run from where it stands: `probe next --slug <slug> --restart`.",
       "To abandon the open run and start over, deliberately: --force",
     ].join("\n"));

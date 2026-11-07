@@ -1,5 +1,10 @@
 # The split is already 80% built; what is missing is a contract, not a boundary
 
+> **Historical.** This note describes the design the run had before 4.0: a Workflow script as the control
+> plane, couriers to type its kernel commands, a relaunch after every paused gate. [ADR-0004](adr/0004-single-loop.md)
+> replaced that with a loop in the session over the kernel's `probe next`. The reasoning here stands as a record
+> of why that shape was tried; the component names and channels it draws no longer exist.
+
 **Question:** Should 4.0 separate this repo into a published `shapeup-sdlc` CLI (deterministic,
 measurable) and a pure-markdown Claude Code plugin (orchestrator, agents, workflow) — and if so,
 what does that fix, what does it cost, and in what order?
@@ -38,7 +43,7 @@ permission rules (`bin/lib/grant.mjs:61,81`), and already invoked from a hook th
 would be (`hooks/hooks.json`: `node "…/kernel/harness.mjs" verify envelope`). The plugin tier is
 already 10,825 lines of markdown. What is *not* split is smaller and more specific than "code versus
 markdown": a 1,653-line JavaScript orchestrator lives inside the skill tier
-(`skills/tech-lead/workflows/shapeup-run.js`), and the shared contract — the schemas both tiers
+(`tech-lead/workflows/shapeup-run.js`), and the shared contract — the schemas both tiers
 depend on — lives in the *skill* tier while the kernel reaches up into it (`kernel/compile.mjs:61`,
 `kernel/reduce/ingest.mjs:36`, `kernel/verify/envelope.mjs:31`). That inverted dependency is the
 real defect, and it explains the thing that made the fix plan read as contradictory: **seven of the
@@ -289,7 +294,7 @@ and each is executable today inside one repo.
 | one entry point, two permission rules | `bin/lib/grant.mjs:61,73-83` |
 | a hook already invokes the CLI | `hooks/hooks.json` PreToolUse `Skill\|Agent` |
 | kernel imports schemas from the skill tier | `kernel/compile.mjs:61`, `reduce/ingest.mjs:36`, `verify/envelope.mjs:31` |
-| the orchestrator is a scheduler | `skills/tech-lead/workflows/shapeup-run.js:237-284, 319-329` |
+| the orchestrator is a scheduler | `tech-lead/workflows/shapeup-run.js:237-284, 319-329` |
 | `run-args.json` read but never written — **fixed since**, `kernel/init/run-args.mjs` is now the writer | `kernel/probe/concurrency.mjs:304,313` (the read side; true when this doc was written) |
 | lifecycle-based organisation is an Accepted ADR | `docs/design/adr/0002-plugin-repo-organization.md` |
 | the eleven open defects, since fixed or decided | `shapeup/knowledge-base/harness-defects.md` |

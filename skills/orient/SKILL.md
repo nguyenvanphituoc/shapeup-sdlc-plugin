@@ -1,6 +1,6 @@
 ---
 name: orient
-description: "Use this skill for Shape Up step 7 (Orient) — the builder-led reconnaissance pass that runs AFTER kick-off and BEFORE any task board exists. Triggers on: \"orient on this feature\", \"scout the codebase for this pitch\", \"where does this pitch touch the code\", \"do an orient pass\", \"recon before we plan\", \"spike the riskiest part before mapping scopes\". The loop (`/ship`) invokes it at step 7, before the plan activity (Map Scopes, step 8). Use it even when the user describes \"read the code first and surface the unknowns\" without naming Orient. Also accepts a tech-lead --order dispatch."
+description: "Use this skill for Shape Up step 7 (Orient) — the builder-led reconnaissance pass that runs AFTER kick-off and BEFORE any task board exists. Triggers on: \"orient on this feature\", \"scout the codebase for this pitch\", \"where does this pitch touch the code\", \"do an orient pass\", \"recon before we plan\", \"spike the riskiest part before mapping scopes\". The loop (`/ship`) invokes it at step 7, before the plan activity (Map Scopes, step 8). Use it even when the user describes \"read the code first and surface the unknowns\" without naming Orient. Also accepts a the loop --order dispatch."
 ---
 
 # Orient — the Scout (Shape Up step 7)
@@ -8,7 +8,7 @@ description: "Use this skill for Shape Up step 7 (Orient) — the builder-led re
 In Shape Up, the team that builds also **orients**: after kick-off they read the real code,
 spike the scary parts, and let reality generate **Discovered tasks** — which outnumber the
 imagined ones. This skill is that pass, made explicit. It exists because the orchestrator
-(`tech-lead`) must *delegate* orientation, and the generator (`task-executor`) can't host it:
+(`building`) must *delegate* orientation, and the generator (`task-executor`) can't host it:
 its first gate needs a task file, and **at Orient time no board exists yet** — the board is
 mapped *after* this pass, by the plan activity at step 8.
 
@@ -17,7 +17,7 @@ It hands `ba` a map of where the pitch lands in real code, the findings from de-
 single scariest area, and a seed list of tasks (imagined + already-discovered). Nothing more.
 
 ```
-PO: shaping → bet → kick-off ──► tech-lead ──► ORIENT (you) ──► ba (Map Scopes) ──► build
+PO: shaping → bet → kick-off ──► the loop ──► ORIENT (you) ──► ba (Map Scopes) ──► build
                                                   reads code, spikes, seeds
 ```
 
@@ -30,12 +30,12 @@ PO: shaping → bet → kick-off ──► tech-lead ──► ORIENT (you) ─�
 | Read the kicked-off pitch + breadboard | Re-shape, re-bet, or question the appetite (PO already did) |
 | Trace pitch elements to real files/modules | Write production code |
 | Spike the **single** riskiest area, time-boxed | Build the scope board / tasks (that is `ba`, step 8) |
-| Seed the discovered-task list (imagined + discovered) | Keep `run-state` (tech-lead owns it) |
-| Emit raw hill **signal** (per-area unknowns) | Render the hill **report** (tech-lead renders it) |
+| Seed the discovered-task list (imagined + discovered) | Keep `run-state` (the loop owns it) |
+| Emit raw hill **signal** (per-area unknowns) | Render the hill **report** (the loop renders it) |
 
 The Scout is a **pure worker** (the harness rule: stateless workers, one stateful
 orchestrator). It receives run metadata — `feature`, `spec` folder, `stack` — as **arguments**
-from `tech-lead`; it never reads or writes a shared run-state file.
+from `building`; it never reads or writes a shared run-state file.
 
 ---
 
@@ -64,9 +64,9 @@ them. When dispatched with an order, also write the WorkResult envelope
 | File | Purpose | Consumed by |
 |------|---------|-------------|
 | `orient/code-surface.md` | where the pitch lands in real code: modules, files, existing entities, seams | `ba` Phase 1 (ingest), Phase 2 (DDD) |
-| `orient/spike-<area>.md` | findings from de-risking the single riskiest area | `ba` Phase 1b / contracts; tech-lead L1a |
+| `orient/spike-<area>.md` | findings from de-risking the single riskiest area | `ba` Phase 1b / contracts; the loop L1a |
 | `orient/discovered-seed.md` | imagined + already-discovered tasks, grouped by suspected scope | `ba` Phase 6 (task gen) |
-| `orient/hill-signal.md` | per-area inventory of open unknowns (raw signal, not a report) | `tech-lead` GATE L1a hill render |
+| `orient/hill-signal.md` | per-area inventory of open unknowns (raw signal, not a report) | `building` GATE L1a hill render |
 
 ---
 
@@ -91,10 +91,10 @@ Phase 5   │  Seed discovered tasks ► imagined + discovered, grouped by suspe
           │                         → write orient/discovered-seed.md
 Phase 6   │  Emit hill signal ────► per-area open-unknown inventory
           │                         → write orient/hill-signal.md
-✅ Done    └─► 4 artifacts in .shapeup/<feat>/orient/ — hand back to tech-lead for GATE L1a
+✅ Done    └─► 4 artifacts in .shapeup/<feat>/orient/ — hand back to the loop for GATE L1a
 ```
 
-Under `--auto` (passed by `tech-lead` when its run level is `--auto`/`--unattended`), run
+Under `--auto` (passed by `building` when its run level is `--auto`/`--unattended`), run
 straight through, auto-confirming O-A and O-B with sensible defaults.
 
 ---
@@ -105,7 +105,7 @@ straight through, auto-confirming O-A and O-B with sensible defaults.
 Confirm (do not guess):
   - kicked-off pitch path (shaping.md / pitch.md)
       Shaped signal: frontmatter status: shaped AND bet: <S1|S2|...> (or equivalent).
-      If the pitch lacks appetite AND solution boundaries → STOP and tell tech-lead:
+      If the pitch lacks appetite AND solution boundaries → STOP and tell the loop:
         "Orient runs on a kicked-off pitch, not a raw idea. Shape/bet first (PO upstream)."
   - breadboard — read `payload.breadboard` when present; absent means the pitch has no separate
     breadboard — look for Places and affordance tables in the pitch itself
@@ -204,16 +204,16 @@ in `reconcile` mode) is
 ## Phase 6 — Emit hill signal → `hill-signal.md`
 
 For each suspected scope/area, list its **open unknowns** (unresolved spike question, `⏳ TBD`
-data shape, unproven seam, ambiguous requirement). This is the raw input `tech-lead` renders
+data shape, unproven seam, ambiguous requirement). This is the raw input `building` renders
 into the Hill at GATE L1a — a scope with open unknowns sits **uphill**; one whose approach the
-spike proved sits toward the **crest**. Emit the *facts*; let `tech-lead` position the dots.
+spike proved sits toward the **crest**. Emit the *facts*; let `building` position the dots.
 Keep it per-area (not per-slice) — slices don't exist until `ba` maps them at step 8.
 
 ---
 
 ## Done — completion output
 
-When all four artifacts are written, emit this summary (to tech-lead or directly to the user
+When all four artifacts are written, emit this summary (to the loop or directly to the user
 in standalone mode):
 
 ```
@@ -243,15 +243,15 @@ Tech-lead uses this to render the GATE L1a Hill and confirm the spike before han
 | Spike exactly one area OR declare SPIKE-NOT-NEEDED | Depth on the scariest unknown beats shallow coverage; don't spike for its own sake |
 | Every Discovered task in the seed cites `file:line` | If no real location exists, it belongs in Imagined, not Discovered |
 | Never assign task IDs/order/deps in the seed | Mapping scopes is `ba`'s job (step 8) — the Scout hands over raw material |
-| Receives `feature`/`spec`/`stack` as args; never touches run-state | `tech-lead` is the sole run-state writer |
-| Emits hill *signal*, never a hill *report* | `tech-lead` renders progress; workers emit facts |
+| Receives `feature`/`spec`/`stack` as args; never touches run-state | `building` is the sole run-state writer |
+| Emits hill *signal*, never a hill *report* | `building` renders progress; workers emit facts |
 
 ---
 
 ## Invocation
 
 ```bash
-# Invoked by tech-lead at step 7 (canonical) — compile-order --operation orient --slug <feat> …
+# Invoked by the loop at step 7 (canonical) — compile-order --operation orient --slug <feat> …
 /orient --order .shapeup/<feat>/orders/orient.json
 
 # Standalone flags (the preamble shim compiles the same envelope)
@@ -260,7 +260,7 @@ Tech-lead uses this to render the GATE L1a Hill and confirm the spike before han
 # Standalone recon (no orchestrator) — still writes only the four artifacts
 /orient --pitch shapeup/<feat>/shaping/shaping.md --spec shapeup/<feat>/spec/
 
-# Auto (tech-lead passes this under --auto/--unattended): run straight through
+# Auto (the loop passes this under --auto/--unattended): run straight through
 /orient --pitch ... --spec ... --auto
 ```
 

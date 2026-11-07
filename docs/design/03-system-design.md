@@ -4,7 +4,7 @@
 
 ## Components and their contracts
 
-The tech-lead is the only stateful component. Every other skill is a **pure worker**: it
+The loop (`building`, run by `/ship` in your own session) is the only stateful component, and its state is the artifacts on disk. Every worker skill is a **pure worker**: it
 receives a structured order, does its craft, and returns a structured result — it never reads
 or writes the run's shared files directly.
 
@@ -15,7 +15,7 @@ kernel (`kernel/`, schemas in `kernel/schemas/`):
 
 ```mermaid
 sequenceDiagram
-    participant TL as tech-lead (orchestrator)
+    participant TL as building (the loop)
     participant CO as harness compile
     participant VE as harness verify envelope (hook)
     participant W as worker skill (fresh Agent)
@@ -194,7 +194,7 @@ the segment after the last `:`.
 **Where it becomes a wall.** Nowhere in the hook — it has no deny path. `harness reduce ingest`
 refuses a result whose order declares `mode: "orchestrated"` and has no receipt matching on all three
 of `order_id`, `skill_invoked === order.worker`, and `at ≥ compiled_at`. Existence alone would be
-satisfied by a stale receipt from an earlier relaunch, since order paths like `orders/orient.json`
+satisfied by a stale receipt from an earlier session, since order paths like `orders/orient.json`
 are reused verbatim on re-dispatch. A result with no order beside it — a standalone or fixture
 ingest — made no such claim and is not held to it. `--no-receipt-check` is the documented way
 through, because the receipt channel is best-effort by design and a load-bearing gate built on one
@@ -208,22 +208,21 @@ names the copy that produced it. That is the cheap half, and it is honestly inco
 states the failure actually takes — installed but disabled, and a different version loaded — have all
 four `SKILL.md` files and pass it green.
 
-So the orchestrator's first leg is a canary: one `Skill(...)` dispatch, deliberately with no
-`--order` (it is testing name resolution, not doing work, and an order would leave a compiled order
-with no result in `orders/` that three readers would then have to know about). `harness verify
-dispatch --skill <worker> --within <seconds>` then reads the decision rows above. Because a Skill
-call whose name does not resolve fires no hook at all, a row naming a skill IS the proof that this
-session resolved it, and the sub-agent that made the call cannot write that row — so the evidence is
-not its account of what happened. The window is required rather than optional: without one, a
-checkout that had the plugin loaded once passes forever.
+So the run's first orient dispatch is the canary: it leaves the same receipt a deliberate no-order name-resolution
+dispatch would, and `harness verify dispatch --skill <worker> --within <seconds>` reads the decision rows above on
+demand. Because a Skill call whose name does not resolve fires no hook at all, a row naming a skill IS the proof that
+this session resolved it, and the sub-agent that made the call cannot write that row — so the evidence is not its
+account of what happened. The window is required rather than optional: without one, a checkout that had the plugin
+loaded once passes forever. (An earlier design spent one extra sub-agent per launch on a dedicated canary dispatch,
+ahead of any work, and again after every paused gate; with no relaunch and the receipt written by the first real
+dispatch, nothing is paid for twice.)
 
-The skill canary proves the workers resolve and nothing about the commands the round gate will run.
-So Preflight's second leg is `harness verify build --preflight`: the profile's `build_probe` and
-`launch_probe`, run once from a sub-agent through the session's own grant, with no artifact
-written. Environment faults — a missing package install or local SDK pointer, a probe outside the
-grant, no device attached (a probe exiting 2) — are reported before planning is paid for rather than
-at the first round gate. It warns and does not abort, because a baseline can be red for a reason the
-feature itself is meant to fix.
+The round gate's commands are a separate question the skill check cannot answer. `harness verify build --preflight`
+runs the profile's `build_probe` and `launch_probe` once with no artifact written, and the loop does not run it up
+front: the round build gate runs the same steps at the end of round 1, so environment faults — a missing package
+install or local SDK pointer, a probe outside the grant, no device attached (a probe exiting 2) — surface there as a
+red round gate rather than at open, and a baseline that is red for a reason the feature is meant to fix is a round-1
+finding, not a refusal. The preflight form stays available by hand.
 
 ## 3.2b — The zero-work block (Stop, blocking)
 
@@ -235,7 +234,7 @@ One `Stop`-event hook may block, and its predicate is why the invariant survives
 
 **Why it exists.** Observed repeatedly, not theorized: given a
 *valid* spec, the orchestrator loaded a 450-line instruction file describing the gates and
-returned a description of those gates — "The tech-lead skill is orchestrating the full Shape Up
+returned a description of those gates — "The orchestrator skill is orchestrating the full Shape Up
 harness. It will: 1. …" — then ended. No code, no board, no gate artifacts, and prose that reads
 like a successful run, with every defect left in the deliverable.
 
@@ -356,8 +355,7 @@ running — and `harness probe stats --hooks` can report evaluations, denials an
 
 ## 3.2g — The run key, and the record plane (v1.8)
 
-Everything above writes JSON. Orders and results are the dispatch's input and output; the launcher
-journals one row per agent call with its model, wall time and cost; every hook appends a decision
+Everything above writes JSON. Orders and results are the dispatch's input and output; the loop's own records carry one row per dispatch (the leg ledger, with its model, wall time and cost where the host reports them); every hook appends a decision
 row; `t0-verify` appends a trial row with a genuine parent edge. The harness has been producing a
 complete, schema-registered dataset since v1.0 — and discarding it, because **none of it was
 joinable**.
@@ -383,9 +381,8 @@ yields the id it would have been given.
 | `harness init run` | `receipt.json` | mints it — the run acquires identity at the moment it starts |
 | `harness compile` | WorkOrder | `run_id` + `compiled_at`, at the one point every lane passes through |
 | `harness verify t0` | T0Artifact, TrialRow | read off the receipt in the run root it was pointed at |
-| the Workflow runtime | journal row | resolved once at launch, from `RunArgs.runId` or the receipt |
+| `harness init run` | launch record | `runId` copied from the receipt it was written beside |
 | `hooks/lib/decision.mjs` | decision row | best-effort via `active-scope`, else the `last-run` breadcrumb a terminal close leaves (row marked `run_closed`); `null` outside any run |
-| tech-lead (SHIP S.6) | MetricsRow | copied — the harvest row's only link to its own trace |
 
 **WorkResult deliberately gets no stamp.** It is written by the worker, and a field a worker must
 remember to copy goes missing under exactly the conditions you most want the record. Results join
@@ -427,17 +424,17 @@ summary without noticing*: re-dispatching an already-ingested order, miscounting
 (breaking the inner circuit breaker), or "remembering" a hill phase instead of re-deriving it.
 
 The answer is a **query, not a reflex**. After a compaction, or in a fresh session over an open
-run, the orchestrator re-derives where the run stands from artifacts:
+run, the loop re-derives where the run stands from artifacts (`probe next --restart` is the first call of a fresh session; this is the same query as one bounded graph read):
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" reduce graph --slug <slug> --subgraph run
 ```
 
 Two supporting derivations answer narrower questions from the same files: `harness probe resume`
-reports the phase and can refuse to proceed past one (`--require`), and `harness reduce snapshot`
-derives a `RunSnapshot` (registered in the domain registry, self-validated before emitting) from
-the run pointer, `harness-run.md` frontmatter, board frontmatter, `t0/verdicts/` filenames and
-the `orders/` vs `results/` diff — `--write` persists it as an audit anchor.
+prints the run's facts (`ResumeFacts` in the domain registry: the artifact predicates, the contracts' build
+order, rounds used and judged, the latest T0, board totals, the orders dispatched and never answered) and can
+refuse to proceed past a phase (`--require`), and `harness probe next` derives the one next step from them. The
+earlier `reduce snapshot` and its `RunSnapshot` were merged into the resume facts.
 
 The leg-completion rows `reduce ingest` appends answer a question, and `harness probe leg` is what asks it: did a
 scope's result actually **reach the board**? A green T0 verdict says the worker's fixtures ran and
@@ -530,38 +527,35 @@ migration tool does — update code, then apply any pending, idempotent `NNNN__*
 migration exactly once, recorded in a committed ledger. Both shell paths are a frozen URL
 contract (`scripts/FROZEN.md`): they may never be renamed or moved.
 
-## 3.5 — The run itself: one workflow launch, not a turn-by-turn drive
+## 3.5 — The run itself: one workflow launch, not a turn-by-turn drive — **superseded**
 
-Everything above describes a single dispatch. The **run** that strings them together is not the
-orchestrator narrating steps in the conversation — it is one launch on the native Workflow runtime
-that owns the whole pipeline:
+> **Superseded by [ADR-0004 — the single loop](adr/0004-single-loop.md).** The decision this section
+> recorded — drive a run as one launch of a Workflow script, with the orchestrator relaunching it after each
+> paused gate — was reversed in 4.0. What replaced it is kept short here and argued in the ADR; the history
+> below is kept so the reasoning is not lost.
 
-```
-Workflow({
-  scriptPath: ".shapeup/workflows/shapeup-run.js",
-  args: <the RunArgs object>
-})
-```
+**What replaced it.** The run is driven by the `building` skill in the PO's own session, as a loop over one
+kernel verb: `harness probe next` derives the next step from the artifacts on disk (its command, and at a gate
+its block), the loop does it, and asks again. Every agent the run spawns is a worker with a row in the run's
+records; the loop runs every kernel command itself and branches on its exit code. A gate is answered in the
+session that reached it, and a killed session resumes with `/ship` again.
 
-`tech-lead` holds the GATE L0 intake conversation, writes `project-profile.md`, compiles one
-`RunArgs` record (`domain.schema.json#/$defs/RunArgs`) — and hands over. ORIENT → L1a → ANALYZE →
-WIRE → L1a.5 → MAP SCOPES → L1b → rounds of BUILD/L2/EVAL → QA → GATE H all run inside
-`shapeup-run.js`. Three properties follow, and they are the reason the run is shaped this way:
+**What it was.** `tech-lead` held the GATE L0 intake conversation, wrote `project-profile.md`, compiled one
+`RunArgs` record and handed over to a Workflow script that ran ORIENT through GATE H. Three properties were
+the reason it was shaped that way, and each has a successor:
 
-| Property | Mechanism |
-|---|---|
-| **A gate pause is a return value, not a stop.** | The launch returns `{status: "paused", paused_at, block}`. The orchestrator emits `block` verbatim, gets the PO's decision, writes it to `.shapeup/<slug>/gate-answers.json`, and **relaunches the same call with the same args**. |
-| **A killed session loses nothing.** | `harness probe resume` derives the resume point from **artifacts on disk**, never from stored status or conversation memory — every phase predicate is an artifact test. `shapeup-run.js` fast-forwards past finished phases on every launch, fresh or resumed. The same table answers `--require <phase>`, checked after each dispatch as the post-condition and again before each SKIP, so a fast-forwarded phase is attested where it is acted on rather than inherited from the one probe at the top of the run — and *resume* and *completion* are one predicate by construction. A round whose EVAL already returned PASS fast-forwards on the same principle, from the verdict on disk rather than from a round counter. The converse holds too: a round whose EVAL was refused — no PASS/FAIL, or a scoped verdict citing no T0 artifact — was never judged, so the relaunch re-enters it and evaluates again rather than opening the next round. |
-| **The launch surface is one an install grants explicitly — and a path the session can already read.** | The `Workflow` tool is the launch path, and `npx shapeup-sdlc init` writes the `"Workflow"` grant it needs. That grant is unscoped — it authorises every dynamic workflow script in the project — so it is opt-out (`--no-native-workflow`), and an install that declines it approves the launch once per session instead. Being granted the tool is a different gate from being allowed to read the script: the tool loads a `scriptPath` only from the working directory or a directory the operator added, which no permission rule widens, so `harness init run` stages the run scripts into `.shapeup/workflows/` and the launch names that copy rather than the install path. |
+| Property then | Why it held | What carries it now |
+|---|---|---|
+| A gate pause was a return value — the launch returned `paused` and was relaunched with the same args | a Workflow script had no shell and no way to ask | the gate is a step: the loop prints the block, asks the PO, records the answer with the source `PO (live)`, and goes on |
+| A killed session lost nothing — the script fast-forwarded past finished phases on every launch | the resume point was derived from artifacts on disk, never from stored status or the conversation | the same artifact predicates (`probe resume`) behind `probe next`; `/ship` again is the resume |
+| The launch surface was one an install granted explicitly — the unscoped `Workflow` permission, over a staged copy of the script | the tool loads a script only from a directory the session may already read | nothing: no launch, no staging, no `Workflow` token; the grant is the two kernel Bash rules |
 
-`RunArgs` is compiled **once** and passed as a single JSON literal: the workflow cannot ask
-follow-up questions and cannot read config files itself, so everything a run will ever need
-travels in that one record.
-
-**The lane boundary.** `shapeup-run.js` targets specs with committed `scopes/*.md`. A `--tiny`
-run, or any spec with no scope contracts yet, takes the unchanged prose loop in
-`skills/tech-lead/references/protocol.md` — non-regression, by design, and the reason that
-file still carries the full step-by-step.
+What the design cost, and why it was reversed: the script had no shell, so every kernel command it needed was run
+by a courier sub-agent whose only job was to type one command and relay the exit code (51 call sites against 11
+worker dispatches); every gate ended the launch and the next one re-paid a preflight canary; and the machinery
+that survived the relaunches (the fast-forward, the launch contract, the staged copy) was most of the resume
+module and a fifth of the domain schema. The state machine moved into the kernel, where it is testable, and the
+couriers, the canary and the relaunch went with the transport.
 
 ---
 [← High-Level Design](02-high-level-design.md) · [Back to index](README.md) · [Next: Functional Design →](04-functional-design.md)

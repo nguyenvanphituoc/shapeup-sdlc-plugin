@@ -13,11 +13,15 @@
 // none addressed why a three-file change was consuming half an hour: **the ceremony was not
 // sized to the change.**
 //
-// The harness already knew. In those transcripts tech-lead identified the change at GATE L0 as
+// The harness already knew. In those transcripts the orchestrator identified the change at GATE L0 as
 // "about as small as they come… squarely inside the --tiny lane" — and then ran the full pipeline
 // anyway, because the lane was a judgment the model was free to talk itself out of. That is the
 // same class of defect as narration and as prose consent: an invariant living somewhere a model
 // can re-decide it. The project's rule is that such invariants move into the runtime.
+//
+// SINCE 4.0 only the full lane is served: the separate small-change lane was retired and `init run`
+// refuses `--lane tiny`. This command still measures how small a change is, and a `tiny` answer is now
+// information for the appetite (a small shape is one scope and a short round budget), not a lane to take.
 //
 // So the lane stops being a recommendation and becomes a computed value, recorded in the receipt
 // alongside the evidence for it. A PO can still override — with `--lane`, which is recorded AS an
@@ -192,8 +196,8 @@ export function cli(rawArgv) {
     ...result,
     // The sentence the orchestrator must act on, so the decision is not re-derived from the JSON.
     action: result.lane === "tiny"
-      ? "TINY LANE. Run: orient (light) → single-task board → build → T0 → ⏸ L4. Skip WIRE, scope contracts, spec tree, EVAL and QA. The full pipeline on a change this size is why a run burns its whole clock without finishing."
-      : "FULL LANE. Run the complete pipeline: ORIENT → WIRE → MAP SCOPES → BUILD → EVAL → QA → GATE H → L4.",
+      ? "SMALL CHANGE. The separate small-change lane is no longer served: run the full loop and size it with the pitch's appetite (a small shape yields one scope and a short round budget). Nothing is skipped."
+      : "FULL LANE. Run the complete pipeline: ORIENT → PLAN → BUILD → EVAL → QA → GATE H → L4.",
   }, null, 2));
 }
 

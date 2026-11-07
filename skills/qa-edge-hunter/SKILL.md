@@ -1,6 +1,6 @@
 ---
 name: qa-edge-hunter
-description: "Use this skill for the post-PASS exploratory QA pass — Shape Up's \"QA is for the edges\", made explicit for the harness. Triggers on: \"hunt edge cases\", \"QA pass on this feature\", \"exploratory test the running app\", \"edge hunt before ship\", \"run qa-edge-hunter\", \"the evaluator passed — what did it miss?\". tech-lead invokes it after the run's first PASS at GATE L3, before SHIP; it also runs standalone given a spec folder, a PASS EVAL report, and a running app, or on a tech-lead --order dispatch. It charters edges OUTSIDE what the evaluator probed and hunts them through six fixed lenses. NOT for checking AC (spec-evaluator), deriving test cases (ba), or fixing bugs (task-executor)."
+description: "Use this skill for the post-PASS exploratory QA pass — Shape Up's \"QA is for the edges\", made explicit for the harness. Triggers on: \"hunt edge cases\", \"QA pass on this feature\", \"exploratory test the running app\", \"edge hunt before ship\", \"run qa-edge-hunter\", \"the evaluator passed — what did it miss?\". the loop invokes it after the run's first PASS at GATE L3, before SHIP; it also runs standalone given a spec folder, a PASS EVAL report, and a running app, or on a loop --order dispatch. It charters edges OUTSIDE what the evaluator probed and hunts them through six fixed lenses. NOT for checking AC (spec-evaluator), deriving test cases (ba), or fixing bugs (task-executor)."
 ---
 
 # QA Edge Hunter — the post-PASS edge pass (v1.1)
@@ -13,7 +13,7 @@ case* is invisible to it. The Hunter covers exactly that blind spot: behavior th
 never wrote down.
 
 ```
-tech-lead: ... GATE L2 → EVAL → GATE L3 PASS ──► QA EDGE HUNT (you) ──► SHIP S.0 triage → L4
+the loop: ... GATE L2 → EVAL → GATE L3 PASS ──► QA EDGE HUNT (you) ──► SHIP S.0 triage → L4
                                                   charters · hunts · ~ findings → ledger
             GATE L3 FAIL → fix round (never reaches you — conformance first, edges after)
 ```

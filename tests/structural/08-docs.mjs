@@ -80,7 +80,13 @@ export async function run(ctx) {
   // table to grow a row without immediately re-raising the ratchet, while still catching the class
   // of regression this ratchet exists for: new orchestration logic going back into SKILL.md prose
   // instead of the workflow script or a reference file.
-  const LINE_RATCHETS = { "skills/tech-lead/SKILL.md": 155, "skills/building/SKILL.md": 155 };
+  // THE `skills/tech-lead/SKILL.md` ENTRY WAS REMOVED when the file was — and for that reason only: the skill
+  // is deleted, so a ratchet on a path that cannot exist could only fail. Its number did not move anywhere
+  // new and was not raised: the loop that replaced it carried the same 155 from the day it stood up beside
+  // it, and it is still 155. The reasoning above (orchestration logic belongs in the kernel, not in prose)
+  // applies to the loop with more force, since `probe next` is the state machine the prose would otherwise
+  // be asked to remember.
+  const LINE_RATCHETS = { "skills/building/SKILL.md": 155 };
   for (const [rel, limit] of Object.entries(LINE_RATCHETS)) {
     const p = join(ROOT, rel);
     if (!existsSync(p)) { fail(`ratcheted file missing: ${rel}`); continue; }
@@ -248,15 +254,13 @@ export async function run(ctx) {
   // caps how MUCH orchestrator prose exists and asserts nothing about whether it is TRUE; this is
   // that other half. The mechanism already drifted from its docs once.
   //
-  // SKILL.md is deliberately NOT in the list: since the Stage-2 cutover it is a thin shell that
-  // launches workflows/shapeup-run.js and documents no loop branch at all, so demanding the four
-  // statuses there would force prose back into the file section 25 exists to keep thin. Whether
-  // the workflow SCRIPT honours the branch is a code question, not a doc-parity one.
+  // SKILL.md is deliberately NOT in the list: it is a thin shell over `probe next` and documents no loop
+  // branch at all, so demanding the four statuses there would force prose back into the file section 25
+  // exists to keep thin. The branch is described once, in the rounds resource.
   {
     const RATCHET_STATUSES = ["kept", "reverted", "rebased", "crash"];
-    // One file since the v2.0 references consolidation: the round loop and the delegation shape
-    // are the same document now, so the attempt-loop branch is described in exactly one place.
-    const BRANCH_DOCS = ["skills/tech-lead/references/protocol.md"];
+    // One file: the attempt-loop branch is described in exactly one place, the loop's rounds resource.
+    const BRANCH_DOCS = ["skills/building/resources/rounds.md"];
     for (const rel of BRANCH_DOCS) {
       const p = join(ROOT, rel);
       if (!existsSync(p)) { fail(`attempt-loop doc missing: ${rel}`); continue; }
@@ -278,8 +282,8 @@ export async function run(ctx) {
     // vocabulary unique to this ratchet — it has no ordinary-English use anywhere in the harness —
     // so a normative doc that names it is documenting the branch, and must be checked above rather
     // than drifting unchecked beside it.
-    const normative = ["skills/tech-lead/SKILL.md",
-      ...readdirSync(join(ROOT, "skills/tech-lead/references")).filter((f) => f.endsWith(".md")).map((f) => `skills/tech-lead/references/${f}`)];
+    const normative = ["skills/building/SKILL.md",
+      ...readdirSync(join(ROOT, "skills/building/resources")).filter((f) => f.endsWith(".md")).map((f) => `skills/building/resources/${f}`)];
     for (const rel of normative) {
       if (BRANCH_DOCS.includes(rel)) continue;
       if (/\brebased\b/.test(read(join(ROOT, rel)))) {

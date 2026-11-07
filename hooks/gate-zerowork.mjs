@@ -76,7 +76,7 @@ const WORK_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash"
  * dispatch of `building`, and a leading `/ship` slash command.
  *
  * Both are DISPATCH signals, never escapes: a dispatch that left no receipt is still a blocked
- * stop. A launch of some workflow script is deliberately NOT a dispatch any more — the loop runs in
+ * stop. A launch of a Workflow script is deliberately NOT a dispatch — the loop runs in
  * the session itself, so there is no script launch to watch, and counting one would arm this gate
  * on a session that merely ran somebody else's workflow.
  */

@@ -229,19 +229,18 @@ erDiagram
 | Entity | Tier | Location | Sole writer | Readers |
 |---|---|---|---|---|
 | `VerdictLedgerLine` | LOCAL | `evaluation/.verdicts-<target>.jsonl` | harness reduce ingest | spec-evaluator (flip detection) |
-| `MetricsRow` | SHARED | `metrics/<machine-id>.jsonl` | tech-lead (SHIP S.6) | harness report export |
-| `ActiveScopePointer` | LOCAL | `.shapeup/active-scope` | harness init run (GATE L0) — write-once per run, not writable by any worker | harness report export, harness reduce snapshot, harness verify budget. **No hook reads it**: the advisory hooks that once did were retired with the hook diet, and `sandbox-guard` never read it |
+| `MetricsRow` | LOCAL | `metrics/<machine-id>.jsonl` | none — the ship-time harvest step retired; rows an earlier release wrote keep this shape | none |
+| `ActiveScopePointer` | LOCAL | `.shapeup/active-scope` | harness init run (GATE L0) — write-once per run, not writable by any worker | harness report export, harness verify budget. **No hook reads it**: the advisory hooks that once did were retired with the hook diet, and `sandbox-guard` never read it |
 | `ActiveOrderPointer` | LOCAL | `.shapeup/active-order` | harness compile (published as it writes each order); retired by harness reduce ship and harness init run --force | sandbox-guard hook. It names the RUN and nothing more: the guard enforces the substrate of *every* live order for that run — compiled, with no result at least as new as the order's own `compiled_at` — because with scopes building concurrently the writer may not be the order the pointer happens to name, and because an order the pointer named is not thereby still executing |
-| `WorkflowScriptStage` | LOCAL | `.shapeup/workflows/*.js` | harness init run (re-copied on every open, including `--force`) | the Workflow tool, as the launch's `scriptPath`. A copy because the tool loads a script only from a directory the session may already read, and the plugin is installed outside the project |
-| `DispatchReceipt` | LOCAL | `<slug>/receipts/dispatch.jsonl` | dispatch-receipt hook (PostToolUse, append-only) — a sub-agent cannot write its own attestation | harness reduce ingest (refuses an orchestrated result with no matching receipt), harness probe concurrency (a leg's start) |
+| `DispatchReceipt` | LOCAL | `<slug>/receipts/dispatch.jsonl` | dispatch-receipt hook (PostToolUse, append-only) — a sub-agent cannot write its own attestation | harness reduce ingest (refuses an orchestrated result with no matching receipt), the export (a leg's start) |
 | `LegRow` | LOCAL | `<slug>/legs.jsonl` | harness reduce ingest (append-only, one row per closed leg) | harness probe leg (whether a scope's result reached the board) |
 | `SafetyOverrides` (v1.2) | LOCAL | `.shapeup/safety-overrides.json` | **human PO only** — outside the run-trace carve-out, so no worker can write it | safety-spine hook |
-| `RunSnapshot` (v1.2) | LOCAL | `<slug>/run-snapshot.json` | harness reduce snapshot `--write` (never a worker) | tech-lead, human |
-| `RequirementClause` (spine v1.3) | SHARED | `<slug>/requirements.md` | the plan activity's requirements substep (extraction only; a `CUT` is a PO governance edit) | harness verify trace (covers-closure), tech-lead, human |
-| `WiringMap` (spine v1.3) | SHARED | `<slug>/wiring-map.md` | the plan activity's wire substep (SOLE writer, direct — like `scopes/*.md`); `entries[]` are `WiringEntry` | harness verify trace (reachability), the scopes substep (seam), tech-lead |
-| `ProjectProfile` (spine v1.3) | SHARED | `<slug>/project-profile.md` | tech-lead (GATE L0 — not harness compile, which stays pipeline-blind) | harness verify trace (`entry_point`, `source_extensions`), harness verify build (`build_probe` + `launch_probe`), the plan activity (wire), tech-lead |
+| `RequirementClause` (spine v1.3) | SHARED | `<slug>/requirements.md` | the plan activity's requirements substep (extraction only; a `CUT` is a PO governance edit) | harness verify trace (covers-closure), the loop (the L1b table), human |
+| `WiringMap` (spine v1.3) | SHARED | `<slug>/wiring-map.md` | the plan activity's wire substep (SOLE writer, direct — like `scopes/*.md`); `entries[]` are `WiringEntry` | harness verify trace (reachability), the scopes substep (seam) |
+| `ProjectProfile` (spine v1.3) | SHARED | `<slug>/project-profile.md` | the loop, at the intake gate (not harness compile, which stays pipeline-blind) | harness verify trace (`entry_point`, `source_extensions`), harness verify build (`build_probe` + `launch_probe`), the plan activity (wire) |
+| `RunArgs` (the launch record) | LOCAL | `<slug>/run-args.json` | harness init run (same act as the receipt; the model floor is enforced as it is written) | harness probe next, harness reduce ship (the no-evaluation guard) |
+| `ResumeFacts` | EMBEDDED | stdout of `harness probe resume` — never written to disk | harness probe resume (derived from the run's own artifacts) | harness probe next, harness init run (the already-open refusal), a resumed session |
 | `RoundBuildVerdict` | LOCAL | `<slug>/build/r<N>-t<T>.json` | harness verify build (once per round before EVAL: the ledger's `run_cmd`, then the profile's probes, stopping at the first failure; immutable per gate run) | harness reduce hill (a red round's T0-greens move no dot), harness compile (each failing step → `payload.bugs` for round N+1; the newest artifact → the same round's evaluate order as `payload.build_gate`), tech-lead (GATE L2 block) |
-| `Lane` (v1.2 · design draft) | EMBEDDED | (when implemented) `harness-run.md` frontmatter `lane:` — never a payload field | tech-lead (GATE L0) | tech-lead only — see design §4.7 |
 
 ## 7.4b — Telemetry & resilience read-plane (v1.2)
 
@@ -251,9 +250,8 @@ sole SHARED-state writer.
 
 ```mermaid
 erDiagram
-    HarnessRun ||--o| RunSnapshot : "derived from files by harness reduce snapshot"
-    T0Artifact ||--o| RunSnapshot : "round/attempt from latest verdict filename"
-    SafetyOverrides ||--o| MetricsRow : "exercised override → SAFETY-OVERRIDE pathology row"
+    HarnessRun ||--o| ResumeFacts : "derived from files by harness probe resume"
+    T0Artifact ||--o| ResumeFacts : "round/attempt from latest verdict filename"
 ```
 
 ## 7.4c — The record plane (v1.8)
@@ -269,7 +267,6 @@ erDiagram
     DispatchFact ||--o{ AcResult : "ac_result table"
     DispatchFact ||--o{ Discovery : "discovery table"
     DispatchFact ||--o{ FileTouched : "file_touched table"
-    MetricsRow }o--|| HarnessRun : "run_id — harvest joins its own trace"
 
     DispatchFact {
         string order_id PK "the grain: one compiled order"

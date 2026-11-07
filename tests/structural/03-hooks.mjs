@@ -469,13 +469,12 @@ export async function run(ctx) {
 
 
   // =============================================================================
-  section("29. run-snapshot derives mid-run state from files only");
+  section("29. the resume facts derive mid-run state from files only");
   // =============================================================================
   {
-    const rsPath = join(ROOT, "kernel/reduce/snapshot.mjs");
     const d = mkdtempSync(join(tmpdir(), "snap-"));
     const w = (rel, body) => { mkdirSync(dirname(join(d, rel)), { recursive: true }); writeFileSync(join(d, rel), body); };
-    w(".shapeup/active-scope", JSON.stringify({ slug: "demo", scope_id: "cart" }));
+    w(".shapeup/active-scope", JSON.stringify({ slug: "demo" }));
     w(".shapeup/demo/harness-run.md", `---\nfeature: demo\nstatus: building\nrounds_used: 1\nmax_rounds: 3\nauto_level: interactive\n---\n# run\n`);
     w(".shapeup/demo/tasks/TASK-001.md", `---\nid: TASK-001\nstatus: done\n---\n`);
     w(".shapeup/demo/tasks/TASK-002.md", `---\nid: TASK-002\nstatus: ready\n---\n`);
@@ -483,11 +482,14 @@ export async function run(ctx) {
     w(".shapeup/demo/t0/verdicts/r1-a2.json", JSON.stringify({ overall: "red" }));
     w(".shapeup/demo/orders/r1-a2.json", "{}");
 
-    const { deriveSnapshot } = await import(rsPath);
-    const snap = deriveSnapshot(d);
-    if (snap && snap.slug === "demo" && snap.scope_id === "cart" && snap.round === 1 && snap.attempt === 2)
-      ok("deriveSnapshot reads slug/scope from the pointer and round/attempt from the latest T0 filename");
-    else fail(`deriveSnapshot wrong: ${JSON.stringify(snap)}`);
+    // The compaction-rehydration snapshot was merged into the resume facts, which take a slug rather than
+    // following the active-scope pointer: the loop and `init run`'s refusal both already know which run
+    // they mean, and a pointer at a closed run was the false claim the old reader had to guard against.
+    const { deriveResumeFacts } = await import(join(ROOT, "kernel/probe/resume.mjs"));
+    const snap = deriveResumeFacts(d, "demo");
+    if (snap && snap.slug === "demo" && snap.status === "building" && snap.round === 1 && snap.attempt === 2 && snap.auto_level === "interactive" && snap.max_rounds === 3)
+      ok("deriveResumeFacts reads status/auto level/budget from the ledger and round/attempt from the latest T0 filename");
+    else fail(`deriveResumeFacts wrong: ${JSON.stringify(snap)}`);
     if (snap?.board?.total === 2 && snap.board.done === 1 && snap.board.unfinished.includes("TASK-002"))
       ok("board totals derived from task frontmatter");
     else fail(`board wrong: ${JSON.stringify(snap?.board)}`);
@@ -498,18 +500,14 @@ export async function run(ctx) {
     else fail(`pending_orders wrong: ${JSON.stringify(snap?.pending_orders)}`);
 
     const { validate: veValidateSnap } = await import(join(ROOT, "kernel/verify/envelope.mjs"));
-    const snapCheck = veValidateSnap(snap, { $ref: "domain.schema.json#/$defs/RunSnapshot" });
-    if (snapCheck.valid) ok("derived snapshot validates against domain.schema.json#/$defs/RunSnapshot");
-    else fail(`snapshot fails its own registry def: ${snapCheck.errors.join("; ")}`);
+    const snapCheck = veValidateSnap(snap, { $ref: "domain.schema.json#/$defs/ResumeFacts" });
+    if (snapCheck.valid) ok("the derived facts validate against domain.schema.json#/$defs/ResumeFacts");
+    else fail(`the facts fail their own registry def: ${snapCheck.errors.join("; ")}`);
 
-    const rWrite = spawnSync("node", [join(ROOT, "kernel/harness.mjs"), "reduce", "snapshot", "--cwd", d, "--write"], { encoding: "utf8" });
-    if (rWrite.status === 0 && existsSync(join(d, ".shapeup/demo/run-snapshot.json"))) ok("--write persists run-snapshot.json");
-    else fail(`--write failed: ${rWrite.stderr}`);
-
-    const empty = mkdtempSync(join(tmpdir(), "snapempty-"));
-    const rEmpty = spawnSync("node", [join(ROOT, "kernel/harness.mjs"), "reduce", "snapshot", "--cwd", empty], { encoding: "utf8" });
-    if (rEmpty.status === 0 && !rEmpty.stdout.trim()) ok("no active run → exit 0, empty stdout (fail-open)");
-    else fail(`empty dir should be silent, got status=${rEmpty.status} stdout=${rEmpty.stdout}`);
+    const printed = spawnSync("node", [join(ROOT, "kernel/harness.mjs"), "probe", "resume", "--slug", "demo", "--cwd", d], { encoding: "utf8" });
+    let cli = null; try { cli = JSON.parse(printed.stdout); } catch { /* asserted below */ }
+    if (printed.status === 0 && cli?.slug === "demo" && cli?.next_step && cli?.board?.done === 1) ok("`probe resume --slug` prints the same facts");
+    else fail(`probe resume --slug did not print the facts: exit ${printed.status} ${printed.stdout.slice(0, 120)}`);
 
     // REHYDRATION IS A COMMAND NOW, not two hooks. `session-rehydrate` injected this snapshot as
     // additionalContext on SessionStart and `compact-snapshot` froze it before compaction; both are
@@ -522,7 +520,6 @@ export async function run(ctx) {
     if (rGraph.status === 0 && sub && typeof sub.orders === "number") ok("`reduce graph --subgraph run` answers the rehydration question the retired hooks used to carry");
     else fail(`the graph query does not answer for a mid-run tree: exit ${rGraph.status}, ${String(rGraph.stdout).slice(0, 120)}`);
     rmSync(d, { recursive: true, force: true });
-    rmSync(empty, { recursive: true, force: true });
   }
 
   // =============================================================================

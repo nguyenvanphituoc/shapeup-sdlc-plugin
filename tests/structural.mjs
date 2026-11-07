@@ -49,9 +49,10 @@ const MODULE_FILES = [
   "13-argv-contract.mjs",
   "14-invocation-paths.mjs",
   "15-hook-receipts.mjs",
-  // 16-workflows.mjs: skills/tech-lead/workflows/*.js — the D5 model floor and the test-#45
-  // path-literal discipline extended to Workflow scripts.
-  "16-workflows.mjs",
+  // 16-no-run-script.mjs: the loop is not a script. Nothing launches a Workflow, and each guard the retired
+  // run script's tests read out of its source is ported to the kernel module that carries the behaviour or
+  // retired with its reason — the ledger is in the module's own header.
+  "16-no-run-script.mjs",
   // 17-gate-zerowork-dispatch.mjs: what counts as dispatching the orchestrator for the zero-work
   // gate — the loop's two front doors, and the spellings that no longer count. Its own module
   // rather than a section-37 addendum: the dispatch detector is what keeps the gate non-vacuous.
@@ -250,21 +251,18 @@ const MODULE_FILES = [
   // execute prose, so what it pins is the roster/call-site cross-check and the kernel mechanism the
   // prose calls, not the prose being followed.
   "68-gate-coverage.mjs",
-  // 69-terminal-wrapping.mjs: REWORK, Stage 8 round 1 — every terminal RunReturn shapeup-run.js's
-  // own top-level flow constructs must pass through `withWarnings` (HD-011's close), pinned at the
-  // source level (the script cannot be imported — 58-relaunch-memory.mjs's own banner) and
-  // mutation-tested in both directions so the exact hole Round 1 found cannot reopen silently.
-  "69-terminal-wrapping.mjs",
+  // 69-every-ending-closes.mjs: no ending is left without a recorded close — executed over `probe next`'s
+  // terminal steps; the script-source scan this replaces retired with the script.
+  "69-every-ending-closes.mjs",
   // 70-tier-direction-producer.mjs: HD-1/HD-027, defect-plan-3.7 Stage 0 — the taught
   // TIER-DIRECTION rule (doc-schemas.md) now covers the bare-path-in-prose form the lint actually
   // enforces, not only wikilinks, and lintCommittedTier's whole-tree scan is proven against
   // several committed filenames, not only requirements.md, the one that bit.
   "70-tier-direction-producer.mjs",
-  // 71-runreturn-closeout.mjs: HD-026, defect-plan-3.7 Stage 1 — every RunReturn arm the schema
-  // carries is mapped to a close outcome by a derived kernel map (RUN_RETURN_CLOSE), not a
-  // hand-typed pair; gate_h now closes the run as escalated (operator decision 1); the orchestrator
-  // script's own call site is pinned at the source level, since it cannot be executed here.
-  "71-runreturn-closeout.mjs",
+  // 71-close-arms.mjs: every arm `probe next` closes a run with is mapped by a derived kernel map
+  // (CLOSE_ARM_STATUS), not a hand-typed pair; gate_h closes the run as escalated; the state machine hands
+  // the kernel an arm and never decides terminality itself.
+  "71-close-arms.mjs",
   // 72-export-on-close.mjs: defect-plan-3.7 Stage 2 — a run's own close-out (kernel/probe/
   // resume.mjs's closeRun) now exports fact tables for every terminal ending except "shipped",
   // which the Ship phase's own pre-existing export call already covers; a blocked export degrades

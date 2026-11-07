@@ -653,9 +653,9 @@ export async function run(ctx) {
       else if (e.name.endsWith(".mjs")) kernelMjsFiles.push(p);
     }
   })(join(ROOT, "kernel"));
-  const reachesUpIntoSkills = kernelMjsFiles.filter((f) => /skills\/tech-lead\/schemas/.test(readFileSync(f, "utf8")));
+  const reachesUpIntoSkills = kernelMjsFiles.filter((f) => /skills\/[a-z-]+\/schemas/.test(readFileSync(f, "utf8")));
   if (kernelMjsFiles.length > 0 && reachesUpIntoSkills.length === 0) {
-    ok(`no kernel/*.mjs file reaches into skills/tech-lead/schemas/ (${kernelMjsFiles.length} kernel files scanned)`);
+    ok(`no kernel/*.mjs file reaches into a skill tree's schemas/ (${kernelMjsFiles.length} kernel files scanned)`);
   } else {
     fail(`kernel reaches back into the skill tree for its own schemas: ${reachesUpIntoSkills.map((f) => f.replace(ROOT + "/", "")).join(", ") || "(no kernel .mjs files found at all)"}`);
   }
@@ -967,7 +967,7 @@ export async function run(ctx) {
       else fail(`$defs missing ${def}`);
     }
     // The new $defs must carry the writer/tier annotations the registry discipline requires.
-    const writers = { WiringMap: "wire substep", ProjectProfile: "tech-lead" };
+    const writers = { WiringMap: "wire substep", ProjectProfile: "the loop" };
     for (const [def, who] of Object.entries(writers)) {
       if ((domain.$defs?.[def]?.["x-writer"] || "").includes(who)) ok(`${def} x-writer is ${who}`);
       else fail(`${def} x-writer must name ${who}`);
@@ -1010,7 +1010,7 @@ export async function run(ctx) {
     "kernel/reduce/ingest.mjs",
     "kernel/verify/envelope.mjs",
     "kernel/verify/t0.mjs",
-    "kernel/reduce/snapshot.mjs",
+    "kernel/probe/resume.mjs",
     "kernel/probe/stats.mjs",
     "kernel/probe/digest.mjs",
     "kernel/verify/trace.mjs",
@@ -1270,9 +1270,10 @@ export async function run(ctx) {
 }
 
 /**
- * Run the launch-record parity check (section 67).
+ * Run the instruction-parity check (section 67).
  *
- * Every artifact the schema says tech-lead writes must be named in tech-lead's own instructions.
+ * Every artifact the schema says the loop writes must be named in the loop's own instructions, and no
+ * registry entry may name a writer or reader skill that is not on disk.
  * @param {object} ctx - Shared structural-test context from tests/lib/harness.mjs (makeCtx).
  * @returns {Promise<void>} Resolves when section 67 has been recorded on ctx.
  */
@@ -1280,43 +1281,44 @@ export async function runLaunchRecord(ctx) {
   const { ROOT, ok, fail, section, read, readJSON } = ctx;
 
   // =============================================================================
-  section("67. Every artifact the schema names tech-lead as the writer of is named in its own instructions");
+  section("67. Every artifact the schema names the loop as the writer of is named in the loop's instructions");
   // =============================================================================
 
   // The schema is a registry of who writes what. It is not an instruction: a `$defs` entry can say
-  // `x-writer: tech-lead` and `x-location: .shapeup/<slug>/run-args.json` while nothing anywhere
-  // tells tech-lead to write it, and then the file simply never exists.
+  // `x-writer: the loop` and `x-location: .shapeup/<slug>/run-args.json` while nothing anywhere tells the
+  // loop to write it, and then the file simply never exists. Measured on a live run: `run-args.json` was
+  // declared by the schema, written by no kernel module and named in no instruction, and absent from the
+  // run root — so the run had NO evidence of the models, budgets or fan-out width it used.
   //
-  // Measured on a live run: `run-args.json` was declared by the schema, described as "written fresh
-  // by tech-lead on every launch AND every relaunch", named in no SKILL.md and no reference, and
-  // absent from the run root. The consequence is not cosmetic — the launch flags reach the workflow
-  // as a value in memory, so with no file on disk the run has NO evidence of the models, budgets or
-  // fan-out width it used, and every claim about its configuration is unfalsifiable afterwards.
-  //
-  // Scoped to entries whose `x-location` names a concrete file. The EMBEDDED ones legitimately have
-  // no path (`Lane` rides in frontmatter, `HillShard` is a projection), and demanding a filename of
-  // them would be demanding the schema lie.
+  // Scoped to entries whose `x-location` names a concrete file. The EMBEDDED ones legitimately have no
+  // path (a hill shard is a projection), and demanding a filename of them would be demanding the schema lie.
+  // The writer here is the skill `building`, the loop; this check used to read the retired `tech-lead`
+  // skill's instructions, and the entries that named it as writer now name the step that does the writing.
   const domain = readJSON(join(ROOT, "kernel/schemas/domain.schema.json"));
-  const instructions = [
-    read(join(ROOT, "skills/tech-lead/SKILL.md")),
-    ...readdirSync(join(ROOT, "skills/tech-lead/references"))
-      .map((f) => read(join(ROOT, "skills/tech-lead/references", f))),
-  ].join("\n");
+  const walkMd = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walkMd(join(d, e.name)) : e.name.endsWith(".md") ? [join(d, e.name)] : []));
+  const instructions = walkMd(join(ROOT, "skills/building")).map((f) => read(f)).join("\n");
 
   let checked = 0;
   for (const [name, def] of Object.entries(domain.$defs || {})) {
-    if (!/tech-lead/.test(String(def["x-writer"] || ""))) continue;
+    if (!/\bthe loop\b|\bbuilding\b/.test(String(def["x-writer"] || ""))) continue;
     const file = (String(def["x-location"] || "").match(/([A-Za-z0-9_.<>-]+\.(?:json|md|jsonl))/) || [])[1];
     if (!file) continue;                       // no concrete path — nothing to name
     checked++;
     if (instructions.includes(file)) {
-      ok(`$defs/${name}: tech-lead's instructions name ${file}, the artifact the schema makes it responsible for`);
+      ok(`$defs/${name}: the loop's instructions name ${file}, the artifact the schema makes it responsible for`);
     } else {
-      fail(`$defs/${name} names tech-lead as the writer of ${file}, and no line of tech-lead's SKILL.md or ` +
-        `references ever tells it to write one. A registry entry is not an instruction: the artifact is ` +
+      fail(`$defs/${name} names the loop as the writer of ${file}, and no line of the building skill or its ` +
+        `resources ever tells it to write one. A registry entry is not an instruction: the artifact is ` +
         `simply never produced, and every fact it was supposed to carry is unrecoverable after the run.`);
     }
   }
-  if (checked === 0) fail("no $defs entry names tech-lead as the writer of a concrete file — the check verified nothing");
-  else ok(`${checked} tech-lead-written artifact(s) are each named in its own instructions`);
+  if (checked === 0) fail("no $defs entry names the loop as the writer of a concrete file — the check verified nothing");
+  else ok(`${checked} loop-written artifact(s) are each named in the loop's own instructions`);
+
+  // A registry entry naming the retired orchestrator skill as a writer or reader names something the user
+  // did not receive — the dangling-writer defect, one level up.
+  const dangling = Object.entries(domain.$defs || {})
+    .filter(([, def]) => /\btech-lead\b/.test(`${def["x-writer"] || ""} ${def["x-readers"] || ""}`)).map(([n]) => n);
+  if (!dangling.length) ok("no registry entry names the retired tech-lead skill as a writer or reader");
+  else fail(`registry entries still name tech-lead: ${dangling.join(", ")}`);
 }

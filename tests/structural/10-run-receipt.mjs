@@ -380,49 +380,26 @@ export async function run(ctx) {
   // each check here is a PAIR: the failure is still caught, AND the ordinary case is still silent.
   {
     // -- (a) A pointer at a CLOSED run is not an open run ---------------------------------------
-    // `.shapeup/active-scope` predates v1.4.1 by four minor versions and nothing has ever
-    // cleared it; its original reader (sandbox-guard) fails OPEN on a stale one, so nothing ever
-    // had to. session-rehydrate reads the same file with the opposite disposition — "a run is
-    // ALREADY OPEN … do NOT open a new run" — and now fires on `startup`/`clear`. Following the
-    // pointer without checking status made every cold session in every repo that had ever run the
-    // harness open with a false claim about its own workspace.
-    const RS = "reduce snapshot";
+    // `.shapeup/active-scope` predates v1.4.1 by four minor versions and nothing used to clear it. A
+    // session-start reader followed it without checking status and made every cold session in every repo
+    // that had ever run the harness open with a false claim about its own workspace ("a run is ALREADY
+    // OPEN … do NOT open a new run"). RETIRED with that reader: `reduce snapshot` and the session hook that
+    // followed the pointer are gone, and the resume facts take a slug instead of following a pointer. What
+    // the guard protected — that a CLOSED run is never described as open — is the refusal `init run` gives
+    // over a receipt whose close nobody has taken back, pinned in section 100 ("CLOSED as", not "ALREADY
+    // OPEN"). A pointer with no ledger behind it still claims nothing: the resume facts of a slug with no
+    // run report no status and nothing to resume.
     if (!existsSync(KERNEL)) {
-      fail(`${RS} is missing — nothing derives the run state`);
+      fail("the kernel entry point is missing — nothing derives the run state");
     } else {
-      const { deriveSnapshot } = await import(`file://${join(ROOT, "kernel/reduce/snapshot.mjs")}`);
-      const mk = (status) => {
-        const d = mkdtempSync(join(tmpdir(), "struct-stale-"));
-        mkdirSync(join(d, ".shapeup", "demo"), { recursive: true });
-        writeFileSync(join(d, ".shapeup", "active-scope"), JSON.stringify({ slug: "demo" }));
-        writeFileSync(join(d, ".shapeup", "demo", "harness-run.md"),
-          `---\nfeature: demo\nstatus: ${status}\n---\n# run\n`);
-        return d;
-      };
-
-      if (deriveSnapshot(mk("shipped")) === null) {
-        ok("a pointer at a SHIPPED run derives no snapshot — a cold session is told nothing");
-      } else {
-        fail("a shipped run still derives a snapshot — every cold session in the repo would be " +
-             "told 'a run is ALREADY OPEN … do NOT open a new run' forever");
-      }
-
-      if (deriveSnapshot(mk("escalated")) === null) ok("an ESCALATED run likewise derives nothing");
-      else fail("an escalated run still derives a snapshot");
-
-      const live = deriveSnapshot(mk("building"));
-      if (live?.slug === "demo" && live.rehydrate_hint) {
-        ok("a pointer at a run still BUILDING derives the hint — the F4 handoff still works");
-      } else {
-        fail("a mid-run pointer stopped deriving — the fix broke the reflex it was protecting");
-      }
-
-      // A pointer with no ledger at all cannot be evidence of an open run.
+      const { deriveResumeFacts } = await import(`file://${join(ROOT, "kernel/probe/resume.mjs")}`);
       const noLedger = mkdtempSync(join(tmpdir(), "struct-noledger-"));
       mkdirSync(join(noLedger, ".shapeup"), { recursive: true });
       writeFileSync(join(noLedger, ".shapeup", "active-scope"), JSON.stringify({ slug: "ghost" }));
-      if (deriveSnapshot(noLedger) === null) ok("a pointer at a run with no harness-run.md fails closed");
-      else fail("a pointer with no ledger behind it still claimed an open run");
+      const ghost = deriveResumeFacts(noLedger, "ghost");
+      if (ghost.status === null && ghost.closed_status === null && ghost.next_step === "orient" && ghost.board === null) {
+        ok("a pointer at a run with no harness-run.md derives no status — it claims no run is in flight");
+      } else fail(`a ledger-less slug claimed state: ${JSON.stringify(ghost)}`);
     }
 
     // -- (b) Talking about /ship is not dispatching it -------------------------------------------

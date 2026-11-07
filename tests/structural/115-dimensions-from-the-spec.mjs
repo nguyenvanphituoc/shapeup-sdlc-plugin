@@ -91,11 +91,12 @@ export async function run(ctx) {
     }))) ok("a run opened without --dimensions records `auto`, not a set nobody chose");
     else fail("the ledger's default dimension line is not `auto`");
 
-    const wf = readFileSync(join(ROOT, "skills/tech-lead/workflows/shapeup-run.js"), "utf8");
-    const rs = readFileSync(join(ROOT, "kernel/probe/resume.mjs"), "utf8");
-    if (!/:\s*\["spec-conformance"\]/.test(wf) && !/eval_dimensions[^\n]*:\s*\["spec-conformance"\]/.test(rs)) {
-      ok("neither the workflow nor the resume state falls back to a fixed [spec-conformance]");
-    } else fail("a fixed [spec-conformance] fallback is back in the workflow or the resume state");
+    // Neither the state the loop reads nor the machine that drives it falls back to a fixed set. (This
+    // used to read the retired run script too; the loop is `probe next`.)
+    const sources = ["kernel/probe/resume.mjs", "kernel/probe/next.mjs", "kernel/compile.mjs"].map((p) => [p, readFileSync(join(ROOT, p), "utf8")]);
+    const fixed = sources.filter(([, src]) => /eval_dimensions[^\n]*:\s*\["spec-conformance"\]/.test(src) || /dimensions[^\n]*\?\?\s*\["spec-conformance"\]/.test(src)).map(([p]) => p);
+    if (!fixed.length) ok("neither the resume state, `probe next` nor compile falls back to a fixed [spec-conformance]");
+    else fail(`a fixed [spec-conformance] fallback is back in ${fixed.join(", ")}`);
   } finally {
     for (const d of roots) rmSync(d, { recursive: true, force: true });
   }

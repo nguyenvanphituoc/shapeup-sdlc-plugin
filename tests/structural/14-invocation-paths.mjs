@@ -42,16 +42,20 @@ export async function run(ctx) {
   // What the kernel actually routes — the routing table is the only authority.
   const { ROUTES } = await import(join(ROOT, "kernel/harness.mjs"));
 
-  // Every shipped prose file (SKILL.md + references/), the surface a model actually reads.
+  // Every shipped prose file (SKILL.md + references/ + resources/), the surface a model actually reads.
   const skillsDir = join(ROOT, "skills");
   const docs = [];
   for (const skill of readdirSync(skillsDir)) {
     const sf = join(skillsDir, skill, "SKILL.md");
     if (existsSync(sf)) docs.push({ rel: `skills/${skill}/SKILL.md`, abs: sf });
-    const refDir = join(skillsDir, skill, "references");
-    if (existsSync(refDir)) {
-      for (const f of readdirSync(refDir).filter((x) => x.endsWith(".md"))) {
-        docs.push({ rel: `skills/${skill}/references/${f}`, abs: join(refDir, f) });
+    // `references/` is where a skill's own craft notes live; `resources/` is where the loop's activities
+    // do (the retired orchestrator skill kept its playbooks in `references/`). Both are prose a model reads.
+    for (const sub of ["references", "resources"]) {
+      const refDir = join(skillsDir, skill, sub);
+      if (existsSync(refDir)) {
+        for (const f of readdirSync(refDir).filter((x) => x.endsWith(".md"))) {
+          docs.push({ rel: `skills/${skill}/${sub}/${f}`, abs: join(refDir, f) });
+        }
       }
     }
   }
@@ -108,8 +112,8 @@ export async function run(ctx) {
   // A floor, not a target. It exists so a rewrite that deletes the call sites instead of fixing
   // them cannot pass by making the census empty. The count moved 21 -> single digits at the v2.0
   // kernel cutover, because the BUILD/EVAL/SHIP prose that inlined one call site per step now runs
-  // as CODE inside the workflow script (which invokes the kernel from a worker's own shell, a form
-  // this scan does not and should not recognise — a workflow script reads no prose).
+  // as steps of `probe next` (whose commands carry the kernel by absolute path, a form this scan does
+  // not and should not recognise — a state machine's output is not prose).
   if (literal < 4) fail(`only ${literal} invocations found — the kernel census expects at least 4; the scan is missing call sites`);
   else ok(`${literal} invocations scanned (kernel-cutover floor: 4)`);
 
@@ -281,11 +285,11 @@ export async function run(ctx) {
   }
 
   // (4) The substitution note is gone.
-  const techLead = join(ROOT, "skills/tech-lead/SKILL.md");
-  if (existsSync(techLead)) {
-    const body = readFileSync(techLead, "utf8");
+  const loopSkill = join(ROOT, "skills/building/SKILL.md");
+  if (existsSync(loopSkill)) {
+    const body = readFileSync(loopSkill, "utf8");
     if (/bare\s+`?scripts\//i.test(body) || /resolve them against\s+this SKILL\.md/i.test(body)) {
-      fail("skills/tech-lead/SKILL.md still carries the bare-path substitution note — a prompt-carried invariant under the mechanism built to forbid them");
+      fail("skills/building/SKILL.md still carries the bare-path substitution note — a prompt-carried invariant under the mechanism built to forbid them");
     } else ok("the bare-path substitution note is gone: no invariant is left riding in prose here");
   }
 }

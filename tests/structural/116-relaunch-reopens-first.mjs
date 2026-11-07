@@ -10,6 +10,7 @@ import { mkdtempSync, rmSync, readFileSync, appendFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { pinnedBy } from "../lib/pinned-row.mjs";
 
 /**
  * Run the relaunch-reopen checks.
@@ -57,21 +58,16 @@ export async function run(ctx) {
       ok("the Decisions table marks the relaunch's re-signed gate as launch 2 and leaves the first launch's row plain");
     } else fail(`L1a rows: ${JSON.stringify(table)}`);
 
-    // The workflow reopens on the resume state before it crosses its first gate.
-    const wf = readFileSync(join(ROOT, "skills/tech-lead/workflows/shapeup-run.js"), "utf8")
-      .replace(/\/\*[\s\S]*?\*\//g, "").split("\n").map((l) => l.replace(/\/\/.*$/, "")).join("\n");
-    const reopenAt = wf.search(/if\s*\(\s*rs\.closed_status\s*\)\s*await\s+setRunStatus\(/);
-    const firstGate = wf.search(/await\s+crossGate\(\s*"L1a"/);
-    if (reopenAt > -1 && firstGate > -1 && reopenAt < firstGate) ok("shapeup-run.js reopens a closed run before it crosses L1a");
-    else fail(`reopen at ${reopenAt}, first gate at ${firstGate} — the relaunch can sign a gate over a closed run again`);
-
-    // The orchestrator's own instruction for an aborted return must send a relaunch to the resume, not
-    // to --force: a relaunch that followed "--force if truly restarting" opened a fresh run and threw
-    // the reopen, and the history it keeps, away.
-    const skill = readFileSync(join(ROOT, "skills/tech-lead/SKILL.md"), "utf8");
-    const row = skill.split("\n").find((l) => l.startsWith("| `aborted` |")) || "";
-    if (/RESUMES/.test(row) && !/if truly restarting/.test(row)) ok("the aborted row tells a relaunch to resume, and leaves --force to the PO");
-    else fail(`the aborted row still steers a relaunch to --force: ${row.slice(0, 160)}`);
+    // The loop reopens a closed run before it crosses a gate: `probe next` answers `reopen` over any run
+    // whose close nobody has taken back, ahead of every gate step, and the loop's own instructions send a
+    // relaunch to the resume, never to --force. (The run script that used to carry both is retired.)
+    pinnedBy(ctx, ["a closed run is reopened on the record, not resumed over its close"],
+      "a relaunch over a closed run reopens it on the record before any gate is shown");
+    const skill = readFileSync(join(ROOT, "skills/building/SKILL.md"), "utf8");
+    const intake = readFileSync(join(ROOT, "skills/building/resources/intake.md"), "utf8");
+    if (/reopened on the record/.test(skill) && /only the PO asks for it/.test(intake) && !/if truly restarting/.test(skill + intake)) {
+      ok("the loop tells a relaunch to resume (a close is reopened on the record), and leaves --force to the PO");
+    } else fail("the loop's instructions no longer say that a relaunch resumes and that --force is the PO's");
   } finally {
     rmSync(w, { recursive: true, force: true });
   }

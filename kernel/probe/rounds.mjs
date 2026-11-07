@@ -3,9 +3,8 @@
 // WHY THIS EXISTS (measured, not theorized).
 //
 // `harness-run.md`'s `rounds_used` frontmatter is written ONCE, at GATE L0.1 (`init run`), as `0`,
-// and nothing in the round loop ever rewrites it — the orchestrator's own RunReturn carries the
-// real count, but that value lives in a JS variable a relaunch loses, and it never reached the
-// ledger. `reduce ship`'s own derivation partly compensated by counting the highest
+// and nothing in the round loop ever rewrites it — a count held in a session's memory is lost with
+// the session, and the real count never reached the ledger. `reduce ship`'s own derivation partly compensated by counting the highest
 // `evaluate-r<N>.json` result on disk, which is right for "rounds the judge saw" and wrong for
 // "rounds the run built": measured after two full BUILD rounds with neither reaching EVAL,
 // `round_count: 0` and `rounds_used: 0` both — a run that did real work reported having done none.
@@ -16,8 +15,7 @@
 // both are meant to survive to wherever a run's numbers are read — the ship report and the export.
 //
 // PURE. Reads the run's own trace, writes nothing — the same discipline as `reduce ship`'s other
-// derivations (`t0Summary`, `boardCensus`, …). A run before any of these artifacts existed, or a
-// lane with no round concept at all (`--tiny`), falls back to the caller-supplied ledger value,
+// derivations (`t0Summary`, `boardCensus`, …). A run before any of these artifacts existed falls back to the caller-supplied ledger value,
 // non-regression with the earlier, EVAL-only behaviour.
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";

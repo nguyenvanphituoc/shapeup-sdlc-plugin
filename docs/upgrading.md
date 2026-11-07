@@ -83,6 +83,49 @@ keep.
 > Per-release upgrade notes are in [`CHANGELOG.md`](../CHANGELOG.md) under the release that shipped
 > each change.
 
+## Upgrading into 4.0 — the single loop
+
+4.0 is a breaking release. `/ship` now drives the run in your own session: the `building` skill asks
+the kernel (`probe next`) what comes next, does it, and asks again. The `tech-lead` skill, the Workflow
+script it launched, the courier sub-agents that script spawned to type kernel commands, the staged
+copy of the script and the relaunch after every paused gate are all gone. Nothing on your disk changes
+format — boards, contracts, ledgers, receipts and `shapeup/` keep their shapes, and a run opened by an
+earlier release resumes from its artifacts.
+
+**1. `--tiny` is no longer served.** The small-change lane was the `tech-lead` skill's prose loop and
+went with it. `/ship --tiny` says so, and `init run --tiny` / `--lane tiny` exit 2 with the same message.
+Run the full loop and size it with the pitch's appetite instead: `~1 week` gives a two-round budget, a
+small shape yields one scope, and the gates and the verification floor are the ones a bigger pitch
+crosses. If a script of yours passes `--tiny`, drop it.
+
+**2. The `Workflow` permission is no longer needed, and the installer leaves it alone.** It is an
+unscoped token — it authorises every dynamic workflow script in a project — so the installer no longer
+adds it and, because a project may rely on it for scripts of its own, never removes it either. If your
+settings carry `Workflow` only because an earlier `init` wrote it, delete it yourself. `npx shapeup-sdlc
+init --no-native-workflow` is still accepted so existing scripts keep running, and does nothing. The whole
+grant is the two Bash rules for `kernel/harness.mjs`.
+
+**3. The launch switches moved onto `init run`.** `init run-args` is gone. `init run` takes
+`--exec-model`, `--eval-model`, `--qa-model`, `--no-eval`, `--no-qa`, `--parallel-scopes`,
+`--adversarial-verify` and `--lane full` beside the options it always had, and writes the launch record
+(`.shapeup/<slug>/run-args.json`) in the same act as the receipt. **The model floor is enforced there**: an
+`exec` or `eval` model below sonnet is refused with exit 2, naming the role (`qa` is not checked, and `eval`
+is not under `--no-eval`). A model left unnamed is `$SHAPEUP_EXEC_MODEL` / `$SHAPEUP_EVAL_MODEL` /
+`$SHAPEUP_QA_MODEL`, else `sonnet`. A run that is already open keeps the record it has: switches typed to
+`init run` over an open run are not applied (exit 3), and `--force` reopens with new ones.
+
+**4. A gate is answered where it is reached.** The loop prints the gate block, asks the PO one question, records
+the answer with the source `PO (live)` and goes on. There is no `paused` return and nothing to relaunch; to
+resume a run you killed, run `/ship` again. If you script around the harness, a run no longer ends at a gate.
+
+**5. Smaller kernel surface.** `init run-args`, `reduce snapshot` (its facts are `probe resume --slug`),
+`reduce verdict` and `probe concurrency` are gone, and so is the `.shapeup/workflows/` directory `init run`
+used to fill — delete an old one. `probe resume` keeps `--require`, `--set-status`, `--mark-relaunch` and the
+close options. A run that ships now exports its records at its close, like every other ending.
+
+**6. Names.** A `Skill(...)` or command naming `tech-lead` resolves to nothing: use `/ship` (or the `building`
+skill). Rules filed in `shapeup/knowledge-base/tech-lead.md` are still read, as `building` guidance.
+
 ## Upgrading into v2.0
 
 **Nothing on your disk changes format.** Boards, scope contracts, ledgers, receipts and `shapeup/`
@@ -106,7 +149,7 @@ them and writes the new ones; your unrelated rules are left alone.
 | `node …/skills/tech-lead/scripts/t0-verify.mjs …` | `node …/kernel/harness.mjs verify t0 …` |
 | `node …/skills/tech-lead/scripts/gate-answers.mjs …` | `node …/kernel/harness.mjs gate …` |
 | `node …/skills/ba-pitch-analyzer/scripts/spec-lint.mjs …` | `node …/kernel/harness.mjs verify spec …` |
-| `node …/skills/tech-lead/scripts/run-workflow.mjs <script>` | `Workflow({scriptPath, args})` |
+| `node …/skills/tech-lead/scripts/run-workflow.mjs <script>` | gone in 4.0 — `/ship` drives the run |
 
 `node …/kernel/harness.mjs --help` lists every verb; each subcommand rejects a bad flag at the argv
 boundary with a machine-readable reason on stderr and exit 2, unchanged.
@@ -125,18 +168,17 @@ leg is no longer interrupted mid-flight, only prevented from opening another rou
 **1. The pipeline grant, which is what starts the lane at all.**
 
 ```bash
-npx shapeup-sdlc init      # writes two Bash rules for kernel/harness.mjs, plus the "Workflow" token
+npx shapeup-sdlc init      # writes two Bash rules for kernel/harness.mjs
 ```
 
 **If you installed before v2.0, re-run `init`.** v2.0 replaced twenty-one pipeline entry points with
 one — `kernel/harness.mjs`, with `verify | reduce | gate | probe | init | report | compile`
-beneath it — so the grant is now three lines instead of forty-one, and the per-script rules an
+beneath it — so the grant is now two lines instead of forty-one, and the per-script rules an
 older install wrote are removed by the same command. Your own unrelated rules are left alone.
 
 ```
 Bash(node "*/kernel/harness.mjs" *)
 Bash(node "*/kernel/harness.mjs")
-Workflow
 ```
 
 Two Bash rules, because the trailing ` *` form requires at least one argument and a bare
@@ -146,31 +188,16 @@ cloned it — which is also what keeps the grant working across a plugin upgrade
 expiring. `npm run test:grant` proves these by execution: it starts real CLI sessions and decides
 each case by whether the target's side effect landed on disk.
 
-**The third entry is the one to read before you accept it.** `"Workflow"` is what lets the tech lead
-launch `shapeup-run.js` without an approval prompt, and it is the reason a v2.0 run gets
-resume-from-journal, worktree isolation and prompt-cache-warm sub-agents. It **cannot be narrowed**:
-`Workflow(<path>)` and `Workflow(<script-name>)` are both denied, so the bare token authorises
-*every* dynamic workflow script in that project, including one written at runtime. Decline it with:
-
-```bash
-npx shapeup-sdlc init --no-native-workflow
-```
-
-An install that declines still runs the harness — the launch simply asks for approval once per
-session, which means the unattended lane is unavailable there.
+(The v2.0 grant carried a third entry, the unscoped `Workflow` token. It is no longer written and no longer
+needed; see "Upgrading into 4.0" above.)
 
 **A receipt does not prove the lane ran.** The run's first act writes one, so a receipt attests that
 a session started, never that the pipeline executed. Check the run's artifacts.
 
-### What a gate pause looks like now
+### What a gate pause looked like in v2.0
 
-Gates no longer block inside a turn — the run **returns** at one. You will see the gate block, and
-the run ends with `paused`. Answer it, then relaunch the *same* command with the *same* arguments:
-the fast-forward re-derives position from disk and re-dispatches nothing already finished. The same
-mechanism means a session killed mid-run resumes where it died instead of starting over.
-
-If you script around the harness, that is the behavioural change to account for: a paused run is a
-normal, zero-exit outcome that expects a relaunch, not a failure to retry differently.
+In v2.0 a gate ended the run: it **returned** `paused` and you relaunched the same command. 4.0 removed that —
+see "Upgrading into 4.0": a gate is answered in the session that reached it.
 
 ### Rolling back
 

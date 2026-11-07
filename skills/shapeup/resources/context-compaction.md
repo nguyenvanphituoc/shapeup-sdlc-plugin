@@ -183,8 +183,8 @@ Everything keys off the feature `<slug>`. Two roots, split by **who needs it**:
   fully gitignorable, dies with the run. It is derived from the same `<slug>`.
 - `.gitignore`: one line — `.shapeup/`. The whole local root is ignored; no
   carve-out is needed because everything machine-written at run time lives there,
-  including the harvested signal shards `.shapeup/metrics/*.jsonl` (written by
-  the tech-lead at SHIP, fact-only; see the tech-lead skill's SHIP step). The
+  including the harvested signal shards `.shapeup/metrics/*.jsonl` (an earlier release wrote
+  a fact-only row there at SHIP; nothing does now). The
   committed report surface is the frozen `shapeup/[slug]/REPORT.md`.
 - All paths are **project-relative, resolved from the project root / cwd.** Never
   `/mnt/...` — that is the claude.ai authoring sandbox and dies in a user repo.
@@ -196,7 +196,7 @@ mandates *status without asking* — hill position, verdict, ship sign-off, and
 surprise count are signals, not noise. Split inside the workspace:
 - **live scratch** (raw ledger, gate transition log, digest) → ephemeral, hidden;
 - **report surface** (hill / surprise / verdict / sign-off) → harvested at ship
-  (the tech-lead's metrics row), surfaced or archived to a `run-summary.md`.
+  (the ship report and the run export), surfaced or archived to a `run-summary.md`.
 
 ---
 

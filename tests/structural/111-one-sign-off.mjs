@@ -62,10 +62,4 @@ export async function run(ctx) {
   } finally {
     rmSync(ws, { recursive: true, force: true });
   }
-
-  // The run's return names the report by path. It carried the ship command's one-line `detail`
-  // instead — a sub-agent's sentence where the orchestrator expects a file to open.
-  const wf = readFileSync(join(ROOT, "skills/tech-lead/workflows/shapeup-run.js"), "utf8");
-  if (!/report:\s*ship\.detail/.test(wf) && /report: REPORT_PATH/.test(wf)) ok("the RunReturn's report field is the report's path, never the ship command's prose");
-  else fail("the RunReturn's report field reads the ship command's detail again");
 }

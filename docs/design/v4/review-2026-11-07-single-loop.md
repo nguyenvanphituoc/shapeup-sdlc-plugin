@@ -22,7 +22,7 @@ Three things follow, and they reorder the work:
 1. **The largest "agent with no reason to exist" is not a worker. It is the courier.** The run
    script owns no shell, so every kernel command it needs is run by spawning a sub-agent whose whole
    job is to type one `node` command and relay the exit code. There are 51 such call sites in
-   `skills/tech-lead/workflows/shapeup-run.js` against 11 worker dispatch sites. None of the 51
+   `tech-lead/workflows/shapeup-run.js` against 11 worker dispatch sites. None of the 51
    passes any of the kit's three criteria in `analysis/02`, and none of them appears in the run's own
    export — a courier leaves only an anonymous allow row in the safety spine's ledger.
 2. **The control plane needs no ablation to remove.** `analysis/01`'s rule is that every component
@@ -131,7 +131,7 @@ mechanism — the PO's call).
 
 | Path | Lines | Exists because | Verdict |
 |---|---|---|---|
-| `skills/tech-lead/workflows/shapeup-run.js` | 2,234 | the run is a Workflow script | **cut** — the loop is the skill's own body; the wave scheduler and `sendBackOnce` move to the loop |
+| `tech-lead/workflows/shapeup-run.js` | 2,234 | the run is a Workflow script | **cut** — the loop is the skill's own body; the wave scheduler and `sendBackOnce` move to the loop |
 | `kernel/probe/resume.mjs` | 1,161 | fast-forward across relaunches; status machine; `closeRun` | **shrink** to the artifact predicates and the close (`PHASE_ARTIFACT`, `nextPhase`, `closeRun`, `markRelaunch`) — the part every ending still needs |
 | `kernel/reduce/snapshot.mjs` | 291 | compaction resilience, derived from files | **shrink/merge** into the same predicates — two modules derive "where is the run" from the same files |
 | `kernel/init/run-args.mjs` | 206 | compiles `RunArgs` for the launch | **cut, but its record moves into `init run`** *(amended)* — `reduce ship` reads the record to refuse a PASS for a run launched with no evaluation, and the model floor needs a new home in the kernel |
@@ -139,7 +139,7 @@ mechanism — the PO's call).
 | `kernel/init/run.mjs` — the `.shapeup/workflows/` staging | part of 734 | the tool loads scripts only from the project | **cut** that part |
 | `bin/lib/grant.mjs` `WORKFLOW_RULE`; `bin/init.mjs` `--no-native-workflow` | ~40 | the unscoped `Workflow` token | **stop adding it; delete nothing** *(amended)* — it is the user's token and a project may use it for its own scripts |
 | `$defs` `RunArgs`, `RunReturn`, `ResumeState`, `Lane`, `RunSnapshot` | ~25 KB | the launch/return contract | **cut/shrink** with the above |
-| `skills/tech-lead/references/protocol.md` Parts 1–2 | ~550 of 889 | the prose lane | **cut** — Parts 3–4 (invariants, ledger format) stay |
+| `tech-lead/references/protocol.md` Parts 1–2 | ~550 of 889 | the prose lane | **cut** — Parts 3–4 (invariants, ledger format) stay |
 | `commands/ship.md`, `commands/build.md` — the `Workflow({…})` blocks | ~60 | | **rewrite** |
 
 ### B — the folded workers (the craft stays; the envelope plumbing goes)
@@ -242,7 +242,7 @@ as the maintenance audit's own convention requires).
 | Claim | Command | Result on 2026-11-07 |
 |---|---|---|
 | 10 workers, 18 operations, 32 subcommands | `node -p "require('./kernel/schemas/domain.schema.json').$defs.WorkerName.enum.length"`; same for `Operation`; `node kernel/harness.mjs --help` | 10 · 18 · 32 |
-| 51 courier call sites, 11 worker sites | `grep -cE '\b(cmd\|query\|advisory)\(' skills/tech-lead/workflows/shapeup-run.js`; `grep -c 'skill: "' …` | 51 · 11 |
+| 51 courier call sites, 11 worker sites | `grep -cE '\b(cmd\|query\|advisory)\(' tech-lead/workflows/shapeup-run.js`; `grep -c 'skill: "' …` | 51 · 11 |
 | Courier verbs | `grep -oE '(cmd\|query\|advisory)\(\s*\`[^\`]*\`' …` then tally the first two words | `reduce graph` 8, `probe resume` 6, `reduce hill` 5, `probe leg` 4 … |
 | Hook verdicts | tally `hook` × `verdict` over every `decisions.jsonl` under `traces/` | 6,861 rows; `sandbox-guard` 22 deny; `safety-spine`, `gate-intake`, `gate-zerowork` 0 deny |
 | Couriers leave no record | the same rows: `safety-spine` Bash rows carry `subject: null` | 0 kernel commands attributable from the ledger |

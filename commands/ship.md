@@ -8,7 +8,7 @@ sign-off — especially the Ship gate (L4). The harness's safety depends on the 
 loop; do not skip gates by default.
 
 **Before anything else, dispatch `building` and let it open the run** — its first action is
-`harness init run`, which writes the run receipt. Do not summarise what the harness will do;
+`harness init run`, which writes the run receipt and the launch record. Do not summarise what the harness will do;
 a session that dispatches the loop and leaves no receipt is blocked at `Stop` by
 `hooks/gate-zerowork.mjs`.
 
@@ -26,9 +26,12 @@ parallel, run a kernel command, cross a gate, close. Three things follow:
 - **Every agent the run spawns is a worker** — `orient`, `task-executor`, `spec-evaluator` and
   `qa-edge-hunter` — and each leaves a row in the run's records. Planning is not a worker: the loop does it in this session, under a write fence of its own, and each substep leaves its own row too. Nor are the census at GATE H, the retro after a ship, or the English copy of a non-English pitch: the loop does those itself, from the same `probe next` steps.
 
-`--tiny` takes the small-change lane in the `tech-lead` skill instead: orient (light) → single-task
-board → build → T0 → done, only gates L0 and L4 pause. Its fit-check applies (≤ ~2 files, no new
-domain concept/dependency/flow); if the change isn't tiny it says so and recommends the full lane.
+**`--tiny` is no longer served** — a breaking change in 4.0. The separate small-change lane (the `tech-lead`
+skill's prose loop) was retired with that skill, and `init run` refuses `--tiny` and `--lane tiny` with exit 2. If
+`--tiny` is typed, say so plainly and run the full loop instead, with the pitch's appetite small (`~1 week` gives
+a two-round budget, and a small shape yields one scope): the gates and the verification floor are the same ones
+a bigger pitch crosses, and nothing is waived for a one-file fix. Do not take any other route — a hand-built
+change outside the loop is what the harness exists to prevent.
 
 Only run headless/auto if the user explicitly asks for it in their message:
 - `--auto` → advance low-risk gates automatically, still pause at L4 (Ship sign-off).
@@ -60,7 +63,7 @@ Additional flags, pass through to `building` only when the user names them:
   at a time.
 - `--no-qa` → skip the QA Edge Hunt. QA is a level-up, not a gate.
 - `--no-eval` → skip the evaluator; the run ships as not evaluated, and says so.
-- `--rounds N` → override the outer circuit breaker (build+eval cycles, default 3).
-- `--attempts N` → override the inner circuit breaker (per-scope T0 attempts, default 5).
+- `--rounds N` → override the outer circuit breaker (build+eval cycles, default 3). Passed to `init run` as `--max-rounds N`.
+- `--attempts N` → override the inner circuit breaker (per-scope T0 attempts, default 5). Passed to `init run` as `--attempts N`.
 - `--exec-model / --eval-model / --qa-model <name>` → override the resolved model matrix for this run
   only (highest precedence over `.claude/settings.local.json` / `.claude/settings.json` / skill defaults).

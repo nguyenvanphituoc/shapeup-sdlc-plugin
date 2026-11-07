@@ -19,6 +19,7 @@
 //   (g) The workflow runs the gate before L2 and never dispatches EVAL over a red one; the
 //       stop step's census cites the probe for ownership claims.
 
+import { pinnedBy } from "../lib/pinned-row.mjs";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
@@ -303,16 +304,13 @@ export async function run(ctx) {
     else fail(`probe owner with no contracts exited ${none.status}`);
   } catch (e) { fail(`probe owner checks threw: ${e.stack || e}`); }
 
-  section("89. The workflow and the hammer skill are wired to the gate and the probe");
+  section("89. The loop and the census step are wired to the gate and the probe");
   try {
-    const wf = readFileSync(join(ROOT, "skills/tech-lead/workflows/shapeup-run.js"), "utf8");
-    const gateAt = wf.indexOf("verify build --slug ${slug} --round ${round}");
-    const l2At = wf.indexOf('crossGate("L2"');
-    const evalAt = wf.indexOf('skill: "spec-evaluator"');
-    if (gateAt > 0 && gateAt < l2At && l2At < evalAt) ok("shapeup-run.js runs `verify build` before GATE L2, and both before the EVAL dispatch");
-    else fail(`gate ordering in shapeup-run.js: gate@${gateAt} L2@${l2At} eval@${evalAt}`);
-    if (/build_gate:\s*buildGate/.test(wf) && /buildGate === "red"/.test(wf) && wf.indexOf('buildGate === "red"') < evalAt) ok("the L2/L3 blocks carry build_gate and a red gate is checked before the evaluator is dispatched");
-    else fail("the workflow does not branch on a red build gate before EVAL");
+    // The ordering this used to read out of the retired run script's source — the round build gate runs before
+    // GATE L2, both before the judge is dispatched, and a red gate is checked before the judge — is a branch of
+    // `probe next` now, pinned by named rows.
+    pinnedBy(ctx, ["a settled green round runs its build gate once", "a red build gate reaches L2, then L3 as a FAIL without spending the judge", "a red build gate outranks --no-eval", "a green, gated round dispatches the judge"],
+      "`verify build` runs before GATE L2 and both before the judge; a red gate is a FAIL without spending the judge");
     const stopDoc = readFileSync(join(ROOT, "skills/building/resources/stop.md"), "utf8");
     if (/probes\.owner/.test(stopDoc) && /derived/i.test(stopDoc) && /never remembered/.test(stopDoc)) ok("the stop step's census rule cites `probes.owner` for every ownership claim, derived and never remembered");
     else fail("skills/building/resources/stop.md does not require the owner probe for ownership claims");

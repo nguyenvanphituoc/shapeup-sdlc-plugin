@@ -6,19 +6,18 @@
 
 ```
 .claude-plugin/          plugin.json · marketplace.json
-skills/<name>/SKILL.md   the 8 harness skills (+ references/ and resources/)
-skills/tech-lead/        workflows/shapeup-run.js — the whole pipeline as one launchable script
+skills/<name>/SKILL.md   the 7 harness skills (+ references/ and resources/)
 kernel/harness.mjs       the deterministic half behind ONE entry point (and therefore one
                          permission prefix). Subcommands:
                           compile — the envelope port's order compiler
                           verify  — t0 · spec · envelope · dispatch · skills · budget ·
                                     build · trace
                           reduce  — ingest (the single writer) · board · hill ·
-                                    graph · snapshot · ship
+                                    graph · ship
                           probe   — resume · t0 · stats (--hooks) · digest · leg · eval ·
                                     owner · requirements · attempts · hunt · next
                           report  — export (read-only fact tables keyed by run id)
-                          init    — run · fit · run-args
+                          init    — run (writes the launch record) · fit
                           gate    — the gate answer set
                           lib/    — argv · contract · paths
 kernel/schemas/          WorkOrder · WorkResult · gate-answers · domain registry
@@ -40,10 +39,10 @@ tests/{lib,structural}/  suites in tests/structural/*.mjs; 1800+ checks, zero LL
                          FLOOR, deliberately not the exact count — this line is where the suite
                          parses it, and pinning it to the running total would fail on every
                          legitimate removal. It may only grow EXCEPT when checks are deliberately
-                         removed with the code they covered: lowered twice during v2.0, once when
-                         six hooks were retired into the runtime and their behavioural checks went
-                         with them, and again when eight tech-lead references were consolidated
-                         into four; raised to 1000 once the v2 suite settled above it. A floor
+                         removed with the code they covered: lowered during v2.0 when six hooks were retired into the
+                         runtime and their behavioural checks went with them, and again in 4.0 when the run
+                         script's source-reading tests were ported to the kernel or retired with it;
+                         raised to 1000 once the v2 suite settled above it. A floor
                          left far below the real count is a check that can no longer fail)
 examples/                worked fixtures + negative controls for the oracle registry
 ```
@@ -78,7 +77,7 @@ examples/                worked fixtures + negative controls for the oracle regi
   to judge. Stated here because the invariant read as absolute while the code carried a
   counter-example — and an invariant with an undocumented exception is how a reader concludes the
   code is wrong when it is the sentence that is.
-- **Lanes thin ceremony, never verification** *(design — §4.7, not yet implemented)*. No lane
+- **Lanes thin ceremony, never verification** *(§4.7 — the lane design is withdrawn; the invariant stands)*. No lane
   skips EVAL, T0, or the hooks; a lane may only remove PO ceremony and scout work.
 
 ---

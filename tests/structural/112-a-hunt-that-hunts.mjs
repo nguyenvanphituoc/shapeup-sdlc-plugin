@@ -5,7 +5,8 @@
 // A `done` hunt whose order gave it a way into the app must have run at least one charter, or it is
 // refused on ingest and by `probe hunt`, and the run sends the hunter back once. A `failed` hunt, or
 // one with no way in, is not held to it.
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { pinnedBy } from "../lib/pinned-row.mjs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -70,10 +71,8 @@ export async function run(ctx) {
     rmSync(d, { recursive: true, force: true });
   }
 
-  const wf = readFileSync(join(ROOT, "skills/tech-lead/workflows/shapeup-run.js"), "utf8");
-  const qa = wf.slice(wf.indexOf('skill: "qa-edge-hunter"') - 300, wf.indexOf("// ---- GATE H"));
-  if (/sendBackOnce\(/.test(qa) && /probe hunt --slug/.test(qa) && /qaState = hv\?\.qa === "run"/.test(qa)) ok("the run sends a refused hunt back once, and takes QA's state from the hunt's own record");
-  else fail("the workflow no longer checks the hunt through probe hunt");
-  if (/--qa \$\{qaState\}/.test(wf) && /qa: qaState,/.test(wf) && /qa=\$\{ret\.qa\}/.test(wf)) ok("the ship report, the run's return and the close line carry the same QA state");
-  else fail("the QA state no longer reaches the report, the return and the close together");
+  // The run script's own wiring checks are retired with the script; the send-back and the QA state it
+  // carried are branches of `probe next`.
+  pinnedBy(ctx, ["a hunt that returned done over a reachable app with no charter is sent back once", "L4 ship on the main path closes shipped with the verdict, rounds and QA state in the cause"],
+    "a zero-charter hunt is sent back once, and QA's state reaches the close line");
 }

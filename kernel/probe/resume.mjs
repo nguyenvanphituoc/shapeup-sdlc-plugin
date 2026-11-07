@@ -1,57 +1,44 @@
 #!/usr/bin/env node
-// RESUME STATE — the fast-forward derivation, as a script rather than as a string.
+// RESUME FACTS — what the run's own artifacts say about where it stands, and the close of a run.
 //
-// WHY THIS FILE EXISTS (observed, not theorized).
+// A run is resumed by asking, never by remembering: `/ship` over an open run reads the artifacts on
+// disk and nothing else, so a killed session loses nothing and a finished phase is never dispatched
+// again. This module holds the two halves of that.
 //
-// `shapeup-run.js` derives "which phase do I resume at" from disk on every launch — that
-// derivation is what retires the whole class of handoff where a fresh session rebuilds a pipeline
-// already on disk. Until this file existed, it lived inside the workflow script as a
-// `node --input-type=module -e "…"` blob passed to a courier agent. Three consequences, all of
-// them realised:
+//   THE PREDICATES. One boolean per artifact a phase leaves — ORIENT's four files, the spec tree and
+//   the per-machine board, the wiring map, the scope contracts — plus the contracts' build order
+//   (waves, edges, exclusions), the rounds the judge has graded, the orders dispatched and never
+//   answered, and the counters a reader wants (rounds used and judged, the latest T0, board totals).
+//   `probe next` reads them to derive the next step; `probe resume --slug` prints them. They are
+//   facts: this file decides nothing, and every underlying boolean travels so a caller is never forced
+//   to trust a summary it cannot check. `next_step` is the first phase whose artifact is incomplete,
+//   offered as a convenience and in the vocabulary `--require` takes.
 //
-//   1. IT COULD NOT BE TESTED. A Workflow script has no `import`, takes `args` as a runtime
-//      global, and is executed by the Workflow runtime — there is no seam a fixture can reach.
-//      So the derivation shipped unverified, and the kill/resume probe found it re-dispatching a
-//      COMPLETED ORIENT phase: three orient
-//      artifacts rewritten, a spike added, the discovery ledger and two task files mutated.
-//      The cause was one branch reading stored `status` instead of ORIENT's own artifacts,
-//      while WIRE and MAP SCOPES read artifacts and fast-forwarded correctly.
-//   2. IT MATCHED NO PERMISSION GRANT. An inline `node -e` matches no rule in `permissions.allow`
-//      and passes only at the safety classifier's discretion. As a named script it is covered by
-//      the per-script rules the installer writes (`bin/lib/grant.mjs`).
-//   3. TWO WRITES HAD NO READER. `setRunStatus` and the substrate pointer were the only
-//      call sites in the workflow whose return value was discarded — and they are the only two
-//      whose failure went unnoticed for two entire runs. `status` never left `orienting` across
-//      46 dispatched agents, and `.shapeup/active-scope` still named scope 1 while scope 2 was
-//      being built, which is the pointer `hooks/sandbox-guard.mjs` reads to decide which
-//      substrate a worker may write. A courier write whose result nobody reads back is
-//      indistinguishable from one that succeeded. Both writes live here now, both refuse
-//      silently-wrong outcomes (a missing ledger, a status line that matched nothing), and both
-//      report a non-zero exit the caller is required to act on.
+//   THE CLOSE. `closeRun` stamps a terminal status, its cause and `closed_at` together, derives the
+//   ledger's verdict, round count and tables from the run's own records, retires the run pointer and
+//   exports the records; `setRunStatus` writes the status line and reopens a closed run on the record
+//   (the earlier close is kept under `prior_closes`); `markRelaunch` leaves a timestamp when a fresh
+//   session resumes a run that never closed; `closeArm` maps the arm a `probe next` close command
+//   names to the close it means.
 //
-// WHAT THIS FILE DOES NOT DECIDE. It reports facts; the workflow decides phases. `next_phase` is
-// offered as a derived convenience (and is what the fixture asserts over), but every underlying
-// boolean travels too, so a caller is never forced to trust a summary it cannot check.
+// WHY `--require` EXISTS. Making the RESUME decision read artifacts left the COMPLETION decision
+// reading nothing at all: a worker that returned `escalated` with no artifacts satisfied a phase that
+// wrote none, the artifact-gated resume then found nothing and dispatched it again, and the worker
+// escalated again — an unbounded loop, invisible inside one leg. `--require <phase>` is the completion
+// check and is deliberately the SAME derivation the resume decision uses, not a second predicate that
+// can drift from it. Two predicates that can disagree about "is this phase done" is the defect class.
 //
-// WHY `--require` EXISTS (the same lesson, one layer up).
-//
-// Making the RESUME decision read artifacts left the COMPLETION decision reading
-// nothing at all: shapeup-run.js dispatched a phase, ingested its result, and moved to the next
-// gate without ever re-asking the predicate. A worker that returns `status: "escalated"` with
-// `artifacts: []` — a legitimate outcome its own contract defines — satisfied that. So a phase
-// that wrote no artifact was recorded as complete, the artifact-gated fast-forward then correctly
-// found nothing on the next launch, re-dispatched it, and the worker escalated again: an
-// unbounded loop, invisible inside one leg, which is why several runs and a status review never
-// saw it.
-//
-// `--require <phase>` is the completion check, and it is deliberately the SAME derivation the
-// fast-forward uses — not a second predicate that can drift from it. Two predicates that can
-// disagree about "is this phase done" is the defect class itself.
+// WHY WRITES ARE READ BACK. `setRunStatus` refuses silently-wrong outcomes (a missing ledger, a status
+// line that matched nothing) and reports a non-zero exit the caller must act on: a status write nobody
+// reads back is indistinguishable from one that succeeded, and one such no-op pinned a run at
+// `orienting` across two complete legs.
 //
 // USAGE
-//   node harness probe resume --slug <slug> [--cwd <dir>]              # derive, print ResumeState
-//   node harness probe resume --slug <slug> --require <phase>          # post-condition: exit 6 if unmet
-//   node harness probe resume --slug <slug> --set-status <status>      # write harness-run.md status
+//   node harness probe resume --slug <slug> [--cwd <dir>]               # derive and print the facts
+//   node harness probe resume --slug <slug> --require <phase>           # post-condition: exit 6 if unmet
+//   node harness probe resume --slug <slug> --set-status <status>       # write harness-run.md status
+//   node harness probe resume --slug <slug> --mark-relaunch
+//   node harness probe resume --slug <slug> --close <status> | --close-arm <arm> [--cause <text>]
 //
 // Exit: 0 ok · 2 malformed argv (nothing ran) · 3 the target the operation needs is not on disk ·
 //       6 the required phase's artifact is NOT on disk (the phase did not complete).
@@ -67,7 +54,7 @@ import { evalVerdict } from "./eval.mjs";
 import { deriveRounds } from "./rounds.mjs";
 import { collectRun, writeRun } from "../report/export.mjs";
 
-/** The run-state values `references/protocol.md` (Part 4 — State) defines. A typo'd status is a rejection,
+/** The run-state values the run ledger's `status:` line takes. A typo'd status is a rejection,
  *  not a write — the whole point of this file is that a write nobody validates is a write nobody
  *  can trust. `aborted` is the terminal counterpart `escalated` already was: a gate
  *  resolving "abort", or a hard stop, ends the run the same way an operator-declared escalation
@@ -82,63 +69,44 @@ export const RUN_STATUSES = ["orienting", "mapping", "building", "evaluating", "
 export const TERMINAL_STATUSES = ["shipped", "aborted", "escalated"];
 
 /**
- * The RunReturn union (`kernel/schemas/domain.schema.json` `$defs/RunReturn.properties.status.enum`)
- * mapped to what closing the run means for each arm — the derivation `closeIfTerminal`
- * (`skills/tech-lead/workflows/shapeup-run.js`) now reads instead of a hand-typed
- * `status !== "aborted" && status !== "shipped"` pair that referenced {@link TERMINAL_STATUSES}
- * zero times and so could not see when a new arm went unhandled.
+ * The arm a `probe next` close command names, mapped to the status closing the run means.
  *
- * A lookup answers one of three ways, and the distinction is load-bearing for what this map must
- * catch: an arm ABSENT from this object (never listed as a key) returns `undefined` — an arm the
- * schema carries that nobody has mapped, which a caller must treat as a defect, never as "fine to
- * skip". An arm mapped to a terminal status closes the run as that status. An arm mapped to `null`
- * is EXPLICITLY non-terminal — `paused` resumes on relaunch and `ok` is one inner round finishing,
- * not the run — so it is a key with a falsy value, not an omission a reader could mistake for "not
- * decided yet".
+ * The close commands the loop hands out say `--close-arm shipped`, `--close-arm aborted` or
+ * `--close-arm gate_h` and never a status the loop decided was terminal itself: this map makes that
+ * call, so a new arm nobody mapped is a refusal rather than a silent skip. `gate_h` closes as
+ * `escalated` — a circuit breaker tripping is not a new way a run ends, it is the reason an existing
+ * one fires this time, and the breaker that tripped (`outer`, `inner`, `deadline`) travels in
+ * `close_cause`, never as a new member of {@link TERMINAL_STATUSES}.
  *
- * `gate_h` → `escalated`: the breaker that tripped (`outer`/`inner`/`deadline`) travels in
- * `close_cause`, never as a new member of {@link TERMINAL_STATUSES} or {@link RUN_STATUSES} — a
- * circuit breaker tripping is not a new way a run ends, it is the reason an existing one
- * (`escalated`) fires this time.
- *
- * @type {Object<string, (string|null)>}
+ * @type {Object<string, string>}
  */
-export const RUN_RETURN_CLOSE = {
+export const CLOSE_ARM_STATUS = {
   shipped: "shipped",
   aborted: "aborted",
   gate_h: "escalated",
-  paused: null,
-  ok: null,
 };
 
 /**
- * Resolve one RunReturn arm to a close outcome and, when the arm is terminal, perform the close —
- * the single call `closeIfTerminal` makes instead of deciding locally which arms are terminal.
+ * Resolve one close arm to its terminal status and perform the close — the single call a `probe next`
+ * close command makes instead of deciding locally which arms are terminal.
  *
  * @param {string} cwd - Project root.
  * @param {string} slug - Feature slug.
- * @param {string} arm - A `RunReturn.status` value.
- * @param {(string|null)} [cause] - Why the run ended there; only used when `arm` is terminal.
- * @param {boolean} [withExport] - Forwarded to {@link closeRun} — defaults true. The one caller
- *   that ever passes `false` is a test fixture proving the export assertion is real — a check that
- *   cannot fail did not happen; production call sites never set this.
- * @returns {({ok:true, arm:string, terminal:false, reason:string} |
- *   {ok:false, arm:string, reason:string} |
- *   ({ok:boolean, arm:string, terminal:true} & ReturnType<typeof closeRun>))} `terminal:false` when
- *   `arm` maps to `null` (nothing closed, not an error). `ok:false` with no `terminal` field when
- *   `arm` is not a key of {@link RUN_RETURN_CLOSE} at all — a schema arm this map has not been
- *   taught, which must never be silently treated as non-terminal. Otherwise the {@link closeRun}
- *   outcome, tagged with the arm that produced it.
+ * @param {string} arm - A key of {@link CLOSE_ARM_STATUS}.
+ * @param {(string|null)} [cause] - Why the run ended there.
+ * @param {boolean} [withExport] - Forwarded to {@link closeRun} — defaults true. The one caller that
+ *   ever passes `false` is a test fixture proving the export assertion is real; production call
+ *   sites never set this.
+ * @returns {({ok:false, arm:string, reason:string} | ({ok:boolean, arm:string, terminal:true} & ReturnType<typeof closeRun>))}
+ *   `ok:false` with no `terminal` field when `arm` is not a key of {@link CLOSE_ARM_STATUS} — an arm
+ *   this map has not been taught, which must never be read as "fine to skip". Otherwise the
+ *   {@link closeRun} outcome, tagged with the arm that produced it.
  */
 export function closeArm(cwd, slug, arm, cause = null, withExport = true) {
-  if (!Object.hasOwn(RUN_RETURN_CLOSE, arm)) {
-    return { ok: false, arm, reason: `closeArm: "${arm}" is not a RunReturn arm this kernel maps — known arms: ${Object.keys(RUN_RETURN_CLOSE).join(", ")}` };
+  if (!Object.hasOwn(CLOSE_ARM_STATUS, arm)) {
+    return { ok: false, arm, reason: `closeArm: "${arm}" is not a close arm this kernel maps — known arms: ${Object.keys(CLOSE_ARM_STATUS).join(", ")}` };
   }
-  const status = RUN_RETURN_CLOSE[arm];
-  if (!status) {
-    return { ok: true, arm, terminal: false, reason: `"${arm}" is explicitly non-terminal — no close` };
-  }
-  return { ...closeRun(cwd, slug, { status, cause, withExport }), arm, terminal: true };
+  return { ...closeRun(cwd, slug, { status: CLOSE_ARM_STATUS[arm], cause, withExport }), arm, terminal: true };
 }
 
 /** ORIENT's four artifacts (skills/orient/SKILL.md §Outputs): three by exact name, plus a spike
@@ -166,15 +134,6 @@ export function parseFrontmatter(text) {
   return splitFrontmatter(text).meta;
 }
 
-/**
- * Has ORIENT actually produced its artifacts? This is the predicate the fast-forward's ORIENT
- * branch was missing — the comment above that branch has always described it, and until now the
- * code read a stored status field instead.
- *
- * @param {string} cwd - Project root.
- * @param {string} slug - Feature slug.
- * @returns {boolean} True when all three named artifacts and at least one spike file exist.
- */
 /**
  * Group the scopes into dependency WAVES: every scope in a wave can be built at the same time,
  * and no wave contains a scope that depends on one still in flight.
@@ -260,25 +219,6 @@ function scopeDepGraph(scopes) {
 }
 
 /**
- * The SAME relation as {@link scopeWaves}, as edges rather than levels.
- *
- * WHY BOTH SHAPES SHIP. A level says when it is definitely safe to start a scope; an edge says when
- * it BECAME safe, and the two differ by however long the slowest sibling in the previous level takes.
- * A build that releases per level holds `cli-integration` until the last command scope lands even
- * when the only scope it consumes went green first. Levels remain the ORDER the fan-out considers
- * scopes in; edges are what release them.
- *
- * ADDITIVE, in the same sense `scope_waves` is: a consumer that ignores this field can rebuild the
- * level-release points from `scope_waves` alone, which is exactly the previous behaviour.
- *
- * @param {string} cwd - Project root.
- * @param {string} slug - Feature slug.
- * @param {Array<{scope_id:string, path:string}>} scopes - The scopes, in their existing order.
- * @returns {string[][]} `[dependant_path, dependency_path]` pairs, resolved paths on both ends so a
- *   consumer resolves ids the one way it already resolves `scope_files`. Empty when no relation is
- *   derivable — never a partial or invented one.
- */
-/**
  * Pairs of scopes that must not BUILD AT THE SAME TIME, because both may write the same path.
  *
  * WHY THIS IS A SCHEDULING FACT AND NOT A LINT. `shared_substrate` is the declared escape hatch from
@@ -302,6 +242,12 @@ function scopeDepGraph(scopes) {
  */
 export function scopeExclusions(cwd, slug, scopes) {
   if (scopes.length < 2) return [];
+  /**
+   * The substrate globs one scope contract declares, allowed and shared alike.
+   *
+   * @param {{path:string}} s - A scope.
+   * @returns {string[]} Trimmed globs; [] when unreadable.
+   */
   const globsOf = (s) => {
     try {
       const fm = parseFrontmatter(readFileSync(s.path, "utf8"));
@@ -312,6 +258,13 @@ export function scopeExclusions(cwd, slug, scopes) {
   // Two globs MEET when either matches the other read as a literal path. It is an approximation of
   // "these two patterns can name the same file", and it is deliberately the generous one: a false
   // meet costs two scopes their overlap in time, a missed meet costs one of them its work.
+  /**
+   * Whether two globs can name the same file.
+   *
+   * @param {string} a - One glob.
+   * @param {string} b - Another.
+   * @returns {boolean} True when either matches the other read as a literal.
+   */
   const meet = (a, b) => a === b || globToRegExp(a).test(b) || globToRegExp(b).test(a);
   const out = [];
   for (let i = 0; i < scopes.length; i++) {
@@ -323,6 +276,25 @@ export function scopeExclusions(cwd, slug, scopes) {
   return out;
 }
 
+/**
+ * The SAME relation as {@link scopeWaves}, as edges rather than levels.
+ *
+ * WHY BOTH SHAPES SHIP. A level says when it is definitely safe to start a scope; an edge says when
+ * it BECAME safe, and the two differ by however long the slowest sibling in the previous level takes.
+ * A build that releases per level holds `cli-integration` until the last command scope lands even
+ * when the only scope it consumes went green first. Levels remain the ORDER the fan-out considers
+ * scopes in; edges are what release them.
+ *
+ * ADDITIVE, in the same sense `scope_waves` is: a consumer that ignores this field can rebuild the
+ * level-release points from `scope_waves` alone, which is exactly the previous behaviour.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {Array<{scope_id:string, path:string}>} scopes - The scopes, in their existing order.
+ * @returns {string[][]} `[dependant_path, dependency_path]` pairs, resolved paths on both ends so a
+ *   consumer resolves ids the one way it already resolves `scope_files`. Empty when no relation is
+ *   derivable — never a partial or invented one.
+ */
 export function scopeDeps(cwd, slug, scopes) {
   if (scopes.length < 2) return [];
   const deps = scopeDepGraph(scopes);
@@ -337,6 +309,15 @@ export function scopeDeps(cwd, slug, scopes) {
   return out;
 }
 
+/**
+ * Has ORIENT actually produced its artifacts? This is the predicate the fast-forward's ORIENT
+ * branch was missing — the comment above that branch has always described it, and until now the
+ * code read a stored status field instead.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {boolean} True when all three named artifacts and at least one spike file exist.
+ */
 export function hasOrientArtifacts(cwd, slug) {
   const dir = orientDir(cwd, slug);
   if (!existsSync(dir)) return false;
@@ -361,19 +342,6 @@ export function usecasesPath(cwd, slug, specFolder) {
 }
 
 /**
- * Has ANALYZE actually produced the spec tree? `_index.md` alone is a tree with no use cases in
- * it, and a wiring map is written one entry PER use case — so the index does not count.
- *
- * This predicate is why ANALYZE is in the phase chain at all. WIRE was dispatched before it ran, so
- * `usecases/` did not exist, so the wiring substep had nothing to wire and escalated — honestly,
- * and identically on every relaunch.
- *
- * @param {string} cwd - Project root.
- * @param {string} slug - Feature slug.
- * @param {string|null} specFolder - The ledger's `spec_folder`, if it names one.
- * @returns {boolean} True when at least one use case (not the index) is on disk.
- */
-/**
  * Is the per-machine board on disk with at least one task? ANALYZE writes two artifacts in two
  * tiers — the spec tree, committed, and the board, gitignored — and a fast-forward that asked only
  * about the committed half walked every later run on a machine, and every run in a fresh checkout,
@@ -388,6 +356,19 @@ export function hasBoard(cwd, slug) {
   try { return parseBoard(tasksDir(cwd, slug)).length > 0; } catch { return false; }
 }
 
+/**
+ * Has the spec step actually produced the spec tree? `_index.md` alone is a tree with no use cases in
+ * it, and a wiring map is written one entry PER use case — so the index does not count.
+ *
+ * This predicate is why the spec step is in the phase chain at all: the wiring step reads one entry
+ * per use case, so wiring over a tree that is not there escalates — honestly, and identically on
+ * every resume.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {string|null} specFolder - The ledger's `spec_folder`, if it names one.
+ * @returns {boolean} True when at least one use case (not the index) is on disk.
+ */
 export function hasSpecTree(cwd, slug, specFolder) {
   const dir = usecasesPath(cwd, slug, specFolder);
   if (!existsSync(dir)) return false;
@@ -404,7 +385,7 @@ export const PHASE_ARTIFACT = {
   orient: { fact: "has_orient_artifacts", artifact: "orient/{code-surface,discovered-seed,hill-signal}.md + spike-*.md" },
   // BOTH HALVES. The spec tree is committed and survives a clone; the board is per-machine and does
   // not. A phase is complete only when both are on disk — a committed spec with no board resumes AT
-  // analyze, where the workflow dispatches the board-only operation rather than the whole phase.
+  // analyze, where the loop opens the board-only step rather than the whole phase.
   analyze: { fact: "has_spec_tree", also: "has_board", artifact: "spec/usecases/*.md + tasks/TASK-*.md" },
   wire: { fact: "has_wiring_map", artifact: "wiring-map.md" },
   "map-scopes": { fact: "scope_files", artifact: "scopes/*.md" },
@@ -414,25 +395,31 @@ export const PHASES = Object.keys(PHASE_ARTIFACT);
 /**
  * Is this phase's artifact on disk? The ONE reading of "complete" in this pipeline.
  *
- * @param {object} state - A derived ResumeState.
+ * @param {object} state - Derived ResumeFacts.
  * @param {string} phase - One of {@link PHASES}.
  * @returns {boolean} True when the phase's artifact exists.
  */
 export function phaseSatisfied(state, phase) {
+  /**
+   * Whether a fact is set (a non-empty list, or a truthy value).
+   *
+   * @param {string} k - A fact name.
+   * @returns {boolean} True when present.
+   */
   const present = (k) => { const v = state[k]; return Array.isArray(v) ? v.length > 0 : Boolean(v); };
   const p = PHASE_ARTIFACT[phase];
   return present(p.fact) && (!p.also || present(p.also));
 }
 
 /**
- * The first phase whose artifacts are incomplete — the design doc's §4 fast-forward, stated once
- * so the workflow and the fixture cannot disagree about it.
+ * The first phase whose artifacts are incomplete — the resume decision, stated once so `probe next`,
+ * `--require` and the fixtures cannot disagree about it.
  *
  * ⟐ ANALYZE sits between ORIENT and WIRE. The pipeline used to dispatch
  * WIRE first, which is the position the wiring craft's own input contract excludes — it reads
  * `usecases/`, and `analyze` is what writes them.
  *
- * @param {object} f - Facts (a derived ResumeState, or the subset the phase predicates read).
+ * @param {object} f - Facts (derived ResumeFacts, or the subset the phase predicates read).
  * @returns {"orient"|"analyze"|"wire"|"map-scopes"|"build"} The phase to resume at.
  */
 export function nextPhase(f) {
@@ -441,21 +428,68 @@ export function nextPhase(f) {
 }
 
 /**
- * Derive every path/status fact the outer pipeline needs, from files alone.
+ * The board's totals, from the task files' frontmatter alone.
  *
  * @param {string} cwd - Project root.
  * @param {string} slug - Feature slug.
- * @param {object} [opts] - Reserved; accepted so a caller that passes one keeps working.
- * @returns {object} The ResumeState record (domain.schema.json $defs/ResumeState).
+ * @returns {({total:number, done:number, unfinished:string[]}|null)} null when there is no board.
  */
-export function deriveResumeState(cwd, slug, { pluginRoot = null } = {}) {
+function boardCounts(cwd, slug) {
+  const dir = tasksDir(cwd, slug);
+  if (!existsSync(dir)) return null;
+  const board = { total: 0, done: 0, unfinished: [] };
+  for (const f of readdirSync(dir)) {
+    if (!/^TASK-.*\.md$/.test(f)) continue;
+    board.total++;
+    try {
+      const fm = parseFrontmatter(readFileSync(join(dir, f), "utf8"));
+      if (fm.status === "done") board.done++;
+      else if (board.unfinished.length < 10) board.unfinished.push(String(fm.id || f.replace(/\.md$/, "")));
+    } catch { /* an unreadable task counts as unfinished-unknown; skip naming it */ }
+  }
+  return board.total ? board : null;
+}
+
+/**
+ * The latest T0 verdict by (round, attempt), from the verdict file names and the newest file's own
+ * `overall`.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {({round:number, attempt:number, overall:(string|null)}|null)} null when no verdict exists.
+ */
+function latestT0(cwd, slug) {
+  const dir = verdictsDir(cwd, slug);
+  if (!existsSync(dir)) return null;
+  let latest = null;
+  for (const f of readdirSync(dir)) {
+    const m = /^r(\d+)-a(\d+)(?:-t\d+)?\.json$/.exec(f);
+    if (!m) continue;
+    const round = Number(m[1]), attempt = Number(m[2]);
+    if (!latest || round > latest.round || (round === latest.round && attempt > latest.attempt)) latest = { round, attempt, file: f };
+  }
+  if (!latest) return null;
+  let overall = null;
+  try { overall = JSON.parse(readFileSync(join(dir, latest.file), "utf8"))?.overall ?? null; } catch { /* unreadable: the position still stands */ }
+  return { round: latest.round, attempt: latest.attempt, overall: overall === "green" || overall === "red" ? overall : null };
+}
+
+/**
+ * Derive every artifact fact the loop and a resumed session need, from files alone — never from the
+ * conversation, which a compaction may have made lossy.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {object} The ResumeFacts record (domain.schema.json $defs/ResumeFacts).
+ */
+export function deriveResumeFacts(cwd, slug) {
   const hrPath = harnessRun(cwd, slug);
   const hr = existsSync(hrPath) ? parseFrontmatter(readFileSync(hrPath, "utf8")) : {};
 
   // Resolved contract PATHS, not bare filenames: harness compile and harness verify t0 both resolve
-  // `--scope` against cwd, so a bare "SC-x.md" names a file that does not exist, compile-order
-  // exits 2, and the attempt loop reads that non-zero exit as the stagnation breaker — a resumed
-  // run would falsely trip the inner breaker and hammer-propose every scope instead of continuing.
+  // `--scope` against cwd, so a bare "SC-x.md" names a file that does not exist, compile exits 2,
+  // and the attempt loop reads that non-zero exit as the stagnation breaker — a resumed run would
+  // falsely trip the inner breaker and hammer-propose every scope instead of continuing.
   const sdir = scopesDir(cwd, slug);
   const scope_files = existsSync(sdir)
     ? readdirSync(sdir).filter((f) => f.endsWith(".md")).sort()
@@ -465,47 +499,53 @@ export function deriveResumeState(cwd, slug, { pluginRoot = null } = {}) {
   const resultFiles = existsSync(resultsDir(cwd, slug)) ? readdirSync(resultsDir(cwd, slug)) : [];
   const orderFiles = existsSync(ordersDir(cwd, slug)) ? readdirSync(ordersDir(cwd, slug)) : [];
 
+  // Rounds from the same mechanical derivation `reduce ship` and `report export` read, never the
+  // ledger's literal `rounds_used`, which is written once, as 0, at the open.
+  const derivedRounds = deriveRounds(cwd, slug, hr.rounds_used);
+  const t0 = latestT0(cwd, slug);
+  const board = boardCounts(cwd, slug);
+
   const facts = {
+    slug,
     intake_path: intake(cwd, slug),
     // The pitch's other half, staged by `init run` beside the intake. Null when the pitch had no
-    // separate breadboard — the planning dispatches then carry no `breadboard` key at all.
+    // separate breadboard — the planning steps then carry no `breadboard` key at all.
     breadboard_path: existsSync(breadboard(cwd, slug)) ? breadboard(cwd, slug) : null,
     // How it was found (flag | sibling | shaping-dir | shared-root | embedded), from the receipt;
     // null when there was none or the receipt cannot be read.
     breadboard_source: readReceipt(receipt(cwd, slug))?.breadboard?.source ?? null,
     spec_folder: hr.spec_folder || null,
     status: hr.status || null,
-    // The terminal status of a close nobody has taken back yet. A relaunch reopens the run before its
-    // first gate on this fact, so no gate a relaunch crosses is recorded inside a closed window.
+    // The terminal status of a close nobody has taken back yet. A resume reopens the run before its
+    // first gate on this fact, so no gate it crosses is recorded inside a closed window.
     closed_status: hr.closed_status ? String(hr.closed_status) : null,
+    auto_level: hr.auto_level || null,
+    max_rounds: Number.isFinite(Number(hr.max_rounds)) ? Number(hr.max_rounds) : null,
     lens: hr.lens || null,
     stack: hr.stack || null,
     run_cmd: hr.run_cmd || null,
     app_url: hr.app_url || null,
-    // A list the PO named at L0.5, or [] — `auto`, or a ledger with no line — which the evaluate order
+    // A list the PO named at L0, or [] — `auto`, or a ledger with no line — which the evaluate order
     // resolves from the spec at compile time.
     eval_dimensions: Array.isArray(hr.eval_dimensions) ? hr.eval_dimensions : [],
     orient_dir: `.shapeup/${slug}/orient/`,
     has_orient_artifacts: hasOrientArtifacts(cwd, slug),
     has_spec_tree: hasSpecTree(cwd, slug, hr.spec_folder || null),
     has_board: hasBoard(cwd, slug),
-    // A PLAIN FACT, DELIBERATELY NOT A PHASE. The requirements registry is dispatched once, before
-    // ANALYZE, and the orchestrator guards that one dispatch on this boolean. It is NOT an entry in
-    // PHASE_ARTIFACT, and adding it there would be a migration hazard rather than a tidier shape:
-    // that map is also `nextPhase()`'s ordered list, so every run recorded before the registry
-    // existed would fast-forward to the registry instead of to `build` on its next relaunch.
+    // A PLAIN FACT, DELIBERATELY NOT A PHASE. The requirements registry is produced once, before the
+    // spec, and the loop guards that one step on this boolean. It is NOT an entry in PHASE_ARTIFACT:
+    // that map is also `nextPhase()`'s ordered list, so adding it there would send every run recorded
+    // before the registry existed to the registry instead of to `build` on its next resume.
     has_requirements: existsSync(requirements(cwd, slug)),
     has_wiring_map: existsSync(wiringMap(cwd, slug)),
     project_profile_path: projectProfile(cwd, slug),
     has_project_profile: existsSync(projectProfile(cwd, slug)),
     scope_files,
     // The same scopes, grouped so a wave never contains a scope depending on one still in flight.
-    // Additive: a caller that ignores it gets exactly today's behavior.
     scope_waves: scopeWaves(cwd, slug, scope_files),
     // The same relation as edges. A wave says when a scope is definitely safe to start; an edge says
-    // when it BECAME safe. A fan-out that releases per wave holds a scope until the slowest member of
-    // the previous wave lands, even when the one scope it consumes finished first. Also additive: the
-    // wave list alone rebuilds the per-wave release points, which is the previous behaviour.
+    // when it BECAME safe, so a scope is released the moment its own dependencies settle rather than
+    // when the slowest member of the previous wave lands.
     scope_deps: scopeDeps(cwd, slug, scope_files),
     // Pairs that may write the same declared-shared path. Not an ordering — an exclusion: they may
     // build in either order, and they may not build at the same time. Concurrent writers to one
@@ -515,15 +555,22 @@ export function deriveResumeState(cwd, slug, { pluginRoot = null } = {}) {
     pending_orders: orderFiles.filter((f) => f.endsWith(".json") && !resultFiles.includes(f)),
     // A round is DONE when it was graded, not when its result file exists. An evaluator that
     // refused the round — no PASS/FAIL, or a scoped verdict citing no T0 artifact — still writes
-    // `evaluate-r<N>.json`; counted, the relaunch opened round N+1 over a round nobody judged, with
-    // no bugs to route, and rebuilt every scope. Left open, it re-enters round N, skips the scopes
+    // `evaluate-r<N>.json`; counted, a resume opened round N+1 over a round nobody judged, with no
+    // bugs to route, and rebuilt every scope. Left open, it re-enters round N, skips the scopes
     // already green there, and evaluates again.
     eval_rounds_done: resultFiles
       .filter((f) => /^evaluate-r\d+\.json$/.test(f))
       .map((f) => Number(f.match(/\d+/)[0]))
       .filter((n) => evalVerdict(cwd, slug, n).found),
+    rounds_used: Number.isFinite(Number(derivedRounds.rounds_used)) ? Number(derivedRounds.rounds_used) : null,
+    // Kept as its OWN field, never folded into rounds_used — a round built is not a round judged.
+    rounds_judged: Number.isFinite(derivedRounds.rounds_judged) ? derivedRounds.rounds_judged : null,
+    round: t0 ? t0.round : (Number.isFinite(Number(derivedRounds.rounds_used)) ? Number(derivedRounds.rounds_used) : null),
+    attempt: t0 ? t0.attempt : null,
+    latest_t0: t0 && t0.overall ? { round: t0.round, attempt: t0.attempt, overall: t0.overall } : null,
+    board: board ? { total: board.total, done: board.done, unfinished: board.unfinished } : null,
   };
-  return { ...facts, next_phase: nextPhase(facts) };
+  return { ...facts, next_step: nextPhase(facts) };
 }
 
 /**
@@ -543,7 +590,7 @@ export function setRunStatus(cwd, slug, status) {
   }
   const body = readFileSync(p, "utf8");
   if (!/^status:.*$/m.test(body)) {
-    return { ok: false, path: p, status, reason: `harness-run.md carries no "status:" line to replace — the ledger's frontmatter is malformed (references/protocol.md)` };
+    return { ok: false, path: p, status, reason: `harness-run.md carries no "status:" line to replace — the ledger's frontmatter is malformed` };
   }
   // A CLOSED RUN THAT MOVES AGAIN IS REOPENED, AND SAYS SO. A relaunch resumes the same run by
   // design, so a run closed `aborted` can be carried on to a later ship. Its close was written once
@@ -637,16 +684,6 @@ export function markRelaunch(cwd, slug) {
 }
 
 /**
- * Rewrite `status:`, `closed_at:`, `closed_status:` and `close_cause:` together, in one pass,
- * appending any of the last three that a pre-migration ledger carries no line for yet (the same
- * tolerant-of-old-ledgers discipline `close_cause` itself shipped under).
- *
- * @param {string} body - The ledger's current text.
- * @param {{status:string, closedAt:string, cause:(string|null)}} o - What to write. `cause` is
- *   already normalized prose (newlines collapsed, truncated) — this function only `uncoerce`s it.
- * @returns {string} The rewritten text.
- */
-/**
  * What the ledger's front matter and tables should say at a close, derived from the run's own
  * records — the same ones the export reads. The counters (`final_verdict`, `rounds_used`) and the
  * Rounds/Decisions tables used to be hand-shaped placeholders nothing filled: a run closed
@@ -658,6 +695,12 @@ export function markRelaunch(cwd, slug) {
  * @returns {{final_verdict:string, rounds_used:(number|null), decisions:object[], roundRows:string[]}}
  */
 export function deriveLedgerFacts(cwd, slug) {
+  /**
+   * Read a JSON file, tolerating absence.
+   *
+   * @param {string} p - Path.
+   * @returns {(*|null)} Parsed value or null.
+   */
   const readJson = (p) => { try { return JSON.parse(readFileSync(p, "utf8")); } catch { return null; } };
   const evalRows = [];
   const rDir = resultsDir(cwd, slug);
@@ -666,6 +709,12 @@ export function deriveLedgerFacts(cwd, slug) {
   // as this run's final verdict: measured, a run whose last round PASSed closed as `final_verdict:
   // FAIL` from a previous run's round 3. A result carries no run key; its order does.
   const runId = readRunId(cwd, slug);
+  /**
+   * Whether round n's evaluate order belongs to this run.
+   *
+   * @param {(string|number)} n - Round number.
+   * @returns {boolean} True for this run's order, or when no key can say otherwise.
+   */
   const thisRun = (n) => {
     if (!runId) return true;
     const o = readJson(join(ordersDir(cwd, slug), `evaluate-r${n}.json`));
@@ -701,6 +750,12 @@ export function deriveLedgerFacts(cwd, slug) {
   // reopen took a closed run back; a plain relaunch found one still open and never closed at all.
   const markers = [...reopens.map((t) => ({ t, via: "reopen" })), ...relaunches.map((t) => ({ t, via: "relaunch" }))]
     .sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0));
+  /**
+   * Which launch took a decision at a given time, by the markers before it.
+   *
+   * @param {*} at - ISO time of the row.
+   * @returns {{launch:number, via:(string|null)}} Launch number and the marker kind.
+   */
   const launchOf = (at) => {
     const before = markers.filter((m) => typeof at === "string" && at > m.t);
     return { launch: 1 + before.length, via: before.length ? before[before.length - 1].via : null };
@@ -754,7 +809,16 @@ export function deriveLedgerFacts(cwd, slug) {
   return { final_verdict: finalVerdict, rounds_used: roundsUsed, decisions, roundRows };
 }
 
-/** Replace the rows of one markdown table (identified by its header line) with `rows`, keeping the header, the separator and any row the caller marks as kept. */
+/**
+ * Replace the rows of one markdown table (identified by its header line) with `rows`, keeping the
+ * header, the separator and any row the caller marks as kept.
+ *
+ * @param {string} body - The ledger text.
+ * @param {RegExp} headerRe - Matches the table: capture groups are header, separator and old rows.
+ * @param {string[]} rows - The new rows.
+ * @param {(string|null)} [keepRow] - A row prefix to carry over from the old rows.
+ * @returns {string} The rewritten text.
+ */
 function rewriteTable(body, headerRe, rows, keepRow = null) {
   return body.replace(headerRe, (m, header, sep, oldRows) => {
     const kept = keepRow && oldRows ? oldRows.split("\n").filter((l) => l.startsWith(keepRow)) : [];
@@ -762,6 +826,14 @@ function rewriteTable(body, headerRe, rows, keepRow = null) {
   });
 }
 
+/**
+ * Rewrite `status:`, `closed_at:`, `closed_status:` and `close_cause:` together, in one pass, appending
+ * any of the last two a ledger carries no line for yet, and fill in the derived counters and tables.
+ *
+ * @param {string} body - The ledger's current text.
+ * @param {{status:string, closedAt:string, cause:(string|null), derived:(object|null)}} o - What to write.
+ * @returns {string} The rewritten text.
+ */
 function writeCloseLines(body, { status, closedAt, cause, derived = null }) {
   const causeLine = `close_cause: ${uncoerce(cause || null)}`;
   const closedStatusLine = `closed_status: ${status}`;
@@ -790,16 +862,12 @@ function writeCloseLines(body, { status, closedAt, cause, derived = null }) {
 
 /**
  * Export a just-closed run's own records into fact tables, best-effort
- * (`report export`, `kernel/report/export.mjs`). {@link closeRun} calls this for every terminal
- * status except `"shipped"`: the Ship phase (`skills/tech-lead/workflows/shapeup-run.js`) already
- * calls `report export` itself, several lines before this file's own close-out runs, and that call
- * site is left untouched on purpose — the shipped path's export stays byte-comparable to what it
- * wrote before Stage 2. `aborted`, `escalated` and `gate_h` (which closes as `escalated`, see
- * {@link RUN_RETURN_CLOSE}) never reached that call site at all, because it sits inside a phase
- * those endings never enter — so a run ending any of them left its whole trace (orders, results,
- * T0 verdicts, hook decisions, `graph.jsonl`) in the gitignored LOCAL tier with nothing durable
- * surviving the next `init run`'s wipe. This is the read that was missing for those endings, run at
- * the one point every one of them passes through: the close itself.
+ * (`report export`, `kernel/report/export.mjs`). {@link closeRun} calls this for EVERY terminal
+ * status, `shipped` included: the close is the one point every ending passes through, so a run that
+ * aborts, escalates or ships leaves its whole trace (orders, results, T0 verdicts, hook decisions,
+ * `graph.jsonl`) durable under `.shapeup/exports/<run_id>/` before the gitignored LOCAL tier is
+ * superseded. An export placed anywhere earlier than the close — inside a ship phase — is one the
+ * non-shipping endings never reach, and those are the runs whose records are worth most.
  *
  * FAIL-OPEN, the hook discipline (CLAUDE.md) extended to a write that is not a hook: an export that
  * cannot write — a blocked or missing exports directory, a full disk — must never turn a close that
@@ -831,7 +899,7 @@ function exportOnClose(cwd, slug) {
  * one were indistinguishable from the trace alone. Two writers made that possible: `setRunStatus`
  * above replaces the `status:` line and NOTHING ELSE, and `closed_at` was written exactly once, as
  * the literal `~`, by `init run` — nothing ever replaced it. This function is the one call site
- * that closes a run, so a terminal RunReturn cannot leave one of the three facts behind.
+ * that closes a run, so a terminal close cannot leave one of the three facts behind.
  *
  * Refuses rather than silently no-ops, the same discipline as `setRunStatus`: an absent ledger, one
  * missing the lines this writes, or a non-terminal `status` (closing a run still `building` would
@@ -839,11 +907,10 @@ function exportOnClose(cwd, slug) {
  *
  * THE ONCE-ONLY GUARD READS `closed_status`, NEVER `status`. REWORK (round 2): the guard used to key
  * on `before.status`, and `status:` is a LIVE field every phase rewrites via `setRunStatus` —
- * including the product's own ship path, which stamps `status: shipped`
- * (`skills/tech-lead/workflows/shapeup-run.js`'s Ship phase) immediately before this call runs. So a
- * run closed `aborted` at Preflight on one launch, relaunched, and carried through to a `shipped`
- * RunReturn on a later one had its `status:` line rewritten to `shipped` by that ordinary phase
- * traffic BEFORE `closeIfTerminal` ever called this function — the guard read `before.status ===
+ * including the ship path's own status write immediately before this call runs. So a
+ * run closed `aborted` at preflight on one launch, resumed, and carried through to a `shipped` close
+ * on a later one had its `status:` line rewritten to `shipped` by that ordinary phase
+ * traffic BEFORE this function was called — the guard read `before.status ===
  * "shipped"`, matched the very close it was about to perform, and treated a run that was actually
  * closed `aborted` as already closed `shipped`: `ok:true`, an "idempotent no-op" that silently kept
  * the abort's own `closed_at`/`close_cause` under a `status:` line now reading `shipped`. `closed_status`
@@ -877,17 +944,16 @@ function exportOnClose(cwd, slug) {
  *   (the one dialect `harness-run.md`'s frontmatter is read and written in), so free prose — quotes
  *   and colons included — round-trips as one frontmatter line; an embedded newline is collapsed to
  *   a space first, because this dialect is line-based and could not carry one either way.
- *   `withExport` (default true) gates {@link exportOnClose} — every status except `"shipped"` runs
- *   it on a successful close; `false` exists only for a test fixture proving the export assertion
- *   is real, never for a production call site.
+ *   `withExport` (default true) gates {@link exportOnClose} — every terminal status runs it on a
+ *   successful close; `false` exists only for a test fixture proving the export assertion is real,
+ *   never for a production call site.
  * @returns {{ok:boolean, path:string, status:string, closed_at?:string, cause?:(string|null),
  *   reason?:string, closed_status?:string, superseded?:boolean, decision?:string,
  *   prior_cause?:(string|null), prior_closed_at?:string, export_warning?:string}} Outcome. A refused
  *   overwrite (already closed with a DIFFERENT terminal status) carries
  *   `closed_status`/`closed_at`/`cause` naming what is actually on disk. A successful supersede
  *   (same status, different cause) carries `superseded:true`, `decision:"superseded"` (the
- *   one-token signal the courier boundary in `shapeup-run.js` relays verbatim — see its own
- *   `cmd()` banner) and the prior close it folded in. Any successful, non-`"shipped"` close carries
+ *   one-token signal a caller reads instead of parsing prose) and the prior close it folded in. Any successful close carries
  *   `export_warning` when {@link exportOnClose} could not write the run's fact tables — the close
  *   itself still stands; this is advisory only.
  */
@@ -901,12 +967,11 @@ export function closeRun(cwd, slug, { status, cause = null, withExport = true } 
   }
   let body = readFileSync(p, "utf8");
   if (!/^status:.*$/m.test(body) || !/^closed_at:.*$/m.test(body)) {
-    return { ok: false, path: p, status, reason: `harness-run.md carries no "status:"/"closed_at:" line to replace — the ledger's frontmatter is malformed (references/protocol.md)` };
+    return { ok: false, path: p, status, reason: `harness-run.md carries no "status:"/"closed_at:" line to replace — the ledger's frontmatter is malformed` };
   }
 
-  // The Ship phase (`shapeup-run.js`) already exports a shipped run itself, before this call ever
-  // runs — Stage 2 adds the endings that wrote nothing, and leaves that path untouched.
-  const shouldExport = withExport && status !== "shipped";
+  // Every terminal ending exports, `shipped` included: there is no earlier export call site left.
+  const shouldExport = withExport;
   // Derived once, from the run's own records, and written with the close line (see deriveLedgerFacts).
   let derived = null;
   try { derived = deriveLedgerFacts(cwd, slug); } catch { derived = null; }
@@ -937,6 +1002,9 @@ export function closeRun(cwd, slug, { status, cause = null, withExport = true } 
    *
    * Best-effort, like the export: a pointer that cannot be removed degrades the close and is
    * reported in its return, but never turns a close into a non-close.
+   *
+   * @param {object} result - The close outcome so far.
+   * @returns {object} The outcome, with `export_warning` and `pointer_warning` when either degraded.
    */
   const finishClose = (result) => {
     const warning = shouldExport ? exportOnClose(cwd, slug) : null;
@@ -1046,29 +1114,26 @@ export function writeActiveOrder(cwd, slug, orderPath) {
 export const ARGV_SPEC = {
   usage: "harness.mjs probe resume --slug <slug> [--cwd <dir>] " +
          "[--require <phase> | --set-status <status> | --mark-relaunch | --set-active-order <path> | " +
-         "--close <status> | --close-arm <RunReturn.status> [--cause <text>]]",
+         "--close <status> | --close-arm <arm> [--cause <text>]]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   slug: { type: "str", required: true },
   cwd: { type: "path" },
   require: { type: "enum", values: PHASES },
   "set-status": { type: "enum", values: RUN_STATUSES },
-  // A launch over a run that already has prior progress and was never closed — the gap
+  // A resume over a run that already has prior progress and was never closed — the gap
   // `--set-status`'s own `reopened` marker does not cover. See `markRelaunch`'s own banner.
   "mark-relaunch": { type: "flag" },
   "set-active-order": { type: "str" },
   // The one call site that stamps a terminal status, its cause and closed_at together.
   close: { type: "enum", values: TERMINAL_STATUSES },
-  // Not `--close`: the caller (shapeup-run.js's closeIfTerminal) hands over a RunReturn arm, never
-  // a status it decided was terminal itself — RUN_RETURN_CLOSE/closeArm above make that call.
+  // Not `--close`: a `probe next` close command hands over an arm, never a status it decided was
+  // terminal itself — CLOSE_ARM_STATUS/closeArm above make that call.
   "close-arm": { type: "str" },
-  // The launch hands its own plugin root so the state probe can say whether the orchestrator about
-  // to run is the installed one. Optional: a caller that does not know it gets `checked: false`.
-  "plugin-root": { type: "path" },
   cause: { type: "str" },
 };
 
 /**
- * Derive the run's resume state, or set one of the run pointers.
+ * Derive the run's resume facts, or write one of the run's own records.
  *
  * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
  * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
@@ -1088,11 +1153,11 @@ export function cli(rawArgv) {
     process.exit(2);
   }
 
-  // The post-condition. It prints the SAME ResumeState the derivation prints — plus which phase was
+  // The post-condition. It prints the SAME ResumeFacts the derivation prints — plus which phase was
   // asked about and whether its artifact is there — so a caller that wants to act on the facts
   // rather than on the exit code never has to make a second call.
   if (args.require) {
-    const state = deriveResumeState(cwd, args.slug);
+    const state = deriveResumeFacts(cwd, args.slug);
     const satisfied = phaseSatisfied(state, args.require);
     console.log(JSON.stringify({
       ...state,
@@ -1127,18 +1192,16 @@ export function cli(rawArgv) {
     process.exit(r.ok ? 0 : 3);
   }
 
-  // The arm-derived close: the caller hands a RunReturn arm and this kernel decides — via
-  // RUN_RETURN_CLOSE/closeArm above — whether it is terminal and, if so, what status it closes as.
-  // Exit 0 for both a real close AND a correctly-declined non-terminal arm (`terminal:false`) —
-  // neither is an error the caller (shapeup-run.js's closeIfTerminal) should treat as failed; only
-  // an arm this map does not recognize at all, or a close `closeRun` itself refuses, exits non-zero.
+  // The arm-derived close: the caller hands an arm and this kernel decides — via CLOSE_ARM_STATUS
+  // and closeArm above — what status it closes as. Only an arm this map does not recognize, or a
+  // close `closeRun` itself refuses, exits non-zero.
   if (args.closeArm) {
     const r = closeArm(cwd, args.slug, args.closeArm, args.cause ?? null);
     console.log(JSON.stringify(r));
     process.exit(r.ok ? 0 : 3);
   }
 
-  console.log(JSON.stringify(deriveResumeState(cwd, args.slug, { pluginRoot: args.pluginRoot ?? null })));
+  console.log(JSON.stringify(deriveResumeFacts(cwd, args.slug)));
   process.exit(0);
 }
 

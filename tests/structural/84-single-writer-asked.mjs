@@ -4,6 +4,7 @@
 // This module pins the three answers: `probe leg` can be asked about any order by name and about
 // the whole run; the graph carries a Leg node with an INGESTED edge so a result nobody applied is a
 // one-hop query; the export carries the leg table; and the run loop asks before any early return.
+import { pinnedBy } from "../lib/pinned-row.mjs";
 import { mkdtempSync, existsSync, rmSync, writeFileSync, readFileSync, mkdirSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -12,7 +13,6 @@ import { spawnSync } from "node:child_process";
 export async function run(ctx) {
   const { ROOT, ok, fail, section } = ctx;
   const KERNEL = join(ROOT, "kernel/harness.mjs");
-  const WORKFLOW = join(ROOT, "skills/tech-lead/workflows/shapeup-run.js");
 
   section("136. The single writer is asked — by order, across the run, in the graph, in the export, and before any early return");
 
@@ -91,20 +91,16 @@ export async function run(ctx) {
     rmSync(ws, { recursive: true, force: true });
   }
 
-  // --- the run loop: asked before any early return, in planning and build, and honest at the close
-  const src = readFileSync(WORKFLOW, "utf8");
-  if (/async function requireLeg\(/.test(src) && /if \(r\.exit_code === 0\) return await requireLeg\(gate, phaseKey, phaseName(, orderStem(, again)?)?\);/.test(src)) {
-    ok("requirePhase asks the single writer (requireLeg) once the artifact check passes — a planning phase cannot complete with its result unread");
-  } else fail("requirePhase does not ask the leg ledger — a planning result nothing applied still passes its post-condition");
-  if (/probe leg --slug \$\{slug\} --order "\$\{orderStem\}"/.test(src) && /late-ingest:\$\{phaseKey\}/.test(src)) ok("the planning leg check names the order by phase and repairs it with the same late ingest the build round uses");
-  else fail("the planning leg check does not query by order or does not attempt the late ingest");
-  if (!/breaker: "inner"/.test(src)) ok('the run loop no longer returns `breaker: "inner"` — a word the protocol defines as the per-scope attempt budget');
-  else fail('the run loop still returns `breaker: "inner"` for a round that merely stalled');
-  const stalled = src.indexOf('stalled: "no_green"');
-  const census = src.indexOf("probe attempts --slug");
-  if (census !== -1 && stalled !== -1 && census < stalled && /breaker: tripped\.length \? "attempt_budget" : "none"/.test(src)) {
-    ok("a stalled round consults `probe attempts` for every queued scope and names `attempt_budget` only when the census says a scope tripped");
-  } else fail("the stalled-round return does not consult the attested census before naming a breaker");
-  if (/unapplied_results=\$\{ret\.unapplied_results\.length\}/.test(src) && /stalled=\$\{ret\.stalled\}/.test(src)) ok("the close cause names unapplied results and the stall, instead of folding them into a breaker");
-  else fail("the close cause does not carry unapplied_results / stalled");
+  // --- the run loop: asked before any early return, in planning and build, and honest at the close ---------
+  // This half used to read the retired run script's source: that its post-condition asked the leg ledger once
+  // the artifact check passed and repaired with a late ingest, that no round returned the word "inner" for a
+  // stall, that a stalled round consulted `probe attempts` before naming a breaker, and that the close cause
+  // carried `unapplied_results` and the stall. Those are branches of `probe next` now, and rows of the
+  // state-machine suite; the kernel halves above (probe leg, the graph, the export) are unchanged.
+  pinnedBy(ctx, ["an orient result that was never applied is applied before anything else", "a plan result that was written and never applied is applied before anything else"],
+    "a phase's result nothing applied is applied before the phase counts as done — planning and orient alike");
+  pinnedBy(ctx, ["a settled green round runs its build gate once, late-ingesting an unapplied green result first"],
+    "a build scope's unapplied green result is late-ingested before the round is judged");
+  pinnedBy(ctx, ["a scope that answered red and is the only scope trips the nothing-green breaker", "an unanswered order is named at every close"],
+    "a stalled round names the breaker the attested census supports, and the close names unanswered orders");
 }

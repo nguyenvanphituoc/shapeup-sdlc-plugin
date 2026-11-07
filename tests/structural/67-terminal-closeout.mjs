@@ -45,7 +45,7 @@ export async function run(ctx) {
   const { collectRun } = await import(join(ROOT, "kernel/report/export.mjs"));
   const { applyResult } = await import(join(ROOT, "kernel/reduce/ingest.mjs"));
   const { generate } = await import(join(ROOT, "kernel/reduce/ship.mjs"));
-  const { deriveSnapshot } = await import(join(ROOT, "kernel/reduce/snapshot.mjs"));
+  const { deriveResumeFacts } = await import(join(ROOT, "kernel/probe/resume.mjs"));
 
   // ===============================================================================================
   section("106. HD-011 — a terminal close is a status, a cause and a timestamp, in one write");
@@ -137,8 +137,8 @@ export async function run(ctx) {
       // pre-rework guard read `before.status` — the SAME mutable line `setRunStatus` just rewrote to
       // "shipped" — matched the incoming "shipped" close, and reported the run "already closed as
       // shipped", silently keeping the ABORT's own closed_at/cause under a status line that now read
-      // "shipped". `shapeup-run.js:1659` does exactly this rewrite immediately before its own Ship-
-      // phase close call runs.
+      // "shipped". The ship path writes `status: shipped` immediately before its own close call, so the
+      // divergence is ordinary traffic.
       const midMutation = setRunStatus(ws, "checkout", "shipped");
       if (!midMutation.ok) fail(`(e2) fixture setup failed — setRunStatus could not rewrite status: ${JSON.stringify(midMutation)}`);
       const mutatedFm = parseFrontmatter(readFileSync(join(ws, ".shapeup/checkout/harness-run.md"), "utf8"));
@@ -249,18 +249,17 @@ export async function run(ctx) {
         } else fail(`(g) unjudged rounds mis-rendered: rounds=${facts.rounds} judged=${facts.roundsJudged}`);
       } finally { rmSync(ws2, { recursive: true, force: true }); }
 
-      // --- (h) REWORK — the THIRD mechanical reader (compaction-rehydration snapshot) agrees too ---
-      // `kernel/reduce/snapshot.mjs` used to read `harness-run.md`'s literal `rounds_used` frontmatter
-      // line — written once, as 0, by `init run`, never rewritten — instead of `deriveRounds`.
-      // Measured on this exact fixture (two build orders + a T0 verdict + a build-gate artifact +
-      // one judged round, `round: 4` per its own latest T0 filename): `reduce snapshot` reported
-      // `rounds_used: 0` beside its own `round: 4` — the rehydration record an orchestrator reads
-      // after a context-compaction boundary disagreeing with itself, and with the ship report and
-      // export this same section already proved agree at 4/1. Now all three read the same numbers.
-      const snap = deriveSnapshot(ws);
-      if (snap?.rounds_used === 4 && snap?.rounds_judged === 1) {
-        ok("(h) the compaction-rehydration snapshot's rounds_used/rounds_judged now agree with the ship report and the export (4/1), not the ledger's stale literal 0");
-      } else fail(`(h) the snapshot disagrees with the other two mechanical readers: ${JSON.stringify({ rounds_used: snap?.rounds_used, rounds_judged: snap?.rounds_judged })}`);
+      // --- (h) REWORK — the THIRD mechanical reader (the resume facts) agrees too ---------------------
+      // The compaction-rehydration snapshot, now merged into the resume facts, once read `harness-run.md`'s
+      // literal `rounds_used` frontmatter line — written once, as 0, by `init run`, never rewritten — instead
+      // of `deriveRounds`. Measured on this exact fixture (two build orders + a T0 verdict + a build-gate
+      // artifact + one judged round, `round: 4` per its own latest T0 filename) it reported `rounds_used: 0`
+      // beside its own `round: 4`: the record a session reads after a context compaction disagreeing with
+      // itself, and with the ship report and export this section already proved agree at 4/1.
+      const facts2 = deriveResumeFacts(ws, "budgets");
+      if (facts2?.rounds_used === 4 && facts2?.rounds_judged === 1) {
+        ok("(h) the resume facts' rounds_used/rounds_judged agree with the ship report and the export (4/1), not the ledger's stale literal 0");
+      } else fail(`(h) the resume facts disagree with the other two mechanical readers: ${JSON.stringify({ rounds_used: facts2?.rounds_used, rounds_judged: facts2?.rounds_judged })}`);
     } finally { rmSync(ws, { recursive: true, force: true }); }
   }
 

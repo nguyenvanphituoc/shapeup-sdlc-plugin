@@ -1,5 +1,10 @@
 # The acceptance contract has a measured boundary, and both soak defects live just outside it
 
+> **Historical.** This note describes the design the run had before 4.0: a Workflow script as the control
+> plane, couriers to type its kernel commands, a relaunch after every paused gate. [ADR-0004](adr/0004-single-loop.md)
+> replaced that with a loop in the session over the kernel's `probe next`. The reasoning here stands as a record
+> of why that shape was tried; the component names and channels it draws no longer exist.
+
 **Question:** Where does the next unit of effort go, after a release that closed nine defects under
 adversarial acceptance and then had two more found by the first real consumer run?
 **Sources:** this repo @ `7cc0351` (3.6.0) — enumerations read from the code, not from prose;
@@ -226,7 +231,7 @@ depends on Stage 2: a soak that fails again should leave a record this time.
 | claim | source |
 |---|---|
 | RunReturn has no `oneOf`/`anyOf` | `kernel/schemas/domain.schema.json`, `$defs/RunReturn` keys |
-| 4 RunReturn arms | `skills/tech-lead/workflows/shapeup-run.js` header |
+| 4 RunReturn arms | `tech-lead/workflows/shapeup-run.js` header |
 | `TERMINAL_STATUSES` = 3 | `kernel/probe/resume.mjs:82` |
 | close-out covers 2 | `shapeup-run.js:989` |
 | `TERMINAL_STATUSES` unreferenced in the orchestrator | `grep -c TERMINAL_STATUSES` → 0 |

@@ -72,9 +72,9 @@ Never inferred; ask for what the pitch does not say.
 | Lens | `lite` \| `standard` \| `cross-context` (default `standard`) |
 | Stack hint | aims the Scout's sweeps and the run commands (e.g. "pnpm, Next 16 web :3000") |
 | Eval dimensions | default `auto`: the order resolves the set from the spec. Name a set only on request; it must reach `init run --dimensions`, or it grades nothing. What is left out is reported at the ship gate as not evaluated. |
-| Rounds, attempts | default 3 rounds, 5 attempts per scope per round |
+| Rounds, attempts | default 3 rounds, 5 attempts per scope per round. A scope also ends early after 2 consecutive attempts that kept nothing (`no_progress_k`, set per scope contract), queuing the same GATE H proposal — `resources/rounds.md` says why |
 | Auto level | `interactive` (default): pause at every gate · `auto`: low-risk gates pre-answered, still pause at the judgment gates and ship · `unattended`: headless, needs an answer set |
-| Models | resolve once: flags, then `.claude/settings.local.json`, then `.claude/settings.json`, then defaults, and pass the result as `--exec-model` / `--eval-model` / `--qa-model`. Exec and eval must be sonnet or above — `init run` refuses a cheaper tier. |
+| Models | resolve once: flags, then `.claude/settings.local.json`, then `.claude/settings.json`, then defaults, and pass the result as `--exec-model` / `--eval-model` / `--qa-model`. Exec and eval must be sonnet or above — `init run` refuses a cheaper tier. A model the member's plan does not offer degrades one tier down, and the degrade is said at the L0 gate, never silent. |
 | Run commands | the build command (`run_cmd`), and the profile's `build_probe` and `launch_probe`. A `mobile` profile with no launch probe has nobody owning the install and launch risk: say so. |
 | Knowledge base | read `shapeup/knowledge-base/building.md` and then `tech-lead.md` (the same guidance under its old name; `resources/guidance.md`) if they exist. It may add a question or a check to a gate block and may propose run values (confirm each with the PO and note `(source: knowledge-base)`). It never answers, skips or reorders a gate. With no file at all, offer `/retro --scan` once and go on whether or not the PO takes it. |
 
@@ -103,7 +103,21 @@ history the breaker counts; only the PO asks for it.
 ## 5. The shared profile
 
 Write `shapeup/<slug>/project-profile.md`: frontmatter `{schema_version: 1, archetype, entry_point}` plus,
-when the project has them, `build_probe` and `launch_probe`. Nothing downstream can be wired without it.
+when the project has them, `source_extensions`, `build_probe` and `launch_probe`. Nothing downstream can be
+wired without it, and a typo in the `archetype` enum must fail rather than silently disable a check.
+
+| Field | Meaning |
+|---|---|
+| `archetype` | `client-only-game` · `web-service` · `mobile` · `library` · `data-pipeline` |
+| `entry_point` | the reachability seam: the root the import walk starts from. Where some module composes the app, name that one rather than the file the platform happens to start. Where screens are registered in a manifest instead (a route map, a plugin table, a string-loaded page) no entry point roots a walk at all, and the check reports that it could not check — the correct end state for such a project, not a profile to keep re-declaring |
+| `source_extensions` | only when modules end in something the entry point does not (`[".ets"]` under a `.ts` entry); leaving it out costs a skipped check, never a false red |
+| `build_probe` | asserts the BUILT ARTIFACT covers what the run wrote — a green exit code is not proof the feature compiled when the toolchain compiles only what an entry point reaches |
+| `launch_probe` | installs, starts and asserts the first screen. A `mobile` profile without one is warned about every round, because nothing else launches the app |
+
+The two probes feed the round build gate. `verify trace` also reports, per scope, how many of its source files
+the app reaches, and warns (SCOPE-UNREACHABLE) on a scope it reaches none of: a scope's fixture can be green
+while its code never compiles, on any toolchain that compiles only what the entry point reaches. A warning only
+— the wiring may be a later scope's job by design.
 
 ## 6. The L0 gate
 
@@ -139,10 +153,11 @@ the artifacts.
 | `--gate-answers <set>` | `answers` — the answer set the gates resolve through |
 | `--exec-model` `--eval-model` `--qa-model` | `models.{exec,eval,qa}` — a flag, else `SHAPEUP_EXEC_MODEL` / `SHAPEUP_EVAL_MODEL` / `SHAPEUP_QA_MODEL`, else `sonnet`; `qa` follows `exec` |
 | `--max-rounds` `--attempts` | `budgets.{maxRounds,attemptBudget}` |
-| `--no-eval` `--no-qa` | `noEval` `noQa`: skip those phases; a shipped report says so and never reads as verified. `reduce ship` refuses to freeze a PASS report over a run launched with `--no-eval` |
+| `--no-eval` | `noEval` — skips the evaluation; a shipped report says so and never reads as verified, and `reduce ship` refuses to freeze a PASS report over a run launched with it |
+| `--no-qa` | `noQa` — skips the QA hunt |
 | `--parallel-scopes N` | `maxParallelScopes` — how many scopes build at once (default 4; `1` = sequential) |
 | `--adversarial-verify` | `adversarialVerify` — recorded and reported as not carried by the loop |
-| `--lane full` | `lane` — the only lane served |
+| `--lane full` | *(recorded only)* — consumed by `kernel/init/run.mjs` as `args.lane`; the only lane served, and `tiny` is refused |
+| `--wall-clock-budget S` | *(not a record field)* — lands in the receipt as `wall_clock_budget_s`, consumed by `kernel/verify/budget.mjs` as `wall_clock_budget_s`; the deadline breaker reads it from there |
 
-`--wall-clock-budget` lands in the receipt (`wall_clock_budget_s`), not the record: the deadline breaker reads
-it from there. Then go to the loop.
+Then go to the loop.

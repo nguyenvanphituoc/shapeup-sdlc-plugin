@@ -95,7 +95,7 @@ pipeline falls on is the open part.
 |---|---|---|
 | Ten workers | `node -p "require('./kernel/schemas/domain.schema.json').\$defs.WorkerName.enum.length"` | `10`: task-executor, spec-evaluator, ba-pitch-analyzer, scope-architect, solution-architect, orient, qa-edge-hunter, translator, scope-hammer, coach |
 | Thirteen skills ship; three are not workers | `ls skills` | 13 entries; `hill-chart`, `shapeup`, `tech-lead` are outside the enum |
-| Orchestration is code, not an LLM router | `skills/tech-lead/SKILL.md:70–95` | The run launches a workflow script; gates "resolve via `harness gate`'s exit code, in code"; sub-agents "share this session's prompt cache" |
+| Orchestration is code, not an LLM router | `tech-lead/SKILL.md:70–95` | The run launches a workflow script; gates "resolve via `harness gate`'s exit code, in code"; sub-agents "share this session's prompt cache" |
 | A dispatch is checked at the tool call | `grep -o '"matcher": "[^"]*"' hooks/hooks.json \| sort \| uniq -c` | `Skill` ×1 and `Skill\|Agent` ×2 among the matchers; the two `Skill\|Agent` entries run `verify envelope` and `hooks/dispatch-receipt.mjs` |
 | The handoff is a schema, not a summary | `kernel/schemas/work-order.schema.json`, `work-result.schema.json` | Order requires `schema_version, order_id, worker, mode, payload`; result requires `schema_version, order_id, status`, and carries `verdict, artifacts, assumptions, deviations, discoveries` |
 | The kit's equivalent response shape | `skill/templates/subagent_response.schema.json` | `conclusion, evidence, actions_taken, confidence, caveats` — all required, no extras. `WorkResult` has no `confidence` field. |

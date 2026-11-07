@@ -13,9 +13,8 @@
 // matches nothing is indistinguishable from a rule that works until the first dispatch fails.
 // Subcommands are free; entry points are not.
 //
-// WHO CALLS IT. Worker skills, from their own shells, and the hooks. The control plane — the
-// Workflow script — calls no shell at all: it branches on the structured return of an `agent()`
-// and never parses stdout.
+// WHO CALLS IT. The loop that drives a run (the `building` skill, in the session, branching on
+// exit codes and on `probe next`'s JSON), worker skills from their own shells, and the hooks.
 //
 // THE VERBS, and the invariant each one exists to keep:
 //
@@ -27,10 +26,10 @@
 //                                             `build` runs the feature's build and launch probes once
 //                                             per round before EVAL — T0 is per scope and proves
 //                                             nothing about whether the whole compiles or starts.
-//   reduce   ingest · hill · snapshot ·       Single writer. Shared state has exactly one author.
-//            ship · board · graph
+//   reduce   ingest · hill · ship ·            Single writer. Shared state has exactly one author.
+//            board · graph
 //   gate                                      An answer file with a source, not a vibe.
-//   probe    resume · t0 · stats · digest ·   Read-only queries over run state. `stats --hooks`
+//   probe    resume · t0 · stats · digest ·   Queries over run state (`resume` also closes a run). `stats --hooks`
 //            leg · eval · owner ·              reads the hook decision ledger: per hook, how often
 //            requirements · attempts ·         it fired and what it decided.
 //            hunt · next
@@ -87,7 +86,7 @@ export const ROUTES = {
     dispatch: "./verify/dispatch.mjs", build: "./verify/build.mjs",
   },
   reduce: {
-    ingest: "./reduce/ingest.mjs", hill: "./reduce/hill.mjs", snapshot: "./reduce/snapshot.mjs",
+    ingest: "./reduce/ingest.mjs", hill: "./reduce/hill.mjs",
     ship: "./reduce/ship.mjs", board: "./reduce/board.mjs", graph: "./reduce/graph.mjs",
   },
   probe: {

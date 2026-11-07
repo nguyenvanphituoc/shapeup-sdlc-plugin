@@ -265,11 +265,15 @@ export async function run(ctx) {
   // time, after the round's build gate, and this pins both call sites: a check wired only where it
   // is blind is decoration, and a single grep for the verb would pass with either one missing.
   {
-    const wf = readFileSync(join(ROOT, "skills/tech-lead/workflows/shapeup-run.js"), "utf8");
-    const calls = [...wf.matchAll(/advisory\(`verify trace [^`]*`,\s*"([A-Za-z]+)"/g)].map((m) => m[1]);
-    if (calls.includes("MapScopes") && calls.includes("Build")) {
-      ok(`the run lints the trace twice — at Board Review, and again after the round's build gate where the scopes' code exists (${calls.join(", ")})`);
-    } else fail(`verify trace is dispatched from ${JSON.stringify(calls)} — the post-build pass is where per-scope reachability can measure anything at all`);
+    // The two call sites used to be read out of the retired run script's dispatches. They are steps of
+    // `probe next` now: the board gate's `pre` list and the round build gate's `then` list, each carrying the
+    // advisory `verify trace`.
+    const next = readFileSync(join(ROOT, "kernel/probe/next.mjs"), "utf8");
+    const atBoard = /gateStep\("L1b"[\s\S]{0,500}?pre: \[\{ command: K\(`verify trace /.test(next);
+    const afterGate = /command: K\(`verify build --slug[^`]*`\)[\s\S]{0,300}?then: \[\{ command: K\(`verify trace /.test(next);
+    if (atBoard && afterGate) {
+      ok("the loop lints the trace twice — at Board Review, and again after the round's build gate where the scopes' code exists");
+    } else fail(`verify trace is wired at the board gate: ${atBoard}, after the round build gate: ${afterGate} — the post-build pass is where per-scope reachability can measure anything at all`);
   }
 
   // The second arm rests on the first. When reachability cannot root its walk there is no graph to

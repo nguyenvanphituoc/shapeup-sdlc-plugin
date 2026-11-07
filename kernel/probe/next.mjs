@@ -56,7 +56,7 @@ import {
 import { launchProblems } from "../lib/floor.mjs";
 import { planOrderFacts, planProduces, planGuidancePaths } from "../lib/plan.mjs";
 import { scheduleFor, releasable } from "../lib/schedule.mjs";
-import { deriveResumeState, parseFrontmatter } from "./resume.mjs";
+import { deriveResumeFacts, parseFrontmatter } from "./resume.mjs";
 import { readLegs, legState } from "./leg.mjs";
 import { readReceipts, scopeAttempts } from "./attempts.mjs";
 import { greenVerdict } from "./t0.mjs";
@@ -130,7 +130,7 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
 
   // ---- the run's own records, read once -------------------------------------------------------
   const L = readJson(runArgsPath(cwd, slug));
-  const rs = deriveResumeState(cwd, slug);
+  const rs = deriveResumeFacts(cwd, slug);
   const legs = readLegs(legLedger(cwd, slug));
   const ingested = new Set(legs.filter((r) => r.ingested_at).map((r) => String(r.order_id)));
   const receipts = readReceipts(dispatchReceipts(cwd, slug))

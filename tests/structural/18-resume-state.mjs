@@ -35,6 +35,7 @@ import { existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
+import { pinnedBy } from "../lib/pinned-row.mjs";
 
 const SLUG = "resume-fixture";
 
@@ -136,10 +137,10 @@ export async function run(ctx) {
     // "orienting"`) re-dispatched ORIENT here; the artifact predicate must not.
     const stale = tree("stale-status", { status: "orienting", ...COMPLETE, scopes: ["SC-1", "SC-2"] });
     const staleState = invoke(stale);
-    if (staleState.json?.has_orient_artifacts === true && staleState.json?.next_phase !== "orient") {
-      ok(`a run with status "orienting" and a complete orient/ resumes at "${staleState.json.next_phase}", not at orient`);
+    if (staleState.json?.has_orient_artifacts === true && staleState.json?.next_step !== "orient") {
+      ok(`a run with status "orienting" and a complete orient/ resumes at "${staleState.json.next_step}", not at orient`);
     } else {
-      fail(`stale status re-ran ORIENT: has_orient_artifacts=${staleState.json?.has_orient_artifacts} next_phase=${staleState.json?.next_phase} — this is the kill/resume probe's defect, unfixed`);
+      fail(`stale status re-ran ORIENT: has_orient_artifacts=${staleState.json?.has_orient_artifacts} next_step=${staleState.json?.next_step} — this is the kill/resume probe's defect, unfixed`);
     }
 
     // --- (b) every phase boundary, in order ---------------------------------------------------
@@ -162,14 +163,14 @@ export async function run(ctx) {
       ["build", { status: "orienting", ...COMPLETE }, "every upstream artifact present"],
     ];
     BOUNDARIES.forEach(([expected, opts, label], i) => {
-      const got = invoke(tree(`boundary-${i}`, opts)).json?.next_phase;
+      const got = invoke(tree(`boundary-${i}`, opts)).json?.next_step;
       if (got === expected) ok(`resumes at "${expected}" with ${label}`);
       else fail(`with ${label} the derivation resumed at "${got}", expected "${expected}"`);
     });
 
     // --- (c) a run with no ledger at all is a fresh run, not a crash --------------------------
     const bare = invoke(tree("no-ledger", { status: null }));
-    if (bare.code === 0 && bare.json?.status === null && bare.json?.next_phase === "orient") {
+    if (bare.code === 0 && bare.json?.status === null && bare.json?.next_step === "orient") {
       ok("a tree with no harness-run.md derives status null and resumes at orient");
     } else {
       fail(`a ledger-less tree did not derive cleanly: exit ${bare.code}, ${bare.raw.trim().slice(0, 120)}`);
@@ -181,7 +182,7 @@ export async function run(ctx) {
     const phases = new Set();
     for (const status of ["orienting", "mapping", "building", "evaluating", "shipped", "escalated"]) {
       const t = tree(`status-${status}`, { status, ...COMPLETE });
-      phases.add(invoke(t).json?.next_phase);
+      phases.add(invoke(t).json?.next_step);
     }
     if (phases.size === 1 && phases.has("build")) {
       ok("all six ledger statuses derive the same phase from the same artifacts — status is not a resume predicate");
@@ -312,10 +313,10 @@ export async function run(ctx) {
       ["map-scopes", { status: "building", orient: FULL_ORIENT, usecases: FULL_SPEC, wiringMap: true }],
     ]) {
       const t = tree(`agree-${label}`, opts);
-      const next = invoke(t).json?.next_phase;
+      const next = invoke(t).json?.next_step;
       const code = invoke(t, ["--require", next]).code;
-      if (next === label && code === 6) ok(`next_phase "${next}" and --require ${next} agree that the phase is not done`);
-      else fail(`next_phase="${next}" but --require ${next} exited ${code} — the resume and completion predicates disagree`);
+      if (next === label && code === 6) ok(`next_step "${next}" and --require ${next} agree that the phase is not done`);
+      else fail(`next_step="${next}" but --require ${next} exited ${code} — the resume and completion predicates disagree`);
     }
 
     // --- (h) the workflow actually consults it -------------------------------------------------
@@ -325,201 +326,59 @@ export async function run(ctx) {
     //
     // The name of the resume object is DERIVED from the source rather than assumed, so a rename
     // cannot quietly turn these checks into assertions about a variable that no longer exists.
-    const WF = join(ROOT, "skills/tech-lead/workflows/shapeup-run.js");
-    const wfSrc = existsSync(WF) ? readFileSync(WF, "utf8") : "";
-    const wfCode = wfSrc.replace(/\/\*[\s\S]*?\*\//g, "").split("\n").map((l) => l.replace(/\/\/.*$/, "")).join("\n");
-    const resumeVar = (wfCode.match(/const\s+(\w+)\s*=\s*await\s+query\(/) || [])[1];
-    if (resumeVar) ok(`shapeup-run.js binds its resume state to \`${resumeVar}\` (derived, not assumed)`);
-    else fail("shapeup-run.js has no `await query(...)` binding — the fast-forward derivation is not read into a variable this check can follow");
+    // ---- the script-reading half of this module, ported or retired -----------------------------------------
+    // Everything below used to read `shapeup-run.js` out of its source: that it bound its resume state to a
+    // variable, gated each phase on the right artifact, never branched on stored status, checked a
+    // post-condition after each dispatch, announced its fast-forwards through an attesting helper, read the
+    // last verdict before opening its round loop, and declared a RESUME schema agreeing with the registry.
+    // The script is retired; the loop is `probe next`, which derives all of that from the same facts this
+    // module has just executed. Each former check, in order:
+    //   gated ORIENT / ANALYZE / WIRE on its artifact          PORTED   `probe next` reads has_orient_artifacts,
+    //       has_spec_tree and has_wiring_map: rows "no orient artifacts dispatches orient…", "no spec tree opens
+    //       the spec substep in full…", "a committed spec tree and no board opens the spec substep board-only…"
+    //   no phase decision reads stored status                  PORTED   executed below on `probe next`'s source
+    //   a post-condition after every dispatch (requirePhase)   PORTED   rows "an orient that answered and left no
+    //       artifact aborts at ORIENT", "a spec order closed over no tree aborts at ANALYZE", "a wire order closed
+    //       over no map aborts at WIRE", "a scopes order closed over no contracts aborts at MAP SCOPES"
+    //   analyze before wire; the profile precondition          PORTED   rows "a spec tree and a board with no wiring
+    //       map opens the wire substep…", "a missing project profile blocks the run before orient…"
+    //   the verdict read before the round loop opens           PORTED   rows "a FAIL answered stop goes to the census…
+    //       the answer is honoured on a fresh session", "a PASS round reaches GATE QA over that verdict"
+    //   invoked `probe resume` through a courier; fast-forward  RETIRED  `probe next` imports the derivation
+    //       attested into a progress group; the declared RESUME   in-process, there is no progress panel to
+    //       schema                                                 populate, and the courier whose coercion the
+    //                                                              schema guarded is gone
+    pinnedBy(ctx, [
+      "no orient artifacts dispatches orient with the four filenames", "no spec tree opens the spec substep in full", "a committed spec tree and no board opens the spec substep board-only",
+      "an orient that answered and left no artifact aborts at ORIENT", "a spec order closed over no tree aborts at ANALYZE", "a wire order closed over no map aborts at WIRE", "a scopes order closed over no contracts aborts at MAP SCOPES",
+      "a spec tree and a board with no wiring map opens the wire substep", "a missing project profile blocks the run before orient",
+      "a FAIL answered stop goes to the census", "a PASS round reaches GATE QA over that verdict",
+    ], "every phase is gated on its own artifact and checked after its dispatch, and the last verdict is read before a round opens");
 
-    if (resumeVar && new RegExp(`if\\s*\\(\\s*!\\s*${resumeVar}\\.has_orient_artifacts\\s*\\)`).test(wfCode)) {
-      ok(`shapeup-run.js gates ORIENT on ${resumeVar}.has_orient_artifacts`);
-    } else {
-      fail("shapeup-run.js does not gate ORIENT on has_orient_artifacts — the derivation is correct and unused");
-    }
-    if (resumeVar && !new RegExp(`\\b${resumeVar}\\.status\\b`).test(wfCode)) {
-      ok("no phase decision in shapeup-run.js reads the stored status — the field survives for its other readers only");
-    } else {
-      fail("shapeup-run.js still branches on the stored status — stored state is back in the resume decision");
-    }
-    if (!/probe[" ,]+resume|resume-state\.mjs/.test(wfCode)) {
-      fail("shapeup-run.js never invokes `harness probe resume` — the fast-forward is deriving state some other way");
-    } else {
-      ok("shapeup-run.js derives its resume state by invoking `harness probe resume`");
-    }
+    const next = readFileSync(join(ROOT, "kernel/probe/next.mjs"), "utf8");
+    const statusReads = (next.match(/\brs\.status\b/g) || []).length;
+    if (statusReads === 2 && /const statusPre = \(phase\) => \(rs\.status && rs\.status !== STATUS_FOR\[phase\]/.test(next)) {
+      ok("`probe next` reads the stored status in exactly one place — the status line it asks the loop to write — and in no phase decision");
+    } else fail(`rs.status appears ${statusReads} time(s) in kernel/probe/next.mjs outside the one status-line helper — stored state is back in the decision`);
+    if (/deriveResumeFacts\(cwd, slug\)/.test(next)) ok("`probe next` derives its facts by calling deriveResumeFacts in-process — one derivation, never a second one that can disagree with `--require`");
+    else fail("probe next no longer calls deriveResumeFacts");
 
-    // --- (j) every phase checks its post-condition, and ANALYZE precedes WIRE -------------------
-    const required = new Set([...wfCode.matchAll(/requirePhase\(\s*"[^"]+",\s*"([\w-]+)"/g)].map((m) => m[1]));
-    const missingChecks = ["orient", "analyze", "wire", "map-scopes"].filter((p) => !required.has(p));
-    if (missingChecks.length === 0) {
-      ok("every dispatched phase in shapeup-run.js checks its post-condition (requirePhase: orient, analyze, wire, map-scopes)");
-    } else {
-      fail(`these phases dispatch without checking that they produced anything: ${missingChecks.join(", ")} — an escalated worker would be recorded as complete and re-dispatched on every relaunch`);
-    }
-
-    // The ordering itself, as a source fact: `analyze` writes the use cases `wire` reads, so its
-    // dispatch must come first. This is acceptance row G3, and it is the reason the kill/resume
-    // probe failed a second time (solution-architect escalated because usecases/ did not exist yet).
-    const iAnalyze = wfCode.indexOf('operation: "analyze"');
-    const iWire = wfCode.indexOf('operation: "wire"');
-    if (iAnalyze > -1 && iWire > -1 && iAnalyze < iWire) {
-      ok("shapeup-run.js dispatches analyze before wire — WIRE reads the use cases ANALYZE writes (solution-architect/SKILL.md:43-44)");
-    } else {
-      fail(`analyze is not dispatched before wire (analyze@${iAnalyze}, wire@${iWire}) — WIRE would be dispatched against an empty spec folder and escalate on every launch`);
-    }
-    if (resumeVar && new RegExp(`${resumeVar}\\.has_spec_tree`).test(wfCode)) {
-      ok("shapeup-run.js gates ANALYZE on has_spec_tree — the same artifact discipline as every other phase");
-    } else {
-      fail("shapeup-run.js does not gate ANALYZE on has_spec_tree — the phase is gated on something other than its artifact");
-    }
-
-    // --- (k) A PHASE THIS LAUNCH DID NOT RUN MUST STILL SAY SO WHERE THE RUN IS WATCHED ---------
-    //
-    // THE DEFECT THIS CLOSES, measured off a live relaunch. A gate pause is a RETURN, so the PO's
-    // answer is followed by a fresh launch of the same script — and the runtime's progress panel is
-    // rebuilt from that launch's own dispatches, because this repo resumes off `.shapeup/` artifacts
-    // rather than the runtime's `resumeFromRunId`. A fast-forwarded phase dispatched nothing, so its
-    // box rendered `Analyze · 0 agents · Not started yet`: identical to a phase that never ran, on
-    // the one screen an operator uses to decide whether a paused run came back correctly. Three of
-    // the four phases hid it by accident — a gate leg lands in their progress group and earns them a
-    // tick — and ANALYZE, whose review happens at L1b in another group, had nothing at all.
-    //
-    // The fix is not cosmetic and the check is written against the part that is not: a skipped phase
-    // re-asks `--require`, so the claim "already on disk" is ATTESTED at the moment it is acted on
-    // rather than inherited from the single probe taken at the top of the run. The phase list comes
-    // from the module that owns it, never from a copy kept here — a second list beside the first is
-    // a second thing to forget, which is the same failure one level up.
-    const { PHASES } = await import(join(ROOT, "kernel/probe/resume.mjs"));
-    const attested = new Set([...wfCode.matchAll(/fastForward\(\s*"[^"]+",\s*"([\w-]+)"/g)].map((m) => m[1]));
-    const unattested = PHASES.filter((p) => !attested.has(p));
-    if (unattested.length === 0) {
-      ok(`every fast-forwardable phase attests its skip with a dispatched leg (${PHASES.join(", ")}) — a resumed run's progress panel shows the phase complete instead of "Not started yet"`);
-    } else {
-      fail("these phases fast-forward without dispatching anything into their progress group: "
-        + `${unattested.join(", ")} — on every relaunch after a paused gate they render as "0 agents · `
-        + 'Not started yet", which is indistinguishable from a phase that never ran, and the skip is '
-        + "acted on without anything re-asking whether the artifact is still there");
-    }
-
-    // The announcement belongs to the helper that attests, so no phase branch may compose its own.
-    // (k) above would still pass with a fifth branch that logged a skip and dispatched nothing —
-    // which is precisely the shape all four of them had.
-    const selfAnnounced = [...wfCode.matchAll(/log\(\s*[`"'][^`"']*fast-forward[^`"']*/g)]
-      .map((m) => m[0].replace(/\s+/g, " ").trim())
-      .filter((s) => /\b(ORIENT|ANALYZE|WIRE|MAP SCOPES)\b/.test(s));
-    if (selfAnnounced.length === 0) {
-      ok("no phase branch composes its own fast-forward message — the skip is announced by the helper that attests it");
-    } else {
-      fail("a phase announces its own fast-forward instead of going through the helper that attests it, "
-        + `so it can skip the phase while dispatching nothing into its progress group:\n    ${selfAnnounced.join("\n    ")}`);
-    }
-
-    // --- (l) A ROUND THAT ALREADY PASSED MUST NOT BE REBUILT ON RELAUNCH -----------------------
-    //
-    // THE DEFECT THIS CLOSES. The round loop opens at `max(eval_rounds_done) + 1` and skips a scope
-    // only when the run graph reports it green FOR THAT ROUND. A pause at L3, QA or GATE H happens
-    // after `results/evaluate-r1.json` exists, so the relaunch computed round 2, found nothing green
-    // in round 2, re-dispatched EVERY scope through the attempt ratchet and ran EVAL again — over a
-    // round whose verdict was already PASS on disk. It cost a round of `maxRounds`, a full build
-    // fan-out, and a second judgement that could return FAIL where the first passed.
-    //
-    // Both halves are asserted because either alone is passable: reading the prior verdict without
-    // guarding the loop changes nothing, and guarding the loop on a verdict nothing derives is a
-    // condition that is always true on a fresh launch.
-    const loopAt = wfCode.search(/while\s*\([^)]*round\s*<=/);
-    const iRounds = wfCode.indexOf("eval_rounds_done");
-    const priorVerdict = [...wfCode.matchAll(/probe eval --slug/g)]
-      .map((m) => m.index)
-      .filter((i) => loopAt > -1 && i < loopAt && i > iRounds);
-    if (priorVerdict.length) {
-      ok("shapeup-run.js reads the last EVAL round's verdict off disk before opening the round loop — a relaunch after a pause at L3/QA/H resumes at QA instead of rebuilding a round that already passed");
-    } else {
-      fail("shapeup-run.js opens its round loop without asking what the last EVAL round decided; "
-        + "`probe eval` is the derivation and it is only consulted INSIDE the loop, so a relaunch after "
-        + "a pause at L3, QA or GATE H re-dispatches every scope at round+1 and re-runs EVAL over a "
-        + "verdict already on disk");
-    }
-    const loopCond = (wfCode.match(/while\s*\(([^)]*round\s*<=[^)]*)\)/) || [])[1] || "";
-    if (/verdict/.test(loopCond)) {
-      ok(`the round loop is entered only when the verdict is not already a pass (\`${loopCond.trim()}\`)`);
-    } else {
-      fail(`the round loop condition is \`${loopCond.trim() || "<not found>"}\` — it does not consult the `
-        + "verdict, so a resumed run re-enters BUILD even when the round it is resuming into already passed");
-    }
-
-    // --- (m) THE TWO HALVES OF EVERY RESUME FIELD MUST AGREE ABOUT ITS SHAPE -------------------
-    //
-    // THE DEFECT THIS CLOSES, and the class it belongs to. `probe resume` emits `scope_files` as
-    // `{scope_id, path}` objects — check (e) above asserts exactly that, and domain.schema.json
-    // declares it — while the workflow declared `items: {type: "string"}` and then split each entry
-    // as a path. Nothing failed: the courier sub-agent sits between the kernel's stdout and the
-    // schema the runtime validates against, so it coerced the objects on the way through and both
-    // halves stayed green while disagreeing. When such a coercion drops the value instead, the
-    // orchestrator reads zero scopes and re-dispatches MAP SCOPES over contracts already on disk.
-    //
-    // A reader and a writer disagreeing about a format with nothing comparing them is the shape of
-    // every defect the tier pass closed. This is the comparison, made against the SHIPPED bytes of
-    // both halves rather than a description of either.
-    const { loadResumeSchema } = await import("../lib/resume-schema-region.mjs");
+    // The registry's shape for the facts agrees with what `probe resume` prints — executed, both directions.
     const domain = JSON.parse(readFileSync(join(ROOT, "kernel/schemas/domain.schema.json"), "utf8"));
-    const declared = domain?.$defs?.ResumeState?.properties;
-    let wfResume = null;
-    try { wfResume = loadResumeSchema(ROOT); } catch (e) { fail(String(e.message)); }
+    const declared = domain?.$defs?.ResumeFacts?.properties;
+    const printed = invoke(tree("shape", { status: "building", orient: FULL_ORIENT, usecases: FULL_SPEC, wiringMap: true, scopes: ["SC-1"] })).json;
     if (!declared) {
-      fail("domain.schema.json declares no $defs/ResumeState.properties — the resume state's shipped shape has no owner");
-    } else if (wfResume) {
-      /** The type token(s) of one schema node, plus the item shape when it is an array. */
-      const shape = (s) => {
-        if (!s || typeof s !== "object") return "?";
-        const t = Array.isArray(s.type) ? [...s.type].sort().join("|") : s.type;
-        return t === "array" ? `array<${shape(s.items)}>` : String(t);
-      };
-      const clashes = [];
-      for (const [field, node] of Object.entries(wfResume.properties || {})) {
-        if (!declared[field]) {
-          clashes.push(`${field} — the workflow reads it; ResumeState does not declare it`);
-          continue;
-        }
-        const [a, b] = [shape(node), shape(declared[field])];
-        // The workflow may narrow a nullable field to the non-null half (it drops nulls before they
-        // reach an order), so `string` against `null|string` is not a clash. A different BASE type,
-        // or a different item shape inside an array, is.
-        const base = (s) => s.replace(/^null\|/, "").replace(/<null\|/, "<");
-        if (base(a) !== base(b)) clashes.push(`${field} — workflow reads ${a}, ResumeState declares ${b}`);
-      }
-      if (clashes.length === 0) {
-        ok(`every field the workflow's RESUME schema declares matches $defs/ResumeState (${Object.keys(wfResume.properties).length} fields, both read from the shipped artifacts)`);
-      } else {
-        fail("the orchestrator's RESUME schema and the shipped ResumeState disagree about a field's shape; "
-          + "the courier sub-agent validates against the workflow's declaration and coerces whatever the "
-          + `kernel actually printed, so the disagreement is invisible until the coercion drops a value:\n    ${clashes.join("\n    ")}`);
-      }
-    }
-    // --- (n) WIRE dispatches only when its own precondition (has_project_profile) already holds -
-    //
-    // THE DEFECT THIS ARM IS WRITTEN AGAINST. `probe resume` computes `has_project_profile` and
-    // this file's own RESUME schema types it, but nothing branched on it: solution-architect was
-    // dispatched with `project_profile: rs.project_profile_path` (possibly null) and left to
-    // discover a missing profile itself, per its own documented rule ("profile absent ⇒ ESCALATE,
-    // do not invent an entry point" — solution-architect/SKILL.md). An escalation writes no
-    // wiring-map.md, so the phase re-dispatches — and re-escalates — on every relaunch. The
-    // orchestrator already held the fact the gate needs; this checks the gate moved to where the
-    // fact already is, instead of being left to the LLM worker it was about to pay for.
-    if (resumeVar && new RegExp(`if\\s*\\(\\s*!\\s*${resumeVar}\\.has_project_profile\\s*\\)`).test(wfCode)) {
-      ok(`shapeup-run.js gates WIRE's dispatch on ${resumeVar}.has_project_profile before calling solution-architect`);
-    } else {
-      fail("shapeup-run.js dispatches solution-architect for WIRE without first checking has_project_profile — a missing project-profile.md is discovered by the LLM worker instead of the orchestrator that already knows");
-    }
-
-    // The check must precede the dispatch, not merely exist — a check that fires after the worker
-    // call still pays for the turn it exists to save.
-    const iProfileCheck = wfCode.search(new RegExp(`if\\s*\\(\\s*!\\s*${resumeVar}\\.has_project_profile\\s*\\)`));
-    const iWireDispatch = wfCode.indexOf('skill: "solution-architect", operation: "wire"');
-    if (iProfileCheck > -1 && iWireDispatch > -1 && iProfileCheck < iWireDispatch) {
-      ok("the has_project_profile check runs before solution-architect is dispatched, not after — the worker turn is actually saved");
-    } else {
-      fail(`the has_project_profile check (@${iProfileCheck}) does not precede the solution-architect dispatch (@${iWireDispatch}) — a check that fires afterward still pays for the LLM call it exists to avoid`);
-    }
+      fail("domain.schema.json declares no $defs/ResumeFacts.properties — the facts' shape has no owner");
+    } else if (printed) {
+      const undeclared = Object.keys(printed).filter((k) => !declared[k]);
+      const required = domain.$defs.ResumeFacts.required.filter((k) => !(k in printed));
+      if (!undeclared.length && !required.length) ok(`every fact \`probe resume\` prints is declared by $defs/ResumeFacts, and every required one is printed (${Object.keys(printed).length} fields)`);
+      else fail(`ResumeFacts and \`probe resume\` disagree — printed but undeclared: ${undeclared.join(", ") || "none"}; required but not printed: ${required.join(", ") || "none"}`);
+      const { validate } = await import(join(ROOT, "kernel/verify/envelope.mjs"));
+      const check = validate(printed, { $ref: "domain.schema.json#/$defs/ResumeFacts" });
+      if (check.valid) ok("the printed facts validate against $defs/ResumeFacts");
+      else fail(`the printed facts fail their own registry def: ${check.errors.join("; ")}`);
+    } else fail("probe resume printed no JSON for the shape check");
   } finally {
     rmSync(ws, { recursive: true, force: true });
   }

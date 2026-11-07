@@ -6,7 +6,8 @@
 // the second run's matrix read "no evidence" under every requirement. A board with none, while a
 // registry exists, now sends its writer back once; one that still has none continues with a state
 // warning, because the matrix is advisory and never blocks a ship.
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { pinnedBy } from "../lib/pinned-row.mjs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -54,10 +55,8 @@ export async function run(ctx) {
     rmSync(d, { recursive: true, force: true });
   }
 
-  const wf = readFileSync(join(ROOT, "skills/tech-lead/workflows/shapeup-run.js"), "utf8");
-  const sent = (op) => new RegExp(`boardSentBack\\(\\(note\\) => worker\\(\\{\\s*skill: "ba-pitch-analyzer", operation: "${op}"`).test(wf);
-  if (sent("analyze") && sent("board")) ok("both board writers — analyze and the board-only regeneration — go through the send-back");
-  else fail(`a board writer bypasses the covers send-back: analyze=${sent("analyze")} board=${sent("board")}`);
-  if (/probe requirements --slug \$\{slug\} --board-check/.test(wf) && /stateWarnings\.push\(msg\);\s*\}\s*return out;/.test(wf)) ok("a board still without covers after the send-back continues with a state warning, never an abort");
-  else fail("the covers send-back no longer ends in a warning");
+  // The script's two send-back call sites are retired with it; the send-back and the warning that follows
+  // are branches of `probe next`.
+  pinnedBy(ctx, ["a board whose criteria cover no requirement is sent back once", "…and after that one send-back it continues with a warning"],
+    "a board with no covers clause is sent back once and then continues with a warning, never loops");
 }

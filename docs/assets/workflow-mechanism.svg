@@ -2,7 +2,7 @@
   <title>The shapeup-sdlc harness pipeline: idea to ship</title>
   <desc>
     A raw idea flows through Shaping into a Pitch, decided at the Betting Table: Bet
-    continues to build, Reject loops back to raw idea. The tech-lead orchestrator then
+    continues to build, Reject loops back to raw idea. The building loop then
     runs Kick-off and Orient behind gates L0 (Intake &amp; Config) and L1a (Orient Review),
     Wire behind gate L1a.5 (Wiring Review), Map Scopes behind gate L1b (Board Review), and
     Build Vertically, whose scopes build concurrently and are T0-verified. Evaluate
@@ -116,7 +116,7 @@
 
   <!-- orchestration scope backdrop, drawn first so nodes sit on top -->
   <rect class="region" x="60" y="180" width="1040" height="430" rx="16"/>
-  <text class="region-label" font-size="12" x="150" y="195" dominant-baseline="central">/tech-lead orchestrates: Kick-off &#8594; Ship</text>
+  <text class="region-label" font-size="12" x="150" y="195" dominant-baseline="central">/ship drives: Kick-off &#8594; Ship</text>
 
   <!-- ROW 1: Raw idea -> Shaping -> Pitch -> Betting Table -->
   <g>

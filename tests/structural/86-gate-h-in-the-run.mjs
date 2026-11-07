@@ -5,6 +5,7 @@
 // over the `escalated` fact. Measured on three consumer runs. This module pins the census artifact
 // the L4 resolver reads, and the workflow routing every breaker return through the census, H, the
 // ship report and L4 BEFORE it closes.
+import { pinnedBy } from "../lib/pinned-row.mjs";
 import { mkdtempSync, rmSync, writeFileSync, readFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -13,7 +14,6 @@ import { spawnSync } from "node:child_process";
 export async function run(ctx) {
   const { ROOT, ok, fail, section } = ctx;
   const KERNEL = join(ROOT, "kernel/harness.mjs");
-  const WORKFLOW = join(ROOT, "skills/tech-lead/workflows/shapeup-run.js");
 
   section("138. GATE H and L4 happen inside the run — the census is an artifact, and a breaker ships what is green");
 
@@ -86,25 +86,15 @@ export async function run(ctx) {
     rmSync(ws, { recursive: true, force: true });
   }
 
-  // --- the workflow: every breaker return goes through the census, H, the report and L4 -------
-  const src = readFileSync(WORKFLOW, "utf8");
-  const direct = (src.match(/withWarnings\(\{\s*status: "gate_h"/g) || []).length;
-  const routed = (src.match(/settleAtGateH\(\{\s*status: "gate_h"/g) || []).length;
-  if (/async function settleAtGateH\(/.test(src) && routed >= 4 && direct === 0) ok(`every breaker return (${routed}) is routed through settleAtGateH — none closes the run directly`);
-  else fail(`breaker returns: ${routed} routed, ${direct} still closing directly — a gate_h that closes before the census recurs`);
-  const fn = src.slice(src.indexOf("async function settleAtGateH("), src.indexOf("\n}\n", src.indexOf("async function settleAtGateH(")) + 3);
-  const hammerAt = fn.indexOf('skill: "scope-hammer"'), hAt = fn.indexOf('crossGate("H"'), shipAt = fn.indexOf("reduce ship --slug"), l4At = fn.indexOf('crossGate("L4"'), closeAt = fn.indexOf('status: "shipped"');
-  if (hammerAt !== -1 && hammerAt < hAt && hAt < shipAt && shipAt < l4At && l4At < closeAt) ok("inside settleAtGateH: census → GATE H → ship report → GATE L4 → close, in that order");
-  else fail(`settleAtGateH's order is wrong (hammer@${hammerAt} H@${hAt} ship@${shipAt} L4@${l4At} shipped@${closeAt})`);
-  if (/verdict === "pass" \? "PASS" : verdict === "fail" \? "FAIL" : "not-evaluated"/.test(fn)) ok("the breaker path ships the verdict AS IT IS — FAIL and not-evaluated included, never upgraded");
-  else fail("the breaker path does not derive the ship verdict from the round's own verdict");
-  if (!/qaFindings|qaRan/.test(fn)) ok("settleAtGateH reads neither qaFindings nor qaRan — both are declared after the loop that calls it");
-  else fail("settleAtGateH reads a binding declared after the round loop — a temporal-dead-zone throw on the first breaker");
-  const l4Sites = (src.match(/crossGate\("L4"/g) || []).length;
-  if (l4Sites >= 2) ok(`GATE L4 has a deterministic call site on both the PASS path and the breaker path (${l4Sites})`);
-  else fail(`GATE L4 has ${l4Sites} call site(s) — a ship decision with no ledger row`);
-  if (/hammer-census\.json/.test(src) && !/\.shapeup\/<slug>\/reports/.test(src)) ok("every hammer dispatch is told to write the census artifact, by a path relative to the order's substrate");
-  else fail("the hammer brief does not name the census artifact, or names it by a hardcoded storage root");
+  // --- the loop: every breaker return goes through the census, H, the report and L4 -------------------
+  // This used to read the retired run script's source: that every breaker return was routed through one
+  // settling function, in the order census → GATE H → ship report → GATE L4 → close, shipping the verdict AS
+  // IT IS, with an L4 call site on both the PASS and the breaker path and the hammer brief naming the census
+  // file. `probe next` carries the same sequence as steps over files, one named row per link.
+  pinnedBy(ctx, ["cannot-ship after a breaker crosses H first, then escalates naming the census", "a crossed GATE H runs the ship report before GATE L4", "on a breaker the ship report is a precondition",
+    "L4 ship after a breaker closes shipped naming after=gate_h", "L4 hold after a breaker closes escalated with l4=hold", "a not-evaluated ship reports --verdict not-evaluated, never a PASS"],
+    "every breaker return goes census → GATE H → ship report → GATE L4 → close, shipping the verdict as it is");
+  pinnedBy(ctx, ["the stop step is an activity: it names the resource"], "the stop step names the census file and its required fields, so the hammer's artifact is told by the step, not remembered");
   const skill = readFileSync(join(ROOT, "skills/building/resources/stop.md"), "utf8");
   if (/hammer-census\.json/.test(skill) && /HammerCensus/.test(skill)) ok("the stop resource documents the census artifact and its schema name");
   else fail("skills/building/resources/stop.md does not document the census artifact");

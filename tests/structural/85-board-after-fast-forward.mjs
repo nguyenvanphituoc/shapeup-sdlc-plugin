@@ -30,9 +30,9 @@ export async function run(ctx) {
     writeFileSync(join(ucDir, "UC-01-add-badge.md"), "# UC-01\n");
 
     const rs1 = JSON.parse(kernel("probe", "resume", "--slug", "f").stdout);
-    if (rs1.has_spec_tree === true && rs1.has_board === false && rs1.next_phase === "analyze") {
+    if (rs1.has_spec_tree === true && rs1.has_board === false && rs1.next_step === "analyze") {
       ok("probe resume reports the tree present, the board absent, and resumes AT analyze — not past it");
-    } else fail(`probe resume over a committed tree and no board: ${JSON.stringify({ has_spec_tree: rs1.has_spec_tree, has_board: rs1.has_board, next_phase: rs1.next_phase })}`);
+    } else fail(`probe resume over a committed tree and no board: ${JSON.stringify({ has_spec_tree: rs1.has_spec_tree, has_board: rs1.has_board, next_step: rs1.next_step })}`);
     const req1 = kernel("probe", "resume", "--slug", "f", "--require", "analyze");
     if (req1.status === 6) ok("`--require analyze` exits 6 over a tree with no board — the phase is not attestable on the committed half alone");
     else fail(`--require analyze exited ${req1.status} over a tree with no board — a fast-forward would build over nothing`);
@@ -61,8 +61,8 @@ export async function run(ctx) {
     writeFileSync(join(ws, ".shapeup/f/tasks/TASK-001.md"), "---\nid: TASK-001\nstatus: pending\nscope_id: sc-a\n---\n\n# task\n");
     const rs2 = JSON.parse(kernel("probe", "resume", "--slug", "f").stdout);
     const req2 = kernel("probe", "resume", "--slug", "f", "--require", "analyze");
-    if (rs2.has_board === true && req2.status === 0 && rs2.next_phase !== "analyze") ok("with a board on disk the phase attests (exit 0) and the derivation moves past analyze");
-    else fail(`with a board: has_board=${rs2.has_board} require=${req2.status} next_phase=${rs2.next_phase}`);
+    if (rs2.has_board === true && req2.status === 0 && rs2.next_step !== "analyze") ok("with a board on disk the phase attests (exit 0) and the derivation moves past analyze");
+    else fail(`with a board: has_board=${rs2.has_board} require=${req2.status} next_step=${rs2.next_step}`);
     const l2full = spawnSync("node", [KERNEL, "gate", "--resolve", "L2", "--slug", "f", "--preset", "ci"], { cwd: ws, encoding: "utf8" });
     const j3 = (() => { try { return JSON.parse(l2full.stdout); } catch { return null; } })();
     if (j3?.decision === "proceed") ok("gate --resolve L2 --preset ci over a real board still proceeds — the refusal is about evidence, not about presets");

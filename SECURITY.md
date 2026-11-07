@@ -87,11 +87,10 @@ sitting, and reading them is the recommended review.
   any kind.
 - **The safety-spine actively blocks secret reads** (`.env`, `*.pem`, `*.key`, ssh/cloud
   credentials) rather than merely not making them.
-- **The script the run executes is a copy, and the copy is the shipped file.** Opening a run
-  copies the plugin's own workflow scripts into the gitignored `.shapeup/workflows/`, because the
-  Workflow tool loads a script only from a directory the session may already read and the plugin
-  installs outside your project. They are copied byte for byte — never generated, templated or
-  rewritten — so what you review in the plugin is what runs, and nothing else is added to your tree.
+- **Nothing is copied into your project to run.** The run is driven by the loop in your session
+  through two kernel Bash rules, so there is no script staged into your tree, no launch to authorise,
+  and no unscoped `Workflow` permission to grant: the installer writes the two rules and nothing else,
+  and a `Workflow` token you already have is yours and is left alone.
 - The installer (`scripts/install-harness.sh`) writes only into the target project
   (`.claude/`, `shapeup/`, `.gitignore`) and tells you what it
   is going to do first; the `curl | bash` form requires an explicit `--yes` for exactly that

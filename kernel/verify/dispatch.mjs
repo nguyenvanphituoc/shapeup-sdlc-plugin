@@ -77,11 +77,10 @@ export const ARGV_SPEC = {
   _: { arity: 0, max: 0 },
   skill: { type: "str", required: true },
   since: { type: "str" },
-  // `--within` exists because the canary's caller cannot compute a timestamp. A Workflow script may
-  // not call `Date.now()` — it would break resume — so a control script asking "was this dispatched
-  // JUST NOW" has no clock of its own. Without a window the check answers "ever, in this checkout",
-  // which a project that once had the plugin loaded satisfies forever: the canary would pass on the
-  // strength of a run from last month. The kernel has a clock; it does the arithmetic.
+  // `--within` exists so a caller can ask "was this dispatched JUST NOW" without computing a timestamp
+  // of its own. Without a window the check answers "ever, in this checkout", which a project that once
+  // had the plugin loaded satisfies forever: a canary would pass on the strength of a run from last
+  // month. The kernel has a clock; it does the arithmetic.
   within: { type: "int", min: 1 },
   cwd: { type: "path" },
   json: { type: "flag" },

@@ -56,7 +56,7 @@ The first six are carried over verbatim in spirit; each earned its place by meas
 6. **State the falsifier.** An acceptance that cannot fail did not happen.
 
 **7. A guard that asserts a call must also assert its effect.** This is new, and it is the whole
-reason this plan is shaped the way it is. `tests/structural/69-terminal-wrapping.mjs:69` already
+reason this plan is shaped the way it is. `structural/69-terminal-wrapping.mjs:69` already
 recognises `gate_h` as a terminal return and asserts it is wrapped in `withWarnings`. It passes.
 `withWarnings` calls `closeIfTerminal`. `closeIfTerminal` returns early for `gate_h` and writes
 nothing. **The guard verified the plumbing and not the outcome**, and the release shipped with a
@@ -146,7 +146,7 @@ measured this produced exactly such a file.
 ### Stage 1 — Derive the close-out from the union, and move the decision where it can be executed
 **Goal:** `HD-026`. Unblocks `HD-014`'s code half.
 
-`closeIfTerminal` (`skills/tech-lead/workflows/shapeup-run.js:989`) opens with
+`closeIfTerminal` (`tech-lead/workflows/shapeup-run.js:989`) opens with
 `if (ret.status !== "aborted" && ret.status !== "shipped") return;`. It references
 `TERMINAL_STATUSES` (`kernel/probe/resume.mjs:82`, three members) **zero times**. The RunReturn
 union has **four** arms — `shipped`, `paused`, `aborted`, `gate_h` — enumerated only in the script's
@@ -496,7 +496,7 @@ Verified both directions: red with the guard reverted, green with it restored. F
 #### Discovered by S1, verified separately: a documented flow now refuses
 
 Not a stage, not in any acceptance row, and surfaced by the S1 executor rather than by a check.
-`skills/tech-lead/references/gates.md:562` has GATE L4 call `probe resume --close shipped`
+`tech-lead/references/gates.md:562` has GATE L4 call `probe resume --close shipped`
 unconditionally after a GATE H → L4 ship decision. Since S1, `gate_h` closes the ledger as
 `escalated` immediately, and `closeRun` refuses a *different* terminal status over an existing close.
 Driven end to end rather than reasoned about:

@@ -106,6 +106,7 @@ step; one that shipped reports `done`.
 > **Intake, language check and translation, profile, the launch record** → `resources/intake.md`
 > **Planning: how a substep runs, requirements; the spec, wiring and scope formats** → `resources/plan.md` and its `plan-*.md` siblings
 > **Which knowledge-base file is read where, and under what name a rule is filed** → `resources/guidance.md`
-> **How to put a gate to the PO** → `resources/gates.md`
+> **How to put a gate to the PO, and what to have read first** → `resources/gates.md`
+> **What a round is; the attempt loop; why the loop stops where it does** → `resources/rounds.md`
 > **The census, the baseline comparison, the cut list (GATE H)** → `resources/stop.md`
 > **After a ship: feedback, the retro gate, `--scan`, `--research`** → `resources/retro.md`, `retro-scan.md`, `retro-research.md`

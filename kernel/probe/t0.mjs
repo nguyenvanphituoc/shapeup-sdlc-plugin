@@ -12,10 +12,9 @@
 // so a judge that asks for it is asking the file, not a caller. `sha256` is present only when the
 // verdict is green and readable; absent — never null — otherwise.
 //
-// WHY IT IS A SUBCOMMAND AND NOT AN INLINE SNIPPET. The control plane has no filesystem of its
-// own, so the alternative is a `node -e` blob assembled inside the workflow script. Such a blob is
-// untestable (a workflow script cannot be imported), and it is the one command shape no permission
-// rule can match — the grant covers this entry point, not arbitrary evaluated source.
+// WHY IT IS A SUBCOMMAND AND NOT AN INLINE SNIPPET. The alternative is a `node -e` blob assembled
+// by whoever needs the answer. Such a blob is untestable, and it is the one command shape no
+// permission rule can match — the grant covers this entry point, not arbitrary evaluated source.
 //
 // WHY IT READS ARTIFACTS AND NOT A LEDGER. It answers the question a RESUMED round asks: an
 // attempt loop that was killed mid-round must not re-do a scope whose T0 already went green, and

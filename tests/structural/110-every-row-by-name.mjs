@@ -5,7 +5,8 @@
 // the requirements matrix read no evidence under every covered requirement, and a requirement the
 // build had not met passed with the rest. A PASS now grades each row by id, in a criterion or its
 // traces_to, or it is refused on ingest and on read alike; the run sends the judge back once.
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { pinnedBy } from "../lib/pinned-row.mjs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -59,10 +60,10 @@ export async function run(ctx) {
       ok("probe eval refuses the grouped PASS with its reason — what the run hands the judge on the second dispatch");
     } else fail(`probe eval: exit ${r.status} ${r.stdout}`);
 
-    const wf = readFileSync(join(ROOT, "skills/tech-lead/workflows/shapeup-run.js"), "utf8");
-    const evalBlock = wf.slice(wf.indexOf('skill: "spec-evaluator", operation: "evaluate"') - 200, wf.indexOf("verdict = ev.overall"));
-    if (/sendBackOnce\(/.test(evalBlock) && /probe eval --slug/.test(evalBlock) && /!v\.ok && !!v\.overall && !!v\.reason/.test(evalBlock)) ok("the run sends a refused verdict back to the judge once, with the refusal's reason");
-    else fail("the workflow no longer re-dispatches a refused verdict");
+    // What the run script's source check protected — a refused verdict goes back to the judge once, with the
+    // refusal's reason — is a branch of `probe next` now, pinned by named rows.
+    pinnedBy(ctx, ["a verdict the kernel refused", "a verdict refused twice aborts at L3"],
+      "a refused verdict is sent back to the judge once with the reason, and a second refusal stops the run");
   } finally {
     rmSync(d, { recursive: true, force: true });
   }

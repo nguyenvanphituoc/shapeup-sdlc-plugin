@@ -20,6 +20,7 @@
 // Both are named in tests/README.md as Tier-1 work with their status stated, rather than left to
 // look like coverage this file has.
 
+import { pinnedBy } from "../lib/pinned-row.mjs";
 import { existsSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -98,10 +99,10 @@ export async function run(ctx) {
       const resume = kernel(ROOT, ["probe", "resume", "--slug", SLUG, "--cwd", ws], ws);
       let state = null;
       try { state = JSON.parse(resume.stdout); } catch { /* asserted below */ }
-      if (state?.has_orient_artifacts === true && state?.next_phase === "build") {
+      if (state?.has_orient_artifacts === true && state?.next_step === "build") {
         ok("G1: a run killed mid-BUILD resumes at build — the stale ledger status does not re-open ORIENT");
       } else {
-        fail(`G1: the fast-forward resumed at "${state?.next_phase}" over a complete upstream tree — a relaunch would re-dispatch finished phases`);
+        fail(`G1: the fast-forward resumed at "${state?.next_step}" over a complete upstream tree — a relaunch would re-dispatch finished phases`);
       }
       for (const phase of ["orient", "analyze", "wire", "map-scopes"]) {
         const req = kernel(ROOT, ["probe", "resume", "--slug", SLUG, "--cwd", ws, "--require", phase], ws);
@@ -196,37 +197,21 @@ export async function run(ctx) {
   }
 
   // ---------------------------------------------------------------------------------------------
-  // G4 — DEAD WORKER. A build leg whose sub-agent is skipped, blocked or dies returns `null` from
-  // the runtime. That must cost the scope its attempt, not the run its life: killing the round here
-  // would discard every other scope's green work, and `status: "failed"` is not a member of the
-  // RunReturn union, so an unhandled null crashes into a shape the tech lead cannot branch on.
+  // G4 — DEAD WORKER. A build leg whose sub-agent is skipped, blocked or dies must cost the scope its
+  // attempt, not the run its life: killing the round would discard every other scope's green work. A dead
+  // PHASE worker is the opposite — there is nothing to continue with — and a dead QA worker costs the
+  // findings, not the ship.
   //
-  // A Workflow script cannot be imported, so this is a source assertion — narrow on purpose.
+  // This used to be a SOURCE assertion over the retired run script (a Workflow body cannot be imported):
+  // that a null sub-agent return became a named failure, and which of three branches each kind of dead
+  // worker took. `probe next` holds the same three branches as derivations over the run's records, so they
+  // are rows of the state-machine suite and this block checks they are still there. The null-return
+  // conversion (`__failed`) retires with the runtime that returned nulls: a dispatch that dies leaves an
+  // order with a receipt and no result, which is exactly what the rows below plant.
   // ---------------------------------------------------------------------------------------------
-  {
-    const wf = join(ROOT, "skills/tech-lead/workflows/shapeup-run.js");
-    const src = existsSync(wf) ? readFileSync(wf, "utf8") : "";
-    const code = src.replace(/\/\*[\s\S]*?\*\//g, "").split("\n").map((l) => l.replace(/\/\/.*$/, "")).join("\n");
-
-    if (/__failed/.test(code) && /nullFail/.test(code)) ok("G4: a null sub-agent return is converted into a named failure, never left to crash");
-    else fail("G4: shapeup-run.js has no marker for a dead sub-agent — a null return would surface as an unhandled shape");
-
-    // The build leg's own branch: a dead builder goes to the hammer census and the loop continues.
-    const buildArm = /res\.__failed[\s\S]{0,400}?roundHammer\.push/.test(code);
-    if (buildArm) ok("G4: a dead build leg is pushed to the GATE H census and the round continues — a spent attempt, not a dead run");
-    else fail("G4: a dead build leg does not route to the hammer census — the round either aborts or silently drops the scope");
-
-    // And the contrast: a dead PHASE worker DOES abort, because there is nothing to continue with.
-    if (/diedAt\("ORIENT"/.test(code) && /diedAt\("ANALYZE"/.test(code)) {
-      ok("G4: a dead phase worker aborts by name — the asymmetry with a build leg is deliberate and present");
-    } else {
-      fail("G4: a dead phase worker does not abort — a run would proceed past a phase whose worker never reported");
-    }
-
-    // QA is a level-up: losing its worker costs the findings, not the ship.
-    if (/q\.__failed[\s\S]{0,200}?log\(/.test(code)) ok("G4: a dead QA worker logs and ships — QA is a level-up, not a gate");
-    else fail("G4: a dead QA worker is not handled as a level-up — losing the hunt would stop a run that already passed EVAL");
-  }
+  pinnedBy(ctx, ["--restart reads that unanswered order as dead work and releases the scope again"], "G4: a dead build leg is a spent attempt — the scope is released again and the round continues");
+  pinnedBy(ctx, ["an orient dispatched three times with no answer is named dead"], "G4: a dead phase worker stops the run by name — the asymmetry with a build leg is deliberate and present");
+  pinnedBy(ctx, ["a hunt dispatched three times with no answer is given up on"], "G4: a dead QA worker costs the findings, not the ship — QA is a level-up, not a gate");
 
   // ---------------------------------------------------------------------------------------------
   // G5 — GATE REFUSAL. A headless lane that reaches a gate it has no answer for must ABORT. The

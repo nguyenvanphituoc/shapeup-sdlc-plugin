@@ -15,10 +15,14 @@
 // 3. The L0 profile WIRE requires was checked at WIRE, after a full planning pass (21 agents, ~770K
 //    subagent tokens) had already been paid for. The same check now runs where `rs` is first read,
 //    before ORIENT dispatches anything.
+//
+// 2 and 3 were guarded by reading the run script that has since been retired; `probe next` carries both and the
+// state-machine suite pins them by named row.
 import { mkdtempSync, rmSync, appendFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { pinnedBy } from "../lib/pinned-row.mjs";
 
 /**
  * Run the checks for all three fixes.
@@ -59,29 +63,11 @@ export async function run(ctx) {
     }
   }
 
-  // ---- 2 & 3. The orchestrator's own source carries both fixes, in the right order --------------
-  {
-    const src = ctx.read(join(ROOT, "skills/tech-lead/workflows/shapeup-run.js"))
-      .replace(/\/\*[\s\S]*?\*\//g, "").split("\n").map((l) => l.replace(/\/\/.*$/, "")).join("\n");
-
-    const profileCheckAt = src.search(/rs\.has_wiring_map\s*&&\s*!rs\.has_project_profile/);
-    const orientDispatchAt = src.search(/dispatchOrient\s*=\s*\(/);
-    if (profileCheckAt > -1 && orientDispatchAt > -1 && profileCheckAt < orientDispatchAt) {
-      ok("the project-profile precondition is checked before ORIENT's own dispatch is built, not only at WIRE");
-    } else fail(`profile check at ${profileCheckAt}, orient dispatch at ${orientDispatchAt} — the check can still run after a full planning pass`);
-
-    const hunLegCheckAt = src.search(/query\(`probe leg --slug \$\{slug\} --order "hunt"`/);
-    const qaBlockAt = src.search(/operation:\s*"hunt"/);
-    if (hunLegCheckAt > -1 && qaBlockAt > -1 && hunLegCheckAt > qaBlockAt) {
-      ok("the QA block asks the leg ledger whether the hunt's result was applied");
-    } else fail(`hunt leg check at ${hunLegCheckAt}, hunt dispatch at ${qaBlockAt} — QA may still ship an unapplied result unnoticed`);
-
-    if (/unapplied_results:\s*allUnapplied/.test(src)) {
-      ok("a normal shipped close carries unapplied_results, not only a GATE-H breaker's close");
-    } else fail("the shipped RunReturn does not carry unapplied_results — a QA leg nothing applied ships silently");
-
-    if (/Array\.isArray\(ret\.unapplied_results\)[\s\S]{0,40}ret\.unapplied_results\.length[\s\S]{0,60}unapplied_results=/.test(src)) {
-      ok("the close cause line can print unapplied_results on the shipped branch, not only the gate_h branch");
-    } else fail("the shipped branch's close-cause formatter still never mentions unapplied_results");
-  }
+  // ---- 2 & 3. A QA leg nothing applied is named, and the profile precondition runs before any dispatch ----
+  // Both used to be read out of the retired run script's source. They are branches of `probe next` now.
+  pinnedBy(ctx, ["a hunt result that nothing applied is named in warnings and never stops the run"],
+    "a QA result nothing applied is named at the close and never aborts — QA never gates");
+  pinnedBy(ctx, ["a missing project profile blocks the run before orient and names the file"],
+    "the project-profile precondition is checked before ORIENT dispatches anything, not at WIRE");
+  pinnedBy(ctx, ["an unanswered order is named at every close"], "a normal shipped close names unapplied work, not only a breaker's close");
 }

@@ -20,7 +20,7 @@ graph LR
     EVAL -- FAIL --> BUILD
     EVAL -- PASS --> QA["Edge Hunt\n/qa-edge-hunter"]
     QA --> SHIP["Triage + Ship\n/hammer (the census)"]
-    TL["/tech-lead\norchestrates the shaded steps"] -.-> KO
+    TL["/ship\nthe building loop drives the shaded steps"] -.-> KO
 
     classDef plan fill:#f4e2cd,stroke:#c4711f,color:#14202b;
     classDef build fill:#dcefe9,stroke:#1a6d60,color:#14202b;
@@ -42,7 +42,7 @@ The Product Owner decides at the betting table. A rejected pitch loops back to a
 harness intentionally has no automation here — betting is a human call about what the team's
 time is worth, not something a skill should touch.
 
-### Phase 3 — Building (orchestrated by `/tech-lead`)
+### Phase 3 — Building (driven by `/ship`, the `building` loop)
 
 | Step | Gate | Action |
 |---|---|---|

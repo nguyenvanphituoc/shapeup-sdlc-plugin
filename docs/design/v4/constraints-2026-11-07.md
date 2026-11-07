@@ -31,7 +31,7 @@ changes its central design choice.
 
 ### C1 — the ratchet records that prose orchestration was tried and replaced
 
-`tests/structural/08-docs.mjs` section 25 holds `LINE_RATCHETS = { "skills/tech-lead/SKILL.md": 155 }`.
+`tests/structural/08-docs.mjs` section 25 holds `LINE_RATCHETS = { "tech-lead/SKILL.md": 155 }`.
 Its comment is the record: the ratchet went 450, 460, 480 and then was **lowered to 155 at the
 orchestrator cutover**, with the reason inlined so the number cannot be separated from it — the
 orchestration logic moved out of prose into `shapeup-run.js`, and "new orchestration logic going back
@@ -117,7 +117,7 @@ say so in `docs/upgrading.md`, delete nothing.
 
 ADR-0001 adds a `warn` verdict to `hooks/lib/decision.mjs` for one reason: so that `probe stats
 --hooks` can still answer how often evaluation ran over a non-green board. That reader is cited by the
-design doc (`docs/design/03-system-design.md`, the run-key section), by `skills/tech-lead/references/gates.md`,
+design doc (`docs/design/03-system-design.md`, the run-key section), by `tech-lead/references/gates.md`,
 by the decision module's own comments, and by `AGENTS.md` for finding stray ledgers. The plan's A4
 "done when" and its §8 both say `probe stats --hooks lists 5`, while A6 deletes the module that
 answers it. Keep the `--hooks` reader (it is about 100 lines of the 477), or move it beside the

@@ -2,7 +2,7 @@
 // WorkOrder compiler (pure-skill architecture v1.0, plan P1).
 //
 // The orchestrator's pipeline sub-layer: assembles the structured input envelope a worker is
-// dispatched with. Replaces tech-lead's hand-assembled `isolated_brief()` prose step and every
+// dispatched with. Replaces a hand-assembled `isolated_brief()` prose step and every
 // worker's GATE A/B plumbing (path resolution, run-state parse, board glob-matching, dependency
 // reads, mode detection). Deterministic, zero LLM tokens.
 //
@@ -484,7 +484,7 @@ export function stagnation(trials, k = 2) {
 //      an empty variable. The verdict was on disk the whole time.
 //
 // Both vanish if the evidence is read where the order is written: the same read on a fresh round
-// and a resumed one, no process boundary to survive, and no model in the path — an LLM courier
+// and a resumed one, no process boundary to survive, and no model in the path — a model
 // transcribing a repro string is a repro string that no longer reproduces.
 //
 // The shape is also RICHER than the in-memory channel ever was: the ledgered verdict carries
@@ -812,8 +812,8 @@ export function scopeSubstrates(cwd, slug) {
 // WHY THE KERNEL DERIVES THEM. spec-evaluator treats a scoped spec whose order lists no T0 artifact
 // as NOT gradeable and returns `failed` without grading a criterion. The precondition is right —
 // its verdict must cite a T0 artifact it re-hashed itself — and nothing met it: the list was once
-// assembled by an orchestrator courier from the paths each scope reported, and was lost when the
-// orchestrator became a workflow script that passes only `{dimensions, run_cmd, round}`. Evaluators
+// assembled by an orchestrator from the paths each scope reported, and was lost when the
+// order began to be compiled from `{dimensions, run_cmd, round}` alone. Evaluators
 // that went looking on disk graded anyway; one that followed its contract refused, and the run
 // aborted at L3 over a round whose every scope was green.
 //
@@ -1037,7 +1037,7 @@ export function compileOrder({
     // `order_id` identifies a dispatch within a run and repeats across runs of the same slug, so
     // the dispatch record needed a run key to be groupable at all. It is stamped here because this
     // is the one place every lane passes through — the same reason the active-order pointer is
-    // published here — so the workflow lane, `--tiny`, the prose round loop and a standalone
+    // published here — so the loop, a hand-driven round and a standalone
     // dispatch all carry it without four separate stamps to keep in step.
     //
     // The RESULT deliberately gets neither. It is written by the worker, and a field a worker has
@@ -1156,7 +1156,7 @@ export async function cli(rawArgv) {
   // FAILS OPEN, NEVER CLOSED, unless the bad state is positively proven. The proof required is the
   // receipts ledger EXISTING while carrying no row for the previous attempt: a lane that does not
   // attest dispatches at all (no ledger on disk) cannot be judged by this rule and is waved
-  // through, so `--tiny`, a prose round loop and a standalone build are untouched.
+  // through, so a hand-driven round and a standalone build are untouched.
   //
   // THE RUN KEY IS PART OF THE QUESTION. `attemptEvidence` matches a receipt to an attempt by
   // `order_id` AND `run_id` — deliberately, so a previous run's receipt over the same slug cannot
@@ -1188,8 +1188,8 @@ export async function cli(rawArgv) {
     }
   }
 
-  // The fix round's inbound evidence. Derived here, from the ledgered verdict, for every lane —
-  // the workflow, `--tiny`, the prose round loop and a standalone `/build` all compile through
+  // The fix round's inbound evidence. Derived here, from the ledgered verdict, for every caller —
+  // the loop, a hand-driven round and a standalone `/build` all compile through
   // this line, and none of them can pass a payload to a build order (see the banner above).
   // Two sources, one channel: the judge's cited defects and the build gate's failing steps.
   const bugs = scope
@@ -1374,11 +1374,10 @@ export async function cli(rawArgv) {
   //
   // `hooks/sandbox-guard.mjs` enforces the order's own `substrate` block — allowed/shared,
   // append_only, frozen — and it finds the RUN through `.shapeup/active-order`. Until this write
-  // existed the pointer had exactly one author, the workflow script, so the guard fenced the
-  // workflow lane and DEFERRED everywhere else: `--tiny`, the prose round loop, and a standalone
-  // `/build` all compiled an order carrying a write contract that nothing enforced. A substrate
-  // that is only enforced on the lane that also happens to be the most supervised one is the wrong
-  // way round. This is now the pointer's ONLY author.
+  // existed the pointer had exactly one author, a launcher, so the guard fenced that launch and
+  // DEFERRED everywhere else: a hand-driven round and a standalone `/build` compiled an order carrying
+  // a write contract that nothing enforced. A substrate that is only enforced on the path that also
+  // happens to be the most supervised one is the wrong way round. This is now the pointer's ONLY author.
   //
   // Compiling an order is the moment the write contract comes into existence, so it is the correct
   // moment to publish it. What the pointer supplies is the run's slug; which of that run's orders

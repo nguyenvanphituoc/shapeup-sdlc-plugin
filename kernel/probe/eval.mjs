@@ -6,19 +6,17 @@
 // evaluator refused the round, or the verdict is structurally invalid; `reason` says which — and 2
 // on a bad argv. Writes nothing.
 //
-// WHY THIS EXISTS. `shapeup-run.js` cannot read a file itself (a Workflow script has no filesystem
-// of its own — see this repo's own note on why it may not call `Date.now()`), so every fact it
-// branches on has to cross an `agent()`/`query()` boundary. Before this command existed, the EVAL
-// round-loop branch (`verdict = e.overall === "PASS" ? "pass" : "fail"`) trusted the DISPATCHING
-// sub-agent's own end-of-turn summary — a value composed from memory/judgment after three other
-// steps (compile, dispatch, ingest), schema-checked for SHAPE only. Nothing re-verified that
-// summary against the WorkResult `reduce ingest` had just written to disk. Measured live
-// (2026-08-19, todo-cli): `results/evaluate-r1.json`'s `verdict.overall` was `"FAIL"` (2 cited
-// bugs, `spec-evaluator` correctly failing `SC-ERR`), and the run proceeded straight to QA and
-// GATE H anyway — the exact shape `verdict = e.overall === "PASS"` allows when `e.overall` is a
-// self-report that drifted from the artifact it was supposed to summarize. This command closes
-// that gap the same way `probe t0` already closes it for the T0 ratchet: a narrow, single-purpose
-// "transcribe this JSON verbatim" query over the artifact itself, not a multi-step summary.
+// WHY THIS EXISTS. The loop that drives a run branches on facts, never on a dispatching sub-agent's
+// own account of what it did. Before this command existed, the EVAL round-loop branch
+// (`verdict = e.overall === "PASS" ? "pass" : "fail"`) trusted that end-of-turn summary — a value
+// composed from memory/judgment after three other steps (compile, dispatch, ingest), schema-checked
+// for SHAPE only. Nothing re-verified it against the WorkResult `reduce ingest` had just written to
+// disk. Measured live (2026-08-19, todo-cli): `results/evaluate-r1.json`'s `verdict.overall` was
+// `"FAIL"` (2 cited bugs, `spec-evaluator` correctly failing `SC-ERR`), and the run proceeded straight
+// to QA and GATE H anyway — the exact shape that branch allows when `e.overall` is a self-report that
+// drifted from the artifact it was supposed to summarize. This command closes that gap the same way
+// `probe t0` already closes it for the T0 ratchet: a narrow, single-purpose "transcribe this JSON
+// verbatim" query over the artifact itself, not a multi-step summary.
 //
 // WHY IT READS `results/evaluate-r<N>.json` AND NOT THE `.md` REPORT. The WorkResult is the
 // machine-checked envelope `reduce ingest` validated against `EVAL`'s schema before ever touching

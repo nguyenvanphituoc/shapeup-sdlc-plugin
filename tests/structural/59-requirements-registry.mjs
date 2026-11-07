@@ -178,10 +178,10 @@ export async function run(ctx) {
         w(legacy, `shapeup/${SLUG}/wiring-map.md`, "planted\n");
         w(legacy, `shapeup/${SLUG}/scopes/SC-1.md`, "planted\n");
         const st = resume(legacy);
-        if (st?.next_phase === "build" && st?.has_requirements === false) {
+        if (st?.next_step === "build" && st?.has_requirements === false) {
           ok("(c) a run planned before the registry existed still resumes at build — has_requirements is a fact, not a phase");
         } else {
-          fail(`(c) a pre-registry run resumed at "${st?.next_phase}" instead of build — adding the registry to the phase chain re-plans work already on disk`);
+          fail(`(c) a pre-registry run resumed at "${st?.next_step}" instead of build — adding the registry to the phase chain re-plans work already on disk`);
         }
       } finally { rmSync(legacy, { recursive: true, force: true }); }
     } finally {
@@ -458,8 +458,8 @@ export async function run(ctx) {
 
   // --- (i) THE GATE BLOCK NAMES IT, because a red nobody is told to read is a red nobody reads ---
   {
-    const gates = read(join(ROOT, "skills/tech-lead/references/gates.md"));
-    const l1b = gates.slice(gates.indexOf("## GATE L1b"), gates.indexOf("## GATE L2"));
+    const gates = read(join(ROOT, "skills/building/resources/gates.md"));
+    const l1b = gates.slice(gates.indexOf("**L1b — Board Review.**"), gates.indexOf("**L2 — Round Close.**"));
     if (/REQ-UNCOVERED/.test(l1b)) ok("(i) GATE L1b lists REQ-UNCOVERED among the reds that hard-stop the plan");
     else fail("(i) GATE L1b's red list never names REQ-UNCOVERED — the orchestrator would print an exit-1 lint and read no instruction about it");
     if (/REQ\s*→\s*AC/.test(l1b)) ok("(i) GATE L1b prints the REQ → AC table beside the Deferred Places — the PO sees which requirement nothing grades before signing off");
@@ -708,9 +708,9 @@ export async function run(ctx) {
     // (j7) THE TWO READERS CITE THE QUERY. A figure narrated from memory at a gate is
     // indistinguishable from a measured one, which is why ownership already works this way.
     {
-      const gates = read(join(ROOT, "skills/tech-lead/references/gates.md"));
-      const l4 = gates.slice(gates.indexOf("## GATE L4 — Ship Sign-Off"));
-      if (/^Requirements\s*:/m.test(l4)) ok("(j) GATE L4's block prints a Requirements line");
+      const gates = read(join(ROOT, "skills/building/resources/gates.md"));
+      const l4 = gates.slice(gates.indexOf("**L4 — Ship Sign-Off.**"));
+      if (/`Requirements:` line/.test(l4)) ok("(j) GATE L4's block prints a Requirements line");
       else fail("(j) GATE L4 prints no Requirements line — the run signs off without saying which pitch clauses have evidence");
       if (/probe requirements/.test(l4)) ok("(j) …and says to transcribe it from `probe requirements`, not to compose it");
       else fail("(j) GATE L4's Requirements line cites no query — a line composed at the gate is a claim, not a measurement");

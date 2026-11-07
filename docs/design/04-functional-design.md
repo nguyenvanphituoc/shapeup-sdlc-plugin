@@ -13,7 +13,6 @@
 | `spec-evaluator` | Single judge | Verifies the running app against the committed spec. Skeptical by default; requires a T0 artifact citation on scoped specs; verdict returns as data, never edits anything. |
 | `qa-edge-hunter` | Explorer | Post-PASS exploratory hunt through six fixed lenses, outside what the evaluator already probed. Findings go to the ledger as `~`; never blocks ship, never issues a verdict. |
 | `hill-chart` | Dashboard | Renders the committed hill shards and the local run graph as one dashboard; invoked directly, not a pipeline worker. |
-| `tech-lead` | Orchestrator | Sequences all of the above through GATE L0–L4, owns the round loop, and is the sole writer of run-state. |
 
 ## 4.2 — The build round, in detail
 
@@ -157,13 +156,13 @@ no matter what the auto level is.
 | # | Condition | Behavior |
 |---|---|---|
 | 1 | Run mode = `interactive` (default) | Every gate — L0, L1a, L1b, L2, L3, L4 — stops and waits for explicit PO confirmation. Hard rule: "never auto-proceed." |
-| 2 | Run mode = `--auto` | Sub-skills run unattended internally, but the tech-lead still pauses at **L1a, L1b, L3, L4** per its own GATE L0.7 definition and the Flags table. |
+| 2 | Run mode = `--auto` | Workers run unattended internally, but the loop still pauses at **L1a, L1b, L3, L4** per the `guarded` answer set and the Flags table. |
 | 3 | Max-rounds exhausted (outer breaker) with FAIL | `r+1 > max_rounds` → hard stop, escalate to the PO with the residual bug list. Fires even under `--unattended` — one of only three conditions that mode stops for. |
 | 4 | Discovered tasks reconciled mid-BUILD | Any `discoveries[]` folded into new board tasks routes back to **GATE L1b** for PO approval before BUILD resumes. |
 | 5 | GATE H verdict = CANNOT SHIP | A must-have item fails the census's baseline comparison → do not proceed to SHIP; escalate to the PO honestly, same spirit as a max-rounds stop. |
 | 6 | Hard error | A sub-skill fails irrecoverably (spec folder gone, app won't build) → stop and report; never retry blindly. Mode-independent. |
 | 7 | Deploy authorization (standing invariant) | Even after a PASS ship, S.5 never auto-deploys. "PO says yes → deploy … otherwise → record deploy pending (PO)." Never becomes closed-loop, in any mode. |
-| 8 | User halt | In any mode where gates are live, the PO may stop at any L-gate; state is preserved for `--from` resume. |
+| 8 | User halt | In any mode where gates are live, the PO may stop at any L-gate; state is preserved on disk and `/ship` again resumes. |
 
 > **Resolved (v1.2): the GATE L0.7 / Flags table is authoritative** — `--auto` pauses at
 > **L1a, L1b, L3, L4** only. The two gate-inline phrasings that appeared to also claim L0 and
@@ -173,10 +172,7 @@ no matter what the auto level is.
 > **L2**'s board census travels in the gate block itself (closed-loop row 4 below).
 > Since ADR-0001 it advises rather than denies, so the inline "wait for PO confirmation" phrasing
 > is no longer redundant with a mechanical block — it is the only thing standing there.
-> Follow-up: align the two inline
-> phrasings in `skills/tech-lead/SKILL.md` at the next prose-touching change (deliberately not
-> done in v1.2 — zero orchestrator prose growth). Lane gate sets (§4.7) are defined against
-> this authoritative table.
+> Lane gate sets (§4.7) were defined against this authoritative table.
 
 ### Conditions that allow closed loop (fully autonomous)
 
@@ -184,9 +180,9 @@ no matter what the auto level is.
 |---|---|---|
 | 1 | Run mode = `--unattended` | Auto-confirms all L-gates. Proceeds without a human until PASS, max-rounds, or a hard error — the only three stop conditions in this mode. |
 | 2 | Inner breaker (`attempt_budget`) exhausted for one scope | Does **not** stop anything — queues a hammer proposal and moves to the next scope in sequence (DD-9: a struggling scope must not freeze the others). |
-| 3 | *(none — see note)* | A worker `ESCALATE` is **not** auto-resolved. `harness reduce ingest` queues it; in the workflow lane a phase that produced no artifact **aborts**, naming the phase, because a relaunch would re-dispatch the same order and escalate again. Resolving it is a human step in every mode. |
+| 3 | *(none — see note)* | A worker `ESCALATE` is **not** auto-resolved. `harness reduce ingest` queues it; a phase that produced no artifact is sent back once and then **stops the run**, naming the phase, because dispatching it again would hit the same wall. Resolving it is a human step in every mode. |
 | 4 | GATE L2's board census | A different axis entirely — runtime-vs-model, not PO-vs-model. Never asks a human; the gate block carries `green_scopes` and `hammer_proposals` derived from the round's own results, so an EVAL over unfinished work is visible to whoever answers the gate. Advisory since ADR-0001 — the board is per-machine and the operator asked for the call. |
-| 5 | `--no-eval` | Tech-lead judgment call (or PO instruction) for trivial features — skips the evaluator, goes straight to SHIP with verdict `not-evaluated` recorded. |
+| 5 | `--no-eval` | PO instruction (or the loop's recommendation) for trivial features — skips the evaluator, goes straight to SHIP with verdict `not-evaluated` recorded. |
 | 6 | `--no-qa` | Skips the post-PASS edge hunt; ledger records `qa: skipped`. |
 | 7 | BUILD-loop internals (r=1 tasks, r>1 bugs) | Neither requires a human step-by-step — only the round *boundaries* (L2, L3) are gated per whichever mode is active. |
 
@@ -198,45 +194,23 @@ preconditions (`harness verify envelope`, `sandbox-guard.mjs`, `safety-spine.mjs
 board-green check is the one that deliberately does *not* hold that way: it observes in every mode
 but decides in none.
 
-## 4.7 — Risk lanes (design — not yet implemented)
+## 4.7 — Risk lanes (withdrawn)
 
-> **Status: v1.2 design draft.** The `Lane` type is registered in the domain registry
-> (`domain.schema.json#/$defs/Lane`, with its machine-readable `x-lane-policy` table) to
-> reserve the name and make this policy reviewable — but no envelope references it and no
-> runtime reads it yet. Absorbed from dwarves-kit's tiny/normal/full/bug lanes; this section is
-> the shaped pitch-input for the implementation bet.
+> **Status: withdrawn in 4.0.** This section was a v1.2 design draft for three lanes (`tiny | normal | full`).
+> The `Lane` type it reserved in the domain registry is gone, and the separate small-change lane that shipped
+> as a prose loop in the `tech-lead` skill was retired with that skill: `/ship --tiny` and `init run --tiny`
+> are refused with the way forward — run the full loop and size it with the pitch's appetite. Only the full
+> lane is served (`init run --lane full` is accepted and recorded).
 
-**The problem.** Today the harness has two ceremony dials — `--no-qa` and the scope-contract
-activation switch — so a one-scope bug-fix pays the same Orient → board → gates ceremony as a
-six-week feature. Teams route small work *around* a harness that can't right-size, and a
-bypassed harness stops accumulating KB entries, ledger history, and metrics: value pillar II
-(team inheritance) decays by disuse, not by failure.
+**The problem it set out to solve stands.** A one-scope bug fix pays the same Orient → board → gates ceremony as
+a six-week feature, and a harness that cannot right-size gets bypassed — and a bypassed harness stops
+accumulating knowledge-base entries, ledger history and metrics. What 4.0 does about it is the appetite: a
+pitch's `appetite` sizes the round budget (`~1 week` → 2 rounds), a small shape yields one scope, and a one-scope
+run crosses the same gates quickly. `init fit` still reports what the size heuristic would recommend.
 
-**Lane vocabulary** — `tiny | normal | full`, selected at **GATE L0** and recorded in
-`harness-run.md` frontmatter (`lane:`); the PO can always pin one with `--lane`.
-
-| Lane | Selection (auto, PO-overridable) | Ceremony delta | Defaults |
-|---|---|---|---|
-| **tiny** | one-scope pitch **and** appetite ≤ 2 weeks **and** no third-party integration **and** ≤ 3 user-facing actions — deliberately the *same predicate* the plan activity already uses to judge `lens: lite`, so lane selection reuses that knob instead of inventing a parallel one | Skips Orient + GATE L1a (no Scout dispatch); board auto-generated `lens: lite`; L1a+L1b collapse into **one merged confirmation gate** | QA `--no-qa`, `round_budget` 2 |
-| **normal** | everything else | none — today's behavior, unchanged | `round_budget` 3 |
-| **full** | cross-context lens **or** appetite ≥ 6 weeks | adds mandatory QA and GATE H review | `lens: cross-context`, `round_budget` 4 |
-
-**The invariant that makes lanes safe** (also listed in the appendix): **lanes thin
-*ceremony*, never *verification*.** No lane ever skips EVAL (single judge), T0, or any hook.
-A tiny lane with a skipped judge would just be "prompt harder" with extra steps.
-
-**How the lane travels — and deliberately does not.** The lane is pipeline knowledge, so it
-**never rides in `WorkOrderPayload`**: payload fields are worker inputs (registered per worker
-in `x-payload-by-worker`), and a worker that reads its lane has learned the pipeline —
-breaking the layer separation that makes workers pure. Instead the orchestrator **compiles the
-lane away** into knobs that already exist and are already registered: `payload.lens`,
-`payload.dimensions`, its own gate policy, and the budget defaults above. For audit only, the
-draft reserves an optional top-level informational `lane` field on the WorkOrder *envelope*
-(never readable by workers), wired only when lanes are implemented.
-
-**Per-lane `--auto` gate sets**, defined against the authoritative L0.7 table (§4.6):
-tiny×`--auto` pauses only at the merged board gate + L4; normal×`--auto` = L1a/L1b/L3/L4;
-full×`--auto` = normal + GATE H review.
+**The invariant that made lanes safe stands, and is listed in the appendix: lanes thin *ceremony*, never
+*verification*.** No lane ever skipped EVAL (single judge), T0, or any hook; a lane with a skipped judge would
+be "prompt harder" with extra steps.
 
 ---
 [← System Design](03-system-design.md) · [Back to index](README.md) · [Next: Verification & Quality Strategy →](05-verification-and-quality-strategy.md)

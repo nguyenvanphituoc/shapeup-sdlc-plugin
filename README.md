@@ -10,9 +10,9 @@ Your agent says it's done. It isn't. This is a [Claude Code](https://code.claude
 that runs a full Shape Up lifecycle — idea → pitch → build → evaluate → ship — where the
 important rules are enforced by the runtime instead of asked for in a prompt.
 
-The ceremony is right-sized: `/ship` runs the full gated pipeline for real features, and
-`/ship --tiny` runs a two-gate lane (orient → build → smoke-test → done) for the one-file
-fixes where the gates would have nothing to say.
+The ceremony is sized by the pitch's appetite: `/ship` runs the full gated loop, and a small
+pitch is a one-scope run with a short round budget — the gates and the verification floor are the same. (The
+separate `--tiny` lane was retired; `/ship --tiny` now says so and points here.)
 
 <p align="center">
   <img src="docs/assets/demo-gate.svg" alt="Terminal recording: a worker tries to edit a file outside the scope it was given, a PreToolUse hook denies the write and names the path, and the next edit inside the scope is permitted." width="700">
@@ -92,18 +92,10 @@ quickstart.
 > npx shapeup-sdlc init -d . -y
 > ```
 >
-> **And lift the print-mode background ceiling, or the run is killed at ten minutes.** `claude -p`
-> terminates a session's background tasks after 600 s by default, and the whole pipeline runs as
-> one background launch — so an unattended run dies mid-BUILD with the CLI reporting nothing worse
-> than "background tasks still running after 600s; terminating". Measured, on a run that had
-> reached WIRE:
 >
-> ```bash
-> CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 claude -p "/shapeup-sdlc-plugin:ship …" …
-> ```
->
-> Nothing is lost when it happens — resume state is on disk, so relaunching fast-forwards past the
-> phases that finished. It costs a relaunch, not a run.
+> The loop runs in your own session, in the foreground, so print mode's background-task ceiling does
+> not apply to it. A killed session loses nothing: `/ship` again over the open run reads the artifacts on
+> disk and carries on from the first step that is not done.
 
 Want to see a full run before installing anything? **[docs/quickstart.md](docs/quickstart.md)**
 walks one small feature end to end — including what the hooks do to a premature eval, a FAIL round
@@ -117,7 +109,7 @@ installer, and troubleshooting are in
 ## Agent support
 
 The harness targets **Claude Code only**. The reason is the row that never travelled when we
-compiled to other CLIs: hooks. The 8 skills, 11 slash commands and the kernel are
+compiled to other CLIs: hooks. The 7 skills, 11 slash commands and the kernel are
 portable prose and plain Node — but hook-enforced gates (envelope validation, substrate
 sandbox, safety spine, the zero-work block) are a per-CLI mechanism, and without them every gate degrades from
 **enforced** to **instructed** — the same honor system every other framework runs on
@@ -153,13 +145,13 @@ document as a whole starts at [`docs/design/`](docs/design/README.md). This diag
 full phase and gate mechanism — simpler than that per-attempt detail, but the whole pipeline:
 
 <p align="center">
-  <img src="docs/assets/workflow-mechanism.svg" alt="The shapeup-sdlc harness pipeline from raw idea to Retro: Shaping produces a Pitch, the Betting Table bets into the tech-lead-orchestrated run or rejects back to raw idea, Kick-off through Ship Sign-off cross gates Intake & Config (L0), Orient Review (L1a), Wiring Review (L1a.5), Board Review (L1b), the advisory Round Close (L2), Verdict (L3), Cut-List Review (GATE H) and Ship Sign-off (L4), the Build/Evaluate round loops on FAIL, and a circuit breaker routes straight to Cut-List Review (GATE H) — bypassing QA — when the round or wall-clock budget runs out." width="900">
+  <img src="docs/assets/workflow-mechanism.svg" alt="The shapeup-sdlc harness pipeline from raw idea to Retro: Shaping produces a Pitch, the Betting Table bets into the loop-driven run or rejects back to raw idea, Kick-off through Ship Sign-off cross gates Intake & Config (L0), Orient Review (L1a), Wiring Review (L1a.5), Board Review (L1b), the advisory Round Close (L2), Verdict (L3), Cut-List Review (GATE H) and Ship Sign-off (L4), the Build/Evaluate round loops on FAIL, and a circuit breaker routes straight to Cut-List Review (GATE H) — bypassing QA — when the round or wall-clock budget runs out." width="900">
 </p>
 
 <p align="center"><sub>
 Plan-phase skills in blue, build-phase in green, QA-phase in pink; amber pills are gates —
 the outlined <b>L2</b> (Round Close) is advisory, the rest block. The dashed region marks what
-<code>/tech-lead</code> orchestrates end to end.
+<code>/ship</code> drives end to end.
 </sub></p>
 
 Since v1.3 the pipeline carries a **traceability spine**: the plan activity's requirements
@@ -185,7 +177,6 @@ every arm is skipped when its artifact is absent, so older specs are unaffected.
 | QA (post-PASS) | `qa-edge-hunter` | v1.1 | Exploratory edge hunt on the running app through six fixed lenses, charting edges *outside* what the evaluator probed. Findings go to the ledger as `~`; never blocks ship. |
 | Stop (11) | `building` | v1.0 | The `stop` sub-command — GATE H (Cut-List Review), done by the loop itself as a `kind: stop` step: must-have census (every ownership, exhaustion and requirement claim cites `harness probe owner` / `attempts` / `requirements`) → baseline comparison (never vs. the ideal) → cut list + ship verdict, written as data that GATE L4 reads. Handles the normal stop and both circuit-breaker triggers. |
 | Retro (post-L4) | `building` | v1.0 | The `retro` sub-command — RLHF for the harness: turns raw PO/TL feedback at Ship Sign-off into per-reader guidelines under committed `shapeup/knowledge-base/<reader>.md` (readers: `task-executor`, `orient`, `qa-edge-hunter`, the `plan` activity, and the loop itself at GATE L0 — workflow guidance, never a gate answer). `--scan` seeds the same files from the project on disk before the first run; `--research <stack>` seeds them from the platform's official documentation when the project has nothing to scan, and cross-checks a scan's rules when it has. GATE COACH-1 (Retro Ownership) asks the PO which reader owns each rule — never assumes; mechanism defects are filed to the harness-defect register instead. |
-| Orchestrator | `tech-lead` | v1.0 | Owns the run end-to-end: PLAN once → BUILD all tasks → EVAL once per round, looping on FAIL. Three-level circuit breaker (rounds / T0 attempts / wall clock), T0-verified build rounds, mechanical hill derivation. Sole writer of run-state. |
 
 ### Commands
 
@@ -214,7 +205,7 @@ the layer that carries it, and the three layers here fail differently:
 | Layer | Works when | Fails how |
 |---|---|---|
 | **Wall** — a hook | Under every permission mode, including `bypassPermissions`. The CLI runs it; the model cannot decline it. | Fail-OPEN on anything ambiguous, and every evaluation writes a decision row, so "permitted" never looks like "never ran". |
-| **Runtime** — the kernel and the run script | When the run goes through the harness. A schema rejection or a non-zero exit stops the step. | A lane that never calls the kernel is never checked — which is why the hooks below cover the doors, not the steps. |
+| **Runtime** — the kernel | When the run goes through the harness. A schema rejection or a non-zero exit stops the step. | A lane that never calls the kernel is never checked — which is why the hooks below cover the doors, not the steps. |
 | **Advisory** — a report section | When somebody reads the artifact. | Silently, if nobody does. It is a cleanup list, never a verdict. |
 
 **Four walls.** These are hooks because nothing in the runtime can substitute for them:
@@ -320,8 +311,6 @@ These hold across the harness and are the reason it stays predictable:
 
 Stated plainly, because you will hit them:
 
-- **The `--tiny` lane is young.** It right-sizes the ceremony (two gates instead of eight) but
-  keeps the T0 verification floor; its fit-check heuristics will need tuning against real use.
 - **Nothing here measures skill quality or activation.** There is no number for whether a
   skill's description makes it fire on the right request, no measured craft delta, and no CI
   check enforcing the honesty invariant on such numbers. The structural suite is the coverage
@@ -347,8 +336,7 @@ claude --plugin-dir .                # load this working copy without installing
 .claude-plugin/
   plugin.json         # plugin manifest
   marketplace.json    # marketplace listing (points at this repo)
-skills/<name>/SKILL.md # the 8 harness skills (+ references/, resources/ and assets/)
-skills/tech-lead/workflows/shapeup-run.js # the BUILD-phase pipeline, on the native Workflow runtime
+skills/<name>/SKILL.md # the 7 harness skills (+ references/, resources/ and assets/)
 kernel/harness.mjs    # ONE entry point for every deterministic step; the whole permission grant
 kernel/{verify,reduce,probe,init,report}/ #   its subcommands, plus compile and gate at the root
 kernel/lib/           # argv (the typed CLI boundary), paths (+ the run key), contract (shape)

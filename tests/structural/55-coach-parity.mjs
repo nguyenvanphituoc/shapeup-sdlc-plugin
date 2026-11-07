@@ -119,11 +119,11 @@ export async function run(ctx) {
   if (/never an answer, a skip or a wider substrate/.test(planDoc)) ok("the plan resource bounds its guidance: never an answer, a skip or a wider substrate");
   else fail("skills/building/resources/plan.md does not state that guidance is never an answer, a skip or a wider substrate");
 
-  const gates = read(join(ROOT, "skills/tech-lead/references/gates.md"));
-  if (gates.includes("shapeup/knowledge-base/tech-lead.md")) ok("tech-lead reads knowledge-base/tech-lead.md at GATE L0");
-  else fail("skills/tech-lead/references/gates.md never reads shapeup/knowledge-base/tech-lead.md");
-  if (/Nothing in that file answers a gate/.test(gates)) ok("GATE L0 states that the tech-lead file answers no gate");
-  else fail("gates.md L0.10 does not state that the knowledge base answers no gate");
+  // The knowledge base is read at L0 and answers no gate. This used to be asserted over the retired tech-lead
+  // skill's gate playbook (L0.10); the loop's two statements of it are intake.md's knowledge-base row, checked
+  // above, and the guidance resource's own first rule, checked here.
+  if (/add a question or a check to a gate block, never an answer/.test(guidanceDoc.replace(/\s+/g, " "))) ok("the guidance resource states that a rule never answers a gate");
+  else fail("skills/building/resources/guidance.md does not state that guidance never answers a gate");
 
   // =============================================================================
   section("56c. The retro is the loop's own act: no coach worker, no scan/research operation; the invariant is written");
