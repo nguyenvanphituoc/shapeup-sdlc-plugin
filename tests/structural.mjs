@@ -499,6 +499,8 @@ const MODULE_FILES = [
   // 123-next-drives-a-run.mjs: the same verb driven through a whole planned run with every command a
   // step hands out executed for real — the seams section 122 cannot see.
   "123-next-drives-a-run.mjs",
+  // 124-leg-usage.mjs: tokens and cost on the leg row — null when the host reported none.
+  "124-leg-usage.mjs",
   "08-docs.mjs",
 ];
 

@@ -46,7 +46,7 @@ work, not work in flight. Surface every string in `warnings`. Then act on `kind`
 
 | `kind` | Do |
 |---|---|
-| `dispatch` | Run each `pre`, then `compile`. Spawn ONE sub-agent (model: `model`) told to invoke `Skill(<skill>) --order "<order_path>"` plus `note`, and to return a one-line summary. When it returns run `ingest`, then each `then`. A failed `compile`/`ingest`, or a sub-agent that dies, runs `on_fail_close` and stops. |
+| `dispatch` | Run each `pre`, then `compile`. Spawn ONE sub-agent (model: `model`) told to invoke `Skill(<skill>) --order "<order_path>"` plus `note`, and to return a one-line summary. When it returns run `ingest` — add `--tokens-total <N> --usage-source agent-tool-result` when the result reported a total, and nothing when it did not; never estimate one — then each `then`. A failed `compile`/`ingest`, or a sub-agent that dies, runs `on_fail_close` and stops. |
 | `build` | For every scope in `release`, in ONE message, spawn a sub-agent (model: `model`) for that scope exactly as for `dispatch` (`compile`, `order_path`, `note`). When they return, ask again. |
 | `command` | Run `pre`, then `command`; exit codes in `ok_exits` (default `[0]`) pass; any other runs `on_fail_close` when present. Then each `then`. |
 | `gate` | See below. |

@@ -421,7 +421,7 @@ function applyResultLocked(result, { cwd, slug }) {
 // ---------------------------------------------------------------------------
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "harness.mjs reduce ingest (<result.json> | --order <order.json>) [--cwd <dir>] [--no-receipt-check]",
+  usage: "harness.mjs reduce ingest (<result.json> | --order <order.json>) [--cwd <dir>] [--no-receipt-check] [--tokens-in N] [--tokens-out N] [--tokens-total N] [--cost-usd X] [--usage-source <name>]",
   _: { arity: 0, max: 1, name: "result.json" },
   order: { type: "path" },
   cwd: { type: "path" },
@@ -429,6 +429,13 @@ export const ARGV_SPEC = {
   // fail a tool call would get the layer disabled — so a gate built on it needs an escape for the
   // environmental case, and one that appears in the run's own output rather than in folklore.
   "no-receipt-check": { type: "flag" },
+  // What the host reported the dispatched leg to have used, when the dispatching session was told.
+  // Recorded on the leg row; absent means "not reported", and a figure is never inferred.
+  "tokens-in": { type: "int", min: 0 },
+  "tokens-out": { type: "int", min: 0 },
+  "tokens-total": { type: "int", min: 0 },
+  "cost-usd": { type: "num", min: 0 },
+  "usage-source": { type: "str" },
 };
 
 /**
@@ -579,7 +586,7 @@ export function addressOf(orderId) {
  * @param {string} [ingestedAt] - The completion instant; defaults to now.
  * @returns {object} The row appended to `legs.jsonl`.
  */
-export function legRow(order, receipt, cwd, ingestedAt = new Date().toISOString()) {
+export function legRow(order, receipt, cwd, ingestedAt = new Date().toISOString(), usage = {}) {
   const slug = String(order.order_id ?? "").split("/")[0];
   const { name, round, attempt } = addressOf(order.order_id);
   const dispatchedAt = receipt?.at ?? null;
@@ -607,8 +614,24 @@ export function legRow(order, receipt, cwd, ingestedAt = new Date().toISOString(
     started_from: dispatchedAt ? "dispatch-receipt" : (order.compiled_at ? "compiled_at" : null),
     duration_ms: Number.isFinite(startMs) && Number.isFinite(endMs) ? endMs - startMs : null,
     attested: !!receipt,
+    // What the leg cost, as the HOST reported it to the session that dispatched it. All nullable, and
+    // null means "the host gave no figure" — never zero. `tokens_total` exists beside the split
+    // because a host that reports only a total must not have it forced into a side it never named.
+    // `usage_source` names who supplied the numbers, so a reader can tell a reported figure from none.
+    tokens_in: usageNum(usage.tokens_in),
+    tokens_out: usageNum(usage.tokens_out),
+    tokens_total: usageNum(usage.tokens_total),
+    cost_usd: usageNum(usage.cost_usd),
+    usage_source: typeof usage.source === "string" && usage.source.trim() ? usage.source.trim() : null,
   };
 }
+
+/**
+ * A reported usage figure, or null: finite and non-negative, else absent.
+ * @param {*} v - A candidate figure.
+ * @returns {(number|null)} The number, or null.
+ */
+const usageNum = (v) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null);
 
 /**
  * Append one leg-completion row. Never throws.
@@ -756,7 +779,10 @@ export async function cli(rawArgv) {
   // dispatch, so it has no leg to close and inventing one would put a phantom interval in the
   // record set every later measurement reads.
   if (order) {
-    const row = legRow(order, att.ok ? att.receipt : null, cwd);
+    const row = legRow(order, att.ok ? att.receipt : null, cwd, undefined, {
+      tokens_in: args.tokensIn, tokens_out: args.tokensOut, tokens_total: args.tokensTotal,
+      cost_usd: args.costUsd, source: args.usageSource,
+    });
     if (!appendLeg(row, cwd)) {
       console.error(`  ! leg-completion row could not be written for ${row.order_id} — this leg will ` +
                     `read as having no completion record (harness probe concurrency reports it as such).`);

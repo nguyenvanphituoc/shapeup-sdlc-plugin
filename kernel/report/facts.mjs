@@ -19,8 +19,9 @@
 // and the architecture forbids one. `n_ac_fail` is a fact; "AC health" is not.
 //
 // A dispatch with no matching result is not dropped: `answered: false` says so, because an absent
-// value and a zero value must not share a signature. This module carries no cost or wall-clock
-// instrumentation — there is no run-scoped record of either to project.
+// value and a zero value must not share a signature. Cost is projected only where a leg row carries
+// it: `tokens_*` and `cost_usd` are what the host reported to the dispatching session, null when it
+// reported nothing, and `usage_source` names who supplied them.
 
 /** Every fact table this module can produce, in dependency order. Exported so the writer, the
  * manifest and the tests enumerate one list instead of three. */
