@@ -544,9 +544,9 @@
       }
     },
     "AegisTriple": {
-      "description": "One digested failure — harness probe digest distills raw build/test/Playwright logs into these so the next attempt gets a few lines of signal instead of a stack-trace dump. Appears as T0Artifact.discovered_tasks[] (red attempts) and as WorkOrder payload.digested_errors[] (the next attempt's starting bug list).",
+      "description": "One digested failure — the failure digester distills raw build/test/Playwright logs into these so the next attempt gets a few lines of signal instead of a stack-trace dump. Appears as T0Artifact.discovered_tasks[] (red attempts) and as WorkOrder payload.digested_errors[] (the next attempt's starting bug list).",
       "x-tier": "EMBEDDED",
-      "x-writer": "harness probe digest (regex pass; Sonnet fallback only on unrecognized formats)",
+      "x-writer": "the failure digester, called by harness verify t0 and harness verify build (regex pass only)",
       "type": "object",
       "properties": {
         "file": {

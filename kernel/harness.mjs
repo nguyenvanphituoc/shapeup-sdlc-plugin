@@ -29,7 +29,7 @@
 //   reduce   ingest · hill · ship ·            Single writer. Shared state has exactly one author.
 //            board
 //   gate                                      An answer file with a source, not a vibe.
-//   probe    resume · t0 · digest ·           Queries over run state (`resume` also closes a run).
+//   probe    resume · t0 ·                    Queries over run state (`resume` also closes a run).
 //            leg · eval · owner ·
 //            requirements · attempts ·
 //            hunt · next
@@ -90,7 +90,6 @@ export const ROUTES = {
   },
   probe: {
     resume: "./probe/resume.mjs", t0: "./probe/t0.mjs",
-    digest: "./probe/digest.mjs",
     leg: "./probe/leg.mjs", eval: "./probe/eval.mjs", owner: "./probe/owner.mjs",
     requirements: "./probe/requirements.mjs", attempts: "./probe/attempts.mjs", hunt: "./probe/hunt.mjs",
     next: "./probe/next.mjs",

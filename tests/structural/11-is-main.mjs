@@ -64,7 +64,6 @@ const ENTRY_POINTS = [
   { file: "kernel/harness.mjs", args: ["verify", "budget"], label: "kernel verify budget", expect: "stdout" },
   { file: "kernel/harness.mjs", args: ["verify", "spec"], label: "kernel verify spec", expect: "stdout" },
   { file: "kernel/harness.mjs", args: ["init", "fit"], label: "kernel init fit", expect: "stdout" },
-  { file: "kernel/harness.mjs", args: ["probe", "digest"], label: "kernel probe digest", expect: "stdout" },
   { file: "kernel/harness.mjs", args: ["reduce", "ingest"], label: "kernel reduce ingest", expect: "stdout" },
   { file: "kernel/harness.mjs", args: ["reduce", "board"], label: "kernel reduce board", expect: "stdout" },
   { file: "kernel/harness.mjs", args: ["compile"], label: "kernel compile", expect: "stdout" },

@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // AEGIS digester — compresses a failed verification into the triples the next attempt reads.
 //
 // Distills raw build/test/Playwright logs into {file, line, core_message} triples so a
@@ -10,9 +9,8 @@
 // diagnostic that names a file but no line number (a resource-compiler error, for example)
 // still yields its file — `line` stays null rather than being guessed at.
 //
-// Zero dependencies, zero network — same discipline as oracles/*.
-
-import { runArgs } from "../lib/argv.mjs";
+// A library, not a subcommand: `verify t0` and `verify build` import `digest` to compress what a red
+// run printed. Zero dependencies, zero network — same discipline as oracles/*.
 
 const PATTERNS = [
   // Node stack frame:  "    at fn (path/to/file.js:12:34)"  or  "    at path/to/file.js:12:34"
@@ -118,37 +116,3 @@ export function digest(rawText) {
     return true;
   });
 }
-
-// --- CLI ---------------------------------------------------------------------
-/** The typed argv contract (see `./lib/argv.mjs`). A bare `-`, or nothing, means stdin. */
-export const ARGV_SPEC = {
-  usage: "harness.mjs probe digest [<log-file>|-]   (no file → stdin)",
-  _: { arity: 0, max: 1, name: "log-file" },
-};
-
-/**
- * Digest a build log into AEGIS triples on stdout.
- *
- * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
- * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
- *   call `process.exit()` with the subcommand's documented code rather than returning.
- */
-export async function cli(rawArgv) {
-  const arg = runArgs(ARGV_SPEC, rawArgv)._[0];
-  let raw;
-  if (arg && arg !== "-") {
-    const { readFileSync } = await import("node:fs");
-    raw = readFileSync(arg, "utf8");
-  } else {
-    raw = await new Promise((resolve) => {
-      let d = "";
-      process.stdin.on("data", (c) => (d += c));
-      process.stdin.on("end", () => resolve(d));
-      process.stdin.on("error", () => resolve(""));
-    });
-  }
-  const triples = digest(raw);
-  console.log(JSON.stringify(triples, null, 2));
-  process.exit(0);
-}
-
