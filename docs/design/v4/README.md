@@ -16,6 +16,7 @@ to an ADR and this folder is retired (the rule in ADR-0002; the ADR is
 | [`constraints-2026-11-07.md`](constraints-2026-11-07.md) | what in the repo bites the plan |
 | [`plan-2026-11-07-single-loop.md`](plan-2026-11-07-single-loop.md) | the plan: activities A0 to A9, with their done-when checks |
 | [`execution-2026-11-07.md`](execution-2026-11-07.md) | how far the plan got, what stopped it, and what each done-when stands at |
+| [`plan-2026-11-07-native-first.md`](plan-2026-11-07-native-first.md) | the second plan: minimal scripts and tests, the host's harness for the rest — stages S1 to S4, each gated on a real run |
 
 ## Method and rules
 

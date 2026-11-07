@@ -17,6 +17,7 @@ The registry v4 is planned and judged against. See [`README.md`](README.md) for 
 
 | ID | Requirement | Source | Priority | Status | Decided |
 |---|---|---|---|---|---|
+| V4-REQ-1 | Every kernel module is classified in its header as witness, memory or projection, and the structural suite checks the classification against a list, so a module whose class is unknown cannot ship | [`analysis/03`](analysis/03-what-the-kernel-is-for.md) | should | proposed | |
 | V4-REQ-2 | Every agent a run spawns carries a recorded reason to exist: it reads far more than it returns, it does independent or parallel work, or it needs a tool the loop cannot hold. Work with none of the three stays in the run loop's own window. | [`analysis/02`](analysis/02-single-agent-loop.md); low level in [`README.md`](README.md#v4-req-2--low-level) | should | accepted (narrowed: `coverage` + `analyze`) | 2026-11-07, PO, by setting the implementation goal |
 | V4-REQ-3 | Every agent a run spawns has a row in the run's export naming its worker and duration; a run has no agent its own records cannot see | [`review`](review-2026-11-07-single-loop.md) §8 | must | proposed | |
 | V4-REQ-4 | A gate is answered in the session that reached it; no relaunch and no fast-forward follow a PO's answer, and the gate row still carries its source | [`review`](review-2026-11-07-single-loop.md) §8 | must | proposed | |
@@ -27,8 +28,12 @@ The registry v4 is planned and judged against. See [`README.md`](README.md) for 
 | V4-REQ-9 | The published install URLs keep resolving and delegate to the installer | [`review`](review-2026-11-07-single-loop.md) §8 | should | proposed | |
 | V4-REQ-10 | Each hook's release notes carry its deny count over the archived runs; a hook at zero across them is named as an ablation candidate at the next model upgrade | [`review`](review-2026-11-07-single-loop.md) §8 | could | proposed | |
 | V4-REQ-11 | Wire and map-scopes produce their committed artifacts from the same context as coverage and analyze — *after* the handoff trace `analysis/02` question 3 asks for | [`review`](review-2026-11-07-single-loop.md) §8 | could | proposed | |
-
-`V4-REQ-1` is left unassigned for the group from `analysis/01`.
+| V4-REQ-12 | A projection module ships only with a named reader in a skill or a command; one with none is removed in the release that finds it (narrows V4-REQ-6 from "has a caller" to "has a reader") | [`analysis/03`](analysis/03-what-the-kernel-is-for.md) | should | proposed | |
+| V4-REQ-13 | A with/without run of the decision engine — `probe next` replaced by a listing of open and closed artifacts the loop reads — on one pitch, one model, one date, two reps, held to the kit's "holds" rule | [`analysis/03`](analysis/03-what-the-kernel-is-for.md) | could | proposed | |
+| V4-REQ-14 | The shipped executable set is at most one script with at most four subcommands (`t0`, `gate`, `fence`, `init`) and two hooks; a module outside that list is removed, not added | [`analysis/04`](analysis/04-native-harness.md) | must | proposed | |
+| V4-REQ-15 | Every worker is a plugin subagent definition with `tools`, `model` and `skills` declared; the loop dispatches by agent name and reads the result file the worker wrote | [`analysis/04`](analysis/04-native-harness.md) | must | proposed | |
+| V4-REQ-16 | Destructive-command and secret-read protection is a `permissions.deny` block the installer writes, not a hook, verified by executing the host against it | [`analysis/04`](analysis/04-native-harness.md) | should | proposed | |
+| V4-REQ-17 | A structural test either executes a shipped script against a fixture or validates a shipped manifest; a test that asserts on prose is removed, and prose parity is the maintenance audit's job | [`analysis/04`](analysis/04-native-harness.md) | must | proposed | |
 
 ## Open questions
 
@@ -37,7 +42,7 @@ Questions that block a requirement from being written atomically. Each becomes a
 
 From [`analysis/01-rent-or-own-the-harness.md`](analysis/01-rent-or-own-the-harness.md):
 
-- Which parts of the plugin re-implement what the host tool now does itself?
+- ~~Which parts of the plugin re-implement what the host tool now does itself?~~ answered in [`analysis/03`](analysis/03-what-the-kernel-is-for.md)
 - Does any hook, gate or worker skill have a with/without ablation on record?
 - Does the run export hold pass^k across repeated runs and per-run cost?
 - What does the decision ledger guarantee against rewriting — and is that enough for an audit log?
