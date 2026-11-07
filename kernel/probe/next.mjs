@@ -45,7 +45,7 @@ import { fileURLToPath } from "node:url";
 import { runArgs, isMain } from "../lib/argv.mjs";
 import {
   ordersDir, resultsDir, legLedger, dispatchReceipts, readRunId, gates as gatesPath,
-  runArgsPath, receipt as receiptPath, hammerCensus, report as reportPath, orientDir,
+  runArgsPath, receipt as receiptPath, hammerCensus, report as reportPath, orientDir, gateAnswerCandidates,
 } from "../lib/paths.mjs";
 import { launchProblems } from "../lib/floor.mjs";
 import { scheduleFor, releasable } from "../lib/schedule.mjs";
@@ -211,7 +211,12 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
     for (const r of gateRows) if (r.gate === gate && r.status === "ok" && (round == null || Number(r.round) === round)) hit = r;
     return hit;
   };
-  const answersFlag = !L.answers ? "" : ["ci", "guarded", "interactive"].includes(L.answers) ? ` --preset ${L.answers}` : ` --file "${L.answers}"`;
+  // The answer set a gate resolves through. A launch that named none and left no answer file anywhere
+  // the resolver looks would exit 2 at its first gate; the interactive preset is what "nobody
+  // pre-answered anything" means, so that is what such a run resolves through.
+  const answersFlag = L.answers
+    ? (["ci", "guarded", "interactive"].includes(L.answers) ? ` --preset ${L.answers}` : ` --file "${L.answers}"`)
+    : (gateAnswerCandidates(cwd, slug).some((p) => existsSync(p)) ? "" : " --preset interactive");
   const gateStep = (gate, { round = null, verdict = null, ctx = {}, pre = [], abortCause = null }) => {
     const flags = `${round != null ? ` --round ${round}` : ""}${verdict ? ` --verdict ${verdict}` : ""}`;
     const base = `gate --resolve ${gate} --slug ${slug}${flags}`;

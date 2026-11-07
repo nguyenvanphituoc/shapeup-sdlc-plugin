@@ -1,5 +1,5 @@
 // Structural test module: `probe next`, the run's state machine, executed against planted trees.
-// Section: 122.
+// Section: 175.
 //
 // WHY THIS MODULE EXISTS.
 //
@@ -29,7 +29,7 @@ const FULL_ORIENT = ["code-surface.md", "discovered-seed.md", "hill-signal.md", 
  */
 export async function run(ctx) {
   const { ROOT, ok, fail, section } = ctx;
-  section("122. `probe next` derives the run's next step from artifacts, and every post-condition is a branch");
+  section("175. `probe next` derives the run's next step from artifacts, and every post-condition is a branch");
 
   const KERNEL = join(ROOT, "kernel/harness.mjs");
   const sh = (verbs, args) => spawnSync("node", [KERNEL, ...verbs.split(" "), ...args], { encoding: "utf8" });

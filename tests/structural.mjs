@@ -496,6 +496,9 @@ const MODULE_FILES = [
   // 122-probe-next.mjs: the run's state machine as a kernel verb, one planted tree per branch of the
   // control flow the run script used to hold where no fixture could reach it.
   "122-probe-next.mjs",
+  // 123-next-drives-a-run.mjs: the same verb driven through a whole planned run with every command a
+  // step hands out executed for real — the seams section 122 cannot see.
+  "123-next-drives-a-run.mjs",
   "08-docs.mjs",
 ];
 
