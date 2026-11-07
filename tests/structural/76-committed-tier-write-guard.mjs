@@ -14,7 +14,7 @@
 // own lint go green. A worker does not carry a lesson across a dispatch, and the run pays ~12 minutes
 // and a whole L0 turn for each recurrence. Two fresh runs reproduced it 2/2.
 //
-// SO THE REMEDY IS A PRECONDITION, NOT A RULE. `hooks/tier-guard.mjs` refuses the write itself and
+// SO THE REMEDY IS A PRECONDITION, NOT A RULE. `hooks/sandbox-guard.mjs` refuses the write itself and
 // says why at the moment of writing, which is the one moment the writer can still rephrase. The
 // shape is `sandbox-guard.mjs`'s, deliberately: fail open on everything it cannot positively prove,
 // deny only on the state the lint would red.
@@ -37,16 +37,16 @@ import { spawnSync } from "node:child_process";
 export async function run(ctx) {
   const { ROOT, ok, fail, section, readJSON } = ctx;
 
-  const GUARD = join(ROOT, "hooks/tier-guard.mjs");
+  const GUARD = join(ROOT, "hooks/sandbox-guard.mjs");
 
   // ===============================================================================================
   section("128. Committed-tier write guard — registered, and denying at the write boundary");
   // ===============================================================================================
   if (!existsSync(GUARD)) {
-    fail("hooks/tier-guard.mjs is missing — the committed tier has no write-time guard (HD-036 recurs 2/2 on fresh runs)");
+    fail("hooks/sandbox-guard.mjs is missing — the committed tier has no write-time guard (HD-036 recurs 2/2 on fresh runs)");
     return;
   }
-  ok("hooks/tier-guard.mjs exists");
+  ok("hooks/sandbox-guard.mjs exists");
 
   // REGISTRATION IS ITS OWN CHECK. The hook could be perfect and still never fire; 03-hooks.mjs
   // asserts the inverse (no orphan scripts), and this asserts the matcher covers every write tool,
@@ -54,21 +54,21 @@ export async function run(ctx) {
   {
     const manifest = readJSON(join(ROOT, "hooks/hooks.json"));
     const entries = (manifest.hooks?.PreToolUse || []).filter((g) =>
-      (g.hooks || []).some((h) => (h.command || "").includes("hooks/tier-guard.mjs")));
+      (g.hooks || []).some((h) => (h.command || "").includes("hooks/sandbox-guard.mjs")));
     if (!entries.length) {
-      fail("hooks.json does not register hooks/tier-guard.mjs on PreToolUse — the guard exists but never fires");
+      fail("hooks.json does not register hooks/sandbox-guard.mjs on PreToolUse — the guard exists but never fires");
     } else {
-      ok("hooks.json registers tier-guard.mjs on PreToolUse");
+      ok("hooks.json registers sandbox-guard.mjs on PreToolUse");
       const matcher = entries[0].matcher || "";
       const covered = ["Edit", "Write", "MultiEdit"].filter((t) => matcher.split("|").includes(t));
-      if (covered.length === 3) ok("tier-guard's matcher covers Edit|Write|MultiEdit (no write tool routes around it)");
-      else fail(`tier-guard's matcher "${matcher}" misses ${["Edit", "Write", "MultiEdit"].filter((t) => !covered.includes(t)).join(", ")} — that tool writes the same line unguarded`);
+      if (covered.length === 3) ok("the tier check's matcher covers Edit|Write|MultiEdit (no write tool routes around it)");
+      else fail(`the tier check's matcher "${matcher}" misses ${["Edit", "Write", "MultiEdit"].filter((t) => !covered.includes(t)).join(", ")} — that tool writes the same line unguarded`);
     }
   }
 
   /** A throwaway checkout with a committed tier for slug `f`. */
   const makeCheckout = () => {
-    const dir = mkdtempSync(join(tmpdir(), "tier-guard-"));
+    const dir = mkdtempSync(join(tmpdir(), "tier-check-"));
     mkdirSync(join(dir, "shapeup", "f", "spec"), { recursive: true });
     mkdirSync(join(dir, "shapeup", "knowledge-base"), { recursive: true });
     mkdirSync(join(dir, ".git"), { recursive: true });   // a project root the hook can find
@@ -99,8 +99,8 @@ export async function run(ctx) {
 
     // 1. The measured shape (HD-027): a bare .shapeup/ path in provenance prose.
     const leak = ask(ws, req, "Atomic requirement clauses extracted from `.shapeup/f/intake.md`.\n");
-    if (leak.denied) ok("tier-guard DENIES a committed write citing a .shapeup/ path");
-    else fail(`tier-guard permitted the exact write HD-027 measured — the guard is not enforcing\n${leak.out}`);
+    if (leak.denied) ok("the tier check DENIES a committed write citing a .shapeup/ path");
+    else fail(`the tier check permitted the exact write HD-027 measured — the guard is not enforcing\n${leak.out}`);
 
     // 2. The denial has to be usable AT THE WRITE, which is the whole reason this is a hook and not
     //    a lint. It names the file, the offending token, why it is wrong, and what to write instead.
@@ -115,49 +115,49 @@ export async function run(ctx) {
 
     // 3. The other half of the rule, and the one that bit hardest in synthesis.md: a board id.
     const board = ask(ws, join(ws, "shapeup/f/spec/synthesis.md"), "| TASK-004 | Wire the seam | done |\n");
-    if (board.denied && /renumber/i.test(board.out)) ok("tier-guard DENIES a committed write carrying a board id, and says why (ids renumber per machine)");
-    else fail(`tier-guard permitted a TASK-NNN id in a committed file, or gave no reason\n${board.out}`);
+    if (board.denied && /renumber/i.test(board.out)) ok("the tier check DENIES a committed write carrying a board id, and says why (ids renumber per machine)");
+    else fail(`the tier check permitted a TASK-NNN id in a committed file, or gave no reason\n${board.out}`);
 
     // 4. Every write tool, not just Write. The Edit path is the one HD-036 recurred through: the
     //    file already existed and the second violation was added a line at a time.
     const viaEdit = ask(ws, req, "See `.shapeup/f/orders/r1-a1.json` for the dispatch.\n", "Edit");
-    if (viaEdit.denied) ok("tier-guard DENIES the same leak written through Edit (new_string)");
-    else fail(`tier-guard reads Write but not Edit — the recurrence path is unguarded\n${viaEdit.out}`);
+    if (viaEdit.denied) ok("the tier check DENIES the same leak written through Edit (new_string)");
+    else fail(`the tier check reads Write but not Edit — the recurrence path is unguarded\n${viaEdit.out}`);
 
     const viaMulti = ask(ws, req, "Board id TASK-012 owns this clause.\n", "MultiEdit");
-    if (viaMulti.denied) ok("tier-guard DENIES a leak in ONE edit of a MultiEdit batch");
-    else fail(`tier-guard misses a leaking edit inside a MultiEdit batch\n${viaMulti.out}`);
+    if (viaMulti.denied) ok("the tier check DENIES a leak in ONE edit of a MultiEdit batch");
+    else fail(`the tier check misses a leaking edit inside a MultiEdit batch\n${viaMulti.out}`);
 
     // 5. FAIL OPEN, positively. Each of these is a state the guard cannot prove bad, and a guard
     //    that blocks them is a guard the next operator disables.
     const clean = ask(ws, req, "Derived from the pitch staged for this run by harness init run.\n");
-    if (!clean.denied) ok("tier-guard ALLOWS committed prose that names no local path or board id");
-    else fail(`tier-guard denied clean committed prose — false positive\n${clean.out}`);
+    if (!clean.denied) ok("the tier check ALLOWS committed prose that names no local path or board id");
+    else fail(`the tier check denied clean committed prose — false positive\n${clean.out}`);
 
     const kb = ask(ws, join(ws, "shapeup/knowledge-base/harness-defects.md"),
       "HD-036 — tech-lead writes `.shapeup/<slug>/` paths into project-profile.md (TASK-004 seen too).\n");
-    if (!kb.denied) ok("tier-guard ALLOWS shapeup/knowledge-base/ — instructions to a worker, outside the lint's own walk");
-    else fail(`tier-guard denied a knowledge-base write; the lint does not walk that tree, so the guard must not either\n${kb.out}`);
+    if (!kb.denied) ok("the tier check ALLOWS shapeup/knowledge-base/ — instructions to a worker, outside the lint's own walk");
+    else fail(`the tier check denied a knowledge-base write; the lint does not walk that tree, so the guard must not either\n${kb.out}`);
 
     const product = ask(ws, join(ws, "src/app.ts"), "const trace = '.shapeup/f/run-state.json';\n");
-    if (!product.denied) ok("tier-guard ALLOWS a .shapeup/ path in product code (outside the committed tier)");
-    else fail(`tier-guard denied a write outside the committed tier — it is fencing the wrong surface\n${product.out}`);
+    if (!product.denied) ok("the tier check ALLOWS a .shapeup/ path in product code (outside the committed tier)");
+    else fail(`the tier check denied a write outside the committed tier — it is fencing the wrong surface\n${product.out}`);
 
     const binary = ask(ws, join(ws, "shapeup/f/spec/diagram.svg"), "<!-- .shapeup/f/intake.md -->\n");
-    if (!binary.denied) ok("tier-guard ALLOWS a file form the lint does not scan (.svg)");
-    else fail(`tier-guard denied an unscanned file form — it reds what the lint would pass\n${binary.out}`);
+    if (!binary.denied) ok("the tier check ALLOWS a file form the lint does not scan (.svg)");
+    else fail(`the tier check denied an unscanned file form — it reds what the lint would pass\n${binary.out}`);
 
     const noContent = ask(ws, req, undefined);
-    if (!noContent.denied) ok("tier-guard ALLOWS a call whose input carries no content to inspect (nothing proven)");
-    else fail(`tier-guard denied a write it could not read — that is fail-closed on an unknown\n${noContent.out}`);
+    if (!noContent.denied) ok("the tier check ALLOWS a call whose input carries no content to inspect (nothing proven)");
+    else fail(`the tier check denied a write it could not read — that is fail-closed on an unknown\n${noContent.out}`);
 
     // 6. Unparseable input is still exit 0. 11-is-main.mjs owns this for every hook; repeated here
     //    because a guard that crashes on a malformed payload takes the tool call down with it.
     {
       const r = spawnSync("node", [GUARD], { encoding: "utf8", input: "NOT JSON AT ALL {{{",
         env: { ...process.env, SHAPEUP_DECISIONS_PATH: join(ws, "decisions.jsonl") } });
-      if (r.status === 0 && !(r.stdout || "").includes('"deny"')) ok("tier-guard fails open (exit 0, no denial) on an unparseable payload");
-      else fail(`tier-guard did not fail open on a malformed payload (exit=${r.status})\n${r.stdout}`);
+      if (r.status === 0 && !(r.stdout || "").includes('"deny"')) ok("the tier check fails open (exit 0, no denial) on an unparseable payload");
+      else fail(`the tier check did not fail open on a malformed payload (exit=${r.status})\n${r.stdout}`);
     }
 
     // 7. The decision reaches the receipt channel — a denial nobody can count is a denial that
@@ -165,13 +165,13 @@ export async function run(ctx) {
     {
       const ledger = join(ws, "decisions.jsonl");
       const rows = existsSync(ledger) ? readFileSync(ledger, "utf8").trim().split("\n").map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean) : [];
-      const mine = rows.filter((r) => r.hook === "tier-guard");
+      const mine = rows.filter((r) => r.hook === "sandbox-guard");
       const denies = mine.filter((r) => r.verdict === "deny");
-      if (mine.length && denies.length && denies.every((r) => r.rule)) ok(`tier-guard files every decision in the ledger (${mine.length} rows, ${denies.length} deny, each naming a rule)`);
-      else fail(`tier-guard's decisions are not on the record (rows=${mine.length} deny=${denies.length}) — a denial that cannot be counted is indistinguishable from an inert hook`);
+      if (mine.length && denies.length && denies.every((r) => r.rule)) ok(`the tier check files every decision in the ledger (${mine.length} rows, ${denies.length} deny, each naming a rule)`);
+      else fail(`the tier check's decisions are not on the record (rows=${mine.length} deny=${denies.length}) — a denial that cannot be counted is indistinguishable from an inert hook`);
       const allows = mine.filter((r) => r.verdict === "allow");
-      if (allows.length && allows.every((r) => r.reason)) ok("tier-guard's fail-open decisions carry a reason (allow is evidence, not silence)");
-      else fail("tier-guard's allow rows carry no reason — the four fail-open states are indistinguishable again");
+      if (allows.length && allows.every((r) => r.reason)) ok("the tier check's fail-open decisions carry a reason (allow is evidence, not silence)");
+      else fail("the tier check's allow rows carry no reason — the four fail-open states are indistinguishable again");
     }
   } finally {
     rmSync(ws, { recursive: true, force: true });

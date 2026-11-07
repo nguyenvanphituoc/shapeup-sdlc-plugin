@@ -189,8 +189,8 @@ no matter what the auto level is.
 The practical takeaway: **PO-confirmation policy** and **mechanical preconditions** are
 orthogonal. Turning a run fully unattended removes the PO from every *decision* point except the
 three unattended stop conditions — it does not, and cannot, remove the hook-enforced
-preconditions (`harness verify envelope`, `sandbox-guard.mjs`, `safety-spine.mjs`,
-`gate-zerowork.mjs`), which hold in every mode because they are scripts, not prompts. GATE L2's
+preconditions (`harness verify envelope`, `sandbox-guard.mjs`, `safety-spine.mjs`),
+which hold in every mode because they are scripts, not prompts. GATE L2's
 board-green check is the one that deliberately does *not* hold that way: it observes in every mode
 but decides in none.
 

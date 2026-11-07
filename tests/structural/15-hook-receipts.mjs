@@ -4,7 +4,6 @@
 //
 //     $ echo 'NOT JSON AT ALL {{{' | node hooks/<gate>.mjs
 //     gate-intake        exit=0   stdout_len=0
-//     gate-zerowork      exit=0   stdout_len=0
 //     sandbox-guard      exit=0   stdout_len=0
 //     safety-spine       exit=0   stdout_len=0
 //     gate-deadline      exit=0   stdout_len=0
@@ -89,11 +88,15 @@ export async function run(ctx) {
   // reduced. What survives is the set that is a WALL: it works under every permission mode and
   // there is no runtime path that can substitute for it.
   //
+  // The floor moved 6 → 4 at native-first S1, deliberately and on the record: the Stop hook that blocked
+  // a receipt-less session was deleted (it had never blocked on any ledger on file), and the committed-tier
+  // write check was folded into `sandbox-guard`, which still refuses the same write at the same moment.
+  //
   // `dispatch-receipt` joined later and is the one entry point here that is NOT a wall — it denies
   // nothing. It belongs in this census anyway, because the failure this module exists for is an
   // enforcement point that silently never ran, and a recorder that never runs is the same defect
   // wearing a different hat: ingest then refuses every orchestrated result in the run.
-  if (hooks.length < 6) fail(`expected ≥6 enforcement entry points, found ${hooks.length}`);
+  if (hooks.length < 4) fail(`expected ≥4 enforcement entry points, found ${hooks.length}`);
   else ok(`${hooks.length} enforcement entry points discovered (${hooks.map((h) => h.name).join(", ")})`);
 
   // (b) MALFORMED INPUT — the reproduced case. Must still fail open, and must now be recorded
@@ -179,30 +182,6 @@ export async function run(ctx) {
       if (r.exit === 0) ok("an unwritable decisions.jsonl does not break the hook — the receipt is best-effort by design");
       else fail(`${probe.name} exited ${r.exit} when the decision ledger was unwritable — a receipt must never fail a run`);
     } finally {
-      rmSync(sandbox, { recursive: true, force: true });
-    }
-  }
-
-  // gate-zerowork's second condition: zero rows means the enforcement layer itself was inert.
-  {
-    const gz = await import(join(ROOT, "hooks/gate-zerowork.mjs"));
-    const sandbox = mkdtempSync(join(tmpdir(), "receipt-census-"));
-    // This block runs IN-PROCESS, where the runner's SHAPEUP_DECISIONS_PATH is set. The census
-    // honours that override (it must — it has to look where rows are actually written), so clear
-    // it here or the census reads the runner's own ledger instead of this sandbox.
-    const saved = process.env.SHAPEUP_DECISIONS_PATH;
-    delete process.env.SHAPEUP_DECISIONS_PATH;
-    try {
-      const none = gz.enforcementCensus(sandbox);
-      if (none.rows === 0 && none.readable === false) ok("enforcementCensus reports an ABSENT ledger as unreadable — an absence proves nothing and must not sharpen the message");
-      else fail(`enforcementCensus mis-read a missing ledger: ${JSON.stringify(none)}`);
-      mkdirSync(join(sandbox, ".shapeup"), { recursive: true });
-      writeFileSync(join(sandbox, ".shapeup", "decisions.jsonl"), JSON.stringify({ hook: "safety-spine", verdict: "allow" }) + "\n");
-      const some = gz.enforcementCensus(sandbox);
-      if (some.rows === 1 && some.readable) ok("enforcementCensus counts real decision rows — 'the gates didn't run' no longer depends on the gates running");
-      else fail(`enforcementCensus mis-counted a populated ledger: ${JSON.stringify(some)}`);
-    } finally {
-      if (saved !== undefined) process.env.SHAPEUP_DECISIONS_PATH = saved;
       rmSync(sandbox, { recursive: true, force: true });
     }
   }

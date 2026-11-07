@@ -56,7 +56,7 @@ steps 0 to 8 (plan §5.2) as instructions. Three things follow:
 
 ### C2 — `gate-zerowork` needs its dispatch detector
 
-`hooks/gate-zerowork.mjs` blocks Stop when `dispatchedOrchestrator(events)` is true and no receipt
+`gate-zerowork.mjs` blocks Stop when `dispatchedOrchestrator(events)` is true and no receipt
 exists. The plan removed "the orchestrator-dispatch detection". Without it the predicate is vacuous:
 a session that never opened a run has not done "zero work", it has done nothing it was asked to.
 What actually changes is the key: keep the leading `/ship` arm (already anchored to the start of the

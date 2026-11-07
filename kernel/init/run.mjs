@@ -28,8 +28,7 @@
 //   • It is the orchestrator's FIRST action, stated in the first screen of SKILL.md. Everything
 //     emitted before a tool call is narration surface; this shrinks that surface to zero.
 //   • It writes `receipt.json` — the fact "this run started, with THIS intake, at THIS time".
-//     `gate-zerowork.mjs` (Stop) blocks a session that dispatched the loop and produced no
-//     receipt. Narration now has a detector that does not depend on what the narration says.
+//     A narrated run has no receipt, and every later guard reads the receipt, not the narration.
 //   • It writes `active-scope`, which is the precondition every downstream guard already
 //     assumed someone had established. Previously that someone was the model, deciding to.
 //     An invariant that depends on the model choosing to establish it is a prompt, not a gate.

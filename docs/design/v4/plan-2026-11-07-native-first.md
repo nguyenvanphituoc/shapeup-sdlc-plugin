@@ -24,7 +24,7 @@ tests/       ≈10 files, each executing a shipped script or validating a shippe
 
 | Do | Done when |
 |---|---|
-| Delete `probe digest`, `reduce graph`, `reduce hill`, `report export` + `report/facts`, `probe stats`, `probe leg`, `verify trace`, `probe requirements`, and their `ROUTES` entries; delete `hooks/gate-zerowork.mjs` and `hooks/tier-guard.mjs`, folding the tier-direction token check (`.shapeup/` path, `TASK-NNN`) into `sandbox-guard` | `node kernel/harness.mjs --help` lists no removed verb; `hooks.json` has 4 entries; the folded check denies a committed-tier write carrying a `TASK-001` token in a fixture |
+| Delete `probe digest`, `reduce graph`, `reduce hill`, `report export` + `report/facts`, `probe stats`, `probe leg`, `verify trace`, `probe requirements`, and their `ROUTES` entries; delete `gate-zerowork.mjs` and `tier-guard.mjs`, folding the tier-direction token check (`.shapeup/` path, `TASK-NNN`) into `sandbox-guard` | `node kernel/harness.mjs --help` lists no removed verb; `hooks.json` has 4 entries; the folded check denies a committed-tier write carrying a `TASK-001` token in a fixture |
 | `hill-chart`: PO decides keep or drop. Keep ⇒ it reads `shapeup/<slug>/hill/*.yml` and `.shapeup/<slug>/legs.jsonl` directly, no reducer. Drop ⇒ delete the skill and the `/hill` command | the skill has no `harness` call, or does not exist |
 | Delete every test file whose subject was removed; strip prose-parity assertions from the mixed files (`05-tech-lead` goes whole) | `npm test` green; `tests/structural/` under 60 files |
 | AGENTS.md: remove the run-graph, export, matrix and hill-reducer paragraphs; the symbol legend loses nothing (no symbol was theirs) | `harness-maintenance-audit` clean |

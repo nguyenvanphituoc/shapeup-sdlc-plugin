@@ -8,8 +8,8 @@ description: "Use this skill whenever the user wants to ship a kicked-off Shape 
 ## ▶ RUN THIS FIRST — do not summarise this file
 
 **Your first output is a tool call, not a plan.** Narrating the pipeline reads like a clean run and
-leaves defects behind it. The Stop hook blocks a session that reached this skill and left no run
-receipt; loading these instructions is not running them.
+leaves defects behind it. A run that left no receipt did not happen; loading these instructions is not
+running them.
 
 You drive the run. The kernel decides what comes next; you do it, then ask again. **Never advance on
 your own account of what you did — advance on a kernel exit code or on `probe next`'s JSON.**

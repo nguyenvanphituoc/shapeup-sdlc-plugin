@@ -221,7 +221,7 @@ the layer that carries it, and the three layers here fail differently:
   otherwise keeps the active feature's own run trace writable, so a path a live order froze stays
   frozen wherever it lives. An order's own result answers to the sub-agent that took its
   dispatch, so with two legs live neither can write the other's.
-- `PreToolUse` (`Edit|Write|MultiEdit`) — **`hooks/tier-guard.mjs` refuses a committed-tier write
+- `PreToolUse` (`Edit|Write|MultiEdit`) — **the same hook, `hooks/sandbox-guard.mjs`, also refuses a committed-tier write
   whose content names a path into the local run trace or a board id.** Same rule spec-lint reds at
   GATE L1b (Board Review), asked at the moment of writing: four different producers wrote a committed file their
   own lint then rejected, and one of them did it twice in one session, an hour apart, after fixing
@@ -247,15 +247,6 @@ the layer that carries it, and the three layers here fail differently:
   path, every write is guarded, and `--no-receipt-check` is the documented way through when the
   channel itself fails.
 
-**One blocking Stop hook**, and it is the narrowest thing in the repo:
-
-- `Stop` — **`hooks/gate-zerowork.mjs` blocks a session that dispatched the `building` loop (or led
-  with `/ship`) and left no run receipt.** Its predicate is mechanical — loop dispatched AND no
-  `.shapeup/<slug>/receipt.json` — so it never judges quality; it reports that no work exists to
-  judge. It exists because this harness was repeatedly observed describing its own pipeline instead
-  of running it: a narrated run that reads like a clean success. Fails open on everything
-  ambiguous, and `stop_hook_active` caps it at one block per stop chain.
-
 **What the runtime carries instead** (v2.0 retired six hooks whose work moved here):
 
 | Was a hook | Is now | What changed |
@@ -266,7 +257,7 @@ the layer that carries it, and the three layers here fail differently:
 | `anti-rationalization` (claims the facts contradict) | The ship report's census, derived from the board and the T0 artifacts | The facts are in an artifact a teammate finds on `git pull`, not in a transcript nobody re-reads. |
 | `slop-cleaner` (TODO/`console.log` leftovers) | The ship report's **Leftovers** section | Same scan, same added-lines-only rule; it lands somewhere checkable. |
 
-**Nothing load-bearing depends on permission mode.** The four walls plus the zero-work gate run
+**Nothing load-bearing depends on permission mode.** The three walls run
 under every mode. The kernel needs a grant to be *invoked* — two Bash lines `npx shapeup-sdlc init`
 writes — but a session that never gets that grant is a session that cannot run the pipeline at all,
 not one that runs it unguarded.
@@ -340,8 +331,8 @@ kernel/{verify,reduce,probe,init,report}/ #   its subcommands, plus compile and 
 kernel/lib/           # argv (the typed CLI boundary), paths (+ the run key), contract (shape)
 kernel/schemas/       # the envelope port: WorkOrder, WorkResult, domain registry
 commands/*.md         # slash commands (/ship + the 9 phase commands)
-hooks/                # hooks.json + the four walls: safety-spine, sandbox-guard, tier-guard
-                      #   (PreToolUse, beside the kernel's `verify envelope`) + gate-zerowork (Stop, the one blocking hook)
+hooks/                # hooks.json + the three walls: safety-spine, sandbox-guard (the substrate fence and the
+                      #   committed-tier write check) — PreToolUse, beside the kernel's `verify envelope`
                       #   + dispatch-receipt (PostToolUse, denies nothing, attests which skill ran)
                       #   + lib/decision.mjs (every hook records allow / deny / error)
 oracles/              # the evaluation-contract oracle registry (test · snapshot · http · process)

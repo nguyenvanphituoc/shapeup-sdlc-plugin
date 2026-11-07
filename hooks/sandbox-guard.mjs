@@ -3,6 +3,8 @@
 //
 // Blocks Edit/Write/MultiEdit calls that no LIVE ORDER's `substrate` block permits. Turns "a worker
 // only writes what the run authorised" from prose into a precondition the model cannot talk past.
+// It also refuses, at the write, a committed-tier file whose text names a run-trace path or a board id
+// (`committedTierLeaks` below) — the tier-direction rule, asked where the writer can still rephrase.
 //
 // IT ENFORCES THE ORDER, NOT THE SCOPE CONTRACT, and that is the whole design. ``harness compile``
 // already stamps a write contract onto every order from `substrateFor(operation)` — allowed,
@@ -90,6 +92,7 @@ import { resolve, join, relative, dirname, basename, sep } from "node:path";
 import { isMain } from "../kernel/lib/argv.mjs";
 import { LOCAL, SHARED, activeOrder, ordersDir, resultsDir, metricsShard, dispatchReceipts } from "../kernel/lib/paths.mjs";
 import { runHook, readStdin, settle, projectRoot } from "./lib/decision.mjs";
+import { SCANNED, tierLeaks } from "../kernel/verify/spec.mjs";
 
 // --- tiny glob matcher: supports *, **, ? — enough for substrate globs, zero dependencies ---
 export function globToRegExp(glob) {
@@ -313,6 +316,77 @@ export function logPathology(metricsPath, event) {
   } catch { /* telemetry is best-effort; never block on a logging failure */ }
 }
 
+/** Committed-tier trees that hold instructions rather than references — outside the lint's walk. */
+const NOT_A_SLUG = new Set(["knowledge-base"]);
+
+/**
+ * The (path, content) pairs one write tool call is about to commit to disk.
+ *
+ * THE THREE WRITE TOOLS SPELL CONTENT THREE WAYS, and a check that reads only `content` is blind to
+ * the Edit that adds the same line — which is the form the measured recurrence took, since the file
+ * already existed by then.
+ *
+ * @param {object} toolInput - The PreToolUse `tool_input` block.
+ * @returns {Array<{path:string, content:string}>} Pairs with a usable path and string content.
+ */
+export function extractWrites(toolInput) {
+  const out = [];
+  const base = toolInput?.file_path;
+  if (typeof toolInput?.content === "string" && base) out.push({ path: base, content: toolInput.content });
+  if (typeof toolInput?.new_string === "string" && base) out.push({ path: base, content: toolInput.new_string });
+  if (Array.isArray(toolInput?.edits)) {
+    for (const e of toolInput.edits) {
+      const p = e?.file_path || base;
+      if (p && typeof e?.new_string === "string") out.push({ path: p, content: e.new_string });
+    }
+  }
+  return out;
+}
+
+/**
+ * Is this path inside the committed tier the lint walks — `shapeup/<slug>/…`, scanned form?
+ *
+ * @param {string} rel - Path relative to the project root, as the lint would name it.
+ * @returns {boolean} True when a leak here is a leak the lint would red.
+ */
+export function inCommittedTier(rel) {
+  if (!rel || rel.startsWith("..") || rel.startsWith(sep)) return false;
+  const parts = rel.split(/[\\/]/);
+  // `shapeup/<slug>/<file>` — the lint walks a slug's tree, so a file at the tier root belongs to
+  // no run and is left alone, and `knowledge-base` is a sibling of the slugs, not one of them.
+  if (parts[0] !== SHARED || parts.length < 3 || NOT_A_SLUG.has(parts[1])) return false;
+  return SCANNED.test(rel);
+}
+
+/**
+ * The committed tier's write boundary: the tier-direction leaks this call would commit.
+ *
+ * It is the rule spec-lint's TIER-DIRECTION enforces at GATE L1b, asked at the write instead — the one
+ * moment the writer still knows what it meant to say, because a worker carries no lesson across a
+ * dispatch and the lint reds the same file a phase later. The predicate is the lint's own scanner
+ * (`tierLeaks`), imported and never restated, so this cannot become narrower or wider than the rule.
+ * `shapeup/knowledge-base/` is outside, exactly as it is outside the lint's walk. Fail-OPEN on
+ * everything it cannot positively prove: no path, no content, a path outside `shapeup/<slug>/`, a
+ * file form the lint does not scan.
+ *
+ * @param {object} toolInput - The PreToolUse `tool_input` block.
+ * @param {string} cwd - The shell's working directory, against which a raw tool path resolves.
+ * @param {string} root - The project root the committed tier lives under.
+ * @returns {{rel:string, blocked:string[]}} The first in-tier path and one line per leak; `blocked`
+ *   is empty when the write carries none.
+ */
+export function committedTierLeaks(toolInput, cwd, root) {
+  const inTier = extractWrites(toolInput)
+    .map((w) => ({ ...w, rel: relative(root, resolve(cwd, w.path)) }))
+    .filter((w) => inCommittedTier(w.rel));
+  const blocked = [];
+  // THE TOKEN IS QUOTED BACK, which the lint's own message does not need to do — it reports against a
+  // file on disk the reader can open at that line. Here the line does not exist yet, so naming the
+  // exact string is the difference between a denial that is acted on and one that is retried verbatim.
+  for (const w of inTier) for (const leak of tierLeaks(w.content)) blocked.push(`${w.rel}:${leak.line} — \`${leak.token}\` ${leak.detail}`);
+  return { rel: inTier[0]?.rel ?? "", blocked };
+}
+
 async function main() {
   await runHook("sandbox-guard", async () => {
   const raw = await readStdin();
@@ -336,6 +410,31 @@ async function main() {
   // the shell's own cwd, because that is what a relative path in the tool input means.
   const cwd = p.cwd || process.cwd();
   const root = projectRoot(cwd);
+
+  // THE COMMITTED TIER FIRST, and before every "no live order" exit below: the tier-direction rule
+  // holds with no run in flight, and a write that is clean here falls through to the substrate fence.
+  const tier = committedTierLeaks(p.tool_input, cwd, root);
+  if (tier.blocked.length) {
+    return {
+      verdict: "deny", event: "PreToolUse", tool: p.tool_name, subject: tier.rel, cwd: root,
+      rule: "tier-direction",
+      reason: `${tier.blocked.length} tier-direction leak(s) refused at the write boundary: ${tier.blocked.join("; ")}`,
+      payload: {
+        hookSpecificOutput: {
+          hookEventName: "PreToolUse",
+          permissionDecision: "deny",
+          permissionDecisionReason:
+            "Tier guard (TIER-DIRECTION) — this write would put a reference into the committed tier that " +
+            "cannot survive the trip to another machine:\n" +
+            `${tier.blocked.join("\n")}\n` +
+            "Refused here rather than at GATE L1b, where spec-lint reds the same file after the phase is over. " +
+            "Rephrase the line now: cite the committed artifact, the use case or the scope_id, or describe " +
+            "the tier without naming a path.",
+        },
+      },
+    };
+  }
+
   const activeOrderPath = activeOrder(root);
   if (!existsSync(activeOrderPath)) defer("no active-order pointer — no tracked task running", "no-round");
 

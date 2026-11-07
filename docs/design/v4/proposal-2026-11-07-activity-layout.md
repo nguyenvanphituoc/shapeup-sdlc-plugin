@@ -130,12 +130,12 @@ archived committed spec (a stem match — weak evidence, enough to ask, not enou
 | Hook | Lines | Record (9 runs) | Verdict | Replaced by |
 |---|---|---|---|---|
 | `hooks/sandbox-guard.mjs` | 500 | 22 denials | keep | — |
-| `hooks/tier-guard.mjs` | 162 | (added after the traces) | keep | — |
+| `tier-guard.mjs` | 162 | (added after the traces) | keep | — |
 | `hooks/dispatch-receipt.mjs` | 198 | 260 receipts | keep | roster shrinks to 4 on its own |
 | `hooks/safety-spine.mjs` | 333 | 0 / 5,268 | keep, as insurance | ablation candidate at the next model upgrade |
 | `kernel/verify/envelope.mjs` as a hook | 288 | 3 denials | keep | — |
 | `gate-intake.mjs` (in `hooks/`) | 109 | 0 / 243 | **cut** | nothing — it exists to catch `Skill(tech-lead)` arriving with no pitch; the loop *is* the session that was handed the pitch, so an empty intake fails in view |
-| `hooks/gate-zerowork.mjs` | 349 | 0 / 57 | **re-key**, about 200 lines *(amended; was: shrink to ~60)* | the one Stop check that still matters. Its predicate is "the session dispatched the orchestrator AND the run left no receipt", so the dispatch detector stays: keep the leading `/ship` and `Skill` arms, rename `tech-lead` to `building`, drop the `Workflow` and Bash-launch arms. Without the detector it blocks nothing it should |
+| `gate-zerowork.mjs` | 349 | 0 / 57 | **re-key**, about 200 lines *(amended; was: shrink to ~60)* | the one Stop check that still matters. Its predicate is "the session dispatched the orchestrator AND the run left no receipt", so the dispatch detector stays: keep the leading `/ship` and `Skill` arms, rename `tech-lead` to `building`, drop the `Workflow` and Bash-launch arms. Without the detector it blocks nothing it should |
 | `SessionStart` echo in `hooks/hooks.json` | 1 line | — | **cut** | nothing; it prints the plugin root |
 
 Hooks fire on tool names, not skill names, so none of the above moves with the layout; only the two

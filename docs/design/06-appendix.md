@@ -24,9 +24,8 @@ bin/init.mjs             `npx shapeup-sdlc init` — pure-Node scaffolding + per
 commands/*.md            11 slash commands (/shape /orient /scopes /wire /build /eval /qa
                          /hammer /ship /retro /hill)
 hooks/                   hooks.json + PreToolUse: safety-spine ·
-                         sandbox-guard · tier-guard (+ the kernel's harness verify envelope) ·
+                         sandbox-guard (+ the kernel's harness verify envelope) ·
                          PostToolUse: dispatch-receipt (records only, no deny path) ·
-                         Stop: gate-zerowork (the one blocking hook)
                          + lib/decision.mjs (every hook records allow / deny / error)
 scripts/install-harness.sh, migrate.sh    stable public entrypoints — a frozen URL contract
 scripts/shapeup-sdlc/    what those two entrypoints run on a user's machine — lib/
@@ -68,14 +67,9 @@ examples/                worked fixtures + negative controls for the oracle regi
 - **Safety spine.** Destructive commands and secret reads are denied mechanically
   (`hooks/safety-spine.mjs`); the only override is a human-authored, schema-governed local file
   (`SafetyOverrides`), itself write-protected and logged when exercised.
-- **Advisory checks never block — with exactly one named exception.** The claim-versus-facts
-  census and the leftovers scan may only inform, and they now do it as *sections of the ship
-  report* rather than as Stop hooks; either one blocking would be a second gate behind the judge.
-  `gate-zerowork.mjs` **does** block (`decision: "block"`), deliberately: it fires on a run that
-  produced no receipt at all, which is not a judgement about quality but the absence of any work
-  to judge. Stated here because the invariant read as absolute while the code carried a
-  counter-example — and an invariant with an undocumented exception is how a reader concludes the
-  code is wrong when it is the sentence that is.
+- **Advisory checks never block.** The claim-versus-facts census and the leftovers scan may only
+  inform, and they do it as *sections of the ship report* rather than as Stop hooks; either one
+  blocking would be a second gate behind the judge. No hook fires at `Stop`.
 - **Lanes thin ceremony, never verification** *(§4.7 — the lane design is withdrawn; the invariant stands)*. No lane
   skips EVAL, T0, or the hooks; a lane may only remove PO ceremony and scout work.
 

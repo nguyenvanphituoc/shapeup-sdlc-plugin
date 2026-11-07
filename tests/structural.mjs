@@ -53,10 +53,6 @@ const MODULE_FILES = [
   // run script's tests read out of its source is ported to the kernel module that carries the behaviour or
   // retired with its reason — the ledger is in the module's own header.
   "16-no-run-script.mjs",
-  // 17-gate-zerowork-dispatch.mjs: what counts as dispatching the orchestrator for the zero-work
-  // gate — the loop's two front doors, and the spellings that no longer count. Its own module
-  // rather than a section-37 addendum: the dispatch detector is what keeps the gate non-vacuous.
-  "17-gate-zerowork-dispatch.mjs",
   // 18-resume-state.mjs: the fast-forward derivation (migration A2). The kill/resume probe found
   // ORIENT re-dispatched on every relaunch because its skip read stored status instead of its own
   // artifacts; this module is the seam that defect could not be caught through.

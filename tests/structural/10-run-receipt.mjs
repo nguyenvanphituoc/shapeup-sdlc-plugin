@@ -48,7 +48,7 @@ export async function run(ctx) {
 
       const receiptPath = join(ws, ".shapeup", "budgets", "receipt.json");
       if (existsSync(receiptPath)) ok("init-run writes receipt.json");
-      else fail("init-run did not write receipt.json — gate-zerowork has nothing to read");
+      else fail("init-run did not write receipt.json — the run has no receipt");
 
       if (existsSync(join(ws, ".shapeup", "active-scope"))) ok("init-run writes active-scope");
       else fail("init-run did not write active-scope — anti-rationalization stays scoped out");
@@ -66,7 +66,7 @@ export async function run(ctx) {
 
       if (existsSync(receiptPath)) {
         const rec = JSON.parse(readFileSync(receiptPath, "utf8"));
-        if (rec.started === true) ok("receipt asserts started:true (the predicate gate-zerowork reads)");
+        if (rec.started === true) ok("receipt asserts started:true");
         else fail("receipt lacks started:true");
         if (/^[0-9a-f]{64}$/.test(rec.intake_sha256 || "")) ok("receipt carries a sha256 of the intake");
         else fail("receipt lacks a well-formed intake_sha256");
@@ -158,105 +158,6 @@ export async function run(ctx) {
       else fail(`on_missing:abort should exit 5, got ${ab.status}`);
     } finally {
       rmSync(ws2, { recursive: true, force: true });
-    }
-  }
-
-  // =============================================================================
-  section("37. gate-zerowork.mjs blocks the narrated run, and nothing else");
-  // =============================================================================
-  // Case A is the benchmark transcript, reproduced. The rest are the fail-open paths: a hook
-  // that blocks legitimate sessions gets disabled, and a disabled hook enforces nothing.
-  const ZW = "hooks/gate-zerowork.mjs";
-  if (!existsSync(join(ROOT, ZW))) {
-    fail(`${ZW} is missing — narration has no detector`);
-  } else {
-    const ws = mkdtempSync(join(tmpdir(), "struct-zerowork-"));
-    try {
-      const jsonl = (evts, name) => {
-        const p = join(ws, name);
-        writeFileSync(p, evts.map((e) => JSON.stringify(e)).join("\n") + "\n");
-        return p;
-      };
-      const dispatch = { type: "assistant", message: { content: [
-        { type: "tool_use", name: "Skill", input: { skill: "shapeup-sdlc-plugin:building", args: "--unattended" } },
-      ] } };
-      const narrationText = "The building skill is orchestrating the full Shape Up harness. It will: 1. ...";
-      const narrated = jsonl([dispatch, { type: "assistant", message: { content: [{ type: "text", text: narrationText }] } }], "narrated.jsonl");
-      const worked = jsonl([dispatch,
-        { type: "assistant", message: { content: [{ type: "tool_use", name: "Write", input: {} }, { type: "tool_use", name: "Bash", input: {} }] } },
-        { type: "assistant", message: { content: [{ type: "tool_use", name: "Edit", input: {} }, { type: "tool_use", name: "Write", input: {} }] } },
-      ], "worked.jsonl");
-      const unrelated = jsonl([{ type: "assistant", message: { content: [{ type: "text", text: "hello" }] } }], "unrelated.jsonl");
-
-      const empty = join(ws, "empty"); mkdirSync(empty, { recursive: true });
-      const started = join(ws, "started", ".shapeup", "budgets");
-      mkdirSync(started, { recursive: true });
-      writeFileSync(join(started, "receipt.json"), JSON.stringify({ started: true, slug: "budgets" }));
-
-      const fire = (payload) => spawnSync("node", [join(ROOT, ZW)], { encoding: "utf8", input: JSON.stringify(payload) });
-
-      const a = fire({ cwd: empty, transcript_path: narrated, last_assistant_message: narrationText });
-      let blocked = null;
-      try { blocked = JSON.parse(a.stdout || "{}"); } catch { /* not JSON */ }
-      if (blocked?.decision === "block") ok("BLOCKS the benchmark transcript: orchestrator dispatched, no receipt");
-      else fail("did not block the narrated-run transcript — the failure it exists for");
-      if (typeof blocked?.reason === "string" && /harness\.mjs"?\s+init run/.test(blocked.reason)) {
-        ok("the block names the exact next command, not just the problem");
-      } else fail("block reason does not tell the model what to run");
-
-      const b = fire({ cwd: join(ws, "started"), transcript_path: narrated });
-      if (!b.stdout.trim()) ok("defers once a receipt exists (progress is anti-rationalization's job)");
-      else fail("fired despite a receipt on disk");
-
-      // ── HD-008. This assertion is INVERTED from what it was, and the inversion is the fix.
-      //
-      // It used to read: "defers when the session did real work by other means (fail-open)". That
-      // is the escape A7 candidate rep 1 walked through — the orchestrator skill dispatched, the lane
-      // unable to start (HD-007), the feature hand-built across 37 work calls, no receipt, and the
-      // hook ALLOWED the Stop. The rep scored 14/14 and read like a clean run while the pipeline
-      // had never executed. A busy session was the one thing that could switch this gate off.
-      //
-      // Same fixture, opposite expectation: work done AROUND the harness is the case the gate is
-      // FOR. `stop_hook_active` still caps it at one block per stop chain, so the cost of being
-      // wrong here is one turn, never a hang.
-      const c = fire({ cwd: empty, transcript_path: worked });
-      let workedBlock = null;
-      try { workedBlock = JSON.parse(c.stdout || "{}"); } catch { /* not JSON */ }
-      if (workedBlock?.decision === "block") ok("BLOCKS a session that worked around the harness and left no receipt");
-      else fail("deferred on four work calls with no receipt — the work-done escape is back: a busy session switches the gate off");
-      // Asserts the SUBSTANCE, never an internal defect id: the shipped message must name the work
-      // calls and say they are the reason rather than a waiver. Pinning a tracker id here would put
-      // this project's own bookkeeping into a string a user reads.
-      if (typeof workedBlock?.reason === "string"
-          && /work calls/i.test(workedBlock.reason)
-          && /not a reason to waive/i.test(workedBlock.reason)) {
-        ok("the block explains why the work calls are the reason, not a waiver");
-      } else fail("the block does not tell a session that DID work why it is still blocked");
-
-      const d = fire({ cwd: empty, transcript_path: unrelated });
-      if (!d.stdout.trim()) ok("defers on a non-harness session");
-      else fail("fired on a session that never dispatched the orchestrator");
-
-      const e = fire({ cwd: empty, transcript_path: narrated, stop_hook_active: true });
-      if (!e.stdout.trim()) ok("defers when stop_hook_active (one block per stop chain, no loop)");
-      else fail("would loop: fired with stop_hook_active set");
-
-      const f = fire({ cwd: empty, transcript_path: join(ws, "nope.jsonl") });
-      if (!f.stdout.trim()) ok("defers when the transcript is unreadable (no facts, no block)");
-      else fail("fired without a transcript to reason from");
-
-      // The second structural miss the benchmark exposed: the advisory guard matched only
-      // past-tense completion, so the emptiest failures were the least detectable.
-      const ar = join(ROOT, "hooks", "anti-rationalization.mjs");
-      if (existsSync(ar)) {
-        const mod = await import(`file://${ar}`);
-        if (mod.detectClaim(narrationText)) ok("anti-rationalization now detects a future-tense promise as a claim");
-        else fail("anti-rationalization still misses future-tense narration");
-        if (mod.detectClaim("all tests pass")) ok("anti-rationalization still detects past-tense completion");
-        else fail("past-tense claim detection regressed");
-      }
-    } finally {
-      rmSync(ws, { recursive: true, force: true });
     }
   }
 
@@ -400,33 +301,6 @@ export async function run(ctx) {
       if (ghost.status === null && ghost.closed_status === null && ghost.next_step === "orient" && ghost.board === null) {
         ok("a pointer at a run with no harness-run.md derives no status — it claims no run is in flight");
       } else fail(`a ledger-less slug claimed state: ${JSON.stringify(ghost)}`);
-    }
-
-    // -- (b) Talking about /ship is not dispatching it -------------------------------------------
-    // A slash command IS the message — the CLI only dispatches one when it leads. Matching /ship
-    // anywhere in the text meant a session that merely ANSWERED A QUESTION about the harness was
-    // blocked at Stop and told to bootstrap a feature nobody asked for.
-    const ZW2 = "hooks/gate-zerowork.mjs";
-    if (existsSync(join(ROOT, ZW2))) {
-      const { dispatchedOrchestrator } = await import(`file://${join(ROOT, ZW2)}`);
-      const userMsg = (text) => [{ type: "user", message: { content: text } }];
-
-      if (!dispatchedOrchestrator(userMsg("how does /ship decide the lane?"))) {
-        ok("a QUESTION mentioning /ship is not a dispatch — the session may end in peace");
-      } else {
-        fail("a prose mention of /ship still counts as a dispatch — asking about the harness " +
-             "blocks Stop and orders an unasked-for build");
-      }
-      if (!dispatchedOrchestrator(userMsg("compare /ship and /shapeup for me"))) {
-        ok("a mid-sentence /ship is not a dispatch");
-      } else fail("a mid-sentence /ship still counts as a dispatch");
-
-      if (dispatchedOrchestrator(userMsg("/ship add category budgets"))) {
-        ok("a LEADING /ship is still a dispatch — the real front door still detected");
-      } else fail("the leading slash command stopped being detected — the gate is now blind");
-      if (dispatchedOrchestrator(userMsg("  /shapeup-sdlc-plugin:ship add budgets"))) {
-        ok("the namespaced spelling, with leading whitespace, is still a dispatch");
-      } else fail("the namespaced /…:ship spelling stopped being detected");
     }
 
     // -- (c) A promise is not a completion claim -------------------------------------------------

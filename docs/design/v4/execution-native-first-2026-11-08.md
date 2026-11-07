@@ -24,8 +24,8 @@ tree supports.
 | `probe digest`, `probe leg` | imported as libraries by `verify/t0`, `verify/build`, `compile`, `probe/attempts`, `probe/next` | **drop the CLI verb only**; the plan's "0 callers" counted the verb, not the module | `ROUTES` |
 | `probe requirements` (328) | imported by `probe/eval`, `probe/next`, `reduce/ship`; read by the L4 block, the census and `/hammer` | **keep** — the plan row was wrong; it already has named readers (V4-REQ-12 is met) | none |
 | `reduce hill` + `hill-chart` | `reduce hill` is the only writer of the committed hill shards behind the "hill phase is mechanical" invariant | **keep** (provisional decision, recorded here because the PO cannot be asked mid-run: Hill Chart is Shape Up's signature artifact) | `hill-chart` reads shards only |
-| `hooks/gate-zerowork.mjs` (316) | 58 `allow`, 0 `block` across every ledger on file (`traces/`, consumer run) | **delete** | `hooks.json` Stop entry; AGENTS.md "stopping a run with no receipt"; the `building` skill's Stop-hook sentence; SECURITY.md and `docs/design/03` hook lists |
-| `hooks/tier-guard.mjs` (162) | 37 `allow`, 0 `deny` | **fold into `sandbox-guard`** — the tier-direction refusal is a shipped claim, so the behaviour stays | `hooks.json`; hook lists in the docs |
+| `gate-zerowork.mjs` (316) | 58 `allow`, 0 `block` across every ledger on file (`traces/`, consumer run) | **delete** | `hooks.json` Stop entry; AGENTS.md "stopping a run with no receipt"; the `building` skill's Stop-hook sentence; SECURITY.md and `docs/design/03` hook lists |
+| `tier-guard.mjs` (162) | 37 `allow`, 0 `deny` | **fold into `sandbox-guard`** — the tier-direction refusal is a shipped claim, so the behaviour stays | `hooks.json`; hook lists in the docs |
 
 Corrected expectation for S1: kernel and hooks −≈2,200 lines, not −5,100.
 

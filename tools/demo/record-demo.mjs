@@ -213,7 +213,7 @@ writeFileSync(
     "scripted narration of the surrounding pipeline steps.",
     "",
     "This is a DENY, not a warning: the write does not happen. The other walls are",
-    "harness verify envelope, safety-spine, tier-guard and gate-zerowork.",
+    "harness verify envelope and safety-spine.",
     "",
     "-".repeat(72),
     ...script.map(([text]) => text),

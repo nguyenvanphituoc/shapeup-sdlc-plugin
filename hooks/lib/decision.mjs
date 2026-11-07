@@ -6,7 +6,6 @@
 // input, every gate in this repo answered the same way:
 //
 //     $ echo 'NOT JSON AT ALL {{{' | node hooks/<gate>.mjs
-//     gate-zerowork      exit=0   stdout_len=0
 //     sandbox-guard      exit=0   stdout_len=0
 //     safety-spine       exit=0   stdout_len=0
 //     verify envelope    exit=0   stdout_len=0

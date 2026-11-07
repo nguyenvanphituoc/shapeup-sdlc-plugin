@@ -50,10 +50,8 @@ function walkMjs(dir, acc = []) {
 const ENTRY_POINTS = [
   // Hooks. Every one of these is part of the enforcement layer, and every one was inert under a
   // symlinked install while still reporting success.
-  { file: "hooks/gate-zerowork.mjs", stdin: "not json", expect: "exit0" },
   { file: "hooks/safety-spine.mjs", stdin: "not json", expect: "exit0" },
   { file: "hooks/sandbox-guard.mjs", stdin: "not json", expect: "exit0" },
-  { file: "hooks/tier-guard.mjs", stdin: "not json", expect: "exit0" },
   // The kernel. Since v2.0 the deterministic half of the harness has ONE entry point, so the guard
   // has one home — but each subcommand still has to reach its own refusal path through it, which is
   // what these probes assert. A correct guard produces a refusal on stderr/stdout and a non-zero

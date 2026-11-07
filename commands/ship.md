@@ -8,9 +8,8 @@ sign-off — especially the Ship gate (L4). The harness's safety depends on the 
 loop; do not skip gates by default.
 
 **Before anything else, dispatch `building` and let it open the run** — its first action is
-`harness init run`, which writes the run receipt and the launch record. Do not summarise what the harness will do;
-a session that dispatches the loop and leaves no receipt is blocked at `Stop` by
-`hooks/gate-zerowork.mjs`.
+`harness init run`, which writes the run receipt and the launch record. Do not summarise what the harness will do:
+a run that left no receipt did not happen.
 
 ## How the run executes
 

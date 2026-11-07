@@ -41,7 +41,7 @@ body:
     attributes:
       label: Where did it happen?
       options:
-        - A hook denied something (sandbox-guard, safety-spine, tier-guard, verify envelope)
+        - A hook denied something (sandbox-guard, safety-spine, verify envelope)
         - A skill produced a wrong or malformed result
         - The orchestrator (tech-lead) — dispatch, rounds, circuit breaker
         - Install / upgrade / scaffolding scripts

@@ -124,17 +124,16 @@ except for the planning substeps whose product IS a committed design document (`
 
 ## 3.2 — Runtime-enforced guardrails (hooks)
 
-Four `PreToolUse` hooks turn the harness's load-bearing rules from things the model is asked
-to respect into things it cannot get past. All four deny:
+Three `PreToolUse` hooks turn the harness's load-bearing rules from things the model is asked
+to respect into things it cannot get past. All three deny:
 
 | Hook | Fires on | Enforces |
 |---|---|---|
-| `safety-spine.mjs` | `Bash` / `Read` / `Edit` / `Write` / `MultiEdit` | Denies the provably destructive operations no session ever legitimately needs: `rm -rf` on unrecoverable targets, force-push and push-to-main, `git reset --hard`, `DROP TABLE`/`TRUNCATE`, and secret-file reads (`.env`, `*.pem`, ssh keys, cloud credentials) via shell readers or the `Read` tool. Unlike the other three, it guards the **machine**, not the pipeline. The only escape hatch is the human-authored `.shapeup/safety-overrides.json` (schema: `SafetyOverrides`) — mechanically self-protected, and every exercised override is logged to the metrics shard as a `SAFETY-OVERRIDE` pathology row. |
+| `safety-spine.mjs` | `Bash` / `Read` / `Edit` / `Write` / `MultiEdit` | Denies the provably destructive operations no session ever legitimately needs: `rm -rf` on unrecoverable targets, force-push and push-to-main, `git reset --hard`, `DROP TABLE`/`TRUNCATE`, and secret-file reads (`.env`, `*.pem`, ssh keys, cloud credentials) via shell readers or the `Read` tool. Unlike the other two, it guards the **machine**, not the pipeline. The only escape hatch is the human-authored `.shapeup/safety-overrides.json` (schema: `SafetyOverrides`) — mechanically self-protected, and every exercised override is logged to the metrics shard as a `SAFETY-OVERRIDE` pathology row. |
 | `harness verify envelope` | `Skill` / `Agent` | Denies any worker dispatch whose `--order` file is missing or fails the WorkOrder schema — a malformed envelope never reaches a worker. |
-| `sandbox-guard.mjs` | `Edit` / `Write` / `MultiEdit` | Denies a write that no **live order's `substrate` block** permits. The `.shapeup/active-order` pointer (republished by `harness compile` with every order) names the RUN; liveness is derived from that run's order set — compiled, with no result at least as new as the order's own `compiled_at` — so a finished run fences nothing and a re-dispatch is fenced again. It enforces all three surfaces: `allowed` + `shared` permit, `append_only` permits `Edit` but denies `Write` (which would overwrite), and `frozen` denies outright and takes precedence over everything. Carve-out: the active feature's own local run-trace root, so a worker can still update its own board. An order's own paths — its WorkResult first — answer to the sub-agent its dispatch receipt names (the host's `agent_id`), so a concurrently-live leg cannot write a sibling's result. |
-| `tier-guard.mjs` | `Edit` / `Write` / `MultiEdit` | Denies a committed-tier write whose **content** carries a reference that cannot leave this machine — a path into the gitignored `.shapeup/` tier, or a `TASK-NNN` board id. It is spec-lint's own `TIER-DIRECTION` predicate (imported, never restated) moved forward from GATE L1b to the write itself: the lint caught all four measured producers and taught none of them, because by the time it speaks the dispatch that wrote the line is over — one producer re-offended an hour later in the same session, in the same file it had just fixed. Fails open outside `shapeup/<slug>/`, on unscanned file forms, and on `shapeup/knowledge-base/`, which the lint's own walk also excludes. |
+| `sandbox-guard.mjs` | `Edit` / `Write` / `MultiEdit` | Denies a write that no **live order's `substrate` block** permits. The `.shapeup/active-order` pointer (republished by `harness compile` with every order) names the RUN; liveness is derived from that run's order set — compiled, with no result at least as new as the order's own `compiled_at` — so a finished run fences nothing and a re-dispatch is fenced again. It enforces all three surfaces: `allowed` + `shared` permit, `append_only` permits `Edit` but denies `Write` (which would overwrite), and `frozen` denies outright and takes precedence over everything. Carve-out: the active feature's own local run-trace root, so a worker can still update its own board. An order's own paths — its WorkResult first — answer to the sub-agent its dispatch receipt names (the host's `agent_id`), so a concurrently-live leg cannot write a sibling's result. | It also carries the committed-tier write check: a write into `shapeup/<slug>/` whose **content** names a path into the gitignored `.shapeup/` tier or a `TASK-NNN` board id is refused at the write, with spec-lint's own `TIER-DIRECTION` predicate (imported, never restated) — moved forward from GATE L1b because the lint taught none of four measured producers, one of which re-offended an hour later in the same session. Fails open outside `shapeup/<slug>/`, on file forms the lint does not scan, and on `shapeup/knowledge-base/`.
 
-All four are deliberately **fail-open** when there's nothing to verify (no active order, no
+All three are deliberately **fail-open** when there's nothing to verify (no active order, no
 board, unparseable input) and **fail-closed** the instant they can prove a violation. A guard that broke legitimate standalone runs would just get
 disabled, defeating the point of having it. (The safety spine adds one asymmetry: a *malformed
 overrides file* fails **closed** — treated as absent — because a parse error must never disable
@@ -224,40 +223,9 @@ install or local SDK pointer, a probe outside the grant, no device attached (a p
 red round gate rather than at open, and a baseline that is red for a reason the feature is meant to fix is a round-1
 finding, not a refusal. The preflight form stays available by hand.
 
-## 3.2b — The zero-work block (Stop, blocking)
-
-One `Stop`-event hook may block, and its predicate is why the invariant survives intact.
-
-| Hook | Fires on | Enforces |
-|---|---|---|
-| `gate-zerowork.mjs` | Session end | Blocks a session that **dispatched the `building` loop (or led with `/ship`) and left no run receipt** — no `.shapeup/<slug>/receipt.json`, which `harness init run` writes as the run's first act (§3.2d). |
-
-**Why it exists.** Observed repeatedly, not theorized: given a
-*valid* spec, the orchestrator loaded a 450-line instruction file describing the gates and
-returned a description of those gates — "The orchestrator skill is orchestrating the full Shape Up
-harness. It will: 1. …" — then ended. No code, no board, no gate artifacts, and prose that reads
-like a successful run, with every defect left in the deliverable.
-
-**Why nothing already caught it.** Two guards existed and both missed it for independent
-structural reasons, which is the finding worth keeping:
-
-1. The intake check of the day (a dispatch-time hook, since removed) fired on an *empty* intake. Intake was valid. Correct no-op.
-2. The claim-versus-facts check of the day was scoped to an *active* run, and a run that never
-   started produces none of the files it reads — it catches "claimed done on a half-green board"
-   and misses "claimed done with no board at all". Its claim detector also matched only past-tense
-   completion, while narration is future-tense. **The emptier the failure, the less of it there
-   was to detect.**
-
-**Why blocking here does not violate "QA is a level-up, not a gate."** That invariant forbids a
-second *judge* behind `spec-evaluator`. This hook makes no judgment about quality — it reports
-that no work exists to judge, from a mechanical absence that no phrasing can change. Blocking is
-also uniquely safe in this state: a session with zero artifacts has nothing to lose by
-continuing, and an *advisory* note at the end of a narrated run simply gets narrated too.
-Everything ambiguous fails open, and `stop_hook_active` caps it at one block per stop chain.
-
 ## 3.2c — The advisory checks, and where their answers land
 
-`gate-zerowork` is the only `Stop`-event hook. The two advisory checks that used to sit beside it
+No hook fires at `Stop`. The two advisory checks that used to sit there
 are now **sections of the ship report**, and the architectural invariant is what moved them:
 "QA is a level-up, not a gate", so neither may ever become a second gate behind the single judge.
 An advisory note printed into a transcript at the moment a session ends is the channel least
@@ -347,11 +315,9 @@ looks like, what a thrown exception looks like, and what an inert script looks l
 one signature, which is how 26 enforcement points sat inert behind 610 green checks. Fail-open is
 **retained** (a gate that breaks legitimate runs just gets disabled); what changes is that a
 permitting decision now carries evidence. `runHook(name, fn)` is the only exit path a hook has, so
-no route out of one can skip the record. Two things fall out at no extra cost: `gate-zerowork`
-gains a second `Stop` condition — orchestrator dispatched, zero decision rows ⇒ the enforcement
-layer itself never ran, so the detector for "the gates didn't run" stops depending on the gates
-running — and the decision ledger can report evaluations, denials and errors per hook, which makes
-"never had to fire" and "never ran" separable facts for the first time.
+no route out of one can skip the record. One thing falls out at no extra cost: the decision ledger can report evaluations,
+denials and errors per hook, which makes "never had to fire" and "never ran" separable facts for
+the first time.
 
 ## 3.2g — The run key, and the record plane (v1.8)
 
