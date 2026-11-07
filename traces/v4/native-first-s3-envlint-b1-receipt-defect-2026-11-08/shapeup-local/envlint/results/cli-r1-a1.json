@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/cli-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-003",
+      "status": "done",
+      "ac_results": [
+        { "ac": "`node --check bin/envlint.mjs` exits 0; `bin/envlint.mjs` starts with `#!/usr/bin/env node`", "result": "pass",
+          "evidence": "node --check bin/envlint.mjs -> exit 0; first line of bin/envlint.mjs is `#!/usr/bin/env node`; the `node --check` fixture is green in T0 r1-a1 trial 3 (2/2)" },
+        { "ac": "`node bin/envlint.mjs --schema <schema.json> <envfile>` reads exactly those two paths; `--schema` may come before or after the envfile (covers: REQ-1, REQ-8, REQ-23)", "result": "pass",
+          "evidence": "test/cli.test.mjs TS-ERR-FINDINGS runs `--schema s envfile` and `envfile --schema s`: identical stdout, exit 1; TS-INV-02 shows the cwd's own .env is never read" },
+        { "ac": "With no envfile argument it exits 2 with the usage line and never reads `./.env` (covers: REQ-9)", "result": "pass",
+          "evidence": "TS-ERR-USAGE and TS-INV-02 (no-args and `--schema s` runs in a cwd holding a sentinel .env): exit 2, stderr is exactly the usage line, sentinel never in output" },
+        { "ac": "Output lines follow RULE-01/RULE-02 exactly: line-numbered items ascending, then missing-required in schema order (covers: REQ-2)", "result": "pass",
+          "evidence": "TS-ERR-FINDINGS: stdout is exactly `<f>:1: PORT: expected int, got \"abc\"`, `<f>:2: parse error: expected KEY=value`, `<f>: HOST: required key is missing`" },
+        { "ac": "Exit 0 with no output when clean, 1 on any problem or finding, 2 on usage/read/schema errors (covers: REQ-3)", "result": "pass",
+          "evidence": "TS-REQ-clean -> {code:0, stdout:'', stderr:''}; TS-ERR-FINDINGS -> 1; TS-ERR-USAGE / READ_FAILED / SCHEMA_INVALID -> 2" },
+        { "ac": "A missing envfile and a missing schema each exit 2 with `envlint: cannot read <path>` on stderr (covers: REQ-4)", "result": "pass",
+          "evidence": "TS-ERR-READ_FAILED: a missing envfile and a missing schema each give exit 2 and stderr `envlint: cannot read <that path>`, with empty stdout" },
+        { "ac": "A schema that is not JSON, or fails `validateSchema`, exits 2 with `envlint: invalid schema <path>: <reason>` (covers: REQ-5)", "result": "pass",
+          "evidence": "TS-ERR-SCHEMA_INVALID: `{not json` and `{\"A\":{\"type\":\"float\"}}` each give exit 2, stderr starting `envlint: invalid schema <path>: `; TS-INV-01 does the same for schema `[]`" },
+        { "ac": "An empty or comment-only envfile is judged normally (exit 0 if nothing is required) (covers: REQ-6)", "result": "pass",
+          "evidence": "TS-REQ-no-assignments: empty and comment-only files give exit 0 with no output when nothing is required, and exit 1 with one `<f>: A: required key is missing` line otherwise" },
+        { "ac": "No input produces a stack trace: every unexpected error is caught and reported as one `envlint:` line with exit 2 (covers: REQ-7)", "result": "pass",
+          "evidence": "TS-INV-01: garbage-bytes envfile, schema `[]`, schema `\"x\"`, directory envfile -> exit in {1,2}, stderr has no `at ` frame and no `Error:`; main() wrapped in try/catch writing one `envlint:` line with exitCode 2" },
+        { "ac": "`package.json` has `\"name\": \"envlint\"`, `\"bin\": {\"envlint\": \"bin/envlint.mjs\"}`, and keeps `\"type\": \"module\"` and `\"scripts.test\": \"node --test\"` (covers: REQ-23)", "result": "pass",
+          "evidence": "package.json = {\"name\":\"envlint\",\"version\":\"0.0.0\",\"type\":\"module\",\"bin\":{\"envlint\":\"bin/envlint.mjs\"},\"scripts\":{\"test\":\"node --test\"}}" },
+        { "ac": "Nothing is written to stderr when the run produced findings or was clean; nothing to stdout on exit 2", "result": "pass",
+          "evidence": "TS-ERR-FINDINGS / TS-REQ-clean / TS-REQ-no-assignments assert stderr === '' on exit 0/1; TS-ERR-USAGE / READ_FAILED / SCHEMA_INVALID assert stdout === '' on exit 2" },
+        { "ac": "Output contains no `\\x1b[` and the CLI never reads stdin (covers: REQ-29)", "result": "pass",
+          "evidence": "TS-INV-03: runs spawned with stdin ignored exit promptly; no `\\x1b[` in stdout/stderr of findings, usage and read-failed runs; bin/envlint.mjs never references stdin" }
+      ]
+    },
+    {
+      "task_id": "TASK-004",
+      "status": "done",
+      "ac_results": [
+        { "ac": "`node --test` at the repo root passes, including `test/cli.test.mjs` (covers: REQ-25)", "result": "pass",
+          "evidence": "node --test at repo root -> tests 42, pass 42, fail 0 (11 of them in test/cli.test.mjs); T0 r1-a1 trial 3 overall green, fixtures 2/2" },
+        { "ac": "One test per TS row of [[usecases/UC-LintEnvFile#Test Surface]], each named after its row id (covers: REQ-2, REQ-3, REQ-4, REQ-5, REQ-6, REQ-7)", "result": "pass",
+          "evidence": "test/cli.test.mjs has 11 tests, one per Test Surface row, each named with its row id first: TS-INV-01, TS-INV-02, TS-INV-03, TS-ERR-USAGE, TS-ERR-READ_FAILED, TS-ERR-SCHEMA_INVALID, TS-ERR-FINDINGS, TS-REQ-clean, TS-REQ-no-assignments, TS-NOGO-01, TS-NOGO-02; all pass" },
+        { "ac": "TS-INV-02: a temp dir holding its own `.env` is byte-identical after the run and that `.env` never appears in output (covers: REQ-9, REQ-26)", "result": "pass",
+          "evidence": "TS-INV-02 test: base64 snapshot of the temp cwd is identical before and after three runs (including no-args); the sentinel .env content appears in no output -> pass" },
+        { "ac": "TS-NOGO-01: `A=${B}` matches enum `[\"${B}\"]`, exit 0 (covers: REQ-27, REQ-28)", "result": "pass",
+          "evidence": "TS-NOGO-01 test: `A=${B}` against enum [\"${B}\"] -> {code:0, stdout:'', stderr:''} -> pass" },
+        { "ac": "TS-NOGO-02: a source scan of `bin/` and `src/` finds no file write, no `process.env` assignment and no network module or `fetch` (covers: REQ-26, REQ-28, REQ-30)", "result": "pass",
+          "evidence": "TS-NOGO-02 test scans bin/*.mjs and src/*.mjs (3 files) for writeFile, appendFile, a process.env assignment, node:net, node:http, node:https and fetch( -> no match -> pass" },
+        { "ac": "TS-INV-03: no `\\x1b[` in any captured stream (covers: REQ-29)", "result": "pass",
+          "evidence": "TS-INV-03 test: no `\\x1b[` in stdout or stderr of a findings run, a usage run and a read-failed run; the other tests capture the same streams -> pass" }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "bin/envlint.mjs", "change": "created" },
+    { "path": "package.json", "change": "modified" },
+    { "path": "test/cli.test.mjs", "change": "created" }
+  ],
+  "discoveries": [
+    { "marker": "+", "line": "bin/envlint.mjs is not marked executable (chmod +x needed approval and was not run); `node bin/envlint.mjs` works, and an npm bin link sets the mode on install" }
+  ],
+  "assumptions": [
+    "kb_rules_path shapeup/knowledge-base/task-executor.md does not exist; no team rules were applied",
+    "When both files are missing the envfile is read first (UC steps 2 then 3), so only `cannot read <envfile>` is reported",
+    "`--schema=x`, a duplicate `--schema`, a trailing `--schema` with no value, and any other `-`-prefixed token are all USAGE (exit 2)",
+    "Parse problems and line-bearing findings are merged and stable-sorted by line, so a type finding followed by an enum finding on one line keeps evaluate() order",
+    "A non-JSON schema's reason is the literal `not valid JSON` (UC step 4); each validateSchema message goes on its own stderr line",
+    "An unexpected error prints `envlint: <message>` with whitespace collapsed to one line; the exit code is set through process.exitCode, never process.exit()",
+    "Tests write their fixtures under os.tmpdir(); test/fixtures/cli/ was not needed"
+  ],
+  "deviations": []
+}

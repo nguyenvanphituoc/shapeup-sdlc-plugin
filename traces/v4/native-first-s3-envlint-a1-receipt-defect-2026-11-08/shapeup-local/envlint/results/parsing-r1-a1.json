@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/parsing-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-001",
+      "status": "done",
+      "ac_results": [
+        {"ac": "`src/parse.mjs` exports `parse(text)` returning `{pairs, problems}`; `node --test test/parse.test.mjs` exits 0 (covers: REQ-15)", "result": "pass", "evidence": "node --test test/parse.test.mjs -> 10/10 pass"},
+        {"ac": "`KEY=value` yields `{key:\"KEY\", value:\"value\", line:1}` (covers: REQ-9)", "result": "pass", "evidence": "test 'KEY=value' passes"},
+        {"ac": "`#` comment lines are skipped and produce no pair and no problem (covers: REQ-10)", "result": "pass", "evidence": "test 'comments skipped' passes"},
+        {"ac": "blank lines are skipped and do not shift line numbers of later pairs (covers: REQ-11)", "result": "pass", "evidence": "test 'blank lines keep numbering' passes"},
+        {"ac": "`export KEY=value` yields key `KEY` (covers: REQ-12)", "result": "pass", "evidence": "test 'export prefix' passes"},
+        {"ac": "`K='a b'` and `K=\"a b\"` both yield value `a b` (covers: REQ-13)", "result": "pass", "evidence": "test 'quotes' passes"},
+        {"ac": "`\"A=1\\nbad line\\nB=2\"` yields one problem at line 2 (1-based) and pairs on lines 1 and 3 (covers: REQ-14)", "result": "pass", "evidence": "test 'bad line in the middle' passes"},
+        {"ac": "`src/parse.mjs` has no import of `rules` or `bin/` — `grep -E \"import .*(rules|bin/)\" src/parse.mjs` finds nothing (covers: REQ-21)", "result": "pass", "evidence": "grep output empty"},
+        {"ac": "`parse(\"\")` returns `{pairs: [], problems: []}` (covers: REQ-5)", "result": "pass", "evidence": "test 'empty' passes"},
+        {"ac": "text of only comments and blank lines returns no pairs and no problems (covers: REQ-5)", "result": "pass", "evidence": "test 'only comments and blanks' passes"},
+        {"ac": "malformed lines (`=`, an unterminated quote, a line with no `=`) never throw; each is one problem with its line (covers: REQ-6, REQ-14)", "result": "pass", "evidence": "test 'malformed never throw' passes"},
+        {"ac": "`A=${HOME}` keeps the literal value `${HOME}` (covers: REQ-23)", "result": "pass", "evidence": "test 'no interpolation' passes"}
+      ]
+    }
+  ],
+  "files_touched": [],
+  "discoveries": [],
+  "assumptions": [
+    "src/parse.mjs and test/parse.test.mjs were already present and satisfied every AC; verified by running, not rewritten",
+    "kb_rules_path file does not exist; no team rules applied"
+  ],
+  "deviations": []
+}

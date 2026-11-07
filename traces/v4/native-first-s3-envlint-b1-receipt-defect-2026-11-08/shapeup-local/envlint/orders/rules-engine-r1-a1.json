@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/rules-engine-r1-a1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-e-b1/kernel/harness.mjs",
+  "run_id": "envlint-20261107T193500Z-159af909",
+  "compiled_at": "2026-11-07T19:44:24.510Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "src/rules.mjs",
+      "test/rules.test.mjs",
+      "test/fixtures/rules/**",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": [],
+    "frozen": [
+      ".shapeup/envlint/**"
+    ],
+    "own": [
+      ".shapeup/envlint/results/rules-engine-r1-a1.json",
+      ".shapeup/envlint/tasks/TASK-*.md",
+      ".shapeup/envlint/discovery/**",
+      ".shapeup/envlint/spikes/**"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "rules-engine",
+      "topology_type": "ICEBERG",
+      "use_cases": [
+        "UC-EvaluateRules"
+      ],
+      "covers": [
+        "REQ-5",
+        "REQ-18",
+        "REQ-19",
+        "REQ-20",
+        "REQ-21",
+        "REQ-22",
+        "REQ-24",
+        "REQ-25",
+        "REQ-30",
+        "REQ-31"
+      ],
+      "depends_on": [],
+      "allowed_file_substrate": [
+        "src/rules.mjs",
+        "test/rules.test.mjs",
+        "test/fixtures/rules/**"
+      ],
+      "shared_substrate": [],
+      "affordance_manifest": [],
+      "e2e_verification_fixtures": [
+        "node --check src/rules.mjs",
+        "node --test test/rules.test.mjs"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN"
+    },
+    "tasks": [
+      {
+        "id": "TASK-002",
+        "title": "Implement schema validation and rule evaluation in src/rules.mjs",
+        "status": "ready",
+        "priority": 1,
+        "depends_on": [],
+        "use_case_refs": [
+          "UC-EvaluateRules"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/envlint/tasks/TASK-002-evaluate-rules.md",
+        "acceptance_criteria": [
+          {
+            "text": "`src/rules.mjs` exports `validateSchema` and `evaluate` with the signatures in [[domain-model#Module Interfaces]] (covers: REQ-18, REQ-22)",
+            "covers": [
+              "REQ-18",
+              "REQ-22"
+            ]
+          },
+          "`node --check src/rules.mjs` exits 0 and `node --test test/rules.test.mjs` passes",
+          {
+            "text": "`required: true` with the key absent yields one `MISSING_REQUIRED` finding with `line: null`; an empty value counts as present (covers: REQ-19)",
+            "covers": [
+              "REQ-19"
+            ]
+          },
+          {
+            "text": "`type` `string`/`int`/`bool`/`url` accept and reject exactly the examples in [[domain-model#Value Types]] (covers: REQ-20)",
+            "covers": [
+              "REQ-20"
+            ]
+          },
+          {
+            "text": "`url` is decided from the string alone — no `node:dns`/`node:net`/`node:http(s)` import and no `fetch` (covers: REQ-31, REQ-30)",
+            "covers": [
+              "REQ-31",
+              "REQ-30"
+            ]
+          },
+          {
+            "text": "`enum` yields `NOT_IN_ENUM` at the pair's line for a value outside the list (case-sensitive) (covers: REQ-21)",
+            "covers": [
+              "REQ-21"
+            ]
+          },
+          {
+            "text": "`validateSchema` returns ≥1 message for every malformed shape in [[usecases/UC-EvaluateRules#Test Surface]] TS-ERR-SCHEMA_INVALID and `[]` for a valid one (covers: REQ-5)",
+            "covers": [
+              "REQ-5"
+            ]
+          },
+          {
+            "text": "`src/rules.mjs` has no import of `./parse.mjs`; `test/rules.test.mjs` builds its pairs as literals and imports only `src/rules.mjs` (covers: REQ-24, REQ-25)",
+            "covers": [
+              "REQ-24",
+              "REQ-25"
+            ]
+          },
+          "`int`: `\"+3\"`, `\"-1\"`, `\"9007199254740993\"` accepted (string judged, not converted); `\"\"`, `\"3.0\"`, `\"1e3\"`, `\"0x10\"`, `\" 7\"` rejected",
+          "Duplicate keys: the last pair for a key is the one judged"
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

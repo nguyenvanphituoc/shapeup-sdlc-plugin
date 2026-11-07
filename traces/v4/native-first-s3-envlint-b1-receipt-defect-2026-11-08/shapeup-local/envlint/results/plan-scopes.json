@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/plan-scopes",
+  "worker": "building",
+  "status": "done",
+  "artifacts": [
+    "shapeup/envlint/scopes/cli.md",
+    "shapeup/envlint/scopes/parse-env.md",
+    "shapeup/envlint/scopes/rules-engine.md",
+    "shapeup/envlint/scope-board.md"
+  ]
+}

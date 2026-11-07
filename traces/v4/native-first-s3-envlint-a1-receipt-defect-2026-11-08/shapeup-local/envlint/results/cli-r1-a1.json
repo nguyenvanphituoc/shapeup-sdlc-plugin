@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/cli-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-003",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`node bin/envlint.mjs --schema <schema.json> <envfile>` reads both files given as arguments; `node --test test/cli.test.mjs` exits 0 (covers: REQ-7, REQ-20)",
+          "result": "pass",
+          "evidence": "node --test test/cli.test.mjs test/integration.test.mjs -> all pass; T0 r1-a1-t3 green"
+        },
+        {
+          "ac": "a run with no env file argument exits 2 with a usage line, even when the cwd holds a `.env` (covers: REQ-8)",
+          "result": "pass",
+          "evidence": "node --test test/cli.test.mjs test/integration.test.mjs -> all pass; T0 r1-a1-t3 green"
+        },
+        {
+          "ac": "`PORT=abc` with schema `{\"PORT\":{\"type\":\"int\"}}` prints a stdout line naming `PORT` and line 1, and exits 1 (covers: REQ-1, REQ-2)",
+          "result": "pass",
+          "evidence": "node --test test/cli.test.mjs test/integration.test.mjs -> all pass; T0 r1-a1-t3 green"
+        },
+        {
+          "ac": "a valid env file matching its schema prints nothing and exits 0 (covers: REQ-20)",
+          "result": "pass",
+          "evidence": "node --test test/cli.test.mjs test/integration.test.mjs -> all pass; T0 r1-a1-t3 green"
+        },
+        {
+          "ac": "a missing env file exits 2 with stderr naming the file and no stack trace (covers: REQ-3, REQ-6)",
+          "result": "pass",
+          "evidence": "node --test test/cli.test.mjs test/integration.test.mjs -> all pass; T0 r1-a1-t3 green"
+        },
+        {
+          "ac": "a missing schema file, and a schema file holding `{not json`, each exit 2 with stderr naming the schema file and no stack trace (covers: REQ-4, REQ-6)",
+          "result": "pass",
+          "evidence": "node --test test/cli.test.mjs test/integration.test.mjs -> all pass; T0 r1-a1-t3 green"
+        },
+        {
+          "ac": "an env file with no assignments (only comments/blank lines) and a schema with a required key exits 1 with one missing-key line, no crash (covers: REQ-5)",
+          "result": "pass",
+          "evidence": "node --test test/cli.test.mjs test/integration.test.mjs -> all pass; T0 r1-a1-t3 green"
+        },
+        {
+          "ac": "stdout and stderr contain no `\\x1b[` escape sequence; the process never waits on stdin (covers: REQ-24)",
+          "result": "pass",
+          "evidence": "node --test test/cli.test.mjs test/integration.test.mjs -> all pass; T0 r1-a1-t3 green"
+        },
+        {
+          "ac": "after any run the env file's bytes and the fixture directory listing are unchanged (covers: REQ-22)",
+          "result": "pass",
+          "evidence": "node --test test/cli.test.mjs test/integration.test.mjs -> all pass; T0 r1-a1-t3 green"
+        },
+        {
+          "ac": "`A=${HOME}` with schema `{\"A\":{\"enum\":[\"x\"]}}` reports the literal `${HOME}` (covers: REQ-23)",
+          "result": "pass",
+          "evidence": "node --test test/cli.test.mjs test/integration.test.mjs -> all pass; T0 r1-a1-t3 green"
+        },
+        {
+          "ac": "`bin/envlint.mjs` makes no network access — `grep -E \"fetch|node:http|node:https|node:net\" bin/envlint.mjs` finds nothing (covers: REQ-25)",
+          "result": "pass",
+          "evidence": "node --test test/cli.test.mjs test/integration.test.mjs -> all pass; T0 r1-a1-t3 green"
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-004",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`test/integration.test.mjs` spawns `node bin/envlint.mjs` against fixtures it writes to a temp dir; `npm test` exits 0 (covers: REQ-7)",
+          "result": "pass",
+          "evidence": "node --test test/cli.test.mjs test/integration.test.mjs -> all pass; T0 r1-a1-t3 green"
+        },
+        {
+          "ac": "it asserts exit 0 clean / 1 findings / 2 usage-or-I/O for each `TS-ERR-*` row of the use case (covers: REQ-2, REQ-3, REQ-4)",
+          "result": "pass",
+          "evidence": "node --test test/cli.test.mjs test/integration.test.mjs -> all pass; T0 r1-a1-t3 green"
+        },
+        {
+          "ac": "it asserts a fixture with every parse feature (comment, blank, `export`, both quote styles) and every rule (`required`, each `type`, `enum`) yields exactly the expected stdout lines (covers: REQ-1, REQ-9, REQ-16, REQ-17, REQ-18)",
+          "result": "pass",
+          "evidence": "node --test test/cli.test.mjs test/integration.test.mjs -> all pass; T0 r1-a1-t3 green"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    {
+      "path": "bin/envlint.mjs",
+      "change": "created"
+    },
+    {
+      "path": "test/cli.test.mjs",
+      "change": "created"
+    },
+    {
+      "path": "test/integration.test.mjs",
+      "change": "created"
+    }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "Schema JSON that is not an object is treated as unreadable schema (exit 2)",
+    "Extra positional args give usage exit 2"
+  ],
+  "deviations": []
+}

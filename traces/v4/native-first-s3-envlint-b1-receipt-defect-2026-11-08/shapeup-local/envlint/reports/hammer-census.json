@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "verdict": "cannot-ship",
+  "cut_list": [
+    "Board gap: no task AC restates UC-ParseEnvText INV-01, UC-EvaluateRules INV-01, or the type/enum half of UC-EvaluateRules INV-03 — tests exist and pass; carry to a spec reconcile, not a ship blocker"
+  ],
+  "ship_blocking": [
+    "REQ-29 (UC-LintEnvFile INV-03): a value containing an ANSI escape (PORT=\\x1b[31mred) is echoed raw into the finding message (src/rules.mjs:72, printed at bin/envlint.mjs:77), putting \\x1b[ on stdout",
+    "REQ-2 / ux RULE-01 (one line per item): a double-quoted value with \\n (PORT=\"a\\nb\") splits one finding across two stdout lines — same code path; fix = escape control characters when a value is interpolated into a message"
+  ],
+  "breaker": null,
+  "baseline": null
+}

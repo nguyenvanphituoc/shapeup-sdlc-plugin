@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/parse-env-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-001",
+      "status": "done",
+      "ac_results": [
+        { "ac": "`src/parse.mjs` exports `parse(text)` returning `{ pairs: {key,value,line}[], problems: {line,message}[] }` (covers: REQ-10, REQ-17)", "result": "pass", "evidence": "test 'returns { pairs, problems } with KEY=value at its 1-based line' deep-equals {pairs:[{key,value,line}],problems:[]}; node --test test/parse.test.mjs -> 15/15 pass" },
+        { "ac": "`node --check src/parse.mjs` exits 0 and `node --test test/parse.test.mjs` passes", "result": "pass", "evidence": "node --check src/parse.mjs -> exit 0; node --test test/parse.test.mjs -> tests 15, pass 15, fail 0; harness verify t0 parse-env --round 1 --attempt 1 -> overall green, fixtures 2/2 (.shapeup/envlint/t0/verdicts/r1-a1-t2.json)" },
+        { "ac": "`KEY=value` lines yield a pair with the 1-based line number (covers: REQ-11)", "result": "pass", "evidence": "tests 'returns { pairs, problems }...' and 'TS-REQ-forms' -> {key:'KEY',value:'value',line:1}" },
+        { "ac": "`#` comment lines and an unquoted value's trailing ` # comment` yield nothing / are stripped (covers: REQ-12)", "result": "pass", "evidence": "TS-REQ-forms: '# c' yields nothing, 'C=v # c' -> value 'v'; REQ-12 test: 'B=x   # c' -> 'x', 'A=x#y' -> 'x#y'" },
+        { "ac": "Blank and whitespace-only lines yield nothing and still advance the line count (covers: REQ-13)", "result": "pass", "evidence": "TS-INV-03: 'A=1\\n\\n# comment\\nnope\\n   \\nB=2' -> B at line 6, problem at line 4" },
+        { "ac": "`export KEY=value` yields the pair `KEY=value` (covers: REQ-14)", "result": "pass", "evidence": "TS-REQ-forms line 2 -> {key:'KEY',value:'value',line:2}; CRLF test 'export B=\"x\"' -> B=x" },
+        { "ac": "Single-quoted values are literal; double-quoted values support `\\n`, `\\\"`, `\\\\`; a `#` inside quotes is part of the value (covers: REQ-15)", "result": "pass", "evidence": "REQ-15 test: A='a\\nb \"q\"' kept literally; B=\"say \\\"hi\\\" \\\\ \\t # not comment\" -> 'say \"hi\" \\ \\t # not comment'; TS-REQ-forms A='x # y' -> 'x # y', B=\"a\\nb\" -> newline" },
+        { "ac": "Every Error Case in [[usecases/UC-ParseEnvText#Error Cases]] produces exactly its message at the right 1-based line (covers: REQ-16)", "result": "pass", "evidence": "tests TS-ERR-NO_EQUALS, TS-ERR-INVALID_KEY (incl. line 2), TS-ERR-UNTERMINATED_SINGLE, TS-ERR-UNTERMINATED_DOUBLE, TS-ERR-TRAILING_AFTER_QUOTE all deep-equal the exact {line,message}; TS-INV-03 checks a problem at line 4" },
+        { "ac": "`${VAR}` and `$VAR` are returned literally (covers: REQ-27)", "result": "pass", "evidence": "TS-INV-02: parse('A=${B}\\nC=$D') -> values '${B}', '$D'" },
+        { "ac": "`src/parse.mjs` has no import of `./rules.mjs` and no `node:` I/O import; `test/parse.test.mjs` imports only `src/parse.mjs` and `node:test`/`node:assert` (covers: REQ-24, REQ-25)", "result": "pass", "evidence": "grep -n import src/parse.mjs -> no matches; grep -n import test/parse.test.mjs -> node:test, node:assert, ../src/parse.mjs only" },
+        { "ac": "`parse(\"\")` and comment-only text return `{ pairs: [], problems: [] }` (covers: REQ-6)", "result": "pass", "evidence": "test 'TS-REQ-empty / REQ-6': parse('') and parse('# only\\n  # comments\\n') deep-equal {pairs:[],problems:[]}" },
+        { "ac": "CRLF input yields the same pairs as LF input; a value of `KEY=` yields `value: \"\"`", "result": "pass", "evidence": "test 'CRLF matches LF; KEY= yields empty value; duplicates kept': CRLF result deep-equals LF result; 'C=' -> value ''" }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "src/parse.mjs", "change": "created" },
+    { "path": "test/parse.test.mjs", "change": "created" }
+  ],
+  "discoveries": [
+    { "marker": "+", "line": "TS-NOGO-01 (import grep) cannot run inside test/parse.test.mjs: reading the source needs node:fs, which the REQ-25 AC forbids in that file; it was verified by grep outside the suite" }
+  ],
+  "assumptions": [
+    "INV-01 'throws on no string input' read as 'never throws for any string input'; no explicit type guard added for non-strings (minimum code)",
+    "After a closing quote, the remainder matches /^\\s*(#.*)?$/ - a '#' directly after the quote (A='x'#c) is accepted as a comment",
+    "Unquoted comment cut follows step 6d literally: only whitespace-then-'#' starts a comment, so 'A=x#y' keeps 'x#y' and 'A= #c' (leading whitespace removed first) keeps '#c'",
+    "Double-quoted escapes: a trailing lone backslash or any unknown escape is kept literally; '\\\"' at end of line does not close the quote",
+    "'export' prefix dropped only when followed by whitespace, so 'export=1' is key 'export'"
+  ],
+  "deviations": []
+}

@@ -1,0 +1,65 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 1,
+  "at": "2026-11-07T19:28:05.865Z",
+  "run_id": "envlint-20261107T192157Z-60b7d658",
+  "scope_id": "rules",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b8a18120b78f8f6be5f13681f4f9b973729cff15",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "1d1e5a8620fb0ccc1a8af77abcac33bf8dc379ac928151bcd0cf1e9de0cc332a"
+    },
+    "env_sha256": "6ea8060be400d7a30e66145786ba235d8961ce9ba544eb3945ba6107ed49d1c1"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --test test/rules.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ empty input yields no findings (0.656916ms)\n✔ missing required key has line null (0.09325ms)\n✔ type mismatches carry the pair line (0.1825ms)\n✔ valid typed values produce no findings (0.107917ms)\n✔ url on an unreachable host is accepted on shape alone (1.304667ms)\n✔ enum rejects values outside the list (0.088792ms)\n✔ every finding carries key and line (0.084292ms)\nℹ tests 7\nℹ suites 0\nℹ pass 7\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 49.695125\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "test/rules.test.mjs": "96a93de2f03f62081f6892fe37c14c4c8e32197fd37364be1e65cfc419a55099"
+  }
+}

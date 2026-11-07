@@ -1,0 +1,71 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 1,
+  "at": "2026-11-07T19:45:26.488Z",
+  "run_id": "envlint-20261107T193500Z-159af909",
+  "scope_id": "rules-engine",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b8a18120b78f8f6be5f13681f4f9b973729cff15",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "6ff7b1e0d4469e07ec19c54eaab65b8c4b4ca81a2873e74ef8e050351cfc4dd6"
+    },
+    "env_sha256": "b0f15cd24a6a372bb7de415f5c48810603436528917a5b95c8dd823d627bf10d"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --check src/rules.mjs",
+      "exit": 0,
+      "pass": true
+    },
+    {
+      "cmd": "node --test test/rules.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ exports validateSchema and evaluate as functions (1.017625ms)\n✔ TS-INV-01: arguments unchanged; no fs/net/parse import in src/rules.mjs (0.552167ms)\n✔ TS-NOGO-01: src/rules.mjs imports nothing (no parse.mjs, fs, net, http, dns, fetch) (0.500084ms)\n✔ TS-INV-02: int accepts/rejects exactly as listed (0.175875ms)\n✔ TS-INV-02: bool accepts/rejects exactly as listed (0.143875ms)\n✔ TS-INV-02: url accepts/rejects exactly as listed (0.104ms)\n✔ string accepts any value, including empty (0.065375ms)\n✔ TS-INV-03: empty value is present for required and still type-checked (0.07425ms)\n✔ TS-ERR-MISSING_REQUIRED: required key absent → one finding, line null (0.065125ms)\n✔ absent non-required key yields nothing; unknown pair keys ignored (0.099584ms)\n✔ TS-ERR-INVALID_TYPE: PORT=abc with int → finding at the pair line (0.06625ms)\n✔ TS-ERR-NOT_IN_ENUM: MODE=prod outside enum → finding at the pair line; case-sensitive (0.070125ms)\n✔ a value can yield both INVALID_TYPE and NOT_IN_ENUM (0.055042ms)\n✔ TS-ERR-SCHEMA_INVALID: every malformed shape → ≥1 message; valid → [] (0.123917ms)\n✔ TS-REQ-duplicate: last pair for a key is the one judged (0.059083ms)\n✔ findings are returned in schema key order (0.071875ms)\nℹ tests 16\nℹ suites 0\nℹ pass 16\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 51.773708\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 2,
+    "fixtures_total": 2,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "src/rules.mjs": "92fabcd39cd1bb8a8fd38bf978176bdc33a04ac93b8386f7e12651b846d8f04d",
+    "test/rules.test.mjs": "e5ab812d6a7e4e50b178a23ff7a86c58d307c54d06ded28ea4936aeccdda4409"
+  }
+}

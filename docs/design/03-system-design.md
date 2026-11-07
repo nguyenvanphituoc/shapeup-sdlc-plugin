@@ -178,7 +178,7 @@ before it fails: the fix would expire exactly when the thing it guards starts wo
 A worker is a plugin agent (`agents/<worker>.md`, preloading its skill), so a dispatch is an `Agent`
 call; the table below is the `Skill` call a hand-driven run still makes, and the `Agent` result names
 the agent that ran (`agentType`) and carries what the host measured — tokens, duration, resolved model —
-which the receipt records on its row:
+which the receipt records on its row. A worker launched in the background (parallel scope builds) returns neither: its result is "launched" plus an `agentId`, so the receipt attests it by the name the accepted call carried and records no usage, and the loop passes the total from the completion notice when there is one:
 
 | Dispatch state | `PreToolUse` | `PostToolUse` |
 |---|---|---|

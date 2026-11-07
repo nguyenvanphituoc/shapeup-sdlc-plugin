@@ -1,0 +1,71 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 2,
+  "at": "2026-11-07T19:45:35.507Z",
+  "run_id": "envlint-20261107T193500Z-159af909",
+  "scope_id": "parse-env",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b8a18120b78f8f6be5f13681f4f9b973729cff15",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "6ff7b1e0d4469e07ec19c54eaab65b8c4b4ca81a2873e74ef8e050351cfc4dd6"
+    },
+    "env_sha256": "b0f15cd24a6a372bb7de415f5c48810603436528917a5b95c8dd823d627bf10d"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --check src/parse.mjs",
+      "exit": 0,
+      "pass": true
+    },
+    {
+      "cmd": "node --test test/parse.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ returns { pairs, problems } with KEY=value at its 1-based line (0.897459ms)\n✔ TS-INV-01 parse is deterministic (0.588292ms)\n✔ TS-INV-02 / REQ-27 ${VAR} and $VAR are returned literally (0.088583ms)\n✔ TS-INV-03 / REQ-13 line numbers survive blanks and comments (0.090292ms)\n✔ TS-ERR-NO_EQUALS (0.063625ms)\n✔ TS-ERR-INVALID_KEY (0.0705ms)\n✔ TS-ERR-UNTERMINATED_SINGLE (0.062417ms)\n✔ TS-ERR-UNTERMINATED_DOUBLE (0.088584ms)\n✔ TS-ERR-TRAILING_AFTER_QUOTE (0.116333ms)\n✔ a line yields a problem or a pair, never both (0.096917ms)\n✔ TS-REQ-forms (0.08275ms)\n✔ REQ-15 single quotes are literal; double quotes unescape \\n \\\" \\\\ only (0.071625ms)\n✔ REQ-12 unquoted trailing comment stripped; # without preceding space kept (0.056083ms)\n✔ TS-REQ-empty / REQ-6 (0.05125ms)\n✔ CRLF matches LF; KEY= yields empty value; duplicates kept (0.071792ms)\nℹ tests 15\nℹ suites 0\nℹ pass 15\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 51.68025\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 2,
+    "fixtures_total": 2,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "src/parse.mjs": "3b809473bb7ba1d5ab0653ecb201eae2453c170fa810da93a42a420068038fed",
+    "test/parse.test.mjs": "f01443d915c0c2da8b37e772cf1c0a68344f4d396dc2d5451b9046e9fe76dc43"
+  }
+}

@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/parsing-r1-a1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-e-a1/kernel/harness.mjs",
+  "run_id": "envlint-20261107T192157Z-60b7d658",
+  "compiled_at": "2026-11-07T19:28:36.106Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "src/parse.mjs",
+      "test/parse.test.mjs",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": [],
+    "frozen": [
+      ".shapeup/envlint/**"
+    ],
+    "own": [
+      ".shapeup/envlint/results/parsing-r1-a1.json",
+      ".shapeup/envlint/tasks/TASK-*.md",
+      ".shapeup/envlint/discovery/**",
+      ".shapeup/envlint/spikes/**"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "parsing",
+      "topology_type": "ICEBERG",
+      "use_cases": [
+        "UC-ParseEnvText"
+      ],
+      "covers": [
+        "REQ-5",
+        "REQ-6",
+        "REQ-9",
+        "REQ-10",
+        "REQ-11",
+        "REQ-12",
+        "REQ-13",
+        "REQ-14",
+        "REQ-15",
+        "REQ-21",
+        "REQ-23"
+      ],
+      "depends_on": [],
+      "allowed_file_substrate": [
+        "src/parse.mjs",
+        "test/parse.test.mjs"
+      ],
+      "shared_substrate": [],
+      "affordance_manifest": [],
+      "e2e_verification_fixtures": [
+        "node --test test/parse.test.mjs"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN"
+    },
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "title": "Implement the pure .env parser in src/parse.mjs",
+        "status": "ready",
+        "priority": 1,
+        "depends_on": [],
+        "use_case_refs": [
+          "UC-ParseEnvText"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/envlint/tasks/TASK-001-parse-module.md",
+        "acceptance_criteria": [
+          {
+            "text": "`src/parse.mjs` exports `parse(text)` returning `{pairs, problems}`; `node --test test/parse.test.mjs` exits 0 (covers: REQ-15)",
+            "covers": [
+              "REQ-15"
+            ]
+          },
+          {
+            "text": "`KEY=value` yields `{key:\"KEY\", value:\"value\", line:1}` (covers: REQ-9)",
+            "covers": [
+              "REQ-9"
+            ]
+          },
+          {
+            "text": "`#` comment lines are skipped and produce no pair and no problem (covers: REQ-10)",
+            "covers": [
+              "REQ-10"
+            ]
+          },
+          {
+            "text": "blank lines are skipped and do not shift line numbers of later pairs (covers: REQ-11)",
+            "covers": [
+              "REQ-11"
+            ]
+          },
+          {
+            "text": "`export KEY=value` yields key `KEY` (covers: REQ-12)",
+            "covers": [
+              "REQ-12"
+            ]
+          },
+          {
+            "text": "`K='a b'` and `K=\"a b\"` both yield value `a b` (covers: REQ-13)",
+            "covers": [
+              "REQ-13"
+            ]
+          },
+          {
+            "text": "`\"A=1\\nbad line\\nB=2\"` yields one problem at line 2 (1-based) and pairs on lines 1 and 3 (covers: REQ-14)",
+            "covers": [
+              "REQ-14"
+            ]
+          },
+          {
+            "text": "`src/parse.mjs` has no import of `rules` or `bin/` — `grep -E \"import .*(rules|bin/)\" src/parse.mjs` finds nothing (covers: REQ-21)",
+            "covers": [
+              "REQ-21"
+            ]
+          },
+          {
+            "text": "`parse(\"\")` returns `{pairs: [], problems: []}` (covers: REQ-5)",
+            "covers": [
+              "REQ-5"
+            ]
+          },
+          {
+            "text": "text of only comments and blank lines returns no pairs and no problems (covers: REQ-5)",
+            "covers": [
+              "REQ-5"
+            ]
+          },
+          {
+            "text": "malformed lines (`=`, an unterminated quote, a line with no `=`) never throw; each is one problem with its line (covers: REQ-6, REQ-14)",
+            "covers": [
+              "REQ-6",
+              "REQ-14"
+            ]
+          },
+          {
+            "text": "`A=${HOME}` keeps the literal value `${HOME}` (covers: REQ-23)",
+            "covers": [
+              "REQ-23"
+            ]
+          }
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

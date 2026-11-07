@@ -40,6 +40,13 @@
 // attestation, and the same result carries what the host measured (`totalTokens`, `totalDurationMs`,
 // `resolvedModel`), recorded on the row so no session has to copy a figure by hand.
 //
+// A SCOPE LAUNCHED IN THE BACKGROUND reports no agent at all: the result is "Async agent launched"
+// plus an `agentId`, because the host has not run anything yet. Parallel scope builds are exactly that
+// case, and without this arm the receipt hook went blind to every one of them. What the host did
+// establish is that it accepted the call — an agent type it cannot resolve is rejected before this
+// event — so the name the CALL carried (`subagent_type`) is the attestation, and the usage is null
+// because there is none to record yet.
+//
 // WHAT IT WILL NOT ATTEST. A receipt is written only when the tool result NAMES the skill that ran
 // (`tool_response.commandName`). An `Agent` dispatch whose prompt merely mentions `--order` gets no
 // receipt: the prompt is a plan to dispatch, not evidence of one, and minting attestation from it
@@ -94,17 +101,38 @@ export function skillInvokedFrom(toolResponse) {
 }
 
 /**
- * Which worker an `Agent` dispatch ran, from the tool result.
+ * Did the host launch this `Agent` call in the background and accept it?
+ *
+ * A background launch returns no `agentType`: its result says the agent was launched and names an
+ * `agentId`. Both must hold — a call asked to run in the background AND a result that reports a launch —
+ * so a failed or empty result never counts as one.
+ *
+ * @param {object} toolResponse - The `tool_response` block of an `Agent` call.
+ * @param {object} toolInput - The `tool_input` block of the same call.
+ * @returns {boolean} True for an accepted background launch.
+ */
+export function backgroundLaunch(toolResponse, toolInput) {
+  if (toolInput?.run_in_background !== true || !toolResponse) return false;
+  const text = typeof toolResponse === "string" ? toolResponse : JSON.stringify(toolResponse);
+  return /\bagentId\b/.test(text) && /launched/i.test(text);
+}
+
+/**
+ * Which worker an `Agent` dispatch ran, from the tool result — or, for a background launch, from the
+ * name the accepted call carried.
  *
  * The host reports the agent NAMESPACED (`shapeup-sdlc-plugin:orient`); the bare name is compared
  * against the WorkOrder's `worker`, so a general-purpose agent that merely had `--order` in its prompt
  * attests as `general-purpose` and the ingest gate refuses it.
  *
  * @param {object} toolResponse - The `tool_response` block of an `Agent` call.
- * @returns {string|null} The bare agent name, or null when the result names no agent.
+ * @param {object} [toolInput] - The `tool_input` block of the same call.
+ * @returns {string|null} The bare agent name, or null when nothing names an agent.
  */
-export function agentWorkerFrom(toolResponse) {
-  const name = toolResponse?.agentType;
+export function agentWorkerFrom(toolResponse, toolInput) {
+  const name = typeof toolResponse?.agentType === "string" && toolResponse.agentType
+    ? toolResponse.agentType
+    : (backgroundLaunch(toolResponse, toolInput) ? toolInput?.subagent_type : null);
   if (typeof name !== "string" || !name) return null;
   return name.slice(name.lastIndexOf(":") + 1) || null;
 }
@@ -146,12 +174,14 @@ export function receiptRow(order, skillInvoked, payload) {
     skill_invoked: skillInvoked,
     // Corroboration, not the wall — see the header. `success` is absent on hosts that do not
     // report one, and an absent field must not read as a successful dispatch.
-    dispatch_ok: payload?.tool_response?.success === true || payload?.tool_response?.status === "completed",
+    dispatch_ok: payload?.tool_response?.success === true || payload?.tool_response?.status === "completed"
+      || backgroundLaunch(payload?.tool_response, payload?.tool_input),
     tool: payload?.tool_name ?? null,
     // Present when the dispatch came from a sub-agent, absent when the operator called it directly.
     // That is the difference between an orchestrated leg and someone driving a skill by hand.
     agent_id: payload?.agent_id ?? payload?.tool_response?.agentId ?? null,
-    agent_type: payload?.agent_type ?? payload?.tool_response?.agentType ?? null,
+    agent_type: payload?.agent_type ?? payload?.tool_response?.agentType
+      ?? (backgroundLaunch(payload?.tool_response, payload?.tool_input) ? payload.tool_input.subagent_type : null),
     // What the host measured for an Agent dispatch; null for a Skill call, which reports none.
     usage: payload?.tool_name === "Agent" ? usageFrom(payload.tool_response) : null,
   };
@@ -209,7 +239,7 @@ export async function main() {
     if (!cited) defer("no --order threaded — not an orchestrated dispatch", "no-order");
 
     const skillInvoked = p.tool_name === "Agent"
-      ? (agentWorkerFrom(p.tool_response) ?? skillInvokedFrom(p.tool_response))
+      ? (agentWorkerFrom(p.tool_response, p.tool_input) ?? skillInvokedFrom(p.tool_response))
       : skillInvokedFrom(p.tool_response);
     if (!skillInvoked) {
       // A host result that does not name what ran. Attesting here would mint the fact rather than

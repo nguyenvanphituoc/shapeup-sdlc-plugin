@@ -1,0 +1,146 @@
+{
+  "run": "envlint",
+  "date": "2026-11-08",
+  "plugin": "1cf20e0",
+  "pitch": "pitch.gate.md — the personal-site pitch with its No-gos section folded into the Solution as plain statements",
+  "launches": 1,
+  "claude_cost_usd": 9.732226599999999,
+  "claude_turns": 25,
+  "duration_s": 834,
+  "closed": [
+    "final_verdict: FAIL",
+    "rounds_used: 1",
+    "close_cause: verdict=fail rounds=1 census=cannot-ship (REQ-29 ANSI/newline in finding messages); round 2 not opened: orchestrator USD budget exhausted",
+    "closed_status: escalated"
+  ],
+  "gates": [
+    [
+      "L0",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L0",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L1a",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L1a.5",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L1b",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L2",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L3",
+      "loop",
+      "preset:ci"
+    ],
+    [
+      "H",
+      "accept-cut-list",
+      "preset:ci"
+    ],
+    [
+      "L4",
+      "ask",
+      "preset:ci"
+    ]
+  ],
+  "legs": 9,
+  "leg_rows": [
+    {
+      "order": "orient",
+      "worker": "orient",
+      "attested": true,
+      "tokens_total": 69020,
+      "usage_source": "agent-hook",
+      "duration_s": 3
+    },
+    {
+      "order": "plan-requirements",
+      "worker": "building",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 21
+    },
+    {
+      "order": "plan-spec",
+      "worker": "building",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 193
+    },
+    {
+      "order": "plan-wire",
+      "worker": "building",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 10
+    },
+    {
+      "order": "plan-scopes",
+      "worker": "building",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 22
+    },
+    {
+      "order": "rules-engine-r1-a1",
+      "worker": "task-executor",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 114
+    },
+    {
+      "order": "parse-env-r1-a1",
+      "worker": "task-executor",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 117
+    },
+    {
+      "order": "cli-r1-a1",
+      "worker": "task-executor",
+      "attested": true,
+      "tokens_total": 56886,
+      "usage_source": "agent-hook",
+      "duration_s": 4
+    },
+    {
+      "order": "evaluate-r1",
+      "worker": "spec-evaluator",
+      "attested": true,
+      "tokens_total": 138086,
+      "usage_source": "agent-hook",
+      "duration_s": 9
+    }
+  ],
+  "hook_rows": {
+    "validate-envelope:allow": 6,
+    "dispatch-receipt:allow": 6,
+    "safety-spine:allow": 162,
+    "sandbox-guard:allow": 35,
+    "sandbox-guard:deny": 5
+  },
+  "note": "S3 comparison, envlint pitch with its No-gos stated as plain sentences, arm B repetition 1 (no probe next; phase table over probe resume facts)."
+}

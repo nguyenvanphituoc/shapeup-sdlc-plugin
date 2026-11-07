@@ -79,6 +79,20 @@ export async function run(ctx) {
     if (fromHost?.tokens_total === 24497 && fromHost.usage_source === "agent-hook" && fromHost.cost_usd === null) {
       ok("with no flags, the leg row carries the figure the host measured and names it as the agent hook's");
     } else fail(`the leg row did not take the receipt's usage: ${JSON.stringify(fromHost)}`);
+    // A background launch has no figures yet: the receipt carries nulls, and the leg row stays null unless the
+    // session passes the total from the completion notice.
+    const bgo = answered("background");
+    plantReceipt("background", { tokens_total: null, duration_ms: null, model: null });
+    sh("reduce ingest", ["--order", bgo, "--cwd", ws]);
+    const bgRow = rows().find((r) => r.order_id === `${SLUG}/background`);
+    if (bgRow && bgRow.tokens_total === null && bgRow.usage_source === null) ok("a receipt with null usage leaves the leg row null — a figure is never inferred");
+    else fail(`a null-usage receipt produced a figure: ${JSON.stringify(bgRow)}`);
+    const bgf = answered("background-flag");
+    plantReceipt("background-flag", { tokens_total: null, duration_ms: null, model: null });
+    sh("reduce ingest", ["--order", bgf, "--cwd", ws, "--tokens-total", "61000", "--usage-source", "agent-tool-result"]);
+    const bgfRow = rows().find((r) => r.order_id === `${SLUG}/background-flag`);
+    if (bgfRow?.tokens_total === 61000 && bgfRow.usage_source === "agent-tool-result") ok("the completion notice's total is recorded when the receipt has none");
+    else fail(`the passed total was lost behind a null receipt: ${JSON.stringify(bgfRow)}`);
     const e = answered("flag-wins");
     plantReceipt("flag-wins", { tokens_total: 24497, duration_ms: 2430, model: "claude-opus-5-5" });
     sh("reduce ingest", ["--order", e, "--cwd", ws, "--tokens-total", "900", "--usage-source", "operator"]);

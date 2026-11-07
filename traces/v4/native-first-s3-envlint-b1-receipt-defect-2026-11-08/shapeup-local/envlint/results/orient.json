@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/orient",
+  "worker": "orient",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/envlint/orient/code-surface.md",
+    ".shapeup/envlint/orient/spike-rules-value-types.md",
+    ".shapeup/envlint/orient/discovered-seed.md",
+    ".shapeup/envlint/orient/hill-signal.md"
+  ],
+  "assumptions": [
+    "GATE O-A and O-B auto-confirmed because the order sets interaction.pause_gates=false.",
+    "Stack taken from the dispatch note and shapeup/envlint/project-profile.md (zero-dependency Node ESM CLI, node --test, Node v24.15.0)."
+  ],
+  "deviations": [
+    "Payload has no breadboard; the pitch has no Places/affordance tables, so the elements were taken from the pitch prose (E1-E6 in code-surface.md).",
+    "Payload has no stack field; used the dispatch note and project-profile.md instead.",
+    "kb_rules_path shapeup/knowledge-base/orient.md does not exist; no team guidelines applied.",
+    "The pitch has no shaped/bet frontmatter and is titled 'Raw idea', but it states an Appetite (single build round) and Boundaries, so O-A passed.",
+    "Pitch gap: the shape of the parsed pairs that Parse emits and Rules consumes (map vs ordered {key,value,line} list) and duplicate-key behaviour are unspecified. Parse and Rules build concurrently without importing each other, so the spec must pin this.",
+    "Pitch gap: the schema file format is unspecified ('a small JSON schema': real JSON Schema or a bespoke {KEY:{required,type,enum}} map), and so is what counts as an 'unreadable schema'.",
+    "Pitch gap: exit codes (findings vs usage error vs IO/schema error), the output line format and the stdout/stderr split are unspecified.",
+    "Pitch gap: whether a file with no assignments is a clean pass or a finding; bool spellings; int grammar details; url strictness (spike shows URL.canParse alone false-accepts)."
+  ]
+}

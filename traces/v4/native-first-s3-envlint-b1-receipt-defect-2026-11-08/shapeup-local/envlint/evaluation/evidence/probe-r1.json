@@ -1,0 +1,456 @@
+[
+  {
+    "id": "P TS-INV-01",
+    "ok": true,
+    "detail": "deep-equal; parse(undefined) throws"
+  },
+  {
+    "id": "P TS-INV-02",
+    "ok": true,
+    "detail": {
+      "pairs": [
+        {
+          "key": "A",
+          "value": "${B}",
+          "line": 1
+        },
+        {
+          "key": "C",
+          "value": "$D",
+          "line": 2
+        }
+      ],
+      "problems": []
+    }
+  },
+  {
+    "id": "P TS-INV-03",
+    "ok": true,
+    "detail": {
+      "pairs": [
+        {
+          "key": "A",
+          "value": "1",
+          "line": 1
+        },
+        {
+          "key": "B",
+          "value": "2",
+          "line": 5
+        }
+      ],
+      "problems": [
+        {
+          "line": 4,
+          "message": "expected KEY=value"
+        }
+      ]
+    }
+  },
+  {
+    "id": "P TS-ERR-NO_EQUALS",
+    "ok": true,
+    "detail": {
+      "pairs": [],
+      "problems": [
+        {
+          "line": 1,
+          "message": "expected KEY=value"
+        }
+      ]
+    }
+  },
+  {
+    "id": "P TS-ERR-INVALID_KEY",
+    "ok": true,
+    "detail": {
+      "pairs": [],
+      "problems": [
+        {
+          "line": 1,
+          "message": "invalid key"
+        }
+      ]
+    }
+  },
+  {
+    "id": "P TS-ERR-UNTERMINATED_SINGLE",
+    "ok": true,
+    "detail": {
+      "pairs": [],
+      "problems": [
+        {
+          "line": 1,
+          "message": "unterminated single quote"
+        }
+      ]
+    }
+  },
+  {
+    "id": "P TS-ERR-UNTERMINATED_DOUBLE",
+    "ok": true,
+    "detail": {
+      "pairs": [],
+      "problems": [
+        {
+          "line": 1,
+          "message": "unterminated double quote"
+        }
+      ]
+    }
+  },
+  {
+    "id": "P TS-ERR-TRAILING_AFTER_QUOTE",
+    "ok": true,
+    "detail": {
+      "pairs": [],
+      "problems": [
+        {
+          "line": 1,
+          "message": "unexpected text after closing quote"
+        }
+      ]
+    }
+  },
+  {
+    "id": "P TS-REQ-forms",
+    "ok": true,
+    "detail": [
+      {
+        "key": "KEY",
+        "value": "value",
+        "line": 1
+      },
+      {
+        "key": "KEY",
+        "value": "value",
+        "line": 2
+      },
+      {
+        "key": "A",
+        "value": "x # y",
+        "line": 3
+      },
+      {
+        "key": "B",
+        "value": "a\nb",
+        "line": 4
+      },
+      {
+        "key": "C",
+        "value": "v",
+        "line": 5
+      }
+    ]
+  },
+  {
+    "id": "P TS-REQ-empty",
+    "ok": true,
+    "detail": "both empty"
+  },
+  {
+    "id": "P TS-NOGO-01",
+    "ok": true,
+    "detail": "src/parse.mjs contains no import/require"
+  },
+  {
+    "id": "P step1 CRLF",
+    "ok": true,
+    "detail": "CRLF==LF"
+  },
+  {
+    "id": "P step6b escapes",
+    "ok": true,
+    "detail": "q\"x\\y\\tz"
+  },
+  {
+    "id": "P step6a literal single",
+    "ok": true,
+    "detail": "a\\nb"
+  },
+  {
+    "id": "P step6c comment after quote",
+    "ok": true,
+    "detail": "ok"
+  },
+  {
+    "id": "P step6d hash no space",
+    "ok": true,
+    "detail": "a#b"
+  },
+  {
+    "id": "P step5 key trim",
+    "ok": true,
+    "detail": {
+      "key": "A",
+      "value": "v",
+      "line": 1
+    }
+  },
+  {
+    "id": "P step7 duplicates kept",
+    "ok": true,
+    "detail": "kept"
+  },
+  {
+    "id": "P empty value",
+    "ok": true,
+    "detail": "A=\"\""
+  },
+  {
+    "id": "P domain one-per-line",
+    "ok": true,
+    "detail": "each line exactly one"
+  },
+  {
+    "id": "R TS-INV-01",
+    "ok": true,
+    "detail": "args unchanged; no import"
+  },
+  {
+    "id": "R TS-INV-02",
+    "ok": true,
+    "detail": "all accepts/rejects as listed"
+  },
+  {
+    "id": "R TS-INV-03",
+    "ok": true,
+    "detail": [
+      {
+        "key": "A",
+        "line": 1,
+        "code": "INVALID_TYPE",
+        "message": "expected int, got \"\""
+      }
+    ]
+  },
+  {
+    "id": "R TS-ERR-MISSING_REQUIRED",
+    "ok": true,
+    "detail": [
+      {
+        "key": "A",
+        "line": null,
+        "code": "MISSING_REQUIRED",
+        "message": "required key is missing"
+      }
+    ]
+  },
+  {
+    "id": "R TS-ERR-INVALID_TYPE",
+    "ok": true,
+    "detail": [
+      {
+        "key": "PORT",
+        "line": 3,
+        "code": "INVALID_TYPE",
+        "message": "expected int, got \"abc\""
+      }
+    ]
+  },
+  {
+    "id": "R TS-ERR-NOT_IN_ENUM",
+    "ok": true,
+    "detail": [
+      {
+        "key": "MODE",
+        "line": 2,
+        "code": "NOT_IN_ENUM",
+        "message": "expected one of dev, test; got \"prod\""
+      }
+    ]
+  },
+  {
+    "id": "R TS-ERR-SCHEMA_INVALID",
+    "ok": true,
+    "detail": [
+      [
+        "schema must be a JSON object"
+      ],
+      [
+        "schema must be a JSON object"
+      ],
+      [
+        "A: unknown type float"
+      ],
+      [
+        "A: enum must be a non-empty array of strings"
+      ],
+      [
+        "A: required must be true or false"
+      ],
+      [
+        "A: unknown property foo"
+      ],
+      [
+        "schema must be a JSON object"
+      ],
+      [
+        "schema must be a JSON object"
+      ],
+      [
+        "A: rule must be an object"
+      ],
+      [
+        "A: enum must be a non-empty array of strings"
+      ]
+    ]
+  },
+  {
+    "id": "R TS-REQ-duplicate",
+    "ok": true,
+    "detail": "no finding"
+  },
+  {
+    "id": "R TS-NOGO-01",
+    "ok": true,
+    "detail": "no import"
+  },
+  {
+    "id": "R step both codes",
+    "ok": true,
+    "detail": [
+      {
+        "key": "A",
+        "line": 1,
+        "code": "INVALID_TYPE",
+        "message": "expected int, got \"x\""
+      },
+      {
+        "key": "A",
+        "line": 1,
+        "code": "NOT_IN_ENUM",
+        "message": "expected one of 1; got \"x\""
+      }
+    ]
+  },
+  {
+    "id": "R step schema order + unknown ignored",
+    "ok": true,
+    "detail": "B,A"
+  },
+  {
+    "id": "R validateSchema messages",
+    "ok": true,
+    "detail": "messages verbatim"
+  },
+  {
+    "id": "C TS-INV-01",
+    "ok": true,
+    "detail": [
+      {
+        "code": 1,
+        "err": "",
+        "out": "/var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/garbage.bin"
+      },
+      {
+        "code": 2,
+        "err": "envlint: invalid schema /var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/arr.json: schema must be a JSON object",
+        "out": ""
+      },
+      {
+        "code": 2,
+        "err": "envlint: invalid schema /var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/str.json: schema must be a JSON object",
+        "out": ""
+      },
+      {
+        "code": 2,
+        "err": "envlint: cannot read /var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/adir",
+        "out": ""
+      }
+    ]
+  },
+  {
+    "id": "C TS-INV-02",
+    "ok": true,
+    "detail": {
+      "r1": "/var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/other.env:1: PORT: expected int, got \"abc\"\n/var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/other.env: SECRET_SENTINEL: required key is missing",
+      "r3": "envlint: usage: envlint --schema <schema.json> <envfile>"
+    }
+  },
+  {
+    "id": "C TS-INV-03",
+    "ok": true,
+    "detail": "exit 1, no ESC, stdin closed, no hang"
+  },
+  {
+    "id": "C TS-ERR-USAGE",
+    "ok": true,
+    "detail": "8 bad argv -> exit 2 + usage; --schema after envfile -> exit 0"
+  },
+  {
+    "id": "C TS-ERR-READ_FAILED",
+    "ok": true,
+    "detail": [
+      "envlint: cannot read /var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/nope.env",
+      "envlint: cannot read /var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/nope.json"
+    ]
+  },
+  {
+    "id": "C TS-ERR-SCHEMA_INVALID",
+    "ok": true,
+    "detail": [
+      "envlint: invalid schema /var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/nj.json: not valid JSON",
+      "envlint: invalid schema /var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/bt.json: A: unknown type float",
+      "envlint: invalid schema /var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/m.json: A: unknown type float\nenvlint: invalid schema /var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/m.json: A: unknown property foo"
+    ]
+  },
+  {
+    "id": "C TS-ERR-FINDINGS",
+    "ok": true,
+    "detail": "/var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/fx.env:1: PORT: expected int, got \"abc\"\n/var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/fx.env:2: parse error: expected KEY=value\n/var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/fx.env: HOST: required key is missing"
+  },
+  {
+    "id": "C TS-REQ-clean",
+    "ok": true,
+    "detail": "exit 0, silent"
+  },
+  {
+    "id": "C TS-REQ-no-assignments",
+    "ok": true,
+    "detail": [
+      "/var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/empty.env: A: required key is missing",
+      "/var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/comm.env: A: required key is missing"
+    ]
+  },
+  {
+    "id": "C TS-NOGO-01",
+    "ok": true,
+    "detail": "exit 0"
+  },
+  {
+    "id": "C TS-NOGO-02",
+    "ok": true,
+    "detail": "no forbidden token in bin/ src/"
+  },
+  {
+    "id": "C RULE-02 ordering",
+    "ok": true,
+    "detail": [
+      "/var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/ord.env:1: Z: expected bool, got \"x\"",
+      "/var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/ord.env:2: A: expected int, got \"y\"",
+      "/var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/ord.env:3: parse error: expected KEY=value",
+      "/var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/ord.env:4: B: expected int, got \"q\"",
+      "/var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/ord.env: M2: required key is missing",
+      "/var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/ord.env: M1: required key is missing"
+    ]
+  },
+  {
+    "id": "C RULE-03 relative path",
+    "ok": true,
+    "detail": "./rel.env:1: PORT: expected int, got \"x\""
+  },
+  {
+    "id": "C step2-3 envfile read before schema",
+    "ok": true,
+    "detail": "envlint: cannot read /var/folders/8m/6b67v6k54pd5mpsgfhmnmvqr0000gn/T/envlint-eval-2oi06A/nope.env"
+  },
+  {
+    "id": "OBS ANSI echoed from file content",
+    "ok": true,
+    "detail": {
+      "code": 1,
+      "stdoutContainsEsc": true
+    }
+  }
+]

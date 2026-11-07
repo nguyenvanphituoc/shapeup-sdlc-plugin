@@ -1,0 +1,156 @@
+{
+  "run": "envlint",
+  "date": "2026-11-08",
+  "plugin": "1cf20e0",
+  "pitch": "pitch.gate.md — the personal-site pitch with its No-gos section folded into the Solution as plain statements",
+  "launches": 1,
+  "claude_cost_usd": 5.355679999999998,
+  "claude_turns": 44,
+  "duration_s": 379,
+  "closed": [
+    "final_verdict: PASS",
+    "rounds_used: 1",
+    "close_cause: verdict=PASS rounds=1 qa_findings=6 qa=run",
+    "closed_status: shipped"
+  ],
+  "gates": [
+    [
+      "L0",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L0",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L1a",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L1a.5",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L1b",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L2",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L3",
+      "loop",
+      "preset:ci"
+    ],
+    [
+      "QA",
+      "run",
+      "preset:ci"
+    ],
+    [
+      "H",
+      "accept-cut-list",
+      "preset:ci"
+    ],
+    [
+      "L4",
+      "ship",
+      "preset:ci"
+    ],
+    [
+      "COACH-1",
+      "skip",
+      "preset:ci"
+    ]
+  ],
+  "legs": 9,
+  "leg_rows": [
+    {
+      "order": "orient",
+      "worker": "orient",
+      "attested": true,
+      "tokens_total": 25190,
+      "usage_source": "agent-hook",
+      "duration_s": 3
+    },
+    {
+      "order": "plan-requirements",
+      "worker": "building",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 20
+    },
+    {
+      "order": "plan-spec",
+      "worker": "building",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 148
+    },
+    {
+      "order": "plan-wire",
+      "worker": "building",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 8
+    },
+    {
+      "order": "plan-scopes",
+      "worker": "building",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 17
+    },
+    {
+      "order": "parsing-r1-a1",
+      "worker": "task-executor",
+      "attested": true,
+      "tokens_total": 30941,
+      "usage_source": "agent-hook",
+      "duration_s": 3
+    },
+    {
+      "order": "cli-r1-a1",
+      "worker": "task-executor",
+      "attested": true,
+      "tokens_total": 39671,
+      "usage_source": "agent-hook",
+      "duration_s": 3
+    },
+    {
+      "order": "evaluate-r1",
+      "worker": "spec-evaluator",
+      "attested": true,
+      "tokens_total": 54230,
+      "usage_source": "agent-hook",
+      "duration_s": 3
+    },
+    {
+      "order": "hunt",
+      "worker": "qa-edge-hunter",
+      "attested": true,
+      "tokens_total": 46195,
+      "usage_source": "agent-hook",
+      "duration_s": 3
+    }
+  ],
+  "hook_rows": {
+    "validate-envelope:allow": 9,
+    "dispatch-receipt:allow": 9,
+    "safety-spine:allow": 193,
+    "sandbox-guard:allow": 40,
+    "sandbox-guard:deny": 2
+  },
+  "note": "S3 comparison, envlint pitch with its No-gos stated as plain sentences, arm A repetition 1 (probe next loop, the committed tree). Archived from the run's backup folder because the archiver failed once at the time. The result for rules-r1-a1 was written and never applied by the single writer (no leg row, task left ready), and orient was dispatched twice; the run shipped PASS regardless."
+}

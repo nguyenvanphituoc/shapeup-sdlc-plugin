@@ -649,6 +649,35 @@ export async function run(ctx) {
       ok("a general-purpose agent attests as general-purpose, never as the worker — the ingest gate compares it with the order and refuses");
     } else fail(`a non-worker agent was attested as ${JSON.stringify(grow?.skill_invoked)}`);
 
+    // (h) A SCOPE LAUNCHED IN THE BACKGROUND. Parallel scope builds are launched this way, and the
+    //     result is the one a nested session recorded: "Async agent launched" plus an agentId, with no
+    //     agentType and no usage. The accepted call's own `subagent_type` is the attestation; usage is null.
+    const bgPost = (over = {}) => ({
+      hook_event_name: "PostToolUse", tool_name: "Agent", cwd: drBox,
+      tool_input: { description: "orient", subagent_type: "shapeup-sdlc-plugin:orient", run_in_background: true, prompt: `--order '${orderPath}'` },
+      tool_response: { status: "async_launched", agentId: "a63059b56d5a63083",
+        content: [{ type: "text", text: "Async agent launched successfully.\nagentId: a63059b56d5a63083\nThe agent is working in the background." }] },
+      ...over,
+    });
+    const beforeBg = rowsNow().length;
+    const bgFire = firePost(bgPost());
+    const brow = bgFire.rows[bgFire.rows.length - 1];
+    if (bgFire.rows.length === beforeBg + 1 && brow.skill_invoked === "orient" && brow.agent_type === "shapeup-sdlc-plugin:orient"
+        && brow.agent_id === "a63059b56d5a63083" && brow.dispatch_ok === true && brow.usage?.tokens_total === null) {
+      ok("a background launch is attested by the name the accepted call carried, with null usage — parallel scopes are not invisible to the receipt");
+    } else fail(`no usable receipt for a background launch: ${JSON.stringify(bgFire.rows.slice(beforeBg))}`);
+    // The same shape as a plain string result, in case the host passes the text rather than an object.
+    const beforeStr = rowsNow().length;
+    const strFire = firePost(bgPost({ tool_response: "Async agent launched successfully.\nagentId: a1\nThe agent is working in the background." }));
+    if (strFire.rows.length === beforeStr + 1) ok("a background launch reported as plain text is attested the same way");
+    else fail("a text-form background launch got no receipt");
+    // Neither half alone is enough: a foreground call with no agent named, and a background call whose result reports no launch.
+    const beforeNo = rowsNow().length;
+    const fg = firePost(bgPost({ tool_input: { subagent_type: "shapeup-sdlc-plugin:orient", run_in_background: false, prompt: `--order '${orderPath}'` } }));
+    const noLaunch = firePost(bgPost({ tool_response: { status: "error", content: [{ type: "text", text: "no such agent" }] } }));
+    if (fg.rows.length === beforeNo && noLaunch.rows.length === beforeNo) ok("a foreground result naming no agent, and a background call that reports no launch, mint nothing");
+    else fail(`a non-launch minted a receipt: ${JSON.stringify(noLaunch.rows.slice(beforeNo))}`);
+
     // (g) an Agent result that names no agent mints nothing.
     const beforeNone = rowsNow().length;
     const none = firePost(agentPost({ tool_response: { status: "completed" } }));

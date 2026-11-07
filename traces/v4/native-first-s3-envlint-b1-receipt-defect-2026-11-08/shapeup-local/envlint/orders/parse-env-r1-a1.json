@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/parse-env-r1-a1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-e-b1/kernel/harness.mjs",
+  "run_id": "envlint-20261107T193500Z-159af909",
+  "compiled_at": "2026-11-07T19:44:23.259Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "src/parse.mjs",
+      "test/parse.test.mjs",
+      "test/fixtures/parse/**",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": [],
+    "frozen": [
+      ".shapeup/envlint/**"
+    ],
+    "own": [
+      ".shapeup/envlint/results/parse-env-r1-a1.json",
+      ".shapeup/envlint/tasks/TASK-*.md",
+      ".shapeup/envlint/discovery/**",
+      ".shapeup/envlint/spikes/**"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "parse-env",
+      "topology_type": "ICEBERG",
+      "use_cases": [
+        "UC-ParseEnvText"
+      ],
+      "covers": [
+        "REQ-10",
+        "REQ-11",
+        "REQ-12",
+        "REQ-13",
+        "REQ-14",
+        "REQ-15",
+        "REQ-16",
+        "REQ-17",
+        "REQ-24",
+        "REQ-25",
+        "REQ-27"
+      ],
+      "depends_on": [],
+      "allowed_file_substrate": [
+        "src/parse.mjs",
+        "test/parse.test.mjs",
+        "test/fixtures/parse/**"
+      ],
+      "shared_substrate": [],
+      "affordance_manifest": [],
+      "e2e_verification_fixtures": [
+        "node --check src/parse.mjs",
+        "node --test test/parse.test.mjs"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN"
+    },
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "title": "Implement the pure .env parser in src/parse.mjs",
+        "status": "ready",
+        "priority": 1,
+        "depends_on": [],
+        "use_case_refs": [
+          "UC-ParseEnvText"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/envlint/tasks/TASK-001-parse-env-text.md",
+        "acceptance_criteria": [
+          {
+            "text": "`src/parse.mjs` exports `parse(text)` returning `{ pairs: {key,value,line}[], problems: {line,message}[] }` (covers: REQ-10, REQ-17)",
+            "covers": [
+              "REQ-10",
+              "REQ-17"
+            ]
+          },
+          "`node --check src/parse.mjs` exits 0 and `node --test test/parse.test.mjs` passes",
+          {
+            "text": "`KEY=value` lines yield a pair with the 1-based line number (covers: REQ-11)",
+            "covers": [
+              "REQ-11"
+            ]
+          },
+          {
+            "text": "`#` comment lines and an unquoted value's trailing ` # comment` yield nothing / are stripped (covers: REQ-12)",
+            "covers": [
+              "REQ-12"
+            ]
+          },
+          {
+            "text": "Blank and whitespace-only lines yield nothing and still advance the line count (covers: REQ-13)",
+            "covers": [
+              "REQ-13"
+            ]
+          },
+          {
+            "text": "`export KEY=value` yields the pair `KEY=value` (covers: REQ-14)",
+            "covers": [
+              "REQ-14"
+            ]
+          },
+          {
+            "text": "Single-quoted values are literal; double-quoted values support `\\n`, `\\\"`, `\\\\`; a `#` inside quotes is part of the value (covers: REQ-15)",
+            "covers": [
+              "REQ-15"
+            ]
+          },
+          {
+            "text": "Every Error Case in [[usecases/UC-ParseEnvText#Error Cases]] produces exactly its message at the right 1-based line (covers: REQ-16)",
+            "covers": [
+              "REQ-16"
+            ]
+          },
+          {
+            "text": "`${VAR}` and `$VAR` are returned literally (covers: REQ-27)",
+            "covers": [
+              "REQ-27"
+            ]
+          },
+          {
+            "text": "`src/parse.mjs` has no import of `./rules.mjs` and no `node:` I/O import; `test/parse.test.mjs` imports only `src/parse.mjs` and `node:test`/`node:assert` (covers: REQ-24, REQ-25)",
+            "covers": [
+              "REQ-24",
+              "REQ-25"
+            ]
+          },
+          {
+            "text": "`parse(\"\")` and comment-only text return `{ pairs: [], problems: [] }` (covers: REQ-6)",
+            "covers": [
+              "REQ-6"
+            ]
+          },
+          "CRLF input yields the same pairs as LF input; a value of `KEY=` yields `value: \"\"`"
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

@@ -1,0 +1,329 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/evaluate-r1",
+  "worker": "spec-evaluator",
+  "status": "done",
+  "verdict": {
+    "overall": "PASS",
+    "report_path": ".shapeup/envlint/evaluation/EVAL-FEATURE-envlint.md",
+    "t0_citations": [
+      {
+        "scope_id": "rules",
+        "path": ".shapeup/envlint/t0/verdicts/r1-a1-t1.json",
+        "sha256": "bfae9be3a398b501c7eb4485fa52b53a3ab41fa7f10576a962125e8aafd1c5ee"
+      },
+      {
+        "scope_id": "parsing",
+        "path": ".shapeup/envlint/t0/verdicts/r1-a1-t2.json",
+        "sha256": "0ab52739bdeb7013096272c23e8f96195097370dd3f50db162ea1754f266ca6d"
+      },
+      {
+        "scope_id": "cli",
+        "path": ".shapeup/envlint/t0/verdicts/r1-a1-t3.json",
+        "sha256": "3410aad4ecd64efdc784400c81cac34288ef1c52de07758c7c08649037452cb2"
+      }
+    ],
+    "criteria": [
+      {
+        "criterion": "UC-ParseEnvText TS-INV-01",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "T0 r1-a1-t2 green, node --test test/parse.test.mjs pass; independent `node --test` 29/29 pass; malformed never throw test; src/parse.mjs:4-35 no throw path",
+        "traces_to": [
+          "REQ-6",
+          "REQ-14"
+        ]
+      },
+      {
+        "criterion": "UC-ParseEnvText TS-INV-02",
+        "dimension": "completeness",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "src/parse.mjs has no import statements (read lines 1-35)",
+        "traces_to": [
+          "REQ-21"
+        ]
+      },
+      {
+        "criterion": "UC-ParseEnvText TS-ERR-PARSE_ERROR",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "T0 r1-a1-t2 green, node --test test/parse.test.mjs pass; independent `node --test` 29/29 pass; bad line in the middle",
+        "traces_to": [
+          "REQ-14"
+        ]
+      },
+      {
+        "criterion": "UC-ParseEnvText TS-REQ-text-empty",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "test empty passes in T0 r1-a1-t2",
+        "traces_to": [
+          "REQ-5"
+        ]
+      },
+      {
+        "criterion": "UC-ParseEnvText TS-NOGO-01",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "test no interpolation passes; src/parse.mjs keeps value literal",
+        "traces_to": [
+          "REQ-23"
+        ]
+      },
+      {
+        "criterion": "UC-CheckEnvAgainstSchema TS-INV-01",
+        "dimension": "completeness",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "url check via new URL only, src/rules.mjs:7-14; test url unreachable host passes in T0 r1-a1-t1",
+        "traces_to": [
+          "REQ-25"
+        ]
+      },
+      {
+        "criterion": "UC-CheckEnvAgainstSchema TS-INV-02",
+        "dimension": "completeness",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "src/rules.mjs has no import statements (read lines 1-40)",
+        "traces_to": [
+          "REQ-21"
+        ]
+      },
+      {
+        "criterion": "UC-CheckEnvAgainstSchema TS-ERR-MISSING_REQUIRED",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "test missing required key has line null passes, T0 r1-a1-t1; CLI probe printed REQ missing",
+        "traces_to": [
+          "REQ-16"
+        ]
+      },
+      {
+        "criterion": "UC-CheckEnvAgainstSchema TS-ERR-TYPE_MISMATCH",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "test type mismatches carry the pair line passes; CLI probe PORT=abc -> e.env:1 TYPE mismatch",
+        "traces_to": [
+          "REQ-17"
+        ]
+      },
+      {
+        "criterion": "UC-CheckEnvAgainstSchema TS-ERR-NOT_IN_ENUM",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "test enum rejects values outside the list passes; CLI probe A=${HOME} -> e.env:2 NOT_IN_ENUM",
+        "traces_to": [
+          "REQ-18"
+        ]
+      },
+      {
+        "criterion": "UC-CheckEnvAgainstSchema TS-REQ-type-valid",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "test valid typed values produce no findings passes",
+        "traces_to": [
+          "REQ-17"
+        ]
+      },
+      {
+        "criterion": "UC-CheckEnvAgainstSchema TS-NOGO-01",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "test url on an unreachable host accepted on shape alone passes; no network code in src/rules.mjs",
+        "traces_to": [
+          "REQ-25"
+        ]
+      },
+      {
+        "criterion": "UC-LintEnvFile TS-INV-01",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "probe in temp dir: directory listing and env bytes unchanged after run; CLI only calls readFileSync (bin/envlint.mjs:30,37)",
+        "traces_to": [
+          "REQ-22"
+        ]
+      },
+      {
+        "criterion": "UC-LintEnvFile TS-INV-02",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "probe: no ANSI in stdout/stderr on findings run; stdin closed, process exits",
+        "traces_to": [
+          "REQ-24"
+        ]
+      },
+      {
+        "criterion": "UC-LintEnvFile TS-INV-03",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "probe: cwd .env with errors, `--schema s.json` alone -> exit 2 usage",
+        "traces_to": [
+          "REQ-8"
+        ]
+      },
+      {
+        "criterion": "UC-LintEnvFile TS-INV-04",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "probe: random-byte file exit 1 and empty file exit 1 (required key missing), stderr empty, no stack",
+        "traces_to": [
+          "REQ-6"
+        ]
+      },
+      {
+        "criterion": "UC-LintEnvFile TS-ERR-USAGE",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "probe: no args and --schema only -> exit 2, usage line on stderr",
+        "traces_to": []
+      },
+      {
+        "criterion": "UC-LintEnvFile TS-ERR-ENV_NOT_FOUND",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "probe: exit 2, stderr names missing.env, no stack",
+        "traces_to": [
+          "REQ-3",
+          "REQ-6"
+        ]
+      },
+      {
+        "criterion": "UC-LintEnvFile TS-ERR-SCHEMA_UNREADABLE",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "probe: missing schema and `{not json` both exit 2 naming schema file, no stack",
+        "traces_to": [
+          "REQ-4",
+          "REQ-6"
+        ]
+      },
+      {
+        "criterion": "UC-LintEnvFile TS-ERR-FINDINGS",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "probe: stdout `e.env:1: PORT: PORT must be int, got \"abc\"` plus missing-key line, exit 1",
+        "traces_to": [
+          "REQ-1",
+          "REQ-2"
+        ]
+      },
+      {
+        "criterion": "UC-LintEnvFile TS-REQ-clean",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "probe: valid env exit 0, empty stdout",
+        "traces_to": [
+          "REQ-20"
+        ]
+      },
+      {
+        "criterion": "UC-LintEnvFile TS-REQ-no-assignments",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "probe: comments-only env exit 1, one MISSING_REQUIRED line, no crash",
+        "traces_to": [
+          "REQ-5"
+        ]
+      },
+      {
+        "criterion": "UC-LintEnvFile TS-NOGO-01",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "probe: env bytes unchanged after run",
+        "traces_to": [
+          "REQ-22"
+        ]
+      },
+      {
+        "criterion": "UC-LintEnvFile TS-NOGO-02",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "probe: no ANSI codes in stdout or stderr",
+        "traces_to": [
+          "REQ-24"
+        ]
+      },
+      {
+        "criterion": "UC-LintEnvFile TS-NOGO-03",
+        "dimension": "test-surface-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "probe: finding line `A must be one of x, got \"${HOME}\"` quotes literal",
+        "traces_to": [
+          "REQ-23"
+        ]
+      },
+      {
+        "criterion": "UC-LintEnvFile Steps 1-7 / Error Cases",
+        "dimension": "spec-conformance",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "all CLI probes match Steps and exit-code table; bin/envlint.mjs:14-62",
+        "traces_to": [
+          "REQ-7",
+          "REQ-20"
+        ]
+      },
+      {
+        "criterion": "Suite: node --test (project test command)",
+        "dimension": "tdd-surface",
+        "verdict": "PASS",
+        "confidence": "high",
+        "reprobed": false,
+        "evidence": "node --test exit 0, 29 pass 0 fail; per-scope fixtures green in T0 r1-a1-t1..t3",
+        "traces_to": []
+      }
+    ],
+    "refuted": [],
+    "bugs": []
+  }
+}

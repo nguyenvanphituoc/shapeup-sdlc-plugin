@@ -1,0 +1,71 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 3,
+  "at": "2026-11-07T19:48:18.206Z",
+  "run_id": "envlint-20261107T193500Z-159af909",
+  "scope_id": "cli",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b8a18120b78f8f6be5f13681f4f9b973729cff15",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "6ff7b1e0d4469e07ec19c54eaab65b8c4b4ca81a2873e74ef8e050351cfc4dd6"
+    },
+    "env_sha256": "b0f15cd24a6a372bb7de415f5c48810603436528917a5b95c8dd823d627bf10d"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --check bin/envlint.mjs",
+      "exit": 0,
+      "pass": true
+    },
+    {
+      "cmd": "node --test test/cli.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ TS-INV-01: no input produces a stack trace (131.21425ms)\n✔ TS-INV-02: never reads an implicit .env and writes no file (94.424458ms)\n✔ TS-INV-03: no ANSI escapes and no stdin (92.378ms)\n✔ TS-ERR-USAGE: bad arguments exit 2 with the usage line (213.329792ms)\n✔ TS-ERR-READ_FAILED: a missing path exits 2 naming it (63.389417ms)\n✔ TS-ERR-SCHEMA_INVALID: bad JSON and bad shape exit 2 (61.400791ms)\n✔ TS-ERR-FINDINGS: findings are printed in order, exit 1 (62.798667ms)\n✔ TS-REQ-clean: a valid envfile exits 0 with no output (30.477167ms)\n✔ TS-REQ-no-assignments: empty and comment-only files are judged normally (123.013875ms)\n✔ TS-NOGO-01: no interpolation (31.285292ms)\n✔ TS-NOGO-02: bin/ and src/ write no file, set no env, use no network (0.439792ms)\nℹ tests 11\nℹ suites 0\nℹ pass 11\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 948.195917\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 2,
+    "fixtures_total": 2,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "bin/envlint.mjs": "f03b6c40f21fa2d25296a5a58191ae38e0dd91fc8534969d51076e2d120f618e",
+    "test/cli.test.mjs": "71dbe46d6c39c6556d5791a53098b5e8b96229d6b049cb3a438e2bf66e6ecdfe"
+  }
+}

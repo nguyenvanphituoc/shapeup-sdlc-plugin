@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/rules-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-002",
+      "status": "done",
+      "ac_results": [
+        { "ac": "`src/rules.mjs` exports `check(pairs, schema)` returning an array of findings; `node --test test/rules.test.mjs` exits 0 (covers: REQ-19)", "result": "pass", "evidence": "verify t0 r1-a1 green, fixtures 1/1 (node --test test/rules.test.mjs)" },
+        { "ac": "a `required: true` key with no pair yields one `MISSING_REQUIRED` finding with `line: null` (covers: REQ-16)", "result": "pass", "evidence": "test 'missing required key has line null' in the green suite" },
+        { "ac": "`type: \"int\"` rejects `abc`, accepts `-42`; `type: \"bool\"` rejects `yes`, accepts `true`/`false`; `type: \"string\"` accepts anything — each rejection is a `TYPE_MISMATCH` with the pair's line (covers: REQ-17)", "result": "pass", "evidence": "tests 'type mismatches carry the pair line' and 'valid typed values produce no findings' green" },
+        { "ac": "`type: \"url\"` accepts `https://a.b` and rejects `not a url` (covers: REQ-17)", "result": "pass", "evidence": "same two tests green" },
+        { "ac": "`enum: [\"dev\",\"prod\"]` rejects `staging` with `NOT_IN_ENUM` and the pair's line (covers: REQ-18)", "result": "pass", "evidence": "test 'enum rejects values outside the list' green" },
+        { "ac": "every finding carries `key` and `line`, so the CLI can report key by key, line by line (covers: REQ-1)", "result": "pass", "evidence": "test 'every finding carries key and line' green" },
+        { "ac": "`src/rules.mjs` has no import of `parse` or `bin/` — `grep -E \"import .*(parse|bin/)\" src/rules.mjs` finds nothing (covers: REQ-21)", "result": "pass", "evidence": "file has no import statements at all (by inspection of the written source)" },
+        { "ac": "the url check uses only string parsing (`URL`); `grep -E \"fetch|node:http|node:https|node:net|node:dns\" src/rules.mjs` finds nothing (covers: REQ-25)", "result": "pass", "evidence": "url check is new URL() in try/catch; none of the forbidden tokens appear in the source (by inspection)" },
+        { "ac": "`check([], {})` returns `[]` (covers: REQ-6)", "result": "pass", "evidence": "test 'empty input yields no findings' green" }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "src/rules.mjs", "change": "created" },
+    { "path": "test/rules.test.mjs", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "a type or enum rule on a key with no pair yields no finding (only required does)",
+    "a schema type outside string/int/bool/url is ignored rather than flagged",
+    "when a value fails both type and enum, both findings are emitted"
+  ],
+  "deviations": [
+    "the two grep ACs were verified by inspection of the source, not by running grep (Bash was denied for those commands)"
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 2,
+  "at": "2026-11-07T19:28:50.395Z",
+  "run_id": "envlint-20261107T192157Z-60b7d658",
+  "scope_id": "parsing",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b8a18120b78f8f6be5f13681f4f9b973729cff15",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "1d1e5a8620fb0ccc1a8af77abcac33bf8dc379ac928151bcd0cf1e9de0cc332a"
+    },
+    "env_sha256": "6ea8060be400d7a30e66145786ba235d8961ce9ba544eb3945ba6107ed49d1c1"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --test test/parse.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ KEY=value (0.813375ms)\n✔ comments skipped (0.128458ms)\n✔ blank lines keep numbering (0.068417ms)\n✔ export prefix (0.409167ms)\n✔ quotes (0.062042ms)\n✔ bad line in the middle (0.069791ms)\n✔ empty (0.054458ms)\n✔ only comments and blanks (0.055834ms)\n✔ malformed never throw (0.089458ms)\n✔ no interpolation (0.095084ms)\nℹ tests 10\nℹ suites 0\nℹ pass 10\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 46.918208\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "test/parse.test.mjs": "3ed03cd08e07b039cf8b662493a1257cc18ca944bcf325a682b5fc894590b6f0"
+  }
+}

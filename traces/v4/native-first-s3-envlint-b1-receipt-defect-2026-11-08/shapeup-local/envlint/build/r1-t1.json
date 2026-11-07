@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "round": 1,
+  "trial": 1,
+  "at": "2026-11-07T19:50:26.213Z",
+  "run_id": "envlint-20261107T193500Z-159af909",
+  "archetype": "library",
+  "overall": "green",
+  "steps": [
+    {
+      "kind": "build_probe",
+      "cmd": "node --check bin/envlint.mjs && node --check src/parse.mjs && node --check src/rules.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "",
+      "stderr_tail": ""
+    }
+  ],
+  "warnings": [
+    "the run ledger declares no run_cmd — the build itself is not part of this gate"
+  ],
+  "discovered_tasks": []
+}

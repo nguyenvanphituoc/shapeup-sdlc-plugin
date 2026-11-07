@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "verdict": "ship-now",
+  "cut_list": [
+    "REQ-9 KEY=value parsing — no EVAL criterion anchored (T0 parse suite green; integration fixture exercises it) — evidence gap, not a behaviour gap",
+    "REQ-10 # comments — no EVAL criterion anchored (T0 parse suite green) — evidence gap",
+    "REQ-11 blank lines — no EVAL criterion anchored (T0 parse suite green) — evidence gap",
+    "REQ-12 export KEY=value — no EVAL criterion anchored (T0 parse suite green) — evidence gap",
+    "REQ-13 single/double quotes — no EVAL criterion anchored (T0 parse suite green) — evidence gap",
+    "REQ-15 parse() pure {pairs, problems} shape — no EVAL criterion anchored (T0 parse suite green) — evidence gap",
+    "REQ-19 check() pure findings shape — no EVAL criterion anchored; rules WorkResult was never ingested (no dispatch receipt) though T0 is green — evidence gap",
+    "QA-001 inline `# comment` after a value is kept in the value — syntax the pitch does not list",
+    "QA-002 CR-only line endings read as one line — not in the pitch",
+    "QA-003 unknown/prototype-named schema `type` accepted silently — schema validation not in the pitch",
+    "QA-004 control/ANSI bytes from an input value echoed raw to stdout — the tool emits no colour itself; sanitising echoed input is a refinement of the no-colour boundary",
+    "QA-005 duplicate key flags the shadowed earlier line — duplicate-key semantics not in the pitch",
+    "QA-006 repeated --schema silently last-wins; bare `--` read as env filename — argv edge outside the pitch"
+  ],
+  "ship_blocking": [],
+  "breaker": null,
+  "baseline": null
+}

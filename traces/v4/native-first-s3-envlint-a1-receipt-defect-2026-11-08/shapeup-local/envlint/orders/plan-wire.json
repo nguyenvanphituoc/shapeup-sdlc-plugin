@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/plan-wire",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-e-a1/kernel/harness.mjs",
+  "run_id": "envlint-20261107T192157Z-60b7d658",
+  "compiled_at": "2026-11-07T19:26:43.289Z",
+  "worker": "building",
+  "mode": "standalone",
+  "operation": "plan",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "shapeup/envlint/wiring-map.md"
+    ],
+    "frozen": [
+      "shapeup/envlint/spec/domain-model.md",
+      "shapeup/envlint/spec/usecases/*.md#Steps",
+      "shapeup/envlint/spec/contracts/**",
+      "shapeup/envlint/spec/ux-behavior.md",
+      "shapeup/envlint/scopes/**",
+      ".shapeup/envlint/intake.md",
+      ".shapeup/envlint/breadboard.md",
+      "shapeup/envlint/project-profile.md",
+      ".shapeup/envlint/orders/**",
+      ".shapeup/envlint/results/**",
+      ".shapeup/envlint/receipts/**",
+      ".shapeup/envlint/legs.jsonl",
+      ".shapeup/envlint/t0/verdicts/**"
+    ]
+  },
+  "payload": {
+    "step": "wire",
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_paths": [
+      "shapeup/knowledge-base/plan.md",
+      "shapeup/knowledge-base/ba-pitch-analyzer.md",
+      "shapeup/knowledge-base/scope-architect.md",
+      "shapeup/knowledge-base/solution-architect.md"
+    ]
+  }
+}

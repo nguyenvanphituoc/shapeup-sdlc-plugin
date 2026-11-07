@@ -1,0 +1,202 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/cli-r1-a1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-e-a1/kernel/harness.mjs",
+  "run_id": "envlint-20261107T192157Z-60b7d658",
+  "compiled_at": "2026-11-07T19:29:12.215Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "bin/envlint.mjs",
+      "test/cli.test.mjs",
+      "test/integration.test.mjs",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": [],
+    "frozen": [
+      ".shapeup/envlint/**"
+    ],
+    "own": [
+      ".shapeup/envlint/results/cli-r1-a1.json",
+      ".shapeup/envlint/tasks/TASK-*.md",
+      ".shapeup/envlint/discovery/**",
+      ".shapeup/envlint/spikes/**"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "cli",
+      "topology_type": "LAYER_CAKE",
+      "use_cases": [
+        "UC-LintEnvFile"
+      ],
+      "covers": [
+        "REQ-1",
+        "REQ-2",
+        "REQ-3",
+        "REQ-4",
+        "REQ-5",
+        "REQ-6",
+        "REQ-7",
+        "REQ-8",
+        "REQ-20",
+        "REQ-22",
+        "REQ-23",
+        "REQ-24",
+        "REQ-25"
+      ],
+      "depends_on": [
+        "parsing",
+        "rules"
+      ],
+      "allowed_file_substrate": [
+        "bin/envlint.mjs",
+        "test/cli.test.mjs",
+        "test/integration.test.mjs"
+      ],
+      "shared_substrate": [],
+      "affordance_manifest": [],
+      "e2e_verification_fixtures": [
+        "node --test test/cli.test.mjs test/integration.test.mjs"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN"
+    },
+    "tasks": [
+      {
+        "id": "TASK-003",
+        "title": "Compose the envlint CLI in bin/envlint.mjs",
+        "status": "ready",
+        "priority": 2,
+        "depends_on": [
+          "TASK-001",
+          "TASK-002"
+        ],
+        "use_case_refs": [
+          "UC-LintEnvFile"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/envlint/tasks/TASK-003-cli.md",
+        "acceptance_criteria": [
+          {
+            "text": "`node bin/envlint.mjs --schema <schema.json> <envfile>` reads both files given as arguments; `node --test test/cli.test.mjs` exits 0 (covers: REQ-7, REQ-20)",
+            "covers": [
+              "REQ-7",
+              "REQ-20"
+            ]
+          },
+          {
+            "text": "a run with no env file argument exits 2 with a usage line, even when the cwd holds a `.env` (covers: REQ-8)",
+            "covers": [
+              "REQ-8"
+            ]
+          },
+          {
+            "text": "`PORT=abc` with schema `{\"PORT\":{\"type\":\"int\"}}` prints a stdout line naming `PORT` and line 1, and exits 1 (covers: REQ-1, REQ-2)",
+            "covers": [
+              "REQ-1",
+              "REQ-2"
+            ]
+          },
+          {
+            "text": "a valid env file matching its schema prints nothing and exits 0 (covers: REQ-20)",
+            "covers": [
+              "REQ-20"
+            ]
+          },
+          {
+            "text": "a missing env file exits 2 with stderr naming the file and no stack trace (covers: REQ-3, REQ-6)",
+            "covers": [
+              "REQ-3",
+              "REQ-6"
+            ]
+          },
+          {
+            "text": "a missing schema file, and a schema file holding `{not json`, each exit 2 with stderr naming the schema file and no stack trace (covers: REQ-4, REQ-6)",
+            "covers": [
+              "REQ-4",
+              "REQ-6"
+            ]
+          },
+          {
+            "text": "an env file with no assignments (only comments/blank lines) and a schema with a required key exits 1 with one missing-key line, no crash (covers: REQ-5)",
+            "covers": [
+              "REQ-5"
+            ]
+          },
+          {
+            "text": "stdout and stderr contain no `\\x1b[` escape sequence; the process never waits on stdin (covers: REQ-24)",
+            "covers": [
+              "REQ-24"
+            ]
+          },
+          {
+            "text": "after any run the env file's bytes and the fixture directory listing are unchanged (covers: REQ-22)",
+            "covers": [
+              "REQ-22"
+            ]
+          },
+          {
+            "text": "`A=${HOME}` with schema `{\"A\":{\"enum\":[\"x\"]}}` reports the literal `${HOME}` (covers: REQ-23)",
+            "covers": [
+              "REQ-23"
+            ]
+          },
+          {
+            "text": "`bin/envlint.mjs` makes no network access — `grep -E \"fetch|node:http|node:https|node:net\" bin/envlint.mjs` finds nothing (covers: REQ-25)",
+            "covers": [
+              "REQ-25"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "TASK-004",
+        "title": "Add the end-to-end integration test driving the binary",
+        "status": "ready",
+        "priority": 3,
+        "depends_on": [
+          "TASK-003"
+        ],
+        "use_case_refs": [
+          "UC-LintEnvFile"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/envlint/tasks/TASK-004-integration-test.md",
+        "acceptance_criteria": [
+          {
+            "text": "`test/integration.test.mjs` spawns `node bin/envlint.mjs` against fixtures it writes to a temp dir; `npm test` exits 0 (covers: REQ-7)",
+            "covers": [
+              "REQ-7"
+            ]
+          },
+          {
+            "text": "it asserts exit 0 clean / 1 findings / 2 usage-or-I/O for each `TS-ERR-*` row of the use case (covers: REQ-2, REQ-3, REQ-4)",
+            "covers": [
+              "REQ-2",
+              "REQ-3",
+              "REQ-4"
+            ]
+          },
+          {
+            "text": "it asserts a fixture with every parse feature (comment, blank, `export`, both quote styles) and every rule (`required`, each `type`, `enum`) yields exactly the expected stdout lines (covers: REQ-1, REQ-9, REQ-16, REQ-17, REQ-18)",
+            "covers": [
+              "REQ-1",
+              "REQ-9",
+              "REQ-16",
+              "REQ-17",
+              "REQ-18"
+            ]
+          }
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

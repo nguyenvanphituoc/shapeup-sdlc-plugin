@@ -189,3 +189,19 @@ Shipped executable set: 18,736 → 16,513 lines and 52 → 46 files; subcommands
 | docs against the fact sheet | four drift sites fixed: the hill-chart row in `04-functional-design`, the local-tier listing in `03-system-design` (the `trace/` and `exports/` entries), and the SECURITY and README hook lists, done earlier with the hook cut |
 | shipped-set sweep | no new bookkeeping markers; `HD-001` in the retro template is a placeholder for a consumer's own id, and the pitch paths in the plan templates are examples of a consumer's files |
 | stranded readers | the `traceDir` path helper the oracle left unused is removed; the dashboard template still carries unreachable JavaScript for the graph screens, left because it is a separate edit to a 1,400-line asset |
+
+## A defect in S2, found by the S3 comparison
+
+The first envlint repetitions (`traces/v4/native-first-s3-envlint-a1-receipt-defect-2026-11-08/` and `...-b1-...`) ran on the S2 tree. The
+personal-site gates had not shown it, because that pitch builds one scope in the foreground. With three scopes the loop launches the
+builders in the background, and the result of a background `Agent` call is "Async agent launched" plus an `agentId`: no `agentType`, no
+usage. S2's receipt hook attested only from `agentType`, so it wrote **no receipt for any parallel scope** (`no-skill-named` in the
+ledger). Consequences seen: in arm A one scope's result was never applied by the single writer and its task stayed `ready` while the
+run still shipped PASS; in arm B the session worked around the refusal with `--no-receipt-check` on two results, which bypasses the
+attestation. Before S2 the receipt came from the `Skill` call inside the worker, which fires whether or not the worker runs in the
+background, so S2 was a regression for exactly the parallel case.
+
+Fixed in the receipt hook: an accepted background launch (`run_in_background` true and a result reporting a launch and an `agentId`)
+is attested by the name the call carried, with null usage; the leg row stays null unless the loop passes the total from the completion
+notice. Tests cover the object and the text form of the result and the two cases that must mint nothing. Both repetitions are
+contaminated by the defect and are kept as evidence of it, not as measurements; the comparison was restarted on the fixed tree.

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/plan-spec",
+  "worker": "building",
+  "status": "done",
+  "artifacts": [
+    "shapeup/envlint/spec/usecases/UC-EvaluateRules.md",
+    "shapeup/envlint/spec/usecases/UC-LintEnvFile.md",
+    "shapeup/envlint/spec/usecases/UC-ParseEnvText.md",
+    ".shapeup/envlint/tasks/TASK-001-parse-env-text.md",
+    ".shapeup/envlint/tasks/TASK-002-evaluate-rules.md",
+    ".shapeup/envlint/tasks/TASK-003-cli.md",
+    ".shapeup/envlint/tasks/TASK-004-cli-integration-tests.md"
+  ]
+}

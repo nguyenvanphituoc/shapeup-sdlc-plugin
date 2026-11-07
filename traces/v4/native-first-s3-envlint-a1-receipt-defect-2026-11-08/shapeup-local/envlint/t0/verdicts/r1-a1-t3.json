@@ -1,0 +1,66 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 3,
+  "at": "2026-11-07T19:30:03.579Z",
+  "run_id": "envlint-20261107T192157Z-60b7d658",
+  "scope_id": "cli",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b8a18120b78f8f6be5f13681f4f9b973729cff15",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "1d1e5a8620fb0ccc1a8af77abcac33bf8dc379ac928151bcd0cf1e9de0cc332a"
+    },
+    "env_sha256": "6ea8060be400d7a30e66145786ba235d8961ce9ba544eb3945ba6107ed49d1c1"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --test test/cli.test.mjs test/integration.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ type mismatch names key and line, exit 1 (38.142167ms)\n✔ clean file prints nothing, exit 0 (33.01575ms)\n✔ no env file argument exits 2 with usage, even with .env in cwd (33.119958ms)\n✔ missing env file exits 2 naming it, no stack (33.775125ms)\n✔ missing and invalid schema exit 2 naming it, no stack (67.245417ms)\n✔ comments-only env with required key: one missing line, exit 1 (33.137875ms)\n✔ dollar-brace value reported literally (32.29925ms)\n✔ no network modules in the binary (0.148208ms)\n✔ exit 0 clean (37.478167ms)\n✔ exit 1 findings (36.250875ms)\n✔ exit 2 usage and I/O (97.850375ms)\n✔ every parse feature and rule yields exactly the expected lines (34.773417ms)\nℹ tests 12\nℹ suites 0\nℹ pass 12\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 316.783458\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "test/cli.test.mjs": "a09864b668365cfe53ddb63b1194c69e54ff981b47ccc811ced68dd4dd5635a6",
+    "test/integration.test.mjs": "4b3146204614f09e626583d85560775d2e306216e5e3ee26e4a37d2fa88c07a8"
+  }
+}
