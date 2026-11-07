@@ -3,6 +3,46 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [4.0.0] — 2026-11-07 · One loop in the session, in place of one workflow launch
+
+**Breaking.** The run is driven by one skill, `building`, in your own session. It asks the kernel
+what comes next (`probe next`), does exactly that, and asks again. The Workflow-runtime launch, the
+agents that existed only to type one kernel command, the preflight canary and the relaunch after
+every gate are gone: a gate is answered in the session that reached it, and `/ship` again over an
+open run resumes from artifacts on disk. Decision record: ADR-0004.
+
+- **Skills 13 → 7.** `tech-lead`, `ba-pitch-analyzer`, `solution-architect`, `scope-architect`,
+  `scope-hammer`, `coach` and `translator` are removed. Their craft lives in `building`'s resources:
+  `plan` (requirements, spec tree and board, wiring map, scope contracts — run in the loop's own
+  context under a fence-only order, so planning writes still have a substrate), `stop` (the census
+  and GATE H), `retro` (feedback and GATE COACH-1, with `--scan` and `--research`) and `intake` (the
+  language check, which now writes the `<name>.en.md` copy and glossary itself). Workers: 10 → 4
+  (`orient`, `task-executor`, `spec-evaluator`, `qa-edge-hunter`); operations 18 → 7.
+- **`/ship --tiny` is no longer served.** The small-change lane lived in `tech-lead` and went with it.
+  Run the full loop with a small appetite instead. `/scopes` and `/wire` remain, as aliases of the
+  loop's `plan`; `/hammer` and `/retro` keep their names and point at `stop` and `retro`.
+- **The installer no longer adds the unscoped `Workflow` permission**, and deletes nothing from your
+  settings: a token you already have is yours. The grant is the two Bash rules for the kernel.
+  `--no-native-workflow` is accepted and does nothing.
+- **`init run` writes the launch record** and now takes the launch switches (`--exec-model`,
+  `--eval-model`, `--qa-model`, `--no-eval`, `--no-qa`, `--parallel-scopes`, `--adversarial-verify`).
+  `init run-args` is removed. The model floor is refused at `init run`, in the kernel.
+- **Kernel.** New `probe next`. Removed: `reduce snapshot`, `reduce verdict`, `probe concurrency`,
+  `init run-args`; `probe stats` keeps only `--hooks`. 32 subcommands → 29.
+- **Hooks.** `gate-intake` is removed, `gate-zerowork` is keyed to the loop (and now also recognises
+  the wrapped form a typed `/ship` takes in a transcript), and the load-time echo is gone: 6 hook
+  scripts → 5.
+- **`--adversarial-verify`** is recorded and reported as not carried: the refutation wave was never
+  durable in the ledger and has no worker in a four-worker roster.
+- **Export.** The `leg` table carries `tokens_in`, `tokens_out`, `tokens_total`, `cost_usd` and
+  `usage_source`, null where the host reported nothing.
+
+**Fixed in the move.** A result that is not a WorkResult (a status outside the four the schema allows)
+is sent back once with the reason, then stops the run naming it, rather than closing the run with a
+cause that said the worker returned nothing.
+
+See `docs/upgrading.md`, "Upgrading into 4.0".
+
 ## [3.18.4] — 2026-10-02 · A relaunch is marked, and a QA leg nothing applied stops reading as "carried to ledger"
 
 **Fixed.** Three defects measured on one real soak — two consecutive features on a marketplace

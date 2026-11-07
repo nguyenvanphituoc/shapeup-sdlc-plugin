@@ -1,0 +1,12 @@
+{
+  "probe": "kill-and-resume",
+  "date": "2026-11-07",
+  "plugin": "plan/single-loop at 2e24f29 (the final tree after A2-A6)",
+  "method": "a real nested `claude -p` run of the site pitch was killed (its own PID, not a pattern) the moment its first build order existed with no result; `/ship` was then run again over the open run",
+  "after_the_kill": { "probe_next_restart_says": "build.r1", "leg_rows": { "orient": 1, "plan-requirements": 1, "plan-spec": 1, "plan-wire": 1, "plan-scopes": 1 }, "dispatch_receipts": { "orient": 2 } },
+  "after_the_resume": { "leg_rows": { "orient": 1, "plan-requirements": 1, "plan-spec": 1, "plan-wire": 1, "plan-scopes": 1, "build-site-r1-a1": 2, "evaluate-r1": 1, "hunt": 1 }, "dispatch_receipts": { "orient": 2, "build-site-r1-a1": 1, "evaluate-r1": 1, "hunt": 1 } },
+  "finished_phases_dispatched_again": [],
+  "gates_crossed": ["L0", "L0", "L1a", "L1a.5", "L1b", "L2", "L3", "QA", "H", "L4", "COACH-1"],
+  "close": "shipped, verdict=PASS rounds=1",
+  "not_measured": "one kill point (mid-build), one run; the build order killed mid-flight has two leg rows after the resume, which is the interrupted attempt's order being answered and then applied again by the resumed one, not a finished phase being repeated"
+}

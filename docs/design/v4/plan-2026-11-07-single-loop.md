@@ -7,7 +7,7 @@
 | **Inputs** | `review-2026-11-07-single-loop.md` (what a run is made of, the kernel cut) · `proposal-2026-11-07-activity-layout.md` (skills, hooks, agents) · `constraints-2026-11-07.md` (what in the repo bites this plan) · `requirements.md` |
 | **Decisions already taken (PO, 2026-11-07)** | keep the four workers' names · the loop is a thin skill over a kernel `probe next` · the model floor moves into the kernel · planning keeps a fence-only `plan` order · ship as 4.0.0 with ADR-0004 first · intake stays as a resource that still writes the English copy and glossary · `hill-chart` untouched, so `reduce graph` stays · all four planning steps fold at once |
 | **Quick view** | `docs/visualize/single-loop-before-after.html` — the two workflows side by side, and what each number changes |
-| **Status** | plan, for the Betting Table — **amended 2026-11-07** against `constraints-2026-11-07.md` (see the box below) |
+| **Status** | **executed 2026-11-07** on branch `plan/single-loop`; what landed, what did not and the evidence for each done-when are in [`execution-2026-11-07.md`](execution-2026-11-07.md). Originally a plan for the Betting Table, **amended 2026-11-07** against `constraints-2026-11-07.md` (see the box below) |
 
 > **Amended 2026-11-07.** The first version of this plan was written before the constraints check
 > and carried four wrong claims and three wrong figures. They are corrected in place and listed here
