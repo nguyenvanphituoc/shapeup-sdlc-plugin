@@ -1,0 +1,107 @@
+{
+  "run": "personal-site",
+  "date": "2026-11-08",
+  "plugin": "a0e7f7c",
+  "pitch": "pitch.gate.md — the personal-site pitch with its No-gos section folded into the Solution as plain statements",
+  "launches": 1,
+  "claude_cost_usd": 5.3594278000000015,
+  "claude_turns": 66,
+  "duration_s": 853,
+  "closed": [
+    "final_verdict: ~",
+    "rounds_used: 0",
+    "close_cause: ~",
+    "closed_status: ~"
+  ],
+  "gates": [
+    [
+      "L0",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L0",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L1a",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L1a.5",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L1b",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L2",
+      "proceed",
+      "preset:ci"
+    ]
+  ],
+  "legs": 6,
+  "leg_rows": [
+    {
+      "order": "orient",
+      "worker": "orient",
+      "attested": true,
+      "tokens_total": 59120,
+      "usage_source": "agent-hook",
+      "duration_s": 3
+    },
+    {
+      "order": "plan-requirements",
+      "worker": "building",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 0
+    },
+    {
+      "order": "plan-spec",
+      "worker": "building",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 134
+    },
+    {
+      "order": "plan-wire",
+      "worker": "building",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 8
+    },
+    {
+      "order": "plan-scopes",
+      "worker": "building",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 16
+    },
+    {
+      "order": "site-build-r1-a1",
+      "worker": "task-executor",
+      "attested": true,
+      "tokens_total": 68630,
+      "usage_source": "agent-hook",
+      "duration_s": 4
+    }
+  ],
+  "hook_rows": {
+    "validate-envelope:allow": 4,
+    "dispatch-receipt:allow": 3,
+    "safety-spine:allow": 119,
+    "sandbox-guard:allow": 29,
+    "sandbox-guard:deny": 2
+  },
+  "note": "S3 variant B, repetition one: the building skill with its probe next loop replaced by a phase table over probe resume facts, and probe next removed from the kernel's routes. CUT OFF by the account's five-hour usage limit at about 14 minutes, so it has no verdict. Up to the cut it crossed L0, L0, L1a, L1a.5, L1b and L2 in the baseline's order, dispatched orient and the builder as agents with attested receipts, skipped no gate and re-dispatched nothing. It never reached evaluation, QA, the census or the close."
+}

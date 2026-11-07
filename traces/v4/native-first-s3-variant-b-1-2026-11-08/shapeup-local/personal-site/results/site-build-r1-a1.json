@@ -1,0 +1,202 @@
+{
+  "schema_version": 1,
+  "order_id": "personal-site/site-build-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-001",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`build.mjs` exists at the project root and imports only `node:` builtins (`grep -E \"from ['\\\"][^n]\" build.mjs` prints nothing) (covers: REQ-11)",
+          "result": "pass",
+          "evidence": "grep -E \"from ['\"][^n]\" build.mjs prints nothing; imports are node:fs and node:path only"
+        },
+        {
+          "ac": "`node build.mjs` reads `content.json` from the working directory and writes `dist/index.html`, exit 0 (covers: REQ-1)",
+          "result": "pass",
+          "evidence": "spawned node build.mjs in a fresh mkdtemp dir with only content.json and no env overrides -> exit 0, empty stderr, dist/ created holding index.html"
+        },
+        {
+          "ac": "the output is one file, `index.html`, inside the output directory, which is created when absent (covers: REQ-2)",
+          "result": "pass",
+          "evidence": "TS-INV-05 asserts readdirSync(OUT_DIR) == [\"index.html\"]; OUT_DIR absent before each run and created by the build; node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "with `CONTENT_FILE=<tmp>/c.json OUT_DIR=<tmp>/out`, the script reads `<tmp>/c.json` and writes `<tmp>/out/index.html` and nothing else (covers: REQ-14)",
+          "result": "pass",
+          "evidence": "every test sets CONTENT_FILE=<tmp>/c.json OUT_DIR=<tmp>/out; TS-INV-05 asserts out holds only index.html; node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "`package.json` declares no `dependencies` and the script makes no network call (no `node:http`, `node:https`, `node:net`, `fetch` in `build.mjs`) (covers: REQ-11)",
+          "result": "pass",
+          "evidence": "package.json has no dependencies key; grep -nE \"node:(http|https|net)|fetch\" build.mjs prints nothing (also asserted in TS-NOGO-02); node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "the content file's bytes are identical before and after a run (covers: REQ-13)",
+          "result": "pass",
+          "evidence": "TS-INV-02 sha256 of content file equal before/after run; node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "`CONTENT_FILE` naming a missing file → exit 1, exactly one stderr line naming the path, no `index.html` written (covers: REQ-18)",
+          "result": "pass",
+          "evidence": "TS-ERR-CONTENT_MISSING: exit 1, one stderr line containing the missing path, no index.html, no OUT_DIR; node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "a content file holding `{not json` → exit 1, exactly one stderr line, no `index.html` written (covers: REQ-18)",
+          "result": "pass",
+          "evidence": "TS-ERR-CONTENT_UNPARSEABLE: exit 1, one stderr line, no index.html, no OUT_DIR; node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "content with no `name`, `name: 42` or `name: \"\"` → exit 1, exactly one stderr line naming `name`, no `index.html` written (covers: REQ-19)",
+          "result": "pass",
+          "evidence": "TS-REQ-name-missing and TS-REQ-name-type (42 and \"\"): exit 1, one stderr line containing name, no index.html; node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "on every error path the output directory is not created when it did not exist (covers: REQ-18)",
+          "result": "pass",
+          "evidence": "assertError() in every error test asserts existsSync(OUT_DIR) === false; node --test test/build.test.mjs -> 13/13 pass"
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-002",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "the content model `name`, `tagline`, `about`, `projects[{title, summary, url}]`, `contact{email}` is read; only `name` is required (covers: REQ-4)",
+          "result": "pass",
+          "evidence": "render reads name/tagline/about/projects[{title,summary,url}]/contact.email; only name validated as required; {name:\"A\"} builds exit 0 (TS-INV-07); node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "the page's only `<h1>` is `name` and the tagline follows it (covers: REQ-5)",
+          "result": "pass",
+          "evidence": "TS-INV-05: exactly one <h1>, equal to <h1>Ada Lovelace</h1>, tagline index after it; node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "an About section renders `about` as one paragraph (covers: REQ-6)",
+          "result": "pass",
+          "evidence": "TS-INV-05: about text appears inside the About section after <h2>About</h2> as one <p>; node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "a Projects section renders one card per project, title linked to `url` (covers: REQ-7)",
+          "result": "pass",
+          "evidence": "TS-INV-05: <a href=\"https://example.com/engine\">Engine</a> inside an article.card per project; node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "a Contact section renders a `mailto:` link to `contact.email` (covers: REQ-8)",
+          "result": "pass",
+          "evidence": "TS-INV-05: output contains <a href=\"mailto:ada@example.com\">; node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "`<title>` is `name` (covers: REQ-9)",
+          "result": "pass",
+          "evidence": "TS-INV-05: <title>Ada Lovelace</title>; node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "sections appear in the order h1+tagline → About → Projects → Contact (covers: REQ-10)",
+          "result": "pass",
+          "evidence": "TS-INV-05: index order h1 < tagline < About < about text < Projects < Contact; node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "the CSS is one inline `<style>` in `<head>`; no `<link>` element (covers: REQ-3)",
+          "result": "pass",
+          "evidence": "TS-INV-05: exactly one <style> before </head>, no <link; node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "the output contains no `<script`, no ` on…=` attribute and no `javascript:` (a `javascript:` url renders its title as plain text) (covers: REQ-12)",
+          "result": "pass",
+          "evidence": "TS-INV-01: javascript:alert(1) and \" JaVa<TAB>Script:alert(1)\" urls -> no <script, no on*= attribute, no javascript:, no <a>, titles present as text; node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "two runs over the same content give byte-identical files (covers: REQ-20)",
+          "result": "pass",
+          "evidence": "TS-INV-03: Buffer.compare of two runs == 0, file ends with exactly one newline; node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "a project with no `url` (or an empty one) renders its title with no `<a>`; the page has no `href=\"#\"` and no `href=\"\"` (covers: REQ-15)",
+          "result": "pass",
+          "evidence": "TS-INV-06: url absent and url \"\" -> no <a>, no href=\"#\", no href=\"\"; node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "`projects: []` or no `projects` → \"Projects are coming soon.\" and no `<ul>`/`<ol>`/`<li>` (covers: REQ-16)",
+          "result": "pass",
+          "evidence": "TS-INV-07: projects [] and projects absent -> \"Projects are coming soon.\", no ul/ol/li; node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "a missing `tagline`, `about`, `summary` or `contact` renders empty, with no `undefined` or `null` text in the page (covers: REQ-4)",
+          "result": "pass",
+          "evidence": "TS-INV-06/TS-INV-07/TS-INV-05 assert no undefined/null text with tagline, about, summary, contact absent; node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "a title `<b>Rock & Roll</b>` appears as `&lt;b&gt;Rock &amp; Roll&lt;/b&gt;`; `\"` and `'` are escaped inside `href` values (covers: REQ-17)",
+          "result": "pass",
+          "evidence": "TS-INV-04: &lt;b&gt;Rock &amp; Roll&lt;/b&gt; present, no <b>; href=\"https://x.test/?q=&quot;a&#39;b\" and href=\"mailto:x&quot;y@example.com\"; node --test test/build.test.mjs -> 13/13 pass"
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-003",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`test/build.test.mjs` exists and `node --test test/build.test.mjs` exits 0 reporting more than 0 tests (covers: REQ-21)",
+          "result": "pass",
+          "evidence": "node --test test/build.test.mjs -> tests 13, pass 13, fail 0, exit 0; harness verify t0 r1 a1 -> overall green 1/1"
+        },
+        {
+          "ac": "every test spawns `node build.mjs` with `CONTENT_FILE`/`OUT_DIR` set to a fresh `fs.mkdtempSync` directory and never touches the project's own `content.json` or `dist/` (covers: REQ-14)",
+          "result": "pass",
+          "evidence": "build() helper spawns process.execPath build.mjs with CONTENT_FILE/OUT_DIR under fs.mkdtempSync(os.tmpdir()) and cwd = that temp dir; the project has no content.json/dist and none was created"
+        },
+        {
+          "ac": "the suite has one named test per Test Surface row: TS-INV-01 … TS-INV-07, TS-ERR-CONTENT_MISSING, TS-ERR-CONTENT_UNPARSEABLE, TS-REQ-name-missing, TS-REQ-name-type, TS-NOGO-01, TS-NOGO-02 (covers: REQ-21)",
+          "result": "pass",
+          "evidence": "13 named tests: TS-INV-01..07, TS-ERR-CONTENT_MISSING, TS-ERR-CONTENT_UNPARSEABLE, TS-REQ-name-missing, TS-REQ-name-type, TS-NOGO-01, TS-NOGO-02; node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "the error-path tests assert exit code 1, exactly one non-empty stderr line, and no `index.html` (covers: REQ-18)",
+          "result": "pass",
+          "evidence": "assertError(): status 1, exactly one non-empty stderr line, no index.html (and no OUT_DIR); node --test test/build.test.mjs -> 13/13 pass"
+        },
+        {
+          "ac": "the determinism test compares two runs byte for byte (covers: REQ-20)",
+          "result": "pass",
+          "evidence": "TS-INV-03 compares readFileSync buffers of two runs with Buffer.compare === 0; node --test test/build.test.mjs -> 13/13 pass"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    {
+      "path": "build.mjs",
+      "change": "created"
+    },
+    {
+      "path": "test/build.test.mjs",
+      "change": "created"
+    }
+  ],
+  "discoveries": [
+    {
+      "marker": "+",
+      "line": "contact.email or any text field containing the literal string javascript: (e.g. about text) is escaped but still appears verbatim in the page; INV-01 only scopes url schemes, so the no-javascript: grep over the whole output could be tripped by plain text content"
+    },
+    {
+      "marker": "+",
+      "line": "contact.email is not scheme-checked or validated as an address; any string becomes mailto:<escaped string>"
+    }
+  ],
+  "assumptions": [
+    "stderr format is a single line \"error: <message>\" (per TASK-001 implementation note); newlines in parse messages are collapsed to spaces",
+    "a content file that parses to a non-object (array, number, null) is reported as NAME_MISSING with a message naming name",
+    "allowed url = http:, https: or no scheme (relative, including //host); scheme detection strips tab/CR/LF anywhere and leading C0/space chars as browsers do, so obfuscated javascript: is also refused",
+    "a missing/empty field renders as an empty element (<p></p>) with its section heading kept, per domain-model SiteContent notes; missing contact.email renders an empty <p> in Contact",
+    "a project title that is not a string renders empty; projects that are not objects render as empty cards",
+    "each project card is an <article class=\"card\"> with the title in <h3> and summary in <p>, so no list elements are ever used",
+    "CSS kept to a minimal centred one-column rule set (Layer 3 frozen: no polish beyond layout spec)",
+    "REQ-1 default paths verified in a temp dir rather than the project root, since creating a sample content.json is Non-Go for TASK-001"
+  ],
+  "deviations": []
+}

@@ -3,6 +3,23 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased] · Native first
+
+Not released: the version files still read 4.0.0 and the PO has not accepted ADR-0005, which records the decision.
+
+- **The four workers are plugin agents.** `agents/orient.md`, `task-executor.md`, `spec-evaluator.md` and `qa-edge-hunter.md` preload
+  their skill; the loop dispatches by agent name. The receipt hook attests the agent that ran and records the tokens, duration and
+  model the host measured, and `reduce ingest` takes the leg row's usage from it, so the loop no longer passes `--tokens-total`.
+  `verify skills` refuses a worker whose agent does not preload its skill. `package.json` ships `agents/`.
+- **Removed.** `reduce graph` (and the run graph; `hill-chart` renders from the hill shards alone and labels a pitch "Finished" or
+  "On the hill"), `report export` and its fact tables, the traceability oracle (`verify trace`: reachability and covers-closure
+  reporting; covers-closure is still enforced by `verify spec`; the profile's `source_extensions` field goes with it), `probe stats`,
+  the `probe digest` verb, the `Stop` hook (`gate-zerowork`: a session that narrates a run instead of opening one is no longer stopped
+  by the runtime) and the `tier-guard` hook, whose committed-tier write check now runs inside `sandbox-guard` with the same refusal.
+  The shipped executable set is 18,736 → 16,513 lines; hook registrations 6 → 4.
+- **Tests.** The sections that asserted wording rather than behaviour are gone, with the tests of every removed module:
+  `tests/structural/` 21,872 → 19,911 lines, 2,512 → 2,261 checks.
+
 ## [4.0.0] — 2026-11-07 · One loop in the session, in place of one workflow launch
 
 **Breaking.** The run is driven by one skill, `building`, in your own session. It asks the kernel

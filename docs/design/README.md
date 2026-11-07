@@ -37,6 +37,8 @@ Architectural decisions that change a contract are recorded in [`adr/`](adr/):
 - [ADR-0004 — One loop in the session, in place of one workflow launch](adr/0004-single-loop.md) — the run
   is driven by the `building` skill over the kernel's `probe next`; supersedes the "one workflow launch"
   decision in [03 §3.5](03-system-design.md)
+- [ADR-0005 — Native first](adr/0005-native-first.md) — workers are plugin agents, and what the second cut
+  removed, kept and refused; supersedes decision 3 of ADR-0004
 
 > Compiled from a full-repository walkthrough of this plugin. A rendered, styled
 > version of this document is also published as a Claude Artifact for viewing outside the repo.

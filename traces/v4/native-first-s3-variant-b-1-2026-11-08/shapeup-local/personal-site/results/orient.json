@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "order_id": "personal-site/orient",
+  "worker": "orient",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/personal-site/orient/code-surface.md",
+    ".shapeup/personal-site/orient/spike-build-probe.md",
+    ".shapeup/personal-site/orient/discovered-seed.md",
+    ".shapeup/personal-site/orient/hill-signal.md"
+  ],
+  "assumptions": [
+    "The staged English intake (.shapeup/personal-site/intake.md) is the authoritative pitch; root pitch.md is its Vietnamese source.",
+    "Pitch treated as kicked-off: it has an appetite, a solution boundary and rabbit holes, though no status/bet frontmatter."
+  ],
+  "deviations": [
+    "Pitch frontmatter carries only 'appetite'; no 'status: shaped' / 'bet:' markers.",
+    "payload.breadboard absent and the pitch has no Places/affordance tables: code-surface rows carry no P#/U#/N# ids.",
+    "payload.stack absent; sweeps aimed by project-profile.md (Node ESM, zero deps).",
+    "kb_rules_path shapeup/knowledge-base/orient.md does not exist; no team guidelines applied.",
+    "Spike finding: build_probe 'node --test' exits 0 with zero tests, and the project root has no test file today, so the round build gate is vacuously green until a discoverable *.test.mjs exists; planning should pin the test path or assert a non-zero test count."
+  ]
+}

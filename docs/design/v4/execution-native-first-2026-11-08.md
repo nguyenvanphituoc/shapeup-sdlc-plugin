@@ -109,3 +109,70 @@ Each of the four worker legs has a receipt with `tool: Agent`, `agent_type: shap
 duration and resolved model, and its leg row carries `usage_source: agent-hook` — no session passed a figure. The nested run allowed
 `Bash(node *)` for its workers, so QA hunted for real (7 findings) where the S1 launch could not.
 
+## S3 — the decision engine, measured
+
+**What was built for the comparison.** Variant B is the committed tree with two changes, made in the archive that the nested session
+loads and never committed: `skills/building/SKILL.md` carries a phase table over the facts `probe resume` already prints and the gate
+rows in `gates.jsonl` in place of the `probe next` loop, and `probe next` is removed from the kernel's routes so the session cannot
+call it. Arm A is the committed tree: the S2 gate run (and the S1 one, one tree earlier). `status` as a new command was not written:
+`probe resume` already prints the facts the plan's `status` would list (`has_*`, `scope_files`, `latest_t0`, `eval_rounds_done`,
+`rounds_used`), so a second command would have been a copy.
+
+**What happened.** B ran once (`traces/v4/native-first-s3-variant-b-1-2026-11-08/`, $5.36, about 14 minutes) and was **cut off by the
+account's five-hour usage limit** before evaluation. It has no verdict. Up to the cut it crossed L0, L0, L1a, L1a.5, L1b and L2 in the
+baseline's order, opened orient and the builder as agents with attested receipts, planned all four substeps under the fence, skipped no
+gate and re-dispatched nothing. A second B repetition and a second A repetition were not run: the limit had been hit, and more
+spend could not change the decision, for the reason below.
+
+**Why the decision does not wait for them.** The kit's own rule is that no change is measured on an eval that cannot see its chains.
+The fixture builds one scope in one round. It never reaches a breaker, a send-back, a dependency between scopes or a wait, which
+are the branches of `probe next` (about 800 lines) that a phase table would have to carry in prose, and a B that passes it says
+nothing about them. So the comparison can refute the engine's removal and cannot confirm it. The plan's rule was "holds ⇒ delete,
+does not hold ⇒ keep, record why", and a result that cannot hold is the second branch.
+
+**Decision: the engine stays.** `probe next`, `probe resume`, `probe eval`, `probe owner`, `probe attempts`, `probe hunt`, `verify
+build`, `compile`, `reduce ingest` and `reduce board` are kept, with the 40-odd tests that pin them. V4-REQ-13 is not run to a verdict.
+What a valid measurement needs: a pitch that drives a breaker, a send-back and two dependent scopes in one run; two repetitions per
+arm on one model and one day; and a usage budget for roughly ten nested runs. This session spent about $20 across its six
+launches and two experiments, as the host reported it, and ended on the limit.
+
+## S4 — the suite
+
+The rule applied is V4-REQ-17: a test either executes shipped code against a fixture or validates a shipped manifest, and one that
+asserts wording is removed. Eight sections asserted wording only — the prompt line-count ratchet, the attempt-loop doc parity, the
+`AGENT.md` stray-name guard, the cold-start sentence in the loop skill, the knowledge-base reader phrasing, the schema-names-the-writer
+parity, the worker escalation sentence and the whole qa-edge-hunter skill-text pin — and are deleted, with every test of a module
+removed in S1.
+
+| | Before | After |
+|---|---|---|
+| `tests/structural/` files | 115 | 110 |
+| `tests/structural/` lines | 21,872 | 19,911 |
+| checks | 2,512 | 2,262 |
+
+**The plan's target — about 10 files and at most 2,500 lines — is not met, and could not be.** It assumed S3 removed the engine. With
+the engine, `compile`, `reduce ingest`, spec-lint, the T0 ratchet, the gate resolver and the contract parser all kept, their
+behaviour tests are the suite, and cutting them to a tenth would lower the coverage of code that still ships. The doc-drift check
+(`08-docs`) was kept on purpose: it caught four real errors in this session's own edits (documents citing hooks the commit had just
+deleted).
+
+## Where the plan stands
+
+| Stage | Done-when | State |
+|---|---|---|
+| S1 | real run ships with the baseline's gate rows | **met** — launch 4; one fewer duplicate `L0` row |
+| S2 | agents resolve; a receipt per dispatch; real run ships | **met for what remained in scope** — see the re-scoping table for the rows not done |
+| S3 | measurement, then delete or keep | **kept, not measured to a verdict** (usage limit; fixture cannot see the chains) |
+| S4 | about 10 files, at most 2,500 lines | **not met** — 110 files, 19,911 lines; the rule was applied, the target needs the engine gone |
+
+Shipped executable set: 18,736 → 16,513 lines and 52 → 46 files; subcommands 29 → 24 (the plan, the visual and `analysis/04` said
+31; the table in `ROUTES` at the baseline held 29); hook registrations 6 → 4; subagents 0 → 4.
+
+## Left for the PO
+
+1. Accept or reject ADR-0005, and V4-REQ-14 to 17 (each is annotated in the registry with what was done).
+2. `safety-spine`: keep, or replace with a `permissions.deny` block and give up the Bash audit trail (one commit).
+3. Release: the version files still read 4.0.0 and the changelog entry is under `[Unreleased]`. The removals (a hook, a verb, a
+   dashboard screen, a profile field) are breaking for anyone who named them, so this is not a patch release.
+4. The L1b defect the S1 gate hit again (the coverage step registers a pitch's No-gos as requirements, and an unattended run has no
+   PO to mark them CUT) predates this plan and is still open.

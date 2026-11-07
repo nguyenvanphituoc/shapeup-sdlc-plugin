@@ -1,0 +1,65 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 1,
+  "at": "2026-11-07T18:36:38.181Z",
+  "run_id": "personal-site-20261107T182733Z-c8a20a41",
+  "scope_id": "site-build",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b8a18120b78f8f6be5f13681f4f9b973729cff15",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "2ed44adc4b942a61f388d7536dd95c938d88e32fb1f8bbecb07d428e6b97d43a"
+    },
+    "env_sha256": "28a3ad2c4c8bac60cf6881dc6d7ac90c31b735352a46aea0ce1f5d87cad99c86"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --test test/build.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ TS-INV-01 no JavaScript; javascript: url renders title as plain text (33.889708ms)\n✔ TS-INV-02 content file bytes unchanged by a run (34.228ms)\n✔ TS-INV-03 two runs give byte-identical output (61.335083ms)\n✔ TS-INV-04 every content string is escaped, in text and attributes (31.585708ms)\n✔ TS-INV-05 one h1 = name, title = name, fixed section order (30.96725ms)\n✔ TS-INV-06 project with no url renders title without a link (31.34275ms)\n✔ TS-INV-07 no projects → coming soon, no list element (60.189542ms)\n✔ TS-ERR-CONTENT_MISSING missing content file (30.471791ms)\n✔ TS-ERR-CONTENT_UNPARSEABLE content file is not JSON (30.415417ms)\n✔ TS-REQ-name-missing content without name (31.439125ms)\n✔ TS-REQ-name-type name is not a non-empty string (64.169875ms)\n✔ TS-NOGO-01 about is plain text, not Markdown (30.355375ms)\n✔ TS-NOGO-02 build.mjs runs alone with no dependencies (31.729583ms)\nℹ tests 13\nℹ suites 0\nℹ pass 13\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 551.245666\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "test/build.test.mjs": "c1c09fb8100ef6bbe21ad163eff7f1a484f69c8d4692019e7af77a927de2fcf6"
+  }
+}

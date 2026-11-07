@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "order_id": "personal-site/evaluate-r1",
+  "worker": "spec-evaluator",
+  "status": "done",
+  "verdict": {
+    "overall": "PASS",
+    "report_path": ".shapeup/personal-site/evaluation/EVAL-FEATURE-personal-site.md",
+    "t0_citations": [
+      { "scope_id": "site-build", "path": ".shapeup/personal-site/t0/verdicts/r1-a1-t1.json", "sha256": "8965bee3276344007203acc5c4657a71b3d581efe609ab9e5b478f172dcf469a" }
+    ],
+    "criteria": [
+      { "criterion": "TS-INV-01", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "node --test test/build.test.mjs ✔ TS-INV-01; evaluator probe: 6 unsafe urls (javascript: variants, data:, vbscript:) → exit 0, 0 <a>, no <script, no javascript:, titles as text", "traces_to": ["REQ-12"] },
+      { "criterion": "TS-INV-02", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "suite ✔ TS-INV-02; probe: content sha256 cde1178e… unchanged over two runs", "traces_to": ["REQ-13"] },
+      { "criterion": "TS-INV-03", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "suite ✔ TS-INV-03; probe: two index.html both sha256 41a3fd9c…", "traces_to": ["REQ-20"] },
+      { "criterion": "TS-INV-04", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "suite ✔ TS-INV-04; probe: &lt;b&gt;Rock &amp; Roll&lt;/b&gt;, no <b>, href=\"mailto:a&quot;b&lt;c&gt;@example.org\", project href quotes escaped", "traces_to": ["REQ-17"] },
+      { "criterion": "TS-INV-05", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "suite ✔ TS-INV-05; probe: one <h1>Grace Hopper</h1>, <title> = name, h1<tagline<About<Projects<Contact, 2 cards, 1 inline <style>, no <link>", "traces_to": ["REQ-5", "REQ-6", "REQ-7", "REQ-8", "REQ-9", "REQ-10", "REQ-3"] },
+      { "criterion": "TS-INV-06", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "suite ✔ TS-INV-06; probe: url absent/\"\"/whitespace → no <a>, no href=\"#\", no href=\"\"", "traces_to": ["REQ-15"] },
+      { "criterion": "TS-INV-07", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "suite ✔ TS-INV-07; probe: projects [] and absent → 'Projects are coming soon.', no ul/ol/li", "traces_to": ["REQ-16"] },
+      { "criterion": "TS-ERR-CONTENT_MISSING", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "suite ✔; probe: exit 1, one stderr line naming the path, no OUT_DIR", "traces_to": ["REQ-18"] },
+      { "criterion": "TS-ERR-CONTENT_UNPARSEABLE", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "suite ✔; probe: exit 1, one line naming file + parse error, no OUT_DIR", "traces_to": ["REQ-18"] },
+      { "criterion": "TS-REQ-name-missing", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "suite ✔; probe: exit 1, one line naming \"name\", nothing written", "traces_to": ["REQ-19"] },
+      { "criterion": "TS-REQ-name-type", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "suite ✔; probe: name 42/\"\"/null/[\"x\"] each exit 1, one line naming \"name\", nothing written", "traces_to": ["REQ-19"] },
+      { "criterion": "TS-NOGO-01", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "suite ✔; probe: literal '**bold** _x_ # h', no strong/em", "traces_to": [] },
+      { "criterion": "TS-NOGO-02", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "suite ✔; probe: lone copy in empty dir exit 0, no node_modules, package.json no dependencies", "traces_to": ["REQ-11"] },
+      { "criterion": "UC-BuildPage INV-01", "dimension": "completeness", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "as TS-INV-01 probe", "traces_to": ["REQ-12"] },
+      { "criterion": "UC-BuildPage INV-02", "dimension": "completeness", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "as TS-INV-02 probe", "traces_to": ["REQ-13"] },
+      { "criterion": "UC-BuildPage INV-03", "dimension": "completeness", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "as TS-INV-03 probe", "traces_to": ["REQ-20"] },
+      { "criterion": "UC-BuildPage INV-04", "dimension": "completeness", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "as TS-INV-04 probe", "traces_to": ["REQ-17"] },
+      { "criterion": "UC-BuildPage INV-05", "dimension": "completeness", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "as TS-INV-05 probe", "traces_to": ["REQ-5", "REQ-9", "REQ-10"] },
+      { "criterion": "UC-BuildPage INV-06", "dimension": "completeness", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "as TS-INV-06 probe", "traces_to": ["REQ-15"] },
+      { "criterion": "UC-BuildPage INV-07", "dimension": "completeness", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "as TS-INV-07 probe", "traces_to": ["REQ-16"] },
+      { "criterion": "UC-BuildPage Step 1 (path resolution, defaults)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "probe: no env, content.json in cwd → exit 0, empty stderr, dist/ holds only index.html", "traces_to": ["REQ-1", "REQ-2", "REQ-14"] },
+      { "criterion": "UC-BuildPage Steps 2-5 (load, validate, render, write)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "probe: CONTENT_FILE/OUT_DIR runs write only <OUT_DIR>/index.html", "traces_to": ["REQ-2", "REQ-14"] },
+      { "criterion": "UC-BuildPage Step 6 (error path never writes)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "probe: default path with no content.json → exit 1, one line naming <cwd>/content.json, no dist/", "traces_to": ["REQ-18"] },
+      { "criterion": "UC-BuildPage Error Case CONTENT_MISSING", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "as TS-ERR-CONTENT_MISSING probe", "traces_to": ["REQ-18"] },
+      { "criterion": "UC-BuildPage Error Case CONTENT_UNPARSEABLE", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "as TS-ERR-CONTENT_UNPARSEABLE probe; line names file and parse failure", "traces_to": ["REQ-18"] },
+      { "criterion": "UC-BuildPage Error Case NAME_MISSING", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "as TS-REQ-name-missing / TS-REQ-name-type probes", "traces_to": ["REQ-19"] },
+      { "criterion": "domain-model SiteContent optional fields render empty", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "probe: {name, projects:[{title}], contact:{}} → exit 0, headings present, no undefined/null", "traces_to": ["REQ-4"] },
+      { "criterion": "_index Non-Go (no deps, no network, no page JS, no content write, no Markdown)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "TS-NOGO-01/02 + TS-INV-01/02 probes; build.mjs imports only node:fs, node:path", "traces_to": ["REQ-11", "REQ-12", "REQ-13"] },
+      { "criterion": "named fixture node --test test/build.test.mjs exits 0 with >0 tests", "dimension": "tdd-surface", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "evaluator ran it: tests 13, pass 13, fail 0; T0 and build gate agree", "traces_to": ["REQ-21"] },
+      { "criterion": "one named test per Test Surface row", "dimension": "tdd-surface", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "13 tests, names match all 13 UC-BuildPage Test Surface ids", "traces_to": ["REQ-21"] },
+      { "criterion": "check file unchanged since T0", "dimension": "tdd-surface", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "test/build.test.mjs sha256 c1c09fb8100ef6bbe21ad163eff7f1a484f69c8d4692019e7af77a927de2fcf6 = T0 check_files", "traces_to": [] }
+    ],
+    "refuted": [],
+    "bugs": []
+  },
+  "artifacts": [
+    ".shapeup/personal-site/evaluation/EVAL-FEATURE-personal-site.md",
+    ".shapeup/personal-site/evaluation/evidence/probe-r1.mjs"
+  ],
+  "assumptions": [
+    "Order dimensions grade only spec-conformance, tdd-surface, completeness, test-surface-conformance; integration/security/performance not evaluated.",
+    "No prior .verdicts-*.jsonl exists; this run is the stability baseline."
+  ],
+  "deviations": []
+}

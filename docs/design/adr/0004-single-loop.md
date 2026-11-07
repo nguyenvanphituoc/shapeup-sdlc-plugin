@@ -34,7 +34,7 @@ the constraints check.
    Planning, the stop phase, retro and intake become activities of the loop, not workers.
 2. **Planning folds at once.** `coverage → analyze → wire → map-scopes` run in the loop's context as
    one `plan` activity, with `verify spec` between the steps.
-3. **`hill-chart` is untouched**, so `reduce graph` and `reduce hill` stay.
+3. **`hill-chart` is untouched**, so `reduce graph` and `reduce hill` stay. *(Superseded by ADR-0005: `reduce graph` was removed and the chart renders from the hill shards.)*
 4. **Intake stays as a resource** of the loop and still writes the English copy and the glossary.
 5. **The loop is a thin skill over `probe next`.** The state machine stays in code: the verb returns
    the next step, its exact command and any gate block, from the artifact predicates; the "sent back

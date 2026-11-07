@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "order_id": "personal-site/plan-wire",
+  "worker": "building",
+  "status": "done",
+  "artifacts": [
+    "shapeup/personal-site/wiring-map.md"
+  ]
+}

@@ -1,0 +1,299 @@
+{
+  "schema_version": 1,
+  "order_id": "personal-site/site-build-r1-a1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-b1/kernel/harness.mjs",
+  "run_id": "personal-site-20261107T182733Z-c8a20a41",
+  "compiled_at": "2026-11-07T18:35:03.397Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "build.mjs",
+      "test/build.test.mjs",
+      ".shapeup/personal-site/spikes/**"
+    ],
+    "shared": [],
+    "frozen": [
+      ".shapeup/personal-site/**"
+    ],
+    "own": [
+      ".shapeup/personal-site/results/site-build-r1-a1.json",
+      ".shapeup/personal-site/tasks/TASK-*.md",
+      ".shapeup/personal-site/discovery/**",
+      ".shapeup/personal-site/spikes/**"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "site-build",
+      "topology_type": "ICEBERG",
+      "use_cases": [
+        "UC-BuildPage"
+      ],
+      "covers": [
+        "REQ-1",
+        "REQ-2",
+        "REQ-3",
+        "REQ-4",
+        "REQ-5",
+        "REQ-6",
+        "REQ-7",
+        "REQ-8",
+        "REQ-9",
+        "REQ-10",
+        "REQ-11",
+        "REQ-12",
+        "REQ-13",
+        "REQ-14",
+        "REQ-15",
+        "REQ-16",
+        "REQ-17",
+        "REQ-18",
+        "REQ-19",
+        "REQ-20",
+        "REQ-21"
+      ],
+      "depends_on": [],
+      "allowed_file_substrate": [
+        "build.mjs",
+        "test/build.test.mjs"
+      ],
+      "shared_substrate": [],
+      "affordance_manifest": [],
+      "e2e_verification_fixtures": [
+        "node --test test/build.test.mjs"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN"
+    },
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "title": "Create build.mjs input, validation and output pipeline",
+        "status": "ready",
+        "priority": 1,
+        "depends_on": [],
+        "use_case_refs": [
+          "UC-BuildPage"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/personal-site/tasks/TASK-001-build-cli-pipeline.md",
+        "acceptance_criteria": [
+          {
+            "text": "`build.mjs` exists at the project root and imports only `node:` builtins (`grep -E \"from ['\\\"][^n]\" build.mjs` prints nothing) (covers: REQ-11)",
+            "covers": [
+              "REQ-11"
+            ]
+          },
+          {
+            "text": "`node build.mjs` reads `content.json` from the working directory and writes `dist/index.html`, exit 0 (covers: REQ-1)",
+            "covers": [
+              "REQ-1"
+            ]
+          },
+          {
+            "text": "the output is one file, `index.html`, inside the output directory, which is created when absent (covers: REQ-2)",
+            "covers": [
+              "REQ-2"
+            ]
+          },
+          {
+            "text": "with `CONTENT_FILE=<tmp>/c.json OUT_DIR=<tmp>/out`, the script reads `<tmp>/c.json` and writes `<tmp>/out/index.html` and nothing else (covers: REQ-14)",
+            "covers": [
+              "REQ-14"
+            ]
+          },
+          {
+            "text": "`package.json` declares no `dependencies` and the script makes no network call (no `node:http`, `node:https`, `node:net`, `fetch` in `build.mjs`) (covers: REQ-11)",
+            "covers": [
+              "REQ-11"
+            ]
+          },
+          {
+            "text": "the content file's bytes are identical before and after a run (covers: REQ-13)",
+            "covers": [
+              "REQ-13"
+            ]
+          },
+          {
+            "text": "`CONTENT_FILE` naming a missing file → exit 1, exactly one stderr line naming the path, no `index.html` written (covers: REQ-18)",
+            "covers": [
+              "REQ-18"
+            ]
+          },
+          {
+            "text": "a content file holding `{not json` → exit 1, exactly one stderr line, no `index.html` written (covers: REQ-18)",
+            "covers": [
+              "REQ-18"
+            ]
+          },
+          {
+            "text": "content with no `name`, `name: 42` or `name: \"\"` → exit 1, exactly one stderr line naming `name`, no `index.html` written (covers: REQ-19)",
+            "covers": [
+              "REQ-19"
+            ]
+          },
+          {
+            "text": "on every error path the output directory is not created when it did not exist (covers: REQ-18)",
+            "covers": [
+              "REQ-18"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "TASK-002",
+        "title": "Render the personal page as escaped, script-free, deterministic HTML",
+        "status": "ready",
+        "priority": 2,
+        "depends_on": [
+          "TASK-001"
+        ],
+        "use_case_refs": [
+          "UC-BuildPage"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/personal-site/tasks/TASK-002-render-page.md",
+        "acceptance_criteria": [
+          {
+            "text": "the content model `name`, `tagline`, `about`, `projects[{title, summary, url}]`, `contact{email}` is read; only `name` is required (covers: REQ-4)",
+            "covers": [
+              "REQ-4"
+            ]
+          },
+          {
+            "text": "the page's only `<h1>` is `name` and the tagline follows it (covers: REQ-5)",
+            "covers": [
+              "REQ-5"
+            ]
+          },
+          {
+            "text": "an About section renders `about` as one paragraph (covers: REQ-6)",
+            "covers": [
+              "REQ-6"
+            ]
+          },
+          {
+            "text": "a Projects section renders one card per project, title linked to `url` (covers: REQ-7)",
+            "covers": [
+              "REQ-7"
+            ]
+          },
+          {
+            "text": "a Contact section renders a `mailto:` link to `contact.email` (covers: REQ-8)",
+            "covers": [
+              "REQ-8"
+            ]
+          },
+          {
+            "text": "`<title>` is `name` (covers: REQ-9)",
+            "covers": [
+              "REQ-9"
+            ]
+          },
+          {
+            "text": "sections appear in the order h1+tagline → About → Projects → Contact (covers: REQ-10)",
+            "covers": [
+              "REQ-10"
+            ]
+          },
+          {
+            "text": "the CSS is one inline `<style>` in `<head>`; no `<link>` element (covers: REQ-3)",
+            "covers": [
+              "REQ-3"
+            ]
+          },
+          {
+            "text": "the output contains no `<script`, no ` on…=` attribute and no `javascript:` (a `javascript:` url renders its title as plain text) (covers: REQ-12)",
+            "covers": [
+              "REQ-12"
+            ]
+          },
+          {
+            "text": "two runs over the same content give byte-identical files (covers: REQ-20)",
+            "covers": [
+              "REQ-20"
+            ]
+          },
+          {
+            "text": "a project with no `url` (or an empty one) renders its title with no `<a>`; the page has no `href=\"#\"` and no `href=\"\"` (covers: REQ-15)",
+            "covers": [
+              "REQ-15"
+            ]
+          },
+          {
+            "text": "`projects: []` or no `projects` → \"Projects are coming soon.\" and no `<ul>`/`<ol>`/`<li>` (covers: REQ-16)",
+            "covers": [
+              "REQ-16"
+            ]
+          },
+          {
+            "text": "a missing `tagline`, `about`, `summary` or `contact` renders empty, with no `undefined` or `null` text in the page (covers: REQ-4)",
+            "covers": [
+              "REQ-4"
+            ]
+          },
+          {
+            "text": "a title `<b>Rock & Roll</b>` appears as `&lt;b&gt;Rock &amp; Roll&lt;/b&gt;`; `\"` and `'` are escaped inside `href` values (covers: REQ-17)",
+            "covers": [
+              "REQ-17"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "TASK-003",
+        "title": "Write the node --test suite over the UC-BuildPage Test Surface",
+        "status": "ready",
+        "priority": 3,
+        "depends_on": [
+          "TASK-001",
+          "TASK-002"
+        ],
+        "use_case_refs": [
+          "UC-BuildPage"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/personal-site/tasks/TASK-003-test-suite.md",
+        "acceptance_criteria": [
+          {
+            "text": "`test/build.test.mjs` exists and `node --test test/build.test.mjs` exits 0 reporting more than 0 tests (covers: REQ-21)",
+            "covers": [
+              "REQ-21"
+            ]
+          },
+          {
+            "text": "every test spawns `node build.mjs` with `CONTENT_FILE`/`OUT_DIR` set to a fresh `fs.mkdtempSync` directory and never touches the project's own `content.json` or `dist/` (covers: REQ-14)",
+            "covers": [
+              "REQ-14"
+            ]
+          },
+          {
+            "text": "the suite has one named test per Test Surface row: TS-INV-01 … TS-INV-07, TS-ERR-CONTENT_MISSING, TS-ERR-CONTENT_UNPARSEABLE, TS-REQ-name-missing, TS-REQ-name-type, TS-NOGO-01, TS-NOGO-02 (covers: REQ-21)",
+            "covers": [
+              "REQ-21"
+            ]
+          },
+          {
+            "text": "the error-path tests assert exit code 1, exactly one non-empty stderr line, and no `index.html` (covers: REQ-18)",
+            "covers": [
+              "REQ-18"
+            ]
+          },
+          {
+            "text": "the determinism test compares two runs byte for byte (covers: REQ-20)",
+            "covers": [
+              "REQ-20"
+            ]
+          }
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/personal-site/spec",
+    "feature": "personal-site",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}
