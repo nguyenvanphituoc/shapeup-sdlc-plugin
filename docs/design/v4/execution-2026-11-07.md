@@ -7,7 +7,7 @@
 | **Branch** | `plan/single-loop`, local commits only; nothing pushed, nothing tagged |
 | **Baseline** | 3.18.4 at `16eae5a`; `npm test` green (2392 checks) |
 | **Now** | version 4.0.0 in both files; `npm test` green (2491 checks); `npm run demo`, `npm run verify:cross-dir` and `npm run test:grant` pass; the marketplace manifest validates, and `claude plugin validate . --strict` fails on warnings that were there before (a root `CLAUDE.md`, a missing icon, Finder files) |
-| **Status** | every activity is done except the three misses listed under "What did not land" |
+| **Status** | every activity is done; the one thing left is yours: pushing the tag (a local tag `v4.0.0` exists) |
 
 ## The gate, and how it was met
 
@@ -25,13 +25,13 @@ sessions. Every real-run claim below is backed by a record under `traces/v4/`.
 | A0 | done — README, citations repaired rather than invented, the drift check follows relative links | `tests/structural/08-docs.mjs` |
 | A1 | done — `probe next`, the `building` skill; **a real run shipped through it** | `traces/v4/one-page-site-2026-11-07/` (3 launches, 2 aborted at real defects, both fixed), `traces/v4/one-page-site-fold-2026-11-07/` |
 | A2 | done — planning folded into a fence-only `plan` activity; three skills deleted; a real run shipped after it, in one launch | `traces/v4/one-page-site-fold-2026-11-07/`, section 178 |
-| A3 | done — stop, retro and intake folded; three skills deleted. The Vietnamese-pitch done-when was **not run** | sections 175, 176 |
+| A3 | done — stop, retro and intake folded; three skills deleted. **The Vietnamese-pitch done-when was run and met**: the loop wrote `pitch.en.md` and a glossary, the run opened on the English copy and shipped | `traces/v4/vietnamese-pitch-2026-11-07/`, sections 175, 176 |
 | A4 | done — `gate-intake` deleted, `gate-zerowork` keyed to the loop, the load echo dropped; 5 hook scripts, 6 entries | `17-gate-zerowork-dispatch` |
 | A5 | done — `tech-lead` and its run script deleted, the launch record written by `init run`, the model floor refused there, nothing staged, the `Workflow` grant no longer added and none deleted, `snapshot` merged into `resume`. **Kill-and-resume probe passed** | `traces/v4/kill-resume-2026-11-07/`, sections 63, 127 |
 | A6 | done — `probe concurrency` and `reduce verdict` removed, `probe stats` keeps `--hooks`, tokens and cost on the leg row | sections 177, 05 |
 | A7 | done — the script-reading tests were ported or retired with a stated reason each; the no-courier, no-relaunch and grant-constant tests added | `tests/structural/`, the A5 ledger in the commit history |
-| A8 | **measured, not compared** — a dated final-tree run: one launch, 11 minutes, 8 legs, $4.88 as the host reported it, verdict PASS. It is a different pitch from the archived fan-out arm, so no comparison with it is made | `traces/v4/personal-site-final-2026-11-07/` |
-| A9 | **prepared, not shipped** — both version files at 4.0.0 and a changelog entry. No tag, no push. The nested-session check passed: the real runs left the Stop check's row in the decision ledger | the same trace |
+| A8 | done — the archived `envlint` pitch, same `--parallel-scopes 4`, run on the final tree: one launch, 15.9 minutes receipt to ship, 11 leg rows (the arm: 11 legs, 34.1 minutes in its first launch, then 21 more after a transport failure), verdict PASS, 39 deliverable tests, $8.03 as the host reported it. See "The comparison, and what it is not" | `traces/v4/envlint-final-2026-11-07/`, beside `traces/phase3/fanout-arm-shipped/`; a second dated run of another pitch in `traces/v4/personal-site-final-2026-11-07/` |
+| A9 | done to the edge of the push — both version files at 4.0.0, a changelog entry, a local tag `v4.0.0`, nothing pushed (the release workflow fires on a pushed tag). The nested-session check passed: real `claude -p --plugin-dir` runs left the Stop check's row (`gate-zerowork`) and the sandbox rows in the decision ledger, and `verify:cross-dir` passes | `traces/v4/personal-site-final-2026-11-07/SUMMARY.json` (`hook_rows`) |
 
 ## What the real runs found
 
@@ -41,16 +41,27 @@ sessions. Every real-run claim below is backed by a record under `traces/v4/`.
   pattern missed. Fixed, still anchored to the start of the message.
 - A launch with no answer set exited 2 at its first gate; an unattended launch with none now stops at
   preflight and says so. Found by the scripted drive, section 176.
+- On the multi-scope pitch the loop released a dependent scope over a dependency that had returned red
+  with attempt budget left (a sub-agent's Bash had been denied, so that scope escalated). A scope is now
+  settled only when green or out of budget; a red scope with budget left is released again at its next
+  attempt, and a dependent waits for it. The first `envlint` launch stopped on this ($5.66, not counted
+  below); the rerun is the measurement.
 - Spec-lint at the board gate refused a pitch whose "No-gos" the coverage step had registered as
   requirements. The way out is the PO marking them CUT; the PO approved it for this run.
 
-## What did not land
+## The comparison, and what it is not
 
-1. **`resume.mjs` did not shrink** (1161 to 1207 lines). The script-only code went, but `snapshot` merged
-   in and what remains is mostly the close and ledger derivation, which the loop needs.
-2. **The A3 language-gate done-when** (a Vietnamese pitch yields `<name>.en.md` and a glossary from the
-   loop) has no run behind it.
-3. **No tag.** The release workflow fires on a tag; that is yours.
+Same pitch and the same dial as the archived fan-out arm; one run each side. The arm cut four scopes and
+this run three, the plugin version and the model differ, the arm recorded neither a model nor a cost, and
+neither side was repeated. So: 11 leg rows in about 16 minutes against 11 legs in 34, one launch against
+two. That is one run set beside one run, not a rate, and it supports no claim about cost.
+
+## What did not land as the plan wrote it
+
+1. **`resume.mjs` is not smaller than it was alone** (1161 to 1207 lines). Measured against what the plan
+   merges into it, it is: `resume.mjs` and `snapshot.mjs` were 1452 lines together and are 1207 now. What
+   remains is mostly the close and ledger derivation, which the loop needs.
+2. **The tag is local.** Pushing it fires the release workflow, which is yours to start.
 
 ## Deviations from the plan, each deliberate
 

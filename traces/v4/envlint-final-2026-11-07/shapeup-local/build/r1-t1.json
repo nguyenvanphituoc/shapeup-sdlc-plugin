@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "round": 1,
+  "trial": 1,
+  "at": "2026-11-07T14:41:56.361Z",
+  "run_id": "envlint-20261107T143005Z-8bd251a0",
+  "archetype": "library",
+  "overall": "red",
+  "steps": [
+    {
+      "kind": "build_probe",
+      "cmd": "node --test test/",
+      "exit": 1,
+      "pass": false,
+      "stdout_tail": "node:internal/modules/cjs/loader:1479\n  throw err;\n  ^\n\nError: Cannot find module '/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/test'\n    at Module._resolveFilename (node:internal/modules/cjs/loader:1476:15)\n    at wrapResolveFilename (node:internal/modules/cjs/loader:1049:27)\n    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1073:10)\n    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1094:12)\n    at Module._load (node:internal/modules/cjs/loader:1262:25)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\n    at node:internal/main/run_main_module:33:47 {\n  code: 'MODULE_NOT_FOUND',\n  requireStack: []\n}\n\nNode.js v24.15.0\n✖ test (32.601459ms)\nℹ tests 1\nℹ suites 0\nℹ pass 0\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 36.28975\n\n✖ failing tests:\n\ntest at test:1:1\n✖ test (32.601459ms)\n  'test failed'\n",
+      "stderr_tail": ""
+    }
+  ],
+  "warnings": [
+    "the run ledger declares no run_cmd — the build itself is not part of this gate"
+  ],
+  "discovered_tasks": [
+    {
+      "file": "node:internal/modules/cjs/loader",
+      "line": 1476,
+      "core_message": "Cannot find module '/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/test'",
+      "kind": "stack-frame"
+    },
+    {
+      "file": "node:internal/modules/cjs/loader",
+      "line": 1049,
+      "core_message": "at wrapResolveFilename (node:internal/modules/cjs/loader:1049:27)",
+      "kind": "stack-frame"
+    },
+    {
+      "file": "node:internal/modules/cjs/loader",
+      "line": 1073,
+      "core_message": "at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1073:10)",
+      "kind": "stack-frame"
+    },
+    {
+      "file": "node:internal/modules/cjs/loader",
+      "line": 1094,
+      "core_message": "at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1094:12)",
+      "kind": "stack-frame"
+    },
+    {
+      "file": "node:internal/modules/cjs/loader",
+      "line": 1262,
+      "core_message": "at Module._load (node:internal/modules/cjs/loader:1262:25)",
+      "kind": "stack-frame"
+    },
+    {
+      "file": "node:internal/modules/cjs/loader",
+      "line": 255,
+      "core_message": "at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)",
+      "kind": "stack-frame"
+    },
+    {
+      "file": "node:internal/modules/run_main",
+      "line": 154,
+      "core_message": "at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)",
+      "kind": "stack-frame"
+    }
+  ]
+}

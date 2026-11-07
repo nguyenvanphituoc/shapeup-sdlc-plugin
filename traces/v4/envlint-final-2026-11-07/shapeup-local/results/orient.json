@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/orient",
+  "worker": "orient",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/envlint/orient/code-surface.md",
+    ".shapeup/envlint/orient/spike-cli-contract.md",
+    ".shapeup/envlint/orient/discovered-seed.md",
+    ".shapeup/envlint/orient/hill-signal.md"
+  ],
+  "assumptions": [
+    "Codebase is greenfield: no bin/, src/ or tests exist; all elements are NEW."
+  ],
+  "deviations": [
+    "Spike probes (node --test with no tests, new URL leniency) were not approved by the sandbox; those points are unverified.",
+    "Pitch has no appetite/bet frontmatter; the intake.md states a small-batch appetite in prose."
+  ]
+}

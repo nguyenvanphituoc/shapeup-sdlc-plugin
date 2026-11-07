@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "verdict": "ship-now",
+  "cut_list": [
+    "REQ-1 (pitch.md — The pitch, split 1/4: schema of required keys and value shapes) — no judge criterion anchored; nice-to-have evidence gap, behaviour exercised by UC-EvaluateRules TS-INV-01 and REQ-8/REQ-17..19 PASS — carry as a raw idea to anchor a criterion",
+    "REQ-16 (pitch.md — Parsing, split 7/7: pure, text in, {pairs, problems} out) — no judge criterion anchored; nice-to-have evidence gap, shape exercised by UC-ParseEnvText TS-REQ-text-forms PASS — carry as a raw idea to anchor a criterion",
+    "QA edge hunt not-hunted — the hunter could not invoke the CLI under the kernel-only permission grant; QA is a level-up, not a gate — carry: re-run the hunt in a session whose grant allows `node bin/envlint.mjs`"
+  ],
+  "ship_blocking": [],
+  "breaker": null,
+  "baseline": null
+}

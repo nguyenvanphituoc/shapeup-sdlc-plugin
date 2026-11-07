@@ -1,0 +1,66 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 3,
+  "at": "2026-11-07T14:41:30.236Z",
+  "run_id": "envlint-20261107T143005Z-8bd251a0",
+  "scope_id": "cli",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b2dfa8b410a9d8e82b3cf3e2adde56afaff2c8d7",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "64d1487fe5e61c44d75a95f5ac6c9c96d934a2ae0075cbb0d0839c4a2e089c06"
+    },
+    "env_sha256": "40d04d4fe791ecf503d650a2a4e12bebddf80103aaa74d8d65f7c9e638d52aab"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --test test/cli.test.mjs test/e2e.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ bad value: exit 1 with env:line: KEY line (44.668333ms)\n✔ argument order is irrelevant (66.722542ms)\n✔ clean: exit 0, empty stdout (31.201208ms)\n✔ usage errors exit 2 with usage line (196.719709ms)\n✔ never reads ./.env when no env path given (32.460209ms)\n✔ parse problems print before findings (34.267792ms)\n✔ missing env file / schema file / invalid schema exit 2 (134.427833ms)\n✔ empty and comments-only files (133.204042ms)\n✔ never writes the env file and does not load it into the environment (42.526833ms)\n✔ TS-INV-01 no input produces a stack trace (111.169458ms)\n✔ TS-INV-02 no env path never reads ./.env (33.638917ms)\n✔ TS-INV-03 files with no assignments do not crash (131.372084ms)\n✔ TS-ERR-USAGE (130.449875ms)\n✔ TS-ERR-ENV_UNREADABLE (35.056292ms)\n✔ TS-ERR-SCHEMA_UNREADABLE (32.757334ms)\n✔ TS-ERR-SCHEMA_INVALID (68.885375ms)\n✔ TS-ERR-FINDINGS (34.953542ms)\n✔ TS-REQ-clean (31.707125ms)\n✔ TS-REQ-arg-order (66.425333ms)\n✔ TS-NOGO-01 env file is never written (43.262417ms)\n✔ TS-NOGO-02 no interpolation (37.235333ms)\n✔ TS-NOGO-03 no dotenv-compatible loading (39.662042ms)\nℹ tests 22\nℹ suites 0\nℹ pass 22\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 846.65875\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "test/cli.test.mjs": "d43f18bc5dc2b85e1d4f836d5c28cca76ae5e380f383dd7910d9d06f622ee643",
+    "test/e2e.test.mjs": "2591c041eb0e3b01b84c94222c105ad959f9390a9a7685955929c820e7b906b6"
+  }
+}

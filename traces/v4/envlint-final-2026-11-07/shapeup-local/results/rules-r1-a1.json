@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/rules-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-002",
+      "status": "done",
+      "ac_results": [
+        {"ac": "`src/rules.mjs` exists and exports named functions `validateSchema` and `lint` (covers: REQ-20)", "result": "pass", "evidence": "file written; test imports both; T0 green 1/1"},
+        {"ac": "`test/rules.test.mjs` exists; `node --test test/rules.test.mjs` exits 0 run on its own (covers: REQ-22)", "result": "pass", "evidence": "verify t0 fixture 'node --test test/rules.test.mjs' green 1/1"},
+        {"ac": "`src/rules.mjs` contains no import of `./parse.mjs` or any non-`node:` module (covers: REQ-22)", "result": "pass", "evidence": "module has no import statements; test 'rules.mjs has no imports' passes"},
+        {"ac": "`validateSchema` accepts `{KEY: {required?, type?, enum?}}` objects and returns `[]` for a valid one (covers: REQ-1)", "result": "pass", "evidence": "test 'validateSchema accepts valid' passes in T0"},
+        {"ac": "`validateSchema` returns ≥1 defect, without throwing, for `null`, `[]`, `\"x\"`, `{A: 1}`, `{A: {type: \"float\"}}`, `{A: {required: \"yes\"}}`, `{A: {enum: []}}` (covers: REQ-7)", "result": "pass", "evidence": "test 'rejects bad schemas without throwing' passes in T0"},
+        {"ac": "A `required: true` key absent from pairs yields one finding `{key, line: null, rule: \"required\", message}` (covers: REQ-17)", "result": "pass", "evidence": "test 'required missing' passes in T0"},
+        {"ac": "`type: int` accepts `12`, `-3` and flags `1.5`, `x`; `type: bool` accepts `true`, `false` and flags `yes`, `TRUE`; `type: string` accepts anything (covers: REQ-18)", "result": "pass", "evidence": "test 'int and bool' passes in T0"},
+        {"ac": "`type: url` accepts `https://a.b` and `http://a.b` and flags `foo:bar`, `ftp://x`, `not a url`, with no network access (covers: REQ-18)", "result": "pass", "evidence": "test 'url shape only' passes in T0; new URL() only"},
+        {"ac": "`enum: [\"a\",\"b\"]` flags value `c` with a finding at that value's line (covers: REQ-19)", "result": "pass", "evidence": "test 'enum' passes in T0"},
+        {"ac": "Every finding names the key and its line (or `null` for `required`), so output can be key by key, line by line (covers: REQ-2)", "result": "pass", "evidence": "all findings built as {key, line, rule, message}; asserted in required/int/enum tests"},
+        {"ac": "For a duplicated key, only the last assignment is judged (covers: REQ-20)", "result": "pass", "evidence": "test 'duplicate key judges last' passes in T0"},
+        {"ac": "`lint([], {A: {type: \"int\"}})` returns `[]` (optional key absent → no finding) (covers: REQ-6)", "result": "pass", "evidence": "test 'optional absent yields nothing' passes in T0"}
+      ]
+    }
+  ],
+  "files_touched": [
+    {"path": "src/rules.mjs", "change": "created"},
+    {"path": "test/rules.test.mjs", "change": "created"}
+  ],
+  "discoveries": [],
+  "assumptions": ["Messages are free-form strings naming the key; enum and type may both fire for one key per contract", "lint tolerates a rule's required only when strictly true"],
+  "deviations": []
+}

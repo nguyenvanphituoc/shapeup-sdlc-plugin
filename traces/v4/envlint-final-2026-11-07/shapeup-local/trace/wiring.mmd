@@ -1,0 +1,12 @@
+flowchart LR
+  entry([entry point])
+  n_src_parse_mjs["src/parse.mjs"]
+  entry --> n_src_parse_mjs
+  n_src_parse_mjs --> n_UC_ParseEnvText_aff(["`envlint --schema <s> <env>` reports parse problems by line"])
+  n_src_rules_mjs["src/rules.mjs"]
+  entry --> n_src_rules_mjs
+  n_src_rules_mjs --> n_UC_EvaluateRules_aff(["`envlint --schema <s> <env>` reports required/type/enum findings by key and line"])
+  n_bin_envlint_mjs["bin/envlint.mjs"]
+  entry --> n_bin_envlint_mjs
+  n_bin_envlint_mjs --> n_UC_LintEnvFile_aff(["`node bin/envlint.mjs --schema <schema.json> <envfile>` with exit 0/1/2"])
+  classDef dead stroke:#d33,stroke-width:2px,color:#d33;

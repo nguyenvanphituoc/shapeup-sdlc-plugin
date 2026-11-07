@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/parsing-r1-a1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.claude/shapeup-sdlc-plugin/kernel/harness.mjs",
+  "run_id": "envlint-20261107T143005Z-8bd251a0",
+  "compiled_at": "2026-11-07T14:37:28.623Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "src/parse.mjs",
+      "test/parse.test.mjs",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": [],
+    "frozen": [
+      ".shapeup/envlint/**"
+    ],
+    "own": [
+      ".shapeup/envlint/results/parsing-r1-a1.json",
+      ".shapeup/envlint/tasks/TASK-*.md",
+      ".shapeup/envlint/discovery/**",
+      ".shapeup/envlint/spikes/**"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "parsing",
+      "topology_type": "ICEBERG",
+      "use_cases": [
+        "UC-ParseEnvText"
+      ],
+      "covers": [
+        "REQ-10",
+        "REQ-11",
+        "REQ-12",
+        "REQ-13",
+        "REQ-14",
+        "REQ-15",
+        "REQ-16",
+        "REQ-22"
+      ],
+      "depends_on": [],
+      "allowed_file_substrate": [
+        "src/parse.mjs",
+        "test/parse.test.mjs"
+      ],
+      "shared_substrate": [],
+      "affordance_manifest": [],
+      "e2e_verification_fixtures": [
+        "node --test test/parse.test.mjs"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN"
+    },
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "title": "Implement the pure .env parser module",
+        "status": "ready",
+        "priority": 1,
+        "depends_on": [],
+        "use_case_refs": [
+          "UC-ParseEnvText"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/envlint/tasks/TASK-001-parse-module.md",
+        "acceptance_criteria": [
+          {
+            "text": "`src/parse.mjs` exists and exports a named function `parse` (covers: REQ-16)",
+            "covers": [
+              "REQ-16"
+            ]
+          },
+          {
+            "text": "`test/parse.test.mjs` exists; `node --test test/parse.test.mjs` exits 0 run on its own (covers: REQ-22)",
+            "covers": [
+              "REQ-22"
+            ]
+          },
+          {
+            "text": "`src/parse.mjs` contains no import of `./rules.mjs` or any non-`node:` module (covers: REQ-22)",
+            "covers": [
+              "REQ-22"
+            ]
+          },
+          {
+            "text": "`parse` returns `{pairs, problems}` where each pair is `{key, value, line}` with 1-based `line`, in file order (covers: REQ-16)",
+            "covers": [
+              "REQ-16"
+            ]
+          },
+          {
+            "text": "`KEY=value` yields a pair with the trimmed text after the first `=` as value (covers: REQ-10)",
+            "covers": [
+              "REQ-10"
+            ]
+          },
+          {
+            "text": "Lines whose trimmed text starts with `#` are ignored (covers: REQ-11)",
+            "covers": [
+              "REQ-11"
+            ]
+          },
+          {
+            "text": "Blank and whitespace-only lines are ignored (covers: REQ-12)",
+            "covers": [
+              "REQ-12"
+            ]
+          },
+          {
+            "text": "`export KEY=value` yields the same pair as `KEY=value` (covers: REQ-13)",
+            "covers": [
+              "REQ-13"
+            ]
+          },
+          {
+            "text": "`K='a b'` and `K=\"a b\"` both yield value `a b`; a `#…` comment after the closing quote is allowed (covers: REQ-14)",
+            "covers": [
+              "REQ-14"
+            ]
+          },
+          {
+            "text": "A line with no `=`, an invalid key, an unterminated quote, or trailing text after a closing quote yields `{line, message}` in `problems` with its 1-based line (covers: REQ-15)",
+            "covers": [
+              "REQ-15"
+            ]
+          },
+          {
+            "text": "`parse` does not throw for malformed input (`=x`, `\"open`, `KEY`, `1A=b`, random bytes) (covers: REQ-7)",
+            "covers": [
+              "REQ-7"
+            ]
+          },
+          "`A=${B}` yields value `${B}` literally — no interpolation (pitch no-go; graded as UC-ParseEnvText TS-NOGO-02)",
+          {
+            "text": "`parse(\"\")` and `parse(\"# only\\n\\n\")` return `{pairs: [], problems: []}` (covers: REQ-6)",
+            "covers": [
+              "REQ-6"
+            ]
+          }
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

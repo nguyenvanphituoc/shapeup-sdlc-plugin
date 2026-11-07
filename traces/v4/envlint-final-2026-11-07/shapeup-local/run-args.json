@@ -1,0 +1,18 @@
+{
+  "slug": "envlint",
+  "runId": "envlint-20261107T143005Z-8bd251a0",
+  "autoLevel": "unattended",
+  "answers": "ci",
+  "models": {
+    "exec": "sonnet",
+    "eval": "sonnet",
+    "qa": "sonnet"
+  },
+  "budgets": {
+    "maxRounds": 3,
+    "attemptBudget": 5
+  },
+  "pluginRoot": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.claude/shapeup-sdlc-plugin",
+  "startedAt": "2026-11-07T14:30:05.613Z",
+  "maxParallelScopes": 4
+}

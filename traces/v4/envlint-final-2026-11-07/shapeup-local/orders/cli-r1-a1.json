@@ -1,0 +1,226 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/cli-r1-a1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.claude/shapeup-sdlc-plugin/kernel/harness.mjs",
+  "run_id": "envlint-20261107T143005Z-8bd251a0",
+  "compiled_at": "2026-11-07T14:40:22.910Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "bin/envlint.mjs",
+      "test/cli.test.mjs",
+      "test/e2e.test.mjs",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": [],
+    "frozen": [
+      ".shapeup/envlint/**"
+    ],
+    "own": [
+      ".shapeup/envlint/results/cli-r1-a1.json",
+      ".shapeup/envlint/tasks/TASK-*.md",
+      ".shapeup/envlint/discovery/**",
+      ".shapeup/envlint/spikes/**"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "cli",
+      "topology_type": "LAYER_CAKE",
+      "use_cases": [
+        "UC-LintEnvFile"
+      ],
+      "covers": [
+        "REQ-2",
+        "REQ-3",
+        "REQ-4",
+        "REQ-5",
+        "REQ-6",
+        "REQ-7",
+        "REQ-8",
+        "REQ-9",
+        "REQ-21"
+      ],
+      "depends_on": [
+        "parsing",
+        "rules"
+      ],
+      "allowed_file_substrate": [
+        "bin/envlint.mjs",
+        "test/cli.test.mjs",
+        "test/e2e.test.mjs"
+      ],
+      "shared_substrate": [],
+      "e2e_verification_fixtures": [
+        "node --test test/cli.test.mjs test/e2e.test.mjs"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN",
+      "affordance_manifest": [
+        {
+          "test_id": "envlint-command",
+          "role": "command",
+          "required_states": [
+            "idle",
+            "success",
+            "error",
+            "empty"
+          ],
+          "source": "ux-behavior TerminalOutput"
+        }
+      ]
+    },
+    "tasks": [
+      {
+        "id": "TASK-003",
+        "title": "Implement the envlint CLI entry point",
+        "status": "ready",
+        "priority": 2,
+        "depends_on": [
+          "TASK-001",
+          "TASK-002"
+        ],
+        "use_case_refs": [
+          "UC-LintEnvFile"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/envlint/tasks/TASK-003-cli-entry.md",
+        "acceptance_criteria": [
+          {
+            "text": "`bin/envlint.mjs` exists, imports `parse` from `../src/parse.mjs` and `validateSchema`, `lint` from `../src/rules.mjs` (covers: REQ-21)",
+            "covers": [
+              "REQ-21"
+            ]
+          },
+          {
+            "text": "`test/cli.test.mjs` exists, spawns `node bin/envlint.mjs` against fixtures it writes to a temp directory, and `node --test test/cli.test.mjs` exits 0 (covers: REQ-8)",
+            "covers": [
+              "REQ-8"
+            ]
+          },
+          {
+            "text": "`node bin/envlint.mjs --schema <s.json> <app.env>` reads exactly those two files; `<app.env> --schema <s.json>` is equivalent (covers: REQ-8)",
+            "covers": [
+              "REQ-8"
+            ]
+          },
+          {
+            "text": "With no env path given, it exits 2 with the usage line and never reads `./.env` in the working directory (covers: REQ-9)",
+            "covers": [
+              "REQ-9"
+            ]
+          },
+          {
+            "text": "Missing `--schema`, a `--schema` with no value, two positional paths, or an unknown flag → exit 2, usage line on stderr (covers: REQ-21)",
+            "covers": [
+              "REQ-21"
+            ]
+          },
+          {
+            "text": "Parse problems print as `<env>:<line>: parse: <message>` and findings as `<env>:<line>: <KEY>: <message>` (or `<env>: <KEY>: <message>` for a missing required key), problems first (covers: REQ-2)",
+            "covers": [
+              "REQ-2"
+            ]
+          },
+          {
+            "text": "Exit 1 when anything is printed, exit 0 with empty stdout when clean (covers: REQ-3)",
+            "covers": [
+              "REQ-3"
+            ]
+          },
+          {
+            "text": "A missing env file → exit 2, `envlint: cannot read <path>: …` on stderr (covers: REQ-4)",
+            "covers": [
+              "REQ-4"
+            ]
+          },
+          {
+            "text": "A missing schema file, a schema that is not JSON, or one `validateSchema` rejects → exit 2, `envlint: cannot read …` / `envlint: invalid schema <path>: …` (covers: REQ-5)",
+            "covers": [
+              "REQ-5"
+            ]
+          },
+          {
+            "text": "No input produces a stack trace: stderr never contains a `    at ` frame line, and unexpected errors are one `envlint: …` line with exit 2 (covers: REQ-7)",
+            "covers": [
+              "REQ-7"
+            ]
+          },
+          "The tool never writes the env file (bytes and mtime unchanged after a run) — pitch no-go, graded as UC-LintEnvFile TS-NOGO-01",
+          "The tool does not load the env file into `process.env` (no dotenv-compatible loading) — pitch no-go, graded as UC-LintEnvFile TS-NOGO-03",
+          {
+            "text": "An empty or comments-only env file with schema `{}` → exit 0, no output; with `{\"A\":{\"required\":true}}` → exit 1, one `A` line (covers: REQ-6)",
+            "covers": [
+              "REQ-6"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "TASK-004",
+        "title": "Add end-to-end edge-case tests driving the envlint binary",
+        "status": "ready",
+        "priority": 3,
+        "depends_on": [
+          "TASK-003"
+        ],
+        "use_case_refs": [
+          "UC-LintEnvFile"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/envlint/tasks/TASK-004-e2e-edges.md",
+        "acceptance_criteria": [
+          {
+            "text": "`test/e2e.test.mjs` exists and `node --test test/` exits 0 with all four test files present (covers: REQ-21)",
+            "covers": [
+              "REQ-21"
+            ]
+          },
+          {
+            "text": "It has one named test per UC-LintEnvFile Test Surface row (TS-INV-01..03, TS-ERR-*, TS-REQ-*, TS-NOGO-01..03) (covers: REQ-7)",
+            "covers": [
+              "REQ-7"
+            ]
+          },
+          {
+            "text": "Every fixture lives under `os.tmpdir()`; the test writes nothing inside the project (covers: REQ-8)",
+            "covers": [
+              "REQ-8"
+            ]
+          },
+          {
+            "text": "The TS-INV-02 test runs the binary with `cwd` set to a temp dir holding a `.env` and asserts its contents never appear in output (covers: REQ-9)",
+            "covers": [
+              "REQ-9"
+            ]
+          },
+          {
+            "text": "The edge tests assert missing file → exit 2, invalid schema → exit 2, no-assignment file → no crash (covers: REQ-4)",
+            "covers": [
+              "REQ-4"
+            ]
+          },
+          {
+            "text": "The invalid-schema tests cover not-JSON and a rejected KeyRule (covers: REQ-5)",
+            "covers": [
+              "REQ-5"
+            ]
+          },
+          {
+            "text": "The no-assignment tests cover an empty file and a comments-only file (covers: REQ-6)",
+            "covers": [
+              "REQ-6"
+            ]
+          }
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

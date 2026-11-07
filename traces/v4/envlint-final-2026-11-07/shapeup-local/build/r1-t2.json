@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "round": 1,
+  "trial": 2,
+  "at": "2026-11-07T14:42:22.597Z",
+  "run_id": "envlint-20261107T143005Z-8bd251a0",
+  "archetype": "library",
+  "overall": "green",
+  "steps": [
+    {
+      "kind": "build_probe",
+      "cmd": "node --test \"test/*.test.mjs\"",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ bad value: exit 1 with env:line: KEY line (41.111584ms)\n✔ argument order is irrelevant (63.98275ms)\n✔ clean: exit 0, empty stdout (32.797583ms)\n✔ usage errors exit 2 with usage line (204.733041ms)\n✔ never reads ./.env when no env path given (35.451959ms)\n✔ parse problems print before findings (38.779916ms)\n✔ missing env file / schema file / invalid schema exit 2 (148.516583ms)\n✔ empty and comments-only files (144.981ms)\n✔ never writes the env file and does not load it into the environment (32.920334ms)\n✔ TS-INV-01 no input produces a stack trace (105.253792ms)\n✔ TS-INV-02 no env path never reads ./.env (32.838292ms)\n✔ TS-INV-03 files with no assignments do not crash (137.196584ms)\n✔ TS-ERR-USAGE (141.576208ms)\n✔ TS-ERR-ENV_UNREADABLE (38.900708ms)\n✔ TS-ERR-SCHEMA_UNREADABLE (36.824417ms)\n✔ TS-ERR-SCHEMA_INVALID (72.678042ms)\n✔ TS-ERR-FINDINGS (37.893708ms)\n✔ TS-REQ-clean (36.129584ms)\n✔ TS-REQ-arg-order (72.010292ms)\n✔ TS-NOGO-01 env file is never written (32.710625ms)\n✔ TS-NOGO-02 no interpolation (32.574834ms)\n✔ TS-NOGO-03 no dotenv-compatible loading (30.83725ms)\n✔ basic, order, lines (0.972625ms)\n✔ comments and blanks ignored (0.099167ms)\n✔ export (0.072625ms)\n✔ quotes (0.0765ms)\n✔ problems (0.842333ms)\n✔ no throw on garbage (0.171666ms)\n✔ no interpolation (0.078792ms)\n✔ empty (0.073416ms)\n✔ validateSchema accepts valid (0.815042ms)\n✔ validateSchema rejects bad schemas without throwing (0.141208ms)\n✔ required missing (0.989042ms)\n✔ int and bool (0.525625ms)\n✔ url shape only (0.19225ms)\n✔ enum (0.145ms)\n✔ duplicate key judges last (0.127958ms)\n✔ optional absent yields nothing (0.08ms)\n✔ rules.mjs has no imports (0.495042ms)\nℹ tests 39\nℹ suites 0\nℹ pass 39\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 861.833959\n",
+      "stderr_tail": ""
+    }
+  ],
+  "warnings": [
+    "the run ledger declares no run_cmd — the build itself is not part of this gate"
+  ],
+  "discovered_tasks": []
+}

@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/parsing-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-001",
+      "status": "done",
+      "ac_results": [
+        {"ac": "`src/parse.mjs` exists and exports a named function `parse` (covers: REQ-16)", "result": "pass", "evidence": "T0 r1-a1-t1 green; test imports { parse }"},
+        {"ac": "`test/parse.test.mjs` exists; `node --test test/parse.test.mjs` exits 0 run on its own (covers: REQ-22)", "result": "pass", "evidence": "T0 fixture node --test test/parse.test.mjs 1/1 green"},
+        {"ac": "`src/parse.mjs` contains no import of `./rules.mjs` or any non-`node:` module (covers: REQ-22)", "result": "pass", "evidence": "file has no import statements"},
+        {"ac": "`parse` returns `{pairs, problems}` where each pair is `{key, value, line}` with 1-based `line`, in file order (covers: REQ-16)", "result": "pass", "evidence": "test 'basic, order, lines' green in T0"},
+        {"ac": "`KEY=value` yields a pair with the trimmed text after the first `=` as value (covers: REQ-10)", "result": "pass", "evidence": "test 'basic, order, lines' green in T0"},
+        {"ac": "Lines whose trimmed text starts with `#` are ignored (covers: REQ-11)", "result": "pass", "evidence": "test 'comments and blanks ignored' green in T0"},
+        {"ac": "Blank and whitespace-only lines are ignored (covers: REQ-12)", "result": "pass", "evidence": "test 'comments and blanks ignored' green in T0"},
+        {"ac": "`export KEY=value` yields the same pair as `KEY=value` (covers: REQ-13)", "result": "pass", "evidence": "test 'export' green in T0"},
+        {"ac": "`K='a b'` and `K=\"a b\"` both yield value `a b`; a `#…` comment after the closing quote is allowed (covers: REQ-14)", "result": "pass", "evidence": "test 'quotes' green in T0"},
+        {"ac": "A line with no `=`, an invalid key, an unterminated quote, or trailing text after a closing quote yields `{line, message}` in `problems` with its 1-based line (covers: REQ-15)", "result": "pass", "evidence": "test 'problems' green in T0"},
+        {"ac": "`parse` does not throw for malformed input (`=x`, `\"open`, `KEY`, `1A=b`, random bytes) (covers: REQ-7)", "result": "pass", "evidence": "tests 'problems' and 'no throw on garbage' green in T0"},
+        {"ac": "`A=${B}` yields value `${B}` literally — no interpolation (pitch no-go; graded as UC-ParseEnvText TS-NOGO-02)", "result": "pass", "evidence": "test 'no interpolation' green in T0"},
+        {"ac": "`parse(\"\")` and `parse(\"# only\\n\\n\")` return `{pairs: [], problems: []}` (covers: REQ-6)", "result": "pass", "evidence": "test 'empty' green in T0"}
+      ]
+    }
+  ],
+  "files_touched": [
+    {"path": "src/parse.mjs", "change": "created"},
+    {"path": "test/parse.test.mjs", "change": "created"}
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "Unquoted values are taken literally (trimmed), including any inline #; only quoted values allow a trailing # comment",
+    "Quoted values have no escape handling; value ends at the next matching quote"
+  ],
+  "deviations": []
+}

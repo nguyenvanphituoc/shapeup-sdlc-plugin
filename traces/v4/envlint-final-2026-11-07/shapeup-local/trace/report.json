@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "slug": "envlint",
+  "at": "2026-11-07T14:37:18.148Z",
+  "mode": "advisory",
+  "advisory": true,
+  "covers_closure": {
+    "checked": true,
+    "requirements_total": 22,
+    "covered_status": 22,
+    "cut_status": 0,
+    "covered_by_ac": 22,
+    "uncovered": [],
+    "dangling_covers": [],
+    "pass": true,
+    "skipped_reason": null
+  },
+  "reachability": {
+    "checked": false,
+    "pass": true,
+    "unreachable": [],
+    "entry_point": "bin/envlint.mjs",
+    "skipped_reason": "entry_point \"bin/envlint.mjs\" does not resolve to a source file on disk — reachability skipped."
+  },
+  "scope_reachability": {
+    "checked": false,
+    "scopes": [],
+    "orphaned": [],
+    "skipped_reason": "reachability did not run, so there is no graph to measure a scope against."
+  },
+  "findings": [
+    {
+      "severity": "warn",
+      "code": "ENTRY-MISSING",
+      "message": "project-profile.md entry_point \"bin/envlint.mjs\" is not on disk — reachability cannot run."
+    }
+  ],
+  "overall": "green"
+}

@@ -1,0 +1,31 @@
+{
+  "run": "personal-site",
+  "date": "2026-11-07",
+  "plugin": "plan/single-loop at 1e990cb \u2014 the final tree",
+  "purpose": "the A3 done-when: a Vietnamese pitch yields <name>.en.md and a glossary from the loop",
+  "pitch": "the one-page-site pitch written in Vietnamese (pitch.vi.md)",
+  "launches": 1,
+  "produced_by_the_loop": [
+    "pitch.en.md (the English copy, beside the pitch)",
+    "shapeup/personal-site/shaping/glossary.md (source term / English / note, with the two senses of one Vietnamese word kept apart)"
+  ],
+  "run_opened_on_the_english_copy": true,
+  "intake_first_line_is_english": true,
+  "legs": 8,
+  "gates": [
+    "L0",
+    "L0",
+    "L1a",
+    "L1a.5",
+    "L1b",
+    "L2",
+    "L3",
+    "QA",
+    "H",
+    "L4",
+    "COACH-1"
+  ],
+  "verdict": "PASS",
+  "rounds": 1,
+  "not_measured": "one pitch, one run; no judgement is made here of the translation's quality beyond the glossary existing and the run opening on the English copy"
+}

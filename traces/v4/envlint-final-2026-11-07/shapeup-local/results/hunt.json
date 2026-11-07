@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/hunt",
+  "worker": "qa-edge-hunter",
+  "status": "failed",
+  "discoveries": [],
+  "artifacts": [".shapeup/envlint/qa/hunt-report.md"],
+  "deviations": [
+    "Deliverable not reached: CLI order has no app_url or launch_cmd, and this session permits only kernel Bash commands, so bin/envlint.mjs could not be invoked. charters: 0/0, not-hunted."
+  ]
+}

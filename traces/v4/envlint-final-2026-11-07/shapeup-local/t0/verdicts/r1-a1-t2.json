@@ -1,0 +1,65 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 2,
+  "at": "2026-11-07T14:40:00.822Z",
+  "run_id": "envlint-20261107T143005Z-8bd251a0",
+  "scope_id": "rules",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b2dfa8b410a9d8e82b3cf3e2adde56afaff2c8d7",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "64d1487fe5e61c44d75a95f5ac6c9c96d934a2ae0075cbb0d0839c4a2e089c06"
+    },
+    "env_sha256": "40d04d4fe791ecf503d650a2a4e12bebddf80103aaa74d8d65f7c9e638d52aab"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --test test/rules.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ validateSchema accepts valid (0.704083ms)\n✔ validateSchema rejects bad schemas without throwing (0.117333ms)\n✔ required missing (0.578791ms)\n✔ int and bool (0.245625ms)\n✔ url shape only (0.126834ms)\n✔ enum (0.138083ms)\n✔ duplicate key judges last (0.066083ms)\n✔ optional absent yields nothing (0.057167ms)\n✔ rules.mjs has no imports (0.245584ms)\nℹ tests 9\nℹ suites 0\nℹ pass 9\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 51.482917\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "test/rules.test.mjs": "e7b7071eb25177038883953b163774d6ce17903460e9bd23c2908c718167cdac"
+  }
+}

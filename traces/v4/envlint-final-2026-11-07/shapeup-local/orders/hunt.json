@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/hunt",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.claude/shapeup-sdlc-plugin/kernel/harness.mjs",
+  "run_id": "envlint-20261107T143005Z-8bd251a0",
+  "compiled_at": "2026-11-07T14:44:28.483Z",
+  "worker": "qa-edge-hunter",
+  "mode": "orchestrated",
+  "operation": "hunt",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [],
+    "frozen": [
+      "shapeup/envlint/spec/**",
+      ".shapeup/envlint/**"
+    ],
+    "own": [
+      ".shapeup/envlint/qa/**",
+      ".shapeup/envlint/results/hunt.json"
+    ]
+  },
+  "payload": {
+    "trial_history": [
+      {
+        "schema_version": 1,
+        "trial": 1,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "parsing",
+        "score": {
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      },
+      {
+        "schema_version": 1,
+        "trial": 1,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "rules",
+        "score": {
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      },
+      {
+        "schema_version": 1,
+        "trial": 1,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "cli",
+        "score": {
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      }
+    ],
+    "feature": "envlint",
+    "spec_folder": "shapeup/envlint/spec/",
+    "round": 1,
+    "build_gate": ".shapeup/envlint/build/r1-t2.json",
+    "kb_rules_path": "shapeup/knowledge-base/qa-edge-hunter.md"
+  }
+}

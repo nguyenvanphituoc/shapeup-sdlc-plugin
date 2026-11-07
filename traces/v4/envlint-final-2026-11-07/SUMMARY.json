@@ -1,0 +1,119 @@
+{
+  "run": "envlint",
+  "date": "2026-11-07",
+  "plugin": "plan/single-loop at 1e990cb \u2014 the final tree",
+  "pitch": "the archived envlint pitch (traces/phase3/fanout-arm-shipped/idea.md), run with --parallel-scopes 4 \u2014 the same pitch and the same dial as the fan-out arm",
+  "launches": 1,
+  "launch_note": "one launch from an empty project to a shipped close. An earlier launch of this pitch on the previous commit stopped mid-build because the loop released a dependent scope over a dependency that had returned red with budget left (one sub-agent's Bash had been denied, so its scope escalated); that defect is fixed in 1e990cb and this run is the clean rerun. The earlier launch cost $5.66 as reported and is not included below.",
+  "wall_span_min": 15.9,
+  "legs": 11,
+  "leg_rows": [
+    {
+      "order": "orient",
+      "worker": "orient",
+      "mode": "orchestrated",
+      "duration_s": 77,
+      "tokens_total": 80293
+    },
+    {
+      "order": "plan-requirements",
+      "worker": "building",
+      "mode": "standalone",
+      "duration_s": 17,
+      "tokens_total": null
+    },
+    {
+      "order": "plan-spec",
+      "worker": "building",
+      "mode": "standalone",
+      "duration_s": 221,
+      "tokens_total": null
+    },
+    {
+      "order": "plan-wire",
+      "worker": "building",
+      "mode": "standalone",
+      "duration_s": 11,
+      "tokens_total": null
+    },
+    {
+      "order": "plan-scopes",
+      "worker": "building",
+      "mode": "standalone",
+      "duration_s": 17,
+      "tokens_total": null
+    },
+    {
+      "order": "parsing-r1-a1",
+      "worker": "task-executor",
+      "mode": "orchestrated",
+      "duration_s": 145,
+      "tokens_total": 63317
+    },
+    {
+      "order": "rules-r1-a1",
+      "worker": "task-executor",
+      "mode": "orchestrated",
+      "duration_s": 154,
+      "tokens_total": 68222
+    },
+    {
+      "order": "cli-r1-a1",
+      "worker": "task-executor",
+      "mode": "orchestrated",
+      "duration_s": 72,
+      "tokens_total": 77113
+    },
+    {
+      "order": "evaluate-r1",
+      "worker": "spec-evaluator",
+      "mode": "orchestrated",
+      "duration_s": 74,
+      "tokens_total": null
+    },
+    {
+      "order": "evaluate-r1",
+      "worker": "spec-evaluator",
+      "mode": "orchestrated",
+      "duration_s": 82,
+      "tokens_total": 100446
+    },
+    {
+      "order": "hunt",
+      "worker": "qa-edge-hunter",
+      "mode": "orchestrated",
+      "duration_s": 26,
+      "tokens_total": 76280
+    }
+  ],
+  "scopes": [
+    "parsing",
+    "rules",
+    "cli"
+  ],
+  "gates": [
+    "L0",
+    "L1a",
+    "L1a.5",
+    "L1b",
+    "L2",
+    "L3",
+    "QA",
+    "H",
+    "L4",
+    "COACH-1"
+  ],
+  "verdict": "PASS",
+  "rounds": 1,
+  "qa": "not-hunted",
+  "deliverable_tests": "39 pass",
+  "reported_cost_usd": 8.03,
+  "turns": 47,
+  "fan_out_arm_for_comparison": {
+    "source": "traces/phase3/fanout-arm-shipped/",
+    "legs": 11,
+    "minutes_first_launch": 34.1,
+    "note": "that launch was killed mid-EVAL by a transport failure; its relaunch ran 21 more minutes. The arm recorded no model and no cost, so a same-model-class claim and a cost comparison cannot be made"
+  },
+  "not_measured": "one run each side, different planning output (the arm cut four scopes, this run three), different plugin version and model, no repetition \u2014 a comparison of one run with one run, not a rate. Cost is what the host reported for the session including its sub-agents."
+}
