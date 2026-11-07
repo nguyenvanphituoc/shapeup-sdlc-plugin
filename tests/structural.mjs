@@ -61,9 +61,9 @@ const MODULE_FILES = [
   // ORIENT re-dispatched on every relaunch because its skip read stored status instead of its own
   // artifacts; this module is the seam that defect could not be caught through.
   "18-resume-state.mjs",
-  // 19-run-records.mjs: the run key and the fact tables projected from it. Its own module because
-  // the property is cross-cutting — five separate writers must stamp the same key, and the failure
-  // mode is the one this repo keeps hitting: stamp four of them and nothing errors.
+  // 19-run-records.mjs: the run key. Its own module because the property is cross-cutting — five
+  // separate writers must stamp the same key, and the failure mode is the one this repo keeps
+  // hitting: stamp four of them and nothing errors.
   "19-run-records.mjs",
   // 21-gauntlet.mjs: the probes this codebase's comments used to describe. A narrated probe proves
   // something about a tree that no longer exists and goes on reading as evidence anyway; these run.
@@ -258,11 +258,6 @@ const MODULE_FILES = [
   // (CLOSE_ARM_STATUS), not a hand-typed pair; gate_h closes the run as escalated; the state machine hands
   // the kernel an arm and never decides terminality itself.
   "71-close-arms.mjs",
-  // 72-export-on-close.mjs: defect-plan-3.7 Stage 2 — a run's own close-out (kernel/probe/
-  // resume.mjs's closeRun) now exports fact tables for every terminal ending except "shipped",
-  // which the Ship phase's own pre-existing export call already covers; a blocked export degrades
-  // the close's return with export_warning rather than failing the close itself.
-  "72-export-on-close.mjs",
   // 73-attested-attempts.mjs: HD-2, defect-plan-3.7 Stage 3 — a scope's spent-attempt count is
   // derived only from attested channels (a dispatch receipt plus a leg-completion row or a
   // WorkResult), never from the order set or the T0 verdict set alone; a receipted attempt with

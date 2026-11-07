@@ -2267,7 +2267,7 @@
             "integer",
             "null"
           ],
-          "description": "Rounds built, from the same mechanical derivation `reduce ship` and `report export` read — never the ledger's literal, which is written once, as 0."
+          "description": "Rounds built, from the same mechanical derivation `reduce ship` reads — never the ledger's literal, which is written once, as 0."
         },
         "rounds_judged": {
           "type": [

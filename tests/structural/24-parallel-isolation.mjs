@@ -136,7 +136,6 @@ export async function run(ctx) {
     } finally { rmSync(ws, { recursive: true, force: true }); }
   }
 
-  // --- (b) DETERMINISTIC: the run graph keeps two scopes' trials apart --------------------------
   // --- (c) RACING: four `verify t0` at once, and the trial identity has to stay unique ----------
   {
     const ws = mkdtempSync(join(tmpdir(), "struct-par-c-"));

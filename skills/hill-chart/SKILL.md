@@ -23,7 +23,7 @@ and at the ship step. They survive after a project's local run trace is cleaned 
 ## Discovery
 
 Do not `readdir` either root bare — both hold non-pitch entries (`shapeup/knowledge-base/`,
-`.shapeup/metrics/`, `.shapeup/exports/`, `.shapeup/pitch-archive/`, loose files). A directory
+`.shapeup/metrics/`, `.shapeup/pitch-archive/`, loose files). A directory
 counts as a pitch when:
 
 - **Committed**: `shapeup/<slug>/` contains `hill/`, `scopes/`, or `shaping/`.

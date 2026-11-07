@@ -85,7 +85,7 @@ export async function run(ctx) {
   }
 
   // ===============================================================================================
-  section("110. The mechanism L0/L4/COACH-1's prose now calls: a real ledger row, a real export row");
+  section("110. The mechanism L0/L4/COACH-1's prose now calls: a real ledger row");
   // ===============================================================================================
   {
     const ws = mkdtempSync(join(tmpdir(), "gate-coverage-"));
@@ -130,38 +130,6 @@ export async function run(ctx) {
         ok("(a) the L4 row names the actual decision (ship) and its source (preset:ci), not a narrated summary");
       } else fail(`(a) the L4 row is malformed: ${JSON.stringify(l4row)}`);
 
-      // --- (b) the export carries gate data — TABLES had nine entries and none was gate data -----
-      const exp = spawnSync(process.execPath, [
-        join(ROOT, "kernel/harness.mjs"), "report", "export", "--slug", "widgets", "--cwd", ws,
-      ], { cwd: ws, encoding: "utf8", timeout: 15_000 });
-      if (exp.status !== 0) throw new Error(`report export failed: ${exp.stderr || exp.stdout}`);
-      const manifest = JSON.parse(exp.stdout);
-      const gateTable = manifest.tables.find((t) => t.name === "gate_decision");
-      // `init run` records L0 itself now, and this section resolves L0 again by hand — four rows,
-      // every one of them this run's.
-      if (gateTable && gateTable.rows === 4) {
-        ok("(b) the export's gate_decision table carries all four rows — the opening's L0, the hand-resolved L0, L4 and COACH-1");
-      } else fail(`(b) gate_decision table wrong: ${JSON.stringify(gateTable)}`);
-      if (manifest.tables.find((t) => t.name === "build_gate")) {
-        ok("(b) the export declares a build_gate table too — the round build gate ends a round exactly as EVAL does, and had none");
-      } else fail("(b) no build_gate table in the manifest — TABLES and the manifest have drifted");
-
-      // --- (c) the round build gate's own artifact reaches the export as a row, not just a file ---
-      const buildDir = join(ws, ".shapeup/widgets/build");
-      mkdirSync(buildDir, { recursive: true });
-      writeFileSync(join(buildDir, "r1-t1.json"), JSON.stringify({
-        round: 1, trial: 1, at: new Date().toISOString(), overall: "red", archetype: "web",
-        steps: [{ kind: "run_cmd", pass: false }], warnings: ["fixture coverage warning"],
-      }));
-      const exp2 = spawnSync(process.execPath, [
-        join(ROOT, "kernel/harness.mjs"), "report", "export", "--slug", "widgets", "--cwd", ws, "--out", join(ws, ".shapeup/exports2"),
-      ], { cwd: ws, encoding: "utf8", timeout: 15_000 });
-      if (exp2.status !== 0) throw new Error(`report export (2) failed: ${exp2.stderr || exp2.stdout}`);
-      const manifest2 = JSON.parse(exp2.stdout);
-      const bgTable = manifest2.tables.find((t) => t.name === "build_gate");
-      if (bgTable?.rows === 1) ok("(c) a round build-gate artifact on disk becomes one build_gate export row");
-      else fail(`(c) the round build-gate artifact did not reach the export: ${JSON.stringify(bgTable)}`);
-    
       // THE NEGATIVE, and it is the property the positive one cannot show: with no census on disk
       // the same preset must NOT answer ship. An answer set chooses among the answers a gate
       // allows; it cannot supply the evidence that makes one allowed.
@@ -179,9 +147,9 @@ export async function run(ctx) {
           ], { cwd: ws2, encoding: "utf8", timeout: 15_000 });
           let out = null; try { out = JSON.parse(r2.stdout || "null"); } catch { /* below */ }
           if (out && out.status === "ask" && out.decision !== "ship") {
-            ok("(c) with no census on disk the ci preset does NOT answer L4 ship — it asks instead");
+            ok("(b) with no census on disk the ci preset does NOT answer L4 ship — it asks instead");
           } else {
-            fail(`(c) L4 answered without a census: ${JSON.stringify(out).slice(0, 200)}`);
+            fail(`(b) L4 answered without a census: ${JSON.stringify(out).slice(0, 200)}`);
           }
         } finally { rmSync(ws2, { recursive: true, force: true }); }
       }

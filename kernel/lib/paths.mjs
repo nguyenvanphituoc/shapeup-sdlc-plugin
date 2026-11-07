@@ -165,7 +165,7 @@ export const resultsDir = (cwd, slug) => join(localRoot(cwd, slug), "results");
  *
  * IT HAS ITS OWN DIRECTORY, and that is not tidiness. A receipt filed as a sibling of the order it
  * answers (`orders/orient.receipt.json`) would land inside a directory three readers enumerate —
- * `probe resume` and `report export` both `readdirSync` `orders/` — where it survives
+ * `probe resume` and the order set both `readdirSync` `orders/` — where it survives
  * today only because each of them happens to filter `.json`. `orient.receipt.json` passes that
  * filter and becomes a bogus `Order` node in the run graph. A separate directory means no future
  * reader has to know this file exists.
@@ -270,8 +270,7 @@ export const workingDir = (cwd, slug) => join(localRoot(cwd, slug), "working");
  *
  * What is left is written once, at run open, and never moved again, so it is not a concurrency
  * hazard. Its readers all degrade rather than fail without it: the budget check and the snapshot
- * both fall back to scanning for a receipt or a mid-run ledger, and `report export` refuses with
- * instructions rather than guessing. The one thing it uniquely supplies is the slug that
+ * both fall back to scanning for a receipt or a mid-run ledger. The one thing it uniquely supplies is the slug that
  * {@link resolveRunId} turns into a `run_id` for callers that were handed no slug — hook decision
  * rows, above all, which without it are written unjoinable to any run.
  */
@@ -335,21 +334,6 @@ export const metricsDir = (cwd) => join(localDir(cwd), "metrics");
 export const metricsShard = (cwd, id = process.env.HOSTNAME || "local") =>
   join(metricsDir(cwd), `${id}.jsonl`);
 
-/**
- * The default landing tier for exported run records — the analysis plane's staging area.
- *
- * DELIBERATELY LOCAL, and the trade-off is stated rather than dodged. The run trace it reads from
- * (`.shapeup/<slug>/`) is regenerable and gets wiped per-slug; an export keyed by run id survives
- * that, which is the failure this directory closes. What it does NOT do is cross a machine
- * boundary: making it SHARED would put per-run structured data and a machine id back in the
- * repository, which is exactly what ADR-0001 moved the metrics shards out of git to prevent. A
- * cross-machine warehouse is therefore an explicit `--out <dir>` to a destination the operator
- * owns, never a default that commits telemetry on their behalf.
- */
-export const exportsDir = (cwd) => join(localDir(cwd), "exports");
-
-/** One exported run's table directory, keyed by the run id (see {@link mintRunId}). */
-export const exportRunDir = (cwd, runId) => join(exportsDir(cwd), String(runId ?? "unkeyed"));
 /** Archived pitches. */
 export const pitchArchiveDir = (cwd) => join(localDir(cwd), "pitch-archive");
 

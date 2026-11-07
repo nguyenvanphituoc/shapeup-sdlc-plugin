@@ -140,17 +140,6 @@ export async function run(ctx) {
       const results = existsSync(resultsDir) ? readdirSync(resultsDir).filter((f) => f.endsWith(".json")) : [];
       if (results.length === 0) ok(`[${status}] the abandoned order is still unanswered — the close released the fence without claiming the work was done`);
       else fail(`[${status}] the close wrote ${results.join(", ")} — un-fencing must not masquerade as resolving`);
-
-      // The close's OTHER duty, pinned here because nothing above would notice it stopping: every
-      // terminal ending exports its fact tables, keyed by run id. `shipped` is exempt — the Ship
-      // phase exports itself before ever calling the close.
-      if (status !== "shipped") {
-        const exportsRoot = join(ws, ".shapeup/exports");
-        const runs = existsSync(exportsRoot) ? readdirSync(exportsRoot) : [];
-        const tables = runs.length ? readdirSync(join(exportsRoot, runs[0])) : [];
-        if (runs.length === 1 && tables.length > 0) ok(`[${status}] the close still exports its fact tables (${tables.length} under one run key) — teardown did not cost the run its record`);
-        else fail(`[${status}] the export is missing or unkeyed (${runs.length} run dir(s), ${tables.length} table(s)) — a close that retires the run must still leave its records behind`);
-      }
     } finally {
       rmSync(ws, { recursive: true, force: true });
     }

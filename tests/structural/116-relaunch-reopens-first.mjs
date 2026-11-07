@@ -38,7 +38,7 @@ export async function run(ctx) {
     else fail(`open run closed_status: ${JSON.stringify(resumeState().closed_status)}`);
 
     gateRow("L1a", "2000-01-01T00:00:01.000Z");
-    closeRun(w, "checkout", { status: "aborted", cause: "killed mid-build", withExport: false });
+    closeRun(w, "checkout", { status: "aborted", cause: "killed mid-build" });
     if (resumeState().closed_status === "aborted") ok("a closed run's resume state names its close, so a relaunch can reopen it first");
     else fail(`closed run closed_status: ${JSON.stringify(resumeState().closed_status)}`);
 
@@ -52,7 +52,7 @@ export async function run(ctx) {
     else fail(`after the reopen the hooks resolve ${JSON.stringify(key)}`);
 
     gateRow("L1a", new Date(Date.now() + 1000).toISOString());
-    closeRun(w, "checkout", { status: "shipped", cause: "verdict=pass rounds=1", withExport: false });
+    closeRun(w, "checkout", { status: "shipped", cause: "verdict=pass rounds=1" });
     const table = readFileSync(join(w, ".shapeup/checkout/harness-run.md"), "utf8").split("\n").filter((l) => l.startsWith("| L1a |"));
     if (table.length === 2 && !/launch \d/.test(table[0]) && /launch 2 \(after a reopen\)/.test(table[1])) {
       ok("the Decisions table marks the relaunch's re-signed gate as launch 2 and leaves the first launch's row plain");

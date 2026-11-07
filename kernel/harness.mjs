@@ -60,7 +60,6 @@
 //   init     run · fit                         Opens a run, or refuses it (exit 3). `run` also writes
 //                                              GATE L0.9b's launch record and refuses a model below
 //                                              the floor.
-//   report   export                           Projects the run's records as fact tables.
 //   compile                                   The WorkOrder: schema-valid or nothing is dispatched.
 //
 // EXIT CODES are the subcommand's own and are part of its contract: 0 success · 1 ran, answer is
@@ -97,7 +96,6 @@ export const ROUTES = {
     next: "./probe/next.mjs",
   },
   init: { run: "./init/run.mjs", fit: "./init/fit.mjs" },
-  report: { export: "./report/export.mjs", _default: "export" },
   gate: "./gate.mjs",
   compile: "./compile.mjs",
 };

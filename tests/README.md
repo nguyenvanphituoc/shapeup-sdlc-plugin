@@ -208,10 +208,7 @@ a glob on the post-substitution absolute path, never asking the matcher to see a
 `${CLAUDE_PLUGIN_ROOT}` token). **No wall-clock or cost delta between v1 and v2 can be stated on
 these terms — not because v1 is slower, but because v1's own dispatch mechanism no longer runs at
 all** — arguably a stronger signal in the direction probe 6 predicted than a slower-but-completing
-v1 number would have been, but a different claim, stated as such. Also worth noting: the harness's
-own economics tooling (`journal.jsonl`, meant to key `harness report export`/`harness probe stats
---economics`) was never populated by the v2.0 run — the numbers above come from the coarser
-dispatch-attestation ledger instead, a real, separate, adjacent gap.
+v1 number would have been, but a different claim, stated as such. Also worth noting: the numbers above come from the coarser dispatch-attestation ledger.
 
 ## There is no second tier beyond that
 

@@ -230,7 +230,7 @@ erDiagram
 |---|---|---|---|---|
 | `VerdictLedgerLine` | LOCAL | `evaluation/.verdicts-<target>.jsonl` | harness reduce ingest | spec-evaluator (flip detection) |
 | `MetricsRow` | LOCAL | `metrics/<machine-id>.jsonl` | none — the ship-time harvest step retired; rows an earlier release wrote keep this shape | none |
-| `ActiveScopePointer` | LOCAL | `.shapeup/active-scope` | harness init run (GATE L0) — write-once per run, not writable by any worker | harness report export, harness verify budget. **No hook reads it**: the advisory hooks that once did were retired with the hook diet, and `sandbox-guard` never read it |
+| `ActiveScopePointer` | LOCAL | `.shapeup/active-scope` | harness init run (GATE L0) — write-once per run, not writable by any worker | harness verify budget. **No hook reads it**: the advisory hooks that once did were retired with the hook diet, and `sandbox-guard` never read it |
 | `ActiveOrderPointer` | LOCAL | `.shapeup/active-order` | harness compile (published as it writes each order); retired by harness reduce ship and harness init run --force | sandbox-guard hook. It names the RUN and nothing more: the guard enforces the substrate of *every* live order for that run — compiled, with no result at least as new as the order's own `compiled_at` — because with scopes building concurrently the writer may not be the order the pointer happens to name, and because an order the pointer named is not thereby still executing |
 | `DispatchReceipt` | LOCAL | `<slug>/receipts/dispatch.jsonl` | dispatch-receipt hook (PostToolUse, append-only) — a sub-agent cannot write its own attestation | harness reduce ingest (refuses an orchestrated result with no matching receipt), the export (a leg's start) |
 | `LegRow` | LOCAL | `<slug>/legs.jsonl` | harness reduce ingest (append-only, one row per closed leg) | harness probe leg (whether a scope's result reached the board) |
@@ -253,45 +253,6 @@ erDiagram
     HarnessRun ||--o| ResumeFacts : "derived from files by harness probe resume"
     T0Artifact ||--o| ResumeFacts : "round/attempt from latest verdict filename"
 ```
-
-## 7.4c — The record plane (v1.8)
-
-The analysis tier. Every entity here is *derived* — a projection of records the pipeline already
-writes, produced by a read-only step that mutates nothing and grades nothing.
-
-```mermaid
-erDiagram
-    HarnessRun ||--o{ WorkOrder : "run_id — the temporal key"
-    WorkOrder ||--o| DispatchFact : "one row per order"
-    WorkResult }o--|| DispatchFact : "joined on order_id"
-    DispatchFact ||--o{ AcResult : "ac_result table"
-    DispatchFact ||--o{ Discovery : "discovery table"
-    DispatchFact ||--o{ FileTouched : "file_touched table"
-
-    DispatchFact {
-        string order_id PK "the grain: one compiled order"
-        string run_id FK
-        string worker "with operation, scope_id, round, attempt"
-        int ac_pass "with ac_fail, ac_skipped, files_touched, lines_touched"
-        bool answered "false = dispatched, never came back"
-        string result_status "NULL when unanswered — never a value that reads as done"
-    }
-```
-
-| Entity | Tier | Location | Sole writer | Readers |
-|---|---|---|---|---|
-| `DispatchFact` + children | LOCAL | `.shapeup/exports/<run_id>/*.jsonl` | harness report export (read-only over the trace) | any warehouse tool, human |
-
-**The null discipline.** A dispatch with no matching result carries `answered: false` and
-`result_status: null`, never a value that reads as done. An absent record and a real one must not
-share a representation — the same rule `hooks/lib/decision.mjs` applies to `allow`, at the read
-plane instead of the write plane.
-
-(An earlier revision of this diagram also carried a `JournalRow` entity — one row per agent call,
-joined to `DispatchFact` on the `result_path` stem — and an `EconomicsReport` entity projecting
-cost and wall-clock from it. The journal was never written by the Workflow runtime in any measured
-run, so both entities, the join, and `harness probe stats --economics` were removed 2026-08-21
-rather than kept as a mechanism that looks like it works and doesn't.)
 
 ## 7.5 — Vocabulary enums
 

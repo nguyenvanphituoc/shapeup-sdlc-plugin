@@ -42,7 +42,6 @@ export async function run(ctx) {
 
   const { closeRun, setRunStatus, TERMINAL_STATUSES, parseFrontmatter } = await import(join(ROOT, "kernel/probe/resume.mjs"));
   const { deriveRounds } = await import(join(ROOT, "kernel/probe/rounds.mjs"));
-  const { collectRun } = await import(join(ROOT, "kernel/report/export.mjs"));
   const { applyResult } = await import(join(ROOT, "kernel/reduce/ingest.mjs"));
   const { generate } = await import(join(ROOT, "kernel/reduce/ship.mjs"));
   const { deriveResumeFacts } = await import(join(ROOT, "kernel/probe/resume.mjs"));
@@ -92,22 +91,6 @@ export async function run(ctx) {
       if (fm.deploy === null && fm.started_at) {
         ok("(b) sibling frontmatter lines are intact — the cause did not leak past its own line");
       } else fail(`(b) a sibling frontmatter line was corrupted: deploy=${JSON.stringify(fm.deploy)} started_at=${JSON.stringify(fm.started_at)}`);
-
-      // --- (c) the acceptance proposition itself: the export carries the row ----------------------
-      const collected = collectRun(ws, "checkout");
-      const row = collected?.tables?.run?.[0];
-      if (row && row.status === "aborted" && row.closed_at && row.close_cause === STORED_CAUSE) {
-        ok("(c) a forced abort leaves a terminal status, a cause, AND an export row carrying both — the HD-011 acceptance proposition");
-      } else fail(`(c) the export's run row is missing the close: ${JSON.stringify(row)}`);
-
-      // (c2) The export carries the AUTHORITATIVE terminal status, not only the mutable `status:`
-      // line. Ordinary Ship-phase traffic rewrites `status:` after a close, so an export that
-      // carried only that line could show a run wearing a different close's cause — the close
-      // would survive in the ledger and be lost from the fact tables, which are what a later
-      // measurement actually reads.
-      if (row && row.closed_status === "aborted") {
-        ok("(c2) the export's run row carries closed_status — the terminal fact `closeRun` alone writes, beside the mutable status line");
-      } else fail(`(c2) the export lost the authoritative terminal status: closed_status=${JSON.stringify(row?.closed_status)}`);
 
       // --- (d) "a kill mid-run followed by a relaunch loses none of the above" --------------------
       // Every fixture above called closeRun through the file — never through a variable this test
@@ -223,13 +206,6 @@ export async function run(ctx) {
       if (r.rounds_used === 4 && r.rounds_judged === 1) {
         ok("(d) rounds_judged (1) stays separate from rounds_used (4) — a round built is not a round judged");
       } else fail(`(d) the two fields collapsed into one: ${JSON.stringify(r)}`);
-
-      // --- (e) both numbers survive to the export ---------------------------------------------------
-      const collected = collectRun(ws, "budgets");
-      const row = collected?.tables?.run?.[0];
-      if (row?.rounds_used === 4 && row?.rounds_judged === 1) {
-        ok("(e) both rounds_used and rounds_judged survive to the export's run row");
-      } else fail(`(e) the export lost one of the two round numbers: ${JSON.stringify(row)}`);
 
       // --- (f) the ship report renders "Rounds judged" as its own line, only when there is one ----
       const built = generate({ cwd: ws, slug: "budgets" });

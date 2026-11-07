@@ -51,17 +51,6 @@ export async function run(ctx) {
     const open2 = kernel("probe", "leg", "--slug", "f", "--open");
     if (byOrder2.status === 0 && open2.status === 0) ok("after `reduce ingest`, the same order reads applied and the run has no open leg (both exit 0)");
     else fail(`after ingest the probes still report an open leg: order=${byOrder2.status} open=${open2.status} ${open2.stdout.slice(0, 200)}`);
-
-    // --- the export: a leg table ---------------------------------------------------------------
-    const { TABLES } = await import(join(ROOT, "kernel/report/facts.mjs"));
-    if (TABLES.includes("leg")) ok("TABLES declares the leg table");
-    else fail("TABLES does not declare a leg table — the export cannot say whether a result was ever read");
-    const { collectRun } = await import(join(ROOT, "kernel/report/export.mjs"));
-    const collected = collectRun(ws, "f");
-    const legRows = collected?.tables?.leg || [];
-    if (legRows.length === 1 && legRows[0].order_id === orderId && legRows[0].run_id === collected.run_id) {
-      ok("collectRun projects the leg ledger as one keyed row per applied order");
-    } else fail(`the export's leg table is wrong: ${JSON.stringify(legRows).slice(0, 300)}`);
   } finally {
     rmSync(ws, { recursive: true, force: true });
   }

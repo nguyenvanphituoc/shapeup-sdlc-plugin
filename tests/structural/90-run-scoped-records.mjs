@@ -55,14 +55,6 @@ export async function run(ctx) {
     if (r2.rounds_used === null && r2.rounds_judged === null) ok("deriveRounds over run 2 reports no rounds — run 1's order, verdict, build gate and evaluation are another run's");
     else fail(`deriveRounds inherited run 1's rounds: ${JSON.stringify(r2)}`);
 
-    spawnSync("node", [KERNEL, "gate", "--resolve", "L1b", "--slug", "f", "--preset", "ci"], { cwd: ws, encoding: "utf8" });
-    const { collectRun } = await import(join(ROOT, "kernel/report/export.mjs"));
-    const gd = collectRun(ws, "f")?.tables?.gate_decision || [];
-    // Run 2's own rows: the L0 its opening recorded, and the L1b resolved above — and none of run 1's.
-    const gates2 = gd.map((g) => g.gate).sort();
-    if (gd.length === 2 && JSON.stringify(gates2) === JSON.stringify(["L0", "L1b"]) && gd.every((g) => g.run_id === RUN2)) ok("run 2's export carries only its own gate decisions (its opening's L0 and its L1b) — run 1's L4 sign-off is not this run's");
-    else fail(`run 2's gate_decision table: ${JSON.stringify(gd)}`);
-
     // A citation of run 1's green verdict, from run 2, for round 1, scope alpha: refused as another run's.
     const { citationProblem } = await import(join(ROOT, "kernel/probe/eval.mjs"));
     mkdirSync(join(ws, "shapeup/f/scopes"), { recursive: true });

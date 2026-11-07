@@ -61,7 +61,7 @@ export async function run(ctx) {
 
     // --- (b) close aborted, then resume: the move to a live status reopens it --------------------
     const b = ws(); openRun(ROOT, b, "checkout", "Add checkout flow");
-    const c1 = closeRun(b, "checkout", { status: "aborted", cause: ABORT, withExport: false });
+    const c1 = closeRun(b, "checkout", { status: "aborted", cause: ABORT });
     if (!c1.ok) fail(`fixture: closing aborted failed: ${JSON.stringify(c1)}`);
     const closedAt = ledger(b).closed_at;
     const said = initAgain(b);
@@ -91,7 +91,7 @@ export async function run(ctx) {
     else fail("the reopened run is still named as over by its last-run breadcrumb");
 
     // --- (c) the next terminal close is written as the run's own -------------------------------
-    const ship = closeRun(b, "checkout", { status: "shipped", cause: "verdict=fail rounds=1 after=gate_h", withExport: false });
+    const ship = closeRun(b, "checkout", { status: "shipped", cause: "verdict=fail rounds=1 after=gate_h" });
     const after = ledger(b);
     if (ship.ok && after.closed_status === "shipped" && after.status === "shipped" && /verdict=fail/.test(after.close_cause)) {
       ok("after the reopen, the ship closes the run as shipped — status and closed_status agree");
@@ -101,18 +101,18 @@ export async function run(ctx) {
 
     // --- (d) a TERMINAL status on a closed run still cannot flip it -----------------------------
     const d = ws(); openRun(ROOT, d, "checkout", "Add checkout flow");
-    closeRun(d, "checkout", { status: "aborted", cause: ABORT, withExport: false });
+    closeRun(d, "checkout", { status: "aborted", cause: ABORT });
     const stamp = setRunStatus(d, "checkout", "shipped");
-    const refused = closeRun(d, "checkout", { status: "shipped", cause: "x", withExport: false });
+    const refused = closeRun(d, "checkout", { status: "shipped", cause: "x" });
     if (stamp.ok && !("reopened" in stamp) && ledger(d).closed_status === "aborted" && refused.ok === false && refused.closed_status === "aborted") {
       ok("stamping a terminal status is not a reopen — an unresumed abort still cannot be closed shipped");
     } else fail(`a terminal status write reopened or flipped a close: ${JSON.stringify({ stamp, refused, ledger: ledger(d).closed_status })}`);
 
     // --- (e) a second reopen appends; a breadcrumb for another run is left alone ------------------
     const e = ws(); openRun(ROOT, e, "checkout", "Add checkout flow");
-    closeRun(e, "checkout", { status: "aborted", cause: "first", withExport: false });
+    closeRun(e, "checkout", { status: "aborted", cause: "first" });
     setRunStatus(e, "checkout", "building");
-    closeRun(e, "checkout", { status: "escalated", cause: "second", withExport: false });
+    closeRun(e, "checkout", { status: "escalated", cause: "second" });
     mkdirSync(join(e, ".shapeup"), { recursive: true });
     writeFileSync(crumb(e), JSON.stringify({ slug: "other", run_id: "other-20260101T000000Z-deadbeef", closed_status: "aborted" }));
     setRunStatus(e, "checkout", "evaluating");

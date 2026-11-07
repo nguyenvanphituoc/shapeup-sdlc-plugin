@@ -389,33 +389,6 @@ remember to copy goes missing under exactly the conditions you most want the rec
 to orders on `order_id`, which they already echo and `harness verify envelope` already enforces — so the
 key reaches the result leg through a checked join rather than through a worker's cooperation.
 
-### The export, and what it does not do
-
-`harness report export` projects a run's records into nine flat fact tables (JSONL, one object per line)
-under `.shapeup/exports/<run_id>/`, plus a manifest carrying row counts and a skipped-record count.
-The dispatch grain is the spine — one row per compiled order, joined to its result on `order_id`.
-It is read-only over the trace and re-runnable at any time. (An earlier revision also joined each
-dispatch to a per-agent-call journal for cost and wall-clock, through the `result_path` the
-workflow's dispatch prompt requires. The journal was never written by the runtime in any measured
-run, so that join, the `agent_call` table and `harness probe stats --economics` were removed rather
-than kept as a mechanism that looks like it works and doesn't.)
-
-Load-bearing rather than tidy:
-
-- **It never fabricates an outcome.** A dispatch with no matching result carries `answered: false`
-  and `result_status: null`, never a value that reads as done — an absent value and a real one must
-  not share a signature, which is the same defect `hooks/lib/decision.mjs` exists to close one
-  layer down.
-- **It does not cross a machine boundary on its own.** The default destination is LOCAL and
-  gitignored. Making it SHARED would put per-run structured data and a machine name back into the
-  repository, which is exactly what ADR-0001 moved the metrics shards out of git to prevent. What
-  the export fixes is that the LOCAL tier is *regenerable*: a dataset keyed by run id survives the
-  per-slug wipe that used to delete it. Travelling further is `--out <dir>`, a human decision.
-
-The read plane grades nothing. Every column is an id, a count, a duration or a copied enum — the
-rule every projection in the kernel shares, and the reason a computed "run quality" figure is absent
-here: it would be a second judge behind `spec-evaluator`.
-
 ## 3.2e — Continuity across a context loss
 
 Nothing on disk is ever lost to a context compaction — the two-root storage design (§3.3)

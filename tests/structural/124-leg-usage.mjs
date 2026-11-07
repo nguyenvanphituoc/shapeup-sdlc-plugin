@@ -62,16 +62,6 @@ export async function run(ctx) {
     if (bad.status === 2) ok("a negative figure is refused at the argv, nothing written");
     else fail(`a negative token count exited ${bad.status}, not 2`);
 
-    const ex = sh("report export", ["--slug", SLUG, "--cwd", ws]);
-    const dir = (ex.stdout.match(/exports\/[^\s"]+/) || [])[0];
-    let leg = null;
-    try { leg = readFileSync(join(ws, ".shapeup", dir.replace(/^exports\//, "exports/"), "leg.jsonl"), "utf8"); } catch { /* located below */ }
-    if (leg === null) {
-      const runDir = join(ws, ".shapeup", "exports");
-      try { const d = JSON.parse(readFileSync(join(runDir, runId, "manifest.json"), "utf8")); void d; leg = readFileSync(join(runDir, runId, "leg.jsonl"), "utf8"); } catch { /* reported */ }
-    }
-    if (leg !== null && /"tokens_total":170869/.test(leg)) ok("the export's leg table carries the tokens the leg row recorded");
-    else fail(`the export's leg table did not carry the usage (export said: ${ex.stdout.slice(0, 200)}${ex.stderr.slice(0, 200)})`);
   } finally {
     try { rmSync(ws, { recursive: true, force: true }); } catch { /* best effort */ }
   }

@@ -38,7 +38,6 @@ const RUN_TRACE = [
   ["trace/report.json", "kernel"],
   ["orient/code-surface.md", "kernel"],
   ["tasks/_index.md", "kernel"],
-  ["exports/run/leg.jsonl", "kernel"],
 ];
 
 export async function run(ctx) {
