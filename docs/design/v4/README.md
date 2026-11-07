@@ -15,6 +15,7 @@ to an ADR and this folder is retired (the rule in ADR-0002; the ADR is
 | [`proposal-2026-11-07-activity-layout.md`](proposal-2026-11-07-activity-layout.md) | skills, hooks and agents after the cut |
 | [`constraints-2026-11-07.md`](constraints-2026-11-07.md) | what in the repo bites the plan |
 | [`plan-2026-11-07-single-loop.md`](plan-2026-11-07-single-loop.md) | the plan: activities A0 to A9, with their done-when checks |
+| [`execution-2026-11-07.md`](execution-2026-11-07.md) | how far the plan got, what stopped it, and what each done-when stands at |
 
 ## Method and rules
 

@@ -324,6 +324,14 @@ export async function run(ctx) {
     if (JSON.stringify(readFileSync(local(ws, "gates.jsonl"), "utf8")) === before) ok("next: the verb writes nothing");
     else fail("next: the verb wrote to the gate ledger");
 
+    // ---- the Stop check knows the loop's front door -----------------------------------------------
+    const { dispatchedOrchestrator } = await import(join(ROOT, "hooks/gate-zerowork.mjs"));
+    const skillEv = (skill) => ({ type: "assistant", message: { content: [{ type: "tool_use", name: "Skill", input: { skill } }] } });
+    if (dispatchedOrchestrator([skillEv("shapeup-sdlc-plugin:building")])) ok("next: a Skill(building) dispatch counts as reaching the orchestrator, so a receipt-less stop is blocked");
+    else fail("next: Skill(building) is invisible to the Stop check — a session that dispatched the loop and left no receipt would stop clean");
+    if (!dispatchedOrchestrator([{ type: "user", message: { content: "how does the building skill decide what comes next?" } }])) ok("next: merely discussing the loop is not a dispatch");
+    else fail("next: a session that only talked about the loop was counted as having dispatched it");
+
     // ---- exit codes ---------------------------------------------------------------------------------
     const none = sh("probe next", ["--slug", "ghost", "--cwd", ws]);
     if (none.status === 3) ok("next: no open run at the slug exits 3");

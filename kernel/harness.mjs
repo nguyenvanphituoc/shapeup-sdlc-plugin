@@ -33,7 +33,7 @@
 //   probe    resume · t0 · stats · digest ·   Read-only queries over run state. `concurrency`
 //            concurrency · leg · eval ·        answers how many legs ran at once and what the
 //            owner · requirements · attempts ·
-//            hunt
+//            hunt · next
 //                                              fan-out bought, and refuses a figure the record set
 //                                              cannot support rather than printing a plausible one.
 //                                              `leg` answers whether a scope's work reached the
@@ -57,6 +57,9 @@
 //                                              set alone — the round loop's inner breaker and
 //                                              scope-hammer's census both cite it, so they cannot
 //                                              disagree about the same exhaustion again.
+//                                              `next` answers what the run does next — one step, derived
+//                                              from artifacts and nothing else, so the loop that drives a
+//                                              run advances on a kernel answer and never on its own account.
 //   init     run · fit · run-args              Opens a run, or refuses it (exit 3). `run-args`
 //                                              writes GATE L0.9b's launch record and echoes it.
 //   report   export                           Projects the run's records as fact tables.
