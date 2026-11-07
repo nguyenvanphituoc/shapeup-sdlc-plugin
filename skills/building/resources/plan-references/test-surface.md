@@ -35,7 +35,7 @@ gap → surface it at GATE 4 as a question (max 2 rule applies), do not silently
 
 ```markdown
 ## Test Surface
-<!-- DERIVED — regenerate via a retrofit-surface order; do not hand-author rows here.
+<!-- DERIVED — regenerate via a retrofit-surface spec step; do not hand-author rows here.
      Source must cite D1–D4. Exploratory/edge tests live in QA's charters, not here. -->
 | ID | Oracle | Probe | Expect | Source |
 |---|---|---|---|---|
@@ -82,17 +82,16 @@ gathered, never *who* decides.
 
 1. **Phase 4 (fresh run, v2.9+):** derived per UC immediately after Error Cases are
    written, included in the GATE 4 review.
-2. **retrofit-surface operation (retrofit, incremental reducer):** for pre-v2.9 specs.
-   Frozen-zone discipline identical to the reconcile operation (the order's substrate enforces it):
+2. **retrofit-surface mode of the spec substep (retrofit, incremental reducer):** for specs that predate the Test Surface.
+   Frozen-zone discipline identical to the reconcile mode (the plan order's substrate enforces it):
    - READ-ONLY: domain-model, UC Steps/Input/Output/Invariants, ux-behavior, contracts/, tasks/
    - WRITE: append `## Test Surface` to each UC (after Error Cases; skip UCs that already
-     have one unless `--force-surface`), log touched UCs in `run-state.human_edited_files`,
-     set `run-state.test_surface: true`. Regenerate nothing else.
+     have one unless `--force-surface`), tell the PO which UCs were touched. Regenerate nothing else.
    - Source material missing (no Invariants, no contracts on lite) → derive from what
      exists; a UC whose four sources are all empty gets a one-line section:
      `_No derivable surface — sources empty. Exploratory coverage only (see qa-edge-hunter)._`
-3. **reconcile operation:** when a new `[INV-NN]` is appended to a UC, also
-   append its `TS-INV-NN` row (same append-only discipline, same `human_edited_files` log).
+3. **reconcile mode:** when a new `[INV-NN]` is appended to a UC, also
+   append its `TS-INV-NN` row (same append-only discipline).
 
 ## Audit hooks (spec-lint)
 - L2: every UC (v2.9 spec or `test_surface: true`) has `## Test Surface` with ≥1 row or the

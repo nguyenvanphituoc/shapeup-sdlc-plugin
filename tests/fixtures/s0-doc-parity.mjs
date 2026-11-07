@@ -6,7 +6,7 @@
 // `.shapeup/` path in prose, the exact shape HD-1 measured: a `coverage` provenance sentence
 // ("extracted from `.shapeup/find-my-todos/intake.md`") that was never a `[[tasks/...]]` link.
 //
-// TAUGHT is read off `skills/ba-pitch-analyzer/references/doc-schemas.md`'s own Tier-direction
+// TAUGHT is read off `skills/building/resources/plan-references/doc-schemas.md`'s own Tier-direction
 // rule section. Before this stage's fix that section stated the rule purely in wikilink terms —
 // "never `[[tasks/...]]`" — and said nothing about a bare path in prose, so a worker reading only
 // the docs had no way to know the sentence it was about to write would red. They must now agree.
@@ -23,14 +23,14 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const DOC_PATH = join(ROOT, "skills/ba-pitch-analyzer/references/doc-schemas.md");
+const DOC_PATH = join(ROOT, "skills/building/resources/plan-references/doc-schemas.md");
 const ANCHOR = "**Tier-direction rule.**";
 
 let doc;
 try {
   doc = readFileSync(DOC_PATH, "utf8");
 } catch (err) {
-  console.error(`CANNOT READ skills/ba-pitch-analyzer/references/doc-schemas.md: ${err.message}`);
+  console.error(`CANNOT READ skills/building/resources/plan-references/doc-schemas.md: ${err.message}`);
   process.exit(2);
 }
 

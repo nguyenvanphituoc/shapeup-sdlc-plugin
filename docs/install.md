@@ -51,9 +51,9 @@ Pin to a released version:
 > ```
 >
 > — or copying the `permissions.allow` block out of `.claude/settings.local.example.json` into your
-> own settings. Both cover the same three script directories (`tech-lead`, `ba-pitch-analyzer`,
-> `spec-evaluator`); the installer additionally writes the double-quoted spelling of each prefix,
-> which is the form the skills' own invocation lines use.
+> own settings. Both cover the kernel's one entry point (`kernel/harness.mjs`); the installer additionally
+> writes the double-quoted spelling of the prefix, which is the form the skills' own invocation
+> lines use.
 
 ## The Playwright dependency
 

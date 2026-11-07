@@ -24,7 +24,7 @@ order and the docs module (`08-docs.mjs`) is last so the floor sees every check:
 | `structural/03-hooks.mjs` | §4, 14, 17, 27, 28, 29 hook manifest + behavioral hook suites |
 | `structural/04-oracles.mjs` | §6, 8, 9, 10, 11, 13 oracle registry + discriminating fixtures |
 | `structural/05-tech-lead.mjs` | §18–22, 24, 30, 31, 67 orchestrator-owned scripts, domain registry, spine, launch-record parity |
-| `structural/06-ba-pitch-analyzer.mjs` | §23 board-derive + spec-lint |
+| `structural/06-ba-pitch-analyzer.mjs` | §23 board-derive + spec-lint (the planner it once guarded now lives in the loop's plan resources) |
 | `structural/07-spec-evaluator.mjs` | §15 verdict-ledger |
 | `structural/23-concurrency.mjs` | §63, 64, 68 the leg-completion record, the instrument over it, and whether a scope's work reached the board |
 | `structural/24-parallel-isolation.mjs` | §65, 66 what survives scopes building at the same time — half of it RACES, because an uncontended lock and a working one look identical |

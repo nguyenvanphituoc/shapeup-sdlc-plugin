@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Board derivation — the planner's graph math, as code a model never re-derives.
 //
-// The mechanical half of the old ba-pitch-analyzer Phase 7b + v3.3 link-field rules — pure
+// The mechanical half of the old planner's Phase 7b + v3.3 link-field rules — pure
 // graph math a model should never re-derive (and gets wrong: hand-authored inverses drift asymmetric
 // edges came from hand-authored `unlocks`):
 //
@@ -38,10 +38,10 @@ import { readAllContracts, splitFrontmatter, tasksForScope, SCOPE_CONTRACT } fro
  *     - UC-01
  *   touched_files:
  *     - src/review/format.js
- * lost EVERY list field. Measured on three paid `ba-pitch-analyzer` runs: `touched_files` and
+ * lost EVERY list field. Measured on three paid planning runs: `touched_files` and
  * `use_case_refs` came back empty for all twenty tasks, `depends_on`/`unlocks` came back empty in
  * both directions so edge-symmetry passed VACUOUSLY, and the only reason it was not entirely silent
- * is that UC-ANCHOR went red. Downstream, `scope-architect` receives a board with no slicing input
+ * is that UC-ANCHOR went red. Downstream, the scopes substep receives a board with no slicing input
  * at all.
  *
  * The fix is to stop having two parsers rather than to patch this one: `splitFrontmatter` already

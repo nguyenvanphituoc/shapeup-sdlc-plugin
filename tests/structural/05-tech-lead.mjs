@@ -694,18 +694,25 @@ export async function run(ctx) {
       // worker key must be in the WorkerName enum — the registry may not drift from itself.
       const payloadProps = domain.$defs?.WorkOrderPayload?.properties || {};
       const workerEnum = new Set(domain.$defs?.WorkerName?.enum || []);
+      // THE ONE KEY THAT IS NOT A ROSTER MEMBER. The planning activity runs in the loop's own context and
+      // is fenced by a `plan` order addressed to `building` — a skill, but never a dispatch target, so it
+      // is not in WorkerName. The registries carry its row (what a plan order may hold, what its close may
+      // record), and a registry row for any other non-worker is still drift.
+      const { FENCE_ONLY_OPERATIONS } = await import(join(ROOT, "kernel/compile.mjs"));
+      const fenceOnly = new Set(Object.values(FENCE_ONLY_OPERATIONS));
+      const registryKeys = new Set([...workerEnum, ...fenceOnly]);
       const byWorker = domain["x-payload-by-worker"] || {};
       let mapDrift = 0;
       for (const [worker, fields] of Object.entries(byWorker)) {
         if (worker === "description") continue;
-        if (!workerEnum.has(worker)) { mapDrift++; fail(`x-payload-by-worker names unknown worker "${worker}"`); }
+        if (!registryKeys.has(worker)) { mapDrift++; fail(`x-payload-by-worker names unknown worker "${worker}"`); }
         for (const f of fields) {
           if (!payloadProps[f]) { mapDrift++; fail(`x-payload-by-worker: ${worker} relies on undefined payload field "${f}"`); }
         }
       }
       const mappedWorkers = Object.keys(byWorker).filter((k) => k !== "description");
-      if (mappedWorkers.length === workerEnum.size) ok(`x-payload-by-worker covers all ${workerEnum.size} workers`);
-      else fail(`x-payload-by-worker covers ${mappedWorkers.length}/${workerEnum.size} workers`);
+      if (mappedWorkers.length === registryKeys.size) ok(`x-payload-by-worker covers all ${workerEnum.size} workers and the fence-only ${[...fenceOnly].join(", ")}`);
+      else fail(`x-payload-by-worker covers ${mappedWorkers.length}/${registryKeys.size} workers`);
       if (mapDrift === 0) ok("x-payload-by-worker is consistent with WorkOrderPayload + WorkerName");
 
       // x-result-by-worker: the result half of the registry gets the same guard — every field
@@ -717,14 +724,14 @@ export async function run(ctx) {
       let resultDrift = 0;
       for (const [worker, fields] of Object.entries(byWorkerResult)) {
         if (worker === "description") continue;
-        if (!workerEnum.has(worker)) { resultDrift++; fail(`x-result-by-worker names unknown worker "${worker}"`); }
+        if (!registryKeys.has(worker)) { resultDrift++; fail(`x-result-by-worker names unknown worker "${worker}"`); }
         for (const f of fields) {
           if (!resultProps[f]) { resultDrift++; fail(`x-result-by-worker: ${worker} may output undefined result field "${f}"`); }
         }
       }
       const mappedResultWorkers = Object.keys(byWorkerResult).filter((k) => k !== "description");
-      if (mappedResultWorkers.length === workerEnum.size) ok(`x-result-by-worker covers all ${workerEnum.size} workers`);
-      else fail(`x-result-by-worker covers ${mappedResultWorkers.length}/${workerEnum.size} workers`);
+      if (mappedResultWorkers.length === registryKeys.size) ok(`x-result-by-worker covers all ${workerEnum.size} workers and the fence-only ${[...fenceOnly].join(", ")}`);
+      else fail(`x-result-by-worker covers ${mappedResultWorkers.length}/${registryKeys.size} workers`);
       if (resultDrift === 0) ok("x-result-by-worker is consistent with work-result.schema.json + WorkerName");
       const verdictHolders = mappedResultWorkers.filter((w) => (byWorkerResult[w] || []).includes("verdict"));
       const taskResultHolders = mappedResultWorkers.filter((w) => (byWorkerResult[w] || []).includes("task_results"));
@@ -747,11 +754,11 @@ export async function run(ctx) {
       const badDeepOrder = {
         schema_version: 1, order_id: "demo/r1-a1", worker: "task-executor", mode: "orchestrated",
         operation: "execute",
-        payload: { lens: "extreme", scope_contract: { scope_id: "cart", topology_type: "SPAGHETTI" } },
+        payload: { step: "extreme", scope_contract: { scope_id: "cart", topology_type: "SPAGHETTI" } },
       };
       const bo = veValidate3(badDeepOrder, orderSchema3);
-      if (!bo.valid && bo.errors.some((e) => e.includes("lens")) && bo.errors.some((e) => e.includes("topology_type")))
-        ok("order validation rejects a bad lens + topology_type THROUGH the $ref chain");
+      if (!bo.valid && bo.errors.some((e) => e.includes("step")) && bo.errors.some((e) => e.includes("topology_type")))
+        ok("order validation rejects a bad plan step + topology_type THROUGH the $ref chain");
       else fail(`order validation did not discriminate deep $ref'd fields: ${JSON.stringify(bo.errors)}`);
       const badDeepResult = {
         schema_version: 1, order_id: "demo/r1-a1", status: "done",
@@ -944,18 +951,23 @@ export async function run(ctx) {
     const domain = readJSON(join(ROOT, "kernel/schemas/domain.schema.json"));
     const wn = new Set(domain.$defs?.WorkerName?.enum || []);
     const ops = new Set(domain.$defs?.Operation?.enum || []);
-    if (wn.has("solution-architect")) ok("WorkerName enum registers solution-architect");
-    else fail("solution-architect missing from WorkerName enum");
-    for (const op of ["wire"]) {
-      if (ops.has(op)) ok(`Operation enum registers ${op}`);
+    // The wiring map's author is no longer a worker: wiring is the `wire` substep of the loop's own `plan`
+    // activity, fenced by a `plan` order. The registration surface that must not drift is therefore the
+    // fence's — `plan` is an operation, and the roster no longer names a worker that does not exist.
+    if (!wn.has("solution-architect")) ok("WorkerName no longer registers solution-architect (the wiring map is a plan substep)");
+    else fail("solution-architect is still in WorkerName — it has no skill to dispatch");
+    for (const op of ["plan"]) {
+      if (ops.has(op)) ok(`Operation enum registers ${op} (the wire substep's fence)`);
       else fail(`Operation enum missing ${op}`);
     }
+    if (!ops.has("wire")) ok("Operation enum no longer carries wire — nothing is dispatched for it");
+    else fail("Operation enum still carries wire");
     for (const def of ["RequirementClause", "WiringMap", "WiringEntry", "ProjectProfile"]) {
       if (domain.$defs?.[def]) ok(`$defs registers ${def}`);
       else fail(`$defs missing ${def}`);
     }
     // The new $defs must carry the writer/tier annotations the registry discipline requires.
-    const writers = { WiringMap: "solution-architect", ProjectProfile: "tech-lead" };
+    const writers = { WiringMap: "wire substep", ProjectProfile: "tech-lead" };
     for (const [def, who] of Object.entries(writers)) {
       if ((domain.$defs?.[def]?.["x-writer"] || "").includes(who)) ok(`${def} x-writer is ${who}`);
       else fail(`${def} x-writer must name ${who}`);

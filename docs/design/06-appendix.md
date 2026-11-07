@@ -6,7 +6,7 @@
 
 ```
 .claude-plugin/          plugin.json · marketplace.json
-skills/<name>/SKILL.md   the 14 harness skills (+ references/)
+skills/<name>/SKILL.md   the 11 harness skills (+ references/ and resources/)
 skills/tech-lead/        workflows/shapeup-run.js — the whole pipeline as one launchable script
 kernel/harness.mjs       the deterministic half behind ONE entry point (and therefore one
                          permission prefix). Subcommands:

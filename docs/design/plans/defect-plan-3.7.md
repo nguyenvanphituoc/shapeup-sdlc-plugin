@@ -124,13 +124,13 @@ produces a registry its own lint reds. **Cost when it fired: 25 dispatches, ~28 
 sub-agent tokens, discarded for one sentence of provenance prose.**
 
 Note the craft docs teach the rule more narrowly than the lint enforces it:
-`skills/ba-pitch-analyzer/references/doc-schemas.md:268` states tier-direction as a rule about
+`skills/building/resources/plan-references/doc-schemas.md:268` (then `skills/ba-pitch-analyzer/references/`) states tier-direction as a rule about
 **wikilinks** (`never [[tasks/...]]`), and the lint applies it to **any path**. The `coverage`
 operation has no output preamble schema at all, so the sentence is the worker's own composition.
 
 **Executor:** fix it upstream of the worker, not in the worker's prose. Either hand `coverage` the
 committed pitch path alongside the staged copy so it can cite the durable one, or state the tier
-constraint in the `coverage` row of `skills/ba-pitch-analyzer/SKILL.md:124` and in
+constraint in the `coverage` row of the planner's SKILL.md (now the Requirements section of `skills/building/resources/plan.md`) and in
 `doc-schemas.md`'s tier-direction rule so the taught rule matches the enforced one. Then promote
 `HD-1`/`HD-2` here, keeping the consumer's evidence tables.
 **Acceptance — *producer-lint collision tester*:** propositions: *a `coverage` dispatch over a pitch

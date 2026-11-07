@@ -37,7 +37,7 @@ Never inferred; ask for what the pitch does not say.
 | Auto level | `interactive` (default): pause at every gate · `auto`: low-risk gates pre-answered, still pause at the judgment gates and ship · `unattended`: headless, needs an answer set |
 | Models | resolve once: flags, then `.claude/settings.local.json`, then `.claude/settings.json`, then defaults. Exec and eval must be sonnet or above — the kernel refuses a cheaper tier. |
 | Run commands | the build command (`run_cmd`), and the profile's `build_probe` and `launch_probe`. A `mobile` profile with no launch probe has nobody owning the install and launch risk: say so. |
-| Knowledge base | read `shapeup/knowledge-base/building.md` if it exists. It may add a question or a check to a gate block and may propose run values (confirm each with the PO and note `(source: knowledge-base)`). It never answers, skips or reorders a gate. With no file at all, offer `/retro --scan` once and go on whether or not the PO takes it. |
+| Knowledge base | read `shapeup/knowledge-base/building.md` and then `tech-lead.md` (the same guidance under its old name; `resources/guidance.md`) if they exist. It may add a question or a check to a gate block and may propose run values (confirm each with the PO and note `(source: knowledge-base)`). It never answers, skips or reorders a gate. With no file at all, offer `/retro --scan` once and go on whether or not the PO takes it. |
 
 ## 4. Open the run
 

@@ -14,7 +14,7 @@ requires_browser: false
 # Completeness Dimension
 
 > **Auto-enable rule (read at GATE V0.5):** This dimension stays `enabled: false` by
-> default so it is a no-op on every spec generated before `ba-pitch-analyzer` v2.8.
+> default so it is a no-op on every spec generated before the planner wrote Invariants sections.
 > The core flips it ON for a run **only when** the spec's `usecases/` contains at least
 > one `## Invariants` section. A pre-v2.8 spec has no invariants → this dimension never
 > activates → existing audit scores and verdicts are unchanged (non-regression guarantee).
@@ -25,7 +25,7 @@ criteria?"* — it grades the tasks that exist. It cannot see the task that was 
 written. Shape Up's discovered-task philosophy says the real bulk of work is found while
 building; an invariant declared on a UC but never backed by a regression task is exactly
 that blind spot. This dimension converts "absence of a task" from invisible into a graded
-**GAP** — the judge surfaces it; the planner (a ba-pitch-analyzer `reconcile` order) fills it.
+**GAP** — the judge surfaces it; the planner (a plan spec step in `reconcile` mode) fills it.
 Judge never fills it itself.
 
 **Distinction held:** conformance = *the tasks that exist are correct*; completeness =
@@ -98,5 +98,5 @@ location: [usecases/UC-Name.md#Invariants INV-NN | usecases/UC-Name.md | discove
 repro: <how the gap was detected — e.g. "grep use_case_refs across tasks/ found 0 backing TASK for INV-02">
 expected: <e.g. "≥1 regression task referencing UC-ConnectObjects covering INV-02">
 actual: <e.g. "no task references INV-02; invariant declared but unverified">
-next: <handoff — e.g. "a ba-pitch-analyzer reconcile order over <ledger> to generate the missing regression task">
+next: <handoff — e.g. "a plan spec step in reconcile mode over <ledger> to generate the missing regression task">
 ```

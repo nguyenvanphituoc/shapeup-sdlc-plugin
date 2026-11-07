@@ -23,20 +23,20 @@ export async function run(ctx) {
     git(["commit", "-q", "--allow-empty", "-m", "base"]);
     const kernel = (...args) => spawnSync("node", [KERNEL, ...args, "--cwd", ws], { cwd: ws, encoding: "utf8" });
     const opened = kernel("init", "run", "--slug", "f", "--intake-text", "Add a cart badge");
-    const compiled = kernel("compile", "--slug", "f", "--operation", "analyze");
+    const compiled = kernel("compile", "--slug", "f", "--operation", "orient");
     if (opened.status !== 0 || compiled.status !== 0) {
       fail(`could not open a run and compile a planning order (init=${opened.status} compile=${compiled.status}): ${(opened.stderr || compiled.stderr || "").slice(0, 300)}`);
       return;
     }
-    const orderPath = join(ws, ".shapeup/f/orders/analyze.json");
+    const orderPath = join(ws, ".shapeup/f/orders/orient.json");
     const orderId = JSON.parse(readFileSync(orderPath, "utf8")).order_id;
     mkdirSync(join(ws, ".shapeup/f/results"), { recursive: true });
-    writeFileSync(join(ws, ".shapeup/f/results/analyze.json"), JSON.stringify({ schema_version: 1, order_id: orderId, worker: "ba-pitch-analyzer", status: "done", discoveries: [] }));
+    writeFileSync(join(ws, ".shapeup/f/results/orient.json"), JSON.stringify({ schema_version: 1, order_id: orderId, worker: "orient", status: "done", discoveries: [] }));
 
     // --- probe leg, by order and across the run -------------------------------------------------
-    const byOrder = kernel("probe", "leg", "--slug", "f", "--order", "analyze");
+    const byOrder = kernel("probe", "leg", "--slug", "f", "--order", "orient");
     const j1 = (() => { try { return JSON.parse(byOrder.stdout); } catch { return null; } })();
-    if (byOrder.status === 1 && j1?.found && j1.has_result && !j1.applied) ok("`probe leg --order analyze` reports a planning result on disk that nothing applied (exit 1)");
+    if (byOrder.status === 1 && j1?.found && j1.has_result && !j1.applied) ok("`probe leg --order orient` reports a phase result on disk that nothing applied (exit 1)");
     else fail(`probe leg --order did not report the unapplied planning result: exit ${byOrder.status} ${byOrder.stdout.slice(0, 200)}`);
 
     const open1 = kernel("probe", "leg", "--slug", "f", "--open");
@@ -47,17 +47,17 @@ export async function run(ctx) {
     // Now let the single writer run — the real ingest — and ask again.
     const ingested = kernel("reduce", "ingest", "--order", orderPath, "--no-receipt-check");
     if (ingested.status !== 0) { fail(`reduce ingest refused the fixture result (exit ${ingested.status}): ${(ingested.stderr || ingested.stdout).slice(0, 300)}`); return; }
-    const byOrder2 = kernel("probe", "leg", "--slug", "f", "--order", "analyze");
+    const byOrder2 = kernel("probe", "leg", "--slug", "f", "--order", "orient");
     const open2 = kernel("probe", "leg", "--slug", "f", "--open");
     if (byOrder2.status === 0 && open2.status === 0) ok("after `reduce ingest`, the same order reads applied and the run has no open leg (both exit 0)");
     else fail(`after ingest the probes still report an open leg: order=${byOrder2.status} open=${open2.status} ${open2.stdout.slice(0, 200)}`);
 
     // --- the graph: a Leg node, an INGESTED edge, and the one-hop question ------------------------
     // A second order whose result lands and is never applied — the shape the live run had.
-    const compiled2 = kernel("compile", "--slug", "f", "--operation", "wire");
+    const compiled2 = kernel("compile", "--slug", "f", "--operation", "plan", "--payload", JSON.stringify({ step: "wire" }));
     if (compiled2.status !== 0) { fail(`could not compile a second order: ${compiled2.stderr.slice(0, 200)}`); return; }
-    const wireId = JSON.parse(readFileSync(join(ws, ".shapeup/f/orders/wire.json"), "utf8")).order_id;
-    writeFileSync(join(ws, ".shapeup/f/results/wire.json"), JSON.stringify({ schema_version: 1, order_id: wireId, worker: "solution-architect", status: "done" }));
+    const wireId = JSON.parse(readFileSync(join(ws, ".shapeup/f/orders/plan-wire.json"), "utf8")).order_id;
+    writeFileSync(join(ws, ".shapeup/f/results/plan-wire.json"), JSON.stringify({ schema_version: 1, order_id: wireId, worker: "building", status: "done" }));
 
     const { project, appendGraph, runSubgraph, WORK_NODES, EDGES } = await import(join(ROOT, "kernel/reduce/graph.mjs"));
     if (WORK_NODES.includes("Leg") && EDGES.includes("INGESTED")) ok("the graph vocabulary declares the Leg node and the INGESTED edge");

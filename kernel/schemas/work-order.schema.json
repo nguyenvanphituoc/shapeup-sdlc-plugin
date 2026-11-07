@@ -36,7 +36,11 @@
       "description": "OPTIONAL (v1.8) \u2014 ISO timestamp of compilation. The dispatch record's own time dimension: WorkResult carries none, and the journal's timings exist only on the workflow lane, so without this a dispatch on the prose lane is timeless."
     },
     "worker": {
-      "$ref": "domain.schema.json#/$defs/WorkerName"
+      "description": "The skill the order is addressed to — a member of the worker roster — or `building`, the loop itself, for a `plan` order: a fence-only order no sub-agent answers. `building` is deliberately not in the roster: the roster is what a dispatch can be addressed to, and nothing is ever dispatched to the loop.",
+      "anyOf": [
+        { "$ref": "domain.schema.json#/$defs/WorkerName" },
+        { "type": "string", "enum": ["building"] }
+      ]
     },
     "mode": {
       "type": "string",

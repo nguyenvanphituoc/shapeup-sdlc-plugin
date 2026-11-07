@@ -113,9 +113,9 @@ export async function run(ctx) {
       // compile-order: the one place every lane passes through.
       const co = spawnSync(process.execPath, [
         join(ROOT, "kernel/harness.mjs"), "compile",
-        "--operation", "analyze", "--slug", "budgets", "--cwd", ws,
+        "--operation", "orient", "--slug", "budgets", "--cwd", ws,
       ], { cwd: ws, encoding: "utf8", timeout: 30_000 });
-      const orderPath = join(ws, ".shapeup", "budgets", "orders", "analyze.json");
+      const orderPath = join(ws, ".shapeup", "budgets", "orders", "orient.json");
       if (co.status === 0 && existsSync(orderPath)) {
         const order = JSON.parse(readFileSync(orderPath, "utf8"));
         if (order.run_id === runId) ok("compile-order stamps the run key onto the WorkOrder");

@@ -16,7 +16,7 @@ enabled: true                   # core loads it only if true (or named in --dime
 weight: 1.0                     # informational; thresholds are hard, not weighted averages
 hard_threshold: all-pass        # see "Threshold vocabulary" below
 applies_to:                     # scoping — omit a key to mean "all"
-  lens: [lite, standard]        # which ba-pitch-analyzer lenses
+  lens: [lite, standard]        # which planning lenses
   package: any                  # apps/api | apps/web | apps/mobile | packages/shared | any
   variant: any                  # shared | be | web | mobile | e2e | any
 requires_browser: true          # does this dimension need the running app in a browser?

@@ -125,12 +125,15 @@ export async function run(ctx) {
       is("dispatch", "orient.dispatch"));
     row("an orient dispatched three times with no answer is named dead, not dispatched a fourth time", (ws) => { profile(ws); order(ws, "orient", { receipts: 3 }); },
       (s) => is("terminal", "abort.ORIENT")(s) && /did not answer after 3/.test(s.reason));
+    // The generic "a result that is not a WorkResult is sent back once, then stops the run" rule lives
+    // in the kernel for every DISPATCHED worker. It was exercised through `wire` while wire was one;
+    // planning no longer dispatches, so the rule is pinned through orient, which still does.
     row("a result that is not a WorkResult (status \"complete\") is sent back once with the reason, not applied and not a stop", (ws) => {
-      profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); wiring(ws); order(ws, "wire", { receipts: 1, result: { status: "complete" } });
-    }, (s) => is("dispatch", "wire.dispatch")(s) && /refused before it was applied/.test(s.note) && /status/.test(s.note) && /done \| partial \| escalated \| failed/.test(s.note));
+      profile(ws); order(ws, "orient", { receipts: 1, result: { status: "complete" } });
+    }, (s) => is("dispatch", "orient.dispatch")(s) && /refused before it was applied/.test(s.note) && /status/.test(s.note) && /done \| partial \| escalated \| failed/.test(s.note));
     row("a result still not a WorkResult after the send-back stops the run, naming what was refused", (ws) => {
-      profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); wiring(ws); order(ws, "wire", { receipts: 2, result: { status: "complete" } });
-    }, (s) => is("terminal", "abort.WIRE")(s) && /not a valid WorkResult after one send-back/.test(s.reason));
+      profile(ws); order(ws, "orient", { receipts: 2, result: { status: "complete" } });
+    }, (s) => is("terminal", "abort.ORIENT")(s) && /not a valid WorkResult after one send-back/.test(s.reason));
     row("orient artifacts with a receipt and no WorkResult send the envelope back once", (ws) => { profile(ws); orient(ws); order(ws, "orient", { receipts: 1 }); },
       (s) => is("dispatch", "orient.dispatch")(s) && /returned NO WorkResult/.test(s.note));
     row("an orient envelope already sent back once is not sent back again", (ws) => { profile(ws); orient(ws); order(ws, "orient", { receipts: 2 }); },
@@ -142,40 +145,75 @@ export async function run(ctx) {
     }, (s) => is("gate")(s) && s.command.includes("--preset ci") && s.answer_command.includes("--answer <decision>"));
 
     // ---- PLAN -----------------------------------------------------------------------------------
-    row("no requirements registry dispatches coverage once the orient gate is crossed", (ws) => { profile(ws); orient(ws); gate(ws, "L1a"); },
-      (s) => is("dispatch", "coverage.dispatch")(s) && s.skill.endsWith("ba-pitch-analyzer") && s.compile.includes("--operation coverage"));
-    row("a coverage that answered and wrote no registry continues with a warning, never loops", (ws) => {
-      profile(ws); orient(ws); gate(ws, "L1a"); order(ws, "coverage", { receipts: 1, result: {}, applied: true });
-    }, (s) => s.step === "analyze.dispatch" && s.warnings.some((w) => /COVERAGE/.test(w)));
-    row("no spec tree dispatches analyze", (ws) => { profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); },
-      (s) => is("dispatch", "analyze.dispatch")(s) && s.compile.includes("--operation analyze"));
-    row("an analyze that answered and left no tree aborts at ANALYZE", (ws) => {
-      profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); order(ws, "analyze", { receipts: 1, result: {}, applied: true });
-    }, (s) => is("terminal", "abort.ANALYZE")(s));
-    row("a committed spec tree and no board regenerates the board, then derives it", (ws) => {
+    // Planning is one activity the loop does in its own context, in four substeps; the kernel keeps the
+    // fence (a `plan` order) and the post-conditions. A plan order has no dispatch receipt, so the
+    // receipt-count rows the dispatched planners had are retired, not ported: there is no dispatch to
+    // count. "Sent back once" is the number of times the single writer closed the order (its leg rows),
+    // and "open" is a leg row older than the order's own compiled_at.
+    const isPlan = (step) => (s) => is("plan", `plan.${step}`)(s) && s.substep === step && s.resource === "resources/plan.md"
+      && s.open.includes("--operation plan") && s.open.includes(`"step":"${step}"`) && s.close.includes("--close-plan") && !s.open.includes("\n") && !s.close.includes("\n");
+    row("no requirements registry opens the requirements substep once the orient gate is crossed", (ws) => { profile(ws); orient(ws); gate(ws, "L1a"); },
+      (s) => isPlan("requirements")(s) && /requirements\.md$/.test(s.produces) && s.order_open === false && s.checks.length === 0);
+    row("a plan step carries the knowledge-base files that exist, under any name the activity was filed as", (ws) => {
+      profile(ws); orient(ws); gate(ws, "L1a"); put(join(ws, "shapeup", "knowledge-base", "ba-pitch-analyzer.md"), "- a rule\n");
+    }, (s) => isPlan("requirements")(s) && s.guidance.length === 1 && s.guidance[0] === "shapeup/knowledge-base/ba-pitch-analyzer.md");
+    row("a requirements order closed over no registry continues with a warning, never loops", (ws) => {
+      profile(ws); orient(ws); gate(ws, "L1a"); order(ws, "plan-requirements", { result: {}, applied: true });
+    }, (s) => s.step === "plan.spec" && s.warnings.some((w) => /COVERAGE/.test(w)));
+    row("a requirements order opened and not closed is still open: the loop closes it, it does not open it again", (ws) => {
+      profile(ws); orient(ws); gate(ws, "L1a"); order(ws, "plan-requirements", {});
+    }, (s) => isPlan("requirements")(s) && s.order_open === true && /open and has not been closed/.test(s.reason));
+    row("a plan result that was written and never applied is applied before anything else", (ws) => {
+      profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); order(ws, "plan-spec", { result: {} });
+    }, (s) => is("command", "ingest.plan-spec")(s) && s.on_fail_close.includes("single writer refused"));
+    row("an order re-opened after its last close is open again, though a leg row for it exists", (ws) => {
+      profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws);
+      order(ws, "plan-spec", { applied: true, body: { compiled_at: "2099-01-01T00:00:00.000Z" } });
+    }, (s) => isPlan("spec")(s) && s.order_open === true);
+    row("no spec tree opens the spec substep in full, then derives the board and lints", (ws) => { profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); },
+      (s) => isPlan("spec")(s) && s.mode === undefined && !s.open.includes('"mode"') && /Write the spec tree and the board/.test(s.note)
+        && s.checks.some((c) => /reduce board --slug demo --write/.test(c.command)) && s.checks.some((c) => /verify spec --slug demo/.test(c.command))
+        && s.inputs.pitch.endsWith("intake.md"));
+    row("a spec order closed over no tree aborts at ANALYZE", (ws) => {
+      profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); order(ws, "plan-spec", { result: {}, applied: true });
+    }, (s) => is("terminal", "abort.ANALYZE")(s) && /produced no artifact/.test(s.reason));
+    row("a committed spec tree and no board opens the spec substep board-only: the tree is frozen", (ws) => {
       profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); put(shared(ws, "spec", "usecases", "UC-01-add.md"), "# uc\n");
-    }, (s) => is("dispatch", "analyze.board")(s) && s.compile.includes("--operation board") && s.then.some((t) => /reduce board --slug demo --write/.test(t.command)));
-    row("a board that answered and left no tasks aborts at ANALYZE", (ws) => {
-      profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); put(shared(ws, "spec", "usecases", "UC-01-add.md"), "# uc\n"); order(ws, "board", { receipts: 1, result: {}, applied: true });
+    }, (s) => isPlan("spec")(s) && s.mode === "board-only" && s.open.includes('"mode":"board-only"') && /without re-deriving it/.test(s.note)
+      && s.checks.some((c) => /reduce board --slug demo --write/.test(c.command)));
+    row("a board-only order closed over no tasks aborts at ANALYZE", (ws) => {
+      profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); put(shared(ws, "spec", "usecases", "UC-01-add.md"), "# uc\n"); order(ws, "plan-spec", { result: {}, applied: true });
     }, is("terminal", "abort.ANALYZE"));
-    row("a board whose criteria cover no requirement is sent back once, naming the reason", (ws) => {
+    const uncovered = (ws, closes) => {
       profile(ws); orient(ws); gate(ws, "L1a");
       put(shared(ws, "requirements.md"), "# requirements\n\n| ID | Requirement | Source | Priority | Status |\n|---|---|---|---|---|\n| REQ-1 | one thing | pitch | must | open |\n");
       put(shared(ws, "spec", "usecases", "UC-01-add.md"), "# uc\n");
-      put(local(ws, "tasks", "TASK-001.md"), "---\nid: TASK-001\nstatus: todo\nscope_id: alpha\nacceptance_criteria:\n  - ac: it works\n---\n\n# t\n");
-      order(ws, "analyze", { receipts: 1, result: {}, applied: true });
-    }, (s) => is("dispatch")(s) && /Your previous result was refused/.test(s.note ?? "") || s.step === "wire.dispatch");
-    row("a spec tree and a board with no wiring map dispatches wire with the profile path", (ws) => { profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); },
-      (s) => is("dispatch", "wire.dispatch")(s) && /"project_profile":"[^"]*project-profile\.md"/.test(s.compile));
-    row("a wire that wrote its map and no WorkResult sends the envelope back once", (ws) => { profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); wiring(ws); order(ws, "wire", { receipts: 1 }); },
-      (s) => is("dispatch", "wire.dispatch")(s) && /returned NO WorkResult/.test(s.note));
-    row("a wiring map reaches GATE L1a.5", (ws) => { profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); wiring(ws); },
+      put(local(ws, "tasks", "TASK-001.md"), "---\nid: TASK-001\nstatus: todo\nscope_id: alpha\n---\n\n# t\n\n- [ ] it works\n");
+      for (let i = 0; i < closes; i++) order(ws, "plan-spec", { result: {}, applied: true });
+    };
+    row("a board whose criteria cover no requirement is sent back once, naming the reason, tree frozen", (ws) => uncovered(ws, 1),
+      (s) => isPlan("spec")(s) && s.mode === "board-only" && /Your previous result was refused/.test(s.note) && /covers: REQ/.test(s.note) && /sent back once/.test(s.reason));
+    row("…and after that one send-back it continues with a warning, never loops", (ws) => {
+      uncovered(ws, 1); const f = local(ws, "legs.jsonl"); appendFileSync(f, readFileSync(f, "utf8").split("\n")[0] + "\n");
+    }, (s) => s.step === "plan.wire" && s.warnings.some((w) => /ANALYZE plan-spec/.test(w) && /after one send-back/.test(w)));
+    row("a spec tree and a board with no wiring map opens the wire substep with the profile path and the advisory trace check", (ws) => { profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); },
+      (s) => isPlan("wire")(s) && /project-profile\.md$/.test(s.inputs.project_profile) && s.checks.length === 1 && s.checks[0].advisory === true && /verify trace/.test(s.checks[0].command));
+    row("a wire order open over a wiring map already on disk is closed, not redone", (ws) => {
+      profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); wiring(ws); order(ws, "plan-wire", {});
+    }, (s) => isPlan("wire")(s) && s.order_open === true && /open and has not been closed/.test(s.reason));
+    row("a wire order closed over no map aborts at WIRE", (ws) => {
+      profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); order(ws, "plan-wire", { result: {}, applied: true });
+    }, (s) => is("terminal", "abort.WIRE")(s) && /produced no artifact/.test(s.reason));
+    row("a wiring map reaches GATE L1a.5 — after the wire substep and before the scopes substep", (ws) => { profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); wiring(ws); },
       is("gate", "gate.L1a.5"));
-    row("no scope contracts after the wiring gate dispatches map-scopes with the exit-0 fixture rule", (ws) => { profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); wiring(ws); gate(ws, "L1a.5"); },
-      (s) => is("dispatch", "map-scopes.dispatch")(s) && /EXIT 0/.test(s.note));
-    row("a map-scopes that answered and left no contracts aborts at MAP SCOPES", (ws) => {
-      profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); wiring(ws); gate(ws, "L1a.5"); order(ws, "map-scopes", { receipts: 1, result: {}, applied: true });
+    row("no scope contracts after the wiring gate opens the scopes substep with the exit-0 fixture rule", (ws) => { profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); wiring(ws); gate(ws, "L1a.5"); },
+      (s) => isPlan("scopes")(s) && /EXIT 0/.test(s.note) && s.checks.some((c) => /verify spec --slug demo/.test(c.command)));
+    row("a scopes order closed over no contracts aborts at MAP SCOPES", (ws) => {
+      profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); wiring(ws); gate(ws, "L1a.5"); order(ws, "plan-scopes", { result: {}, applied: true });
     }, (s) => is("terminal", "abort.MAP SCOPES")(s));
+    row("planning resumes from artifacts alone: every artifact on disk and no plan order at all reaches the wiring gate, not a re-plan", (ws) => {
+      profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); wiring(ws);
+    }, is("gate", "gate.L1a.5"));
     row("red spec-lint findings abort at L1b before the gate is shown", (ws) => { profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); wiring(ws); gate(ws, "L1a.5"); scopes(ws); },
       (s) => is("terminal", "abort.L1b")(s) && /spec-lint reported red findings/.test(s.reason));
 

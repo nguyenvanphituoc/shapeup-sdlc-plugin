@@ -118,7 +118,7 @@ Every task at Layer N depends on all relevant tasks at Layer N-1.
 
 ## Lens-Aware Task Layer Breakdown
 
-The layer structure differs by lens. Read the order's `payload.lens` for the active lens
+The layer structure differs by lens. Read the step's `inputs.lens` for the active lens
 before generating tasks.
 
 ### LITE — Mobile-first layer breakdown
@@ -165,7 +165,7 @@ Errors   → [[contracts/[repo].contract.md#Error-Cases]]
 ```
 
 Do NOT overwrite existing Steps section — append API Contract sub-section only.
-Report reconciled files in the WorkResult's `deviations[]` with note `reconciled-by-upgrade`.
+Tell the PO which files were reconciled (`reconciled-by-upgrade`) when the spec step closes.
 
 ---
 
@@ -361,7 +361,7 @@ Slug rules:
 ## Link-Field Integrity (v3.3)
 
 **`depends_on` is the single authoritative edge; `unlocks` is derived, never hand-authored.**
-On EVERY board write — analyze, reconcile — recompute (via
+On EVERY board write — a full spec step, a reconcile — recompute (via
 `harness reduce board --write`, never by hand) the `unlocks` field of every task on the board as the
 exact inverse of the full board's `depends_on` graph, then write it. Adding one task that
 declares `depends_on: [TASK-007]` therefore rewrites `TASK-007.unlocks` in the same pass.
@@ -516,9 +516,9 @@ Non-Go:
 
 ---
 
-## Discovered-Task Reconciliation (operation: reconcile)
+## Discovered-Task Reconciliation (spec substep, mode: reconcile)
 
-Used by the reconcile operation over the discovered ledger at a round boundary. This is a pure
+Used by the spec substep in `reconcile` mode over the discovered ledger at a round boundary. This is a pure
 reducer: read existing state + the ledger delta, emit new state. The pitch and the
 upfront DDD layer are FROZEN — this mode never re-runs Phase 1–5.
 
@@ -531,8 +531,8 @@ tasks). Scope (Basecamp sense) maps onto a UC; an invariant lives *inside* the U
 1. Verify the ledger belongs to this spec. A discovered ledger rarely carries a pitch_hash
    (its frontmatter names the raw materials, e.g. source: shaping.md + breadboard.md).
    So match on identity that DOES exist:
-     a. ledger.feature == run-state.feature   (REQUIRED — mismatch → STOP)
-     b. if ledger carries pitch_hash, it must == run-state.pitch_hash
+     a. ledger.feature == this run's feature slug   (REQUIRED — mismatch → STOP)
+     b. if ledger carries pitch_hash, it must == the staged pitch's hash
    Neither resolvable → STOP: "ledger does not match this spec (different feature slug)."
 2. READ-ONLY for the frozen zone: domain-model, usecases/ (Steps), ux-behavior, contracts/.
 3. Parse ledger scopes → map each to its owning UC (S1→UC-…, S2→UC-…, S3→UC-…).
@@ -545,7 +545,7 @@ tasks). Scope (Basecamp sense) maps onto a UC; an invariant lives *inside* the U
      [ ] already has a file → skip
 5. For a Keep item that asserts a new invariant on its scope's UC:
      APPEND an [INV-NN] line to that UC's ## Invariants section (append-only,
-     never touch Steps/Input/Output). Log the UC path in run-state.human_edited_files.
+     never touch Steps/Input/Output).
      Generate the regression task with command-verifiable AC (see AC Trigger Matrix).
 6. Number new tasks by reading max id in tasks/_index.md and incrementing.
    NEVER renumber existing tasks — that would break every depends_on wikilink the
@@ -584,7 +584,7 @@ This is scope hammering at the gate boundary — the overflow is surfaced, never
 **Naming note:** the discovery ledger's "scope" sections (above) predate the formal Scope
 Contract artifact below and name the same thing — a `discovery/ledger.md` scope heading MUST
 match an existing `scope_id` from a `scopes/<scope-id>.md` contract, or (a Keep item
-introducing new flow) become the seed for a new one via a scope-architect `map-scopes` order. One concept, two touch points.
+introducing new flow) become the seed for a new one via the scopes substep. One concept, two touch points.
 
 **Import/flow slicing (PA1 countermeasure).** Build a lightweight import graph over the task
 board's touched files: for each file a task writes, note what it imports and what imports it
@@ -614,8 +614,8 @@ or entirely `apps/api/**` with no cross-layer flow is the PA1 failure mode — r
 }
 ```
 `hill_phase` is always written `UPHILL_UNKNOWN` at generation time — it is derived later from
-mechanical T0/T1 facts, never declared by `ba`. `superseded_by` stays
-`null` until a scope-architect `map-scopes` order retires this contract in favor of its replacements.
+mechanical T0/T1 facts, never declared by the planner. `superseded_by` stays
+`null` until the scopes substep retires this contract in favor of its replacements.
 
 **PA2 size lint:** a scope whose `allowed_file_substrate` glob set resolves to more than ~15
 files gets a ⚠️ from spec-lint PA2 (hard-cap configurable via pitch frontmatter `scope_size_cap`, default

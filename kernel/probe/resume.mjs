@@ -366,8 +366,8 @@ export function usecasesPath(cwd, slug, specFolder) {
  * it, and a wiring map is written one entry PER use case — so the index does not count.
  *
  * This predicate is why ANALYZE is in the phase chain at all. WIRE was dispatched before it ran, so
- * `usecases/` did not exist, so `solution-architect` had nothing to wire and escalated — honestly,
- * and identically on every relaunch (skills/solution-architect/SKILL.md:43-44, :108).
+ * `usecases/` did not exist, so the wiring substep had nothing to wire and escalated — honestly,
+ * and identically on every relaunch.
  *
  * @param {string} cwd - Project root.
  * @param {string} slug - Feature slug.
@@ -430,7 +430,7 @@ export function phaseSatisfied(state, phase) {
  * so the workflow and the fixture cannot disagree about it.
  *
  * ⟐ ANALYZE sits between ORIENT and WIRE. The pipeline used to dispatch
- * WIRE first, which is the position solution-architect's own input contract excludes — it reads
+ * WIRE first, which is the position the wiring craft's own input contract excludes — it reads
  * `usecases/`, and `analyze` is what writes them.
  *
  * @param {object} f - Facts (a derived ResumeState, or the subset the phase predicates read).

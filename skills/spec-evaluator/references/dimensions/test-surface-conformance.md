@@ -14,9 +14,9 @@ requires_browser: true
 # Test Surface Conformance Dimension
 
 > **Auto-enable rule (read at GATE V0.5):** stays `enabled: false` by default — a no-op on
-> every spec generated before `ba-pitch-analyzer` v2.9. The core flips it ON for a run
+> every spec generated before the planner wrote a Test Surface. The core flips it ON for a run
 > **only when** the spec's `usecases/` contains at least one `## Test Surface` section
-> (fresh v2.9 spec, or a pre-v2.9 spec retrofitted via a retrofit-surface order). Pre-surface
+> (fresh v2.9 spec, or a pre-v2.9 spec retrofitted by a plan spec step in `retrofit-surface` mode). Pre-surface
 > specs → never activates → existing verdicts unchanged (non-regression guarantee).
 > Explicit `--dimensions ...,test-surface-conformance` always wins over the auto rule.
 
@@ -27,7 +27,7 @@ that the spec already implies. The BA now derives that matrix into each UC's
 `## Test Surface` (D1 Invariants · D2 Error Cases · D3 Contract shapes · D4 No-gos,
 mechanical-only); this dimension is the judge-side half: probe every derived row against
 the running app. Judge probes; it never authors rows — a missing or thin Test Surface is
-reported as a finding and routed back to the planner's retrofit-surface operation, never filled in here.
+reported as a finding and routed back to the planner's `retrofit-surface` spec mode, never filled in here.
 
 **Distinctions held:**
 - conformance = *the AC that were written pass* · test-surface = *the matrix the spec
@@ -63,7 +63,7 @@ reported as a finding and routed back to the planner's retrofit-surface operatio
   pass_rule: >
     Cross-check each UC: Invariants ↔ TS-INV rows, Error Cases codes ↔ TS-ERR rows, and
     every row's Source cites D1–D4. A UC with `## Test Surface` whose own sources are
-    uncovered → FAIL at `major` with `next: retrofit-surface order (ba)` (judge surfaces the gap;
+    uncovered → FAIL at `major` with `next: a plan spec step in retrofit-surface mode` (judge surfaces the gap;
     generator fills it — this dimension NEVER authors rows). A UC carrying the explicit
     empty-sources line passes TSC-2 vacuously. A v2.9+ spec UC with NO `## Test Surface`
     section at all → FAIL at `major`, same routing.
@@ -90,7 +90,7 @@ ts_row: <the full row probed, verbatim>
 repro: <probe executed — command / UI steps>
 expected: <the Expect cell>
 actual: <observed evidence — response, state, screenshot ref>
-next: <TSC-1 → task-executor fix via tech-lead round r+1 | TSC-2 → retrofit-surface order re-run>
+next: <TSC-1 → task-executor fix via tech-lead round r+1 | TSC-2 → retrofit-surface re-run>
 ```
 
 ## Report obligation (the QA handoff)

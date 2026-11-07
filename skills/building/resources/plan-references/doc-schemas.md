@@ -59,7 +59,7 @@ When upgrading `lite → standard`:
 - `ux-behavior.md` stays authoritative for screen specs
 - Use cases are **reconciled** (API boundary sub-section added, not overwritten)
 - `contracts/` generated from reconciled UC API sub-sections
-- Reconciled files reported in the WorkResult's `deviations[]`
+- Reconciled files are told to the PO when the spec step closes
 
 ---
 

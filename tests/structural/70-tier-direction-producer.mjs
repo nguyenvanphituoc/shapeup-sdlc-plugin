@@ -3,7 +3,7 @@
 //
 // THE DEFECT, measured on a real consumer (`proj-harmony-os-sample`, run
 // `find-my-todos-20260921T142815Z-b80de580`). `harness init run` stages the pitch into the
-// gitignored run tier at `.shapeup/<slug>/intake.md`, and that is the only path `ba-pitch-analyzer`
+// gitignored run tier at `.shapeup/<slug>/intake.md`, and that is the only path the requirements substep
 // actually reads. `requirements.md` is a COMMITTED artifact, and spec-lint's `TIER-DIRECTION` rule
 // (kernel/verify/spec.mjs, `lintCommittedTier`) forbids a committed file from naming a `.shapeup/`
 // path, in ANY form — a bare path in prose, not only a `[[tasks/...]]` wikilink. A worker that
@@ -11,7 +11,7 @@
 // after 25 dispatches (~28 minutes, ~1.17M subagent tokens) over one sentence of provenance prose.
 //
 // THE HOLE THIS CLOSES. The lint's own enforcement was already correct and whole-tree — the defect
-// was that `skills/ba-pitch-analyzer/references/doc-schemas.md` TAUGHT the rule more narrowly than
+// was that `skills/building/resources/plan-references/doc-schemas.md` TAUGHT the rule more narrowly than
 // the lint ENFORCED it: purely in wikilink terms ("never `[[tasks/...]]`"), with no mention of a
 // bare path cited in prose. A worker following only the docs had no way to know the sentence it was
 // about to write would red. This module pins that the taught and enforced rules now agree, and that
@@ -66,7 +66,7 @@ export async function run(ctx) {
     // TAUGHT: doc-schemas.md's own Tier-direction rule section states the non-wikilink case, not
     // only "never [[tasks/...]]". Anchored on the literal heading so a rewrite that drops it is
     // caught as a missing anchor, not silently read as passing.
-    const doc = read(join(ROOT, "skills/ba-pitch-analyzer/references/doc-schemas.md"));
+    const doc = read(join(ROOT, "skills/building/resources/plan-references/doc-schemas.md"));
     const ANCHOR = "**Tier-direction rule.**";
     const at = doc.indexOf(ANCHOR);
     if (at === -1) {

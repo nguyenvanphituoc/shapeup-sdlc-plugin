@@ -129,7 +129,7 @@ audit` is in the pattern for the same reason: it catches the phrasing regardless
 Two deliberate omissions, both learned by running this against real content:
 
 - **No `\$[0-9]` pattern.** It flags the token/cost estimate tables in
-  `skills/ba-pitch-analyzer/assets/templates/` — which are product guidance for the user's own
+  `skills/building/resources/plan-templates/` — which are product guidance for the user's own
   runs, not our spend. Dollar figures that *are* leaks (per-session cost from a benchmark row) come
   attached to one of the other markers, so nothing is missed. Scan for `$` separately by eye if you
   want certainty.

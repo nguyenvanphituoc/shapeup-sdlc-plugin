@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Spec lint — the checks that must hold before a board becomes work.
 //
-// The mechanical half of the old ba-pitch-analyzer Phase 7a self-audit + Phase 7c parse steps
+// The mechanical half of the old planner's Phase 7a self-audit + Phase 7c parse steps
 // + Phase 6b PA1/PA2 lints — checkbox walking and glob checks a model should never grade on
 // its own output (a worker grading itself was always a judge-purity smell):
 //

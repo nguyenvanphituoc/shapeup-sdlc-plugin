@@ -38,7 +38,7 @@ worth making before your next run rather than at a gate.
 ### The knowledge base is per-skill and committed
 
 `/coach` files each rule **by skill** under committed `shapeup/knowledge-base/<skill>.md`, read
-back by `task-executor` / `ba-pitch-analyzer` / `qa-edge-hunter` at the top of their next run. If
+back by `task-executor` / `qa-edge-hunter` / `orient` at the top of their next run, and by the loop's plan step (`plan.md`, plus the `ba-pitch-analyzer.md`, `scope-architect.md` and `solution-architect.md` files you already have). If
 you still carry a single flat `.shapeup/knowledge-base.md`, it is gitignored, reaches no teammate
 and is read by nothing. Move its rules into `shapeup/knowledge-base/_INBOX.md` and run `/coach`
 to assign each one — GATE COACH-1 asks which skill owns a rule, it never assumes — then commit

@@ -957,19 +957,27 @@ export async function run(ctx) {
   // taking the generic form for an operation the table cannot resolve — that exits 2 before the
   // dispatch, and the leg's only route out is prose telling it something different.
   const { OP_OWNER } = await import(join(ROOT, "kernel/compile.mjs"));
+  // THE FIVE PLANNING LEGS THIS SCRIPT STILL DISPATCHES ARE DEAD, AND THAT IS STATED HERE, NOT HIDDEN.
+  // Planning was folded into the loop's own `plan` activity (a fence-only order, no sub-agent), so the
+  // operations coverage, analyze, board, wire and map-scopes — and the three planner skills they were
+  // addressed to — no longer exist. This Workflow script is the lane the single-loop plan retires; until it
+  // goes, its planning legs exit 2 at their step-1 compile and the script cannot plan (`--tiny` too). They
+  // are named below so the exemption is exactly their size: any OTHER unresolvable operation still fails.
+  const RETIRED_BY_PLAN_FOLD = new Set(["coverage", "analyze", "board", "wire", "map-scopes"]);
   for (const f of files) {
     const src = readFileSync(join(abs, f), "utf8");
     if (!/compile --operation \$\{operation\}/.test(src)) continue;   // no generic-leg shape here
     const calls = [...src.matchAll(/worker\(\{([\s\S]*?)\n\s*\}\)/g)].map((m) => m[1]);
     const broken = [];
+    const retired = [];
     for (const body of calls) {
       const op = (body.match(/\boperation:\s*"([^"]+)"/) || [])[1];
       if (!op) continue;
       if (/\bcompile:\s*/.test(body)) continue;            // addresses its order its own way
-      if (!OP_OWNER[op]) broken.push(op);
+      if (!OP_OWNER[op]) (RETIRED_BY_PLAN_FOLD.has(op) ? retired : broken).push(op);
     }
     if (!broken.length) {
-      ok(`${WORKFLOWS_DIR}/${f}: every leg taking the generic compile form names an operation OP_OWNER resolves (${calls.length} call site(s))`);
+      ok(`${WORKFLOWS_DIR}/${f}: every live leg taking the generic compile form names an operation OP_OWNER resolves (${calls.length} call site(s); ${new Set(retired).size} retired planning operation(s) exempted by name: ${[...new Set(retired)].join(", ") || "none"})`);
     } else {
       fail(`${WORKFLOWS_DIR}/${f} dispatches operation(s) compile cannot resolve a worker for: ` +
         `${[...new Set(broken)].join(", ")} — the leg's step-1 \`compile --operation <op> --slug <slug>\` exits 2 ` +

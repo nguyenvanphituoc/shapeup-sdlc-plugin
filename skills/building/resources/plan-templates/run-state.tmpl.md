@@ -55,14 +55,14 @@ upgrade_adds: []
 
 ```bash
 # Check current upgrade options
-/ba-pitch-analyzer --status shapeup/FEATURE_SLUG/spec/
+# verify spec --slug FEATURE_SLUG   (and reduce board --slug FEATURE_SLUG)
 
 # Upgrade to standard lens (adds contracts + integration + full synthesis)
-/ba-pitch-analyzer --upgrade standard shapeup/FEATURE_SLUG/spec/
+# re-plan the spec step with lens=standard over shapeup/FEATURE_SLUG/spec/ (extend, never overwrite Steps)
 
 # Upgrade specific module only
-/ba-pitch-analyzer --upgrade contracts shapeup/FEATURE_SLUG/spec/
-/ba-pitch-analyzer --upgrade synthesis shapeup/FEATURE_SLUG/spec/
+# re-plan the spec step for the contracts only
+# re-plan the spec step for the synthesis only
 ```
 
 ## Metrics

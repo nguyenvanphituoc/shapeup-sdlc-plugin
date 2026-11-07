@@ -328,10 +328,18 @@ export async function run(ctx) {
     // nothing behind it, and a fence with nothing behind it is what a green run looks like.
     const { substrateFor } = await import(join(ROOT, "kernel/compile.mjs"));
     const stagedPitch = ".shapeup/demo/intake.md";
-    for (const op of ["coverage", "analyze", "map-scopes", "wire", "evaluate", "hunt"]) {
-      const frozen = substrateFor(op, { slug: "demo" }).frozen || [];
-      if (matchesAny(stagedPitch, frozen)) ok(`substrateFor("${op}") freezes the staged pitch`);
-      else fail(`substrateFor("${op}") does not freeze ${stagedPitch} — the worker can rewrite its own grading input: ${JSON.stringify(frozen)}`);
+    // The four planning workers (coverage, analyze, map-scopes, wire) are now four substeps of the loop's
+    // `plan` activity, each fenced by its own `plan` order; the check follows them — every substep, and the
+    // board-only mode of the spec substep — so the declaration is still read for each write contract that
+    // used to carry it.
+    const subjects = [
+      ...[["requirements"], ["spec"], ["spec", "board-only"], ["wire"], ["scopes"]].map(([step, mode]) => [`plan:${step}${mode ? `:${mode}` : ""}`, "plan", { step, mode }]),
+      ["evaluate", "evaluate", {}], ["hunt", "hunt", {}],
+    ];
+    for (const [label, op, extra] of subjects) {
+      const frozen = substrateFor(op, { slug: "demo", ...extra }).frozen || [];
+      if (matchesAny(stagedPitch, frozen)) ok(`substrateFor("${label}") freezes the staged pitch`);
+      else fail(`substrateFor("${label}") does not freeze ${stagedPitch} — the worker can rewrite its own grading input: ${JSON.stringify(frozen)}`);
     }
     // `translate` is the one operation that legitimately rewrites a pitch, and it writes the
     // COMMITTED copy — so it must not be swept up by the rule above.

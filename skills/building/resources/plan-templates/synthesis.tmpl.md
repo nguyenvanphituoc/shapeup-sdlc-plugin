@@ -165,7 +165,7 @@ Derived from: `_index.md` rabbit holes + `api-feasibility.md` SPIKE blocks + `in
 <!--
   The SINGLE source of truth for tasks that were scope-hammered out of the cycle.
   A Cut produces NO task file (no bet yet, so no spec). Only record a trace line here.
-  Mostly populated/appended by the reconcile operation over the discovered ledger.
+  Mostly populated/appended by the spec substep's reconcile mode over the discovered ledger.
   Each line: what was cut — Cut @ GATE-N · reason · (if hammer-traded) which task it was traded for.
 -->
 
@@ -194,6 +194,6 @@ spec-lint reds a `TASK-` id anywhere in the committed tree (TIER-DIRECTION).
 | Single points of failure (block > 2 downstream) | N |
 
 **The per-scope build order — which scopes go in which wave, and what each waits on — lives in
-`scope-board.md`, not here.** `scope-architect` writes that board and is the only worker that knows
+`scope-board.md`, not here.** the scopes substep writes that board and is the only step that knows
 the scope ids; it runs after this document, so the ordering cannot be expressed here in a key that
 survives a clone. Cite the board, never restate it.

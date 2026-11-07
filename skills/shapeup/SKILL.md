@@ -237,7 +237,7 @@ INPUT: raw idea / brief / feature description
    ✅ rabbit holes listed  ✅ fit check clean  ✅ ≤9 slices
    ▼
 OUTPUT: shaping.md + breadboard.md (+ spike-[part].md if applicable)
-        → kicked-off pitch, ready for /ba-pitch-analyzer or /tech-lead
+        → kicked-off pitch, ready for `/ship` (the plan activity takes it from here)
 ```
 
 ### Progress Markers
@@ -368,7 +368,7 @@ Two roots, separated by artifact **nature** (full design →
 | Root | Contents | Nature | Git |
 |---|---|---|---|
 | `shapeup/[slug]/shaping/` | shaping · breadboard · spike · pitch · kickoff | **durable source** | commit, shared |
-| `shapeup/[slug]/spec/` | domain model · UC · contracts · tasks (ba-pitch-analyzer output) | **durable deliverable** | commit, shared |
+| `shapeup/[slug]/spec/` | domain model · UC · contracts · tasks (the plan activity's output) | **durable deliverable** | commit, shared |
 | `.shapeup/[slug]/` | run-state · gate log · **digest.md** · orient/ · evaluation/ · qa/ · ledger | **ephemeral / derived** | **gitignore (hidden)** |
 
 - **Shared** root `shapeup/[slug]/` = what the team contributes to
@@ -378,7 +378,7 @@ Two roots, separated by artifact **nature** (full design →
   harvest shards `.shapeup/metrics/*.jsonl`, lives under the local root.
 - `digest.md` is the run's derived decision context (the 4-field, two-zone read
   model the gates consume). It is **never** the source of truth and never crosses
-  a skill boundary — `ba-pitch-analyzer` reads `pitch.md`/`shaping.md`, never the
+  a skill boundary — the plan activity reads `pitch.md`/`shaping.md`, never the
   digest.
 - **Ripple-check rule (mandatory):** the digest carries **no `shaping: true`** —
   it is a sink, not a node. The ripple-check **must glob-exclude
@@ -387,14 +387,14 @@ Two roots, separated by artifact **nature** (full design →
 
 ---
 
-## Integration with ba-pitch-analyzer
+## Integration with the plan activity
 
 ```
 /shapeup shaping          → shaping.md
 /shapeup spike            → spike-[part].md  (as needed)
 /shapeup breadboarding    → breadboard.md (with slices)
          ↓
-/ba-pitch-analyzer shapeup/[feature-slug]/shaping/shaping.md
+/ship shapeup/[feature-slug]/shaping/shaping.md   (its plan step reads the pitch)
          ↓
 shapeup/[feature-slug]/spec/  (domain model, contracts, use cases, tasks)
 ```

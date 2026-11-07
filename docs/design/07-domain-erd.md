@@ -63,9 +63,9 @@ erDiagram
     WorkOrder {
         int schema_version "1"
         string order_id PK "slug/rN-aM | slug/operation[-rN]"
-        enum worker "WorkerName (10 workers)"
+        enum worker "WorkerName (7 workers) | building (fence-only plan order)"
         enum mode "orchestrated | standalone"
-        enum operation "Operation (17 operations)"
+        enum operation "Operation (12 operations)"
         json interaction "pause_gates, max_questions"
         json substrate "allowed[], shared[], append_only[], frozen[]"
         json payload "WorkOrderPayload — see 7.4"
@@ -189,7 +189,7 @@ erDiagram
 
 ## 7.3 — Scope contracts and derived state
 
-`scope-architect` is the sole writer of ScopeContract; hill phase is derived from
+The scopes substep of the `plan` activity is the sole writer of ScopeContract; hill phase is derived from
 T0/T1 facts, never authored. Superseded contracts are kept, never deleted.
 
 ```mermaid
@@ -238,9 +238,9 @@ erDiagram
 | `SafetyOverrides` (v1.2) | LOCAL | `.shapeup/safety-overrides.json` | **human PO only** — outside the run-trace carve-out, so no worker can write it | safety-spine hook |
 | `RunSnapshot` (v1.2) | LOCAL | `<slug>/run-snapshot.json` | harness reduce snapshot `--write` (never a worker) | tech-lead, human |
 | `StatsReport` (v1.2) | EMBEDDED | stdout only — never persisted | harness probe stats (read-only projection) | human / CLI / CI |
-| `RequirementClause` (spine v1.3) | SHARED | `<slug>/requirements.md` | ba-pitch-analyzer (`coverage` — extraction only; a `CUT` is a PO governance edit) | harness verify trace (covers-closure), tech-lead, human |
-| `WiringMap` (spine v1.3) | SHARED | `<slug>/wiring-map.md` | solution-architect (SOLE writer, direct — like `scopes/*.md`); `entries[]` are `WiringEntry` | harness verify trace (reachability), scope-architect (seam), tech-lead |
-| `ProjectProfile` (spine v1.3) | SHARED | `<slug>/project-profile.md` | tech-lead (GATE L0 — not harness compile, which stays pipeline-blind) | harness verify trace (`entry_point`, `source_extensions`), harness verify build (`build_probe` + `launch_probe`), solution-architect (`wire`), tech-lead |
+| `RequirementClause` (spine v1.3) | SHARED | `<slug>/requirements.md` | the plan activity's requirements substep (extraction only; a `CUT` is a PO governance edit) | harness verify trace (covers-closure), tech-lead, human |
+| `WiringMap` (spine v1.3) | SHARED | `<slug>/wiring-map.md` | the plan activity's wire substep (SOLE writer, direct — like `scopes/*.md`); `entries[]` are `WiringEntry` | harness verify trace (reachability), the scopes substep (seam), tech-lead |
+| `ProjectProfile` (spine v1.3) | SHARED | `<slug>/project-profile.md` | tech-lead (GATE L0 — not harness compile, which stays pipeline-blind) | harness verify trace (`entry_point`, `source_extensions`), harness verify build (`build_probe` + `launch_probe`), the plan activity (wire), tech-lead |
 | `RoundBuildVerdict` | LOCAL | `<slug>/build/r<N>-t<T>.json` | harness verify build (once per round before EVAL: the ledger's `run_cmd`, then the profile's probes, stopping at the first failure; immutable per gate run) | harness reduce hill (a red round's T0-greens move no dot), harness compile (each failing step → `payload.bugs` for round N+1; the newest artifact → the same round's evaluate order as `payload.build_gate`), tech-lead (GATE L2 block) |
 | `Lane` (v1.2 · design draft) | EMBEDDED | (when implemented) `harness-run.md` frontmatter `lane:` — never a payload field | tech-lead (GATE L0) | tech-lead only — see design §4.7 |
 
@@ -302,8 +302,8 @@ rather than kept as a mechanism that looks like it works and doesn't.)
 
 | Enum | Values |
 |---|---|
-| `WorkerName` (10) | task-executor · spec-evaluator · ba-pitch-analyzer · scope-architect · solution-architect · orient · qa-edge-hunter · translator · scope-hammer · coach |
-| `Operation` (17) | execute, fix, spike · analyze, reconcile, retrofit-surface, coverage · map-scopes · wire · evaluate · orient · hunt · translate · hammer · coach, scan, research |
+| `WorkerName` (7) | task-executor · spec-evaluator · orient · qa-edge-hunter · translator · scope-hammer · coach — the loop (`building`) is not a member: it is the `worker` of a fence-only `plan` order, which the order schema accepts beside the roster |
+| `Operation` (12) | execute, fix, spike · evaluate · orient · hunt · translate · hammer · coach, scan, research · plan (fence-only: one order per planning substep — `requirements`, `spec`, `wire`, `scopes` — answered by `reduce ingest --close-plan`, no sub-agent) |
 
 ## 7.6 — Payload fields by worker (`x-payload-by-worker`)
 
@@ -313,15 +313,13 @@ Which `WorkOrderPayload` fields each worker may rely on — anything absent from
 | Worker | Payload fields |
 |---|---|
 | task-executor | `tasks`, `scope_contract`, `decisions`, `digested_errors`, `trial_history`, `verify`, `kb_rules_path`, `constraints`, `bugs` |
-| ba-pitch-analyzer | `pitch`, `breadboard`, `lens`, `orient_dir`, `spec_folder`, `feature`, `discovered_ledger`, `kb_rules_path` |
-| scope-architect | `feature`, `spec_folder`, `tasks`, `breadboard`, `kb_rules_path` |
-| solution-architect | `feature`, `spec_folder`, `project_profile`, `breadboard`, `kb_rules_path` |
 | spec-evaluator | `spec_folder`, `feature`, `dimensions`, `run_cmd`, `launch_cmd`, `build_gate`, `t0_artifacts`, `browser`, `tasks` |
 | orient | `pitch`, `breadboard`, `stack`, `spec_folder`, `feature`, `kb_rules_path` |
 | qa-edge-hunter | `feature`, `spec_folder`, `eval_report`, `app_url`, `ledger`, `kb_rules_path` |
 | translator | `intake`, `glossary` |
 | scope-hammer | `feature`, `baseline`, `breaker`, `scope_id` |
 | coach | `feedback`, `stack` (research) |
+| building (plan orders) | `feature`, `spec_folder`, `step`, `mode`, `kb_rules_paths` |
 
 ## 7.7 — Result fields by worker (`x-result-by-worker`)
 
@@ -330,8 +328,7 @@ Which `WorkResult` fields each worker is allowed to output. Enforces architectur
 | Worker | Allowed Result Fields |
 |---|---|
 | task-executor | `task_results`, `files_touched`, `discoveries`, `artifacts`, `assumptions`, `deviations` |
-| ba-pitch-analyzer | `discoveries`, `files_touched`, `artifacts`, `assumptions`, `deviations` |
-| scope-architect, solution-architect | `files_touched`, `artifacts`, `assumptions`, `deviations` |
 | spec-evaluator | `verdict`, `files_touched`, `artifacts`, `assumptions`, `deviations` |
 | qa-edge-hunter | `discoveries`, `files_touched`, `artifacts`, `assumptions`, `deviations` |
 | orient, translator, scope-hammer, coach | `files_touched`, `artifacts`, `assumptions`, `deviations` |
+| building (plan orders) | `artifacts`, `deviations` |

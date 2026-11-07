@@ -77,7 +77,7 @@ dimensions, off by default.
     Inspect the diff / changed files. No file outside the feature's declared package/scope is
     modified, and no item in _index.md's ## Non-Go list is touched. Any out-of-scope change
     FAILS with file:line. (A local task file's own Non-Go section, when present, is consistent
-    with _index.md by construction — ba-pitch-analyzer derives it from the pitch — but the
+    with _index.md by construction — the plan activity derives it from the pitch — but the
     committed _index.md is the grading source since the task file may not exist locally.)
   source: index
 

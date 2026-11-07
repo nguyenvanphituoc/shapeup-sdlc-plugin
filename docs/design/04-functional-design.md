@@ -2,21 +2,20 @@
 
 [← Back to index](README.md)
 
-## 4.1 — The thirteen skills
+## 4.1 — The eleven skills
 
 | Skill | Role | Behavior |
 |---|---|---|
 | `shapeup` | Shaper | Set boundaries, breadboard, spike risk, write the pitch (Shape Up steps 1–4). |
 | `translator` | Intake gate | Normalizes non-English intake to faithful English before anything downstream runs; every other skill HARD-FAILs on non-English input. |
 | `orient` | Scout | Builder-led recon (step 7): reads the real code, spikes the single riskiest area, emits a code-surface map *before any board exists*, so the board is reality-born. |
-| `ba-pitch-analyzer` | Spec-analyzer | Decomposes an oriented pitch into a linked DDD tree — domain model → use cases → tasks — with BDD scenarios and a derived Test Surface. One craft, four registered operations: `analyze` (the spec tree and board), `reconcile` (fold discovered tasks back in), `retrofit-surface` (append Test Surface rows to existing use cases), `coverage` (extract atomic requirement clauses into the shared `requirements.md` registry that anchors covers-closure). |
-| `solution-architect` | Wirer | Sole writer of the committed wiring map (`wiring-map.md`) at GATE L1a.5: per use case, the reachability chain engine → seam → entry-point call site → player-visible affordance, resolved against `project-profile.md` — front-loads the integration seam so no engine ships orphaned. |
-| `scope-architect` | Slicer | Sole writer of committed scope contracts: import-graph slicing by flow, write-whitelisted substrates, affordance manifests, fixtures. |
+| `building` | Loop | Drives a run in the session over the kernel's `probe next`: opens the run, does the one step the kernel names, crosses each gate with the PO, closes. Its `plan` activity is the whole of planning, done in the loop's own context with no sub-agent — requirements registry → linked DDD spec tree + board (BDD scenarios, a system flow, a derived Test Surface) → the committed wiring map at GATE L1a.5 (per use case: engine → seam → entry-point call site → affordance, resolved against `project-profile.md`) → write-whitelisted scope contracts — under a fence-only `plan` order per substep that the kernel answers from the files it finds. |
 | `task-executor` | Generator | Implements a WorkOrder's acceptance criteria exactly. Zero-memory (each attempt is a fresh subagent), substrate-sandboxed, never writes boards or ledgers. |
 | `spec-evaluator` | Single judge | Verifies the running app against the committed spec. Skeptical by default; requires a T0 artifact citation on scoped specs; verdict returns as data, never edits anything. |
 | `qa-edge-hunter` | Explorer | Post-PASS exploratory hunt through six fixed lenses, outside what the evaluator already probed. Findings go to the ledger as `~`; never blocks ship, never issues a verdict. |
 | `scope-hammer` | Ship arbiter | GATE H: must-have census → baseline comparison (never against a perfect ideal) → cut list + ship verdict. Proposes only; a human promotes or ships. |
 | `coach` | RLHF loop | Turns PO feedback at ship sign-off (or, with `scan`, the project on disk; or, with `research`, the platform's official documentation — a source, never a verification) into knowledge-base rules, filed by skill after asking the PO to categorize each one — never assumed. Seven categories: six coachable workers plus `tech-lead` workflow guidance. Guidance never decides a gate. |
+| `hill-chart` | Dashboard | Renders the committed hill shards and the local run graph as one dashboard; invoked directly, not a pipeline worker. |
 | `tech-lead` | Orchestrator | Sequences all of the above through GATE L0–L4, owns the round loop, and is the sole writer of run-state. |
 | `hill-chart` | Dashboard | Not a pipeline worker — invoked directly, like `shapeup`. Renders a portfolio + per-pitch Hill Chart from committed hill shards (`shapeup/<slug>/hill/*.yml`) and the local run graph; read-only, never dispatched. |
 
@@ -222,7 +221,7 @@ bypassed harness stops accumulating KB entries, ledger history, and metrics: val
 
 | Lane | Selection (auto, PO-overridable) | Ceremony delta | Defaults |
 |---|---|---|---|
-| **tiny** | one-scope pitch **and** appetite ≤ 2 weeks **and** no third-party integration **and** ≤ 3 user-facing actions — deliberately the *same predicate* `ba-pitch-analyzer` already uses to judge `lens: lite`, so lane selection reuses that knob instead of inventing a parallel one | Skips Orient + GATE L1a (no Scout dispatch); board auto-generated `lens: lite`; L1a+L1b collapse into **one merged confirmation gate** | QA `--no-qa`, `round_budget` 2 |
+| **tiny** | one-scope pitch **and** appetite ≤ 2 weeks **and** no third-party integration **and** ≤ 3 user-facing actions — deliberately the *same predicate* the plan activity already uses to judge `lens: lite`, so lane selection reuses that knob instead of inventing a parallel one | Skips Orient + GATE L1a (no Scout dispatch); board auto-generated `lens: lite`; L1a+L1b collapse into **one merged confirmation gate** | QA `--no-qa`, `round_budget` 2 |
 | **normal** | everything else | none — today's behavior, unchanged | `round_budget` 3 |
 | **full** | cross-context lens **or** appetite ≥ 6 weeks | adds mandatory QA and GATE H review | `lens: cross-context`, `round_budget` 4 |
 

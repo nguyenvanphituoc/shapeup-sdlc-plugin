@@ -60,7 +60,7 @@ export const SCOPE_CONTRACT = {
  * `WiringMap` — per use case: engine → seam → entry-point call site → affordance.
  *
  * `perSection` is a MIGRATION READER, and it exists because the canonical shape was never written.
- * `solution-architect` was told to produce a `{schema_version, feature, entry_point, entries[]}`
+ * The wiring author was told to produce a `{schema_version, feature, entry_point, entries[]}`
  * OBJECT and never told the markdown layout, so every run authored its own: a `## Entries` section
  * with one `### UC-xx — title` subsection per use case, each holding a vertical `| Field | Value |`
  * table. Under this spec that parses as no table at all — and the vertical layout carries no
@@ -222,7 +222,7 @@ export function uncoerce(v) {
  * Split a `[a, b]` list body on commas that are NOT inside quotes.
  *
  * The old implementation was `body.split(",")`, and it shredded any member carrying a
- * comma — even a correctly quoted one. Measured: a `scope-architect` run probed the running CLI,
+ * comma — even a correctly quoted one. Measured: a scope-contract run probed the running CLI,
  * confirmed `tag` was unimplemented, and wrote the honest entry its own SKILL.md asks for —
  *   ["TBD — `tag` is not in dispatch.js's TABLE (exits 1, confirmed against the running CLI). A
  *     fixture asserting the spec'd behaviour (attach/remove a tag, idempotent double-tag) can only
@@ -324,7 +324,7 @@ export function splitFrontmatter(md) {
     // An indented run beneath a key is a YAML BLOCK SEQUENCE, and it used to be skipped
     // entirely — so `e2e_verification_fixtures:` followed by two `- "node …"` lines parsed to
     // null, the members vanished, and no reader could tell "declared nothing" from "declared
-    // something I discarded". Measured: a scope-architect run wrote three scopes of researched
+    // something I discarded". Measured: a scope-contract run wrote three scopes of researched
     // fixtures in this form and every one evaporated. It is ACCEPTED now, because it is the form a
     // model reaches for by default and the one that carries prose members without the quoting
     // problem — and anything indented that is NOT a block sequence is reported rather than dropped.

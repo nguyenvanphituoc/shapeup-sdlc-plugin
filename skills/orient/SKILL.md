@@ -1,6 +1,6 @@
 ---
 name: orient
-description: "Use this skill for Shape Up step 7 (Orient) — the builder-led reconnaissance pass that runs AFTER kick-off and BEFORE any task board exists. Triggers on: \"orient on this feature\", \"scout the codebase for this pitch\", \"where does this pitch touch the code\", \"do an orient pass\", \"recon before we plan\", \"spike the riskiest part before mapping scopes\". The tech-lead orchestrator invokes it at step 7 before delegating to ba-pitch-analyzer (Map Scopes, step 8). Use it even when the user describes \"read the code first and surface the unknowns\" without naming Orient. Also accepts a tech-lead --order dispatch."
+description: "Use this skill for Shape Up step 7 (Orient) — the builder-led reconnaissance pass that runs AFTER kick-off and BEFORE any task board exists. Triggers on: \"orient on this feature\", \"scout the codebase for this pitch\", \"where does this pitch touch the code\", \"do an orient pass\", \"recon before we plan\", \"spike the riskiest part before mapping scopes\". The loop (`/ship`) invokes it at step 7, before the plan activity (Map Scopes, step 8). Use it even when the user describes \"read the code first and surface the unknowns\" without naming Orient. Also accepts a tech-lead --order dispatch."
 ---
 
 # Orient — the Scout (Shape Up step 7)
@@ -10,7 +10,7 @@ spike the scary parts, and let reality generate **Discovered tasks** — which o
 imagined ones. This skill is that pass, made explicit. It exists because the orchestrator
 (`tech-lead`) must *delegate* orientation, and the generator (`task-executor`) can't host it:
 its first gate needs a task file, and **at Orient time no board exists yet** — the board is
-mapped *after* this pass, by `ba-pitch-analyzer` at step 8.
+mapped *after* this pass, by the plan activity at step 8.
 
 So the Scout's whole job is to make the planner's board **reality-born instead of imagined**.
 It hands `ba` a map of where the pitch lands in real code, the findings from de-risking the
@@ -197,8 +197,8 @@ Group by **suspected scope** so `ba` can map scopes naturally. Do **not** assign
 or dependencies — that is the planner's job. You are handing over raw material, not a plan.
 
 > This is the seed for the planner's first board. The *in-build* discovered-task loop
-> (build WorkResults' discoveries[] ingested into the live ledger, reconciled by a planner
-reconcile order) is
+> (build WorkResults' discoveries[] ingested into the live ledger, reconciled by a plan spec step
+in `reconcile` mode) is
 > a separate, later mechanism — don't conflate the two.
 
 ## Phase 6 — Emit hill signal → `hill-signal.md`
@@ -226,8 +226,8 @@ in standalone mode):
     hill-signal.md    — <summary line from hill, e.g. "No uphill areas; spike at crest.">
 
   Ready for ba (step 8):
-    Pass --orient-dir .shapeup/<feat>/orient/ to ba-pitch-analyzer.
-    ba Phase 1 skips its own codebase scan and reads code-surface.md as its authoritative map.
+    The plan activity's spec step carries .shapeup/<feat>/orient/ as its orient directory.
+    Its INGEST phase skips its own codebase scan and reads code-surface.md as its authoritative map.
 ```
 
 Tech-lead uses this to render the GATE L1a Hill and confirm the spike before handing to `ba`.

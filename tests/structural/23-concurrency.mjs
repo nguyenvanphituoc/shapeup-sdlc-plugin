@@ -139,7 +139,7 @@ export async function run(ctx) {
       const ledger = join(ws, ".shapeup", "legs", "legs.jsonl");
 
       // (a) The leg closes and leaves exactly one row.
-      const first = closeOneLeg(ROOT, ws, { slug: "legs", compileArgs: ["--operation", "analyze", "--slug", "legs"] });
+      const first = closeOneLeg(ROOT, ws, { slug: "legs", compileArgs: ["--operation", "orient", "--slug", "legs"] });
       if (first.error) { fail(`could not close a leg: ${first.error}`); return; }
       if (first.ingest.status !== 0) { fail(`ingest exited ${first.ingest.status}: ${first.ingest.stderr.slice(0, 300)}`); return; }
       const after1 = rows(ledger);

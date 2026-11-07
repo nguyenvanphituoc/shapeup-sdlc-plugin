@@ -47,6 +47,7 @@ work, not work in flight. Surface every string in `warnings`. Then act on `kind`
 | `kind` | Do |
 |---|---|
 | `dispatch` | Run each `pre`, then `compile`. Spawn ONE sub-agent (model: `model`) told to invoke `Skill(<skill>) --order "<order_path>"` plus `note`, and to return a one-line summary. When it returns run `ingest` — add `--tokens-total <N> --usage-source agent-tool-result` when the result reported a total, and nothing when it did not; never estimate one — then each `then`. A failed `compile`, or a sub-agent that dies, runs `on_fail_close` and stops. A refused `ingest` is not a stop: ask again — the kernel sends the worker back once with the refusal, then stops with the real reason. |
+| `plan` | One planning substep, done HERE — no sub-agent. Unless `order_open`, run `open`: it stamps the write fence (`payload.step`, `payload.mode`, `payload.feature`, `payload.spec_folder`, `payload.kb_rules_paths`). Read `resource` (`section` says where) and `guidance`; write ONLY what `produces` names, never outside the substep's substrate between `open` and `close`. Run each of `checks` (fix a red, run it again; `advisory` never stops). Run `close`, then ask again. A `close` over no artifact is recorded, not retried — the next step names what is missing. |
 | `build` | For every scope in `release`, in ONE message, spawn a sub-agent (model: `model`) for that scope exactly as for `dispatch`, using the item's own `compile`, `order_path`, `note` and `ingest` (usage flags included). When they return, ask again. |
 | `command` | Run `pre`, then `command`; exit codes in `ok_exits` (default `[0]`) pass; any other runs `on_fail_close` when present. Then each `then`. |
 | `gate` | See below. |
@@ -82,7 +83,8 @@ refusal is a stop, not a third try. If a step looks wrong, do not improvise past
 suspected harness defect and stop.
 
 **A write the substrate does not cover is denied while an order is live.** Between `compile` and
-`ingest` of a build order you write nothing yourself.
+`ingest` of a build order you write nothing yourself; between `open` and `close` of a plan order you write
+only what the substep produces.
 
 ## Resume
 
@@ -91,5 +93,7 @@ disk and nothing else. A closed run that did not ship is reopened on the record 
 step; one that shipped reports `done`.
 
 > **Intake, language check, profile, the launch record** → `resources/intake.md`
+> **Planning: how a substep runs, requirements; the spec, wiring and scope formats** → `resources/plan.md` and its `plan-*.md` siblings
+> **Which knowledge-base file is read where, and under what name a rule is filed** → `resources/guidance.md`
 > **How to put a gate to the PO** → `resources/gates.md`
 > **After a ship: feedback, the retro gate** → `resources/retro.md`

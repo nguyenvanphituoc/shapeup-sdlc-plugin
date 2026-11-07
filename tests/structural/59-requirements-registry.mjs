@@ -87,51 +87,32 @@ export async function run(ctx) {
   section("93. The requirements registry is produced, and every link to it lands in one key space");
   // =============================================================================
 
-  // --- (a) THE FIELD IS DECLARED WHERE A DISPATCH CAN RELY ON IT -------------------------------
-  // `x-payload-by-worker` is the authoritative table of what a worker may read off its order, and
-  // the worker's own contract says anything absent from it is unknown. A `coverage` dispatch that
-  // hands over `payload.requirements` without this entry is handing over a field the craft is
-  // entitled to ignore.
+  // --- (a) THE FIELD IS DECLARED WHERE THE FENCE CAN RELY ON IT --------------------------------
+  // The registry is written by the requirements substep of the loop's `plan` activity. No worker is
+  // dispatched, so there is no `payload.requirements` any more (the source to extract from is the step's
+  // `inputs`, handed over by `probe next`); what an order must declare is the substep it fences, in the
+  // registry the envelope's own schema is read against.
   {
     const domain = readJSON(join(ROOT, "kernel/schemas/domain.schema.json"));
-    const fields = domain["x-payload-by-worker"]?.["ba-pitch-analyzer"] || [];
-    if (fields.includes("requirements")) ok("(a) x-payload-by-worker registers `requirements` for ba-pitch-analyzer — the coverage dispatch's payload is a declared input, not an inference");
-    else fail("(a) x-payload-by-worker['ba-pitch-analyzer'] does not list `requirements` — the worker's contract entitles it to ignore the field the coverage dispatch hands over");
+    const fields = domain["x-payload-by-worker"]?.building || [];
+    if (fields.includes("step") && fields.includes("kb_rules_paths")) ok("(a) x-payload-by-worker registers `step` and `kb_rules_paths` for building — the requirements substep's order is a declared input, not an inference");
+    else fail("(a) x-payload-by-worker['building'] does not list `step` and `kb_rules_paths` — the plan order's fields are undeclared");
 
     const props = domain.$defs?.WorkOrderPayload?.properties || {};
-    if (props.requirements) ok("(a) $defs/WorkOrderPayload declares the `requirements` property the registry entry names");
-    else fail("(a) $defs/WorkOrderPayload has no `requirements` property — the registry names a field the envelope cannot carry");
+    if (props.step?.enum?.includes("requirements") && props.kb_rules_paths) ok("(a) $defs/WorkOrderPayload declares `step` (with the requirements substep) and `kb_rules_paths`");
+    else fail("(a) $defs/WorkOrderPayload does not declare the plan order's `step` and `kb_rules_paths`");
   }
 
-  // --- (b) THE DISPATCH EXISTS, ONCE, AND IS NOT A PHASE ---------------------------------------
+  // --- (b) THE SUBSTEP EXISTS, ONCE, FIRST, AND IS NOT A PHASE ---------------------------------
+  // RETIRED with the dispatch it read: the checks here were assertions about shapeup-run.js's `coverage`
+  // dispatch (once, to ba-pitch-analyzer, before analyze, guarded on has_requirements). Planning no longer
+  // dispatches, so there is no skill to pair and no payload to carry. Their behaviour — the registry is
+  // written once, before the spec, and a registry already on disk is not asked for again — is a branch of
+  // `probe next` and is pinned by section 175 ("no requirements registry opens the requirements substep",
+  // "a requirements order closed over no registry continues with a warning", planning resumes from
+  // artifacts) and by section 176, which drives the four substeps in order. The two checks below are what
+  // survives of (b) on its own terms.
   {
-    const wf = read(join(ROOT, "skills/tech-lead/workflows/shapeup-run.js"));
-    const dispatches = (wf.match(/operation: "coverage"/g) || []).length;
-    if (dispatches === 1) ok("(b) shapeup-run.js dispatches `coverage` exactly once");
-    else fail(`(b) shapeup-run.js carries ${dispatches} coverage dispatches — the registry is written once per run, before ANALYZE, or its ids are not stable for the board to cite`);
-
-    // The dispatch has to be addressed to the worker that owns the operation, and carry the source
-    // to extract from. A `coverage` order with no `requirements` in its payload is a worker being
-    // asked to guess which document the run was shaped from.
-    const block = wf.slice(Math.max(0, wf.indexOf('operation: "coverage"') - 200), wf.indexOf('operation: "coverage"') + 400);
-    if (/skill: "ba-pitch-analyzer"/.test(block) && /payload: \{[^}]*requirements:/.test(block)) {
-      ok("(b) the coverage dispatch names ba-pitch-analyzer and carries payload.requirements");
-    } else {
-      fail("(b) the coverage dispatch does not pair `skill: \"ba-pitch-analyzer\"` with a payload carrying `requirements:` — the order would reach the wrong worker, or reach the right one with nothing to extract from");
-    }
-
-    // ANALYZE's acceptance criteria cite the ids, so the registry must be written first.
-    const iCov = wf.indexOf('operation: "coverage"');
-    const iAna = wf.indexOf('operation: "analyze"');
-    if (iCov > -1 && iAna > -1 && iCov < iAna) ok("(b) coverage is dispatched before analyze — the ids exist before the acceptance criteria that cite them");
-    else fail(`(b) coverage is not dispatched before analyze (coverage@${iCov}, analyze@${iAna}) — the board would be written against a registry that does not exist yet`);
-
-    // Guarded on the bare fact, never on `--require`: `probe resume --require` is an enum over
-    // PHASE_ARTIFACT's keys, so asking it about `coverage` exits 2 and this file reads any exit
-    // other than 6 as "the predicate was never asked" — a working dispatch would abort the run.
-    if (/rs\.has_requirements/.test(wf)) ok("(b) the coverage dispatch is guarded on the resume state's has_requirements fact");
-    else fail("(b) nothing in shapeup-run.js branches on has_requirements — the registry is either never written or rewritten on every relaunch");
-
     const resumeSrc = read(join(ROOT, "kernel/probe/resume.mjs"));
     const mapStart = resumeSrc.indexOf("PHASE_ARTIFACT");
     const mapBody = resumeSrc.slice(mapStart, mapStart + 400);
@@ -140,6 +121,28 @@ export async function run(ctx) {
     } else {
       fail("(b) PHASE_ARTIFACT names `coverage` — every run recorded before the registry existed would resume at the registry instead of at build on its next relaunch");
     }
+    // Driven, not read: the first plan step is the registry, and once it is on disk the next step is the spec.
+    const ws = mkdtempSync(join(tmpdir(), "struct-req-next-"));
+    try {
+      const K = (...a) => spawnSync("node", [join(ROOT, "kernel/harness.mjs"), ...a], { encoding: "utf8" });
+      const opened = K("init", "run", "--slug", SLUG, "--intake-text", "R1. The list persists.", "--auto-level", "interactive", "--cwd", ws);
+      const rargs = K("init", "run-args", "--slug", SLUG, "--auto-level", "interactive", "--exec-model", "sonnet", "--eval-model", "sonnet", "--max-rounds", "2", "--attempts", "3", "--plugin-root", ROOT, "--cwd", ws);
+      if (opened.status !== 0 || rargs.status !== 0) { fail(`(b) could not open the fixture run: ${opened.stderr}${rargs.stderr}`); }
+      else {
+        w(ws, `shapeup/${SLUG}/project-profile.md`, "---\nschema_version: 1\narchetype: cli\nentry_point: bin/x.js\n---\n");
+        for (const f of ["code-surface.md", "discovered-seed.md", "hill-signal.md", "spike-not-needed.md"]) w(ws, `.shapeup/${SLUG}/orient/${f}`, "x\n");
+        const ledger = JSON.parse(readFileSync(join(ws, ".shapeup", SLUG, "receipt.json"), "utf8")).run_id;
+        w(ws, `.shapeup/${SLUG}/gates.jsonl`, JSON.stringify({ at: new Date().toISOString(), run_id: ledger, gate: "L1a", status: "ok", decision: "proceed", source: "test", round: null }) + "\n");
+        const next = () => { try { return JSON.parse(K("probe", "next", "--slug", SLUG, "--cwd", ws).stdout); } catch { return {}; } };
+        const first = next();
+        if (first.step === "plan.requirements" && first.kind === "plan" && /requirements\.md$/.test(first.produces) && first.inputs?.source) ok("(b) the first plan step is the requirements substep, handed the source to extract from");
+        else fail(`(b) the first plan step is ${JSON.stringify(first).slice(0, 200)}, not plan.requirements with an input source`);
+        w(ws, `shapeup/${SLUG}/requirements.md`, registry(["REQ-1"]));
+        const second = next();
+        if (second.step === "plan.spec") ok("(b) with the registry on disk the next plan step is the spec — the registry is not asked for again, and it comes before the criteria that cite its ids");
+        else fail(`(b) with a registry on disk the next step is ${second.step}, not plan.spec`);
+      }
+    } finally { rmSync(ws, { recursive: true, force: true }); }
   }
 
   // --- (c) THE FACT IS DERIVED FROM DISK, AND IT MOVES NO EXISTING RUN -------------------------
@@ -188,33 +191,33 @@ export async function run(ctx) {
     }
   }
 
-  // --- (d) THE ORDER THE DISPATCH COMPILES IS A VALID ENVELOPE ---------------------------------
+  // --- (d) THE ORDER THE SUBSTEP COMPILES IS A VALID ENVELOPE -----------------------------------
   {
     const ws = mkdtempSync(join(tmpdir(), "struct-req-order-"));
     try {
       w(ws, `.shapeup/${SLUG}/intake.md`, "# Pitch\n\nR1. The list persists.\n");
       const r = spawnSync("node", [join(ROOT, "kernel/harness.mjs"), "compile",
-        "--operation", "coverage", "--slug", SLUG, "--cwd", ws,
-        "--payload", JSON.stringify({ requirements: `.shapeup/${SLUG}/intake.md`, feature: SLUG })],
+        "--operation", "plan", "--slug", SLUG, "--cwd", ws,
+        "--payload", JSON.stringify({ step: "requirements" })],
       { encoding: "utf8" });
-      const orderPath = join(ws, ".shapeup", SLUG, "orders", "coverage.json");
+      const orderPath = join(ws, ".shapeup", SLUG, "orders", "plan-requirements.json");
       let order = null;
       try { order = JSON.parse(readFileSync(orderPath, "utf8")); } catch { /* reported below */ }
       const { validate } = await import(join(ROOT, "kernel/verify/envelope.mjs"));
       const schema = readJSON(join(ROOT, "kernel/schemas/work-order.schema.json"));
       const v = order ? validate(order, schema) : { valid: false, errors: [r.stderr || r.stdout] };
-      if (r.status === 0 && order?.payload?.requirements === `.shapeup/${SLUG}/intake.md` && v.valid) {
-        ok("(d) a compiled coverage order carries payload.requirements and validates against work-order.schema.json");
+      if (r.status === 0 && order?.payload?.step === "requirements" && order?.worker === "building" && v.valid) {
+        ok("(d) a compiled requirements order carries payload.step and validates against work-order.schema.json");
       } else {
-        fail(`(d) compiled coverage order: exit ${r.status}, payload.requirements=${order?.payload?.requirements}, valid=${v.valid} ${JSON.stringify(v.errors)}`);
+        fail(`(d) compiled requirements order: exit ${r.status}, payload.step=${order?.payload?.step}, valid=${v.valid} ${JSON.stringify(v.errors)}`);
       }
-      // The substrate is the other half of a dispatch nobody can misuse: the registry is the only
-      // thing this operation writes, and the pitch it extracts from is frozen under it.
+      // The substrate is the other half of the fence nobody can misuse: the registry is the only
+      // thing this substep writes, and the pitch it extracts from is frozen under it.
       const allowed = order?.substrate?.allowed || [];
       if (allowed.length === 1 && /requirements\.md$/.test(allowed[0])) {
-        ok("(d) the coverage order's substrate permits exactly one write — the registry itself");
+        ok("(d) the requirements order's substrate permits exactly one write — the registry itself");
       } else {
-        fail(`(d) the coverage order's allowed substrate is ${JSON.stringify(allowed)} — the planner may write something other than the registry it was dispatched for`);
+        fail(`(d) the requirements order's allowed substrate is ${JSON.stringify(allowed)} — the planner may write something other than the registry it was fenced for`);
       }
     } finally { rmSync(ws, { recursive: true, force: true }); }
   }
@@ -275,8 +278,12 @@ export async function run(ctx) {
   // against the old meaning keeps resolving, to the wrong requirement, silently. Nothing mechanical
   // can catch that; the rule has to be in the instructions the extraction is performed from.
   {
-    const skill = read(join(ROOT, "skills/ba-pitch-analyzer/SKILL.md"));
-    const row = skill.split("\n").find((l) => l.startsWith("| `coverage` |")) || "";
+    // The extraction craft is the `## Requirements` section of the plan resource (it was a table row of the
+    // planner's SKILL.md before the planning fold); the rules are asserted over that section alone, so a
+    // sentence elsewhere in the file cannot satisfy them.
+    const plan = read(join(ROOT, "skills/building/resources/plan.md"));
+    const at = plan.indexOf("\n## Requirements");
+    const row = at < 0 ? "" : plan.slice(at, plan.indexOf("\n## ", at + 5) < 0 ? undefined : plan.indexOf("\n## ", at + 5));
     const rules = [
       [/`?R12`?\s*→?\s*`?REQ-12`?|R<n>` → `REQ-<n>|`R12` → `REQ-12`/, "an R-id in the source keeps its number as REQ-<n>"],
       [/source.{0,80}verbatim|verbatim.{0,80}source|shaping\.md R12/, "the source cell records where the clause came from, verbatim"],
@@ -297,7 +304,7 @@ export async function run(ctx) {
   // it was written for. And a non-functional clause with no use-case home has to become a task
   // rather than a line in the risk register, or nothing grades it at all.
   {
-    const skill = read(join(ROOT, "skills/ba-pitch-analyzer/SKILL.md"));
+    const skill = read(join(ROOT, "skills/building/resources/plan-spec.md"));
     if (/\(covers: REQ-…\)/.test(skill) && /acceptance criterion/i.test(skill)) {
       ok("(g) the analyze craft requires an acceptance criterion that grades a requirement to carry `(covers: REQ-…)` on the AC line");
     } else {

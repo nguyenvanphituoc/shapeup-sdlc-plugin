@@ -67,8 +67,11 @@ export async function run(ctx) {
   }
 
   const coach = read(join(ROOT, "skills/coach/SKILL.md"));
-  // The category table: one row per reader, keyed by the file each one reads.
-  for (const w of [...COACHABLE, "tech-lead"]) {
+  // The category table: one row per reader, keyed by the file each one reads. The readers are the
+  // coachable workers plus the two ACTIVITIES (the planning activity and the loop), which are not
+  // workers and so are not in COACHABLE: `plan` (its order carries payload.kb_rules_paths) and
+  // `building` (read at L0). New rules are filed under those names.
+  for (const w of [...COACHABLE, "plan", "building"]) {
     if (coach.includes(`\`shapeup/knowledge-base/${w}.md\``)) ok(`coach categories include ${w}`);
     else fail(`skills/coach/SKILL.md has no category row for ${w} (shapeup/knowledge-base/${w}.md)`);
   }
@@ -95,6 +98,20 @@ export async function run(ctx) {
     if (reads && bounded) ok(`${w} reads its knowledge-base file and bounds it as steering`);
     else fail(`${rel}: ${reads ? "" : "never tells the worker to read payload.kb_rules_path; "}${bounded ? "" : "does not bound the file as steering, never spec"}`);
   }
+
+  // The activities' reads are pinned where they are written: the loop's intake resource reads `building.md`
+  // (and `tech-lead.md`, the name that guidance was filed under before the loop had its own), the plan
+  // resource and the guidance resource say what the planning files may and may not do.
+  const intake = read(join(ROOT, "skills/building/resources/intake.md"));
+  if (/knowledge-base\/building\.md/.test(intake) && /tech-lead\.md/.test(intake) && /never answers, skips or reorders a gate/.test(intake)) ok("the loop reads building.md and tech-lead.md at L0 and bounds them as gate-inert");
+  else fail("skills/building/resources/intake.md must read building.md and tech-lead.md and say the file never answers, skips or reorders a gate");
+  const guidanceDoc = read(join(ROOT, "skills/building/resources/guidance.md"));
+  const planDoc = read(join(ROOT, "skills/building/resources/plan.md"));
+  const legacy = ["ba-pitch-analyzer", "scope-architect", "solution-architect"];
+  if (legacy.every((n) => guidanceDoc.includes(`${n}.md`)) && guidanceDoc.includes("`plan.md`") && guidanceDoc.includes("`tech-lead.md`")) ok("the guidance resource maps the three planning names to `plan` and tech-lead to `building`");
+  else fail("skills/building/resources/guidance.md must name plan.md and the three legacy planning files, and tech-lead.md");
+  if (/never an answer, a skip or a wider substrate/.test(planDoc)) ok("the plan resource bounds its guidance: never an answer, a skip or a wider substrate");
+  else fail("skills/building/resources/plan.md does not state that guidance is never an answer, a skip or a wider substrate");
 
   const gates = read(join(ROOT, "skills/tech-lead/references/gates.md"));
   if (gates.includes("shapeup/knowledge-base/tech-lead.md")) ok("tech-lead reads knowledge-base/tech-lead.md at GATE L0");

@@ -23,6 +23,9 @@
 //
 // THE STEP SHAPE. Every step carries `step` (a stable name), `kind` and `reason`. Kinds:
 //   dispatch  run `compile`, invoke the worker skill on the order, run `ingest`, then `then`.
+//   plan      one planning substep, done in the loop's own context: run `open` (it stamps the fence)
+//             unless `order_open`, write only what `produces` names, run each of `checks`, run
+//             `close` (it answers the fence from the files). `resource`/`section` say where the craft is.
 //   command   run one kernel command; `on_fail_close` (when present) is what to run if it fails.
 //   gate      show `block`, run `command`; exit 4 = ask the PO and rerun `answer_command`; exit 5 =
 //             run `abort_close`. `pre` commands run first, each with its own `on_fail_close`.
@@ -48,6 +51,7 @@ import {
   runArgsPath, receipt as receiptPath, hammerCensus, report as reportPath, orientDir, gateAnswerCandidates, harnessRun,
 } from "../lib/paths.mjs";
 import { launchProblems } from "../lib/floor.mjs";
+import { planOrderFacts, planProduces, planGuidancePaths } from "../lib/plan.mjs";
 import { scheduleFor, releasable } from "../lib/schedule.mjs";
 import { deriveResumeState, parseFrontmatter } from "./resume.mjs";
 import { readLegs, legState } from "./leg.mjs";
@@ -327,83 +331,136 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
     return gateStep("L1a", { ctx: { breadboard: rs.breadboard_source ?? "none", spiked_area: spikeArea, spike_result: "~", riskiest_unknowns: [] } });
   }
 
-  // ---- 2. PLAN: coverage, analyze, wire, map-scopes ---------------------------------------------
-  if (!rs.has_requirements) {
-    const o = orderState("coverage");
-    const buildCoverage = (note = "") => dispatch({
-      step: "coverage.dispatch", skill: "ba-pitch-analyzer", operation: "coverage", stem: "coverage", phase: "plan",
-      payload: { requirements: rs.intake_path, feature: slug },
-      note: "Extract the pitch's requirement clauses into the SHARED requirements registry, one atomic clause per row. " +
-        "A clause carrying an R-id keeps its number as REQ-<n> and records the R-id verbatim in its source cell; ids are assigned once and never renumbered." + note,
-      reason: note ? "the registry result was refused before it was applied — sent back once" : "no requirements registry on disk",
-    });
-    if (o.has_result && !o.applied) return ingestCmd(o, "COVERAGE", buildCoverage);
-    if (!(o.has_result && o.applied)) return buildCoverage("");
-    warnings.push("COVERAGE: the registry worker returned and no requirements.md is on disk — the requirements matrix will read no evidence");
-  }
-
-  /** The board-covers send-back, shared by the full analyze and the board-only regeneration. */
-  const boardCheck = (stem, build) => {
-    const problem = boardCoversProblem(cwd, slug);
-    if (!problem) return null;
-    const o = orderState(stem);
-    if (o.exists && o.has_result && o.receipts < 2) return build(` Your previous result was refused: ${problem}. Correct that and return again.`);
-    if (o.exists && o.has_result) warnings.push(`ANALYZE ${stem}: ${problem} (after one send-back; the requirements matrix will read no evidence)`);
+  // ---- 2. PLAN: requirements, spec + board, wire, GATE L1a.5, scopes -----------------------------
+  // Planning is one activity the loop does in its own context, in four substeps. No sub-agent runs:
+  // what the kernel keeps of the old dispatch is the FENCE (a `plan` order stamped with the
+  // substep's write contract) and the POST-CONDITIONS (an order closed over no artifact aborts; a
+  // board that covers no requirement is sent back once). Both are read off files — the order, its
+  // result, the leg ledger and the artifact itself — and a plan order has no receipt to count, so
+  // "sent back once" is the number of times the single writer has closed it.
+  const PLAN_SECTION = { requirements: "Requirements", spec: "plan-spec.md", wire: "plan-wire.md", scopes: "plan-scopes.md" };
+  const planOrder = (step) => {
+    const stem = `plan-${step}`;
+    const path = join(ordersDir(cwd, slug), `${stem}.json`);
+    const order = existsSync(path) ? readJson(path) : null;
+    if (!order || (runId && order.run_id && order.run_id !== runId)) {
+      return { exists: false, path, stem, receipts: 0, has_result: false, applied: false, closes: 0, mode: null, order_id: null };
+    }
+    const f = planOrderFacts(cwd, slug, order);
+    return { exists: true, path, stem, order_id: order.order_id, receipts: f.closes, has_result: f.result, applied: f.closed, closes: f.closes, mode: order.payload?.mode ?? null };
+  };
+  /** One substep as a `plan` step: open the fence, do the work in this context, check, close. */
+  const planStep = ({ step, at, reason, note = "", mode = null, inputs = {}, checks = [], open = false }) => {
+    const o = planOrder(step);
+    const orderPath = join(ordersDir(cwd, slug), `plan-${step}.json`);
+    const payload = { step, ...(mode ? { mode } : {}) };
+    const guidance = planGuidancePaths().filter((g) => existsSync(join(cwd, g)));
+    return {
+      step: `plan.${step}`, kind: "plan", substep: step, ...(mode ? { mode } : {}), reason,
+      resource: "resources/plan.md", section: PLAN_SECTION[step],
+      order_path: orderPath,
+      // `order_open` says the fence is already up (an earlier opening, not yet closed): do not run
+      // `open` again, which would re-stamp it; write what is missing, check, and close.
+      order_open: open,
+      open: K(`compile --operation plan --slug ${slug} --payload ${quoted(payload)}`),
+      produces: planProduces(step, slug),
+      ...(Object.keys(inputs).length ? { inputs } : {}),
+      guidance,
+      ...(note ? { note } : {}),
+      checks,
+      close: K(`reduce ingest --order "${orderPath}" --close-plan`),
+      pre: statusPre("plan"),
+      on_fail_close: failClose(at, `plan ${step} could not open its fence or close its order`),
+      warnings,
+    };
+  };
+  /**
+   * One substep's post-condition: null when it stands, else the step to take or the abort.
+   * @returns {(object|null)} A step, or null when the substep is done.
+   */
+  const planOne = ({ step, have, at, build, warnOnMiss = false }) => {
+    const o = planOrder(step);
+    if (!o.exists) return have ? null : build("", false, o);
+    if (!o.has_result && !o.applied) return build("", true, o);
+    if (!o.applied) return ingestCmd(o, at, (note) => build(note, false, o));
+    if (!have) {
+      if (warnOnMiss) { warnings.push(`${at}: the plan ${step} order was closed and its artifact is not on disk — the requirements matrix will read no evidence`); return null; }
+      return abort(at, `${step} produced no artifact — the order was closed and the substep's artifact is not on disk`);
+    }
     return null;
   };
-  const buildAnalyze = (note = "") => dispatch({
-    step: "analyze.dispatch", skill: "ba-pitch-analyzer", operation: "analyze", stem: "analyze", phase: "plan",
-    payload: { pitch: rs.intake_path, breadboard: rs.breadboard_path, spec_folder: specFolder, feature: slug, lens: rs.lens, orient_dir: rs.orient_dir },
-    note: `Write the spec tree and the board from the orient artifacts — do not re-scan the code.${note}`,
-    reason: note ? "the board covers no requirement — sent back once" : "no spec tree on disk",
-  });
-  const buildBoard = (note = "") => dispatch({
-    step: "analyze.board", skill: "ba-pitch-analyzer", operation: "board", stem: "board", phase: "plan",
-    payload: { spec_folder: specFolder, feature: slug, lens: rs.lens },
-    note: `The spec tree is committed and the per-machine board is not on this machine. Regenerate the board from the tree without re-deriving it.${note}`,
-    reason: note ? "the board covers no requirement — sent back once" : "a committed spec tree and no board on this machine",
-    then: [{ command: K(`reduce board --slug ${slug} --write`) }],
-  });
-  if (!rs.has_spec_tree) {
-    const o = orderState("analyze");
-    if (o.has_result && !o.applied) return ingestCmd(o, "ANALYZE", buildAnalyze);
-    if (o.has_result) return abort("ANALYZE", "ANALYZE produced no artifact — the worker returned and the phase's artifact is not on disk");
-    if (o.receipts >= DISPATCH_CAP) return abort("ANALYZE", `ANALYZE did not answer after ${o.receipts} dispatches`);
-    return buildAnalyze("");
-  }
-  if (!rs.has_board) {
-    const o = orderState("board");
-    if (o.has_result && !o.applied) return ingestCmd(o, "ANALYZE", buildBoard);
-    if (o.has_result) return abort("ANALYZE", "ANALYZE produced no artifact — the board is not on disk after the board-only dispatch");
-    if (o.receipts >= DISPATCH_CAP) return abort("ANALYZE", `ANALYZE did not answer after ${o.receipts} dispatches`);
-    return buildBoard("");
-  }
-  const sent = boardCheck("analyze", buildAnalyze) || boardCheck("board", buildBoard);
-  if (sent) return sent;
 
-  const wiring = planning({
-    key: "WIRE", stem: "wire", have: rs.has_wiring_map, at: "WIRE", resend: true,
-    build: (note) => dispatch({
-      step: "wire.dispatch", skill: "solution-architect", operation: "wire", stem: "wire", phase: "plan",
-      payload: { feature: slug, spec_folder: specFolder, project_profile: rs.project_profile_path, breadboard: rs.breadboard_path },
+  const req = planOne({
+    step: "requirements", have: rs.has_requirements, at: "COVERAGE", warnOnMiss: true,
+    build: (note, open) => planStep({
+      step: "requirements", at: "COVERAGE", open, inputs: { source: rs.intake_path },
+      reason: open ? "the requirements order is open and has not been closed" : "no requirements registry on disk",
+      note: "Extract the pitch's requirement clauses into the SHARED requirements registry, one atomic clause per row. " +
+        "A clause carrying an R-id keeps its number as REQ-<n> and records the R-id verbatim in its source cell; ids are assigned once and never renumbered." + note,
+    }),
+  });
+  if (req) return req;
+
+  /** The board-covers refusal, said again to whoever re-opens the spec substep. */
+  const boardRefusal = (closes) => {
+    const problem = closes >= 1 ? boardCoversProblem(cwd, slug) : null;
+    return problem ? ` Your previous result was refused: ${problem}. Correct that and return again.` : "";
+  };
+  const specBuild = (note, open, o) => {
+    // A tree that is already committed is FROZEN and only the per-machine board is regenerated — unless
+    // this run's own spec order is the one writing the tree (open, not yet closed), where the tree is
+    // the work and the mode stays whatever the open order was stamped with.
+    const mode = open ? o.mode : (rs.has_spec_tree ? "board-only" : null);
+    return planStep({
+      step: "spec", at: "ANALYZE", open, mode,
+      inputs: { pitch: rs.intake_path, breadboard: rs.breadboard_path, lens: rs.lens, orient_dir: rs.orient_dir, spec_folder: specFolder },
+      reason: note ? "the board covers no requirement — sent back once"
+        : open ? "the spec order is open and has not been closed"
+        : mode === "board-only" ? "a committed spec tree and no board on this machine" : "no spec tree on disk",
+      note: (mode === "board-only"
+        ? "The spec tree is committed and the per-machine board is not on this machine. Regenerate the board from the tree without re-deriving it."
+        : "Write the spec tree and the board from the orient artifacts — do not re-scan the code.") + (note || boardRefusal(o.closes)),
+      checks: [
+        { command: K(`reduce board --slug ${slug} --write`), why: "derive the board's numbers; unlocks is never hand-authored" },
+        { command: K(`verify spec --slug ${slug}`), why: "fix every red, then run it again" },
+      ],
+    });
+  };
+  const spec = planOne({ step: "spec", have: rs.has_spec_tree && rs.has_board, at: "ANALYZE", build: specBuild });
+  if (spec) return spec;
+  {
+    const problem = boardCoversProblem(cwd, slug);
+    if (problem) {
+      const o = planOrder("spec");
+      if (o.exists && o.applied && o.closes < 2) return specBuild(` Your previous result was refused: ${problem}. Correct that and return again.`, false, o);
+      if (o.exists && o.applied) warnings.push(`ANALYZE plan-spec: ${problem} (after one send-back; the requirements matrix will read no evidence)`);
+    }
+  }
+
+  const wiring = planOne({
+    step: "wire", have: rs.has_wiring_map, at: "WIRE",
+    build: (note, open) => planStep({
+      step: "wire", at: "WIRE", open,
+      inputs: { project_profile: rs.project_profile_path, breadboard: rs.breadboard_path, spec_folder: specFolder },
+      reason: open ? "the wire order is open and has not been closed" : "no wiring map on disk",
       note: `Write the wiring map: per use case, engine → seam → entry-point call site → affordance.${note}`,
-      reason: note ? "the wire order wrote its artifacts and returned no WorkResult — sent back once" : "no wiring map on disk",
+      checks: [{ command: K(`verify trace --slug ${slug} --quiet`), advisory: true, why: "the reachability oracle, advisory — there is no code to trace before the build" }],
     }),
   });
   if (wiring) return wiring;
   if (!crossed("L1a.5")) return gateStep("L1a.5", { ctx: { wiring_map: "written" } });
 
-  const mapScopes = planning({
-    key: "MAP SCOPES", stem: "map-scopes", have: rs.scope_files.length > 0, at: "MAP SCOPES",
-    build: () => dispatch({
-      step: "map-scopes.dispatch", skill: "scope-architect", operation: "map-scopes", stem: "map-scopes", phase: "plan",
-      payload: { feature: slug, breadboard: rs.breadboard_path },
+  const mapScopes = planOne({
+    step: "scopes", have: rs.scope_files.length > 0, at: "MAP SCOPES",
+    build: (note, open) => planStep({
+      step: "scopes", at: "MAP SCOPES", open, inputs: { breadboard: rs.breadboard_path, spec_folder: specFolder },
+      reason: open ? "the scopes order is open and has not been closed" : "no scope contracts on disk",
       note: "Write the scope contracts (substrate whitelists, verification fixtures) and report the riskiest-first sequence. " +
         "EVERY e2e_verification_fixture MUST EXIT 0 when the scope is correct — T0 scores any non-zero exit as a failure, so a " +
         "fixture written as a bare error-path invocation can never pass and its scope can never go green. Put expected non-zero " +
         "exits INSIDE a test file that itself exits 0, and name that test file as the fixture. Write `e2e_verification_fixtures` " +
-        "as a FRONTMATTER key holding bare commands.",
-      reason: "no scope contracts on disk",
+        "as a FRONTMATTER key holding bare commands." + note,
+      checks: [{ command: K(`verify spec --slug ${slug}`), why: "fix every red by re-slicing, never by silencing" }],
     }),
   });
   if (mapScopes) return mapScopes;

@@ -11,7 +11,6 @@ import { spawnSync } from "node:child_process";
 export async function run(ctx) {
   const { ROOT, ok, fail, section } = ctx;
   const KERNEL = join(ROOT, "kernel/harness.mjs");
-  const WORKFLOW = join(ROOT, "skills/tech-lead/workflows/shapeup-run.js");
 
   section("137. A committed spec with no board is not a finished ANALYZE — the board is regenerated, and L2 refuses 0/0");
 
@@ -44,16 +43,18 @@ export async function run(ctx) {
     if (j2?.decision === "ask" && j2?.refused === "proceed" && j2?.board_tasks === 0) ok("gate --resolve L2 --preset ci over an empty board narrows `proceed` to `ask` (refused: proceed, board_tasks: 0)");
     else fail(`L2 over an empty board resolved ${JSON.stringify(j2)} — a hundred percent of nothing crossed the gate`);
 
-    // --- the board-only operation compiles, addressed to the analyzer, with the spec frozen -------
-    const compiled = kernel("compile", "--operation", "board", "--slug", "f");
-    const orderPath = join(ws, ".shapeup/f/orders/board.json");
+    // --- the board-only spec substep compiles as a fence, with the committed tree frozen ------------
+    // (This was the `board` operation, addressed to the spec analyzer. The analyzer is the loop's own plan
+    // activity now: the same write contract is a `plan` order for the spec substep in `board-only` mode.)
+    const compiled = kernel("compile", "--operation", "plan", "--slug", "f", "--payload", JSON.stringify({ step: "spec", mode: "board-only" }));
+    const orderPath = join(ws, ".shapeup/f/orders/plan-spec.json");
     if (compiled.status === 0 && existsSync(orderPath)) {
       const o = JSON.parse(readFileSync(orderPath, "utf8"));
       const allowed = o.substrate?.allowed || [], frozen = o.substrate?.frozen || [];
-      if (o.worker === "ba-pitch-analyzer" && allowed.some((g) => /tasks\/\*\*$/.test(g)) && !allowed.some((g) => /spec/.test(g)) && frozen.some((g) => /usecases/.test(g))) {
-        ok("`compile --operation board` addresses ba-pitch-analyzer, allows tasks/** only, and freezes the use cases");
-      } else fail(`the board order's contract is wrong: worker=${o.worker} allowed=${JSON.stringify(allowed)} frozen=${JSON.stringify(frozen)}`);
-    } else fail(`compile --operation board failed (exit ${compiled.status}): ${(compiled.stderr || compiled.stdout).slice(0, 300)}`);
+      if (o.worker === "building" && allowed.some((g) => /tasks\/\*\*$/.test(g)) && !allowed.some((g) => /spec/.test(g)) && frozen.some((g) => /usecases/.test(g))) {
+        ok("`compile --operation plan` (spec, board-only) allows tasks/** only and freezes the use cases");
+      } else fail(`the board-only order's contract is wrong: worker=${o.worker} allowed=${JSON.stringify(allowed)} frozen=${JSON.stringify(frozen)}`);
+    } else fail(`compile --operation plan (spec, board-only) failed (exit ${compiled.status}): ${(compiled.stderr || compiled.stdout).slice(0, 300)}`);
 
     // --- with a board, the phase attests and L2 proceeds ----------------------------------------
     mkdirSync(join(ws, ".shapeup/f/tasks"), { recursive: true });
@@ -70,15 +71,16 @@ export async function run(ctx) {
     rmSync(ws, { recursive: true, force: true });
   }
 
-  // --- the schema, the router, and the workflow agree about the operation ----------------------
-  const { OP_OWNER } = await import(join(ROOT, "kernel/compile.mjs"));
+  // --- the schema and the router agree about the operation -----------------------------------------
+  // RETIRED with the script: the checks that read the workflow's ANALYZE phase for a board-only branch
+  // asserted a dispatch of the retired `board` operation. The same behaviour — a committed tree and no
+  // board is not a finished plan, and the board alone is regenerated with the tree frozen — is a branch of
+  // `probe next` and is pinned by section 175 ("a committed spec tree and no board opens the spec substep
+  // board-only: the tree is frozen"), with the post-condition ("a board-only order closed over no tasks
+  // aborts at ANALYZE") beside it.
+  const { OP_OWNER, FENCE_ONLY_OPERATIONS } = await import(join(ROOT, "kernel/compile.mjs"));
   const schema = JSON.parse(readFileSync(join(ROOT, "kernel/schemas/domain.schema.json"), "utf8"));
-  if (schema.$defs.Operation.enum.includes("board") && OP_OWNER.board === "ba-pitch-analyzer") ok("the Operation enum carries `board` and OP_OWNER routes it to ba-pitch-analyzer");
-  else fail("`board` is missing from the Operation enum or OP_OWNER — the order would fail its own schema or compile nothing");
-  const src = readFileSync(WORKFLOW, "utf8");
-  if (/else if \(!rs\.has_board\) \{/.test(src) && /operation: "board"/.test(src) && /requirePhase\("ANALYZE", "analyze", "Analyze", "board"\)/.test(src)) {
-    ok("the workflow's ANALYZE phase has a board-only branch: tree on disk, no board → dispatch `board`, then attest the phase against the board order");
-  } else fail("the workflow still fast-forwards ANALYZE on the spec tree alone");
-  if (/spec tree and board already on disk/.test(src)) ok("the ANALYZE fast-forward names both halves");
-  else fail("the ANALYZE fast-forward message still names the spec tree alone");
+  if (schema.$defs.Operation.enum.includes("plan") && FENCE_ONLY_OPERATIONS.plan === "building" && !schema.$defs.Operation.enum.includes("board") && !OP_OWNER.board) {
+    ok("the Operation enum carries `plan` (fence-only, addressed to building) and no longer carries a `board` operation anyone could dispatch");
+  } else fail("the plan fence is missing from the Operation enum / FENCE_ONLY_OPERATIONS, or a `board` operation survives the fold");
 }

@@ -114,7 +114,7 @@ export async function run(ctx) {
     const walkTemplates = (d, pre = "") => (existsSync(d) ? readdirSync(d, { withFileTypes: true }) : [])
       .flatMap((e) => (e.isDirectory() ? walkTemplates(join(d, e.name), `${pre}${e.name}/`)
         : e.name.endsWith(".tmpl.md") ? [`${pre}${e.name}`] : []));
-    const dir = join(ROOT, "skills/ba-pitch-analyzer/assets/templates");
+    const dir = join(ROOT, "skills/building/resources/plan-templates");
     const files = walkTemplates(dir);
     if (!files.length) {
       fail(`no templates found under ${dir} — this check cannot run, and a check that silently covers nothing is worse than no check`);

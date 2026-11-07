@@ -568,7 +568,7 @@ export async function run(ctx) {
   // Every operation the compiler can route must name a worker the enum carries, or `compile`
   // produces an order that fails its own schema and the dispatch is denied for a reason that
   // names the envelope rather than the typo.
-  const { OP_OWNER } = await import(join(ROOT, "kernel/compile.mjs"));
+  const { OP_OWNER, FENCE_ONLY_OPERATIONS } = await import(join(ROOT, "kernel/compile.mjs"));
   const strays = Object.entries(OP_OWNER).filter(([, w]) => !schemaEnum.includes(w));
   if (!strays.length) ok(`all ${Object.keys(OP_OWNER).length} routed operations name a worker WorkerName declares`);
   else fail(`operations routed to non-workers: ${strays.map(([o, w]) => `${o}→${w}`).join(", ")}`);
@@ -582,8 +582,11 @@ export async function run(ctx) {
   const opEnum = JSON.parse(readFileSync(join(ROOT, "kernel/schemas/domain.schema.json"), "utf8"))
     .$defs.Operation.enum;
   const ADDRESSED_BY_SCOPE = new Set(["execute", "fix", "spike"]);
-  const unrouted = opEnum.filter((op) => !ADDRESSED_BY_SCOPE.has(op) && !OP_OWNER[op]);
-  const unlisted = Object.keys(OP_OWNER).filter((op) => !opEnum.includes(op));
+  // The other legitimate gap: a FENCE-ONLY operation (`plan`) has no worker in the roster — the loop does
+  // the work — and is routed by its own table, whose every key must be an enumerated operation and whose
+  // order the schema accepts for `building` (asserted just below by compiling one through the real CLI).
+  const unrouted = opEnum.filter((op) => !ADDRESSED_BY_SCOPE.has(op) && !OP_OWNER[op] && !FENCE_ONLY_OPERATIONS[op]);
+  const unlisted = [...Object.keys(OP_OWNER), ...Object.keys(FENCE_ONLY_OPERATIONS)].filter((op) => !opEnum.includes(op));
   if (!unrouted.length && !unlisted.length) {
     ok(`Operation enum ↔ OP_OWNER agree both ways (${opEnum.length} operations; execute/fix/spike addressed by scope)`);
   } else {

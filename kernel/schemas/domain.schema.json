@@ -330,31 +330,6 @@
       "constraints",
       "bugs"
     ],
-    "ba-pitch-analyzer": [
-      "pitch",
-      "breadboard",
-      "lens",
-      "orient_dir",
-      "spec_folder",
-      "feature",
-      "discovered_ledger",
-      "requirements",
-      "kb_rules_path"
-    ],
-    "scope-architect": [
-      "feature",
-      "spec_folder",
-      "tasks",
-      "breadboard",
-      "kb_rules_path"
-    ],
-    "solution-architect": [
-      "feature",
-      "spec_folder",
-      "project_profile",
-      "breadboard",
-      "kb_rules_path"
-    ],
     "spec-evaluator": [
       "spec_folder",
       "feature",
@@ -399,6 +374,13 @@
     "coach": [
       "feedback",
       "stack"
+    ],
+    "building": [
+      "feature",
+      "spec_folder",
+      "step",
+      "mode",
+      "kb_rules_paths"
     ]
   },
   "x-result-by-worker": {
@@ -413,25 +395,6 @@
     ],
     "spec-evaluator": [
       "verdict",
-      "files_touched",
-      "artifacts",
-      "assumptions",
-      "deviations"
-    ],
-    "ba-pitch-analyzer": [
-      "discoveries",
-      "files_touched",
-      "artifacts",
-      "assumptions",
-      "deviations"
-    ],
-    "scope-architect": [
-      "files_touched",
-      "artifacts",
-      "assumptions",
-      "deviations"
-    ],
-    "solution-architect": [
       "files_touched",
       "artifacts",
       "assumptions",
@@ -467,18 +430,19 @@
       "artifacts",
       "assumptions",
       "deviations"
+    ],
+    "building": [
+      "artifacts",
+      "deviations"
     ]
   },
   "$defs": {
     "WorkerName": {
-      "description": "The complete worker roster — the only skills a WorkOrder may be addressed to. tech-lead and shapeup are deliberately absent (orchestrator and PO-personal shaping are not workers).",
+      "description": "The complete worker roster — the only skills a dispatch may be addressed to. building (the loop), tech-lead and shapeup are deliberately absent (the orchestrator and PO-personal shaping are not workers); the loop appears in an order only as the `worker` of a fence-only `plan` order, which the order schema accepts beside this roster.",
       "type": "string",
       "enum": [
         "task-executor",
         "spec-evaluator",
-        "ba-pitch-analyzer",
-        "scope-architect",
-        "solution-architect",
         "orient",
         "qa-edge-hunter",
         "translator",
@@ -487,18 +451,12 @@
       ]
     },
     "Operation": {
-      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --map-scopes …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix/spike = task-executor · analyze/reconcile/retrofit-surface/coverage = ba-pitch-analyzer · map-scopes = scope-architect · wire = solution-architect · evaluate = spec-evaluator · orient = orient · hunt = qa-edge-hunter · translate = translator · hammer = scope-hammer · coach/scan/research = coach (scan seeds the knowledge base from the project on disk instead of from L4 feedback; research seeds it from the platform's official documentation, aimed by a stack hint, and cross-checks the scan's rules where a scan exists; same write surface, same categorization gate).",
+      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --map-scopes …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix/spike = task-executor · plan = the loop itself, a fence-only order no sub-agent answers (one per planning substep: requirements, spec, wire, scopes) · evaluate = spec-evaluator · orient = orient · hunt = qa-edge-hunter · translate = translator · hammer = scope-hammer · coach/scan/research = coach (scan seeds the knowledge base from the project on disk instead of from L4 feedback; research seeds it from the platform's official documentation, aimed by a stack hint, and cross-checks the scan's rules where a scan exists; same write surface, same categorization gate).",
       "type": "string",
       "enum": [
         "execute",
         "fix",
         "spike",
-        "analyze", "board",
-        "reconcile",
-        "retrofit-surface",
-        "coverage",
-        "map-scopes",
-        "wire",
         "evaluate",
         "orient",
         "hunt",
@@ -506,13 +464,14 @@
         "hammer",
         "coach",
         "scan",
-        "research"
+        "research",
+        "plan"
       ]
     },
     "Substrate": {
       "description": "The write contract of one order — mode/flag differences ARE write-contract differences (one whitelist template per operation, compile-order substrateFor()). Enforced mechanically by the sandbox hook; a worker needing a file outside it must ESCALATE (substrate-expansion), never write.",
       "x-tier": "EMBEDDED",
-      "x-writer": "harness compile (templates) / scope-architect (per-scope globs)",
+      "x-writer": "harness compile (templates) / the loop's plan activity, scopes substep (per-scope globs)",
       "type": "object",
       "properties": {
         "allowed": {
@@ -570,7 +529,7 @@
     "TaskRef": {
       "description": "One task as carried inside a WorkOrder — parsed from the LOCAL board file (.shapeup/<slug>/tasks/TASK-*.md frontmatter + AC checkboxes) by compile-order parseTaskFile(). NOTE: task ids are machine-local (boards regenerate and renumber); never join on id across machines — the scope is the stable key.",
       "x-tier": "EMBEDDED",
-      "x-writer": "harness compile (from the board ba-pitch-analyzer generated)",
+      "x-writer": "harness compile (from the board the plan activity generated)",
       "type": "object",
       "required": [
         "id"
@@ -762,8 +721,8 @@
       "description": "One use case — the STABLE anchor both tiers name, and the only identifier the scope↔task relation is re-derived through. A UC id is assigned once and frozen: it behaves like scope_id and REQ-id, never like TASK-NNN. Referenced three ways across the tree (`UC-x`, `[[UC-x]]`, `[[usecases/UC-x]]`); `kernel/lib/contract.mjs` ucId() is the single normaliser, and both sides of any join must pass through it or they disagree about a UC they both hold.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/spec/usecases/UC-*.md",
-      "x-writer": "ba-pitch-analyzer (operation: analyze; reconcile MAY append, never renumber)",
-      "x-readers": "scope-architect (use_cases[]), solution-architect (wiring-map entries), spec-evaluator (the grading criterion), harness verify spec (SCOPE-ANCHOR + UC-ANCHOR), harness reduce graph",
+      "x-writer": "the loop's plan activity, spec substep (a reconcile pass MAY append, never renumber)",
+      "x-readers": "the plan activity (scopes: use_cases[]; wire: wiring-map entries), spec-evaluator (the grading criterion), harness verify spec (SCOPE-ANCHOR + UC-ANCHOR), harness reduce graph",
       "type": "object",
       "required": [
         "id"
@@ -790,7 +749,7 @@
       "description": "A vertical scope as a committed, mechanically enforceable contract — Shape Up's 'map the scopes' as data. Sliced by business flow (one call chain: UI screen + API route + use case + repository), NEVER by directory (PA1). The sandbox hook enforces the substrate, t0-verify runs the fixtures, the evaluator asserts against the manifest. Superseded contracts are kept, never deleted (branch and T0 history stay attributable). ON-DISK FORMAT IS MARKDOWN (ADR-0001): frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `kernel/lib/contract.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/scopes/<scope-id>.md",
-      "x-writer": "scope-architect (SOLE writer — a hand-edit anywhere else is a defect)",
+      "x-writer": "the loop's plan activity, scopes substep (SOLE writer — a hand-edit anywhere else is a defect)",
       "x-readers": "harness compile, sandbox-guard hook, harness verify t0, harness verify spec, spec-evaluator, scope-hammer, tech-lead",
       "type": "object",
       "required": [
@@ -890,7 +849,7 @@
       "description": "The scope board — a HUMAN-READABLE PROJECTION of the contracts, not a source. Every column restates something `scopes/*.md` already declares, so it can be regenerated from them and deleting it loses nothing. It deliberately carries no `wave` column: waves are Kahn levels of `depends_on` and `probe resume` derives them, and a hand-authored copy of a derived value is the same defect as the hand-authored `unlocks` that `deriveUnlocks` exists to prevent. Nothing parses this file — that is only safe while it stays a view; the moment it holds a fact of its own it needs a reader and a lint like every other contract.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/scope-board.md",
-      "x-writer": "scope-architect (regenerated whenever the contracts change)",
+      "x-writer": "the loop's plan activity, scopes substep (regenerated whenever the contracts change)",
       "x-readers": "humans, in a pull request. No code reads it — by design.",
       "type": "object",
       "properties": {
@@ -988,11 +947,11 @@
       }
     },
     "Discovery": {
-      "description": "The universal currency of surprise: one raw discovered line. Producers: task-executor (marker +, P3.7), qa-edge-hunter (always ~, repro required), ba-pitch-analyzer (overflow reports). NO producer writes the ledger — ingest-result appends every entry to discovery/ledger.md (single-writer, mechanically). Promotion ~ → must-have is always a human act at SHIP S.0/GATE H.",
+      "description": "The universal currency of surprise: one raw discovered line. Producers: task-executor (marker +, P3.7), qa-edge-hunter (always ~, repro required), the plan activity (overflow reports). NO producer writes the ledger — ingest-result appends every entry to discovery/ledger.md (single-writer, mechanically). Promotion ~ → must-have is always a human act at SHIP S.0/GATE H.",
       "x-tier": "EMBEDDED (projection into the LOCAL discovery ledger)",
       "x-location": ".shapeup/<slug>/discovery/ledger.md",
       "x-writer": "harness reduce ingest",
-      "x-readers": "ba-pitch-analyzer (reconcile), scope-architect (map-scopes), scope-hammer (census), qa-edge-hunter (covered-territory context)",
+      "x-readers": "the plan activity (spec reconcile mode, scopes), scope-hammer (census), qa-edge-hunter (covered-territory context)",
       "type": "object",
       "required": [
         "marker",
@@ -2096,7 +2055,7 @@
       "x-readers": "tech-lead only",
       "x-lane-policy": {
         "tiny": {
-          "selection": "one-scope pitch AND appetite <= 2 weeks AND no third-party integration AND <= 3 user-facing actions — the same predicate ba-pitch-analyzer uses to judge lens: lite",
+          "selection": "one-scope pitch AND appetite <= 2 weeks AND no third-party integration AND <= 3 user-facing actions — the same predicate the plan activity uses to judge lens: lite",
           "skips": [
             "orient",
             "gate-l1a",
@@ -2140,7 +2099,7 @@
       "description": "One atomic customer requirement, frozen with a STABLE id — the covers-closure input truth (spine v1.3). Extracted from the REQ source (pitch / customer-requirements doc / use-case bodies) by the planner — extraction is judgment (LLM), but ids are assigned ONCE and never renumber (they behave like scope_id, not TASK-NNN — every covers: link would rot otherwise). Supersede-never-delete: a dropped clause is marked CUT (PO-approved), never removed, so the registry stays auditable on a fresh clone. The original REQ source is never edited — the registry is a separate derived, committed file.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/requirements.md",
-      "x-writer": "ba-pitch-analyzer (operation: coverage) — extraction only; CUT status is a PO governance edit (same class as a round-ledger Decision)",
+      "x-writer": "the loop's plan activity, requirements substep — extraction only; CUT status is a PO governance edit (same class as a round-ledger Decision)",
       "x-readers": "harness verify trace (covers-closure oracle), tech-lead, human (coverage/cut audit)",
       "type": "object",
       "required": [
@@ -2177,7 +2136,7 @@
       }
     },
     "WiringEntry": {
-      "description": "One use-case's reachability chain inside a WiringMap: engine → wiring seam → entry-point call site → player-visible affordance. The declaration front-loads the integration seam scope-architect needs at slicing time (the missing input behind the round-1 main.js substrate-expansion escalations).",
+      "description": "One use-case's reachability chain inside a WiringMap: engine → wiring seam → entry-point call site → player-visible affordance. The declaration front-loads the integration seam the scopes substep needs at slicing time (the missing input behind the round-1 main.js substrate-expansion escalations).",
       "x-tier": "EMBEDDED (inside WiringMap.entries)",
       "type": "object",
       "required": [
@@ -2210,7 +2169,7 @@
     "Seam": {
       "description": "How one use case's engine attaches to the entry point — the `wiring_seam` value of a WiringEntry, promoted to a first-class node by `reduce graph` so a verdict can be traced back through the seam to the objective. Not a file: it exists only as a cell in the committed wiring map and as a node in the derived run graph.",
       "x-tier": "EMBEDDED (a WiringEntry.wiring_seam value; promoted to a node by reduce graph)",
-      "x-writer": "solution-architect (operation: wire), inside wiring-map.md",
+      "x-writer": "the loop's plan activity, wire substep, inside wiring-map.md",
       "type": "object",
       "properties": {
         "seam": {
@@ -2228,11 +2187,11 @@
       }
     },
     "WiringMap": {
-      "description": "The reachability map — per UC, the chain from engine to a player-visible affordance (spine v1.3). Written DIRECTLY by solution-architect at gate L1a.5 (precedent: ScopeContract is written directly by scope-architect, bypassing ingest-result). Its purpose: no engine ships orphaned from the running application. trace-lint folds reachability into its covers-closure pass — a UC whose engine does not reach ProjectProfile.entry_point via the import graph is red. A Mermaid view is auto-rendered from this map (a view of a checked graph, so it cannot drift). ON-DISK FORMAT IS MARKDOWN (ADR-0001): frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `kernel/lib/contract.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
+      "description": "The reachability map — per UC, the chain from engine to a player-visible affordance (spine v1.3). Written DIRECTLY by the plan activity's wire substep before gate L1a.5 (precedent: ScopeContract is written directly by the scopes substep, bypassing ingest-result). Its purpose: no engine ships orphaned from the running application. trace-lint folds reachability into its covers-closure pass — a UC whose engine does not reach ProjectProfile.entry_point via the import graph is red. A Mermaid view is auto-rendered from this map (a view of a checked graph, so it cannot drift). ON-DISK FORMAT IS MARKDOWN (ADR-0001): frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `kernel/lib/contract.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/wiring-map.md",
-      "x-writer": "solution-architect (SOLE writer, direct — like scope-architect writes scopes/*.md)",
-      "x-readers": "harness verify trace (reachability oracle), scope-architect (integration seam at slicing time), tech-lead",
+      "x-writer": "the loop's plan activity, wire substep (SOLE writer, direct — like the scopes substep writes scopes/*.md)",
+      "x-readers": "harness verify trace (reachability oracle), the plan activity (scopes: integration seam at slicing time), tech-lead",
       "type": "object",
       "required": [
         "schema_version",
@@ -2267,7 +2226,7 @@
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/project-profile.md",
       "x-writer": "tech-lead (GATE L0 — not harness compile, which stays pipeline-blind)",
-      "x-readers": "harness verify trace (reachability entry_point), harness verify build (build_probe + launch_probe, once per round before EVAL), solution-architect (wire), tech-lead",
+      "x-readers": "harness verify trace (reachability entry_point), harness verify build (build_probe + launch_probe, once per round before EVAL), the plan activity (wire), tech-lead",
       "type": "object",
       "required": [
         "schema_version",
@@ -2329,7 +2288,7 @@
           "items": {
             "$ref": "#/$defs/TaskRef"
           },
-          "description": "task-executor: what to implement · scope-architect: the slicing input · spec-evaluator: traceability ONLY (never a grading source)."
+          "description": "task-executor: what to implement · spec-evaluator: traceability ONLY (never a grading source)."
         },
         "decisions": {
           "type": "array",
@@ -2355,7 +2314,7 @@
         },
         "kb_rules_path": {
           "type": "string",
-          "description": "Coachable workers (task-executor, ba-pitch-analyzer, qa-edge-hunter, orient, scope-architect, solution-architect): shapeup/knowledge-base/<skill>.md — steering, never spec and never a gate; conflict → the AC, the contract or the gate wins, noted in deviations. The judge and the census are not coachable."
+          "description": "Coachable workers (task-executor, qa-edge-hunter, orient): shapeup/knowledge-base/<skill>.md — steering, never spec and never a gate; conflict → the AC, the contract or the gate wins, noted in deviations. The judge and the census are not coachable."
         },
         "verify": {
           "$ref": "#/$defs/VerifySpec",
@@ -2379,44 +2338,34 @@
         },
         "pitch": {
           "type": "string",
-          "description": "ba-pitch-analyzer (analyze) / orient: the kicked-off pitch path (shaped + bet; frontmatter appetite/status/bet)."
+          "description": "orient: the kicked-off pitch path (shaped + bet; frontmatter appetite/status/bet)."
         },
         "breadboard": {
           "type": "string",
-          "description": "orient / ba-pitch-analyzer (analyze) / solution-architect / scope-architect: the run's staged breadboard — Places (P#), UI and code affordances (U#, N#), stores (S#), slices (V#). Absent = the pitch has no separate breadboard (it may carry one inline); never inferred from the pitch's folder."
-        },
-        "lens": {
-          "type": "string",
-          "enum": [
-            "lite",
-            "standard",
-            "cross-context"
-          ],
-          "description": "ba-pitch-analyzer: analysis depth. Absent → the planner judges it and records the choice in assumptions[]."
-        },
-        "orient_dir": {
-          "type": "string",
-          "description": "ba-pitch-analyzer: the Scout's artifact dir — code-surface.md IS the codebase map (do not re-scan)."
+          "description": "orient: the run's staged breadboard — Places (P#), UI and code affordances (U#, N#), stores (S#), slices (V#). Absent = the pitch has no separate breadboard (it may carry one inline); never inferred from the pitch's folder."
         },
         "stack": {
           "type": "string",
           "description": "orient: stack hint aiming the code-surface sweeps (e.g. \"pnpm, Next 16 web :3000\"). coach (research): the platform and toolchain the official-documentation research is aimed at — required, since a project with nothing on disk names no stack by itself."
         },
-        "discovered_ledger": {
-          "type": "string",
-          "description": "ba-pitch-analyzer (reconcile) / scope-architect (map-scopes): the discovery ledger path whose raw [+]/~ lines get folded in."
-        },
-        "requirements": {
-          "type": "string",
-          "description": "ba-pitch-analyzer: the REQ source to extract atomic clauses from (Open Decision A — pitch / customer-requirements doc / use-case bodies). Absent → the planner defaults to the pitch and records the choice in assumptions[]. The written registry lands at shapeup/<slug>/requirements.md (RequirementClause rows)."
-        },
-        "project_profile": {
-          "type": "string",
-          "description": "solution-architect (operation: wire): path to the SHARED project-profile.md (archetype + entry_point) — the reachability seam the wiring map is authored against. Absent orchestrated → ESCALATE, never guess the entry point."
-        },
         "scope_id": {
           "type": "string",
-          "description": "scope-architect (map-scopes): the stuck scope · scope-hammer (--breaker inner): the exhausted scope."
+          "description": "scope-hammer (--breaker inner): the exhausted scope."
+        },
+        "step": {
+          "type": "string",
+          "enum": ["requirements", "spec", "wire", "scopes"],
+          "description": "building (operation: plan): which planning substep this fence order covers. The order's id is plan-<step> and its substrate is that substep's write contract, so each substep leaves its own leg row and its own fence."
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["full", "board-only", "reconcile", "retrofit-surface"],
+          "description": "building (operation: plan, step: spec): how the spec substep is scoped — full (tree + board), board-only (a committed tree is frozen; only the per-machine board is regenerated), reconcile (discovered items fold in; invariants and the Test Surface are append-only), retrofit-surface (append the Test Surface to a spec that predates it). Absent = full."
+        },
+        "kb_rules_paths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "building (operation: plan): the knowledge-base files the planning activity reads — its own (`plan`) and the three it was filed under before the fold (ba-pitch-analyzer, scope-architect, solution-architect). Whether each exists is for the loop to see; steering, never spec and never a gate."
         },
         "dimensions": {
           "type": "array",

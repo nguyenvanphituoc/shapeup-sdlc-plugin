@@ -178,7 +178,7 @@ A2: ...
 - [ ] [unknown 1] → spike-[slug].md
 ```
 
-**Note:** This file is a kicked-off pitch. `/ba-pitch-analyzer` and `/tech-lead` consume it as-is — the appetite, rabbit holes, and no-goes inform scope decisions downstream.
+**Note:** This file is a kicked-off pitch. `/ship` (its plan step) consumes it as-is — the appetite, rabbit holes, and no-goes inform scope decisions downstream.
 
 ---
 

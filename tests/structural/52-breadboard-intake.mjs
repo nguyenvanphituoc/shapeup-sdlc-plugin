@@ -298,40 +298,55 @@ export async function run(ctx) {
   // the one file that builds the payload — reads as delivered in all three places. So read the four
   // dispatch sites themselves.
   {
-    const wf = readFileSync(join(ROOT, "skills/tech-lead/workflows/shapeup-run.js"), "utf8");
-    /** The payload object literal of the `worker({ skill, operation, … })` call for that pair. */
-    const payloadOf = (skill, op) => {
-      const at = wf.indexOf(`skill: "${skill}", operation: "${op}"`);
-      if (at < 0) return null;
-      const p = wf.indexOf("payload:", at);
-      const open = wf.indexOf("{", p);
-      if (p < 0 || open < 0) return null;
-      let depth = 0;
-      for (let i = open; i < wf.length; i++) {
-        if (wf[i] === "{") depth++;
-        else if (wf[i] === "}" && --depth === 0) return wf.slice(open, i + 1);
-      }
-      return null;
-    };
-    const sites = [["orient", "orient"], ["ba-pitch-analyzer", "analyze"], ["solution-architect", "wire"], ["scope-architect", "map-scopes"]];
-    const missing = sites.filter(([s, o]) => !(payloadOf(s, o) ?? "").includes("breadboard: rs.breadboard_path"));
-    if (missing.length === 0) ok("(h) orient, analyze, wire and map-scopes each send `breadboard: rs.breadboard_path`");
-    else fail(`(h) these dispatches do not send the breadboard: ${missing.map(([s, o]) => `${s}/${o}`).join(", ")}`);
-
-    // And an order compiled with it carries it, schema-valid.
+    // Driven through `probe next`, which is what hands the breadboard to every planning step now: orient is
+    // still dispatched (its order carries `payload.breadboard`); the three planning substeps are done in the
+    // loop's own context, so what they receive is the step's `inputs`. The script this used to read is the
+    // lane that is being retired, and its planning dispatches no longer compile.
     const ws = project({ "shapeup/demo/shaping.md": SHAPING, "shapeup/demo/breadboard.md": BB_HASH_LAYOUT });
     try {
-      initRun(ws, ["--intake-file", "shapeup/demo/shaping.md"]);
-      const co = node("compile", ["--operation", "analyze", "--slug", "demo", "--cwd", ws,
-        "--payload", JSON.stringify({ pitch: "x", breadboard: ".shapeup/demo/breadboard.md" })], { cwd: ws });
-      const orderPath = join(ws, ".shapeup", "demo", "orders", "analyze.json");
+      initRun(ws, ["--intake-file", "shapeup/demo/shaping.md", "--auto-level", "interactive"]);
+      node("init run-args", ["--slug", "demo", "--auto-level", "interactive", "--exec-model", "sonnet", "--eval-model", "sonnet", "--max-rounds", "2", "--attempts", "3", "--plugin-root", ROOT, "--cwd", ws]);
+      const put = (rel, text) => { mkdirSync(dirname(join(ws, rel)), { recursive: true }); writeFileSync(join(ws, rel), text); };
+      put("shapeup/demo/project-profile.md", "---\nschema_version: 1\narchetype: cli\nentry_point: bin/x.js\n---\n");
+      const runId = receiptOf(ws)?.run_id;
+      const gates = [];
+      const cross = (g) => { gates.push(JSON.stringify({ at: new Date().toISOString(), run_id: runId, gate: g, status: "ok", decision: "proceed", source: "test", round: null })); put(".shapeup/demo/gates.jsonl", gates.join("\n") + "\n"); };
+      const next = () => { try { return JSON.parse(node("probe next", ["--slug", "demo", "--cwd", ws]).stdout); } catch { return {}; } };
+      const bbOf = (step) => step?.inputs?.breadboard ?? null;
+      const orientStep = next();
+      const orientCompile = orientStep.compile || "";
+      if (orientStep.step === "orient.dispatch" && /"breadboard":"[^"]*breadboard\.md"/.test(orientCompile)) ok("(h) the orient dispatch sends `breadboard` in its payload");
+      else fail(`(h) the orient dispatch does not send the breadboard: ${JSON.stringify(orientStep).slice(0, 200)}`);
+      for (const f of ["code-surface.md", "discovered-seed.md", "hill-signal.md", "spike-not-needed.md"]) put(`.shapeup/demo/orient/${f}`, "x\n");
+      cross("L1a");
+      put("shapeup/demo/requirements.md", "# requirements\n");
+      const spec = next();
+      put("shapeup/demo/spec/usecases/UC-01.md", "# uc\n");
+      put(".shapeup/demo/tasks/TASK-001.md", "---\nid: TASK-001\nstatus: todo\nscope_id: alpha\n---\n\n# t\n");
+      const wire = next();
+      put("shapeup/demo/wiring-map.md", "# wiring\n");
+      cross("L1a.5");
+      const scopes = next();
+      const got = { spec: [spec.step, bbOf(spec)], wire: [wire.step, bbOf(wire)], scopes: [scopes.step, bbOf(scopes)] };
+      if (spec.step === "plan.spec" && wire.step === "plan.wire" && scopes.step === "plan.scopes" && [spec, wire, scopes].every((st) => /breadboard\.md$/.test(bbOf(st) ?? "")))
+        ok("(h) the spec, wire and scopes substeps each receive the staged breadboard in their inputs");
+      else fail(`(h) the planning steps do not all carry the breadboard: ${JSON.stringify(got)}`);
+    } finally { rmSync(ws, { recursive: true, force: true }); }
+
+    // And an order compiled for the wire substep stays schema-valid with the breadboard in the run.
+    const ws2 = project({ "shapeup/demo/shaping.md": SHAPING, "shapeup/demo/breadboard.md": BB_HASH_LAYOUT });
+    try {
+      initRun(ws2, ["--intake-file", "shapeup/demo/shaping.md"]);
+      const co = node("compile", ["--operation", "orient", "--slug", "demo", "--cwd", ws2,
+        "--payload", JSON.stringify({ pitch: "x", breadboard: ".shapeup/demo/breadboard.md" })], { cwd: ws2 });
+      const orderPath = join(ws2, ".shapeup", "demo", "orders", "orient.json");
       let order = null; try { order = JSON.parse(readFileSync(orderPath, "utf8")); } catch { /* reported below */ }
       const { validate } = await import(join(ROOT, "kernel/verify/envelope.mjs"));
       const schema = JSON.parse(readFileSync(join(ROOT, "kernel/schemas/work-order.schema.json"), "utf8"));
       const v = order ? validate(order, schema) : { valid: false, errors: [co.stderr || co.stdout] };
       if (co.status === 0 && order?.payload?.breadboard === ".shapeup/demo/breadboard.md" && v.valid)
-        ok("(h) a compiled analyze order carries payload.breadboard and validates against work-order.schema.json");
-      else fail(`(h) compiled analyze order: exit ${co.status}, payload.breadboard=${order?.payload?.breadboard}, valid=${v.valid} ${JSON.stringify(v.errors)}`);
-    } finally { rmSync(ws, { recursive: true, force: true }); }
+        ok("(h) a compiled orient order carries payload.breadboard and validates against work-order.schema.json");
+      else fail(`(h) compiled orient order: exit ${co.status}, payload.breadboard=${order?.payload?.breadboard}, valid=${v.valid} ${JSON.stringify(v.errors)}`);
+    } finally { rmSync(ws2, { recursive: true, force: true }); }
   }
 }

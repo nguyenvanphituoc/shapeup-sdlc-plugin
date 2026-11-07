@@ -357,7 +357,7 @@ status: breadboarded
 |---|-------|-----------|------|
 ```
 
-**Note:** This file is the second half of the kicked-off pitch (with `shaping.md`). `/ba-pitch-analyzer` and `/tech-lead` consume it as-is — affordance IDs (U[N], N[N]) are the traceability anchors downstream tasks and commits reference.
+**Note:** This file is the second half of the kicked-off pitch (with `shaping.md`). `/ship` (its plan step) consumes it as-is — affordance IDs (U[N], N[N]) are the traceability anchors downstream tasks and commits reference.
 
 ---
 

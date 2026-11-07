@@ -501,6 +501,9 @@ const MODULE_FILES = [
   "123-next-drives-a-run.mjs",
   // 124-leg-usage.mjs: tokens and cost on the leg row — null when the host reported none.
   "124-leg-usage.mjs",
+  // 125-plan-fence.mjs: the planning activity's fence-only `plan` order, driven through the real hook,
+  // and the close that answers it.
+  "125-plan-fence.mjs",
   "08-docs.mjs",
 ];
 

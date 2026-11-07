@@ -12,7 +12,7 @@ that assumption holds. It is **not** a translator that rewrites; it normalizes l
 while preserving every requirement, number, boundary, and structural element 1:1.
 
 ```
-PO writes intake (any language)  →  TRANSLATOR  →  <name>.en.md (English)  →  ba-pitch-analyzer → …
+PO writes intake (any language)  →  TRANSLATOR  →  <name>.en.md (English)  →  the plan activity → …
                                     (this skill)     + glossary.md + report
 ```
 
@@ -249,7 +249,7 @@ The WorkResult may carry only `files_touched`, `artifacts`, `assumptions`, `devi
 ## Relationship to the harness
 
 ```
-TRANSLATOR (this skill)  →  ba-pitch-analyzer (PLAN)  →  task-executor (BUILD)  →  spec-evaluator (JUDGE)
+TRANSLATOR (this skill)  →  the plan activity (PLAN)  →  task-executor (BUILD)  →  spec-evaluator (JUDGE)
    language gate                 English-only specs        English-only code         English-only verdict
 ```
 - The harness is **English-only end to end**; the downstream skills HARD-FAIL on non-English.

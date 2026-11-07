@@ -156,7 +156,7 @@ export async function run(ctx) {
 
   // --- (e) the board must not restate a derived value --------------------------------------------
   {
-    const skill = readFileSync(join(ROOT, "skills/scope-architect/SKILL.md"), "utf8");
+    const skill = readFileSync(join(ROOT, "skills/building/resources/plan-scopes.md"), "utf8");
     const boardRow = skill.split(/\r?\n/).find((l) => /^\s*\|\s*scope_id\s*\|/.test(l)) || "";
     if (boardRow && !/\bwave\b/.test(boardRow)) {
       ok("the scope board's columns carry no `wave` — waves are Kahn levels of depends_on and probe resume derives them");

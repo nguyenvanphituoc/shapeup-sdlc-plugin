@@ -39,6 +39,7 @@ import { runArgs } from "../lib/argv.mjs";
 import { tasksDir, localRoot, dispatchReceipts, legLedger, readRunId, qaDir } from "../lib/paths.mjs";
 import { citationProblem, coverageProblem, dimensionsProblem, tracesProblem, verdictProblem } from "../probe/eval.mjs";
 import { huntProblem } from "../probe/hunt.mjs";
+import { planOrderFacts, planArtifacts, planStepSatisfied, planProduces } from "../lib/plan.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RESULT_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../schemas/work-result.schema.json"), "utf8"));
@@ -421,7 +422,7 @@ function applyResultLocked(result, { cwd, slug }) {
 // ---------------------------------------------------------------------------
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "harness.mjs reduce ingest (<result.json> | --order <order.json>) [--cwd <dir>] [--no-receipt-check] [--tokens-in N] [--tokens-out N] [--tokens-total N] [--cost-usd X] [--usage-source <name>]",
+  usage: "harness.mjs reduce ingest (<result.json> | --order <order.json> [--close-plan]) [--cwd <dir>] [--no-receipt-check] [--tokens-in N] [--tokens-out N] [--tokens-total N] [--cost-usd X] [--usage-source <name>]",
   _: { arity: 0, max: 1, name: "result.json" },
   order: { type: "path" },
   cwd: { type: "path" },
@@ -429,6 +430,9 @@ export const ARGV_SPEC = {
   // fail a tool call would get the layer disabled — so a gate built on it needs an escape for the
   // environmental case, and one that appears in the run's own output rather than in folklore.
   "no-receipt-check": { type: "flag" },
+  // Close a fence-only `plan` order: write the WorkResult that answers it, then apply it like any
+  // other. See `closePlanOrder`.
+  "close-plan": { type: "flag" },
   // What the host reported the dispatched leg to have used, when the dispatching session was told.
   // Recorded on the leg row; absent means "not reported", and a figure is never inferred.
   "tokens-in": { type: "int", min: 0 },
@@ -657,6 +661,47 @@ export function appendLeg(row, cwd) {
 }
 
 /**
+ * Answer a `plan` order: write the WorkResult for the substep it fences, derived from the files.
+ *
+ * A plan order has no worker to write its result — the loop did the substep in its own context — and
+ * the loop is exactly the hand that must not write it: the result is what lifts the substrate fence,
+ * and a result the fenced party can write lifts its own fence over work it has not done. So the
+ * kernel writes it, here, from what is on disk (`lib/plan.mjs` is the one reading of "complete"),
+ * and the normal ingest then applies it — single writer, one leg row. The substrate freezes the
+ * result directory, so no other hand can.
+ *
+ * A close that finds no artifact is NOT refused: a refused close would leave the fence up with
+ * nobody to lift it. It records a `failed` result naming what was missing, so the leg exists, the
+ * fence lifts, and the run's next step reports the real reason.
+ *
+ * Idempotent per opening: an order already answered since it was last compiled is left alone.
+ *
+ * @param {object} order - The parsed `plan` order.
+ * @param {string} orderPath - Its path (inside an `orders/` directory).
+ * @param {string} cwd - Project root.
+ * @returns {{wrote:boolean, status:(string|null), step:string}} What was done.
+ */
+export function closePlanOrder(order, orderPath, cwd) {
+  const slug = String(order.order_id).split("/")[0];
+  const step = String(order.payload?.step ?? "");
+  if (planOrderFacts(cwd, slug, order).closed) return { wrote: false, status: null, step };
+  const specFolder = order.payload?.spec_folder ?? null;
+  const done = planStepSatisfied(cwd, slug, step, specFolder);
+  const result = {
+    schema_version: 1,
+    order_id: order.order_id,
+    worker: order.worker,
+    status: done ? "done" : "failed",
+    artifacts: planArtifacts(cwd, slug, step),
+    ...(done ? {} : { deviations: [`plan ${step} was closed with no artifact on disk — expected ${planProduces(step, slug)}`] }),
+  };
+  const out = resultFor(orderPath);
+  mkdirSync(dirname(out), { recursive: true });
+  writeFileSync(out, JSON.stringify(result, null, 2) + "\n");
+  return { wrote: true, status: result.status, step };
+}
+
+/**
  * Apply one WorkResult to shared state — the single writer for the board and the ledgers.
  *
  * @param {string[]} rawArgv - The subcommand's own arguments (harness.mjs strips the verb words).
@@ -665,6 +710,20 @@ export function appendLeg(row, cwd) {
  */
 export async function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
+  if (args.closePlan) {
+    let planOrder = null;
+    try { planOrder = args.order ? JSON.parse(readFileSync(resolve(args.order), "utf8")) : null; } catch { /* reported below */ }
+    if (!planOrder || planOrder.operation !== "plan") {
+      console.error("  ✗ --close-plan answers a `plan` order: pass --order <orders/plan-<step>.json> (an order whose operation is plan)");
+      process.exit(2);
+    }
+    const c = closePlanOrder(planOrder, resolve(args.order), resolve(args.cwd || process.cwd()));
+    if (!c.wrote) {
+      console.log(`  ✓ ${planOrder.order_id} is already closed — nothing to write`);
+      process.exit(0);
+    }
+    console.log(`  ✓ plan ${c.step} closed ${c.status}`);
+  }
   const file = args.order ? resultFor(args.order) : args._[0];
   if (!file) {
     console.error("  ✗ nothing to ingest: pass a result path, or --order <order.json> to derive it");

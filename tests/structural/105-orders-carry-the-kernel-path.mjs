@@ -12,7 +12,10 @@ import { tmpdir } from "node:os";
 import { join, dirname, isAbsolute } from "node:path";
 import { spawnSync } from "node:child_process";
 
-const WORKERS = ["task-executor", "ba-pitch-analyzer", "spec-evaluator", "solution-architect", "scope-architect", "scope-hammer"];
+// The dispatched workers that run kernel commands. The three planners (ba-pitch-analyzer, solution-architect,
+// scope-architect) left this list when planning became the loop's own activity: nothing is dispatched for it
+// and the commands it runs are handed out by `probe next` with the kernel's absolute path already in them.
+const WORKERS = ["task-executor", "spec-evaluator", "scope-hammer"];
 
 /**
  * Run the kernel-path checks.

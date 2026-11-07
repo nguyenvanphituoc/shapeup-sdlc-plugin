@@ -32,7 +32,7 @@ tech-lead: ... GATE L2 → EVAL → GATE L3 PASS ──► QA EDGE HUNT (you) �
 | Does | Does NOT |
 |------|----------|
 | Read EVAL-*.md to map covered territory — then hunt OUTSIDE it | Re-probe anything the evaluator already graded |
-| Charter edges via six fixed lenses, minus covered territory | Author or extend `## Test Surface` (that is the planner's retrofit-surface operation) |
+| Charter edges via six fixed lenses, minus covered territory | Author or extend `## Test Surface` (that is the planner's `retrofit-surface` spec mode) |
 | Execute charters against the **running deliverable** (session-based exploratory) | Read-only speculate from code ("this looks racy") — every finding needs a live repro |
 | Return each finding in the WorkResult's `discoveries[]`, **always `~`** | Promote `~` → must-have (PO/TL at SHIP S.0; severity-hint is advice, not a decision) |
 | Emit `qa/hunt-report.md` — charters run/cut, findings by lens | Render a verdict, score, or PASS/FAIL of any kind |
@@ -88,7 +88,7 @@ SOFT:
        "Test Surface absent — derivable cases (boundaries, error codes, no-go breaches)
         were never systematically probed. Lenses ① and ⑤ will widen to compensate
         (charters tagged [derivable-fallback]). Better: run
-        a ba-pitch-analyzer retrofit-surface order + one evaluator pass first, then hunt
+        a plan spec step in `retrofit-surface` mode + one evaluator pass first, then hunt
         with a narrower charter. Continue degraded? [y/n]"
      Degraded is first-class, not an error — for old specs, a degraded hunt beats no hunt.
 Questions: max 2. The standing one: "Any areas OUT OF BOUNDS for exploratory testing?

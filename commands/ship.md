@@ -24,7 +24,7 @@ parallel, run a kernel command, cross a gate, close. Three things follow:
 - **A killed session loses nothing.** The next step is derived from artifacts on disk, never from
   the conversation, so `/ship` again over an open run resumes it: a finished phase is not re-run.
 - **Every agent the run spawns is a worker** — `orient`, `task-executor`, `spec-evaluator`,
-  `qa-edge-hunter`, and the planning and census workers — and each leaves a row in the run's records.
+  `qa-edge-hunter`, and the census worker — and each leaves a row in the run's records. Planning is not a worker: the loop does it in this session, under a write fence of its own, and each substep leaves its own row too.
 
 `--tiny` takes the small-change lane in the `tech-lead` skill instead: orient (light) → single-task
 board → build → T0 → done, only gates L0 and L4 pause. Its fit-check applies (≤ ~2 files, no new

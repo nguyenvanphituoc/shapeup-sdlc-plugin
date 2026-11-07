@@ -161,7 +161,7 @@ mostly: *on confirm, demote the block from prose to a frozen one-liner + wikilin
 | *Pitch* | betting handoff | everything → 5 ingredients | compaction already exists |
 
 **Benefit is back-loaded.** GATE 0–1 have almost nothing to compact; the wins are
-at GATE 3–4 and especially the **handoff to ba-pitch-analyzer**. If staging the
+at GATE 3–4 and especially the **handoff to the plan activity**. If staging the
 work, build the digest for the B-phases + pitch first.
 
 ---
@@ -202,7 +202,7 @@ surprise count are signals, not noise. Split inside the workspace:
 
 ## Handoff boundary — the digest never crosses a skill
 
-**`ba-pitch-analyzer` does NOT read the digest. It reads `pitch.md` / `shaping.md`.**
+**The plan activity does NOT read the digest. It reads `pitch.md` / `shaping.md`.**
 
 The digest lives in `.shapeup/` — ephemeral, gitignored, run-scoped;
 it dies when the shaping run ends. `pitch.md`/`shaping.md` are durable source,

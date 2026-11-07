@@ -18,14 +18,16 @@
 //   Single task (no scope contracts — pre-v0.3.0 boards):
 //     node kernel/harness.mjs compile --task TASK-003 --slug <slug> [--worker task-executor]
 //     node kernel/harness.mjs compile --next --slug <slug>
-//   Non-build operation (planner/judge/QA dispatches; flag surface → operation + whitelist):
-//     node kernel/harness.mjs compile --operation reconcile --slug <slug> [--round N]
-//          [--worker ba-pitch-analyzer] [--payload '<json>']
+//   Non-build operation (judge/QA dispatches and the planning fence; flag surface → operation + whitelist):
+//     node kernel/harness.mjs compile --operation evaluate --slug <slug> [--round N]
+//          [--worker spec-evaluator] [--payload '<json>']
+//   Planning fence (no dispatch — see FENCE_ONLY_OPERATIONS):
+//     node kernel/harness.mjs compile --operation plan --slug <slug> --payload '{"step":"wire"}'
 //
 // Output: .shapeup/<slug>/orders/<order-file>.json (schema-validated before write; a
 // pretty-printed envelope, colocated so audits can read it). Prints the path on stdout.
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, rmSync } from "node:fs";
 import { discover, resolve as resolveGate, appendGateLedger, PRESETS } from "./gate.mjs";
 import { resolve, join, dirname, basename, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,6 +42,7 @@ import {
   relShared, relLocal, globLocal, globShared, relKnowledgeBase, resultsDir, scopesDir, localRoot,
 } from "./lib/paths.mjs";
 import { readContract, readAllContracts, tasksForScope, SCOPE_CONTRACT, reqId } from "./lib/contract.mjs";
+import { PLAN_STEPS, SPEC_MODES, planGuidancePaths } from "./lib/plan.mjs";
 import { writeActiveOrder } from "./probe/resume.mjs";
 import { greenVerdict } from "./probe/t0.mjs";
 import { attemptEvidence, readReceipts } from "./probe/attempts.mjs";
@@ -54,11 +57,10 @@ import { matchesAny } from "../hooks/sandbox-guard.mjs";
  * Workers that read a coaching file. Kept beside the compile step because this is the only place
  * the file is handed over: a worker not in this set never sees `payload.kb_rules_path`, however
  * many rules the coach files for it. Mirrored by the coach skill's category list (structural test).
+ * The planning activity is not a worker: its `plan` orders carry `payload.kb_rules_paths` instead (see
+ * `planGuidancePaths`), and the loop reads its own guidance at L0 — neither is a dispatch.
  */
-export const COACHABLE = new Set([
-  "task-executor", "ba-pitch-analyzer", "qa-edge-hunter",
-  "orient", "scope-architect", "solution-architect",
-]);
+export const COACHABLE = new Set(["task-executor", "qa-edge-hunter", "orient"]);
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ORDER_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "./schemas/work-order.schema.json"), "utf8"));
@@ -188,13 +190,7 @@ export function ledgerDecisions(ledgerText, scopeId) {
  * it can import.
  */
 export const OP_OWNER = {
-  analyze: "ba-pitch-analyzer", reconcile: "ba-pitch-analyzer",
-  // `board` regenerates the per-machine board from a committed spec tree without re-deriving the
-  // tree — the half of ANALYZE that does not survive a clone. Same worker, narrower write surface.
-  board: "ba-pitch-analyzer",
-  "retrofit-surface": "ba-pitch-analyzer", coverage: "ba-pitch-analyzer",
-  "map-scopes": "scope-architect",
-  wire: "solution-architect", evaluate: "spec-evaluator", orient: "orient",
+  evaluate: "spec-evaluator", orient: "orient",
   hunt: "qa-edge-hunter", translate: "translator",
   hammer: "scope-hammer", coach: "coach",
   // `scan` is the coach reading the project instead of L4 feedback, and `research` the coach
@@ -207,10 +203,19 @@ export const OP_OWNER = {
 };
 
 /**
+ * Operations whose order is a FENCE and nothing else: `compile` stamps the write contract, no
+ * sub-agent is dispatched, and `reduce ingest --close-plan` answers it. They have no owning worker
+ * in `WorkerName` — the loop does the work in its own context — so they cannot live in
+ * {@link OP_OWNER}, whose every value must be a roster member. The value is the `worker` the order
+ * carries, which the order schema accepts beside the roster.
+ */
+export const FENCE_ONLY_OPERATIONS = { plan: "building" };
+
+/**
  * Resolve the write-contract (sandbox substrate) for an operation — one whitelist template per
  * operation, so mode/flag differences are enforced by the sandbox hook reading the order's substrate, not trusted to prose.
- * @param {string} operation - The order's operation (execute|fix|spike|analyze|reconcile|
- *   retrofit-surface|coverage|map-scopes|wire|evaluate|orient|hunt|translate|hammer|coach|scan|research).
+ * @param {string} operation - The order's operation (execute|fix|spike|plan|evaluate|orient|hunt|
+ *   translate|hammer|coach|scan|research).
  * @param {{slug?:string, specDir?:string, scope?:object, ownStem?:string}} [ctx] - slug (names
  *   LOCAL/SHARED roots), specDir (overrides the default spec path), scope (contract supplying
  *   allowed/shared substrates), ownStem (this order's own file stem, so a build leg may write its
@@ -228,7 +233,10 @@ export function substrateFor(operation, ctx = {}) {
   // operation now: the compiler derives it from the order's identity, which is also what keeps a leg
   // from writing somebody else's.
   const base = substrateTemplate(operation, ctx);
-  if (!ctx.ownStem) return base;
+  // A `plan` order names no result of its own as writable: the only thing that answers it is
+  // `reduce ingest --close-plan`, a kernel process the hook never sees, and an `own` entry would let
+  // the loop's own edit tool write the synthetic result — the one forgery the fence exists to deny.
+  if (!ctx.ownStem || operation === "plan") return base;
   const ownResult = `${globLocal(ctx.slug)}/results/${ctx.ownStem}.json`;
   return { ...base, own: [...new Set([...(base.own || []), ownResult])] };
 }
@@ -241,7 +249,7 @@ export function substrateFor(operation, ctx = {}) {
  * @returns {{allowed:string[], shared?:string[], frozen?:string[], append_only?:string[], own?:string[]}}
  *   The operation's write contract before the result path every order names is merged in.
  */
-function substrateTemplate(operation, { slug, specDir, scope, ownStem = null } = {}) {
+function substrateTemplate(operation, { slug, specDir, scope, ownStem = null, step = null, mode = null } = {}) {
   const local = globLocal(slug);
   const spec = specDir || globShared(slug, "spec");
   const scopesDir = globShared(slug, "scopes");
@@ -315,44 +323,50 @@ function substrateTemplate(operation, { slug, specDir, scope, ownStem = null } =
           `${local}/spikes/**`,
         ],
       };
-    case "analyze":
-      return { allowed: [`${spec}/**`, `${local}/**`], frozen: [...FROZEN_INTAKE] };
-
-    case "board":
-      // The spec is READ, never written: this operation exists because the tree is already on disk
-      // and the board is not. Task ids renumber per machine by design, so nothing here is committed.
-      return {
-        allowed: [`${local}/tasks/**`, `${working}/**`],
-        frozen: [...FROZEN_SPEC_CORE, ...FROZEN_INTAKE, `${spec}/usecases/*.md`, `${spec}/scope-summary.md`],
-      };
-
-    case "reconcile":
-      return {
-        allowed: [`${local}/tasks/**`, `${spec}/scope-summary.md`, `${working}/**`],
-        append_only: [`${spec}/usecases/*.md#Invariants`, `${spec}/usecases/*.md#Test Surface`],
-        frozen: FROZEN_SPEC_CORE,
-      };
-    case "retrofit-surface":
-      return { allowed: [], append_only: [`${spec}/usecases/*.md#Test Surface`], frozen: FROZEN_SPEC_CORE };
-
-    case "coverage":
-      // The covers-closure input truth. Writes ONLY the derived registry: the REQ source it
-      // extracts from is frozen alongside the spec core, because a planner that may edit the
-      // requirements it is being measured against is not measuring anything.
-      return { allowed: [globShared(slug, "requirements.md")], frozen: [...FROZEN_SPEC_CORE, ...FROZEN_INTAKE] };
-
-    case "map-scopes":
-      return {
-        allowed: [`${scopesDir}/*.md`, globShared(slug, "scope-board.md")],
-        frozen: [...FROZEN_SPEC_CORE, ...FROZEN_INTAKE, `${local}/tasks/**`],
-      };
-    case "wire":
-      // solution-architect writes the SHARED wiring map DIRECTLY (precedent: scope-architect
-      // writes scopes/*.md). The spec core, the scopes, and the profile stay frozen.
-      return {
-        allowed: [globShared(slug, "wiring-map.md")],
-        frozen: [...FROZEN_SPEC_CORE, ...FROZEN_INTAKE, `${scopesDir}/**`, globShared(slug, "project-profile.md")],
-      };
+    case "plan": {
+      // THE PLANNING ACTIVITY'S FENCE. Planning runs in the loop's own context, so there is no
+      // sub-agent to fence — and a fixture showed the state without an order: a planning write is
+      // `allow`, rule `no-round`, the whole spec tree open to any edit. A fence-only order restores
+      // the same write contract the three planners had, per SUBSTEP, because a substep that may
+      // write the whole planning surface can overwrite the artifact the previous one was judged on.
+      //
+      // FROZEN FOR EVERY SUBSTEP: the staged pitch and breadboard (the question being answered), the
+      // project profile (the seam every engine is resolved against, written at intake), and the
+      // channels that attest the run — receipts, leg rows, T0 verdicts — plus the order set and the
+      // result set, because the loop that holds this fence is also the one whose close the result
+      // attests. Nothing here is a path the loop legitimately writes: the kernel writes its own.
+      const common = [
+        ...FROZEN_INTAKE, globShared(slug, "project-profile.md"),
+        `${local}/orders/**`, `${local}/results/**`, `${local}/receipts/**`, `${local}/legs.jsonl`, `${local}/t0/verdicts/**`,
+      ];
+      switch (step) {
+        case "requirements":
+          return { allowed: [globShared(slug, "requirements.md")], frozen: [...FROZEN_SPEC_CORE, ...common] };
+        case "spec":
+          if (mode === "board-only") {
+            return { allowed: [`${local}/tasks/**`, `${working}/**`], frozen: [...FROZEN_SPEC_CORE, `${spec}/usecases/*.md`, `${spec}/scope-summary.md`, ...common] };
+          }
+          if (mode === "reconcile") {
+            return {
+              allowed: [`${local}/tasks/**`, `${spec}/scope-summary.md`, `${working}/**`],
+              append_only: [`${spec}/usecases/*.md#Invariants`, `${spec}/usecases/*.md#Test Surface`],
+              frozen: [...FROZEN_SPEC_CORE, ...common],
+            };
+          }
+          if (mode === "retrofit-surface") {
+            return { allowed: [], append_only: [`${spec}/usecases/*.md#Test Surface`], frozen: [...FROZEN_SPEC_CORE, ...common] };
+          }
+          return { allowed: [`${spec}/**`, `${local}/tasks/**`, `${working}/**`], frozen: common };
+        case "wire":
+          return { allowed: [globShared(slug, "wiring-map.md")], frozen: [...FROZEN_SPEC_CORE, `${scopesDir}/**`, ...common] };
+        case "scopes":
+          return { allowed: [`${scopesDir}/*.md`, globShared(slug, "scope-board.md")], frozen: [...FROZEN_SPEC_CORE, `${local}/tasks/**`, ...common] };
+        default:
+          // An unknown substep names no contract; the CLI refuses it before it reaches here, and a
+          // library caller gets the narrowest answer rather than a wide one.
+          return { allowed: [], frozen: [...FROZEN_SPEC_CORE, ...common] };
+      }
+    }
     case "evaluate":
       // THE JUDGE MAY NOT WRITE THE EVIDENCE IT CITES. Its substrate froze the spec, the pitch and
       // the board — and not `t0/verdicts/**`, so a judge could write a green verdict artifact into
@@ -1028,7 +1042,9 @@ export function compileOrder({
   const scopedRoundSuffix = scopeId
     ? (round ? `${operation}-${scopeId}-r${round}` : `${operation}-${scopeId}`)
     : (round ? `${operation}-r${round}` : operation);
-  const suffix = buildSuffix || scopedRoundSuffix;
+  // A `plan` order is addressed per SUBSTEP — `plan-<step>` — so each substep has its own fence and
+  // leaves its own leg row.
+  const suffix = buildSuffix || (operation === "plan" && payloadExtra?.step ? `plan-${payloadExtra.step}` : scopedRoundSuffix);
   const order = {
     schema_version: 1,
     order_id: `${slug}/${suffix}`,
@@ -1058,7 +1074,7 @@ export function compileOrder({
     mode,
     ...(operation ? { operation } : {}),
     ...(interaction ? { interaction } : {}),
-    substrate: substrateFor(operation, { slug, specDir, scope, ownStem: suffix }),
+    substrate: substrateFor(operation, { slug, specDir, scope, ownStem: suffix, step: payloadExtra?.step ?? null, mode: payloadExtra?.mode ?? null }),
     payload: {
       ...(scope ? { scope_contract: scope } : {}),
       ...(tasks?.length ? { tasks } : {}),
@@ -1078,6 +1094,9 @@ export function compileOrder({
   // (spec-evaluator) and the census (scope-hammer) are excluded on purpose: coaching the judge
   // makes a second grader, and the hammer's ownership claims must come from `probe owner`.
   if (COACHABLE.has(worker)) order.payload.kb_rules_path = relKnowledgeBase(worker);
+  // The planning activity is not a worker, so it has no single coaching file: it reads its own and
+  // the three its parts were filed under. A consumer's existing rules reach the step's order.
+  if (operation === "plan") order.payload.kb_rules_paths = planGuidancePaths();
   return order;
 }
 
@@ -1214,7 +1233,8 @@ export async function cli(rawArgv) {
   // still wins — an operator naming the operation outranks the derivation.
   let operation = flag("operation")
     || (scopePath || flag("task") || has("next") ? (bugs.length ? "fix" : "execute") : null);
-  const worker = flag("worker")
+  const worker = (operation && FENCE_ONLY_OPERATIONS[operation])
+    || flag("worker")
     || (scopePath || flag("task") || has("next") ? "task-executor" : null)
     || (operation ? OP_OWNER[operation] : null);
   if (!worker || !operation) { console.error("compile-order: could not resolve --worker/--operation"); process.exit(2); }
@@ -1342,8 +1362,25 @@ export async function cli(rawArgv) {
     if (ev.launch_cmd !== undefined && payloadExtra.launch_cmd === undefined) payloadExtra.launch_cmd = ev.launch_cmd;
   }
 
+  // A `plan` order is addressed to a SUBSTEP, and the substep is what the fence is stamped from: an
+  // order with no step, or one this kernel does not know, would stamp the narrowest contract and
+  // fence nothing useful, so it is refused here, before a file exists.
+  if (operation === "plan") {
+    if (!PLAN_STEPS.includes(payloadExtra.step)) {
+      console.error(`compile-order: --operation plan needs --payload '{"step":"<${PLAN_STEPS.join("|")}>"}' (got ${JSON.stringify(payloadExtra.step ?? null)})`);
+      process.exit(2);
+    }
+    if (payloadExtra.mode !== undefined && (payloadExtra.step !== "spec" || !SPEC_MODES.includes(payloadExtra.mode))) {
+      console.error(`compile-order: payload.mode is for step "spec" only and is one of ${SPEC_MODES.join(" | ")} (got step ${JSON.stringify(payloadExtra.step)}, mode ${JSON.stringify(payloadExtra.mode)})`);
+      process.exit(2);
+    }
+  }
+
   const order = compileOrder({
     slug, worker, operation, round, attempt, scope, tasks, decisions, digestedErrors, trialHistory, bugs,
+    // A fence-only order is answered by no dispatch, so it is not orchestrated: ingest's receipt
+    // attestation is for a skill the hook layer saw run, and there is none to see.
+    mode: operation === "plan" ? "standalone" : undefined,
     testCmd: flag("test-cmd"), payloadExtra, specDir,
     interaction: has("pause-gates") ? { pause_gates: true } : { pause_gates: false },
     // Read off the receipt rather than passed in: a standalone `compile-order` invocation gets the
@@ -1362,6 +1399,18 @@ export async function cli(rawArgv) {
   const outDir = ordersDir(cwd, slug);
   mkdirSync(outDir, { recursive: true });
   const outPath = join(outDir, `${order.order_id.split("/")[1]}.json`);
+  // RE-OPENING A PLAN ORDER RETIRES THE PREVIOUS OPENING'S RESULT. A substep's order file is
+  // rewritten each time the loop opens it (a send-back, a resumed session), and its result lives at
+  // the same path; left in place it would read as an answer to the opening that has just begun —
+  // the fence would lift over work not yet done. The previous close stays on the record as its leg
+  // row, and the result the next close writes replaces it exactly as a re-dispatched worker's did.
+  if (operation === "plan") {
+    const stale = join(resultsDir(cwd, slug), `${order.order_id.split("/")[1]}.json`);
+    if (existsSync(stale)) {
+      try { rmSync(stale); console.error(`compile-order: re-opening ${order.order_id} — the previous close's result is retired (its leg row stays)`); }
+      catch (e) { console.error(`compile-order: warning — could not retire the previous result ${stale}: ${e.message}`); }
+    }
+  }
   writeFileSync(outPath, JSON.stringify(order, null, 2) + "\n");
   console.log(outPath);
 

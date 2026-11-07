@@ -12,11 +12,14 @@
 // So this module plays the loop. It takes a run that planning already finished (the archived one
 // under `traces/`, copied into a scratch project), asks `probe next`, and does exactly what the step
 // says — running its `compile`, `ingest`, `gate` and `close` commands through the real kernel — with
-// one substitution: where the loop would spawn a sub-agent, a few lines here write the artifacts and
-// the WorkResult that worker would have written. That is the only fiction. It is NOT a real run: no
-// model ran, no code was built, and a green here proves the seams hold, not that a run ships.
+// two substitutions. Where the loop would spawn a sub-agent, a few lines here write the artifacts and
+// the WorkResult that worker would have written. Where the loop would do a planning substep in its own
+// context, a few lines here put back the files that substep produces — the archived spec tree, wiring
+// map and scope contracts are taken OUT of the copy first, so every plan step is really emitted, really
+// opened (a fence compiled), really checked and really closed. That is the only fiction. It is NOT a
+// real run: no model ran, no code was built, and a green here proves the seams hold, not that a run ships.
 
-import { existsSync, mkdirSync, writeFileSync, readFileSync, cpSync, rmSync, mkdtempSync, appendFileSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync, readFileSync, cpSync, rmSync, mkdtempSync, appendFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
@@ -70,6 +73,28 @@ export async function run(ctx) {
     const local = (...p) => join(ws, ".shapeup", SLUG, ...p);
     const write = (p, t) => { mkdirSync(join(p, ".."), { recursive: true }); writeFileSync(p, typeof t === "string" ? t : JSON.stringify(t)); };
 
+    // ---- take planning's artifacts out, to be put back by the substep that owns each --------------------
+    const filesUnder = (p) => {
+      if (!existsSync(p)) return [];
+      return readdirSync(p, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? filesUnder(join(p, e.name)) : [join(p, e.name)]));
+    };
+    const committed = (...p) => join(ws, "shapeup", SLUG, ...p);
+    const owned = {
+      requirements: [committed("requirements.md")],
+      spec: [committed("spec"), local("tasks")],
+      wire: [committed("wiring-map.md")],
+      scopes: [committed("scopes"), committed("scope-board.md")],
+    };
+    const stash = {};
+    for (const [step, roots] of Object.entries(owned)) {
+      stash[step] = roots.flatMap((r) => (existsSync(r) ? (statSync(r).isDirectory() ? filesUnder(r) : [r]) : [])).map((f) => [f, readFileSync(f, "utf8")]);
+    }
+    for (const roots of Object.values(owned)) for (const r of roots) rmSync(r, { recursive: true, force: true });
+    if (!stash.requirements.length) stash.requirements.push([committed("requirements.md"), "# requirements\n"]);
+    for (const step of ["spec", "wire", "scopes"]) {
+      if (!stash[step].length) { fail(`drive: the archive holds no ${step} artifact to put back — the driver would prove nothing about that substep`); return; }
+    }
+
     const sh = (command) => spawnSync("sh", ["-c", command], { encoding: "utf8", cwd: ws });
     const nextStep = (extra = "") => {
       const r = spawnSync("node", [KERNEL, "probe", "next", "--slug", SLUG, "--cwd", ws, ...extra.split(" ").filter(Boolean)], { encoding: "utf8" });
@@ -94,9 +119,6 @@ export async function run(ctx) {
         case "orient":
           for (const f of ["code-surface.md", "discovered-seed.md", "hill-signal.md", "spike-not-needed.md"]) write(local("orient", f), "x\n");
           return respond(step.order_path, { artifacts: [] });
-        case "coverage":
-          write(join(ws, "shapeup", SLUG, "requirements.md"), "# requirements\n");
-          return respond(step.order_path, {});
         case "evaluate": {
           const dims = order.payload?.dimensions || [];
           const verdicts = join(local("t0", "verdicts"));
@@ -150,6 +172,23 @@ export async function run(ctx) {
           for (const t of s.then || []) sh(t.command);
           break;
         }
+        case "plan": {
+          // What the loop does: open the fence unless it is already up, write ONLY what the substep
+          // produces, run every check, close. The put-back below stands in for the writing.
+          if (!s.order_open) {
+            const o = sh(s.open);
+            if (o.status !== 0) { problem = `open refused at ${s.step}: ${o.stderr || o.stdout}`; break; }
+          }
+          for (const [f, text] of stash[s.substep] || []) write(f, text);
+          for (const c of s.checks || []) {
+            const r = sh(c.command);
+            if (r.status !== 0 && !c.advisory) { problem = `check failed at ${s.step} (exit ${r.status}): ${c.command}\n${r.stdout}${r.stderr}`; break; }
+          }
+          if (problem) break;
+          const cl = sh(s.close);
+          if (cl.status !== 0) problem = `close refused at ${s.step}: ${cl.stderr || cl.stdout}`;
+          break;
+        }
         case "build":
           for (const item of s.release) {
             const r = fakeBuild(item, s.round);
@@ -198,6 +237,18 @@ export async function run(ctx) {
     else fail(`drive: gates crossed ${crossed.join(",")} — missing ${want.filter((g) => !crossed.includes(g)).join(",")}`);
     if (live.length && live.every((g) => g.source === "PO (live)")) ok("drive: every live answer carries the source `PO (live)`");
     else fail("drive: a live answer was ledgered with another source");
+    // The four planning substeps each ran as their own fence and each left its own leg row — and none is
+    // left live: a plan order with no answer would keep fencing the checkout after the run.
+    const legs = readFileSync(local("legs.jsonl"), "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+    const planLegs = legs.filter((l) => l.operation === "plan");
+    if (["requirements", "spec", "wire", "scopes"].every((st) => planLegs.some((l) => l.order_id === `${SLUG}/plan-${st}` && l.worker === "building" && l.mode === "standalone" && l.attested === false))) {
+      ok("drive: each planning substep was a fence order of its own and left its own leg row (worker building, standalone, no receipt)");
+    } else fail(`drive: plan leg rows are ${JSON.stringify(planLegs.map((l) => l.order_id))}`);
+    const planSteps = seen.filter((x) => /^plan\./.test(x));
+    if (planSteps.join() === "plan.requirements,plan.spec,plan.wire,plan.scopes") ok("drive: planning ran in the order requirements, spec, wire, scopes — with GATE L1a.5 between wire and scopes");
+    else fail(`drive: plan steps ran as ${planSteps.join(",")}`);
+    if (seen.indexOf("gate.L1a.5") > seen.indexOf("plan.wire") && seen.indexOf("gate.L1a.5") < seen.indexOf("plan.scopes")) ok("drive: GATE L1a.5 came after the wire substep and before the scopes substep");
+    else fail("drive: GATE L1a.5 was not between wire and scopes");
     const closed = readFileSync(local("harness-run.md"), "utf8");
     if (/^closed_status:\s*shipped/m.test(closed)) ok("drive: the ledger records the close as shipped");
     else fail("drive: the ledger carries no shipped close");

@@ -47,7 +47,7 @@ write to even if it wanted to.
 
 | Field | Purpose |
 |---|---|
-| `worker` | One of 10 enumerated worker skills — the order names its own destination |
+| `worker` | One of the 7 enumerated worker skills — the order names its own destination — or `building`, the loop itself, on a fence-only `plan` order no sub-agent answers |
 | `operation` | Replaces ad-hoc flags (`--tasks-only`, `--from-discovered` …) — the caller knows the pipeline position, the worker never re-derives it |
 | `substrate` | The write contract for this order — data the sandbox hook enforces, not prose asking the worker to behave |
 | `payload` | Worker-specific inputs: scope contract, tasks, prior decisions, digested errors, KB rules path |
@@ -68,16 +68,14 @@ routing key**: `compile-order` resolves the owning worker from the operation alo
 `OP_OWNER` map, mirroring `domain.schema.json`'s `$defs/Operation` ownership), so a dispatch
 never carries a redundant `--worker`, and each operation stamps a fixed `substrate` write
 contract (from `substrateFor`) that the sandbox hook then enforces. One compiled order therefore
-*is* the dataflow across the skill set — the 17 operations fan out to the 10 worker skills by
-pipeline stage:
+*is* the dataflow across the skill set — the 12 operations fan out to the 7 worker skills (and one
+fence-only order the loop itself answers) by pipeline stage:
 
 ```mermaid
 graph LR
     CO["harness compile<br/>operation → worker + substrate"]
     CO --> ORI["orient<br/>(orient)"]
-    CO --> SA["solution-architect<br/>(wire)"]
-    CO --> BA["ba-pitch-analyzer<br/>(analyze · reconcile ·<br/>retrofit-surface · coverage)"]
-    CO --> SC["scope-architect<br/>(map-scopes)"]
+    CO --> PL["building — the loop<br/>(plan: requirements · spec ·<br/>wire · scopes — fence only)"]
     CO --> TE["task-executor<br/>(execute · fix · spike)"]
     CO --> SE["spec-evaluator<br/>(evaluate)"]
     CO --> QA["qa-edge-hunter<br/>(hunt)"]
@@ -85,9 +83,7 @@ graph LR
     CO --> TR["translator<br/>(translate)"]
     CO --> CH["coach<br/>(coach)"]
     ORI --> IR["harness reduce ingest<br/>(single writer)"]
-    SA --> IR
-    BA --> IR
-    SC --> IR
+    PL --> IR
     TE --> IR
     SE --> IR
     QA --> IR
@@ -99,12 +95,13 @@ graph LR
 | Pipeline stage | Operation(s) | Worker skill | Order's `substrate.allowed` (write target) |
 |---|---|---|---|
 | Orient | `orient` | `orient` | `<local>/orient/**` |
-| Analyze | `analyze` | `ba-pitch-analyzer` | `<spec>/**` + `<local>/**` |
-| Wire (spine ✚) | `wire` | `solution-architect` | `<shared>/<slug>/wiring-map.md` |
-| Map scopes | `map-scopes` | `scope-architect` | `<shared>/<slug>/scopes/*.md` + `scope-board.md` |
-| Board upkeep | `reconcile` | `ba-pitch-analyzer` | `<local>/tasks/**` + `<spec>/scope-summary.md` + `<local>/working/**` (append-only: UC Invariants / Test Surface) |
-| | `retrofit-surface` | `ba-pitch-analyzer` | *(nothing)* — append-only to `<spec>/usecases/*.md#Test Surface` |
-| Coverage (spine ✚) | `coverage` | `ba-pitch-analyzer` | `<shared>/<slug>/requirements.md` |
+| Plan: requirements (spine ✚) | `plan` (step `requirements`) | `building` — no sub-agent | `<shared>/<slug>/requirements.md` |
+| Plan: spec tree + board | `plan` (step `spec`; mode `full`) | `building` — no sub-agent | `<spec>/**` + `<local>/tasks/**` + `<local>/working/**` |
+| Plan: board only | `plan` (step `spec`; mode `board-only`) | `building` — no sub-agent | `<local>/tasks/**` + `<local>/working/**` (the committed tree is frozen) |
+| Plan: board upkeep | `plan` (step `spec`; mode `reconcile`) | `building` — no sub-agent | `<local>/tasks/**` + `<spec>/scope-summary.md` + `<local>/working/**` (append-only: UC Invariants / Test Surface) |
+| | `plan` (step `spec`; mode `retrofit-surface`) | `building` — no sub-agent | *(nothing)* — append-only to `<spec>/usecases/*.md#Test Surface` |
+| Plan: wire (spine ✚) | `plan` (step `wire`) | `building` — no sub-agent | `<shared>/<slug>/wiring-map.md` |
+| Plan: map scopes | `plan` (step `scopes`) | `building` — no sub-agent | `<shared>/<slug>/scopes/*.md` + `scope-board.md` |
 | Build | `execute`, `fix`, `spike` | `task-executor` | the scope's own `allowed_file_substrate` + `<local>/spikes/**` |
 | Evaluate | `evaluate` | `spec-evaluator` | `<local>/evaluation/**` |
 | QA hunt | `hunt` | `qa-edge-hunter` | `<local>/qa/**` |
@@ -114,18 +111,23 @@ graph LR
 
 Every case also stamps `frozen` (and, where relevant, `append_only`) — the spec core
 (`domain-model.md`, use-case `#Steps`, `contracts/**`, `ux-behavior.md`) is frozen for every
-operation that is not `analyze`, so board upkeep can add a Test Surface row but can never rewrite
-the contract it is graded against.
+operation except the full spec step of `plan`, so board upkeep can add a Test Surface row but can
+never rewrite the contract it is graded against. A `plan` order is **fence-only**: `compile` stamps
+the substep's substrate (and freezes the staged pitch, the project profile, the receipts, the leg
+ledger, the T0 verdicts, and the order and result files), no sub-agent runs, and `harness reduce
+ingest --close-plan` answers it from the artifacts it finds on disk — mode `standalone`, so ingest asks
+it for no dispatch receipt — leaving one leg row per substep. Its `worker` is `building`, which the
+order schema accepts beside the roster and which is deliberately not in `WorkerName`.
 
 Two consequences fall out of routing *in the order* rather than in each skill: **(1)** adding a
 worker is adding an operation, its `OP_OWNER` entry, and its `substrateFor` case — the
 orchestrator owns the vocabulary and workers never re-derive their own pipeline position; and
 **(2)** because the write contract travels inside the order, one `sandbox-guard.mjs` hook fences
 every skill's writes with zero per-skill code — it reads the *order's* substrate block directly
-(§3.2). The return leg is uniform too: whatever any of the 10 workers produces comes back as a
+(§3.2). The return leg is uniform too: whatever any of the 7 workers produces comes back as a
 `WorkResult`, and `harness reduce ingest` is the sole writer that lands it into shared state (§3.1) —
-except for the three operations whose product IS a committed design document (`wire`,
-`map-scopes`, `coverage`), which write it directly under the substrate the hook enforces.
+except for the planning substeps whose product IS a committed design document (`wire`, `scopes`,
+`requirements`), which the loop writes directly under the substrate the hook enforces.
 
 ## 3.2 — Runtime-enforced guardrails (hooks)
 
@@ -212,7 +214,7 @@ roster off `domain.schema.json#/$defs/WorkerName` and refuses `init run` with ex
 names the copy that produced it. That is the cheap half, and it is honestly incomplete: it proves
 *these files exist at this root at this version*, not that the session will resolve that copy. Both
 states the failure actually takes — installed but disabled, and a different version loaded — have all
-ten `SKILL.md` files and pass it green.
+seven `SKILL.md` files and pass it green.
 
 So the orchestrator's first leg is a canary: one `Skill(...)` dispatch, deliberately with no
 `--order` (it is testing name resolution, not doing work, and an order would leave a compiled order

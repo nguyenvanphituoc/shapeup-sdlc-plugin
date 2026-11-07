@@ -2,7 +2,7 @@
 // The round build gate — does the FEATURE build and launch, before the judge is asked about it.
 //
 // WHY A GATE ABOVE T0. A T0 verdict is one scope's fixtures, run inside that scope's substrate, and
-// the fixtures are the scope-architect's to write. Nothing in that layer proves the feature as a
+// the fixtures are the scope contracts' author's to write. Nothing in that layer proves the feature as a
 // whole compiles or starts. Measured on a live mobile run: every one of 30 T0 trials went green on
 // its first try — the fixtures were TypeScript stand-ins, structural greps and a test-suite wrapper
 // that never compiled its sources — while the ledger's own `run_cmd` failed, and once the compiler

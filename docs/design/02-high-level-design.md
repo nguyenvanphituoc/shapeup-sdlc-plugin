@@ -14,9 +14,8 @@ graph LR
     S --> P["Pitch"]
     P --> BET{"Betting\n(PO, no skill)"}
     BET --> KO["Kick-off + Orient\n/orient"]
-    KO --> WIRE["Wire ✚\n/solution-architect"]
-    WIRE --> MAP["Map Scopes\n/ba-pitch-analyzer\n+ /scope-architect"]
-    MAP --> BUILD["Build Vertically\n/task-executor"]
+    KO --> PLAN["Plan ✚\n/ship plan\nrequirements → spec → wire → scopes"]
+    PLAN --> BUILD["Build Vertically\n/task-executor"]
     BUILD --> EVAL["Evaluate\n/spec-evaluator"]
     EVAL -- FAIL --> BUILD
     EVAL -- PASS --> QA["Edge Hunt\n/qa-edge-hunter"]
@@ -49,8 +48,7 @@ time is worth, not something a skill should touch.
 |---|---|---|
 | Kick-off | **L0** Intake & Config | Language check (`/translator`), workspace roots, model/budget matrix |
 | Orient | **L1a** Orient Review | delegate → `/orient` (Scout reads real code before any board exists) |
-| Wire ✚ | **L1a.5** Wiring Review | delegate → `/solution-architect` — commits `wiring-map.md` (per-UC engine → seam → entry-point call site → affordance against `project-profile.md`), front-loading the integration seam so no engine ships orphaned |
-| Map Scopes | **L1b** Board Review | delegate → `/ba-pitch-analyzer` (`analyze`: spec tree + board; the `coverage` op writes the `requirements.md` registry ✚) then `/scope-architect` (`map-scopes`: scope contracts) |
+| Plan ✚ | **L1a.5** Wiring Review (after the wiring map) · **L1b** Board Review (after the scopes) | done by the loop in its own context — `/building`'s `plan` activity, no sub-agent, under a fence-only `plan` order per substep: requirements registry ✚ → spec tree + board → `wiring-map.md` (per-UC engine → seam → entry-point call site → affordance against `project-profile.md`, front-loading the integration seam so no engine ships orphaned) → scope contracts |
 | Build Vertically | **L2** Board 100% + T0-green | per dispatch: compile-order → `/task-executor` → ingest-result, sandboxed per scope |
 | Eval (once/round) | **L3** Verdict | delegate → `/spec-evaluator`; refuted boxes applied by ingest |
 | Fix round r+1 | — | bugs + full Test Surface of the touched use case, never the whole board |

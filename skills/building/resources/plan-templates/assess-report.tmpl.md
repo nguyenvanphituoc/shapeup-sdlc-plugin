@@ -83,17 +83,16 @@ This pitch touches N bounded contexts: [context-a], [context-b], [context-c]
 
 **Option A — Single standard run** *(faster, boundaries may be blurry)*
 ```bash
-/ba-pitch-analyzer --lens standard docs/pitch.md
+# plan the spec step with lens=standard for docs/pitch.md
 ```
 Estimated tokens: ~N tokens
 
 **Option B — Split + cross-context** *(slower, precise boundaries)*
 ```bash
-/ba-pitch-analyzer --lens standard docs/pitch-[context-a].md
-/ba-pitch-analyzer --lens standard docs/pitch-[context-b].md
-/ba-pitch-analyzer --cross-context FEATURE_SLUG \
-    shapeup/[context-a]/spec/ \
-    shapeup/[context-b]/spec/
+# plan the spec step with lens=standard for docs/pitch-[context-a].md
+# plan the spec step with lens=standard for docs/pitch-[context-b].md
+# then plan the cross-context documents (FEATURE_SLUG) over
+#   shapeup/[context-a]/spec/  and  shapeup/[context-b]/spec/
 ```
 Estimated tokens: ~N total (reusable per context)
 
@@ -116,12 +115,12 @@ Choose: **[A]** or **[B]**
 
 ```bash
 # Proceed with recommended lens
-/ba-pitch-analyzer --lens LENS docs/pitch.md
+# plan the spec step with lens=LENS for docs/pitch.md
 
 # Override lens
-/ba-pitch-analyzer --lens lite docs/pitch.md
-/ba-pitch-analyzer --lens standard docs/pitch.md
+# plan the spec step with lens=lite for docs/pitch.md
+# plan the spec step with lens=standard for docs/pitch.md
 
-# Skip assess on next run (pitch already reviewed)
-/ba-pitch-analyzer --lens LENS --skip-assess docs/pitch.md
+# Skip the assessment on the next run (pitch already reviewed)
+# plan the spec step with lens=LENS for docs/pitch.md
 ```
