@@ -30,7 +30,7 @@ order and the docs module (`08-docs.mjs`) is last so the floor sees every check:
 | `structural/25-scheduler.mjs` | §69 BUILD's fan-out, executed against fixtures on a virtual clock |
 | `structural/56-hook-decision-table.mjs` | §90 every enforcement decision as DATA — host answer AND ledger record |
 | `structural/57-derivation-boundaries.mjs` | §91 derived state across a second pass, a second run, a rebuild, a rewrite |
-| `structural/58-relaunch-memory.mjs` | §92 orchestration state a relaunch must not lose (source-level) |
+| `structural/58-relaunch-memory.mjs` | §92 orchestration state a resume must not lose (the state machine is asked twice over every planted tree) |
 | `structural/08-docs.mjs` | §5, 7, 25, 26 AGENT.md guard, migrations, ratchets, doc-drift |
 
 A **new check lands in the module matching its owner** (a tech-lead script check → `05-tech-lead.mjs`,
@@ -73,8 +73,8 @@ The numbered sections below are the checks themselves, in section order:
    t0-verify verdict artifacts, aegis-digest triples, envelope schema discrimination,
    compile-order fact-only assembly, ingest-result single-writer behavior, board-derive +
    spec-lint planner math, and the central domain-registry consistency check.
-25. **Prompt line-count ratchet (v1.2; lowered to 450 by the skills-optimization plan A3):** `skills/tech-lead/SKILL.md` may not exceed 450 lines —
-   the 24995ba changelog-extraction + A3 gate-playbook extraction (→ `references/gates.md`,) encoded as a regression; new logic goes into scripts or references/.
+25. **Prompt line-count ratchet:** `skills/building/SKILL.md` may not exceed 155 lines — orchestration logic belongs in the
+   kernel's `probe next`, not in prose, and the number is never raised. (The `tech-lead` entry was removed with that skill.)
 26. **Doc-drift (v1.2):** documented skill counts match `skills/`, every hook registered in
    `hooks.json` is documented in README + design/03 (and no orphan hook files exist), every
    concrete `hooks|skills|scripts|tests|commands/...` path cited in README/docs/design exists on
@@ -101,8 +101,8 @@ The numbered sections below are the checks themselves, in section order:
    temp project and asserts what the *user* is left holding. The allow-list is exactly what
    `bin/lib/grant.mjs` emits (presence cannot see accumulation) over at most two Bash rules naming
    one entry point; an upgrade from a v1.x settings.json purges the superseded rules and keeps the
-   user's own; `--no-native-workflow` removes the `Workflow` token from a project that already had
-   it and re-running init restores it; a second install replaces the harness block rather than
+   user's own; the installer writes no `Workflow` token and deletes none (a token the user already has
+   survives, and `--no-native-workflow` is accepted and does nothing); a second install replaces the harness block rather than
    appending one; no shipped directory still contains a `scripts/` folder; and the kernel runs from
    that project at its documented exits (2 unknown verb, 0 run opened, 3 re-open refused, 4 gate
    ask, 6 wall-clock trip). Each of these fails silently in production — a settings.json full of
@@ -136,7 +136,12 @@ The numbered sections below are the checks themselves, in section order:
    closure — `EDGES` was a dead constant nothing imported while the projection emitted `IMPLEMENTS`.
    **The rebuild comparison is by VALUE**; the pre-existing one compared `nodes.keys()` and therefore
    could not see drift in attributes or edges, which is where two of these defects lived.
-92. **Orchestration state a relaunch must not lose (`structural/58-relaunch-memory.mjs`):**
+92. **Orchestration state a resume must not lose (`structural/58-relaunch-memory.mjs`):**
+   the run script that held its census in variables is retired. A gate pause used to be a `return`, so the PO's answer started a
+   fresh launch with empty accumulators and GATE H's census came back empty in the `interactive` lane. The rule is **re-derive it
+   from disk at every ask**, and it is structural now: `probe next` is read-only and stateless, and section 122 asks every planted
+   row twice and fails on any row whose second answer differs. The module cites the rows that pin the census and the
+   resumed-scope check by name.  _(Original wording follows.)_ 
    source-level, because `shapeup-run.js` is a Workflow function body over injected globals and
    cannot be imported — a limitation that is itself the reason in-memory orchestration state was
    reachable by no assertion in the suite. A gate pause is a `return`, so the PO's answer starts a
@@ -180,8 +185,8 @@ surfaced despite an explicit "do not stop to ask" instruction, and (b) the run c
 to compound a since-fixed EVAL-verdict bug into a false ship. This is a real, measured FAIL against
 the "zero prompts" bar, and the load-bearing finding underneath it is not "the harness is broken":
 the documented kernel-only permission grant (`bin/lib/grant.mjs`) is **necessary but not
-sufficient** for a truly unattended run. It covers the kernel's own Bash invocation and the
-`Workflow` token; it does not cover the generic Write/Edit calls every worker skill makes
+sufficient** for a truly unattended run. It covers the kernel's own Bash invocation (and, before 4.0, the
+`Workflow` token); it does not cover the generic Write/Edit calls every worker skill makes
 constantly, and AGENTS.md's own text does not currently say a headless lane also needs a CLI
 permission mode (`--permission-mode acceptEdits` at minimum) on top of it. The sandbox-guard denials
 held throughout regardless of permission mode, and the EVAL-verdict defect that caused stall (b)

@@ -24,6 +24,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { readJsonl, workerRoster, courierFindings, relaunchFindings } from "../lib/run-shape.mjs";
 
 const SLUG = "envlint";
 
@@ -269,6 +270,20 @@ export async function run(ctx) {
     const closed = readFileSync(local("harness-run.md"), "utf8");
     if (/^closed_status:\s*shipped/m.test(closed)) ok("drive: the ledger records the close as shipped");
     else fail("drive: the ledger carries no shipped close");
+    // NO COURIER, NO RELAUNCH, over the driven run. The receipts here are written by the driver standing in for
+    // the sub-agent, so the receipt side of the count holds by construction; what this checks is the kernel's
+    // side — that ingest left exactly one leg row per dispatch and per closed plan order and nothing else, and
+    // that no step the verb handed out was anything but a worker dispatch, a plan fence or the loop's own act.
+    // The archived real run is held to the same predicates in section 179, where the receipts are the hook's.
+    {
+      const receipts = readJsonl(local("receipts", "dispatch.jsonl"));
+      const cf = courierFindings({ legs, receipts, workers: workerRoster(ROOT) });
+      if (cf.equal && cf.workerOrders.length >= 3) ok(`drive: no courier — ${cf.legs} leg rows = ${cf.workerOrders.length} worker dispatches + ${cf.planLegs} fence-only plan orders, every leg a worker or the loop`);
+      else fail(`drive: the leg ledger does not close against the dispatches: ${JSON.stringify(cf)}`);
+      const rf = relaunchFindings({ gates, ledgerText: closed, runId });
+      if (rf.ok) ok(`drive: no relaunch — every one of ${gates.length} gate rows carries the one run id, the ledger carries no relaunch or reopen marker, and no row is dated after the close`);
+      else fail(`drive: the run reads as relaunched: ${JSON.stringify(rf)}`);
+    }
     const again = nextStep();
     if (again.kind === "done") ok("drive: asked again after the close, the verb says there is nothing to resume");
     else fail(`drive: after the close the verb said ${again.step}, not done`);

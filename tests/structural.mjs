@@ -501,6 +501,12 @@ const MODULE_FILES = [
   // 125-plan-fence.mjs: the planning activity's fence-only `plan` order, driven through the real hook,
   // and the close that answers it.
   "125-plan-fence.mjs",
+  // 126-archived-run-shape.mjs: the archived real run held to "no courier, no relaunch" — the equality that
+  // the driven run in 123 can only satisfy by construction, here over records the hooks wrote.
+  "126-archived-run-shape.mjs",
+  // 127-grant-constant.mjs: the grant is the two Bash rules; the installer writes no Workflow token and
+  // deletes none — driven through the real installer over a settings file that already carries one.
+  "127-grant-constant.mjs",
   "08-docs.mjs",
 ];
 
