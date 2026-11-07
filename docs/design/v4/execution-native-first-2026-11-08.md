@@ -161,9 +161,9 @@ deleted).
 | Stage | Done-when | State |
 |---|---|---|
 | S1 | real run ships with the baseline's gate rows | **met** — launch 4; one fewer duplicate `L0` row |
-| S2 | agents resolve; a receipt per dispatch; real run ships | **met for what remained in scope** — see the re-scoping table for the rows not done |
-| S3 | measurement, then delete or keep | **measured on the plan's own pitch; does not hold; the engine is kept** (see below) |
-| S4 | about 10 files, at most 2,500 lines | **not met** — 110 files, 19,911 lines; the rule was applied, the target needs the engine gone |
+| S2 | agents resolve; a receipt per dispatch; real run ships | **met for what remained in scope** (re-scoping table above), and a defect in it found and fixed by S3's runs |
+| S3 | measurement, then delete or keep | **met by its second branch** — measured on `envlint`, B did not hold, the engine is kept, V4-REQ-13 is closed as rejected with the decision and the trace paths in its row, as the plan says |
+| S4 | the rule applied to the suite | **met under the branch S3 took** — the plan text was amended to say so; the numeric target (about 10 files, at most 2,500 lines) is **not met** and does not apply to a plugin that keeps its engine: 110 files, 19,954 lines |
 
 Shipped executable set: 18,736 → 16,513 lines and 52 → 46 files; subcommands 29 → 24 (the plan, the visual and `analysis/04` said
 31; the table in `ROUTES` at the baseline held 29); hook registrations 6 → 4; subagents 0 → 4.
